@@ -24,16 +24,16 @@ Begin your VictoriaMetrics Anomaly Detection journey with ease using our guides 
     - **Helm Chart Installation**: Appropriate for those using Kubernetes. See our [Helm charts](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-anomaly).
 
 
-> **Note**: starting from [v1.5.0](./CHANGELOG.md#v150) `vmanomaly` requires a [license key](/anomaly-detection/Overview.html#licensing) to run. You can obtain a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/index.html).
+> **Note**: starting from [v1.5.0](./CHANGELOG.md#v150) `vmanomaly` requires a [license key](/anomaly-detection/Overview.html#licensing) to run. You can obtain a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/).
 
 ## Key Components
 Explore the integral components that configure VictoriaMetrics Anomaly Detection:
 * [Explore components and their interation](/anomaly-detection/components)
-    - [Models](/anomaly-detection/components/models.html)
-    - [Reader](/anomaly-detection/components/reader.html)
-    - [Scheduler](/anomaly-detection/components/scheduler.html)
-    - [Writer](/anomaly-detection/components/writer.html)
-    - [Monitoring](/anomaly-detection/components/monitoring.html)
+    - [Models](/anomaly-detection/components/models)
+    - [Reader](/anomaly-detection/components/reader)
+    - [Scheduler](/anomaly-detection/components/scheduler)
+    - [Writer](/anomaly-detection/components/writer)
+    - [Monitoring](/anomaly-detection/components/monitoring)
 
 ## Deep Dive into Anomaly Detection
 Enhance your knowledge with our handbook on Anomaly Detection & Root Cause Analysis and stay updated:
@@ -46,7 +46,7 @@ Enhance your knowledge with our handbook on Anomaly Detection & Root Cause Analy
 ## Frequently Asked Questions (FAQ)
 Got questions about VictoriaMetrics Anomaly Detection? Chances are, we've got the answers ready for you. 
 
-Dive into [our FAQ section](/anomaly-detection/FAQ.html) to find responses to common questions.
+Dive into [our FAQ section](/anomaly-detection/FAQ) to find responses to common questions.
 
 ## Get in Touch
 We're eager to connect with you and tailor our solutions to your specific needs. Here's how you can engage with us:

@@ -20,7 +20,7 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
 ## v1.12.0
 Released: 2024-03-31
-- FEATURE: Introduction of `AutoTunedModel` model class to optimize any [built-in model](/anomaly-detection/components/models/#built-in-models) on data during `fit` phase. Specify as little as `anomaly_percentage` param from `(0, 0.5)` interval and `tuned_model_class` (i.e. [`model.zscore.ZscoreModel`](/anomaly-detection/components/models/index.html#z-score)) to get it working with best settings that match your data. See details [here](/anomaly-detection/components/models/#autotuned).
+- FEATURE: Introduction of `AutoTunedModel` model class to optimize any [built-in model](/anomaly-detection/components/models/#built-in-models) on data during `fit` phase. Specify as little as `anomaly_percentage` param from `(0, 0.5)` interval and `tuned_model_class` (i.e. [`model.zscore.ZscoreModel`](/anomaly-detection/components/models/#z-score)) to get it working with best settings that match your data. See details [here](/anomaly-detection/components/models/#autotuned).
 <!--
 - FEATURE: Preset support enablement. From now users will be able to specify only a few parameters (like `datasource_url`) + a new (backward-compatible) `preset: preset_name` field in a config file and get a service run with **predefined queries, scheduling and models**. Also, now preset assets (guide, configs, dashboards) will be available at `:8490/presets` endpoint.
 -->
@@ -29,7 +29,7 @@ Released: 2024-03-31
 - FIX: [Self-monitoring metrics](anomaly-detection/components/monitoring/#models-behaviour-metrics) are now aggregated to `queries` aliases level (not to label sets of individual timeseries) and aligned with [reader, writer and model sections](/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly) description , so `/metrics` endpoint holds only necessary information for scraping.
 - FIX: Self-monitoring metric `vmanomaly_models_active` now has additional labels `model_alias`, `scheduler_alias`, `preset` to align with model-centric [self-monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#models-behaviour-metrics).
 - IMPROVEMENT: Add possibility to use temporal information in [IsolationForest models](/anomaly-detection/components/models/#isolation-forest-multivariate) via [cyclical encoding](https://towardsdatascience.com/cyclical-features-encoding-its-about-time-ce23581845ca). This is particularly helpful to detect multivariate [seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality)-dependant anomalies.
-- BREAKING CHANGE: **ARIMA** model is removed from [built-in models](/anomaly-detection/components/models/#built-in-models). For affected users, it is suggested to replace ARIMA by [Prophet](/anomaly-detection/components/models/index.html#prophet) or [Holt-Winters](/anomaly-detection/components/models/index.html#holt-winters).
+- BREAKING CHANGE: **ARIMA** model is removed from [built-in models](/anomaly-detection/components/models/#built-in-models). For affected users, it is suggested to replace ARIMA by [Prophet](/anomaly-detection/components/models/#prophet) or [Holt-Winters](/anomaly-detection/components/models/#holt-winters).
 
 ## v1.11.0
 Released: 2024-02-22

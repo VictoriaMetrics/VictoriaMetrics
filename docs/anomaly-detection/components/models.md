@@ -163,7 +163,7 @@ For example, if you have some **multivariate** model to use 3 [MetricQL queries]
 
 If during an inference, you got a **different amount of series** or some series having a **new labelset** (not present in any of fitted models), the inference will be skipped until you get a model, trained particularly for such labelset during forthcoming re-fit step. 
 
-**Implications:** Multivariate models are a go-to default, when your queries returns **fixed** amount of **individual** time series (say, some aggregations), to be used for adding cross-series (and cross-query) context, useful for catching [collective anomalies](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/index.html#collective-anomalies) or [novelties](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/index.html#novelties) (expanded to multi-input scenario). For example, you may set it up for anomaly detection of CPU usage in different modes (`idle`, `user`, `system`, etc.) and use its cross-dependencies to detect **unseen (in fit data)** behavior.
+**Implications:** Multivariate models are a go-to default, when your queries returns **fixed** amount of **individual** time series (say, some aggregations), to be used for adding cross-series (and cross-query) context, useful for catching [collective anomalies](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/#collective-anomalies) or [novelties](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/#novelties) (expanded to multi-input scenario). For example, you may set it up for anomaly detection of CPU usage in different modes (`idle`, `user`, `system`, etc.) and use its cross-dependencies to detect **unseen (in fit data)** behavior.
 
 **Examples:** [IsolationForest](#isolation-forest-multivariate)
 
@@ -228,7 +228,7 @@ VM Anomaly Detection (`vmanomaly` hereinafter) models support 2 groups of parame
 
 
 ### AutoTuned
-Tuning hyperparameters of a model can be tricky and often requires in-depth knowledge of Machine Learning. `AutoTunedModel` is designed specifically to take the cognitive load off the user - specify as little as `anomaly_percentage` param from `(0, 0.5)` interval and `tuned_model_class` (i.e. [`model.zscore.ZscoreModel`](/anomaly-detection/components/models/index.html#z-score)) to get it working with best settings that match your data.
+Tuning hyperparameters of a model can be tricky and often requires in-depth knowledge of Machine Learning. `AutoTunedModel` is designed specifically to take the cognitive load off the user - specify as little as `anomaly_percentage` param from `(0, 0.5)` interval and `tuned_model_class` (i.e. [`model.zscore.ZscoreModel`](/anomaly-detection/components/models/#z-score)) to get it working with best settings that match your data.
 
 *Parameters specific for vmanomaly*:
 
