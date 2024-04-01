@@ -66,7 +66,7 @@ type Exemplar struct {
 	Tags []Tag
 	// Value: the value of the exemplar
 	Value float64
-	// Timestamp: the time the exemplar was recorded
+	// Timestamp: the time when exemplar was recorded
 	Timestamp int64
 }
 
