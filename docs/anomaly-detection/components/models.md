@@ -16,8 +16,9 @@ aliases:
 
 # Models
 
-This section describes `Models` component of VictoriaMetrics Anomaly Detection (or simply [`vmanomaly`](/anomaly-detection/overview.html)) and the guide of how to define a respective section of a config to launch the service.
-vmanomaly includes various [built-in models](#built-in-models) and you can integrate your custom model with vmanomaly see [custom model](#custom-model-guide) 
+This section describes `Models` component of VictoriaMetrics Anomaly Detection (or simply [`vmanomaly`](/anomaly-detection/overview/)) and the guide of how to define a respective section of a config to launch the service.
+- `vmanomaly` includes various [built-in models](#built-in-models).
+- you can also integrate your custom model - see [custom model](#custom-model-guide).
 
 
 > **Note: Starting from [v1.10.0](/anomaly-detection/changelog#v1100) model section in config supports multiple models via aliasing. <br>Also, `vmanomaly` expects model section to be named `models`. Using old (flat) format with `model` key is deprecated and will be removed in future versions. Having `model` and `models` sections simultaneously in a config will result in only `models` being used:**
@@ -70,7 +71,7 @@ From [1.10.0](/anomaly-detection/changelog#1100), **common args**, supported by 
 
 Introduced in [1.10.0](/anomaly-detection/changelog#1100), as a part to support multi-model configs, `queries` arg is meant to define [queries from VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=queries#config-parameters) particular model should be run on (meaning, all the series returned by each of these queries will be used in such model for fitting and inferencing).
 
-`queries` arg is supported for all [the built-in](/anomaly-detection/components/models/#built-in-models) (as well as for [custom](/anomaly-detection/components/models/#custom-model-guide)) models.
+`queries` arg is supported for all [the built-in](#built-in-models) (as well as for [custom](#custom-model-guide)) models.
 
 This arg is **backward compatible** - if there is no explicit `queries` arg, then the model, defined in a config, will be run on ALL queries found in reader section:
 
@@ -95,7 +96,7 @@ models:
 
 Introduced in [1.11.0](/anomaly-detection/changelog#1110), as a part to support multi-scheduler configs, `schedulers` arg is meant to define [schedulers](/anomaly-detection/components/scheduler) particular model should be attached to.
 
-`schedulers` arg is supported for all [the built-in](/anomaly-detection/components/models/#built-in-models) (as well as for [custom](/anomaly-detection/components/models/#custom-model-guide)) models.
+`schedulers` arg is supported for all [the built-in](#built-in-models) (as well as for [custom](#custom-model-guide)) models.
 
 This arg is **backward compatible** - if there is no explicit `schedulers` arg, then the model, defined in a config, will be attached to ALL the schedulers found in scheduler section:
 
@@ -116,7 +117,7 @@ models:
     schedulers: ['s1', 's2', 's3']  # i.e., if your `schedulers` section has exactly s1, s2, s3 aliases
 ```
 
-### Provide Series
+### Provide series
 
 Introduced in [1.12.0](/anomaly-detection/changelog#1120), `provide_series` arg limit the [output generated](#vmanomaly-output) by `vmanomaly` for writing. I.e. if the model produces default output series `['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']` by specifying `provide_series` section as below, you limit the data being written to only `['anomaly_score']` for each metric received as a subject to anomaly detection.
 
@@ -127,7 +128,7 @@ models:
     provide_series: ['anomaly_score']  # only `anomaly_score` metric will be available for writing back to the database
 ```
 
-**Note** If `provide_series` is not specified in model config, the model will produce its default [model-dependent output](#vmanomaly-output). The output can't be less than `['anomaly_score']. Even if `timestamp` column is ommitted, it will be implicitly added to `provide_series` list, as it's required for metrics to be properly written.
+**Note** If `provide_series` is not specified in model config, the model will produce its default [model-dependent output](#vmanomaly-output). The output can't be less than `['anomaly_score']`. Even if `timestamp` column is ommitted, it will be implicitly added to `provide_series` list, as it's required for metrics to be properly written.
 
 ## Model types
 
@@ -137,8 +138,8 @@ There are **2 model types**, supported in `vmanomaly`, resulting in **4 possible
 - [Multivariate models](#multivariate-models)
 
 Each of these models can be
-- [rolling](#rolling-models)
-- [non-rolling](#non-rolling-models)
+- [Rolling](#rolling-models)
+- [Non-rolling](#non-rolling-models)
 
 ### Univariate Models
 
@@ -270,7 +271,7 @@ Here we utilize the Facebook Prophet implementation, as detailed in their [libra
 * `class` (string) - model class name `"model.prophet.ProphetModel"`
 * `seasonalities` (list[dict], optional) - Extra seasonalities to pass to Prophet. See [`add_seasonality()`](https://facebook.github.io/prophet/docs/seasonality,_holiday_effects,_and_regressors.html#modeling-holidays-and-special-events:~:text=modeling%20the%20cycle-,Specifying,-Custom%20Seasonalities) Prophet param.
 
-**Note**: Apart from standard vmanomaly output Prophet model can provide [additional metrics](#additional-output-metrics-produced-by-fb-prophet).
+**Note**: Apart from standard `vmanomaly` output, Prophet model can provide [additional metrics](#additional-output-metrics-produced-by-fb-prophet).
 
 **Additional output metrics produced by FB Prophet**
 Depending on chosen `seasonality` parameter FB Prophet can return additional metrics such as:
@@ -407,7 +408,7 @@ models:
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
 ### [Seasonal Trend Decomposition](https://en.wikipedia.org/wiki/Seasonal_adjustment)
-Here we use Seasonal Decompose implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.seasonal.seasonal_decompose.html). Parameters from this library can be passed to the model. Some parameters are specifically predefined in vmanomaly and can't be changed by user(`model`='additive', `two_sided`=False).
+Here we use Seasonal Decompose implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.seasonal.seasonal_decompose.html). Parameters from this library can be passed to the model. Some parameters are specifically predefined in `vmanomaly` and can't be changed by user(`model`='additive', `two_sided`=False).
 
 *Parameters specific for vmanomaly*:
 
@@ -481,10 +482,10 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 ## vmanomaly output
 
-When vmanomaly is executed, it generates various metrics, the specifics of which depend on the model employed.
+When `vmanomaly` is executed, it generates various metrics, the specifics of which depend on the model employed.
 These metrics can be renamed in the writer's section.
 
-The default metrics produced by vmanomaly include:
+The default metrics produced by `vmanomaly` include:
 
 - `anomaly_score`: This is the *primary* metric.
     - It is designed in such a way that values from 0.0 to 1.0 indicate non-anomalous data.
@@ -502,14 +503,14 @@ The default metrics produced by vmanomaly include:
 **Important**: Be aware that if `NaN` (Not a Number) or `Inf` (Infinity) values are present in the input data during `infer` model calls, the model will produce `NaN` as the `anomaly_score` for these particular instances.
 
 
-## `vmanomaly` monitoring metrics
+## vmanomaly monitoring metrics
 
-Each model exposes [several monitoring metrics](/anomaly-detection/components/monitoring.html#models-behaviour-metrics) to its `health_path` endpoint:
+Each model exposes [several monitoring metrics](/anomaly-detection/components/monitoring/#models-behaviour-metrics) to its `health_path` endpoint:
 
 
 ## Custom Model Guide
 
-Apart from vmanomaly predefined models, users can create their own custom models for anomaly detection.
+Apart from `vmanomaly` [built-in models](/anomaly-detection/components/models/#built-in-models), users can create their own custom models for anomaly detection.
 
 Here in this guide, we will
 - Make a file containing our custom model definition
@@ -522,7 +523,7 @@ Here in this guide, we will
 
 > **Note**: By default, each custom model is created as [**univariate**](#univariate-models) / [**non-rolling**](#non-rolling-models) model. If you want to override this behavior, define models inherited from `RollingModel` (to get a rolling model), or having `is_multivariate` class arg set to `True` (please refer to the code example below).
 
-We'll create `custom_model.py` file with `CustomModel` class that will inherit from vmanomaly `Model` base class.
+We'll create `custom_model.py` file with `CustomModel` class that will inherit from `vmanomaly`'s `Model` base class.
 In the `CustomModel` class there should be three required methods - `__init__`, `fit` and `infer`:
 * `__init__` method should initiate parameters for the model.
 
@@ -587,9 +588,9 @@ class CustomModel(Model):
 
 ### 2. Configuration file
 
-Next, we need to create `config.yaml` file with VM Anomaly Detection configuration and model input parameters.
-In the config file `models` section we need to put our model class `model.custom.CustomModel` and all parameters used in `__init__` method.
-You can find out more about configuration parameters in [vmanomaly config docs](/anomaly-detection/components/).
+Next, we need to create `config.yaml` file with `vmanomaly` configuration and model input parameters.
+In the config file's `models` section we need to put our model class `model.custom.CustomModel` and all parameters used in `__init__` method.
+You can find out more about configuration parameters in `vmanomaly` [config docs](/anomaly-detection/components/).
 
 
 ```yaml
@@ -632,7 +633,7 @@ monitoring:
 
 
 ### 3. Running custom model
-Let's pull the docker image for vmanomaly:
+Let's pull the docker image for `vmanomaly`:
 
 ```sh 
 docker pull victoriametrics/vmanomaly:latest
