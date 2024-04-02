@@ -124,7 +124,7 @@ type Storage struct {
 	// prefetchedMetricIDsDeadline is used for periodic reset of prefetchedMetricIDs in order to limit its size under high rate of creating new series.
 	prefetchedMetricIDsDeadline atomic.Uint64
 
-	stop chan struct{}
+	stopCh chan struct{}
 
 	currHourMetricIDsUpdaterWG sync.WaitGroup
 	nextDayMetricIDsUpdaterWG  sync.WaitGroup
@@ -173,7 +173,7 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 		path:           path,
 		cachePath:      filepath.Join(path, cacheDirname),
 		retentionMsecs: retention.Milliseconds(),
-		stop:           make(chan struct{}),
+		stopCh:         make(chan struct{}),
 	}
 	fs.MustMkdirIfNotExist(path)
 
@@ -693,7 +693,7 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 		defer ticker.Stop()
 		for {
 			select {
-			case <-s.stop:
+			case <-s.stopCh:
 				return
 			case <-ticker.C:
 				f()
@@ -724,7 +724,7 @@ func (s *Storage) retentionWatcher() {
 	for {
 		d := s.nextRetentionSeconds()
 		select {
-		case <-s.stop:
+		case <-s.stopCh:
 			return
 		case currentTime := <-time.After(time.Second * time.Duration(d)):
 			s.mustRotateIndexDB(currentTime)
@@ -754,7 +754,7 @@ func (s *Storage) currHourMetricIDsUpdater() {
 	defer ticker.Stop()
 	for {
 		select {
-		case <-s.stop:
+		case <-s.stopCh:
 			hour := fasttime.UnixHour()
 			s.updateCurrHourMetricIDs(hour)
 			return
@@ -771,7 +771,7 @@ func (s *Storage) nextDayMetricIDsUpdater() {
 	defer ticker.Stop()
 	for {
 		select {
-		case <-s.stop:
+		case <-s.stopCh:
 			date := fasttime.UnixDate()
 			s.updateNextDayMetricIDs(date)
 			return
@@ -856,7 +856,7 @@ func (s *Storage) resetAndSaveTSIDCache() {
 //
 // It is expected that the s is no longer used during the close.
 func (s *Storage) MustClose() {
-	close(s.stop)
+	close(s.stopCh)
 
 	s.freeDiskSpaceWatcherWG.Wait()
 	s.retentionWatcherWG.Wait()
