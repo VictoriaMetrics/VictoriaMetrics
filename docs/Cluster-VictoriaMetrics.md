@@ -654,7 +654,7 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   a single query can use at `vmstorage` is proportional to `-search.maxUniqueTimeseries`.
 - `-search.maxQueryDuration` at `vmselect` limits the duration of a single query. If the query takes longer than the given duration, then it is canceled.
   This allows saving CPU and RAM at `vmselect` and `vmstorage` when executing unexpectedly heavy queries.
-  The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via cmd-line flag.
+  The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via `-search.maxQueryDuration` command-line flag.
 - `-search.maxConcurrentRequests` at `vmselect` and `vmstorage` limits the number of concurrent requests a single `vmselect` / `vmstorage` node can process.
   Bigger number of concurrent requests usually require bigger amounts of memory at both `vmselect` and `vmstorage`.
   For example, if a single query needs 100 MiB of additional memory during its execution, then 100 concurrent queries
@@ -716,14 +716,6 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxLabelsAPIDuration` to quite low value in order to limit CPU and memory usage.
   See also `-search.maxLabelsAPISeries` and `-search.ignoreExtraFiltersAtLabelsAPI`.
-- `-search.maxExportDuration` at `vmselect` limits the duration for requests to [/api/v1/export*](https://docs.victoriametrics.com/url-examples/?highlight=apiv1export#apiv1export). 
-  If the query takes longer than the given duration, then it is canceled.
-  This allows saving CPU and RAM at `vmselect` and `vmstorage` when executing unexpectedly heavy queries.
-  The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via cmd-line flag.
-- `search.maxStatusRequestDuration` at `vmselect` limits the duration for requests to [/api/v1/status/tsdb](https://docs.victoriametrics.com/url-examples/?highlight=apiv1export#apiv1statustsdb).
-  If the query takes longer than the given duration, then it is canceled.
-  This allows saving CPU and RAM at `vmselect` and `vmstorage` when executing unexpectedly heavy queries.
-  The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via cmd-line flag.
 - `-storage.maxDailySeries` at `vmstorage` can be used for limiting the number of time series seen per day aka
   [time series churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). See [cardinality limiter docs](#cardinality-limiter).
 - `-storage.maxHourlySeries` at `vmstorage` can be used for limiting the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series).
