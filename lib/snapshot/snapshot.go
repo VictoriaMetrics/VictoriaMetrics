@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -28,15 +29,15 @@ type snapshot struct {
 }
 
 // Create creates a snapshot via the provided api endpoint and returns the snapshot name
-func Create(createSnapshotURL string) (string, error) {
+func Create(createSnapshotURL *flagutil.SecureUrl) (string, error) {
 	logger.Infof("Creating snapshot")
-	u, err := url.Parse(createSnapshotURL)
+	u, err := url.Parse(createSnapshotURL.Get())
 	if err != nil {
 		return "", err
 	}
 
 	// create Transport
-	tr, err := httputils.Transport(createSnapshotURL, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
+	tr, err := httputils.Transport(createSnapshotURL.Get(), *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
 	if err != nil {
 		return "", err
 	}
@@ -51,13 +52,13 @@ func Create(createSnapshotURL string) (string, error) {
 		return "", err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", u.Redacted(), resp.StatusCode, http.StatusOK, body)
+		return "", fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", createSnapshotURL.String(), resp.StatusCode, http.StatusOK, body)
 	}
 
 	snap := snapshot{}
 	err = json.Unmarshal(body, &snap)
 	if err != nil {
-		return "", fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", u.Redacted(), err, body)
+		return "", fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", createSnapshotURL.String(), err, body)
 	}
 
 	if snap.Status == "ok" {
@@ -71,17 +72,17 @@ func Create(createSnapshotURL string) (string, error) {
 }
 
 // Delete deletes a snapshot via the provided api endpoint
-func Delete(deleteSnapshotURL string, snapshotName string) error {
+func Delete(deleteSnapshotURL *flagutil.SecureUrl, snapshotName string) error {
 	logger.Infof("Deleting snapshot %s", snapshotName)
 	formData := url.Values{
 		"snapshot": {snapshotName},
 	}
-	u, err := url.Parse(deleteSnapshotURL)
+	u, err := url.Parse(deleteSnapshotURL.Get())
 	if err != nil {
 		return err
 	}
 	// create Transport
-	tr, err := httputils.Transport(deleteSnapshotURL, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
+	tr, err := httputils.Transport(deleteSnapshotURL.Get(), *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
 	if err != nil {
 		return err
 	}
@@ -95,13 +96,13 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 		return err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", u.Redacted(), resp.StatusCode, http.StatusOK, body)
+		return fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", deleteSnapshotURL.String(), resp.StatusCode, http.StatusOK, body)
 	}
 
 	snap := snapshot{}
 	err = json.Unmarshal(body, &snap)
 	if err != nil {
-		return fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", u.Redacted(), err, body)
+		return fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", deleteSnapshotURL.String(), err, body)
 	}
 
 	if snap.Status == "ok" {
@@ -111,5 +112,5 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 	if snap.Status == "error" {
 		return errors.New(snap.Msg)
 	}
-	return fmt.Errorf("Unkown status: %v", snap.Status)
+	return fmt.Errorf("Unknown status: %v", snap.Status)
 }
