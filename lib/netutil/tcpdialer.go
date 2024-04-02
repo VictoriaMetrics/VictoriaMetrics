@@ -34,7 +34,7 @@ func NewTCPDialer(ms *metrics.Set, name, addr string, dialTimeout, userTimeout t
 	}
 	d.connMetrics.init(ms, "vm_tcpdialer", name, addr)
 	if userTimeout > 0 {
-		nd.Control = func(network, address string, c syscall.RawConn) error {
+		nd.Control = func(_, _ string, c syscall.RawConn) error {
 			var err error
 			controlErr := c.Control(func(fd uintptr) {
 				err = setTCPUserTimeout(fd, userTimeout)

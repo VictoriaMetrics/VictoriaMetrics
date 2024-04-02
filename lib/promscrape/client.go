@@ -54,7 +54,7 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 	setHeaders := func(req *http.Request) error {
 		return sw.AuthConfig.SetHeaders(req, true)
 	}
-	setProxyHeaders := func(req *http.Request) error {
+	setProxyHeaders := func(_ *http.Request) error {
 		return nil
 	}
 	proxyURL := sw.ProxyURL
@@ -90,7 +90,7 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 		Timeout: sw.ScrapeTimeout,
 	}
 	if sw.DenyRedirects {
-		hc.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		hc.CheckRedirect = func(_ *http.Request, _ []*http.Request) error {
 			return http.ErrUseLastResponse
 		}
 	}

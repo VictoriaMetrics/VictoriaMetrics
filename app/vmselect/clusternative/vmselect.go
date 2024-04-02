@@ -129,7 +129,7 @@ func newBlockIterator(qt *querytracer.Tracer, denyPartialResponse bool, sq *stor
 	bi.workCh = make(chan workItem, 16)
 	bi.wg.Add(1)
 	go func() {
-		_, err := netstorage.ProcessBlocks(qt, denyPartialResponse, sq, func(mb *storage.MetricBlock, workerID uint) error {
+		_, err := netstorage.ProcessBlocks(qt, denyPartialResponse, sq, func(mb *storage.MetricBlock, _ uint) error {
 			wi := workItem{
 				mb:     mb,
 				doneCh: make(chan struct{}),
