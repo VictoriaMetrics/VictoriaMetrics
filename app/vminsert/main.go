@@ -44,6 +44,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
@@ -298,11 +299,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "opentelemetry/api/v1/push", "opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
-		writeResponse, err := opentelemetry.InsertHandler(at, r)
-		if err != nil {
+		if err := opentelemetry.InsertHandler(at, r); err != nil {
 			opentelemetryPushErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
 		}
-		writeResponse(w, startTime, err)
+		firehose.WriteSuccessResponse(w, r)
 		return true
 	case "newrelic":
 		newrelicCheckRequest.Inc()

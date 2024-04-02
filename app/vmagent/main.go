@@ -40,6 +40,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -317,11 +318,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/opentelemetry/api/v1/push", "/opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
-		writeResponse, err := opentelemetry.InsertHandler(nil, r)
-		if err != nil {
+		if err := opentelemetry.InsertHandler(nil, r); err != nil {
 			opentelemetryPushErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
 		}
-		writeResponse(w, time.Now(), err)
+		firehose.WriteSuccessResponse(w, r)
 		return true
 	case "/newrelic":
 		newrelicCheckRequest.Inc()
@@ -562,11 +564,12 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		return true
 	case "opentelemetry/api/v1/push", "opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
-		writeResponse, err := opentelemetry.InsertHandler(nil, r)
-		if err != nil {
+		if err := opentelemetry.InsertHandler(at, r); err != nil {
 			opentelemetryPushErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
 		}
-		writeResponse(w, time.Now(), err)
+		firehose.WriteSuccessResponse(w, r)
 		return true
 	case "newrelic":
 		newrelicCheckRequest.Inc()
