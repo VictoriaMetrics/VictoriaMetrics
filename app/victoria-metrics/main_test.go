@@ -241,8 +241,9 @@ func tearDown() {
 
 func TestWriteRead(t *testing.T) {
 	t.Run("write", testWrite)
+	time.Sleep(500 * time.Millisecond)
 	vmstorage.Storage.DebugFlush()
-	time.Sleep(1 * time.Second)
+	time.Sleep(1500 * time.Millisecond)
 	t.Run("read", testRead)
 }
 
