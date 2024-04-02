@@ -43,7 +43,7 @@ var (
 		"This may be useful when url_prefix points to a hostname with dynamically scaled instances behind it. See https://docs.victoriametrics.com/vmauth.html#discovering-backend-ips")
 	discoverBackendIPsInterval = flag.Duration("discoverBackendIPsInterval", 10*time.Second, "The interval for re-discovering backend IPs if -discoverBackendIPs command-line flag is set. "+
 		"Too low value may lead to DNS errors")
-	httpAuthHeader = flag.String("httpAuthHeader", "Authorization", "HTTP request header to use for obtaining authorization tokens")
+	httpAuthHeader = flagutil.NewArrayString("httpAuthHeader", "HTTP request header to use for obtaining authorization tokens. By default auth tokens are read from Authorization request header")
 )
 
 // AuthConfig represents auth config.
@@ -909,19 +909,26 @@ func getHTTPAuthBasicToken(username, password string) string {
 	return "http_auth:Basic " + token64
 }
 
+var defaultHeaderNames = []string{"Authorization"}
+
 func getAuthTokensFromRequest(r *http.Request) []string {
 	var ats []string
 
-	// Obtain possible auth tokens from one of allowed auth headers
-	headerName := *httpAuthHeader
-	if ah := r.Header.Get(headerName); ah != "" {
-		if headerName == "Authorization" && strings.HasPrefix(ah, "Token ") {
-			// Handle InfluxDB's proprietary token authentication scheme as a bearer token authentication
-			// See https://docs.influxdata.com/influxdb/v2.0/api/
-			ah = strings.Replace(ah, "Token", "Bearer", 1)
+	// Obtain possible auth tokens from one of the allowed auth headers
+	headerNames := *httpAuthHeader
+	if len(headerNames) == 0 {
+		headerNames = defaultHeaderNames
+	}
+	for _, headerName := range headerNames {
+		if ah := r.Header.Get(headerName); ah != "" {
+			if strings.HasPrefix(ah, "Token ") {
+				// Handle InfluxDB's proprietary token authentication scheme as a bearer token authentication
+				// See https://docs.influxdata.com/influxdb/v2.0/api/
+				ah = strings.Replace(ah, "Token", "Bearer", 1)
+			}
+			at := "http_auth:" + ah
+			ats = append(ats, at)
 		}
-		at := "http_auth:" + ah
-		ats = append(ats, at)
 	}
 
 	return ats
