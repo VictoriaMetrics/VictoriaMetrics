@@ -635,11 +635,18 @@ See config example of using IP filters [here](https://github.com/VictoriaMetrics
 ## Reading auth tokens from other HTTP headers
 
 `vmauth` reads `username`, `password` and `bearer_token` [config values](#auth-config) from `Authorization` request header.
-It is possible to read these values from any other request header by specifying it via `-httpAuthHeader` command-line flag.
+It is possible to read these auth tokens from any other request header by specifying it via `-httpAuthHeader` command-line flag.
 For example, the following command instructs `vmauth` to read auth token from `X-Amz-Firehose-Access-Key` header:
 
 ```
-./vmauth -httpAuthHeader=X-Amz-Firehose-Access-Key
+./vmauth -httpAuthHeader='X-Amz-Firehose-Access-Key'
+```
+
+It is possible to read auth tokens from multiple headers. For example, the following command instructs `vmauth` to read auth token
+from both `Authorization` and `X-Amz-Firehose-Access-Key` headers:
+
+```
+./vmauth -httpAuthHeader='Authorization' -httpAuthHeader='X-Amz-Firehose-Access-Key'
 ```
 
 ## Auth config
@@ -1003,8 +1010,10 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Flag value can be read from the given file when using -httpAuth.password=file:///abs/path/to/file or -httpAuth.password=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -httpAuth.password=http://host/path or -httpAuth.password=https://host/path
   -httpAuth.username string
      Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
-  -httpAuthHeader string
-     HTTP request header to use for obtaining authorization tokens (default "Authorization")
+  -httpAuthHeader array
+     HTTP request header to use for obtaining authorization tokens. By default auth tokens are read from Authorization request header
+     Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpListenAddr array
      TCP address to listen for incoming http requests. See also -tls and -httpListenAddr.useProxyProtocol
      Supports an array of values separated by comma or specified via multiple flags.
