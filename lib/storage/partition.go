@@ -1201,7 +1201,7 @@ func (pt *partition) mergePartsToFiles(pws []*partWrapper, stopCh <-chan struct{
 }
 
 // ForceMergeAllParts runs merge for all the parts in pt.
-func (pt *partition) ForceMergeAllParts(stop chan struct{}) error {
+func (pt *partition) ForceMergeAllParts(stopCh <-chan struct{}) error {
 	pws := pt.getAllPartsForMerge()
 	if len(pws) == 0 {
 		// Nothing to merge.
@@ -1221,7 +1221,7 @@ func (pt *partition) ForceMergeAllParts(stop chan struct{}) error {
 	// If len(pws) == 1, then the merge must run anyway.
 	// This allows applying the configured retention, removing the deleted series
 	// and performing de-duplication if needed.
-	if err := pt.mergePartsToFiles(pws, stop, bigPartsConcurrencyCh); err != nil {
+	if err := pt.mergePartsToFiles(pws, stopCh, bigPartsConcurrencyCh); err != nil {
 		return fmt.Errorf("cannot force merge %d parts from partition %q: %w", len(pws), pt.name, err)
 	}
 
@@ -1330,10 +1330,10 @@ func (pt *partition) releasePartsToMerge(pws []*partWrapper) {
 	pt.partsLock.Unlock()
 }
 
-func (pt *partition) runFinalDedup() error {
+func (pt *partition) runFinalDedup(stopCh <-chan struct{}) error {
 	t := time.Now()
 	logger.Infof("start removing duplicate samples from partition (%s, %s)", pt.bigPartsPath, pt.smallPartsPath)
-	if err := pt.ForceMergeAllParts(pt.stopCh); err != nil {
+	if err := pt.ForceMergeAllParts(stopCh); err != nil {
 		return fmt.Errorf("cannot remove duplicate samples from partition (%s, %s): %w", pt.bigPartsPath, pt.smallPartsPath, err)
 	}
 	logger.Infof("duplicate samples have been removed from partition (%s, %s) in %.3f seconds", pt.bigPartsPath, pt.smallPartsPath, time.Since(t).Seconds())

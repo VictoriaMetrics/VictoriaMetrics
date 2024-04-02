@@ -25,11 +25,11 @@ type table struct {
 	ptws     []*partitionWrapper
 	ptwsLock sync.Mutex
 
-	stop chan struct{}
+	stopCh chan struct{}
 
 	retentionWatcherWG  sync.WaitGroup
 	finalDedupWatcherWG sync.WaitGroup
-	forceMergesWG       sync.WaitGroup
+	forceMergeWG        sync.WaitGroup
 }
 
 // partitionWrapper provides refcounting mechanism for the partition.
@@ -108,7 +108,7 @@ func mustOpenTable(path string, s *Storage) *table {
 		bigPartitionsPath:   bigPartitionsPath,
 		s:                   s,
 
-		stop: make(chan struct{}),
+		stopCh: make(chan struct{}),
 	}
 	for _, pt := range pts {
 		tb.addPartitionNolock(pt)
@@ -166,10 +166,10 @@ func (tb *table) addPartitionNolock(pt *partition) {
 // MustClose closes the table.
 // It is expected that all the pending searches on the table are finished before calling MustClose.
 func (tb *table) MustClose() {
-	close(tb.stop)
+	close(tb.stopCh)
 	tb.retentionWatcherWG.Wait()
 	tb.finalDedupWatcherWG.Wait()
-	tb.forceMergesWG.Wait()
+	tb.forceMergeWG.Wait()
 
 	tb.ptwsLock.Lock()
 	ptws := tb.ptws
@@ -244,15 +244,17 @@ func (tb *table) UpdateMetrics(m *TableMetrics) {
 func (tb *table) ForceMergePartitions(partitionNamePrefix string) error {
 	ptws := tb.GetPartitions(nil)
 	defer tb.PutPartitions(ptws)
-	tb.forceMergesWG.Add(1)
-	defer tb.forceMergesWG.Done()
+
+	tb.forceMergeWG.Add(1)
+	defer tb.forceMergeWG.Done()
+
 	for _, ptw := range ptws {
 		if !strings.HasPrefix(ptw.pt.name, partitionNamePrefix) {
 			continue
 		}
 		logger.Infof("starting forced merge for partition %q", ptw.pt.name)
 		startTime := time.Now()
-		if err := ptw.pt.ForceMergeAllParts(tb.stop); err != nil {
+		if err := ptw.pt.ForceMergeAllParts(tb.stopCh); err != nil {
 			return fmt.Errorf("cannot complete forced merge for partition %q: %w", ptw.pt.name, err)
 		}
 		logger.Infof("forced merge for partition %q has been finished in %.3f seconds", ptw.pt.name, time.Since(startTime).Seconds())
@@ -390,7 +392,7 @@ func (tb *table) retentionWatcher() {
 	defer ticker.Stop()
 	for {
 		select {
-		case <-tb.stop:
+		case <-tb.stopCh:
 			return
 		case <-ticker.C:
 		}
@@ -457,7 +459,7 @@ func (tb *table) finalDedupWatcher() {
 			ptwsToDedup = append(ptwsToDedup, ptw)
 		}
 		for _, ptw := range ptwsToDedup {
-			if err := ptw.pt.runFinalDedup(); err != nil {
+			if err := ptw.pt.runFinalDedup(tb.stopCh); err != nil {
 				logger.Errorf("cannot run final dedup for partition %s: %s", ptw.pt.name, err)
 			}
 			ptw.pt.isDedupScheduled.Store(false)
@@ -468,7 +470,7 @@ func (tb *table) finalDedupWatcher() {
 	defer t.Stop()
 	for {
 		select {
-		case <-tb.stop:
+		case <-tb.stopCh:
 			return
 		case <-t.C:
 			f()
