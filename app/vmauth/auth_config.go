@@ -60,6 +60,7 @@ type UserInfo struct {
 	Name string `yaml:"name,omitempty"`
 
 	BearerToken string `yaml:"bearer_token,omitempty"`
+	AuthToken   string `yaml:"auth_token,omitempty"`
 	Username    string `yaml:"username,omitempty"`
 	Password    string `yaml:"password,omitempty"`
 
@@ -689,6 +690,9 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		if ui.BearerToken != "" {
 			return nil, fmt.Errorf("field bearer_token can't be specified for unauthorized_user section")
 		}
+		if ui.AuthToken != "" {
+			return nil, fmt.Errorf("field auth_token can't be specified for unauthorized_user section")
+		}
 		if ui.Name != "" {
 			return nil, fmt.Errorf("field name can't be specified for unauthorized_user section")
 		}
@@ -729,7 +733,7 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 	byAuthToken := make(map[string]*UserInfo, len(uis))
 	for i := range uis {
 		ui := &uis[i]
-		ats, err := getAuthTokens(ui.BearerToken, ui.Username, ui.Password)
+		ats, err := getAuthTokens(ui.AuthToken, ui.BearerToken, ui.Username, ui.Password)
 		if err != nil {
 			return nil, err
 		}
@@ -879,10 +883,24 @@ func (ui *UserInfo) name() string {
 		h := xxhash.Sum64([]byte(ui.BearerToken))
 		return fmt.Sprintf("bearer_token:hash:%016X", h)
 	}
+	if ui.AuthToken != "" {
+		h := xxhash.Sum64([]byte(ui.AuthToken))
+		return fmt.Sprintf("auth_token:hash:%016X", h)
+	}
 	return ""
 }
 
-func getAuthTokens(bearerToken, username, password string) ([]string, error) {
+func getAuthTokens(authToken, bearerToken, username, password string) ([]string, error) {
+	if authToken != "" {
+		if bearerToken != "" {
+			return nil, fmt.Errorf("bearer_token cannot be specified if auth_token is set")
+		}
+		if username != "" || password != "" {
+			return nil, fmt.Errorf("username and password cannot be specified if auth_token is set")
+		}
+		at := getHTTPAuthToken(authToken)
+		return []string{at}, nil
+	}
 	if bearerToken != "" {
 		if username != "" || password != "" {
 			return nil, fmt.Errorf("username and password cannot be specified if bearer_token is set")
@@ -897,6 +915,10 @@ func getAuthTokens(bearerToken, username, password string) ([]string, error) {
 		return []string{at}, nil
 	}
 	return nil, fmt.Errorf("missing authorization options; bearer_token or username must be set")
+}
+
+func getHTTPAuthToken(authToken string) string {
+	return "http_auth:" + authToken
 }
 
 func getHTTPAuthBearerToken(bearerToken string) string {

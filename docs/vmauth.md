@@ -666,6 +666,11 @@ users:
 - bearer_token: "XXXX"
   url_prefix: "http://localhost:8428"
 
+  # Requests with the 'Authorization: Foo XXXX' header are proxied to http://localhosT:8428 .
+  # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
+- auth_token: "Foo XXXX"
+  url_prefix: "http://localhost:8428"
+
   # Requests with the 'Authorization: Bearer YYY' header are proxied to http://localhost:8428 ,
   # The `X-Scope-OrgID: foobar` http header is added to every proxied request.
   # The `X-Server-Hostname` http header is removed from the proxied response.
