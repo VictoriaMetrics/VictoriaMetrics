@@ -1332,6 +1332,7 @@ func aggregateSeriesListsGeneric(ec *evalConfig, fe *graphiteql.FuncExpr, funcNa
 	}
 	nextSeriesSecond, err := evalSeriesList(ec, args, "seriesListSecondPos", 1)
 	if err != nil {
+		_, _ = drainAllSeries(nextSeriesFirst)
 		return nil, err
 	}
 	return aggregateSeriesList(ec, fe, nextSeriesFirst, nextSeriesSecond, agg, funcName)
@@ -1370,6 +1371,7 @@ func transformDiffSeriesLists(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeri
 func aggregateSeriesList(ec *evalConfig, fe *graphiteql.FuncExpr, nextSeriesFirst, nextSeriesSecond nextSeriesFunc, agg aggrFunc, funcName string) (nextSeriesFunc, error) {
 	ssFirst, stepFirst, err := fetchNormalizedSeries(ec, nextSeriesFirst, false)
 	if err != nil {
+		_, _ = drainAllSeries(nextSeriesSecond)
 		return nil, err
 	}
 	ssSecond, stepSecond, err := fetchNormalizedSeries(ec, nextSeriesSecond, false)

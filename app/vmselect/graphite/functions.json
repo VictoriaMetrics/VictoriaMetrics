@@ -257,9 +257,9 @@
       }
     ]
   },
-  "DiffSeriesLists": {
-    "name": "DiffSeriesLists",
-    "function": "DiffSeriesLists(seriesListFirstPos, seriesListSecondPos)",
+  "diffSeriesLists": {
+    "name": "diffSeriesLists",
+    "function": "diffSeriesLists(seriesListFirstPos, seriesListSecondPos)",
     "description": "Iterates over a two lists and subtracts series lists 2 through n from series 1 list1[0] to list2[0], list1[1] to list2[1] and so on. The lists will need to be the same length",
     "module": "graphite.render.functions",
     "group": "Combine",
@@ -594,9 +594,9 @@
       }
     ]
   },
-  "MultiplySeriesLists": {
-    "name": "MultiplySeriesLists",
-    "function": "MultiplySeriesLists(seriesListFirstPos, seriesListSecondPos)",
+  "multiplySeriesLists": {
+    "name": "multiplySeriesLists",
+    "function": "multiplySeriesLists(seriesListFirstPos, seriesListSecondPos)",
     "description": "Iterates over a two lists and multiply series lists 2 through n from series 1 list1[0] to list2[0], list1[1] to list2[1] and so on. The lists will need to be the same length",
     "module": "graphite.render.functions",
     "group": "Combine",
@@ -799,8 +799,8 @@
       }
     ]
   },
-  "SumSeriesLists": {
-    "name": "SumSeriesLists",
+  "sumSeriesLists": {
+    "name": "sumSeriesLists",
     "function": "sumSeriesLists(seriesListFirstPos, seriesListSecondPos)",
     "description": "Iterates over a two lists and sums series lists 2 through n from series 1 list1[0] to list2[0], list1[1] to list2[1] and so on. The lists will need to be the same length",
     "module": "graphite.render.functions",
@@ -832,25 +832,7 @@
         "required": true
       },
       {
-        "name": "position",  "SumSeriesLists": {
-        "name": "SumSeriesLists",
-        "function": "sumSeriesLists(seriesListFirstPos, seriesListSecondPos)",
-        "description": "Iterates over a two lists and sums series lists 2 through n from series 1 list1[0] to list2[0], list1[1] to list2[1] and so on. The lists will need to be the same length",
-        "module": "graphite.render.functions",
-        "group": "Combine",
-        "params": [
-          {
-            "name": "seriesListFirstPos",
-            "type": "seriesList",
-            "required": true
-          },
-          {
-            "name": "seriesListSecondPos",
-            "type": "seriesList",
-            "required": true
-          }
-        ]
-      },
+        "name": "position",
         "type": "node",
         "multiple": true
       }
