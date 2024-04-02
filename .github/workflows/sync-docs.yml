@@ -27,7 +27,7 @@ jobs:
           repository: VictoriaMetrics/vmdocs
           token: ${{ secrets.VM_BOT_GH_TOKEN }}
           path: docs
-      - uses: peaceiris/actions-hugo@v2
+      - uses: peaceiris/actions-hugo@v3
         with:
           hugo-version: ${{env.HUGO_VERSION}}
           extended: true
