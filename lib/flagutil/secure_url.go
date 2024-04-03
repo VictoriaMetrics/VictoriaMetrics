@@ -14,9 +14,9 @@ import (
 
 // NewSecureURL returns new `url` flag with the given name and description.
 //
-// The url value is hidden when calling SecureUrl.String() for security reasons,
+// The url value is hidden when calling SecureURL.String() for security reasons,
 // since the returned value can be put in logs.
-// Call SecureURL .Get() for obtaining the real url value.
+// Call SecureURL.Get() for obtaining the real url value.
 func NewSecureURL(name, description string) *SecureURL {
 	description += fmt.Sprintf("\nFlag value can be read from the given file when using -%s=file:///abs/path/to/file or -%s=file://./relative/path/to/file . ", name, name)
 	p := &SecureURL{

@@ -13,7 +13,7 @@ func TestSecureURL(t *testing.T) {
 	// Verify that String returns "secret"
 	expectedSecret := "secret"
 	if str := s.String(); str != expectedSecret {
-		t.Fatalf("unexpected value returned from SecureUrl.String; got %q; want %q", str, expectedSecret)
+		t.Fatalf("unexpected value returned from SecureURL.String; got %q; want %q", str, expectedSecret)
 	}
 
 	// set regular url
@@ -26,7 +26,7 @@ func TestSecureURL(t *testing.T) {
 			t.Fatalf("unexpected url; got %q; want %q", str, expectedURL)
 		}
 		if str := s.String(); str != expectedSecret {
-			t.Fatalf("unexpected value returned from SecureUrl.String; got %q; want %q", str, expectedSecret)
+			t.Fatalf("unexpected value returned from SecureURL.String; got %q; want %q", str, expectedSecret)
 		}
 	}
 
@@ -42,7 +42,7 @@ func TestSecureURL(t *testing.T) {
 			t.Fatalf("unexpected url; got %q; want %q", str, expectedURL)
 		}
 		if str := s.String(); str != expectedSecret {
-			t.Fatalf("unexpected value returned from SecureUrl.String; got %q; want %q", str, expectedSecret)
+			t.Fatalf("unexpected value returned from SecureURL.String; got %q; want %q", str, expectedSecret)
 		}
 	}
 
@@ -62,7 +62,7 @@ func TestSecureURL(t *testing.T) {
 			t.Fatalf("unexpected url; got %q; want %q", str, expectedURL)
 		}
 		if str := s.String(); str != expectedSecret {
-			t.Fatalf("unexpected value returned from SecureUrl.String; got %q; want %q", str, expectedSecret)
+			t.Fatalf("unexpected value returned from SecureURL.String; got %q; want %q", str, expectedSecret)
 		}
 	}
 
