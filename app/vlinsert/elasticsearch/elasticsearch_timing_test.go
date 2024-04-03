@@ -33,7 +33,7 @@ func benchmarkReadBulkRequest(b *testing.B, isGzip bool) {
 
 	timeField := "@timestamp"
 	msgField := "message"
-	processLogMessage := func(timestmap int64, fields []logstorage.Field) {}
+	processLogMessage := func(_ int64, _ []logstorage.Field) {}
 
 	b.ReportAllocs()
 	b.SetBytes(int64(len(data)))
