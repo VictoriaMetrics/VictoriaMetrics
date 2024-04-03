@@ -35,7 +35,7 @@ const StepConfigurator: FC = () => {
   const {
     value: openOptions,
     toggle: toggleOpenOptions,
-    setFalse: handleCloseOptions,
+    setFalse: setCloseOptions,
   } = useBoolean(false);
 
   const buttonRef = useRef<HTMLDivElement>(null);
@@ -47,6 +47,11 @@ const StepConfigurator: FC = () => {
     graphDispatch({ type: "SET_CUSTOM_STEP", payload: stepDur });
     setCustomStep(stepDur);
     setError("");
+  };
+
+  const handleCloseOptions = () => {
+    handleApply();
+    setCloseOptions();
   };
 
   const handleFocus = () => {

@@ -114,6 +114,8 @@ groups:
   [ - <rule_group> ]
 ```
 
+> Explore how to integrate `vmalert` with [VictoriaMetrics Anomaly Detection](/anomaly-detection/) in the following [guide](/anomaly-detection/guides/guide-vmanomaly-vmalert/)
+
 ### Groups
 
 Each group has the following attributes:
@@ -822,27 +824,25 @@ may get empty response from the datasource and produce empty recording rules or 
 <img alt="vmalert evaluation when data is delayed" src="vmalert_ts_data_delay.gif">
 
 Try the following recommendations to reduce the chance of hitting the data delay issue:
-
 * Always configure group's `-evaluationInterval` to be bigger or at least equal to
-[time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution);
-* Ensure that `[duration]` value is at least twice bigger than 
-[time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution). For example,
-if expression is `rate(my_metric[2m]) > 0` then ensure that `my_metric` resolution is at least `1m` or better `30s`. 
-If you use VictoriaMetrics as datasource, `[duration]` can be omitted and VictoriaMetrics will adjust it automatically.
+  [time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution);
+* Ensure that `[duration]` value is at least twice bigger than
+  [time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution). For example,
+  if expression is `rate(my_metric[2m]) > 0` then ensure that `my_metric` resolution is at least `1m` or better `30s`.
 * Extend `[duration]` in expr to help tolerate the delay. For example, `max_over_time(errors_total[10m]) > 0` will be active even if there is no data in datasource for last `9m`.
 * If [time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution)
-in datasource is inconsistent or `>=5min` - try changing vmalerts `-datasource.queryStep` command-line flag to specify
-how far search query can lookback for the recent datapoint. The recommendation is to have the step 
-at least two times bigger than the resolution.
+  in datasource is inconsistent or `>=5min` - try changing vmalerts `-datasource.queryStep` command-line flag to specify
+  how far search query can look back for the recent datapoint. The recommendation is to have the step
+  at least two times bigger than the resolution.
 
 > Please note, data delay is inevitable in distributed systems. And it is better to account for it instead of ignoring.
 
 By default, recently written samples to VictoriaMetrics [aren't visible for queries](https://docs.victoriametrics.com/keyConcepts.html#query-latency)
-for up to 30s (see `-search.latencyOffset` command-line flag at vmselect or VictoriaMetrics single-node). Such delay is needed to eliminate risk of 
+for up to 30s (see `-search.latencyOffset` command-line flag at vmselect or VictoriaMetrics single-node). Such delay is needed to eliminate risk of
 incomplete data on the moment of querying, due to chance that metrics collectors won't be able to deliver that data in time.
 To compensate the latency in timestamps for produced evaluation results, `-rule.evalDelay` is also set to `30s` by default.
-If you expect data to be delayed for longer intervals (it gets buffered, queued, or just network is slow sometimes)
-- consider increasing the `-rule.evalDelay` value accordingly.
+If you expect data to be delayed for longer intervals (it gets buffered, queued, or just network is slow sometimes),
+or you changed default value of `-search.latencyOffset` - consider increasing the `-rule.evalDelay` value accordingly.
 
 ### Alerts state
 
@@ -989,7 +989,7 @@ The shortlist of configuration flags is the following:
   -datasource.headers string
      Optional HTTP extraHeaders to send with each request to the corresponding -datasource.url. For example, -datasource.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -datasource.url. Multiple headers must be delimited by '^^': -datasource.headers='header1:value1^^header2:value2'
   -datasource.lookback duration
-     Will be deprecated soon, please adjust "-search.latencyOffset"  at datasource side or specify "latency_offset" in rule group's params. Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
+     Deprecated: please adjust "-search.latencyOffset" at datasource side or specify "latency_offset" in rule group's params. Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
   -datasource.maxIdleConnections int
      Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
   -datasource.oauth2.clientID string
@@ -1379,7 +1379,7 @@ The shortlist of configuration flags is the following:
   -rule.resendDelay duration
      MiniMum amount of time to wait before resending an alert to notifier
   -rule.stripFilePath
-     Whether to strip file path in responses from the api/v1/rules API for files configured via -rule cmd-line flag. For example, the file path '/path/to/tenant_id/rules.yml' will be stripped to just 'rules.yml'. This flag might be useful to hide sensitive information in file path such as tenant ID.
+     Whether to strip file path in responses from the api/v1/rules API for files configured via -rule cmd-line flag. For example, the file path '/path/to/tenant_id/rules.yml' will be stripped to just 'rules.yml'. This flag might be useful to hide sensitive information in file path such as tenant ID. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
   -rule.templates array
      Path or glob pattern to location with go template definitions for rules annotations templating. Flag can be specified multiple times.
      Examples:

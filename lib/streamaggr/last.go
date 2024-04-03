@@ -12,9 +12,10 @@ type lastAggrState struct {
 }
 
 type lastStateValue struct {
-	mu      sync.Mutex
-	last    float64
-	deleted bool
+	mu        sync.Mutex
+	last      float64
+	timestamp int64
+	deleted   bool
 }
 
 func newLastAggrState() *lastAggrState {
@@ -31,7 +32,8 @@ func (as *lastAggrState) pushSamples(samples []pushSample) {
 		if !ok {
 			// The entry is missing in the map. Try creating it.
 			v = &lastStateValue{
-				last: s.value,
+				last:      s.value,
+				timestamp: s.timestamp,
 			}
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if !loaded {
@@ -45,7 +47,10 @@ func (as *lastAggrState) pushSamples(samples []pushSample) {
 		sv.mu.Lock()
 		deleted := sv.deleted
 		if !deleted {
-			sv.last = s.value
+			if s.timestamp >= sv.timestamp {
+				sv.last = s.value
+				sv.timestamp = s.timestamp
+			}
 		}
 		sv.mu.Unlock()
 		if deleted {

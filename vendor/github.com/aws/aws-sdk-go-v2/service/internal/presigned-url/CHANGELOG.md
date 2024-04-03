@@ -1,3 +1,16 @@
+# v1.11.7 (2024-03-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.11.6 (2024-03-18)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.11.5 (2024-03-07)
+
+* **Bug Fix**: Remove dependency on go-cmp.
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.11.4 (2024-03-05)
 
 * **Bug Fix**: Restore typo'd API `AddAsIsInternalPresigingMiddleware` as an alias for backwards compatibility.

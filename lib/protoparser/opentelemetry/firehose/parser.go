@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"time"
 )
 
 // ProcessRequestBody converts Cloudwatch Stream protobuf metrics HTTP request body delivered via Firehose into OpenTelemetry protobuf message.
@@ -47,4 +49,18 @@ func ProcessRequestBody(b []byte) ([]byte, error) {
 		}
 	}
 	return dst, nil
+}
+
+// ResponseWriter writes response for AWS Firehose HTTP Endpoint request
+// https://docs.aws.amazon.com/firehose/latest/dev/httpdeliveryrequestresponse.html#responseformat
+func ResponseWriter(w http.ResponseWriter, ct time.Time, reqID string, err error) {
+	var respBody string
+	ts := ct.UnixMilli()
+	if err == nil {
+		respBody = fmt.Sprintf(`{"requestId": %q,"timestamp": %d}`, reqID, ts)
+	} else {
+		respBody = fmt.Sprintf(`{"requestId": %q,"timestamp": %d,"errorMessage": %q}`, reqID, ts, err)
+	}
+	w.Header().Add("Content-Type", "application/json")
+	w.Write([]byte(respBody))
 }

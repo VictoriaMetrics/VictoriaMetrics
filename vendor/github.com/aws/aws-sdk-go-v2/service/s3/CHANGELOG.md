@@ -1,3 +1,25 @@
+# v1.53.1 (2024-03-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.53.0 (2024-03-18)
+
+* **Feature**: Fix two issues with response root node names.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.52.1 (2024-03-15)
+
+* **Documentation**: Documentation updates for Amazon S3.
+
+# v1.52.0 (2024-03-13)
+
+* **Feature**: This release makes the default option for S3 on Outposts request signing to use the SigV4A algorithm when using AWS Common Runtime (CRT).
+
+# v1.51.4 (2024-03-07)
+
+* **Bug Fix**: Remove dependency on go-cmp.
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.51.3 (2024-03-05)
 
 * **Dependency Update**: Updated to the latest SDK module versions

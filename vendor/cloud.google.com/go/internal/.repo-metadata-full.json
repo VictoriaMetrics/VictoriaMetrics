@@ -199,6 +199,16 @@
     "release_level": "stable",
     "library_type": "GAPIC_AUTO"
   },
+  "cloud.google.com/go/apphub/apiv1": {
+    "api_shortname": "apphub",
+    "distribution_name": "cloud.google.com/go/apphub/apiv1",
+    "description": "App Hub API",
+    "language": "go",
+    "client_library_type": "generated",
+    "client_documentation": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/apphub/latest/apiv1",
+    "release_level": "preview",
+    "library_type": "GAPIC_AUTO"
+  },
   "cloud.google.com/go/apps/events/subscriptions/apiv1": {
     "api_shortname": "workspaceevents",
     "distribution_name": "cloud.google.com/go/apps/events/subscriptions/apiv1",
@@ -659,6 +669,26 @@
     "release_level": "stable",
     "library_type": "GAPIC_AUTO"
   },
+  "cloud.google.com/go/cloudcontrolspartner/apiv1": {
+    "api_shortname": "cloudcontrolspartner",
+    "distribution_name": "cloud.google.com/go/cloudcontrolspartner/apiv1",
+    "description": "Cloud Controls Partner API",
+    "language": "go",
+    "client_library_type": "generated",
+    "client_documentation": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/cloudcontrolspartner/latest/apiv1",
+    "release_level": "preview",
+    "library_type": "GAPIC_AUTO"
+  },
+  "cloud.google.com/go/cloudcontrolspartner/apiv1beta": {
+    "api_shortname": "cloudcontrolspartner",
+    "distribution_name": "cloud.google.com/go/cloudcontrolspartner/apiv1beta",
+    "description": "Cloud Controls Partner API",
+    "language": "go",
+    "client_library_type": "generated",
+    "client_documentation": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/cloudcontrolspartner/latest/apiv1beta",
+    "release_level": "preview",
+    "library_type": "GAPIC_AUTO"
+  },
   "cloud.google.com/go/clouddms/apiv1": {
     "api_shortname": "datamigration",
     "distribution_name": "cloud.google.com/go/clouddms/apiv1",
@@ -1052,7 +1082,7 @@
   "cloud.google.com/go/dlp/apiv2": {
     "api_shortname": "dlp",
     "distribution_name": "cloud.google.com/go/dlp/apiv2",
-    "description": "Cloud Data Loss Prevention (DLP)",
+    "description": "Sensitive Data Protection (DLP)",
     "language": "go",
     "client_library_type": "generated",
     "client_documentation": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/dlp/latest/apiv2",
@@ -2109,6 +2139,16 @@
     "release_level": "stable",
     "library_type": "GAPIC_AUTO"
   },
+  "cloud.google.com/go/secretmanager/apiv1beta2": {
+    "api_shortname": "secretmanager",
+    "distribution_name": "cloud.google.com/go/secretmanager/apiv1beta2",
+    "description": "Secret Manager API",
+    "language": "go",
+    "client_library_type": "generated",
+    "client_documentation": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/secretmanager/latest/apiv1beta2",
+    "release_level": "preview",
+    "library_type": "GAPIC_AUTO"
+  },
   "cloud.google.com/go/securesourcemanager/apiv1": {
     "api_shortname": "securesourcemanager",
     "distribution_name": "cloud.google.com/go/securesourcemanager/apiv1",
@@ -2166,6 +2206,16 @@
     "language": "go",
     "client_library_type": "generated",
     "client_documentation": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/securitycenter/latest/apiv1p1beta1",
+    "release_level": "preview",
+    "library_type": "GAPIC_AUTO"
+  },
+  "cloud.google.com/go/securitycenter/apiv2": {
+    "api_shortname": "securitycenter",
+    "distribution_name": "cloud.google.com/go/securitycenter/apiv2",
+    "description": "Security Command Center API",
+    "language": "go",
+    "client_library_type": "generated",
+    "client_documentation": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/securitycenter/latest/apiv2",
     "release_level": "preview",
     "library_type": "GAPIC_AUTO"
   },
@@ -2378,6 +2428,16 @@
     "client_documentation": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/storage/latest",
     "release_level": "stable",
     "library_type": "GAPIC_MANUAL"
+  },
+  "cloud.google.com/go/storage/control/apiv2": {
+    "api_shortname": "storage",
+    "distribution_name": "cloud.google.com/go/storage/control/apiv2",
+    "description": "Cloud Storage API",
+    "language": "go",
+    "client_library_type": "generated",
+    "client_documentation": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/storage/latest/control/apiv2",
+    "release_level": "preview",
+    "library_type": "GAPIC_AUTO"
   },
   "cloud.google.com/go/storage/internal/apiv2": {
     "api_shortname": "storage",

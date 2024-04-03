@@ -1096,6 +1096,10 @@ func (o *ObjectHandle) validate() error {
 	if !utf8.ValidString(o.object) {
 		return fmt.Errorf("storage: object name %q is not valid UTF-8", o.object)
 	}
+	// Names . and .. are not valid; see https://cloud.google.com/storage/docs/objects#naming
+	if o.object == "." || o.object == ".." {
+		return fmt.Errorf("storage: object name %q is not valid", o.object)
+	}
 	return nil
 }
 

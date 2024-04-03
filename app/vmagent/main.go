@@ -40,6 +40,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -125,6 +126,7 @@ func main() {
 	}
 	logger.Infof("starting vmagent at %q...", listenAddrs)
 	startTime := time.Now()
+	remotewrite.StartIngestionRateLimiter()
 	remotewrite.Init()
 	common.StartUnmarshalWorkers()
 	if len(*influxListenAddr) > 0 {
@@ -152,6 +154,7 @@ func main() {
 	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("received signal %s", sig)
+	remotewrite.StopIngestionRateLimiter()
 	pushmetrics.Stop()
 
 	startTime = time.Now()
@@ -320,7 +323,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		w.WriteHeader(http.StatusOK)
+		firehose.WriteSuccessResponse(w, r)
 		return true
 	case "/newrelic":
 		newrelicCheckRequest.Inc()
@@ -566,7 +569,7 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		w.WriteHeader(http.StatusOK)
+		firehose.WriteSuccessResponse(w, r)
 		return true
 	case "newrelic":
 		newrelicCheckRequest.Inc()

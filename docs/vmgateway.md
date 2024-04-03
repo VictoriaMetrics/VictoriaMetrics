@@ -410,6 +410,8 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
      Whether to enable offline verification for VictoriaMetrics Enterprise license key, which has been passed either via -license or via -licenseFile command-line flag. The issued license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification. This flag is avilable only in Enterprise binaries
   -licenseFile string
      Path to file with license key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed inline via -license command-line flag
+  -logInvalidAuthTokens
+     Whether to log requests with invalid auth tokens. Such requests are always counted at vmgateway_auth_rejects_total metric, which is exposed at /metrics page. Note that this option is expected to be used only for debugging purposes, since it may leak sensitive information to logs.
   -loggerDisableTimestamps
      Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int

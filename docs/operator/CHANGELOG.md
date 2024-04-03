@@ -15,11 +15,21 @@ aliases:
 # CHANGELOG
 
 ## Next release
+- [operator](./README.md): updates base Docker image and prometheus_client to versions with with CVE fixes
+
+**Update note: [vmcluster](./api.md#vmcluster): remove fields `VMClusterSpec.VMInsert.Name`, `VMClusterSpec.VMStorage.Name`, `VMClusterSpec.VMSelect.Name`, they're marked as deprecated since v0.21.0. See [this pull request](https://github.com/VictoriaMetrics/operator/pull/907).**
+
+- [vmservicescrape&vmpodscrape](./api.md#vmservicescrape): add `attach_metadata` option under VMServiceScrapeSpec&VMPodScrapeSpec, the same way like prometheus serviceMonitor&podMonitor do. See [this issue](https://github.com/VictoriaMetrics/operator/issues/893) for details.
+- [vmalertmanagerconfig](./api.md#vmalertmanagerconfig): fix struct field tags under `Sigv4Config`.
+- [vmalertmanager](./api.md#vmalertmanager): bump default alertmanager version to [v0.27.0](https://github.com/prometheus/alertmanager/releases/tag/v0.27.0), which supports new receivers like `msteams_configs`.
+ 
+<a name="v0.42.3"></a>
+## [v0.43.](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.3) - 12 Mar 2024
 
 - [vmalert](./api.md#vmalert): do not add `notifiers.*` flags in case `notifier.blackhole` is provided via `spec.extraArgs`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/894) for details.
 - [operator](./README.md): properly build liveness probe scheme with enabled `tls`. Previously it has hard-coded `HTTP` scheme. See this [issue](https://github.com/VictoriaMetrics/operator/issues/896) for details.
 - [operator](./README.md): do not perform a PVC size check on `StatefulSet` with `0` replicas. It allows to creates CRDs with `0` replicas for later conditional resizing. 
-
+- [vmalertmanager](./api.html#vmalertmanager): properly print columns at CRD `replicaCount` and `version` status fields.
 
 <a name="v0.42.2"></a>
 ## [v0.42.](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.2) - 6 Mar 2024

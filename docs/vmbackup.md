@@ -14,7 +14,7 @@ aliases:
 `vmbackup` creates VictoriaMetrics data backups from [instant snapshots](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
 
 `vmbackup` supports incremental and full backups. Incremental backups are created automatically if the destination path already contains data from the previous backup.
-Full backups can be speed up with `-origin` pointing to an already existing backup on the same remote storage. In this case `vmbackup` makes server-side copy for the shared
+Full backups can be accelerated with `-origin` pointing to an already existing backup on the same remote storage. In this case `vmbackup` makes server-side copy for the shared
 data between the existing backup and new backup. It saves time and costs on data transfer.
 
 Backup process can be interrupted at any time. It is automatically resumed from the interruption point when restarting `vmbackup` with the same args.
@@ -54,7 +54,7 @@ Regular backup can be performed with the following command:
 
 ### Regular backups with server-side copy from existing backup
 
-If the destination GCS bucket already contains the previous backup at `-origin` path, then new backup can be speed up
+If the destination GCS bucket already contains the previous backup at `-origin` path, then new backup can be accelerated
 with the following command:
 
 ```sh

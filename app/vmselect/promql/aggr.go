@@ -76,7 +76,7 @@ func newAggrFunc(afe func(tss []*timeseries) []*timeseries) aggrFunc {
 		if err != nil {
 			return nil, err
 		}
-		return aggrFuncExt(func(tss []*timeseries, modififer *metricsql.ModifierExpr) []*timeseries {
+		return aggrFuncExt(func(tss []*timeseries, _ *metricsql.ModifierExpr) []*timeseries {
 			return afe(tss)
 		}, tss, &afa.ae.Modifier, afa.ae.Limit, false)
 	}
@@ -158,7 +158,7 @@ func aggrFuncAny(afa *aggrFuncArg) ([]*timeseries, error) {
 	if err != nil {
 		return nil, err
 	}
-	afe := func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
+	afe := func(tss []*timeseries, _ *metricsql.ModifierExpr) []*timeseries {
 		return tss[:1]
 	}
 	limit := afa.ae.Limit
@@ -467,7 +467,7 @@ func aggrFuncShare(afa *aggrFuncArg) ([]*timeseries, error) {
 	if err != nil {
 		return nil, err
 	}
-	afe := func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
+	afe := func(tss []*timeseries, _ *metricsql.ModifierExpr) []*timeseries {
 		for i := range tss[0].Values {
 			// Calculate sum for non-negative points at position i.
 			var sum float64
@@ -498,7 +498,7 @@ func aggrFuncZScore(afa *aggrFuncArg) ([]*timeseries, error) {
 	if err != nil {
 		return nil, err
 	}
-	afe := func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
+	afe := func(tss []*timeseries, _ *metricsql.ModifierExpr) []*timeseries {
 		for i := range tss[0].Values {
 			// Calculate avg and stddev for tss points at position i.
 			// See `Rapid calculation methods` at https://en.wikipedia.org/wiki/Standard_deviation
@@ -594,7 +594,7 @@ func aggrFuncCountValues(afa *aggrFuncArg) ([]*timeseries, error) {
 		// Do nothing
 	}
 
-	afe := func(tss []*timeseries, modififer *metricsql.ModifierExpr) ([]*timeseries, error) {
+	afe := func(tss []*timeseries, _ *metricsql.ModifierExpr) ([]*timeseries, error) {
 		m := make(map[float64]*timeseries)
 		for _, ts := range tss {
 			for i, v := range ts.Values {
@@ -656,7 +656,7 @@ func newAggrFuncTopK(isReverse bool) aggrFunc {
 		if err != nil {
 			return nil, err
 		}
-		afe := func(tss []*timeseries, modififer *metricsql.ModifierExpr) []*timeseries {
+		afe := func(tss []*timeseries, _ *metricsql.ModifierExpr) []*timeseries {
 			for n := range tss[0].Values {
 				lessFunc := lessWithNaNs
 				if isReverse {
@@ -960,7 +960,7 @@ func aggrFuncOutliersIQR(afa *aggrFuncArg) ([]*timeseries, error) {
 	if err := expectTransformArgsNum(args, 1); err != nil {
 		return nil, err
 	}
-	afe := func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
+	afe := func(tss []*timeseries, _ *metricsql.ModifierExpr) []*timeseries {
 		// Calculate lower and upper bounds for interquartile range per each point across tss
 		// according to Outliers section at https://en.wikipedia.org/wiki/Interquartile_range
 		lower, upper := getPerPointIQRBounds(tss)
@@ -1016,7 +1016,7 @@ func aggrFuncOutliersMAD(afa *aggrFuncArg) ([]*timeseries, error) {
 	if err != nil {
 		return nil, err
 	}
-	afe := func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
+	afe := func(tss []*timeseries, _ *metricsql.ModifierExpr) []*timeseries {
 		// Calculate medians for each point across tss.
 		medians := getPerPointMedians(tss)
 		// Calculate MAD values multiplied by tolerance for each point across tss.
@@ -1052,7 +1052,7 @@ func aggrFuncOutliersK(afa *aggrFuncArg) ([]*timeseries, error) {
 	if err != nil {
 		return nil, err
 	}
-	afe := func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
+	afe := func(tss []*timeseries, _ *metricsql.ModifierExpr) []*timeseries {
 		// Calculate medians for each point across tss.
 		medians := getPerPointMedians(tss)
 		// Return topK time series with the highest variance from median.
@@ -1123,7 +1123,7 @@ func aggrFuncLimitK(afa *aggrFuncArg) ([]*timeseries, error) {
 	if limit < 0 {
 		limit = 0
 	}
-	afe := func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
+	afe := func(tss []*timeseries, _ *metricsql.ModifierExpr) []*timeseries {
 		// Sort series by metricName hash in order to get consistent set of output series
 		// across multiple calls to limitk() function.
 		// Sort series by hash in order to guarantee uniform selection across series.
@@ -1187,7 +1187,7 @@ func aggrFuncQuantiles(afa *aggrFuncArg) ([]*timeseries, error) {
 		phis[i] = phisLocal[0]
 	}
 	argOrig := args[len(args)-1]
-	afe := func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
+	afe := func(tss []*timeseries, _ *metricsql.ModifierExpr) []*timeseries {
 		tssDst := make([]*timeseries, len(phiArgs))
 		for j := range tssDst {
 			ts := &timeseries{}
@@ -1244,7 +1244,7 @@ func aggrFuncMedian(afa *aggrFuncArg) ([]*timeseries, error) {
 }
 
 func newAggrQuantileFunc(phis []float64) func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
-	return func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
+	return func(tss []*timeseries, _ *metricsql.ModifierExpr) []*timeseries {
 		dst := tss[0]
 		a := getFloat64s()
 		values := a.A

@@ -11,7 +11,7 @@ import (
 func TestParseJSONRequestFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
-		n, err := parseJSONRequest([]byte(s), func(timestamp int64, fields []logstorage.Field) {
+		n, err := parseJSONRequest([]byte(s), func(_ int64, _ []logstorage.Field) {
 			t.Fatalf("unexpected call to parseJSONRequest callback!")
 		})
 		if err == nil {

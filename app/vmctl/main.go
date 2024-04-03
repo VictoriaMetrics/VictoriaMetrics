@@ -57,7 +57,7 @@ func main() {
 					insecureSkipVerify := c.Bool(otsdbInsecureSkipVerify)
 					addr := c.String(otsdbAddr)
 
-					tr, err := httputils.Transport(addr, certFile, caFile, keyFile, serverName, insecureSkipVerify)
+					tr, err := httputils.Transport(addr, certFile, keyFile, caFile, serverName, insecureSkipVerify)
 					if err != nil {
 						return fmt.Errorf("failed to create Transport: %s", err)
 					}
@@ -107,7 +107,7 @@ func main() {
 					serverName := c.String(influxServerName)
 					insecureSkipVerify := c.Bool(influxInsecureSkipVerify)
 
-					tc, err := httputils.TLSConfig(certFile, caFile, keyFile, serverName, insecureSkipVerify)
+					tc, err := httputils.TLSConfig(certFile, keyFile, caFile, serverName, insecureSkipVerify)
 					if err != nil {
 						return fmt.Errorf("failed to create TLS Config: %s", err)
 					}
@@ -158,21 +158,33 @@ func main() {
 				Usage: "Migrate time series via Prometheus remote-read protocol",
 				Flags: mergeFlags(globalFlags, remoteReadFlags, vmFlags),
 				Action: func(c *cli.Context) error {
+					fmt.Println("Remote-read import mode")
+
+					addr := c.String(remoteReadSrcAddr)
+
+					// create TLS config
+					certFile := c.String(remoteReadCertFile)
+					keyFile := c.String(remoteReadKeyFile)
+					caFile := c.String(remoteReadCAFile)
+					serverName := c.String(remoteReadServerName)
+					insecureSkipVerify := c.Bool(remoteReadInsecureSkipVerify)
+
+					tr, err := httputils.Transport(addr, certFile, keyFile, caFile, serverName, insecureSkipVerify)
+					if err != nil {
+						return fmt.Errorf("failed to create transport: %s", err)
+					}
+
 					rr, err := remoteread.NewClient(remoteread.Config{
-						Addr:               c.String(remoteReadSrcAddr),
-						Username:           c.String(remoteReadUser),
-						Password:           c.String(remoteReadPassword),
-						Timeout:            c.Duration(remoteReadHTTPTimeout),
-						UseStream:          c.Bool(remoteReadUseStream),
-						Headers:            c.String(remoteReadHeaders),
-						LabelName:          c.String(remoteReadFilterLabel),
-						LabelValue:         c.String(remoteReadFilterLabelValue),
-						CertFile:           c.String(remoteReadCertFile),
-						KeyFile:            c.String(remoteReadKeyFile),
-						CAFile:             c.String(remoteReadCAFile),
-						ServerName:         c.String(remoteReadServerName),
-						InsecureSkipVerify: c.Bool(remoteReadInsecureSkipVerify),
-						DisablePathAppend:  c.Bool(remoteReadDisablePathAppend),
+						Addr:              addr,
+						Transport:         tr,
+						Username:          c.String(remoteReadUser),
+						Password:          c.String(remoteReadPassword),
+						Timeout:           c.Duration(remoteReadHTTPTimeout),
+						UseStream:         c.Bool(remoteReadUseStream),
+						Headers:           c.String(remoteReadHeaders),
+						LabelName:         c.String(remoteReadFilterLabel),
+						LabelValue:        c.String(remoteReadFilterLabelValue),
+						DisablePathAppend: c.Bool(remoteReadDisablePathAppend),
 					})
 					if err != nil {
 						return fmt.Errorf("error create remote read client: %s", err)
@@ -270,7 +282,7 @@ func main() {
 					srcServerName := c.String(vmNativeSrcServerName)
 					srcInsecureSkipVerify := c.Bool(vmNativeSrcInsecureSkipVerify)
 
-					srcTC, err := httputils.TLSConfig(srcCertFile, srcCAFile, srcKeyFile, srcServerName, srcInsecureSkipVerify)
+					srcTC, err := httputils.TLSConfig(srcCertFile, srcKeyFile, srcCAFile, srcServerName, srcInsecureSkipVerify)
 					if err != nil {
 						return fmt.Errorf("failed to create TLS Config: %s", err)
 					}
@@ -297,7 +309,7 @@ func main() {
 					dstServerName := c.String(vmNativeDstServerName)
 					dstInsecureSkipVerify := c.Bool(vmNativeDstInsecureSkipVerify)
 
-					dstTC, err := httputils.TLSConfig(dstCertFile, dstCAFile, dstKeyFile, dstServerName, dstInsecureSkipVerify)
+					dstTC, err := httputils.TLSConfig(dstCertFile, dstKeyFile, dstCAFile, dstServerName, dstInsecureSkipVerify)
 					if err != nil {
 						return fmt.Errorf("failed to create TLS Config: %s", err)
 					}
@@ -361,7 +373,7 @@ func main() {
 						return cli.Exit(fmt.Errorf("cannot open exported block at path=%q err=%w", blockPath, err), 1)
 					}
 					var blocksCount atomic.Uint64
-					if err := stream.Parse(f, isBlockGzipped, func(block *stream.Block) error {
+					if err := stream.Parse(f, isBlockGzipped, func(_ *stream.Block) error {
 						blocksCount.Add(1)
 						return nil
 					}); err != nil {
@@ -402,7 +414,7 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 	serverName := c.String(vmServerName)
 	insecureSkipVerify := c.Bool(vmInsecureSkipVerify)
 
-	tr, err := httputils.Transport(addr, certFile, caFile, keyFile, serverName, insecureSkipVerify)
+	tr, err := httputils.Transport(addr, certFile, keyFile, caFile, serverName, insecureSkipVerify)
 	if err != nil {
 		return vm.Config{}, fmt.Errorf("failed to create Transport: %s", err)
 	}

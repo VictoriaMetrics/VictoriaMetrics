@@ -187,11 +187,17 @@ and [histogram](https://docs.victoriametrics.com/keyConcepts.html#histogram) typ
 to the same second-level `vmagent` instance, so they are aggregated properly.
 
 If `-remoteWrite.shardByURL` command-line flag is set, then all the metric labels are used for even sharding
-among remote storage systems specified in `-remoteWrite.url`. Sometimes it may be needed to use only a particular
-set of labels for sharding. For example, it may be needed to route all the metrics with the same `instance` label
+among remote storage systems specified in `-remoteWrite.url`.
+
+Sometimes it may be needed to use only a particular set of labels for sharding. For example, it may be needed to route all the metrics with the same `instance` label
 to the same `-remoteWrite.url`. In this case you can specify comma-separated list of these labels in the `-remoteWrite.shardByURL.labels`
 command-line flag. For example, `-remoteWrite.shardByURL.labels=instance,__name__` would shard metrics with the same name and `instance`
 label to the same `-remoteWrite.url`.
+
+Sometimes is may be needed ignoring some labels when sharding samples across multiple `-remoteWrite.url` backends.
+For example, if all the [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) with the same set of labels
+except of `instance` and `pod` labels must be routed to the same backend. In this case the list of ignored labels must be passed to
+`-remoteWrite.shardByURL.ignoreLabels` command-line flag: `-remoteWrite.shardByURL.ignoreLabels=instance,pod`.
 
 See also [how to scrape big number of targets](#scraping-big-number-of-targets).
 
@@ -1803,6 +1809,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentInserts int
      The maximum number of concurrent insert requests. Default value should work for most cases, since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration (default 32)
+  -maxIngestionRate int
+     The maximum number of samples vmagent can receive per second. Data ingestion is paused when the limit is exceeded. By default there are no limits on samples ingestion rate. See also -remoteWrite.rateLimit
   -maxInsertRequestSize size
      The maximum size in bytes of a single Prometheus remote_write API request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
@@ -2088,7 +2096,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -remoteWrite.queues int
      The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues isn't enough for sending high volume of collected data to remote storage. Default value is 2 * numberOfAvailableCPUs (default 32)
   -remoteWrite.rateLimit array
-     Optional rate limit in bytes per second for data sent to the corresponding -remoteWrite.url. By default, the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data is sent after temporary unavailability of the remote storage (default 0)
+     Optional rate limit in bytes per second for data sent to the corresponding -remoteWrite.url. By default, the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data is sent after temporary unavailability of the remote storage. See also -maxIngestionRate (default 0)
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to default value.
   -remoteWrite.relabelConfig string
@@ -2103,8 +2111,12 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Empty values are set to default value.
   -remoteWrite.shardByURL
      Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url . By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/vmagent.html#sharding-among-remote-storages
+  -remoteWrite.shardByURL.ignoreLabels array
+     Optional list of labels, which must be ignored when sharding outgoing samples among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain even distribution of series over the specified -remoteWrite.url systems. See also -remoteWrite.shardByURL.labels
+     Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.shardByURL.labels array
-     Optional list of labels, which must be used for sharding outgoing samples among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain even distribution of series over the specified -remoteWrite.url systems
+     Optional list of labels, which must be used for sharding outgoing samples among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain even distribution of series over the specified -remoteWrite.url systems. See also -remoteWrite.shardByURL.ignoreLabels
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.showURL
@@ -2123,6 +2135,10 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Empty values are set to default value.
   -remoteWrite.streamAggr.dropInput array
      Whether to drop all the input samples after the aggregation with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation.html
+     Supports array of values separated by comma or specified via multiple flags.
+     Empty values are set to false.
+  -remoteWrite.streamAggr.ignoreOldSamples array
+     Whether to ignore input samples with old timestamps outside the current aggregation interval for the corresponding -remoteWrite.streamAggr.config . See https://docs.victoriametrics.com/stream-aggregation.html#ignoring-old-samples
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -remoteWrite.streamAggr.keepInput array
