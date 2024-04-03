@@ -16,7 +16,7 @@ import (
 //
 // The url value is hidden when calling SecureUrl.String() for security reasons,
 // since the returned value can be put in logs.
-// Call SecureUrl.Get() for obtaining the real password value.
+// Call SecureUrl.Get() for obtaining the real url value.
 func NewSecureUrl(name, description string) *SecureUrl {
 	description += fmt.Sprintf("\nFlag value can be read from the given file when using -%s=file:///abs/path/to/file or -%s=file://./relative/path/to/file . ", name, name)
 	p := &SecureUrl{
@@ -40,7 +40,7 @@ type SecureUrl struct {
 	// flagname is the name of the flag
 	flagname string
 
-	// sourcePath contains either url or path to file with the password
+	// sourcePath contains either url or path to file with the url
 	sourcePath string
 }
 
@@ -81,7 +81,7 @@ func (s *SecureUrl) maybeRereadUrl() {
 
 // String implements flag.Value interface.
 func (s *SecureUrl) String() string {
-	return "secret-url"
+	return "secret"
 }
 
 // Set implements flag.Value interface.
@@ -90,11 +90,6 @@ func (s *SecureUrl) Set(value string) error {
 	switch {
 	case strings.HasPrefix(value, "file://"):
 		s.sourcePath = strings.TrimPrefix(value, "file://")
-		// Do not attempt to read the password from sourcePath now, since the file may not exist yet.
-		// The url will be read on the first access via SecureUrl.Get.
-		// Generate a random password for now in order to prevent from unauthorized access to protected resources
-		// while the sourcePath file doesn't exist.
-		//s.initRandomValue()
 		data, err := os.ReadFile(s.sourcePath)
 		if err != nil {
 			// cannot use lib/logger, since it can be uninitialized yet

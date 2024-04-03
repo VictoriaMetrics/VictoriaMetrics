@@ -1,0 +1,1 @@
+http://usr:pass@localhost:8428/snapshot/create
