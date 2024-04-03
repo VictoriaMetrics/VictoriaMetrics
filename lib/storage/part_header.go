@@ -137,7 +137,7 @@ func (ph *partHeader) MustReadMetadata(partPath string) {
 	metadataPath := filepath.Join(partPath, metadataFilename)
 	if !fs.IsPathExist(metadataPath) {
 		// This is a part created before v1.90.0.
-		// Fall back to reading the metadata from the partPath itsel
+		// Fall back to reading the metadata from the partPath itself.
 		if err := ph.ParseFromPath(partPath); err != nil {
 			logger.Panicf("FATAL: cannot parse metadata from %q: %s", partPath, err)
 		}

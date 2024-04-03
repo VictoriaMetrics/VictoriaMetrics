@@ -498,8 +498,8 @@ Route defines a node in the routing tree.
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | region | AWS region, if blank the region from the default credentials chain is used | string | false |
-| access_key | The AWS API keys. Both access_key and secret_key must be supplied or both must be blank. If blank the environment variables `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are used. | string | true |
-| access_key_selector | secret key selector to get the keys from a Kubernetes Secret | *[v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | true |
+| access_key | The AWS API keys. Both access_key and secret_key must be supplied or both must be blank. If blank the environment variables `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are used. | string | false |
+| access_key_selector | secret key selector to get the keys from a Kubernetes Secret | *[v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | false |
 | secret_key_selector | secret key selector to get the keys from a Kubernetes Secret | *[v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | false |
 | profile | Named AWS profile used to authenticate | string | false |
 | role_arn | AWS Role ARN, an alternative to using AWS API keys | string | false |
@@ -1804,8 +1804,8 @@ Image defines docker image settings
 | disableMonthly | Defines if monthly backups disabled (default false) | *bool | false |
 | image | Image - docker image settings for VMBackuper | [Image](#image) | false |
 | port | Port for health check connections | string | false |
-| logFormat | LogFormat for VMSelect to be configured with. default or json | *string | false |
-| logLevel | LogLevel for VMSelect to be configured with. | *string | false |
+| logFormat | LogFormat for VMBackup to be configured with. default or json | *string | false |
+| logLevel | LogLevel for VMBackup to be configured with. | *string | false |
 | resources | Resources container resource request and limits, https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ if not defined default resources from operator config will be used | [v1.ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#resourcerequirements-v1-core) | false |
 | extraArgs | extra args like maxBytesPerSecond default 0 | map[string]string | false |
 | extraEnvs |  | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#envvar-v1-core) | false |
@@ -1876,24 +1876,23 @@ VMClusterStatus defines the observed state of VMCluster
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| name | Name is deprecated and will be removed at 0.22.0 release | string | false |
-| podMetadata | PodMetadata configures Labels and Annotations which are propagated to the VMSelect pods. | *[EmbeddedObjectMetadata](#embeddedobjectmetadata) | false |
+| podMetadata | PodMetadata configures Labels and Annotations which are propagated to the VMInsert pods. | *[EmbeddedObjectMetadata](#embeddedobjectmetadata) | false |
 | image | Image - docker image settings for VMInsert | [Image](#image) | false |
-| secrets | Secrets is a list of Secrets in the same namespace as the VMSelect object, which shall be mounted into the VMSelect Pods. The Secrets are mounted into /etc/vm/secrets/&lt;secret-name&gt;. | []string | false |
-| configMaps | ConfigMaps is a list of ConfigMaps in the same namespace as the VMSelect object, which shall be mounted into the VMSelect Pods. The ConfigMaps are mounted into /etc/vm/configs/&lt;configmap-name&gt;. | []string | false |
-| logFormat | LogFormat for VMSelect to be configured with. default or json | string | false |
-| logLevel | LogLevel for VMSelect to be configured with. | string | false |
+| secrets | Secrets is a list of Secrets in the same namespace as the VMInsert object, which shall be mounted into the VMInsert Pods. The Secrets are mounted into /etc/vm/secrets/&lt;secret-name&gt;. | []string | false |
+| configMaps | ConfigMaps is a list of ConfigMaps in the same namespace as the VMInsert object, which shall be mounted into the VMInsert Pods. The ConfigMaps are mounted into /etc/vm/configs/&lt;configmap-name&gt;. | []string | false |
+| logFormat | LogFormat for VMInsert to be configured with. default or json | string | false |
+| logLevel | LogLevel for VMInsert to be configured with. | string | false |
 | minReadySeconds | MinReadySeconds defines a minim number os seconds to wait before starting update next pod if previous in healthy state | int32 | false |
 | replicaCount | ReplicaCount is the expected size of the VMInsert cluster. The controller will eventually make the size of the running cluster equal to the expected size. | *int32 | true |
 | revisionHistoryLimitCount | The number of old ReplicaSets to retain to allow rollback in deployment or maximum number of revisions that will be maintained in the StatefulSet&#39;s revision history. Defaults to 10. | *int32 | false |
 | volumes | Volumes allows configuration of additional volumes on the output Deployment definition. Volumes specified will be appended to other volumes that are generated as a result of StorageSpec objects. | [][v1.Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#volume-v1-core) | false |
-| volumeMounts | VolumeMounts allows configuration of additional VolumeMounts on the output Deployment definition. VolumeMounts specified will be appended to other VolumeMounts in the VMSelect container, that are generated as a result of StorageSpec objects. | [][v1.VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#volumemount-v1-core) | false |
+| volumeMounts | VolumeMounts allows configuration of additional VolumeMounts on the output Deployment definition. VolumeMounts specified will be appended to other VolumeMounts in the VMInsert container, that are generated as a result of StorageSpec objects. | [][v1.VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#volumemount-v1-core) | false |
 | resources | Resources container resource request and limits, https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ | [v1.ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#resourcerequirements-v1-core) | false |
 | affinity | Affinity If specified, the pod&#39;s scheduling constraints. | *[v1.Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#affinity-v1-core) | false |
 | tolerations | Tolerations If specified, the pod&#39;s tolerations. | [][v1.Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#toleration-v1-core) | false |
 | securityContext | SecurityContext holds pod-level security attributes and common container settings. This defaults to the default PodSecurityContext. | *[v1.PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#podsecuritycontext-v1-core) | false |
 | containers | Containers property allows to inject additions sidecars or to patch existing containers. It can be useful for proxies, backup, etc. | [][v1.Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#container-v1-core) | false |
-| initContainers | InitContainers allows adding initContainers to the pod definition. Those can be used to e.g. fetch secrets for injection into the VMSelect configuration from external sources. Any errors during the execution of an initContainer will lead to a restart of the Pod. More info: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/ Using initContainers for any use case other then secret fetching is entirely outside the scope of what the maintainers will support and by doing so, you accept that this behaviour may break at any time without notice. | [][v1.Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#container-v1-core) | false |
+| initContainers | InitContainers allows adding initContainers to the pod definition. Those can be used to e.g. fetch secrets for injection into the VMInsert configuration from external sources. Any errors during the execution of an initContainer will lead to a restart of the Pod. More info: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/ Using initContainers for any use case other then secret fetching is entirely outside the scope of what the maintainers will support and by doing so, you accept that this behaviour may break at any time without notice. | [][v1.Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#container-v1-core) | false |
 | priorityClassName | Priority class assigned to the Pods | string | false |
 | hostNetwork | HostNetwork controls whether the pod may use the node network namespace | bool | false |
 | dnsPolicy | DNSPolicy sets DNS policy for the pod | [v1.DNSPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#pod-v1-core) | false |
@@ -1905,7 +1904,7 @@ VMClusterStatus defines the observed state of VMCluster
 | clusterNativeListenPort | ClusterNativePort for multi-level cluster setup. More details: https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup | string | false |
 | schedulerName | SchedulerName - defines kubernetes scheduler name | string | false |
 | runtimeClassName | RuntimeClassName - defines runtime class for kubernetes pod. https://kubernetes.io/docs/concepts/containers/runtime-class/ | *string | false |
-| extraEnvs | ExtraEnvs that will be added to VMSelect pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#envvar-v1-core) | false |
+| extraEnvs | ExtraEnvs that will be added to VMInsert pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#envvar-v1-core) | false |
 | serviceSpec | ServiceSpec that will be added to vminsert service spec | *[AdditionalServiceSpec](#additionalservicespec) | false |
 | serviceScrapeSpec | ServiceScrapeSpec that will be added to vminsert VMServiceScrape spec | *[VMServiceScrapeSpec](#vmservicescrapespec) | false |
 | updateStrategy | UpdateStrategy - overrides default update strategy. | *[appsv1.DeploymentStrategyType](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#deploymentstrategy-v1-apps) | false |
@@ -1947,7 +1946,6 @@ VMClusterStatus defines the observed state of VMCluster
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| name | Name is deprecated and will be removed at 0.22.0 release | string | false |
 | podMetadata | PodMetadata configures Labels and Annotations which are propagated to the VMSelect pods. | *[EmbeddedObjectMetadata](#embeddedobjectmetadata) | false |
 | image | Image - docker image settings for VMSelect | [Image](#image) | false |
 | secrets | Secrets is a list of Secrets in the same namespace as the VMSelect object, which shall be mounted into the VMSelect Pods. The Secrets are mounted into /etc/vm/secrets/&lt;secret-name&gt;. | []string | false |
@@ -2000,24 +1998,23 @@ VMClusterStatus defines the observed state of VMCluster
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| name | Name is deprecated and will be removed at 0.22.0 release | string | false |
 | minReadySeconds | MinReadySeconds defines a minim number os seconds to wait before starting update next pod if previous in healthy state | int32 | false |
-| podMetadata | PodMetadata configures Labels and Annotations which are propagated to the VMSelect pods. | *[EmbeddedObjectMetadata](#embeddedobjectmetadata) | false |
+| podMetadata | PodMetadata configures Labels and Annotations which are propagated to the VMStorage pods. | *[EmbeddedObjectMetadata](#embeddedobjectmetadata) | false |
 | image | Image - docker image settings for VMStorage | [Image](#image) | false |
-| secrets | Secrets is a list of Secrets in the same namespace as the VMSelect object, which shall be mounted into the VMSelect Pods. The Secrets are mounted into /etc/vm/secrets/&lt;secret-name&gt;. | []string | false |
-| configMaps | ConfigMaps is a list of ConfigMaps in the same namespace as the VMSelect object, which shall be mounted into the VMSelect Pods. The ConfigMaps are mounted into /etc/vm/configs/&lt;configmap-name&gt;. | []string | false |
-| logFormat | LogFormat for VMSelect to be configured with. default or json | string | false |
-| logLevel | LogLevel for VMSelect to be configured with. | string | false |
+| secrets | Secrets is a list of Secrets in the same namespace as the VMStorage object, which shall be mounted into the VMStorage Pods. The Secrets are mounted into /etc/vm/secrets/&lt;secret-name&gt;. | []string | false |
+| configMaps | ConfigMaps is a list of ConfigMaps in the same namespace as the VMStorage object, which shall be mounted into the VMStorage Pods. The ConfigMaps are mounted into /etc/vm/configs/&lt;configmap-name&gt;. | []string | false |
+| logFormat | LogFormat for VMStorage to be configured with. default or json | string | false |
+| logLevel | LogLevel for VMStorage to be configured with. | string | false |
 | replicaCount | ReplicaCount is the expected size of the VMStorage cluster. The controller will eventually make the size of the running cluster equal to the expected size. | *int32 | true |
 | revisionHistoryLimitCount | The number of old ReplicaSets to retain to allow rollback in deployment or maximum number of revisions that will be maintained in the StatefulSet&#39;s revision history. Defaults to 10. | *int32 | false |
 | volumes | Volumes allows configuration of additional volumes on the output Deployment definition. Volumes specified will be appended to other volumes that are generated as a result of StorageSpec objects. | [][v1.Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#volume-v1-core) | false |
-| volumeMounts | VolumeMounts allows configuration of additional VolumeMounts on the output Deployment definition. VolumeMounts specified will be appended to other VolumeMounts in the VMSelect container, that are generated as a result of StorageSpec objects. | [][v1.VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#volumemount-v1-core) | false |
+| volumeMounts | VolumeMounts allows configuration of additional VolumeMounts on the output Deployment definition. VolumeMounts specified will be appended to other VolumeMounts in the VMStorage container, that are generated as a result of StorageSpec objects. | [][v1.VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#volumemount-v1-core) | false |
 | resources | Resources container resource request and limits, https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ | [v1.ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#resourcerequirements-v1-core) | false |
 | affinity | Affinity If specified, the pod&#39;s scheduling constraints. | *[v1.Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#affinity-v1-core) | false |
 | tolerations | Tolerations If specified, the pod&#39;s tolerations. | [][v1.Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#toleration-v1-core) | false |
 | securityContext | SecurityContext holds pod-level security attributes and common container settings. This defaults to the default PodSecurityContext. | *[v1.PodSecurityContext](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#podsecuritycontext-v1-core) | false |
 | containers | Containers property allows to inject additions sidecars or to patch existing containers. It can be useful for proxies, backup, etc. | [][v1.Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#container-v1-core) | false |
-| initContainers | InitContainers allows adding initContainers to the pod definition. Those can be used to e.g. fetch secrets for injection into the VMSelect configuration from external sources. Any errors during the execution of an initContainer will lead to a restart of the Pod. More info: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/ Using initContainers for any use case other then secret fetching is entirely outside the scope of what the maintainers will support and by doing so, you accept that this behaviour may break at any time without notice. | [][v1.Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#container-v1-core) | false |
+| initContainers | InitContainers allows adding initContainers to the pod definition. Those can be used to e.g. fetch secrets for injection into the VMStorage configuration from external sources. Any errors during the execution of an initContainer will lead to a restart of the Pod. More info: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/ Using initContainers for any use case other then secret fetching is entirely outside the scope of what the maintainers will support and by doing so, you accept that this behaviour may break at any time without notice. | [][v1.Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#container-v1-core) | false |
 | priorityClassName | Priority class assigned to the Pods | string | false |
 | hostNetwork | HostNetwork controls whether the pod may use the node network namespace | bool | false |
 | dnsPolicy | DNSPolicy sets DNS policy for the pod | [v1.DNSPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#pod-v1-core) | false |
@@ -2033,7 +2030,7 @@ VMClusterStatus defines the observed state of VMCluster
 | vmSelectPort | VMSelectPort for VMSelect connections | string | false |
 | vmBackup | VMBackup configuration for backup | *[VMBackup](#vmbackup) | false |
 | extraArgs |  | map[string]string | false |
-| extraEnvs | ExtraEnvs that will be added to VMSelect pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#envvar-v1-core) | false |
+| extraEnvs | ExtraEnvs that will be added to VMStorage pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#envvar-v1-core) | false |
 | serviceSpec | ServiceSpec that will be create additional service for vmstorage | *[AdditionalServiceSpec](#additionalservicespec) | false |
 | serviceScrapeSpec | ServiceScrapeSpec that will be added to vmstorage VMServiceScrape spec | *[VMServiceScrapeSpec](#vmservicescrapespec) | false |
 | podDisruptionBudget | PodDisruptionBudget created by operator | *[EmbeddedPodDisruptionBudgetSpec](#embeddedpoddisruptionbudgetspec) | false |

@@ -58,10 +58,11 @@ func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 			// skip metrics without names
 			continue
 		}
+		metricName := sanitizeMetricName(m)
 		switch {
 		case m.Gauge != nil:
 			for _, p := range m.Gauge.DataPoints {
-				wr.appendSampleFromNumericPoint(m.Name, p)
+				wr.appendSampleFromNumericPoint(metricName, p)
 			}
 		case m.Sum != nil:
 			if m.Sum.AggregationTemporality != pb.AggregationTemporalityCumulative {
@@ -69,11 +70,11 @@ func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 				continue
 			}
 			for _, p := range m.Sum.DataPoints {
-				wr.appendSampleFromNumericPoint(m.Name, p)
+				wr.appendSampleFromNumericPoint(metricName, p)
 			}
 		case m.Summary != nil:
 			for _, p := range m.Summary.DataPoints {
-				wr.appendSamplesFromSummary(m.Name, p)
+				wr.appendSamplesFromSummary(metricName, p)
 			}
 		case m.Histogram != nil:
 			if m.Histogram.AggregationTemporality != pb.AggregationTemporalityCumulative {
@@ -81,11 +82,11 @@ func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 				continue
 			}
 			for _, p := range m.Histogram.DataPoints {
-				wr.appendSamplesFromHistogram(m.Name, p)
+				wr.appendSamplesFromHistogram(metricName, p)
 			}
 		default:
 			rowsDroppedUnsupportedMetricType.Inc()
-			logger.Warnf("unsupported type for metric %q", m.Name)
+			logger.Warnf("unsupported type for metric %q", metricName)
 		}
 	}
 }
@@ -209,7 +210,7 @@ func (wr *writeContext) appendSampleWithExtraLabel(metricName, labelName, labelV
 func appendAttributesToPromLabels(dst []prompbmarshal.Label, attributes []*pb.KeyValue) []prompbmarshal.Label {
 	for _, at := range attributes {
 		dst = append(dst, prompbmarshal.Label{
-			Name:  at.Key,
+			Name:  sanitizeLabelName(at.Key),
 			Value: at.Value.FormatString(),
 		})
 	}

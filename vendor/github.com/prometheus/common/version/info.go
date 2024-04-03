@@ -17,6 +17,7 @@ import (
 	"bytes"
 	"fmt"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"text/template"
 )
@@ -31,6 +32,9 @@ var (
 	GoVersion = runtime.Version()
 	GoOS      = runtime.GOOS
 	GoArch    = runtime.GOARCH
+
+	computedRevision string
+	computedTags     string
 )
 
 // versionInfoTmpl contains the template used by Info.
@@ -73,4 +77,49 @@ func Info() string {
 // BuildContext returns goVersion, platform, buildUser and buildDate information.
 func BuildContext() string {
 	return fmt.Sprintf("(go=%s, platform=%s, user=%s, date=%s, tags=%s)", GoVersion, GoOS+"/"+GoArch, BuildUser, BuildDate, GetTags())
+}
+
+func GetRevision() string {
+	if Revision != "" {
+		return Revision
+	}
+	return computedRevision
+}
+
+func GetTags() string {
+	return computedTags
+}
+
+func init() {
+	computedRevision, computedTags = computeRevision()
+}
+
+func computeRevision() (string, string) {
+	var (
+		rev      = "unknown"
+		tags     = "unknown"
+		modified bool
+	)
+
+	buildInfo, ok := debug.ReadBuildInfo()
+	if !ok {
+		return rev, tags
+	}
+	for _, v := range buildInfo.Settings {
+		if v.Key == "vcs.revision" {
+			rev = v.Value
+		}
+		if v.Key == "vcs.modified" {
+			if v.Value == "true" {
+				modified = true
+			}
+		}
+		if v.Key == "-tags" {
+			tags = v.Value
+		}
+	}
+	if modified {
+		return rev + "-modified", tags
+	}
+	return rev, tags
 }

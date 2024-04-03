@@ -118,34 +118,34 @@ spec:
   configNamespaceSelector: {}
 ```
 
-[VMAlertmanagerConfig](./vmalertmanagerconfig.md) objects are 
+[VMAlertmanagerConfig](./vmalertmanagerconfig.md) objects are
 generates part of [VMAlertmanager](./vmalertmanager.md) configuration.
 
 For filtering rules `VMAlertmanager` uses selectors `configNamespaceSelector` and `configSelector`.
 It allows configuring rules access control across namespaces and different environments.
 Specification of selectors you can see in [this doc](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#labelselector-v1-meta).
 
-In addition to the above selectors, the filtering of objects in a cluster is affected by the field `selectAllByDefault` 
+In addition to the above selectors, the filtering of objects in a cluster is affected by the field `selectAllByDefault`
 of `VMAlertmanager` spec and environment variable `WATCH_NAMESPACE` for operator.
 
 Following rules are applied:
 
 - If `configNamespaceSelector` and `configSelector` both undefined, then by default select nothing. With option set - `spec.selectAllByDefault: true`, select all vmalertmanagerconfigs.
-- If `configNamespaceSelector` defined, `configSelector` undefined, then all vmalertmaangerconfigs are matching at namespaces for given `configNamespaceSelector`.
-- If `configNamespaceSelector` undefined, `configSelector` defined, then all vmalertmaangerconfigs at `VMAlertmanager`'s namespaces are matching for given `configSelector`.
-- If `configNamespaceSelector` and `configSelector` both defined, then only vmalertmaangerconfigs at namespaces matched `configNamespaceSelector` for given `configSelector` are matching.
+- If `configNamespaceSelector` defined, `configSelector` undefined, then all vmalertmanagerconfigs are matching at namespaces for given `configNamespaceSelector`.
+- If `configNamespaceSelector` undefined, `configSelector` defined, then all vmalertmanagerconfigs at `VMAlertmanager`'s namespaces are matching for given `configSelector`.
+- If `configNamespaceSelector` and `configSelector` both defined, then only vmalertmanagerconfigs at namespaces matched `configNamespaceSelector` for given `configSelector` are matching.
 
 Here's a more visual and more detailed view:
 
 | `configNamespaceSelector` | `configSelector` | `selectAllByDefault` | `WATCH_NAMESPACE` | Selected rules                                                                                                         |
-|---------------------------|------------------|----------------------|-------------------|------------------------------------------------------------------------------------------------------------------------|
+| ------------------------- | ---------------- | -------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | undefined                 | undefined        | false                | undefined         | nothing                                                                                                                |
-| undefined                 | undefined        | **true**             | undefined         | all vmalertmaangerconfigs in the cluster                                                                               |
-| **defined**               | undefined        | *any*                | undefined         | all vmalertmaangerconfigs are matching at namespaces for given `configNamespaceSelector`                               |
-| undefined                 | **defined**      | *any*                | undefined         | all vmalertmaangerconfigs only at `VMAlertmanager`'s namespace are matching for given `ruleSelector`                   |
-| **defined**               | **defined**      | *any*                | undefined         | all vmalertmaangerconfigs only at namespaces matched `configNamespaceSelector` for given `configSelector` are matching |
-| *any*                     | undefined        | *any*                | **defined**       | all vmalertmaangerconfigs only at `VMAlertmanager`'s namespace                                                         |
-| *any*                     | **defined**      | *any*                | **defined**       | all vmalertmaangerconfigs only at `VMAlertmanager`'s namespace for given `configSelector` are matching                 |
+| undefined                 | undefined        | **true**             | undefined         | all vmalertmanagerconfigs in the cluster                                                                               |
+| **defined**               | undefined        | *any*                | undefined         | all vmalertmanagerconfigs are matching at namespaces for given `configNamespaceSelector`                               |
+| undefined                 | **defined**      | *any*                | undefined         | all vmalertmanagerconfigs only at `VMAlertmanager`'s namespace are matching for given `ruleSelector`                   |
+| **defined**               | **defined**      | *any*                | undefined         | all vmalertmanagerconfigs only at namespaces matched `configNamespaceSelector` for given `configSelector` are matching |
+| *any*                     | undefined        | *any*                | **defined**       | all vmalertmanagerconfigs only at `VMAlertmanager`'s namespace                                                         |
+| *any*                     | **defined**      | *any*                | **defined**       | all vmalertmanagerconfigs only at `VMAlertmanager`'s namespace for given `configSelector` are matching                 |
 
 More details about `WATCH_NAMESPACE` variable you can read in [this doc](../configuration.md#namespaced-mode).
 
@@ -170,7 +170,7 @@ metadata:
   name: vmalertmanager-select-ns
 spec:
   # ...
-  configNamespaceSelector: 
+  configNamespaceSelector:
     matchLabels:
       kubernetes.io/metadata.name: my-namespace
 ```
@@ -218,9 +218,9 @@ If no configuration is provided, operator configures stub configuration with bla
 
 The final step of the high availability scheme is Alertmanager, when an alert triggers, actually fire alerts against *all* instances of an Alertmanager cluster.
 
-The Alertmanager, starting with the `v0.5.0` release, ships with a high availability mode. 
-It implements a gossip protocol to synchronize instances of an Alertmanager cluster 
-regarding notifications that have been sent out, to prevent duplicate notifications. 
+The Alertmanager, starting with the `v0.5.0` release, ships with a high availability mode.
+It implements a gossip protocol to synchronize instances of an Alertmanager cluster
+regarding notifications that have been sent out, to prevent duplicate notifications.
 It is an AP (available and partition tolerant) system. Being an AP system means that notifications are guaranteed to be sent at least once.
 
 The Victoria Metrics Operator ensures that Alertmanager clusters are properly configured to run highly available on Kubernetes.
