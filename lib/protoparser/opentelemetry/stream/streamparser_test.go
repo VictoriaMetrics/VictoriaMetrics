@@ -15,9 +15,14 @@ import (
 )
 
 func TestParseStream(t *testing.T) {
-	f := func(samples []*pb.Metric, tssExpected []prompbmarshal.TimeSeries, sanitize bool) {
+	f := func(samples []*pb.Metric, tssExpected []prompbmarshal.TimeSeries, usePromNaming bool) {
 		t.Helper()
-		*sanitizeMetrics = sanitize
+
+		prevPromNaming := *usePrometheusNaming
+		*usePrometheusNaming = usePromNaming
+		defer func() {
+			*usePrometheusNaming = prevPromNaming
+		}()
 
 		checkSeries := func(tss []prompbmarshal.TimeSeries) error {
 			if len(tss) != len(tssExpected) {
@@ -122,7 +127,7 @@ func TestParseStream(t *testing.T) {
 		false,
 	)
 
-	// Test gauge with unit and sanitization
+	// Test gauge with unit and prometheus naming
 	f(
 		[]*pb.Metric{
 			generateGauge("my-gauge", "ms"),
