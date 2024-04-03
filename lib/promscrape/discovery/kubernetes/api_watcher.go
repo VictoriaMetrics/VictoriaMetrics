@@ -251,19 +251,20 @@ func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string,
 	if proxyURL != nil {
 		proxy = http.ProxyURL(proxyURL)
 	}
-	tlsConfig, err := ac.NewTLSConfig()
+	tr, err := ac.NewRoundTripper(func(tr *http.Transport) {
+		tr.Proxy = proxy
+		tr.TLSHandshakeTimeout = 10 * time.Second
+		tr.IdleConnTimeout = *apiServerTimeout
+		tr.MaxIdleConnsPerHost = 100
+	})
+
 	if err != nil {
 		return nil, fmt.Errorf("cannot initialize tls config: %w", err)
 	}
+
 	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig:     tlsConfig,
-			Proxy:               proxy,
-			TLSHandshakeTimeout: 10 * time.Second,
-			IdleConnTimeout:     *apiServerTimeout,
-			MaxIdleConnsPerHost: 100,
-		},
-		Timeout: *apiServerTimeout,
+		Transport: tr,
+		Timeout:   *apiServerTimeout,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	gw := &groupWatcher{
