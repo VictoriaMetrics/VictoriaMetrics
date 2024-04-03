@@ -32,7 +32,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 **Update note 1: the `-datasource.lookback` command-line flag at `vmalert` is no-op starting from this release. This flag will be removed in the future, so please switch to [`eval_delay` option](https://docs.victoriametrics.com/vmalert/#groups). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155) for more details.**
 
-* SECURITY: upgrade Go builder from Go1.21.7 to Go1.22.1. See [the list of issues addressed in Go1.22.1](https://github.com/golang/go/issues?q=milestone%3AGo1.22.1+label%3ACherryPickApproved).
+* SECURITY: upgrade Go builder from Go1.21.7 to Go1.22.2. See [the list of issues addressed in Go1.22.1](https://github.com/golang/go/issues?q=milestone%3AGo1.22.1+label%3ACherryPickApproved) and [the list of issues addressed in Go1.22.2](https://github.com/golang/go/issues?q=milestone%3AGo1.22.2+label%3ACherryPickApproved).
 
 * FEATURE: [downsampling](https://docs.victoriametrics.com/#downsampling): add ability to configure distinct downsampling per distinct sets of time series and/or [tenants](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4960) and [these docs](https://docs.victoriametrics.com/#downsampling).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): allow discovering ip addresses for backend instances hidden behind a shared hostname, via `discover_backend_ips: true` option. This allows evenly spreading load among backend instances. See [these docs](https://docs.victoriametrics.com/vmauth/#discovering-backend-ips) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5707).
