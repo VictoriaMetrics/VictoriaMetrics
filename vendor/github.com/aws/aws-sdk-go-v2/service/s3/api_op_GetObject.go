@@ -132,7 +132,7 @@ type GetObjectInput struct {
 	// the format Bucket_name.s3express-az_id.region.amazonaws.com . Path-style
 	// requests are not supported. Directory bucket names must be unique in the chosen
 	// Availability Zone. Bucket names must follow the format
-	// bucket_base_name--az-id--x-s3 (for example,  DOC-EXAMPLE-BUCKET--usw2-az2--x-s3
+	// bucket_base_name--az-id--x-s3 (for example,  DOC-EXAMPLE-BUCKET--usw2-az1--x-s3
 	// ). For information about bucket naming restrictions, see Directory bucket
 	// naming rules (https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html)
 	// in the Amazon S3 User Guide. Access points - When you use this action with an

@@ -31,9 +31,12 @@ import (
 // endpoints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html)
 // in the Amazon S3 User Guide. Both the Region that you want to copy the object
 // from and the Region that you want to copy the object to must be enabled for your
-// account. Amazon S3 transfer acceleration does not support cross-Region copies.
-// If you request a cross-Region copy using a transfer acceleration endpoint, you
-// get a 400 Bad Request error. For more information, see Transfer Acceleration (https://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html)
+// account. For more information about how to enable a Region for your account, see
+// Enable or disable a Region for standalone accounts (https://docs.aws.amazon.com/accounts/latest/reference/manage-acct-regions.html#manage-acct-regions-enable-standalone)
+// in the Amazon Web Services Account Management Guide. Amazon S3 transfer
+// acceleration does not support cross-Region copies. If you request a cross-Region
+// copy using a transfer acceleration endpoint, you get a 400 Bad Request error.
+// For more information, see Transfer Acceleration (https://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html)
 // . Authentication and authorization All CopyObject requests must be
 // authenticated and signed by using IAM credentials (access key ID and secret
 // access key for the IAM identities). All headers with the x-amz- prefix,
@@ -51,7 +54,7 @@ import (
 //   - If the source object is in a general purpose bucket, you must have
 //     s3:GetObject permission to read the source object that is being copied.
 //   - If the destination bucket is a general purpose bucket, you must have
-//     s3:PubObject permission to write the object copy to the destination bucket.
+//     s3:PutObject permission to write the object copy to the destination bucket.
 //   - Directory bucket permissions - You must have permissions in a bucket policy
 //     or an IAM identity-based policy based on the source and destination bucket types
 //     in a CopyObject operation.
@@ -84,24 +87,26 @@ import (
 //   - If the error occurs during the copy operation, the error response is
 //     embedded in the 200 OK response. For example, in a cross-region copy, you may
 //     encounter throttling and receive a 200 OK response. For more information, see
-//     Resolve the Error 200 response when copying objects to Amazon S3 . The 200 OK
-//     status code means the copy was accepted, but it doesn't mean the copy is
-//     complete. Another example is when you disconnect from Amazon S3 before the copy
-//     is complete, Amazon S3 might cancel the copy and you may receive a 200 OK
-//     response. You must stay connected to Amazon S3 until the entire response is
-//     successfully received and processed. If you call this API operation directly,
-//     make sure to design your application to parse the content of the response and
-//     handle it appropriately. If you use Amazon Web Services SDKs, SDKs handle this
-//     condition. The SDKs detect the embedded error and apply error handling per your
-//     configuration settings (including automatically retrying the request as
-//     appropriate). If the condition persists, the SDKs throw an exception (or, for
-//     the SDKs that don't use exceptions, they return an error).
+//     Resolve the Error 200 response when copying objects to Amazon S3 (https://repost.aws/knowledge-center/s3-resolve-200-internalerror)
+//     . The 200 OK status code means the copy was accepted, but it doesn't mean the
+//     copy is complete. Another example is when you disconnect from Amazon S3 before
+//     the copy is complete, Amazon S3 might cancel the copy and you may receive a
+//     200 OK response. You must stay connected to Amazon S3 until the entire
+//     response is successfully received and processed. If you call this API operation
+//     directly, make sure to design your application to parse the content of the
+//     response and handle it appropriately. If you use Amazon Web Services SDKs, SDKs
+//     handle this condition. The SDKs detect the embedded error and apply error
+//     handling per your configuration settings (including automatically retrying the
+//     request as appropriate). If the condition persists, the SDKs throw an exception
+//     (or, for the SDKs that don't use exceptions, they return an error).
 //
 // Charge The copy request charge is based on the storage class and Region that
 // you specify for the destination object. The request can also result in a data
 // retrieval charge for the source if the source storage class bills for data
-// retrieval. For pricing information, see Amazon S3 pricing (http://aws.amazon.com/s3/pricing/)
-// . HTTP Host header syntax Directory buckets - The HTTP Host header syntax is
+// retrieval. If the copy source is in a different region, the data transfer is
+// billed to the copy source account. For pricing information, see Amazon S3
+// pricing (http://aws.amazon.com/s3/pricing/) . HTTP Host header syntax Directory
+// buckets - The HTTP Host header syntax is
 // Bucket_name.s3express-az_id.region.amazonaws.com . The following operations are
 // related to CopyObject :
 //   - PutObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html)
@@ -128,7 +133,7 @@ type CopyObjectInput struct {
 	// the format Bucket_name.s3express-az_id.region.amazonaws.com . Path-style
 	// requests are not supported. Directory bucket names must be unique in the chosen
 	// Availability Zone. Bucket names must follow the format
-	// bucket_base_name--az-id--x-s3 (for example,  DOC-EXAMPLE-BUCKET--usw2-az2--x-s3
+	// bucket_base_name--az-id--x-s3 (for example,  DOC-EXAMPLE-BUCKET--usw2-az1--x-s3
 	// ). For information about bucket naming restrictions, see Directory bucket
 	// naming rules (https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html)
 	// in the Amazon S3 User Guide. Access points - When you use this action with an
