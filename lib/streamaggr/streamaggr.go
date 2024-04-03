@@ -713,6 +713,11 @@ func (a *aggregator) dedupFlush(dedupInterval time.Duration) {
 func (a *aggregator) flush(pushFunc PushFunc, interval time.Duration, resetState bool) {
 	startTime := time.Now()
 
+	// Update minTimestamp before flushing samples to the storage,
+	// since the flush durtion can be quite long.
+	// This should prevent from dropping samples with old timestamps when the flush takes long time.
+	a.minTimestamp.Store(startTime.UnixMilli() - 5_000)
+
 	var wg sync.WaitGroup
 	for _, as := range a.aggrStates {
 		flushConcurrencyCh <- struct{}{}
@@ -731,8 +736,6 @@ func (a *aggregator) flush(pushFunc PushFunc, interval time.Duration, resetState
 		}(as)
 	}
 	wg.Wait()
-
-	a.minTimestamp.Store(startTime.UnixMilli() - 5_000)
 
 	d := time.Since(startTime)
 	a.flushDuration.Update(d.Seconds())
