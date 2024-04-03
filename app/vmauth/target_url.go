@@ -1,8 +1,10 @@
 package main
 
 import (
+	"net/http"
 	"net/url"
 	"path"
+	"slices"
 	"strings"
 )
 
@@ -49,11 +51,22 @@ func dropPrefixParts(path string, parts int) string {
 	return path
 }
 
-func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL) (*URLPrefix, HeadersConf) {
+func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL, h http.Header) (*URLPrefix, HeadersConf) {
 	for _, e := range ui.URLMaps {
-		if matchAnyRegex(e.SrcHosts, u.Host) && matchAnyRegex(e.SrcPaths, u.Path) {
-			return e.URLPrefix, e.HeadersConf
+		if !matchAnyRegex(e.SrcHosts, u.Host) {
+			continue
 		}
+		if !matchAnyRegex(e.SrcPaths, u.Path) {
+			continue
+		}
+		if !matchAnyQueryArg(e.SrcQueryArgs, u.Query()) {
+			continue
+		}
+		if !matchAnyHeader(e.SrcHeaders, h) {
+			continue
+		}
+
+		return e.URLPrefix, e.HeadersConf
 	}
 	if ui.URLPrefix != nil {
 		return ui.URLPrefix, ui.HeadersConf
@@ -67,6 +80,30 @@ func matchAnyRegex(rs []*Regex, s string) bool {
 	}
 	for _, r := range rs {
 		if r.match(s) {
+			return true
+		}
+	}
+	return false
+}
+
+func matchAnyQueryArg(qas []QueryArg, args url.Values) bool {
+	if len(qas) == 0 {
+		return true
+	}
+	for _, qa := range qas {
+		if slices.Contains(args[qa.Name], qa.Value) {
+			return true
+		}
+	}
+	return false
+}
+
+func matchAnyHeader(headers []Header, h http.Header) bool {
+	if len(headers) == 0 {
+		return true
+	}
+	for _, header := range headers {
+		if slices.Contains(h.Values(header.Name), header.Value) {
 			return true
 		}
 	}

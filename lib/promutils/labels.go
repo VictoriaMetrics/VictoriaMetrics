@@ -117,7 +117,7 @@ func (x *Labels) String() string {
 
 // Reset resets x.
 func (x *Labels) Reset() {
-	cleanLabels(x.Labels)
+	clear(x.Labels)
 	x.Labels = x.Labels[:0]
 }
 
@@ -245,7 +245,7 @@ func (x *Labels) RemoveDuplicates() {
 			prevName = label.Name
 		}
 	}
-	cleanLabels(labels[len(tmp):])
+	clear(labels[len(tmp):])
 	x.Labels = tmp
 }
 
@@ -261,7 +261,7 @@ func (x *Labels) RemoveMetaLabels() {
 		}
 		dst = append(dst, label)
 	}
-	cleanLabels(src[len(dst):])
+	clear(src[len(dst):])
 	x.Labels = dst
 }
 
@@ -276,14 +276,8 @@ func (x *Labels) RemoveLabelsWithDoubleUnderscorePrefix() {
 		}
 		dst = append(dst, label)
 	}
-	cleanLabels(src[len(dst):])
+	clear(src[len(dst):])
 	x.Labels = dst
-}
-
-func cleanLabels(labels []prompbmarshal.Label) {
-	for i := range labels {
-		labels[i] = prompbmarshal.Label{}
-	}
 }
 
 // GetLabels returns and empty Labels instance from the pool.

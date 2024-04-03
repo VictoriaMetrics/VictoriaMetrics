@@ -17,9 +17,9 @@ func TestParseAuthConfigFailure(t *testing.T) {
 		if err != nil {
 			return
 		}
-		_, err = parseAuthConfigUsers(ac)
+		users, err := parseAuthConfigUsers(ac)
 		if err == nil {
-			t.Fatalf("expecting non-nil error")
+			t.Fatalf("expecting non-nil error; got %v", users)
 		}
 	}
 
@@ -86,6 +86,22 @@ users:
 users:
 - username: foo
   url_prefix: []
+`)
+
+	// auth_token and username in a single config
+	f(`
+users:
+- auth_token: foo
+  username: bbb
+  url_prefix: http://foo.bar
+`)
+
+	// auth_token and bearer_token in a single config
+	f(`
+users:
+- auth_token: foo
+  bearer_token: bbb
+  url_prefix: http://foo.bar
 `)
 
 	// Username and bearer_token in a single config
@@ -192,7 +208,7 @@ users:
   - url_prefix: http://foobar
 `)
 
-	// Invalid regexp in src_path.
+	// Invalid regexp in src_paths
 	f(`
 users:
 - username: a
@@ -207,6 +223,24 @@ users:
 - username: a
   url_map:
   - src_hosts: ['fo[obar']
+    url_prefix: http://foobar
+`)
+
+	// Invalid src_query_args
+	f(`
+users:
+- username: a
+  url_map:
+  - src_query_args: abc
+    url_prefix: http://foobar
+`)
+
+	// Invalid src_headers
+	f(`
+users:
+- username: a
+  url_map:
+  - src_headers: abc
     url_prefix: http://foobar
 `)
 
@@ -257,8 +291,9 @@ func TestParseAuthConfigSuccess(t *testing.T) {
 		}
 	}
 
-	// Single user
 	insecureSkipVerifyTrue := true
+
+	// Single user
 	f(`
 users:
 - username: foo
@@ -270,6 +305,22 @@ users:
 		getHTTPAuthBasicToken("foo", "bar"): {
 			Username:              "foo",
 			Password:              "bar",
+			URLPrefix:             mustParseURL("http://aaa:343/bbb"),
+			MaxConcurrentRequests: 5,
+			TLSInsecureSkipVerify: &insecureSkipVerifyTrue,
+		},
+	})
+
+	// Single user with auth_token
+	f(`
+users:
+- auth_token: foo
+  url_prefix: http://aaa:343/bbb
+  max_concurrent_requests: 5
+  tls_insecure_skip_verify: true
+`, map[string]*UserInfo{
+		getHTTPAuthToken("foo"): {
+			AuthToken:             "foo",
 			URLPrefix:             mustParseURL("http://aaa:343/bbb"),
 			MaxConcurrentRequests: 5,
 			TLSInsecureSkipVerify: &insecureSkipVerifyTrue,
@@ -310,7 +361,7 @@ users:
 - username: foo
   url_prefix: http://foo
 - username: bar
-  url_prefix: https://bar/x///
+  url_prefix: https://bar/x/
 `, map[string]*UserInfo{
 		getHTTPAuthBasicToken("foo", ""): {
 			Username:  "foo",
@@ -318,11 +369,52 @@ users:
 		},
 		getHTTPAuthBasicToken("bar", ""): {
 			Username:  "bar",
-			URLPrefix: mustParseURL("https://bar/x"),
+			URLPrefix: mustParseURL("https://bar/x/"),
 		},
 	})
 
 	// non-empty URLMap
+	sharedUserInfo := &UserInfo{
+		BearerToken: "foo",
+		URLMaps: []URLMap{
+			{
+				SrcPaths:  getRegexs([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
+				URLPrefix: mustParseURL("http://vmselect/select/0/prometheus"),
+			},
+			{
+				SrcHosts: getRegexs([]string{"foo\\.bar", "baz:1234"}),
+				SrcPaths: getRegexs([]string{"/api/v1/write"}),
+				SrcQueryArgs: []QueryArg{
+					{
+						Name:  "foo",
+						Value: "bar",
+					},
+				},
+				SrcHeaders: []Header{
+					{
+						Name:  "TenantID",
+						Value: "345",
+					},
+				},
+				URLPrefix: mustParseURLs([]string{
+					"http://vminsert1/insert/0/prometheus",
+					"http://vminsert2/insert/0/prometheus",
+				}),
+				HeadersConf: HeadersConf{
+					RequestHeaders: []Header{
+						{
+							Name:  "foo",
+							Value: "bar",
+						},
+						{
+							Name:  "xxx",
+							Value: "y",
+						},
+					},
+				},
+			},
+		},
+	}
 	f(`
 users:
 - bearer_token: foo
@@ -331,70 +423,17 @@ users:
     url_prefix: http://vmselect/select/0/prometheus
   - src_paths: ["/api/v1/write"]
     src_hosts: ["foo\\.bar", "baz:1234"]
+    src_query_args: ['foo=bar']
+    src_headers: ['TenantID: 345']
     url_prefix: ["http://vminsert1/insert/0/prometheus","http://vminsert2/insert/0/prometheus"]
     headers:
     - "foo: bar"
     - "xxx: y"
 `, map[string]*UserInfo{
-		getHTTPAuthBearerToken("foo"): {
-			BearerToken: "foo",
-			URLMaps: []URLMap{
-				{
-					SrcPaths:  getRegexs([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
-					URLPrefix: mustParseURL("http://vmselect/select/0/prometheus"),
-				},
-				{
-					SrcHosts: getRegexs([]string{"foo\\.bar", "baz:1234"}),
-					SrcPaths: getRegexs([]string{"/api/v1/write"}),
-					URLPrefix: mustParseURLs([]string{
-						"http://vminsert1/insert/0/prometheus",
-						"http://vminsert2/insert/0/prometheus",
-					}),
-					HeadersConf: HeadersConf{
-						RequestHeaders: []Header{
-							{
-								Name:  "foo",
-								Value: "bar",
-							},
-							{
-								Name:  "xxx",
-								Value: "y",
-							},
-						},
-					},
-				},
-			},
-		},
-		getHTTPAuthBasicToken("foo", ""): {
-			BearerToken: "foo",
-			URLMaps: []URLMap{
-				{
-					SrcPaths:  getRegexs([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
-					URLPrefix: mustParseURL("http://vmselect/select/0/prometheus"),
-				},
-				{
-					SrcHosts: getRegexs([]string{"foo\\.bar", "baz:1234"}),
-					SrcPaths: getRegexs([]string{"/api/v1/write"}),
-					URLPrefix: mustParseURLs([]string{
-						"http://vminsert1/insert/0/prometheus",
-						"http://vminsert2/insert/0/prometheus",
-					}),
-					HeadersConf: HeadersConf{
-						RequestHeaders: []Header{
-							{
-								Name:  "foo",
-								Value: "bar",
-							},
-							{
-								Name:  "xxx",
-								Value: "y",
-							},
-						},
-					},
-				},
-			},
-		},
+		getHTTPAuthBearerToken("foo"):    sharedUserInfo,
+		getHTTPAuthBasicToken("foo", ""): sharedUserInfo,
 	})
+
 	// Multiple users with the same name - this should work, since these users have different passwords
 	f(`
 users:
@@ -403,7 +442,7 @@ users:
   url_prefix: http://foo
 - username: foo-same
   password: bar
-  url_prefix: https://bar/x///
+  url_prefix: https://bar/x
 `, map[string]*UserInfo{
 		getHTTPAuthBasicToken("foo-same", "baz"): {
 			Username:  "foo-same",
@@ -498,6 +537,7 @@ users:
 			}),
 		},
 	})
+
 	// With metric_labels
 	f(`
 users:
@@ -509,7 +549,7 @@ users:
     team: dev
 - username: foo-same
   password: bar
-  url_prefix: https://bar/x///
+  url_prefix: https://bar/x
   metric_labels:
     backend_env: test
     team: accounting
@@ -694,6 +734,7 @@ func mustParseURL(u string) *URLPrefix {
 
 func mustParseURLs(us []string) *URLPrefix {
 	bus := make([]*backendURL, len(us))
+	urls := make([]*url.URL, len(us))
 	for i, u := range us {
 		pu, err := url.Parse(u)
 		if err != nil {
@@ -702,10 +743,17 @@ func mustParseURLs(us []string) *URLPrefix {
 		bus[i] = &backendURL{
 			url: pu,
 		}
+		urls[i] = pu
 	}
-	return &URLPrefix{
-		bus: bus,
+	up := &URLPrefix{}
+	if len(us) == 1 {
+		up.vOriginal = us[0]
+	} else {
+		up.vOriginal = us
 	}
+	up.bus.Store(&bus)
+	up.busOriginal = urls
+	return up
 }
 
 func intp(n int) *int {

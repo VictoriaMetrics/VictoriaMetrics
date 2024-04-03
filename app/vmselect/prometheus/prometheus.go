@@ -251,7 +251,7 @@ func ExportNativeHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 	_, _ = bw.Write(trBuf)
 
 	// Marshal native blocks.
-	err = netstorage.ExportBlocks(nil, sq, cp.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange, workerID uint) error {
+	err = netstorage.ExportBlocks(nil, sq, cp.deadline, func(mn *storage.MetricName, b *storage.Block, _ storage.TimeRange, workerID uint) error {
 		if err := bw.Error(); err != nil {
 			return err
 		}
@@ -1138,7 +1138,7 @@ func getCommonParamsForLabelsAPI(r *http.Request, startTime time.Time, requireNo
 	if cp.start == 0 {
 		cp.start = cp.end - defaultStep
 	}
-	cp.deadline = searchutils.GetDeadlineForExport(r, startTime)
+	cp.deadline = searchutils.GetDeadlineForLabelsAPI(r, startTime)
 	return cp, nil
 }
 
@@ -1181,18 +1181,21 @@ func getCommonParamsInternal(r *http.Request, startTime time.Time, requireNonEmp
 	if requireNonEmptyMatch && len(matches) == 0 {
 		return nil, fmt.Errorf("missing `match[]` arg")
 	}
+	filterss, err := getTagFilterssFromMatches(matches)
+	if err != nil {
+		return nil, err
+	}
 
-	var filterss [][]storage.TagFilter
-	if !isLabelsAPI || !*ignoreExtraFiltersAtLabelsAPI {
-		tagFilterss, err := getTagFilterssFromMatches(matches)
-		if err != nil {
-			return nil, err
-		}
+	if len(filterss) > 0 || !isLabelsAPI || !*ignoreExtraFiltersAtLabelsAPI {
+		// If matches isn't empty, then there is no sense in ignoring extra filters
+		// even if ignoreExtraLabelsAtLabelsAPI is set, since extra filters won't slow down
+		// the query - they can only improve query performance by reducing the number
+		// of matching series at the storage level.
 		etfs, err := searchutils.GetExtraTagFilters(r)
 		if err != nil {
 			return nil, err
 		}
-		filterss = searchutils.JoinTagFilterss(tagFilterss, etfs)
+		filterss = searchutils.JoinTagFilterss(filterss, etfs)
 	}
 
 	cp := &commonParams{
@@ -1235,7 +1238,7 @@ func (sw *scalableWriter) maybeFlushBuffer(bb *bytesutil.ByteBuffer) error {
 }
 
 func (sw *scalableWriter) flush() error {
-	sw.m.Range(func(k, v interface{}) bool {
+	sw.m.Range(func(_, v interface{}) bool {
 		bb := v.(*bytesutil.ByteBuffer)
 		_, err := sw.bw.Write(bb.B)
 		return err == nil

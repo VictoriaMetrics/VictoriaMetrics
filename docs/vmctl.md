@@ -942,7 +942,8 @@ To use this mode you need to set `--vm-intercluster` flag to `true`, `--vm-nativ
   --vm-native-filter-match='{__name__="vm_app_uptime_seconds"}' \
   --vm-native-filter-time-start='2023-02-01T00:00:00Z' \
   --vm-native-step-interval=day \  
---vm-intercluster
+  --vm-intercluster
+  
 VictoriaMetrics Native import mode
 2023/02/28 10:41:42 Discovering tenants...
 2023/02/28 10:41:42 The following tenants were discovered: [0:0 1:0 2:0 3:0 4:0]
@@ -973,6 +974,14 @@ Requests to make for tenant 1:0: 28 / 28 [████████████�
   requests retries: 0;
 2023/02/28 10:42:49 Total time: 1m7.147971417s
 ```
+
+### Configuration
+Run the following command to get all configuration options:
+```sh
+./vmctl vm-native --help
+```
+
+## Tuning
 
 ## Verifying exported blocks from VictoriaMetrics
 

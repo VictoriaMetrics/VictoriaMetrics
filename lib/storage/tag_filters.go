@@ -19,6 +19,29 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
+func getCommonMetricNameForTagFilterss(tfss []*TagFilters) []byte {
+	if len(tfss) == 0 {
+		return nil
+	}
+	prevName := getMetricNameFilter(tfss[0])
+	for _, tfs := range tfss[1:] {
+		name := getMetricNameFilter(tfs)
+		if string(prevName) != string(name) {
+			return nil
+		}
+	}
+	return prevName
+}
+
+func getMetricNameFilter(tfs *TagFilters) []byte {
+	for _, tf := range tfs.tfs {
+		if len(tf.key) == 0 && !tf.isNegative && !tf.isRegexp {
+			return tf.value
+		}
+	}
+	return nil
+}
+
 // convertToCompositeTagFilterss converts tfss to composite filters.
 //
 // This converts `foo{bar="baz",x=~"a.+"}` to `{foo=bar="baz",foo=x=~"a.+"} filter.
@@ -621,7 +644,7 @@ const (
 func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp) (func(b []byte) bool, string, uint64) {
 	if isDotStar(sre) {
 		// '.*'
-		return func(b []byte) bool {
+		return func(_ []byte) bool {
 			return true
 		}, "", fullMatchCost
 	}

@@ -124,7 +124,7 @@ The result on the GCS bucket
   <img alt="latest folder" src="vmbackupmanager_latest_folder.webp">
 
 `vmbackupmanager` uses [smart backups](https://docs.victoriametrics.com/vmbackup.html#smart-backups) technique in order
-to speed up backups and save both data transfer costs and data copying costs. This includes server-side copy of already existing
+to accelerate backups and save both data transfer costs and data copying costs. This includes server-side copy of already existing
 objects. Typical object storage systems implement server-side copy by creating new names for already existing objects.
 This is very fast and efficient. Unfortunately there are systems such as [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/),
 which perform full object copy during server-side copying. This may be slow and expensive.

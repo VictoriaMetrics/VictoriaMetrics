@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
-	"time"
 )
 
 type graphiteResponse []graphiteResponseTarget
@@ -48,17 +46,13 @@ const (
 	graphitePrefix = "/graphite"
 )
 
-func (s *VMStorage) setGraphiteReqParams(r *http.Request, query string, timestamp time.Time) {
+func (s *VMStorage) setGraphiteReqParams(r *http.Request, query string) {
 	if s.appendTypePrefix {
 		r.URL.Path += graphitePrefix
 	}
 	r.URL.Path += graphitePath
 	q := r.URL.Query()
 	from := "-5min"
-	if s.lookBack > 0 {
-		lookBack := timestamp.Add(-s.lookBack)
-		from = strconv.FormatInt(lookBack.Unix(), 10)
-	}
 	q.Set("from", from)
 	q.Set("format", "json")
 	q.Set("target", query)

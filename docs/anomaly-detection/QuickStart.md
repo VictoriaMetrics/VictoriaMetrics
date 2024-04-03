@@ -16,18 +16,19 @@ aliases:
 For service introduction visit [README](/anomaly-detection/) page
 and [Overview](/anomaly-detection/overview.html) of how `vmanomaly` works.
 
-## How to install and run `vmanomaly`
+## How to install and run vmanomaly
 
-> To run `vmanomaly` you need to have VictoriaMetrics Enterprise license. You can get a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/index.html).
+> To run `vmanomaly`, you need to have VictoriaMetrics Enterprise license. You can get a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/).
 
 The following options are available:
 
-- [To run Docker image](#docker-image)
-- [To run in Kubernetes with Helm charts](#helm-charts)
+- [To run Docker image](#docker)
+- [To run in Kubernetes with Helm charts](#kubernetes-with-helm-charts)
 
 
 ### Docker
-> To run `vmanomaly` you need to have a VictoriaMetrics Enterprise [licence](https://victoriametrics.com/products/enterprise/) or request a trial [here](https://victoriametrics.com/products/enterprise/trial/index.html).
+
+> To run `vmanomaly`, you need to have VictoriaMetrics Enterprise license. You can get a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/).
 
 Below are the steps to get `vmanomaly` up and running inside a Docker container:
 
@@ -61,6 +62,8 @@ See also:
 - [How to configure `vmanomaly`](#how-to-configure-vmanomaly)
 
 ### Kubernetes with Helm charts
+
+> To run `vmanomaly`, you need to have VictoriaMetrics Enterprise license. You can get a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/).
 
 You can run `vmanomaly` in Kubernetes environment
 with [these Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/README.md).

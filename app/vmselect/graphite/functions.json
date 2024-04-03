@@ -40,6 +40,52 @@
       }
     ]
   },
+  "aggregateSeriesLists": {
+    "name": "aggregateSeriesLists",
+    "function": "aggregateSeriesLists(seriesListFirstPos, seriesListSecondPos, func, xFilesFactor=None)",
+    "description": "Iterates over a two lists and aggregates using specified function list1[0] to list2[0], list1[1] to list2[1] and so on. The lists will need to be the same length\n\nPosition of seriesList matters. For example using “sum” function aggregateSeriesLists(list1[0..n], list2[0..n], \"sum\") it would find sum for each member of the list list1[0] + list2[0], list1[1] + list2[1], list1[n] + list2[n].",
+    "module": "graphite.render.functions",
+    "group": "Combine",
+    "params": [
+      {
+        "name": "seriesListFirstPos",
+        "type": "seriesList",
+        "required": true
+      },
+      {
+        "name": "seriesListSecondPos",
+        "type": "seriesList",
+        "required": true
+      },
+      {
+        "name": "func",
+        "type": "aggFunc",
+        "required": true,
+        "options": [
+          "average",
+          "avg",
+          "avg_zero",
+          "count",
+          "current",
+          "diff",
+          "last",
+          "max",
+          "median",
+          "min",
+          "multiply",
+          "range",
+          "rangeOf",
+          "stddev",
+          "sum",
+          "total"
+        ]
+      },
+      {
+        "name": "xFilesFactor",
+        "type": "float"
+      }
+    ]
+  },
   "aggregateWithWildcards": {
     "name": "aggregateWithWildcards",
     "function": "aggregateWithWildcards(seriesList, func, *positions)",
@@ -208,6 +254,25 @@
         "type": "seriesList",
         "required": true,
         "multiple": true
+      }
+    ]
+  },
+  "diffSeriesLists": {
+    "name": "diffSeriesLists",
+    "function": "diffSeriesLists(seriesListFirstPos, seriesListSecondPos)",
+    "description": "Iterates over a two lists and subtracts series lists 2 through n from series 1 list1[0] to list2[0], list1[1] to list2[1] and so on. The lists will need to be the same length",
+    "module": "graphite.render.functions",
+    "group": "Combine",
+    "params": [
+      {
+        "name": "seriesListFirstPos",
+        "type": "seriesList",
+        "required": true
+      },
+      {
+        "name": "seriesListSecondPos",
+        "type": "seriesList",
+        "required": true
       }
     ]
   },
@@ -529,6 +594,25 @@
       }
     ]
   },
+  "multiplySeriesLists": {
+    "name": "multiplySeriesLists",
+    "function": "multiplySeriesLists(seriesListFirstPos, seriesListSecondPos)",
+    "description": "Iterates over a two lists and multiply series lists 2 through n from series 1 list1[0] to list2[0], list1[1] to list2[1] and so on. The lists will need to be the same length",
+    "module": "graphite.render.functions",
+    "group": "Combine",
+    "params": [
+      {
+        "name": "seriesListFirstPos",
+        "type": "seriesList",
+        "required": true
+      },
+      {
+        "name": "seriesListSecondPos",
+        "type": "seriesList",
+        "required": true
+      }
+    ]
+  },
   "multiplySeriesWithWildcards": {
     "name": "multiplySeriesWithWildcards",
     "function": "multiplySeriesWithWildcards(seriesList, *position)",
@@ -715,6 +799,26 @@
       }
     ]
   },
+  "sumSeriesLists": {
+    "name": "sumSeriesLists",
+    "function": "sumSeriesLists(seriesListFirstPos, seriesListSecondPos)",
+    "description": "Iterates over a two lists and sums series lists 2 through n from series 1 list1[0] to list2[0], list1[1] to list2[1] and so on. The lists will need to be the same length",
+    "module": "graphite.render.functions",
+    "group": "Combine",
+    "params": [
+      {
+        "name": "seriesListFirstPos",
+        "type": "seriesList",
+        "required": true
+      },
+      {
+        "name": "seriesListSecondPos",
+        "type": "seriesList",
+        "required": true
+      }
+    ]
+  },
+
   "sumSeriesWithWildcards": {
     "name": "sumSeriesWithWildcards",
     "function": "sumSeriesWithWildcards(seriesList, *position)",

@@ -75,7 +75,7 @@ unauthorized_user:
 
 ### Generic HTTP proxy for different backends
 
-`vmauth` can proxy requests to different backends depending on the requested host and/or path.
+`vmauth` can proxy requests to different backends depending on the requested host, path, [query args](https://en.wikipedia.org/wiki/Query_string) and any HTTP request header.
 For example, the following [`-auth.config`](#auth-config) instructs `vmauth` to make the following:
 
 - Requests starting with `/app1/` are proxied to `http://app1-backend/`, while the `/app1/` path prefix is dropped according to [`drop_src_path_prefix_parts`](#dropping-request-path-prefix).
@@ -116,6 +116,42 @@ unauthorized_user:
 if the whole request path matches at least one `src_paths` entry. The incoming request is routed to the given `url_prefix` if the whole request host matches at least one `src_hosts` entry.
 If both `src_paths` and `src_hosts` lists are specified, then the request is routed to the given `url_prefix` when both request path and request host match at least one entry
 in the corresponding lists.
+
+An optional `src_query_args` can be used for routing requests based on [HTTP query args](https://en.wikipedia.org/wiki/Query_string) additionaly to hostname and path.
+For example, the following config routes requests to `http://app1-backend/` if `db=foo` query arg is present in the request,
+while routing requests with `db=bar` query arg to `http://app2-backend`:
+
+```yaml
+unauthorized_user:
+  url_map:
+  - src_query_args: ["db=foo"]
+    url_prefix: "http://app1-backend/"
+  - src_query_args: ["db=bar"]
+    url_prefix: "http://app2-backend/"
+```
+
+If `src_query_args` contains multiple entries, then it is enough to match only a single entry in order to route the request to the given `url_prefix`.
+
+If `src_query_args` are specified together with `src_hosts`, `src_paths` or `src_headers`, then the request is routed to the given `url_prefix`
+if its query args, host, path and headers match the given lists simultaneously.
+
+An optional `src_headers` can be used for routing requests based on HTTP request headers additionally to hostname, path and [HTTP query args](https://en.wikipedia.org/wiki/Query_string).
+For example, the following config routes requests to `http://app1-backend` if `TenantID` request header equals to `42`, while routing requests to `http://app2-backend`
+if `TenantID` request header equals to `123:456`:
+
+```yaml
+unauthorized_user:
+  url_map:
+  - src_headers: ["TenantID: 42"]
+    url_prefix: "http://app1-backend/"
+  - src_headers: ["TenantID: 123:456"]
+    url_prefix: "http://app2-backend/"
+```
+
+If `src_headers` contains multiple entries, then it is enough to match only a single entry in order to route the request to the given `url_prefix`.
+
+If `src_headers` are specified together with `src_hosts`, `src_paths` or `src_query_args`, then the request is routed to the given `url_prefix`
+if its headers, host, path and query args match the given lists simultaneously.
 
 ### Generic HTTP load balancer
 
@@ -365,6 +401,7 @@ Each `url_prefix` in the [-auth.config](#auth-config) can be specified in the fo
 
   In this case `vmauth` spreads requests among the specified urls using least-loaded round-robin policy.
   This guarantees that incoming load is shared uniformly among the specified backends.
+  See also [discovering backend IPs](#discovering-backend-ips).
 
   `vmauth` automatically detects temporarily unavailable backends and spreads incoming queries among the remaining available backends.
   This allows restarting the backends and peforming mantenance tasks on the backends without the need to remove them from the `url_prefix` list.
@@ -429,6 +466,49 @@ Load balancing feature can be used in the following cases:
   ```
 
 Load balancig can be configured independently per each `user` entry and per each `url_map` entry. See [auth config docs](#auth-config) for more details.
+
+See also [discovering backend IPs](#discovering-backend-ips).
+
+## Discovering backend IPs
+
+By default `vmauth` spreads load among the listed backends at `url_prefix` as described in [load balancing docs](#load-balancing).
+Sometimes multiple backend instances can be hidden behind a single hostname. For example, `vmselect-service` hostname
+may point to a cluster of `vmselect` instances in [VictoriaMetrics cluster setup](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview).
+So the following config may fail spreading load among available `vmselect` instances, since `vmauth` will send all the requests to the same url, which may end up
+to a single backend instance:
+
+```yaml
+unauthorized_user:
+  url_prefix: http://vmselect-service/select/0/prometheus/
+```
+
+There are the following solutions for this issue:
+
+- To enumerate every `vmselect` hosname or IP in the `url_prefix` list:
+
+  ```yaml
+  unauthorized_user:
+    url_prefix:
+    - http://vmselect-1:8481/select/0/prometheus/
+    - http://vmselect-2:8481/select/0/prometheus/
+    - http://vmselect-3:8481/select/0/prometheus/
+  ```
+
+  This scheme works great, but it needs manual updating of the [`-auth.config`](#auth-config) every time `vmselect` services are restarted,
+  downscaled or upscaled.
+
+- To set `discover_backend_ips: true` option, so `vmagent` automatically discovers IPs behind the given hostname and then spreads load among the discovered IPs:
+
+  ```yaml
+  unauthorized_user:
+    url_prefix: http://vmselect-service/select/0/prometheus/
+    discover_backend_ips: true
+  ```
+
+  The `discover_backend_ips` can be specified at `user` and `url_map` level in the [`-auth.config`](#auth-config). It can also be enabled globally
+  via `-discoverBackendIPs` command-line flag.
+
+See also [load balancing docs](#load-balancing).
 
 ## Modifying HTTP headers
 
@@ -552,6 +632,23 @@ users:
 
 See config example of using IP filters [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmauth/example_config_ent.yml).
 
+## Reading auth tokens from other HTTP headers
+
+`vmauth` reads `username`, `password` and `bearer_token` [config values](#auth-config) from `Authorization` request header.
+It is possible to read these auth tokens from any other request header by specifying it via `-httpAuthHeader` command-line flag.
+For example, the following command instructs `vmauth` to read auth token from `X-Amz-Firehose-Access-Key` header:
+
+```
+./vmauth -httpAuthHeader='X-Amz-Firehose-Access-Key'
+```
+
+It is possible to read auth tokens from multiple headers. For example, the following command instructs `vmauth` to read auth token
+from both `Authorization` and `X-Amz-Firehose-Access-Key` headers:
+
+```
+./vmauth -httpAuthHeader='Authorization' -httpAuthHeader='X-Amz-Firehose-Access-Key'
+```
+
 ## Auth config
 
 `-auth.config` is represented in the following simple `yml` format:
@@ -567,6 +664,11 @@ users:
   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
   # Requests with the Basic Auth username=XXXX are proxied to http://localhost:8428 as well.
 - bearer_token: "XXXX"
+  url_prefix: "http://localhost:8428"
+
+  # Requests with the 'Authorization: Foo XXXX' header are proxied to http://localhosT:8428 .
+  # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
+- auth_token: "Foo XXXX"
   url_prefix: "http://localhost:8428"
 
   # Requests with the 'Authorization: Bearer YYY' header are proxied to http://localhost:8428 ,
@@ -869,6 +971,10 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Whether to skip TLS verification when connecting to backends over HTTPS. See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup
   -configCheckInterval duration
      interval for config file re-read. Zero value disables config re-reading. By default, refreshing is disabled, send SIGHUP for config refresh.
+  -discoverBackendIPs
+     Whether to discover backend IPs via periodic DNS queries to hostnames specified in url_prefix. This may be useful when url_prefix points to a hostname with dynamically scaled instances behind it. See https://docs.victoriametrics.com/vmauth.html#discovering-backend-ips
+  -discoverBackendIPsInterval duration
+     The interval for re-discovering backend IPs if -discoverBackendIPs command-line flag is set. Too low value may lead to DNS errors (default 10s)
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
@@ -909,6 +1015,10 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Flag value can be read from the given file when using -httpAuth.password=file:///abs/path/to/file or -httpAuth.password=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -httpAuth.password=http://host/path or -httpAuth.password=https://host/path
   -httpAuth.username string
      Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
+  -httpAuthHeader array
+     HTTP request header to use for obtaining authorization tokens. By default auth tokens are read from Authorization request header
+     Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpListenAddr array
      TCP address to listen for incoming http requests. See also -tls and -httpListenAddr.useProxyProtocol
      Supports an array of values separated by comma or specified via multiple flags.
@@ -930,7 +1040,7 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -licenseFile string
      Path to file with license key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed inline via -license command-line flag
   -loadBalancingPolicy string
-     The default load balancing policy to use for backend urls specified inside url_prefix section. Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth.html#load-balancing for more details (default "least_loaded")
+     The default load balancing policy to use for backend urls specified inside url_prefix section. Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth.html#load-balancing (default "least_loaded")
   -logInvalidAuthTokens
      Whether to log requests with invalid auth tokens. Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page
   -loggerDisableTimestamps
