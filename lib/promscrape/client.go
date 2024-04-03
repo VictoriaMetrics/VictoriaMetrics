@@ -90,6 +90,7 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 
 	hc := &http.Client{
 		Transport: rt,
+		Timeout:   sw.ScrapeTimeout,
 	}
 
 	if sw.DenyRedirects {
