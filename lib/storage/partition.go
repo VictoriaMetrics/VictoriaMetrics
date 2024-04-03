@@ -91,6 +91,8 @@ type partition struct {
 	smallRowsDeleted    atomic.Uint64
 	bigRowsDeleted      atomic.Uint64
 
+	isDedupScheduled atomic.Bool
+
 	mergeIdx atomic.Uint64
 
 	// the path to directory with smallParts.
@@ -326,6 +328,9 @@ type partitionMetrics struct {
 	InmemoryPartsRefCount uint64
 	SmallPartsRefCount    uint64
 	BigPartsRefCount      uint64
+
+	ScheduledDownsamplingPartitions     uint64
+	ScheduledDownsamplingPartitionsSize uint64
 }
 
 // TotalRowsCount returns total number of rows in tm.
@@ -339,12 +344,20 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 
 	pt.partsLock.Lock()
 
+	isDedupScheduled := pt.isDedupScheduled.Load()
+	if isDedupScheduled {
+		m.ScheduledDownsamplingPartitions++
+	}
+
 	for _, pw := range pt.inmemoryParts {
 		p := pw.p
 		m.InmemoryRowsCount += p.ph.RowsCount
 		m.InmemoryBlocksCount += p.ph.BlocksCount
 		m.InmemorySizeBytes += p.size
 		m.InmemoryPartsRefCount += uint64(pw.refCount.Load())
+		if isDedupScheduled {
+			m.ScheduledDownsamplingPartitionsSize += p.size
+		}
 	}
 	for _, pw := range pt.smallParts {
 		p := pw.p
@@ -352,6 +365,9 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 		m.SmallBlocksCount += p.ph.BlocksCount
 		m.SmallSizeBytes += p.size
 		m.SmallPartsRefCount += uint64(pw.refCount.Load())
+		if isDedupScheduled {
+			m.ScheduledDownsamplingPartitionsSize += p.size
+		}
 	}
 	for _, pw := range pt.bigParts {
 		p := pw.p
@@ -359,6 +375,9 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 		m.BigBlocksCount += p.ph.BlocksCount
 		m.BigSizeBytes += p.size
 		m.BigPartsRefCount += uint64(pw.refCount.Load())
+		if isDedupScheduled {
+			m.ScheduledDownsamplingPartitionsSize += p.size
+		}
 	}
 
 	m.InmemoryPartsCount += uint64(len(pt.inmemoryParts))
@@ -1182,7 +1201,7 @@ func (pt *partition) mergePartsToFiles(pws []*partWrapper, stopCh <-chan struct{
 }
 
 // ForceMergeAllParts runs merge for all the parts in pt.
-func (pt *partition) ForceMergeAllParts(stop chan struct{}) error {
+func (pt *partition) ForceMergeAllParts(stopCh <-chan struct{}) error {
 	pws := pt.getAllPartsForMerge()
 	if len(pws) == 0 {
 		// Nothing to merge.
@@ -1202,7 +1221,7 @@ func (pt *partition) ForceMergeAllParts(stop chan struct{}) error {
 	// If len(pws) == 1, then the merge must run anyway.
 	// This allows applying the configured retention, removing the deleted series
 	// and performing de-duplication if needed.
-	if err := pt.mergePartsToFiles(pws, stop, bigPartsConcurrencyCh); err != nil {
+	if err := pt.mergePartsToFiles(pws, stopCh, bigPartsConcurrencyCh); err != nil {
 		return fmt.Errorf("cannot force merge %d parts from partition %q: %w", len(pws), pt.name, err)
 	}
 
@@ -1311,29 +1330,24 @@ func (pt *partition) releasePartsToMerge(pws []*partWrapper) {
 	pt.partsLock.Unlock()
 }
 
-func (pt *partition) runFinalDedup() error {
-	requiredDedupInterval, actualDedupInterval := pt.getRequiredDedupInterval()
+func (pt *partition) runFinalDedup(stopCh <-chan struct{}) error {
 	t := time.Now()
-	logger.Infof("starting final dedup for partition %s using requiredDedupInterval=%d ms, since the partition has smaller actualDedupInterval=%d ms",
-		pt.bigPartsPath, requiredDedupInterval, actualDedupInterval)
-	if err := pt.ForceMergeAllParts(pt.stopCh); err != nil {
-		return fmt.Errorf("cannot perform final dedup for partition %s: %w", pt.bigPartsPath, err)
+	logger.Infof("start removing duplicate samples from partition (%s, %s)", pt.bigPartsPath, pt.smallPartsPath)
+	if err := pt.ForceMergeAllParts(stopCh); err != nil {
+		return fmt.Errorf("cannot remove duplicate samples from partition (%s, %s): %w", pt.bigPartsPath, pt.smallPartsPath, err)
 	}
-	logger.Infof("final dedup for partition %s has been finished in %.3f seconds", pt.bigPartsPath, time.Since(t).Seconds())
+	logger.Infof("duplicate samples have been removed from partition (%s, %s) in %.3f seconds", pt.bigPartsPath, pt.smallPartsPath, time.Since(t).Seconds())
 	return nil
 }
 
 func (pt *partition) isFinalDedupNeeded() bool {
-	requiredDedupInterval, actualDedupInterval := pt.getRequiredDedupInterval()
-	return requiredDedupInterval > actualDedupInterval
-}
-
-func (pt *partition) getRequiredDedupInterval() (int64, int64) {
-	pws := pt.GetParts(nil, false)
-	defer pt.PutParts(pws)
 	dedupInterval := GetDedupInterval()
+
+	pws := pt.GetParts(nil, false)
 	minDedupInterval := getMinDedupInterval(pws)
-	return dedupInterval, minDedupInterval
+	pt.PutParts(pws)
+
+	return dedupInterval > minDedupInterval
 }
 
 func getMinDedupInterval(pws []*partWrapper) int64 {

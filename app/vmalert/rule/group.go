@@ -704,7 +704,7 @@ func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDurati
 		return nil
 	}
 
-	alerts := ar.alertsToSend(ts, resolveDuration, *resendDelay)
+	alerts := ar.alertsToSend(resolveDuration, *resendDelay)
 	if len(alerts) < 1 {
 		return nil
 	}

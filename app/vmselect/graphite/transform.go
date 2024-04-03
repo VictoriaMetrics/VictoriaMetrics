@@ -405,7 +405,7 @@ func aggregateSeriesWithWildcards(ec *evalConfig, expr graphiteql.Expr, nextSeri
 	for _, pos := range positions {
 		positionsMap[pos] = struct{}{}
 	}
-	keyFunc := func(name string, tags map[string]string) string {
+	keyFunc := func(name string, _ map[string]string) string {
 		parts := strings.Split(getPathFromName(name), ".")
 		dstParts := parts[:0]
 		for i, part := range parts {
@@ -1332,6 +1332,7 @@ func aggregateSeriesListsGeneric(ec *evalConfig, fe *graphiteql.FuncExpr, funcNa
 	}
 	nextSeriesSecond, err := evalSeriesList(ec, args, "seriesListSecondPos", 1)
 	if err != nil {
+		_, _ = drainAllSeries(nextSeriesFirst)
 		return nil, err
 	}
 	return aggregateSeriesList(ec, fe, nextSeriesFirst, nextSeriesSecond, agg, funcName)
@@ -1370,6 +1371,7 @@ func transformDiffSeriesLists(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeri
 func aggregateSeriesList(ec *evalConfig, fe *graphiteql.FuncExpr, nextSeriesFirst, nextSeriesSecond nextSeriesFunc, agg aggrFunc, funcName string) (nextSeriesFunc, error) {
 	ssFirst, stepFirst, err := fetchNormalizedSeries(ec, nextSeriesFirst, false)
 	if err != nil {
+		_, _ = drainAllSeries(nextSeriesSecond)
 		return nil, err
 	}
 	ssSecond, stepSecond, err := fetchNormalizedSeries(ec, nextSeriesSecond, false)
@@ -1881,7 +1883,7 @@ func transformGroupByTags(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFu
 	if err != nil {
 		return nil, err
 	}
-	keyFunc := func(name string, tags map[string]string) string {
+	keyFunc := func(_ string, tags map[string]string) string {
 		return formatKeyFromTags(tags, tagKeys, callback)
 	}
 	return groupByKeyFunc(ec, fe, nextSeries, callback, keyFunc)

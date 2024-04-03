@@ -76,175 +76,174 @@ func TestStorageSearchStreamIDs(t *testing.T) {
 			}
 		}
 	})
-	t.Run("missing-job", func(t *testing.T) {
-		f(`{job="non-existing-job",instance="instance-0"}`, nil)
-	})
-	t.Run("missing-job-re", func(t *testing.T) {
-		f(`{job=~"non-existing-job|",instance="instance-0"}`, nil)
-	})
-	t.Run("missing-job-negative-re", func(t *testing.T) {
-		f(`{job!~"job.+",instance="instance-0"}`, nil)
-	})
-	t.Run("empty-job", func(t *testing.T) {
-		f(`{job="",instance="instance-0"}`, nil)
-	})
-	t.Run("missing-instance", func(t *testing.T) {
-		f(`{job="job-0",instance="non-existing-instance"}`, nil)
-	})
-	t.Run("missing-instance-re", func(t *testing.T) {
-		f(`{job="job-0",instance=~"non-existing-instance|"}`, nil)
-	})
-	t.Run("missing-instance-negative-re", func(t *testing.T) {
-		f(`{job="job-0",instance!~"instance.+"}`, nil)
-	})
-	t.Run("empty-instance", func(t *testing.T) {
-		f(`{job="job-0",instance=""}`, nil)
-	})
-	t.Run("non-existing-tag", func(t *testing.T) {
-		f(`{job="job-0",instance="instance-0",non_existing_tag="foobar"}`, nil)
-	})
-	t.Run("non-existing-non-empty-tag", func(t *testing.T) {
-		f(`{job="job-0",instance="instance-0",non_existing_tag!=""}`, nil)
-	})
-	t.Run("non-existing-tag-re", func(t *testing.T) {
-		f(`{job="job-0",instance="instance-0",non_existing_tag=~"foo.+"}`, nil)
-	})
-	t.Run("non-existing-non-empty-tag-re", func(t *testing.T) {
-		f(`{job="job-0",instance="instance-0",non_existing_tag!~""}`, nil)
-	})
 
-	t.Run("match-job-instance", func(t *testing.T) {
+	// missing-job
+	f(`{job="non-existing-job",instance="instance-0"}`, nil)
+
+	// missing-job-re
+	f(`{job=~"non-existing-job|",instance="instance-0"}`, nil)
+
+	// missing-job-negative-re
+	f(`{job!~"job.+",instance="instance-0"}`, nil)
+
+	// empty-job
+	f(`{job="",instance="instance-0"}`, nil)
+
+	// missing-instance
+	f(`{job="job-0",instance="non-existing-instance"}`, nil)
+
+	// missing-instance-re
+	f(`{job="job-0",instance=~"non-existing-instance|"}`, nil)
+
+	// missing-instance-negative-re
+	f(`{job="job-0",instance!~"instance.+"}`, nil)
+
+	// empty-instance
+	f(`{job="job-0",instance=""}`, nil)
+
+	// non-existing-tag
+	f(`{job="job-0",instance="instance-0",non_existing_tag="foobar"}`, nil)
+
+	// non-existing-non-empty-tag
+	f(`{job="job-0",instance="instance-0",non_existing_tag!=""}`, nil)
+
+	// non-existing-tag-re
+	f(`{job="job-0",instance="instance-0",non_existing_tag=~"foo.+"}`, nil)
+
+	//non-existing-non-empty-tag-re
+	f(`{job="job-0",instance="instance-0",non_existing_tag!~""}`, nil)
+
+	// match-job-instance
+	sid, _ := getStreamIDForTags(map[string]string{
+		"instance": "instance-0",
+		"job":      "job-0",
+	})
+	f(`{job="job-0",instance="instance-0"}`, []streamID{sid})
+
+	// match-non-existing-tag
+	sid, _ = getStreamIDForTags(map[string]string{
+		"instance": "instance-0",
+		"job":      "job-0",
+	})
+	f(`{job="job-0",instance="instance-0",non_existing_tag=~"foo|"}`, []streamID{sid})
+
+	// match-job
+	var streamIDs []streamID
+	for i := 0; i < instancesCount; i++ {
 		sid, _ := getStreamIDForTags(map[string]string{
-			"instance": "instance-0",
+			"instance": fmt.Sprintf("instance-%d", i),
 			"job":      "job-0",
 		})
-		f(`{job="job-0",instance="instance-0"}`, []streamID{sid})
-	})
-	t.Run("match-non-existing-tag", func(t *testing.T) {
+		streamIDs = append(streamIDs, sid)
+	}
+	f(`{job="job-0"}`, streamIDs)
+
+	// match-instance
+	streamIDs = nil
+	for i := 0; i < jobsCount; i++ {
 		sid, _ := getStreamIDForTags(map[string]string{
-			"instance": "instance-0",
-			"job":      "job-0",
+			"instance": "instance-1",
+			"job":      fmt.Sprintf("job-%d", i),
 		})
-		f(`{job="job-0",instance="instance-0",non_existing_tag=~"foo|"}`, []streamID{sid})
-	})
-	t.Run("match-job", func(t *testing.T) {
-		var streamIDs []streamID
-		for i := 0; i < instancesCount; i++ {
+		streamIDs = append(streamIDs, sid)
+	}
+	f(`{instance="instance-1"}`, streamIDs)
+
+	// match-re
+	streamIDs = nil
+	for _, instanceID := range []int{3, 1} {
+		for _, jobID := range []int{0, 2} {
 			sid, _ := getStreamIDForTags(map[string]string{
-				"instance": fmt.Sprintf("instance-%d", i),
-				"job":      "job-0",
+				"instance": fmt.Sprintf("instance-%d", instanceID),
+				"job":      fmt.Sprintf("job-%d", jobID),
 			})
 			streamIDs = append(streamIDs, sid)
 		}
-		f(`{job="job-0"}`, streamIDs)
-	})
-	t.Run("match-instance", func(t *testing.T) {
-		var streamIDs []streamID
-		for i := 0; i < jobsCount; i++ {
+	}
+	f(`{job=~"job-(0|2)",instance=~"instance-[13]"}`, streamIDs)
+
+	// match-re-empty-match
+	streamIDs = nil
+	for _, instanceID := range []int{3, 1} {
+		for _, jobID := range []int{0, 2} {
 			sid, _ := getStreamIDForTags(map[string]string{
-				"instance": "instance-1",
-				"job":      fmt.Sprintf("job-%d", i),
+				"instance": fmt.Sprintf("instance-%d", instanceID),
+				"job":      fmt.Sprintf("job-%d", jobID),
 			})
 			streamIDs = append(streamIDs, sid)
 		}
-		f(`{instance="instance-1"}`, streamIDs)
-	})
-	t.Run("match-re", func(t *testing.T) {
-		var streamIDs []streamID
-		for _, instanceID := range []int{3, 1} {
-			for _, jobID := range []int{0, 2} {
-				sid, _ := getStreamIDForTags(map[string]string{
-					"instance": fmt.Sprintf("instance-%d", instanceID),
-					"job":      fmt.Sprintf("job-%d", jobID),
-				})
-				streamIDs = append(streamIDs, sid)
-			}
+	}
+	f(`{job=~"job-(0|2)|",instance=~"instance-[13]"}`, streamIDs)
+
+	// match-negative-re
+	var instanceIDs []int
+	for i := 0; i < instancesCount; i++ {
+		if i != 0 && i != 1 {
+			instanceIDs = append(instanceIDs, i)
 		}
-		f(`{job=~"job-(0|2)",instance=~"instance-[13]"}`, streamIDs)
-	})
-	t.Run("match-re-empty-match", func(t *testing.T) {
-		var streamIDs []streamID
-		for _, instanceID := range []int{3, 1} {
-			for _, jobID := range []int{0, 2} {
-				sid, _ := getStreamIDForTags(map[string]string{
-					"instance": fmt.Sprintf("instance-%d", instanceID),
-					"job":      fmt.Sprintf("job-%d", jobID),
-				})
-				streamIDs = append(streamIDs, sid)
-			}
+	}
+	var jobIDs []int
+	for i := 0; i < jobsCount; i++ {
+		if i > 2 {
+			jobIDs = append(jobIDs, i)
 		}
-		f(`{job=~"job-(0|2)|",instance=~"instance-[13]"}`, streamIDs)
-	})
-	t.Run("match-negative-re", func(t *testing.T) {
-		var instanceIDs []int
-		for i := 0; i < instancesCount; i++ {
-			if i != 0 && i != 1 {
-				instanceIDs = append(instanceIDs, i)
-			}
+	}
+	streamIDs = nil
+	for _, instanceID := range instanceIDs {
+		for _, jobID := range jobIDs {
+			sid, _ := getStreamIDForTags(map[string]string{
+				"instance": fmt.Sprintf("instance-%d", instanceID),
+				"job":      fmt.Sprintf("job-%d", jobID),
+			})
+			streamIDs = append(streamIDs, sid)
 		}
-		var jobIDs []int
-		for i := 0; i < jobsCount; i++ {
-			if i > 2 {
-				jobIDs = append(jobIDs, i)
-			}
+	}
+	f(`{job!~"job-[0-2]",instance!~"instance-(0|1)"}`, streamIDs)
+
+	// match-negative-re-empty-match
+	instanceIDs = nil
+	for i := 0; i < instancesCount; i++ {
+		if i != 0 && i != 1 {
+			instanceIDs = append(instanceIDs, i)
 		}
-		var streamIDs []streamID
-		for _, instanceID := range instanceIDs {
-			for _, jobID := range jobIDs {
-				sid, _ := getStreamIDForTags(map[string]string{
-					"instance": fmt.Sprintf("instance-%d", instanceID),
-					"job":      fmt.Sprintf("job-%d", jobID),
-				})
-				streamIDs = append(streamIDs, sid)
-			}
+	}
+	jobIDs = nil
+	for i := 0; i < jobsCount; i++ {
+		if i > 2 {
+			jobIDs = append(jobIDs, i)
 		}
-		f(`{job!~"job-[0-2]",instance!~"instance-(0|1)"}`, streamIDs)
-	})
-	t.Run("match-negative-re-empty-match", func(t *testing.T) {
-		var instanceIDs []int
-		for i := 0; i < instancesCount; i++ {
-			if i != 0 && i != 1 {
-				instanceIDs = append(instanceIDs, i)
-			}
+	}
+	streamIDs = nil
+	for _, instanceID := range instanceIDs {
+		for _, jobID := range jobIDs {
+			sid, _ := getStreamIDForTags(map[string]string{
+				"instance": fmt.Sprintf("instance-%d", instanceID),
+				"job":      fmt.Sprintf("job-%d", jobID),
+			})
+			streamIDs = append(streamIDs, sid)
 		}
-		var jobIDs []int
-		for i := 0; i < jobsCount; i++ {
-			if i > 2 {
-				jobIDs = append(jobIDs, i)
-			}
+	}
+	f(`{job!~"job-[0-2]",instance!~"instance-(0|1)|"}`, streamIDs)
+
+	// match-negative-job
+	instanceIDs = []int{2}
+	jobIDs = nil
+	for i := 0; i < jobsCount; i++ {
+		if i != 1 {
+			jobIDs = append(jobIDs, i)
 		}
-		var streamIDs []streamID
-		for _, instanceID := range instanceIDs {
-			for _, jobID := range jobIDs {
-				sid, _ := getStreamIDForTags(map[string]string{
-					"instance": fmt.Sprintf("instance-%d", instanceID),
-					"job":      fmt.Sprintf("job-%d", jobID),
-				})
-				streamIDs = append(streamIDs, sid)
-			}
+	}
+	streamIDs = nil
+	for _, instanceID := range instanceIDs {
+		for _, jobID := range jobIDs {
+			sid, _ := getStreamIDForTags(map[string]string{
+				"instance": fmt.Sprintf("instance-%d", instanceID),
+				"job":      fmt.Sprintf("job-%d", jobID),
+			})
+			streamIDs = append(streamIDs, sid)
 		}
-		f(`{job!~"job-[0-2]",instance!~"instance-(0|1)|"}`, streamIDs)
-	})
-	t.Run("match-negative-job", func(t *testing.T) {
-		instanceIDs := []int{2}
-		var jobIDs []int
-		for i := 0; i < jobsCount; i++ {
-			if i != 1 {
-				jobIDs = append(jobIDs, i)
-			}
-		}
-		var streamIDs []streamID
-		for _, instanceID := range instanceIDs {
-			for _, jobID := range jobIDs {
-				sid, _ := getStreamIDForTags(map[string]string{
-					"instance": fmt.Sprintf("instance-%d", instanceID),
-					"job":      fmt.Sprintf("job-%d", jobID),
-				})
-				streamIDs = append(streamIDs, sid)
-			}
-		}
-		f(`{instance="instance-2",job!="job-1"}`, streamIDs)
-	})
+	}
+	f(`{instance="instance-2",job!="job-1"}`, streamIDs)
 
 	mustCloseIndexdb(idb)
 	fs.MustRemoveAll(path)
