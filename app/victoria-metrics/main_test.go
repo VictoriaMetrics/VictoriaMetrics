@@ -241,8 +241,9 @@ func tearDown() {
 
 func TestWriteRead(t *testing.T) {
 	t.Run("write", testWrite)
+	time.Sleep(500 * time.Millisecond)
 	vmstorage.Storage.DebugFlush()
-	time.Sleep(1 * time.Second)
+	time.Sleep(1500 * time.Millisecond)
 	t.Run("read", testRead)
 }
 
@@ -368,7 +369,7 @@ func readIn(readFor string, t *testing.T, insertTime time.Time) []test {
 	t.Helper()
 	s := newSuite(t)
 	var tt []test
-	s.noError(filepath.Walk(filepath.Join(testFixturesDir, readFor), func(path string, info os.FileInfo, err error) error {
+	s.noError(filepath.Walk(filepath.Join(testFixturesDir, readFor), func(path string, _ os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}

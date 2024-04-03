@@ -1557,6 +1557,9 @@ VictoriaMetrics supports data ingestion via [OpenTelemetry protocol for metrics]
 VictoriaMetrics expects `protobuf`-encoded requests at `/opentelemetry/v1/metrics`.
 Set HTTP request header `Content-Encoding: gzip` when sending gzip-compressed data to `/opentelemetry/v1/metrics`.
 
+VictoriaMetrics stores the ingested OpenTelemetry [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) as is without any transformations.
+Pass `-opentelemetry.usePrometheusNaming` command-line flag to VictoriaMetrics for automatic conversion of metric names and labels into Prometheus-compatible format.
+
 See [How to use OpenTelemetry metrics with VictoriaMetrics](https://docs.victoriametrics.com/guides/getting-started-with-opentelemetry/).
 
 ## JSON line format
@@ -1692,7 +1695,7 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
   This means that the maximum memory usage and CPU usage a single query can use is proportional to `-search.maxUniqueTimeseries`.
 - `-search.maxQueryDuration` limits the duration of a single query. If the query takes longer than the given duration, then it is canceled.
   This allows saving CPU and RAM when executing unexpected heavy queries.
-  The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via cmd-line flag.
+  The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via `-search.maxQueryDuration` command-line flag.
 - `-search.maxConcurrentRequests` limits the number of concurrent requests VictoriaMetrics can process. Bigger number of concurrent requests usually means
   bigger memory usage. For example, if a single query needs 100 MiB of additional memory during its execution, then 100 concurrent queries may need `100 * 100 MiB = 10 GiB`
   of additional memory. So it is better to limit the number of concurrent queries, while pausing additional incoming queries if the concurrency limit is reached.
@@ -1746,14 +1749,6 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
   when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxLabelsAPIDuration` to quite low value in order to limit CPU and memory usage.
   See also `-search.maxLabelsAPISeries` and `-search.ignoreExtraFiltersAtLabelsAPI`.
-- `-search.maxExportDuration` limits the duration for requests to [/api/v1/export*](https://docs.victoriametrics.com/url-examples/?highlight=apiv1export#apiv1export).
-  If the query takes longer than the given duration, then it is canceled.
-  This allows saving CPU and RAM when executing unexpectedly heavy queries.
-  The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via cmd-line flag.
-- `search.maxStatusRequestDuration` limits the duration for requests to [/api/v1/status/tsdb](https://docs.victoriametrics.com/url-examples/?highlight=apiv1export#apiv1statustsdb).
-  If the query takes longer than the given duration, then it is canceled.
-  This allows saving CPU and RAM when executing unexpectedly heavy queries.
-  The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via cmd-line flag.
 - `-search.maxTagValueSuffixesPerSearch` limits the number of entries, which may be returned from `/metrics/find` endpoint. See [Graphite Metrics API usage docs](#graphite-metrics-api-usage).
 
 See also [resource usage limits at VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#resource-usage-limits),
@@ -1986,45 +1981,72 @@ to historical data.
 
 See [how to configure multiple retentions in VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#retention-filters).
 
+See also [downsampling](#downsampling).
+
 Retention filters can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
 
 ## Downsampling
 
-[VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise.html) supports multi-level downsampling with `-downsampling.period` command-line flag. For example:
+[VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise.html) supports multi-level downsampling via `-downsampling.period=offset:interval` command-line flag.
+This command-line flag instructs leaving the last sample per each `interval` for [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
+[samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) older than the `offset`. For example, `-downsampling.period=30d:5m` instructs leaving the last sample
+per each 5-minute interval for samples older than 30 days, while the rest of samples aren't downsampled.
 
-* `-downsampling.period=30d:5m` instructs VictoriaMetrics to [deduplicate](#deduplication) samples older than 30 days with 5 minutes interval.
+The `-downsampling.period` command-line flag can be specified multiple times in order to apply different downsampling levels for different time ranges (aka multi-level downsampling).
+For example, `-downsampling.period=30d:5m,180d:1h` instructs leaving the last sample per each 5-minute interval for samples older than 30 days,
+while leaving the last sample per each 1-hour interval for samples older than 180 days.
 
-* `-downsampling.period=30d:5m,180d:1h` instructs VictoriaMetrics to deduplicate samples older than 30 days with 5 minutes interval and to deduplicate samples older than 180 days with 1 hour interval.
+VictoriaMetrics supports configuring independent downsampling per different sets of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
+via `-downsampling.period=filter:offset:interval` syntax. In this case the given `offset:interval` downsampling is applied only to time series matching the given `filter`.
+The `filter` can contain arbitrary [series filter](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+For example, `-downsampling.period='{__name__=~"(node|process)_.*"}:1d:1m` instructs VictoriaMetrics to deduplicate samples older than one day with one minute interval
+only for [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) with names starting with `node_` or `process_` prefixes.
+The de-duplication for other time series can be configured independently via additional `-downsampling.period` command-line flags.
+
+If the time series doesn't match any `filter`, then it isn't downsampled. If the time series matches multiple filters, then the downsampling
+for the first matching `filter` is applied. For example, `-downsampling.period='{env="prod"}:1d:30s,{__name__=~"node_.*"}:1d:5m'` de-duplicates
+samples older than one day with 30 seconds interval across all the time series with `env="prod"` [label](https://docs.victoriametrics.com/keyconcepts/#labels),
+even if their names start with `node_` prefix. All the other time series with names starting with `node_` prefix are de-duplicated with 5 minutes interval.
+
+If downsampling shouldn't be applied to some time series matching the given `filter`, then pass `-downsampling.period=filter:0s:0s` command-line flag to VictoriaMetrics.
+For example, if series with `env="prod"` label shouldn't be downsampled, then pass `-downsampling.period='{env="prod"}:0s:0s'` command-line flag in front of other `-downsampling.period` flags.
 
 Downsampling is applied independently per each time series and leaves a single [raw sample](https://docs.victoriametrics.com/keyConcepts.html#raw-samples)
 with the biggest [timestamp](https://en.wikipedia.org/wiki/Unix_time) on the configured interval, in the same way as [deduplication](#deduplication) does.
 It works the best for [counters](https://docs.victoriametrics.com/keyConcepts.html#counter) and [histograms](https://docs.victoriametrics.com/keyConcepts.html#histogram),
-as their values are always increasing. But downsampling [gauges](https://docs.victoriametrics.com/keyConcepts.html#gauge)
-and [summaries](https://docs.victoriametrics.com/keyConcepts.html#summary)
-would mean losing the changes within the downsampling interval. Please note, you can use [recording rules](https://docs.victoriametrics.com/vmalert.html#rules)
-or [steaming aggregation](https://docs.victoriametrics.com/stream-aggregation.html)
+as their values are always increasing. Downsampling [gauges](https://docs.victoriametrics.com/keyConcepts.html#gauge)
+and [summaries](https://docs.victoriametrics.com/keyConcepts.html#summary) lose some changes within the downsampling interval,
+since only the last sample on the given interval is left and the rest of samples are dropped.
+
+You can use [recording rules](https://docs.victoriametrics.com/vmalert.html#rules) or [steaming aggregation](https://docs.victoriametrics.com/stream-aggregation.html)
 to apply custom aggregation functions, like min/max/avg etc., in order to make gauges more resilient to downsampling.
 
 Downsampling can reduce disk space usage and improve query performance if it is applied to time series with big number
-of samples per each series. The downsampling doesn't improve query performance if the database contains big number
-of time series with small number of samples per each series (aka [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate)),
-since downsampling doesn't reduce the number of time series. In this case the majority of query time is spent on searching for the matching time series
-instead of processing the found samples.
+of samples per each series. The downsampling doesn't improve query performance and doesn't reduce disk space if the database contains big number
+of time series with small number of samples per each series, since downsampling doesn't reduce the number of time series.
+So there is little sense in applying downsampling to time series with [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
+In this case the majority of query time is spent on searching for the matching time series instead of processing the found samples.
 It is possible to use [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) in [vmagent](https://docs.victoriametrics.com/vmagent.html)
-or recording rules in [vmalert](https://docs.victoriametrics.com/vmalert.html) in order to
+or [recording rules in vmalert](https://docs.victoriametrics.com/vmalert.html#rules) in order to
 [reduce the number of time series](https://docs.victoriametrics.com/vmalert.html#downsampling-and-aggregation-via-vmalert).
 
-Downsampling happens during [background merges](https://docs.victoriametrics.com/#storage) 
-and can't be performed if there is not enough of free disk space or if vmstorage 
-is in [read-only mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode).
+Downsampling is performed during [background merges](https://docs.victoriametrics.com/#storage).
+It cannot be performed if there is not enough of free disk space or if vmstorage is in [read-only mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode).
 
-Please, note that intervals of `-downsampling.period` must be multiples of each other. 
-In case [deduplication](https://docs.victoriametrics.com/#deduplication) is enabled value of `-dedup.minScrapeInterval` must also be multiple of `-downsampling.period` intervals.
-This is required to ensure consistency of deduplication and downsampling results.
+Please, note that intervals of `-downsampling.period` must be multiples of each other.
+In case [deduplication](https://docs.victoriametrics.com/#deduplication) is enabled, value of `-dedup.minScrapeInterval` command-line flag must also
+be multiple of `-downsampling.period` intervals. This is required to ensure consistency of deduplication and downsampling results.
 
-The downsampling can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
+It is safe updating `-downsampling.period` during VictoriaMetrics restarts - the updated downsampling configuration will be
+applied eventually to historical data during  [background merges](https://docs.victoriametrics.com/#storage).
+
+See [how to configure downsampling in VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#downsampling).
+
+See also [retention filters](#retention-filters).
+
+The downsampling filters can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+See [how to request a free trial license](https://victoriametrics.com/products/enterprise/trial/).
 
 ## Multi-tenancy
 
