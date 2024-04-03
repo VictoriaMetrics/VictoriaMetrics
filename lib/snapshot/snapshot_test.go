@@ -21,14 +21,15 @@ func TestCreateSnapshot(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(handler))
 	defer server.Close()
-	origCreateUrl := SnapshotCreateURL.Get()
+	origCreateURL := SnapshotCreateURL.Get()
 	defer func() {
-		if err := SnapshotCreateURL.Set(origCreateUrl); err != nil {
+		if err := SnapshotCreateURL.Set(origCreateURL); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 	}()
-	SnapshotCreateURL.Set(server.URL + "/snapshot/create")
-
+	if err := SnapshotCreateURL.Set(server.URL + "/snapshot/create"); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	snapshotName, err := Create()
 	if err != nil {
 		t.Fatalf("Failed taking snapshot: %v", err)
@@ -53,13 +54,15 @@ func TestCreateSnapshotFailed(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(handler))
 	defer server.Close()
-	origCreateUrl := SnapshotCreateURL.Get()
+	origCreateURL := SnapshotCreateURL.Get()
 	defer func() {
-		if err := SnapshotCreateURL.Set(origCreateUrl); err != nil {
+		if err := SnapshotCreateURL.Set(origCreateURL); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 	}()
-	SnapshotCreateURL.Set(server.URL + "/snapshot/create")
+	if err := SnapshotCreateURL.Set(server.URL + "/snapshot/create"); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	snapshotName, err := Create()
 	if err == nil {
 		t.Fatalf("Snapshot did not fail, got snapshot: %v", snapshotName)
@@ -85,13 +88,15 @@ func TestDeleteSnapshot(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(handler))
 	defer server.Close()
-	origDeleteUrl := SnapshotCreateURL.Get()
+	origDeleteURL := SnapshotCreateURL.Get()
 	defer func() {
-		if err := SnapshotCreateURL.Set(origDeleteUrl); err != nil {
+		if err := SnapshotCreateURL.Set(origDeleteURL); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 	}()
-	SnapshotCreateURL.Set(server.URL + "/snapshot/delete")
+	if err := SnapshotCreateURL.Set(server.URL + "/snapshot/create"); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	err := Delete(snapshotName)
 	if err != nil {
 		t.Fatalf("Failed to delete snapshot: %v", err)
@@ -117,9 +122,9 @@ func TestDeleteSnapshotFailed(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(handler))
 	defer server.Close()
-	origDeleteUrl := SnapshotCreateURL.Get()
+	origDeleteURL := SnapshotCreateURL.Get()
 	defer func() {
-		if err := SnapshotCreateURL.Set(origDeleteUrl); err != nil {
+		if err := SnapshotCreateURL.Set(origDeleteURL); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 	}()

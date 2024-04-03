@@ -20,9 +20,11 @@ var (
 	tlsKeyFile            = flag.String("snapshot.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -snapshotCreateURL")
 	tlsCAFile             = flag.String("snapshot.tlsCAFile", "", `Optional path to TLS CA file to use for verifying connections to -snapshotCreateURL. By default, system CA is used`)
 	tlsServerName         = flag.String("snapshot.tlsServerName", "", `Optional TLS server name to use for connections to -snapshotCreateURL. By default, the server name from -snapshotCreateURL is used`)
-	SnapshotCreateURL     = flagutil.NewSecureUrl("snapshot.createURL", "VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup. "+
+	// SnapshotCreateURL is the url flag for which the snapshot is to be created
+	SnapshotCreateURL = flagutil.NewSecureURL("snapshot.createURL", "VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup. "+
 		"Example: http://victoriametrics:8428/snapshot/create . There is no need in setting -snapshotName if -snapshot.createURL is set")
-	SnapshotDeleteURL = flagutil.NewSecureUrl("snapshot.deleteURL", "VictoriaMetrics delete snapshot url. Optional. Will be generated from -snapshot.createURL if not provided. "+
+	// SnapshotDeleteURL is the url flag for which the snapshot is to be deleted
+	SnapshotDeleteURL = flagutil.NewSecureURL("snapshot.deleteURL", "VictoriaMetrics delete snapshot url. Optional. Will be generated from -snapshot.createURL if not provided. "+
 		"All created snapshots will be automatically deleted. Example: http://victoriametrics:8428/snapshot/delete")
 )
 

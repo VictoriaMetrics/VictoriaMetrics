@@ -12,14 +12,14 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
-// NewSecureUrl returns new `url` flag with the given name and description.
+// NewSecureURL returns new `url` flag with the given name and description.
 //
 // The url value is hidden when calling SecureUrl.String() for security reasons,
 // since the returned value can be put in logs.
-// Call SecureUrl.Get() for obtaining the real url value.
-func NewSecureUrl(name, description string) *SecureUrl {
+// Call SecureURL .Get() for obtaining the real url value.
+func NewSecureURL(name, description string) *SecureURL {
 	description += fmt.Sprintf("\nFlag value can be read from the given file when using -%s=file:///abs/path/to/file or -%s=file://./relative/path/to/file . ", name, name)
-	p := &SecureUrl{
+	p := &SecureURL{
 		flagname: name,
 	}
 	s := ""
@@ -28,11 +28,11 @@ func NewSecureUrl(name, description string) *SecureUrl {
 	return p
 }
 
-// SecureUrl is a flag holding a url.
+// SecureURL  is a flag holding a url.
 //
 // If the flag value is file:///path/to/file,
 // then its contents is automatically re-read from the given file.
-type SecureUrl struct {
+type SecureURL struct {
 	nextRefreshTimestamp atomic.Uint64
 
 	value atomic.Pointer[string]
@@ -47,14 +47,14 @@ type SecureUrl struct {
 // Get returns the current p value.
 //
 // It re-reads s value from the file:///path/to/file
-// if they were passed to SecureUrl.Set.
-func (s *SecureUrl) Get() string {
-	s.maybeRereadUrl()
+// if they were passed to SecureURL .Set.
+func (s *SecureURL) Get() string {
+	s.maybeRereadURL()
 	sPtr := s.value.Load()
 	return *sPtr
 }
 
-func (s *SecureUrl) maybeRereadUrl() {
+func (s *SecureURL) maybeRereadURL() {
 	if s.sourcePath == "" {
 		// Fast path - nothing to re-read
 		return
@@ -80,12 +80,12 @@ func (s *SecureUrl) maybeRereadUrl() {
 }
 
 // String implements flag.Value interface.
-func (s *SecureUrl) String() string {
+func (s *SecureURL) String() string {
 	return "secret"
 }
 
 // Set implements flag.Value interface.
-func (s *SecureUrl) Set(value string) error {
+func (s *SecureURL) Set(value string) error {
 	s.nextRefreshTimestamp.Store(0)
 	switch {
 	case strings.HasPrefix(value, "file://"):
