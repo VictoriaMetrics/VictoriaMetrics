@@ -94,14 +94,9 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 			cfg.client.CloseIdleConnections()
 			return nil, fmt.Errorf("cannot parse TLS config: %w", err)
 		}
-		tr, err := ac.NewRoundTripper(func(tr *http.Transport) {
-			tr.MaxIdleConnsPerHost = 100
+		cfg.client.Transport = ac.NewRoundTripper(&http.Transport{
+			MaxIdleConnsPerHost: 100,
 		})
-		if err != nil {
-			cfg.client.CloseIdleConnections()
-			return nil, fmt.Errorf("cannot initialize TLS config: %w", err)
-		}
-		cfg.client.Transport = tr
 	}
 	// use public compute endpoint by default
 	if len(cfg.availability) == 0 {

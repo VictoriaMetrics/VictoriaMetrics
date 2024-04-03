@@ -211,19 +211,7 @@ func areEqualGlobalConfigs(a, b *GlobalConfig) bool {
 func areEqualScrapeConfigs(a, b *ScrapeConfig) bool {
 	sa := a.marshalJSON()
 	sb := b.marshalJSON()
-	if string(sa) != string(sb) {
-		return false
-	}
-	// Compare auth configs for a and b, since they may differ by TLS CA file contents,
-	// which is missing in the marshaled JSON of a and b,
-	// but it existis in the string representation of auth configs.
-	if a.swc.authConfig.String() != b.swc.authConfig.String() {
-		return false
-	}
-	if a.swc.proxyAuthConfig.String() != b.swc.proxyAuthConfig.String() {
-		return false
-	}
-	return true
+	return string(sa) == string(sb)
 }
 
 func (sc *ScrapeConfig) unmarshalJSON(data []byte) error {

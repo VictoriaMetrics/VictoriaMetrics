@@ -113,17 +113,12 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 	if err != nil {
 		logger.Fatalf("cannot initialize auth config for -remoteWrite.url=%q: %s", remoteWriteURL, err)
 	}
-	tlsCfg, err := authCfg.NewTLSConfig()
-	if err != nil {
-		logger.Fatalf("cannot initialize tls config for -remoteWrite.url=%q: %s", remoteWriteURL, err)
-	}
 	awsCfg, err := getAWSAPIConfig(argIdx)
 	if err != nil {
 		logger.Fatalf("cannot initialize AWS Config for -remoteWrite.url=%q: %s", remoteWriteURL, err)
 	}
 	tr := &http.Transport{
 		DialContext:         statDial,
-		TLSClientConfig:     tlsCfg,
 		TLSHandshakeTimeout: tlsHandshakeTimeout.GetOptionalArg(argIdx),
 		MaxConnsPerHost:     2 * concurrency,
 		MaxIdleConnsPerHost: 2 * concurrency,
@@ -142,7 +137,7 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		tr.Proxy = http.ProxyURL(pu)
 	}
 	hc := &http.Client{
-		Transport: tr,
+		Transport: authCfg.NewRoundTripper(tr),
 		Timeout:   sendTimeout.GetOptionalArg(argIdx),
 	}
 	c := &client{
