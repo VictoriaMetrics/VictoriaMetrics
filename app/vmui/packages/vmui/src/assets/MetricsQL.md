@@ -623,7 +623,7 @@ if its value is either smaller than the `q25-1.5*iqr` or bigger than `q75+1.5*iq
 - `q25` and `q75` are 25th and 75th [percentiles](https://en.wikipedia.org/wiki/Percentile) over raw samples on the lookbehind window `d`.
 
 The `outlier_iqr_over_time()` is useful for detecting anomalies in gauge values based on the previous history of values.
-For example, `outlier_iqr_over_time(memory_usage_bytes[1h])` triggers when `memory_usage_bytes` suddenly goes outside the usual value range for the last 24 hours.
+For example, `outlier_iqr_over_time(memory_usage_bytes[1h])` triggers when `memory_usage_bytes` suddenly goes outside the usual value range for the last hour.
 
 See also [outliers_iqr](#outliers_iqr).
 
