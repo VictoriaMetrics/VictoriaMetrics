@@ -47,9 +47,10 @@ func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 }
 
 func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
-	var transport http.RoundTripper = &http.Transport{
+	tr := &http.Transport{
 		MaxIdleConnsPerHost: 100,
 	}
+	rt := http.RoundTripper(tr)
 	if sdc.TLSConfig != nil {
 		opts := &promauth.Options{
 			BaseDir:   baseDir,
@@ -59,16 +60,11 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse TLS config: %w", err)
 		}
-		transport, err = ac.NewRoundTripper(func(tr *http.Transport) {
-			tr.MaxIdleConnsPerHost = 100
-		})
-		if err != nil {
-			return nil, fmt.Errorf("cannot initialize TLS config: %w", err)
-		}
+		rt = ac.NewRoundTripper(tr)
 	}
 	cfg := &apiConfig{
 		client: &http.Client{
-			Transport: transport,
+			Transport: rt,
 		},
 	}
 	apiEndpoint := sdc.APIEndpoint

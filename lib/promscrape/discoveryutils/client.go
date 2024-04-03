@@ -111,35 +111,25 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 		proxyURLFunc = http.ProxyURL(pu)
 	}
 
-	tr, err := ac.NewRoundTripper(func(tr *http.Transport) {
-		tr.Proxy = proxyURLFunc
-		tr.TLSHandshakeTimeout = 10 * time.Second
-		tr.MaxIdleConnsPerHost = *maxConcurrency
-		tr.ResponseHeaderTimeout = DefaultClientReadTimeout
-		tr.DialContext = dialFunc
-	})
-	if err != nil {
-		return nil, fmt.Errorf("cannot initialize tls config: %w", err)
-	}
-
-	blockingTR, err := ac.NewRoundTripper(func(tr *http.Transport) {
-		tr.Proxy = proxyURLFunc
-		tr.TLSHandshakeTimeout = 10 * time.Second
-		tr.MaxIdleConnsPerHost = 1000
-		tr.ResponseHeaderTimeout = BlockingClientReadTimeout
-		tr.DialContext = dialFunc
-	})
-	if err != nil {
-		return nil, fmt.Errorf("cannot initialize tls config: %w", err)
-	}
-
 	client := &http.Client{
-		Timeout:   DefaultClientReadTimeout,
-		Transport: tr,
+		Timeout: DefaultClientReadTimeout,
+		Transport: ac.NewRoundTripper(&http.Transport{
+			Proxy:                 proxyURLFunc,
+			TLSHandshakeTimeout:   10 * time.Second,
+			MaxIdleConnsPerHost:   *maxConcurrency,
+			ResponseHeaderTimeout: DefaultClientReadTimeout,
+			DialContext:           dialFunc,
+		}),
 	}
 	blockingClient := &http.Client{
-		Timeout:   BlockingClientReadTimeout,
-		Transport: blockingTR,
+		Timeout: BlockingClientReadTimeout,
+		Transport: ac.NewRoundTripper(&http.Transport{
+			Proxy:                 proxyURLFunc,
+			TLSHandshakeTimeout:   10 * time.Second,
+			MaxIdleConnsPerHost:   1000,
+			ResponseHeaderTimeout: BlockingClientReadTimeout,
+			DialContext:           dialFunc,
+		}),
 	}
 
 	setHTTPHeaders := func(_ *http.Request) error { return nil }

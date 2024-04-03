@@ -88,10 +88,7 @@ func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc
 		attachNodeMetadata = sdc.AttachMetadata.Node
 	}
 	proxyURL := sdc.ProxyURL.GetURL()
-	gw, err := getGroupWatcher(apiServer, ac, namespaces, selectors, attachNodeMetadata, proxyURL)
-	if err != nil {
-		return nil, err
-	}
+	gw := getGroupWatcher(apiServer, ac, namespaces, selectors, attachNodeMetadata, proxyURL)
 	role := sdc.role()
 	aw := &apiWatcher{
 		role:             role,
@@ -246,25 +243,19 @@ type groupWatcher struct {
 	noAPIWatchers bool
 }
 
-func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string, selectors []Selector, attachNodeMetadata bool, proxyURL *url.URL) (*groupWatcher, error) {
+func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string, selectors []Selector, attachNodeMetadata bool, proxyURL *url.URL) *groupWatcher {
 	var proxy func(*http.Request) (*url.URL, error)
 	if proxyURL != nil {
 		proxy = http.ProxyURL(proxyURL)
 	}
-	tr, err := ac.NewRoundTripper(func(tr *http.Transport) {
-		tr.Proxy = proxy
-		tr.TLSHandshakeTimeout = 10 * time.Second
-		tr.IdleConnTimeout = *apiServerTimeout
-		tr.MaxIdleConnsPerHost = 100
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("cannot initialize tls config: %w", err)
-	}
-
 	client := &http.Client{
-		Transport: tr,
-		Timeout:   *apiServerTimeout,
+		Transport: ac.NewRoundTripper(&http.Transport{
+			Proxy:               proxy,
+			TLSHandshakeTimeout: 10 * time.Second,
+			IdleConnTimeout:     *apiServerTimeout,
+			MaxIdleConnsPerHost: 100,
+		}),
+		Timeout: *apiServerTimeout,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	gw := &groupWatcher{
@@ -282,10 +273,10 @@ func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string,
 		ctx:    ctx,
 		cancel: cancel,
 	}
-	return gw, nil
+	return gw
 }
 
-func getGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string, selectors []Selector, attachNodeMetadata bool, proxyURL *url.URL) (*groupWatcher, error) {
+func getGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string, selectors []Selector, attachNodeMetadata bool, proxyURL *url.URL) *groupWatcher {
 	proxyURLStr := "<nil>"
 	if proxyURL != nil {
 		proxyURLStr = proxyURL.String()
@@ -294,17 +285,12 @@ func getGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string,
 		apiServer, namespaces, selectorsKey(selectors), attachNodeMetadata, proxyURLStr, ac.String())
 	groupWatchersLock.Lock()
 	gw := groupWatchers[key]
-	var err error
 	if gw == nil {
-		gw, err = newGroupWatcher(apiServer, ac, namespaces, selectors, attachNodeMetadata, proxyURL)
-		if err != nil {
-			err = fmt.Errorf("cannot initialize watcher for key={%s}: %w", key, err)
-		} else {
-			groupWatchers[key] = gw
-		}
+		gw = newGroupWatcher(apiServer, ac, namespaces, selectors, attachNodeMetadata, proxyURL)
+		groupWatchers[key] = gw
 	}
 	groupWatchersLock.Unlock()
-	return gw, err
+	return gw
 }
 
 func selectorsKey(selectors []Selector) string {
