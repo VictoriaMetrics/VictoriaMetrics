@@ -53,7 +53,7 @@ import (
 //   - If the source object is in a general purpose bucket, you must have the
 //     s3:GetObject permission to read the source object that is being copied.
 //   - If the destination bucket is a general purpose bucket, you must have the
-//     s3:PubObject permission to write the object copy to the destination bucket.
+//     s3:PutObject permission to write the object copy to the destination bucket.
 //     For information about permissions required to use the multipart upload API, see
 //     Multipart Upload and Permissions (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html)
 //     in the Amazon S3 User Guide.
@@ -124,7 +124,7 @@ type UploadPartCopyInput struct {
 	// Bucket_name.s3express-az_id.region.amazonaws.com . Path-style requests are not
 	// supported. Directory bucket names must be unique in the chosen Availability
 	// Zone. Bucket names must follow the format bucket_base_name--az-id--x-s3 (for
-	// example, DOC-EXAMPLE-BUCKET--usw2-az2--x-s3 ). For information about bucket
+	// example, DOC-EXAMPLE-BUCKET--usw2-az1--x-s3 ). For information about bucket
 	// naming restrictions, see Directory bucket naming rules (https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html)
 	// in the Amazon S3 User Guide. Access points - When you use this action with an
 	// access point, you must provide the alias of the access point in place of the
