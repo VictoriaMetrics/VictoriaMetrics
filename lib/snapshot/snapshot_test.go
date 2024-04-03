@@ -94,7 +94,7 @@ func TestDeleteSnapshot(t *testing.T) {
 			t.Fatalf("unexpected error: %s", err)
 		}
 	}()
-	if err := SnapshotDeleteURL.Set(server.URL + "/snapshot/create"); err != nil {
+	if err := SnapshotDeleteURL.Set(server.URL + "/snapshot/delete"); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	err := Delete(snapshotName)
@@ -128,6 +128,9 @@ func TestDeleteSnapshotFailed(t *testing.T) {
 			t.Fatalf("unexpected error: %s", err)
 		}
 	}()
+	if err := SnapshotDeleteURL.Set(server.URL + "/snapshot/delete"); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	err := Delete(snapshotName)
 	if err == nil {
 		t.Fatalf("Snapshot should have failed, got: %v", err)
