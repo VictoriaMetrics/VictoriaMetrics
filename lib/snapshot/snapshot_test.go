@@ -21,8 +21,15 @@ func TestCreateSnapshot(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(handler))
 	defer server.Close()
+	origCreateUrl := SnapshotCreateURL.Get()
+	defer func() {
+		if err := SnapshotCreateURL.Set(origCreateUrl); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+	}()
+	SnapshotCreateURL.Set(server.URL + "/snapshot/create")
 
-	snapshotName, err := Create(server.URL + "/snapshot/create")
+	snapshotName, err := Create()
 	if err != nil {
 		t.Fatalf("Failed taking snapshot: %v", err)
 	}
@@ -46,8 +53,14 @@ func TestCreateSnapshotFailed(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(handler))
 	defer server.Close()
-
-	snapshotName, err := Create(server.URL + "/snapshot/create")
+	origCreateUrl := SnapshotCreateURL.Get()
+	defer func() {
+		if err := SnapshotCreateURL.Set(origCreateUrl); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+	}()
+	SnapshotCreateURL.Set(server.URL + "/snapshot/create")
+	snapshotName, err := Create()
 	if err == nil {
 		t.Fatalf("Snapshot did not fail, got snapshot: %v", snapshotName)
 	}
@@ -72,8 +85,14 @@ func TestDeleteSnapshot(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(handler))
 	defer server.Close()
-
-	err := Delete(server.URL+"/snapshot/delete", snapshotName)
+	origDeleteUrl := SnapshotCreateURL.Get()
+	defer func() {
+		if err := SnapshotCreateURL.Set(origDeleteUrl); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+	}()
+	SnapshotCreateURL.Set(server.URL + "/snapshot/delete")
+	err := Delete(snapshotName)
 	if err != nil {
 		t.Fatalf("Failed to delete snapshot: %v", err)
 	}
@@ -98,8 +117,13 @@ func TestDeleteSnapshotFailed(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(handler))
 	defer server.Close()
-
-	err := Delete(server.URL+"/snapshot/delete", snapshotName)
+	origDeleteUrl := SnapshotCreateURL.Get()
+	defer func() {
+		if err := SnapshotCreateURL.Set(origDeleteUrl); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+	}()
+	err := Delete(snapshotName)
 	if err == nil {
 		t.Fatalf("Snapshot should have failed, got: %v", err)
 	}
