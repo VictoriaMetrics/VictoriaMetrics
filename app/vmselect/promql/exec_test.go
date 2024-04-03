@@ -210,11 +210,13 @@ func TestExecSuccess(t *testing.T) {
 		f(q, resultExpected)
 	})
 	t.Run("scalar-string-nonnum", func(t *testing.T) {
+		t.Parallel()
 		q := `scalar("fooobar")`
 		resultExpected := []netstorage.Result{}
 		f(q, resultExpected)
 	})
 	t.Run("scalar-string-num", func(t *testing.T) {
+		t.Parallel()
 		q := `scalar("-12.34")`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,

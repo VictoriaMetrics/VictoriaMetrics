@@ -245,7 +245,6 @@ See [load-balancing docs](#load-balancing) for more details.
 * `-tls` enables accepting TLS connections at `-httpListenAddr`
 * `-tlsKeyFile` sets the path to TLS certificate key file
 * `-tlsCertFile` sets the path to TLS certificate file
-* `-extraAuthHeader` sets alternative headers for auth
 
 ### Basic Auth proxy
 
@@ -633,6 +632,23 @@ users:
 
 See config example of using IP filters [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmauth/example_config_ent.yml).
 
+## Reading auth tokens from other HTTP headers
+
+`vmauth` reads `username`, `password` and `bearer_token` [config values](#auth-config) from `Authorization` request header.
+It is possible to read these auth tokens from any other request header by specifying it via `-httpAuthHeader` command-line flag.
+For example, the following command instructs `vmauth` to read auth token from `X-Amz-Firehose-Access-Key` header:
+
+```
+./vmauth -httpAuthHeader='X-Amz-Firehose-Access-Key'
+```
+
+It is possible to read auth tokens from multiple headers. For example, the following command instructs `vmauth` to read auth token
+from both `Authorization` and `X-Amz-Firehose-Access-Key` headers:
+
+```
+./vmauth -httpAuthHeader='Authorization' -httpAuthHeader='X-Amz-Firehose-Access-Key'
+```
+
 ## Auth config
 
 `-auth.config` is represented in the following simple `yml` format:
@@ -648,6 +664,11 @@ users:
   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
   # Requests with the Basic Auth username=XXXX are proxied to http://localhost:8428 as well.
 - bearer_token: "XXXX"
+  url_prefix: "http://localhost:8428"
+
+  # Requests with the 'Authorization: Foo XXXX' header are proxied to http://localhosT:8428 .
+  # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
+- auth_token: "Foo XXXX"
   url_prefix: "http://localhost:8428"
 
   # Requests with the 'Authorization: Bearer YYY' header are proxied to http://localhost:8428 ,
@@ -994,6 +1015,10 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Flag value can be read from the given file when using -httpAuth.password=file:///abs/path/to/file or -httpAuth.password=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -httpAuth.password=http://host/path or -httpAuth.password=https://host/path
   -httpAuth.username string
      Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
+  -httpAuthHeader array
+     HTTP request header to use for obtaining authorization tokens. By default auth tokens are read from Authorization request header
+     Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpListenAddr array
      TCP address to listen for incoming http requests. See also -tls and -httpListenAddr.useProxyProtocol
      Supports an array of values separated by comma or specified via multiple flags.

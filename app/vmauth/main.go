@@ -56,8 +56,6 @@ var (
 		"See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup")
 	backendTLSCAFile = flag.String("backend.TLSCAFile", "", "Optional path to TLS root CA file, which is used for TLS verification when connecting to backends over HTTPS. "+
 		"See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup")
-	extraAuthHeaders = flagutil.NewArrayString("extraAuthHeader", "extra to Authorization auth header names")
-	authHeaders      = []string{"Authorization"}
 )
 
 func main() {
@@ -72,7 +70,6 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":8427"}
 	}
-	authHeaders = append(authHeaders, (*extraAuthHeaders)...)
 	logger.Infof("starting vmauth at %q...", listenAddrs)
 	startTime := time.Now()
 	initAuthConfig()

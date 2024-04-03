@@ -14,3 +14,8 @@ We are open to third-party pull requests provided they follow [KISS design princ
 - Avoid automated decisions, which may hurt cluster availability, consistency or performance.
 
 Adhering `KISS` principle simplifies the resulting code and architecture, so it can be reviewed, understood and verified by many people.
+
+Before sending a pull request please check the following:
+- [ ] All commits are signed and include `Signed-off-by` line. Use `git commit -s` to include `Signed-off-by` your commits. See this [doc](https://git-scm.com/book/en/v2/Git-Tools-Signing-Your-Work) about how to sign your commits.
+- [ ] Tests are passing locally. Use `make test` to run all tests locally.
+- [ ] Linting is passing locally. Use `make check-all` to run all linters locally.
