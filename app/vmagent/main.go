@@ -264,7 +264,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		path = strings.TrimSuffix(path, "/")
 	}
 	switch path {
-	case "/prometheus/api/v1/write", "/api/v1/write", "/api/v1/push":
+	case "/prometheus/api/v1/write", "/api/v1/write", "/api/v1/push", "/prometheus/api/v1/push":
 		if common.HandleVMProtoServerHandshake(w, r) {
 			return true
 		}
@@ -513,7 +513,7 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		p.Suffix = strings.TrimSuffix(p.Suffix, "/")
 	}
 	switch p.Suffix {
-	case "prometheus/", "prometheus", "prometheus/api/v1/write":
+	case "prometheus/", "prometheus", "prometheus/api/v1/write", "prometheus/api/v1/push":
 		prometheusWriteRequests.Inc()
 		if err := promremotewrite.InsertHandler(at, r); err != nil {
 			prometheusWriteErrors.Inc()

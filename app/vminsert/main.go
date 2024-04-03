@@ -163,7 +163,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		path = strings.TrimSuffix(path, "/")
 	}
 	switch path {
-	case "/prometheus/api/v1/write", "/api/v1/write":
+	case "/prometheus/api/v1/write", "/api/v1/write", "/api/v1/push", "/prometheus/api/v1/push":
 		if common.HandleVMProtoServerHandshake(w, r) {
 			return true
 		}
