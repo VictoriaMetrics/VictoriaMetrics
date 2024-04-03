@@ -403,7 +403,7 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 
 		// Verify fast stop
 		calls := 0
-		s.ForEach(func(part []uint64) bool {
+		s.ForEach(func(_ []uint64) bool {
 			calls++
 			return false
 		})
@@ -413,7 +413,7 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 
 		// Verify ForEach on nil set.
 		var s1 *Set
-		s1.ForEach(func(part []uint64) bool {
+		s1.ForEach(func(_ []uint64) bool {
 			t.Fatalf("callback shouldn't be called on empty set")
 			return true
 		})

@@ -311,7 +311,6 @@ Advantages of using `VMBackupmanager` include:
 ## Examples
 
 ```yaml
-apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMSingle
 metadata:
   name: vmsingle-example

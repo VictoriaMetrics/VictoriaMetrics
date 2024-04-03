@@ -15,8 +15,14 @@ import (
 )
 
 func TestParseStream(t *testing.T) {
-	f := func(samples []*pb.Metric, tssExpected []prompbmarshal.TimeSeries) {
+	f := func(samples []*pb.Metric, tssExpected []prompbmarshal.TimeSeries, usePromNaming bool) {
 		t.Helper()
+
+		prevPromNaming := *usePrometheusNaming
+		*usePrometheusNaming = usePromNaming
+		defer func() {
+			*usePrometheusNaming = prevPromNaming
+		}()
 
 		checkSeries := func(tss []prompbmarshal.TimeSeries) error {
 			if len(tss) != len(tssExpected) {
@@ -86,10 +92,10 @@ func TestParseStream(t *testing.T) {
 	// Test all metric types
 	f(
 		[]*pb.Metric{
-			generateGauge("my-gauge"),
-			generateHistogram("my-histogram"),
-			generateSum("my-sum"),
-			generateSummary("my-summary"),
+			generateGauge("my-gauge", ""),
+			generateHistogram("my-histogram", ""),
+			generateSum("my-sum", "", false),
+			generateSummary("my-summary", ""),
 		},
 		[]prompbmarshal.TimeSeries{
 			newPromPBTs("my-gauge", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1")),
@@ -106,16 +112,85 @@ func TestParseStream(t *testing.T) {
 			newPromPBTs("my-summary", 35000, 7.5, jobLabelValue, kvLabel("label6", "value6"), kvLabel("quantile", "0.1")),
 			newPromPBTs("my-summary", 35000, 10.0, jobLabelValue, kvLabel("label6", "value6"), kvLabel("quantile", "0.5")),
 			newPromPBTs("my-summary", 35000, 15.0, jobLabelValue, kvLabel("label6", "value6"), kvLabel("quantile", "1")),
-		})
+		},
+		false,
+	)
 
 	// Test gauge
 	f(
 		[]*pb.Metric{
-			generateGauge("my-gauge"),
+			generateGauge("my-gauge", ""),
 		},
 		[]prompbmarshal.TimeSeries{
 			newPromPBTs("my-gauge", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1")),
 		},
+		false,
+	)
+
+	// Test gauge with unit and prometheus naming
+	f(
+		[]*pb.Metric{
+			generateGauge("my-gauge", "ms"),
+		},
+		[]prompbmarshal.TimeSeries{
+			newPromPBTs("my_gauge_milliseconds", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1")),
+		},
+		true,
+	)
+
+	// Test gauge with unit inside metric
+	f(
+		[]*pb.Metric{
+			generateGauge("my-gauge-milliseconds", "ms"),
+		},
+		[]prompbmarshal.TimeSeries{
+			newPromPBTs("my_gauge_milliseconds", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1")),
+		},
+		true,
+	)
+
+	// Test gauge with ratio suffix
+	f(
+		[]*pb.Metric{
+			generateGauge("my-gauge-milliseconds", "1"),
+		},
+		[]prompbmarshal.TimeSeries{
+			newPromPBTs("my_gauge_milliseconds_ratio", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1")),
+		},
+		true,
+	)
+
+	// Test sum with total suffix
+	f(
+		[]*pb.Metric{
+			generateSum("my-sum", "ms", true),
+		},
+		[]prompbmarshal.TimeSeries{
+			newPromPBTs("my_sum_milliseconds_total", 150000, 15.5, jobLabelValue, kvLabel("label5", "value5")),
+		},
+		true,
+	)
+
+	// Test sum with total suffix, which exists in a metric name
+	f(
+		[]*pb.Metric{
+			generateSum("my-total-sum", "ms", true),
+		},
+		[]prompbmarshal.TimeSeries{
+			newPromPBTs("my_sum_milliseconds_total", 150000, 15.5, jobLabelValue, kvLabel("label5", "value5")),
+		},
+		true,
+	)
+
+	// Test sum with total and complex suffix
+	f(
+		[]*pb.Metric{
+			generateSum("my-total-sum", "m/s", true),
+		},
+		[]prompbmarshal.TimeSeries{
+			newPromPBTs("my_sum_meters_per_second_total", 150000, 15.5, jobLabelValue, kvLabel("label5", "value5")),
+		},
+		true,
 	)
 }
 
@@ -152,7 +227,7 @@ func attributesFromKV(k, v string) []*pb.KeyValue {
 	}
 }
 
-func generateGauge(name string) *pb.Metric {
+func generateGauge(name, unit string) *pb.Metric {
 	n := int64(15)
 	points := []*pb.NumberDataPoint{
 		{
@@ -163,13 +238,14 @@ func generateGauge(name string) *pb.Metric {
 	}
 	return &pb.Metric{
 		Name: name,
+		Unit: unit,
 		Gauge: &pb.Gauge{
 			DataPoints: points,
 		},
 	}
 }
 
-func generateHistogram(name string) *pb.Metric {
+func generateHistogram(name, unit string) *pb.Metric {
 	points := []*pb.HistogramDataPoint{
 		{
 
@@ -183,6 +259,7 @@ func generateHistogram(name string) *pb.Metric {
 	}
 	return &pb.Metric{
 		Name: name,
+		Unit: unit,
 		Histogram: &pb.Histogram{
 			AggregationTemporality: pb.AggregationTemporalityCumulative,
 			DataPoints:             points,
@@ -190,7 +267,7 @@ func generateHistogram(name string) *pb.Metric {
 	}
 }
 
-func generateSum(name string) *pb.Metric {
+func generateSum(name, unit string, isMonotonic bool) *pb.Metric {
 	d := float64(15.5)
 	points := []*pb.NumberDataPoint{
 		{
@@ -201,14 +278,16 @@ func generateSum(name string) *pb.Metric {
 	}
 	return &pb.Metric{
 		Name: name,
+		Unit: unit,
 		Sum: &pb.Sum{
 			AggregationTemporality: pb.AggregationTemporalityCumulative,
 			DataPoints:             points,
+			IsMonotonic:            isMonotonic,
 		},
 	}
 }
 
-func generateSummary(name string) *pb.Metric {
+func generateSummary(name, unit string) *pb.Metric {
 	points := []*pb.SummaryDataPoint{
 		{
 			Attributes:   attributesFromKV("label6", "value6"),
@@ -233,6 +312,7 @@ func generateSummary(name string) *pb.Metric {
 	}
 	return &pb.Metric{
 		Name: name,
+		Unit: unit,
 		Summary: &pb.Summary{
 			DataPoints: points,
 		},

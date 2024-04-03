@@ -84,6 +84,70 @@ func TestClient_Push(t *testing.T) {
 	}
 }
 
+func TestClient_run_maxBatchSizeDuringShutdown(t *testing.T) {
+	batchSize := 20
+
+	testTable := []struct {
+		name     string // name of the test case
+		pushCnt  int    // how many time series is pushed to the client
+		batchCnt int    // the expected batch count sent by the client
+	}{
+		{
+			name:     "pushCnt % batchSize == 0",
+			pushCnt:  batchSize * 40,
+			batchCnt: 40,
+		},
+		{
+			name:     "pushCnt % batchSize != 0",
+			pushCnt:  batchSize*40 + 1,
+			batchCnt: 40 + 1,
+		},
+	}
+
+	for _, tt := range testTable {
+		t.Run(tt.name, func(t *testing.T) {
+			// run new server
+			bcServer := newBatchCntRWServer()
+
+			// run new client
+			rwClient, err := NewClient(context.Background(), Config{
+				MaxBatchSize: batchSize,
+
+				// Set everything to 1 to simplify the calculation.
+				Concurrency:   1,
+				MaxQueueSize:  1000,
+				FlushInterval: time.Minute,
+
+				// batch count server
+				Addr: bcServer.URL,
+			})
+			if err != nil {
+				t.Fatalf("new remote write client failed, err: %v", err)
+			}
+
+			// push time series to the client.
+			for i := 0; i < tt.pushCnt; i++ {
+				if err = rwClient.Push(prompbmarshal.TimeSeries{}); err != nil {
+					t.Fatalf("push time series to the client failed, err: %v", err)
+				}
+			}
+
+			// close the client so the rest ts will be flushed in `shutdown`
+			if err = rwClient.Close(); err != nil {
+				t.Fatalf("shutdown client failed, err: %v", err)
+			}
+
+			// finally check how many batches is sent.
+			if tt.batchCnt != bcServer.acceptedBatches() {
+				t.Errorf("client sent batch count incorrect, want: %d, get: %d", tt.batchCnt, bcServer.acceptedBatches())
+			}
+			if tt.pushCnt != bcServer.accepted() {
+				t.Errorf("client sent time series count incorrect, want: %d, get: %d", tt.pushCnt, bcServer.accepted())
+			}
+		})
+	}
+}
+
 func newRWServer() *rwServer {
 	rw := &rwServer{}
 	rw.Server = httptest.NewServer(http.HandlerFunc(rw.handler))
@@ -183,4 +247,28 @@ func (frw *faultyRWServer) handler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("server overloaded"))
 	}
+}
+
+type batchCntRWServer struct {
+	*rwServer
+
+	batchCnt atomic.Int64 // accepted batch count, which also equals to request count
+}
+
+func newBatchCntRWServer() *batchCntRWServer {
+	bc := &batchCntRWServer{
+		rwServer: &rwServer{},
+	}
+
+	bc.Server = httptest.NewServer(http.HandlerFunc(bc.handler))
+	return bc
+}
+
+func (bc *batchCntRWServer) handler(w http.ResponseWriter, r *http.Request) {
+	bc.batchCnt.Add(1)
+	bc.rwServer.handler(w, r)
+}
+
+func (bc *batchCntRWServer) acceptedBatches() int {
+	return int(bc.batchCnt.Load())
 }

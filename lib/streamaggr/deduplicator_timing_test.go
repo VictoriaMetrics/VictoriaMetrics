@@ -8,7 +8,7 @@ import (
 )
 
 func BenchmarkDeduplicatorPush(b *testing.B) {
-	pushFunc := func(tss []prompbmarshal.TimeSeries) {}
+	pushFunc := func(_ []prompbmarshal.TimeSeries) {}
 	d := NewDeduplicator(pushFunc, time.Hour, nil)
 
 	b.ReportAllocs()

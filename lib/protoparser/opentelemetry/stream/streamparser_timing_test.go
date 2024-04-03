@@ -10,10 +10,10 @@ import (
 
 func BenchmarkParseStream(b *testing.B) {
 	samples := []*pb.Metric{
-		generateGauge("my-gauge"),
-		generateHistogram("my-histogram"),
-		generateSum("my-sum"),
-		generateSummary("my-summary"),
+		generateGauge("my-gauge", ""),
+		generateHistogram("my-histogram", ""),
+		generateSum("my-sum", "", false),
+		generateSummary("my-summary", ""),
 	}
 	b.SetBytes(1)
 	b.ReportAllocs()
@@ -24,7 +24,7 @@ func BenchmarkParseStream(b *testing.B) {
 		data := pbRequest.MarshalProtobuf(nil)
 
 		for p.Next() {
-			err := ParseStream(bytes.NewBuffer(data), false, nil, func(tss []prompbmarshal.TimeSeries) error {
+			err := ParseStream(bytes.NewBuffer(data), false, nil, func(_ []prompbmarshal.TimeSeries) error {
 				return nil
 			})
 			if err != nil {

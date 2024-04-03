@@ -105,7 +105,7 @@ The list of MetricsQL features on top of PromQL:
 * Trailing commas on all the lists are allowed - label filters, function args and with expressions.
   For instance, the following queries are valid: `m{foo="bar",}`, `f(a, b,)`, `WITH (x=y,) x`.
   This simplifies maintenance of multi-line queries.
-* Metric names and label names may contain any unicode letter. For example `температура{город="Киев"}` is a value MetricsQL expression.
+* Metric names and label names may contain any unicode letter. For example `температура{город="Київ"}` is a value MetricsQL expression.
 * Metric names and labels names may contain escaped chars. For example, `foo\-bar{baz\=aa="b"}` is valid expression.
   It returns time series with name `foo-bar` containing label `baz=aa` with value `b`.
   Additionally, the following escape sequences are supported:
@@ -623,7 +623,7 @@ if its value is either smaller than the `q25-1.5*iqr` or bigger than `q75+1.5*iq
 - `q25` and `q75` are 25th and 75th [percentiles](https://en.wikipedia.org/wiki/Percentile) over raw samples on the lookbehind window `d`.
 
 The `outlier_iqr_over_time()` is useful for detecting anomalies in gauge values based on the previous history of values.
-For example, `outlier_iqr_over_time(memory_usage_bytes[1h])` triggers when `memory_usage_bytes` suddenly goes outside the usual value range for the last 24 hours.
+For example, `outlier_iqr_over_time(memory_usage_bytes[1h])` triggers when `memory_usage_bytes` suddenly goes outside the usual value range for the last hour.
 
 See also [outliers_iqr](#outliers_iqr).
 

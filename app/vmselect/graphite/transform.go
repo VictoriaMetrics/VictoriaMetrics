@@ -36,6 +36,7 @@ func init() {
 		"add":                         transformAdd,
 		"aggregate":                   transformAggregate,
 		"aggregateLine":               transformAggregateLine,
+		"aggregateSeriesLists":        transformAggregateSeriesLists,
 		"aggregateWithWildcards":      transformAggregateWithWildcards,
 		"alias":                       transformAlias,
 		"aliasByMetric":               transformAliasByMetric,
@@ -66,6 +67,7 @@ func init() {
 		"delay":                       transformDelay,
 		"derivative":                  transformDerivative,
 		"diffSeries":                  transformDiffSeries,
+		"diffSeriesLists":             transformDiffSeriesLists,
 		"divideSeries":                transformDivideSeries,
 		"divideSeriesLists":           transformDivideSeriesLists,
 		"drawAsInfinite":              transformDrawAsInfinite,
@@ -125,6 +127,7 @@ func init() {
 		"movingSum":                   transformMovingSum,
 		"movingWindow":                transformMovingWindow,
 		"multiplySeries":              transformMultiplySeries,
+		"multiplySeriesLists":         transformMultiplySeriesLists,
 		"multiplySeriesWithWildcards": transformMultiplySeriesWithWildcards,
 		"nPercentile":                 transformNPercentile,
 		"nonNegativeDerivative":       transformNonNegativeDerivative,
@@ -172,6 +175,7 @@ func init() {
 		"substr":                  transformSubstr,
 		"sum":                     transformSumSeries,
 		"sumSeries":               transformSumSeries,
+		"sumSeriesLists":          transformSumSeriesLists,
 		"sumSeriesWithWildcards":  transformSumSeriesWithWildcards,
 		"summarize":               transformSummarize,
 		"threshold":               transformThreshold,
@@ -401,7 +405,7 @@ func aggregateSeriesWithWildcards(ec *evalConfig, expr graphiteql.Expr, nextSeri
 	for _, pos := range positions {
 		positionsMap[pos] = struct{}{}
 	}
-	keyFunc := func(name string, tags map[string]string) string {
+	keyFunc := func(name string, _ map[string]string) string {
 		parts := strings.Split(getPathFromName(name), ".")
 		dstParts := parts[:0]
 		for i, part := range parts {
@@ -1316,6 +1320,88 @@ func transformDivideSeries(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesF
 	return f, nil
 }
 
+func aggregateSeriesListsGeneric(ec *evalConfig, fe *graphiteql.FuncExpr, funcName string) (nextSeriesFunc, error) {
+	args := fe.Args
+	agg, err := getAggrFunc(funcName)
+	if err != nil {
+		return nil, err
+	}
+	nextSeriesFirst, err := evalSeriesList(ec, args, "seriesListFirstPos", 0)
+	if err != nil {
+		return nil, err
+	}
+	nextSeriesSecond, err := evalSeriesList(ec, args, "seriesListSecondPos", 1)
+	if err != nil {
+		_, _ = drainAllSeries(nextSeriesFirst)
+		return nil, err
+	}
+	return aggregateSeriesList(ec, fe, nextSeriesFirst, nextSeriesSecond, agg, funcName)
+}
+
+// See https://graphite.readthedocs.io/en/latest/functions.html#graphite.render.functions.aggregateSeriesLists
+func transformAggregateSeriesLists(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc, error) {
+	args := fe.Args
+	if len(args) != 3 && len(args) != 4 {
+		return nil, fmt.Errorf("unexpected number of args; got %d; want 3 or 4", len(args))
+	}
+
+	funcName, err := getString(args, "func", 2)
+	if err != nil {
+		return nil, err
+	}
+
+	return aggregateSeriesListsGeneric(ec, fe, funcName)
+}
+
+// See https://graphite.readthedocs.io/en/latest/functions.html#graphite.render.functions.sumSeriesLists
+func transformSumSeriesLists(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc, error) {
+	return aggregateSeriesListsGeneric(ec, fe, "sum")
+}
+
+// See https://graphite.readthedocs.io/en/latest/functions.html#graphite.render.functions.multiplySeriesLists
+func transformMultiplySeriesLists(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc, error) {
+	return aggregateSeriesListsGeneric(ec, fe, "multiply")
+}
+
+// See https://graphite.readthedocs.io/en/latest/functions.html#graphite.render.functions.diffSeriesLists
+func transformDiffSeriesLists(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc, error) {
+	return aggregateSeriesListsGeneric(ec, fe, "diff")
+}
+
+func aggregateSeriesList(ec *evalConfig, fe *graphiteql.FuncExpr, nextSeriesFirst, nextSeriesSecond nextSeriesFunc, agg aggrFunc, funcName string) (nextSeriesFunc, error) {
+	ssFirst, stepFirst, err := fetchNormalizedSeries(ec, nextSeriesFirst, false)
+	if err != nil {
+		_, _ = drainAllSeries(nextSeriesSecond)
+		return nil, err
+	}
+	ssSecond, stepSecond, err := fetchNormalizedSeries(ec, nextSeriesSecond, false)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(ssFirst) != len(ssSecond) {
+		return nil, fmt.Errorf("First and second lists must have equal number of series; got %d vs %d series", len(ssFirst), len(ssSecond))
+	}
+	if stepFirst != stepSecond {
+		return nil, fmt.Errorf("step mismatch for first and second: %d vs %d", stepFirst, stepSecond)
+	}
+
+	valuePair := make([]float64, 2)
+	for i, s := range ssFirst {
+		sSecond := ssSecond[i]
+		values := s.Values
+		secondValues := sSecond.Values
+		for j, v := range values {
+			valuePair[0], valuePair[1] = v, secondValues[j]
+			values[j] = agg(valuePair)
+		}
+		s.Name = fmt.Sprintf("%sSeries(%s,%s)", funcName, s.Name, sSecond.Name)
+		s.expr = fe
+		s.pathExpression = s.Name
+	}
+	return multiSeriesFunc(ssFirst), nil
+}
+
 // See https://graphite.readthedocs.io/en/stable/functions.html#graphite.render.functions.divideSeriesLists
 func transformDivideSeriesLists(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc, error) {
 	args := fe.Args
@@ -1326,36 +1412,14 @@ func transformDivideSeriesLists(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSe
 	if err != nil {
 		return nil, err
 	}
-	ssDividend, stepDivident, err := fetchNormalizedSeries(ec, nextDividend, false)
-	if err != nil {
-		return nil, err
-	}
 	nextDivisor, err := evalSeriesList(ec, args, "divisorSeriesList", 1)
 	if err != nil {
 		return nil, err
 	}
-	ssDivisor, stepDivisor, err := fetchNormalizedSeries(ec, nextDivisor, false)
-	if err != nil {
-		return nil, err
-	}
-	if len(ssDividend) != len(ssDivisor) {
-		return nil, fmt.Errorf("divident and divisor must have equal number of series; got %d vs %d series", len(ssDividend), len(ssDivisor))
-	}
-	if stepDivident != stepDivisor {
-		return nil, fmt.Errorf("step mismatch for divident and divisor: %d vs %d", stepDivident, stepDivisor)
-	}
-	for i, s := range ssDividend {
-		sDivisor := ssDivisor[i]
-		values := s.Values
-		divisorValues := sDivisor.Values
-		for j, v := range values {
-			values[j] = v / divisorValues[j]
-		}
-		s.Name = fmt.Sprintf("divideSeries(%s,%s)", s.Name, sDivisor.Name)
-		s.expr = fe
-		s.pathExpression = s.Name
-	}
-	return multiSeriesFunc(ssDividend), nil
+
+	return aggregateSeriesList(ec, fe, nextDividend, nextDivisor, func(values []float64) float64 {
+		return values[0] / values[1]
+	}, "divide")
 }
 
 // See https://graphite.readthedocs.io/en/stable/functions.html#graphite.render.functions.drawAsInfinite
@@ -1819,7 +1883,7 @@ func transformGroupByTags(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFu
 	if err != nil {
 		return nil, err
 	}
-	keyFunc := func(name string, tags map[string]string) string {
+	keyFunc := func(_ string, tags map[string]string) string {
 		return formatKeyFromTags(tags, tagKeys, callback)
 	}
 	return groupByKeyFunc(ec, fe, nextSeries, callback, keyFunc)
