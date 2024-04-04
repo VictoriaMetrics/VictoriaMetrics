@@ -103,7 +103,7 @@ var (
 	streamAggrDropInputLabels = flagutil.NewArrayString("streamAggr.dropInputLabels", "An optional list of labels to drop from samples "+
 		"before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation.html#dropping-unneeded-labels")
 
-	disableOnDiskQueue = flag.Bool("remoteWrite.disableOnDiskQueue", false, "Whether to disable storing pending data to -remoteWrite.tmpDataPath "+
+	disableOnDiskQueuePerUrl = flagutil.NewArrayBool("remoteWrite.disableOnDiskQueue", "Whether to disable storing pending data to -remoteWrite.tmpDataPath "+
 		"when the configured remote storage systems cannot keep up with the data ingestion rate. See https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence ."+
 		"See also -remoteWrite.dropSamplesOnOverload")
 	dropSamplesOnOverload = flag.Bool("remoteWrite.dropSamplesOnOverload", false, "Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples "+
@@ -466,10 +466,19 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, dropSamplesOnFailur
 
 	rowsCount := getRowsCount(tss)
 
-	if *disableOnDiskQueue {
-		// Quick check whether writes to configured remote storage systems are blocked.
-		// This allows saving CPU time spent on relabeling and block compression
-		// if some of remote storage systems cannot keep up with the data ingestion rate.
+	disableOnDiskAll := true
+	for _, rwctx := range rwctxs {
+		if !rwctx.disableOnDiskQueue {
+			disableOnDiskAll = false
+			break
+		}
+	}
+
+	// Quick check whether writes to configured remote storage systems are blocked.
+	// This allows saving CPU time spent on relabeling and block compression
+	// if some of remote storage systems cannot keep up with the data ingestion rate.
+	// this shortcut is only applicable if all remote write have disableOnDiskQueue = true
+	if disableOnDiskAll {
 		for _, rwctx := range rwctxs {
 			if rwctx.fq.IsWriteBlocked() {
 				pushFailures.Inc()
@@ -530,9 +539,6 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, dropSamplesOnFailur
 		sortLabelsIfNeeded(tssBlock)
 		tssBlock = limitSeriesCardinality(tssBlock)
 		if !tryPushBlockToRemoteStorages(rwctxs, tssBlock) {
-			if !*disableOnDiskQueue {
-				logger.Panicf("BUG: tryPushBlockToRemoteStorages must return true if -remoteWrite.disableOnDiskQueue isn't set")
-			}
 			pushFailures.Inc()
 			if dropSamplesOnFailure {
 				samplesDropped.Add(rowsCount)
@@ -621,7 +627,7 @@ func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmar
 	for _, rwctx := range rwctxs {
 		go func(rwctx *remoteWriteCtx) {
 			defer wg.Done()
-			if !rwctx.TryPush(tssBlock) {
+			if !rwctx.TryPush(tssBlock) && !rwctx.disableOnDiskQueue {
 				anyPushFailed.Store(true)
 			}
 		}(rwctx)
@@ -728,6 +734,7 @@ type remoteWriteCtx struct {
 
 	streamAggrKeepInput bool
 	streamAggrDropInput bool
+	disableOnDiskQueue  bool
 
 	pss        []*pendingSeries
 	pssNextIdx atomic.Uint64
@@ -744,12 +751,14 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 	h := xxhash.Sum64([]byte(pqURL.String()))
 	queuePath := filepath.Join(*tmpDataPath, persistentQueueDirname, fmt.Sprintf("%d_%016X", argIdx+1, h))
 	maxPendingBytes := maxPendingBytesPerURL.GetOptionalArg(argIdx)
+	disableOnDiskQueue := disableOnDiskQueuePerUrl.GetOptionalArg(argIdx)
+
 	if maxPendingBytes != 0 && maxPendingBytes < persistentqueue.DefaultChunkFileSize {
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4195
 		logger.Warnf("rounding the -remoteWrite.maxDiskUsagePerURL=%d to the minimum supported value: %d", maxPendingBytes, persistentqueue.DefaultChunkFileSize)
 		maxPendingBytes = persistentqueue.DefaultChunkFileSize
 	}
-	fq := persistentqueue.MustOpenFastQueue(queuePath, sanitizedURL, maxInmemoryBlocks, maxPendingBytes, *disableOnDiskQueue)
+	fq := persistentqueue.MustOpenFastQueue(queuePath, sanitizedURL, maxInmemoryBlocks, maxPendingBytes, disableOnDiskQueue)
 	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_data_bytes{path=%q, url=%q}`, queuePath, sanitizedURL), func() float64 {
 		return float64(fq.GetPendingBytes())
 	})
@@ -926,7 +935,7 @@ func (rwctx *remoteWriteCtx) pushInternalTrackDropped(tss []prompbmarshal.TimeSe
 	if rwctx.tryPushInternal(tss) {
 		return
 	}
-	if !*disableOnDiskQueue {
+	if !rwctx.disableOnDiskQueue {
 		logger.Panicf("BUG: tryPushInternal must return true if -remoteWrite.disableOnDiskQueue isn't set")
 	}
 	pushFailures.Inc()
