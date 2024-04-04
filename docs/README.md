@@ -2037,7 +2037,7 @@ See [how to configure downsampling in VictoriaMetrics cluster](https://docs.vict
 
 See also [retention filters](#retention-filters).
 
-The downsampling filters can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The downsampling can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See [how to request a free trial license](https://victoriametrics.com/products/enterprise/trial/).
 
 ## Multi-tenancy
