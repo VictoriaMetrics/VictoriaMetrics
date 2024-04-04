@@ -22,9 +22,9 @@ import (
 // you have permission to access it. If the bucket does not exist or you do not
 // have permission to access it, the HEAD request returns a generic 400 Bad Request
 // , 403 Forbidden or 404 Not Found code. A message body is not included, so you
-// cannot determine the exception beyond these error codes. Directory buckets - You
-// must make requests for this API operation to the Zonal endpoint. These endpoints
-// support virtual-hosted-style requests in the format
+// cannot determine the exception beyond these HTTP response codes. Directory
+// buckets - You must make requests for this API operation to the Zonal endpoint.
+// These endpoints support virtual-hosted-style requests in the format
 // https://bucket_name.s3express-az_id.region.amazonaws.com . Path-style requests
 // are not supported. For more information, see Regional and Zonal endpoints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html)
 // in the Amazon S3 User Guide. Authentication and authorization All HeadBucket
@@ -77,7 +77,7 @@ type HeadBucketInput struct {
 	// Bucket_name.s3express-az_id.region.amazonaws.com . Path-style requests are not
 	// supported. Directory bucket names must be unique in the chosen Availability
 	// Zone. Bucket names must follow the format bucket_base_name--az-id--x-s3 (for
-	// example, DOC-EXAMPLE-BUCKET--usw2-az2--x-s3 ). For information about bucket
+	// example, DOC-EXAMPLE-BUCKET--usw2-az1--x-s3 ). For information about bucket
 	// naming restrictions, see Directory bucket naming rules (https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html)
 	// in the Amazon S3 User Guide. Access points - When you use this action with an
 	// access point, you must provide the alias of the access point in place of the
@@ -127,7 +127,7 @@ type HeadBucketOutput struct {
 
 	// The name of the location where the bucket will be created. For directory
 	// buckets, the AZ ID of the Availability Zone where the bucket is created. An
-	// example AZ ID value is usw2-az2 . This functionality is only supported by
+	// example AZ ID value is usw2-az1 . This functionality is only supported by
 	// directory buckets.
 	BucketLocationName *string
 

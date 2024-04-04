@@ -589,9 +589,7 @@ func GetLabelByName(labels []prompbmarshal.Label, name string) *prompbmarshal.La
 //
 // This should help GC cleaning up label.Name and label.Value strings.
 func CleanLabels(labels []prompbmarshal.Label) {
-	for i := range labels {
-		labels[i] = prompbmarshal.Label{}
-	}
+	clear(labels)
 }
 
 // LabelsToString returns Prometheus string representation for the given labels.
@@ -664,6 +662,15 @@ func fillLabelReferences(dst []byte, replacement string, labels []prompbmarshal.
 func SanitizeLabelName(name string) string {
 	return labelNameSanitizer.Transform(name)
 }
+
+// SplitMetricNameToTokens returns tokens generated from metric name divided by unsupported Prometheus characters
+//
+// See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
+func SplitMetricNameToTokens(name string) []string {
+	return nonAlphaNumChars.Split(name, -1)
+}
+
+var nonAlphaNumChars = regexp.MustCompile(`[^a-zA-Z0-9]`)
 
 var labelNameSanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
 	return unsupportedLabelNameChars.ReplaceAllString(s, "_")

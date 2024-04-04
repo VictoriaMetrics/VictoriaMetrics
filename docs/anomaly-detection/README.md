@@ -5,6 +5,7 @@ weight: 0
 aliases:
 - /anomaly-detection.html
 - /vmanomaly.html
+- /vmanomaly/
 ---
 
 # VictoriaMetrics Anomaly Detection
@@ -16,23 +17,23 @@ Begin your VictoriaMetrics Anomaly Detection journey with ease using our guides 
 
 - **Quickstart**: Check out how to get `vmanomaly` up and running [here](/anomaly-detection/QuickStart.html).
 - **Overview**: Find out how `vmanomaly` service operates [here](/anomaly-detection/Overview.html)
-- **Integration**: Integrate anomaly detection into your observability ecosystem. Get started [**here**](/anomaly-detection/guides/guide-vmanomaly-vmalert.html).
+- **Integration**: Integrate anomaly detection into your observability ecosystem. Get started [here](/anomaly-detection/guides/guide-vmanomaly-vmalert.html).
 
 - **Installation Options**: Select the method that aligns with your technical requirements:
     - **Docker Installation**: Suitable for containerized environments. See [Docker guide](/anomaly-detection/Overview.html#run-vmanomaly-docker-container).
     - **Helm Chart Installation**: Appropriate for those using Kubernetes. See our [Helm charts](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-anomaly).
 
 
-> **Note**: starting from [v1.5.0](./CHANGELOG.md#v150) `vmanomaly` requires a [license key](/anomaly-detection/Overview.html#licensing) to run. You can obtain a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/index.html).
+> **Note**: starting from [v1.5.0](./CHANGELOG.md#v150) `vmanomaly` requires a [license key](/anomaly-detection/Overview.html#licensing) to run. You can obtain a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/).
 
 ## Key Components
 Explore the integral components that configure VictoriaMetrics Anomaly Detection:
 * [Explore components and their interation](/anomaly-detection/components)
-    - [Models](/anomaly-detection/components/models.html)
-    - [Reader](/anomaly-detection/components/reader.html)
-    - [Scheduler](/anomaly-detection/components/scheduler.html)
-    - [Writer](/anomaly-detection/components/writer.html)
-    - [Monitoring](/anomaly-detection/components/monitoring.html)
+    - [Models](/anomaly-detection/components/models)
+    - [Reader](/anomaly-detection/components/reader)
+    - [Scheduler](/anomaly-detection/components/scheduler)
+    - [Writer](/anomaly-detection/components/writer)
+    - [Monitoring](/anomaly-detection/components/monitoring)
 
 ## Deep Dive into Anomaly Detection
 Enhance your knowledge with our handbook on Anomaly Detection & Root Cause Analysis and stay updated:
@@ -45,12 +46,12 @@ Enhance your knowledge with our handbook on Anomaly Detection & Root Cause Analy
 ## Frequently Asked Questions (FAQ)
 Got questions about VictoriaMetrics Anomaly Detection? Chances are, we've got the answers ready for you. 
 
-Dive into [our FAQ section](/anomaly-detection/FAQ.html) to find responses to common questions.
+Dive into [our FAQ section](/anomaly-detection/FAQ) to find responses to common questions.
 
 ## Get in Touch
 We're eager to connect with you and tailor our solutions to your specific needs. Here's how you can engage with us:
 * [Book a Demo](https://calendly.com/victoriametrics-anomaly-detection) to discover what our product can do.
-* Interested in exploring our [Enterprise features](https://victoriametrics.com/products/enterprise), including Anomaly Detection? [Request your trial license](https://victoriametrics.com/products/enterprise/trial/) today and take the first step towards advanced system observability.
+* Interested in exploring our [Enterprise features](https://victoriametrics.com/products/enterprise), including [Anomaly Detection](https://victoriametrics.com/products/enterprise/anomaly-detection)? [Request your trial license](https://victoriametrics.com/products/enterprise/trial/) today and take the first step towards advanced system observability.
 
 ---
 Our [CHANGELOG is just a click away](./CHANGELOG.md), keeping you informed about the latest updates and enhancements.

@@ -15,9 +15,50 @@ aliases:
 # CHANGELOG
 
 ## Next release
+- [operator](./README.md): updates base Docker image and prometheus_client to versions with with CVE fixes
 
+**Update note: [vmcluster](./api.md#vmcluster): remove fields `VMClusterSpec.VMInsert.Name`, `VMClusterSpec.VMStorage.Name`, `VMClusterSpec.VMSelect.Name`, they're marked as deprecated since v0.21.0. See [this pull request](https://github.com/VictoriaMetrics/operator/pull/907).**
+
+- [vmservicescrape&vmpodscrape](./api.md#vmservicescrape): add `attach_metadata` option under VMServiceScrapeSpec&VMPodScrapeSpec, the same way like prometheus serviceMonitor&podMonitor do. See [this issue](https://github.com/VictoriaMetrics/operator/issues/893) for details.
+- [vmalertmanagerconfig](./api.md#vmalertmanagerconfig): fix struct field tags under `Sigv4Config`.
+- [vmalertmanager](./api.md#vmalertmanager): bump default alertmanager version to [v0.27.0](https://github.com/prometheus/alertmanager/releases/tag/v0.27.0), which supports new receivers like `msteams_configs`.
+ 
+<a name="v0.42.3"></a>
+## [v0.43.](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.3) - 12 Mar 2024
+
+- [vmalert](./api.md#vmalert): do not add `notifiers.*` flags in case `notifier.blackhole` is provided via `spec.extraArgs`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/894) for details.
+- [operator](./README.md): properly build liveness probe scheme with enabled `tls`. Previously it has hard-coded `HTTP` scheme. See this [issue](https://github.com/VictoriaMetrics/operator/issues/896) for details.
+- [operator](./README.md): do not perform a PVC size check on `StatefulSet` with `0` replicas. It allows to creates CRDs with `0` replicas for later conditional resizing. 
+- [vmalertmanager](./api.html#vmalertmanager): properly print columns at CRD `replicaCount` and `version` status fields.
+
+<a name="v0.42.2"></a>
+## [v0.42.](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.2) - 6 Mar 2024
+
+- [operator](./README.md): fixes alertmanager args typo.
+- [prometheus-converter](./README.md): adds new flag `controller.prometheusCRD.resyncPeriod` which allows to configure resync period of prometheus CRD objects. See this [issue](https://github.com/VictoriaMetrics/operator/issues/869) for details.
+
+
+<a name="v0.42.1"></a>
+## [v0.42.](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.1) - 5 Mar 2024
+
+- [operator](./README.md): properly watch for prometheus CRD objects. See this [issue](https://github.com/VictoriaMetrics/operator/issues/892) for details.
+
+<a name="v0.42.0"></a>
+## [v0.42.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.0) - 4 Mar 2024
+
+- [operator](./README.md): adds more context to the log messages. It must greatly improve debugging process and log quality.
+- Update VictoriaMetrics image tags to [v1.99.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.99.0).
+- [operator](./README.md): allow multiple comma separated values for `WATCH_NAMESPACE` param. It adds multiple watch namespace mode without cluster-wide permission. See this [issue](https://github.com/VictoriaMetrics/operator/issues/557) for details. Need namspace RBAC permissions located at `config/examples/operator_rbac_for_single_namespace.yaml`
+- [operator](./README.md): updates runtime dependencies (controller-runtime, controller-gen). See this [issue](https://github.com/VictoriaMetrics/operator/issues/878) for details.
+- [operator](./README.md): updates runtime dependencies (controller-runtime, controller-gen). See this [issue](https://github.com/VictoriaMetrics/operator/issues/878) for details.
+- [operator](./README.md): adds new `status.updateStatus` field to the all objects with pods. It helps to track rollout updates properly. 
+- [operator](./README.md): adds annotation `operator.victoriametrics/last-applied-spec` to all objects with pods. It helps to track changes and implements proper resource deletion later as part of [issue](https://github.com/VictoriaMetrics/operator/issues/758).
+- [vmagent](./api.md#vmagent): adds `flush_on_shutdown` to the streamAggrConfig. See this [issue](https://github.com/VictoriaMetrics/operator/issues/860) for details.
+- [vmagent](./api.md#vmagent): adds `spec.ingestOnlyMode` experimental field. It switches vmagent into special mode without scrape configuration and config-reloaders. Currently it also disables tls and auth options for remoteWrites, it must be addressed at the next releaes.
+- [vmalertmanager](./api.html#vmalertmanager): use `blackhole` as default router if not configuration provided instead of dummy webhook. 9ee567ff9bc93f43dfedcf9361be1be54a5e7597
+- [vmalertmanager](./api.html#vmalertmanager): properly assign path for templates, if it's configured at config file and defined via `spec.templates`. 1128fa9e152a52c7a566fe7ac1375fefbfc6b276
 - [vmauth](./api.html#vmauth): adds new field `spec.configSecret`, which allows to use vmauth with external configuration stored at secret under `config.yaml` key. Configuration changes can be tracked with extraArgs: `configCheckInterval: 10s` or manually defined config-reloader container.
-
+- [vmstorage](./api.html#vmcluster): properly disable `pvc` resizing with annotation `operator.victoriametrics.com/pvc-allow-volume-expansion`. Previously it was checked per pvc, now it's checked at statefulset storage spec. It also, allows to add pvc autoscaler. Related issues https://github.com/VictoriaMetrics/operator/issues/821, https://github.com/VictoriaMetrics/operator/issues/867. 
 <a name="v0.41.2"></a>
 ## [v0.41.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.41.2) - 21 Feb 2024
 

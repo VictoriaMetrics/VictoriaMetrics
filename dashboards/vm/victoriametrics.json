@@ -553,7 +553,7 @@
         "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
-      "description": "Shows the number of active time series with new data points inserted during the last hour. High value may result in ingestion slowdown. \n\nSee more details here https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series",
+      "description": "Shows the number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series) with new data points inserted during the last hour. High value may result in ingestion slowdown.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1086,7 +1086,7 @@
         "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
-      "description": "Shows the number of active time series with new data points inserted during the last hour. High value may result in ingestion slowdown. \n\nSee following link for details:",
+      "description": "Shows the number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series) with new data points inserted during the last hour. High value may result in ingestion slowdown. \n\nSee following link for details:",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1156,7 +1156,7 @@
         {
           "targetBlank": true,
           "title": "troubleshooting",
-          "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#troubleshooting"
+          "url": "https://docs.victoriametrics.com/troubleshooting"
         }
       ],
       "options": {
@@ -3122,7 +3122,7 @@
             "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows the rate and total number of new series created over last 24h.\n\nHigh churn rate tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected cardinality \"explosions\".\n\nThe higher churn rate is, the more resources required to handle it. Consider to keep the churn rate as low as possible.\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://www.robustperception.io/using-tsdb-analyze-to-investigate-churn-and-cardinality",
+          "description": "Shows the rate and total number of new series created over last 24h.\n\nHigh [churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate) tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected [cardinality](https://docs.victoriametrics.com/keyconcepts/#cardinality) \"explosions\".\n\nThe higher churn rate is, the more resources required to handle it. Consider to keep the churn rate as low as possible.\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://www.robustperception.io/using-tsdb-analyze-to-investigate-churn-and-cardinality",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3233,7 +3233,7 @@
             "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
-          "description": "The percentage of slow inserts comparing to total insertion rate during the last 5 minutes. \n\nThe less value is better. If percentage remains high (>10%) during extended periods of time, then it is likely more RAM is needed for optimal handling of the current number of active time series. \n\nIn general, VictoriaMetrics requires ~1KB or RAM per active time series, so it should be easy calculating the required amounts of RAM for the current workload according to capacity planning docs. But the resulting number may be far from the real number because the required amounts of memory depends on many other factors such as the number of labels per time series and the length of label values. See also https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183",
+          "description": "The percentage of slow inserts comparing to total insertion rate during the last 5 minutes. \n\nThe less value is better. If percentage remains high (>10%) during extended periods of time, then it is likely more RAM is needed for optimal handling of the current number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series). \n\nIn general, VictoriaMetrics requires ~1KB or RAM per active time series, so it should be easy calculating the required amounts of RAM for the current workload according to capacity planning docs. But the resulting number may be far from the real number because the required amounts of memory depends on many other factors such as the number of labels per time series and the length of label values. See also [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183) for details.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5277,7 +5277,7 @@
             "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
-          "description": "99th percentile of number of raw samples read per queried series.",
+          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) read per queried series.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5384,7 +5384,7 @@
             "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
-          "description": "99th percentile of number of raw datapoints read per query.",
+          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) read per query.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5491,7 +5491,7 @@
             "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
-          "description": "99th percentile of number of raw samples scanner per query.\n\nThis number can exceed number of RowsReadPerQuery if `step` query arg passed to [/api/v1/query_range](https://victoriametrics-datasource.io/docs/victoriametrics-datasource/latest/querying/api/#range-queries) is smaller than the lookbehind window set in square brackets of [rollup function](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions). For example, if `increase(some_metric[1h])` is executed with the `step=5m`, then the same raw samples on a hour time range are scanned `1h/5m=12` times. See [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986) for details.",
+          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) scanner per query.\n\nThis number can exceed number of RowsReadPerQuery if `step` query arg passed to [/api/v1/query_range](https://victoriametrics-datasource.io/docs/victoriametrics-datasource/latest/querying/api/#range-queries) is smaller than the lookbehind window set in square brackets of [rollup function](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions). For example, if `increase(some_metric[1h])` is executed with the `step=5m`, then the same [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) on a hour time range are scanned `1h/5m=12` times. See [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986) for details.",
           "fieldConfig": {
             "defaults": {
               "color": {

@@ -40,6 +40,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
@@ -100,7 +101,7 @@ func Init() {
 	if len(*opentsdbHTTPListenAddr) > 0 {
 		opentsdbhttpServer = opentsdbhttpserver.MustStart(*opentsdbHTTPListenAddr, *opentsdbHTTPUseProxyProtocol, opentsdbhttp.InsertHandler)
 	}
-	promscrape.Init(func(at *auth.Token, wr *prompbmarshal.WriteRequest) {
+	promscrape.Init(func(_ *auth.Token, wr *prompbmarshal.WriteRequest) {
 		prompush.Push(wr)
 	})
 }
@@ -162,7 +163,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		path = strings.TrimSuffix(path, "/")
 	}
 	switch path {
-	case "/prometheus/api/v1/write", "/api/v1/write":
+	case "/prometheus/api/v1/write", "/api/v1/write", "/api/v1/push", "/prometheus/api/v1/push":
 		if common.HandleVMProtoServerHandshake(w, r) {
 			return true
 		}
@@ -223,7 +224,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		w.WriteHeader(http.StatusOK)
+		firehose.WriteSuccessResponse(w, r)
 		return true
 	case "/newrelic":
 		newrelicCheckRequest.Inc()

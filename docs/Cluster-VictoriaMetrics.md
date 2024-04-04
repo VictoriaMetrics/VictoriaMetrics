@@ -624,6 +624,8 @@ It is recommended leaving the following amounts of spare resources:
 - 50% of spare CPU across all the node types for reducing the probability of slowdowns during temporary spikes in workload.
 - At least 20% of free storage space at the directory pointed by `-storageDataPath` command-line flag at `vmstorage` nodes. See also `-storage.minFreeDiskSpaceBytes` command-line flag [description for vmstorage](#list-of-command-line-flags-for-vmstorage).
 
+Increase free storage space and `-storage.minFreeDiskSpaceBytes` to match at least the amount of data you plan to ingest in a calendar month: on each vmstorage pod, the monthly final deduplication process will temporarily need as much space as is used for the previous month's data, before it can free up space. For example, if you have a 3 month retention period and you want to keep at least 10 % space free at all times, you could pick 35 % of your total space as value. When some of your vmstorage pods are in [read-only mode](#readonly-mode), the remaining pods will have a higher share of the total data ingestion, and will therefore need more free space the next month.
+
 Some capacity planning tips for VictoriaMetrics cluster:
 
 - The [replication](#replication-and-data-safety) increases the amounts of needed resources for the cluster by up to `N` times where `N` is replication factor. This is because `vminsert` stores `N` copies of every ingested sample on distinct `vmstorage` nodes. These copies are de-duplicated by `vmselect` during querying. The most cost-efficient and performant solution for data durability is to rely on replicated durable persistent disks such as [Google Compute persistent disks](https://cloud.google.com/compute/docs/disks#pdspecs) instead of using the [replication at VictoriaMetrics level](#replication-and-data-safety).
@@ -654,15 +656,21 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   a single query can use at `vmstorage` is proportional to `-search.maxUniqueTimeseries`.
 - `-search.maxQueryDuration` at `vmselect` limits the duration of a single query. If the query takes longer than the given duration, then it is canceled.
   This allows saving CPU and RAM at `vmselect` and `vmstorage` when executing unexpectedly heavy queries.
+  The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via `-search.maxQueryDuration` command-line flag.
 - `-search.maxConcurrentRequests` at `vmselect` and `vmstorage` limits the number of concurrent requests a single `vmselect` / `vmstorage` node can process.
   Bigger number of concurrent requests usually require bigger amounts of memory at both `vmselect` and `vmstorage`.
   For example, if a single query needs 100 MiB of additional memory during its execution, then 100 concurrent queries
   may need `100 * 100 MiB = 10 GiB` of additional memory. So it is better to limit the number of concurrent queries,
-  while suspending additional incoming queries if the concurrency limit is reached.
-  `vmselect` and `vmstorage` provides `-search.maxQueueDuration` command-line flag for limiting the maximum wait time for suspended queries.
+  while pausing additional incoming queries if the concurrency limit is reached.
+  `vmselect` and `vmstorage` provides `-search.maxQueueDuration` command-line flag for limiting the maximum wait time for paused queries.
   See also `-search.maxMemoryPerQuery` command-line flag at `vmselect`.
 - `-search.maxQueueDuration` at `vmselect` and `vmstorage` limits the maximum duration queries may wait for execution when `-search.maxConcurrentRequests`
   concurrent queries are executed.
+- `-search.ignoreExtraFiltersAtLabelsAPI` at `vmselect` enables ignoring of `match[]`, [`extra_filters[]` and `extra_label`](https://docs.victoriametrics.com/#prometheus-querying-api-enhancements)
+  query args at [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels) and
+  [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues).
+  This may be useful for reducing the load on `vmstorage` if the provided extra filters match too many time series.
+  The downside is that the endpoints can return labels and series, which do not match the provided extra filters.
 - `-search.maxSamplesPerSeries` at `vmselect` limits the number of raw samples the query can process per each time series.
   `vmselect` processes raw samples sequentially per each found time series during the query. It unpacks raw samples on the selected time range
   per each time series into memory and then applies the given [rollup function](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions).
@@ -702,18 +710,14 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxLabelsAPISeries` to quite low value in order to limit CPU and memory usage.
   See also `-search.maxLabelsAPIDuration` and `-search.ignoreExtraFiltersAtLabelsAPI`.
-- `-search.maxLabelsAPIDuration` at `vmselect` limits the duration for reuqests to [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels),
+- `-search.maxLabelsAPIDuration` at `vmselect` limits the duration for requests to [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels),
   [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues)
   or [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series).
+  The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via cmd-line flag.
   These endpoints are used mostly by Grafana for auto-completion of label names and label values. Queries to these endpoints may take big amounts of CPU time and memory
   when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxLabelsAPIDuration` to quite low value in order to limit CPU and memory usage.
   See also `-search.maxLabelsAPISeries` and `-search.ignoreExtraFiltersAtLabelsAPI`.
-- `-search.ignoreExtraFiltersAtLabelsAPI` at `vmselect` enables ignoring of `match[]`, [`extra_filters[]` and `extra_label`](https://docs.victoriametrics.com/#prometheus-querying-api-enhancements)
-  query args at [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels) and
-  [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues).
-  This may be useful for reducing the load on `vmstorage` if the provided extra filters match too many time series.
-  The downside is that the endpoints can return labels and series, which do not match the provided extra filters.
 - `-storage.maxDailySeries` at `vmstorage` can be used for limiting the number of time series seen per day aka
   [time series churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). See [cardinality limiter docs](#cardinality-limiter).
 - `-storage.maxHourlySeries` at `vmstorage` can be used for limiting the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series).
@@ -768,16 +772,16 @@ because the given `-replicationFactor=2` is applied individually per each group:
 
 ```
 /path/to/vmselect \
-	-replicationFactor=2 \
-	-storageNode=group1/host1 \
-	-storageNode=group1/host2 \
-	-storageNode=group1/host3 \
-	-storageNode=group2/host4 \
-	-storageNode=group2/host5 \
-	-storageNode=group2/host6 \
-	-storageNode=group3/host7 \
-	-storageNode=group3/host8 \
-	-storageNode=group3/host9
+ -replicationFactor=2 \
+ -storageNode=group1/host1 \
+ -storageNode=group1/host2 \
+ -storageNode=group1/host3 \
+ -storageNode=group2/host4 \
+ -storageNode=group2/host5 \
+ -storageNode=group2/host6 \
+ -storageNode=group3/host7 \
+ -storageNode=group3/host8 \
+ -storageNode=group3/host9
 ```
 
 It is possible to specify distinct `-replicationFactor` per each group via the following format - `-replicationFactor=groupName:rf`.
@@ -785,14 +789,14 @@ For example, the following command runs `vmselect`, which uses `-replicationFact
 
 ```
 /path/to/vmselect \
-	-replicationFactor=group1:3 \
-	-storageNode=group1/host1 \
-	-storageNode=group1/host2 \
-	-storageNode=group1/host3 \
-	-replicationFactor=group2:1 \
-	-storageNode=group2/host4 \
-	-storageNode=group2/host5 \
-	-storageNode=group2/host6
+ -replicationFactor=group1:3 \
+ -storageNode=group1/host1 \
+ -storageNode=group1/host2 \
+ -storageNode=group1/host3 \
+ -replicationFactor=group2:1 \
+ -storageNode=group2/host4 \
+ -storageNode=group2/host5 \
+ -storageNode=group2/host6
 ```
 
 ## Helm
@@ -888,6 +892,7 @@ For example, the following config sets retention to 5 days for time series with 
 ```
 
 See also [these docs](https://docs.victoriametrics.com/#retention-filters) for additional details on retention filters.
+See also [downsampling](#downsampling).
 
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
@@ -897,6 +902,21 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 Downsampling is available in [enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html).
 It is configured with `-downsampling.period` command-line flag according to [these docs](https://docs.victoriametrics.com/#downsampling).
 
+It is possible to downsample series, which belong to a particular [tenant](#multitenancy) by using [filters](https://docs.victoriametrics.com/keyConcepts.html#filtering)
+on `vm_account_id` or `vm_project_id` pseudo-labels in `-downsampling.period` command-line flag. For example, the following config leaves the last sample per each minute for samples
+older than one hour only for [tenants](#multitenancy) with accountID equal to 12 and 42, while series for other tenants aren't downsampled:
+
+```
+-downsampling.period='{vm_account_id=~"12|42"}:1h:1m'
+```
+
+It is OK to mix filters on real labels with filters on `vm_account_id` and `vm_project_id` pseudo-labels.
+For example, the following config instructs leaving the last sample per hour after 30 days for time series with `env="dev"` label from [tenant](#multitenancy) `accountID=5`:
+
+```
+-downsampling.period='{vm_account_id="5",env="dev"}:30d:1h'
+```
+
 The same flag value must be passed to both `vmstorage` and `vmselect` nodes. Configuring `vmselect` node with `-downsampling.period`
 command-line flag makes query results more consistent, because `vmselect` uses the maximum configured downsampling interval
 on the requested time range if this time range covers multiple downsampling levels.
@@ -904,6 +924,8 @@ For example, if `-downsampling.period=30d:5m` and the query requests the last 60
 downsamples all the [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) on the requested time range
 using 5 minute interval. If `-downsampling.period` command-line flag isn't set at `vmselect`,
 then query results can be less consistent because of mixing raw and downsampled data.
+
+See also [retention filters](#retention-filters).
 
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
@@ -1052,12 +1074,12 @@ Below is the output for `/path/to/vminsert -help`:
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
-  -http.header.csp default-src 'self'
-     Value for 'Content-Security-Policy' header, recommended: default-src 'self'
+  -http.header.csp string
+     Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"
   -http.header.frameOptions string
      Value for 'X-Frame-Options' header
-  -http.header.hsts max-age=31536000; includeSubDomains
-     Value for 'Strict-Transport-Security' header, recommended: max-age=31536000; includeSubDomains
+  -http.header.hsts string
+     Value for 'Strict-Transport-Security' header, recommended: 'max-age=31536000; includeSubDomains'
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
@@ -1136,7 +1158,7 @@ Below is the output for `/path/to/vminsert -help`:
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentInserts int
-     The maximum number of concurrent insert requests. Default value should work for most cases, since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration (default 32)
+     The maximum number of concurrent insert requests. Default value depends on the number of CPU cores and should work for most cases since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration
   -maxInsertRequestSize size
      The maximum size in bytes of a single Prometheus remote_write API request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
@@ -1326,12 +1348,12 @@ Below is the output for `/path/to/vmselect -help`:
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
-  -http.header.csp default-src 'self'
-     Value for 'Content-Security-Policy' header, recommended: default-src 'self'
+  -http.header.csp string
+     Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"
   -http.header.frameOptions string
      Value for 'X-Frame-Options' header
-  -http.header.hsts max-age=31536000; includeSubDomains
-     Value for 'Strict-Transport-Security' header, recommended: max-age=31536000; includeSubDomains
+  -http.header.hsts string
+     Value for 'Strict-Transport-Security' header, recommended: 'max-age=31536000; includeSubDomains'
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
@@ -1459,9 +1481,9 @@ Below is the output for `/path/to/vmselect -help`:
   -search.maxGraphiteTagValues int
      The maximum number of tag values returned from Graphite API, which returns tag values. See https://docs.victoriametrics.com/#graphite-tags-api-usage (default 100000)
   -search.maxLabelsAPIDuration duration
-     The maximum duration for /api/v1/labels, /api/v1/label/.../values and /api/v1/series requests. See also -search.maxLabelsAPISeries (default 5s)
+     The maximum duration for /api/v1/labels, /api/v1/label/.../values and /api/v1/series requests. See also -search.maxLabelsAPISeries and -search.ignoreExtraFiltersAtLabelsAPI (default 5s)
   -search.maxLabelsAPISeries int
-     The maximum number of time series, which could be scanned when searching for the the matching time series at /api/v1/labels and /api/v1/label/.../values. This option allows limiting memory usage and CPU usage. See also -search.maxLabelsAPIDuration, -search.maxTagKeys and -search.maxTagValues (default 1000000)
+     The maximum number of time series, which could be scanned when searching for the the matching time series at /api/v1/labels and /api/v1/label/.../values. This option allows limiting memory usage and CPU usage. See also -search.maxLabelsAPIDuration, -search.maxTagKeys, -search.maxTagValues and -search.ignoreExtraFiltersAtLabelsAPI (default 1000000)
   -search.maxLookback duration
      Synonym to -search.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaning due to historical reasons
   -search.maxMemoryPerQuery size
@@ -1632,12 +1654,12 @@ Below is the output for `/path/to/vmstorage -help`:
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
-  -http.header.csp default-src 'self'
-     Value for 'Content-Security-Policy' header, recommended: default-src 'self'
+  -http.header.csp string
+     Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"
   -http.header.frameOptions string
      Value for 'X-Frame-Options' header
-  -http.header.hsts max-age=31536000; includeSubDomains
-     Value for 'Strict-Transport-Security' header, recommended: max-age=31536000; includeSubDomains
+  -http.header.hsts string
+     Value for 'Strict-Transport-Security' header, recommended: 'max-age=31536000; includeSubDomains'
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
@@ -1696,7 +1718,7 @@ Below is the output for `/path/to/vmstorage -help`:
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentInserts int
-     The maximum number of concurrent insert requests. Default value should work for most cases, since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration (default 32)
+     The maximum number of concurrent insert requests. Default value depends on the number of CPU cores and should work for most cases since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration
   -memory.allowedBytes size
      Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -1754,11 +1776,11 @@ Below is the output for `/path/to/vmstorage -help`:
   -search.maxQueueDuration duration
      The maximum time the incoming vmselect request waits for execution when -search.maxConcurrentRequests limit is reached (default 10s)
   -search.maxTagKeys int
-     The maximum number of tag keys returned per search (default 100000)
+     The maximum number of tag keys returned per search. See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration (default 100000)
   -search.maxTagValueSuffixesPerSearch int
      The maximum number of tag value suffixes returned from /metrics/find (default 100000)
   -search.maxTagValues int
-     The maximum number of tag values returned per search (default 100000)
+     The maximum number of tag values returned per search. See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration (default 100000)
   -search.maxUniqueTimeseries int
      The maximum number of unique time series, which can be scanned during every query. This allows protecting against heavy queries, which select unexpectedly high number of series. Zero means 'no limit'. See also -search.max* command-line flags at vmselect
   -smallMergeConcurrency int
@@ -1767,7 +1789,7 @@ Below is the output for `/path/to/vmstorage -help`:
      authKey, which must be passed in query string to /snapshot* pages
      Flag value can be read from the given file when using -snapshotAuthKey=file:///abs/path/to/file or -snapshotAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -snapshotAuthKey=http://host/path or -snapshotAuthKey=https://host/path
   -snapshotCreateTimeout duration
-     The timeout for creating new snapshot. If set, make sure that timeout is lower than backup period
+     Deprecated: this flag does nothing
   -snapshotsMaxAge value
      Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted
      The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 0)

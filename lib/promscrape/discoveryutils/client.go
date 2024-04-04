@@ -2,7 +2,6 @@ package discoveryutils
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"flag"
 	"fmt"
@@ -14,10 +13,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -106,16 +106,6 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 		}
 	}
 
-	isTLS := u.Scheme == "https"
-	var tlsCfg *tls.Config
-	if isTLS {
-		var err error
-		tlsCfg, err = ac.NewTLSConfig()
-		if err != nil {
-			return nil, fmt.Errorf("cannot initialize tls config: %w", err)
-		}
-	}
-
 	var proxyURLFunc func(*http.Request) (*url.URL, error)
 	if pu := proxyURL.GetURL(); pu != nil {
 		proxyURLFunc = http.ProxyURL(pu)
@@ -123,41 +113,39 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 
 	client := &http.Client{
 		Timeout: DefaultClientReadTimeout,
-		Transport: &http.Transport{
-			TLSClientConfig:       tlsCfg,
+		Transport: ac.NewRoundTripper(&http.Transport{
 			Proxy:                 proxyURLFunc,
 			TLSHandshakeTimeout:   10 * time.Second,
 			MaxIdleConnsPerHost:   *maxConcurrency,
 			ResponseHeaderTimeout: DefaultClientReadTimeout,
 			DialContext:           dialFunc,
-		},
+		}),
 	}
 	blockingClient := &http.Client{
 		Timeout: BlockingClientReadTimeout,
-		Transport: &http.Transport{
-			TLSClientConfig:       tlsCfg,
+		Transport: ac.NewRoundTripper(&http.Transport{
 			Proxy:                 proxyURLFunc,
 			TLSHandshakeTimeout:   10 * time.Second,
 			MaxIdleConnsPerHost:   1000,
 			ResponseHeaderTimeout: BlockingClientReadTimeout,
 			DialContext:           dialFunc,
-		},
+		}),
 	}
 
-	setHTTPHeaders := func(req *http.Request) error { return nil }
+	setHTTPHeaders := func(_ *http.Request) error { return nil }
 	if ac != nil {
 		setHTTPHeaders = func(req *http.Request) error {
 			return ac.SetHeaders(req, true)
 		}
 	}
 	if httpCfg.FollowRedirects != nil && !*httpCfg.FollowRedirects {
-		checkRedirect := func(req *http.Request, via []*http.Request) error {
+		checkRedirect := func(_ *http.Request, _ []*http.Request) error {
 			return http.ErrUseLastResponse
 		}
 		client.CheckRedirect = checkRedirect
 		blockingClient.CheckRedirect = checkRedirect
 	}
-	setHTTPProxyHeaders := func(req *http.Request) error { return nil }
+	setHTTPProxyHeaders := func(_ *http.Request) error { return nil }
 	if proxyAC != nil {
 		setHTTPProxyHeaders = func(req *http.Request) error {
 			return proxyURL.SetHeaders(proxyAC, req)

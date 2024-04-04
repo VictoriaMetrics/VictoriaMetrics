@@ -14,7 +14,7 @@ func TestParseFailure(t *testing.T) {
 	f := func(req string) {
 		t.Helper()
 
-		callback := func(rows []newrelic.Row) error {
+		callback := func(_ []newrelic.Row) error {
 			panic(fmt.Errorf("unexpected call into callback"))
 		}
 		r := bytes.NewReader([]byte(req))

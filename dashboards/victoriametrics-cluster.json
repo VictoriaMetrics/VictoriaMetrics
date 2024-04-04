@@ -109,7 +109,7 @@
       "targetBlank": true,
       "title": "Cluster Wiki",
       "type": "link",
-      "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/Cluster-VictoriaMetrics"
+      "url": "https://docs.victoriametrics.com/cluster-victoriametrics"
     },
     {
       "icon": "external link",
@@ -152,7 +152,7 @@
         "type": "prometheus",
         "uid": "$ds"
       },
-      "description": "How many datapoints are in storage",
+      "description": "How many [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) are in storage",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -444,7 +444,7 @@
         "type": "prometheus",
         "uid": "$ds"
       },
-      "description": "Shows the number of active time series with new data points inserted during the last hour. High value may result in ingestion slowdown. \n\nSee more details here https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series",
+      "description": "Shows the number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series) with new data points inserted during the last hour. High value may result in ingestion slowdown.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -961,7 +961,7 @@
         "type": "prometheus",
         "uid": "$ds"
       },
-      "description": "How many datapoints are inserted into cluster per second by protocol before the replication.",
+      "description": "How many [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) are inserted into cluster per second by protocol before the replication. Check vminsert metrics if there are any issues with ingestion.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1181,7 +1181,7 @@
         "type": "prometheus",
         "uid": "$ds"
       },
-      "description": "Shows the number of active time series with new data points inserted during the last hour across all storage nodes. High value may result in ingestion slowdown. \n\nSee following link for details:",
+      "description": "Shows the number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series) with new data points inserted during the last hour across all storage nodes. High value may result in ingestion slowdown and high memory usage.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1247,13 +1247,6 @@
         "y": 21
       },
       "id": 12,
-      "links": [
-        {
-          "targetBlank": true,
-          "title": "troubleshooting",
-          "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#troubleshooting"
-        }
-      ],
       "options": {
         "legend": {
           "calcs": [
@@ -2953,7 +2946,34 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the rate and total number of new series created over last 24h.\n\nHigh churn rate tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected cardinality \"explosions\".\n\nThe higher churn rate is, the more resources required to handle it. Consider to keep the churn rate as low as possible.\n\nTo investigate stats about most expensive series use `api/v1/status/tsdb` handler. More details here https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://valyala.medium.com/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b",
+          "description": "",
+          "gridPos": {
+            "h": 2,
+            "w": 24,
+            "x": 0,
+            "y": 4
+          },
+          "id": 211,
+          "links": [],
+          "options": {
+            "code": {
+              "language": "plaintext",
+              "showLineNumbers": false,
+              "showMiniMap": false
+            },
+            "content": "See [Troubleshooting](https://docs.victoriametrics.com/troubleshooting/) docs.",
+            "mode": "markdown"
+          },
+          "pluginVersion": "10.3.1",
+          "transparent": true,
+          "type": "text"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows the rate and total number of new series created over last 24h.\n\nHigh [churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate) tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected [cardinality](https://docs.victoriametrics.com/keyconcepts/#cardinality) \"explosions\".\n\nThe higher churn rate is, the more resources required to handle it. Consider to keep the churn rate as low as possible.\n\nTo investigate stats about most expensive series use `api/v1/status/tsdb` handler. More details here https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://valyala.medium.com/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3084,7 +3104,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "The percentage of slow inserts comparing to total insertion rate during the last 5 minutes. \n\nThe less value is better. If percentage remains high (>10%) during extended periods of time, then it is likely more RAM is needed for optimal handling of the current number of active time series. \n\nIn general, VictoriaMetrics requires ~1KB or RAM per active time series, so it should be easy calculating the required amounts of RAM for the current workload according to capacity planning docs. But the resulting number may be far from the real number because the required amounts of memory depends on many other factors such as the number of labels per time series and the length of label values. See also https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183",
+          "description": "The percentage of slow inserts comparing to total insertion rate during the last 5 minutes. \n\nThe less value is better. If percentage remains high (>10%) during extended periods of time, then it is likely more RAM is needed for optimal handling of the current number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series). \n\nIn general, VictoriaMetrics requires ~1KB or RAM per active time series, so it should be easy calculating the required amounts of RAM for the current workload according to capacity planning docs. But the resulting number may be far from the real number because the required amounts of memory depends on many other factors such as the number of labels per time series and the length of label values. See also [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183) for details.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5362,7 +5382,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows how many ongoing insertions (not API /write calls) on disk are taking place, where:\n* `max` - equal to number of CPUs;\n* `current` - current number of goroutines busy with inserting rows into underlying storage.\n\nEvery successful API /write call results into flush on disk. The `max` is an internal limit and can't be changed. It is always equal to the number of CPUs. \n\nWhen `current` hits `max` constantly, it means storage is overloaded and requires more CPU or faster disk.",
+          "description": "Shows how many ongoing insertions (not API /write calls) on disk are taking place, where:\n* `max` - equal to number of CPUs;\n* `current` - current number of goroutines busy with inserting rows into underlying storage.\n\nEvery successful API /write call results into flush on disk. The `max` is an internal limit and can't be changed. It is always equal to the number of CPUs. \n\nWhen `current` hits `max` constantly, it means storage is overloaded and requires more CPU (see CPU usage) or disks with more IOPS (see disk writes and reads panels in Resource Usage row).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5604,7 +5624,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "The number of rows merged per second by storage nodes.",
+          "description": "The number of rows merged per second by storage nodes. Merge speed depends on available CPU and disk IO bandwidth.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5952,7 +5972,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the percentage of used disk space by type: datapoints or indexdb. Normally, indexdb takes much less space comparing to datapoints. But with high churn rate the size of the indexdb could grow significantly.\n\nThe sum of the % can be > 100% since panel shows max % per-job and per-instance. It means different instance can have different ratio between datapoints and indexdb size.",
+          "description": "Shows the percentage of used disk space by type: datapoints or indexdb. Normally, indexdb takes much less space comparing to datapoints. But with high [churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate) the size of the indexdb could grow significantly.\n\nThe sum of the % can be > 100% since panel shows max % per-job and per-instance. It means different instance can have different ratio between datapoints and indexdb size.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6996,7 +7016,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "99th percentile of number of raw datapoints read per queried time series.",
+          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) read per queried time series.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -7103,7 +7123,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "99th percentile of number of raw datapoints read per query.",
+          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) read per query.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -7210,7 +7230,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "99th percentile of number of raw datapoints scanner per query.\n\nThis number can exceed number of DatapointsReadPerQuery if `step` query arg passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries) is smaller than the lookbehind window set in square brackets of [rollup function](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions). For example, if `increase(some_metric[1h])` is executed with the `step=5m`, then the same raw samples on a hour time range are scanned `1h/5m=12` times. See [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986) for details.",
+          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) scanner per query.\n\nThis number can exceed number of DatapointsReadPerQuery if `step` query arg passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries) is smaller than the lookbehind window set in square brackets of [rollup function](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions). For example, if `increase(some_metric[1h])` is executed with the `step=5m`, then the same [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) on a hour time range are scanned `1h/5m=12` times. See [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986) for details.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -8128,7 +8148,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the saturation level of connection between vminsert and vmstorage components. If the threshold of 0.9sec is reached, then the connection is saturated by more than 90% and vminsert won't be able to keep up. This usually means that more vminsert or vmstorage nodes must be added to the cluster in order to increase the total number of vminsert -> vmstorage links.\n",
+          "description": "Shows the saturation level of connection between vminsert and vmstorage components. \n\nIf the threshold of 0.9sec is reached, then the connection is saturated by more than 90% and vminsert won't be able to keep up. This usually means that either vminsert or vmstorage nodes are struggling with the load. Verify CPU/mem saturation of both components and network saturation between them.\nIf vminsert resources are saturated - consider adding more resources or scale vminserts horizontally.\n\nIf vminsert resources and network are fine, check vmstorage metrics for anomalies.",
           "fieldConfig": {
             "defaults": {
               "color": {

@@ -24,6 +24,7 @@
   "description": "Overview for enterprise cluster VictoriaMetrics v1.56.0 or higher",
   "editable": true,
   "fiscalYearStartMonth": 0,
+  "gnetId": 16399,
   "graphTooltip": 1,
   "id": 80,
   "links": [],
@@ -67,6 +68,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -169,6 +171,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -274,6 +277,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -385,6 +389,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -490,6 +495,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -594,6 +600,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -686,8 +693,8 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
-        "uid": "P38648FE0F8C5BEA2"
+        "type": "prometheus",
+        "uid": "$ds"
       },
       "fieldConfig": {
         "defaults": {
@@ -740,8 +747,8 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
-            "uid": "P38648FE0F8C5BEA2"
+            "type": "prometheus",
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "topk_last(5, sum(rate(vm_tenant_inserted_rows_total{accountID=~\"$account\"}[$__range])) by (accountID), \"accountID=other\") ",
@@ -755,8 +762,8 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
-        "uid": "P38648FE0F8C5BEA2"
+        "type": "prometheus",
+        "uid": "$ds"
       },
       "fieldConfig": {
         "defaults": {
@@ -808,8 +815,8 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
-            "uid": "P38648FE0F8C5BEA2"
+            "type": "prometheus",
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "topk_last(5, sum(rate(vm_tenant_select_requests_total{accountID=~\"$account\"}[$__rate_interval])) by (accountID), \"accountID=other\") ",
@@ -823,8 +830,8 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
-        "uid": "P38648FE0F8C5BEA2"
+        "type": "prometheus",
+        "uid": "$ds"
       },
       "fieldConfig": {
         "defaults": {
@@ -876,8 +883,8 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
-            "uid": "P38648FE0F8C5BEA2"
+            "type": "prometheus",
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "topk_last(5, sum(rate(vm_tenant_select_requests_duration_ms_total{accountID=~\"$account\"}[$__range])) by (accountID) /1000, \"accountID=other\") ",
@@ -891,8 +898,8 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
-        "uid": "P38648FE0F8C5BEA2"
+        "type": "prometheus",
+        "uid": "$ds"
       },
       "fieldConfig": {
         "defaults": {
@@ -946,8 +953,8 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
-            "uid": "P38648FE0F8C5BEA2"
+            "type": "prometheus",
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "topk_last(5, sum(vm_tenant_active_timeseries{accountID=~\"$account\"}) by(accountID), \"accountID=other\") ",
@@ -961,8 +968,8 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
-        "uid": "P38648FE0F8C5BEA2"
+        "type": "prometheus",
+        "uid": "$ds"
       },
       "fieldConfig": {
         "defaults": {
@@ -1014,8 +1021,8 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
-            "uid": "P38648FE0F8C5BEA2"
+            "type": "prometheus",
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "topk_last(5, sum(increase(vm_tenant_timeseries_created_total{accountID=~\"$account\"}[24h])) by(accountID), \"accountID=other\") ",
@@ -1029,8 +1036,8 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
-        "uid": "P38648FE0F8C5BEA2"
+        "type": "prometheus",
+        "uid": "$ds"
       },
       "fieldConfig": {
         "defaults": {
@@ -1082,8 +1089,8 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
-            "uid": "P38648FE0F8C5BEA2"
+            "type": "prometheus",
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "topk_last(5, sum(increase(vm_tenant_timeseries_created_total{accountID=~\"$account\"}[24h])) by(accountID), \"accountID=other\") ",
@@ -1097,8 +1104,8 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
-        "uid": "P38648FE0F8C5BEA2"
+        "type": "prometheus",
+        "uid": "$ds"
       },
       "fieldConfig": {
         "defaults": {
@@ -1173,7 +1180,9 @@
       },
       "id": 25,
       "options": {
+        "cellHeight": "sm",
         "footer": {
+          "countRows": false,
           "fields": "",
           "reducer": [
             "sum"
@@ -1189,12 +1198,12 @@
           }
         ]
       },
-      "pluginVersion": "9.3.11",
+      "pluginVersion": "10.1.5",
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
-            "uid": "P38648FE0F8C5BEA2"
+            "type": "prometheus",
+            "uid": "$ds"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -1211,8 +1220,8 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
-        "uid": "P38648FE0F8C5BEA2"
+        "type": "prometheus",
+        "uid": "$ds"
       },
       "fieldConfig": {
         "defaults": {
@@ -1287,7 +1296,9 @@
       },
       "id": 26,
       "options": {
+        "cellHeight": "sm",
         "footer": {
+          "countRows": false,
           "fields": "",
           "reducer": [
             "sum"
@@ -1303,12 +1314,12 @@
           }
         ]
       },
-      "pluginVersion": "9.3.11",
+      "pluginVersion": "10.1.5",
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
-            "uid": "P38648FE0F8C5BEA2"
+            "type": "prometheus",
+            "uid": "$ds"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -1325,8 +1336,8 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
-        "uid": "P38648FE0F8C5BEA2"
+        "type": "prometheus",
+        "uid": "$ds"
       },
       "fieldConfig": {
         "defaults": {
@@ -1401,7 +1412,9 @@
       },
       "id": 33,
       "options": {
+        "cellHeight": "sm",
         "footer": {
+          "countRows": false,
           "fields": "",
           "reducer": [
             "sum"
@@ -1417,12 +1430,12 @@
           }
         ]
       },
-      "pluginVersion": "9.3.11",
+      "pluginVersion": "10.1.5",
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
-            "uid": "P38648FE0F8C5BEA2"
+            "type": "prometheus",
+            "uid": "$ds"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -1439,8 +1452,8 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
-        "uid": "P38648FE0F8C5BEA2"
+        "type": "prometheus",
+        "uid": "$ds"
       },
       "fieldConfig": {
         "defaults": {
@@ -1515,7 +1528,9 @@
       },
       "id": 27,
       "options": {
+        "cellHeight": "sm",
         "footer": {
+          "countRows": false,
           "fields": "",
           "reducer": [
             "sum"
@@ -1531,12 +1546,12 @@
           }
         ]
       },
-      "pluginVersion": "9.3.11",
+      "pluginVersion": "10.1.5",
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
-            "uid": "P38648FE0F8C5BEA2"
+            "type": "prometheus",
+            "uid": "$ds"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -1553,8 +1568,8 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
-        "uid": "P38648FE0F8C5BEA2"
+        "type": "prometheus",
+        "uid": "$ds"
       },
       "fieldConfig": {
         "defaults": {
@@ -1629,7 +1644,9 @@
       },
       "id": 28,
       "options": {
+        "cellHeight": "sm",
         "footer": {
+          "countRows": false,
           "fields": "",
           "reducer": [
             "sum"
@@ -1645,12 +1662,12 @@
           }
         ]
       },
-      "pluginVersion": "9.3.11",
+      "pluginVersion": "10.1.5",
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
-            "uid": "P38648FE0F8C5BEA2"
+            "type": "prometheus",
+            "uid": "$ds"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -1667,8 +1684,8 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
-        "uid": "P38648FE0F8C5BEA2"
+        "type": "prometheus",
+        "uid": "$ds"
       },
       "fieldConfig": {
         "defaults": {
@@ -1743,7 +1760,9 @@
       },
       "id": 30,
       "options": {
+        "cellHeight": "sm",
         "footer": {
+          "countRows": false,
           "fields": "",
           "reducer": [
             "sum"
@@ -1759,12 +1778,12 @@
           }
         ]
       },
-      "pluginVersion": "9.3.11",
+      "pluginVersion": "10.1.5",
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
-            "uid": "P38648FE0F8C5BEA2"
+            "type": "prometheus",
+            "uid": "$ds"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -1896,6 +1915,6 @@
   "timezone": "",
   "title": "VictoriaMetrics Cluster Per Tenant Statistic",
   "uid": "IZFqd3lMz",
-  "version": 14,
+  "version": 15,
   "weekStart": ""
 }

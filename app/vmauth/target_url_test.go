@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -89,19 +90,21 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, hc := ui.getURLPrefixAndHeaders(u)
+		up, hc := ui.getURLPrefixAndHeaders(u, nil)
 		if up == nil {
 			t.Fatalf("cannot determie backend: %s", err)
 		}
-		bu := up.getLeastLoadedBackendURL()
+		bu := up.getBackendURL()
 		target := mergeURLs(bu.url, u, up.dropSrcPathPrefixParts)
 		bu.put()
 		if target.String() != expectedTarget {
 			t.Fatalf("unexpected target; got %q; want %q", target, expectedTarget)
 		}
-		headersStr := fmt.Sprintf("%q", hc.RequestHeaders)
-		if headersStr != expectedRequestHeaders {
-			t.Fatalf("unexpected request headers; got %s; want %s", headersStr, expectedRequestHeaders)
+		if s := headersToString(hc.RequestHeaders); s != expectedRequestHeaders {
+			t.Fatalf("unexpected request headers; got %q; want %q", s, expectedRequestHeaders)
+		}
+		if s := headersToString(hc.ResponseHeaders); s != expectedResponseHeaders {
+			t.Fatalf("unexpected response headers; got %q; want %q", s, expectedResponseHeaders)
 		}
 		if !reflect.DeepEqual(up.retryStatusCodes, expectedRetryStatusCodes) {
 			t.Fatalf("unexpected retryStatusCodes; got %d; want %d", up.retryStatusCodes, expectedRetryStatusCodes)
@@ -116,41 +119,55 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 	// Simple routing with `url_prefix`
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar"),
-	}, "", "http://foo.bar/.", "[]", "[]", nil, "least_loaded", 0)
+	}, "", "http://foo.bar/.", "", "", nil, "least_loaded", 0)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar"),
 		HeadersConf: HeadersConf{
-			RequestHeaders: []Header{{
-				Name:  "bb",
-				Value: "aaa",
-			}},
+			RequestHeaders: []Header{
+				{
+					Name:  "bb",
+					Value: "aaa",
+				},
+			},
+			ResponseHeaders: []Header{
+				{
+					Name:  "x",
+					Value: "y",
+				},
+			},
 		},
 		RetryStatusCodes:       []int{503, 501},
 		LoadBalancingPolicy:    "first_available",
 		DropSrcPathPrefixParts: intp(2),
-	}, "/a/b/c", "http://foo.bar/c", `[{"bb" "aaa"}]`, `[]`, []int{503, 501}, "first_available", 2)
+	}, "/a/b/c", "http://foo.bar/c", `bb: aaa`, `x: y`, []int{503, 501}, "first_available", 2)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar/federate"),
-	}, "/", "http://foo.bar/federate", "[]", "[]", nil, "least_loaded", 0)
+	}, "/", "http://foo.bar/federate", "", "", nil, "least_loaded", 0)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar"),
-	}, "a/b?c=d", "http://foo.bar/a/b?c=d", "[]", "[]", nil, "least_loaded", 0)
+	}, "a/b?c=d", "http://foo.bar/a/b?c=d", "", "", nil, "least_loaded", 0)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("https://sss:3894/x/y"),
-	}, "/z", "https://sss:3894/x/y/z", "[]", "[]", nil, "least_loaded", 0)
+	}, "/z", "https://sss:3894/x/y/z", "", "", nil, "least_loaded", 0)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("https://sss:3894/x/y"),
-	}, "/../../aaa", "https://sss:3894/x/y/aaa", "[]", "[]", nil, "least_loaded", 0)
+	}, "/../../aaa", "https://sss:3894/x/y/aaa", "", "", nil, "least_loaded", 0)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("https://sss:3894/x/y"),
-	}, "/./asd/../../aaa?a=d&s=s/../d", "https://sss:3894/x/y/aaa?a=d&s=s%2F..%2Fd", "[]", "[]", nil, "least_loaded", 0)
+	}, "/./asd/../../aaa?a=d&s=s/../d", "https://sss:3894/x/y/aaa?a=d&s=s%2F..%2Fd", "", "", nil, "least_loaded", 0)
 
 	// Complex routing with `url_map`
 	ui := &UserInfo{
 		URLMaps: []URLMap{
 			{
-				SrcHosts:  getRegexs([]string{"host42"}),
-				SrcPaths:  getRegexs([]string{"/vmsingle/api/v1/query"}),
+				SrcHosts: getRegexs([]string{"host42"}),
+				SrcPaths: getRegexs([]string{"/vmsingle/api/v1/query"}),
+				SrcQueryArgs: []QueryArg{
+					{
+						Name:  "db",
+						Value: "foo",
+					},
+				},
 				URLPrefix: mustParseURL("http://vmselect/0/prometheus"),
 				HeadersConf: HeadersConf{
 					RequestHeaders: []Header{
@@ -195,12 +212,12 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 		RetryStatusCodes:       []int{502},
 		DropSrcPathPrefixParts: intp(2),
 	}
-	f(ui, "http://host42/vmsingle/api/v1/query?query=up", "http://vmselect/0/prometheus/api/v1/query?query=up",
-		`[{"xx" "aa"} {"yy" "asdf"}]`, `[{"qwe" "rty"}]`, []int{503, 500, 501}, "first_available", 1)
+	f(ui, "http://host42/vmsingle/api/v1/query?query=up&db=foo", "http://vmselect/0/prometheus/api/v1/query?db=foo&query=up",
+		"xx: aa\nyy: asdf", "qwe: rty", []int{503, 500, 501}, "first_available", 1)
 	f(ui, "http://host123/vmsingle/api/v1/query?query=up", "http://default-server/v1/query?query=up",
-		`[{"bb" "aaa"}]`, `[{"x" "y"}]`, []int{502}, "least_loaded", 2)
-	f(ui, "https://foo-host/api/v1/write", "http://vminsert/0/prometheus/api/v1/write", "[]", "[]", []int{}, "least_loaded", 0)
-	f(ui, "https://foo-host/foo/bar/api/v1/query_range", "http://default-server/api/v1/query_range", `[{"bb" "aaa"}]`, `[{"x" "y"}]`, []int{502}, "least_loaded", 2)
+		"bb: aaa", "x: y", []int{502}, "least_loaded", 2)
+	f(ui, "https://foo-host/api/v1/write", "http://vminsert/0/prometheus/api/v1/write", "", "", []int{}, "least_loaded", 0)
+	f(ui, "https://foo-host/foo/bar/api/v1/query_range", "http://default-server/api/v1/query_range", "bb: aaa", "x: y", []int{502}, "least_loaded", 2)
 
 	// Complex routing regexp paths in `url_map`
 	ui = &UserInfo{
@@ -220,19 +237,19 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 		},
 		URLPrefix: mustParseURL("http://default-server"),
 	}
-	f(ui, "/api/v1/query?query=up", "http://vmselect/0/prometheus/api/v1/query?query=up", "[]", "[]", nil, "least_loaded", 0)
-	f(ui, "/api/v1/query_range?query=up", "http://vmselect/0/prometheus/api/v1/query_range?query=up", "[]", "[]", nil, "least_loaded", 0)
-	f(ui, "/api/v1/label/foo/values", "http://vmselect/0/prometheus/api/v1/label/foo/values", "[]", "[]", nil, "least_loaded", 0)
-	f(ui, "/api/v1/write", "http://vminsert/0/prometheus/api/v1/write", "[]", "[]", nil, "least_loaded", 0)
-	f(ui, "/api/v1/foo/bar", "http://default-server/api/v1/foo/bar", "[]", "[]", nil, "least_loaded", 0)
-	f(ui, "https://vmui.foobar.com/a/b?c=d", "http://vmui.host:1234/vmui/a/b?c=d", "[]", "[]", nil, "least_loaded", 0)
+	f(ui, "/api/v1/query?query=up", "http://vmselect/0/prometheus/api/v1/query?query=up", "", "", nil, "least_loaded", 0)
+	f(ui, "/api/v1/query_range?query=up", "http://vmselect/0/prometheus/api/v1/query_range?query=up", "", "", nil, "least_loaded", 0)
+	f(ui, "/api/v1/label/foo/values", "http://vmselect/0/prometheus/api/v1/label/foo/values", "", "", nil, "least_loaded", 0)
+	f(ui, "/api/v1/write", "http://vminsert/0/prometheus/api/v1/write", "", "", nil, "least_loaded", 0)
+	f(ui, "/api/v1/foo/bar", "http://default-server/api/v1/foo/bar", "", "", nil, "least_loaded", 0)
+	f(ui, "https://vmui.foobar.com/a/b?c=d", "http://vmui.host:1234/vmui/a/b?c=d", "", "", nil, "least_loaded", 0)
 
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar?extra_label=team=dev"),
-	}, "/api/v1/query", "http://foo.bar/api/v1/query?extra_label=team=dev", "[]", "[]", nil, "least_loaded", 0)
+	}, "/api/v1/query", "http://foo.bar/api/v1/query?extra_label=team=dev", "", "", nil, "least_loaded", 0)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar?extra_label=team=mobile"),
-	}, "/api/v1/query?extra_label=team=dev", "http://foo.bar/api/v1/query?extra_label=team%3Dmobile", "[]", "[]", nil, "least_loaded", 0)
+	}, "/api/v1/query?extra_label=team=dev", "http://foo.bar/api/v1/query?extra_label=team%3Dmobile", "", "", nil, "least_loaded", 0)
 }
 
 func TestCreateTargetURLFailure(t *testing.T) {
@@ -243,7 +260,7 @@ func TestCreateTargetURLFailure(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, hc := ui.getURLPrefixAndHeaders(u)
+		up, hc := ui.getURLPrefixAndHeaders(u, nil)
 		if up != nil {
 			t.Fatalf("unexpected non-empty up=%#v", up)
 		}
@@ -263,4 +280,12 @@ func TestCreateTargetURLFailure(t *testing.T) {
 			},
 		},
 	}, "/api/v1/write")
+}
+
+func headersToString(hs []Header) string {
+	a := make([]string, len(hs))
+	for i, h := range hs {
+		a[i] = fmt.Sprintf("%s: %s", h.Name, h.Value)
+	}
+	return strings.Join(a, "\n")
 }

@@ -30,7 +30,7 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
 	var processBody func([]byte) ([]byte, error)
 	if req.Header.Get("Content-Type") == "application/json" {
-		if req.Header.Get("X-Amz-Firehouse-Protocol-Version") != "" {
+		if req.Header.Get("X-Amz-Firehose-Protocol-Version") != "" {
 			processBody = firehose.ProcessRequestBody
 		} else {
 			return fmt.Errorf("json encoding isn't supported for opentelemetry format. Use protobuf encoding")

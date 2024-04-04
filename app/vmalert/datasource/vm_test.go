@@ -71,7 +71,7 @@ func TestVMInstantQuery(t *testing.T) {
 			w.Write([]byte(`{"status":"success","data":{"resultType":"scalar","result":[1583786142, "1"]},"stats":{"seriesFetched": "42"}}`))
 		}
 	})
-	mux.HandleFunc("/render", func(w http.ResponseWriter, request *http.Request) {
+	mux.HandleFunc("/render", func(w http.ResponseWriter, _ *http.Request) {
 		c++
 		switch c {
 		case 8:
@@ -86,7 +86,7 @@ func TestVMInstantQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected: %s", err)
 	}
-	s := NewVMStorage(srv.URL, authCfg, time.Minute, 0, false, srv.Client())
+	s := NewVMStorage(srv.URL, authCfg, 0, false, srv.Client())
 
 	p := datasourcePrometheus
 	pq := s.BuildWithParams(QuerierParams{DataSourceType: string(p), EvaluationInterval: 15 * time.Second})
@@ -225,7 +225,7 @@ func TestVMInstantQueryWithRetry(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	s := NewVMStorage(srv.URL, nil, time.Minute, 0, false, srv.Client())
+	s := NewVMStorage(srv.URL, nil, 0, false, srv.Client())
 	pq := s.BuildWithParams(QuerierParams{DataSourceType: string(datasourcePrometheus)})
 
 	expErr := func(err string) {
@@ -334,7 +334,7 @@ func TestVMRangeQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected: %s", err)
 	}
-	s := NewVMStorage(srv.URL, authCfg, time.Minute, *queryStep, false, srv.Client())
+	s := NewVMStorage(srv.URL, authCfg, *queryStep, false, srv.Client())
 
 	pq := s.BuildWithParams(QuerierParams{DataSourceType: string(datasourcePrometheus), EvaluationInterval: 15 * time.Second})
 
@@ -488,17 +488,6 @@ func TestRequestParams(t *testing.T) {
 			},
 		},
 		{
-			"lookback",
-			false,
-			&VMStorage{
-				lookBack: time.Minute,
-			},
-			func(t *testing.T, r *http.Request) {
-				exp := url.Values{"query": {query}, "time": {timestamp.Add(-time.Minute).Format(time.RFC3339)}}
-				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
-			},
-		},
-		{
 			"evaluation interval",
 			false,
 			&VMStorage{
@@ -507,20 +496,6 @@ func TestRequestParams(t *testing.T) {
 			func(t *testing.T, r *http.Request) {
 				evalInterval := 15 * time.Second
 				exp := url.Values{"query": {query}, "step": {evalInterval.String()}, "time": {timestamp.Format(time.RFC3339)}}
-				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
-			},
-		},
-		{
-			"lookback + evaluation interval",
-			false,
-			&VMStorage{
-				lookBack:           time.Minute,
-				evaluationInterval: 15 * time.Second,
-			},
-			func(t *testing.T, r *http.Request) {
-				evalInterval := 15 * time.Second
-				tt := timestamp.Add(-time.Minute)
-				exp := url.Values{"query": {query}, "step": {evalInterval.String()}, "time": {tt.Format(time.RFC3339)}}
 				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
@@ -649,7 +624,7 @@ func TestRequestParams(t *testing.T) {
 					tc.vm.setPrometheusInstantReqParams(req, query, timestamp)
 				}
 			case datasourceGraphite:
-				tc.vm.setGraphiteReqParams(req, query, timestamp)
+				tc.vm.setGraphiteReqParams(req, query)
 			}
 			tc.checkFn(t, req)
 		})

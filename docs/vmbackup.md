@@ -14,7 +14,7 @@ aliases:
 `vmbackup` creates VictoriaMetrics data backups from [instant snapshots](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
 
 `vmbackup` supports incremental and full backups. Incremental backups are created automatically if the destination path already contains data from the previous backup.
-Full backups can be sped up with `-origin` pointing to an already existing backup on the same remote storage. In this case `vmbackup` makes server-side copy for the shared
+Full backups can be accelerated with `-origin` pointing to an already existing backup on the same remote storage. In this case `vmbackup` makes server-side copy for the shared
 data between the existing backup and new backup. It saves time and costs on data transfer.
 
 Backup process can be interrupted at any time. It is automatically resumed from the interruption point when restarting `vmbackup` with the same args.
@@ -54,7 +54,7 @@ Regular backup can be performed with the following command:
 
 ### Regular backups with server-side copy from existing backup
 
-If the destination GCS bucket already contains the previous backup at `-origin` path, then new backup can be sped up
+If the destination GCS bucket already contains the previous backup at `-origin` path, then new backup can be accelerated
 with the following command:
 
 ```sh
@@ -341,12 +341,12 @@ Run `vmbackup -help` in order to see all the available options:
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableResponseCompression
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
-  -http.header.csp default-src 'self'
-     Value for 'Content-Security-Policy' header, recommended: default-src 'self'
+  -http.header.csp string
+     Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"
   -http.header.frameOptions string
      Value for 'X-Frame-Options' header
-  -http.header.hsts max-age=31536000; includeSubDomains
-     Value for 'Strict-Transport-Security' header, recommended: max-age=31536000; includeSubDomains
+  -http.header.hsts string
+     Value for 'Strict-Transport-Security' header, recommended: 'max-age=31536000; includeSubDomains'
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
