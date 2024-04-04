@@ -893,7 +893,7 @@ It is configured with `-downsampling.period` command-line flag according to [the
 
 It is possible to downsample series, which belong to a particular [tenant](#multitenancy) by using [filters](https://docs.victoriametrics.com/keyConcepts.html#filtering)
 on `vm_account_id` or `vm_project_id` pseudo-labels in `-downsampling.period` command-line flag. For example, the following config leaves the last sample per each minute for samples
-older than one hour only for [tenants](#multitenancy) with accountID equal to 12 and 42, while series for other tenants aren't downsampled:
+older than one hour only for [tenants](#multitenancy) with accountID equal to 12 and 42, while series for other tenants are dropped:
 
 ```
 -downsampling.period='{vm_account_id=~"12|42"}:1h:1m'
