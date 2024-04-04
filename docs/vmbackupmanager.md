@@ -425,6 +425,8 @@ subcommands:
 command-line flags:
   -apiURL string
      vmbackupmanager address to perform API requests (default "http://127.0.0.1:8300")
+  -backupInterval duration
+     Interval between backups. If set to 0 interval is set to 1h if hourly backups are enabled and 24h otherwise (default 0)
   -concurrency int
      The number of concurrent workers. Higher concurrency may reduce backup duration (default 10)
   -configFilePath string
