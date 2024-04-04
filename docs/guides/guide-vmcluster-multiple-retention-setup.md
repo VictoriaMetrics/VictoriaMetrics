@@ -16,7 +16,7 @@ Setup Victoria Metrics Cluster with support of multiple retention periods within
 
 **Enterprise Solution**
 
-[VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html) supports specifying multiple retentions
+[VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise/) supports specifying multiple retentions
 for distinct sets of time series and [tenants](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy)
 via [retention filters](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#retention-filters).
 

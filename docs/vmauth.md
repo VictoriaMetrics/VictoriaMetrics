@@ -313,7 +313,7 @@ users:
 
 ### mTLS-based request routing
 
-[Enterprise version of `vmauth`](https://docs.victoriametrics.com/enterprise.html) can be configured for routing requests
+[Enterprise version of `vmauth`](https://docs.victoriametrics.com/enterprise/) can be configured for routing requests
 to different backends depending on the following [subject fields](https://en.wikipedia.org/wiki/Public_key_certificate#Common_fields) in the TLS certificate provided by client:
 
 * `organizational_unit` aka `OU`
@@ -604,7 +604,7 @@ in the [`-auth.config`](#auth-config). These settings can be overridden with the
 
 ## IP filters
 
-[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmauth` can be configured to allow / deny incoming requests via global and per-user IP filters.
+[Enterprise version](https://docs.victoriametrics.com/enterprise/) of `vmauth` can be configured to allow / deny incoming requests via global and per-user IP filters.
 
 For example, the following config allows requests to `vmauth` from `10.0.0.0/24` network and from `1.2.3.4` IP address, while denying requests from `10.0.0.42` IP address:
 
@@ -804,7 +804,7 @@ location is supported in vmauth `url_map` config.
 ## mTLS protection
 
 By default `vmauth` accepts http requests at `8427` port (this port can be changed via `-httpListenAddr` command-line flags).
-[Enterprise version of vmauth](https://docs.victoriametrics.com/enterprise.html) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)
+[Enterprise version of vmauth](https://docs.victoriametrics.com/enterprise/) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)
 requests at this port, by specifying `-tls` and `-mtls` command-line flags. For example, the following command runs `vmauth`, which accepts only mTLS requests at port `8427`:
 
 ```
@@ -982,7 +982,7 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
   -failTimeout duration
      Sets a delay period for load balancing to skip a malfunctioning backend (default 3s)
   -filestream.disableFadvise
@@ -1081,11 +1081,11 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
   -mtls array
-     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -mtlsCAFile array
-     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pprofAuthKey value
