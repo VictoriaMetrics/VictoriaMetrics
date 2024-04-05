@@ -6,9 +6,6 @@ on:
     paths:
       - 'docs/**'
   workflow_dispatch: {}
-env:
-  PAGEFIND_VERSION: "1.0.4"
-  HUGO_VERSION: "latest"
 permissions:
   contents: read  # This is required for actions/checkout and to commit back image update
   deployments: write
@@ -27,16 +24,6 @@ jobs:
           repository: VictoriaMetrics/vmdocs
           token: ${{ secrets.VM_BOT_GH_TOKEN }}
           path: docs
-      - uses: peaceiris/actions-hugo@v2
-        with:
-          hugo-version: ${{env.HUGO_VERSION}}
-          extended: true
-      - name: Install PageFind #install the static search engine for index build
-        uses: supplypike/setup-bin@v3
-        with:
-          uri: "https://github.com/CloudCannon/pagefind/releases/download/v${{env.PAGEFIND_VERSION}}/pagefind-v${{env.PAGEFIND_VERSION}}-x86_64-unknown-linux-musl.tar.gz"
-          name: "pagefind"
-          version: ${{env.PAGEFIND_VERSION}}
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@v5
         with:
@@ -51,13 +38,11 @@ jobs:
           calculatedSha=$(git rev-parse --short ${{ github.sha }})
           echo "short_sha=$calculatedSha" >> $GITHUB_OUTPUT
         working-directory: main
-
       - name: update code and commit
         run: |
           rm -rf content
           cp -r ../main/docs content
           make clean-after-copy
-          make build-search-index
           git config --global user.name "${{ steps.import-gpg.outputs.email }}"
           git config --global user.email "${{ steps.import-gpg.outputs.email }}"
           git add .
