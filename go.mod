@@ -10,6 +10,7 @@ require (
 	github.com/VictoriaMetrics/fastcache v1.12.2
 	github.com/VictoriaMetrics/metrics v1.33.1
 	github.com/VictoriaMetrics/metricsql v0.75.1
+	github.com/agiledragon/gomonkey/v2 v2.11.0
 	github.com/aws/aws-sdk-go-v2 v1.25.3
 	github.com/aws/aws-sdk-go-v2/config v1.27.7
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.16.11
