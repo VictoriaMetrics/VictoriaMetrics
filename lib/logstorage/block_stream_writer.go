@@ -177,7 +177,7 @@ func (bsw *blockStreamWriter) reset() {
 	bsw.indexBlockHeader.reset()
 }
 
-// MustInitFromInmemoryPart initializes bsw from mp
+// MustInitForInmemoryPart initializes bsw from mp
 func (bsw *blockStreamWriter) MustInitForInmemoryPart(mp *inmemoryPart) {
 	bsw.reset()
 	bsw.streamWriters.init(&mp.metaindex, &mp.index, &mp.columnsHeader, &mp.timestamps, &mp.fieldValues, &mp.fieldBloomFilter, &mp.messageValues, &mp.messageBloomFilter)
