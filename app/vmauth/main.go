@@ -161,20 +161,12 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		if err := ui.beginConcurrencyLimit(); err != nil {
 			handleConcurrencyLimitError(w, r, err)
 			<-concurrencyLimitCh
-
-			// Requests failed because of concurrency limit must be counted as errors,
-			// since this usually means the backend cannot keep up with the current load.
-			ui.backendErrors.Inc()
 			return
 		}
 	default:
 		concurrentRequestsLimitReached.Inc()
 		err := fmt.Errorf("cannot serve more than -maxConcurrentRequests=%d concurrent requests", cap(concurrencyLimitCh))
 		handleConcurrencyLimitError(w, r, err)
-
-		// Requests failed because of concurrency limit must be counted as errors,
-		// since this usually means the backend cannot keep up with the current load.
-		ui.backendErrors.Inc()
 		return
 	}
 	processRequest(w, r, ui)
