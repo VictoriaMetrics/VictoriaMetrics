@@ -1113,7 +1113,7 @@ func (cp *commonParams) IsDefaultTimeRange() bool {
 	return cp.start == 0 && cp.currentTimestamp-cp.end < 1000
 }
 
-// getCommonParams obtains common params from r, which are used in /api/v1/export* handlers
+// getExportParams obtains common params from r, which are used in /api/v1/export* handlers
 //
 // - timeout
 // - start
