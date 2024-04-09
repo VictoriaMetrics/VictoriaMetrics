@@ -239,7 +239,7 @@ func (cw *nomadWatcher) getServiceSnapshot() map[string][]Service {
 	return sns
 }
 
-// watchForServiceNodesUpdates watches for Nomad serviceNode changes for the given serviceName.
+// watchForServiceAddressUpdates watches for Nomad serviceNode changes for the given serviceName.
 //
 // watchForServiceNodesUpdates calls initWG.Done() once the initialization is complete and the first discovery iteration is done.
 func (sw *serviceWatcher) watchForServiceAddressUpdates(nw *nomadWatcher, initWG *sync.WaitGroup) {

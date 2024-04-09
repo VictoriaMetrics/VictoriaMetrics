@@ -90,7 +90,7 @@ type RequestHandler func(w http.ResponseWriter, r *http.Request) bool
 // See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
 func Serve(addrs []string, useProxyProtocol *flagutil.ArrayBool, rh RequestHandler) {
 	if rh == nil {
-		rh = func(w http.ResponseWriter, r *http.Request) bool {
+		rh = func(_ http.ResponseWriter, _ *http.Request) bool {
 			return false
 		}
 	}
@@ -152,7 +152,7 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler) {
 		ErrorLog: logger.StdErrorLogger(),
 	}
 	if *connTimeout > 0 {
-		s.s.ConnContext = func(ctx context.Context, c net.Conn) context.Context {
+		s.s.ConnContext = func(ctx context.Context, _ net.Conn) context.Context {
 			timeoutSec := connTimeout.Seconds()
 			// Add a jitter for connection timeout in order to prevent Thundering herd problem
 			// when all the connections are established at the same time.

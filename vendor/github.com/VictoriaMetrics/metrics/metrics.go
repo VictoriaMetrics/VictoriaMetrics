@@ -224,7 +224,7 @@ func WritePrometheus(w io.Writer, exposeProcessMetrics bool) {
 //	    metrics.WriteProcessMetrics(w)
 //	})
 //
-// See also WrteFDMetrics.
+// See also WriteFDMetrics.
 func WriteProcessMetrics(w io.Writer) {
 	writeGoMetrics(w)
 	writeProcessMetrics(w)

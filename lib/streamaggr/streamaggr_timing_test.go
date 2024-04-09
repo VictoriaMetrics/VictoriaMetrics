@@ -43,7 +43,7 @@ func BenchmarkAggregatorsFlushSerial(b *testing.B) {
 		"max", "avg", "increase", "count_series",
 		"last", "stddev", "stdvar", "total_prometheus", "increase_prometheus",
 	}
-	pushFunc := func(tss []prompbmarshal.TimeSeries) {}
+	pushFunc := func(_ []prompbmarshal.TimeSeries) {}
 	a := newBenchAggregators(outputs, pushFunc)
 	defer a.MustStop()
 	_ = a.Push(benchSeries, nil)
@@ -59,7 +59,7 @@ func BenchmarkAggregatorsFlushSerial(b *testing.B) {
 }
 
 func benchmarkAggregatorsPush(b *testing.B, output string) {
-	pushFunc := func(tss []prompbmarshal.TimeSeries) {}
+	pushFunc := func(_ []prompbmarshal.TimeSeries) {}
 	a := newBenchAggregators([]string{output}, pushFunc)
 	defer a.MustStop()
 

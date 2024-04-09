@@ -40,6 +40,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -125,6 +126,7 @@ func main() {
 	}
 	logger.Infof("starting vmagent at %q...", listenAddrs)
 	startTime := time.Now()
+	remotewrite.StartIngestionRateLimiter()
 	remotewrite.Init()
 	common.StartUnmarshalWorkers()
 	if len(*influxListenAddr) > 0 {
@@ -152,6 +154,7 @@ func main() {
 	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("received signal %s", sig)
+	remotewrite.StopIngestionRateLimiter()
 	pushmetrics.Stop()
 
 	startTime = time.Now()
@@ -261,7 +264,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		path = strings.TrimSuffix(path, "/")
 	}
 	switch path {
-	case "/prometheus/api/v1/write", "/api/v1/write":
+	case "/prometheus/api/v1/write", "/api/v1/write", "/api/v1/push", "/prometheus/api/v1/push":
 		if common.HandleVMProtoServerHandshake(w, r) {
 			return true
 		}
@@ -315,11 +318,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/opentelemetry/api/v1/push", "/opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
-		writeResponse, err := opentelemetry.InsertHandler(nil, r)
-		if err != nil {
+		if err := opentelemetry.InsertHandler(nil, r); err != nil {
 			opentelemetryPushErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
 		}
-		writeResponse(w, time.Now(), err)
+		firehose.WriteSuccessResponse(w, r)
 		return true
 	case "/newrelic":
 		newrelicCheckRequest.Inc()
@@ -509,7 +513,7 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		p.Suffix = strings.TrimSuffix(p.Suffix, "/")
 	}
 	switch p.Suffix {
-	case "prometheus/", "prometheus", "prometheus/api/v1/write":
+	case "prometheus/", "prometheus", "prometheus/api/v1/write", "prometheus/api/v1/push":
 		prometheusWriteRequests.Inc()
 		if err := promremotewrite.InsertHandler(at, r); err != nil {
 			prometheusWriteErrors.Inc()
@@ -560,11 +564,12 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		return true
 	case "opentelemetry/api/v1/push", "opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
-		writeResponse, err := opentelemetry.InsertHandler(nil, r)
-		if err != nil {
+		if err := opentelemetry.InsertHandler(at, r); err != nil {
 			opentelemetryPushErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
 		}
-		writeResponse(w, time.Now(), err)
+		firehose.WriteSuccessResponse(w, r)
 		return true
 	case "newrelic":
 		newrelicCheckRequest.Inc()

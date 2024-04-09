@@ -35,7 +35,7 @@ In addition to that, setting up alerting rules manually has been proven to be te
 error-prone, while anomaly detection can be easier to set up, and use the same model for different
 metrics.
 
-> **Note: `vmanomaly` is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). You need to get a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.**
+> **Note: `vmanomaly` is a part of [enterprise package](https://docs.victoriametrics.com/enterprise/). You need to get a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.**
 
 ## How?
 

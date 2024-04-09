@@ -245,7 +245,6 @@ See [load-balancing docs](#load-balancing) for more details.
 * `-tls` enables accepting TLS connections at `-httpListenAddr`
 * `-tlsKeyFile` sets the path to TLS certificate key file
 * `-tlsCertFile` sets the path to TLS certificate file
-* `-extraAuthHeader` sets alternative headers for auth
 
 ### Basic Auth proxy
 
@@ -314,7 +313,7 @@ users:
 
 ### mTLS-based request routing
 
-[Enterprise version of `vmauth`](https://docs.victoriametrics.com/enterprise.html) can be configured for routing requests
+[Enterprise version of `vmauth`](https://docs.victoriametrics.com/enterprise/) can be configured for routing requests
 to different backends depending on the following [subject fields](https://en.wikipedia.org/wiki/Public_key_certificate#Common_fields) in the TLS certificate provided by client:
 
 * `organizational_unit` aka `OU`
@@ -605,7 +604,7 @@ in the [`-auth.config`](#auth-config). These settings can be overridden with the
 
 ## IP filters
 
-[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmauth` can be configured to allow / deny incoming requests via global and per-user IP filters.
+[Enterprise version](https://docs.victoriametrics.com/enterprise/) of `vmauth` can be configured to allow / deny incoming requests via global and per-user IP filters.
 
 For example, the following config allows requests to `vmauth` from `10.0.0.0/24` network and from `1.2.3.4` IP address, while denying requests from `10.0.0.42` IP address:
 
@@ -633,6 +632,23 @@ users:
 
 See config example of using IP filters [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmauth/example_config_ent.yml).
 
+## Reading auth tokens from other HTTP headers
+
+`vmauth` reads `username`, `password` and `bearer_token` [config values](#auth-config) from `Authorization` request header.
+It is possible to read these auth tokens from any other request header by specifying it via `-httpAuthHeader` command-line flag.
+For example, the following command instructs `vmauth` to read auth token from `X-Amz-Firehose-Access-Key` header:
+
+```
+./vmauth -httpAuthHeader='X-Amz-Firehose-Access-Key'
+```
+
+It is possible to read auth tokens from multiple headers. For example, the following command instructs `vmauth` to read auth token
+from both `Authorization` and `X-Amz-Firehose-Access-Key` headers:
+
+```
+./vmauth -httpAuthHeader='Authorization' -httpAuthHeader='X-Amz-Firehose-Access-Key'
+```
+
 ## Auth config
 
 `-auth.config` is represented in the following simple `yml` format:
@@ -648,6 +664,11 @@ users:
   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
   # Requests with the Basic Auth username=XXXX are proxied to http://localhost:8428 as well.
 - bearer_token: "XXXX"
+  url_prefix: "http://localhost:8428"
+
+  # Requests with the 'Authorization: Foo XXXX' header are proxied to http://localhosT:8428 .
+  # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
+- auth_token: "Foo XXXX"
   url_prefix: "http://localhost:8428"
 
   # Requests with the 'Authorization: Bearer YYY' header are proxied to http://localhost:8428 ,
@@ -783,7 +804,7 @@ location is supported in vmauth `url_map` config.
 ## mTLS protection
 
 By default `vmauth` accepts http requests at `8427` port (this port can be changed via `-httpListenAddr` command-line flags).
-[Enterprise version of vmauth](https://docs.victoriametrics.com/enterprise.html) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)
+[Enterprise version of vmauth](https://docs.victoriametrics.com/enterprise/) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)
 requests at this port, by specifying `-tls` and `-mtls` command-line flags. For example, the following command runs `vmauth`, which accepts only mTLS requests at port `8427`:
 
 ```
@@ -961,7 +982,7 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
   -failTimeout duration
      Sets a delay period for load balancing to skip a malfunctioning backend (default 3s)
   -filestream.disableFadvise
@@ -994,6 +1015,10 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Flag value can be read from the given file when using -httpAuth.password=file:///abs/path/to/file or -httpAuth.password=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -httpAuth.password=http://host/path or -httpAuth.password=https://host/path
   -httpAuth.username string
      Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
+  -httpAuthHeader array
+     HTTP request header to use for obtaining authorization tokens. By default auth tokens are read from Authorization request header
+     Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpListenAddr array
      TCP address to listen for incoming http requests. See also -tls and -httpListenAddr.useProxyProtocol
      Supports an array of values separated by comma or specified via multiple flags.
@@ -1056,11 +1081,11 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
   -mtls array
-     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -mtlsCAFile array
-     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pprofAuthKey value

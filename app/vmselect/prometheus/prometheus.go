@@ -251,7 +251,7 @@ func ExportNativeHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 	_, _ = bw.Write(trBuf)
 
 	// Marshal native blocks.
-	err = netstorage.ExportBlocks(nil, sq, cp.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange, workerID uint) error {
+	err = netstorage.ExportBlocks(nil, sq, cp.deadline, func(mn *storage.MetricName, b *storage.Block, _ storage.TimeRange, workerID uint) error {
 		if err := bw.Error(); err != nil {
 			return err
 		}
@@ -1113,7 +1113,7 @@ func (cp *commonParams) IsDefaultTimeRange() bool {
 	return cp.start == 0 && cp.currentTimestamp-cp.end < 1000
 }
 
-// getCommonParams obtains common params from r, which are used in /api/v1/export* handlers
+// getExportParams obtains common params from r, which are used in /api/v1/export* handlers
 //
 // - timeout
 // - start
@@ -1238,7 +1238,7 @@ func (sw *scalableWriter) maybeFlushBuffer(bb *bytesutil.ByteBuffer) error {
 }
 
 func (sw *scalableWriter) flush() error {
-	sw.m.Range(func(k, v interface{}) bool {
+	sw.m.Range(func(_, v interface{}) bool {
 		bb := v.(*bytesutil.ByteBuffer)
 		_, err := sw.bw.Write(bb.B)
 		return err == nil
