@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestDedupAggrSerial(t *testing.T) {
@@ -12,15 +13,18 @@ func TestDedupAggrSerial(t *testing.T) {
 
 	const seriesCount = 100_000
 	expectedSamplesMap := make(map[string]pushSample)
+	flushTimestamp := time.Now().UnixMilli()
+	dedupTimestamp := flushTimestamp
 	for i := 0; i < 2; i++ {
-		samples := make([]pushSample, seriesCount)
-		for j := range samples {
-			sample := &samples[j]
+		windows := map[int64][]pushSample{}
+		windows[flushTimestamp] = make([]pushSample, seriesCount)
+		for j := range windows[flushTimestamp] {
+			sample := &windows[flushTimestamp][j]
 			sample.key = fmt.Sprintf("key_%d", j)
 			sample.value = float64(i + j)
 			expectedSamplesMap[sample.key] = *sample
 		}
-		da.pushSamples(samples)
+		da.pushSamples(windows)
 	}
 
 	if n := da.sizeBytes(); n > 4_200_000 {
@@ -32,14 +36,14 @@ func TestDedupAggrSerial(t *testing.T) {
 
 	flushedSamplesMap := make(map[string]pushSample)
 	var mu sync.Mutex
-	flushSamples := func(samples []pushSample) {
+	flushSamples := func(samples map[int64][]pushSample) {
 		mu.Lock()
-		for _, sample := range samples {
+		for _, sample := range samples[flushTimestamp] {
 			flushedSamplesMap[sample.key] = sample
 		}
 		mu.Unlock()
 	}
-	da.flush(flushSamples, true)
+	da.flush(flushSamples, dedupTimestamp, flushTimestamp)
 
 	if !reflect.DeepEqual(expectedSamplesMap, flushedSamplesMap) {
 		t.Fatalf("unexpected samples;\ngot\n%v\nwant\n%v", flushedSamplesMap, expectedSamplesMap)
@@ -63,14 +67,16 @@ func TestDedupAggrConcurrent(_ *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			flushTimestamp := time.Now().UnixMilli()
 			for i := 0; i < 10; i++ {
-				samples := make([]pushSample, seriesCount)
-				for j := range samples {
-					sample := &samples[j]
+				windows := map[int64][]pushSample{}
+				windows[flushTimestamp] = make([]pushSample, seriesCount)
+				for j := range windows[flushTimestamp] {
+					sample := &windows[flushTimestamp][j]
 					sample.key = fmt.Sprintf("key_%d", j)
 					sample.value = float64(i + j)
 				}
-				da.pushSamples(samples)
+				da.pushSamples(windows)
 			}
 		}()
 	}

@@ -2,8 +2,6 @@ package streamaggr
 
 import (
 	"sync"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // countSamplesAggrState calculates output=count_samples, e.g. the count of input samples.
@@ -13,7 +11,7 @@ type countSamplesAggrState struct {
 
 type countSamplesStateValue struct {
 	mu      sync.Mutex
-	n       uint64
+	n       map[int64]uint64
 	deleted bool
 }
 
@@ -21,61 +19,79 @@ func newCountSamplesAggrState() *countSamplesAggrState {
 	return &countSamplesAggrState{}
 }
 
-func (as *countSamplesAggrState) pushSamples(samples []pushSample) {
-	for i := range samples {
-		s := &samples[i]
-		outputKey := getOutputKey(s.key)
+func (as *countSamplesAggrState) pushSamples(windows map[int64][]pushSample) {
+	for ts, samples := range windows {
+		for i := range samples {
+			s := &samples[i]
+			outputKey := getOutputKey(s.key)
 
-	again:
-		v, ok := as.m.Load(outputKey)
-		if !ok {
-			// The entry is missing in the map. Try creating it.
-			v = &countSamplesStateValue{
-				n: 1,
+		again:
+			v, ok := as.m.Load(outputKey)
+			if !ok {
+				// The entry is missing in the map. Try creating it.
+				v = &countSamplesStateValue{
+					n: map[int64]uint64{
+						ts: 1,
+					},
+				}
+				vNew, loaded := as.m.LoadOrStore(outputKey, v)
+				if !loaded {
+					// The new entry has been successfully created.
+					continue
+				}
+				// Use the entry created by a concurrent goroutine.
+				v = vNew
 			}
-			vNew, loaded := as.m.LoadOrStore(outputKey, v)
-			if !loaded {
-				// The new entry has been successfully created.
-				continue
+			sv := v.(*countSamplesStateValue)
+			sv.mu.Lock()
+			deleted := sv.deleted
+			if !deleted {
+				sv.n[ts]++
 			}
-			// Use the entry created by a concurrent goroutine.
-			v = vNew
-		}
-		sv := v.(*countSamplesStateValue)
-		sv.mu.Lock()
-		deleted := sv.deleted
-		if !deleted {
-			sv.n++
-		}
-		sv.mu.Unlock()
-		if deleted {
-			// The entry has been deleted by the concurrent call to flushState
-			// Try obtaining and updating the entry again.
-			goto again
+			sv.mu.Unlock()
+			if deleted {
+				// The entry has been deleted by the concurrent call to flushState
+				// Try obtaining and updating the entry again.
+				goto again
+			}
 		}
 	}
 }
 
-func (as *countSamplesAggrState) flushState(ctx *flushCtx, resetState bool) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
+func (as *countSamplesAggrState) flushState(ctx *flushCtx, flushTimestamp int64) {
 	m := &as.m
-	m.Range(func(k, v interface{}) bool {
-		if resetState {
-			// Atomically delete the entry from the map, so new entry is created for the next flush.
-			m.Delete(k)
+	fn := func(states map[int64]uint64) map[int64]uint64 {
+		output := make(map[int64]uint64)
+		if flushTimestamp == -1 {
+			for ts, state := range states {
+				output[ts] = state
+				delete(states, ts)
+			}
+		} else if state, ok := states[flushTimestamp]; ok {
+			output[flushTimestamp] = state
+			delete(states, flushTimestamp)
 		}
-
+		return output
+	}
+	m.Range(func(k, v interface{}) bool {
 		sv := v.(*countSamplesStateValue)
 		sv.mu.Lock()
-		n := sv.n
-		if resetState {
+		states := fn(sv.n)
+		sv.mu.Unlock()
+		for ts, n := range states {
+			key := k.(string)
+			ctx.appendSeries(key, "count_samples", ts, float64(n))
+		}
+		sv.mu.Lock()
+		if len(sv.n) == 0 {
 			// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
 			sv.deleted = true
+			sv.mu.Unlock()
+			// Atomically delete the entry from the map, so new entry is created for the next flush.
+			m.Delete(k)
+		} else {
+			sv.mu.Unlock()
 		}
-		sv.mu.Unlock()
-
-		key := k.(string)
-		ctx.appendSeries(key, "count_samples", currentTimeMsec, float64(n))
 		return true
 	})
 }

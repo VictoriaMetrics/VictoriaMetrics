@@ -17,6 +17,8 @@ func TestDeduplicator(t *testing.T) {
 		tssResultLock.Unlock()
 	}
 
+	interval := time.Hour
+
 	tss := mustParsePromMetrics(`
 foo{instance="x",job="aaa",pod="sdfd-dfdfdfs",node="aosijjewrerfd",namespace="asdff",container="ohohffd"} 123
 bar{instance="x",job="aaa",pod="sdfd-dfdfdfs",node="aosijjewrerfd",namespace="asdff",container="ohohffd"} 34.54
@@ -29,11 +31,12 @@ foo{instance="x",job="aaa",pod="sdfd-dfdfdfs",node="aosijjewrerfd",namespace="as
 baz_aaa_aaa_fdd{instance="x",job="aaa",pod="sdfd-dfdfdfs",node="aosijjewrerfd",namespace="asdff",container="ohohffd"} -2.3
 `)
 
-	d := NewDeduplicator(pushFunc, time.Hour, []string{"node", "instance"})
+	d := NewDeduplicator(pushFunc, interval, []string{"node", "instance"})
 	for i := 0; i < 10; i++ {
 		d.Push(tss)
 	}
-	d.flush(pushFunc, time.Hour)
+	flushTimestamp := time.Now().Truncate(interval).Add(interval).UnixMilli()
+	d.flush(pushFunc, interval, flushTimestamp)
 	d.MustStop()
 
 	result := timeSeriessToString(tssResult)

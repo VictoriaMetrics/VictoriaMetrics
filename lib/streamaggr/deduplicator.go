@@ -17,7 +17,8 @@ type Deduplicator struct {
 	da *dedupAggr
 	lc promutils.LabelsCompressor
 
-	dropLabels []string
+	dropLabels    []string
+	dedupInterval int64
 
 	wg     sync.WaitGroup
 	stopCh chan struct{}
@@ -40,7 +41,8 @@ func NewDeduplicator(pushFunc PushFunc, dedupInterval time.Duration, dropLabels 
 	d := &Deduplicator{
 		da: newDedupAggr(),
 
-		dropLabels: dropLabels,
+		dropLabels:    dropLabels,
+		dedupInterval: dedupInterval.Milliseconds(),
 
 		stopCh: make(chan struct{}),
 		ms:     metrics.NewSet(),
@@ -87,6 +89,7 @@ func (d *Deduplicator) MustStop() {
 // Push pushes tss to d.
 func (d *Deduplicator) Push(tss []prompbmarshal.TimeSeries) {
 	ctx := getDeduplicatorPushCtx()
+	ctx.reset()
 	pss := ctx.pss
 	labels := &ctx.labels
 	buf := ctx.buf
@@ -106,7 +109,11 @@ func (d *Deduplicator) Push(tss []prompbmarshal.TimeSeries) {
 		buf = d.lc.Compress(buf[:0], labels.Labels)
 		key := bytesutil.InternBytes(buf)
 		for _, s := range ts.Samples {
-			pss = append(pss, pushSample{
+			flushTimestamp := (s.Timestamp/d.dedupInterval + 1) * d.dedupInterval
+			if _, ok := pss[flushTimestamp]; !ok {
+				pss[flushTimestamp] = make([]pushSample, 0)
+			}
+			pss[flushTimestamp] = append(pss[flushTimestamp], pushSample{
 				key:       key,
 				value:     s.Value,
 				timestamp: s.Timestamp,
@@ -137,30 +144,30 @@ func (d *Deduplicator) runFlusher(pushFunc PushFunc, dedupInterval time.Duration
 		select {
 		case <-d.stopCh:
 			return
-		case <-t.C:
-			d.flush(pushFunc, dedupInterval)
+		case now := <-t.C:
+			upperBound := now.Truncate(dedupInterval).Add(dedupInterval)
+			flushTimestamp := upperBound.UnixMilli()
+			d.flush(pushFunc, dedupInterval, flushTimestamp)
 		}
 	}
 }
 
-func (d *Deduplicator) flush(pushFunc PushFunc, dedupInterval time.Duration) {
+func (d *Deduplicator) flush(pushFunc PushFunc, dedupInterval time.Duration, flushTimestamp int64) {
 	startTime := time.Now()
-
-	timestamp := startTime.UnixMilli()
-	d.da.flush(func(pss []pushSample) {
+	d.da.flush(func(pss map[int64][]pushSample) {
 		ctx := getDeduplicatorFlushCtx()
 
 		tss := ctx.tss
 		labels := ctx.labels
 		samples := ctx.samples
-		for _, ps := range pss {
+		for _, ps := range pss[flushTimestamp] {
 			labelsLen := len(labels)
 			labels = decompressLabels(labels, &d.lc, ps.key)
 
 			samplesLen := len(samples)
 			samples = append(samples, prompbmarshal.Sample{
 				Value:     ps.value,
-				Timestamp: timestamp,
+				Timestamp: ps.timestamp,
 			})
 
 			tss = append(tss, prompbmarshal.TimeSeries{
@@ -174,7 +181,7 @@ func (d *Deduplicator) flush(pushFunc PushFunc, dedupInterval time.Duration) {
 		ctx.labels = labels
 		ctx.samples = samples
 		putDeduplicatorFlushCtx(ctx)
-	}, true)
+	}, flushTimestamp, flushTimestamp)
 
 	duration := time.Since(startTime)
 	d.dedupFlushDuration.Update(duration.Seconds())
@@ -187,14 +194,14 @@ func (d *Deduplicator) flush(pushFunc PushFunc, dedupInterval time.Duration) {
 }
 
 type deduplicatorPushCtx struct {
-	pss    []pushSample
+	pss    map[int64][]pushSample
 	labels promutils.Labels
 	buf    []byte
 }
 
 func (ctx *deduplicatorPushCtx) reset() {
 	clear(ctx.pss)
-	ctx.pss = ctx.pss[:0]
+	ctx.pss = make(map[int64][]pushSample)
 
 	ctx.labels.Reset()
 

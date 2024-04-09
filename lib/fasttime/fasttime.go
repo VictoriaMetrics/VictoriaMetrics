@@ -29,6 +29,11 @@ func UnixTimestamp() uint64 {
 	return currentTimestamp.Load()
 }
 
+// UnixMilli returns current unix timestamp in milliseconds.
+func UnixMilli() int64 {
+	return int64(currentTimestamp.Load()) * 1000
+}
+
 // UnixDate returns date from the current unix timestamp.
 //
 // The date is calculated by dividing unix timestamp by (24*3600)
