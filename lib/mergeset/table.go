@@ -198,7 +198,7 @@ func (riss *rawItemsShards) addIbsToFlush(tb *Table, ibsToFlush []*inmemoryBlock
 	}
 	riss.ibsToFlush = append(riss.ibsToFlush, ibsToFlush...)
 	if len(riss.ibsToFlush) >= maxBlocksPerShard*cgroup.AvailableCPUs() {
-		ibsToMerge = ibsToFlush
+		ibsToMerge = riss.ibsToFlush
 		riss.ibsToFlush = nil
 	}
 	riss.ibsToFlushLock.Unlock()
