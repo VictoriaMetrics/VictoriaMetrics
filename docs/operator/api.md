@@ -926,10 +926,11 @@ VMAgentStatus defines the observed state of VMAgent
 
 ## AdditionalServiceSpec
 
-ServiceSpec defines additional service for CRD with user-defined params. by default, some of fields can be inherited from default service definition for the CRD: labels,selector, ports. if metadata.name is not defined, service will have format {{CRD_TYPE}}-{{CRD_NAME}}-additional-service.
+ServiceSpec defines additional service for CRD with user-defined params. by default, some of fields can be inherited from default service definition for the CRD: labels,selector, ports. if metadata.name is not defined, service will have format {{CRD_TYPE}}-{{CRD_NAME}}-additional-service. if UseAsDefault is set to true, changes applied to the main service without additional service creation
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
+| useAsDefault | UseAsDefault applies changes from given service definition to the main object Service Chaning from headless service to clusterIP or loadbalancer may break cross-component communication | bool | false |
 | metadata | EmbeddedObjectMetadata defines objectMeta for additional service. | [EmbeddedObjectMetadata](#embeddedobjectmetadata) | false |
 | spec | ServiceSpec describes the attributes that a user creates on a service. More info: https://kubernetes.io/docs/concepts/services-networking/service/ | v1.ServiceSpec | true |
 
