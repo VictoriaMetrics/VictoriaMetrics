@@ -1,5 +1,14 @@
 # Release History
 
+## 1.5.2 (2024-04-09)
+
+### Bugs Fixed
+* `ManagedIdentityCredential` now specifies resource IDs correctly for Azure Container Instances
+
+### Other Changes
+* Restored v1.4.0 error behavior for empty tenant IDs
+* Upgraded dependencies
+
 ## 1.5.1 (2024-01-17)
 
 ### Bugs Fixed
