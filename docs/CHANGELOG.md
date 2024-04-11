@@ -33,6 +33,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * FEATURE: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html): allow specifying custom backup interval via `-backupInterval` command-line flag. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5966).
 
 * BUGFIX: fix incorrect merge of partitions which could lead to losing records for IndexDB. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6069) issues.
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html): fix panic when performing a restore from GCS. Previously, filters for GCS objects were not properly set which caused objects to be returned instead of prefixes.
 
 ## [v1.100.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.100.0)
 
