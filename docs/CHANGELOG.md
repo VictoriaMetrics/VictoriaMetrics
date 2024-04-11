@@ -102,7 +102,7 @@ Released at 2024-04-04
 
 Released at 2024-03-01
 
-**This release contains [the issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959), which can prevent from storing data for new time series under high rate of search queries. Please upgrade to [v1.100.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.100.1).**
+**This release contains [the issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959), which can prevent from storing data for new time series under high rate of search queries. Please rollback to [v1.98.0](https://docs.victoriametrics.com/changelog/#v1980) or upgrade to [v1.100.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.100.1) once it is published.**
 
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): propagate [label filters](https://docs.victoriametrics.com/keyconcepts/#filtering) via all the [label manipulation functions](https://docs.victoriametrics.com/metricsql/#label-manipulation-functions). For example, `label_del(some_metric{job="foo"}, "instance") + other_metric{pod="bar"}` is now transformed to `label_del(some_metric{job="foo",pod="bar"}, "instance") + other_metric{job="foo",pod="bar"}`. This should reduce the amounts of time series processed during query execution.
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add [count_values_over_time](https://docs.victoriametrics.com/MetricsQL.html#count_values_over_time) function. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5847).
