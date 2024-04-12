@@ -35,7 +35,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 To be released.
 
-** Update note 1: When upgrading to this release from [v1.99.0](https://docs.victoriametrics.com/changelog/#v1990) or [v1.100.0](https://docs.victoriametrics.com/changelog/#v11000) it is recommended to reset caches stored on disk according to [these](https://docs.victoriametrics.com/single-server-victoriametrics/#cache-removal) docs.**
+**Update note 1: When upgrading to this release from [v1.99.0](https://docs.victoriametrics.com/changelog/#v1990) or [v1.100.0](https://docs.victoriametrics.com/changelog/#v11000) it is recommended to reset caches stored on disk according to [these](https://docs.victoriametrics.com/single-server-victoriametrics/#cache-removal) docs.**
 
 * FEATURE: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html): allow specifying custom backup interval via `-backupInterval` command-line flag. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5966).
 
