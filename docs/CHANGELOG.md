@@ -33,7 +33,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## [v1.100.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.100.1)
 
-To be released.
+Released at 2024-04-11
 
 **Update note 1: When upgrading to this release from [v1.99.0](https://docs.victoriametrics.com/changelog/#v1990) or [v1.100.0](https://docs.victoriametrics.com/changelog/#v11000) it is recommended to reset caches stored on disk according to [these](https://docs.victoriametrics.com/single-server-victoriametrics/#cache-removal) docs.**
 
@@ -46,7 +46,7 @@ To be released.
 
 Released at 2024-04-04
 
-**This release contains [the issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959), which can prevent from storing data for new time series under high rate of search queries. Please rollback to [v1.98.0](https://docs.victoriametrics.com/changelog/#v1980) or upgrade to [v1.100.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.100.1) once it is published.**
+**This release contains [the issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959), which can prevent from storing data for new time series under high rate of search queries. Please rollback to [v1.98.0](https://docs.victoriametrics.com/changelog/#v1980) or upgrade to [v1.100.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.100.1).**
 
 **Update note 1: the `-datasource.lookback` command-line flag at `vmalert` is no-op starting from this release. This flag will be removed in the future, so please switch to [`eval_delay` option](https://docs.victoriametrics.com/vmalert/#groups). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155) for more details.**
 
@@ -104,7 +104,7 @@ Released at 2024-04-04
 
 Released at 2024-03-01
 
-**This release contains [the issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959), which can prevent from storing data for new time series under high rate of search queries. Please rollback to [v1.98.0](https://docs.victoriametrics.com/changelog/#v1980) or upgrade to [v1.100.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.100.1) once it is published.**
+**This release contains [the issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959), which can prevent from storing data for new time series under high rate of search queries. Please rollback to [v1.98.0](https://docs.victoriametrics.com/changelog/#v1980) or upgrade to [v1.100.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.100.1).**
 
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): propagate [label filters](https://docs.victoriametrics.com/keyconcepts/#filtering) via all the [label manipulation functions](https://docs.victoriametrics.com/metricsql/#label-manipulation-functions). For example, `label_del(some_metric{job="foo"}, "instance") + other_metric{pod="bar"}` is now transformed to `label_del(some_metric{job="foo",pod="bar"}, "instance") + other_metric{job="foo",pod="bar"}`. This should reduce the amounts of time series processed during query execution.
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add [count_values_over_time](https://docs.victoriametrics.com/MetricsQL.html#count_values_over_time) function. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5847).
