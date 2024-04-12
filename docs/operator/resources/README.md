@@ -30,6 +30,7 @@ Metrics Operator introduces.
 - [VMStaticScrape](./vmstaticscrape.md)
 - [VMSingle](./vmsingle.md)
 - [VMUser](./vmuser.md)
+- [VMScrapeConfig](./vmscrapeconfig.md)
 
 Here is the scheme of relations between the custom resources:
 
@@ -119,6 +120,7 @@ Page for every custom resource contains examples section:
 - [VMStaticScrape examples](./vmstaticscrape.md#examples)
 - [VMSingle examples](./vmsingle.md#examples)
 - [VMUser examples](./vmuser.md#examples)
+- [VMScrapeConfig examples](./vmscrapeconfig.md#examples)
 
 In addition, you can find examples of the custom resources for VIctoriMetrics operator in 
 the **[examples directory](https://github.com/VictoriaMetrics/operator/tree/master/config/examples) of operator repository**.
