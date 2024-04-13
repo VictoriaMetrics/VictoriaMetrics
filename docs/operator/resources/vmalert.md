@@ -51,7 +51,7 @@ spec:
   ruleNamespaceSelector: {}
 ```
 
-[VMRUle](./vmrule.md) objects generate part of `VMAlert` configuration.
+[VMRule](./vmrule.md) objects generate part of `VMAlert` configuration.
 
 For filtering rules `VMAlert` uses selectors `ruleNamespaceSelector` and `ruleSelector`.
 It allows configuring rules access control across namespaces and different environments.

@@ -24,6 +24,7 @@ Or you can use VictoriaMetrics CRDs:
 - `VMRule` (instead of `PrometheusRule`) - defines alerting or recording rules. [See details](./resources/vmrule.md).
 - `VMProbe` (instead of `Probe`) - defines a probing configuration for targets with blackbox exporter. [See details](./resources/vmprobe.md).
 - `VMAlertmanagerConfig` (instead of `AlertmanagerConfig`) - defines a configuration for AlertManager. [See details](./resources/vmalertmanagerconfig.md).
+- `VMScrapeConfig` (instead of `ScrapeConfig`) - define a scrape config using any of the service discovery options supported in victoriametrics.
 
 Note that Prometheus CRDs are not supplied with the VictoriaMetrics operator,
 so you need to [install them separately](https://github.com/prometheus-operator/prometheus-operator/releases).
@@ -33,8 +34,8 @@ and version `monitoring.coreos.com/v1alpha1` for kind `AlertmanagerConfig`.
 
 The default behavior of the operator is as follows:
 
-- It **converts** all existing Prometheus `ServiceMonitor`, `PodMonitor`, `PrometheusRule` and `Probe` objects into corresponding VictoriaMetrics Operator objects.
-- It **syncs** updates (including labels) from Prometheus `ServiceMonitor`, `PodMonitor`, `PrometheusRule` and `Probe` objects to corresponding VictoriaMetrics Operator objects.
+- It **converts** all existing Prometheus `ServiceMonitor`, `PodMonitor`, `PrometheusRule`, `Probe` and `ScrapeConfig` objects into corresponding VictoriaMetrics Operator objects.
+- It **syncs** updates (including labels) from Prometheus `ServiceMonitor`, `PodMonitor`, `PrometheusRule`, `Probe` and `ScrapeConfig` objects to corresponding VictoriaMetrics Operator objects.
 - It **DOES NOT delete** converted objects after original ones are deleted.
 
 With this configuration removing prometheus-operator API objects wouldn't delete any converted objects. So you can safely migrate or run two operators at the same time.
@@ -55,6 +56,7 @@ VM_ENABLEDPROMETHEUSCONVERTER_PODMONITOR=false
 VM_ENABLEDPROMETHEUSCONVERTER_SERVICESCRAPE=false
 VM_ENABLEDPROMETHEUSCONVERTER_PROMETHEUSRULE=false
 VM_ENABLEDPROMETHEUSCONVERTER_PROBE=false
+VM_ENABLEDPROMETHEUSCONVERTER_SCRAPECONFIG=false
 ```
 
 For [victoria-metrics-operator helm-chart](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-operator/README.md) you can use following way:
@@ -130,6 +132,7 @@ Annotation `operator.victoriametrics.com/ignore-prometheus-updates` can be set o
 - [VMRule](./resources/vmrule.md)
 - [VMProbe](./resources/vmprobe.md)
 - [VMAlertmanagerConfig](./resources/vmalertmanagerconfig.md)
+- [VMScrapeConfig](./resources/vmscrapeconfig.md)
 
 And annotation doesn't make sense for [VMStaticScrape](./resources/vmstaticscrape.md)
 and [VMNodeScrape](./resources/vmnodescrape.md) because these objects are not created as a result of conversion.
@@ -170,6 +173,7 @@ Annotation `operator.victoriametrics.com/merge-meta-strategy` can be set on one 
 - [VMRule](./resources/vmrule.md)
 - [VMProbe](./resources/vmprobe.md)
 - [VMAlertmanagerConfig](./resources/vmalertmanagerconfig.md)
+- [VMScrapeConfig](./resources/vmscrapeconfig.md)
 
 And annotation doesn't make sense for [VMStaticScrape](./resources/vmstaticscrape.md)
 and [VMNodeScrape](./resources/vmnodescrape.md) because these objects are not created as a result of conversion.
