@@ -53,6 +53,7 @@ Also, you can check out the [examples](#examples) section.
 - [VMNodeScrape](./vmnodescrape.md),
 - [VMStaticScrape](./vmstaticscrape.md),
 - [VMProbe](./vmprobe.md).
+- `VMScrapeConfig`(./vmscrapeconfig.md)
 
 These objects tell VMAgent from which targets and how to collect metrics and 
 generate part of [VMAgent](./vmagent.md) scrape configuration.
@@ -65,6 +66,7 @@ Selectors are defined with suffixes - `NamespaceSelector` and `Selector` for eac
 - `probeNamespaceSelector` and `probeSelector` for selecting [VMProbe](./vmprobe.md) objects,
 - `staticScrapeNamespaceSelector` and `staticScrapeSelector` for selecting [VMStaticScrape](./vmstaticscrape.md) objects,
 - `nodeScrapeNamespaceSelector` and `nodeScrapeSelector` for selecting [VMNodeScrape](./vmnodescrape.md) objects.
+- `scrapeConfigNamespaceSelector` and `scrapeConfigSelector` for selecting [VMScrapeConfig](./vmscrapeconfig.md) objects.
 
 It allows configuring objects access control across namespaces and different environments. 
 Specification of selectors you can see in [this doc](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#labelselector-v1-meta).
