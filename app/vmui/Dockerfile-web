@@ -14,5 +14,5 @@ COPY --from=build-web-stage /build/web-windows /app/web-windows
 RUN adduser -S -D -u 1000 web && chown -R web /app
 
 USER web
-EXPOSE 8080
+
 ENTRYPOINT ["/app/web"]
