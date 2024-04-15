@@ -9,8 +9,8 @@ type Props = {
 
 const titles: Partial<Record<ForecastType, string>> = {
   [ForecastType.yhat]: "yhat",
-  [ForecastType.yhatLower]: "yhat_lower/_upper",
-  [ForecastType.yhatUpper]: "yhat_lower/_upper",
+  [ForecastType.yhatLower]: "yhat_upper - yhat_lower",
+  [ForecastType.yhatUpper]: "yhat_upper - yhat_lower",
   [ForecastType.anomaly]: "anomalies",
   [ForecastType.training]: "training data",
   [ForecastType.actual]: "y"
@@ -41,9 +41,6 @@ const LegendAnomaly: FC<Props> = ({ series }) => {
       color: typeof s.stroke === "string" ? s.stroke : anomalyColors[s.forecast || ForecastType.actual],
     }));
   }, [series]);
-
-  const container = document.getElementById("legendAnomaly");
-  if (!container) return null;
 
   return <>
     <div className="vm-legend-anomaly">

@@ -8,9 +8,16 @@ export const getDefaultServer = (tenantId?: string): string => {
   const { serverURL } = getAppModeParams();
   const storageURL = getFromStorage("SERVER_URL") as string;
   const logsURL = window.location.href.replace(/\/(select\/)?(vmui)\/.*/, "");
+  const anomalyURL = window.location.href.replace(/(?:graph|vmui)\/.*/, "");
   const defaultURL = window.location.href.replace(/\/(?:prometheus\/)?(?:graph|vmui)\/.*/, "/prometheus");
   const url = serverURL || storageURL || defaultURL;
-  if (REACT_APP_TYPE === AppType.logs) return logsURL;
-  if (tenantId) return replaceTenantId(url, tenantId);
-  return url;
+
+  switch (REACT_APP_TYPE) {
+    case AppType.logs:
+      return logsURL;
+    case AppType.anomaly:
+      return serverURL || storageURL || anomalyURL;
+    default:
+      return tenantId ? replaceTenantId(url, tenantId) : url;
+  }
 };
