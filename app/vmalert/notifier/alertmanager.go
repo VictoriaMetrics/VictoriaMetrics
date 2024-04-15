@@ -105,7 +105,7 @@ func (am *AlertManager) send(ctx context.Context, alerts []Alert, headers map[st
 	if *showNotifierURL {
 		amURL = am.addr.String()
 	}
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode/100 != 2 {
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return fmt.Errorf("failed to read response from %q: %w", amURL, err)
