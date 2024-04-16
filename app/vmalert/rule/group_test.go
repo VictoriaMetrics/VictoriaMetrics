@@ -217,7 +217,6 @@ func TestGroupStart(t *testing.T) {
 
 	const evalInterval = time.Millisecond
 	g := NewGroup(groups[0], fs, evalInterval, map[string]string{"cluster": "east-1"})
-	g.Concurrency = 2
 
 	const inst1, inst2, job = "foo", "bar", "baz"
 	m1 := metricWithLabels(t, "instance", inst1, "job", job)
@@ -262,8 +261,29 @@ func TestGroupStart(t *testing.T) {
 		close(finished)
 	}()
 
-	// wait for multiple evals
-	time.Sleep(20 * evalInterval)
+	waitForIterations := func(n int, interval time.Duration) {
+		t.Helper()
+		prev := g.metrics.iterationTotal.Get()
+		cur := prev
+		var iterationsMade int
+		for i := 0; ; i++ {
+			if i > 20 {
+				t.Fatalf("group wasn't able to perfrom %d evaluations during %d eval intervals", n, i)
+			}
+			cur = g.metrics.iterationTotal.Get()
+			if cur > prev {
+				iterationsMade += int(cur - prev)
+				prev = cur
+			}
+			if iterationsMade >= n {
+				return
+			}
+			time.Sleep(interval)
+		}
+	}
+
+	// wait for multiple evaluation iterations
+	waitForIterations(4, evalInterval)
 
 	gotAlerts := fn.GetAlerts()
 	expectedAlerts := []notifier.Alert{*alert1, *alert2}
@@ -280,8 +300,8 @@ func TestGroupStart(t *testing.T) {
 	// and set only one datapoint for response
 	fs.Add(m1)
 
-	// wait for multiple evals
-	time.Sleep(20 * evalInterval)
+	// wait for multiple evaluation iterations
+	waitForIterations(4, evalInterval)
 
 	gotAlerts = fn.GetAlerts()
 	alert2.State = notifier.StateInactive
