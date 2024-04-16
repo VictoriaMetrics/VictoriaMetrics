@@ -189,7 +189,7 @@ type Regex struct {
 // QueryArg represents HTTP query arg
 type QueryArg struct {
 	Name  string
-	Value string
+	Value *Regex
 
 	sOriginal string
 }
@@ -203,10 +203,17 @@ func (qa *QueryArg) UnmarshalYAML(f func(interface{}) error) error {
 	qa.sOriginal = s
 
 	n := strings.IndexByte(s, '=')
-	if n >= 0 {
-		qa.Name = s[:n]
-		qa.Value = s[n+1:]
+	if n < 0 {
+		return nil
 	}
+
+	qa.Name = s[:n]
+	expr := []byte(s[n+1:])
+	var re Regex
+	if err := yaml.Unmarshal(expr, &re); err != nil {
+		return fmt.Errorf("failed to unmarshal regex %q: %s", expr, err)
+	}
+	qa.Value = &re
 	return nil
 }
 

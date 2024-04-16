@@ -117,7 +117,7 @@ if the whole request path matches at least one `src_paths` entry. The incoming r
 If both `src_paths` and `src_hosts` lists are specified, then the request is routed to the given `url_prefix` when both request path and request host match at least one entry
 in the corresponding lists.
 
-An optional `src_query_args` can be used for routing requests based on [HTTP query args](https://en.wikipedia.org/wiki/Query_string) additionaly to hostname and path.
+An optional `src_query_args` can be used for routing requests based on [HTTP query args](https://en.wikipedia.org/wiki/Query_string) additionally to hostname and path.
 For example, the following config routes requests to `http://app1-backend/` if `db=foo` query arg is present in the request,
 while routing requests with `db=bar` query arg to `http://app2-backend`:
 
@@ -134,6 +134,20 @@ If `src_query_args` contains multiple entries, then it is enough to match only a
 
 If `src_query_args` are specified together with `src_hosts`, `src_paths` or `src_headers`, then the request is routed to the given `url_prefix`
 if its query args, host, path and headers match the given lists simultaneously.
+
+`src_query_args` supports regex matching:
+```yaml
+unauthorized_user:
+  url_map:
+    - src_query_args: [ "query=.*env=\"prod\".*" ]
+      url_prefix: "http://prod-backend/"
+    - src_query_args: [ "query=.*env=\"dev\".*" ]
+      url_prefix: "http://dev-backend/"
+```
+The config above will route requests like `/api/v1/query?query=up{env="prod"}` to `http://prod-backend/`.
+And queries matching `.*env=\"dev\".*` will be routed to `http://dev-backend/`.
+_Please note, by default Grafana sends `query` param in request's body and vmauth won't be able to read it. 
+You need to manually switch datasource settings in Grafana to use GET method for sending queries._
 
 An optional `src_headers` can be used for routing requests based on HTTP request headers additionally to hostname, path and [HTTP query args](https://en.wikipedia.org/wiki/Query_string).
 For example, the following config routes requests to `http://app1-backend` if `TenantID` request header equals to `42`, while routing requests to `http://app2-backend`
