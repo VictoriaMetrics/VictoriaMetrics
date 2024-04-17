@@ -400,7 +400,7 @@ Cluster version of VictoriaMetrics may be preferred over single-node VictoriaMet
 - If [multitenancy support](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) is needed,
   since single-node VictoriaMetrics doesn't support multitenancy. Though it is possible to run multiple single-node VictoriaMetrics
   instances - one per each tenant - and route incoming requests from particular tenant to the needed VictoriaMetrics instance
-  via [vmauth](https://docs.victoriametrics.com/vmauth.html).
+  via [vmauth](https://docs.victoriametrics.com/vmauth/).
 
 - If the current workload cannot be handled by a single-node VictoriaMetrics. For example, if you are going to ingest hundreds of millions of active time series
   at ingestion rates exceeding a million samples per second, then it is better to use cluster version of VictoriaMetrics,
