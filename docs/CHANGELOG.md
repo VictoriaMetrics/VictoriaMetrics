@@ -30,6 +30,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): in the Select component, user-entered values are now preserved on blur if they match options in the list.
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): support regex matching when routing incoming requests based on HTTP [query args](https://en.wikipedia.org/wiki/Query_string) via `src_query_args` option at `url_map`. See [these docs](https://docs.victoriametrics.com/vmauth/#generic-http-proxy-for-different-backends) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6070).
 
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): supported any status codes from the range 200-299 from alertmanager. Previously, only 200 status code considered a successful action. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6110).
