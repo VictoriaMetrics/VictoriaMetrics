@@ -84,7 +84,7 @@ vm_tcplistener_write_calls_total{name="https", addr=":443"} 132356
 		var sw scrapeWork
 		sw.Config = &ScrapeWork{}
 		sw.ReadData = readDataFunc
-		sw.PushData = func(at *auth.Token, wr *prompbmarshal.WriteRequest) {}
+		sw.PushData = func(_ *auth.Token, _ *prompbmarshal.WriteRequest) {}
 		tsmGlobal.Register(&sw)
 		timestamp := int64(0)
 		for pb.Next() {

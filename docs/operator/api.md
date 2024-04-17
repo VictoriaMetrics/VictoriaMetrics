@@ -130,6 +130,7 @@ This Document documents the types introduced by the VictoriaMetrics to be consum
 * [CRDRef](#crdref)
 * [StaticRef](#staticref)
 * [TargetRef](#targetref)
+* [TargetRefBasicAuth](#targetrefbasicauth)
 * [VMUser](#vmuser)
 * [VMUserIPFilters](#vmuseripfilters)
 * [VMUserList](#vmuserlist)
@@ -230,6 +231,7 @@ VMAlertmanagerSpec is a specification of the desired behavior of the VMAlertmana
 | selectAllByDefault | SelectAllByDefault changes default behavior for empty CRD selectors, such ConfigSelector. with selectAllByDefault: true and undefined ConfigSelector and ConfigNamespaceSelector Operator selects all exist alertManagerConfigs with selectAllByDefault: false - selects nothing | bool | false |
 | configSelector | ConfigSelector defines selector for VMAlertmanagerConfig, result config will be merged with with Raw or Secret config. Works in combination with NamespaceSelector. NamespaceSelector nil - only objects at VMAlertmanager namespace. Selector nil - only objects at NamespaceSelector namespaces. If both nil - behaviour controlled by selectAllByDefault | *[metav1.LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#labelselector-v1-meta) | false |
 | configNamespaceSelector | \n ConfigNamespaceSelector defines namespace selector for VMAlertmanagerConfig.\nWorks in combination with Selector. NamespaceSelector nil - only objects at VMAlertmanager namespace. Selector nil - only objects at NamespaceSelector namespaces. If both nil - behaviour controlled by selectAllByDefault | *[metav1.LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#labelselector-v1-meta) | false |
+| configReloaderExtraArgs | ConfigReloaderExtraArgs that will be passed to  VMAuths config-reloader container for example resyncInterval: \&#34;30s\&#34; | map[string]string | false |
 | extraArgs | ExtraArgs that will be passed to  VMAlertmanager pod for example log.level: debug | map[string]string | false |
 | extraEnvs | ExtraEnvs that will be added to VMAlertmanager pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#envvar-v1-core) | false |
 | disableNamespaceMatcher | DisableNamespaceMatcher disables namespace label matcher for VMAlertmanagerConfig It may be useful if alert doesn&#39;t have namespace label for some reason | bool | false |
@@ -870,11 +872,14 @@ VMAgentSpec defines the desired state of VMAgent
 | nodeScrapeNamespaceSelector | NodeScrapeNamespaceSelector defines Namespaces to be selected for VMNodeScrape discovery. Works in combination with Selector. NamespaceSelector nil - only objects at VMAgent namespace. Selector nil - only objects at NamespaceSelector namespaces. If both nil - behaviour controlled by selectAllByDefault | *[metav1.LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#labelselector-v1-meta) | false |
 | staticScrapeSelector | StaticScrapeSelector defines PodScrapes to be selected for target discovery. Works in combination with NamespaceSelector. If both nil - match everything. NamespaceSelector nil - only objects at VMAgent namespace. Selector nil - only objects at NamespaceSelector namespaces. | *[metav1.LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#labelselector-v1-meta) | false |
 | staticScrapeNamespaceSelector | StaticScrapeNamespaceSelector defines Namespaces to be selected for VMStaticScrape discovery. Works in combination with NamespaceSelector. NamespaceSelector nil - only objects at VMAgent namespace. Selector nil - only objects at NamespaceSelector namespaces. If both nil - behaviour controlled by selectAllByDefault | *[metav1.LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#labelselector-v1-meta) | false |
+| scrapeConfigSelector | ScrapeConfigSelector defines VMScrapeConfig to be selected for target discovery. Works in combination with NamespaceSelector. | *[metav1.LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#labelselector-v1-meta) | false |
+| scrapeConfigNamespaceSelector | ScrapeConfigNamespaceSelector defines Namespaces to be selected for VMScrapeConfig discovery. Works in combination with Selector. NamespaceSelector nil - only objects at VMAgent namespace. Selector nil - only objects at NamespaceSelector namespaces. If both nil - behaviour controlled by selectAllByDefault | *[metav1.LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#labelselector-v1-meta) | false |
 | inlineScrapeConfig | InlineScrapeConfig As scrape configs are appended, the user is responsible to make sure it is valid. Note that using this feature may expose the possibility to break upgrades of VMAgent. It is advised to review VMAgent release notes to ensure that no incompatible scrape configs are going to break VMAgent after the upgrade. it should be defined as single yaml file. inlineScrapeConfig: \|\n    - job_name: \&#34;prometheus\&#34;\n      static_configs:\n      - targets: [\&#34;localhost:9090\&#34;] | string | false |
 | additionalScrapeConfigs | AdditionalScrapeConfigs As scrape configs are appended, the user is responsible to make sure it is valid. Note that using this feature may expose the possibility to break upgrades of VMAgent. It is advised to review VMAgent release notes to ensure that no incompatible scrape configs are going to break VMAgent after the upgrade. | *[v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | false |
 | arbitraryFSAccessThroughSMs | ArbitraryFSAccessThroughSMs configures whether configuration based on a service scrape can access arbitrary files on the file system of the VMAgent container e.g. bearer token files. | [ArbitraryFSAccessThroughSMsConfig](#arbitraryfsaccessthroughsmsconfig) | false |
 | insertPorts | InsertPorts - additional listen ports for data ingestion. | *[InsertPorts](#insertports) | false |
 | port | Port listen address | string | false |
+| configReloaderExtraArgs | ConfigReloaderExtraArgs that will be passed to  VMAuths config-reloader container for example resyncInterval: \&#34;30s\&#34; | map[string]string | false |
 | extraArgs | ExtraArgs that will be passed to  VMAgent pod for example remoteWrite.tmpDataPath: /tmp it would be converted to flag --remoteWrite.tmpDataPath=/tmp | map[string]string | false |
 | extraEnvs | ExtraEnvs that will be added to VMAgent pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#envvar-v1-core) | false |
 | serviceSpec | ServiceSpec that will be added to vmagent service spec | *[AdditionalServiceSpec](#additionalservicespec) | false |
@@ -892,6 +897,7 @@ VMAgentSpec defines the desired state of VMAgent
 | nodeScrapeRelabelTemplate | NodeScrapeRelabelTemplate defines relabel config, that will be added to each VMNodeScrape. it&#39;s useful for adding specific labels to all targets | []*[RelabelConfig](#relabelconfig) | false |
 | staticScrapeRelabelTemplate | StaticScrapeRelabelTemplate defines relabel config, that will be added to each VMStaticScrape. it&#39;s useful for adding specific labels to all targets | []*[RelabelConfig](#relabelconfig) | false |
 | probeScrapeRelabelTemplate | ProbeScrapeRelabelTemplate defines relabel config, that will be added to each VMProbeScrape. it&#39;s useful for adding specific labels to all targets | []*[RelabelConfig](#relabelconfig) | false |
+| scrapeConfigRelabelTemplate | ScrapeConfigRelabelTemplate defines relabel config, that will be added to each VMScrapeConfig. it&#39;s useful for adding specific labels to all targets | []*[RelabelConfig](#relabelconfig) | false |
 | minScrapeInterval | MinScrapeInterval allows limiting minimal scrape interval for VMServiceScrape, VMPodScrape and other scrapes If interval is lower than defined limit, `minScrapeInterval` will be used. | *string | false |
 | maxScrapeInterval | MaxScrapeInterval allows limiting maximum scrape interval for VMServiceScrape, VMPodScrape and other scrapes If interval is higher than defined limit, `maxScrapeInterval` will be used. | *string | false |
 | terminationGracePeriodSeconds | TerminationGracePeriodSeconds period for container graceful termination | *int64 | false |
@@ -926,10 +932,11 @@ VMAgentStatus defines the observed state of VMAgent
 
 ## AdditionalServiceSpec
 
-ServiceSpec defines additional service for CRD with user-defined params. by default, some of fields can be inherited from default service definition for the CRD: labels,selector, ports. if metadata.name is not defined, service will have format {{CRD_TYPE}}-{{CRD_NAME}}-additional-service.
+ServiceSpec defines additional service for CRD with user-defined params. by default, some of fields can be inherited from default service definition for the CRD: labels,selector, ports. if metadata.name is not defined, service will have format {{CRD_TYPE}}-{{CRD_NAME}}-additional-service. if UseAsDefault is set to true, changes applied to the main service without additional service creation
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
+| useAsDefault | UseAsDefault applies changes from given service definition to the main object Service Chaning from headless service to clusterIP or loadbalancer may break cross-component communication | bool | false |
 | metadata | EmbeddedObjectMetadata defines objectMeta for additional service. | [EmbeddedObjectMetadata](#embeddedobjectmetadata) | false |
 | spec | ServiceSpec describes the attributes that a user creates on a service. More info: https://kubernetes.io/docs/concepts/services-networking/service/ | v1.ServiceSpec | true |
 
@@ -1258,6 +1265,7 @@ VMAlertSpec defines the desired state of VMAlert
 | remoteRead | RemoteRead Optional URL to read vmalert state (persisted via RemoteWrite) This configuration only makes sense if alerts state has been successfully persisted (via RemoteWrite) before. see -remoteRead.url docs in vmalerts for details. E.g. http://127.0.0.1:8428 | *[VMAlertRemoteReadSpec](#vmalertremotereadspec) | false |
 | rulePath | RulePath to the file with alert rules. Supports patterns. Flag can be specified multiple times. Examples: -rule /path/to/file. Path to a single file with alerting rules -rule dir/*.yaml -rule /*.yaml. Relative path to all .yaml files in folder, absolute path to all .yaml files in root. by default operator adds /etc/vmalert/configs/base/vmalert.yaml | []string | false |
 | datasource | Datasource Victoria Metrics or VMSelect url. Required parameter. e.g. http://127.0.0.1:8428 | [VMAlertDatasourceSpec](#vmalertdatasourcespec) | true |
+| configReloaderExtraArgs | ConfigReloaderExtraArgs that will be passed to  VMAuths config-reloader container for example resyncInterval: \&#34;30s\&#34; | map[string]string | false |
 | extraArgs | ExtraArgs that will be passed to  VMAlert pod for example -remoteWrite.tmpDataPath=/tmp | map[string]string | false |
 | extraEnvs | ExtraEnvs that will be added to VMAlert pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#envvar-v1-core) | false |
 | externalLabels | ExternalLabels in the form &#39;name: value&#39; to add to all generated recording rules and alerts. | map[string]string | false |
@@ -1513,6 +1521,7 @@ Endpoint defines a scrapeable endpoint serving Prometheus metrics.
 | scrape_interval | ScrapeInterval is the same as Interval and has priority over it. one of scrape_interval or interval can be used | string | false |
 | scrapeTimeout | Timeout after which the scrape is ended | string | false |
 | sampleLimit | SampleLimit defines per-endpoint limit on number of scraped samples that will be accepted. | uint64 | false |
+| seriesLimit | SeriesLimit defines per-scrape limit on number of unique time series a single target can expose during all the scrapes on the time window of 24h. | uint64 | false |
 | oauth2 | OAuth2 defines auth configuration | *[OAuth2](#oauth2) | false |
 | authorization | Authorization with http header Authorization | *[Authorization](#authorization) | false |
 | tlsConfig | TLSConfig configuration to use when scraping the endpoint | *[TLSConfig](#tlsconfig) | false |
@@ -1623,10 +1632,10 @@ VMScrapeParams defines scrape target configuration that compatible only with Vic
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| relabel_debug |  | *bool | false |
-| metric_relabel_debug |  | *bool | false |
+| relabel_debug | deprecated since [v1.85](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.85.0), will be removed in next release | *bool | false |
+| metric_relabel_debug | deprecated since [v1.85](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.85.0), will be removed in next release | *bool | false |
 | disable_compression |  | *bool | false |
-| disable_keep_alive |  | *bool | false |
+| disable_keep_alive | disable_keepalive allows disabling HTTP keep-alive when scraping targets. By default, HTTP keep-alive is enabled, so TCP connections to scrape targets could be re-used. See https://docs.victoriametrics.com/vmagent.html#scrape_config-enhancements | *bool | false |
 | no_stale_markers |  | *bool | false |
 | stream_parse |  | *bool | false |
 | scrape_align_interval |  | *string | false |
@@ -1673,6 +1682,7 @@ VMServiceScrapeSpec defines the desired state of VMServiceScrape
 | selector | Selector to select Endpoints objects by corresponding Service labels. | [metav1.LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#labelselector-v1-meta) | false |
 | namespaceSelector | Selector to select which namespaces the Endpoints objects are discovered from. | [NamespaceSelector](#namespaceselector) | false |
 | sampleLimit | SampleLimit defines per-scrape limit on number of scraped samples that will be accepted. | uint64 | false |
+| seriesLimit | SeriesLimit defines per-scrape limit on number of unique time series a single target can expose during all the scrapes on the time window of 24h. | uint64 | false |
 | attach_metadata | AttachMetadata configures metadata attaching from service discovery | [AttachMetadata](#attachmetadata) | false |
 
 [Back to TOC](#table-of-contents)
@@ -1703,6 +1713,7 @@ PodMetricsEndpoint defines a scrapeable endpoint of a Kubernetes Pod serving Pro
 | scrape_interval | ScrapeInterval is the same as Interval and has priority over it. one of scrape_interval or interval can be used | string | false |
 | scrapeTimeout | Timeout after which the scrape is ended | string | false |
 | sampleLimit | SampleLimit defines per-podEndpoint limit on number of scraped samples that will be accepted. | uint64 | false |
+| seriesLimit | SeriesLimit defines per-scrape limit on number of unique time series a single target can expose during all the scrapes on the time window of 24h. | uint64 | false |
 | honorLabels | HonorLabels chooses the metric&#39;s labels on collisions with target labels. | bool | false |
 | honorTimestamps | HonorTimestamps controls whether vmagent respects the timestamps present in scraped data. | *bool | false |
 | metricRelabelConfigs | MetricRelabelConfigs to apply to samples before ingestion. | []*[RelabelConfig](#relabelconfig) | false |
@@ -1755,6 +1766,7 @@ VMPodScrapeSpec defines the desired state of VMPodScrape
 | selector | Selector to select Pod objects. | [metav1.LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#labelselector-v1-meta) | false |
 | namespaceSelector | Selector to select which namespaces the Endpoints objects are discovered from. | [NamespaceSelector](#namespaceselector) | false |
 | sampleLimit | SampleLimit defines per-scrape limit on number of scraped samples that will be accepted. | uint64 | false |
+| seriesLimit | SeriesLimit defines per-scrape limit on number of unique time series a single target can expose during all the scrapes on the time window of 24h. | uint64 | false |
 | attach_metadata | AttachMetadata configures metadata attaching from service discovery | [AttachMetadata](#attachmetadata) | false |
 
 [Back to TOC](#table-of-contents)
@@ -2098,6 +2110,7 @@ VMNodeScrapeSpec defines specification for VMNodeScrape.
 | proxyURL | ProxyURL eg http://proxyserver:2195 Directs scrapes to proxy through this endpoint. | *string | false |
 | selector | Selector to select kubernetes Nodes. | [metav1.LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#labelselector-v1-meta) | false |
 | sampleLimit | SampleLimit defines per-scrape limit on number of scraped samples that will be accepted. | uint64 | false |
+| seriesLimit | SeriesLimit defines per-scrape limit on number of unique time series a single target can expose during all the scrapes on the time window of 24h. | uint64 | false |
 | vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parametrs | *[VMScrapeParams](#vmscrapeparams) | false |
 
 [Back to TOC](#table-of-contents)
@@ -2141,6 +2154,18 @@ TargetRef describes target for user traffic forwarding. one of target types can 
 | retry_status_codes | RetryStatusCodes defines http status codes in numeric format for request retries Can be defined per target or at VMUser.spec level e.g. [429,503] | []int | false |
 | load_balancing_policy | LoadBalancingPolicy defines load balancing policy to use for backend urls. Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth.html#load-balancing for more details (default \&#34;least_loaded\&#34;) | *string | false |
 | drop_src_path_prefix_parts | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend. See https://docs.victoriametrics.com/vmauth.html#dropping-request-path-prefix for more details. | *int | false |
+| targetRefBasicAuth | TargetRefBasicAuth allow an target endpoint to authenticate over basic authentication | *[TargetRefBasicAuth](#targetrefbasicauth) | false |
+
+[Back to TOC](#table-of-contents)
+
+## TargetRefBasicAuth
+
+TargetRefBasicAuth target basic authentication
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| username | The secret in the service scrape namespace that contains the username for authentication. It must be at them same namespace as CRD | [v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | true |
+| password | The secret in the service scrape namespace that contains the password for authentication. It must be at them same namespace as CRD | [v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | true |
 
 [Back to TOC](#table-of-contents)
 
@@ -2285,6 +2310,7 @@ VMAuthSpec defines the desired state of VMAuth
 | selectAllByDefault | SelectAllByDefault changes default behavior for empty CRD selectors, such userSelector. with selectAllByDefault: true and empty userSelector and userNamespaceSelector Operator selects all exist users with selectAllByDefault: false - selects nothing | bool | false |
 | userSelector | UserSelector defines VMUser to be selected for config file generation. Works in combination with NamespaceSelector. NamespaceSelector nil - only objects at VMAuth namespace. If both nil - behaviour controlled by selectAllByDefault | *[metav1.LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#labelselector-v1-meta) | false |
 | userNamespaceSelector | UserNamespaceSelector Namespaces to be selected for  VMAuth discovery. Works in combination with Selector. NamespaceSelector nil - only objects at VMAuth namespace. Selector nil - only objects at NamespaceSelector namespaces. If both nil - behaviour controlled by selectAllByDefault | *[metav1.LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#labelselector-v1-meta) | false |
+| configReloaderExtraArgs | ConfigReloaderExtraArgs that will be passed to  VMAuths config-reloader container for example resyncInterval: \&#34;30s\&#34; | map[string]string | false |
 | extraArgs | ExtraArgs that will be passed to  VMAuth pod for example remoteWrite.tmpDataPath: /tmp | map[string]string | false |
 | extraEnvs | ExtraEnvs that will be added to VMAuth pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#envvar-v1-core) | false |
 | serviceSpec | ServiceSpec that will be added to vmsingle service spec | *[AdditionalServiceSpec](#additionalservicespec) | false |
@@ -2347,6 +2373,7 @@ TargetEndpoint defines single static target endpoint.
 | params | Optional HTTP URL parameters | map[string][]string | false |
 | follow_redirects | FollowRedirects controls redirects for scraping. | *bool | false |
 | sampleLimit | SampleLimit defines per-scrape limit on number of scraped samples that will be accepted. | uint64 | false |
+| seriesLimit | SeriesLimit defines per-scrape limit on number of unique time series a single target can expose during all the scrapes on the time window of 24h. | uint64 | false |
 | interval | Interval at which metrics should be scraped | string | false |
 | scrape_interval | ScrapeInterval is the same as Interval and has priority over it. one of scrape_interval or interval can be used | string | false |
 | scrapeTimeout | Timeout after which the scrape is ended | string | false |
@@ -2397,6 +2424,7 @@ VMStaticScrapeSpec defines the desired state of VMStaticScrape.
 | jobName | JobName name of job. | string | false |
 | targetEndpoints | A list of target endpoints to scrape metrics from. | []*[TargetEndpoint](#targetendpoint) | true |
 | sampleLimit | SampleLimit defines per-scrape limit on number of scraped samples that will be accepted. | uint64 | false |
+| seriesLimit | SeriesLimit defines per-scrape limit on number of unique time series a single target can expose during all the scrapes on the time window of 24h. | uint64 | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -2451,12 +2479,14 @@ VMProbeSpec contains specification parameters for a Probe.
 | params | Optional HTTP URL parameters | map[string][]string | false |
 | follow_redirects | FollowRedirects controls redirects for scraping. | *bool | false |
 | sampleLimit | SampleLimit defines per-scrape limit on number of scraped samples that will be accepted. | uint64 | false |
+| seriesLimit | SeriesLimit defines per-scrape limit on number of unique time series a single target can expose during all the scrapes on the time window of 24h. | uint64 | false |
 | bearerTokenFile | File to read bearer token for scraping targets. | string | false |
 | bearerTokenSecret | Secret to mount to read bearer token for scraping targets. The secret needs to be in the same namespace as the service scrape and accessible by the victoria-metrics operator. | *[v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | false |
 | basicAuth | BasicAuth allow an endpoint to authenticate over basic authentication More info: https://prometheus.io/docs/operating/configuration/#endpoints | *[BasicAuth](#basicauth) | false |
 | oauth2 | OAuth2 defines auth configuration | *[OAuth2](#oauth2) | false |
 | authorization | Authorization with http header Authorization | *[Authorization](#authorization) | false |
 | tlsConfig | TLSConfig configuration to use when scraping the endpoint | *[TLSConfig](#tlsconfig) | false |
+| proxyURL | ProxyURL eg http://proxyserver:2195 Directs scrapes to proxy through this endpoint. | *string | false |
 | vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parametrs | *[VMScrapeParams](#vmscrapeparams) | false |
 
 [Back to TOC](#table-of-contents)

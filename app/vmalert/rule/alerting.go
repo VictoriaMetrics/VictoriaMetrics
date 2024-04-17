@@ -310,7 +310,7 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 	}
 	var result []prompbmarshal.TimeSeries
 	holdAlertState := make(map[uint64]*notifier.Alert)
-	qFn := func(query string) ([]datasource.Metric, error) {
+	qFn := func(_ string) ([]datasource.Metric, error) {
 		return nil, fmt.Errorf("`query` template isn't supported in replay mode")
 	}
 	for _, s := range res.Data {

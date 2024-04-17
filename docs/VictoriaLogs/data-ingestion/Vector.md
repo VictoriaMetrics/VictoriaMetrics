@@ -11,6 +11,9 @@ aliases:
 ---
 # Vector setup
 
+
+## Elasticsearch sink 
+
 Specify [Elasticsearch sink type](https://vector.dev/docs/reference/configuration/sinks/elasticsearch/) in the `vector.toml`
 for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/):
 
@@ -134,6 +137,25 @@ For example, the following `vector.toml` config instructs Vector to store the da
     _msg_field = "message"
     _time_field = "timestamp"
     _stream_fields = "host,container_name"
+
+  [sinks.vlogs.request.headers]
+    AccountID = "12"
+    ProjectID = "34"
+```
+
+## HTTP sink
+
+Vector can be configured with [HTTP](https://vector.dev/docs/reference/configuration/sinks/http/) sink type 
+for sending data to [JSON stream API](https://docs.victoriametrics.com/victorialogs/data-ingestion/#json-stream-api):
+
+```toml
+[sinks.vlogs]
+  inputs = [ "your_input" ]
+  type = "http"
+  uri = "http://localhost:9428/insert/jsonline?_stream_fields=host,container_name&_msg_field=message&_time_field=timestamp"
+  encoding.codec = "json"
+  framing.method = "newline_delimited"
+  healthcheck.enabled = false
 
   [sinks.vlogs.request.headers]
     AccountID = "12"

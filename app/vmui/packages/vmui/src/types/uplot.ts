@@ -29,7 +29,8 @@ export interface HideSeriesArgs {
     hideSeries: string[],
     legend: LegendItemType,
     metaKey: boolean,
-    series: Series[]
+    series: Series[],
+    isAnomalyView?: boolean,
 }
 
 export type MinMax = { min: number, max: number }

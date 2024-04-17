@@ -56,8 +56,6 @@ var (
 		"See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup")
 	backendTLSCAFile = flag.String("backend.TLSCAFile", "", "Optional path to TLS root CA file, which is used for TLS verification when connecting to backends over HTTPS. "+
 		"See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup")
-	extraAuthHeaders = flagutil.NewArrayString("extraAuthHeader", "extra to Authorization auth header names")
-	authHeaders      = []string{"Authorization"}
 )
 
 func main() {
@@ -72,7 +70,6 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":8427"}
 	}
-	authHeaders = append(authHeaders, (*extraAuthHeaders)...)
 	logger.Infof("starting vmauth at %q...", listenAddrs)
 	startTime := time.Now()
 	initAuthConfig()
@@ -164,20 +161,12 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		if err := ui.beginConcurrencyLimit(); err != nil {
 			handleConcurrencyLimitError(w, r, err)
 			<-concurrencyLimitCh
-
-			// Requests failed because of concurrency limit must be counted as errors,
-			// since this usually means the backend cannot keep up with the current load.
-			ui.backendErrors.Inc()
 			return
 		}
 	default:
 		concurrentRequestsLimitReached.Inc()
 		err := fmt.Errorf("cannot serve more than -maxConcurrentRequests=%d concurrent requests", cap(concurrencyLimitCh))
 		handleConcurrencyLimitError(w, r, err)
-
-		// Requests failed because of concurrency limit must be counted as errors,
-		// since this usually means the backend cannot keep up with the current load.
-		ui.backendErrors.Inc()
 		return
 	}
 	processRequest(w, r, ui)

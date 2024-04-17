@@ -54,7 +54,7 @@ func CheckStreamAggrConfig() error {
 	if *streamAggrConfig == "" {
 		return nil
 	}
-	pushNoop := func(tss []prompbmarshal.TimeSeries) {}
+	pushNoop := func(_ []prompbmarshal.TimeSeries) {}
 	opts := &streamaggr.Options{
 		DedupInterval:    *streamAggrDedupInterval,
 		DropInputLabels:  *streamAggrDropInputLabels,

@@ -433,7 +433,7 @@ There are the following approaches exist for alerting and recording rules across
   rules to `AccountID=123`.
 
 * To specify `tenant` parameter per each alerting and recording group if
-  [enterprise version of vmalert](https://docs.victoriametrics.com/enterprise.html) is used
+  [enterprise version of vmalert](https://docs.victoriametrics.com/enterprise/) is used
   with `-clusterMode` command-line flag. For example:
 
 ```yaml
@@ -466,7 +466,7 @@ tags at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert/tags).
 
 ### Reading rules from object storage
 
-[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmalert` may read alerting and recording rules
+[Enterprise version](https://docs.victoriametrics.com/enterprise/) of `vmalert` may read alerting and recording rules
 from object storage:
 
 - `./bin/vmalert -rule=s3://bucket/dir/alert.rules` would read rules from the given path at S3 bucket
@@ -906,7 +906,7 @@ This feature is available only if vmalert is using VictoriaMetrics v1.90 or high
 
 By default `vmalert` accepts http requests at `8880` port (this port can be changed via `-httpListenAddr` command-line flags),
 since it is expected it runs in an isolated trusted network.
-[Enterprise version of vmagent](https://docs.victoriametrics.com/enterprise.html) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)
+[Enterprise version of vmagent](https://docs.victoriametrics.com/enterprise/) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)
 requests at this port, by specifying `-tls` and `-mtls` command-line flags. For example, the following command runs `vmalert`, which accepts only mTLS requests at port `8880`:
 
 ```
@@ -967,7 +967,7 @@ The shortlist of configuration flags is the following:
 
 ```sh
   -clusterMode
-     If clusterMode is enabled, then vmalert automatically adds the tenant specified in config groups to -datasource.url, -remoteWrite.url and -remoteRead.url. See https://docs.victoriametrics.com/vmalert.html#multitenancy . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     If clusterMode is enabled, then vmalert automatically adds the tenant specified in config groups to -datasource.url, -remoteWrite.url and -remoteRead.url. See https://docs.victoriametrics.com/vmalert.html#multitenancy . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
   -configCheckInterval duration
      Interval for checking for changes in '-rule' or '-notifier.config' files. By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes.
   -datasource.appendTypePrefix
@@ -1025,9 +1025,9 @@ The shortlist of configuration flags is the following:
   -datasource.url string
      Datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect URL. Required parameter. E.g. http://127.0.0.1:8428 . See also -remoteRead.disablePathAppend and -datasource.showURL
   -defaultTenant.graphite string
-     Default tenant for Graphite alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Default tenant for Graphite alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
   -defaultTenant.prometheus string
-     Default tenant for Prometheus alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Default tenant for Prometheus alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
   -disableAlertgroupLabel
      Whether to disable adding group's Name as label to generated alerts and time series.
   -dryRun
@@ -1039,7 +1039,7 @@ The shortlist of configuration flags is the following:
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
   -evaluationInterval duration
      How often to evaluate the rules (default 1m0s)
   -external.alert.source string
@@ -1129,11 +1129,11 @@ The shortlist of configuration flags is the following:
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
   -mtls array
-     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -mtlsCAFile array
-     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -notifier.basicAuth.password array
@@ -1379,7 +1379,7 @@ The shortlist of configuration flags is the following:
   -rule.resendDelay duration
      MiniMum amount of time to wait before resending an alert to notifier
   -rule.stripFilePath
-     Whether to strip file path in responses from the api/v1/rules API for files configured via -rule cmd-line flag. For example, the file path '/path/to/tenant_id/rules.yml' will be stripped to just 'rules.yml'. This flag might be useful to hide sensitive information in file path such as tenant ID.
+     Whether to strip file path in responses from the api/v1/rules API for files configured via -rule cmd-line flag. For example, the file path '/path/to/tenant_id/rules.yml' will be stripped to just 'rules.yml'. This flag might be useful to hide sensitive information in file path such as tenant ID. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
   -rule.templates array
      Path or glob pattern to location with go template definitions for rules annotations templating. Flag can be specified multiple times.
      Examples:
@@ -1398,16 +1398,16 @@ The shortlist of configuration flags is the following:
      Whether to validate annotation and label templates (default true)
   -s3.configFilePath string
      Path to file with S3 configs. Configs are loaded from default location if not set.
-     See https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     See https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
   -s3.configProfile string
-     Profile name for S3 configs. If no set, the value of the environment variable will be loaded (AWS_PROFILE or AWS_DEFAULT_PROFILE), or if both not set, DefaultSharedConfigProfile is used. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Profile name for S3 configs. If no set, the value of the environment variable will be loaded (AWS_PROFILE or AWS_DEFAULT_PROFILE), or if both not set, DefaultSharedConfigProfile is used. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
   -s3.credsFilePath string
      Path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.
-     See https://cloud.google.com/iam/docs/creating-managing-service-account-keys and https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     See https://cloud.google.com/iam/docs/creating-managing-service-account-keys and https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
   -s3.customEndpoint string
-     Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
   -s3.forcePathStyle
-     Prefixing endpoint with bucket name when set false, true by default. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html (default true)
+     Prefixing endpoint with bucket name when set false, true by default. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/ (default true)
   -tls array
      Whether to enable TLS for incoming HTTP requests at the given -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
      Supports array of values separated by comma or specified via multiple flags.

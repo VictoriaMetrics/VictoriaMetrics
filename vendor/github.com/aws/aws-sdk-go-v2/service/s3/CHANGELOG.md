@@ -1,3 +1,12 @@
+# v1.53.1 (2024-03-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.53.0 (2024-03-18)
+
+* **Feature**: Fix two issues with response root node names.
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.52.1 (2024-03-15)
 
 * **Documentation**: Documentation updates for Amazon S3.

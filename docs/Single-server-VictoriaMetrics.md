@@ -38,7 +38,7 @@ If you have questions about VictoriaMetrics, then feel free asking them in the [
 you can join it via [Slack Inviter](https://slack.victoriametrics.com/).
 
 [Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics.
-See [features available in enterprise package](https://docs.victoriametrics.com/enterprise.html).
+See [features available in enterprise package](https://docs.victoriametrics.com/enterprise/).
 Enterprise binaries can be downloaded and evaluated for free
 from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 You can also [request a free trial license](https://victoriametrics.com/products/enterprise/trial/).
@@ -110,7 +110,7 @@ VictoriaMetrics has the following prominent features:
 * It can deal with [high cardinality issues](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) and
   [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) issues via [series limiter](#cardinality-limiter).
 * It ideally works with big amounts of time series data from APM, Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data
-  and various [Enterprise workloads](https://docs.victoriametrics.com/enterprise.html).
+  and various [Enterprise workloads](https://docs.victoriametrics.com/enterprise/).
 * It has an open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 * It can store data on [NFS-based storages](https://en.wikipedia.org/wiki/Network_File_System) such as [Amazon EFS](https://aws.amazon.com/efs/)
   and [Google Filestore](https://cloud.google.com/filestore).
@@ -127,7 +127,7 @@ VictoriaMetrics ecosystem contains the following components additionally to [sin
 - [vmalert](https://docs.victoriametrics.com/vmalert/) - a service for processing Prometheus-compatible alerting and recording rules.
 - [vmalert-tool](https://docs.victoriametrics.com/vmalert-tool/) -  a tool for validating alerting and recording rules.
 - [vmauth](https://docs.victoriametrics.com/vmauth/) - authorization proxy and load balancer optimized for VictoriaMetrics products.
-- [vmgateway](https://docs.victoriametrics.com/vmgateway/) - auhtorization proxy with per-[tenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy) rate limiting cababilities.
+- [vmgateway](https://docs.victoriametrics.com/vmgateway/) - authorization proxy with per-[tenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy) rate limiting cababilities.
 - [vmctl](https://docs.victoriametrics.com/vmctl/) - a tool for migrating and copying data between different storage systems for metrics.
 - [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmrestore](https://docs.victoriametrics.com/vmrestore/) and [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/) -
   tools for creating backups and restoring from backups for VictoriaMetrics data.
@@ -1557,8 +1557,8 @@ VictoriaMetrics supports data ingestion via [OpenTelemetry protocol for metrics]
 VictoriaMetrics expects `protobuf`-encoded requests at `/opentelemetry/v1/metrics`.
 Set HTTP request header `Content-Encoding: gzip` when sending gzip-compressed data to `/opentelemetry/v1/metrics`.
 
-VictoriaMetrics automatically does not sanitize metric names for the data ingested via OpenTelemetry protocol
-If you need accepting metric and label names as is with sanitizing, then pass `-opentelemetry.sanitizeMetrics=true` command-line flag to VictoriaMetrics.
+VictoriaMetrics stores the ingested OpenTelemetry [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) as is without any transformations.
+Pass `-opentelemetry.usePrometheusNaming` command-line flag to VictoriaMetrics for automatic conversion of metric names and labels into Prometheus-compatible format.
 
 See [How to use OpenTelemetry metrics with VictoriaMetrics](https://docs.victoriametrics.com/guides/getting-started-with-opentelemetry/).
 
@@ -1695,7 +1695,7 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
   This means that the maximum memory usage and CPU usage a single query can use is proportional to `-search.maxUniqueTimeseries`.
 - `-search.maxQueryDuration` limits the duration of a single query. If the query takes longer than the given duration, then it is canceled.
   This allows saving CPU and RAM when executing unexpected heavy queries.
-  The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via cmd-line flag.
+  The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via `-search.maxQueryDuration` command-line flag.
 - `-search.maxConcurrentRequests` limits the number of concurrent requests VictoriaMetrics can process. Bigger number of concurrent requests usually means
   bigger memory usage. For example, if a single query needs 100 MiB of additional memory during its execution, then 100 concurrent queries may need `100 * 100 MiB = 10 GiB`
   of additional memory. So it is better to limit the number of concurrent queries, while pausing additional incoming queries if the concurrency limit is reached.
@@ -1749,14 +1749,6 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
   when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxLabelsAPIDuration` to quite low value in order to limit CPU and memory usage.
   See also `-search.maxLabelsAPISeries` and `-search.ignoreExtraFiltersAtLabelsAPI`.
-- `-search.maxExportDuration` limits the duration for requests to [/api/v1/export*](https://docs.victoriametrics.com/url-examples/?highlight=apiv1export#apiv1export).
-  If the query takes longer than the given duration, then it is canceled.
-  This allows saving CPU and RAM when executing unexpectedly heavy queries.
-  The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via cmd-line flag.
-- `search.maxStatusRequestDuration` limits the duration for requests to [/api/v1/status/tsdb](https://docs.victoriametrics.com/url-examples/?highlight=apiv1export#apiv1statustsdb).
-  If the query takes longer than the given duration, then it is canceled.
-  This allows saving CPU and RAM when executing unexpectedly heavy queries.
-  The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via cmd-line flag.
 - `-search.maxTagValueSuffixesPerSearch` limits the number of entries, which may be returned from `/metrics/find` endpoint. See [Graphite Metrics API usage docs](#graphite-metrics-api-usage).
 
 See also [resource usage limits at VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#resource-usage-limits),
@@ -1944,7 +1936,7 @@ VictoriaMetrics does not support indefinite retention, but you can specify an ar
 ## Multiple retentions
 
 Distinct retentions for distinct time series can be configured via [retention filters](#retention-filters)
-in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise/).
 
 Community version of VictoriaMetrics supports only a single retention, which can be configured via [-retentionPeriod](#retention) command-line flag.
 If you need multiple retentions in community version of VictoriaMetrics, then you may start multiple VictoriaMetrics instances with distinct values for the following flags:
@@ -1961,7 +1953,7 @@ See [these docs](https://docs.victoriametrics.com/guides/guide-vmcluster-multipl
 
 ## Retention filters
 
-[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html) supports e.g. `retention filters`,
+[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) supports e.g. `retention filters`,
 which allow configuring multiple retentions for distinct sets of time series matching the configured [series filters](https://docs.victoriametrics.com/keyConcepts.html#filtering)
 via `-retentionFilter` command-line flag. This flag accepts `filter:duration` options, where `filter` must be
 a valid [series filter](https://docs.victoriametrics.com/keyConcepts.html#filtering), while the `duration`
@@ -1996,10 +1988,10 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 
 ## Downsampling
 
-[VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise.html) supports multi-level downsampling via `-downsampling.period=offset:interval` command-line flag.
+[VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise/) supports multi-level downsampling via `-downsampling.period=offset:interval` command-line flag.
 This command-line flag instructs leaving the last sample per each `interval` for [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
 [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) older than the `offset`. For example, `-downsampling.period=30d:5m` instructs leaving the last sample
-per each 5-minute interval for samples older than 30 days, while the rest of samples aren't downsampled.
+per each 5-minute interval for samples older than 30 days, while the rest of samples are dropped.
 
 The `-downsampling.period` command-line flag can be specified multiple times in order to apply different downsampling levels for different time ranges (aka multi-level downsampling).
 For example, `-downsampling.period=30d:5m,180d:1h` instructs leaving the last sample per each 5-minute interval for samples older than 30 days,
@@ -2053,7 +2045,7 @@ See [how to configure downsampling in VictoriaMetrics cluster](https://docs.vict
 
 See also [retention filters](#retention-filters).
 
-The downsampling filters can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The downsampling can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See [how to request a free trial license](https://victoriametrics.com/products/enterprise/trial/).
 
 ## Multi-tenancy
@@ -2083,7 +2075,7 @@ Additionally, alerting can be set up with the following tools:
 ## mTLS protection
 
 By default `VictoriaMetrics` accepts http requests at `8428` port (this port can be changed via `-httpListenAddr` command-line flags).
-[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)
+[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)
 requests at this port, by specifying `-tls` and `-mtls` command-line flags. For example, the following command runs `VictoriaMetrics`, which accepts only mTLS requests at port `8428`:
 
 ```
@@ -2436,7 +2428,7 @@ It is also possible removing [rollup result cache](#rollup-result-cache) on star
 
 ## Rollup result cache
 
-VictoriaMetrics caches query reponses by default. This allows increasing performance for repated queries
+VictoriaMetrics caches query responses by default. This allows increasing performance for repated queries
 to [`/api/v1/query`](https://docs.victoriametrics.com/keyconcepts/#instant-query) and [`/api/v1/query_range`](https://docs.victoriametrics.com/keyconcepts/#range-query)
 with the increasing `time`, `start` and `end` query args.
 
@@ -2720,7 +2712,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -denyQueryTracing
      Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing
   -downsampling.period array
-     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. When setting multiple downsampling periods, it is necessary for the periods to be multiples of each other. See https://docs.victoriametrics.com/#downsampling for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. When setting multiple downsampling periods, it is necessary for the periods to be multiples of each other. See https://docs.victoriametrics.com/#downsampling for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -dryRun
@@ -2732,7 +2724,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
   -filestream.disableFadvise
      Whether to disable fadvise() syscall when reading large data files. The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. In some rare cases it is better to disable the syscall if it uses too much CPU
   -finalMergeDelay duration
@@ -2865,11 +2857,11 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
   -mtls array
-     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -mtlsCAFile array
-     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise.html
+     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -newrelic.maxInsertRequestSize size
@@ -3016,7 +3008,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Auth key for /-/reload http endpoint. It must be passed as authKey=...
      Flag value can be read from the given file when using -reloadAuthKey=file:///abs/path/to/file or -reloadAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -reloadAuthKey=http://host/path or -reloadAuthKey=https://host/path
   -retentionFilter array
-     Retention filter in the format 'filter:retention'. For example, '{env="dev"}:3d' configures the retention for time series with env="dev" label to 3 days. See https://docs.victoriametrics.com/#retention-filters for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     Retention filter in the format 'filter:retention'. For example, '{env="dev"}:3d' configures the retention for time series with env="dev" label to 3 days. See https://docs.victoriametrics.com/#retention-filters for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -retentionPeriod value

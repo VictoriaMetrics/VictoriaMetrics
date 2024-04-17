@@ -509,22 +509,23 @@ func (is *indexSearch) createGlobalIndexes(tsid *TSID, mn *MetricName) {
 	ii := getIndexItems()
 	defer putIndexItems(ii)
 
-	// Create MetricID -> MetricName index.
+	// Create metricID -> metricName entry.
 	ii.B = marshalCommonPrefix(ii.B, nsPrefixMetricIDToMetricName)
 	ii.B = encoding.MarshalUint64(ii.B, tsid.MetricID)
 	ii.B = mn.Marshal(ii.B)
 	ii.Next()
 
-	// Create MetricID -> TSID index.
+	// Create metricID -> TSID entry.
 	ii.B = marshalCommonPrefix(ii.B, nsPrefixMetricIDToTSID)
 	ii.B = encoding.MarshalUint64(ii.B, tsid.MetricID)
 	ii.B = tsid.Marshal(ii.B)
 	ii.Next()
 
-	prefix := kbPool.Get()
-	prefix.B = marshalCommonPrefix(prefix.B[:0], nsPrefixTagToMetricIDs)
-	ii.registerTagIndexes(prefix.B, mn, tsid.MetricID)
-	kbPool.Put(prefix)
+	// Create tag -> metricID entries for every tag in mn.
+	kb := kbPool.Get()
+	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
+	ii.registerTagIndexes(kb.B, mn, tsid.MetricID)
+	kbPool.Put(kb)
 
 	is.db.tb.AddItems(ii.Items)
 }
@@ -2717,12 +2718,13 @@ func (is *indexSearch) createPerDayIndexes(date uint64, tsid *TSID, mn *MetricNa
 	ii := getIndexItems()
 	defer putIndexItems(ii)
 
+	// Create date -> metricID entry.
 	ii.B = marshalCommonPrefix(ii.B, nsPrefixDateToMetricID)
 	ii.B = encoding.MarshalUint64(ii.B, date)
 	ii.B = encoding.MarshalUint64(ii.B, tsid.MetricID)
 	ii.Next()
 
-	// Create per-day inverted index entries for TSID.
+	// Create metricName -> TSID entry.
 	ii.B = marshalCommonPrefix(ii.B, nsPrefixDateMetricNameToTSID)
 	ii.B = encoding.MarshalUint64(ii.B, date)
 	ii.B = mn.Marshal(ii.B)
@@ -2730,17 +2732,18 @@ func (is *indexSearch) createPerDayIndexes(date uint64, tsid *TSID, mn *MetricNa
 	ii.B = tsid.Marshal(ii.B)
 	ii.Next()
 
-	// Create per-day inverted index entries for metricID.
+	// Create per-day tag -> metricID entries for every tag in mn.
 	kb := kbPool.Get()
-	defer kbPool.Put(kb)
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
 	kb.B = encoding.MarshalUint64(kb.B, date)
 	ii.registerTagIndexes(kb.B, mn, tsid.MetricID)
+	kbPool.Put(kb)
+
 	is.db.tb.AddItems(ii.Items)
 }
 
 func (ii *indexItems) registerTagIndexes(prefix []byte, mn *MetricName, metricID uint64) {
-	// Add index entry for MetricGroup -> MetricID
+	// Add MetricGroup -> metricID entry.
 	ii.B = append(ii.B, prefix...)
 	ii.B = marshalTagValue(ii.B, nil)
 	ii.B = marshalTagValue(ii.B, mn.MetricGroup)
@@ -2748,7 +2751,7 @@ func (ii *indexItems) registerTagIndexes(prefix []byte, mn *MetricName, metricID
 	ii.Next()
 	ii.addReverseMetricGroupIfNeeded(prefix, mn, metricID)
 
-	// Add index entries for tags: tag -> MetricID
+	// Add tag -> metricID entries.
 	for _, tag := range mn.Tags {
 		ii.B = append(ii.B, prefix...)
 		ii.B = tag.Marshal(ii.B)
@@ -2756,7 +2759,7 @@ func (ii *indexItems) registerTagIndexes(prefix []byte, mn *MetricName, metricID
 		ii.Next()
 	}
 
-	// Add index entries for composite tags: MetricGroup+tag -> MetricID
+	// Add index entries for composite tags: MetricGroup+tag -> metricID.
 	compositeKey := kbPool.Get()
 	for _, tag := range mn.Tags {
 		compositeKey.B = marshalCompositeTagKey(compositeKey.B[:0], mn.MetricGroup, tag.Key)

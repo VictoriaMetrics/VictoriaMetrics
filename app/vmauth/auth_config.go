@@ -43,6 +43,7 @@ var (
 		"This may be useful when url_prefix points to a hostname with dynamically scaled instances behind it. See https://docs.victoriametrics.com/vmauth.html#discovering-backend-ips")
 	discoverBackendIPsInterval = flag.Duration("discoverBackendIPsInterval", 10*time.Second, "The interval for re-discovering backend IPs if -discoverBackendIPs command-line flag is set. "+
 		"Too low value may lead to DNS errors")
+	httpAuthHeader = flagutil.NewArrayString("httpAuthHeader", "HTTP request header to use for obtaining authorization tokens. By default auth tokens are read from Authorization request header")
 )
 
 // AuthConfig represents auth config.
@@ -59,6 +60,7 @@ type UserInfo struct {
 	Name string `yaml:"name,omitempty"`
 
 	BearerToken string `yaml:"bearer_token,omitempty"`
+	AuthToken   string `yaml:"auth_token,omitempty"`
 	Username    string `yaml:"username,omitempty"`
 	Password    string `yaml:"password,omitempty"`
 
@@ -187,7 +189,7 @@ type Regex struct {
 // QueryArg represents HTTP query arg
 type QueryArg struct {
 	Name  string
-	Value string
+	Value *Regex
 
 	sOriginal string
 }
@@ -201,10 +203,17 @@ func (qa *QueryArg) UnmarshalYAML(f func(interface{}) error) error {
 	qa.sOriginal = s
 
 	n := strings.IndexByte(s, '=')
-	if n >= 0 {
-		qa.Name = s[:n]
-		qa.Value = s[n+1:]
+	if n < 0 {
+		return nil
 	}
+
+	qa.Name = s[:n]
+	expr := []byte(s[n+1:])
+	var re Regex
+	if err := yaml.Unmarshal(expr, &re); err != nil {
+		return fmt.Errorf("failed to unmarshal regex %q: %s", expr, err)
+	}
+	qa.Value = &re
 	return nil
 }
 
@@ -688,6 +697,9 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		if ui.BearerToken != "" {
 			return nil, fmt.Errorf("field bearer_token can't be specified for unauthorized_user section")
 		}
+		if ui.AuthToken != "" {
+			return nil, fmt.Errorf("field auth_token can't be specified for unauthorized_user section")
+		}
 		if ui.Name != "" {
 			return nil, fmt.Errorf("field name can't be specified for unauthorized_user section")
 		}
@@ -728,7 +740,7 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 	byAuthToken := make(map[string]*UserInfo, len(uis))
 	for i := range uis {
 		ui := &uis[i]
-		ats, err := getAuthTokens(ui.BearerToken, ui.Username, ui.Password)
+		ats, err := getAuthTokens(ui.AuthToken, ui.BearerToken, ui.Username, ui.Password)
 		if err != nil {
 			return nil, err
 		}
@@ -878,10 +890,24 @@ func (ui *UserInfo) name() string {
 		h := xxhash.Sum64([]byte(ui.BearerToken))
 		return fmt.Sprintf("bearer_token:hash:%016X", h)
 	}
+	if ui.AuthToken != "" {
+		h := xxhash.Sum64([]byte(ui.AuthToken))
+		return fmt.Sprintf("auth_token:hash:%016X", h)
+	}
 	return ""
 }
 
-func getAuthTokens(bearerToken, username, password string) ([]string, error) {
+func getAuthTokens(authToken, bearerToken, username, password string) ([]string, error) {
+	if authToken != "" {
+		if bearerToken != "" {
+			return nil, fmt.Errorf("bearer_token cannot be specified if auth_token is set")
+		}
+		if username != "" || password != "" {
+			return nil, fmt.Errorf("username and password cannot be specified if auth_token is set")
+		}
+		at := getHTTPAuthToken(authToken)
+		return []string{at}, nil
+	}
 	if bearerToken != "" {
 		if username != "" || password != "" {
 			return nil, fmt.Errorf("username and password cannot be specified if bearer_token is set")
@@ -898,6 +924,10 @@ func getAuthTokens(bearerToken, username, password string) ([]string, error) {
 	return nil, fmt.Errorf("missing authorization options; bearer_token or username must be set")
 }
 
+func getHTTPAuthToken(authToken string) string {
+	return "http_auth:" + authToken
+}
+
 func getHTTPAuthBearerToken(bearerToken string) string {
 	return "http_auth:Bearer " + bearerToken
 }
@@ -908,11 +938,17 @@ func getHTTPAuthBasicToken(username, password string) string {
 	return "http_auth:Basic " + token64
 }
 
+var defaultHeaderNames = []string{"Authorization"}
+
 func getAuthTokensFromRequest(r *http.Request) []string {
 	var ats []string
 
-	// Obtain possible auth tokens from one of allowed auth headers
-	for _, headerName := range authHeaders {
+	// Obtain possible auth tokens from one of the allowed auth headers
+	headerNames := *httpAuthHeader
+	if len(headerNames) == 0 {
+		headerNames = defaultHeaderNames
+	}
+	for _, headerName := range headerNames {
 		if ah := r.Header.Get(headerName); ah != "" {
 			if strings.HasPrefix(ah, "Token ") {
 				// Handle InfluxDB's proprietary token authentication scheme as a bearer token authentication
@@ -921,7 +957,6 @@ func getAuthTokensFromRequest(r *http.Request) []string {
 			}
 			at := "http_auth:" + ah
 			ats = append(ats, at)
-			break
 		}
 	}
 

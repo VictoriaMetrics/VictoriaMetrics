@@ -88,6 +88,22 @@ users:
   url_prefix: []
 `)
 
+	// auth_token and username in a single config
+	f(`
+users:
+- auth_token: foo
+  username: bbb
+  url_prefix: http://foo.bar
+`)
+
+	// auth_token and bearer_token in a single config
+	f(`
+users:
+- auth_token: foo
+  bearer_token: bbb
+  url_prefix: http://foo.bar
+`)
+
 	// Username and bearer_token in a single config
 	f(`
 users:
@@ -275,8 +291,9 @@ func TestParseAuthConfigSuccess(t *testing.T) {
 		}
 	}
 
-	// Single user
 	insecureSkipVerifyTrue := true
+
+	// Single user
 	f(`
 users:
 - username: foo
@@ -288,6 +305,22 @@ users:
 		getHTTPAuthBasicToken("foo", "bar"): {
 			Username:              "foo",
 			Password:              "bar",
+			URLPrefix:             mustParseURL("http://aaa:343/bbb"),
+			MaxConcurrentRequests: 5,
+			TLSInsecureSkipVerify: &insecureSkipVerifyTrue,
+		},
+	})
+
+	// Single user with auth_token
+	f(`
+users:
+- auth_token: foo
+  url_prefix: http://aaa:343/bbb
+  max_concurrent_requests: 5
+  tls_insecure_skip_verify: true
+`, map[string]*UserInfo{
+		getHTTPAuthToken("foo"): {
+			AuthToken:             "foo",
 			URLPrefix:             mustParseURL("http://aaa:343/bbb"),
 			MaxConcurrentRequests: 5,
 			TLSInsecureSkipVerify: &insecureSkipVerifyTrue,
@@ -353,8 +386,11 @@ users:
 				SrcPaths: getRegexs([]string{"/api/v1/write"}),
 				SrcQueryArgs: []QueryArg{
 					{
-						Name:  "foo",
-						Value: "bar",
+						Name: "foo",
+						Value: &Regex{
+							sOriginal: "bar",
+							re:        regexp.MustCompile("^(?:bar)$"),
+						},
 					},
 				},
 				SrcHeaders: []Header{

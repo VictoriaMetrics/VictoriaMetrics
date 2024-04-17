@@ -937,7 +937,7 @@ func WriterUncompressed() WriterOption {
 
 // WriterBlockSize allows to override the default block size.
 // Blocks will be this size or smaller.
-// Minimum size is 4KB and and maximum size is 4MB.
+// Minimum size is 4KB and maximum size is 4MB.
 //
 // Bigger blocks may give bigger throughput on systems with many cores,
 // and will increase compression slightly, but it will limit the possible

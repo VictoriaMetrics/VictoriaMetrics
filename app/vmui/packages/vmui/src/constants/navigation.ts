@@ -62,10 +62,6 @@ export const anomalyNavigation: NavigationItem[] = [
   {
     label: routerOptions[router.anomaly].title,
     value: router.home,
-  },
-  {
-    label: routerOptions[router.home].title,
-    value: router.query,
   }
 ];
 
