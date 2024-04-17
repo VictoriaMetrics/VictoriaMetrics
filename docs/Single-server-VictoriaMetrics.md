@@ -324,7 +324,7 @@ Read more about tuning remote write for Prometheus [here](https://prometheus.io/
 It is recommended upgrading Prometheus to [v2.12.0](https://github.com/prometheus/prometheus/releases/latest) or newer,
 since previous versions may have issues with `remote_write`.
 
-Take a look also at [vmagent](https://docs.victoriametrics.com/vmagent.html) 
+Take a look also at [vmagent](https://docs.victoriametrics.com/vmagent/)
 and [vmalert](https://docs.victoriametrics.com/vmalert.html),
 which can be used as faster and less resource-hungry alternative to Prometheus.
 
@@ -372,7 +372,7 @@ The following steps must be performed during the upgrade / downgrade procedure:
 * Wait until the process stops. This can take a few seconds.
 * Start the upgraded VictoriaMetrics.
 
-Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details. The same applies also to [vmagent](https://docs.victoriametrics.com/vmagent.html).
+Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details. The same applies also to [vmagent](https://docs.victoriametrics.com/vmagent/).
 
 ## vmui
 
@@ -499,14 +499,14 @@ VictoriaMetrics is configured via command-line flags, so it must be restarted wh
 * Wait until the process stops. This can take a few seconds.
 * Start VictoriaMetrics with the new command-line flags.
 
-Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details. The same applies also to [vmagent](https://docs.victoriametrics.com/vmagent.html).
+Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details. The same applies also to [vmagent](https://docs.victoriametrics.com/vmagent/).
 
 ## How to scrape Prometheus exporters such as [node-exporter](https://github.com/prometheus/node_exporter)
 
 VictoriaMetrics can be used as drop-in replacement for Prometheus for scraping targets configured in `prometheus.yml` config file
 according to [the specification](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#configuration-file).
 Just set `-promscrape.config` command-line flag to the path to `prometheus.yml` config - and VictoriaMetrics should start scraping the configured targets.
-If the provided configuration file contains [unsupported options](https://docs.victoriametrics.com/vmagent.html#unsupported-prometheus-config-sections),
+If the provided configuration file contains [unsupported options](https://docs.victoriametrics.com/vmagent/#unsupported-prometheus-config-sections),
 then either delete them from the file or just pass `-promscrape.config.strictParse=false` command-line flag to VictoriaMetrics, so it will ignore unsupported options.
 
 The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
@@ -518,7 +518,7 @@ See also:
 
 VictoriaMetrics also supports [importing data in Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
 
-See also [vmagent](https://docs.victoriametrics.com/vmagent.html), which can be used as drop-in replacement for Prometheus.
+See also [vmagent](https://docs.victoriametrics.com/vmagent/), which can be used as drop-in replacement for Prometheus.
 
 ## How to send data from DataDog agent
 
@@ -550,7 +550,7 @@ add the following line:
 dd_url: http://victoriametrics:8428/datadog
 ```
 
-[vmagent](https://docs.victoriametrics.com/vmagent.html) also can accept DataDog metrics format. Depending on where vmagent will forward data,
+[vmagent](https://docs.victoriametrics.com/vmagent/) also can accept DataDog metrics format. Depending on where vmagent will forward data,
 pick [single-node or cluster URL](https://docs.victoriametrics.com/url-examples.html#datadog) formats.
 
 ### Sending metrics to DataDog and VictoriaMetrics
@@ -610,12 +610,12 @@ For example, `/datadog/api/v2/series?extra_label=foo=bar` would add `{foo="bar"}
 DataDog agent sends the [configured tags](https://docs.datadoghq.com/getting_started/tagging/) to
 undocumented endpoint - `/datadog/intake`. This endpoint isn't supported by VictoriaMetrics yet.
 This prevents from adding the configured tags to DataDog agent data sent into VictoriaMetrics.
-The workaround is to run a sidecar [vmagent](https://docs.victoriametrics.com/vmagent.html) alongside every DataDog agent,
+The workaround is to run a sidecar [vmagent](https://docs.victoriametrics.com/vmagent/) alongside every DataDog agent,
 which must run with `DD_DD_URL=http://localhost:8429/datadog` environment variable.
 The sidecar `vmagent` must be configured with the needed tags via `-remoteWrite.label` command-line flag and must forward
 incoming data with the added tags to a centralized VictoriaMetrics specified via `-remoteWrite.url` command-line flag.
 
-See [these docs](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics) for details on how to add labels to metrics at `vmagent`.
+See [these docs](https://docs.victoriametrics.com/vmagent/#adding-labels-to-metrics) for details on how to add labels to metrics at `vmagent`.
 
 ## How to send data from InfluxDB-compatible agents such as [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/)
 
@@ -746,7 +746,7 @@ The `/api/v1/export` endpoint should return the following response:
 {"metric":{"__name__":"foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560277406000]}
 ```
 
-[Graphite relabeling](https://docs.victoriametrics.com/vmagent.html#graphite-relabeling) can be used if the imported Graphite data is going to be queried via [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
+[Graphite relabeling](https://docs.victoriametrics.com/vmagent/#graphite-relabeling) can be used if the imported Graphite data is going to be queried via [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
 
 ## Querying Graphite data
 
@@ -1136,7 +1136,7 @@ Note that `production` builds are not supported via Podman becuase Podman does n
 ## Start with docker-compose
 
 [Docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/docker-compose.yml)
-helps to spin up VictoriaMetrics, [vmagent](https://docs.victoriametrics.com/vmagent.html) and Grafana with one command.
+helps to spin up VictoriaMetrics, [vmagent](https://docs.victoriametrics.com/vmagent/) and Grafana with one command.
 More details may be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#folder-contains-basic-images-and-tools-for-building-and-running-victoria-metrics-in-docker).
 
 ## Setting up service
@@ -1633,11 +1633,11 @@ Example contents for `-relabelConfig` file:
 ```
 
 VictoriaMetrics provides additional relabeling features such as Graphite-style relabeling.
-See [these docs](https://docs.victoriametrics.com/vmagent.html#relabeling) for more details.
+See [these docs](https://docs.victoriametrics.com/vmagent/#relabeling) for more details.
 
 The relabeling can be debugged at `http://victoriametrics:8428/metric-relabel-debug` page
 or at our [public playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling).
-See [these docs](https://docs.victoriametrics.com/vmagent.html#relabel-debug) for more details.
+See [these docs](https://docs.victoriametrics.com/vmagent/#relabel-debug) for more details.
 
 
 ## Federation
@@ -1760,17 +1760,17 @@ See also [resource usage limits at VictoriaMetrics cluster](https://docs.victori
 The general approach for achieving high availability is the following:
 
 - To run two identically configured VictoriaMetrics instances in distinct datacenters (availability zones);
-- To store the collected data simultaneously into these instances via [vmagent](https://docs.victoriametrics.com/vmagent.html) or Prometheus.
+- To store the collected data simultaneously into these instances via [vmagent](https://docs.victoriametrics.com/vmagent/) or Prometheus.
 - To query the first VictoriaMetrics instance and to fail over to the second instance when the first instance becomes temporarily unavailable.
   This can be done via [vmauth](https://docs.victoriametrics.com/vmauth.html) according to [these docs](https://docs.victoriametrics.com/vmauth.html#high-availability).
 
 Such a setup guarantees that the collected data isn't lost when one of VictoriaMetrics instance becomes unavailable.
 The collected data continues to be written to the available VictoriaMetrics instance, so it should be available for querying.
-Both [vmagent](https://docs.victoriametrics.com/vmagent.html) and Prometheus buffer the collected data locally if they cannot send it
+Both [vmagent](https://docs.victoriametrics.com/vmagent/) and Prometheus buffer the collected data locally if they cannot send it
 to the configured remote storage. So the collected data will be written to the temporarily unavailable VictoriaMetrics instance
 after it becomes available.
 
-If you use [vmagent](https://docs.victoriametrics.com/vmagent.html) for storing the data into VictoriaMetrics,
+If you use [vmagent](https://docs.victoriametrics.com/vmagent/) for storing the data into VictoriaMetrics,
 then it can be configured with multiple `-remoteWrite.url` command-line flags, where every flag points to the VictoriaMetrics
 instance in a particular availability zone, in order to replicate the collected data to all the VictoriaMetrics instances.
 For example, the following command instructs `vmagent` to replicate data to `vm-az1` and `vm-az2` instances of VictoriaMetrics:
@@ -1791,10 +1791,10 @@ remote_write:
   - url: http://<vm-az2>:8428/api/v1/write
 ```
 
-It is recommended to use [vmagent](https://docs.victoriametrics.com/vmagent.html) instead of Prometheus for highly loaded setups,
+It is recommended to use [vmagent](https://docs.victoriametrics.com/vmagent/) instead of Prometheus for highly loaded setups,
 since it uses lower amounts of RAM, CPU and network bandwidth than Prometheus.
 
-If you use identically configured [vmagent](https://docs.victoriametrics.com/vmagent.html) instances for collecting the same data
+If you use identically configured [vmagent](https://docs.victoriametrics.com/vmagent/) instances for collecting the same data
 and sending it to VictoriaMetrics, then do not forget enabling [deduplication](#deduplication) at VictoriaMetrics side.
 
 ## Deduplication
@@ -1809,12 +1809,12 @@ This aligns with the [staleness rules in Prometheus](https://prometheus.io/docs/
 If multiple raw samples have **the same timestamp** on the given `-dedup.minScrapeInterval` discrete interval, 
 then the sample with **the biggest value** is kept.
 
-[Prometheus staleness markers](https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers) are processed as any other value during de-duplication.
+[Prometheus staleness markers](https://docs.victoriametrics.com/vmagent/#prometheus-staleness-markers) are processed as any other value during de-duplication.
 If raw sample with the biggest timestamp on `-dedup.minScrapeInterval` contains a stale marker, then it is kept after the deduplication.
 This allows properly preserving staleness markers during the de-duplication.
 
 Please note, [labels](https://docs.victoriametrics.com/keyConcepts.html#labels) of raw samples should be identical
-in order to be deduplicated. For example, this is why [HA pair of vmagents](https://docs.victoriametrics.com/vmagent.html#high-availability)
+in order to be deduplicated. For example, this is why [HA pair of vmagents](https://docs.victoriametrics.com/vmagent/#high-availability)
 needs to be identically configured. 
 
 The `-dedup.minScrapeInterval=D` is equivalent to `-downsampling.period=0s:D` if [downsampling](#downsampling) is enabled.
@@ -1824,16 +1824,16 @@ The recommended value for `-dedup.minScrapeInterval` must equal to `scrape_inter
 It is recommended to have a single `scrape_interval` across all the scrape targets. 
 See [this article](https://www.robustperception.io/keep-it-simple-scrape_interval-id) for details.
 
-The de-duplication reduces disk space usage if multiple **identically configured** [vmagent](https://docs.victoriametrics.com/vmagent.html)
+The de-duplication reduces disk space usage if multiple **identically configured** [vmagent](https://docs.victoriametrics.com/vmagent/)
 or Prometheus instances in HA pair write data to the same VictoriaMetrics instance. 
 These vmagent or Prometheus instances must have **identical** `external_labels` section in their configs, 
 so they write data to the same time series. 
-See also [how to set up multiple vmagent instances for scraping the same targets](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets).
+See also [how to set up multiple vmagent instances for scraping the same targets](https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets).
 
 It is recommended passing different `-promscrape.cluster.name` values to each distinct HA pair of `vmagent` instances, 
 so the de-duplication consistently leaves samples for one `vmagent` instance and removes duplicate samples 
 from other `vmagent` instances. 
-See [these docs](https://docs.victoriametrics.com/vmagent.html#high-availability) for details.
+See [these docs](https://docs.victoriametrics.com/vmagent/#high-availability) for details.
 
 VictoriaMetrics stores all the ingested samples to disk even if `-dedup.minScrapeInterval` command-line flag is set.
 The ingested samples are de-duplicated during [background merges](#storage) and during query execution.
@@ -2027,7 +2027,7 @@ of samples per each series. The downsampling doesn't improve query performance a
 of time series with small number of samples per each series, since downsampling doesn't reduce the number of time series.
 So there is little sense in applying downsampling to time series with [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
 In this case the majority of query time is spent on searching for the matching time series instead of processing the found samples.
-It is possible to use [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) in [vmagent](https://docs.victoriametrics.com/vmagent.html)
+It is possible to use [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) in [vmagent](https://docs.victoriametrics.com/vmagent/)
 or [recording rules in vmalert](https://docs.victoriametrics.com/vmalert.html#rules) in order to
 [reduce the number of time series](https://docs.victoriametrics.com/vmalert.html#downsampling-and-aggregation-via-vmalert).
 
@@ -2165,7 +2165,7 @@ mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
 ## Monitoring
 
 VictoriaMetrics exports internal metrics in Prometheus exposition format at `/metrics` page.
-These metrics can be scraped via [vmagent](https://docs.victoriametrics.com/vmagent.html) or any other Prometheus-compatible scraper.
+These metrics can be scraped via [vmagent](https://docs.victoriametrics.com/vmagent/) or any other Prometheus-compatible scraper.
 
 If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMetrics components, then pass `-metrics.exposeMetadata`
 command-line to them, so they add `TYPE` and `HELP` comments per each exposed metric at `/metrics` page.
@@ -2314,7 +2314,7 @@ The exceeded limits can be [monitored](#monitoring) with the following metrics:
 
 These limits are approximate, so VictoriaMetrics can underflow/overflow the limit by a small percentage (usually less than 1%).
 
-See also more advanced [cardinality limiter in vmagent](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter)
+See also more advanced [cardinality limiter in vmagent](https://docs.victoriametrics.com/vmagent/#cardinality-limiter)
 and [cardinality explorer docs](#cardinality-explorer).
 
 ## Troubleshooting
@@ -2401,7 +2401,7 @@ See also:
 
 All the VictoriaMetrics components support pushing their metrics exposed at `/metrics` page to remote storage in Prometheus text exposition format.
 This functionality may be used instead of [classic Prometheus-like metrics scraping](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
-if VictoriaMetrics components are located in isolated networks, so they cannot be scraped by local [vmagent](https://docs.victoriametrics.com/vmagent.html).
+if VictoriaMetrics components are located in isolated networks, so they cannot be scraped by local [vmagent](https://docs.victoriametrics.com/vmagent/).
 
 The following command-line flags are related to pushing metrics from VictoriaMetrics components:
 
@@ -2911,17 +2911,17 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.azureSDCheckInterval duration
      Interval for checking for changes in Azure. This works only if azure_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#azure_sd_configs for details (default 1m0s)
   -promscrape.cluster.memberLabel string
-     If non-empty, then the label with this name and the -promscrape.cluster.memberNum value is added to all the scraped metrics. See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info
+     If non-empty, then the label with this name and the -promscrape.cluster.memberNum value is added to all the scraped metrics. See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more info
   -promscrape.cluster.memberNum string
-     The number of vmagent instance in the cluster of scrapers. It must be a unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name. See also -promscrape.cluster.memberLabel . See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info (default "0")
+     The number of vmagent instance in the cluster of scrapers. It must be a unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name. See also -promscrape.cluster.memberLabel . See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more info (default "0")
   -promscrape.cluster.memberURLTemplate string
-     An optional template for URL to access vmagent instance with the given -promscrape.cluster.memberNum value. Every %d occurrence in the template is substituted with -promscrape.cluster.memberNum at urls to vmagent instances responsible for scraping the given target at /service-discovery page. For example -promscrape.cluster.memberURLTemplate='http://vmagent-%d:8429/targets'. See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more details
+     An optional template for URL to access vmagent instance with the given -promscrape.cluster.memberNum value. Every %d occurrence in the template is substituted with -promscrape.cluster.memberNum at urls to vmagent instances responsible for scraping the given target at /service-discovery page. For example -promscrape.cluster.memberURLTemplate='http://vmagent-%d:8429/targets'. See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more details
   -promscrape.cluster.membersCount int
-     The number of members in a cluster of scrapers. Each member must have a unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . Each member then scrapes roughly 1/N of all the targets. By default, cluster scraping is disabled, i.e. a single scraper scrapes all the targets. See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info (default 1)
+     The number of members in a cluster of scrapers. Each member must have a unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . Each member then scrapes roughly 1/N of all the targets. By default, cluster scraping is disabled, i.e. a single scraper scrapes all the targets. See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more info (default 1)
   -promscrape.cluster.name string
-     Optional name of the cluster. If multiple vmagent clusters scrape the same targets, then each cluster must have unique name in order to properly de-duplicate samples received from these clusters. See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info
+     Optional name of the cluster. If multiple vmagent clusters scrape the same targets, then each cluster must have unique name in order to properly de-duplicate samples received from these clusters. See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more info
   -promscrape.cluster.replicationFactor int
-     The number of members in the cluster, which scrape the same targets. If the replication factor is greater than 1, then the deduplication must be enabled at remote storage side. See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info (default 1)
+     The number of members in the cluster, which scrape the same targets. If the replication factor is greater than 1, then the deduplication must be enabled at remote storage side. See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more info (default 1)
   -promscrape.config string
      Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. The path can point to local file and to http url. See https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details
   -promscrape.config.dryRun
@@ -2929,7 +2929,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.config.strictParse
      Whether to deny unsupported fields in -promscrape.config . Set to false in order to silently skip unsupported fields (default true)
   -promscrape.configCheckInterval duration
-     Interval for checking for changes in -promscrape.config file. By default, the checking is disabled. See how to reload -promscrape.config file at https://docs.victoriametrics.com/vmagent.html#configuration-update
+     Interval for checking for changes in -promscrape.config file. By default, the checking is disabled. See how to reload -promscrape.config file at https://docs.victoriametrics.com/vmagent/#configuration-update
   -promscrape.consul.waitTime duration
      Wait time used by Consul service discovery. Default value is used if not set
   -promscrape.consulSDCheckInterval duration
@@ -2983,7 +2983,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The maximum size of scrape response in bytes to process from Prometheus targets. Bigger responses are rejected
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 16777216)
   -promscrape.minResponseSizeForStreamParse size
-     The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode
+     The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/vmagent/#stream-parsing-mode
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 1000000)
   -promscrape.noStaleMarkers
      Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. This option also disables populating the scrape_series_added metric. See https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series
@@ -2994,11 +2994,11 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.openstackSDCheckInterval duration
      Interval for checking for changes in openstack API server. This works only if openstack_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#openstack_sd_configs for details (default 30s)
   -promscrape.seriesLimitPerTarget int
-     Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter for more info
+     Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent/#cardinality-limiter for more info
   -promscrape.streamParse
      Whether to enable stream parsing for metrics obtained from scrape targets. This may be useful for reducing memory usage when millions of metrics are exposed per each scrape target. It is possible to set 'stream_parse: true' individually per each 'scrape_config' section in '-promscrape.config' for fine-grained control
   -promscrape.suppressDuplicateScrapeTargetErrors
-     Whether to suppress 'duplicate scrape target' errors; see https://docs.victoriametrics.com/vmagent.html#troubleshooting for details
+     Whether to suppress 'duplicate scrape target' errors; see https://docs.victoriametrics.com/vmagent/#troubleshooting for details
   -promscrape.suppressScrapeErrors
      Whether to suppress scrape errors logging. The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed. See also -promscrape.suppressScrapeErrorsDelay
   -promscrape.suppressScrapeErrorsDelay duration

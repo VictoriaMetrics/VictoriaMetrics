@@ -41,13 +41,13 @@ Yes. See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.h
 
 Yes in most cases. VictoriaMetrics can substitute Prometheus in the following aspects:
 
-* Prometheus-compatible service discovery and target scraping can be done with [vmagent](https://docs.victoriametrics.com/vmagent.html) and with single-node VictoriaMetrics. See [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
+* Prometheus-compatible service discovery and target scraping can be done with [vmagent](https://docs.victoriametrics.com/vmagent/) and with single-node VictoriaMetrics. See [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 * Prometheus-compatible alerting rules and recording rules can be processed with [vmalert](https://docs.victoriametrics.com/vmalert.html).
 * Prometheus-compatible querying in Grafana is supported by VictoriaMetrics. See [these docs](https://docs.victoriametrics.com/#grafana-setup).
 
 ## What is the difference between vmagent and Prometheus?
 
-While both [vmagent](https://docs.victoriametrics.com/vmagent.html) and Prometheus may scrape Prometheus targets (aka `/metrics` pages)
+While both [vmagent](https://docs.victoriametrics.com/vmagent/) and Prometheus may scrape Prometheus targets (aka `/metrics` pages)
 according to the provided Prometheus-compatible [scrape configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs)
 and send data to multiple remote storage systems, vmagent has the following additional features:
 
@@ -58,30 +58,30 @@ and send data to multiple remote storage systems, vmagent has the following addi
   with a hardcoded retention of 2 hours.
 * vmagent may accept, relabel and filter data obtained via multiple data ingestion protocols in addition to data scraped from Prometheus targets.
   That means it supports both `pull` and `push` protocols for data ingestion.
-  See [these docs](https://docs.victoriametrics.com/vmagent.html#features) for details.
-* vmagent may be used in different [use cases](https://docs.victoriametrics.com/vmagent.html#use-cases):
-  * [IoT and edge monitoring](https://docs.victoriametrics.com/vmagent.html#iot-and-edge-monitoring)
-  * [Drop-in replacement for Prometheus](https://docs.victoriametrics.com/vmagent.html#drop-in-replacement-for-prometheus)
-  * [Statsd alternative](https://docs.victoriametrics.com/vmagent.html#statsd-alternative)
-  * [Flexible metrics relay](https://docs.victoriametrics.com/vmagent.html#flexible-metrics-relay)
-  * [Replication and high availability](https://docs.victoriametrics.com/vmagent.html#replication-and-high-availability)
-  * [Sharding among remote storages](https://docs.victoriametrics.com/vmagent.html#sharding-among-remote-storages)
-  * [Relabeling and filtering](https://docs.victoriametrics.com/vmagent.html#relabeling-and-filtering)
-  * [Splitting data streams among multiple systems](https://docs.victoriametrics.com/vmagent.html#splitting-data-streams-among-multiple-systems)
-  * [Prometheus remote_write proxy](https://docs.victoriametrics.com/vmagent.html#prometheus-remote_write-proxy)
-  * [remote_write for clustered version](https://docs.victoriametrics.com/vmagent.html#remote_write-for-clustered-version)
+  See [these docs](https://docs.victoriametrics.com/vmagent/#features) for details.
+* vmagent may be used in different [use cases](https://docs.victoriametrics.com/vmagent/#use-cases):
+  * [IoT and edge monitoring](https://docs.victoriametrics.com/vmagent/#iot-and-edge-monitoring)
+  * [Drop-in replacement for Prometheus](https://docs.victoriametrics.com/vmagent/#drop-in-replacement-for-prometheus)
+  * [Statsd alternative](https://docs.victoriametrics.com/vmagent/#statsd-alternative)
+  * [Flexible metrics relay](https://docs.victoriametrics.com/vmagent/#flexible-metrics-relay)
+  * [Replication and high availability](https://docs.victoriametrics.com/vmagent/#replication-and-high-availability)
+  * [Sharding among remote storages](https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages)
+  * [Relabeling and filtering](https://docs.victoriametrics.com/vmagent/#relabeling-and-filtering)
+  * [Splitting data streams among multiple systems](https://docs.victoriametrics.com/vmagent/#splitting-data-streams-among-multiple-systems)
+  * [Prometheus remote_write proxy](https://docs.victoriametrics.com/vmagent/#prometheus-remote_write-proxy)
+  * [remote_write for clustered version](https://docs.victoriametrics.com/vmagent/#remote_write-for-clustered-version)
 
 ## What is the difference between vmagent and Prometheus agent?
 
-Both [vmagent](https://docs.victoriametrics.com/vmagent.html) and [Prometheus agent](https://prometheus.io/blog/2021/11/16/agent/) serve the same purpose – to efficiently scrape Prometheus-compatible targets at the edge. They have the following differences:
+Both [vmagent](https://docs.victoriametrics.com/vmagent/) and [Prometheus agent](https://prometheus.io/blog/2021/11/16/agent/) serve the same purpose – to efficiently scrape Prometheus-compatible targets at the edge. They have the following differences:
 
 * vmagent usually requires lower amounts of CPU, RAM and disk IO compared to the Prometheus agent.
-* Prometheus agent supports only pull-based data collection (e.g. it can scrape Prometheus-compatible targets), while vmagent supports both pull and push data collection – it can accept data via many popular data ingestion protocols such as InfluxDB line protocol, Graphite protocol, OpenTSDB protocol, DataDog protocol, Prometheus protocol, CSV and JSON – see [these docs](https://docs.victoriametrics.com/vmagent.html#features).
-* vmagent can easily scale horizontally to multiple instances for scraping a big number of targets – see [these docs](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets).
-* vmagent supports [improved relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling).
-* vmagent can limit the number of scraped metrics per target – see [these docs](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter).
-* vmagent supports loading scrape configs from multiple files – see [these docs](https://docs.victoriametrics.com/vmagent.html#loading-scrape-configs-from-multiple-files).
-* vmagent supports data reading and data writing from/to Kafka – see [these docs](https://docs.victoriametrics.com/vmagent.html#kafka-integration).
+* Prometheus agent supports only pull-based data collection (e.g. it can scrape Prometheus-compatible targets), while vmagent supports both pull and push data collection – it can accept data via many popular data ingestion protocols such as InfluxDB line protocol, Graphite protocol, OpenTSDB protocol, DataDog protocol, Prometheus protocol, CSV and JSON – see [these docs](https://docs.victoriametrics.com/vmagent/#features).
+* vmagent can easily scale horizontally to multiple instances for scraping a big number of targets – see [these docs](https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets).
+* vmagent supports [improved relabeling](https://docs.victoriametrics.com/vmagent/#relabeling).
+* vmagent can limit the number of scraped metrics per target – see [these docs](https://docs.victoriametrics.com/vmagent/#cardinality-limiter).
+* vmagent supports loading scrape configs from multiple files – see [these docs](https://docs.victoriametrics.com/vmagent/#loading-scrape-configs-from-multiple-files).
+* vmagent supports data reading and data writing from/to Kafka – see [these docs](https://docs.victoriametrics.com/vmagent/#kafka-integration).
 * vmagent can read and update scrape configs from http and https URLs, while the Prometheus agent can read them only from the local file system.
 
 ## Is it safe to enable [remote write](https://prometheus.io/docs/operating/integrations/#remote-endpoints-and-storage) in Prometheus?
@@ -89,7 +89,7 @@ Both [vmagent](https://docs.victoriametrics.com/vmagent.html) and [Prometheus ag
 Yes. Prometheus continues writing data to local storage after enabling remote write, so all the existing local storage data
 and new data is available for querying via Prometheus as usual.
 
-It is recommended using [vmagent](https://docs.victoriametrics.com/vmagent.html) for scraping Prometheus targets
+It is recommended using [vmagent](https://docs.victoriametrics.com/vmagent/) for scraping Prometheus targets
 and writing data to VictoriaMetrics.
 
 ## How does VictoriaMetrics compare to other remote storage solutions for Prometheus such as [M3DB](https://github.com/m3db/m3), [Thanos](https://github.com/thanos-io/thanos), [Cortex](https://github.com/cortexproject/cortex), [Mimir](https://github.com/grafana/mimir), etc.?
@@ -116,7 +116,7 @@ VictoriaMetrics also [uses less RAM than Thanos components](https://github.com/t
 * VictoriaMetrics provides the [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) query language, which is better suited for typical queries over time series data than the SQL-like query language provided by QuestDB. See [this article](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085) for details.
 * VictoriaMetrics can be queried via the [Prometheus querying API](https://docs.victoriametrics.com/#prometheus-querying-api-usage) and via [Graphite's API](https://docs.victoriametrics.com/#graphite-api-usage).
 * Thanks to PromQL support, VictoriaMetrics [can be used as a drop-in replacement for Prometheus in Grafana](https://docs.victoriametrics.com/#grafana-setup), while QuestDB needs a full rewrite of existing dashboards in Grafana.
-* Thanks to Prometheus' remote_write API support, VictoriaMetrics can be used as a long-term storage for Prometheus or for [vmagent](https://docs.victoriametrics.com/vmagent.html), while QuestDB has no integration with Prometheus.
+* Thanks to Prometheus' remote_write API support, VictoriaMetrics can be used as a long-term storage for Prometheus or for [vmagent](https://docs.victoriametrics.com/vmagent/), while QuestDB has no integration with Prometheus.
 * QuestDB [supports a smaller range of popular data ingestion protocols](https://questdb.io/docs/develop/insert-data) compared to VictoriaMetrics (compare to [the list of supported data ingestion protocols for VictoriaMetrics](https://docs.victoriametrics.com/#how-to-import-time-series-data)).
 * [VictoriaMetrics supports backfilling (e.g. storing historical data) out of the box](https://docs.victoriametrics.com/#backfilling), while QuestDB provides [very limited support for backfilling](https://questdb.io/blog/2021/05/10/questdb-release-6-0-tsbs-benchmark#the-problem-with-out-of-order-data).
 
@@ -131,7 +131,7 @@ See also [Grafana Mimir vs VictoriaMetrics benchmark](https://victoriametrics.co
 
 VictoriaMetrics is similar to Cortex in the following aspects:
 
-* Both systems accept data from [vmagent](https://docs.victoriametrics.com/vmagent.html) or Prometheus
+* Both systems accept data from [vmagent](https://docs.victoriametrics.com/vmagent/) or Prometheus
   via the standard [remote_write API](https://prometheus.io/docs/practices/remote_write/), so there is no need for running sidecars
   unlike in [Thanos](https://github.com/thanos-io/thanos)' case.
 * Both systems support multi-tenancy out of the box. See [the corresponding docs for VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy).
@@ -299,7 +299,7 @@ Memory usage for VictoriaMetrics components can be tuned according to the follow
 
 * [Resource usage limits for single-node VictoriaMetrics](https://docs.victoriametrics.com/#resource-usage-limits)
 * [Resource usage limits for cluster VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#resource-usage-limits)
-* [Troubleshooting for vmagent](https://docs.victoriametrics.com/vmagent.html#troubleshooting)
+* [Troubleshooting for vmagent](https://docs.victoriametrics.com/vmagent/#troubleshooting)
 * [Troubleshooting for single-node VictoriaMetrics](https://docs.victoriametrics.com/#troubleshooting)
 
 ## How can I run VictoriaMetrics on FreeBSD/OpenBSD?

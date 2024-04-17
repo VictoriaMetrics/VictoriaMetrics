@@ -203,7 +203,7 @@ monitoring:
 #### Pull approach
 
 *vmanomaly* can export internal metrics in Prometheus exposition format at `/metrics` page.
-These metrics can be scraped via [vmagent](https://docs.victoriametrics.com/vmagent.html) or Prometheus.
+These metrics can be scraped via [vmagent](https://docs.victoriametrics.com/vmagent/) or Prometheus.
 
 In order to enable pull approach, specify `pull` section in config file:
 
