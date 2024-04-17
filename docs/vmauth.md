@@ -125,7 +125,7 @@ See also [authorization](#authorization) and [routing](#routing) docs.
 
 If [vmagent](https://docs.victoriametrics.com/vmagent.html) is used for processing [data push requests](https://docs.victoriametrics.com/vmagent.html#how-to-push-data-to-vmagent),
 then it is possible to scale the performance of data processing at `vmagent` by spreading load among multiple identically configured `vmagent` instances.
-This can be done with the following [config](#auth-config) for `vmagent`:
+This can be done with the following [config](#auth-config) for `vmauth`:
 
 ```yaml
 unauthorized_user:
@@ -596,18 +596,40 @@ There are the following solutions for this issue:
   This scheme works great, but it needs manual updating of the [`-auth.config`](#auth-config) every time `vmselect` services are restarted,
   downscaled or upscaled.
 
-- To set `discover_backend_ips: true` option, so `vmagent` automatically discovers IPs behind the given hostname and then spreads load among the discovered IPs:
+- To set `discover_backend_ips: true` option, so `vmauth` automatically discovers IPs behind the given hostname and then spreads load among the discovered IPs:
 
   ```yaml
   unauthorized_user:
-    url_prefix: http://vmselect-service/select/0/prometheus/
+    url_prefix: http://vmselect-service:8481/select/0/prometheus/
     discover_backend_ips: true
   ```
 
-  The `discover_backend_ips` can be specified at `user` and `url_map` level in the [`-auth.config`](#auth-config). It can also be enabled globally
+  If the `url_prefix` contains hostname with `srv+` prefix, then the hostname without `srv+` prefix is automatically resolved via [DNS SRV](https://en.wikipedia.org/wiki/SRV_record)
+  to the list of hostnames with TCP ports, and `vmauth` balances load among the discovered TCP addresses:
+
+  ```yaml
+  unauthorized_user:
+    url_prefix: "http://srv+vmselect/select/0/prometheus"
+    discover_backend_ips: true
+  ```
+
+  This functionality is useful for balancing load among backend instances, which run on different TCP ports, since DNS SRV records contain TCP ports.
+
+  The `discover_backend_ips` option can be specified at `user` and `url_map` level in the [`-auth.config`](#auth-config). It can also be enabled globally
   via `-discoverBackendIPs` command-line flag.
 
 See also [load balancing docs](#load-balancing).
+
+## SRV urls
+
+If `url_prefix` contains url with the hostname starting with `srv+` prefix, then `vmauth` uses [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) lookup
+for the hostname without the `srv+` prefix and selects random TCP address (e.g. hostname plus TCP port) form the resolved results.
+
+For example, if `some-addr` [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) record contains `some-host:12345` TCP address,
+then `url_prefix: http://srv+some-addr/some/path` is automatically resolved into `url_prefix: http://some-host:12345/some/path`.
+The DNS SRV resolution is performed every time new connection to the `url_prefix` backend is established.
+
+See also [discovering backend addressess](#discovering-backend-ips).
 
 ## Modifying HTTP headers
 

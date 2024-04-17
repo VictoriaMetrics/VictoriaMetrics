@@ -316,43 +316,54 @@ users:
 	f(`
 users:
 - auth_token: foo
-  url_prefix: http://aaa:343/bbb
+  url_prefix: https://aaa:343/bbb
   max_concurrent_requests: 5
   tls_insecure_skip_verify: true
+  tls_server_name: "foo.bar"
+  tls_ca_file: "foo/bar"
+  tls_cert_file: "foo/baz"
+  tls_key_file: "foo/foo"
 `, map[string]*UserInfo{
 		getHTTPAuthToken("foo"): {
 			AuthToken:             "foo",
-			URLPrefix:             mustParseURL("http://aaa:343/bbb"),
+			URLPrefix:             mustParseURL("https://aaa:343/bbb"),
 			MaxConcurrentRequests: 5,
 			TLSInsecureSkipVerify: &insecureSkipVerifyTrue,
+			TLSServerName:         "foo.bar",
+			TLSCAFile:             "foo/bar",
+			TLSCertFile:           "foo/baz",
+			TLSKeyFile:            "foo/foo",
 		},
 	})
 
 	// Multiple url_prefix entries
 	insecureSkipVerifyFalse := false
+	discoverBackendIPsTrue := true
 	f(`
 users:
 - username: foo
   password: bar
   url_prefix:
   - http://node1:343/bbb
-  - http://node2:343/bbb
+  - http://srv+node2:343/bbb
   tls_insecure_skip_verify: false
   retry_status_codes: [500, 501]
   load_balancing_policy: first_available
   drop_src_path_prefix_parts: 1
+  discover_backend_ips: true
 `, map[string]*UserInfo{
 		getHTTPAuthBasicToken("foo", "bar"): {
 			Username: "foo",
 			Password: "bar",
 			URLPrefix: mustParseURLs([]string{
 				"http://node1:343/bbb",
-				"http://node2:343/bbb",
+				"http://srv+node2:343/bbb",
 			}),
 			TLSInsecureSkipVerify:  &insecureSkipVerifyFalse,
 			RetryStatusCodes:       []int{500, 501},
 			LoadBalancingPolicy:    "first_available",
 			DropSrcPathPrefixParts: intp(1),
+			DiscoverBackendIPs:     &discoverBackendIPsTrue,
 		},
 	})
 

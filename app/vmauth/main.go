@@ -438,6 +438,8 @@ func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, i
 	if tr.MaxIdleConns != 0 && tr.MaxIdleConns < tr.MaxIdleConnsPerHost {
 		tr.MaxIdleConns = tr.MaxIdleConnsPerHost
 	}
+	tr.DialContext = netutil.DialMaybeSRV
+
 	rt := cfg.NewRoundTripper(tr)
 	return rt, nil
 }
