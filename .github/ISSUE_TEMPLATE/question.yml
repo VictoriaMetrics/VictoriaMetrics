@@ -28,5 +28,5 @@ body:
           required: false
         - label: vmagent - https://docs.victoriametrics.com/vmagent/#troubleshooting
           required: false
-        - label: vmalert - https://docs.victoriametrics.com/vmalert.html#troubleshooting
+        - label: vmalert - https://docs.victoriametrics.com/vmalert/#troubleshooting
           required: false

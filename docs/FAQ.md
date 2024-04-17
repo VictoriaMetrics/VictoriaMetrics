@@ -42,7 +42,7 @@ Yes. See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.h
 Yes in most cases. VictoriaMetrics can substitute Prometheus in the following aspects:
 
 * Prometheus-compatible service discovery and target scraping can be done with [vmagent](https://docs.victoriametrics.com/vmagent/) and with single-node VictoriaMetrics. See [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
-* Prometheus-compatible alerting rules and recording rules can be processed with [vmalert](https://docs.victoriametrics.com/vmalert.html).
+* Prometheus-compatible alerting rules and recording rules can be processed with [vmalert](https://docs.victoriametrics.com/vmalert/).
 * Prometheus-compatible querying in Grafana is supported by VictoriaMetrics. See [these docs](https://docs.victoriametrics.com/#grafana-setup).
 
 ## What is the difference between vmagent and Prometheus?
@@ -137,7 +137,7 @@ VictoriaMetrics is similar to Cortex in the following aspects:
 * Both systems support multi-tenancy out of the box. See [the corresponding docs for VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy).
 * Both systems support data replication. See [replication in Cortex](https://github.com/cortexproject/cortex/blob/fe56f1420099aa1bf1ce09316c186e05bddee879/docs/architecture.md#hashing) and [replication in VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety).
 * Both systems scale horizontally to multiple nodes. See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-resizing-and-scalability) for details.
-* Both systems support alerting and recording rules via the corresponding tools such as [vmalert](https://docs.victoriametrics.com/vmalert.html).
+* Both systems support alerting and recording rules via the corresponding tools such as [vmalert](https://docs.victoriametrics.com/vmalert/).
 * Both systems can be queried via the [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/) and integrate perfectly with Grafana.
 
 The main differences between Cortex and VictoriaMetrics:
@@ -470,7 +470,7 @@ increased load during the first couple of minutes because they need to register 
 
 The query load becomes even between old `vmstorage` nodes and new `vmstorage` nodes after most of queries are executed
 over time ranges with data covered by new `vmstorage` nodes. Usually the most of queries are received
-from [alerting and recording rules](https://docs.victoriametrics.com/vmalert.html), which query data on limited time ranges
+from [alerting and recording rules](https://docs.victoriametrics.com/vmalert/), which query data on limited time ranges
 such as a few hours or few days at max. This means that the query load between old `vmstorage` nodes and new `vmstorage` nodes
 should become even in a few hours / days after adding new `vmstorage` nodes.
 

@@ -314,7 +314,7 @@ It is recommended upgrading Prometheus to [v2.12.0](https://github.com/prometheu
 since previous versions may have issues with `remote_write`.
 
 Take a look also at [vmagent](https://docs.victoriametrics.com/vmagent/)
-and [vmalert](https://docs.victoriametrics.com/vmalert.html),
+and [vmalert](https://docs.victoriametrics.com/vmalert/),
 which can be used as faster and less resource-hungry alternative to Prometheus.
 
 ## Grafana setup
@@ -2008,7 +2008,7 @@ as their values are always increasing. Downsampling [gauges](https://docs.victor
 and [summaries](https://docs.victoriametrics.com/keyConcepts.html#summary) lose some changes within the downsampling interval,
 since only the last sample on the given interval is left and the rest of samples are dropped.
 
-You can use [recording rules](https://docs.victoriametrics.com/vmalert.html#rules) or [steaming aggregation](https://docs.victoriametrics.com/stream-aggregation.html)
+You can use [recording rules](https://docs.victoriametrics.com/vmalert/#rules) or [steaming aggregation](https://docs.victoriametrics.com/stream-aggregation.html)
 to apply custom aggregation functions, like min/max/avg etc., in order to make gauges more resilient to downsampling.
 
 Downsampling can reduce disk space usage and improve query performance if it is applied to time series with big number
@@ -2017,8 +2017,8 @@ of time series with small number of samples per each series, since downsampling 
 So there is little sense in applying downsampling to time series with [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
 In this case the majority of query time is spent on searching for the matching time series instead of processing the found samples.
 It is possible to use [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) in [vmagent](https://docs.victoriametrics.com/vmagent/)
-or [recording rules in vmalert](https://docs.victoriametrics.com/vmalert.html#rules) in order to
-[reduce the number of time series](https://docs.victoriametrics.com/vmalert.html#downsampling-and-aggregation-via-vmalert).
+or [recording rules in vmalert](https://docs.victoriametrics.com/vmalert/#rules) in order to
+[reduce the number of time series](https://docs.victoriametrics.com/vmalert/#downsampling-and-aggregation-via-vmalert).
 
 Downsampling is performed during [background merges](https://docs.victoriametrics.com/#storage).
 It cannot be performed if there is not enough of free disk space or if vmstorage is in [read-only mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode).
@@ -2053,7 +2053,7 @@ horizontally scalable long-term remote storage for really large Prometheus deplo
 
 ## Alerting
 
-It is recommended using [vmalert](https://docs.victoriametrics.com/vmalert.html) for alerting.
+It is recommended using [vmalert](https://docs.victoriametrics.com/vmalert/) for alerting.
 
 Additionally, alerting can be set up with the following tools:
 
@@ -2174,7 +2174,7 @@ created by community.
 Graphs on the dashboards contain useful hints - hover the `i` icon in the top left corner of each graph to read it.
 
 We recommend setting up [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts)
-via [vmalert](https://docs.victoriametrics.com/vmalert.html) or via Prometheus.
+via [vmalert](https://docs.victoriametrics.com/vmalert/) or via Prometheus.
 
 VictoriaMetrics exposes currently running queries and their execution times at [`active queries` page](#active-queries).
 
@@ -2506,7 +2506,7 @@ See [vmctl docs](https://docs.victoriametrics.com/vmctl.html) for more details.
 ## Backfilling
 
 VictoriaMetrics accepts historical data in arbitrary order of time via [any supported ingestion method](#how-to-import-time-series-data).
-See [how to backfill data with recording rules in vmalert](https://docs.victoriametrics.com/vmalert.html#rules-backfilling).
+See [how to backfill data with recording rules in vmalert](https://docs.victoriametrics.com/vmalert/#rules-backfilling).
 Make sure that configured `-retentionPeriod` covers timestamps for the backfilled data.
 
 It is recommended disabling [query cache](#rollup-result-cache) with `-search.disableCache` command-line flag when writing
@@ -2546,7 +2546,7 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 
 ## vmalert
 
-A single-node VictoriaMetrics is capable of proxying requests to [vmalert](https://docs.victoriametrics.com/vmalert.html)
+A single-node VictoriaMetrics is capable of proxying requests to [vmalert](https://docs.victoriametrics.com/vmalert/)
 when `-vmalert.proxyURL` flag is set. Use this feature for the following cases:
 * for proxying requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
 * for accessing vmalerts UI through single-node VictoriaMetrics Web interface.
@@ -2596,7 +2596,7 @@ It is safe sharing the collected profiles from security point of view, since the
   See [this example](https://github.com/go-graphite/carbonapi/blob/main/cmd/carbonapi/carbonapi.example.victoriametrics.yaml).
 * [netdata](https://github.com/netdata/netdata) can push data into VictoriaMetrics via `Prometheus remote_write API`.
   See [these docs](https://github.com/netdata/netdata#integrations).
-* [vmalert-cli](https://github.com/aorfanos/vmalert-cli) - a CLI application for managing [vmalert](https://docs.victoriametrics.com/vmalert.html).
+* [vmalert-cli](https://github.com/aorfanos/vmalert-cli) - a CLI application for managing [vmalert](https://docs.victoriametrics.com/vmalert/).
 
 ## Third-party contributions
 

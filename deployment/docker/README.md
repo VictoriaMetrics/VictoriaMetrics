@@ -162,7 +162,7 @@ of alerting rules is the following:
 * [alerts-vmagent.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-vmagent.yml):
   alerting rules related to [vmagent](https://docs.victoriametrics.com/vmagent/) component;
 * [alerts-vmalert.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-vmalert.yml):
-  alerting rules related to [vmalert](https://docs.victoriametrics.com/vmalert.html) component;
+  alerting rules related to [vmalert](https://docs.victoriametrics.com/vmalert/) component;
 
 Please, also see [how to monitor](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#monitoring) 
 VictoriaMetrics installations.
