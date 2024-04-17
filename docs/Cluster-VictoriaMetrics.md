@@ -466,8 +466,9 @@ General recommendations for cluster scalability:
   since every `vmstorage` node contains lower number of time series when the number of `vmstorage` nodes increases.
 
   The cluster stability is also improved with the number of `vmstorage` nodes, since active `vmstorage` nodes need to handle lower additional workload
-  when some of `vmstorage` nodes become unavailable. For example, if one node out of 5 is unavailable, 20% of the load is re-distributed across 4 remaining nodes.
-  If one node out of 10 nodes is unavailable, 10% of the load is re-distributed across 9 remaining node.
+  when some of `vmstorage` nodes become unavailable. For example, if one node out of 3 nodes is unavailable, then `1/3=33%` of the load is re-distributed across 2 remaining nodes,
+  so per-node workload increase is `(1/3/2)/(1/3) = 1/2 = 50%`.
+  If one node out of 10 nodes is unavailable, then `1/10=10%` of the load is re-distributed across 9 remaining nodes, so per-node workload increase is `(1/10/9)/(1/10) = 1/9 =~ 11%`.
 
 - Adding more CPU and RAM to existing `vmstorage` nodes (aka vertical scaling) increases the number
   of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series) the cluster can handle.
