@@ -11,11 +11,9 @@ aliases:
 ---
 # vmauth
 
-`vmauth` is a simple auth proxy, router and [load balancer](#load-balancing) for [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics).
-It reads auth credentials from `Authorization` http header ([Basic Auth](https://en.wikipedia.org/wiki/Basic_access_authentication),
-`Bearer token` and [InfluxDB authorization](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1897) is supported),
-matches them against configs pointed by [-auth.config](#auth-config) command-line flag and proxies incoming HTTP requests to the configured per-user `url_prefix` on successful match.
-The `-auth.config` can point to either local file or to http url.
+`vmauth` is an HTTP proxy, which can [authorize](https://docs.victoriametrics.com/vmauth/#authorization), [route](https://docs.victoriametrics.com/vmauth/#routing)
+and [load balance](https://docs.victoriametrics.com/vmauth/#load-balancing) requests across [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) components
+or any other HTTP backends.
 
 ## Quick start
 
@@ -73,9 +71,12 @@ unauthorized_user:
 
 `vmauth` can balance load among multiple backends - see [these docs](#load-balancing) for details.
 
+See also [authorization](#authorization) and [routing](#routing) docs.
+
 ### Generic HTTP proxy for different backends
 
-`vmauth` can proxy requests to different backends depending on the requested host, path, [query args](https://en.wikipedia.org/wiki/Query_string) and any HTTP request header.
+`vmauth` can proxy requests to different backends depending on the requested path, path, [query args](https://en.wikipedia.org/wiki/Query_string) and any HTTP request header.
+
 For example, the following [`-auth.config`](#auth-config) instructs `vmauth` to make the following:
 
 - Requests starting with `/app1/` are proxied to `http://app1-backend/`, while the `/app1/` path prefix is dropped according to [`drop_src_path_prefix_parts`](#dropping-request-path-prefix).
@@ -99,75 +100,9 @@ unauthorized_user:
   default_url: http://some-backend/404-page.html
 ```
 
-The following config routes requests to host `app1.my-host.com` to `http://app1-backend`, while routing requests to `app2.my-host.com` to `http://app2-backend`:
+See [routing docs](#routing) for details.
 
-```yaml
-unauthorized_user:
-  url_map:
-  - src_hosts:
-    - "app1\\.my-host\\.com"
-    url_prefix: "http://app1-backend/"
-  - src_hosts:
-    - "app2\\.my-host\\.com"
-    url_prefix: "http://app2-backend/"
-```
-
-`src_paths` and `src_hosts` accept a list of [regular expressions](https://github.com/google/re2/wiki/Syntax). The incoming request is routed to the given `url_prefix`
-if the whole request path matches at least one `src_paths` entry. The incoming request is routed to the given `url_prefix` if the whole request host matches at least one `src_hosts` entry.
-If both `src_paths` and `src_hosts` lists are specified, then the request is routed to the given `url_prefix` when both request path and request host match at least one entry
-in the corresponding lists.
-
-An optional `src_query_args` can be used for routing requests based on [HTTP query args](https://en.wikipedia.org/wiki/Query_string) additionally to hostname and path.
-For example, the following config routes requests to `http://app1-backend/` if `db=foo` query arg is present in the request,
-while routing requests with `db=bar` query arg to `http://app2-backend`:
-
-```yaml
-unauthorized_user:
-  url_map:
-  - src_query_args: ["db=foo"]
-    url_prefix: "http://app1-backend/"
-  - src_query_args: ["db=bar"]
-    url_prefix: "http://app2-backend/"
-```
-
-If `src_query_args` contains multiple entries, then it is enough to match only a single entry in order to route the request to the given `url_prefix`.
-
-If `src_query_args` are specified together with `src_hosts`, `src_paths` or `src_headers`, then the request is routed to the given `url_prefix`
-if its query args, host, path and headers match the given lists simultaneously.
-
-`src_query_args` supports [regex matching](https://github.com/google/re2/wiki/Syntax) by using `arg=~regex` syntax:
-
-```yaml
-unauthorized_user:
-  url_map:
-    - src_query_args: ['query=~.*{.*env="prod".*}.*']
-      url_prefix: 'http://prod-backend/'
-    - src_query_args: ['query=~.*{.*env="dev".*}.*']
-      url_prefix: 'http://dev-backend/'
-```
-
-The config above routes requests like `/api/v1/query?query=up{env="prod"}` to `http://prod-backend/`, while requests to `/api/v1/query?query=up{env="dev"}` are routed to `http://dev-backend/`.
-
-_Please note, by default Grafana sends `query` param in request's body and vmauth won't be able to read it.
-You need to manually switch datasource settings in Grafana to use GET method for sending queries._
-
-An optional `src_headers` can be used for routing requests based on HTTP request headers additionally to hostname, path and [HTTP query args](https://en.wikipedia.org/wiki/Query_string).
-For example, the following config routes requests to `http://app1-backend` if `TenantID` request header equals to `42`, while routing requests to `http://app2-backend`
-if `TenantID` request header equals to `123:456`:
-
-```yaml
-unauthorized_user:
-  url_map:
-  - src_headers: ["TenantID: 42"]
-    url_prefix: "http://app1-backend/"
-  - src_headers: ["TenantID: 123:456"]
-    url_prefix: "http://app2-backend/"
-```
-
-If `src_headers` contains multiple entries, then it is enough to match only a single entry in order to route the request to the given `url_prefix`.
-
-If `src_headers` are specified together with `src_hosts`, `src_paths` or `src_query_args`, then the request is routed to the given `url_prefix`
-if its headers, host, path and query args match the given lists simultaneously.
+See also [authorization](#authorization) and [load balancing](#load-balancing) docs.
 
 ### Generic HTTP load balancer
 
@@ -183,6 +118,8 @@ unauthorized_user:
 ```
 
 See [load balancing docs](#load-balancing) for more details.
+
+See also [authorization](#authorization) and [routing](#routing) docs.
 
 ### Load balancer for vmagent
 
@@ -205,6 +142,8 @@ unauthorized_user:
 ```
 
 See [load balancing docs](#load-balancing) for more details.
+
+See also [authorization](#authorization) and [routing](#routing) docs.
 
 ### Load balancer for VictoriaMetrics cluster
 
@@ -230,6 +169,8 @@ unauthorized_user:
 
 See [load balancing docs](#load-balancing) for more details.
 
+See also [authorization](#authorization) and [routing](#routing) docs.
+
 ### High availability
 
 `vmauth` automatically switches from temporarily unavailable backend to other hot standby backends listed in `url_prefix`
@@ -249,6 +190,8 @@ unauthorized_user:
 
 See [load-balancing docs](#load-balancing) for more details.
 
+See also [authorization](#authorization) and [routing](#routing) docs.
+
 ### TLS termination proxy
 
 `vmauth` can terminate HTTPS requests to backend services when it runs with the following command-line flags:
@@ -261,6 +204,8 @@ See [load-balancing docs](#load-balancing) for more details.
 * `-tls` enables accepting TLS connections at `-httpListenAddr`
 * `-tlsKeyFile` sets the path to TLS certificate key file
 * `-tlsCertFile` sets the path to TLS certificate file
+
+See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ### Basic Auth proxy
 
@@ -275,7 +220,7 @@ users:
   url_prefix: "http://victoria-metrics:8428/"
 ```
 
-See also [security docs](#security).
+See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ### Bearer Token auth proxy
 
@@ -289,7 +234,7 @@ users:
   url_prefix: "http://victoria-metrics:8428/"
 ```
 
-See also [security docs](#security).
+See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ### Per-tenant authorization
 
@@ -327,6 +272,8 @@ users:
     url_prefix: "http://vmselect-backend:8481/select/2/prometheus/"
 ```
 
+See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
+
 ### mTLS-based request routing
 
 [Enterprise version of `vmauth`](https://docs.victoriametrics.com/enterprise/) can be configured for routing requests
@@ -348,6 +295,7 @@ users:
 
 [mTLS protection](#mtls-protection) must be enabled for mTLS-based routing.
 
+See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ### Enforcing query args
 
@@ -359,6 +307,8 @@ to all the requests, which are proxied to [single-node VictoriaMetrics](https://
 unauthorized_user:
   url_prefix: "http://victoria-metrics:8428/?extra_label=foo=bar"
 ```
+
+See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ## Dropping request path prefix
 
@@ -390,6 +340,139 @@ users:
     # drop /vmalert/ path prefix from the original request before proxying it to url_prefix.
     drop_src_path_prefix_parts: 1
     url_prefix: "http://vmalert-backend:8880/"
+```
+
+## Authorization
+
+`vmauth` supports the following authorization mechanisms:
+
+- [No authorization](https://docs.victoriametrics.com/vmauth/#simple-http-proxy)
+- [Basic Auth](https://docs.victoriametrics.com/vmauth/#basic-auth-proxy)
+- [Bearer token](https://docs.victoriametrics.com/vmauth/#bearer-token-auth-proxy)
+- [Client TLS certificate verification aka mTLS](https://docs.victoriametrics.com/vmauth/#mtls-based-request-routing)
+- [Auth tokens via Arbitrary HTTP request headers](https://docs.victoriametrics.com/vmauth/#reading-auth-tokens-from-other-http-headers)
+
+See also [security docs](#security), [routing docs](#routing) and [load balancing docs](#load-balancing).
+
+## Routing
+
+`vmauth` can proxy requests to different backends depending on the following parts of HTTP request:
+
+- [Request path](#routing-by-path)
+- [Request host](#routing-by-host)
+- [Request query arg](#routing-by-query-arg)
+- [HTTP request header](#routing-by-header)
+- [Multiple parts](#routing-by-multiple-parts)
+
+See also [authorization](#authorization) and [load balancing](#load-balancing).
+
+### Routing by path
+
+`src_paths` option can be specified inside `url_map` in order to route requests by path.
+
+The following [`-auth.config`](#auth-config) routes requests to paths starting with `/app1/` to `http://app1-backend`,
+while requests with paths starting with `/app2` are routed to `http://app2-backend`, and the rest of requests
+are routed to `http://some-backend/404-page.html`:
+
+```yaml
+unauthorized_user:
+  url_map:
+  - src_paths:
+    - "/app1/.*"
+    url_prefix: "http://app1-backend/"
+  - src_paths:
+    - "/app2/.*"
+    url_prefix: "http://app2-backend/"
+  default_url: http://some-backend/404-page.html
+```
+
+`src_paths` accepts a list of [regular expressions](https://github.com/google/re2/wiki/Syntax). The incoming request is routed to the given `url_prefix`
+if **the whole** requested path matches at least one `src_paths` entry.
+
+See also [how to drop request path prefix](#dropping-request-path-prefix).
+
+### Routing by host
+
+`src_hosts` option can be specified inside `url_map` in order to route requests by host.
+
+The following [`-auth.config`](#auth-config) routes requests to `app1.my-host.com` host to `http://app1-backend`, while routing requests to `app2.my-host.com` host to `http://app2-backend`,
+and the rest of requests are routed to `http://some-backend/404-page.html`:
+
+```yaml
+unauthorized_user:
+  url_map:
+  - src_hosts:
+    - "app1\\.my-host\\.com"
+    url_prefix: "http://app1-backend/"
+  - src_hosts:
+    - "app2\\.my-host\\.com"
+    url_prefix: "http://app2-backend/"
+  default_url: http://some-backend/404-page.html
+```
+
+`src_hosts` accepts a list of [regular expressions](https://github.com/google/re2/wiki/Syntax). The incoming request is routed to the given `url_prefix`
+if **the whole** request host matches at least one `src_hosts` entry.
+
+### Routing by query arg
+
+`src_query_args` option can be specified inside `url_map` in order to route requests by the given [query arg](https://en.wikipedia.org/wiki/Query_string).
+
+For example, the following [`-auth.config`](#auth-config) routes requests to `http://app1-backend/` if `db=foo` query arg is present in the request,
+while routing requests with `db` query arg starting with `bar` to `http://app2-backend`, and the rest of requests are routed to `http://some-backend/404-page.html`:
+
+```yaml
+unauthorized_user:
+  url_map:
+  - src_query_args: ["db=foo"]
+    url_prefix: "http://app1-backend/"
+  - src_query_args: ["db=~bar.*"]
+    url_prefix: "http://app2-backend/"
+  default_url: http://some-backend/404-page.html
+```
+
+`src_query_args` accepts a list of strings in the format `arg=value` or `arg=~regex`. The `arg=value` format means exact matching of the whole `arg` query arg value to the given `value`.
+The `arg=~regex` format means regex matching of the whole `arg` query arg value to the given `regex`.
+If at least a single query arg in the request matches at least one `src_query_args` entry, then the request is routed to the given `url_prefix`.
+
+### Routing by header
+
+`src_headers` option can be specified inside `url_map` in order to route requests by the given HTTP request header.
+
+For example, the following [`-auth.config`](#auth-config) routes requests to `http://app1-backend` if `TenantID` request header equals to `42`, while routing requests to `http://app2-backend`
+if `TenantID` request header equals to `123:456`, and the rest of requests are routed to `http://some-backend/404-page.html`:
+
+```yaml
+unauthorized_user:
+  url_map:
+  - src_headers: ["TenantID: 42"]
+    url_prefix: "http://app1-backend/"
+  - src_headers: ["TenantID: 123:456"]
+    url_prefix: "http://app2-backend/"
+  default_url: http://some-backend/404-page.html
+```
+
+If `src_headers` contains multiple entries, then it is enough to match only a single entry in order to route the request to the given `url_prefix`.
+
+### Routing by multiple parts
+
+Any subset of [`src_paths`](#routing-by-path), [`src_hosts`](#routing-by-host), [`src_query_args`](#routing-by-query-arg) and [`src_headers`](#routing-by-header)
+options can be specified simultaneously in a single `url_map` entry. In this case the request is routed to the given `url_prefix` if all the request matches
+all the provided configs **simultaneously**.
+
+For example, the following [`-auth.config`](#auth-config) routes requests to `http://app1-backend` if all the conditions mentioned below are simultaneously met:
+
+- the request path starts with `/app/`
+- the requested hostname ends with `.bar.baz`
+- the request contains `db=abc` query arg
+- the `TenantID` request header equals to `42`
+
+```yaml
+unauthorized_user:
+  url_map:
+  - src_paths: ["/app/.*"]
+    src_hosts: [".+\\.bar\\.baz"]
+    src_query_args: ["db=abc"]
+    src_headers: ["TenantID: 42"]
 ```
 
 ## Load balancing
@@ -483,7 +566,7 @@ Load balancing feature can be used in the following cases:
 
 Load balancig can be configured independently per each `user` entry and per each `url_map` entry. See [auth config docs](#auth-config) for more details.
 
-See also [discovering backend IPs](#discovering-backend-ips).
+See also [discovering backend IPs](#discovering-backend-ips), [authorization](#authorization) and [routing](#routing).
 
 ## Discovering backend IPs
 
@@ -664,6 +747,8 @@ from both `Authorization` and `X-Amz-Firehose-Access-Key` headers:
 ```
 ./vmauth -httpAuthHeader='Authorization' -httpAuthHeader='X-Amz-Firehose-Access-Key'
 ```
+
+See also [authorization docs](#authorization) and [security docs](#security).
 
 ## Auth config
 
