@@ -18,7 +18,7 @@ description: |
       * All the configuration is done via explicit command-line flags with reasonable defaults.
       * All the data is stored in a single directory pointed by `-storageDataPath` flag.
       * Easy and fast backups from
-      to S3 or GCS with https://docs.victoriametrics.com/vmbackup.html / https://docs.victoriametrics.com/vmrestore.html.
+      to S3 or GCS with https://docs.victoriametrics.com/vmbackup/ / https://docs.victoriametrics.com/vmrestore.html.
   * Storage is protected from corruption on unclean shutdown (i.e. OOM, hardware reset or `kill -9`) thanks to the storage architecture.
   * Supports metrics' scraping, ingestion and backfilling via the following protocols:
     * [Metrics from Prometheus exporters]

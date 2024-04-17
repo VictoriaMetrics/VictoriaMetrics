@@ -11,7 +11,7 @@ aliases:
 ---
 # vmrestore
 
-`vmrestore` restores data from backups created by [vmbackup](https://docs.victoriametrics.com/vmbackup.html).
+`vmrestore` restores data from backups created by [vmbackup](https://docs.victoriametrics.com/vmbackup/).
 
 Restore process can be interrupted at any time. It is automatically resumed from the interruption point
 when restarting `vmrestore` with the same args.
@@ -26,7 +26,7 @@ Run the following command to restore backup from the given `-src` into the given
 ./vmrestore -src=<storageType>://<path/to/backup> -storageDataPath=<local/path/to/restore>
 ```
 
-* `<storageType>://<path/to/backup>` is the path to backup made with [vmbackup](https://docs.victoriametrics.com/vmbackup.html).
+* `<storageType>://<path/to/backup>` is the path to backup made with [vmbackup](https://docs.victoriametrics.com/vmbackup/).
   `vmrestore` can restore backups from the following storage types:
   * [GCS](https://cloud.google.com/storage/). Example: `-src=gs://<bucket>/<path/to/backup>`
   * [S3](https://aws.amazon.com/s3/). Example: `-src=s3://<bucket>/<path/to/backup>`
@@ -105,7 +105,7 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
   -customS3Endpoint string
      Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set
   -deleteAllObjectVersions
-     Whether to prune previous object versions when deleting an object. By default, when object storage has versioning enabled deleting the file removes only current version. This option forces removal of all previous versions. See: https://docs.victoriametrics.com/vmbackup.html#permanent-deletion-of-objects-in-s3-compatible-storages
+     Whether to prune previous object versions when deleting an object. By default, when object storage has versioning enabled deleting the file removes only current version. This option forces removal of all previous versions. See: https://docs.victoriametrics.com/vmbackup/#permanent-deletion-of-objects-in-s3-compatible-storages
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable

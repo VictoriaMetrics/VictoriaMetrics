@@ -55,7 +55,7 @@ VictoriaMetrics has the following prominent features:
   * All the configuration is done via explicit command-line flags with reasonable defaults.
   * All the data is stored in a single directory specified by the `-storageDataPath` command-line flag.
   * Easy and fast backups from [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
-    can be done with [vmbackup](https://docs.victoriametrics.com/vmbackup.html) / [vmrestore](https://docs.victoriametrics.com/vmrestore.html) tools.
+    can be done with [vmbackup](https://docs.victoriametrics.com/vmbackup/) / [vmrestore](https://docs.victoriametrics.com/vmrestore.html) tools.
     See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
 * It implements a PromQL-like query language - [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html), which provides improved functionality on top of PromQL.
 * It provides a global query view. Multiple Prometheus instances or any other data sources may ingest data into VictoriaMetrics. Later this data may be queried via a single query.
@@ -1145,7 +1145,7 @@ The page returns the following JSON response on successful creation of snapshot:
 
 Snapshots are created under `<-storageDataPath>/snapshots` directory, where `<-storageDataPath>`
 is the corresponding command-line flag value. Snapshots can be archived to backup storage at any time
-with [vmbackup](https://docs.victoriametrics.com/vmbackup.html).
+with [vmbackup](https://docs.victoriametrics.com/vmbackup/).
 
 Snapshots consist of a mix of hard-links and soft-links to various files and directories inside `-storageDataPath`.
 See [this article](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
@@ -1154,7 +1154,7 @@ for more details. This adds some restrictions on what can be done with the conte
 - Do not delete subdirectories inside `<-storageDataPath>/snapshots` with `rm` or similar commands, since this will leave some snapshot data undeleted.
   Prefer using the `/snapshot/delete` API for deleting snapshot. See below for more details about this API.
 - Do not copy subdirectories inside `<-storageDataPath>/snapshot` with `cp`, `rsync` or similar commands, since there are high chances
-  that these commands won't copy some data stored in the snapshot. Prefer using [vmbackup](https://docs.victoriametrics.com/vmbackup.html) for making copies of snapshot data.
+  that these commands won't copy some data stored in the snapshot. Prefer using [vmbackup](https://docs.victoriametrics.com/vmbackup/) for making copies of snapshot data.
 
 See also [snapshot troubleshooting](#snapshot-troubleshooting).
 
@@ -2538,7 +2538,7 @@ See also [high availability docs](#high-availability) and [backup docs](#backups
 
 ## Backups
 
-VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com/vmbackup.html)
+VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com/vmbackup/)
 and [vmrestore](https://docs.victoriametrics.com/vmrestore.html) tools.
 We also provide [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html) tool for enterprise subscribers.
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
