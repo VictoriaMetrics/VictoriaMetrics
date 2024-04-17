@@ -280,9 +280,9 @@ record into TCP address with hostname and TCP port, and then uses the resulting 
 
 SRV urls are supported in the following places:
 
-- In `-remoteWrite.url` command-line flags. For example, if `victoria-metrics` [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) record contains
+- In `-remoteWrite.url` command-line flag. For example, if `victoria-metrics` [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) record contains
   `victoria-metrics-host:8428` TCP address, then `-remoteWrite.url=http://srv+victoria-metrics/api/v1/write` is automatically resolved into
-  `-remoteWrite.url=http://victoria-metrics-host:8428/api/v1/write`. If the DNS SRV record is resolved into multiple TCP addresses, then `vmauth`
+  `-remoteWrite.url=http://victoria-metrics-host:8428/api/v1/write`. If the DNS SRV record is resolved into multiple TCP addresses, then `vmagent`
   uses randomly chosen address per each connection it establishes to the remote storage.
 
 - In scrape target addresses aka `__address__` label - see [these docs](https://docs.victoriametrics.com/relabeling/#how-to-modify-scrape-urls-in-targets) for details.
