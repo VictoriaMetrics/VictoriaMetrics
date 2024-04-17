@@ -128,6 +128,7 @@ var (
 			"see https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence"),
 		StatusCode: http.StatusTooManyRequests,
 	}
+	disableOnDiskAll bool
 )
 
 // MultitenancyEnabled returns true if -enableMultitenantHandlers or -remoteWrite.multitenantURL is specified.
@@ -216,9 +217,16 @@ func Init() {
 	allRelabelConfigs.Store(rcs)
 	relabelConfigSuccess.Set(1)
 	relabelConfigTimestamp.Set(fasttime.UnixTimestamp())
-
 	if len(*remoteWriteURLs) > 0 {
 		rwctxsDefault = newRemoteWriteCtxs(nil, *remoteWriteURLs)
+	}
+
+	disableOnDiskAll = true
+	for _, v := range *disableOnDiskQueuePerURL {
+		if !v {
+			disableOnDiskAll = false
+			break
+		}
 	}
 	dropDanglingQueues()
 
@@ -465,14 +473,6 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, dropSamplesOnFailur
 	}
 
 	rowsCount := getRowsCount(tss)
-
-	disableOnDiskAll := true
-	for _, rwctx := range rwctxs {
-		if !rwctx.disableOnDiskQueue {
-			disableOnDiskAll = false
-			break
-		}
-	}
 
 	// Quick check whether writes to configured remote storage systems are blocked.
 	// This allows saving CPU time spent on relabeling and block compression
