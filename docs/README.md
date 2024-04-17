@@ -2493,18 +2493,18 @@ Things to consider when copying data:
 1. Copying data folder means complete replacement of the previous data on destination VictoriaMetrics.
 
 For more complex scenarios like single-to-cluster, cluster-to-single, re-sharding or migrating only a fraction
-of data - see [vmctl. Migrating data from VictoriaMetrics](https://docs.victoriametrics.com/vmctl.html#migrating-data-from-victoriametrics).
+of data - see [vmctl. Migrating data from VictoriaMetrics](https://docs.victoriametrics.com/vmctl/#migrating-data-from-victoriametrics).
 
 ### From other systems
 
-Use [vmctl](https://docs.victoriametrics.com/vmctl.html) for data migration. It supports the following data migration types:
+Use [vmctl](https://docs.victoriametrics.com/vmctl/) for data migration. It supports the following data migration types:
 
 * From Prometheus to VictoriaMetrics
 * From InfluxDB to VictoriaMetrics
 * From VictoriaMetrics to VictoriaMetrics
 * From OpenTSDB to VictoriaMetrics
 
-See [vmctl docs](https://docs.victoriametrics.com/vmctl.html) for more details.
+See [vmctl docs](https://docs.victoriametrics.com/vmctl/) for more details.
 
 ## Backfilling
 

@@ -328,7 +328,7 @@ You may find useful a 3rd party solution for this - <https://github.com/jonppe/i
 
 [Promscale](https://github.com/timescale/promscale) supports [Prometheus Remote Read API](https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/).
 To migrate historical data from Promscale to VictoriaMetrics we recommend using `vmctl`
-in [remote-read](https://docs.victoriametrics.com/vmctl.html#migrating-data-by-remote-read-protocol) mode.
+in [remote-read](https://docs.victoriametrics.com/vmctl/#migrating-data-by-remote-read-protocol) mode.
 
 See the example of migration command below:
 ```sh
