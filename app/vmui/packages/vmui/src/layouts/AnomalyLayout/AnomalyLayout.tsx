@@ -47,7 +47,7 @@ const AnomalyLayout: FC = () => {
       className={classNames({
         "vm-container-body": true,
         "vm-container-body_mobile": isMobile,
-        "vm-container-body_app": appModeEnable
+        "vm-container-body_app": appModeEnable,
       })}
     >
       <Outlet/>

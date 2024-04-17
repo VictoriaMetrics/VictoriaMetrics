@@ -1,7 +1,7 @@
 import React, { FC, useMemo, useRef, useState } from "preact/compat";
 import classNames from "classnames";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
-import { ForecastType } from "../../types";
+import { ErrorTypes, ForecastType } from "../../types";
 import { useSetQueryParams } from "../CustomPanel/hooks/useSetQueryParams";
 import QueryConfigurator from "../CustomPanel/QueryConfigurator/QueryConfigurator";
 import "../CustomPanel/style.scss";
@@ -15,6 +15,8 @@ import GraphTab from "../CustomPanel/CustomPanelTabs/GraphTab";
 import { extractFields, isForecast } from "../../utils/uplot";
 import { MetricResult } from "../../api/types";
 import { promValueToNumber } from "../../utils/metric";
+import Button from "../../components/Main/Button/Button";
+import { useAppState } from "../../state/common/StateContext";
 
 // Hardcoded to 1.0 for now; consider adding a UI slider for threshold adjustment in the future.
 const ANOMALY_SCORE_THRESHOLD = 1;
@@ -22,6 +24,7 @@ const ANOMALY_SCORE_THRESHOLD = 1;
 const ExploreAnomaly: FC = () => {
   useSetQueryParams();
   const { isMobile } = useDeviceDetect();
+  const { serverUrl } = useAppState();
 
   const { query } = useQueryState();
   const { customStep } = useGraphState();
@@ -44,7 +47,7 @@ const ExploreAnomaly: FC = () => {
     visible: true,
     customStep,
     hideQuery,
-    showAllSeries
+    showAllSeries,
   });
 
   const data = useMemo(() => {
@@ -63,7 +66,7 @@ const ExploreAnomaly: FC = () => {
           if (!anomalyScoreDataByLabels) return false;
           const anomalyScore = anomalyScoreDataByLabels.values.find(([tMax]) => tMax === t) as [number, string];
           return anomalyScore && promValueToNumber(anomalyScore[1]) > ANOMALY_SCORE_THRESHOLD;
-        })
+        }),
       };
     });
     const filterData = detectedData.filter(d => (d.value !== ForecastType.anomaly) && d.value) as MetricResult[];
@@ -72,6 +75,30 @@ const ExploreAnomaly: FC = () => {
 
   const handleRunQuery = () => {
     setHideError(false);
+  };
+
+  const downloadLinkRef = React.createRef<HTMLAnchorElement>();
+  const downloadConfig = async () => {
+    const response = await fetch(`${serverUrl}/api/vmanomaly/config.yaml`, { });
+    if (!response.ok) {
+      // const errorType = resp.errorType ? `${resp.errorType}\r\n` : "";
+      // const msg = `${errorType}${resp?.error || resp?.message || "unknown error"}`;
+      const msg = `Cannot download config: ${response.status} ${response.statusText}`;
+      console.error(msg);
+      // TODO: show error to user
+      return;
+    }
+    const blob = await response.blob();
+    // const blob = new Blob([], { type: "application/yaml" });
+    const url = window.URL.createObjectURL(blob);
+    const a = downloadLinkRef.current;
+    if (a == null) {
+      throw Error("Hidden <a> is not present");
+    }
+    a.href = url;
+    a.download = "config.yaml";
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   return (
@@ -98,6 +125,27 @@ const ExploreAnomaly: FC = () => {
           onChange={setShowAllSeries}
         />
       )}
+      <div
+        className={classNames({
+          "vm-custom-panel-body": true,
+          "vm-custom-panel-body_mobile": isMobile,
+          "vm-block": true,
+          "vm-block_mobile": isMobile,
+        })}
+      >
+        <Button
+          color="primary"
+          variant="contained"
+          onClick={downloadConfig}
+        >
+          Download Config
+        </Button>
+        {/*eslint-disable-next-line*/}
+        <a className="hidden" ref={downloadLinkRef} href="#"/>
+
+        {error && <Alert variant="error">{error}</Alert>}
+      </div>
+
       <div
         className={classNames({
           "vm-custom-panel-body": true,
