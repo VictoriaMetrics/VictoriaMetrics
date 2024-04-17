@@ -205,6 +205,8 @@ See also [authorization](#authorization) and [routing](#routing) docs.
 * `-tlsKeyFile` sets the path to TLS certificate key file
 * `-tlsCertFile` sets the path to TLS certificate file
 
+See also [automatic issuing of TLS certificates](#automatic-issuing-of-tls-certificates).
+
 See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ### Basic Auth proxy
@@ -961,7 +963,7 @@ requests at this port, by specifying `-tls` and `-mtls` command-line flags. For 
 By default system-wide [TLS Root CA](https://en.wikipedia.org/wiki/Root_certificate) is used for verifying client certificates if `-mtls` command-line flag is specified.
 It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag.
 
-See also [mTLS-based request routing](#mtls-based-request-routing).
+See also [automatic issuing of TLS certificates](#automatic-issuing-of-tls-certificates) and [mTLS-based request routing](#mtls-based-request-routing).
 
 ## Security
 
@@ -978,6 +980,8 @@ Do not transfer Basic Auth headers in plaintext over untrusted networks. Enable 
      Path to file with TLS key. Used only if -tls is set
 ```
 
+See also [automatic issuing of TLS certificates](#automatic-issuing-of-tls-certificates).
+
 See [these docs](#mtls-protection) on how to enable [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) protection at `vmauth`.
 
 Alternatively, [TLS termination proxy](https://en.wikipedia.org/wiki/TLS_termination_proxy) may be put in front of `vmauth`.
@@ -989,6 +993,20 @@ It is recommended protecting the following endpoints with authKeys:
 * `/debug/pprof` with `-pprofAuthKey` command-line flag, so unauthorized users couldn't get access to [profiling information](#profiling).
 
 `vmauth` also supports the ability to restrict access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
+
+## Automatic issuing of TLS certificates
+
+`vmauth` [Enterprise](https://docs.victoriametrics.com/enterprise/) supports automatic issuing of TLS certificates via [Let's Encrypt service](https://letsencrypt.org/).
+The following command-line flags must be set in order to enable automatic issuing of TLS certificates:
+
+- `-httpListenAddr` must be set for listening TCP port `443`. For example, `-httpListenAddr=:443`. This port must be accessible by the [Let's Encrypt service](https://letsencrypt.org/).
+- `-tls` must be set in order to accept HTTPS requests at `-httpListenAddr`.
+- `-tlsAutocertHosts` must be set to comma-separated list of hosts, which can be reached via `-httpListenAddr`. TLS certificates are automatically issued for these hosts.
+- `-tlsAutocertEmail` must be set to contact email for the issued TLS certificates.
+- `-tlsAutocertCacheDir` may be set to the directory path for persisting the issued TLS certificates between VictoriaMetrics restarts. If this flag isn't set,
+  then TLS certificates are re-issued on every restart.
+
+This functionality can be evaluated for free according to [these docs](https://docs.victoriametrics.com/enterprise/).
 
 ## Monitoring
 
@@ -1114,6 +1132,12 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Path to auth config. It can point either to local file or to http url. See https://docs.victoriametrics.com/vmauth.html for details on the format of this auth config
   -backend.TLSCAFile string
      Optional path to TLS root CA file, which is used for TLS verification when connecting to backends over HTTPS. See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup
+  -backend.TLSCertFile string
+     Optional path to TLS client certificate file, which must be sent to HTTPS backend. See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup
+  -backend.TLSKeyFile string
+     Optional path to TLS client key file, which must be sent to HTTPS backend. See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup
+  -backend.TLSServerName string
+     Optional TLS ServerName, which must be sent to HTTPS backend. See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup
   -backend.tlsInsecureSkipVerify
      Whether to skip TLS verification when connecting to backends over HTTPS. See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup
   -configCheckInterval duration
@@ -1267,8 +1291,16 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Whether to enable TLS for incoming HTTP requests at the given -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
+  -tlsAutocertCacheDir string
+     Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+  -tlsAutocertEmail string
+     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+  -tlsAutocertHosts array
+     Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsCertFile array
-     Path to file with TLS certificate for the corresponding -httpListenAddr if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
+     Path to file with TLS certificate for the corresponding -httpListenAddr if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated. See also -tlsAutocertHosts
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsCipherSuites array
@@ -1276,7 +1308,7 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsKeyFile array
-     Path to file with TLS key for the corresponding -httpListenAddr if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+     Path to file with TLS key for the corresponding -httpListenAddr if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated. See also -tlsAutocertHosts
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsMinVersion array
