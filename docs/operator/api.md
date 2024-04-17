@@ -130,6 +130,7 @@ This Document documents the types introduced by the VictoriaMetrics to be consum
 * [CRDRef](#crdref)
 * [StaticRef](#staticref)
 * [TargetRef](#targetref)
+* [TargetRefBasicAuth](#targetrefbasicauth)
 * [VMUser](#vmuser)
 * [VMUserIPFilters](#vmuseripfilters)
 * [VMUserList](#vmuserlist)
@@ -2153,6 +2154,18 @@ TargetRef describes target for user traffic forwarding. one of target types can 
 | retry_status_codes | RetryStatusCodes defines http status codes in numeric format for request retries Can be defined per target or at VMUser.spec level e.g. [429,503] | []int | false |
 | load_balancing_policy | LoadBalancingPolicy defines load balancing policy to use for backend urls. Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth.html#load-balancing for more details (default \&#34;least_loaded\&#34;) | *string | false |
 | drop_src_path_prefix_parts | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend. See https://docs.victoriametrics.com/vmauth.html#dropping-request-path-prefix for more details. | *int | false |
+| targetRefBasicAuth | TargetRefBasicAuth allow an target endpoint to authenticate over basic authentication | *[TargetRefBasicAuth](#targetrefbasicauth) | false |
+
+[Back to TOC](#table-of-contents)
+
+## TargetRefBasicAuth
+
+TargetRefBasicAuth target basic authentication
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| username | The secret in the service scrape namespace that contains the username for authentication. It must be at them same namespace as CRD | [v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | true |
+| password | The secret in the service scrape namespace that contains the password for authentication. It must be at them same namespace as CRD | [v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | true |
 
 [Back to TOC](#table-of-contents)
 
