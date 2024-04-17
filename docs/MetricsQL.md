@@ -841,7 +841,7 @@ See also [count_eq_over_time](#count_eq_over_time).
 #### stale_samples_over_time
 
 `stale_samples_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which calculates the number
-of [staleness markers](https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers) on the given lookbehind window `d`
+of [staleness markers](https://docs.victoriametrics.com/vmagent/#prometheus-staleness-markers) on the given lookbehind window `d`
 per each time series matching the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.

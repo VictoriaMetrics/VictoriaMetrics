@@ -1082,7 +1082,7 @@ results such as `average`, `rate`, etc.
 Limiting the rate of data transfer could help to reduce pressure on disk or on destination database.
 The rate limit may be set in bytes-per-second via `--vm-rate-limit` flag.
 
-Please note, you can also use [vmagent](https://docs.victoriametrics.com/vmagent.html)
+Please note, you can also use [vmagent](https://docs.victoriametrics.com/vmagent/)
 as a proxy between `vmctl` and destination with `-remoteWrite.rateLimit` flag enabled.
 
 ## How to build
