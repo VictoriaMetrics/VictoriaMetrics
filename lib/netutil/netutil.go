@@ -26,6 +26,10 @@ func IsTrivialNetworkError(err error) bool {
 func DialMaybeSRV(ctx context.Context, network, addr string) (net.Conn, error) {
 	if strings.HasPrefix(addr, "srv+") {
 		addr = strings.TrimPrefix(addr, "srv+")
+		if n := strings.IndexByte(addr, ':'); n >= 0 {
+			// Drop port, since it should be automatically resolved via DNS SRV lookup below.
+			addr = addr[:n]
+		}
 		_, addrs, err := Resolver.LookupSRV(ctx, "", "", addr)
 		if err != nil {
 			return nil, fmt.Errorf("cannot resolve SRV addr %s: %w", addr, err)

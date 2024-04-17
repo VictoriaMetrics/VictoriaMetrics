@@ -68,6 +68,7 @@ and sending the data to the Prometheus-compatible remote storage:
   to run `vmagent` with `-promscrape.config.strictParse=false` command-line flag.
   In this case `vmagent` ignores unsupported sections. See [the list of unsupported sections](#unsupported-prometheus-config-sections).
 * `-remoteWrite.url` with Prometheus-compatible remote storage endpoint such as VictoriaMetrics, where to send the data to.
+  The `-remoteWrite.url` may refer to [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) address. See [these docs](#srv-urls) for details.
 
 Example command for writing the data received via [supported push-based protocols](#how-to-push-data-to-vmagent)
 to [single-node VictoriaMetrics](https://docs.victoriametrics.com/) located at `victoria-metrics-host:8428`:
@@ -129,7 +130,7 @@ additionally to pull-based Prometheus-compatible targets' scraping:
 
 * Sending HTTP request to `http://vmagent:8429/-/reload` endpoint. This endpoint can be protected with `-reloadAuthKey` command-line flag.
 
-There is also `-promscrape.configCheckInterval` command-line option, which can be used for automatic reloading configs from updated `-promscrape.config` file.
+There is also `-promscrape.configCheckInterval` command-line flag, which can be used for automatic reloading configs from updated `-promscrape.config` file.
 
 ## Use cases
 
@@ -271,6 +272,24 @@ for the collected samples. Examples:
   ```
   ./vmagent -remoteWrite=http://remote-storage/api/v1/write -streamAggr.dropInputLabels=replica -remoteWrite.streamAggr.dedupInterval=60s
   ```
+
+## SRV urls
+
+If `vmagent` encounters urls with `srv+` prefix in hostname (such as `http://srv+some-addr/some/path`), then it resolves `some-addr` [DNS SRV](https://en.wikipedia.org/wiki/SRV_record)
+record into TCP address with hostname and TCP port, and then uses the resulting url when it needs connecting to it.
+
+SRV urls are supported in the following places:
+
+- In `-remoteWrite.url` command-line flags. For example, if `victoria-metrics` [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) record contains
+  `victoria-metrics-host:8428` TCP address, then `-remoteWrite.url=http://srv+victoria-metrics/api/v1/write` is automatically resolved into
+  `-remoteWrite.url=http://victoria-metrics-host:8428/api/v1/write`. If the DNS SRV record is resolved into multiple TCP addresses, then `vmauth`
+  uses randomly chosen address per each connection it establishes to the remote storage.
+
+- In scrape target addresses aka `__address__` label - see [these docs](https://docs.victoriametrics.com/relabeling/#how-to-modify-scrape-urls-in-targets) for details.
+
+- In urls used for [service discovery](https://docs.victoriametrics.com/sd_configs/).
+
+SRV urls are useful when HTTP services run on different TCP ports or when they can change TCP ports over time (for instance, after the restart).
 
 ## VictoriaMetrics remote write protocol
 
@@ -419,7 +438,7 @@ There is no need in specifying top-level `scrape_configs` section in these files
 The list of supported service discovery types is available [here](#how-to-collect-metrics-in-prometheus-format).
 
 Additionally, `vmagent` doesn't support `refresh_interval` option at service discovery sections.
-This option is substituted with `-promscrape.*CheckInterval` command-line options, which are specific per each service discovery type.
+This option is substituted with `-promscrape.*CheckInterval` command-line flags, which are specific per each service discovery type.
 See [the full list of command-line flags for vmagent](#advanced-usage).
 
 ## Adding labels to metrics
@@ -506,7 +525,7 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
   sum_over_time(scrape_series_added[1h]) > 1000
   ```
 
-  `vmagent` sets `scrape_series_added` to zero when it runs with `-promscrape.noStaleMarkers` command-line option
+  `vmagent` sets `scrape_series_added` to zero when it runs with `-promscrape.noStaleMarkers` command-line flag
   or when it scrapes target with `no_stale_markers: true` option, e.g. when [staleness markers](#prometheus-staleness-markers) are disabled.
 
 * `scrape_series_limit` - the limit on the number of unique time series the given target can expose according to [these docs](#cardinality-limiter).
@@ -1117,14 +1136,14 @@ If you have suggestions for improvements or have found a bug - please open an is
   as `vmagent` establishes at least a single TCP connection per target.
 
 * If `vmagent` uses too big amounts of memory, then the following options can help:
-  * Reducing the amounts of RAM vmagent can use for in-memory buffering with `-memory.allowedPercent` or `-memory.allowedBytes` command-line option.
+  * Reducing the amounts of RAM vmagent can use for in-memory buffering with `-memory.allowedPercent` or `-memory.allowedBytes` command-line flag.
     Another option is to reduce memory limits in Docker and/or Kubernetes if `vmagent` runs under these systems.
   * Reducing the number of CPU cores vmagent can use by passing `GOMAXPROCS=N` environment variable to `vmagent`,
     where `N` is the desired limit on CPU cores. Another option is to reduce CPU limits in Docker or Kubernetes if `vmagent` runs under these systems.
   * Disabling staleness tracking with `-promscrape.noStaleMarkers` option. See [these docs](#prometheus-staleness-markers).
   * Enabling stream parsing mode if `vmagent` scrapes targets with millions of metrics per target. See [these docs](#stream-parsing-mode).
-  * Reducing the number of tcp connections to remote storage systems with `-remoteWrite.queues` command-line option.
-  * Passing `-promscrape.dropOriginalLabels` command-line option to `vmagent` if it [discovers](https://docs.victoriametrics.com/sd_configs.html)
+  * Reducing the number of tcp connections to remote storage systems with `-remoteWrite.queues` command-line flag.
+  * Passing `-promscrape.dropOriginalLabels` command-line flag to `vmagent` if it [discovers](https://docs.victoriametrics.com/sd_configs.html)
     big number of targets and many of these targets are [dropped](https://docs.victoriametrics.com/relabeling.html#how-to-drop-discovered-targets)
     before scraping. In this case `vmagent` drops `"discoveredLabels"` and `"droppedTargets"`
     lists at `http://vmagent-host:8429/service-discovery` page. This reduces memory usage when scraping big number of targets at the cost
@@ -1142,7 +1161,7 @@ If you have suggestions for improvements or have found a bug - please open an is
   may result in increased memory usage if a big number of scrape targets are dropped during relabeling.
 
 * It is recommended increaseing `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` [metric](#monitoring)
-  grows constantly. It is also recommended increasing `-remoteWrite.maxBlockSize` and `-remoteWrite.maxRowsPerBlock` command-line options in this case.
+  grows constantly. It is also recommended increasing `-remoteWrite.maxBlockSize` and `-remoteWrite.maxRowsPerBlock` command-line flags in this case.
   This can improve data ingestion performance to the configured remote storage systems at the cost of higher memory usage.
 
 * If you see gaps in the data pushed by `vmagent` to remote storage when `-remoteWrite.maxDiskUsagePerURL` is set,
@@ -1387,7 +1406,7 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 ### Reading metrics from Kafka
 
 [Enterprise version](https://docs.victoriametrics.com/enterprise/) of `vmagent` can read metrics in various formats from Kafka messages.
-These formats can be configured with `-kafka.consumer.topic.defaultFormat` or `-kafka.consumer.topic.format` command-line options. The following formats are supported:
+These formats can be configured with `-kafka.consumer.topic.defaultFormat` or `-kafka.consumer.topic.format` command-line flags. The following formats are supported:
 
 * `promremotewrite` - [Prometheus remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
   Messages in this format can be sent by vmagent - see [these docs](#writing-metrics-to-kafka).

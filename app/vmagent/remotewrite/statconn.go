@@ -3,34 +3,15 @@ package remotewrite
 import (
 	"context"
 	"net"
-	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
-func getStdDialer() *net.Dialer {
-	stdDialerOnce.Do(func() {
-		stdDialer = &net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-			DualStack: netutil.TCP6Enabled(),
-		}
-	})
-	return stdDialer
-}
-
-var (
-	stdDialer     *net.Dialer
-	stdDialerOnce sync.Once
-)
-
 func statDial(ctx context.Context, _, addr string) (conn net.Conn, err error) {
 	network := netutil.GetTCPNetwork()
-	d := getStdDialer()
-	conn, err = d.DialContext(ctx, network, addr)
+	conn, err = netutil.DialMaybeSRV(ctx, network, addr)
 	dialsTotal.Inc()
 	if err != nil {
 		dialErrors.Inc()
