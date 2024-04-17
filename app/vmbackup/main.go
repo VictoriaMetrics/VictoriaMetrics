@@ -54,14 +54,14 @@ func main() {
 		if len(*snapshotName) > 0 {
 			logger.Fatalf("-snapshotName shouldn't be set if -snapshot.createURL is set, since snapshots are created automatically in this case")
 		}
-		logger.Infof("Snapshot create url %s", snapshot.SnapshotCreateURL.String())
+		logger.Infof("Snapshot create url %q", snapshot.SnapshotCreateURL.String())
 		if len(snapshot.SnapshotDeleteURL.Get()) <= 0 {
 			err := flag.Set("snapshot.deleteURL", strings.Replace(snapshot.SnapshotCreateURL.Get(), "/create", "/delete", 1))
 			if err != nil {
 				logger.Fatalf("Failed to set snapshot.deleteURL flag: %v", err)
 			}
 		}
-		logger.Infof("Snapshot delete url %s", snapshot.SnapshotDeleteURL.String())
+		logger.Infof("Snapshot delete url %q", snapshot.SnapshotDeleteURL.String())
 
 		name, err := snapshot.Create()
 		if err != nil {

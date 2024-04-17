@@ -12,27 +12,27 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
-// NewSecureURL returns new `url` flag with the given name and description.
+// NewURL returns new `url` flag with the given name and description.
 //
-// The url value is hidden when calling SecureURL.String() for security reasons,
+// The url value is hidden when calling URL.String() for security reasons,
 // since the returned value can be put in logs.
-// Call SecureURL.Get() for obtaining the real url value.
-func NewSecureURL(name, description string) *SecureURL {
+// Call URL.Get() for obtaining the real url value.
+func NewURL(name, description string) *URL {
 	description += fmt.Sprintf("\nFlag value can be read from the given file when using -%s=file:///abs/path/to/file or -%s=file://./relative/path/to/file . ", name, name)
-	p := &SecureURL{
+	u := &URL{
 		flagname: name,
 	}
 	s := ""
-	p.value.Store(&s)
-	flag.Var(p, name, description)
-	return p
+	u.value.Store(&s)
+	flag.Var(u, name, description)
+	return u
 }
 
-// SecureURL  is a flag holding a url.
+// URL is a flag holding a url.
 //
 // If the flag value is file:///path/to/file,
 // then its contents is automatically re-read from the given file.
-type SecureURL struct {
+type URL struct {
 	nextRefreshTimestamp atomic.Uint64
 
 	value atomic.Pointer[string]
@@ -44,63 +44,63 @@ type SecureURL struct {
 	sourcePath string
 }
 
-// Get returns the current p value.
+// Get returns the current u value.
 //
-// It re-reads s value from the file:///path/to/file
-// if they were passed to SecureURL .Set.
-func (s *SecureURL) Get() string {
-	s.maybeRereadURL()
-	sPtr := s.value.Load()
+// It re-reads u value from the file:///path/to/file
+// if they were passed to URL.Set.
+func (u *URL) Get() string {
+	u.maybeRereadURL()
+	sPtr := u.value.Load()
 	return *sPtr
 }
 
-func (s *SecureURL) maybeRereadURL() {
-	if s.sourcePath == "" {
+func (u *URL) maybeRereadURL() {
+	if u.sourcePath == "" {
 		// Fast path - nothing to re-read
 		return
 	}
 	tsCurr := fasttime.UnixTimestamp()
-	tsNext := s.nextRefreshTimestamp.Load()
+	tsNext := u.nextRefreshTimestamp.Load()
 	if tsCurr < tsNext {
 		// Fast path - nothing to re-read
 		return
 	}
 
 	// Re-read url from s.sourcePath
-	s.nextRefreshTimestamp.Store(tsCurr + 2)
-	data, err := os.ReadFile(s.sourcePath)
+	u.nextRefreshTimestamp.Store(tsCurr + 2)
+	data, err := os.ReadFile(u.sourcePath)
 	if err != nil {
 		// cannot use lib/logger, since it can be uninitialized yet
-		log.Printf("flagutil: fall back to the previous url for -%s, since failed to re-read it from %q: %s\n", s.flagname, s.sourcePath, fmt.Errorf("cannot read %q: %w", s.sourcePath, err))
+		log.Printf("flagutil: fall back to the previous url for -%s, since failed to re-read it from %q: cannot read %q: %s\n", u.flagname, u.sourcePath, u.sourcePath, err.Error())
 
 	} else {
 		url := strings.TrimRightFunc(string(data), unicode.IsSpace)
-		s.value.Store(&url)
+		u.value.Store(&url)
 	}
 }
 
 // String implements flag.Value interface.
-func (s *SecureURL) String() string {
+func (u *URL) String() string {
 	return "secret"
 }
 
 // Set implements flag.Value interface.
-func (s *SecureURL) Set(value string) error {
-	s.nextRefreshTimestamp.Store(0)
+func (u *URL) Set(value string) error {
+	u.nextRefreshTimestamp.Store(0)
 	switch {
 	case strings.HasPrefix(value, "file://"):
-		s.sourcePath = strings.TrimPrefix(value, "file://")
-		data, err := os.ReadFile(s.sourcePath)
+		u.sourcePath = strings.TrimPrefix(value, "file://")
+		data, err := os.ReadFile(u.sourcePath)
 		if err != nil {
 			// cannot use lib/logger, since it can be uninitialized yet
-			return fmt.Errorf("cannot read %q: %w", s.sourcePath, err)
+			return fmt.Errorf("cannot read %q: %w", u.sourcePath, err)
 		}
 		url := strings.TrimRightFunc(string(data), unicode.IsSpace)
-		s.value.Store(&url)
+		u.value.Store(&url)
 		return nil
 	default:
-		s.sourcePath = ""
-		s.value.Store(&value)
+		u.sourcePath = ""
+		u.value.Store(&value)
 		return nil
 	}
 }

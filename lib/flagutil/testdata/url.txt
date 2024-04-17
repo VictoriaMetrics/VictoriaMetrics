@@ -1,1 +1,1 @@
-http://usr:pass@localhost:8428/snapshot/create
+http://usr:pass@localhost:8428/snapshot/create?authKey=foobar
