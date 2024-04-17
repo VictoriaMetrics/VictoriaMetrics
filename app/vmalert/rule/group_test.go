@@ -263,9 +263,10 @@ func TestGroupStart(t *testing.T) {
 
 	waitForIterations := func(n int, interval time.Duration) {
 		t.Helper()
-		prev := g.metrics.iterationTotal.Get()
-		cur := prev
+
 		var iterationsMade int
+		var cur uint64
+		prev := g.metrics.iterationTotal.Get()
 		for i := 0; ; i++ {
 			if i > 20 {
 				t.Fatalf("group wasn't able to perfrom %d evaluations during %d eval intervals", n, i)
