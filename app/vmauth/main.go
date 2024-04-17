@@ -50,15 +50,15 @@ var (
 	maxRequestBodySizeToRetry = flagutil.NewBytes("maxRequestBodySizeToRetry", 16*1024, "The maximum request body size, which can be cached and re-tried at other backends. "+
 		"Bigger values may require more memory")
 	backendTLSInsecureSkipVerify = flag.Bool("backend.tlsInsecureSkipVerify", false, "Whether to skip TLS verification when connecting to backends over HTTPS. "+
-		"See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup")
+		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
 	backendTLSCAFile = flag.String("backend.TLSCAFile", "", "Optional path to TLS root CA file, which is used for TLS verification when connecting to backends over HTTPS. "+
-		"See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup")
+		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
 	backendTLSCertFile = flag.String("backend.TLSCertFile", "", "Optional path to TLS client certificate file, which must be sent to HTTPS backend. "+
-		"See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup")
+		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
 	backendTLSKeyFile = flag.String("backend.TLSKeyFile", "", "Optional path to TLS client key file, which must be sent to HTTPS backend. "+
-		"See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup")
+		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
 	backendTLSServerName = flag.String("backend.TLSServerName", "", "Optional TLS ServerName, which must be sent to HTTPS backend. "+
-		"See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup")
+		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
 )
 
 func main() {
@@ -465,7 +465,7 @@ func usage() {
 	const s = `
 vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics.
 
-See the docs at https://docs.victoriametrics.com/vmauth.html .
+See the docs at https://docs.victoriametrics.com/vmauth/ .
 `
 	flagutil.Usage(s)
 }

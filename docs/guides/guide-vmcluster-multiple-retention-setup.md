@@ -51,4 +51,4 @@ Every group of vmstorages can handle one tenant or multiple one. Different group
 
 **Additional Enhancements**
 
-You can set up [vmauth](https://docs.victoriametrics.com/vmauth.html) for routing data to the given vminsert group depending on the needed retention.
+You can set up [vmauth](https://docs.victoriametrics.com/vmauth/) for routing data to the given vminsert group depending on the needed retention.

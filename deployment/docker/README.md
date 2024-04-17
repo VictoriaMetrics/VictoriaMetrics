@@ -98,7 +98,7 @@ with listed targets for scraping.
 
 ## vmauth
 
-[vmauth](https://docs.victoriametrics.com/vmauth.html) acts as a [balancer](https://docs.victoriametrics.com/vmauth.html#load-balancing)
+[vmauth](https://docs.victoriametrics.com/vmauth/) acts as a [balancer](https://docs.victoriametrics.com/vmauth/#load-balancing)
 to spread the load across `vmselect`'s. [Grafana](#grafana) and [vmalert](#vmalert) use vmauth for read queries.
 vmauth config is available [here](ttps://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/auth-cluster.yml)
 
