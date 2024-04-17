@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -97,8 +98,13 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 		bu := up.getBackendURL()
 		target := mergeURLs(bu.url, u, up.dropSrcPathPrefixParts)
 		bu.put()
-		if target.String() != expectedTarget {
-			t.Fatalf("unexpected target; got %q; want %q", target, expectedTarget)
+
+		gotTarget, err := url.QueryUnescape(target.String())
+		if err != nil {
+			t.Fatalf("failed to unescape query %q: %s", target, err)
+		}
+		if gotTarget != expectedTarget {
+			t.Fatalf("unexpected target; \ngot:\n%q;\nwant:\n%q", gotTarget, expectedTarget)
 		}
 		if s := headersToString(hc.RequestHeaders); s != expectedRequestHeaders {
 			t.Fatalf("unexpected request headers; got %q; want %q", s, expectedRequestHeaders)
@@ -154,7 +160,7 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 	}, "/../../aaa", "https://sss:3894/x/y/aaa", "", "", nil, "least_loaded", 0)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("https://sss:3894/x/y"),
-	}, "/./asd/../../aaa?a=d&s=s/../d", "https://sss:3894/x/y/aaa?a=d&s=s%2F..%2Fd", "", "", nil, "least_loaded", 0)
+	}, "/./asd/../../aaa?a=d&s=s/../d", "https://sss:3894/x/y/aaa?a=d&s=s/../d", "", "", nil, "least_loaded", 0)
 
 	// Complex routing with `url_map`
 	ui := &UserInfo{
@@ -164,8 +170,11 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 				SrcPaths: getRegexs([]string{"/vmsingle/api/v1/query"}),
 				SrcQueryArgs: []QueryArg{
 					{
-						Name:  "db",
-						Value: "foo",
+						Name: "db",
+						Value: &Regex{
+							sOriginal: "foo",
+							re:        regexp.MustCompile("^(?:foo)$"),
+						},
 					},
 				},
 				URLPrefix: mustParseURL("http://vmselect/0/prometheus"),
@@ -249,7 +258,43 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 	}, "/api/v1/query", "http://foo.bar/api/v1/query?extra_label=team=dev", "", "", nil, "least_loaded", 0)
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar?extra_label=team=mobile"),
-	}, "/api/v1/query?extra_label=team=dev", "http://foo.bar/api/v1/query?extra_label=team%3Dmobile", "", "", nil, "least_loaded", 0)
+	}, "/api/v1/query?extra_label=team=dev", "http://foo.bar/api/v1/query?extra_label=team=mobile", "", "", nil, "least_loaded", 0)
+
+	// Complex routing regexp query args in `url_map`
+	ui = &UserInfo{
+		URLMaps: []URLMap{
+			{
+				SrcPaths: getRegexs([]string{"/api/v1/query"}),
+				SrcQueryArgs: []QueryArg{
+					{
+						Name: "query",
+						Value: &Regex{
+							sOriginal: "foo",
+							re:        regexp.MustCompile(`^(?:.*env="dev".*)$`),
+						},
+					},
+				},
+				URLPrefix: mustParseURL("http://vmselect/0/prometheus"),
+			},
+			{
+				SrcPaths: getRegexs([]string{"/api/v1/query"}),
+				SrcQueryArgs: []QueryArg{
+					{
+						Name: "query",
+						Value: &Regex{
+							sOriginal: "foo",
+							re:        regexp.MustCompile(`^(?:.*env="prod".*)$`),
+						},
+					},
+				},
+				URLPrefix: mustParseURL("http://vmselect/1/prometheus"),
+			},
+		},
+		URLPrefix: mustParseURL("http://default-server"),
+	}
+	f(ui, `/api/v1/query?query=up{env="prod"}`, `http://vmselect/1/prometheus/api/v1/query?query=up{env="prod"}`, "", "", nil, "least_loaded", 0)
+	f(ui, `/api/v1/query?query=up{foo="bar", env="dev", pod!=""}`, `http://vmselect/0/prometheus/api/v1/query?query=up{foo="bar", env="dev", pod!=""}`, "", "", nil, "least_loaded", 0)
+	f(ui, `/api/v1/query?query=up{foo="bar"}`, `http://default-server/api/v1/query?query=up{foo="bar"}`, "", "", nil, "least_loaded", 0)
 }
 
 func TestCreateTargetURLFailure(t *testing.T) {

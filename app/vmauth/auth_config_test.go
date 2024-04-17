@@ -386,8 +386,11 @@ users:
 				SrcPaths: getRegexs([]string{"/api/v1/write"}),
 				SrcQueryArgs: []QueryArg{
 					{
-						Name:  "foo",
-						Value: "bar",
+						Name: "foo",
+						Value: &Regex{
+							sOriginal: "bar",
+							re:        regexp.MustCompile("^(?:bar)$"),
+						},
 					},
 				},
 				SrcHeaders: []Header{
