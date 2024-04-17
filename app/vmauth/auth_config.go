@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"math"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -27,6 +26,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 )
 
@@ -302,7 +302,7 @@ func (up *URLPrefix) getBackendsCount() int {
 //
 // backendURL.put() must be called on the returned backendURL after the request is complete.
 func (up *URLPrefix) getBackendURL() *backendURL {
-	up.discoverBackendIPsIfNeeded()
+	up.discoverBackendAddrsIfNeeded()
 
 	pbus := up.bus.Load()
 	bus := *pbus
@@ -312,7 +312,7 @@ func (up *URLPrefix) getBackendURL() *backendURL {
 	return getLeastLoadedBackendURL(bus, &up.n)
 }
 
-func (up *URLPrefix) discoverBackendIPsIfNeeded() {
+func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 	if !up.discoverBackendIPs {
 		// The discovery is disabled.
 		return
@@ -337,27 +337,42 @@ func (up *URLPrefix) discoverBackendIPsIfNeeded() {
 
 	// Discover ips for all the backendURLs
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(intervalSec))
-	hostToIPs := make(map[string][]string)
+	hostToAddrs := make(map[string][]string)
 	for _, bu := range up.busOriginal {
 		host := bu.Hostname()
-		if hostToIPs[host] != nil {
+		if hostToAddrs[host] != nil {
 			// ips for the given host have been already discovered
 			continue
 		}
-		addrs, err := resolver.LookupIPAddr(ctx, host)
-		var ips []string
-		if err != nil {
-			logger.Warnf("cannot discover backend IPs for %s: %s; use it literally", bu, err)
-			ips = []string{host}
-		} else {
-			ips = make([]string, len(addrs))
-			for i, addr := range addrs {
-				ips[i] = addr.String()
+		var resolvedAddrs []string
+		if strings.HasPrefix(host, "srv+") {
+			// The host has the format 'srv+realhost'. Strip 'srv+' prefix before performing the lookup.
+			host = strings.TrimPrefix(host, "srv+")
+			_, addrs, err := netutil.Resolver.LookupSRV(ctx, "", "", host)
+			if err != nil {
+				logger.Warnf("cannot discover backend SRV records for %s: %s; use it literally", bu, err)
+				resolvedAddrs = []string{host}
+			} else {
+				resolvedAddrs := make([]string, len(addrs))
+				for i, addr := range addrs {
+					resolvedAddrs[i] = fmt.Sprintf("%s:%d", addr.Target, addr.Port)
+				}
 			}
-			// sort ips, so they could be compared below in areEqualBackendURLs()
-			sort.Strings(ips)
+		} else {
+			addrs, err := netutil.Resolver.LookupIPAddr(ctx, host)
+			if err != nil {
+				logger.Warnf("cannot discover backend IPs for %s: %s; use it literally", bu, err)
+				resolvedAddrs = []string{host}
+			} else {
+				resolvedAddrs = make([]string, len(addrs))
+				for i, addr := range addrs {
+					resolvedAddrs[i] = addr.String()
+				}
+			}
 		}
-		hostToIPs[host] = ips
+		// sort resolvedAddrs, so they could be compared below in areEqualBackendURLs()
+		sort.Strings(resolvedAddrs)
+		hostToAddrs[host] = resolvedAddrs
 	}
 	cancel()
 
@@ -366,10 +381,14 @@ func (up *URLPrefix) discoverBackendIPsIfNeeded() {
 	for _, bu := range up.busOriginal {
 		host := bu.Hostname()
 		port := bu.Port()
-		for _, ip := range hostToIPs[host] {
+		for _, addr := range hostToAddrs[host] {
 			buCopy := *bu
-			buCopy.Host = ip
+			buCopy.Host = addr
 			if port != "" {
+				if n := strings.IndexByte(buCopy.Host, ':'); n >= 0 {
+					// Drop the discovered port and substitute it the the port specified in bu.
+					buCopy.Host = buCopy.Host[:n]
+				}
 				buCopy.Host += ":" + port
 			}
 			busNew = append(busNew, &backendURL{
@@ -398,11 +417,6 @@ func areEqualBackendURLs(a, b []*backendURL) bool {
 		}
 	}
 	return true
-}
-
-var resolver = &net.Resolver{
-	PreferGo:     true,
-	StrictErrors: true,
 }
 
 // getFirstAvailableBackendURL returns the first available backendURL, which isn't broken.
