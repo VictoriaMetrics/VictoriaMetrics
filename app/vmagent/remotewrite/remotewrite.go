@@ -103,11 +103,11 @@ var (
 	streamAggrDropInputLabels = flagutil.NewArrayString("streamAggr.dropInputLabels", "An optional list of labels to drop from samples "+
 		"before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation.html#dropping-unneeded-labels")
 
-	disableOnDiskQueuePerURL = flagutil.NewArrayBool("remoteWrite.disableOnDiskQueue", "Whether to disable storing pending data to -remoteWrite.tmpDataPath "+
-		"when the configured remote storage systems cannot keep up with the data ingestion rate. See https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence ."+
+	disableOnDiskQueuePerURL = flagutil.NewArrayBool("remoteWrite.disableOnDiskQueue", "An optional list to control whether to disable for each remote write storing pending data to -remoteWrite.tmpDataPath "+
+		"when the configured remote storage systems cannot keep up with the data ingestion rate. Set it once and it will affect all remote writes. See https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence ."+
 		"See also -remoteWrite.dropSamplesOnOverload")
-	dropSamplesOnOverload = flagutil.NewArrayBool("remoteWrite.dropSamplesOnOverload", "Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples "+
-		"cannot be pushed into the configured remote storage systems in a timely manner. See https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence")
+	dropSamplesOnOverload = flagutil.NewArrayBool("remoteWrite.dropSamplesOnOverload", "An optional list to control whether to drop samples for each remote write when -remoteWrite.disableOnDiskQueue is set and if the samples "+
+		"cannot be pushed into the configured remote storage systems in a timely manner. Set it once and it will affect all remote writes. See https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence")
 )
 
 var (

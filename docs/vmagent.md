@@ -2024,9 +2024,9 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.disableOnDiskQueue
-     Whether to disable storing pending data to -remoteWrite.tmpDataPath when the configured remote storage systems cannot keep up with the data ingestion rate. See https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence .See also -remoteWrite.dropSamplesOnOverload
+     An optional list to control whether to disable for each remote write  storing pending data to -remoteWrite.tmpDataPath when the configured remote storage systems cannot keep up with the data ingestion rate. See https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence. Set it once and it will affect all remote writes.See also -remoteWrite.dropSamplesOnOverload
   -remoteWrite.dropSamplesOnOverload
-     Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples cannot be pushed into the configured remote storage systems in a timely manner. See https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence
+     An optional list to control whether to drop samples for each remote write when -remoteWrite.disableOnDiskQueue is set and if the samples cannot be pushed into the configured remote storage systems in a timely manner. Set it once and it will affect all remote writes. See https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence
   -remoteWrite.flushInterval duration
      Interval for flushing the data to remote storage. This option takes effect only when less than 10K data points per second are pushed to -remoteWrite.url (default 1s)
   -remoteWrite.forcePromProto array
