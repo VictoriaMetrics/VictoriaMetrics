@@ -15,6 +15,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
@@ -87,8 +88,6 @@ func (hc *HTTPClient) stop() {
 	hc.client.CloseIdleConnections()
 }
 
-var defaultDialer = &net.Dialer{}
-
 // NewClient returns new Client for the given args.
 func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxyAC *promauth.Config, httpCfg *promauth.HTTPClientConfig) (*Client, error) {
 	u, err := url.Parse(apiServer)
@@ -96,13 +95,13 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 		return nil, fmt.Errorf("cannot parse apiServer=%q: %w", apiServer, err)
 	}
 
-	dialFunc := defaultDialer.DialContext
+	dialFunc := netutil.DialMaybeSRV
 	if u.Scheme == "unix" {
 		// special case for unix socket connection
 		dialAddr := u.Path
 		apiServer = "http://unix"
 		dialFunc = func(ctx context.Context, _, _ string) (net.Conn, error) {
-			return defaultDialer.DialContext(ctx, "unix", dialAddr)
+			return netutil.Dialer.DialContext(ctx, "unix", dialAddr)
 		}
 	}
 
