@@ -323,7 +323,7 @@ func copyHeader(dst, src http.Header) {
 	}
 }
 
-func updateHeadersByConfig(headers http.Header, config []Header) {
+func updateHeadersByConfig(headers http.Header, config []*Header) {
 	for _, h := range config {
 		if h.Value == "" {
 			headers.Del(h.Name)

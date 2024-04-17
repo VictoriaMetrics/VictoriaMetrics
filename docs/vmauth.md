@@ -135,18 +135,20 @@ If `src_query_args` contains multiple entries, then it is enough to match only a
 If `src_query_args` are specified together with `src_hosts`, `src_paths` or `src_headers`, then the request is routed to the given `url_prefix`
 if its query args, host, path and headers match the given lists simultaneously.
 
-`src_query_args` supports regex matching:
+`src_query_args` supports [regex matching](https://github.com/google/re2/wiki/Syntax) by using `arg=~regex` syntax:
+
 ```yaml
 unauthorized_user:
   url_map:
-    - src_query_args: [ "query=.*env=\"prod\".*" ]
-      url_prefix: "http://prod-backend/"
-    - src_query_args: [ "query=.*env=\"dev\".*" ]
-      url_prefix: "http://dev-backend/"
+    - src_query_args: ['query=~.*{.*env="prod".*}.*']
+      url_prefix: 'http://prod-backend/'
+    - src_query_args: ['query=~.*{.*env="dev".*}.*']
+      url_prefix: 'http://dev-backend/'
 ```
-The config above will route requests like `/api/v1/query?query=up{env="prod"}` to `http://prod-backend/`.
-And queries matching `.*env=\"dev\".*` will be routed to `http://dev-backend/`.
-_Please note, by default Grafana sends `query` param in request's body and vmauth won't be able to read it. 
+
+The config above routes requests like `/api/v1/query?query=up{env="prod"}` to `http://prod-backend/`, while requests to `/api/v1/query?query=up{env="dev"}` are routed to `http://dev-backend/`.
+
+_Please note, by default Grafana sends `query` param in request's body and vmauth won't be able to read it.
 You need to manually switch datasource settings in Grafana to use GET method for sending queries._
 
 An optional `src_headers` can be used for routing requests based on HTTP request headers additionally to hostname, path and [HTTP query args](https://en.wikipedia.org/wiki/Query_string).
