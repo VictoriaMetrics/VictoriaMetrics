@@ -20,7 +20,7 @@ aliases:
 **Update note: PodDisruptionBudget at betav1 API is no longer supported. Operator uses v1 stable version. See this [doc](https://kubernetes.io/docs/reference/using-api/deprecation-guide/#poddisruptionbudget-v125) for details.**
 **Update note: `Alertmanager` versions below `v0.22.0` are no longer supported. Version must upgraded - manually for resources or use default version bundled with operator config.**
 
-
+- [operator](./README.md): properly reconcile `ServiceAccount` specified for `CRD`s. Previously operator didn't perform a check for actual owner of `ServiceAccount`. Now it creates and updates `ServiceAccount` only if this field is omitted at `CRD` definition. It fixes possible ownership race conditions.
 - Update VictoriaMetrics image tags to [v1.100.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.100.1).
 - [operator](./README.md): reduce number of watched resources owned by `CRD`s. Operator no longer watches for `Service`, `Secret`, `Configmap` changes owned by CRD object. It must reduce logging output, CPU and memory usage for operator.
 - [operator](./README.md): exposes `config-reloader-http` port with `8435` number for the customer config-reloader containers. Operator may use own config-reloader implementation for `VMAuth`, `VMAlertmanager` and `VMAgent`.
