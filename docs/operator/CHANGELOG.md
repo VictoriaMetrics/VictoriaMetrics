@@ -37,6 +37,7 @@ aliases:
 - [vmalertmanager](./api.md#vmalertmanager): bump default alertmanager version to [v0.27.0](https://github.com/prometheus/alertmanager/releases/tag/v0.27.0), which supports new receivers like `msteams_configs`.
 - [vmalertmanager](./api.md#vmalertmanager): supports alertmanager version v0.22.0 or higher. Previous versions are no longer supported and must be upgraded before using new operator release.
 - [vmscrapeconfig](./api.md#vmscrapeconfig): add crd VMScrapeConfig, which can define a scrape config using any of the service discovery options supported in victoriametrics.
+- [vmuser](./api.md#vmuser): adds `targetRefBasicAuth` field `targetRef`, which allow to configure basic authorization for `target_url`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/669) for details. Thanks @mohammadkhavari
 - [vmprobe](./api.md#vmprobe): add field `proxy_url`, see [this issue](https://github.com/VictoriaMetrics/operator/issues/731) for details.
 - scrape CRDs: add field `series_limit`, which can be used to limit the number of unique time series a single scrape target can expose.
 - scrape CRDs: fix scrape_config filed `disable_keep_alive`, before it's misconfigured as `disable_keepalive` and won't work.
