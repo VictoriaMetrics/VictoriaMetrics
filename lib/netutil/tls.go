@@ -12,42 +12,44 @@ import (
 
 // GetServerTLSConfig returns TLS config for the server.
 func GetServerTLSConfig(tlsCertFile, tlsKeyFile, tlsMinVersion string, tlsCipherSuites []string) (*tls.Config, error) {
-	var certLock sync.Mutex
-	var certDeadline uint64
-	var cert *tls.Certificate
-	c, err := tls.LoadX509KeyPair(tlsCertFile, tlsKeyFile)
+	minVersion, err := ParseTLSVersion(tlsMinVersion)
 	if err != nil {
-		return nil, fmt.Errorf("cannot load TLS cert from certFile=%q, keyFile=%q: %w", tlsCertFile, tlsKeyFile, err)
+		return nil, fmt.Errorf("cannnot use TLS min version from tlsMinVersion=%q. Supported TLS versions (TLS10, TLS11, TLS12, TLS13): %w", tlsMinVersion, err)
 	}
 	cipherSuites, err := cipherSuitesFromNames(tlsCipherSuites)
 	if err != nil {
 		return nil, fmt.Errorf("cannot use TLS cipher suites from tlsCipherSuites=%q: %w", tlsCipherSuites, err)
 	}
-	minVersion, err := ParseTLSVersion(tlsMinVersion)
-	if err != nil {
-		return nil, fmt.Errorf("cannnot use TLS min version from tlsMinVersion=%q. Supported TLS versions (TLS10, TLS11, TLS12, TLS13): %w", tlsMinVersion, err)
-	}
-	cert = &c
 	cfg := &tls.Config{
 		MinVersion: minVersion,
+
 		// Do not set MaxVersion, since this has no sense from security PoV.
 		// This can only result in lower security level if improperly set.
-		GetCertificate: func(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
-			certLock.Lock()
-			defer certLock.Unlock()
-			if fasttime.UnixTimestamp() > certDeadline {
-				c, err = tls.LoadX509KeyPair(tlsCertFile, tlsKeyFile)
-				if err != nil {
-					return nil, fmt.Errorf("cannot load TLS cert from certFile=%q, keyFile=%q: %w", tlsCertFile, tlsKeyFile, err)
-				}
-				certDeadline = fasttime.UnixTimestamp() + 1
-				cert = &c
-			}
-			return cert, nil
-		},
+
 		CipherSuites: cipherSuites,
 	}
+
+	cfg.GetCertificate = newGetCertificateFunc(tlsCertFile, tlsKeyFile)
 	return cfg, nil
+}
+
+func newGetCertificateFunc(tlsCertFile, tlsKeyFile string) func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	var certLock sync.Mutex
+	var certDeadline uint64
+	var cert *tls.Certificate
+	return func(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
+		certLock.Lock()
+		defer certLock.Unlock()
+		if fasttime.UnixTimestamp() > certDeadline {
+			c, err := tls.LoadX509KeyPair(tlsCertFile, tlsKeyFile)
+			if err != nil {
+				return nil, fmt.Errorf("cannot load TLS cert from certFile=%q, keyFile=%q: %w", tlsCertFile, tlsKeyFile, err)
+			}
+			certDeadline = fasttime.UnixTimestamp() + 1
+			cert = &c
+		}
+		return cert, nil
+	}
 }
 
 func cipherSuitesFromNames(cipherSuiteNames []string) ([]uint16, error) {
