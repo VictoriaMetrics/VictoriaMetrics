@@ -48,8 +48,29 @@ func ProcessQueryRequest(w http.ResponseWriter, r *http.Request, stopCh <-chan s
 		}
 		rowsCount := len(columns[0].Values)
 
+		// skip entries with empty _stream column
+		// _stream is empty in case indexdb entry was not flushed to the storage yet
+		// skipping such entries makes the result more consistent
+		streamCol := 0
+
+		// fast path
+		// _stream column is a built-in column and it is always supposed to be at the same position
+		if len(columns) >= 2 && columns[1].Name == "_stream" {
+			streamCol = 1
+		} else {
+			for i := 1; i < len(columns); i++ {
+				if columns[i].Name == "_stream" {
+					streamCol = i
+					break
+				}
+			}
+		}
+
 		bb := blockResultPool.Get()
 		for rowIdx := 0; rowIdx < rowsCount; rowIdx++ {
+			if columns[streamCol].Values[rowIdx] == "" {
+				continue
+			}
 			WriteJSONRow(bb, columns, rowIdx)
 		}
 
