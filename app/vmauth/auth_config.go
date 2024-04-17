@@ -81,7 +81,7 @@ type UserInfo struct {
 	concurrencyLimitCh      chan struct{}
 	concurrencyLimitReached *metrics.Counter
 
-	httpTransport *http.Transport
+	rt http.RoundTripper
 
 	requests         *metrics.Counter
 	backendErrors    *metrics.Counter
@@ -729,11 +729,11 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 			return float64(len(ui.concurrencyLimitCh))
 		})
 
-		tr, err := getTransport(ui.TLSInsecureSkipVerify, ui.TLSCAFile)
+		rt, err := newRoundTripper(ui.TLSInsecureSkipVerify, ui.TLSCAFile)
 		if err != nil {
-			return nil, fmt.Errorf("cannot initialize HTTP transport: %w", err)
+			return nil, fmt.Errorf("cannot initialize HTTP RoundTripper: %w", err)
 		}
-		ui.httpTransport = tr
+		ui.rt = rt
 	}
 	return ac, nil
 }
@@ -777,11 +777,11 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 			return float64(len(ui.concurrencyLimitCh))
 		})
 
-		tr, err := getTransport(ui.TLSInsecureSkipVerify, ui.TLSCAFile)
+		rt, err := newRoundTripper(ui.TLSInsecureSkipVerify, ui.TLSCAFile)
 		if err != nil {
-			return nil, fmt.Errorf("cannot initialize HTTP transport: %w", err)
+			return nil, fmt.Errorf("cannot initialize HTTP RoundTripper: %w", err)
 		}
-		ui.httpTransport = tr
+		ui.rt = rt
 
 		for _, at := range ats {
 			byAuthToken[at] = ui

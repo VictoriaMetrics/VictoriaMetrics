@@ -578,11 +578,11 @@ unauthorized_user:
 	}
 
 	ui := m[getHTTPAuthBasicToken("foo", "bar")]
-	if !isSetBool(ui.TLSInsecureSkipVerify, true) || !ui.httpTransport.TLSClientConfig.InsecureSkipVerify {
+	if !isSetBool(ui.TLSInsecureSkipVerify, true) {
 		t.Fatalf("unexpected TLSInsecureSkipVerify value for user foo")
 	}
 
-	if !isSetBool(ac.UnauthorizedUser.TLSInsecureSkipVerify, false) || ac.UnauthorizedUser.httpTransport.TLSClientConfig.InsecureSkipVerify {
+	if !isSetBool(ac.UnauthorizedUser.TLSInsecureSkipVerify, false) {
 		t.Fatalf("unexpected TLSInsecureSkipVerify value for unauthorized_user")
 	}
 }
