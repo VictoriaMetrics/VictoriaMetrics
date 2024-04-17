@@ -83,7 +83,7 @@ It automatically drops partition directories outside the configured retention.
 VictoriaLogs automatically drops logs at [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/) stage
 if they have timestamps outside the configured retention. A sample of dropped logs is logged with `WARN` message in order to simplify troubleshooting.
 The `vl_rows_dropped_total` [metric](#monitoring) is incremented each time an ingested log entry is dropped because of timestamp outside the retention.
-It is recommended to set up the following alerting rule at [vmalert](https://docs.victoriametrics.com/vmalert.html) in order to be notified
+It is recommended to set up the following alerting rule at [vmalert](https://docs.victoriametrics.com/vmalert/) in order to be notified
 when logs with wrong timestamps are ingested into VictoriaLogs:
 
 ```metricsql

@@ -65,8 +65,8 @@ On top of this, Enterprise package of VictoriaMetrics includes the following fea
 - [mTLS-based request routing](https://docs.victoriametrics.com/vmauth.html#mtls-based-request-routing).
 - [Kafka integration](https://docs.victoriametrics.com/vmagent/#kafka-integration).
 - [Google PubSub integration](https://docs.victoriametrics.com/vmagent/#google-pubsub-integration).
-- [Multitenant support in vmalert](https://docs.victoriametrics.com/vmalert.html#multitenancy).
-- [Ability to read alerting and recording rules from Object Storage](https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage).
+- [Multitenant support in vmalert](https://docs.victoriametrics.com/vmalert/#multitenancy).
+- [Ability to read alerting and recording rules from Object Storage](https://docs.victoriametrics.com/vmalert/#reading-rules-from-object-storage).
 - [Ability to filter incoming requests by IP at vmauth](https://docs.victoriametrics.com/vmauth.html#ip-filters).
 
 Contact us via [this page](https://victoriametrics.com/products/enterprise/) if you are interested in VictoriaMetrics Enterprise.
@@ -279,7 +279,7 @@ All the VictoriaMetrics Enterprise components expose the following metrics at th
 * `vm_license_expires_at` - license expiration date in unix timestamp format
 * `vm_license_expires_in_seconds` - the number of seconds left until the license expires
 
-Example alerts for [vmalert](https://docs.victoriametrics.com/vmalert.html) based on these metrics:
+Example alerts for [vmalert](https://docs.victoriametrics.com/vmalert/) based on these metrics:
 
 ```yaml
 groups:

@@ -110,7 +110,7 @@ See more details on [querying data here](https://docs.victoriametrics.com/keyCon
 ## Alerting
 
 It is not possible to physically trace all changes on graphs all the time, that is why alerting exists.
-In [vmalert](https://docs.victoriametrics.com/vmalert.html) it is possible to create a set of conditions
+In [vmalert](https://docs.victoriametrics.com/vmalert/) it is possible to create a set of conditions
 based on PromQL and MetricsQL queries that will send a notification when such conditions are met.
 
 ## Data migration

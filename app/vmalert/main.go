@@ -44,7 +44,7 @@ Enterprise version of vmalert supports S3 and GCS paths to rules.
 For example: gs://bucket/path/to/rules, s3://bucket/path/to/rules
 S3 and GCS paths support only matching by prefix, e.g. s3://bucket/dir/rule_ matches
 all files with prefix rule_ in folder dir.
-See https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage
+See https://docs.victoriametrics.com/vmalert/#reading-rules-from-object-storage
 `)
 
 	ruleTemplatesPath = flagutil.NewArrayString("rule.templates", `Path or glob pattern to location with go template definitions `+
@@ -71,7 +71,7 @@ absolute path to all .tpl files in root.
 	externalURL         = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier. By default, hostname is used as address.")
 	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager `+
 		`for cases where you want to build a custom link to Grafana, Prometheus or any other service. `+
-		`Supports templating - see https://docs.victoriametrics.com/vmalert.html#templating . `+
+		`Supports templating - see https://docs.victoriametrics.com/vmalert/#templating . `+
 		`For example, link to Grafana: -external.alert.source='explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{$expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"now-1h","to":"now"}}'. `+
 		`Link to VMUI: -external.alert.source='vmui/#/?g0.expr={{.Expr|queryEscape}}'. `+
 		`If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.`)
@@ -319,7 +319,7 @@ func usage() {
 	const s = `
 vmalert processes alerts and recording rules.
 
-See the docs at https://docs.victoriametrics.com/vmalert.html .
+See the docs at https://docs.victoriametrics.com/vmalert/ .
 `
 	flagutil.Usage(s)
 }
