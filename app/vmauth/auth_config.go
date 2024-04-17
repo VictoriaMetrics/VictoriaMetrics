@@ -73,8 +73,11 @@ type UserInfo struct {
 	RetryStatusCodes       []int       `yaml:"retry_status_codes,omitempty"`
 	LoadBalancingPolicy    string      `yaml:"load_balancing_policy,omitempty"`
 	DropSrcPathPrefixParts *int        `yaml:"drop_src_path_prefix_parts,omitempty"`
-	TLSInsecureSkipVerify  *bool       `yaml:"tls_insecure_skip_verify,omitempty"`
 	TLSCAFile              string      `yaml:"tls_ca_file,omitempty"`
+	TLSCertFile            string      `yaml:"tls_cert_file,omitempty"`
+	TLSKeyFile             string      `yaml:"tls_key_file,omitempty"`
+	TLSServerName          string      `yaml:"tls_server_name,omitempty"`
+	TLSInsecureSkipVerify  *bool       `yaml:"tls_insecure_skip_verify,omitempty"`
 
 	MetricLabels map[string]string `yaml:"metric_labels,omitempty"`
 
@@ -729,7 +732,7 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 			return float64(len(ui.concurrencyLimitCh))
 		})
 
-		rt, err := newRoundTripper(ui.TLSInsecureSkipVerify, ui.TLSCAFile)
+		rt, err := newRoundTripper(ui.TLSCAFile, ui.TLSCertFile, ui.TLSKeyFile, ui.TLSServerName, ui.TLSInsecureSkipVerify)
 		if err != nil {
 			return nil, fmt.Errorf("cannot initialize HTTP RoundTripper: %w", err)
 		}
@@ -777,7 +780,7 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 			return float64(len(ui.concurrencyLimitCh))
 		})
 
-		rt, err := newRoundTripper(ui.TLSInsecureSkipVerify, ui.TLSCAFile)
+		rt, err := newRoundTripper(ui.TLSCAFile, ui.TLSCertFile, ui.TLSKeyFile, ui.TLSServerName, ui.TLSInsecureSkipVerify)
 		if err != nil {
 			return nil, fmt.Errorf("cannot initialize HTTP RoundTripper: %w", err)
 		}

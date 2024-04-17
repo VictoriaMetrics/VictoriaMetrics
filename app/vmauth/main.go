@@ -53,6 +53,12 @@ var (
 		"See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup")
 	backendTLSCAFile = flag.String("backend.TLSCAFile", "", "Optional path to TLS root CA file, which is used for TLS verification when connecting to backends over HTTPS. "+
 		"See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup")
+	backendTLSCertFile = flag.String("backend.TLSCertFile", "", "Optional path to TLS client certificate file, which must be sent to HTTPS backend. "+
+		"See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup")
+	backendTLSKeyFile = flag.String("backend.TLSKeyFile", "", "Optional path to TLS client key file, which must be sent to HTTPS backend. "+
+		"See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup")
+	backendTLSServerName = flag.String("backend.TLSServerName", "", "Optional TLS ServerName, which must be sent to HTTPS backend. "+
+		"See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup")
 )
 
 func main() {
@@ -389,19 +395,34 @@ var (
 	missingRouteRequests     = metrics.NewCounter(`vmauth_http_request_errors_total{reason="missing_route"}`)
 )
 
-func newRoundTripper(insecureSkipVerifyP *bool, caFileP string) (http.RoundTripper, error) {
+func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, insecureSkipVerifyP *bool) (http.RoundTripper, error) {
+	caFile := *backendTLSCAFile
+	if caFileOpt != "" {
+		caFile = caFileOpt
+	}
+	certFile := *backendTLSCertFile
+	if certFileOpt != "" {
+		certFile = certFileOpt
+	}
+	keyFile := *backendTLSKeyFile
+	if keyFileOpt != "" {
+		keyFile = keyFileOpt
+	}
+	serverName := *backendTLSServerName
+	if serverNameOpt != "" {
+		serverName = serverNameOpt
+	}
 	insecureSkipVerify := *backendTLSInsecureSkipVerify
 	if p := insecureSkipVerifyP; p != nil {
 		insecureSkipVerify = *p
 	}
-	caFile := *backendTLSCAFile
-	if caFileP != "" {
-		caFile = caFileP
-	}
 	opts := &promauth.Options{
 		TLSConfig: &promauth.TLSConfig{
-			InsecureSkipVerify: insecureSkipVerify,
 			CAFile:             caFile,
+			CertFile:           certFile,
+			KeyFile:            keyFile,
+			ServerName:         serverName,
+			InsecureSkipVerify: insecureSkipVerify,
 		},
 	}
 	cfg, err := opts.NewConfig()

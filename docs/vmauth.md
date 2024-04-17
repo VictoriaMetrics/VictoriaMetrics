@@ -691,7 +691,6 @@ in the [`-auth.config`](#auth-config). These settings can be overridden with the
   ```
 
 - `-backend.tlsCAFile` allows specifying the path to TLS Root CA, which will be used for TLS verification when connecting to HTTPS backends.
-  The `-backend.tlsCAFile` may point either to local file or to `http` / `https` url.
   This global setting can be overridden at per-user level inside [`-auth.config`](#auth-config)
   via `tls_ca_file` option. For example:
 
@@ -700,6 +699,31 @@ in the [`-auth.config`](#auth-config). These settings can be overridden with the
     url_prefix: "https://localhost"
     tls_ca_file: "/path/to/tls/root/ca"
   ```
+
+- `-backend.tlsCertFile` and `-backend.tlsKeyFile` allows specifying client TLS certificate, which will be passed in requests to HTTPS backends.
+  This global setting can be overridden at per-user level inside [`-auth.config`](#auth-config)
+  via `tls_cert_file` and `tls_key_file` options. For example:
+
+  ```yaml
+  - username: "foo"
+    url_prefix: "https://localhost"
+    tls_cert_file: "/path/to/tls/cert"
+    tls_key_file: "/path/to/tls/key"
+  ```
+
+- `-backend.tlsServerName` allows specifying optional TLS ServerName, which will be passed in requests to HTTPS backends.
+  This global setting can be overridden at per-user level inside [`-auth.config`](#auth-config)
+  via `tls_server_name` option. For example:
+
+  ```yaml
+  - username: "foo"
+    url_prefix: "https://localhost"
+    tls_server_name: "foo.bar.com"
+  ```
+
+The `-backend.tlsCAFile`, `-backend.tlsCertFile`, `-backend.tlsKeyFile`, `tls_ca_file`, `tls_cert_file` and `tls_key_file` may point either to local file or to `http` / `https` url.
+The file is automatically re-read when it is updated.
+
 
 ## IP filters
 
