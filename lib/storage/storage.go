@@ -1350,7 +1350,42 @@ func (s *Storage) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer,
 func (s *Storage) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer, accountID, projectID uint32, labelName string, tfss []*TagFilters,
 	tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64,
 ) ([]string, error) {
-	return s.idb().SearchLabelValuesWithFiltersOnTimeRange(qt, accountID, projectID, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
+	idb := s.idb()
+
+	key := labelName
+	if key == "__name__" {
+		key = ""
+	}
+	if len(tfss) == 1 && len(tfss[0].tfs) == 1 && string(tfss[0].tfs[0].key) == key {
+		// tfss contains only a single filter on labelName. It is faster searching for label values
+		// without any filters and then later applying the filter to the found label values.
+		lvs, err := idb.SearchLabelValuesWithFiltersOnTimeRange(qt, accountID, projectID, labelName, nil, tr, maxLabelValues, maxMetrics, deadline)
+		if err != nil {
+			return nil, err
+		}
+		lvs = filterLabelValues(accountID, projectID, lvs, &tfss[0].tfs[0], key)
+		return lvs, nil
+	}
+
+	return idb.SearchLabelValuesWithFiltersOnTimeRange(qt, accountID, projectID, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
+}
+
+func filterLabelValues(accountID, projectID uint32, lvs []string, tf *tagFilter, key string) []string {
+	var b []byte
+	result := lvs[:0]
+	for _, lv := range lvs {
+		b = marshalCommonPrefix(b[:0], nsPrefixTagToMetricIDs, accountID, projectID)
+		b = marshalTagValue(b, bytesutil.ToUnsafeBytes(key))
+		b = marshalTagValue(b, bytesutil.ToUnsafeBytes(lv))
+		ok, err := tf.match(b)
+		if err != nil {
+			logger.Panicf("BUG: cannot match label %q=%q with tagFilter %s: %w", key, lv, tf.String(), err)
+		}
+		if ok {
+			result = append(result, lv)
+		}
+	}
+	return result
 }
 
 // SearchTagValueSuffixes returns all the tag value suffixes for the given tagKey and tagValuePrefix on the given tr.
