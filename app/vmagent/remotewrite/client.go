@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -463,10 +464,9 @@ again:
 
 	// Unexpected status code returned
 	retriesCount++
-	retryDuration *= 2
-	if retryDuration > maxRetryDuration {
-		retryDuration = maxRetryDuration
-	}
+	retryDuration = calculateRetryDuration(resp.Header.Get("Retry-After"), retryDuration, maxRetryDuration)
+
+	// Handle response
 	body, err := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if err != nil {
@@ -488,3 +488,42 @@ again:
 }
 
 var remoteWriteRejectedLogger = logger.WithThrottler("remoteWriteRejected", 5*time.Second)
+
+// calculateRetryAfterDuration calculate the retry duration.
+// 1. Calculate next retry duration by backoff policy (x2) and max retry duration limit.
+// 2. If Retry-After exists in response header, use max(Retry-After duration, next retry duration).
+// It returns `retryDuration` if `retryAfterString` does not follows RFC 7231.
+// Also see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6097
+func calculateRetryDuration(retryAfterString string, retryDuration, maxRetryDuration time.Duration) time.Duration {
+	// default backoff retry policy
+	retryDuration *= 2
+	if retryDuration > maxRetryDuration {
+		retryDuration = maxRetryDuration
+	}
+
+	if retryAfterString == "" {
+		return retryDuration
+	}
+
+	var retryAfterDuration time.Duration
+
+	// Retry-After could be in "Mon, 02 Jan 2006 15:04:05 GMT" format.
+	parsedTime, err := time.Parse(http.TimeFormat, retryAfterString)
+	if err == nil {
+		retryAfterDuration = time.Duration(time.Until(parsedTime).Seconds()) * time.Second
+	} else {
+		// Retry-After could be in seconds.
+		if d, err := strconv.Atoi(retryAfterString); err == nil {
+			retryAfterDuration = time.Duration(d) * time.Second
+		} else {
+			// Format does not match RFC 7231. Fallback with retryDuration
+			return retryDuration
+		}
+	}
+
+	if retryDuration > retryAfterDuration {
+		return retryDuration
+	}
+
+	return timeutil.AddJitterToDuration(retryAfterDuration)
+}
