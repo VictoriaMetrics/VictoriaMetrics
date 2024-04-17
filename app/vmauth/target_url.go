@@ -86,7 +86,7 @@ func matchAnyRegex(rs []*Regex, s string) bool {
 	return false
 }
 
-func matchAnyQueryArg(qas []QueryArg, args url.Values) bool {
+func matchAnyQueryArg(qas []*QueryArg, args url.Values) bool {
 	if len(qas) == 0 {
 		return true
 	}
@@ -104,7 +104,7 @@ func matchAnyQueryArg(qas []QueryArg, args url.Values) bool {
 	return false
 }
 
-func matchAnyHeader(headers []Header, h http.Header) bool {
+func matchAnyHeader(headers []*Header, h http.Header) bool {
 	if len(headers) == 0 {
 		return true
 	}

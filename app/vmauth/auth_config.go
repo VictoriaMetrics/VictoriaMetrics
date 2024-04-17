@@ -90,8 +90,8 @@ type UserInfo struct {
 
 // HeadersConf represents config for request and response headers.
 type HeadersConf struct {
-	RequestHeaders  []Header `yaml:"headers,omitempty"`
-	ResponseHeaders []Header `yaml:"response_headers,omitempty"`
+	RequestHeaders  []*Header `yaml:"headers,omitempty"`
+	ResponseHeaders []*Header `yaml:"response_headers,omitempty"`
 }
 
 func (ui *UserInfo) beginConcurrencyLimit() error {
@@ -155,10 +155,10 @@ type URLMap struct {
 	SrcHosts []*Regex `yaml:"src_hosts,omitempty"`
 
 	// SrcQueryArgs is an optional list of query args, which must match request URL query args.
-	SrcQueryArgs []QueryArg `yaml:"src_query_args,omitempty"`
+	SrcQueryArgs []*QueryArg `yaml:"src_query_args,omitempty"`
 
 	// SrcHeaders is an optional list of headers, which must match request headers.
-	SrcHeaders []Header `yaml:"src_headers,omitempty"`
+	SrcHeaders []*Header `yaml:"src_headers,omitempty"`
 
 	// UrlPrefix contains backend url prefixes for the proxied request url.
 	URLPrefix *URLPrefix `yaml:"url_prefix,omitempty"`
@@ -179,13 +179,6 @@ type URLMap struct {
 	DropSrcPathPrefixParts *int `yaml:"drop_src_path_prefix_parts,omitempty"`
 }
 
-// Regex represents a regex
-type Regex struct {
-	re *regexp.Regexp
-
-	sOriginal string
-}
-
 // QueryArg represents HTTP query arg
 type QueryArg struct {
 	Name  string
@@ -194,7 +187,7 @@ type QueryArg struct {
 	sOriginal string
 }
 
-// UnmarshalYAML unmarshals up from yaml.
+// UnmarshalYAML unmarshals qa from yaml.
 func (qa *QueryArg) UnmarshalYAML(f func(interface{}) error) error {
 	var s string
 	if err := f(&s); err != nil {
@@ -208,16 +201,22 @@ func (qa *QueryArg) UnmarshalYAML(f func(interface{}) error) error {
 	}
 
 	qa.Name = s[:n]
-	expr := []byte(s[n+1:])
+	expr := s[n+1:]
+	if !strings.HasPrefix(expr, "~") {
+		expr = regexp.QuoteMeta(expr)
+	} else {
+		expr = expr[1:]
+	}
+
 	var re Regex
-	if err := yaml.Unmarshal(expr, &re); err != nil {
-		return fmt.Errorf("failed to unmarshal regex %q: %s", expr, err)
+	if err := yaml.Unmarshal([]byte(expr), &re); err != nil {
+		return fmt.Errorf("cannot unmarshal regex for %q query arg: %w", qa.Name, err)
 	}
 	qa.Value = &re
 	return nil
 }
 
-// MarshalYAML marshals up to yaml.
+// MarshalYAML marshals qa to yaml.
 func (qa *QueryArg) MarshalYAML() (interface{}, error) {
 	return qa.sOriginal, nil
 }
@@ -513,6 +512,13 @@ func (up *URLPrefix) UnmarshalYAML(f func(interface{}) error) error {
 // MarshalYAML marshals up to yaml.
 func (up *URLPrefix) MarshalYAML() (interface{}, error) {
 	return up.vOriginal, nil
+}
+
+// Regex represents a regex
+type Regex struct {
+	re *regexp.Regexp
+
+	sOriginal string
 }
 
 func (r *Regex) match(s string) bool {
