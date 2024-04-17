@@ -223,7 +223,7 @@ func TestGroupStart(t *testing.T) {
 	m2 := metricWithLabels(t, "instance", inst2, "job", job)
 
 	r := g.Rules[0].(*AlertingRule)
-	alert1, err := r.newAlert(m1, nil, time.Now(), nil)
+	alert1, err := r.newAlert(m1, nil, time.Now(), nil, nil)
 	if err != nil {
 		t.Fatalf("faield to create alert: %s", err)
 	}
@@ -238,7 +238,7 @@ func TestGroupStart(t *testing.T) {
 	alert1.Labels[alertGroupNameLabel] = g.Name
 	alert1.ID = hash(alert1.Labels)
 
-	alert2, err := r.newAlert(m2, nil, time.Now(), nil)
+	alert2, err := r.newAlert(m2, nil, time.Now(), nil, nil)
 	if err != nil {
 		t.Fatalf("faield to create alert: %s", err)
 	}

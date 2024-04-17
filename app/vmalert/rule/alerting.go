@@ -319,7 +319,7 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 			return nil, fmt.Errorf("failed to expand labels: %s", err)
 		}
 		h := hash(ls.processed)
-		a, err := ar.newAlert(s, nil, time.Time{}, qFn) // initial alert
+		a, err := ar.newAlert(s, nil, time.Time{}, qFn, nil) // initial alert
 		if err != nil {
 			return nil, fmt.Errorf("failed to create alert: %w", err)
 		}
@@ -386,14 +386,38 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 		}
 	}()
 
-	ar.alertsMu.Lock()
-	defer ar.alertsMu.Unlock()
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query %q: %w", ar.Expr, err)
 	}
-
 	ar.logDebugf(ts, nil, "query returned %d samples (elapsed: %s)", curState.Samples, curState.Duration)
+
+	// template labels and annotations before updating ar.alerts,
+	// since they could use `query` function which takes a while to execute,
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6079.
+	qFn := func(query string) ([]datasource.Metric, error) {
+		res, _, err := ar.q.Query(ctx, query, ts)
+		return res.Data, err
+	}
+	var labels []*labelSet
+	annotations := []map[string]string{}
+	for _, m := range res.Data {
+		ls, err := ar.toLabels(m, qFn)
+		if err != nil {
+			curState.Err = fmt.Errorf("failed to expand labels: %w", err)
+			return nil, curState.Err
+		}
+		labels = append(labels, ls)
+		// re-exec template since Value or query can be used in annotations
+		anno, err := ar.execTemplate(qFn, ls.origin, ar.Annotations, m.Values[0], hash(ls.processed), ts)
+		if err != nil {
+			curState.Err = fmt.Errorf("failed to template annotations: %w", err)
+			return nil, curState.Err
+		}
+		annotations = append(annotations, anno)
+	}
+
+	ar.alertsMu.Lock()
+	defer ar.alertsMu.Unlock()
 
 	for h, a := range ar.alerts {
 		// cleanup inactive alerts from previous Exec
@@ -403,22 +427,13 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 		}
 	}
 
-	qFn := func(query string) ([]datasource.Metric, error) {
-		res, _, err := ar.q.Query(ctx, query, ts)
-		return res.Data, err
-	}
 	updated := make(map[uint64]struct{})
 	// update list of active alerts
-	for _, m := range res.Data {
-		ls, err := ar.toLabels(m, qFn)
-		if err != nil {
-			curState.Err = fmt.Errorf("failed to expand labels: %w", err)
-			return nil, curState.Err
-		}
-		h := hash(ls.processed)
+	for i, m := range res.Data {
+		h := hash(labels[i].processed)
 		if _, ok := updated[h]; ok {
 			// duplicate may be caused the removal of `__name__` label
-			curState.Err = fmt.Errorf("labels %v: %w", ls.processed, errDuplicate)
+			curState.Err = fmt.Errorf("labels %v: %w", labels[i].processed, errDuplicate)
 			return nil, curState.Err
 		}
 		updated[h] = struct{}{}
@@ -432,15 +447,14 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 				ar.logDebugf(ts, a, "INACTIVE => PENDING")
 			}
 			a.Value = m.Values[0]
-			// re-exec template since Value or query can be used in annotations
-			a.Annotations, err = a.ExecTemplate(qFn, ls.origin, ar.Annotations)
+			a.Annotations = annotations[i]
 			if err != nil {
 				return nil, err
 			}
 			a.KeepFiringSince = time.Time{}
 			continue
 		}
-		a, err := ar.newAlert(m, ls, ts, qFn)
+		a, err := ar.newAlert(m, labels[i], ts, nil, annotations[i])
 		if err != nil {
 			curState.Err = fmt.Errorf("failed to create alert: %w", err)
 			return nil, curState.Err
@@ -497,6 +511,19 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 	return ar.toTimeSeries(ts.Unix()), nil
 }
 
+func (ar *AlertingRule) execTemplate(q templates.QueryFn, labels, annotations map[string]string, value float64, alertID uint64, ts time.Time) (map[string]string, error) {
+	tplData := notifier.AlertTplData{
+		Value:    value,
+		Labels:   labels,
+		Expr:     ar.Expr,
+		AlertID:  alertID,
+		GroupID:  ar.GroupID,
+		ActiveAt: ts,
+		For:      ar.For,
+	}
+	return notifier.ExecTemplate(q, annotations, tplData)
+}
+
 func (ar *AlertingRule) toTimeSeries(timestamp int64) []prompbmarshal.TimeSeries {
 	var tss []prompbmarshal.TimeSeries
 	for _, a := range ar.alerts {
@@ -530,7 +557,7 @@ func hash(labels map[string]string) uint64 {
 	return hash.Sum64()
 }
 
-func (ar *AlertingRule) newAlert(m datasource.Metric, ls *labelSet, start time.Time, qFn templates.QueryFn) (*notifier.Alert, error) {
+func (ar *AlertingRule) newAlert(m datasource.Metric, ls *labelSet, start time.Time, qFn templates.QueryFn, annotations map[string]string) (*notifier.Alert, error) {
 	var err error
 	if ls == nil {
 		ls, err = ar.toLabels(m, qFn)
@@ -539,15 +566,18 @@ func (ar *AlertingRule) newAlert(m datasource.Metric, ls *labelSet, start time.T
 		}
 	}
 	a := &notifier.Alert{
-		GroupID:  ar.GroupID,
-		Name:     ar.Name,
-		Labels:   ls.processed,
-		Value:    m.Values[0],
-		ActiveAt: start,
-		Expr:     ar.Expr,
-		For:      ar.For,
+		GroupID:     ar.GroupID,
+		Name:        ar.Name,
+		Labels:      ls.processed,
+		Value:       m.Values[0],
+		ActiveAt:    start,
+		Expr:        ar.Expr,
+		For:         ar.For,
+		Annotations: annotations,
 	}
-	a.Annotations, err = a.ExecTemplate(qFn, ls.origin, ar.Annotations)
+	if annotations == nil {
+		a.Annotations, err = a.ExecTemplate(qFn, ls.origin, ar.Annotations)
+	}
 	return a, err
 }
 
