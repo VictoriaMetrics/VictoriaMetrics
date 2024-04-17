@@ -21,6 +21,7 @@ func TestParseGroupAddr(t *testing.T) {
 	f("foo", "", "foo")
 	f("file:/foo/bar", "", "file:/foo/bar")
 	f("foo/bar", "foo", "bar")
+	f("foo/srv+bar", "foo", "srv+bar")
 	f("foo/dns+srv:bar", "foo", "dns+srv:bar")
 	f("foo/file:/bar/baz", "foo", "file:/bar/baz")
 }
