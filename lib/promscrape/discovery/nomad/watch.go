@@ -18,7 +18,7 @@ import (
 // SDCheckInterval is check interval for Nomad service discovery.
 var SDCheckInterval = flag.Duration("promscrape.nomadSDCheckInterval", 30*time.Second, "Interval for checking for changes in Nomad. "+
 	"This works only if nomad_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://docs.victoriametrics.com/sd_configs.html#nomad_sd_configs for details")
+	"See https://docs.victoriametrics.com/sd_configs/#nomad_sd_configs for details")
 
 // nomadWatcher is a watcher for nomad api, updates services map in background with long-polling.
 type nomadWatcher struct {

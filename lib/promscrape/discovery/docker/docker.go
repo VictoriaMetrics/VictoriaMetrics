@@ -13,7 +13,7 @@ import (
 // SDCheckInterval defines interval for docker targets refresh.
 var SDCheckInterval = flag.Duration("promscrape.dockerSDCheckInterval", 30*time.Second, "Interval for checking for changes in docker. "+
 	"This works only if docker_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://docs.victoriametrics.com/sd_configs.html#docker_sd_configs for details")
+	"See https://docs.victoriametrics.com/sd_configs/#docker_sd_configs for details")
 
 // SDConfig defines the `docker_sd` section for Docker based discovery
 //

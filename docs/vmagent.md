@@ -62,7 +62,7 @@ Please download `vmutils-*` archive from [releases page](https://github.com/Vict
 unpack it and pass the following flags to the `vmagent` binary in order to start scraping Prometheus-compatible targets
 and sending the data to the Prometheus-compatible remote storage:
 
-* `-promscrape.config` with the path to [Prometheus config file](https://docs.victoriametrics.com/sd_configs.html) (usually located at `/etc/prometheus/prometheus.yml`).
+* `-promscrape.config` with the path to [Prometheus config file](https://docs.victoriametrics.com/sd_configs/) (usually located at `/etc/prometheus/prometheus.yml`).
   The path can point either to local file or to http url. See [scrape config examples](https://docs.victoriametrics.com/scrape_config_examples/).
   `vmagent` doesn't support some sections of Prometheus config file, so you may need either to delete these sections or
   to run `vmagent` with `-promscrape.config.strictParse=false` command-line flag.
@@ -363,12 +363,12 @@ The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders w
 See also:
 
 - [scrape config examples](https://docs.victoriametrics.com/scrape_config_examples/)
-- [the list of supported service discovery types for Prometheus scrape targets](https://docs.victoriametrics.com/sd_configs.html).
+- [the list of supported service discovery types for Prometheus scrape targets](https://docs.victoriametrics.com/sd_configs/).
 
 
 ## scrape_config enhancements
 
-`vmagent` supports the following additional options in [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) section:
+`vmagent` supports the following additional options in [scrape_configs](https://docs.victoriametrics.com/sd_configs/#scrape_configs) section:
 
 * `headers` - a list of HTTP headers to send to scrape target with each scrape request. This can be used when the scrape target
   needs custom authorization and authentication. For example:
@@ -391,12 +391,12 @@ scrape_configs:
   in the range `[0 ... scrape_interval]` for scraping each target. The random offset helps to spread scrapes evenly in time.
 * `scrape_offset: duration` for specifying the exact offset for scraping instead of using random offset in the range `[0 ... scrape_interval]`.
 
-See [scrape_configs docs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) for more details on all the supported options.
+See [scrape_configs docs](https://docs.victoriametrics.com/sd_configs/#scrape_configs) for more details on all the supported options.
 
 
 ## Loading scrape configs from multiple files
 
-`vmagent` supports loading [scrape configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) from multiple files specified
+`vmagent` supports loading [scrape configs](https://docs.victoriametrics.com/sd_configs/#scrape_configs) from multiple files specified
 in the `scrape_config_files` section of `-promscrape.config` file. For example, the following `-promscrape.config` instructs `vmagent`
 loading scrape configs from all the `*.yml` files under `configs` directory, from `single_scrape_config.yml` local file
 and from `https://config-server/scrape_config.yml` url:
@@ -408,7 +408,7 @@ scrape_config_files:
 - https://config-server/scrape_config.yml
 ```
 
-Every referred file can contain arbitrary number of [supported scrape configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs).
+Every referred file can contain arbitrary number of [supported scrape configs](https://docs.victoriametrics.com/sd_configs/#scrape_configs).
 There is no need in specifying top-level `scrape_configs` section in these files. For example:
 
 ```yaml
@@ -496,7 +496,7 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
   ```
 
 * `scrape_samples_limit` - the configured limit on the number of metrics the given target can expose.
-  The limit can be set via `sample_limit` option at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs).
+  The limit can be set via `sample_limit` option at [scrape_configs](https://docs.victoriametrics.com/sd_configs/#scrape_configs).
   This metric is exposed only if the `sample_limit` is set. This allows detecting targets,
   which expose too many metrics compared to the configured `sample_limit`. For example, the following query
   returns targets (identified by `instance` label), which expose more than 80% metrics compared to the configed `sample_limit`:
@@ -776,7 +776,7 @@ Additionally, the `action: graphite` relabeling rules usually work much faster t
 `vmagent` and [single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 provide the following tools for debugging target-level and metric-level relabeling:
 
-- Target-level debugging (e.g. `relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs))
+- Target-level debugging (e.g. `relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs/#scrape_configs))
   can be performed by navigating to `http://vmagent:8429/targets` page (`http://victoriametrics:8428/targets` page for single-node VictoriaMetrics)
   and clicking the `debug target relabeling` link at the target, which must be debugged.
   The link is unavailable if `vmagent` runs with `-promscrape.dropOriginalLabels` command-line flag.
@@ -789,7 +789,7 @@ provide the following tools for debugging target-level and metric-level relabeli
   and click the `debug` link there. The link is unavailable if `vmagent` runs with `-promscrape.dropOriginalLabels` command-line flag.
   The opened page shows step-by-step results for the actual relabeling rules, which result to target drop.
 
-- Metric-level debugging (e.g. `metric_relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs)
+- Metric-level debugging (e.g. `metric_relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs/#scrape_configs)
   can be performed by navigating to `http://vmagent:8429/targets` page (`http://victoriametrics:8428/targets` page for single-node VictoriaMetrics)
   and clicking the `debug metrics relabeling` link at the target, which must be debugged.
   The link is unavailable if `vmagent` runs with `-promscrape.dropOriginalLabels` command-line flag.
@@ -847,7 +847,7 @@ Prometheus staleness markers' tracking needs additional memory, since it must st
 in order to compare it to the current response body. The memory usage may be reduced by disabling staleness tracking in the following ways:
 
 * By passing `-promscrape.noStaleMarkers` command-line flag to `vmagent`. This disables staleness tracking across all the targets.
-* By specifying `no_stale_markers: true` option in the [scrape_config](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) for the corresponding target.
+* By specifying `no_stale_markers: true` option in the [scrape_config](https://docs.victoriametrics.com/sd_configs/#scrape_configs) for the corresponding target.
 
 When staleness tracking is disabled, then `vmagent` doesn't track the number of new time series per each scrape,
 e.g. it sets `scrape_series_added` metric to zero. See [these docs](#automatically-generated-metrics) for details.
@@ -977,8 +977,8 @@ scrape_configs:
 
 Proxy can be configured with the following optional settings:
 
-* `proxy_authorization` for generic token authorization. See [these docs](https://docs.victoriametrics.com/sd_configs.html#http-api-client-options).
-* `proxy_basic_auth` for Basic authorization. See [these docs](https://docs.victoriametrics.com/sd_configs.html#http-api-client-options).
+* `proxy_authorization` for generic token authorization. See [these docs](https://docs.victoriametrics.com/sd_configs/#http-api-client-options).
+* `proxy_basic_auth` for Basic authorization. See [these docs](https://docs.victoriametrics.com/sd_configs/#http-api-client-options).
 * `proxy_bearer_token` and `proxy_bearer_token_file` for Bearer token authorization
 * `proxy_oauth2` for OAuth2 config. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#oauth2).
 * `proxy_tls_config` for TLS config. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config).
@@ -1052,7 +1052,7 @@ The limit can be enforced in the following places:
 
 * Via `-promscrape.seriesLimitPerTarget` command-line flag. This limit is applied individually
   to all the scrape targets defined in the file pointed by `-promscrape.config`.
-* Via `series_limit` config option at [scrape_config](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) section.
+* Via `series_limit` config option at [scrape_config](https://docs.victoriametrics.com/sd_configs/#scrape_configs) section.
   The `series_limit` allows overriding the `-promscrape.seriesLimitPerTarget` on a per-`scrape_config` basis.
   If `series_limit` is set to `0` or to negative value, then it isn't applied to the given `scrape_config`,
   even if `-promscrape.seriesLimitPerTarget` command-line flag is set.
@@ -1076,7 +1076,7 @@ These metrics allow building the following alerting rules:
 - `scrape_series_current / scrape_series_limit > 0.9` - alerts when the number of series exposed by the target reaches 90% of the limit.
 - `sum_over_time(scrape_series_limit_samples_dropped[1h]) > 0` - alerts when some samples are dropped because the series limit on a particular target is reached.
 
-See also `sample_limit` option at [scrape_config section](https://docs.victoriametrics.com/sd_configs.html#scrape_configs).
+See also `sample_limit` option at [scrape_config section](https://docs.victoriametrics.com/sd_configs/#scrape_configs).
 
 By default, `vmagent` doesn't limit the number of time series written to remote storage systems specified at `-remoteWrite.url`.
 The limit can be enforced by setting the following command-line flags:
@@ -1120,12 +1120,12 @@ If you have suggestions for improvements or have found a bug - please open an is
 
 * `http://vmagent-host:8429/targets`. This pages shows the current status for every active target.
 * `http://vmagent-host:8429/service-discovery`. This pages shows the list of discovered targets with the discovered `__meta_*` labels
-  according to [these docs](https://docs.victoriametrics.com/sd_configs.html).
+  according to [these docs](https://docs.victoriametrics.com/sd_configs/).
   This page may help debugging target [relabeling](#relabeling).
 * `http://vmagent-host:8429/api/v1/targets`. This handler returns JSON response
   compatible with [the corresponding page from Prometheus API](https://prometheus.io/docs/prometheus/latest/querying/api/#targets).
 * `http://vmagent-host:8429/ready`. This handler returns http 200 status code when `vmagent` finishes
-  its initialization for all the [service_discovery configs](https://docs.victoriametrics.com/sd_configs.html).
+  its initialization for all the [service_discovery configs](https://docs.victoriametrics.com/sd_configs/).
   It may be useful to perform `vmagent` rolling update without any scrape loss.
 
 ## Troubleshooting
@@ -1143,7 +1143,7 @@ If you have suggestions for improvements or have found a bug - please open an is
   * Disabling staleness tracking with `-promscrape.noStaleMarkers` option. See [these docs](#prometheus-staleness-markers).
   * Enabling stream parsing mode if `vmagent` scrapes targets with millions of metrics per target. See [these docs](#stream-parsing-mode).
   * Reducing the number of tcp connections to remote storage systems with `-remoteWrite.queues` command-line flag.
-  * Passing `-promscrape.dropOriginalLabels` command-line flag to `vmagent` if it [discovers](https://docs.victoriametrics.com/sd_configs.html)
+  * Passing `-promscrape.dropOriginalLabels` command-line flag to `vmagent` if it [discovers](https://docs.victoriametrics.com/sd_configs/)
     big number of targets and many of these targets are [dropped](https://docs.victoriametrics.com/relabeling.html#how-to-drop-discovered-targets)
     before scraping. In this case `vmagent` drops `"discoveredLabels"` and `"droppedTargets"`
     lists at `http://vmagent-host:8429/service-discovery` page. This reduces memory usage when scraping big number of targets at the cost
@@ -1877,7 +1877,7 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
   -prevCacheRemovalPercent float
      Items in the previous caches are removed when the percent of requests it serves becomes lower than this value. Higher values reduce memory usage at the cost of higher CPU usage. See also -cacheExpireDuration (default 0.1)
   -promscrape.azureSDCheckInterval duration
-     Interval for checking for changes in Azure. This works only if azure_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#azure_sd_configs for details (default 1m0s)
+     Interval for checking for changes in Azure. This works only if azure_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#azure_sd_configs for details (default 1m0s)
   -promscrape.cluster.memberLabel string
      If non-empty, then the label with this name and the -promscrape.cluster.memberNum value is added to all the scraped metrics. See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more info
   -promscrape.cluster.memberNum string
@@ -1901,11 +1901,11 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
   -promscrape.consul.waitTime duration
      Wait time used by Consul service discovery. Default value is used if not set
   -promscrape.consulSDCheckInterval duration
-     Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#consul_sd_configs for details (default 30s)
+     Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#consul_sd_configs for details (default 30s)
   -promscrape.consulagentSDCheckInterval duration
-     Interval for checking for changes in Consul Agent. This works only if consulagent_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#consulagent_sd_configs for details (default 30s)
+     Interval for checking for changes in Consul Agent. This works only if consulagent_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#consulagent_sd_configs for details (default 30s)
   -promscrape.digitaloceanSDCheckInterval duration
-     Interval for checking for changes in digital ocean. This works only if digitalocean_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#digitalocean_sd_configs for details (default 1m0s)
+     Interval for checking for changes in digital ocean. This works only if digitalocean_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#digitalocean_sd_configs for details (default 1m0s)
   -promscrape.disableCompression
      Whether to disable sending 'Accept-Encoding: gzip' request headers to all the scrape targets. This may reduce CPU usage on scrape targets at the cost of higher network bandwidth utilization. It is possible to set 'disable_compression: true' individually per each 'scrape_config' section in '-promscrape.config' for fine-grained control
   -promscrape.disableKeepAlive
@@ -1915,33 +1915,33 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
   -promscrape.discovery.concurrentWaitTime duration
      The maximum duration for waiting to perform API requests if more than -promscrape.discovery.concurrency requests are simultaneously performed (default 1m0s)
   -promscrape.dnsSDCheckInterval duration
-     Interval for checking for changes in dns. This works only if dns_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#dns_sd_configs for details (default 30s)
+     Interval for checking for changes in dns. This works only if dns_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#dns_sd_configs for details (default 30s)
   -promscrape.dockerSDCheckInterval duration
-     Interval for checking for changes in docker. This works only if docker_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#docker_sd_configs for details (default 30s)
+     Interval for checking for changes in docker. This works only if docker_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#docker_sd_configs for details (default 30s)
   -promscrape.dockerswarmSDCheckInterval duration
-     Interval for checking for changes in dockerswarm. This works only if dockerswarm_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#dockerswarm_sd_configs for details (default 30s)
+     Interval for checking for changes in dockerswarm. This works only if dockerswarm_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#dockerswarm_sd_configs for details (default 30s)
   -promscrape.dropOriginalLabels
      Whether to drop original labels for scrape targets at /targets and /api/v1/targets pages. This may be needed for reducing memory usage when original labels for big number of scrape targets occupy big amounts of memory. Note that this reduces debuggability for improper per-target relabeling configs
   -promscrape.ec2SDCheckInterval duration
-     Interval for checking for changes in ec2. This works only if ec2_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#ec2_sd_configs for details (default 1m0s)
+     Interval for checking for changes in ec2. This works only if ec2_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#ec2_sd_configs for details (default 1m0s)
   -promscrape.eurekaSDCheckInterval duration
-     Interval for checking for changes in eureka. This works only if eureka_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#eureka_sd_configs for details (default 30s)
+     Interval for checking for changes in eureka. This works only if eureka_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#eureka_sd_configs for details (default 30s)
   -promscrape.fileSDCheckInterval duration
-     Interval for checking for changes in 'file_sd_config'. See https://docs.victoriametrics.com/sd_configs.html#file_sd_configs for details (default 1m0s)
+     Interval for checking for changes in 'file_sd_config'. See https://docs.victoriametrics.com/sd_configs/#file_sd_configs for details (default 1m0s)
   -promscrape.gceSDCheckInterval duration
-     Interval for checking for changes in gce. This works only if gce_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#gce_sd_configs for details (default 1m0s)
+     Interval for checking for changes in gce. This works only if gce_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#gce_sd_configs for details (default 1m0s)
   -promscrape.hetznerSDCheckInterval duration
-     Interval for checking for changes in Hetzner API. This works only if hetzner_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#hetzner_sd_configs for details (default 1m0s)
+     Interval for checking for changes in Hetzner API. This works only if hetzner_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#hetzner_sd_configs for details (default 1m0s)
   -promscrape.httpSDCheckInterval duration
-     Interval for checking for changes in http endpoint service discovery. This works only if http_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#http_sd_configs for details (default 1m0s)
+     Interval for checking for changes in http endpoint service discovery. This works only if http_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#http_sd_configs for details (default 1m0s)
   -promscrape.kubernetes.apiServerTimeout duration
      How frequently to reload the full state from Kubernetes API server (default 30m0s)
   -promscrape.kubernetes.attachNodeMetadataAll
-     Whether to set attach_metadata.node=true for all the kubernetes_sd_configs at -promscrape.config . It is possible to set attach_metadata.node=false individually per each kubernetes_sd_configs . See https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs
+     Whether to set attach_metadata.node=true for all the kubernetes_sd_configs at -promscrape.config . It is possible to set attach_metadata.node=false individually per each kubernetes_sd_configs . See https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs
   -promscrape.kubernetesSDCheckInterval duration
-     Interval for checking for changes in Kubernetes API server. This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs for details (default 30s)
+     Interval for checking for changes in Kubernetes API server. This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs for details (default 30s)
   -promscrape.kumaSDCheckInterval duration
-     Interval for checking for changes in kuma service discovery. This works only if kuma_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#kuma_sd_configs for details (default 30s)
+     Interval for checking for changes in kuma service discovery. This works only if kuma_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#kuma_sd_configs for details (default 30s)
   -promscrape.maxDroppedTargets int
      The maximum number of droppedTargets to show at /api/v1/targets page. Increase this value if your setup drops more scrape targets during relabeling and you need investigating labels for all the dropped targets. Note that the increased number of tracked dropped targets may result in increased memory usage (default 1000)
   -promscrape.maxResponseHeadersSize size
@@ -1958,9 +1958,9 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
   -promscrape.nomad.waitTime duration
      Wait time used by Nomad service discovery. Default value is used if not set
   -promscrape.nomadSDCheckInterval duration
-     Interval for checking for changes in Nomad. This works only if nomad_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#nomad_sd_configs for details (default 30s)
+     Interval for checking for changes in Nomad. This works only if nomad_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#nomad_sd_configs for details (default 30s)
   -promscrape.openstackSDCheckInterval duration
-     Interval for checking for changes in openstack API server. This works only if openstack_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#openstack_sd_configs for details (default 30s)
+     Interval for checking for changes in openstack API server. This works only if openstack_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#openstack_sd_configs for details (default 30s)
   -promscrape.seriesLimitPerTarget int
      Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent/#cardinality-limiter for more info
   -promscrape.streamParse
@@ -1972,7 +1972,7 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
   -promscrape.suppressScrapeErrorsDelay duration
      The delay for suppressing repeated scrape errors logging per each scrape targets. This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors
   -promscrape.yandexcloudSDCheckInterval duration
-     Interval for checking for changes in Yandex Cloud API. This works only if yandexcloud_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#yandexcloud_sd_configs for details (default 30s)
+     Interval for checking for changes in Yandex Cloud API. This works only if yandexcloud_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#yandexcloud_sd_configs for details (default 30s)
   -pushmetrics.disableCompression
      Whether to disable request body compression when pushing metrics to every -pushmetrics.url
   -pushmetrics.extraLabel array
