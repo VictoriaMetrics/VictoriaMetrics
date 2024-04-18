@@ -31,7 +31,7 @@ Yes. See [these benchmarks](https://docs.victoriametrics.com/articles/#benchmark
 
 ## How to start using VictoriaMetrics?
 
-See [these docs](https://docs.victoriametrics.com/Quick-Start.html).
+See [these docs](https://docs.victoriametrics.com/quick-start/).
 
 ## Does VictoriaMetrics support replication?
 

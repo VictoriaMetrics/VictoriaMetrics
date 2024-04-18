@@ -24,7 +24,7 @@ and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics).
 Documentation for the cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/cluster-victoriametrics/).
 
 Learn more about [key concepts](https://docs.victoriametrics.com/keyconcepts/) of VictoriaMetrics and follow the 
-[quick start guide](https://docs.victoriametrics.com/Quick-Start.html) for a better experience.
+[quick start guide](https://docs.victoriametrics.com/quick-start/) for a better experience.
 
 If you have questions about VictoriaMetrics, then feel free asking them in the [VictoriaMetrics community Slack chat](https://victoriametrics.slack.com/),
 you can join it via [Slack Inviter](https://slack.victoriametrics.com/).
@@ -132,7 +132,7 @@ VictoriaMetrics ecosystem contains the following components additionally to [sin
 
 To quickly try VictoriaMetrics, just download the [VictoriaMetrics executable](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
 or [Docker image](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and start it with the desired command-line flags.
-See also [QuickStart guide](https://docs.victoriametrics.com/Quick-Start.html) for additional information.
+See also [QuickStart guide](https://docs.victoriametrics.com/quick-start/) for additional information.
 
 VictoriaMetrics can also be installed via these installation methods:
 
