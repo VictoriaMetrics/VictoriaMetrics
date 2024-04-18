@@ -114,8 +114,8 @@ label in all the metrics scraped from the target.
 can efficiently process tens of thousands of targets in production. If you need scraping more targets,
 then see [these docs](https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets).
 
-Targets are scraped at `http` or `https` urls, which are formed according to [these rules](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets).
-It is possible to modify scrape urls via [relabeling](https://docs.victoriametrics.com/relabeling.html) if needed.
+Targets are scraped at `http` or `https` urls, which are formed according to [these rules](https://docs.victoriametrics.com/relabeling/#how-to-modify-scrape-urls-in-targets).
+It is possible to modify scrape urls via [relabeling](https://docs.victoriametrics.com/relabeling/) if needed.
 
 
 ## File-based target discovery
@@ -206,8 +206,8 @@ See [these docs](https://docs.victoriametrics.com/sd_configs/#file_sd_configs) f
 can efficiently scrape tens of thousands of scrape targets. If you need scraping more targets,
 then see [these docs](https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets).
 
-Targets are scraped at `http` or `https` urls, which are formed according to [these rules](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets).
-It is possible to modify scrape urls via [relabeling](https://docs.victoriametrics.com/relabeling.html) if needed.
+Targets are scraped at `http` or `https` urls, which are formed according to [these rules](https://docs.victoriametrics.com/relabeling/#how-to-modify-scrape-urls-in-targets).
+It is possible to modify scrape urls via [relabeling](https://docs.victoriametrics.com/relabeling/) if needed.
 
 
 ## HTTP-based target discovery
