@@ -36,7 +36,7 @@ additionally to [discovering Prometheus-compatible targets and scraping metrics 
   see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 * Can add, remove and modify labels (aka tags) via Prometheus relabeling. Can filter data before sending it to remote storage. See [these docs](#relabeling) for details.
 * Can accept data via all the ingestion protocols supported by VictoriaMetrics - see [these docs](#how-to-push-data-to-vmagent).
-* Can aggregate incoming samples by time and by labels before sending them to remote storage - see [these docs](https://docs.victoriametrics.com/stream-aggregation.html).
+* Can aggregate incoming samples by time and by labels before sending them to remote storage - see [these docs](https://docs.victoriametrics.com/stream-aggregation/).
 * Can replicate collected metrics simultaneously to multiple Prometheus-compatible remote storage systems - see [these docs](#replication-and-high-availability).
 * Can save egress network bandwidth usage costs when [VictoriaMetrics remote write protocol](#victoriametrics-remote-write-protocol)
   is used for sending the data to VictoriaMetrics.
@@ -154,8 +154,8 @@ See [these docs](#how-to-collect-metrics-in-prometheus-format) for details.
 ### Statsd alternative
 
 `vmagent` can be used as an alternative to [statsd](https://github.com/statsd/statsd)
-when [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) is enabled.
-See [these docs](https://docs.victoriametrics.com/stream-aggregation.html#statsd-alternative) for details.
+when [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/) is enabled.
+See [these docs](https://docs.victoriametrics.com/stream-aggregation/#statsd-alternative) for details.
 
 ### Flexible metrics relay
 
@@ -182,7 +182,7 @@ the outgoing [time series](https://docs.victoriametrics.com/keyConcepts.html#tim
 among all the remote storage systems enumerated via `-remoteWrite.url`. Note that samples for the same
 time series are routed to the same remote storage system if `-remoteWrite.shardByURL` flag is specified.
 This allows building scalable data processing pipelines when a single remote storage cannot keep up with the data ingestion workload.
-For example, this allows building horizontally scalable [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html)
+For example, this allows building horizontally scalable [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/)
 by routing outgoing samples for the same time series of [counter](https://docs.victoriametrics.com/keyConcepts.html#counter)
 and [histogram](https://docs.victoriametrics.com/keyConcepts.html#histogram) types from top-level `vmagent` instances
 to the same second-level `vmagent` instance, so they are aggregated properly.
@@ -586,7 +586,7 @@ with [additional enhancements](#relabeling-enhancements). The relabeling can be 
 All the files with relabeling configs can contain special placeholders in the form `%{ENV_VAR}`,
 which are replaced by the corresponding environment variable values.
 
-[Streaming aggregation](https://docs.victoriametrics.com/stream-aggregation.html), if configured,
+[Streaming aggregation](https://docs.victoriametrics.com/stream-aggregation/), if configured,
 is pefrormed after applying all the relabeling stages mentioned above.
 
 The following articles contain useful information about Prometheus relabeling:
@@ -1028,7 +1028,7 @@ When this flag is specified, `vmagent` works in the following way if the configu
 - It drops samples pushed to `vmagent` via non-HTTP protocols and logs the error. Pass `-remoteWrite.dropSamplesOnOverload` on order to suppress error messages in this case.
 - It drops samples [scraped from Prometheus-compatible targets](#how-to-collect-metrics-in-prometheus-format), because it is better to drop samples
   instead of blocking the scrape process.
-- It drops [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) output samples, because it is better to drop output samples
+- It drops [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/) output samples, because it is better to drop output samples
   instead of blocking the stream aggregation process.
 
 The number of dropped samples because of overloaded remote storage can be [monitored](#monitoring) via `vmagent_remotewrite_samples_dropped_total` metric.
@@ -2147,23 +2147,23 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to default value.
   -remoteWrite.streamAggr.config array
-     Optional path to file with stream aggregation config. See https://docs.victoriametrics.com/stream-aggregation.html . See also -remoteWrite.streamAggr.keepInput, -remoteWrite.streamAggr.dropInput and -remoteWrite.streamAggr.dedupInterval
+     Optional path to file with stream aggregation config. See https://docs.victoriametrics.com/stream-aggregation/ . See also -remoteWrite.streamAggr.keepInput, -remoteWrite.streamAggr.dropInput and -remoteWrite.streamAggr.dedupInterval
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.streamAggr.dedupInterval array
-     Input samples are de-duplicated with this interval before optional aggregation with -remoteWrite.streamAggr.config . See also -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation.html#deduplication (default 0s)
+     Input samples are de-duplicated with this interval before optional aggregation with -remoteWrite.streamAggr.config . See also -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation/#deduplication (default 0s)
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to default value.
   -remoteWrite.streamAggr.dropInput array
-     Whether to drop all the input samples after the aggregation with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation.html
+     Whether to drop all the input samples after the aggregation with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation/
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -remoteWrite.streamAggr.ignoreOldSamples array
-     Whether to ignore input samples with old timestamps outside the current aggregation interval for the corresponding -remoteWrite.streamAggr.config . See https://docs.victoriametrics.com/stream-aggregation.html#ignoring-old-samples
+     Whether to ignore input samples with old timestamps outside the current aggregation interval for the corresponding -remoteWrite.streamAggr.config . See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -remoteWrite.streamAggr.keepInput array
-     Whether to keep all the input samples after the aggregation with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.dropInput and https://docs.victoriametrics.com/stream-aggregation.html
+     Whether to keep all the input samples after the aggregation with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.dropInput and https://docs.victoriametrics.com/stream-aggregation/
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -remoteWrite.tlsCAFile array
@@ -2205,7 +2205,7 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
   -sortLabels
      Whether to sort labels for incoming samples before writing them to all the configured remote storage systems. This may be needed for reducing memory usage at remote storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}Enabled sorting for labels can slow down ingestion performance a bit
   -streamAggr.dropInputLabels array
-     An optional list of labels to drop from samples before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation.html#dropping-unneeded-labels
+     An optional list of labels to drop from samples before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tls array
