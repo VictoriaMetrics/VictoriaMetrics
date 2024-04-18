@@ -100,7 +100,7 @@ The same API is also used by
 [VMUI](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui) - graphical User Interface
 for querying and visualizing metrics.
 
-[MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) - is the query language for executing read queries
+[MetricsQL](https://docs.victoriametrics.com/metricsql/) - is the query language for executing read queries
 in VictoriaMetrics. MetricsQL is a [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics) 
 -like query language with a powerful set of functions and features for working specifically with time series data.
 

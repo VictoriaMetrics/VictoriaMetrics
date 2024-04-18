@@ -229,17 +229,17 @@ about 230 PromQL queries in it! But a closer look at those queries shows the fol
 
 * ~120 queries are just selecting a metric with label filters,
   e.g. `node_textfile_scrape_error{instance="$node",job="$job"}`;
-* ~80 queries are using [rate](https://docs.victoriametrics.com/MetricsQL.html#rate) function for selected metric,
+* ~80 queries are using [rate](https://docs.victoriametrics.com/metricsql/#rate) function for selected metric,
   e.g. `rate(node_netstat_Tcp_InSegs{instance=\"$node\",job=\"$job\"})`
 * and the rest
   are [aggregation functions](https://docs.victoriametrics.com/keyConcepts.html#aggregation-and-grouping-functions)
-  like [sum](https://docs.victoriametrics.com/MetricsQL.html#sum)
-  or [count](https://docs.victoriametrics.com/MetricsQL.html#count).
+  like [sum](https://docs.victoriametrics.com/metricsql/#sum)
+  or [count](https://docs.victoriametrics.com/metricsql/#count).
 
 To get a better understanding of how MetricsQL works, see the following resources:
 
 * [MetricsQL concepts](https://docs.victoriametrics.com/keyConcepts.html#metricsql);
-* [MetricsQL functions](https://docs.victoriametrics.com/MetricsQL.html);
+* [MetricsQL functions](https://docs.victoriametrics.com/metricsql/);
 * [PromQL tutorial for beginners](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085).
 
 ## How to migrate current data from InfluxDB to VictoriaMetrics
@@ -270,7 +270,7 @@ consider [backfilling tips](https://docs.victoriametrics.com/Single-server-Victo
     * _VictoriaMetrics may return non-existing data points if `step` param is lower than the actual data resolution. See
       more about this [here](https://docs.victoriametrics.com/keyConcepts.html#range-query)._
 * How do I get the `real` last data point, not `ephemeral`?
-    * _[last_over_time](https://docs.victoriametrics.com/MetricsQL.html#last_over_time) function can be used for
+    * _[last_over_time](https://docs.victoriametrics.com/metricsql/#last_over_time) function can be used for
       limiting the lookbehind window for calculated data. For example, `last_over_time(metric[10s])` would return
       calculated samples only if the real samples are located closer than 10 seconds to the calculated timestamps
       according to
