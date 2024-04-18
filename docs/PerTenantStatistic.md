@@ -80,7 +80,7 @@ Check the Billing section of [Grafana Dashboard](#visualization), it contains bi
 ## Integration with vmgateway
 
 `vmgateway` supports integration with Per Tenant Statistics data for rate limiting purposes.
-More information can be found [here](https://docs.victoriametrics.com/vmgateway.html)
+More information can be found [here](https://docs.victoriametrics.com/vmgateway/)
 
 ## Integration with vmalert
 
