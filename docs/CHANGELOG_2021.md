@@ -599,4 +599,4 @@ Released at 2021-01-13
 
 ## Previous releases
 
-See changes for older releases [here](https://docs.victoriametrics.com/CHANGELOG_2020.html).
+See changes for older releases [here](https://docs.victoriametrics.com/changelog_2020/).
