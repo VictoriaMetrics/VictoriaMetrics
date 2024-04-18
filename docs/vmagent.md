@@ -560,7 +560,7 @@ with [additional enhancements](#relabeling-enhancements). The relabeling can be 
 
 * At the `scrape_config -> relabel_configs` section in `-promscrape.config` file.
   This relabeling is used for modifying labels in discovered targets and for dropping unneeded targets.
-  See [relabeling cookbook](https://docs.victoriametrics.com/relabeling.html) for details.
+  See [relabeling cookbook](https://docs.victoriametrics.com/relabeling/) for details.
 
   This relabeling can be debugged by clicking the `debug` link at the corresponding target on the `http://vmagent:8429/targets` page
   or on the `http://vmagent:8429/service-discovery` page. See [these docs](#relabel-debug) for details.
@@ -568,7 +568,7 @@ with [additional enhancements](#relabeling-enhancements). The relabeling can be 
 
 * At the `scrape_config -> metric_relabel_configs` section in `-promscrape.config` file.
   This relabeling is used for modifying labels in scraped metrics and for dropping unneeded metrics.
-  See [relabeling cookbook](https://docs.victoriametrics.com/relabeling.html) for details.
+  See [relabeling cookbook](https://docs.victoriametrics.com/relabeling/) for details.
 
   This relabeling can be debugged via `http://vmagent:8429/metric-relabel-debug` page. See [these docs](#relabel-debug) for details.
 
@@ -591,7 +591,7 @@ is pefrormed after applying all the relabeling stages mentioned above.
 
 The following articles contain useful information about Prometheus relabeling:
 
-* [Cookbook for common relabeling tasks](https://docs.victoriametrics.com/relabeling.html)
+* [Cookbook for common relabeling tasks](https://docs.victoriametrics.com/relabeling/)
 * [How to use Relabeling in Prometheus and VictoriaMetrics](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2)
 * [Life of a label](https://www.robustperception.io/life-of-a-label)
 * [Discarding targets and timeseries with relabeling](https://www.robustperception.io/relabelling-can-discard-targets-timeseries-and-alerts)
@@ -1144,10 +1144,10 @@ If you have suggestions for improvements or have found a bug - please open an is
   * Enabling stream parsing mode if `vmagent` scrapes targets with millions of metrics per target. See [these docs](#stream-parsing-mode).
   * Reducing the number of tcp connections to remote storage systems with `-remoteWrite.queues` command-line flag.
   * Passing `-promscrape.dropOriginalLabels` command-line flag to `vmagent` if it [discovers](https://docs.victoriametrics.com/sd_configs/)
-    big number of targets and many of these targets are [dropped](https://docs.victoriametrics.com/relabeling.html#how-to-drop-discovered-targets)
+    big number of targets and many of these targets are [dropped](https://docs.victoriametrics.com/relabeling/#how-to-drop-discovered-targets)
     before scraping. In this case `vmagent` drops `"discoveredLabels"` and `"droppedTargets"`
     lists at `http://vmagent-host:8429/service-discovery` page. This reduces memory usage when scraping big number of targets at the cost
-    of reduced debuggability for improperly configured per-target [relabeling](https://docs.victoriametrics.com/relabeling.html).
+    of reduced debuggability for improperly configured per-target [relabeling](https://docs.victoriametrics.com/relabeling/).
 
 * When `vmagent` scrapes many unreliable targets, it can flood the error log with scrape errors. It is recommended investigating and fixing these errors.
   If it is unfeasible to fix all the reported errors, then they can be suppressed by passing `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`.

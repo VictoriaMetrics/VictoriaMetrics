@@ -76,7 +76,7 @@ func StreamRelabelDebugStepsHTML(qw422016 *qt422016.Writer, targetURL, targetID 
 //line lib/promrelabel/debug.qtpl:35
 	htmlcomponents.StreamNavbar(qw422016)
 //line lib/promrelabel/debug.qtpl:35
-	qw422016.N().S(`<div class="container-fluid"><a href="https://docs.victoriametrics.com/relabeling.html" target="_blank">Relabeling docs</a>`)
+	qw422016.N().S(`<div class="container-fluid"><a href="https://docs.victoriametrics.com/relabeling/" target="_blank">Relabeling docs</a>`)
 //line lib/promrelabel/debug.qtpl:37
 	qw422016.N().S(` `)
 //line lib/promrelabel/debug.qtpl:39
