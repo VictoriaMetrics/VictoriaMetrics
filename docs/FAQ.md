@@ -27,7 +27,7 @@ See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/
 
 ## Are there performance comparisons with other solutions?
 
-Yes. See [these benchmarks](https://docs.victoriametrics.com/Articles.html#benchmarks).
+Yes. See [these benchmarks](https://docs.victoriametrics.com/articles/#benchmarks).
 
 ## How to start using VictoriaMetrics?
 
