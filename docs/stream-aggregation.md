@@ -343,7 +343,7 @@ response_size_bytes:60s_histogram_bucket{vmrange="start2...end2"} count2
 response_size_bytes:60s_histogram_bucket{vmrange="startN...endN"} countN
 ```
 
-The resulting histogram buckets can be queried with [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) in the following ways:
+The resulting histogram buckets can be queried with [MetricsQL](https://docs.victoriametrics.com/metricsql/) in the following ways:
 
 1. An estimated 50th and 99th [percentiles](https://en.wikipedia.org/wiki/Percentile) of the request duration over the last hour:
 
@@ -351,7 +351,7 @@ The resulting histogram buckets can be queried with [MetricsQL](https://docs.vic
    histogram_quantiles("quantile", 0.50, 0.99, sum(increase(request_duration_seconds:60s_histogram_bucket[1h])) by (vmrange))
    ```
 
-   This query uses [histogram_quantiles](https://docs.victoriametrics.com/MetricsQL.html#histogram_quantiles) function.
+   This query uses [histogram_quantiles](https://docs.victoriametrics.com/metricsql/#histogram_quantiles) function.
 
 1. An estimated [standard deviation](https://en.wikipedia.org/wiki/Standard_deviation) of the request duration over the last hour:
 
@@ -359,7 +359,7 @@ The resulting histogram buckets can be queried with [MetricsQL](https://docs.vic
    histogram_stddev(sum(increase(request_duration_seconds:60s_histogram_bucket[1h])) by (vmrange))
    ```
 
-   This query uses [histogram_stddev](https://docs.victoriametrics.com/MetricsQL.html#histogram_stddev) function.
+   This query uses [histogram_stddev](https://docs.victoriametrics.com/metricsql/#histogram_stddev) function.
 
 1. An estimated share of requests with the duration smaller than `0.5s` over the last hour:
 
@@ -367,7 +367,7 @@ The resulting histogram buckets can be queried with [MetricsQL](https://docs.vic
    histogram_share(0.5, sum(increase(request_duration_seconds:60s_histogram_bucket[1h])) by (vmrange))
    ```
 
-   This query uses [histogram_share](https://docs.victoriametrics.com/MetricsQL.html#histogram_share) function.
+   This query uses [histogram_share](https://docs.victoriametrics.com/metricsql/#histogram_share) function.
 
 See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
 See also [quantiles over input metrics](#quantiles-over-input-metrics) and [aggregating by labels](#aggregating-by-labels).
@@ -396,7 +396,7 @@ http_request_duration_seconds_bucket:1m_without_instance_total{le="3"}   value5
 http_request_duration_seconds_bucket:1m_without_instance_total{le="+Inf" value6
 ```
 
-The resulting metrics can be passed to [histogram_quantile](https://docs.victoriametrics.com/MetricsQL.html#histogram_quantile)
+The resulting metrics can be passed to [histogram_quantile](https://docs.victoriametrics.com/metricsql/#histogram_quantile)
 function:
 
 ```metricsql
@@ -572,7 +572,7 @@ For example, see below time series produced by config with aggregation interval 
 
 <img alt="increase aggregation" src="stream-aggregation-check-increase.webp">
 
-`increase` can be used as an alternative for [rate](https://docs.victoriametrics.com/MetricsQL.html#rate) function.
+`increase` can be used as an alternative for [rate](https://docs.victoriametrics.com/metricsql/#rate) function.
 For example, if `increase` is calculated for `some_counter` with `interval: 5m`, then `rate` can be calculated
 by dividing the resulting aggregation by `5m`:
 
@@ -582,7 +582,7 @@ some_counter:5m_increase / 5m
 
 This is similar to `rate(some_counter[5m])`.
 
-Please note, opposite to [rate](https://docs.victoriametrics.com/MetricsQL.html#rate), `increase` aggregations can be 
+Please note, opposite to [rate](https://docs.victoriametrics.com/metricsql/#rate), `increase` aggregations can be 
 combined safely afterwards. This is helpful when the aggregation is calculated by more than one vmagent.
 
 Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)

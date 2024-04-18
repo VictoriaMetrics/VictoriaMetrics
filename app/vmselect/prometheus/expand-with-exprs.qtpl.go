@@ -28,11 +28,11 @@ var (
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:9
 func StreamExpandWithExprsResponse(qw422016 *qt422016.Writer, q string) {
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:9
-	qw422016.N().S(`<html><head><title>Expand WITH expressions</title><style>p { font-weight: bold }textarea { margin: 1em }</style></head><body><div><form method="get"><div><p><a href="https://docs.victoriametrics.com/MetricsQL.html">MetricsQL</a> query with optional WITH expressions:</p><textarea name="query" style="height: 15em; width: 90%">`)
+	qw422016.N().S(`<html><head><title>Expand WITH expressions</title><style>p { font-weight: bold }textarea { margin: 1em }</style></head><body><div><form method="get"><div><p><a href="https://docs.victoriametrics.com/metricsql/">MetricsQL</a> query with optional WITH expressions:</p><textarea name="query" style="height: 15em; width: 90%">`)
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:26
 	qw422016.E().S(q)
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:26
-	qw422016.N().S(`</textarea><br/><input type="submit" value="Expand" /><p><a href="https://docs.victoriametrics.com/MetricsQL.html">MetricsQL</a> query after expanding WITH expressions and applying other optimizations:</p><textarea style="height: 5em; width: 90%" readonly="readonly">`)
+	qw422016.N().S(`</textarea><br/><input type="submit" value="Expand" /><p><a href="https://docs.victoriametrics.com/metricsql/">MetricsQL</a> query after expanding WITH expressions and applying other optimizations:</p><textarea style="height: 5em; width: 90%" readonly="readonly">`)
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:32
 	streamexpandWithExprs(qw422016, q)
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:32
@@ -192,7 +192,7 @@ func ExpandWithExprsJSONResponse(q string) string {
 func streamwithExprsTutorial(qw422016 *qt422016.Writer) {
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:81
 	qw422016.N().S(`
-<h3>Tutorial for WITH expressions in <a href="https://docs.victoriametrics.com/MetricsQL.html">MetricsQL</a></h3>
+<h3>Tutorial for WITH expressions in <a href="https://docs.victoriametrics.com/metricsql/">MetricsQL</a></h3>
 
 <p>
     Let's look at the following real query from <a href="https://grafana.com/grafana/dashboards/1860">Node Exporter Full</a> dashboard:
