@@ -824,7 +824,7 @@ in a single `vmstorage` group are temporarily unavailable:
  -storageNode=g3/host7,g3/host8,g3/host9
 ```
 
-It is OK to mix `-replicationFactor` and `-globalReplicationFactor`. For example, the folling command runs `vmselect`, which continues returning full responses
+It is OK to mix `-replicationFactor` and `-globalReplicationFactor`. For example, the following command runs `vmselect`, which continues returning full responses
 if any number of `vmstorage` nodes in a single `vmstorage` group are temporarily unavailable and the remaining groups contain up to two unavailable `vmstorage` node:
 
 ```
