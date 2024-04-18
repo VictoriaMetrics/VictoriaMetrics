@@ -466,7 +466,7 @@ at [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriame
 
 ## Monitoring
 
-Having proper [monitoring](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#monitoring)
+Having proper [monitoring](https://docs.victoriametrics.com/single-server-victoriametrics/#monitoring)
 would help identify and prevent most of the issues listed above.
 
 [Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards) contain panels reflecting the

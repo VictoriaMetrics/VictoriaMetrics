@@ -15,7 +15,7 @@ aliases:
 ## How to install
 
 VictoriaMetrics is distributed in two forms:
-* [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) - all-in-one
+* [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) - all-in-one
   binary, which is very easy to use and maintain.
   Single-server-VictoriaMetrics perfectly scales vertically and easily handles millions of metrics/s;
 * [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) - set of components
@@ -29,14 +29,14 @@ Single-server-VictoriaMetrics VictoriaMetrics is available as:
 * [Helm Charts](https://github.com/VictoriaMetrics/helm-charts#list-of-charts)
 * [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
 * [Source code](https://github.com/VictoriaMetrics/VictoriaMetrics).
-  See [How to build from sources](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-build-from-sources)
+  See [How to build from sources](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-build-from-sources)
 * [VictoriaMetrics on Linode](https://www.linode.com/marketplace/apps/victoriametrics/victoriametrics/)
 * [VictoriaMetrics on DigitalOcean](https://marketplace.digitalocean.com/apps/victoriametrics-single)
 
 Just download VictoriaMetrics and follow
-[these instructions](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-start-victoriametrics).
-Then read [Prometheus setup](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-setup)
-and [Grafana setup](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#grafana-setup) docs.
+[these instructions](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-start-victoriametrics).
+Then read [Prometheus setup](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-setup)
+and [Grafana setup](https://docs.victoriametrics.com/single-server-victoriametrics/#grafana-setup) docs.
 
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/changelog/) and performing [regular upgrades](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics).
 
@@ -93,11 +93,11 @@ See more details on [writing data here](https://docs.victoriametrics.com/keyconc
 ## Query data
 
 VictoriaMetrics provides an 
-[HTTP API](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-usage)
+[HTTP API](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-querying-api-usage)
 for serving read queries. The API is used in various integrations such as
-[Grafana](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#grafana-setup).
+[Grafana](https://docs.victoriametrics.com/single-server-victoriametrics/#grafana-setup).
 The same API is also used by
-[VMUI](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui) - graphical User Interface
+[VMUI](https://docs.victoriametrics.com/single-server-victoriametrics/#vmui) - graphical User Interface
 for querying and visualizing metrics.
 
 [MetricsQL](https://docs.victoriametrics.com/metricsql/) - is the query language for executing read queries
@@ -153,7 +153,7 @@ See more details in the article [VictoriaMetrics Monitoring](https://victoriamet
 ### Capacity planning
 
 See capacity planning sections in [docs](https://docs.victoriametrics.com) for
-[Single-server-VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#capacity-planning)
+[Single-server-VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/#capacity-planning)
 and [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#capacity-planning).
 
 Capacity planning isn't possible without [monitoring](#monitoring), so consider configuring it first.
@@ -169,14 +169,14 @@ All of them are present in [Grafana dashboards](https://grafana.com/orgs/victori
 
 It is recommended to read [Replication and data safety](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety),
 [Why replication doesn’t save from disaster?](https://valyala.medium.com/speeding-up-backups-for-big-time-series-databases-533c1a927883)
-and [backups](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#backups).
+and [backups](https://docs.victoriametrics.com/single-server-victoriametrics/#backups).
 
 
 ### Configuring limits
 
 To avoid excessive resource usage or performance degradation limits must be in place:
 * [Resource usage limits](https://docs.victoriametrics.com/faq/#how-to-set-a-memory-limit-for-victoriametrics-components);
-* [Cardinality limiter](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cardinality-limiter).
+* [Cardinality limiter](https://docs.victoriametrics.com/single-server-victoriametrics/#cardinality-limiter).
 
 ### Security recommendations
 

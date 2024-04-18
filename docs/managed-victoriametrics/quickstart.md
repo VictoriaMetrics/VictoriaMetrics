@@ -266,6 +266,6 @@ In that section, additional params can be set:
 * `Settings` allow to define different flags for the deployment:
 
    1. [cluster components flags](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags).
-   2. [single version flags](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#list-of-command-line-flags).
+   2. [single version flags](https://docs.victoriametrics.com/single-server-victoriametrics/#list-of-command-line-flags).
 
 Please note, such an update requires a deployment restart and may result in a short downtime for single-node deployments.

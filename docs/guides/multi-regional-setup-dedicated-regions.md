@@ -80,7 +80,7 @@ An additional VictoriaMetrics single can be set up in every region, scraping met
 You also may evaluate the option to send these metrics to the neighbour region to achieve HA.
 
 Additional context
-* VictoriaMetrics Single - [https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#monitoring](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#monitoring)
+* VictoriaMetrics Single - [https://docs.victoriametrics.com/single-server-victoriametrics/#monitoring](https://docs.victoriametrics.com/single-server-victoriametrics/#monitoring)
 * VictoriaMetrics Cluster - [https://docs.victoriametrics.com/cluster-victoriametrics/#monitoring](https://docs.victoriametrics.com/cluster-victoriametrics/#monitoring)
 
 

@@ -12,7 +12,7 @@ aliases:
 
 # Streaming aggregation
 
-[vmagent](https://docs.victoriametrics.com/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
+[vmagent](https://docs.victoriametrics.com/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
 can aggregate incoming [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) in streaming mode by time and by labels before data is written to remote storage
 (or local storage for single-node VictoriaMetrics).
 The aggregation is applied to all the metrics received via any [supported data ingestion protocol](https://docs.victoriametrics.com/#how-to-import-time-series-data)
@@ -27,7 +27,7 @@ Stream aggregation can be configured via the following command-line flags:
 - `-remoteWrite.streamAggr.config` at [vmagent](https://docs.victoriametrics.com/vmagent/).
   This flag can be specified individually per each `-remoteWrite.url`.
   This allows writing different aggregates to different remote storage destinations.
-- `-streamAggr.config` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html).
+- `-streamAggr.config` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/).
 
 These flags must point to a file containing [stream aggregation config](#stream-aggregation-config).
 The file may contain `%{ENV_VAR}` placeholders which are substituted by the corresponding `ENV_VAR` environment variable values.
@@ -40,11 +40,11 @@ By default, the following data is written to the storage when stream aggregation
 This behaviour can be changed via the following command-line flags:
 
 - `-remoteWrite.streamAggr.keepInput` at [vmagent](https://docs.victoriametrics.com/vmagent/) and `-streamAggr.keepInput`
-  at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html).
+  at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/).
   If one of these flags is set, then all the input samples are written to the storage alongside the aggregated samples.
   The `-remoteWrite.streamAggr.keepInput` flag can be specified individually per each `-remoteWrite.url`.
 - `-remoteWrite.streamAggr.dropInput` at [vmagent](https://docs.victoriametrics.com/vmagent/) and `-streamAggr.dropInput`
-  at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html).
+  at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/).
   If one of these flags are set, then all the input samples are dropped, while only the aggregated samples are written to the storage.
   The `-remoteWrite.streamAggr.dropInput` flag can be specified individually per each `-remoteWrite.url`.
 
@@ -63,7 +63,7 @@ before sending them to the configured `-remoteWrite.url`. The de-duplication can
 
 - By specifying `dedup_interval` option individually per each [stream aggregation config](#stream-aggregation-config) at `-remoteWrite.streamAggr.config`.
 
-[Single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) supports two types of de-duplication:
+[Single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) supports two types of de-duplication:
 - After storing the duplicate samples to local storage. See [`-dedup.minScrapeInterval`](https://docs.victoriametrics.com/#deduplication) command-line option.
 - Before storing the duplicate samples to local storage. This type of de-duplication can be enabled via the following options:
   - By specifying the desired de-duplication interval via `-streamAggr.dedupInterval` command-line flag.
@@ -853,7 +853,7 @@ See also [aggregation outputs](#aggregation-outputs).
 
 Below is the format for stream aggregation config file, which may be referred via `-remoteWrite.streamAggr.config` command-line flag
 at [vmagent](https://docs.victoriametrics.com/vmagent/) or via `-streamAggr.config` command-line flag
-at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html):
+at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/):
 
 ```yaml
   # match is an optional filter for incoming samples to aggregate.
@@ -961,7 +961,7 @@ per each specified config entry.
 
 ### Configuration update
 
-[vmagent](https://docs.victoriametrics.com/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
+[vmagent](https://docs.victoriametrics.com/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
 support the following approaches for hot reloading stream aggregation configs from `-remoteWrite.streamAggr.config` and `-streamAggr.config`:
 
 * By sending `SIGHUP` signal to `vmagent` or `victoria-metrics` process:

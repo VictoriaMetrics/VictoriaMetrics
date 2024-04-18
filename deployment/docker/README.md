@@ -42,7 +42,7 @@ The communication scheme between components is the following:
 
 To access Grafana use link [http://localhost:3000](http://localhost:3000).
 
-To access [vmui](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui)
+To access [vmui](https://docs.victoriametrics.com/single-server-victoriametrics/#vmui)
 use link [http://localhost:8428/vmui](http://localhost:8428/vmui).
 
 To access `vmalert` use link [http://localhost:8428/vmalert](http://localhost:8428/vmalert/).
@@ -78,7 +78,7 @@ The communication scheme between components is the following:
 
 To access Grafana use link [http://localhost:3000](http://localhost:3000).
 
-To access [vmui](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui)
+To access [vmui](https://docs.victoriametrics.com/single-server-victoriametrics/#vmui)
 use link [http://localhost:8427/select/0/prometheus/vmui/](http://localhost:8427/select/0/prometheus/vmui/).
 
 To access `vmalert` use link [http://localhost:8427/select/0/prometheus/vmalert/](http://localhost:8427/select/0/prometheus/vmalert/).
@@ -156,7 +156,7 @@ of alerting rules is the following:
 * [alerts-health.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-health.yml):
   alerting rules related to all VictoriaMetrics components for tracking their "health" state; 
 * [alerts.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml):
-  alerting rules related to [single-server VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) installation;
+  alerting rules related to [single-server VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) installation;
 * [alerts-cluster.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-cluster.yml):
   alerting rules related to [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/);
 * [alerts-vmagent.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-vmagent.yml):
@@ -164,7 +164,7 @@ of alerting rules is the following:
 * [alerts-vmalert.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-vmalert.yml):
   alerting rules related to [vmalert](https://docs.victoriametrics.com/vmalert/) component;
 
-Please, also see [how to monitor](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#monitoring) 
+Please, also see [how to monitor](https://docs.victoriametrics.com/single-server-victoriametrics/#monitoring) 
 VictoriaMetrics installations.
 
 ## VictoriaLogs server
