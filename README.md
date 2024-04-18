@@ -399,7 +399,7 @@ Query history can be navigated by holding `Ctrl` (or `Cmd` on MacOS) and pressin
 Multi-line queries can be entered by pressing `Shift-Enter` in query input field.
 
 When querying the [backfilled data](https://docs.victoriametrics.com/#backfilling)
-or during [query troubleshooting](https://docs.victoriametrics.com/Troubleshooting.html#unexpected-query-results),
+or during [query troubleshooting](https://docs.victoriametrics.com/troubleshooting/#unexpected-query-results),
 it may be useful disabling response cache by clicking `Disable cache` checkbox.
 
 VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range.
@@ -2181,7 +2181,7 @@ VictoriaMetrics exposes currently running queries and their execution times at [
 VictoriaMetrics exposes queries, which take the most time to execute, at [`top queries` page](#top-queries).
 
 See also [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/)
-and [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
+and [troubleshooting docs](https://docs.victoriametrics.com/troubleshooting/).
 
 ## TSDB stats
 
@@ -2384,7 +2384,7 @@ and [cardinality explorer docs](#cardinality-explorer).
 See also:
 
 - [Snapshot troubleshooting](#snapshot-troubleshooting).
-- [General troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
+- [General troubleshooting docs](https://docs.victoriametrics.com/troubleshooting/).
 
 ## Push metrics
 
