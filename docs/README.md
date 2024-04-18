@@ -23,7 +23,7 @@ and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics).
 
 Documentation for the cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
 
-Learn more about [key concepts](https://docs.victoriametrics.com/keyConcepts.html) of VictoriaMetrics and follow the 
+Learn more about [key concepts](https://docs.victoriametrics.com/keyconcepts/) of VictoriaMetrics and follow the 
 [quick start guide](https://docs.victoriametrics.com/Quick-Start.html) for a better experience.
 
 If you have questions about VictoriaMetrics, then feel free asking them in the [VictoriaMetrics community Slack chat](https://victoriametrics.slack.com/),
@@ -386,7 +386,7 @@ The UI allows exploring query results via graphs and tables. It also provides th
 VMUI provides auto-completion for [MetricsQL](https://docs.victoriametrics.com/metricsql/) functions, metric names, label names and label values. The auto-completion can be enabled
 by checking the `Autocomplete` toggle. When the auto-completion is disabled, it can still be triggered for the current cursor position by pressing `ctrl+space`.
 
-VMUI automatically switches from graph view to heatmap view when the query returns [histogram](https://docs.victoriametrics.com/keyConcepts.html#histogram) buckets
+VMUI automatically switches from graph view to heatmap view when the query returns [histogram](https://docs.victoriametrics.com/keyconcepts/#histogram) buckets
 (both [Prometheus histograms](https://prometheus.io/docs/concepts/metric_types/#histogram)
 and [VictoriaMetrics histograms](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) are supported).
 Try, for example, [this query](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/?g0.expr=sum%28rate%28vm_promscrape_scrape_duration_seconds_bucket%29%29+by+%28vmrange%29&g0.range_input=24h&g0.end_input=2023-04-10T17%3A46%3A12&g0.relative_time=last_24_hours&g0.step_input=31m).
@@ -436,7 +436,7 @@ This information is obtained from the `/api/v1/status/top_queries` HTTP endpoint
 [VMUI](#vmui) provides `active queries` tab, which shows currently execute queries.
 It provides the following information per each query:
 
-- The query itself, together with the time range and step args passed to [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query).
+- The query itself, together with the time range and step args passed to [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query).
 - The duration of the query execution.
 - The client address, who initiated the query execution.
 
@@ -625,9 +625,9 @@ and stream plain InfluxDB line protocol data to the configured TCP and/or UDP ad
 VictoriaMetrics performs the following transformations to the ingested InfluxDB data:
 
 * [db query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` 
-  [label](https://docs.victoriametrics.com/keyConcepts.html#labels) value unless `db` tag exists in the InfluxDB line. 
+  [label](https://docs.victoriametrics.com/keyconcepts/#labels) value unless `db` tag exists in the InfluxDB line. 
   The `db` label name can be overridden via `-influxDBLabel` command-line flag. If more strict data isolation is required,
-  read more about multi-tenancy [here](https://docs.victoriametrics.com/keyConcepts.html#multi-tenancy).
+  read more about multi-tenancy [here](https://docs.victoriametrics.com/keyconcepts/#multi-tenancy).
 * Field names are mapped to time series names prefixed with `{measurement}{separator}` value, where `{separator}` equals to `_` by default. It can be changed with `-influxMeasurementFieldSeparator` command-line flag. See also `-influxSkipSingleField` command-line flag. If `{measurement}` is empty or if `-influxSkipMeasurement` command-line flag is set, then time series names correspond to field names.
 * Field values are mapped to time series values.
 * Tags are mapped to Prometheus labels as-is.
@@ -846,7 +846,7 @@ For example, `/api/put?extra_label=foo=bar` would add `{foo="bar"}` label to all
 VictoriaMetrics accepts data from [NewRelic infrastructure agent](https://docs.newrelic.com/docs/infrastructure/install-infrastructure-agent)
 at `/newrelic/infra/v2/metrics/events/bulk` HTTP path.
 VictoriaMetrics receives [Events](https://docs.newrelic.com/docs/infrastructure/manage-your-data/data-instrumentation/default-infrastructure-monitoring-data/#infrastructure-events)
-from NewRelic agent at the given path, transforms them to [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples)
+from NewRelic agent at the given path, transforms them to [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
 according to [these docs](#newrelic-agent-data-mapping) before storing the raw samples to the database.
 
 You need passing `COLLECTOR_URL` and `NRIA_LICENSE_KEY` environment variables to NewRelic infrastructure agent in order to send the collected metrics to VictoriaMetrics.
@@ -861,11 +861,11 @@ COLLECTOR_URL="http://localhost:8428/newrelic" NRIA_LICENSE_KEY="NEWRELIC_LICENS
 ### NewRelic agent data mapping
 
 VictoriaMetrics maps [NewRelic Events](https://docs.newrelic.com/docs/infrastructure/manage-your-data/data-instrumentation/default-infrastructure-monitoring-data/#infrastructure-events)
-to [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) in the following way:
+to [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) in the following way:
 
 1. Every numeric field is converted into a raw sample with the corresponding name.
-1. The `eventType` and all the other fields with `string` value type are attached to every raw sample as [metric labels](https://docs.victoriametrics.com/keyConcepts.html#labels).
-1. The `timestamp` field is used as timestamp for the ingested [raw sample](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
+1. The `eventType` and all the other fields with `string` value type are attached to every raw sample as [metric labels](https://docs.victoriametrics.com/keyconcepts/#labels).
+1. The `timestamp` field is used as timestamp for the ingested [raw sample](https://docs.victoriametrics.com/keyconcepts/#raw-samples).
    The `timestamp` field may be specified either in seconds or in milliseconds since the [Unix Epoch](https://en.wikipedia.org/wiki/Unix_time).
    If the `timestamp` field is missing, then the raw sample is stored with the current timestamp.
 
@@ -918,8 +918,8 @@ curl http://localhost:8428/api/v1/export -d 'match={eventType="SystemSample"}'
 
 VictoriaMetrics supports the following handlers from [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/):
 
-* [/api/v1/query](https://docs.victoriametrics.com/keyConcepts.html#instant-query)
-* [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query)
+* [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query)
+* [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query)
 * [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series)
 * [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels)
 * [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues)
@@ -948,8 +948,8 @@ See [vmauth](https://docs.victoriametrics.com/vmauth/) and [vmgateway](https://d
 
 VictoriaMetrics accepts multiple formats for `time`, `start` and `end` query args - see [these docs](#timestamp-formats).
 
-VictoriaMetrics accepts `round_digits` query arg for [/api/v1/query](https://docs.victoriametrics.com/keyConcepts.html#instant-query)
-and [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query) handlers. It can be used for rounding response values
+VictoriaMetrics accepts `round_digits` query arg for [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query)
+and [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query) handlers. It can be used for rounding response values
 to the given number of digits after the decimal point.
 For example, `/api/v1/query?query=avg_over_time(temperature[1h])&round_digits=2` would round response values to up to two digits after the decimal point.
 
@@ -966,7 +966,7 @@ from [/api/v1/series](https://docs.victoriametrics.com/url-examples.html#apiv1se
 while the Prometheus API defaults to all time.  Explicitly set `start` and `end` to select the desired time range.
 VictoriaMetrics rounds the specified `start..end` time range to day granularity because of performance optimization concerns.
 If you need the exact set of label names and label values on the given time range, then send queries
-to [/api/v1/query](https://docs.victoriametrics.com/keyConcepts.html#instant-query) or to [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query).
+to [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query) or to [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query).
 
 VictoriaMetrics accepts `limit` query arg at [/api/v1/series](https://docs.victoriametrics.com/url-examples.html#apiv1series)
 for limiting the number of returned entries. For example, the query to `/api/v1/series?limit=5` returns a sample of up to 5 series, while ignoring the rest of series.
@@ -1593,8 +1593,8 @@ Too long JSON lines may increase RAM usage at VictoriaMetrics side.
 
 [/api/v1/export](#how-to-export-data-in-json-line-format) handler accepts `max_rows_per_line` query arg, which allows limiting the number of samples per each exported line.
 
-It is OK to split [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples)
-for the same [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series) across multiple lines.
+It is OK to split [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
+for the same [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) across multiple lines.
 
 The number of lines in the request to [/api/v1/import](#how-to-import-data-in-json-line-format) can be arbitrary - they are imported in streaming manner.
 
@@ -1703,10 +1703,10 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
   and then applies the given [rollup function](https://docs.victoriametrics.com/metricsql/#rollup-functions). The `-search.maxSamplesPerSeries` command-line flag
   allows limiting memory usage in the case when the query is executed on a time range, which contains hundreds of millions of raw samples per each located time series.
 - `-search.maxSamplesPerQuery` limits the number of raw samples a single query can process. This allows limiting CPU usage for heavy queries.
-- `-search.maxResponseSeries` limits the number of time series a single query can return from [`/api/v1/query`](https://docs.victoriametrics.com/keyConcepts.html#instant-query)
-  and [`/api/v1/query_range`](https://docs.victoriametrics.com/keyConcepts.html#range-query).
+- `-search.maxResponseSeries` limits the number of time series a single query can return from [`/api/v1/query`](https://docs.victoriametrics.com/keyconcepts/#instant-query)
+  and [`/api/v1/query_range`](https://docs.victoriametrics.com/keyconcepts/#range-query).
 - `-search.maxPointsPerTimeseries` limits the number of calculated points, which can be returned per each matching time series
-  from [range query](https://docs.victoriametrics.com/keyConcepts.html#range-query).
+  from [range query](https://docs.victoriametrics.com/keyconcepts/#range-query).
 - `-search.maxPointsSubqueryPerTimeseries` limits the number of calculated points, which can be generated per each matching time series
   during [subquery](https://docs.victoriametrics.com/metricsql/#subqueries) evaluation.
 - `-search.maxSeriesPerAggrFunc` limits the number of time series, which can be generated by [MetricsQL aggregate functions](https://docs.victoriametrics.com/metricsql/#aggregate-functions)
@@ -1791,8 +1791,8 @@ and sending it to VictoriaMetrics, then do not forget enabling [deduplication](#
 
 ## Deduplication
 
-VictoriaMetrics leaves a single [raw sample](https://docs.victoriametrics.com/keyConcepts.html#raw-samples)
-with the biggest [timestamp](https://en.wikipedia.org/wiki/Unix_time) for each [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
+VictoriaMetrics leaves a single [raw sample](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
+with the biggest [timestamp](https://en.wikipedia.org/wiki/Unix_time) for each [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
 per each `-dedup.minScrapeInterval` discrete interval if `-dedup.minScrapeInterval` is set to positive duration. 
 For example, `-dedup.minScrapeInterval=60s` would leave a single raw sample with the biggest timestamp per each discrete
 `60s` interval.
@@ -1805,7 +1805,7 @@ then the sample with **the biggest value** is kept.
 If raw sample with the biggest timestamp on `-dedup.minScrapeInterval` contains a stale marker, then it is kept after the deduplication.
 This allows properly preserving staleness markers during the de-duplication.
 
-Please note, [labels](https://docs.victoriametrics.com/keyConcepts.html#labels) of raw samples should be identical
+Please note, [labels](https://docs.victoriametrics.com/keyconcepts/#labels) of raw samples should be identical
 in order to be deduplicated. For example, this is why [HA pair of vmagents](https://docs.victoriametrics.com/vmagent/#high-availability)
 needs to be identically configured. 
 
@@ -1842,19 +1842,19 @@ can be configured with the `-inmemoryDataFlushInterval` command-line flag (note 
 
 In-memory parts are persisted to disk into `part` directories under the `<-storageDataPath>/data/small/YYYY_MM/` folder,
 where `YYYY_MM` is the month partition for the stored data. For example, `2022_11` is the partition for `parts`
-with [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) from `November 2022`.
+with [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) from `November 2022`.
 Each partition directory contains `parts.json` file with the actual list of parts in the partition.
 
 Every `part` directory contains `metadata.json` file with the following fields:
 
-- `RowsCount` - the number of [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) stored in the part
+- `RowsCount` - the number of [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) stored in the part
 - `BlocksCount` - the number of blocks stored in the part (see details about blocks below)
 - `MinTimestamp` and `MaxTimestamp` - minimum and maximum timestamps across raw samples stored in the part
 - `MinDedupInterval` - the [deduplication interval](#deduplication) applied to the given part.
 
 Each `part` consists of `blocks` sorted by internal time series id (aka `TSID`).
-Each `block` contains up to 8K [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples),
-which belong to a single [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series).
+Each `block` contains up to 8K [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples),
+which belong to a single [time series](https://docs.victoriametrics.com/keyconcepts/#time-series).
 Raw samples in each block are sorted by `timestamp`. Blocks for the same time series are sorted
 by the `timestamp` of the first sample. Timestamps and values for all the blocks
 are stored in [compressed form](https://faun.pub/victoriametrics-achieving-better-compression-for-time-series-data-than-gorilla-317bc1f95932)
@@ -1946,9 +1946,9 @@ See [these docs](https://docs.victoriametrics.com/guides/guide-vmcluster-multipl
 ## Retention filters
 
 [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) supports e.g. `retention filters`,
-which allow configuring multiple retentions for distinct sets of time series matching the configured [series filters](https://docs.victoriametrics.com/keyConcepts.html#filtering)
+which allow configuring multiple retentions for distinct sets of time series matching the configured [series filters](https://docs.victoriametrics.com/keyconcepts/#filtering)
 via `-retentionFilter` command-line flag. This flag accepts `filter:duration` options, where `filter` must be
-a valid [series filter](https://docs.victoriametrics.com/keyConcepts.html#filtering), while the `duration`
+a valid [series filter](https://docs.victoriametrics.com/keyconcepts/#filtering), while the `duration`
 must contain valid [retention](#retention) for time series matching the given `filter`. 
 The `duration` of the `-retentionFilter` must be lower or equal to [-retentionPeriod](#retention) flag value.
 If series doesn't match any configured `-retentionFilter`, then the retention configured via [-retentionPeriod](#retention) 
@@ -1991,7 +1991,7 @@ while leaving the last sample per each 1-hour interval for samples older than 18
 
 VictoriaMetrics supports configuring independent downsampling per different sets of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
 via `-downsampling.period=filter:offset:interval` syntax. In this case the given `offset:interval` downsampling is applied only to time series matching the given `filter`.
-The `filter` can contain arbitrary [series filter](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+The `filter` can contain arbitrary [series filter](https://docs.victoriametrics.com/keyconcepts/#filtering).
 For example, `-downsampling.period='{__name__=~"(node|process)_.*"}:1d:1m` instructs VictoriaMetrics to deduplicate samples older than one day with one minute interval
 only for [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) with names starting with `node_` or `process_` prefixes.
 The de-duplication for other time series can be configured independently via additional `-downsampling.period` command-line flags.
@@ -2004,11 +2004,11 @@ even if their names start with `node_` prefix. All the other time series with na
 If downsampling shouldn't be applied to some time series matching the given `filter`, then pass `-downsampling.period=filter:0s:0s` command-line flag to VictoriaMetrics.
 For example, if series with `env="prod"` label shouldn't be downsampled, then pass `-downsampling.period='{env="prod"}:0s:0s'` command-line flag in front of other `-downsampling.period` flags.
 
-Downsampling is applied independently per each time series and leaves a single [raw sample](https://docs.victoriametrics.com/keyConcepts.html#raw-samples)
+Downsampling is applied independently per each time series and leaves a single [raw sample](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
 with the biggest [timestamp](https://en.wikipedia.org/wiki/Unix_time) on the configured interval, in the same way as [deduplication](#deduplication) does.
-It works the best for [counters](https://docs.victoriametrics.com/keyConcepts.html#counter) and [histograms](https://docs.victoriametrics.com/keyConcepts.html#histogram),
-as their values are always increasing. Downsampling [gauges](https://docs.victoriametrics.com/keyConcepts.html#gauge)
-and [summaries](https://docs.victoriametrics.com/keyConcepts.html#summary) lose some changes within the downsampling interval,
+It works the best for [counters](https://docs.victoriametrics.com/keyconcepts/#counter) and [histograms](https://docs.victoriametrics.com/keyconcepts/#histogram),
+as their values are always increasing. Downsampling [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge)
+and [summaries](https://docs.victoriametrics.com/keyconcepts/#summary) lose some changes within the downsampling interval,
 since only the last sample on the given interval is left and the rest of samples are dropped.
 
 You can use [recording rules](https://docs.victoriametrics.com/vmalert/#rules) or [steaming aggregation](https://docs.victoriametrics.com/stream-aggregation/)
@@ -2329,8 +2329,8 @@ and [cardinality explorer docs](#cardinality-explorer).
 
 * If you run VictoriaMetrics on a host with 16 or more CPU cores, then it may be needed to tune the `-search.maxWorkersPerQuery` command-line flag
   in order to improve query performance. If VictoriaMetrics serves big number of concurrent `select` queries, then try reducing the value for this flag.
-  If VcitoriaMetrics serves heavy queries, which select `>10K` of [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series) and/or process `>100M`
-  of [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) per query, then try setting the value for this flag to the number of available CPU cores.
+  If VcitoriaMetrics serves heavy queries, which select `>10K` of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) and/or process `>100M`
+  of [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) per query, then try setting the value for this flag to the number of available CPU cores.
 
 * VictoriaMetrics buffers incoming data in memory for up to a few seconds before flushing it to persistent storage.
   This may lead to the following "issues":

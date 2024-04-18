@@ -86,7 +86,7 @@ curl -s 'http://vmselect:8481/delete/0/prometheus/api/v1/admin/tsdb/delete_serie
 ```
 
 
-If operation was successful, the deleted series will stop being [queryable](https://docs.victoriametrics.com/keyConcepts.html#query-data). Storage space for the deleted time series isn't freed instantly - it is freed during subsequent [background merges of data files](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282). The background merges may never occur for data from previous months, so storage space won't be freed for historical data. In this case [forced merge](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#forced-merge) may help freeing up storage space.
+If operation was successful, the deleted series will stop being [queryable](https://docs.victoriametrics.com/keyconcepts/#query-data). Storage space for the deleted time series isn't freed instantly - it is freed during subsequent [background merges of data files](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282). The background merges may never occur for data from previous months, so storage space won't be freed for historical data. In this case [forced merge](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#forced-merge) may help freeing up storage space.
 
 To trigger [forced merge](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#forced-merge) on VictoriaMetrics Cluster run the following command:
 

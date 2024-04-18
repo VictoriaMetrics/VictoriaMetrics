@@ -314,9 +314,9 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/query -d 'query=vm_http_r
 
 
 Additional information:
-* [Instant queries](https://docs.victoriametrics.com/keyConcepts.html#instant-query)
+* [Instant queries](https://docs.victoriametrics.com/keyconcepts/#instant-query)
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
-* [Query language](https://docs.victoriametrics.com/keyConcepts.html#metricsql)
+* [Query language](https://docs.victoriametrics.com/keyconcepts/#metricsql)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 
 ### /api/v1/query_range
@@ -338,9 +338,9 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/query_range -d 'query=sum
 
 
 Additional information:
-* [Range queries](https://docs.victoriametrics.com/keyConcepts.html#range-query)
+* [Range queries](https://docs.victoriametrics.com/keyconcepts/#range-query)
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
-* [Query language](https://docs.victoriametrics.com/keyConcepts.html#metricsql)
+* [Query language](https://docs.victoriametrics.com/keyconcepts/#metricsql)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 
 ### /api/v1/series

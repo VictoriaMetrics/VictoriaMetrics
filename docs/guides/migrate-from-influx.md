@@ -30,13 +30,13 @@ from InfluxDB to VictoriaMetrics.
 
 While readers are likely familiar
 with [InfluxDB key concepts](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/), the data model of
-VictoriaMetrics is something [new to explore](https://docs.victoriametrics.com/keyConcepts.html#data-model). Let's start
+VictoriaMetrics is something [new to explore](https://docs.victoriametrics.com/keyconcepts/#data-model). Let's start
 with similarities and differences:
 
 * both solutions are **schemaless**, which means there is no need to define metrics or their tags in advance;
 * multidimensional data support is implemented
   via [tags](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#tags)
-  in InfluxDB and via [labels](https://docs.victoriametrics.com/keyConcepts.html#structure-of-a-metric) in
+  in InfluxDB and via [labels](https://docs.victoriametrics.com/keyconcepts/#structure-of-a-metric) in
   VictoriaMetrics. However, labels in VictoriaMetrics are always `strings`, while InfluxDB supports multiple data types;
 * timestamps are stored with nanosecond resolution in InfluxDB, while in VictoriaMetrics it is **milliseconds**;
 * in VictoriaMetrics metric value is always `float64`, while InfluxDB supports multiple data types.
@@ -50,7 +50,7 @@ with similarities and differences:
   or [organizations](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#organization). All
   data in VictoriaMetrics is stored in a global namespace or within
   a [tenant](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy). 
-  See more about multi-tenancy [here](https://docs.victoriametrics.com/keyConcepts.html#multi-tenancy). 
+  See more about multi-tenancy [here](https://docs.victoriametrics.com/keyconcepts/#multi-tenancy). 
 
 Let's consider the
 following [sample data](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#sample-data)
@@ -131,7 +131,7 @@ add `http://<victoriametric-addr>:8428` URL to Telegraf configs:
 ```
 
 In addition to InfluxDB line protocol, VictoriaMetrics supports many other ways for
-[metrics collection](https://docs.victoriametrics.com/keyConcepts.html#write-data).
+[metrics collection](https://docs.victoriametrics.com/keyconcepts/#write-data).
 
 ## Query data
 
@@ -144,7 +144,7 @@ querying and visualizing metrics:
 
 <img src="migrate-from-influx_vmui.webp">
 
-See more about [how to query data in VictoriaMetrics](https://docs.victoriametrics.com/keyConcepts.html#query-data).
+See more about [how to query data in VictoriaMetrics](https://docs.victoriametrics.com/keyconcepts/#query-data).
 
 ### Basic concepts
 
@@ -188,19 +188,19 @@ Having this, let's import the same data sample in VictoriaMetrics and plot it in
 InfluxQL query might be translated to MetricsQL let's break it into components first:
 
 * `SELECT last("bar") FROM "foo"` - all requests
-  to [instant](https://docs.victoriametrics.com/keyConcepts.html#instant-query)
-  or [range](https://docs.victoriametrics.com/keyConcepts.html#range-query) VictoriaMetrics APIs are reads, so no need
+  to [instant](https://docs.victoriametrics.com/keyconcepts/#instant-query)
+  or [range](https://docs.victoriametrics.com/keyconcepts/#range-query) VictoriaMetrics APIs are reads, so no need
   to specify the `SELECT` statement. There are no `measurements` or `fields` in VictoriaMetrics, so the whole expression
   can be replaced with `foo_bar` in MetricsQL;
-* `WHERE ("instance" = 'localhost')`- [filtering by labels](https://docs.victoriametrics.com/keyConcepts.html#filtering)
+* `WHERE ("instance" = 'localhost')`- [filtering by labels](https://docs.victoriametrics.com/keyconcepts/#filtering)
   in MetricsQL requires specifying the filter in curly braces next to the metric name. So in MetricsQL filter expression
   will be translated to `{instance="localhost"}`;
 * `WHERE $timeFilter` - filtering by time is done via request params sent along with query, so in MetricsQL no need to
   specify this filter;
 * `GROUP BY time(1m)` - grouping by time is done by default
-  in [range](https://docs.victoriametrics.com/keyConcepts.html#range-query) API according to specified `step` param.
+  in [range](https://docs.victoriametrics.com/keyconcepts/#range-query) API according to specified `step` param.
   This param is also a part of params sent along with request. See how to perform additional
-  [aggregations and grouping via MetricsQL](https://docs.victoriametrics.com/keyConcepts.html#aggregation-and-grouping-functions)
+  [aggregations and grouping via MetricsQL](https://docs.victoriametrics.com/keyconcepts/#aggregation-and-grouping-functions)
   .
 
 In result, executing the `foo_bar{instance="localhost"}` MetricsQL expression with `step=1m` for the same set of data in
@@ -210,13 +210,13 @@ Grafana will have the following form:
 
 Visualizations from both databases are a bit different - VictoriaMetrics shows some extra points
 filling the gaps in the graph. This behavior is described in more
-detail [here](https://docs.victoriametrics.com/keyConcepts.html#range-query). In InfluxDB, we can achieve a similar
+detail [here](https://docs.victoriametrics.com/keyconcepts/#range-query). In InfluxDB, we can achieve a similar
 behavior by adding `fill(previous)` to the query.
 
 VictoriaMetrics fills the gaps on the graph assuming time series are always continuous and not discrete.
 To limit the interval on which VictoriaMetrics will try to fill the gaps, set `-search.setLookbackToStep`
 command-line flag. This limits the gap filling to a single `step` interval passed to
-[/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query).
+[/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query).
 This behavior is close to InfluxDB data model.
 
 
@@ -232,20 +232,20 @@ about 230 PromQL queries in it! But a closer look at those queries shows the fol
 * ~80 queries are using [rate](https://docs.victoriametrics.com/metricsql/#rate) function for selected metric,
   e.g. `rate(node_netstat_Tcp_InSegs{instance=\"$node\",job=\"$job\"})`
 * and the rest
-  are [aggregation functions](https://docs.victoriametrics.com/keyConcepts.html#aggregation-and-grouping-functions)
+  are [aggregation functions](https://docs.victoriametrics.com/keyconcepts/#aggregation-and-grouping-functions)
   like [sum](https://docs.victoriametrics.com/metricsql/#sum)
   or [count](https://docs.victoriametrics.com/metricsql/#count).
 
 To get a better understanding of how MetricsQL works, see the following resources:
 
-* [MetricsQL concepts](https://docs.victoriametrics.com/keyConcepts.html#metricsql);
+* [MetricsQL concepts](https://docs.victoriametrics.com/keyconcepts/#metricsql);
 * [MetricsQL functions](https://docs.victoriametrics.com/metricsql/);
 * [PromQL tutorial for beginners](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085).
 
 ## How to migrate current data from InfluxDB to VictoriaMetrics
 
 Migrating data from other TSDBs to VictoriaMetrics is as simple as importing data via any of
-[supported formats](https://docs.victoriametrics.com/keyConcepts.html#push-model).
+[supported formats](https://docs.victoriametrics.com/keyconcepts/#push-model).
 
 But migration from InfluxDB might get easier when using [vmctl](https://docs.victoriametrics.com/vmctl/) -
 VictoriaMetrics command-line tool. See more about
@@ -268,17 +268,17 @@ consider [backfilling tips](https://docs.victoriametrics.com/Single-server-Victo
       VictoriaMetrics. Both languages mostly share the same concepts with slight differences._
 * Query returns more data points than expected - why?
     * _VictoriaMetrics may return non-existing data points if `step` param is lower than the actual data resolution. See
-      more about this [here](https://docs.victoriametrics.com/keyConcepts.html#range-query)._
+      more about this [here](https://docs.victoriametrics.com/keyconcepts/#range-query)._
 * How do I get the `real` last data point, not `ephemeral`?
     * _[last_over_time](https://docs.victoriametrics.com/metricsql/#last_over_time) function can be used for
       limiting the lookbehind window for calculated data. For example, `last_over_time(metric[10s])` would return
       calculated samples only if the real samples are located closer than 10 seconds to the calculated timestamps
       according to
       `start`, `end` and `step` query args passed
-      to [range query](https://docs.victoriametrics.com/keyConcepts.html#range-query)._
+      to [range query](https://docs.victoriametrics.com/keyconcepts/#range-query)._
 * How do I get raw data points with MetricsQL?
     * _For getting raw data points specify the interval at which you want them in square brackets and send
-      as [instant query](https://docs.victoriametrics.com/keyConcepts.html#instant-query). For
+      as [instant query](https://docs.victoriametrics.com/keyconcepts/#instant-query). For
       example, `GET api/v1/query?query=my_metric[5m]&time=<time>` will return raw samples for `my_metric` in interval
       from `<time>` to `<time>-5m`._
 * Can you have multiple aggregators in a MetricsQL query, e.g. `SELECT MAX(field), MIN(field) ...`?

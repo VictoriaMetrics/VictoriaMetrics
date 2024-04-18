@@ -178,13 +178,13 @@ See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#r
 
 By default `vmagent` replicates data among remote storage systems enumerated via `-remoteWrite.url` command-line flag.
 If the `-remoteWrite.shardByURL` command-line flag is set, then `vmagent` spreads evenly
-the outgoing [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
+the outgoing [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
 among all the remote storage systems enumerated via `-remoteWrite.url`. Note that samples for the same
 time series are routed to the same remote storage system if `-remoteWrite.shardByURL` flag is specified.
 This allows building scalable data processing pipelines when a single remote storage cannot keep up with the data ingestion workload.
 For example, this allows building horizontally scalable [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/)
-by routing outgoing samples for the same time series of [counter](https://docs.victoriametrics.com/keyConcepts.html#counter)
-and [histogram](https://docs.victoriametrics.com/keyConcepts.html#histogram) types from top-level `vmagent` instances
+by routing outgoing samples for the same time series of [counter](https://docs.victoriametrics.com/keyconcepts/#counter)
+and [histogram](https://docs.victoriametrics.com/keyconcepts/#histogram) types from top-level `vmagent` instances
 to the same second-level `vmagent` instance, so they are aggregated properly.
 
 If `-remoteWrite.shardByURL` command-line flag is set, then all the metric labels are used for even sharding
@@ -613,8 +613,8 @@ The following articles contain useful information about Prometheus relabeling:
   ```
 
 * An optional `if` filter can be used for conditional relabeling. The `if` filter may contain
-  arbitrary [time series selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
-  The `action` is performed only for [samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples), which match the provided `if` filter.
+  arbitrary [time series selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
+  The `action` is performed only for [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples), which match the provided `if` filter.
   For example, the following relabeling rule keeps metrics matching `foo{bar="baz"}` series selector, while dropping the rest of metrics:
 
   ```yaml
@@ -631,7 +631,7 @@ The following articles contain useful information about Prometheus relabeling:
   ```
 
   The `if` option may contain more than one filter. In this case the `action` is performed if at least a single filter
-  matches the given [sample](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
+  matches the given [sample](https://docs.victoriametrics.com/keyconcepts/#raw-samples).
   For example, the following relabeling rule adds `foo="bar"` label to samples with `job="foo"` or `instance="bar"` labels:
 
   ```yaml
