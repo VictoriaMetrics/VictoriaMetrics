@@ -211,3 +211,68 @@ VM_PROMETHEUSCONVERTERADDARGOCDIGNOREANNOTATIONS=true
 You can use [vmctl](https://docs.victoriametrics.com/vmctl.html) for migrating your data from Prometheus to VictoriaMetrics.
 
 See [this doc](https://docs.victoriametrics.com/vmctl.html#migrating-data-from-prometheus) for more details.
+
+## Auto-discovery for prometheus.io annotations
+
+There is a scenario where auto-discovery using `prometheus.io`-annotations 
+(such as `prometheus.io/port`, `prometheus.io/scrape`, `prometheus.io/path`, etc.) 
+is required when migrating from Prometheus instead of manually managing scrape objects.
+
+You can enable this feature using special scrape object like that:
+
+```yaml
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: annotations-discovery
+spec:
+  discoveryRole: service
+  endpoints:
+    - port: http
+      relabelConfigs:
+        # Skip scrape for init containers
+        - action: drop
+          source_labels: [__meta_kubernetes_pod_container_init]
+          regex: "true"
+        # Match container port with port from annotation 
+        - action: keep_if_equal
+          source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port, __meta_kubernetes_pod_container_port_number]
+        # Check if scrape is enabled
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+          action: keep
+          regex: "true"
+        # Set scrape path
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+          action: replace
+          target_label: __metrics_path__
+          regex: (.+)
+        # Set port to address
+        - source_labels:
+            [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+          action: replace
+          regex: ([^:]+)(?::\d+)?;(\d+)
+          replacement: $1:$2
+          target_label: __address__
+        # Copy labels from pod labels
+        - action: labelmap
+          regex: __meta_kubernetes_pod_label_(.+)
+        # Set pod name, container name, namespace and node name to labels
+        - source_labels: [__meta_kubernetes_pod_name]
+          target_label: pod
+        - source_labels: [__meta_kubernetes_pod_container_name]
+          target_label: container
+        - source_labels: [__meta_kubernetes_namespace]
+          target_label: namespace
+        - source_labels: [__meta_kubernetes_pod_node_name]
+          action: replace
+          target_label: node
+  namespaceSelector: {} # You need to specify namespaceSelector here
+  selector: {} # You need to specify selector here
+```
+
+You can find yaml-file with this example [here](https://github.com/VictoriaMetrics/operator/blob/master/config/examples/vmservicescrape_service_sd.yaml).
+
+Check out more information about:
+- [VMAgent](./resources/vmagent.md)
+- [VMServiceScrape](./resources/vmservicescrape.md)
+- [Relabeling](https://docs.victoriametrics.com/vmagent/#relabeling)
