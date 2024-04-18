@@ -91,7 +91,7 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
 
 * Run `vmrestore -help` in order to see all the available options:
 
-```sh
+```
   -concurrency int
      The number of concurrent workers. Higher concurrency may reduce restore duration (default 10)
   -configFilePath string

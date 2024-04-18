@@ -273,7 +273,7 @@ Example usage for tokens issued by Google:
 
 Below is the list of configuration flags (it can be viewed by running `./vmgateway -help`):
 
-```sh
+```
   -auth.httpHeader string
      HTTP header name to look for JWT authorization token (default "Authorization")
   -auth.jwksEndpoints array
