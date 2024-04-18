@@ -773,37 +773,59 @@ These issues are addressed by [vmagent](https://docs.victoriametrics.com/vmagent
 
 `vmselect` can be configured to query multiple distinct groups of `vmstorage` nodes with individual `-replicationFactor` per each group.
 The following format for `-storageNode` command-line flag value should be used for assigning a particular `addr` of `vmstorage` to a particular `groupName` -
-`-storageNode=groupName/addr`. For example, the following command runs `vmselect`, which continues returning full responses if up to one node per each group is temporarily unavailable
+`-storageNode=groupName/addr`. The `groupName` can contain arbitrary value. The only rule is that every `vmstorage` group must have an unique name.
+
+For example, the following command runs `vmselect`, which continues returning full responses if up to one node per each group is temporarily unavailable
 because the given `-replicationFactor=2` is applied individually per each group:
 
 ```
 /path/to/vmselect \
  -replicationFactor=2 \
- -storageNode=group1/host1 \
- -storageNode=group1/host2 \
- -storageNode=group1/host3 \
- -storageNode=group2/host4 \
- -storageNode=group2/host5 \
- -storageNode=group2/host6 \
- -storageNode=group3/host7 \
- -storageNode=group3/host8 \
- -storageNode=group3/host9
+ -storageNode=g1/host1,g1/host2,g1/host3 \
+ -storageNode=g2/host4,g2/host5,g2/host6 \
+ -storageNode=g3/host7,g3/host8,g3/host9
 ```
 
-It is possible to specify distinct `-replicationFactor` per each group via the following format - `-replicationFactor=groupName:rf`.
-For example, the following command runs `vmselect`, which uses `-replicationFactor=3` for the `group1`, while it uses `-replicationFactor=1` for the `group2`:
+It is possible specifying distinct `-replicationFactor` per each group via the following format - `-replicationFactor=groupName:rf`.
+For example, the following command runs `vmselect`, which uses `-replicationFactor=3` for the group `g1`, `-replicationFactor=2` for the group `g2`
+and `-replicationFactor=1` for the group `g3`:
 
 ```
 /path/to/vmselect \
- -replicationFactor=group1:3 \
- -storageNode=group1/host1 \
- -storageNode=group1/host2 \
- -storageNode=group1/host3 \
- -replicationFactor=group2:1 \
- -storageNode=group2/host4 \
- -storageNode=group2/host5 \
- -storageNode=group2/host6
+ -replicationFactor=g1:3 \
+ -storageNode=g1/host1,g1/host2,g1/host3 \
+ -replicationFactor=g2:2 \
+ -storageNode=g2/host4,g2/host5,g2/host6 \
+ -replicationFactor=g3:1 \
+ -storageNode=g3/host4,g3/host5,g3/host6
 ```
+
+If every ingested sample is replicated across multiple `vmstorage` groups, then pass `-globalReplicationFactor=N` command-line flag to `vmselect`,
+so it could continue returning full responses if up to `N-1` `vmstorage` groups are temporarily unavailable.
+For example, the following command runs `vmselect`, which continues returning full responses if any number of `vmstorage` nodes
+in a single `vmstorage` group are temporarily unavailable:
+
+```
+/path/to/vmselect \
+ -globalReplicationFactor=2 \
+ -storageNode=g1/host1,g1/host2,g1/host3 \
+ -storageNode=g2/host4,g2/host5,g2/host6 \
+ -storageNode=g3/host7,g3/host8,g3/host9
+```
+
+It is OK to mix `-replicationFactor` and `-globalReplicationFactor`. For example, the folling command runs `vmselect`, which continues returning full responses
+if any number of `vmstorage` nodes in a single `vmstorage` group are temporarily unavailable and the remaining groups contain up to two unavailable `vmstorage` node:
+
+```
+/path/to/vmselect \
+ -globalReplicationFactor=2 \
+ -replicationFactor=3 \
+ -storageNode=g1/host1,g1/host2,g1/host3 \
+ -storageNode=g2/host4,g2/host5,g2/host6 \
+ -storageNode=g3/host7,g3/host8,g3/host9
+```
+
+See also [multi-level cluster setup](#multi-level-cluster-setup).
 
 ## Helm
 
@@ -1360,6 +1382,8 @@ Below is the output for `/path/to/vmselect -help`:
      Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
+  -globalReplicationFactor int
+     How many copies of every ingested sample is available across vmstorage groups. vmselect continues returning full responses when up to globalReplicationFactor-1 vmstorage groups are temporarily unavailable. See https://docs.victoriametrics.com/cluster-victoriametrics/#vmstorage-groups-at-vmselect . See also -replicationFactor (default 1)
   -http.connTimeout duration
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableResponseCompression
@@ -1461,7 +1485,7 @@ Below is the output for `/path/to/vmselect -help`:
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -replicationFactor array
-     How many copies of every time series is available on the provided -storageNode nodes. vmselect continues returning full responses when up to replicationFactor-1 vmstorage nodes are temporarily unavailable during querying. See also -search.skipSlowReplicas (default 1)
+     How many copies of every ingested sample is available across -storageNode nodes. vmselect continues returning full responses when up to replicationFactor-1 vmstorage nodes are temporarily unavailable. See also -globalReplicationFactor and -search.skipSlowReplicas (default 1)
      Supports an array of `key:value` entries separated by comma or specified via multiple flags.
   -search.cacheTimestampOffset duration
      The maximum duration since the current time for response data, which is always queried from the original raw data, without using the response cache. Increase this value if you see gaps in responses due to time synchronization issues between VictoriaMetrics and data sources (default 5m0s)

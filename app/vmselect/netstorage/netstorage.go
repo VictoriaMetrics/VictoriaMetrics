@@ -35,9 +35,12 @@ import (
 )
 
 var (
-	replicationFactor = flagutil.NewDictInt("replicationFactor", 1, "How many copies of every time series is available on the provided -storageNode nodes. "+
-		"vmselect continues returning full responses when up to replicationFactor-1 vmstorage nodes are temporarily unavailable during querying. "+
-		"See also -search.skipSlowReplicas")
+	globalReplicationFactor = flag.Int("globalReplicationFactor", 1, "How many copies of every ingested sample is available across vmstorage groups. "+
+		"vmselect continues returning full responses when up to globalReplicationFactor-1 vmstorage groups are temporarily unavailable. "+
+		"See https://docs.victoriametrics.com/cluster-victoriametrics/#vmstorage-groups-at-vmselect . See also -replicationFactor")
+	replicationFactor = flagutil.NewDictInt("replicationFactor", 1, "How many copies of every ingested sample is available across -storageNode nodes. "+
+		"vmselect continues returning full responses when up to replicationFactor-1 vmstorage nodes are temporarily unavailable. "+
+		"See also -globalReplicationFactor and -search.skipSlowReplicas")
 	skipSlowReplicas = flag.Bool("search.skipSlowReplicas", false, "Whether to skip -replicationFactor - 1 slowest vmstorage nodes during querying. "+
 		"Enabling this setting may improve query speed, but it could also lead to incomplete results if some queried data has less than -replicationFactor "+
 		"copies at vmstorage nodes. Consider enabling this setting only if all the queried data contains -replicationFactor copies in the cluster")
@@ -1870,6 +1873,7 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 	groupsCount := sns[0].group.groupsCount
 	resultsCollectedPerGroup := make(map[*storageNodesGroup]int, groupsCount)
 	errsPartialPerGroup := make(map[*storageNodesGroup][]error)
+	groupsPartial := make(map[*storageNodesGroup]struct{})
 	for range sns {
 		// There is no need in timer here, since all the goroutines executing the f function
 		// passed to startStorageNodesRequest must be finished until the deadline.
@@ -1895,6 +1899,12 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 
 			errsPartialPerGroup[group] = append(errsPartialPerGroup[group], err)
 			if snr.denyPartialResponse && len(errsPartialPerGroup[group]) >= group.replicationFactor {
+				groupsPartial[group] = struct{}{}
+				if len(groupsPartial) < *globalReplicationFactor {
+					// Ignore this error, since the number of groups with partial results is smaller than the globalReplicationFactor.
+					continue
+				}
+
 				// Return the error to the caller if partial responses are denied
 				// and the number of partial responses for the given group reach its replicationFactor,
 				// since this means that the response is partial.
@@ -1932,35 +1942,40 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 	}
 
 	// Verify whether the full result can be returned
-	isFullResponse := true
+	failedGroups := 0
 	for g, errsPartial := range errsPartialPerGroup {
 		if len(errsPartial) >= g.replicationFactor {
-			isFullResponse = false
-			break
+			failedGroups++
 		}
 	}
-	if isFullResponse {
-		// Assume that the result is full if the the number of failing vmstorage nodes
-		// is smaller than the replicationFactor per each group.
+	if failedGroups < *globalReplicationFactor {
+		// Assume that the result is full if the the number of failed groups is smaller than the globalReplicationFactor.
 		return false, nil
 	}
 
-	// Verify whether there is at least a single node per each group, which successfully returned result,
-	// in order to return partial result.
+	// Verify whether at least a single node per each group successfully returned result in order to be able returning partial result.
+	missingGroups := 0
+	var firstErr error
 	for g, errsPartial := range errsPartialPerGroup {
 		if len(errsPartial) == g.nodesCount {
-			// All the vmstorage nodes at the given group g returned error.
-			// Return only the first error, since it has no sense in returning all errors.
-			// Returns 503 status code for partial response, so the caller could retry it if needed.
-			err := &httpserver.ErrorWithStatusCode{
-				Err:        errsPartial[0],
-				StatusCode: http.StatusServiceUnavailable,
+			missingGroups++
+			if firstErr == nil {
+				// Return only the first error, since it has no sense in returning all errors.
+				firstErr = errsPartial[0]
 			}
-			return false, err
 		}
 		if len(errsPartial) > 0 {
 			partialErrorsLogger.Warnf("%d out of %d vmstorage nodes at group %q were unavailable during the query; a sample error: %s", len(errsPartial), len(sns), g.name, errsPartial[0])
 		}
+	}
+	if missingGroups >= *globalReplicationFactor {
+		// Too many groups contain all the non-working vmstorage nodes.
+		// Returns 503 status code, so the caller could retry it if needed.
+		err := &httpserver.ErrorWithStatusCode{
+			Err:        firstErr,
+			StatusCode: http.StatusServiceUnavailable,
+		}
+		return false, err
 	}
 
 	// Return partial results.
