@@ -541,7 +541,7 @@ DD_DD_URL=http://victoriametrics:8428/datadog
 ```
 
 
-_Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/url-examples.html#datadog)._
+_Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/url-examples/#datadog)._
 
 To configure DataDog agent via [configuration file](https://github.com/DataDog/datadog-agent/blob/878600ef7a55c5ef0efb41ed0915f020cf7e3bd0/pkg/config/config_template.yaml#L33)
 add the following line:
@@ -551,7 +551,7 @@ dd_url: http://victoriametrics:8428/datadog
 ```
 
 [vmagent](https://docs.victoriametrics.com/vmagent/) also can accept DataDog metrics format. Depending on where vmagent will forward data,
-pick [single-node or cluster URL](https://docs.victoriametrics.com/url-examples.html#datadog) formats.
+pick [single-node or cluster URL](https://docs.victoriametrics.com/url-examples/#datadog) formats.
 
 ### Sending metrics to DataDog and VictoriaMetrics
 
@@ -566,7 +566,7 @@ Run DataDog using the following ENV variable with VictoriaMetrics as additional 
 DD_ADDITIONAL_ENDPOINTS='{\"http://victoriametrics:8428/datadog\": [\"apikey\"]}'
 ```
 
-_Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/url-examples.html#datadog)._
+_Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/url-examples/#datadog)._
 
 
 To configure DataDog Dual Shipping via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files)
@@ -594,9 +594,9 @@ provider:
 
 ### Send via cURL
 
-See how to send data to VictoriaMetrics via DataDog "submit metrics" API [here](https://docs.victoriametrics.com/url-examples.html#datadogapiv2series).
+See how to send data to VictoriaMetrics via DataDog "submit metrics" API [here](https://docs.victoriametrics.com/url-examples/#datadogapiv2series).
 
-The imported data can be read via [export API](https://docs.victoriametrics.com/url-examples.html#apiv1export).
+The imported data can be read via [export API](https://docs.victoriametrics.com/url-examples/#apiv1export).
 
 ### Additional details
 
@@ -961,22 +961,22 @@ and [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-qu
 to the given number of digits after the decimal point.
 For example, `/api/v1/query?query=avg_over_time(temperature[1h])&round_digits=2` would round response values to up to two digits after the decimal point.
 
-VictoriaMetrics accepts `limit` query arg for [/api/v1/labels](https://docs.victoriametrics.com/url-examples.html#apiv1labels)
-and [`/api/v1/label/<labelName>/values`](https://docs.victoriametrics.com/url-examples.html#apiv1labelvalues) handlers for limiting the number of returned entries.
+VictoriaMetrics accepts `limit` query arg for [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels)
+and [`/api/v1/label/<labelName>/values`](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues) handlers for limiting the number of returned entries.
 For example, the query to `/api/v1/labels?limit=5` returns a sample of up to 5 unique labels, while ignoring the rest of labels.
 If the provided `limit` value exceeds the corresponding `-search.maxTagKeys` / `-search.maxTagValues` command-line flag values,
 then limits specified in the command-line flags are used.
 
 By default, VictoriaMetrics returns time series for the last day starting at 00:00 UTC
-from [/api/v1/series](https://docs.victoriametrics.com/url-examples.html#apiv1series),
-[/api/v1/labels](https://docs.victoriametrics.com/url-examples.html#apiv1labels) and
-[`/api/v1/label/<labelName>/values`](https://docs.victoriametrics.com/url-examples.html#apiv1labelvalues),
+from [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series),
+[/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels) and
+[`/api/v1/label/<labelName>/values`](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues),
 while the Prometheus API defaults to all time.  Explicitly set `start` and `end` to select the desired time range.
 VictoriaMetrics rounds the specified `start..end` time range to day granularity because of performance optimization concerns.
 If you need the exact set of label names and label values on the given time range, then send queries
 to [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query) or to [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query).
 
-VictoriaMetrics accepts `limit` query arg at [/api/v1/series](https://docs.victoriametrics.com/url-examples.html#apiv1series)
+VictoriaMetrics accepts `limit` query arg at [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series)
 for limiting the number of returned entries. For example, the query to `/api/v1/series?limit=5` returns a sample of up to 5 series, while ignoring the rest of series.
 If the provided `limit` value exceeds the corresponding `-search.maxSeries` command-line flag values, then limits specified in the command-line flags are used.
 
@@ -2524,7 +2524,7 @@ It is recommended disabling [query cache](#rollup-result-cache) with `-search.di
 historical data with timestamps from the past, since the cache assumes that the data is written with
 the current timestamps. Query cache can be enabled after the backfilling is complete.
 
-An alternative solution is to query [/internal/resetRollupResultCache](https://docs.victoriametrics.com/url-examples.html#internalresetrollupresultcache)
+An alternative solution is to query [/internal/resetRollupResultCache](https://docs.victoriametrics.com/url-examples/#internalresetrollupresultcache)
 after the backfilling is complete. This will reset the [query cache](#rollup-result-cache), which could contain incomplete data cached during the backfilling.
 
 Yet another solution is to increase `-search.cacheTimestampOffset` flag value in order to disable caching
