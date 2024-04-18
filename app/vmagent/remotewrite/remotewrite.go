@@ -44,7 +44,7 @@ var (
 		"Pass multiple -remoteWrite.multitenantURL flags in order to replicate data to multiple remote storage systems. "+
 		"This flag is deprecated in favor of -enableMultitenantHandlers . See https://docs.victoriametrics.com/vmagent/#multitenancy")
 	enableMultitenantHandlers = flag.Bool("enableMultitenantHandlers", false, "Whether to process incoming data via multitenant insert handlers according to "+
-		"https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format . By default incoming data is processed via single-node insert handlers "+
+		"https://docs.victoriametrics.com/cluster-victoriametrics/#url-format . By default incoming data is processed via single-node insert handlers "+
 		"according to https://docs.victoriametrics.com/#how-to-import-time-series-data ."+
 		"See https://docs.victoriametrics.com/vmagent/#multitenancy for details")
 	shardByURL = flag.Bool("remoteWrite.shardByURL", false, "Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url . "+
@@ -338,7 +338,7 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 		}
 		sanitizedURL := fmt.Sprintf("%d:secret-url", i+1)
 		if at != nil {
-			// Construct full remote_write url for the given tenant according to https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
+			// Construct full remote_write url for the given tenant according to https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
 			remoteWriteURL.Path = fmt.Sprintf("%s/insert/%d:%d/prometheus/api/v1/write", remoteWriteURL.Path, at.AccountID, at.ProjectID)
 			sanitizedURL = fmt.Sprintf("%s:%d:%d", sanitizedURL, at.AccountID, at.ProjectID)
 		}

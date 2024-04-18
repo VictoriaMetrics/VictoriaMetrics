@@ -21,7 +21,7 @@ Vmalert is heavily inspired by [Prometheus](https://prometheus.io/docs/alerting/
 implementation and aims to be compatible with its syntax.
 
 A [single-node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmalert)
-or [cluster version](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#vmalert)
+or [cluster version](https://docs.victoriametrics.com/cluster-victoriametrics/#vmalert)
 of VictoriaMetrics are capable of proxying requests to vmalert via `-vmalert.proxyURL` command-line flag. 
 Use this feature for the following cases:
 * for proxying requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
@@ -421,11 +421,11 @@ with `restored` label in [web UI](#web).
 ### Multitenancy
 
 There are the following approaches exist for alerting and recording rules across
-[multiple tenants](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy):
+[multiple tenants](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy):
 
 * To run a separate `vmalert` instance per each tenant.
   The corresponding tenant must be specified in `-datasource.url` command-line flag
-  according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format).
+  according to [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format).
   For example, `/path/to/vmalert -datasource.url=http://vmselect:8481/select/123/prometheus`
   would run alerts against `AccountID=123`. For recording rules the `-remoteWrite.url` command-line
   flag must contain the url for the specific tenant as well.
@@ -513,7 +513,7 @@ rules execution, storing recording rules results and alerts state.
 
 #### Cluster VictoriaMetrics
 
-In [cluster mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html)
+In [cluster mode](https://docs.victoriametrics.com/cluster-victoriametrics/)
 VictoriaMetrics has separate components for writing and reading path:
 `vminsert` and `vmselect` components respectively. `vmselect` is used for executing rules expressions
 and `vminsert` is used to persist recording rules results and alerts state.
@@ -533,7 +533,7 @@ Cluster mode could have multiple `vminsert` and `vmselect` components.
 
 In case when you want to spread the load on these components - add balancers before them and configure
 `vmalert` with balancer addresses. Please, see more about VM's cluster architecture
-[here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#architecture-overview).
+[here](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview).
 
 #### HA vmalert
 
@@ -668,11 +668,11 @@ or time series modification via [relabeling](https://docs.victoriametrics.com/vm
 * `http://<vmalert-addr>/-/reload` - hot configuration reload.
 
 `vmalert` web UI can be accessed from [single-node version of VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
-and from [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+and from [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/).
 This may be used for better integration with Grafana unified alerting system. See the following docs for details:
 
 * [How to query vmalert from single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmalert)
-* [How to query vmalert from VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#vmalert)
+* [How to query vmalert from VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#vmalert)
 
 
 ## Graphite

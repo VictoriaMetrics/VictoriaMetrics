@@ -77,8 +77,8 @@ to [single-node VictoriaMetrics](https://docs.victoriametrics.com/) located at `
 /path/to/vmagent -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
 ```
 
-See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format) if you need writing
-the data to [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+See [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format) if you need writing
+the data to [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/).
 
 Example command for scraping Prometheus targets and writing the data to single-node VictoriaMetrics:
 
@@ -170,9 +170,9 @@ If a single remote storage instance temporarily is out of service, then the coll
 `vmagent` buffers the collected data in files at `-remoteWrite.tmpDataPath` until the remote storage becomes available again,
 and then it sends the buffered data to the remote storage in order to prevent data gaps.
 
-[VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) already supports replication,
+[VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) already supports replication,
 so there is no need in specifying multiple `-remoteWrite.url` flags when writing data to the same cluster.
-See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety).
+See [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety).
 
 ### Sharding among remote storages
 
@@ -252,9 +252,9 @@ Also, Basic Auth can be enabled for the incoming `remote_write` requests with `-
 ### remote_write for clustered version
 
 While `vmagent` can accept data in several supported protocols (OpenTSDB, Influx, Prometheus, Graphite) and scrape data from various targets,
-writes are always performed in Prometheus remote_write protocol. Therefore, for the [clustered version](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html),
+writes are always performed in Prometheus remote_write protocol. Therefore, for the [clustered version](https://docs.victoriametrics.com/cluster-victoriametrics/),
 the `-remoteWrite.url` command-line flag should be configured as `<schema>://<vminsert-host>:8480/insert/<accountID>/prometheus/api/v1/write`
-according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format).
+according to [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format).
 There is also support for multitenant writes. See [these docs](#multitenancy).
 
 ### Flexible deduplication
@@ -307,7 +307,7 @@ VictoriaMetrics remote write protocol provides the following benefits comparing 
 
 `vmagent` automatically switches to VictoriaMetrics remote write protocol when it sends data to VictoriaMetrics components such as other `vmagent` instances,
 [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
-or `vminsert` at [cluster version](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+or `vminsert` at [cluster version](https://docs.victoriametrics.com/cluster-victoriametrics/).
 It is possible to force switch to VictoriaMetrics remote write protocol by specifying `-remoteWrite.forceVMProto`
 command-line flag for the corresponding `-remoteWrite.url`.
 It is possible to tune the compression level for VictoriaMetrics remote write protocol with `-remoteWrite.vmProtoCompressLevel` command-line flag.
@@ -321,15 +321,15 @@ by specifying `-remoteWrite.forcePromProto` command-line flag for the correspond
 
 ## Multitenancy
 
-By default `vmagent` collects the data without [tenant](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) identifiers
+By default `vmagent` collects the data without [tenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy) identifiers
 and routes it to the remote storage specified via `-remoteWrite.url` command-line flag. The `-remoteWrite.url` can point to `/insert/<tenant_id>/prometheus/api/v1/write` path
-at `vminsert` according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format). In this case all the metrics are written to the given `<tenant_id>` tenant.
+at `vminsert` according to [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format). In this case all the metrics are written to the given `<tenant_id>` tenant.
 
 The easiest way to write data to multiple distinct tenants is to specify the needed tenants via `vm_account_id` and `vm_project_id` labels
-and then to push metrics with these labels to [multitenant url at VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy-via-labels).
+and then to push metrics with these labels to [multitenant url at VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels).
 The `vm_account_id` and `vm_project_id` labels can be specified via [relabeling](#relabeling) before sending the metrics to `-remoteWrite.url`.
 
-For example, the following relabeling rule instructs sending metrics to `<account_id>:0` [tenant](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy)
+For example, the following relabeling rule instructs sending metrics to `<account_id>:0` [tenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy)
 defined in the `prometheus.io/account_id` annotation of Kubernetes pod deployment:
 
 ```yaml
@@ -341,11 +341,11 @@ scrape_configs:
     target_label: vm_account_id
 ```
 
-`vmagent` can accept data via the same multitenant endpoints as `vminsert` at [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html)
-does according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format) if `-enableMultitenantHandlers` command-line flag is set.
+`vmagent` can accept data via the same multitenant endpoints as `vminsert` at [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/)
+does according to [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format) if `-enableMultitenantHandlers` command-line flag is set.
 In this case it automatically converts tenant identifiers to `vm_account_id` and `vm_project_id` labels before applying [relabeling](#relabeling) specified via `-remoteWrite.relabelConfig`
 and `-remoteWrite.urlRelabelConfig` command-line flags. Metrics with `vm_account_id` and `vm_project_id` labels can be routed to the corresponding tenants
-when specifying `-remoteWrite.url` to [multitenant url at VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy-via-labels).
+when specifying `-remoteWrite.url` to [multitenant url at VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels).
 
 ## How to collect metrics in Prometheus format
 
@@ -1643,7 +1643,7 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
   -dryRun
      Whether to check config files without running vmagent. The following files are checked: -promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig, -remoteWrite.streamAggr.config . Unknown config entries aren't allowed in -promscrape.config by default. This can be changed by passing -promscrape.config.strictParse=false command-line flag
   -enableMultitenantHandlers
-     Whether to process incoming data via multitenant insert handlers according to https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format . By default incoming data is processed via single-node insert handlers according to https://docs.victoriametrics.com/#how-to-import-time-series-data .See https://docs.victoriametrics.com/vmagent/#multitenancy for details
+     Whether to process incoming data via multitenant insert handlers according to https://docs.victoriametrics.com/cluster-victoriametrics/#url-format . By default incoming data is processed via single-node insert handlers according to https://docs.victoriametrics.com/#how-to-import-time-series-data .See https://docs.victoriametrics.com/vmagent/#multitenancy for details
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable

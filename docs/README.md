@@ -21,7 +21,7 @@ VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMet
 [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), [Snap packages](https://snapcraft.io/victoriametrics)
 and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). 
 
-Documentation for the cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+Documentation for the cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/cluster-victoriametrics/).
 
 Learn more about [key concepts](https://docs.victoriametrics.com/keyconcepts/) of VictoriaMetrics and follow the 
 [quick start guide](https://docs.victoriametrics.com/Quick-Start.html) for a better experience.
@@ -123,7 +123,7 @@ VictoriaMetrics ecosystem contains the following components additionally to [sin
 - [vmctl](https://docs.victoriametrics.com/vmctl/) - a tool for migrating and copying data between different storage systems for metrics.
 - [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmrestore](https://docs.victoriametrics.com/vmrestore/) and [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/) -
   tools for creating backups and restoring from backups for VictoriaMetrics data.
-- `vminsert`, `vmselect` and `vmstorage` - components of [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+- `vminsert`, `vmselect` and `vmstorage` - components of [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/).
 - [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) - user-friendly cost-efficient database for logs.
 
 ## Operation
@@ -463,7 +463,7 @@ VictoriaMetrics provides an ability to explore time series cardinality at `Explo
 - To identify values with the highest number of series for the selected label (aka `focusLabel`).
 - To identify label=name pairs with the highest number of series.
 - To identify labels with the highest number of unique values.
-  Note that [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html)
+  Note that [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/)
   may show lower than expected number of unique label values for labels with small number of unique values.
   This is because of [implementation limits](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/5a6e617b5e41c9170e7c562aecd15ee0c901d489/app/vmselect/netstorage/netstorage.go#L1039-L1045).
 
@@ -478,10 +478,10 @@ See the example of using the cardinality explorer [here](https://victoriametrics
 
 ## Cardinality explorer statistic inaccuracy
 
-In [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) each vmstorage tracks the stored time series individually.
+In [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/) each vmstorage tracks the stored time series individually.
 vmselect requests stats via [/api/v1/status/tsdb](#tsdb-stats) API from each vmstorage node and merges the results by summing per-series stats.
 This may lead to inflated values when samples for the same time series are spread across multiple vmstorage nodes
-due to [replication](#replication) or [rerouting](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html?highlight=re-routes#cluster-availability).
+due to [replication](#replication) or [rerouting](https://docs.victoriametrics.com/cluster-victoriametrics/?highlight=re-routes#cluster-availability).
 
 ## How to apply new config to VictoriaMetrics
 
@@ -1743,7 +1743,7 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
   See also `-search.maxLabelsAPISeries` and `-search.ignoreExtraFiltersAtLabelsAPI`.
 - `-search.maxTagValueSuffixesPerSearch` limits the number of entries, which may be returned from `/metrics/find` endpoint. See [Graphite Metrics API usage docs](#graphite-metrics-api-usage).
 
-See also [resource usage limits at VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#resource-usage-limits),
+See also [resource usage limits at VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#resource-usage-limits),
 [cardinality limiter](#cardinality-limiter) and [capacity planning docs](#capacity-planning).
 
 
@@ -1883,7 +1883,7 @@ leaving the source `parts` untouched. However, due to hardware issues data on di
 VictoriaMetrics process. VictoriaMetrics can detect corruption during decompressing, decoding or sanity checking
 of the data blocks. But **it cannot fix the corrupted data**. Data parts that fail to load on startup need to be deleted
 or restored from backups. This is why it is recommended performing
-[regular backups](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#backups).
+[regular backups](https://docs.victoriametrics.com/cluster-victoriametrics/#backups).
 
 VictoriaMetrics doesn't use checksums for stored data blocks. See why [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3011).
 
@@ -1940,7 +1940,7 @@ If you need multiple retentions in community version of VictoriaMetrics, then yo
 Then set up [vmauth](https://docs.victoriametrics.com/vmauth/) in front of VictoriaMetrics instances,
 so it could route requests from particular user to VictoriaMetrics with the desired retention.
 
-Similar scheme can be applied for multiple tenants in [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+Similar scheme can be applied for multiple tenants in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/).
 See [these docs](https://docs.victoriametrics.com/guides/guide-vmcluster-multiple-retention-setup.html) for multi-retention setup details.
 
 ## Retention filters
@@ -1971,7 +1971,7 @@ Important notes:
 It is safe updating `-retentionFilter` during VictoriaMetrics restarts - the updated retention filters are applied eventually
 to historical data.
 
-See [how to configure multiple retentions in VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#retention-filters).
+See [how to configure multiple retentions in VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#retention-filters).
 
 See also [downsampling](#downsampling).
 
@@ -2024,7 +2024,7 @@ or [recording rules in vmalert](https://docs.victoriametrics.com/vmalert/#rules)
 [reduce the number of time series](https://docs.victoriametrics.com/vmalert/#downsampling-and-aggregation-via-vmalert).
 
 Downsampling is performed during [background merges](https://docs.victoriametrics.com/#storage).
-It cannot be performed if there is not enough of free disk space or if vmstorage is in [read-only mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode).
+It cannot be performed if there is not enough of free disk space or if vmstorage is in [read-only mode](https://docs.victoriametrics.com/cluster-victoriametrics/#readonly-mode).
 
 Please, note that intervals of `-downsampling.period` must be multiples of each other.
 In case [deduplication](https://docs.victoriametrics.com/#deduplication) is enabled, value of `-dedup.minScrapeInterval` command-line flag must also
@@ -2033,7 +2033,7 @@ be multiple of `-downsampling.period` intervals. This is required to ensure cons
 It is safe updating `-downsampling.period` during VictoriaMetrics restarts - the updated downsampling configuration will be
 applied eventually to historical data during  [background merges](https://docs.victoriametrics.com/#storage).
 
-See [how to configure downsampling in VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#downsampling).
+See [how to configure downsampling in VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#downsampling).
 
 See also [retention filters](#retention-filters).
 
@@ -2042,7 +2042,7 @@ See [how to request a free trial license](https://victoriametrics.com/products/e
 
 ## Multi-tenancy
 
-Single-node VictoriaMetrics doesn't support multi-tenancy. Use the [cluster version](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) instead.
+Single-node VictoriaMetrics doesn't support multi-tenancy. Use the [cluster version](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy) instead.
 
 ## Scalability and cluster version
 
@@ -2118,7 +2118,7 @@ VictoriaMetrics provides the following security-related command-line flags:
 Explicitly set internal network interface for TCP and UDP ports for data ingestion with Graphite and OpenTSDB formats.
 For example, substitute `-graphiteListenAddr=:2003` with `-graphiteListenAddr=<internal_iface_ip>:2003`. This protects from unexpected requests from untrusted network interfaces.
 
-See also [security recommendation for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#security)
+See also [security recommendation for VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#security)
 and [the general security page at VictoriaMetrics website](https://victoriametrics.com/security/).
 
 ## Automatic issuing of TLS certificates
@@ -2196,10 +2196,10 @@ VictoriaMetrics returns TSDB stats at `/api/v1/status/tsdb` page in the way simi
 * `match[]=SELECTOR` where `SELECTOR` is an arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) for series to take into account during stats calculation. By default all the series are taken into account.
 * `extra_label=LABEL=VALUE`. See [these docs](#prometheus-querying-api-enhancements) for more details.
 
-In [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) each vmstorage tracks the stored time series individually.
+In [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/) each vmstorage tracks the stored time series individually.
 vmselect requests stats via [/api/v1/status/tsdb](#tsdb-stats) API from each vmstorage node and merges the results by summing per-series stats.
 This may lead to inflated values when samples for the same time series are spread across multiple vmstorage nodes
-due to [replication](#replication) or [rerouting](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html?highlight=re-routes#cluster-availability).
+due to [replication](#replication) or [rerouting](https://docs.victoriametrics.com/cluster-victoriametrics/?highlight=re-routes#cluster-availability).
 
 VictoriaMetrics provides an UI on top of `/api/v1/status/tsdb` - see [cardinality explorer docs](#cardinality-explorer).
 
@@ -2533,7 +2533,7 @@ should be used only for one-off updates. It shouldn't be used for frequent updat
 ## Replication
 
 Single-node VictoriaMetrics doesn't support application-level replication. Use cluster version instead.
-See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety) for details.
+See [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety) for details.
 
 Storage-level replication may be offloaded to durable persistent storage such as [Google Cloud disks](https://cloud.google.com/compute/docs/disks#pdspecs).
 

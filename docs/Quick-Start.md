@@ -18,7 +18,7 @@ VictoriaMetrics is distributed in two forms:
 * [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) - all-in-one
   binary, which is very easy to use and maintain.
   Single-server-VictoriaMetrics perfectly scales vertically and easily handles millions of metrics/s;
-* [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) - set of components
+* [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) - set of components
   for building horizontally scalable clusters.
 
 Single-server-VictoriaMetrics VictoriaMetrics is available as:
@@ -58,7 +58,7 @@ docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 842
 Open <a href="http://localhost:8428">http://localhost:8428</a> in web browser
 and read [these docs](https://docs.victoriametrics.com/#operation).
 
-There is also [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html)
+There is also [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/)
 - horizontally scalable installation, which scales to multiple nodes.
 
 ### Starting VM-Cluster via Docker
@@ -78,7 +78,7 @@ make docker-cluster-up
 
 See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#readme).
 
-* [Cluster setup](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-setup)
+* [Cluster setup](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-setup)
 
 ## Write data
 
@@ -135,7 +135,7 @@ When going to production with VictoriaMetrics we recommend following the recomme
 Each VictoriaMetrics component emits its own metrics with various details regarding performance
 and health state. Docs for the components also contain a `Monitoring` section with an explanation
 of what and how should be monitored. For example,
-[Single-server-VictoriaMetrics Monitoring](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#monitoring).
+[Single-server-VictoriaMetrics Monitoring](https://docs.victoriametrics.com/cluster-victoriametrics/#monitoring).
 
 VictoriaMetric team prepared a list of [Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards)
 for the main components. Each dashboard contains a lot of useful information and tips. It is recommended
@@ -154,7 +154,7 @@ See more details in the article [VictoriaMetrics Monitoring](https://victoriamet
 
 See capacity planning sections in [docs](https://docs.victoriametrics.com) for
 [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#capacity-planning)
-and [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#capacity-planning).
+and [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#capacity-planning).
 
 Capacity planning isn't possible without [monitoring](#monitoring), so consider configuring it first.
 Understanding resource usage and performance of VictoriaMetrics also requires knowing the tech terms
@@ -167,7 +167,7 @@ All of them are present in [Grafana dashboards](https://grafana.com/orgs/victori
 
 ### Data safety
 
-It is recommended to read [Replication and data safety](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety),
+It is recommended to read [Replication and data safety](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety),
 [Why replication doesn’t save from disaster?](https://valyala.medium.com/speeding-up-backups-for-big-time-series-databases-533c1a927883)
 and [backups](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#backups).
 
@@ -181,4 +181,4 @@ To avoid excessive resource usage or performance degradation limits must be in p
 ### Security recommendations
 
 * [Security recommendations for single-node VictoriaMetrics](https://docs.victoriametrics.com/#security)
-* [Security recommendations for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#security)
+* [Security recommendations for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/#security)
