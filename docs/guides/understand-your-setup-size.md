@@ -10,7 +10,7 @@ aliases:
 ---
 # Understand Your Setup Size
 
-The docs provide a simple and high-level overview of Ingestion Rate, Active Time Series, and Query per Second. These terms are a part of capacity planning ([Single-Node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#capacity-planning), [Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#capacity-planning)) and [Managed VictoriaMetrics](https://docs.victoriametrics.com/managed-victoriametrics/) pricing.
+The docs provide a simple and high-level overview of Ingestion Rate, Active Time Series, and Query per Second. These terms are a part of capacity planning ([Single-Node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#capacity-planning), [Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#capacity-planning)) and [Managed VictoriaMetrics](https://docs.victoriametrics.com/managed-victoriametrics/) pricing.
 
 ## Terminology
 
@@ -38,7 +38,7 @@ _Note: if you have more than one Prometheus, you need to run this query across a
 
 [CollectD](https://collectd.org/) exposes 346 series per host. The number of exposed series heavily depends on the installed plugins (`cgroups`, `conntrack`, `contextswitch`, `CPU`, `df`, `disk`, `ethstat`, `fhcount`, `interface`, `load`, `memory`, `processes`, `python`, `tcpconns`, `write_graphite`)
 
-[Replication Factor](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety) multiplies the number of Active Time Series since each series will be stored ReplicationFactor times.
+[Replication Factor](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety) multiplies the number of Active Time Series since each series will be stored ReplicationFactor times.
 
 
 ### Churn Rate
@@ -124,4 +124,4 @@ You can collect metrics from
 
 ### On-Premise
 
-Please follow these capacity planning documents ([Single-Node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#capacity-planning), [Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#capacity-planning)). It contains the number of CPUs and Memory required to handle the Ingestion Rate, Active Time Series, Churn Rate, QPS and Retention Period.
+Please follow these capacity planning documents ([Single-Node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#capacity-planning), [Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#capacity-planning)). It contains the number of CPUs and Memory required to handle the Ingestion Rate, Active Time Series, Churn Rate, QPS and Retention Period.

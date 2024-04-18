@@ -164,7 +164,7 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 * If `vmbackup` consumes all the CPU on systems with big number of CPU cores, then try running it with `-filestream.disableFadvise` command-line flag.
 * If `vmbackup` has been interrupted due to temporary error, then just restart it with the same args. It will resume the backup process.
 * Backups created from [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) cannot be restored
-  at [cluster VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) and vice versa.
+  at [cluster VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/) and vice versa.
 
 ## Advanced usage
 

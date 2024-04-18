@@ -60,7 +60,7 @@ Labels can be automatically attached to the [time series](#time-series)
 written via [vmagent](https://docs.victoriametrics.com/vmagent/#adding-labels-to-metrics) 
 or [Prometheus](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-setup).
 VictoriaMetrics supports enforcing of label filters for [query API](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-enhancements)
-to emulate data isolation. However, the real data isolation can be achieved via [multi-tenancy](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy).
+to emulate data isolation. However, the real data isolation can be achieved via [multi-tenancy](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy).
 
 #### Time series
 
@@ -357,8 +357,8 @@ avoid excessive resource usage and database slowdown.
 
 ### Multi-tenancy
 
-[Cluster version](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) of VictoriaMetrics 
-supports [multi-tenancy](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy)
+[Cluster version](https://docs.victoriametrics.com/cluster-victoriametrics/) of VictoriaMetrics 
+supports [multi-tenancy](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy)
 for data isolation.
 
 Multi-tenancy can be emulated for [single-server](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) 
@@ -393,7 +393,7 @@ curl -d '{"metric":{"__name__":"foo","job":"node_exporter"},"values":[0,1,2],"ti
 ```
 
 It is allowed to push/write metrics to [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html),
-to [cluster component vminsert](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#architecture-overview)
+to [cluster component vminsert](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview)
 and to [vmagent](https://docs.victoriametrics.com/vmagent/).
 
 The pros of push model:
@@ -469,7 +469,7 @@ VictoriaMetrics components allow building more advanced topologies. For example,
 <img src="keyConcepts_two_dcs.webp">
 
 VictoriaMetrics in this example may be either [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
-or [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html). Vmagent also allows
+or [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/). Vmagent also allows
 [replicating the same data to multiple destinations](https://docs.victoriametrics.com/vmagent/#replication-and-high-availability).
 
 ## Query data
@@ -752,7 +752,7 @@ VictoriaMetrics buffers recently ingested samples in memory for up to a few seco
 This bufferring improves data ingestion performance. The buffered samples are invisible in query results, even if `-search.latencyOffset` command-line flag is set to 0,
 or if `latency_offset` query arg is set to 0.
 You can send GET request to `/internal/force_flush` http handler at single-node VictoriaMetrics
-or to `vmstorage` at [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html)
+or to `vmstorage` at [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/)
 in order to forcibly flush the buffered samples to disk, so they become visible for querying. The `/internal/force_flush` handler
 is provided for debugging and testing purposes only. Do not call it in production, since this may significantly slow down data ingestion
 performance and increase resource usage.

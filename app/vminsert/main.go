@@ -51,7 +51,7 @@ import (
 
 var (
 	clusternativeListenAddr = flag.String("clusternativeListenAddr", "", "TCP address to listen for data from other vminsert nodes in multi-level cluster setup. "+
-		"See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup . Usually :8400 should be set to match default vmstorage port for vminsert. Disabled work if empty")
+		"See https://docs.victoriametrics.com/cluster-victoriametrics/#multi-level-cluster-setup . Usually :8400 should be set to match default vmstorage port for vminsert. Disabled work if empty")
 	graphiteListenAddr = flag.String("graphiteListenAddr", "", "TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty. "+
 		"See also -graphiteListenAddr.useProxyProtocol")
 	graphiteUseProxyProtocol = flag.Bool("graphiteListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -graphiteListenAddr . "+
@@ -79,7 +79,7 @@ var (
 	maxLabelValueLen       = flag.Int("maxLabelValueLen", 16*1024, "The maximum length of label values in the accepted time series. Longer label values are truncated. In this case the vm_too_long_label_values_total metric at /metrics page is incremented")
 	storageNodes           = flagutil.NewArrayString("storageNode", "Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN . "+
 		"Enterprise version of VictoriaMetrics supports automatic discovery of vmstorage addresses via DNS SRV records. For example, -storageNode=srv+vmstorage.addrs . "+
-		"See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#automatic-vmstorage-discovery")
+		"See https://docs.victoriametrics.com/cluster-victoriametrics/#automatic-vmstorage-discovery")
 )
 
 var (
@@ -202,7 +202,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.Header().Add("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintf(w, `vminsert - a component of VictoriaMetrics cluster<br/>
-			<a href="https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html">docs</a><br>
+			<a href="https://docs.victoriametrics.com/cluster-victoriametrics/">docs</a><br>
 `)
 		return true
 	}
@@ -457,7 +457,7 @@ func usage() {
 	const s = `
 vminsert accepts data via popular data ingestion protocols and routes it to vmstorage nodes configured via -storageNode.
 
-See the docs at https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html .
+See the docs at https://docs.victoriametrics.com/cluster-victoriametrics/ .
 `
 	flagutil.Usage(s)
 }

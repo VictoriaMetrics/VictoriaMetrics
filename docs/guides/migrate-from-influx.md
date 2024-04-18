@@ -49,7 +49,7 @@ with similarities and differences:
   [buckets](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#bucket)
   or [organizations](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#organization). All
   data in VictoriaMetrics is stored in a global namespace or within
-  a [tenant](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy). 
+  a [tenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy). 
   See more about multi-tenancy [here](https://docs.victoriametrics.com/keyconcepts/#multi-tenancy). 
 
 Let's consider the

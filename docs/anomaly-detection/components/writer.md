@@ -42,7 +42,7 @@ Future updates will introduce additional export methods, offering users more fle
         <tr>
             <td><code>tenant_id</code></td>
             <td><code>"0:0"</code></td>
-            <td>For VictoriaMetrics Cluster version only, tenants are identified by accountID or accountID:projectID. See VictoriaMetrics Cluster <a href="https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy">multitenancy docs</a></td>
+            <td>For VictoriaMetrics Cluster version only, tenants are identified by accountID or accountID:projectID. See VictoriaMetrics Cluster <a href="https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy">multitenancy docs</a></td>
         </tr>
         <!-- Additional rows for metric_format -->
         <tr>
