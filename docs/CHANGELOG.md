@@ -47,10 +47,10 @@ Released at 2024-04-11
 
 **Update note 1: When upgrading to this release from [v1.99.0](https://docs.victoriametrics.com/changelog/#v1990) or [v1.100.0](https://docs.victoriametrics.com/changelog/#v11000) it is recommended to reset caches stored on disk according to [these](https://docs.victoriametrics.com/single-server-victoriametrics/#cache-removal) docs.**
 
-* FEATURE: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html): allow specifying custom backup interval via `-backupInterval` command-line flag. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5966).
+* FEATURE: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): allow specifying custom backup interval via `-backupInterval` command-line flag. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5966).
 
 * BUGFIX: properly register new entries in IndexDB when many new time series are ingested into VictoriaMetrics in a short period of time. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6069) issues. The bug has been introduced in [v1.99.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.99.0).
-* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html): fix panic when performing a restore from GCS. Previously, filters for GCS objects were not properly set which caused objects to be returned instead of prefixes.
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): fix panic when performing a restore from GCS. Previously, filters for GCS objects were not properly set which caused objects to be returned instead of prefixes.
 
 ## [v1.100.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.100.0)
 
