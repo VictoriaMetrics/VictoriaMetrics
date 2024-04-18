@@ -2540,7 +2540,7 @@ See also [high availability docs](#high-availability) and [backup docs](#backups
 
 VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com/vmbackup/)
 and [vmrestore](https://docs.victoriametrics.com/vmrestore/) tools.
-We also provide [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html) tool for enterprise subscribers.
+We also provide [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/) tool for enterprise subscribers.
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
 
