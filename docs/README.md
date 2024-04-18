@@ -58,7 +58,7 @@ VictoriaMetrics has the following prominent features:
   * All the configuration is done via explicit command-line flags with reasonable defaults.
   * All the data is stored in a single directory specified by the `-storageDataPath` command-line flag.
   * Easy and fast backups from [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
-    can be done with [vmbackup](https://docs.victoriametrics.com/vmbackup/) / [vmrestore](https://docs.victoriametrics.com/vmrestore.html) tools.
+    can be done with [vmbackup](https://docs.victoriametrics.com/vmbackup/) / [vmrestore](https://docs.victoriametrics.com/vmrestore/) tools.
     See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
 * It implements a PromQL-like query language - [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html), which provides improved functionality on top of PromQL.
 * It provides a global query view. Multiple Prometheus instances or any other data sources may ingest data into VictoriaMetrics. Later this data may be queried via a single query.
@@ -1171,7 +1171,7 @@ Navigate to `http://<victoriametrics-addr>:8428/snapshot/delete_all` in order to
 ### How to restore from a snapshot
 
 1. Stop VictoriaMetrics with `kill -INT`.
-1. Restore snapshot contents from backup with [vmrestore](https://docs.victoriametrics.com/vmrestore.html)
+1. Restore snapshot contents from backup with [vmrestore](https://docs.victoriametrics.com/vmrestore/)
    to the directory pointed by `-storageDataPath`.
 1. Start VictoriaMetrics.
 
@@ -2542,7 +2542,7 @@ See also [high availability docs](#high-availability) and [backup docs](#backups
 ## Backups
 
 VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com/vmbackup/)
-and [vmrestore](https://docs.victoriametrics.com/vmrestore.html) tools.
+and [vmrestore](https://docs.victoriametrics.com/vmrestore/) tools.
 We also provide [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html) tool for enterprise subscribers.
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).

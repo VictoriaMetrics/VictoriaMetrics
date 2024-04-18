@@ -55,7 +55,7 @@ To get the full list of supported flags please run the following command:
 ```
 
 The service creates a **full** backup each run. This means that the system can be restored fully
-from any particular backup using [vmrestore](https://docs.victoriametrics.com/vmrestore.html).
+from any particular backup using [vmrestore](https://docs.victoriametrics.com/vmrestore/).
 Backup manager uploads only the data that has been changed or created since the most recent backup
 ([incremental backup](https://docs.victoriametrics.com/vmbackup/#incremental-backups)).
 This reduces the consumed network traffic and the time needed for performing the backup.
