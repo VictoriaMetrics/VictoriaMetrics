@@ -442,12 +442,12 @@ var (
 		},
 		&cli.StringFlag{
 			Name:     vmNativeFilterTimeStart,
-			Usage:    "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats",
+			Usage:    "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats",
 			Required: true,
 		},
 		&cli.StringFlag{
 			Name:  vmNativeFilterTimeEnd,
-			Usage: "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats",
+			Usage: "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats",
 		},
 		&cli.StringFlag{
 			Name: vmNativeStepInterval,

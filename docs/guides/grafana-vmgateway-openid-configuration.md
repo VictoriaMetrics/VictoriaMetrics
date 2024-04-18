@@ -143,7 +143,7 @@ or manually managing access at another proxy level.
 
 In order to use multi-tenant access with single-node VictoriaMetrics, you can use token claims such as `extra_labels`
 or `extra_filters` filled dynamically by using Identity Provider's user information.
-vmgateway uses those claims and [enhanced Prometheus querying API](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-enhancements)
+vmgateway uses those claims and [enhanced Prometheus querying API](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-querying-api-enhancements)
 to provide additional filtering capabilities.
 
 For example, the following claims can be used to restrict user access to specific metrics:

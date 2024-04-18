@@ -10,7 +10,7 @@ aliases:
 ---
 # Understand Your Setup Size
 
-The docs provide a simple and high-level overview of Ingestion Rate, Active Time Series, and Query per Second. These terms are a part of capacity planning ([Single-Node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#capacity-planning), [Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#capacity-planning)) and [Managed VictoriaMetrics](https://docs.victoriametrics.com/managed-victoriametrics/) pricing.
+The docs provide a simple and high-level overview of Ingestion Rate, Active Time Series, and Query per Second. These terms are a part of capacity planning ([Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics/#capacity-planning), [Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#capacity-planning)) and [Managed VictoriaMetrics](https://docs.victoriametrics.com/managed-victoriametrics/) pricing.
 
 ## Terminology
 
@@ -124,4 +124,4 @@ You can collect metrics from
 
 ### On-Premise
 
-Please follow these capacity planning documents ([Single-Node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#capacity-planning), [Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#capacity-planning)). It contains the number of CPUs and Memory required to handle the Ingestion Rate, Active Time Series, Churn Rate, QPS and Retention Period.
+Please follow these capacity planning documents ([Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics/#capacity-planning), [Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#capacity-planning)). It contains the number of CPUs and Memory required to handle the Ingestion Rate, Active Time Series, Churn Rate, QPS and Retention Period.

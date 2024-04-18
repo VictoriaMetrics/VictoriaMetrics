@@ -791,7 +791,7 @@ requires an Authentication header like `X-Scope-OrgID`. You can define it via th
 
 ## Migrating data from VictoriaMetrics
 
-The simplest way to migrate data between VM instances is [to copy data between instances](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#data-migration).
+The simplest way to migrate data between VM instances is [to copy data between instances](https://docs.victoriametrics.com/single-server-victoriametrics/#data-migration).
 
 vmctl uses [native binary protocol](https://docs.victoriametrics.com/#how-to-export-data-in-native-format)
 (available since [1.42.0 release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.42.0))
@@ -986,7 +986,7 @@ Run the following command to get all configuration options:
 ## Verifying exported blocks from VictoriaMetrics
 
 In this mode, `vmctl` allows verifying correctness and integrity of data exported via 
-[native format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-export-data-in-native-format)
+[native format](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-export-data-in-native-format)
 from VictoriaMetrics.
 You can verify exported data at disk before uploading it by `vmctl verify-block` command:
 

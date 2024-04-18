@@ -94,7 +94,7 @@ We tried to scrape all the metrics via a single instance of vmagent but it that 
 into VictoriaMetrics. We tested different options and end up with the following scheme:
 
 - We removed Prometheus from our setup.
-- VictoriaMetrics [can scrape targets](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-scrape-prometheus-exporters-such-as-node-exporter) as well
+- VictoriaMetrics [can scrape targets](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter) as well
 so we removed vmagent. Now, VictoriaMetrics scrapes all the metrics from 110 jobs and 5531 targets.
 - We use [Promxy](https://github.com/jacksontj/promxy) for alerting.
 
@@ -587,7 +587,7 @@ Numbers:
 
 [Wix.com](https://en.wikipedia.org/wiki/Wix.com) is the leading web development platform.
 
-> We needed to redesign our metrics infrastructure from the ground up after the move to Kubernetes. We had tried out a few different options before landing on this solution which is working great. We have a Prometheus instance in every datacenter with 2 hours retention for local storage and remote write into [HA pair of single-node VictoriaMetrics instances](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#high-availability).
+> We needed to redesign our metrics infrastructure from the ground up after the move to Kubernetes. We had tried out a few different options before landing on this solution which is working great. We have a Prometheus instance in every datacenter with 2 hours retention for local storage and remote write into [HA pair of single-node VictoriaMetrics instances](https://docs.victoriametrics.com/single-server-victoriametrics/#high-availability).
 
 Numbers:
 

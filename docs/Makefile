@@ -11,7 +11,7 @@ docs-up:
 		jekyll/jekyll:3.8 jekyll serve --livereload --incremental
 
 # Converts images at docs folder to webp format
-# See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#images-in-documentation
+# See https://docs.victoriametrics.com/single-server-victoriametrics/#images-in-documentation
 docs-images-to-webp:
 	IMAGES_EXTENSION=jpg $(MAKE) docs-images-to-webp-by-extension
 	IMAGES_EXTENSION=jpeg $(MAKE) docs-images-to-webp-by-extension
