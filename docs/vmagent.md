@@ -1230,7 +1230,7 @@ See also:
 
 - [debugging scrape targets](#debugging-scrape-targets)
 - [relabel debug](#relabel-debug)
-- [general troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html)
+- [general troubleshooting docs](https://docs.victoriametrics.com/troubleshooting/)
 
 ## Calculating disk space for persistence queue
 
