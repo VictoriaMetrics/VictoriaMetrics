@@ -83,11 +83,11 @@ See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/
 ## Write data
 
 There are two main models in monitoring for data collection: 
-[push](https://docs.victoriametrics.com/keyConcepts.html#push-model) 
-and [pull](https://docs.victoriametrics.com/keyConcepts.html#pull-model). 
+[push](https://docs.victoriametrics.com/keyconcepts/#push-model) 
+and [pull](https://docs.victoriametrics.com/keyconcepts/#pull-model). 
 Both are used in modern monitoring and both are supported by VictoriaMetrics.
 
-See more details on [writing data here](https://docs.victoriametrics.com/keyConcepts.html#write-data).
+See more details on [writing data here](https://docs.victoriametrics.com/keyconcepts/#write-data).
 
 
 ## Query data
@@ -104,7 +104,7 @@ for querying and visualizing metrics.
 in VictoriaMetrics. MetricsQL is a [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics) 
 -like query language with a powerful set of functions and features for working specifically with time series data.
 
-See more details on [querying data here](https://docs.victoriametrics.com/keyConcepts.html#query-data)
+See more details on [querying data here](https://docs.victoriametrics.com/keyconcepts/#query-data)
 
 
 ## Alerting
@@ -116,7 +116,7 @@ based on PromQL and MetricsQL queries that will send a notification when such co
 ## Data migration
 
 Migrating data from other TSDBs to VictoriaMetrics is as simple as importing data via any of
-[supported formats](https://docs.victoriametrics.com/keyConcepts.html#push-model).
+[supported formats](https://docs.victoriametrics.com/keyconcepts/#push-model).
 
 The migration might get easier when using [vmctl](https://docs.victoriametrics.com/vmctl/) - VictoriaMetrics
 command line tool. It supports the following databases for migration to VictoriaMetrics:

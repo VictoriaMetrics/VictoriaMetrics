@@ -305,7 +305,7 @@ See also:
 
 VictoriaLogs provides an optimized way to select log entries, which belong to particular [log streams](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields).
 This can be done via `_stream:{...}` filter. The `{...}` may contain arbitrary
-[Prometheus-compatible label selector](https://docs.victoriametrics.com/keyConcepts.html#filtering)
+[Prometheus-compatible label selector](https://docs.victoriametrics.com/keyconcepts/#filtering)
 over fields associated with [log streams](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields).
 For example, the following query selects [log entries](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
 with `app` field equal to `nginx`:
