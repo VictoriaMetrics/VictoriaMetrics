@@ -19,7 +19,7 @@ for the migration to new LTS lines for [VictoriaMetrics Enterprise](https://docs
 
 All the bugfixes and security fixes, which are included in LTS releases, are also available in [the latest release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest),
 so non-enterprise users are advised to regularly [upgrade](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics) VictoriaMetrics products
-to [the latest available releases](https://docs.victoriametrics.com/CHANGELOG.html).
+to [the latest available releases](https://docs.victoriametrics.com/changelog/).
 
 ## Currently supported LTS release lines
 

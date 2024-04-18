@@ -254,13 +254,13 @@ expr: <string>
 # Please note, that if rule's query params contain sensitive
 # information - it will be printed to logs.
 # Is applicable to alerting rules only.
-# Available starting from https://docs.victoriametrics.com/CHANGELOG.html#v1820
+# Available starting from https://docs.victoriametrics.com/changelog/#v1820
 [ debug: <bool> | default = false ]
 
 # Defines the number of rule's updates entries stored in memory
 # and available for view on rule's Details page.
 # Overrides `rule.updateEntriesLimit` value for this specific rule.
-# Available starting from https://docs.victoriametrics.com/CHANGELOG.html#v1860
+# Available starting from https://docs.victoriametrics.com/changelog/#v1860
 [ update_entries_limit: <integer> | default 0 ]
 
 # Labels to add or overwrite for each alert.
@@ -857,7 +857,7 @@ If `-remoteWrite.url` command-line flag is configured, vmalert will persist aler
 changed in time.
 
 vmalert stores last `-rule.updateEntriesLimit` (or `update_entries_limit` [per-rule config](https://docs.victoriametrics.com/vmalert/#alerting-rules)) 
-state updates for each rule starting from [v1.86](https://docs.victoriametrics.com/CHANGELOG.html#v1860).
+state updates for each rule starting from [v1.86](https://docs.victoriametrics.com/changelog/#v1860).
 To check updates, click on `Details` link next to rule's name on `/vmalert/groups` page 
 and check the `Last updates` section:
 
@@ -871,7 +871,7 @@ for more details.
 
 ### Debug mode
 
-vmalert allows configuring more detailed logging for specific alerting rule starting from [v1.82](https://docs.victoriametrics.com/CHANGELOG.html#v1820).
+vmalert allows configuring more detailed logging for specific alerting rule starting from [v1.82](https://docs.victoriametrics.com/changelog/#v1820).
 Just set `debug: true` in rule's configuration and vmalert will start printing additional log messages:
 ```terminal
 2022-09-15T13:35:41.155Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:41+02:00: query returned 0 samples (elapsed: 5.896041ms)
@@ -888,7 +888,7 @@ Sensitive info is stripped from the `curl` examples - see [security](#security) 
 ### Never-firing alerts
 
 vmalert can detect if alert's expression doesn't match any time series in runtime 
-starting from [v1.91](https://docs.victoriametrics.com/CHANGELOG.html#v1910). This problem usually happens
+starting from [v1.91](https://docs.victoriametrics.com/changelog/#v1910). This problem usually happens
 when alerting expression selects time series which aren't present in the datasource (i.e. wrong `job` label)
 or there is a typo in the series selector (i.e. `env=rpod`). Such alerting rules will be marked with special icon in 
 vmalerts UI and exposed via `vmalert_alerting_rules_last_evaluation_series_fetched` metric. The metric value will
