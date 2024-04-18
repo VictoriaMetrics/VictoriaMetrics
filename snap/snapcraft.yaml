@@ -51,7 +51,7 @@ confinement: strict # use 'strict' once you have the right plugs and slots
 parts:
   build:
     plugin: go
-    go-channel: 1.20/stable
+    go-channel: 1.22/stable
     go-importpath: github.com/VictoriaMetrics/VictoriaMetrics
     source: .
     source-type: local
@@ -82,5 +82,5 @@ layout:
   /etc/victoriametrics-scrape-config.yaml:
     bind-file: $SNAP_DATA/etc/victoriametrics-scrape-config.yaml
 architectures:
-  - build-on: ['arm64', 'amd64']
-    run-on: ['arm64','amd64']
+  - build-on: ['amd64']
+    run-on: ['amd64']

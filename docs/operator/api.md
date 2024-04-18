@@ -152,6 +152,23 @@ This Document documents the types introduced by the VictoriaMetrics to be consum
 * [VMProbeTargetStaticConfig](#vmprobetargetstaticconfig)
 * [VMProbeTargets](#vmprobetargets)
 * [VMProberSpec](#vmproberspec)
+* [AzureSDConfig](#azuresdconfig)
+* [ConsulSDConfig](#consulsdconfig)
+* [DNSSDConfig](#dnssdconfig)
+* [DigitalOceanSDConfig](#digitaloceansdconfig)
+* [EC2Filter](#ec2filter)
+* [EC2SDConfig](#ec2sdconfig)
+* [FileSDConfig](#filesdconfig)
+* [GCESDConfig](#gcesdconfig)
+* [HTTPSDConfig](#httpsdconfig)
+* [K8SSelectorConfig](#k8sselectorconfig)
+* [KubernetesSDConfig](#kubernetessdconfig)
+* [NamespaceDiscovery](#namespacediscovery)
+* [OpenStackSDConfig](#openstacksdconfig)
+* [StaticConfig](#staticconfig)
+* [VMScrapeConfig](#vmscrapeconfig)
+* [VMScrapeConfigList](#vmscrapeconfiglist)
+* [VMScrapeConfigSpec](#vmscrapeconfigspec)
 
 ## VMAlertmanager
 
@@ -2517,5 +2534,284 @@ VMProberSpec contains specification parameters for the Prober used for probing.
 | url | Mandatory URL of the prober. | string | true |
 | scheme | HTTP scheme to use for scraping. Defaults to `http`. | string | false |
 | path | Path to collect metrics from. Defaults to `/probe`. | string | false |
+
+[Back to TOC](#table-of-contents)
+
+## AzureSDConfig
+
+AzureSDConfig allow retrieving scrape targets from Azure VMs. See https://docs.victoriametrics.com/sd_configs/#azure_sd_configs
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| environment | The Azure environment. | *string | false |
+| authenticationMethod | # The authentication method, either OAuth or ManagedIdentity. See https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview | *string | false |
+| subscriptionID | The subscription ID. Always required. | string | true |
+| tenantID | Optional tenant ID. Only required with the OAuth authentication method. | *string | false |
+| clientID | Optional client ID. Only required with the OAuth authentication method. | *string | false |
+| clientSecret | Optional client secret. Only required with the OAuth authentication method. | *[v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | false |
+| resourceGroup | Optional resource group name. Limits discovery to this resource group. | *string | false |
+| port | The port to scrape metrics from. If using the public IP address, this must instead be specified in the relabeling rule. | *int | true |
+
+[Back to TOC](#table-of-contents)
+
+## ConsulSDConfig
+
+ConsulSDConfig defines a Consul service discovery configuration See https://docs.victoriametrics.com/sd_configs/#consul_sd_configs
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| server | A valid string consisting of a hostname or IP followed by an optional port number. | string | true |
+| tokenRef | Consul ACL TokenRef, if not provided it will use the ACL from the local Consul Agent. | *[v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | false |
+| datacenter | Consul Datacenter name, if not provided it will use the local Consul Agent Datacenter. | *string | false |
+| namespace | Namespaces are only supported in Consul Enterprise. | *string | false |
+| partition | Admin Partitions are only supported in Consul Enterprise. | *string | false |
+| scheme | HTTP Scheme default \&#34;http\&#34; | *string | false |
+| services | A list of services for which targets are retrieved. If omitted, all services are scraped. | []string | false |
+| tags | An optional list of tags used to filter nodes for a given service. Services must contain all tags in the list. | []string | false |
+| tagSeparator | The string by which Consul tags are joined into the tag label. If unset, use its default value. | *string | false |
+| nodeMeta | Node metadata key/value pairs to filter nodes for a given service. | map[string]string | false |
+| allowStale | Allow stale Consul results (see https://www.consul.io/api/features/consistency.html). Will reduce load on Consul. If unset, use its default value. | *bool | false |
+| basicAuth | BasicAuth information to use on every scrape request. | *[BasicAuth](#basicauth) | false |
+| authorization | Authorization header to use on every scrape request. | *[Authorization](#authorization) | false |
+| oauth2 | OAuth2 defines auth configuration | *[OAuth2](#oauth2) | false |
+| proxyURL | ProxyURL eg http://proxyserver:2195 Directs scrapes to proxy through this endpoint. | *string | false |
+| proxy_client_config | ProxyClientConfig configures proxy auth settings for scraping See feature description https://docs.victoriametrics.com/vmagent.html#scraping-targets-via-a-proxy | *[ProxyAuth](#proxyauth) | false |
+| followRedirects | Configure whether HTTP requests follow HTTP 3xx redirects. If unset, use its default value. | *bool | false |
+| tlsConfig | TLS configuration to use on every scrape request | *[TLSConfig](#tlsconfig) | false |
+
+[Back to TOC](#table-of-contents)
+
+## DNSSDConfig
+
+DNSSDConfig allows specifying a set of DNS domain names which are periodically queried to discover a list of targets. The DNS servers to be contacted are read from /etc/resolv.conf. See https://docs.victoriametrics.com/sd_configs/#dns_sd_configs
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| names | A list of DNS domain names to be queried. | []string | true |
+| type |  | *string | true |
+| port | The port number used if the query type is not SRV Ignored for SRV records | *int | true |
+
+[Back to TOC](#table-of-contents)
+
+## DigitalOceanSDConfig
+
+DigitalOceanSDConfig allow retrieving scrape targets from DigitalOcean's Droplets API. This service discovery uses the public IPv4 address by default, by that can be changed with relabeling See https://docs.victoriametrics.com/sd_configs/#digitalocean_sd_configs
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| authorization | Authorization header to use on every scrape request. | *[Authorization](#authorization) | false |
+| oauth2 | OAuth2 defines auth configuration | *[OAuth2](#oauth2) | false |
+| proxyURL | ProxyURL eg http://proxyserver:2195 Directs scrapes to proxy through this endpoint. | *string | false |
+| proxy_client_config | ProxyClientConfig configures proxy auth settings for scraping See feature description https://docs.victoriametrics.com/vmagent.html#scraping-targets-via-a-proxy | *[ProxyAuth](#proxyauth) | false |
+| followRedirects | Configure whether HTTP requests follow HTTP 3xx redirects. | *bool | false |
+| tlsConfig | TLS configuration to use on every scrape request | *[TLSConfig](#tlsconfig) | false |
+| port | The port to scrape metrics from. | *int | false |
+
+[Back to TOC](#table-of-contents)
+
+## EC2Filter
+
+EC2Filter is the configuration for filtering EC2 instances.
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| name |  | string | true |
+| values |  | []string | true |
+
+[Back to TOC](#table-of-contents)
+
+## EC2SDConfig
+
+EC2SDConfig allow retrieving scrape targets from AWS EC2 instances. The private IP address is used by default, but may be changed to the public IP address with relabeling. The IAM credentials used must have the ec2:DescribeInstances permission to discover scrape targets See https://docs.victoriametrics.com/sd_configs/#ec2_sd_configs
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| region | The AWS region | *string | true |
+| accessKey | AccessKey is the AWS API key. | *[v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | false |
+| secretKey | SecretKey is the AWS API secret. | *[v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | false |
+| roleARN | AWS Role ARN, an alternative to using AWS API keys. | *string | false |
+| port | The port to scrape metrics from. If using the public IP address, this must instead be specified in the relabeling rule. | *int | true |
+| filters | Filters can be used optionally to filter the instance list by other criteria. Available filter criteria can be found here: https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html Filter API documentation: https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Filter.html | []*[EC2Filter](#ec2filter) | true |
+
+[Back to TOC](#table-of-contents)
+
+## FileSDConfig
+
+FileSDConfig defines a file service discovery configuration See https://docs.victoriametrics.com/sd_configs/#file_sd_configs
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| files | List of files to be used for file discovery. | []string | true |
+
+[Back to TOC](#table-of-contents)
+
+## GCESDConfig
+
+GCESDConfig configures scrape targets from GCP GCE instances. The private IP address is used by default, but may be changed to the public IP address with relabeling. See https://docs.victoriametrics.com/sd_configs/#gce_sd_configs\n\nThe GCE service discovery will load the Google Cloud credentials from the file specified by the GOOGLE_APPLICATION_CREDENTIALS environment variable. See https://cloud.google.com/kubernetes-engine/docs/tutorials/authenticating-to-cloud-platform
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| project | The Google Cloud Project ID | string | true |
+| zone | The zone of the scrape targets. If you need multiple zones use multiple GCESDConfigs. | string | true |
+| filter | Filter can be used optionally to filter the instance list by other criteria Syntax of this filter is described in the filter query parameter section: https://cloud.google.com/compute/docs/reference/latest/instances/list | *string | false |
+| port | The port to scrape metrics from. If using the public IP address, this must instead be specified in the relabeling rule. | *int | true |
+| tagSeparator | The tag separator is used to separate the tags on concatenation | *string | false |
+
+[Back to TOC](#table-of-contents)
+
+## HTTPSDConfig
+
+HTTPSDConfig defines a HTTP service discovery configuration See https://docs.victoriametrics.com/sd_configs/#http_sd_configs
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| url | URL from which the targets are fetched. | string | true |
+| basicAuth | BasicAuth information to use on every scrape request. | *[BasicAuth](#basicauth) | false |
+| authorization | Authorization header to use on every scrape request. | *[Authorization](#authorization) | false |
+| tlsConfig | TLS configuration to use on every scrape request | *[TLSConfig](#tlsconfig) | false |
+| proxyURL | ProxyURL eg http://proxyserver:2195 Directs scrapes to proxy through this endpoint. | *string | false |
+| proxy_client_config | ProxyClientConfig configures proxy auth settings for scraping See feature description https://docs.victoriametrics.com/vmagent.html#scraping-targets-via-a-proxy | *[ProxyAuth](#proxyauth) | false |
+
+[Back to TOC](#table-of-contents)
+
+## K8SSelectorConfig
+
+K8SSelectorConfig is Kubernetes Selector Config
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| role |  | string | true |
+| label |  | string | false |
+| field |  | string | false |
+
+[Back to TOC](#table-of-contents)
+
+## KubernetesSDConfig
+
+KubernetesSDConfig allows retrieving scrape targets from Kubernetes' REST API. See https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| apiServer | The API server address consisting of a hostname or IP address followed by an optional port number. If left empty, assuming process is running inside of the cluster. It will discover API servers automatically and use the pod&#39;s CA certificate and bearer token file at /var/run/secrets/kubernetes.io/serviceaccount/. | *string | false |
+| role | Role of the Kubernetes entities that should be discovered. | string | true |
+| basicAuth | BasicAuth information to use on every scrape request. | *[BasicAuth](#basicauth) | false |
+| authorization | Authorization header to use on every scrape request. | *[Authorization](#authorization) | false |
+| tlsConfig | TLS configuration to use on every scrape request | *[TLSConfig](#tlsconfig) | false |
+| oauth2 | OAuth2 defines auth configuration | *[OAuth2](#oauth2) | false |
+| proxyURL | ProxyURL eg http://proxyserver:2195 Directs scrapes to proxy through this endpoint. | *string | false |
+| proxy_client_config | ProxyClientConfig configures proxy auth settings for scraping See feature description https://docs.victoriametrics.com/vmagent.html#scraping-targets-via-a-proxy | *[ProxyAuth](#proxyauth) | false |
+| followRedirects | Configure whether HTTP requests follow HTTP 3xx redirects. | *bool | false |
+| namespaces | Optional namespace discovery. If omitted, discover targets across all namespaces. | *[NamespaceDiscovery](#namespacediscovery) | false |
+| attach_metadata | AttachMetadata configures metadata attaching from service discovery | [AttachMetadata](#attachmetadata) | false |
+| selectors | Selector to select objects. | [][K8SSelectorConfig](#k8sselectorconfig) | false |
+
+[Back to TOC](#table-of-contents)
+
+## NamespaceDiscovery
+
+NamespaceDiscovery is the configuration for discovering Kubernetes namespaces.
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| ownNamespace | Includes the namespace in which the pod exists to the list of watched namespaces. | *bool | false |
+| names | List of namespaces where to watch for resources. If empty and `ownNamespace` isn&#39;t true, watch for resources in all namespaces. | []string | false |
+
+[Back to TOC](#table-of-contents)
+
+## OpenStackSDConfig
+
+OpenStackSDConfig allow retrieving scrape targets from OpenStack Nova instances. See https://docs.victoriametrics.com/sd_configs/#openstack_sd_configs
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| role | The OpenStack role of entities that should be discovered. | string | true |
+| region | The OpenStack Region. | string | true |
+| identityEndpoint | IdentityEndpoint specifies the HTTP endpoint that is required to work with the Identity API of the appropriate version. | *string | false |
+| username | Username is required if using Identity V2 API. Consult with your provider&#39;s control panel to discover your account&#39;s username. In Identity V3, either userid or a combination of username and domainId or domainName are needed | *string | false |
+| userid | UserID | *string | false |
+| password | Password for the Identity V2 and V3 APIs. Consult with your provider&#39;s control panel to discover your account&#39;s preferred method of authentication. | *[v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | false |
+| domainName | At most one of domainId and domainName must be provided if using username with Identity V3. Otherwise, either are optional. | *string | false |
+| domainID | DomainID | *string | false |
+| projectName | The ProjectId and ProjectName fields are optional for the Identity V2 API. Some providers allow you to specify a ProjectName instead of the ProjectId. Some require both. Your provider&#39;s authentication policies will determine how these fields influence authentication. | *string | false |
+| projectID | \n ProjectID | *string | false |
+| applicationCredentialName | The ApplicationCredentialID or ApplicationCredentialName fields are required if using an application credential to authenticate. Some providers allow you to create an application credential to authenticate rather than a password. | *string | false |
+| applicationCredentialId | ApplicationCredentialID | *string | false |
+| applicationCredentialSecret | The applicationCredentialSecret field is required if using an application credential to authenticate. | *[v1.SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#secretkeyselector-v1-core) | false |
+| allTenants | Whether the service discovery should list all instances for all projects. It is only relevant for the &#39;instance&#39; role and usually requires admin permissions. | *bool | false |
+| port | The port to scrape metrics from. If using the public IP address, this must instead be specified in the relabeling rule. | *int | true |
+| availability | Availability of the endpoint to connect to. | *string | false |
+| tlsConfig | TLS configuration to use on every scrape request | *[TLSConfig](#tlsconfig) | false |
+
+[Back to TOC](#table-of-contents)
+
+## StaticConfig
+
+StaticConfig defines a static configuration. See https://docs.victoriametrics.com/sd_configs/#static_configs
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| targets | List of targets for this static configuration. | []string | false |
+| labels | Labels assigned to all metrics scraped from the targets. | map[string]string | false |
+
+[Back to TOC](#table-of-contents)
+
+## VMScrapeConfig
+
+VMScrapeConfig specifies a set of targets and parameters describing how to scrape them.
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| metadata |  | [metav1.ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#objectmeta-v1-meta) | false |
+| spec |  | [VMScrapeConfigSpec](#vmscrapeconfigspec) | false |
+| status |  | [VMScrapeConfigStatus](#vmscrapeconfigstatus) | true |
+
+[Back to TOC](#table-of-contents)
+
+## VMScrapeConfigList
+
+VMScrapeConfigList contains a list of VMScrapeConfig
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| metadata |  | [metav1.ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#listmeta-v1-meta) | false |
+| items |  | [][VMScrapeConfig](#vmscrapeconfig) | true |
+
+[Back to TOC](#table-of-contents)
+
+## VMScrapeConfigSpec
+
+VMScrapeConfigSpec defines the desired state of VMScrapeConfig
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| staticConfigs | StaticConfigs defines a list of static targets with a common label set. | [][StaticConfig](#staticconfig) | false |
+| fileSDConfigs | FileSDConfigs defines a list of file service discovery configurations. | [][FileSDConfig](#filesdconfig) | false |
+| httpSDConfigs | HTTPSDConfigs defines a list of HTTP service discovery configurations. | [][HTTPSDConfig](#httpsdconfig) | false |
+| kubernetesSDConfigs | KubernetesSDConfigs defines a list of Kubernetes service discovery configurations. | [][KubernetesSDConfig](#kubernetessdconfig) | false |
+| consulSDConfigs | ConsulSDConfigs defines a list of Consul service discovery configurations. | [][ConsulSDConfig](#consulsdconfig) | false |
+| dnsSDConfigs | DNSSDConfigs defines a list of DNS service discovery configurations. | [][DNSSDConfig](#dnssdconfig) | false |
+| ec2SDConfigs | EC2SDConfigs defines a list of EC2 service discovery configurations. | [][EC2SDConfig](#ec2sdconfig) | false |
+| azureSDConfigs | AzureSDConfigs defines a list of Azure service discovery configurations. | [][AzureSDConfig](#azuresdconfig) | false |
+| gceSDConfigs | GCESDConfigs defines a list of GCE service discovery configurations. | [][GCESDConfig](#gcesdconfig) | false |
+| openstackSDConfigs | OpenStackSDConfigs defines a list of OpenStack service discovery configurations. | [][OpenStackSDConfig](#openstacksdconfig) | false |
+| digitalOceanSDConfigs | DigitalOceanSDConfigs defines a list of DigitalOcean service discovery configurations. | [][DigitalOceanSDConfig](#digitaloceansdconfig) | false |
+| metricsPath | MetricsPath HTTP path to scrape for metrics. If empty, use the default value (e.g. /metrics). | *string | false |
+| scrapeInterval | ScrapeInterval is the interval between consecutive scrapes. | string | false |
+| scrapeTimeout | ScrapeTimeout is the number of seconds to wait until a scrape request times out. | string | false |
+| honorTimestamps | HonorTimestamps controls whether to respect the timestamps present in scraped data. | *bool | false |
+| honorLabels | HonorLabels chooses the metric&#39;s labels on collisions with target labels. | bool | false |
+| params | Optional HTTP URL parameters | map[string][]string | false |
+| scheme | Configures the protocol scheme used for requests. If empty, use HTTP by default. | *string | false |
+| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parametrs | *[VMScrapeParams](#vmscrapeparams) | false |
+| follow_redirects | FollowRedirects controls redirects for scraping. | *bool | false |
+| proxyURL | ProxyURL eg http://proxyserver:2195 Directs scrapes to proxy through this endpoint. | *string | false |
+| basicAuth | BasicAuth information to use on every scrape request. | *[BasicAuth](#basicauth) | false |
+| authorization | Authorization header to use on every scrape request. | *[Authorization](#authorization) | false |
+| oauth2 | OAuth2 defines auth configuration | *[OAuth2](#oauth2) | false |
+| tlsConfig | TLS configuration to use on every scrape request | *[TLSConfig](#tlsconfig) | false |
+| sampleLimit | SampleLimit defines per-scrape limit on number of scraped samples that will be accepted. | uint64 | false |
+| seriesLimit | SeriesLimit defines per-scrape limit on number of unique time series a single target can expose during all the scrapes on the time window of 24h. | uint64 | false |
+| metricRelabelConfigs | MetricRelabelConfigs to apply to samples before ingestion. | []*[RelabelConfig](#relabelconfig) | false |
+| relabelConfigs | RelabelConfigs to apply to samples before scraping. See https://docs.victoriametrics.com/vmagent.html#relabeling | []*[RelabelConfig](#relabelconfig) | false |
 
 [Back to TOC](#table-of-contents)
