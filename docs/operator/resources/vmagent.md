@@ -53,7 +53,7 @@ Also, you can check out the [examples](#examples) section.
 - [VMNodeScrape](./vmnodescrape.md),
 - [VMStaticScrape](./vmstaticscrape.md),
 - [VMProbe](./vmprobe.md).
-- `VMScrapeConfig`(./vmscrapeconfig.md)
+- [VMScrapeConfig](./vmscrapeconfig.md)
 
 These objects tell VMAgent from which targets and how to collect metrics and 
 generate part of [VMAgent](./vmagent.md) scrape configuration.
@@ -128,6 +128,9 @@ spec:
     matchLabels:
       kubernetes.io/metadata.name: my-namespace
   probeNamespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: my-namespace
+  scrapeConfigNamespaceSelector:
     matchLabels:
       kubernetes.io/metadata.name: my-namespace
 ```

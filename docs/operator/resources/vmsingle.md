@@ -1,11 +1,11 @@
 ---
-sort: 12
-weight: 12
+sort: 13
+weight: 13
 title: VMSingle
 menu:
   docs:
     parent: "operator-custom-resources"
-    weight: 12
+    weight: 13
 aliases:
   - /operator/resources/vmsingle.html
 ---

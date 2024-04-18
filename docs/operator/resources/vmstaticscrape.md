@@ -1,11 +1,11 @@
 ---
-sort: 13
-weight: 13
+sort: 14
+weight: 14
 title: VMStaticScrape
 menu:
   docs:
     parent: "operator-custom-resources"
-    weight: 13
+    weight: 14
 aliases:
   - /operator/resources/vmstaticscrape.html
 ---

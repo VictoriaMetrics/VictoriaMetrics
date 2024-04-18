@@ -1,11 +1,11 @@
 ---
-sort: 14
-weight: 14
+sort: 15
+weight: 15
 title: VMUser
 menu:
   docs:
     parent: "operator-custom-resources"
-    weight: 14
+    weight: 15
 aliases:
   - /operator/resources/vmuser.html
 ---
