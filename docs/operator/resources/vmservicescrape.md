@@ -1,11 +1,11 @@
 ---
-sort: 11
-weight: 11
+sort: 12
+weight: 12
 title: VMServiceScrape
 menu:
   docs:
     parent: "operator-custom-resources"
-    weight: 11
+    weight: 12
 aliases:
   - /operator/resources/vmservicescrape.html
 ---
