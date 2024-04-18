@@ -1629,7 +1629,7 @@ func UnmarshalMetricRows(dst []MetricRow, src []byte, maxRows int) ([]MetricRow,
 		if err != nil {
 			if err.Error() == "exemplar found" {
 				dst = dst[:len(dst)-1]
-				logger.Infof("Exemplar found %q", string(tail))
+				err = nil
 			} else {
 				return dst, tail, err
 			}
@@ -1660,7 +1660,7 @@ func (mr *MetricRow) UnmarshalX(src []byte) ([]byte, error) {
 		}
 		mr.ExemplarNameRaw = exemplarNameRaw
 		err = errors.New("exemplar found")
-		return exemplarNameRaw, err
+		logger.Infof("Exemplar found %q", string(exemplarNameRaw))
 	}
 	if len(tail) < 8 {
 		return tail, fmt.Errorf("cannot unmarshal Timestamp: want %d bytes; have %d bytes", 8, len(tail))
