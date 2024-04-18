@@ -314,23 +314,20 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 		return nil, fmt.Errorf("`query` template isn't supported in replay mode")
 	}
 	for _, s := range res.Data {
-		ls, err := ar.toLabels(s, qFn)
+		ls, as, err := ar.expandTemplates(s, qFn, time.Time{})
 		if err != nil {
-			return nil, fmt.Errorf("failed to expand labels: %s", err)
+			return nil, fmt.Errorf("failed to expand templates: %s", err)
 		}
-		h := hash(ls.processed)
-		a, err := ar.newAlert(s, nil, time.Time{}, qFn, nil) // initial alert
-		if err != nil {
-			return nil, fmt.Errorf("failed to create alert: %w", err)
-		}
+		alertID := hash(ls.processed)
+		a := ar.newAlert(s, time.Time{}, ls.processed, as) // initial alert
 
 		prevT := time.Time{}
 		for i := range s.Values {
 			at := time.Unix(s.Timestamps[i], 0)
 			// try to restore alert's state on the first iteration
 			if at.Equal(start) {
-				if _, ok := ar.alerts[h]; ok {
-					a = ar.alerts[h]
+				if _, ok := ar.alerts[alertID]; ok {
+					a = ar.alerts[alertID]
 					prevT = at
 				}
 			}
@@ -352,7 +349,7 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 
 			// save alert's state on last iteration, so it can be used on the next execRange call
 			if at.Equal(end) {
-				holdAlertState[h] = a
+				holdAlertState[alertID] = a
 			}
 		}
 	}
@@ -391,29 +388,24 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 	}
 	ar.logDebugf(ts, nil, "query returned %d samples (elapsed: %s)", curState.Samples, curState.Duration)
 
-	// template labels and annotations before updating ar.alerts,
-	// since they could use `query` function which takes a while to execute,
-	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6079.
 	qFn := func(query string) ([]datasource.Metric, error) {
 		res, _, err := ar.q.Query(ctx, query, ts)
 		return res.Data, err
 	}
-	var labels []*labelSet
-	annotations := []map[string]string{}
-	for _, m := range res.Data {
-		ls, err := ar.toLabels(m, qFn)
+
+	// template labels and annotations before updating ar.alerts,
+	// since they could use `query` function which takes a while to execute,
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6079.
+	expandedLabels := make([]*labelSet, len(res.Data))
+	expandedAnnotations := make([]map[string]string, len(res.Data))
+	for i, m := range res.Data {
+		ls, as, err := ar.expandTemplates(m, qFn, ts)
 		if err != nil {
-			curState.Err = fmt.Errorf("failed to expand labels: %w", err)
+			curState.Err = fmt.Errorf("failed to expand templates: %w", err)
 			return nil, curState.Err
 		}
-		labels = append(labels, ls)
-		// re-exec template since Value or query can be used in annotations
-		anno, err := ar.execTemplate(qFn, ls.origin, ar.Annotations, m.Values[0], hash(ls.processed), ts)
-		if err != nil {
-			curState.Err = fmt.Errorf("failed to template annotations: %w", err)
-			return nil, curState.Err
-		}
-		annotations = append(annotations, anno)
+		expandedLabels[i] = ls
+		expandedAnnotations[i] = as
 	}
 
 	ar.alertsMu.Lock()
@@ -430,14 +422,15 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 	updated := make(map[uint64]struct{})
 	// update list of active alerts
 	for i, m := range res.Data {
-		h := hash(labels[i].processed)
-		if _, ok := updated[h]; ok {
+		labels, annotations := expandedLabels[i], expandedAnnotations[i]
+		alertID := hash(labels.processed)
+		if _, ok := updated[alertID]; ok {
 			// duplicate may be caused the removal of `__name__` label
-			curState.Err = fmt.Errorf("labels %v: %w", labels[i].processed, errDuplicate)
+			curState.Err = fmt.Errorf("labels %v: %w", labels.processed, errDuplicate)
 			return nil, curState.Err
 		}
-		updated[h] = struct{}{}
-		if a, ok := ar.alerts[h]; ok {
+		updated[alertID] = struct{}{}
+		if a, ok := ar.alerts[alertID]; ok {
 			if a.State == notifier.StateInactive {
 				// alert could be in inactive state for resolvedRetention
 				// so when we again receive metrics for it - we switch it
@@ -447,21 +440,17 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 				ar.logDebugf(ts, a, "INACTIVE => PENDING")
 			}
 			a.Value = m.Values[0]
-			a.Annotations = annotations[i]
+			a.Annotations = annotations
 			if err != nil {
 				return nil, err
 			}
 			a.KeepFiringSince = time.Time{}
 			continue
 		}
-		a, err := ar.newAlert(m, labels[i], ts, nil, annotations[i])
-		if err != nil {
-			curState.Err = fmt.Errorf("failed to create alert: %w", err)
-			return nil, curState.Err
-		}
-		a.ID = h
+		a := ar.newAlert(m, ts, labels.processed, annotations)
+		a.ID = alertID
 		a.State = notifier.StatePending
-		ar.alerts[h] = a
+		ar.alerts[alertID] = a
 		ar.logDebugf(ts, a, "created in state PENDING")
 	}
 	var numActivePending int
@@ -511,17 +500,26 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 	return ar.toTimeSeries(ts.Unix()), nil
 }
 
-func (ar *AlertingRule) execTemplate(q templates.QueryFn, labels, annotations map[string]string, value float64, alertID uint64, ts time.Time) (map[string]string, error) {
+func (ar *AlertingRule) expandTemplates(m datasource.Metric, qFn templates.QueryFn, ts time.Time) (*labelSet, map[string]string, error) {
+	ls, err := ar.toLabels(m, qFn)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to expand labels: %w", err)
+	}
+
 	tplData := notifier.AlertTplData{
-		Value:    value,
-		Labels:   labels,
+		Value:    m.Values[0],
+		Labels:   ls.origin,
 		Expr:     ar.Expr,
-		AlertID:  alertID,
+		AlertID:  hash(ls.processed),
 		GroupID:  ar.GroupID,
 		ActiveAt: ts,
 		For:      ar.For,
 	}
-	return notifier.ExecTemplate(q, annotations, tplData)
+	as, err := notifier.ExecTemplate(qFn, ar.Annotations, tplData)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to template annotations: %w", err)
+	}
+	return ls, as, nil
 }
 
 func (ar *AlertingRule) toTimeSeries(timestamp int64) []prompbmarshal.TimeSeries {
@@ -557,28 +555,25 @@ func hash(labels map[string]string) uint64 {
 	return hash.Sum64()
 }
 
-func (ar *AlertingRule) newAlert(m datasource.Metric, ls *labelSet, start time.Time, qFn templates.QueryFn, annotations map[string]string) (*notifier.Alert, error) {
-	var err error
-	if ls == nil {
-		ls, err = ar.toLabels(m, qFn)
-		if err != nil {
-			return nil, fmt.Errorf("failed to expand labels: %w", err)
-		}
+func (ar *AlertingRule) newAlert(m datasource.Metric, start time.Time, labels, annotations map[string]string) *notifier.Alert {
+	as := make(map[string]string)
+	if annotations != nil {
+		as = annotations
 	}
-	a := &notifier.Alert{
+	ls := make(map[string]string)
+	if labels != nil {
+		ls = labels
+	}
+	return &notifier.Alert{
 		GroupID:     ar.GroupID,
 		Name:        ar.Name,
-		Labels:      ls.processed,
-		Value:       m.Values[0],
-		ActiveAt:    start,
 		Expr:        ar.Expr,
 		For:         ar.For,
-		Annotations: annotations,
+		ActiveAt:    start,
+		Value:       m.Values[0],
+		Labels:      ls,
+		Annotations: as,
 	}
-	if annotations == nil {
-		a.Annotations, err = a.ExecTemplate(qFn, ls.origin, ar.Annotations)
-	}
-	return a, err
 }
 
 const (
