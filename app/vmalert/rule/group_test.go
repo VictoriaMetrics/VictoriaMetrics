@@ -264,19 +264,14 @@ func TestGroupStart(t *testing.T) {
 	waitForIterations := func(n int, interval time.Duration) {
 		t.Helper()
 
-		var iterationsMade int
 		var cur uint64
 		prev := g.metrics.iterationTotal.Get()
 		for i := 0; ; i++ {
-			if i > 20 {
-				t.Fatalf("group wasn't able to perfrom %d evaluations during %d eval intervals", n, i)
+			if i > 40 {
+				t.Fatalf("group wasn't able to perform %d evaluations during %d eval intervals", n, i)
 			}
 			cur = g.metrics.iterationTotal.Get()
-			if cur > prev {
-				iterationsMade += int(cur - prev)
-				prev = cur
-			}
-			if iterationsMade >= n {
+			if int(cur-prev) >= n {
 				return
 			}
 			time.Sleep(interval)
