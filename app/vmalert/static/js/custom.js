@@ -28,7 +28,7 @@ function showByID(id) {
 }
 
 function toggleByID(id) {
-    if (!id) {
+    if (id) {
         let el = $("#" + id);
         if (el.length > 0) {
             el.click();
