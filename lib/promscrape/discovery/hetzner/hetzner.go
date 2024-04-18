@@ -14,7 +14,7 @@ import (
 // SDCheckInterval defines interval for targets refresh.
 var SDCheckInterval = flag.Duration("promscrape.hetznerSDCheckInterval", time.Minute, "Interval for checking for changes in Hetzner API. "+
 	"This works only if hetzner_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://docs.victoriametrics.com/sd_configs.html#hetzner_sd_configs for details")
+	"See https://docs.victoriametrics.com/sd_configs/#hetzner_sd_configs for details")
 
 // SDConfig represents service discovery config for Hetzner.
 //

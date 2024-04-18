@@ -91,7 +91,7 @@ scrape_configs:
     # port: ...
 
     # Additional HTTP API client options can be specified here.
-    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+    # See https://docs.victoriametrics.com/sd_configs/#http-api-client-options
 ```
 
 Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
@@ -199,7 +199,7 @@ scrape_configs:
     # allow_stale: ...
 
     # Additional HTTP API client options can be specified here.
-    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+    # See https://docs.victoriametrics.com/sd_configs/#http-api-client-options
 ```
 
 Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
@@ -291,7 +291,7 @@ scrape_configs:
     # filter: "..."
 
     # Additional HTTP API client options can be specified here.
-    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+    # See https://docs.victoriametrics.com/sd_configs/#http-api-client-options
 ```
 
 Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
@@ -339,7 +339,7 @@ scrape_configs:
     # port: ...
 
     # Additional HTTP API client options can be specified here.
-    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+    # See https://docs.victoriametrics.com/sd_configs/#http-api-client-options
 ```
 
 Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
@@ -437,7 +437,7 @@ scrape_configs:
     #   values: ["...", "..."]
 
     # Additional HTTP API client options can be specified here.
-    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+    # See https://docs.victoriametrics.com/sd_configs/#http-api-client-options
 ```
 
 Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
@@ -500,7 +500,7 @@ scrape_configs:
     #   values: ["...", "..."]
 
     # Additional HTTP API client options can be specified here.
-    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+    # See https://docs.victoriametrics.com/sd_configs/#http-api-client-options
 ```
 
 One of the following roles can be configured to discover targets:
@@ -708,7 +708,7 @@ scrape_configs:
   - server: "..."
 
     # Additional HTTP API client options can be specified here.
-    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+    # See https://docs.victoriametrics.com/sd_configs/#http-api-client-options
 ```
 
 Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
@@ -904,7 +904,7 @@ scrape_configs:
     # port: ...
 
     # Additional HTTP API client options can be specified here.
-    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+    # See https://docs.victoriametrics.com/sd_configs/#http-api-client-options
 ```
 
 Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
@@ -962,7 +962,7 @@ scrape_configs:
   - url: "http://..."
 
     # Additional HTTP API client options can be specified here.
-    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+    # See https://docs.victoriametrics.com/sd_configs/#http-api-client-options
 ```
 
 See [these examples](https://docs.victoriametrics.com/scrape_config_examples.html#http-based-target-discovery) on how to configure http-based target discovery.
@@ -1053,7 +1053,7 @@ scrape_configs:
     #   node: <boolean>
 
     # Additional HTTP API client options can be specified here.
-    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+    # See https://docs.victoriametrics.com/sd_configs/#http-api-client-options
 ```
 
 See [these examples](https://docs.victoriametrics.com/scrape_config_examples.html#kubernetes-target-discovery) on how to discover and scrape Kubernetes targets.
@@ -1250,7 +1250,7 @@ scrape_configs:
     # client_id: "..."
 
     # Additional HTTP API client options can be specified here.
-    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+    # See https://docs.victoriametrics.com/sd_configs/#http-api-client-options
 ```
 
 The `server` is queried periodically with the interval specified in `-promscrape.kumaSDCheckInterval` command-line flag.
@@ -1309,7 +1309,7 @@ scrape_configs:
     # allow_stale: ...
 
     # Additional HTTP API client options can be specified here.
-    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+    # See https://docs.victoriametrics.com/sd_configs/#http-api-client-options
 ```
 
 Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
@@ -1477,7 +1477,7 @@ scrape_configs:
     # The `http://host:port/metrics` endpoint is scraped per each configured target then.
     # The `http` scheme can be changed to `https` by setting it via `scheme` field at `scrape_config` level.
     # The `/metrics` path can be changed to arbitrary path via `metrics_path` field at `scrape_config` level.
-    # See https://docs.victoriametrics.com/sd_configs.html#scrape_configs .
+    # See https://docs.victoriametrics.com/sd_configs/#scrape_configs .
     #
     # Alternatively the scheme and path can be changed via `relabel_configs` section at `scrape_config` level.
     # See https://docs.victoriametrics.com/vmagent/#relabeling .
@@ -1748,7 +1748,7 @@ scrape_configs:
   # no_stale_markers: <boolean>
 
   # Additional HTTP client options for target scraping can be specified here.
-  # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+  # See https://docs.victoriametrics.com/sd_configs/#http-api-client-options
 ```
 
 ## HTTP API client options

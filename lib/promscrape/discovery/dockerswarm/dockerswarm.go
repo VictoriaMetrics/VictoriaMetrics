@@ -13,7 +13,7 @@ import (
 // SDCheckInterval defines interval for dockerswarm targets refresh.
 var SDCheckInterval = flag.Duration("promscrape.dockerswarmSDCheckInterval", 30*time.Second, "Interval for checking for changes in dockerswarm. "+
 	"This works only if dockerswarm_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://docs.victoriametrics.com/sd_configs.html#dockerswarm_sd_configs for details")
+	"See https://docs.victoriametrics.com/sd_configs/#dockerswarm_sd_configs for details")
 
 // SDConfig represents docker swarm service discovery configuration
 //
