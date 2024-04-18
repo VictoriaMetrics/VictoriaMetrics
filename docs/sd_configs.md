@@ -760,7 +760,7 @@ scrape_configs:
     - "http://central-config-server/targets?type=foobar"
 ```
 
-See [these examples](https://docs.victoriametrics.com/scrape_config_examples.html#file-based-target-discovery) on how to configure file-based target discovery.
+See [these examples](https://docs.victoriametrics.com/scrape_config_examples/#file-based-target-discovery) on how to configure file-based target discovery.
 
 The referred files and urls must contain a list of static configs in one of the following formats:
 
@@ -965,7 +965,7 @@ scrape_configs:
     # See https://docs.victoriametrics.com/sd_configs/#http-api-client-options
 ```
 
-See [these examples](https://docs.victoriametrics.com/scrape_config_examples.html#http-based-target-discovery) on how to configure http-based target discovery.
+See [these examples](https://docs.victoriametrics.com/scrape_config_examples/#http-based-target-discovery) on how to configure http-based target discovery.
 
 The service at `url` must return JSON response in the following format:
 
@@ -1056,7 +1056,7 @@ scrape_configs:
     # See https://docs.victoriametrics.com/sd_configs/#http-api-client-options
 ```
 
-See [these examples](https://docs.victoriametrics.com/scrape_config_examples.html#kubernetes-target-discovery) on how to discover and scrape Kubernetes targets.
+See [these examples](https://docs.victoriametrics.com/scrape_config_examples/#kubernetes-target-discovery) on how to discover and scrape Kubernetes targets.
 
 One of the following `role` types can be configured to discover targets:
 
@@ -1496,7 +1496,7 @@ scrape_configs:
     #   <labelnameN>: "<labelvalueN>"
 ```
 
-See [these examples](https://docs.victoriametrics.com/scrape_config_examples.html#static-configs) on how to configure scraping for static targets.
+See [these examples](https://docs.victoriametrics.com/scrape_config_examples/#static-configs) on how to configure scraping for static targets.
 
 ## yandexcloud_sd_configs
 
