@@ -259,9 +259,9 @@ consider [backfilling tips](https://docs.victoriametrics.com/Single-server-Victo
 ## Frequently asked questions
 
 * How does VictoriaMetrics compare to InfluxDB?
-    * _[Answer](https://docs.victoriametrics.com/FAQ.html#how-does-victoriametrics-compare-to-influxdb)_
+    * _[Answer](https://docs.victoriametrics.com/faq/#how-does-victoriametrics-compare-to-influxdb)_
 * Why don't VictoriaMetrics support Remote Read API, so I don't need to learn MetricsQL?
-    * _[Answer](https://docs.victoriametrics.com/FAQ.html#why-doesnt-victoriametrics-support-the-prometheus-remote-read-api)_
+    * _[Answer](https://docs.victoriametrics.com/faq/#why-doesnt-victoriametrics-support-the-prometheus-remote-read-api)_
 * The PromQL and MetricsQL are often mentioned together - why is that?
     * _MetricsQL - query language inspired by PromQL. MetricsQL is backward-compatible with PromQL, so Grafana
       dashboards backed by Prometheus datasource should work the same after switching from Prometheus to

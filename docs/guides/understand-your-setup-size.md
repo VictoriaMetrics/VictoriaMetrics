@@ -14,9 +14,9 @@ The docs provide a simple and high-level overview of Ingestion Rate, Active Time
 
 ## Terminology
 
-- [Active Time Series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series) - the [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) that receive at least one sample for the latest hour;
+- [Active Time Series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series) - the [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) that receive at least one sample for the latest hour;
 - Ingestion Rate - how many [data points](https://docs.victoriametrics.com/keyconcepts/#raw-samples) you ingest into the database per second;
-- [Churn Rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) - how frequently a new time series is registered. For example, in the Kubernetes ecosystem, the pod name is a part of time series labels. And when the pod is re-created, its name changes and affects all the exposed metrics, which results in high cardinality and Churn Rate problems;
+- [Churn Rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate) - how frequently a new time series is registered. For example, in the Kubernetes ecosystem, the pod name is a part of time series labels. And when the pod is re-created, its name changes and affects all the exposed metrics, which results in high cardinality and Churn Rate problems;
 - Query per Second - the number of [read queries](https://docs.victoriametrics.com/keyconcepts/#query-data) per second;
 - Retention Period - for how long data is stored in the database.
 
