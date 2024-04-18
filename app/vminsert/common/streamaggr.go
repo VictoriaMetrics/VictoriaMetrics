@@ -20,20 +20,20 @@ import (
 
 var (
 	streamAggrConfig = flag.String("streamAggr.config", "", "Optional path to file with stream aggregation config. "+
-		"See https://docs.victoriametrics.com/stream-aggregation.html . "+
+		"See https://docs.victoriametrics.com/stream-aggregation/ . "+
 		"See also -streamAggr.keepInput, -streamAggr.dropInput and -streamAggr.dedupInterval")
 	streamAggrKeepInput = flag.Bool("streamAggr.keepInput", false, "Whether to keep all the input samples after the aggregation with -streamAggr.config. "+
 		"By default, only aggregated samples are dropped, while the remaining samples are stored in the database. "+
-		"See also -streamAggr.dropInput and https://docs.victoriametrics.com/stream-aggregation.html")
+		"See also -streamAggr.dropInput and https://docs.victoriametrics.com/stream-aggregation/")
 	streamAggrDropInput = flag.Bool("streamAggr.dropInput", false, "Whether to drop all the input samples after the aggregation with -streamAggr.config. "+
 		"By default, only aggregated samples are dropped, while the remaining samples are stored in the database. "+
-		"See also -streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation.html")
+		"See also -streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation/")
 	streamAggrDedupInterval = flag.Duration("streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval before optional aggregation with -streamAggr.config . "+
-		"See also -streamAggr.dropInputLabels and -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation.html#deduplication")
+		"See also -streamAggr.dropInputLabels and -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation/#deduplication")
 	streamAggrDropInputLabels = flagutil.NewArrayString("streamAggr.dropInputLabels", "An optional list of labels to drop from samples "+
-		"before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation.html#dropping-unneeded-labels")
+		"before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels")
 	streamAggrIgnoreOldSamples = flag.Bool("streamAggr.ignoreOldSamples", false, "Whether to ignore input samples with old timestamps outside the current aggregation interval. "+
-		"See https://docs.victoriametrics.com/stream-aggregation.html#ignoring-old-samples")
+		"See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples")
 )
 
 var (

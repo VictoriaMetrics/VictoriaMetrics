@@ -174,13 +174,13 @@ to one sample per 5 minutes per each input time series (this operation is also k
 
 ```yaml
   # Aggregate metrics ending with _total with `total` output.
-  # See https://docs.victoriametrics.com/stream-aggregation.html#aggregation-outputs
+  # See https://docs.victoriametrics.com/stream-aggregation/#aggregation-outputs
 - match: '{__name__=~".+_total"}'
   interval: 5m
   outputs: [total]
 
   # Downsample other metrics with `count_samples`, `sum_samples`, `min` and `max` outputs
-  # See https://docs.victoriametrics.com/stream-aggregation.html#aggregation-outputs
+  # See https://docs.victoriametrics.com/stream-aggregation/#aggregation-outputs
 - match: '{__name__!~".+_total"}'
   interval: 5m
   outputs: [count_samples, sum_samples, min, max]
@@ -376,7 +376,7 @@ See also [quantiles over input metrics](#quantiles-over-input-metrics) and [aggr
 
 [Histogram](https://docs.victoriametrics.com/keyConcepts.html#histogram) is a set of [counter](https://docs.victoriametrics.com/keyConcepts.html#counter)
 metrics with different `vmrange` or `le` labels. As they're counters, the applicable aggregation output is 
-[total](https://docs.victoriametrics.com/stream-aggregation.html#total):
+[total](https://docs.victoriametrics.com/stream-aggregation/#total):
 
 ```yaml
 - match: 'http_request_duration_seconds_bucket'
@@ -906,17 +906,17 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
   # flush_on_shutdown: false
 
   # without is an optional list of labels, which must be removed from the output aggregation.
-  # See https://docs.victoriametrics.com/stream-aggregation.html#aggregating-by-labels
+  # See https://docs.victoriametrics.com/stream-aggregation/#aggregating-by-labels
   #
   without: [instance]
 
   # by is an optional list of labels, which must be preserved in the output aggregation.
-  # See https://docs.victoriametrics.com/stream-aggregation.html#aggregating-by-labels
+  # See https://docs.victoriametrics.com/stream-aggregation/#aggregating-by-labels
   #
   # by: [job, vmrange]
 
   # outputs is the list of aggregations to perform on the input data.
-  # See https://docs.victoriametrics.com/stream-aggregation.html#aggregation-outputs
+  # See https://docs.victoriametrics.com/stream-aggregation/#aggregation-outputs
   #
   outputs: [total]
 
@@ -934,7 +934,7 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
 
   # drop_input_labels instructs dropping the given labels from input samples.
   # The labels' dropping is performed before input_relabel_configs are applied.
-  # This also means that the labels are dropped before de-duplication ( https://docs.victoriametrics.com/stream-aggregation.html#deduplication )
+  # This also means that the labels are dropped before de-duplication ( https://docs.victoriametrics.com/stream-aggregation/#deduplication )
   # and stream aggregation.
   #
   # drop_input_labels: [replica, availability_zone]
@@ -942,7 +942,7 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
   # input_relabel_configs is an optional relabeling rules,
   # which are applied to the incoming samples after they pass the match filter
   # and before being aggregated.
-  # See https://docs.victoriametrics.com/stream-aggregation.html#relabeling
+  # See https://docs.victoriametrics.com/stream-aggregation/#relabeling
   #
   input_relabel_configs:
   - target_label: vmaggr

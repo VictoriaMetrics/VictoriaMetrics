@@ -97,7 +97,7 @@ VictoriaMetrics has the following prominent features:
   * [DataDog agent or DogStatsD](#how-to-send-data-from-datadog-agent).
   * [NewRelic infrastructure agent](#how-to-send-data-from-newrelic-agent).
   * [OpenTelemetry metrics format](#sending-data-via-opentelemetry).
-* It supports powerful [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html), which can be used as a [statsd](https://github.com/statsd/statsd) alternative.
+* It supports powerful [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/), which can be used as a [statsd](https://github.com/statsd/statsd) alternative.
 * It supports metrics [relabeling](#relabeling).
 * It can deal with [high cardinality issues](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) and
   [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) issues via [series limiter](#cardinality-limiter).
@@ -2011,7 +2011,7 @@ as their values are always increasing. Downsampling [gauges](https://docs.victor
 and [summaries](https://docs.victoriametrics.com/keyConcepts.html#summary) lose some changes within the downsampling interval,
 since only the last sample on the given interval is left and the rest of samples are dropped.
 
-You can use [recording rules](https://docs.victoriametrics.com/vmalert/#rules) or [steaming aggregation](https://docs.victoriametrics.com/stream-aggregation.html)
+You can use [recording rules](https://docs.victoriametrics.com/vmalert/#rules) or [steaming aggregation](https://docs.victoriametrics.com/stream-aggregation/)
 to apply custom aggregation functions, like min/max/avg etc., in order to make gauges more resilient to downsampling.
 
 Downsampling can reduce disk space usage and improve query performance if it is applied to time series with big number
@@ -2019,7 +2019,7 @@ of samples per each series. The downsampling doesn't improve query performance a
 of time series with small number of samples per each series, since downsampling doesn't reduce the number of time series.
 So there is little sense in applying downsampling to time series with [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
 In this case the majority of query time is spent on searching for the matching time series instead of processing the found samples.
-It is possible to use [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) in [vmagent](https://docs.victoriametrics.com/vmagent/)
+It is possible to use [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/) in [vmagent](https://docs.victoriametrics.com/vmagent/)
 or [recording rules in vmalert](https://docs.victoriametrics.com/vmalert/#rules) in order to
 [reduce the number of time series](https://docs.victoriametrics.com/vmalert/#downsampling-and-aggregation-via-vmalert).
 
@@ -3168,19 +3168,19 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -storageDataPath string
      Path to storage data (default "victoria-metrics-data")
   -streamAggr.config string
-     Optional path to file with stream aggregation config. See https://docs.victoriametrics.com/stream-aggregation.html . See also -streamAggr.keepInput, -streamAggr.dropInput and -streamAggr.dedupInterval
+     Optional path to file with stream aggregation config. See https://docs.victoriametrics.com/stream-aggregation/ . See also -streamAggr.keepInput, -streamAggr.dropInput and -streamAggr.dedupInterval
   -streamAggr.dedupInterval duration
-     Input samples are de-duplicated with this interval before optional aggregation with -streamAggr.config . See also -streamAggr.dropInputLabels and -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation.html#deduplication
+     Input samples are de-duplicated with this interval before optional aggregation with -streamAggr.config . See also -streamAggr.dropInputLabels and -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation/#deduplication
   -streamAggr.dropInput
-     Whether to drop all the input samples after the aggregation with -streamAggr.config. By default, only aggregated samples are dropped, while the remaining samples are stored in the database. See also -streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation.html
+     Whether to drop all the input samples after the aggregation with -streamAggr.config. By default, only aggregated samples are dropped, while the remaining samples are stored in the database. See also -streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation/
   -streamAggr.dropInputLabels array
-     An optional list of labels to drop from samples before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation.html#dropping-unneeded-labels
+     An optional list of labels to drop from samples before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -streamAggr.ignoreOldSamples
-     Whether to ignore input samples with old timestamps outside the current aggregation interval. See https://docs.victoriametrics.com/stream-aggregation.html#ignoring-old-samples
+     Whether to ignore input samples with old timestamps outside the current aggregation interval. See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples
   -streamAggr.keepInput
-     Whether to keep all the input samples after the aggregation with -streamAggr.config. By default, only aggregated samples are dropped, while the remaining samples are stored in the database. See also -streamAggr.dropInput and https://docs.victoriametrics.com/stream-aggregation.html
+     Whether to keep all the input samples after the aggregation with -streamAggr.config. By default, only aggregated samples are dropped, while the remaining samples are stored in the database. See also -streamAggr.dropInput and https://docs.victoriametrics.com/stream-aggregation/
   -tls array
      Whether to enable TLS for incoming HTTP requests at the given -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
      Supports array of values separated by comma or specified via multiple flags.
