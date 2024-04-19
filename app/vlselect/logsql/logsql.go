@@ -37,8 +37,11 @@ func ProcessQueryRequest(w http.ResponseWriter, r *http.Request, stopCh <-chan s
 		httpserver.Errorf(w, r, "cannot parse query [%s]: %s", qStr, err)
 		return
 	}
+	if q.Limit.Limit() > 0 {
+		// prioritize limit from query rather from query arg
+		limit = q.Limit.Limit()
+	}
 	w.Header().Set("Content-Type", "application/stream+json; charset=utf-8")
-
 	sw := getSortWriter()
 	sw.Init(w, maxSortBufferSize.IntN(), limit)
 	tenantIDs := []logstorage.TenantID{tenantID}

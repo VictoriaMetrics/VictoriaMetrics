@@ -186,11 +186,15 @@ func (lex *lexer) nextToken() {
 
 // Query represents LogsQL query.
 type Query struct {
-	f filter
+	f     filter
+	Limit limiter
 }
 
 // String returns string representation for q.
 func (q *Query) String() string {
+	if l := q.Limit.String(); l != "" {
+		return q.f.String() + "| " + q.Limit.String()
+	}
 	return q.f.String()
 }
 
@@ -221,17 +225,20 @@ func (q *Query) getResultColumnNames() []string {
 // ParseQuery parses s.
 func ParseQuery(s string) (*Query, error) {
 	lex := newLexer(s)
-
 	f, err := parseFilter(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse filter expression: %w; context: %s", err, lex.context())
 	}
+	limit, err := parseLimiter(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse limiter expression: %w; context: %s", err, lex.context())
+	}
 	if !lex.isEnd() {
 		return nil, fmt.Errorf("unexpected tail: %q", lex.s)
 	}
-
 	q := &Query{
-		f: f,
+		f:     f,
+		Limit: limit,
 	}
 	return q, nil
 }
@@ -1168,3 +1175,33 @@ var reservedKeywords = func() map[string]struct{} {
 	}
 	return m
 }()
+
+func parseLimiter(lex *lexer) (limiter, error) {
+	if lex.isEnd() {
+		return nl, nil
+	}
+	if !lex.isKeyword("|") {
+		return nil, fmt.Errorf("expected '|' delimiter after filter, got %q", lex.token)
+	}
+	lex.nextToken()
+	switch {
+	case lex.isKeyword("limit", "head"):
+		lh := lex.token
+		lex.nextToken()
+		// optional :, skip it if present
+		if lex.isKeyword(":") {
+			lex.nextToken()
+		}
+		n, err := strconv.Atoi(lex.token)
+		if err != nil {
+			return nil, fmt.Errorf("cannot convert %s: %q to int; context: %s, err %s", lh, lex.token, lex.context(), err)
+		}
+		if n <= 0 {
+			return nil, fmt.Errorf("%s must be > 0, got %d", lh, n)
+		}
+		lex.nextToken()
+		return &intLimiter{fieldName: lh, limit: n}, nil
+	default:
+		return nil, fmt.Errorf("unkown expession %q after filter", lex.s)
+	}
+}

@@ -999,3 +999,41 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`string_range(foo)`)
 	f(`string_range(foo, bar, baz)`)
 }
+
+func TestParseQueryLimitingFailure(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+		q, err := ParseQuery(s)
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
+		if q != nil {
+			t.Fatalf("expecting nil result; got %s", q)
+		}
+	}
+	f(`* | limit 0`)
+	f(`* | limit: 10 |`)
+	f(`* | limit -100`)
+	f(`* | limit: nonnumeric`)
+	f(`* | head:`)
+	f(`* | head`)
+	f(`* | `)
+	f(`* | baz`)
+	f(`* | limit: 100 | `)
+	f(`* | limit: 100 | limit: 100 `)
+}
+
+func TestParseQueryLimitingSuccess(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+		q, err := ParseQuery(s)
+		if err != nil {
+			t.Fatalf("expecting nil error, got %s", err)
+		}
+		if q == nil {
+			t.Fatalf("expecting not nil result; got %s", q)
+		}
+	}
+	f(`* | limit 100`)
+	f(`* | head: 100`)
+}
