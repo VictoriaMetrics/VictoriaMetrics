@@ -19,6 +19,8 @@ according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/QuickSta
 
 ## tip
 
+* FEATURE: [web UI](https://docs.victoriametrics.com/VictoriaLogs/querying/#web-ui): add support for head|limit in expressions. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6154).
+
 ## [v0.5.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.5.2-victorialogs)
 
 Released at 2024-04-11

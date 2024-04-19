@@ -13,13 +13,21 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
 
   const url = useMemo(() => getLogsUrl(server), [server]);
 
+  const prepareQuery = (query: string) => {
+    const limitRegex = /\|\s*(limit|head)\s*:?[\s-]*\d+/gm;
+    const matchHeadLimit = query.match(limitRegex);
+    if (!matchHeadLimit) return `(${query})`;
+    const cleanedQuery = query.replace(limitRegex, "").trim();
+    return `(${cleanedQuery}) ${matchHeadLimit.join(" ")}`;
+  };
+
   // include time range in query if not already present
   const queryWithTime = useMemo(() => {
     if (!/_time/.test(query)) {
       const start = dayjs(period.start * 1000).tz().toISOString();
       const end = dayjs(period.end * 1000).tz().toISOString();
       const timerange = `_time:[${start}, ${end}]`;
-      return `${timerange} AND (${query})`;
+      return `${timerange} AND ${prepareQuery(query)}`;
     }
     return query;
   }, [query, period]);
