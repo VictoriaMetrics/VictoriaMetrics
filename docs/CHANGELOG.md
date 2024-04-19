@@ -11,6 +11,14 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 
 ## v1.93.x long-time support release (LTS)
 
+
+## [v1.93.14](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.14)
+
+Released at 2024-04-19
+
+**v1.93.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
+The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/CHANGELOG.html#v1930) release**
+
 * SECURITY: upgrade Go builder from Go1.21.7 to Go1.22.2. See [the list of issues addressed in Go1.22.1](https://github.com/golang/go/issues?q=milestone%3AGo1.22.1+label%3ACherryPickApproved) and [the list of issues addressed in Go1.22.2](https://github.com/golang/go/issues?q=milestone%3AGo1.22.2+label%3ACherryPickApproved).
 
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): set correct `endsAt` value in notifications sent to the Alertmanager. Previously, a rule with evaluation intervals lower than 10s could never be triggered. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5995) for details.
