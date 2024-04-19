@@ -178,9 +178,15 @@ See [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#repli
 
 By default `vmagent` replicates data among remote storage systems enumerated via `-remoteWrite.url` command-line flag.
 If the `-remoteWrite.shardByURL` command-line flag is set, then `vmagent` spreads evenly
-the outgoing [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
-among all the remote storage systems enumerated via `-remoteWrite.url`. Note that samples for the same
-time series are routed to the same remote storage system if `-remoteWrite.shardByURL` flag is specified.
+the outgoing [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) among all the remote storage systems
+enumerated via `-remoteWrite.url`.
+
+It is possible to replicate samples among remote storage systems by passing `-remoteWrite.shardByURLReplicas=N`
+command-line flag to `vmagent` additionally to `-remoteWrite.shardByURL` command-line flag.
+This instructs `vmagent` writing every outgoing sample to `N` distinct remote storage systems enumerated via `-remoteWrite.url`
+in addition to sharding.
+
+Samples for the same time series are routed to the same remote storage system if `-remoteWrite.shardByURL` flag is specified.
 This allows building scalable data processing pipelines when a single remote storage cannot keep up with the data ingestion workload.
 For example, this allows building horizontally scalable [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/)
 by routing outgoing samples for the same time series of [counter](https://docs.victoriametrics.com/keyconcepts/#counter)
@@ -2131,7 +2137,7 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to default value.
   -remoteWrite.shardByURL
-     Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url . By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages
+     Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url . By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages . See also -remoteWrite.shardByURLReplicas
   -remoteWrite.shardByURL.ignoreLabels array
      Optional list of labels, which must be ignored when sharding outgoing samples among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain even distribution of series over the specified -remoteWrite.url systems. See also -remoteWrite.shardByURL.labels
      Supports an array of values separated by comma or specified via multiple flags.
@@ -2140,6 +2146,8 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
      Optional list of labels, which must be used for sharding outgoing samples among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain even distribution of series over the specified -remoteWrite.url systems. See also -remoteWrite.shardByURL.ignoreLabels
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -remoteWrite.shardByURLReplicas int
+     How many copies of data to make among remote storage systems enumerated via -remoteWrite.url when -remoteWrite.shardByURL is set. See https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages (default 1)
   -remoteWrite.showURL
      Whether to show -remoteWrite.url in the exported metrics. It is hidden by default, since it can contain sensitive info such as auth key
   -remoteWrite.significantFigures array

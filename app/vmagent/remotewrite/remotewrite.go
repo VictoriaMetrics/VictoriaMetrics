@@ -47,14 +47,19 @@ var (
 		"https://docs.victoriametrics.com/cluster-victoriametrics/#url-format . By default incoming data is processed via single-node insert handlers "+
 		"according to https://docs.victoriametrics.com/#how-to-import-time-series-data ."+
 		"See https://docs.victoriametrics.com/vmagent/#multitenancy for details")
+
 	shardByURL = flag.Bool("remoteWrite.shardByURL", false, "Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url . "+
-		"By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages")
+		"By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages . "+
+		"See also -remoteWrite.shardByURLReplicas")
+	shardByURLReplicas = flag.Int("remoteWrite.shardByURLReplicas", 1, "How many copies of data to make among remote storage systems enumerated via -remoteWrite.url "+
+		"when -remoteWrite.shardByURL is set. See https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages")
 	shardByURLLabels = flagutil.NewArrayString("remoteWrite.shardByURL.labels", "Optional list of labels, which must be used for sharding outgoing samples "+
 		"among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain "+
 		"even distribution of series over the specified -remoteWrite.url systems. See also -remoteWrite.shardByURL.ignoreLabels")
 	shardByURLIgnoreLabels = flagutil.NewArrayString("remoteWrite.shardByURL.ignoreLabels", "Optional list of labels, which must be ignored when sharding outgoing samples "+
 		"among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain "+
 		"even distribution of series over the specified -remoteWrite.url systems. See also -remoteWrite.shardByURL.labels")
+
 	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory for storing pending data, which isn't sent to the configured -remoteWrite.url . "+
 		"See also -remoteWrite.maxDiskUsagePerURL and -remoteWrite.disableOnDiskQueue")
 	keepDanglingQueues = flag.Bool("remoteWrite.keepDanglingQueues", false, "Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. "+
@@ -562,58 +567,17 @@ func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmar
 
 	// We need to push tssBlock to multiple remote storages.
 	// This is either sharding or replication depending on -remoteWrite.shardByURL command-line flag value.
-	if *shardByURL {
-		// Shard the data among rwctxs
-		tssByURL := make([][]prompbmarshal.TimeSeries, len(rwctxs))
-		tmpLabels := promutils.GetLabels()
-		for _, ts := range tssBlock {
-			hashLabels := ts.Labels
-			if len(shardByURLLabelsMap) > 0 {
-				hashLabels = tmpLabels.Labels[:0]
-				for _, label := range ts.Labels {
-					if _, ok := shardByURLLabelsMap[label.Name]; ok {
-						hashLabels = append(hashLabels, label)
-					}
-				}
-				tmpLabels.Labels = hashLabels
-			} else if len(shardByURLIgnoreLabelsMap) > 0 {
-				hashLabels = tmpLabels.Labels[:0]
-				for _, label := range ts.Labels {
-					if _, ok := shardByURLIgnoreLabelsMap[label.Name]; !ok {
-						hashLabels = append(hashLabels, label)
-					}
-				}
-				tmpLabels.Labels = hashLabels
-			}
-			h := getLabelsHash(hashLabels)
-			idx := h % uint64(len(tssByURL))
-			tssByURL[idx] = append(tssByURL[idx], ts)
+	if *shardByURL && *shardByURLReplicas < len(rwctxs) {
+		// Shard tssBlock samples among rwctxs.
+		replicas := *shardByURLReplicas
+		if replicas <= 0 {
+			replicas = 1
 		}
-		promutils.PutLabels(tmpLabels)
-
-		// Push sharded data to remote storages in parallel in order to reduce
-		// the time needed for sending the data to multiple remote storage systems.
-		var wg sync.WaitGroup
-		var anyPushFailed atomic.Bool
-		for i, rwctx := range rwctxs {
-			tssShard := tssByURL[i]
-			if len(tssShard) == 0 {
-				continue
-			}
-			wg.Add(1)
-			go func(rwctx *remoteWriteCtx, tss []prompbmarshal.TimeSeries) {
-				defer wg.Done()
-				if !rwctx.TryPush(tss) {
-					anyPushFailed.Store(true)
-				}
-			}(rwctx, tssShard)
-		}
-		wg.Wait()
-		return !anyPushFailed.Load()
+		return tryShardingBlockAmongRemoteStorages(rwctxs, tssBlock, replicas)
 	}
 
-	// Replicate data among rwctxs.
-	// Push block to remote storages in parallel in order to reduce
+	// Replicate tssBlock samples among rwctxs.
+	// Push tssBlock to remote storage systems in parallel in order to reduce
 	// the time needed for sending the data to multiple remote storage systems.
 	var wg sync.WaitGroup
 	wg.Add(len(rwctxs))
@@ -629,6 +593,97 @@ func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmar
 	wg.Wait()
 	return !anyPushFailed.Load()
 }
+
+func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmarshal.TimeSeries, replicas int) bool {
+	x := getTSSShards(len(rwctxs))
+	defer putTSSShards(x)
+
+	shards := x.shards
+	tmpLabels := promutils.GetLabels()
+	for _, ts := range tssBlock {
+		hashLabels := ts.Labels
+		if len(shardByURLLabelsMap) > 0 {
+			hashLabels = tmpLabels.Labels[:0]
+			for _, label := range ts.Labels {
+				if _, ok := shardByURLLabelsMap[label.Name]; ok {
+					hashLabels = append(hashLabels, label)
+				}
+			}
+			tmpLabels.Labels = hashLabels
+		} else if len(shardByURLIgnoreLabelsMap) > 0 {
+			hashLabels = tmpLabels.Labels[:0]
+			for _, label := range ts.Labels {
+				if _, ok := shardByURLIgnoreLabelsMap[label.Name]; !ok {
+					hashLabels = append(hashLabels, label)
+				}
+			}
+			tmpLabels.Labels = hashLabels
+		}
+		h := getLabelsHash(hashLabels)
+		idx := h % uint64(len(shards))
+		i := 0
+		for {
+			shards[idx] = append(shards[idx], ts)
+			i++
+			if i >= replicas {
+				break
+			}
+			idx++
+			if idx >= uint64(len(shards)) {
+				idx = 0
+			}
+		}
+	}
+	promutils.PutLabels(tmpLabels)
+
+	// Push sharded samples to remote storage systems in parallel in order to reduce
+	// the time needed for sending the data to multiple remote storage systems.
+	var wg sync.WaitGroup
+	var anyPushFailed atomic.Bool
+	for i, rwctx := range rwctxs {
+		shard := shards[i]
+		if len(shard) == 0 {
+			continue
+		}
+		wg.Add(1)
+		go func(rwctx *remoteWriteCtx, tss []prompbmarshal.TimeSeries) {
+			defer wg.Done()
+			if !rwctx.TryPush(tss) {
+				anyPushFailed.Store(true)
+			}
+		}(rwctx, shard)
+	}
+	wg.Wait()
+	return !anyPushFailed.Load()
+}
+
+type tssShards struct {
+	shards [][]prompbmarshal.TimeSeries
+}
+
+func getTSSShards(n int) *tssShards {
+	v := tssShardsPool.Get()
+	if v == nil {
+		v = &tssShards{}
+	}
+	x := v.(*tssShards)
+	if cap(x.shards) < n {
+		x.shards = make([][]prompbmarshal.TimeSeries, n)
+	}
+	x.shards = x.shards[:n]
+	return x
+}
+
+func putTSSShards(x *tssShards) {
+	shards := x.shards
+	for i := range shards {
+		clear(shards[i])
+		shards[i] = shards[i][:0]
+	}
+	tssShardsPool.Put(x)
+}
+
+var tssShardsPool sync.Pool
 
 // sortLabelsIfNeeded sorts labels if -sortLabels command-line flag is set.
 func sortLabelsIfNeeded(tss []prompbmarshal.TimeSeries) {
