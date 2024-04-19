@@ -67,7 +67,7 @@ func Create(createSnapshotURL string) (string, error) {
 	if snap.Status == "error" {
 		return "", errors.New(snap.Msg)
 	}
-	return "", fmt.Errorf("unkown status: %v", snap.Status)
+	return "", fmt.Errorf("unknown status: %v", snap.Status)
 }
 
 // Delete deletes a snapshot via the provided api endpoint
@@ -111,5 +111,5 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 	if snap.Status == "error" {
 		return errors.New(snap.Msg)
 	}
-	return fmt.Errorf("unkown status: %v", snap.Status)
+	return fmt.Errorf("unknown status: %v", snap.Status)
 }
