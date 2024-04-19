@@ -629,9 +629,6 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 		return nil
 	}
 
-	ar.alertsMu.Lock()
-	defer ar.alertsMu.Unlock()
-
 	if len(ar.alerts) < 1 {
 		return nil
 	}
@@ -656,6 +653,10 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 		ar.logDebugf(ts, nil, "no response was received from restore query")
 		return nil
 	}
+
+	ar.alertsMu.Lock()
+	defer ar.alertsMu.Unlock()
+
 	for _, series := range res.Data {
 		series.DelLabel("__name__")
 		labelSet := make(map[string]string, len(series.Labels))
