@@ -1658,6 +1658,16 @@ func transformUnion(tfa *transformFuncArg) ([]*timeseries, error) {
 		return evalNumber(tfa.ec, nan), nil
 	}
 
+	if areAllArgsScalar(args) {
+		// Special case for (v1,...,vN) where vX are scalars - return all the scalars as time series.
+		// This is needed for "q == (v1,...,vN)" and "q != (v1,...,vN)" cases, where vX are numeric constants.
+		rvs := make([]*timeseries, len(args))
+		for i, arg := range args {
+			rvs[i] = arg[0]
+		}
+		return rvs, nil
+	}
+
 	rvs := make([]*timeseries, 0, len(args[0]))
 	m := make(map[string]bool, len(args[0]))
 	bb := bbPool.Get()
@@ -1674,6 +1684,15 @@ func transformUnion(tfa *transformFuncArg) ([]*timeseries, error) {
 	}
 	bbPool.Put(bb)
 	return rvs, nil
+}
+
+func areAllArgsScalar(args [][]*timeseries) bool {
+	for _, arg := range args {
+		if !isScalar(arg) {
+			return false
+		}
+	}
+	return true
 }
 
 func transformLabelKeep(tfa *transformFuncArg) ([]*timeseries, error) {
