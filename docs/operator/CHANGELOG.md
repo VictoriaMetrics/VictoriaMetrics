@@ -16,8 +16,13 @@ aliases:
 
 ## Next release
 
+<a name="v0.43.1"></a>
+## [v0.43.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.1) - 18 Apr 2024
+
+- [operator](./README.md): properly add `liveness` and `readiness` probes to `config-reloader`, if `VM_USECUSTOMCONFIGRELOADER=false`.
+
 <a name="v0.43.0"></a>
-## [v0.43.](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.0) - 18 Apr 2024
+## [v0.43.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.0) - 18 Apr 2024
 
 **Update note: [vmcluster](./api.md#vmcluster): remove fields `VMClusterSpec.VMInsert.Name`, `VMClusterSpec.VMStorage.Name`, `VMClusterSpec.VMSelect.Name`, they're marked as deprecated since v0.21.0. See [this pull request](https://github.com/VictoriaMetrics/operator/pull/907).**
 **Update note: PodSecurityPolicy supports was deleted. Operator no long creates PSP related objects since it's no longer supported by Kubernetes actual versions. See this [doc](https://kubernetes.io/blog/2021/04/08/kubernetes-1-21-release-announcement/#podsecuritypolicy-deprecation) for details.**
