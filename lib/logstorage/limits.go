@@ -24,10 +24,10 @@ type intLimiter struct {
 	limit     int
 }
 
-func (h *intLimiter) String() string {
-	return fmt.Sprintf("%s: %d", h.fieldName, h.limit)
+func (i *intLimiter) String() string {
+	return fmt.Sprintf("%s: %d", i.fieldName, i.limit)
 }
 
-func (h *intLimiter) Limit() int {
-	return h.limit
+func (i *intLimiter) Limit() int {
+	return i.limit
 }
