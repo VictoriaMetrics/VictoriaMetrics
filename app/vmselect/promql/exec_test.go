@@ -5213,9 +5213,24 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
-	t.Run(`sum(union-args)`, func(t *testing.T) {
+	t.Run(`sum(union-scalars)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sum((1, 2, 3))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{6, 6, 6, 6, 6, 6},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`sum(union-vectors)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sum((
+			alias(1, "foo"),
+			alias(2, "foo"),
+			alias(3, "foo"),
+		))`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{1, 1, 1, 1, 1, 1},
@@ -5769,6 +5784,51 @@ func TestExecSuccess(t *testing.T) {
 				Key:   []byte("xx"),
 				Value: []byte("yy"),
 			},
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`equal-list`, func(t *testing.T) {
+		t.Parallel()
+		q := `time() == (100, 1000, 1400, 600)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, nan, 1400, nan, nan, nan},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`equal-list-reverse`, func(t *testing.T) {
+		t.Parallel()
+		q := `(100, 1000, 1400, 600) == time()`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, nan, 1400, nan, nan, nan},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`not-equal-list`, func(t *testing.T) {
+		t.Parallel()
+		q := `alias(time(), "foobar") != UNIon(100, 1000, 1400, 600)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, 1200, nan, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.MetricGroup = []byte("foobar")
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`not-equal-list-reverse`, func(t *testing.T) {
+		t.Parallel()
+		q := `(100, 1000, 1400, 600) != time()`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, 1200, nan, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)

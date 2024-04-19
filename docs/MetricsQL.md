@@ -79,6 +79,8 @@ The list of MetricsQL features on top of PromQL:
 * [Series selectors](https://docs.victoriametrics.com/keyconcepts/#filtering) accept multiple `or` filters. For example, `{env="prod",job="a" or env="dev",job="b"}`
   selects series with `{env="prod",job="a"}` or `{env="dev",job="b"}` labels.
   See [these docs](https://docs.victoriametrics.com/keyconcepts/#filtering-by-multiple-or-filters) for details.
+* Support for matching against multiple numeric constants via `q == (C1, ..., CN)` and `q != (C1, ..., CN)` syntax. For example, `status_code == (300, 301, 304)`
+  returns `status_code` metrics with one of `300`, `301` or `304` values.
 * Support for `group_left(*)` and `group_right(*)` for copying all the labels from time series on the `one` side
   of [many-to-one operations](https://prometheus.io/docs/prometheus/latest/querying/operators/#many-to-one-and-one-to-many-vector-matches).
   The copied label names may clash with the existing label names, so MetricsQL provides an ability to add prefix to the copied metric names
