@@ -9,7 +9,7 @@
   &_textarea:after {
     content: attr(data-replicated-value) " ";
     white-space: pre-wrap;
-    word-wrap: break-word;
+    overflow-wrap: break-word;
     visibility: hidden;
   }
 
