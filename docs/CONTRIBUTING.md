@@ -39,21 +39,23 @@ We are open to third-party pull requests provided they follow [KISS design princ
 
 Adhering `KISS` principle simplifies the resulting code and architecture, so it can be reviewed, understood and debugged by wider audience.
 
-Before sending a pull request to [VictoriaMetrics repository](https://github.com/VictoriaMetrics/VictoriaMetrics/) please check the following:
+Before sending a pull request to [VictoriaMetrics repository](https://github.com/VictoriaMetrics/VictoriaMetrics/) please make sure it **conforms all** the following checks:
 
-- [ ] The pull request contains clear description of the change, with links to the related GitHub issues and [docs](https://docs.victoriametrics.com/), if needed.
-- [ ] Commit messages contain concise yet clear descriptions. Include links to related GitHub issues in commit messages, if such issues exist.
-- [ ] All the commits are signed and include `Signed-off-by` line. Use `git commit -s` to include `Signed-off-by` your commits.
+- The pull request contains clear description of the change, with links to the related GitHub issues and [docs](https://docs.victoriametrics.com/), if needed.
+- Commit messages contain concise yet clear descriptions. Include links to related GitHub issues in commit messages, if such issues exist.
+- All the commits are signed and include `Signed-off-by` line. Use `git commit -s` to include `Signed-off-by` your commits.
   See this [doc](https://git-scm.com/book/en/v2/Git-Tools-Signing-Your-Work) about how to sign your commits.
-- [ ] Tests are passing locally. Use `make test` to run all tests locally.
-- [ ] Linting is passing locally. Use `make check-all` to run all linters locally.
-- [ ] If the change fixes some bug, it would be great to cover it by [tests](https://pkg.go.dev/testing) (if it isn't covered yet by existsing tests).
-- [ ] If the change improves pefromance or reduces resource usage, then it would be great to add [benchmarks](https://pkg.go.dev/testing#hdr-Benchmarks)
-      and mention benchmark results before and after the change in the description to the pull request.
+- Tests are passing locally. Use `make test` to run all tests locally.
+- Linting is passing locally. Use `make check-all` to run all linters locally.
+- If the change fixes some bug, it would be great to cover it by [tests](https://pkg.go.dev/testing) (if it isn't covered yet by existsing tests).
+- If the change improves pefromance or reduces resource usage, then it would be great to add [benchmarks](https://pkg.go.dev/testing#hdr-Benchmarks)
+  and mention benchmark results before and after the change in the description to the pull request.
+- If the change implements some specifics or uses some APIs, then please provide permanent links to these specs and APIs directly in the relevant source code,
+  in order to simplify further maintenance of the code.
 
 Further checks are optional for External Contributions:
 
-- [ ] The change is described in **clear user-readable** form at [docs/CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md),
+- The change is described in **clear user-readable** form at [docs/CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md),
   since it is read by **VictoriaMetrics users** who may not know implementation details of VictoriaMetrics products. The change description must **clearly** answer the following questions:
   - What does this change do?
   - Why this change is needed?
@@ -67,14 +69,14 @@ Further checks are optional for External Contributions:
   - Provide a link to the related GitHub issue or pull request.
   - Provide a link to the relevant documentation if the change modifies user-visible behaviour of VictoriaMetrics producs.
 
-- [ ] After your pull request is merged, please add a message to the issue with instructions for how to test the fix or try the feature you added before the new release.
+- After your pull request is merged, please add a message to the issue with instructions for how to test the fix or try the feature you added before the new release.
   [Here is an example](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4048#issuecomment-1546453726).
-- [ ] Do not close the original issue before the change is released. Please note, in some cases Github can automatically closes the issue once PR is merged. Re-open the issue in such case.
-- [ ] If the change introduces a new feature, this feature must be documented in **user-readable** form at the appropriate parts of [VictoriaMetrics docs](https://docs.victoriametrics.com/).
+- Do not close the original issue before the change is released. Please note, in some cases Github can automatically closes the issue once PR is merged. Re-open the issue in such case.
+- If the change introduces a new feature, this feature must be documented in **user-readable** form at the appropriate parts of [VictoriaMetrics docs](https://docs.victoriametrics.com/).
   The docs' sources are located in the [`docs` folder](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs).
 
 Examples of good changelog messages:
 
-1. FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): add support for [VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol) when [sending / receiving data to / from Kafka](https://docs.victoriametrics.com/vmagent/#kafka-integration). This protocol allows saving egress network bandwidth costs when sending data from `vmagent` to `Kafka` located in another datacenter or availability zone. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1225).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): add support for [VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol) when [sending / receiving data to / from Kafka](https://docs.victoriametrics.com/vmagent/#kafka-integration). This protocol allows saving egress network bandwidth costs when sending data from `vmagent` to `Kafka` located in another datacenter or availability zone. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1225).
 
-2. BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): suppress `series after dedup` error message in logs when `-remoteWrite.streamAggr.dedupInterval` command-line flag is set at [vmagent](https://docs.victoriametrics.com/vmgent.html) or when `-streamAggr.dedupInterval` command-line flag is set at [single-node VictoriaMetrics](https://docs.victoriametrics.com/).
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): suppress `series after dedup` error message in logs when `-remoteWrite.streamAggr.dedupInterval` command-line flag is set at [vmagent](https://docs.victoriametrics.com/vmgent.html) or when `-streamAggr.dedupInterval` command-line flag is set at [single-node VictoriaMetrics](https://docs.victoriametrics.com/).
