@@ -1,4 +1,5 @@
 .git
+
 vendor
 gocache-for-docker
 victoria-metrics-data
