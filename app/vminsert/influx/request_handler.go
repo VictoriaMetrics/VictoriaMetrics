@@ -166,25 +166,15 @@ func (ctx *pushCtx) reset() {
 }
 
 func getPushCtx() *pushCtx {
-	select {
-	case ctx := <-pushCtxPoolCh:
-		return ctx
-	default:
-		if v := pushCtxPool.Get(); v != nil {
-			return v.(*pushCtx)
-		}
-		return &pushCtx{}
+	if v := pushCtxPool.Get(); v != nil {
+		return v.(*pushCtx)
 	}
+	return &pushCtx{}
 }
 
 func putPushCtx(ctx *pushCtx) {
 	ctx.reset()
-	select {
-	case pushCtxPoolCh <- ctx:
-	default:
-		pushCtxPool.Put(ctx)
-	}
+	pushCtxPool.Put(ctx)
 }
 
 var pushCtxPool sync.Pool
-var pushCtxPoolCh = make(chan *pushCtx, cgroup.AvailableCPUs())
