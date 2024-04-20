@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/datadogsketches"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/datadogv1"
@@ -42,7 +44,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
