@@ -3,13 +3,15 @@ package common
 import (
 	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
 // PushCtx is a context used for populating WriteRequest.
 type PushCtx struct {
+	// WriteRequest contains the WriteRequest, which must be pushed later to remote storage.
+	//
+	// The actual labels and samples for the time series are stored in Labels and Samples fields.
 	WriteRequest prompbmarshal.WriteRequest
 
 	// Labels contains flat list of all the labels used in WriteRequest.
@@ -33,15 +35,10 @@ func (ctx *PushCtx) Reset() {
 //
 // Call PutPushCtx when the ctx is no longer needed.
 func GetPushCtx() *PushCtx {
-	select {
-	case ctx := <-pushCtxPoolCh:
-		return ctx
-	default:
-		if v := pushCtxPool.Get(); v != nil {
-			return v.(*PushCtx)
-		}
-		return &PushCtx{}
+	if v := pushCtxPool.Get(); v != nil {
+		return v.(*PushCtx)
 	}
+	return &PushCtx{}
 }
 
 // PutPushCtx returns ctx to the pool.
@@ -49,12 +46,7 @@ func GetPushCtx() *PushCtx {
 // ctx mustn't be used after returning to the pool.
 func PutPushCtx(ctx *PushCtx) {
 	ctx.Reset()
-	select {
-	case pushCtxPoolCh <- ctx:
-	default:
-		pushCtxPool.Put(ctx)
-	}
+	pushCtxPool.Put(ctx)
 }
 
 var pushCtxPool sync.Pool
-var pushCtxPoolCh = make(chan *PushCtx, cgroup.AvailableCPUs())
