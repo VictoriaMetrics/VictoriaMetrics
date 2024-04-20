@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -123,35 +122,22 @@ var (
 )
 
 func getPushCtx(r io.Reader) *pushCtx {
-	select {
-	case ctx := <-pushCtxPoolCh:
+	if v := pushCtxPool.Get(); v != nil {
+		ctx := v.(*pushCtx)
 		ctx.br.Reset(r)
 		return ctx
-	default:
-		if v := pushCtxPool.Get(); v != nil {
-			ctx := v.(*pushCtx)
-			ctx.br.Reset(r)
-			return ctx
-		}
-		return &pushCtx{
-			br: bufio.NewReaderSize(r, 64*1024),
-		}
+	}
+	return &pushCtx{
+		br: bufio.NewReaderSize(r, 64*1024),
 	}
 }
 
 func putPushCtx(ctx *pushCtx) {
 	ctx.reset()
-	select {
-	case pushCtxPoolCh <- ctx:
-	default:
-		pushCtxPool.Put(ctx)
-	}
+	pushCtxPool.Put(ctx)
 }
 
-var (
-	pushCtxPool   sync.Pool
-	pushCtxPoolCh = make(chan *pushCtx, cgroup.AvailableCPUs())
-)
+var pushCtxPool sync.Pool
 
 func getWriteRequest() *prompb.WriteRequest {
 	v := writeRequestPool.Get()

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
@@ -128,33 +127,22 @@ var (
 )
 
 func getStreamContext(r io.Reader) *streamContext {
-	select {
-	case ctx := <-streamContextPoolCh:
+	if v := streamContextPool.Get(); v != nil {
+		ctx := v.(*streamContext)
 		ctx.br.Reset(r)
 		return ctx
-	default:
-		if v := streamContextPool.Get(); v != nil {
-			ctx := v.(*streamContext)
-			ctx.br.Reset(r)
-			return ctx
-		}
-		return &streamContext{
-			br: bufio.NewReaderSize(r, 64*1024),
-		}
+	}
+	return &streamContext{
+		br: bufio.NewReaderSize(r, 64*1024),
 	}
 }
 
 func putStreamContext(ctx *streamContext) {
 	ctx.reset()
-	select {
-	case streamContextPoolCh <- ctx:
-	default:
-		streamContextPool.Put(ctx)
-	}
+	streamContextPool.Put(ctx)
 }
 
 var streamContextPool sync.Pool
-var streamContextPoolCh = make(chan *streamContext, cgroup.AvailableCPUs())
 
 func getRows() *opentsdbhttp.Rows {
 	v := rowsPool.Get()
