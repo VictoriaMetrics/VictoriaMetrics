@@ -21,13 +21,7 @@ type PushCtx struct {
 
 // Reset resets ctx.
 func (ctx *PushCtx) Reset() {
-	tss := ctx.WriteRequest.Timeseries
-	for i := range tss {
-		ts := &tss[i]
-		ts.Labels = nil
-		ts.Samples = nil
-	}
-	ctx.WriteRequest.Timeseries = ctx.WriteRequest.Timeseries[:0]
+	ctx.WriteRequest.Reset()
 
 	promrelabel.CleanLabels(ctx.Labels)
 	ctx.Labels = ctx.Labels[:0]
