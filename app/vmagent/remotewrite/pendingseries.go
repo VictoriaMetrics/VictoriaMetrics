@@ -122,11 +122,7 @@ func (wr *writeRequest) reset() {
 
 	wr.wr.Timeseries = nil
 
-	for i := range wr.tss {
-		ts := &wr.tss[i]
-		ts.Labels = nil
-		ts.Samples = nil
-	}
+	clear(wr.tss)
 	wr.tss = wr.tss[:0]
 
 	promrelabel.CleanLabels(wr.labels)
