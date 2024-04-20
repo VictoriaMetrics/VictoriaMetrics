@@ -33,7 +33,7 @@ Before sending a pull request to [VictoriaMetrics repository](https://github.com
 - The pull request contains clear description of the change, with links to the related GitHub issues and [docs](https://docs.victoriametrics.com/), if needed.
 - Commit messages contain concise yet clear descriptions. Include links to related GitHub issues in commit messages, if such issues exist.
 - All the commits are signed and include `Signed-off-by` line. Use `git commit -s` to include `Signed-off-by` your commits.
-  See this [doc](https://git-scm.com/book/en/v2/Git-Tools-Signing-Your-Work) about how to sign your commits.
+  See [this doc](https://git-scm.com/book/en/v2/Git-Tools-Signing-Your-Work) about how to sign git commits.
 - Tests are passing locally. Use `make test` to run all tests locally.
 - Linting is passing locally. Use `make check-all` to run all linters locally.
 - If the change fixes some bug, it would be great to cover it by [tests](https://pkg.go.dev/testing) (if it isn't covered yet by existsing tests).
