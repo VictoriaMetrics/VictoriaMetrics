@@ -33,6 +33,10 @@ Yes. See [these benchmarks](https://docs.victoriametrics.com/articles/#benchmark
 
 See [these docs](https://docs.victoriametrics.com/quick-start/).
 
+## Hot to contribute to VictoriaMetrics?
+
+See [these docs](https://docs.victoriametrics.com/contributing/).
+
 ## Does VictoriaMetrics support replication?
 
 Yes. See [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety) for details.

@@ -25,22 +25,11 @@ If you like VictoriaMetrics and want to contribute, then it would be great:
   - experience sharing with colleagues.
 - Convincing your management to sign [Enterprise contract](https://docs.victoriametrics.com/enterprise/) with VictoriaMetrics.
 
-We are open to third-party pull requests provided they follow [KISS design principle](https://en.wikipedia.org/wiki/KISS_principle):
-
-- Prefer simple code and architecture.
-- Avoid complex abstractions.
-- Avoid magic code and fancy algorithms.
-- Apply optimizations, which make the code harder to understand, only if [profiling](https://docs.victoriametrics.com/#profiling)
-  shows significant improvements in performance and scalability or significant reduction in RAM usage.
-  Profiling must be performed on [Go benchmarks](https://pkg.go.dev/testing#hdr-Benchmarks) and on production workload.
-- Avoid [big external dependencies](https://medium.com/@valyala/stripping-dependency-bloat-in-victoriametrics-docker-image-983fb5912b0d).
-- Minimize the number of moving parts in the distributed system.
-- Avoid automated decisions, which may hurt cluster availability, consistency, performance or debuggability.
-
-Adhering `KISS` principle simplifies the resulting code and architecture, so it can be reviewed, understood and debugged by wider audience.
+## Pull request checklist
 
 Before sending a pull request to [VictoriaMetrics repository](https://github.com/VictoriaMetrics/VictoriaMetrics/) please make sure it **conforms all** the following checks:
 
+- The pull request conforms [`KISS` principle](https://en.wikipedia.org/wiki/KISS_principle). See [these docs](#kiss-principle) for more details.
 - The pull request contains clear description of the change, with links to the related GitHub issues and [docs](https://docs.victoriametrics.com/), if needed.
 - Commit messages contain concise yet clear descriptions. Include links to related GitHub issues in commit messages, if such issues exist.
 - All the commits are signed and include `Signed-off-by` line. Use `git commit -s` to include `Signed-off-by` your commits.
@@ -80,3 +69,29 @@ Examples of good changelog messages:
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): add support for [VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol) when [sending / receiving data to / from Kafka](https://docs.victoriametrics.com/vmagent/#kafka-integration). This protocol allows saving egress network bandwidth costs when sending data from `vmagent` to `Kafka` located in another datacenter or availability zone. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1225).
 
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): suppress `series after dedup` error message in logs when `-remoteWrite.streamAggr.dedupInterval` command-line flag is set at [vmagent](https://docs.victoriametrics.com/vmgent.html) or when `-streamAggr.dedupInterval` command-line flag is set at [single-node VictoriaMetrics](https://docs.victoriametrics.com/).
+
+## KISS principle
+
+We are open to third-party pull requests provided they follow [KISS design principle](https://en.wikipedia.org/wiki/KISS_principle).
+
+- Prefer simple code and architecture.
+- Avoid complex abstractions.
+- Avoid magic code and fancy algorithms.
+- Apply optimizations, which make the code harder to understand, only if [profiling](https://docs.victoriametrics.com/#profiling)
+  shows significant improvements in performance and scalability or significant reduction in RAM usage.
+  Profiling must be performed on [Go benchmarks](https://pkg.go.dev/testing#hdr-Benchmarks) and on production workload.
+- Avoid [big external dependencies](https://medium.com/@valyala/stripping-dependency-bloat-in-victoriametrics-docker-image-983fb5912b0d).
+- Minimize the number of moving parts in the distributed system.
+- Avoid automated decisions, which may hurt cluster availability, consistency, performance or debuggability.
+
+Adhering `KISS` principle simplifies the resulting code and architecture, so it can be reviewed, understood and debugged by wider audience.
+
+Due to `KISS`, [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/) has no the following "features" popular in distributed computing world:
+
+- Fragile gossip protocols. See [failed attempt in Thanos](https://github.com/improbable-eng/thanos/blob/030bc345c12c446962225221795f4973848caab5/docs/proposals/completed/201809_gossip-removal.md).
+- Hard-to-understand-and-implement-properly [Paxos protocols](https://www.quora.com/In-distributed-systems-what-is-a-simple-explanation-of-the-Paxos-algorithm).
+- Complex replication schemes, which may go nuts in unforeseen edge cases. See [replication docs](#replication-and-data-safety) for details.
+- Automatic data reshuffling between storage nodes, which may hurt cluster performance and availability.
+- Automatic cluster resizing, which may cost you a lot of money if improperly configured.
+- Automatic discovering and addition of new nodes in the cluster, which may mix data between dev and prod clusters :)
+- Automatic leader election, which may result in split brain disaster on network errors.
