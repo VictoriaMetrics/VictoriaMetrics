@@ -57,14 +57,15 @@ Further checks are optional for External Contributions:
   since it is read by **VictoriaMetrics users** who may not know implementation details of VictoriaMetrics products. The change description must **clearly** answer the following questions:
   - What does this change do?
   - Why this change is needed?
+
   The change description must link to related GitHub issues and the related docs, if any.
 
   Tips for writing a good changelog message:
 
   - Write a human-readable changelog message that describes the problem and the solution.
   - Use specific text, which can be googled by users interested in the change, such as an error message, metric name, command-line flag name, etc.
-  - Include a link to the issue or pull request in your changelog message.
-  - Provide a link to the relevant documentation for any new features you add or modify.
+  - Provide a link to the related GitHub issue or pull request.
+  - Provide a link to the relevant documentation if the change modifies user-visible behaviour of VictoriaMetrics producs.
 
 - [ ] After your pull request is merged, please add a message to the issue with instructions for how to test the fix or try the feature you added before the new release.
   [Here is an example](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4048#issuecomment-1546453726).
