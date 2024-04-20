@@ -813,7 +813,7 @@ in a single `vmstorage` group are temporarily unavailable:
  -storageNode=g3/host7,g3/host8,g3/host9
 ```
 
-It is OK to mix `-replicationFactor` and `-globalReplicationFactor`. For example, the folling command runs `vmselect`, which continues returning full responses
+It is OK to mix `-replicationFactor` and `-globalReplicationFactor`. For example, the following command runs `vmselect`, which continues returning full responses
 if any number of `vmstorage` nodes in a single `vmstorage` group are temporarily unavailable and the remaining groups contain up to two unavailable `vmstorage` node:
 
 ```
@@ -1008,26 +1008,7 @@ Feel free asking any questions regarding VictoriaMetrics:
 * [Google groups](https://groups.google.com/forum/#!forum/victorametrics-users)
 * [Mastodon](https://mastodon.social/@victoriametrics/)
 
-We are open to third-party pull requests provided they follow the [KISS design principle](https://en.wikipedia.org/wiki/KISS_principle):
-
-- Prefer simple code and architecture.
-- Avoid complex abstractions.
-- Avoid magic code and fancy algorithms.
-- Avoid [big external dependencies](https://medium.com/@valyala/stripping-dependency-bloat-in-victoriametrics-docker-image-983fb5912b0d).
-- Minimize the number of moving parts in the distributed system.
-- Avoid automated decisions, which may hurt cluster availability, consistency or performance.
-
-Adhering to the `KISS` principle simplifies the resulting code and architecture, so it can be reviewed, understood and verified by many people.
-
-Due to `KISS`, cluster version of VictoriaMetrics has no the following "features" popular in distributed computing world:
-
-- Fragile gossip protocols. See [failed attempt in Thanos](https://github.com/improbable-eng/thanos/blob/030bc345c12c446962225221795f4973848caab5/docs/proposals/completed/201809_gossip-removal.md).
-- Hard-to-understand-and-implement-properly [Paxos protocols](https://www.quora.com/In-distributed-systems-what-is-a-simple-explanation-of-the-Paxos-algorithm).
-- Complex replication schemes, which may go nuts in unforeseen edge cases. See [replication docs](#replication-and-data-safety) for details.
-- Automatic data reshuffling between storage nodes, which may hurt cluster performance and availability.
-- Automatic cluster resizing, which may cost you a lot of money if improperly configured.
-- Automatic discovering and addition of new nodes in the cluster, which may mix data between dev and prod clusters :)
-- Automatic leader election, which may result in split brain disaster on network errors.
+If you like VictoriaMetrics and want contributing, then please read [these docs](https://docs.victoriametrics.com/contributing/).
 
 ## Reporting bugs
 
