@@ -826,10 +826,10 @@ provide the following tools for debugging scrape targets:
   - **How many metrics the given target exposes?** The `samples` column shows the number of metrics scraped per each target during the last scrape.
   - **How long does it take to scrape the given target?** The `duration` column shows last scrape duration per each target.
   - **When was the last scrape for the given target?** The `last scrape` column shows the last time the given target was scraped.
-  - **How many times the given target was scraped?** The `scrapes` column shows this infromation.
+  - **How many times the given target was scraped?** The `scrapes` column shows this information.
   - **What is the current state of the particular target?** The `state` column shows the current state of the particular target.
 
-- `http://vmagent:8429/service-discovery` page, which contains infromation about all the [discovered targets](https://docs.victoriametrics.com/sd_configs/).
+- `http://vmagent:8429/service-discovery` page, which contains information about all the [discovered targets](https://docs.victoriametrics.com/sd_configs/).
   This page doesn't work if `vmagent` runs with `-promscrape.dropOriginalLabels` command-line flag.
   This pages helps answering the following questions:
   - **Why some targets are dropped during service discovery?** Click `debug` link at `debug relabeling` on the dropped target in order to see step-by-step
