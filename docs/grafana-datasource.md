@@ -30,8 +30,8 @@ But with time, Prometheus and VictoriaMetrics diverge more and more. After some 
 datasource  we decided to create a datasource plugin specifically for VictoriaMetrics.
 The benefits of using VictoriaMetrics plugin are the following:
 
-* [MetricsQL](https://docs.victoriametrics.com/metricsql/) functions support;
-* Supports [query tracing](https://docs.victoriametrics.com/single-server-victoriametrics/#query-tracing) in Explore mode or right in panel's expressions;
+* [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) functions support;
+* Supports [query tracing](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#query-tracing) in Explore mode or right in panel's expressions;
 * Supports [WITH expressions](https://github.com/VictoriaMetrics/grafana-datasource#how-to-use-with-templates);
 * Plugin fixes [label names validation](https://github.com/grafana/grafana/issues/42615) issue;
 * Integration with [vmui](https://docs.victoriametrics.com/#vmui).
@@ -117,7 +117,7 @@ Please find the example of provisioning Grafana instance with VictoriaMetrics da
    ``` bash
    ver=$(curl -s https://api.github.com/repos/VictoriaMetrics/grafana-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
    curl -L https://github.com/VictoriaMetrics/grafana-datasource/releases/download/$ver/victoriametrics-datasource-$ver.tar.gz -o plugin.tar.gz
-   tar -xf plugin.tar.gz -C ./victoriametrics-datasource
+   tar -xf plugin.tar.gz -C ./
    rm plugin.tar.gz
    ```
 
