@@ -1097,6 +1097,25 @@ See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) fo
 
 ## Limiters
 
+LogsQL support `head` and its alias `limit` for the limiting the number of entries in the response. 
+
+The limiter must be specified after filter and follow `|`.
+
+`:` is an optional.
+
+```logsql
+* | head 10
+```
+
+This query returns first `10` read log entries
+
+`limit` is an alias for `head`
+
+```logsql
+* | limit: 10
+```
+
+
 It is possible to limit the returned results with `head`, `tail`, `less`, etc. Unix commands
 according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
 

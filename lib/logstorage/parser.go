@@ -1188,7 +1188,7 @@ func parseLimiter(lex *lexer) (limiter, error) {
 	case lex.isKeyword("limit", "head"):
 		lh := lex.token
 		lex.nextToken()
-		// optional :, skip it if present
+		// optional ":" skip if included
 		if lex.isKeyword(":") {
 			lex.nextToken()
 		}
