@@ -13,6 +13,20 @@ function collapseAll() {
     $('.collapse').removeClass('show');
 }
 
+function showByID(id) {
+    if (!id) {
+        return
+    }
+    let parent = $("#" + id).parent();
+    if (!parent) {
+        return
+    }
+    let target = $("#" + parent.attr("data-bs-target"));
+    if (target.length > 0) {
+        target.addClass('show');
+    }
+}
+
 function toggleByID(id) {
     if (id) {
         let el = $("#" + id);
@@ -61,7 +75,7 @@ function search() {
 function setParamURL(key, value) {
     let url = new URL(location.href)
     url.searchParams.set(key, value);
-    window.history.replaceState(null, null, `?${url.searchParams.toString()}`);
+    window.history.replaceState(null, null, `?${url.searchParams.toString()}${url.hash}`);
 }
 
 function getParamURL(key) {
@@ -141,7 +155,7 @@ $(document).ready(function () {
     search()
 
     let hash = window.location.hash.substr(1);
-    toggleByID(hash);
+    showByID(hash);
 });
 
 $(document).ready(function () {
