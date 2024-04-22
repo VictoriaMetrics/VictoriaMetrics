@@ -16,6 +16,9 @@ aliases:
 
 ## Next release
 
+- [vmagent](./api.md#vmagent): fixes bug with `ServiceAccount` not found with `ingestOnlyMode`.
+- [vmagent](./api.md#vmagent): fixes `unknown long flag '--rules-dir'` for prometheus-config-reloader.
+
 <a name="v0.43.1"></a>
 ## [v0.43.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.1) - 18 Apr 2024
 
