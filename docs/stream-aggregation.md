@@ -92,6 +92,18 @@ must be ignored, then the following options can be used:
 - To set `ignore_old_samples: true` option at the particular [aggregation config](#stream-aggregation-config).
   This enables ignoring old samples for that particular aggregation config.
 
+## Ignore aggregation intervals on start
+
+Stream aggregation may yield inaccurate results if it processes incomplete data. This issue can arise when data is sourced from clients that maintain a queue of unsent data, such as Prometheus or vmagent. If the queue isn't fully cleared within the aggregation interval, only a portion of the time series may be included in that period, leading to distorted calculations. To mitigate this, consider the following options:
+
+- Set `-remoteWrite.streamAggr.ignoreFirstIntervals=<intervalsCount>` command-line flag to [vmagent](https://docs.victoriametrics.com/vmagent/)
+  or `-streamAggr.ignoreFirstIntervals=<intervalsCount>` command-line flag to [single-node VictoriaMetrics](https://docs.victoriametrics.com/) to skip first `<intervalsCount>` [aggregation intervals](#stream-aggregation-config)
+  from persisting to the storage.  It is expected that all incomplete or queued data will be processed during 
+  specified `<intervalsCount>` and  all subsequent aggregation intervals will produce correct data.
+
+- To set `ignore_first_intervals: <intervalsCount>` option at the particular [aggregation config](#stream-aggregation-config).
+  This enables ignoring first `<intervalsCount>` aggregation intervals for that particular aggregation config.
+
 ## Flush time alignment
 
 By default the time for aggregated data flush is aligned by the `interval` option specified in [aggregate config](#stream-aggregation-config).
