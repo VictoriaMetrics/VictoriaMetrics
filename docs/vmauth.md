@@ -1121,7 +1121,7 @@ It is safe sharing the collected profiles from security point of view, since the
 
 Pass `-help` command-line arg to `vmauth` in order to see all the configuration options:
 
-```sh
+```
 ./vmauth -help
 
 vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics.

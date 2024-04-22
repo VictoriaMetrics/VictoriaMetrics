@@ -1623,7 +1623,7 @@ It is safe sharing the collected profiles from security point of view, since the
 
 `vmagent` can be fine-tuned with various command-line flags. Run `./vmagent -help` in order to see the full list of these flags with their descriptions and default values:
 
-```sh
+```
 ./vmagent -help
 
 vmagent collects metrics data via popular data ingestion protocols and routes them to VictoriaMetrics.
