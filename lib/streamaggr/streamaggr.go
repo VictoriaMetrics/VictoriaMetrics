@@ -112,11 +112,11 @@ type Options struct {
 	// This option can be overridden individually per each aggregation via ignore_old_samples option.
 	IgnoreOldSamples bool
 
-	// IgnoreFirstIntervals sets amount of intervals to ignore on start
+	// IgnoreFirstIntervals sets amount of aggregation intervals to ignore on start.
 	//
-	// By default no intervals will be ignored.
+	// By default, no intervals will be ignored.
 	//
-	// This option can be overridden individually per each aggregation via ignore_intervals_on_start option.
+	// This option can be overridden individually per each aggregation via ignore_first_intervals option.
 	IgnoreFirstIntervals int
 }
 
