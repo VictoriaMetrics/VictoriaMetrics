@@ -64,8 +64,6 @@ var (
 		"See https://docs.victoriametrics.com/cluster-victoriametrics/#multi-level-cluster-setup . Usually :8401 should be set to match default vmstorage port for vmselect. Disabled work if empty")
 )
 
-var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
-
 func getDefaultMaxConcurrentRequests() int {
 	n := cgroup.AvailableCPUs()
 	if n <= 4 {
@@ -182,6 +180,61 @@ var (
 	})
 )
 
+func updateSlowQueryPathCounter(p *httpserver.Path, path string) {
+	switch path {
+	case "/admin/tenants":
+        pathSlowTenantsRequests.Inc()
+	}
+
+	switch p.Suffix {
+	case "prometheus/api/v1/query":
+		pathSlowQuery.Inc()
+	case "prometheus/api/v1/query_range":
+		pathSlowQueryRange.Inc()
+	case "prometheus/api/v1/series":
+		logger.Warnf("api series")
+		pathSlowSeries.Inc()
+	case "prometheus/api/v1/series/count":
+		logger.Warnf("api series count")
+		pathSlowSeriesCount.Inc()
+	case "prometheus/api/v1/label/{}/values":
+		pathSlowLabels.Inc()
+	case "prometheus/api/v1/status/tsdb":
+		pathSlowTsdb.Inc()
+	case "prometheus/api/v1/export":
+		pathSlowExport.Inc()
+	case "prometheus/api/v1/export/native":
+		pathSlowExportNative.Inc()
+	case "prometheus/api/v1/export/csv":
+		pathSlowExportCsv.Inc()
+	case "prometheus/federate":
+		pathSlowFederate.Inc()
+	case "graphite/metrics/find", "graphite/metrics/find/":
+		pathSlowMetricsFind.Inc()
+	case "graphite/metrics/expand", "graphite/metrics/expand/":
+		pathSlowMetricsExpand.Inc()
+	case "graphite/metrics/index.json", "graphite/metrics/index.json/":
+		pathSlowMetricsIndex.Inc()
+	case "graphite/tags/tagSeries":
+		pathSlowTagSeries.Inc()
+	case "graphite/tags/tagMultiSeries":
+		pathSlowTagMultiSeries.Inc()
+	case "graphite/tags":
+		pathSlowTags.Inc()
+	case "graphite/tags/findSeries":
+		pathSlowFindSeries.Inc()
+	case "graphite/tags/autoComplete/tags":
+		pathSlowAutocompleteTags.Inc()
+	case "graphite/tags/autoComplete/values":
+		pathSlowAutocompleteValues.Inc()
+	case "graphite/tags/delSeries":
+		pathSlowDelSeries.Inc()
+	case "graphite/render":
+		pathSlowRender.Inc()
+	}
+}
+
+
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
 
@@ -234,6 +287,11 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 	}
+	p, err := httpserver.ParsePath(path)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot parse path %q: %s", path, err)
+		return true
+	}
 
 	if *logSlowQueryDuration > 0 {
 		actualStartTime := time.Now()
@@ -244,6 +302,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 				requestURI := httpserver.GetRequestURI(r)
 				logger.Warnf("slow query according to -search.logSlowQueryDuration=%s: remoteAddr=%s, duration=%.3f seconds; requestURI: %q",
 					*logSlowQueryDuration, remoteAddr, d.Seconds(), requestURI)
+                                updateSlowQueryPathCounter(p, path)
 				slowQueries.Inc()
 			}
 		}()
@@ -264,11 +323,6 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "error getting tenants: %s", err)
 			return true
 		}
-		return true
-	}
-	p, err := httpserver.ParsePath(path)
-	if err != nil {
-		httpserver.Errorf(w, r, "cannot parse path %q: %s", path, err)
 		return true
 	}
 	at, err := auth.NewToken(p.AuthToken)
@@ -900,6 +954,32 @@ var (
 
 	httpRequests         = tenantmetrics.NewCounterMap(`vm_tenant_select_requests_total`)
 	httpRequestsDuration = tenantmetrics.NewCounterMap(`vm_tenant_select_requests_duration_ms_total`)
+)
+
+var (
+	slowQueries                     = metrics.NewCounter(`vm_slow_queries_total{path="*"}`)
+	pathSlowTenantsRequests         = metrics.NewCounter(`vm_slow_queries_total{path="/admin/tenants"}`)
+	pathSlowQuery                   = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/prometheus/api/v1/query"}`)
+	pathSlowQueryRange              = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/prometheus/api/v1/query_range"}`)
+	pathSlowSeries                  = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/prometheus/api/v1/series"}`)
+	pathSlowSeriesCount             = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/prometheus/api/v1/series/count"}`)
+	pathSlowLabels                  = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/prometheus/api/v1/label/{}/values"}`)
+	pathSlowTsdb                    = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/prometheus/api/v1/status/tsdb"}`)
+	pathSlowExport                  = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/prometheus/api/v1/export"}`)
+	pathSlowExportNative            = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/prometheus/api/v1/export/native"}`)
+	pathSlowExportCsv               = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/prometheus/api/v1/export/csv"}`)
+	pathSlowFederate                = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/prometheus/federate"}`)
+	pathSlowMetricsFind             = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/graphite/metrics/find"}`)
+	pathSlowMetricsExpand           = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/graphite/metrics/expand"}`)
+	pathSlowMetricsIndex            = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/graphite/metrics/index.json"}`)
+	pathSlowTagSeries               = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/graphite/tags/tagSeries"}`)
+	pathSlowTagMultiSeries          = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/graphite/tags/tagMultiSeries"}`)
+	pathSlowTags                    = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/graphite/tags"}`)
+	pathSlowFindSeries              = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/graphite/tags/findSeries"}`)
+	pathSlowAutocompleteTags        = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/graphite/tags/autoComplete/tags"}`)
+	pathSlowAutocompleteValues      = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/graphite/tags/autoComplete/values"}`)
+	pathSlowDelSeries               = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/graphite/tags/delSeries"}`)
+	pathSlowRender                  = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/graphite/render"}`)
 )
 
 func usage() {
