@@ -16,6 +16,9 @@ aliases:
 
 ## Next release
 
+- [operator](./README.md): fix conversion from `ServiceMonitor` to `VMServiceScrape`, `bearerTokenSecret` is dropped mistakenly since [v0.43.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.0). See [this issue](https://github.com/VictoriaMetrics/operator/issues/932).
+- [operator](./README.md): fix selector match for config resources like VMUser, VMRule... , before it could be ignored when update resource labels.
+
 <a name="v0.43.2"></a>
 
 ## [v0.43.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.2) - 22 Apr 2024
