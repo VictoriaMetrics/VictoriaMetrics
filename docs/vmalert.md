@@ -1362,14 +1362,17 @@ The shortlist of configuration flags is the following:
       -rule="http://<some-server-addr>/path/to/rules". HTTP URL to a page with alerting rules.
       -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod". 
       -rule="dir/**/*.yaml". Includes all the .yaml files in "dir" subfolders recursively.
-     Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
-     
+     Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.   
      Enterprise version of vmalert supports S3 and GCS paths to rules.
      For example: gs://bucket/path/to/rules, s3://bucket/path/to/rules
      S3 and GCS paths support only matching by prefix, e.g. s3://bucket/dir/rule_ matches
      all files with prefix rule_ in folder dir.
+<<<<<<< Updated upstream
      See https://docs.victoriametrics.com/vmalert/#reading-rules-from-object-storage
      
+=======
+     See https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage
+>>>>>>> Stashed changes
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -rule.evalDelay time
@@ -1386,8 +1389,7 @@ The shortlist of configuration flags is the following:
       -rule.templates="/path/to/file". Path to a single file with go templates
       -rule.templates="dir/*.tpl" -rule.templates="/*.tpl". Relative path to all .tpl files in "dir" folder,
      absolute path to all .tpl files in root.
-      -rule.templates="dir/**/*.tpl". Includes all the .tpl files in "dir" subfolders recursively.
-     
+      -rule.templates="dir/**/*.tpl". Includes all the .tpl files in "dir" subfolders recursively.   
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -rule.updateEntriesLimit int
