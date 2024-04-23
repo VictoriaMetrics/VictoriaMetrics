@@ -5521,7 +5521,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "The number of on-going merges in storage nodes.  It is expected to have high numbers for `storage/small` metric.",
+          "description": "The max number of on-going merges across storage nodes.\n The drastic change in number of merges could be a sign of on-going deduplication/downsampling activity.\n It is expected to have high numbers for `storage/small` metric.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5610,7 +5610,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(max_over_time(vm_active_merges{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval])) by(type)",
+              "expr": "max(max_over_time(vm_active_merges{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval])) by(type)",
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
