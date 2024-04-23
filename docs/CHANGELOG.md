@@ -51,7 +51,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 Released at 2024-04-11
 
-**Update note 1: When upgrading to this release from [v1.99.0](https://docs.victoriametrics.com/changelog/#v1990) or [v1.100.0](https://docs.victoriametrics.com/changelog/#v11000) it is recommended to reset caches stored on disk according to [these](https://docs.victoriametrics.com/single-server-victoriametrics/#cache-removal) docs.**
+**Update note 1: This release contains the issue which could lead to extra CPU usage of storage component in ENT distribution of VictoriaMetrics. The issue is caused by [downsampling per distinct sets of time series](https://docs.victoriametrics.com/#downsampling) feature introduced in 1.100.0 ENT version. Please, rollback [v1.98.0](https://docs.victoriametrics.com/changelog/#v1980) ENT version if you're affected.**
+**Update note 2: When upgrading to this release from [v1.99.0](https://docs.victoriametrics.com/changelog/#v1990) or [v1.100.0](https://docs.victoriametrics.com/changelog/#v11000) it is recommended to reset caches stored on disk according to [these](https://docs.victoriametrics.com/single-server-victoriametrics/#cache-removal) docs.**
 
 * FEATURE: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): allow specifying custom backup interval via `-backupInterval` command-line flag. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5966).
 
