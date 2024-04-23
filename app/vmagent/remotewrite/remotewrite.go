@@ -259,6 +259,9 @@ func dropDanglingQueues() {
 	// This is required for the case when the number of queues has been changed or URL have been changed.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4014
 	//
+	// In case if there were many persistent queues with identical *remoteWriteURLs
+	// the queue with the last index will be dropped.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6140
 	existingQueues := make(map[string]struct{}, len(rwctxsDefault))
 	for _, rwctx := range rwctxsDefault {
 		existingQueues[rwctx.fq.Dirname()] = struct{}{}
