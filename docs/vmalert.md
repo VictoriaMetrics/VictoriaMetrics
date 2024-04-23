@@ -1367,12 +1367,6 @@ The shortlist of configuration flags is the following:
      For example: gs://bucket/path/to/rules, s3://bucket/path/to/rules
      S3 and GCS paths support only matching by prefix, e.g. s3://bucket/dir/rule_ matches
      all files with prefix rule_ in folder dir.
-<<<<<<< Updated upstream
-     See https://docs.victoriametrics.com/vmalert/#reading-rules-from-object-storage
-     
-=======
-     See https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage
->>>>>>> Stashed changes
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -rule.evalDelay time
