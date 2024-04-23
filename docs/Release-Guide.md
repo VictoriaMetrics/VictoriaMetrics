@@ -38,11 +38,6 @@ docker buildx create --use --name=qemu
 docker buildx inspect --bootstrap  
 ```
 
-For ARM arch (M1/M2 processors) additionally configure docker with preferred platform:
-```
-export DOCKER_DEFAULT_PLATFORM=linux/amd64
-```
-
 By default, docker on MacOS has limited amount of resources (CPU, mem) to use. 
 Bumping the limits may significantly improve build speed.
 
