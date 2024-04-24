@@ -117,7 +117,7 @@ app-via-docker-linux-arm:
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm $(MAKE) app-via-docker-goos-goarch
 
 app-via-docker-linux-arm64:
-	CC=/opt/cross-builder/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc \
+	EXTRA_ENVS='CC=/opt/cross-builder/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc' \
 	CGO_ENABLED=1 GOOS=linux GOARCH=arm64 $(MAKE) app-via-docker-goos-goarch
 
 app-via-docker-linux-ppc64le:
@@ -145,37 +145,28 @@ app-via-docker-windows-amd64:
 
 package-via-docker-goarch:
 	APP_SUFFIX='-$(GOARCH)' \
-	DOCKER_OPTS='--env CGO_ENABLED=$(CGO_ENABLED) --env GOOS=linux --env GOARCH=$(GOARCH)' \
+	DOCKER_OPTS='--env CGO_ENABLED=$(CGO_ENABLED) --env GOOS=linux --env GOARCH=$(GOARCH) $(foreach v,$(EXTRA_ENVS),--env $(v))' \
 	$(MAKE) package-via-docker
-
-package-via-docker-goarch-arm64:
-	APP_SUFFIX='-arm64' \
-	DOCKER_OPTS='--env CGO_ENABLED=1 --env GOOS=linux --env GOARCH=arm64 --env CC=/opt/cross-builder/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc' \
-	$(MAKE) package-via-docker
-
-package-via-docker-goarch-cgo:
-	CGO_ENABLED=1 $(MAKE) package-via-docker-goarch
-
-package-via-docker-goarch-nocgo:
-	CGO_ENABLED=0 $(MAKE) package-via-docker-goarch
 
 package-via-docker-pure:
 	APP_SUFFIX='-pure' DOCKER_OPTS='--env CGO_ENABLED=0' $(MAKE) package-via-docker
 
 package-via-docker-amd64:
-	GOARCH=amd64 $(MAKE) package-via-docker-goarch-cgo
+	EXTRA_ENVS='CC=/opt/cross-builder/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc' \
+	GOARCH=amd64 GOARCH=amd64 $(MAKE) package-via-docker-goarch
 
 package-via-docker-arm:
-	GOARCH=arm $(MAKE) package-via-docker-goarch-nocgo
+	GOARCH=arm CGO_ENABLED=0 $(MAKE) package-via-docker-goarch
 
 package-via-docker-arm64:
-	$(MAKE) package-via-docker-goarch-arm64
+	EXTRA_ENVS='CC=/opt/cross-builder/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc' \
+	CGO_ENABLED=1 GOARCH=arm64 $(MAKE) package-via-docker-goarch
 
 package-via-docker-ppc64le:
-	GOARCH=ppc64le $(MAKE) package-via-docker-goarch-nocgo
+	GOARCH=ppc64le CGO_ENABLED=0 $(MAKE) package-via-docker-goarch
 
 package-via-docker-386:
-	GOARCH=386 $(MAKE) package-via-docker-goarch-nocgo
+	GOARCH=386 CGO_ENABLED=0 $(MAKE) package-via-docker-goarch
 
 remove-docker-images:
 	docker image ls --format '{{.ID}}' | xargs docker image rm -f
