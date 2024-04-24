@@ -28,7 +28,7 @@ Also you can follow the other steps in documentation to use VictoriaMetrics Oper
 - [Authorization and exposing components](./auth.md)
 - [High Availability](./high-availability.md)
 - [Enterprise](./enterprise.md)
-- [Custom resources](./resources/README.md)
+- [Custom resources](./resources/vmcustomresources.md)
 - [FAQ (Frequency Asked Questions)](./FAQ.md)
 
 But if you want to deploy VictoriaMetrics Operator quickly from scratch (without using templating for custom resources), 
@@ -166,7 +166,7 @@ consisting of `vmstorage`, `vmselect` and `vminsert`):
 
 <img src="quick-start_cluster-scheme.png" width="1200">
 
-More details about resources of VictoriaMetrics operator you can find on the [resources page](./resources/README.md). 
+More details about resources of VictoriaMetrics operator you can find on the [resources page](./resources/vmcustomresources.md). 
 
 ### VMCluster (vmselect, vminsert, vmstorage)
 
@@ -319,7 +319,7 @@ the [vmagent page](./resources/vmagent.md).
 Now we have the timeseries database (vmcluster) and the tool to collect metrics (vmagent) and send it to the database.
 
 But we need to tell vmagent what metrics to collect. For this we will use [`vmservicescrape`](./resources/vmservicescrape.md) resource
-or [other `*scrape` resources](./resources/README.md).
+or [other `*scrape` resources](./resources/vmcustomresources.md).
 
 By default, operator creates `vmservicescrape` resource for each component that it manages. More details about this you can find on
 the [monitoring page](./configuration.md#monitoring-of-cluster-components).
@@ -683,7 +683,7 @@ That's it. We obtained a monitoring cluster corresponding to the target topology
 
 You have a full-stack monitoring cluster with VictoriaMetrics Operator.
 
-You can find information about these and other resources of operator on the [Custom resources page](./resources/README.md).
+You can find information about these and other resources of operator on the [Custom resources page](./resources/vmcustomresources.md).
 
 In addition, check out other sections of the documentation for VictoriaMetrics Operator:
 
