@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,9 +26,9 @@ var (
 	httpListenAddr    = flag.String("httpListenAddr", ":8420", "TCP address for exporting metrics at /metrics page")
 	storageDataPath   = flag.String("storageDataPath", "victoria-metrics-data", "Path to VictoriaMetrics data. Must match -storageDataPath from VictoriaMetrics or vmstorage")
 	snapshotName      = flag.String("snapshotName", "", "Name for the snapshot to backup. See https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-work-with-snapshots. There is no need in setting -snapshotName if -snapshot.createURL is set")
-	snapshotCreateURL = flag.String("snapshot.createURL", "", "VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup. "+
+	snapshotCreateURL = flagutil.NewURL("snapshot.createURL", "VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup. "+
 		"Example: http://victoriametrics:8428/snapshot/create . There is no need in setting -snapshotName if -snapshot.createURL is set")
-	snapshotDeleteURL = flag.String("snapshot.deleteURL", "", "VictoriaMetrics delete snapshot url. Optional. Will be generated from -snapshot.createURL if not provided. "+
+	snapshotDeleteURL = flagutil.NewURL("snapshot.deleteURL", "VictoriaMetrics delete snapshot url. Optional. Will be generated from -snapshot.createURL if not provided. "+
 		"All created snapshots will be automatically deleted. Example: http://victoriametrics:8428/snapshot/delete")
 	dst = flag.String("dst", "", "Where to put the backup on the remote storage. "+
 		"Example: gs://bucket/path/to/backup, s3://bucket/path/to/backup, azblob://container/path/to/backup or fs:///path/to/local/backup/dir\n"+
@@ -55,31 +54,23 @@ func main() {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2055
 	deleteSnapshot := func() {}
 
-	if len(*snapshotCreateURL) > 0 {
-		// create net/url object
-		createURL, err := url.Parse(*snapshotCreateURL)
-		if err != nil {
-			logger.Fatalf("cannot parse snapshotCreateURL: %s", err)
-		}
+	if len(snapshotCreateURL.String()) > 0 {
 		if len(*snapshotName) > 0 {
 			logger.Fatalf("-snapshotName shouldn't be set if -snapshot.createURL is set, since snapshots are created automatically in this case")
 		}
-		logger.Infof("Snapshot create url %s", createURL.Redacted())
-		if len(*snapshotDeleteURL) <= 0 {
-			err := flag.Set("snapshot.deleteURL", strings.Replace(*snapshotCreateURL, "/create", "/delete", 1))
+
+		logger.Infof("Snapshot create url %s", snapshotCreateURL.String())
+		if len(snapshotDeleteURL.String()) <= 0 {
+			err := flag.Set("snapshot.deleteURL", strings.Replace(snapshotCreateURL.Get(), "/create", "/delete", 1))
 			if err != nil {
 				logger.Fatalf("Failed to set snapshot.deleteURL flag: %v", err)
 			}
 		}
-		deleteURL, err := url.Parse(*snapshotDeleteURL)
-		if err != nil {
-			logger.Fatalf("cannot parse snapshotDeleteURL: %s", err)
-		}
-		logger.Infof("Snapshot delete url %s", deleteURL.Redacted())
 
-		name, err := snapshot.Create(createURL.String())
+		logger.Infof("Snapshot delete url %s", snapshotDeleteURL)
+		name, err := snapshot.Create(snapshotCreateURL.Get())
 		if err != nil {
-			logger.Fatalf("cannot create snapshot: %s", err)
+			logger.Fatalf("cannot create snapshot via %q: %s", snapshotCreateURL, err)
 		}
 		err = flag.Set("snapshotName", name)
 		if err != nil {
@@ -87,9 +78,9 @@ func main() {
 		}
 
 		deleteSnapshot = func() {
-			err := snapshot.Delete(deleteURL.String(), name)
+			err := snapshot.Delete(snapshotDeleteURL.Get(), name)
 			if err != nil {
-				logger.Fatalf("cannot delete snapshot: %s", err)
+				logger.Fatalf("cannot delete snapshot via %q: %s", snapshotDeleteURL, err)
 			}
 		}
 	}
