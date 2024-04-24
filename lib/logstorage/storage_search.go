@@ -133,6 +133,13 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 			bs := getBlockSearch()
 			for bsws := range workCh {
 				for _, bsw := range bsws {
+					select {
+					case <-stopCh:
+						// The search has been canceled. Just skip all the scheduled work in order to save CPU time.
+						continue
+					default:
+					}
+
 					bs.search(bsw)
 					if bs.br.RowsCount() > 0 {
 						processBlockResult(workerID, &bs.br)
