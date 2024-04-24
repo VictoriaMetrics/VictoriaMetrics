@@ -51,13 +51,13 @@ func Create(createSnapshotURL string) (string, error) {
 		return "", err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", u.Redacted(), resp.StatusCode, http.StatusOK, body)
+		return "", fmt.Errorf("unexpected status code: %d; expecting %d; response body: %q", resp.StatusCode, http.StatusOK, body)
 	}
 
 	snap := snapshot{}
 	err = json.Unmarshal(body, &snap)
 	if err != nil {
-		return "", fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", u.Redacted(), err, body)
+		return "", fmt.Errorf("cannot parse JSON response: %w; response body: %q", err, body)
 	}
 
 	if snap.Status == "ok" {
@@ -67,7 +67,7 @@ func Create(createSnapshotURL string) (string, error) {
 	if snap.Status == "error" {
 		return "", errors.New(snap.Msg)
 	}
-	return "", fmt.Errorf("Unkown status: %v", snap.Status)
+	return "", fmt.Errorf("unknown status: %v", snap.Status)
 }
 
 // Delete deletes a snapshot via the provided api endpoint
@@ -95,13 +95,13 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 		return err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", u.Redacted(), resp.StatusCode, http.StatusOK, body)
+		return fmt.Errorf("unexpected status code: %d; expecting %d; response body: %q", resp.StatusCode, http.StatusOK, body)
 	}
 
 	snap := snapshot{}
 	err = json.Unmarshal(body, &snap)
 	if err != nil {
-		return fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", u.Redacted(), err, body)
+		return fmt.Errorf("cannot parse JSON response: %w; response body: %q", err, body)
 	}
 
 	if snap.Status == "ok" {
@@ -111,5 +111,5 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 	if snap.Status == "error" {
 		return errors.New(snap.Msg)
 	}
-	return fmt.Errorf("Unkown status: %v", snap.Status)
+	return fmt.Errorf("unknown status: %v", snap.Status)
 }
