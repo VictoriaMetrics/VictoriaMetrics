@@ -14,7 +14,7 @@ type blockSearchWork struct {
 	// p is the part where the block belongs to.
 	p *part
 
-	// so contains search options for the block search
+	// so contains search options for the block search.
 	so *searchOptions
 
 	// bh is the header of the block to search.

@@ -114,7 +114,8 @@ func main() {
 			currBytes := bytesGenerated.Load()
 			deltaBytes := currBytes - prevBytes
 			rateBytes := float64(deltaBytes) / statInterval.Seconds()
-			logger.Infof("generated %d log entries at %.0fK entries/sec, %d bytes at %.0fMB/sec", deltaEntries, rateEntries/1e3, deltaBytes, rateBytes/1e6)
+			logger.Infof("generated %dK log entries (%dK total) at %.0fK entries/sec, %dMB (%dMB total) at %.0fMB/sec",
+				deltaEntries/1e3, currEntries/1e3, rateEntries/1e3, deltaBytes/1e6, currBytes/1e6, rateBytes/1e6)
 
 			prevEntries = currEntries
 			prevBytes = currBytes
@@ -128,7 +129,7 @@ func main() {
 	currBytes := bytesGenerated.Load()
 	rateEntries := float64(currEntries) / dSecs
 	rateBytes := float64(currBytes) / dSecs
-	logger.Infof("ingested %d log entries (%d bytes) in %.3f seconds; avg ingestion rate: %.0fK entries/sec, %.0fMB/sec", currEntries, currBytes, dSecs, rateEntries/1e3, rateBytes/1e6)
+	logger.Infof("ingested %dK log entries (%dMB) in %.3f seconds; avg ingestion rate: %.0fK entries/sec, %.0fMB/sec", currEntries/1e3, currBytes/1e6, dSecs, rateEntries/1e3, rateBytes/1e6)
 }
 
 var logEntriesCount atomic.Uint64
@@ -198,8 +199,8 @@ func generateLogsAtTimestamp(bw *bufio.Writer, workerID int, ts int64, firstStre
 	streamID := firstStreamID
 	timeStr := toRFC3339(ts)
 	for i := 0; i < activeStreams; i++ {
-		fmt.Fprintf(bw, `{"_time":%q,"_msg":"some message %d for the stream %d; some foo bar baz error warn 1.2.3.4","host":"host_%d","worker_id":"%d"`,
-			timeStr, i, streamID, streamID, workerID)
+		fmt.Fprintf(bw, `{"_time":%q,"_msg":"message #%d (%d) for the stream %d and worker %d; some foo bar baz error warn 1.2.3.4","host":"host_%d","worker_id":"%d"`,
+			timeStr, ts, i, streamID, workerID, streamID, workerID)
 		for j := 0; j < varFieldsPerEntry; j++ {
 			fmt.Fprintf(bw, `,"var_field_%d":"value_%d_%d_%d"`, j, i, j, streamID)
 		}
