@@ -2211,7 +2211,8 @@ MetricsQL supports and extends PromQL subqueries. See [this article](https://val
 Any [rollup function](#rollup-functions) for something other than [series selector](https://docs.victoriametrics.com/keyconcepts/#filtering) form a subquery.
 Nested rollup functions can be implicit thanks to the [implicit query conversions](#implicit-query-conversions).
 For example, `delta(sum(m))` is implicitly converted to `delta(sum(default_rollup(m))[1i:1i])`, so it becomes a subquery,
-since it contains [default_rollup](#default_rollup) nested into [delta](#delta).
+since it contains [default_rollup](#default_rollup) nested into [delta](#delta).  
+This behavior can be diabled or logged in [VictoriaMetrics single-node](https://docs.victoriametrics.com/single-server-victoriametrics/) or [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/) using cmd-line flags `-search.disableImplicitConversion` and `-search.logImplicitConversion` since v1.100.2.
 
 VictoriaMetrics performs subqueries in the following way:
 
@@ -2241,7 +2242,9 @@ VictoriaMetrics performs the following implicit conversions for incoming queries
   * `abs(temperature)` is transformed to `abs(default_rollup(temperature))`, because [abs](#abs) isn't a [rollup function](#rollup-functions) -
     it is [transform function](#transform-functions)
 * If `step` in square brackets is missing inside [subquery](#subqueries), then `1i` step is automatically added there.
-  For example, `avg_over_time(rate(http_requests_total[5m])[1h])` is automatically converted to `avg_over_time(rate(http_requests_total[5m])[1h:1i])`.
+  For example, `avg_over_time(rate(http_requests_total[5m])[1h])` is automatically converted to `avg_over_time(rate(http_requests_total[5m])[1h:1i])`.  
+  This behavior can be diabled or logged in [VictoriaMetrics single-node](https://docs.victoriametrics.com/single-server-victoriametrics/) or [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/) using cmd-line flags `-search.disableImplicitConversion` and `-search.logImplicitConversion` since v1.100.2.
 * If something other than [series selector](https://docs.victoriametrics.com/keyconcepts/#filtering)
   is passed to [rollup function](#rollup-functions), then a [subquery](#subqueries) with `1i` lookbehind window and `1i` step is automatically formed.
-  For example, `rate(sum(up))` is automatically converted to `rate((sum(default_rollup(up)))[1i:1i])`.
+  For example, `rate(sum(up))` is automatically converted to `rate((sum(default_rollup(up)))[1i:1i])`.  
+  This behavior can be diabled or logged in [VictoriaMetrics single-node](https://docs.victoriametrics.com/single-server-victoriametrics/) or [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/) using cmd-line flags `-search.disableImplicitConversion` and `-search.logImplicitConversion` since v1.100.2.

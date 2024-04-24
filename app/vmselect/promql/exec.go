@@ -27,12 +27,11 @@ var (
 		`For example, foo{bar=~"a.b.c"} will be automatically converted to foo{bar=~"a\\.b\\.c"}, i.e. all the dots in regexp filters will be automatically escaped `+
 		`in order to match only dot char instead of matching any char. Dots in ".+", ".*" and ".{n}" regexps aren't escaped. `+
 		`This option is DEPRECATED in favor of {__graphite__="a.*.c"} syntax for selecting metrics matching the given Graphite metrics filter`)
-	disableImplicitConversion = flag.Bool("search.disableImplicitConversion", false, "Whether to disable implicit conversion for subquery, "+
-		"see https://docs.victoriametrics.com/metricsql/#implicit-query-conversions for details. "+
-		"For example, 'rate(sum(up))' will be automatically converted to 'rate((sum(up))[1i:1i])' by default, and the result may be unexpected since '1i' is dynamic. "+
+	disableImplicitConversion = flag.Bool("search.disableImplicitConversion", false, "Whether to return an error for queries that rely on implicit subquery conversions, "+
+		"see https://docs.victoriametrics.com/metricsql/#subqueries for details. "+
 		"See also -search.logImplicitConversion.")
-	logImplicitConversion = flag.Bool("search.logImplicitConversion", true, "Whether to log implicit conversion for subquery, "+
-		"see https://docs.victoriametrics.com/metricsql/#implicit-query-conversions for details. "+
+	logImplicitConversion = flag.Bool("search.logImplicitConversion", true, "Whether to log queries with implicit subquery conversions, "+
+		"see https://docs.victoriametrics.com/metricsql/#subqueries for details. "+
 		"Such conversion can be disabled using -search.disableImplicitConversion.")
 )
 
@@ -70,13 +69,12 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 	if err != nil {
 		return nil, err
 	}
-	if !isSubQueryComplete(e, false) {
-		if *disableImplicitConversion {
-			return nil, fmt.Errorf("query contains incomplete subquery, which is forbidden when `-search.disableImplicitConversion=true`")
-		}
-		if *logImplicitConversion {
-			logger.Warnf("query=%q contains incomplete subquery, try fix it by providing step and lookbehind window in square brackets inside subquery, see https://docs.victoriametrics.com/metricsql/#implicit-query-conversions for details", e.AppendString(nil))
-		}
+
+	if *disableImplicitConversion && !isSubQueryComplete(e, false) {
+		return nil, fmt.Errorf("query contains incomplete subquery, which is forbidden when `-search.disableImplicitConversion=true`. See https://docs.victoriametrics.com/metricsql/#subqueries for details")
+	}
+	if !*disableImplicitConversion && *logImplicitConversion && !isSubQueryComplete(e, false) {
+		logger.Warnf("query=%q contains incomplete subquery, try fix it by providing step and lookbehind window in square brackets inside subquery, see https://docs.victoriametrics.com/metricsql/#subqueries for details", e.AppendString(nil))
 	}
 
 	qid := activeQueriesV.Add(ec, q)
