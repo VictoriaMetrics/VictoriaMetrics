@@ -624,9 +624,7 @@ func logHttpHeaderMsg(r *http.Request) (headerMsg string) {
 	if len(headerMsg) > 0 {
 		// Remove trailing space
 		headerMsg = headerMsg[:len(headerMsg)-1]
-	}
-
-	if len(headerMsg) == 0 {
+	} else {
 		logger.Warnf("-log.httpHeaders: no headers found in %q", httpserver.GetRequestURI(r))
 	}
 
