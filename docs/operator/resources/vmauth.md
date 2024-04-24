@@ -33,7 +33,7 @@ The CRD specifies which `VMUser`s should be covered by the deployed `VMAuth` ins
 The Operator then generates a configuration based on the included `VMUser`s and updates the `Configmaps` containing
 the configuration. It continuously does so for all changes that are made to `VMUser`s or to the `VMAuth` resource itself.
 
-[VMUser](./vmrule.md) objects generate part of `VMAuth` configuration.
+[VMUser](./vmuser.md) objects generate part of `VMAuth` configuration.
 
 For filtering users `VMAuth` uses selectors `userNamespaceSelector` and `userSelector`.
 It allows configuring rules access control across namespaces and different environments.
