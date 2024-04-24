@@ -40,6 +40,7 @@ var (
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging. "+
 		"See also -search.logQueryMemoryUsage")
 	vmalertProxyURL = flag.String("vmalert.proxyURL", "", "Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules")
+	logHttpHeaders  = flagutil.NewArrayString("log.httpHeaders", "Optional add request headers log to HTTP requests made by vmselect; usage: -log.httpHeaders=X-Webauth-User1,...,X-Webauth-UserN")
 )
 
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
@@ -164,8 +165,18 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			if d >= *logSlowQueryDuration {
 				remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 				requestURI := httpserver.GetRequestURI(r)
-				logger.Warnf("slow query according to -search.logSlowQueryDuration=%s: remoteAddr=%s, duration=%.3f seconds; requestURI: %q",
-					*logSlowQueryDuration, remoteAddr, d.Seconds(), requestURI)
+				var headerMsg string
+				if len(*logHttpHeaders) > 0 {
+					headerMsg = logHttpHeaderMsg(r)
+				}
+				if len(headerMsg) > 0 {
+					logger.Warnf("header: %s, slow query according to -search.logSlowQueryDuration=%s: remoteAddr=%s, duration=%.3f seconds; requestURI: %q",
+						headerMsg, *logSlowQueryDuration, remoteAddr, d.Seconds(), requestURI)
+				} else {
+					logger.Warnf("slow query according to -search.logSlowQueryDuration=%s: remoteAddr=%s, duration=%.3f seconds; requestURI: %q",
+						*logSlowQueryDuration, remoteAddr, d.Seconds(), requestURI)
+				}
+
 				slowQueries.Inc()
 			}
 		}()
@@ -576,7 +587,16 @@ func isGraphiteTagsPath(path string) bool {
 }
 
 func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
-	logger.WarnfSkipframes(1, "error in %q: %s", httpserver.GetRequestURI(r), err)
+	var headerMsg string
+	if len(*logHttpHeaders) > 0 {
+		headerMsg = logHttpHeaderMsg(r)
+	}
+
+	if len(headerMsg) > 0 {
+		logger.WarnfSkipframes(1, "header: %s, error in %q: %s", headerMsg, httpserver.GetRequestURI(r), err)
+	} else {
+		logger.WarnfSkipframes(1, "error in %q: %s", httpserver.GetRequestURI(r), err)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	statusCode := http.StatusUnprocessableEntity
@@ -591,6 +611,26 @@ func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
 		err = ure
 	}
 	prometheus.WriteErrorResponse(w, statusCode, err)
+}
+
+func logHttpHeaderMsg(r *http.Request) (headerMsg string) {
+	for _, header := range *logHttpHeaders {
+		val := r.Header.Get(header)
+		if len(val) > 0 {
+			headerMsg += fmt.Sprintf("%s=%s ", header, val)
+		}
+	}
+
+	if len(headerMsg) > 0 {
+		// Remove trailing space
+		headerMsg = headerMsg[:len(headerMsg)-1]
+	}
+
+	if len(headerMsg) == 0 {
+		logger.Warnf("-log.httpHeaders: no headers found in %q", httpserver.GetRequestURI(r))
+	}
+
+	return
 }
 
 var (
