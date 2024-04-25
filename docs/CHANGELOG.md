@@ -30,6 +30,10 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+## [v1.101.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.101.0)
+
+Released at 2024-04-26
+
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/metricsql/): support filtering by multiple numeric constants via `q == (C1, ..., CN)` and `q != (C1, ..., CN)` syntax. For example, `status_code == (200, 201, 300)` returns `status_code` metrics with any of `200`, `201` or `300` values, while `status_code != (400, 404, 500)` returns `status_code` metrics with all the values except of `400`, `404` and `500`.
 * FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): add support for fault domain awareness to `vmselect`. It can be configured to return full responses if up to `-globalReplicationFactor - 1` fault domains (aka `vmstorage` groups) are unavailable. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6054) and [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#vmstorage-groups-at-vmselect).
 * FEATURE: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: add support for automatic issuing of TLS certificates for HTTPS server at `-httpListenAddr` via [Let's Encrypt service](https://letsencrypt.org/). See [these docs](https://docs.victoriametrics.com/#automatic-issuing-of-tls-certificates) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5949).
