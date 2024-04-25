@@ -70,11 +70,14 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 		return nil, err
 	}
 
-	if *disableImplicitConversion && !isSubQueryComplete(e, false) {
-		return nil, fmt.Errorf("query contains incomplete subquery, which is forbidden when `-search.disableImplicitConversion=true`. See https://docs.victoriametrics.com/metricsql/#subqueries for details")
-	}
-	if !*disableImplicitConversion && *logImplicitConversion && !isSubQueryComplete(e, false) {
-		logger.Warnf("query=%q contains incomplete subquery, try fix it by providing step and lookbehind window in square brackets inside subquery, see https://docs.victoriametrics.com/metricsql/#subqueries for details", e.AppendString(nil))
+	if *disableImplicitConversion || *logImplicitConversion {
+		complete := isSubQueryComplete(e, false)
+		if !complete && *logImplicitConversion {
+			logger.Warnf("query=%q contains subquery that requires implicit conversion, see https://docs.victoriametrics.com/metricsql/#subqueries for details", e.AppendString(nil))
+		}
+		if !complete && *disableImplicitConversion {
+			return nil, fmt.Errorf("query=%q contains subquery that requires implicit conversion and is rejected according to `-search.disableImplicitConversion=true` setting. See https://docs.victoriametrics.com/metricsql/#subqueries for details", e.AppendString(nil))
+		}
 	}
 
 	qid := activeQueriesV.Add(ec, q)
@@ -439,7 +442,8 @@ func isSubQueryComplete(e metricsql.Expr, isSubExpr bool) bool {
 		if _, ok := exp.Expr.(*metricsql.MetricExpr); ok {
 			return true
 		}
-		if exp.Window == nil || exp.Step == nil {
+		// exp.Step is optional in subqueries
+		if exp.Window == nil {
 			return false
 		}
 		return isSubQueryComplete(exp.Expr, false)
