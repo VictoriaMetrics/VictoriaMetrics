@@ -42,11 +42,10 @@ func ProcessQueryRequest(w http.ResponseWriter, r *http.Request, stopCh <-chan s
 	sw := getSortWriter()
 	sw.Init(w, maxSortBufferSize.IntN(), limit)
 	tenantIDs := []logstorage.TenantID{tenantID}
-	vlstorage.RunQuery(tenantIDs, q, stopCh, func(columns []logstorage.BlockColumn) {
+	vlstorage.RunQuery(tenantIDs, q, stopCh, func(_ uint, rowsCount int, columns []logstorage.BlockColumn) {
 		if len(columns) == 0 {
 			return
 		}
-		rowsCount := len(columns[0].Values)
 
 		bb := blockResultPool.Get()
 		for rowIdx := 0; rowIdx < rowsCount; rowIdx++ {

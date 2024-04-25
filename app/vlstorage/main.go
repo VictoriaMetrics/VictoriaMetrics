@@ -100,7 +100,7 @@ func MustAddRows(lr *logstorage.LogRows) {
 }
 
 // RunQuery runs the given q and calls processBlock for the returned data blocks
-func RunQuery(tenantIDs []logstorage.TenantID, q *logstorage.Query, stopCh <-chan struct{}, processBlock func(columns []logstorage.BlockColumn)) {
+func RunQuery(tenantIDs []logstorage.TenantID, q *logstorage.Query, stopCh <-chan struct{}, processBlock func(workerID uint, rowsCount int, columns []logstorage.BlockColumn)) {
 	strg.RunQuery(tenantIDs, q, stopCh, processBlock)
 }
 

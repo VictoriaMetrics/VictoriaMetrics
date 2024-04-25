@@ -805,11 +805,18 @@ func TestParseQuerySuccess(t *testing.T) {
 		`(_time:(2023-04-20,now] or _time:[-10m,-1m)) (_stream:{job="a"} or _stream:{instance!="b"}) (err* or ip:ipv4_range(1.2.3.0, 1.2.3.255) !ip:1.2.3.4)`)
 
 	// fields pipe
-	f(`foo | fields *`, `foo | fields *`)
+	f(`foo|fields *`, `foo | fields *`)
 	f(`foo | fields bar`, `foo | fields bar`)
-	f(`foo | FIELDS bar,Baz  , "a,b|c"`, `foo | fields bar, Baz, "a,b|c"`)
+	f(`foo|FIELDS bar,Baz  , "a,b|c"`, `foo | fields bar, Baz, "a,b|c"`)
 	f(`foo | Fields   x.y:z/a, _b$c`, `foo | fields "x.y:z/a", "_b$c"`)
-	f(`foo | fields bar | fields baz, abc`, `foo | fields baz, abc`)
+
+	// multiple fields pipes
+	f(`foo | fields bar | fields baz, abc`, `foo | fields bar | fields baz, abc`)
+
+	// stats count pipe
+	f(`* | Stats count() AS foo`, `* | stats count() as foo`)
+	f(`* | STATS bY (foo, b.a/r, "b az") count(*) as XYz`, `* | stats by (foo, "b.a/r", "b az") count() as XYz`)
+	f(`* | stats by() count(x, 'a).b,c|d') as qwert`, `* | stats count(x, "a).b,c|d") as qwert`)
 }
 
 func TestParseQueryFailure(t *testing.T) {

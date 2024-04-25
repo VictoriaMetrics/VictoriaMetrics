@@ -399,17 +399,19 @@ func (br *blockResult) mustInit(bs *blockSearch, bm *filterBitmap) {
 
 	br.streamID = bs.bsw.bh.streamID
 
-	if !bm.isZero() {
-		// Initialize timestamps, since they are used for determining the number of rows in br.RowsCount()
-		srcTimestamps := bs.getTimestamps()
-		dstTimestamps := br.timestamps[:0]
-		bm.forEachSetBit(func(idx int) bool {
-			ts := srcTimestamps[idx]
-			dstTimestamps = append(dstTimestamps, ts)
-			return true
-		})
-		br.timestamps = dstTimestamps
+	if bm.isZero() {
+		// Nothing to initialize for zero matching log entries in the block.
+		return
 	}
+	// Initialize timestamps, since they are used for determining the number of rows in br.RowsCount()
+	srcTimestamps := bs.getTimestamps()
+	dstTimestamps := br.timestamps[:0]
+	bm.forEachSetBit(func(idx int) bool {
+		ts := srcTimestamps[idx]
+		dstTimestamps = append(dstTimestamps, ts)
+		return true
+	})
+	br.timestamps = dstTimestamps
 }
 
 func (br *blockResult) addColumn(bs *blockSearch, ch *columnHeader, bm *filterBitmap) {

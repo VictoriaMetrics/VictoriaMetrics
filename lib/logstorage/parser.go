@@ -187,31 +187,28 @@ func (lex *lexer) nextToken() {
 type Query struct {
 	f filter
 
-	// fields contains optional list of fields to fetch
-	fields []string
+	pipes []pipe
 }
 
 // String returns string representation for q.
 func (q *Query) String() string {
 	s := q.f.String()
 
-	if len(q.fields) > 0 {
-		a := make([]string, len(q.fields))
-		for i, f := range q.fields {
-			if f != "*" {
-				f = quoteTokenIfNeeded(f)
-			}
-			a[i] = f
-		}
-		s += " | fields " + strings.Join(a, ", ")
+	for _, p := range q.pipes {
+		s += " | " + p.String()
 	}
 
 	return s
 }
 
 func (q *Query) getResultColumnNames() []string {
-	if len(q.fields) > 0 {
-		return q.fields
+	for _, p := range q.pipes {
+		switch t := p.(type) {
+		case *fieldsPipe:
+			return t.fields
+		case *statsPipe:
+			return t.neededFields()
+		}
 	}
 	return []string{"*"}
 }
@@ -228,66 +225,13 @@ func ParseQuery(s string) (*Query, error) {
 		f: f,
 	}
 
-	if err := q.parsePipes(lex); err != nil {
+	pipes, err := parsePipes(lex)
+	if err != nil {
 		return nil, fmt.Errorf("%w; context: %s", err, lex.context())
 	}
+	q.pipes = pipes
 
 	return q, nil
-}
-
-func (q *Query) parsePipes(lex *lexer) error {
-	for {
-		if lex.isEnd() {
-			return nil
-		}
-		if !lex.isKeyword("|") {
-			return fmt.Errorf("expecting '|'")
-		}
-		if !lex.mustNextToken() {
-			return fmt.Errorf("missing token after '|'")
-		}
-		switch {
-		case lex.isKeyword("fields"):
-			if err := q.parseFieldsPipe(lex); err != nil {
-				return fmt.Errorf("cannot parse fields pipe: %w", err)
-			}
-		default:
-			return fmt.Errorf("unexpected pipe %q", lex.token)
-		}
-	}
-}
-
-func (q *Query) parseFieldsPipe(lex *lexer) error {
-	var fields []string
-
-	for {
-		if !lex.mustNextToken() {
-			return fmt.Errorf("missing field name")
-		}
-		if lex.isKeyword(",") {
-			return fmt.Errorf("unexpected ','; expecting field name")
-		}
-		field := parseFieldName(lex)
-		fields = append(fields, field)
-		switch {
-		case lex.isKeyword("|", ""):
-			q.fields = fields
-			return nil
-		case lex.isKeyword(","):
-		default:
-			return fmt.Errorf("unexpected token: %q; expecting ','", lex.token)
-		}
-	}
-}
-
-func parseFieldName(lex *lexer) string {
-	s := lex.token
-	lex.nextToken()
-	for !lex.isSkippedSpace && !lex.isKeyword(",", "|", "") {
-		s += lex.rawToken
-		lex.nextToken()
-	}
-	return s
 }
 
 func parseFilter(lex *lexer) (filter, error) {

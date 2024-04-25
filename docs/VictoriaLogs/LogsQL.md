@@ -1056,7 +1056,7 @@ according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying
 LogsQL will support calculating the following stats based on the [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
 and fields created by [transformations](#transformations):
 
-- The number of selected logs.
+- The number of selected logs via `query | stats count() as total` syntax.
 - The number of non-empty values for the given field.
 - The number of unique values for the given field.
 - The min, max, avg, and sum for the given field.

@@ -43,15 +43,16 @@ type searchOptions struct {
 }
 
 // RunQuery runs the given q and calls processBlock for results
-func (s *Storage) RunQuery(tenantIDs []TenantID, q *Query, stopCh <-chan struct{}, processBlock func(columns []BlockColumn)) {
+func (s *Storage) RunQuery(tenantIDs []TenantID, q *Query, stopCh <-chan struct{}, processBlock func(workerID uint, rowsCount int, columns []BlockColumn)) {
 	resultColumnNames := q.getResultColumnNames()
 	so := &genericSearchOptions{
 		tenantIDs:         tenantIDs,
 		filter:            q.f,
 		resultColumnNames: resultColumnNames,
 	}
+
 	workersCount := cgroup.AvailableCPUs()
-	s.search(workersCount, so, stopCh, func(_ uint, br *blockResult) {
+	s.search(workersCount, so, stopCh, func(workerID uint, br *blockResult) {
 		brs := getBlockRows()
 		cs := brs.cs
 
@@ -61,7 +62,8 @@ func (s *Storage) RunQuery(tenantIDs []TenantID, q *Query, stopCh <-chan struct{
 				Values: br.getColumnValues(i),
 			})
 		}
-		processBlock(cs)
+		rowsCount := br.RowsCount()
+		processBlock(workerID, rowsCount, cs)
 
 		brs.cs = cs
 		putBlockRows(brs)
