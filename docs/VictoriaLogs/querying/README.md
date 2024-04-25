@@ -31,10 +31,8 @@ For example, the following query returns all the log entries with the `error` wo
 curl http://localhost:9428/select/logsql/query -d 'query=error'
 ```
 
-The response by default contains [`_msg`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field),
-[`_stream`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields) and
-[`_time`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field) fields plus the explicitly mentioned fields.
-See [these docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#querying-specific-fields) for details.
+The response by default contains all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+See [how to query specific fields](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#querying-specific-fields).
 
 The `query` argument can be passed either in the request url itself (aka HTTP GET request) or via request body
 with the `x-www-form-urlencoded` encoding (aka HTTP POST request). The HTTP POST is useful for sending long queries

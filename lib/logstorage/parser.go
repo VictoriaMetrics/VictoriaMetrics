@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -187,37 +186,34 @@ func (lex *lexer) nextToken() {
 // Query represents LogsQL query.
 type Query struct {
 	f filter
+
+	// fields contains optional list of fields to fetch
+	fields []string
 }
 
 // String returns string representation for q.
 func (q *Query) String() string {
-	return q.f.String()
+	s := q.f.String()
+
+	if len(q.fields) > 0 {
+		a := make([]string, len(q.fields))
+		for i, f := range q.fields {
+			if f != "*" {
+				f = quoteTokenIfNeeded(f)
+			}
+			a[i] = f
+		}
+		s += " | fields " + strings.Join(a, ", ")
+	}
+
+	return s
 }
 
 func (q *Query) getResultColumnNames() []string {
+	if len(q.fields) > 0 {
+		return q.fields
+	}
 	return []string{"*"}
-
-	m := make(map[string]struct{})
-	q.f.updateReferencedColumnNames(m)
-
-	// Substitute an empty column name with _msg column
-	if _, ok := m[""]; ok {
-		delete(m, "")
-		m["_msg"] = struct{}{}
-	}
-
-	// unconditionally select _time, _stream and _msg columns
-	// TODO: add the ability to filter out these columns
-	m["_time"] = struct{}{}
-	m["_stream"] = struct{}{}
-	m["_msg"] = struct{}{}
-
-	columnNames := make([]string, 0, len(m))
-	for k := range m {
-		columnNames = append(columnNames, k)
-	}
-	sort.Strings(columnNames)
-	return columnNames
 }
 
 // ParseQuery parses s.
@@ -226,16 +222,72 @@ func ParseQuery(s string) (*Query, error) {
 
 	f, err := parseFilter(lex)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse filter expression: %w; context: %s", err, lex.context())
+		return nil, fmt.Errorf("%w; context: %s", err, lex.context())
 	}
-	if !lex.isEnd() {
-		return nil, fmt.Errorf("unexpected tail: %q", lex.s)
-	}
-
 	q := &Query{
 		f: f,
 	}
+
+	if err := q.parsePipes(lex); err != nil {
+		return nil, fmt.Errorf("%w; context: %s", err, lex.context())
+	}
+
 	return q, nil
+}
+
+func (q *Query) parsePipes(lex *lexer) error {
+	for {
+		if lex.isEnd() {
+			return nil
+		}
+		if !lex.isKeyword("|") {
+			return fmt.Errorf("expecting '|'")
+		}
+		if !lex.mustNextToken() {
+			return fmt.Errorf("missing token after '|'")
+		}
+		switch {
+		case lex.isKeyword("fields"):
+			if err := q.parseFieldsPipe(lex); err != nil {
+				return fmt.Errorf("cannot parse fields pipe: %w", err)
+			}
+		default:
+			return fmt.Errorf("unexpected pipe %q", lex.token)
+		}
+	}
+}
+
+func (q *Query) parseFieldsPipe(lex *lexer) error {
+	var fields []string
+
+	for {
+		if !lex.mustNextToken() {
+			return fmt.Errorf("missing field name")
+		}
+		if lex.isKeyword(",") {
+			return fmt.Errorf("unexpected ','; expecting field name")
+		}
+		field := parseFieldName(lex)
+		fields = append(fields, field)
+		switch {
+		case lex.isKeyword("|", ""):
+			q.fields = fields
+			return nil
+		case lex.isKeyword(","):
+		default:
+			return fmt.Errorf("unexpected token: %q; expecting ','", lex.token)
+		}
+	}
+}
+
+func parseFieldName(lex *lexer) string {
+	s := lex.token
+	lex.nextToken()
+	for !lex.isSkippedSpace && !lex.isKeyword(",", "|", "") {
+		s += lex.rawToken
+		lex.nextToken()
+	}
+	return s
 }
 
 func parseFilter(lex *lexer) (filter, error) {
@@ -344,25 +396,25 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 	case lex.isKeyword(",", ")", "[", "]"):
 		return nil, fmt.Errorf("unexpected token %q", lex.token)
 	}
-	phrase := getCompoundPhrase(lex, fieldName)
+	phrase := getCompoundPhrase(lex, fieldName == "")
 	return parseFilterForPhrase(lex, phrase, fieldName)
 }
 
-func getCompoundPhrase(lex *lexer, fieldName string) string {
+func getCompoundPhrase(lex *lexer, stopOnColon bool) string {
 	phrase := lex.token
 	rawPhrase := lex.rawToken
 	lex.nextToken()
-	suffix := getCompoundSuffix(lex, fieldName)
+	suffix := getCompoundSuffix(lex, stopOnColon)
 	if suffix == "" {
 		return phrase
 	}
 	return rawPhrase + suffix
 }
 
-func getCompoundSuffix(lex *lexer, fieldName string) string {
+func getCompoundSuffix(lex *lexer, stopOnColon bool) string {
 	s := ""
 	stopTokens := []string{"*", ",", "(", ")", "[", "]", "|", ""}
-	if fieldName == "" {
+	if stopOnColon {
 		stopTokens = append(stopTokens, ":")
 	}
 	for !lex.isSkippedSpace && !lex.isKeyword(stopTokens...) {
@@ -495,7 +547,7 @@ func parseFuncArgMaybePrefix(lex *lexer, funcName, fieldName string, callback fu
 	phrase := lex.token
 	lex.nextToken()
 	if !lex.isKeyword("(") {
-		phrase += getCompoundSuffix(lex, fieldName)
+		phrase += getCompoundSuffix(lex, fieldName == "")
 		return parseFilterForPhrase(lex, phrase, fieldName)
 	}
 	if !lex.mustNextToken() {
@@ -673,7 +725,7 @@ func parseRangeFilter(lex *lexer, fieldName string) (filter, error) {
 	case lex.isKeyword("["):
 		includeMinValue = true
 	default:
-		phrase := funcName + getCompoundSuffix(lex, fieldName)
+		phrase := funcName + getCompoundSuffix(lex, fieldName == "")
 		return parseFilterForPhrase(lex, phrase, fieldName)
 	}
 	if !lex.mustNextToken() {
@@ -756,7 +808,7 @@ func parseFuncArgs(lex *lexer, fieldName string, callback func(args []string) (f
 	funcName := lex.token
 	lex.nextToken()
 	if !lex.isKeyword("(") {
-		phrase := funcName + getCompoundSuffix(lex, fieldName)
+		phrase := funcName + getCompoundSuffix(lex, fieldName == "")
 		return parseFilterForPhrase(lex, phrase, fieldName)
 	}
 	if !lex.mustNextToken() {

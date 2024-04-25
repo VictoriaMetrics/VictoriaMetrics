@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -118,7 +119,7 @@ func (bs *blockSearch) search(bsw *blockSearchWork) {
 
 	// fetch the requested columns to bs.br.
 	columnNames := bs.bsw.so.resultColumnNames
-	if len(columnNames) == 1 && columnNames[0] == "*" {
+	if slices.Contains(columnNames, "*") {
 		bs.br.fetchAllColumns(bs, bm)
 	} else {
 		bs.br.fetchRequestedColumns(bs, bm, columnNames)

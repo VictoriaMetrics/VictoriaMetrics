@@ -140,9 +140,6 @@ type filter interface {
 	// String returns string representation of the filter
 	String() string
 
-	// updateReferencedColumnNames updates m with the column names referenced by the filter
-	updateReferencedColumnNames(m map[string]struct{})
-
 	// apply must update bm according to the filter applied to the given bs block
 	apply(bs *blockSearch, bm *filterBitmap)
 }
@@ -153,10 +150,6 @@ type noopFilter struct {
 
 func (nf *noopFilter) String() string {
 	return ""
-}
-
-func (nf *noopFilter) updateReferencedColumnNames(_ map[string]struct{}) {
-	// nothing to do
 }
 
 func (nf *noopFilter) apply(_ *blockSearch, _ *filterBitmap) {
@@ -178,12 +171,6 @@ func (of *orFilter) String() string {
 		a[i] = s
 	}
 	return strings.Join(a, " or ")
-}
-
-func (of *orFilter) updateReferencedColumnNames(m map[string]struct{}) {
-	for _, f := range of.filters {
-		f.updateReferencedColumnNames(m)
-	}
 }
 
 func (of *orFilter) apply(bs *blockSearch, bm *filterBitmap) {
@@ -231,12 +218,6 @@ func (af *andFilter) String() string {
 		a[i] = s
 	}
 	return strings.Join(a, " ")
-}
-
-func (af *andFilter) updateReferencedColumnNames(m map[string]struct{}) {
-	for _, f := range af.filters {
-		f.updateReferencedColumnNames(m)
-	}
 }
 
 func (af *andFilter) apply(bs *blockSearch, bm *filterBitmap) {
@@ -316,10 +297,6 @@ func (nf *notFilter) String() string {
 	return "!" + s
 }
 
-func (nf *notFilter) updateReferencedColumnNames(m map[string]struct{}) {
-	nf.f.updateReferencedColumnNames(m)
-}
-
 func (nf *notFilter) apply(bs *blockSearch, bm *filterBitmap) {
 	// Minimize the number of rows to check by the filter by applying it
 	// only to the rows, which match the bm, e.g. they may change the bm result.
@@ -367,10 +344,6 @@ func (sf *streamFilter) initStreamIDs() {
 	sf.streamIDs = m
 }
 
-func (sf *streamFilter) updateReferencedColumnNames(m map[string]struct{}) {
-	m["_stream"] = struct{}{}
-}
-
 func (sf *streamFilter) apply(bs *blockSearch, bm *filterBitmap) {
 	if sf.f.isEmpty() {
 		return
@@ -394,10 +367,6 @@ type timeFilter struct {
 
 func (tf *timeFilter) String() string {
 	return "_time:" + tf.stringRepr
-}
-
-func (tf *timeFilter) updateReferencedColumnNames(m map[string]struct{}) {
-	m["_time"] = struct{}{}
 }
 
 func (tf *timeFilter) apply(bs *blockSearch, bm *filterBitmap) {
@@ -473,10 +442,6 @@ func (sf *sequenceFilter) initNonEmptyPhrases() {
 		}
 	}
 	sf.nonEmptyPhrases = result
-}
-
-func (sf *sequenceFilter) updateReferencedColumnNames(m map[string]struct{}) {
-	m[sf.fieldName] = struct{}{}
 }
 
 func (sf *sequenceFilter) apply(bs *blockSearch, bm *filterBitmap) {
@@ -556,10 +521,6 @@ func (ef *exactPrefixFilter) initTokens() {
 	ef.tokens = getTokensSkipLast(ef.prefix)
 }
 
-func (ef *exactPrefixFilter) updateReferencedColumnNames(m map[string]struct{}) {
-	m[ef.fieldName] = struct{}{}
-}
-
 func (ef *exactPrefixFilter) apply(bs *blockSearch, bm *filterBitmap) {
 	fieldName := ef.fieldName
 	prefix := ef.prefix
@@ -630,10 +591,6 @@ func (ef *exactFilter) getTokens() []string {
 
 func (ef *exactFilter) initTokens() {
 	ef.tokens = tokenizeStrings(nil, []string{ef.value})
-}
-
-func (ef *exactFilter) updateReferencedColumnNames(m map[string]struct{}) {
-	m[ef.fieldName] = struct{}{}
 }
 
 func (ef *exactFilter) apply(bs *blockSearch, bm *filterBitmap) {
@@ -923,10 +880,6 @@ func (af *inFilter) initTimestampISO8601Values() {
 	af.timestampISO8601Values = m
 }
 
-func (af *inFilter) updateReferencedColumnNames(m map[string]struct{}) {
-	m[af.fieldName] = struct{}{}
-}
-
 func (af *inFilter) apply(bs *blockSearch, bm *filterBitmap) {
 	fieldName := af.fieldName
 
@@ -1006,10 +959,6 @@ func (rf *ipv4RangeFilter) String() string {
 	return fmt.Sprintf("%sipv4_range(%s, %s)", quoteFieldNameIfNeeded(rf.fieldName), toIPv4String(nil, minValue), toIPv4String(nil, maxValue))
 }
 
-func (rf *ipv4RangeFilter) updateReferencedColumnNames(m map[string]struct{}) {
-	m[rf.fieldName] = struct{}{}
-}
-
 func (rf *ipv4RangeFilter) apply(bs *blockSearch, bm *filterBitmap) {
 	fieldName := rf.fieldName
 	minValue := rf.minValue
@@ -1076,10 +1025,6 @@ func (rf *stringRangeFilter) String() string {
 	return fmt.Sprintf("%sstring_range(%s, %s)", quoteFieldNameIfNeeded(rf.fieldName), quoteTokenIfNeeded(rf.minValue), quoteTokenIfNeeded(rf.maxValue))
 }
 
-func (rf *stringRangeFilter) updateReferencedColumnNames(m map[string]struct{}) {
-	m[rf.fieldName] = struct{}{}
-}
-
 func (rf *stringRangeFilter) apply(bs *blockSearch, bm *filterBitmap) {
 	fieldName := rf.fieldName
 	minValue := rf.minValue
@@ -1142,10 +1087,6 @@ type lenRangeFilter struct {
 
 func (rf *lenRangeFilter) String() string {
 	return quoteFieldNameIfNeeded(rf.fieldName) + fmt.Sprintf("len_range(%d,%d)", rf.minLen, rf.maxLen)
-}
-
-func (rf *lenRangeFilter) updateReferencedColumnNames(m map[string]struct{}) {
-	m[rf.fieldName] = struct{}{}
 }
 
 func (rf *lenRangeFilter) apply(bs *blockSearch, bm *filterBitmap) {
@@ -1215,10 +1156,6 @@ func (rf *rangeFilter) String() string {
 	return quoteFieldNameIfNeeded(rf.fieldName) + "range" + rf.stringRepr
 }
 
-func (rf *rangeFilter) updateReferencedColumnNames(m map[string]struct{}) {
-	m[rf.fieldName] = struct{}{}
-}
-
 func (rf *rangeFilter) apply(bs *blockSearch, bm *filterBitmap) {
 	fieldName := rf.fieldName
 	minValue := rf.minValue
@@ -1279,10 +1216,6 @@ type regexpFilter struct {
 
 func (rf *regexpFilter) String() string {
 	return fmt.Sprintf("%sre(%q)", quoteFieldNameIfNeeded(rf.fieldName), rf.re.String())
-}
-
-func (rf *regexpFilter) updateReferencedColumnNames(m map[string]struct{}) {
-	m[rf.fieldName] = struct{}{}
 }
 
 func (rf *regexpFilter) apply(bs *blockSearch, bm *filterBitmap) {
@@ -1359,10 +1292,6 @@ func (pf *anyCasePrefixFilter) getTokens() []string {
 
 func (pf *anyCasePrefixFilter) initTokens() {
 	pf.tokens = getTokensSkipLast(pf.prefix)
-}
-
-func (pf *anyCasePrefixFilter) updateReferencedColumnNames(m map[string]struct{}) {
-	m[pf.fieldName] = struct{}{}
 }
 
 func (pf *anyCasePrefixFilter) apply(bs *blockSearch, bm *filterBitmap) {
@@ -1442,10 +1371,6 @@ func (pf *prefixFilter) initTokens() {
 	pf.tokens = getTokensSkipLast(pf.prefix)
 }
 
-func (pf *prefixFilter) updateReferencedColumnNames(m map[string]struct{}) {
-	m[pf.fieldName] = struct{}{}
-}
-
 func (pf *prefixFilter) apply(bs *blockSearch, bm *filterBitmap) {
 	fieldName := pf.fieldName
 	prefix := pf.prefix
@@ -1515,10 +1440,6 @@ func (pf *anyCasePhraseFilter) getTokens() []string {
 
 func (pf *anyCasePhraseFilter) initTokens() {
 	pf.tokens = tokenizeStrings(nil, []string{pf.phrase})
-}
-
-func (pf *anyCasePhraseFilter) updateReferencedColumnNames(m map[string]struct{}) {
-	m[pf.fieldName] = struct{}{}
 }
 
 func (pf *anyCasePhraseFilter) apply(bs *blockSearch, bm *filterBitmap) {
@@ -1601,10 +1522,6 @@ func (pf *phraseFilter) getTokens() []string {
 
 func (pf *phraseFilter) initTokens() {
 	pf.tokens = tokenizeStrings(nil, []string{pf.phrase})
-}
-
-func (pf *phraseFilter) updateReferencedColumnNames(m map[string]struct{}) {
-	m[pf.fieldName] = struct{}{}
 }
 
 func (pf *phraseFilter) apply(bs *blockSearch, bm *filterBitmap) {

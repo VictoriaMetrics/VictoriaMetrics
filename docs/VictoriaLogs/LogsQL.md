@@ -83,20 +83,8 @@ So LogsQL allows omitting `AND` words. For example, the following query is equiv
 error _time:5m
 ```
 
-The query returns the following [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) by default:
-
-- [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field)
-- [`_stream` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields)
-- [`_time` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field)
-
-Logs may contain arbitrary number of other fields. If you need obtaining some of these fields in query results,
-then just refer them in the query with `field_name:*` [filter](#any-value-filter). See [these docs](#querying-specific-fields) for more details.
-
-For example, the following query returns `host.hostname` field additionally to `_msg`, `_stream` and `_time` fields:
-
-```logsql
-error _time:5m host.hostname:*
-```
+The query returns all the [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) by default.
+See [how to query specific fields](#querying-specific-fields).
 
 Suppose the query above selects too many rows because some buggy app pushes invalid error logs to VictoriaLogs. Suppose the app adds `buggy_app` [word](#word) to every log line.
 Then the following query removes all the logs from the buggy app, allowing us paying attention to the real errors:
@@ -1107,24 +1095,15 @@ See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) fo
 
 ## Querying specific fields
 
-By default VictoriaLogs query response contains [`_msg`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field),
-[`_stream`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields) and
-[`_time`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field) fields.
+By default VictoriaLogs query response contains all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
-If you want selecting other fields from the ingested [structured logs](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model),
-then they must be mentioned in query filters. For example, if you want selecting `log.level` field, and this field isn't mentioned in the query yet, then add
-`log.level:*` [filter](#any-value-filter) filter to the end of the query.
-The `field_name:*` filter doesn't return log entries with empty or missing `field_name`. If you want returning log entries
-with and without the given field, then `(field_name:* OR field_name:"")` filter can be used.
-See the following docs for details:
+If you want selecting some specific fields, then add `| fields field1, field2, ... fieldN` to the end of the query.
+For example, the following query returns only [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field),
+[`_stream`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields), `host` and [`_msg`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) fields:
 
-- [Any value filter](#any-value-filter)
-- [Empty value filter](#empty-value-filter)
-- [Logical filter](#logical-filter)
-
-In the future LogsQL will support `| fields field1, field2, ... fieldN` syntax for selecting the listed fields.
-It will also support the ability to select all the fields for the matching log entries with `| fields *` syntax.
-See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
+```logsql
+error | fields _time, _stream, host, _msg
+```
 
 ## Performance tips
 

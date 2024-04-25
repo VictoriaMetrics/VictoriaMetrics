@@ -803,6 +803,13 @@ func TestParseQuerySuccess(t *testing.T) {
 		and (_stream:{job="a"} or _stream:{instance!="b"})
 		and (err* or ip:(ipv4_range(1.2.3.0, 1.2.3.255) and not 1.2.3.4))`,
 		`(_time:(2023-04-20,now] or _time:[-10m,-1m)) (_stream:{job="a"} or _stream:{instance!="b"}) (err* or ip:ipv4_range(1.2.3.0, 1.2.3.255) !ip:1.2.3.4)`)
+
+	// fields pipe
+	f(`foo | fields *`, `foo | fields *`)
+	f(`foo | fields bar`, `foo | fields bar`)
+	f(`foo | FIELDS bar,Baz  , "a,b|c"`, `foo | fields bar, Baz, "a,b|c"`)
+	f(`foo | Fields   x.y:z/a, _b$c`, `foo | fields "x.y:z/a", "_b$c"`)
+	f(`foo | fields bar | fields baz, abc`, `foo | fields baz, abc`)
 }
 
 func TestParseQueryFailure(t *testing.T) {
@@ -998,4 +1005,20 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`string_range(foo, bar`)
 	f(`string_range(foo)`)
 	f(`string_range(foo, bar, baz)`)
+
+	// missing filter
+	f(`| fields *`)
+
+	// missing pipe keyword
+	f(`foo |`)
+
+	// unknown pipe keyword
+	f(`foo | bar`)
+	f(`foo | fields bar | baz`)
+
+	// missing field in fields pipe
+	f(`foo | fields`)
+	f(`foo | fields ,`)
+	f(`foo | fields bar,`)
+	f(`foo | fields bar,,`)
 }
