@@ -55,7 +55,7 @@ func (s *Storage) RunQuery(tenantIDs []TenantID, q *Query, stopCh <-chan struct{
 		brs := getBlockRows()
 		cs := brs.cs
 
-		for i, columnName := range resultColumnNames {
+		for i, columnName := range br.columnNames {
 			cs = append(cs, BlockColumn{
 				Name:   columnName,
 				Values: br.getColumnValues(i),

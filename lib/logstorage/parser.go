@@ -195,6 +195,8 @@ func (q *Query) String() string {
 }
 
 func (q *Query) getResultColumnNames() []string {
+	return []string{"*"}
+
 	m := make(map[string]struct{})
 	q.f.updateReferencedColumnNames(m)
 
