@@ -72,11 +72,11 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 
 	if *disableImplicitConversion || *logImplicitConversion {
 		complete := isSubQueryComplete(e, false)
+		if !complete && *disableImplicitConversion {
+			return nil, fmt.Errorf("query contains subquery that requires implicit conversion and is rejected according to `-search.disableImplicitConversion=true` setting. See https://docs.victoriametrics.com/metricsql/#subqueries for details")
+		}
 		if !complete && *logImplicitConversion {
 			logger.Warnf("query=%q contains subquery that requires implicit conversion, see https://docs.victoriametrics.com/metricsql/#subqueries for details", e.AppendString(nil))
-		}
-		if !complete && *disableImplicitConversion {
-			return nil, fmt.Errorf("query=%q contains subquery that requires implicit conversion and is rejected according to `-search.disableImplicitConversion=true` setting. See https://docs.victoriametrics.com/metricsql/#subqueries for details", e.AppendString(nil))
 		}
 	}
 
