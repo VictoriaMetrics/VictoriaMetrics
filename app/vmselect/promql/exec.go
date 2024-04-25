@@ -30,7 +30,7 @@ var (
 	disableImplicitConversion = flag.Bool("search.disableImplicitConversion", false, "Whether to return an error for queries that rely on implicit subquery conversions, "+
 		"see https://docs.victoriametrics.com/metricsql/#subqueries for details. "+
 		"See also -search.logImplicitConversion.")
-	logImplicitConversion = flag.Bool("search.logImplicitConversion", true, "Whether to log queries with implicit subquery conversions, "+
+	logImplicitConversion = flag.Bool("search.logImplicitConversion", false, "Whether to log queries with implicit subquery conversions, "+
 		"see https://docs.victoriametrics.com/metricsql/#subqueries for details. "+
 		"Such conversion can be disabled using -search.disableImplicitConversion.")
 )
