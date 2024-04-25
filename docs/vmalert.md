@@ -965,7 +965,7 @@ command-line flags with their descriptions.
 
 The shortlist of configuration flags is the following:
 
-```
+```sh
   -clusterMode
      If clusterMode is enabled, then vmalert automatically adds the tenant specified in config groups to -datasource.url, -remoteWrite.url and -remoteRead.url. See https://docs.victoriametrics.com/vmalert/#multitenancy . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
   -configCheckInterval duration
