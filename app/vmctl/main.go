@@ -372,6 +372,7 @@ func main() {
 					if err != nil {
 						return cli.Exit(fmt.Errorf("cannot open exported block at path=%q err=%w", blockPath, err), 1)
 					}
+					defer f.Close()
 					var blocksCount atomic.Uint64
 					if err := stream.Parse(f, isBlockGzipped, func(_ *stream.Block) error {
 						blocksCount.Add(1)

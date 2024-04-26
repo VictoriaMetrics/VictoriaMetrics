@@ -111,6 +111,13 @@ type Options struct {
 	//
 	// This option can be overridden individually per each aggregation via ignore_old_samples option.
 	IgnoreOldSamples bool
+
+	// IgnoreFirstIntervals sets amount of aggregation intervals to ignore on start.
+	//
+	// By default, no intervals will be ignored.
+	//
+	// This option can be overridden individually per each aggregation via ignore_first_intervals option.
+	IgnoreFirstIntervals int
 }
 
 // Config is a configuration for a single stream aggregation.
@@ -174,6 +181,9 @@ type Config struct {
 
 	// IgnoreOldSamples instructs to ignore samples with old timestamps outside the current aggregation interval.
 	IgnoreOldSamples *bool `yaml:"ignore_old_samples,omitempty"`
+
+	// IgnoreFirstIntervals sets number of aggregation intervals to be ignored on start.
+	IgnoreFirstIntervals *int `yaml:"ignore_first_intervals,omitempty"`
 
 	// By is an optional list of labels for grouping input series.
 	//
@@ -479,10 +489,16 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 		ignoreOldSamples = *v
 	}
 
+	// check cfg.IgnoreFirstIntervals
+	ignoreFirstIntervals := opts.IgnoreFirstIntervals
+	if v := cfg.IgnoreFirstIntervals; v != nil {
+		ignoreFirstIntervals = *v
+	}
+
 	// initialize outputs list
 	if len(cfg.Outputs) == 0 {
 		return nil, fmt.Errorf("`outputs` list must contain at least a single entry from the list %s; "+
-			"see https://docs.victoriametrics.com/stream-aggregation.html", supportedOutputs)
+			"see https://docs.victoriametrics.com/stream-aggregation/", supportedOutputs)
 	}
 	aggrStates := make([]aggrState, len(cfg.Outputs))
 	for i, output := range cfg.Outputs {
@@ -543,7 +559,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 			aggrStates[i] = newHistogramBucketAggrState(stalenessInterval)
 		default:
 			return nil, fmt.Errorf("unsupported output=%q; supported values: %s; "+
-				"see https://docs.victoriametrics.com/stream-aggregation.html", output, supportedOutputs)
+				"see https://docs.victoriametrics.com/stream-aggregation/", output, supportedOutputs)
 		}
 	}
 
@@ -600,14 +616,14 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 
 	a.wg.Add(1)
 	go func() {
-		a.runFlusher(pushFunc, alignFlushToInterval, skipIncompleteFlush, interval, dedupInterval)
+		a.runFlusher(pushFunc, alignFlushToInterval, skipIncompleteFlush, interval, dedupInterval, ignoreFirstIntervals)
 		a.wg.Done()
 	}()
 
 	return a, nil
 }
 
-func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipIncompleteFlush bool, interval, dedupInterval time.Duration) {
+func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipIncompleteFlush bool, interval, dedupInterval time.Duration, ignoreFirstIntervals int) {
 	alignedSleep := func(d time.Duration) {
 		if !alignFlushToInterval {
 			return
@@ -642,7 +658,12 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 		}
 
 		for tickerWait(t) {
-			a.flush(pushFunc, interval, true)
+			pf := pushFunc
+			if ignoreFirstIntervals > 0 {
+				pf = nil
+				ignoreFirstIntervals--
+			}
+			a.flush(pf, interval, true)
 
 			if alignFlushToInterval {
 				select {
@@ -663,13 +684,17 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 
 			ct := time.Now()
 			if ct.After(flushDeadline) {
+				pf := pushFunc
+				if ignoreFirstIntervals > 0 {
+					pf = nil
+					ignoreFirstIntervals--
+				}
 				// It is time to flush the aggregated state
 				if alignFlushToInterval && skipIncompleteFlush && !isSkippedFirstFlush {
-					a.flush(nil, interval, true)
+					pf = nil
 					isSkippedFirstFlush = true
-				} else {
-					a.flush(pushFunc, interval, true)
 				}
+				a.flush(pf, interval, true)
 				for ct.After(flushDeadline) {
 					flushDeadline = flushDeadline.Add(interval)
 				}
@@ -684,7 +709,7 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 		}
 	}
 
-	if !skipIncompleteFlush {
+	if !skipIncompleteFlush && ignoreFirstIntervals == 0 {
 		a.dedupFlush(dedupInterval)
 		a.flush(pushFunc, interval, true)
 	}

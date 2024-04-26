@@ -13,8 +13,8 @@ aliases:
 **The guide covers:**
 
 * The setup of a [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator) via Helm in [Kubernetes](https://kubernetes.io/) with Helm charts.
-* The setup of a [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) via [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator).
-* How to add CRD for a [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) via [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator).
+* The setup of a [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) via [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator).
+* How to add CRD for a [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) via [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator).
 * How to visualize stored data
 * How to store metrics in [VictoriaMetrics](https://victoriametrics.com)
 
@@ -70,7 +70,7 @@ vmoperator-victoria-metrics-operator-67cff44cd6-s47n6   1/1     Running   0     
 
 > For this example we will use default value for `name: example-vmcluster-persistent`. Change it value up to your needs.
 
-Run the following command to install [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) via [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator):
+Run the following command to install [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) via [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator):
 
 <p id="example-cluster-config"></p>
 
@@ -98,8 +98,8 @@ The expected output:
 vmcluster.operator.victoriametrics.com/example-vmcluster-persistent created
 ```
 
-* By applying this CRD we install the [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) to the default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) of your k8s cluster with following params:
-* `retentionPeriod: "12"` defines the [retention](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#retention) to 12 months.
+* By applying this CRD we install the [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) to the default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) of your k8s cluster with following params:
+* `retentionPeriod: "12"` defines the [retention](https://docs.victoriametrics.com/single-server-victoriametrics/#retention) to 12 months.
 * `replicaCount: 2` creates two replicas of vmselect, vminsert and vmstorage.
 
 Please note that it may take some time for the pods to start. To check that the pods are started, run the following command:
@@ -132,7 +132,7 @@ NAME                           INSERT COUNT   STORAGE COUNT   SELECT COUNT   AGE
 example-vmcluster-persistent   2              2               2              5m53s   operational
 ```
 
-Internet traffic goes through the Kubernetes Load balancer which use the set of Pods targeted by a [Kubernetes Service](https://kubernetes.io/docs/concepts/services-networking/service/). The service in [VictoriaMetrics Cluster architecture](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#architecture-overview) which accepts the ingested data named `vminsert` and in Kubernetes it is a `vminsert ` service. So we need to use it for remote_write url.
+Internet traffic goes through the Kubernetes Load balancer which use the set of Pods targeted by a [Kubernetes Service](https://kubernetes.io/docs/concepts/services-networking/service/). The service in [VictoriaMetrics Cluster architecture](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview) which accepts the ingested data named `vminsert` and in Kubernetes it is a `vminsert ` service. So we need to use it for remote_write url.
 
 To get the name of `vminsert` services, please run the following command:
 
@@ -147,7 +147,7 @@ The expected output:
 vminsert-example-vmcluster-persistent    ClusterIP   10.107.47.136   <none>        8480/TCP                     5m58s
 ```
 
-To scrape metrics from Kubernetes with a VictoriaMetrics Cluster we will need to install [VMAgent](https://docs.victoriametrics.com/vmagent.html) with some additional configurations.
+To scrape metrics from Kubernetes with a VictoriaMetrics Cluster we will need to install [VMAgent](https://docs.victoriametrics.com/vmagent/) with some additional configurations.
 Copy `vminsert-example-vmcluster-persistent` (or whatever user put into metadata.name field [https://docs.victoriametrics.com/guides/getting-started-with-vm-operator.html#example-cluster-config](https://docs.victoriametrics.com/guides/getting-started-with-vm-operator.html#example-cluster-config)) service name and add it to the `remoteWrite` URL from [quick-start example](https://github.com/VictoriaMetrics/operator/blob/master/docs/quick-start.MD#vmagent).
 Here is an example of the full configuration that we need to apply:
 

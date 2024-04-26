@@ -66,7 +66,7 @@ export const isSupportedDuration = (str: string): Partial<Record<UnitTypeShort, 
 
 export const getSecondsFromDuration = (dur: string) => {
   const shortSupportedDur = supportedDurations.map(d => d.short).join("|");
-  const regexp = new RegExp(`\\d+[${shortSupportedDur}]+`, "g");
+  const regexp = new RegExp(`\\d+(\\.\\d+)?[${shortSupportedDur}]+`, "g");
   const durItems = dur.match(regexp) || [];
 
   const durObject = durItems.reduce((prev, curr) => {

@@ -37,15 +37,15 @@ import (
 
 var (
 	configCheckInterval = flag.Duration("promscrape.configCheckInterval", 0, "Interval for checking for changes in -promscrape.config file. "+
-		"By default, the checking is disabled. See how to reload -promscrape.config file at https://docs.victoriametrics.com/vmagent.html#configuration-update")
+		"By default, the checking is disabled. See how to reload -promscrape.config file at https://docs.victoriametrics.com/vmagent/#configuration-update")
 	suppressDuplicateScrapeTargetErrors = flag.Bool("promscrape.suppressDuplicateScrapeTargetErrors", false, "Whether to suppress 'duplicate scrape target' errors; "+
-		"see https://docs.victoriametrics.com/vmagent.html#troubleshooting for details")
+		"see https://docs.victoriametrics.com/vmagent/#troubleshooting for details")
 	promscrapeConfigFile = flag.String("promscrape.config", "", "Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. "+
 		"The path can point to local file and to http url. "+
 		"See https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details")
 
 	fileSDCheckInterval = flag.Duration("promscrape.fileSDCheckInterval", time.Minute, "Interval for checking for changes in 'file_sd_config'. "+
-		"See https://docs.victoriametrics.com/sd_configs.html#file_sd_configs for details")
+		"See https://docs.victoriametrics.com/sd_configs/#file_sd_configs for details")
 )
 
 // CheckConfig checks -promscrape.config for errors and unsupported options.
@@ -368,7 +368,7 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 			if !*suppressDuplicateScrapeTargetErrors {
 				logger.Errorf("skipping duplicate scrape target with identical labels; endpoint=%s, labels=%s; "+
 					"make sure service discovery and relabeling is set up properly; "+
-					"see also https://docs.victoriametrics.com/vmagent.html#troubleshooting; "+
+					"see also https://docs.victoriametrics.com/vmagent/#troubleshooting; "+
 					"original labels for target1: %s; original labels for target2: %s",
 					sw.ScrapeURL, sw.Labels.String(), originalLabels.String(), sw.OriginalLabels.String())
 			}

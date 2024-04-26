@@ -97,7 +97,7 @@
       "title": "vmalert docs",
       "tooltip": "",
       "type": "link",
-      "url": "https://docs.victoriametrics.com/vmalert.html"
+      "url": "https://docs.victoriametrics.com/vmalert/"
     },
     {
       "asDropdown": false,
@@ -1271,7 +1271,7 @@
         "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
-      "description": "Missed evaluation means that group evaluation time takes longer than the configured evaluation interval. \nThis may result in missed alerting notifications or recording rules samples. Try increasing evaluation interval or concurrency for such groups. See https://docs.victoriametrics.com/vmalert.html#groups\n\nIf rule expressions are taking longer than expected, please see https://docs.victoriametrics.com/Troubleshooting.html#slow-queries.\"",
+      "description": "Missed evaluation means that group evaluation time takes longer than the configured evaluation interval. \nThis may result in missed alerting notifications or recording rules samples. Try increasing evaluation interval or concurrency for such groups. See https://docs.victoriametrics.com/vmalert/#groups\n\nIf rule expressions are taking longer than expected, please see https://docs.victoriametrics.com/troubleshooting/#slow-queries.\"",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1455,7 +1455,7 @@
             {
               "targetBlank": true,
               "title": "Profiling",
-              "url": "https://docs.victoriametrics.com/vmagent.html#profiling"
+              "url": "https://docs.victoriametrics.com/vmagent/#profiling"
             }
           ],
           "options": {
@@ -1570,7 +1570,7 @@
             {
               "targetBlank": true,
               "title": "Profiling",
-              "url": "https://docs.victoriametrics.com/vmagent.html#profiling"
+              "url": "https://docs.victoriametrics.com/vmagent/#profiling"
             }
           ],
           "options": {
@@ -1685,7 +1685,7 @@
             {
               "targetBlank": true,
               "title": "Profiling",
-              "url": "https://docs.victoriametrics.com/vmagent.html#profiling"
+              "url": "https://docs.victoriametrics.com/vmagent/#profiling"
             }
           ],
           "options": {
@@ -1802,7 +1802,7 @@
             {
               "targetBlank": true,
               "title": "Profiling",
-              "url": "https://docs.victoriametrics.com/vmagent.html#profiling"
+              "url": "https://docs.victoriametrics.com/vmagent/#profiling"
             }
           ],
           "options": {

@@ -46,7 +46,7 @@ import (
 
 var (
 	noStaleMarkers       = flag.Bool("promscrape.noStaleMarkers", false, "Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. This option also disables populating the scrape_series_added metric. See https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series")
-	seriesLimitPerTarget = flag.Int("promscrape.seriesLimitPerTarget", 0, "Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter for more info")
+	seriesLimitPerTarget = flag.Int("promscrape.seriesLimitPerTarget", 0, "Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent/#cardinality-limiter for more info")
 	strictParse          = flag.Bool("promscrape.config.strictParse", true, "Whether to deny unsupported fields in -promscrape.config . Set to false in order to silently skip unsupported fields")
 	dryRun               = flag.Bool("promscrape.config.dryRun", false, "Checks -promscrape.config file for errors and unsupported fields and then exits. "+
 		"Returns non-zero exit code on parsing errors and emits these errors to stderr. "+
@@ -58,23 +58,23 @@ var (
 	clusterMembersCount = flag.Int("promscrape.cluster.membersCount", 1, "The number of members in a cluster of scrapers. "+
 		"Each member must have a unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . "+
 		"Each member then scrapes roughly 1/N of all the targets. By default, cluster scraping is disabled, i.e. a single scraper scrapes all the targets. "+
-		"See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info")
+		"See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more info")
 	clusterMemberNum = flag.String("promscrape.cluster.memberNum", "0", "The number of vmagent instance in the cluster of scrapers. "+
 		"It must be a unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. "+
 		"Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name. "+
-		"See also -promscrape.cluster.memberLabel . See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info")
+		"See also -promscrape.cluster.memberLabel . See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more info")
 	clusterMemberLabel = flag.String("promscrape.cluster.memberLabel", "", "If non-empty, then the label with this name and the -promscrape.cluster.memberNum value "+
-		"is added to all the scraped metrics. See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info")
+		"is added to all the scraped metrics. See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more info")
 	clusterMemberURLTemplate = flag.String("promscrape.cluster.memberURLTemplate", "", "An optional template for URL to access vmagent instance with the given -promscrape.cluster.memberNum value. "+
 		"Every %d occurrence in the template is substituted with -promscrape.cluster.memberNum at urls to vmagent instances responsible for scraping the given target "+
 		"at /service-discovery page. For example -promscrape.cluster.memberURLTemplate='http://vmagent-%d:8429/targets'. "+
-		"See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more details")
+		"See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more details")
 	clusterReplicationFactor = flag.Int("promscrape.cluster.replicationFactor", 1, "The number of members in the cluster, which scrape the same targets. "+
 		"If the replication factor is greater than 1, then the deduplication must be enabled at remote storage side. "+
-		"See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info")
+		"See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more info")
 	clusterName = flag.String("promscrape.cluster.name", "", "Optional name of the cluster. If multiple vmagent clusters scrape the same targets, "+
 		"then each cluster must have unique name in order to properly de-duplicate samples received from these clusters. "+
-		"See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets for more info")
+		"See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more info")
 )
 
 var clusterMemberID int
@@ -1144,7 +1144,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		scrapeTimeout = d
 	}
 	// Read series_limit option from __series_limit__ label.
-	// See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter
+	// See https://docs.victoriametrics.com/vmagent/#cardinality-limiter
 	seriesLimit := swc.seriesLimit
 	if s := labels.Get("__series_limit__"); len(s) > 0 {
 		n, err := strconv.Atoi(s)
@@ -1154,7 +1154,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		seriesLimit = n
 	}
 	// Read stream_parse option from __stream_parse__ label.
-	// See https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode
+	// See https://docs.victoriametrics.com/vmagent/#stream-parsing-mode
 	streamParse := swc.streamParse
 	if s := labels.Get("__stream_parse__"); len(s) > 0 {
 		b, err := strconv.ParseBool(s)

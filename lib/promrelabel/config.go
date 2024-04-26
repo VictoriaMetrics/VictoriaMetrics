@@ -263,22 +263,22 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 	switch action {
 	case "graphite":
 		if graphiteMatchTemplate == nil {
-			return nil, fmt.Errorf("missing `match` for `action=graphite`; see https://docs.victoriametrics.com/vmagent.html#graphite-relabeling")
+			return nil, fmt.Errorf("missing `match` for `action=graphite`; see https://docs.victoriametrics.com/vmagent/#graphite-relabeling")
 		}
 		if len(graphiteLabelRules) == 0 {
-			return nil, fmt.Errorf("missing `labels` for `action=graphite`; see https://docs.victoriametrics.com/vmagent.html#graphite-relabeling")
+			return nil, fmt.Errorf("missing `labels` for `action=graphite`; see https://docs.victoriametrics.com/vmagent/#graphite-relabeling")
 		}
 		if len(rc.SourceLabels) > 0 {
-			return nil, fmt.Errorf("`source_labels` cannot be used with `action=graphite`; see https://docs.victoriametrics.com/vmagent.html#graphite-relabeling")
+			return nil, fmt.Errorf("`source_labels` cannot be used with `action=graphite`; see https://docs.victoriametrics.com/vmagent/#graphite-relabeling")
 		}
 		if rc.TargetLabel != "" {
-			return nil, fmt.Errorf("`target_label` cannot be used with `action=graphite`; see https://docs.victoriametrics.com/vmagent.html#graphite-relabeling")
+			return nil, fmt.Errorf("`target_label` cannot be used with `action=graphite`; see https://docs.victoriametrics.com/vmagent/#graphite-relabeling")
 		}
 		if rc.Replacement != nil {
-			return nil, fmt.Errorf("`replacement` cannot be used with `action=graphite`; see https://docs.victoriametrics.com/vmagent.html#graphite-relabeling")
+			return nil, fmt.Errorf("`replacement` cannot be used with `action=graphite`; see https://docs.victoriametrics.com/vmagent/#graphite-relabeling")
 		}
 		if rc.Regex != nil {
-			return nil, fmt.Errorf("`regex` cannot be used for `action=graphite`; see https://docs.victoriametrics.com/vmagent.html#graphite-relabeling")
+			return nil, fmt.Errorf("`regex` cannot be used for `action=graphite`; see https://docs.victoriametrics.com/vmagent/#graphite-relabeling")
 		}
 	case "replace":
 		if targetLabel == "" {

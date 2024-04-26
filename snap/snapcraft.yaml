@@ -5,7 +5,7 @@ icon: logo.png
 summary: VictoriaMetrics is fast, cost-effective and scalable time-series database.
 description: |
   * VictoriaMetrics can be used as long-term storage for Prometheus or for vmagent.
-  See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-setup for details.
+  See https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-setup for details.
   * Supports Prometheus querying API, so it can be used as Prometheus drop-in replacement in Grafana.
   VictoriaMetrics implements MetricsQL, https://docs.victoriametrics.com/metricsql/ query language, which is inspired by PromQL.
   * Supports global query view. Multiple Prometheus instances may write data into VictoriaMetrics. Later this data may be used in a single query.
@@ -18,7 +18,7 @@ description: |
       * All the configuration is done via explicit command-line flags with reasonable defaults.
       * All the data is stored in a single directory pointed by `-storageDataPath` flag.
       * Easy and fast backups from
-      to S3 or GCS with https://docs.victoriametrics.com/vmbackup.html / https://docs.victoriametrics.com/vmrestore.html.
+      to S3 or GCS with https://docs.victoriametrics.com/vmbackup/ / https://docs.victoriametrics.com/vmrestore/.
   * Storage is protected from corruption on unclean shutdown (i.e. OOM, hardware reset or `kill -9`) thanks to the storage architecture.
   * Supports metrics' scraping, ingestion and backfilling via the following protocols:
     * [Metrics from Prometheus exporters]
@@ -51,7 +51,7 @@ confinement: strict # use 'strict' once you have the right plugs and slots
 parts:
   build:
     plugin: go
-    go-channel: 1.20/stable
+    go-channel: 1.22/stable
     go-importpath: github.com/VictoriaMetrics/VictoriaMetrics
     source: .
     source-type: local
@@ -82,5 +82,5 @@ layout:
   /etc/victoriametrics-scrape-config.yaml:
     bind-file: $SNAP_DATA/etc/victoriametrics-scrape-config.yaml
 architectures:
-  - build-on: ['arm64', 'amd64']
-    run-on: ['arm64','amd64']
+  - build-on: ['amd64']
+    run-on: ['amd64']

@@ -1,6 +1,7 @@
 import React, {
   FC,
   useEffect,
+  useState,
   useRef,
   useMemo,
   FormEvent,
@@ -28,12 +29,13 @@ interface TextFieldProps {
   autofocus?: boolean
   helperText?: string
   inputmode?: "search" | "text" | "email" | "tel" | "url" | "none" | "numeric" | "decimal"
+  caretPosition?: [number, number]
   onChange?: (value: string) => void
   onEnter?: () => void
   onKeyDown?: (e: KeyboardEvent) => void
   onFocus?: () => void
   onBlur?: () => void
-  onChangeCaret?: (position: number[]) => void
+  onChangeCaret?: (position: [number, number]) => void
 }
 
 const TextField: FC<TextFieldProps> = ({
@@ -49,6 +51,7 @@ const TextField: FC<TextFieldProps> = ({
   disabled = false,
   autofocus = false,
   inputmode = "text",
+  caretPosition,
   onChange,
   onEnter,
   onKeyDown,
@@ -62,6 +65,7 @@ const TextField: FC<TextFieldProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fieldRef = useMemo(() => type === "textarea" ? textareaRef : inputRef, [type]);
+  const [selectionPos, setSelectionPos] = useState<[start: number, end: number]>([0, 0]);
 
   const inputClasses = classNames({
     "vm-text-field__input": true,
@@ -74,7 +78,7 @@ const TextField: FC<TextFieldProps> = ({
 
   const updateCaretPosition = (target: HTMLInputElement | HTMLTextAreaElement) => {
     const { selectionStart, selectionEnd } = target;
-    onChangeCaret && onChangeCaret([selectionStart || 0, selectionEnd || 0]);
+    setSelectionPos([selectionStart || 0, selectionEnd || 0]);
   };
 
   const handleMouseUp = (e: MouseEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -102,11 +106,6 @@ const TextField: FC<TextFieldProps> = ({
     updateCaretPosition(e.currentTarget);
   };
 
-  useEffect(() => {
-    if (!autofocus || isMobile) return;
-    fieldRef?.current?.focus && fieldRef.current.focus();
-  }, [fieldRef, autofocus]);
-
   const handleFocus = () => {
     onFocus && onFocus();
   };
@@ -114,6 +113,31 @@ const TextField: FC<TextFieldProps> = ({
   const handleBlur = () => {
     onBlur && onBlur();
   };
+
+  const setSelectionRange = (range: [number, number]) => {
+    try {
+      fieldRef.current && fieldRef.current.setSelectionRange(range[0], range[1]);
+    }  catch (e) {
+      return e;
+    }
+  };
+
+  useEffect(() => {
+    if (!autofocus || isMobile) return;
+    fieldRef?.current?.focus && fieldRef.current.focus();
+  }, [fieldRef, autofocus]);
+
+  useEffect(() => {
+    onChangeCaret && onChangeCaret(selectionPos);
+  }, [selectionPos]);
+
+  useEffect(() => {
+    setSelectionRange(selectionPos);
+  }, [value]);
+
+  useEffect(() => {
+    caretPosition && setSelectionRange(caretPosition);
+  }, [caretPosition]);
 
   return <label
     className={classNames({

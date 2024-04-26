@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"math"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -27,20 +26,21 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 )
 
 var (
 	authConfigPath = flag.String("auth.config", "", "Path to auth config. It can point either to local file or to http url. "+
-		"See https://docs.victoriametrics.com/vmauth.html for details on the format of this auth config")
+		"See https://docs.victoriametrics.com/vmauth/ for details on the format of this auth config")
 	configCheckInterval = flag.Duration("configCheckInterval", 0, "interval for config file re-read. "+
 		"Zero value disables config re-reading. By default, refreshing is disabled, send SIGHUP for config refresh.")
 	defaultRetryStatusCodes = flagutil.NewArrayInt("retryStatusCodes", 0, "Comma-separated list of default HTTP response status codes when vmauth re-tries the request on other backends. "+
-		"See https://docs.victoriametrics.com/vmauth.html#load-balancing for details")
+		"See https://docs.victoriametrics.com/vmauth/#load-balancing for details")
 	defaultLoadBalancingPolicy = flag.String("loadBalancingPolicy", "least_loaded", "The default load balancing policy to use for backend urls specified inside url_prefix section. "+
-		"Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth.html#load-balancing")
+		"Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth/#load-balancing")
 	discoverBackendIPsGlobal = flag.Bool("discoverBackendIPs", false, "Whether to discover backend IPs via periodic DNS queries to hostnames specified in url_prefix. "+
-		"This may be useful when url_prefix points to a hostname with dynamically scaled instances behind it. See https://docs.victoriametrics.com/vmauth.html#discovering-backend-ips")
+		"This may be useful when url_prefix points to a hostname with dynamically scaled instances behind it. See https://docs.victoriametrics.com/vmauth/#discovering-backend-ips")
 	discoverBackendIPsInterval = flag.Duration("discoverBackendIPsInterval", 10*time.Second, "The interval for re-discovering backend IPs if -discoverBackendIPs command-line flag is set. "+
 		"Too low value may lead to DNS errors")
 	httpAuthHeader = flagutil.NewArrayString("httpAuthHeader", "HTTP request header to use for obtaining authorization tokens. By default auth tokens are read from Authorization request header")
@@ -73,15 +73,18 @@ type UserInfo struct {
 	RetryStatusCodes       []int       `yaml:"retry_status_codes,omitempty"`
 	LoadBalancingPolicy    string      `yaml:"load_balancing_policy,omitempty"`
 	DropSrcPathPrefixParts *int        `yaml:"drop_src_path_prefix_parts,omitempty"`
-	TLSInsecureSkipVerify  *bool       `yaml:"tls_insecure_skip_verify,omitempty"`
 	TLSCAFile              string      `yaml:"tls_ca_file,omitempty"`
+	TLSCertFile            string      `yaml:"tls_cert_file,omitempty"`
+	TLSKeyFile             string      `yaml:"tls_key_file,omitempty"`
+	TLSServerName          string      `yaml:"tls_server_name,omitempty"`
+	TLSInsecureSkipVerify  *bool       `yaml:"tls_insecure_skip_verify,omitempty"`
 
 	MetricLabels map[string]string `yaml:"metric_labels,omitempty"`
 
 	concurrencyLimitCh      chan struct{}
 	concurrencyLimitReached *metrics.Counter
 
-	httpTransport *http.Transport
+	rt http.RoundTripper
 
 	requests         *metrics.Counter
 	backendErrors    *metrics.Counter
@@ -90,8 +93,8 @@ type UserInfo struct {
 
 // HeadersConf represents config for request and response headers.
 type HeadersConf struct {
-	RequestHeaders  []Header `yaml:"headers,omitempty"`
-	ResponseHeaders []Header `yaml:"response_headers,omitempty"`
+	RequestHeaders  []*Header `yaml:"headers,omitempty"`
+	ResponseHeaders []*Header `yaml:"response_headers,omitempty"`
 }
 
 func (ui *UserInfo) beginConcurrencyLimit() error {
@@ -155,10 +158,10 @@ type URLMap struct {
 	SrcHosts []*Regex `yaml:"src_hosts,omitempty"`
 
 	// SrcQueryArgs is an optional list of query args, which must match request URL query args.
-	SrcQueryArgs []QueryArg `yaml:"src_query_args,omitempty"`
+	SrcQueryArgs []*QueryArg `yaml:"src_query_args,omitempty"`
 
 	// SrcHeaders is an optional list of headers, which must match request headers.
-	SrcHeaders []Header `yaml:"src_headers,omitempty"`
+	SrcHeaders []*Header `yaml:"src_headers,omitempty"`
 
 	// UrlPrefix contains backend url prefixes for the proxied request url.
 	URLPrefix *URLPrefix `yaml:"url_prefix,omitempty"`
@@ -179,22 +182,15 @@ type URLMap struct {
 	DropSrcPathPrefixParts *int `yaml:"drop_src_path_prefix_parts,omitempty"`
 }
 
-// Regex represents a regex
-type Regex struct {
-	re *regexp.Regexp
-
-	sOriginal string
-}
-
 // QueryArg represents HTTP query arg
 type QueryArg struct {
 	Name  string
-	Value string
+	Value *Regex
 
 	sOriginal string
 }
 
-// UnmarshalYAML unmarshals up from yaml.
+// UnmarshalYAML unmarshals qa from yaml.
 func (qa *QueryArg) UnmarshalYAML(f func(interface{}) error) error {
 	var s string
 	if err := f(&s); err != nil {
@@ -203,14 +199,27 @@ func (qa *QueryArg) UnmarshalYAML(f func(interface{}) error) error {
 	qa.sOriginal = s
 
 	n := strings.IndexByte(s, '=')
-	if n >= 0 {
-		qa.Name = s[:n]
-		qa.Value = s[n+1:]
+	if n < 0 {
+		return nil
 	}
+
+	qa.Name = s[:n]
+	expr := s[n+1:]
+	if !strings.HasPrefix(expr, "~") {
+		expr = regexp.QuoteMeta(expr)
+	} else {
+		expr = expr[1:]
+	}
+
+	var re Regex
+	if err := yaml.Unmarshal([]byte(expr), &re); err != nil {
+		return fmt.Errorf("cannot unmarshal regex for %q query arg: %w", qa.Name, err)
+	}
+	qa.Value = &re
 	return nil
 }
 
-// MarshalYAML marshals up to yaml.
+// MarshalYAML marshals qa to yaml.
 func (qa *QueryArg) MarshalYAML() (interface{}, error) {
 	return qa.sOriginal, nil
 }
@@ -293,7 +302,7 @@ func (up *URLPrefix) getBackendsCount() int {
 //
 // backendURL.put() must be called on the returned backendURL after the request is complete.
 func (up *URLPrefix) getBackendURL() *backendURL {
-	up.discoverBackendIPsIfNeeded()
+	up.discoverBackendAddrsIfNeeded()
 
 	pbus := up.bus.Load()
 	bus := *pbus
@@ -303,7 +312,7 @@ func (up *URLPrefix) getBackendURL() *backendURL {
 	return getLeastLoadedBackendURL(bus, &up.n)
 }
 
-func (up *URLPrefix) discoverBackendIPsIfNeeded() {
+func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 	if !up.discoverBackendIPs {
 		// The discovery is disabled.
 		return
@@ -328,27 +337,42 @@ func (up *URLPrefix) discoverBackendIPsIfNeeded() {
 
 	// Discover ips for all the backendURLs
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(intervalSec))
-	hostToIPs := make(map[string][]string)
+	hostToAddrs := make(map[string][]string)
 	for _, bu := range up.busOriginal {
 		host := bu.Hostname()
-		if hostToIPs[host] != nil {
+		if hostToAddrs[host] != nil {
 			// ips for the given host have been already discovered
 			continue
 		}
-		addrs, err := resolver.LookupIPAddr(ctx, host)
-		var ips []string
-		if err != nil {
-			logger.Warnf("cannot discover backend IPs for %s: %s; use it literally", bu, err)
-			ips = []string{host}
-		} else {
-			ips = make([]string, len(addrs))
-			for i, addr := range addrs {
-				ips[i] = addr.String()
+		var resolvedAddrs []string
+		if strings.HasPrefix(host, "srv+") {
+			// The host has the format 'srv+realhost'. Strip 'srv+' prefix before performing the lookup.
+			host = strings.TrimPrefix(host, "srv+")
+			_, addrs, err := netutil.Resolver.LookupSRV(ctx, "", "", host)
+			if err != nil {
+				logger.Warnf("cannot discover backend SRV records for %s: %s; use it literally", bu, err)
+				resolvedAddrs = []string{host}
+			} else {
+				resolvedAddrs := make([]string, len(addrs))
+				for i, addr := range addrs {
+					resolvedAddrs[i] = fmt.Sprintf("%s:%d", addr.Target, addr.Port)
+				}
 			}
-			// sort ips, so they could be compared below in areEqualBackendURLs()
-			sort.Strings(ips)
+		} else {
+			addrs, err := netutil.Resolver.LookupIPAddr(ctx, host)
+			if err != nil {
+				logger.Warnf("cannot discover backend IPs for %s: %s; use it literally", bu, err)
+				resolvedAddrs = []string{host}
+			} else {
+				resolvedAddrs = make([]string, len(addrs))
+				for i, addr := range addrs {
+					resolvedAddrs[i] = addr.String()
+				}
+			}
 		}
-		hostToIPs[host] = ips
+		// sort resolvedAddrs, so they could be compared below in areEqualBackendURLs()
+		sort.Strings(resolvedAddrs)
+		hostToAddrs[host] = resolvedAddrs
 	}
 	cancel()
 
@@ -357,10 +381,14 @@ func (up *URLPrefix) discoverBackendIPsIfNeeded() {
 	for _, bu := range up.busOriginal {
 		host := bu.Hostname()
 		port := bu.Port()
-		for _, ip := range hostToIPs[host] {
+		for _, addr := range hostToAddrs[host] {
 			buCopy := *bu
-			buCopy.Host = ip
+			buCopy.Host = addr
 			if port != "" {
+				if n := strings.IndexByte(buCopy.Host, ':'); n >= 0 {
+					// Drop the discovered port and substitute it the the port specified in bu.
+					buCopy.Host = buCopy.Host[:n]
+				}
 				buCopy.Host += ":" + port
 			}
 			busNew = append(busNew, &backendURL{
@@ -389,11 +417,6 @@ func areEqualBackendURLs(a, b []*backendURL) bool {
 		}
 	}
 	return true
-}
-
-var resolver = &net.Resolver{
-	PreferGo:     true,
-	StrictErrors: true,
 }
 
 // getFirstAvailableBackendURL returns the first available backendURL, which isn't broken.
@@ -506,6 +529,13 @@ func (up *URLPrefix) UnmarshalYAML(f func(interface{}) error) error {
 // MarshalYAML marshals up to yaml.
 func (up *URLPrefix) MarshalYAML() (interface{}, error) {
 	return up.vOriginal, nil
+}
+
+// Regex represents a regex
+type Regex struct {
+	re *regexp.Regexp
+
+	sOriginal string
 }
 
 func (r *Regex) match(s string) bool {
@@ -716,11 +746,11 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 			return float64(len(ui.concurrencyLimitCh))
 		})
 
-		tr, err := getTransport(ui.TLSInsecureSkipVerify, ui.TLSCAFile)
+		rt, err := newRoundTripper(ui.TLSCAFile, ui.TLSCertFile, ui.TLSKeyFile, ui.TLSServerName, ui.TLSInsecureSkipVerify)
 		if err != nil {
-			return nil, fmt.Errorf("cannot initialize HTTP transport: %w", err)
+			return nil, fmt.Errorf("cannot initialize HTTP RoundTripper: %w", err)
 		}
-		ui.httpTransport = tr
+		ui.rt = rt
 	}
 	return ac, nil
 }
@@ -764,11 +794,11 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 			return float64(len(ui.concurrencyLimitCh))
 		})
 
-		tr, err := getTransport(ui.TLSInsecureSkipVerify, ui.TLSCAFile)
+		rt, err := newRoundTripper(ui.TLSCAFile, ui.TLSCertFile, ui.TLSKeyFile, ui.TLSServerName, ui.TLSInsecureSkipVerify)
 		if err != nil {
-			return nil, fmt.Errorf("cannot initialize HTTP transport: %w", err)
+			return nil, fmt.Errorf("cannot initialize HTTP RoundTripper: %w", err)
 		}
-		ui.httpTransport = tr
+		ui.rt = rt
 
 		for _, at := range ats {
 			byAuthToken[at] = ui

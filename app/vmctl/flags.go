@@ -442,12 +442,12 @@ var (
 		},
 		&cli.StringFlag{
 			Name:     vmNativeFilterTimeStart,
-			Usage:    "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats",
+			Usage:    "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats",
 			Required: true,
 		},
 		&cli.StringFlag{
 			Name:  vmNativeFilterTimeEnd,
-			Usage: "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats",
+			Usage: "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats",
 		},
 		&cli.StringFlag{
 			Name: vmNativeStepInterval,
@@ -469,7 +469,7 @@ var (
 			Name: vmNativeSrcAddr,
 			Usage: "VictoriaMetrics address to perform export from. \n" +
 				" Should be the same as --httpListenAddr value for single-node version or vmselect component." +
-				" If exporting from cluster version see https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format",
+				" If exporting from cluster version see https://docs.victoriametrics.com/cluster-victoriametrics/#url-format",
 			Required: true,
 		},
 		&cli.StringFlag{
@@ -518,7 +518,7 @@ var (
 			Name: vmNativeDstAddr,
 			Usage: "VictoriaMetrics address to perform import to. \n" +
 				" Should be the same as --httpListenAddr value for single-node version or vminsert component." +
-				" If importing into cluster version see https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format",
+				" If importing into cluster version see https://docs.victoriametrics.com/cluster-victoriametrics/#url-format",
 			Required: true,
 		},
 		&cli.StringFlag{

@@ -38,11 +38,6 @@ docker buildx create --use --name=qemu
 docker buildx inspect --bootstrap  
 ```
 
-For ARM arch (M1/M2 processors) additionally configure docker with preferred platform:
-```
-export DOCKER_DEFAULT_PLATFORM=linux/amd64
-```
-
 By default, docker on MacOS has limited amount of resources (CPU, mem) to use. 
 Bumping the limits may significantly improve build speed.
 
@@ -52,7 +47,7 @@ Bumping the limits may significantly improve build speed.
    Ideally, every change must be documented in the commit with the change. Alternatively, the change must be documented immediately
    after the commit, which adds the change.
 1. Make sure all the changes are synced between `master`, `cluster`, `enterprise-single-node` and `enteprise-cluster` branches.
-   Changes in these branches must be synced immediately after they are commited in at least a single branch.
+   Changes in these branches must be synced immediately after they are committed in at least a single branch.
 1. Make sure that the release branches have no security issues.
 1. Update release versions if needed in [SECURITY.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/SECURITY.md).
 1. Add `(available starting from v1.xx.y)` line to feature docs introduced in the upcoming release.

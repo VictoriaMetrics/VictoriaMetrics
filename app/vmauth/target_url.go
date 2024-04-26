@@ -86,19 +86,25 @@ func matchAnyRegex(rs []*Regex, s string) bool {
 	return false
 }
 
-func matchAnyQueryArg(qas []QueryArg, args url.Values) bool {
+func matchAnyQueryArg(qas []*QueryArg, args url.Values) bool {
 	if len(qas) == 0 {
 		return true
 	}
 	for _, qa := range qas {
-		if slices.Contains(args[qa.Name], qa.Value) {
-			return true
+		vs, ok := args[qa.Name]
+		if !ok {
+			continue
+		}
+		for _, v := range vs {
+			if qa.Value.match(v) {
+				return true
+			}
 		}
 	}
 	return false
 }
 
-func matchAnyHeader(headers []Header, h http.Header) bool {
+func matchAnyHeader(headers []*Header, h http.Header) bool {
 	if len(headers) == 0 {
 		return true
 	}

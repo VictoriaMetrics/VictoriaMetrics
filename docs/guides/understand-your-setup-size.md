@@ -10,14 +10,14 @@ aliases:
 ---
 # Understand Your Setup Size
 
-The docs provide a simple and high-level overview of Ingestion Rate, Active Time Series, and Query per Second. These terms are a part of capacity planning ([Single-Node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#capacity-planning), [Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#capacity-planning)) and [Managed VictoriaMetrics](https://docs.victoriametrics.com/managed-victoriametrics/) pricing.
+The docs provide a simple and high-level overview of Ingestion Rate, Active Time Series, and Query per Second. These terms are a part of capacity planning ([Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics/#capacity-planning), [Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#capacity-planning)) and [Managed VictoriaMetrics](https://docs.victoriametrics.com/managed-victoriametrics/) pricing.
 
 ## Terminology
 
-- [Active Time Series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series) - the [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series) that receive at least one sample for the latest hour;
-- Ingestion Rate - how many [data points](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) you ingest into the database per second;
-- [Churn Rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) - how frequently a new time series is registered. For example, in the Kubernetes ecosystem, the pod name is a part of time series labels. And when the pod is re-created, its name changes and affects all the exposed metrics, which results in high cardinality and Churn Rate problems;
-- Query per Second - the number of [read queries](https://docs.victoriametrics.com/keyConcepts.html#query-data) per second;
+- [Active Time Series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series) - the [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) that receive at least one sample for the latest hour;
+- Ingestion Rate - how many [data points](https://docs.victoriametrics.com/keyconcepts/#raw-samples) you ingest into the database per second;
+- [Churn Rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate) - how frequently a new time series is registered. For example, in the Kubernetes ecosystem, the pod name is a part of time series labels. And when the pod is re-created, its name changes and affects all the exposed metrics, which results in high cardinality and Churn Rate problems;
+- Query per Second - the number of [read queries](https://docs.victoriametrics.com/keyconcepts/#query-data) per second;
 - Retention Period - for how long data is stored in the database.
 
 ## Calculation
@@ -38,7 +38,7 @@ _Note: if you have more than one Prometheus, you need to run this query across a
 
 [CollectD](https://collectd.org/) exposes 346 series per host. The number of exposed series heavily depends on the installed plugins (`cgroups`, `conntrack`, `contextswitch`, `CPU`, `df`, `disk`, `ethstat`, `fhcount`, `interface`, `load`, `memory`, `processes`, `python`, `tcpconns`, `write_graphite`)
 
-[Replication Factor](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety) multiplies the number of Active Time Series since each series will be stored ReplicationFactor times.
+[Replication Factor](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety) multiplies the number of Active Time Series since each series will be stored ReplicationFactor times.
 
 
 ### Churn Rate
@@ -54,7 +54,7 @@ To track the Churn Rate in VictoriaMetrics, use the following query:
 
 ### Ingestion Rate
 
-Ingestion rate is how many time series are pulled (scraped) or pushed per second into the database. For example, if you scrape a service that exposes 1000 time series with an interval of 15s, the Ingestion Rate would be 1000/15 = 66 [samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) per second. The more services you scrape or the lower is scrape interval the higher would be the Ingestion Rate.
+Ingestion rate is how many time series are pulled (scraped) or pushed per second into the database. For example, if you scrape a service that exposes 1000 time series with an interval of 15s, the Ingestion Rate would be 1000/15 = 66 [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) per second. The more services you scrape or the lower is scrape interval the higher would be the Ingestion Rate.
 For Ingestion Rate calculation, you need to know how many time series you pull or push and how often you save them into VictoriaMetrics. To be more specific, the formula is the Number Of Active Time Series / Metrics Collection Interval.
 
 If you run the Prometheus, you can get the Ingestion Rate by running the following query:
@@ -124,4 +124,4 @@ You can collect metrics from
 
 ### On-Premise
 
-Please follow these capacity planning documents ([Single-Node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#capacity-planning), [Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#capacity-planning)). It contains the number of CPUs and Memory required to handle the Ingestion Rate, Active Time Series, Churn Rate, QPS and Retention Period.
+Please follow these capacity planning documents ([Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics/#capacity-planning), [Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#capacity-planning)). It contains the number of CPUs and Memory required to handle the Ingestion Rate, Active Time Series, Churn Rate, QPS and Retention Period.

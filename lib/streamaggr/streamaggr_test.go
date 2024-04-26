@@ -199,6 +199,14 @@ func TestAggregatorsEqual(t *testing.T) {
   interval: 5m
   flush_on_shutdown: false
 `, false)
+	f(`
+- outputs: [total]
+  interval: 5m
+  ignore_first_intervals: 2
+`, `
+- outputs: [total]
+  interval: 5m
+  ignore_first_intervals: 4`, false)
 }
 
 func TestAggregatorsSuccess(t *testing.T) {

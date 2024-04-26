@@ -45,7 +45,7 @@ See [Quick start docs](https://docs.victoriametrics.com/VictoriaLogs/QuickStart.
 VictoriaLogs exposes internal metrics in Prometheus exposition format at `http://localhost:9428/metrics` page.
 It is recommended to set up monitoring of these metrics via VictoriaMetrics
 (see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)),
-vmagent (see [these docs](https://docs.victoriametrics.com/vmagent.html#how-to-collect-metrics-in-prometheus-format)) or via Prometheus.
+vmagent (see [these docs](https://docs.victoriametrics.com/vmagent/#how-to-collect-metrics-in-prometheus-format)) or via Prometheus.
 
 VictoriaLogs emits its own logs to stdout. It is recommended to investigate these logs during troubleshooting.
 
@@ -83,7 +83,7 @@ It automatically drops partition directories outside the configured retention.
 VictoriaLogs automatically drops logs at [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/) stage
 if they have timestamps outside the configured retention. A sample of dropped logs is logged with `WARN` message in order to simplify troubleshooting.
 The `vl_rows_dropped_total` [metric](#monitoring) is incremented each time an ingested log entry is dropped because of timestamp outside the retention.
-It is recommended to set up the following alerting rule at [vmalert](https://docs.victoriametrics.com/vmalert.html) in order to be notified
+It is recommended to set up the following alerting rule at [vmalert](https://docs.victoriametrics.com/vmalert/) in order to be notified
 when logs with wrong timestamps are ingested into VictoriaLogs:
 
 ```metricsql
@@ -122,7 +122,7 @@ If `AccountID` and/or `ProjectID` request headers aren't set, then the default `
 
 VictoriaLogs has very low overhead for per-tenant management, so it is OK to have thousands of tenants in a single VictoriaLogs instance.
 
-VictoriaLogs doesn't perform per-tenant authorization. Use [vmauth](https://docs.victoriametrics.com/vmauth.html) or similar tools for per-tenant authorization.
+VictoriaLogs doesn't perform per-tenant authorization. Use [vmauth](https://docs.victoriametrics.com/vmauth/) or similar tools for per-tenant authorization.
 
 ## Benchmarks
 

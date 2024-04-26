@@ -96,6 +96,7 @@ export const useFetchQueryOptions = ({ valueByContext, metric, label, context }:
       const cachedData = autocompleteCache.get(key);
       if (cachedData) {
         setter(processData(cachedData, type));
+        setLoading(false);
         return;
       }
       const response = await fetch(`${serverUrl}/api/v1/${urlSuffix}?${params}`, { signal });
@@ -104,13 +105,13 @@ export const useFetchQueryOptions = ({ valueByContext, metric, label, context }:
         setter(processData(data, type));
         queryDispatch({ type: "SET_AUTOCOMPLETE_CACHE", payload: { key, value: data } });
       }
+      setLoading(false);
     } catch (e) {
       if (e instanceof Error && e.name !== "AbortError") {
         queryDispatch({ type: "SET_AUTOCOMPLETE_CACHE", payload: { key, value: [] } });
+        setLoading(false);
         console.error(e);
       }
-    } finally {
-      setLoading(false);
     }
   };
 

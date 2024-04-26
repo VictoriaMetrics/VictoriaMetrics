@@ -328,7 +328,7 @@ You may find useful a 3rd party solution for this - <https://github.com/jonppe/i
 
 [Promscale](https://github.com/timescale/promscale) supports [Prometheus Remote Read API](https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/).
 To migrate historical data from Promscale to VictoriaMetrics we recommend using `vmctl`
-in [remote-read](https://docs.victoriametrics.com/vmctl.html#migrating-data-by-remote-read-protocol) mode.
+in [remote-read](https://docs.victoriametrics.com/vmctl/#migrating-data-by-remote-read-protocol) mode.
 
 See the example of migration command below:
 ```sh
@@ -791,7 +791,7 @@ requires an Authentication header like `X-Scope-OrgID`. You can define it via th
 
 ## Migrating data from VictoriaMetrics
 
-The simplest way to migrate data between VM instances is [to copy data between instances](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#data-migration).
+The simplest way to migrate data between VM instances is [to copy data between instances](https://docs.victoriametrics.com/single-server-victoriametrics/#data-migration).
 
 vmctl uses [native binary protocol](https://docs.victoriametrics.com/#how-to-export-data-in-native-format)
 (available since [1.42.0 release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.42.0))
@@ -843,7 +843,7 @@ Importing tips:
    If hitting `the number of matching timeseries exceeds...` error, adjust filters to match less time series or 
    update `-search.maxSeries` command-line flag on vmselect/vmsingle;
 1. Using smaller intervals via `--vm-native-step-interval` cmd-line flag can reduce the number of matched series per-request
-   for sources with [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
+   for sources with [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
    See more about [step interval here](#using-time-based-chunking-of-migration).
 1. Migrating all the metrics from one VM to another may collide with existing application metrics
    (prefixed with `vm_`) at destination and lead to confusion when using
@@ -854,7 +854,7 @@ Importing tips:
    This will instruct `vmselect`/`vmstorage` to ignore duplicates with identical timestamps. Ignore this recommendation
    if you already have `-dedup.minScrapeInterval` set to 1ms or higher values at destination.
 1. When migrating data from one VM cluster to another, consider using [cluster-to-cluster mode](#cluster-to-cluster-migration-mode).
-   Or manually specify addresses according to [URL format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format):
+   Or manually specify addresses according to [URL format](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format):
    ```sh
    # Migrating from cluster specific tenantID to single
    --vm-native-src-addr=http://<src-vmselect>:8481/select/0/prometheus
@@ -876,7 +876,7 @@ Importing tips:
    of data copies for the destination database, and will result only in creating duplicates. To remove duplicates,
    destination database need to be configured with `-dedup.minScrapeInterval=1ms`. To restore the replication factor
    the destination `vminsert` component need to be configured with the according `-replicationFactor` value. 
-   See more about replication [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety).
+   See more about replication [here](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety).
 1. Migration speed can be adjusted via `--vm-concurrency` cmd-line flag, which controls the number of concurrent 
    workers busy with processing. Please note, that each worker can load up to a single vCPU core on VictoriaMetrics. 
    So try to set it according to allocated CPU resources of your VictoriaMetrics destination installation.
@@ -932,7 +932,7 @@ Requests to make: 45 / 45 [█████████████████�
 
 Using cluster-to-cluster migration mode helps to migrate all tenants data in a single `vmctl` run.
 
-Cluster-to-cluster uses `/admin/tenants` endpoint (available starting from [v1.84.0](https://docs.victoriametrics.com/CHANGELOG.html#v1840)) to discover list of tenants from source cluster.
+Cluster-to-cluster uses `/admin/tenants` endpoint (available starting from [v1.84.0](https://docs.victoriametrics.com/changelog/#v1840)) to discover list of tenants from source cluster.
 
 To use this mode you need to set `--vm-intercluster` flag to `true`, `--vm-native-src-addr` flag to 'http://vmselect:8481/' and `--vm-native-dst-addr` value to http://vminsert:8480/:
 
@@ -986,7 +986,7 @@ Run the following command to get all configuration options:
 ## Verifying exported blocks from VictoriaMetrics
 
 In this mode, `vmctl` allows verifying correctness and integrity of data exported via 
-[native format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-export-data-in-native-format)
+[native format](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-export-data-in-native-format)
 from VictoriaMetrics.
 You can verify exported data at disk before uploading it by `vmctl verify-block` command:
 
@@ -1082,7 +1082,7 @@ results such as `average`, `rate`, etc.
 Limiting the rate of data transfer could help to reduce pressure on disk or on destination database.
 The rate limit may be set in bytes-per-second via `--vm-rate-limit` flag.
 
-Please note, you can also use [vmagent](https://docs.victoriametrics.com/vmagent.html)
+Please note, you can also use [vmagent](https://docs.victoriametrics.com/vmagent/)
 as a proxy between `vmctl` and destination with `-remoteWrite.rateLimit` flag enabled.
 
 ## How to build

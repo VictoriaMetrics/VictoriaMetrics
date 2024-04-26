@@ -61,8 +61,8 @@ groups:
           description: "vmalert instance {{ $labels.instance }} is missing rules evaluations for group \"{{ $labels.group }}\".
             The group evaluation time takes longer than the configured evaluation interval. This may result in missed 
             alerting notifications or recording rules samples. Try increasing evaluation interval or concurrency of
-            group \"{{ $labels.group }}\". See https://docs.victoriametrics.com/vmalert.html#groups. 
-            If rule expressions are taking longer than expected, please see https://docs.victoriametrics.com/Troubleshooting.html#slow-queries."
+            group \"{{ $labels.group }}\". See https://docs.victoriametrics.com/vmalert/#groups. 
+            If rule expressions are taking longer than expected, please see https://docs.victoriametrics.com/troubleshooting/#slow-queries."
 
       - alert: RemoteWriteErrors
         expr: increase(vmalert_remotewrite_errors_total[5m]) > 0

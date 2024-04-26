@@ -10,7 +10,7 @@ aliases:
 ---
 # How to configure vmgateway for multi-tenant access using Grafana and OpenID Connect
 
-Using [Grafana](https://grafana.com/) with [vmgateway](https://docs.victoriametrics.com/vmgateway.html) is a great way to provide [multi-tenant](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) access to your metrics.
+Using [Grafana](https://grafana.com/) with [vmgateway](https://docs.victoriametrics.com/vmgateway/) is a great way to provide [multi-tenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy) access to your metrics.
 vmgateway provides a way to authenticate users using [JWT tokens](https://en.wikipedia.org/wiki/JSON_Web_Token) issued by an external identity provider.
 Those tokens can include information about the user and the tenant they belong to, which can be used
 to restrict access to metrics to only those that belong to the tenant.
@@ -20,7 +20,7 @@ to restrict access to metrics to only those that belong to the tenant.
 * Identity service that can issue [JWT tokens](https://en.wikipedia.org/wiki/JSON_Web_Token)
 * [Grafana](https://grafana.com/)
 * VictoriaMetrics single-node or cluster version
-* [vmgateway](https://docs.victoriametrics.com/vmgateway.html)
+* [vmgateway](https://docs.victoriametrics.com/vmgateway/)
 
 ## Configure identity service
 
@@ -37,7 +37,7 @@ The identity service must be able to issue JWT tokens with the following `vm_acc
 }
 ```
 
-See details about all supported options in the [vmgateway documentation](https://docs.victoriametrics.com/vmgateway.html#access-control).
+See details about all supported options in the [vmgateway documentation](https://docs.victoriametrics.com/vmgateway/#access-control).
 
 ### Configuration example for Keycloak
 
@@ -143,7 +143,7 @@ or manually managing access at another proxy level.
 
 In order to use multi-tenant access with single-node VictoriaMetrics, you can use token claims such as `extra_labels`
 or `extra_filters` filled dynamically by using Identity Provider's user information.
-vmgateway uses those claims and [enhanced Prometheus querying API](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-enhancements)
+vmgateway uses those claims and [enhanced Prometheus querying API](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-querying-api-enhancements)
 to provide additional filtering capabilities.
 
 For example, the following claims can be used to restrict user access to specific metrics:
@@ -169,7 +169,7 @@ So when user will try to query `vm_http_requests_total` query will be transforme
 
 ### Token signature verification
 
-It is also possible to enable [JWT token signature verification](https://docs.victoriametrics.com/vmgateway.html#jwt-signature-verification) at
+It is also possible to enable [JWT token signature verification](https://docs.victoriametrics.com/vmgateway/#jwt-signature-verification) at
 vmgateway.
 To do this by using OpenID Connect discovery endpoint you need to specify the `-auth.oidcDiscoveryEndpoints` flag. For example:
 
@@ -190,7 +190,7 @@ Now vmgateway will print the following message on startup:
 
 That means that vmgateway has successfully fetched the public keys from the OpenID Connect discovery endpoint.
 
-It is also possible to provide the public keys directly via the `-auth.publicKeys` flag. See the [vmgateway documentation](https://docs.victoriametrics.com/vmgateway.html#jwt-signature-verification) for details.
+It is also possible to provide the public keys directly via the `-auth.publicKeys` flag. See the [vmgateway documentation](https://docs.victoriametrics.com/vmgateway/#jwt-signature-verification) for details.
 
 ## Use Grafana to query metrics
 

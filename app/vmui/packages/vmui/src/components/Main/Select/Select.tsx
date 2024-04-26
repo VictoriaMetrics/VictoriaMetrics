@@ -72,6 +72,10 @@ const Select: FC<SelectProps> = ({
     setOpenList(true);
   };
 
+  const handleBlur = () => {
+    list.includes(search) && onChange(search);
+  };
+
   const handleToggleList = (e: MouseEvent<HTMLDivElement>) => {
     if (e.target instanceof HTMLInputElement || disabled) return;
     setOpenList(prev => !prev);
@@ -142,6 +146,7 @@ const Select: FC<SelectProps> = ({
               placeholder={placeholder}
               onInput={handleChange}
               onFocus={handleFocus}
+              onBlur={handleBlur}
               ref={inputRef}
               readOnly={isMobile || !searchable}
             />

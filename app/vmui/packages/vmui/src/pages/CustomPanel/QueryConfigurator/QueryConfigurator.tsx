@@ -30,8 +30,14 @@ export interface QueryConfiguratorProps {
   setQueryErrors: StateUpdater<string[]>;
   setHideError: StateUpdater<boolean>;
   stats: QueryStats[];
-  onHideQuery: (queries: number[]) => void
-  onRunQuery: () => void
+  onHideQuery?: (queries: number[]) => void
+  onRunQuery: () => void;
+  hideButtons?: {
+    addQuery?: boolean;
+    prettify?: boolean;
+    autocomplete?: boolean;
+    traceQuery?: boolean;
+  }
 }
 
 const QueryConfigurator: FC<QueryConfiguratorProps> = ({
@@ -40,7 +46,8 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   setHideError,
   stats,
   onHideQuery,
-  onRunQuery
+  onRunQuery,
+  hideButtons
 }) => {
 
   const { isMobile } = useDeviceDetect();
@@ -159,7 +166,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   }, [stateQuery]);
 
   useEffect(() => {
-    onHideQuery(hideQuery);
+    onHideQuery && onHideQuery(hideQuery);
   }, [hideQuery]);
 
   useEffect(() => {
@@ -188,40 +195,43 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
         >
           <QueryEditor
             value={stateQuery[i]}
-            autocomplete={autocomplete || autocompleteQuick}
+            autocomplete={!hideButtons?.autocomplete && (autocomplete || autocompleteQuick)}
             error={queryErrors[i]}
             stats={stats[i]}
             onArrowUp={createHandlerArrow(-1, i)}
             onArrowDown={createHandlerArrow(1, i)}
             onEnter={handleRunQuery}
             onChange={createHandlerChangeQuery(i)}
-            label={`Query ${i + 1}`}
+            label={`Query ${stateQuery.length > 1 ? i + 1 : ""}`}
             disabled={hideQuery.includes(i)}
           />
-          <Tooltip title={hideQuery.includes(i) ? "Enable query" : "Disable query"}>
-            <div className="vm-query-configurator-list-row__button">
-              <Button
-                variant={"text"}
-                color={"gray"}
-                startIcon={hideQuery.includes(i) ? <VisibilityOffIcon/> : <VisibilityIcon/>}
-                onClick={createHandlerHideQuery(i)}
-                ariaLabel="visibility query"
-              />
-            </div>
-          </Tooltip>
+          {onHideQuery && (
+            <Tooltip title={hideQuery.includes(i) ? "Enable query" : "Disable query"}>
+              <div className="vm-query-configurator-list-row__button">
+                <Button
+                  variant={"text"}
+                  color={"gray"}
+                  startIcon={hideQuery.includes(i) ? <VisibilityOffIcon/> : <VisibilityIcon/>}
+                  onClick={createHandlerHideQuery(i)}
+                  ariaLabel="visibility query"
+                />
+              </div>
+            </Tooltip>
+          )}
 
-          <Tooltip title={"Prettify query"}>
-            <div className="vm-query-configurator-list-row__button">
-              <Button
-                variant={"text"}
-                color={"gray"}
-                startIcon={<Prettify/>}
-                onClick={async () => await handlePrettifyQuery(i)}
-                className="prettify"
-                ariaLabel="prettify the query"
-              />
-            </div>
-          </Tooltip>
+          {!hideButtons?.prettify && (
+            <Tooltip title={"Prettify query"}>
+              <div className="vm-query-configurator-list-row__button">
+                <Button
+                  variant={"text"}
+                  color={"gray"}
+                  startIcon={<Prettify/>}
+                  onClick={async () => await handlePrettifyQuery(i)}
+                  className="prettify"
+                  ariaLabel="prettify the query"
+                />
+              </div>
+            </Tooltip>)}
 
           {stateQuery.length > 1 && (
             <Tooltip title="Remove Query">
@@ -240,10 +250,10 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
       ))}
     </div>
     <div className="vm-query-configurator-settings">
-      <AdditionalSettings/>
+      <AdditionalSettings hideButtons={hideButtons}/>
       <div className="vm-query-configurator-settings__buttons">
         <QueryHistory handleSelectQuery={handleSelectHistory}/>
-        {stateQuery.length < MAX_QUERY_FIELDS && (
+        {!hideButtons?.addQuery && stateQuery.length < MAX_QUERY_FIELDS && (
           <Button
             variant="outlined"
             onClick={handleAddQuery}

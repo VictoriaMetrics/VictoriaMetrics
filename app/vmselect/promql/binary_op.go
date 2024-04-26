@@ -23,8 +23,8 @@ var binaryOpFuncs = map[string]binaryOpFunc{
 	"atan2": newBinaryOpArithFunc(binaryop.Atan2),
 
 	// cmp ops
-	"==": newBinaryOpCmpFunc(binaryop.Eq),
-	"!=": newBinaryOpCmpFunc(binaryop.Neq),
+	"==": binaryOpEqFunc,
+	"!=": binaryOpNeqFunc,
 	">":  newBinaryOpCmpFunc(binaryop.Gt),
 	"<":  newBinaryOpCmpFunc(binaryop.Lt),
 	">=": newBinaryOpCmpFunc(binaryop.Gte),
@@ -53,6 +53,84 @@ type binaryOpFuncArg struct {
 }
 
 type binaryOpFunc func(bfa *binaryOpFuncArg) ([]*timeseries, error)
+
+func binaryOpEqFunc(bfa *binaryOpFuncArg) ([]*timeseries, error) {
+	if !isUnionFunc(bfa.be.Left) && !isUnionFunc(bfa.be.Right) {
+		return binaryOpEqStdFunc(bfa)
+	}
+
+	// Special case for `q == (1,2,3)`
+	left := bfa.left
+	right := bfa.right
+	if isUnionFunc(bfa.be.Left) {
+		left, right = right, left
+	}
+	if len(left) == 0 || len(right) == 0 {
+		return nil, nil
+	}
+	for _, tsLeft := range left {
+		values := tsLeft.Values
+		for j, v := range values {
+			if !containsValueAt(right, v, j) {
+				values[j] = nan
+			}
+		}
+	}
+	// Do not remove time series containing only NaNs, since then the `(foo op bar) default N`
+	// won't work as expected if `(foo op bar)` results to NaN series.
+	return left, nil
+}
+
+func binaryOpNeqFunc(bfa *binaryOpFuncArg) ([]*timeseries, error) {
+	if !isUnionFunc(bfa.be.Left) && !isUnionFunc(bfa.be.Right) {
+		return binaryOpNeqStdFunc(bfa)
+	}
+
+	// Special case for `q != (1,2,3)`
+	left := bfa.left
+	right := bfa.right
+	if isUnionFunc(bfa.be.Left) {
+		left, right = right, left
+	}
+	if len(left) == 0 {
+		return nil, nil
+	}
+	if len(right) == 0 {
+		return left, nil
+	}
+	for _, tsLeft := range left {
+		values := tsLeft.Values
+		for j, v := range values {
+			if containsValueAt(right, v, j) {
+				values[j] = nan
+			}
+		}
+	}
+	// Do not remove time series containing only NaNs, since then the `(foo op bar) default N`
+	// won't work as expected if `(foo op bar)` results to NaN series.
+	return left, nil
+}
+
+func isUnionFunc(e metricsql.Expr) bool {
+	if fe, ok := e.(*metricsql.FuncExpr); ok && (fe.Name == "" || strings.ToLower(fe.Name) == "union") {
+		return true
+	}
+	return false
+}
+
+func containsValueAt(tss []*timeseries, v float64, idx int) bool {
+	for _, ts := range tss {
+		if ts.Values[idx] == v {
+			return true
+		}
+	}
+	return false
+}
+
+var (
+	binaryOpEqStdFunc  = newBinaryOpCmpFunc(binaryop.Eq)
+	binaryOpNeqStdFunc = newBinaryOpCmpFunc(binaryop.Neq)
+)
 
 func newBinaryOpCmpFunc(cf func(left, right float64) bool) binaryOpFunc {
 	cfe := func(left, right float64, isBool bool) float64 {
@@ -327,7 +405,7 @@ func resetMetricGroupIfRequired(be *metricsql.BinaryOpExpr, ts *timeseries) {
 	}
 	if be.KeepMetricNames {
 		// Do not reset MetricGroup if it is explicitly requested via `a op b keep_metric_names`
-		// See https://docs.victoriametrics.com/MetricsQL.html#keep_metric_names
+		// See https://docs.victoriametrics.com/metricsql/#keep_metric_names
 		return
 	}
 

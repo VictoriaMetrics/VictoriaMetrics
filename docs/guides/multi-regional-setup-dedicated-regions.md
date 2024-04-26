@@ -41,20 +41,20 @@ Using this schema, you can achieve:
 
 * If you scrape data from Prometheus-compatible targets, then please specify `-promscrape.config` parameter as well.
 
-Here is a Quickstart guide for [vmagent](https://docs.victoriametrics.com/vmagent.html#quick-start)
+Here is a Quickstart guide for [vmagent](https://docs.victoriametrics.com/vmagent/#quick-start)
 
 ### How to read the data from Ground Control regions
 
 You can use one of the following options:
 
-1. Multi-level [vmselect setup](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup) in cluster setup, top-level vmselect(s) reads data from cluster-level vmselects
+1. Multi-level [vmselect setup](https://docs.victoriametrics.com/cluster-victoriametrics/#multi-level-cluster-setup) in cluster setup, top-level vmselect(s) reads data from cluster-level vmselects
    * Returns data in one of the clusters is unavailable  
-   * Merges data from both sources. You need to turn on [deduplication](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#deduplication) to remove duplicates 
+   * Merges data from both sources. You need to turn on [deduplication](https://docs.victoriametrics.com/cluster-victoriametrics/#deduplication) to remove duplicates 
 1. Regional endpoints - use one regional endpoint as default and switch to another if there is an issue.
 1. Load balancer - that sends queries to a particular region. The benefit and disadvantage of this setup is that it's simple.
 1. Promxy - proxy that reads data from multiple Prometheus-like sources. It allows reading data more intelligently to cover the region's unavailability out of the box. It doesn't support MetricsQL yet (please check this issue).
 1. Global vmselect in cluster setup - you can set up an additional subset of vmselects that knows about all storages in all regions.
-   * The [deduplication](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#deduplication) in 1ms on the vmselect side must be turned on. This setup allows you to query data using MetricsQL.
+   * The [deduplication](https://docs.victoriametrics.com/cluster-victoriametrics/#deduplication) in 1ms on the vmselect side must be turned on. This setup allows you to query data using MetricsQL.
    * The downside is that vmselect waits for a response from all storages in all regions.
 
 
@@ -80,8 +80,8 @@ An additional VictoriaMetrics single can be set up in every region, scraping met
 You also may evaluate the option to send these metrics to the neighbour region to achieve HA.
 
 Additional context
-* VictoriaMetrics Single - [https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#monitoring](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#monitoring)
-* VictoriaMetrics Cluster - [https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#monitoring](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#monitoring)
+* VictoriaMetrics Single - [https://docs.victoriametrics.com/single-server-victoriametrics/#monitoring](https://docs.victoriametrics.com/single-server-victoriametrics/#monitoring)
+* VictoriaMetrics Cluster - [https://docs.victoriametrics.com/cluster-victoriametrics/#monitoring](https://docs.victoriametrics.com/cluster-victoriametrics/#monitoring)
 
 
 ### What more can we do?

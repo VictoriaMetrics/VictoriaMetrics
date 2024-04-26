@@ -37,7 +37,7 @@ var (
 		"See also -promscrape.suppressScrapeErrorsDelay")
 	suppressScrapeErrorsDelay = flag.Duration("promscrape.suppressScrapeErrorsDelay", 0, "The delay for suppressing repeated scrape errors logging per each scrape targets. "+
 		"This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors")
-	minResponseSizeForStreamParse = flagutil.NewBytes("promscrape.minResponseSizeForStreamParse", 1e6, "The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode")
+	minResponseSizeForStreamParse = flagutil.NewBytes("promscrape.minResponseSizeForStreamParse", 1e6, "The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/vmagent/#stream-parsing-mode")
 )
 
 // ScrapeWork represents a unit of work for scraping Prometheus metrics.
@@ -139,7 +139,7 @@ type ScrapeWork struct {
 	SeriesLimit int
 
 	// Whether to process stale markers for the given target.
-	// See https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers
+	// See https://docs.victoriametrics.com/vmagent/#prometheus-staleness-markers
 	NoStaleMarkers bool
 
 	// The Tenant Info
@@ -290,7 +290,7 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 		// Include clusterMemberID to the key in order to guarantee that each member in vmagent cluster
 		// scrapes replicated targets at different time offsets. This guarantees that the deduplication consistently leaves samples
 		// received from the same vmagent replica.
-		// See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets
+		// See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets
 		key := fmt.Sprintf("clusterName=%s, clusterMemberID=%d, ScrapeURL=%s, Labels=%s", *clusterName, clusterMemberID, sw.Config.ScrapeURL, sw.Config.Labels.String())
 		h := xxhash.Sum64(bytesutil.ToUnsafeBytes(key))
 		randSleep = uint64(float64(scrapeInterval) * (float64(h) / (1 << 64)))
@@ -680,11 +680,8 @@ func (wc *writeRequestCtx) reset() {
 func (wc *writeRequestCtx) resetNoRows() {
 	wc.writeRequest.Reset()
 
-	labels := wc.labels
-	for i := range labels {
-		labels[i] = prompbmarshal.Label{}
-	}
-	wc.labels = labels[:0]
+	clear(wc.labels)
+	wc.labels = wc.labels[:0]
 
 	wc.samples = wc.samples[:0]
 }

@@ -1,60 +1,63 @@
-import React, { FC, useMemo, useRef } from "preact/compat";
+import React, { FC, useMemo, useRef, useState } from "preact/compat";
 import classNames from "classnames";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
-import useEventListener from "../../hooks/useEventListener";
+import { ForecastType } from "../../types";
+import { useSetQueryParams } from "../CustomPanel/hooks/useSetQueryParams";
+import QueryConfigurator from "../CustomPanel/QueryConfigurator/QueryConfigurator";
 import "../CustomPanel/style.scss";
-import ExploreAnomalyHeader from "./ExploreAnomalyHeader/ExploreAnomalyHeader";
-import Alert from "../../components/Main/Alert/Alert";
-import { extractFields, isForecast } from "../../utils/uplot";
+import { useQueryState } from "../../state/query/QueryStateContext";
 import { useFetchQuery } from "../../hooks/useFetchQuery";
-import Spinner from "../../components/Main/Spinner/Spinner";
-import GraphTab from "../CustomPanel/CustomPanelTabs/GraphTab";
 import { useGraphState } from "../../state/graph/GraphStateContext";
+import Spinner from "../../components/Main/Spinner/Spinner";
+import Alert from "../../components/Main/Alert/Alert";
+import WarningLimitSeries from "../CustomPanel/WarningLimitSeries/WarningLimitSeries";
+import GraphTab from "../CustomPanel/CustomPanelTabs/GraphTab";
+import { extractFields, isForecast } from "../../utils/uplot";
 import { MetricResult } from "../../api/types";
 import { promValueToNumber } from "../../utils/metric";
-import { ForecastType } from "../../types";
-import { useFetchAnomalySeries } from "./hooks/useFetchAnomalySeries";
-import { useQueryDispatch } from "../../state/query/QueryStateContext";
-import { useTimeDispatch } from "../../state/time/TimeStateContext";
-
-const anomalySeries = [
-  ForecastType.yhat,
-  ForecastType.yhatUpper,
-  ForecastType.yhatLower,
-  ForecastType.anomalyScore
-];
 
 // Hardcoded to 1.0 for now; consider adding a UI slider for threshold adjustment in the future.
 const ANOMALY_SCORE_THRESHOLD = 1;
 
 const ExploreAnomaly: FC = () => {
+  useSetQueryParams();
   const { isMobile } = useDeviceDetect();
 
-  const queryDispatch = useQueryDispatch();
-  const timeDispatch = useTimeDispatch();
-  const { series, error: errorSeries, isLoading: isAnomalySeriesLoading } = useFetchAnomalySeries();
-  const queries = useMemo(() => series ? Object.keys(series) : [], [series]);
-
-  const controlsRef = useRef<HTMLDivElement>(null);
+  const { query } = useQueryState();
   const { customStep } = useGraphState();
 
-  const { graphData, error, queryErrors, isHistogram, isLoading: isGraphDataLoading } = useFetchQuery({
+  const controlsRef = useRef<HTMLDivElement>(null);
+
+  const [hideQuery] = useState<number[]>([]);
+  const [hideError, setHideError] = useState(!query[0]);
+  const [showAllSeries, setShowAllSeries] = useState(false);
+
+  const {
+    isLoading,
+    graphData,
+    error,
+    queryErrors,
+    setQueryErrors,
+    queryStats,
+    warning,
+  } = useFetchQuery({
     visible: true,
     customStep,
-    showAllSeries: true,
+    hideQuery,
+    showAllSeries
   });
 
   const data = useMemo(() => {
-    if (!graphData) return;
+    if (!graphData) return [];
     const detectedData = graphData.map(d => ({ ...isForecast(d.metric), ...d }));
-    const realData = detectedData.filter(d => d.value === null);
-    const anomalyScoreData = detectedData.filter(d => d.isAnomalyScore);
+    const realData = detectedData.filter(d => d.value === ForecastType.actual);
+    const anomalyScoreData = detectedData.filter(d => d.value === ForecastType.anomaly);
     const anomalyData: MetricResult[] = realData.map((d) => {
       const id = extractFields(d.metric);
       const anomalyScoreDataByLabels = anomalyScoreData.find(du => extractFields(du.metric) === id);
 
       return {
-        group: queries.length + 1,
+        group: 1,
         metric: { ...d.metric, __name__: ForecastType.anomaly },
         values: d.values.filter(([t]) => {
           if (!anomalyScoreDataByLabels) return false;
@@ -63,22 +66,13 @@ const ExploreAnomaly: FC = () => {
         })
       };
     });
-    return graphData.filter(d => d.group !== anomalyScoreData[0]?.group).concat(anomalyData);
+    const filterData = detectedData.filter(d => (d.value !== ForecastType.anomaly) && d.value) as MetricResult[];
+    return filterData.concat(anomalyData);
   }, [graphData]);
 
-  const onChangeFilter = (expr: Record<string, string>) => {
-    const { __name__ = "", ...labelValue } = expr;
-    let prefix = __name__.replace(/y|_y/, "");
-    if (prefix) prefix += "_";
-    const metrics = [__name__, ...anomalySeries];
-    const filters = Object.entries(labelValue).map(([key, value]) => `${key}="${value}"`).join(",");
-    const queries = metrics.map((m, i) => `${i ? prefix : ""}${m}{${filters}}`);
-    queryDispatch({ type: "SET_QUERY", payload: queries });
-    timeDispatch({ type: "RUN_QUERY" });
+  const handleRunQuery = () => {
+    setHideError(false);
   };
-
-  const handleChangePopstate = () => window.location.reload();
-  useEventListener("popstate", handleChangePopstate);
 
   return (
     <div
@@ -87,14 +81,23 @@ const ExploreAnomaly: FC = () => {
         "vm-custom-panel_mobile": isMobile,
       })}
     >
-      <ExploreAnomalyHeader
-        queries={queries}
-        series={series}
-        onChange={onChangeFilter}
+      <QueryConfigurator
+        queryErrors={!hideError ? queryErrors : []}
+        setQueryErrors={setQueryErrors}
+        setHideError={setHideError}
+        stats={queryStats}
+        onRunQuery={handleRunQuery}
+        hideButtons={{ addQuery: true, prettify: true, autocomplete: true, traceQuery: true }}
       />
-      {(isGraphDataLoading || isAnomalySeriesLoading) && <Spinner />}
-      {(error || errorSeries) && <Alert variant="error">{error || errorSeries}</Alert>}
-      {!error && !errorSeries && queryErrors?.[0] && <Alert variant="error">{queryErrors[0]}</Alert>}
+      {isLoading && <Spinner/>}
+      {(!hideError && error) && <Alert variant="error">{error}</Alert>}
+      {warning && (
+        <WarningLimitSeries
+          warning={warning}
+          query={query}
+          onChange={setShowAllSeries}
+        />
+      )}
       <div
         className={classNames({
           "vm-custom-panel-body": true,
@@ -112,9 +115,9 @@ const ExploreAnomaly: FC = () => {
         {data && (
           <GraphTab
             graphData={data}
-            isHistogram={isHistogram}
+            isHistogram={false}
             controlsRef={controlsRef}
-            anomalyView={true}
+            isAnomalyView={true}
           />
         )}
       </div>

@@ -11,12 +11,12 @@ aliases:
 # How to delete or replace metrics in VictoriaMetrics 
 
 Data deletion is an operation people expect a database to have. [VictoriaMetrics](https://victoriametrics.com) supports 
-[delete operation](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-delete-time-series) but to a limited extent. Due to implementation details, VictoriaMetrics remains an [append-only database](https://en.wikipedia.org/wiki/Append-only), which perfectly fits the case for storing time series data. But the drawback of such architecture is that it is extremely expensive to mutate the data. Hence, `delete` or `update` operations support is very limited. In this guide, we'll walk through the possible workarounds for deleting or changing already written data in VictoriaMetrics.
+[delete operation](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-delete-time-series) but to a limited extent. Due to implementation details, VictoriaMetrics remains an [append-only database](https://en.wikipedia.org/wiki/Append-only), which perfectly fits the case for storing time series data. But the drawback of such architecture is that it is extremely expensive to mutate the data. Hence, `delete` or `update` operations support is very limited. In this guide, we'll walk through the possible workarounds for deleting or changing already written data in VictoriaMetrics.
 
 ### Precondition
 
-- [Single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html);
-- [Cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html);
+- [Single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/);
+- [Cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/);
 - [curl](https://curl.se/docs/manual.html)
 - [jq tool](https://stedolan.github.io/jq/)
 
@@ -24,7 +24,7 @@ Data deletion is an operation people expect a database to have. [VictoriaMetrics
 
 _Warning: time series deletion is not recommended to use on a regular basis. Each call to delete API could have a performance penalty. The API was provided for one-off operations to deleting malformed data or to satisfy GDPR compliance._
 
-[Delete API](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-delete-time-series) expects from user to specify [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). So the first thing to do before the deletion is to verify whether the selector matches the correct series.
+[Delete API](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-delete-time-series) expects from user to specify [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). So the first thing to do before the deletion is to verify whether the selector matches the correct series.
 
 To check that metrics are present in **VictoriaMetrics Cluster** run the following command:
 
@@ -78,7 +78,7 @@ The expected output:
 
 ```
 
-When you're sure [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) is correct, send a POST request to [delete API](https://docs.victoriametrics.com/url-examples.html#apiv1admintsdbdelete_series) with [`match[]=<time-series-selector>`](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) argument. For example:
+When you're sure [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) is correct, send a POST request to [delete API](https://docs.victoriametrics.com/url-examples/#apiv1admintsdbdelete_series) with [`match[]=<time-series-selector>`](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) argument. For example:
 
 
 ```curl
@@ -86,9 +86,9 @@ curl -s 'http://vmselect:8481/delete/0/prometheus/api/v1/admin/tsdb/delete_serie
 ```
 
 
-If operation was successful, the deleted series will stop being [queryable](https://docs.victoriametrics.com/keyConcepts.html#query-data). Storage space for the deleted time series isn't freed instantly - it is freed during subsequent [background merges of data files](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282). The background merges may never occur for data from previous months, so storage space won't be freed for historical data. In this case [forced merge](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#forced-merge) may help freeing up storage space.
+If operation was successful, the deleted series will stop being [queryable](https://docs.victoriametrics.com/keyconcepts/#query-data). Storage space for the deleted time series isn't freed instantly - it is freed during subsequent [background merges of data files](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282). The background merges may never occur for data from previous months, so storage space won't be freed for historical data. In this case [forced merge](https://docs.victoriametrics.com/single-server-victoriametrics/#forced-merge) may help freeing up storage space.
 
-To trigger [forced merge](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#forced-merge) on VictoriaMetrics Cluster run the following command:
+To trigger [forced merge](https://docs.victoriametrics.com/single-server-victoriametrics/#forced-merge) on VictoriaMetrics Cluster run the following command:
 
 
 ```curl
@@ -101,10 +101,10 @@ After the merge is complete, the data will be permanently deleted from the disk.
 
 By default, VictoriaMetrics doesn't provide a mechanism for replacing or updating data. As a workaround, take the following actions:
 
-- [export time series to a file](https://docs.victoriametrics.com/url-examples.html#apiv1export);
+- [export time series to a file](https://docs.victoriametrics.com/url-examples/#apiv1export);
 - change the values of time series in the file and save it;
-- [delete time series from a database](https://docs.victoriametrics.com/url-examples.html#apiv1admintsdbdelete_series);
-- [import saved file to VictoriaMetrics](https://docs.victoriametrics.com/url-examples.html#apiv1import).
+- [delete time series from a database](https://docs.victoriametrics.com/url-examples/#apiv1admintsdbdelete_series);
+- [import saved file to VictoriaMetrics](https://docs.victoriametrics.com/url-examples/#apiv1import).
 
 ### Export metrics
 
@@ -191,7 +191,7 @@ See [How-to-delete-metrics](https://docs.victoriametrics.com/guides/guide-delete
 
 ### Import metrics
 
-Victoriametrics supports a lot of [ingestion protocols](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-time-series-data) and we will use [import from JSON line format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-import-data-in-json-line-format).
+Victoriametrics supports a lot of [ingestion protocols](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-time-series-data) and we will use [import from JSON line format](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-data-in-json-line-format).
 
 The next command will import metrics from `data.jsonl` to VictoriaMetrics:
 

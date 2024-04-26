@@ -12,7 +12,7 @@ aliases:
 
 # Articles
 
-See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
+See also [case studies](https://docs.victoriametrics.com/casestudies/).
 
 ## Third-party articles and slides about VictoriaMetrics
 

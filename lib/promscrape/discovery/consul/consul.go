@@ -19,7 +19,7 @@ type SDConfig struct {
 	// Namespace only supported at enterprise consul.
 	// https://www.consul.io/docs/enterprise/namespaces
 	Namespace string `yaml:"namespace,omitempty"`
-	// Partition only supported at enteprise consul.
+	// Partition only supported at enterprise consul.
 	// https://developer.hashicorp.com/consul/docs/enterprise/admin-partitions
 	Partition string `yaml:"partition,omitempty"`
 

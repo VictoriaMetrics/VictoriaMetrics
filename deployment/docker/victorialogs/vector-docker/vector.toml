@@ -19,18 +19,13 @@
   '''
 
 [sinks.vlogs]
-  type = "elasticsearch"
+  type = "http"
   inputs = [ "msg_parser" ]
-  endpoints = [ "http://victorialogs:9428/insert/elasticsearch/" ]
-  mode = "bulk"
-  api_version = "v8"
+  uri = "http://victorialogs:9428/insert/jsonline?_stream_fields=source_type,host,container_name&_msg_field=log.msg&_time_field=timestamp"
+  encoding.codec = "json"
+  framing.method = "newline_delimited"
   compression = "gzip"
   healthcheck.enabled = false
-
-  [sinks.vlogs.query]
-    _msg_field = "log.msg"
-    _time_field = "timestamp"
-    _stream_fields = "source_type,host,container_name"
 
   [sinks.vlogs.request.headers]
     AccountID = "0"

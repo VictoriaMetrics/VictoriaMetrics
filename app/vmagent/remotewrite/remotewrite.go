@@ -40,21 +40,26 @@ var (
 		"Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. "+
 		"The data can be sharded among the configured remote storage systems if -remoteWrite.shardByURL flag is set")
 	remoteWriteMultitenantURLs = flagutil.NewArrayString("remoteWrite.multitenantURL", "Base path for multitenant remote storage URL to write data to. "+
-		"See https://docs.victoriametrics.com/vmagent.html#multitenancy for details. Example url: http://<vminsert>:8480 . "+
+		"See https://docs.victoriametrics.com/vmagent/#multitenancy for details. Example url: http://<vminsert>:8480 . "+
 		"Pass multiple -remoteWrite.multitenantURL flags in order to replicate data to multiple remote storage systems. "+
-		"This flag is deprecated in favor of -enableMultitenantHandlers . See https://docs.victoriametrics.com/vmagent.html#multitenancy")
+		"This flag is deprecated in favor of -enableMultitenantHandlers . See https://docs.victoriametrics.com/vmagent/#multitenancy")
 	enableMultitenantHandlers = flag.Bool("enableMultitenantHandlers", false, "Whether to process incoming data via multitenant insert handlers according to "+
-		"https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format . By default incoming data is processed via single-node insert handlers "+
+		"https://docs.victoriametrics.com/cluster-victoriametrics/#url-format . By default incoming data is processed via single-node insert handlers "+
 		"according to https://docs.victoriametrics.com/#how-to-import-time-series-data ."+
-		"See https://docs.victoriametrics.com/vmagent.html#multitenancy for details")
+		"See https://docs.victoriametrics.com/vmagent/#multitenancy for details")
+
 	shardByURL = flag.Bool("remoteWrite.shardByURL", false, "Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url . "+
-		"By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/vmagent.html#sharding-among-remote-storages")
+		"By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages . "+
+		"See also -remoteWrite.shardByURLReplicas")
+	shardByURLReplicas = flag.Int("remoteWrite.shardByURLReplicas", 1, "How many copies of data to make among remote storage systems enumerated via -remoteWrite.url "+
+		"when -remoteWrite.shardByURL is set. See https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages")
 	shardByURLLabels = flagutil.NewArrayString("remoteWrite.shardByURL.labels", "Optional list of labels, which must be used for sharding outgoing samples "+
 		"among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain "+
 		"even distribution of series over the specified -remoteWrite.url systems. See also -remoteWrite.shardByURL.ignoreLabels")
 	shardByURLIgnoreLabels = flagutil.NewArrayString("remoteWrite.shardByURL.ignoreLabels", "Optional list of labels, which must be ignored when sharding outgoing samples "+
 		"among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain "+
 		"even distribution of series over the specified -remoteWrite.url systems. See also -remoteWrite.shardByURL.labels")
+
 	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory for storing pending data, which isn't sent to the configured -remoteWrite.url . "+
 		"See also -remoteWrite.maxDiskUsagePerURL and -remoteWrite.disableOnDiskQueue")
 	keepDanglingQueues = flag.Bool("remoteWrite.keepDanglingQueues", false, "Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. "+
@@ -81,33 +86,35 @@ var (
 		`For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}`+
 		`Enabled sorting for labels can slow down ingestion performance a bit`)
 	maxHourlySeries = flag.Int("remoteWrite.maxHourlySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last hour. "+
-		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter")
+		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/vmagent/#cardinality-limiter")
 	maxDailySeries = flag.Int("remoteWrite.maxDailySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. "+
-		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter")
+		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/vmagent/#cardinality-limiter")
 	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmagent can receive per second. Data ingestion is paused when the limit is exceeded. "+
 		"By default there are no limits on samples ingestion rate. See also -remoteWrite.rateLimit")
 
 	streamAggrConfig = flagutil.NewArrayString("remoteWrite.streamAggr.config", "Optional path to file with stream aggregation config. "+
-		"See https://docs.victoriametrics.com/stream-aggregation.html . "+
+		"See https://docs.victoriametrics.com/stream-aggregation/ . "+
 		"See also -remoteWrite.streamAggr.keepInput, -remoteWrite.streamAggr.dropInput and -remoteWrite.streamAggr.dedupInterval")
 	streamAggrKeepInput = flagutil.NewArrayBool("remoteWrite.streamAggr.keepInput", "Whether to keep all the input samples after the aggregation "+
 		"with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples "+
-		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.dropInput and https://docs.victoriametrics.com/stream-aggregation.html")
+		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.dropInput and https://docs.victoriametrics.com/stream-aggregation/")
 	streamAggrDropInput = flagutil.NewArrayBool("remoteWrite.streamAggr.dropInput", "Whether to drop all the input samples after the aggregation "+
 		"with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples "+
-		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation.html")
+		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation/")
 	streamAggrDedupInterval = flagutil.NewArrayDuration("remoteWrite.streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval before optional aggregation "+
-		"with -remoteWrite.streamAggr.config . See also -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation.html#deduplication")
+		"with -remoteWrite.streamAggr.config . See also -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation/#deduplication")
 	streamAggrIgnoreOldSamples = flagutil.NewArrayBool("remoteWrite.streamAggr.ignoreOldSamples", "Whether to ignore input samples with old timestamps outside the current aggregation interval "+
-		"for the corresponding -remoteWrite.streamAggr.config . See https://docs.victoriametrics.com/stream-aggregation.html#ignoring-old-samples")
+		"for the corresponding -remoteWrite.streamAggr.config . See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples")
+	streamAggrIgnoreFirstIntervals = flag.Int("remoteWrite.streamAggr.ignoreFirstIntervals", 0, "Number of aggregation intervals to skip after the start. Increase this value if you observe incorrect aggregation results after vmagent restarts. It could be caused by receiving unordered delayed data from clients pushing data into the vmagent. "+
+		"See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start")
 	streamAggrDropInputLabels = flagutil.NewArrayString("streamAggr.dropInputLabels", "An optional list of labels to drop from samples "+
-		"before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation.html#dropping-unneeded-labels")
+		"before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels")
 
 	disableOnDiskQueue = flag.Bool("remoteWrite.disableOnDiskQueue", false, "Whether to disable storing pending data to -remoteWrite.tmpDataPath "+
-		"when the configured remote storage systems cannot keep up with the data ingestion rate. See https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence ."+
+		"when the configured remote storage systems cannot keep up with the data ingestion rate. See https://docs.victoriametrics.com/vmagent/#disabling-on-disk-persistence ."+
 		"See also -remoteWrite.dropSamplesOnOverload")
 	dropSamplesOnOverload = flag.Bool("remoteWrite.dropSamplesOnOverload", false, "Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples "+
-		"cannot be pushed into the configured remote storage systems in a timely manner. See https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence")
+		"cannot be pushed into the configured remote storage systems in a timely manner. See https://docs.victoriametrics.com/vmagent/#disabling-on-disk-persistence")
 )
 
 var (
@@ -125,7 +132,7 @@ var (
 	ErrQueueFullHTTPRetry = &httpserver.ErrorWithStatusCode{
 		Err: fmt.Errorf("remote storage systems cannot keep up with the data ingestion rate; retry the request later " +
 			"or remove -remoteWrite.disableOnDiskQueue from vmagent command-line flags, so it could save pending data to -remoteWrite.tmpDataPath; " +
-			"see https://docs.victoriametrics.com/vmagent.html#disabling-on-disk-persistence"),
+			"see https://docs.victoriametrics.com/vmagent/#disabling-on-disk-persistence"),
 		StatusCode: http.StatusTooManyRequests,
 	}
 )
@@ -252,6 +259,9 @@ func dropDanglingQueues() {
 	// This is required for the case when the number of queues has been changed or URL have been changed.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4014
 	//
+	// In case if there were many persistent queues with identical *remoteWriteURLs
+	// the queue with the last index will be dropped.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6140
 	existingQueues := make(map[string]struct{}, len(rwctxsDefault))
 	for _, rwctx := range rwctxsDefault {
 		existingQueues[rwctx.fq.Dirname()] = struct{}{}
@@ -338,7 +348,7 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 		}
 		sanitizedURL := fmt.Sprintf("%d:secret-url", i+1)
 		if at != nil {
-			// Construct full remote_write url for the given tenant according to https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
+			// Construct full remote_write url for the given tenant according to https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
 			remoteWriteURL.Path = fmt.Sprintf("%s/insert/%d:%d/prometheus/api/v1/write", remoteWriteURL.Path, at.AccountID, at.ProjectID)
 			sanitizedURL = fmt.Sprintf("%s:%d:%d", sanitizedURL, at.AccountID, at.ProjectID)
 		}
@@ -562,58 +572,17 @@ func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmar
 
 	// We need to push tssBlock to multiple remote storages.
 	// This is either sharding or replication depending on -remoteWrite.shardByURL command-line flag value.
-	if *shardByURL {
-		// Shard the data among rwctxs
-		tssByURL := make([][]prompbmarshal.TimeSeries, len(rwctxs))
-		tmpLabels := promutils.GetLabels()
-		for _, ts := range tssBlock {
-			hashLabels := ts.Labels
-			if len(shardByURLLabelsMap) > 0 {
-				hashLabels = tmpLabels.Labels[:0]
-				for _, label := range ts.Labels {
-					if _, ok := shardByURLLabelsMap[label.Name]; ok {
-						hashLabels = append(hashLabels, label)
-					}
-				}
-				tmpLabels.Labels = hashLabels
-			} else if len(shardByURLIgnoreLabelsMap) > 0 {
-				hashLabels = tmpLabels.Labels[:0]
-				for _, label := range ts.Labels {
-					if _, ok := shardByURLIgnoreLabelsMap[label.Name]; !ok {
-						hashLabels = append(hashLabels, label)
-					}
-				}
-				tmpLabels.Labels = hashLabels
-			}
-			h := getLabelsHash(hashLabels)
-			idx := h % uint64(len(tssByURL))
-			tssByURL[idx] = append(tssByURL[idx], ts)
+	if *shardByURL && *shardByURLReplicas < len(rwctxs) {
+		// Shard tssBlock samples among rwctxs.
+		replicas := *shardByURLReplicas
+		if replicas <= 0 {
+			replicas = 1
 		}
-		promutils.PutLabels(tmpLabels)
-
-		// Push sharded data to remote storages in parallel in order to reduce
-		// the time needed for sending the data to multiple remote storage systems.
-		var wg sync.WaitGroup
-		var anyPushFailed atomic.Bool
-		for i, rwctx := range rwctxs {
-			tssShard := tssByURL[i]
-			if len(tssShard) == 0 {
-				continue
-			}
-			wg.Add(1)
-			go func(rwctx *remoteWriteCtx, tss []prompbmarshal.TimeSeries) {
-				defer wg.Done()
-				if !rwctx.TryPush(tss) {
-					anyPushFailed.Store(true)
-				}
-			}(rwctx, tssShard)
-		}
-		wg.Wait()
-		return !anyPushFailed.Load()
+		return tryShardingBlockAmongRemoteStorages(rwctxs, tssBlock, replicas)
 	}
 
-	// Replicate data among rwctxs.
-	// Push block to remote storages in parallel in order to reduce
+	// Replicate tssBlock samples among rwctxs.
+	// Push tssBlock to remote storage systems in parallel in order to reduce
 	// the time needed for sending the data to multiple remote storage systems.
 	var wg sync.WaitGroup
 	wg.Add(len(rwctxs))
@@ -629,6 +598,97 @@ func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmar
 	wg.Wait()
 	return !anyPushFailed.Load()
 }
+
+func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmarshal.TimeSeries, replicas int) bool {
+	x := getTSSShards(len(rwctxs))
+	defer putTSSShards(x)
+
+	shards := x.shards
+	tmpLabels := promutils.GetLabels()
+	for _, ts := range tssBlock {
+		hashLabels := ts.Labels
+		if len(shardByURLLabelsMap) > 0 {
+			hashLabels = tmpLabels.Labels[:0]
+			for _, label := range ts.Labels {
+				if _, ok := shardByURLLabelsMap[label.Name]; ok {
+					hashLabels = append(hashLabels, label)
+				}
+			}
+			tmpLabels.Labels = hashLabels
+		} else if len(shardByURLIgnoreLabelsMap) > 0 {
+			hashLabels = tmpLabels.Labels[:0]
+			for _, label := range ts.Labels {
+				if _, ok := shardByURLIgnoreLabelsMap[label.Name]; !ok {
+					hashLabels = append(hashLabels, label)
+				}
+			}
+			tmpLabels.Labels = hashLabels
+		}
+		h := getLabelsHash(hashLabels)
+		idx := h % uint64(len(shards))
+		i := 0
+		for {
+			shards[idx] = append(shards[idx], ts)
+			i++
+			if i >= replicas {
+				break
+			}
+			idx++
+			if idx >= uint64(len(shards)) {
+				idx = 0
+			}
+		}
+	}
+	promutils.PutLabels(tmpLabels)
+
+	// Push sharded samples to remote storage systems in parallel in order to reduce
+	// the time needed for sending the data to multiple remote storage systems.
+	var wg sync.WaitGroup
+	var anyPushFailed atomic.Bool
+	for i, rwctx := range rwctxs {
+		shard := shards[i]
+		if len(shard) == 0 {
+			continue
+		}
+		wg.Add(1)
+		go func(rwctx *remoteWriteCtx, tss []prompbmarshal.TimeSeries) {
+			defer wg.Done()
+			if !rwctx.TryPush(tss) {
+				anyPushFailed.Store(true)
+			}
+		}(rwctx, shard)
+	}
+	wg.Wait()
+	return !anyPushFailed.Load()
+}
+
+type tssShards struct {
+	shards [][]prompbmarshal.TimeSeries
+}
+
+func getTSSShards(n int) *tssShards {
+	v := tssShardsPool.Get()
+	if v == nil {
+		v = &tssShards{}
+	}
+	x := v.(*tssShards)
+	if cap(x.shards) < n {
+		x.shards = make([][]prompbmarshal.TimeSeries, n)
+	}
+	x.shards = x.shards[:n]
+	return x
+}
+
+func putTSSShards(x *tssShards) {
+	shards := x.shards
+	for i := range shards {
+		clear(shards[i])
+		shards[i] = shards[i][:0]
+	}
+	tssShardsPool.Put(x)
+}
+
+var tssShardsPool sync.Pool
 
 // sortLabelsIfNeeded sorts labels if -sortLabels command-line flag is set.
 func sortLabelsIfNeeded(tss []prompbmarshal.TimeSeries) {
@@ -802,9 +862,10 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 	ignoreOldSamples := streamAggrIgnoreOldSamples.GetOptionalArg(argIdx)
 	if sasFile != "" {
 		opts := &streamaggr.Options{
-			DedupInterval:    dedupInterval,
-			DropInputLabels:  *streamAggrDropInputLabels,
-			IgnoreOldSamples: ignoreOldSamples,
+			DedupInterval:        dedupInterval,
+			DropInputLabels:      *streamAggrDropInputLabels,
+			IgnoreOldSamples:     ignoreOldSamples,
+			IgnoreFirstIntervals: *streamAggrIgnoreFirstIntervals,
 		}
 		sas, err := streamaggr.LoadFromFile(sasFile, rwctx.pushInternalTrackDropped, opts)
 		if err != nil {

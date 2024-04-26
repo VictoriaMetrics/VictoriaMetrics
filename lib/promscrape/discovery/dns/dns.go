@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
@@ -17,7 +18,7 @@ import (
 // SDCheckInterval defines interval for targets refresh.
 var SDCheckInterval = flag.Duration("promscrape.dnsSDCheckInterval", 30*time.Second, "Interval for checking for changes in dns. "+
 	"This works only if dns_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://docs.victoriametrics.com/sd_configs.html#dns_sd_configs for details")
+	"See https://docs.victoriametrics.com/sd_configs/#dns_sd_configs for details")
 
 // SDConfig represents service discovery config for DNS.
 //
@@ -74,7 +75,7 @@ func getMXAddrLabels(ctx context.Context, sdc *SDConfig) []*promutils.Labels {
 	ch := make(chan result, len(sdc.Names))
 	for _, name := range sdc.Names {
 		go func(name string) {
-			mx, err := resolver.LookupMX(ctx, name)
+			mx, err := netutil.Resolver.LookupMX(ctx, name)
 			ch <- result{
 				name: name,
 				mx:   mx,
@@ -109,7 +110,7 @@ func getSRVAddrLabels(ctx context.Context, sdc *SDConfig) []*promutils.Labels {
 	ch := make(chan result, len(sdc.Names))
 	for _, name := range sdc.Names {
 		go func(name string) {
-			_, as, err := resolver.LookupSRV(ctx, "", "", name)
+			_, as, err := netutil.Resolver.LookupSRV(ctx, "", "", name)
 			ch <- result{
 				name: name,
 				as:   as,
@@ -148,7 +149,7 @@ func getAAddrLabels(ctx context.Context, sdc *SDConfig, lookupType string) ([]*p
 	ch := make(chan result, len(sdc.Names))
 	for _, name := range sdc.Names {
 		go func(name string) {
-			ips, err := resolver.LookupIPAddr(ctx, name)
+			ips, err := netutil.Resolver.LookupIPAddr(ctx, name)
 			ch <- result{
 				name: name,
 				ips:  ips,
@@ -191,9 +192,4 @@ func appendAddrLabels(ms []*promutils.Labels, name, target string, port int) []*
 	m.Add("__meta_dns_srv_record_target", target)
 	m.Add("__meta_dns_srv_record_port", strconv.Itoa(port))
 	return append(ms, m)
-}
-
-var resolver = &net.Resolver{
-	PreferGo:     true,
-	StrictErrors: true,
 }

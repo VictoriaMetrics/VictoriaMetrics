@@ -29,7 +29,7 @@ Released at 2020-12-27
 
 Released at 2020-12-19
 
-* FEATURE: do not publish duplicate Docker images with `-cluster` tag suffix for [vmagent](https://docs.victoriametrics.com/vmagent.html), [vmalert](https://docs.victoriametrics.com/vmalert.html), [vmauth](https://docs.victoriametrics.com/vmauth.html), [vmbackup](https://docs.victoriametrics.com/vmbackup.html) and [vmrestore](https://docs.victoriametrics.com/vmrestore.html), since they are identical to images without `-cluster` tag suffix.
+* FEATURE: do not publish duplicate Docker images with `-cluster` tag suffix for [vmagent](https://docs.victoriametrics.com/vmagent/), [vmalert](https://docs.victoriametrics.com/vmalert/), [vmauth](https://docs.victoriametrics.com/vmauth/), [vmbackup](https://docs.victoriametrics.com/vmbackup/) and [vmrestore](https://docs.victoriametrics.com/vmrestore/), since they are identical to images without `-cluster` tag suffix.
 
 * BUGFIX: vmalert: properly populate template variables. This has been broken in v1.50.0. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/974>
 * BUGFIX: properly parse negative combined duration in MetricsQL such as `-1h3m4s`. It must be parsed as `-(1h + 3m + 4s)`. Prevsiously it was parsed as `-1h + 3m + 4s`.
@@ -74,7 +74,7 @@ Released at 2020-12-15
 Released at 2020-12-05
 
 * FEATURE: optimize Consul service discovery speed when discovering big number of services. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/574>
-* FEATURE: add `label_uppercase(q, label1, ... labelN)` and `label_lowercase(q, label1, ... labelN)` function to [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html)
+* FEATURE: add `label_uppercase(q, label1, ... labelN)` and `label_lowercase(q, label1, ... labelN)` function to [MetricsQL](https://docs.victoriametrics.com/metricsql/)
   for uppercasing and lowercasing values for the given labels. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/936>
 * FEATURE: add `count_eq_over_time(m[d], N)` and `count_ne_over_time(m[d], N)` for counting the number of samples for `m` over `d` that (equal / not equal) to `N`.
 * FEATURE: do not print usage info for all the command-line flags when incorrect command-line flag is passed. Previously it could be hard reading the error message
@@ -103,7 +103,7 @@ Released at 2020-11-26
 * FEATURE: vmselect: add `-replicationFactor` command-line flag for reducing query duration when replication is enabled and a part of vmstorage nodes
   are temporarily slow and/or temporarily unavailable. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711>
 * FEATURE: vminsert: export `vm_rpc_vmstorage_is_reachable` metric, which can be used for monitoring reachability of vmstorage nodes from vminsert nodes.
-* FEATURE: vmagent: add [Netflix Eureka](https://github.com/Netflix/eureka) service discovery (aka [eureka_sd_config](https://docs.victoriametrics.com/sd_configs.html#eureka_sd_configs)). See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/851>
+* FEATURE: vmagent: add [Netflix Eureka](https://github.com/Netflix/eureka) service discovery (aka [eureka_sd_config](https://docs.victoriametrics.com/sd_configs/#eureka_sd_configs)). See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/851>
 * FEATURE: add `filters` option to `dockerswarm_sd_config` like Prometheus did in v2.23.0 - see <https://github.com/prometheus/prometheus/pull/8074>
 * FEATURE: expose `__meta_ec2_ipv6_addresses` label for `ec2_sd_config` like Prometheus will do in the next release.
 * FEATURE: add `-loggerWarnsPerSecondLimit` command-line flag for rate limiting of WARN messages in logs. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/905>
@@ -166,7 +166,7 @@ Released at 2020-11-07
 
 * BUGFIX: vmagent: eliminate data race when `-promscrape.streamParse` command-line is set. Previously this mode could result in scraped metrics with garbage labels.
   See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247> for details.
-* BUGFIX: properly calculate `topk_*` and `bottomk_*` functions from [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) for time series with gaps.
+* BUGFIX: properly calculate `topk_*` and `bottomk_*` functions from [MetricsQL](https://docs.victoriametrics.com/metricsql/) for time series with gaps.
   See <https://github.com/VictoriaMetrics/VictoriaMetrics/pull/883>
 
 ## [v1.45.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.45.0)
@@ -184,9 +184,9 @@ Released at 2020-11-02
 * FEATURE: vmagent: add `stream parse` mode. This mode allows reducing memory usage when individual scrape targets expose tens of millions of metrics.
   For example, during scraping Prometheus in [federation](https://prometheus.io/docs/prometheus/latest/federation/) mode.
   See `-promscrape.streamParse` command-line option and `stream_parse: true` config option for `scrape_config` section in `-promscrape.config`.
-  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825> and [troubleshooting docs for vmagent](https://docs.victoriametrics.com/vmagent.html#troubleshooting).
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825> and [troubleshooting docs for vmagent](https://docs.victoriametrics.com/vmagent/#troubleshooting).
 * FEATURE: vmalert: add `-dryRun` command-line option for validating the provided config files without the need to start `vmalert` service.
-* FEATURE: accept optional third argument of string type at `topk_*` and `bottomk_*` functions. This is label name for additional time series to return with the sum of time series outside top/bottom K. See [MetricsQL docs](https://docs.victoriametrics.com/MetricsQL.html) for more details.
+* FEATURE: accept optional third argument of string type at `topk_*` and `bottomk_*` functions. This is label name for additional time series to return with the sum of time series outside top/bottom K. See [MetricsQL docs](https://docs.victoriametrics.com/metricsql/) for more details.
 * FEATURE: vmagent: expose `/api/v1/targets` page according to [the corresponding Prometheus API](https://prometheus.io/docs/prometheus/latest/querying/api/#targets).
   See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/643>
 
@@ -216,11 +216,11 @@ Released at 2020-10-13
      node_filesystem_files{ host="$host", mountpoint="/" } - node_filesystem_files_free
   ```
 
-* FEATURE: vmagent: add Docker Swarm service discovery (aka [dockerswarm_sd_config](https://docs.victoriametrics.com/sd_configs.html#dockerswarm_sd_configs)).
+* FEATURE: vmagent: add Docker Swarm service discovery (aka [dockerswarm_sd_config](https://docs.victoriametrics.com/sd_configs/#dockerswarm_sd_configs)).
   See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/656>
 * FEATURE: add ability to export data in CSV format. See [these docs](https://docs.victoriametrics.com/#how-to-export-csv-data) for details.
 * FEATURE: vmagent: add `-promscrape.suppressDuplicateScrapeTargetErrors` command-line flag for suppressing `duplicate scrape target` errors.
-  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/651> and <https://docs.victoriametrics.com/vmagent.html#troubleshooting> .
+  See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/651> and <https://docs.victoriametrics.com/vmagent/#troubleshooting> .
 * FEATURE: vmagent: show original labels before relabeling is applied on `duplicate scrape target` errors. This should simplify debugging for incorrect relabeling.
   See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/651>
 * FEATURE: vmagent: `/targets` page now accepts optional `show_original_labels=1` query arg for displaying original labels for each target before relabeling is applied.
@@ -230,8 +230,8 @@ Released at 2020-10-13
 * FEATURE: add `vm_rows_added_to_storage_total` metric, which shows the total number of rows added to storage since app start.
   The `sum(rate(vm_rows_added_to_storage_total))` can be smaller than `sum(rate(vm_rows_inserted_total))` if certain metrics are dropped
   due to [relabeling](https://docs.victoriametrics.com/#relabeling). The `sum(rate(vm_rows_added_to_storage_total))` can be bigger
-  than `sum(rate(vm_rows_inserted_total))` if [replication](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety) is enabled.
-* FEATURE: keep metric name after applying [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) functions, which don't change time series meaning.
+  than `sum(rate(vm_rows_inserted_total))` if [replication](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety) is enabled.
+* FEATURE: keep metric name after applying [MetricsQL](https://docs.victoriametrics.com/metricsql/) functions, which don't change time series meaning.
   The list of such functions:
   * `keep_last_value`
   * `keep_next_value`
@@ -272,8 +272,8 @@ Released at 2020-10-13
 Released at 2020-10-06
 
 * FEATURE: reduce CPU usage for repeated queries over sliding time window when no new time series are added to the database.
-  Typical use cases: repeated evaluation of alerting rules in [vmalert](https://docs.victoriametrics.com/vmalert.html) or dashboard auto-refresh in Grafana.
-* FEATURE: vmagent: add OpenStack service discovery aka [openstack_sd_config](https://docs.victoriametrics.com/sd_configs.html#openstack_sd_configs).
+  Typical use cases: repeated evaluation of alerting rules in [vmalert](https://docs.victoriametrics.com/vmalert/) or dashboard auto-refresh in Grafana.
+* FEATURE: vmagent: add OpenStack service discovery aka [openstack_sd_config](https://docs.victoriametrics.com/sd_configs/#openstack_sd_configs).
   See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/728> .
 * FEATURE: vmalert: make `-maxIdleConnections` configurable for datasource HTTP client. This option can be used for minimizing connection churn.
   See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/795> .
@@ -295,7 +295,7 @@ Released at 2020-09-30
   for [all the supported protocols](https://docs.victoriametrics.com/#how-to-import-time-series-data).
   Previously data ingested via a single TCP connection could use only a single CPU core. This could limit data ingestion performance.
   The main benefit of this feature is that data can be imported at max speed via a single connection - there is no need to open multiple concurrent
-  connections to VictoriaMetrics or [vmagent](https://docs.victoriametrics.com/vmagent.html) in order to achieve the maximum data ingestion speed.
+  connections to VictoriaMetrics or [vmagent](https://docs.victoriametrics.com/vmagent/) in order to achieve the maximum data ingestion speed.
 * FEATURE: cluster: improve performance for data ingestion path from `vminsert` to `vmstorage` nodes. The maximum data ingestion performance
   for a single connection between `vminsert` and `vmstorage` node scales with the number of available CPU cores on `vmstorage` side.
   This should help with <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/791> .

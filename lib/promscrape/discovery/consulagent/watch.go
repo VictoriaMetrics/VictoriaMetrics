@@ -19,7 +19,7 @@ import (
 // SDCheckInterval is check interval for Consul Agent service discovery.
 var SDCheckInterval = flag.Duration("promscrape.consulagentSDCheckInterval", 30*time.Second, "Interval for checking for changes in Consul Agent. "+
 	"This works only if consulagent_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://docs.victoriametrics.com/sd_configs.html#consulagent_sd_configs for details")
+	"See https://docs.victoriametrics.com/sd_configs/#consulagent_sd_configs for details")
 
 // consulAgentWatcher is a watcher for consul api, updates services map in background with long-polling.
 type consulAgentWatcher struct {

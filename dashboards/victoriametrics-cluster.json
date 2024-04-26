@@ -2973,7 +2973,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the rate and total number of new series created over last 24h.\n\nHigh [churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate) tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected [cardinality](https://docs.victoriametrics.com/keyconcepts/#cardinality) \"explosions\".\n\nThe higher churn rate is, the more resources required to handle it. Consider to keep the churn rate as low as possible.\n\nTo investigate stats about most expensive series use `api/v1/status/tsdb` handler. More details here https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://valyala.medium.com/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b",
+          "description": "Shows the rate and total number of new series created over last 24h.\n\nHigh [churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate) tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected [cardinality](https://docs.victoriametrics.com/keyconcepts/#cardinality) \"explosions\".\n\nThe higher churn rate is, the more resources required to handle it. Consider to keep the churn rate as low as possible.\n\nTo investigate stats about most expensive series use `api/v1/status/tsdb` handler. More details here https://docs.victoriametrics.com/cluster-victoriametrics/#url-format\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://valyala.medium.com/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3271,7 +3271,7 @@
             {
               "targetBlank": true,
               "title": "Readonly mode",
-              "url": "https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode"
+              "url": "https://docs.victoriametrics.com/cluster-victoriametrics/#readonly-mode"
             }
           ],
           "options": {
@@ -5343,7 +5343,7 @@
             {
               "targetBlank": true,
               "title": "Readonly mode",
-              "url": "https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode"
+              "url": "https://docs.victoriametrics.com/cluster-victoriametrics/#readonly-mode"
             }
           ],
           "options": {
@@ -5521,7 +5521,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "The number of on-going merges in storage nodes.  It is expected to have high numbers for `storage/small` metric.",
+          "description": "The max number of on-going merges across storage nodes.\n The drastic change in number of merges could be a sign of on-going deduplication/downsampling activity.\n It is expected to have high numbers for `storage/small` metric.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5610,7 +5610,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(max_over_time(vm_active_merges{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval])) by(type)",
+              "expr": "max(max_over_time(vm_active_merges{job=~\"$job_storage\", instance=~\"$instance\"}[$__rate_interval])) by(type)",
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
@@ -7230,7 +7230,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) scanner per query.\n\nThis number can exceed number of DatapointsReadPerQuery if `step` query arg passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries) is smaller than the lookbehind window set in square brackets of [rollup function](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions). For example, if `increase(some_metric[1h])` is executed with the `step=5m`, then the same [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) on a hour time range are scanned `1h/5m=12` times. See [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986) for details.",
+          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) scanner per query.\n\nThis number can exceed number of DatapointsReadPerQuery if `step` query arg passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries) is smaller than the lookbehind window set in square brackets of [rollup function](https://docs.victoriametrics.com/metricsql/#rollup-functions). For example, if `increase(some_metric[1h])` is executed with the `step=5m`, then the same [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) on a hour time range are scanned `1h/5m=12` times. See [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986) for details.",
           "fieldConfig": {
             "defaults": {
               "color": {

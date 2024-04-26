@@ -6,18 +6,15 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 func statStdDial(ctx context.Context, _, addr string) (net.Conn, error) {
-	d := getStdDialer()
 	network := netutil.GetTCPNetwork()
-	conn, err := d.DialContext(ctx, network, addr)
+	conn, err := netutil.DialMaybeSRV(ctx, network, addr)
 	dialsTotal.Inc()
 	if err != nil {
 		dialErrors.Inc()
@@ -32,22 +29,6 @@ func statStdDial(ctx context.Context, _, addr string) (net.Conn, error) {
 	}
 	return sc, nil
 }
-
-func getStdDialer() *net.Dialer {
-	stdDialerOnce.Do(func() {
-		stdDialer = &net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-			DualStack: netutil.TCP6Enabled(),
-		}
-	})
-	return stdDialer
-}
-
-var (
-	stdDialer     *net.Dialer
-	stdDialerOnce sync.Once
-)
 
 var (
 	dialsTotal = metrics.NewCounter(`vm_promscrape_dials_total`)

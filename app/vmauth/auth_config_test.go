@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"net/url"
-	"regexp"
 	"testing"
 
 	"gopkg.in/yaml.v2"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 func TestParseAuthConfigFailure(t *testing.T) {
@@ -315,43 +316,54 @@ users:
 	f(`
 users:
 - auth_token: foo
-  url_prefix: http://aaa:343/bbb
+  url_prefix: https://aaa:343/bbb
   max_concurrent_requests: 5
   tls_insecure_skip_verify: true
+  tls_server_name: "foo.bar"
+  tls_ca_file: "foo/bar"
+  tls_cert_file: "foo/baz"
+  tls_key_file: "foo/foo"
 `, map[string]*UserInfo{
 		getHTTPAuthToken("foo"): {
 			AuthToken:             "foo",
-			URLPrefix:             mustParseURL("http://aaa:343/bbb"),
+			URLPrefix:             mustParseURL("https://aaa:343/bbb"),
 			MaxConcurrentRequests: 5,
 			TLSInsecureSkipVerify: &insecureSkipVerifyTrue,
+			TLSServerName:         "foo.bar",
+			TLSCAFile:             "foo/bar",
+			TLSCertFile:           "foo/baz",
+			TLSKeyFile:            "foo/foo",
 		},
 	})
 
 	// Multiple url_prefix entries
 	insecureSkipVerifyFalse := false
+	discoverBackendIPsTrue := true
 	f(`
 users:
 - username: foo
   password: bar
   url_prefix:
   - http://node1:343/bbb
-  - http://node2:343/bbb
+  - http://srv+node2:343/bbb
   tls_insecure_skip_verify: false
   retry_status_codes: [500, 501]
   load_balancing_policy: first_available
   drop_src_path_prefix_parts: 1
+  discover_backend_ips: true
 `, map[string]*UserInfo{
 		getHTTPAuthBasicToken("foo", "bar"): {
 			Username: "foo",
 			Password: "bar",
 			URLPrefix: mustParseURLs([]string{
 				"http://node1:343/bbb",
-				"http://node2:343/bbb",
+				"http://srv+node2:343/bbb",
 			}),
 			TLSInsecureSkipVerify:  &insecureSkipVerifyFalse,
 			RetryStatusCodes:       []int{500, 501},
 			LoadBalancingPolicy:    "first_available",
 			DropSrcPathPrefixParts: intp(1),
+			DiscoverBackendIPs:     &discoverBackendIPsTrue,
 		},
 	})
 
@@ -384,32 +396,21 @@ users:
 			{
 				SrcHosts: getRegexs([]string{"foo\\.bar", "baz:1234"}),
 				SrcPaths: getRegexs([]string{"/api/v1/write"}),
-				SrcQueryArgs: []QueryArg{
-					{
-						Name:  "foo",
-						Value: "bar",
-					},
+				SrcQueryArgs: []*QueryArg{
+					mustNewQueryArg("foo=b.+ar"),
+					mustNewQueryArg("baz=~.*x=y.+"),
 				},
-				SrcHeaders: []Header{
-					{
-						Name:  "TenantID",
-						Value: "345",
-					},
+				SrcHeaders: []*Header{
+					mustNewHeader("'TenantID: 345'"),
 				},
 				URLPrefix: mustParseURLs([]string{
 					"http://vminsert1/insert/0/prometheus",
 					"http://vminsert2/insert/0/prometheus",
 				}),
 				HeadersConf: HeadersConf{
-					RequestHeaders: []Header{
-						{
-							Name:  "foo",
-							Value: "bar",
-						},
-						{
-							Name:  "xxx",
-							Value: "y",
-						},
+					RequestHeaders: []*Header{
+						mustNewHeader("'foo: bar'"),
+						mustNewHeader("'xxx: y'"),
 					},
 				},
 			},
@@ -423,7 +424,7 @@ users:
     url_prefix: http://vmselect/select/0/prometheus
   - src_paths: ["/api/v1/write"]
     src_hosts: ["foo\\.bar", "baz:1234"]
-    src_query_args: ['foo=bar']
+    src_query_args: ['foo=b.+ar', 'baz=~.*x=y.+']
     src_headers: ['TenantID: 345']
     url_prefix: ["http://vminsert1/insert/0/prometheus","http://vminsert2/insert/0/prometheus"]
     headers:
@@ -486,15 +487,9 @@ users:
 						"http://vminsert2/insert/0/prometheus",
 					}),
 					HeadersConf: HeadersConf{
-						RequestHeaders: []Header{
-							{
-								Name:  "foo",
-								Value: "bar",
-							},
-							{
-								Name:  "xxx",
-								Value: "y",
-							},
+						RequestHeaders: []*Header{
+							mustNewHeader("'foo: bar'"),
+							mustNewHeader("'xxx: y'"),
 						},
 					},
 				},
@@ -518,15 +513,9 @@ users:
 						"http://vminsert2/insert/0/prometheus",
 					}),
 					HeadersConf: HeadersConf{
-						RequestHeaders: []Header{
-							{
-								Name:  "foo",
-								Value: "bar",
-							},
-							{
-								Name:  "xxx",
-								Value: "y",
-							},
+						RequestHeaders: []*Header{
+							mustNewHeader("'foo: bar'"),
+							mustNewHeader("'xxx: y'"),
 						},
 					},
 				},
@@ -600,11 +589,11 @@ unauthorized_user:
 	}
 
 	ui := m[getHTTPAuthBasicToken("foo", "bar")]
-	if !isSetBool(ui.TLSInsecureSkipVerify, true) || !ui.httpTransport.TLSClientConfig.InsecureSkipVerify {
+	if !isSetBool(ui.TLSInsecureSkipVerify, true) {
 		t.Fatalf("unexpected TLSInsecureSkipVerify value for user foo")
 	}
 
-	if !isSetBool(ac.UnauthorizedUser.TLSInsecureSkipVerify, false) || ac.UnauthorizedUser.httpTransport.TLSClientConfig.InsecureSkipVerify {
+	if !isSetBool(ac.UnauthorizedUser.TLSInsecureSkipVerify, false) {
 		t.Fatalf("unexpected TLSInsecureSkipVerify value for unauthorized_user")
 	}
 }
@@ -699,10 +688,7 @@ func isSetBool(boolP *bool, expectedValue bool) bool {
 func getRegexs(paths []string) []*Regex {
 	var sps []*Regex
 	for _, path := range paths {
-		sps = append(sps, &Regex{
-			sOriginal: path,
-			re:        regexp.MustCompile("^(?:" + path + ")$"),
-		})
+		sps = append(sps, mustNewRegex(path))
 	}
 	return sps
 }
@@ -758,4 +744,28 @@ func mustParseURLs(us []string) *URLPrefix {
 
 func intp(n int) *int {
 	return &n
+}
+
+func mustNewRegex(s string) *Regex {
+	var re Regex
+	if err := yaml.Unmarshal([]byte(s), &re); err != nil {
+		logger.Panicf("cannot unmarshal regex %q: %s", s, err)
+	}
+	return &re
+}
+
+func mustNewQueryArg(s string) *QueryArg {
+	var qa QueryArg
+	if err := yaml.Unmarshal([]byte(s), &qa); err != nil {
+		logger.Panicf("cannot unmarshal query arg filter %q: %s", s, err)
+	}
+	return &qa
+}
+
+func mustNewHeader(s string) *Header {
+	var h Header
+	if err := yaml.Unmarshal([]byte(s), &h); err != nil {
+		logger.Panicf("cannot unmarshal header filter %q: %s", s, err)
+	}
+	return &h
 }

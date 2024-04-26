@@ -724,7 +724,7 @@ func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDurati
 	return errGr.Err()
 }
 
-// getStaledSeries checks whether there are stale series from previously sent ones.
+// getStaleSeries checks whether there are stale series from previously sent ones.
 func (e *executor) getStaleSeries(r Rule, tss []prompbmarshal.TimeSeries, timestamp time.Time) []prompbmarshal.TimeSeries {
 	ruleLabels := make(map[string][]prompbmarshal.Label, len(tss))
 	for _, ts := range tss {
