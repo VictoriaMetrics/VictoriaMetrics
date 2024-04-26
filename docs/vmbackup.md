@@ -304,7 +304,7 @@ Refer to the respective documentation for your object storage provider for more 
 
 Run `vmbackup -help` in order to see all the available options:
 
-```
+```sh
   -concurrency int
      The number of concurrent workers. Higher concurrency may reduce backup duration (default 10)
   -configFilePath string
