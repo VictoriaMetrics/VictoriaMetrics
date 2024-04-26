@@ -231,6 +231,10 @@ func ParseQuery(s string) (*Query, error) {
 	}
 	q.pipes = pipes
 
+	if !lex.isEnd() {
+		return nil, fmt.Errorf("unexpected unparsed tail; context: %s", lex.context())
+	}
+
 	return q, nil
 }
 

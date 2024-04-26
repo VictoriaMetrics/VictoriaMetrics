@@ -59,7 +59,7 @@ func (dpp defaultPipeProcessor) flush() {
 
 func parsePipes(lex *lexer) ([]pipe, error) {
 	var pipes []pipe
-	for !lex.isEnd() {
+	for !lex.isKeyword(")", "") {
 		if !lex.isKeyword("|") {
 			return nil, fmt.Errorf("expecting '|'")
 		}
@@ -151,14 +151,14 @@ func parseFieldsPipe(lex *lexer) (*fieldsPipe, error) {
 		field := parseFieldName(lex)
 		fields = append(fields, field)
 		switch {
-		case lex.isKeyword("|", ""):
+		case lex.isKeyword("|", ")", ""):
 			fp := &fieldsPipe{
 				fields: fields,
 			}
 			return fp, nil
 		case lex.isKeyword(","):
 		default:
-			return nil, fmt.Errorf("unexpected token: %q; expecting ',' or '|'", lex.token)
+			return nil, fmt.Errorf("unexpected token: %q; expecting ',', '|' or ')'", lex.token)
 		}
 	}
 }
@@ -244,8 +244,7 @@ type statsPipeProcessor struct {
 type statsPipeProcessorShard struct {
 	statsPipeProcessorShardNopad
 
-	// The padding prevents false sharing on widespread platforms with
-	// 128 mod (cache line size) = 0 .
+	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
 	_ [128 - unsafe.Sizeof(statsPipeProcessorShardNopad{})%128]byte
 }
 
@@ -444,12 +443,12 @@ func parseStatsPipe(lex *lexer) (*statsPipe, error) {
 			return nil, err
 		}
 		funcs = append(funcs, sf)
-		if lex.isKeyword("|", "") {
+		if lex.isKeyword("|", ")", "") {
 			sp.funcs = funcs
 			return &sp, nil
 		}
 		if !lex.isKeyword(",") {
-			return nil, fmt.Errorf("unexpected token %q; want ',' or '|'", lex.token)
+			return nil, fmt.Errorf("unexpected token %q; want ',', '|' or ')'", lex.token)
 		}
 		lex.nextToken()
 	}
