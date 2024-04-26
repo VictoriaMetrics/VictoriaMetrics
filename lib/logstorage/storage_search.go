@@ -1,9 +1,11 @@
 package logstorage
 
 import (
+	"context"
 	"math"
 	"sort"
 	"sync"
+	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 )
@@ -42,8 +44,8 @@ type searchOptions struct {
 	resultColumnNames []string
 }
 
-// RunQuery runs the given q and calls processBlock for results
-func (s *Storage) RunQuery(tenantIDs []TenantID, q *Query, stopCh <-chan struct{}, processBlock func(workerID uint, rowsCount int, columns []BlockColumn)) {
+// RunQuery runs the given q and calls writeBlock for results.
+func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlock func(workerID uint, timestamps []int64, columns []BlockColumn)) {
 	resultColumnNames := q.getResultColumnNames()
 	so := &genericSearchOptions{
 		tenantIDs:         tenantIDs,
@@ -52,6 +54,17 @@ func (s *Storage) RunQuery(tenantIDs []TenantID, q *Query, stopCh <-chan struct{
 	}
 
 	workersCount := cgroup.AvailableCPUs()
+
+	pp := newDefaultPipeProcessor(writeBlock)
+	stopCh := ctx.Done()
+	for i := len(q.pipes) - 1; i >= 0; i-- {
+		p := q.pipes[i]
+		ctxChild, cancel := context.WithCancel(ctx)
+		stopCh = ctxChild.Done()
+		pp = p.newPipeProcessor(workersCount, stopCh, cancel, pp)
+		ctx = ctxChild
+	}
+
 	s.search(workersCount, so, stopCh, func(workerID uint, br *blockResult) {
 		brs := getBlockRows()
 		cs := brs.cs
@@ -62,12 +75,13 @@ func (s *Storage) RunQuery(tenantIDs []TenantID, q *Query, stopCh <-chan struct{
 				Values: br.getColumnValues(i),
 			})
 		}
-		rowsCount := br.RowsCount()
-		processBlock(workerID, rowsCount, cs)
+		pp.writeBlock(workerID, br.timestamps, cs)
 
 		brs.cs = cs
 		putBlockRows(brs)
 	})
+
+	pp.flush()
 }
 
 type blockRows struct {
@@ -110,6 +124,53 @@ func (c *BlockColumn) reset() {
 	c.Name = ""
 	c.Values = nil
 }
+
+func areSameBlockColumns(columns []BlockColumn, columnNames []string) bool {
+	if len(columnNames) != len(columns) {
+		return false
+	}
+	for i, name := range columnNames {
+		if columns[i].Name != name {
+			return false
+		}
+	}
+	return true
+}
+
+func getBlockColumnIndex(columns []BlockColumn, columnName string) int {
+	for i, c := range columns {
+		if c.Name == columnName {
+			return i
+		}
+	}
+	return -1
+}
+
+func getValuesForBlockColumn(columns []BlockColumn, columnName string, rowsCount int) []string {
+	for _, c := range columns {
+		if c.Name == columnName {
+			return c.Values
+		}
+	}
+	return getEmptyStrings(rowsCount)
+}
+
+func getEmptyStrings(rowsCount int) []string {
+	p := emptyStrings.Load()
+	if p == nil {
+		values := make([]string, rowsCount)
+		emptyStrings.Store(&values)
+		return values
+	}
+	values := *p
+	if n := rowsCount - cap(values); n > 0 {
+		values = append(values[:cap(values)], make([]string, n)...)
+		emptyStrings.Store(&values)
+	}
+	return values[:rowsCount]
+}
+
+var emptyStrings atomic.Pointer[[]string]
 
 // The number of blocks to search at once by a single worker
 //

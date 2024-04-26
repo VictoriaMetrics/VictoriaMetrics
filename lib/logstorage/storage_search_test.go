@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"sync/atomic"
@@ -84,11 +85,11 @@ func TestStorageRunQuery(t *testing.T) {
 			AccountID: 0,
 			ProjectID: 0,
 		}
-		processBlock := func(_ uint, rowsCount int, _ []BlockColumn) {
-			panic(fmt.Errorf("unexpected match for %d rows", rowsCount))
+		writeBlock := func(_ uint, timestamps []int64, _ []BlockColumn) {
+			panic(fmt.Errorf("unexpected match for %d rows", len(timestamps)))
 		}
 		tenantIDs := []TenantID{tenantID}
-		s.RunQuery(tenantIDs, q, nil, processBlock)
+		s.RunQuery(context.Background(), tenantIDs, q, writeBlock)
 	})
 	t.Run("missing-message-text", func(_ *testing.T) {
 		q := mustParseQuery(`foobar`)
@@ -96,11 +97,11 @@ func TestStorageRunQuery(t *testing.T) {
 			AccountID: 1,
 			ProjectID: 11,
 		}
-		processBlock := func(_ uint, rowsCount int, _ []BlockColumn) {
-			panic(fmt.Errorf("unexpected match for %d rows", rowsCount))
+		writeBlock := func(_ uint, timestamps []int64, _ []BlockColumn) {
+			panic(fmt.Errorf("unexpected match for %d rows", len(timestamps)))
 		}
 		tenantIDs := []TenantID{tenantID}
-		s.RunQuery(tenantIDs, q, nil, processBlock)
+		s.RunQuery(context.Background(), tenantIDs, q, writeBlock)
 	})
 	t.Run("matching-tenant-id", func(t *testing.T) {
 		q := mustParseQuery(`tenant.id:*`)
@@ -111,14 +112,14 @@ func TestStorageRunQuery(t *testing.T) {
 			}
 			expectedTenantID := tenantID.String()
 			var rowsCountTotal atomic.Uint32
-			processBlock := func(_ uint, rowsCount int, columns []BlockColumn) {
+			writeBlock := func(_ uint, timestamps []int64, columns []BlockColumn) {
 				hasTenantIDColumn := false
 				var columnNames []string
 				for _, c := range columns {
 					if c.Name == "tenant.id" {
 						hasTenantIDColumn = true
-						if len(c.Values) != rowsCount {
-							panic(fmt.Errorf("unexpected number of rows in column %q; got %d; want %d", c.Name, len(c.Values), rowsCount))
+						if len(c.Values) != len(timestamps) {
+							panic(fmt.Errorf("unexpected number of rows in column %q; got %d; want %d", c.Name, len(c.Values), len(timestamps)))
 						}
 						for _, v := range c.Values {
 							if v != expectedTenantID {
@@ -131,10 +132,10 @@ func TestStorageRunQuery(t *testing.T) {
 				if !hasTenantIDColumn {
 					panic(fmt.Errorf("missing tenant.id column among columns: %q", columnNames))
 				}
-				rowsCountTotal.Add(uint32(len(columns[0].Values)))
+				rowsCountTotal.Add(uint32(len(timestamps)))
 			}
 			tenantIDs := []TenantID{tenantID}
-			s.RunQuery(tenantIDs, q, nil, processBlock)
+			s.RunQuery(context.Background(), tenantIDs, q, writeBlock)
 
 			expectedRowsCount := streamsPerTenant * blocksPerStream * rowsPerBlock
 			if n := rowsCountTotal.Load(); n != uint32(expectedRowsCount) {
@@ -145,10 +146,10 @@ func TestStorageRunQuery(t *testing.T) {
 	t.Run("matching-multiple-tenant-ids", func(t *testing.T) {
 		q := mustParseQuery(`"log message"`)
 		var rowsCountTotal atomic.Uint32
-		processBlock := func(_ uint, rowsCount int, _ []BlockColumn) {
-			rowsCountTotal.Add(uint32(rowsCount))
+		writeBlock := func(_ uint, timestamps []int64, _ []BlockColumn) {
+			rowsCountTotal.Add(uint32(len(timestamps)))
 		}
-		s.RunQuery(allTenantIDs, q, nil, processBlock)
+		s.RunQuery(context.Background(), allTenantIDs, q, writeBlock)
 
 		expectedRowsCount := tenantsCount * streamsPerTenant * blocksPerStream * rowsPerBlock
 		if n := rowsCountTotal.Load(); n != uint32(expectedRowsCount) {
@@ -158,10 +159,10 @@ func TestStorageRunQuery(t *testing.T) {
 	t.Run("matching-in-filter", func(t *testing.T) {
 		q := mustParseQuery(`source-file:in(foobar,/foo/bar/baz)`)
 		var rowsCountTotal atomic.Uint32
-		processBlock := func(_ uint, rowsCount int, _ []BlockColumn) {
-			rowsCountTotal.Add(uint32(rowsCount))
+		writeBlock := func(_ uint, timestamps []int64, _ []BlockColumn) {
+			rowsCountTotal.Add(uint32(len(timestamps)))
 		}
-		s.RunQuery(allTenantIDs, q, nil, processBlock)
+		s.RunQuery(context.Background(), allTenantIDs, q, writeBlock)
 
 		expectedRowsCount := tenantsCount * streamsPerTenant * blocksPerStream * rowsPerBlock
 		if n := rowsCountTotal.Load(); n != uint32(expectedRowsCount) {
@@ -170,10 +171,10 @@ func TestStorageRunQuery(t *testing.T) {
 	})
 	t.Run("stream-filter-mismatch", func(_ *testing.T) {
 		q := mustParseQuery(`_stream:{job="foobar",instance=~"host-.+:2345"} log`)
-		processBlock := func(_ uint, rowsCount int, _ []BlockColumn) {
-			panic(fmt.Errorf("unexpected match for %d rows", rowsCount))
+		writeBlock := func(_ uint, timestamps []int64, _ []BlockColumn) {
+			panic(fmt.Errorf("unexpected match for %d rows", len(timestamps)))
 		}
-		s.RunQuery(allTenantIDs, q, nil, processBlock)
+		s.RunQuery(context.Background(), allTenantIDs, q, writeBlock)
 	})
 	t.Run("matching-stream-id", func(t *testing.T) {
 		for i := 0; i < streamsPerTenant; i++ {
@@ -184,14 +185,14 @@ func TestStorageRunQuery(t *testing.T) {
 			}
 			expectedStreamID := fmt.Sprintf("stream_id=%d", i)
 			var rowsCountTotal atomic.Uint32
-			processBlock := func(_ uint, rowsCount int, columns []BlockColumn) {
+			writeBlock := func(_ uint, timestamps []int64, columns []BlockColumn) {
 				hasStreamIDColumn := false
 				var columnNames []string
 				for _, c := range columns {
 					if c.Name == "stream-id" {
 						hasStreamIDColumn = true
-						if len(c.Values) != rowsCount {
-							panic(fmt.Errorf("unexpected number of rows for column %q; got %d; want %d", c.Name, len(c.Values), rowsCount))
+						if len(c.Values) != len(timestamps) {
+							panic(fmt.Errorf("unexpected number of rows for column %q; got %d; want %d", c.Name, len(c.Values), len(timestamps)))
 						}
 						for _, v := range c.Values {
 							if v != expectedStreamID {
@@ -204,10 +205,10 @@ func TestStorageRunQuery(t *testing.T) {
 				if !hasStreamIDColumn {
 					panic(fmt.Errorf("missing stream-id column among columns: %q", columnNames))
 				}
-				rowsCountTotal.Add(uint32(len(columns[0].Values)))
+				rowsCountTotal.Add(uint32(len(timestamps)))
 			}
 			tenantIDs := []TenantID{tenantID}
-			s.RunQuery(tenantIDs, q, nil, processBlock)
+			s.RunQuery(context.Background(), tenantIDs, q, writeBlock)
 
 			expectedRowsCount := blocksPerStream * rowsPerBlock
 			if n := rowsCountTotal.Load(); n != uint32(expectedRowsCount) {
@@ -222,11 +223,11 @@ func TestStorageRunQuery(t *testing.T) {
 			ProjectID: 11,
 		}
 		var rowsCountTotal atomic.Uint32
-		processBlock := func(_ uint, rowsCount int, _ []BlockColumn) {
-			rowsCountTotal.Add(uint32(rowsCount))
+		writeBlock := func(_ uint, timestamps []int64, _ []BlockColumn) {
+			rowsCountTotal.Add(uint32(len(timestamps)))
 		}
 		tenantIDs := []TenantID{tenantID}
-		s.RunQuery(tenantIDs, q, nil, processBlock)
+		s.RunQuery(context.Background(), tenantIDs, q, writeBlock)
 
 		expectedRowsCount := streamsPerTenant * blocksPerStream * 2
 		if n := rowsCountTotal.Load(); n != uint32(expectedRowsCount) {
@@ -242,11 +243,11 @@ func TestStorageRunQuery(t *testing.T) {
 			ProjectID: 11,
 		}
 		var rowsCountTotal atomic.Uint32
-		processBlock := func(_ uint, rowsCount int, _ []BlockColumn) {
-			rowsCountTotal.Add(uint32(rowsCount))
+		writeBlock := func(_ uint, timestamps []int64, _ []BlockColumn) {
+			rowsCountTotal.Add(uint32(len(timestamps)))
 		}
 		tenantIDs := []TenantID{tenantID}
-		s.RunQuery(tenantIDs, q, nil, processBlock)
+		s.RunQuery(context.Background(), tenantIDs, q, writeBlock)
 
 		expectedRowsCount := streamsPerTenant * blocksPerStream
 		if n := rowsCountTotal.Load(); n != uint32(expectedRowsCount) {
@@ -262,11 +263,11 @@ func TestStorageRunQuery(t *testing.T) {
 			ProjectID: 11,
 		}
 		var rowsCountTotal atomic.Uint32
-		processBlock := func(_ uint, rowsCount int, _ []BlockColumn) {
-			rowsCountTotal.Add(uint32(rowsCount))
+		writeBlock := func(_ uint, timestamps []int64, _ []BlockColumn) {
+			rowsCountTotal.Add(uint32(len(timestamps)))
 		}
 		tenantIDs := []TenantID{tenantID}
-		s.RunQuery(tenantIDs, q, nil, processBlock)
+		s.RunQuery(context.Background(), tenantIDs, q, writeBlock)
 
 		expectedRowsCount := blocksPerStream
 		if n := rowsCountTotal.Load(); n != uint32(expectedRowsCount) {
@@ -281,11 +282,11 @@ func TestStorageRunQuery(t *testing.T) {
 			AccountID: 1,
 			ProjectID: 11,
 		}
-		processBlock := func(_ uint, rowsCount int, _ []BlockColumn) {
-			panic(fmt.Errorf("unexpected match for %d rows", rowsCount))
+		writeBlock := func(_ uint, timestamps []int64, _ []BlockColumn) {
+			panic(fmt.Errorf("unexpected match for %d rows", len(timestamps)))
 		}
 		tenantIDs := []TenantID{tenantID}
-		s.RunQuery(tenantIDs, q, nil, processBlock)
+		s.RunQuery(context.Background(), tenantIDs, q, writeBlock)
 	})
 	t.Run("missing-time-range", func(_ *testing.T) {
 		minTimestamp := baseTimestamp + (rowsPerBlock+1)*1e9
@@ -295,11 +296,11 @@ func TestStorageRunQuery(t *testing.T) {
 			AccountID: 1,
 			ProjectID: 11,
 		}
-		processBlock := func(_ uint, rowsCount int, _ []BlockColumn) {
-			panic(fmt.Errorf("unexpected match for %d rows", rowsCount))
+		writeBlock := func(_ uint, timestamps []int64, _ []BlockColumn) {
+			panic(fmt.Errorf("unexpected match for %d rows", len(timestamps)))
 		}
 		tenantIDs := []TenantID{tenantID}
-		s.RunQuery(tenantIDs, q, nil, processBlock)
+		s.RunQuery(context.Background(), tenantIDs, q, writeBlock)
 	})
 
 	// Close the storage and delete its data

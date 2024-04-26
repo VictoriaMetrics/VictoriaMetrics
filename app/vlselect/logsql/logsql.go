@@ -1,6 +1,7 @@
 package logsql
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
@@ -17,8 +18,8 @@ var (
 		"too big value for this flag may result in high memory usage since the sorting is performed in memory")
 )
 
-// ProcessQueryRequest handles /select/logsql/query request
-func ProcessQueryRequest(w http.ResponseWriter, r *http.Request, stopCh <-chan struct{}, cancel func()) {
+// ProcessQueryRequest handles /select/logsql/query request.
+func ProcessQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	// Extract tenantID
 	tenantID, err := logstorage.GetTenantIDFromRequest(r)
 	if err != nil {
@@ -42,14 +43,18 @@ func ProcessQueryRequest(w http.ResponseWriter, r *http.Request, stopCh <-chan s
 	sw := getSortWriter()
 	sw.Init(w, maxSortBufferSize.IntN(), limit)
 	tenantIDs := []logstorage.TenantID{tenantID}
-	vlstorage.RunQuery(tenantIDs, q, stopCh, func(_ uint, rowsCount int, columns []logstorage.BlockColumn) {
+
+	ctxWithCancel, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
 		if len(columns) == 0 {
 			return
 		}
 
 		bb := blockResultPool.Get()
-		for rowIdx := 0; rowIdx < rowsCount; rowIdx++ {
-			WriteJSONRow(bb, columns, rowIdx)
+		for i := range timestamps {
+			WriteJSONRow(bb, columns, i)
 		}
 
 		if !sw.TryWrite(bb.B) {
@@ -57,7 +62,10 @@ func ProcessQueryRequest(w http.ResponseWriter, r *http.Request, stopCh <-chan s
 		}
 
 		blockResultPool.Put(bb)
-	})
+	}
+
+	vlstorage.RunQuery(ctxWithCancel, tenantIDs, q, writeBlock)
+
 	sw.FinalFlush()
 	putSortWriter(sw)
 }

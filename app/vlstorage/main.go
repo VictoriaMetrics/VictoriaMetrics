@@ -1,6 +1,7 @@
 package vlstorage
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
@@ -99,9 +100,9 @@ func MustAddRows(lr *logstorage.LogRows) {
 	strg.MustAddRows(lr)
 }
 
-// RunQuery runs the given q and calls processBlock for the returned data blocks
-func RunQuery(tenantIDs []logstorage.TenantID, q *logstorage.Query, stopCh <-chan struct{}, processBlock func(workerID uint, rowsCount int, columns []logstorage.BlockColumn)) {
-	strg.RunQuery(tenantIDs, q, stopCh, processBlock)
+// RunQuery runs the given q and calls writeBlock for the returned data blocks
+func RunQuery(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, writeBlock func(workerID uint, timestamps []int64, columns []logstorage.BlockColumn)) {
+	strg.RunQuery(ctx, tenantIDs, q, writeBlock)
 }
 
 func initStorageMetrics(strg *logstorage.Storage) *metrics.Set {

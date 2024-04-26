@@ -1,7 +1,6 @@
 package vlselect
 
 import (
-	"context"
 	"embed"
 	"flag"
 	"fmt"
@@ -141,15 +140,11 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 	}
 
-	ctxWithCancel, cancel := context.WithCancel(ctx)
-	defer cancel()
-	stopCh = ctxWithCancel.Done()
-
 	switch {
 	case path == "/logsql/query":
 		logsqlQueryRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		logsql.ProcessQueryRequest(w, r, stopCh, cancel)
+		logsql.ProcessQueryRequest(ctx, w, r)
 		return true
 	default:
 		return false
