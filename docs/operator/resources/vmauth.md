@@ -101,8 +101,8 @@ metadata:
   name: vmauth-unauthorized-example
 spec:
   unauthorizedAccessConfig:
-    - paths: ["/metrics"]
-      urls:
+    - src_paths: ["/metrics"]
+      url_prefix:
         - http://vmsingle-example.default.svc:8428
 ```
 
@@ -245,8 +245,8 @@ spec:
       - 5.6.7.8
   # allow read vmsingle metrics without authorization for users from internal network
   unauthorizedAccessConfig:
-    - paths: ["/metrics"]
-      urls: ["http://vmsingle-example.default.svc:8428"]
+    - src_paths: ["/metrics"]
+      url_prefix: ["http://vmsingle-example.default.svc:8428"]
       ip_filters:
         allow_list:
           - 192.168.0.0/16
