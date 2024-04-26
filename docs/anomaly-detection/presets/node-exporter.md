@@ -1,56 +1,21 @@
 ---
-sort: 1
+sort: 2
 weight: 1
-title: Presets
+title: Node-Exporter
 menu:
   docs:
     parent: "anomaly-detection"
     weight: 1
-    title: Presets
-aliases:
-- /anomaly-detection/Presets.html
+    title: Node-Exporter
 ---
-# Presets
-> Please, check our [Quickstart guide](/anomaly-detection/quickstart/) on how to install and run `vmanomaly`
-
-> Presets are available from v1.13.0
-
-Presets enable anomaly detection in indicators that are hard to monitor using alerts based on static thresholds.
-So the anomaly detection alerting rules based on the [`anomaly_scores`](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) stay the same over time,
-while we use predefined machine learning models for generating them.
-Models are constantly retraining on different time frames which helps to keep alerts up to date and to consider underlying data patterns.
-
-You can set up the simplified configuration file for `vmanomaly` just specifying the type of preset and data sources in [`reader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/) and [`writer`](https://docs.victoriametrics.com/anomaly-detection/components/writer/) sections of the config.
-The rest of the parameters are already set up for you.
-
-Available presets:
-- [Node-Exporter](#node-exporter)
-
-Here is an example config file to enable Node-Exporter preset:
-
-```yaml
-preset: "node-exporter"
-reader:
-  datasource_url: "http://victoriametrics:8428/" # your datasource url
-  # tenant_id: '0:0'  # specify for cluster version
-writer:
-  datasource_url: "http://victoriametrics:8428/" # your datasource url
-  # tenant_id: '0:0'  # specify for cluster version
-```
-Run a service using config file with one of the [available options](/anomaly-detection/quickstart/#how-to-install-and-run-vmanomaly).
-
-After you run `vmanomaly`, the available assets can be found here: `http://localhost:8490/presets/`
-
-<img alt="preset-localhost" src="vmanomaly-preset-localhost.webp">
-
-## Node-Exporter
+# Node-Exporter
 
 For enabling Node-Exporter in config file use `preset` parameter:
 ```yaml
 preset: "node-exporter"
 ```
 
-### Indicators monitored by preset
+## Indicators monitored by preset
 
 The produced anomaly scores will contain label `for` with the name of corresponding indicator.
 
@@ -96,7 +61,7 @@ The produced anomaly scores will contain label `for` with the name of correspond
     </tbody>
 </table>
 
-### Generated Anomaly scores
+## Generated Anomaly scores
 Machine learning models will be fit for each timeseries, returned by underlying [MetricsQL](https://docs.victoriametrics.com/metricsql/).
 Anomaly score metric labels will also contain underlying [model classes](/anomaly-detection/components/models/) and [schedulers](/anomaly-detection/components/scheduler/).
 Here's an example of produced metrics:
@@ -116,16 +81,16 @@ anomaly_score{for="cpu_seconds_total", instance="node-exporter:9100", preset="no
 anomaly_score{for="cpu_seconds_total", instance="node-exporter:9100", preset="node-exporter", mode="iowait", model_alias="mad", scheduler_alias="1d_1m"} 0.8571428657
 ...
 ```
-### Alerts
+## Alerts
 > We recommend to use [Awesome Prometheus alerts](https://github.com/samber/awesome-prometheus-alerts) for alerts not covered by presets.
 
 Provided alerts are set to fire every time all models vote that the datapoint is anomalous.
 
-You can find alerting rules here: 
+You can find alerting rules here:
 - `vmanomaly` [Anomaly Detection alerts](http://localhost:8490/presets/vmanomaly_alerts.yml): `http://localhost:8490/presets/vmanomaly_alerts.yml`
 - [Modified Awesome Alerts](http://localhost:8490/presets/awesome_alerts.yml): `http://localhost:8490/presets/awesome_alerts.yml`
 
-#### Awesome Alerts replaced by Machine Learning alerts
+### Awesome Alerts replaced by Machine Learning alerts
 - HostMemoryUnderMemoryPressure
 - HostContextSwitching
 - HostHighCpuLoad
@@ -137,5 +102,5 @@ You can find alerting rules here:
 - HostUnusualNetworkThroughputIn
 - HostUnusualNetworkThroughputOut
 
-### Grafana dashboard
+## Grafana dashboard
 Grafana dashboard `.json` file can be found [here](http://localhost:8490/presets/dashboard.json): `http://localhost:8490/presets/dashboard.json`
