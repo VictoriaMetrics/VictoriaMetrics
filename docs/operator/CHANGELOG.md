@@ -16,6 +16,14 @@ aliases:
 
 ## Next release
 
+- [vmagent](./api.md#vmagent): set `status.selector` field. It allows correctly use `VPA` with `vmagent`. See this [issue](https://github.com/VictoriaMetrics/operator/issues/693) for details.
+
+<a name="v0.43.5"></a>
+
+## [v0.43.5](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.5) - 26 Apr 2024
+
+- Update VictoriaMetrics image tags to [v1.101.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.101.0).
+
 <a name="v0.43.4"></a>
 
 ## [v0.43.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.4) - 25 Apr 2024
