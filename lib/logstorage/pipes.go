@@ -474,8 +474,7 @@ type statsFuncCount struct {
 }
 
 func (sfc *statsFuncCount) String() string {
-	fields := getFieldsIgnoreStar(sfc.fields)
-	return "count(" + fieldNamesString(fields) + ") as " + quoteTokenIfNeeded(sfc.resultName)
+	return "count(" + fieldNamesString(sfc.fields) + ") as " + quoteTokenIfNeeded(sfc.resultName)
 }
 
 func (sfc *statsFuncCount) newStatsFuncProcessor() statsFuncProcessor {
@@ -493,12 +492,50 @@ type statsFuncCountProcessor struct {
 	rowsCount uint64
 }
 
-func (sfcp *statsFuncCountProcessor) updateStatsForAllRows(timestamps []int64, _ []BlockColumn) {
-	sfcp.rowsCount += uint64(len(timestamps))
+func (sfcp *statsFuncCountProcessor) updateStatsForAllRows(timestamps []int64, columns []BlockColumn) {
+	fields := sfcp.sfc.fields
+	if len(fields) == 0 || slices.Contains(fields, "*") {
+		// Fast path - count all the columns.
+		sfcp.rowsCount += uint64(len(timestamps))
+		return
+	}
+
+	// Slow path - count rows containing at least a single non-empty value for the fields enumerated inside count().
+	bm := getFilterBitmap(len(timestamps))
+	bm.setBits()
+	for _, f := range fields {
+		if idx := getBlockColumnIndex(columns, f); idx >= 0 {
+			values := columns[idx].Values
+			bm.forEachSetBit(func(i int) bool {
+				return values[i] == ""
+			})
+		}
+	}
+
+	emptyValues := 0
+	bm.forEachSetBit(func(i int) bool {
+		emptyValues++
+		return true
+	})
+
+	sfcp.rowsCount += uint64(len(timestamps) - emptyValues)
 }
 
-func (sfcp *statsFuncCountProcessor) updateStatsForRow(_ []int64, _ []BlockColumn, _ int) {
-	sfcp.rowsCount++
+func (sfcp *statsFuncCountProcessor) updateStatsForRow(_ []int64, columns []BlockColumn, rowIdx int) {
+	fields := sfcp.sfc.fields
+	if len(fields) == 0 || slices.Contains(fields, "*") {
+		// Fast path - count the given column
+		sfcp.rowsCount++
+		return
+	}
+
+	// Slow path - count the row at rowIdx if at least a single field enumerated inside count() is non-empty
+	for _, f := range fields {
+		if idx := getBlockColumnIndex(columns, f); idx >= 0 && columns[idx].Values[rowIdx] != "" {
+			sfcp.rowsCount++
+			return
+		}
+	}
 }
 
 func (sfcp *statsFuncCountProcessor) mergeState(sfp statsFuncProcessor) {

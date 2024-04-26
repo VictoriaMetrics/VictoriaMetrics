@@ -1050,14 +1050,18 @@ See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) fo
 
 ## Stats
 
-It is possible to perform stats calculations on the [selected log entries](#filters) at client side with `sort`, `uniq`, etc. Unix commands
-according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
+LogsQL supports calculating the following stats:
 
-LogsQL will support calculating the following stats based on the [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
+- The number of matching log entries. Examples:
+  - `error | stats count() as errors_total` returns the number of log messages containing the `error` [word](#word).
+  - `error | stats by (_stream) count() as errors_by_stream` returns the number of log messages containing the `error` [word](#word)
+  grouped by [`_stream`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
+  - `error | stats by (datacenter, namespace) count(trace_id, user_id) as errors_with_trace_and_user` returns the number of log messages containing the `error` [word](#word),
+  which contain non-empty `trace_id` or `user_id` [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model), grouped by `datacenter` and `namespace` fields.
+
+LogsQL will support calculating the following additional stats based on the [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
 and fields created by [transformations](#transformations):
 
-- The number of selected logs via `query | stats count() as total` syntax.
-- The number of non-empty values for the given field.
 - The number of unique values for the given field.
 - The min, max, avg, and sum for the given field.
 - The median and [percentile](https://en.wikipedia.org/wiki/Percentile) for the given field.
@@ -1067,6 +1071,9 @@ For example, `sumIf(response_size, is_admin:true)` calculates the total response
 
 It will be possible to group stats by the specified [fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
 and by the specified time buckets.
+
+It is possible to perform stats calculations on the [selected log entries](#filters) at client side with `sort`, `uniq`, etc. Unix commands
+according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
 
 See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
 
@@ -1097,7 +1104,7 @@ See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) fo
 
 By default VictoriaLogs query response contains all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
-If you want selecting some specific fields, then add `| fields field1, field2, ... fieldN` to the end of the query.
+If you want selecting some specific fields, then add `| fields field1, field2, ... fieldN` to the query.
 For example, the following query returns only [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field),
 [`_stream`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields), `host` and [`_msg`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) fields:
 

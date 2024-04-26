@@ -815,8 +815,8 @@ func TestParseQuerySuccess(t *testing.T) {
 
 	// stats count pipe
 	f(`* | Stats count() AS foo`, `* | stats count() as foo`)
-	f(`* | STATS bY (foo, b.a/r, "b az") count(*) as XYz`, `* | stats by (foo, "b.a/r", "b az") count() as XYz`)
-	f(`* | stats by() count(x, 'a).b,c|d') as qwert`, `* | stats count(x, "a).b,c|d") as qwert`)
+	f(`* | STATS bY (foo, b.a/r, "b az") count(*) as XYz`, `* | stats by (foo, "b.a/r", "b az") count(*) as XYz`)
+	f(`* | stats by() COUNT(x, 'a).b,c|d') as qwert`, `* | stats count(x, "a).b,c|d") as qwert`)
 }
 
 func TestParseQueryFailure(t *testing.T) {
