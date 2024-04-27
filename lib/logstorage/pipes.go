@@ -368,6 +368,12 @@ func (spp *statsPipeProcessor) flush() {
 
 	// Write per-group states to ppBase
 	byFields := spp.sp.byFields
+	if len(byFields) == 0 && len(m) == 0 {
+		// Special case - zero matching rows.
+		_ = shards[0].getStatsPipeGroup(nil)
+		m = shards[0].m
+	}
+
 	var values []string
 	var columns []BlockColumn
 	for key, spg := range m {
