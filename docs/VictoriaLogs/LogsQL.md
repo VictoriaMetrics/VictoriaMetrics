@@ -1059,18 +1059,33 @@ LogsQL supports calculating the following stats:
   - `error | stats by (datacenter, namespace) count(trace_id, user_id) as errors_with_trace_and_user` returns the number of log messages containing the `error` [word](#word),
   which contain non-empty `trace_id` or `user_id` [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model), grouped by `datacenter` and `namespace` fields.
 
+- The number of unique values for the given set of [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). Examples:
+  - `error | stats uniq(client_ip) as unique_user_ips` returns the number of unique values for `client_ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  across log messages with the `error` [word](#word).
+  - `error | stats by (app) uniq(path, host) as unique_path_hosts` - returns the number of unique pairs of `path` and `host` [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  across log messages with the `error` [word](#word), grouped by `app` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+
+Stats' calculation can be combined in a single query. For example, the following query calculates the number of log messages with the `error` [word](#word),
+the number of unique values for `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) and the number of unique values
+for `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model), grouped by `namespace` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
+
+```logsql
+error | stats by (namespace)
+  count() as errors_total,
+  uniq(ip) as unique_ips,
+  uniq(path) as unique_paths
+```
+
 LogsQL will support calculating the following additional stats based on the [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
 and fields created by [transformations](#transformations):
 
-- The number of unique values for the given field.
 - The min, max, avg, and sum for the given field.
 - The median and [percentile](https://en.wikipedia.org/wiki/Percentile) for the given field.
 
 It will be possible specifying an optional condition [filter](#post-filters) when calculating the stats.
 For example, `sumIf(response_size, is_admin:true)` calculates the total response size for admins only.
 
-It will be possible to group stats by the specified [fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
-and by the specified time buckets.
+It will be possible to group stats by the specified time buckets.
 
 It is possible to perform stats calculations on the [selected log entries](#filters) at client side with `sort`, `uniq`, etc. Unix commands
 according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).

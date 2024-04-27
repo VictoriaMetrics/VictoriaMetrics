@@ -307,12 +307,8 @@ func (spp *statsPipeProcessor) writeBlock(workerID uint, timestamps []int64, col
 	// Slow path - update per-row stats
 
 	// Pre-calculate column indexes for byFields in order to speed up building group key in the loop below.
-	columnIdxs := shard.columnIdxs[:0]
-	for _, f := range spp.sp.byFields {
-		idx := getBlockColumnIndex(columns, f)
-		columnIdxs = append(columnIdxs, idx)
-	}
-	shard.columnIdxs = columnIdxs
+	shard.columnIdxs = appendBlockColumnIndexes(shard.columnIdxs[:0], columns, spp.sp.byFields)
+	columnIdxs := shard.columnIdxs
 
 	keyBuf := shard.keyBuf
 	for i := range timestamps {
@@ -484,6 +480,12 @@ func parseStatsFunc(lex *lexer) (statsFunc, error) {
 			return nil, fmt.Errorf("cannot parse 'count' func: %w", err)
 		}
 		return sfc, nil
+	case lex.isKeyword("uniq"):
+		sfu, err := parseStatsFuncUniq(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'uniq' func: %w", err)
+		}
+		return sfu, nil
 	default:
 		return nil, fmt.Errorf("unknown stats func %q", lex.token)
 	}
@@ -498,18 +500,19 @@ func (sfc *statsFuncCount) String() string {
 	return "count(" + fieldNamesString(sfc.fields) + ") as " + quoteTokenIfNeeded(sfc.resultName)
 }
 
+func (sfc *statsFuncCount) neededFields() []string {
+	return getFieldsIgnoreStar(sfc.fields)
+}
+
 func (sfc *statsFuncCount) newStatsFuncProcessor() statsFuncProcessor {
 	return &statsFuncCountProcessor{
 		sfc: sfc,
 	}
 }
 
-func (sfc *statsFuncCount) neededFields() []string {
-	return getFieldsIgnoreStar(sfc.fields)
-}
-
 type statsFuncCountProcessor struct {
-	sfc       *statsFuncCount
+	sfc *statsFuncCount
+
 	rowsCount uint64
 }
 
@@ -569,29 +572,170 @@ func (sfcp *statsFuncCountProcessor) finalizeStats() (string, string) {
 	return sfcp.sfc.resultName, value
 }
 
+type statsFuncUniq struct {
+	fields     []string
+	resultName string
+}
+
+func (sfu *statsFuncUniq) String() string {
+	return "uniq(" + fieldNamesString(sfu.fields) + ") as " + quoteTokenIfNeeded(sfu.resultName)
+}
+
+func (sfu *statsFuncUniq) neededFields() []string {
+	return sfu.fields
+}
+
+func (sfu *statsFuncUniq) newStatsFuncProcessor() statsFuncProcessor {
+	return &statsFuncUniqProcessor{
+		sfu: sfu,
+
+		m: make(map[string]struct{}),
+	}
+}
+
+type statsFuncUniqProcessor struct {
+	sfu *statsFuncUniq
+
+	m map[string]struct{}
+
+	columnIdxs []int
+	keyBuf     []byte
+}
+
+func (sfup *statsFuncUniqProcessor) updateStatsForAllRows(timestamps []int64, columns []BlockColumn) {
+	fields := sfup.sfu.fields
+	m := sfup.m
+
+	if len(fields) == 1 {
+		// Fast path for a single column
+		if idx := getBlockColumnIndex(columns, fields[0]); idx >= 0 {
+			for _, v := range columns[idx].Values {
+				if _, ok := m[v]; !ok {
+					vCopy := strings.Clone(v)
+					m[vCopy] = struct{}{}
+				}
+			}
+		}
+		return
+	}
+
+	// Slow path for multiple columns.
+
+	// Pre-calculate column indexes for byFields in order to speed up building group key in the loop below.
+	sfup.columnIdxs = appendBlockColumnIndexes(sfup.columnIdxs[:0], columns, fields)
+	columnIdxs := sfup.columnIdxs
+
+	keyBuf := sfup.keyBuf
+	for i := range timestamps {
+		keyBuf = keyBuf[:0]
+		for _, idx := range columnIdxs {
+			v := ""
+			if idx >= 0 {
+				v = columns[idx].Values[i]
+			}
+			keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(v))
+		}
+		if _, ok := m[string(keyBuf)]; !ok {
+			m[string(keyBuf)] = struct{}{}
+		}
+	}
+	sfup.keyBuf = keyBuf
+}
+
+func (sfup *statsFuncUniqProcessor) updateStatsForRow(timestamps []int64, columns []BlockColumn, rowIdx int) {
+	fields := sfup.sfu.fields
+	m := sfup.m
+
+	if len(fields) == 1 {
+		// Fast path for a single column
+		if idx := getBlockColumnIndex(columns, fields[0]); idx >= 0 {
+			v := columns[idx].Values[rowIdx]
+			if _, ok := m[v]; !ok {
+				vCopy := strings.Clone(v)
+				m[vCopy] = struct{}{}
+			}
+		}
+		return
+	}
+
+	// Slow path for multiple columns.
+	keyBuf := sfup.keyBuf
+	for _, f := range fields {
+		v := ""
+		if idx := getBlockColumnIndex(columns, f); idx >= 0 {
+			v = columns[idx].Values[rowIdx]
+		}
+		keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(v))
+	}
+	sfup.keyBuf = keyBuf
+
+	if _, ok := m[string(keyBuf)]; !ok {
+		m[string(keyBuf)] = struct{}{}
+	}
+}
+
+func (sfup *statsFuncUniqProcessor) mergeState(sfp statsFuncProcessor) {
+	src := sfp.(*statsFuncUniqProcessor)
+	m := sfup.m
+	for k := range src.m {
+		m[k] = struct{}{}
+	}
+}
+
+func (sfup *statsFuncUniqProcessor) finalizeStats() (string, string) {
+	n := uint64(len(sfup.m))
+	value := strconv.FormatUint(n, 10)
+	return sfup.sfu.resultName, value
+}
+
+func parseStatsFuncUniq(lex *lexer) (*statsFuncUniq, error) {
+	lex.nextToken()
+	fields, err := parseFieldNamesInParens(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse 'uniq' args: %w", err)
+	}
+	if len(fields) == 0 {
+		return nil, fmt.Errorf("'uniq' must contain at least a single arg")
+	}
+	resultName, err := parseResultName(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse result name: %w", err)
+	}
+	sfu := &statsFuncUniq{
+		fields:     fields,
+		resultName: resultName,
+	}
+	return sfu, nil
+}
+
 func parseStatsFuncCount(lex *lexer) (*statsFuncCount, error) {
 	lex.nextToken()
 	fields, err := parseFieldNamesInParens(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse 'count' args: %w", err)
 	}
-
-	if !lex.isKeyword("as") {
-		return nil, fmt.Errorf("missing 'as' keyword")
-	}
-	if !lex.mustNextToken() {
-		return nil, fmt.Errorf("missing token after 'as' keyword")
-	}
-	resultName, err := parseFieldName(lex)
+	resultName, err := parseResultName(lex)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse 'as' field name: %w", err)
+		return nil, fmt.Errorf("cannot parse result name: %w", err)
 	}
-
 	sfc := &statsFuncCount{
 		fields:     fields,
 		resultName: resultName,
 	}
 	return sfc, nil
+}
+
+func parseResultName(lex *lexer) (string, error) {
+	if lex.isKeyword("as") {
+		if !lex.mustNextToken() {
+			return "", fmt.Errorf("missing token after 'as' keyword")
+		}
+	}
+	resultName, err := parseFieldName(lex)
+	if err != nil {
+		return "", fmt.Errorf("cannot parse 'as' field name: %w", err)
+	}
+	return resultName, nil
 }
 
 type headPipe struct {
@@ -794,4 +938,12 @@ func getFieldsIgnoreStar(fields []string) []string {
 		}
 	}
 	return result
+}
+
+func appendBlockColumnIndexes(dst []int, columns []BlockColumn, fields []string) []int {
+	for _, f := range fields {
+		idx := getBlockColumnIndex(columns, f)
+		dst = append(dst, idx)
+	}
+	return dst
 }

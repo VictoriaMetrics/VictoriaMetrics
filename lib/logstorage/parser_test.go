@@ -828,8 +828,16 @@ func TestParseQuerySuccess(t *testing.T) {
 
 	// stats count pipe
 	f(`* | Stats count() AS foo`, `* | stats count() as foo`)
-	f(`* | STATS bY (foo, b.a/r, "b az") count(*) as XYz`, `* | stats by (foo, "b.a/r", "b az") count(*) as XYz`)
+	f(`* | STATS bY (foo, b.a/r, "b az") count(*) XYz`, `* | stats by (foo, "b.a/r", "b az") count(*) as XYz`)
 	f(`* | stats by() COUNT(x, 'a).b,c|d') as qwert`, `* | stats count(x, "a).b,c|d") as qwert`)
+
+	// stats uniq pipe
+	f(`* | stats uniq(foo) bar`, `* | stats uniq(foo) as bar`)
+	f(`* | stats by(x, y) uniq(foo,bar) as baz`, `* | stats by (x, y) uniq(foo, bar) as baz`)
+
+	// stats pipe multiple funcs
+	f(`* | stats count() "foo.bar:baz", uniq(a) bar`, `* | stats count() as "foo.bar:baz", uniq(a) as bar`)
+	f(`* | stats by (x, y) count(*) foo, uniq(a,b) bar`, `* | stats by (x, y) count(*) as foo, uniq(a, b) as bar`)
 
 	// multiple different pipes
 	f(`* | fields foo, bar | head 100 | stats by(foo,bar) count(baz) as qwert`, `* | fields foo, bar | head 100 | stats by (foo, bar) count(baz) as qwert`)
@@ -1066,15 +1074,18 @@ func TestParseQueryFailure(t *testing.T) {
 	// invalid stats
 	f(`foo | stats bar`)
 
-	// invalid count
+	// invalid stats count
 	f(`foo | stats count`)
 	f(`foo | stats count(`)
 	f(`foo | stats count bar`)
 	f(`foo | stats count(bar`)
 	f(`foo | stats count(bar)`)
-	f(`foo | stats count() bar`)
 	f(`foo | stats count() as`)
 	f(`foo | stats count() as |`)
+
+	// invalid stats uniq
+	f(`foo | stats uniq`)
+	f(`foo | stats uniq()`)
 
 	// invalid by clause
 	f(`foo | stats by`)
