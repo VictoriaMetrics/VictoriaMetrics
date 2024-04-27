@@ -1092,11 +1092,13 @@ See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) fo
 
 ## Limiters
 
-LogsQL provides the following functionality for limiting the amounts of returned log entries:
+LogsQL provides the following functionality for limiting the number of returned log entries:
 
 - `error | head 10` - returns up to 10 log entries with the `error` [word](#word).
+- `error | skip 10` - skips the first 10 log entris with the `error` [word](#word).
 
-LogsQL will support the ability to page the returned results.
+It is recommended [sorting](#sorting) entries before limiting the number of returned log entries,
+in order to get consistent results.
 
 It is possible to limit the returned results with `head`, `tail`, `less`, etc. Unix commands
 according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).

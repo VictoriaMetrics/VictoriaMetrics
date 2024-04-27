@@ -820,6 +820,12 @@ func TestParseQuerySuccess(t *testing.T) {
 	// multiple head pipes
 	f(`foo | head 100 | head 10 | head 234`, `foo | head 100 | head 10 | head 234`)
 
+	// skip pipe
+	f(`foo | skip 10`, `foo | skip 10`)
+
+	// multiple skip pipes
+	f(`foo | skip 10 | skip 100`, `foo | skip 10 | skip 100`)
+
 	// stats count pipe
 	f(`* | Stats count() AS foo`, `* | stats count() as foo`)
 	f(`* | STATS bY (foo, b.a/r, "b az") count(*) as XYz`, `* | stats by (foo, "b.a/r", "b az") count(*) as XYz`)
@@ -827,6 +833,7 @@ func TestParseQuerySuccess(t *testing.T) {
 
 	// multiple different pipes
 	f(`* | fields foo, bar | head 100 | stats by(foo,bar) count(baz) as qwert`, `* | fields foo, bar | head 100 | stats by (foo, bar) count(baz) as qwert`)
+	f(`* | skip 100 | head 20 | skip 10`, `* | skip 100 | head 20 | skip 10`)
 }
 
 func TestParseQueryFailure(t *testing.T) {
@@ -1045,6 +1052,13 @@ func TestParseQueryFailure(t *testing.T) {
 	// invalid head pipe value
 	f(`foo | head bar`)
 	f(`foo | head -123`)
+
+	// missing skip pipe value
+	f(`foo | skip`)
+
+	// invalid skip pipe value
+	f(`foo | skip bar`)
+	f(`foo | skip -10`)
 
 	// missing stats
 	f(`foo | stats`)

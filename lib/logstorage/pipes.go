@@ -86,6 +86,12 @@ func parsePipes(lex *lexer) ([]pipe, error) {
 				return nil, fmt.Errorf("cannot parse 'head' pipe: %w", err)
 			}
 			pipes = append(pipes, hp)
+		case lex.isKeyword("skip"):
+			sp, err := parseSkipPipe(lex)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse 'skip' pipe: %w", err)
+			}
+			pipes = append(pipes, sp)
 		default:
 			return nil, fmt.Errorf("unexpected pipe %q", lex.token)
 		}
@@ -647,13 +653,80 @@ func parseHeadPipe(lex *lexer) (*headPipe, error) {
 	}
 	n, err := strconv.ParseUint(lex.token, 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse %q: %w", lex.token, err)
+		return nil, fmt.Errorf("cannot parse the number of head rows to return %q: %w", lex.token, err)
 	}
 	lex.nextToken()
 	hp := &headPipe{
 		n: n,
 	}
 	return hp, nil
+}
+
+type skipPipe struct {
+	n uint64
+}
+
+func (sp *skipPipe) String() string {
+	return fmt.Sprintf("skip %d", sp.n)
+}
+
+func (sp *skipPipe) newPipeProcessor(workersCount int, _ <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {
+	return &skipPipeProcessor{
+		sp:     sp,
+		cancel: cancel,
+		ppBase: ppBase,
+	}
+}
+
+type skipPipeProcessor struct {
+	sp     *skipPipe
+	cancel func()
+	ppBase pipeProcessor
+
+	rowsSkipped atomic.Uint64
+}
+
+func (spp *skipPipeProcessor) writeBlock(workerID uint, timestamps []int64, columns []BlockColumn) {
+	rowsSkipped := spp.rowsSkipped.Add(uint64(len(timestamps)))
+	if rowsSkipped <= spp.sp.n {
+		return
+	}
+
+	rowsSkipped -= uint64(len(timestamps))
+	if rowsSkipped >= spp.sp.n {
+		spp.ppBase.writeBlock(workerID, timestamps, columns)
+		return
+	}
+
+	rowsRemaining := spp.sp.n - rowsSkipped
+	cs := make([]BlockColumn, len(columns))
+	for i, c := range columns {
+		cDst := &cs[i]
+		cDst.Name = c.Name
+		cDst.Values = c.Values[rowsRemaining:]
+	}
+	timestamps = timestamps[rowsRemaining:]
+	spp.ppBase.writeBlock(workerID, timestamps, cs)
+}
+
+func (spp *skipPipeProcessor) flush() {
+	spp.cancel()
+	spp.ppBase.flush()
+}
+
+func parseSkipPipe(lex *lexer) (*skipPipe, error) {
+	if !lex.mustNextToken() {
+		return nil, fmt.Errorf("missing the number of rows to skip")
+	}
+	n, err := strconv.ParseUint(lex.token, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse the number of rows to skip %q: %w", lex.token, err)
+	}
+	lex.nextToken()
+	sp := &skipPipe{
+		n: n,
+	}
+	return sp, nil
 }
 
 func parseFieldNamesInParens(lex *lexer) ([]string, error) {
