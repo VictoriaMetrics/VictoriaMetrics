@@ -64,10 +64,15 @@ func ProcessQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 		blockResultPool.Put(bb)
 	}
 
-	vlstorage.RunQuery(ctxWithCancel, tenantIDs, q, writeBlock)
+	err = vlstorage.RunQuery(ctxWithCancel, tenantIDs, q, writeBlock)
 
 	sw.FinalFlush()
 	putSortWriter(sw)
+
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot execute query: %s", err)
+	}
+
 }
 
 var blockResultPool bytesutil.ByteBufferPool

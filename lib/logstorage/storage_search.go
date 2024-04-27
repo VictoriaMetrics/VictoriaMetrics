@@ -45,7 +45,7 @@ type searchOptions struct {
 }
 
 // RunQuery runs the given q and calls writeBlock for results.
-func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlock func(workerID uint, timestamps []int64, columns []BlockColumn)) {
+func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlock func(workerID uint, timestamps []int64, columns []BlockColumn)) error {
 	resultColumnNames := q.getResultColumnNames()
 	so := &genericSearchOptions{
 		tenantIDs:         tenantIDs,
@@ -56,13 +56,19 @@ func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 	workersCount := cgroup.AvailableCPUs()
 
 	pp := newDefaultPipeProcessor(writeBlock)
+	ppMain := pp
 	stopCh := ctx.Done()
+	cancels := make([]func(), len(q.pipes))
+	pps := make([]pipeProcessor, len(q.pipes))
 	for i := len(q.pipes) - 1; i >= 0; i-- {
 		p := q.pipes[i]
 		ctxChild, cancel := context.WithCancel(ctx)
 		stopCh = ctxChild.Done()
 		pp = p.newPipeProcessor(workersCount, stopCh, cancel, pp)
 		ctx = ctxChild
+
+		cancels[i] = cancel
+		pps[i] = pp
 	}
 
 	s.search(workersCount, so, stopCh, func(workerID uint, br *blockResult) {
@@ -81,7 +87,18 @@ func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 		putBlockRows(brs)
 	})
 
-	pp.flush()
+	var errFlush error
+	for i, pp := range pps {
+		if err := pp.flush(); err != nil && errFlush == nil {
+			errFlush = err
+		}
+		cancel := cancels[i]
+		cancel()
+	}
+	if err := ppMain.flush(); err != nil && errFlush == nil {
+		errFlush = err
+	}
+	return errFlush
 }
 
 type blockRows struct {
