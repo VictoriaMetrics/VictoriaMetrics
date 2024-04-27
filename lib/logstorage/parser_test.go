@@ -826,12 +826,12 @@ func TestParseQuerySuccess(t *testing.T) {
 	// multiple skip pipes
 	f(`foo | skip 10 | skip 100`, `foo | skip 10 | skip 100`)
 
-	// stats count pipe
+	// stats pipe count
 	f(`* | Stats count() AS foo`, `* | stats count() as foo`)
 	f(`* | STATS bY (foo, b.a/r, "b az") count(*) XYz`, `* | stats by (foo, "b.a/r", "b az") count(*) as XYz`)
 	f(`* | stats by() COUNT(x, 'a).b,c|d') as qwert`, `* | stats count(x, "a).b,c|d") as qwert`)
 
-	// stats uniq pipe
+	// stats pipe uniq
 	f(`* | stats uniq(foo) bar`, `* | stats uniq(foo) as bar`)
 	f(`* | stats by(x, y) uniq(foo,bar) as baz`, `* | stats by (x, y) uniq(foo, bar) as baz`)
 
