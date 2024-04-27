@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -23,7 +24,7 @@ type pipe interface {
 	// If stopCh is closed, the returned pipeProcessor must stop performing CPU-intensive tasks which take more than a few milliseconds.
 	// It is OK to continue processing pipeProcessor calls if they take less than a few milliseconds.
 	//
-	// The returned pipeProcessor may call cancel() at any time in order to stop ppBase.
+	// The returned pipeProcessor may call cancel() at any time in order to notify writeBlock callers that it doesn't accept more data.
 	newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor
 }
 
@@ -39,7 +40,7 @@ type pipeProcessor interface {
 
 	// flush must flush all the data accumulated in the pipeProcessor to the base pipeProcessor.
 	//
-	// The pipeProcessor must call ppBase.flush() and cancel(), which has been passed to newPipeProcessor, before returning from the flush.
+	// The pipeProcessor must call cancel() and ppBase.flush(), which has been passed to newPipeProcessor, before returning from the flush.
 	flush()
 }
 
@@ -79,6 +80,12 @@ func parsePipes(lex *lexer) ([]pipe, error) {
 				return nil, fmt.Errorf("cannot parse 'stats' pipe: %w", err)
 			}
 			pipes = append(pipes, sp)
+		case lex.isKeyword("head"):
+			hp, err := parseHeadPipe(lex)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse 'head' pipe: %w", err)
+			}
+			pipes = append(pipes, hp)
 		default:
 			return nil, fmt.Errorf("unexpected pipe %q", lex.token)
 		}
@@ -135,8 +142,8 @@ func (fpp *fieldsPipeProcessor) writeBlock(workerID uint, timestamps []int64, co
 }
 
 func (fpp *fieldsPipeProcessor) flush() {
-	fpp.ppBase.flush()
 	fpp.cancel()
+	fpp.ppBase.flush()
 }
 
 func parseFieldsPipe(lex *lexer) (*fieldsPipe, error) {
@@ -148,7 +155,10 @@ func parseFieldsPipe(lex *lexer) (*fieldsPipe, error) {
 		if lex.isKeyword(",") {
 			return nil, fmt.Errorf("unexpected ','; expecting field name")
 		}
-		field := parseFieldName(lex)
+		field, err := parseFieldName(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse field name: %w", err)
+		}
 		fields = append(fields, field)
 		switch {
 		case lex.isKeyword("|", ")", ""):
@@ -320,8 +330,8 @@ func (spp *statsPipeProcessor) writeBlock(workerID uint, timestamps []int64, col
 
 func (spp *statsPipeProcessor) flush() {
 	defer func() {
-		spp.ppBase.flush()
 		spp.cancel()
+		spp.ppBase.flush()
 	}()
 
 	// Merge states across shards
@@ -560,13 +570,90 @@ func parseStatsFuncCount(lex *lexer) (*statsFuncCount, error) {
 	if !lex.mustNextToken() {
 		return nil, fmt.Errorf("missing token after 'as' keyword")
 	}
-	resultName := parseFieldName(lex)
+	resultName, err := parseFieldName(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse 'as' field name: %w", err)
+	}
 
 	sfc := &statsFuncCount{
 		fields:     fields,
 		resultName: resultName,
 	}
 	return sfc, nil
+}
+
+type headPipe struct {
+	n uint64
+}
+
+func (hp *headPipe) String() string {
+	return fmt.Sprintf("head %d", hp.n)
+}
+
+func (hp *headPipe) newPipeProcessor(_ int, _ <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {
+	return &headPipeProcessor{
+		hp:     hp,
+		cancel: cancel,
+		ppBase: ppBase,
+	}
+}
+
+type headPipeProcessor struct {
+	hp     *headPipe
+	cancel func()
+	ppBase pipeProcessor
+
+	rowsWritten atomic.Uint64
+}
+
+func (hpp *headPipeProcessor) writeBlock(workerID uint, timestamps []int64, columns []BlockColumn) {
+	rowsWritten := hpp.rowsWritten.Add(uint64(len(timestamps)))
+	if rowsWritten <= hpp.hp.n {
+		// Fast path - write all the rows to ppBase.
+		hpp.ppBase.writeBlock(workerID, timestamps, columns)
+		return
+	}
+
+	// Slow path - overflow. Write the remaining rows if needed.
+	rowsWritten -= uint64(len(timestamps))
+	if rowsWritten >= hpp.hp.n {
+		// Nothing to write. There is no need in cancel() call, since it has been called by another goroutine.
+		return
+	}
+
+	// Write remaining rows.
+	rowsRemaining := hpp.hp.n - rowsWritten
+	cs := make([]BlockColumn, len(columns))
+	for i, c := range columns {
+		cDst := &cs[i]
+		cDst.Name = c.Name
+		cDst.Values = c.Values[:rowsRemaining]
+	}
+	timestamps = timestamps[:rowsRemaining]
+	hpp.ppBase.writeBlock(workerID, timestamps, cs)
+
+	// Notify the caller that it should stop passing more data to writeBlock().
+	hpp.cancel()
+}
+
+func (hpp *headPipeProcessor) flush() {
+	hpp.cancel()
+	hpp.ppBase.flush()
+}
+
+func parseHeadPipe(lex *lexer) (*headPipe, error) {
+	if !lex.mustNextToken() {
+		return nil, fmt.Errorf("missing the number of head rows to return")
+	}
+	n, err := strconv.ParseUint(lex.token, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse %q: %w", lex.token, err)
+	}
+	lex.nextToken()
+	hp := &headPipe{
+		n: n,
+	}
+	return hp, nil
 }
 
 func parseFieldNamesInParens(lex *lexer) ([]string, error) {
@@ -585,7 +672,10 @@ func parseFieldNamesInParens(lex *lexer) ([]string, error) {
 		if lex.isKeyword(",") {
 			return nil, fmt.Errorf("unexpected `,`")
 		}
-		field := parseFieldName(lex)
+		field, err := parseFieldName(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse field name: %w", err)
+		}
 		fields = append(fields, field)
 		switch {
 		case lex.isKeyword(")"):
@@ -598,14 +688,12 @@ func parseFieldNamesInParens(lex *lexer) ([]string, error) {
 	}
 }
 
-func parseFieldName(lex *lexer) string {
-	s := lex.token
-	lex.nextToken()
-	for !lex.isSkippedSpace && !lex.isKeyword(",", "|", ")", "") {
-		s += lex.rawToken
-		lex.nextToken()
+func parseFieldName(lex *lexer) (string, error) {
+	if lex.isKeyword(",", "(", ")", "[", "]", "|", "") {
+		return "", fmt.Errorf("unexpected token: %q", lex.token)
 	}
-	return s
+	token := getCompoundToken(lex)
+	return token, nil
 }
 
 func fieldNamesString(fields []string) string {

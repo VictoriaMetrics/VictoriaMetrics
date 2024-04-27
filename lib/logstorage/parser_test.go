@@ -813,10 +813,20 @@ func TestParseQuerySuccess(t *testing.T) {
 	// multiple fields pipes
 	f(`foo | fields bar | fields baz, abc`, `foo | fields bar | fields baz, abc`)
 
+	// head pipe
+	f(`foo | head 10`, `foo | head 10`)
+	f(`foo | HEAD 1123432`, `foo | head 1123432`)
+
+	// multiple head pipes
+	f(`foo | head 100 | head 10 | head 234`, `foo | head 100 | head 10 | head 234`)
+
 	// stats count pipe
 	f(`* | Stats count() AS foo`, `* | stats count() as foo`)
 	f(`* | STATS bY (foo, b.a/r, "b az") count(*) as XYz`, `* | stats by (foo, "b.a/r", "b az") count(*) as XYz`)
 	f(`* | stats by() COUNT(x, 'a).b,c|d') as qwert`, `* | stats count(x, "a).b,c|d") as qwert`)
+
+	// multiple different pipes
+	f(`* | fields foo, bar | head 100 | stats by(foo,bar) count(baz) as qwert`, `* | fields foo, bar | head 100 | stats by (foo, bar) count(baz) as qwert`)
 }
 
 func TestParseQueryFailure(t *testing.T) {
@@ -1028,4 +1038,35 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | fields ,`)
 	f(`foo | fields bar,`)
 	f(`foo | fields bar,,`)
+
+	// missing head pipe value
+	f(`foo | head`)
+
+	// invalid head pipe value
+	f(`foo | head bar`)
+	f(`foo | head -123`)
+
+	// missing stats
+	f(`foo | stats`)
+
+	// invalid stats
+	f(`foo | stats bar`)
+
+	// invalid count
+	f(`foo | stats count`)
+	f(`foo | stats count(`)
+	f(`foo | stats count bar`)
+	f(`foo | stats count(bar`)
+	f(`foo | stats count(bar)`)
+	f(`foo | stats count() bar`)
+	f(`foo | stats count() as`)
+	f(`foo | stats count() as |`)
+
+	// invalid by clause
+	f(`foo | stats by`)
+	f(`foo | stats by bar`)
+	f(`foo | stats by(`)
+	f(`foo | stats by(bar`)
+	f(`foo | stats by(bar,`)
+	f(`foo | stats by(bar)`)
 }
