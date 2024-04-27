@@ -829,7 +829,7 @@ func parseHeadPipe(lex *lexer) (*headPipe, error) {
 	if !lex.mustNextToken() {
 		return nil, fmt.Errorf("missing the number of head rows to return")
 	}
-	n, err := strconv.ParseUint(lex.token, 10, 64)
+	n, err := parseUint(lex.token)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse the number of head rows to return %q: %w", lex.token, err)
 	}
@@ -896,7 +896,7 @@ func parseSkipPipe(lex *lexer) (*skipPipe, error) {
 	if !lex.mustNextToken() {
 		return nil, fmt.Errorf("missing the number of rows to skip")
 	}
-	n, err := strconv.ParseUint(lex.token, 10, 64)
+	n, err := parseUint(lex.token)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse the number of rows to skip %q: %w", lex.token, err)
 	}

@@ -522,18 +522,21 @@ func parseLenRangeFilter(lex *lexer, fieldName string) (filter, error) {
 		if len(args) != 2 {
 			return nil, fmt.Errorf("unexpected number of args for %s(); got %d; want 2", funcName, len(args))
 		}
-		minLen, err := strconv.ParseUint(args[0], 10, 64)
+		minLen, err := parseUint(args[0])
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse minLen at %s(): %w", funcName, err)
 		}
-		maxLen, err := strconv.ParseUint(args[1], 10, 64)
+		maxLen, err := parseUint(args[1])
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse maxLen at %s(): %w", funcName, err)
 		}
+		stringRepr := "(" + args[0] + ", " + args[1] + ")"
 		rf := &lenRangeFilter{
 			fieldName: fieldName,
 			minLen:    minLen,
 			maxLen:    maxLen,
+
+			stringRepr: stringRepr,
 		}
 		return rf, nil
 	})
@@ -715,7 +718,7 @@ func parseRangeFilter(lex *lexer, fieldName string) (filter, error) {
 		stringRepr += "("
 		minValue = math.Nextafter(minValue, math.Inf(1))
 	}
-	stringRepr += minValueStr + "," + maxValueStr
+	stringRepr += minValueStr + ", " + maxValueStr
 	if includeMaxValue {
 		stringRepr += "]"
 	} else {
@@ -737,6 +740,12 @@ func parseFloat64(lex *lexer) (float64, string, error) {
 	s := getCompoundToken(lex)
 	f, err := strconv.ParseFloat(s, 64)
 	if err != nil {
+		// Try parsing s as integer.
+		// This handles 0x..., 0b... and 0... prefixes.
+		n, err := parseInt(s)
+		if err == nil {
+			return float64(n), s, nil
+		}
 		return 0, "", fmt.Errorf("cannot parse %q as float64: %w", lex.token, err)
 	}
 	return f, s, nil
@@ -1170,3 +1179,21 @@ var reservedKeywords = func() map[string]struct{} {
 	}
 	return m
 }()
+
+func parseUint(s string) (uint64, error) {
+	if strings.EqualFold(s, "inf") || strings.EqualFold(s, "+inf") {
+		return math.MaxUint64, nil
+	}
+	return strconv.ParseUint(s, 0, 64)
+}
+
+func parseInt(s string) (int64, error) {
+	switch {
+	case strings.EqualFold(s, "inf"), strings.EqualFold(s, "+inf"):
+		return math.MaxInt64, nil
+	case strings.EqualFold(s, "-inf"):
+		return math.MinInt64, nil
+	default:
+		return strconv.ParseInt(s, 0, 64)
+	}
+}

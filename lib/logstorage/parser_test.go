@@ -743,16 +743,23 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`ipv4_range(1.2.3.4,)`, `ipv4_range(1.2.3.4, 1.2.3.4)`)
 
 	// len_range filter
-	f(`len_range(10, 20)`, `len_range(10,20)`)
-	f(`foo:len_range("10", 20, )`, `foo:len_range(10,20)`)
+	f(`len_range(10, 20)`, `len_range(10, 20)`)
+	f(`foo:len_range("10", 20, )`, `foo:len_range(10, 20)`)
+	f(`len_RANGe(10, inf)`, `len_range(10, inf)`)
+	f(`len_range(10, +InF)`, `len_range(10, +InF)`)
+	f(`len_range(10, 1_000_000)`, `len_range(10, 1_000_000)`)
+	f(`len_range(0x10,0b100101)`, `len_range(0x10, 0b100101)`)
 
 	// range filter
-	f(`range(1.234, 5656.43454)`, `range(1.234,5656.43454)`)
-	f(`foo:range(-2343.344, 2343.4343)`, `foo:range(-2343.344,2343.4343)`)
-	f(`range(-1.234e-5  , 2.34E+3)`, `range(-1.234e-5,2.34E+3)`)
-	f(`range[123, 456)`, `range[123,456)`)
-	f(`range(123, 445]`, `range(123,445]`)
-	f(`range("1.234e-4", -23)`, `range(1.234e-4,-23)`)
+	f(`range(1.234, 5656.43454)`, `range(1.234, 5656.43454)`)
+	f(`foo:range(-2343.344, 2343.4343)`, `foo:range(-2343.344, 2343.4343)`)
+	f(`range(-1.234e-5  , 2.34E+3)`, `range(-1.234e-5, 2.34E+3)`)
+	f(`range[123, 456)`, `range[123, 456)`)
+	f(`range(123, 445]`, `range(123, 445]`)
+	f(`range("1.234e-4", -23)`, `range(1.234e-4, -23)`)
+	f(`range(1_000, 0o7532)`, `range(1_000, 0o7532)`)
+	f(`range(0x1ff, inf)`, `range(0x1ff, inf)`)
+	f(`range(-INF,+inF)`, `range(-INF, +inF)`)
 
 	// re filter
 	f("re('foo|ba(r.+)')", `re("foo|ba(r.+)")`)

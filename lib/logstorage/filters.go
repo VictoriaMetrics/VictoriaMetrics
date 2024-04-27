@@ -1083,10 +1083,12 @@ type lenRangeFilter struct {
 	fieldName string
 	minLen    uint64
 	maxLen    uint64
+
+	stringRepr string
 }
 
 func (rf *lenRangeFilter) String() string {
-	return quoteFieldNameIfNeeded(rf.fieldName) + fmt.Sprintf("len_range(%d,%d)", rf.minLen, rf.maxLen)
+	return quoteFieldNameIfNeeded(rf.fieldName) + "len_range" + rf.stringRepr
 }
 
 func (rf *lenRangeFilter) apply(bs *blockSearch, bm *filterBitmap) {

@@ -827,6 +827,12 @@ parentheses with square brackets. For example:
 - `range(1, 10]` includes `10` in the matching range
 - `range[1, 10]` includes `1` and `10` in the matching range
 
+The range boundaries can be expressed in the following forms:
+
+- Hexadecimal form. For example, `range(0xff, 0xABCD)`.
+- Binary form. Form example, `range(0b100110, 0b11111101)`
+- Integer form with `_` delimiters for better readability. For example, `range(1_000, 2_345_678)`.
+
 Note that the `range()` filter doesn't match [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
 with non-numeric values alongside numeric values. For example, `range(1, 10)` doesn't match `the request took 4.2 seconds`
 [log message](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field), since the `4.2` number is surrounded by other text.
@@ -937,6 +943,19 @@ This query doesn't match the following log messages:
 
 - `foo`, since it is too short
 - `foo bar baz abc`, sinc it is too long
+
+It is possible to use `inf` as the upper bound. For example, the following query matches [log messages](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field)
+with the length bigger or equal to 5 chars:
+
+```logsql
+len_range(5, inf)
+```
+
+The range boundaries can be expressed in the following forms:
+
+- Hexadecimal form. For example, `len_range(0xff, 0xABCD)`.
+- Binary form. Form example, `len_range(0b100110, 0b11111101)`
+- Integer form with `_` delimiters for better readability. For example, `len_range(1_000, 2_345_678)`.
 
 By default the `len_range()` is applied to the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
 Put the [field name](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) in front of the `len_range()` in order to apply
