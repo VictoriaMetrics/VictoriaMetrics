@@ -91,6 +91,22 @@ func (bm *filterBitmap) isZero() bool {
 	return true
 }
 
+func (bm *filterBitmap) areAllBitsSet() bool {
+	a := bm.a
+	for i, word := range a {
+		if word != (1<<64)-1 {
+			if i+1 < len(a) {
+				return false
+			}
+			tailBits := bm.bitsLen % 64
+			if tailBits == 0 || word != (uint64(1)<<tailBits)-1 {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func (bm *filterBitmap) andNot(x *filterBitmap) {
 	if bm.bitsLen != x.bitsLen {
 		logger.Panicf("BUG: cannot merge bitmaps with distinct lengths; %d vs %d", bm.bitsLen, x.bitsLen)

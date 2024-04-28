@@ -405,6 +405,11 @@ func (br *blockResult) mustInit(bs *blockSearch, bm *filterBitmap) {
 	}
 	// Initialize timestamps, since they are used for determining the number of rows in br.RowsCount()
 	srcTimestamps := bs.getTimestamps()
+	if bm.areAllBitsSet() {
+		br.timestamps = append(br.timestamps[:0], srcTimestamps...)
+		return
+	}
+
 	dstTimestamps := br.timestamps[:0]
 	bm.forEachSetBit(func(idx int) bool {
 		ts := srcTimestamps[idx]

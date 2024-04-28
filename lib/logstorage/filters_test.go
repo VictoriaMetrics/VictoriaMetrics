@@ -252,6 +252,18 @@ func TestFilterBitmap(t *testing.T) {
 			t.Fatalf("unexpected bits length: %d; want %d", bm.bitsLen, i)
 		}
 
+		if !bm.isZero() {
+			t.Fatalf("all the bits must be zero for bitmap with %d bits", i)
+		}
+		if i == 0 && !bm.areAllBitsSet() {
+			t.Fatalf("areAllBitsSet() must return true for bitmap with 0 bits")
+		}
+		if i > 0 && bm.areAllBitsSet() {
+			t.Fatalf("areAllBitsSet() must return false on new bitmap with %d bits; %#v", i, bm)
+		}
+
+		bm.setBits()
+
 		// Make sure that all the bits are set.
 		nextIdx := 0
 		bm.forEachSetBit(func(idx int) bool {
@@ -265,10 +277,28 @@ func TestFilterBitmap(t *testing.T) {
 			return true
 		})
 
+		if !bm.areAllBitsSet() {
+			t.Fatalf("all bits must be set for bitmap with %d bits", i)
+		}
+
 		// Clear a part of bits
 		bm.forEachSetBit(func(idx int) bool {
 			return idx%2 != 0
 		})
+
+		if i <= 1 && !bm.isZero() {
+			t.Fatalf("bm.isZero() must return true for bitmap with %d bits", i)
+		}
+		if i > 1 && bm.isZero() {
+			t.Fatalf("bm.isZero() must return false, since some bits are set for bitmap with %d bits", i)
+		}
+		if i == 0 && !bm.areAllBitsSet() {
+			t.Fatalf("areAllBitsSet() must return true for bitmap with 0 bits")
+		}
+		if i > 0 && bm.areAllBitsSet() {
+			t.Fatalf("some bits mustn't be set for bitmap with %d bits", i)
+		}
+
 		nextIdx = 1
 		bm.forEachSetBit(func(idx int) bool {
 			if idx != nextIdx {
@@ -282,6 +312,17 @@ func TestFilterBitmap(t *testing.T) {
 		bm.forEachSetBit(func(_ int) bool {
 			return false
 		})
+
+		if !bm.isZero() {
+			t.Fatalf("all the bits must be reset for bitmap with %d bits", i)
+		}
+		if i == 0 && !bm.areAllBitsSet() {
+			t.Fatalf("allAllBitsSet() must return true for bitmap with 0 bits")
+		}
+		if i > 0 && bm.areAllBitsSet() {
+			t.Fatalf("areAllBitsSet() must return false for bitmap with %d bits", i)
+		}
+
 		bitsCount := 0
 		bm.forEachSetBit(func(_ int) bool {
 			bitsCount++

@@ -616,6 +616,8 @@ func (sfcp *statsFuncCountProcessor) updateStatsForAllRows(timestamps []int64, c
 
 	// Slow path - count rows containing at least a single non-empty value for the fields enumerated inside count().
 	bm := getFilterBitmap(len(timestamps))
+	defer putFilterBitmap(bm)
+
 	bm.setBits()
 	for _, f := range fields {
 		if idx := getBlockColumnIndex(columns, f); idx >= 0 {
