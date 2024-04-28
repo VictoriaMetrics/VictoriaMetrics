@@ -353,12 +353,7 @@ func (spp *statsPipeProcessor) writeBlock(workerID uint, timestamps []int64, col
 	}
 	if len(byFields) == 1 {
 		// Special case for grouping by a single column.
-		idx := getBlockColumnIndex(columns, byFields[0])
-		if idx < 0 {
-			logger.Panicf("BUG: columnIdx must be positive")
-		}
-		values := columns[idx].Values
-
+		values := getValuesForBlockColumn(columns, byFields[0], len(timestamps))
 		if isConstValue(values) {
 			// Fast path for column with constant value.
 			shard.keyBuf = encoding.MarshalBytes(shard.keyBuf[:0], bytesutil.ToUnsafeBytes(values[0]))
@@ -385,7 +380,7 @@ func (spp *statsPipeProcessor) writeBlock(workerID uint, timestamps []int64, col
 	}
 
 	// Pre-calculate column values for byFields in order to speed up building group key in the loop below.
-	shard.columnValues = appendBlockColumnValues(shard.columnValues[:0], columns, spp.sp.byFields)
+	shard.columnValues = appendBlockColumnValues(shard.columnValues[:0], columns, spp.sp.byFields, len(timestamps))
 	columnValues := shard.columnValues
 
 	if areConstValues(columnValues) {
@@ -407,9 +402,6 @@ func (spp *statsPipeProcessor) writeBlock(workerID uint, timestamps []int64, col
 		// verify whether the key for 'by (...)' fields equals the previous key
 		sameValue := sfps != nil
 		for _, values := range columnValues {
-			if values == nil {
-				logger.Panicf("BUG: values cannot be nil here!")
-			}
 			if i <= 0 || values[i-1] != values[i] {
 				sameValue = false
 				break
@@ -441,6 +433,7 @@ func areConstValues(valuess [][]string) bool {
 
 func isConstValue(values []string) bool {
 	if len(values) == 0 {
+		// Return false, since it is impossible to get values[0] value from empty values.
 		return false
 	}
 	vFirst := values[0]
@@ -759,7 +752,7 @@ func (sfup *statsFuncUniqProcessor) updateStatsForAllRows(timestamps []int64, co
 	// Slow path for multiple columns.
 
 	// Pre-calculate column values for byFields in order to speed up building group key in the loop below.
-	sfup.columnValues = appendBlockColumnValues(sfup.columnValues[:0], columns, fields)
+	sfup.columnValues = appendBlockColumnValues(sfup.columnValues[:0], columns, fields, len(timestamps))
 	columnValues := sfup.columnValues
 
 	keyBuf := sfup.keyBuf
@@ -767,10 +760,7 @@ func (sfup *statsFuncUniqProcessor) updateStatsForAllRows(timestamps []int64, co
 		allEmptyValues := true
 		keyBuf = keyBuf[:0]
 		for _, values := range columnValues {
-			v := ""
-			if values != nil {
-				v = values[i]
-			}
+			v := values[i]
 			if v != "" {
 				allEmptyValues = false
 			}
@@ -1104,13 +1094,9 @@ func getFieldsIgnoreStar(fields []string) []string {
 	return result
 }
 
-func appendBlockColumnValues(dst [][]string, columns []BlockColumn, fields []string) [][]string {
+func appendBlockColumnValues(dst [][]string, columns []BlockColumn, fields []string, rowsCount int) [][]string {
 	for _, f := range fields {
-		idx := getBlockColumnIndex(columns, f)
-		var values []string
-		if idx >= 0 {
-			values = columns[idx].Values
-		}
+		values := getValuesForBlockColumn(columns, f, rowsCount)
 		dst = append(dst, values)
 	}
 	return dst

@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -118,11 +117,10 @@ func (bs *blockSearch) search(bsw *blockSearchWork) {
 	}
 
 	// fetch the requested columns to bs.br.
-	columnNames := bs.bsw.so.resultColumnNames
-	if slices.Contains(columnNames, "*") {
+	if bs.bsw.so.needAllColumns {
 		bs.br.fetchAllColumns(bs, bm)
 	} else {
-		bs.br.fetchRequestedColumns(bs, bm, columnNames)
+		bs.br.fetchRequestedColumns(bs, bm)
 	}
 }
 
@@ -362,8 +360,8 @@ func (br *blockResult) fetchAllColumns(bs *blockSearch, bm *filterBitmap) {
 	br.columnNames = br.columnNamesBuf
 }
 
-func (br *blockResult) fetchRequestedColumns(bs *blockSearch, bm *filterBitmap, columnNames []string) {
-	for _, columnName := range columnNames {
+func (br *blockResult) fetchRequestedColumns(bs *blockSearch, bm *filterBitmap) {
+	for _, columnName := range bs.bsw.so.resultColumnNames {
 		switch columnName {
 		case "_stream":
 			if !br.addStreamColumn(bs) {
@@ -387,7 +385,7 @@ func (br *blockResult) fetchRequestedColumns(bs *blockSearch, bm *filterBitmap, 
 			}
 		}
 	}
-	br.columnNames = columnNames
+	br.columnNames = bs.bsw.so.resultColumnNames
 }
 
 func (br *blockResult) RowsCount() int {

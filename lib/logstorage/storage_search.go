@@ -3,6 +3,7 @@ package logstorage
 import (
 	"context"
 	"math"
+	"slices"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -18,8 +19,11 @@ type genericSearchOptions struct {
 	// filter is the filter to use for the search
 	filter filter
 
-	// resultColumnNames is names of columns to return in the result.
+	// resultColumnNames is names of columns to return in the result
 	resultColumnNames []string
+
+	// needAllColumns is set to true when all the columns must be returned in the result
+	needAllColumns bool
 }
 
 type searchOptions struct {
@@ -42,6 +46,9 @@ type searchOptions struct {
 
 	// resultColumnNames is names of columns to return in the result
 	resultColumnNames []string
+
+	// needAllColumns is set to true when all the columns must be returned in the result
+	needAllColumns bool
 }
 
 // RunQuery runs the given q and calls writeBlock for results.
@@ -51,6 +58,7 @@ func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 		tenantIDs:         tenantIDs,
 		filter:            q.f,
 		resultColumnNames: resultColumnNames,
+		needAllColumns:    slices.Contains(resultColumnNames, "*"),
 	}
 
 	workersCount := cgroup.AvailableCPUs()
@@ -316,6 +324,7 @@ func (pt *partition) search(tf *timeFilter, sf *StreamFilter, f filter, so *gene
 		maxTimestamp:      tf.maxTimestamp,
 		filter:            f,
 		resultColumnNames: so.resultColumnNames,
+		needAllColumns:    so.needAllColumns,
 	}
 	return pt.ddb.search(soInternal, workCh, stopCh)
 }
