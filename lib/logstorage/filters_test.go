@@ -10,6 +10,74 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
+func TestMatchAnyCasePrefix(t *testing.T) {
+	f := func(s, prefixLowercase string, resultExpected bool) {
+		t.Helper()
+		result := matchAnyCasePrefix(s, prefixLowercase)
+		if result != resultExpected {
+			t.Fatalf("unexpected result; got %v; want %v", result, resultExpected)
+		}
+	}
+
+	// empty prefix matches non-empty strings
+	f("", "", false)
+	f("foo", "", true)
+	f("тест", "", true)
+
+	// empty string doesn't match non-empty prefix
+	f("", "foo", false)
+	f("", "тест", false)
+
+	// full match
+	f("foo", "foo", true)
+	f("FOo", "foo", true)
+	f("Test ТЕСт 123", "test тест 123", true)
+
+	// prefix match
+	f("foo", "f", true)
+	f("foo тест bar", "те", true)
+	f("foo ТЕСТ bar", "те", true)
+
+	// mismatch
+	f("foo", "o", false)
+	f("тест", "foo", false)
+	f("Тест", "ест", false)
+}
+
+func TestMatchAnyCasePhrase(t *testing.T) {
+	f := func(s, phraseLowercase string, resultExpected bool) {
+		t.Helper()
+		result := matchAnyCasePhrase(s, phraseLowercase)
+		if result != resultExpected {
+			t.Fatalf("unexpected result; got %v; want %v", result, resultExpected)
+		}
+	}
+
+	// empty phrase matches only empty string
+	f("", "", true)
+	f("foo", "", false)
+	f("тест", "", false)
+
+	// empty string doesn't match non-empty phrase
+	f("", "foo", false)
+	f("", "тест", false)
+
+	// full match
+	f("foo", "foo", true)
+	f("FOo", "foo", true)
+	f("Test ТЕСт 123", "test тест 123", true)
+
+	// phrase match
+	f("a foo", "foo", true)
+	f("foo тест bar", "тест", true)
+	f("foo ТЕСТ bar", "тест bar", true)
+
+	// mismatch
+	f("foo", "fo", false)
+	f("тест", "foo", false)
+	f("Тест", "ест", false)
+}
+
 func TestMatchLenRange(t *testing.T) {
 	f := func(s string, minLen, maxLen uint64, resultExpected bool) {
 		t.Helper()

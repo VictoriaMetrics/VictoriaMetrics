@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 func getFilterBitmap(bitsLen int) *filterBitmap {
@@ -1276,6 +1277,9 @@ type anyCasePrefixFilter struct {
 	fieldName string
 	prefix    string
 
+	prefixLowercaseOnce sync.Once
+	prefixLowercase     string
+
 	tokensOnce sync.Once
 	tokens     []string
 }
@@ -1296,9 +1300,18 @@ func (pf *anyCasePrefixFilter) initTokens() {
 	pf.tokens = getTokensSkipLast(pf.prefix)
 }
 
+func (pf *anyCasePrefixFilter) getPrefixLowercase() string {
+	pf.prefixLowercaseOnce.Do(pf.initPrefixLowercase)
+	return pf.prefixLowercase
+}
+
+func (pf *anyCasePrefixFilter) initPrefixLowercase() {
+	pf.prefixLowercase = strings.ToLower(pf.prefix)
+}
+
 func (pf *anyCasePrefixFilter) apply(bs *blockSearch, bm *filterBitmap) {
 	fieldName := pf.fieldName
-	prefixLowercase := strings.ToLower(pf.prefix)
+	prefixLowercase := pf.getPrefixLowercase()
 
 	// Verify whether pf matches const column
 	v := bs.csh.getConstColumnValue(fieldName)
@@ -1427,6 +1440,9 @@ type anyCasePhraseFilter struct {
 	fieldName string
 	phrase    string
 
+	phraseLowercaseOnce sync.Once
+	phraseLowercase     string
+
 	tokensOnce sync.Once
 	tokens     []string
 }
@@ -1444,9 +1460,18 @@ func (pf *anyCasePhraseFilter) initTokens() {
 	pf.tokens = tokenizeStrings(nil, []string{pf.phrase})
 }
 
+func (pf *anyCasePhraseFilter) getPhraseLowercase() string {
+	pf.phraseLowercaseOnce.Do(pf.initPhraseLowercase)
+	return pf.phraseLowercase
+}
+
+func (pf *anyCasePhraseFilter) initPhraseLowercase() {
+	pf.phraseLowercase = strings.ToLower(pf.phrase)
+}
+
 func (pf *anyCasePhraseFilter) apply(bs *blockSearch, bm *filterBitmap) {
 	fieldName := pf.fieldName
-	phraseLowercase := strings.ToLower(pf.phrase)
+	phraseLowercase := pf.getPhraseLowercase()
 
 	// Verify whether pf matches const column
 	v := bs.csh.getConstColumnValue(fieldName)
@@ -2787,15 +2812,52 @@ func visitValues(bs *blockSearch, ch *columnHeader, bm *filterBitmap, f func(val
 }
 
 func matchAnyCasePrefix(s, prefixLowercase string) bool {
-	sLowercase := strings.ToLower(s)
-	return matchPrefix(sLowercase, prefixLowercase)
+	if len(prefixLowercase) == 0 {
+		// Special case - empty prefix matches any non-empty string.
+		return len(s) > 0
+	}
+	if len(prefixLowercase) > len(s) {
+		return false
+	}
+
+	if isASCIILowercase(s) {
+		// Fast path - s is in lowercase
+		return matchPrefix(s, prefixLowercase)
+	}
+
+	// Slow path - convert s to lowercase before matching
+	bb := bbPool.Get()
+	bb.B = stringsutil.AppendLowercase(bb.B, s)
+	sLowercase := bytesutil.ToUnsafeString(bb.B)
+	ok := matchPrefix(sLowercase, prefixLowercase)
+	bbPool.Put(bb)
+
+	return ok
+}
+
+func isASCIILowercase(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= utf8.RuneSelf || (c >= 'A' && c <= 'Z') {
+			return false
+		}
+	}
+	return true
 }
 
 func matchPrefix(s, prefix string) bool {
 	if len(prefix) == 0 {
+		// Special case - empty prefix matches any string.
 		return len(s) > 0
 	}
-	r, _ := utf8.DecodeRuneInString(prefix)
+	if len(prefix) > len(s) {
+		return false
+	}
+
+	r := rune(prefix[0])
+	if r >= utf8.RuneSelf {
+		r, _ = utf8.DecodeRuneInString(prefix)
+	}
 	startsWithToken := isTokenRune(r)
 	offset := 0
 	for {
@@ -2806,7 +2868,10 @@ func matchPrefix(s, prefix string) bool {
 		offset += n
 		// Make sure that the found phrase contains non-token chars at the beginning
 		if startsWithToken && offset > 0 {
-			r, _ := utf8.DecodeLastRuneInString(s[:offset])
+			r := rune(s[offset-1])
+			if r >= utf8.RuneSelf {
+				r, _ = utf8.DecodeLastRuneInString(s[:offset])
+			}
 			if r == utf8.RuneError || isTokenRune(r) {
 				offset++
 				continue
@@ -2853,8 +2918,27 @@ func matchSequence(s string, phrases []string) bool {
 }
 
 func matchAnyCasePhrase(s, phraseLowercase string) bool {
-	sLowercase := strings.ToLower(s)
-	return matchPhrase(sLowercase, phraseLowercase)
+	if len(phraseLowercase) == 0 {
+		// Special case - empty phrase matches only empty string.
+		return len(s) == 0
+	}
+	if len(phraseLowercase) > len(s) {
+		return false
+	}
+
+	if isASCIILowercase(s) {
+		// Fast path - s is in lowercase
+		return matchPhrase(s, phraseLowercase)
+	}
+
+	// Slow path - convert s to lowercase before matching
+	bb := bbPool.Get()
+	bb.B = stringsutil.AppendLowercase(bb.B, s)
+	sLowercase := bytesutil.ToUnsafeString(bb.B)
+	ok := matchPhrase(sLowercase, phraseLowercase)
+	bbPool.Put(bb)
+
+	return ok
 }
 
 func matchExactPrefix(s, prefix string) bool {
@@ -2863,6 +2947,7 @@ func matchExactPrefix(s, prefix string) bool {
 
 func matchPhrase(s, phrase string) bool {
 	if len(phrase) == 0 {
+		// Special case - empty phrase matches only empty string.
 		return len(s) == 0
 	}
 	n := getPhrasePos(s, phrase)
@@ -2870,10 +2955,25 @@ func matchPhrase(s, phrase string) bool {
 }
 
 func getPhrasePos(s, phrase string) int {
-	r, _ := utf8.DecodeRuneInString(phrase)
+	if len(phrase) == 0 {
+		return 0
+	}
+	if len(phrase) > len(s) {
+		return -1
+	}
+
+	r := rune(phrase[0])
+	if r >= utf8.RuneSelf {
+		r, _ = utf8.DecodeRuneInString(phrase)
+	}
 	startsWithToken := isTokenRune(r)
-	r, _ = utf8.DecodeLastRuneInString(phrase)
+
+	r = rune(phrase[len(phrase)-1])
+	if r >= utf8.RuneSelf {
+		r, _ = utf8.DecodeLastRuneInString(phrase)
+	}
 	endsWithToken := isTokenRune(r)
+
 	pos := 0
 	for {
 		n := strings.Index(s[pos:], phrase)
@@ -2883,14 +2983,20 @@ func getPhrasePos(s, phrase string) int {
 		pos += n
 		// Make sure that the found phrase contains non-token chars at the beginning and at the end
 		if startsWithToken && pos > 0 {
-			r, _ := utf8.DecodeLastRuneInString(s[:pos])
+			r := rune(s[pos-1])
+			if r >= utf8.RuneSelf {
+				r, _ = utf8.DecodeLastRuneInString(s[:pos])
+			}
 			if r == utf8.RuneError || isTokenRune(r) {
 				pos++
 				continue
 			}
 		}
 		if endsWithToken && pos+len(phrase) < len(s) {
-			r, _ := utf8.DecodeRuneInString(s[pos+len(phrase):])
+			r := rune(s[pos+len(phrase)])
+			if r >= utf8.RuneSelf {
+				r, _ = utf8.DecodeRuneInString(s[pos+len(phrase):])
+			}
 			if r == utf8.RuneError || isTokenRune(r) {
 				pos++
 				continue
