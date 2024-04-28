@@ -83,9 +83,22 @@ func UnmarshalInt64(src []byte) int64 {
 
 // MarshalVarInt64 appends marshalsed v to dst and returns the result.
 func MarshalVarInt64(dst []byte, v int64) []byte {
-	var tmp [1]int64
-	tmp[0] = v
-	return MarshalVarInt64s(dst, tmp[:])
+	u := uint64((v << 1) ^ (v >> 63))
+
+	if v < (1<<6) && v > (-1<<6) {
+		return append(dst, byte(u))
+	}
+	if u < (1 << (2 * 7)) {
+		return append(dst, byte(u|0x80), byte(u>>7))
+	}
+	if u < (1 << (3 * 7)) {
+		return append(dst, byte(u|0x80), byte((u>>7)|0x80), byte(u>>(2*7)))
+	}
+
+	// Slow path for big integers
+	var tmp [1]uint64
+	tmp[0] = u
+	return MarshalVarUint64s(dst, tmp[:])
 }
 
 // MarshalVarInt64s appends marshaled vs to dst and returns the result.
@@ -268,6 +281,17 @@ func unmarshalVarInt64sSlow(dst []int64, src []byte) ([]byte, error) {
 
 // MarshalVarUint64 appends marshaled u to dst and returns the result.
 func MarshalVarUint64(dst []byte, u uint64) []byte {
+	if u < (1 << 7) {
+		return append(dst, byte(u))
+	}
+	if u < (1 << (2 * 7)) {
+		return append(dst, byte(u|0x80), byte(u>>7))
+	}
+	if u < (1 << (3 * 7)) {
+		return append(dst, byte(u|0x80), byte((u>>7)|0x80), byte(u>>(2*7)))
+	}
+
+	// Slow path for big integers.
 	var tmp [1]uint64
 	tmp[0] = u
 	return MarshalVarUint64s(dst, tmp[:])

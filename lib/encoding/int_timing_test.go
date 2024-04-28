@@ -233,10 +233,10 @@ func benchmarkUnmarshalVarInt64s(b *testing.B, maxValue int64) {
 
 func BenchmarkMarshalVarUint64(b *testing.B) {
 	b.Run("small-ints", func(b *testing.B) {
-		benchmarkMarshalVarUint64(b, []uint64{1,2,3,4,5,67,127})
+		benchmarkMarshalVarUint64(b, []uint64{1, 2, 3, 4, 5, 67, 127})
 	})
 	b.Run("big-ints", func(b *testing.B) {
-		benchmarkMarshalVarUint64(b, []uint64{12355,89832432, 8989843, 8989989, 883443, 9891233, 8232434342})
+		benchmarkMarshalVarUint64(b, []uint64{12355, 89832432, 8989843, 8989989, 883443, 9891233, 8232434342})
 	})
 }
 
@@ -259,10 +259,10 @@ func benchmarkMarshalVarUint64(b *testing.B, a []uint64) {
 
 func BenchmarkMarshalVarInt64(b *testing.B) {
 	b.Run("small-ints", func(b *testing.B) {
-		benchmarkMarshalVarInt64(b, []int64{1,2,3,-4,5,-60,63})
+		benchmarkMarshalVarInt64(b, []int64{1, 2, 3, -4, 5, -60, 63})
 	})
 	b.Run("big-ints", func(b *testing.B) {
-		benchmarkMarshalVarInt64(b, []int64{12355,-89832432, 8989843, -8989989, 883443, -9891233, 8232434342})
+		benchmarkMarshalVarInt64(b, []int64{12355, -89832432, 8989843, -8989989, 883443, -9891233, 8232434342})
 	})
 }
 
