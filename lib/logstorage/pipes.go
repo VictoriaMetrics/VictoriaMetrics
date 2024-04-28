@@ -296,26 +296,36 @@ type statsPipeProcessorShardNopad struct {
 
 	columnIdxs []int
 	keyBuf     []byte
+	keyBufPrev []byte
+	spgPrev    *statsPipeGroup
 
 	stateSizeBudget int
 }
 
 func (shard *statsPipeProcessorShard) getStatsPipeGroup(key []byte) *statsPipeGroup {
+	if shard.spgPrev != nil && string(shard.keyBufPrev) == string(key) {
+		// Fast path - return the spg for the same key.
+		return shard.spgPrev
+	}
+
+	// Slow path - locate spg by key.
 	spg := shard.m[string(key)]
-	if spg != nil {
-		return spg
+	if spg == nil {
+		sfps := make([]statsFuncProcessor, len(shard.funcs))
+		for i, f := range shard.funcs {
+			sfp, stateSize := f.newStatsFuncProcessor()
+			sfps[i] = sfp
+			shard.stateSizeBudget -= stateSize
+		}
+		spg = &statsPipeGroup{
+			sfps: sfps,
+		}
+		shard.m[string(key)] = spg
+		shard.stateSizeBudget -= len(key) + int(unsafe.Sizeof("")+unsafe.Sizeof(spg)+unsafe.Sizeof(sfps[0])*uintptr(len(sfps)))
 	}
-	sfps := make([]statsFuncProcessor, len(shard.funcs))
-	for i, f := range shard.funcs {
-		sfp, stateSize := f.newStatsFuncProcessor()
-		sfps[i] = sfp
-		shard.stateSizeBudget -= stateSize
-	}
-	spg = &statsPipeGroup{
-		sfps: sfps,
-	}
-	shard.m[string(key)] = spg
-	shard.stateSizeBudget -= len(key) + int(unsafe.Sizeof("")+unsafe.Sizeof(spg)+unsafe.Sizeof(sfps[0])*uintptr(len(sfps)))
+
+	shard.keyBufPrev = append(shard.keyBufPrev[:0], key...)
+	shard.spgPrev = spg
 	return spg
 }
 
