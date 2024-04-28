@@ -82,6 +82,7 @@ func benchmarkStringsToLower(b *testing.B, a []string) {
 		var buf []byte
 		var n uint64
 		for pb.Next() {
+			buf = buf[:0]
 			for _, s := range a {
 				sLower := strings.ToLower(s)
 				buf = append(buf, sLower...)

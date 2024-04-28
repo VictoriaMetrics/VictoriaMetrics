@@ -231,5 +231,57 @@ func benchmarkUnmarshalVarInt64s(b *testing.B, maxValue int64) {
 	})
 }
 
+func BenchmarkMarshalVarUint64(b *testing.B) {
+	b.Run("small-ints", func(b *testing.B) {
+		benchmarkMarshalVarUint64(b, []uint64{1,2,3,4,5,67,127})
+	})
+	b.Run("big-ints", func(b *testing.B) {
+		benchmarkMarshalVarUint64(b, []uint64{12355,89832432, 8989843, 8989989, 883443, 9891233, 8232434342})
+	})
+}
+
+func benchmarkMarshalVarUint64(b *testing.B, a []uint64) {
+	b.ReportAllocs()
+	b.SetBytes(int64(len(a)))
+	b.RunParallel(func(pb *testing.PB) {
+		var buf []byte
+		var sink uint64
+		for pb.Next() {
+			buf = buf[:0]
+			for _, n := range a {
+				buf = MarshalVarUint64(buf, n)
+			}
+			sink += uint64(len(buf))
+		}
+		Sink.Add(sink)
+	})
+}
+
+func BenchmarkMarshalVarInt64(b *testing.B) {
+	b.Run("small-ints", func(b *testing.B) {
+		benchmarkMarshalVarInt64(b, []int64{1,2,3,-4,5,-60,63})
+	})
+	b.Run("big-ints", func(b *testing.B) {
+		benchmarkMarshalVarInt64(b, []int64{12355,-89832432, 8989843, -8989989, 883443, -9891233, 8232434342})
+	})
+}
+
+func benchmarkMarshalVarInt64(b *testing.B, a []int64) {
+	b.ReportAllocs()
+	b.SetBytes(int64(len(a)))
+	b.RunParallel(func(pb *testing.PB) {
+		var buf []byte
+		var sink uint64
+		for pb.Next() {
+			buf = buf[:0]
+			for _, n := range a {
+				buf = MarshalVarInt64(buf, n)
+			}
+			sink += uint64(len(buf))
+		}
+		Sink.Add(sink)
+	})
+}
+
 var testMarshaledInt64Data = MarshalInt64(nil, 1234567890)
 var testMarshaledUint64Data = MarshalUint64(nil, 1234567890)
