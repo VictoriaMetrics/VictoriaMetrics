@@ -111,6 +111,9 @@ func parsePipes(lex *lexer) ([]pipe, error) {
 type fieldsPipe struct {
 	// fields contains list of fields to fetch
 	fields []string
+
+	// whether fields contains star
+	containsStar bool
 }
 
 func (fp *fieldsPipe) String() string {
@@ -133,7 +136,7 @@ type fieldsPipeProcessor struct {
 }
 
 func (fpp *fieldsPipeProcessor) writeBlock(workerID uint, timestamps []int64, columns []BlockColumn) {
-	if slices.Contains(fpp.fp.fields, "*") || areSameBlockColumns(columns, fpp.fp.fields) {
+	if fpp.fp.containsStar || areSameBlockColumns(columns, fpp.fp.fields) {
 		// Fast path - there is no need in additional transformations before writing the block to ppBase.
 		fpp.ppBase.writeBlock(workerID, timestamps, columns)
 		return
@@ -175,7 +178,8 @@ func parseFieldsPipe(lex *lexer) (*fieldsPipe, error) {
 		switch {
 		case lex.isKeyword("|", ")", ""):
 			fp := &fieldsPipe{
-				fields: fields,
+				fields:       fields,
+				containsStar: slices.Contains(fields, "*"),
 			}
 			return fp, nil
 		case lex.isKeyword(","):
@@ -551,7 +555,9 @@ func parseStatsFunc(lex *lexer) (statsFunc, error) {
 }
 
 type statsFuncCount struct {
-	fields     []string
+	fields       []string
+	containsStar bool
+
 	resultName string
 }
 
@@ -578,7 +584,7 @@ type statsFuncCountProcessor struct {
 
 func (sfcp *statsFuncCountProcessor) updateStatsForAllRows(timestamps []int64, columns []BlockColumn) int {
 	fields := sfcp.sfc.fields
-	if len(fields) == 0 || slices.Contains(fields, "*") {
+	if len(fields) == 0 || sfcp.sfc.containsStar {
 		// Fast path - count all the columns.
 		sfcp.rowsCount += uint64(len(timestamps))
 		return 0
@@ -608,7 +614,7 @@ func (sfcp *statsFuncCountProcessor) updateStatsForAllRows(timestamps []int64, c
 
 func (sfcp *statsFuncCountProcessor) updateStatsForRow(_ []int64, columns []BlockColumn, rowIdx int) int {
 	fields := sfcp.sfc.fields
-	if len(fields) == 0 || slices.Contains(fields, "*") {
+	if len(fields) == 0 || sfcp.sfc.containsStar {
 		// Fast path - count the given column
 		sfcp.rowsCount++
 		return 0
@@ -814,8 +820,9 @@ func parseStatsFuncCount(lex *lexer) (*statsFuncCount, error) {
 		return nil, fmt.Errorf("cannot parse result name: %w", err)
 	}
 	sfc := &statsFuncCount{
-		fields:     fields,
-		resultName: resultName,
+		fields:       fields,
+		containsStar: slices.Contains(fields, "*"),
+		resultName:   resultName,
 	}
 	return sfc, nil
 }
