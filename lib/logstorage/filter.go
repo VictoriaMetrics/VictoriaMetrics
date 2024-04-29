@@ -76,18 +76,18 @@ func (fo *filterOr) apply(bs *blockSearch, bm *bitmap) {
 	putBitmap(bmResult)
 }
 
-// andFilter contains filters joined by AND opertor.
+// filterAnd contains filters joined by AND opertor.
 //
 // It is expressed as `f1 AND f2 ... AND fN` in LogsQL.
-type andFilter struct {
+type filterAnd struct {
 	filters []filter
 
 	msgTokensOnce sync.Once
 	msgTokens     []string
 }
 
-func (af *andFilter) String() string {
-	filters := af.filters
+func (fa *filterAnd) String() string {
+	filters := fa.filters
 	a := make([]string, len(filters))
 	for i, f := range filters {
 		s := f.String()
@@ -100,9 +100,9 @@ func (af *andFilter) String() string {
 	return strings.Join(a, " ")
 }
 
-func (af *andFilter) apply(bs *blockSearch, bm *bitmap) {
-	if tokens := af.getMsgTokens(); len(tokens) > 0 {
-		// Verify whether af tokens for the _msg field match bloom filter.
+func (fa *filterAnd) apply(bs *blockSearch, bm *bitmap) {
+	if tokens := fa.getMsgTokens(); len(tokens) > 0 {
+		// Verify whether fa tokens for the _msg field match bloom filter.
 		ch := bs.csh.getColumnHeader("_msg")
 		if ch == nil {
 			// Fast path - there is no _msg field in the block.
@@ -110,14 +110,14 @@ func (af *andFilter) apply(bs *blockSearch, bm *bitmap) {
 			return
 		}
 		if !matchBloomFilterAllTokens(bs, ch, tokens) {
-			// Fast path - af tokens for the _msg field do not match bloom filter.
+			// Fast path - fa tokens for the _msg field do not match bloom filter.
 			bm.resetBits()
 			return
 		}
 	}
 
 	// Slow path - verify every filter separately.
-	for _, f := range af.filters {
+	for _, f := range fa.filters {
 		f.apply(bs, bm)
 		if bm.isZero() {
 			// Shortcut - there is no need in applying the remaining filters,
@@ -127,14 +127,14 @@ func (af *andFilter) apply(bs *blockSearch, bm *bitmap) {
 	}
 }
 
-func (af *andFilter) getMsgTokens() []string {
-	af.msgTokensOnce.Do(af.initMsgTokens)
-	return af.msgTokens
+func (fa *filterAnd) getMsgTokens() []string {
+	fa.msgTokensOnce.Do(fa.initMsgTokens)
+	return fa.msgTokens
 }
 
-func (af *andFilter) initMsgTokens() {
+func (fa *filterAnd) initMsgTokens() {
 	var a []string
-	for _, f := range af.filters {
+	for _, f := range fa.filters {
 		switch t := f.(type) {
 		case *phraseFilter:
 			if isMsgFieldName(t.fieldName) {
@@ -158,7 +158,7 @@ func (af *andFilter) initMsgTokens() {
 			}
 		}
 	}
-	af.msgTokens = a
+	fa.msgTokens = a
 }
 
 // notFilter negates the filter.
@@ -171,7 +171,7 @@ type notFilter struct {
 func (fn *notFilter) String() string {
 	s := fn.f.String()
 	switch fn.f.(type) {
-	case *andFilter, *filterOr:
+	case *filterAnd, *filterOr:
 		s = "(" + s + ")"
 	}
 	return "!" + s
@@ -557,25 +557,25 @@ type inFilter struct {
 	timestampISO8601Values     map[string]struct{}
 }
 
-func (af *inFilter) String() string {
-	values := af.values
+func (fi *inFilter) String() string {
+	values := fi.values
 	a := make([]string, len(values))
 	for i, value := range values {
 		a[i] = quoteTokenIfNeeded(value)
 	}
-	return fmt.Sprintf("%sin(%s)", quoteFieldNameIfNeeded(af.fieldName), strings.Join(a, ","))
+	return fmt.Sprintf("%sin(%s)", quoteFieldNameIfNeeded(fi.fieldName), strings.Join(a, ","))
 }
 
-func (af *inFilter) getTokenSets() [][]string {
-	af.tokenSetsOnce.Do(af.initTokenSets)
-	return af.tokenSets
+func (fi *inFilter) getTokenSets() [][]string {
+	fi.tokenSetsOnce.Do(fi.initTokenSets)
+	return fi.tokenSets
 }
 
 // It is faster to match every row in the block instead of checking too big number of tokenSets against bloom filter.
 const maxTokenSetsToInit = 1000
 
-func (af *inFilter) initTokenSets() {
-	values := af.values
+func (fi *inFilter) initTokenSets() {
+	values := fi.values
 	tokenSetsLen := len(values)
 	if tokenSetsLen > maxTokenSetsToInit {
 		tokenSetsLen = maxTokenSetsToInit
@@ -588,30 +588,30 @@ func (af *inFilter) initTokenSets() {
 			break
 		}
 	}
-	af.tokenSets = tokenSets
+	fi.tokenSets = tokenSets
 }
 
-func (af *inFilter) getStringValues() map[string]struct{} {
-	af.stringValuesOnce.Do(af.initStringValues)
-	return af.stringValues
+func (fi *inFilter) getStringValues() map[string]struct{} {
+	fi.stringValuesOnce.Do(fi.initStringValues)
+	return fi.stringValues
 }
 
-func (af *inFilter) initStringValues() {
-	values := af.values
+func (fi *inFilter) initStringValues() {
+	values := fi.values
 	m := make(map[string]struct{}, len(values))
 	for _, v := range values {
 		m[v] = struct{}{}
 	}
-	af.stringValues = m
+	fi.stringValues = m
 }
 
-func (af *inFilter) getUint8Values() map[string]struct{} {
-	af.uint8ValuesOnce.Do(af.initUint8Values)
-	return af.uint8Values
+func (fi *inFilter) getUint8Values() map[string]struct{} {
+	fi.uint8ValuesOnce.Do(fi.initUint8Values)
+	return fi.uint8Values
 }
 
-func (af *inFilter) initUint8Values() {
-	values := af.values
+func (fi *inFilter) initUint8Values() {
+	values := fi.values
 	m := make(map[string]struct{}, len(values))
 	buf := make([]byte, 0, len(values)*1)
 	for _, v := range values {
@@ -624,16 +624,16 @@ func (af *inFilter) initUint8Values() {
 		s := bytesutil.ToUnsafeString(buf[bufLen:])
 		m[s] = struct{}{}
 	}
-	af.uint8Values = m
+	fi.uint8Values = m
 }
 
-func (af *inFilter) getUint16Values() map[string]struct{} {
-	af.uint16ValuesOnce.Do(af.initUint16Values)
-	return af.uint16Values
+func (fi *inFilter) getUint16Values() map[string]struct{} {
+	fi.uint16ValuesOnce.Do(fi.initUint16Values)
+	return fi.uint16Values
 }
 
-func (af *inFilter) initUint16Values() {
-	values := af.values
+func (fi *inFilter) initUint16Values() {
+	values := fi.values
 	m := make(map[string]struct{}, len(values))
 	buf := make([]byte, 0, len(values)*2)
 	for _, v := range values {
@@ -646,16 +646,16 @@ func (af *inFilter) initUint16Values() {
 		s := bytesutil.ToUnsafeString(buf[bufLen:])
 		m[s] = struct{}{}
 	}
-	af.uint16Values = m
+	fi.uint16Values = m
 }
 
-func (af *inFilter) getUint32Values() map[string]struct{} {
-	af.uint32ValuesOnce.Do(af.initUint32Values)
-	return af.uint32Values
+func (fi *inFilter) getUint32Values() map[string]struct{} {
+	fi.uint32ValuesOnce.Do(fi.initUint32Values)
+	return fi.uint32Values
 }
 
-func (af *inFilter) initUint32Values() {
-	values := af.values
+func (fi *inFilter) initUint32Values() {
+	values := fi.values
 	m := make(map[string]struct{}, len(values))
 	buf := make([]byte, 0, len(values)*4)
 	for _, v := range values {
@@ -668,16 +668,16 @@ func (af *inFilter) initUint32Values() {
 		s := bytesutil.ToUnsafeString(buf[bufLen:])
 		m[s] = struct{}{}
 	}
-	af.uint32Values = m
+	fi.uint32Values = m
 }
 
-func (af *inFilter) getUint64Values() map[string]struct{} {
-	af.uint64ValuesOnce.Do(af.initUint64Values)
-	return af.uint64Values
+func (fi *inFilter) getUint64Values() map[string]struct{} {
+	fi.uint64ValuesOnce.Do(fi.initUint64Values)
+	return fi.uint64Values
 }
 
-func (af *inFilter) initUint64Values() {
-	values := af.values
+func (fi *inFilter) initUint64Values() {
+	values := fi.values
 	m := make(map[string]struct{}, len(values))
 	buf := make([]byte, 0, len(values)*8)
 	for _, v := range values {
@@ -690,16 +690,16 @@ func (af *inFilter) initUint64Values() {
 		s := bytesutil.ToUnsafeString(buf[bufLen:])
 		m[s] = struct{}{}
 	}
-	af.uint64Values = m
+	fi.uint64Values = m
 }
 
-func (af *inFilter) getFloat64Values() map[string]struct{} {
-	af.float64ValuesOnce.Do(af.initFloat64Values)
-	return af.float64Values
+func (fi *inFilter) getFloat64Values() map[string]struct{} {
+	fi.float64ValuesOnce.Do(fi.initFloat64Values)
+	return fi.float64Values
 }
 
-func (af *inFilter) initFloat64Values() {
-	values := af.values
+func (fi *inFilter) initFloat64Values() {
+	values := fi.values
 	m := make(map[string]struct{}, len(values))
 	buf := make([]byte, 0, len(values)*8)
 	for _, v := range values {
@@ -713,16 +713,16 @@ func (af *inFilter) initFloat64Values() {
 		s := bytesutil.ToUnsafeString(buf[bufLen:])
 		m[s] = struct{}{}
 	}
-	af.float64Values = m
+	fi.float64Values = m
 }
 
-func (af *inFilter) getIPv4Values() map[string]struct{} {
-	af.ipv4ValuesOnce.Do(af.initIPv4Values)
-	return af.ipv4Values
+func (fi *inFilter) getIPv4Values() map[string]struct{} {
+	fi.ipv4ValuesOnce.Do(fi.initIPv4Values)
+	return fi.ipv4Values
 }
 
-func (af *inFilter) initIPv4Values() {
-	values := af.values
+func (fi *inFilter) initIPv4Values() {
+	values := fi.values
 	m := make(map[string]struct{}, len(values))
 	buf := make([]byte, 0, len(values)*4)
 	for _, v := range values {
@@ -735,16 +735,16 @@ func (af *inFilter) initIPv4Values() {
 		s := bytesutil.ToUnsafeString(buf[bufLen:])
 		m[s] = struct{}{}
 	}
-	af.ipv4Values = m
+	fi.ipv4Values = m
 }
 
-func (af *inFilter) getTimestampISO8601Values() map[string]struct{} {
-	af.timestampISO8601ValuesOnce.Do(af.initTimestampISO8601Values)
-	return af.timestampISO8601Values
+func (fi *inFilter) getTimestampISO8601Values() map[string]struct{} {
+	fi.timestampISO8601ValuesOnce.Do(fi.initTimestampISO8601Values)
+	return fi.timestampISO8601Values
 }
 
-func (af *inFilter) initTimestampISO8601Values() {
-	values := af.values
+func (fi *inFilter) initTimestampISO8601Values() {
+	values := fi.values
 	m := make(map[string]struct{}, len(values))
 	buf := make([]byte, 0, len(values)*8)
 	for _, v := range values {
@@ -757,20 +757,20 @@ func (af *inFilter) initTimestampISO8601Values() {
 		s := bytesutil.ToUnsafeString(buf[bufLen:])
 		m[s] = struct{}{}
 	}
-	af.timestampISO8601Values = m
+	fi.timestampISO8601Values = m
 }
 
-func (af *inFilter) apply(bs *blockSearch, bm *bitmap) {
-	fieldName := af.fieldName
+func (fi *inFilter) apply(bs *blockSearch, bm *bitmap) {
+	fieldName := fi.fieldName
 
-	if len(af.values) == 0 {
+	if len(fi.values) == 0 {
 		bm.resetBits()
 		return
 	}
 
 	v := bs.csh.getConstColumnValue(fieldName)
 	if v != "" {
-		stringValues := af.getStringValues()
+		stringValues := fi.getStringValues()
 		if _, ok := stringValues[v]; !ok {
 			bm.resetBits()
 		}
@@ -782,42 +782,42 @@ func (af *inFilter) apply(bs *blockSearch, bm *bitmap) {
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		// It matches anything only for empty phrase.
-		stringValues := af.getStringValues()
+		stringValues := fi.getStringValues()
 		if _, ok := stringValues[""]; !ok {
 			bm.resetBits()
 		}
 		return
 	}
 
-	tokenSets := af.getTokenSets()
+	tokenSets := fi.getTokenSets()
 
 	switch ch.valueType {
 	case valueTypeString:
-		stringValues := af.getStringValues()
+		stringValues := fi.getStringValues()
 		matchAnyValue(bs, ch, bm, stringValues, tokenSets)
 	case valueTypeDict:
-		stringValues := af.getStringValues()
+		stringValues := fi.getStringValues()
 		matchValuesDictByAnyValue(bs, ch, bm, stringValues)
 	case valueTypeUint8:
-		binValues := af.getUint8Values()
+		binValues := fi.getUint8Values()
 		matchAnyValue(bs, ch, bm, binValues, tokenSets)
 	case valueTypeUint16:
-		binValues := af.getUint16Values()
+		binValues := fi.getUint16Values()
 		matchAnyValue(bs, ch, bm, binValues, tokenSets)
 	case valueTypeUint32:
-		binValues := af.getUint32Values()
+		binValues := fi.getUint32Values()
 		matchAnyValue(bs, ch, bm, binValues, tokenSets)
 	case valueTypeUint64:
-		binValues := af.getUint64Values()
+		binValues := fi.getUint64Values()
 		matchAnyValue(bs, ch, bm, binValues, tokenSets)
 	case valueTypeFloat64:
-		binValues := af.getFloat64Values()
+		binValues := fi.getFloat64Values()
 		matchAnyValue(bs, ch, bm, binValues, tokenSets)
 	case valueTypeIPv4:
-		binValues := af.getIPv4Values()
+		binValues := fi.getIPv4Values()
 		matchAnyValue(bs, ch, bm, binValues, tokenSets)
 	case valueTypeTimestampISO8601:
-		binValues := af.getTimestampISO8601Values()
+		binValues := fi.getTimestampISO8601Values()
 		matchAnyValue(bs, ch, bm, binValues, tokenSets)
 	default:
 		logger.Panicf("FATAL: %s: unknown valueType=%d", bs.partPath(), ch.valueType)

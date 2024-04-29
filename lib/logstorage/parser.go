@@ -242,11 +242,11 @@ func parseFilter(lex *lexer) (filter, error) {
 	if !lex.mustNextToken() || lex.isKeyword("|") {
 		return nil, fmt.Errorf("missing query")
 	}
-	af, err := parseOrFilter(lex, "")
+	fo, err := parseOrFilter(lex, "")
 	if err != nil {
 		return nil, err
 	}
-	return af, nil
+	return fo, nil
 }
 
 func parseOrFilter(lex *lexer, fieldName string) (filter, error) {
@@ -287,10 +287,10 @@ func parseAndFilter(lex *lexer, fieldName string) (filter, error) {
 			if len(filters) == 1 {
 				return filters[0], nil
 			}
-			af := &andFilter{
+			fa := &filterAnd{
 				filters: filters,
 			}
-			return af, nil
+			return fa, nil
 		case lex.isKeyword("and"):
 			if !lex.mustNextToken() {
 				return nil, fmt.Errorf("missing filter after 'and'")

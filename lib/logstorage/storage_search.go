@@ -339,7 +339,7 @@ func (pt *partition) search(tf *timeFilter, sf *StreamFilter, f filter, so *gene
 
 func hasStreamFilters(f filter) bool {
 	switch t := f.(type) {
-	case *andFilter:
+	case *filterAnd:
 		return hasStreamFiltersInList(t.filters)
 	case *filterOr:
 		return hasStreamFiltersInList(t.filters)
@@ -363,8 +363,8 @@ func hasStreamFiltersInList(filters []filter) bool {
 
 func initStreamFilters(tenantIDs []TenantID, idb *indexdb, f filter) filter {
 	switch t := f.(type) {
-	case *andFilter:
-		return &andFilter{
+	case *filterAnd:
+		return &filterAnd{
 			filters: initStreamFiltersList(tenantIDs, idb, t.filters),
 		}
 	case *filterOr:
@@ -695,16 +695,16 @@ func appendPartsInTimeRange(dst, src []*partWrapper, minTimestamp, maxTimestamp 
 
 func getCommonStreamFilter(f filter) (*StreamFilter, filter) {
 	switch t := f.(type) {
-	case *andFilter:
+	case *filterAnd:
 		filters := t.filters
 		for i, filter := range filters {
 			sf, ok := filter.(*streamFilter)
 			if ok && !sf.f.isEmpty() {
 				// Remove sf from filters, since it doesn't filter out anything then.
-				af := &andFilter{
+				fa := &filterAnd{
 					filters: append(filters[:i:i], filters[i+1:]...),
 				}
-				return sf.f, af
+				return sf.f, fa
 			}
 		}
 	case *streamFilter:
@@ -715,7 +715,7 @@ func getCommonStreamFilter(f filter) (*StreamFilter, filter) {
 
 func getCommonTimeFilter(f filter) (*timeFilter, filter) {
 	switch t := f.(type) {
-	case *andFilter:
+	case *filterAnd:
 		for _, filter := range t.filters {
 			tf, ok := filter.(*timeFilter)
 			if ok {

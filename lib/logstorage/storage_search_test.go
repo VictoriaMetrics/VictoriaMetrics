@@ -388,7 +388,7 @@ func TestStorageSearch(t *testing.T) {
 				f: sf,
 			})
 		}
-		return &andFilter{
+		return &filterAnd{
 			filters: filters,
 		}
 	}
@@ -578,7 +578,7 @@ func TestStorageSearch(t *testing.T) {
 		minTimestamp := baseTimestamp
 		maxTimestamp := baseTimestamp + rowsPerBlock*1e9 + blocksPerStream
 		f := getBaseFilter(minTimestamp, maxTimestamp, sf)
-		f = &andFilter{
+		f = &filterAnd{
 			filters: []filter{
 				f,
 				&regexpFilter{
