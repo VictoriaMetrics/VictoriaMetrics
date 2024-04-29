@@ -72,19 +72,19 @@ func (fs *streamFilter) apply(bs *blockSearch, bm *bitmap) {
 	}
 }
 
-// regexpFilter matches the given regexp
+// filterRegexp matches the given regexp
 //
 // Example LogsQL: `fieldName:re("regexp")`
-type regexpFilter struct {
+type filterRegexp struct {
 	fieldName string
 	re        *regexp.Regexp
 }
 
-func (fr *regexpFilter) String() string {
+func (fr *filterRegexp) String() string {
 	return fmt.Sprintf("%sre(%q)", quoteFieldNameIfNeeded(fr.fieldName), fr.re.String())
 }
 
-func (fr *regexpFilter) apply(bs *blockSearch, bm *bitmap) {
+func (fr *filterRegexp) apply(bs *blockSearch, bm *bitmap) {
 	fieldName := fr.fieldName
 	re := fr.re
 

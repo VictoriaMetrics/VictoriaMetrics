@@ -382,16 +382,16 @@ func TestParseFilterStringRange(t *testing.T) {
 	f(`abc:string_range("foo,bar", "baz) !")`, `abc`, `foo,bar`, `baz) !`)
 }
 
-func TestParseRegexpFilter(t *testing.T) {
+func TestParseFilterRegexp(t *testing.T) {
 	f := func(s, reExpected string) {
 		t.Helper()
 		q, err := ParseQuery("re(" + s + ")")
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		fr, ok := q.f.(*regexpFilter)
+		fr, ok := q.f.(*filterRegexp)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *regexpFilter; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterRegexp; filter: %s", q.f, q.f)
 		}
 		if reString := fr.re.String(); reString != reExpected {
 			t.Fatalf("unexpected regexp; got %q; want %q", reString, reExpected)

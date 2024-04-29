@@ -581,7 +581,7 @@ func TestStorageSearch(t *testing.T) {
 		f = &filterAnd{
 			filters: []filter{
 				f,
-				&regexpFilter{
+				&filterRegexp{
 					fieldName: "_msg",
 					re:        regexp.MustCompile("message [02] at "),
 				},

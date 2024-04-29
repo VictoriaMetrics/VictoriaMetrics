@@ -334,7 +334,7 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 	case lex.isKeyword("range"):
 		return parseFilterRange(lex, fieldName)
 	case lex.isKeyword("re"):
-		return parseRegexpFilter(lex, fieldName)
+		return parseFilterRegexp(lex, fieldName)
 	case lex.isKeyword("seq"):
 		return parseFilterSequence(lex, fieldName)
 	case lex.isKeyword("string_range"):
@@ -649,14 +649,14 @@ func parseFilterExact(lex *lexer, fieldName string) (filter, error) {
 	})
 }
 
-func parseRegexpFilter(lex *lexer, fieldName string) (filter, error) {
+func parseFilterRegexp(lex *lexer, fieldName string) (filter, error) {
 	funcName := lex.token
 	return parseFuncArg(lex, fieldName, func(arg string) (filter, error) {
 		re, err := regexp.Compile(arg)
 		if err != nil {
 			return nil, fmt.Errorf("invalid regexp %q for %s(): %w", arg, funcName, err)
 		}
-		fr := &regexpFilter{
+		fr := &filterRegexp{
 			fieldName: fieldName,
 			re:        re,
 		}
