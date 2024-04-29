@@ -204,7 +204,7 @@ func (q *Query) String() string {
 func (q *Query) getResultColumnNames() []string {
 	for _, p := range q.pipes {
 		switch t := p.(type) {
-		case *fieldsPipe:
+		case *pipeFields:
 			return t.fields
 		case *statsPipe:
 			return t.neededFields()
