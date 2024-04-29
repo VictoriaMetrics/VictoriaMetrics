@@ -39,139 +39,36 @@ type streamFilter struct {
 	streamIDs     map[streamID]struct{}
 }
 
-func (sf *streamFilter) String() string {
-	s := sf.f.String()
+func (fs *streamFilter) String() string {
+	s := fs.f.String()
 	if s == "{}" {
 		return ""
 	}
 	return "_stream:" + s
 }
 
-func (sf *streamFilter) getStreamIDs() map[streamID]struct{} {
-	sf.streamIDsOnce.Do(sf.initStreamIDs)
-	return sf.streamIDs
+func (fs *streamFilter) getStreamIDs() map[streamID]struct{} {
+	fs.streamIDsOnce.Do(fs.initStreamIDs)
+	return fs.streamIDs
 }
 
-func (sf *streamFilter) initStreamIDs() {
-	streamIDs := sf.idb.searchStreamIDs(sf.tenantIDs, sf.f)
+func (fs *streamFilter) initStreamIDs() {
+	streamIDs := fs.idb.searchStreamIDs(fs.tenantIDs, fs.f)
 	m := make(map[streamID]struct{}, len(streamIDs))
 	for i := range streamIDs {
 		m[streamIDs[i]] = struct{}{}
 	}
-	sf.streamIDs = m
+	fs.streamIDs = m
 }
 
-func (sf *streamFilter) apply(bs *blockSearch, bm *bitmap) {
-	if sf.f.isEmpty() {
+func (fs *streamFilter) apply(bs *blockSearch, bm *bitmap) {
+	if fs.f.isEmpty() {
 		return
 	}
-	streamIDs := sf.getStreamIDs()
+	streamIDs := fs.getStreamIDs()
 	if _, ok := streamIDs[bs.bsw.bh.streamID]; !ok {
 		bm.resetBits()
 		return
-	}
-}
-
-// sequenceFilter matches an ordered sequence of phrases
-//
-// Example LogsQL: `fieldName:seq(foo, "bar baz")`
-type sequenceFilter struct {
-	fieldName string
-	phrases   []string
-
-	tokensOnce sync.Once
-	tokens     []string
-
-	nonEmptyPhrasesOnce sync.Once
-	nonEmptyPhrases     []string
-}
-
-func (sf *sequenceFilter) String() string {
-	phrases := sf.phrases
-	a := make([]string, len(phrases))
-	for i, phrase := range phrases {
-		a[i] = quoteTokenIfNeeded(phrase)
-	}
-	return fmt.Sprintf("%sseq(%s)", quoteFieldNameIfNeeded(sf.fieldName), strings.Join(a, ","))
-}
-
-func (sf *sequenceFilter) getTokens() []string {
-	sf.tokensOnce.Do(sf.initTokens)
-	return sf.tokens
-}
-
-func (sf *sequenceFilter) initTokens() {
-	phrases := sf.getNonEmptyPhrases()
-	tokens := tokenizeStrings(nil, phrases)
-	sf.tokens = tokens
-}
-
-func (sf *sequenceFilter) getNonEmptyPhrases() []string {
-	sf.nonEmptyPhrasesOnce.Do(sf.initNonEmptyPhrases)
-	return sf.nonEmptyPhrases
-}
-
-func (sf *sequenceFilter) initNonEmptyPhrases() {
-	phrases := sf.phrases
-	result := make([]string, 0, len(phrases))
-	for _, phrase := range phrases {
-		if phrase != "" {
-			result = append(result, phrase)
-		}
-	}
-	sf.nonEmptyPhrases = result
-}
-
-func (sf *sequenceFilter) apply(bs *blockSearch, bm *bitmap) {
-	fieldName := sf.fieldName
-	phrases := sf.getNonEmptyPhrases()
-
-	if len(phrases) == 0 {
-		return
-	}
-
-	v := bs.csh.getConstColumnValue(fieldName)
-	if v != "" {
-		if !matchSequence(v, phrases) {
-			bm.resetBits()
-		}
-		return
-	}
-
-	// Verify whether filter matches other columns
-	ch := bs.csh.getColumnHeader(fieldName)
-	if ch == nil {
-		// Fast path - there are no matching columns.
-		// It matches anything only for empty phrase.
-		if !matchSequence("", phrases) {
-			bm.resetBits()
-		}
-		return
-	}
-
-	tokens := sf.getTokens()
-
-	switch ch.valueType {
-	case valueTypeString:
-		matchStringBySequence(bs, ch, bm, phrases, tokens)
-	case valueTypeDict:
-		matchValuesDictBySequence(bs, ch, bm, phrases)
-	case valueTypeUint8:
-		matchUint8BySequence(bs, ch, bm, phrases, tokens)
-	case valueTypeUint16:
-		matchUint16BySequence(bs, ch, bm, phrases, tokens)
-	case valueTypeUint32:
-		matchUint32BySequence(bs, ch, bm, phrases, tokens)
-	case valueTypeUint64:
-		matchUint64BySequence(bs, ch, bm, phrases, tokens)
-	case valueTypeFloat64:
-		matchFloat64BySequence(bs, ch, bm, phrases, tokens)
-	case valueTypeIPv4:
-		matchIPv4BySequence(bs, ch, bm, phrases, tokens)
-	case valueTypeTimestampISO8601:
-		matchTimestampISO8601BySequence(bs, ch, bm, phrases, tokens)
-	default:
-		logger.Panicf("FATAL: %s: unknown valueType=%d", bs.partPath(), ch.valueType)
 	}
 }
 
@@ -1329,25 +1226,6 @@ func matchTimestampISO8601ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap
 	bbPool.Put(bb)
 }
 
-func matchTimestampISO8601BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases, tokens []string) {
-	if len(phrases) == 1 {
-		matchTimestampISO8601ByPhrase(bs, ch, bm, phrases[0], tokens)
-		return
-	}
-	if !matchBloomFilterAllTokens(bs, ch, tokens) {
-		bm.resetBits()
-		return
-	}
-
-	// Slow path - phrases contain incomplete timestamp. Search over string representation of the timestamp.
-	bb := bbPool.Get()
-	visitValues(bs, ch, bm, func(v string) bool {
-		s := toTimestampISO8601StringExt(bs, bb, v)
-		return matchSequence(s, phrases)
-	})
-	bbPool.Put(bb)
-}
-
 func matchTimestampISO8601ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
 	if prefix == "" {
 		return
@@ -1469,27 +1347,6 @@ func matchIPv4ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix str
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toIPv4StringExt(bs, bb, v)
 		return matchPrefix(s, prefix)
-	})
-	bbPool.Put(bb)
-}
-
-func matchIPv4BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases, tokens []string) {
-	if len(phrases) == 1 {
-		matchIPv4ByPhrase(bs, ch, bm, phrases[0], tokens)
-		return
-	}
-	if !matchBloomFilterAllTokens(bs, ch, tokens) {
-		bm.resetBits()
-		return
-	}
-
-	// Slow path - phrases contain parts of IP address. For example, `1.23` should match `1.23.4.5` and `4.1.23.54`.
-	// We cannot compare binary represetnation of ip address and need converting
-	// the ip to string before searching for prefix there.
-	bb := bbPool.Get()
-	visitValues(bs, ch, bm, func(v string) bool {
-		s := toIPv4StringExt(bs, bb, v)
-		return matchSequence(s, phrases)
 	})
 	bbPool.Put(bb)
 }
@@ -1625,24 +1482,6 @@ func matchFloat64ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix 
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toFloat64StringExt(bs, bb, v)
 		return matchPrefix(s, prefix)
-	})
-	bbPool.Put(bb)
-}
-
-func matchFloat64BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases, tokens []string) {
-	if !matchBloomFilterAllTokens(bs, ch, tokens) {
-		bm.resetBits()
-		return
-	}
-	// The phrase may contain a part of the floating-point number.
-	// For example, `foo:"123"` must match `123`, `123.456` and `-0.123`.
-	// This means we cannot search in binary representation of floating-point numbers.
-	// Instead, we need searching for the whole phrase in string representation
-	// of floating-point numbers :(
-	bb := bbPool.Get()
-	visitValues(bs, ch, bm, func(v string) bool {
-		s := toFloat64StringExt(bs, bb, v)
-		return matchSequence(s, phrases)
 	})
 	bbPool.Put(bb)
 }
@@ -1795,17 +1634,6 @@ func matchValuesDictByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, pref
 	bbPool.Put(bb)
 }
 
-func matchValuesDictBySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases []string) {
-	bb := bbPool.Get()
-	for i, v := range ch.valuesDict.values {
-		if matchSequence(v, phrases) {
-			bb.B = append(bb.B, byte(i))
-		}
-	}
-	matchEncodedValuesDict(bs, ch, bm, bb.B)
-	bbPool.Put(bb)
-}
-
 func matchValuesDictByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string) {
 	bb := bbPool.Get()
 	for i, v := range ch.valuesDict.values {
@@ -1915,16 +1743,6 @@ func matchStringByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix s
 	}
 	visitValues(bs, ch, bm, func(v string) bool {
 		return matchPrefix(v, prefix)
-	})
-}
-
-func matchStringBySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases []string, tokens []string) {
-	if !matchBloomFilterAllTokens(bs, ch, tokens) {
-		bm.resetBits()
-		return
-	}
-	visitValues(bs, ch, bm, func(v string) bool {
-		return matchSequence(v, phrases)
 	})
 }
 
@@ -2279,38 +2097,6 @@ func matchUint64ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix s
 	bbPool.Put(bb)
 }
 
-func matchUint8BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases, tokens []string) {
-	if len(phrases) > 1 {
-		bm.resetBits()
-		return
-	}
-	matchUint8ByExactValue(bs, ch, bm, phrases[0], tokens)
-}
-
-func matchUint16BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases, tokens []string) {
-	if len(phrases) > 1 {
-		bm.resetBits()
-		return
-	}
-	matchUint16ByExactValue(bs, ch, bm, phrases[0], tokens)
-}
-
-func matchUint32BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases, tokens []string) {
-	if len(phrases) > 1 {
-		bm.resetBits()
-		return
-	}
-	matchUint32ByExactValue(bs, ch, bm, phrases[0], tokens)
-}
-
-func matchUint64BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases, tokens []string) {
-	if len(phrases) > 1 {
-		bm.resetBits()
-		return
-	}
-	matchUint64ByExactValue(bs, ch, bm, phrases[0], tokens)
-}
-
 func matchUint8ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
 	if !matchMinMaxExactPrefix(ch, bm, prefix, tokens) {
 		return
@@ -2581,17 +2367,6 @@ func matchRange(s string, minValue, maxValue float64) bool {
 		return false
 	}
 	return f >= minValue && f <= maxValue
-}
-
-func matchSequence(s string, phrases []string) bool {
-	for _, phrase := range phrases {
-		n := getPhrasePos(s, phrase)
-		if n < 0 {
-			return false
-		}
-		s = s[n+len(phrase):]
-	}
-	return true
 }
 
 func matchAnyCasePhrase(s, phraseLowercase string) bool {

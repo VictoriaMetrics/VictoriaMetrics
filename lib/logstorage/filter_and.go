@@ -69,7 +69,7 @@ func (fa *filterAnd) initMsgTokens() {
 			if isMsgFieldName(t.fieldName) {
 				a = append(a, t.getTokens()...)
 			}
-		case *sequenceFilter:
+		case *filterSequence:
 			if isMsgFieldName(t.fieldName) {
 				a = append(a, t.getTokens()...)
 			}

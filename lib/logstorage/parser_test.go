@@ -274,22 +274,22 @@ func TestParseTimeRange(t *testing.T) {
 	f(`[2023-03-01+02:20,2023-04-06T23] offset 30m5s`, minTimestamp, maxTimestamp)
 }
 
-func TestParseSequenceFilter(t *testing.T) {
+func TestParseFilterSequence(t *testing.T) {
 	f := func(s, fieldNameExpected string, phrasesExpected []string) {
 		t.Helper()
 		q, err := ParseQuery(s)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		sf, ok := q.f.(*sequenceFilter)
+		fs, ok := q.f.(*filterSequence)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *sequenceFilter; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterSequence; filter: %s", q.f, q.f)
 		}
-		if sf.fieldName != fieldNameExpected {
-			t.Fatalf("unexpected fieldName; got %q; want %q", sf.fieldName, fieldNameExpected)
+		if fs.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fs.fieldName, fieldNameExpected)
 		}
-		if !reflect.DeepEqual(sf.phrases, phrasesExpected) {
-			t.Fatalf("unexpected phrases\ngot\n%q\nwant\n%q", sf.phrases, phrasesExpected)
+		if !reflect.DeepEqual(fs.phrases, phrasesExpected) {
+			t.Fatalf("unexpected phrases\ngot\n%q\nwant\n%q", fs.phrases, phrasesExpected)
 		}
 	}
 

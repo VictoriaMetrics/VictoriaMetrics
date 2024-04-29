@@ -336,7 +336,7 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 	case lex.isKeyword("re"):
 		return parseRegexpFilter(lex, fieldName)
 	case lex.isKeyword("seq"):
-		return parseSequenceFilter(lex, fieldName)
+		return parseFilterSequence(lex, fieldName)
 	case lex.isKeyword("string_range"):
 		return parseStringRangeFilter(lex, fieldName)
 	case lex.isKeyword(`"`, "'", "`"):
@@ -622,13 +622,13 @@ func parseInFilter(lex *lexer, fieldName string) (filter, error) {
 	})
 }
 
-func parseSequenceFilter(lex *lexer, fieldName string) (filter, error) {
+func parseFilterSequence(lex *lexer, fieldName string) (filter, error) {
 	return parseFuncArgs(lex, fieldName, func(args []string) (filter, error) {
-		sf := &sequenceFilter{
+		fs := &filterSequence{
 			fieldName: fieldName,
 			phrases:   args,
 		}
-		return sf, nil
+		return fs, nil
 	})
 }
 
