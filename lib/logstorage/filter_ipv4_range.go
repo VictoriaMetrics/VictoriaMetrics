@@ -3,6 +3,7 @@ package logstorage
 import (
 	"fmt"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -95,4 +96,20 @@ func matchIPv4Range(s string, minValue, maxValue uint32) bool {
 		return false
 	}
 	return n >= minValue && n <= maxValue
+}
+
+func matchIPv4ByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue uint32) {
+	if ch.minValue > uint64(maxValue) || ch.maxValue < uint64(minValue) {
+		bm.resetBits()
+		return
+	}
+
+	visitValues(bs, ch, bm, func(v string) bool {
+		if len(v) != 4 {
+			logger.Panicf("FATAL: %s: unexpected length for binary representation of IPv4: got %d; want 4", bs.partPath(), len(v))
+		}
+		b := bytesutil.ToUnsafeBytes(v)
+		n := encoding.UnmarshalUint32(b)
+		return n >= minValue && n <= maxValue
+	})
 }

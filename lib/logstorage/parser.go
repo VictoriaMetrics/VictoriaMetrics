@@ -330,7 +330,7 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 	case lex.isKeyword("ipv4_range"):
 		return parseFilterIPv4Range(lex, fieldName)
 	case lex.isKeyword("len_range"):
-		return parseLenRangeFilter(lex, fieldName)
+		return parseFilterLenRange(lex, fieldName)
 	case lex.isKeyword("range"):
 		return parseRangeFilter(lex, fieldName)
 	case lex.isKeyword("re"):
@@ -516,7 +516,7 @@ func parseFuncArgMaybePrefix(lex *lexer, funcName, fieldName string, callback fu
 	return callback(phrase, isPrefixFilter)
 }
 
-func parseLenRangeFilter(lex *lexer, fieldName string) (filter, error) {
+func parseFilterLenRange(lex *lexer, fieldName string) (filter, error) {
 	funcName := lex.token
 	return parseFuncArgs(lex, fieldName, func(args []string) (filter, error) {
 		if len(args) != 2 {
@@ -531,7 +531,7 @@ func parseLenRangeFilter(lex *lexer, fieldName string) (filter, error) {
 			return nil, fmt.Errorf("cannot parse maxLen at %s(): %w", funcName, err)
 		}
 		stringRepr := "(" + args[0] + ", " + args[1] + ")"
-		fr := &lenRangeFilter{
+		fr := &filterLenRange{
 			fieldName: fieldName,
 			minLen:    minLen,
 			maxLen:    maxLen,
