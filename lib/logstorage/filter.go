@@ -69,7 +69,7 @@ func (fs *streamFilter) apply(bs *blockSearch, bm *bitmap) {
 	}
 }
 
-// phraseFilter filters field entries by phrase match (aka full text search).
+// filterPhrase filters field entries by phrase match (aka full text search).
 //
 // A phrase consists of any number of words with delimiters between them.
 //
@@ -79,7 +79,7 @@ func (fs *streamFilter) apply(bs *blockSearch, bm *bitmap) {
 // Multi-word phrase is expressed as `fieldName:"word1 ... wordN"` in LogsQL.
 //
 // A special case `fieldName:""` matches any value without `fieldName` field.
-type phraseFilter struct {
+type filterPhrase struct {
 	fieldName string
 	phrase    string
 
@@ -87,20 +87,20 @@ type phraseFilter struct {
 	tokens     []string
 }
 
-func (fp *phraseFilter) String() string {
+func (fp *filterPhrase) String() string {
 	return quoteFieldNameIfNeeded(fp.fieldName) + quoteTokenIfNeeded(fp.phrase)
 }
 
-func (fp *phraseFilter) getTokens() []string {
+func (fp *filterPhrase) getTokens() []string {
 	fp.tokensOnce.Do(fp.initTokens)
 	return fp.tokens
 }
 
-func (fp *phraseFilter) initTokens() {
+func (fp *filterPhrase) initTokens() {
 	fp.tokens = tokenizeStrings(nil, []string{fp.phrase})
 }
 
-func (fp *phraseFilter) apply(bs *blockSearch, bm *bitmap) {
+func (fp *filterPhrase) apply(bs *blockSearch, bm *bitmap) {
 	fieldName := fp.fieldName
 	phrase := fp.phrase
 

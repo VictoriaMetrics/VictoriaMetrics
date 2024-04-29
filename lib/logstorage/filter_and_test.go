@@ -26,7 +26,7 @@ func TestFilterAnd(t *testing.T) {
 	// non-empty intersection
 	fa := &filterAnd{
 		filters: []filter{
-			&phraseFilter{
+			&filterPhrase{
 				fieldName: "foo",
 				phrase:    "a",
 			},
@@ -45,7 +45,7 @@ func TestFilterAnd(t *testing.T) {
 				fieldName: "foo",
 				prefix:    "abc",
 			},
-			&phraseFilter{
+			&filterPhrase{
 				fieldName: "foo",
 				phrase:    "a",
 			},
@@ -60,7 +60,7 @@ func TestFilterAnd(t *testing.T) {
 				fieldName: "foo",
 				prefix:    "bc",
 			},
-			&phraseFilter{
+			&filterPhrase{
 				fieldName: "foo",
 				phrase:    "a",
 			},
@@ -71,7 +71,7 @@ func TestFilterAnd(t *testing.T) {
 	// the last filter mismatch
 	fa = &filterAnd{
 		filters: []filter{
-			&phraseFilter{
+			&filterPhrase{
 				fieldName: "foo",
 				phrase:    "abc",
 			},
@@ -86,7 +86,7 @@ func TestFilterAnd(t *testing.T) {
 	// empty intersection
 	fa = &filterAnd{
 		filters: []filter{
-			&phraseFilter{
+			&filterPhrase{
 				fieldName: "foo",
 				phrase:    "foo",
 			},
@@ -105,7 +105,7 @@ func TestFilterAnd(t *testing.T) {
 				fieldName: "foo",
 				prefix:    "abc",
 			},
-			&phraseFilter{
+			&filterPhrase{
 				fieldName: "foo",
 				phrase:    "foo",
 			},

@@ -404,7 +404,7 @@ func TestParseFilterRegexp(t *testing.T) {
 	f(`"foo(bar|baz),x[y]"`, `foo(bar|baz),x[y]`)
 }
 
-func TestParseAnyCasePhraseFilter(t *testing.T) {
+func TestParseAnyCaseFilterPhrase(t *testing.T) {
 	f := func(s, fieldNameExpected, phraseExpected string) {
 		t.Helper()
 		q, err := ParseQuery(s)
@@ -456,16 +456,16 @@ func TestParseAnyCaseFilterPrefix(t *testing.T) {
 	f(`"abc-de.fg":i("foo-bar*baz *"*)`, `abc-de.fg`, `foo-bar*baz *`)
 }
 
-func TestParsePhraseFilter(t *testing.T) {
+func TestParseFilterPhrase(t *testing.T) {
 	f := func(s, fieldNameExpected, phraseExpected string) {
 		t.Helper()
 		q, err := ParseQuery(s)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		fp, ok := q.f.(*phraseFilter)
+		fp, ok := q.f.(*filterPhrase)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *phraseFilter; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterPhrase; filter: %s", q.f, q.f)
 		}
 		if fp.fieldName != fieldNameExpected {
 			t.Fatalf("unexpected fieldName; got %q; want %q", fp.fieldName, fieldNameExpected)

@@ -25,7 +25,7 @@ func TestFilterNot(t *testing.T) {
 
 	// match
 	fn := &filterNot{
-		f: &phraseFilter{
+		f: &filterPhrase{
 			fieldName: "foo",
 			phrase:    "",
 		},
@@ -33,7 +33,7 @@ func TestFilterNot(t *testing.T) {
 	testFilterMatchForColumns(t, columns, fn, "foo", []int{0, 1, 2, 3, 4, 6, 7, 8, 9})
 
 	fn = &filterNot{
-		f: &phraseFilter{
+		f: &filterPhrase{
 			fieldName: "foo",
 			phrase:    "a",
 		},
@@ -41,7 +41,7 @@ func TestFilterNot(t *testing.T) {
 	testFilterMatchForColumns(t, columns, fn, "foo", []int{5})
 
 	fn = &filterNot{
-		f: &phraseFilter{
+		f: &filterPhrase{
 			fieldName: "non-existing-field",
 			phrase:    "foobar",
 		},
@@ -66,7 +66,7 @@ func TestFilterNot(t *testing.T) {
 
 	// mismatch
 	fn = &filterNot{
-		f: &phraseFilter{
+		f: &filterPhrase{
 			fieldName: "non-existing-field",
 			phrase:    "",
 		},

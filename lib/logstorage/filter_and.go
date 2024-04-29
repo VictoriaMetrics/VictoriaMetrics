@@ -65,7 +65,7 @@ func (fa *filterAnd) initMsgTokens() {
 	var a []string
 	for _, f := range fa.filters {
 		switch t := f.(type) {
-		case *phraseFilter:
+		case *filterPhrase:
 			if isMsgFieldName(t.fieldName) {
 				a = append(a, t.getTokens()...)
 			}

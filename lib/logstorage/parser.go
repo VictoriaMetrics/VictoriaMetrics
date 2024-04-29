@@ -418,7 +418,7 @@ func parseFilterForPhrase(lex *lexer, phrase, fieldName string) (filter, error) 
 			return f, nil
 		}
 		// The phrase is a search phrase.
-		f := &phraseFilter{
+		f := &filterPhrase{
 			fieldName: fieldName,
 			phrase:    phrase,
 		}

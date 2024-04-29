@@ -26,7 +26,7 @@ func TestFilterOr(t *testing.T) {
 	// non-empty union
 	fo := &filterOr{
 		filters: []filter{
-			&phraseFilter{
+			&filterPhrase{
 				fieldName: "foo",
 				phrase:    "23",
 			},
@@ -45,7 +45,7 @@ func TestFilterOr(t *testing.T) {
 				fieldName: "foo",
 				prefix:    "abc",
 			},
-			&phraseFilter{
+			&filterPhrase{
 				fieldName: "foo",
 				phrase:    "23",
 			},
@@ -60,7 +60,7 @@ func TestFilterOr(t *testing.T) {
 				fieldName: "foo",
 				prefix:    "xabc",
 			},
-			&phraseFilter{
+			&filterPhrase{
 				fieldName: "foo",
 				phrase:    "23",
 			},
@@ -71,7 +71,7 @@ func TestFilterOr(t *testing.T) {
 	// first non-empty result, second empty result
 	fo = &filterOr{
 		filters: []filter{
-			&phraseFilter{
+			&filterPhrase{
 				fieldName: "foo",
 				phrase:    "23",
 			},
@@ -86,7 +86,7 @@ func TestFilterOr(t *testing.T) {
 	// first match all
 	fo = &filterOr{
 		filters: []filter{
-			&phraseFilter{
+			&filterPhrase{
 				fieldName: "foo",
 				phrase:    "a",
 			},
@@ -105,7 +105,7 @@ func TestFilterOr(t *testing.T) {
 				fieldName: "foo",
 				prefix:    "23",
 			},
-			&phraseFilter{
+			&filterPhrase{
 				fieldName: "foo",
 				phrase:    "a",
 			},
@@ -116,7 +116,7 @@ func TestFilterOr(t *testing.T) {
 	// both empty results
 	fo = &filterOr{
 		filters: []filter{
-			&phraseFilter{
+			&filterPhrase{
 				fieldName: "foo",
 				phrase:    "x23",
 			},
