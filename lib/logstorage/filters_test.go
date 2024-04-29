@@ -368,7 +368,7 @@ func TestComplexFilters(t *testing.T) {
 					phrase:    "baz",
 				},
 			},
-			&orFilter{
+			&filterOr{
 				filters: []filter{
 					&phraseFilter{
 						fieldName: "foo",
@@ -397,7 +397,7 @@ func TestComplexFilters(t *testing.T) {
 					phrase:    "baz",
 				},
 			},
-			&orFilter{
+			&filterOr{
 				filters: []filter{
 					&phraseFilter{
 						fieldName: "foo",
@@ -426,7 +426,7 @@ func TestComplexFilters(t *testing.T) {
 					phrase:    "baz",
 				},
 			},
-			&orFilter{
+			&filterOr{
 				filters: []filter{
 					&phraseFilter{
 						fieldName: "foo",
@@ -459,7 +459,7 @@ func TestComplexFilters(t *testing.T) {
 					phrase:    "qwert",
 				},
 			},
-			&orFilter{
+			&filterOr{
 				filters: []filter{
 					&phraseFilter{
 						fieldName: "foo",
@@ -500,7 +500,7 @@ func TestOrFilter(t *testing.T) {
 	}
 
 	// non-empty union
-	of := &orFilter{
+	fo := &filterOr{
 		filters: []filter{
 			&phraseFilter{
 				fieldName: "foo",
@@ -512,10 +512,10 @@ func TestOrFilter(t *testing.T) {
 			},
 		},
 	}
-	testFilterMatchForColumns(t, columns, of, "foo", []int{2, 6, 9})
+	testFilterMatchForColumns(t, columns, fo, "foo", []int{2, 6, 9})
 
 	// reverse non-empty union
-	of = &orFilter{
+	fo = &filterOr{
 		filters: []filter{
 			&prefixFilter{
 				fieldName: "foo",
@@ -527,10 +527,10 @@ func TestOrFilter(t *testing.T) {
 			},
 		},
 	}
-	testFilterMatchForColumns(t, columns, of, "foo", []int{2, 6, 9})
+	testFilterMatchForColumns(t, columns, fo, "foo", []int{2, 6, 9})
 
 	// first empty result, second non-empty result
-	of = &orFilter{
+	fo = &filterOr{
 		filters: []filter{
 			&prefixFilter{
 				fieldName: "foo",
@@ -542,10 +542,10 @@ func TestOrFilter(t *testing.T) {
 			},
 		},
 	}
-	testFilterMatchForColumns(t, columns, of, "foo", []int{9})
+	testFilterMatchForColumns(t, columns, fo, "foo", []int{9})
 
 	// first non-empty result, second empty result
-	of = &orFilter{
+	fo = &filterOr{
 		filters: []filter{
 			&phraseFilter{
 				fieldName: "foo",
@@ -557,10 +557,10 @@ func TestOrFilter(t *testing.T) {
 			},
 		},
 	}
-	testFilterMatchForColumns(t, columns, of, "foo", []int{9})
+	testFilterMatchForColumns(t, columns, fo, "foo", []int{9})
 
 	// first match all
-	of = &orFilter{
+	fo = &filterOr{
 		filters: []filter{
 			&phraseFilter{
 				fieldName: "foo",
@@ -572,10 +572,10 @@ func TestOrFilter(t *testing.T) {
 			},
 		},
 	}
-	testFilterMatchForColumns(t, columns, of, "foo", []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
+	testFilterMatchForColumns(t, columns, fo, "foo", []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
 
 	// second match all
-	of = &orFilter{
+	fo = &filterOr{
 		filters: []filter{
 			&prefixFilter{
 				fieldName: "foo",
@@ -587,10 +587,10 @@ func TestOrFilter(t *testing.T) {
 			},
 		},
 	}
-	testFilterMatchForColumns(t, columns, of, "foo", []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
+	testFilterMatchForColumns(t, columns, fo, "foo", []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
 
 	// both empty results
-	of = &orFilter{
+	fo = &filterOr{
 		filters: []filter{
 			&phraseFilter{
 				fieldName: "foo",
@@ -602,7 +602,7 @@ func TestOrFilter(t *testing.T) {
 			},
 		},
 	}
-	testFilterMatchForColumns(t, columns, of, "foo", nil)
+	testFilterMatchForColumns(t, columns, fo, "foo", nil)
 }
 
 func TestAndFilter(t *testing.T) {

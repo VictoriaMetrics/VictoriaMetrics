@@ -36,15 +36,15 @@ func (fn *filterNoop) apply(_ *blockSearch, _ *bitmap) {
 	// nothing to do
 }
 
-// orFilter contains filters joined by OR operator.
+// filterOr contains filters joined by OR operator.
 //
 // It is epxressed as `f1 OR f2 ... OR fN` in LogsQL.
-type orFilter struct {
+type filterOr struct {
 	filters []filter
 }
 
-func (of *orFilter) String() string {
-	filters := of.filters
+func (fo *filterOr) String() string {
+	filters := fo.filters
 	a := make([]string, len(filters))
 	for i, f := range filters {
 		s := f.String()
@@ -53,10 +53,10 @@ func (of *orFilter) String() string {
 	return strings.Join(a, " or ")
 }
 
-func (of *orFilter) apply(bs *blockSearch, bm *bitmap) {
+func (fo *filterOr) apply(bs *blockSearch, bm *bitmap) {
 	bmResult := getBitmap(bm.bitsLen)
 	bmTmp := getBitmap(bm.bitsLen)
-	for _, f := range of.filters {
+	for _, f := range fo.filters {
 		// Minimize the number of rows to check by the filter by checking only
 		// the rows, which may change the output bm:
 		// - bm matches them, e.g. the caller wants to get them
@@ -92,7 +92,7 @@ func (af *andFilter) String() string {
 	for i, f := range filters {
 		s := f.String()
 		switch f.(type) {
-		case *orFilter:
+		case *filterOr:
 			s = "(" + s + ")"
 		}
 		a[i] = s
@@ -171,7 +171,7 @@ type notFilter struct {
 func (fn *notFilter) String() string {
 	s := fn.f.String()
 	switch fn.f.(type) {
-	case *andFilter, *orFilter:
+	case *andFilter, *filterOr:
 		s = "(" + s + ")"
 	}
 	return "!" + s

@@ -262,10 +262,10 @@ func parseOrFilter(lex *lexer, fieldName string) (filter, error) {
 			if len(filters) == 1 {
 				return filters[0], nil
 			}
-			of := &orFilter{
+			fo := &filterOr{
 				filters: filters,
 			}
-			return of, nil
+			return fo, nil
 		case lex.isKeyword("or"):
 			if !lex.mustNextToken() {
 				return nil, fmt.Errorf("missing filter after 'or'")
