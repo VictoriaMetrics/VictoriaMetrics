@@ -240,6 +240,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
+          "editorMode": "code",
           "exemplar": false,
           "expr": "sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"})",
           "format": "time_series",
@@ -537,7 +538,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "vm_app_uptime_seconds{job=~\"$job\", instance=~\"$instance\"}",
+          "expr": "min(vm_app_uptime_seconds{job=~\"$job\", instance=~\"$instance\"})",
           "instant": true,
           "interval": "",
           "legendFormat": "",
@@ -606,8 +607,9 @@
             "type": "prometheus",
             "uid": "$ds"
           },
+          "editorMode": "code",
           "exemplar": false,
-          "expr": "vm_cache_entries{job=~\"$job\", instance=~\"$instance\", type=\"storage/hour_metric_ids\"}",
+          "expr": "sum(vm_cache_entries{job=~\"$job\", instance=~\"$instance\", type=\"storage/hour_metric_ids\"})",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -753,7 +755,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) / sum(vm_rows{job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "max(sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) / sum(vm_rows{job=~\"$job\", instance=~\"$instance\"}))",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -958,16 +960,16 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vm_rows_inserted_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (type) > 0",
+          "expr": "sum(rate(vm_rows_inserted_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (type, instance) > 0",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}} - {{type}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Datapoints ingestion rate ($instance)",
+      "title": "Datapoints ingestion rate",
       "type": "timeseries"
     },
     {
@@ -1068,16 +1070,16 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vm_http_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (path) > 0",
+          "expr": "sum(rate(vm_http_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (path, instance) > 0",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
-          "legendFormat": "{{path}}",
+          "legendFormat": "{{instance}} - {{path}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Requests rate ($instance)",
+      "title": "Requests rate",
       "type": "timeseries"
     },
     {
@@ -1181,14 +1183,16 @@
             "type": "prometheus",
             "uid": "$ds"
           },
+          "editorMode": "code",
           "expr": "vm_cache_entries{job=~\"$job\", instance=~\"$instance\", type=\"storage/hour_metric_ids\"}",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "Active time series",
+          "legendFormat": "{{instance}}",
+          "range": true,
           "refId": "A"
         }
       ],
-      "title": "Active time series ($instance)",
+      "title": "Active time series",
       "type": "timeseries"
     },
     {
@@ -1289,15 +1293,15 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "max(vm_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=\"0.99\"}) by (path) > 0",
+          "expr": "max(vm_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=\"0.99\"}) by (instance, path) > 0",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}} - {{path}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Query duration 0.99 quantile ($instance)",
+      "title": "Query duration 0.99 quantile",
       "type": "timeseries"
     },
     {
@@ -1312,6 +1316,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1325,6 +1330,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1348,7 +1354,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1356,7 +1363,8 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -1392,16 +1400,16 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(rate(vm_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (path) > 0",
+          "expr": "sum(rate(vm_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance, path) > 0",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}} - {{path}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Requests error rate ($instance)",
+      "title": "Requests error rate",
       "type": "timeseries"
     },
     {
@@ -1416,6 +1424,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1429,6 +1438,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1450,14 +1460,16 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
                 "value": 80
               }
             ]
-          }
+          },
+          "unitScale": true
         },
         "overrides": []
       },
@@ -1493,9 +1505,9 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (level, location) > 0",
+          "expr": "sum(rate(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (instance, level, location) > 0",
           "interval": "5m",
-          "legendFormat": "{{level}}: {{location}}",
+          "legendFormat": "{{instance}} - {{level}}: {{location}}",
           "range": true,
           "refId": "A"
         }
@@ -1585,7 +1597,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3
+            "y": 15
           },
           "id": 112,
           "links": [],
@@ -1623,7 +1635,7 @@
               "refId": "A"
             }
           ],
-          "title": "RSS memory % usage ($instance)",
+          "title": "RSS memory % usage",
           "type": "timeseries"
         },
         {
@@ -1694,7 +1706,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3
+            "y": 15
           },
           "id": 44,
           "links": [],
@@ -1723,11 +1735,13 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "sum(go_memstats_sys_bytes{job=~\"$job\", instance=~\"$instance\"}) + sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "editorMode": "code",
+              "expr": "sum(go_memstats_sys_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance) + sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
-              "legendFormat": "requested from system",
+              "legendFormat": "{{instance}} - requested from system",
+              "range": true,
               "refId": "A"
             },
             {
@@ -1735,11 +1749,13 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "sum(go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\"}) + sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "editorMode": "code",
+              "expr": "sum(go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance) + sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
-              "legendFormat": "heap inuse",
+              "legendFormat": "{{instance}} - heap inuse",
+              "range": true,
               "refId": "B"
             },
             {
@@ -1747,11 +1763,13 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "sum(go_memstats_stack_inuse_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "editorMode": "code",
+              "expr": "sum(go_memstats_stack_inuse_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
-              "legendFormat": "stack inuse",
+              "legendFormat": "{{instance}} - stack inuse",
+              "range": true,
               "refId": "C"
             },
             {
@@ -1759,12 +1777,14 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "sum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "editorMode": "code",
+              "expr": "sum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "resident",
+              "legendFormat": "{{instance}} - resident",
+              "range": true,
               "refId": "D"
             },
             {
@@ -1772,17 +1792,19 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
+              "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(process_resident_memory_anon_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(process_resident_memory_anon_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "resident anonymous",
+              "legendFormat": "{{instance}} - resident anonymous",
+              "range": true,
               "refId": "E"
             }
           ],
-          "title": "Memory usage ($instance)",
+          "title": "Memory usage",
           "type": "timeseries"
         },
         {
@@ -1853,7 +1875,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 11
+            "y": 23
           },
           "id": 123,
           "links": [],
@@ -1891,7 +1913,7 @@
               "refId": "A"
             }
           ],
-          "title": "RSS anonymous memory % usage ($instance)",
+          "title": "RSS anonymous memory % usage",
           "type": "timeseries"
         },
         {
@@ -1961,7 +1983,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 11
+            "y": 23
           },
           "id": 114,
           "links": [],
@@ -2001,7 +2023,7 @@
               "refId": "A"
             }
           ],
-          "title": "CPU % usage ($instance)",
+          "title": "CPU % usage",
           "type": "timeseries"
         },
         {
@@ -2089,7 +2111,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 19
+            "y": 31
           },
           "id": 75,
           "links": [],
@@ -2129,7 +2151,7 @@
               "refId": "A"
             }
           ],
-          "title": "Open FDs ($instance)",
+          "title": "Open FDs",
           "type": "timeseries"
         },
         {
@@ -2137,7 +2159,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "",
+          "description": "CPU cores used by instance",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2216,7 +2238,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 19
+            "y": 31
           },
           "id": 57,
           "links": [],
@@ -2245,11 +2267,13 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
+              "editorMode": "code",
               "expr": "rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "CPU cores used",
+              "legendFormat": "{{instance}}",
+              "range": true,
               "refId": "A"
             },
             {
@@ -2257,17 +2281,19 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
+              "editorMode": "code",
               "exemplar": false,
-              "expr": "process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}",
+              "expr": "min(process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"})",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "Limit",
+              "range": true,
               "refId": "B"
             }
           ],
-          "title": "CPU ($instance)",
+          "title": "CPU",
           "type": "timeseries"
         },
         {
@@ -2338,7 +2364,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 27
+            "y": 39
           },
           "id": 47,
           "links": [],
@@ -2376,7 +2402,7 @@
               "refId": "A"
             }
           ],
-          "title": "Goroutines ($instance)",
+          "title": "Goroutines",
           "type": "timeseries"
         },
         {
@@ -2443,8 +2469,8 @@
             "overrides": [
               {
                 "matcher": {
-                  "id": "byName",
-                  "options": "read"
+                  "id": "byRegexp",
+                  "options": "/.*read/"
                 },
                 "properties": [
                   {
@@ -2459,7 +2485,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 27
+            "y": 39
           },
           "id": 76,
           "links": [],
@@ -2488,12 +2514,14 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "sum(rate(process_io_storage_read_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+              "editorMode": "code",
+              "expr": "sum(rate(process_io_storage_read_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "read",
+              "legendFormat": "{{instance}} - read",
+              "range": true,
               "refId": "A"
             },
             {
@@ -2501,16 +2529,18 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "sum(rate(process_io_storage_written_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+              "editorMode": "code",
+              "expr": "sum(rate(process_io_storage_written_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "write",
+              "legendFormat": "{{instance}} - write",
+              "range": true,
               "refId": "B"
             }
           ],
-          "title": "Disk writes/reads ($instance)",
+          "title": "Disk writes/reads",
           "type": "timeseries"
         },
         {
@@ -2581,7 +2611,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 35
+            "y": 47
           },
           "id": 48,
           "links": [],
@@ -2619,7 +2649,7 @@
               "refId": "A"
             }
           ],
-          "title": "Threads ($instance)",
+          "title": "Threads",
           "type": "timeseries"
         },
         {
@@ -2686,8 +2716,8 @@
             "overrides": [
               {
                 "matcher": {
-                  "id": "byName",
-                  "options": "read calls"
+                  "id": "byRegexp",
+                  "options": "/.*read.*/"
                 },
                 "properties": [
                   {
@@ -2702,7 +2732,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 35
+            "y": 47
           },
           "id": 124,
           "links": [],
@@ -2732,12 +2762,12 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_io_read_syscalls_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+              "expr": "sum(rate(process_io_read_syscalls_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "read calls",
+              "legendFormat": "{{instance}} - read calls",
               "range": true,
               "refId": "A"
             },
@@ -2747,17 +2777,17 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_io_write_syscalls_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+              "expr": "sum(rate(process_io_write_syscalls_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "write calls",
+              "legendFormat": "{{instance}} - write calls",
               "range": true,
               "refId": "B"
             }
           ],
-          "title": "Disk write/read calls ($instance)",
+          "title": "Disk write/read calls",
           "type": "timeseries"
         },
         {
@@ -2828,7 +2858,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 43
+            "y": 55
           },
           "id": 49,
           "links": [],
@@ -2867,7 +2897,7 @@
               "refId": "A"
             }
           ],
-          "title": "TCP connections rate ($instance)",
+          "title": "TCP connections rate",
           "type": "timeseries"
         },
         {
@@ -2938,7 +2968,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 43
+            "y": 55
           },
           "id": 37,
           "links": [],
@@ -2977,7 +3007,7 @@
               "refId": "A"
             }
           ],
-          "title": "TCP connections ($instance)",
+          "title": "TCP connections",
           "type": "timeseries"
         },
         {
@@ -3049,7 +3079,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 51
+            "y": 63
           },
           "id": 125,
           "links": [],
@@ -3086,7 +3116,7 @@
               "refId": "A"
             }
           ],
-          "title": "CPU spent on GC ($instance)",
+          "title": "CPU spent on GC",
           "type": "timeseries"
         }
       ],
@@ -3128,6 +3158,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -3141,6 +3172,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -3164,7 +3196,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3172,7 +3205,8 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "short",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -3180,7 +3214,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 16
+            "y": 4
           },
           "id": 66,
           "options": {
@@ -3208,9 +3242,11 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "sum(rate(vm_new_timeseries_created_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+              "editorMode": "code",
+              "expr": "sum(rate(vm_new_timeseries_created_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance)",
               "interval": "",
-              "legendFormat": "churn rate",
+              "legendFormat": "{{instance}} - churn rate",
+              "range": true,
               "refId": "A"
             },
             {
@@ -3218,13 +3254,15 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "sum(increase(vm_new_timeseries_created_total{job=~\"$job\", instance=~\"$instance\"}[24h]))",
+              "editorMode": "code",
+              "expr": "sum(increase(vm_new_timeseries_created_total{job=~\"$job\", instance=~\"$instance\"}[24h])) by (instance)",
               "interval": "",
-              "legendFormat": "new series over 24h",
+              "legendFormat": "{{instance}} - new series over 24h",
+              "range": true,
               "refId": "B"
             }
           ],
-          "title": "Churn rate ($instance)",
+          "title": "Churn rate",
           "type": "timeseries"
         },
         {
@@ -3239,6 +3277,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -3252,6 +3291,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -3276,7 +3316,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "transparent"
+                    "color": "transparent",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3284,7 +3325,8 @@
                   }
                 ]
               },
-              "unit": "percentunit"
+              "unit": "percentunit",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -3292,7 +3334,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 16
+            "y": 4
           },
           "id": 68,
           "links": [],
@@ -3322,17 +3364,17 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(\n    rate(vm_slow_row_inserts_total{job=~\"$job\"}[$__rate_interval]) \n    / rate(vm_rows_added_to_storage_total{job=~\"$job\"}[$__rate_interval])\n)",
+              "expr": "max(\n    rate(vm_slow_row_inserts_total{job=~\"$job\"}[$__rate_interval]) \n    / rate(vm_rows_added_to_storage_total{job=~\"$job\"}[$__rate_interval])\n) by (instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "slow inserts percentage",
+              "legendFormat": "{{instance}}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Slow inserts ($instance)",
+          "title": "Slow inserts %",
           "type": "timeseries"
         },
         {
@@ -3347,6 +3389,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -3360,6 +3403,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -3383,7 +3427,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3391,7 +3436,8 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "short",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -3399,7 +3445,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 24
+            "y": 12
           },
           "id": 116,
           "links": [],
@@ -3428,16 +3474,16 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(increase(vm_assisted_merges_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(type) > 0",
+              "expr": "sum(increase(vm_assisted_merges_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(instance, type) > 0",
               "format": "time_series",
               "interval": "5m",
               "intervalFactor": 1,
-              "legendFormat": "__auto",
+              "legendFormat": "{{instance}} - {{type}}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Assisted merges ($instance)",
+          "title": "Assisted merges",
           "type": "timeseries"
         },
         {
@@ -3452,6 +3498,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -3465,6 +3512,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -3488,7 +3536,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3496,7 +3545,8 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "short",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -3504,7 +3554,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 24
+            "y": 12
           },
           "id": 60,
           "links": [],
@@ -3533,15 +3583,17 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "sum(rate(vm_slow_queries_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+              "editorMode": "code",
+              "expr": "sum(rate(vm_slow_queries_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance)",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
-              "legendFormat": "slow queries rate",
+              "legendFormat": "{{instance}}",
+              "range": true,
               "refId": "A"
             }
           ],
-          "title": "Slow queries rate ($instance)",
+          "title": "Slow queries rate",
           "type": "timeseries"
         },
         {
@@ -3556,6 +3608,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -3569,6 +3622,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -3590,7 +3644,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3598,7 +3653,8 @@
                   }
                 ]
               },
-              "unit": "percentunit"
+              "unit": "percentunit",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -3606,7 +3662,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 32
+            "y": 20
           },
           "id": 90,
           "options": {
@@ -3638,12 +3694,12 @@
               "exemplar": false,
               "expr": "vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"} / vm_cache_size_max_bytes{job=~\"$job\", instance=~\"$instance\"}",
               "interval": "",
-              "legendFormat": "{{type}}",
+              "legendFormat": "{{instance}} - {{type}}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Cache usage % by type ($instance)",
+          "title": "Cache usage % by type",
           "type": "timeseries"
         },
         {
@@ -3658,6 +3714,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -3671,6 +3728,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -3695,7 +3753,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3703,7 +3762,8 @@
                   }
                 ]
               },
-              "unit": "percentunit"
+              "unit": "percentunit",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -3711,7 +3771,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 32
+            "y": 20
           },
           "id": 118,
           "links": [],
@@ -3747,12 +3807,12 @@
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "{{type}}",
+              "legendFormat": "{{instance}} - {{type}}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Cache miss ratio ($instance)",
+          "title": "Cache miss ratio",
           "type": "timeseries"
         },
         {
@@ -3760,6 +3820,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
+          "description": "Flags explicitly set to non-default values",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3777,16 +3838,30 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
                     "value": 80
                   }
                 ]
-              }
+              },
+              "unitScale": true
             },
             "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Time"
+                },
+                "properties": [
+                  {
+                    "id": "custom.hidden",
+                    "value": true
+                  }
+                ]
+              },
               {
                 "matcher": {
                   "id": "byName",
@@ -3802,7 +3877,7 @@
               {
                 "matcher": {
                   "id": "byName",
-                  "options": "Time"
+                  "options": "job"
                 },
                 "properties": [
                   {
@@ -3817,26 +3892,22 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 41
+            "y": 29
           },
-          "id": 120,
+          "id": 126,
           "options": {
+            "cellHeight": "sm",
             "footer": {
+              "countRows": false,
               "fields": "",
               "reducer": [
                 "sum"
               ],
               "show": false
             },
-            "showHeader": true,
-            "sortBy": [
-              {
-                "desc": true,
-                "displayName": "job"
-              }
-            ]
+            "showHeader": true
           },
-          "pluginVersion": "9.1.0",
+          "pluginVersion": "10.3.1",
           "targets": [
             {
               "datasource": {
@@ -3854,29 +3925,6 @@
             }
           ],
           "title": "Non-default flags",
-          "transformations": [
-            {
-              "id": "groupBy",
-              "options": {
-                "fields": {
-                  "instance": {
-                    "aggregations": []
-                  },
-                  "job": {
-                    "aggregations": []
-                  },
-                  "name": {
-                    "aggregations": [],
-                    "operation": "groupby"
-                  },
-                  "value": {
-                    "aggregations": [],
-                    "operation": "groupby"
-                  }
-                }
-              }
-            }
-          ],
           "type": "table"
         },
         {
@@ -3891,6 +3939,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -3904,6 +3953,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -3928,7 +3978,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3936,7 +3987,8 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "short",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -3944,7 +3996,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 41
+            "y": 29
           },
           "id": 74,
           "links": [],
@@ -3972,16 +4024,17 @@
                 "uid": "$ds"
               },
               "exemplar": false,
-              "expr": "sum(increase(vm_metrics_with_dropped_labels_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+              "expr": "sum(increase(vm_metrics_with_dropped_labels_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "limit exceeded",
+              "legendFormat": "{{instance}} - limit exceeded",
+              "range": true,
               "refId": "A"
             }
           ],
-          "title": "Labels limit exceeded ($instance)",
+          "title": "Labels limit exceeded",
           "type": "timeseries"
         }
       ],
@@ -4023,6 +4076,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -4036,6 +4090,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -4059,7 +4114,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -4067,7 +4123,8 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "short",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -4075,7 +4132,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 41
+            "y": 5
           },
           "id": 10,
           "links": [],
@@ -4105,16 +4162,16 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(vm_rows_inserted_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (type) > 0",
+              "expr": "sum(rate(vm_rows_inserted_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance, type) > 0",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
-              "legendFormat": "{{type}}",
+              "legendFormat": "{{instance}} - {{type}}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Datapoints ingestion rate ($instance)",
+          "title": "Datapoints ingestion rate",
           "type": "timeseries"
         },
         {
@@ -4129,6 +4186,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -4142,6 +4200,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -4165,7 +4224,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -4173,7 +4233,8 @@
                   }
                 ]
               },
-              "unit": "s"
+              "unit": "s",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -4181,7 +4242,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 41
+            "y": 5
           },
           "id": 73,
           "links": [],
@@ -4221,7 +4282,7 @@
               "refId": "A"
             }
           ],
-          "title": "Storage full ETA ($instance)",
+          "title": "Storage full ETA",
           "type": "timeseries"
         },
         {
@@ -4236,6 +4297,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -4249,6 +4311,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -4272,7 +4335,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -4280,7 +4344,8 @@
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "bytes",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -4288,7 +4353,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 49
+            "y": 13
           },
           "id": 53,
           "links": [],
@@ -4318,11 +4383,11 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"})",
+              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"}) by (instance)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "Used (datapoints)",
+              "legendFormat": "{{instance}} - Used (datapoints)",
               "range": true,
               "refId": "A"
             },
@@ -4335,7 +4400,8 @@
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "Free",
+              "legendFormat": "{{instance}} - Free",
+              "range": true,
               "refId": "B"
             },
             {
@@ -4344,17 +4410,17 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type=~\"indexdb.*\"})",
+              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type=~\"indexdb.*\"}) by (instance)",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "Used (index)",
+              "legendFormat": "{{instance}} - Used (index)",
               "range": true,
               "refId": "C"
             }
           ],
-          "title": "Disk space usage - datapoints ($instance)",
+          "title": "Disk space usage - datapoints",
           "type": "timeseries"
         },
         {
@@ -4369,6 +4435,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -4382,6 +4449,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -4405,7 +4473,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -4413,7 +4482,8 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "short",
+              "unitScale": true
             },
             "overrides": [
               {
@@ -4438,7 +4508,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 49
+            "y": 13
           },
           "id": 34,
           "links": [],
@@ -4471,7 +4541,8 @@
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
-              "legendFormat": "pending datapoints",
+              "legendFormat": "{{instance}} - pending datapoints",
+              "range": true,
               "refId": "A"
             },
             {
@@ -4483,11 +4554,12 @@
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
-              "legendFormat": "pending index entries",
+              "legendFormat": "{{instance}} - pending index entries",
+              "range": true,
               "refId": "B"
             }
           ],
-          "title": "Pending datapoints ($instance)",
+          "title": "Pending datapoints",
           "type": "timeseries"
         },
         {
@@ -4502,6 +4574,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -4515,6 +4588,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -4538,7 +4612,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -4546,7 +4621,8 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "short",
+              "unitScale": true
             },
             "overrides": [
               {
@@ -4571,7 +4647,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 57
+            "y": 21
           },
           "id": 30,
           "links": [],
@@ -4600,11 +4676,13 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"})",
+              "editorMode": "code",
+              "expr": "sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"}) by (instance)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "total datapoints",
+              "legendFormat": "{{instance}} - total datapoints",
+              "range": true,
               "refId": "A"
             },
             {
@@ -4613,16 +4691,16 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) \n/ sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"})",
+              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance)\n/ sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"}) by (instance)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "bytes-per-datapoint",
+              "legendFormat": "{{instance}} - bytes-per-datapoint",
               "range": true,
               "refId": "B"
             }
           ],
-          "title": "Datapoints ($instance)",
+          "title": "Datapoints",
           "type": "timeseries"
         },
         {
@@ -4636,6 +4714,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -4649,6 +4728,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -4672,7 +4752,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -4680,7 +4761,8 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "short",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -4688,7 +4770,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 57
+            "y": 21
           },
           "id": 36,
           "links": [],
@@ -4717,14 +4799,16 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "sum(vm_parts{job=~\"$job\", instance=~\"$instance\"}) by (type)",
+              "editorMode": "code",
+              "expr": "sum(vm_parts{job=~\"$job\", instance=~\"$instance\"}) by (instance, type)",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "{{type}}",
+              "legendFormat": "{{instance}} - {{type}}",
+              "range": true,
               "refId": "A"
             }
           ],
-          "title": "LSM parts ($instance)",
+          "title": "LSM parts",
           "type": "timeseries"
         },
         {
@@ -4739,6 +4823,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -4752,6 +4837,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -4775,7 +4861,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -4783,7 +4870,8 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "short",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -4791,7 +4879,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 65
+            "y": 29
           },
           "id": 58,
           "links": [],
@@ -4820,17 +4908,17 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(increase(vm_rows_ignored_total{job=~\"$job\", instance=~\"$instance\"}[1h])) by (reason)",
+              "expr": "sum(increase(vm_rows_ignored_total{job=~\"$job\", instance=~\"$instance\"}[1h])) by (instance, reason)",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "{{reason}}",
+              "legendFormat": "{{instance}} - {{reason}}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Rows ignored for last 1h ($instance)",
+          "title": "Rows ignored for last 1h",
           "type": "timeseries"
         },
         {
@@ -4845,6 +4933,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -4858,6 +4947,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -4882,7 +4972,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -4890,7 +4981,8 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "short",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -4898,7 +4990,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 65
+            "y": 29
           },
           "id": 62,
           "options": {
@@ -4924,12 +5016,14 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "sum(vm_active_merges{job=~\"$job\", instance=~\"$instance\"}) by(type)",
-              "legendFormat": "{{type}}",
+              "editorMode": "code",
+              "expr": "sum(vm_active_merges{job=~\"$job\", instance=~\"$instance\"}) by(instance, type)",
+              "legendFormat": "{{instance}} - {{type}}",
+              "range": true,
               "refId": "A"
             }
           ],
-          "title": "Active merges ($instance)",
+          "title": "Active merges",
           "type": "timeseries"
         },
         {
@@ -4944,6 +5038,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -4957,6 +5052,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -4981,7 +5077,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -4989,7 +5086,8 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "short",
+              "unitScale": true
             },
             "overrides": [
               {
@@ -5013,7 +5111,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 73
+            "y": 37
           },
           "id": 59,
           "links": [],
@@ -5044,7 +5142,7 @@
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "max",
+              "legendFormat": "{{instance}} - max",
               "range": true,
               "refId": "A"
             },
@@ -5053,14 +5151,16 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "sum(vm_concurrent_insert_current{job=~\"$job\", instance=~\"$instance\"})",
+              "editorMode": "code",
+              "expr": "sum(vm_concurrent_insert_current{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "current",
+              "legendFormat": "{{instance}} - current",
+              "range": true,
               "refId": "B"
             }
           ],
-          "title": "Concurrent flushes on disk ($instance)",
+          "title": "Concurrent flushes on disk",
           "type": "timeseries"
         },
         {
@@ -5075,6 +5175,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -5088,6 +5189,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -5112,7 +5214,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -5120,7 +5223,8 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "short",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -5128,7 +5232,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 73
+            "y": 37
           },
           "id": 64,
           "options": {
@@ -5156,12 +5260,14 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "sum(rate(vm_rows_merged_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(type)",
-              "legendFormat": "{{type}}",
+              "editorMode": "code",
+              "expr": "sum(rate(vm_rows_merged_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(instance, type)",
+              "legendFormat": "{{instance}} - {{type}}",
+              "range": true,
               "refId": "A"
             }
           ],
-          "title": "Merge speed ($instance)",
+          "title": "Merge speed",
           "type": "timeseries"
         },
         {
@@ -5176,6 +5282,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -5189,6 +5296,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -5213,7 +5321,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -5221,7 +5330,8 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "short",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -5229,7 +5339,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 81
+            "y": 45
           },
           "id": 99,
           "links": [],
@@ -5268,7 +5378,7 @@
               "refId": "A"
             }
           ],
-          "title": "Series read per query ($instance)",
+          "title": "Series read per query",
           "type": "timeseries"
         },
         {
@@ -5283,6 +5393,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -5296,6 +5407,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -5320,7 +5432,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -5328,7 +5441,8 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "short",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -5336,7 +5450,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 81
+            "y": 45
           },
           "id": 103,
           "links": [],
@@ -5375,7 +5489,7 @@
               "refId": "A"
             }
           ],
-          "title": "Datapoints read per series ($instance)",
+          "title": "Datapoints read per series",
           "type": "timeseries"
         },
         {
@@ -5390,6 +5504,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -5403,6 +5518,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -5427,7 +5543,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -5435,7 +5552,8 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "short",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -5443,7 +5561,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 89
+            "y": 53
           },
           "id": 122,
           "links": [],
@@ -5482,7 +5600,7 @@
               "refId": "A"
             }
           ],
-          "title": "Datapoints read per query ($instance)",
+          "title": "Datapoints read per query",
           "type": "timeseries"
         },
         {
@@ -5497,6 +5615,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -5510,6 +5629,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -5534,7 +5654,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -5542,7 +5663,8 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "short",
+              "unitScale": true
             },
             "overrides": []
           },
@@ -5550,7 +5672,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 89
+            "y": 53
           },
           "id": 105,
           "links": [],
@@ -5589,7 +5711,7 @@
               "refId": "A"
             }
           ],
-          "title": "Datapoints scanned per query ($instance)",
+          "title": "Datapoints scanned per query",
           "type": "timeseries"
         }
       ],
@@ -5683,6 +5805,7 @@
         "useTags": false
       },
       {
+        "allValue": ".*",
         "current": {},
         "datasource": {
           "type": "prometheus",
@@ -5690,8 +5813,8 @@
         },
         "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
         "hide": 0,
-        "includeAll": false,
-        "multi": false,
+        "includeAll": true,
+        "multi": true,
         "name": "instance",
         "options": [],
         "query": {
