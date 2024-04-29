@@ -322,7 +322,7 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 	case lex.isKeyword("not", "!"):
 		return parseFilterNot(lex, fieldName)
 	case lex.isKeyword("exact"):
-		return parseExactFilter(lex, fieldName)
+		return parseFilterExact(lex, fieldName)
 	case lex.isKeyword("i"):
 		return parseAnyCaseFilter(lex, fieldName)
 	case lex.isKeyword("in"):
@@ -632,7 +632,7 @@ func parseFilterSequence(lex *lexer, fieldName string) (filter, error) {
 	})
 }
 
-func parseExactFilter(lex *lexer, fieldName string) (filter, error) {
+func parseFilterExact(lex *lexer, fieldName string) (filter, error) {
 	return parseFuncArgMaybePrefix(lex, "exact", fieldName, func(phrase string, isPrefixFilter bool) (filter, error) {
 		if isPrefixFilter {
 			f := &filterExactPrefix{
@@ -641,7 +641,7 @@ func parseExactFilter(lex *lexer, fieldName string) (filter, error) {
 			}
 			return f, nil
 		}
-		f := &exactFilter{
+		f := &filterExact{
 			fieldName: fieldName,
 			value:     phrase,
 		}

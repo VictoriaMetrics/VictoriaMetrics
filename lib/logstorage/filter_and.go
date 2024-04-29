@@ -73,7 +73,7 @@ func (fa *filterAnd) initMsgTokens() {
 			if isMsgFieldName(t.fieldName) {
 				a = append(a, t.getTokens()...)
 			}
-		case *exactFilter:
+		case *filterExact:
 			if isMsgFieldName(t.fieldName) {
 				a = append(a, t.getTokens()...)
 			}

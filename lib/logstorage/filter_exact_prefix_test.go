@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestExactPrefixFilter(t *testing.T) {
+func TestFilterExactPrefix(t *testing.T) {
 	t.Run("single-row", func(t *testing.T) {
 		columns := []column{
 			{
