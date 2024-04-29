@@ -5797,7 +5797,7 @@
           "refId": "VictoriaMetrics-version-Variable-Query"
         },
         "refresh": 1,
-        "regex": "/.*-tags-(v\\d+\\.\\d+\\.\\d+)/",
+        "regex": "/.*-(?:tags|heads)-(.*)-(?:0|dirty)-.*/",
         "skipUrlSync": false,
         "sort": 2,
         "tagValuesQuery": "",
@@ -5875,6 +5875,6 @@
   "timezone": "",
   "title": "VictoriaMetrics - single-node (VM)",
   "uid": "wNf0q_kZk_vm",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
