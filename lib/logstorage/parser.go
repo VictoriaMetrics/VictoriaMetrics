@@ -326,7 +326,7 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 	case lex.isKeyword("i"):
 		return parseAnyCaseFilter(lex, fieldName)
 	case lex.isKeyword("in"):
-		return parseInFilter(lex, fieldName)
+		return parseFilterIn(lex, fieldName)
 	case lex.isKeyword("ipv4_range"):
 		return parseIPv4RangeFilter(lex, fieldName)
 	case lex.isKeyword("len_range"):
@@ -612,9 +612,9 @@ func tryParseIPv4CIDR(s string) (uint32, uint32, bool) {
 	return minValue, maxValue, true
 }
 
-func parseInFilter(lex *lexer, fieldName string) (filter, error) {
+func parseFilterIn(lex *lexer, fieldName string) (filter, error) {
 	return parseFuncArgs(lex, fieldName, func(args []string) (filter, error) {
-		f := &inFilter{
+		f := &filterIn{
 			fieldName: fieldName,
 			values:    args,
 		}

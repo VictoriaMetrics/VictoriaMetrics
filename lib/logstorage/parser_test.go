@@ -299,16 +299,16 @@ func TestParseFilterSequence(t *testing.T) {
 	f(`seq(foo,bar-baz.aa"bb","c,)d")`, ``, []string{"foo", `bar-baz.aa"bb"`, "c,)d"})
 }
 
-func TestParseInFilter(t *testing.T) {
+func TestParseFilterIn(t *testing.T) {
 	f := func(s, fieldNameExpected string, valuesExpected []string) {
 		t.Helper()
 		q, err := ParseQuery(s)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		f, ok := q.f.(*inFilter)
+		f, ok := q.f.(*filterIn)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *inFilter; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterIn; filter: %s", q.f, q.f)
 		}
 		if f.fieldName != fieldNameExpected {
 			t.Fatalf("unexpected fieldName; got %q; want %q", f.fieldName, fieldNameExpected)
