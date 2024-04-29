@@ -2,9 +2,6 @@ package logstorage
 
 import (
 	"sync"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 type filter interface {
@@ -61,28 +58,4 @@ func (fs *streamFilter) apply(bs *blockSearch, bm *bitmap) {
 		bm.resetBits()
 		return
 	}
-}
-
-func toFloat64StringExt(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string {
-	if len(v) != 8 {
-		logger.Panicf("FATAL: %s: unexpected length for binary representation of floating-point number: got %d; want 8", bs.partPath(), len(v))
-	}
-	bb.B = toFloat64String(bb.B[:0], v)
-	return bytesutil.ToUnsafeString(bb.B)
-}
-
-func toIPv4StringExt(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string {
-	if len(v) != 4 {
-		logger.Panicf("FATAL: %s: unexpected length for binary representation of IPv4: got %d; want 4", bs.partPath(), len(v))
-	}
-	bb.B = toIPv4String(bb.B[:0], v)
-	return bytesutil.ToUnsafeString(bb.B)
-}
-
-func toTimestampISO8601StringExt(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string {
-	if len(v) != 8 {
-		logger.Panicf("FATAL: %s: unexpected length for binary representation of ISO8601 timestamp: got %d; want 8", bs.partPath(), len(v))
-	}
-	bb.B = toTimestampISO8601String(bb.B[:0], v)
-	return bytesutil.ToUnsafeString(bb.B)
 }
