@@ -483,7 +483,7 @@ func parseAnyCaseFilter(lex *lexer, fieldName string) (filter, error) {
 			}
 			return f, nil
 		}
-		f := &anyCasePhraseFilter{
+		f := &filterAnyCasePhrase{
 			fieldName: fieldName,
 			phrase:    phrase,
 		}

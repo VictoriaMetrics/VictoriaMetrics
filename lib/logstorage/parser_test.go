@@ -411,9 +411,9 @@ func TestParseAnyCasePhraseFilter(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		fp, ok := q.f.(*anyCasePhraseFilter)
+		fp, ok := q.f.(*filterAnyCasePhrase)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *anyCasePhraseFilter; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterAnyCasePhrase; filter: %s", q.f, q.f)
 		}
 		if fp.fieldName != fieldNameExpected {
 			t.Fatalf("unexpected fieldName; got %q; want %q", fp.fieldName, fieldNameExpected)
