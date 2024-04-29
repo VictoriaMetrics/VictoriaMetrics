@@ -5796,7 +5796,7 @@
           "refId": "VictoriaMetrics-version-Variable-Query"
         },
         "refresh": 1,
-        "regex": "/.*-(?:tags|heads)-([^-]+)/",
+        "regex": "/.*-(?:tags|heads)-(.*)-(?:0|dirty)-.*/",
         "skipUrlSync": false,
         "sort": 2,
         "tagValuesQuery": "",
