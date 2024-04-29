@@ -242,17 +242,17 @@ func parseFilter(lex *lexer) (filter, error) {
 	if !lex.mustNextToken() || lex.isKeyword("|") {
 		return nil, fmt.Errorf("missing query")
 	}
-	fo, err := parseOrFilter(lex, "")
+	fo, err := parseFilterOr(lex, "")
 	if err != nil {
 		return nil, err
 	}
 	return fo, nil
 }
 
-func parseOrFilter(lex *lexer, fieldName string) (filter, error) {
+func parseFilterOr(lex *lexer, fieldName string) (filter, error) {
 	var filters []filter
 	for {
-		f, err := parseAndFilter(lex, fieldName)
+		f, err := parseFilterAnd(lex, fieldName)
 		if err != nil {
 			return nil, err
 		}
@@ -274,7 +274,7 @@ func parseOrFilter(lex *lexer, fieldName string) (filter, error) {
 	}
 }
 
-func parseAndFilter(lex *lexer, fieldName string) (filter, error) {
+func parseFilterAnd(lex *lexer, fieldName string) (filter, error) {
 	var filters []filter
 	for {
 		f, err := parseGenericFilter(lex, fieldName)
@@ -320,7 +320,7 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		}
 		return parseParensFilter(lex, fieldName)
 	case lex.isKeyword("not", "!"):
-		return parseNotFilter(lex, fieldName)
+		return parseFilterNot(lex, fieldName)
 	case lex.isKeyword("exact"):
 		return parseExactFilter(lex, fieldName)
 	case lex.isKeyword("i"):
@@ -444,7 +444,7 @@ func parseParensFilter(lex *lexer, fieldName string) (filter, error) {
 	if !lex.mustNextToken() {
 		return nil, fmt.Errorf("missing filter after '('")
 	}
-	f, err := parseOrFilter(lex, fieldName)
+	f, err := parseFilterOr(lex, fieldName)
 	if err != nil {
 		return nil, err
 	}
@@ -455,7 +455,7 @@ func parseParensFilter(lex *lexer, fieldName string) (filter, error) {
 	return f, nil
 }
 
-func parseNotFilter(lex *lexer, fieldName string) (filter, error) {
+func parseFilterNot(lex *lexer, fieldName string) (filter, error) {
 	notKeyword := lex.token
 	if !lex.mustNextToken() {
 		return nil, fmt.Errorf("missing filters after '%s'", notKeyword)
@@ -464,14 +464,14 @@ func parseNotFilter(lex *lexer, fieldName string) (filter, error) {
 	if err != nil {
 		return nil, err
 	}
-	nf, ok := f.(*notFilter)
+	fn, ok := f.(*filterNot)
 	if ok {
-		return nf.f, nil
+		return fn.f, nil
 	}
-	nf = &notFilter{
+	fn = &filterNot{
 		f: f,
 	}
-	return nf, nil
+	return fn, nil
 }
 
 func parseAnyCaseFilter(lex *lexer, fieldName string) (filter, error) {

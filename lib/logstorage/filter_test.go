@@ -362,7 +362,7 @@ func TestComplexFilters(t *testing.T) {
 				fieldName: "foo",
 				phrase:    "foobar",
 			},
-			&notFilter{
+			&filterNot{
 				f: &phraseFilter{
 					fieldName: "foo",
 					phrase:    "baz",
@@ -391,7 +391,7 @@ func TestComplexFilters(t *testing.T) {
 				fieldName: "foo",
 				phrase:    "foobaz",
 			},
-			&notFilter{
+			&filterNot{
 				f: &phraseFilter{
 					fieldName: "foo",
 					phrase:    "baz",
@@ -420,7 +420,7 @@ func TestComplexFilters(t *testing.T) {
 				fieldName: "foo",
 				phrase:    "foobar",
 			},
-			&notFilter{
+			&filterNot{
 				f: &phraseFilter{
 					fieldName: "foo",
 					phrase:    "baz",
@@ -453,7 +453,7 @@ func TestComplexFilters(t *testing.T) {
 				fieldName: "foo",
 				phrase:    "foobar",
 			},
-			&notFilter{
+			&filterNot{
 				f: &phraseFilter{
 					fieldName: "foo",
 					phrase:    "qwert",
@@ -478,76 +478,6 @@ func TestComplexFilters(t *testing.T) {
 		},
 	}
 	testFilterMatchForColumns(t, columns, f, "foo", []int{1, 3, 6})
-}
-
-func TestNotFilter(t *testing.T) {
-	columns := []column{
-		{
-			name: "foo",
-			values: []string{
-				"a foo",
-				"a foobar",
-				"aa abc a",
-				"ca afdf a,foobar baz",
-				"a fddf foobarbaz",
-				"",
-				"a foobar",
-				"a kjlkjf dfff",
-				"a ТЕСТЙЦУК НГКШ ",
-				"a !!,23.(!1)",
-			},
-		},
-	}
-
-	// match
-	nf := &notFilter{
-		f: &phraseFilter{
-			fieldName: "foo",
-			phrase:    "",
-		},
-	}
-	testFilterMatchForColumns(t, columns, nf, "foo", []int{0, 1, 2, 3, 4, 6, 7, 8, 9})
-
-	nf = &notFilter{
-		f: &phraseFilter{
-			fieldName: "foo",
-			phrase:    "a",
-		},
-	}
-	testFilterMatchForColumns(t, columns, nf, "foo", []int{5})
-
-	nf = &notFilter{
-		f: &phraseFilter{
-			fieldName: "non-existing-field",
-			phrase:    "foobar",
-		},
-	}
-	testFilterMatchForColumns(t, columns, nf, "foo", []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
-
-	nf = &notFilter{
-		f: &prefixFilter{
-			fieldName: "non-existing-field",
-			prefix:    "",
-		},
-	}
-	testFilterMatchForColumns(t, columns, nf, "foo", []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
-
-	nf = &notFilter{
-		f: &prefixFilter{
-			fieldName: "foo",
-			prefix:    "",
-		},
-	}
-	testFilterMatchForColumns(t, columns, nf, "foo", []int{5})
-
-	// mismatch
-	nf = &notFilter{
-		f: &phraseFilter{
-			fieldName: "non-existing-field",
-			phrase:    "",
-		},
-	}
-	testFilterMatchForColumns(t, columns, nf, "foo", nil)
 }
 
 func TestTimeFilter(t *testing.T) {

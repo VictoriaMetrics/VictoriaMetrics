@@ -343,7 +343,7 @@ func hasStreamFilters(f filter) bool {
 		return hasStreamFiltersInList(t.filters)
 	case *filterOr:
 		return hasStreamFiltersInList(t.filters)
-	case *notFilter:
+	case *filterNot:
 		return hasStreamFilters(t.f)
 	case *streamFilter:
 		return true
@@ -371,8 +371,8 @@ func initStreamFilters(tenantIDs []TenantID, idb *indexdb, f filter) filter {
 		return &filterOr{
 			filters: initStreamFiltersList(tenantIDs, idb, t.filters),
 		}
-	case *notFilter:
-		return &notFilter{
+	case *filterNot:
+		return &filterNot{
 			f: initStreamFilters(tenantIDs, idb, t.f),
 		}
 	case *streamFilter:
