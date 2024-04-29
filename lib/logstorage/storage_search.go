@@ -171,7 +171,7 @@ func getBlockColumnIndex(columns []BlockColumn, columnName string) int {
 	return -1
 }
 
-func getValuesForBlockColumn(columns []BlockColumn, columnName string, rowsCount int) []string {
+func getBlockColumnValues(columns []BlockColumn, columnName string, rowsCount int) []string {
 	for _, c := range columns {
 		if c.Name == columnName {
 			return c.Values

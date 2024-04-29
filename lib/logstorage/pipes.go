@@ -145,7 +145,7 @@ func (fpp *fieldsPipeProcessor) writeBlock(workerID uint, timestamps []int64, co
 	brs := getBlockRows()
 	cs := brs.cs
 	for _, f := range fpp.fp.fields {
-		values := getValuesForBlockColumn(columns, f, len(timestamps))
+		values := getBlockColumnValues(columns, f, len(timestamps))
 		cs = append(cs, BlockColumn{
 			Name:   f,
 			Values: values,
@@ -352,7 +352,7 @@ func (spp *statsPipeProcessor) writeBlock(workerID uint, timestamps []int64, col
 	}
 	if len(byFields) == 1 {
 		// Special case for grouping by a single column.
-		values := getValuesForBlockColumn(columns, byFields[0], len(timestamps))
+		values := getBlockColumnValues(columns, byFields[0], len(timestamps))
 		if isConstValue(values) {
 			// Fast path for column with constant value.
 			shard.keyBuf = encoding.MarshalBytes(shard.keyBuf[:0], bytesutil.ToUnsafeBytes(values[0]))
@@ -830,7 +830,7 @@ func getFieldsIgnoreStar(fields []string) []string {
 
 func appendBlockColumnValues(dst [][]string, columns []BlockColumn, fields []string, rowsCount int) [][]string {
 	for _, f := range fields {
-		values := getValuesForBlockColumn(columns, f, rowsCount)
+		values := getBlockColumnValues(columns, f, rowsCount)
 		dst = append(dst, values)
 	}
 	return dst
