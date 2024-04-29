@@ -72,10 +72,10 @@ func (fs *streamFilter) apply(bs *blockSearch, bm *bitmap) {
 	}
 }
 
-// rangeFilter matches the given range [minValue..maxValue].
+// filterRange matches the given range [minValue..maxValue].
 //
 // Example LogsQL: `fieldName:range(minValue, maxValue]`
-type rangeFilter struct {
+type filterRange struct {
 	fieldName string
 	minValue  float64
 	maxValue  float64
@@ -83,11 +83,11 @@ type rangeFilter struct {
 	stringRepr string
 }
 
-func (fr *rangeFilter) String() string {
+func (fr *filterRange) String() string {
 	return quoteFieldNameIfNeeded(fr.fieldName) + "range" + fr.stringRepr
 }
 
-func (fr *rangeFilter) apply(bs *blockSearch, bm *bitmap) {
+func (fr *filterRange) apply(bs *blockSearch, bm *bitmap) {
 	fieldName := fr.fieldName
 	minValue := fr.minValue
 	maxValue := fr.maxValue

@@ -332,7 +332,7 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 	case lex.isKeyword("len_range"):
 		return parseFilterLenRange(lex, fieldName)
 	case lex.isKeyword("range"):
-		return parseRangeFilter(lex, fieldName)
+		return parseFilterRange(lex, fieldName)
 	case lex.isKeyword("re"):
 		return parseRegexpFilter(lex, fieldName)
 	case lex.isKeyword("seq"):
@@ -664,7 +664,7 @@ func parseRegexpFilter(lex *lexer, fieldName string) (filter, error) {
 	})
 }
 
-func parseRangeFilter(lex *lexer, fieldName string) (filter, error) {
+func parseFilterRange(lex *lexer, fieldName string) (filter, error) {
 	funcName := lex.token
 	lex.nextToken()
 
@@ -726,7 +726,7 @@ func parseRangeFilter(lex *lexer, fieldName string) (filter, error) {
 		maxValue = math.Nextafter(maxValue, math.Inf(-1))
 	}
 
-	fr := &rangeFilter{
+	fr := &filterRange{
 		fieldName: fieldName,
 		minValue:  minValue,
 		maxValue:  maxValue,

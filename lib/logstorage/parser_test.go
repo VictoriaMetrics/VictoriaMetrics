@@ -332,18 +332,18 @@ func TestParseFilterIPv4Range(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		rf, ok := q.f.(*filterIPv4Range)
+		fr, ok := q.f.(*filterIPv4Range)
 		if !ok {
 			t.Fatalf("unexpected filter type; got %T; want *filterIPv4Range; filter: %s", q.f, q.f)
 		}
-		if rf.fieldName != fieldNameExpected {
-			t.Fatalf("unexpected fieldName; got %q; want %q", rf.fieldName, fieldNameExpected)
+		if fr.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fr.fieldName, fieldNameExpected)
 		}
-		if rf.minValue != minValueExpected {
-			t.Fatalf("unexpected minValue; got %08x; want %08x", rf.minValue, minValueExpected)
+		if fr.minValue != minValueExpected {
+			t.Fatalf("unexpected minValue; got %08x; want %08x", fr.minValue, minValueExpected)
 		}
-		if rf.maxValue != maxValueExpected {
-			t.Fatalf("unexpected maxValue; got %08x; want %08x", rf.maxValue, maxValueExpected)
+		if fr.maxValue != maxValueExpected {
+			t.Fatalf("unexpected maxValue; got %08x; want %08x", fr.maxValue, maxValueExpected)
 		}
 	}
 
@@ -363,18 +363,18 @@ func TestParseFilterStringRange(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		rf, ok := q.f.(*filterStringRange)
+		fr, ok := q.f.(*filterStringRange)
 		if !ok {
 			t.Fatalf("unexpected filter type; got %T; want *filterStringRange; filter: %s", q.f, q.f)
 		}
-		if rf.fieldName != fieldNameExpected {
-			t.Fatalf("unexpected fieldName; got %q; want %q", rf.fieldName, fieldNameExpected)
+		if fr.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fr.fieldName, fieldNameExpected)
 		}
-		if rf.minValue != minValueExpected {
-			t.Fatalf("unexpected minValue; got %q; want %q", rf.minValue, minValueExpected)
+		if fr.minValue != minValueExpected {
+			t.Fatalf("unexpected minValue; got %q; want %q", fr.minValue, minValueExpected)
 		}
-		if rf.maxValue != maxValueExpected {
-			t.Fatalf("unexpected maxValue; got %q; want %q", rf.maxValue, maxValueExpected)
+		if fr.maxValue != maxValueExpected {
+			t.Fatalf("unexpected maxValue; got %q; want %q", fr.maxValue, maxValueExpected)
 		}
 	}
 
@@ -389,11 +389,11 @@ func TestParseRegexpFilter(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		rf, ok := q.f.(*regexpFilter)
+		fr, ok := q.f.(*regexpFilter)
 		if !ok {
 			t.Fatalf("unexpected filter type; got %T; want *regexpFilter; filter: %s", q.f, q.f)
 		}
-		if reString := rf.re.String(); reString != reExpected {
+		if reString := fr.re.String(); reString != reExpected {
 			t.Fatalf("unexpected regexp; got %q; want %q", reString, reExpected)
 		}
 	}
@@ -517,18 +517,18 @@ func TestParseRangeFilter(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		rf, ok := q.f.(*rangeFilter)
+		fr, ok := q.f.(*filterRange)
 		if !ok {
 			t.Fatalf("unexpected filter type; got %T; want *filterIPv4Range; filter: %s", q.f, q.f)
 		}
-		if rf.fieldName != fieldNameExpected {
-			t.Fatalf("unexpected fieldName; got %q; want %q", rf.fieldName, fieldNameExpected)
+		if fr.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fr.fieldName, fieldNameExpected)
 		}
-		if rf.minValue != minValueExpected {
-			t.Fatalf("unexpected minValue; got %v; want %v", rf.minValue, minValueExpected)
+		if fr.minValue != minValueExpected {
+			t.Fatalf("unexpected minValue; got %v; want %v", fr.minValue, minValueExpected)
 		}
-		if rf.maxValue != maxValueExpected {
-			t.Fatalf("unexpected maxValue; got %v; want %v", rf.maxValue, maxValueExpected)
+		if fr.maxValue != maxValueExpected {
+			t.Fatalf("unexpected maxValue; got %v; want %v", fr.maxValue, maxValueExpected)
 		}
 	}
 
