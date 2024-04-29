@@ -1102,7 +1102,6 @@ func TestParseQueryFailure(t *testing.T) {
 	// invalid stats uniq
 	f(`foo | stats uniq`)
 	f(`foo | stats uniq()`)
-	f(`foo | stats uniq() as abc`)
 
 	// invalid by clause
 	f(`foo | stats by`)
