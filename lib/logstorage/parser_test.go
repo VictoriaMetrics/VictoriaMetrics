@@ -429,7 +429,7 @@ func TestParseAnyCasePhraseFilter(t *testing.T) {
 	f(`"abc-de.fg":i("foo-bar+baz")`, `abc-de.fg`, `foo-bar+baz`)
 }
 
-func TestParseAnyCasePrefixFilter(t *testing.T) {
+func TestParseAnyCaseFilterPrefix(t *testing.T) {
 	f := func(s, fieldNameExpected, prefixExpected string) {
 		t.Helper()
 		q, err := ParseQuery(s)
@@ -483,16 +483,16 @@ func TestParsePhraseFilter(t *testing.T) {
 	f(`"foo:bar*,( baz"`, ``, `foo:bar*,( baz`)
 }
 
-func TestParsePrefixFilter(t *testing.T) {
+func TestParseFilterPrefix(t *testing.T) {
 	f := func(s, fieldNameExpected, prefixExpected string) {
 		t.Helper()
 		q, err := ParseQuery(s)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		fp, ok := q.f.(*prefixFilter)
+		fp, ok := q.f.(*filterPrefix)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *prefixFilter; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterPrefix; filter: %s", q.f, q.f)
 		}
 		if fp.fieldName != fieldNameExpected {
 			t.Fatalf("unexpected fieldName; got %q; want %q", fp.fieldName, fieldNameExpected)

@@ -49,7 +49,7 @@ func TestFilterNot(t *testing.T) {
 	testFilterMatchForColumns(t, columns, fn, "foo", []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
 
 	fn = &filterNot{
-		f: &prefixFilter{
+		f: &filterPrefix{
 			fieldName: "non-existing-field",
 			prefix:    "",
 		},
@@ -57,7 +57,7 @@ func TestFilterNot(t *testing.T) {
 	testFilterMatchForColumns(t, columns, fn, "foo", []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
 
 	fn = &filterNot{
-		f: &prefixFilter{
+		f: &filterPrefix{
 			fieldName: "foo",
 			prefix:    "",
 		},

@@ -71,12 +71,12 @@ func (fs *streamFilter) apply(bs *blockSearch, bm *bitmap) {
 	}
 }
 
-// prefixFilter matches the given prefix.
+// filterPrefix matches the given prefix.
 //
 // Example LogsQL: `fieldName:prefix*` or `fieldName:"some prefix"*`
 //
 // A special case `fieldName:*` matches non-empty value for the given `fieldName` field
-type prefixFilter struct {
+type filterPrefix struct {
 	fieldName string
 	prefix    string
 
@@ -84,23 +84,23 @@ type prefixFilter struct {
 	tokens     []string
 }
 
-func (fp *prefixFilter) String() string {
+func (fp *filterPrefix) String() string {
 	if fp.prefix == "" {
 		return quoteFieldNameIfNeeded(fp.fieldName) + "*"
 	}
 	return fmt.Sprintf("%s%s*", quoteFieldNameIfNeeded(fp.fieldName), quoteTokenIfNeeded(fp.prefix))
 }
 
-func (fp *prefixFilter) getTokens() []string {
+func (fp *filterPrefix) getTokens() []string {
 	fp.tokensOnce.Do(fp.initTokens)
 	return fp.tokens
 }
 
-func (fp *prefixFilter) initTokens() {
+func (fp *filterPrefix) initTokens() {
 	fp.tokens = getTokensSkipLast(fp.prefix)
 }
 
-func (fp *prefixFilter) apply(bs *blockSearch, bm *bitmap) {
+func (fp *filterPrefix) apply(bs *blockSearch, bm *bitmap) {
 	fieldName := fp.fieldName
 	prefix := fp.prefix
 

@@ -81,7 +81,7 @@ func (fa *filterAnd) initMsgTokens() {
 			if isMsgFieldName(t.fieldName) {
 				a = append(a, t.getTokens()...)
 			}
-		case *prefixFilter:
+		case *filterPrefix:
 			if isMsgFieldName(t.fieldName) {
 				a = append(a, t.getTokens()...)
 			}

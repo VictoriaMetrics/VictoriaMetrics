@@ -309,7 +309,7 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		return parseGenericFilter(lex, fieldName)
 	case lex.isKeyword("*"):
 		lex.nextToken()
-		f := &prefixFilter{
+		f := &filterPrefix{
 			fieldName: fieldName,
 			prefix:    "",
 		}
@@ -411,7 +411,7 @@ func parseFilterForPhrase(lex *lexer, phrase, fieldName string) (filter, error) 
 		if lex.isKeyword("*") && !lex.isSkippedSpace {
 			// The phrase is a search prefix in the form `foo*`.
 			lex.nextToken()
-			f := &prefixFilter{
+			f := &filterPrefix{
 				fieldName: fieldName,
 				prefix:    phrase,
 			}
@@ -475,8 +475,8 @@ func parseFilterNot(lex *lexer, fieldName string) (filter, error) {
 }
 
 func parseAnyCaseFilter(lex *lexer, fieldName string) (filter, error) {
-	return parseFuncArgMaybePrefix(lex, "i", fieldName, func(phrase string, isPrefixFilter bool) (filter, error) {
-		if isPrefixFilter {
+	return parseFuncArgMaybePrefix(lex, "i", fieldName, func(phrase string, isFilterPrefix bool) (filter, error) {
+		if isFilterPrefix {
 			f := &filterAnyCasePrefix{
 				fieldName: fieldName,
 				prefix:    phrase,
@@ -502,9 +502,9 @@ func parseFuncArgMaybePrefix(lex *lexer, funcName, fieldName string, callback fu
 		return nil, fmt.Errorf("missing arg for %s()", funcName)
 	}
 	phrase = getCompoundFuncArg(lex)
-	isPrefixFilter := false
+	isFilterPrefix := false
 	if lex.isKeyword("*") && !lex.isSkippedSpace {
-		isPrefixFilter = true
+		isFilterPrefix = true
 		if !lex.mustNextToken() {
 			return nil, fmt.Errorf("missing ')' after %s()", funcName)
 		}
@@ -513,7 +513,7 @@ func parseFuncArgMaybePrefix(lex *lexer, funcName, fieldName string, callback fu
 		return nil, fmt.Errorf("unexpected token %q instead of ')' in %s()", lex.token, funcName)
 	}
 	lex.nextToken()
-	return callback(phrase, isPrefixFilter)
+	return callback(phrase, isFilterPrefix)
 }
 
 func parseFilterLenRange(lex *lexer, fieldName string) (filter, error) {
@@ -633,8 +633,8 @@ func parseFilterSequence(lex *lexer, fieldName string) (filter, error) {
 }
 
 func parseFilterExact(lex *lexer, fieldName string) (filter, error) {
-	return parseFuncArgMaybePrefix(lex, "exact", fieldName, func(phrase string, isPrefixFilter bool) (filter, error) {
-		if isPrefixFilter {
+	return parseFuncArgMaybePrefix(lex, "exact", fieldName, func(phrase string, isFilterPrefix bool) (filter, error) {
+		if isFilterPrefix {
 			f := &filterExactPrefix{
 				fieldName: fieldName,
 				prefix:    phrase,
