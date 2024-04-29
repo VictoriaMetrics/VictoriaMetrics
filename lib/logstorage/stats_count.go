@@ -22,7 +22,7 @@ func (sc *statsCount) neededFields() []string {
 	return getFieldsIgnoreStar(sc.fields)
 }
 
-func (sc *statsCount) newStatsFuncProcessor() (statsFuncProcessor, int) {
+func (sc *statsCount) newStatsProcessor() (statsProcessor, int) {
 	scp := &statsCountProcessor{
 		sc: sc,
 	}
@@ -85,7 +85,7 @@ func (scp *statsCountProcessor) updateStatsForRow(_ []int64, columns []BlockColu
 	return 0
 }
 
-func (scp *statsCountProcessor) mergeState(sfp statsFuncProcessor) {
+func (scp *statsCountProcessor) mergeState(sfp statsProcessor) {
 	src := sfp.(*statsCountProcessor)
 	scp.rowsCount += src.rowsCount
 }

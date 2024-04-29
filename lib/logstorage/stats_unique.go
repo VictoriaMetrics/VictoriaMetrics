@@ -25,7 +25,7 @@ func (su *statsUniq) neededFields() []string {
 	return su.fields
 }
 
-func (su *statsUniq) newStatsFuncProcessor() (statsFuncProcessor, int) {
+func (su *statsUniq) newStatsProcessor() (statsProcessor, int) {
 	sup := &statsUniqProcessor{
 		su: su,
 
@@ -222,7 +222,7 @@ func (sup *statsUniqProcessor) updateStatsForRow(timestamps []int64, columns []B
 	return stateSizeIncrease
 }
 
-func (sup *statsUniqProcessor) mergeState(sfp statsFuncProcessor) {
+func (sup *statsUniqProcessor) mergeState(sfp statsProcessor) {
 	src := sfp.(*statsUniqProcessor)
 	m := sup.m
 	for k := range src.m {

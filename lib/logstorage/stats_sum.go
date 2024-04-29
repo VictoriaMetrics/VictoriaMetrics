@@ -22,7 +22,7 @@ func (ss *statsSum) neededFields() []string {
 	return ss.fields
 }
 
-func (ss *statsSum) newStatsFuncProcessor() (statsFuncProcessor, int) {
+func (ss *statsSum) newStatsProcessor() (statsProcessor, int) {
 	ssp := &statsSumProcessor{
 		ss: ss,
 	}
@@ -95,7 +95,7 @@ func (ssp *statsSumProcessor) updateStatsForRow(_ []int64, columns []BlockColumn
 	return 0
 }
 
-func (ssp *statsSumProcessor) mergeState(sfp statsFuncProcessor) {
+func (ssp *statsSumProcessor) mergeState(sfp statsProcessor) {
 	src := sfp.(*statsSumProcessor)
 	ssp.sum += src.sum
 }
