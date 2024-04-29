@@ -325,16 +325,16 @@ func TestParseFilterIn(t *testing.T) {
 	f(`foo-bar:in(foo,bar-baz.aa"bb","c,)d")`, `foo-bar`, []string{"foo", `bar-baz.aa"bb"`, "c,)d"})
 }
 
-func TestParseIPv4RangeFilter(t *testing.T) {
+func TestParseFilterIPv4Range(t *testing.T) {
 	f := func(s, fieldNameExpected string, minValueExpected, maxValueExpected uint32) {
 		t.Helper()
 		q, err := ParseQuery(s)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		rf, ok := q.f.(*ipv4RangeFilter)
+		rf, ok := q.f.(*filterIPv4Range)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *ipv4RangeFilter; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterIPv4Range; filter: %s", q.f, q.f)
 		}
 		if rf.fieldName != fieldNameExpected {
 			t.Fatalf("unexpected fieldName; got %q; want %q", rf.fieldName, fieldNameExpected)
@@ -519,7 +519,7 @@ func TestParseRangeFilter(t *testing.T) {
 		}
 		rf, ok := q.f.(*rangeFilter)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *ipv4RangeFilter; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterIPv4Range; filter: %s", q.f, q.f)
 		}
 		if rf.fieldName != fieldNameExpected {
 			t.Fatalf("unexpected fieldName; got %q; want %q", rf.fieldName, fieldNameExpected)

@@ -72,25 +72,25 @@ func (fs *streamFilter) apply(bs *blockSearch, bm *bitmap) {
 	}
 }
 
-// ipv4RangeFilter matches the given ipv4 range [minValue..maxValue].
+// filterIPv4Range matches the given ipv4 range [minValue..maxValue].
 //
 // Example LogsQL: `fieldName:ipv4_range(127.0.0.1, 127.0.0.255)`
-type ipv4RangeFilter struct {
+type filterIPv4Range struct {
 	fieldName string
 	minValue  uint32
 	maxValue  uint32
 }
 
-func (rf *ipv4RangeFilter) String() string {
-	minValue := string(encoding.MarshalUint32(nil, rf.minValue))
-	maxValue := string(encoding.MarshalUint32(nil, rf.maxValue))
-	return fmt.Sprintf("%sipv4_range(%s, %s)", quoteFieldNameIfNeeded(rf.fieldName), toIPv4String(nil, minValue), toIPv4String(nil, maxValue))
+func (fr *filterIPv4Range) String() string {
+	minValue := string(encoding.MarshalUint32(nil, fr.minValue))
+	maxValue := string(encoding.MarshalUint32(nil, fr.maxValue))
+	return fmt.Sprintf("%sipv4_range(%s, %s)", quoteFieldNameIfNeeded(fr.fieldName), toIPv4String(nil, minValue), toIPv4String(nil, maxValue))
 }
 
-func (rf *ipv4RangeFilter) apply(bs *blockSearch, bm *bitmap) {
-	fieldName := rf.fieldName
-	minValue := rf.minValue
-	maxValue := rf.maxValue
+func (fr *filterIPv4Range) apply(bs *blockSearch, bm *bitmap) {
+	fieldName := fr.fieldName
+	minValue := fr.minValue
+	maxValue := fr.maxValue
 
 	if minValue > maxValue {
 		bm.resetBits()
@@ -149,14 +149,14 @@ type stringRangeFilter struct {
 	maxValue  string
 }
 
-func (rf *stringRangeFilter) String() string {
-	return fmt.Sprintf("%sstring_range(%s, %s)", quoteFieldNameIfNeeded(rf.fieldName), quoteTokenIfNeeded(rf.minValue), quoteTokenIfNeeded(rf.maxValue))
+func (fr *stringRangeFilter) String() string {
+	return fmt.Sprintf("%sstring_range(%s, %s)", quoteFieldNameIfNeeded(fr.fieldName), quoteTokenIfNeeded(fr.minValue), quoteTokenIfNeeded(fr.maxValue))
 }
 
-func (rf *stringRangeFilter) apply(bs *blockSearch, bm *bitmap) {
-	fieldName := rf.fieldName
-	minValue := rf.minValue
-	maxValue := rf.maxValue
+func (fr *stringRangeFilter) apply(bs *blockSearch, bm *bitmap) {
+	fieldName := fr.fieldName
+	minValue := fr.minValue
+	maxValue := fr.maxValue
 
 	if minValue > maxValue {
 		bm.resetBits()
@@ -215,14 +215,14 @@ type lenRangeFilter struct {
 	stringRepr string
 }
 
-func (rf *lenRangeFilter) String() string {
-	return quoteFieldNameIfNeeded(rf.fieldName) + "len_range" + rf.stringRepr
+func (fr *lenRangeFilter) String() string {
+	return quoteFieldNameIfNeeded(fr.fieldName) + "len_range" + fr.stringRepr
 }
 
-func (rf *lenRangeFilter) apply(bs *blockSearch, bm *bitmap) {
-	fieldName := rf.fieldName
-	minLen := rf.minLen
-	maxLen := rf.maxLen
+func (fr *lenRangeFilter) apply(bs *blockSearch, bm *bitmap) {
+	fieldName := fr.fieldName
+	minLen := fr.minLen
+	maxLen := fr.maxLen
 
 	if minLen > maxLen {
 		bm.resetBits()
@@ -282,14 +282,14 @@ type rangeFilter struct {
 	stringRepr string
 }
 
-func (rf *rangeFilter) String() string {
-	return quoteFieldNameIfNeeded(rf.fieldName) + "range" + rf.stringRepr
+func (fr *rangeFilter) String() string {
+	return quoteFieldNameIfNeeded(fr.fieldName) + "range" + fr.stringRepr
 }
 
-func (rf *rangeFilter) apply(bs *blockSearch, bm *bitmap) {
-	fieldName := rf.fieldName
-	minValue := rf.minValue
-	maxValue := rf.maxValue
+func (fr *rangeFilter) apply(bs *blockSearch, bm *bitmap) {
+	fieldName := fr.fieldName
+	minValue := fr.minValue
+	maxValue := fr.maxValue
 
 	if minValue > maxValue {
 		bm.resetBits()
@@ -344,13 +344,13 @@ type regexpFilter struct {
 	re        *regexp.Regexp
 }
 
-func (rf *regexpFilter) String() string {
-	return fmt.Sprintf("%sre(%q)", quoteFieldNameIfNeeded(rf.fieldName), rf.re.String())
+func (fr *regexpFilter) String() string {
+	return fmt.Sprintf("%sre(%q)", quoteFieldNameIfNeeded(fr.fieldName), fr.re.String())
 }
 
-func (rf *regexpFilter) apply(bs *blockSearch, bm *bitmap) {
-	fieldName := rf.fieldName
-	re := rf.re
+func (fr *regexpFilter) apply(bs *blockSearch, bm *bitmap) {
+	fieldName := fr.fieldName
+	re := fr.re
 
 	// Verify whether filter matches const column
 	v := bs.csh.getConstColumnValue(fieldName)

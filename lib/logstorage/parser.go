@@ -328,7 +328,7 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 	case lex.isKeyword("in"):
 		return parseFilterIn(lex, fieldName)
 	case lex.isKeyword("ipv4_range"):
-		return parseIPv4RangeFilter(lex, fieldName)
+		return parseFilterIPv4Range(lex, fieldName)
 	case lex.isKeyword("len_range"):
 		return parseLenRangeFilter(lex, fieldName)
 	case lex.isKeyword("range"):
@@ -531,14 +531,14 @@ func parseLenRangeFilter(lex *lexer, fieldName string) (filter, error) {
 			return nil, fmt.Errorf("cannot parse maxLen at %s(): %w", funcName, err)
 		}
 		stringRepr := "(" + args[0] + ", " + args[1] + ")"
-		rf := &lenRangeFilter{
+		fr := &lenRangeFilter{
 			fieldName: fieldName,
 			minLen:    minLen,
 			maxLen:    maxLen,
 
 			stringRepr: stringRepr,
 		}
-		return rf, nil
+		return fr, nil
 	})
 }
 
@@ -548,16 +548,16 @@ func parseStringRangeFilter(lex *lexer, fieldName string) (filter, error) {
 		if len(args) != 2 {
 			return nil, fmt.Errorf("unexpected number of args for %s(); got %d; want 2", funcName, len(args))
 		}
-		rf := &stringRangeFilter{
+		fr := &stringRangeFilter{
 			fieldName: fieldName,
 			minValue:  args[0],
 			maxValue:  args[1],
 		}
-		return rf, nil
+		return fr, nil
 	})
 }
 
-func parseIPv4RangeFilter(lex *lexer, fieldName string) (filter, error) {
+func parseFilterIPv4Range(lex *lexer, fieldName string) (filter, error) {
 	funcName := lex.token
 	return parseFuncArgs(lex, fieldName, func(args []string) (filter, error) {
 		if len(args) == 1 {
@@ -565,12 +565,12 @@ func parseIPv4RangeFilter(lex *lexer, fieldName string) (filter, error) {
 			if !ok {
 				return nil, fmt.Errorf("cannot parse IPv4 address or IPv4 CIDR %q at %s()", args[0], funcName)
 			}
-			rf := &ipv4RangeFilter{
+			fr := &filterIPv4Range{
 				fieldName: fieldName,
 				minValue:  minValue,
 				maxValue:  maxValue,
 			}
-			return rf, nil
+			return fr, nil
 		}
 		if len(args) != 2 {
 			return nil, fmt.Errorf("unexpected number of args for %s(); got %d; want 2", funcName, len(args))
@@ -583,12 +583,12 @@ func parseIPv4RangeFilter(lex *lexer, fieldName string) (filter, error) {
 		if !ok {
 			return nil, fmt.Errorf("cannot parse upper bound ip %q in %s()", funcName, args[1])
 		}
-		rf := &ipv4RangeFilter{
+		fr := &filterIPv4Range{
 			fieldName: fieldName,
 			minValue:  minValue,
 			maxValue:  maxValue,
 		}
-		return rf, nil
+		return fr, nil
 	})
 }
 
@@ -656,11 +656,11 @@ func parseRegexpFilter(lex *lexer, fieldName string) (filter, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid regexp %q for %s(): %w", arg, funcName, err)
 		}
-		rf := &regexpFilter{
+		fr := &regexpFilter{
 			fieldName: fieldName,
 			re:        re,
 		}
-		return rf, nil
+		return fr, nil
 	})
 }
 
@@ -726,14 +726,14 @@ func parseRangeFilter(lex *lexer, fieldName string) (filter, error) {
 		maxValue = math.Nextafter(maxValue, math.Inf(-1))
 	}
 
-	rf := &rangeFilter{
+	fr := &rangeFilter{
 		fieldName: fieldName,
 		minValue:  minValue,
 		maxValue:  maxValue,
 
 		stringRepr: stringRepr,
 	}
-	return rf, nil
+	return fr, nil
 }
 
 func parseFloat64(lex *lexer) (float64, string, error) {
