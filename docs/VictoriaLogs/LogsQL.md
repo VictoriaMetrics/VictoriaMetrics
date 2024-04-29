@@ -1081,8 +1081,11 @@ LogsQL supports calculating the following stats:
 - The number of unique values for the given set of [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). Examples:
   - `error | stats uniq(client_ip) as unique_user_ips` returns the number of unique values for `client_ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
   across log messages with the `error` [word](#word).
-  - `error | stats by (app) uniq(path, host) as unique_path_hosts` - returns the number of unique pairs of `path` and `host` [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-  across log messages with the `error` [word](#word), grouped by `app` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+  - `error | stats by (app) uniq(path, host) as unique_path_hosts` - returns the number of unique `(path, host)` pairs
+  for [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) across log messages with the `error` [word](#word),
+  grouped by `app` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+  - `error | fields path, host | stats uniq(*)` - returns the number of unique `(path, host)` pairs
+  for [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) across log messages with the `error` [word](#word).
 
 Stats' calculation can be combined in a single query. For example, the following query calculates the number of log messages with the `error` [word](#word),
 the number of unique values for `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) and the number of unique values
