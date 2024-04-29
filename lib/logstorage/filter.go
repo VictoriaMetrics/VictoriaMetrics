@@ -4,7 +4,6 @@ import (
 	"math"
 	"strconv"
 	"sync"
-	"unicode/utf8"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -65,17 +64,6 @@ func (fs *streamFilter) apply(bs *blockSearch, bm *bitmap) {
 		bm.resetBits()
 		return
 	}
-}
-
-func getTokensSkipLast(s string) []string {
-	for {
-		r, runeSize := utf8.DecodeLastRuneInString(s)
-		if !isTokenRune(r) {
-			break
-		}
-		s = s[:len(s)-runeSize]
-	}
-	return tokenizeStrings(nil, []string{s})
 }
 
 func toUint64Range(minValue, maxValue float64) (uint64, uint64) {

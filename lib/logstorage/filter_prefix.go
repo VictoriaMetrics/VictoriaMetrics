@@ -303,3 +303,14 @@ func matchPrefix(s, prefix string) bool {
 		return true
 	}
 }
+
+func getTokensSkipLast(s string) []string {
+	for {
+		r, runeSize := utf8.DecodeLastRuneInString(s)
+		if !isTokenRune(r) {
+			break
+		}
+		s = s[:len(s)-runeSize]
+	}
+	return tokenizeStrings(nil, []string{s})
+}
