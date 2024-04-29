@@ -112,3 +112,13 @@ func parseStatsCount(lex *lexer) (*statsCount, error) {
 	}
 	return sc, nil
 }
+
+func getFieldsIgnoreStar(fields []string) []string {
+	var result []string
+	for _, f := range fields {
+		if f != "*" {
+			result = append(result, f)
+		}
+	}
+	return result
+}

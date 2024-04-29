@@ -180,6 +180,14 @@ func getBlockColumnValues(columns []BlockColumn, columnName string, rowsCount in
 	return getEmptyStrings(rowsCount)
 }
 
+func appendBlockColumnValues(dst [][]string, columns []BlockColumn, fields []string, rowsCount int) [][]string {
+	for _, f := range fields {
+		values := getBlockColumnValues(columns, f, rowsCount)
+		dst = append(dst, values)
+	}
+	return dst
+}
+
 func getEmptyStrings(rowsCount int) []string {
 	p := emptyStrings.Load()
 	if p == nil {
