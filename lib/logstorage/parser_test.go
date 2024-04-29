@@ -411,15 +411,15 @@ func TestParseAnyCasePhraseFilter(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		pf, ok := q.f.(*anyCasePhraseFilter)
+		fp, ok := q.f.(*anyCasePhraseFilter)
 		if !ok {
 			t.Fatalf("unexpected filter type; got %T; want *anyCasePhraseFilter; filter: %s", q.f, q.f)
 		}
-		if pf.fieldName != fieldNameExpected {
-			t.Fatalf("unexpected fieldName; got %q; want %q", pf.fieldName, fieldNameExpected)
+		if fp.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fp.fieldName, fieldNameExpected)
 		}
-		if pf.phrase != phraseExpected {
-			t.Fatalf("unexpected phrase; got %q; want %q", pf.phrase, phraseExpected)
+		if fp.phrase != phraseExpected {
+			t.Fatalf("unexpected phrase; got %q; want %q", fp.phrase, phraseExpected)
 		}
 	}
 
@@ -436,15 +436,15 @@ func TestParseAnyCasePrefixFilter(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		pf, ok := q.f.(*anyCasePrefixFilter)
+		fp, ok := q.f.(*filterAnyCasePrefix)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *anyCasePrefixFilter; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterAnyCasePrefix; filter: %s", q.f, q.f)
 		}
-		if pf.fieldName != fieldNameExpected {
-			t.Fatalf("unexpected fieldName; got %q; want %q", pf.fieldName, fieldNameExpected)
+		if fp.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fp.fieldName, fieldNameExpected)
 		}
-		if pf.prefix != prefixExpected {
-			t.Fatalf("unexpected prefix; got %q; want %q", pf.prefix, prefixExpected)
+		if fp.prefix != prefixExpected {
+			t.Fatalf("unexpected prefix; got %q; want %q", fp.prefix, prefixExpected)
 		}
 	}
 
@@ -463,15 +463,15 @@ func TestParsePhraseFilter(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		pf, ok := q.f.(*phraseFilter)
+		fp, ok := q.f.(*phraseFilter)
 		if !ok {
 			t.Fatalf("unexpected filter type; got %T; want *phraseFilter; filter: %s", q.f, q.f)
 		}
-		if pf.fieldName != fieldNameExpected {
-			t.Fatalf("unexpected fieldName; got %q; want %q", pf.fieldName, fieldNameExpected)
+		if fp.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fp.fieldName, fieldNameExpected)
 		}
-		if pf.phrase != phraseExpected {
-			t.Fatalf("unexpected prefix; got %q; want %q", pf.phrase, phraseExpected)
+		if fp.phrase != phraseExpected {
+			t.Fatalf("unexpected prefix; got %q; want %q", fp.phrase, phraseExpected)
 		}
 	}
 
@@ -490,15 +490,15 @@ func TestParsePrefixFilter(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		pf, ok := q.f.(*prefixFilter)
+		fp, ok := q.f.(*prefixFilter)
 		if !ok {
 			t.Fatalf("unexpected filter type; got %T; want *prefixFilter; filter: %s", q.f, q.f)
 		}
-		if pf.fieldName != fieldNameExpected {
-			t.Fatalf("unexpected fieldName; got %q; want %q", pf.fieldName, fieldNameExpected)
+		if fp.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fp.fieldName, fieldNameExpected)
 		}
-		if pf.prefix != prefixExpected {
-			t.Fatalf("unexpected prefix; got %q; want %q", pf.prefix, prefixExpected)
+		if fp.prefix != prefixExpected {
+			t.Fatalf("unexpected prefix; got %q; want %q", fp.prefix, prefixExpected)
 		}
 	}
 

@@ -477,7 +477,7 @@ func parseFilterNot(lex *lexer, fieldName string) (filter, error) {
 func parseAnyCaseFilter(lex *lexer, fieldName string) (filter, error) {
 	return parseFuncArgMaybePrefix(lex, "i", fieldName, func(phrase string, isPrefixFilter bool) (filter, error) {
 		if isPrefixFilter {
-			f := &anyCasePrefixFilter{
+			f := &filterAnyCasePrefix{
 				fieldName: fieldName,
 				prefix:    phrase,
 			}

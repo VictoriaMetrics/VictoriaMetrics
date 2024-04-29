@@ -71,95 +71,6 @@ func (fs *streamFilter) apply(bs *blockSearch, bm *bitmap) {
 	}
 }
 
-// anyCasePrefixFilter matches the given prefix in lower, upper and mixed case.
-//
-// Example LogsQL: `fieldName:i(prefix*)` or `fieldName:i("some prefix"*)`
-//
-// A special case `fieldName:i(*)` equals to `fieldName:*` and matches non-emtpy value for the given `fieldName` field.
-type anyCasePrefixFilter struct {
-	fieldName string
-	prefix    string
-
-	prefixLowercaseOnce sync.Once
-	prefixLowercase     string
-
-	tokensOnce sync.Once
-	tokens     []string
-}
-
-func (pf *anyCasePrefixFilter) String() string {
-	if pf.prefix == "" {
-		return quoteFieldNameIfNeeded(pf.fieldName) + "i(*)"
-	}
-	return fmt.Sprintf("%si(%s*)", quoteFieldNameIfNeeded(pf.fieldName), quoteTokenIfNeeded(pf.prefix))
-}
-
-func (pf *anyCasePrefixFilter) getTokens() []string {
-	pf.tokensOnce.Do(pf.initTokens)
-	return pf.tokens
-}
-
-func (pf *anyCasePrefixFilter) initTokens() {
-	pf.tokens = getTokensSkipLast(pf.prefix)
-}
-
-func (pf *anyCasePrefixFilter) getPrefixLowercase() string {
-	pf.prefixLowercaseOnce.Do(pf.initPrefixLowercase)
-	return pf.prefixLowercase
-}
-
-func (pf *anyCasePrefixFilter) initPrefixLowercase() {
-	pf.prefixLowercase = strings.ToLower(pf.prefix)
-}
-
-func (pf *anyCasePrefixFilter) apply(bs *blockSearch, bm *bitmap) {
-	fieldName := pf.fieldName
-	prefixLowercase := pf.getPrefixLowercase()
-
-	// Verify whether pf matches const column
-	v := bs.csh.getConstColumnValue(fieldName)
-	if v != "" {
-		if !matchAnyCasePrefix(v, prefixLowercase) {
-			bm.resetBits()
-		}
-		return
-	}
-
-	// Verify whether pf matches other columns
-	ch := bs.csh.getColumnHeader(fieldName)
-	if ch == nil {
-		// Fast path - there are no matching columns.
-		bm.resetBits()
-		return
-	}
-
-	tokens := pf.getTokens()
-
-	switch ch.valueType {
-	case valueTypeString:
-		matchStringByAnyCasePrefix(bs, ch, bm, prefixLowercase)
-	case valueTypeDict:
-		matchValuesDictByAnyCasePrefix(bs, ch, bm, prefixLowercase)
-	case valueTypeUint8:
-		matchUint8ByPrefix(bs, ch, bm, prefixLowercase)
-	case valueTypeUint16:
-		matchUint16ByPrefix(bs, ch, bm, prefixLowercase)
-	case valueTypeUint32:
-		matchUint32ByPrefix(bs, ch, bm, prefixLowercase)
-	case valueTypeUint64:
-		matchUint64ByPrefix(bs, ch, bm, prefixLowercase)
-	case valueTypeFloat64:
-		matchFloat64ByPrefix(bs, ch, bm, prefixLowercase, tokens)
-	case valueTypeIPv4:
-		matchIPv4ByPrefix(bs, ch, bm, prefixLowercase, tokens)
-	case valueTypeTimestampISO8601:
-		prefixUppercase := strings.ToUpper(pf.prefix)
-		matchTimestampISO8601ByPrefix(bs, ch, bm, prefixUppercase, tokens)
-	default:
-		logger.Panicf("FATAL: %s: unknown valueType=%d", bs.partPath(), ch.valueType)
-	}
-}
-
 // prefixFilter matches the given prefix.
 //
 // Example LogsQL: `fieldName:prefix*` or `fieldName:"some prefix"*`
@@ -173,27 +84,27 @@ type prefixFilter struct {
 	tokens     []string
 }
 
-func (pf *prefixFilter) String() string {
-	if pf.prefix == "" {
-		return quoteFieldNameIfNeeded(pf.fieldName) + "*"
+func (fp *prefixFilter) String() string {
+	if fp.prefix == "" {
+		return quoteFieldNameIfNeeded(fp.fieldName) + "*"
 	}
-	return fmt.Sprintf("%s%s*", quoteFieldNameIfNeeded(pf.fieldName), quoteTokenIfNeeded(pf.prefix))
+	return fmt.Sprintf("%s%s*", quoteFieldNameIfNeeded(fp.fieldName), quoteTokenIfNeeded(fp.prefix))
 }
 
-func (pf *prefixFilter) getTokens() []string {
-	pf.tokensOnce.Do(pf.initTokens)
-	return pf.tokens
+func (fp *prefixFilter) getTokens() []string {
+	fp.tokensOnce.Do(fp.initTokens)
+	return fp.tokens
 }
 
-func (pf *prefixFilter) initTokens() {
-	pf.tokens = getTokensSkipLast(pf.prefix)
+func (fp *prefixFilter) initTokens() {
+	fp.tokens = getTokensSkipLast(fp.prefix)
 }
 
-func (pf *prefixFilter) apply(bs *blockSearch, bm *bitmap) {
-	fieldName := pf.fieldName
-	prefix := pf.prefix
+func (fp *prefixFilter) apply(bs *blockSearch, bm *bitmap) {
+	fieldName := fp.fieldName
+	prefix := fp.prefix
 
-	// Verify whether pf matches const column
+	// Verify whether fp matches const column
 	v := bs.csh.getConstColumnValue(fieldName)
 	if v != "" {
 		if !matchPrefix(v, prefix) {
@@ -202,7 +113,7 @@ func (pf *prefixFilter) apply(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	// Verify whether pf matches other columns
+	// Verify whether fp matches other columns
 	ch := bs.csh.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
@@ -210,7 +121,7 @@ func (pf *prefixFilter) apply(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	tokens := pf.getTokens()
+	tokens := fp.getTokens()
 
 	switch ch.valueType {
 	case valueTypeString:
@@ -250,33 +161,33 @@ type anyCasePhraseFilter struct {
 	tokens     []string
 }
 
-func (pf *anyCasePhraseFilter) String() string {
-	return fmt.Sprintf("%si(%s)", quoteFieldNameIfNeeded(pf.fieldName), quoteTokenIfNeeded(pf.phrase))
+func (fp *anyCasePhraseFilter) String() string {
+	return fmt.Sprintf("%si(%s)", quoteFieldNameIfNeeded(fp.fieldName), quoteTokenIfNeeded(fp.phrase))
 }
 
-func (pf *anyCasePhraseFilter) getTokens() []string {
-	pf.tokensOnce.Do(pf.initTokens)
-	return pf.tokens
+func (fp *anyCasePhraseFilter) getTokens() []string {
+	fp.tokensOnce.Do(fp.initTokens)
+	return fp.tokens
 }
 
-func (pf *anyCasePhraseFilter) initTokens() {
-	pf.tokens = tokenizeStrings(nil, []string{pf.phrase})
+func (fp *anyCasePhraseFilter) initTokens() {
+	fp.tokens = tokenizeStrings(nil, []string{fp.phrase})
 }
 
-func (pf *anyCasePhraseFilter) getPhraseLowercase() string {
-	pf.phraseLowercaseOnce.Do(pf.initPhraseLowercase)
-	return pf.phraseLowercase
+func (fp *anyCasePhraseFilter) getPhraseLowercase() string {
+	fp.phraseLowercaseOnce.Do(fp.initPhraseLowercase)
+	return fp.phraseLowercase
 }
 
-func (pf *anyCasePhraseFilter) initPhraseLowercase() {
-	pf.phraseLowercase = strings.ToLower(pf.phrase)
+func (fp *anyCasePhraseFilter) initPhraseLowercase() {
+	fp.phraseLowercase = strings.ToLower(fp.phrase)
 }
 
-func (pf *anyCasePhraseFilter) apply(bs *blockSearch, bm *bitmap) {
-	fieldName := pf.fieldName
-	phraseLowercase := pf.getPhraseLowercase()
+func (fp *anyCasePhraseFilter) apply(bs *blockSearch, bm *bitmap) {
+	fieldName := fp.fieldName
+	phraseLowercase := fp.getPhraseLowercase()
 
-	// Verify whether pf matches const column
+	// Verify whether fp matches const column
 	v := bs.csh.getConstColumnValue(fieldName)
 	if v != "" {
 		if !matchAnyCasePhrase(v, phraseLowercase) {
@@ -285,7 +196,7 @@ func (pf *anyCasePhraseFilter) apply(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	// Verify whether pf matches other columns
+	// Verify whether fp matches other columns
 	ch := bs.csh.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
@@ -296,7 +207,7 @@ func (pf *anyCasePhraseFilter) apply(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	tokens := pf.getTokens()
+	tokens := fp.getTokens()
 
 	switch ch.valueType {
 	case valueTypeString:
@@ -316,7 +227,7 @@ func (pf *anyCasePhraseFilter) apply(bs *blockSearch, bm *bitmap) {
 	case valueTypeIPv4:
 		matchIPv4ByPhrase(bs, ch, bm, phraseLowercase, tokens)
 	case valueTypeTimestampISO8601:
-		phraseUppercase := strings.ToUpper(pf.phrase)
+		phraseUppercase := strings.ToUpper(fp.phrase)
 		matchTimestampISO8601ByPhrase(bs, ch, bm, phraseUppercase, tokens)
 	default:
 		logger.Panicf("FATAL: %s: unknown valueType=%d", bs.partPath(), ch.valueType)
@@ -341,24 +252,24 @@ type phraseFilter struct {
 	tokens     []string
 }
 
-func (pf *phraseFilter) String() string {
-	return quoteFieldNameIfNeeded(pf.fieldName) + quoteTokenIfNeeded(pf.phrase)
+func (fp *phraseFilter) String() string {
+	return quoteFieldNameIfNeeded(fp.fieldName) + quoteTokenIfNeeded(fp.phrase)
 }
 
-func (pf *phraseFilter) getTokens() []string {
-	pf.tokensOnce.Do(pf.initTokens)
-	return pf.tokens
+func (fp *phraseFilter) getTokens() []string {
+	fp.tokensOnce.Do(fp.initTokens)
+	return fp.tokens
 }
 
-func (pf *phraseFilter) initTokens() {
-	pf.tokens = tokenizeStrings(nil, []string{pf.phrase})
+func (fp *phraseFilter) initTokens() {
+	fp.tokens = tokenizeStrings(nil, []string{fp.phrase})
 }
 
-func (pf *phraseFilter) apply(bs *blockSearch, bm *bitmap) {
-	fieldName := pf.fieldName
-	phrase := pf.phrase
+func (fp *phraseFilter) apply(bs *blockSearch, bm *bitmap) {
+	fieldName := fp.fieldName
+	phrase := fp.phrase
 
-	// Verify whether pf matches const column
+	// Verify whether fp matches const column
 	v := bs.csh.getConstColumnValue(fieldName)
 	if v != "" {
 		if !matchPhrase(v, phrase) {
@@ -367,7 +278,7 @@ func (pf *phraseFilter) apply(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	// Verify whether pf matches other columns
+	// Verify whether fp matches other columns
 	ch := bs.csh.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
@@ -378,7 +289,7 @@ func (pf *phraseFilter) apply(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	tokens := pf.getTokens()
+	tokens := fp.getTokens()
 
 	switch ch.valueType {
 	case valueTypeString:
@@ -549,17 +460,6 @@ func matchFloat64ByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase 
 	bbPool.Put(bb)
 }
 
-func matchValuesDictByAnyCasePrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefixLowercase string) {
-	bb := bbPool.Get()
-	for i, v := range ch.valuesDict.values {
-		if matchAnyCasePrefix(v, prefixLowercase) {
-			bb.B = append(bb.B, byte(i))
-		}
-	}
-	matchEncodedValuesDict(bs, ch, bm, bb.B)
-	bbPool.Put(bb)
-}
-
 func matchValuesDictByAnyCasePhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phraseLowercase string) {
 	bb := bbPool.Get()
 	for i, v := range ch.valuesDict.values {
@@ -617,12 +517,6 @@ func matchEncodedValuesDict(bs *blockSearch, ch *columnHeader, bm *bitmap, encod
 		}
 		n := bytes.IndexByte(encodedValues, v[0])
 		return n >= 0
-	})
-}
-
-func matchStringByAnyCasePrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefixLowercase string) {
-	visitValues(bs, ch, bm, func(v string) bool {
-		return matchAnyCasePrefix(v, prefixLowercase)
 	})
 }
 
@@ -775,30 +669,6 @@ func visitValues(bs *blockSearch, ch *columnHeader, bm *bitmap, f func(value str
 	bm.forEachSetBit(func(idx int) bool {
 		return f(values[idx])
 	})
-}
-
-func matchAnyCasePrefix(s, prefixLowercase string) bool {
-	if len(prefixLowercase) == 0 {
-		// Special case - empty prefix matches any non-empty string.
-		return len(s) > 0
-	}
-	if len(prefixLowercase) > len(s) {
-		return false
-	}
-
-	if isASCIILowercase(s) {
-		// Fast path - s is in lowercase
-		return matchPrefix(s, prefixLowercase)
-	}
-
-	// Slow path - convert s to lowercase before matching
-	bb := bbPool.Get()
-	bb.B = stringsutil.AppendLowercase(bb.B, s)
-	sLowercase := bytesutil.ToUnsafeString(bb.B)
-	ok := matchPrefix(sLowercase, prefixLowercase)
-	bbPool.Put(bb)
-
-	return ok
 }
 
 func isASCIILowercase(s string) bool {
