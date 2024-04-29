@@ -949,7 +949,6 @@ func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries) bool {
 		matchIdxsPool.Put(matchIdxs)
 	} else if rwctx.deduplicator != nil {
 		rwctx.deduplicator.Push(tss)
-		clear(tss)
 		tss = tss[:0]
 	}
 
