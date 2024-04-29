@@ -104,8 +104,8 @@ func (bs *blockSearch) search(bsw *blockSearchWork) {
 	bs.csh.initFromBlockHeader(bsw.p, &bsw.bh)
 
 	// search rows matching the given filter
-	bm := getFilterBitmap(int(bsw.bh.rowsCount))
-	defer putFilterBitmap(bm)
+	bm := getBitmap(int(bsw.bh.rowsCount))
+	defer putBitmap(bm)
 
 	bm.setBits()
 	bs.bsw.so.filter.apply(bs, bm)
@@ -317,7 +317,7 @@ func (br *blockResult) reset() {
 	br.columnNames = nil
 }
 
-func (br *blockResult) fetchAllColumns(bs *blockSearch, bm *filterBitmap) {
+func (br *blockResult) fetchAllColumns(bs *blockSearch, bm *bitmap) {
 	// Add _stream column
 	br.columnNamesBuf = append(br.columnNamesBuf, "_stream")
 	if !br.addStreamColumn(bs) {
@@ -360,7 +360,7 @@ func (br *blockResult) fetchAllColumns(bs *blockSearch, bm *filterBitmap) {
 	br.columnNames = br.columnNamesBuf
 }
 
-func (br *blockResult) fetchRequestedColumns(bs *blockSearch, bm *filterBitmap) {
+func (br *blockResult) fetchRequestedColumns(bs *blockSearch, bm *bitmap) {
 	for _, columnName := range bs.bsw.so.resultColumnNames {
 		switch columnName {
 		case "_stream":
@@ -392,7 +392,7 @@ func (br *blockResult) RowsCount() int {
 	return len(br.timestamps)
 }
 
-func (br *blockResult) mustInit(bs *blockSearch, bm *filterBitmap) {
+func (br *blockResult) mustInit(bs *blockSearch, bm *bitmap) {
 	br.reset()
 
 	br.streamID = bs.bsw.bh.streamID
@@ -417,7 +417,7 @@ func (br *blockResult) mustInit(bs *blockSearch, bm *filterBitmap) {
 	br.timestamps = dstTimestamps
 }
 
-func (br *blockResult) addColumn(bs *blockSearch, ch *columnHeader, bm *filterBitmap) {
+func (br *blockResult) addColumn(bs *blockSearch, ch *columnHeader, bm *bitmap) {
 	buf := br.buf
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)

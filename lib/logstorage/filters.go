@@ -16,43 +16,43 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
-func getFilterBitmap(bitsLen int) *filterBitmap {
-	v := filterBitmapPool.Get()
+func getBitmap(bitsLen int) *bitmap {
+	v := bitmapPool.Get()
 	if v == nil {
-		v = &filterBitmap{}
+		v = &bitmap{}
 	}
-	bm := v.(*filterBitmap)
+	bm := v.(*bitmap)
 	bm.init(bitsLen)
 	return bm
 }
 
-func putFilterBitmap(bm *filterBitmap) {
+func putBitmap(bm *bitmap) {
 	bm.reset()
-	filterBitmapPool.Put(bm)
+	bitmapPool.Put(bm)
 }
 
-var filterBitmapPool sync.Pool
+var bitmapPool sync.Pool
 
-type filterBitmap struct {
+type bitmap struct {
 	a       []uint64
 	bitsLen int
 }
 
-func (bm *filterBitmap) reset() {
+func (bm *bitmap) reset() {
 	bm.resetBits()
 	bm.a = bm.a[:0]
 
 	bm.bitsLen = 0
 }
 
-func (bm *filterBitmap) copyFrom(src *filterBitmap) {
+func (bm *bitmap) copyFrom(src *bitmap) {
 	bm.reset()
 
 	bm.a = append(bm.a[:0], src.a...)
 	bm.bitsLen = src.bitsLen
 }
 
-func (bm *filterBitmap) init(bitsLen int) {
+func (bm *bitmap) init(bitsLen int) {
 	a := bm.a
 	wordsLen := (bitsLen + 63) / 64
 	if n := wordsLen - cap(a); n > 0 {
@@ -63,14 +63,14 @@ func (bm *filterBitmap) init(bitsLen int) {
 	bm.bitsLen = bitsLen
 }
 
-func (bm *filterBitmap) resetBits() {
+func (bm *bitmap) resetBits() {
 	a := bm.a
 	for i := range a {
 		a[i] = 0
 	}
 }
 
-func (bm *filterBitmap) setBits() {
+func (bm *bitmap) setBits() {
 	a := bm.a
 	for i := range a {
 		a[i] = ^uint64(0)
@@ -82,7 +82,7 @@ func (bm *filterBitmap) setBits() {
 	}
 }
 
-func (bm *filterBitmap) isZero() bool {
+func (bm *bitmap) isZero() bool {
 	for _, word := range bm.a {
 		if word != 0 {
 			return false
@@ -91,7 +91,7 @@ func (bm *filterBitmap) isZero() bool {
 	return true
 }
 
-func (bm *filterBitmap) areAllBitsSet() bool {
+func (bm *bitmap) areAllBitsSet() bool {
 	a := bm.a
 	for i, word := range a {
 		if word != (1<<64)-1 {
@@ -107,7 +107,7 @@ func (bm *filterBitmap) areAllBitsSet() bool {
 	return true
 }
 
-func (bm *filterBitmap) andNot(x *filterBitmap) {
+func (bm *bitmap) andNot(x *bitmap) {
 	if bm.bitsLen != x.bitsLen {
 		logger.Panicf("BUG: cannot merge bitmaps with distinct lengths; %d vs %d", bm.bitsLen, x.bitsLen)
 	}
@@ -118,7 +118,7 @@ func (bm *filterBitmap) andNot(x *filterBitmap) {
 	}
 }
 
-func (bm *filterBitmap) or(x *filterBitmap) {
+func (bm *bitmap) or(x *bitmap) {
 	if bm.bitsLen != x.bitsLen {
 		logger.Panicf("BUG: cannot merge bitmaps with distinct lengths; %d vs %d", bm.bitsLen, x.bitsLen)
 	}
@@ -130,7 +130,7 @@ func (bm *filterBitmap) or(x *filterBitmap) {
 }
 
 // forEachSetBit calls f for each set bit and clears that bit if f returns false
-func (bm *filterBitmap) forEachSetBit(f func(idx int) bool) {
+func (bm *bitmap) forEachSetBit(f func(idx int) bool) {
 	a := bm.a
 	bitsLen := bm.bitsLen
 	for i, word := range a {
@@ -158,7 +158,7 @@ type filter interface {
 	String() string
 
 	// apply must update bm according to the filter applied to the given bs block
-	apply(bs *blockSearch, bm *filterBitmap)
+	apply(bs *blockSearch, bm *bitmap)
 }
 
 // noopFilter does nothing
@@ -169,7 +169,7 @@ func (nf *noopFilter) String() string {
 	return ""
 }
 
-func (nf *noopFilter) apply(_ *blockSearch, _ *filterBitmap) {
+func (nf *noopFilter) apply(_ *blockSearch, _ *bitmap) {
 	// nothing to do
 }
 
@@ -190,9 +190,9 @@ func (of *orFilter) String() string {
 	return strings.Join(a, " or ")
 }
 
-func (of *orFilter) apply(bs *blockSearch, bm *filterBitmap) {
-	bmResult := getFilterBitmap(bm.bitsLen)
-	bmTmp := getFilterBitmap(bm.bitsLen)
+func (of *orFilter) apply(bs *blockSearch, bm *bitmap) {
+	bmResult := getBitmap(bm.bitsLen)
+	bmTmp := getBitmap(bm.bitsLen)
 	for _, f := range of.filters {
 		// Minimize the number of rows to check by the filter by checking only
 		// the rows, which may change the output bm:
@@ -208,9 +208,9 @@ func (of *orFilter) apply(bs *blockSearch, bm *filterBitmap) {
 		f.apply(bs, bmTmp)
 		bmResult.or(bmTmp)
 	}
-	putFilterBitmap(bmTmp)
+	putBitmap(bmTmp)
 	bm.copyFrom(bmResult)
-	putFilterBitmap(bmResult)
+	putBitmap(bmResult)
 }
 
 // andFilter contains filters joined by AND opertor.
@@ -237,7 +237,7 @@ func (af *andFilter) String() string {
 	return strings.Join(a, " ")
 }
 
-func (af *andFilter) apply(bs *blockSearch, bm *filterBitmap) {
+func (af *andFilter) apply(bs *blockSearch, bm *bitmap) {
 	if tokens := af.getMsgTokens(); len(tokens) > 0 {
 		// Verify whether af tokens for the _msg field match bloom filter.
 		ch := bs.csh.getColumnHeader("_msg")
@@ -314,14 +314,14 @@ func (nf *notFilter) String() string {
 	return "!" + s
 }
 
-func (nf *notFilter) apply(bs *blockSearch, bm *filterBitmap) {
+func (nf *notFilter) apply(bs *blockSearch, bm *bitmap) {
 	// Minimize the number of rows to check by the filter by applying it
 	// only to the rows, which match the bm, e.g. they may change the bm result.
-	bmTmp := getFilterBitmap(bm.bitsLen)
+	bmTmp := getBitmap(bm.bitsLen)
 	bmTmp.copyFrom(bm)
 	nf.f.apply(bs, bmTmp)
 	bm.andNot(bmTmp)
-	putFilterBitmap(bmTmp)
+	putBitmap(bmTmp)
 }
 
 // streamFilter is the filter for `_stream:{...}`
@@ -361,7 +361,7 @@ func (sf *streamFilter) initStreamIDs() {
 	sf.streamIDs = m
 }
 
-func (sf *streamFilter) apply(bs *blockSearch, bm *filterBitmap) {
+func (sf *streamFilter) apply(bs *blockSearch, bm *bitmap) {
 	if sf.f.isEmpty() {
 		return
 	}
@@ -386,7 +386,7 @@ func (tf *timeFilter) String() string {
 	return "_time:" + tf.stringRepr
 }
 
-func (tf *timeFilter) apply(bs *blockSearch, bm *filterBitmap) {
+func (tf *timeFilter) apply(bs *blockSearch, bm *bitmap) {
 	minTimestamp := tf.minTimestamp
 	maxTimestamp := tf.maxTimestamp
 
@@ -461,7 +461,7 @@ func (sf *sequenceFilter) initNonEmptyPhrases() {
 	sf.nonEmptyPhrases = result
 }
 
-func (sf *sequenceFilter) apply(bs *blockSearch, bm *filterBitmap) {
+func (sf *sequenceFilter) apply(bs *blockSearch, bm *bitmap) {
 	fieldName := sf.fieldName
 	phrases := sf.getNonEmptyPhrases()
 
@@ -538,7 +538,7 @@ func (ef *exactPrefixFilter) initTokens() {
 	ef.tokens = getTokensSkipLast(ef.prefix)
 }
 
-func (ef *exactPrefixFilter) apply(bs *blockSearch, bm *filterBitmap) {
+func (ef *exactPrefixFilter) apply(bs *blockSearch, bm *bitmap) {
 	fieldName := ef.fieldName
 	prefix := ef.prefix
 
@@ -610,7 +610,7 @@ func (ef *exactFilter) initTokens() {
 	ef.tokens = tokenizeStrings(nil, []string{ef.value})
 }
 
-func (ef *exactFilter) apply(bs *blockSearch, bm *filterBitmap) {
+func (ef *exactFilter) apply(bs *blockSearch, bm *bitmap) {
 	fieldName := ef.fieldName
 	value := ef.value
 
@@ -897,7 +897,7 @@ func (af *inFilter) initTimestampISO8601Values() {
 	af.timestampISO8601Values = m
 }
 
-func (af *inFilter) apply(bs *blockSearch, bm *filterBitmap) {
+func (af *inFilter) apply(bs *blockSearch, bm *bitmap) {
 	fieldName := af.fieldName
 
 	if len(af.values) == 0 {
@@ -976,7 +976,7 @@ func (rf *ipv4RangeFilter) String() string {
 	return fmt.Sprintf("%sipv4_range(%s, %s)", quoteFieldNameIfNeeded(rf.fieldName), toIPv4String(nil, minValue), toIPv4String(nil, maxValue))
 }
 
-func (rf *ipv4RangeFilter) apply(bs *blockSearch, bm *filterBitmap) {
+func (rf *ipv4RangeFilter) apply(bs *blockSearch, bm *bitmap) {
 	fieldName := rf.fieldName
 	minValue := rf.minValue
 	maxValue := rf.maxValue
@@ -1042,7 +1042,7 @@ func (rf *stringRangeFilter) String() string {
 	return fmt.Sprintf("%sstring_range(%s, %s)", quoteFieldNameIfNeeded(rf.fieldName), quoteTokenIfNeeded(rf.minValue), quoteTokenIfNeeded(rf.maxValue))
 }
 
-func (rf *stringRangeFilter) apply(bs *blockSearch, bm *filterBitmap) {
+func (rf *stringRangeFilter) apply(bs *blockSearch, bm *bitmap) {
 	fieldName := rf.fieldName
 	minValue := rf.minValue
 	maxValue := rf.maxValue
@@ -1108,7 +1108,7 @@ func (rf *lenRangeFilter) String() string {
 	return quoteFieldNameIfNeeded(rf.fieldName) + "len_range" + rf.stringRepr
 }
 
-func (rf *lenRangeFilter) apply(bs *blockSearch, bm *filterBitmap) {
+func (rf *lenRangeFilter) apply(bs *blockSearch, bm *bitmap) {
 	fieldName := rf.fieldName
 	minLen := rf.minLen
 	maxLen := rf.maxLen
@@ -1175,7 +1175,7 @@ func (rf *rangeFilter) String() string {
 	return quoteFieldNameIfNeeded(rf.fieldName) + "range" + rf.stringRepr
 }
 
-func (rf *rangeFilter) apply(bs *blockSearch, bm *filterBitmap) {
+func (rf *rangeFilter) apply(bs *blockSearch, bm *bitmap) {
 	fieldName := rf.fieldName
 	minValue := rf.minValue
 	maxValue := rf.maxValue
@@ -1237,7 +1237,7 @@ func (rf *regexpFilter) String() string {
 	return fmt.Sprintf("%sre(%q)", quoteFieldNameIfNeeded(rf.fieldName), rf.re.String())
 }
 
-func (rf *regexpFilter) apply(bs *blockSearch, bm *filterBitmap) {
+func (rf *regexpFilter) apply(bs *blockSearch, bm *bitmap) {
 	fieldName := rf.fieldName
 	re := rf.re
 
@@ -1325,7 +1325,7 @@ func (pf *anyCasePrefixFilter) initPrefixLowercase() {
 	pf.prefixLowercase = strings.ToLower(pf.prefix)
 }
 
-func (pf *anyCasePrefixFilter) apply(bs *blockSearch, bm *filterBitmap) {
+func (pf *anyCasePrefixFilter) apply(bs *blockSearch, bm *bitmap) {
 	fieldName := pf.fieldName
 	prefixLowercase := pf.getPrefixLowercase()
 
@@ -1402,7 +1402,7 @@ func (pf *prefixFilter) initTokens() {
 	pf.tokens = getTokensSkipLast(pf.prefix)
 }
 
-func (pf *prefixFilter) apply(bs *blockSearch, bm *filterBitmap) {
+func (pf *prefixFilter) apply(bs *blockSearch, bm *bitmap) {
 	fieldName := pf.fieldName
 	prefix := pf.prefix
 
@@ -1485,7 +1485,7 @@ func (pf *anyCasePhraseFilter) initPhraseLowercase() {
 	pf.phraseLowercase = strings.ToLower(pf.phrase)
 }
 
-func (pf *anyCasePhraseFilter) apply(bs *blockSearch, bm *filterBitmap) {
+func (pf *anyCasePhraseFilter) apply(bs *blockSearch, bm *bitmap) {
 	fieldName := pf.fieldName
 	phraseLowercase := pf.getPhraseLowercase()
 
@@ -1567,7 +1567,7 @@ func (pf *phraseFilter) initTokens() {
 	pf.tokens = tokenizeStrings(nil, []string{pf.phrase})
 }
 
-func (pf *phraseFilter) apply(bs *blockSearch, bm *filterBitmap) {
+func (pf *phraseFilter) apply(bs *blockSearch, bm *bitmap) {
 	fieldName := pf.fieldName
 	phrase := pf.phrase
 
@@ -1617,14 +1617,14 @@ func (pf *phraseFilter) apply(bs *blockSearch, bm *filterBitmap) {
 	}
 }
 
-func matchTimestampISO8601ByLenRange(bm *filterBitmap, minLen, maxLen uint64) {
+func matchTimestampISO8601ByLenRange(bm *bitmap, minLen, maxLen uint64) {
 	if minLen > uint64(len(iso8601Timestamp)) || maxLen < uint64(len(iso8601Timestamp)) {
 		bm.resetBits()
 		return
 	}
 }
 
-func matchTimestampISO8601ByStringRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minValue, maxValue string) {
+func matchTimestampISO8601ByStringRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue string) {
 	if minValue > "9" || maxValue < "0" {
 		bm.resetBits()
 		return
@@ -1638,7 +1638,7 @@ func matchTimestampISO8601ByStringRange(bs *blockSearch, ch *columnHeader, bm *f
 	bbPool.Put(bb)
 }
 
-func matchTimestampISO8601ByRegexp(bs *blockSearch, ch *columnHeader, bm *filterBitmap, re *regexp.Regexp) {
+func matchTimestampISO8601ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toTimestampISO8601StringExt(bs, bb, v)
@@ -1647,7 +1647,7 @@ func matchTimestampISO8601ByRegexp(bs *blockSearch, ch *columnHeader, bm *filter
 	bbPool.Put(bb)
 }
 
-func matchTimestampISO8601ByPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, prefix string, tokens []string) {
+func matchTimestampISO8601ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
 	if prefix == "" {
 		// Fast path - all the timestamp values match an empty prefix aka `*`
 		return
@@ -1668,7 +1668,7 @@ func matchTimestampISO8601ByPrefix(bs *blockSearch, ch *columnHeader, bm *filter
 	bbPool.Put(bb)
 }
 
-func matchTimestampISO8601BySequence(bs *blockSearch, ch *columnHeader, bm *filterBitmap, phrases, tokens []string) {
+func matchTimestampISO8601BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases, tokens []string) {
 	if len(phrases) == 1 {
 		matchTimestampISO8601ByPhrase(bs, ch, bm, phrases[0], tokens)
 		return
@@ -1687,7 +1687,7 @@ func matchTimestampISO8601BySequence(bs *blockSearch, ch *columnHeader, bm *filt
 	bbPool.Put(bb)
 }
 
-func matchTimestampISO8601ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, prefix string, tokens []string) {
+func matchTimestampISO8601ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
 	if prefix == "" {
 		return
 	}
@@ -1704,7 +1704,7 @@ func matchTimestampISO8601ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *f
 	bbPool.Put(bb)
 }
 
-func matchTimestampISO8601ByExactValue(bs *blockSearch, ch *columnHeader, bm *filterBitmap, value string, tokens []string) {
+func matchTimestampISO8601ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value string, tokens []string) {
 	n, ok := tryParseTimestampISO8601(value)
 	if !ok || n < ch.minValue || n > ch.maxValue {
 		bm.resetBits()
@@ -1716,7 +1716,7 @@ func matchTimestampISO8601ByExactValue(bs *blockSearch, ch *columnHeader, bm *fi
 	bbPool.Put(bb)
 }
 
-func matchTimestampISO8601ByPhrase(bs *blockSearch, ch *columnHeader, bm *filterBitmap, phrase string, tokens []string) {
+func matchTimestampISO8601ByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []string) {
 	_, ok := tryParseTimestampISO8601(phrase)
 	if ok {
 		// Fast path - the phrase contains complete timestamp, so we can use exact search
@@ -1738,7 +1738,7 @@ func matchTimestampISO8601ByPhrase(bs *blockSearch, ch *columnHeader, bm *filter
 	bbPool.Put(bb)
 }
 
-func matchIPv4ByStringRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minValue, maxValue string) {
+func matchIPv4ByStringRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue string) {
 	if minValue > "9" || maxValue < "0" {
 		bm.resetBits()
 		return
@@ -1752,7 +1752,7 @@ func matchIPv4ByStringRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap,
 	bbPool.Put(bb)
 }
 
-func matchIPv4ByLenRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minLen, maxLen uint64) {
+func matchIPv4ByLenRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minLen, maxLen uint64) {
 	if minLen > uint64(len("255.255.255.255")) || maxLen < uint64(len("0.0.0.0")) {
 		bm.resetBits()
 		return
@@ -1766,7 +1766,7 @@ func matchIPv4ByLenRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, mi
 	bbPool.Put(bb)
 }
 
-func matchIPv4ByRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minValue, maxValue uint32) {
+func matchIPv4ByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue uint32) {
 	if ch.minValue > uint64(maxValue) || ch.maxValue < uint64(minValue) {
 		bm.resetBits()
 		return
@@ -1782,7 +1782,7 @@ func matchIPv4ByRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minVa
 	})
 }
 
-func matchIPv4ByRegexp(bs *blockSearch, ch *columnHeader, bm *filterBitmap, re *regexp.Regexp) {
+func matchIPv4ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toIPv4StringExt(bs, bb, v)
@@ -1791,7 +1791,7 @@ func matchIPv4ByRegexp(bs *blockSearch, ch *columnHeader, bm *filterBitmap, re *
 	bbPool.Put(bb)
 }
 
-func matchIPv4ByPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, prefix string, tokens []string) {
+func matchIPv4ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
 	if prefix == "" {
 		// Fast path - all the ipv4 values match an empty prefix aka `*`
 		return
@@ -1812,7 +1812,7 @@ func matchIPv4ByPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, pref
 	bbPool.Put(bb)
 }
 
-func matchIPv4BySequence(bs *blockSearch, ch *columnHeader, bm *filterBitmap, phrases, tokens []string) {
+func matchIPv4BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases, tokens []string) {
 	if len(phrases) == 1 {
 		matchIPv4ByPhrase(bs, ch, bm, phrases[0], tokens)
 		return
@@ -1833,7 +1833,7 @@ func matchIPv4BySequence(bs *blockSearch, ch *columnHeader, bm *filterBitmap, ph
 	bbPool.Put(bb)
 }
 
-func matchIPv4ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, prefix string, tokens []string) {
+func matchIPv4ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
 	if prefix == "" {
 		return
 	}
@@ -1850,7 +1850,7 @@ func matchIPv4ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap,
 	bbPool.Put(bb)
 }
 
-func matchIPv4ByExactValue(bs *blockSearch, ch *columnHeader, bm *filterBitmap, value string, tokens []string) {
+func matchIPv4ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value string, tokens []string) {
 	n, ok := tryParseIPv4(value)
 	if !ok || uint64(n) < ch.minValue || uint64(n) > ch.maxValue {
 		bm.resetBits()
@@ -1862,7 +1862,7 @@ func matchIPv4ByExactValue(bs *blockSearch, ch *columnHeader, bm *filterBitmap, 
 	bbPool.Put(bb)
 }
 
-func matchIPv4ByPhrase(bs *blockSearch, ch *columnHeader, bm *filterBitmap, phrase string, tokens []string) {
+func matchIPv4ByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []string) {
 	_, ok := tryParseIPv4(phrase)
 	if ok {
 		// Fast path - phrase contains the full IP address, so we can use exact matching
@@ -1886,7 +1886,7 @@ func matchIPv4ByPhrase(bs *blockSearch, ch *columnHeader, bm *filterBitmap, phra
 	bbPool.Put(bb)
 }
 
-func matchFloat64ByStringRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minValue, maxValue string) {
+func matchFloat64ByStringRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue string) {
 	if minValue > "9" || maxValue < "+" {
 		bm.resetBits()
 		return
@@ -1900,7 +1900,7 @@ func matchFloat64ByStringRange(bs *blockSearch, ch *columnHeader, bm *filterBitm
 	bbPool.Put(bb)
 }
 
-func matchFloat64ByLenRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minLen, maxLen uint64) {
+func matchFloat64ByLenRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minLen, maxLen uint64) {
 	if minLen > 24 || maxLen == 0 {
 		bm.resetBits()
 		return
@@ -1914,7 +1914,7 @@ func matchFloat64ByLenRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap,
 	bbPool.Put(bb)
 }
 
-func matchFloat64ByRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minValue, maxValue float64) {
+func matchFloat64ByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue float64) {
 	if minValue > math.Float64frombits(ch.maxValue) || maxValue < math.Float64frombits(ch.minValue) {
 		bm.resetBits()
 		return
@@ -1931,7 +1931,7 @@ func matchFloat64ByRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, mi
 	})
 }
 
-func matchFloat64ByRegexp(bs *blockSearch, ch *columnHeader, bm *filterBitmap, re *regexp.Regexp) {
+func matchFloat64ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toFloat64StringExt(bs, bb, v)
@@ -1940,7 +1940,7 @@ func matchFloat64ByRegexp(bs *blockSearch, ch *columnHeader, bm *filterBitmap, r
 	bbPool.Put(bb)
 }
 
-func matchFloat64ByPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, prefix string, tokens []string) {
+func matchFloat64ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
 	if prefix == "" {
 		// Fast path - all the float64 values match an empty prefix aka `*`
 		return
@@ -1968,7 +1968,7 @@ func matchFloat64ByPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, p
 	bbPool.Put(bb)
 }
 
-func matchFloat64BySequence(bs *blockSearch, ch *columnHeader, bm *filterBitmap, phrases, tokens []string) {
+func matchFloat64BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases, tokens []string) {
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return
@@ -1986,7 +1986,7 @@ func matchFloat64BySequence(bs *blockSearch, ch *columnHeader, bm *filterBitmap,
 	bbPool.Put(bb)
 }
 
-func matchFloat64ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, prefix string, tokens []string) {
+func matchFloat64ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
 	if prefix == "" {
 		// An empty prefix matches all the values
 		return
@@ -2004,7 +2004,7 @@ func matchFloat64ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitm
 	bbPool.Put(bb)
 }
 
-func matchFloat64ByExactValue(bs *blockSearch, ch *columnHeader, bm *filterBitmap, value string, tokens []string) {
+func matchFloat64ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value string, tokens []string) {
 	f, ok := tryParseFloat64(value)
 	if !ok || f < math.Float64frombits(ch.minValue) || f > math.Float64frombits(ch.maxValue) {
 		bm.resetBits()
@@ -2017,7 +2017,7 @@ func matchFloat64ByExactValue(bs *blockSearch, ch *columnHeader, bm *filterBitma
 	bbPool.Put(bb)
 }
 
-func matchFloat64ByPhrase(bs *blockSearch, ch *columnHeader, bm *filterBitmap, phrase string, tokens []string) {
+func matchFloat64ByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []string) {
 	// The phrase may contain a part of the floating-point number.
 	// For example, `foo:"123"` must match `123`, `123.456` and `-0.123`.
 	// This means we cannot search in binary representation of floating-point numbers.
@@ -2046,7 +2046,7 @@ func matchFloat64ByPhrase(bs *blockSearch, ch *columnHeader, bm *filterBitmap, p
 	bbPool.Put(bb)
 }
 
-func matchValuesDictByIPv4Range(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minValue, maxValue uint32) {
+func matchValuesDictByIPv4Range(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue uint32) {
 	bb := bbPool.Get()
 	for i, v := range ch.valuesDict.values {
 		if matchIPv4Range(v, minValue, maxValue) {
@@ -2057,7 +2057,7 @@ func matchValuesDictByIPv4Range(bs *blockSearch, ch *columnHeader, bm *filterBit
 	bbPool.Put(bb)
 }
 
-func matchValuesDictByStringRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minValue, maxValue string) {
+func matchValuesDictByStringRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue string) {
 	bb := bbPool.Get()
 	for i, v := range ch.valuesDict.values {
 		if matchStringRange(v, minValue, maxValue) {
@@ -2068,7 +2068,7 @@ func matchValuesDictByStringRange(bs *blockSearch, ch *columnHeader, bm *filterB
 	bbPool.Put(bb)
 }
 
-func matchValuesDictByLenRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minLen, maxLen uint64) {
+func matchValuesDictByLenRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minLen, maxLen uint64) {
 	bb := bbPool.Get()
 	for i, v := range ch.valuesDict.values {
 		if matchLenRange(v, minLen, maxLen) {
@@ -2079,7 +2079,7 @@ func matchValuesDictByLenRange(bs *blockSearch, ch *columnHeader, bm *filterBitm
 	bbPool.Put(bb)
 }
 
-func matchValuesDictByRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minValue, maxValue float64) {
+func matchValuesDictByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue float64) {
 	bb := bbPool.Get()
 	for i, v := range ch.valuesDict.values {
 		if matchRange(v, minValue, maxValue) {
@@ -2090,7 +2090,7 @@ func matchValuesDictByRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap,
 	bbPool.Put(bb)
 }
 
-func matchValuesDictByRegexp(bs *blockSearch, ch *columnHeader, bm *filterBitmap, re *regexp.Regexp) {
+func matchValuesDictByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
 	bb := bbPool.Get()
 	for i, v := range ch.valuesDict.values {
 		if re.MatchString(v) {
@@ -2101,7 +2101,7 @@ func matchValuesDictByRegexp(bs *blockSearch, ch *columnHeader, bm *filterBitmap
 	bbPool.Put(bb)
 }
 
-func matchValuesDictByAnyCasePrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, prefixLowercase string) {
+func matchValuesDictByAnyCasePrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefixLowercase string) {
 	bb := bbPool.Get()
 	for i, v := range ch.valuesDict.values {
 		if matchAnyCasePrefix(v, prefixLowercase) {
@@ -2112,7 +2112,7 @@ func matchValuesDictByAnyCasePrefix(bs *blockSearch, ch *columnHeader, bm *filte
 	bbPool.Put(bb)
 }
 
-func matchValuesDictByAnyCasePhrase(bs *blockSearch, ch *columnHeader, bm *filterBitmap, phraseLowercase string) {
+func matchValuesDictByAnyCasePhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phraseLowercase string) {
 	bb := bbPool.Get()
 	for i, v := range ch.valuesDict.values {
 		if matchAnyCasePhrase(v, phraseLowercase) {
@@ -2123,7 +2123,7 @@ func matchValuesDictByAnyCasePhrase(bs *blockSearch, ch *columnHeader, bm *filte
 	bbPool.Put(bb)
 }
 
-func matchValuesDictByPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, prefix string) {
+func matchValuesDictByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string) {
 	bb := bbPool.Get()
 	for i, v := range ch.valuesDict.values {
 		if matchPrefix(v, prefix) {
@@ -2134,7 +2134,7 @@ func matchValuesDictByPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap
 	bbPool.Put(bb)
 }
 
-func matchValuesDictBySequence(bs *blockSearch, ch *columnHeader, bm *filterBitmap, phrases []string) {
+func matchValuesDictBySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases []string) {
 	bb := bbPool.Get()
 	for i, v := range ch.valuesDict.values {
 		if matchSequence(v, phrases) {
@@ -2145,7 +2145,7 @@ func matchValuesDictBySequence(bs *blockSearch, ch *columnHeader, bm *filterBitm
 	bbPool.Put(bb)
 }
 
-func matchValuesDictByExactPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, prefix string) {
+func matchValuesDictByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string) {
 	bb := bbPool.Get()
 	for i, v := range ch.valuesDict.values {
 		if matchExactPrefix(v, prefix) {
@@ -2156,7 +2156,7 @@ func matchValuesDictByExactPrefix(bs *blockSearch, ch *columnHeader, bm *filterB
 	bbPool.Put(bb)
 }
 
-func matchValuesDictByExactValue(bs *blockSearch, ch *columnHeader, bm *filterBitmap, value string) {
+func matchValuesDictByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value string) {
 	bb := bbPool.Get()
 	for i, v := range ch.valuesDict.values {
 		if v == value {
@@ -2167,7 +2167,7 @@ func matchValuesDictByExactValue(bs *blockSearch, ch *columnHeader, bm *filterBi
 	bbPool.Put(bb)
 }
 
-func matchValuesDictByAnyValue(bs *blockSearch, ch *columnHeader, bm *filterBitmap, values map[string]struct{}) {
+func matchValuesDictByAnyValue(bs *blockSearch, ch *columnHeader, bm *bitmap, values map[string]struct{}) {
 	bb := bbPool.Get()
 	for i, v := range ch.valuesDict.values {
 		if _, ok := values[v]; ok {
@@ -2178,7 +2178,7 @@ func matchValuesDictByAnyValue(bs *blockSearch, ch *columnHeader, bm *filterBitm
 	bbPool.Put(bb)
 }
 
-func matchValuesDictByPhrase(bs *blockSearch, ch *columnHeader, bm *filterBitmap, phrase string) {
+func matchValuesDictByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string) {
 	bb := bbPool.Get()
 	for i, v := range ch.valuesDict.values {
 		if matchPhrase(v, phrase) {
@@ -2189,7 +2189,7 @@ func matchValuesDictByPhrase(bs *blockSearch, ch *columnHeader, bm *filterBitmap
 	bbPool.Put(bb)
 }
 
-func matchEncodedValuesDict(bs *blockSearch, ch *columnHeader, bm *filterBitmap, encodedValues []byte) {
+func matchEncodedValuesDict(bs *blockSearch, ch *columnHeader, bm *bitmap, encodedValues []byte) {
 	if len(encodedValues) == 0 {
 		// Fast path - the phrase is missing in the valuesDict
 		bm.resetBits()
@@ -2205,49 +2205,49 @@ func matchEncodedValuesDict(bs *blockSearch, ch *columnHeader, bm *filterBitmap,
 	})
 }
 
-func matchStringByIPv4Range(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minValue, maxValue uint32) {
+func matchStringByIPv4Range(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue uint32) {
 	visitValues(bs, ch, bm, func(v string) bool {
 		return matchIPv4Range(v, minValue, maxValue)
 	})
 }
 
-func matchStringByStringRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minValue, maxValue string) {
+func matchStringByStringRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue string) {
 	visitValues(bs, ch, bm, func(v string) bool {
 		return matchStringRange(v, minValue, maxValue)
 	})
 }
 
-func matchStringByLenRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minLen, maxLen uint64) {
+func matchStringByLenRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minLen, maxLen uint64) {
 	visitValues(bs, ch, bm, func(v string) bool {
 		return matchLenRange(v, minLen, maxLen)
 	})
 }
 
-func matchStringByRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minValue, maxValue float64) {
+func matchStringByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue float64) {
 	visitValues(bs, ch, bm, func(v string) bool {
 		return matchRange(v, minValue, maxValue)
 	})
 }
 
-func matchStringByRegexp(bs *blockSearch, ch *columnHeader, bm *filterBitmap, re *regexp.Regexp) {
+func matchStringByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
 	visitValues(bs, ch, bm, func(v string) bool {
 		return re.MatchString(v)
 	})
 }
 
-func matchStringByAnyCasePrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, prefixLowercase string) {
+func matchStringByAnyCasePrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefixLowercase string) {
 	visitValues(bs, ch, bm, func(v string) bool {
 		return matchAnyCasePrefix(v, prefixLowercase)
 	})
 }
 
-func matchStringByAnyCasePhrase(bs *blockSearch, ch *columnHeader, bm *filterBitmap, phraseLowercase string) {
+func matchStringByAnyCasePhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phraseLowercase string) {
 	visitValues(bs, ch, bm, func(v string) bool {
 		return matchAnyCasePhrase(v, phraseLowercase)
 	})
 }
 
-func matchStringByPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, prefix string, tokens []string) {
+func matchStringByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return
@@ -2257,7 +2257,7 @@ func matchStringByPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, pr
 	})
 }
 
-func matchStringBySequence(bs *blockSearch, ch *columnHeader, bm *filterBitmap, phrases []string, tokens []string) {
+func matchStringBySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases []string, tokens []string) {
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return
@@ -2267,7 +2267,7 @@ func matchStringBySequence(bs *blockSearch, ch *columnHeader, bm *filterBitmap, 
 	})
 }
 
-func matchStringByExactPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, prefix string, tokens []string) {
+func matchStringByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return
@@ -2277,7 +2277,7 @@ func matchStringByExactPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitma
 	})
 }
 
-func matchStringByExactValue(bs *blockSearch, ch *columnHeader, bm *filterBitmap, value string, tokens []string) {
+func matchStringByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value string, tokens []string) {
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return
@@ -2287,7 +2287,7 @@ func matchStringByExactValue(bs *blockSearch, ch *columnHeader, bm *filterBitmap
 	})
 }
 
-func matchStringByPhrase(bs *blockSearch, ch *columnHeader, bm *filterBitmap, phrase string, tokens []string) {
+func matchStringByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []string) {
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return
@@ -2297,7 +2297,7 @@ func matchStringByPhrase(bs *blockSearch, ch *columnHeader, bm *filterBitmap, ph
 	})
 }
 
-func matchUint8ByStringRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minValue, maxValue string) {
+func matchUint8ByStringRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue string) {
 	if minValue > "9" || maxValue < "0" {
 		bm.resetBits()
 		return
@@ -2310,7 +2310,7 @@ func matchUint8ByStringRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap
 	bbPool.Put(bb)
 }
 
-func matchUint16ByStringRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minValue, maxValue string) {
+func matchUint16ByStringRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue string) {
 	if minValue > "9" || maxValue < "0" {
 		bm.resetBits()
 		return
@@ -2323,7 +2323,7 @@ func matchUint16ByStringRange(bs *blockSearch, ch *columnHeader, bm *filterBitma
 	bbPool.Put(bb)
 }
 
-func matchUint32ByStringRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minValue, maxValue string) {
+func matchUint32ByStringRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue string) {
 	if minValue > "9" || maxValue < "0" {
 		bm.resetBits()
 		return
@@ -2336,7 +2336,7 @@ func matchUint32ByStringRange(bs *blockSearch, ch *columnHeader, bm *filterBitma
 	bbPool.Put(bb)
 }
 
-func matchUint64ByStringRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minValue, maxValue string) {
+func matchUint64ByStringRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue string) {
 	if minValue > "9" || maxValue < "0" {
 		bm.resetBits()
 		return
@@ -2363,7 +2363,7 @@ func matchMinMaxValueLen(ch *columnHeader, minLen, maxLen uint64) bool {
 	return minLen <= uint64(len(s))
 }
 
-func matchUint8ByLenRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minLen, maxLen uint64) {
+func matchUint8ByLenRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minLen, maxLen uint64) {
 	if !matchMinMaxValueLen(ch, minLen, maxLen) {
 		bm.resetBits()
 		return
@@ -2377,7 +2377,7 @@ func matchUint8ByLenRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, m
 	bbPool.Put(bb)
 }
 
-func matchUint16ByLenRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minLen, maxLen uint64) {
+func matchUint16ByLenRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minLen, maxLen uint64) {
 	if !matchMinMaxValueLen(ch, minLen, maxLen) {
 		bm.resetBits()
 		return
@@ -2391,7 +2391,7 @@ func matchUint16ByLenRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, 
 	bbPool.Put(bb)
 }
 
-func matchUint32ByLenRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minLen, maxLen uint64) {
+func matchUint32ByLenRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minLen, maxLen uint64) {
 	if !matchMinMaxValueLen(ch, minLen, maxLen) {
 		bm.resetBits()
 		return
@@ -2405,7 +2405,7 @@ func matchUint32ByLenRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, 
 	bbPool.Put(bb)
 }
 
-func matchUint64ByLenRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minLen, maxLen uint64) {
+func matchUint64ByLenRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minLen, maxLen uint64) {
 	if !matchMinMaxValueLen(ch, minLen, maxLen) {
 		bm.resetBits()
 		return
@@ -2419,7 +2419,7 @@ func matchUint64ByLenRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, 
 	bbPool.Put(bb)
 }
 
-func matchUint8ByRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minValue, maxValue float64) {
+func matchUint8ByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue float64) {
 	minValueUint, maxValueUint := toUint64Range(minValue, maxValue)
 	if maxValue < 0 || minValueUint > ch.maxValue || maxValueUint < ch.minValue {
 		bm.resetBits()
@@ -2436,7 +2436,7 @@ func matchUint8ByRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minV
 	bbPool.Put(bb)
 }
 
-func matchUint16ByRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minValue, maxValue float64) {
+func matchUint16ByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue float64) {
 	minValueUint, maxValueUint := toUint64Range(minValue, maxValue)
 	if maxValue < 0 || minValueUint > ch.maxValue || maxValueUint < ch.minValue {
 		bm.resetBits()
@@ -2454,7 +2454,7 @@ func matchUint16ByRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, min
 	bbPool.Put(bb)
 }
 
-func matchUint32ByRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minValue, maxValue float64) {
+func matchUint32ByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue float64) {
 	minValueUint, maxValueUint := toUint64Range(minValue, maxValue)
 	if maxValue < 0 || minValueUint > ch.maxValue || maxValueUint < ch.minValue {
 		bm.resetBits()
@@ -2472,7 +2472,7 @@ func matchUint32ByRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, min
 	bbPool.Put(bb)
 }
 
-func matchUint64ByRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, minValue, maxValue float64) {
+func matchUint64ByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue float64) {
 	minValueUint, maxValueUint := toUint64Range(minValue, maxValue)
 	if maxValue < 0 || minValueUint > ch.maxValue || maxValueUint < ch.minValue {
 		bm.resetBits()
@@ -2490,7 +2490,7 @@ func matchUint64ByRange(bs *blockSearch, ch *columnHeader, bm *filterBitmap, min
 	bbPool.Put(bb)
 }
 
-func matchUint8ByRegexp(bs *blockSearch, ch *columnHeader, bm *filterBitmap, re *regexp.Regexp) {
+func matchUint8ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toUint8String(bs, bb, v)
@@ -2499,7 +2499,7 @@ func matchUint8ByRegexp(bs *blockSearch, ch *columnHeader, bm *filterBitmap, re 
 	bbPool.Put(bb)
 }
 
-func matchUint16ByRegexp(bs *blockSearch, ch *columnHeader, bm *filterBitmap, re *regexp.Regexp) {
+func matchUint16ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toUint16String(bs, bb, v)
@@ -2508,7 +2508,7 @@ func matchUint16ByRegexp(bs *blockSearch, ch *columnHeader, bm *filterBitmap, re
 	bbPool.Put(bb)
 }
 
-func matchUint32ByRegexp(bs *blockSearch, ch *columnHeader, bm *filterBitmap, re *regexp.Regexp) {
+func matchUint32ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toUint32String(bs, bb, v)
@@ -2517,7 +2517,7 @@ func matchUint32ByRegexp(bs *blockSearch, ch *columnHeader, bm *filterBitmap, re
 	bbPool.Put(bb)
 }
 
-func matchUint64ByRegexp(bs *blockSearch, ch *columnHeader, bm *filterBitmap, re *regexp.Regexp) {
+func matchUint64ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toUint64String(bs, bb, v)
@@ -2526,7 +2526,7 @@ func matchUint64ByRegexp(bs *blockSearch, ch *columnHeader, bm *filterBitmap, re
 	bbPool.Put(bb)
 }
 
-func matchUint8ByPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, prefix string) {
+func matchUint8ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string) {
 	if prefix == "" {
 		// Fast path - all the uint8 values match an empty prefix aka `*`
 		return
@@ -2549,7 +2549,7 @@ func matchUint8ByPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, pre
 	bbPool.Put(bb)
 }
 
-func matchUint16ByPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, prefix string) {
+func matchUint16ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string) {
 	if prefix == "" {
 		// Fast path - all the uint16 values match an empty prefix aka `*`
 		return
@@ -2572,7 +2572,7 @@ func matchUint16ByPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, pr
 	bbPool.Put(bb)
 }
 
-func matchUint32ByPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, prefix string) {
+func matchUint32ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string) {
 	if prefix == "" {
 		// Fast path - all the uint32 values match an empty prefix aka `*`
 		return
@@ -2595,7 +2595,7 @@ func matchUint32ByPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, pr
 	bbPool.Put(bb)
 }
 
-func matchUint64ByPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, prefix string) {
+func matchUint64ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string) {
 	if prefix == "" {
 		// Fast path - all the uint64 values match an empty prefix aka `*`
 		return
@@ -2618,7 +2618,7 @@ func matchUint64ByPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, pr
 	bbPool.Put(bb)
 }
 
-func matchUint8BySequence(bs *blockSearch, ch *columnHeader, bm *filterBitmap, phrases, tokens []string) {
+func matchUint8BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases, tokens []string) {
 	if len(phrases) > 1 {
 		bm.resetBits()
 		return
@@ -2626,7 +2626,7 @@ func matchUint8BySequence(bs *blockSearch, ch *columnHeader, bm *filterBitmap, p
 	matchUint8ByExactValue(bs, ch, bm, phrases[0], tokens)
 }
 
-func matchUint16BySequence(bs *blockSearch, ch *columnHeader, bm *filterBitmap, phrases, tokens []string) {
+func matchUint16BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases, tokens []string) {
 	if len(phrases) > 1 {
 		bm.resetBits()
 		return
@@ -2634,7 +2634,7 @@ func matchUint16BySequence(bs *blockSearch, ch *columnHeader, bm *filterBitmap, 
 	matchUint16ByExactValue(bs, ch, bm, phrases[0], tokens)
 }
 
-func matchUint32BySequence(bs *blockSearch, ch *columnHeader, bm *filterBitmap, phrases, tokens []string) {
+func matchUint32BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases, tokens []string) {
 	if len(phrases) > 1 {
 		bm.resetBits()
 		return
@@ -2642,7 +2642,7 @@ func matchUint32BySequence(bs *blockSearch, ch *columnHeader, bm *filterBitmap, 
 	matchUint32ByExactValue(bs, ch, bm, phrases[0], tokens)
 }
 
-func matchUint64BySequence(bs *blockSearch, ch *columnHeader, bm *filterBitmap, phrases, tokens []string) {
+func matchUint64BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases, tokens []string) {
 	if len(phrases) > 1 {
 		bm.resetBits()
 		return
@@ -2650,7 +2650,7 @@ func matchUint64BySequence(bs *blockSearch, ch *columnHeader, bm *filterBitmap, 
 	matchUint64ByExactValue(bs, ch, bm, phrases[0], tokens)
 }
 
-func matchUint8ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, prefix string, tokens []string) {
+func matchUint8ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
 	if !matchMinMaxExactPrefix(ch, bm, prefix, tokens) {
 		return
 	}
@@ -2663,7 +2663,7 @@ func matchUint8ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap
 	bbPool.Put(bb)
 }
 
-func matchUint16ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, prefix string, tokens []string) {
+func matchUint16ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
 	if !matchMinMaxExactPrefix(ch, bm, prefix, tokens) {
 		return
 	}
@@ -2676,7 +2676,7 @@ func matchUint16ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitma
 	bbPool.Put(bb)
 }
 
-func matchUint32ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, prefix string, tokens []string) {
+func matchUint32ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
 	if !matchMinMaxExactPrefix(ch, bm, prefix, tokens) {
 		return
 	}
@@ -2689,7 +2689,7 @@ func matchUint32ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitma
 	bbPool.Put(bb)
 }
 
-func matchUint64ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitmap, prefix string, tokens []string) {
+func matchUint64ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
 	if !matchMinMaxExactPrefix(ch, bm, prefix, tokens) {
 		return
 	}
@@ -2702,7 +2702,7 @@ func matchUint64ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *filterBitma
 	bbPool.Put(bb)
 }
 
-func matchMinMaxExactPrefix(ch *columnHeader, bm *filterBitmap, prefix string, tokens []string) bool {
+func matchMinMaxExactPrefix(ch *columnHeader, bm *bitmap, prefix string, tokens []string) bool {
 	if prefix == "" {
 		// An empty prefix matches all the values
 		return false
@@ -2721,7 +2721,7 @@ func matchMinMaxExactPrefix(ch *columnHeader, bm *filterBitmap, prefix string, t
 	return true
 }
 
-func matchUint8ByExactValue(bs *blockSearch, ch *columnHeader, bm *filterBitmap, phrase string, tokens []string) {
+func matchUint8ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []string) {
 	n, ok := tryParseUint64(phrase)
 	if !ok || n < ch.minValue || n > ch.maxValue {
 		bm.resetBits()
@@ -2733,7 +2733,7 @@ func matchUint8ByExactValue(bs *blockSearch, ch *columnHeader, bm *filterBitmap,
 	bbPool.Put(bb)
 }
 
-func matchUint16ByExactValue(bs *blockSearch, ch *columnHeader, bm *filterBitmap, phrase string, tokens []string) {
+func matchUint16ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []string) {
 	n, ok := tryParseUint64(phrase)
 	if !ok || n < ch.minValue || n > ch.maxValue {
 		bm.resetBits()
@@ -2745,7 +2745,7 @@ func matchUint16ByExactValue(bs *blockSearch, ch *columnHeader, bm *filterBitmap
 	bbPool.Put(bb)
 }
 
-func matchUint32ByExactValue(bs *blockSearch, ch *columnHeader, bm *filterBitmap, phrase string, tokens []string) {
+func matchUint32ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []string) {
 	n, ok := tryParseUint64(phrase)
 	if !ok || n < ch.minValue || n > ch.maxValue {
 		bm.resetBits()
@@ -2757,7 +2757,7 @@ func matchUint32ByExactValue(bs *blockSearch, ch *columnHeader, bm *filterBitmap
 	bbPool.Put(bb)
 }
 
-func matchUint64ByExactValue(bs *blockSearch, ch *columnHeader, bm *filterBitmap, phrase string, tokens []string) {
+func matchUint64ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []string) {
 	n, ok := tryParseUint64(phrase)
 	if !ok || n < ch.minValue || n > ch.maxValue {
 		bm.resetBits()
@@ -2769,7 +2769,7 @@ func matchUint64ByExactValue(bs *blockSearch, ch *columnHeader, bm *filterBitmap
 	bbPool.Put(bb)
 }
 
-func matchBinaryValue(bs *blockSearch, ch *columnHeader, bm *filterBitmap, binValue []byte, tokens []string) {
+func matchBinaryValue(bs *blockSearch, ch *columnHeader, bm *bitmap, binValue []byte, tokens []string) {
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return
@@ -2779,7 +2779,7 @@ func matchBinaryValue(bs *blockSearch, ch *columnHeader, bm *filterBitmap, binVa
 	})
 }
 
-func matchAnyValue(bs *blockSearch, ch *columnHeader, bm *filterBitmap, values map[string]struct{}, tokenSets [][]string) {
+func matchAnyValue(bs *blockSearch, ch *columnHeader, bm *bitmap, values map[string]struct{}, tokenSets [][]string) {
 	if !matchBloomFilterAnyTokenSet(bs, ch, tokenSets) {
 		bm.resetBits()
 		return
@@ -2816,7 +2816,7 @@ func matchBloomFilterAllTokens(bs *blockSearch, ch *columnHeader, tokens []strin
 	return bf.containsAll(tokens)
 }
 
-func visitValues(bs *blockSearch, ch *columnHeader, bm *filterBitmap, f func(value string) bool) {
+func visitValues(bs *blockSearch, ch *columnHeader, bm *bitmap, f func(value string) bool) {
 	if bm.isZero() {
 		// Fast path - nothing to visit
 		return

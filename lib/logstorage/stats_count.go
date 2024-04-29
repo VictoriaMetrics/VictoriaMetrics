@@ -44,8 +44,8 @@ func (scp *statsCountProcessor) updateStatsForAllRows(timestamps []int64, column
 	}
 
 	// Slow path - count rows containing at least a single non-empty value for the fields enumerated inside count().
-	bm := getFilterBitmap(len(timestamps))
-	defer putFilterBitmap(bm)
+	bm := getBitmap(len(timestamps))
+	defer putBitmap(bm)
 
 	bm.setBits()
 	for _, f := range fields {

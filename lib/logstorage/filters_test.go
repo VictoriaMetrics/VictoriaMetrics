@@ -245,9 +245,9 @@ func TestMatchIPv4Range(t *testing.T) {
 	f("127.0.0.1", 0x7f000000, 0x7f000001, true)
 }
 
-func TestFilterBitmap(t *testing.T) {
+func TestBitmap(t *testing.T) {
 	for i := 0; i < 100; i++ {
-		bm := getFilterBitmap(i)
+		bm := getBitmap(i)
 		if bm.bitsLen != i {
 			t.Fatalf("unexpected bits length: %d; want %d", bm.bitsLen, i)
 		}
@@ -332,7 +332,7 @@ func TestFilterBitmap(t *testing.T) {
 			t.Fatalf("unexpected non-zero number of set bits remained: %d", bitsCount)
 		}
 
-		putFilterBitmap(bm)
+		putBitmap(bm)
 	}
 }
 
