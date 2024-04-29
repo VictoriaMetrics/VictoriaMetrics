@@ -206,7 +206,7 @@ func (q *Query) getResultColumnNames() []string {
 		switch t := p.(type) {
 		case *pipeFields:
 			return t.fields
-		case *statsPipe:
+		case *pipeStats:
 			return t.neededFields()
 		}
 	}
