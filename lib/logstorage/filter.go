@@ -71,82 +71,6 @@ func (fs *streamFilter) apply(bs *blockSearch, bm *bitmap) {
 	}
 }
 
-// filterPrefix matches the given prefix.
-//
-// Example LogsQL: `fieldName:prefix*` or `fieldName:"some prefix"*`
-//
-// A special case `fieldName:*` matches non-empty value for the given `fieldName` field
-type filterPrefix struct {
-	fieldName string
-	prefix    string
-
-	tokensOnce sync.Once
-	tokens     []string
-}
-
-func (fp *filterPrefix) String() string {
-	if fp.prefix == "" {
-		return quoteFieldNameIfNeeded(fp.fieldName) + "*"
-	}
-	return fmt.Sprintf("%s%s*", quoteFieldNameIfNeeded(fp.fieldName), quoteTokenIfNeeded(fp.prefix))
-}
-
-func (fp *filterPrefix) getTokens() []string {
-	fp.tokensOnce.Do(fp.initTokens)
-	return fp.tokens
-}
-
-func (fp *filterPrefix) initTokens() {
-	fp.tokens = getTokensSkipLast(fp.prefix)
-}
-
-func (fp *filterPrefix) apply(bs *blockSearch, bm *bitmap) {
-	fieldName := fp.fieldName
-	prefix := fp.prefix
-
-	// Verify whether fp matches const column
-	v := bs.csh.getConstColumnValue(fieldName)
-	if v != "" {
-		if !matchPrefix(v, prefix) {
-			bm.resetBits()
-		}
-		return
-	}
-
-	// Verify whether fp matches other columns
-	ch := bs.csh.getColumnHeader(fieldName)
-	if ch == nil {
-		// Fast path - there are no matching columns.
-		bm.resetBits()
-		return
-	}
-
-	tokens := fp.getTokens()
-
-	switch ch.valueType {
-	case valueTypeString:
-		matchStringByPrefix(bs, ch, bm, prefix, tokens)
-	case valueTypeDict:
-		matchValuesDictByPrefix(bs, ch, bm, prefix)
-	case valueTypeUint8:
-		matchUint8ByPrefix(bs, ch, bm, prefix)
-	case valueTypeUint16:
-		matchUint16ByPrefix(bs, ch, bm, prefix)
-	case valueTypeUint32:
-		matchUint32ByPrefix(bs, ch, bm, prefix)
-	case valueTypeUint64:
-		matchUint64ByPrefix(bs, ch, bm, prefix)
-	case valueTypeFloat64:
-		matchFloat64ByPrefix(bs, ch, bm, prefix, tokens)
-	case valueTypeIPv4:
-		matchIPv4ByPrefix(bs, ch, bm, prefix, tokens)
-	case valueTypeTimestampISO8601:
-		matchTimestampISO8601ByPrefix(bs, ch, bm, prefix, tokens)
-	default:
-		logger.Panicf("FATAL: %s: unknown valueType=%d", bs.partPath(), ch.valueType)
-	}
-}
-
 // anyCasePhraseFilter filters field entries by case-insensitive phrase match.
 //
 // An example LogsQL query: `fieldName:i(word)` or `fieldName:i("word1 ... wordN")`
@@ -315,27 +239,6 @@ func (fp *phraseFilter) apply(bs *blockSearch, bm *bitmap) {
 	}
 }
 
-func matchTimestampISO8601ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
-	if prefix == "" {
-		// Fast path - all the timestamp values match an empty prefix aka `*`
-		return
-	}
-	// There is no sense in trying to parse prefix, since it may contain incomplete timestamp.
-	// We cannot compar binary representation of timestamp and need converting
-	// the timestamp to string before searching for the prefix there.
-	if !matchBloomFilterAllTokens(bs, ch, tokens) {
-		bm.resetBits()
-		return
-	}
-
-	bb := bbPool.Get()
-	visitValues(bs, ch, bm, func(v string) bool {
-		s := toTimestampISO8601StringExt(bs, bb, v)
-		return matchPrefix(s, prefix)
-	})
-	bbPool.Put(bb)
-}
-
 func matchTimestampISO8601ByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []string) {
 	_, ok := tryParseTimestampISO8601(phrase)
 	if ok {
@@ -354,27 +257,6 @@ func matchTimestampISO8601ByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toTimestampISO8601StringExt(bs, bb, v)
 		return matchPhrase(s, phrase)
-	})
-	bbPool.Put(bb)
-}
-
-func matchIPv4ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
-	if prefix == "" {
-		// Fast path - all the ipv4 values match an empty prefix aka `*`
-		return
-	}
-	// There is no sense in trying to parse prefix, since it may contain incomplete ip.
-	// We cannot compare binary representation of ip address and need converting
-	// the ip to string before searching for the prefix there.
-	if !matchBloomFilterAllTokens(bs, ch, tokens) {
-		bm.resetBits()
-		return
-	}
-
-	bb := bbPool.Get()
-	visitValues(bs, ch, bm, func(v string) bool {
-		s := toIPv4StringExt(bs, bb, v)
-		return matchPrefix(s, prefix)
 	})
 	bbPool.Put(bb)
 }
@@ -399,34 +281,6 @@ func matchIPv4ByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase str
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toIPv4StringExt(bs, bb, v)
 		return matchPhrase(s, phrase)
-	})
-	bbPool.Put(bb)
-}
-
-func matchFloat64ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
-	if prefix == "" {
-		// Fast path - all the float64 values match an empty prefix aka `*`
-		return
-	}
-	// The prefix may contain a part of the floating-point number.
-	// For example, `foo:12*` must match `12`, `123.456` and `-0.123`.
-	// This means we cannot search in binary representation of floating-point numbers.
-	// Instead, we need searching for the whole prefix in string representation
-	// of floating-point numbers :(
-	_, ok := tryParseFloat64(prefix)
-	if !ok && prefix != "." && prefix != "+" && prefix != "-" && !strings.HasPrefix(prefix, "e") && !strings.HasPrefix(prefix, "E") {
-		bm.resetBits()
-		return
-	}
-	if !matchBloomFilterAllTokens(bs, ch, tokens) {
-		bm.resetBits()
-		return
-	}
-
-	bb := bbPool.Get()
-	visitValues(bs, ch, bm, func(v string) bool {
-		s := toFloat64StringExt(bs, bb, v)
-		return matchPrefix(s, prefix)
 	})
 	bbPool.Put(bb)
 }
@@ -464,17 +318,6 @@ func matchValuesDictByAnyCasePhrase(bs *blockSearch, ch *columnHeader, bm *bitma
 	bb := bbPool.Get()
 	for i, v := range ch.valuesDict.values {
 		if matchAnyCasePhrase(v, phraseLowercase) {
-			bb.B = append(bb.B, byte(i))
-		}
-	}
-	matchEncodedValuesDict(bs, ch, bm, bb.B)
-	bbPool.Put(bb)
-}
-
-func matchValuesDictByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string) {
-	bb := bbPool.Get()
-	for i, v := range ch.valuesDict.values {
-		if matchPrefix(v, prefix) {
 			bb.B = append(bb.B, byte(i))
 		}
 	}
@@ -526,16 +369,6 @@ func matchStringByAnyCasePhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, p
 	})
 }
 
-func matchStringByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
-	if !matchBloomFilterAllTokens(bs, ch, tokens) {
-		bm.resetBits()
-		return
-	}
-	visitValues(bs, ch, bm, func(v string) bool {
-		return matchPrefix(v, prefix)
-	})
-}
-
 func matchStringByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []string) {
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
@@ -558,98 +391,6 @@ func matchMinMaxValueLen(ch *columnHeader, minLen, maxLen uint64) bool {
 	bb.B = strconv.AppendUint(bb.B[:0], ch.maxValue, 10)
 	s = bytesutil.ToUnsafeString(bb.B)
 	return minLen <= uint64(len(s))
-}
-
-func matchUint8ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string) {
-	if prefix == "" {
-		// Fast path - all the uint8 values match an empty prefix aka `*`
-		return
-	}
-	// The prefix may contain a part of the number.
-	// For example, `foo:12*` must match `12` and `123`.
-	// This means we cannot search in binary representation of numbers.
-	// Instead, we need searching for the whole prefix in string representation of numbers :(
-	n, ok := tryParseUint64(prefix)
-	if !ok || n > ch.maxValue {
-		bm.resetBits()
-		return
-	}
-	// There is no need in matching against bloom filters, since tokens is empty.
-	bb := bbPool.Get()
-	visitValues(bs, ch, bm, func(v string) bool {
-		s := toUint8String(bs, bb, v)
-		return matchPrefix(s, prefix)
-	})
-	bbPool.Put(bb)
-}
-
-func matchUint16ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string) {
-	if prefix == "" {
-		// Fast path - all the uint16 values match an empty prefix aka `*`
-		return
-	}
-	// The prefix may contain a part of the number.
-	// For example, `foo:12*` must match `12` and `123`.
-	// This means we cannot search in binary representation of numbers.
-	// Instead, we need searching for the whole prefix in string representation of numbers :(
-	n, ok := tryParseUint64(prefix)
-	if !ok || n > ch.maxValue {
-		bm.resetBits()
-		return
-	}
-	// There is no need in matching against bloom filters, since tokens is empty.
-	bb := bbPool.Get()
-	visitValues(bs, ch, bm, func(v string) bool {
-		s := toUint16String(bs, bb, v)
-		return matchPrefix(s, prefix)
-	})
-	bbPool.Put(bb)
-}
-
-func matchUint32ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string) {
-	if prefix == "" {
-		// Fast path - all the uint32 values match an empty prefix aka `*`
-		return
-	}
-	// The prefix may contain a part of the number.
-	// For example, `foo:12*` must match `12` and `123`.
-	// This means we cannot search in binary representation of numbers.
-	// Instead, we need searching for the whole prefix in string representation of numbers :(
-	n, ok := tryParseUint64(prefix)
-	if !ok || n > ch.maxValue {
-		bm.resetBits()
-		return
-	}
-	// There is no need in matching against bloom filters, since tokens is empty.
-	bb := bbPool.Get()
-	visitValues(bs, ch, bm, func(v string) bool {
-		s := toUint32String(bs, bb, v)
-		return matchPrefix(s, prefix)
-	})
-	bbPool.Put(bb)
-}
-
-func matchUint64ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string) {
-	if prefix == "" {
-		// Fast path - all the uint64 values match an empty prefix aka `*`
-		return
-	}
-	// The prefix may contain a part of the number.
-	// For example, `foo:12*` must match `12` and `123`.
-	// This means we cannot search in binary representation of numbers.
-	// Instead, we need searching for the whole prefix in string representation of numbers :(
-	n, ok := tryParseUint64(prefix)
-	if !ok || n > ch.maxValue {
-		bm.resetBits()
-		return
-	}
-	// There is no need in matching against bloom filters, since tokens is empty.
-	bb := bbPool.Get()
-	visitValues(bs, ch, bm, func(v string) bool {
-		s := toUint64String(bs, bb, v)
-		return matchPrefix(s, prefix)
-	})
-	bbPool.Put(bb)
 }
 
 func matchBloomFilterAllTokens(bs *blockSearch, ch *columnHeader, tokens []string) bool {
@@ -679,42 +420,6 @@ func isASCIILowercase(s string) bool {
 		}
 	}
 	return true
-}
-
-func matchPrefix(s, prefix string) bool {
-	if len(prefix) == 0 {
-		// Special case - empty prefix matches any string.
-		return len(s) > 0
-	}
-	if len(prefix) > len(s) {
-		return false
-	}
-
-	r := rune(prefix[0])
-	if r >= utf8.RuneSelf {
-		r, _ = utf8.DecodeRuneInString(prefix)
-	}
-	startsWithToken := isTokenRune(r)
-	offset := 0
-	for {
-		n := strings.Index(s[offset:], prefix)
-		if n < 0 {
-			return false
-		}
-		offset += n
-		// Make sure that the found phrase contains non-token chars at the beginning
-		if startsWithToken && offset > 0 {
-			r := rune(s[offset-1])
-			if r >= utf8.RuneSelf {
-				r, _ = utf8.DecodeLastRuneInString(s[:offset])
-			}
-			if r == utf8.RuneError || isTokenRune(r) {
-				offset++
-				continue
-			}
-		}
-		return true
-	}
 }
 
 func matchAnyCasePhrase(s, phraseLowercase string) bool {
