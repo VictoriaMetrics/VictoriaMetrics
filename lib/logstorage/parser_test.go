@@ -356,16 +356,16 @@ func TestParseFilterIPv4Range(t *testing.T) {
 	f(`ipv4_range(1.2.3.34/0)`, ``, 0, 0xffffffff)
 }
 
-func TestParseStringRangeFilter(t *testing.T) {
+func TestParseFilterStringRange(t *testing.T) {
 	f := func(s, fieldNameExpected, minValueExpected, maxValueExpected string) {
 		t.Helper()
 		q, err := ParseQuery(s)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		rf, ok := q.f.(*stringRangeFilter)
+		rf, ok := q.f.(*filterStringRange)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *stringRangeFilter; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterStringRange; filter: %s", q.f, q.f)
 		}
 		if rf.fieldName != fieldNameExpected {
 			t.Fatalf("unexpected fieldName; got %q; want %q", rf.fieldName, fieldNameExpected)

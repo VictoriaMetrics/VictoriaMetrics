@@ -338,7 +338,7 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 	case lex.isKeyword("seq"):
 		return parseFilterSequence(lex, fieldName)
 	case lex.isKeyword("string_range"):
-		return parseStringRangeFilter(lex, fieldName)
+		return parseFilterStringRange(lex, fieldName)
 	case lex.isKeyword(`"`, "'", "`"):
 		return nil, fmt.Errorf("improperly quoted string")
 	case lex.isKeyword(",", ")", "[", "]"):
@@ -542,13 +542,13 @@ func parseLenRangeFilter(lex *lexer, fieldName string) (filter, error) {
 	})
 }
 
-func parseStringRangeFilter(lex *lexer, fieldName string) (filter, error) {
+func parseFilterStringRange(lex *lexer, fieldName string) (filter, error) {
 	funcName := lex.token
 	return parseFuncArgs(lex, fieldName, func(args []string) (filter, error) {
 		if len(args) != 2 {
 			return nil, fmt.Errorf("unexpected number of args for %s(); got %d; want 2", funcName, len(args))
 		}
-		fr := &stringRangeFilter{
+		fr := &filterStringRange{
 			fieldName: fieldName,
 			minValue:  args[0],
 			maxValue:  args[1],
