@@ -51,9 +51,9 @@ type indexdb struct {
 	// streamsCreatedTotal is the number of log streams created since the indexdb intialization.
 	streamsCreatedTotal atomic.Uint64
 
-	// the generation of the streamFilterCache.
+	// the generation of the filterStreamCache.
 	// It is updated each time new item is added to tb.
-	streamFilterCacheGeneration atomic.Uint32
+	filterStreamCacheGeneration atomic.Uint32
 
 	// path is the path to indexdb
 	path string
@@ -482,11 +482,11 @@ func (idb *indexdb) mustRegisterStream(streamID *streamID, streamTagsCanonical [
 func (idb *indexdb) invalidateStreamFilterCache() {
 	// This function must be fast, since it is called each
 	// time new indexdb entry is added.
-	idb.streamFilterCacheGeneration.Add(1)
+	idb.filterStreamCacheGeneration.Add(1)
 }
 
 func (idb *indexdb) marshalStreamFilterCacheKey(dst []byte, tenantIDs []TenantID, sf *StreamFilter) []byte {
-	dst = encoding.MarshalUint32(dst, idb.streamFilterCacheGeneration.Load())
+	dst = encoding.MarshalUint32(dst, idb.filterStreamCacheGeneration.Load())
 	dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(idb.partitionName))
 	dst = encoding.MarshalVarUint64(dst, uint64(len(tenantIDs)))
 	for i := range tenantIDs {
@@ -499,7 +499,7 @@ func (idb *indexdb) marshalStreamFilterCacheKey(dst []byte, tenantIDs []TenantID
 func (idb *indexdb) loadStreamIDsFromCache(tenantIDs []TenantID, sf *StreamFilter) ([]streamID, bool) {
 	bb := bbPool.Get()
 	bb.B = idb.marshalStreamFilterCacheKey(bb.B[:0], tenantIDs, sf)
-	data := idb.s.streamFilterCache.GetBig(nil, bb.B)
+	data := idb.s.filterStreamCache.GetBig(nil, bb.B)
 	bbPool.Put(bb)
 	if len(data) == 0 {
 		// Cache miss
@@ -536,7 +536,7 @@ func (idb *indexdb) storeStreamIDsToCache(tenantIDs []TenantID, sf *StreamFilter
 	// Store marshaled streamIDs to cache.
 	bb := bbPool.Get()
 	bb.B = idb.marshalStreamFilterCacheKey(bb.B[:0], tenantIDs, sf)
-	idb.s.streamFilterCache.SetBig(bb.B, b)
+	idb.s.filterStreamCache.SetBig(bb.B, b)
 	bbPool.Put(bb)
 }
 

@@ -434,7 +434,7 @@ func parseFilterForPhrase(lex *lexer, phrase, fieldName string) (filter, error) 
 	case "_time":
 		return parseFilterTimeWithOffset(lex)
 	case "_stream":
-		return parseStreamFilter(lex)
+		return parseFilterStream(lex)
 	default:
 		return parseGenericFilter(lex, fieldName)
 	}
@@ -983,7 +983,7 @@ func stripTimezoneSuffix(s string) string {
 	return s[:len(s)-len(tz)]
 }
 
-func parseStreamFilter(lex *lexer) (*streamFilter, error) {
+func parseFilterStream(lex *lexer) (*filterStream, error) {
 	if !lex.isKeyword("{") {
 		return nil, fmt.Errorf("unexpected token %q instead of '{' in _stream filter", lex.token)
 	}
@@ -1000,12 +1000,12 @@ func parseStreamFilter(lex *lexer) (*streamFilter, error) {
 		switch {
 		case lex.isKeyword("}"):
 			lex.nextToken()
-			sf := &streamFilter{
+			fs := &filterStream{
 				f: &StreamFilter{
 					orFilters: filters,
 				},
 			}
-			return sf, nil
+			return fs, nil
 		case lex.isKeyword("or"):
 			if !lex.mustNextToken() {
 				return nil, fmt.Errorf("incomplete _stream filter after 'or'")
@@ -1024,11 +1024,11 @@ func newStreamFilter(s string) (*StreamFilter, error) {
 	if !lex.mustNextToken() {
 		return nil, fmt.Errorf("missing '{' in _stream filter")
 	}
-	sf, err := parseStreamFilter(lex)
+	fs, err := parseFilterStream(lex)
 	if err != nil {
 		return nil, err
 	}
-	return sf.f, nil
+	return fs.f, nil
 }
 
 func parseAndStreamFilter(lex *lexer) (*andStreamFilter, error) {

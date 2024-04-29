@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -152,72 +151,6 @@ func TestComplexFilters(t *testing.T) {
 	testFilterMatchForColumns(t, columns, f, "foo", []int{1, 3, 6})
 }
 
-func TestStreamFilter(t *testing.T) {
-	columns := []column{
-		{
-			name: "foo",
-			values: []string{
-				"a foo",
-				"a foobar",
-				"aa abc a",
-				"ca afdf a,foobar baz",
-				"a fddf foobarbaz",
-				"",
-				"a foobar",
-				"a kjlkjf dfff",
-				"a ТЕСТЙЦУК НГКШ ",
-				"a !!,23.(!1)",
-			},
-		},
-	}
-
-	// Match
-	f := &filterExact{
-		fieldName: "job",
-		value:     "foobar",
-	}
-	testFilterMatchForColumns(t, columns, f, "foo", []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
-
-	// Mismatch
-	f = &filterExact{
-		fieldName: "job",
-		value:     "abc",
-	}
-	testFilterMatchForColumns(t, columns, f, "foo", nil)
-}
-
-func testFilterMatchForTimestamps(t *testing.T, timestamps []int64, f filter, expectedRowIdxs []int) {
-	t.Helper()
-
-	// Create the test storage
-	const storagePath = "testFilterMatchForTimestamps"
-	cfg := &StorageConfig{}
-	s := MustOpenStorage(storagePath, cfg)
-
-	// Generate rows
-	getValue := func(rowIdx int) string {
-		return fmt.Sprintf("some value for row %d", rowIdx)
-	}
-	tenantID := TenantID{
-		AccountID: 123,
-		ProjectID: 456,
-	}
-	generateRowsFromTimestamps(s, tenantID, timestamps, getValue)
-
-	expectedResults := make([]string, len(expectedRowIdxs))
-	expectedTimestamps := make([]int64, len(expectedRowIdxs))
-	for i, idx := range expectedRowIdxs {
-		expectedResults[i] = getValue(idx)
-		expectedTimestamps[i] = timestamps[idx]
-	}
-
-	testFilterMatchForStorage(t, s, tenantID, f, "_msg", expectedResults, expectedTimestamps)
-
-	// Close and delete the test storage
-	s.MustClose()
-	fs.MustRemoveAll(storagePath)
-}
-
 func testFilterMatchForColumns(t *testing.T, columns []column, f filter, resultColumnName string, expectedRowIdxs []int) {
 	t.Helper()
 
@@ -312,20 +245,6 @@ func generateRowsFromColumns(s *Storage, tenantID TenantID, columns []column) {
 			})
 		}
 		timestamp := int64(i) * 1e9
-		lr.MustAdd(tenantID, timestamp, fields)
-	}
-	s.MustAddRows(lr)
-	PutLogRows(lr)
-}
-
-func generateRowsFromTimestamps(s *Storage, tenantID TenantID, timestamps []int64, getValue func(rowIdx int) string) {
-	lr := GetLogRows(nil, nil)
-	var fields []Field
-	for i, timestamp := range timestamps {
-		fields = append(fields[:0], Field{
-			Name:  "_msg",
-			Value: getValue(i),
-		})
 		lr.MustAdd(tenantID, timestamp, fields)
 	}
 	s.MustAddRows(lr)

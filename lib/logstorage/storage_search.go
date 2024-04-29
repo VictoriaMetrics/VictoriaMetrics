@@ -268,7 +268,7 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 	}
 	s.partitionsLock.Unlock()
 
-	// Obtain common streamFilter from f
+	// Obtain common filterStream from f
 	var sf *StreamFilter
 	sf, f = getCommonStreamFilter(f)
 
@@ -345,7 +345,7 @@ func hasStreamFilters(f filter) bool {
 		return hasStreamFiltersInList(t.filters)
 	case *filterNot:
 		return hasStreamFilters(t.f)
-	case *streamFilter:
+	case *filterStream:
 		return true
 	default:
 		return false
@@ -375,8 +375,8 @@ func initStreamFilters(tenantIDs []TenantID, idb *indexdb, f filter) filter {
 		return &filterNot{
 			f: initStreamFilters(tenantIDs, idb, t.f),
 		}
-	case *streamFilter:
-		return &streamFilter{
+	case *filterStream:
+		return &filterStream{
 			f:         t.f,
 			tenantIDs: tenantIDs,
 			idb:       idb,
@@ -698,7 +698,7 @@ func getCommonStreamFilter(f filter) (*StreamFilter, filter) {
 	case *filterAnd:
 		filters := t.filters
 		for i, filter := range filters {
-			sf, ok := filter.(*streamFilter)
+			sf, ok := filter.(*filterStream)
 			if ok && !sf.f.isEmpty() {
 				// Remove sf from filters, since it doesn't filter out anything then.
 				fa := &filterAnd{
@@ -707,7 +707,7 @@ func getCommonStreamFilter(f filter) (*StreamFilter, filter) {
 				return sf.f, fa
 			}
 		}
-	case *streamFilter:
+	case *filterStream:
 		return t.f, &filterNoop{}
 	}
 	return nil, f

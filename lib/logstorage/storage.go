@@ -133,10 +133,10 @@ type Storage struct {
 	// when StreamTags must be found for the particular streamID
 	streamTagsCache *workingsetcache.Cache
 
-	// streamFilterCache caches streamIDs keyed by (partition, []TenanID, StreamFilter).
+	// filterStreamCache caches streamIDs keyed by (partition, []TenanID, StreamFilter).
 	//
 	// It reduces the load on persistent storage during querying by _stream:{...} filter.
-	streamFilterCache *workingsetcache.Cache
+	filterStreamCache *workingsetcache.Cache
 }
 
 type partitionWrapper struct {
@@ -244,7 +244,7 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 
 	streamTagsCache := workingsetcache.New(mem / 10)
 
-	streamFilterCache := workingsetcache.New(mem / 10)
+	filterStreamCache := workingsetcache.New(mem / 10)
 
 	s := &Storage{
 		path:                  path,
@@ -259,7 +259,7 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 
 		streamIDCache:     streamIDCache,
 		streamTagsCache:   streamTagsCache,
-		streamFilterCache: streamFilterCache,
+		filterStreamCache: filterStreamCache,
 	}
 
 	partitionsPath := filepath.Join(path, partitionsDirname)
@@ -397,8 +397,8 @@ func (s *Storage) MustClose() {
 	s.streamTagsCache.Stop()
 	s.streamTagsCache = nil
 
-	s.streamFilterCache.Stop()
-	s.streamFilterCache = nil
+	s.filterStreamCache.Stop()
+	s.filterStreamCache = nil
 
 	// release lock file
 	fs.MustClose(s.flockF)

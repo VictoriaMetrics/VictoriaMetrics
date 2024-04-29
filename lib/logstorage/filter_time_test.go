@@ -1,7 +1,10 @@
 package logstorage
 
 import (
+	"fmt"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func TestFilterTime(t *testing.T) {
@@ -80,4 +83,50 @@ func TestFilterTime(t *testing.T) {
 		maxTimestamp: 1000,
 	}
 	testFilterMatchForTimestamps(t, timestamps, ft, nil)
+}
+
+func testFilterMatchForTimestamps(t *testing.T, timestamps []int64, f filter, expectedRowIdxs []int) {
+	t.Helper()
+
+	// Create the test storage
+	const storagePath = "testFilterMatchForTimestamps"
+	cfg := &StorageConfig{}
+	s := MustOpenStorage(storagePath, cfg)
+
+	// Generate rows
+	getValue := func(rowIdx int) string {
+		return fmt.Sprintf("some value for row %d", rowIdx)
+	}
+	tenantID := TenantID{
+		AccountID: 123,
+		ProjectID: 456,
+	}
+	generateRowsFromTimestamps(s, tenantID, timestamps, getValue)
+
+	expectedResults := make([]string, len(expectedRowIdxs))
+	expectedTimestamps := make([]int64, len(expectedRowIdxs))
+	for i, idx := range expectedRowIdxs {
+		expectedResults[i] = getValue(idx)
+		expectedTimestamps[i] = timestamps[idx]
+	}
+
+	testFilterMatchForStorage(t, s, tenantID, f, "_msg", expectedResults, expectedTimestamps)
+
+	// Close and delete the test storage
+	s.MustClose()
+	fs.MustRemoveAll(storagePath)
+}
+
+func generateRowsFromTimestamps(s *Storage, tenantID TenantID, timestamps []int64, getValue func(rowIdx int) string) {
+	lr := GetLogRows(nil, nil)
+	var fields []Field
+	for i, timestamp := range timestamps {
+		fields = append(fields[:0], Field{
+			Name:  "_msg",
+			Value: getValue(i),
+		})
+		lr.MustAdd(tenantID, timestamp, fields)
+	}
+	s.MustAddRows(lr)
+	PutLogRows(lr)
 }

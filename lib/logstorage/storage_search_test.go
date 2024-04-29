@@ -384,7 +384,7 @@ func TestStorageSearch(t *testing.T) {
 			maxTimestamp: maxTimestamp,
 		})
 		if sf != nil {
-			filters = append(filters, &streamFilter{
+			filters = append(filters, &filterStream{
 				f: sf,
 			})
 		}

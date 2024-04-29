@@ -48,9 +48,9 @@ func TestStorageSearchStreamIDs(t *testing.T) {
 	}
 	idb.debugFlush()
 
-	f := func(streamFilter string, expectedStreamIDs []streamID) {
+	f := func(filterStream string, expectedStreamIDs []streamID) {
 		t.Helper()
-		sf := mustNewStreamFilter(streamFilter)
+		sf := mustNewStreamFilter(filterStream)
 		if expectedStreamIDs == nil {
 			expectedStreamIDs = []streamID{}
 		}
