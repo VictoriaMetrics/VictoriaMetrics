@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"bytes"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -244,4 +245,39 @@ func getPhrasePos(s, phrase string) int {
 		}
 		return pos
 	}
+}
+
+func matchEncodedValuesDict(bs *blockSearch, ch *columnHeader, bm *bitmap, encodedValues []byte) {
+	if len(encodedValues) == 0 {
+		// Fast path - the phrase is missing in the valuesDict
+		bm.resetBits()
+		return
+	}
+	// Slow path - iterate over values
+	visitValues(bs, ch, bm, func(v string) bool {
+		if len(v) != 1 {
+			logger.Panicf("FATAL: %s: unexpected length for dict value: got %d; want 1", bs.partPath(), len(v))
+		}
+		n := bytes.IndexByte(encodedValues, v[0])
+		return n >= 0
+	})
+}
+
+func visitValues(bs *blockSearch, ch *columnHeader, bm *bitmap, f func(value string) bool) {
+	if bm.isZero() {
+		// Fast path - nothing to visit
+		return
+	}
+	values := bs.getValuesForColumn(ch)
+	bm.forEachSetBit(func(idx int) bool {
+		return f(values[idx])
+	})
+}
+
+func matchBloomFilterAllTokens(bs *blockSearch, ch *columnHeader, tokens []string) bool {
+	if len(tokens) == 0 {
+		return true
+	}
+	bf := bs.getBloomFilterForColumn(ch)
+	return bf.containsAll(tokens)
 }

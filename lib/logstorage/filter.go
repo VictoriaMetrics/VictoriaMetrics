@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"bytes"
 	"math"
 	"strconv"
 	"sync"
@@ -66,76 +65,6 @@ func (fs *streamFilter) apply(bs *blockSearch, bm *bitmap) {
 		bm.resetBits()
 		return
 	}
-}
-
-func matchValuesDictByAnyValue(bs *blockSearch, ch *columnHeader, bm *bitmap, values map[string]struct{}) {
-	bb := bbPool.Get()
-	for i, v := range ch.valuesDict.values {
-		if _, ok := values[v]; ok {
-			bb.B = append(bb.B, byte(i))
-		}
-	}
-	matchEncodedValuesDict(bs, ch, bm, bb.B)
-	bbPool.Put(bb)
-}
-
-func matchEncodedValuesDict(bs *blockSearch, ch *columnHeader, bm *bitmap, encodedValues []byte) {
-	if len(encodedValues) == 0 {
-		// Fast path - the phrase is missing in the valuesDict
-		bm.resetBits()
-		return
-	}
-	// Slow path - iterate over values
-	visitValues(bs, ch, bm, func(v string) bool {
-		if len(v) != 1 {
-			logger.Panicf("FATAL: %s: unexpected length for dict value: got %d; want 1", bs.partPath(), len(v))
-		}
-		n := bytes.IndexByte(encodedValues, v[0])
-		return n >= 0
-	})
-}
-
-func matchMinMaxValueLen(ch *columnHeader, minLen, maxLen uint64) bool {
-	bb := bbPool.Get()
-	defer bbPool.Put(bb)
-
-	bb.B = strconv.AppendUint(bb.B[:0], ch.minValue, 10)
-	s := bytesutil.ToUnsafeString(bb.B)
-	if maxLen < uint64(len(s)) {
-		return false
-	}
-	bb.B = strconv.AppendUint(bb.B[:0], ch.maxValue, 10)
-	s = bytesutil.ToUnsafeString(bb.B)
-	return minLen <= uint64(len(s))
-}
-
-func matchBloomFilterAllTokens(bs *blockSearch, ch *columnHeader, tokens []string) bool {
-	if len(tokens) == 0 {
-		return true
-	}
-	bf := bs.getBloomFilterForColumn(ch)
-	return bf.containsAll(tokens)
-}
-
-func visitValues(bs *blockSearch, ch *columnHeader, bm *bitmap, f func(value string) bool) {
-	if bm.isZero() {
-		// Fast path - nothing to visit
-		return
-	}
-	values := bs.getValuesForColumn(ch)
-	bm.forEachSetBit(func(idx int) bool {
-		return f(values[idx])
-	})
-}
-
-func isASCIILowercase(s string) bool {
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c >= utf8.RuneSelf || (c >= 'A' && c <= 'Z') {
-			return false
-		}
-	}
-	return true
 }
 
 type stringBucket struct {

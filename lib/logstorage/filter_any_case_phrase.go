@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -136,4 +137,14 @@ func matchAnyCasePhrase(s, phraseLowercase string) bool {
 	bbPool.Put(bb)
 
 	return ok
+}
+
+func isASCIILowercase(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= utf8.RuneSelf || (c >= 'A' && c <= 'Z') {
+			return false
+		}
+	}
+	return true
 }

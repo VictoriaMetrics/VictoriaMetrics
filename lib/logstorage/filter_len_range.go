@@ -1,8 +1,10 @@
 package logstorage
 
 import (
+	"strconv"
 	"unicode/utf8"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -184,4 +186,18 @@ func matchUint64ByLenRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minLen
 func matchLenRange(s string, minLen, maxLen uint64) bool {
 	sLen := uint64(utf8.RuneCountInString(s))
 	return sLen >= minLen && sLen <= maxLen
+}
+
+func matchMinMaxValueLen(ch *columnHeader, minLen, maxLen uint64) bool {
+	bb := bbPool.Get()
+	defer bbPool.Put(bb)
+
+	bb.B = strconv.AppendUint(bb.B[:0], ch.minValue, 10)
+	s := bytesutil.ToUnsafeString(bb.B)
+	if maxLen < uint64(len(s)) {
+		return false
+	}
+	bb.B = strconv.AppendUint(bb.B[:0], ch.maxValue, 10)
+	s = bytesutil.ToUnsafeString(bb.B)
+	return minLen <= uint64(len(s))
 }

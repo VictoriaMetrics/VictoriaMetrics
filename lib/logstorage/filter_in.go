@@ -341,3 +341,14 @@ func matchBloomFilterAnyTokenSet(bs *blockSearch, ch *columnHeader, tokenSets []
 	}
 	return false
 }
+
+func matchValuesDictByAnyValue(bs *blockSearch, ch *columnHeader, bm *bitmap, values map[string]struct{}) {
+	bb := bbPool.Get()
+	for i, v := range ch.valuesDict.values {
+		if _, ok := values[v]; ok {
+			bb.B = append(bb.B, byte(i))
+		}
+	}
+	matchEncodedValuesDict(bs, ch, bm, bb.B)
+	bbPool.Put(bb)
+}
