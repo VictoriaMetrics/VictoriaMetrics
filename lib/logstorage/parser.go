@@ -635,7 +635,7 @@ func parseFilterSequence(lex *lexer, fieldName string) (filter, error) {
 func parseExactFilter(lex *lexer, fieldName string) (filter, error) {
 	return parseFuncArgMaybePrefix(lex, "exact", fieldName, func(phrase string, isPrefixFilter bool) (filter, error) {
 		if isPrefixFilter {
-			f := &exactPrefixFilter{
+			f := &filterExactPrefix{
 				fieldName: fieldName,
 				prefix:    phrase,
 			}

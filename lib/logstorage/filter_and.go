@@ -77,7 +77,7 @@ func (fa *filterAnd) initMsgTokens() {
 			if isMsgFieldName(t.fieldName) {
 				a = append(a, t.getTokens()...)
 			}
-		case *exactPrefixFilter:
+		case *filterExactPrefix:
 			if isMsgFieldName(t.fieldName) {
 				a = append(a, t.getTokens()...)
 			}
