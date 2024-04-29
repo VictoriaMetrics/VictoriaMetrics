@@ -185,3 +185,19 @@ func matchRange(s string, minValue, maxValue float64) bool {
 	}
 	return f >= minValue && f <= maxValue
 }
+
+func toUint64Range(minValue, maxValue float64) (uint64, uint64) {
+	minValue = math.Ceil(minValue)
+	maxValue = math.Floor(maxValue)
+	return toUint64Clamp(minValue), toUint64Clamp(maxValue)
+}
+
+func toUint64Clamp(f float64) uint64 {
+	if f < 0 {
+		return 0
+	}
+	if f > math.MaxUint64 {
+		return math.MaxUint64
+	}
+	return uint64(f)
+}

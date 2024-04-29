@@ -281,3 +281,14 @@ func matchBloomFilterAllTokens(bs *blockSearch, ch *columnHeader, tokens []strin
 	bf := bs.getBloomFilterForColumn(ch)
 	return bf.containsAll(tokens)
 }
+
+func quoteFieldNameIfNeeded(s string) string {
+	if isMsgFieldName(s) {
+		return ""
+	}
+	return quoteTokenIfNeeded(s) + ":"
+}
+
+func isMsgFieldName(fieldName string) bool {
+	return fieldName == "" || fieldName == "_msg"
+}

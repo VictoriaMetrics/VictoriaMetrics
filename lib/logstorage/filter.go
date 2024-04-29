@@ -1,12 +1,9 @@
 package logstorage
 
 import (
-	"math"
-	"strconv"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -64,72 +61,6 @@ func (fs *streamFilter) apply(bs *blockSearch, bm *bitmap) {
 		bm.resetBits()
 		return
 	}
-}
-
-func toUint64Range(minValue, maxValue float64) (uint64, uint64) {
-	minValue = math.Ceil(minValue)
-	maxValue = math.Floor(maxValue)
-	return toUint64Clamp(minValue), toUint64Clamp(maxValue)
-}
-
-func toUint64Clamp(f float64) uint64 {
-	if f < 0 {
-		return 0
-	}
-	if f > math.MaxUint64 {
-		return math.MaxUint64
-	}
-	return uint64(f)
-}
-
-func quoteFieldNameIfNeeded(s string) string {
-	if isMsgFieldName(s) {
-		return ""
-	}
-	return quoteTokenIfNeeded(s) + ":"
-}
-
-func isMsgFieldName(fieldName string) bool {
-	return fieldName == "" || fieldName == "_msg"
-}
-
-func toUint8String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string {
-	if len(v) != 1 {
-		logger.Panicf("FATAL: %s: unexpected length for binary representation of uint8 number: got %d; want 1", bs.partPath(), len(v))
-	}
-	n := uint64(v[0])
-	bb.B = strconv.AppendUint(bb.B[:0], n, 10)
-	return bytesutil.ToUnsafeString(bb.B)
-}
-
-func toUint16String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string {
-	if len(v) != 2 {
-		logger.Panicf("FATAL: %s: unexpected length for binary representation of uint16 number: got %d; want 2", bs.partPath(), len(v))
-	}
-	b := bytesutil.ToUnsafeBytes(v)
-	n := uint64(encoding.UnmarshalUint16(b))
-	bb.B = strconv.AppendUint(bb.B[:0], n, 10)
-	return bytesutil.ToUnsafeString(bb.B)
-}
-
-func toUint32String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string {
-	if len(v) != 4 {
-		logger.Panicf("FATAL: %s: unexpected length for binary representation of uint32 number: got %d; want 4", bs.partPath(), len(v))
-	}
-	b := bytesutil.ToUnsafeBytes(v)
-	n := uint64(encoding.UnmarshalUint32(b))
-	bb.B = strconv.AppendUint(bb.B[:0], n, 10)
-	return bytesutil.ToUnsafeString(bb.B)
-}
-
-func toUint64String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string {
-	if len(v) != 8 {
-		logger.Panicf("FATAL: %s: unexpected length for binary representation of uint64 number: got %d; want 8", bs.partPath(), len(v))
-	}
-	b := bytesutil.ToUnsafeBytes(v)
-	n := encoding.UnmarshalUint64(b)
-	bb.B = strconv.AppendUint(bb.B[:0], n, 10)
-	return bytesutil.ToUnsafeString(bb.B)
 }
 
 func toFloat64StringExt(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string {

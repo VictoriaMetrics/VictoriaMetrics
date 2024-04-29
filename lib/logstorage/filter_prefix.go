@@ -2,10 +2,13 @@ package logstorage
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"unicode/utf8"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -313,4 +316,43 @@ func getTokensSkipLast(s string) []string {
 		s = s[:len(s)-runeSize]
 	}
 	return tokenizeStrings(nil, []string{s})
+}
+
+func toUint8String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string {
+	if len(v) != 1 {
+		logger.Panicf("FATAL: %s: unexpected length for binary representation of uint8 number: got %d; want 1", bs.partPath(), len(v))
+	}
+	n := uint64(v[0])
+	bb.B = strconv.AppendUint(bb.B[:0], n, 10)
+	return bytesutil.ToUnsafeString(bb.B)
+}
+
+func toUint16String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string {
+	if len(v) != 2 {
+		logger.Panicf("FATAL: %s: unexpected length for binary representation of uint16 number: got %d; want 2", bs.partPath(), len(v))
+	}
+	b := bytesutil.ToUnsafeBytes(v)
+	n := uint64(encoding.UnmarshalUint16(b))
+	bb.B = strconv.AppendUint(bb.B[:0], n, 10)
+	return bytesutil.ToUnsafeString(bb.B)
+}
+
+func toUint32String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string {
+	if len(v) != 4 {
+		logger.Panicf("FATAL: %s: unexpected length for binary representation of uint32 number: got %d; want 4", bs.partPath(), len(v))
+	}
+	b := bytesutil.ToUnsafeBytes(v)
+	n := uint64(encoding.UnmarshalUint32(b))
+	bb.B = strconv.AppendUint(bb.B[:0], n, 10)
+	return bytesutil.ToUnsafeString(bb.B)
+}
+
+func toUint64String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string {
+	if len(v) != 8 {
+		logger.Panicf("FATAL: %s: unexpected length for binary representation of uint64 number: got %d; want 8", bs.partPath(), len(v))
+	}
+	b := bytesutil.ToUnsafeBytes(v)
+	n := encoding.UnmarshalUint64(b)
+	bb.B = strconv.AppendUint(bb.B[:0], n, 10)
+	return bytesutil.ToUnsafeString(bb.B)
 }
