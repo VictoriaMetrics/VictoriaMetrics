@@ -33,7 +33,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229): support selecting of multiple instances on the dashboard. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5869) for details.
 * FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229): properly display version in the Stats row for the custom builds of VictoriaMetrics.
 * FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229): add `Network Usage` panel to `Resource Usage` row.
-* FEATURE: [dashboards/operator](https://grafana.com/grafana/dashboards/17869-victoriametrics-operator/) and [dashboards/backupmanager](https://grafana.com/grafana/dashboards/17798-victoriametrics-backupmanager/): update dashboard to be compatible with Grafana 10+ version.
+* FEATURE: [dashboards/operator](https://grafana.com/grafana/dashboards/17869-victoriametrics-operator/), [dashboards/backupmanager](https://grafana.com/grafana/dashboards/17798-victoriametrics-backupmanager/) and [dashboard/tenant-statistic](https://grafana.com/grafana/dashboards/16399-victoriametrics-cluster-per-tenant-statistic/): update dashboard to be compatible with Grafana 10+ version.
 
 
 ## [v1.101.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.101.0)
