@@ -737,6 +737,18 @@ func (sfup *statsFuncUniqProcessor) updateStatsForAllRows(timestamps []int64, co
 		// Count unique rows
 		keyBuf := sfup.keyBuf
 		for i := range timestamps {
+			seenKey := true
+			for _, c := range columns {
+				values := c.Values
+				if i == 0 || values[i-1] != values[i] {
+					seenKey = false
+					break
+				}
+			}
+			if seenKey {
+				continue
+			}
+
 			allEmptyValues := true
 			keyBuf = keyBuf[:0]
 			for _, c := range columns {
@@ -763,9 +775,13 @@ func (sfup *statsFuncUniqProcessor) updateStatsForAllRows(timestamps []int64, co
 	if len(fields) == 1 {
 		// Fast path for a single column
 		if idx := getBlockColumnIndex(columns, fields[0]); idx >= 0 {
-			for _, v := range columns[idx].Values {
+			values := columns[idx].Values
+			for i, v := range values {
 				if v == "" {
 					// Do not count empty values
+					continue
+				}
+				if i > 0 && values[i-1] == v {
 					continue
 				}
 				if _, ok := m[v]; !ok {
@@ -786,6 +802,16 @@ func (sfup *statsFuncUniqProcessor) updateStatsForAllRows(timestamps []int64, co
 
 	keyBuf := sfup.keyBuf
 	for i := range timestamps {
+		seenKey := true
+		for _, values := range columnValues {
+			if i == 0 || values[i-1] != values[i] {
+				seenKey = false
+			}
+		}
+		if seenKey {
+			continue
+		}
+
 		allEmptyValues := true
 		keyBuf = keyBuf[:0]
 		for _, values := range columnValues {
