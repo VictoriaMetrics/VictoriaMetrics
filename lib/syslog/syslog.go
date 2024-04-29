@@ -3,7 +3,7 @@ package syslog
 import (
 	"flag"
 	"fmt"
-	"log/syslog"
+	syslog "github.com/RackSec/srslog"
 )
 
 var (
