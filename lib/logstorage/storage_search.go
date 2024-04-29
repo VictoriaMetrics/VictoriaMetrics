@@ -708,7 +708,7 @@ func getCommonStreamFilter(f filter) (*StreamFilter, filter) {
 			}
 		}
 	case *streamFilter:
-		return t.f, &noopFilter{}
+		return t.f, &filterNoop{}
 	}
 	return nil, f
 }

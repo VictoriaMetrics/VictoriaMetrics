@@ -24,15 +24,15 @@ type filter interface {
 	apply(bs *blockSearch, bm *bitmap)
 }
 
-// noopFilter does nothing
-type noopFilter struct {
+// filterNoop does nothing
+type filterNoop struct {
 }
 
-func (nf *noopFilter) String() string {
+func (fn *filterNoop) String() string {
 	return ""
 }
 
-func (nf *noopFilter) apply(_ *blockSearch, _ *bitmap) {
+func (fn *filterNoop) apply(_ *blockSearch, _ *bitmap) {
 	// nothing to do
 }
 
@@ -168,21 +168,21 @@ type notFilter struct {
 	f filter
 }
 
-func (nf *notFilter) String() string {
-	s := nf.f.String()
-	switch nf.f.(type) {
+func (fn *notFilter) String() string {
+	s := fn.f.String()
+	switch fn.f.(type) {
 	case *andFilter, *orFilter:
 		s = "(" + s + ")"
 	}
 	return "!" + s
 }
 
-func (nf *notFilter) apply(bs *blockSearch, bm *bitmap) {
+func (fn *notFilter) apply(bs *blockSearch, bm *bitmap) {
 	// Minimize the number of rows to check by the filter by applying it
 	// only to the rows, which match the bm, e.g. they may change the bm result.
 	bmTmp := getBitmap(bm.bitsLen)
 	bmTmp.copyFrom(bm)
-	nf.f.apply(bs, bmTmp)
+	fn.f.apply(bs, bmTmp)
 	bm.andNot(bmTmp)
 	putBitmap(bmTmp)
 }
