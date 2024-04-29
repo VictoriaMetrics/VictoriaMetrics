@@ -838,6 +838,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | STATS bY (foo, b.a/r, "b az") count(*) XYz`, `* | stats by (foo, "b.a/r", "b az") count(*) as XYz`)
 	f(`* | stats by() COUNT(x, 'a).b,c|d') as qwert`, `* | stats count(x, "a).b,c|d") as qwert`)
 
+	// stats pipe sum
+	f(`* | stats Sum(foo) bar`, `* | stats sum(foo) as bar`)
+	f(`* | stats BY(x, y, ) SUM(foo,bar,) bar`, `* | stats by (x, y) sum(foo, bar) as bar`)
+
 	// stats pipe uniq
 	f(`* | stats uniq(foo) bar`, `* | stats uniq(foo) as bar`)
 	f(`* | stats by(x, y) uniq(foo,bar) as baz`, `* | stats by (x, y) uniq(foo, bar) as baz`)
@@ -1090,9 +1094,15 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | stats count() as`)
 	f(`foo | stats count() as |`)
 
+	// invalid stats sum
+	f(`foo | stats sum`)
+	f(`foo | stats sum()`)
+	f(`foo | stats sum() as abc`)
+
 	// invalid stats uniq
 	f(`foo | stats uniq`)
 	f(`foo | stats uniq()`)
+	f(`foo | stats uniq() as abc`)
 
 	// invalid by clause
 	f(`foo | stats by`)

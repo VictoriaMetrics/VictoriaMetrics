@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -603,6 +604,12 @@ func parseStatsFunc(lex *lexer) (statsFunc, error) {
 			return nil, fmt.Errorf("cannot parse 'uniq' func: %w", err)
 		}
 		return sfu, nil
+	case lex.isKeyword("sum"):
+		sfs, err := parseStatsFuncSum(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'sum' func: %w", err)
+		}
+		return sfs, nil
 	default:
 		return nil, fmt.Errorf("unknown stats func %q", lex.token)
 	}
@@ -694,6 +701,142 @@ func (sfcp *statsFuncCountProcessor) mergeState(sfp statsFuncProcessor) {
 func (sfcp *statsFuncCountProcessor) finalizeStats() (string, string) {
 	value := strconv.FormatUint(sfcp.rowsCount, 10)
 	return sfcp.sfc.resultName, value
+}
+
+func parseStatsFuncCount(lex *lexer) (*statsFuncCount, error) {
+	lex.nextToken()
+	fields, err := parseFieldNamesInParens(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse 'count' args: %w", err)
+	}
+	resultName, err := parseResultName(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse result name: %w", err)
+	}
+	sfc := &statsFuncCount{
+		fields:       fields,
+		containsStar: slices.Contains(fields, "*"),
+		resultName:   resultName,
+	}
+	return sfc, nil
+}
+
+type statsFuncSum struct {
+	fields       []string
+	containsStar bool
+	resultName   string
+}
+
+func (sfs *statsFuncSum) String() string {
+	return "sum(" + fieldNamesString(sfs.fields) + ") as " + quoteTokenIfNeeded(sfs.resultName)
+}
+
+func (sfs *statsFuncSum) neededFields() []string {
+	return sfs.fields
+}
+
+func (sfs *statsFuncSum) newStatsFuncProcessor() (statsFuncProcessor, int) {
+	sfsp := &statsFuncSumProcessor{
+		sfs: sfs,
+	}
+	return sfsp, int(unsafe.Sizeof(*sfsp))
+}
+
+type statsFuncSumProcessor struct {
+	sfs *statsFuncSum
+
+	sum float64
+}
+
+func (sfsp *statsFuncSumProcessor) updateStatsForAllRows(timestamps []int64, columns []BlockColumn) int {
+	if sfsp.sfs.containsStar {
+		// Sum all the columns
+		for _, c := range columns {
+			sfsp.sum += sumValues(c.Values)
+		}
+		return 0
+	}
+
+	// Sum the requested columns
+	for _, field := range sfsp.sfs.fields {
+		if idx := getBlockColumnIndex(columns, field); idx >= 0 {
+			sfsp.sum += sumValues(columns[idx].Values)
+		}
+	}
+	return 0
+}
+
+func sumValues(values []string) float64 {
+	sum := float64(0)
+	f := float64(0)
+	for i, v := range values {
+		if i == 0 || values[i-1] != v {
+			f, _ = tryParseFloat64(v)
+			if math.IsNaN(f) {
+				// Ignore NaN values, since this is the expected behaviour by most users.
+				f = 0
+			}
+		}
+		sum += f
+	}
+	return sum
+}
+
+func (sfsp *statsFuncSumProcessor) updateStatsForRow(_ []int64, columns []BlockColumn, rowIdx int) int {
+	if sfsp.sfs.containsStar {
+		// Sum all the fields for the given row
+		for _, c := range columns {
+			v := c.Values[rowIdx]
+			f, _ := tryParseFloat64(v)
+			if !math.IsNaN(f) {
+				sfsp.sum += f
+			}
+		}
+		return 0
+	}
+
+	// Sum only the given fields for the given row
+	for _, field := range sfsp.sfs.fields {
+		if idx := getBlockColumnIndex(columns, field); idx >= 0 {
+			v := columns[idx].Values[rowIdx]
+			f, _ := tryParseFloat64(v)
+			if !math.IsNaN(f) {
+				sfsp.sum += f
+			}
+		}
+	}
+	return 0
+}
+
+func (sfsp *statsFuncSumProcessor) mergeState(sfp statsFuncProcessor) {
+	src := sfp.(*statsFuncSumProcessor)
+	sfsp.sum += src.sum
+}
+
+func (sfsp *statsFuncSumProcessor) finalizeStats() (string, string) {
+	value := strconv.FormatFloat(sfsp.sum, 'g', -1, 64)
+	return sfsp.sfs.resultName, value
+}
+
+func parseStatsFuncSum(lex *lexer) (*statsFuncSum, error) {
+	lex.nextToken()
+	fields, err := parseFieldNamesInParens(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse 'sum' args: %w", err)
+	}
+	if len(fields) == 0 {
+		return nil, fmt.Errorf("'sum' must contain at least one arg")
+	}
+	resultName, err := parseResultName(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse result name: %w", err)
+	}
+	sfs := &statsFuncSum{
+		fields:       fields,
+		containsStar: slices.Contains(fields, "*"),
+		resultName:   resultName,
+	}
+	return sfs, nil
 }
 
 type statsFuncUniq struct {
@@ -940,24 +1083,6 @@ func parseStatsFuncUniq(lex *lexer) (*statsFuncUniq, error) {
 		resultName:   resultName,
 	}
 	return sfu, nil
-}
-
-func parseStatsFuncCount(lex *lexer) (*statsFuncCount, error) {
-	lex.nextToken()
-	fields, err := parseFieldNamesInParens(lex)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse 'count' args: %w", err)
-	}
-	resultName, err := parseResultName(lex)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse result name: %w", err)
-	}
-	sfc := &statsFuncCount{
-		fields:       fields,
-		containsStar: slices.Contains(fields, "*"),
-		resultName:   resultName,
-	}
-	return sfc, nil
 }
 
 func parseResultName(lex *lexer) (string, error) {

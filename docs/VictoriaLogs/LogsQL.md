@@ -1072,30 +1072,39 @@ See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) fo
 LogsQL supports calculating the following stats:
 
 - The number of matching log entries. Examples:
-  - `error | stats count() as errors_total` returns the number of log messages containing the `error` [word](#word).
-  - `error | stats by (_stream) count() as errors_by_stream` returns the number of log messages containing the `error` [word](#word)
-  grouped by [`_stream`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
-  - `error | stats by (datacenter, namespace) count(trace_id, user_id) as errors_with_trace_and_user` returns the number of log messages containing the `error` [word](#word),
+  - `error | stats count() as errors_total` returns the number of [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `error` [word](#word).
+  - `error | stats by (_stream) count() as errors_by_stream` returns the number of [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+  with the `error` [word](#word) grouped by [`_stream`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
+  - `error | stats by (datacenter, namespace) count(trace_id, user_id) as errors_with_trace_and_user` returns the number
+  of [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)  containing the `error` [word](#word),
   which contain non-empty `trace_id` or `user_id` [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model), grouped by `datacenter` and `namespace` fields.
 
 - The number of unique values for the given set of [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). Examples:
   - `error | stats uniq(client_ip) as unique_user_ips` returns the number of unique values for `client_ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-  across log messages with the `error` [word](#word).
+  across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `error` [word](#word).
   - `error | stats by (app) uniq(path, host) as unique_path_hosts` - returns the number of unique `(path, host)` pairs
-  for [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) across log messages with the `error` [word](#word),
-  grouped by `app` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-  - `error | fields path, host | stats uniq(*)` - returns the number of unique `(path, host)` pairs
-  for [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) across log messages with the `error` [word](#word).
+  for [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+  with the `error` [word](#word), grouped by `app` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+  - `error | fields path, host | stats uniq(*) unique_path_hosts` - returns the number of unique `(path, host)` pairs
+  for [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+  with the `error` [word](#word).
 
-Stats' calculation can be combined in a single query. For example, the following query calculates the number of log messages with the `error` [word](#word),
-the number of unique values for `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) and the number of unique values
-for `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model), grouped by `namespace` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
+- Sum for the given [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). Examples:
+  - `error | stats sum(duration) duration_total` - returns the sum of `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values
+  across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `error` [word](#word).
+  - `GET | stats by (path) sum(response_size)` - returns the sum of `response_size` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values
+  across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `GET` [word](#word), grouped
+  by `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
+
+Stats calculations can be combined. For example, the following query calculates the number of log messages with the `error` [word](#word),
+the number of unique values for `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) and the sum of `duration`
+[field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model), grouped by `namespace` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
 
 ```logsql
 error | stats by (namespace)
   count() as errors_total,
   uniq(ip) as unique_ips,
-  uniq(path) as unique_paths
+  sum(duration) as duration_sum
 ```
 
 LogsQL will support calculating the following additional stats based on the [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
