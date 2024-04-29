@@ -72,45 +72,6 @@ func (sf *streamFilter) apply(bs *blockSearch, bm *bitmap) {
 	}
 }
 
-// timeFilter filters by time.
-//
-// It is expressed as `_time:(start, end]` in LogsQL.
-type timeFilter struct {
-	minTimestamp int64
-	maxTimestamp int64
-
-	stringRepr string
-}
-
-func (tf *timeFilter) String() string {
-	return "_time:" + tf.stringRepr
-}
-
-func (tf *timeFilter) apply(bs *blockSearch, bm *bitmap) {
-	minTimestamp := tf.minTimestamp
-	maxTimestamp := tf.maxTimestamp
-
-	if minTimestamp > maxTimestamp {
-		bm.resetBits()
-		return
-	}
-
-	th := bs.bsw.bh.timestampsHeader
-	if minTimestamp > th.maxTimestamp || maxTimestamp < th.minTimestamp {
-		bm.resetBits()
-		return
-	}
-	if minTimestamp <= th.minTimestamp && maxTimestamp >= th.maxTimestamp {
-		return
-	}
-
-	timestamps := bs.getTimestamps()
-	bm.forEachSetBit(func(idx int) bool {
-		ts := timestamps[idx]
-		return ts >= minTimestamp && ts <= maxTimestamp
-	})
-}
-
 // sequenceFilter matches an ordered sequence of phrases
 //
 // Example LogsQL: `fieldName:seq(foo, "bar baz")`

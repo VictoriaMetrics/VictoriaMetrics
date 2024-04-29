@@ -86,14 +86,14 @@ func TestParseTimeDuration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		tf, ok := q.f.(*timeFilter)
+		ft, ok := q.f.(*filterTime)
 		if !ok {
-			t.Fatalf("unexpected filter; got %T; want *timeFilter; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter; got %T; want *filterTime; filter: %s", q.f, q.f)
 		}
-		if tf.stringRepr != s {
-			t.Fatalf("unexpected string represenation for timeFilter; got %q; want %q", tf.stringRepr, s)
+		if ft.stringRepr != s {
+			t.Fatalf("unexpected string represenation for filterTime; got %q; want %q", ft.stringRepr, s)
 		}
-		duration := time.Duration(tf.maxTimestamp - tf.minTimestamp)
+		duration := time.Duration(ft.maxTimestamp - ft.minTimestamp)
 		if duration != durationExpected {
 			t.Fatalf("unexpected duration; got %s; want %s", duration, durationExpected)
 		}
@@ -114,18 +114,18 @@ func TestParseTimeRange(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		tf, ok := q.f.(*timeFilter)
+		ft, ok := q.f.(*filterTime)
 		if !ok {
-			t.Fatalf("unexpected filter; got %T; want *timeFilter; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter; got %T; want *filterTime; filter: %s", q.f, q.f)
 		}
-		if tf.stringRepr != s {
-			t.Fatalf("unexpected string represenation for timeFilter; got %q; want %q", tf.stringRepr, s)
+		if ft.stringRepr != s {
+			t.Fatalf("unexpected string represenation for filterTime; got %q; want %q", ft.stringRepr, s)
 		}
-		if tf.minTimestamp != minTimestampExpected {
-			t.Fatalf("unexpected minTimestamp; got %s; want %s", timestampToString(tf.minTimestamp), timestampToString(minTimestampExpected))
+		if ft.minTimestamp != minTimestampExpected {
+			t.Fatalf("unexpected minTimestamp; got %s; want %s", timestampToString(ft.minTimestamp), timestampToString(minTimestampExpected))
 		}
-		if tf.maxTimestamp != maxTimestampExpected {
-			t.Fatalf("unexpected maxTimestamp; got %s; want %s", timestampToString(tf.maxTimestamp), timestampToString(maxTimestampExpected))
+		if ft.maxTimestamp != maxTimestampExpected {
+			t.Fatalf("unexpected maxTimestamp; got %s; want %s", timestampToString(ft.maxTimestamp), timestampToString(maxTimestampExpected))
 		}
 	}
 

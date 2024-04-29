@@ -432,7 +432,7 @@ func parseFilterForPhrase(lex *lexer, phrase, fieldName string) (filter, error) 
 	}
 	switch fieldName {
 	case "_time":
-		return parseTimeFilterWithOffset(lex)
+		return parseFilterTimeWithOffset(lex)
 	case "_stream":
 		return parseStreamFilter(lex)
 	default:
@@ -812,30 +812,30 @@ func startsWithYear(s string) bool {
 	return c == '-' || c == '+' || c == 'Z' || c == 'z'
 }
 
-func parseTimeFilterWithOffset(lex *lexer) (*timeFilter, error) {
-	tf, err := parseTimeFilter(lex)
+func parseFilterTimeWithOffset(lex *lexer) (*filterTime, error) {
+	ft, err := parseFilterTime(lex)
 	if err != nil {
 		return nil, err
 	}
 	if !lex.isKeyword("offset") {
-		return tf, nil
+		return ft, nil
 	}
 	if !lex.mustNextToken() {
-		return nil, fmt.Errorf("missing offset for _time filter %s", tf)
+		return nil, fmt.Errorf("missing offset for _time filter %s", ft)
 	}
 	s := getCompoundToken(lex)
 	d, err := promutils.ParseDuration(s)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse offset for _time filter %s: %w", tf, err)
+		return nil, fmt.Errorf("cannot parse offset for _time filter %s: %w", ft, err)
 	}
 	offset := int64(d)
-	tf.minTimestamp -= offset
-	tf.maxTimestamp -= offset
-	tf.stringRepr += " offset " + s
-	return tf, nil
+	ft.minTimestamp -= offset
+	ft.maxTimestamp -= offset
+	ft.stringRepr += " offset " + s
+	return ft, nil
 }
 
-func parseTimeFilter(lex *lexer) (*timeFilter, error) {
+func parseFilterTime(lex *lexer) (*filterTime, error) {
 	startTimeInclude := false
 	switch {
 	case lex.isKeyword("["):
@@ -853,13 +853,13 @@ func parseTimeFilter(lex *lexer) (*timeFilter, error) {
 			}
 			startTime := int64(t * 1e9)
 			endTime := getMatchingEndTime(startTime, s)
-			tf := &timeFilter{
+			ft := &filterTime{
 				minTimestamp: startTime,
 				maxTimestamp: endTime,
 
 				stringRepr: s,
 			}
-			return tf, nil
+			return ft, nil
 		}
 		// Parse _time:duration, which transforms to '_time:(now-duration, now]'
 		d, err := promutils.ParseDuration(s)
@@ -869,13 +869,13 @@ func parseTimeFilter(lex *lexer) (*timeFilter, error) {
 		if d < 0 {
 			d = -d
 		}
-		tf := &timeFilter{
+		ft := &filterTime{
 			minTimestamp: lex.currentTimestamp - int64(d),
 			maxTimestamp: lex.currentTimestamp,
 
 			stringRepr: s,
 		}
-		return tf, nil
+		return ft, nil
 	}
 	if !lex.mustNextToken() {
 		return nil, fmt.Errorf("missing start time in _time filter")
@@ -926,13 +926,13 @@ func parseTimeFilter(lex *lexer) (*timeFilter, error) {
 		endTime--
 	}
 
-	tf := &timeFilter{
+	ft := &filterTime{
 		minTimestamp: startTime,
 		maxTimestamp: endTime,
 
 		stringRepr: stringRepr,
 	}
-	return tf, nil
+	return ft, nil
 }
 
 func getMatchingEndTime(startTime int64, stringRepr string) int64 {

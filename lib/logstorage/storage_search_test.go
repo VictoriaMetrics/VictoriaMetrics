@@ -379,7 +379,7 @@ func TestStorageSearch(t *testing.T) {
 
 	getBaseFilter := func(minTimestamp, maxTimestamp int64, sf *StreamFilter) filter {
 		var filters []filter
-		filters = append(filters, &timeFilter{
+		filters = append(filters, &filterTime{
 			minTimestamp: minTimestamp,
 			maxTimestamp: maxTimestamp,
 		})
