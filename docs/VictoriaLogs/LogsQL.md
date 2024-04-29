@@ -1079,7 +1079,7 @@ LogsQL supports calculating the following stats:
   of [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)  containing the `error` [word](#word),
   which contain non-empty `trace_id` or `user_id` [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model), grouped by `datacenter` and `namespace` fields.
 
-- The number of unique values for the given set of [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). Examples:
+- The number of non-empty unique values for the given set of [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). Examples:
   - `error | stats uniq(client_ip) as unique_user_ips` returns the number of unique values for `client_ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
   across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `error` [word](#word).
   - `error | stats by (app) uniq(path, host) as unique_path_hosts` - returns the number of unique `(path, host)` pairs
@@ -1089,7 +1089,7 @@ LogsQL supports calculating the following stats:
   for [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
   with the `error` [word](#word).
 
-- Sum for the given [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). Examples:
+- Sum for the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values. Non-numeric values are ignored. Examples:
   - `error | stats sum(duration) duration_total` - returns the sum of `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values
   across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `error` [word](#word).
   - `GET | stats by (path) sum(response_size)` - returns the sum of `response_size` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values
