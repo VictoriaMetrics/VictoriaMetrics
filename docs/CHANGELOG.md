@@ -69,7 +69,8 @@ Released at 2024-04-26
 
 Released at 2024-04-11
 
-**Update note 1: This release contains the issue which could lead to extra CPU usage of storage component in ENT distribution of VictoriaMetrics. The issue is caused by [downsampling per distinct sets of time series](https://docs.victoriametrics.com/#downsampling) feature introduced in 1.100.0 ENT version. Please, rollback [v1.98.0](https://docs.victoriametrics.com/changelog/#v1980) ENT version if you're affected.**
+**Update note 1: This release contains the issue which could lead to extra CPU usage of storage component in ENT distribution of VictoriaMetrics. The issue is caused by [downsampling per distinct sets of time series](https://docs.victoriametrics.com/#downsampling) feature introduced in 1.100.0 ENT version. Please, upgrade to [v1.101.0](https://docs.victoriametrics.com/changelog/#v11010) or rollback to [v1.98.0](https://docs.victoriametrics.com/changelog/#v1980) ENT version if you're affected.**
+
 **Update note 2: When upgrading to this release from [v1.99.0](https://docs.victoriametrics.com/changelog/#v1990) or [v1.100.0](https://docs.victoriametrics.com/changelog/#v11000) it is recommended to reset caches stored on disk according to [these](https://docs.victoriametrics.com/single-server-victoriametrics/#cache-removal) docs.**
 
 * FEATURE: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): allow specifying custom backup interval via `-backupInterval` command-line flag. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5966).
@@ -81,7 +82,7 @@ Released at 2024-04-11
 
 Released at 2024-04-04
 
-**This release contains [the issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959), which can prevent from storing data for new time series under high rate of search queries. Please rollback to [v1.98.0](https://docs.victoriametrics.com/changelog/#v1980) or upgrade to [v1.100.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.100.1).**
+**This release contains [the issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959), which can prevent from storing data for new time series under high rate of search queries. Please rollback to [v1.98.0](https://docs.victoriametrics.com/changelog/#v1980) or upgrade to [v1.101.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.101.0).**
 
 **Update note 1: the `-datasource.lookback` command-line flag at `vmalert` is no-op starting from this release. This flag will be removed in the future, so please switch to [`eval_delay` option](https://docs.victoriametrics.com/vmalert/#groups). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155) for more details.**
 
@@ -139,7 +140,7 @@ Released at 2024-04-04
 
 Released at 2024-03-01
 
-**This release contains [the issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959), which can prevent from storing data for new time series under high rate of search queries. Please rollback to [v1.98.0](https://docs.victoriametrics.com/changelog/#v1980) or upgrade to [v1.100.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.100.1).**
+**This release contains [the issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959), which can prevent from storing data for new time series under high rate of search queries. Please rollback to [v1.98.0](https://docs.victoriametrics.com/changelog/#v1980) or upgrade to [v1.101.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.101.0).**
 
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/metricsql/): propagate [label filters](https://docs.victoriametrics.com/keyconcepts/#filtering) via all the [label manipulation functions](https://docs.victoriametrics.com/metricsql/#label-manipulation-functions). For example, `label_del(some_metric{job="foo"}, "instance") + other_metric{pod="bar"}` is now transformed to `label_del(some_metric{job="foo",pod="bar"}, "instance") + other_metric{job="foo",pod="bar"}`. This should reduce the amounts of time series processed during query execution.
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/metricsql/): add [count_values_over_time](https://docs.victoriametrics.com/metricsql/#count_values_over_time) function. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5847).
