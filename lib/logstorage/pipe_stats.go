@@ -72,7 +72,7 @@ func (ps *pipeStats) String() string {
 	}
 	a := make([]string, len(ps.funcs))
 	for i, f := range ps.funcs {
-		a[i] = f.String() + " as " + ps.resultNames[i]
+		a[i] = f.String() + " as " + quoteTokenIfNeeded(ps.resultNames[i])
 	}
 	s += strings.Join(a, ", ")
 	return s
