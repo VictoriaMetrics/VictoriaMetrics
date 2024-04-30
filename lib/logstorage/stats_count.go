@@ -12,12 +12,10 @@ import (
 type statsCount struct {
 	fields       []string
 	containsStar bool
-
-	resultName string
 }
 
 func (sc *statsCount) String() string {
-	return "count(" + fieldNamesString(sc.fields) + ") as " + quoteTokenIfNeeded(sc.resultName)
+	return "count(" + fieldNamesString(sc.fields) + ")"
 }
 
 func (sc *statsCount) neededFields() []string {
@@ -192,9 +190,8 @@ func (scp *statsCountProcessor) mergeState(sfp statsProcessor) {
 	scp.rowsCount += src.rowsCount
 }
 
-func (scp *statsCountProcessor) finalizeStats() (string, string) {
-	value := strconv.FormatUint(scp.rowsCount, 10)
-	return scp.sc.resultName, value
+func (scp *statsCountProcessor) finalizeStats() string {
+	return strconv.FormatUint(scp.rowsCount, 10)
 }
 
 func parseStatsCount(lex *lexer) (*statsCount, error) {
@@ -203,14 +200,9 @@ func parseStatsCount(lex *lexer) (*statsCount, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse 'count' args: %w", err)
 	}
-	resultName, err := parseResultName(lex)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse result name: %w", err)
-	}
 	sc := &statsCount{
 		fields:       fields,
 		containsStar: slices.Contains(fields, "*"),
-		resultName:   resultName,
 	}
 	return sc, nil
 }

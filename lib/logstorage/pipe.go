@@ -27,7 +27,8 @@ type pipeProcessor interface {
 	// The workerID is the id of the worker goroutine, which calls the writeBlock.
 	// It is in the range 0 ... workersCount-1 .
 	//
-	// It is forbidden to hold references br after returning from writeBlock, since the caller re-uses it.
+	// It is OK to modify br contents inside writeBlock. The caller mustn't rely on br contents after writeBlock call.
+	// It is forbidden to hold references to br after returning from writeBlock, since the caller may re-use it.
 	//
 	// If any error occurs at writeBlock, then cancel() must be called by pipeProcessor in order to notify worker goroutines
 	// to stop sending new data. The occurred error must be returned from flush().

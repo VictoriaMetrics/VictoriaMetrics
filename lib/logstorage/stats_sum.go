@@ -11,11 +11,10 @@ import (
 type statsSum struct {
 	fields       []string
 	containsStar bool
-	resultName   string
 }
 
 func (ss *statsSum) String() string {
-	return "sum(" + fieldNamesString(ss.fields) + ") as " + quoteTokenIfNeeded(ss.resultName)
+	return "sum(" + fieldNamesString(ss.fields) + ")"
 }
 
 func (ss *statsSum) neededFields() []string {
@@ -80,9 +79,8 @@ func (ssp *statsSumProcessor) mergeState(sfp statsProcessor) {
 	ssp.sum += src.sum
 }
 
-func (ssp *statsSumProcessor) finalizeStats() (string, string) {
-	value := strconv.FormatFloat(ssp.sum, 'f', -1, 64)
-	return ssp.ss.resultName, value
+func (ssp *statsSumProcessor) finalizeStats() string {
+	return strconv.FormatFloat(ssp.sum, 'f', -1, 64)
 }
 
 func parseStatsSum(lex *lexer) (*statsSum, error) {
@@ -94,14 +92,9 @@ func parseStatsSum(lex *lexer) (*statsSum, error) {
 	if len(fields) == 0 {
 		return nil, fmt.Errorf("'sum' must contain at least one arg")
 	}
-	resultName, err := parseResultName(lex)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse result name: %w", err)
-	}
 	ss := &statsSum{
 		fields:       fields,
 		containsStar: slices.Contains(fields, "*"),
-		resultName:   resultName,
 	}
 	return ss, nil
 }

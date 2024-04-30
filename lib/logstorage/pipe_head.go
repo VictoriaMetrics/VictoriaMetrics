@@ -5,6 +5,9 @@ import (
 	"sync/atomic"
 )
 
+// pipeHead implements '| head ...' pipe.
+//
+// See https://docs.victoriametrics.com/victorialogs/logsql/#limiters
 type pipeHead struct {
 	n uint64
 }
@@ -33,31 +36,31 @@ type pipeHeadProcessor struct {
 	rowsProcessed atomic.Uint64
 }
 
-func (hpp *pipeHeadProcessor) writeBlock(workerID uint, br *blockResult) {
-	rowsProcessed := hpp.rowsProcessed.Add(uint64(len(br.timestamps)))
-	if rowsProcessed <= hpp.ph.n {
+func (php *pipeHeadProcessor) writeBlock(workerID uint, br *blockResult) {
+	rowsProcessed := php.rowsProcessed.Add(uint64(len(br.timestamps)))
+	if rowsProcessed <= php.ph.n {
 		// Fast path - write all the rows to ppBase.
-		hpp.ppBase.writeBlock(workerID, br)
+		php.ppBase.writeBlock(workerID, br)
 		return
 	}
 
 	// Slow path - overflow. Write the remaining rows if needed.
 	rowsProcessed -= uint64(len(br.timestamps))
-	if rowsProcessed >= hpp.ph.n {
+	if rowsProcessed >= php.ph.n {
 		// Nothing to write. There is no need in cancel() call, since it has been called by another goroutine.
 		return
 	}
 
 	// Write remaining rows.
-	keepRows := hpp.ph.n - rowsProcessed
+	keepRows := php.ph.n - rowsProcessed
 	br.truncateRows(int(keepRows))
-	hpp.ppBase.writeBlock(workerID, br)
+	php.ppBase.writeBlock(workerID, br)
 
 	// Notify the caller that it should stop passing more data to writeBlock().
-	hpp.cancel()
+	php.cancel()
 }
 
-func (hpp *pipeHeadProcessor) flush() error {
+func (php *pipeHeadProcessor) flush() error {
 	return nil
 }
 

@@ -316,6 +316,32 @@ func (br *blockResult) reset() {
 	br.cs = cs[:0]
 }
 
+func (br *blockResult) resetRows() {
+	br.buf = br.buf[:0]
+
+	clear(br.valuesBuf)
+	br.valuesBuf = br.valuesBuf[:0]
+
+	br.timestamps = br.timestamps[:0]
+
+	cs := br.getColumns()
+	for i := range cs {
+		cs[i].resetRows()
+	}
+}
+
+func (br *blockResult) addRow(timestamp int64, values []string) {
+	br.timestamps = append(br.timestamps, timestamp)
+
+	cs := br.getColumns()
+	if len(values) != len(cs) {
+		logger.Panicf("BUG: unexpected number of values in a row; got %d; want %d", len(values), len(cs))
+	}
+	for i := range cs {
+		cs[i].addValue(values[i])
+	}
+}
+
 func (br *blockResult) fetchAllColumns(bs *blockSearch, bm *bitmap) {
 	if !br.addStreamColumn(bs) {
 		// Skip the current block, since the associated stream tags are missing.
@@ -573,6 +599,13 @@ func (br *blockResult) addConstColumn(name, value string) {
 	})
 }
 
+func (br *blockResult) addEmptyStringColumn(columnName string) {
+	br.cs = append(br.cs, blockResultColumn{
+		name:      columnName,
+		valueType: valueTypeString,
+	})
+}
+
 func (br *blockResult) updateColumns(columnNames []string) {
 	if br.areSameColumns(columnNames) {
 		// Fast path - nothing to change.
@@ -694,6 +727,10 @@ type blockResultColumn struct {
 
 	// values contain decoded values after getValues() call for the given column
 	values []string
+
+	// buf and valuesBuf are used by addValue() in order to re-use memory across resetRows().
+	buf       []byte
+	valuesBuf []string
 }
 
 func (c *blockResultColumn) reset() {
@@ -704,6 +741,35 @@ func (c *blockResultColumn) reset() {
 	c.dictValues = nil
 	c.encodedValues = nil
 	c.values = nil
+
+	c.buf = c.buf[:0]
+
+	clear(c.valuesBuf)
+	c.valuesBuf = c.valuesBuf[:0]
+}
+
+func (c *blockResultColumn) resetRows() {
+	c.dictValues = nil
+	c.encodedValues = nil
+	c.values = nil
+
+	c.buf = c.buf[:0]
+
+	clear(c.valuesBuf)
+	c.valuesBuf = c.valuesBuf[:0]
+}
+
+func (c *blockResultColumn) addValue(v string) {
+	if c.valueType != valueTypeString {
+		logger.Panicf("BUG: unexpected column type; got %d; want %d", c.valueType, valueTypeString)
+	}
+
+	bufLen := len(c.buf)
+	c.buf = append(c.buf, v...)
+	c.valuesBuf = append(c.valuesBuf, bytesutil.ToUnsafeString(c.buf[bufLen:]))
+
+	c.encodedValues = c.valuesBuf
+	c.values = c.valuesBuf
 }
 
 // getEncodedValues returns encoded values for the given column.

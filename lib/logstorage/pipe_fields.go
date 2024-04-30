@@ -7,6 +7,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
+// pipeFields implements '| fields ...' pipe.
+//
+// See https://docs.victoriametrics.com/victorialogs/logsql/#limiters
 type pipeFields struct {
 	// fields contains list of fields to fetch
 	fields []string
@@ -34,14 +37,14 @@ type pipeFieldsProcessor struct {
 	ppBase pipeProcessor
 }
 
-func (fpp *pipeFieldsProcessor) writeBlock(workerID uint, br *blockResult) {
-	if !fpp.pf.containsStar {
-		br.updateColumns(fpp.pf.fields)
+func (pfp *pipeFieldsProcessor) writeBlock(workerID uint, br *blockResult) {
+	if !pfp.pf.containsStar {
+		br.updateColumns(pfp.pf.fields)
 	}
-	fpp.ppBase.writeBlock(workerID, br)
+	pfp.ppBase.writeBlock(workerID, br)
 }
 
-func (fpp *pipeFieldsProcessor) flush() error {
+func (pfp *pipeFieldsProcessor) flush() error {
 	return nil
 }
 

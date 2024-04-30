@@ -5,6 +5,9 @@ import (
 	"sync/atomic"
 )
 
+// pipeSkip implements '| skip ...' pipe.
+//
+// See https://docs.victoriametrics.com/victorialogs/logsql/#limiters
 type pipeSkip struct {
 	n uint64
 }
@@ -27,24 +30,24 @@ type pipeSkipProcessor struct {
 	rowsProcessed atomic.Uint64
 }
 
-func (spp *pipeSkipProcessor) writeBlock(workerID uint, br *blockResult) {
-	rowsProcessed := spp.rowsProcessed.Add(uint64(len(br.timestamps)))
-	if rowsProcessed <= spp.ps.n {
+func (psp *pipeSkipProcessor) writeBlock(workerID uint, br *blockResult) {
+	rowsProcessed := psp.rowsProcessed.Add(uint64(len(br.timestamps)))
+	if rowsProcessed <= psp.ps.n {
 		return
 	}
 
 	rowsProcessed -= uint64(len(br.timestamps))
-	if rowsProcessed >= spp.ps.n {
-		spp.ppBase.writeBlock(workerID, br)
+	if rowsProcessed >= psp.ps.n {
+		psp.ppBase.writeBlock(workerID, br)
 		return
 	}
 
-	rowsSkip := spp.ps.n - rowsProcessed
+	rowsSkip := psp.ps.n - rowsProcessed
 	br.skipRows(int(rowsSkip))
-	spp.ppBase.writeBlock(workerID, br)
+	psp.ppBase.writeBlock(workerID, br)
 }
 
-func (spp *pipeSkipProcessor) flush() error {
+func (psp *pipeSkipProcessor) flush() error {
 	return nil
 }
 

@@ -13,11 +13,10 @@ import (
 type statsUniq struct {
 	fields       []string
 	containsStar bool
-	resultName   string
 }
 
 func (su *statsUniq) String() string {
-	return "uniq(" + fieldNamesString(su.fields) + ") as " + quoteTokenIfNeeded(su.resultName)
+	return "uniq(" + fieldNamesString(su.fields) + ")"
 }
 
 func (su *statsUniq) neededFields() []string {
@@ -347,10 +346,9 @@ func (sup *statsUniqProcessor) mergeState(sfp statsProcessor) {
 	}
 }
 
-func (sup *statsUniqProcessor) finalizeStats() (string, string) {
+func (sup *statsUniqProcessor) finalizeStats() string {
 	n := uint64(len(sup.m))
-	value := strconv.FormatUint(n, 10)
-	return sup.su.resultName, value
+	return strconv.FormatUint(n, 10)
 }
 
 func parseStatsUniq(lex *lexer) (*statsUniq, error) {
@@ -359,14 +357,9 @@ func parseStatsUniq(lex *lexer) (*statsUniq, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse 'uniq' args: %w", err)
 	}
-	resultName, err := parseResultName(lex)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse result name: %w", err)
-	}
 	su := &statsUniq{
 		fields:       fields,
 		containsStar: slices.Contains(fields, "*"),
-		resultName:   resultName,
 	}
 	return su, nil
 }
