@@ -296,6 +296,7 @@ func (spp *pipeStatsProcessor) flush() error {
 
 	var values []string
 	var br blockResult
+	zeroTimestamps := []int64{0}
 	for key, spg := range m {
 		// m may be quite big, so this loop can take a lot of time and CPU.
 		// Stop processing data as soon as stopCh is closed without wasting additional CPU time.
@@ -321,6 +322,7 @@ func (spp *pipeStatsProcessor) flush() error {
 		}
 
 		br.reset()
+		br.timestamps = zeroTimestamps
 
 		// construct columns for byFields
 		for i, f := range byFields {

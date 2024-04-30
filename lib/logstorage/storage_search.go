@@ -68,7 +68,8 @@ func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 		csDst := brs.cs
 
 		csSrc := br.getColumns()
-		for _, c := range csSrc {
+		for i := range csSrc {
+			c := &csSrc[i]
 			values := c.getValues(br)
 			csDst = append(csDst, BlockColumn{
 				Name:   c.name,
