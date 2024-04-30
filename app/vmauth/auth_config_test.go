@@ -685,6 +685,70 @@ func isSetBool(boolP *bool, expectedValue bool) bool {
 	return *boolP == expectedValue
 }
 
+func TestGetLeastLoadedBackendURL(t *testing.T) {
+	up := mustParseURLs([]string{
+		"http://node1:343",
+		"http://node2:343",
+		"http://node3:343",
+	})
+	up.loadBalancingPolicy = "least_loaded"
+
+	fn := func(ns ...int) {
+		t.Helper()
+		bus := up.bus.Load()
+		pbus := *bus
+		for i, b := range pbus {
+			got := int(b.concurrentRequests.Load())
+			exp := ns[i]
+			if got != exp {
+				t.Fatalf("expected %q to have %d concurrent requests; got %d instead", b.url, exp, got)
+			}
+		}
+	}
+
+	up.getBackendURL()
+	fn(0, 1, 0)
+	up.getBackendURL()
+	fn(0, 1, 1)
+	up.getBackendURL()
+	fn(1, 1, 1)
+
+	up.getBackendURL()
+	up.getBackendURL()
+	fn(1, 2, 2)
+
+	bus := up.bus.Load()
+	pbus := *bus
+	pbus[0].concurrentRequests.Add(2)
+	pbus[2].concurrentRequests.Add(5)
+	fn(3, 2, 7)
+
+	up.getBackendURL()
+	fn(3, 3, 7)
+
+	up.getBackendURL()
+	fn(3, 4, 7)
+
+	up.getBackendURL()
+	fn(4, 4, 7)
+
+	up.getBackendURL()
+	fn(5, 4, 7)
+
+	up.getBackendURL()
+	fn(5, 5, 7)
+
+	up.getBackendURL()
+	fn(6, 5, 7)
+
+	up.getBackendURL()
+	fn(6, 6, 7)
+
+	up.getBackendURL()
+	up.getBackendURL()
+	fn(7, 7, 7)
+}
+
 func getRegexs(paths []string) []*Regex {
 	var sps []*Regex
 	for _, path := range paths {
