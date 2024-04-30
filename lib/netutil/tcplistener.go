@@ -26,6 +26,7 @@ var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable IPv6 for list
 func NewTCPListener(name, addr string, useProxyProtocol bool, tlsConfig *tls.Config) (*TCPListener, error) {
 	var ln net.Listener
 	network := GetTCPNetwork()
+	// check for socket acivation on systemd linux systems
 	listeners, err := activation.ListenersWithNames()
 	if err == nil {
 		saLn, ok := listeners[addr]
