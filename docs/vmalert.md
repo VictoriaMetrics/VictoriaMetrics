@@ -902,6 +902,25 @@ max(vmalert_alerting_rules_last_evaluation_series_fetched) by(group, alertname) 
 See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4039).
 This feature is available only if vmalert is using VictoriaMetrics v1.90 or higher as a datasource.
 
+### Series with the same labelset
+
+vmalert can produce the following error message:
+```
+result contains metrics with the same labelset during evaluation
+```
+
+The error means there is a collision between [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
+during evaluation.
+
+For example, a rule with `expr: {__name__=~"vmalert_alerts_.*"} > 0` returns two distinct time series in response:
+```
+{__name__="vmalert_alerts_pending",job="vmalert",alertname="HostContextSwitching"} 12
+{__name__="vmalert_alerts_firing",job="vmalert",alertname="HostContextSwitching"} 0
+```
+
+As label `__name__` will be dropped during evaluation, leads to duplicated time series.
+To fix this, one could use function like [label_replace](https://docs.victoriametrics.com/metricsql/#label_replace) to preserve the distinct labelset.
+
 ## mTLS protection
 
 By default `vmalert` accepts http requests at `8880` port (this port can be changed via `-httpListenAddr` command-line flags),

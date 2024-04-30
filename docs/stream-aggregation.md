@@ -598,9 +598,6 @@ some_counter:5m_increase / 5m
 
 This is similar to `rate(some_counter[5m])`.
 
-Please note, opposite to [rate](https://docs.victoriametrics.com/metricsql/#rate), `increase` aggregations can be 
-combined safely afterwards. This is helpful when the aggregation is calculated by more than one vmagent.
-
 Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
 or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_interval](#staleness) option.
 
