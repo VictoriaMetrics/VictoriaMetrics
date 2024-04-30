@@ -434,6 +434,12 @@ func parseStatsFunc(lex *lexer) (statsFunc, string, error) {
 			return nil, "", fmt.Errorf("cannot parse 'sum' func: %w", err)
 		}
 		sf = sfs
+	case lex.isKeyword("max"):
+		sms, err := parseStatsMax(lex)
+		if err != nil {
+			return nil, "", fmt.Errorf("cannot parse 'max' func: %w", err)
+		}
+		sf = sms
 	default:
 		return nil, "", fmt.Errorf("unknown stats func %q", lex.token)
 	}

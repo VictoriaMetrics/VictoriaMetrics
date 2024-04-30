@@ -842,6 +842,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats Sum(foo) bar`, `* | stats sum(foo) as bar`)
 	f(`* | stats BY(x, y, ) SUM(foo,bar,) bar`, `* | stats by (x, y) sum(foo, bar) as bar`)
 
+	// stats pipe max
+	f(`* | stats Max(foo) bar`, `* | stats max(foo) as bar`)
+	f(`* | stats BY(x, y, ) MAX(foo,bar,) bar`, `* | stats by (x, y) max(foo, bar) as bar`)
+
 	// stats pipe uniq
 	f(`* | stats uniq(foo) bar`, `* | stats uniq(foo) as bar`)
 	f(`* | stats by(x, y) uniq(foo,bar) as baz`, `* | stats by (x, y) uniq(foo, bar) as baz`)
@@ -1098,6 +1102,11 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | stats sum`)
 	f(`foo | stats sum()`)
 	f(`foo | stats sum() as abc`)
+
+	// invalid stats max
+	f(`foo | stats max`)
+	f(`foo | stats max()`)
+	f(`foo | stats max() as abc`)
 
 	// invalid stats uniq
 	f(`foo | stats uniq`)
