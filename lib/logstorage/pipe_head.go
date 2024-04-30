@@ -33,31 +33,25 @@ type pipeHeadProcessor struct {
 	rowsProcessed atomic.Uint64
 }
 
-func (hpp *pipeHeadProcessor) writeBlock(workerID uint, timestamps []int64, columns []BlockColumn) {
-	rowsProcessed := hpp.rowsProcessed.Add(uint64(len(timestamps)))
+func (hpp *pipeHeadProcessor) writeBlock(workerID uint, br *blockResult) {
+	rowsProcessed := hpp.rowsProcessed.Add(uint64(len(br.timestamps)))
 	if rowsProcessed <= hpp.ph.n {
 		// Fast path - write all the rows to ppBase.
-		hpp.ppBase.writeBlock(workerID, timestamps, columns)
+		hpp.ppBase.writeBlock(workerID, br)
 		return
 	}
 
 	// Slow path - overflow. Write the remaining rows if needed.
-	rowsProcessed -= uint64(len(timestamps))
+	rowsProcessed -= uint64(len(br.timestamps))
 	if rowsProcessed >= hpp.ph.n {
 		// Nothing to write. There is no need in cancel() call, since it has been called by another goroutine.
 		return
 	}
 
 	// Write remaining rows.
-	rowsRemaining := hpp.ph.n - rowsProcessed
-	cs := make([]BlockColumn, len(columns))
-	for i, c := range columns {
-		cDst := &cs[i]
-		cDst.Name = c.Name
-		cDst.Values = c.Values[:rowsRemaining]
-	}
-	timestamps = timestamps[:rowsRemaining]
-	hpp.ppBase.writeBlock(workerID, timestamps, cs)
+	keepRows := hpp.ph.n - rowsProcessed
+	br.truncateRows(int(keepRows))
+	hpp.ppBase.writeBlock(workerID, br)
 
 	// Notify the caller that it should stop passing more data to writeBlock().
 	hpp.cancel()

@@ -466,7 +466,7 @@ func TestStorageSearch(t *testing.T) {
 				if !br.streamID.tenantID.equal(&tenantID) {
 					panic(fmt.Errorf("unexpected tenantID; got %s; want %s", &br.streamID.tenantID, &tenantID))
 				}
-				rowsCountTotal.Add(uint32(br.RowsCount()))
+				rowsCountTotal.Add(uint32(len(br.timestamps)))
 			}
 			s.search(workersCount, so, nil, processBlock)
 
@@ -487,7 +487,7 @@ func TestStorageSearch(t *testing.T) {
 		}
 		var rowsCountTotal atomic.Uint32
 		processBlock := func(_ uint, br *blockResult) {
-			rowsCountTotal.Add(uint32(br.RowsCount()))
+			rowsCountTotal.Add(uint32(len(br.timestamps)))
 		}
 		s.search(workersCount, so, nil, processBlock)
 
@@ -531,7 +531,7 @@ func TestStorageSearch(t *testing.T) {
 				if !br.streamID.tenantID.equal(&tenantID) {
 					panic(fmt.Errorf("unexpected tenantID; got %s; want %s", &br.streamID.tenantID, &tenantID))
 				}
-				rowsCountTotal.Add(uint32(br.RowsCount()))
+				rowsCountTotal.Add(uint32(len(br.timestamps)))
 			}
 			s.search(workersCount, so, nil, processBlock)
 
@@ -560,7 +560,7 @@ func TestStorageSearch(t *testing.T) {
 			if !br.streamID.tenantID.equal(&tenantID) {
 				panic(fmt.Errorf("unexpected tenantID; got %s; want %s", &br.streamID.tenantID, &tenantID))
 			}
-			rowsCountTotal.Add(uint32(br.RowsCount()))
+			rowsCountTotal.Add(uint32(len(br.timestamps)))
 		}
 		s.search(workersCount, so, nil, processBlock)
 
@@ -597,7 +597,7 @@ func TestStorageSearch(t *testing.T) {
 			if !br.streamID.tenantID.equal(&tenantID) {
 				panic(fmt.Errorf("unexpected tenantID; got %s; want %s", &br.streamID.tenantID, &tenantID))
 			}
-			rowsCountTotal.Add(uint32(br.RowsCount()))
+			rowsCountTotal.Add(uint32(len(br.timestamps)))
 		}
 		s.search(workersCount, so, nil, processBlock)
 
@@ -622,7 +622,7 @@ func TestStorageSearch(t *testing.T) {
 		}
 		var rowsCountTotal atomic.Uint32
 		processBlock := func(_ uint, br *blockResult) {
-			rowsCountTotal.Add(uint32(br.RowsCount()))
+			rowsCountTotal.Add(uint32(len(br.timestamps)))
 		}
 		s.search(workersCount, so, nil, processBlock)
 

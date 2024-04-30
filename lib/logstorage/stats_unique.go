@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
-	"strings"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -43,36 +42,38 @@ type statsUniqProcessor struct {
 	keyBuf       []byte
 }
 
-func (sup *statsUniqProcessor) updateStatsForAllRows(timestamps []int64, columns []BlockColumn) int {
+func (sup *statsUniqProcessor) updateStatsForAllRows(br *blockResult) int {
 	fields := sup.su.fields
 	m := sup.m
 
 	stateSizeIncrease := 0
 	if len(fields) == 0 || sup.su.containsStar {
 		// Count unique rows
-		keyBuf := sup.keyBuf
-		for i := range timestamps {
+		columns := br.getColumns()
+		keyBuf := sup.keyBuf[:0]
+		for i := range br.timestamps {
 			seenKey := true
 			for _, c := range columns {
-				values := c.Values
+				values := c.getValues(br)
 				if i == 0 || values[i-1] != values[i] {
 					seenKey = false
 					break
 				}
 			}
 			if seenKey {
+				// This key has been already counted.
 				continue
 			}
 
 			allEmptyValues := true
 			keyBuf = keyBuf[:0]
 			for _, c := range columns {
-				v := c.Values[i]
+				v := c.getValueAtRow(br, i)
 				if v != "" {
 					allEmptyValues = false
 				}
 				// Put column name into key, since every block can contain different set of columns for '*' selector.
-				keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(c.Name))
+				keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(c.name))
 				keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(v))
 			}
 			if allEmptyValues {
@@ -88,39 +89,103 @@ func (sup *statsUniqProcessor) updateStatsForAllRows(timestamps []int64, columns
 		return stateSizeIncrease
 	}
 	if len(fields) == 1 {
-		// Fast path for a single column
-		if idx := getBlockColumnIndex(columns, fields[0]); idx >= 0 {
-			values := columns[idx].Values
-			for i, v := range values {
+		// Fast path for a single column.
+		// The unique key is formed as "<is_time> <value_type>? <encodedValue>",
+		// where <value_type> is skipped if <is_time> == 1.
+		// This guarantees that keys do not clash for different column types acorss blocks.
+		c := br.getColumnByName(fields[0])
+		if c.isTime {
+			// Count unique br.timestamps
+			timestamps := br.timestamps
+			keyBuf := sup.keyBuf[:0]
+			for i, timestamp := range timestamps {
+				if i > 0 && timestamps[i-1] == timestamps[i] {
+					// This timestamp has been already counted.
+					continue
+				}
+				keyBuf = append(keyBuf[:0], 1)
+				keyBuf = encoding.MarshalInt64(keyBuf, timestamp)
+				if _, ok := m[string(keyBuf)]; !ok {
+					m[string(keyBuf)] = struct{}{}
+					stateSizeIncrease += len(keyBuf) + int(unsafe.Sizeof(""))
+				}
+			}
+			sup.keyBuf = keyBuf
+			return stateSizeIncrease
+		}
+		if c.isConst {
+			// count unique const values
+			v := c.encodedValues[0]
+			if v == "" {
+				// Do not count empty values
+				return stateSizeIncrease
+			}
+			keyBuf := sup.keyBuf[:0]
+			keyBuf = append(keyBuf[:0], 0, byte(valueTypeString))
+			keyBuf = append(keyBuf, v...)
+			if _, ok := m[string(keyBuf)]; !ok {
+				m[string(keyBuf)] = struct{}{}
+				stateSizeIncrease += len(keyBuf) + int(unsafe.Sizeof(""))
+			}
+			sup.keyBuf = keyBuf
+			return stateSizeIncrease
+		}
+		if c.valueType == valueTypeDict {
+			// count unique non-zero c.dictValues
+			keyBuf := sup.keyBuf[:0]
+			for i, v := range c.dictValues {
 				if v == "" {
 					// Do not count empty values
 					continue
 				}
-				if i > 0 && values[i-1] == v {
-					continue
-				}
-				if _, ok := m[v]; !ok {
-					vCopy := strings.Clone(v)
-					m[vCopy] = struct{}{}
-					stateSizeIncrease += len(vCopy) + int(unsafe.Sizeof(vCopy))
+				keyBuf = append(keyBuf[:0], 0, byte(valueTypeDict))
+				keyBuf = append(keyBuf, byte(i))
+				if _, ok := m[string(keyBuf)]; !ok {
+					m[string(keyBuf)] = struct{}{}
+					stateSizeIncrease += len(keyBuf) + int(unsafe.Sizeof(""))
 				}
 			}
+			sup.keyBuf = keyBuf
+			return stateSizeIncrease
 		}
+
+		// Count unique values across encodedValues
+		encodedValues := c.getEncodedValues(br)
+		isStringValueType := c.valueType == valueTypeString
+		keyBuf := sup.keyBuf[:0]
+		for i, v := range encodedValues {
+			if isStringValueType && v == "" {
+				// Do not count empty values
+				continue
+			}
+			if i > 0 && encodedValues[i-1] == v {
+				// This value has been already counted.
+				continue
+			}
+			keyBuf = append(keyBuf[:0], 0, byte(c.valueType))
+			keyBuf = append(keyBuf, v...)
+			if _, ok := m[string(keyBuf)]; !ok {
+				m[string(keyBuf)] = struct{}{}
+				stateSizeIncrease += len(keyBuf) + int(unsafe.Sizeof(""))
+			}
+		}
+		keyBuf = sup.keyBuf
 		return stateSizeIncrease
 	}
 
 	// Slow path for multiple columns.
 
 	// Pre-calculate column values for byFields in order to speed up building group key in the loop below.
-	sup.columnValues = appendBlockColumnValues(sup.columnValues[:0], columns, fields, len(timestamps))
+	sup.columnValues = br.appendColumnValues(sup.columnValues[:0], fields)
 	columnValues := sup.columnValues
 
-	keyBuf := sup.keyBuf
-	for i := range timestamps {
+	keyBuf := sup.keyBuf[:0]
+	for i := range br.timestamps {
 		seenKey := true
 		for _, values := range columnValues {
 			if i == 0 || values[i-1] != values[i] {
 				seenKey = false
+				break
 			}
 		}
 		if seenKey {
@@ -149,7 +214,7 @@ func (sup *statsUniqProcessor) updateStatsForAllRows(timestamps []int64, columns
 	return stateSizeIncrease
 }
 
-func (sup *statsUniqProcessor) updateStatsForRow(timestamps []int64, columns []BlockColumn, rowIdx int) int {
+func (sup *statsUniqProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
 	fields := sup.su.fields
 	m := sup.m
 
@@ -158,13 +223,13 @@ func (sup *statsUniqProcessor) updateStatsForRow(timestamps []int64, columns []B
 		// Count unique rows
 		allEmptyValues := true
 		keyBuf := sup.keyBuf[:0]
-		for _, c := range columns {
-			v := c.Values[rowIdx]
+		for _, c := range br.getColumns() {
+			v := c.getValueAtRow(br, rowIdx)
 			if v != "" {
 				allEmptyValues = false
 			}
 			// Put column name into key, since every block can contain different set of columns for '*' selector.
-			keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(c.Name))
+			keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(c.name))
 			keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(v))
 		}
 		sup.keyBuf = keyBuf
@@ -180,19 +245,73 @@ func (sup *statsUniqProcessor) updateStatsForRow(timestamps []int64, columns []B
 		return stateSizeIncrease
 	}
 	if len(fields) == 1 {
-		// Fast path for a single column
-		if idx := getBlockColumnIndex(columns, fields[0]); idx >= 0 {
-			v := columns[idx].Values[rowIdx]
+		// Fast path for a single column.
+		// The unique key is formed as "<is_time> <value_type>? <encodedValue>",
+		// where <value_type> is skipped if <is_time> == 1.
+		// This guarantees that keys do not clash for different column types acorss blocks.
+		c := br.getColumnByName(fields[0])
+		if c.isTime {
+			// Count unique br.timestamps
+			keyBuf := sup.keyBuf[:0]
+			keyBuf = append(keyBuf[:0], 1)
+			keyBuf = encoding.MarshalInt64(keyBuf, br.timestamps[rowIdx])
+			if _, ok := m[string(keyBuf)]; !ok {
+				m[string(keyBuf)] = struct{}{}
+				stateSizeIncrease += len(keyBuf) + int(unsafe.Sizeof(""))
+			}
+			sup.keyBuf = keyBuf
+			return stateSizeIncrease
+		}
+		if c.isConst {
+			// count unique const values
+			v := c.encodedValues[0]
 			if v == "" {
 				// Do not count empty values
 				return stateSizeIncrease
 			}
-			if _, ok := m[v]; !ok {
-				vCopy := strings.Clone(v)
-				m[vCopy] = struct{}{}
-				stateSizeIncrease += len(vCopy) + int(unsafe.Sizeof(vCopy))
+			keyBuf := sup.keyBuf[:0]
+			keyBuf = append(keyBuf[:0], 0, byte(valueTypeString))
+			keyBuf = append(keyBuf, v...)
+			if _, ok := m[string(keyBuf)]; !ok {
+				m[string(keyBuf)] = struct{}{}
+				stateSizeIncrease += len(keyBuf) + int(unsafe.Sizeof(""))
 			}
+			sup.keyBuf = keyBuf
+			return stateSizeIncrease
 		}
+		if c.valueType == valueTypeDict {
+			// count unique non-zero c.dictValues
+			dictIdx := c.encodedValues[rowIdx][0]
+			if c.dictValues[dictIdx] == "" {
+				// Do not count empty values
+				return stateSizeIncrease
+			}
+			keyBuf := sup.keyBuf[:0]
+			keyBuf = append(keyBuf[:0], 0, byte(valueTypeDict))
+			keyBuf = append(keyBuf, dictIdx)
+			if _, ok := m[string(keyBuf)]; !ok {
+				m[string(keyBuf)] = struct{}{}
+				stateSizeIncrease += len(keyBuf) + int(unsafe.Sizeof(""))
+			}
+			sup.keyBuf = keyBuf
+			return stateSizeIncrease
+		}
+
+		// Count unique values across encodedValues
+		encodedValues := c.getEncodedValues(br)
+		v := encodedValues[rowIdx]
+		if c.valueType == valueTypeString && v == "" {
+			// Do not count empty values
+			return stateSizeIncrease
+		}
+		keyBuf := sup.keyBuf[:0]
+		keyBuf = append(keyBuf[:0], 0, byte(c.valueType))
+		keyBuf = append(keyBuf, v...)
+		if _, ok := m[string(keyBuf)]; !ok {
+			m[string(keyBuf)] = struct{}{}
+			stateSizeIncrease += len(keyBuf) + int(unsafe.Sizeof(""))
+		}
+		keyBuf = sup.keyBuf
 		return stateSizeIncrease
 	}
 
@@ -200,10 +319,8 @@ func (sup *statsUniqProcessor) updateStatsForRow(timestamps []int64, columns []B
 	allEmptyValues := true
 	keyBuf := sup.keyBuf[:0]
 	for _, f := range fields {
-		v := ""
-		if idx := getBlockColumnIndex(columns, f); idx >= 0 {
-			v = columns[idx].Values[rowIdx]
-		}
+		c := br.getColumnByName(f)
+		v := c.getValueAtRow(br, rowIdx)
 		if v != "" {
 			allEmptyValues = false
 		}

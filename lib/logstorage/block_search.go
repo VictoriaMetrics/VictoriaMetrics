@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"math"
 	"strconv"
 	"sync"
 	"time"
@@ -274,25 +275,26 @@ func (ih *indexBlockHeader) mustReadBlockHeaders(dst []blockHeader, p *part) []b
 }
 
 type blockResult struct {
-	buf       []byte
+	// buf holds all the bytes behind the requested column values in the block.
+	buf []byte
+
+	// values holds all the requested column values in the block.
 	valuesBuf []string
 
-	// streamID is streamID for the given blockResult
+	// streamID is streamID for the given blockResult.
 	streamID streamID
 
-	// cs contain values for the requested columns.
-	//
-	// The corresponding requested column names are stored at columnsNames.
-	cs []blockResultColumn
-
-	// timestamps contain timestamps for the selected log entries
+	// timestamps contain timestamps for the selected log entries in the block.
 	timestamps []int64
 
-	// columnNamesBuf is used only if all the columns must be fetched.
-	columnNamesBuf []string
+	// csOffset contains cs offset for the requested columns.
+	//
+	// columns with indexes below csOffset are ignored.
+	// This is needed for simplifying data transformations at pipe stages.
+	csOffset int
 
-	// columnNames references the list of names for cs columns.
-	columnNames []string
+	// cs contains requested columns.
+	cs []blockResultColumn
 }
 
 func (br *blockResult) reset() {
@@ -303,65 +305,60 @@ func (br *blockResult) reset() {
 
 	br.streamID.reset()
 
+	br.timestamps = br.timestamps[:0]
+
+	br.csOffset = 0
+
 	cs := br.cs
 	for i := range cs {
 		cs[i].reset()
 	}
 	br.cs = cs[:0]
-
-	br.timestamps = br.timestamps[:0]
-
-	clear(br.columnNamesBuf)
-	br.columnNamesBuf = br.columnNamesBuf[:0]
-
-	br.columnNames = nil
 }
 
 func (br *blockResult) fetchAllColumns(bs *blockSearch, bm *bitmap) {
-	// Add _stream column
-	br.columnNamesBuf = append(br.columnNamesBuf, "_stream")
 	if !br.addStreamColumn(bs) {
 		// Skip the current block, since the associated stream tags are missing.
 		br.reset()
 		return
 	}
 
-	// Add _time column
-	br.columnNamesBuf = append(br.columnNamesBuf, "_time")
 	br.addTimeColumn()
 
 	// Add _msg column
 	v := bs.csh.getConstColumnValue("_msg")
 	if v != "" {
-		br.columnNamesBuf = append(br.columnNamesBuf, "_msg")
-		br.addConstColumn(v)
+		br.addConstColumn("_msg", v)
 	} else if ch := bs.csh.getColumnHeader("_msg"); ch != nil {
-		br.columnNamesBuf = append(br.columnNamesBuf, "_msg")
 		br.addColumn(bs, ch, bm)
+	} else {
+		br.addConstColumn("_msg", "")
 	}
 
+	// Add other const columns
 	for _, cc := range bs.csh.constColumns {
 		if isMsgFieldName(cc.Name) {
 			continue
 		}
-		br.columnNamesBuf = append(br.columnNamesBuf, cc.Name)
-		br.addConstColumn(cc.Value)
+		br.addConstColumn(cc.Name, cc.Value)
 	}
 
+	// Add other non-const columns
 	chs := bs.csh.columnHeaders
 	for i := range chs {
 		ch := &chs[i]
 		if isMsgFieldName(ch.name) {
 			continue
 		}
-		br.columnNamesBuf = append(br.columnNamesBuf, ch.name)
 		br.addColumn(bs, ch, bm)
 	}
-	br.columnNames = br.columnNamesBuf
 }
 
 func (br *blockResult) fetchRequestedColumns(bs *blockSearch, bm *bitmap) {
 	for _, columnName := range bs.bsw.so.resultColumnNames {
+		if columnName == "" {
+			columnName = "_msg"
+		}
 		switch columnName {
 		case "_stream":
 			if !br.addStreamColumn(bs) {
@@ -374,22 +371,14 @@ func (br *blockResult) fetchRequestedColumns(bs *blockSearch, bm *bitmap) {
 		default:
 			v := bs.csh.getConstColumnValue(columnName)
 			if v != "" {
-				br.addConstColumn(v)
-				continue
-			}
-			ch := bs.csh.getColumnHeader(columnName)
-			if ch == nil {
-				br.addConstColumn("")
-			} else {
+				br.addConstColumn(columnName, v)
+			} else if ch := bs.csh.getColumnHeader(columnName); ch != nil {
 				br.addColumn(bs, ch, bm)
+			} else {
+				br.addConstColumn(columnName, "")
 			}
 		}
 	}
-	br.columnNames = bs.bsw.so.resultColumnNames
-}
-
-func (br *blockResult) RowsCount() int {
-	return len(br.timestamps)
 }
 
 func (br *blockResult) mustInit(bs *blockSearch, bm *bitmap) {
@@ -401,13 +390,17 @@ func (br *blockResult) mustInit(bs *blockSearch, bm *bitmap) {
 		// Nothing to initialize for zero matching log entries in the block.
 		return
 	}
-	// Initialize timestamps, since they are used for determining the number of rows in br.RowsCount()
+
+	// Initialize timestamps, since they are required for all the further work with br.
+
 	srcTimestamps := bs.getTimestamps()
 	if bm.areAllBitsSet() {
+		// Fast path - all the rows in the block are selected, so copy all the timestamps without any filtering.
 		br.timestamps = append(br.timestamps[:0], srcTimestamps...)
 		return
 	}
 
+	// Slow path - copy only the needed timestamps to br according to filter results.
 	dstTimestamps := br.timestamps[:0]
 	bm.forEachSetBit(func(idx int) bool {
 		ts := srcTimestamps[idx]
@@ -517,7 +510,12 @@ func (br *blockResult) addColumn(bs *blockSearch, ch *columnHeader, bm *bitmap) 
 	}
 	dictValues = valuesBuf[valuesBufLen:]
 
+	name := ch.name
+	if name == "" {
+		name = "_msg"
+	}
 	br.cs = append(br.cs, blockResultColumn{
+		name:          name,
 		valueType:     ch.valueType,
 		dictValues:    dictValues,
 		encodedValues: encodedValues,
@@ -528,6 +526,7 @@ func (br *blockResult) addColumn(bs *blockSearch, ch *columnHeader, bm *bitmap) 
 
 func (br *blockResult) addTimeColumn() {
 	br.cs = append(br.cs, blockResultColumn{
+		name:   "_time",
 		isTime: true,
 	})
 }
@@ -551,11 +550,11 @@ func (br *blockResult) addStreamColumn(bs *blockSearch) bool {
 	PutStreamTags(st)
 
 	s := bytesutil.ToUnsafeString(bb.B)
-	br.addConstColumn(s)
+	br.addConstColumn("_stream", s)
 	return true
 }
 
-func (br *blockResult) addConstColumn(value string) {
+func (br *blockResult) addConstColumn(name, value string) {
 	buf := br.buf
 	bufLen := len(buf)
 	buf = append(buf, value...)
@@ -568,17 +567,198 @@ func (br *blockResult) addConstColumn(value string) {
 	br.valuesBuf = valuesBuf
 
 	br.cs = append(br.cs, blockResultColumn{
+		name:          name,
 		isConst:       true,
-		valueType:     valueTypeUnknown,
 		encodedValues: valuesBuf[valuesBufLen:],
 	})
 }
 
-// getColumnValues returns values for the column with the given idx.
+func (br *blockResult) updateColumns(columnNames []string) {
+	if br.areSameColumns(columnNames) {
+		// Fast path - nothing to change.
+		return
+	}
+
+	// Slow path - construct the requested columns
+	cs := br.cs
+	csOffset := len(cs)
+	for _, columnName := range columnNames {
+		c := br.getColumnByName(columnName)
+		cs = append(cs, c)
+	}
+	br.csOffset = csOffset
+	br.cs = cs
+}
+
+func (br *blockResult) areSameColumns(columnNames []string) bool {
+	cs := br.getColumns()
+	if len(cs) != len(columnNames) {
+		return false
+	}
+	for i := range cs {
+		if cs[i].name != columnNames[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func (br *blockResult) getColumnByName(columnName string) blockResultColumn {
+	if columnName == "" {
+		columnName = "_msg"
+	}
+
+	cs := br.getColumns()
+	for i := range cs {
+		if cs[i].name == columnName {
+			return cs[i]
+		}
+	}
+
+	return blockResultColumn{
+		name:          columnName,
+		isConst:       true,
+		encodedValues: getEmptyStrings(1),
+	}
+}
+
+func (br *blockResult) getColumns() []blockResultColumn {
+	return br.cs[br.csOffset:]
+}
+
+func (br *blockResult) skipRows(skipRows int) {
+	br.timestamps = append(br.timestamps[:0], br.timestamps[skipRows:]...)
+	cs := br.getColumns()
+	for i := range cs {
+		c := &cs[i]
+		if c.values != nil {
+			c.values = append(c.values[:0], c.values[skipRows:]...)
+		}
+		if c.isConst {
+			continue
+		}
+		if c.encodedValues != nil {
+			c.encodedValues = append(c.encodedValues[:0], c.encodedValues[skipRows:]...)
+		}
+	}
+}
+
+func (br *blockResult) truncateRows(keepRows int) {
+	br.timestamps = br.timestamps[:keepRows]
+	cs := br.getColumns()
+	for i := range cs {
+		c := &cs[i]
+		if c.values != nil {
+			c.values = c.values[:keepRows]
+		}
+		if c.isConst {
+			continue
+		}
+		if c.encodedValues != nil {
+			c.encodedValues = c.encodedValues[:keepRows]
+		}
+	}
+}
+
+func (br *blockResult) appendColumnValues(dst [][]string, columnNames []string) [][]string {
+	for _, columnName := range columnNames {
+		c := br.getColumnByName(columnName)
+		values := c.getValues(br)
+		dst = append(dst, values)
+	}
+	return dst
+}
+
+type blockResultColumn struct {
+	// name is column name.
+	name string
+
+	// isConst is set to true if the column is const.
+	//
+	// The column value is stored in encodedValues[0]
+	isConst bool
+
+	// isTime is set to true if the column contains _time values.
+	//
+	// The column values are stored in blockResult.timestamps
+	isTime bool
+
+	// valueType is the type of non-cost value
+	valueType valueType
+
+	// dictValues contain dictionary values for valueTypeDict column
+	dictValues []string
+
+	// encodedValues contain encoded values for non-const column
+	encodedValues []string
+
+	// values contain decoded values after getValues() call for the given column
+	values []string
+}
+
+func (c *blockResultColumn) reset() {
+	c.name = ""
+	c.isConst = false
+	c.isTime = false
+	c.valueType = valueTypeUnknown
+	c.dictValues = nil
+	c.encodedValues = nil
+	c.values = nil
+}
+
+// getEncodedValues returns encoded values for the given column.
+//
+// The returned encoded values are valid until br.reset() is called.
+func (c *blockResultColumn) getEncodedValues(br *blockResult) []string {
+	if c.encodedValues != nil {
+		return c.encodedValues
+	}
+
+	if !c.isTime {
+		logger.Panicf("BUG: encodedValues may be missing only for _time column; got %q column", c.name)
+	}
+
+	buf := br.buf
+	valuesBuf := br.valuesBuf
+	valuesBufLen := len(valuesBuf)
+
+	for _, timestamp := range br.timestamps {
+		bufLen := len(buf)
+		buf = encoding.MarshalInt64(buf, timestamp)
+		s := bytesutil.ToUnsafeString(buf[bufLen:])
+		valuesBuf = append(valuesBuf, s)
+	}
+
+	c.encodedValues = valuesBuf[valuesBufLen:]
+
+	br.valuesBuf = valuesBuf
+	br.buf = buf
+
+	return c.encodedValues
+}
+
+// getValueAtRow returns value for the value at the given rowIdx.
+//
+// The returned value is valid until br.reset() is called.
+func (c *blockResultColumn) getValueAtRow(br *blockResult, rowIdx int) string {
+	if c.isConst {
+		// Fast path for const column.
+		return c.encodedValues[0]
+	}
+	if c.values != nil {
+		// Fast path, which avoids call overhead for getValues().
+		return c.values[rowIdx]
+	}
+
+	// Slow path - decode all the values and return the given value.
+	values := c.getValues(br)
+	return values[rowIdx]
+}
+
+// getValues returns values for the given column.
 //
 // The returned values are valid until br.reset() is called.
-func (br *blockResult) getColumnValues(idx int) []string {
-	c := &br.cs[idx]
+func (c *blockResultColumn) getValues(br *blockResult) []string {
 	if c.values != nil {
 		return c.values
 	}
@@ -589,6 +769,13 @@ func (br *blockResult) getColumnValues(idx int) []string {
 
 	if c.isConst {
 		v := c.encodedValues[0]
+		if v == "" {
+			// Fast path - return a slice of empty strings without constructing it.
+			c.values = getEmptyStrings(len(br.timestamps))
+			return c.values
+		}
+
+		// Slower path - construct slice of identical values with the len(br.timestamps)
 		for range br.timestamps {
 			valuesBuf = append(valuesBuf, v)
 		}
@@ -694,35 +881,137 @@ func (br *blockResult) getColumnValues(idx int) []string {
 	return c.values
 }
 
-type blockResultColumn struct {
-	// isConst is set to true if the column is const.
-	//
-	// The column value is stored in encodedValues[0]
-	isConst bool
+func (c *blockResultColumn) getFloatValueAtRow(rowIdx int) float64 {
+	if c.isConst {
+		v := c.encodedValues[0]
+		f, _ := tryParseFloat64(v)
+		return f
+	}
+	if c.isTime {
+		return 0
+	}
 
-	// isTime is set to true if the column contains _time values.
-	//
-	// The column values are stored in blockResult.timestamps
-	isTime bool
-
-	// valueType is the type of non-cost value
-	valueType valueType
-
-	// dictValues contain dictionary values for valueTypeDict column
-	dictValues []string
-
-	// encodedValues contain encoded values for non-const column
-	encodedValues []string
-
-	// values contain decoded values after getColumnValues() call for the given column
-	values []string
+	switch c.valueType {
+	case valueTypeString:
+		f, _ := tryParseFloat64(c.encodedValues[rowIdx])
+		return f
+	case valueTypeDict:
+		dictIdx := c.encodedValues[rowIdx][0]
+		f, _ := tryParseFloat64(c.dictValues[dictIdx])
+		return f
+	case valueTypeUint8:
+		return float64(c.encodedValues[rowIdx][0])
+	case valueTypeUint16:
+		b := bytesutil.ToUnsafeBytes(c.encodedValues[rowIdx])
+		return float64(encoding.UnmarshalUint16(b))
+	case valueTypeUint32:
+		b := bytesutil.ToUnsafeBytes(c.encodedValues[rowIdx])
+		return float64(encoding.UnmarshalUint32(b))
+	case valueTypeUint64:
+		b := bytesutil.ToUnsafeBytes(c.encodedValues[rowIdx])
+		return float64(encoding.UnmarshalUint64(b))
+	case valueTypeFloat64:
+		b := bytesutil.ToUnsafeBytes(c.encodedValues[rowIdx])
+		n := encoding.UnmarshalUint64(b)
+		return math.Float64frombits(n)
+	case valueTypeIPv4:
+		return 0
+	case valueTypeTimestampISO8601:
+		return 0
+	default:
+		logger.Panicf("BUG: unknown valueType=%d", c.valueType)
+		return 0
+	}
 }
 
-func (c *blockResultColumn) reset() {
-	c.isConst = false
-	c.isTime = false
-	c.valueType = valueTypeUnknown
-	c.dictValues = nil
-	c.encodedValues = nil
-	c.values = nil
+func (c *blockResultColumn) sumValues(br *blockResult) float64 {
+	if c.isConst {
+		v := c.encodedValues[0]
+		f, _ := tryParseFloat64(v)
+		if f == 0 || math.IsNaN(f) {
+			return 0
+		}
+		return f * float64(len(br.timestamps))
+	}
+	if c.isTime {
+		return 0
+	}
+
+	switch c.valueType {
+	case valueTypeString:
+		sum := float64(0)
+		f := float64(0)
+		values := c.encodedValues
+		for i := range values {
+			if i == 0 || values[i-1] != values[i] {
+				f, _ = tryParseFloat64(values[i])
+			}
+			if !math.IsNaN(f) {
+				sum += f
+			}
+		}
+		return sum
+	case valueTypeDict:
+		a := encoding.GetFloat64s(len(c.dictValues))
+		dictValuesFloat := a.A
+		for i, v := range c.dictValues {
+			f, _ := tryParseFloat64(v)
+			if math.IsNaN(f) {
+				f = 0
+			}
+			dictValuesFloat[i] = f
+		}
+		sum := float64(0)
+		for _, v := range c.encodedValues {
+			dictIdx := v[0]
+			sum += dictValuesFloat[dictIdx]
+		}
+		encoding.PutFloat64s(a)
+		return sum
+	case valueTypeUint8:
+		sum := uint64(0)
+		for _, v := range c.encodedValues {
+			sum += uint64(v[0])
+		}
+		return float64(sum)
+	case valueTypeUint16:
+		sum := uint64(0)
+		for _, v := range c.encodedValues {
+			b := bytesutil.ToUnsafeBytes(v)
+			sum += uint64(encoding.UnmarshalUint16(b))
+		}
+		return float64(sum)
+	case valueTypeUint32:
+		sum := uint64(0)
+		for _, v := range c.encodedValues {
+			b := bytesutil.ToUnsafeBytes(v)
+			sum += uint64(encoding.UnmarshalUint32(b))
+		}
+		return float64(sum)
+	case valueTypeUint64:
+		sum := float64(0)
+		for _, v := range c.encodedValues {
+			b := bytesutil.ToUnsafeBytes(v)
+			sum += float64(encoding.UnmarshalUint64(b))
+		}
+		return sum
+	case valueTypeFloat64:
+		sum := float64(0)
+		for _, v := range c.encodedValues {
+			b := bytesutil.ToUnsafeBytes(v)
+			n := encoding.UnmarshalUint64(b)
+			f := math.Float64frombits(n)
+			if !math.IsNaN(f) {
+				sum += f
+			}
+		}
+		return sum
+	case valueTypeIPv4:
+		return 0
+	case valueTypeTimestampISO8601:
+		return 0
+	default:
+		logger.Panicf("BUG: unknown valueType=%d", c.valueType)
+		return 0
+	}
 }

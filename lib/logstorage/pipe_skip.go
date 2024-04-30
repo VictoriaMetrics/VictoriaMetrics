@@ -27,27 +27,21 @@ type pipeSkipProcessor struct {
 	rowsProcessed atomic.Uint64
 }
 
-func (spp *pipeSkipProcessor) writeBlock(workerID uint, timestamps []int64, columns []BlockColumn) {
-	rowsProcessed := spp.rowsProcessed.Add(uint64(len(timestamps)))
+func (spp *pipeSkipProcessor) writeBlock(workerID uint, br *blockResult) {
+	rowsProcessed := spp.rowsProcessed.Add(uint64(len(br.timestamps)))
 	if rowsProcessed <= spp.ps.n {
 		return
 	}
 
-	rowsProcessed -= uint64(len(timestamps))
+	rowsProcessed -= uint64(len(br.timestamps))
 	if rowsProcessed >= spp.ps.n {
-		spp.ppBase.writeBlock(workerID, timestamps, columns)
+		spp.ppBase.writeBlock(workerID, br)
 		return
 	}
 
-	rowsRemaining := spp.ps.n - rowsProcessed
-	cs := make([]BlockColumn, len(columns))
-	for i, c := range columns {
-		cDst := &cs[i]
-		cDst.Name = c.Name
-		cDst.Values = c.Values[rowsRemaining:]
-	}
-	timestamps = timestamps[rowsRemaining:]
-	spp.ppBase.writeBlock(workerID, timestamps, cs)
+	rowsSkip := spp.ps.n - rowsProcessed
+	br.skipRows(int(rowsSkip))
+	spp.ppBase.writeBlock(workerID, br)
 }
 
 func (spp *pipeSkipProcessor) flush() error {

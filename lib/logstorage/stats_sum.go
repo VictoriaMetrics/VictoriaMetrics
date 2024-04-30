@@ -35,46 +35,28 @@ type statsSumProcessor struct {
 	sum float64
 }
 
-func (ssp *statsSumProcessor) updateStatsForAllRows(timestamps []int64, columns []BlockColumn) int {
+func (ssp *statsSumProcessor) updateStatsForAllRows(br *blockResult) int {
 	if ssp.ss.containsStar {
 		// Sum all the columns
-		for _, c := range columns {
-			ssp.sum += sumValues(c.Values)
+		for _, c := range br.getColumns() {
+			ssp.sum += c.sumValues(br)
 		}
 		return 0
 	}
 
 	// Sum the requested columns
 	for _, field := range ssp.ss.fields {
-		if idx := getBlockColumnIndex(columns, field); idx >= 0 {
-			ssp.sum += sumValues(columns[idx].Values)
-		}
+		c := br.getColumnByName(field)
+		ssp.sum += c.sumValues(br)
 	}
 	return 0
 }
 
-func sumValues(values []string) float64 {
-	sum := float64(0)
-	f := float64(0)
-	for i, v := range values {
-		if i == 0 || values[i-1] != v {
-			f, _ = tryParseFloat64(v)
-			if math.IsNaN(f) {
-				// Ignore NaN values, since this is the expected behaviour by most users.
-				f = 0
-			}
-		}
-		sum += f
-	}
-	return sum
-}
-
-func (ssp *statsSumProcessor) updateStatsForRow(_ []int64, columns []BlockColumn, rowIdx int) int {
+func (ssp *statsSumProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
 	if ssp.ss.containsStar {
 		// Sum all the fields for the given row
-		for _, c := range columns {
-			v := c.Values[rowIdx]
-			f, _ := tryParseFloat64(v)
+		for _, c := range br.getColumns() {
+			f := c.getFloatValueAtRow(rowIdx)
 			if !math.IsNaN(f) {
 				ssp.sum += f
 			}
@@ -84,12 +66,10 @@ func (ssp *statsSumProcessor) updateStatsForRow(_ []int64, columns []BlockColumn
 
 	// Sum only the given fields for the given row
 	for _, field := range ssp.ss.fields {
-		if idx := getBlockColumnIndex(columns, field); idx >= 0 {
-			v := columns[idx].Values[rowIdx]
-			f, _ := tryParseFloat64(v)
-			if !math.IsNaN(f) {
-				ssp.sum += f
-			}
+		c := br.getColumnByName(field)
+		f := c.getFloatValueAtRow(rowIdx)
+		if !math.IsNaN(f) {
+			ssp.sum += f
 		}
 	}
 	return 0

@@ -27,13 +27,13 @@ type pipeProcessor interface {
 	// The workerID is the id of the worker goroutine, which calls the writeBlock.
 	// It is in the range 0 ... workersCount-1 .
 	//
-	// It is forbidden to hold references to columns after returning from writeBlock, since the caller re-uses columns.
+	// It is forbidden to hold references br after returning from writeBlock, since the caller re-uses it.
 	//
 	// If any error occurs at writeBlock, then cancel() must be called by pipeProcessor in order to notify worker goroutines
 	// to stop sending new data. The occurred error must be returned from flush().
 	//
 	// cancel() may be called also when the pipeProcessor decides to stop accepting new data, even if there is no any error.
-	writeBlock(workerID uint, timestamps []int64, columns []BlockColumn)
+	writeBlock(workerID uint, br *blockResult)
 
 	// flush must flush all the data accumulated in the pipeProcessor to the base pipeProcessor.
 	//
@@ -43,14 +43,14 @@ type pipeProcessor interface {
 	flush() error
 }
 
-type defaultPipeProcessor func(workerID uint, timestamps []int64, columns []BlockColumn)
+type defaultPipeProcessor func(workerID uint, br *blockResult)
 
-func newDefaultPipeProcessor(writeBlock func(workerID uint, timestamps []int64, columns []BlockColumn)) pipeProcessor {
+func newDefaultPipeProcessor(writeBlock func(workerID uint, br *blockResult)) pipeProcessor {
 	return defaultPipeProcessor(writeBlock)
 }
 
-func (dpp defaultPipeProcessor) writeBlock(workerID uint, timestamps []int64, columns []BlockColumn) {
-	dpp(workerID, timestamps, columns)
+func (dpp defaultPipeProcessor) writeBlock(workerID uint, br *blockResult) {
+	dpp(workerID, br)
 }
 
 func (dpp defaultPipeProcessor) flush() error {

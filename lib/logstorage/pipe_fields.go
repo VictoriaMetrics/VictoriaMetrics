@@ -34,26 +34,11 @@ type pipeFieldsProcessor struct {
 	ppBase pipeProcessor
 }
 
-func (fpp *pipeFieldsProcessor) writeBlock(workerID uint, timestamps []int64, columns []BlockColumn) {
-	if fpp.pf.containsStar || areSameBlockColumns(columns, fpp.pf.fields) {
-		// Fast path - there is no need in additional transformations before writing the block to ppBase.
-		fpp.ppBase.writeBlock(workerID, timestamps, columns)
-		return
+func (fpp *pipeFieldsProcessor) writeBlock(workerID uint, br *blockResult) {
+	if !fpp.pf.containsStar {
+		br.updateColumns(fpp.pf.fields)
 	}
-
-	// Slow path - construct columns for fpp.pf.fields before writing them to ppBase.
-	brs := getBlockRows()
-	cs := brs.cs
-	for _, f := range fpp.pf.fields {
-		values := getBlockColumnValues(columns, f, len(timestamps))
-		cs = append(cs, BlockColumn{
-			Name:   f,
-			Values: values,
-		})
-	}
-	fpp.ppBase.writeBlock(workerID, timestamps, cs)
-	brs.cs = cs
-	putBlockRows(brs)
+	fpp.ppBase.writeBlock(workerID, br)
 }
 
 func (fpp *pipeFieldsProcessor) flush() error {

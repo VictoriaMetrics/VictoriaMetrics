@@ -203,10 +203,11 @@ func testFilterMatchForStorage(t *testing.T, s *Storage, tenantID TenantID, f fi
 		}
 
 		// Verify columns
-		if len(br.cs) != 1 {
-			t.Fatalf("unexpected number of columns in blockResult; got %d; want 1", len(br.cs))
+		cs := br.getColumns()
+		if len(cs) != 1 {
+			t.Fatalf("unexpected number of columns in blockResult; got %d; want 1", len(cs))
 		}
-		results := br.getColumnValues(0)
+		results := cs[0].getValues(br)
 		if !reflect.DeepEqual(results, expectedResults) {
 			t.Fatalf("unexpected results matched;\ngot\n%q\nwant\n%q", results, expectedResults)
 		}

@@ -63,7 +63,24 @@ func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 
 	workersCount := cgroup.AvailableCPUs()
 
-	pp := newDefaultPipeProcessor(writeBlock)
+	pp := newDefaultPipeProcessor(func(workerID uint, br *blockResult) {
+		brs := getBlockRows()
+		csDst := brs.cs
+
+		csSrc := br.getColumns()
+		for _, c := range csSrc {
+			values := c.getValues(br)
+			csDst = append(csDst, BlockColumn{
+				Name:   c.name,
+				Values: values,
+			})
+		}
+		writeBlock(workerID, br.timestamps, csDst)
+
+		brs.cs = csDst
+		putBlockRows(brs)
+	})
+
 	ppMain := pp
 	stopCh := ctx.Done()
 	cancels := make([]func(), len(q.pipes))
@@ -79,21 +96,7 @@ func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 		pps[i] = pp
 	}
 
-	s.search(workersCount, so, stopCh, func(workerID uint, br *blockResult) {
-		brs := getBlockRows()
-		cs := brs.cs
-
-		for i, columnName := range br.columnNames {
-			cs = append(cs, BlockColumn{
-				Name:   columnName,
-				Values: br.getColumnValues(i),
-			})
-		}
-		pp.writeBlock(workerID, br.timestamps, cs)
-
-		brs.cs = cs
-		putBlockRows(brs)
-	})
+	s.search(workersCount, so, stopCh, pp.writeBlock)
 
 	var errFlush error
 	for i, pp := range pps {
@@ -148,18 +151,6 @@ type BlockColumn struct {
 func (c *BlockColumn) reset() {
 	c.Name = ""
 	c.Values = nil
-}
-
-func areSameBlockColumns(columns []BlockColumn, columnNames []string) bool {
-	if len(columnNames) != len(columns) {
-		return false
-	}
-	for i, name := range columnNames {
-		if columns[i].Name != name {
-			return false
-		}
-	}
-	return true
 }
 
 func getBlockColumnIndex(columns []BlockColumn, columnName string) int {
@@ -237,7 +228,7 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 					}
 
 					bs.search(bsw)
-					if bs.br.RowsCount() > 0 {
+					if len(bs.br.timestamps) > 0 {
 						processBlockResult(workerID, &bs.br)
 					}
 				}

@@ -35,15 +35,15 @@ type statsFunc interface {
 // All the statsProcessor methods are called from a single goroutine at a time,
 // so there is no need in the internal synchronization.
 type statsProcessor interface {
-	// updateStatsForAllRows must update statsProcessor stats from all the rows.
+	// updateStatsForAllRows must update statsProcessor stats for all the rows in br.
 	//
-	// It must return the increase of internal state size in bytes for the statsProcessor.
-	updateStatsForAllRows(timestamps []int64, columns []BlockColumn) int
+	// It must return the change of internal state size in bytes for the statsProcessor.
+	updateStatsForAllRows(br *blockResult) int
 
-	// updateStatsForRow must update statsProcessor stats from the row at rowIndex.
+	// updateStatsForRow must update statsProcessor stats for the row at rowIndex in br.
 	//
-	// It must return the increase of internal state size in bytes for the statsProcessor.
-	updateStatsForRow(timestamps []int64, columns []BlockColumn, rowIndex int) int
+	// It must return the change of internal state size in bytes for the statsProcessor.
+	updateStatsForRow(br *blockResult, rowIndex int) int
 
 	// mergeState must merge sfp state into statsProcessor state.
 	mergeState(sfp statsProcessor)
@@ -149,7 +149,7 @@ type pipeStatsGroup struct {
 	sfps []statsProcessor
 }
 
-func (spp *pipeStatsProcessor) writeBlock(workerID uint, timestamps []int64, columns []BlockColumn) {
+func (spp *pipeStatsProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard := &spp.shards[workerID]
 
 	for shard.stateSizeBudget < 0 {
@@ -170,60 +170,69 @@ func (spp *pipeStatsProcessor) writeBlock(workerID uint, timestamps []int64, col
 	if len(byFields) == 0 {
 		// Fast path - pass all the rows to a single group with empty key.
 		for _, sfp := range shard.getStatsProcessors(nil) {
-			shard.stateSizeBudget -= sfp.updateStatsForAllRows(timestamps, columns)
+			shard.stateSizeBudget -= sfp.updateStatsForAllRows(br)
 		}
 		return
 	}
 	if len(byFields) == 1 {
 		// Special case for grouping by a single column.
-		values := getBlockColumnValues(columns, byFields[0], len(timestamps))
-		if isConstValue(values) {
+		c := br.getColumnByName(byFields[0])
+		if c.isConst {
 			// Fast path for column with constant value.
-			shard.keyBuf = encoding.MarshalBytes(shard.keyBuf[:0], bytesutil.ToUnsafeBytes(values[0]))
+			shard.keyBuf = encoding.MarshalBytes(shard.keyBuf[:0], bytesutil.ToUnsafeBytes(c.encodedValues[0]))
 			for _, sfp := range shard.getStatsProcessors(shard.keyBuf) {
-				shard.stateSizeBudget -= sfp.updateStatsForAllRows(timestamps, columns)
+				shard.stateSizeBudget -= sfp.updateStatsForAllRows(br)
 			}
 			return
 		}
 
 		// Slower path for column with different values.
+		values := c.getValues(br)
 		var sfps []statsProcessor
-		keyBuf := shard.keyBuf
-		for i := range timestamps {
+		keyBuf := shard.keyBuf[:0]
+		for i := range br.timestamps {
 			if i <= 0 || values[i-1] != values[i] {
 				keyBuf = encoding.MarshalBytes(keyBuf[:0], bytesutil.ToUnsafeBytes(values[i]))
 				sfps = shard.getStatsProcessors(keyBuf)
 			}
 			for _, sfp := range sfps {
-				shard.stateSizeBudget -= sfp.updateStatsForRow(timestamps, columns, i)
+				shard.stateSizeBudget -= sfp.updateStatsForRow(br, i)
 			}
 		}
 		shard.keyBuf = keyBuf
 		return
 	}
 
-	// Pre-calculate column values for byFields in order to speed up building group key in the loop below.
-	shard.columnValues = appendBlockColumnValues(shard.columnValues[:0], columns, byFields, len(timestamps))
-	columnValues := shard.columnValues
+	// Verify whether all the 'by (...)' columns are constant.
+	areAllConstColumns := true
+	keyBuf := shard.keyBuf[:0]
+	for _, f := range byFields {
+		c := br.getColumnByName(f)
+		if !c.isConst {
+			areAllConstColumns = false
+			break
+		}
+		keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(c.encodedValues[0]))
+	}
+	shard.keyBuf = keyBuf
 
-	if areConstValues(columnValues) {
-		// Fast path for columns with constant values.
-		keyBuf := shard.keyBuf[:0]
-		for _, values := range columnValues {
-			keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(values[0]))
-		}
+	if areAllConstColumns {
+		// Fast path for constant 'by (...)' columns.
 		for _, sfp := range shard.getStatsProcessors(keyBuf) {
-			shard.stateSizeBudget -= sfp.updateStatsForAllRows(timestamps, columns)
+			shard.stateSizeBudget -= sfp.updateStatsForAllRows(br)
 		}
-		shard.keyBuf = keyBuf
 		return
 	}
 
-	// The slowest path - group by multiple columns.
+	// The slowest path - group by multiple columns with different values across rows.
+
+	// Pre-calculate column values for byFields in order to speed up building group key in the loop below.
+	shard.columnValues = br.appendColumnValues(shard.columnValues[:0], byFields)
+	columnValues := shard.columnValues
+
 	var sfps []statsProcessor
-	keyBuf := shard.keyBuf
-	for i := range timestamps {
-		// verify whether the key for 'by (...)' fields equals the previous key
+	for i := range br.timestamps {
+		// Verify whether the key for 'by (...)' fields equals the previous key
 		sameValue := sfps != nil
 		for _, values := range columnValues {
 			if i <= 0 || values[i-1] != values[i] {
@@ -240,33 +249,10 @@ func (spp *pipeStatsProcessor) writeBlock(workerID uint, timestamps []int64, col
 			sfps = shard.getStatsProcessors(keyBuf)
 		}
 		for _, sfp := range sfps {
-			shard.stateSizeBudget -= sfp.updateStatsForRow(timestamps, columns, i)
+			shard.stateSizeBudget -= sfp.updateStatsForRow(br, i)
 		}
 	}
 	shard.keyBuf = keyBuf
-}
-
-func areConstValues(valuess [][]string) bool {
-	for _, values := range valuess {
-		if !isConstValue(values) {
-			return false
-		}
-	}
-	return true
-}
-
-func isConstValue(values []string) bool {
-	if len(values) == 0 {
-		// Return false, since it is impossible to get values[0] value from empty values.
-		return false
-	}
-	vFirst := values[0]
-	for _, v := range values[1:] {
-		if v != vFirst {
-			return false
-		}
-	}
-	return true
 }
 
 func (spp *pipeStatsProcessor) flush() error {
@@ -282,7 +268,7 @@ func (spp *pipeStatsProcessor) flush() error {
 		shard := &shards[i]
 		for key, spg := range shard.m {
 			// shard.m may be quite big, so this loop can take a lot of time and CPU.
-			// Stop processing data as soon as stopCh is closed without wasting CPU time.
+			// Stop processing data as soon as stopCh is closed without wasting additional CPU time.
 			select {
 			case <-spp.stopCh:
 				return nil
@@ -309,10 +295,10 @@ func (spp *pipeStatsProcessor) flush() error {
 	}
 
 	var values []string
-	var columns []BlockColumn
+	var br blockResult
 	for key, spg := range m {
 		// m may be quite big, so this loop can take a lot of time and CPU.
-		// Stop processing data as soon as stopCh is closed without wasting CPU time.
+		// Stop processing data as soon as stopCh is closed without wasting additional CPU time.
 		select {
 		case <-spp.stopCh:
 			return nil
@@ -334,24 +320,20 @@ func (spp *pipeStatsProcessor) flush() error {
 			logger.Panicf("BUG: unexpected number of values decoded from keyBuf; got %d; want %d", len(values), len(byFields))
 		}
 
+		br.reset()
+
 		// construct columns for byFields
-		columns = columns[:0]
 		for i, f := range byFields {
-			columns = append(columns, BlockColumn{
-				Name:   f,
-				Values: values[i : i+1],
-			})
+			br.addConstColumn(f, values[i])
 		}
 
 		// construct columns for stats functions
 		for _, sfp := range spg.sfps {
 			name, value := sfp.finalizeStats()
-			columns = append(columns, BlockColumn{
-				Name:   name,
-				Values: []string{value},
-			})
+			br.addConstColumn(name, value)
 		}
-		spp.ppBase.writeBlock(0, []int64{0}, columns)
+
+		spp.ppBase.writeBlock(0, &br)
 	}
 
 	return nil
