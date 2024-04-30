@@ -81,7 +81,7 @@ func (ssp *statsSumProcessor) mergeState(sfp statsProcessor) {
 }
 
 func (ssp *statsSumProcessor) finalizeStats() (string, string) {
-	value := strconv.FormatFloat(ssp.sum, 'g', -1, 64)
+	value := strconv.FormatFloat(ssp.sum, 'f', -1, 64)
 	return ssp.ss.resultName, value
 }
 
