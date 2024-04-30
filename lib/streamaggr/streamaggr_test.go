@@ -20,7 +20,7 @@ func TestAggregatorsFailure(t *testing.T) {
 		pushFunc := func(_ []prompbmarshal.TimeSeries) {
 			panic(fmt.Errorf("pushFunc shouldn't be called"))
 		}
-		a, err := newAggregatorsFromData([]byte(config), pushFunc, nil)
+		a, err := NewAggregatorsFromData([]byte(config), pushFunc, nil)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -158,11 +158,11 @@ func TestAggregatorsEqual(t *testing.T) {
 		t.Helper()
 
 		pushFunc := func(_ []prompbmarshal.TimeSeries) {}
-		aa, err := newAggregatorsFromData([]byte(a), pushFunc, nil)
+		aa, err := NewAggregatorsFromData([]byte(a), pushFunc, nil)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
-		ab, err := newAggregatorsFromData([]byte(b), pushFunc, nil)
+		ab, err := NewAggregatorsFromData([]byte(b), pushFunc, nil)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
@@ -225,7 +225,7 @@ func TestAggregatorsSuccess(t *testing.T) {
 			FlushOnShutdown:        true,
 			NoAlignFlushToInterval: true,
 		}
-		a, err := newAggregatorsFromData([]byte(config), pushFunc, opts)
+		a, err := NewAggregatorsFromData([]byte(config), pushFunc, opts)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
@@ -895,7 +895,7 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 			DedupInterval:   30 * time.Second,
 			FlushOnShutdown: true,
 		}
-		a, err := newAggregatorsFromData([]byte(config), pushFunc, opts)
+		a, err := NewAggregatorsFromData([]byte(config), pushFunc, opts)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}

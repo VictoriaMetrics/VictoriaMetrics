@@ -910,6 +910,9 @@ func (rwctx *remoteWriteCtx) MustStop() {
 	rwctx.rowsDroppedByRelabel = nil
 }
 
+// TryPush sends tss series to remote write endpoint, which is configured for context
+//
+// initial tss slice should be immutable to prevent panic in other remote write contexts
 func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries) bool {
 	// Apply relabeling
 	var rctx *relabelCtx

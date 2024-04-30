@@ -90,7 +90,7 @@ func newBenchAggregators(outputs []string, pushFunc PushFunc) *Aggregators {
   outputs: [%s]
 `, strings.Join(outputsQuoted, ","))
 
-	a, err := newAggregatorsFromData([]byte(config), pushFunc, nil)
+	a, err := NewAggregatorsFromData([]byte(config), pushFunc, nil)
 	if err != nil {
 		panic(fmt.Errorf("unexpected error when initializing aggregators: %s", err))
 	}
