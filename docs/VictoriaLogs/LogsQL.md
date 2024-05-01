@@ -1092,14 +1092,21 @@ LogsQL supports calculating the following stats:
 - Sum for the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values. Non-numeric values are ignored. Examples:
   - `error | stats sum(duration) duration_total` - returns the sum of `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values
   across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `error` [word](#word).
-  - `GET | stats by (path) sum(response_size)` - returns the sum of `response_size` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values
+  - `GET | stats by (path) sum(response_size) response_size_sum` - returns the sum of `response_size` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values
   across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `GET` [word](#word), grouped
   by `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
 
 - The maximum value across the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). Non-numeric values are ignored. Examples:
   - `error | stats max(duration) duration_max` - returns the maximum value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
   across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `error` [word](#word).
-  - `GET | stats by (path) max(response_size)` - returns the maximum value for the `response_size` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  - `GET | stats by (path) max(response_size) max_response_size` - returns the maximum value for the `response_size` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `GET` [word](#word), grouped
+  by `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
+
+- The minimum value across the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). Non-numeric values are ignored. Examples:
+  - `error | stats min(duration) duration_min` - returns the minimum value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `error` [word](#word).
+  - `GET | stats by (path) min(response_size) min_response_size` - returns the minimum value for the `response_size` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
   across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `GET` [word](#word), grouped
   by `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
 
@@ -1117,7 +1124,7 @@ error | stats by (namespace)
 LogsQL will support calculating the following additional stats based on the [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
 and fields created by [transformations](#transformations):
 
-- The min, max, avg, and sum for the given field.
+- The avg for the given field.
 - The median and [percentile](https://en.wikipedia.org/wiki/Percentile) for the given field.
 
 It will be possible specifying an optional condition [filter](#post-filters) when calculating the stats.

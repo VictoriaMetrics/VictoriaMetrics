@@ -838,6 +838,109 @@ func (c *blockResultColumn) getMaxValue(br *blockResult) float64 {
 	}
 }
 
+func (c *blockResultColumn) getMinValue(br *blockResult) float64 {
+	if c.isConst {
+		v := c.encodedValues[0]
+		f, ok := tryParseFloat64(v)
+		if !ok {
+			return nan
+		}
+		return f
+	}
+	if c.isTime {
+		return nan
+	}
+
+	switch c.valueType {
+	case valueTypeString:
+		min := math.Inf(1)
+		f := float64(0)
+		ok := false
+		values := c.encodedValues
+		for i := range values {
+			if i == 0 || values[i-1] != values[i] {
+				f, ok = tryParseFloat64(values[i])
+			}
+			if ok && f < min {
+				min = f
+			}
+		}
+		if math.IsInf(min, 1) {
+			return nan
+		}
+		return min
+	case valueTypeDict:
+		a := encoding.GetFloat64s(len(c.dictValues))
+		dictValuesFloat := a.A
+		for i, v := range c.dictValues {
+			f, ok := tryParseFloat64(v)
+			if !ok {
+				f = nan
+			}
+			dictValuesFloat[i] = f
+		}
+		min := math.Inf(1)
+		for _, v := range c.encodedValues {
+			dictIdx := v[0]
+			f := dictValuesFloat[dictIdx]
+			if f < min {
+				min = f
+			}
+		}
+		encoding.PutFloat64s(a)
+		if math.IsInf(min, 1) {
+			return nan
+		}
+		return min
+	case valueTypeUint8:
+		min := math.Inf(1)
+		for _, v := range c.encodedValues {
+			f := float64(v[0])
+			if f < min {
+				min = f
+			}
+		}
+		return min
+	case valueTypeUint16:
+		min := math.Inf(1)
+		for _, v := range c.encodedValues {
+			b := bytesutil.ToUnsafeBytes(v)
+			f := float64(encoding.UnmarshalUint16(b))
+			if f < min {
+				min = f
+			}
+		}
+		return min
+	case valueTypeUint32:
+		min := math.Inf(1)
+		for _, v := range c.encodedValues {
+			b := bytesutil.ToUnsafeBytes(v)
+			f := float64(encoding.UnmarshalUint32(b))
+			if f < min {
+				min = f
+			}
+		}
+		return min
+	case valueTypeUint64:
+		min := math.Inf(1)
+		for _, v := range c.encodedValues {
+			b := bytesutil.ToUnsafeBytes(v)
+			f := float64(encoding.UnmarshalUint64(b))
+			if f < min {
+				min = f
+			}
+		}
+		return min
+	case valueTypeIPv4:
+		return nan
+	case valueTypeTimestampISO8601:
+		return nan
+	default:
+		logger.Panicf("BUG: unknown valueType=%d", c.valueType)
+		return nan
+	}
+}
+
 func (c *blockResultColumn) sumValues(br *blockResult) float64 {
 	if c.isConst {
 		v := c.encodedValues[0]

@@ -846,6 +846,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats Max(foo) bar`, `* | stats max(foo) as bar`)
 	f(`* | stats BY(x, y, ) MAX(foo,bar,) bar`, `* | stats by (x, y) max(foo, bar) as bar`)
 
+	// stats pipe min
+	f(`* | stats Min(foo) bar`, `* | stats min(foo) as bar`)
+	f(`* | stats BY(x, y, ) MIN(foo,bar,) bar`, `* | stats by (x, y) min(foo, bar) as bar`)
+
 	// stats pipe uniq
 	f(`* | stats uniq(foo) bar`, `* | stats uniq(foo) as bar`)
 	f(`* | stats by(x, y) uniq(foo,bar) as baz`, `* | stats by (x, y) uniq(foo, bar) as baz`)
@@ -1107,6 +1111,11 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | stats max`)
 	f(`foo | stats max()`)
 	f(`foo | stats max() as abc`)
+
+	// invalid stats min
+	f(`foo | stats min`)
+	f(`foo | stats min()`)
+	f(`foo | stats min() as abc`)
 
 	// invalid stats uniq
 	f(`foo | stats uniq`)

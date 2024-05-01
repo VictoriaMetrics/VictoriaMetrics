@@ -440,6 +440,12 @@ func parseStatsFunc(lex *lexer) (statsFunc, string, error) {
 			return nil, "", fmt.Errorf("cannot parse 'max' func: %w", err)
 		}
 		sf = sms
+	case lex.isKeyword("min"):
+		sms, err := parseStatsMin(lex)
+		if err != nil {
+			return nil, "", fmt.Errorf("cannot parse 'min' func: %w", err)
+		}
+		sf = sms
 	default:
 		return nil, "", fmt.Errorf("unknown stats func %q", lex.token)
 	}
