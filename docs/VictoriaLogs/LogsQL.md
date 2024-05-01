@@ -1096,6 +1096,13 @@ LogsQL supports calculating the following stats:
   across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `GET` [word](#word), grouped
   by `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
 
+- The average value across the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). Non-numeric values are ignored. Examples:
+  - `error | stats avg(duration) duration_avg` - returns the average value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `error` [word](#word).
+  - `GET | stats by (path) avg(response_size) avg_response_size` - returns the average value for the `response_size` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `GET` [word](#word), grouped
+  by `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
+
 - The maximum value across the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). Non-numeric values are ignored. Examples:
   - `error | stats max(duration) duration_max` - returns the maximum value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
   across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `error` [word](#word).
