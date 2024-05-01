@@ -815,7 +815,7 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`foo|fields *`, `foo | fields *`)
 	f(`foo | fields bar`, `foo | fields bar`)
 	f(`foo|FIELDS bar,Baz  , "a,b|c"`, `foo | fields bar, Baz, "a,b|c"`)
-	f(`foo | Fields   x.y:z/a, _b$c`, `foo | fields "x.y:z/a", "_b$c"`)
+	f(`foo | Fields   x.y, "abc:z/a", _b$c`, `foo | fields x.y, "abc:z/a", "_b$c"`)
 
 	// multiple fields pipes
 	f(`foo | fields bar | fields baz, abc`, `foo | fields bar | fields baz, abc`)

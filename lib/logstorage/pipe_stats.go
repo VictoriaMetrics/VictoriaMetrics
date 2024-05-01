@@ -512,7 +512,7 @@ func parseFieldName(lex *lexer) (string, error) {
 	if lex.isKeyword(",", "(", ")", "[", "]", "|", "") {
 		return "", fmt.Errorf("unexpected token: %q", lex.token)
 	}
-	token := getCompoundToken(lex)
+	token := getCompoundPhrase(lex, true)
 	return token, nil
 }
 
