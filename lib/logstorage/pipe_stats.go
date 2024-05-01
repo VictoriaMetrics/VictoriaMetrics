@@ -446,6 +446,12 @@ func parseStatsFunc(lex *lexer) (statsFunc, string, error) {
 			return nil, "", fmt.Errorf("cannot parse 'min' func: %w", err)
 		}
 		sf = sms
+	case lex.isKeyword("avg"):
+		sas, err := parseStatsAvg(lex)
+		if err != nil {
+			return nil, "", fmt.Errorf("cannot parse 'avg' func: %w", err)
+		}
+		sf = sas
 	default:
 		return nil, "", fmt.Errorf("unknown stats func %q", lex.token)
 	}
