@@ -1067,6 +1067,7 @@ func (ctx *flushCtx) resetSeries() {
 	ctx.labels = ctx.labels[:0]
 
 	ctx.samples = ctx.samples[:0]
+	ctx.histograms = ctx.histograms[:0]
 }
 
 func (ctx *flushCtx) flushSeries() {

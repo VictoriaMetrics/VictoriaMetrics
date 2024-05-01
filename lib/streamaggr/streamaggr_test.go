@@ -1008,8 +1008,9 @@ func mustParsePromMetrics(s string) []prompbmarshal.TimeSeries {
 func appendClonedTimeseries(dst, src []prompbmarshal.TimeSeries) []prompbmarshal.TimeSeries {
 	for _, ts := range src {
 		dst = append(dst, prompbmarshal.TimeSeries{
-			Labels:  append(ts.Labels[:0:0], ts.Labels...),
-			Samples: append(ts.Samples[:0:0], ts.Samples...),
+			Labels:     append(ts.Labels[:0:0], ts.Labels...),
+			Samples:    append(ts.Samples[:0:0], ts.Samples...),
+			Histograms: append(ts.Histograms[:0:0], ts.Histograms...),
 		})
 	}
 	return dst
