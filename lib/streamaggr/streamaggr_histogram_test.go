@@ -30,17 +30,11 @@ func TestHistogramAggregatorsFailure(t *testing.T) {
 		}
 	}
 
-	// missing outputs
-	f(`
-- interval: 1m
-- histogram_outputs: [histogram_merge]
-`)
-
 	// Invalid histogram_output
 	f(`
 - interval: 1m
-- outputs: [total]
-- histogram_outputs: [foo]
+  outputs: [total]
+  histogram_outputs: [foo]
 `)
 }
 
@@ -63,13 +57,11 @@ func TestHistogramAggregatorsEqual(t *testing.T) {
 		}
 	}
 	f(`
-- outputs: [total]
-  histogram_outputs: [histogram_merge]
+- histogram_outputs: [histogram_merge]
   interval: 5m
 `, `
-- histogram_outputs: [histogram_merge]
-  outputs: [total]
-  interval: 5m
+- interval: 5m
+  histogram_outputs: [histogram_merge]
 `, true)
 }
 
@@ -127,7 +119,7 @@ func TestHistogramAggregatorsSuccess(t *testing.T) {
 		}
 	}
 
-	//emptyTs := []prompbmarshal.TimeSeries{}
+	emptyTs := []prompbmarshal.TimeSeries{}
 	histo0 := tsdbutil.GenerateTestFloatHistogram(0)
 	histo1 := tsdbutil.GenerateTestFloatHistogram(1)
 	histo2 := tsdbutil.GenerateTestFloatHistogram(2)
@@ -141,22 +133,21 @@ func TestHistogramAggregatorsSuccess(t *testing.T) {
 		ZeroThreshold:    histo0.ZeroThreshold,
 	}
 
-	//// Empty config
-	//f(``, emptyTs, nil, "")
-	//f(``, []prompbmarshal.TimeSeries{
-	//	generateHistogramTimeSeries("foo", map[string]string{"bar": "baz"}, []*histogram.FloatHistogram{histo0}),
-	//},
-	//	nil, "0")
-	//f(``, []prompbmarshal.TimeSeries{
-	//	generateHistogramTimeSeries("foo", nil, []*histogram.FloatHistogram{histo0}),
-	//	generateHistogramTimeSeries("bar", nil, []*histogram.FloatHistogram{histo0}),
-	//},
-	//	nil, "00")
+	// Empty config
+	f(``, emptyTs, nil, "")
+	f(``, []prompbmarshal.TimeSeries{
+		generateHistogramTimeSeries("foo", map[string]string{"bar": "baz"}, []*histogram.FloatHistogram{histo0}),
+	},
+		nil, "0")
+	f(``, []prompbmarshal.TimeSeries{
+		generateHistogramTimeSeries("foo", nil, []*histogram.FloatHistogram{histo0}),
+		generateHistogramTimeSeries("bar", nil, []*histogram.FloatHistogram{histo0}),
+	},
+		nil, "00")
 
 	// Empty by list - aggregate only by time
 	f(`
 - interval: 1m
-  outputs: [count_samples, sum_samples, count_series]
   histogram_outputs: [histogram_merge]
 `,
 		[]prompbmarshal.TimeSeries{
@@ -171,7 +162,6 @@ func TestHistogramAggregatorsSuccess(t *testing.T) {
 	f(`
 - interval: 1m
   by: [__name__]
-  outputs: [count_samples, sum_samples, count_series]
   histogram_outputs: [histogram_merge]
 `,
 		[]prompbmarshal.TimeSeries{
@@ -191,7 +181,6 @@ func TestHistogramAggregatorsSuccess(t *testing.T) {
 	f(`
 - interval: 1m
   by: [foo, bar]
-  outputs: [count_samples, sum_samples, count_series]
   histogram_outputs: [histogram_merge]
 `,
 		[]prompbmarshal.TimeSeries{
@@ -208,7 +197,6 @@ func TestHistogramAggregatorsSuccess(t *testing.T) {
 	f(`
 - interval: 1m
   by: [abc]
-  outputs: [count_samples, sum_samples, count_series]
   histogram_outputs: [histogram_merge]
 `,
 		[]prompbmarshal.TimeSeries{
@@ -226,7 +214,6 @@ func TestHistogramAggregatorsSuccess(t *testing.T) {
 	f(`
 - interval: 1m
   by: [abc, abc]
-  outputs: [count_samples, sum_samples, count_series]
   histogram_outputs: [histogram_merge]
 `,
 		[]prompbmarshal.TimeSeries{
@@ -244,7 +231,6 @@ func TestHistogramAggregatorsSuccess(t *testing.T) {
 	f(`
 - interval: 1m
   without: [foo]
-  outputs: [count_samples, sum_samples, count_series]
   histogram_outputs: [histogram_merge]
 `,
 		[]prompbmarshal.TimeSeries{
@@ -262,7 +248,6 @@ func TestHistogramAggregatorsSuccess(t *testing.T) {
 	f(`
 - interval: 1m
   without: [abc]
-  outputs: [count_samples, sum_samples, count_series]
   histogram_outputs: [histogram_merge]
 `,
 		[]prompbmarshal.TimeSeries{
@@ -280,7 +265,6 @@ func TestHistogramAggregatorsSuccess(t *testing.T) {
 	f(`
 - interval: 1m
   without: [__name__]
-  outputs: [count_samples, sum_samples, count_series]
   histogram_outputs: [histogram_merge]
 `,
 		[]prompbmarshal.TimeSeries{
@@ -298,7 +282,6 @@ func TestHistogramAggregatorsSuccess(t *testing.T) {
 	f(`
 - interval: 1m
   without: [abc]
-  outputs: [count_samples, sum_samples, count_series]
   histogram_outputs: [histogram_merge]
   input_relabel_configs:
   - if: 'foo'
@@ -320,7 +303,6 @@ func TestHistogramAggregatorsSuccess(t *testing.T) {
 	f(`
 - interval: 1m
   without: [abc]
-  outputs: [count_samples, sum_samples, count_series]
   histogram_outputs: [histogram_merge]
   output_relabel_configs:
   - action: replace_all
@@ -346,7 +328,6 @@ func TestHistogramAggregatorsSuccess(t *testing.T) {
 	f(`
 - interval: 1m
   without: [abc]
-  outputs: [count_samples, sum_samples, count_series]
   histogram_outputs: [histogram_merge]
   match: '{non_existing_label!=""}'
 `,
@@ -361,7 +342,6 @@ func TestHistogramAggregatorsSuccess(t *testing.T) {
 	f(`
 - interval: 1m
   by: [abc]
-  outputs: [count_samples, sum_samples, count_series]
   histogram_outputs: [histogram_merge]
   match:
   - foo{abc=~".+"}
@@ -383,7 +363,6 @@ func TestHistogramAggregatorsSuccess(t *testing.T) {
 	// histogram_merge output for non-repeated series
 	f(`
 - interval: 1m
-  outputs: [total_prometheus]
   histogram_outputs: [histogram_merge]
 `,
 		[]prompbmarshal.TimeSeries{
@@ -398,7 +377,6 @@ func TestHistogramAggregatorsSuccess(t *testing.T) {
 	// histogram_merge output for repeated series
 	f(`
 - interval: 1m
-  outputs: [total_prometheus]
   histogram_outputs: [histogram_merge]
 `,
 		[]prompbmarshal.TimeSeries{
@@ -418,7 +396,6 @@ func TestHistogramAggregatorsSuccess(t *testing.T) {
 	// multiple aggregate configs
 	f(`
 - interval: 1m
-  outputs: [count_series, sum_samples]
   histogram_outputs: [histogram_merge]
 - interval: 5m
   by: [bar]
@@ -441,7 +418,6 @@ func TestHistogramAggregatorsSuccess(t *testing.T) {
 	f(`
 - interval: 1m
   without: [abc]
-  outputs: [count_samples, sum_samples, count_series]
   histogram_outputs: [histogram_merge]
   output_relabel_configs:
   - action: replace_all
@@ -472,7 +448,6 @@ func TestHistogramAggregatorsSuccess(t *testing.T) {
 	f(`
 - interval: 1m
   keep_metric_names: true
-  outputs: [count_samples]
   histogram_outputs: [histogram_merge]
 `,
 		[]prompbmarshal.TimeSeries{
@@ -494,7 +469,6 @@ func TestHistogramAggregatorsSuccess(t *testing.T) {
 - interval: 1m
   drop_input_labels: [abc]
   keep_metric_names: true
-  outputs: [count_samples]
   histogram_outputs: [histogram_merge]
 `,
 		[]prompbmarshal.TimeSeries{
