@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"unsafe"
@@ -22,7 +23,8 @@ func (sm *statsMin) neededFields() []string {
 
 func (sm *statsMin) newStatsProcessor() (statsProcessor, int) {
 	smp := &statsMinProcessor{
-		sm: sm,
+		sm:  sm,
+		min: nan,
 	}
 	return smp, int(unsafe.Sizeof(*smp))
 }
@@ -38,7 +40,7 @@ func (smp *statsMinProcessor) updateStatsForAllRows(br *blockResult) int {
 		// Find the minimum value across all the columns
 		for _, c := range br.getColumns() {
 			f := c.getMinValue(br)
-			if f < smp.min {
+			if f < smp.min || math.IsNaN(smp.min) {
 				smp.min = f
 			}
 		}
@@ -49,7 +51,7 @@ func (smp *statsMinProcessor) updateStatsForAllRows(br *blockResult) int {
 	for _, field := range smp.sm.fields {
 		c := br.getColumnByName(field)
 		f := c.getMinValue(br)
-		if f < smp.min {
+		if f < smp.min || math.IsNaN(smp.min) {
 			smp.min = f
 		}
 	}
@@ -61,7 +63,7 @@ func (smp *statsMinProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 		// Find the minimum value across all the fields for the given row
 		for _, c := range br.getColumns() {
 			f := c.getFloatValueAtRow(rowIdx)
-			if f < smp.min {
+			if f < smp.min || math.IsNaN(smp.min) {
 				smp.min = f
 			}
 		}
@@ -72,7 +74,7 @@ func (smp *statsMinProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 	for _, field := range smp.sm.fields {
 		c := br.getColumnByName(field)
 		f := c.getFloatValueAtRow(rowIdx)
-		if f < smp.min {
+		if f < smp.min || math.IsNaN(smp.min) {
 			smp.min = f
 		}
 	}

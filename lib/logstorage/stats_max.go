@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"unsafe"
@@ -22,7 +23,8 @@ func (sm *statsMax) neededFields() []string {
 
 func (sm *statsMax) newStatsProcessor() (statsProcessor, int) {
 	smp := &statsMaxProcessor{
-		sm: sm,
+		sm:  sm,
+		max: nan,
 	}
 	return smp, int(unsafe.Sizeof(*smp))
 }
@@ -38,7 +40,7 @@ func (smp *statsMaxProcessor) updateStatsForAllRows(br *blockResult) int {
 		// Find the maximum value across all the columns
 		for _, c := range br.getColumns() {
 			f := c.getMaxValue(br)
-			if f > smp.max {
+			if f > smp.max || math.IsNaN(smp.max) {
 				smp.max = f
 			}
 		}
@@ -49,7 +51,7 @@ func (smp *statsMaxProcessor) updateStatsForAllRows(br *blockResult) int {
 	for _, field := range smp.sm.fields {
 		c := br.getColumnByName(field)
 		f := c.getMaxValue(br)
-		if f > smp.max {
+		if f > smp.max || math.IsNaN(smp.max) {
 			smp.max = f
 		}
 	}
@@ -61,7 +63,7 @@ func (smp *statsMaxProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 		// Find the maximum value across all the fields for the given row
 		for _, c := range br.getColumns() {
 			f := c.getFloatValueAtRow(rowIdx)
-			if f > smp.max {
+			if f > smp.max || math.IsNaN(smp.max) {
 				smp.max = f
 			}
 		}
@@ -72,7 +74,7 @@ func (smp *statsMaxProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 	for _, field := range smp.sm.fields {
 		c := br.getColumnByName(field)
 		f := c.getFloatValueAtRow(rowIdx)
-		if f > smp.max {
+		if f > smp.max || math.IsNaN(smp.max) {
 			smp.max = f
 		}
 	}

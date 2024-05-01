@@ -750,7 +750,7 @@ func (c *blockResultColumn) getMaxValue(br *blockResult) float64 {
 
 	switch c.valueType {
 	case valueTypeString:
-		max := math.Inf(-1)
+		max := nan
 		f := float64(0)
 		ok := false
 		values := c.encodedValues
@@ -758,12 +758,9 @@ func (c *blockResultColumn) getMaxValue(br *blockResult) float64 {
 			if i == 0 || values[i-1] != values[i] {
 				f, ok = tryParseFloat64(values[i])
 			}
-			if ok && f > max {
+			if ok && (f > max || math.IsNaN(max)) {
 				max = f
 			}
-		}
-		if math.IsInf(max, -1) {
-			return nan
 		}
 		return max
 	case valueTypeDict:
@@ -776,18 +773,15 @@ func (c *blockResultColumn) getMaxValue(br *blockResult) float64 {
 			}
 			dictValuesFloat[i] = f
 		}
-		max := math.Inf(-1)
+		max := nan
 		for _, v := range c.encodedValues {
 			dictIdx := v[0]
 			f := dictValuesFloat[dictIdx]
-			if f > max {
+			if f > max || math.IsNaN(max) {
 				max = f
 			}
 		}
 		encoding.PutFloat64s(a)
-		if math.IsInf(max, -1) {
-			return nan
-		}
 		return max
 	case valueTypeUint8:
 		max := math.Inf(-1)
@@ -853,7 +847,7 @@ func (c *blockResultColumn) getMinValue(br *blockResult) float64 {
 
 	switch c.valueType {
 	case valueTypeString:
-		min := math.Inf(1)
+		min := nan
 		f := float64(0)
 		ok := false
 		values := c.encodedValues
@@ -861,12 +855,9 @@ func (c *blockResultColumn) getMinValue(br *blockResult) float64 {
 			if i == 0 || values[i-1] != values[i] {
 				f, ok = tryParseFloat64(values[i])
 			}
-			if ok && f < min {
+			if ok && (f < min || math.IsNaN(min)) {
 				min = f
 			}
-		}
-		if math.IsInf(min, 1) {
-			return nan
 		}
 		return min
 	case valueTypeDict:
@@ -879,18 +870,15 @@ func (c *blockResultColumn) getMinValue(br *blockResult) float64 {
 			}
 			dictValuesFloat[i] = f
 		}
-		min := math.Inf(1)
+		min := nan
 		for _, v := range c.encodedValues {
 			dictIdx := v[0]
 			f := dictValuesFloat[dictIdx]
-			if f < min {
+			if f < min || math.IsNaN(min) {
 				min = f
 			}
 		}
 		encoding.PutFloat64s(a)
-		if math.IsInf(min, 1) {
-			return nan
-		}
 		return min
 	case valueTypeUint8:
 		min := math.Inf(1)
@@ -941,22 +929,23 @@ func (c *blockResultColumn) getMinValue(br *blockResult) float64 {
 	}
 }
 
-func (c *blockResultColumn) sumValues(br *blockResult) float64 {
+func (c *blockResultColumn) sumValues(br *blockResult) (float64, int) {
 	if c.isConst {
 		v := c.encodedValues[0]
 		f, ok := tryParseFloat64(v)
 		if !ok {
-			return 0
+			return 0, 0
 		}
-		return f * float64(len(br.timestamps))
+		return f * float64(len(br.timestamps)), len(br.timestamps)
 	}
 	if c.isTime {
-		return 0
+		return 0, 0
 	}
 
 	switch c.valueType {
 	case valueTypeString:
 		sum := float64(0)
+		count := 0
 		f := float64(0)
 		ok := false
 		values := c.encodedValues
@@ -966,53 +955,59 @@ func (c *blockResultColumn) sumValues(br *blockResult) float64 {
 			}
 			if ok {
 				sum += f
+				count++
 			}
 		}
-		return sum
+		return sum, count
 	case valueTypeDict:
 		a := encoding.GetFloat64s(len(c.dictValues))
 		dictValuesFloat := a.A
 		for i, v := range c.dictValues {
 			f, ok := tryParseFloat64(v)
 			if !ok {
-				f = 0
+				f = nan
 			}
 			dictValuesFloat[i] = f
 		}
 		sum := float64(0)
+		count := 0
 		for _, v := range c.encodedValues {
 			dictIdx := v[0]
-			sum += dictValuesFloat[dictIdx]
+			f := dictValuesFloat[dictIdx]
+			if !math.IsNaN(f) {
+				sum += f
+				count++
+			}
 		}
 		encoding.PutFloat64s(a)
-		return sum
+		return sum, count
 	case valueTypeUint8:
 		sum := uint64(0)
 		for _, v := range c.encodedValues {
 			sum += uint64(v[0])
 		}
-		return float64(sum)
+		return float64(sum), len(br.timestamps)
 	case valueTypeUint16:
 		sum := uint64(0)
 		for _, v := range c.encodedValues {
 			b := bytesutil.ToUnsafeBytes(v)
 			sum += uint64(encoding.UnmarshalUint16(b))
 		}
-		return float64(sum)
+		return float64(sum), len(br.timestamps)
 	case valueTypeUint32:
 		sum := uint64(0)
 		for _, v := range c.encodedValues {
 			b := bytesutil.ToUnsafeBytes(v)
 			sum += uint64(encoding.UnmarshalUint32(b))
 		}
-		return float64(sum)
+		return float64(sum), len(br.timestamps)
 	case valueTypeUint64:
 		sum := float64(0)
 		for _, v := range c.encodedValues {
 			b := bytesutil.ToUnsafeBytes(v)
 			sum += float64(encoding.UnmarshalUint64(b))
 		}
-		return sum
+		return sum, len(br.timestamps)
 	case valueTypeFloat64:
 		sum := float64(0)
 		for _, v := range c.encodedValues {
@@ -1023,14 +1018,14 @@ func (c *blockResultColumn) sumValues(br *blockResult) float64 {
 				sum += f
 			}
 		}
-		return sum
+		return sum, len(br.timestamps)
 	case valueTypeIPv4:
-		return 0
+		return 0, 0
 	case valueTypeTimestampISO8601:
-		return 0
+		return 0, 0
 	default:
 		logger.Panicf("BUG: unknown valueType=%d", c.valueType)
-		return 0
+		return 0, 0
 	}
 }
 

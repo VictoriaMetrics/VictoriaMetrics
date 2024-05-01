@@ -23,7 +23,8 @@ func (ss *statsSum) neededFields() []string {
 
 func (ss *statsSum) newStatsProcessor() (statsProcessor, int) {
 	ssp := &statsSumProcessor{
-		ss: ss,
+		ss:  ss,
+		sum: nan,
 	}
 	return ssp, int(unsafe.Sizeof(*ssp))
 }
@@ -38,7 +39,14 @@ func (ssp *statsSumProcessor) updateStatsForAllRows(br *blockResult) int {
 	if ssp.ss.containsStar {
 		// Sum all the columns
 		for _, c := range br.getColumns() {
-			ssp.sum += c.sumValues(br)
+			f, count := c.sumValues(br)
+			if count > 0 {
+				if math.IsNaN(ssp.sum) {
+					ssp.sum = f
+				} else {
+					ssp.sum += f
+				}
+			}
 		}
 		return 0
 	}
@@ -46,7 +54,14 @@ func (ssp *statsSumProcessor) updateStatsForAllRows(br *blockResult) int {
 	// Sum the requested columns
 	for _, field := range ssp.ss.fields {
 		c := br.getColumnByName(field)
-		ssp.sum += c.sumValues(br)
+		f, count := c.sumValues(br)
+		if count > 0 {
+			if math.IsNaN(ssp.sum) {
+				ssp.sum = f
+			} else {
+				ssp.sum += f
+			}
+		}
 	}
 	return 0
 }
@@ -57,7 +72,11 @@ func (ssp *statsSumProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 		for _, c := range br.getColumns() {
 			f := c.getFloatValueAtRow(rowIdx)
 			if !math.IsNaN(f) {
-				ssp.sum += f
+				if math.IsNaN(ssp.sum) {
+					ssp.sum = f
+				} else {
+					ssp.sum += f
+				}
 			}
 		}
 		return 0
@@ -68,7 +87,11 @@ func (ssp *statsSumProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 		c := br.getColumnByName(field)
 		f := c.getFloatValueAtRow(rowIdx)
 		if !math.IsNaN(f) {
-			ssp.sum += f
+			if math.IsNaN(ssp.sum) {
+				ssp.sum = f
+			} else {
+				ssp.sum += f
+			}
 		}
 	}
 	return 0
