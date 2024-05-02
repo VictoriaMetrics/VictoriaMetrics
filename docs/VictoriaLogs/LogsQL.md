@@ -1131,11 +1131,10 @@ error | stats by (namespace)
 LogsQL will support calculating the following additional stats based on the [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
 and fields created by [transformations](#transformations):
 
-- The avg for the given field.
 - The median and [percentile](https://en.wikipedia.org/wiki/Percentile) for the given field.
 
 It will be possible specifying an optional condition [filter](#post-filters) when calculating the stats.
-For example, `sumIf(response_size, is_admin:true)` calculates the total response size for admins only.
+For example, `sum(response_size) if (is_admin:true)` calculates the total response size for admins only.
 
 It will be possible to group stats by the specified time buckets.
 
