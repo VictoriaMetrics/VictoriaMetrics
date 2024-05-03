@@ -54,9 +54,6 @@ func parsePipeFields(lex *lexer) (*pipeFields, error) {
 		if !lex.mustNextToken() {
 			return nil, fmt.Errorf("missing field name")
 		}
-		if lex.isKeyword(",") {
-			return nil, fmt.Errorf("unexpected ','; expecting field name")
-		}
 		field, err := parseFieldName(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse field name: %w", err)

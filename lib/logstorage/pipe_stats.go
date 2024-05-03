@@ -550,9 +550,6 @@ func parseByFields(lex *lexer) ([]*byField, error) {
 			lex.nextToken()
 			return bfs, nil
 		}
-		if lex.isKeyword(",") {
-			return nil, fmt.Errorf("unexpected `,`")
-		}
 		fieldName, err := parseFieldName(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse field name: %w", err)
