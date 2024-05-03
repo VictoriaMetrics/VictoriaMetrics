@@ -1128,6 +1128,13 @@ For example, the following query returns per-minute number of log messages with 
 _time:10m error | stats by (_time:1m) count() errors_per_minute
 ```
 
+It is possible to add offset (for example, [timezone offset](https://en.wikipedia.org/wiki/UTC_offset)) when bucketing by `_time`. For example, the following query calculates
+the number of per-day log entries for the last week at '2h' offset aka `UTC+02:00` offset:
+
+```logsql
+_time:1w | stats by (_time:1d offset 2h) count() logs_per_day_kyiv_offset
+```
+
 #### Numeric buckets
 
 Stats can be bucketed by any numeric [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with the `field_name:bucket_size` syntax inside `by(...)` clause.

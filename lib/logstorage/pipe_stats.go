@@ -193,7 +193,7 @@ func (psp *pipeStatsProcessor) writeBlock(workerID uint, br *blockResult) {
 		c := br.getColumnByName(bf.name)
 		if c.isConst {
 			// Fast path for column with constant value.
-			v := br.getBucketedValue(c.encodedValues[0], bf.bucketSize)
+			v := br.getBucketedValue(c.encodedValues[0], bf.bucketSize, bf.bucketOffset)
 			shard.keyBuf = encoding.MarshalBytes(shard.keyBuf[:0], bytesutil.ToUnsafeBytes(v))
 			for _, sfp := range shard.getStatsProcessors(shard.keyBuf) {
 				shard.stateSizeBudget -= sfp.updateStatsForAllRows(br)
@@ -201,7 +201,7 @@ func (psp *pipeStatsProcessor) writeBlock(workerID uint, br *blockResult) {
 			return
 		}
 
-		values := c.getBucketedValues(br, bf.bucketSize)
+		values := c.getBucketedValues(br, bf.bucketSize, bf.bucketOffset)
 		if areConstValues(values) {
 			// Fast path for column with constant values.
 			shard.keyBuf = encoding.MarshalBytes(shard.keyBuf[:0], bytesutil.ToUnsafeBytes(values[0]))
@@ -231,7 +231,7 @@ func (psp *pipeStatsProcessor) writeBlock(workerID uint, br *blockResult) {
 	columnValues := shard.columnValues[:0]
 	for _, bf := range byFields {
 		c := br.getColumnByName(bf.name)
-		values := c.getBucketedValues(br, bf.bucketSize)
+		values := c.getBucketedValues(br, bf.bucketSize, bf.bucketOffset)
 		columnValues = append(columnValues, values)
 	}
 	shard.columnValues = columnValues
@@ -509,14 +509,23 @@ type byField struct {
 	// bucketSizeStr is string representation of the bucket size
 	bucketSizeStr string
 
-	// bucketSize is the bucket for grouping the given field values with value/bucketSize calculations.
+	// bucketSize is the bucket for grouping the given field values with value/bucketSize calculations
 	bucketSize float64
+
+	// bucketOffsetStr is string representation of the offset for bucketSize
+	bucketOffsetStr string
+
+	// bucketOffset is the offset for bucketSize
+	bucketOffset float64
 }
 
 func (bf *byField) String() string {
 	s := quoteTokenIfNeeded(bf.name)
 	if bf.bucketSizeStr != "" {
 		s += ":" + bf.bucketSizeStr
+		if bf.bucketOffsetStr != "" {
+			s += " offset " + bf.bucketOffsetStr
+		}
 	}
 	return s
 }
@@ -545,6 +554,7 @@ func parseByFields(lex *lexer) ([]*byField, error) {
 			name: fieldName,
 		}
 		if lex.isKeyword(":") {
+			// Parse bucket size
 			lex.nextToken()
 			bucketSizeStr := lex.token
 			lex.nextToken()
@@ -556,11 +566,25 @@ func parseByFields(lex *lexer) ([]*byField, error) {
 			if !ok {
 				return nil, fmt.Errorf("cannot parse bucket size for field %q: %q", fieldName, bucketSizeStr)
 			}
-			if bucketSize < 0 {
-				return nil, fmt.Errorf("bucketSize for the field %q cannot be negative; got %q", fieldName, bucketSizeStr)
-			}
 			bf.bucketSizeStr = bucketSizeStr
 			bf.bucketSize = bucketSize
+
+			// Parse bucket offset
+			if lex.isKeyword("offset") {
+				lex.nextToken()
+				bucketOffsetStr := lex.token
+				lex.nextToken()
+				if bucketOffsetStr == "-" {
+					bucketOffsetStr += lex.token
+					lex.nextToken()
+				}
+				bucketOffset, ok := tryParseBucketOffset(bucketOffsetStr)
+				if !ok {
+					return nil, fmt.Errorf("cannot parse bucket offset for field %q: %q", fieldName, bucketOffsetStr)
+				}
+				bf.bucketOffsetStr = bucketOffsetStr
+				bf.bucketOffset = bucketOffset
+			}
 		}
 		bfs = append(bfs, bf)
 		switch {
@@ -574,11 +598,36 @@ func parseByFields(lex *lexer) ([]*byField, error) {
 	}
 }
 
+// tryParseBucketOffset tries parsing bucket offset, which can have the following formats:
+//
+// - integer number: 12345
+// - floating-point number: 1.2345
+// - duration: 1.5s - it is converted to nanoseconds
+// - bytes: 1.5KiB
+func tryParseBucketOffset(s string) (float64, bool) {
+	// Try parsing s as floating point number
+	if f, ok := tryParseFloat64(s); ok {
+		return f, true
+	}
+
+	// Try parsing s as duration (1s, 5m, etc.)
+	if nsecs, ok := tryParseDuration(s); ok {
+		return float64(nsecs), true
+	}
+
+	// Try parsing s as bytes (KiB, MB, etc.)
+	if n, ok := tryParseBytes(s); ok {
+		return float64(n), true
+	}
+
+	return 0, false
+}
+
 // tryParseBucketSize tries parsing bucket size, which can have the following formats:
 //
 // - integer number: 12345
 // - floating-point number: 1.2345
-// - duration: 1.5s - it is converted to the number of nanoseconds
+// - duration: 1.5s - it is converted to nanoseconds
 // - bytes: 1.5KiB
 // - ipv4 mask: /24
 func tryParseBucketSize(s string) (float64, bool) {

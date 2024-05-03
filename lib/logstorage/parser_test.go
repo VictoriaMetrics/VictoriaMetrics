@@ -865,6 +865,8 @@ func TestParseQuerySuccess(t *testing.T) {
 	// stats pipe with grouping buckets
 	f(`* | stats by(_time:1d, response_size:1_000KiB, request_duration:5s, foo) count() as foo`, `* | stats by (_time:1d, response_size:1_000KiB, request_duration:5s, foo) count() as foo`)
 	f(`*|stats by(client_ip:/24, server_ip:/16) count() foo`, `* | stats by (client_ip:/24, server_ip:/16) count() as foo`)
+	f(`* | stats by(_time:1d offset 2h) count() as foo`, `* | stats by (_time:1d offset 2h) count() as foo`)
+	f(`* | stats by(_time:1d offset -2.5h5m) count() as foo`, `* | stats by (_time:1d offset -2.5h5m) count() as foo`)
 
 	// multiple different pipes
 	f(`* | fields foo, bar | head 100 | stats by(foo,bar) count(baz) as qwert`, `* | fields foo, bar | head 100 | stats by (foo, bar) count(baz) as qwert`)
@@ -1137,6 +1139,9 @@ func TestParseQueryFailure(t *testing.T) {
 	// invalid grouping fields
 	f(`foo | stats by(foo:bar) count() baz`)
 	f(`foo | stats by(foo:/bar) count() baz`)
+	f(`foo | stats by(foo:-1h) count() baz`)
+	f(`foo | stats by (foo:1h offset) count() baz`)
+	f(`foo | stats by (foo:1h offset bar) count() baz`)
 
 	// invalid by clause
 	f(`foo | stats by`)

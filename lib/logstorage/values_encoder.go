@@ -719,6 +719,12 @@ func tryParseBytes(s string) (int64, bool) {
 	if len(s) == 0 {
 		return 0, false
 	}
+
+	isMinus := s[0] == '-'
+	if isMinus {
+		s = s[1:]
+	}
+
 	n := int64(0)
 	for len(s) > 0 {
 		f, ok, tail := tryParseFloat64Prefix(s)
@@ -811,6 +817,10 @@ func tryParseBytes(s string) (int64, bool) {
 			s = s[1:]
 			continue
 		}
+	}
+
+	if isMinus {
+		n = -n
 	}
 	return n, true
 }
@@ -973,7 +983,7 @@ func marshalDuration(dst []byte, nsecs int64) []byte {
 }
 
 const (
-	nsecsPerYear = 365 * 24 * 3600 * 1e9
+	nsecsPerYear        = 365 * 24 * 3600 * 1e9
 	nsecsPerWeek        = 7 * 24 * 3600 * 1e9
 	nsecsPerDay         = 24 * 3600 * 1e9
 	nsecsPerHour        = 3600 * 1e9

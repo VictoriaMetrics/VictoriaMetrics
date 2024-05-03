@@ -338,40 +338,40 @@ func (br *blockResult) addConstColumn(name, value string) {
 	})
 }
 
-func (br *blockResult) getBucketedColumnValues(c *blockResultColumn, bucketSize float64) []string {
+func (br *blockResult) getBucketedColumnValues(c *blockResultColumn, bucketSize, bucketOffset float64) []string {
 	if c.isConst {
-		return br.getBucketedConstValues(c.encodedValues[0], bucketSize)
+		return br.getBucketedConstValues(c.encodedValues[0], bucketSize, bucketOffset)
 	}
 	if c.isTime {
-		return br.getBucketedTimestampValues(bucketSize)
+		return br.getBucketedTimestampValues(bucketSize, bucketOffset)
 	}
 
 	switch c.valueType {
 	case valueTypeString:
-		return br.getBucketedStringValues(c.encodedValues, bucketSize)
+		return br.getBucketedStringValues(c.encodedValues, bucketSize, bucketOffset)
 	case valueTypeDict:
-		return br.getBucketedDictValues(c.encodedValues, c.dictValues, bucketSize)
+		return br.getBucketedDictValues(c.encodedValues, c.dictValues, bucketSize, bucketOffset)
 	case valueTypeUint8:
-		return br.getBucketedUint8Values(c.encodedValues, bucketSize)
+		return br.getBucketedUint8Values(c.encodedValues, bucketSize, bucketOffset)
 	case valueTypeUint16:
-		return br.getBucketedUint16Values(c.encodedValues, bucketSize)
+		return br.getBucketedUint16Values(c.encodedValues, bucketSize, bucketOffset)
 	case valueTypeUint32:
-		return br.getBucketedUint32Values(c.encodedValues, bucketSize)
+		return br.getBucketedUint32Values(c.encodedValues, bucketSize, bucketOffset)
 	case valueTypeUint64:
-		return br.getBucketedUint64Values(c.encodedValues, bucketSize)
+		return br.getBucketedUint64Values(c.encodedValues, bucketSize, bucketOffset)
 	case valueTypeFloat64:
-		return br.getBucketedFloat64Values(c.encodedValues, bucketSize)
+		return br.getBucketedFloat64Values(c.encodedValues, bucketSize, bucketOffset)
 	case valueTypeIPv4:
-		return br.getBucketedIPv4Values(c.encodedValues, bucketSize)
+		return br.getBucketedIPv4Values(c.encodedValues, bucketSize, bucketOffset)
 	case valueTypeTimestampISO8601:
-		return br.getBucketedTimestampISO8601Values(c.encodedValues, bucketSize)
+		return br.getBucketedTimestampISO8601Values(c.encodedValues, bucketSize, bucketOffset)
 	default:
 		logger.Panicf("BUG: unknown valueType=%d", c.valueType)
 		return nil
 	}
 }
 
-func (br *blockResult) getBucketedConstValues(v string, bucketSize float64) []string {
+func (br *blockResult) getBucketedConstValues(v string, bucketSize, bucketOffset float64) []string {
 	if v == "" {
 		// Fast path - return a slice of empty strings without constructing the slice.
 		return getEmptyStrings(len(br.timestamps))
@@ -382,7 +382,7 @@ func (br *blockResult) getBucketedConstValues(v string, bucketSize float64) []st
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
 
-	v = br.getBucketedValue(v, bucketSize)
+	v = br.getBucketedValue(v, bucketSize, bucketOffset)
 	for range br.timestamps {
 		valuesBuf = append(valuesBuf, v)
 	}
@@ -392,7 +392,7 @@ func (br *blockResult) getBucketedConstValues(v string, bucketSize float64) []st
 	return valuesBuf[valuesBufLen:]
 }
 
-func (br *blockResult) getBucketedTimestampValues(bucketSize float64) []string {
+func (br *blockResult) getBucketedTimestampValues(bucketSize, bucketOffset float64) []string {
 	buf := br.buf
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
@@ -400,7 +400,7 @@ func (br *blockResult) getBucketedTimestampValues(bucketSize float64) []string {
 	timestamps := br.timestamps
 	var s string
 
-	if bucketSize <= 1 {
+	if bucketSize <= 1 && bucketOffset == 0 {
 		for i := range timestamps {
 			if i > 0 && timestamps[i-1] == timestamps[i] {
 				valuesBuf = append(valuesBuf, s)
@@ -414,6 +414,7 @@ func (br *blockResult) getBucketedTimestampValues(bucketSize float64) []string {
 		}
 	} else {
 		bucketSizeInt := int64(bucketSize)
+		bucketOffsetInt := int64(bucketOffset)
 		var prevTimestamp int64
 		for i := range timestamps {
 			if i > 0 && timestamps[i-1] == timestamps[i] {
@@ -422,6 +423,7 @@ func (br *blockResult) getBucketedTimestampValues(bucketSize float64) []string {
 			}
 
 			timestamp := timestamps[i]
+			timestamp -= bucketOffsetInt
 			timestamp -= timestamp % bucketSizeInt
 			if i > 0 && timestamp == prevTimestamp {
 				valuesBuf = append(valuesBuf, s)
@@ -442,8 +444,8 @@ func (br *blockResult) getBucketedTimestampValues(bucketSize float64) []string {
 	return valuesBuf[valuesBufLen:]
 }
 
-func (br *blockResult) getBucketedStringValues(values []string, bucketSize float64) []string {
-	if bucketSize <= 0 {
+func (br *blockResult) getBucketedStringValues(values []string, bucketSize, bucketOffset float64) []string {
+	if bucketSize <= 0 && bucketOffset == 0 {
 		return values
 	}
 
@@ -457,7 +459,7 @@ func (br *blockResult) getBucketedStringValues(values []string, bucketSize float
 			continue
 		}
 
-		s = br.getBucketedValue(values[i], bucketSize)
+		s = br.getBucketedValue(values[i], bucketSize, bucketOffset)
 		valuesBuf = append(valuesBuf, s)
 	}
 
@@ -466,11 +468,11 @@ func (br *blockResult) getBucketedStringValues(values []string, bucketSize float
 	return valuesBuf[valuesBufLen:]
 }
 
-func (br *blockResult) getBucketedDictValues(encodedValues, dictValues []string, bucketSize float64) []string {
+func (br *blockResult) getBucketedDictValues(encodedValues, dictValues []string, bucketSize, bucketOffset float64) []string {
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
 
-	dictValues = br.getBucketedStringValues(dictValues, bucketSize)
+	dictValues = br.getBucketedStringValues(dictValues, bucketSize, bucketOffset)
 	for _, v := range encodedValues {
 		dictIdx := v[0]
 		valuesBuf = append(valuesBuf, dictValues[dictIdx])
@@ -481,14 +483,14 @@ func (br *blockResult) getBucketedDictValues(encodedValues, dictValues []string,
 	return valuesBuf[valuesBufLen:]
 }
 
-func (br *blockResult) getBucketedUint8Values(encodedValues []string, bucketSize float64) []string {
+func (br *blockResult) getBucketedUint8Values(encodedValues []string, bucketSize, bucketOffset float64) []string {
 	buf := br.buf
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
 
 	var s string
 
-	if bucketSize <= 1 || bucketSize >= (1<<8) {
+	if (bucketSize <= 1 || bucketSize >= (1<<8)) && bucketOffset == 0 {
 		for i, v := range encodedValues {
 			if i > 0 && encodedValues[i-1] == encodedValues[i] {
 				valuesBuf = append(valuesBuf, s)
@@ -503,6 +505,7 @@ func (br *blockResult) getBucketedUint8Values(encodedValues []string, bucketSize
 		}
 	} else {
 		bucketSizeInt := uint64(bucketSize)
+		bucketOffsetInt := uint64(int64(bucketOffset))
 		var nPrev uint64
 		for i, v := range encodedValues {
 			if i > 0 && encodedValues[i-1] == encodedValues[i] {
@@ -511,6 +514,7 @@ func (br *blockResult) getBucketedUint8Values(encodedValues []string, bucketSize
 			}
 
 			n := uint64(v[0])
+			n -= bucketOffsetInt
 			n -= n % bucketSizeInt
 			if i > 0 && n == nPrev {
 				valuesBuf = append(valuesBuf, s)
@@ -531,14 +535,14 @@ func (br *blockResult) getBucketedUint8Values(encodedValues []string, bucketSize
 	return br.valuesBuf[valuesBufLen:]
 }
 
-func (br *blockResult) getBucketedUint16Values(encodedValues []string, bucketSize float64) []string {
+func (br *blockResult) getBucketedUint16Values(encodedValues []string, bucketSize, bucketOffset float64) []string {
 	buf := br.buf
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
 
 	var s string
 
-	if bucketSize <= 1 || bucketSize >= (1<<16) {
+	if (bucketSize <= 1 || bucketSize >= (1<<16)) && bucketOffset == 0 {
 		for i, v := range encodedValues {
 			if i > 0 && encodedValues[i-1] == encodedValues[i] {
 				valuesBuf = append(valuesBuf, s)
@@ -554,6 +558,7 @@ func (br *blockResult) getBucketedUint16Values(encodedValues []string, bucketSiz
 		}
 	} else {
 		bucketSizeInt := uint64(bucketSize)
+		bucketOffsetInt := uint64(int64(bucketOffset))
 		var nPrev uint64
 		for i, v := range encodedValues {
 			if i > 0 && encodedValues[i-1] == encodedValues[i] {
@@ -563,6 +568,7 @@ func (br *blockResult) getBucketedUint16Values(encodedValues []string, bucketSiz
 
 			b := bytesutil.ToUnsafeBytes(v)
 			n := uint64(encoding.UnmarshalUint16(b))
+			n -= bucketOffsetInt
 			n -= n % bucketSizeInt
 			if i > 0 && n == nPrev {
 				valuesBuf = append(valuesBuf, s)
@@ -583,14 +589,14 @@ func (br *blockResult) getBucketedUint16Values(encodedValues []string, bucketSiz
 	return br.valuesBuf[valuesBufLen:]
 }
 
-func (br *blockResult) getBucketedUint32Values(encodedValues []string, bucketSize float64) []string {
+func (br *blockResult) getBucketedUint32Values(encodedValues []string, bucketSize, bucketOffset float64) []string {
 	buf := br.buf
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
 
 	var s string
 
-	if bucketSize <= 1 || bucketSize >= (1<<32) {
+	if (bucketSize <= 1 || bucketSize >= (1<<32)) && bucketOffset == 0 {
 		for i, v := range encodedValues {
 			if i > 0 && encodedValues[i-1] == encodedValues[i] {
 				valuesBuf = append(valuesBuf, s)
@@ -606,6 +612,7 @@ func (br *blockResult) getBucketedUint32Values(encodedValues []string, bucketSiz
 		}
 	} else {
 		bucketSizeInt := uint64(bucketSize)
+		bucketOffsetInt := uint64(int64(bucketOffset))
 		var nPrev uint64
 		for i, v := range encodedValues {
 			if i > 0 && encodedValues[i-1] == encodedValues[i] {
@@ -615,6 +622,7 @@ func (br *blockResult) getBucketedUint32Values(encodedValues []string, bucketSiz
 
 			b := bytesutil.ToUnsafeBytes(v)
 			n := uint64(encoding.UnmarshalUint32(b))
+			n -= bucketOffsetInt
 			n -= n % bucketSizeInt
 			if i > 0 && n == nPrev {
 				valuesBuf = append(valuesBuf, s)
@@ -635,14 +643,14 @@ func (br *blockResult) getBucketedUint32Values(encodedValues []string, bucketSiz
 	return br.valuesBuf[valuesBufLen:]
 }
 
-func (br *blockResult) getBucketedUint64Values(encodedValues []string, bucketSize float64) []string {
+func (br *blockResult) getBucketedUint64Values(encodedValues []string, bucketSize, bucketOffset float64) []string {
 	buf := br.buf
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
 
 	var s string
 
-	if bucketSize <= 1 || bucketSize >= (1<<64) {
+	if (bucketSize <= 1 || bucketSize >= (1<<64)) && bucketOffset == 0 {
 		for i, v := range encodedValues {
 			if i > 0 && encodedValues[i-1] == encodedValues[i] {
 				valuesBuf = append(valuesBuf, s)
@@ -658,6 +666,7 @@ func (br *blockResult) getBucketedUint64Values(encodedValues []string, bucketSiz
 		}
 	} else {
 		bucketSizeInt := uint64(bucketSize)
+		bucketOffsetInt := uint64(int64(bucketOffset))
 		var nPrev uint64
 		for i, v := range encodedValues {
 			if i > 0 && encodedValues[i-1] == encodedValues[i] {
@@ -667,6 +676,7 @@ func (br *blockResult) getBucketedUint64Values(encodedValues []string, bucketSiz
 
 			b := bytesutil.ToUnsafeBytes(v)
 			n := encoding.UnmarshalUint64(b)
+			n -= bucketOffsetInt
 			n -= n % bucketSizeInt
 			if i > 0 && n == nPrev {
 				valuesBuf = append(valuesBuf, s)
@@ -687,14 +697,14 @@ func (br *blockResult) getBucketedUint64Values(encodedValues []string, bucketSiz
 	return br.valuesBuf[valuesBufLen:]
 }
 
-func (br *blockResult) getBucketedFloat64Values(encodedValues []string, bucketSize float64) []string {
+func (br *blockResult) getBucketedFloat64Values(encodedValues []string, bucketSize, bucketOffset float64) []string {
 	buf := br.buf
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
 
 	var s string
 
-	if bucketSize <= 0 {
+	if bucketSize <= 0 && bucketOffset == 0 {
 		for i, v := range encodedValues {
 			if i > 0 && encodedValues[i-1] == encodedValues[i] {
 				valuesBuf = append(valuesBuf, s)
@@ -725,6 +735,8 @@ func (br *blockResult) getBucketedFloat64Values(encodedValues []string, bucketSi
 			n := encoding.UnmarshalUint64(b)
 			f := math.Float64frombits(n)
 
+			f -= bucketOffset
+
 			// emulate f % bucketSize for float64 values
 			fP10 := int64(f * p10)
 			fP10 -= fP10 % bucketSizeP10
@@ -749,14 +761,14 @@ func (br *blockResult) getBucketedFloat64Values(encodedValues []string, bucketSi
 	return br.valuesBuf[valuesBufLen:]
 }
 
-func (br *blockResult) getBucketedIPv4Values(encodedValues []string, bucketSize float64) []string {
+func (br *blockResult) getBucketedIPv4Values(encodedValues []string, bucketSize, bucketOffset float64) []string {
 	buf := br.buf
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
 
 	var s string
 
-	if bucketSize <= 1 {
+	if bucketSize <= 1 && bucketOffset == 0 {
 		for i, v := range encodedValues {
 			if i > 0 && encodedValues[i-1] == encodedValues[i] {
 				valuesBuf = append(valuesBuf, s)
@@ -770,6 +782,7 @@ func (br *blockResult) getBucketedIPv4Values(encodedValues []string, bucketSize 
 		}
 	} else {
 		bucketSizeInt := uint32(bucketSize)
+		bucketOffsetInt := uint32(int32(bucketOffset))
 		var nPrev uint32
 		for i, v := range encodedValues {
 			if i > 0 && encodedValues[i-1] == encodedValues[i] {
@@ -779,6 +792,7 @@ func (br *blockResult) getBucketedIPv4Values(encodedValues []string, bucketSize 
 
 			b := bytesutil.ToUnsafeBytes(v)
 			n := binary.BigEndian.Uint32(b)
+			n -= bucketOffsetInt
 			n -= n % bucketSizeInt
 			if i > 0 && n == nPrev {
 				valuesBuf = append(valuesBuf, s)
@@ -799,14 +813,14 @@ func (br *blockResult) getBucketedIPv4Values(encodedValues []string, bucketSize 
 	return valuesBuf[valuesBufLen:]
 }
 
-func (br *blockResult) getBucketedTimestampISO8601Values(encodedValues []string, bucketSize float64) []string {
+func (br *blockResult) getBucketedTimestampISO8601Values(encodedValues []string, bucketSize, bucketOffset float64) []string {
 	buf := br.buf
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
 
 	var s string
 
-	if bucketSize <= 1 {
+	if bucketSize <= 1 && bucketOffset == 0 {
 		for i, v := range encodedValues {
 			if i > 0 && encodedValues[i-1] == encodedValues[i] {
 				valuesBuf = append(valuesBuf, s)
@@ -823,6 +837,7 @@ func (br *blockResult) getBucketedTimestampISO8601Values(encodedValues []string,
 		}
 	} else {
 		bucketSizeInt := uint64(bucketSize)
+		bucketOffsetInt := uint64(int64(bucketOffset))
 		var nPrev uint64
 		bb := bbPool.Get()
 		for i, v := range encodedValues {
@@ -833,6 +848,7 @@ func (br *blockResult) getBucketedTimestampISO8601Values(encodedValues []string,
 
 			b := bytesutil.ToUnsafeBytes(v)
 			n := encoding.UnmarshalUint64(b)
+			n -= bucketOffsetInt
 			n -= n % bucketSizeInt
 			if i > 0 && n == nPrev {
 				valuesBuf = append(valuesBuf, s)
@@ -854,9 +870,9 @@ func (br *blockResult) getBucketedTimestampISO8601Values(encodedValues []string,
 	return valuesBuf[valuesBufLen:]
 }
 
-// getBucketedValue returns bucketed s according to the given bucketSize.
-func (br *blockResult) getBucketedValue(s string, bucketSize float64) string {
-	if bucketSize <= 0 {
+// getBucketedValue returns bucketed s according to the given bucketSize and bucketOffset
+func (br *blockResult) getBucketedValue(s string, bucketSize, bucketOffset float64) string {
+	if bucketSize <= 0 && bucketOffset == 0 {
 		return s
 	}
 	if len(s) == 0 {
@@ -870,6 +886,7 @@ func (br *blockResult) getBucketedValue(s string, bucketSize float64) string {
 	}
 
 	if f, ok := tryParseFloat64(s); ok {
+		f -= bucketOffset
 		// emulate f % bucketSize for float64 values
 		_, e := decimal.FromFloat(bucketSize)
 		p10 := math.Pow10(int(-e))
@@ -883,6 +900,7 @@ func (br *blockResult) getBucketedValue(s string, bucketSize float64) string {
 	}
 
 	if nsecs, ok := tryParseTimestampISO8601(s); ok {
+		nsecs -= int64(bucketOffset)
 		nsecs -= nsecs % int64(bucketSize)
 		bufLen := len(br.buf)
 		br.buf = marshalTimestampISO8601(br.buf, nsecs)
@@ -890,6 +908,7 @@ func (br *blockResult) getBucketedValue(s string, bucketSize float64) string {
 	}
 
 	if nsecs, ok := tryParseTimestampRFC3339Nano(s); ok {
+		nsecs -= int64(bucketOffset)
 		nsecs -= nsecs % int64(bucketSize)
 		bufLen := len(br.buf)
 		br.buf = marshalTimestampRFC3339Nano(br.buf, nsecs)
@@ -897,6 +916,7 @@ func (br *blockResult) getBucketedValue(s string, bucketSize float64) string {
 	}
 
 	if n, ok := tryParseIPv4(s); ok {
+		n -= uint32(int32(bucketOffset))
 		n -= n % uint32(bucketSize)
 		bufLen := len(br.buf)
 		br.buf = marshalIPv4(br.buf, n)
@@ -904,6 +924,7 @@ func (br *blockResult) getBucketedValue(s string, bucketSize float64) string {
 	}
 
 	if nsecs, ok := tryParseDuration(s); ok {
+		nsecs -= int64(bucketOffset)
 		nsecs -= nsecs % int64(bucketSize)
 		bufLen := len(br.buf)
 		br.buf = marshalDuration(br.buf, nsecs)
@@ -1042,6 +1063,9 @@ type blockResultColumn struct {
 	// bucketSize contains bucketSize for bucketedValues
 	bucketSize float64
 
+	// bucketOffset contains bucketOffset for bucketedValues
+	bucketOffset float64
+
 	// buf and valuesBuf are used by addValue() in order to re-use memory across resetRows().
 	buf       []byte
 	valuesBuf []string
@@ -1135,19 +1159,20 @@ func (c *blockResultColumn) getValueAtRow(br *blockResult, rowIdx int) string {
 	return values[rowIdx]
 }
 
-// getValues returns values for the given column, bucketed according to bucketSize.
+// getValues returns values for the given column, bucketed according to bucketSize and bucketOffset.
 //
 // The returned values are valid until br.reset() is called.
-func (c *blockResultColumn) getBucketedValues(br *blockResult, bucketSize float64) []string {
+func (c *blockResultColumn) getBucketedValues(br *blockResult, bucketSize, bucketOffset float64) []string {
 	if bucketSize <= 0 {
 		return c.getValues(br)
 	}
-	if values := c.bucketedValues; values != nil && c.bucketSize == bucketSize {
+	if values := c.bucketedValues; values != nil && c.bucketSize == bucketSize && c.bucketOffset == bucketOffset {
 		return values
 	}
 
-	c.bucketedValues = br.getBucketedColumnValues(c, bucketSize)
+	c.bucketedValues = br.getBucketedColumnValues(c, bucketSize, bucketOffset)
 	c.bucketSize = bucketSize
+	c.bucketOffset = bucketOffset
 	return c.bucketedValues
 }
 
@@ -1159,7 +1184,7 @@ func (c *blockResultColumn) getValues(br *blockResult) []string {
 		return values
 	}
 
-	c.values = br.getBucketedColumnValues(c, 0)
+	c.values = br.getBucketedColumnValues(c, 0, 0)
 	return c.values
 }
 
