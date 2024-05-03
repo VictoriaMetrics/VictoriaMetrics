@@ -57,9 +57,7 @@ var dataFlushInterval = 5 * time.Second
 //
 // This function must be called before initializing the indexdb.
 func SetDataFlushInterval(d time.Duration) {
-	if d > pendingItemsFlushInterval {
-		dataFlushInterval = d
-	}
+	dataFlushInterval = d
 }
 
 // maxItemsPerCachedPart is the maximum items per created part by the merge,
