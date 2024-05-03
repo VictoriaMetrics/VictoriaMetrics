@@ -1,7 +1,7 @@
 package logstorage
 
 import (
-	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -11,15 +11,16 @@ import (
 )
 
 type statsUniqArray struct {
-	field string
+	fields       []string
+	containsStar bool
 }
 
 func (su *statsUniqArray) String() string {
-	return "uniq_array(" + quoteTokenIfNeeded(su.field) + ")"
+	return "uniq_array(" + fieldNamesString(su.fields) + ")"
 }
 
 func (su *statsUniqArray) neededFields() []string {
-	return []string{su.field}
+	return su.fields
 }
 
 func (su *statsUniqArray) newStatsProcessor() (statsProcessor, int) {
@@ -38,11 +39,26 @@ type statsUniqArrayProcessor struct {
 }
 
 func (sup *statsUniqArrayProcessor) updateStatsForAllRows(br *blockResult) int {
-	field := sup.su.field
-	m := sup.m
+	fields := sup.su.fields
 
 	stateSizeIncrease := 0
-	c := br.getColumnByName(field)
+	if len(fields) == 0 || sup.su.containsStar {
+		columns := br.getColumns()
+		for i := range columns {
+			stateSizeIncrease += sup.updateStatsForAllRowsColumn(&columns[i], br)
+		}
+	} else {
+		for _, field := range fields {
+			c := br.getColumnByName(field)
+			stateSizeIncrease += sup.updateStatsForAllRowsColumn(&c, br)
+		}
+	}
+	return stateSizeIncrease
+}
+
+func (sup *statsUniqArrayProcessor) updateStatsForAllRowsColumn(c *blockResultColumn, br *blockResult) int {
+	m := sup.m
+	stateSizeIncrease := 0
 	if c.isConst {
 		// collect unique const values
 		v := c.encodedValues[0]
@@ -94,11 +110,26 @@ func (sup *statsUniqArrayProcessor) updateStatsForAllRows(br *blockResult) int {
 }
 
 func (sup *statsUniqArrayProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
-	field := sup.su.field
-	m := sup.m
+	fields := sup.su.fields
 
 	stateSizeIncrease := 0
-	c := br.getColumnByName(field)
+	if len(fields) == 0 || sup.su.containsStar {
+		columns := br.getColumns()
+		for i := range columns {
+			stateSizeIncrease += sup.updateStatsForRowColumn(&columns[i], br, rowIdx)
+		}
+	} else {
+		for _, field := range fields {
+			c := br.getColumnByName(field)
+			stateSizeIncrease += sup.updateStatsForRowColumn(&c, br, rowIdx)
+		}
+	}
+	return stateSizeIncrease
+}
+
+func (sup *statsUniqArrayProcessor) updateStatsForRowColumn(c *blockResultColumn, br *blockResult, rowIdx int) int {
+	m := sup.m
+	stateSizeIncrease := 0
 	if c.isConst {
 		// collect unique const values
 		v := c.encodedValues[0]
@@ -192,15 +223,9 @@ func parseStatsUniqArray(lex *lexer) (*statsUniqArray, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(fields) != 1 {
-		return nil, fmt.Errorf("'uniq_array' needs exactly one field; got %d fields: [%s]", len(fields), fields)
-	}
-	field := fields[0]
-	if field == "*" {
-		return nil, fmt.Errorf("'uniq_array' cannot contain '*'")
-	}
 	su := &statsUniqArray{
-		field: field,
+		fields:       fields,
+		containsStar: slices.Contains(fields, "*"),
 	}
 	return su, nil
 }

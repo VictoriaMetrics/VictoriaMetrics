@@ -857,10 +857,14 @@ func TestParseQuerySuccess(t *testing.T) {
 	// stats pipe uniq
 	f(`* | stats uniq(foo) bar`, `* | stats uniq(foo) as bar`)
 	f(`* | stats by(x, y) uniq(foo,bar) as baz`, `* | stats by (x, y) uniq(foo, bar) as baz`)
+	f(`* | stats by(x) uniq(*) z`, `* | stats by (x) uniq(*) as z`)
+	f(`* | stats by(x) uniq() z`, `* | stats by (x) uniq() as z`)
 
 	// stats pipe uniq_array
 	f(`* | stats uniq_array(foo) bar`, `* | stats uniq_array(foo) as bar`)
-	f(`* | stats by(x, y) uniq_array(foo) as baz`, `* | stats by (x, y) uniq_array(foo) as baz`)
+	f(`* | stats by(x, y) uniq_array(foo, bar) as baz`, `* | stats by (x, y) uniq_array(foo, bar) as baz`)
+	f(`* | stats by(x) uniq_array(*) y`, `* | stats by (x) uniq_array(*) as y`)
+	f(`* | stats by(x) uniq_array() y`, `* | stats by (x) uniq_array() as y`)
 
 	// stats pipe multiple funcs
 	f(`* | stats count() "foo.bar:baz", uniq(a) bar`, `* | stats count() as "foo.bar:baz", uniq(a) as bar`)
@@ -1143,9 +1147,6 @@ func TestParseQueryFailure(t *testing.T) {
 	// invalid stats uniq_array
 	f(`foo | stats uniq_array`)
 	f(`foo | stats uniq_array()`)
-	f(`foo | stats uniq_array() as foo`)
-	f(`foo | stats uniq_array(a,b) as foo`)
-	f(`foo | stats uniq_array(*) as foo`)
 
 	// invalid grouping fields
 	f(`foo | stats by(foo:bar) count() baz`)
