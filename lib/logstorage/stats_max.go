@@ -93,10 +93,9 @@ func (smp *statsMaxProcessor) finalizeStats() string {
 }
 
 func parseStatsMax(lex *lexer) (*statsMax, error) {
-	lex.nextToken()
-	fields, err := parseFieldNamesInParens(lex)
+	fields, err := parseFieldNamesForFunc(lex, "max")
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse 'max' args: %w", err)
+		return nil, err
 	}
 	if len(fields) == 0 {
 		return nil, fmt.Errorf("'max' must contain at least one arg")

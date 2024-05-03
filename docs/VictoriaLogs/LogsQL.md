@@ -1069,7 +1069,7 @@ See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) fo
 
 ## Stats
 
-LogsQL supports calculating the following stats:
+LogsQL supports calculating the following stats functions:
 
 - The number of matching log entries. Examples:
   - `error | stats count() as errors_total` returns the number of [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `error` [word](#word).
@@ -1117,6 +1117,48 @@ LogsQL supports calculating the following stats:
   across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `GET` [word](#word), grouped
   by `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
 
+### Grouping stats by buckets
+
+#### Time buckets
+
+Stats can be bucketed by [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) with the `_time:bucket_duration` syntax inside `by(...)` clause.
+For example, the following query returns per-minute number of log messages with the `error` [word](#word) for the last 10 minutes:
+
+```logsql
+_time:10m error | stats by (_time:1m) count() errors_per_minute
+```
+
+#### Numeric buckets
+
+Stats can be bucketed by any numeric [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with the `field_name:bucket_size` syntax inside `by(...)` clause.
+For example, the following query returns the number of log messages with the `status=200` [phrase](#phrase-filter) bucketed by `request_duration_seconds` numeric field with `0.5` step:
+
+```logsql
+_time:10m "status=200" | stats by (request_duration_seconds:0.5) count() requests
+```
+
+The `bucket_size` can contain the following convenient suffixes:
+
+- `KB` - the `bucket_size` is multiplied by `1000` in this case. For example, `10KB`.
+- `MB` - the `bucket_size` is multiplied by `1_000_000` in this case. For example, `10MB`.
+- `GB` - the `bucket_size` is multiplied by `1_000_000_000` in this case. For example, `10GB`.
+- `TB` - the `bucket_size` is multiplied by `1_000_000_000_000` in this case. For example, `10TB`.
+- `KiB` - the `bucket_size` is multiplied by `1024` in this case. For example, `10KiB`.
+- `MiB` - the `bucket_size` is multiplied by `1024*1024` in this case. For example, `10MiB`.
+- `GiB` - the `bucket_size` is multiplied by `1024*1024*1024` in this case. For example, `10GiB`.
+- `TiB` - the `bucket_size` is multiplied by `1024*1024*1024*1024` in this case. For example, `10TiB`.
+
+#### IPv4 mask buckets
+
+Stats can be bucketed by [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with [IPv4 addresses](https://en.wikipedia.org/wiki/IP_address)
+via the `ip_field_name:/network_mask` syntax inside `by(...)` clause. For example, the following query returns the number of log entries per `/24` subnetwork during the last 10 minutes:
+
+```logsql
+_time:10m | stats by (ip:/24) count() requests_per_subnet
+```
+
+### Calculating multiple stats
+
 Stats calculations can be combined. For example, the following query calculates the number of log messages with the `error` [word](#word),
 the number of unique values for `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) and the sum of `duration`
 [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model), grouped by `namespace` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
@@ -1127,6 +1169,8 @@ error | stats by (namespace)
   uniq(ip) as unique_ips,
   sum(duration) as duration_sum
 ```
+
+### Stats TODO
 
 LogsQL will support calculating the following additional stats based on the [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
 and fields created by [transformations](#transformations):

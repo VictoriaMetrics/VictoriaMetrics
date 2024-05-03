@@ -2,7 +2,6 @@ package logstorage
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -323,7 +322,7 @@ func toUint8String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string {
 		logger.Panicf("FATAL: %s: unexpected length for binary representation of uint8 number: got %d; want 1", bs.partPath(), len(v))
 	}
 	n := uint64(v[0])
-	bb.B = strconv.AppendUint(bb.B[:0], n, 10)
+	bb.B = marshalUint64(bb.B[:0], n)
 	return bytesutil.ToUnsafeString(bb.B)
 }
 
@@ -333,7 +332,7 @@ func toUint16String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string 
 	}
 	b := bytesutil.ToUnsafeBytes(v)
 	n := uint64(encoding.UnmarshalUint16(b))
-	bb.B = strconv.AppendUint(bb.B[:0], n, 10)
+	bb.B = marshalUint64(bb.B[:0], n)
 	return bytesutil.ToUnsafeString(bb.B)
 }
 
@@ -343,7 +342,7 @@ func toUint32String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string 
 	}
 	b := bytesutil.ToUnsafeBytes(v)
 	n := uint64(encoding.UnmarshalUint32(b))
-	bb.B = strconv.AppendUint(bb.B[:0], n, 10)
+	bb.B = marshalUint64(bb.B[:0], n)
 	return bytesutil.ToUnsafeString(bb.B)
 }
 
@@ -353,6 +352,6 @@ func toUint64String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string 
 	}
 	b := bytesutil.ToUnsafeBytes(v)
 	n := encoding.UnmarshalUint64(b)
-	bb.B = strconv.AppendUint(bb.B[:0], n, 10)
+	bb.B = marshalUint64(bb.B[:0], n)
 	return bytesutil.ToUnsafeString(bb.B)
 }

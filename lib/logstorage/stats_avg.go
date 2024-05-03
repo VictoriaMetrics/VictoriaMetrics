@@ -93,10 +93,9 @@ func (sap *statsAvgProcessor) finalizeStats() string {
 }
 
 func parseStatsAvg(lex *lexer) (*statsAvg, error) {
-	lex.nextToken()
-	fields, err := parseFieldNamesInParens(lex)
+	fields, err := parseFieldNamesForFunc(lex, "avg")
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse 'avg' args: %w", err)
+		return nil, err
 	}
 	if len(fields) == 0 {
 		return nil, fmt.Errorf("'avg' must contain at least one arg")

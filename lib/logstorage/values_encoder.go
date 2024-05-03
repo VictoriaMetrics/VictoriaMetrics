@@ -156,7 +156,7 @@ func (vd *valuesDecoder) decodeInplace(values []string, vt valueType, dict *valu
 			}
 			n := uint64(v[0])
 			dstLen := len(dstBuf)
-			dstBuf = strconv.AppendUint(dstBuf, n, 10)
+			dstBuf = marshalUint64(dstBuf, n)
 			values[i] = bytesutil.ToUnsafeString(dstBuf[dstLen:])
 		}
 	case valueTypeUint16:
@@ -167,7 +167,7 @@ func (vd *valuesDecoder) decodeInplace(values []string, vt valueType, dict *valu
 			b := bytesutil.ToUnsafeBytes(v)
 			n := uint64(encoding.UnmarshalUint16(b))
 			dstLen := len(dstBuf)
-			dstBuf = strconv.AppendUint(dstBuf, n, 10)
+			dstBuf = marshalUint64(dstBuf, n)
 			values[i] = bytesutil.ToUnsafeString(dstBuf[dstLen:])
 		}
 	case valueTypeUint32:
@@ -178,7 +178,7 @@ func (vd *valuesDecoder) decodeInplace(values []string, vt valueType, dict *valu
 			b := bytesutil.ToUnsafeBytes(v)
 			n := uint64(encoding.UnmarshalUint32(b))
 			dstLen := len(dstBuf)
-			dstBuf = strconv.AppendUint(dstBuf, n, 10)
+			dstBuf = marshalUint64(dstBuf, n)
 			values[i] = bytesutil.ToUnsafeString(dstBuf[dstLen:])
 		}
 	case valueTypeUint64:
@@ -189,7 +189,7 @@ func (vd *valuesDecoder) decodeInplace(values []string, vt valueType, dict *valu
 			b := bytesutil.ToUnsafeBytes(v)
 			n := encoding.UnmarshalUint64(b)
 			dstLen := len(dstBuf)
-			dstBuf = strconv.AppendUint(dstBuf, n, 10)
+			dstBuf = marshalUint64(dstBuf, n)
 			values[i] = bytesutil.ToUnsafeString(dstBuf[dstLen:])
 		}
 	case valueTypeDict:
@@ -239,19 +239,18 @@ func (vd *valuesDecoder) decodeInplace(values []string, vt valueType, dict *valu
 func toTimestampISO8601String(dst []byte, v string) []byte {
 	b := bytesutil.ToUnsafeBytes(v)
 	n := encoding.UnmarshalUint64(b)
-	t := time.Unix(0, int64(n)).UTC()
-	dst = t.AppendFormat(dst, iso8601Timestamp)
+	dst = marshalTimestampISO8601(dst, int64(n))
 	return dst
 }
 
 func toIPv4String(dst []byte, v string) []byte {
-	dst = strconv.AppendUint(dst, uint64(v[0]), 10)
+	dst = marshalUint64(dst, uint64(v[0]))
 	dst = append(dst, '.')
-	dst = strconv.AppendUint(dst, uint64(v[1]), 10)
+	dst = marshalUint64(dst, uint64(v[1]))
 	dst = append(dst, '.')
-	dst = strconv.AppendUint(dst, uint64(v[2]), 10)
+	dst = marshalUint64(dst, uint64(v[2]))
 	dst = append(dst, '.')
-	dst = strconv.AppendUint(dst, uint64(v[3]), 10)
+	dst = marshalUint64(dst, uint64(v[3]))
 	return dst
 }
 
@@ -259,7 +258,7 @@ func toFloat64String(dst []byte, v string) []byte {
 	b := bytesutil.ToUnsafeBytes(v)
 	n := encoding.UnmarshalUint64(b)
 	f := math.Float64frombits(n)
-	dst = strconv.AppendFloat(dst, f, 'g', -1, 64)
+	dst = marshalFloat64(dst, f)
 	return dst
 }
 
@@ -279,10 +278,10 @@ func putValuesDecoder(vd *valuesDecoder) {
 var valuesDecoderPool sync.Pool
 
 func tryTimestampISO8601Encoding(dstBuf []byte, dstValues, srcValues []string) ([]byte, []string, valueType, uint64, uint64) {
-	u64s := encoding.GetUint64s(len(srcValues))
-	defer encoding.PutUint64s(u64s)
+	u64s := encoding.GetInt64s(len(srcValues))
+	defer encoding.PutInt64s(u64s)
 	a := u64s.A
-	var minValue, maxValue uint64
+	var minValue, maxValue int64
 	for i, v := range srcValues {
 		n, ok := tryParseTimestampISO8601(v)
 		if !ok {
@@ -298,14 +297,69 @@ func tryTimestampISO8601Encoding(dstBuf []byte, dstValues, srcValues []string) (
 	}
 	for _, n := range a {
 		dstLen := len(dstBuf)
-		dstBuf = encoding.MarshalUint64(dstBuf, n)
+		dstBuf = encoding.MarshalUint64(dstBuf, uint64(n))
 		v := bytesutil.ToUnsafeString(dstBuf[dstLen:])
 		dstValues = append(dstValues, v)
 	}
-	return dstBuf, dstValues, valueTypeTimestampISO8601, minValue, maxValue
+	return dstBuf, dstValues, valueTypeTimestampISO8601, uint64(minValue), uint64(maxValue)
 }
 
-func tryParseTimestampISO8601(s string) (uint64, bool) {
+// tryParseTimestampRFC3339Nano parses 'YYYY-MM-DDThh:mm:ss' with optional nanoseconds part and 'Z' tail and returns unix timestamp in nanoseconds.
+//
+// The returned timestamp can be negative if s is smaller than 1970 year.
+func tryParseTimestampRFC3339Nano(s string) (int64, bool) {
+	// Do not parse timestamps with timezone other than Z, since they cannot be converted back
+	// to the same string representation in general case.
+	// This may break search.
+
+	if len(s) < len("2006-01-02T15:04:05Z") {
+		return 0, false
+	}
+
+	secs, ok, tail := tryParseTimestampSecs(s)
+	if !ok {
+		return 0, false
+	}
+	s = tail
+	nsecs := secs * 1e9
+
+	// Parse optional fractional part of seconds.
+	n := strings.IndexByte(s, 'Z')
+	if n < 0 || n != len(s)-1 {
+		return 0, false
+	}
+	s = s[:n]
+	if len(s) == 0 {
+		return nsecs, true
+	}
+	if s[0] == '.' {
+		s = s[1:]
+	}
+	digits := len(s)
+	if digits > 9 {
+		return 0, false
+	}
+	n64, ok := tryParseUint64(s)
+	if !ok {
+		return 0, false
+	}
+
+	if digits < 9 {
+		n64 *= uint64(math.Pow10(9 - digits))
+	}
+	nsecs += int64(n64)
+	return nsecs, true
+}
+
+// marshalTimestampRFC3339Nano appends RFC3339Nano-formatted nsecs to dst and returns the result.
+func marshalTimestampRFC3339Nano(dst []byte, nsecs int64) []byte {
+	return time.Unix(0, nsecs).UTC().AppendFormat(dst, time.RFC3339Nano)
+}
+
+// tryParseTimestampISO8601 parses 'YYYY-MM-DDThh:mm:ss.mssZ' and returns unix timestamp in nanoseconds.
+//
+// The returned timestamp can be negative if s is smaller than 1970 year.
+func tryParseTimestampISO8601(s string) (int64, bool) {
 	// Do not parse timestamps with timezone, since they cannot be converted back
 	// to the same string representation in general case.
 	// This may break search.
@@ -313,117 +367,155 @@ func tryParseTimestampISO8601(s string) (uint64, bool) {
 		return 0, false
 	}
 
+	secs, ok, tail := tryParseTimestampSecs(s)
+	if !ok {
+		return 0, false
+	}
+	s = tail
+	nsecs := secs * 1e9
+
+	if s[0] != '.' {
+		return 0, false
+	}
+	s = s[1:]
+
+	// Parse milliseconds
+	tzDelimiter := s[len("000")]
+	if tzDelimiter != 'Z' {
+		return 0, false
+	}
+	millisecondStr := s[:len("000")]
+	msecs, ok := tryParseUint64(millisecondStr)
+	if !ok {
+		return 0, false
+	}
+	s = s[len("000")+1:]
+
+	if len(s) != 0 {
+		logger.Panicf("BUG: unexpected tail in timestamp: %q", s)
+	}
+
+	nsecs += int64(msecs) * 1e6
+	return nsecs, true
+}
+
+// marshalTimestampISO8601 appends ISO8601-formatted nsecs to dst and returns the result.
+func marshalTimestampISO8601(dst []byte, nsecs int64) []byte {
+	return time.Unix(0, nsecs).UTC().AppendFormat(dst, iso8601Timestamp)
+}
+
+const iso8601Timestamp = "2006-01-02T15:04:05.000Z"
+
+// tryParseTimestampSecs parses YYYY-MM-DDTHH:mm:ss into unix timestamp in seconds.
+func tryParseTimestampSecs(s string) (int64, bool, string) {
 	// Parse year
 	if s[len("YYYY")] != '-' {
-		return 0, false
+		return 0, false, s
 	}
 	yearStr := s[:len("YYYY")]
 	n, ok := tryParseUint64(yearStr)
-	if !ok || n > 3000 {
-		return 0, false
+	if !ok || n < 1677 || n > 2262 {
+		return 0, false, s
 	}
 	year := int(n)
 	s = s[len("YYYY")+1:]
 
 	// Parse month
 	if s[len("MM")] != '-' {
-		return 0, false
+		return 0, false, s
 	}
 	monthStr := s[:len("MM")]
 	n, ok = tryParseUint64(monthStr)
-	if !ok || n < 1 || n > 12 {
-		return 0, false
+	if !ok {
+		return 0, false, s
 	}
 	month := time.Month(n)
 	s = s[len("MM")+1:]
 
 	// Parse day
 	if s[len("DD")] != 'T' {
-		return 0, false
+		return 0, false, s
 	}
 	dayStr := s[:len("DD")]
 	n, ok = tryParseUint64(dayStr)
-	if !ok || n < 1 || n > 31 {
-		return 0, false
+	if !ok {
+		return 0, false, s
 	}
 	day := int(n)
 	s = s[len("DD")+1:]
 
 	// Parse hour
 	if s[len("HH")] != ':' {
-		return 0, false
+		return 0, false, s
 	}
 	hourStr := s[:len("HH")]
 	n, ok = tryParseUint64(hourStr)
-	if !ok || n > 23 {
-		return 0, false
+	if !ok {
+		return 0, false, s
 	}
 	hour := int(n)
 	s = s[len("HH")+1:]
 
 	// Parse minute
 	if s[len("MM")] != ':' {
-		return 0, false
+		return 0, false, s
 	}
 	minuteStr := s[:len("MM")]
 	n, ok = tryParseUint64(minuteStr)
-	if !ok || n > 59 {
-		return 0, false
+	if !ok {
+		return 0, false, s
 	}
 	minute := int(n)
 	s = s[len("MM")+1:]
 
 	// Parse second
-	if s[len("SS")] != '.' {
-		return 0, false
-	}
 	secondStr := s[:len("SS")]
 	n, ok = tryParseUint64(secondStr)
-	if !ok || n > 59 {
-		return 0, false
+	if !ok {
+		return 0, false, s
 	}
 	second := int(n)
-	s = s[len("SS")+1:]
+	s = s[len("SS"):]
 
-	// Parse millisecond
-	tzDelimiter := s[len("000")]
-	if tzDelimiter != 'Z' {
-		return 0, false
+	secs := time.Date(year, month, day, hour, minute, second, 0, time.UTC).Unix()
+	if secs < int64(-1<<63)/1e9 || secs >= int64((1<<63)-1)/1e9 {
+		// Too big or too small timestamp
+		return 0, false, s
 	}
-	millisecondStr := s[:len("000")]
-	n, ok = tryParseUint64(millisecondStr)
-	if !ok || n > 999 {
-		return 0, false
-	}
-	millisecond := int(n)
-	s = s[len("000")+1:]
-
-	if len(s) != 0 {
-		return 0, false
-	}
-
-	t := time.Date(year, month, day, hour, minute, second, millisecond*1e6, time.UTC)
-	ts := t.UnixNano()
-	return uint64(ts), true
+	return secs, true, s
 }
 
+// tryParseUint64 parses s as uint64 value.
 func tryParseUint64(s string) (uint64, bool) {
-	if len(s) == 0 || len(s) > 18 {
+	if len(s) == 0 || len(s) > len("18_446_744_073_709_551_615") {
 		return 0, false
 	}
 	n := uint64(0)
 	for i := 0; i < len(s); i++ {
 		ch := s[i]
+		if ch == '_' {
+			continue
+		}
 		if ch < '0' || ch > '9' {
 			return 0, false
 		}
+		if n > ((1<<64)-1)/10 {
+			return 0, false
+		}
 		n *= 10
-		n += uint64(ch - '0')
+		d := uint64(ch - '0')
+		if n > (1<<64)-1-d {
+			return 0, false
+		}
+		n += d
 	}
 	return n, true
 }
 
-const iso8601Timestamp = "2006-01-02T15:04:05.000Z"
+// marshalUint64 appends string representation of n to dst and returns the result.
+func marshalUint64(dst []byte, n uint64) []byte {
+	return strconv.AppendUint(dst, n, 10)
+}
 
 func tryIPv4Encoding(dstBuf []byte, dstValues, srcValues []string) ([]byte, []string, valueType, uint64, uint64) {
 	u32s := encoding.GetUint32s(len(srcValues))
@@ -452,6 +544,7 @@ func tryIPv4Encoding(dstBuf []byte, dstValues, srcValues []string) ([]byte, []st
 	return dstBuf, dstValues, valueTypeIPv4, uint64(minValue), uint64(maxValue)
 }
 
+// tryParseIPv4 tries parsing ipv4 from s.
 func tryParseIPv4(s string) (uint32, bool) {
 	if len(s) < len("1.1.1.1") || len(s) > len("255.255.255.255") || strings.Count(s, ".") != 3 {
 		// Fast path - the entry isn't IPv4
@@ -509,6 +602,18 @@ func tryParseIPv4(s string) (uint32, bool) {
 	return ipv4, true
 }
 
+// marshalIPv4 appends string representation of IPv4 address in n to dst and returns the result.
+func marshalIPv4(dst []byte, n uint32) []byte {
+	dst = marshalUint64(dst, uint64(n>>24))
+	dst = append(dst, '.')
+	dst = marshalUint64(dst, uint64((n>>16)&0xff))
+	dst = append(dst, '.')
+	dst = marshalUint64(dst, uint64((n>>8)&0xff))
+	dst = append(dst, '.')
+	dst = marshalUint64(dst, uint64(n&0xff))
+	return dst
+}
+
 func tryFloat64Encoding(dstBuf []byte, dstValues, srcValues []string) ([]byte, []string, valueType, uint64, uint64) {
 	u64s := encoding.GetUint64s(len(srcValues))
 	defer encoding.PutUint64s(u64s)
@@ -538,6 +643,20 @@ func tryFloat64Encoding(dstBuf []byte, dstValues, srcValues []string) ([]byte, [
 	return dstBuf, dstValues, valueTypeFloat64, minValueU64, maxValueU64
 }
 
+// tryParseFloat64Prefix tries parsing float64 number at the beginning of s and returns the remaining tail.
+func tryParseFloat64Prefix(s string) (float64, bool, string) {
+	i := 0
+	for i < len(s) && (s[i] >= '0' && s[i] <= '9' || s[i] == '.' || s[i] == '_') {
+		i++
+	}
+	if i == 0 {
+		return 0, false, s
+	}
+	f, ok := tryParseFloat64(s[:i])
+	return f, ok, s[i:]
+}
+
+// tryParseFloat64 tries parsing s as float64.
 func tryParseFloat64(s string) (float64, bool) {
 	if len(s) == 0 || len(s) > 20 {
 		return 0, false
@@ -578,12 +697,291 @@ func tryParseFloat64(s string) (float64, bool) {
 	if !ok {
 		return 0, false
 	}
-	f := math.FMA(float64(nFrac), math.Pow10(-len(sFrac)), float64(nInt))
+	p10 := math.Pow10(strings.Count(sFrac, "_") - len(sFrac))
+	f := math.FMA(float64(nFrac), p10, float64(nInt))
 	if minus {
 		f = -f
 	}
 	return f, true
 }
+
+// marshalFloat64 appends formatted f to dst and returns the result.
+func marshalFloat64(dst []byte, f float64) []byte {
+	return strconv.AppendFloat(dst, f, 'f', -1, 64)
+}
+
+// tryParseBytes parses user-readable bytes representation in s.
+//
+// Supported suffixes:
+//
+//	K, KB - for 1000
+func tryParseBytes(s string) (int64, bool) {
+	if len(s) == 0 {
+		return 0, false
+	}
+	n := int64(0)
+	for len(s) > 0 {
+		f, ok, tail := tryParseFloat64Prefix(s)
+		if !ok {
+			return 0, false
+		}
+		s = tail
+		if len(s) == 0 {
+			n += int64(f)
+			continue
+		}
+		if len(s) >= 3 {
+			prefix := s[:3]
+			switch {
+			case strings.EqualFold(prefix, "kib"):
+				n += int64(f * (1 << 10))
+				s = s[3:]
+				continue
+			case strings.EqualFold(prefix, "mib"):
+				n += int64(f * (1 << 20))
+				s = s[3:]
+				continue
+			case strings.EqualFold(prefix, "gib"):
+				n += int64(f * (1 << 30))
+				s = s[3:]
+				continue
+			case strings.EqualFold(prefix, "tib"):
+				n += int64(f * (1 << 40))
+				s = s[3:]
+				continue
+			}
+		}
+		if len(s) >= 2 {
+			prefix := s[:2]
+			switch {
+			case strings.EqualFold(prefix, "ki"):
+				n += int64(f * (1 << 10))
+				s = s[2:]
+				continue
+			case strings.EqualFold(prefix, "mi"):
+				n += int64(f * (1 << 20))
+				s = s[2:]
+				continue
+			case strings.EqualFold(prefix, "gi"):
+				n += int64(f * (1 << 30))
+				s = s[2:]
+				continue
+			case strings.EqualFold(prefix, "ti"):
+				n += int64(f * (1 << 40))
+				s = s[2:]
+				continue
+			case strings.EqualFold(prefix, "kb"):
+				n += int64(f * 1_000)
+				s = s[2:]
+				continue
+			case strings.EqualFold(prefix, "mb"):
+				n += int64(f * 1_000_000)
+				s = s[2:]
+				continue
+			case strings.EqualFold(prefix, "gb"):
+				n += int64(f * 1_000_000_000)
+				s = s[2:]
+				continue
+			case strings.EqualFold(prefix, "tb"):
+				n += int64(f * 1_000_000_000_000)
+				s = s[2:]
+				continue
+			}
+		}
+		prefix := s[:1]
+		switch {
+		case strings.EqualFold(prefix, "b"):
+			n += int64(f)
+			s = s[1:]
+			continue
+		case strings.EqualFold(prefix, "k"):
+			n += int64(f * 1_000)
+			s = s[1:]
+			continue
+		case strings.EqualFold(prefix, "m"):
+			n += int64(f * 1_000_000)
+			s = s[1:]
+			continue
+		case strings.EqualFold(prefix, "g"):
+			n += int64(f * 1_000_000_000)
+			s = s[1:]
+			continue
+		case strings.EqualFold(prefix, "t"):
+			n += int64(f * 1_000_000_000_000)
+			s = s[1:]
+			continue
+		}
+	}
+	return n, true
+}
+
+// tryParseIPv4Mask parses '/num' ipv4 mask and returns (1<<(32-num))
+func tryParseIPv4Mask(s string) (uint64, bool) {
+	if len(s) == 0 || s[0] != '/' {
+		return 0, false
+	}
+	s = s[1:]
+	n, ok := tryParseUint64(s)
+	if !ok || n > 32 {
+		return 0, false
+	}
+	return 1 << (32 - uint8(n)), true
+}
+
+// tryParseDuration parses the given duration in nanoseconds and returns the result.
+func tryParseDuration(s string) (int64, bool) {
+	if len(s) == 0 {
+		return 0, false
+	}
+	isMinus := s[0] == '-'
+	if isMinus {
+		s = s[1:]
+	}
+
+	nsecs := int64(0)
+	for len(s) > 0 {
+		f, ok, tail := tryParseFloat64Prefix(s)
+		if !ok {
+			return 0, false
+		}
+		s = tail
+		if len(s) == 0 {
+			return 0, false
+		}
+		if len(s) >= 3 {
+			prefix := s[:3]
+			if strings.EqualFold(prefix, "µs") {
+				nsecs += int64(f * nsecsPerMicrosecond)
+				s = s[3:]
+				continue
+			}
+		}
+		if len(s) >= 2 {
+			prefix := s[:2]
+			switch {
+			case strings.EqualFold(prefix, "ms"):
+				nsecs += int64(f * nsecsPerMillisecond)
+				s = s[2:]
+				continue
+			case strings.EqualFold(prefix, "ns"):
+				nsecs += int64(f)
+				s = s[2:]
+				continue
+			}
+		}
+		prefix := s[:1]
+		switch {
+		case strings.EqualFold(prefix, "y"):
+			nsecs += int64(f * nsecsPerYear)
+			s = s[1:]
+		case strings.EqualFold(prefix, "w"):
+			nsecs += int64(f * nsecsPerWeek)
+			s = s[1:]
+			continue
+		case strings.EqualFold(prefix, "d"):
+			nsecs += int64(f * nsecsPerDay)
+			s = s[1:]
+			continue
+		case strings.EqualFold(prefix, "h"):
+			nsecs += int64(f * nsecsPerHour)
+			s = s[1:]
+			continue
+		case strings.EqualFold(prefix, "m"):
+			nsecs += int64(f * nsecsPerMinute)
+			s = s[1:]
+			continue
+		case strings.EqualFold(prefix, "s"):
+			nsecs += int64(f * nsecsPerSecond)
+			s = s[1:]
+			continue
+		default:
+			return 0, false
+		}
+	}
+
+	if isMinus {
+		nsecs = -nsecs
+	}
+	return nsecs, true
+}
+
+// marshalDuration appends string representation of nsec duration to dst and returns the result.
+func marshalDuration(dst []byte, nsecs int64) []byte {
+	if nsecs == 0 {
+		return append(dst, '0')
+	}
+
+	if nsecs < 0 {
+		dst = append(dst, '-')
+		nsecs = -nsecs
+	}
+	formatFloat64Seconds := nsecs >= nsecsPerSecond
+
+	if nsecs >= nsecsPerWeek {
+		weeks := nsecs / nsecsPerWeek
+		nsecs -= weeks * nsecsPerWeek
+		dst = marshalUint64(dst, uint64(weeks))
+		dst = append(dst, 'w')
+	}
+	if nsecs >= nsecsPerDay {
+		days := nsecs / nsecsPerDay
+		nsecs -= days * nsecsPerDay
+		dst = marshalUint64(dst, uint64(days))
+		dst = append(dst, 'd')
+	}
+	if nsecs >= nsecsPerHour {
+		hours := nsecs / nsecsPerHour
+		nsecs -= hours * nsecsPerHour
+		dst = marshalUint64(dst, uint64(hours))
+		dst = append(dst, 'h')
+	}
+	if nsecs >= nsecsPerMinute {
+		minutes := nsecs / nsecsPerMinute
+		nsecs -= minutes * nsecsPerMinute
+		dst = marshalUint64(dst, uint64(minutes))
+		dst = append(dst, 'm')
+	}
+	if nsecs >= nsecsPerSecond {
+		if formatFloat64Seconds {
+			seconds := float64(nsecs) / nsecsPerSecond
+			dst = marshalFloat64(dst, seconds)
+			dst = append(dst, 's')
+			return dst
+		}
+		seconds := nsecs / nsecsPerSecond
+		nsecs -= seconds * nsecsPerSecond
+		dst = marshalUint64(dst, uint64(seconds))
+		dst = append(dst, 's')
+	}
+	if nsecs >= nsecsPerMillisecond {
+		msecs := nsecs / nsecsPerMillisecond
+		nsecs -= msecs * nsecsPerMillisecond
+		dst = marshalUint64(dst, uint64(msecs))
+		dst = append(dst, "ms"...)
+	}
+	if nsecs >= nsecsPerMicrosecond {
+		usecs := nsecs / nsecsPerMicrosecond
+		nsecs -= usecs * nsecsPerMicrosecond
+		dst = marshalUint64(dst, uint64(usecs))
+		dst = append(dst, "µs"...)
+	}
+	if nsecs > 0 {
+		dst = marshalUint64(dst, uint64(nsecs))
+		dst = append(dst, "ns"...)
+	}
+	return dst
+}
+
+const (
+	nsecsPerYear = 365 * 24 * 3600 * 1e9
+	nsecsPerWeek        = 7 * 24 * 3600 * 1e9
+	nsecsPerDay         = 24 * 3600 * 1e9
+	nsecsPerHour        = 3600 * 1e9
+	nsecsPerMinute      = 60 * 1e9
+	nsecsPerSecond      = 1e9
+	nsecsPerMillisecond = 1e6
+	nsecsPerMicrosecond = 1e3
+)
 
 func tryUintEncoding(dstBuf []byte, dstValues, srcValues []string) ([]byte, []string, valueType, uint64, uint64) {
 	u64s := encoding.GetUint64s(len(srcValues))

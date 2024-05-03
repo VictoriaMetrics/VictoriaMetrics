@@ -4,9 +4,13 @@ package logstorage
 //
 // It is expressed as `_time:(start, end]` in LogsQL.
 type filterTime struct {
+	// mintimestamp is the minimum timestamp in nanoseconds to find
 	minTimestamp int64
+
+	// maxTimestamp is the maximum timestamp in nanoseconds to find
 	maxTimestamp int64
 
+	// stringRepr is string representation of the filter
 	stringRepr string
 }
 

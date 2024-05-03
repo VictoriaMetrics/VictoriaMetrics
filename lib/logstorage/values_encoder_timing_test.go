@@ -5,12 +5,35 @@ import (
 	"testing"
 )
 
+func BenchmarkTryParseTimestampRFC3339Nano(b *testing.B) {
+	a := []string{
+		"2023-01-15T23:45:51Z",
+		"2023-02-15T23:45:51.123Z",
+		"2024-02-15T23:45:51.123456Z",
+		"2025-02-15T22:45:51.123456789Z",
+		"2023-02-15T22:45:51.000000000Z",
+	}
+
+	b.SetBytes(int64(len(a)))
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			for _, s := range a {
+				_, ok := tryParseTimestampRFC3339Nano(s)
+				if !ok {
+					panic(fmt.Errorf("cannot parse timestamp %q", s))
+				}
+			}
+		}
+	})
+}
+
 func BenchmarkTryParseTimestampISO8601(b *testing.B) {
 	a := []string{
 		"2023-01-15T23:45:51.123Z",
 		"2023-02-15T23:45:51.123Z",
-		"2023-02-15T23:45:51.123+01:00",
-		"2023-02-15T22:45:51.123-10:30",
+		"2024-02-15T23:45:51.123Z",
+		"2025-02-15T22:45:51.123Z",
 		"2023-02-15T22:45:51.000Z",
 	}
 

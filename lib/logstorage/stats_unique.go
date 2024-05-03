@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"fmt"
 	"slices"
 	"strconv"
 	"unsafe"
@@ -175,8 +174,13 @@ func (sup *statsUniqProcessor) updateStatsForAllRows(br *blockResult) int {
 	// Slow path for multiple columns.
 
 	// Pre-calculate column values for byFields in order to speed up building group key in the loop below.
-	sup.columnValues = br.appendColumnValues(sup.columnValues[:0], fields)
-	columnValues := sup.columnValues
+	columnValues := sup.columnValues[:0]
+	for _, f := range fields {
+		c := br.getColumnByName(f)
+		values := c.getValues(br)
+		columnValues = append(columnValues, values)
+	}
+	sup.columnValues = columnValues
 
 	keyBuf := sup.keyBuf[:0]
 	for i := range br.timestamps {
@@ -352,10 +356,9 @@ func (sup *statsUniqProcessor) finalizeStats() string {
 }
 
 func parseStatsUniq(lex *lexer) (*statsUniq, error) {
-	lex.nextToken()
-	fields, err := parseFieldNamesInParens(lex)
+	fields, err := parseFieldNamesForFunc(lex, "uniq")
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse 'uniq' args: %w", err)
+		return nil, err
 	}
 	su := &statsUniq{
 		fields:       fields,

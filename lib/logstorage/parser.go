@@ -219,7 +219,7 @@ func ParseQuery(s string) (*Query, error) {
 
 	f, err := parseFilter(lex)
 	if err != nil {
-		return nil, fmt.Errorf("%w; context: %s", err, lex.context())
+		return nil, fmt.Errorf("%w; context: [%s]", err, lex.context())
 	}
 	q := &Query{
 		f: f,
@@ -227,12 +227,12 @@ func ParseQuery(s string) (*Query, error) {
 
 	pipes, err := parsePipes(lex)
 	if err != nil {
-		return nil, fmt.Errorf("%w; context: %s", err, lex.context())
+		return nil, fmt.Errorf("%w; context: [%s]", err, lex.context())
 	}
 	q.pipes = pipes
 
 	if !lex.isEnd() {
-		return nil, fmt.Errorf("unexpected unparsed tail; context: %s", lex.context())
+		return nil, fmt.Errorf("unexpected unparsed tail; context: [%s]", lex.context())
 	}
 
 	return q, nil
@@ -344,25 +344,25 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 	case lex.isKeyword(",", ")", "[", "]"):
 		return nil, fmt.Errorf("unexpected token %q", lex.token)
 	}
-	phrase := getCompoundPhrase(lex, fieldName == "")
+	phrase := getCompoundPhrase(lex, fieldName != "")
 	return parseFilterForPhrase(lex, phrase, fieldName)
 }
 
-func getCompoundPhrase(lex *lexer, stopOnColon bool) string {
+func getCompoundPhrase(lex *lexer, allowColon bool) string {
 	phrase := lex.token
 	rawPhrase := lex.rawToken
 	lex.nextToken()
-	suffix := getCompoundSuffix(lex, stopOnColon)
+	suffix := getCompoundSuffix(lex, allowColon)
 	if suffix == "" {
 		return phrase
 	}
 	return rawPhrase + suffix
 }
 
-func getCompoundSuffix(lex *lexer, stopOnColon bool) string {
+func getCompoundSuffix(lex *lexer, allowColon bool) string {
 	s := ""
 	stopTokens := []string{"*", ",", "(", ")", "[", "]", "|", ""}
-	if stopOnColon {
+	if !allowColon {
 		stopTokens = append(stopTokens, ":")
 	}
 	for !lex.isSkippedSpace && !lex.isKeyword(stopTokens...) {
@@ -495,7 +495,7 @@ func parseFuncArgMaybePrefix(lex *lexer, funcName, fieldName string, callback fu
 	phrase := lex.token
 	lex.nextToken()
 	if !lex.isKeyword("(") {
-		phrase += getCompoundSuffix(lex, fieldName == "")
+		phrase += getCompoundSuffix(lex, fieldName != "")
 		return parseFilterForPhrase(lex, phrase, fieldName)
 	}
 	if !lex.mustNextToken() {
@@ -676,7 +676,7 @@ func parseFilterRange(lex *lexer, fieldName string) (filter, error) {
 	case lex.isKeyword("["):
 		includeMinValue = true
 	default:
-		phrase := funcName + getCompoundSuffix(lex, fieldName == "")
+		phrase := funcName + getCompoundSuffix(lex, fieldName != "")
 		return parseFilterForPhrase(lex, phrase, fieldName)
 	}
 	if !lex.mustNextToken() {
@@ -765,7 +765,7 @@ func parseFuncArgs(lex *lexer, fieldName string, callback func(args []string) (f
 	funcName := lex.token
 	lex.nextToken()
 	if !lex.isKeyword("(") {
-		phrase := funcName + getCompoundSuffix(lex, fieldName == "")
+		phrase := funcName + getCompoundSuffix(lex, fieldName != "")
 		return parseFilterForPhrase(lex, phrase, fieldName)
 	}
 	if !lex.mustNextToken() {
@@ -824,9 +824,9 @@ func parseFilterTimeWithOffset(lex *lexer) (*filterTime, error) {
 		return nil, fmt.Errorf("missing offset for _time filter %s", ft)
 	}
 	s := getCompoundToken(lex)
-	d, err := promutils.ParseDuration(s)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse offset for _time filter %s: %w", ft, err)
+	d, ok := tryParseDuration(s)
+	if !ok {
+		return nil, fmt.Errorf("cannot parse offset %q for _time filter %s: %w", s, ft, err)
 	}
 	offset := int64(d)
 	ft.minTimestamp -= offset
@@ -862,9 +862,9 @@ func parseFilterTime(lex *lexer) (*filterTime, error) {
 			return ft, nil
 		}
 		// Parse _time:duration, which transforms to '_time:(now-duration, now]'
-		d, err := promutils.ParseDuration(s)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse duration in _time filter: %w", err)
+		d, ok := tryParseDuration(s)
+		if !ok {
+			return nil, fmt.Errorf("cannot parse duration %q in _time filter", s)
 		}
 		if d < 0 {
 			d = -d

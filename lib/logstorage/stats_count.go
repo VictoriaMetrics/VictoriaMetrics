@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"fmt"
 	"slices"
 	"strconv"
 	"unsafe"
@@ -195,10 +194,9 @@ func (scp *statsCountProcessor) finalizeStats() string {
 }
 
 func parseStatsCount(lex *lexer) (*statsCount, error) {
-	lex.nextToken()
-	fields, err := parseFieldNamesInParens(lex)
+	fields, err := parseFieldNamesForFunc(lex, "count")
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse 'count' args: %w", err)
+		return nil, err
 	}
 	sc := &statsCount{
 		fields:       fields,

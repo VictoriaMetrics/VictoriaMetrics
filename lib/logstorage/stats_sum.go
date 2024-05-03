@@ -107,10 +107,9 @@ func (ssp *statsSumProcessor) finalizeStats() string {
 }
 
 func parseStatsSum(lex *lexer) (*statsSum, error) {
-	lex.nextToken()
-	fields, err := parseFieldNamesInParens(lex)
+	fields, err := parseFieldNamesForFunc(lex, "sum")
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse 'sum' args: %w", err)
+		return nil, err
 	}
 	if len(fields) == 0 {
 		return nil, fmt.Errorf("'sum' must contain at least one arg")

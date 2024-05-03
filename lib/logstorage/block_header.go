@@ -711,10 +711,10 @@ type timestampsHeader struct {
 	// blockSize is the size of the timestamps block inside timestampsFilename file
 	blockSize uint64
 
-	// minTimestamp is the mimumum timestamp seen in the block
+	// minTimestamp is the mimumum timestamp seen in the block in nanoseconds
 	minTimestamp int64
 
-	// maxTimestamp is the maximum timestamp seen in the block
+	// maxTimestamp is the maximum timestamp seen in the block in nanoseconds
 	maxTimestamp int64
 
 	// marshalType is the type used for encoding the timestamps block

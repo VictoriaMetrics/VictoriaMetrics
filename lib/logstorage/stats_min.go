@@ -93,10 +93,9 @@ func (smp *statsMinProcessor) finalizeStats() string {
 }
 
 func parseStatsMin(lex *lexer) (*statsMin, error) {
-	lex.nextToken()
-	fields, err := parseFieldNamesInParens(lex)
+	fields, err := parseFieldNamesForFunc(lex, "min")
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse 'min' args: %w", err)
+		return nil, err
 	}
 	if len(fields) == 0 {
 		return nil, fmt.Errorf("'min' must contain at least one arg")

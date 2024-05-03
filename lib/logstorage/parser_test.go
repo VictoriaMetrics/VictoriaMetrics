@@ -862,6 +862,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats count() "foo.bar:baz", uniq(a) bar`, `* | stats count() as "foo.bar:baz", uniq(a) as bar`)
 	f(`* | stats by (x, y) count(*) foo, uniq(a,b) bar`, `* | stats by (x, y) count(*) as foo, uniq(a, b) as bar`)
 
+	// stats pipe with grouping buckets
+	f(`* | stats by(_time:1d, response_size:1_000KiB, request_duration:5s, foo) count() as foo`, `* | stats by (_time:1d, response_size:1_000KiB, request_duration:5s, foo) count() as foo`)
+	f(`*|stats by(client_ip:/24, server_ip:/16) count() foo`, `* | stats by (client_ip:/24, server_ip:/16) count() as foo`)
+
 	// multiple different pipes
 	f(`* | fields foo, bar | head 100 | stats by(foo,bar) count(baz) as qwert`, `* | fields foo, bar | head 100 | stats by (foo, bar) count(baz) as qwert`)
 	f(`* | skip 100 | head 20 | skip 10`, `* | skip 100 | head 20 | skip 10`)
@@ -1129,6 +1133,10 @@ func TestParseQueryFailure(t *testing.T) {
 	// invalid stats uniq
 	f(`foo | stats uniq`)
 	f(`foo | stats uniq()`)
+
+	// invalid grouping fields
+	f(`foo | stats by(foo:bar) count() baz`)
+	f(`foo | stats by(foo:/bar) count() baz`)
 
 	// invalid by clause
 	f(`foo | stats by`)

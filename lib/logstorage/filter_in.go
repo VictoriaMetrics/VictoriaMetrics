@@ -242,7 +242,7 @@ func (fi *filterIn) initTimestampISO8601Values() {
 			continue
 		}
 		bufLen := len(buf)
-		buf = encoding.MarshalUint64(buf, n)
+		buf = encoding.MarshalUint64(buf, uint64(n))
 		s := bytesutil.ToUnsafeString(buf[bufLen:])
 		m[s] = struct{}{}
 	}
