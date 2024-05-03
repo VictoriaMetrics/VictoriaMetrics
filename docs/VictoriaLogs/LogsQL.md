@@ -1079,8 +1079,8 @@ LogsQL supports calculating the following stats functions:
   of [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)  containing the `error` [word](#word),
   which contain non-empty `trace_id` or `user_id` [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model), grouped by `datacenter` and `namespace` fields.
 
-- The number of non-empty unique values for the given set of [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). Examples:
-  - `error | stats uniq(client_ip) as unique_user_ips` returns the number of unique values for `client_ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+- The number of non-empty unique values for the given set of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). Examples:
+  - `error | stats uniq(client_ip) as unique_ips` returns the number of unique values for `client_ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
   across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `error` [word](#word).
   - `error | stats by (app) uniq(path, host) as unique_path_hosts` - returns the number of unique `(path, host)` pairs
   for [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
@@ -1088,6 +1088,12 @@ LogsQL supports calculating the following stats functions:
   - `error | fields path, host | stats uniq(*) unique_path_hosts` - returns the number of unique `(path, host)` pairs
   for [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
   with the `error` [word](#word).
+
+- Non-empty unique values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). Examples:
+  - `_time:1h | stats uniq_array(client_ip) as unique_ips` returns unique values for `client_ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  across logs for the last hour. The unqiue values are returned in JSON array such as `["1.2.4.5","5.6.7.8"]`.
+  - `_time:1h | stats by (host) unique_array(path) as unique_paths` returns unique values for `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  across logs for the last hour, grouped by `host` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
 - Sum for the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values. Non-numeric values are ignored. Examples:
   - `error | stats sum(duration) duration_total` - returns the sum of `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values
