@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"fmt"
 	"math"
 	"slices"
 	"strconv"
@@ -48,18 +47,17 @@ func (ssp *statsSumProcessor) updateStatsForAllRows(br *blockResult) int {
 				}
 			}
 		}
-		return 0
-	}
-
-	// Sum the requested columns
-	for _, field := range ssp.ss.fields {
-		c := br.getColumnByName(field)
-		f, count := c.sumValues(br)
-		if count > 0 {
-			if math.IsNaN(ssp.sum) {
-				ssp.sum = f
-			} else {
-				ssp.sum += f
+	} else {
+		// Sum the requested columns
+		for _, field := range ssp.ss.fields {
+			c := br.getColumnByName(field)
+			f, count := c.sumValues(br)
+			if count > 0 {
+				if math.IsNaN(ssp.sum) {
+					ssp.sum = f
+				} else {
+					ssp.sum += f
+				}
 			}
 		}
 	}
@@ -79,18 +77,17 @@ func (ssp *statsSumProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 				}
 			}
 		}
-		return 0
-	}
-
-	// Sum only the given fields for the given row
-	for _, field := range ssp.ss.fields {
-		c := br.getColumnByName(field)
-		f := c.getFloatValueAtRow(rowIdx)
-		if !math.IsNaN(f) {
-			if math.IsNaN(ssp.sum) {
-				ssp.sum = f
-			} else {
-				ssp.sum += f
+	} else {
+		// Sum only the given fields for the given row
+		for _, field := range ssp.ss.fields {
+			c := br.getColumnByName(field)
+			f := c.getFloatValueAtRow(rowIdx)
+			if !math.IsNaN(f) {
+				if math.IsNaN(ssp.sum) {
+					ssp.sum = f
+				} else {
+					ssp.sum += f
+				}
 			}
 		}
 	}
@@ -107,12 +104,9 @@ func (ssp *statsSumProcessor) finalizeStats() string {
 }
 
 func parseStatsSum(lex *lexer) (*statsSum, error) {
-	fields, err := parseFieldNamesForFunc(lex, "sum")
+	fields, err := parseFieldNamesForStatsFunc(lex, "sum")
 	if err != nil {
 		return nil, err
-	}
-	if len(fields) == 0 {
-		return nil, fmt.Errorf("'sum' must contain at least one arg")
 	}
 	ss := &statsSum{
 		fields:       fields,

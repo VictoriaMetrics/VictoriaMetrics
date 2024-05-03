@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"unsafe"
@@ -659,7 +660,7 @@ func tryParseBucketSize(s string) (float64, bool) {
 	return 0, false
 }
 
-func parseFieldNamesForFunc(lex *lexer, funcName string) ([]string, error) {
+func parseFieldNamesForStatsFunc(lex *lexer, funcName string) ([]string, error) {
 	if !lex.isKeyword(funcName) {
 		return nil, fmt.Errorf("unexpected func; got %q; want %q", lex.token, funcName)
 	}
@@ -667,6 +668,9 @@ func parseFieldNamesForFunc(lex *lexer, funcName string) ([]string, error) {
 	fields, err := parseFieldNamesInParens(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse %q args: %w", funcName, err)
+	}
+	if len(fields) == 0 || slices.Contains(fields, "*") {
+		fields = []string{"*"}
 	}
 	return fields, nil
 }

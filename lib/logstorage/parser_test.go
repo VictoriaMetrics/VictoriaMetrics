@@ -834,47 +834,63 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`foo | skip 10 | skip 100`, `foo | skip 10 | skip 100`)
 
 	// stats pipe count
-	f(`* | Stats count() AS foo`, `* | stats count() as foo`)
 	f(`* | STATS bY (foo, b.a/r, "b az") count(*) XYz`, `* | stats by (foo, "b.a/r", "b az") count(*) as XYz`)
 	f(`* | stats by() COUNT(x, 'a).b,c|d') as qwert`, `* | stats count(x, "a).b,c|d") as qwert`)
+	f(`* | stats count() x`, `* | stats count(*) as x`)
+	f(`* | stats count(*) x`, `* | stats count(*) as x`)
+	f(`* | stats count(foo,*,bar) x`, `* | stats count(*) as x`)
 
 	// stats pipe sum
 	f(`* | stats Sum(foo) bar`, `* | stats sum(foo) as bar`)
 	f(`* | stats BY(x, y, ) SUM(foo,bar,) bar`, `* | stats by (x, y) sum(foo, bar) as bar`)
+	f(`* | stats sum() x`, `* | stats sum(*) as x`)
+	f(`* | stats sum(*) x`, `* | stats sum(*) as x`)
+	f(`* | stats sum(foo,*,bar) x`, `* | stats sum(*) as x`)
 
 	// stats pipe max
 	f(`* | stats Max(foo) bar`, `* | stats max(foo) as bar`)
 	f(`* | stats BY(x, y, ) MAX(foo,bar,) bar`, `* | stats by (x, y) max(foo, bar) as bar`)
+	f(`* | stats max() x`, `* | stats max(*) as x`)
+	f(`* | stats max(*) x`, `* | stats max(*) as x`)
+	f(`* | stats max(foo,*,bar) x`, `* | stats max(*) as x`)
 
 	// stats pipe min
 	f(`* | stats Min(foo) bar`, `* | stats min(foo) as bar`)
 	f(`* | stats BY(x, y, ) MIN(foo,bar,) bar`, `* | stats by (x, y) min(foo, bar) as bar`)
+	f(`* | stats min() x`, `* | stats min(*) as x`)
+	f(`* | stats min(*) x`, `* | stats min(*) as x`)
+	f(`* | stats min(foo,*,bar) x`, `* | stats min(*) as x`)
 
 	// stats pipe avg
 	f(`* | stats Avg(foo) bar`, `* | stats avg(foo) as bar`)
 	f(`* | stats BY(x, y, ) AVG(foo,bar,) bar`, `* | stats by (x, y) avg(foo, bar) as bar`)
+	f(`* | stats avg() x`, `* | stats avg(*) as x`)
+	f(`* | stats avg(*) x`, `* | stats avg(*) as x`)
+	f(`* | stats avg(foo,*,bar) x`, `* | stats avg(*) as x`)
 
 	// stats pipe uniq
 	f(`* | stats uniq(foo) bar`, `* | stats uniq(foo) as bar`)
 	f(`* | stats by(x, y) uniq(foo,bar) as baz`, `* | stats by (x, y) uniq(foo, bar) as baz`)
 	f(`* | stats by(x) uniq(*) z`, `* | stats by (x) uniq(*) as z`)
-	f(`* | stats by(x) uniq() z`, `* | stats by (x) uniq() as z`)
+	f(`* | stats by(x) uniq() z`, `* | stats by (x) uniq(*) as z`)
+	f(`* | stats by(x) uniq(a,*,b) z`, `* | stats by (x) uniq(*) as z`)
 
 	// stats pipe uniq_array
 	f(`* | stats uniq_array(foo) bar`, `* | stats uniq_array(foo) as bar`)
 	f(`* | stats by(x, y) uniq_array(foo, bar) as baz`, `* | stats by (x, y) uniq_array(foo, bar) as baz`)
 	f(`* | stats by(x) uniq_array(*) y`, `* | stats by (x) uniq_array(*) as y`)
-	f(`* | stats by(x) uniq_array() y`, `* | stats by (x) uniq_array() as y`)
+	f(`* | stats by(x) uniq_array() y`, `* | stats by (x) uniq_array(*) as y`)
+	f(`* | stats by(x) uniq_array(a,*,b) y`, `* | stats by (x) uniq_array(*) as y`)
 
 	// stats pipe multiple funcs
-	f(`* | stats count() "foo.bar:baz", uniq(a) bar`, `* | stats count() as "foo.bar:baz", uniq(a) as bar`)
+	f(`* | stats count() "foo.bar:baz", uniq(a) bar`, `* | stats count(*) as "foo.bar:baz", uniq(a) as bar`)
 	f(`* | stats by (x, y) count(*) foo, uniq(a,b) bar`, `* | stats by (x, y) count(*) as foo, uniq(a, b) as bar`)
 
 	// stats pipe with grouping buckets
-	f(`* | stats by(_time:1d, response_size:1_000KiB, request_duration:5s, foo) count() as foo`, `* | stats by (_time:1d, response_size:1_000KiB, request_duration:5s, foo) count() as foo`)
-	f(`*|stats by(client_ip:/24, server_ip:/16) count() foo`, `* | stats by (client_ip:/24, server_ip:/16) count() as foo`)
-	f(`* | stats by(_time:1d offset 2h) count() as foo`, `* | stats by (_time:1d offset 2h) count() as foo`)
-	f(`* | stats by(_time:1d offset -2.5h5m) count() as foo`, `* | stats by (_time:1d offset -2.5h5m) count() as foo`)
+	f(`* | stats by(_time:1d, response_size:1_000KiB, request_duration:5s, foo) count() as foo`, `* | stats by (_time:1d, response_size:1_000KiB, request_duration:5s, foo) count(*) as foo`)
+	f(`*|stats by(client_ip:/24, server_ip:/16) count() foo`, `* | stats by (client_ip:/24, server_ip:/16) count(*) as foo`)
+	f(`* | stats by(_time:1d offset 2h) count() as foo`, `* | stats by (_time:1d offset 2h) count(*) as foo`)
+	f(`* | stats by(_time:1d offset -2.5h5m) count() as foo`, `* | stats by (_time:1d offset -2.5h5m) count(*) as foo`)
 
 	// multiple different pipes
 	f(`* | fields foo, bar | head 100 | stats by(foo,bar) count(baz) as qwert`, `* | fields foo, bar | head 100 | stats by (foo, bar) count(baz) as qwert`)
@@ -1123,22 +1139,18 @@ func TestParseQueryFailure(t *testing.T) {
 	// invalid stats sum
 	f(`foo | stats sum`)
 	f(`foo | stats sum()`)
-	f(`foo | stats sum() as abc`)
 
 	// invalid stats max
 	f(`foo | stats max`)
 	f(`foo | stats max()`)
-	f(`foo | stats max() as abc`)
 
 	// invalid stats min
 	f(`foo | stats min`)
 	f(`foo | stats min()`)
-	f(`foo | stats min() as abc`)
 
 	// invalid stats avg
 	f(`foo | stats avg`)
 	f(`foo | stats avg()`)
-	f(`foo | stats avg() as abc`)
 
 	// invalid stats uniq
 	f(`foo | stats uniq`)

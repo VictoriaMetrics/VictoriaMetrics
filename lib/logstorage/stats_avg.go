@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"fmt"
 	"math"
 	"slices"
 	"strconv"
@@ -43,15 +42,14 @@ func (sap *statsAvgProcessor) updateStatsForAllRows(br *blockResult) int {
 			sap.sum += f
 			sap.count += uint64(count)
 		}
-		return 0
-	}
-
-	// Scan the requested columns
-	for _, field := range sap.sa.fields {
-		c := br.getColumnByName(field)
-		f, count := c.sumValues(br)
-		sap.sum += f
-		sap.count += uint64(count)
+	} else {
+		// Scan the requested columns
+		for _, field := range sap.sa.fields {
+			c := br.getColumnByName(field)
+			f, count := c.sumValues(br)
+			sap.sum += f
+			sap.count += uint64(count)
+		}
 	}
 	return 0
 }
@@ -66,16 +64,15 @@ func (sap *statsAvgProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 				sap.count++
 			}
 		}
-		return 0
-	}
-
-	// Scan only the given fields for the given row
-	for _, field := range sap.sa.fields {
-		c := br.getColumnByName(field)
-		f := c.getFloatValueAtRow(rowIdx)
-		if !math.IsNaN(f) {
-			sap.sum += f
-			sap.count++
+	} else {
+		// Scan only the given fields for the given row
+		for _, field := range sap.sa.fields {
+			c := br.getColumnByName(field)
+			f := c.getFloatValueAtRow(rowIdx)
+			if !math.IsNaN(f) {
+				sap.sum += f
+				sap.count++
+			}
 		}
 	}
 	return 0
@@ -93,12 +90,9 @@ func (sap *statsAvgProcessor) finalizeStats() string {
 }
 
 func parseStatsAvg(lex *lexer) (*statsAvg, error) {
-	fields, err := parseFieldNamesForFunc(lex, "avg")
+	fields, err := parseFieldNamesForStatsFunc(lex, "avg")
 	if err != nil {
 		return nil, err
-	}
-	if len(fields) == 0 {
-		return nil, fmt.Errorf("'avg' must contain at least one arg")
 	}
 	sa := &statsAvg{
 		fields:       fields,

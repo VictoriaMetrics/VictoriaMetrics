@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"fmt"
 	"math"
 	"slices"
 	"strconv"
@@ -44,15 +43,14 @@ func (smp *statsMaxProcessor) updateStatsForAllRows(br *blockResult) int {
 				smp.max = f
 			}
 		}
-		return 0
-	}
-
-	// Find the maximum value across the requested columns
-	for _, field := range smp.sm.fields {
-		c := br.getColumnByName(field)
-		f := c.getMaxValue(br)
-		if f > smp.max || math.IsNaN(smp.max) {
-			smp.max = f
+	} else {
+		// Find the maximum value across the requested columns
+		for _, field := range smp.sm.fields {
+			c := br.getColumnByName(field)
+			f := c.getMaxValue(br)
+			if f > smp.max || math.IsNaN(smp.max) {
+				smp.max = f
+			}
 		}
 	}
 	return 0
@@ -67,15 +65,14 @@ func (smp *statsMaxProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 				smp.max = f
 			}
 		}
-		return 0
-	}
-
-	// Find the maximum value across the requested fields for the given row
-	for _, field := range smp.sm.fields {
-		c := br.getColumnByName(field)
-		f := c.getFloatValueAtRow(rowIdx)
-		if f > smp.max || math.IsNaN(smp.max) {
-			smp.max = f
+	} else {
+		// Find the maximum value across the requested fields for the given row
+		for _, field := range smp.sm.fields {
+			c := br.getColumnByName(field)
+			f := c.getFloatValueAtRow(rowIdx)
+			if f > smp.max || math.IsNaN(smp.max) {
+				smp.max = f
+			}
 		}
 	}
 	return 0
@@ -93,12 +90,9 @@ func (smp *statsMaxProcessor) finalizeStats() string {
 }
 
 func parseStatsMax(lex *lexer) (*statsMax, error) {
-	fields, err := parseFieldNamesForFunc(lex, "max")
+	fields, err := parseFieldNamesForStatsFunc(lex, "max")
 	if err != nil {
 		return nil, err
-	}
-	if len(fields) == 0 {
-		return nil, fmt.Errorf("'max' must contain at least one arg")
 	}
 	sm := &statsMax{
 		fields:       fields,

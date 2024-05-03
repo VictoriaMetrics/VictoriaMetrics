@@ -39,16 +39,14 @@ type statsUniqArrayProcessor struct {
 }
 
 func (sup *statsUniqArrayProcessor) updateStatsForAllRows(br *blockResult) int {
-	fields := sup.su.fields
-
 	stateSizeIncrease := 0
-	if len(fields) == 0 || sup.su.containsStar {
+	if sup.su.containsStar {
 		columns := br.getColumns()
 		for i := range columns {
 			stateSizeIncrease += sup.updateStatsForAllRowsColumn(&columns[i], br)
 		}
 	} else {
-		for _, field := range fields {
+		for _, field := range sup.su.fields {
 			c := br.getColumnByName(field)
 			stateSizeIncrease += sup.updateStatsForAllRowsColumn(&c, br)
 		}
@@ -110,16 +108,14 @@ func (sup *statsUniqArrayProcessor) updateStatsForAllRowsColumn(c *blockResultCo
 }
 
 func (sup *statsUniqArrayProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
-	fields := sup.su.fields
-
 	stateSizeIncrease := 0
-	if len(fields) == 0 || sup.su.containsStar {
+	if sup.su.containsStar {
 		columns := br.getColumns()
 		for i := range columns {
 			stateSizeIncrease += sup.updateStatsForRowColumn(&columns[i], br, rowIdx)
 		}
 	} else {
-		for _, field := range fields {
+		for _, field := range sup.su.fields {
 			c := br.getColumnByName(field)
 			stateSizeIncrease += sup.updateStatsForRowColumn(&c, br, rowIdx)
 		}
@@ -219,7 +215,7 @@ func (sup *statsUniqArrayProcessor) finalizeStats() string {
 }
 
 func parseStatsUniqArray(lex *lexer) (*statsUniqArray, error) {
-	fields, err := parseFieldNamesForFunc(lex, "uniq_array")
+	fields, err := parseFieldNamesForStatsFunc(lex, "uniq_array")
 	if err != nil {
 		return nil, err
 	}

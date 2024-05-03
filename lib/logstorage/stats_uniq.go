@@ -45,7 +45,7 @@ func (sup *statsUniqProcessor) updateStatsForAllRows(br *blockResult) int {
 	m := sup.m
 
 	stateSizeIncrease := 0
-	if len(fields) == 0 || sup.su.containsStar {
+	if sup.su.containsStar {
 		// Count unique rows
 		columns := br.getColumns()
 		keyBuf := sup.keyBuf[:0]
@@ -222,7 +222,7 @@ func (sup *statsUniqProcessor) updateStatsForRow(br *blockResult, rowIdx int) in
 	m := sup.m
 
 	stateSizeIncrease := 0
-	if len(fields) == 0 || sup.su.containsStar {
+	if sup.su.containsStar {
 		// Count unique rows
 		allEmptyValues := true
 		keyBuf := sup.keyBuf[:0]
@@ -358,7 +358,7 @@ func (sup *statsUniqProcessor) finalizeStats() string {
 }
 
 func parseStatsUniq(lex *lexer) (*statsUniq, error) {
-	fields, err := parseFieldNamesForFunc(lex, "uniq")
+	fields, err := parseFieldNamesForStatsFunc(lex, "uniq")
 	if err != nil {
 		return nil, err
 	}

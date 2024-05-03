@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"fmt"
 	"math"
 	"slices"
 	"strconv"
@@ -44,15 +43,14 @@ func (smp *statsMinProcessor) updateStatsForAllRows(br *blockResult) int {
 				smp.min = f
 			}
 		}
-		return 0
-	}
-
-	// Find the minimum value across the requested columns
-	for _, field := range smp.sm.fields {
-		c := br.getColumnByName(field)
-		f := c.getMinValue(br)
-		if f < smp.min || math.IsNaN(smp.min) {
-			smp.min = f
+	} else {
+		// Find the minimum value across the requested columns
+		for _, field := range smp.sm.fields {
+			c := br.getColumnByName(field)
+			f := c.getMinValue(br)
+			if f < smp.min || math.IsNaN(smp.min) {
+				smp.min = f
+			}
 		}
 	}
 	return 0
@@ -67,15 +65,14 @@ func (smp *statsMinProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 				smp.min = f
 			}
 		}
-		return 0
-	}
-
-	// Find the minimum value across the requested fields for the given row
-	for _, field := range smp.sm.fields {
-		c := br.getColumnByName(field)
-		f := c.getFloatValueAtRow(rowIdx)
-		if f < smp.min || math.IsNaN(smp.min) {
-			smp.min = f
+	} else {
+		// Find the minimum value across the requested fields for the given row
+		for _, field := range smp.sm.fields {
+			c := br.getColumnByName(field)
+			f := c.getFloatValueAtRow(rowIdx)
+			if f < smp.min || math.IsNaN(smp.min) {
+				smp.min = f
+			}
 		}
 	}
 	return 0
@@ -93,12 +90,9 @@ func (smp *statsMinProcessor) finalizeStats() string {
 }
 
 func parseStatsMin(lex *lexer) (*statsMin, error) {
-	fields, err := parseFieldNamesForFunc(lex, "min")
+	fields, err := parseFieldNamesForStatsFunc(lex, "min")
 	if err != nil {
 		return nil, err
-	}
-	if len(fields) == 0 {
-		return nil, fmt.Errorf("'min' must contain at least one arg")
 	}
 	sm := &statsMin{
 		fields:       fields,

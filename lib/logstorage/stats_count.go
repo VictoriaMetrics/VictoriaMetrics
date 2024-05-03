@@ -36,7 +36,7 @@ type statsCountProcessor struct {
 
 func (scp *statsCountProcessor) updateStatsForAllRows(br *blockResult) int {
 	fields := scp.sc.fields
-	if len(fields) == 0 || scp.sc.containsStar {
+	if scp.sc.containsStar {
 		// Fast path - unconditionally count all the columns.
 		scp.rowsCount += uint64(len(br.timestamps))
 		return 0
@@ -134,7 +134,7 @@ func (scp *statsCountProcessor) updateStatsForAllRows(br *blockResult) int {
 
 func (scp *statsCountProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
 	fields := scp.sc.fields
-	if len(fields) == 0 || scp.sc.containsStar {
+	if scp.sc.containsStar {
 		// Fast path - unconditionally count the given column
 		scp.rowsCount++
 		return 0
@@ -194,7 +194,7 @@ func (scp *statsCountProcessor) finalizeStats() string {
 }
 
 func parseStatsCount(lex *lexer) (*statsCount, error) {
-	fields, err := parseFieldNamesForFunc(lex, "count")
+	fields, err := parseFieldNamesForStatsFunc(lex, "count")
 	if err != nil {
 		return nil, err
 	}
