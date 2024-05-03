@@ -90,7 +90,7 @@ func (sup *statsUniqProcessor) updateStatsForAllRows(br *blockResult) int {
 		// Fast path for a single column.
 		// The unique key is formed as "<is_time> <value_type>? <encodedValue>",
 		// where <value_type> is skipped if <is_time> == 1.
-		// This guarantees that keys do not clash for different column types acorss blocks.
+		// This guarantees that keys do not clash for different column types across blocks.
 		c := br.getColumnByName(fields[0])
 		if c.isTime {
 			// Count unique br.timestamps
@@ -251,7 +251,7 @@ func (sup *statsUniqProcessor) updateStatsForRow(br *blockResult, rowIdx int) in
 		// Fast path for a single column.
 		// The unique key is formed as "<is_time> <value_type>? <encodedValue>",
 		// where <value_type> is skipped if <is_time> == 1.
-		// This guarantees that keys do not clash for different column types acorss blocks.
+		// This guarantees that keys do not clash for different column types across blocks.
 		c := br.getColumnByName(fields[0])
 		if c.isTime {
 			// Count unique br.timestamps
@@ -300,7 +300,7 @@ func (sup *statsUniqProcessor) updateStatsForRow(br *blockResult, rowIdx int) in
 			return stateSizeIncrease
 		}
 
-		// Count unique values across encodedValues
+		// Count unique values for the given rowIdx
 		encodedValues := c.getEncodedValues(br)
 		v := encodedValues[rowIdx]
 		if c.valueType == valueTypeString && v == "" {
@@ -346,7 +346,9 @@ func (sup *statsUniqProcessor) mergeState(sfp statsProcessor) {
 	src := sfp.(*statsUniqProcessor)
 	m := sup.m
 	for k := range src.m {
-		m[k] = struct{}{}
+		if _, ok := m[k]; !ok {
+			m[k] = struct{}{}
+		}
 	}
 }
 

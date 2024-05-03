@@ -439,17 +439,17 @@ func parseStatsFunc(lex *lexer) (statsFunc, string, error) {
 	var sf statsFunc
 	switch {
 	case lex.isKeyword("count"):
-		sfc, err := parseStatsCount(lex)
+		scs, err := parseStatsCount(lex)
 		if err != nil {
 			return nil, "", fmt.Errorf("cannot parse 'count' func: %w", err)
 		}
-		sf = sfc
+		sf = scs
 	case lex.isKeyword("uniq"):
-		sfu, err := parseStatsUniq(lex)
+		sus, err := parseStatsUniq(lex)
 		if err != nil {
 			return nil, "", fmt.Errorf("cannot parse 'uniq' func: %w", err)
 		}
-		sf = sfu
+		sf = sus
 	case lex.isKeyword("sum"):
 		sfs, err := parseStatsSum(lex)
 		if err != nil {
@@ -474,6 +474,12 @@ func parseStatsFunc(lex *lexer) (statsFunc, string, error) {
 			return nil, "", fmt.Errorf("cannot parse 'avg' func: %w", err)
 		}
 		sf = sas
+	case lex.isKeyword("uniq_array"):
+		sus, err := parseStatsUniqArray(lex)
+		if err != nil {
+			return nil, "", fmt.Errorf("cannot parse 'uniq_array' func: %w", err)
+		}
+		sf = sus
 	default:
 		return nil, "", fmt.Errorf("unknown stats func %q", lex.token)
 	}
