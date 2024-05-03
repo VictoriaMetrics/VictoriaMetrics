@@ -1069,59 +1069,104 @@ See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) fo
 
 ## Stats
 
-LogsQL supports calculating the following stats functions:
+### stats functions
 
-- The number of matching log entries. Examples:
-  - `error | stats count() as errors_total` returns the number of [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `error` [word](#word).
-  - `error | stats by (_stream) count() as errors_by_stream` returns the number of [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+LogsQL supports the following stats functions:
+
+- [`count`](#count) - calculates the number of log entries.
+- [`uniq`](#uniq) - calculates the number of unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`sum`](#sum) - calculates the sum for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`avg`](#avg) - calculates the average value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`min`](#min) - calculates the minumum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`max`](#max) - calcualtes the maximum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`uniq_array`](#uniq_array) - returns unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+
+#### count
+
+Examples:
+
+- `error | stats count() as errors_total` returns the number of [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `error` [word](#word).
+- `error | stats by (_stream) count() as errors_by_stream` returns the number of [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
   with the `error` [word](#word) grouped by [`_stream`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
-  - `error | stats by (datacenter, namespace) count(trace_id, user_id) as errors_with_trace_and_user` returns the number
+- `error | stats by (datacenter, namespace) count(trace_id, user_id) as errors_with_trace_and_user` returns the number
   of [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)  containing the `error` [word](#word),
   which contain non-empty `trace_id` or `user_id` [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model), grouped by `datacenter` and `namespace` fields.
 
-- The number of non-empty unique values for the given set of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). Examples:
-  - `error | stats uniq(client_ip) as unique_ips` returns the number of unique values for `client_ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+See also [`sum`](#sum) and [`avg`](#avg).
+
+#### uniq
+
+Examples:
+
+- `error | stats uniq(client_ip) as unique_ips` returns the number of unique values for `client_ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
   across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `error` [word](#word).
-  - `error | stats by (app) uniq(path, host) as unique_path_hosts` - returns the number of unique `(path, host)` pairs
+- `error | stats by (app) uniq(path, host) as unique_path_hosts` - returns the number of unique `(path, host)` pairs
   for [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
   with the `error` [word](#word), grouped by `app` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-  - `error | fields path, host | stats uniq(*) unique_path_hosts` - returns the number of unique `(path, host)` pairs
+- `error | fields path, host | stats uniq(*) unique_path_hosts` - returns the number of unique `(path, host)` pairs
   for [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
   with the `error` [word](#word).
 
-- Non-empty unique values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). Examples:
-  - `_time:1h | stats uniq_array(client_ip) as unique_ips` returns unique values for `client_ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+See also [`uniq_array`](#uniq_array).
+
+#### sum
+
+Examples:
+
+- `error | stats sum(duration) duration_total` - returns the sum of `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values
+  across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `error` [word](#word).
+- `GET | stats by (path) sum(response_size) response_size_sum` - returns the sum of `response_size` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values
+  across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `GET` [word](#word), grouped
+  by `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
+
+See also [count](#count) and [avg](#avg).
+
+#### avg
+
+Examples:
+
+- `error | stats avg(duration) duration_avg` - returns the average value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `error` [word](#word).
+- `GET | stats by (path) avg(response_size) avg_response_size` - returns the average value for the `response_size` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `GET` [word](#word), grouped
+  by `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
+
+See also [sum](#sum) and [count](#count).
+
+#### max
+
+Examples:
+
+- `error | stats max(duration) duration_max` - returns the maximum value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `error` [word](#word).
+- `GET | stats by (path) max(response_size) max_response_size` - returns the maximum value for the `response_size` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `GET` [word](#word), grouped
+  by `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
+
+See also [min](#min).
+
+#### min
+
+Examples:
+
+- `error | stats min(duration) duration_min` - returns the minimum value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `error` [word](#word).
+- `GET | stats by (path) min(response_size) min_response_size` - returns the minimum value for the `response_size` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `GET` [word](#word), grouped
+  by `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
+
+See also [max](#max).
+
+#### uniq_array
+
+Examples:
+
+- `_time:1h | stats uniq_array(client_ip) as unique_ips` returns unique values for `client_ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
   across logs for the last hour. The unqiue values are returned in JSON array such as `["1.2.4.5","5.6.7.8"]`.
-  - `_time:1h | stats by (host) unique_array(path) as unique_paths` returns unique values for `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+- `_time:1h | stats by (host) unique_array(path) as unique_paths` returns unique values for `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
   across logs for the last hour, grouped by `host` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
-- Sum for the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values. Non-numeric values are ignored. Examples:
-  - `error | stats sum(duration) duration_total` - returns the sum of `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values
-  across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `error` [word](#word).
-  - `GET | stats by (path) sum(response_size) response_size_sum` - returns the sum of `response_size` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values
-  across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `GET` [word](#word), grouped
-  by `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
-
-- The average value across the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). Non-numeric values are ignored. Examples:
-  - `error | stats avg(duration) duration_avg` - returns the average value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-  across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `error` [word](#word).
-  - `GET | stats by (path) avg(response_size) avg_response_size` - returns the average value for the `response_size` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-  across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `GET` [word](#word), grouped
-  by `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
-
-- The maximum value across the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). Non-numeric values are ignored. Examples:
-  - `error | stats max(duration) duration_max` - returns the maximum value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-  across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `error` [word](#word).
-  - `GET | stats by (path) max(response_size) max_response_size` - returns the maximum value for the `response_size` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-  across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `GET` [word](#word), grouped
-  by `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
-
-- The minimum value across the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). Non-numeric values are ignored. Examples:
-  - `error | stats min(duration) duration_min` - returns the minimum value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-  across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `error` [word](#word).
-  - `GET | stats by (path) min(response_size) min_response_size` - returns the minimum value for the `response_size` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-  across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the `GET` [word](#word), grouped
-  by `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
+See also [uniq](#uniq) and [count](#count).
 
 ### Grouping stats by buckets
 
