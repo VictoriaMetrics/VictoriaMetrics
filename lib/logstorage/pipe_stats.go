@@ -83,6 +83,27 @@ func (ps *pipeStats) String() string {
 	return s
 }
 
+func (ps *pipeStats) getNeededFields() ([]string, map[string][]string) {
+	var byFields []string
+	for _, bf := range ps.byFields {
+		byFields = append(byFields, bf.name)
+	}
+
+	neededFields := append([]string{}, byFields...)
+	m := make(map[string][]string)
+	for i, f := range ps.funcs {
+		funcFields := f.neededFields()
+
+		neededFields = append(neededFields, funcFields...)
+
+		resultName := ps.resultNames[i]
+		m[resultName] = append(m[resultName], byFields...)
+		m[resultName] = append(m[resultName], funcFields...)
+	}
+
+	return neededFields, m
+}
+
 const stateSizeBudgetChunk = 1 << 20
 
 func (ps *pipeStats) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {
@@ -376,34 +397,12 @@ func (psp *pipeStatsProcessor) flush() error {
 	return nil
 }
 
-func (ps *pipeStats) neededFields() []string {
-	var neededFields []string
-	m := make(map[string]struct{})
-
-	for _, bf := range ps.byFields {
-		name := bf.name
-		if _, ok := m[name]; !ok {
-			m[name] = struct{}{}
-			neededFields = append(neededFields, name)
-		}
-	}
-
-	for _, f := range ps.funcs {
-		for _, fieldName := range f.neededFields() {
-			if _, ok := m[fieldName]; !ok {
-				m[fieldName] = struct{}{}
-				neededFields = append(neededFields, fieldName)
-			}
-		}
-	}
-
-	return neededFields
-}
-
 func parsePipeStats(lex *lexer) (*pipeStats, error) {
-	if !lex.mustNextToken() {
-		return nil, fmt.Errorf("missing stats config")
+	if !lex.isKeyword("stats") {
+		return nil, fmt.Errorf("expecting 'stats'; got %q", lex.token)
 	}
+
+	lex.nextToken()
 
 	var ps pipeStats
 	if lex.isKeyword("by") {
@@ -494,9 +493,7 @@ func parseStatsFunc(lex *lexer) (statsFunc, string, error) {
 
 func parseResultName(lex *lexer) (string, error) {
 	if lex.isKeyword("as") {
-		if !lex.mustNextToken() {
-			return "", fmt.Errorf("missing token after 'as' keyword")
-		}
+		lex.nextToken()
 	}
 	resultName, err := parseFieldName(lex)
 	if err != nil {
@@ -543,9 +540,7 @@ func parseByFields(lex *lexer) ([]*byField, error) {
 	}
 	var bfs []*byField
 	for {
-		if !lex.mustNextToken() {
-			return nil, fmt.Errorf("missing field name or ')'")
-		}
+		lex.nextToken()
 		if lex.isKeyword(")") {
 			lex.nextToken()
 			return bfs, nil
@@ -657,6 +652,9 @@ func tryParseBucketSize(s string) (float64, bool) {
 	return 0, false
 }
 
+// parseFieldNamesForStatsFunc parses field names for statsFunc.
+//
+// It returns ["*"] if the fields names list is empty or if it contains "*" field.
 func parseFieldNamesForStatsFunc(lex *lexer, funcName string) ([]string, error) {
 	if !lex.isKeyword(funcName) {
 		return nil, fmt.Errorf("unexpected func; got %q; want %q", lex.token, funcName)
@@ -678,9 +676,7 @@ func parseFieldNamesInParens(lex *lexer) ([]string, error) {
 	}
 	var fields []string
 	for {
-		if !lex.mustNextToken() {
-			return nil, fmt.Errorf("missing field name or ')'")
-		}
+		lex.nextToken()
 		if lex.isKeyword(")") {
 			lex.nextToken()
 			return fields, nil
@@ -708,8 +704,9 @@ func parseFieldName(lex *lexer) (string, error) {
 	if lex.isKeyword(",", "(", ")", "[", "]", "|", ":", "") {
 		return "", fmt.Errorf("unexpected token: %q", lex.token)
 	}
-	token := getCompoundPhrase(lex, false)
-	return token, nil
+	fieldName := getCompoundPhrase(lex, false)
+	fieldName = getCanonicalColumnName(fieldName)
+	return fieldName, nil
 }
 
 func fieldNamesString(fields []string) string {

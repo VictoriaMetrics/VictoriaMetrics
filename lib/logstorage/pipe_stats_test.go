@@ -35,12 +35,12 @@ func TestTryParseBucketSize_Success(t *testing.T) {
 	f("-1h5m3.5s", -(nsecsPerHour + 5*nsecsPerMinute + 3.5*nsecsPerSecond))
 
 	// bytes
-	f("1b", 1)
-	f("1k", 1_000)
-	f("1Kb", 1_000)
+	f("1B", 1)
+	f("1K", 1_000)
+	f("1KB", 1_000)
 	f("5.5KiB", 5.5*(1<<10))
 	f("10MB500KB10B", 10*1_000_000+500*1_000+10)
-	f("10m0k", 10*1_000_000)
+	f("10M", 10*1_000_000)
 	f("-10MB", -10*1_000_000)
 
 	// ipv4 mask
@@ -95,13 +95,13 @@ func TestTryParseBucketOffset_Success(t *testing.T) {
 	f("-1h5m3.5s", -(nsecsPerHour + 5*nsecsPerMinute + 3.5*nsecsPerSecond))
 
 	// bytes
-	f("1b", 1)
-	f("1k", 1_000)
-	f("1Kb", 1_000)
+	f("1B", 1)
+	f("1K", 1_000)
+	f("1KB", 1_000)
 	f("5.5KiB", 5.5*(1<<10))
 	f("10MB500KB10B", 10*1_000_000+500*1_000+10)
-	f("10m0k", 10*1_000_000)
-	f("-10mb", -10*1_000_000)
+	f("10M", 10*1_000_000)
+	f("-10MB", -10*1_000_000)
 }
 
 func TestTryParseBucketOffset_Failure(t *testing.T) {

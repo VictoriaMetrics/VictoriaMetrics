@@ -202,15 +202,64 @@ func (q *Query) String() string {
 }
 
 func (q *Query) getResultColumnNames() []string {
-	for _, p := range q.pipes {
-		switch t := p.(type) {
-		case *pipeFields:
-			return t.fields
-		case *pipeStats:
-			return t.neededFields()
+	input := []string{"*"}
+
+	pipes := q.pipes
+	for i := len(pipes) - 1; i >= 0; i-- {
+		fields, m := pipes[i].getNeededFields()
+		if len(fields) == 0 {
+			input = nil
+		}
+		if len(input) == 0 {
+			break
+		}
+
+		// transform upper input fields to the current input fields according to the given mapping.
+		if input[0] != "*" {
+			var dst []string
+			for _, f := range input {
+				if a, ok := m[f]; ok {
+					dst = append(dst, a...)
+				} else {
+					dst = append(dst, f)
+				}
+			}
+			input = normalizeFields(dst)
+		}
+
+		// intersect fields with input
+		if fields[0] != "*" {
+			m := make(map[string]struct{})
+			for _, f := range input {
+				m[f] = struct{}{}
+			}
+			var dst []string
+			for _, f := range fields {
+				if _, ok := m[f]; ok {
+					dst = append(dst, f)
+				}
+			}
+			input = normalizeFields(dst)
 		}
 	}
-	return []string{"*"}
+
+	return input
+}
+
+func normalizeFields(a []string) []string {
+	m := make(map[string]struct{}, len(a))
+	dst := make([]string, 0, len(a))
+	for _, s := range a {
+		if s == "*" {
+			return []string{"*"}
+		}
+		if _, ok := m[s]; ok {
+			continue
+		}
+		m[s] = struct{}{}
+		dst = append(dst, s)
+	}
+	return dst
 }
 
 // ParseQuery parses s.
@@ -522,14 +571,17 @@ func parseFilterLenRange(lex *lexer, fieldName string) (filter, error) {
 		if len(args) != 2 {
 			return nil, fmt.Errorf("unexpected number of args for %s(); got %d; want 2", funcName, len(args))
 		}
+
 		minLen, err := parseUint(args[0])
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse minLen at %s(): %w", funcName, err)
 		}
+
 		maxLen, err := parseUint(args[1])
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse maxLen at %s(): %w", funcName, err)
 		}
+
 		stringRepr := "(" + args[0] + ", " + args[1] + ")"
 		fr := &filterLenRange{
 			fieldName: fieldName,
@@ -739,16 +791,17 @@ func parseFilterRange(lex *lexer, fieldName string) (filter, error) {
 func parseFloat64(lex *lexer) (float64, string, error) {
 	s := getCompoundToken(lex)
 	f, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		// Try parsing s as integer.
-		// This handles 0x..., 0b... and 0... prefixes.
-		n, err := parseInt(s)
-		if err == nil {
-			return float64(n), s, nil
-		}
-		return 0, "", fmt.Errorf("cannot parse %q as float64: %w", lex.token, err)
+	if err == nil {
+		return f, s, nil
 	}
-	return f, s, nil
+
+	// Try parsing s as integer.
+	// This handles 0x..., 0b... and 0... prefixes, alongside '_' delimiters.
+	n, err := parseInt(s)
+	if err == nil {
+		return float64(n), s, nil
+	}
+	return 0, "", fmt.Errorf("cannot parse %q as float64: %w", lex.token, err)
 }
 
 func parseFuncArg(lex *lexer, fieldName string, callback func(args string) (filter, error)) (filter, error) {
@@ -1184,7 +1237,22 @@ func parseUint(s string) (uint64, error) {
 	if strings.EqualFold(s, "inf") || strings.EqualFold(s, "+inf") {
 		return math.MaxUint64, nil
 	}
-	return strconv.ParseUint(s, 0, 64)
+
+	n, err := strconv.ParseUint(s, 0, 64)
+	if err == nil {
+		return n, nil
+	}
+	nn, ok := tryParseBytes(s)
+	if !ok {
+		nn, ok = tryParseDuration(s)
+		if !ok {
+			return 0, fmt.Errorf("cannot parse %q as unsigned integer: %w", s, err)
+		}
+		if nn < 0 {
+			return 0, fmt.Errorf("cannot parse negative value %q as unsigned integer", s)
+		}
+	}
+	return uint64(nn), nil
 }
 
 func parseInt(s string) (int64, error) {
@@ -1193,7 +1261,18 @@ func parseInt(s string) (int64, error) {
 		return math.MaxInt64, nil
 	case strings.EqualFold(s, "-inf"):
 		return math.MinInt64, nil
-	default:
-		return strconv.ParseInt(s, 0, 64)
 	}
+
+	n, err := strconv.ParseInt(s, 0, 64)
+	if err == nil {
+		return n, nil
+	}
+	nn, ok := tryParseBytes(s)
+	if !ok {
+		nn, ok = tryParseDuration(s)
+		if !ok {
+			return 0, fmt.Errorf("cannot parse %q as integer: %w", s, err)
+		}
+	}
+	return nn, nil
 }

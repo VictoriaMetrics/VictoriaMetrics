@@ -731,88 +731,91 @@ func tryParseBytes(s string) (int64, bool) {
 		if !ok {
 			return 0, false
 		}
+		if len(tail) == 0 {
+			if _, frac := math.Modf(f); frac != 0 {
+				// deny floating-point numbers without any suffix.
+				return 0, false
+			}
+		}
 		s = tail
 		if len(s) == 0 {
 			n += int64(f)
 			continue
 		}
 		if len(s) >= 3 {
-			prefix := s[:3]
 			switch {
-			case strings.EqualFold(prefix, "kib"):
+			case strings.HasPrefix(s, "KiB"):
 				n += int64(f * (1 << 10))
 				s = s[3:]
 				continue
-			case strings.EqualFold(prefix, "mib"):
+			case strings.HasPrefix(s, "MiB"):
 				n += int64(f * (1 << 20))
 				s = s[3:]
 				continue
-			case strings.EqualFold(prefix, "gib"):
+			case strings.HasPrefix(s, "GiB"):
 				n += int64(f * (1 << 30))
 				s = s[3:]
 				continue
-			case strings.EqualFold(prefix, "tib"):
+			case strings.HasPrefix(s, "TiB"):
 				n += int64(f * (1 << 40))
 				s = s[3:]
 				continue
 			}
 		}
 		if len(s) >= 2 {
-			prefix := s[:2]
 			switch {
-			case strings.EqualFold(prefix, "ki"):
+			case strings.HasPrefix(s, "Ki"):
 				n += int64(f * (1 << 10))
 				s = s[2:]
 				continue
-			case strings.EqualFold(prefix, "mi"):
+			case strings.HasPrefix(s, "Mi"):
 				n += int64(f * (1 << 20))
 				s = s[2:]
 				continue
-			case strings.EqualFold(prefix, "gi"):
+			case strings.HasPrefix(s, "Gi"):
 				n += int64(f * (1 << 30))
 				s = s[2:]
 				continue
-			case strings.EqualFold(prefix, "ti"):
+			case strings.HasPrefix(s, "Ti"):
 				n += int64(f * (1 << 40))
 				s = s[2:]
 				continue
-			case strings.EqualFold(prefix, "kb"):
+			case strings.HasPrefix(s, "KB"):
 				n += int64(f * 1_000)
 				s = s[2:]
 				continue
-			case strings.EqualFold(prefix, "mb"):
+			case strings.HasPrefix(s, "MB"):
 				n += int64(f * 1_000_000)
 				s = s[2:]
 				continue
-			case strings.EqualFold(prefix, "gb"):
+			case strings.HasPrefix(s, "GB"):
 				n += int64(f * 1_000_000_000)
 				s = s[2:]
 				continue
-			case strings.EqualFold(prefix, "tb"):
+			case strings.HasPrefix(s, "TB"):
 				n += int64(f * 1_000_000_000_000)
 				s = s[2:]
 				continue
 			}
 		}
-		prefix := s[:1]
 		switch {
-		case strings.EqualFold(prefix, "b"):
+		case strings.HasPrefix(s, "B"):
 			n += int64(f)
 			s = s[1:]
 			continue
-		case strings.EqualFold(prefix, "k"):
+		case strings.HasPrefix(s, "K"):
 			n += int64(f * 1_000)
 			s = s[1:]
 			continue
-		case strings.EqualFold(prefix, "m"):
+		case strings.HasPrefix(s, "M"):
 			n += int64(f * 1_000_000)
 			s = s[1:]
 			continue
-		case strings.EqualFold(prefix, "g"):
+		case strings.HasPrefix(s, "G"):
 			n += int64(f * 1_000_000_000)
 			s = s[1:]
 			continue
-		case strings.EqualFold(prefix, "t"):
+		case strings.HasPrefix(s, "T"):
 			n += int64(f * 1_000_000_000_000)
 			s = s[1:]
 			continue
@@ -859,48 +862,45 @@ func tryParseDuration(s string) (int64, bool) {
 			return 0, false
 		}
 		if len(s) >= 3 {
-			prefix := s[:3]
-			if strings.EqualFold(prefix, "µs") {
+			if strings.HasPrefix(s, "µs") {
 				nsecs += int64(f * nsecsPerMicrosecond)
 				s = s[3:]
 				continue
 			}
 		}
 		if len(s) >= 2 {
-			prefix := s[:2]
 			switch {
-			case strings.EqualFold(prefix, "ms"):
+			case strings.HasPrefix(s, "ms"):
 				nsecs += int64(f * nsecsPerMillisecond)
 				s = s[2:]
 				continue
-			case strings.EqualFold(prefix, "ns"):
+			case strings.HasPrefix(s, "ns"):
 				nsecs += int64(f)
 				s = s[2:]
 				continue
 			}
 		}
-		prefix := s[:1]
 		switch {
-		case strings.EqualFold(prefix, "y"):
+		case strings.HasPrefix(s, "y"):
 			nsecs += int64(f * nsecsPerYear)
 			s = s[1:]
-		case strings.EqualFold(prefix, "w"):
+		case strings.HasPrefix(s, "w"):
 			nsecs += int64(f * nsecsPerWeek)
 			s = s[1:]
 			continue
-		case strings.EqualFold(prefix, "d"):
+		case strings.HasPrefix(s, "d"):
 			nsecs += int64(f * nsecsPerDay)
 			s = s[1:]
 			continue
-		case strings.EqualFold(prefix, "h"):
+		case strings.HasPrefix(s, "h"):
 			nsecs += int64(f * nsecsPerHour)
 			s = s[1:]
 			continue
-		case strings.EqualFold(prefix, "m"):
+		case strings.HasPrefix(s, "m"):
 			nsecs += int64(f * nsecsPerMinute)
 			s = s[1:]
 			continue
-		case strings.EqualFold(prefix, "s"):
+		case strings.HasPrefix(s, "s"):
 			nsecs += int64(f * nsecsPerSecond)
 			s = s[1:]
 			continue

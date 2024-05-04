@@ -88,8 +88,7 @@ func (sup *statsUniqProcessor) updateStatsForAllRows(br *blockResult) int {
 	}
 	if len(fields) == 1 {
 		// Fast path for a single column.
-		// The unique key is formed as "<is_time> <value_type>? <encodedValue>",
-		// where <value_type> is skipped if <is_time> == 1.
+		// The unique key is formed as "<is_time> <value>",
 		// This guarantees that keys do not clash for different column types across blocks.
 		c := br.getColumnByName(fields[0])
 		if c.isTime {
@@ -119,7 +118,7 @@ func (sup *statsUniqProcessor) updateStatsForAllRows(br *blockResult) int {
 				return stateSizeIncrease
 			}
 			keyBuf := sup.keyBuf[:0]
-			keyBuf = append(keyBuf[:0], 0, byte(valueTypeString))
+			keyBuf = append(keyBuf[:0], 0)
 			keyBuf = append(keyBuf, v...)
 			if _, ok := m[string(keyBuf)]; !ok {
 				m[string(keyBuf)] = struct{}{}
@@ -131,13 +130,13 @@ func (sup *statsUniqProcessor) updateStatsForAllRows(br *blockResult) int {
 		if c.valueType == valueTypeDict {
 			// count unique non-zero c.dictValues
 			keyBuf := sup.keyBuf[:0]
-			for i, v := range c.dictValues {
+			for _, v := range c.dictValues {
 				if v == "" {
 					// Do not count empty values
 					continue
 				}
-				keyBuf = append(keyBuf[:0], 0, byte(valueTypeDict))
-				keyBuf = append(keyBuf, byte(i))
+				keyBuf = append(keyBuf[:0], 0)
+				keyBuf = append(keyBuf, v...)
 				if _, ok := m[string(keyBuf)]; !ok {
 					m[string(keyBuf)] = struct{}{}
 					stateSizeIncrease += len(keyBuf) + int(unsafe.Sizeof(""))
@@ -148,19 +147,18 @@ func (sup *statsUniqProcessor) updateStatsForAllRows(br *blockResult) int {
 		}
 
 		// Count unique values across encodedValues
-		encodedValues := c.getEncodedValues(br)
-		isStringValueType := c.valueType == valueTypeString
+		values := c.getValues(br)
 		keyBuf := sup.keyBuf[:0]
-		for i, v := range encodedValues {
-			if isStringValueType && v == "" {
+		for i, v := range values {
+			if v == "" {
 				// Do not count empty values
 				continue
 			}
-			if i > 0 && encodedValues[i-1] == v {
+			if i > 0 && values[i-1] == v {
 				// This value has been already counted.
 				continue
 			}
-			keyBuf = append(keyBuf[:0], 0, byte(c.valueType))
+			keyBuf = append(keyBuf[:0], 0)
 			keyBuf = append(keyBuf, v...)
 			if _, ok := m[string(keyBuf)]; !ok {
 				m[string(keyBuf)] = struct{}{}
@@ -249,8 +247,7 @@ func (sup *statsUniqProcessor) updateStatsForRow(br *blockResult, rowIdx int) in
 	}
 	if len(fields) == 1 {
 		// Fast path for a single column.
-		// The unique key is formed as "<is_time> <value_type>? <encodedValue>",
-		// where <value_type> is skipped if <is_time> == 1.
+		// The unique key is formed as "<is_time> <value>",
 		// This guarantees that keys do not clash for different column types across blocks.
 		c := br.getColumnByName(fields[0])
 		if c.isTime {
@@ -273,7 +270,7 @@ func (sup *statsUniqProcessor) updateStatsForRow(br *blockResult, rowIdx int) in
 				return stateSizeIncrease
 			}
 			keyBuf := sup.keyBuf[:0]
-			keyBuf = append(keyBuf[:0], 0, byte(valueTypeString))
+			keyBuf = append(keyBuf[:0], 0)
 			keyBuf = append(keyBuf, v...)
 			if _, ok := m[string(keyBuf)]; !ok {
 				m[string(keyBuf)] = struct{}{}
@@ -285,13 +282,14 @@ func (sup *statsUniqProcessor) updateStatsForRow(br *blockResult, rowIdx int) in
 		if c.valueType == valueTypeDict {
 			// count unique non-zero c.dictValues
 			dictIdx := c.encodedValues[rowIdx][0]
-			if c.dictValues[dictIdx] == "" {
+			v := c.dictValues[dictIdx]
+			if v == "" {
 				// Do not count empty values
 				return stateSizeIncrease
 			}
 			keyBuf := sup.keyBuf[:0]
-			keyBuf = append(keyBuf[:0], 0, byte(valueTypeDict))
-			keyBuf = append(keyBuf, dictIdx)
+			keyBuf = append(keyBuf[:0], 0)
+			keyBuf = append(keyBuf, v...)
 			if _, ok := m[string(keyBuf)]; !ok {
 				m[string(keyBuf)] = struct{}{}
 				stateSizeIncrease += len(keyBuf) + int(unsafe.Sizeof(""))
@@ -301,14 +299,13 @@ func (sup *statsUniqProcessor) updateStatsForRow(br *blockResult, rowIdx int) in
 		}
 
 		// Count unique values for the given rowIdx
-		encodedValues := c.getEncodedValues(br)
-		v := encodedValues[rowIdx]
-		if c.valueType == valueTypeString && v == "" {
+		v := c.getValueAtRow(br, rowIdx)
+		if v == "" {
 			// Do not count empty values
 			return stateSizeIncrease
 		}
 		keyBuf := sup.keyBuf[:0]
-		keyBuf = append(keyBuf[:0], 0, byte(c.valueType))
+		keyBuf = append(keyBuf[:0], 0)
 		keyBuf = append(keyBuf, v...)
 		if _, ok := m[string(keyBuf)]; !ok {
 			m[string(keyBuf)] = struct{}{}

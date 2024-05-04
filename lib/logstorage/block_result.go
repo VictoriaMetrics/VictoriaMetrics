@@ -3,6 +3,7 @@ package logstorage
 import (
 	"encoding/binary"
 	"math"
+	"slices"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
@@ -121,9 +122,6 @@ func (br *blockResult) fetchAllColumns(bs *blockSearch, bm *bitmap) {
 
 func (br *blockResult) fetchRequestedColumns(bs *blockSearch, bm *bitmap) {
 	for _, columnName := range bs.bsw.so.resultColumnNames {
-		if columnName == "" {
-			columnName = "_msg"
-		}
 		switch columnName {
 		case "_stream":
 			if !br.addStreamColumn(bs) {
@@ -275,10 +273,7 @@ func (br *blockResult) addColumn(bs *blockSearch, ch *columnHeader, bm *bitmap) 
 	}
 	dictValues = valuesBuf[valuesBufLen:]
 
-	name := ch.name
-	if name == "" {
-		name = "_msg"
-	}
+	name := getCanonicalColumnName(ch.name)
 	br.cs = append(br.cs, blockResultColumn{
 		name:          name,
 		valueType:     ch.valueType,
@@ -425,6 +420,7 @@ func (br *blockResult) getBucketedTimestampValues(bucketSize, bucketOffset float
 			timestamp := timestamps[i]
 			timestamp -= bucketOffsetInt
 			timestamp -= timestamp % bucketSizeInt
+			timestamp += bucketOffsetInt
 			if i > 0 && timestamp == prevTimestamp {
 				valuesBuf = append(valuesBuf, s)
 				continue
@@ -516,6 +512,7 @@ func (br *blockResult) getBucketedUint8Values(encodedValues []string, bucketSize
 			n := uint64(v[0])
 			n -= bucketOffsetInt
 			n -= n % bucketSizeInt
+			n += bucketOffsetInt
 			if i > 0 && n == nPrev {
 				valuesBuf = append(valuesBuf, s)
 				continue
@@ -570,6 +567,7 @@ func (br *blockResult) getBucketedUint16Values(encodedValues []string, bucketSiz
 			n := uint64(encoding.UnmarshalUint16(b))
 			n -= bucketOffsetInt
 			n -= n % bucketSizeInt
+			n += bucketOffsetInt
 			if i > 0 && n == nPrev {
 				valuesBuf = append(valuesBuf, s)
 				continue
@@ -624,6 +622,7 @@ func (br *blockResult) getBucketedUint32Values(encodedValues []string, bucketSiz
 			n := uint64(encoding.UnmarshalUint32(b))
 			n -= bucketOffsetInt
 			n -= n % bucketSizeInt
+			n += bucketOffsetInt
 			if i > 0 && n == nPrev {
 				valuesBuf = append(valuesBuf, s)
 				continue
@@ -678,6 +677,7 @@ func (br *blockResult) getBucketedUint64Values(encodedValues []string, bucketSiz
 			n := encoding.UnmarshalUint64(b)
 			n -= bucketOffsetInt
 			n -= n % bucketSizeInt
+			n += bucketOffsetInt
 			if i > 0 && n == nPrev {
 				valuesBuf = append(valuesBuf, s)
 				continue
@@ -742,6 +742,8 @@ func (br *blockResult) getBucketedFloat64Values(encodedValues []string, bucketSi
 			fP10 -= fP10 % bucketSizeP10
 			f = float64(fP10) / p10
 
+			f += bucketOffset
+
 			if i > 0 && f == fPrev {
 				valuesBuf = append(valuesBuf, s)
 				continue
@@ -794,6 +796,7 @@ func (br *blockResult) getBucketedIPv4Values(encodedValues []string, bucketSize,
 			n := binary.BigEndian.Uint32(b)
 			n -= bucketOffsetInt
 			n -= n % bucketSizeInt
+			n += bucketOffsetInt
 			if i > 0 && n == nPrev {
 				valuesBuf = append(valuesBuf, s)
 				continue
@@ -850,6 +853,7 @@ func (br *blockResult) getBucketedTimestampISO8601Values(encodedValues []string,
 			n := encoding.UnmarshalUint64(b)
 			n -= bucketOffsetInt
 			n -= n % bucketSizeInt
+			n += bucketOffsetInt
 			if i > 0 && n == nPrev {
 				valuesBuf = append(valuesBuf, s)
 				continue
@@ -887,12 +891,15 @@ func (br *blockResult) getBucketedValue(s string, bucketSize, bucketOffset float
 
 	if f, ok := tryParseFloat64(s); ok {
 		f -= bucketOffset
+
 		// emulate f % bucketSize for float64 values
 		_, e := decimal.FromFloat(bucketSize)
 		p10 := math.Pow10(int(-e))
 		fP10 := int64(f * p10)
 		fP10 -= fP10 % int64(bucketSize*p10)
 		f = float64(fP10) / p10
+
+		f += bucketOffset
 
 		bufLen := len(br.buf)
 		br.buf = marshalFloat64(br.buf, f)
@@ -902,6 +909,7 @@ func (br *blockResult) getBucketedValue(s string, bucketSize, bucketOffset float
 	if nsecs, ok := tryParseTimestampISO8601(s); ok {
 		nsecs -= int64(bucketOffset)
 		nsecs -= nsecs % int64(bucketSize)
+		nsecs += int64(bucketOffset)
 		bufLen := len(br.buf)
 		br.buf = marshalTimestampISO8601(br.buf, nsecs)
 		return bytesutil.ToUnsafeString(br.buf[bufLen:])
@@ -910,6 +918,7 @@ func (br *blockResult) getBucketedValue(s string, bucketSize, bucketOffset float
 	if nsecs, ok := tryParseTimestampRFC3339Nano(s); ok {
 		nsecs -= int64(bucketOffset)
 		nsecs -= nsecs % int64(bucketSize)
+		nsecs += int64(bucketOffset)
 		bufLen := len(br.buf)
 		br.buf = marshalTimestampRFC3339Nano(br.buf, nsecs)
 		return bytesutil.ToUnsafeString(br.buf[bufLen:])
@@ -918,6 +927,7 @@ func (br *blockResult) getBucketedValue(s string, bucketSize, bucketOffset float
 	if n, ok := tryParseIPv4(s); ok {
 		n -= uint32(int32(bucketOffset))
 		n -= n % uint32(bucketSize)
+		n += uint32(int32(bucketOffset))
 		bufLen := len(br.buf)
 		br.buf = marshalIPv4(br.buf, n)
 		return bytesutil.ToUnsafeString(br.buf[bufLen:])
@@ -926,6 +936,7 @@ func (br *blockResult) getBucketedValue(s string, bucketSize, bucketOffset float
 	if nsecs, ok := tryParseDuration(s); ok {
 		nsecs -= int64(bucketOffset)
 		nsecs -= nsecs % int64(bucketSize)
+		nsecs += int64(bucketOffset)
 		bufLen := len(br.buf)
 		br.buf = marshalDuration(br.buf, nsecs)
 		return bytesutil.ToUnsafeString(br.buf[bufLen:])
@@ -942,7 +953,69 @@ func (br *blockResult) addEmptyStringColumn(columnName string) {
 	})
 }
 
-func (br *blockResult) updateColumns(columnNames []string) {
+// copyColumns copies columns from srcColumnNames to dstColumnNames.
+func (br *blockResult) copyColumns(srcColumnNames, dstColumnNames []string) {
+	if len(srcColumnNames) == 0 {
+		return
+	}
+
+	cs := br.cs
+	csOffset := len(cs)
+	for _, c := range br.getColumns() {
+		if idx := slices.Index(srcColumnNames, c.name); idx >= 0 {
+			c.name = dstColumnNames[idx]
+			cs = append(cs, c)
+			// continue is skipped intentionally in order to leave the original column in the columns list.
+		}
+		if !slices.Contains(dstColumnNames, c.name) {
+			cs = append(cs, c)
+		}
+	}
+	br.csOffset = csOffset
+	br.cs = cs
+}
+
+// renameColumns renames columns from srcColumnNames to dstColumnNames.
+func (br *blockResult) renameColumns(srcColumnNames, dstColumnNames []string) {
+	if len(srcColumnNames) == 0 {
+		return
+	}
+
+	cs := br.cs
+	csOffset := len(cs)
+	for _, c := range br.getColumns() {
+		if idx := slices.Index(srcColumnNames, c.name); idx >= 0 {
+			c.name = dstColumnNames[idx]
+			cs = append(cs, c)
+			continue
+		}
+		if !slices.Contains(dstColumnNames, c.name) {
+			cs = append(cs, c)
+		}
+	}
+	br.csOffset = csOffset
+	br.cs = cs
+}
+
+// deleteColumns deletes columns with the given columnNames.
+func (br *blockResult) deleteColumns(columnNames []string) {
+	if len(columnNames) == 0 {
+		return
+	}
+
+	cs := br.cs
+	csOffset := len(cs)
+	for _, c := range br.getColumns() {
+		if !slices.Contains(columnNames, c.name) {
+			cs = append(cs, c)
+		}
+	}
+	br.csOffset = csOffset
+	br.cs = cs
+}
+
+// setColumns sets the resulting columns to the given columnNames.
+func (br *blockResult) setColumns(columnNames []string) {
 	if br.areSameColumns(columnNames) {
 		// Fast path - nothing to change.
 		return
@@ -973,10 +1046,6 @@ func (br *blockResult) areSameColumns(columnNames []string) bool {
 }
 
 func (br *blockResult) getColumnByName(columnName string) blockResultColumn {
-	if columnName == "" {
-		columnName = "_msg"
-	}
-
 	cs := br.getColumns()
 
 	// iterate columns in reverse order, so overridden column results are returned instead of original column results.
@@ -1108,37 +1177,6 @@ func (c *blockResultColumn) addValue(v string) {
 
 	c.encodedValues = c.valuesBuf
 	c.values = c.valuesBuf
-}
-
-// getEncodedValues returns encoded values for the given column.
-//
-// The returned encoded values are valid until br.reset() is called.
-func (c *blockResultColumn) getEncodedValues(br *blockResult) []string {
-	if c.encodedValues != nil {
-		return c.encodedValues
-	}
-
-	if !c.isTime {
-		logger.Panicf("BUG: encodedValues may be missing only for _time column; got %q column", c.name)
-	}
-
-	buf := br.buf
-	valuesBuf := br.valuesBuf
-	valuesBufLen := len(valuesBuf)
-
-	for _, timestamp := range br.timestamps {
-		bufLen := len(buf)
-		buf = encoding.MarshalInt64(buf, timestamp)
-		s := bytesutil.ToUnsafeString(buf[bufLen:])
-		valuesBuf = append(valuesBuf, s)
-	}
-
-	c.encodedValues = valuesBuf[valuesBufLen:]
-
-	br.valuesBuf = valuesBuf
-	br.buf = buf
-
-	return c.encodedValues
 }
 
 // getValueAtRow returns value for the value at the given rowIdx.

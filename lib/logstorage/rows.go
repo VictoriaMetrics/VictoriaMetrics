@@ -24,10 +24,7 @@ func (f *Field) Reset() {
 
 // String returns string representation of f.
 func (f *Field) String() string {
-	name := f.Name
-	if name == "" {
-		name = "_msg"
-	}
+	name := getCanonicalColumnName(f.Name)
 	return fmt.Sprintf("%q:%q", name, f.Value)
 }
 
@@ -120,4 +117,11 @@ func (rs *rows) mergeRows(timestampsA, timestampsB []int64, fieldsA, fieldsB [][
 	} else {
 		rs.appendRows(timestampsA, fieldsA)
 	}
+}
+
+func getCanonicalColumnName(columnName string) string {
+	if columnName == "" {
+		return "_msg"
+	}
+	return columnName
 }

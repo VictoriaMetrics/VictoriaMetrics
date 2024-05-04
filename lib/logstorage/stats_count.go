@@ -18,7 +18,11 @@ func (sc *statsCount) String() string {
 }
 
 func (sc *statsCount) neededFields() []string {
-	return getFieldsIgnoreStar(sc.fields)
+	if sc.containsStar {
+		// There is no need in fetching any columns for count(*) - the number of matching rows can be calculated as len(blockResult.timestamps)
+		return nil
+	}
+	return sc.fields
 }
 
 func (sc *statsCount) newStatsProcessor() (statsProcessor, int) {
@@ -203,14 +207,4 @@ func parseStatsCount(lex *lexer) (*statsCount, error) {
 		containsStar: slices.Contains(fields, "*"),
 	}
 	return sc, nil
-}
-
-func getFieldsIgnoreStar(fields []string) []string {
-	var result []string
-	for _, f := range fields {
-		if f != "*" {
-			result = append(result, f)
-		}
-	}
-	return result
 }

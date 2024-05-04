@@ -16,6 +16,10 @@ func (ps *pipeSkip) String() string {
 	return fmt.Sprintf("skip %d", ps.n)
 }
 
+func (ps *pipeSkip) getNeededFields() ([]string, map[string][]string) {
+	return []string{"*"}, nil
+}
+
 func (ps *pipeSkip) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
 	return &pipeSkipProcessor{
 		ps:     ps,
@@ -52,12 +56,14 @@ func (psp *pipeSkipProcessor) flush() error {
 }
 
 func parsePipeSkip(lex *lexer) (*pipeSkip, error) {
-	if !lex.mustNextToken() {
-		return nil, fmt.Errorf("missing the number of rows to skip")
+	if !lex.isKeyword("skip") {
+		return nil, fmt.Errorf("expecting 'rename'; got %q", lex.token)
 	}
+
+	lex.nextToken()
 	n, err := parseUint(lex.token)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse the number of rows to skip %q: %w", lex.token, err)
+		return nil, fmt.Errorf("cannot parse the number of rows to skip from %q: %w", lex.token, err)
 	}
 	lex.nextToken()
 	ps := &pipeSkip{

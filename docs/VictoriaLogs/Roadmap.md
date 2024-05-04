@@ -30,6 +30,7 @@ See [these docs](https://docs.victoriametrics.com/VictoriaLogs/) for details.
 The following functionality is planned in the future versions of VictoriaLogs:
 
 - Support for [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/) from popular log collectors and formats:
+  - OpenTelemetry for logs
   - Fluentd
   - Syslog
   - Journald (systemd)
@@ -37,9 +38,6 @@ The following functionality is planned in the future versions of VictoriaLogs:
   - [Stream context](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#stream-context).
   - [Transformation functions](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#transformations).
   - [Post-filtering](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#post-filters).
-  - [Stats calculations](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#stats).
-  - [Sorting](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#sorting).
-  - [Limiters](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#limiters).
   - The ability to use subqueries inside [in()](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#multi-exact-filter) function.
 - Live tailing for [LogsQL filters](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#filters) aka `tail -f`.
 - Web UI with the following abilities:

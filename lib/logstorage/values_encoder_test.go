@@ -325,7 +325,6 @@ func TestTryParseDuration_Success(t *testing.T) {
 
 	// zero duration
 	f("0s", 0)
-	f("0S", 0)
 	f("0.0w0d0h0s0.0ms", 0)
 	f("-0w", 0)
 
@@ -334,15 +333,9 @@ func TestTryParseDuration_Success(t *testing.T) {
 	f("1.5ms", 1.5*nsecsPerMillisecond)
 	f("1µs", nsecsPerMicrosecond)
 	f("1ns", 1)
-	f("1NS", 1)
-	f("1nS", 1)
-	f("1Ns", 1)
 	f("1h", nsecsPerHour)
-	f("1H", nsecsPerHour)
 	f("1.5d", 1.5*nsecsPerDay)
-	f("1.5D", 1.5*nsecsPerDay)
 	f("1.5w", 1.5*nsecsPerWeek)
-	f("1.5W", 1.5*nsecsPerWeek)
 	f("2.5y", 2.5*nsecsPerYear)
 	f("1m5.123456789s", nsecsPerMinute+5.123456789*nsecsPerSecond)
 
@@ -417,61 +410,24 @@ func TestTryParseBytes_Success(t *testing.T) {
 		}
 	}
 
-	f("123.456", 123)
 	f("1_500", 1_500)
 
-	f("2.5b", 2)
 	f("2.5B", 2)
-
-	f("1.5k", 1_500)
-	f("1.5m", 1_500_000)
-	f("1.5g", 1_500_000_000)
-	f("1.5t", 1_500_000_000_000)
 
 	f("1.5K", 1_500)
 	f("1.5M", 1_500_000)
 	f("1.5G", 1_500_000_000)
 	f("1.5T", 1_500_000_000_000)
 
-	f("1.5kb", 1_500)
-	f("1.5mb", 1_500_000)
-	f("1.5gb", 1_500_000_000)
-	f("1.5tb", 1_500_000_000_000)
-
-	f("1.5Kb", 1_500)
-	f("1.5Mb", 1_500_000)
-	f("1.5Gb", 1_500_000_000)
-	f("1.5Tb", 1_500_000_000_000)
-
 	f("1.5KB", 1_500)
 	f("1.5MB", 1_500_000)
 	f("1.5GB", 1_500_000_000)
 	f("1.5TB", 1_500_000_000_000)
 
-	f("1.5ki", 1.5*(1<<10))
-	f("1.5mi", 1.5*(1<<20))
-	f("1.5gi", 1.5*(1<<30))
-	f("1.5ti", 1.5*(1<<40))
-
 	f("1.5Ki", 1.5*(1<<10))
 	f("1.5Mi", 1.5*(1<<20))
 	f("1.5Gi", 1.5*(1<<30))
 	f("1.5Ti", 1.5*(1<<40))
-
-	f("1.5KI", 1.5*(1<<10))
-	f("1.5MI", 1.5*(1<<20))
-	f("1.5GI", 1.5*(1<<30))
-	f("1.5TI", 1.5*(1<<40))
-
-	f("1.5kib", 1.5*(1<<10))
-	f("1.5mib", 1.5*(1<<20))
-	f("1.5gib", 1.5*(1<<30))
-	f("1.5tib", 1.5*(1<<40))
-
-	f("1.5kiB", 1.5*(1<<10))
-	f("1.5miB", 1.5*(1<<20))
-	f("1.5giB", 1.5*(1<<30))
-	f("1.5tiB", 1.5*(1<<40))
 
 	f("1.5KiB", 1.5*(1<<10))
 	f("1.5MiB", 1.5*(1<<20))
@@ -503,6 +459,37 @@ func TestTryParseBytes_Failure(t *testing.T) {
 	f("123qsb")
 	f("123sqsb")
 	f("123s5qsb")
+
+	// invalid case for the suffix
+	f("1b")
+
+	f("1k")
+	f("1m")
+	f("1g")
+	f("1t")
+
+	f("1kb")
+	f("1mb")
+	f("1gb")
+	f("1tb")
+
+	f("1ki")
+	f("1mi")
+	f("1gi")
+	f("1ti")
+
+	f("1kib")
+	f("1mib")
+	f("1gib")
+	f("1tib")
+
+	f("1KIB")
+	f("1MIB")
+	f("1GIB")
+	f("1TIB")
+
+	// fractional number without suffix
+	f("123.456")
 }
 
 func TestTryParseFloat64_Success(t *testing.T) {

@@ -16,6 +16,10 @@ func (ph *pipeHead) String() string {
 	return fmt.Sprintf("head %d", ph.n)
 }
 
+func (ph *pipeHead) getNeededFields() ([]string, map[string][]string) {
+	return []string{"*"}, nil
+}
+
 func (ph *pipeHead) newPipeProcessor(_ int, _ <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {
 	if ph.n == 0 {
 		// Special case - notify the caller to stop writing data to the returned pipeHeadProcessor
@@ -65,12 +69,14 @@ func (php *pipeHeadProcessor) flush() error {
 }
 
 func parsePipeHead(lex *lexer) (*pipeHead, error) {
-	if !lex.mustNextToken() {
-		return nil, fmt.Errorf("missing the number of head rows to return")
+	if !lex.isKeyword("head") {
+		return nil, fmt.Errorf("expecting 'head'; got %q", lex.token)
 	}
+
+	lex.nextToken()
 	n, err := parseUint(lex.token)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse the number of head rows to return %q: %w", lex.token, err)
+		return nil, fmt.Errorf("cannot parse the number of head rows to return from %q: %w", lex.token, err)
 	}
 	lex.nextToken()
 	ph := &pipeHead{

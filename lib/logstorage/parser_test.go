@@ -3,6 +3,7 @@ package logstorage
 import (
 	"math"
 	"reflect"
+	"slices"
 	"testing"
 	"time"
 )
@@ -540,6 +541,12 @@ func TestParseRangeFilter(t *testing.T) {
 	f(`:range(1, 2)`, ``, math.Nextafter(1, math.Inf(1)), math.Nextafter(2, math.Inf(-1)))
 	f(`range[1, 2)`, ``, 1, math.Nextafter(2, math.Inf(-1)))
 	f(`range("1", 2]`, ``, math.Nextafter(1, math.Inf(1)), 2)
+
+	f(`response_size:range[1KB, 10MiB]`, `response_size`, 1_000, 10*(1<<20))
+	f(`response_size:range[1G, 10Ti]`, `response_size`, 1_000_000_000, 10*(1<<40))
+	f(`response_size:range[10, inf]`, `response_size`, 10, math.Inf(1))
+
+	f(`duration:range[100ns, 1y2w2.5m3s5ms]`, `duration`, 100, 1*nsecsPerYear+2*nsecsPerWeek+2.5*nsecsPerMinute+3*nsecsPerSecond+5*nsecsPerMillisecond)
 }
 
 func TestParseQuerySuccess(t *testing.T) {
@@ -749,6 +756,7 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`len_range(10, +InF)`, `len_range(10, +InF)`)
 	f(`len_range(10, 1_000_000)`, `len_range(10, 1_000_000)`)
 	f(`len_range(0x10,0b100101)`, `len_range(0x10, 0b100101)`)
+	f(`len_range(1.5KB, 22MB100KB)`, `len_range(1.5KB, 22MB100KB)`)
 
 	// range filter
 	f(`range(1.234, 5656.43454)`, `range(1.234, 5656.43454)`)
@@ -760,6 +768,7 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`range(1_000, 0o7532)`, `range(1_000, 0o7532)`)
 	f(`range(0x1ff, inf)`, `range(0x1ff, inf)`)
 	f(`range(-INF,+inF)`, `range(-INF, +inF)`)
+	f(`range(1.5K, 22.5GiB)`, `range(1.5K, 22.5GiB)`)
 
 	// re filter
 	f("re('foo|ba(r.+)')", `re("foo|ba(r.+)")`)
@@ -816,19 +825,34 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`foo | fields bar`, `foo | fields bar`)
 	f(`foo|FIELDS bar,Baz  , "a,b|c"`, `foo | fields bar, Baz, "a,b|c"`)
 	f(`foo | Fields   x.y, "abc:z/a", _b$c`, `foo | fields x.y, "abc:z/a", "_b$c"`)
+	f(`foo | fields "", a`, `foo | fields _msg, a`)
 
 	// multiple fields pipes
 	f(`foo | fields bar | fields baz, abc`, `foo | fields bar | fields baz, abc`)
 
+	// copy pipe
+	f(`* | copy foo as bar`, `* | copy foo as bar`)
+	f(`* | COPY foo as bar, x y | Copy a as b`, `* | copy foo as bar, x as y | copy a as b`)
+
+	// rename pipe
+	f(`* | rename foo as bar`, `* | rename foo as bar`)
+	f(`* | RENAME foo AS bar, x y | Rename a as b`, `* | rename foo as bar, x as y | rename a as b`)
+
+	// delete pipe
+	f(`* | delete foo`, `* | delete foo`)
+	f(`* | DELETE foo, bar`, `* | delete foo, bar`)
+
 	// head pipe
 	f(`foo | head 10`, `foo | head 10`)
-	f(`foo | HEAD 1123432`, `foo | head 1123432`)
+	f(`foo | HEAD 1_123_432`, `foo | head 1123432`)
+	f(`foo | head 10K`, `foo | head 10000`)
 
 	// multiple head pipes
 	f(`foo | head 100 | head 10 | head 234`, `foo | head 100 | head 10 | head 234`)
 
 	// skip pipe
 	f(`foo | skip 10`, `foo | skip 10`)
+	f(`foo | skip 12_345M`, `foo | skip 12345000000`)
 
 	// multiple skip pipes
 	f(`foo | skip 10 | skip 100`, `foo | skip 10 | skip 100`)
@@ -839,6 +863,8 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats count() x`, `* | stats count(*) as x`)
 	f(`* | stats count(*) x`, `* | stats count(*) as x`)
 	f(`* | stats count(foo,*,bar) x`, `* | stats count(*) as x`)
+	f(`* | stats count('') foo`, `* | stats count(_msg) as foo`)
+	f(`* | stats count(foo) ''`, `* | stats count(foo) as _msg`)
 
 	// stats pipe sum
 	f(`* | stats Sum(foo) bar`, `* | stats sum(foo) as bar`)
@@ -1107,6 +1133,23 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | fields bar,`)
 	f(`foo | fields bar,,`)
 
+	// invalid copy pipe
+	f(`foo | copy`)
+	f(`foo | copy foo`)
+	f(`foo | copy foo,`)
+	f(`foo | copy foo,,`)
+
+	// invalid rename pipe
+	f(`foo | rename`)
+	f(`foo | rename foo`)
+	f(`foo | rename foo,`)
+	f(`foo | rename foo,,`)
+
+	// invalid delete pipe
+	f(`foo | delete`)
+	f(`foo | delete foo,`)
+	f(`foo | delete foo,,`)
+
 	// missing head pipe value
 	f(`foo | head`)
 
@@ -1174,4 +1217,26 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | stats by(bar`)
 	f(`foo | stats by(bar,`)
 	f(`foo | stats by(bar)`)
+}
+
+func TestNormalizeFields(t *testing.T) {
+	f := func(fields, normalizedExpected []string) {
+		t.Helper()
+
+		normalized := normalizeFields(fields)
+		if !slices.Equal(normalized, normalizedExpected) {
+			t.Fatalf("unexpected normalized fields for %q; got %q; want %q", fields, normalized, normalizedExpected)
+		}
+	}
+
+	f(nil, nil)
+	f([]string{"foo"}, []string{"foo"})
+
+	// duplicate fields
+	f([]string{"foo", "bar", "foo", "x"}, []string{"foo", "bar", "x"})
+	f([]string{"foo", "foo", "x", "x", "x"}, []string{"foo", "x"})
+
+	// star field
+	f([]string{"*"}, []string{"*"})
+	f([]string{"foo", "*", "bar"}, []string{"*"})
 }

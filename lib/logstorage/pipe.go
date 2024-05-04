@@ -8,6 +8,12 @@ type pipe interface {
 	// String returns string representation of the pipe.
 	String() string
 
+	// getNeededFields must return the required input fields alongside the mapping from output fields to input fields for the given pipe.
+	//
+	// It must return []string{"*"} if the set of input fields cannot be determined at the given pipe.
+	// It must return nil map if the pipe doesn't add new fields to the output.
+	getNeededFields() ([]string, map[string][]string)
+
 	// newPipeProcessor must return new pipeProcessor for the given ppBase.
 	//
 	// workersCount is the number of goroutine workers, which will call writeBlock() method.
@@ -68,12 +74,6 @@ func parsePipes(lex *lexer) ([]pipe, error) {
 			return nil, fmt.Errorf("missing token after '|'")
 		}
 		switch {
-		case lex.isKeyword("fields"):
-			pf, err := parsePipeFields(lex)
-			if err != nil {
-				return nil, fmt.Errorf("cannot parse 'fields' pipe: %w", err)
-			}
-			pipes = append(pipes, pf)
 		case lex.isKeyword("stats"):
 			ps, err := parsePipeStats(lex)
 			if err != nil {
@@ -92,6 +92,30 @@ func parsePipes(lex *lexer) ([]pipe, error) {
 				return nil, fmt.Errorf("cannot parse 'skip' pipe: %w", err)
 			}
 			pipes = append(pipes, ps)
+		case lex.isKeyword("fields"):
+			pf, err := parsePipeFields(lex)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse 'fields' pipe: %w", err)
+			}
+			pipes = append(pipes, pf)
+		case lex.isKeyword("copy"):
+			pc, err := parsePipeCopy(lex)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse 'copy' pipe: %w", err)
+			}
+			pipes = append(pipes, pc)
+		case lex.isKeyword("rename"):
+			pr, err := parsePipeRename(lex)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse 'rename' pipe: %w", err)
+			}
+			pipes = append(pipes, pr)
+		case lex.isKeyword("delete"):
+			pd, err := parsePipeDelete(lex)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse 'delete' pipe: %w", err)
+			}
+			pipes = append(pipes, pd)
 		default:
 			return nil, fmt.Errorf("unexpected pipe %q", lex.token)
 		}

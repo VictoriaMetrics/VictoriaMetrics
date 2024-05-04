@@ -1,0 +1,99 @@
+package logstorage
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+)
+
+// pipeCopy implements '| copy ...' pipe.
+//
+// See https://docs.victoriametrics.com/victorialogs/logsql/#transformations
+type pipeCopy struct {
+	// srcFields contains a list of source fields to copy
+	srcFields []string
+
+	// dstFields contains a list of destination fields
+	dstFields []string
+}
+
+func (pc *pipeCopy) String() string {
+	if len(pc.srcFields) == 0 {
+		logger.Panicf("BUG: pipeCopy must contain at least a single srcField")
+	}
+
+	a := make([]string, len(pc.srcFields))
+	for i, srcField := range pc.srcFields {
+		dstField := pc.dstFields[i]
+		a[i] = quoteTokenIfNeeded(srcField) + " as " + quoteTokenIfNeeded(dstField)
+	}
+	return "copy " + strings.Join(a, ", ")
+}
+
+func (pc *pipeCopy) getNeededFields() ([]string, map[string][]string) {
+	m := make(map[string][]string, len(pc.srcFields))
+	for i, dstField := range pc.dstFields {
+		m[dstField] = append(m[dstField], pc.srcFields[i])
+	}
+	return []string{"*"}, m
+}
+
+func (pc *pipeCopy) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
+	return &pipeCopyProcessor{
+		pc:     pc,
+		ppBase: ppBase,
+	}
+}
+
+type pipeCopyProcessor struct {
+	pc     *pipeCopy
+	ppBase pipeProcessor
+}
+
+func (pcp *pipeCopyProcessor) writeBlock(workerID uint, br *blockResult) {
+	br.copyColumns(pcp.pc.srcFields, pcp.pc.dstFields)
+	pcp.ppBase.writeBlock(workerID, br)
+}
+
+func (pcp *pipeCopyProcessor) flush() error {
+	return nil
+}
+
+func parsePipeCopy(lex *lexer) (*pipeCopy, error) {
+	if !lex.isKeyword("copy") {
+		return nil, fmt.Errorf("expecting 'copy'; got %q", lex.token)
+	}
+
+	var srcFields []string
+	var dstFields []string
+	for {
+		lex.nextToken()
+		srcField, err := parseFieldName(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse src field name: %w", err)
+		}
+		if lex.isKeyword("as") {
+			lex.nextToken()
+		}
+		dstField, err := parseFieldName(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse dst field name: %w", err)
+		}
+
+		srcFields = append(srcFields, srcField)
+		dstFields = append(dstFields, dstField)
+
+		switch {
+		case lex.isKeyword("|", ")", ""):
+			pc := &pipeCopy{
+				srcFields: srcFields,
+				dstFields: dstFields,
+			}
+			return pc, nil
+		case lex.isKeyword(","):
+		default:
+			return nil, fmt.Errorf("unexpected token: %q; expecting ',', '|' or ')'", lex.token)
+		}
+	}
+}
