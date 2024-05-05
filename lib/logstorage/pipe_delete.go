@@ -23,7 +23,11 @@ func (pd *pipeDelete) String() string {
 }
 
 func (pd *pipeDelete) getNeededFields() ([]string, map[string][]string) {
-	return []string{"*"}, nil
+	m := make(map[string][]string, len(pd.fields))
+	for _, f := range pd.fields {
+		m[f] = nil
+	}
+	return []string{"*"}, m
 }
 
 func (pd *pipeDelete) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {

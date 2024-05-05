@@ -32,9 +32,14 @@ func (pr *pipeRename) String() string {
 }
 
 func (pr *pipeRename) getNeededFields() ([]string, map[string][]string) {
-	m := make(map[string][]string, len(pr.srcFields))
+	m := make(map[string][]string, len(pr.srcFields)+len(pr.dstFields))
 	for i, dstField := range pr.dstFields {
 		m[dstField] = append(m[dstField], pr.srcFields[i])
+	}
+	for _, srcField := range pr.srcFields {
+		if _, ok := m[srcField]; !ok {
+			m[srcField] = nil
+		}
 	}
 	return []string{"*"}, m
 }

@@ -973,6 +973,10 @@ func (br *blockResult) copyColumns(srcColumnNames, dstColumnNames []string) {
 	}
 	br.csOffset = csOffset
 	br.cs = cs
+
+	for _, dstColumnName := range dstColumnNames {
+		br.createMissingColumnByName(dstColumnName)
+	}
 }
 
 // renameColumns renames columns from srcColumnNames to dstColumnNames.
@@ -995,6 +999,10 @@ func (br *blockResult) renameColumns(srcColumnNames, dstColumnNames []string) {
 	}
 	br.csOffset = csOffset
 	br.cs = cs
+
+	for _, dstColumnName := range dstColumnNames {
+		br.createMissingColumnByName(dstColumnName)
+	}
 }
 
 // deleteColumns deletes columns with the given columnNames.
@@ -1047,9 +1055,7 @@ func (br *blockResult) areSameColumns(columnNames []string) bool {
 
 func (br *blockResult) getColumnByName(columnName string) blockResultColumn {
 	cs := br.getColumns()
-
-	// iterate columns in reverse order, so overridden column results are returned instead of original column results.
-	for i := len(cs) - 1; i >= 0; i-- {
+	for i := range cs {
 		if cs[i].name == columnName {
 			return cs[i]
 		}
@@ -1060,6 +1066,21 @@ func (br *blockResult) getColumnByName(columnName string) blockResultColumn {
 		isConst:       true,
 		encodedValues: getEmptyStrings(1),
 	}
+}
+
+func (br *blockResult) createMissingColumnByName(columnName string) {
+	cs := br.getColumns()
+	for i := range cs {
+		if cs[i].name == columnName {
+			return
+		}
+	}
+
+	br.cs = append(br.cs, blockResultColumn{
+		name:          columnName,
+		isConst:       true,
+		encodedValues: getEmptyStrings(1),
+	})
 }
 
 func (br *blockResult) getColumns() []blockResultColumn {

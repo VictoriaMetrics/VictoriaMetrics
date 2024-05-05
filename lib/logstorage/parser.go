@@ -203,11 +203,53 @@ func (q *Query) String() string {
 
 func (q *Query) getResultColumnNames() []string {
 	input := []string{"*"}
+	dropFields := make(map[string]struct{})
 
 	pipes := q.pipes
 	for i := len(pipes) - 1; i >= 0; i-- {
-		fields, m := pipes[i].getNeededFields()
-		if len(fields) == 0 {
+		neededFields, m := pipes[i].getNeededFields()
+		neededFields = normalizeFields(neededFields)
+
+		referredFields := make(map[string]int)
+		for _, a := range m {
+			for _, f := range a {
+				referredFields[f]++
+			}
+		}
+
+		for k := range dropFields {
+			for _, f := range m[k] {
+				referredFields[f]--
+			}
+		}
+		for k, v := range referredFields {
+			if v == 0 {
+				dropFields[k] = struct{}{}
+			}
+		}
+		dropFieldsNext := make(map[string]struct{})
+		for k := range m {
+			if referredFields[k] == 0 {
+				dropFieldsNext[k] = struct{}{}
+			}
+		}
+		for k := range dropFields {
+			if referredFields[k] == 0 {
+				dropFieldsNext[k] = struct{}{}
+			}
+		}
+
+		if len(dropFields) > 0 {
+			var neededFieldsDst []string
+			for _, f := range neededFields {
+				if _, ok := dropFields[f]; !ok {
+					neededFieldsDst = append(neededFieldsDst, f)
+				}
+			}
+			neededFields = neededFieldsDst
+		}
+
+		if len(neededFields) == 0 {
 			input = nil
 		}
 		if len(input) == 0 {
@@ -225,21 +267,31 @@ func (q *Query) getResultColumnNames() []string {
 				}
 			}
 			input = normalizeFields(dst)
+			if len(input) == 0 {
+				break
+			}
 		}
 
-		// intersect fields with input
-		if fields[0] != "*" {
+		// intersect neededFields with input
+		if neededFields[0] != "*" {
+			clear(dropFields)
+			if input[0] == "*" {
+				input = neededFields
+				continue
+			}
 			m := make(map[string]struct{})
 			for _, f := range input {
 				m[f] = struct{}{}
 			}
 			var dst []string
-			for _, f := range fields {
+			for _, f := range neededFields {
 				if _, ok := m[f]; ok {
 					dst = append(dst, f)
 				}
 			}
-			input = normalizeFields(dst)
+			input = dst
+		} else {
+			dropFields = dropFieldsNext
 		}
 	}
 
