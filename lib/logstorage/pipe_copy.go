@@ -9,7 +9,7 @@ import (
 
 // pipeCopy implements '| copy ...' pipe.
 //
-// See https://docs.victoriametrics.com/victorialogs/logsql/#transformations
+// See https://docs.victoriametrics.com/victorialogs/logsql/#copy-pipe
 type pipeCopy struct {
 	// srcFields contains a list of source fields to copy
 	srcFields []string
@@ -61,8 +61,8 @@ func (pcp *pipeCopyProcessor) flush() error {
 }
 
 func parsePipeCopy(lex *lexer) (*pipeCopy, error) {
-	if !lex.isKeyword("copy") {
-		return nil, fmt.Errorf("expecting 'copy'; got %q", lex.token)
+	if !lex.isKeyword("copy", "cp") {
+		return nil, fmt.Errorf("expecting 'copy' or 'cp'; got %q", lex.token)
 	}
 
 	var srcFields []string

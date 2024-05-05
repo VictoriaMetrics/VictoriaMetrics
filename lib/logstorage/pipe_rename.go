@@ -9,7 +9,7 @@ import (
 
 // pipeRename implements '| rename ...' pipe.
 //
-// See https://docs.victoriametrics.com/victorialogs/logsql/#transformations
+// See https://docs.victoriametrics.com/victorialogs/logsql/#rename-pipe
 type pipeRename struct {
 	// srcFields contains a list of source fields to rename
 	srcFields []string
@@ -66,8 +66,8 @@ func (prp *pipeRenameProcessor) flush() error {
 }
 
 func parsePipeRename(lex *lexer) (*pipeRename, error) {
-	if !lex.isKeyword("rename") {
-		return nil, fmt.Errorf("expecting 'rename'; got %q", lex.token)
+	if !lex.isKeyword("rename", "mv") {
+		return nil, fmt.Errorf("expecting 'rename' or 'mv'; got %q", lex.token)
 	}
 
 	var srcFields []string

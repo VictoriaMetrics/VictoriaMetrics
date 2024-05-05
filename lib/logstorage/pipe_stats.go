@@ -15,7 +15,7 @@ import (
 
 // pipeStats processes '| stats ...' queries.
 //
-// See https://docs.victoriametrics.com/victorialogs/logsql/#stats
+// See https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe
 type pipeStats struct {
 	// byFields contains field names with optional buckets from 'by(...)' clause.
 	byFields []*byField

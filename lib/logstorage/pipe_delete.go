@@ -8,7 +8,7 @@ import (
 
 // pipeDelete implements '| delete ...' pipe.
 //
-// See https://docs.victoriametrics.com/victorialogs/logsql/#transformations
+// See https://docs.victoriametrics.com/victorialogs/logsql/#delete-pipe
 type pipeDelete struct {
 	// fields contains a list of fields to delete
 	fields []string
@@ -52,8 +52,8 @@ func (pdp *pipeDeleteProcessor) flush() error {
 }
 
 func parsePipeDelete(lex *lexer) (*pipeDelete, error) {
-	if !lex.isKeyword("delete") {
-		return nil, fmt.Errorf("expecting 'delete'; got %q", lex.token)
+	if !lex.isKeyword("delete", "del", "rm") {
+		return nil, fmt.Errorf("expecting 'delete', 'del' or 'rm'; got %q", lex.token)
 	}
 
 	var fields []string

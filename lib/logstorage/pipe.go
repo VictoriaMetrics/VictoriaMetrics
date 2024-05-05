@@ -80,16 +80,16 @@ func parsePipes(lex *lexer) ([]pipe, error) {
 				return nil, fmt.Errorf("cannot parse 'stats' pipe: %w", err)
 			}
 			pipes = append(pipes, ps)
-		case lex.isKeyword("head"):
-			ph, err := parsePipeHead(lex)
+		case lex.isKeyword("limit", "head"):
+			pl, err := parsePipeLimit(lex)
 			if err != nil {
-				return nil, fmt.Errorf("cannot parse 'head' pipe: %w", err)
+				return nil, fmt.Errorf("cannot parse 'limit' pipe: %w", err)
 			}
-			pipes = append(pipes, ph)
-		case lex.isKeyword("skip"):
-			ps, err := parsePipeSkip(lex)
+			pipes = append(pipes, pl)
+		case lex.isKeyword("offset", "skip"):
+			ps, err := parsePipeOffset(lex)
 			if err != nil {
-				return nil, fmt.Errorf("cannot parse 'skip' pipe: %w", err)
+				return nil, fmt.Errorf("cannot parse 'offset' pipe: %w", err)
 			}
 			pipes = append(pipes, ps)
 		case lex.isKeyword("fields"):
@@ -98,19 +98,19 @@ func parsePipes(lex *lexer) ([]pipe, error) {
 				return nil, fmt.Errorf("cannot parse 'fields' pipe: %w", err)
 			}
 			pipes = append(pipes, pf)
-		case lex.isKeyword("copy"):
+		case lex.isKeyword("copy", "cp"):
 			pc, err := parsePipeCopy(lex)
 			if err != nil {
 				return nil, fmt.Errorf("cannot parse 'copy' pipe: %w", err)
 			}
 			pipes = append(pipes, pc)
-		case lex.isKeyword("rename"):
+		case lex.isKeyword("rename", "mv"):
 			pr, err := parsePipeRename(lex)
 			if err != nil {
 				return nil, fmt.Errorf("cannot parse 'rename' pipe: %w", err)
 			}
 			pipes = append(pipes, pr)
-		case lex.isKeyword("delete"):
+		case lex.isKeyword("delete", "del", "rm"):
 			pd, err := parsePipeDelete(lex)
 			if err != nil {
 				return nil, fmt.Errorf("cannot parse 'delete' pipe: %w", err)

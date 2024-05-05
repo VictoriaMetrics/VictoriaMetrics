@@ -1033,12 +1033,12 @@ Performance tips:
 ## Pipes
 
 Additionally to [filters](#filters), LogsQL query may contain arbitrary mix of '|'-delimited actions known as `pipes`.
-For example, the following query uses [`stats`](#stats-pipe), [`sort`](#sort-pipe) and [`head`](#head-pipe) pipes
+For example, the following query uses [`stats`](#stats-pipe), [`sort`](#sort-pipe) and [`limit`](#limit-pipe) pipes
 for returning top 10 [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
 with the biggest number of logs during the last 5 minutes:
 
 ```logsql
-_time:5m | stats by (_stream) count() per_stream_logs | sort by (per_stream_logs desc) | head 10
+_time:5m | stats by (_stream) count() per_stream_logs | sort by (per_stream_logs desc) | limit 10
 ```
 
 LogsQL supports the following pipes:
@@ -1046,9 +1046,9 @@ LogsQL supports the following pipes:
 - [`copy`](#copy-pipe) copies [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - [`delete`](#delete-pipe) deletes [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - [`fields`](#fields-pipe) selects the given set of [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
-- [`head`](#head-pipe) limits the number selected logs.
+- [`limit`](#limit-pipe) limits the number selected logs.
+- [`offset`](#offset-pipe) skips the given number of selected logs.
 - [`rename`](#rename-pipe) renames [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
-- [`skip`](#skip-pipe) skips the given number of selected logs.
 - [`sort`](#sort-pipe) sorts logs by the given [fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - [`stats`](#stats-pipe) calculates various stats over the selected logs.
 
@@ -1107,20 +1107,36 @@ See also:
 - [`rename` pipe](#rename-pipe)
 - [`delete` pipe](#delete-pipe)
 
-### head pipe
+### limit pipe
 
-If only a subset of selected logs must be processed, then `| head N` [pipe](#pipes) can be used. For example, the following query returns up to 100 logs over the last 5 minutes:
+If only a subset of selected logs must be processed, then `| limit N` [pipe](#pipes) can be used. For example, the following query returns up to 100 logs over the last 5 minutes:
 
 ```logsql
-_time:5m | head 100
+_time:5m | limit 100
 ```
 
 By default rows are selected in arbitrary order because of performance reasons, so the query above can return different sets of logs every time it is executed.
-[`sort` pipe](#sort-pipe) can be used for making sure the logs are in the same order before applying `head ...` to them.
+[`sort` pipe](#sort-pipe) can be used for making sure the logs are in the same order before applying `limit ...` to them.
 
 See also:
 
-- [`skip` pipe](#skip-pipe)
+- [`offset` pipe](#offset-pipe)
+
+### offset pipe
+
+If some selected logs must be skipped after [`sort`](#sort-pipe), then `| offset N` [pipe](#pipes) can be used. For example, the following query skips the first 100 logs
+over the last 5 minutes after soring them by [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field):
+
+```logsql
+_time:5m | sort by (_time) | offset 100
+```
+
+Note that skipping rows without sorting has little sense, since they can be returned in arbitrary order because of performance reasons.
+Rows can be sorted with [`sort` pipe](#sort-pipe).
+
+See also:
+
+- [`limit` pipe](#limit-pipe)
 
 ### rename pipe
 
@@ -1142,22 +1158,6 @@ See also:
 - [`copy` pipe](#copy-pipe)
 - [`fields` pipe](#fields-pipe)
 - [`delete` pipe](#delete-pipe)
-
-### skip pipe
-
-If some number of selected logs must be skipped after [`sort`](#sort-pipe), then `| skip N` [pipe](#pipes) can be used. For example, the following query skips the first 100 logs
-over the last 5 minutes after soring them by [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field):
-
-```logsql
-_time:5m | sort by (_time) | skip 100
-```
-
-Note that skipping rows without sorting has little sense, since they can be returned in arbitrary order because of performance reasons.
-Rows can be sorted with [`sort` pipe](#sort-pipe).
-
-See also:
-
-- [`head` pipe](#head-pipe)
 
 ### sort pipe
 
@@ -1184,8 +1184,8 @@ It is recommended limiting the number of logs before sorting with the following 
 See also:
 
 - [`stats` pipe](#stats-pipe)
-- [`head` pipe](#head-pipe)
-- [`skip` pipe](#skip-pipe)
+- [`limit` pipe](#limit-pipe)
+- [`offset` pipe](#offset-pipe)
 
 ### stats pipe
 
@@ -1545,7 +1545,7 @@ Use [`sort` pipe](#sort-pipe) for sorting the results.
 LogsQL provides the following [pipes](#pipes) for limiting the number of returned log entries:
 
 - [`fields`](#fields-pipe) and [`delete`](#delete-pipe) pipes allow limiting the set of [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) to return.
-- [`head` pipe](#head-pipe) allows limiting the number of log entries to return.
+- [`limit` pipe](#limit-pipe) allows limiting the number of log entries to return.
 
 ## Querying specific fields
 
