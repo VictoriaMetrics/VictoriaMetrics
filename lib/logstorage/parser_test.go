@@ -838,24 +838,28 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | rename foo as bar`, `* | rename foo as bar`)
 	f(`* | RENAME foo AS bar, x y | Rename a as b`, `* | rename foo as bar, x as y | rename a as b`)
 
-	// delete pipe
+	// delete, del and rm pipe
 	f(`* | delete foo`, `* | delete foo`)
+	f(`* | del foo`, `* | delete foo`)
+	f(`* | rm foo`, `* | delete foo`)
 	f(`* | DELETE foo, bar`, `* | delete foo, bar`)
 
-	// head pipe
-	f(`foo | head 10`, `foo | head 10`)
-	f(`foo | HEAD 1_123_432`, `foo | head 1123432`)
-	f(`foo | head 10K`, `foo | head 10000`)
+	// limit and head pipe
+	f(`foo | limit 10`, `foo | limit 10`)
+	f(`foo | head 10`, `foo | limit 10`)
+	f(`foo | HEAD 1_123_432`, `foo | limit 1123432`)
+	f(`foo | head 10K`, `foo | limit 10000`)
 
-	// multiple head pipes
-	f(`foo | head 100 | head 10 | head 234`, `foo | head 100 | head 10 | head 234`)
+	// multiple limit pipes
+	f(`foo | limit 100 | limit 10 | limit 234`, `foo | limit 100 | limit 10 | limit 234`)
 
-	// skip pipe
-	f(`foo | skip 10`, `foo | skip 10`)
-	f(`foo | skip 12_345M`, `foo | skip 12345000000`)
+	// offset and skip pipe
+	f(`foo | skip 10`, `foo | offset 10`)
+	f(`foo | offset 10`, `foo | offset 10`)
+	f(`foo | skip 12_345M`, `foo | offset 12345000000`)
 
-	// multiple skip pipes
-	f(`foo | skip 10 | skip 100`, `foo | skip 10 | skip 100`)
+	// multiple offset pipes
+	f(`foo | offset 10 | offset 100`, `foo | offset 10 | offset 100`)
 
 	// stats pipe count
 	f(`* | STATS bY (foo, b.a/r, "b az") count(*) XYz`, `* | stats by (foo, "b.a/r", "b az") count(*) as XYz`)
@@ -923,8 +927,8 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats by(_time:1d offset -2.5h5m) count() as foo`, `* | stats by (_time:1d offset -2.5h5m) count(*) as foo`)
 
 	// multiple different pipes
-	f(`* | fields foo, bar | head 100 | stats by(foo,bar) count(baz) as qwert`, `* | fields foo, bar | head 100 | stats by (foo, bar) count(baz) as qwert`)
-	f(`* | skip 100 | head 20 | skip 10`, `* | skip 100 | head 20 | skip 10`)
+	f(`* | fields foo, bar | limit 100 | stats by(foo,bar) count(baz) as qwert`, `* | fields foo, bar | limit 100 | stats by (foo, bar) count(baz) as qwert`)
+	f(`* | skip 100 | head 20 | skip 10`, `* | offset 100 | limit 20 | offset 10`)
 }
 
 func TestParseQueryFailure(t *testing.T) {
@@ -1151,22 +1155,26 @@ func TestParseQueryFailure(t *testing.T) {
 
 	// invalid delete pipe
 	f(`foo | delete`)
+	f(`foo | del`)
+	f(`foo | rm`)
 	f(`foo | delete foo,`)
 	f(`foo | delete foo,,`)
 
-	// missing head pipe value
+	// missing limit and head pipe value
+	f(`foo | limit`)
 	f(`foo | head`)
 
-	// invalid head pipe value
-	f(`foo | head bar`)
-	f(`foo | head -123`)
+	// invalid limit pipe value
+	f(`foo | limit bar`)
+	f(`foo | limit -123`)
 
-	// missing skip pipe value
+	// missing offset and skip pipe value
+	f(`foo | offset`)
 	f(`foo | skip`)
 
-	// invalid skip pipe value
-	f(`foo | skip bar`)
-	f(`foo | skip -10`)
+	// invalid offset pipe value
+	f(`foo | offset bar`)
+	f(`foo | offset -10`)
 
 	// missing stats
 	f(`foo | stats`)
