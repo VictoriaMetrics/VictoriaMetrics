@@ -345,15 +345,21 @@ func (psp *pipeStatsProcessor) flush() error {
 		m = shards[0].m
 	}
 
-	var values []string
-	var br blockResult
+	rcs := make([]resultColumn, 0, len(byFields)+len(psp.ps.resultNames))
 	for _, bf := range byFields {
-		br.addEmptyStringColumn(bf.name)
+		rcs = append(rcs, resultColumn{
+			name: bf.name,
+		})
 	}
 	for _, resultName := range psp.ps.resultNames {
-		br.addEmptyStringColumn(resultName)
+		rcs = append(rcs, resultColumn{
+			name: resultName,
+		})
 	}
+	var br blockResult
 
+	var values []string
+	valuesLen := 0
 	for key, spg := range m {
 		// m may be quite big, so this loop can take a lot of time and CPU.
 		// Stop processing data as soon as stopCh is closed without wasting additional CPU time.
@@ -384,15 +390,25 @@ func (psp *pipeStatsProcessor) flush() error {
 			values = append(values, value)
 		}
 
-		br.addRow(0, values)
-		if len(br.timestamps) >= 1_000 {
+		if len(values) != len(rcs) {
+			logger.Panicf("BUG: len(values)=%d must be equal to len(rcs)=%d", len(values), len(rcs))
+		}
+		for i, v := range values {
+			rcs[i].addValue(v)
+			valuesLen += len(v)
+		}
+		if valuesLen >= 1_000_000 {
+			br.setResultColumns(rcs)
 			psp.ppBase.writeBlock(0, &br)
-			br.resetRows()
+			br.reset()
+			for i := range rcs {
+				rcs[i].reset()
+			}
+			valuesLen = 0
 		}
 	}
-	if len(br.timestamps) > 0 {
-		psp.ppBase.writeBlock(0, &br)
-	}
+	br.setResultColumns(rcs)
+	psp.ppBase.writeBlock(0, &br)
 
 	return nil
 }
