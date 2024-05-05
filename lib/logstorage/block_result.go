@@ -121,7 +121,7 @@ func (br *blockResult) fetchAllColumns(bs *blockSearch, bm *bitmap) {
 }
 
 func (br *blockResult) fetchRequestedColumns(bs *blockSearch, bm *bitmap) {
-	for _, columnName := range bs.bsw.so.resultColumnNames {
+	for _, columnName := range bs.bsw.so.neededColumnNames {
 		switch columnName {
 		case "_stream":
 			if !br.addStreamColumn(bs) {

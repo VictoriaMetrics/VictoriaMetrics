@@ -201,7 +201,7 @@ func (q *Query) String() string {
 	return s
 }
 
-func (q *Query) getResultColumnNames() []string {
+func (q *Query) getNeededColumns() []string {
 	input := []string{"*"}
 	dropFields := make(map[string]struct{})
 

@@ -19,8 +19,8 @@ type genericSearchOptions struct {
 	// filter is the filter to use for the search
 	filter filter
 
-	// resultColumnNames is names of columns to return in the result
-	resultColumnNames []string
+	// neededColumnNames is names of columns to return in the result
+	neededColumnNames []string
 
 	// needAllColumns is set to true when all the columns must be returned in the result
 	needAllColumns bool
@@ -44,8 +44,8 @@ type searchOptions struct {
 	// filter is the filter to use for the search
 	filter filter
 
-	// resultColumnNames is names of columns to return in the result
-	resultColumnNames []string
+	// neededColumnNames is names of columns to return in the result
+	neededColumnNames []string
 
 	// needAllColumns is set to true when all the columns must be returned in the result
 	needAllColumns bool
@@ -53,12 +53,12 @@ type searchOptions struct {
 
 // RunQuery runs the given q and calls writeBlock for results.
 func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlock func(workerID uint, timestamps []int64, columns []BlockColumn)) error {
-	resultColumnNames := q.getResultColumnNames()
+	neededColumnNames := q.getNeededColumns()
 	so := &genericSearchOptions{
 		tenantIDs:         tenantIDs,
 		filter:            q.f,
-		resultColumnNames: resultColumnNames,
-		needAllColumns:    slices.Contains(resultColumnNames, "*"),
+		neededColumnNames: neededColumnNames,
+		needAllColumns:    slices.Contains(neededColumnNames, "*"),
 	}
 
 	workersCount := cgroup.AvailableCPUs()
@@ -323,7 +323,7 @@ func (pt *partition) search(ft *filterTime, sf *StreamFilter, f filter, so *gene
 		minTimestamp:      ft.minTimestamp,
 		maxTimestamp:      ft.maxTimestamp,
 		filter:            f,
-		resultColumnNames: so.resultColumnNames,
+		neededColumnNames: so.neededColumnNames,
 		needAllColumns:    so.needAllColumns,
 	}
 	return pt.ddb.search(soInternal, workCh, stopCh)

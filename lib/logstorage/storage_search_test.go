@@ -404,7 +404,7 @@ func TestStorageSearch(t *testing.T) {
 		so := &genericSearchOptions{
 			tenantIDs:         []TenantID{tenantID},
 			filter:            f,
-			resultColumnNames: []string{"_msg"},
+			neededColumnNames: []string{"_msg"},
 		}
 		processBlock := func(_ uint, _ *blockResult) {
 			panic(fmt.Errorf("unexpected match"))
@@ -422,7 +422,7 @@ func TestStorageSearch(t *testing.T) {
 		so := &genericSearchOptions{
 			tenantIDs:         []TenantID{tenantID},
 			filter:            f,
-			resultColumnNames: []string{"_msg"},
+			neededColumnNames: []string{"_msg"},
 		}
 		processBlock := func(_ uint, _ *blockResult) {
 			panic(fmt.Errorf("unexpected match"))
@@ -440,7 +440,7 @@ func TestStorageSearch(t *testing.T) {
 		so := &genericSearchOptions{
 			tenantIDs:         []TenantID{tenantID},
 			filter:            f,
-			resultColumnNames: []string{"_msg"},
+			neededColumnNames: []string{"_msg"},
 		}
 		processBlock := func(_ uint, _ *blockResult) {
 			panic(fmt.Errorf("unexpected match"))
@@ -459,7 +459,7 @@ func TestStorageSearch(t *testing.T) {
 			so := &genericSearchOptions{
 				tenantIDs:         []TenantID{tenantID},
 				filter:            f,
-				resultColumnNames: []string{"_msg"},
+				neededColumnNames: []string{"_msg"},
 			}
 			var rowsCountTotal atomic.Uint32
 			processBlock := func(_ uint, br *blockResult) {
@@ -483,7 +483,7 @@ func TestStorageSearch(t *testing.T) {
 		so := &genericSearchOptions{
 			tenantIDs:         allTenantIDs,
 			filter:            f,
-			resultColumnNames: []string{"_msg"},
+			neededColumnNames: []string{"_msg"},
 		}
 		var rowsCountTotal atomic.Uint32
 		processBlock := func(_ uint, br *blockResult) {
@@ -504,7 +504,7 @@ func TestStorageSearch(t *testing.T) {
 		so := &genericSearchOptions{
 			tenantIDs:         allTenantIDs,
 			filter:            f,
-			resultColumnNames: []string{"_msg"},
+			neededColumnNames: []string{"_msg"},
 		}
 		processBlock := func(_ uint, _ *blockResult) {
 			panic(fmt.Errorf("unexpected match"))
@@ -524,7 +524,7 @@ func TestStorageSearch(t *testing.T) {
 			so := &genericSearchOptions{
 				tenantIDs:         []TenantID{tenantID},
 				filter:            f,
-				resultColumnNames: []string{"_msg"},
+				neededColumnNames: []string{"_msg"},
 			}
 			var rowsCountTotal atomic.Uint32
 			processBlock := func(_ uint, br *blockResult) {
@@ -553,7 +553,7 @@ func TestStorageSearch(t *testing.T) {
 		so := &genericSearchOptions{
 			tenantIDs:         []TenantID{tenantID},
 			filter:            f,
-			resultColumnNames: []string{"_msg"},
+			neededColumnNames: []string{"_msg"},
 		}
 		var rowsCountTotal atomic.Uint32
 		processBlock := func(_ uint, br *blockResult) {
@@ -590,7 +590,7 @@ func TestStorageSearch(t *testing.T) {
 		so := &genericSearchOptions{
 			tenantIDs:         []TenantID{tenantID},
 			filter:            f,
-			resultColumnNames: []string{"_msg"},
+			neededColumnNames: []string{"_msg"},
 		}
 		var rowsCountTotal atomic.Uint32
 		processBlock := func(_ uint, br *blockResult) {
@@ -618,7 +618,7 @@ func TestStorageSearch(t *testing.T) {
 		so := &genericSearchOptions{
 			tenantIDs:         []TenantID{tenantID},
 			filter:            f,
-			resultColumnNames: []string{"_msg"},
+			neededColumnNames: []string{"_msg"},
 		}
 		var rowsCountTotal atomic.Uint32
 		processBlock := func(_ uint, br *blockResult) {
@@ -643,7 +643,7 @@ func TestStorageSearch(t *testing.T) {
 		so := &genericSearchOptions{
 			tenantIDs:         []TenantID{tenantID},
 			filter:            f,
-			resultColumnNames: []string{"_msg"},
+			neededColumnNames: []string{"_msg"},
 		}
 		processBlock := func(_ uint, _ *blockResult) {
 			panic(fmt.Errorf("unexpected match"))

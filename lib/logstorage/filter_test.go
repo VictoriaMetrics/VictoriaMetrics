@@ -151,7 +151,7 @@ func TestComplexFilters(t *testing.T) {
 	testFilterMatchForColumns(t, columns, f, "foo", []int{1, 3, 6})
 }
 
-func testFilterMatchForColumns(t *testing.T, columns []column, f filter, resultColumnName string, expectedRowIdxs []int) {
+func testFilterMatchForColumns(t *testing.T, columns []column, f filter, neededColumnName string, expectedRowIdxs []int) {
 	t.Helper()
 
 	// Create the test storage
@@ -168,7 +168,7 @@ func testFilterMatchForColumns(t *testing.T, columns []column, f filter, resultC
 
 	var values []string
 	for _, c := range columns {
-		if c.name == resultColumnName {
+		if c.name == neededColumnName {
 			values = c.values
 			break
 		}
@@ -180,20 +180,20 @@ func testFilterMatchForColumns(t *testing.T, columns []column, f filter, resultC
 		expectedTimestamps[i] = int64(idx) * 1e9
 	}
 
-	testFilterMatchForStorage(t, s, tenantID, f, resultColumnName, expectedResults, expectedTimestamps)
+	testFilterMatchForStorage(t, s, tenantID, f, neededColumnName, expectedResults, expectedTimestamps)
 
 	// Close and delete the test storage
 	s.MustClose()
 	fs.MustRemoveAll(storagePath)
 }
 
-func testFilterMatchForStorage(t *testing.T, s *Storage, tenantID TenantID, f filter, resultColumnName string, expectedResults []string, expectedTimestamps []int64) {
+func testFilterMatchForStorage(t *testing.T, s *Storage, tenantID TenantID, f filter, neededColumnName string, expectedResults []string, expectedTimestamps []int64) {
 	t.Helper()
 
 	so := &genericSearchOptions{
 		tenantIDs:         []TenantID{tenantID},
 		filter:            f,
-		resultColumnNames: []string{resultColumnName},
+		neededColumnNames: []string{neededColumnName},
 	}
 	workersCount := 3
 	s.search(workersCount, so, nil, func(_ uint, br *blockResult) {
