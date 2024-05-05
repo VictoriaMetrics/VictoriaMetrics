@@ -1086,6 +1086,8 @@ For example, the following query deletes `host` and `app` fields from the logs o
 _time:5m | delete host, app
 ```
 
+`del` and `rm` keywords can be used instead of `delete` for convenience. For example, `_time:5m | del host` is equivalent to `_time:5m | rm host` and `_time:5m | delete host`.
+
 See also:
 
 - [`rename` pipe](#rename-pipe)
@@ -1109,11 +1111,14 @@ See also:
 
 ### limit pipe
 
-If only a subset of selected logs must be processed, then `| limit N` [pipe](#pipes) can be used. For example, the following query returns up to 100 logs over the last 5 minutes:
+If only a subset of selected logs must be processed, then `| limit N` [pipe](#pipes) can be used, where `N` can contain any [supported integer numeric value](#numeric-values).
+For example, the following query returns up to 100 logs over the last 5 minutes:
 
 ```logsql
 _time:5m | limit 100
 ```
+
+`head` keyword can be used instead of `limit` for convenience. For example, `_time:5m | head 100` is equivalent to `_time:5m | limit 100`.
 
 By default rows are selected in arbitrary order because of performance reasons, so the query above can return different sets of logs every time it is executed.
 [`sort` pipe](#sort-pipe) can be used for making sure the logs are in the same order before applying `limit ...` to them.
@@ -1124,12 +1129,14 @@ See also:
 
 ### offset pipe
 
-If some selected logs must be skipped after [`sort`](#sort-pipe), then `| offset N` [pipe](#pipes) can be used. For example, the following query skips the first 100 logs
-over the last 5 minutes after soring them by [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field):
+If some selected logs must be skipped after [`sort`](#sort-pipe), then `| offset N` [pipe](#pipes) can be used, where `N` can contain any [supported integer numeric value](#numeric-values).
+For example, the following query skips the first 100 logs over the last 5 minutes after soring them by [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field):
 
 ```logsql
 _time:5m | sort by (_time) | offset 100
 ```
+
+`skip` keyword can be used instead of `offset` keyword for convenience. For example, `_time:5m | skip 10` is equivalent to `_time:5m | offset 10`.
 
 Note that skipping rows without sorting has little sense, since they can be returned in arbitrary order because of performance reasons.
 Rows can be sorted with [`sort` pipe](#sort-pipe).
