@@ -1071,6 +1071,8 @@ _time:5m | copy _time as timestmap, _msg as message
 
 The `as` keyword is optional.
 
+`cp` keyword can be used instead of `copy` for convenience. For example, `_time:5m | cp foo bar` is equivalent to `_time:5m | copy foo as bar`.
+
 See also:
 
 - [`rename` pipe](#rename-pipe)
@@ -1159,6 +1161,10 @@ Multiple fields can be renamed with a single `| rename ...` pipe. For example, t
 ```logsql
 _time:5m | rename host as instance, app as job
 ```
+
+The `as` keyword is optional.
+
+`mv` keyword can be used instead of `rename` keyword for convenience. For example, `_time:5m | mv foo bar` is equivalent to `_time:5m | rename foo as bar`.
 
 See also:
 

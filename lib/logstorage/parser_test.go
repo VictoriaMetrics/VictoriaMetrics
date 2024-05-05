@@ -830,12 +830,14 @@ func TestParseQuerySuccess(t *testing.T) {
 	// multiple fields pipes
 	f(`foo | fields bar | fields baz, abc`, `foo | fields bar | fields baz, abc`)
 
-	// copy pipe
+	// copy and cp pipe
 	f(`* | copy foo as bar`, `* | copy foo as bar`)
+	f(`* | cp foo bar`, `* | copy foo as bar`)
 	f(`* | COPY foo as bar, x y | Copy a as b`, `* | copy foo as bar, x as y | copy a as b`)
 
-	// rename pipe
+	// rename and mv pipe
 	f(`* | rename foo as bar`, `* | rename foo as bar`)
+	f(`* | mv foo bar`, `* | rename foo as bar`)
 	f(`* | RENAME foo AS bar, x y | Rename a as b`, `* | rename foo as bar, x as y | rename a as b`)
 
 	// delete, del and rm pipe
@@ -1141,14 +1143,16 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | fields bar,`)
 	f(`foo | fields bar,,`)
 
-	// invalid copy pipe
+	// invalid copy and cp pipe
 	f(`foo | copy`)
+	f(`foo | cp`)
 	f(`foo | copy foo`)
 	f(`foo | copy foo,`)
 	f(`foo | copy foo,,`)
 
-	// invalid rename pipe
+	// invalid rename and mv pipe
 	f(`foo | rename`)
+	f(`foo | mv`)
 	f(`foo | rename foo`)
 	f(`foo | rename foo,`)
 	f(`foo | rename foo,,`)
