@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"math/bits"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -141,4 +142,12 @@ func (bm *bitmap) forEachSetBit(f func(idx int) bool) {
 			}
 		}
 	}
+}
+
+func (bm *bitmap) onesCount() int {
+	n := 0
+	for _, word := range bm.a {
+		n += bits.OnesCount64(word)
+	}
+	return n
 }

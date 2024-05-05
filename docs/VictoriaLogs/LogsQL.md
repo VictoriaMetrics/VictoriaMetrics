@@ -1303,6 +1303,7 @@ LogsQL supports the following functions for [`stats` pipe](#stats-pipe):
 
 - [`avg`](#avg-stats) calculates the average value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`count`](#count-stats) calculates the number of log entries.
+- [`count_empty`](#count_empty-stats) calculates the number logs with empty [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`max`](#max-stats) calcualtes the maximum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`min`](#min-stats) calculates the minumum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`sum`](#sum-stats) calculates the sum for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
@@ -1328,6 +1329,22 @@ See also:
 - [`max`](#max-stats)
 - [`sum`](#sum-stats)
 - [`count`](#count-stats)
+
+### count_empty stats
+
+`count_empty(field1, ..., fieldN)` calculates the number of logs with empty `(field1, ..., fieldN)` tuples.
+
+For example, the following query calculates the number of logs with empty `username` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+during the last 5 minutes:
+
+```logsql
+_time:5m | stats count_empty(username) logs_with_missing_username
+```
+
+See also:
+
+- [`count`](#count-stats)
+- [`uniq`](#uniq-stats)
 
 ### count stats
 
@@ -1356,6 +1373,7 @@ _time:5m | stats count(username, password) logs_with_username_or_password
 
 See also:
 
+- [`uniq`](#uniq-stats)
 - [`sum`](#sum-stats)
 - [`avg`](#avg-stats)
 

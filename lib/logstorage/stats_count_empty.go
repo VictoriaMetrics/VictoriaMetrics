@@ -8,60 +8,63 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-type statsCount struct {
+type statsCountEmpty struct {
 	fields       []string
 	containsStar bool
 }
 
-func (sc *statsCount) String() string {
-	return "count(" + fieldNamesString(sc.fields) + ")"
+func (sc *statsCountEmpty) String() string {
+	return "count_empty(" + fieldNamesString(sc.fields) + ")"
 }
 
-func (sc *statsCount) neededFields() []string {
-	if sc.containsStar {
-		// There is no need in fetching any columns for count(*) - the number of matching rows can be calculated as len(blockResult.timestamps)
-		return nil
-	}
+func (sc *statsCountEmpty) neededFields() []string {
 	return sc.fields
 }
 
-func (sc *statsCount) newStatsProcessor() (statsProcessor, int) {
-	scp := &statsCountProcessor{
+func (sc *statsCountEmpty) newStatsProcessor() (statsProcessor, int) {
+	scp := &statsCountEmptyProcessor{
 		sc: sc,
 	}
 	return scp, int(unsafe.Sizeof(*scp))
 }
 
-type statsCountProcessor struct {
-	sc *statsCount
+type statsCountEmptyProcessor struct {
+	sc *statsCountEmpty
 
 	rowsCount uint64
 }
 
-func (scp *statsCountProcessor) updateStatsForAllRows(br *blockResult) int {
+func (scp *statsCountEmptyProcessor) updateStatsForAllRows(br *blockResult) int {
 	fields := scp.sc.fields
 	if scp.sc.containsStar {
-		// Fast path - unconditionally count all the columns.
-		scp.rowsCount += uint64(len(br.timestamps))
+		bm := getBitmap(len(br.timestamps))
+		bm.setBits()
+		for _, c := range br.getColumns() {
+			values := c.getValues(br)
+			bm.forEachSetBit(func(idx int) bool {
+				return values[idx] == ""
+			})
+		}
+		scp.rowsCount += uint64(bm.onesCount())
+		putBitmap(bm)
 		return 0
 	}
 	if len(fields) == 1 {
-		// Fast path for count(single_column)
+		// Fast path for count_empty(single_column)
 		c := br.getColumnByName(fields[0])
 		if c.isConst {
-			if c.encodedValues[0] != "" {
+			if c.encodedValues[0] == "" {
 				scp.rowsCount += uint64(len(br.timestamps))
 			}
 			return 0
 		}
 		if c.isTime {
-			scp.rowsCount += uint64(len(br.timestamps))
 			return 0
 		}
 		switch c.valueType {
 		case valueTypeString:
 			for _, v := range c.encodedValues {
-				if v != "" {
+				if v == "" {
 					scp.rowsCount++
 				}
 			}
@@ -69,17 +72,15 @@ func (scp *statsCountProcessor) updateStatsForAllRows(br *blockResult) int {
 		case valueTypeDict:
 			zeroDictIdx := slices.Index(c.dictValues, "")
 			if zeroDictIdx < 0 {
-				scp.rowsCount += uint64(len(br.timestamps))
 				return 0
 			}
 			for _, v := range c.encodedValues {
-				if int(v[0]) != zeroDictIdx {
+				if int(v[0]) == zeroDictIdx {
 					scp.rowsCount++
 				}
 			}
 			return 0
 		case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64, valueTypeFloat64, valueTypeIPv4, valueTypeTimestampISO8601:
-			scp.rowsCount += uint64(len(br.timestamps))
 			return 0
 		default:
 			logger.Panicf("BUG: unknown valueType=%d", c.valueType)
@@ -87,7 +88,7 @@ func (scp *statsCountProcessor) updateStatsForAllRows(br *blockResult) int {
 		}
 	}
 
-	// Slow path - count rows containing at least a single non-empty value for the fields enumerated inside count().
+	// Slow path - count rows containing empty value for all the fields enumerated inside count_empty().
 	bm := getBitmap(len(br.timestamps))
 	defer putBitmap(bm)
 
@@ -95,14 +96,13 @@ func (scp *statsCountProcessor) updateStatsForAllRows(br *blockResult) int {
 	for _, f := range fields {
 		c := br.getColumnByName(f)
 		if c.isConst {
-			if c.encodedValues[0] != "" {
+			if c.encodedValues[0] == "" {
 				scp.rowsCount += uint64(len(br.timestamps))
 				return 0
 			}
 			continue
 		}
 		if c.isTime {
-			scp.rowsCount += uint64(len(br.timestamps))
 			return 0
 		}
 		switch c.valueType {
@@ -112,7 +112,6 @@ func (scp *statsCountProcessor) updateStatsForAllRows(br *blockResult) int {
 			})
 		case valueTypeDict:
 			if !slices.Contains(c.dictValues, "") {
-				scp.rowsCount += uint64(len(br.timestamps))
 				return 0
 			}
 			bm.forEachSetBit(func(i int) bool {
@@ -120,7 +119,6 @@ func (scp *statsCountProcessor) updateStatsForAllRows(br *blockResult) int {
 				return c.dictValues[dictIdx] == ""
 			})
 		case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64, valueTypeFloat64, valueTypeIPv4, valueTypeTimestampISO8601:
-			scp.rowsCount += uint64(len(br.timestamps))
 			return 0
 		default:
 			logger.Panicf("BUG: unknown valueType=%d", c.valueType)
@@ -128,45 +126,46 @@ func (scp *statsCountProcessor) updateStatsForAllRows(br *blockResult) int {
 		}
 	}
 
-	scp.rowsCount += uint64(len(br.timestamps))
-	scp.rowsCount -= uint64(bm.onesCount())
+	scp.rowsCount += uint64(bm.onesCount())
 	return 0
 }
 
-func (scp *statsCountProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
+func (scp *statsCountEmptyProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
 	fields := scp.sc.fields
 	if scp.sc.containsStar {
-		// Fast path - unconditionally count the given column
+		for _, c := range br.getColumns() {
+			if v := c.getValueAtRow(br, rowIdx); v != "" {
+				return 0
+			}
+		}
 		scp.rowsCount++
 		return 0
 	}
 	if len(fields) == 1 {
-		// Fast path for count(single_column)
+		// Fast path for count_empty(single_column)
 		c := br.getColumnByName(fields[0])
 		if c.isConst {
-			if c.encodedValues[0] != "" {
+			if c.encodedValues[0] == "" {
 				scp.rowsCount++
 			}
 			return 0
 		}
 		if c.isTime {
-			scp.rowsCount++
 			return 0
 		}
 		switch c.valueType {
 		case valueTypeString:
-			if v := c.encodedValues[rowIdx]; v != "" {
+			if v := c.encodedValues[rowIdx]; v == "" {
 				scp.rowsCount++
 			}
 			return 0
 		case valueTypeDict:
 			dictIdx := c.encodedValues[rowIdx][0]
-			if v := c.dictValues[dictIdx]; v != "" {
+			if v := c.dictValues[dictIdx]; v == "" {
 				scp.rowsCount++
 			}
 			return 0
 		case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64, valueTypeFloat64, valueTypeIPv4, valueTypeTimestampISO8601:
-			scp.rowsCount++
 			return 0
 		default:
 			logger.Panicf("BUG: unknown valueType=%d", c.valueType)
@@ -178,28 +177,28 @@ func (scp *statsCountProcessor) updateStatsForRow(br *blockResult, rowIdx int) i
 	for _, f := range fields {
 		c := br.getColumnByName(f)
 		if v := c.getValueAtRow(br, rowIdx); v != "" {
-			scp.rowsCount++
 			return 0
 		}
 	}
+	scp.rowsCount++
 	return 0
 }
 
-func (scp *statsCountProcessor) mergeState(sfp statsProcessor) {
-	src := sfp.(*statsCountProcessor)
+func (scp *statsCountEmptyProcessor) mergeState(sfp statsProcessor) {
+	src := sfp.(*statsCountEmptyProcessor)
 	scp.rowsCount += src.rowsCount
 }
 
-func (scp *statsCountProcessor) finalizeStats() string {
+func (scp *statsCountEmptyProcessor) finalizeStats() string {
 	return strconv.FormatUint(scp.rowsCount, 10)
 }
 
-func parseStatsCount(lex *lexer) (*statsCount, error) {
-	fields, err := parseFieldNamesForStatsFunc(lex, "count")
+func parseStatsCountEmpty(lex *lexer) (*statsCountEmpty, error) {
+	fields, err := parseFieldNamesForStatsFunc(lex, "count_empty")
 	if err != nil {
 		return nil, err
 	}
-	sc := &statsCount{
+	sc := &statsCountEmpty{
 		fields:       fields,
 		containsStar: slices.Contains(fields, "*"),
 	}

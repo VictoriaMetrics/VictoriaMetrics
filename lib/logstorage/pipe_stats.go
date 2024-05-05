@@ -444,6 +444,12 @@ func parseStatsFunc(lex *lexer) (statsFunc, string, error) {
 			return nil, "", fmt.Errorf("cannot parse 'count' func: %w", err)
 		}
 		sf = scs
+	case lex.isKeyword("count_empty"):
+		scs, err := parseStatsCountEmpty(lex)
+		if err != nil {
+			return nil, "", fmt.Errorf("cannot parse 'count_empty' func: %w", err)
+		}
+		sf = scs
 	case lex.isKeyword("uniq"):
 		sus, err := parseStatsUniq(lex)
 		if err != nil {
@@ -451,11 +457,11 @@ func parseStatsFunc(lex *lexer) (statsFunc, string, error) {
 		}
 		sf = sus
 	case lex.isKeyword("sum"):
-		sfs, err := parseStatsSum(lex)
+		sss, err := parseStatsSum(lex)
 		if err != nil {
 			return nil, "", fmt.Errorf("cannot parse 'sum' func: %w", err)
 		}
-		sf = sfs
+		sf = sss
 	case lex.isKeyword("max"):
 		sms, err := parseStatsMax(lex)
 		if err != nil {

@@ -866,6 +866,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats count('') foo`, `* | stats count(_msg) as foo`)
 	f(`* | stats count(foo) ''`, `* | stats count(foo) as _msg`)
 
+	// stats pipe count_empty
+	f(`* | stats count_empty() x`, `* | stats count_empty(*) as x`)
+	f(`* | stats by (x, y) count_empty(a,b,c) x`, `* | stats by (x, y) count_empty(a, b, c) as x`)
+
 	// stats pipe sum
 	f(`* | stats Sum(foo) bar`, `* | stats sum(foo) as bar`)
 	f(`* | stats BY(x, y, ) SUM(foo,bar,) bar`, `* | stats by (x, y) sum(foo, bar) as bar`)
@@ -1178,6 +1182,11 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | stats count(bar)`)
 	f(`foo | stats count() as`)
 	f(`foo | stats count() as |`)
+
+	// invalid stats count_empty
+	f(`foo | stats count_empty`)
+	f(`foo | stats count_empty() as`)
+	f(`foo | stats count_empty() as |`)
 
 	// invalid stats sum
 	f(`foo | stats sum`)

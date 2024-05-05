@@ -20,8 +20,15 @@ func TestBitmap(t *testing.T) {
 		if i > 0 && bm.areAllBitsSet() {
 			t.Fatalf("areAllBitsSet() must return false on new bitmap with %d bits; %#v", i, bm)
 		}
+		if n := bm.onesCount(); n != 0 {
+			t.Fatalf("unexpected number of set bits; got %d; want %d", n, 0)
+		}
 
 		bm.setBits()
+
+		if n := bm.onesCount(); n != i {
+			t.Fatalf("unexpected number of set bits; got %d; want %d", n, i)
+		}
 
 		// Make sure that all the bits are set.
 		nextIdx := 0
@@ -80,6 +87,9 @@ func TestBitmap(t *testing.T) {
 		}
 		if i > 0 && bm.areAllBitsSet() {
 			t.Fatalf("areAllBitsSet() must return false for bitmap with %d bits", i)
+		}
+		if n := bm.onesCount(); n != 0 {
+			t.Fatalf("unexpected number of set bits; got %d; want %d", n, 0)
 		}
 
 		bitsCount := 0
