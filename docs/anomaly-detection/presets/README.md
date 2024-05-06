@@ -21,7 +21,7 @@ You can set up the simplified configuration file for `vmanomaly` just specifying
 The rest of the parameters are already set up for you.
 
 Available presets:
-- [Node-Exporter](#node-exporter)
+- [Node-Exporter](/anomaly-detection/presets/node-exporter.html)
 
 Here is an example config file to enable Node-Exporter preset:
 
