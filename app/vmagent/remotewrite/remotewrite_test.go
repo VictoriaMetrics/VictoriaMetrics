@@ -3,6 +3,7 @@ package remotewrite
 import (
 	"fmt"
 	"math"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -67,13 +68,8 @@ func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 		}
 		allRelabelConfigs.Store(rcs)
 
-		sf := significantFigures.GetOptionalArg(0)
-		rd := roundDigits.GetOptionalArg(0)
 		pss := make([]*pendingSeries, 1)
-		for i := range pss {
-			pss[i] = newPendingSeries(nil, true, sf, rd)
-		}
-
+		pss[0] = newPendingSeries(nil, true, 0, 100)
 		rwctx := &remoteWriteCtx{
 			idx:                    0,
 			streamAggrKeepInput:    keepInput,
@@ -82,24 +78,28 @@ func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 			rowsPushedAfterRelabel: metrics.GetOrCreateCounter(`foo`),
 			rowsDroppedByRelabel:   metrics.GetOrCreateCounter(`bar`),
 		}
+		if dedupInterval > 0 {
+			rwctx.deduplicator = streamaggr.NewDeduplicator(nil, dedupInterval, nil)
+		}
 
 		if len(streamAggrConfig) > 0 {
-			sas, err := streamaggr.NewAggregatorsFromData([]byte(streamAggrConfig), nil, nil)
+			f := createFile(t, []byte(streamAggrConfig))
+			sas, err := streamaggr.LoadFromFile(f.Name(), nil, nil)
 			if err != nil {
 				t.Fatalf("cannot load streamaggr configs: %s", err)
 			}
 			rwctx.sas.Store(sas)
 		}
-		if dedupInterval > 0 {
-			rwctx.deduplicator = streamaggr.NewDeduplicator(nil, dedupInterval, nil)
-		}
 
 		inputTss := mustParsePromMetrics(input)
 		expectedTss := make([]prompbmarshal.TimeSeries, len(inputTss))
+
+		// copy inputTss to make sure it is not mutated during TryPush call
 		copy(expectedTss, inputTss)
 		rwctx.TryPush(inputTss)
+
 		if !reflect.DeepEqual(expectedTss, inputTss) {
-			t.Fatalf("unexpected samples;\ngot\n%v\nwant\n%v", expectedTss, inputTss)
+			t.Fatalf("unexpected samples;\ngot\n%v\nwant\n%v", inputTss, expectedTss)
 		}
 	}
 
@@ -197,4 +197,19 @@ func mustParsePromMetrics(s string) []prompbmarshal.TimeSeries {
 		tss = append(tss, ts)
 	}
 	return tss
+}
+
+func createFile(t *testing.T, data []byte) *os.File {
+	t.Helper()
+	f, err := os.CreateTemp("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(f.Name(), data, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Sync(); err != nil {
+		t.Fatal(err)
+	}
+	return f
 }
