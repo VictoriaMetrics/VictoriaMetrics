@@ -38,16 +38,11 @@ func (ps *pipeSort) String() string {
 }
 
 func (ps *pipeSort) getNeededFields() ([]string, map[string][]string) {
-	byFields := ps.byFields
-	neededFields := make([]string, len(byFields))
-	for i := range byFields {
-		neededFields[i] = byFields[i].name
-	}
-	return neededFields, nil
+	return []string{"*"}, nil
 }
 
 func (ps *pipeSort) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {
-	maxStateSize := int64(float64(memory.Allowed()) * 0.3)
+	maxStateSize := int64(float64(memory.Allowed()) * 0.1)
 
 	shards := make([]pipeSortProcessorShard, workersCount)
 	for i := range shards {
