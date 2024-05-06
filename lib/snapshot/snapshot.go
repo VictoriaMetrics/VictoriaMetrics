@@ -1,6 +1,7 @@
 package snapshot
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -8,7 +9,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -19,6 +22,9 @@ var (
 	tlsKeyFile            = flag.String("snapshot.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -snapshotCreateURL")
 	tlsCAFile             = flag.String("snapshot.tlsCAFile", "", `Optional path to TLS CA file to use for verifying connections to -snapshotCreateURL. By default, system CA is used`)
 	tlsServerName         = flag.String("snapshot.tlsServerName", "", `Optional TLS server name to use for connections to -snapshotCreateURL. By default, the server name from -snapshotCreateURL is used`)
+	basicAuthUser         = flagutil.NewPassword("snapshot.basicAuthUsername", `Optional basic auth username to use for connections to -snapshotCreateURL`)
+	basicAuthPassword     = flagutil.NewPassword("snapshot.basicAuthPassword", `Optional basic auth password to use for connections to -snapshotCreateURL`)
+	snapshotAuthKey       = flagutil.NewPassword("snapshot.authKey", `Optional authKey to be passed as 'X-AuthKey' HTTP headder for the connections to -snapshotCreateURL`)
 )
 
 type snapshot struct {
@@ -42,7 +48,12 @@ func Create(createSnapshotURL string) (string, error) {
 	}
 	hc := &http.Client{Transport: tr}
 
-	resp, err := hc.Get(u.String())
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return "", err
+	}
+	addAuthHeaders(req)
+	resp, err := hc.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -51,13 +62,13 @@ func Create(createSnapshotURL string) (string, error) {
 		return "", err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", u.Redacted(), resp.StatusCode, http.StatusOK, body)
+		return "", fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", httputils.RedactedURL(u), resp.StatusCode, http.StatusOK, body)
 	}
 
 	snap := snapshot{}
 	err = json.Unmarshal(body, &snap)
 	if err != nil {
-		return "", fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", u.Redacted(), err, body)
+		return "", fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", httputils.RedactedURL(u), err, body)
 	}
 
 	if snap.Status == "ok" {
@@ -86,7 +97,13 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 		return err
 	}
 	hc := &http.Client{Transport: tr}
-	resp, err := hc.PostForm(u.String(), formData)
+	req, err := http.NewRequest("POST", u.String(), strings.NewReader(formData.Encode()))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	addAuthHeaders(req)
+	resp, err := hc.Do(req)
 	if err != nil {
 		return err
 	}
@@ -95,13 +112,13 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 		return err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", u.Redacted(), resp.StatusCode, http.StatusOK, body)
+		return fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", httputils.RedactedURL(u), resp.StatusCode, http.StatusOK, body)
 	}
 
 	snap := snapshot{}
 	err = json.Unmarshal(body, &snap)
 	if err != nil {
-		return fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", u.Redacted(), err, body)
+		return fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", httputils.RedactedURL(u), err, body)
 	}
 
 	if snap.Status == "ok" {
@@ -112,4 +129,18 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 		return errors.New(snap.Msg)
 	}
 	return fmt.Errorf("Unkown status: %v", snap.Status)
+}
+
+// addBasicAuthHeader adds basic auth  and X-AuthKey (for snapshot authkey) header to request
+// if their corresponding flags snapshot.basicAuthUsername, snapshot.basicAuthPassword and snapshot.authKey flags are set.
+func addAuthHeaders(req *http.Request) {
+	if basicAuthUser.Get() != "" {
+		auth := basicAuthUser.Get() + ":" + basicAuthPassword.Get()
+		authHeader := base64.StdEncoding.EncodeToString([]byte(auth))
+		req.Header.Set("Authorization", "Basic "+authHeader)
+	}
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5973
+	if snapshotAuthKey.Get() != "" {
+		req.Header.Set("X-AuthKey", snapshotAuthKey.Get())
+	}
 }
