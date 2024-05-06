@@ -910,6 +910,10 @@ func (rwctx *remoteWriteCtx) MustStop() {
 	rwctx.rowsDroppedByRelabel = nil
 }
 
+// TryPush sends tss series to the configured remote write endpoint
+//
+// TryPush can be called concurrently for multiple remoteWriteCtx,
+// so it shouldn't modify tss entries.
 func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries) bool {
 	// Apply relabeling
 	var rctx *relabelCtx
@@ -949,7 +953,6 @@ func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries) bool {
 		matchIdxsPool.Put(matchIdxs)
 	} else if rwctx.deduplicator != nil {
 		rwctx.deduplicator.Push(tss)
-		clear(tss)
 		tss = tss[:0]
 	}
 
