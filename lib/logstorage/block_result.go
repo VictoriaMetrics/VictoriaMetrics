@@ -1560,8 +1560,7 @@ type resultColumn struct {
 	values []string
 }
 
-func (rc *resultColumn) reset() {
-	rc.name = ""
+func (rc *resultColumn) resetKeepName() {
 	rc.buf = rc.buf[:0]
 
 	clear(rc.values)

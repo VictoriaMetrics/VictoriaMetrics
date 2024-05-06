@@ -411,7 +411,7 @@ func (psp *pipeStatsProcessor) flush() error {
 			psp.ppBase.writeBlock(0, &br)
 			br.reset()
 			for i := range rcs {
-				rcs[i].reset()
+				rcs[i].resetKeepName()
 			}
 			valuesLen = 0
 		}

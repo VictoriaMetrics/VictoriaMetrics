@@ -466,14 +466,14 @@ type pipeSortWriteContext struct {
 
 func (wctx *pipeSortWriteContext) writeRow(shard *pipeSortProcessorShard, rowIdx uint) {
 	rr := shard.rowRefs[rowIdx]
-	block := &shard.blocks[rr.blockIdx]
+	b := &shard.blocks[rr.blockIdx]
 
 	byFields := shard.ps.byFields
 	rcs := wctx.rcs
 
-	areEqualColumns := len(rcs) == len(byFields)+len(block.otherColumns)
+	areEqualColumns := len(rcs) == len(byFields)+len(b.otherColumns)
 	if areEqualColumns {
-		for i, c := range block.otherColumns {
+		for i, c := range b.otherColumns {
 			if rcs[len(byFields)+i].name != c.name {
 				areEqualColumns = false
 				break
@@ -490,7 +490,7 @@ func (wctx *pipeSortWriteContext) writeRow(shard *pipeSortProcessorShard, rowIdx
 				name: bf.name,
 			})
 		}
-		for _, c := range block.otherColumns {
+		for _, c := range b.otherColumns {
 			rcs = append(rcs, resultColumn{
 				name: c.name,
 			})
@@ -498,13 +498,16 @@ func (wctx *pipeSortWriteContext) writeRow(shard *pipeSortProcessorShard, rowIdx
 		wctx.rcs = rcs
 	}
 
-	for i, c := range block.byColumns {
-		v := c.values[rr.rowIdx]
+	byColumns := b.byColumns
+	for i := range byFields {
+		v := byColumns[i].values[rr.rowIdx]
 		rcs[i].addValue(v)
 		wctx.valuesLen += len(v)
 	}
-	for i, c := range block.otherColumns {
-		v := c.values[rr.rowIdx]
+
+	otherColumns := b.otherColumns
+	for i := range otherColumns {
+		v := otherColumns[i].values[rr.rowIdx]
 		rcs[len(byFields)+i].addValue(v)
 		wctx.valuesLen += len(v)
 	}
@@ -529,7 +532,7 @@ func (wctx *pipeSortWriteContext) flush() {
 	wctx.psp.ppBase.writeBlock(0, br)
 	br.reset()
 	for i := range rcs {
-		rcs[i].reset()
+		rcs[i].resetKeepName()
 	}
 }
 
