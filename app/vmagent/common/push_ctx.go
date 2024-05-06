@@ -19,6 +19,9 @@ type PushCtx struct {
 
 	// Samples contains flat list of all the samples used in WriteRequest.
 	Samples []prompbmarshal.Sample
+
+	// Histograms contains flat list of all the histograms used in WriteRequest.
+	Histograms []prompbmarshal.Histogram
 }
 
 // Reset resets ctx.
@@ -29,6 +32,7 @@ func (ctx *PushCtx) Reset() {
 	ctx.Labels = ctx.Labels[:0]
 
 	ctx.Samples = ctx.Samples[:0]
+	ctx.Histograms = ctx.Histograms[:0]
 }
 
 // GetPushCtx returns PushCtx from pool.

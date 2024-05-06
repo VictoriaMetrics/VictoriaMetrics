@@ -93,7 +93,7 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 	return c, nil
 }
 
-func (c *client) ReadData(dst *bytesutil.ByteBuffer) error {
+func (c *client) ReadData(dst *bytesutil.ByteBuffer, contentType *string) error {
 	deadline := time.Now().Add(c.c.Timeout)
 	ctx, cancel := context.WithDeadline(c.ctx, deadline)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.scrapeURL, nil)
@@ -143,6 +143,7 @@ func (c *client) ReadData(dst *bytesutil.ByteBuffer) error {
 		R: resp.Body,
 		N: maxScrapeSize.N,
 	}
+	*contentType = resp.Header.Get("Content-Type")
 	_, err = dst.ReadFrom(r)
 	_ = resp.Body.Close()
 	cancel()

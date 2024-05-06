@@ -36,6 +36,25 @@ func TestWriteRequestMarshalProtobuf(t *testing.T) {
 						Timestamp: 18939432423,
 					},
 				},
+				Histograms: []prompbmarshal.Histogram{
+					{
+						Count:         12,
+						ZeroCount:     2,
+						ZeroThreshold: 0.001,
+						Sum:           18.4,
+						Schema:        1,
+						PositiveSpans: []prompbmarshal.BucketSpan{
+							{Offset: 0, Length: 2},
+							{Offset: 1, Length: 2},
+						},
+						PositiveDeltas: []int64{1, 1, -1, 0},
+						NegativeSpans: []prompbmarshal.BucketSpan{
+							{Offset: 0, Length: 2},
+							{Offset: 1, Length: 2},
+						},
+						NegativeDeltas: []int64{1, 1, -1, 0},
+					},
+				},
 			},
 		},
 	}
@@ -64,9 +83,26 @@ func TestWriteRequestMarshalProtobuf(t *testing.T) {
 				Timestamp: sample.Timestamp,
 			})
 		}
+		var histograms []prompbmarshal.Histogram
+		for _, histogram := range ts.Histograms {
+			histograms = append(histograms, prompbmarshal.Histogram{
+				Count:          histogram.Count,
+				Sum:            histogram.Sum,
+				Schema:         histogram.Schema,
+				ZeroThreshold:  histogram.ZeroThreshold,
+				ZeroCount:      histogram.ZeroCount,
+				NegativeSpans:  prompb.ToPromMarshal(histogram.NegativeSpans),
+				NegativeDeltas: histogram.NegativeDeltas,
+				PositiveSpans:  prompb.ToPromMarshal(histogram.PositiveSpans),
+				PositiveDeltas: histogram.PositiveDeltas,
+				ResetHint:      prompbmarshal.ResetHint(histogram.ResetHint),
+				Timestamp:      histogram.Timestamp,
+			})
+		}
 		wrm.Timeseries = append(wrm.Timeseries, prompbmarshal.TimeSeries{
-			Labels:  labels,
-			Samples: samples,
+			Labels:     labels,
+			Samples:    samples,
+			Histograms: histograms,
 		})
 	}
 	dataResult := wrm.MarshalProtobuf(nil)

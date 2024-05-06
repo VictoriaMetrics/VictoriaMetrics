@@ -45,6 +45,10 @@ var supportedOutputs = []string{
 	"quantiles(phi1, ..., phiN)",
 }
 
+var supportedHistogramOutputs = []string{
+	"histogram_merge",
+}
+
 // LoadFromFile loads Aggregators from the given path and uses the given pushFunc for pushing the aggregated data.
 //
 // opts can contain additional options. If opts is nil, then default options are used.
@@ -175,6 +179,12 @@ type Config struct {
 	// See also KeepMetricNames
 	//
 	Outputs []string `yaml:"outputs"`
+
+	// HistogramOutputs is a list of output aggregate functions to produce which only work on histogram inputs.
+	//
+	// The following names are allowed:
+	// histogram_merge
+	HistogramOutputs []string `yaml:"histogram_outputs"`
 
 	// KeepMetricNames instructs to leave metric names as is for the output time series without adding any suffix.
 	KeepMetricNames *bool `yaml:"keep_metric_names,omitempty"`
@@ -361,6 +371,9 @@ type aggregator struct {
 	// aggrStates contains aggregate states for the given outputs
 	aggrStates []aggrState
 
+	// histogramAggrStates is similar to aggrStates but only works for histogram inputs
+	histogramAggrStates []histogramAggrState
+
 	// lc is used for compressing series keys before passing them to dedupAggr and aggrState
 	lc promutils.LabelsCompressor
 
@@ -386,6 +399,11 @@ type aggregator struct {
 
 type aggrState interface {
 	pushSamples(samples []pushSample)
+	flushState(ctx *flushCtx, resetState bool)
+}
+
+type histogramAggrState interface {
+	pushHistograms(histograms []pushHistogram)
 	flushState(ctx *flushCtx, resetState bool)
 }
 
@@ -475,11 +493,13 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 		keepMetricNames = *v
 	}
 	if keepMetricNames {
-		if len(cfg.Outputs) != 1 {
-			return nil, fmt.Errorf("`ouputs` list must contain only a single entry if `keep_metric_names` is set; got %q", cfg.Outputs)
+		if len(cfg.Outputs)+len(cfg.HistogramOutputs) != 1 {
+			return nil, fmt.Errorf("`outputs` and `histogram_outputs` list together must contain only a single entry if `keep_metric_names` is set; got %q", cfg.Outputs)
 		}
-		if cfg.Outputs[0] == "histogram_bucket" || strings.HasPrefix(cfg.Outputs[0], "quantiles(") && strings.Contains(cfg.Outputs[0], ",") {
-			return nil, fmt.Errorf("`keep_metric_names` cannot be applied to `outputs: %q`, since they can generate multiple time series", cfg.Outputs)
+		if len(cfg.Outputs) == 1 {
+			if cfg.Outputs[0] == "histogram_bucket" || strings.HasPrefix(cfg.Outputs[0], "quantiles(") && strings.Contains(cfg.Outputs[0], ",") {
+				return nil, fmt.Errorf("`keep_metric_names` cannot be applied to `outputs: %q`, since they can generate multiple time series", cfg.Outputs)
+			}
 		}
 	}
 
@@ -496,73 +516,89 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 	}
 
 	// initialize outputs list
-	if len(cfg.Outputs) == 0 {
-		return nil, fmt.Errorf("`outputs` list must contain at least a single entry from the list %s; "+
-			"see https://docs.victoriametrics.com/stream-aggregation/", supportedOutputs)
+	if len(cfg.Outputs) == 0 && len(cfg.HistogramOutputs) == 0 {
+		return nil, fmt.Errorf("`outputs` list and `histogram_outputs` list must not both be empty. "+
+			"Supported outputs: %s, supported histogram_outputs: %s ; "+
+			"see https://docs.victoriametrics.com/stream-aggregation.html", supportedOutputs, supportedHistogramOutputs)
 	}
 	aggrStates := make([]aggrState, len(cfg.Outputs))
-	for i, output := range cfg.Outputs {
-		if strings.HasPrefix(output, "quantiles(") {
-			if !strings.HasSuffix(output, ")") {
-				return nil, fmt.Errorf("missing closing brace for `quantiles()` output")
-			}
-			argsStr := output[len("quantiles(") : len(output)-1]
-			if len(argsStr) == 0 {
-				return nil, fmt.Errorf("`quantiles()` must contain at least one phi")
-			}
-			args := strings.Split(argsStr, ",")
-			phis := make([]float64, len(args))
-			for j, arg := range args {
-				arg = strings.TrimSpace(arg)
-				phi, err := strconv.ParseFloat(arg, 64)
-				if err != nil {
-					return nil, fmt.Errorf("cannot parse phi=%q for quantiles(%s): %w", arg, argsStr, err)
+	if len(cfg.Outputs) > 0 {
+		for i, output := range cfg.Outputs {
+			if strings.HasPrefix(output, "quantiles(") {
+				if !strings.HasSuffix(output, ")") {
+					return nil, fmt.Errorf("missing closing brace for `quantiles()` output")
 				}
-				if phi < 0 || phi > 1 {
-					return nil, fmt.Errorf("phi inside quantiles(%s) must be in the range [0..1]; got %v", argsStr, phi)
+				argsStr := output[len("quantiles(") : len(output)-1]
+				if len(argsStr) == 0 {
+					return nil, fmt.Errorf("`quantiles()` must contain at least one phi")
 				}
-				phis[j] = phi
+				args := strings.Split(argsStr, ",")
+				phis := make([]float64, len(args))
+				for j, arg := range args {
+					arg = strings.TrimSpace(arg)
+					phi, err := strconv.ParseFloat(arg, 64)
+					if err != nil {
+						return nil, fmt.Errorf("cannot parse phi=%q for quantiles(%s): %w", arg, argsStr, err)
+					}
+					if phi < 0 || phi > 1 {
+						return nil, fmt.Errorf("phi inside quantiles(%s) must be in the range [0..1]; got %v", argsStr, phi)
+					}
+					phis[j] = phi
+				}
+				aggrStates[i] = newQuantilesAggrState(phis)
+				continue
 			}
-			aggrStates[i] = newQuantilesAggrState(phis)
-			continue
-		}
-		switch output {
-		case "total":
-			aggrStates[i] = newTotalAggrState(stalenessInterval, false, true)
-		case "total_prometheus":
-			aggrStates[i] = newTotalAggrState(stalenessInterval, false, false)
-		case "increase":
-			aggrStates[i] = newTotalAggrState(stalenessInterval, true, true)
-		case "increase_prometheus":
-			aggrStates[i] = newTotalAggrState(stalenessInterval, true, false)
-		case "count_series":
-			aggrStates[i] = newCountSeriesAggrState()
-		case "count_samples":
-			aggrStates[i] = newCountSamplesAggrState()
-		case "unique_samples":
-			aggrStates[i] = newUniqueSamplesAggrState()
-		case "sum_samples":
-			aggrStates[i] = newSumSamplesAggrState()
-		case "last":
-			aggrStates[i] = newLastAggrState()
-		case "min":
-			aggrStates[i] = newMinAggrState()
-		case "max":
-			aggrStates[i] = newMaxAggrState()
-		case "avg":
-			aggrStates[i] = newAvgAggrState()
-		case "stddev":
-			aggrStates[i] = newStddevAggrState()
-		case "stdvar":
-			aggrStates[i] = newStdvarAggrState()
-		case "histogram_bucket":
-			aggrStates[i] = newHistogramBucketAggrState(stalenessInterval)
-		default:
-			return nil, fmt.Errorf("unsupported output=%q; supported values: %s; "+
-				"see https://docs.victoriametrics.com/stream-aggregation/", output, supportedOutputs)
+			switch output {
+			case "total":
+				aggrStates[i] = newTotalAggrState(stalenessInterval, false, true)
+			case "total_prometheus":
+				aggrStates[i] = newTotalAggrState(stalenessInterval, false, false)
+			case "increase":
+				aggrStates[i] = newTotalAggrState(stalenessInterval, true, true)
+			case "increase_prometheus":
+				aggrStates[i] = newTotalAggrState(stalenessInterval, true, false)
+			case "count_series":
+				aggrStates[i] = newCountSeriesAggrState()
+			case "count_samples":
+				aggrStates[i] = newCountSamplesAggrState()
+			case "unique_samples":
+				aggrStates[i] = newUniqueSamplesAggrState()
+			case "sum_samples":
+				aggrStates[i] = newSumSamplesAggrState()
+			case "last":
+				aggrStates[i] = newLastAggrState()
+			case "min":
+				aggrStates[i] = newMinAggrState()
+			case "max":
+				aggrStates[i] = newMaxAggrState()
+			case "avg":
+				aggrStates[i] = newAvgAggrState()
+			case "stddev":
+				aggrStates[i] = newStddevAggrState()
+			case "stdvar":
+				aggrStates[i] = newStdvarAggrState()
+			case "histogram_bucket":
+				aggrStates[i] = newHistogramBucketAggrState(stalenessInterval)
+			default:
+				return nil, fmt.Errorf("unsupported output=%q; supported values: %s; "+
+					"see https://docs.victoriametrics.com/stream-aggregation/", output, supportedOutputs)
+			}
 		}
 	}
 
+	histogramAggrStates := make([]histogramAggrState, len(cfg.HistogramOutputs))
+	histogramMerge := newHistogramMergeAggrState(stalenessInterval, false, true)
+	if len(cfg.HistogramOutputs) > 0 {
+		for i, output := range cfg.HistogramOutputs {
+			switch output {
+			case HistogramMerge:
+				histogramAggrStates[i] = histogramMerge
+			default:
+				return nil, fmt.Errorf("unsupported histogram_output=%q; supported values: %s; ",
+					output, supportedHistogramOutputs)
+			}
+		}
+	}
 	// initialize suffix to add to metric names after aggregation
 	suffix := ":" + cfg.Interval
 	if labels := removeUnderscoreName(by); len(labels) > 0 {
@@ -588,7 +624,8 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 		without:             without,
 		aggregateOnlyByTime: aggregateOnlyByTime,
 
-		aggrStates: aggrStates,
+		aggrStates:          aggrStates,
+		histogramAggrStates: histogramAggrStates,
 
 		suffix: suffix,
 
@@ -600,6 +637,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 		flushTimeouts:      ms.GetOrCreateCounter(`vm_streamaggr_flush_timeouts_total`),
 		dedupFlushTimeouts: ms.GetOrCreateCounter(`vm_streamaggr_dedup_flush_timeouts_total`),
 	}
+	histogramMerge.setLc(&a.lc)
 	if dedupInterval > 0 {
 		a.da = newDedupAggr()
 	}
@@ -760,6 +798,22 @@ func (a *aggregator) flush(pushFunc PushFunc, interval time.Duration, resetState
 			putFlushCtx(ctx)
 		}(as)
 	}
+	for _, has := range a.histogramAggrStates {
+		flushConcurrencyCh <- struct{}{}
+		wg.Add(1)
+		go func(has histogramAggrState) {
+			defer func() {
+				<-flushConcurrencyCh
+				wg.Done()
+			}()
+
+			ctx := getFlushCtx(a, pushFunc)
+			has.flushState(ctx, resetState)
+			ctx.flushSeries()
+			ctx.resetSeries()
+			putFlushCtx(ctx)
+		}(has)
+	}
 	wg.Wait()
 
 	d := time.Since(startTime)
@@ -788,6 +842,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	defer putPushCtx(ctx)
 
 	samples := ctx.samples
+	histograms := ctx.histograms
 	buf := ctx.buf
 	labels := &ctx.labels
 	inputLabels := &ctx.inputLabels
@@ -839,7 +894,21 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 				timestamp: sample.Timestamp,
 			})
 		}
+
+		if len(a.histogramAggrStates) > 0 {
+			for _, histogram := range ts.Histograms {
+				if histogram.Count == 0 {
+					// Skip empty histograms
+					continue
+				}
+				histograms = append(histograms, pushHistogram{
+					key:   key,
+					value: histogram,
+				})
+			}
+		}
 	}
+	ctx.histograms = histograms
 	ctx.samples = samples
 	ctx.buf = buf
 
@@ -847,6 +916,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 		a.da.pushSamples(samples)
 	} else {
 		a.pushSamples(samples)
+		a.pushHistograms(histograms)
 	}
 }
 
@@ -891,8 +961,15 @@ func (a *aggregator) pushSamples(samples []pushSample) {
 	}
 }
 
+func (a *aggregator) pushHistograms(histograms []pushHistogram) {
+	for _, has := range a.histogramAggrStates {
+		has.pushHistograms(histograms)
+	}
+}
+
 type pushCtx struct {
 	samples      []pushSample
+	histograms   []pushHistogram
 	labels       promutils.Labels
 	inputLabels  promutils.Labels
 	outputLabels promutils.Labels
@@ -901,6 +978,7 @@ type pushCtx struct {
 
 func (ctx *pushCtx) reset() {
 	clear(ctx.samples)
+	ctx.histograms = ctx.histograms[:0]
 	ctx.samples = ctx.samples[:0]
 
 	ctx.labels.Reset()
@@ -913,6 +991,11 @@ type pushSample struct {
 	key       string
 	value     float64
 	timestamp int64
+}
+
+type pushHistogram struct {
+	key   string
+	value prompbmarshal.Histogram
 }
 
 func getPushCtx() *pushCtx {
@@ -973,9 +1056,10 @@ type flushCtx struct {
 	a        *aggregator
 	pushFunc PushFunc
 
-	tss     []prompbmarshal.TimeSeries
-	labels  []prompbmarshal.Label
-	samples []prompbmarshal.Sample
+	tss        []prompbmarshal.TimeSeries
+	labels     []prompbmarshal.Label
+	samples    []prompbmarshal.Sample
+	histograms []prompbmarshal.Histogram
 }
 
 func (ctx *flushCtx) reset() {
@@ -992,6 +1076,7 @@ func (ctx *flushCtx) resetSeries() {
 	ctx.labels = ctx.labels[:0]
 
 	ctx.samples = ctx.samples[:0]
+	ctx.histograms = ctx.histograms[:0]
 }
 
 func (ctx *flushCtx) flushSeries() {
@@ -1030,6 +1115,26 @@ func (ctx *flushCtx) flushSeries() {
 	}
 	auxLabels.Labels = dstLabels
 	promutils.PutLabels(auxLabels)
+}
+
+func (ctx *flushCtx) appendHistograms(key, suffix string, value *prompbmarshal.Histogram) {
+	labelsLen := len(ctx.labels)
+	histogramsLen := len(ctx.histograms)
+	ctx.labels = decompressLabels(ctx.labels, &ctx.a.lc, key)
+	if !ctx.a.keepMetricNames {
+		ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.a.suffix, suffix)
+	}
+	ctx.histograms = append(ctx.histograms, *value)
+	ctx.tss = append(ctx.tss, prompbmarshal.TimeSeries{
+		Labels:     ctx.labels[labelsLen:],
+		Histograms: ctx.histograms[histogramsLen:],
+	})
+
+	// Limit the maximum length of ctx.tss in order to limit memory usage.
+	if len(ctx.tss) >= 10_000 {
+		ctx.flushSeries()
+		ctx.resetSeries()
+	}
 }
 
 func (ctx *flushCtx) appendSeries(key, suffix string, timestamp int64, value float64) {

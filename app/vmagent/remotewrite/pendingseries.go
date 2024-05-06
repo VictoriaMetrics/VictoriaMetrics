@@ -109,9 +109,10 @@ type writeRequest struct {
 
 	wr prompbmarshal.WriteRequest
 
-	tss     []prompbmarshal.TimeSeries
-	labels  []prompbmarshal.Label
-	samples []prompbmarshal.Sample
+	tss        []prompbmarshal.TimeSeries
+	labels     []prompbmarshal.Label
+	samples    []prompbmarshal.Sample
+	histograms []prompbmarshal.Histogram
 
 	// buf holds labels data
 	buf []byte
@@ -129,6 +130,7 @@ func (wr *writeRequest) reset() {
 	wr.labels = wr.labels[:0]
 
 	wr.samples = wr.samples[:0]
+	wr.histograms = wr.histograms[:0]
 	wr.buf = wr.buf[:0]
 }
 
@@ -179,7 +181,8 @@ func (wr *writeRequest) tryPush(src []prompbmarshal.TimeSeries) bool {
 	// Allow up to 10x of labels per each block on average.
 	maxLabelsPerBlock := 10 * maxSamplesPerBlock
 	for i := range src {
-		if len(wr.samples) >= maxSamplesPerBlock || len(wr.labels) >= maxLabelsPerBlock {
+		rowsCount := len(wr.samples) + len(wr.histograms)
+		if rowsCount >= *maxRowsPerBlock || len(wr.labels) >= maxLabelsPerBlock {
 			wr.tss = tssDst
 			if !wr.tryFlush() {
 				return false
@@ -200,6 +203,7 @@ func (wr *writeRequest) copyTimeSeries(dst, src *prompbmarshal.TimeSeries) {
 	labelsDst := wr.labels
 	labelsLen := len(wr.labels)
 	samplesDst := wr.samples
+	histogramsDst := wr.histograms
 	buf := wr.buf
 	for i := range src.Labels {
 		labelsDst = append(labelsDst, prompbmarshal.Label{})
@@ -216,6 +220,10 @@ func (wr *writeRequest) copyTimeSeries(dst, src *prompbmarshal.TimeSeries) {
 	samplesDst = append(samplesDst, src.Samples...)
 	dst.Samples = samplesDst[len(samplesDst)-len(src.Samples):]
 
+	histogramsDst = append(histogramsDst, src.Histograms...)
+	dst.Histograms = histogramsDst[len(histogramsDst)-len(src.Histograms):]
+
+	wr.histograms = histogramsDst
 	wr.samples = samplesDst
 	wr.labels = labelsDst
 	wr.buf = buf
@@ -266,22 +274,29 @@ func tryPushWriteRequest(wr *prompbmarshal.WriteRequest, tryPushBlock func(block
 	if len(wr.Timeseries) == 1 {
 		// A single time series left. Recursively split its samples into smaller parts if possible.
 		samples := wr.Timeseries[0].Samples
+		histograms := wr.Timeseries[0].Histograms
 		if len(samples) == 1 {
 			logger.Warnf("dropping a sample for metric with too long labels exceeding -remoteWrite.maxBlockSize=%d bytes", maxUnpackedBlockSize.N)
 			return true
 		}
 		n := len(samples) / 2
+		m := len(histograms) / 2
 		wr.Timeseries[0].Samples = samples[:n]
+		wr.Timeseries[0].Histograms = histograms[:m]
 		if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
 			wr.Timeseries[0].Samples = samples
+			wr.Timeseries[0].Histograms = histograms
 			return false
 		}
 		wr.Timeseries[0].Samples = samples[n:]
+		wr.Timeseries[0].Histograms = histograms[m:]
 		if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
 			wr.Timeseries[0].Samples = samples
+			wr.Timeseries[0].Histograms = histograms
 			return false
 		}
 		wr.Timeseries[0].Samples = samples
+		wr.Timeseries[0].Histograms = histograms
 		return true
 	}
 	timeseries := wr.Timeseries

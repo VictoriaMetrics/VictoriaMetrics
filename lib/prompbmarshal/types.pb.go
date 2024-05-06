@@ -17,11 +17,52 @@ type Sample struct {
 type TimeSeries struct {
 	Labels  []Label
 	Samples []Sample
+	Exemplars []Exemplar
+	Histograms []Histogram
 }
 
 type Label struct {
 	Name  string
 	Value string
+}
+
+type Exemplar struct {
+	Labels []Label
+	Value float64
+	Timestamp int64
+}
+
+type Histogram struct {
+	Count uint64
+	CountFloat float64
+	Sum float64
+	Schema int32
+	ZeroThreshold float64
+	ZeroCount uint64
+	ZeroCountFloat float64
+	NegativeSpans []BucketSpan
+	NegativeDeltas []int64
+	NegativeCounts []float64
+	PositiveSpans []BucketSpan
+	PositiveDeltas []int64
+	PositiveCounts []float64
+	ResetHint ResetHint
+	Timestamp int64
+}
+
+type ResetHint int32
+
+const (
+	UnknownHint ResetHint = 0
+	YesHint     ResetHint = 1
+	NoHint      ResetHint = 2
+	GaugeHint   ResetHint = 3
+)
+
+// BucketSpan defines a number of consecutive buckets with their offset
+type BucketSpan struct {
+	Offset int32
+	Length uint32
 }
 
 func (m *Sample) MarshalToSizedBuffer(dst []byte) (int, error) {
@@ -42,6 +83,26 @@ func (m *Sample) MarshalToSizedBuffer(dst []byte) (int, error) {
 
 func (m *TimeSeries) MarshalToSizedBuffer(dst []byte) (int, error) {
 	i := len(dst)
+	for j := len(m.Histograms) - 1; j >= 0; j-- {
+		size, err := m.Histograms[j].MarshalToSizedBuffer(dst[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarint(dst, i, uint64(size))
+		i--
+		dst[i] = 0x22
+	}
+	for j := len(m.Exemplars) - 1; j >= 0; j-- {
+		size, err := m.Exemplars[j].MarshalToSizedBuffer(dst[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarint(dst, i, uint64(size))
+		i--
+		dst[i] = 0x1a
+	}
 	for j := len(m.Samples) - 1; j >= 0; j-- {
 		size, err := m.Samples[j].MarshalToSizedBuffer(dst[:i])
 		if err != nil {
@@ -84,6 +145,281 @@ func (m *Label) MarshalToSizedBuffer(dst []byte) (int, error) {
 	return len(dst) - i, nil
 }
 
+func (m *Exemplar) MarshalToSizedBuffer(dst []byte) (int, error) {
+	i := len(dst)
+	if m.Timestamp != 0 {
+		i = encodeVarint(dst, i, uint64(m.Timestamp))
+		i--
+		dst[i] = 0x18
+	}
+	if m.Value != 0 {
+		i -= 8
+		binary.LittleEndian.PutUint64(dst[i:], uint64(math.Float64bits(float64(m.Value))))
+		i--
+		dst[i] = 0x11
+	}
+	for j := len(m.Labels) - 1; j >= 0; j-- {
+		size, err := m.Labels[j].MarshalToSizedBuffer(dst[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarint(dst, i, uint64(size))
+		i--
+		dst[i] = 0xa
+	}
+	return len(dst) - i, nil
+}
+
+func (m *Histogram) MarshalToSizedBuffer(dst []byte) (int, error) {
+	i := len(dst)
+	if m.Timestamp != 0 {
+		i = encodeVarint(dst, i, uint64(m.Timestamp))
+		i--
+		dst[i] = 0x78
+	}
+	if m.ResetHint != 0 {
+		i = encodeVarint(dst, i, uint64(m.ResetHint))
+		i--
+		dst[i] = 0x70
+	}
+	if len(m.PositiveCounts) > 0 {
+		for j := len(m.PositiveCounts) - 1; j >= 0; j-- {
+			f1 := math.Float64bits(float64(m.PositiveCounts[j]))
+			i -= 8
+			binary.LittleEndian.PutUint64(dst[i:], uint64(f1))
+		}
+		i = encodeVarint(dst, i, uint64(len(m.PositiveCounts)*8))
+		i--
+		dst[i] = 0x6a
+	}
+	if len(m.PositiveDeltas) > 0 {
+		var j2 int
+		dst4 := make([]byte, len(m.PositiveDeltas)*10)
+		for _, num := range m.PositiveDeltas {
+			x3 := (uint64(num) << 1) ^ uint64((num >> 63))
+			for x3 >= 1<<7 {
+				dst4[j2] = uint8(uint64(x3)&0x7f | 0x80)
+				j2++
+				x3 >>= 7
+			}
+			dst4[j2] = uint8(x3)
+			j2++
+		}
+		i -= j2
+		copy(dst[i:], dst4[:j2])
+		i = encodeVarint(dst, i, uint64(j2))
+		i--
+		dst[i] = 0x62
+	}
+	if len(m.PositiveSpans) > 0 {
+		for j := len(m.PositiveSpans) - 1; j >= 0; j-- {
+			{
+				size, err := m.PositiveSpans[j].MarshalToSizedBuffer(dst[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarint(dst, i, uint64(size))
+			}
+			i--
+			dst[i] = 0x5a
+		}
+	}
+	if len(m.NegativeCounts) > 0 {
+		for j := len(m.NegativeCounts) - 1; j >= 0; j-- {
+			f5 := math.Float64bits(float64(m.NegativeCounts[j]))
+			i -= 8
+			binary.LittleEndian.PutUint64(dst[i:], uint64(f5))
+		}
+		i = encodeVarint(dst, i, uint64(len(m.NegativeCounts)*8))
+		i--
+		dst[i] = 0x52
+	}
+	if len(m.NegativeDeltas) > 0 {
+		var j6 int
+		dst8 := make([]byte, len(m.NegativeDeltas)*10)
+		for _, num := range m.NegativeDeltas {
+			x7 := (uint64(num) << 1) ^ uint64((num >> 63))
+			for x7 >= 1<<7 {
+				dst8[j6] = uint8(uint64(x7)&0x7f | 0x80)
+				j6++
+				x7 >>= 7
+			}
+			dst8[j6] = uint8(x7)
+			j6++
+		}
+		i -= j6
+		copy(dst[i:], dst8[:j6])
+		i = encodeVarint(dst, i, uint64(j6))
+		i--
+		dst[i] = 0x4a
+	}
+	if len(m.NegativeSpans) > 0 {
+		for j := len(m.NegativeSpans) - 1; j >= 0; j-- {
+			{
+				size, err := m.NegativeSpans[j].MarshalToSizedBuffer(dst[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarint(dst, i, uint64(size))
+			}
+			i--
+			dst[i] = 0x42
+		}
+	}
+	if m.ZeroCountFloat != 0 {
+		i -= 8
+		binary.LittleEndian.PutUint64(dst[i:], uint64(math.Float64bits(float64(m.ZeroCountFloat))))
+		i--
+		dst[i] = 0x39
+	}
+	if m.ZeroCount != 0 {
+		i = encodeVarint(dst, i, m.ZeroCount)
+		i--
+		dst[i] = 0x30
+	}
+	if m.ZeroThreshold != 0 {
+		i -= 8
+		binary.LittleEndian.PutUint64(dst[i:], uint64(math.Float64bits(float64(m.ZeroThreshold))))
+		i--
+		dst[i] = 0x29
+	}
+	if m.Schema != 0 {
+		i = encodeVarint(dst, i, uint64((uint32(m.Schema)<<1)^uint32((m.Schema>>31))))
+		i--
+		dst[i] = 0x20
+	}
+	if m.Sum != 0 {
+		i -= 8
+		binary.LittleEndian.PutUint64(dst[i:], uint64(math.Float64bits(float64(m.Sum))))
+		i--
+		dst[i] = 0x19
+	}
+	if m.CountFloat != 0 {
+		i -= 8
+		binary.LittleEndian.PutUint64(dst[i:], uint64(math.Float64bits(float64(m.CountFloat))))
+		i--
+		dst[i] = 0x11
+	}
+	if m.Count != 0 {
+		i = encodeVarint(dst, i, uint64(m.Count))
+		i--
+		dst[i] = 0x8
+	}
+	return len(dst) - i, nil
+}
+
+func (m *BucketSpan) MarshalToSizedBuffer(dst []byte) (int, error) {
+	i := len(dst)
+	if m.Length != 0 {
+		i = encodeVarint(dst, i, uint64(m.Length))
+		i--
+		dst[i] = 0x10
+	}
+	if m.Offset != 0 {
+		i = encodeVarint(dst, i, uint64((uint32(m.Offset)<<1)^uint32((m.Offset>>31))))
+		i--
+		dst[i] = 0x8
+	}
+	return len(dst) - i, nil
+}
+
+func (m *Exemplar) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Labels) > 0 {
+		for _, e := range m.Labels {
+			l = e.Size()
+			n += 1 + l + sov(uint64(l))
+		}
+	}
+	if m.Value != 0 {
+		n += 9
+	}
+	if m.Timestamp != 0 {
+		n += 1 + sov(uint64(m.Timestamp))
+	}
+	return n
+}
+
+func (m *Histogram) Size() (n int) {
+	if m == nil {return 0}
+	if m.Count != 0 {
+		n += 1 + sov(uint64(m.Count))
+	}
+	if m.Sum != 0 {
+		n += 9
+	}
+	if m.Schema != 0 {
+		n += 1 + soz(uint64(m.Schema))
+	}
+	if m.ZeroThreshold != 0 {
+		n += 9
+	}
+	if m.ZeroCount != 0 {
+		n += 1 + sov(uint64(m.ZeroCount))
+	}
+	if len(m.NegativeSpans) > 0 {
+		for _, e := range m.NegativeSpans {
+			l := e.Size()
+			n += 1 + l + sov(uint64(l))
+		}
+	}
+	if len(m.NegativeDeltas) > 0 {
+		l := 0
+		for _, e := range m.NegativeDeltas {
+			l += soz(uint64(e))
+		}
+		n += 1 + sov(uint64(l)) + l
+	}
+	if len(m.NegativeCounts) > 0 {
+		n += 1 + sov(uint64(len(m.NegativeCounts)*8)) + len(m.NegativeCounts)*8
+	}
+	if len(m.PositiveSpans) > 0 {
+		for _, e := range m.PositiveSpans {
+			l := e.Size()
+			n += 1 + l + sov(uint64(l))
+		}
+	}
+	if len(m.PositiveDeltas) > 0 {
+		l := 0
+		for _, e := range m.PositiveDeltas {
+			l += soz(uint64(e))
+		}
+		n += 1 + sov(uint64(l)) + l
+	}
+	if len(m.PositiveCounts) > 0 {
+		n += 1 + sov(uint64(len(m.PositiveCounts)*8)) + len(m.PositiveCounts)*8
+	}
+	if m.ResetHint != 0 {
+		n += 1 + sov(uint64(m.ResetHint))
+	}
+	if m.Timestamp != 0 {
+		n += 1 + sov(uint64(m.Timestamp))
+	}
+	return n
+}
+
+func (m *BucketSpan) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Offset != 0 {
+		n += 1 + soz(uint64(m.Offset))
+	}
+	if m.Length != 0 {
+		n += 1 + sov(uint64(m.Length))
+	}
+	return n
+}
+
 func (m *Sample) Size() (n int) {
 	if m == nil {
 		return 0
@@ -106,6 +442,10 @@ func (m *TimeSeries) Size() (n int) {
 		n += 1 + l + sov(uint64(l))
 	}
 	for _, e := range m.Samples {
+		l := e.Size()
+		n += 1 + l + sov(uint64(l))
+	}
+	for _, e := range m.Histograms {
 		l := e.Size()
 		n += 1 + l + sov(uint64(l))
 	}

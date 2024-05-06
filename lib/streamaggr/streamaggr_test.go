@@ -977,7 +977,7 @@ func mustParsePromMetrics(s string) []prompbmarshal.TimeSeries {
 	errLogger := func(s string) {
 		panic(fmt.Errorf("unexpected error when parsing Prometheus metrics: %s", s))
 	}
-	rows.UnmarshalWithErrLogger(s, errLogger)
+	rows.UnmarshalWithErrLogger(s, "", errLogger)
 	var tss []prompbmarshal.TimeSeries
 	samples := make([]prompbmarshal.Sample, 0, len(rows.Rows))
 	for _, row := range rows.Rows {
@@ -1008,8 +1008,9 @@ func mustParsePromMetrics(s string) []prompbmarshal.TimeSeries {
 func appendClonedTimeseries(dst, src []prompbmarshal.TimeSeries) []prompbmarshal.TimeSeries {
 	for _, ts := range src {
 		dst = append(dst, prompbmarshal.TimeSeries{
-			Labels:  append(ts.Labels[:0:0], ts.Labels...),
-			Samples: append(ts.Samples[:0:0], ts.Samples...),
+			Labels:     append(ts.Labels[:0:0], ts.Labels...),
+			Samples:    append(ts.Samples[:0:0], ts.Samples...),
+			Histograms: append(ts.Histograms[:0:0], ts.Histograms...),
 		})
 	}
 	return dst
