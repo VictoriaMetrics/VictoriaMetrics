@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"math"
 	"testing"
 )
 
@@ -429,7 +428,7 @@ func TestFilterRange(t *testing.T) {
 		// match
 		fr := &filterRange{
 			fieldName: "foo",
-			minValue:  math.Inf(-1),
+			minValue:  -inf,
 			maxValue:  3,
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", []int{3, 4, 6, 7, 8})
@@ -451,7 +450,7 @@ func TestFilterRange(t *testing.T) {
 		fr = &filterRange{
 			fieldName: "foo",
 			minValue:  1000,
-			maxValue:  math.Inf(1),
+			maxValue:  inf,
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", []int{5})
 
@@ -501,7 +500,7 @@ func TestFilterRange(t *testing.T) {
 		// match
 		fr := &filterRange{
 			fieldName: "foo",
-			minValue:  math.Inf(-1),
+			minValue:  -inf,
 			maxValue:  3,
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", []int{3, 4, 6, 7, 8})
@@ -523,7 +522,7 @@ func TestFilterRange(t *testing.T) {
 		fr = &filterRange{
 			fieldName: "foo",
 			minValue:  1000,
-			maxValue:  math.Inf(1),
+			maxValue:  inf,
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", []int{5})
 

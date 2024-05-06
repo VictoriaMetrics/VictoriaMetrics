@@ -52,6 +52,10 @@ type pipeCopyProcessor struct {
 }
 
 func (pcp *pipeCopyProcessor) writeBlock(workerID uint, br *blockResult) {
+	if len(br.timestamps) == 0 {
+		return
+	}
+
 	br.copyColumns(pcp.pc.srcFields, pcp.pc.dstFields)
 	pcp.ppBase.writeBlock(workerID, br)
 }

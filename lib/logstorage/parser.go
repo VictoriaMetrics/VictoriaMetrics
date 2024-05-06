@@ -820,14 +820,14 @@ func parseFilterRange(lex *lexer, fieldName string) (filter, error) {
 		stringRepr += "["
 	} else {
 		stringRepr += "("
-		minValue = math.Nextafter(minValue, math.Inf(1))
+		minValue = math.Nextafter(minValue, inf)
 	}
 	stringRepr += minValueStr + ", " + maxValueStr
 	if includeMaxValue {
 		stringRepr += "]"
 	} else {
 		stringRepr += ")"
-		maxValue = math.Nextafter(maxValue, math.Inf(-1))
+		maxValue = math.Nextafter(maxValue, -inf)
 	}
 
 	fr := &filterRange{

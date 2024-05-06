@@ -80,6 +80,12 @@ func parsePipes(lex *lexer) ([]pipe, error) {
 				return nil, fmt.Errorf("cannot parse 'stats' pipe: %w", err)
 			}
 			pipes = append(pipes, ps)
+		case lex.isKeyword("sort"):
+			ps, err := parsePipeSort(lex)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse 'sort' pipe: %w", err)
+			}
+			pipes = append(pipes, ps)
 		case lex.isKeyword("limit", "head"):
 			pl, err := parsePipeLimit(lex)
 			if err != nil {

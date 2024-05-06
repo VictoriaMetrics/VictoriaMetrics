@@ -1182,7 +1182,7 @@ and then by [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/
 _time:5m | sort by (_stream, _time)
 ```
 
-Sorting in reverse order is supported - just add `desc` after the given log field. For example, the folliwng query sorts log fields in reverse order of `request_duration_seconds` field:
+Add `desc` after the given log field in order to sort in reverse order. For example, the folliwng query sorts log fields in reverse order of `request_duration_seconds` field:
 
 ```logsql
 _time:5m | sort by (request_duration_seconds desc)

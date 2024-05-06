@@ -538,13 +538,13 @@ func TestParseRangeFilter(t *testing.T) {
 	f(`range:range["-1.234e5", "-2e-5"]`, `range`, -1.234e5, -2e-5)
 
 	f(`_msg:range[1, 2]`, `_msg`, 1, 2)
-	f(`:range(1, 2)`, ``, math.Nextafter(1, math.Inf(1)), math.Nextafter(2, math.Inf(-1)))
-	f(`range[1, 2)`, ``, 1, math.Nextafter(2, math.Inf(-1)))
-	f(`range("1", 2]`, ``, math.Nextafter(1, math.Inf(1)), 2)
+	f(`:range(1, 2)`, ``, math.Nextafter(1, inf), math.Nextafter(2, -inf))
+	f(`range[1, 2)`, ``, 1, math.Nextafter(2, -inf))
+	f(`range("1", 2]`, ``, math.Nextafter(1, inf), 2)
 
 	f(`response_size:range[1KB, 10MiB]`, `response_size`, 1_000, 10*(1<<20))
 	f(`response_size:range[1G, 10Ti]`, `response_size`, 1_000_000_000, 10*(1<<40))
-	f(`response_size:range[10, inf]`, `response_size`, 10, math.Inf(1))
+	f(`response_size:range[10, inf]`, `response_size`, 10, inf)
 
 	f(`duration:range[100ns, 1y2w2.5m3s5ms]`, `duration`, 100, 1*nsecsPerYear+2*nsecsPerWeek+2.5*nsecsPerMinute+3*nsecsPerSecond+5*nsecsPerMillisecond)
 }
@@ -864,8 +864,8 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`foo | offset 10 | offset 100`, `foo | offset 10 | offset 100`)
 
 	// stats pipe count
-	f(`* | STATS bY (foo, b.a/r, "b az") count(*) XYz`, `* | stats by (foo, "b.a/r", "b az") count(*) as XYz`)
-	f(`* | stats by() COUNT(x, 'a).b,c|d') as qwert`, `* | stats count(x, "a).b,c|d") as qwert`)
+	f(`* | STATS bY (foo, b.a/r, "b az",) count(*) XYz`, `* | stats by (foo, "b.a/r", "b az") count(*) as XYz`)
+	f(`* | stats by() COUNT(x, 'a).b,c|d',) as qwert`, `* | stats count(x, "a).b,c|d") as qwert`)
 	f(`* | stats count() x`, `* | stats count(*) as x`)
 	f(`* | stats count(*) x`, `* | stats count(*) as x`)
 	f(`* | stats count(foo,*,bar) x`, `* | stats count(*) as x`)
@@ -927,6 +927,11 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`*|stats by(client_ip:/24, server_ip:/16) count() foo`, `* | stats by (client_ip:/24, server_ip:/16) count(*) as foo`)
 	f(`* | stats by(_time:1d offset 2h) count() as foo`, `* | stats by (_time:1d offset 2h) count(*) as foo`)
 	f(`* | stats by(_time:1d offset -2.5h5m) count() as foo`, `* | stats by (_time:1d offset -2.5h5m) count(*) as foo`)
+
+	// sort pipe
+	f(`* | sort bY (foo)`, `* | sort by (foo)`)
+	f(`* | sORt bY (_time, _stream DEsc, host)`, `* | sort by (_time, _stream desc, host)`)
+	f(`* | sort bY (foo, bar,)`, `* | sort by (foo, bar)`)
 
 	// multiple different pipes
 	f(`* | fields foo, bar | limit 100 | stats by(foo,bar) count(baz) as qwert`, `* | fields foo, bar | limit 100 | stats by (foo, bar) count(baz) as qwert`)
@@ -1224,20 +1229,29 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | stats uniq_array`)
 	f(`foo | stats uniq_array()`)
 
-	// invalid grouping fields
+	// invalid stats grouping fields
 	f(`foo | stats by(foo:bar) count() baz`)
 	f(`foo | stats by(foo:/bar) count() baz`)
 	f(`foo | stats by(foo:-1h) count() baz`)
 	f(`foo | stats by (foo:1h offset) count() baz`)
 	f(`foo | stats by (foo:1h offset bar) count() baz`)
 
-	// invalid by clause
+	// invalid stats by clause
 	f(`foo | stats by`)
 	f(`foo | stats by bar`)
 	f(`foo | stats by(`)
 	f(`foo | stats by(bar`)
 	f(`foo | stats by(bar,`)
 	f(`foo | stats by(bar)`)
+
+	// invalid sort pipe
+	f(`foo | sort`)
+	f(`foo | sort bar`)
+	f(`foo | sort by`)
+	f(`foo | sort by(`)
+	f(`foo | sort by()`)
+	f(`foo | sort by(baz`)
+	f(`foo | sort by(baz,`)
 }
 
 func TestNormalizeFields(t *testing.T) {

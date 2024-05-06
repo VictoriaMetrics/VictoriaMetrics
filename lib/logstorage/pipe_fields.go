@@ -45,6 +45,10 @@ type pipeFieldsProcessor struct {
 }
 
 func (pfp *pipeFieldsProcessor) writeBlock(workerID uint, br *blockResult) {
+	if len(br.timestamps) == 0 {
+		return
+	}
+
 	if !pfp.pf.containsStar {
 		br.setColumns(pfp.pf.fields)
 	}

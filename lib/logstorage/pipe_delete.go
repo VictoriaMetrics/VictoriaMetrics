@@ -43,6 +43,10 @@ type pipeDeleteProcessor struct {
 }
 
 func (pdp *pipeDeleteProcessor) writeBlock(workerID uint, br *blockResult) {
+	if len(br.timestamps) == 0 {
+		return
+	}
+
 	br.deleteColumns(pdp.pd.fields)
 	pdp.ppBase.writeBlock(workerID, br)
 }

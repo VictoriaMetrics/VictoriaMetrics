@@ -62,7 +62,8 @@ func (br *blockResult) setResultColumns(rcs []resultColumn) {
 	if len(rcs) == 0 {
 		return
 	}
-	fastnum.AppendInt64Zeros(br.timestamps[:0], len(rcs[0].values))
+
+	br.timestamps = fastnum.AppendInt64Zeros(br.timestamps[:0], len(rcs[0].values))
 
 	cs := br.cs
 	for _, rc := range rcs {
@@ -1302,7 +1303,7 @@ func (c *blockResultColumn) getMaxValue(br *blockResult) float64 {
 		encoding.PutFloat64s(a)
 		return max
 	case valueTypeUint8:
-		max := math.Inf(-1)
+		max := -inf
 		for _, v := range c.encodedValues {
 			f := float64(v[0])
 			if f > max {
@@ -1311,7 +1312,7 @@ func (c *blockResultColumn) getMaxValue(br *blockResult) float64 {
 		}
 		return max
 	case valueTypeUint16:
-		max := math.Inf(-1)
+		max := -inf
 		for _, v := range c.encodedValues {
 			b := bytesutil.ToUnsafeBytes(v)
 			f := float64(encoding.UnmarshalUint16(b))
@@ -1321,7 +1322,7 @@ func (c *blockResultColumn) getMaxValue(br *blockResult) float64 {
 		}
 		return max
 	case valueTypeUint32:
-		max := math.Inf(-1)
+		max := -inf
 		for _, v := range c.encodedValues {
 			b := bytesutil.ToUnsafeBytes(v)
 			f := float64(encoding.UnmarshalUint32(b))
@@ -1331,7 +1332,7 @@ func (c *blockResultColumn) getMaxValue(br *blockResult) float64 {
 		}
 		return max
 	case valueTypeUint64:
-		max := math.Inf(-1)
+		max := -inf
 		for _, v := range c.encodedValues {
 			b := bytesutil.ToUnsafeBytes(v)
 			f := float64(encoding.UnmarshalUint64(b))
@@ -1399,7 +1400,7 @@ func (c *blockResultColumn) getMinValue(br *blockResult) float64 {
 		encoding.PutFloat64s(a)
 		return min
 	case valueTypeUint8:
-		min := math.Inf(1)
+		min := inf
 		for _, v := range c.encodedValues {
 			f := float64(v[0])
 			if f < min {
@@ -1408,7 +1409,7 @@ func (c *blockResultColumn) getMinValue(br *blockResult) float64 {
 		}
 		return min
 	case valueTypeUint16:
-		min := math.Inf(1)
+		min := inf
 		for _, v := range c.encodedValues {
 			b := bytesutil.ToUnsafeBytes(v)
 			f := float64(encoding.UnmarshalUint16(b))
@@ -1418,7 +1419,7 @@ func (c *blockResultColumn) getMinValue(br *blockResult) float64 {
 		}
 		return min
 	case valueTypeUint32:
-		min := math.Inf(1)
+		min := inf
 		for _, v := range c.encodedValues {
 			b := bytesutil.ToUnsafeBytes(v)
 			f := float64(encoding.UnmarshalUint32(b))
@@ -1428,7 +1429,7 @@ func (c *blockResultColumn) getMinValue(br *blockResult) float64 {
 		}
 		return min
 	case valueTypeUint64:
-		min := math.Inf(1)
+		min := inf
 		for _, v := range c.encodedValues {
 			b := bytesutil.ToUnsafeBytes(v)
 			f := float64(encoding.UnmarshalUint64(b))
@@ -1575,3 +1576,4 @@ func (rc *resultColumn) addValue(v string) {
 }
 
 var nan = math.NaN()
+var inf = math.Inf(1)

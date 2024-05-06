@@ -162,46 +162,9 @@ type pipeStatsProcessorShardNopad struct {
 	stateSizeBudget int
 }
 
-func (shard *pipeStatsProcessorShard) getStatsProcessors(key []byte) []statsProcessor {
-	spg := shard.m[string(key)]
-	if spg == nil {
-		sfps := make([]statsProcessor, len(shard.ps.funcs))
-		for i, f := range shard.ps.funcs {
-			sfp, stateSize := f.newStatsProcessor()
-			sfps[i] = sfp
-			shard.stateSizeBudget -= stateSize
-		}
-		spg = &pipeStatsGroup{
-			sfps: sfps,
-		}
-		shard.m[string(key)] = spg
-		shard.stateSizeBudget -= len(key) + int(unsafe.Sizeof("")+unsafe.Sizeof(spg)+unsafe.Sizeof(sfps[0])*uintptr(len(sfps)))
-	}
-	return spg.sfps
-}
+func (shard *pipeStatsProcessorShard) writeBlock(br *blockResult) {
+	byFields := shard.ps.byFields
 
-type pipeStatsGroup struct {
-	sfps []statsProcessor
-}
-
-func (psp *pipeStatsProcessor) writeBlock(workerID uint, br *blockResult) {
-	shard := &psp.shards[workerID]
-
-	for shard.stateSizeBudget < 0 {
-		// steal some budget for the state size from the global budget.
-		remaining := psp.stateSizeBudget.Add(-stateSizeBudgetChunk)
-		if remaining < 0 {
-			// The state size is too big. Stop processing data in order to avoid OOM crash.
-			if remaining+stateSizeBudgetChunk >= 0 {
-				// Notify worker goroutines to stop calling writeBlock() in order to save CPU time.
-				psp.cancel()
-			}
-			return
-		}
-		shard.stateSizeBudget += stateSizeBudgetChunk
-	}
-
-	byFields := psp.ps.byFields
 	if len(byFields) == 0 {
 		// Fast path - pass all the rows to a single group with empty key.
 		for _, sfp := range shard.getStatsProcessors(nil) {
@@ -306,6 +269,52 @@ func (psp *pipeStatsProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.keyBuf = keyBuf
 }
 
+func (shard *pipeStatsProcessorShard) getStatsProcessors(key []byte) []statsProcessor {
+	spg := shard.m[string(key)]
+	if spg == nil {
+		sfps := make([]statsProcessor, len(shard.ps.funcs))
+		for i, f := range shard.ps.funcs {
+			sfp, stateSize := f.newStatsProcessor()
+			sfps[i] = sfp
+			shard.stateSizeBudget -= stateSize
+		}
+		spg = &pipeStatsGroup{
+			sfps: sfps,
+		}
+		shard.m[string(key)] = spg
+		shard.stateSizeBudget -= len(key) + int(unsafe.Sizeof("")+unsafe.Sizeof(spg)+unsafe.Sizeof(sfps[0])*uintptr(len(sfps)))
+	}
+	return spg.sfps
+}
+
+type pipeStatsGroup struct {
+	sfps []statsProcessor
+}
+
+func (psp *pipeStatsProcessor) writeBlock(workerID uint, br *blockResult) {
+	if len(br.timestamps) == 0 {
+		return
+	}
+
+	shard := &psp.shards[workerID]
+
+	for shard.stateSizeBudget < 0 {
+		// steal some budget for the state size from the global budget.
+		remaining := psp.stateSizeBudget.Add(-stateSizeBudgetChunk)
+		if remaining < 0 {
+			// The state size is too big. Stop processing data in order to avoid OOM crash.
+			if remaining+stateSizeBudgetChunk >= 0 {
+				// Notify worker goroutines to stop calling writeBlock() in order to save CPU time.
+				psp.cancel()
+			}
+			return
+		}
+		shard.stateSizeBudget += stateSizeBudgetChunk
+	}
+
+	shard.writeBlock(br)
+}
+
 func (psp *pipeStatsProcessor) flush() error {
 	if n := psp.stateSizeBudget.Load(); n <= 0 {
 		return fmt.Errorf("cannot calculate [%s], since it requires more than %dMB of memory", psp.ps.String(), psp.maxStateSize/(1<<20))
@@ -407,6 +416,7 @@ func (psp *pipeStatsProcessor) flush() error {
 			valuesLen = 0
 		}
 	}
+
 	br.setResultColumns(rcs)
 	psp.ppBase.writeBlock(0, &br)
 

@@ -41,6 +41,10 @@ type pipeLimitProcessor struct {
 }
 
 func (plp *pipeLimitProcessor) writeBlock(workerID uint, br *blockResult) {
+	if len(br.timestamps) == 0 {
+		return
+	}
+
 	rowsProcessed := plp.rowsProcessed.Add(uint64(len(br.timestamps)))
 	if rowsProcessed <= plp.pl.n {
 		// Fast path - write all the rows to ppBase.

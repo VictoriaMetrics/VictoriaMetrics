@@ -57,6 +57,10 @@ type pipeRenameProcessor struct {
 }
 
 func (prp *pipeRenameProcessor) writeBlock(workerID uint, br *blockResult) {
+	if len(br.timestamps) == 0 {
+		return
+	}
+
 	br.renameColumns(prp.pr.srcFields, prp.pr.dstFields)
 	prp.ppBase.writeBlock(workerID, br)
 }
