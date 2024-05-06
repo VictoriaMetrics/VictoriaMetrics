@@ -317,9 +317,12 @@ func (shard *pipeSortProcessorShard) createTimestampsIfNeeded(timestamps []int64
 		return nil
 	}
 
+	timestampsBuf := shard.timestampsBuf
 	timestampsBufLen := len(shard.timestampsBuf)
-	shard.timestampsBuf = append(shard.timestampsBuf, timestamps...)
-	shard.stateSizeBudget -= (len(timestamps) - timestampsBufLen) * int(unsafe.Sizeof(timestamps[0]))
+	timestampsBuf = append(timestampsBuf, timestamps...)
+	shard.timestampsBuf = timestampsBuf
+
+	shard.stateSizeBudget -= (len(timestampsBuf) - timestampsBufLen) * int(unsafe.Sizeof(timestampsBuf[0]))
 
 	return shard.timestampsBuf[timestampsBufLen:]
 }
