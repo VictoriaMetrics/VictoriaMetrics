@@ -70,7 +70,7 @@ func ProcessQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 	putSortWriter(sw)
 
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot execute query: %s", err)
+		httpserver.Errorf(w, r, "cannot execute query [%s]: %s", qStr, err)
 	}
 
 }
