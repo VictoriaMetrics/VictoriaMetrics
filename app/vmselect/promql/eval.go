@@ -1729,7 +1729,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		}
 	}
 	rollupPoints := mulNoOverflow(pointsPerSeries, int64(timeseriesLen*len(rcs)))
-	rollupMemorySize := sumNoOverflow(mulNoOverflow(int64(rssLen), 1000), mulNoOverflow(rollupPoints, 16))
+	rollupMemorySize := sumNoOverflow(mulNoOverflow(int64(timeseriesLen), 1000), mulNoOverflow(rollupPoints, 16))
 	if maxMemory := int64(logQueryMemoryUsage.N); maxMemory > 0 && rollupMemorySize > maxMemory {
 		memoryIntensiveQueries.Inc()
 		requestURI := ec.GetRequestURI()
