@@ -28,6 +28,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/prometheusimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/promremotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/statsd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/vmimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
@@ -41,6 +42,7 @@ import (
 	influxserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/influx"
 	opentsdbserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdb"
 	opentsdbhttpserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdbhttp"
+	statsdserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/statsd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
@@ -55,6 +57,10 @@ var (
 	graphiteListenAddr = flag.String("graphiteListenAddr", "", "TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty. "+
 		"See also -graphiteListenAddr.useProxyProtocol")
 	graphiteUseProxyProtocol = flag.Bool("graphiteListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -graphiteListenAddr . "+
+		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
+	statsdListenAddr = flag.String("statsdListenAddr", "", "TCP and UDP address to listen for Statsd plaintext data. Usually :8125 must be set. Doesn't work if empty. "+
+		"See also -statsdListenAddr.useProxyProtocol")
+	statsdUseProxyProtocol = flag.Bool("statsdListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -statsdListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
 	influxListenAddr = flag.String("influxListenAddr", "", "TCP and UDP address to listen for InfluxDB line protocol data. Usually :8089 must be set. Doesn't work if empty. "+
 		"This flag isn't needed when ingesting data over HTTP - just send it to http://<victoriametrics>:8428/write . "+
@@ -85,6 +91,7 @@ var (
 var (
 	clusternativeServer *clusternativeserver.Server
 	graphiteServer      *graphiteserver.Server
+	statsdServer        *statsdserver.Server
 	influxServer        *influxserver.Server
 	opentsdbServer      *opentsdbserver.Server
 	opentsdbhttpServer  *opentsdbhttpserver.Server
@@ -133,6 +140,9 @@ func main() {
 			return graphite.InsertHandler(nil, r)
 		})
 	}
+	if len(*statsdListenAddr) > 0 {
+		statsdServer = statsdserver.MustStart(*statsdListenAddr, *statsdUseProxyProtocol, statsd.InsertHandler)
+	}
 	if len(*influxListenAddr) > 0 {
 		influxServer = influxserver.MustStart(*influxListenAddr, *influxUseProxyProtocol, func(r io.Reader) error {
 			return influx.InsertHandlerForReader(nil, r)
@@ -170,6 +180,9 @@ func main() {
 	}
 	if len(*graphiteListenAddr) > 0 {
 		graphiteServer.MustStop()
+	}
+	if len(*statsdListenAddr) > 0 {
+		statsdServer.MustStop()
 	}
 	if len(*influxListenAddr) > 0 {
 		influxServer.MustStop()
