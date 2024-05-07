@@ -476,10 +476,10 @@ func parseStatsFunc(lex *lexer) (statsFunc, string, error) {
 			return nil, "", fmt.Errorf("cannot parse 'count_empty' func: %w", err)
 		}
 		sf = scs
-	case lex.isKeyword("uniq"):
-		sus, err := parseStatsUniq(lex)
+	case lex.isKeyword("uniq_count"):
+		sus, err := parseStatsUniqCount(lex)
 		if err != nil {
-			return nil, "", fmt.Errorf("cannot parse 'uniq' func: %w", err)
+			return nil, "", fmt.Errorf("cannot parse 'uniq_count' func: %w", err)
 		}
 		sf = sus
 	case lex.isKeyword("sum"):

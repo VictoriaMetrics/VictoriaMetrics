@@ -1230,10 +1230,10 @@ to store the result of the corresponding stats function. The `as` keyword is opt
 For example, the following query calculates the following stats for logs over the last 5 minutes:
 
 - the number of logs with the help of [`count` stats function](#count-stats);
-- the number of unique [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) with the help of [`uniq` stats function](#uniq-stats):
+- the number of unique [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) with the help of [`uniq_count` stats function](#uniq_count-stats):
 
 ```logsql
-_time:5m | stats count() logs_total, uniq(_stream) streams_total
+_time:5m | stats count() logs_total, uniq_count(_stream) streams_total
 ```
 
 See also:
@@ -1258,7 +1258,7 @@ For example, the following query calculates the number of logs and unique ip add
 grouped by `(host, path)` fields:
 
 ```logsql
-_time:5m | stats by (host, path) count() logs_total, uniq(ip) ips_total
+_time:5m | stats by (host, path) count() logs_total, uniq_count(ip) ips_total
 ```
 
 #### Stats by time buckets
@@ -1277,7 +1277,7 @@ The `step` can have any [duration value](#duration-values). For example, the fol
 over the last 5 minutes:
 
 ```
-_time:5m | stats by (_time:1m) count() logs_total, uniq(ip) ips_total
+_time:5m | stats by (_time:1m) count() logs_total, uniq_count(ip) ips_total
 ```
 
 #### Stats by time buckets with timezone offset
@@ -1326,7 +1326,7 @@ LogsQL supports the following functions for [`stats` pipe](#stats-pipe):
 - [`max`](#max-stats) calcualtes the maximum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`min`](#min-stats) calculates the minumum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`sum`](#sum-stats) calculates the sum for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-- [`uniq`](#uniq-stats) calculates the number of unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`uniq_count`](#uniq_count-stats) calculates the number of unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`uniq_values`](#uniq_values-stats) returns unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
 ### avg stats
@@ -1363,7 +1363,7 @@ _time:5m | stats count_empty(username) logs_with_missing_username
 See also:
 
 - [`count`](#count-stats)
-- [`uniq`](#uniq-stats)
+- [`uniq_count`](#uniq_count-stats)
 
 ### count stats
 
@@ -1392,7 +1392,7 @@ _time:5m | stats count(username, password) logs_with_username_or_password
 
 See also:
 
-- [`uniq`](#uniq-stats)
+- [`uniq_count`](#uniq_count-stats)
 - [`sum`](#sum-stats)
 - [`avg`](#avg-stats)
 
@@ -1455,22 +1455,22 @@ See also:
 - [`max`](#max-stats)
 - [`min`](#min-stats)
 
-### uniq stats
+### uniq_count stats
 
-`uniq(field1, ..., fieldN)` [stats pipe](#stats-pipe) calculates the number of unique non-empty `(field1, ..., fieldN)` tuples.
+`uniq_count(field1, ..., fieldN)` [stats pipe](#stats-pipe) calculates the number of unique non-empty `(field1, ..., fieldN)` tuples.
 
 For example, the following query returns the number of unique non-empty values for `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over the last 5 minutes:
 
 ```logsql
-_time:5m | stats uniq(ip) ips
+_time:5m | stats uniq_count(ip) ips
 ```
 
 The following query returns the number of unique `(host, path)` pairs for the corresponding [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over the last 5 minutes:
 
 ```logsql
-_time:5m | stats uniq(host, path) unique_host_path_pairs
+_time:5m | stats uniq_count(host, path) unique_host_path_pairs
 ```
 
 See also:
@@ -1493,7 +1493,7 @@ _time:5m | stats uniq_values(ip) unique_ips
 
 See also:
 
-- [`uniq`](#uniq-stats)
+- [`uniq_count`](#uniq_count-stats)
 - [`count`](#count-stats)
 
 ## Stream context
