@@ -534,6 +534,11 @@ func sortBlockLess(shardA *pipeSortProcessorShard, rowIdxA int, shardB *pipeSort
 		cB := &bB.byColumns[idx]
 		bf := byFields[idx]
 
+		if cA.c.isConst && cB.c.isConst {
+			// Fast path - compare const values
+			return cA.c.encodedValues[0] < cB.c.encodedValues[0]
+		}
+
 		if cA.c.isTime && cB.c.isTime {
 			// Fast path - sort by _time
 			tA := bA.br.timestamps[rrA.rowIdx]
