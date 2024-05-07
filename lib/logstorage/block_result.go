@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"math"
 	"slices"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
@@ -54,6 +55,68 @@ func (br *blockResult) reset() {
 	br.cs = br.cs[:0]
 }
 
+// clone returns a clone of br, which owns its own memory.
+func (br *blockResult) clone() *blockResult {
+	brNew := &blockResult{}
+
+	cs := br.getColumns()
+
+	bufLen := 0
+	for _, c := range cs {
+		bufLen += c.neededBackingBufLen()
+	}
+	brNew.buf = make([]byte, 0, bufLen)
+
+	valuesBufLen := 0
+	for _, c := range cs {
+		valuesBufLen += c.neededBackingValuesBufLen()
+	}
+	brNew.valuesBuf = make([]string, 0, valuesBufLen)
+
+	brNew.streamID = br.streamID
+
+	brNew.timestamps = make([]int64, len(br.timestamps))
+	copy(brNew.timestamps, br.timestamps)
+
+	csNew := make([]blockResultColumn, len(cs))
+	for i, c := range cs {
+		csNew[i] = c.clone(brNew)
+	}
+	brNew.cs = csNew
+
+	return brNew
+}
+
+// cloneValues clones the given values into br and returns the cloned values.
+func (br *blockResult) cloneValues(values []string) []string {
+	buf := br.buf
+	valuesBuf := br.valuesBuf
+	valuesBufLen := len(valuesBuf)
+
+	for _, v := range values {
+		bufLen := len(buf)
+		buf = append(buf, v...)
+		valuesBuf = append(valuesBuf, bytesutil.ToUnsafeString(buf[bufLen:]))
+	}
+
+	br.valuesBuf = valuesBuf
+	br.buf = buf
+
+	return valuesBuf[valuesBufLen:]
+}
+
+// sizeBytes returns the size of br in bytes.
+func (br *blockResult) sizeBytes() int {
+	n := int(unsafe.Sizeof(*br))
+
+	n += cap(br.buf)
+	n += cap(br.valuesBuf) * int(unsafe.Sizeof(br.valuesBuf[0]))
+	n += cap(br.timestamps) * int(unsafe.Sizeof(br.timestamps[0]))
+	n += cap(br.cs) * int(unsafe.Sizeof(br.cs[0]))
+
+	return n
+}
+
 // setResultColumns sets the given rcs as br columns.
 //
 // The returned result is valid only until rcs are modified.
@@ -67,11 +130,20 @@ func (br *blockResult) setResultColumns(rcs []resultColumn) {
 
 	cs := br.cs
 	for _, rc := range rcs {
-		cs = append(cs, blockResultColumn{
-			name:          rc.name,
-			valueType:     valueTypeString,
-			encodedValues: rc.values,
-		})
+		if areConstValues(rc.values) {
+			// This optimization allows reducing memory usage after br cloning
+			cs = append(cs, blockResultColumn{
+				name:          rc.name,
+				isConst:       true,
+				encodedValues: rc.values[:1],
+			})
+		} else {
+			cs = append(cs, blockResultColumn{
+				name:          rc.name,
+				valueType:     valueTypeString,
+				encodedValues: rc.values,
+			})
+		}
 	}
 	br.cs = cs
 }
@@ -940,13 +1012,6 @@ func (br *blockResult) getBucketedValue(s string, bucketSize, bucketOffset float
 	return s
 }
 
-func (br *blockResult) addEmptyStringColumn(columnName string) {
-	br.cs = append(br.cs, blockResultColumn{
-		name:      columnName,
-		valueType: valueTypeString,
-	})
-}
-
 // copyColumns copies columns from srcColumnNames to dstColumnNames.
 func (br *blockResult) copyColumns(srcColumnNames, dstColumnNames []string) {
 	if len(srcColumnNames) == 0 {
@@ -1153,6 +1218,51 @@ type blockResultColumn struct {
 
 	// bucketOffset contains bucketOffset for bucketedValues
 	bucketOffset float64
+}
+
+// clone returns a clone of c backed by data from br.
+func (c *blockResultColumn) clone(br *blockResult) blockResultColumn {
+	var cNew blockResultColumn
+
+	cNew.name = c.name
+	cNew.isConst = c.isConst
+	cNew.isTime = c.isTime
+	cNew.valueType = c.valueType
+	cNew.dictValues = br.cloneValues(c.dictValues)
+	cNew.encodedValues = br.cloneValues(c.encodedValues)
+	// do not copy c.values and c.bucketedValues - they should be re-created from scrach if needed
+	cNew.bucketSize = c.bucketSize
+	cNew.bucketOffset = c.bucketOffset
+
+	return cNew
+}
+
+func (c *blockResultColumn) neededBackingBufLen() int {
+	n := 0
+
+	n += valuesSizeBytes(c.dictValues)
+	n += valuesSizeBytes(c.encodedValues)
+	// do not take into account c.values and c.bucketedValues, since they should be re-created from scratch if needed
+
+	return n
+}
+
+func (c *blockResultColumn) neededBackingValuesBufLen() int {
+	n := 0
+
+	n += len(c.dictValues)
+	n += len(c.encodedValues)
+	// do not take into account c.values and c.bucketedValues, since they should be re-created from scratch if needed
+
+	return n
+}
+
+func valuesSizeBytes(values []string) int {
+	n := 0
+	for _, v := range values {
+		n += len(v)
+	}
+	return n
 }
 
 // getValueAtRow returns value for the value at the given rowIdx.
