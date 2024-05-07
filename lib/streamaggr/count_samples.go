@@ -56,22 +56,18 @@ func (as *countSamplesAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *countSamplesAggrState) flushState(ctx *flushCtx, resetState bool) {
+func (as *countSamplesAggrState) flushState(ctx *flushCtx) {
 	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
-		if resetState {
-			// Atomically delete the entry from the map, so new entry is created for the next flush.
-			m.Delete(k)
-		}
+		// Atomically delete the entry from the map, so new entry is created for the next flush.
+		m.Delete(k)
 
 		sv := v.(*countSamplesStateValue)
 		sv.mu.Lock()
 		n := sv.n
-		if resetState {
-			// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-			sv.deleted = true
-		}
+		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
+		sv.deleted = true
 		sv.mu.Unlock()
 
 		key := k.(string)

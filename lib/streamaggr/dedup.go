@@ -113,7 +113,7 @@ func (ctx *dedupFlushCtx) reset() {
 	ctx.samples = ctx.samples[:0]
 }
 
-func (da *dedupAggr) flush(f func(samples []pushSample), resetState bool) {
+func (da *dedupAggr) flush(f func(samples []pushSample)) {
 	var wg sync.WaitGroup
 	for i := range da.shards {
 		flushConcurrencyCh <- struct{}{}
@@ -125,7 +125,7 @@ func (da *dedupAggr) flush(f func(samples []pushSample), resetState bool) {
 			}()
 
 			ctx := getDedupFlushCtx()
-			shard.flush(ctx, f, resetState)
+			shard.flush(ctx, f)
 			putDedupFlushCtx(ctx)
 		}(&da.shards[i])
 	}
@@ -191,11 +191,11 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample) {
 	}
 }
 
-func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f func(samples []pushSample), resetState bool) {
+func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f func(samples []pushSample)) {
 	das.mu.Lock()
 
 	m := das.m
-	if resetState && len(m) > 0 {
+	if len(m) > 0 {
 		das.m = make(map[string]dedupAggrSample, len(m))
 	}
 

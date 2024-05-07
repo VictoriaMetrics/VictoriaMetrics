@@ -144,7 +144,7 @@ func (as *totalAggrState) removeOldEntries(currentTime uint64) {
 	})
 }
 
-func (as *totalAggrState) flushState(ctx *flushCtx, resetState bool) {
+func (as *totalAggrState) flushState(ctx *flushCtx) {
 	currentTime := fasttime.UnixTimestamp()
 	currentTimeMsec := int64(currentTime) * 1000
 
@@ -155,13 +155,11 @@ func (as *totalAggrState) flushState(ctx *flushCtx, resetState bool) {
 		sv := v.(*totalStateValue)
 		sv.mu.Lock()
 		total := sv.total
-		if resetState {
-			if as.resetTotalOnFlush {
-				sv.total = 0
-			} else if math.Abs(sv.total) >= (1 << 53) {
-				// It is time to reset the entry, since it starts losing float64 precision
-				sv.total = 0
-			}
+		if as.resetTotalOnFlush {
+			sv.total = 0
+		} else if math.Abs(sv.total) >= (1 << 53) {
+			// It is time to reset the entry, since it starts losing float64 precision
+			sv.total = 0
 		}
 		deleted := sv.deleted
 		sv.mu.Unlock()
