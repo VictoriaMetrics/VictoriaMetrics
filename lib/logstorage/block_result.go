@@ -94,9 +94,13 @@ func (br *blockResult) cloneValues(values []string) []string {
 	valuesBufLen := len(valuesBuf)
 
 	for _, v := range values {
-		bufLen := len(buf)
-		buf = append(buf, v...)
-		valuesBuf = append(valuesBuf, bytesutil.ToUnsafeString(buf[bufLen:]))
+		if len(valuesBuf) > 0 && v == valuesBuf[len(valuesBuf)-1] {
+			valuesBuf = append(valuesBuf, v)
+		} else {
+			bufLen := len(buf)
+			buf = append(buf, v...)
+			valuesBuf = append(valuesBuf, bytesutil.ToUnsafeString(buf[bufLen:]))
+		}
 	}
 
 	br.valuesBuf = valuesBuf
@@ -149,13 +153,15 @@ func (br *blockResult) setResultColumns(rcs []resultColumn) {
 }
 
 func (br *blockResult) fetchAllColumns(bs *blockSearch, bm *bitmap) {
+	// Add _time column
+	br.addTimeColumn()
+
+	// Add _stream column
 	if !br.addStreamColumn(bs) {
 		// Skip the current block, since the associated stream tags are missing.
 		br.reset()
 		return
 	}
-
-	br.addTimeColumn()
 
 	// Add _msg column
 	v := bs.csh.getConstColumnValue("_msg")
@@ -246,10 +252,13 @@ func (br *blockResult) addColumn(bs *blockSearch, ch *columnHeader, bm *bitmap) 
 	var dictValues []string
 
 	appendValue := func(v string) {
-		bufLen := len(buf)
-		buf = append(buf, v...)
-		s := bytesutil.ToUnsafeString(buf[bufLen:])
-		valuesBuf = append(valuesBuf, s)
+		if len(valuesBuf) > 0 && v == valuesBuf[len(valuesBuf)-1] {
+			valuesBuf = append(valuesBuf, v)
+		} else {
+			bufLen := len(buf)
+			buf = append(buf, v...)
+			valuesBuf = append(valuesBuf, bytesutil.ToUnsafeString(buf[bufLen:]))
+		}
 	}
 
 	switch ch.valueType {
@@ -1679,9 +1688,15 @@ func (rc *resultColumn) resetKeepName() {
 
 // addValue adds the given values v to rc.
 func (rc *resultColumn) addValue(v string) {
+	values := rc.values
+	if len(values) > 0 && string(v) == values[len(values)-1] {
+		rc.values = append(rc.values, values[len(values)-1])
+		return
+	}
+
 	bufLen := len(rc.buf)
 	rc.buf = append(rc.buf, v...)
-	rc.values = append(rc.values, bytesutil.ToUnsafeString(rc.buf[bufLen:]))
+	rc.values = append(values, bytesutil.ToUnsafeString(rc.buf[bufLen:]))
 }
 
 var nan = math.NaN()

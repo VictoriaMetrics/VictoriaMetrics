@@ -207,18 +207,19 @@ func (q *Query) getNeededColumns() []string {
 
 	pipes := q.pipes
 	for i := len(pipes) - 1; i >= 0; i-- {
-		neededFields, m := pipes[i].getNeededFields()
+		neededFields, mapping := pipes[i].getNeededFields()
 		neededFields = normalizeFields(neededFields)
 
 		referredFields := make(map[string]int)
-		for _, a := range m {
-			for _, f := range a {
+		for _, inFields := range mapping {
+			for _, f := range inFields {
 				referredFields[f]++
 			}
 		}
 
 		for k := range dropFields {
-			for _, f := range m[k] {
+			inFields := mapping[k]
+			for _, f := range inFields {
 				referredFields[f]--
 			}
 		}
@@ -228,7 +229,7 @@ func (q *Query) getNeededColumns() []string {
 			}
 		}
 		dropFieldsNext := make(map[string]struct{})
-		for k := range m {
+		for k := range mapping {
 			if k != "*" && referredFields[k] == 0 {
 				dropFieldsNext[k] = struct{}{}
 			}
@@ -252,33 +253,27 @@ func (q *Query) getNeededColumns() []string {
 		if len(neededFields) == 0 {
 			input = nil
 		}
-		if len(input) == 0 {
-			break
-		}
 
 		// transform upper input fields to the current input fields according to the given mapping.
-		if input[0] != "*" {
+		if len(input) == 0 || input[0] != "*" {
 			var dst []string
 			for _, f := range input {
-				if a, ok := m[f]; ok {
+				if a, ok := mapping[f]; ok {
 					dst = append(dst, a...)
 				} else {
 					dst = append(dst, f)
 				}
 			}
-			if a, ok := m["*"]; ok {
+			if a, ok := mapping["*"]; ok {
 				dst = append(dst, a...)
 			}
 			input = normalizeFields(dst)
-			if len(input) == 0 {
-				break
-			}
 		}
 
 		// intersect neededFields with input
-		if neededFields[0] != "*" {
+		if len(neededFields) == 0 || neededFields[0] != "*" {
 			clear(dropFields)
-			if input[0] == "*" {
+			if len(input) > 0 && input[0] == "*" {
 				input = neededFields
 				continue
 			}
@@ -336,7 +331,7 @@ func ParseQuery(s string) (*Query, error) {
 	q.pipes = pipes
 
 	if !lex.isEnd() {
-		return nil, fmt.Errorf("unexpected unparsed tail; context: [%s]", lex.context())
+		return nil, fmt.Errorf("unexpected unparsed tail; context: [%s]; tail: [%s]", lex.context(), lex.s)
 	}
 
 	return q, nil

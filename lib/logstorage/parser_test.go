@@ -929,9 +929,12 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats by(_time:1d offset -2.5h5m) count() as foo`, `* | stats by (_time:1d offset -2.5h5m) count(*) as foo`)
 
 	// sort pipe
+	f(`* | sort`, `* | sort`)
+	f(`* | sort desc`, `* | sort desc`)
+	f(`* | sort by()`, `* | sort`)
 	f(`* | sort bY (foo)`, `* | sort by (foo)`)
 	f(`* | sORt bY (_time, _stream DEsc, host)`, `* | sort by (_time, _stream desc, host)`)
-	f(`* | sort bY (foo, bar,)`, `* | sort by (foo, bar)`)
+	f(`* | sort bY (foo desc, bar,) desc`, `* | sort by (foo desc, bar) desc`)
 
 	// multiple different pipes
 	f(`* | fields foo, bar | limit 100 | stats by(foo,bar) count(baz) as qwert`, `* | fields foo, bar | limit 100 | stats by (foo, bar) count(baz) as qwert`)
@@ -1245,13 +1248,12 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | stats by(bar)`)
 
 	// invalid sort pipe
-	f(`foo | sort`)
 	f(`foo | sort bar`)
 	f(`foo | sort by`)
 	f(`foo | sort by(`)
-	f(`foo | sort by()`)
 	f(`foo | sort by(baz`)
 	f(`foo | sort by(baz,`)
+	f(`foo | sort by(bar) foo`)
 }
 
 func TestNormalizeFields(t *testing.T) {
