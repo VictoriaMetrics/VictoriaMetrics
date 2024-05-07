@@ -250,7 +250,7 @@ scrape_configs:
     # If node-exporter containers have another name in your Kubernetes cluster,
     # then adjust the regex value accordingly.
     #
-  - soruce_labels: [__meta_kubernetes_pod_container_name]
+  - source_labels: [__meta_kubernetes_pod_container_name]
     regex: node-exporter
     action: keep
 
