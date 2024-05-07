@@ -229,7 +229,7 @@ func (q *Query) getNeededColumns() []string {
 		}
 		dropFieldsNext := make(map[string]struct{})
 		for k := range m {
-			if referredFields[k] == 0 {
+			if k != "*" && referredFields[k] == 0 {
 				dropFieldsNext[k] = struct{}{}
 			}
 		}
@@ -265,6 +265,9 @@ func (q *Query) getNeededColumns() []string {
 				} else {
 					dst = append(dst, f)
 				}
+			}
+			if a, ok := m["*"]; ok {
+				dst = append(dst, a...)
 			}
 			input = normalizeFields(dst)
 			if len(input) == 0 {

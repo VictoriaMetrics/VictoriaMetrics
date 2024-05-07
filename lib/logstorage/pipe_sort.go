@@ -38,7 +38,14 @@ func (ps *pipeSort) String() string {
 }
 
 func (ps *pipeSort) getNeededFields() ([]string, map[string][]string) {
-	return []string{"*"}, nil
+	fields := make([]string, len(ps.byFields))
+	for i, bf := range ps.byFields {
+		fields[i] = bf.name
+	}
+	m := map[string][]string{
+		"*": fields,
+	}
+	return []string{"*"}, m
 }
 
 func (ps *pipeSort) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {
