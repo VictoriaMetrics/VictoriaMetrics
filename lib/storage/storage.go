@@ -1660,7 +1660,6 @@ func (mr *MetricRow) UnmarshalX(src []byte) ([]byte, error) {
 		}
 		mr.ExemplarNameRaw = exemplarNameRaw
 		err = errors.New("exemplar found")
-		logger.Infof("Exemplar found %q", string(exemplarNameRaw))
 	}
 	if len(tail) < 8 {
 		return tail, fmt.Errorf("cannot unmarshal Timestamp: want %d bytes; have %d bytes", 8, len(tail))
@@ -1709,7 +1708,7 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 		} else {
 			mrs = nil
 		}
-		if err := s.add(ic.rrs, ic.tmpMrs, mrsBlock, precisionBits); err != nil {
+		if err := s.add(ic.rrs, ic.rers, ic.tmpMrs, mrsBlock, precisionBits); err != nil {
 			if firstErr == nil {
 				firstErr = err
 			}
@@ -1724,6 +1723,7 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 
 type metricRowsInsertCtx struct {
 	rrs    []rawRow
+	rers   []rawExemplarRow
 	tmpMrs []*MetricRow
 }
 
@@ -1732,6 +1732,7 @@ func getMetricRowsInsertCtx() *metricRowsInsertCtx {
 	if v == nil {
 		v = &metricRowsInsertCtx{
 			rrs:    make([]rawRow, maxMetricRowsPerBlock),
+			rers:   make([]rawExemplarRow, maxMetricRowsPerBlock),
 			tmpMrs: make([]*MetricRow, maxMetricRowsPerBlock),
 		}
 	}
@@ -1858,7 +1859,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 	}
 }
 
-func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, precisionBits uint8) error {
+func (s *Storage) add(rows []rawRow, exemplarRows []rawExemplarRow, dstMrs []*MetricRow, mrs []MetricRow, precisionBits uint8) error {
 	idb := s.idb()
 	generation := idb.generation
 	is := idb.getIndexSearch(0, 0, noDeadline)
@@ -1885,7 +1886,11 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	// Return only the first error, since it has no sense in returning all errors.
 	var firstWarn error
 
+	// Index for metrics
 	j := 0
+	// Index for exemplars
+	k := 0
+
 	for i := range mrs {
 		mr := &mrs[i]
 		var isStaleNan bool
@@ -1925,11 +1930,28 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		r.Value = mr.Value
 		r.PrecisionBits = precisionBits
 
+		saveExemplars := func() {
+			// Determine if this is an exemplar
+			if mr.ExemplarNameRaw != nil {
+				e := &exemplarRows[k]
+				e.Timestamp = r.Timestamp
+				e.Value = r.Value
+				e.PrecisionBits = r.PrecisionBits
+				e.ExemplarRawName = mr.ExemplarNameRaw
+				e.TSID = r.TSID
+				// Ignore this metric
+				j--
+				// Advance to the next exemplar
+				k++
+			}
+		}
+
 		// Search for TSID for the given mr.MetricNameRaw and store it at r.TSID.
 		if string(mr.MetricNameRaw) == string(prevMetricNameRaw) {
 			// Fast path - the current mr contains the same metric name as the previous mr, so it contains the same TSID.
 			// This path should trigger on bulk imports when many rows contain the same MetricNameRaw.
 			r.TSID = prevTSID
+			saveExemplars()
 			continue
 		}
 		if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
@@ -1945,6 +1967,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			}
 			r.TSID = genTSID.TSID
 			prevTSID = r.TSID
+			saveExemplars()
 			prevMetricNameRaw = mr.MetricNameRaw
 
 			if genTSID.generation < generation {
@@ -2004,6 +2027,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
 
 			r.TSID = genTSID.TSID
+			saveExemplars()
 			prevTSID = genTSID.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
 			continue
@@ -2031,6 +2055,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		newSeriesCount++
 
 		r.TSID = genTSID.TSID
+		saveExemplars()
 		prevTSID = r.TSID
 		prevMetricNameRaw = mr.MetricNameRaw
 
@@ -2045,6 +2070,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 	dstMrs = dstMrs[:j]
 	rows = rows[:j]
+	exemplarRows = exemplarRows[:k]
 
 	if err := s.prefillNextIndexDB(rows, dstMrs); err != nil {
 		if firstWarn == nil {
@@ -2060,6 +2086,9 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		err = fmt.Errorf("cannot update per-date data: %w", err)
 	} else {
 		s.tb.MustAddRows(rows)
+		for _, exemplarRow := range exemplarRows {
+			logger.Infof("Exemplar found2 %q", string(exemplarRow.ExemplarRawName))
+		}
 	}
 	if err != nil {
 		return fmt.Errorf("error occurred during rows addition: %w", err)

@@ -9,6 +9,25 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
+// rawExemplarRow represents a raw timeseries exemplar row.
+type rawExemplarRow struct {
+	// TSID is time series id.
+	TSID TSID
+
+	// Timestamp is unix timestamp in milliseconds.
+	Timestamp int64
+
+	// Value is time series value for the given timestamp.
+	Value float64
+
+	// PrecisionBits is the number of the significant bits in the Value
+	// to store. Possible values are [1..64].
+	// 1 means max. 50% error, 2 - 25%, 3 - 12.5%, 64 means no error, i.e.
+	// Value stored without information loss.
+	PrecisionBits   uint8
+	ExemplarRawName []byte
+}
+
 // rawRow represents raw timeseries row.
 type rawRow struct {
 	// TSID is time series id.
