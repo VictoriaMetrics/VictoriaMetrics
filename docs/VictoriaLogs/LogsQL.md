@@ -1327,7 +1327,7 @@ LogsQL supports the following functions for [`stats` pipe](#stats-pipe):
 - [`min`](#min-stats) calculates the minumum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`sum`](#sum-stats) calculates the sum for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`uniq`](#uniq-stats) calculates the number of unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-- [`uniq_array`](#uniq_array-stats) returns unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`uniq_values`](#uniq_values-stats) returns unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
 ### avg stats
 
@@ -1475,12 +1475,12 @@ _time:5m | stats uniq(host, path) unique_host_path_pairs
 
 See also:
 
-- [`uniq_array`](#uniq_array-stats)
+- [`uniq_values`](#uniq_values-stats)
 - [`count`](#count-stats)
 
-### uniq_array stats
+### uniq_values stats
 
-`uniq_array(field1, ..., fieldN)` [stats pipe](#stats-pipe) returns the unique non-empty values across
+`uniq_values(field1, ..., fieldN)` [stats pipe](#stats-pipe) returns the unique non-empty values across
 the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 The returned values are sorted and encoded in JSON array.
 
@@ -1488,7 +1488,7 @@ For example, the following query returns unique non-empty values for the `ip` [f
 over logs for the last 5 minutes:
 
 ```logsql
-_time:5m | stats uniq_array(ip) unique_ips
+_time:5m | stats uniq_values(ip) unique_ips
 ```
 
 See also:

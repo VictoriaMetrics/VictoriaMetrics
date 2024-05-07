@@ -506,10 +506,10 @@ func parseStatsFunc(lex *lexer) (statsFunc, string, error) {
 			return nil, "", fmt.Errorf("cannot parse 'avg' func: %w", err)
 		}
 		sf = sas
-	case lex.isKeyword("uniq_array"):
-		sus, err := parseStatsUniqArray(lex)
+	case lex.isKeyword("uniq_values"):
+		sus, err := parseStatsUniqValues(lex)
 		if err != nil {
-			return nil, "", fmt.Errorf("cannot parse 'uniq_array' func: %w", err)
+			return nil, "", fmt.Errorf("cannot parse 'uniq_values' func: %w", err)
 		}
 		sf = sus
 	default:

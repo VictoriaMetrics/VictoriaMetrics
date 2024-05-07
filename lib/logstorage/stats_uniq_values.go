@@ -10,21 +10,21 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
-type statsUniqArray struct {
+type statsUniqValues struct {
 	fields       []string
 	containsStar bool
 }
 
-func (su *statsUniqArray) String() string {
-	return "uniq_array(" + fieldNamesString(su.fields) + ")"
+func (su *statsUniqValues) String() string {
+	return "uniq_values(" + fieldNamesString(su.fields) + ")"
 }
 
-func (su *statsUniqArray) neededFields() []string {
+func (su *statsUniqValues) neededFields() []string {
 	return su.fields
 }
 
-func (su *statsUniqArray) newStatsProcessor() (statsProcessor, int) {
-	sup := &statsUniqArrayProcessor{
+func (su *statsUniqValues) newStatsProcessor() (statsProcessor, int) {
+	sup := &statsUniqValuesProcessor{
 		su: su,
 
 		m: make(map[string]struct{}),
@@ -32,13 +32,13 @@ func (su *statsUniqArray) newStatsProcessor() (statsProcessor, int) {
 	return sup, int(unsafe.Sizeof(*sup))
 }
 
-type statsUniqArrayProcessor struct {
-	su *statsUniqArray
+type statsUniqValuesProcessor struct {
+	su *statsUniqValues
 
 	m map[string]struct{}
 }
 
-func (sup *statsUniqArrayProcessor) updateStatsForAllRows(br *blockResult) int {
+func (sup *statsUniqValuesProcessor) updateStatsForAllRows(br *blockResult) int {
 	stateSizeIncrease := 0
 	if sup.su.containsStar {
 		columns := br.getColumns()
@@ -54,7 +54,7 @@ func (sup *statsUniqArrayProcessor) updateStatsForAllRows(br *blockResult) int {
 	return stateSizeIncrease
 }
 
-func (sup *statsUniqArrayProcessor) updateStatsForAllRowsColumn(c *blockResultColumn, br *blockResult) int {
+func (sup *statsUniqValuesProcessor) updateStatsForAllRowsColumn(c *blockResultColumn, br *blockResult) int {
 	m := sup.m
 	stateSizeIncrease := 0
 	if c.isConst {
@@ -107,7 +107,7 @@ func (sup *statsUniqArrayProcessor) updateStatsForAllRowsColumn(c *blockResultCo
 	return stateSizeIncrease
 }
 
-func (sup *statsUniqArrayProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
+func (sup *statsUniqValuesProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
 	stateSizeIncrease := 0
 	if sup.su.containsStar {
 		columns := br.getColumns()
@@ -123,7 +123,7 @@ func (sup *statsUniqArrayProcessor) updateStatsForRow(br *blockResult, rowIdx in
 	return stateSizeIncrease
 }
 
-func (sup *statsUniqArrayProcessor) updateStatsForRowColumn(c *blockResultColumn, br *blockResult, rowIdx int) int {
+func (sup *statsUniqValuesProcessor) updateStatsForRowColumn(c *blockResultColumn, br *blockResult, rowIdx int) int {
 	m := sup.m
 	stateSizeIncrease := 0
 	if c.isConst {
@@ -170,8 +170,8 @@ func (sup *statsUniqArrayProcessor) updateStatsForRowColumn(c *blockResultColumn
 	return stateSizeIncrease
 }
 
-func (sup *statsUniqArrayProcessor) mergeState(sfp statsProcessor) {
-	src := sfp.(*statsUniqArrayProcessor)
+func (sup *statsUniqValuesProcessor) mergeState(sfp statsProcessor) {
+	src := sfp.(*statsUniqValuesProcessor)
 	m := sup.m
 	for k := range src.m {
 		if _, ok := m[k]; !ok {
@@ -180,7 +180,7 @@ func (sup *statsUniqArrayProcessor) mergeState(sfp statsProcessor) {
 	}
 }
 
-func (sup *statsUniqArrayProcessor) finalizeStats() string {
+func (sup *statsUniqValuesProcessor) finalizeStats() string {
 	if len(sup.m) == 0 {
 		return "[]"
 	}
@@ -214,12 +214,12 @@ func (sup *statsUniqArrayProcessor) finalizeStats() string {
 	return bytesutil.ToUnsafeString(b)
 }
 
-func parseStatsUniqArray(lex *lexer) (*statsUniqArray, error) {
-	fields, err := parseFieldNamesForStatsFunc(lex, "uniq_array")
+func parseStatsUniqValues(lex *lexer) (*statsUniqValues, error) {
+	fields, err := parseFieldNamesForStatsFunc(lex, "uniq_values")
 	if err != nil {
 		return nil, err
 	}
-	su := &statsUniqArray{
+	su := &statsUniqValues{
 		fields:       fields,
 		containsStar: slices.Contains(fields, "*"),
 	}
