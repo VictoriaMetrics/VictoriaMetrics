@@ -1230,10 +1230,10 @@ to store the result of the corresponding stats function. The `as` keyword is opt
 For example, the following query calculates the following stats for logs over the last 5 minutes:
 
 - the number of logs with the help of [`count` stats function](#count-stats);
-- the number of unique [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) with the help of [`uniq_count` stats function](#uniq_count-stats):
+- the number of unique [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) with the help of [`count_uniq` stats function](#count_uniq-stats):
 
 ```logsql
-_time:5m | stats count() logs_total, uniq_count(_stream) streams_total
+_time:5m | stats count() logs_total, count_uniq(_stream) streams_total
 ```
 
 See also:
@@ -1258,7 +1258,7 @@ For example, the following query calculates the number of logs and unique ip add
 grouped by `(host, path)` fields:
 
 ```logsql
-_time:5m | stats by (host, path) count() logs_total, uniq_count(ip) ips_total
+_time:5m | stats by (host, path) count() logs_total, count_uniq(ip) ips_total
 ```
 
 #### Stats by time buckets
@@ -1277,7 +1277,7 @@ The `step` can have any [duration value](#duration-values). For example, the fol
 over the last 5 minutes:
 
 ```
-_time:5m | stats by (_time:1m) count() logs_total, uniq_count(ip) ips_total
+_time:5m | stats by (_time:1m) count() logs_total, count_uniq(ip) ips_total
 ```
 
 #### Stats by time buckets with timezone offset
@@ -1323,10 +1323,10 @@ LogsQL supports the following functions for [`stats` pipe](#stats-pipe):
 - [`avg`](#avg-stats) calculates the average value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`count`](#count-stats) calculates the number of log entries.
 - [`count_empty`](#count_empty-stats) calculates the number logs with empty [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`count_uniq`](#count_uniq-stats) calculates the number of unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`max`](#max-stats) calcualtes the maximum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`min`](#min-stats) calculates the minumum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`sum`](#sum-stats) calculates the sum for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-- [`uniq_count`](#uniq_count-stats) calculates the number of unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`uniq_values`](#uniq_values-stats) returns unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
 ### avg stats
@@ -1348,22 +1348,6 @@ See also:
 - [`max`](#max-stats)
 - [`sum`](#sum-stats)
 - [`count`](#count-stats)
-
-### count_empty stats
-
-`count_empty(field1, ..., fieldN)` calculates the number of logs with empty `(field1, ..., fieldN)` tuples.
-
-For example, the following query calculates the number of logs with empty `username` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-during the last 5 minutes:
-
-```logsql
-_time:5m | stats count_empty(username) logs_with_missing_username
-```
-
-See also:
-
-- [`count`](#count-stats)
-- [`uniq_count`](#uniq_count-stats)
 
 ### count stats
 
@@ -1392,9 +1376,48 @@ _time:5m | stats count(username, password) logs_with_username_or_password
 
 See also:
 
-- [`uniq_count`](#uniq_count-stats)
+- [`count_uniq`](#count_uniq-stats)
 - [`sum`](#sum-stats)
 - [`avg`](#avg-stats)
+
+### count_empty stats
+
+`count_empty(field1, ..., fieldN)` calculates the number of logs with empty `(field1, ..., fieldN)` tuples.
+
+For example, the following query calculates the number of logs with empty `username` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+during the last 5 minutes:
+
+```logsql
+_time:5m | stats count_empty(username) logs_with_missing_username
+```
+
+See also:
+
+- [`count`](#count-stats)
+- [`count_uniq`](#count_uniq-stats)
+
+### count_uniq stats
+
+`count_uniq(field1, ..., fieldN)` [stats pipe](#stats-pipe) calculates the number of unique non-empty `(field1, ..., fieldN)` tuples.
+
+For example, the following query returns the number of unique non-empty values for `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+over the last 5 minutes:
+
+```logsql
+_time:5m | stats count_uniq(ip) ips
+```
+
+The following query returns the number of unique `(host, path)` pairs for the corresponding [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+over the last 5 minutes:
+
+```logsql
+_time:5m | stats count_uniq(host, path) unique_host_path_pairs
+```
+
+See also:
+
+- [`uniq_values`](#uniq_values-stats)
+- [`count`](#count-stats)
 
 ### max stats
 
@@ -1455,29 +1478,6 @@ See also:
 - [`max`](#max-stats)
 - [`min`](#min-stats)
 
-### uniq_count stats
-
-`uniq_count(field1, ..., fieldN)` [stats pipe](#stats-pipe) calculates the number of unique non-empty `(field1, ..., fieldN)` tuples.
-
-For example, the following query returns the number of unique non-empty values for `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-over the last 5 minutes:
-
-```logsql
-_time:5m | stats uniq_count(ip) ips
-```
-
-The following query returns the number of unique `(host, path)` pairs for the corresponding [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-over the last 5 minutes:
-
-```logsql
-_time:5m | stats uniq_count(host, path) unique_host_path_pairs
-```
-
-See also:
-
-- [`uniq_values`](#uniq_values-stats)
-- [`count`](#count-stats)
-
 ### uniq_values stats
 
 `uniq_values(field1, ..., fieldN)` [stats pipe](#stats-pipe) returns the unique non-empty values across
@@ -1493,7 +1493,7 @@ _time:5m | stats uniq_values(ip) unique_ips
 
 See also:
 
-- [`uniq_count`](#uniq_count-stats)
+- [`count_uniq`](#count_uniq-stats)
 - [`count`](#count-stats)
 
 ## Stream context

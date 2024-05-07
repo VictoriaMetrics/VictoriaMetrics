@@ -9,21 +9,21 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
 
-type statsUniqCount struct {
+type statsCountUniq struct {
 	fields       []string
 	containsStar bool
 }
 
-func (su *statsUniqCount) String() string {
-	return "uniq_count(" + fieldNamesString(su.fields) + ")"
+func (su *statsCountUniq) String() string {
+	return "count_uniq(" + fieldNamesString(su.fields) + ")"
 }
 
-func (su *statsUniqCount) neededFields() []string {
+func (su *statsCountUniq) neededFields() []string {
 	return su.fields
 }
 
-func (su *statsUniqCount) newStatsProcessor() (statsProcessor, int) {
-	sup := &statsUniqCountProcessor{
+func (su *statsCountUniq) newStatsProcessor() (statsProcessor, int) {
+	sup := &statsCountUniqProcessor{
 		su: su,
 
 		m: make(map[string]struct{}),
@@ -31,8 +31,8 @@ func (su *statsUniqCount) newStatsProcessor() (statsProcessor, int) {
 	return sup, int(unsafe.Sizeof(*sup))
 }
 
-type statsUniqCountProcessor struct {
-	su *statsUniqCount
+type statsCountUniqProcessor struct {
+	su *statsCountUniq
 
 	m map[string]struct{}
 
@@ -40,7 +40,7 @@ type statsUniqCountProcessor struct {
 	keyBuf       []byte
 }
 
-func (sup *statsUniqCountProcessor) updateStatsForAllRows(br *blockResult) int {
+func (sup *statsCountUniqProcessor) updateStatsForAllRows(br *blockResult) int {
 	fields := sup.su.fields
 	m := sup.m
 
@@ -215,7 +215,7 @@ func (sup *statsUniqCountProcessor) updateStatsForAllRows(br *blockResult) int {
 	return stateSizeIncrease
 }
 
-func (sup *statsUniqCountProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
+func (sup *statsCountUniqProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
 	fields := sup.su.fields
 	m := sup.m
 
@@ -339,8 +339,8 @@ func (sup *statsUniqCountProcessor) updateStatsForRow(br *blockResult, rowIdx in
 	return stateSizeIncrease
 }
 
-func (sup *statsUniqCountProcessor) mergeState(sfp statsProcessor) {
-	src := sfp.(*statsUniqCountProcessor)
+func (sup *statsCountUniqProcessor) mergeState(sfp statsProcessor) {
+	src := sfp.(*statsCountUniqProcessor)
 	m := sup.m
 	for k := range src.m {
 		if _, ok := m[k]; !ok {
@@ -349,17 +349,17 @@ func (sup *statsUniqCountProcessor) mergeState(sfp statsProcessor) {
 	}
 }
 
-func (sup *statsUniqCountProcessor) finalizeStats() string {
+func (sup *statsCountUniqProcessor) finalizeStats() string {
 	n := uint64(len(sup.m))
 	return strconv.FormatUint(n, 10)
 }
 
-func parseStatsUniqCount(lex *lexer) (*statsUniqCount, error) {
-	fields, err := parseFieldNamesForStatsFunc(lex, "uniq_count")
+func parseStatsCountUniq(lex *lexer) (*statsCountUniq, error) {
+	fields, err := parseFieldNamesForStatsFunc(lex, "count_uniq")
 	if err != nil {
 		return nil, err
 	}
-	su := &statsUniqCount{
+	su := &statsCountUniq{
 		fields:       fields,
 		containsStar: slices.Contains(fields, "*"),
 	}

@@ -904,12 +904,12 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats avg(*) x`, `* | stats avg(*) as x`)
 	f(`* | stats avg(foo,*,bar) x`, `* | stats avg(*) as x`)
 
-	// stats pipe uniq_count
-	f(`* | stats uniq_count(foo) bar`, `* | stats uniq_count(foo) as bar`)
-	f(`* | stats by(x, y) uniq_count(foo,bar) as baz`, `* | stats by (x, y) uniq_count(foo, bar) as baz`)
-	f(`* | stats by(x) uniq_count(*) z`, `* | stats by (x) uniq_count(*) as z`)
-	f(`* | stats by(x) uniq_count() z`, `* | stats by (x) uniq_count(*) as z`)
-	f(`* | stats by(x) uniq_count(a,*,b) z`, `* | stats by (x) uniq_count(*) as z`)
+	// stats pipe count_uniq
+	f(`* | stats count_uniq(foo) bar`, `* | stats count_uniq(foo) as bar`)
+	f(`* | stats by(x, y) count_uniq(foo,bar) as baz`, `* | stats by (x, y) count_uniq(foo, bar) as baz`)
+	f(`* | stats by(x) count_uniq(*) z`, `* | stats by (x) count_uniq(*) as z`)
+	f(`* | stats by(x) count_uniq() z`, `* | stats by (x) count_uniq(*) as z`)
+	f(`* | stats by(x) count_uniq(a,*,b) z`, `* | stats by (x) count_uniq(*) as z`)
 
 	// stats pipe uniq_values
 	f(`* | stats uniq_values(foo) bar`, `* | stats uniq_values(foo) as bar`)
@@ -919,8 +919,8 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats by(x) uniq_values(a,*,b) y`, `* | stats by (x) uniq_values(*) as y`)
 
 	// stats pipe multiple funcs
-	f(`* | stats count() "foo.bar:baz", uniq_count(a) bar`, `* | stats count(*) as "foo.bar:baz", uniq_count(a) as bar`)
-	f(`* | stats by (x, y) count(*) foo, uniq_count(a,b) bar`, `* | stats by (x, y) count(*) as foo, uniq_count(a, b) as bar`)
+	f(`* | stats count() "foo.bar:baz", count_uniq(a) bar`, `* | stats count(*) as "foo.bar:baz", count_uniq(a) as bar`)
+	f(`* | stats by (x, y) count(*) foo, count_uniq(a,b) bar`, `* | stats by (x, y) count(*) as foo, count_uniq(a, b) as bar`)
 
 	// stats pipe with grouping buckets
 	f(`* | stats by(_time:1d, response_size:1_000KiB, request_duration:5s, foo) count() as foo`, `* | stats by (_time:1d, response_size:1_000KiB, request_duration:5s, foo) count(*) as foo`)
@@ -1224,9 +1224,9 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | stats avg`)
 	f(`foo | stats avg()`)
 
-	// invalid stats uniq_count
-	f(`foo | stats uniq_count`)
-	f(`foo | stats uniq_count()`)
+	// invalid stats count_uniq
+	f(`foo | stats count_uniq`)
+	f(`foo | stats count_uniq()`)
 
 	// invalid stats uniq_values
 	f(`foo | stats uniq_values`)
