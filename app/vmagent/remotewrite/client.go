@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -20,7 +22,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -391,6 +392,9 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 // The function returns false only if c.stopCh is closed.
 // Otherwise it tries sending the block to remote storage indefinitely.
 func (c *client) sendBlockHTTP(block []byte) bool {
+	if len(block) == 0 {
+		return true
+	}
 	c.rl.Register(len(block))
 	maxRetryDuration := timeutil.AddJitterToDuration(time.Minute)
 	retryDuration := timeutil.AddJitterToDuration(time.Second)
