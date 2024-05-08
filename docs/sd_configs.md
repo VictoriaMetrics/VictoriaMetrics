@@ -35,6 +35,7 @@ supports the following Prometheus-compatible service discovery options for Prome
 * `nomad_sd_configs` is for discovering and scraping targets registered in [HashiCorp Nomad](https://www.nomadproject.io/). See [these docs](#nomad_sd_configs).
 * `openstack_sd_configs` is for discovering and scraping OpenStack targets. See [these docs](#openstack_sd_configs).
 * `static_configs` is for scraping statically defined targets. See [these docs](#static_configs).
+* `vultr_sd_configs` is for discovering and scraping [Vultr](https://www.vultr.com/) targets. See [these docs](#vultr_sd_configs).
 * `yandexcloud_sd_configs` is for discovering and scraping [Yandex Cloud](https://cloud.yandex.com/en/) targets. See [these docs](#yandexcloud_sd_configs).
 
 Note that the `refresh_interval` option isn't supported for these scrape configs. Use the corresponding `-promscrape.*CheckInterval`
@@ -1497,6 +1498,79 @@ scrape_configs:
 ```
 
 See [these examples](https://docs.victoriametrics.com/scrape_config_examples/#static-configs) on how to configure scraping for static targets.
+
+## vultr_sd_configs
+Vultr SD configuration discovers scrape targets from [Vultr](https://www.vultr.com/) Instances.
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: vultr
+  vultr_sd_configs:
+
+    # bearer_token is a Bearer token to send in every HTTP API request during service discovery (mandatory).
+    # See: https://my.vultr.com/settings/#settingsapi
+  - bearer_token: "..."
+
+    # Vultr provides query arguments to filter instances.
+    # See: https://www.vultr.com/api/#tag/instances
+
+    # label is an optional query arguments to filter instances by label.
+    #
+    # label: "..."
+
+    # main_ip is an optional query arguments to filter instances by main ip address.
+    #
+    # main_ip: "..."
+
+    # region is an optional query arguments to filter instances by region id.
+    #
+    # region: "..."
+
+    # firewall_group_id is an optional query arguments to filter instances by firewall group id.
+    #
+    # firewall_group_id: "..."
+
+    # hostname is an optional query arguments to filter instances by hostname.
+    #
+    # hostname: "..."
+
+    # port is an optional port to scrape metrics from.
+    # By default, port 80 is used.
+    #
+    # port: ...
+
+    # Additional HTTP API client options can be specified here.
+    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+
+
+```
+
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+to `<FQDN>:<port>`, where FQDN is discovered instance address and `<port>` is the port from the `vultr_sd_configs` (default port is `80`).
+
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+
+* `__meta_vultr_instance_id`: A unique ID for the VPS Instance.
+* `__meta_vultr_instance_label`: The user-supplied label for this instance.
+* `__meta_vultr_instance_os`: The [Operating System name](https://www.vultr.com/api/#operation/list-os).
+* `__meta_vultr_instance_os_id`: The [Operating System id](https://www.vultr.com/api/#operation/list-os) used by this instance.
+* `__meta_vultr_instance_region`: The [Region id](https://www.vultr.com/api/#operation/list-regions) where the Instance is located.
+* `__meta_vultr_instance_plan`: A unique ID for the Plan.
+* `__meta_vultr_instance_main_ip`: The main IPv4 address.
+* `__meta_vultr_instance_internal_ip`: The internal IP used by this instance, if set. Only relevant when a VPC is attached.
+* `__meta_vultr_instance_main_ipv6`: The main IPv6 network address.
+* `__meta_vultr_instance_hostname`: The hostname for this instance.
+* `__meta_vultr_instance_server_status`: The server health status, which could be `none`, `locked`, `installingbooting`, `ok`.
+* `__meta_vultr_instance_vcpu_count`: Number of vCPUs.
+* `__meta_vultr_instance_ram_mb`: The amount of RAM in MB.
+* `__meta_vultr_instance_allowed_bandwidth_gb`: Monthly bandwidth quota in GB.
+* `__meta_vultr_instance_disk_gb`: The size of the disk in GB.
+* `__meta_vultr_instance_features`: "auto_backups", "ipv6", "ddos_protection".
+* `__meta_vultr_instance_tags`: Tags to apply to the instance.
+
+The list of discovered Vultr targets is refreshed at the interval, which can be configured via `-promscrape.vultrSDCheckInterval` command-line flag, default: 30s.
 
 ## yandexcloud_sd_configs
 
