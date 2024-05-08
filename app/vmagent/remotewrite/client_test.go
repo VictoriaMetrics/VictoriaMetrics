@@ -39,11 +39,11 @@ func newTestRemoteWriteServer() *httptest.Server {
 	mux.HandleFunc("/api/v1/write", func(w http.ResponseWriter, r *http.Request) {
 		_, err := decodeWriteRequest(r.Body)
 		if err != nil {
-			badRequestsCount += 1
+			badRequestsCount++
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		normalRequestsCount += 1
+		normalRequestsCount++
 		w.WriteHeader(http.StatusNoContent)
 	})
 	return httptest.NewServer(mux)
