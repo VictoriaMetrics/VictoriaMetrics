@@ -518,8 +518,8 @@ foo:1m_total 0
 `, `
 foo 123
 bar{baz="qwe"} 4.34
-`, `bar:1m_total{baz="qwe"} 0
-foo:1m_total 0
+`, `bar:1m_total_prometheus{baz="qwe"} 0
+foo:1m_total_prometheus 0
 `, "11")
 
 	// total output for repeated series
@@ -554,10 +554,10 @@ foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
-`, `bar:1m_total{baz="qwe"} 5.02
-bar:1m_total{baz="qwer"} 1
-foo:1m_total 0
-foo:1m_total{baz="qwe"} 15
+`, `bar:1m_total_prometheus{baz="qwe"} 5.02
+bar:1m_total_prometheus{baz="qwer"} 1
+foo:1m_total_prometheus 0
+foo:1m_total_prometheus{baz="qwe"} 15
 `, "11111111")
 
 	// total output for repeated series with group by __name__
@@ -592,8 +592,8 @@ foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
-`, `bar:1m_total 6.02
-foo:1m_total 15
+`, `bar:1m_total_prometheus 6.02
+foo:1m_total_prometheus 15
 `, "11111111")
 
 	// increase output for non-repeated series
@@ -614,8 +614,8 @@ foo:1m_increase 0
 `, `
 foo 123
 bar{baz="qwe"} 4.34
-`, `bar:1m_increase{baz="qwe"} 0
-foo:1m_increase 0
+`, `bar:1m_increase_prometheus{baz="qwe"} 0
+foo:1m_increase_prometheus 0
 `, "11")
 
 	// increase output for repeated series
@@ -650,10 +650,10 @@ foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
-`, `bar:1m_increase{baz="qwe"} 5.02
-bar:1m_increase{baz="qwer"} 1
-foo:1m_increase 0
-foo:1m_increase{baz="qwe"} 15
+`, `bar:1m_increase_prometheus{baz="qwe"} 5.02
+bar:1m_increase_prometheus{baz="qwer"} 1
+foo:1m_increase_prometheus 0
+foo:1m_increase_prometheus{baz="qwe"} 15
 `, "11111111")
 
 	// multiple aggregate configs
