@@ -1982,6 +1982,8 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
      Whether to suppress scrape errors logging. The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed. See also -promscrape.suppressScrapeErrorsDelay
   -promscrape.suppressScrapeErrorsDelay duration
      The delay for suppressing repeated scrape errors logging per each scrape targets. This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors
+  -promscrape.vultrSDCheckInterval duration
+     Interval for checking for changes in Vultr. This works only if vultr_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#vultr_sd_configs for details  (default 30s)
   -promscrape.yandexcloudSDCheckInterval duration
      Interval for checking for changes in Yandex Cloud API. This works only if yandexcloud_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#yandexcloud_sd_configs for details (default 30s)
   -pushmetrics.disableCompression
