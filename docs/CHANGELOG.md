@@ -42,6 +42,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): optimize auto-suggestion performance for metric names when the database contains big number of unique time series.
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): in the Select component, user-entered values are now preserved on blur if they match options in the list.
 
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): removed unused resetState args from aggregators outputs.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): supported any status codes from the range 200-299 from alertmanager. Previously, only 200 status code considered a successful action. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6110).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): avoid blocking `/api/v1/rules`, `/api/v1/alerts`, `/metrics` APIs when alerting rule uses template functions `query`, which could takes a while to execute. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6079).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix links with anchors in vmalert's UI. Starting from [v1.99.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.99.0) vmalert could ignore anchors pointing to specific rule groups if `search` param was present in URL.
