@@ -36,6 +36,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kuma"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/nomad"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/openstack"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/vultr"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/yandexcloud"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
@@ -308,6 +309,7 @@ type ScrapeConfig struct {
 	NomadSDConfigs        []nomad.SDConfig        `yaml:"nomad_sd_configs,omitempty"`
 	OpenStackSDConfigs    []openstack.SDConfig    `yaml:"openstack_sd_configs,omitempty"`
 	StaticConfigs         []StaticConfig          `yaml:"static_configs,omitempty"`
+	VultrConfigs          []vultr.SDConfig        `yaml:"vultr_configs,omitempty"`
 	YandexCloudSDConfigs  []yandexcloud.SDConfig  `yaml:"yandexcloud_sd_configs,omitempty"`
 
 	// These options are supported only by lib/promscrape.
@@ -387,6 +389,9 @@ func (sc *ScrapeConfig) mustStop() {
 	}
 	for i := range sc.OpenStackSDConfigs {
 		sc.OpenStackSDConfigs[i].MustStop()
+	}
+	for i := range sc.VultrConfigs {
+		sc.VultrConfigs[i].MustStop()
 	}
 }
 
@@ -743,6 +748,16 @@ func (cfg *Config) getOpenStackSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		}
 	}
 	return cfg.getScrapeWorkGeneric(visitConfigs, "openstack_sd_config", prev)
+}
+
+// getVultrSDScrapeWork returns `vultr_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getVultrSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.VultrConfigs {
+			visitor(&sc.VultrConfigs[i])
+		}
+	}
+	return cfg.getScrapeWorkGeneric(visitConfigs, "vultr_sd_config", prev)
 }
 
 // getYandexCloudSDScrapeWork returns `yandexcloud_sd_configs` ScrapeWork from cfg.

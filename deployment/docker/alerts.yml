@@ -43,7 +43,7 @@ groups:
           dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=53&var-instance={{ $labels.instance }}"
           summary: "Instance {{ $labels.instance }} (job={{ $labels.job }}) will run out of disk space soon"
           description: "Disk utilisation on instance {{ $labels.instance }} is more than 80%.\n
-            Having less than 20% of free disk space could cripple merges processes and overall performance.
+            Having less than 20% of free disk space could cripple merge processes and overall performance.
             Consider to limit the ingestion rate, decrease retention or scale the disk space if possible."
 
       - alert: RequestErrorsToAPI
@@ -129,5 +129,5 @@ groups:
           dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=74&var-instance={{ $labels.instance }}"
           summary: "Metrics ingested in ({{ $labels.instance }}) are exceeding labels limit"
           description: "VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.\n
-           This prevents from ingesting metrics with too many labels. Please verify that `-maxLabelsPerTimeseries` is configured
+           This prevents ingestion of metrics with too many labels. Please verify that `-maxLabelsPerTimeseries` is configured
            correctly or that clients which send these metrics aren't misbehaving."

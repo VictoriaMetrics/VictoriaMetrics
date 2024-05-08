@@ -670,6 +670,7 @@ type writeRequestCtx struct {
 	writeRequest prompbmarshal.WriteRequest
 	labels       []prompbmarshal.Label
 	samples      []prompbmarshal.Sample
+	exemplars    []prompbmarshal.Exemplar
 }
 
 func (wc *writeRequestCtx) reset() {
@@ -684,6 +685,7 @@ func (wc *writeRequestCtx) resetNoRows() {
 	wc.labels = wc.labels[:0]
 
 	wc.samples = wc.samples[:0]
+	wc.exemplars = wc.exemplars[:0]
 }
 
 var writeRequestCtxPool leveledWriteRequestCtxPool
@@ -902,10 +904,27 @@ func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, tim
 		Value:     r.Value,
 		Timestamp: sampleTimestamp,
 	})
+	// Add Exemplars to Timeseries
+	exemplarsLen := len(wc.exemplars)
+	exemplarTagsLen := len(r.Exemplar.Tags)
+	if exemplarTagsLen > 0 {
+		exemplarLabels := make([]prompbmarshal.Label, exemplarTagsLen)
+		for i, label := range r.Exemplar.Tags {
+			exemplarLabels[i].Name = label.Key
+			exemplarLabels[i].Value = label.Value
+		}
+		wc.exemplars = append(wc.exemplars, prompbmarshal.Exemplar{
+			Labels:    exemplarLabels,
+			Value:     r.Exemplar.Value,
+			Timestamp: r.Exemplar.Timestamp,
+		})
+
+	}
 	wr := &wc.writeRequest
 	wr.Timeseries = append(wr.Timeseries, prompbmarshal.TimeSeries{
-		Labels:  wc.labels[labelsLen:],
-		Samples: wc.samples[len(wc.samples)-1:],
+		Labels:    wc.labels[labelsLen:],
+		Samples:   wc.samples[len(wc.samples)-1:],
+		Exemplars: wc.exemplars[exemplarsLen:],
 	})
 }
 

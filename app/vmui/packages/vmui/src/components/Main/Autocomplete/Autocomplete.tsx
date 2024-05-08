@@ -120,7 +120,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     const { key, ctrlKey, metaKey, shiftKey } = e;
     const modifiers = ctrlKey || metaKey || shiftKey;
-    const hasOptions = foundOptions.length;
+    const hasOptions = foundOptions.length && !hideFoundedOptions;
 
     if (key === "ArrowUp" && !modifiers && hasOptions) {
       e.preventDefault();
@@ -148,7 +148,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
     if (key === "Escape") {
       handleCloseAutocomplete();
     }
-  }, [focusOption, foundOptions, handleCloseAutocomplete, onSelect, selected]);
+  }, [focusOption, foundOptions, hideFoundedOptions, handleCloseAutocomplete, onSelect, selected]);
 
   useEffect(() => {
     setOpenAutocomplete(value.length >= minLength);

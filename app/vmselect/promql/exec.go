@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/querystats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
@@ -26,6 +27,12 @@ var (
 		`For example, foo{bar=~"a.b.c"} will be automatically converted to foo{bar=~"a\\.b\\.c"}, i.e. all the dots in regexp filters will be automatically escaped `+
 		`in order to match only dot char instead of matching any char. Dots in ".+", ".*" and ".{n}" regexps aren't escaped. `+
 		`This option is DEPRECATED in favor of {__graphite__="a.*.c"} syntax for selecting metrics matching the given Graphite metrics filter`)
+	disableImplicitConversion = flag.Bool("search.disableImplicitConversion", false, "Whether to return an error for queries that rely on implicit subquery conversions, "+
+		"see https://docs.victoriametrics.com/metricsql/#subqueries for details. "+
+		"See also -search.logImplicitConversion.")
+	logImplicitConversion = flag.Bool("search.logImplicitConversion", false, "Whether to log queries with implicit subquery conversions, "+
+		"see https://docs.victoriametrics.com/metricsql/#subqueries for details. "+
+		"Such conversion can be disabled using -search.disableImplicitConversion.")
 )
 
 // UserReadableError is a type of error which supposed to be returned to the user without additional context.
@@ -61,6 +68,16 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 	e, err := parsePromQLWithCache(q)
 	if err != nil {
 		return nil, err
+	}
+
+	if *disableImplicitConversion || *logImplicitConversion {
+		complete := isSubQueryComplete(e, false)
+		if !complete && *disableImplicitConversion {
+			return nil, fmt.Errorf("query contains subquery that requires implicit conversion and is rejected according to `-search.disableImplicitConversion=true` setting. See https://docs.victoriametrics.com/metricsql/#subqueries for details")
+		}
+		if !complete && *logImplicitConversion {
+			logger.Warnf("query=%q contains subquery that requires implicit conversion, see https://docs.victoriametrics.com/metricsql/#subqueries for details", e.AppendString(nil))
+		}
 	}
 
 	qid := activeQueriesV.Add(ec, q)
@@ -403,4 +420,56 @@ func (pc *parseCache) Put(q string, pcv *parseCacheValue) {
 	}
 	pc.m[q] = pcv
 	pc.mu.Unlock()
+}
+
+// isSubQueryComplete checks if expr contains incomplete subquery
+func isSubQueryComplete(e metricsql.Expr, isSubExpr bool) bool {
+	switch exp := e.(type) {
+	case *metricsql.FuncExpr:
+		if isSubExpr {
+			return false
+		}
+		fe := e.(*metricsql.FuncExpr)
+		for _, arg := range exp.Args {
+			if getRollupFunc(fe.Name) != nil {
+				isSubExpr = true
+			}
+			if !isSubQueryComplete(arg, isSubExpr) {
+				return false
+			}
+		}
+	case *metricsql.RollupExpr:
+		if _, ok := exp.Expr.(*metricsql.MetricExpr); ok {
+			return true
+		}
+		// exp.Step is optional in subqueries
+		if exp.Window == nil {
+			return false
+		}
+		return isSubQueryComplete(exp.Expr, false)
+	case *metricsql.AggrFuncExpr:
+		if isSubExpr {
+			return false
+		}
+		for _, arg := range exp.Args {
+			if !isSubQueryComplete(arg, false) {
+				return false
+			}
+		}
+	case *metricsql.BinaryOpExpr:
+		if isSubExpr {
+			return false
+		}
+		if !isSubQueryComplete(exp.Left, false) {
+			return false
+		}
+		if !isSubQueryComplete(exp.Right, false) {
+			return false
+		}
+	case *metricsql.MetricExpr:
+		return true
+	default:
+		return true
+	}
+	return true
 }

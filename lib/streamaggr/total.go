@@ -53,6 +53,9 @@ func newTotalAggrState(stalenessInterval time.Duration, resetTotalOnFlush, keepF
 	if resetTotalOnFlush {
 		suffix = "increase"
 	}
+	if !keepFirstSample {
+		suffix += "_prometheus"
+	}
 	return &totalAggrState{
 		suffix:                    suffix,
 		resetTotalOnFlush:         resetTotalOnFlush,

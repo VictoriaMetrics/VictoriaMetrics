@@ -259,6 +259,9 @@ func dropDanglingQueues() {
 	// This is required for the case when the number of queues has been changed or URL have been changed.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4014
 	//
+	// In case if there were many persistent queues with identical *remoteWriteURLs
+	// the queue with the last index will be dropped.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6140
 	existingQueues := make(map[string]struct{}, len(rwctxsDefault))
 	for _, rwctx := range rwctxsDefault {
 		existingQueues[rwctx.fq.Dirname()] = struct{}{}
@@ -907,6 +910,10 @@ func (rwctx *remoteWriteCtx) MustStop() {
 	rwctx.rowsDroppedByRelabel = nil
 }
 
+// TryPush sends tss series to the configured remote write endpoint
+//
+// TryPush can be called concurrently for multiple remoteWriteCtx,
+// so it shouldn't modify tss entries.
 func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries) bool {
 	// Apply relabeling
 	var rctx *relabelCtx
@@ -946,7 +953,6 @@ func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries) bool {
 		matchIdxsPool.Put(matchIdxs)
 	} else if rwctx.deduplicator != nil {
 		rwctx.deduplicator.Push(tss)
-		clear(tss)
 		tss = tss[:0]
 	}
 

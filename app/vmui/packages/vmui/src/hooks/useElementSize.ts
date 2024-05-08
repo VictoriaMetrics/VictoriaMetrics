@@ -1,5 +1,4 @@
-import { useCallback, useState } from "react";
-import useIsomorphicLayoutEffect from "./useIsomorphicLayoutEffect";
+import { useCallback, useEffect, useState } from "react";
 import useEventListener from "./useEventListener";
 
 export interface ElementSize {
@@ -28,7 +27,7 @@ const useElementSize = <T extends HTMLElement = HTMLDivElement>(): [(node: T | n
 
   useEventListener("resize", handleSize);
 
-  useIsomorphicLayoutEffect(handleSize, [ref?.offsetHeight, ref?.offsetWidth]);
+  useEffect(handleSize, [ref?.offsetHeight, ref?.offsetWidth]);
 
   return [setRef, size];
 };

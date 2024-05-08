@@ -925,6 +925,7 @@ VMAgentSpec defines the desired state of VMAgent
 | useStrictSecurity | UseStrictSecurity enables strict security mode for component it restricts disk writes access uses non-root user out of the box drops not needed security permissions | *bool | false |
 | ingestOnlyMode | IngestOnlyMode switches vmagent into unmanaged mode it disables any config generation for scraping Currently it prevents vmagent from managing tls and auth options for remote write | bool | false |
 | license | License allows to configure license key to be used for enterprise features. Using license key is supported starting from VictoriaMetrics v1.94.0. See: https://docs.victoriametrics.com/enterprise.html | *[License](#license) | false |
+| paused | Paused If set to true all actions on the underlaying managed objects are not going to be performed, except for delete actions. | bool | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -1132,11 +1133,16 @@ StreamAggrRule defines the rule in stream aggregation config
 | ----- | ----------- | ------ | -------- |
 | match | Match is a label selector (or list of label selectors) for filtering time series for the given selector.\n\nIf the match isn&#39;t set, then all the input time series are processed. | StringOrArray | false |
 | interval | Interval is the interval between aggregations. | string | true |
-| staleness_interval | StalenessInterval defines an interval after which the series state will be reset if no samples have been sent during it. | string | false |
+| no_align_flush_to_interval | NoAlighFlushToInterval disables aligning of flushes to multiples of Interval. By default flushes are aligned to Interval. | *bool | false |
 | flush_on_shutdown | FlushOnShutdown defines whether to flush the aggregation state on process termination or config reload. Is `false` by default. It is not recommended changing this setting, unless unfinished aggregations states are preferred to missing data points. | bool | false |
+| dedup_interval | DedupInterval is an optional interval for deduplication. | string | false |
+| staleness_interval | Staleness interval is interval after which the series state will be reset if no samples have been sent during it. The parameter is only relevant for outputs: total, total_prometheus, increase, increase_prometheus and histogram_bucket. | string | false |
 | outputs | Outputs is a list of output aggregate functions to produce.\n\nThe following names are allowed:\n\n- total - aggregates input counters - increase - counts the increase over input counters - count_series - counts the input series - count_samples - counts the input samples - sum_samples - sums the input samples - last - the last biggest sample value - min - the minimum sample value - max - the maximum sample value - avg - the average value across all the samples - stddev - standard deviation across all the samples - stdvar - standard variance across all the samples - histogram_bucket - creates VictoriaMetrics histogram for input samples - quantiles(phi1, ..., phiN) - quantiles&#39; estimation for phi in the range [0..1]\n\nThe output time series will have the following names:\n\n  input_name:aggr_&lt;interval&gt;_&lt;output&gt; | []string | true |
+| keep_metric_names | KeepMetricNames instructs to leave metric names as is for the output time series without adding any suffix. | *bool | false |
+| ignore_old_samples | IgnoreOldSamples instructs to ignore samples with old timestamps outside the current aggregation interval. | *bool | false |
 | by | By is an optional list of labels for grouping input series.\n\nSee also Without.\n\nIf neither By nor Without are set, then the Outputs are calculated individually per each input time series. | []string | false |
 | without | Without is an optional list of labels, which must be excluded when grouping input series.\n\nSee also By.\n\nIf neither By nor Without are set, then the Outputs are calculated individually per each input time series. | []string | false |
+| drop_input_labels | DropInputLabels is an optional list with labels, which must be dropped before further processing of input samples.\n\nLabels are dropped before de-duplication and aggregation. | *[]string | false |
 | input_relabel_configs | InputRelabelConfigs is an optional relabeling rules, which are applied on the input before aggregation. | [][RelabelConfig](#relabelconfig) | false |
 | output_relabel_configs | OutputRelabelConfigs is an optional relabeling rules, which are applied on the aggregated output before being sent to remote storage. | [][RelabelConfig](#relabelconfig) | false |
 
@@ -1297,6 +1303,7 @@ VMAlertSpec defines the desired state of VMAlert
 | readinessGates | ReadinessGates defines pod readiness gates | []v1.PodReadinessGate | false |
 | useStrictSecurity | UseStrictSecurity enables strict security mode for component it restricts disk writes access uses non-root user out of the box drops not needed security permissions | *bool | false |
 | license | License allows to configure license key to be used for enterprise features. Using license key is supported starting from VictoriaMetrics v1.94.0. See: https://docs.victoriametrics.com/enterprise.html | *[License](#license) | false |
+| paused | Paused If set to true all actions on the underlaying managed objects are not going to be performed, except for delete actions. | bool | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -1391,6 +1398,7 @@ VMSingleSpec defines the desired state of VMSingle
 | readinessGates | ReadinessGates defines pod readiness gates | []v1.PodReadinessGate | false |
 | streamAggrConfig | StreamAggrConfig defines stream aggregation configuration for VMSingle | *[StreamAggrConfig](#streamaggrconfig) | false |
 | useStrictSecurity | UseStrictSecurity enables strict security mode for component it restricts disk writes access uses non-root user out of the box drops not needed security permissions | *bool | false |
+| paused | Paused If set to true all actions on the underlaying managed objects are not going to be performed, except for delete actions. | bool | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -1877,6 +1885,7 @@ VMClusterSpec defines the desired state of VMCluster
 | vmselect |  | *[VMSelect](#vmselect) | false |
 | vminsert |  | *[VMInsert](#vminsert) | false |
 | vmstorage |  | *[VMStorage](#vmstorage) | false |
+| paused | Paused If set to true all actions on the underlaying managed objects are not going to be performed, except for delete actions. | bool | false |
 | useStrictSecurity | UseStrictSecurity enables strict security mode for component it restricts disk writes access uses non-root user out of the box drops not needed security permissions | *bool | false |
 
 [Back to TOC](#table-of-contents)
@@ -2338,6 +2347,7 @@ VMAuthSpec defines the desired state of VMAuth
 | useStrictSecurity | UseStrictSecurity enables strict security mode for component it restricts disk writes access uses non-root user out of the box drops not needed security permissions | *bool | false |
 | license | License allows to configure license key to be used for enterprise features. Using license key is supported starting from VictoriaMetrics v1.94.0. See: https://docs.victoriametrics.com/enterprise.html | *[License](#license) | false |
 | configSecret | ConfigSecret is the name of a Kubernetes Secret in the same namespace as the VMAuth object, which contains auth configuration for vmauth, configuration must be inside secret key: config.yaml. It must be created and managed manually. If it&#39;s defined, configuration for vmauth becomes unmanaged and operator&#39;ll not create any related secrets/config-reloaders | string | false |
+| paused | Paused If set to true all actions on the underlaying managed objects are not going to be performed, except for delete actions. | bool | false |
 
 [Back to TOC](#table-of-contents)
 
