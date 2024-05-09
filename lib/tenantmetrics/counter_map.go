@@ -34,6 +34,11 @@ func NewCounterMap(metric string) *CounterMap {
 
 // Get returns counter for the given at
 func (cm *CounterMap) Get(at *auth.Token) *metrics.Counter {
+	if at == nil {
+		// todo: fix properly
+		return cm.GetByTenant(TenantID{})
+	}
+
 	key := TenantID{
 		AccountID: at.AccountID,
 		ProjectID: at.ProjectID,

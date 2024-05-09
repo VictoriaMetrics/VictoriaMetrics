@@ -18,6 +18,7 @@ import (
 //
 // If at is nil, then all the active queries across all the tenants are written.
 func ActiveQueriesHandler(at *auth.Token, w http.ResponseWriter, _ *http.Request) {
+	// handle multi-tenant queries?
 	aqes := activeQueriesV.GetAll()
 	if at != nil {
 		// Filter out queries, which do not belong to at.
@@ -42,8 +43,8 @@ func writeActiveQueries(w http.ResponseWriter, aqes []activeQueryEntry) {
 	fmt.Fprintf(w, `{"status":"ok","data":[`)
 	for i, aqe := range aqes {
 		d := now.Sub(aqe.startTime)
-		fmt.Fprintf(w, `{"duration":"%.3fs","id":"%016X","remote_addr":%s,"account_id":"%d","project_id":"%d","query":%s,"start":%d,"end":%d,"step":%d}`,
-			d.Seconds(), aqe.qid, aqe.quotedRemoteAddr, aqe.accountID, aqe.projectID, stringsutil.JSONString(aqe.q), aqe.start, aqe.end, aqe.step)
+		fmt.Fprintf(w, `{"duration":"%.3fs","id":"%016X","remote_addr":%s,"account_id":"%d","project_id":"%d","query":%s,"start":%d,"end":%d,"step":%d,"is_multitenant":%v}`,
+			d.Seconds(), aqe.qid, aqe.quotedRemoteAddr, aqe.accountID, aqe.projectID, stringsutil.JSONString(aqe.q), aqe.start, aqe.end, aqe.step, aqe.isMultitenant)
 		if i+1 < len(aqes) {
 			fmt.Fprintf(w, `,`)
 		}
@@ -68,6 +69,7 @@ type activeQueryEntry struct {
 	quotedRemoteAddr string
 	q                string
 	startTime        time.Time
+	isMultitenant    bool
 }
 
 func newActiveQueries() *activeQueries {
@@ -78,8 +80,12 @@ func newActiveQueries() *activeQueries {
 
 func (aq *activeQueries) Add(ec *EvalConfig, q string) uint64 {
 	var aqe activeQueryEntry
-	aqe.accountID = ec.AuthToken.AccountID
-	aqe.projectID = ec.AuthToken.ProjectID
+	if ec.AuthToken == nil {
+		aqe.isMultitenant = true
+	} else {
+		aqe.accountID = ec.AuthToken.AccountID
+		aqe.projectID = ec.AuthToken.ProjectID
+	}
 	aqe.start = ec.Start
 	aqe.end = ec.End
 	aqe.step = ec.Step
