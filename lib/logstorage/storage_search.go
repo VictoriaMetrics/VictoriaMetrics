@@ -19,10 +19,15 @@ type genericSearchOptions struct {
 	// filter is the filter to use for the search
 	filter filter
 
-	// neededColumnNames is names of columns to return in the result
+	// neededColumnNames contains names of columns to return in the result
 	neededColumnNames []string
 
-	// needAllColumns is set to true when all the columns must be returned in the result
+	// unneededColumnNames contains names of columns, which mustn't be returned in the result.
+	//
+	// This list is consulted if needAllColumns=true
+	unneededColumnNames []string
+
+	// needAllColumns is set to true when all the columns except of unneededColumnNames must be returned in the result
 	needAllColumns bool
 }
 
@@ -44,21 +49,27 @@ type searchOptions struct {
 	// filter is the filter to use for the search
 	filter filter
 
-	// neededColumnNames is names of columns to return in the result
+	// neededColumnNames contains names of columns to return in the result
 	neededColumnNames []string
 
-	// needAllColumns is set to true when all the columns must be returned in the result
+	// unneededColumnNames contains names of columns, which mustn't be returned in the result.
+	//
+	// This list is consulted when needAllColumns=true.
+	unneededColumnNames []string
+
+	// needAllColumns is set to true when all the columns except of unneededColumnNames must be returned in the result
 	needAllColumns bool
 }
 
 // RunQuery runs the given q and calls writeBlock for results.
 func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlock func(workerID uint, timestamps []int64, columns []BlockColumn)) error {
-	neededColumnNames := q.getNeededColumns()
+	neededColumnNames, unneededColumnNames := q.getNeededColumns()
 	so := &genericSearchOptions{
-		tenantIDs:         tenantIDs,
-		filter:            q.f,
-		neededColumnNames: neededColumnNames,
-		needAllColumns:    slices.Contains(neededColumnNames, "*"),
+		tenantIDs:           tenantIDs,
+		filter:              q.f,
+		neededColumnNames:   neededColumnNames,
+		unneededColumnNames: unneededColumnNames,
+		needAllColumns:      slices.Contains(neededColumnNames, "*"),
 	}
 
 	workersCount := cgroup.AvailableCPUs()
@@ -317,13 +328,14 @@ func (pt *partition) search(ft *filterTime, sf *StreamFilter, f filter, so *gene
 		f = initStreamFilters(tenantIDs, pt.idb, f)
 	}
 	soInternal := &searchOptions{
-		tenantIDs:         tenantIDs,
-		streamIDs:         streamIDs,
-		minTimestamp:      ft.minTimestamp,
-		maxTimestamp:      ft.maxTimestamp,
-		filter:            f,
-		neededColumnNames: so.neededColumnNames,
-		needAllColumns:    so.needAllColumns,
+		tenantIDs:           tenantIDs,
+		streamIDs:           streamIDs,
+		minTimestamp:        ft.minTimestamp,
+		maxTimestamp:        ft.maxTimestamp,
+		filter:              f,
+		neededColumnNames:   so.neededColumnNames,
+		unneededColumnNames: so.unneededColumnNames,
+		needAllColumns:      so.needAllColumns,
 	}
 	return pt.ddb.search(soInternal, workCh, stopCh)
 }

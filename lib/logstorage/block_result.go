@@ -166,24 +166,32 @@ func (br *blockResult) setResultColumns(rcs []resultColumn) {
 }
 
 func (br *blockResult) fetchAllColumns(bs *blockSearch, bm *bitmap) {
-	// Add _time column
-	br.addTimeColumn()
+	unneededColumnNames := bs.bsw.so.unneededColumnNames
 
-	// Add _stream column
-	if !br.addStreamColumn(bs) {
-		// Skip the current block, since the associated stream tags are missing.
-		br.reset()
-		return
+	if !slices.Contains(unneededColumnNames, "_time") {
+		// Add _time column
+		br.addTimeColumn()
 	}
 
-	// Add _msg column
-	v := bs.csh.getConstColumnValue("_msg")
-	if v != "" {
-		br.addConstColumn("_msg", v)
-	} else if ch := bs.csh.getColumnHeader("_msg"); ch != nil {
-		br.addColumn(bs, ch, bm)
-	} else {
-		br.addConstColumn("_msg", "")
+	if !slices.Contains(unneededColumnNames, "_stream") {
+		// Add _stream column
+		if !br.addStreamColumn(bs) {
+			// Skip the current block, since the associated stream tags are missing.
+			br.reset()
+			return
+		}
+	}
+
+	if !slices.Contains(unneededColumnNames, "_msg") {
+		// Add _msg column
+		v := bs.csh.getConstColumnValue("_msg")
+		if v != "" {
+			br.addConstColumn("_msg", v)
+		} else if ch := bs.csh.getColumnHeader("_msg"); ch != nil {
+			br.addColumn(bs, ch, bm)
+		} else {
+			br.addConstColumn("_msg", "")
+		}
 	}
 
 	// Add other const columns
@@ -191,7 +199,9 @@ func (br *blockResult) fetchAllColumns(bs *blockSearch, bm *bitmap) {
 		if isMsgFieldName(cc.Name) {
 			continue
 		}
-		br.addConstColumn(cc.Name, cc.Value)
+		if !slices.Contains(unneededColumnNames, cc.Name) {
+			br.addConstColumn(cc.Name, cc.Value)
+		}
 	}
 
 	// Add other non-const columns
@@ -201,7 +211,9 @@ func (br *blockResult) fetchAllColumns(bs *blockSearch, bm *bitmap) {
 		if isMsgFieldName(ch.name) {
 			continue
 		}
-		br.addColumn(bs, ch, bm)
+		if !slices.Contains(unneededColumnNames, ch.name) {
+			br.addColumn(bs, ch, bm)
+		}
 	}
 }
 

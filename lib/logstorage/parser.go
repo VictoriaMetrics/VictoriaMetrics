@@ -206,7 +206,7 @@ func (q *Query) String() string {
 	return s
 }
 
-func (q *Query) getNeededColumns() []string {
+func (q *Query) getNeededColumns() ([]string, []string) {
 	neededFields := newFieldsSet()
 	neededFields.add("*")
 	unneededFields := newFieldsSet()
@@ -216,7 +216,7 @@ func (q *Query) getNeededColumns() []string {
 		pipes[i].updateNeededFields(neededFields, unneededFields)
 	}
 
-	return neededFields.getAll()
+	return neededFields.getAll(), unneededFields.getAll()
 }
 
 // ParseQuery parses s.

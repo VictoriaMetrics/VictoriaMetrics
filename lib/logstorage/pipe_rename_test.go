@@ -32,11 +32,11 @@ func TestPipeRenameUpdateNeededFields(t *testing.T) {
 	f("rename s1 d1, s2 d2", "*", "s1,f1,f2", "*", "d1,d2,f1,f2")
 
 	// all the needed fields, unneeded fields intersect with dst
-	f("rename s1 d1, s2 d2", "*", "d2,f1,f2", "*", "d1,d2,f1,f2")
+	f("rename s1 d1, s2 d2", "*", "d2,f1,f2", "*", "d1,d2,f1,f2,s2")
 
 	// all the needed fields, unneeded fields intersect with src and dst
 	f("rename s1 d1, s2 d2", "*", "s1,d1,f1,f2", "*", "d1,d2,f1,f2,s1")
-	f("rename s1 d1, s2 d2", "*", "s1,d2,f1,f2", "*", "d1,d2,f1,f2")
+	f("rename s1 d1, s2 d2", "*", "s1,d2,f1,f2", "*", "d1,d2,f1,f2,s2")
 
 	// needed fields do not intersect with src and dst
 	f("rename s1 d1, s2 d2", "f1,f2", "", "f1,f2", "")
