@@ -3,6 +3,7 @@ package logstorage
 import (
 	"math"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -1252,4 +1253,107 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | sort by(baz`)
 	f(`foo | sort by(baz,`)
 	f(`foo | sort by(bar) foo`)
+}
+
+func TestQueryGetNeededColumns(t *testing.T) {
+	f := func(s, neededColumnsExpected string) {
+		t.Helper()
+
+		q, err := ParseQuery(s)
+		if err != nil {
+			t.Fatalf("cannot parse query %s: %s", s, err)
+		}
+
+		columns := q.getNeededColumns()
+		neededColumns := strings.Join(columns, ",")
+		if neededColumns != neededColumnsExpected {
+			t.Fatalf("unexpected neededColumns; got %q; want %q", neededColumns, neededColumnsExpected)
+		}
+	}
+
+	f(`*`, `*`)
+	f(`foo bar`, `*`)
+	f(`foo:bar _time:5m baz`, `*`)
+
+	f(`* | fields *`, `*`)
+	f(`* | fields * | offset 10`, `*`)
+	f(`* | fields * | offset 10 | limit 20`, `*`)
+	f(`* | fields foo`, `foo`)
+	f(`* | fields foo, bar`, `bar,foo`)
+	f(`* | fields foo, bar | fields baz, bar`, `bar`)
+	f(`* | fields foo, bar | fields baz, a`, ``)
+	f(`* | fields f1, f2 | rm f3, f4`, `f1,f2`)
+	f(`* | fields f1, f2 | rm f2, f3`, `f1`)
+	f(`* | fields f1, f2 | rm f1, f2, f3`, ``)
+	f(`* | fields f1, f2 | cp f1 f2, f3 f4`, `f1`)
+	f(`* | fields f1, f2 | cp f1 f3, f4 f5`, `f1,f2`)
+	f(`* | fields f1, f2 | cp f2 f3, f4 f5`, `f1,f2`)
+	f(`* | fields f1, f2 | cp f2 f3, f4 f1`, `f2`)
+	f(`* | fields f1, f2 | mv f1 f2, f3 f4`, `f1`)
+	f(`* | fields f1, f2 | mv f1 f3, f4 f5`, `f1,f2`)
+	f(`* | fields f1, f2 | mv f2 f3, f4 f5`, `f1,f2`)
+	f(`* | fields f1, f2 | mv f2 f3, f4 f1`, `f2`)
+	f(`* | fields f1, f2 | stats count() r1`, ``)
+	f(`* | fields f1, f2 | stats count_uniq() r1`, `f1,f2`)
+	f(`* | fields f1, f2 | stats count(f1) r1`, `f1`)
+	f(`* | fields f1, f2 | stats count(f1,f2,f3) r1`, `f1,f2`)
+	f(`* | fields f1, f2 | stats by(b1) count() r1`, ``)
+	f(`* | fields f1, f2 | stats by(b1,f1) count() r1`, `f1`)
+	f(`* | fields f1, f2 | stats by(b1,f1) count(f1) r1`, `f1`)
+	f(`* | fields f1, f2 | stats by(b1,f1) count(f1,f2,f3) r1`, `f1,f2`)
+	f(`* | fields f1, f2 | sort by(f3)`, `f1,f2`)
+	f(`* | fields f1, f2 | sort by(f1,f3)`, `f1,f2`)
+	f(`* | fields f1, f2 | sort by(f3) | stats count() r1`, ``)
+	f(`* | fields f1, f2 | sort by(f1) | stats count() r1`, `f1`)
+	f(`* | fields f1, f2 | sort by(f1) | stats count(f2,f3) r1`, `f1,f2`)
+	f(`* | fields f1, f2 | sort by(f3) | fields f2`, `f2`)
+	f(`* | fields f1, f2 | sort by(f1,f3) | fields f2`, `f1,f2`)
+
+	f(`* | cp foo bar`, `*`)
+	f(`* | cp foo bar, baz a`, `*`)
+	f(`* | cp foo bar, baz a | fields foo,a,b`, `b,baz,foo`)
+	f(`* | cp foo bar, baz a | fields bar,a,b`, `b,baz,foo`)
+	f(`* | cp foo bar, baz a | fields baz,a,b`, `b,baz`)
+	f(`* | cp foo bar | fields bar,a`, `a,foo`)
+	f(`* | cp foo bar | fields baz,a`, `a,baz`)
+	f(`* | cp foo bar | fields foo,a`, `a,foo`)
+	f(`* | cp f1 f2 | rm f1`, `*`)
+	f(`* | cp f1 f2 | rm f2`, `*`)
+	f(`* | cp f1 f2 | rm f3`, `*`)
+
+	f(`* | mv foo bar`, `*`)
+	f(`* | mv foo bar, baz a`, `*`)
+	f(`* | mv foo bar, baz a | fields foo,a,b`, `b,baz`)
+	f(`* | mv foo bar, baz a | fields bar,a,b`, `b,baz,foo`)
+	f(`* | mv foo bar, baz a | fields baz,a,b`, `b,baz`)
+	f(`* | mv foo bar, baz a | fields baz,foo,b`, `b`)
+	f(`* | mv foo bar | fields bar,a`, `a,foo`)
+	f(`* | mv foo bar | fields baz,a`, `a,baz`)
+	f(`* | mv foo bar | fields foo,a`, `a`)
+	f(`* | mv f1 f2 | rm f1`, `*`)
+	f(`* | mv f1 f2 | rm f2`, `*`)
+	f(`* | mv f1 f2 | rm f3`, `*`)
+
+	f(`* | sort by (f1)`, `*`)
+	f(`* | sort by (f1) | fields f2`, `f1,f2`)
+	f(`* | sort by (f1) | fields *`, `*`)
+	f(`* | sort by (f1) | sort by (f2,f3 desc) desc`, `*`)
+	f(`* | sort by (f1) | sort by (f2,f3 desc) desc | fields f4`, `f1,f2,f3,f4`)
+	f(`* | sort by (f1) | sort by (f2,f3 desc) desc | fields f4 | rm f1,f2,f5`, `f1,f2,f3,f4`)
+
+	f(`* | stats by(f1) count(f2) r1, count(f3,f4) r2`, `f1,f2,f3,f4`)
+	f(`* | stats by(f1) count(f2) r1, count(f3,f4) r2 | fields f1`, ``)
+	f(`* | stats by(f1) count(f2) r1, count(f3,f4) r2 | fields r1`, `f1,f2`)
+	f(`* | stats by(f1) count(f2) r1, count(f3,f4) r2 | fields r2,r3`, `f1,f3,f4`)
+
+	f(`* | rm f1, f2`, `*`)
+	f(`* | rm f1, f2 | fields f3`, `f3`)
+	f(`* | rm f1, f2 | fields f1,f3`, `f3`)
+	f(`* | rm f1, f2 | stats count() f1`, ``)
+	f(`* | rm f1, f2 | stats count(f3) r1`, `f3`)
+	f(`* | rm f1, f2 | stats count(f1) r1`, ``)
+	f(`* | rm f1, f2 | stats count(f1,f3) r1`, `f3`)
+	f(`* | rm f1, f2 | stats by(f1) count(f2) r1`, ``)
+	f(`* | rm f1, f2 | stats by(f3) count(f2) r1`, `f3`)
+	f(`* | rm f1, f2 | stats by(f3) count(f4) r1`, `f3,f4`)
 }
