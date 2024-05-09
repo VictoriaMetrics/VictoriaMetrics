@@ -81,6 +81,9 @@ vmrestore-linux-ppc64le:
 vmrestore-linux-s390x:
 	APP_NAME=vmrestore CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-local-goos-goarch
 
+vmrestore-linux-loong64:
+	APP_NAME=vmrestore CGO_ENABLED=0 GOOS=linux GOARCH=loong64 $(MAKE) app-local-goos-goarch
+
 vmrestore-linux-386:
 	APP_NAME=vmrestore CGO_ENABLED=0 GOOS=linux GOARCH=386 $(MAKE) app-local-goos-goarch
 

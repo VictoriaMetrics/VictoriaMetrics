@@ -88,6 +88,9 @@ vmselect-linux-ppc64le:
 vmselect-linux-s390x:
 	APP_NAME=vmselect CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-local-goos-goarch
 
+vmselect-linux-loong64:
+	APP_NAME=vmselect CGO_ENABLED=0 GOOS=linux GOARCH=loong64 $(MAKE) app-local-goos-goarch
+
 vmselect-linux-386:
 	APP_NAME=vmselect CGO_ENABLED=0 GOOS=linux GOARCH=386 $(MAKE) app-local-goos-goarch
 
