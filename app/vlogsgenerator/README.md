@@ -6,7 +6,7 @@ Logs generator for [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/
 
 Run `make vlogsgenerator` from the repository root. This builds `bin/vlogsgenerator` binary.
 
-## How to generate logs?
+## How run vlogsgenerator?
 
 `vlogsgenerator` generates logs in [JSON line format](https://jsonlines.org/) suitable for the ingestion
 via [`/insert/jsonline` endpoint at VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#json-stream-api).
@@ -72,12 +72,16 @@ Below is an example output:
 }
 ```
 
+### How to write logs to VictoriaLogs?
+
 The generated logs can be written directly to VictoriaLogs by passing the address of [`/insert/jsonline` endpoint](https://docs.victoriametrics.com/victorialogs/data-ingestion/#json-stream-api)
 to `-addr` command-line flag. For example, the following command writes the generated logs to VictoriaLogs running at `localhost`:
 
 ```
 bin/vlogsgenerator -addr=http://localhost:9428/insert/jsonline
 ```
+
+### Configuration
 
 `vlogsgenerator` accepts various command-line flags, which can be used for configuring the number and the shape of the generated logs.
 These flags can be inspected by running `vlogsgenerator -help`. Below are the most interesting flags:
@@ -101,6 +105,26 @@ bin/vlogsgenerator \
   -addr=http://localhost:9428/insert/jsonline
 ```
 
+### Churn rate
+
+It is possible to generate churn rate for active [log streams](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields)
+by specifying `-totalStreams` command-line flag bigger than `-activeStreams`. For example, the following command generates
+logs for `1000` total streams, while the number of active streams equals to `100`. This means that at every time there are logs for `100` streams,
+but these streams change over the given [`-start` ... `-end`] time range, so the total number of streams on the given time range becomes `1000`:
+
+```
+bin/vlogsgenerator \
+  -start=2024-01-01 -end=2024-02-01 \
+  -activeStreams=100 \
+  -totalStreams=1_000 \
+  -logsPerStream=10_000 \
+  -addr=http://localhost:9428/insert/jsonline
+```
+
+In this case the total number of generated logs equals to `-totalStreams` * `-logsPerStream` = `10_000_000`.
+
+### Benchmark tuning
+
 By default `vlogsgenerator` generates and writes logs by a single worker. This may limit the maximum data ingestion rate during benchmarks.
 The number of workers can be changed via `-workers` command-line flag. For example, the following command generates and writes logs with `16` workers:
 
@@ -112,6 +136,8 @@ bin/vlogsgenerator \
   -addr=http://localhost:9428/insert/jsonline \
   -workers=16
 ```
+
+### Output statistics
 
 Every 10 seconds `vlogsgenerator` writes statistics about the generated logs into `stderr`. The frequency of the generated statistics can be adjusted via `-statInterval` command-line flag.
 For example, the following command writes statistics every 2 seconds:
