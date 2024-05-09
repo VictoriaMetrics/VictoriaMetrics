@@ -79,38 +79,31 @@ func (t *tokenizer) tokenizeString(dst []string, s string) []string {
 
 func (t *tokenizer) tokenizeStringUnicode(dst []string, s string) []string {
 	m := t.m
-	i := 0
-	for i < len(s) {
+	for len(s) > 0 {
 		// Search for the next token.
-		start := len(s)
-		for i < len(s) {
-			r, size := utf8.DecodeRuneInString(s[i:])
-			if !isTokenRune(r) {
-				i += size
-				continue
-			}
-			start = i
-			i += size
-			break
-		}
-		// Search for the end of the token.
-		end := len(s)
-		for i < len(s) {
-			r, size := utf8.DecodeRuneInString(s[i:])
+		n := len(s)
+		for offset, r := range s {
 			if isTokenRune(r) {
-				i += size
-				continue
+				n = offset
+				break
 			}
-			end = i
-			i += size
-			break
 		}
-		if end <= start {
+		s = s[n:]
+		// Search for the end of the token.
+		n = len(s)
+		for offset, r := range s {
+			if !isTokenRune(r) {
+				n = offset
+				break
+			}
+		}
+		if n == 0 {
 			break
 		}
 
 		// Register the token
-		token := s[start:end]
+		token := s[:n]
+		s = s[n:]
 		if _, ok := m[token]; !ok {
 			m[token] = struct{}{}
 			dst = append(dst, token)
