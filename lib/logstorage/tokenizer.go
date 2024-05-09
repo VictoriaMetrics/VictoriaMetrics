@@ -3,6 +3,7 @@ package logstorage
 import (
 	"sync"
 	"unicode"
+	"unicode/utf8"
 )
 
 // tokenizeStrings extracts word tokens from a, appends them to dst and returns the result.
@@ -31,35 +32,104 @@ func (t *tokenizer) reset() {
 }
 
 func (t *tokenizer) tokenizeString(dst []string, s string) []string {
+	if !isASCII(s) {
+		// Slow path - s contains unicode chars
+		return t.tokenizeStringUnicode(dst, s)
+	}
+
+	// Fast path for ASCII s
 	m := t.m
-	for len(s) > 0 {
+	i := 0
+	for i < len(s) {
 		// Search for the next token.
-		nextIdx := len(s)
-		for i, c := range s {
-			if isTokenRune(c) {
-				nextIdx = i
-				break
+		start := len(s)
+		for i < len(s) {
+			if !isTokenChar(s[i]) {
+				i++
+				continue
 			}
+			start = i
+			i++
+			break
 		}
-		s = s[nextIdx:]
-		// Search for the end of the token
-		nextIdx = len(s)
-		for i, c := range s {
-			if !isTokenRune(c) {
-				nextIdx = i
-				break
+		// Search for the end of the token.
+		end := len(s)
+		for i < len(s) {
+			if isTokenChar(s[i]) {
+				i++
+				continue
 			}
+			end = i
+			i++
+			break
 		}
-		token := s[:nextIdx]
-		if len(token) > 0 {
-			if _, ok := m[token]; ok {
-				m[token] = struct{}{}
-				dst = append(dst, token)
-			}
+		if end <= start {
+			break
 		}
-		s = s[nextIdx:]
+
+		// Register the token.
+		token := s[start:end]
+		if _, ok := m[token]; !ok {
+			m[token] = struct{}{}
+			dst = append(dst, token)
+		}
 	}
 	return dst
+}
+
+func (t *tokenizer) tokenizeStringUnicode(dst []string, s string) []string {
+	m := t.m
+	i := 0
+	for i < len(s) {
+		// Search for the next token.
+		start := len(s)
+		for i < len(s) {
+			r, size := utf8.DecodeRuneInString(s[i:])
+			if !isTokenRune(r) {
+				i += size
+				continue
+			}
+			start = i
+			i += size
+			break
+		}
+		// Search for the end of the token.
+		end := len(s)
+		for i < len(s) {
+			r, size := utf8.DecodeRuneInString(s[i:])
+			if isTokenRune(r) {
+				i += size
+				continue
+			}
+			end = i
+			i += size
+			break
+		}
+		if end <= start {
+			break
+		}
+
+		// Register the token
+		token := s[start:end]
+		if _, ok := m[token]; !ok {
+			m[token] = struct{}{}
+			dst = append(dst, token)
+		}
+	}
+	return dst
+}
+
+func isASCII(s string) bool {
+	for i := range s {
+		if s[i] >= utf8.RuneSelf {
+			return false
+		}
+	}
+	return true
+}
+
+func isTokenChar(c byte) bool {
+	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_'
 }
 
 func isTokenRune(c rune) bool {
