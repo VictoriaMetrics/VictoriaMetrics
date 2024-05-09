@@ -10,16 +10,12 @@ import (
 // the order of returned tokens is unspecified.
 func tokenizeStrings(dst, a []string) []string {
 	t := getTokenizer()
-	m := t.m
 	for i, s := range a {
 		if i > 0 && s == a[i-1] {
 			// This string has been already tokenized
 			continue
 		}
-		tokenizeString(m, s)
-	}
-	for k := range t.m {
-		dst = append(dst, k)
+		dst = t.tokenizeString(dst, s)
 	}
 	putTokenizer(t)
 
@@ -34,7 +30,8 @@ func (t *tokenizer) reset() {
 	clear(t.m)
 }
 
-func tokenizeString(dst map[string]struct{}, s string) {
+func (t *tokenizer) tokenizeString(dst []string, s string) []string {
+	m := t.m
 	for len(s) > 0 {
 		// Search for the next token.
 		nextIdx := len(s)
@@ -55,10 +52,14 @@ func tokenizeString(dst map[string]struct{}, s string) {
 		}
 		token := s[:nextIdx]
 		if len(token) > 0 {
-			dst[token] = struct{}{}
+			if _, ok := m[token]; ok {
+				m[token] = struct{}{}
+				dst = append(dst, token)
+			}
 		}
 		s = s[nextIdx:]
 	}
+	return dst
 }
 
 func isTokenRune(c rune) bool {
