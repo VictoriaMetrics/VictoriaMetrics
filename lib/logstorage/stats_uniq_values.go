@@ -41,14 +41,13 @@ type statsUniqValuesProcessor struct {
 func (sup *statsUniqValuesProcessor) updateStatsForAllRows(br *blockResult) int {
 	stateSizeIncrease := 0
 	if sup.su.containsStar {
-		columns := br.getColumns()
-		for i := range columns {
-			stateSizeIncrease += sup.updateStatsForAllRowsColumn(&columns[i], br)
+		for _, c := range br.getColumns() {
+			stateSizeIncrease += sup.updateStatsForAllRowsColumn(c, br)
 		}
 	} else {
 		for _, field := range sup.su.fields {
 			c := br.getColumnByName(field)
-			stateSizeIncrease += sup.updateStatsForAllRowsColumn(&c, br)
+			stateSizeIncrease += sup.updateStatsForAllRowsColumn(c, br)
 		}
 	}
 	return stateSizeIncrease
@@ -110,14 +109,13 @@ func (sup *statsUniqValuesProcessor) updateStatsForAllRowsColumn(c *blockResultC
 func (sup *statsUniqValuesProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
 	stateSizeIncrease := 0
 	if sup.su.containsStar {
-		columns := br.getColumns()
-		for i := range columns {
-			stateSizeIncrease += sup.updateStatsForRowColumn(&columns[i], br, rowIdx)
+		for _, c := range br.getColumns() {
+			stateSizeIncrease += sup.updateStatsForRowColumn(c, br, rowIdx)
 		}
 	} else {
 		for _, field := range sup.su.fields {
 			c := br.getColumnByName(field)
-			stateSizeIncrease += sup.updateStatsForRowColumn(&c, br, rowIdx)
+			stateSizeIncrease += sup.updateStatsForRowColumn(c, br, rowIdx)
 		}
 	}
 	return stateSizeIncrease

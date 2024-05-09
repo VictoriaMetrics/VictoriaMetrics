@@ -47,11 +47,11 @@ func (sup *statsCountUniqProcessor) updateStatsForAllRows(br *blockResult) int {
 	stateSizeIncrease := 0
 	if sup.su.containsStar {
 		// Count unique rows
-		columns := br.getColumns()
+		cs := br.getColumns()
 		keyBuf := sup.keyBuf[:0]
 		for i := range br.timestamps {
 			seenKey := true
-			for _, c := range columns {
+			for _, c := range cs {
 				values := c.getValues(br)
 				if i == 0 || values[i-1] != values[i] {
 					seenKey = false
@@ -65,7 +65,7 @@ func (sup *statsCountUniqProcessor) updateStatsForAllRows(br *blockResult) int {
 
 			allEmptyValues := true
 			keyBuf = keyBuf[:0]
-			for _, c := range columns {
+			for _, c := range cs {
 				v := c.getValueAtRow(br, i)
 				if v != "" {
 					allEmptyValues = false

@@ -127,13 +127,13 @@ type sortBlock struct {
 	byColumns []sortBlockByColumn
 
 	// otherColumns refers block data for other than 'by(...)' columns
-	otherColumns []blockResultColumn
+	otherColumns []*blockResultColumn
 }
 
 // sortBlockByColumn represents data for a single column from 'sort by(...)' clause.
 type sortBlockByColumn struct {
 	// c contains column data
-	c blockResultColumn
+	c *blockResultColumn
 
 	// i64Values contains int64 numbers parsed from values
 	i64Values []int64
@@ -182,8 +182,7 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 			// JSON-encode all the columns per each row into a single string
 			// and sort rows by the resulting string.
 			bb.B = bb.B[:0]
-			for j := range cs {
-				c := &cs[j]
+			for _, c := range cs {
 				v := c.getValueAtRow(br, i)
 				bb.B = marshalJSONKeyValue(bb.B, c.name, v)
 				bb.B = append(bb.B, ',')
@@ -193,7 +192,7 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 		bbPool.Put(bb)
 		byColumns := []sortBlockByColumn{
 			{
-				c: blockResultColumn{
+				c: &blockResultColumn{
 					valueType:     valueTypeString,
 					encodedValues: rc.values,
 				},
@@ -201,7 +200,7 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 				f64Values: make([]float64, len(br.timestamps)),
 			},
 		}
-		shard.stateSizeBudget -= int(unsafe.Sizeof(byColumns[0]))
+		shard.stateSizeBudget -= int(unsafe.Sizeof(byColumns[0]) + unsafe.Sizeof(*byColumns[0].c))
 
 		// Append br to shard.blocks.
 		shard.blocks = append(shard.blocks, sortBlock{
@@ -236,7 +235,7 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 		shard.stateSizeBudget -= len(byColumns) * int(unsafe.Sizeof(byColumns[0]))
 
 		// Collect values for other columns.
-		otherColumns := make([]blockResultColumn, 0, len(cs))
+		otherColumns := make([]*blockResultColumn, 0, len(cs))
 		for _, c := range cs {
 			isByField := false
 			for _, bf := range byFields {
@@ -494,9 +493,8 @@ func (wctx *pipeSortWriteContext) writeRow(shard *pipeSortProcessorShard, rowIdx
 		wctx.valuesLen += len(v)
 	}
 
-	otherColumns := b.otherColumns
-	for i := range otherColumns {
-		v := otherColumns[i].getValueAtRow(br, rr.rowIdx)
+	for i, c := range b.otherColumns {
+		v := c.getValueAtRow(br, rr.rowIdx)
 		rcs[len(byFields)+i].addValue(v)
 		wctx.valuesLen += len(v)
 	}

@@ -29,14 +29,20 @@ type blockResult struct {
 	// timestamps contain timestamps for the selected log entries in the block.
 	timestamps []int64
 
-	// csOffset contains cs offset for the requested columns.
+	// csBufOffset contains csBuf offset for the requested columns.
 	//
-	// columns with indexes below csOffset are ignored.
+	// columns with indexes below csBufOffset are ignored.
 	// This is needed for simplifying data transformations at pipe stages.
-	csOffset int
+	csBufOffset int
 
-	// cs contains requested columns.
-	cs []blockResultColumn
+	// csBuf contains requested columns.
+	csBuf []blockResultColumn
+
+	// cs contains cached pointers to requested columns returned from getColumns() if csInitialized=true.
+	cs []*blockResultColumn
+
+	// csInitialized is set to true if cs is properly initialized and can be returned from getColumns().
+	csInitialized bool
 }
 
 func (br *blockResult) reset() {
@@ -49,10 +55,15 @@ func (br *blockResult) reset() {
 
 	br.timestamps = br.timestamps[:0]
 
-	br.csOffset = 0
+	br.csBufOffset = 0
+
+	clear(br.csBuf)
+	br.csBuf = br.csBuf[:0]
 
 	clear(br.cs)
 	br.cs = br.cs[:0]
+
+	br.csInitialized = false
 }
 
 // clone returns a clone of br, which owns its own memory.
@@ -82,7 +93,7 @@ func (br *blockResult) clone() *blockResult {
 	for i, c := range cs {
 		csNew[i] = c.clone(brNew)
 	}
-	brNew.cs = csNew
+	brNew.csBuf = csNew
 
 	return brNew
 }
@@ -116,6 +127,7 @@ func (br *blockResult) sizeBytes() int {
 	n += cap(br.buf)
 	n += cap(br.valuesBuf) * int(unsafe.Sizeof(br.valuesBuf[0]))
 	n += cap(br.timestamps) * int(unsafe.Sizeof(br.timestamps[0]))
+	n += cap(br.csBuf) * int(unsafe.Sizeof(br.csBuf[0]))
 	n += cap(br.cs) * int(unsafe.Sizeof(br.cs[0]))
 
 	return n
@@ -132,24 +144,25 @@ func (br *blockResult) setResultColumns(rcs []resultColumn) {
 
 	br.timestamps = fastnum.AppendInt64Zeros(br.timestamps[:0], len(rcs[0].values))
 
-	cs := br.cs
+	csBuf := br.csBuf
 	for _, rc := range rcs {
 		if areConstValues(rc.values) {
 			// This optimization allows reducing memory usage after br cloning
-			cs = append(cs, blockResultColumn{
+			csBuf = append(csBuf, blockResultColumn{
 				name:          rc.name,
 				isConst:       true,
 				encodedValues: rc.values[:1],
 			})
 		} else {
-			cs = append(cs, blockResultColumn{
+			csBuf = append(csBuf, blockResultColumn{
 				name:          rc.name,
 				valueType:     valueTypeString,
 				encodedValues: rc.values,
 			})
 		}
 	}
-	br.cs = cs
+	br.csBuf = csBuf
+	br.csInitialized = false
 }
 
 func (br *blockResult) fetchAllColumns(bs *blockSearch, bm *bitmap) {
@@ -349,21 +362,23 @@ func (br *blockResult) addColumn(bs *blockSearch, ch *columnHeader, bm *bitmap) 
 	dictValues = valuesBuf[valuesBufLen:]
 
 	name := getCanonicalColumnName(ch.name)
-	br.cs = append(br.cs, blockResultColumn{
+	br.csBuf = append(br.csBuf, blockResultColumn{
 		name:          name,
 		valueType:     ch.valueType,
 		dictValues:    dictValues,
 		encodedValues: encodedValues,
 	})
+	br.csInitialized = false
 	br.buf = buf
 	br.valuesBuf = valuesBuf
 }
 
 func (br *blockResult) addTimeColumn() {
-	br.cs = append(br.cs, blockResultColumn{
+	br.csBuf = append(br.csBuf, blockResultColumn{
 		name:   "_time",
 		isTime: true,
 	})
+	br.csInitialized = false
 }
 
 func (br *blockResult) addStreamColumn(bs *blockSearch) bool {
@@ -401,11 +416,12 @@ func (br *blockResult) addConstColumn(name, value string) {
 	valuesBuf = append(valuesBuf, s)
 	br.valuesBuf = valuesBuf
 
-	br.cs = append(br.cs, blockResultColumn{
+	br.csBuf = append(br.csBuf, blockResultColumn{
 		name:          name,
 		isConst:       true,
 		encodedValues: valuesBuf[valuesBufLen:],
 	})
+	br.csInitialized = false
 }
 
 func (br *blockResult) getBucketedColumnValues(c *blockResultColumn, bucketSize, bucketOffset float64) []string {
@@ -1027,20 +1043,21 @@ func (br *blockResult) copyColumns(srcColumnNames, dstColumnNames []string) {
 		return
 	}
 
-	cs := br.cs
-	csOffset := len(cs)
+	csBuf := br.csBuf
+	csBufOffset := len(csBuf)
 	for _, c := range br.getColumns() {
 		if idx := slices.Index(srcColumnNames, c.name); idx >= 0 {
 			c.name = dstColumnNames[idx]
-			cs = append(cs, c)
+			csBuf = append(csBuf, *c)
 			// continue is skipped intentionally in order to leave the original column in the columns list.
 		}
 		if !slices.Contains(dstColumnNames, c.name) {
-			cs = append(cs, c)
+			csBuf = append(csBuf, *c)
 		}
 	}
-	br.csOffset = csOffset
-	br.cs = cs
+	br.csBufOffset = csBufOffset
+	br.csBuf = csBuf
+	br.csInitialized = false
 
 	for _, dstColumnName := range dstColumnNames {
 		br.createMissingColumnByName(dstColumnName)
@@ -1053,20 +1070,21 @@ func (br *blockResult) renameColumns(srcColumnNames, dstColumnNames []string) {
 		return
 	}
 
-	cs := br.cs
-	csOffset := len(cs)
+	csBuf := br.csBuf
+	csBufOffset := len(csBuf)
 	for _, c := range br.getColumns() {
 		if idx := slices.Index(srcColumnNames, c.name); idx >= 0 {
 			c.name = dstColumnNames[idx]
-			cs = append(cs, c)
+			csBuf = append(csBuf, *c)
 			continue
 		}
 		if !slices.Contains(dstColumnNames, c.name) {
-			cs = append(cs, c)
+			csBuf = append(csBuf, *c)
 		}
 	}
-	br.csOffset = csOffset
-	br.cs = cs
+	br.csBufOffset = csBufOffset
+	br.csBuf = csBuf
+	br.csInitialized = false
 
 	for _, dstColumnName := range dstColumnNames {
 		br.createMissingColumnByName(dstColumnName)
@@ -1079,15 +1097,16 @@ func (br *blockResult) deleteColumns(columnNames []string) {
 		return
 	}
 
-	cs := br.cs
-	csOffset := len(cs)
+	csBuf := br.csBuf
+	csBufOffset := len(csBuf)
 	for _, c := range br.getColumns() {
 		if !slices.Contains(columnNames, c.name) {
-			cs = append(cs, c)
+			csBuf = append(csBuf, *c)
 		}
 	}
-	br.csOffset = csOffset
-	br.cs = cs
+	br.csBufOffset = csBufOffset
+	br.csBuf = csBuf
+	br.csInitialized = false
 }
 
 // setColumns sets the resulting columns to the given columnNames.
@@ -1098,14 +1117,15 @@ func (br *blockResult) setColumns(columnNames []string) {
 	}
 
 	// Slow path - construct the requested columns
-	cs := br.cs
-	csOffset := len(cs)
+	csBuf := br.csBuf
+	csBufOffset := len(csBuf)
 	for _, columnName := range columnNames {
 		c := br.getColumnByName(columnName)
-		cs = append(cs, c)
+		csBuf = append(csBuf, *c)
 	}
-	br.csOffset = csOffset
-	br.cs = cs
+	br.csBufOffset = csBufOffset
+	br.csBuf = csBuf
+	br.csInitialized = false
 }
 
 func (br *blockResult) areSameColumns(columnNames []string) bool {
@@ -1113,53 +1133,55 @@ func (br *blockResult) areSameColumns(columnNames []string) bool {
 	if len(cs) != len(columnNames) {
 		return false
 	}
-	for i := range cs {
-		if cs[i].name != columnNames[i] {
+	for i, c := range cs {
+		if c.name != columnNames[i] {
 			return false
 		}
 	}
 	return true
 }
 
-func (br *blockResult) getColumnByName(columnName string) blockResultColumn {
-	cs := br.getColumns()
-	for i := range cs {
-		if cs[i].name == columnName {
-			return cs[i]
+func (br *blockResult) getColumnByName(columnName string) *blockResultColumn {
+	for _, c := range br.getColumns() {
+		if c.name == columnName {
+			return c
 		}
 	}
 
-	return blockResultColumn{
-		name:          columnName,
-		isConst:       true,
-		encodedValues: getEmptyStrings(1),
-	}
+	br.addConstColumn(columnName, "")
+	return &br.csBuf[len(br.csBuf)-1]
 }
 
 func (br *blockResult) createMissingColumnByName(columnName string) {
-	cs := br.getColumns()
-	for i := range cs {
-		if cs[i].name == columnName {
+	for _, c := range br.getColumns() {
+		if c.name == columnName {
 			return
 		}
 	}
 
-	br.cs = append(br.cs, blockResultColumn{
-		name:          columnName,
-		isConst:       true,
-		encodedValues: getEmptyStrings(1),
-	})
+	br.addConstColumn(columnName, "")
 }
 
-func (br *blockResult) getColumns() []blockResultColumn {
-	return br.cs[br.csOffset:]
+func (br *blockResult) getColumns() []*blockResultColumn {
+	if br.csInitialized {
+		return br.cs
+	}
+
+	csBuf := br.csBuf[br.csBufOffset:]
+	clear(br.cs)
+	cs := br.cs[:0]
+	for i := range csBuf {
+		cs = append(cs, &csBuf[i])
+	}
+	br.cs = cs
+	br.csInitialized = true
+
+	return br.cs
 }
 
 func (br *blockResult) skipRows(skipRows int) {
 	br.timestamps = append(br.timestamps[:0], br.timestamps[skipRows:]...)
-	cs := br.getColumns()
-	for i := range cs {
-		c := &cs[i]
+	for _, c := range br.getColumns() {
 		if c.values != nil {
 			c.values = append(c.values[:0], c.values[skipRows:]...)
 		}
@@ -1174,9 +1196,7 @@ func (br *blockResult) skipRows(skipRows int) {
 
 func (br *blockResult) truncateRows(keepRows int) {
 	br.timestamps = br.timestamps[:keepRows]
-	cs := br.getColumns()
-	for i := range cs {
-		c := &cs[i]
+	for _, c := range br.getColumns() {
 		if c.values != nil {
 			c.values = c.values[:keepRows]
 		}
