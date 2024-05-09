@@ -191,6 +191,7 @@ func getEmptyStrings(rowsCount int) []string {
 	if n := rowsCount - cap(values); n > 0 {
 		valuesNew := append(values[:cap(values)], make([]string, n)...)
 		emptyStrings.Store(&valuesNew)
+		values = valuesNew
 	}
 	return values[:rowsCount]
 }
