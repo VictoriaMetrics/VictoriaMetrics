@@ -8,11 +8,8 @@ type pipe interface {
 	// String returns string representation of the pipe.
 	String() string
 
-	// getNeededFields must return the required input fields alongside the mapping from output fields to input fields for the given pipe.
-	//
-	// It must return []string{"*"} if the set of input fields cannot be determined at the given pipe.
-	// It must return nil map if the pipe doesn't add new fields to the output.
-	getNeededFields() ([]string, map[string][]string)
+	// updateNeededFields must update neededFields and unneededFields with fields it needs and not needs at the input.
+	updateNeededFields(neededFields, unneededFields fieldsSet)
 
 	// newPipeProcessor must return new pipeProcessor for the given ppBase.
 	//

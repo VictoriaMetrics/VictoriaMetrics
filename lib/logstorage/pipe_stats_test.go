@@ -4,116 +4,61 @@ import (
 	"testing"
 )
 
-func TestTryParseBucketSize_Success(t *testing.T) {
-	f := func(s string, resultExpected float64) {
+func TestPipeStatsUpdateNeededFields(t *testing.T) {
+	f := func(s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
 		t.Helper()
 
-		result, ok := tryParseBucketSize(s)
-		if !ok {
-			t.Fatalf("cannot parse %q", s)
+		nfs := newTestFieldsSet(neededFields)
+		unfs := newTestFieldsSet(unneededFields)
+
+		lex := newLexer(s)
+		lex.nextToken()
+		p, err := parsePipeStats(lex)
+		if err != nil {
+			t.Fatalf("unexpected error when parsing %s: %s", s, err)
 		}
-		if result != resultExpected {
-			t.Fatalf("unexpected result; got %f; want %f", result, resultExpected)
-		}
+		p.updateNeededFields(nfs, unfs)
+
+		assertNeededFields(t, nfs, unfs, neededFieldsExpected, unneededFieldsExpected)
 	}
 
-	// integers
-	f("0", 0)
-	f("123", 123)
-	f("1_234_678", 1234678)
-	f("-1_234_678", -1234678)
+	// all the needed fields
+	f("stats count() r1", "*", "", "", "")
+	f("stats count(*) r1", "*", "", "", "")
+	f("stats count(f1,f2) r1", "*", "", "f1,f2", "")
+	f("stats count(f1,f2) r1, sum(f3,f4) r2", "*", "", "f1,f2,f3,f4", "")
+	f("stats by (b1,b2) count(f1,f2) r1", "*", "", "b1,b2,f1,f2", "")
+	f("stats by (b1,b2) count(f1,f2) r1, count(f1,f3) r2", "*", "", "b1,b2,f1,f2,f3", "")
 
-	// floating-point numbers
-	f("0.0", 0)
-	f("123.435", 123.435)
-	f("1_000.433_344", 1000.433344)
-	f("-1_000.433_344", -1000.433344)
+	// all the needed fields, unneeded fields do not intersect with stats fields
+	f("stats count() r1", "*", "f1,f2", "", "")
+	f("stats count(*) r1", "*", "f1,f2", "", "")
+	f("stats count(f1,f2) r1", "*", "f3,f4", "f1,f2", "")
+	f("stats count(f1,f2) r1, sum(f3,f4) r2", "*", "f5,f6", "f1,f2,f3,f4", "")
+	f("stats by (b1,b2) count(f1,f2) r1", "*", "f3,f4", "b1,b2,f1,f2", "")
+	f("stats by (b1,b2) count(f1,f2) r1, count(f1,f3) r2", "*", "f4,f5", "b1,b2,f1,f2,f3", "")
 
-	// durations
-	f("5m", 5*nsecsPerMinute)
-	f("1h5m3.5s", nsecsPerHour+5*nsecsPerMinute+3.5*nsecsPerSecond)
-	f("-1h5m3.5s", -(nsecsPerHour + 5*nsecsPerMinute + 3.5*nsecsPerSecond))
+	// all the needed fields, unneeded fields intersect with stats fields
+	f("stats count() r1", "*", "r1,r2", "", "")
+	f("stats count(*) r1", "*", "r1,r2", "", "")
+	f("stats count(f1,f2) r1", "*", "r1,r2", "", "")
+	f("stats count(f1,f2) r1, sum(f3,f4) r2", "*", "r1,r3", "f3,f4", "")
+	f("stats by (b1,b2) count(f1,f2) r1", "*", "r1,r2", "", "")
+	f("stats by (b1,b2) count(f1,f2) r1, count(f1,f3) r2", "*", "r1,r3", "b1,b2,f1,f3", "")
 
-	// bytes
-	f("1B", 1)
-	f("1K", 1_000)
-	f("1KB", 1_000)
-	f("5.5KiB", 5.5*(1<<10))
-	f("10MB500KB10B", 10*1_000_000+500*1_000+10)
-	f("10M", 10*1_000_000)
-	f("-10MB", -10*1_000_000)
+	// needed fields do not intersect with stats fields
+	f("stats count() r1", "r2", "", "", "")
+	f("stats count(*) r1", "r2", "", "", "")
+	f("stats count(f1,f2) r1", "r2", "", "", "")
+	f("stats count(f1,f2) r1, sum(f3,f4) r2", "r3", "", "", "")
+	f("stats by (b1,b2) count(f1,f2) r1", "r2", "", "", "")
+	f("stats by (b1,b2) count(f1,f2) r1, count(f1,f3) r2", "r3", "", "", "")
 
-	// ipv4 mask
-	f("/0", 1<<32)
-	f("/32", 1)
-	f("/16", 1<<16)
-	f("/8", 1<<24)
-}
-
-func TestTryParseBucketSize_Failure(t *testing.T) {
-	f := func(s string) {
-		t.Helper()
-
-		_, ok := tryParseBucketSize(s)
-		if ok {
-			t.Fatalf("expecting error when parsing %q", s)
-		}
-	}
-
-	f("")
-	f("foo")
-}
-
-func TestTryParseBucketOffset_Success(t *testing.T) {
-	f := func(s string, resultExpected float64) {
-		t.Helper()
-
-		result, ok := tryParseBucketOffset(s)
-		if !ok {
-			t.Fatalf("cannot parse %q", s)
-		}
-		if result != resultExpected {
-			t.Fatalf("unexpected result; got %f; want %f", result, resultExpected)
-		}
-	}
-
-	// integers
-	f("0", 0)
-	f("123", 123)
-	f("1_234_678", 1234678)
-	f("-1_234_678", -1234678)
-
-	// floating-point numbers
-	f("0.0", 0)
-	f("123.435", 123.435)
-	f("1_000.433_344", 1000.433344)
-	f("-1_000.433_344", -1000.433344)
-
-	// durations
-	f("5m", 5*nsecsPerMinute)
-	f("1h5m3.5s", nsecsPerHour+5*nsecsPerMinute+3.5*nsecsPerSecond)
-	f("-1h5m3.5s", -(nsecsPerHour + 5*nsecsPerMinute + 3.5*nsecsPerSecond))
-
-	// bytes
-	f("1B", 1)
-	f("1K", 1_000)
-	f("1KB", 1_000)
-	f("5.5KiB", 5.5*(1<<10))
-	f("10MB500KB10B", 10*1_000_000+500*1_000+10)
-	f("10M", 10*1_000_000)
-	f("-10MB", -10*1_000_000)
-}
-
-func TestTryParseBucketOffset_Failure(t *testing.T) {
-	f := func(s string) {
-		t.Helper()
-
-		_, ok := tryParseBucketOffset(s)
-		if ok {
-			t.Fatalf("expecting error when parsing %q", s)
-		}
-	}
-
-	f("")
-	f("foo")
+	// needed fields intersect with stats fields
+	f("stats count() r1", "r1,r2", "", "", "")
+	f("stats count(*) r1", "r1,r2", "", "", "")
+	f("stats count(f1,f2) r1", "r1,r2", "", "f1,f2", "")
+	f("stats count(f1,f2) r1, sum(f3,f4) r2", "r1,r3", "", "f1,f2", "")
+	f("stats by (b1,b2) count(f1,f2) r1", "r1,r2", "", "b1,b2,f1,f2", "")
+	f("stats by (b1,b2) count(f1,f2) r1, count(f1,f3) r2", "r1,r3", "", "b1,b2,f1,f2", "")
 }

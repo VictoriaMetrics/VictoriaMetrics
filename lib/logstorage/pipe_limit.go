@@ -16,8 +16,7 @@ func (pl *pipeLimit) String() string {
 	return fmt.Sprintf("limit %d", pl.n)
 }
 
-func (pl *pipeLimit) getNeededFields() ([]string, map[string][]string) {
-	return []string{"*"}, nil
+func (pl *pipeLimit) updateNeededFields(_, _ fieldsSet) {
 }
 
 func (pl *pipeLimit) newPipeProcessor(_ int, _ <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {

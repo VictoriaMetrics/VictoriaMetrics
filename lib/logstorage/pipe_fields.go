@@ -25,11 +25,28 @@ func (pf *pipeFields) String() string {
 	return "fields " + fieldNamesString(pf.fields)
 }
 
-func (pf *pipeFields) getNeededFields() ([]string, map[string][]string) {
+func (pf *pipeFields) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	if pf.containsStar {
-		return []string{"*"}, nil
+		return
 	}
-	return pf.fields, nil
+	if neededFields.contains("*") {
+		// subtract unneeded fields from pf.fields
+		neededFields.reset()
+		neededFields.addAll(pf.fields)
+		for _, f := range unneededFields.getAll() {
+			neededFields.remove(f)
+		}
+	} else {
+		// intersect needed fields with pf.fields
+		neededFieldsOrig := neededFields.clone()
+		neededFields.reset()
+		for _, f := range pf.fields {
+			if neededFieldsOrig.contains(f) {
+				neededFields.add(f)
+			}
+		}
+	}
+	unneededFields.reset()
 }
 
 func (pf *pipeFields) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {

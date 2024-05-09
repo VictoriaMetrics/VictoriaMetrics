@@ -31,12 +31,31 @@ func (pc *pipeCopy) String() string {
 	return "copy " + strings.Join(a, ", ")
 }
 
-func (pc *pipeCopy) getNeededFields() ([]string, map[string][]string) {
-	m := make(map[string][]string, len(pc.srcFields))
+func (pc *pipeCopy) updateNeededFields(neededFields, unneededFields fieldsSet) {
+	m := make(map[string]int)
 	for i, dstField := range pc.dstFields {
-		m[dstField] = append(m[dstField], pc.srcFields[i])
+		if neededFields.contains(dstField) && !unneededFields.contains(dstField) {
+			m[pc.srcFields[i]]++
+		}
 	}
-	return []string{"*"}, m
+	if neededFields.contains("*") {
+		// update only unneeded fields
+		unneededFields.addAll(pc.dstFields)
+		for i, srcField := range pc.srcFields {
+			if m[srcField] > 0 {
+				unneededFields.remove(pc.srcFields[i])
+			}
+		}
+	} else {
+		// update only needed fields and reset unneeded fields
+		neededFields.removeAll(pc.dstFields)
+		for i, srcField := range pc.srcFields {
+			if m[srcField] > 0 {
+				neededFields.add(pc.srcFields[i])
+			}
+		}
+		unneededFields.reset()
+	}
 }
 
 func (pc *pipeCopy) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {

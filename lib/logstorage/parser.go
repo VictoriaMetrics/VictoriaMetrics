@@ -202,114 +202,16 @@ func (q *Query) String() string {
 }
 
 func (q *Query) getNeededColumns() []string {
-	input := []string{"*"}
-	dropFields := make(map[string]struct{})
+	neededFields := newFieldsSet()
+	neededFields.add("*")
+	unneededFields := newFieldsSet()
 
 	pipes := q.pipes
 	for i := len(pipes) - 1; i >= 0; i-- {
-		neededFields, mapping := pipes[i].getNeededFields()
-		neededFields = normalizeFields(neededFields)
-
-		referredFields := make(map[string]int)
-		for _, inFields := range mapping {
-			for _, f := range inFields {
-				referredFields[f]++
-			}
-		}
-
-		for k := range dropFields {
-			inFields := mapping[k]
-			for _, f := range inFields {
-				referredFields[f]--
-			}
-		}
-		for k, v := range referredFields {
-			if v == 0 {
-				dropFields[k] = struct{}{}
-			}
-		}
-		dropFieldsNext := make(map[string]struct{})
-		for k := range mapping {
-			if k != "*" && referredFields[k] == 0 {
-				dropFieldsNext[k] = struct{}{}
-			}
-		}
-		for k := range dropFields {
-			if referredFields[k] == 0 {
-				dropFieldsNext[k] = struct{}{}
-			}
-		}
-
-		if len(dropFields) > 0 {
-			var neededFieldsDst []string
-			for _, f := range neededFields {
-				if _, ok := dropFields[f]; !ok {
-					neededFieldsDst = append(neededFieldsDst, f)
-				}
-			}
-			neededFields = neededFieldsDst
-		}
-
-		if len(neededFields) == 0 {
-			input = nil
-		}
-
-		// transform upper input fields to the current input fields according to the given mapping.
-		if len(input) == 0 || input[0] != "*" {
-			var dst []string
-			for _, f := range input {
-				if a, ok := mapping[f]; ok {
-					dst = append(dst, a...)
-				} else {
-					dst = append(dst, f)
-				}
-			}
-			if a, ok := mapping["*"]; ok {
-				dst = append(dst, a...)
-			}
-			input = normalizeFields(dst)
-		}
-
-		// intersect neededFields with input
-		if len(neededFields) == 0 || neededFields[0] != "*" {
-			clear(dropFields)
-			if len(input) > 0 && input[0] == "*" {
-				input = neededFields
-				continue
-			}
-			m := make(map[string]struct{})
-			for _, f := range input {
-				m[f] = struct{}{}
-			}
-			var dst []string
-			for _, f := range neededFields {
-				if _, ok := m[f]; ok {
-					dst = append(dst, f)
-				}
-			}
-			input = dst
-		} else {
-			dropFields = dropFieldsNext
-		}
+		pipes[i].updateNeededFields(neededFields, unneededFields)
 	}
 
-	return input
-}
-
-func normalizeFields(a []string) []string {
-	m := make(map[string]struct{}, len(a))
-	dst := make([]string, 0, len(a))
-	for _, s := range a {
-		if s == "*" {
-			return []string{"*"}
-		}
-		if _, ok := m[s]; ok {
-			continue
-		}
-		m[s] = struct{}{}
-		dst = append(dst, s)
-	}
-	return dst
+	return neededFields.getAll()
 }
 
 // ParseQuery parses s.

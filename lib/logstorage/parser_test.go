@@ -3,7 +3,6 @@ package logstorage
 import (
 	"math"
 	"reflect"
-	"slices"
 	"testing"
 	"time"
 )
@@ -1254,26 +1253,4 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | sort by(baz`)
 	f(`foo | sort by(baz,`)
 	f(`foo | sort by(bar) foo`)
-}
-
-func TestNormalizeFields(t *testing.T) {
-	f := func(fields, normalizedExpected []string) {
-		t.Helper()
-
-		normalized := normalizeFields(fields)
-		if !slices.Equal(normalized, normalizedExpected) {
-			t.Fatalf("unexpected normalized fields for %q; got %q; want %q", fields, normalized, normalizedExpected)
-		}
-	}
-
-	f(nil, nil)
-	f([]string{"foo"}, []string{"foo"})
-
-	// duplicate fields
-	f([]string{"foo", "bar", "foo", "x"}, []string{"foo", "bar", "x"})
-	f([]string{"foo", "foo", "x", "x", "x"}, []string{"foo", "x"})
-
-	// star field
-	f([]string{"*"}, []string{"*"})
-	f([]string{"foo", "*", "bar"}, []string{"*"})
 }

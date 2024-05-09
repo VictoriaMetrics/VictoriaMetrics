@@ -41,23 +41,16 @@ func (ps *pipeSort) String() string {
 	return s
 }
 
-func (ps *pipeSort) getNeededFields() ([]string, map[string][]string) {
-	byFields := ps.byFields
-
-	if len(byFields) == 0 {
-		return []string{"*"}, map[string][]string{
-			"*": {"*"},
+func (ps *pipeSort) updateNeededFields(neededFields, unneededFields fieldsSet) {
+	if len(ps.byFields) == 0 {
+		neededFields.add("*")
+		unneededFields.reset()
+	} else {
+		for _, bf := range ps.byFields {
+			neededFields.add(bf.name)
+			unneededFields.remove(bf.name)
 		}
 	}
-
-	fields := make([]string, len(byFields))
-	for i, bf := range byFields {
-		fields[i] = bf.name
-	}
-	m := map[string][]string{
-		"*": fields,
-	}
-	return []string{"*"}, m
 }
 
 func (ps *pipeSort) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {

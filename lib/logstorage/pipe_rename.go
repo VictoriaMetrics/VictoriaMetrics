@@ -31,17 +31,33 @@ func (pr *pipeRename) String() string {
 	return "rename " + strings.Join(a, ", ")
 }
 
-func (pr *pipeRename) getNeededFields() ([]string, map[string][]string) {
-	m := make(map[string][]string, len(pr.srcFields)+len(pr.dstFields))
+func (pr *pipeRename) updateNeededFields(neededFields, unneededFields fieldsSet) {
+	m := make(map[string]int)
 	for i, dstField := range pr.dstFields {
-		m[dstField] = append(m[dstField], pr.srcFields[i])
-	}
-	for _, srcField := range pr.srcFields {
-		if _, ok := m[srcField]; !ok {
-			m[srcField] = nil
+		if neededFields.contains(dstField) && !unneededFields.contains(dstField) {
+			m[pr.srcFields[i]]++
 		}
 	}
-	return []string{"*"}, m
+	if neededFields.contains("*") {
+		// update only unneeded fields
+		unneededFields.addAll(pr.dstFields)
+		for i, srcField := range pr.srcFields {
+			if m[srcField] > 0 {
+				unneededFields.remove(pr.srcFields[i])
+			}
+		}
+	} else {
+		// update only needed fields and reset unneeded fields
+		neededFields.removeAll(pr.dstFields)
+		for i, srcField := range pr.srcFields {
+			if m[srcField] > 0 {
+				neededFields.add(pr.srcFields[i])
+			} else {
+				neededFields.remove(pr.srcFields[i])
+			}
+		}
+		unneededFields.reset()
+	}
 }
 
 func (pr *pipeRename) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {

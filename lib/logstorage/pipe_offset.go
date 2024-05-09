@@ -16,8 +16,7 @@ func (po *pipeOffset) String() string {
 	return fmt.Sprintf("offset %d", po.n)
 }
 
-func (po *pipeOffset) getNeededFields() ([]string, map[string][]string) {
-	return []string{"*"}, nil
+func (po *pipeOffset) updateNeededFields(_, _ fieldsSet) {
 }
 
 func (po *pipeOffset) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {

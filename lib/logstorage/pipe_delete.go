@@ -22,12 +22,14 @@ func (pd *pipeDelete) String() string {
 	return "delete " + fieldNamesString(pd.fields)
 }
 
-func (pd *pipeDelete) getNeededFields() ([]string, map[string][]string) {
-	m := make(map[string][]string, len(pd.fields))
-	for _, f := range pd.fields {
-		m[f] = nil
+func (pd *pipeDelete) updateNeededFields(neededFields, unneededFields fieldsSet) {
+	if neededFields.contains("*") {
+		// update only unneeded fields
+		unneededFields.addAll(pd.fields)
+	} else {
+		// update only needed fields
+		neededFields.removeAll(pd.fields)
 	}
-	return []string{"*"}, m
 }
 
 func (pd *pipeDelete) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {

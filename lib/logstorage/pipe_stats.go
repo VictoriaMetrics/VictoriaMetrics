@@ -83,25 +83,24 @@ func (ps *pipeStats) String() string {
 	return s
 }
 
-func (ps *pipeStats) getNeededFields() ([]string, map[string][]string) {
-	var byFields []string
-	for _, bf := range ps.byFields {
-		byFields = append(byFields, bf.name)
+func (ps *pipeStats) updateNeededFields(neededFields, unneededFields fieldsSet) {
+	neededFieldsOrig := neededFields.clone()
+	neededFields.reset()
+
+	byFields := make([]string, len(ps.byFields))
+	for i, bf := range ps.byFields {
+		byFields[i] = bf.name
 	}
 
-	neededFields := append([]string{}, byFields...)
-	m := make(map[string][]string)
-	for i, f := range ps.funcs {
-		funcFields := f.neededFields()
-
-		neededFields = append(neededFields, funcFields...)
-
-		resultName := ps.resultNames[i]
-		m[resultName] = append(m[resultName], byFields...)
-		m[resultName] = append(m[resultName], funcFields...)
+	for i, resultName := range ps.resultNames {
+		if neededFieldsOrig.contains(resultName) && !unneededFields.contains(resultName) {
+			funcFields := ps.funcs[i].neededFields()
+			neededFields.addAll(byFields)
+			neededFields.addAll(funcFields)
+		}
 	}
 
-	return neededFields, m
+	unneededFields.reset()
 }
 
 const stateSizeBudgetChunk = 1 << 20
