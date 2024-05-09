@@ -1,12 +1,13 @@
 package logstorage
 
 import (
-	"sort"
 	"sync"
 	"unicode"
 )
 
 // tokenizeStrings extracts word tokens from a, appends them to dst and returns the result.
+//
+// the order of returned tokens is unspecified.
 func tokenizeStrings(dst, a []string) []string {
 	t := getTokenizer()
 	m := t.m
@@ -17,16 +18,10 @@ func tokenizeStrings(dst, a []string) []string {
 		}
 		tokenizeString(m, s)
 	}
-	dstLen := len(dst)
 	for k := range t.m {
 		dst = append(dst, k)
 	}
 	putTokenizer(t)
-
-	// Sort tokens with zero memory allocations
-	ss := getStringsSorter(dst[dstLen:])
-	sort.Sort(ss)
-	putStringsSorter(ss)
 
 	return dst
 }
@@ -90,51 +85,13 @@ func putTokenizer(t *tokenizer) {
 
 var tokenizerPool sync.Pool
 
-type stringsSorter struct {
-	a []string
-}
-
-func (ss *stringsSorter) Len() int {
-	return len(ss.a)
-}
-func (ss *stringsSorter) Swap(i, j int) {
-	a := ss.a
-	a[i], a[j] = a[j], a[i]
-}
-func (ss *stringsSorter) Less(i, j int) bool {
-	a := ss.a
-	return a[i] < a[j]
-}
-
-func getStringsSorter(a []string) *stringsSorter {
-	v := stringsSorterPool.Get()
-	if v == nil {
-		return &stringsSorter{
-			a: a,
-		}
-	}
-	ss := v.(*stringsSorter)
-	ss.a = a
-	return ss
-}
-
-func putStringsSorter(ss *stringsSorter) {
-	ss.a = nil
-	stringsSorterPool.Put(ss)
-}
-
-var stringsSorterPool sync.Pool
-
 type tokensBuf struct {
 	A []string
 }
 
 func (tb *tokensBuf) reset() {
-	a := tb.A
-	for i := range a {
-		a[i] = ""
-	}
-	tb.A = a[:0]
+	clear(tb.A)
+	tb.A = tb.A[:0]
 }
 
 func getTokensBuf() *tokensBuf {
