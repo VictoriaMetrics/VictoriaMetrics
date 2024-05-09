@@ -191,7 +191,7 @@ func (c *column) mustWriteTo(ch *columnHeader, sw *streamWriters) {
 		bb.B = bloomFilterMarshal(bb.B[:0], tokensBuf.A)
 		putTokensBuf(tokensBuf)
 	} else {
-		// there is no need in ecoding bloom filter for dictiory type,
+		// there is no need in ecoding bloom filter for dictionary type,
 		// since it isn't used during querying - all the dictionary values are available in ch.valuesDict
 		bb.B = bb.B[:0]
 	}
