@@ -392,9 +392,6 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 // The function returns false only if c.stopCh is closed.
 // Otherwise it tries sending the block to remote storage indefinitely.
 func (c *client) sendBlockHTTP(block []byte) bool {
-	if len(block) == 0 {
-		return true
-	}
 	c.rl.Register(len(block))
 	maxRetryDuration := timeutil.AddJitterToDuration(time.Minute)
 	retryDuration := timeutil.AddJitterToDuration(time.Second)
