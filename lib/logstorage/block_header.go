@@ -423,12 +423,16 @@ func (ch *columnHeader) marshal(dst []byte) []byte {
 		minValue := math.Float64frombits(ch.minValue)
 		maxValue := math.Float64frombits(ch.maxValue)
 		if minValue > maxValue {
-			logger.Panicf("BUG: minValue=%g must be smaller than maxValue=%g", minValue, maxValue)
+			logger.Panicf("BUG: minValue=%g must be smaller than maxValue=%g for valueTypeFloat64", minValue, maxValue)
 		}
-	} else {
-		if ch.minValue > ch.maxValue {
-			logger.Panicf("BUG: minValue=%d must be smaller than maxValue=%d", ch.minValue, ch.maxValue)
+	} else if ch.valueType == valueTypeTimestampISO8601 {
+		minValue := int64(ch.minValue)
+		maxValue := int64(ch.maxValue)
+		if minValue > maxValue {
+			logger.Panicf("BUG: minValue=%g must be smaller than maxValue=%g for valueTypeTimestampISO8601", minValue, maxValue)
 		}
+	} else if ch.minValue > ch.maxValue {
+		logger.Panicf("BUG: minValue=%d must be smaller than maxValue=%d for valueType=%d", ch.minValue, ch.maxValue, ch.valueType)
 	}
 
 	// Encode common fields - ch.name and ch.valueType

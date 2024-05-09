@@ -5,9 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -19,18 +22,34 @@ import (
 )
 
 var (
-	addr    = flag.String("addr", "http://localhost:9428/insert/jsonline", "HTTP address to push the generated logs to")
+	addr    = flag.String("addr", "stdout", "HTTP address to push the generated logs to; if it is set to stdout, then logs are generated to stdout")
 	workers = flag.Int("workers", 1, "The number of workers to use to push logs to -addr")
 
 	start         = newTimeFlag("start", "-1d", "Generated logs start from this time; see https://docs.victoriametrics.com/#timestamp-formats")
 	end           = newTimeFlag("end", "0s", "Generated logs end at this time; see https://docs.victoriametrics.com/#timestamp-formats")
-	activeStreams = flag.Int("activeStreams", 1_000, "The number of active log streams to generate; see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields")
-	totalStreams  = flag.Int("totalStreams", 2_000, "The number of total log streams; if -totalStreams > -activeStreams, then some active streams are substituted with new streams "+
+	activeStreams = flag.Int("activeStreams", 100, "The number of active log streams to generate; see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields")
+	totalStreams  = flag.Int("totalStreams", 0, "The number of total log streams; if -totalStreams > -activeStreams, then some active streams are substituted with new streams "+
 		"during data generation")
-	logsPerStream   = flag.Int64("logsPerStream", 1_000, "The number of log entries to generate per each log stream. Log entries are evenly distributed between -start and -end")
-	varFieldsPerLog = flag.Int("varFieldsPerLog", 3, "The number of additional fields with variable values to generate per each log entry; "+
+	logsPerStream     = flag.Int64("logsPerStream", 1_000, "The number of log entries to generate per each log stream. Log entries are evenly distributed between -start and -end")
+	constFieldsPerLog = flag.Int("constFieldsPerLog", 3, "The number of fields with constaint values to generate per each log entry; "+
 		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model")
-	constFieldsPerLog = flag.Int("constFieldsPerLog", 3, "The number of additional fields with constaint values to generate per each log entry; "+
+	varFieldsPerLog = flag.Int("varFieldsPerLog", 1, "The number of fields with variable values to generate per each log entry; "+
+		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model")
+	dictFieldsPerLog = flag.Int("dictFieldsPerLog", 2, "The number of fields with up to 8 different values to generate per each log entry; "+
+		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model")
+	u8FieldsPerLog = flag.Int("u8FieldsPerLog", 1, "The number of fields with uint8 values to generate per each log entry; "+
+		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model")
+	u16FieldsPerLog = flag.Int("u16FieldsPerLog", 1, "The number of fields with uint16 values to generate per each log entry; "+
+		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model")
+	u32FieldsPerLog = flag.Int("u32FieldsPerLog", 1, "The number of fields with uint32 values to generate per each log entry; "+
+		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model")
+	u64FieldsPerLog = flag.Int("u64FieldsPerLog", 1, "The number of fields with uint64 values to generate per each log entry; "+
+		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model")
+	floatFieldsPerLog = flag.Int("floatFieldsPerLog", 1, "The number of fields with float64 values to generate per each log entry; "+
+		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model")
+	ipFieldsPerLog = flag.Int("ipFieldsPerLog", 1, "The number of fields with IPv4 values to generate per each log entry; "+
+		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model")
+	timestampFieldsPerLog = flag.Int("timestampFieldsPerLog", 1, "The number of fields with ISO8601 timestamps per each log entry; "+
 		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model")
 
 	statInterval = flag.Duration("statInterval", 10*time.Second, "The interval between publishing the stats")
@@ -43,16 +62,20 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 
-	remoteWriteURL, err := url.Parse(*addr)
-	if err != nil {
-		logger.Fatalf("cannot parse -addr=%q: %s", *addr, err)
+	var remoteWriteURL *url.URL
+	if *addr != "stdout" {
+		urlParsed, err := url.Parse(*addr)
+		if err != nil {
+			logger.Fatalf("cannot parse -addr=%q: %s", *addr, err)
+		}
+		qs, err := url.ParseQuery(urlParsed.RawQuery)
+		if err != nil {
+			logger.Fatalf("cannot parse query string in -addr=%q: %w", *addr, err)
+		}
+		qs.Set("_stream_fields", "host,worker_id")
+		urlParsed.RawQuery = qs.Encode()
+		remoteWriteURL = urlParsed
 	}
-	qs, err := url.ParseQuery(remoteWriteURL.RawQuery)
-	if err != nil {
-		logger.Fatalf("cannot parse query string in -addr=%q: %w", *addr, err)
-	}
-	qs.Set("_stream_fields", "host,worker_id")
-	remoteWriteURL.RawQuery = qs.Encode()
 
 	if start.nsec >= end.nsec {
 		logger.Fatalf("-start=%s must be smaller than -end=%s", start, end)
@@ -62,12 +85,6 @@ func main() {
 	}
 	if *logsPerStream <= 0 {
 		logger.Fatalf("-logsPerStream must be bigger than 0; got %d", *logsPerStream)
-	}
-	if *varFieldsPerLog <= 0 {
-		logger.Fatalf("-varFieldsPerLog must be bigger than 0; got %d", *varFieldsPerLog)
-	}
-	if *constFieldsPerLog <= 0 {
-		logger.Fatalf("-constFieldsPerLog must be bigger than 0; got %d", *constFieldsPerLog)
 	}
 	if *totalStreams < *activeStreams {
 		*totalStreams = *activeStreams
@@ -165,6 +182,14 @@ func generateAndPushLogs(cfg *workerConfig, workerID int) {
 		close(doneCh)
 	}()
 
+	if cfg.url == nil {
+		_, err := io.Copy(os.Stdout, pr)
+		if err != nil {
+			logger.Fatalf("unexpected error when writing logs to stdout: %s", err)
+		}
+		return
+	}
+
 	req, err := http.NewRequest("POST", cfg.url.String(), pr)
 	if err != nil {
 		logger.Fatalf("cannot create request to %q: %s", cfg.url, err)
@@ -190,27 +215,67 @@ func generateLogs(bw *bufio.Writer, workerID, activeStreams, totalStreams int) {
 	currNsec := start.nsec
 	for currNsec < end.nsec {
 		firstStreamID := int((currNsec - start.nsec) / streamStep)
-		generateLogsAtTimestamp(bw, workerID, currNsec, firstStreamID, activeStreams, *varFieldsPerLog, *constFieldsPerLog)
+		generateLogsAtTimestamp(bw, workerID, currNsec, firstStreamID, activeStreams)
 		currNsec += step
 	}
 }
 
-func generateLogsAtTimestamp(bw *bufio.Writer, workerID int, ts int64, firstStreamID, activeStreams, varFieldsPerEntry, constFieldsPerEntry int) {
+func generateLogsAtTimestamp(bw *bufio.Writer, workerID int, ts int64, firstStreamID, activeStreams int) {
 	streamID := firstStreamID
 	timeStr := toRFC3339(ts)
 	for i := 0; i < activeStreams; i++ {
-		fmt.Fprintf(bw, `{"_time":%q,"_msg":"message #%d (%d) for the stream %d and worker %d; some foo bar baz error warn 1.2.3.4","host":"host_%d","worker_id":"%d"`,
-			timeStr, ts, i, streamID, workerID, streamID, workerID)
-		for j := 0; j < varFieldsPerEntry; j++ {
-			fmt.Fprintf(bw, `,"var_field_%d":"value_%d_%d_%d"`, j, i, j, streamID)
+		ip := toIPv4(rand.Uint32())
+		uuid := toUUID(rand.Uint64(), rand.Uint64())
+		fmt.Fprintf(bw, `{"_time":%q,"_msg":"message for the stream %d and worker %d; ip=%s; uuid=%s; u64=%d","host":"host_%d","worker_id":"%d"`,
+			timeStr, streamID, workerID, ip, uuid, rand.Uint64(), streamID, workerID)
+		for j := 0; j < *constFieldsPerLog; j++ {
+			fmt.Fprintf(bw, `,"const_%d":"some value %d %d"`, j, j, streamID)
 		}
-		for j := 0; j < constFieldsPerEntry; j++ {
-			fmt.Fprintf(bw, `,"const_field_%d":"value_%d_%d"`, j, j, streamID)
+		for j := 0; j < *varFieldsPerLog; j++ {
+			fmt.Fprintf(bw, `,"var_%d":"some value %d %d"`, j, j, rand.Uint64())
+		}
+		for j := 0; j < *dictFieldsPerLog; j++ {
+			fmt.Fprintf(bw, `,"dict_%d":"%s"`, j, dictValues[rand.Intn(len(dictValues))])
+		}
+		for j := 0; j < *u8FieldsPerLog; j++ {
+			fmt.Fprintf(bw, `,"u8_%d":"%d"`, j, uint8(rand.Uint32()))
+		}
+		for j := 0; j < *u16FieldsPerLog; j++ {
+			fmt.Fprintf(bw, `,"u16_%d":"%d"`, j, uint16(rand.Uint32()))
+		}
+		for j := 0; j < *u32FieldsPerLog; j++ {
+			fmt.Fprintf(bw, `,"u32_%d":"%d"`, j, rand.Uint32())
+		}
+		for j := 0; j < *u64FieldsPerLog; j++ {
+			fmt.Fprintf(bw, `,"u64_%d":"%d"`, j, rand.Uint64())
+		}
+		for j := 0; j < *floatFieldsPerLog; j++ {
+			fmt.Fprintf(bw, `,"float_%d":"%v"`, j, math.Round(10_000*rand.Float64())/1000)
+		}
+		for j := 0; j < *ipFieldsPerLog; j++ {
+			ip := toIPv4(rand.Uint32())
+			fmt.Fprintf(bw, `,"ip_%d":"%s"`, j, ip)
+		}
+		for j := 0; j < *timestampFieldsPerLog; j++ {
+			timestamp := toISO8601(int64(rand.Uint64()))
+			fmt.Fprintf(bw, `,"timestamp_%d":"%s"`, j, timestamp)
 		}
 		fmt.Fprintf(bw, "}\n")
 
 		logEntriesCount.Add(1)
+		streamID++
 	}
+}
+
+var dictValues = []string{
+	"debug",
+	"info",
+	"warn",
+	"error",
+	"fatal",
+	"ERROR",
+	"FATAL",
+	"INFO",
 }
 
 func newTimeFlag(name, defaultValue, description string) *timeFlag {
@@ -242,5 +307,30 @@ func (tf *timeFlag) String() string {
 }
 
 func toRFC3339(nsec int64) string {
-	return time.Unix(nsec/1e9, nsec%1e9).UTC().Format(time.RFC3339Nano)
+	return time.Unix(0, nsec).UTC().Format(time.RFC3339Nano)
+}
+
+func toISO8601(nsec int64) string {
+	return time.Unix(0, nsec).UTC().Format("2006-01-02T15:04:05.000Z")
+}
+
+func toIPv4(n uint32) string {
+	dst := make([]byte, 0, len("255.255.255.255"))
+	dst = marshalUint64(dst, uint64(n>>24))
+	dst = append(dst, '.')
+	dst = marshalUint64(dst, uint64((n>>16)&0xff))
+	dst = append(dst, '.')
+	dst = marshalUint64(dst, uint64((n>>8)&0xff))
+	dst = append(dst, '.')
+	dst = marshalUint64(dst, uint64(n&0xff))
+	return string(dst)
+}
+
+func toUUID(a, b uint64) string {
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x", a&(1<<32-1), (a>>32)&(1<<16-1), (a >> 48), b&(1<<16-1), b>>16)
+}
+
+// marshalUint64 appends string representation of n to dst and returns the result.
+func marshalUint64(dst []byte, n uint64) []byte {
+	return strconv.AppendUint(dst, n, 10)
 }
