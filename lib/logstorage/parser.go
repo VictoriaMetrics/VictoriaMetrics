@@ -39,12 +39,17 @@ type lexer struct {
 	currentTimestamp int64
 }
 
+// newLexer returns new lexer for the given s.
+//
+// The lex.token points to the first token in s.
 func newLexer(s string) *lexer {
-	return &lexer{
+	lex := &lexer{
 		s:                s,
 		sOrig:            s,
 		currentTimestamp: time.Now().UnixNano(),
 	}
+	lex.nextToken()
+	return lex
 }
 
 func (lex *lexer) isEnd() bool {
@@ -240,7 +245,7 @@ func ParseQuery(s string) (*Query, error) {
 }
 
 func parseFilter(lex *lexer) (filter, error) {
-	if !lex.mustNextToken() || lex.isKeyword("|") {
+	if lex.isKeyword("|", "") {
 		return nil, fmt.Errorf("missing query")
 	}
 	fo, err := parseFilterOr(lex, "")
@@ -1026,9 +1031,6 @@ func parseFilterStream(lex *lexer) (*filterStream, error) {
 
 func newStreamFilter(s string) (*StreamFilter, error) {
 	lex := newLexer(s)
-	if !lex.mustNextToken() {
-		return nil, fmt.Errorf("missing '{' in _stream filter")
-	}
 	fs, err := parseFilterStream(lex)
 	if err != nil {
 		return nil, err

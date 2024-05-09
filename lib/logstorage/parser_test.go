@@ -12,12 +12,11 @@ func TestLexer(t *testing.T) {
 		t.Helper()
 		lex := newLexer(s)
 		for _, tokenExpected := range tokensExpected {
-			lex.nextToken()
 			if lex.token != tokenExpected {
 				t.Fatalf("unexpected token; got %q; want %q", lex.token, tokenExpected)
 			}
+			lex.nextToken()
 		}
-		lex.nextToken()
 		if lex.token != "" {
 			t.Fatalf("unexpected tail token: %q", lex.token)
 		}

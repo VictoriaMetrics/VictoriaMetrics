@@ -13,7 +13,6 @@ func TestPipeCopyUpdateNeededFields(t *testing.T) {
 		unfs := newTestFieldsSet(unneededFields)
 
 		lex := newLexer(s)
-		lex.nextToken()
 		p, err := parsePipeCopy(lex)
 		if err != nil {
 			t.Fatalf("cannot parse %s: %s", s, err)

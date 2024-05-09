@@ -12,7 +12,6 @@ func TestPipeFieldsUpdateNeededFields(t *testing.T) {
 		unfs := newTestFieldsSet(unneededFields)
 
 		lex := newLexer(s)
-		lex.nextToken()
 		p, err := parsePipeFields(lex)
 		if err != nil {
 			t.Fatalf("cannot parse %s: %s", s, err)
