@@ -296,7 +296,13 @@ func (c *client) runWorker() {
 	ch := make(chan bool, 1)
 	for {
 		block, ok = c.fq.MustReadBlock(block[:0])
-		if !ok || len(block) == 0 {
+		if !ok {
+			return
+		}
+		if len(block) == 0 {
+			logger.Warnf("remote-write worker skip block with size 0")  // The log here is optional since it does not help with solving the issue. It only indicates that the issue happens.
+			continue
+		}
 			return
 		}
 		if len(block) == 0 {
