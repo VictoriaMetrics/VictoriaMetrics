@@ -58,11 +58,10 @@ var dataFlushInterval = 5 * time.Second
 //
 // This function must be called before initializing the storage.
 func SetDataFlushInterval(d time.Duration) {
-	if d < time.Second {
-		logger.Panicf("Invalid value: %s for `-inmemoryDataFlushInterval`,the minimum supported value is 1s", d)
+	if d >= time.Second {
+		dataFlushInterval = d
+		mergeset.SetDataFlushInterval(d)
 	}
-	dataFlushInterval = d
-	mergeset.SetDataFlushInterval(d)
 }
 
 // The maximum number of rawRow items in rawRowsShard.
