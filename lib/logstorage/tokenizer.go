@@ -31,10 +31,7 @@ type tokenizer struct {
 }
 
 func (t *tokenizer) reset() {
-	m := t.m
-	for k := range m {
-		delete(m, k)
-	}
+	clear(t.m)
 }
 
 func tokenizeString(dst map[string]struct{}, s string) {
