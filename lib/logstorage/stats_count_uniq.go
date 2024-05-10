@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"fmt"
 	"slices"
 	"strconv"
 	"unsafe"
@@ -12,10 +13,15 @@ import (
 type statsCountUniq struct {
 	fields       []string
 	containsStar bool
+	limit uint64
 }
 
 func (su *statsCountUniq) String() string {
-	return "count_uniq(" + fieldNamesString(su.fields) + ")"
+	s := "count_uniq(" + fieldNamesString(su.fields) + ")"
+	if su.limit > 0 {
+		s += fmt.Sprintf(" limit %d", su.limit)
+	}
+	return s
 }
 
 func (su *statsCountUniq) neededFields() []string {
@@ -41,6 +47,10 @@ type statsCountUniqProcessor struct {
 }
 
 func (sup *statsCountUniqProcessor) updateStatsForAllRows(br *blockResult) int {
+	if sup.limitReached() {
+		return 0
+	}
+
 	fields := sup.su.fields
 	m := sup.m
 
@@ -216,6 +226,10 @@ func (sup *statsCountUniqProcessor) updateStatsForAllRows(br *blockResult) int {
 }
 
 func (sup *statsCountUniqProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
+	if sup.limitReached() {
+		return 0
+	}
+
 	fields := sup.su.fields
 	m := sup.m
 
@@ -340,6 +354,10 @@ func (sup *statsCountUniqProcessor) updateStatsForRow(br *blockResult, rowIdx in
 }
 
 func (sup *statsCountUniqProcessor) mergeState(sfp statsProcessor) {
+	if sup.limitReached() {
+		return
+	}
+
 	src := sfp.(*statsCountUniqProcessor)
 	m := sup.m
 	for k := range src.m {
@@ -354,6 +372,10 @@ func (sup *statsCountUniqProcessor) finalizeStats() string {
 	return strconv.FormatUint(n, 10)
 }
 
+func (sup *statsCountUniqProcessor) limitReached() bool {
+	return sup.su.limit > 0 && uint64(len(sup.m)) >= sup.su.limit
+}
+
 func parseStatsCountUniq(lex *lexer) (*statsCountUniq, error) {
 	fields, err := parseFieldNamesForStatsFunc(lex, "count_uniq")
 	if err != nil {
@@ -362,6 +384,15 @@ func parseStatsCountUniq(lex *lexer) (*statsCountUniq, error) {
 	su := &statsCountUniq{
 		fields:       fields,
 		containsStar: slices.Contains(fields, "*"),
+	}
+	if lex.isKeyword("limit") {
+		lex.nextToken()
+		n, ok := tryParseUint64(lex.token)
+		if !ok {
+			return nil, fmt.Errorf("cannot parse 'limit %s' for 'count_uniq': %w", lex.token, err)
+		}
+		lex.nextToken()
+		su.limit = n
 	}
 	return su, nil
 }

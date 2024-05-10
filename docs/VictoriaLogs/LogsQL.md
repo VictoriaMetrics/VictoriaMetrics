@@ -1414,6 +1414,15 @@ over the last 5 minutes:
 _time:5m | stats count_uniq(host, path) unique_host_path_pairs
 ```
 
+Every unique value is stored in memory during query execution. Big number of unique values may require a lot of memory.
+Sometimes it is needed to know whether the number of unique values reaches some limit. In this case add `limit N` just after `count_uniq(...)`
+for limiting the number of counted unique values up to `N`, while limiting the maximum memory usage. For example, the following query counts
+up to `1_000_000` unique values for the `ip` field:
+
+```logsql
+_time:5m | stats count_uniq(ip) limit 1_000_000 as ips_1_000_000
+```
+
 See also:
 
 - [`uniq_values`](#uniq_values-stats)
@@ -1491,9 +1500,11 @@ over logs for the last 5 minutes:
 _time:5m | stats uniq_values(ip) unique_ips
 ```
 
-It is possible to specify the limit on the number of returned unique values by adding `limit N` just after `uniq_values()` and before the resulting column name.
+Every unique value is stored in memory during query execution. Big number of unique values may require a lot of memory. Sometimes it is enough to return
+only a subset of unique values. In this case add `limit N` after `uniq_values(...)` in order to limit the number of returned unique values to `N`,
+while limiting the maximum memory usage.
 For example, the following query returns up to `100` unique values for the `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-over the logs for the last 5 minutes. Note that it may return arbitrary subset of unique `ip` values:
+over the logs for the last 5 minutes. Note that arbitrary subset of unique `ip` values is returned every time:
 
 ```logsql
 _time:5m | stats uniq_values(ip) limit 100 as unique_ips_100

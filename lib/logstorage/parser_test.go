@@ -905,7 +905,7 @@ func TestParseQuerySuccess(t *testing.T) {
 
 	// stats pipe count_uniq
 	f(`* | stats count_uniq(foo) bar`, `* | stats count_uniq(foo) as bar`)
-	f(`* | stats by(x, y) count_uniq(foo,bar) as baz`, `* | stats by (x, y) count_uniq(foo, bar) as baz`)
+	f(`* | stats by(x, y) count_uniq(foo,bar) LiMit 10 As baz`, `* | stats by (x, y) count_uniq(foo, bar) limit 10 as baz`)
 	f(`* | stats by(x) count_uniq(*) z`, `* | stats by (x) count_uniq(*) as z`)
 	f(`* | stats by(x) count_uniq() z`, `* | stats by (x) count_uniq(*) as z`)
 	f(`* | stats by(x) count_uniq(a,*,b) z`, `* | stats by (x) count_uniq(*) as z`)
@@ -1227,12 +1227,18 @@ func TestParseQueryFailure(t *testing.T) {
 	// invalid stats count_uniq
 	f(`foo | stats count_uniq`)
 	f(`foo | stats count_uniq()`)
+	f(`foo | stats count_uniq() limit`)
+	f(`foo | stats count_uniq() limit foo`)
+	f(`foo | stats count_uniq() limit 0.5`)
+	f(`foo | stats count_uniq() limit -1`)
 
 	// invalid stats uniq_values
 	f(`foo | stats uniq_values`)
 	f(`foo | stats uniq_values()`)
 	f(`foo | stats uniq_values() limit`)
 	f(`foo | stats uniq_values(a) limit foo`)
+	f(`foo | stats uniq_values(a) limit 0.5`)
+	f(`foo | stats uniq_values(a) limit -1`)
 
 	// invalid stats grouping fields
 	f(`foo | stats by(foo:bar) count() baz`)

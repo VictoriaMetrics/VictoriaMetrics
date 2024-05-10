@@ -517,7 +517,7 @@ func parseStatsFunc(lex *lexer) (statsFunc, string, error) {
 
 	resultName, err := parseResultName(lex)
 	if err != nil {
-		return nil, "", fmt.Errorf("cannot parse result name: %w", err)
+		return nil, "", fmt.Errorf("cannot parse result name for %s: %w", sf, err)
 	}
 	return sf, resultName, nil
 }
@@ -528,7 +528,7 @@ func parseResultName(lex *lexer) (string, error) {
 	}
 	resultName, err := parseFieldName(lex)
 	if err != nil {
-		return "", fmt.Errorf("cannot parse 'as' field name: %w", err)
+		return "", err
 	}
 	return resultName, nil
 }
