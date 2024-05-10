@@ -209,6 +209,10 @@ func (sup *statsUniqValuesProcessor) finalizeStats() string {
 	}
 	slices.SortFunc(items, compareValues)
 
+	if limit := sup.su.limit; limit > 0 && uint64(len(items)) > limit {
+		items = items[:limit]
+	}
+
 	// Marshal items into JSON array.
 
 	// Pre-allocate buffer for serialized items.
@@ -232,7 +236,8 @@ func (sup *statsUniqValuesProcessor) finalizeStats() string {
 }
 
 func (sup *statsUniqValuesProcessor) limitReached() bool {
-	return sup.su.limit > 0 && uint64(len(sup.m)) >= sup.su.limit
+	limit := sup.su.limit
+	return limit > 0 && uint64(len(sup.m)) >= limit
 }
 
 func compareValues(a, b string) int {

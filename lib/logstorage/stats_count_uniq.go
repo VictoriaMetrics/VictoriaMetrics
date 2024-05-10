@@ -369,11 +369,15 @@ func (sup *statsCountUniqProcessor) mergeState(sfp statsProcessor) {
 
 func (sup *statsCountUniqProcessor) finalizeStats() string {
 	n := uint64(len(sup.m))
+	if limit := sup.su.limit; limit > 0 && n > limit {
+		n = limit
+	}
 	return strconv.FormatUint(n, 10)
 }
 
 func (sup *statsCountUniqProcessor) limitReached() bool {
-	return sup.su.limit > 0 && uint64(len(sup.m)) >= sup.su.limit
+	limit := sup.su.limit
+	return limit > 0 && uint64(len(sup.m)) >= limit
 }
 
 func parseStatsCountUniq(lex *lexer) (*statsCountUniq, error) {
