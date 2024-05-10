@@ -135,10 +135,10 @@ func (vd *valuesDecoder) reset() {
 	vd.buf = vd.buf[:0]
 }
 
-// decodeInplace decodes values encoded with the given vt and the given dict inplace.
+// decodeInplace decodes values encoded with the given vt and the given dictValues inplace.
 //
 // the decoded values remain valid until vd.reset() is called.
-func (vd *valuesDecoder) decodeInplace(values []string, vt valueType, dict *valuesDict) error {
+func (vd *valuesDecoder) decodeInplace(values []string, vt valueType, dictValues []string) error {
 	// do not reset vd.buf, since it may contain previously decoded data,
 	// which must be preserved until reset() call.
 	dstBuf := vd.buf
@@ -146,6 +146,14 @@ func (vd *valuesDecoder) decodeInplace(values []string, vt valueType, dict *valu
 	switch vt {
 	case valueTypeString:
 		// nothing to do - values are already decoded.
+	case valueTypeDict:
+		for i, v := range values {
+			id := int(v[0])
+			if id >= len(dictValues) {
+				return fmt.Errorf("unexpected dictionary id: %d; it must be smaller than %d", id, len(dictValues))
+			}
+			values[i] = dictValues[id]
+		}
 	case valueTypeUint8:
 		for i, v := range values {
 			if len(v) != 1 {
@@ -189,14 +197,14 @@ func (vd *valuesDecoder) decodeInplace(values []string, vt valueType, dict *valu
 			dstBuf = marshalUint64(dstBuf, n)
 			values[i] = bytesutil.ToUnsafeString(dstBuf[dstLen:])
 		}
-	case valueTypeDict:
-		dictValues := dict.values
+	case valueTypeFloat64:
 		for i, v := range values {
-			id := int(v[0])
-			if id >= len(dictValues) {
-				return fmt.Errorf("unexpected dictionary id: %d; it must be smaller than %d", id, len(dictValues))
+			if len(v) != 8 {
+				return fmt.Errorf("unexpected value length for uint64; got %d; want 8", len(v))
 			}
-			values[i] = dictValues[id]
+			dstLen := len(dstBuf)
+			dstBuf = toFloat64String(dstBuf, v)
+			values[i] = bytesutil.ToUnsafeString(dstBuf[dstLen:])
 		}
 	case valueTypeIPv4:
 		for i, v := range values {
@@ -214,15 +222,6 @@ func (vd *valuesDecoder) decodeInplace(values []string, vt valueType, dict *valu
 			}
 			dstLen := len(dstBuf)
 			dstBuf = toTimestampISO8601String(dstBuf, v)
-			values[i] = bytesutil.ToUnsafeString(dstBuf[dstLen:])
-		}
-	case valueTypeFloat64:
-		for i, v := range values {
-			if len(v) != 8 {
-				return fmt.Errorf("unexpected value length for uint64; got %d; want 8", len(v))
-			}
-			dstLen := len(dstBuf)
-			dstBuf = toFloat64String(dstBuf, v)
 			values[i] = bytesutil.ToUnsafeString(dstBuf[dstLen:])
 		}
 	default:

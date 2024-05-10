@@ -433,7 +433,7 @@ func (b *block) InitFromBlockData(bd *blockData, sbu *stringsBlockUnmarshaler, v
 		if err != nil {
 			return fmt.Errorf("cannot unmarshal column %d: %w", i, err)
 		}
-		if err = vd.decodeInplace(c.values, cd.valueType, &cd.valuesDict); err != nil {
+		if err = vd.decodeInplace(c.values, cd.valueType, cd.valuesDict.values); err != nil {
 			return fmt.Errorf("cannot decode column values: %w", err)
 		}
 	}
@@ -577,9 +577,7 @@ func getColumnIdxs() map[string]int {
 }
 
 func putColumnIdxs(m map[string]int) {
-	for k := range m {
-		delete(m, k)
-	}
+	clear(m)
 	columnIdxsPool.Put(m)
 }
 

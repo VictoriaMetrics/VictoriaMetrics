@@ -26,7 +26,7 @@ func TestValuesEncoder(t *testing.T) {
 		putValuesEncoder(ve)
 
 		vd := getValuesDecoder()
-		if err := vd.decodeInplace(encodedValues, vt, &dict); err != nil {
+		if err := vd.decodeInplace(encodedValues, vt, dict.values); err != nil {
 			t.Fatalf("unexpected error in decodeInplace(): %s", err)
 		}
 		if len(values) == 0 {
