@@ -298,7 +298,10 @@ func (csh *columnsHeader) marshal(dst []byte) []byte {
 	return dst
 }
 
-func (csh *columnsHeader) unmarshal(src []byte) error {
+// unmarshal unmarshals csh from src.
+//
+// csh is valid until a.reset() is called.
+func (csh *columnsHeader) unmarshal(a *arena, src []byte) error {
 	csh.reset()
 
 	// unmarshal columnHeaders
@@ -312,7 +315,7 @@ func (csh *columnsHeader) unmarshal(src []byte) error {
 	src = tail
 	chs := csh.resizeColumnHeaders(int(n))
 	for i := range chs {
-		tail, err = chs[i].unmarshal(src)
+		tail, err = chs[i].unmarshal(a, src)
 		if err != nil {
 			return fmt.Errorf("cannot unmarshal columnHeader %d out of %d columnHeaders: %w", i, len(chs), err)
 		}
@@ -331,7 +334,7 @@ func (csh *columnsHeader) unmarshal(src []byte) error {
 	src = tail
 	ccs := csh.resizeConstColumns(int(n))
 	for i := range ccs {
-		tail, err = ccs[i].unmarshal(src)
+		tail, err = ccs[i].unmarshal(a, src)
 		if err != nil {
 			return fmt.Errorf("cannot unmarshal constColumn %d out of %d columns: %w", i, len(ccs), err)
 		}
@@ -357,7 +360,7 @@ func (csh *columnsHeader) unmarshal(src []byte) error {
 //
 // Tokens in bloom filter depend on valueType:
 //
-//   - valueTypeString stores lowercased tokens seen in all the values
+//   - valueTypeString stores tokens seen in all the values
 //   - valueTypeDict doesn't store anything in the bloom filter, since all the encoded values
 //     are available directly in the valuesDict field
 //   - valueTypeUint8, valueTypeUint16, valueTypeUint32 and valueTypeUint64 stores encoded uint values
@@ -502,7 +505,9 @@ func (ch *columnHeader) marshalBloomFilters(dst []byte) []byte {
 }
 
 // unmarshal unmarshals ch from src and returns the tail left after unmarshaling.
-func (ch *columnHeader) unmarshal(src []byte) ([]byte, error) {
+//
+// ch is valid until a.reset() is called.
+func (ch *columnHeader) unmarshal(a *arena, src []byte) ([]byte, error) {
 	ch.reset()
 
 	srcOrig := src
@@ -512,8 +517,7 @@ func (ch *columnHeader) unmarshal(src []byte) ([]byte, error) {
 	if err != nil {
 		return srcOrig, fmt.Errorf("cannot unmarshal column name: %w", err)
 	}
-	// Do not use bytesutil.InternBytes(data) here, since it works slower than the string(data) in prod
-	ch.name = string(data)
+	ch.name = a.copyBytesToString(data)
 	src = tail
 
 	// Unmarshal value type
@@ -532,7 +536,7 @@ func (ch *columnHeader) unmarshal(src []byte) ([]byte, error) {
 		}
 		src = tail
 	case valueTypeDict:
-		tail, err = ch.valuesDict.unmarshal(src)
+		tail, err = ch.valuesDict.unmarshal(a, src)
 		if err != nil {
 			return srcOrig, fmt.Errorf("cannot unmarshal dict at valueTypeDict for column %q: %w", ch.name, err)
 		}

@@ -120,11 +120,8 @@ type column struct {
 func (c *column) reset() {
 	c.name = ""
 
-	values := c.values
-	for i := range values {
-		values[i] = ""
-	}
-	c.values = values[:0]
+	clear(c.values)
+	c.values = c.values[:0]
 }
 
 func (c *column) canStoreInConstColumn() bool {
@@ -155,7 +152,9 @@ func (c *column) resizeValues(valuesLen int) []string {
 }
 
 // mustWriteTo writes c to sw and updates ch accordingly.
-func (c *column) mustWriteTo(ch *columnHeader, sw *streamWriters) {
+//
+// ch is valid until a.reset() is called.
+func (c *column) mustWriteTo(a *arena, ch *columnHeader, sw *streamWriters) {
 	ch.reset()
 
 	valuesWriter := &sw.fieldValuesWriter
@@ -165,7 +164,7 @@ func (c *column) mustWriteTo(ch *columnHeader, sw *streamWriters) {
 		bloomFilterWriter = &sw.messageBloomFilterWriter
 	}
 
-	ch.name = c.name
+	ch.name = a.copyString(c.name)
 
 	// encode values
 	ve := getValuesEncoder()
@@ -226,6 +225,8 @@ func (b *block) assertValid() {
 // MustInitFromRows initializes b from the given timestamps and rows.
 //
 // It is expected that timestamps are sorted.
+//
+// b is valid until timestamps and rows are changed.
 func (b *block) MustInitFromRows(timestamps []int64, rows [][]Field) {
 	b.reset()
 
@@ -235,6 +236,9 @@ func (b *block) MustInitFromRows(timestamps []int64, rows [][]Field) {
 	b.sortColumnsByName()
 }
 
+// mustInitiFromRows initializes b from rows.
+//
+// b is valid until rows are changed.
 func (b *block) mustInitFromRows(rows [][]Field) {
 	rowsLen := len(rows)
 	if rowsLen == 0 {
@@ -424,7 +428,7 @@ func (b *block) InitFromBlockData(bd *blockData, sbu *stringsBlockUnmarshaler, v
 	for i := range cds {
 		cd := &cds[i]
 		c := &cs[i]
-		c.name = cd.name
+		c.name = sbu.copyString(cd.name)
 		c.values, err = sbu.unmarshal(c.values[:0], cd.valuesData, uint64(rowsCount))
 		if err != nil {
 			return fmt.Errorf("cannot unmarshal column %d: %w", i, err)
@@ -435,12 +439,12 @@ func (b *block) InitFromBlockData(bd *blockData, sbu *stringsBlockUnmarshaler, v
 	}
 
 	// unmarshal constColumns
-	b.constColumns = append(b.constColumns[:0], bd.constColumns...)
+	b.constColumns = sbu.appendFields(b.constColumns[:0], bd.constColumns)
 
 	return nil
 }
 
-// mustWriteTo writes b with the given sid to sw and updates bh accordingly
+// mustWriteTo writes b with the given sid to sw and updates bh accordingly.
 func (b *block) mustWriteTo(sid *streamID, bh *blockHeader, sw *streamWriters) {
 	// Do not store the version used for encoding directly in the block data, since:
 	// - all the blocks in the same part use the same encoding
@@ -458,16 +462,22 @@ func (b *block) mustWriteTo(sid *streamID, bh *blockHeader, sw *streamWriters) {
 
 	// Marshal columns
 	cs := b.columns
+
+	a := getArena()
 	csh := getColumnsHeader()
+
 	chs := csh.resizeColumnHeaders(len(cs))
 	for i := range cs {
-		cs[i].mustWriteTo(&chs[i], sw)
+		cs[i].mustWriteTo(a, &chs[i], sw)
 	}
-	csh.constColumns = append(csh.constColumns[:0], b.constColumns...)
+	csh.constColumns = appendFields(a, csh.constColumns[:0], b.constColumns)
 
 	bb := longTermBufPool.Get()
 	bb.B = csh.marshal(bb.B)
+
 	putColumnsHeader(csh)
+	putArena(a)
+
 	bh.columnsHeaderOffset = sw.columnsHeaderWriter.bytesWritten
 	bh.columnsHeaderSize = uint64(len(bb.B))
 	if bh.columnsHeaderSize > maxColumnsHeaderSize {
@@ -489,13 +499,7 @@ func (b *block) appendRowsTo(dst *rows) {
 	for i := range b.timestamps {
 		fieldsLen := len(fieldsBuf)
 		// copy const columns
-		for j := range ccs {
-			cc := &ccs[j]
-			fieldsBuf = append(fieldsBuf, Field{
-				Name:  cc.Name,
-				Value: cc.Value,
-			})
-		}
+		fieldsBuf = append(fieldsBuf, ccs...)
 		// copy other columns
 		for j := range cs {
 			c := &cs[j]

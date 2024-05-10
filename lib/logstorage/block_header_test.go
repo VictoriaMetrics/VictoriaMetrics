@@ -55,12 +55,16 @@ func TestBlockHeaderMarshalUnmarshal(t *testing.T) {
 func TestColumnsHeaderMarshalUnmarshal(t *testing.T) {
 	f := func(csh *columnsHeader, marshaledLen int) {
 		t.Helper()
+
+		a := getArena()
+		defer putArena(a)
+
 		data := csh.marshal(nil)
 		if len(data) != marshaledLen {
 			t.Fatalf("unexpected lengths of the marshaled columnsHeader; got %d; want %d", len(data), marshaledLen)
 		}
 		csh2 := &columnsHeader{}
-		err := csh2.unmarshal(data)
+		err := csh2.unmarshal(a, data)
 		if err != nil {
 			t.Fatalf("unexpected error in unmarshal: %s", err)
 		}
@@ -68,6 +72,7 @@ func TestColumnsHeaderMarshalUnmarshal(t *testing.T) {
 			t.Fatalf("unexpected blockHeader unmarshaled\ngot\n%v\nwant\n%v", csh2, csh)
 		}
 	}
+
 	f(&columnsHeader{}, 2)
 	f(&columnsHeader{
 		columnHeaders: []columnHeader{
@@ -149,13 +154,18 @@ func TestBlockHeaderUnmarshalFailure(t *testing.T) {
 func TestColumnsHeaderUnmarshalFailure(t *testing.T) {
 	f := func(data []byte) {
 		t.Helper()
+
+		a := getArena()
+		defer putArena(a)
+
 		csh := getColumnsHeader()
 		defer putColumnsHeader(csh)
-		err := csh.unmarshal(data)
+		err := csh.unmarshal(a, data)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
 	}
+
 	f(nil)
 	f([]byte("foo"))
 
@@ -315,12 +325,16 @@ func TestMarshalUnmarshalBlockHeaders(t *testing.T) {
 func TestColumnHeaderMarshalUnmarshal(t *testing.T) {
 	f := func(ch *columnHeader, marshaledLen int) {
 		t.Helper()
+
+		a := getArena()
+		defer putArena(a)
+
 		data := ch.marshal(nil)
 		if len(data) != marshaledLen {
 			t.Fatalf("unexpected marshaled length of columnHeader; got %d; want %d", len(data), marshaledLen)
 		}
 		var ch2 columnHeader
-		tail, err := ch2.unmarshal(data)
+		tail, err := ch2.unmarshal(a, data)
 		if err != nil {
 			t.Fatalf("unexpected error in umarshal(%v): %s", ch, err)
 		}
@@ -331,6 +345,7 @@ func TestColumnHeaderMarshalUnmarshal(t *testing.T) {
 			t.Fatalf("unexpected columnHeader after unmarshal;\ngot\n%v\nwant\n%v", &ch2, ch)
 		}
 	}
+
 	f(&columnHeader{
 		name:      "foo",
 		valueType: valueTypeUint8,
@@ -349,9 +364,13 @@ func TestColumnHeaderMarshalUnmarshal(t *testing.T) {
 func TestColumnHeaderUnmarshalFailure(t *testing.T) {
 	f := func(data []byte) {
 		t.Helper()
+
+		a := getArena()
+		defer putArena(a)
+
 		dataOrig := append([]byte{}, data...)
 		var ch columnHeader
-		tail, err := ch.unmarshal(data)
+		tail, err := ch.unmarshal(a, data)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -359,6 +378,7 @@ func TestColumnHeaderUnmarshalFailure(t *testing.T) {
 			t.Fatalf("unexpected tail left; got %q; want %q", tail, dataOrig)
 		}
 	}
+
 	f(nil)
 	f([]byte("foo"))
 

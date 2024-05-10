@@ -120,6 +120,12 @@ func (br *blockResult) cloneValues(values []string) []string {
 	return valuesBuf[valuesBufLen:]
 }
 
+func (br *blockResult) copyString(s string) string {
+	bufLen := len(br.buf)
+	br.buf = append(br.buf, s...)
+	return bytesutil.ToUnsafeString(br.buf[bufLen:])
+}
+
 // sizeBytes returns the size of br in bytes.
 func (br *blockResult) sizeBytes() int {
 	n := int(unsafe.Sizeof(*br))
@@ -149,13 +155,13 @@ func (br *blockResult) setResultColumns(rcs []resultColumn) {
 		if areConstValues(rc.values) {
 			// This optimization allows reducing memory usage after br cloning
 			csBuf = append(csBuf, blockResultColumn{
-				name:          rc.name,
+				name:          br.copyString(rc.name),
 				isConst:       true,
 				encodedValues: rc.values[:1],
 			})
 		} else {
 			csBuf = append(csBuf, blockResultColumn{
-				name:          rc.name,
+				name:          br.copyString(rc.name),
 				valueType:     valueTypeString,
 				encodedValues: rc.values,
 			})
@@ -373,9 +379,13 @@ func (br *blockResult) addColumn(bs *blockSearch, ch *columnHeader, bm *bitmap) 
 	}
 	dictValues = valuesBuf[valuesBufLen:]
 
-	name := getCanonicalColumnName(ch.name)
+	// copy ch.name to buf
+	bufLen := len(buf)
+	buf = append(buf, ch.name...)
+	name := bytesutil.ToUnsafeString(buf[bufLen:])
+
 	br.csBuf = append(br.csBuf, blockResultColumn{
-		name:          name,
+		name:          getCanonicalColumnName(name),
 		valueType:     ch.valueType,
 		dictValues:    dictValues,
 		encodedValues: encodedValues,
@@ -417,21 +427,18 @@ func (br *blockResult) addStreamColumn(bs *blockSearch) bool {
 }
 
 func (br *blockResult) addConstColumn(name, value string) {
-	buf := br.buf
-	bufLen := len(buf)
-	buf = append(buf, value...)
-	s := bytesutil.ToUnsafeString(buf[bufLen:])
-	br.buf = buf
+	value = br.copyString(value)
 
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
-	valuesBuf = append(valuesBuf, s)
+	valuesBuf = append(valuesBuf, value)
 	br.valuesBuf = valuesBuf
+	encodedValues := valuesBuf[valuesBufLen:]
 
 	br.csBuf = append(br.csBuf, blockResultColumn{
-		name:          name,
+		name:          br.copyString(name),
 		isConst:       true,
-		encodedValues: valuesBuf[valuesBufLen:],
+		encodedValues: encodedValues,
 	})
 	br.csInitialized = false
 }
@@ -1265,7 +1272,7 @@ type blockResultColumn struct {
 func (c *blockResultColumn) clone(br *blockResult) blockResultColumn {
 	var cNew blockResultColumn
 
-	cNew.name = c.name
+	cNew.name = br.copyString(c.name)
 	cNew.isConst = c.isConst
 	cNew.isTime = c.isTime
 	cNew.valueType = c.valueType

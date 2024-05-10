@@ -1074,10 +1074,15 @@ func (vd *valuesDict) reset() {
 	vd.values = vd.values[:0]
 }
 
-func (vd *valuesDict) copyFrom(src *valuesDict) {
+func (vd *valuesDict) copyFrom(a *arena, src *valuesDict) {
 	vd.reset()
 
-	vd.values = append(vd.values[:0], src.values...)
+	dstValues := vd.values
+	for _, v := range src.values {
+		v = a.copyString(v)
+		dstValues = append(dstValues, v)
+	}
+	vd.values = dstValues
 }
 
 func (vd *valuesDict) getOrAdd(k string) (byte, bool) {
@@ -1113,7 +1118,10 @@ func (vd *valuesDict) marshal(dst []byte) []byte {
 	return dst
 }
 
-func (vd *valuesDict) unmarshal(src []byte) ([]byte, error) {
+// unmarshal unmarshals vd from src.
+//
+// vd is valid until a.reset() is called.
+func (vd *valuesDict) unmarshal(a *arena, src []byte) ([]byte, error) {
 	vd.reset()
 
 	srcOrig := src
@@ -1129,8 +1137,7 @@ func (vd *valuesDict) unmarshal(src []byte) ([]byte, error) {
 		}
 		src = tail
 
-		// Do not use bytesutil.InternBytes(data) here, since it works slower than the string(data) in prod
-		v := string(data)
+		v := a.copyBytesToString(data)
 		vd.values = append(vd.values, v)
 	}
 	return src, nil

@@ -47,6 +47,22 @@ func (sbu *stringsBlockUnmarshaler) reset() {
 	sbu.data = sbu.data[:0]
 }
 
+func (sbu *stringsBlockUnmarshaler) copyString(s string) string {
+	dataLen := len(sbu.data)
+	sbu.data = append(sbu.data, s...)
+	return bytesutil.ToUnsafeString(sbu.data[dataLen:])
+}
+
+func (sbu *stringsBlockUnmarshaler) appendFields(dst, src []Field) []Field {
+	for _, f := range src {
+		dst = append(dst, Field{
+			Name:  sbu.copyString(f.Name),
+			Value: sbu.copyString(f.Value),
+		})
+	}
+	return dst
+}
+
 // unmarshal unmarshals itemsCount strings from src, appends them to dst and returns the result.
 //
 // The returned strings are valid until sbu.reset() call.

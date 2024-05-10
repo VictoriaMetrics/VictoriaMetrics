@@ -63,6 +63,9 @@ type blockSearch struct {
 
 	// csh is the columnsHeader associated with the given block
 	csh columnsHeader
+
+	// a is used for storing unmarshaled data in csh
+	a arena
 }
 
 func (bs *blockSearch) reset() {
@@ -88,6 +91,7 @@ func (bs *blockSearch) reset() {
 
 	bs.sbu.reset()
 	bs.csh.reset()
+	bs.a.reset()
 }
 
 func (bs *blockSearch) partPath() string {
@@ -99,7 +103,7 @@ func (bs *blockSearch) search(bsw *blockSearchWork) {
 
 	bs.bsw = bsw
 
-	bs.csh.initFromBlockHeader(bsw.p, &bsw.bh)
+	bs.csh.initFromBlockHeader(&bs.a, bsw.p, &bsw.bh)
 
 	// search rows matching the given filter
 	bm := getBitmap(int(bsw.bh.rowsCount))
@@ -122,7 +126,7 @@ func (bs *blockSearch) search(bsw *blockSearchWork) {
 	}
 }
 
-func (csh *columnsHeader) initFromBlockHeader(p *part, bh *blockHeader) {
+func (csh *columnsHeader) initFromBlockHeader(a *arena, p *part, bh *blockHeader) {
 	bb := longTermBufPool.Get()
 	columnsHeaderSize := bh.columnsHeaderSize
 	if columnsHeaderSize > maxColumnsHeaderSize {
@@ -131,7 +135,7 @@ func (csh *columnsHeader) initFromBlockHeader(p *part, bh *blockHeader) {
 	bb.B = bytesutil.ResizeNoCopyMayOverallocate(bb.B, int(columnsHeaderSize))
 	p.columnsHeaderFile.MustReadAt(bb.B, int64(bh.columnsHeaderOffset))
 
-	if err := csh.unmarshal(bb.B); err != nil {
+	if err := csh.unmarshal(a, bb.B); err != nil {
 		logger.Panicf("FATAL: %s: cannot unmarshal columns header: %s", p.path, err)
 	}
 	longTermBufPool.Put(bb)
