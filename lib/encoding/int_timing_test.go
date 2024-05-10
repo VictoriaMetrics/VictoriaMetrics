@@ -79,7 +79,7 @@ func benchmarkMarshalVarUint64s(b *testing.B, maxValue uint64) {
 	var data []uint64
 	n := maxValue
 	for i := 0; i < numsCount; i++ {
-		if n <= 0 {
+		if n > maxValue {
 			n = maxValue
 		}
 		data = append(data, n)
@@ -119,7 +119,7 @@ func benchmarkMarshalVarInt64s(b *testing.B, maxValue int64) {
 	var data []int64
 	n := maxValue
 	for i := 0; i < numsCount; i++ {
-		if n <= 0 {
+		if n < -maxValue {
 			n = maxValue
 		}
 		data = append(data, n)
@@ -134,6 +134,52 @@ func benchmarkMarshalVarInt64s(b *testing.B, maxValue int64) {
 		for pb.Next() {
 			dst = MarshalVarInt64s(dst[:0], data)
 			sink += uint64(len(dst))
+		}
+		Sink.Add(sink)
+	})
+}
+
+func BenchmarkUnmarshalVarUint64(b *testing.B) {
+	b.Run("up-to-(1<<7)-1", func(b *testing.B) {
+		benchmarkUnmarshalVarUint64(b, (1<<7)-1)
+	})
+	b.Run("up-to-(1<<14)-1", func(b *testing.B) {
+		benchmarkUnmarshalVarUint64(b, (1<<14)-1)
+	})
+	b.Run("up-to-(1<<28)-1", func(b *testing.B) {
+		benchmarkUnmarshalVarUint64(b, (1<<28)-1)
+	})
+	b.Run("up-to-(1<<64)-1", func(b *testing.B) {
+		benchmarkUnmarshalVarUint64(b, (1<<64)-1)
+	})
+}
+
+func benchmarkUnmarshalVarUint64(b *testing.B, maxValue uint64) {
+	const numsCount = 8000
+	var data []byte
+	n := maxValue
+	for i := 0; i < numsCount; i++ {
+		if n > maxValue {
+			n = maxValue
+		}
+		data = MarshalVarUint64(data, n)
+		n--
+	}
+	b.ResetTimer()
+	b.ReportAllocs()
+	b.SetBytes(numsCount)
+	b.RunParallel(func(pb *testing.PB) {
+		var sink uint64
+		for pb.Next() {
+			src := data
+			for len(src) > 0 {
+				tail, n, err := UnmarshalVarUint64(src)
+				if err != nil {
+					panic(fmt.Errorf("unexpected error: %w", err))
+				}
+				sink += n
+				src = tail
+			}
 		}
 		Sink.Add(sink)
 	})
@@ -159,7 +205,7 @@ func benchmarkUnmarshalVarUint64s(b *testing.B, maxValue uint64) {
 	var data []byte
 	n := maxValue
 	for i := 0; i < numsCount; i++ {
-		if n <= 0 {
+		if n > maxValue {
 			n = maxValue
 		}
 		data = MarshalVarUint64(data, n)
@@ -185,6 +231,52 @@ func benchmarkUnmarshalVarUint64s(b *testing.B, maxValue uint64) {
 	})
 }
 
+func BenchmarkUnmarshalVarInt64(b *testing.B) {
+	b.Run("up-to-(1<<6)-1", func(b *testing.B) {
+		benchmarkUnmarshalVarInt64(b, (1<<6)-1)
+	})
+	b.Run("up-to-(1<<13)-1", func(b *testing.B) {
+		benchmarkUnmarshalVarInt64(b, (1<<13)-1)
+	})
+	b.Run("up-to-(1<<27)-1", func(b *testing.B) {
+		benchmarkUnmarshalVarInt64(b, (1<<27)-1)
+	})
+	b.Run("up-to-(1<<63)-1", func(b *testing.B) {
+		benchmarkUnmarshalVarInt64(b, (1<<63)-1)
+	})
+}
+
+func benchmarkUnmarshalVarInt64(b *testing.B, maxValue int64) {
+	const numsCount = 8000
+	var data []byte
+	n := maxValue
+	for i := 0; i < numsCount; i++ {
+		if n < -maxValue {
+			n = maxValue
+		}
+		data = MarshalVarInt64(data, n)
+		n--
+	}
+	b.ResetTimer()
+	b.ReportAllocs()
+	b.SetBytes(numsCount)
+	b.RunParallel(func(pb *testing.PB) {
+		var sink uint64
+		for pb.Next() {
+			src := data
+			for len(src) > 0 {
+				tail, n, err := UnmarshalVarInt64(src)
+				if err != nil {
+					panic(fmt.Errorf("unexpected error: %w", err))
+				}
+				sink += uint64(n)
+				src = tail
+			}
+		}
+		Sink.Add(sink)
+	})
+}
+
 func BenchmarkUnmarshalVarInt64s(b *testing.B) {
 	b.Run("up-to-(1<<6)-1", func(b *testing.B) {
 		benchmarkUnmarshalVarInt64s(b, (1<<6)-1)
@@ -205,7 +297,7 @@ func benchmarkUnmarshalVarInt64s(b *testing.B, maxValue int64) {
 	var data []byte
 	n := maxValue
 	for i := 0; i < numsCount; i++ {
-		if n <= 0 {
+		if n < -maxValue {
 			n = maxValue
 		}
 		data = MarshalVarInt64(data, n)
