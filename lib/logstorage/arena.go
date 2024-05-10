@@ -34,6 +34,10 @@ func (a *arena) sizeBytes() int {
 }
 
 func (a *arena) copyBytes(b []byte) []byte {
+	if len(b) == 0 {
+		return b
+	}
+
 	ab := a.b
 	abLen := len(ab)
 	ab = append(ab, b...)
@@ -53,6 +57,10 @@ func (a *arena) copyString(s string) string {
 }
 
 func (a *arena) newBytes(size int) []byte {
+	if size <= 0 {
+		return nil
+	}
+
 	ab := a.b
 	abLen := len(ab)
 	ab = bytesutil.ResizeWithCopyMayOverallocate(ab, abLen+size)
