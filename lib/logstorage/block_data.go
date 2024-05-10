@@ -116,6 +116,7 @@ func (bd *blockData) mustWriteTo(bh *blockHeader, sw *streamWriters) {
 
 	a := getArena()
 	csh := getColumnsHeader()
+
 	chs := csh.resizeColumnHeaders(len(cds))
 	for i := range cds {
 		cds[i].mustWriteTo(a, &chs[i], sw)
@@ -124,6 +125,7 @@ func (bd *blockData) mustWriteTo(bh *blockHeader, sw *streamWriters) {
 
 	bb := longTermBufPool.Get()
 	bb.B = csh.marshal(bb.B)
+
 	putColumnsHeader(csh)
 	putArena(a)
 

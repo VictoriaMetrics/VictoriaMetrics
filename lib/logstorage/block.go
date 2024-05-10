@@ -226,7 +226,7 @@ func (b *block) assertValid() {
 //
 // It is expected that timestamps are sorted.
 //
-// b is valid until timestamps and rows are changed.
+// b is valid until rows are changed.
 func (b *block) MustInitFromRows(timestamps []int64, rows [][]Field) {
 	b.reset()
 
