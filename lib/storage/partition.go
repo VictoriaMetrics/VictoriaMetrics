@@ -1275,10 +1275,6 @@ func (pt *partition) getMaxSmallPartSize() uint64 {
 	// Small parts are cached in the OS page cache,
 	// so limit their size by the remaining free RAM.
 	mem := memory.Remaining()
-	// It is expected no more than defaultPartsToMerge/2 parts exist
-	// in the OS page cache before they are merged into bigger part.
-	// Half of the remaining RAM must be left for lib/mergeset parts,
-	// so the maxItems is calculated using the below code:
 	n := uint64(mem) / defaultPartsToMerge
 	if n < 10e6 {
 		n = 10e6
