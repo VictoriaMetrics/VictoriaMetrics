@@ -693,6 +693,14 @@ func loadAuthConfig() (bool, error) {
 	authConfig.Store(ac)
 	authConfigData.Store(&data)
 	authUsers.Store(&m)
+	if prevAc != nil {
+		// explicilty unregister metrics, since all summary type metrics
+		// are registered at global state of metrics package
+		// and must be removed from it to release memory.
+		// Metrics must be unregistered only after atomic.Value.Store calls above
+		// Otherwise it may lead to metric gaps, since UnregisterAllMetrics is slow operation
+		prevAc.ms.UnregisterAllMetrics()
+	}
 
 	return true, nil
 }
