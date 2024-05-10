@@ -65,11 +65,8 @@ type valuesEncoder struct {
 func (ve *valuesEncoder) reset() {
 	ve.buf = ve.buf[:0]
 
-	vs := ve.values
-	for i := range vs {
-		vs[i] = ""
-	}
-	ve.values = vs[:0]
+	clear(ve.values)
+	ve.values = ve.values[:0]
 }
 
 // encode encodes values to ve.values and returns the encoded value type with min/max encoded values.
@@ -1073,11 +1070,8 @@ type valuesDict struct {
 }
 
 func (vd *valuesDict) reset() {
-	vs := vd.values
-	for i := range vs {
-		vs[i] = ""
-	}
-	vd.values = vs[:0]
+	clear(vd.values)
+	vd.values = vd.values[:0]
 }
 
 func (vd *valuesDict) copyFrom(src *valuesDict) {
@@ -1134,7 +1128,7 @@ func (vd *valuesDict) unmarshal(src []byte) ([]byte, error) {
 			return srcOrig, fmt.Errorf("cannot umarshal value %d out of %d from dict: %w", i, dictLen, err)
 		}
 		src = tail
-		// Do not use bytesutil.InternBytes(data) here, since it works slower than the string(data) in prod
+
 		v := string(data)
 		vd.values = append(vd.values, v)
 	}

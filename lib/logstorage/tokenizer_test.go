@@ -24,6 +24,6 @@ Apr 28 13:43:38 localhost whoopsie[2812]: [13:43:38] online
 Apr 28 13:45:01 localhost CRON[12181]: (root) CMD (command -v debian-sa1 > /dev/null && debian-sa1 1 1)
 Apr 28 13:48:01 localhost kernel: [36020.497806] CPU0: Core temperature above threshold, cpu clock throttled (total events = 22034)
 `, "\n"), []string{"Apr", "28", "13", "43", "38", "localhost", "whoopsie", "2812", "online", "45", "01", "CRON", "12181",
-	"root", "CMD", "command", "v", "debian", "sa1", "dev", "null", "1", "48", "kernel", "36020", "497806", "CPU0", "Core",
-	"temperature", "above", "threshold", "cpu", "clock", "throttled", "total", "events", "22034"})
+		"root", "CMD", "command", "v", "debian", "sa1", "dev", "null", "1", "48", "kernel", "36020", "497806", "CPU0", "Core",
+		"temperature", "above", "threshold", "cpu", "clock", "throttled", "total", "events", "22034"})
 }

@@ -520,7 +520,7 @@ func areSameFieldsInRows(rows [][]Field) bool {
 	fields := rows[0]
 
 	// Verify that all the field names are unique
-	m := make(map[string]struct{}, len(fields))
+	m := getFieldsSet()
 	for i := range fields {
 		f := &fields[i]
 		if _, ok := m[f.Name]; ok {
@@ -529,6 +529,7 @@ func areSameFieldsInRows(rows [][]Field) bool {
 		}
 		m[f.Name] = struct{}{}
 	}
+	putFieldsSet(m)
 
 	// Verify that all the fields are the same across rows
 	rows = rows[1:]
@@ -545,6 +546,21 @@ func areSameFieldsInRows(rows [][]Field) bool {
 	}
 	return true
 }
+
+func getFieldsSet() map[string]struct{} {
+	v := fieldsSetPool.Get()
+	if v == nil {
+		return make(map[string]struct{})
+	}
+	return v.(map[string]struct{})
+}
+
+func putFieldsSet(m map[string]struct{}) {
+	clear(m)
+	fieldsSetPool.Put(m)
+}
+
+var fieldsSetPool sync.Pool
 
 var columnIdxsPool sync.Pool
 
