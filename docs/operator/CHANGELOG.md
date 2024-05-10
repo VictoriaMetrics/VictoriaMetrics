@@ -16,6 +16,8 @@ aliases:
 
 ## Next release
 
+## [v0.44.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.44.0) - 9 May 2024
+
 - [vmagent](./api.md#vmagent): adds new fields into `streamAggrConfig`: `dedup_interval`, `ignore_old_samples`, `keep_metric_names`, `no_align_flush_to_interval`. It's only possible to use it with v1.100+ version of `vmagent`. See this [issue](https://github.com/VictoriaMetrics/operator/issues/936) for details.
 - [operator](./README.md): use `Patch` for `finalizers` set/unset operations. It must fix possible issues with `CRD` objects mutations. See this [issue](https://github.com/VictoriaMetrics/operator/issues/946) for details.
 - [operator](./README.md): adds `spec.pause` field to `VMAgent`, `VMAlert`, `VMAuth`, `VMCluster`, `VMAlertmanager` and `VMSingle`. It allows to suspend object reconcile by operator. See this [issue](https://github.com/VictoriaMetrics/operator/issues/943) for details. Thanks @just1900
@@ -23,6 +25,7 @@ aliases:
 - [prometheus-converter](./README.md): fixes bug with prometheus-operator ScrapeConfig converter. Only copy `spec` field for it. See this [issue](https://github.com/VictoriaMetrics/operator/issues/942) for details.
 - [vmscrapeconfig](./resources/vmscrapeconfig.md): `authorization` section in sd configs works properly with empty `type` field (default value for this field is `Bearer`). 
 - [prometheus-converter](./README.md): fixes owner reference type on VMScrapeConfig objects
+- [vmauth&vmuser](./api.md#vmauth): sync config fields from [upstream](https://docs.victoriametrics.com/vmauth/), e.g., src_query_args, discover_backend_ips.
 
 <a name="v0.43.5"></a>
 
