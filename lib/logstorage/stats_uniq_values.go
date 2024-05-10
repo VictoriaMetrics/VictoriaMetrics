@@ -13,7 +13,7 @@ import (
 type statsUniqValues struct {
 	fields       []string
 	containsStar bool
-	limit uint64
+	limit        uint64
 }
 
 func (su *statsUniqValues) String() string {
