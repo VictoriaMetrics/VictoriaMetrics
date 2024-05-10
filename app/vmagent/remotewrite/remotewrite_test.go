@@ -96,7 +96,7 @@ func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 
 		// copy inputTss to make sure it is not mutated during TryPush call
 		copy(expectedTss, inputTss)
-		rwctx.TryPush(inputTss)
+		rwctx.TryPush(inputTss, false)
 
 		if !reflect.DeepEqual(expectedTss, inputTss) {
 			t.Fatalf("unexpected samples;\ngot\n%v\nwant\n%v", inputTss, expectedTss)
