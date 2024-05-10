@@ -1491,6 +1491,14 @@ over logs for the last 5 minutes:
 _time:5m | stats uniq_values(ip) unique_ips
 ```
 
+It is possible to specify the limit on the number of returned unique values by adding `limit N` just after `uniq_values()` and before the resulting column name.
+For example, the following query returns up to `100` unique values for the `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+over the logs for the last 5 minutes. Note that it may return arbitrary subset of unique `ip` values:
+
+```logsql
+_time:5m | stats uniq_values(ip) limit 100 as unique_ips_100
+```
+
 See also:
 
 - [`count_uniq`](#count_uniq-stats)

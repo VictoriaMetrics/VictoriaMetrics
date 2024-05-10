@@ -912,9 +912,10 @@ func TestParseQuerySuccess(t *testing.T) {
 
 	// stats pipe uniq_values
 	f(`* | stats uniq_values(foo) bar`, `* | stats uniq_values(foo) as bar`)
+	f(`* | stats uniq_values(foo) limit 10 bar`, `* | stats uniq_values(foo) limit 10 as bar`)
 	f(`* | stats by(x, y) uniq_values(foo, bar) as baz`, `* | stats by (x, y) uniq_values(foo, bar) as baz`)
 	f(`* | stats by(x) uniq_values(*) y`, `* | stats by (x) uniq_values(*) as y`)
-	f(`* | stats by(x) uniq_values() y`, `* | stats by (x) uniq_values(*) as y`)
+	f(`* | stats by(x) uniq_values() limit 1_000 AS y`, `* | stats by (x) uniq_values(*) limit 1000 as y`)
 	f(`* | stats by(x) uniq_values(a,*,b) y`, `* | stats by (x) uniq_values(*) as y`)
 
 	// stats pipe multiple funcs
@@ -1230,6 +1231,8 @@ func TestParseQueryFailure(t *testing.T) {
 	// invalid stats uniq_values
 	f(`foo | stats uniq_values`)
 	f(`foo | stats uniq_values()`)
+	f(`foo | stats uniq_values() limit`)
+	f(`foo | stats uniq_values(a) limit foo`)
 
 	// invalid stats grouping fields
 	f(`foo | stats by(foo:bar) count() baz`)

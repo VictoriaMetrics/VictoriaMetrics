@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -12,10 +13,15 @@ import (
 type statsUniqValues struct {
 	fields       []string
 	containsStar bool
+	limit uint64
 }
 
 func (su *statsUniqValues) String() string {
-	return "uniq_values(" + fieldNamesString(su.fields) + ")"
+	s := "uniq_values(" + fieldNamesString(su.fields) + ")"
+	if su.limit > 0 {
+		s += fmt.Sprintf(" limit %d", su.limit)
+	}
+	return s
 }
 
 func (su *statsUniqValues) neededFields() []string {
@@ -38,6 +44,11 @@ type statsUniqValuesProcessor struct {
 }
 
 func (sup *statsUniqValuesProcessor) updateStatsForAllRows(br *blockResult) int {
+	if sup.limitReached() {
+		// Limit on the number of unique values has been reached
+		return 0
+	}
+
 	stateSizeIncrease := 0
 	if sup.su.containsStar {
 		for _, c := range br.getColumns() {
@@ -106,6 +117,11 @@ func (sup *statsUniqValuesProcessor) updateStatsForAllRowsColumn(c *blockResultC
 }
 
 func (sup *statsUniqValuesProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
+	if sup.limitReached() {
+		// Limit on the number of unique values has been reached
+		return 0
+	}
+
 	stateSizeIncrease := 0
 	if sup.su.containsStar {
 		for _, c := range br.getColumns() {
@@ -168,6 +184,10 @@ func (sup *statsUniqValuesProcessor) updateStatsForRowColumn(c *blockResultColum
 }
 
 func (sup *statsUniqValuesProcessor) mergeState(sfp statsProcessor) {
+	if sup.limitReached() {
+		return
+	}
+
 	src := sfp.(*statsUniqValuesProcessor)
 	m := sup.m
 	for k := range src.m {
@@ -211,6 +231,10 @@ func (sup *statsUniqValuesProcessor) finalizeStats() string {
 	return bytesutil.ToUnsafeString(b)
 }
 
+func (sup *statsUniqValuesProcessor) limitReached() bool {
+	return sup.su.limit > 0 && uint64(len(sup.m)) >= sup.su.limit
+}
+
 func compareValues(a, b string) int {
 	fA, okA := tryParseFloat64(a)
 	fB, okB := tryParseFloat64(b)
@@ -240,6 +264,15 @@ func parseStatsUniqValues(lex *lexer) (*statsUniqValues, error) {
 	su := &statsUniqValues{
 		fields:       fields,
 		containsStar: slices.Contains(fields, "*"),
+	}
+	if lex.isKeyword("limit") {
+		lex.nextToken()
+		n, ok := tryParseUint64(lex.token)
+		if !ok {
+			return nil, fmt.Errorf("cannot parse 'limit %s' for 'uniq_values': %w", lex.token, err)
+		}
+		lex.nextToken()
+		su.limit = n
 	}
 	return su, nil
 }
