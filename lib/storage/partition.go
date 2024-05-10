@@ -28,14 +28,10 @@ import (
 // This time shouldn't exceed a few days.
 const maxBigPartSize = 1e12
 
-// The maximum number of inmemory parts per partition.
+// The maximum expected number of inmemory parts per partition.
 //
-// This limit allows reducing querying CPU usage under high ingestion rate.
-// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5212
-//
-// This number may be reached when the insertion pace outreaches merger pace.
-// If this number is reached, then the data ingestion is paused until background
-// mergers reduce the number of parts below this number.
+// The actual number of inmemory parts may exceed this value if in-memory mergers
+// cannot keep up with the rate of creating new in-memory parts.
 const maxInmemoryParts = 60
 
 // Default number of parts to merge at once.

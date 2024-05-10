@@ -23,6 +23,12 @@ import (
 // This time shouldn't exceed a few days.
 const maxBigPartSize = 1e12
 
+// The maximum number of inmemory parts in the partition.
+//
+// The actual number of inmemory parts may exceed this value if in-memory mergers
+// cannot keep up with the rate of creating new in-memory parts.
+const maxInmemoryPartsPerPartition = 20
+
 // The interval for guaranteed flush of recently ingested data from memory to on-disk parts,
 // so they survive process crash.
 var dataFlushInterval = 5 * time.Second
@@ -40,11 +46,6 @@ const defaultPartsToMerge = 15
 // while increases the number of unmerged parts.
 // The 1.7 is good enough for production workloads.
 const minMergeMultiplier = 1.7
-
-// The maximum number of inmemory parts in the partition.
-//
-// If the number of inmemory parts reaches this value, then assisted merge runs during data ingestion.
-const maxInmemoryPartsPerPartition = 20
 
 // datadb represents a database with log data
 type datadb struct {
@@ -663,9 +664,11 @@ func (ddb *datadb) mustAddRows(lr *LogRows) {
 		return
 	}
 
+	inmemoryPartsConcurrencyCh <- struct{}{}
 	mp := getInmemoryPart()
 	mp.mustInitFromRows(lr)
 	p := mustOpenInmemoryPart(ddb.pt, mp)
+	<-inmemoryPartsConcurrencyCh
 
 	flushDeadline := time.Now().Add(ddb.flushInterval)
 	pw := newPartWrapper(p, mp, flushDeadline)
