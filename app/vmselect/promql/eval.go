@@ -16,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/multitenant"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
@@ -27,8 +28,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
@@ -279,11 +278,6 @@ func getTimestamps(start, end, step int64, maxPointsPerSeries int) []int64 {
 	return timestamps
 }
 
-func isTenantLabel(name string) bool {
-	name = strings.ToLower(name)
-	return name == "vm_account_id" || name == "vm_project_id"
-}
-
 type tenantFiltersCacheItem struct {
 	ne      metricsql.Expr
 	filters [][]metricsql.LabelFilter
@@ -337,7 +331,7 @@ func extractTenantFilters(e metricsql.Expr, dst [][]metricsql.LabelFilter) ([][]
 			newLabels := make([]metricsql.LabelFilter, 0, len(labels))
 			newFilters := make([]metricsql.LabelFilter, 0)
 			for _, label := range labels {
-				if isTenantLabel(label.Label) {
+				if multitenant.IsTenancyLabel(label.Label) {
 					newFilters = append(newFilters, label)
 				} else {
 					newLabels = append(newLabels, label)
@@ -398,7 +392,7 @@ func extractTenantFiltersEc(ec *EvalConfig, dst [][]metricsql.LabelFilter) [][]m
 		newFilters := make([]metricsql.LabelFilter, 0)
 		newTagFilters := make([]storage.TagFilter, 0)
 		for _, filter := range filters {
-			if isTenantLabel(string(filter.Key)) {
+			if multitenant.IsTenancyLabel(string(filter.Key)) {
 				newFilters = append(newFilters, metricsql.LabelFilter{
 					Label:      string(filter.Key),
 					Value:      string(filter.Value),
@@ -422,77 +416,26 @@ func extractTenantFiltersEc(ec *EvalConfig, dst [][]metricsql.LabelFilter) [][]m
 }
 
 func applyFiltersToTenants(tenants []string, filters [][]metricsql.LabelFilter) []*auth.Token {
-	tokens := make([]*auth.Token, 0, len(tenants))
-	for _, tenant := range tenants {
-		t, err := auth.NewToken(tenant)
-		if err != nil {
-			logger.Panicf("unexpected error when constructing auth token from tenant %q: %s", tenant, err)
-		}
-		tokens = append(tokens, t)
-	}
-	if len(filters) == 0 {
-		return tokens
-	}
-
-	resultingTokens := make([]*auth.Token, 0, len(tenants))
-	lbs := make([][]prompbmarshal.Label, 0, len(filters))
-	for _, token := range tokens {
-		lbsL := make([]prompbmarshal.Label, 0)
-		lbsL = append(lbsL, prompbmarshal.Label{
-			Name:  "vm_account_id",
-			Value: fmt.Sprintf("%d", token.AccountID),
-		})
-
-		if token.ProjectID != 0 {
-			lbsL = append(lbsL, prompbmarshal.Label{
-				Name:  "vm_project_id",
-				Value: fmt.Sprintf("%d", token.ProjectID),
-			})
-		}
-
-		lbs = append(lbs, lbsL)
-	}
-
-	promIfs := make([]promrelabel.IfExpression, len(filters))
-	for i, filter := range filters {
-		strfilters := make([]byte, 0)
+	filtersStr := make([]string, 0, len(filters))
+	for _, filter := range filters {
+		fs := make([]byte, 0)
+		fs = append(fs, '{')
 
 		for idx, f := range filter {
-			strfilters = f.AppendString(strfilters)
+			fs = f.AppendString(fs)
 			if idx != len(filter)-1 {
-				strfilters = append(strfilters, ',')
-			}
-
-		}
-
-		err := promIfs[i].Parse(fmt.Sprintf("{%s}", strfilters))
-		if err != nil {
-			logger.Panicf("unexpected error when parsing if expression from filters %v: %s", strfilters, err)
-		}
-	}
-
-	for i, lb := range lbs {
-		for _, promIf := range promIfs {
-			if promIf.Match(lb) {
-				resultingTokens = append(resultingTokens, tokens[i])
-				continue
+				fs = append(fs, ',')
 			}
 		}
+		fs = append(fs, '}')
+		filtersStr = append(filtersStr, string(fs))
 	}
 
-	return resultingTokens
-}
-
-func fetchTenantsWithCache(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
-	// todo: cache tenants and periodically fetch from storage
-	tenants, err := netstorage.Tenants(qt, tr, deadline)
+	fts, err := multitenant.ApplyFiltersToTenants(tenants, filtersStr)
 	if err != nil {
-		return nil, fmt.Errorf("cannot obtain tenants: %w", err)
+		logger.Panicf("unexpected error when applying filters to tenants: %s", err)
 	}
-
-	qt.Printf("fetched %d tenants", len(tenants))
-
-	return tenants, nil
+	return fts
 }
 
 func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
@@ -506,66 +449,7 @@ func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*time
 		rv  []*timeseries
 		err error
 	)
-	if ec.AuthToken == nil {
-		qt.Printf("evalExpr: fetching tenants to evaluate expression")
-
-		tr := storage.TimeRange{
-			MinTimestamp: ec.Start,
-			MaxTimestamp: ec.End,
-		}
-		tenants, err := fetchTenantsWithCache(qt, tr, ec.Deadline)
-		if err != nil {
-			return nil, fmt.Errorf("cannot obtain tenants: %w", err)
-		}
-
-		filters, ne := extractTenantFilters(e, nil)
-		filters = extractTenantFiltersEc(ec, filters)
-
-		tenantTokens := applyFiltersToTenants(tenants, filters)
-
-		qt.Printf("evalExpr: evaluating expression for %d tenants", len(tenantTokens))
-
-		for _, token := range tenantTokens {
-			tqt := qt
-			if qt.Enabled() {
-				tqt = qt.NewChild("eval for tenant %s", token.String())
-			}
-
-			ec.AuthToken = token
-			rvL, err := evalExprInternal(tqt, ec, ne)
-			if err != nil {
-				return nil, err
-			}
-			if tqt.Enabled() {
-				seriesCount := len(rvL)
-				pointsPerSeries := 0
-				if len(rvL) > 0 {
-					pointsPerSeries = len(rvL[0].Timestamps)
-				}
-				pointsCount := seriesCount * pointsPerSeries
-				tqt.Donef("tenant=%s, series=%d, points=%d, pointsPerSeries=%d", token.String(), seriesCount, pointsCount, pointsPerSeries)
-			}
-
-			tags := []storage.Tag{
-				{
-					Key:   bytesutil.ToUnsafeBytes("vm_account_id"),
-					Value: strconv.AppendUint(nil, uint64(token.AccountID), 10),
-				},
-				{
-					Key:   bytesutil.ToUnsafeBytes("vm_project_id"),
-					Value: strconv.AppendUint(nil, uint64(token.ProjectID), 10),
-				},
-			}
-
-			for _, ts := range rvL {
-				ts.MetricName.Tags = append(ts.MetricName.Tags, tags...)
-			}
-
-			rv = append(rv, rvL...)
-		}
-
-		qt.Donef("")
-	} else {
+	if ec.AuthToken != nil {
 		rv, err = evalExprInternal(qt, ec, e)
 		if err != nil {
 			return nil, err
@@ -579,7 +463,63 @@ func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*time
 			pointsCount := seriesCount * pointsPerSeries
 			qt.Donef("series=%d, points=%d, pointsPerSeries=%d", seriesCount, pointsCount, pointsPerSeries)
 		}
+
+		return rv, nil
 	}
+
+	tr := storage.TimeRange{
+		MinTimestamp: ec.Start,
+		MaxTimestamp: ec.End,
+	}
+	tenants, err := multitenant.FetchTenants(qt, tr, ec.Deadline)
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain tenants: %w", err)
+	}
+	qt.Printf("eval: found %d tenants", len(tenants))
+
+	filters, ne := extractTenantFilters(e, nil)
+	filters = extractTenantFiltersEc(ec, filters)
+	tenantTokens := applyFiltersToTenants(tenants, filters)
+
+	qt.Printf("eval: %d tenants matched filters", len(tenantTokens))
+
+	for _, token := range tenantTokens {
+		qtl := qt.NewChild("eval: tenant=%q", token.String())
+
+		ec.AuthToken = token
+		rvL, err := evalExprInternal(qtl, ec, ne)
+		if err != nil {
+			return nil, err
+		}
+		if qtl.Enabled() {
+			seriesCount := len(rvL)
+			pointsPerSeries := 0
+			if len(rvL) > 0 {
+				pointsPerSeries = len(rvL[0].Timestamps)
+			}
+			pointsCount := seriesCount * pointsPerSeries
+			qtl.Donef("series=%d, points=%d, pointsPerSeries=%d", seriesCount, pointsCount, pointsPerSeries)
+		}
+
+		tags := []storage.Tag{
+			{
+				Key:   bytesutil.ToUnsafeBytes("vm_account_id"),
+				Value: strconv.AppendUint(nil, uint64(token.AccountID), 10),
+			},
+			{
+				Key:   bytesutil.ToUnsafeBytes("vm_project_id"),
+				Value: strconv.AppendUint(nil, uint64(token.ProjectID), 10),
+			},
+		}
+
+		for _, ts := range rvL {
+			ts.MetricName.Tags = append(ts.MetricName.Tags, tags...)
+		}
+
+		rv = append(rv, rvL...)
+	}
+
+	qt.Donef("")
 
 	return rv, nil
 }
