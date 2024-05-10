@@ -1129,6 +1129,7 @@ func (vd *valuesDict) unmarshal(src []byte) ([]byte, error) {
 		}
 		src = tail
 
+		// Do not use bytesutil.InternBytes(data) here, since it works slower than the string(data) in prod
 		v := string(data)
 		vd.values = append(vd.values, v)
 	}
