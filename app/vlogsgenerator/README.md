@@ -37,6 +37,7 @@ Below is an example output:
   "_msg": "message for the stream 8 and worker 0; ip=185.69.136.129; uuid=b4fe8f1a-c93c-dea3-ba11-5b9f0509291e; u64=8996587920687045253",
   "host": "host_8",
   "worker_id": "0",
+  "run_id": "f9b3deee-e6b6-7f56-5deb-1586e4e81725",
   "const_0": "some value 0 8",
   "const_1": "some value 1 8",
   "const_2": "some value 2 8",
@@ -56,6 +57,7 @@ Below is an example output:
   "_msg": "message for the stream 9 and worker 0; ip=164.244.254.194; uuid=7e8373b1-ce0d-1ce7-8e96-4bcab8955598; u64=13949903463741076522",
   "host": "host_9",
   "worker_id": "0",
+  "run_id": "f9b3deee-e6b6-7f56-5deb-1586e4e81725",
   "const_0": "some value 0 9",
   "const_1": "some value 1 9",
   "const_2": "some value 2 9",
@@ -71,6 +73,8 @@ Below is an example output:
   "timestamp_0": "2042-10-05T16:42:57.082Z"
 }
 ```
+
+The `run_id` field uniquely identifies every `vlogsgenerator` invocation.
 
 ### How to write logs to VictoriaLogs?
 

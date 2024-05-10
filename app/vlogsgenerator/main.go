@@ -220,6 +220,8 @@ func generateLogs(bw *bufio.Writer, workerID, activeStreams, totalStreams int) {
 	}
 }
 
+var runID = toUUID(rand.Uint64(), rand.Uint64())
+
 func generateLogsAtTimestamp(bw *bufio.Writer, workerID int, ts int64, firstStreamID, activeStreams int) {
 	streamID := firstStreamID
 	timeStr := toRFC3339(ts)
@@ -228,6 +230,7 @@ func generateLogsAtTimestamp(bw *bufio.Writer, workerID int, ts int64, firstStre
 		uuid := toUUID(rand.Uint64(), rand.Uint64())
 		fmt.Fprintf(bw, `{"_time":%q,"_msg":"message for the stream %d and worker %d; ip=%s; uuid=%s; u64=%d","host":"host_%d","worker_id":"%d"`,
 			timeStr, streamID, workerID, ip, uuid, rand.Uint64(), streamID, workerID)
+		fmt.Fprintf(bw, `,"run_id":"%s"`, runID)
 		for j := 0; j < *constFieldsPerLog; j++ {
 			fmt.Fprintf(bw, `,"const_%d":"some value %d %d"`, j, j, streamID)
 		}
