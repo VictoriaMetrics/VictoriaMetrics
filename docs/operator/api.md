@@ -136,11 +136,13 @@ This Document documents the types introduced by the VictoriaMetrics to be consum
 * [VMUserList](#vmuserlist)
 * [VMUserSpec](#vmuserspec)
 * [EmbeddedIngress](#embeddedingress)
+* [URLMapCommon](#urlmapcommon)
+* [UnauthorizedAccessConfigURLMap](#unauthorizedaccessconfigurlmap)
+* [UserConfigOption](#userconfigoption)
 * [VMAuth](#vmauth)
 * [VMAuthList](#vmauthlist)
 * [VMAuthSpec](#vmauthspec)
 * [VMAuthStatus](#vmauthstatus)
-* [VMAuthUnauthorizedPath](#vmauthunauthorizedpath)
 * [TargetEndpoint](#targetendpoint)
 * [VMStaticScrape](#vmstaticscrape)
 * [VMStaticScrapeList](#vmstaticscrapelist)
@@ -2169,12 +2171,8 @@ TargetRef describes target for user traffic forwarding. one of target types can 
 | static | Static - user defined url for traffic forward, for instance http://vmsingle:8429 | *[StaticRef](#staticref) | false |
 | paths | Paths - matched path to route. | []string | false |
 | hosts |  | []string | false |
-| target_path_suffix | QueryParams []string `json:\&#34;queryParams,omitempty\&#34;` TargetPathSuffix allows to add some suffix to the target path It allows to hide tenant configuration from user with crd as ref. it also may contain any url encoded params. | string | false |
-| headers | Headers represent additional http headers, that vmauth uses in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.68.0 version of vmauth | []string | false |
-| response_headers | ResponseHeaders represent additional http headers, that vmauth adds for request response in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.93.0 version of vmauth | []string | false |
-| retry_status_codes | RetryStatusCodes defines http status codes in numeric format for request retries Can be defined per target or at VMUser.spec level e.g. [429,503] | []int | false |
-| load_balancing_policy | LoadBalancingPolicy defines load balancing policy to use for backend urls. Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth.html#load-balancing for more details (default \&#34;least_loaded\&#34;) | *string | false |
-| drop_src_path_prefix_parts | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend. See https://docs.victoriametrics.com/vmauth.html#dropping-request-path-prefix for more details. | *int | false |
+| URLMapCommon |  | [URLMapCommon](#urlmapcommon) | false |
+| target_path_suffix | TargetPathSuffix allows to add some suffix to the target path It allows to hide tenant configuration from user with crd as ref. it also may contain any url encoded params. | string | false |
 | targetRefBasicAuth | TargetRefBasicAuth allow an target endpoint to authenticate over basic authentication | *[TargetRefBasicAuth](#targetrefbasicauth) | false |
 
 [Back to TOC](#table-of-contents)
@@ -2239,14 +2237,15 @@ VMUserSpec defines the desired state of VMUser
 | bearerToken | BearerToken Authorization header value for accessing protected endpoint. | *string | false |
 | targetRefs | TargetRefs - reference to endpoints, which user may access. | [][TargetRef](#targetref) | true |
 | default_url | DefaultURLs backend url for non-matching paths filter usually used for default backend with error message | []string | false |
+| tlsConfig |  | *[TLSConfig](#tlsconfig) | false |
 | ip_filters | IPFilters defines per target src ip filters supported only with enterprise version of vmauth https://docs.victoriametrics.com/vmauth.html#ip-filters | [VMUserIPFilters](#vmuseripfilters) | false |
+| discover_backend_ips | DiscoverBackendIPs instructs discovering URLPrefix backend IPs via DNS. | *bool | false |
 | headers | Headers represent additional http headers, that vmauth uses in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.68.0 version of vmauth | []string | false |
 | response_headers | ResponseHeaders represent additional http headers, that vmauth adds for request response in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.93.0 version of vmauth | []string | false |
 | retry_status_codes | RetryStatusCodes defines http status codes in numeric format for request retries e.g. [429,503] | []int | false |
 | max_concurrent_requests | MaxConcurrentRequests defines max concurrent requests per user 300 is default value for vmauth | *int | false |
 | load_balancing_policy | LoadBalancingPolicy defines load balancing policy to use for backend urls. Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth.html#load-balancing for more details (default \&#34;least_loaded\&#34;) | *string | false |
 | drop_src_path_prefix_parts | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend. See https://docs.victoriametrics.com/vmauth.html#dropping-request-path-prefix for more details. | *int | false |
-| tls_insecure_skip_verify | TLSInsecureSkipVerify - whether to skip TLS verification when connecting to backend over HTTPS. See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup | bool | false |
 | metric_labels | MetricLabels - additional labels for metrics exported by vmauth for given user. | map[string]string | false |
 | disable_secret_creation | DisableSecretCreation skips related secret creation for vmuser | bool | false |
 
@@ -2267,6 +2266,55 @@ EmbeddedIngress describes ingress configuration options.
 | extraRules | ExtraRules - additional rules for ingress, must be checked for correctness by user. | [][v12.IngressRule](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#ingressrule-v1-networking-k8s-io) | false |
 | extraTls | ExtraTLS - additional TLS configuration for ingress must be checked for correctness by user. | [][v12.IngressTLS](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#ingresstls-v1-networking-k8s-io) | false |
 | host | Host defines ingress host parameter for default rule It will be used, only if TlsHosts is empty | string | false |
+
+[Back to TOC](#table-of-contents)
+
+## URLMapCommon
+
+URLMapCommon contains common fields for unauthorized user and user in vmuser
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| src_query_args | SrcQueryArgs is an optional list of query args, which must match request URL query args. | []string | false |
+| src_headers | SrcHeaders is an optional list of headers, which must match request headers. | []string | false |
+| discover_backend_ips | DiscoverBackendIPs instructs discovering URLPrefix backend IPs via DNS. | *bool | false |
+| headers | RequestHeaders represent additional http headers, that vmauth uses in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.68.0 version of vmauth | []string | false |
+| response_headers | ResponseHeaders represent additional http headers, that vmauth adds for request response in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.93.0 version of vmauth | []string | false |
+| retry_status_codes | RetryStatusCodes defines http status codes in numeric format for request retries Can be defined per target or at VMUser.spec level e.g. [429,503] | []int | false |
+| load_balancing_policy | LoadBalancingPolicy defines load balancing policy to use for backend urls. Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth.html#load-balancing for more details (default \&#34;least_loaded\&#34;) | *string | false |
+| drop_src_path_prefix_parts | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend. See https://docs.victoriametrics.com/vmauth.html#dropping-request-path-prefix for more details. | *int | false |
+
+[Back to TOC](#table-of-contents)
+
+## UnauthorizedAccessConfigURLMap
+
+
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| src_paths | SrcPaths is an optional list of regular expressions, which must match the request path. | []string | false |
+| src_hosts | SrcHosts is an optional list of regular expressions, which must match the request hostname. | []string | false |
+| url_prefix | UrlPrefix contains backend url prefixes for the proxied request url. | []string | false |
+| URLMapCommon |  | [URLMapCommon](#urlmapcommon) | false |
+
+[Back to TOC](#table-of-contents)
+
+## UserConfigOption
+
+
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| default_url | DefaultURLs backend url for non-matching paths filter usually used for default backend with error message | []string | false |
+| tlsConfig |  | *[TLSConfig](#tlsconfig) | false |
+| ip_filters | IPFilters defines per target src ip filters supported only with enterprise version of vmauth https://docs.victoriametrics.com/vmauth.html#ip-filters | [VMUserIPFilters](#vmuseripfilters) | false |
+| discover_backend_ips | DiscoverBackendIPs instructs discovering URLPrefix backend IPs via DNS. | *bool | false |
+| headers | Headers represent additional http headers, that vmauth uses in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.68.0 version of vmauth | []string | false |
+| response_headers | ResponseHeaders represent additional http headers, that vmauth adds for request response in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.93.0 version of vmauth | []string | false |
+| retry_status_codes | RetryStatusCodes defines http status codes in numeric format for request retries e.g. [429,503] | []int | false |
+| max_concurrent_requests | MaxConcurrentRequests defines max concurrent requests per user 300 is default value for vmauth | *int | false |
+| load_balancing_policy | LoadBalancingPolicy defines load balancing policy to use for backend urls. Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth.html#load-balancing for more details (default \&#34;least_loaded\&#34;) | *string | false |
+| drop_src_path_prefix_parts | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend. See https://docs.victoriametrics.com/vmauth.html#dropping-request-path-prefix for more details. | *int | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -2343,7 +2391,17 @@ VMAuthSpec defines the desired state of VMAuth
 | nodeSelector | NodeSelector Define which Nodes the Pods are scheduled on. | map[string]string | false |
 | terminationGracePeriodSeconds | TerminationGracePeriodSeconds period for container graceful termination | *int64 | false |
 | readinessGates | ReadinessGates defines pod readiness gates | []v1.PodReadinessGate | false |
-| unauthorizedAccessConfig | UnauthorizedAccessConfig configures access for un authorized users | [][VMAuthUnauthorizedPath](#vmauthunauthorizedpath) | false |
+| unauthorizedAccessConfig | UnauthorizedAccessConfig configures access for un authorized users | [][UnauthorizedAccessConfigURLMap](#unauthorizedaccessconfigurlmap) | false |
+| default_url | DefaultURLs backend url for non-matching paths filter usually used for default backend with error message | []string | false |
+| tlsConfig |  | *[TLSConfig](#tlsconfig) | false |
+| ip_filters | IPFilters defines per target src ip filters supported only with enterprise version of vmauth https://docs.victoriametrics.com/vmauth.html#ip-filters | [VMUserIPFilters](#vmuseripfilters) | false |
+| discover_backend_ips | DiscoverBackendIPs instructs discovering URLPrefix backend IPs via DNS. | *bool | false |
+| headers | Headers represent additional http headers, that vmauth uses in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.68.0 version of vmauth | []string | false |
+| response_headers | ResponseHeaders represent additional http headers, that vmauth adds for request response in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.93.0 version of vmauth | []string | false |
+| retry_status_codes | RetryStatusCodes defines http status codes in numeric format for request retries e.g. [429,503] | []int | false |
+| max_concurrent_requests | MaxConcurrentRequests defines max concurrent requests per user 300 is default value for vmauth | *int | false |
+| load_balancing_policy | LoadBalancingPolicy defines load balancing policy to use for backend urls. Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth.html#load-balancing for more details (default \&#34;least_loaded\&#34;) | *string | false |
+| drop_src_path_prefix_parts | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend. See https://docs.victoriametrics.com/vmauth.html#dropping-request-path-prefix for more details. | *int | false |
 | useStrictSecurity | UseStrictSecurity enables strict security mode for component it restricts disk writes access uses non-root user out of the box drops not needed security permissions | *bool | false |
 | license | License allows to configure license key to be used for enterprise features. Using license key is supported starting from VictoriaMetrics v1.94.0. See: https://docs.victoriametrics.com/enterprise.html | *[License](#license) | false |
 | configSecret | ConfigSecret is the name of a Kubernetes Secret in the same namespace as the VMAuth object, which contains auth configuration for vmauth, configuration must be inside secret key: config.yaml. It must be created and managed manually. If it&#39;s defined, configuration for vmauth becomes unmanaged and operator&#39;ll not create any related secrets/config-reloaders | string | false |
@@ -2359,24 +2417,6 @@ VMAuthStatus defines the observed state of VMAuth
 | ----- | ----------- | ------ | -------- |
 | updateStatus | UpdateStatus defines a status for update rollout, effective only for statefuleMode | UpdateStatus | false |
 | reason | Reason defines fail reason for update process, effective only for statefuleMode | string | false |
-
-[Back to TOC](#table-of-contents)
-
-## VMAuthUnauthorizedPath
-
-VMAuthUnauthorizedPath defines url_map for unauthorized access
-
-| Field | Description | Scheme | Required |
-| ----- | ----------- | ------ | -------- |
-| src_paths | Paths src request paths | []string | false |
-| url_prefix | URLs defines url_prefix for dst routing | []string | false |
-| ip_filters | IPFilters defines filter for src ip address enterprise only | [VMUserIPFilters](#vmuseripfilters) | false |
-| src_hosts | SrcHosts is the list of regular expressions, which match the request hostname. | []string | false |
-| headers | Headers represent additional http headers, that vmauth uses in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.68.0 version of vmauth | []string | false |
-| response_headers | ResponseHeaders represent additional http headers, that vmauth adds for request response in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.93.0 version of vmauth | []string | false |
-| retry_status_codes | RetryStatusCodes defines http status codes in numeric format for request retries e.g. [429,503] | []int | false |
-| load_balancing_policy | LoadBalancingPolicy defines load balancing policy to use for backend urls. Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth.html#load-balancing for more details (default \&#34;least_loaded\&#34;) | *string | false |
-| drop_src_path_prefix_parts | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend. See https://docs.victoriametrics.com/vmauth.html#dropping-request-path-prefix for more details. | *int | false |
 
 [Back to TOC](#table-of-contents)
 
