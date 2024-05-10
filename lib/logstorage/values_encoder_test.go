@@ -77,6 +77,12 @@ func TestValuesEncoder(t *testing.T) {
 	}
 	f(values, valueTypeUint64, 1<<32, uint64(len(values))<<32)
 
+	// float64 values
+	for i := range values {
+		values[i] = fmt.Sprintf("%g", math.Sqrt(float64(i+1)))
+	}
+	f(values, valueTypeFloat64, 4607182418800017408, 4613937818241073152)
+
 	// ipv4 values
 	for i := range values {
 		values[i] = fmt.Sprintf("1.2.3.%d", i)
@@ -88,12 +94,6 @@ func TestValuesEncoder(t *testing.T) {
 		values[i] = fmt.Sprintf("2011-04-19T03:44:01.%03dZ", i)
 	}
 	f(values, valueTypeTimestampISO8601, 1303184641000000000, 1303184641008000000)
-
-	// float64 values
-	for i := range values {
-		values[i] = fmt.Sprintf("%g", math.Sqrt(float64(i+1)))
-	}
-	f(values, valueTypeFloat64, 4607182418800017408, 4613937818241073152)
 }
 
 func TestTryParseIPv4_Success(t *testing.T) {

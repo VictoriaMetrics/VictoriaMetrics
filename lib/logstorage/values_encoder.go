@@ -147,13 +147,20 @@ func (vd *valuesDecoder) decodeInplace(values []string, vt valueType, dictValues
 	case valueTypeString:
 		// nothing to do - values are already decoded.
 	case valueTypeDict:
+		sb := getStringBucket()
+		for _, v := range dictValues {
+			dstLen := len(dstBuf)
+			dstBuf = append(dstBuf, v...)
+			sb.a = append(sb.a, bytesutil.ToUnsafeString(dstBuf[dstLen:]))
+		}
 		for i, v := range values {
 			id := int(v[0])
 			if id >= len(dictValues) {
 				return fmt.Errorf("unexpected dictionary id: %d; it must be smaller than %d", id, len(dictValues))
 			}
-			values[i] = dictValues[id]
+			values[i] = sb.a[id]
 		}
+		putStringBucket(sb)
 	case valueTypeUint8:
 		for i, v := range values {
 			if len(v) != 1 {
