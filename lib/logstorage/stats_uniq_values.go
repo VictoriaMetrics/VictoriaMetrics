@@ -2,7 +2,6 @@ package logstorage
 
 import (
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"unsafe"
@@ -188,7 +187,7 @@ func (sup *statsUniqValuesProcessor) finalizeStats() string {
 	for k := range sup.m {
 		items = append(items, k)
 	}
-	sort.Strings(items)
+	slices.SortFunc(items, compareValues)
 
 	// Marshal items into JSON array.
 
@@ -210,6 +209,27 @@ func (sup *statsUniqValuesProcessor) finalizeStats() string {
 	b = append(b, ']')
 
 	return bytesutil.ToUnsafeString(b)
+}
+
+func compareValues(a, b string) int {
+	fA, okA := tryParseFloat64(a)
+	fB, okB := tryParseFloat64(b)
+	if okA && okB {
+		if fA == fB {
+			return 0
+		}
+		if fA < fB {
+			return -1
+		}
+		return 1
+	}
+	if okA {
+		return -1
+	}
+	if okB {
+		return 1
+	}
+	return strings.Compare(a, b)
 }
 
 func parseStatsUniqValues(lex *lexer) (*statsUniqValues, error) {
