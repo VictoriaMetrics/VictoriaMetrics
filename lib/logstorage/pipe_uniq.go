@@ -121,9 +121,10 @@ func (shard *pipeUniqProcessorShard) writeBlock(br *blockResult) bool {
 	if len(byFields) == 0 {
 		// Take into account all the columns in br.
 		keyBuf := shard.keyBuf
+		cs := br.getColumns()
 		for i := range br.timestamps {
 			keyBuf = keyBuf[:0]
-			for _, c := range br.getColumns() {
+			for _, c := range cs {
 				v := c.getValueAtRow(br, i)
 				keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(c.name))
 				keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(v))
