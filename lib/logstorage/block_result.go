@@ -524,6 +524,8 @@ func (br *blockResult) getBucketedTimestampValues(bf *byStatsField) []string {
 			bucketSizeInt = 1
 		}
 		bucketOffsetInt := int64(bf.bucketOffset)
+
+		timestampPrev := int64(0)
 		for i := range timestamps {
 			if i > 0 && timestamps[i-1] == timestamps[i] {
 				valuesBuf = append(valuesBuf, s)
@@ -540,6 +542,12 @@ func (br *blockResult) getBucketedTimestampValues(bf *byStatsField) []string {
 				timestamp -= timestamp % bucketSizeInt
 			}
 			timestamp += bucketOffsetInt
+
+			if i > 0 && timestampPrev == timestamp {
+				valuesBuf = append(valuesBuf, s)
+				continue
+			}
+			timestampPrev = timestamp
 
 			bufLen := len(buf)
 			buf = marshalTimestampRFC3339Nano(buf, timestamp)
@@ -620,6 +628,7 @@ func (br *blockResult) getBucketedUint8Values(encodedValues []string, bf *byStat
 		}
 		bucketOffsetInt := uint64(int64(bf.bucketOffset))
 
+		nPrev := uint64(0)
 		for i, v := range encodedValues {
 			if i > 0 && encodedValues[i-1] == encodedValues[i] {
 				valuesBuf = append(valuesBuf, s)
@@ -630,6 +639,12 @@ func (br *blockResult) getBucketedUint8Values(encodedValues []string, bf *byStat
 			n -= bucketOffsetInt
 			n -= n % bucketSizeInt
 			n += bucketOffsetInt
+
+			if i > 0 && nPrev == n {
+				valuesBuf = append(valuesBuf, s)
+				continue
+			}
+			nPrev = n
 
 			bufLen := len(buf)
 			buf = marshalUint64(buf, n)
@@ -672,6 +687,7 @@ func (br *blockResult) getBucketedUint16Values(encodedValues []string, bf *bySta
 		}
 		bucketOffsetInt := uint64(int64(bf.bucketOffset))
 
+		nPrev := uint64(0)
 		for i, v := range encodedValues {
 			if i > 0 && encodedValues[i-1] == encodedValues[i] {
 				valuesBuf = append(valuesBuf, s)
@@ -683,6 +699,12 @@ func (br *blockResult) getBucketedUint16Values(encodedValues []string, bf *bySta
 			n -= bucketOffsetInt
 			n -= n % bucketSizeInt
 			n += bucketOffsetInt
+
+			if i > 0 && nPrev == n {
+				valuesBuf = append(valuesBuf, s)
+				continue
+			}
+			nPrev = n
 
 			bufLen := len(buf)
 			buf = marshalUint64(buf, n)
@@ -725,6 +747,7 @@ func (br *blockResult) getBucketedUint32Values(encodedValues []string, bf *bySta
 		}
 		bucketOffsetInt := uint64(int64(bf.bucketOffset))
 
+		nPrev := uint64(0)
 		for i, v := range encodedValues {
 			if i > 0 && encodedValues[i-1] == encodedValues[i] {
 				valuesBuf = append(valuesBuf, s)
@@ -736,6 +759,12 @@ func (br *blockResult) getBucketedUint32Values(encodedValues []string, bf *bySta
 			n -= bucketOffsetInt
 			n -= n % bucketSizeInt
 			n += bucketOffsetInt
+
+			if i > 0 && nPrev == n {
+				valuesBuf = append(valuesBuf, s)
+				continue
+			}
+			nPrev = n
 
 			bufLen := len(buf)
 			buf = marshalUint64(buf, n)
@@ -778,6 +807,7 @@ func (br *blockResult) getBucketedUint64Values(encodedValues []string, bf *bySta
 		}
 		bucketOffsetInt := uint64(int64(bf.bucketOffset))
 
+		nPrev := uint64(0)
 		for i, v := range encodedValues {
 			if i > 0 && encodedValues[i-1] == encodedValues[i] {
 				valuesBuf = append(valuesBuf, s)
@@ -789,6 +819,12 @@ func (br *blockResult) getBucketedUint64Values(encodedValues []string, bf *bySta
 			n -= bucketOffsetInt
 			n -= n % bucketSizeInt
 			n += bucketOffsetInt
+
+			if i > 0 && nPrev == n {
+				valuesBuf = append(valuesBuf, s)
+				continue
+			}
+			nPrev = n
 
 			bufLen := len(buf)
 			buf = marshalUint64(buf, n)
@@ -835,6 +871,8 @@ func (br *blockResult) getBucketedFloat64Values(encodedValues []string, bf *bySt
 		_, e := decimal.FromFloat(bucketSize)
 		p10 := math.Pow10(int(-e))
 		bucketSizeP10 := int64(bucketSize * p10)
+
+		fPrev := float64(0)
 		for i, v := range encodedValues {
 			if i > 0 && encodedValues[i-1] == encodedValues[i] {
 				valuesBuf = append(valuesBuf, s)
@@ -853,6 +891,12 @@ func (br *blockResult) getBucketedFloat64Values(encodedValues []string, bf *bySt
 			f = float64(fP10) / p10
 
 			f += bf.bucketOffset
+
+			if fPrev == f {
+				valuesBuf = append(valuesBuf, s)
+				continue
+			}
+			fPrev = f
 
 			bufLen := len(buf)
 			buf = marshalFloat64(buf, f)
@@ -893,6 +937,7 @@ func (br *blockResult) getBucketedIPv4Values(encodedValues []string, bf *byStats
 		}
 		bucketOffsetInt := uint32(int32(bf.bucketOffset))
 
+		nPrev := uint32(0)
 		for i, v := range encodedValues {
 			if i > 0 && encodedValues[i-1] == encodedValues[i] {
 				valuesBuf = append(valuesBuf, s)
@@ -904,6 +949,12 @@ func (br *blockResult) getBucketedIPv4Values(encodedValues []string, bf *byStats
 			n -= bucketOffsetInt
 			n -= n % bucketSizeInt
 			n += bucketOffsetInt
+
+			if i > 0 && nPrev == n {
+				valuesBuf = append(valuesBuf, s)
+				continue
+			}
+			nPrev = n
 
 			bufLen := len(buf)
 			buf = marshalIPv4(buf, n)
@@ -947,6 +998,7 @@ func (br *blockResult) getBucketedTimestampISO8601Values(encodedValues []string,
 		}
 		bucketOffsetInt := int64(bf.bucketOffset)
 
+		timestampPrev := int64(0)
 		bb := bbPool.Get()
 		for i, v := range encodedValues {
 			if i > 0 && encodedValues[i-1] == encodedValues[i] {
@@ -966,6 +1018,12 @@ func (br *blockResult) getBucketedTimestampISO8601Values(encodedValues []string,
 			}
 			timestamp -= timestamp % bucketSizeInt
 			timestamp += bucketOffsetInt
+
+			if timestampPrev == timestamp {
+				valuesBuf = append(valuesBuf, s)
+				continue
+			}
+			timestampPrev = timestamp
 
 			bufLen := len(buf)
 			buf = marshalTimestampISO8601(buf, int64(timestamp))
