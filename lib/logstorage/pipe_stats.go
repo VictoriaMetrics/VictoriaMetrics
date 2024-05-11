@@ -92,6 +92,12 @@ func (ps *pipeStats) updateNeededFields(neededFields, unneededFields fieldsSet) 
 		byFields[i] = bf.name
 	}
 
+	for _, f := range byFields {
+		if neededFieldsOrig.contains(f) && !unneededFields.contains(f) {
+			neededFields.addAll(byFields)
+		}
+	}
+
 	for i, resultName := range ps.resultNames {
 		if neededFieldsOrig.contains(resultName) && !unneededFields.contains(resultName) {
 			funcFields := ps.funcs[i].neededFields()
