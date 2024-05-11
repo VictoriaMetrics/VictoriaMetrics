@@ -2099,10 +2099,6 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
      The maximum number of unique series vmagent can send to remote storage systems during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/vmagent/#cardinality-limiter
   -remoteWrite.maxRowsPerBlock int
      The maximum number of samples to send in each block to remote storage. Higher number may improve performance at the cost of the increased memory usage. See also -remoteWrite.maxBlockSize (default 10000)
-  -remoteWrite.multitenantURL array
-     Base path for multitenant remote storage URL to write data to. See https://docs.victoriametrics.com/vmagent/#multitenancy for details. Example url: http://<vminsert>:8480 . Pass multiple -remoteWrite.multitenantURL flags in order to replicate data to multiple remote storage systems. This flag is deprecated in favor of -enableMultitenantHandlers . See https://docs.victoriametrics.com/vmagent/#multitenancy
-     Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.oauth2.clientID array
      Optional OAuth2 clientID to use for the corresponding -remoteWrite.url
      Supports an array of values separated by comma or specified via multiple flags.
