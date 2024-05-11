@@ -361,9 +361,11 @@ func marshalVarUint64sSlow(dst []byte, us []uint64) []byte {
 // UnmarshalVarUint64 returns unmarshaled uint64 from src and returns
 // the remaining tail from src.
 func UnmarshalVarUint64(src []byte) ([]byte, uint64, error) {
-	var tmp [1]uint64
-	tail, err := UnmarshalVarUint64s(tmp[:], src)
-	return tail, tmp[0], err
+	u64, offset := binary.Uvarint(src)
+	if offset <= 0 {
+		return src, 0, fmt.Errorf("cannot read varuint64")
+	}
+	return src[offset:], u64, nil
 }
 
 // UnmarshalVarUint64s unmarshals len(dst) uint64 values from src to dst
