@@ -954,6 +954,15 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | sORt bY (_time, _stream DEsc, host)`, `* | sort by (_time, _stream desc, host)`)
 	f(`* | sort bY (foo desc, bar,) desc`, `* | sort by (foo desc, bar) desc`)
 
+	// uniq pipe
+	f(`* | uniq`, `* | uniq`)
+	f(`* | uniq by()`, `* | uniq`)
+	f(`* | uniq by(*)`, `* | uniq`)
+	f(`* | uniq by(foo,*,bar)`, `* | uniq`)
+	f(`* | uniq by(f1,f2)`, `* | uniq by (f1, f2)`)
+	f(`* | uniq by(f1,f2) limit 10`, `* | uniq by (f1, f2) limit 10`)
+	f(`* | uniq limit 10`, `* | uniq limit 10`)
+
 	// multiple different pipes
 	f(`* | fields foo, bar | limit 100 | stats by(foo,bar) count(baz) as qwert`, `* | fields foo, bar | limit 100 | stats by (foo, bar) count(baz) as qwert`)
 	f(`* | skip 100 | head 20 | skip 10`, `* | offset 100 | limit 20 | offset 10`)
@@ -1288,6 +1297,16 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | sort by(baz`)
 	f(`foo | sort by(baz,`)
 	f(`foo | sort by(bar) foo`)
+
+	// invalid uniq pipe
+	f(`foo | uniq bar`)
+	f(`foo | uniq limit`)
+	f(`foo | uniq by(`)
+	f(`foo | uniq by(a`)
+	f(`foo | uniq by(a,`)
+	f(`foo | uniq by(a) bar`)
+	f(`foo | uniq by(a) limit -10`)
+	f(`foo | uniq by(a) limit foo`)
 }
 
 func TestQueryGetNeededColumns(t *testing.T) {
@@ -1397,6 +1416,12 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | stats count(f1,f2) r1 | stats count(f2) r1, count(r1) r2 | fields r2`, `f1,f2`, ``)
 	f(`* | stats by(f3,f4) count(f1,f2) r1 | stats count(f2) r1, count(r1) r2 | fields r2`, `f1,f2,f3,f4`, ``)
 	f(`* | stats by(f3,f4) count(f1,f2) r1 | stats count(f3) r1, count(r1) r2 | fields r1`, `f3,f4`, ``)
+
+	f(`* | uniq`, `*`, ``)
+	f(`* | uniq by (f1,f2)`, `f1,f2`, ``)
+	f(`* | uniq by (f1,f2) | fields f1,f3`, `f1,f2`, ``)
+	f(`* | uniq by (f1,f2) | rm f1,f3`, `f1,f2`, ``)
+	f(`* | uniq by (f1,f2) | fields f3`, `f1,f2`, ``)
 
 	f(`* | rm f1, f2`, `*`, `f1,f2`)
 	f(`* | rm f1, f2 | mv f2 f3`, `*`, `f1,f2,f3`)

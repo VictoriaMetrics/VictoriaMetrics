@@ -1051,6 +1051,7 @@ LogsQL supports the following pipes:
 - [`rename`](#rename-pipe) renames [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - [`sort`](#sort-pipe) sorts logs by the given [fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - [`stats`](#stats-pipe) calculates various stats over the selected logs.
+- [`uniq`](#uniq-pipe) returns unique log entires.
 
 ### copy pipe
 
@@ -1205,6 +1206,31 @@ See also:
 - [`stats` pipe](#stats-pipe)
 - [`limit` pipe](#limit-pipe)
 - [`offset` pipe](#offset-pipe)
+
+### uniq pipe
+
+`| uniq ...` pipe allows returning only unique results over the selected logs. For example, the following LogsQL query
+returns uniq values for `ip` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+over logs for the last 5 minutes:
+
+```logsql
+_time:5m | uniq by (ip)
+```
+
+It is possible to specify multiple fields inside `by(...)` clause. In this case all the unique sets for the given fields
+are returned. For example, the following query returns all the unique `(host, path)` pairs for the logs over the last 5 minutes:
+
+```logsql
+_time:5m | uniq by (host, path)
+```
+
+Unique entries are stored in memory during query execution. Big number of unique selected entries may require a lot of memory.
+Sometimes it is enough to return up to `N` unique entries. This can be done by adding `limit N` after `by (...)` clause.
+This allows limiting memory usage. For example, the following query returns up to 100 unique `(host, path)` pairs for the logs over the last 5 minutes:
+
+```logsql
+_time:5m | uniq by (host, path) limit 100
+```
 
 ### stats pipe
 

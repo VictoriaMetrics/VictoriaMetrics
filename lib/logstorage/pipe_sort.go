@@ -30,8 +30,8 @@ func (ps *pipeSort) String() string {
 	s := "sort"
 	if len(ps.byFields) > 0 {
 		a := make([]string, len(ps.byFields))
-		for i := range ps.byFields {
-			a[i] = ps.byFields[i].String()
+		for i, bf := range ps.byFields {
+			a[i] = bf.String()
 		}
 		s += " by (" + strings.Join(a, ", ") + ")"
 	}
@@ -99,7 +99,7 @@ type pipeSortProcessorShard struct {
 }
 
 type pipeSortProcessorShardNopad struct {
-	// ps point to the parent pipeSort.
+	// ps points to the parent pipeSort.
 	ps *pipeSort
 
 	// blocks holds all the blocks with logs written to the shard.
@@ -165,7 +165,7 @@ func (c *sortBlockByColumn) getF64ValueAtRow(rowIdx int) float64 {
 	return c.f64Values[rowIdx]
 }
 
-// writeBlock writes br with the given byFields to shard.
+// writeBlock writes br to shard.
 func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 	// clone br, so it could be owned by shard
 	br = br.clone()
