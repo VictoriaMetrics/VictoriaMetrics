@@ -143,7 +143,7 @@ func (c *column) canStoreInConstColumn() bool {
 
 func (c *column) resizeValues(valuesLen int) []string {
 	values := c.values
-	if n := valuesLen - cap(values); n > 0 {
+	if n := len(values) + valuesLen - cap(values); n > 0 {
 		values = append(values[:cap(values)], make([]string, n)...)
 	}
 	values = values[:valuesLen]
@@ -370,8 +370,8 @@ func (b *block) extendColumns() *column {
 }
 
 func (b *block) resizeColumns(columnsLen int) []column {
-	cs := b.columns[:0]
-	if n := columnsLen - cap(cs); n > 0 {
+	cs := b.columns
+	if n := len(cs) + columnsLen - cap(cs); n > 0 {
 		cs = append(cs[:cap(cs)], make([]column, n)...)
 	}
 	cs = cs[:columnsLen]

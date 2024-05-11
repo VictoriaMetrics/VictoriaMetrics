@@ -84,7 +84,7 @@ func (ts *tableSearch) Init(tb *table, tsids []TSID, tr TimeRange) {
 	ts.ptws = tb.GetPartitions(ts.ptws[:0])
 
 	// Initialize the ptsPool.
-	if n := len(ts.ptws) - cap(ts.ptsPool); n > 0 {
+	if n := len(ts.ptsPool) + len(ts.ptws) - cap(ts.ptsPool); n > 0 {
 		ts.ptsPool = append(ts.ptsPool[:cap(ts.ptsPool)], make([]partitionSearch, n)...)
 	}
 	ts.ptsPool = ts.ptsPool[:len(ts.ptws)]

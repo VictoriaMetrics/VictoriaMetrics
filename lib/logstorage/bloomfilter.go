@@ -54,7 +54,7 @@ func (bf *bloomFilter) unmarshal(src []byte) error {
 	bf.reset()
 	wordsCount := len(src) / 8
 	bits := bf.bits
-	if n := wordsCount - cap(bits); n > 0 {
+	if n := len(bits) + wordsCount - cap(bits); n > 0 {
 		bits = append(bits[:cap(bits)], make([]uint64, n)...)
 	}
 	bits = bits[:wordsCount]
@@ -71,7 +71,7 @@ func (bf *bloomFilter) mustInit(tokens []string) {
 	bitsCount := len(tokens) * bloomFilterBitsPerItem
 	wordsCount := (bitsCount + 63) / 64
 	bits := bf.bits
-	if n := wordsCount - cap(bits); n > 0 {
+	if n := len(bits) + wordsCount - cap(bits); n > 0 {
 		bits = append(bits[:cap(bits)], make([]uint64, n)...)
 	}
 	bits = bits[:wordsCount]

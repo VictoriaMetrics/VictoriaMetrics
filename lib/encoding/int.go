@@ -517,7 +517,7 @@ func GetInt64s(size int) *Int64s {
 		}
 	}
 	is := v.(*Int64s)
-	if n := size - cap(is.A); n > 0 {
+	if n := len(is.A) + size - cap(is.A); n > 0 {
 		is.A = append(is.A[:cap(is.A)], make([]int64, n)...)
 	}
 	is.A = is.A[:size]
@@ -546,7 +546,7 @@ func GetUint64s(size int) *Uint64s {
 		}
 	}
 	is := v.(*Uint64s)
-	if n := size - cap(is.A); n > 0 {
+	if n := len(is.A) + size - cap(is.A); n > 0 {
 		is.A = append(is.A[:cap(is.A)], make([]uint64, n)...)
 	}
 	is.A = is.A[:size]
@@ -575,7 +575,7 @@ func GetUint32s(size int) *Uint32s {
 		}
 	}
 	is := v.(*Uint32s)
-	if n := size - cap(is.A); n > 0 {
+	if n := len(is.A) + size - cap(is.A); n > 0 {
 		is.A = append(is.A[:cap(is.A)], make([]uint32, n)...)
 	}
 	is.A = is.A[:size]

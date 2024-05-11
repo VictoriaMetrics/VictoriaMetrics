@@ -71,7 +71,7 @@ func (ts *TableSearch) Init(tb *Table) {
 	ts.pws = ts.tb.getParts(ts.pws[:0])
 
 	// Initialize the psPool.
-	if n := len(ts.pws) - cap(ts.psPool); n > 0 {
+	if n := len(ts.psPool) + len(ts.pws) - cap(ts.psPool); n > 0 {
 		ts.psPool = append(ts.psPool[:cap(ts.psPool)], make([]partSearch, n)...)
 	}
 	ts.psPool = ts.psPool[:len(ts.pws)]

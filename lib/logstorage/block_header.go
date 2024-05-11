@@ -264,7 +264,7 @@ func (csh *columnsHeader) getColumnHeader(name string) *columnHeader {
 
 func (csh *columnsHeader) resizeConstColumns(columnsLen int) []Field {
 	ccs := csh.constColumns
-	if n := columnsLen - cap(ccs); n > 0 {
+	if n := len(ccs) + columnsLen - cap(ccs); n > 0 {
 		ccs = append(ccs[:cap(ccs)], make([]Field, n)...)
 	}
 	ccs = ccs[:columnsLen]
@@ -274,7 +274,7 @@ func (csh *columnsHeader) resizeConstColumns(columnsLen int) []Field {
 
 func (csh *columnsHeader) resizeColumnHeaders(columnHeadersLen int) []columnHeader {
 	chs := csh.columnHeaders
-	if n := columnHeadersLen - cap(chs); n > 0 {
+	if n := len(chs) + columnHeadersLen - cap(chs); n > 0 {
 		chs = append(chs[:cap(chs)], make([]columnHeader, n)...)
 	}
 	chs = chs[:columnHeadersLen]

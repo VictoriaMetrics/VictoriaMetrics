@@ -413,7 +413,7 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 	if err != nil {
 		return src, fmt.Errorf("cannot unmarshal the count of TagFilterss: %w", err)
 	}
-	if n := int(tfssCount) - cap(sq.TagFilterss); n > 0 {
+	if n := len(sq.TagFilterss) + int(tfssCount) - cap(sq.TagFilterss); n > 0 {
 		sq.TagFilterss = append(sq.TagFilterss[:cap(sq.TagFilterss)], make([][]TagFilter, n)...)
 	}
 	sq.TagFilterss = sq.TagFilterss[:tfssCount]
@@ -427,7 +427,7 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 		src = tail
 
 		tagFilters := sq.TagFilterss[i]
-		if n := int(tfsCount) - cap(tagFilters); n > 0 {
+		if n := len(tagFilters) + int(tfsCount) - cap(tagFilters); n > 0 {
 			tagFilters = append(tagFilters[:cap(tagFilters)], make([]TagFilter, n)...)
 		}
 		tagFilters = tagFilters[:tfsCount]

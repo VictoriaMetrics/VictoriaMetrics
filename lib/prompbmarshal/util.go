@@ -8,7 +8,7 @@ import (
 func (wr *WriteRequest) MarshalProtobuf(dst []byte) []byte {
 	size := wr.Size()
 	dstLen := len(dst)
-	if n := size - (cap(dst) - dstLen); n > 0 {
+	if n := dstLen + size - cap(dst); n > 0 {
 		dst = append(dst[:cap(dst)], make([]byte, n)...)
 	}
 	dst = dst[:dstLen+size]

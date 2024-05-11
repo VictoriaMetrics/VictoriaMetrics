@@ -14,7 +14,7 @@ func GetFloat64s(size int) *Float64s {
 		v = &Float64s{}
 	}
 	a := v.(*Float64s)
-	if n := size - cap(a.A); n > 0 {
+	if n := len(a.A) + size - cap(a.A); n > 0 {
 		a.A = append(a.A[:cap(a.A)], make([]float64, n)...)
 	}
 	a.A = a.A[:size]

@@ -227,7 +227,8 @@ func (s *Set) AppendTo(dst []uint64) []uint64 {
 
 	// pre-allocate memory for dst
 	dstLen := len(dst)
-	if n := s.Len() - cap(dst) + dstLen; n > 0 {
+	sLen := s.Len()
+	if n := dstLen + sLen - cap(dst); n > 0 {
 		dst = append(dst[:cap(dst)], make([]uint64, n)...)
 		dst = dst[:dstLen]
 	}

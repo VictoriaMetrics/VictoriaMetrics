@@ -412,7 +412,7 @@ func (ib *inmemoryBlock) UnmarshalData(sb *storageBlock, firstItem, commonPrefix
 	// since the data isn't going to be resized after unmarshaling.
 	// This may save memory for caching the unmarshaled block.
 	data := bytesutil.ResizeNoCopyNoOverallocate(ib.data, dataLen)
-	if n := int(itemsCount) - cap(ib.items); n > 0 {
+	if n := len(ib.items) + int(itemsCount) - cap(ib.items); n > 0 {
 		ib.items = append(ib.items[:cap(ib.items)], make([]Item, n)...)
 	}
 	ib.items = ib.items[:itemsCount]

@@ -53,7 +53,7 @@ func (bd *blockData) reset() {
 
 func (bd *blockData) resizeColumnsData(columnsDataLen int) []columnData {
 	cds := bd.columnsData
-	if n := columnsDataLen - cap(cds); n > 0 {
+	if n := len(cds) + columnsDataLen - cap(cds); n > 0 {
 		cds = append(cds[:cap(cds)], make([]columnData, n)...)
 	}
 	cds = cds[:columnsDataLen]

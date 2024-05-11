@@ -702,7 +702,7 @@ func (mn *MetricName) sortTags() {
 	}
 
 	cts := getCanonicalTags()
-	if n := len(mn.Tags) - cap(cts.tags); n > 0 {
+	if n := len(cts.tags) + len(mn.Tags) - cap(cts.tags); n > 0 {
 		cts.tags = append(cts.tags[:cap(cts.tags)], make([]canonicalTag, n)...)
 	}
 	dst := cts.tags[:len(mn.Tags)]

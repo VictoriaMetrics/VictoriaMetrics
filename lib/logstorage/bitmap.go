@@ -46,7 +46,7 @@ func (bm *bitmap) copyFrom(src *bitmap) {
 func (bm *bitmap) init(bitsLen int) {
 	a := bm.a
 	wordsLen := (bitsLen + 63) / 64
-	if n := wordsLen - cap(a); n > 0 {
+	if n := len(a) + wordsLen - cap(a); n > 0 {
 		a = append(a[:cap(a)], make([]uint64, n)...)
 	}
 	a = a[:wordsLen]
