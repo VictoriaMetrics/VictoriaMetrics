@@ -99,8 +99,8 @@ func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 	for i := len(q.pipes) - 1; i >= 0; i-- {
 		p := q.pipes[i]
 		ctxChild, cancel := context.WithCancel(ctx)
-		stopCh = ctxChild.Done()
 		pp = p.newPipeProcessor(workersCount, stopCh, cancel, pp)
+		stopCh = ctxChild.Done()
 		ctx = ctxChild
 
 		cancels[i] = cancel
