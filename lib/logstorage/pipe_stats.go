@@ -176,14 +176,14 @@ func (shard *pipeStatsProcessorShard) writeBlock(br *blockResult) {
 		c := br.getColumnByName(bf.name)
 		if c.isConst {
 			// Fast path for column with constant value.
-			v := br.getBucketedValue(c.encodedValues[0], bf.bucketSize, bf.bucketOffset)
+			v := br.getBucketedValue(c.encodedValues[0], bf)
 			shard.keyBuf = encoding.MarshalBytes(shard.keyBuf[:0], bytesutil.ToUnsafeBytes(v))
 			psg := shard.getPipeStatsGroup(shard.keyBuf)
 			shard.stateSizeBudget -= psg.updateStatsForAllRows(br)
 			return
 		}
 
-		values := c.getBucketedValues(br, bf.bucketSize, bf.bucketOffset)
+		values := c.getBucketedValues(br, bf)
 		if areConstValues(values) {
 			// Fast path for column with constant values.
 			shard.keyBuf = encoding.MarshalBytes(shard.keyBuf[:0], bytesutil.ToUnsafeBytes(values[0]))
@@ -210,7 +210,7 @@ func (shard *pipeStatsProcessorShard) writeBlock(br *blockResult) {
 	columnValues := shard.columnValues[:0]
 	for _, bf := range byFields {
 		c := br.getColumnByName(bf.name)
-		values := c.getBucketedValues(br, bf.bucketSize, bf.bucketOffset)
+		values := c.getBucketedValues(br, bf)
 		columnValues = append(columnValues, values)
 	}
 	shard.columnValues = columnValues
@@ -544,6 +544,8 @@ func parseResultName(lex *lexer) (string, error) {
 	return resultName, nil
 }
 
+var zeroByStatsField = &byStatsField{}
+
 // byStatsField represents 'by (...)' part of the pipeStats.
 //
 // It can have either 'name' representation or 'name:bucket' or 'name:buket offset off' representation,
@@ -576,6 +578,10 @@ func (bf *byStatsField) String() string {
 	return s
 }
 
+func (bf *byStatsField) hasBucketConfig() bool {
+	return len(bf.bucketSizeStr) > 0 || len(bf.bucketOffsetStr) > 0
+}
+
 func parseByStatsFields(lex *lexer) ([]*byStatsField, error) {
 	if !lex.isKeyword("(") {
 		return nil, fmt.Errorf("missing `(`")
@@ -603,12 +609,14 @@ func parseByStatsFields(lex *lexer) ([]*byStatsField, error) {
 				bucketSizeStr += lex.token
 				lex.nextToken()
 			}
-			bucketSize, ok := tryParseBucketSize(bucketSizeStr)
-			if !ok {
-				return nil, fmt.Errorf("cannot parse bucket size for field %q: %q", fieldName, bucketSizeStr)
+			if bucketSizeStr != "year" && bucketSizeStr != "month" {
+				bucketSize, ok := tryParseBucketSize(bucketSizeStr)
+				if !ok {
+					return nil, fmt.Errorf("cannot parse bucket size for field %q: %q", fieldName, bucketSizeStr)
+				}
+				bf.bucketSize = bucketSize
 			}
 			bf.bucketSizeStr = bucketSizeStr
-			bf.bucketSize = bucketSize
 
 			// Parse bucket offset
 			if lex.isKeyword("offset") {
@@ -672,6 +680,25 @@ func tryParseBucketOffset(s string) (float64, bool) {
 // - bytes: 1.5KiB
 // - ipv4 mask: /24
 func tryParseBucketSize(s string) (float64, bool) {
+	switch s {
+	case "nanosecond":
+		return 1, true
+	case "microsecond":
+		return nsecsPerMicrosecond, true
+	case "millisecond":
+		return nsecsPerMillisecond, true
+	case "second":
+		return nsecsPerSecond, true
+	case "minute":
+		return nsecsPerMinute, true
+	case "hour":
+		return nsecsPerHour, true
+	case "day":
+		return nsecsPerDay, true
+	case "week":
+		return nsecsPerWeek, true
+	}
+
 	// Try parsing s as floating point number
 	if f, ok := tryParseFloat64(s); ok {
 		return f, true

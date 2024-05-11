@@ -1280,6 +1280,19 @@ over the last 5 minutes:
 _time:5m | stats by (_time:1m) count() logs_total, count_uniq(ip) ips_total
 ```
 
+Additionally, the following `step` values are supported:
+
+- `nanosecond` - equals to `1ns` [duration](#duration-values).
+- `microsecond` - equals to `1µs` [duration](#duration-values).
+- `millisecond` - equals to `1ms` [duration](#duration-values).
+- `second` - equals to `1s` [duration](#duration-values).
+- `minute` - equals to `1m` [duration](#duration-values).
+- `hour` - equalst to `1h` [duration](#duration-values).
+- `day` - equals to `1d` [duration](#duration-values).
+- `week` - equals to `1w` [duration](#duration-values).
+- `month` - equals to one month. It properly takes into account the number of days per each month.
+- `year` - equals to one year. It properly takes into account the number of days per each year.
+
 #### Stats by time buckets with timezone offset
 
 VictoriaLogs stores [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) values as [Unix time](https://en.wikipedia.org/wiki/Unix_time)

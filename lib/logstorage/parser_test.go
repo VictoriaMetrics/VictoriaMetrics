@@ -927,6 +927,16 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`*|stats by(client_ip:/24, server_ip:/16) count() foo`, `* | stats by (client_ip:/24, server_ip:/16) count(*) as foo`)
 	f(`* | stats by(_time:1d offset 2h) count() as foo`, `* | stats by (_time:1d offset 2h) count(*) as foo`)
 	f(`* | stats by(_time:1d offset -2.5h5m) count() as foo`, `* | stats by (_time:1d offset -2.5h5m) count(*) as foo`)
+	f(`* | stats by (_time:nanosecond) count() foo`, `* | stats by (_time:nanosecond) count(*) as foo`)
+	f(`* | stats by (_time:microsecond) count() foo`, `* | stats by (_time:microsecond) count(*) as foo`)
+	f(`* | stats by (_time:millisecond) count() foo`, `* | stats by (_time:millisecond) count(*) as foo`)
+	f(`* | stats by (_time:second) count() foo`, `* | stats by (_time:second) count(*) as foo`)
+	f(`* | stats by (_time:minute) count() foo`, `* | stats by (_time:minute) count(*) as foo`)
+	f(`* | stats by (_time:hour) count() foo`, `* | stats by (_time:hour) count(*) as foo`)
+	f(`* | stats by (_time:day) count() foo`, `* | stats by (_time:day) count(*) as foo`)
+	f(`* | stats by (_time:week) count() foo`, `* | stats by (_time:week) count(*) as foo`)
+	f(`* | stats by (_time:month) count() foo`, `* | stats by (_time:month) count(*) as foo`)
+	f(`* | stats by (_time:year offset 6.5h) count() foo`, `* | stats by (_time:year offset 6.5h) count(*) as foo`)
 
 	// sort pipe
 	f(`* | sort`, `* | sort`)
