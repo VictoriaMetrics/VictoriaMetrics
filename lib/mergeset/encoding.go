@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // Item represents a single item for storing in a mergeset.
@@ -412,9 +413,7 @@ func (ib *inmemoryBlock) UnmarshalData(sb *storageBlock, firstItem, commonPrefix
 	// since the data isn't going to be resized after unmarshaling.
 	// This may save memory for caching the unmarshaled block.
 	data := bytesutil.ResizeNoCopyNoOverallocate(ib.data, dataLen)
-	if n := len(ib.items) + int(itemsCount) - cap(ib.items); n > 0 {
-		ib.items = append(ib.items[:cap(ib.items)], make([]Item, n)...)
-	}
+	ib.items = slicesutil.ExtendCapacity(ib.items, int(itemsCount))
 	ib.items = ib.items[:itemsCount]
 	data = append(data[:0], firstItem...)
 	items := ib.items

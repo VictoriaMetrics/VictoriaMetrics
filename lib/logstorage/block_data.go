@@ -4,6 +4,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // blockData contains packed data for a single block.
@@ -52,13 +53,9 @@ func (bd *blockData) reset() {
 }
 
 func (bd *blockData) resizeColumnsData(columnsDataLen int) []columnData {
-	cds := bd.columnsData
-	if n := len(cds) + columnsDataLen - cap(cds); n > 0 {
-		cds = append(cds[:cap(cds)], make([]columnData, n)...)
-	}
-	cds = cds[:columnsDataLen]
-	bd.columnsData = cds
-	return cds
+	cds := slicesutil.ExtendCapacity(bd.columnsData, columnsDataLen)
+	bd.columnsData = cds[:columnsDataLen]
+	return bd.columnsData
 }
 
 // copyFrom copies src to bd.

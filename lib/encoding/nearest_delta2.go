@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // marshalInt64NearestDelta2 encodes src using `nearest delta2` encoding
@@ -70,9 +71,7 @@ func unmarshalInt64NearestDelta2(dst []int64, src []byte, firstValue int64, item
 	}
 
 	dstLen := len(dst)
-	if n := dstLen + itemsCount - cap(dst); n > 0 {
-		dst = append(dst[:cap(dst)], make([]int64, n)...)
-	}
+	dst = slicesutil.ExtendCapacity(dst, itemsCount)
 	dst = dst[:dstLen+itemsCount]
 	as := dst[dstLen:]
 

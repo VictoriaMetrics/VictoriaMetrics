@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
@@ -413,9 +414,7 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 	if err != nil {
 		return src, fmt.Errorf("cannot unmarshal the count of TagFilterss: %w", err)
 	}
-	if n := len(sq.TagFilterss) + int(tfssCount) - cap(sq.TagFilterss); n > 0 {
-		sq.TagFilterss = append(sq.TagFilterss[:cap(sq.TagFilterss)], make([][]TagFilter, n)...)
-	}
+	sq.TagFilterss = slicesutil.ExtendCapacity(sq.TagFilterss, int(tfssCount))
 	sq.TagFilterss = sq.TagFilterss[:tfssCount]
 	src = tail
 
@@ -427,9 +426,7 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 		src = tail
 
 		tagFilters := sq.TagFilterss[i]
-		if n := len(tagFilters) + int(tfsCount) - cap(tagFilters); n > 0 {
-			tagFilters = append(tagFilters[:cap(tagFilters)], make([]TagFilter, n)...)
-		}
+		tagFilters = slicesutil.ExtendCapacity(tagFilters, int(tfsCount))
 		tagFilters = tagFilters[:tfsCount]
 		for j := 0; j < int(tfsCount); j++ {
 			tail, err := tagFilters[j].Unmarshal(src)

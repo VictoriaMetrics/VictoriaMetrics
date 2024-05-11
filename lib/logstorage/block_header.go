@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // blockHeader contains information about a single block.
@@ -263,23 +264,15 @@ func (csh *columnsHeader) getColumnHeader(name string) *columnHeader {
 }
 
 func (csh *columnsHeader) resizeConstColumns(columnsLen int) []Field {
-	ccs := csh.constColumns
-	if n := len(ccs) + columnsLen - cap(ccs); n > 0 {
-		ccs = append(ccs[:cap(ccs)], make([]Field, n)...)
-	}
-	ccs = ccs[:columnsLen]
-	csh.constColumns = ccs
-	return ccs
+	ccs := slicesutil.ExtendCapacity(csh.constColumns, columnsLen)
+	csh.constColumns = ccs[:columnsLen]
+	return csh.constColumns
 }
 
 func (csh *columnsHeader) resizeColumnHeaders(columnHeadersLen int) []columnHeader {
-	chs := csh.columnHeaders
-	if n := len(chs) + columnHeadersLen - cap(chs); n > 0 {
-		chs = append(chs[:cap(chs)], make([]columnHeader, n)...)
-	}
-	chs = chs[:columnHeadersLen]
-	csh.columnHeaders = chs
-	return chs
+	chs := slicesutil.ExtendCapacity(csh.columnHeaders, columnHeadersLen)
+	csh.columnHeaders = chs[:columnHeadersLen]
+	return csh.columnHeaders
 }
 
 func (csh *columnsHeader) marshal(dst []byte) []byte {

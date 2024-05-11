@@ -5,9 +5,11 @@ import (
 	"sync"
 	"unsafe"
 
+	"github.com/cespare/xxhash/v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
-	"github.com/cespare/xxhash/v2"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // bloomFilterHashesCount is the number of different hashes to use for bloom filter.
@@ -53,10 +55,7 @@ func (bf *bloomFilter) unmarshal(src []byte) error {
 	}
 	bf.reset()
 	wordsCount := len(src) / 8
-	bits := bf.bits
-	if n := len(bits) + wordsCount - cap(bits); n > 0 {
-		bits = append(bits[:cap(bits)], make([]uint64, n)...)
-	}
+	bits := slicesutil.ExtendCapacity(bf.bits, wordsCount)
 	bits = bits[:wordsCount]
 	for i := range bits {
 		bits[i] = encoding.UnmarshalUint64(src)
@@ -70,10 +69,7 @@ func (bf *bloomFilter) unmarshal(src []byte) error {
 func (bf *bloomFilter) mustInit(tokens []string) {
 	bitsCount := len(tokens) * bloomFilterBitsPerItem
 	wordsCount := (bitsCount + 63) / 64
-	bits := bf.bits
-	if n := len(bits) + wordsCount - cap(bits); n > 0 {
-		bits = append(bits[:cap(bits)], make([]uint64, n)...)
-	}
+	bits := slicesutil.ExtendCapacity(bf.bits, wordsCount)
 	bits = bits[:wordsCount]
 	bloomFilterAdd(bits, tokens)
 	bf.bits = bits

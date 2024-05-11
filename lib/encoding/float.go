@@ -2,6 +2,8 @@ package encoding
 
 import (
 	"sync"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // GetFloat64s returns a slice of float64 values with the given size.
@@ -14,9 +16,7 @@ func GetFloat64s(size int) *Float64s {
 		v = &Float64s{}
 	}
 	a := v.(*Float64s)
-	if n := len(a.A) + size - cap(a.A); n > 0 {
-		a.A = append(a.A[:cap(a.A)], make([]float64, n)...)
-	}
+	a.A = slicesutil.ExtendCapacity(a.A, size)
 	a.A = a.A[:size]
 	return a
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // block represents a block of log entries.
@@ -142,13 +143,9 @@ func (c *column) canStoreInConstColumn() bool {
 }
 
 func (c *column) resizeValues(valuesLen int) []string {
-	values := c.values
-	if n := len(values) + valuesLen - cap(values); n > 0 {
-		values = append(values[:cap(values)], make([]string, n)...)
-	}
-	values = values[:valuesLen]
-	c.values = values
-	return values
+	values := slicesutil.ExtendCapacity(c.values, valuesLen)
+	c.values = values[:valuesLen]
+	return c.values
 }
 
 // mustWriteTo writes c to sw and updates ch accordingly.
@@ -370,13 +367,9 @@ func (b *block) extendColumns() *column {
 }
 
 func (b *block) resizeColumns(columnsLen int) []column {
-	cs := b.columns
-	if n := len(cs) + columnsLen - cap(cs); n > 0 {
-		cs = append(cs[:cap(cs)], make([]column, n)...)
-	}
-	cs = cs[:columnsLen]
-	b.columns = cs
-	return cs
+	cs := slicesutil.ExtendCapacity(b.columns, columnsLen)
+	b.columns = cs[:columnsLen]
+	return b.columns
 }
 
 func (b *block) sortColumnsByName() {

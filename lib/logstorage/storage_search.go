@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // genericSearchOptions contain options used for search.
@@ -197,11 +198,7 @@ func getEmptyStrings(rowsCount int) []string {
 		return values
 	}
 	values := *p
-	if n := len(values) + rowsCount - cap(values); n > 0 {
-		valuesNew := append(values[:cap(values)], make([]string, n)...)
-		emptyStrings.Store(&valuesNew)
-		values = valuesNew
-	}
+	values = slicesutil.ExtendCapacity(values, rowsCount)
 	return values[:rowsCount]
 }
 
