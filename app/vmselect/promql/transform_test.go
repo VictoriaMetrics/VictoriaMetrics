@@ -253,16 +253,24 @@ func timeseriesToPromMetrics(tss []*timeseries) string {
 }
 
 func TestGetNumPrefix(t *testing.T) {
-	f := func(s, prefixExpected string) {
+	f := func(s, prefixExpected string, prefixExpectedNatural ...string) {
 		t.Helper()
-		prefix := getNumPrefix(s)
+		prefix := getNumPrefix(s, false)
 		if prefix != prefixExpected {
-			t.Fatalf("unexpected getNumPrefix(%q): got %q; want %q", s, prefix, prefixExpected)
+			t.Fatalf("unexpected getNumPrefix(%q, false): got %q; want %q", s, prefix, prefixExpected)
 		}
 		if len(prefix) > 0 {
 			if _, err := strconv.ParseFloat(prefix, 64); err != nil {
 				t.Fatalf("cannot parse num %q: %s", prefix, err)
 			}
+		}
+		prefixNat := getNumPrefix(s, true)
+		prefixNatExpected := prefixExpected
+		if len(prefixExpectedNatural) > 0 {
+			prefixNatExpected = prefixExpectedNatural[0]
+		}
+		if prefixNat != prefixNatExpected {
+			t.Fatalf("unexpected getNumPrefix(%q, true): got %q; want %q", s, prefix, prefixExpected)
 		}
 	}
 
@@ -275,22 +283,29 @@ func TestGetNumPrefix(t *testing.T) {
 	f("1", "1")
 	f("12", "12")
 	f("1foo", "1")
-	f("-123", "-123")
-	f("-123bar", "-123")
-	f("+123", "+123")
-	f("+123.", "+123.")
-	f("+123..", "+123.")
-	f("+123.-", "+123.")
-	f("12.34..", "12.34")
-	f("-12.34..", "-12.34")
-	f("-12.-34..", "-12.")
+	f("-123", "-123", "")
+	f("-123bar", "-123", "")
+	f("+123", "+123", "")
+	f("+123.", "+123.", "")
+	f("+123..", "+123.", "")
+	f("+123.-", "+123.", "")
+	f("12.34..", "12.34", "12")
+	f("-12.34..", "-12.34", "")
+	f("-12.-34..", "-12.", "")
 }
 
 func TestNumericLess(t *testing.T) {
-	f := func(a, b string, want bool) {
+	f := func(a, b string, wantNumeric bool, wantNatural ...bool) {
 		t.Helper()
-		if got := numericLess(a, b); got != want {
-			t.Fatalf("unexpected numericLess(%q, %q): got %v; want %v", a, b, got, want)
+		if got := numericLess(a, b, false); got != wantNumeric {
+			t.Fatalf("unexpected numericLess(%q, %q, false): got %v; want %v", a, b, got, wantNumeric)
+		}
+		wantNat := wantNumeric
+		if len(wantNatural) > 0 {
+			wantNat = wantNatural[0]
+		}
+		if got := numericLess(a, b, true); got != wantNat {
+			t.Fatalf("unexpected numericLess(%q, %q, true): got %v; want %v", a, b, got, wantNat)
 		}
 	}
 	// empty strings
@@ -349,12 +364,15 @@ func TestNumericLess(t *testing.T) {
 	f("083a", "9a", false)
 	f("083a", "94a", true)
 	// negative number
-	f("-123", "123", true)
-	f("-123", "+123", true)
+	f("-123", "123", true, false)
+	f("-123", "+123", true, false)
 	f("-123", "-123", false)
-	f("123", "-123", false)
+	f("123", "-123", false, true)
 	// fractional number
-	f("12.9", "12.56", false)
-	f("12.56", "12.9", true)
-	f("12.9", "12.9", false)
+	f("12.9", "12.56", false, true)
+	f("12.56", "12.9", true, false)
+	f("12.9", "12.9", false, false)
+	// versions
+	f("v1.0.15", "v1.0.2", false, false)
+	f("v1.100.1", "v1.93.10", true, false)
 }
