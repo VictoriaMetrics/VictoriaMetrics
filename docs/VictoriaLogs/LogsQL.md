@@ -1341,6 +1341,7 @@ LogsQL supports the following functions for [`stats` pipe](#stats-pipe):
 - [`min`](#min-stats) calculates the minumum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`sum`](#sum-stats) calculates the sum for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`uniq_values`](#uniq_values-stats) returns unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`values`](#values-stats) returns all the values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
 ### avg stats
 
@@ -1390,6 +1391,7 @@ _time:5m | stats count(username, password) logs_with_username_or_password
 See also:
 
 - [`count_uniq`](#count_uniq-stats)
+- [`count_empty`](#count_empty-stats)
 - [`sum`](#sum-stats)
 - [`avg`](#avg-stats)
 
@@ -1525,8 +1527,28 @@ _time:5m | stats uniq_values(ip) limit 100 as unique_ips_100
 
 See also:
 
+- [`values`](#values-stats)
 - [`count_uniq`](#count_uniq-stats)
 - [`count`](#count-stats)
+
+### values stats
+
+`values(field1, ..., fieldN)` [stats pipe](#stats-pipe) returns all the values (including empty values)
+for the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+The returned values are encoded in JSON array.
+
+For example, the following query returns all the values for the `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+over logs for the last 5 minutes:
+
+```logsql
+_time:5m | stats values(ip) ips
+```
+
+See also:
+
+- [`uniq_values`](#uniq_values-stats)
+- [`count`](#count-stats)
+- [`count_empty`](#count_empty-stats)
 
 ## Stream context
 

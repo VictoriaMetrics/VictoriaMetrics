@@ -213,8 +213,15 @@ func (sup *statsUniqValuesProcessor) finalizeStats() string {
 		items = items[:limit]
 	}
 
-	// Marshal items into JSON array.
+	return marshalJSONArray(items)
+}
 
+func (sup *statsUniqValuesProcessor) limitReached() bool {
+	limit := sup.su.limit
+	return limit > 0 && uint64(len(sup.m)) >= limit
+}
+
+func marshalJSONArray(items []string) string {
 	// Pre-allocate buffer for serialized items.
 	// Assume that there is no need in quoting items. Otherwise additional reallocations
 	// for the allocated buffer are possible.
@@ -233,11 +240,6 @@ func (sup *statsUniqValuesProcessor) finalizeStats() string {
 	b = append(b, ']')
 
 	return bytesutil.ToUnsafeString(b)
-}
-
-func (sup *statsUniqValuesProcessor) limitReached() bool {
-	limit := sup.su.limit
-	return limit > 0 && uint64(len(sup.m)) >= limit
 }
 
 func compareValues(a, b string) int {
