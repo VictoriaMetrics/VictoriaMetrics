@@ -22,6 +22,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
@@ -3323,13 +3324,8 @@ func (mp *tagToMetricIDsRowParser) ParseMetricIDs() {
 		return
 	}
 	tail := mp.tail
-	mp.MetricIDs = mp.MetricIDs[:0]
 	n := len(tail) / 8
-	if n <= cap(mp.MetricIDs) {
-		mp.MetricIDs = mp.MetricIDs[:n]
-	} else {
-		mp.MetricIDs = append(mp.MetricIDs[:cap(mp.MetricIDs)], make([]uint64, n-cap(mp.MetricIDs))...)
-	}
+	mp.MetricIDs = slicesutil.SetLength(mp.MetricIDs, n)
 	metricIDs := mp.MetricIDs
 	_ = metricIDs[n-1]
 	for i := 0; i < n; i++ {

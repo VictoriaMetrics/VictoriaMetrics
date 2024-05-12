@@ -6,6 +6,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"unsafe"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // Set is a fast set for uint64.
@@ -226,11 +228,9 @@ func (s *Set) AppendTo(dst []uint64) []uint64 {
 	}
 
 	// pre-allocate memory for dst
-	dstLen := len(dst)
-	if n := s.Len() - cap(dst) + dstLen; n > 0 {
-		dst = append(dst[:cap(dst)], make([]uint64, n)...)
-		dst = dst[:dstLen]
-	}
+	sLen := s.Len()
+	dst = slicesutil.ExtendCapacity(dst, sLen)
+
 	s.sort()
 	for i := range s.buckets {
 		dst = s.buckets[i].appendTo(dst)

@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"sync"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // MarshalUint16 appends marshaled v to dst and returns the result.
@@ -490,10 +492,7 @@ func GetInt64s(size int) *Int64s {
 		}
 	}
 	is := v.(*Int64s)
-	if n := size - cap(is.A); n > 0 {
-		is.A = append(is.A[:cap(is.A)], make([]int64, n)...)
-	}
-	is.A = is.A[:size]
+	is.A = slicesutil.SetLength(is.A, size)
 	return is
 }
 
@@ -519,10 +518,7 @@ func GetUint64s(size int) *Uint64s {
 		}
 	}
 	is := v.(*Uint64s)
-	if n := size - cap(is.A); n > 0 {
-		is.A = append(is.A[:cap(is.A)], make([]uint64, n)...)
-	}
-	is.A = is.A[:size]
+	is.A = slicesutil.SetLength(is.A, size)
 	return is
 }
 
@@ -548,10 +544,7 @@ func GetUint32s(size int) *Uint32s {
 		}
 	}
 	is := v.(*Uint32s)
-	if n := size - cap(is.A); n > 0 {
-		is.A = append(is.A[:cap(is.A)], make([]uint32, n)...)
-	}
-	is.A = is.A[:size]
+	is.A = slicesutil.SetLength(is.A, size)
 	return is
 }
 

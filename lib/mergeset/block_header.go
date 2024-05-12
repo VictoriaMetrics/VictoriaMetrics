@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 type blockHeader struct {
@@ -160,10 +161,7 @@ func unmarshalBlockHeadersNoCopy(dst []blockHeader, src []byte, blockHeadersCoun
 		logger.Panicf("BUG: blockHeadersCount must be greater than 0; got %d", blockHeadersCount)
 	}
 	dstLen := len(dst)
-	if n := dstLen + blockHeadersCount - cap(dst); n > 0 {
-		dst = append(dst[:cap(dst)], make([]blockHeader, n)...)
-	}
-	dst = dst[:dstLen+blockHeadersCount]
+	dst = slicesutil.SetLength(dst, dstLen+blockHeadersCount)
 	for i := 0; i < blockHeadersCount; i++ {
 		tail, err := dst[dstLen+i].UnmarshalNoCopy(src)
 		if err != nil {
