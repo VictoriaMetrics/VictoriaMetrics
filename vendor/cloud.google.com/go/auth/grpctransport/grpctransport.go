@@ -96,6 +96,9 @@ func (o *Options) validate() error {
 	if o == nil {
 		return errors.New("grpctransport: opts required to be non-nil")
 	}
+	if o.InternalOptions != nil && o.InternalOptions.SkipValidation {
+		return nil
+	}
 	hasCreds := o.Credentials != nil ||
 		(o.DetectOpts != nil && len(o.DetectOpts.CredentialsJSON) > 0) ||
 		(o.DetectOpts != nil && o.DetectOpts.CredentialsFile != "")
@@ -151,6 +154,9 @@ type InternalOptions struct {
 	// DefaultScopes specifies the default OAuth2 scopes to be used for a
 	// service.
 	DefaultScopes []string
+	// SkipValidation bypasses validation on Options. It should only be used
+	// internally for clients that needs more control over their transport.
+	SkipValidation bool
 }
 
 // Dial returns a GRPCClientConnPool that can be used to communicate with a
@@ -169,7 +175,7 @@ func Dial(ctx context.Context, secure bool, opts *Options) (GRPCClientConnPool, 
 	}
 	pool := &roundRobinConnPool{}
 	for i := 0; i < opts.PoolSize; i++ {
-		conn, err := dial(ctx, false, opts)
+		conn, err := dial(ctx, secure, opts)
 		if err != nil {
 			// ignore close error, if any
 			defer pool.Close()
@@ -190,6 +196,8 @@ func dial(ctx context.Context, secure bool, opts *Options) (*grpc.ClientConn, er
 	if io := opts.InternalOptions; io != nil {
 		tOpts.DefaultEndpointTemplate = io.DefaultEndpointTemplate
 		tOpts.DefaultMTLSEndpoint = io.DefaultMTLSEndpoint
+		tOpts.EnableDirectPath = io.EnableDirectPath
+		tOpts.EnableDirectPathXds = io.EnableDirectPathXds
 	}
 	transportCreds, endpoint, err := transport.GetGRPCTransportCredsAndEndpoint(tOpts)
 	if err != nil {
@@ -208,12 +216,16 @@ func dial(ctx context.Context, secure bool, opts *Options) (*grpc.ClientConn, er
 	// Authentication can only be sent when communicating over a secure connection.
 	if !opts.DisableAuthentication {
 		metadata := opts.Metadata
-		creds, err := credentials.DetectDefault(opts.resolveDetectOptions())
-		if err != nil {
-			return nil, err
-		}
+
+		var creds *auth.Credentials
 		if opts.Credentials != nil {
 			creds = opts.Credentials
+		} else {
+			var err error
+			creds, err = credentials.DetectDefault(opts.resolveDetectOptions())
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		qp, err := creds.QuotaProjectID(ctx)
