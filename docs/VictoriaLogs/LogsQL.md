@@ -1232,6 +1232,10 @@ This allows limiting memory usage. For example, the following query returns up t
 _time:5m | uniq by (host, path) limit 100
 ```
 
+See also:
+
+- [`uniq_values` stats function](#uniq_values-stats)
+
 ### stats pipe
 
 `| stats ...` pipe allows calculating various stats over the selected logs. For example, the following LogsQL query
@@ -1553,6 +1557,7 @@ _time:5m | stats uniq_values(ip) limit 100 as unique_ips_100
 
 See also:
 
+- [`uniq` pipe](#uniq-pipe)
 - [`values`](#values-stats)
 - [`count_uniq`](#count_uniq-stats)
 - [`count`](#count-stats)
