@@ -139,7 +139,7 @@ func maySortResults(e metricsql.Expr) bool {
 			return false
 		}
 	case *metricsql.BinaryOpExpr:
-		if strings.ToLower(v.Op) == "or" {
+		if strings.EqualFold(v.Op, "or") {
 			// Do not sort results for `a or b` in the same way as Prometheus does.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4763
 			return false
