@@ -42,7 +42,9 @@ func TestPipeStatsUpdateNeededFields(t *testing.T) {
 	f("stats count(*) r1", "*", "r1,r2", "", "")
 	f("stats count(f1,f2) r1", "*", "r1,r2", "", "")
 	f("stats count(f1,f2) r1, sum(f3,f4) r2", "*", "r1,r3", "f3,f4", "")
-	f("stats by (b1,b2) count(f1,f2) r1", "*", "r1,r2", "", "")
+	f("stats by (b1,b2) count(f1,f2) r1", "*", "r1,r2", "b1,b2", "")
+	f("stats by (b1,b2) count(f1,f2) r1", "*", "r1,r2,b1", "b1,b2", "")
+	f("stats by (b1,b2) count(f1,f2) r1", "*", "r1,r2,b1,b2", "", "")
 	f("stats by (b1,b2) count(f1,f2) r1, count(f1,f3) r2", "*", "r1,r3", "b1,b2,f1,f3", "")
 
 	// needed fields do not intersect with stats fields
