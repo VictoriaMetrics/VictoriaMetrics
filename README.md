@@ -2123,7 +2123,7 @@ General security recommendations:
 
 - All the VictoriaMetrics components must run in protected private networks without direct access from untrusted networks such as Internet.
   The exception is [vmauth](https://docs.victoriametrics.com/vmauth/) and [vmgateway](https://docs.victoriametrics.com/vmgateway/),
-  which are indended for serving public requests and performing authorization with [TLS termination](https://en.wikipedia.org/wiki/TLS_termination_proxy).
+  which are intended for serving public requests and performing authorization with [TLS termination](https://en.wikipedia.org/wiki/TLS_termination_proxy).
 - All the requests from untrusted networks to VictoriaMetrics components must go through auth proxy such as [vmauth](https://docs.victoriametrics.com/vmauth/)
   or [vmgateway](https://docs.victoriametrics.com/vmgateway/). The proxy must be set up with proper authentication and authorization.
 - Prefer using lists of allowed API endpoints, while disallowing access to other endpoints when configuring [vmauth](https://docs.victoriametrics.com/vmauth/)
@@ -2165,13 +2165,16 @@ All the VictoriaMetrics [Enterprise](https://docs.victoriametrics.com/enterprise
 via [Let's Encrypt service](https://letsencrypt.org/). The following command-line flags must be set in order to enable automatic issuing of TLS certificates:
 
 - `-httpListenAddr` must be set for listening TCP port `443`. For example, `-httpListenAddr=:443`. This port must be accessible by the [Let's Encrypt service](https://letsencrypt.org/).
-- `-tls` must be set in order to accept HTTPS requests at `-httpListenAddr`.
+- `-tls` must be set in order to accept HTTPS requests at `-httpListenAddr`. Note that `-tlcCertFile` and `-tlsKeyFile` aren't needed when automatic TLS certificate issuing is enabled.
 - `-tlsAutocertHosts` must be set to comma-separated list of hosts, which can be reached via `-httpListenAddr`. TLS certificates are automatically issued for these hosts.
 - `-tlsAutocertEmail` must be set to contact email for the issued TLS certificates.
 - `-tlsAutocertCacheDir` may be set to the directory path for persisting the issued TLS certificates between VictoriaMetrics restarts. If this flag isn't set,
   then TLS certificates are re-issued on every restart.
 
 This functionality can be evaluated for free according to [these docs](https://docs.victoriametrics.com/enterprise/).
+
+See also [security recommendations](#security).
+
 
 ## Tuning
 
