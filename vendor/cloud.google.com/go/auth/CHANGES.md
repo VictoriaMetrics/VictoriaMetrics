@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.4.1](https://github.com/googleapis/google-cloud-go/compare/auth/v0.4.0...auth/v0.4.1) (2024-05-09)
+
+
+### Bug Fixes
+
+* **auth:** Don't try to detect default creds it opt configured ([#10143](https://github.com/googleapis/google-cloud-go/issues/10143)) ([804632e](https://github.com/googleapis/google-cloud-go/commit/804632e7c5b0b85ff522f7951114485e256eb5bc))
+
+## [0.4.0](https://github.com/googleapis/google-cloud-go/compare/auth/v0.3.0...auth/v0.4.0) (2024-05-07)
+
+
+### Features
+
+* **auth:** Enable client certificates by default ([#10102](https://github.com/googleapis/google-cloud-go/issues/10102)) ([9013e52](https://github.com/googleapis/google-cloud-go/commit/9013e5200a6ec0f178ed91acb255481ffb073a2c))
+
+
+### Bug Fixes
+
+* **auth:** Get s2a logic up to date ([#10093](https://github.com/googleapis/google-cloud-go/issues/10093)) ([4fe9ae4](https://github.com/googleapis/google-cloud-go/commit/4fe9ae4b7101af2a5221d6d6b2e77b479305bb06))
+
+## [0.3.0](https://github.com/googleapis/google-cloud-go/compare/auth/v0.2.2...auth/v0.3.0) (2024-04-23)
+
+
+### Features
+
+* **auth/httptransport:** Add ability to customize transport ([#10023](https://github.com/googleapis/google-cloud-go/issues/10023)) ([72c7f6b](https://github.com/googleapis/google-cloud-go/commit/72c7f6bbec3136cc7a62788fc7186bc33ef6c3b3)), refs [#9812](https://github.com/googleapis/google-cloud-go/issues/9812) [#9814](https://github.com/googleapis/google-cloud-go/issues/9814)
+
+
+### Bug Fixes
+
+* **auth/credentials:** Error on bad file name if explicitly set ([#10018](https://github.com/googleapis/google-cloud-go/issues/10018)) ([55beaa9](https://github.com/googleapis/google-cloud-go/commit/55beaa993aaf052d8be39766afc6777c3c2a0bdd)), refs [#9809](https://github.com/googleapis/google-cloud-go/issues/9809)
+
+## [0.2.2](https://github.com/googleapis/google-cloud-go/compare/auth/v0.2.1...auth/v0.2.2) (2024-04-19)
+
+
+### Bug Fixes
+
+* **auth:** Add internal opt to skip validation on transports ([#9999](https://github.com/googleapis/google-cloud-go/issues/9999)) ([9e20ef8](https://github.com/googleapis/google-cloud-go/commit/9e20ef89f6287d6bd03b8697d5898dc43b4a77cf)), refs [#9823](https://github.com/googleapis/google-cloud-go/issues/9823)
+* **auth:** Set secure flag for gRPC conn pools ([#10002](https://github.com/googleapis/google-cloud-go/issues/10002)) ([14e3956](https://github.com/googleapis/google-cloud-go/commit/14e3956dfd736399731b5ee8d9b178ae085cf7ba)), refs [#9833](https://github.com/googleapis/google-cloud-go/issues/9833)
+
 ## [0.2.1](https://github.com/googleapis/google-cloud-go/compare/auth/v0.2.0...auth/v0.2.1) (2024-04-18)
 
 

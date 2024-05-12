@@ -58,9 +58,15 @@ func newTransport(base http.RoundTripper, opts *Options) (http.RoundTripper, err
 			Key:       opts.APIKey,
 		}
 	default:
-		creds, err := credentials.DetectDefault(opts.resolveDetectOptions())
-		if err != nil {
-			return nil, err
+		var creds *auth.Credentials
+		if opts.Credentials != nil {
+			creds = opts.Credentials
+		} else {
+			var err error
+			creds, err = credentials.DetectDefault(opts.resolveDetectOptions())
+			if err != nil {
+				return nil, err
+			}
 		}
 		qp, err := creds.QuotaProjectID(context.Background())
 		if err != nil {
@@ -71,10 +77,6 @@ func newTransport(base http.RoundTripper, opts *Options) (http.RoundTripper, err
 				headers = make(map[string][]string, 1)
 			}
 			headers.Set(quotaProjectHeaderKey, qp)
-		}
-
-		if opts.Credentials != nil {
-			creds = opts.Credentials
 		}
 		creds.TokenProvider = auth.NewCachedTokenProvider(creds.TokenProvider, nil)
 		trans = &authTransport{
