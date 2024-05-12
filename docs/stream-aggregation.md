@@ -19,7 +19,7 @@ The aggregation is applied to all the metrics received via any [supported data i
 and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 after applying all the configured [relabeling stages](https://docs.victoriametrics.com/vmagent/#relabeling).
 
-By default stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples).
+By default, stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples).
 It expects that the ingested samples have timestamps close to the current time. See [how to ignore old samples](#ignoring-old-samples).
 
 Stream aggregation can be configured via the following command-line flags:
@@ -82,7 +82,7 @@ The online de-duplication uses the same logic as [`-dedup.minScrapeInterval` com
 
 ## Ignoring old samples
 
-By default all the input samples are taken into account during stream aggregation. If samples with old timestamps outside the current [aggregation interval](#stream-aggregation-config)
+By default, all the input samples are taken into account during stream aggregation. If samples with old timestamps outside the current [aggregation interval](#stream-aggregation-config)
 must be ignored, then the following options can be used:
 
 - To pass `-remoteWrite.streamAggr.ignoreOldSamples` command-line flag to [vmagent](https://docs.victoriametrics.com/vmagent/)
@@ -92,9 +92,25 @@ must be ignored, then the following options can be used:
 - To set `ignore_old_samples: true` option at the particular [aggregation config](#stream-aggregation-config).
   This enables ignoring old samples for that particular aggregation config.
 
+## Ignore aggregation intervals on start
+
+Stream aggregation may yield inaccurate results if it processes incomplete data. This issue can arise when data is 
+received from clients that maintain a queue of unsent data, such as Prometheus or vmagent. If the queue isn't fully 
+cleared within the aggregation `interval`, only a portion of the time series may be processed, leading to distorted 
+calculations. To mitigate this, consider the following options:
+
+- Set `-remoteWrite.streamAggr.ignoreFirstIntervals=<intervalsCount>` command-line flag to [vmagent](https://docs.victoriametrics.com/vmagent/)
+  or `-streamAggr.ignoreFirstIntervals=<intervalsCount>` command-line flag to [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
+  to skip first `<intervalsCount>` [aggregation intervals](#stream-aggregation-config)
+  from persisting to the storage. It is expected that all incomplete or queued data will be processed during 
+  specified `<intervalsCount>` and all subsequent aggregation intervals will produce correct data.
+
+- Set `ignore_first_intervals: <intervalsCount>` option individually per [aggregation config](#stream-aggregation-config).
+  This enables ignoring first `<intervalsCount>` aggregation intervals for that particular aggregation config.
+
 ## Flush time alignment
 
-By default the time for aggregated data flush is aligned by the `interval` option specified in [aggregate config](#stream-aggregation-config).
+By default, the time for aggregated data flush is aligned by the `interval` option specified in [aggregate config](#stream-aggregation-config).
 For example:
 - if `interval: 1m` is set, then the aggregated data is flushed to the storage at the end of every minute
 - if `interval: 1h` is set, then the aggregated data is flushed to the storage at the end of every hour
@@ -117,16 +133,13 @@ Stream aggregation can be used in the following cases:
 
 ### Statsd alternative
 
-Stream aggregation can be used as [statsd](https://github.com/statsd/statsd) alternative in the following cases:
+Stream aggregation can be used as [statsd](https://github.com/statsd/statsd) drop-in replacement in the following cases:
 
 * [Counting input samples](#counting-input-samples)
 * [Summing input metrics](#summing-input-metrics)
 * [Quantiles over input metrics](#quantiles-over-input-metrics)
 * [Histograms over input metrics](#histograms-over-input-metrics)
 * [Aggregating histograms](#aggregating-histograms)
-
-Currently, streaming aggregation is available only for [supported data ingestion protocols](https://docs.victoriametrics.com/#how-to-import-time-series-data)
-and not available for [Statsd metrics format](https://github.com/statsd/statsd/blob/master/docs/metric_types.md).
 
 ### Recording rules alternative
 
@@ -582,9 +595,6 @@ some_counter:5m_increase / 5m
 
 This is similar to `rate(some_counter[5m])`.
 
-Please note, opposite to [rate](https://docs.victoriametrics.com/metricsql/#rate), `increase` aggregations can be 
-combined safely afterwards. This is helpful when the aggregation is calculated by more than one vmagent.
-
 Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
 or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_interval](#staleness) option.
 
@@ -875,7 +885,7 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-
   # Samples are de-duplicated on a per-series basis. See https://docs.victoriametrics.com/keyconcepts/#time-series
   # and https://docs.victoriametrics.com/#deduplication
   # The deduplication is performed after input_relabel_configs relabeling is applied.
-  # By default the deduplication is disabled unless -remoteWrite.streamAggr.dedupInterval or -streamAggr.dedupInterval
+  # By default, the deduplication is disabled unless -remoteWrite.streamAggr.dedupInterval or -streamAggr.dedupInterval
   # command-line flags are set.
   #
   # dedup_interval: 30s
@@ -892,7 +902,7 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-
   # staleness_interval: 2m
   
   # no_align_flush_to_interval disables aligning of flush times for the aggregated data to multiples of interval.
-  # By default flush times for the aggregated data is aligned to multiples of interval.
+  # By default, flush times for the aggregated data is aligned to multiples of interval.
   # For example:
   # - if `interval: 1m` is set, then flushes happen at the end of every minute,
   # - if `interval: 1h` is set, then flushes happen at the end of every hour
@@ -922,15 +932,22 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-
 
   # keep_metric_names instructs keeping the original metric names for the aggregated samples.
   # This option can be set only if outputs list contains only a single output.
-  # By default a special suffix is added to original metric names in the aggregated samples.
+  # By default, a special suffix is added to original metric names in the aggregated samples.
   # See https://docs.victoriametrics.com/stream-aggregation/#output-metric-names
   #
   # keep_metric_names: false
 
   # ignore_old_samples instructs ignoring input samples with old timestamps outside the current aggregation interval.
+  # See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples
   # See also -streamAggr.ignoreOldSamples command-line flag.
   #
   # ignore_old_samples: false
+
+  # ignore_first_intervals instructs ignoring first N aggregation intervals after process start.
+  # See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start
+  # See also -remoteWrite.streamAggr.ignoreFirstIntervals or -streamAggr.ignoreFirstIntervals
+  #
+  # ignore_first_intervals: false
 
   # drop_input_labels instructs dropping the given labels from input samples.
   # The labels' dropping is performed before input_relabel_configs are applied.
@@ -1004,7 +1021,7 @@ These issues can be be fixed in the following ways:
 - By increasing the `interval` option at [stream aggregation config](#stream-aggregation-config), so it covers the expected
   delays in data ingestion pipelines.
 - By specifying the `staleness_interval` option at [stream aggregation config](#stream-aggregation-config), so it covers the expected
-  delays in data ingestion pipelines. By default the `staleness_interval` equals to `2 x interval`.
+  delays in data ingestion pipelines. By default, the `staleness_interval` equals to `2 x interval`.
 
 ### High resource usage
 

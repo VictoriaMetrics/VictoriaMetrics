@@ -36,9 +36,25 @@ func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
 					Timestamp: sample.Timestamp,
 				})
 			}
+			var exemplars []prompbmarshal.Exemplar
+			for _, exemplar := range ts.Exemplars {
+				exemplarLabels := make([]prompbmarshal.Label, len(exemplar.Labels))
+				for i, label := range exemplar.Labels {
+					exemplarLabels[i] = prompbmarshal.Label{
+						Name:  label.Name,
+						Value: label.Value,
+					}
+				}
+				exemplars = append(exemplars, prompbmarshal.Exemplar{
+					Labels:    exemplarLabels,
+					Value:     exemplar.Value,
+					Timestamp: exemplar.Timestamp,
+				})
+			}
 			wrm.Timeseries = append(wrm.Timeseries, prompbmarshal.TimeSeries{
-				Labels:  labels,
-				Samples: samples,
+				Labels:    labels,
+				Samples:   samples,
+				Exemplars: exemplars,
 			})
 		}
 		dataResult := wrm.MarshalProtobuf(nil)
@@ -121,6 +137,19 @@ func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
 					Timestamp: 18939432423,
 				},
 			},
+			Exemplars: []prompbmarshal.Exemplar{
+				{
+					Labels: []prompbmarshal.Label{
+						{Name: "trace-id",
+							Value: "123456",
+						},
+						{Name: "log_id",
+							Value: "987664"},
+					},
+					Value:     12345.6,
+					Timestamp: 456,
+				},
+			},
 		},
 	}
 	data = wrm.MarshalProtobuf(data[:0])
@@ -153,6 +182,18 @@ func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
 					Timestamp: 18939432423,
 				},
 			},
+			Exemplars: []prompbmarshal.Exemplar{
+				{
+					Labels: []prompbmarshal.Label{
+						{
+							Name:  "trace-id",
+							Value: "123456",
+						},
+					},
+					Value:     12345.6,
+					Timestamp: 456,
+				},
+			},
 		},
 		{
 			Labels: []prompbmarshal.Label{
@@ -164,6 +205,22 @@ func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
 			Samples: []prompbmarshal.Sample{
 				{
 					Value: 9873,
+				},
+			},
+			Exemplars: []prompbmarshal.Exemplar{
+				{
+					Labels: []prompbmarshal.Label{
+						{
+							Name:  "trace-id",
+							Value: "123456",
+						},
+						{
+							Name:  "log_id",
+							Value: "987654",
+						},
+					},
+					Value:     12345.6,
+					Timestamp: 456,
 				},
 			},
 		},

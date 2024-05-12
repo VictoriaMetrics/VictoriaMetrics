@@ -167,7 +167,7 @@ var rawItemsShardsPerTable = func() int {
 	return cpus * multiplier
 }()
 
-const maxBlocksPerShard = 256
+var maxBlocksPerShard = 256
 
 func (riss *rawItemsShards) init() {
 	riss.shards = make([]rawItemsShard, rawItemsShardsPerTable)

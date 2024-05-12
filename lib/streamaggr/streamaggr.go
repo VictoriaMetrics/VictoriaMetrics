@@ -45,6 +45,19 @@ var supportedOutputs = []string{
 	"quantiles(phi1, ..., phiN)",
 }
 
+var (
+	// lc contains information about all compressed labels for streaming aggregation
+	lc promutils.LabelsCompressor
+
+	_ = metrics.NewGauge(`vm_streamaggr_labels_compressor_size_bytes`, func() float64 {
+		return float64(lc.SizeBytes())
+	})
+
+	_ = metrics.NewGauge(`vm_streamaggr_labels_compressor_items_count`, func() float64 {
+		return float64(lc.ItemsCount())
+	})
+)
+
 // LoadFromFile loads Aggregators from the given path and uses the given pushFunc for pushing the aggregated data.
 //
 // opts can contain additional options. If opts is nil, then default options are used.
@@ -111,6 +124,13 @@ type Options struct {
 	//
 	// This option can be overridden individually per each aggregation via ignore_old_samples option.
 	IgnoreOldSamples bool
+
+	// IgnoreFirstIntervals sets amount of aggregation intervals to ignore on start.
+	//
+	// By default, no intervals will be ignored.
+	//
+	// This option can be overridden individually per each aggregation via ignore_first_intervals option.
+	IgnoreFirstIntervals int
 }
 
 // Config is a configuration for a single stream aggregation.
@@ -174,6 +194,9 @@ type Config struct {
 
 	// IgnoreOldSamples instructs to ignore samples with old timestamps outside the current aggregation interval.
 	IgnoreOldSamples *bool `yaml:"ignore_old_samples,omitempty"`
+
+	// IgnoreFirstIntervals sets number of aggregation intervals to be ignored on start.
+	IgnoreFirstIntervals *int `yaml:"ignore_first_intervals,omitempty"`
 
 	// By is an optional list of labels for grouping input series.
 	//
@@ -259,21 +282,6 @@ func newAggregatorsFromData(data []byte, pushFunc PushFunc, opts *Options) (*Agg
 		return float64(n)
 	})
 
-	_ = ms.NewGauge(`vm_streamaggr_labels_compressor_size_bytes`, func() float64 {
-		n := uint64(0)
-		for _, aggr := range as {
-			n += aggr.lc.SizeBytes()
-		}
-		return float64(n)
-	})
-	_ = ms.NewGauge(`vm_streamaggr_labels_compressor_items_count`, func() float64 {
-		n := uint64(0)
-		for _, aggr := range as {
-			n += aggr.lc.ItemsCount()
-		}
-		return float64(n)
-	})
-
 	metrics.RegisterSet(ms)
 	return &Aggregators{
 		as:         as,
@@ -350,9 +358,6 @@ type aggregator struct {
 
 	// aggrStates contains aggregate states for the given outputs
 	aggrStates []aggrState
-
-	// lc is used for compressing series keys before passing them to dedupAggr and aggrState
-	lc promutils.LabelsCompressor
 
 	// minTimestamp is used for ignoring old samples when ignoreOldSamples is set
 	minTimestamp atomic.Int64
@@ -479,6 +484,12 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 		ignoreOldSamples = *v
 	}
 
+	// check cfg.IgnoreFirstIntervals
+	ignoreFirstIntervals := opts.IgnoreFirstIntervals
+	if v := cfg.IgnoreFirstIntervals; v != nil {
+		ignoreFirstIntervals = *v
+	}
+
 	// initialize outputs list
 	if len(cfg.Outputs) == 0 {
 		return nil, fmt.Errorf("`outputs` list must contain at least a single entry from the list %s; "+
@@ -600,14 +611,14 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 
 	a.wg.Add(1)
 	go func() {
-		a.runFlusher(pushFunc, alignFlushToInterval, skipIncompleteFlush, interval, dedupInterval)
+		a.runFlusher(pushFunc, alignFlushToInterval, skipIncompleteFlush, interval, dedupInterval, ignoreFirstIntervals)
 		a.wg.Done()
 	}()
 
 	return a, nil
 }
 
-func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipIncompleteFlush bool, interval, dedupInterval time.Duration) {
+func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipIncompleteFlush bool, interval, dedupInterval time.Duration, ignoreFirstIntervals int) {
 	alignedSleep := func(d time.Duration) {
 		if !alignFlushToInterval {
 			return
@@ -642,7 +653,12 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 		}
 
 		for tickerWait(t) {
-			a.flush(pushFunc, interval, true)
+			pf := pushFunc
+			if ignoreFirstIntervals > 0 {
+				pf = nil
+				ignoreFirstIntervals--
+			}
+			a.flush(pf, interval, true)
 
 			if alignFlushToInterval {
 				select {
@@ -663,13 +679,17 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 
 			ct := time.Now()
 			if ct.After(flushDeadline) {
+				pf := pushFunc
+				if ignoreFirstIntervals > 0 {
+					pf = nil
+					ignoreFirstIntervals--
+				}
 				// It is time to flush the aggregated state
 				if alignFlushToInterval && skipIncompleteFlush && !isSkippedFirstFlush {
-					a.flush(nil, interval, true)
+					pf = nil
 					isSkippedFirstFlush = true
-				} else {
-					a.flush(pushFunc, interval, true)
 				}
+				a.flush(pf, interval, true)
 				for ct.After(flushDeadline) {
 					flushDeadline = flushDeadline.Add(interval)
 				}
@@ -684,7 +704,7 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 		}
 	}
 
-	if !skipIncompleteFlush {
+	if !skipIncompleteFlush && ignoreFirstIntervals == 0 {
 		a.dedupFlush(dedupInterval)
 		a.flush(pushFunc, interval, true)
 	}
@@ -797,7 +817,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 			outputLabels.Labels = append(outputLabels.Labels, labels.Labels...)
 		}
 
-		buf = compressLabels(buf[:0], &a.lc, inputLabels.Labels, outputLabels.Labels)
+		buf = compressLabels(buf[:0], inputLabels.Labels, outputLabels.Labels)
 		key := bytesutil.InternBytes(buf)
 		for _, sample := range ts.Samples {
 			if math.IsNaN(sample.Value) {
@@ -825,7 +845,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	}
 }
 
-func compressLabels(dst []byte, lc *promutils.LabelsCompressor, inputLabels, outputLabels []prompbmarshal.Label) []byte {
+func compressLabels(dst []byte, inputLabels, outputLabels []prompbmarshal.Label) []byte {
 	bb := bbPool.Get()
 	bb.B = lc.Compress(bb.B, inputLabels)
 	dst = encoding.MarshalVarUint64(dst, uint64(len(bb.B)))
@@ -835,7 +855,7 @@ func compressLabels(dst []byte, lc *promutils.LabelsCompressor, inputLabels, out
 	return dst
 }
 
-func decompressLabels(dst []prompbmarshal.Label, lc *promutils.LabelsCompressor, key string) []prompbmarshal.Label {
+func decompressLabels(dst []prompbmarshal.Label, key string) []prompbmarshal.Label {
 	return lc.Decompress(dst, bytesutil.ToUnsafeBytes(key))
 }
 
@@ -1010,7 +1030,7 @@ func (ctx *flushCtx) flushSeries() {
 func (ctx *flushCtx) appendSeries(key, suffix string, timestamp int64, value float64) {
 	labelsLen := len(ctx.labels)
 	samplesLen := len(ctx.samples)
-	ctx.labels = decompressLabels(ctx.labels, &ctx.a.lc, key)
+	ctx.labels = decompressLabels(ctx.labels, key)
 	if !ctx.a.keepMetricNames {
 		ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.a.suffix, suffix)
 	}
@@ -1033,7 +1053,7 @@ func (ctx *flushCtx) appendSeries(key, suffix string, timestamp int64, value flo
 func (ctx *flushCtx) appendSeriesWithExtraLabel(key, suffix string, timestamp int64, value float64, extraName, extraValue string) {
 	labelsLen := len(ctx.labels)
 	samplesLen := len(ctx.samples)
-	ctx.labels = decompressLabels(ctx.labels, &ctx.a.lc, key)
+	ctx.labels = decompressLabels(ctx.labels, key)
 	if !ctx.a.keepMetricNames {
 		ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.a.suffix, suffix)
 	}

@@ -902,6 +902,25 @@ max(vmalert_alerting_rules_last_evaluation_series_fetched) by(group, alertname) 
 See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4039).
 This feature is available only if vmalert is using VictoriaMetrics v1.90 or higher as a datasource.
 
+### Series with the same labelset
+
+vmalert can produce the following error message:
+```
+result contains metrics with the same labelset during evaluation
+```
+
+The error means there is a collision between [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
+during evaluation.
+
+For example, a rule with `expr: {__name__=~"vmalert_alerts_.*"} > 0` returns two distinct time series in response:
+```
+{__name__="vmalert_alerts_pending",job="vmalert",alertname="HostContextSwitching"} 12
+{__name__="vmalert_alerts_firing",job="vmalert",alertname="HostContextSwitching"} 0
+```
+
+As label `__name__` will be dropped during evaluation, leads to duplicated time series.
+To fix this, one could use function like [label_replace](https://docs.victoriametrics.com/metricsql/#label_replace) to preserve the distinct labelset.
+
 ## mTLS protection
 
 By default `vmalert` accepts http requests at `8880` port (this port can be changed via `-httpListenAddr` command-line flags),
@@ -1362,14 +1381,11 @@ The shortlist of configuration flags is the following:
       -rule="http://<some-server-addr>/path/to/rules". HTTP URL to a page with alerting rules.
       -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod". 
       -rule="dir/**/*.yaml". Includes all the .yaml files in "dir" subfolders recursively.
-     Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
-     
+     Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.   
      Enterprise version of vmalert supports S3 and GCS paths to rules.
      For example: gs://bucket/path/to/rules, s3://bucket/path/to/rules
      S3 and GCS paths support only matching by prefix, e.g. s3://bucket/dir/rule_ matches
      all files with prefix rule_ in folder dir.
-     See https://docs.victoriametrics.com/vmalert/#reading-rules-from-object-storage
-     
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -rule.evalDelay time
@@ -1386,8 +1402,7 @@ The shortlist of configuration flags is the following:
       -rule.templates="/path/to/file". Path to a single file with go templates
       -rule.templates="dir/*.tpl" -rule.templates="/*.tpl". Relative path to all .tpl files in "dir" folder,
      absolute path to all .tpl files in root.
-      -rule.templates="dir/**/*.tpl". Includes all the .tpl files in "dir" subfolders recursively.
-     
+      -rule.templates="dir/**/*.tpl". Includes all the .tpl files in "dir" subfolders recursively.   
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -rule.updateEntriesLimit int

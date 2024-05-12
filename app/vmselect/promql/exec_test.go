@@ -9432,3 +9432,104 @@ func testAddLabels(t *testing.T, mn *storage.MetricName, labels ...string) {
 		})
 	}
 }
+
+func TestIsSubQueryCompleteTrue(t *testing.T) {
+	f := func(q string) {
+		t.Helper()
+		e, err := metricsql.Parse(q)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !isSubQueryComplete(e, false) {
+			t.Fatalf("query should be complete: %s", e.AppendString(nil))
+		}
+	}
+
+	f("rate(http_total)")
+	f("sum(http_total)")
+	f("absent(http_total)")
+	f("rate(http_total[1m])")
+	f("avg_over_time(up[1m])")
+	f("sum(http_total[1m])")
+	f("sum(rate(http_total))")
+	f("sum(sum(http_total))")
+	f(`sum(sum_over_time(http_total[1m] )) by (instance)`)
+	f("sum(up{cluster='a'}[1m] or up{cluster='b'}[1m])")
+	f("(avg_over_time(alarm_test1[1m]) - avg_over_time(alarm_test1[1m] offset 5m)) > 0.1")
+	f("http_total[1m] offset 1m")
+
+	// subquery
+	f("rate(http_total)[5m:1m]")
+	f("rate(sum(http_total)[5m:1m])")
+	f("rate(rate(http_total)[5m:1m])")
+	f("sum(rate(http_total[1m]))")
+	f("sum(rate(sum(http_total)[5m:1m]))")
+	f("rate(sum(rate(http_total))[5m:1m])")
+	f("rate(sum(sum(http_total))[5m:1m])")
+	f("rate(sum(rate(http_total))[5m:1m])")
+	f("rate(sum(sum(http_total))[5m:1m])")
+	f("avg_over_time(rate(http_total[5m])[5m:1m])")
+	f("delta(avg_over_time(up[1m])[5m:1m]) > 0.1")
+	f("avg_over_time(avg by (site) (metric)[2m:1m])")
+
+	f("sum(http_total)[5m:1m] offset 1m")
+	f("round(sum(sum_over_time(http_total[1m])) by (instance)) [5m:1m] offset 1m")
+
+	f("rate(sum(http_total)[5m:1m]) - rate(sum(http_total)[5m:1m])")
+	f("avg_over_time((rate(http_total)-rate(http_total))[5m:1m])")
+
+	f("sum_over_time((up{cluster='a'} or up{cluster='b'})[5m:1m])")
+	f("sum_over_time((up{cluster='a'} or up{cluster='b'})[5m:1m])")
+	f("sum(sum_over_time((up{cluster='a'} or up{cluster='b'})[5m:1m])) by (instance)")
+
+	// step (or resolution) is optional in subqueries
+	f("max_over_time(rate(my_counter_total[5m])[1h:])")
+	f("max_over_time(rate(my_counter_total[5m])[1h:1m])[5m:1m]")
+	f("max_over_time(rate(my_counter_total[5m])[1h:])[5m:]")
+
+	f(`
+WITH (
+    cpuSeconds = node_cpu_seconds_total{instance=~"$node:$port",job=~"$job"},
+    cpuIdle = rate(cpuSeconds{mode='idle'}[5m])
+)
+max_over_time(cpuIdle[1h:])`)
+}
+
+func TestIsSubQueryCompleteFalse(t *testing.T) {
+	f := func(q string) {
+		t.Helper()
+		e, err := metricsql.Parse(q)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if isSubQueryComplete(e, false) {
+			t.Fatalf("expect to detect incomplete subquery: %s", e.AppendString(nil))
+		}
+	}
+
+	f("rate(sum(http_total))")
+	f("rate(rate(http_total))")
+	f("sum(rate(sum(http_total)))")
+	f("rate(sum(rate(http_total)))")
+	f("rate(sum(sum(http_total)))")
+	f("avg_over_time(rate(http_total[5m]))")
+
+	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3974
+	f("sum(http_total) offset 1m")
+	f(`round(sum(sum_over_time(http_total[1m])) by (instance)) offset 1m`)
+
+	f("rate(sum(http_total)) - rate(sum(http_total))")
+	f("avg_over_time(rate(http_total)-rate(http_total))")
+
+	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3996
+	f("sum_over_time(up{cluster='a'} or up{cluster='b'})")
+	f("sum_over_time(up{cluster='a'}[1m] or up{cluster='b'}[1m])")
+	f("sum(sum_over_time(up{cluster='a'}[1m] or up{cluster='b'}[1m])) by (instance)")
+
+	f(`
+WITH (
+    cpuSeconds = node_cpu_seconds_total{instance=~"$node:$port",job=~"$job"},
+    cpuIdle = rate(cpuSeconds{mode='idle'}[5m])
+)
+max_over_time(cpuIdle)`)
+}

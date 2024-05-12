@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func BenchmarkDedupAggr(b *testing.B) {
@@ -50,7 +49,6 @@ func benchmarkDedupAggr(b *testing.B, samplesPerPush int) {
 }
 
 func newBenchSamples(count int) []pushSample {
-	var lc promutils.LabelsCompressor
 	labels := []prompbmarshal.Label{
 		{
 			Name:  "app",
@@ -82,7 +80,7 @@ func newBenchSamples(count int) []pushSample {
 			Name:  "app",
 			Value: fmt.Sprintf("instance-%d", i),
 		})
-		keyBuf = compressLabels(keyBuf[:0], &lc, labels[:labelsLen], labels[labelsLen:])
+		keyBuf = compressLabels(keyBuf[:0], labels[:labelsLen], labels[labelsLen:])
 		sample.key = string(keyBuf)
 		sample.value = float64(i)
 	}
