@@ -112,13 +112,13 @@ app-via-docker-linux-amd64:
 	EXTRA_DOCKER_ENVS='CC=/opt/cross-builder/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc' \
 	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(MAKE) app-via-docker-goos-goarch
 
-app-via-docker-linux-arm:
-	EXTRA_DOCKER_ENVS='GOARM=5' \
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm $(MAKE) app-via-docker-goos-goarch
-
 app-via-docker-linux-arm64:
 	EXTRA_DOCKER_ENVS='CC=/opt/cross-builder/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc' \
 	CGO_ENABLED=1 GOOS=linux GOARCH=arm64 $(MAKE) app-via-docker-goos-goarch
+
+app-via-docker-linux-arm:
+	EXTRA_DOCKER_ENVS='GOARM=5' \
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm $(MAKE) app-via-docker-goos-goarch
 
 app-via-docker-linux-ppc64le:
 	CGO_ENABLED=0 GOOS=linux GOARCH=ppc64le $(MAKE) app-via-docker-goos-goarch
@@ -155,13 +155,13 @@ package-via-docker-amd64:
 	EXTRA_DOCKER_ENVS='CC=/opt/cross-builder/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc' \
 	CO_ENABLED=1 GOARCH=amd64 $(MAKE) package-via-docker-goarch
 
-package-via-docker-arm:
-	EXTRA_DOCKER_ENVS='GOARM=5' \
-	CGO_ENABLED=0 GOARCH=arm $(MAKE) package-via-docker-goarch
-
 package-via-docker-arm64:
 	EXTRA_DOCKER_ENVS='CC=/opt/cross-builder/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc' \
 	CGO_ENABLED=1 GOARCH=arm64 $(MAKE) package-via-docker-goarch
+
+package-via-docker-arm:
+	EXTRA_DOCKER_ENVS='GOARM=5' \
+	CGO_ENABLED=0 GOARCH=arm $(MAKE) package-via-docker-goarch
 
 package-via-docker-ppc64le:
 	CGO_ENABLED=0 GOARCH=ppc64le $(MAKE) package-via-docker-goarch
