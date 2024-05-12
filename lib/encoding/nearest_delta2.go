@@ -71,8 +71,7 @@ func unmarshalInt64NearestDelta2(dst []int64, src []byte, firstValue int64, item
 	}
 
 	dstLen := len(dst)
-	dst = slicesutil.ExtendCapacity(dst, itemsCount)
-	dst = dst[:dstLen+itemsCount]
+	dst = slicesutil.SetLength(dst, dstLen+itemsCount)
 	as := dst[dstLen:]
 
 	v := firstValue
