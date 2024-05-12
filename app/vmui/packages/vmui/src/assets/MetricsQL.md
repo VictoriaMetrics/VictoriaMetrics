@@ -1872,32 +1872,50 @@ See also [label_match](#label_match) and [label_mismatch](#label_mismatch).
 `sort_by_label(q, "label1", ... "labelN")` is [label manipulation function](#label-manipulation-functions), which sorts series in ascending order by the given set of labels.
 For example, `sort_by_label(foo, "bar")` would sort `foo` series by values of the label `bar` in these series.
 
-See also [sort_by_label_desc](#sort_by_label_desc) and [sort_by_label_numeric](#sort_by_label_numeric).
+See also [sort_by_label_desc](#sort_by_label_desc), [sort_by_label_numeric](#sort_by_label_numeric) and [sort_by_label_natural](#sort_by_label_natural).
 
 #### sort_by_label_desc
 
 `sort_by_label_desc(q, "label1", ... "labelN")` is [label manipulation function](#label-manipulation-functions), which sorts series in descending order by the given set of labels.
 For example, `sort_by_label(foo, "bar")` would sort `foo` series by values of the label `bar` in these series.
 
-See also [sort_by_label](#sort_by_label) and [sort_by_label_numeric_desc](#sort_by_label_numeric_desc).
+See also [sort_by_label](#sort_by_label), [sort_by_label_numeric_desc](#sort_by_label_numeric_desc) and [sort_by_label_natural_desc](#sort_by_label_natural_desc).
 
 #### sort_by_label_numeric
 
 `sort_by_label_numeric(q, "label1", ... "labelN")` is [label manipulation function](#label-manipulation-functions), which sorts series in ascending order by the given set of labels
 using [numeric sort](https://www.gnu.org/software/coreutils/manual/html_node/Version-sort-is-not-the-same-as-numeric-sort.html).
-For example, if `foo` series have `bar` label with values `1`, `101`, `15` and `2`, then `sort_by_label_numeric(foo, "bar")` would return series
-in the following order of `bar` label values: `1`, `2`, `15` and `101`.
+For example, if `foo` series have `bar` label with values `1`, `1.10`, `1.2`, `101`, `15` and `2`, then `sort_by_label_numeric(foo, "bar")` would return series
+in the following order of `bar` label values: `1`, `1.10`, `1.2`, `2`, `15` and `101`.
 
-See also [sort_by_label_numeric_desc](#sort_by_label_numeric_desc) and [sort_by_label](#sort_by_label).
+See also [sort_by_label_numeric_desc](#sort_by_label_numeric_desc), [sort_by_label_natural](#sort_by_label_natural) and [sort_by_label](#sort_by_label).
 
 #### sort_by_label_numeric_desc
 
 `sort_by_label_numeric_desc(q, "label1", ... "labelN")` is [label manipulation function](#label-manipulation-functions), which sorts series in descending order
 by the given set of labels using [numeric sort](https://www.gnu.org/software/coreutils/manual/html_node/Version-sort-is-not-the-same-as-numeric-sort.html).
-For example, if `foo` series have `bar` label with values `1`, `101`, `15` and `2`, then `sort_by_label_numeric(foo, "bar")`
-would return series in the following order of `bar` label values: `101`, `15`, `2` and `1`.
+For example, if `foo` series have `bar` label with values `1`, `101`, `15` and `2`, then `sort_by_label_numeric_desc(foo, "bar")`
+would return series in the following order of `bar` label values: `1`, `2`, `15` and `101`.
 
-See also [sort_by_label_numeric](#sort_by_label_numeric) and [sort_by_label_desc](#sort_by_label_desc).
+See also [sort_by_label_numeric](#sort_by_label_numeric), [sort_by_label_natural_desc](#sort_by_label_natural_desc) and [sort_by_label_desc](#sort_by_label_desc).
+
+#### sort_by_label_natural
+
+`sort_by_label_natural(q, "label1", ... "labelN")` is [label manipulation function](#label-manipulation-functions), which sorts series in ascending order by the given set of labels
+using [natural sort (aka version sort)](https://www.gnu.org/software/coreutils/manual/html_node/Version-sort-is-not-the-same-as-numeric-sort.html).
+For example, if `foo` series have `bar` label with values `1.10`, `1.2` and `1.9.3`, then `sort_by_label_natural(foo, "bar")` would return series
+in the following order of `bar` label values: `1.2`, `1.9.3` and `1.10`.
+
+See also [sort_by_label_natural_desc](#sort_by_label_natural_desc), [sort_by_label_numeric](#sort_by_label_numeric) and [sort_by_label](#sort_by_label).
+
+#### sort_by_label_natural_desc
+
+`sort_by_label_natural_desc(q, "label1", ... "labelN")` is [label manipulation function](#label-manipulation-functions), which sorts series in descending order
+by the given set of labels using [natural sort (aka version sort)](https://www.gnu.org/software/coreutils/manual/html_node/Version-sort-is-not-the-same-as-numeric-sort.html).
+For example, if `foo` series have `bar` label with values `1.10`, `1.2` and `1.9.3`, then `sort_by_label_natural_desc(foo, "bar")` would return series
+in the following order of `bar` label values: `1.10`, `1.9.3` and `1.2`.
+
+See also [sort_by_label_natural](#sort_by_label_natural), [sort_by_label_numeric_desc](#sort_by_label_numeric_desc) and [sort_by_label_desc](#sort_by_label_desc).
 
 
 ### Aggregate functions
