@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 const (
@@ -702,10 +703,8 @@ func (mn *MetricName) sortTags() {
 	}
 
 	cts := getCanonicalTags()
-	if n := len(mn.Tags) - cap(cts.tags); n > 0 {
-		cts.tags = append(cts.tags[:cap(cts.tags)], make([]canonicalTag, n)...)
-	}
-	dst := cts.tags[:len(mn.Tags)]
+	cts.tags = slicesutil.SetLength(cts.tags, len(mn.Tags))
+	dst := cts.tags
 	for i := range mn.Tags {
 		tag := &mn.Tags[i]
 		ct := &dst[i]
@@ -775,10 +774,7 @@ func (ts *canonicalTagsSort) Swap(i, j int) {
 
 func copyTags(dst, src []Tag) []Tag {
 	dstLen := len(dst)
-	if n := dstLen + len(src) - cap(dst); n > 0 {
-		dst = append(dst[:cap(dst)], make([]Tag, n)...)
-	}
-	dst = dst[:dstLen+len(src)]
+	dst = slicesutil.SetLength(dst, dstLen+len(src))
 	for i := range src {
 		dst[dstLen+i].copyFrom(&src[i])
 	}

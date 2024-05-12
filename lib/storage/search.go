@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
@@ -413,10 +414,7 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 	if err != nil {
 		return src, fmt.Errorf("cannot unmarshal the count of TagFilterss: %w", err)
 	}
-	if n := int(tfssCount) - cap(sq.TagFilterss); n > 0 {
-		sq.TagFilterss = append(sq.TagFilterss[:cap(sq.TagFilterss)], make([][]TagFilter, n)...)
-	}
-	sq.TagFilterss = sq.TagFilterss[:tfssCount]
+	sq.TagFilterss = slicesutil.SetLength(sq.TagFilterss, int(tfssCount))
 	src = tail
 
 	for i := 0; i < int(tfssCount); i++ {
@@ -427,10 +425,7 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 		src = tail
 
 		tagFilters := sq.TagFilterss[i]
-		if n := int(tfsCount) - cap(tagFilters); n > 0 {
-			tagFilters = append(tagFilters[:cap(tagFilters)], make([]TagFilter, n)...)
-		}
-		tagFilters = tagFilters[:tfsCount]
+		tagFilters = slicesutil.SetLength(tagFilters, int(tfsCount))
 		for j := 0; j < int(tfsCount); j++ {
 			tail, err := tagFilters[j].Unmarshal(src)
 			if err != nil {

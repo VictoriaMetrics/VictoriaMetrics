@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // blockHeader is a header for a time series block.
@@ -252,10 +253,7 @@ func unmarshalBlockHeaders(dst []blockHeader, src []byte, blockHeadersCount int)
 		logger.Panicf("BUG: blockHeadersCount must be greater than zero; got %d", blockHeadersCount)
 	}
 	dstLen := len(dst)
-	if n := dstLen + blockHeadersCount - cap(dst); n > 0 {
-		dst = append(dst[:cap(dst)], make([]blockHeader, n)...)
-		dst = dst[:dstLen]
-	}
+	dst = slicesutil.ExtendCapacity(dst, blockHeadersCount)
 	var bh blockHeader
 	for len(src) > 0 {
 		tmp, err := bh.Unmarshal(src)
