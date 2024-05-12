@@ -85,9 +85,22 @@ func UnmarshalInt64(src []byte) int64 {
 
 // MarshalVarInt64 appends marshalsed v to dst and returns the result.
 func MarshalVarInt64(dst []byte, v int64) []byte {
-	var tmp [1]int64
-	tmp[0] = v
-	return MarshalVarInt64s(dst, tmp[:])
+	u := uint64((v << 1) ^ (v >> 63))
+
+	if v < (1<<6) && v > (-1<<6) {
+		return append(dst, byte(u))
+	}
+	if u < (1 << (2 * 7)) {
+		return append(dst, byte(u|0x80), byte(u>>7))
+	}
+	if u < (1 << (3 * 7)) {
+		return append(dst, byte(u|0x80), byte((u>>7)|0x80), byte(u>>(2*7)))
+	}
+
+	// Slow path for big integers
+	var tmp [1]uint64
+	tmp[0] = u
+	return MarshalVarUint64s(dst, tmp[:])
 }
 
 // MarshalVarInt64s appends marshaled vs to dst and returns the result.
@@ -154,16 +167,19 @@ func marshalVarInt64sSlow(dst []byte, vs []int64) []byte {
 	return dst
 }
 
-// UnmarshalVarInt64 returns unmarshaled int64 from src and returns
-// the remaining tail from src.
+// UnmarshalVarInt64 returns unmarshaled int64 from src and returns the remaining tail from src.
 func UnmarshalVarInt64(src []byte) ([]byte, int64, error) {
-	var tmp [1]int64
-	tail, err := UnmarshalVarInt64s(tmp[:], src)
-	return tail, tmp[0], err
+	// TODO substitute binary.Uvarint with binary.Varint when benchmark results will show it is faster.
+	// It is slower on amd64/linux Go1.22.
+	u64, offset := binary.Uvarint(src)
+	if offset <= 0 {
+		return src, 0, fmt.Errorf("cannot unmarshal varint")
+	}
+	i64 := int64(int64(u64>>1) ^ (int64(u64<<63) >> 63))
+	return src[offset:], i64, nil
 }
 
-// UnmarshalVarInt64s unmarshals len(dst) int64 values from src to dst
-// and returns the remaining tail from src.
+// UnmarshalVarInt64s unmarshals len(dst) int64 values from src to dst and returns the remaining tail from src.
 func UnmarshalVarInt64s(dst []int64, src []byte) ([]byte, error) {
 	if len(src) < len(dst) {
 		return src, fmt.Errorf("too small len(src)=%d; it must be bigger or equal to len(dst)=%d", len(src), len(dst))
@@ -270,6 +286,17 @@ func unmarshalVarInt64sSlow(dst []int64, src []byte) ([]byte, error) {
 
 // MarshalVarUint64 appends marshaled u to dst and returns the result.
 func MarshalVarUint64(dst []byte, u uint64) []byte {
+	if u < (1 << 7) {
+		return append(dst, byte(u))
+	}
+	if u < (1 << (2 * 7)) {
+		return append(dst, byte(u|0x80), byte(u>>7))
+	}
+	if u < (1 << (3 * 7)) {
+		return append(dst, byte(u|0x80), byte((u>>7)|0x80), byte(u>>(2*7)))
+	}
+
+	// Slow path for big integers.
 	var tmp [1]uint64
 	tmp[0] = u
 	return MarshalVarUint64s(dst, tmp[:])
@@ -336,16 +363,16 @@ func marshalVarUint64sSlow(dst []byte, us []uint64) []byte {
 	return dst
 }
 
-// UnmarshalVarUint64 returns unmarshaled uint64 from src and returns
-// the remaining tail from src.
+// UnmarshalVarUint64 returns unmarshaled uint64 from src and returns the remaining tail from src.
 func UnmarshalVarUint64(src []byte) ([]byte, uint64, error) {
-	var tmp [1]uint64
-	tail, err := UnmarshalVarUint64s(tmp[:], src)
-	return tail, tmp[0], err
+	u64, offset := binary.Uvarint(src)
+	if offset <= 0 {
+		return src, 0, fmt.Errorf("cannot read varuint")
+	}
+	return src[offset:], u64, nil
 }
 
-// UnmarshalVarUint64s unmarshals len(dst) uint64 values from src to dst
-// and returns the remaining tail from src.
+// UnmarshalVarUint64s unmarshals len(dst) uint64 values from src to dst and returns the remaining tail from src.
 func UnmarshalVarUint64s(dst []uint64, src []byte) ([]byte, error) {
 	if len(src) < len(dst) {
 		return src, fmt.Errorf("too small len(src)=%d; it must be bigger or equal to len(dst)=%d", len(src), len(dst))
