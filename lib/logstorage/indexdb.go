@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 const (
@@ -853,13 +854,9 @@ func (sp *tagToStreamIDsRowParser) ParseStreamIDs() {
 	}
 	tail := sp.tail
 	n := len(tail) / 16
-	streamIDs := sp.StreamIDs[:0]
-	if n <= cap(streamIDs) {
-		streamIDs = streamIDs[:n]
-	} else {
-		streamIDs = append(streamIDs[:cap(streamIDs)], make([]u128, n-cap(streamIDs))...)
-	}
-	sp.StreamIDs = streamIDs
+	sp.StreamIDs = slicesutil.SetLength(sp.StreamIDs, n)
+	streamIDs := sp.StreamIDs
+	_ = streamIDs[n-1]
 	for i := 0; i < n; i++ {
 		var err error
 		tail, err = streamIDs[i].unmarshal(tail)

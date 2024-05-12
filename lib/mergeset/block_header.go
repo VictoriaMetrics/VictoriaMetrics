@@ -161,8 +161,7 @@ func unmarshalBlockHeadersNoCopy(dst []blockHeader, src []byte, blockHeadersCoun
 		logger.Panicf("BUG: blockHeadersCount must be greater than 0; got %d", blockHeadersCount)
 	}
 	dstLen := len(dst)
-	dst = slicesutil.ExtendCapacity(dst, blockHeadersCount)
-	dst = dst[:dstLen+blockHeadersCount]
+	dst = slicesutil.SetLength(dst, dstLen+blockHeadersCount)
 	for i := 0; i < blockHeadersCount; i++ {
 		tail, err := dst[dstLen+i].UnmarshalNoCopy(src)
 		if err != nil {

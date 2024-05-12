@@ -53,8 +53,7 @@ func (bd *blockData) reset() {
 }
 
 func (bd *blockData) resizeColumnsData(columnsDataLen int) []columnData {
-	cds := slicesutil.ExtendCapacity(bd.columnsData, columnsDataLen)
-	bd.columnsData = cds[:columnsDataLen]
+	bd.columnsData = slicesutil.SetLength(bd.columnsData, columnsDataLen)
 	return bd.columnsData
 }
 

@@ -519,8 +519,7 @@ func GetInt64s(size int) *Int64s {
 		}
 	}
 	is := v.(*Int64s)
-	is.A = slicesutil.ExtendCapacity(is.A, size)
-	is.A = is.A[:size]
+	is.A = slicesutil.SetLength(is.A, size)
 	return is
 }
 
@@ -546,8 +545,7 @@ func GetUint64s(size int) *Uint64s {
 		}
 	}
 	is := v.(*Uint64s)
-	is.A = slicesutil.ExtendCapacity(is.A, size)
-	is.A = is.A[:size]
+	is.A = slicesutil.SetLength(is.A, size)
 	return is
 }
 
@@ -573,8 +571,7 @@ func GetUint32s(size int) *Uint32s {
 		}
 	}
 	is := v.(*Uint32s)
-	is.A = slicesutil.ExtendCapacity(is.A, size)
-	is.A = is.A[:size]
+	is.A = slicesutil.SetLength(is.A, size)
 	return is
 }
 

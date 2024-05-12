@@ -55,8 +55,7 @@ func (bf *bloomFilter) unmarshal(src []byte) error {
 	}
 	bf.reset()
 	wordsCount := len(src) / 8
-	bits := slicesutil.ExtendCapacity(bf.bits, wordsCount)
-	bits = bits[:wordsCount]
+	bits := slicesutil.SetLength(bf.bits, wordsCount)
 	for i := range bits {
 		bits[i] = encoding.UnmarshalUint64(src)
 		src = src[8:]
@@ -69,8 +68,7 @@ func (bf *bloomFilter) unmarshal(src []byte) error {
 func (bf *bloomFilter) mustInit(tokens []string) {
 	bitsCount := len(tokens) * bloomFilterBitsPerItem
 	wordsCount := (bitsCount + 63) / 64
-	bits := slicesutil.ExtendCapacity(bf.bits, wordsCount)
-	bits = bits[:wordsCount]
+	bits := slicesutil.SetLength(bf.bits, wordsCount)
 	bloomFilterAdd(bits, tokens)
 	bf.bits = bits
 }

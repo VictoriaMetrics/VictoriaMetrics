@@ -230,6 +230,7 @@ func (s *Set) AppendTo(dst []uint64) []uint64 {
 	// pre-allocate memory for dst
 	sLen := s.Len()
 	dst = slicesutil.ExtendCapacity(dst, sLen)
+
 	s.sort()
 	for i := range s.buckets {
 		dst = s.buckets[i].appendTo(dst)

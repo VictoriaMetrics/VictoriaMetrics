@@ -72,8 +72,7 @@ func (ts *TableSearch) Init(tb *Table) {
 	ts.pws = ts.tb.getParts(ts.pws[:0])
 
 	// Initialize the psPool.
-	ts.psPool = slicesutil.ExtendCapacity(ts.psPool, len(ts.pws))
-	ts.psPool = ts.psPool[:len(ts.pws)]
+	ts.psPool = slicesutil.SetLength(ts.psPool, len(ts.pws))
 	for i, pw := range ts.pws {
 		ts.psPool[i].Init(pw.p)
 	}

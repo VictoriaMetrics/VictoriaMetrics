@@ -703,8 +703,8 @@ func (mn *MetricName) sortTags() {
 	}
 
 	cts := getCanonicalTags()
-	cts.tags = slicesutil.ExtendCapacity(cts.tags, len(mn.Tags))
-	dst := cts.tags[:len(mn.Tags)]
+	cts.tags = slicesutil.SetLength(cts.tags, len(mn.Tags))
+	dst := cts.tags
 	for i := range mn.Tags {
 		tag := &mn.Tags[i]
 		ct := &dst[i]
@@ -774,8 +774,7 @@ func (ts *canonicalTagsSort) Swap(i, j int) {
 
 func copyTags(dst, src []Tag) []Tag {
 	dstLen := len(dst)
-	dst = slicesutil.ExtendCapacity(dst, len(src))
-	dst = dst[:dstLen+len(src)]
+	dst = slicesutil.SetLength(dst, dstLen+len(src))
 	for i := range src {
 		dst[dstLen+i].copyFrom(&src[i])
 	}

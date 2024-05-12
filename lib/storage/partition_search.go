@@ -84,8 +84,7 @@ func (pts *partitionSearch) Init(pt *partition, tsids []TSID, tr TimeRange) {
 	pts.pws = pt.GetParts(pts.pws[:0], true)
 
 	// Initialize psPool.
-	pts.psPool = slicesutil.ExtendCapacity(pts.psPool, len(pts.pws))
-	pts.psPool = pts.psPool[:len(pts.pws)]
+	pts.psPool = slicesutil.SetLength(pts.psPool, len(pts.pws))
 	for i, pw := range pts.pws {
 		pts.psPool[i].Init(pw.p, tsids, tr)
 	}

@@ -414,8 +414,7 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 	if err != nil {
 		return src, fmt.Errorf("cannot unmarshal the count of TagFilterss: %w", err)
 	}
-	sq.TagFilterss = slicesutil.ExtendCapacity(sq.TagFilterss, int(tfssCount))
-	sq.TagFilterss = sq.TagFilterss[:tfssCount]
+	sq.TagFilterss = slicesutil.SetLength(sq.TagFilterss, int(tfssCount))
 	src = tail
 
 	for i := 0; i < int(tfssCount); i++ {
@@ -426,8 +425,7 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 		src = tail
 
 		tagFilters := sq.TagFilterss[i]
-		tagFilters = slicesutil.ExtendCapacity(tagFilters, int(tfsCount))
-		tagFilters = tagFilters[:tfsCount]
+		tagFilters = slicesutil.SetLength(tagFilters, int(tfsCount))
 		for j := 0; j < int(tfsCount); j++ {
 			tail, err := tagFilters[j].Unmarshal(src)
 			if err != nil {

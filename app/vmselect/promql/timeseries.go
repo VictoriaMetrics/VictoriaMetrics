@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
@@ -246,10 +247,7 @@ func unmarshalMetricNameFast(mn *storage.MetricName, src []byte) ([]byte, error)
 	}
 	tagsLen := encoding.UnmarshalUint16(src)
 	src = src[2:]
-	if n := int(tagsLen) - cap(mn.Tags); n > 0 {
-		mn.Tags = append(mn.Tags[:cap(mn.Tags)], make([]storage.Tag, n)...)
-	}
-	mn.Tags = mn.Tags[:tagsLen]
+	mn.Tags = slicesutil.SetLength(mn.Tags, int(tagsLen))
 	for i := range mn.Tags {
 		tail, key, err := unmarshalBytesFast(src)
 		if err != nil {

@@ -85,8 +85,7 @@ func (ts *tableSearch) Init(tb *table, tsids []TSID, tr TimeRange) {
 	ts.ptws = tb.GetPartitions(ts.ptws[:0])
 
 	// Initialize the ptsPool.
-	ts.ptsPool = slicesutil.ExtendCapacity(ts.ptsPool, len(ts.ptws))
-	ts.ptsPool = ts.ptsPool[:len(ts.ptws)]
+	ts.ptsPool = slicesutil.SetLength(ts.ptsPool, len(ts.ptws))
 	for i, ptw := range ts.ptws {
 		ts.ptsPool[i].Init(ptw.pt, tsids, tr)
 	}

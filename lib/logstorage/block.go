@@ -143,8 +143,7 @@ func (c *column) canStoreInConstColumn() bool {
 }
 
 func (c *column) resizeValues(valuesLen int) []string {
-	values := slicesutil.ExtendCapacity(c.values, valuesLen)
-	c.values = values[:valuesLen]
+	c.values = slicesutil.SetLength(c.values, valuesLen)
 	return c.values
 }
 
@@ -367,8 +366,7 @@ func (b *block) extendColumns() *column {
 }
 
 func (b *block) resizeColumns(columnsLen int) []column {
-	cs := slicesutil.ExtendCapacity(b.columns, columnsLen)
-	b.columns = cs[:columnsLen]
+	b.columns = slicesutil.SetLength(b.columns, columnsLen)
 	return b.columns
 }
 

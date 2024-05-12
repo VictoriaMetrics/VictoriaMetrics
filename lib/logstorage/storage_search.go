@@ -198,8 +198,7 @@ func getEmptyStrings(rowsCount int) []string {
 		return values
 	}
 	values := *p
-	values = slicesutil.ExtendCapacity(values, rowsCount)
-	return values[:rowsCount]
+	return slicesutil.SetLength(values, rowsCount)
 }
 
 var emptyStrings atomic.Pointer[[]string]

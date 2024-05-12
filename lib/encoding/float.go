@@ -16,8 +16,7 @@ func GetFloat64s(size int) *Float64s {
 		v = &Float64s{}
 	}
 	a := v.(*Float64s)
-	a.A = slicesutil.ExtendCapacity(a.A, size)
-	a.A = a.A[:size]
+	a.A = slicesutil.SetLength(a.A, size)
 	return a
 }
 

@@ -264,14 +264,12 @@ func (csh *columnsHeader) getColumnHeader(name string) *columnHeader {
 }
 
 func (csh *columnsHeader) resizeConstColumns(columnsLen int) []Field {
-	ccs := slicesutil.ExtendCapacity(csh.constColumns, columnsLen)
-	csh.constColumns = ccs[:columnsLen]
+	csh.constColumns = slicesutil.SetLength(csh.constColumns, columnsLen)
 	return csh.constColumns
 }
 
 func (csh *columnsHeader) resizeColumnHeaders(columnHeadersLen int) []columnHeader {
-	chs := slicesutil.ExtendCapacity(csh.columnHeaders, columnHeadersLen)
-	csh.columnHeaders = chs[:columnHeadersLen]
+	csh.columnHeaders = slicesutil.SetLength(csh.columnHeaders, columnHeadersLen)
 	return csh.columnHeaders
 }
 

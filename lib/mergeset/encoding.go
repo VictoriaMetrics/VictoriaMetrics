@@ -413,8 +413,7 @@ func (ib *inmemoryBlock) UnmarshalData(sb *storageBlock, firstItem, commonPrefix
 	// since the data isn't going to be resized after unmarshaling.
 	// This may save memory for caching the unmarshaled block.
 	data := bytesutil.ResizeNoCopyNoOverallocate(ib.data, dataLen)
-	ib.items = slicesutil.ExtendCapacity(ib.items, int(itemsCount))
-	ib.items = ib.items[:itemsCount]
+	ib.items = slicesutil.SetLength(ib.items, int(itemsCount))
 	data = append(data[:0], firstItem...)
 	items := ib.items
 	items[0] = Item{
@@ -553,10 +552,7 @@ func getLensBuffer(n int) *lensBuffer {
 		v = &lensBuffer{}
 	}
 	lb := v.(*lensBuffer)
-	if nn := n - cap(lb.lens); nn > 0 {
-		lb.lens = append(lb.lens[:cap(lb.lens)], make([]uint64, nn)...)
-	}
-	lb.lens = lb.lens[:n]
+	lb.lens = slicesutil.SetLength(lb.lens, n)
 	return lb
 }
 
