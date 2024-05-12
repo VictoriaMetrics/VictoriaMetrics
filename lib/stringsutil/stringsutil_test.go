@@ -22,3 +22,19 @@ func TestLimitStringLen(t *testing.T) {
 	f("abcde", 4, "a..e")
 	f("abcde", 5, "abcde")
 }
+
+func TestAppendLowercase(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+
+		result := AppendLowercase(nil, s)
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result; got %q; want %q", result, resultExpected)
+		}
+	}
+
+	f("", "")
+	f("foo", "foo")
+	f("FOO", "foo")
+	f("foo БаР baz 123", "foo бар baz 123")
+}

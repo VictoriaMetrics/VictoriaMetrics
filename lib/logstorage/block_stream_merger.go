@@ -59,6 +59,9 @@ type blockStreamMerger struct {
 	// bd is unpacked into rows when needed.
 	bd blockData
 
+	// a holds bd data.
+	a arena
+
 	// rows is pending log entries.
 	rows rows
 
@@ -99,6 +102,7 @@ func (bsm *blockStreamMerger) resetRows() {
 		bsm.vd = nil
 	}
 	bsm.bd.reset()
+	bsm.a.reset()
 
 	bsm.rows.reset()
 	bsm.rowsTmp.reset()
@@ -138,7 +142,8 @@ func (bsm *blockStreamMerger) mustWriteBlock(bd *blockData, bsw *blockStreamWrit
 			bsw.MustWriteBlockData(bd)
 		} else {
 			// Slow path - copy the bd to the curr bd.
-			bsm.bd.copyFrom(bd)
+			bsm.a.reset()
+			bsm.bd.copyFrom(&bsm.a, bd)
 			bsm.uniqueFields = uniqueFields
 		}
 	case bsm.uniqueFields+uniqueFields >= maxColumnsPerBlock:
@@ -150,7 +155,8 @@ func (bsm *blockStreamMerger) mustWriteBlock(bd *blockData, bsw *blockStreamWrit
 		if uniqueFields >= maxColumnsPerBlock {
 			bsw.MustWriteBlockData(bd)
 		} else {
-			bsm.bd.copyFrom(bd)
+			bsm.a.reset()
+			bsm.bd.copyFrom(&bsm.a, bd)
 			bsm.uniqueFields = uniqueFields
 		}
 	case bd.uncompressedSizeBytes >= maxUncompressedBlockSize:
@@ -218,6 +224,7 @@ func (bsm *blockStreamMerger) mustMergeRows(bd *blockData) {
 		// Unmarshal log entries from bsm.bd
 		bsm.mustUnmarshalRows(&bsm.bd)
 		bsm.bd.reset()
+		bsm.a.reset()
 	}
 
 	// Unmarshal log entries from bd

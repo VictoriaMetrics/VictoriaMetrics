@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // blockHeader contains information about a single block.
@@ -263,23 +264,13 @@ func (csh *columnsHeader) getColumnHeader(name string) *columnHeader {
 }
 
 func (csh *columnsHeader) resizeConstColumns(columnsLen int) []Field {
-	ccs := csh.constColumns
-	if n := columnsLen - cap(ccs); n > 0 {
-		ccs = append(ccs[:cap(ccs)], make([]Field, n)...)
-	}
-	ccs = ccs[:columnsLen]
-	csh.constColumns = ccs
-	return ccs
+	csh.constColumns = slicesutil.SetLength(csh.constColumns, columnsLen)
+	return csh.constColumns
 }
 
 func (csh *columnsHeader) resizeColumnHeaders(columnHeadersLen int) []columnHeader {
-	chs := csh.columnHeaders
-	if n := columnHeadersLen - cap(chs); n > 0 {
-		chs = append(chs[:cap(chs)], make([]columnHeader, n)...)
-	}
-	chs = chs[:columnHeadersLen]
-	csh.columnHeaders = chs
-	return chs
+	csh.columnHeaders = slicesutil.SetLength(csh.columnHeaders, columnHeadersLen)
+	return csh.columnHeaders
 }
 
 func (csh *columnsHeader) marshal(dst []byte) []byte {
@@ -298,7 +289,10 @@ func (csh *columnsHeader) marshal(dst []byte) []byte {
 	return dst
 }
 
-func (csh *columnsHeader) unmarshal(src []byte) error {
+// unmarshal unmarshals csh from src.
+//
+// csh is valid until a.reset() is called.
+func (csh *columnsHeader) unmarshal(a *arena, src []byte) error {
 	csh.reset()
 
 	// unmarshal columnHeaders
@@ -312,7 +306,7 @@ func (csh *columnsHeader) unmarshal(src []byte) error {
 	src = tail
 	chs := csh.resizeColumnHeaders(int(n))
 	for i := range chs {
-		tail, err = chs[i].unmarshal(src)
+		tail, err = chs[i].unmarshal(a, src)
 		if err != nil {
 			return fmt.Errorf("cannot unmarshal columnHeader %d out of %d columnHeaders: %w", i, len(chs), err)
 		}
@@ -331,7 +325,7 @@ func (csh *columnsHeader) unmarshal(src []byte) error {
 	src = tail
 	ccs := csh.resizeConstColumns(int(n))
 	for i := range ccs {
-		tail, err = ccs[i].unmarshal(src)
+		tail, err = ccs[i].unmarshal(a, src)
 		if err != nil {
 			return fmt.Errorf("cannot unmarshal constColumn %d out of %d columns: %w", i, len(ccs), err)
 		}
@@ -357,7 +351,7 @@ func (csh *columnsHeader) unmarshal(src []byte) error {
 //
 // Tokens in bloom filter depend on valueType:
 //
-//   - valueTypeString stores lowercased tokens seen in all the values
+//   - valueTypeString stores tokens seen in all the values
 //   - valueTypeDict doesn't store anything in the bloom filter, since all the encoded values
 //     are available directly in the valuesDict field
 //   - valueTypeUint8, valueTypeUint16, valueTypeUint32 and valueTypeUint64 stores encoded uint values
@@ -423,12 +417,16 @@ func (ch *columnHeader) marshal(dst []byte) []byte {
 		minValue := math.Float64frombits(ch.minValue)
 		maxValue := math.Float64frombits(ch.maxValue)
 		if minValue > maxValue {
-			logger.Panicf("BUG: minValue=%g must be smaller than maxValue=%g", minValue, maxValue)
+			logger.Panicf("BUG: minValue=%g must be smaller than maxValue=%g for valueTypeFloat64", minValue, maxValue)
 		}
-	} else {
-		if ch.minValue > ch.maxValue {
-			logger.Panicf("BUG: minValue=%d must be smaller than maxValue=%d", ch.minValue, ch.maxValue)
+	} else if ch.valueType == valueTypeTimestampISO8601 {
+		minValue := int64(ch.minValue)
+		maxValue := int64(ch.maxValue)
+		if minValue > maxValue {
+			logger.Panicf("BUG: minValue=%g must be smaller than maxValue=%g for valueTypeTimestampISO8601", minValue, maxValue)
 		}
+	} else if ch.minValue > ch.maxValue {
+		logger.Panicf("BUG: minValue=%d must be smaller than maxValue=%d for valueType=%d", ch.minValue, ch.maxValue, ch.valueType)
 	}
 
 	// Encode common fields - ch.name and ch.valueType
@@ -498,7 +496,9 @@ func (ch *columnHeader) marshalBloomFilters(dst []byte) []byte {
 }
 
 // unmarshal unmarshals ch from src and returns the tail left after unmarshaling.
-func (ch *columnHeader) unmarshal(src []byte) ([]byte, error) {
+//
+// ch is valid until a.reset() is called.
+func (ch *columnHeader) unmarshal(a *arena, src []byte) ([]byte, error) {
 	ch.reset()
 
 	srcOrig := src
@@ -508,8 +508,7 @@ func (ch *columnHeader) unmarshal(src []byte) ([]byte, error) {
 	if err != nil {
 		return srcOrig, fmt.Errorf("cannot unmarshal column name: %w", err)
 	}
-	// Do not use bytesutil.InternBytes(data) here, since it works slower than the string(data) in prod
-	ch.name = string(data)
+	ch.name = a.copyBytesToString(data)
 	src = tail
 
 	// Unmarshal value type
@@ -528,7 +527,7 @@ func (ch *columnHeader) unmarshal(src []byte) ([]byte, error) {
 		}
 		src = tail
 	case valueTypeDict:
-		tail, err = ch.valuesDict.unmarshal(src)
+		tail, err = ch.valuesDict.unmarshal(a, src)
 		if err != nil {
 			return srcOrig, fmt.Errorf("cannot unmarshal dict at valueTypeDict for column %q: %w", ch.name, err)
 		}
@@ -711,10 +710,10 @@ type timestampsHeader struct {
 	// blockSize is the size of the timestamps block inside timestampsFilename file
 	blockSize uint64
 
-	// minTimestamp is the mimumum timestamp seen in the block
+	// minTimestamp is the mimumum timestamp seen in the block in nanoseconds
 	minTimestamp int64
 
-	// maxTimestamp is the maximum timestamp seen in the block
+	// maxTimestamp is the maximum timestamp seen in the block in nanoseconds
 	maxTimestamp int64
 
 	// marshalType is the type used for encoding the timestamps block

@@ -14,7 +14,7 @@ const maxUncompressedBlockSize = 2 * 1024 * 1024
 const maxRowsPerBlock = 8 * 1024 * 1024
 
 // maxColumnsPerBlock is the maximum number of columns per block.
-const maxColumnsPerBlock = 10000
+const maxColumnsPerBlock = 1_000
 
 // MaxFieldNameSize is the maximum size in bytes for field name.
 //
