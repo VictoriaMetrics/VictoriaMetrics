@@ -1,11 +1,15 @@
 package logstorage
 
 import (
+	"context"
 	"math"
+	"slices"
 	"sort"
 	"sync"
+	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // genericSearchOptions contain options used for search.
@@ -16,8 +20,16 @@ type genericSearchOptions struct {
 	// filter is the filter to use for the search
 	filter filter
 
-	// resultColumnNames is names of columns to return in the result.
-	resultColumnNames []string
+	// neededColumnNames contains names of columns to return in the result
+	neededColumnNames []string
+
+	// unneededColumnNames contains names of columns, which mustn't be returned in the result.
+	//
+	// This list is consulted if needAllColumns=true
+	unneededColumnNames []string
+
+	// needAllColumns is set to true when all the columns except of unneededColumnNames must be returned in the result
+	needAllColumns bool
 }
 
 type searchOptions struct {
@@ -38,34 +50,77 @@ type searchOptions struct {
 	// filter is the filter to use for the search
 	filter filter
 
-	// resultColumnNames is names of columns to return in the result
-	resultColumnNames []string
+	// neededColumnNames contains names of columns to return in the result
+	neededColumnNames []string
+
+	// unneededColumnNames contains names of columns, which mustn't be returned in the result.
+	//
+	// This list is consulted when needAllColumns=true.
+	unneededColumnNames []string
+
+	// needAllColumns is set to true when all the columns except of unneededColumnNames must be returned in the result
+	needAllColumns bool
 }
 
-// RunQuery runs the given q and calls processBlock for results
-func (s *Storage) RunQuery(tenantIDs []TenantID, q *Query, stopCh <-chan struct{}, processBlock func(columns []BlockColumn)) {
-	resultColumnNames := q.getResultColumnNames()
+// RunQuery runs the given q and calls writeBlock for results.
+func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlock func(workerID uint, timestamps []int64, columns []BlockColumn)) error {
+	neededColumnNames, unneededColumnNames := q.getNeededColumns()
 	so := &genericSearchOptions{
-		tenantIDs:         tenantIDs,
-		filter:            q.f,
-		resultColumnNames: resultColumnNames,
+		tenantIDs:           tenantIDs,
+		filter:              q.f,
+		neededColumnNames:   neededColumnNames,
+		unneededColumnNames: unneededColumnNames,
+		needAllColumns:      slices.Contains(neededColumnNames, "*"),
 	}
-	workersCount := cgroup.AvailableCPUs()
-	s.search(workersCount, so, stopCh, func(_ uint, br *blockResult) {
-		brs := getBlockRows()
-		cs := brs.cs
 
-		for i, columnName := range resultColumnNames {
-			cs = append(cs, BlockColumn{
-				Name:   columnName,
-				Values: br.getColumnValues(i),
+	workersCount := cgroup.AvailableCPUs()
+
+	pp := newDefaultPipeProcessor(func(workerID uint, br *blockResult) {
+		brs := getBlockRows()
+		csDst := brs.cs
+
+		for _, c := range br.getColumns() {
+			values := c.getValues(br)
+			csDst = append(csDst, BlockColumn{
+				Name:   c.name,
+				Values: values,
 			})
 		}
-		processBlock(cs)
+		writeBlock(workerID, br.timestamps, csDst)
 
-		brs.cs = cs
+		brs.cs = csDst
 		putBlockRows(brs)
 	})
+
+	ppMain := pp
+	stopCh := ctx.Done()
+	cancels := make([]func(), len(q.pipes))
+	pps := make([]pipeProcessor, len(q.pipes))
+	for i := len(q.pipes) - 1; i >= 0; i-- {
+		p := q.pipes[i]
+		ctxChild, cancel := context.WithCancel(ctx)
+		pp = p.newPipeProcessor(workersCount, stopCh, cancel, pp)
+		stopCh = ctxChild.Done()
+		ctx = ctxChild
+
+		cancels[i] = cancel
+		pps[i] = pp
+	}
+
+	s.search(workersCount, so, stopCh, pp.writeBlock)
+
+	var errFlush error
+	for i, pp := range pps {
+		if err := pp.flush(); err != nil && errFlush == nil {
+			errFlush = err
+		}
+		cancel := cancels[i]
+		cancel()
+	}
+	if err := ppMain.flush(); err != nil && errFlush == nil {
+		errFlush = err
+	}
+	return errFlush
 }
 
 type blockRows struct {
@@ -109,6 +164,45 @@ func (c *BlockColumn) reset() {
 	c.Values = nil
 }
 
+func getBlockColumnIndex(columns []BlockColumn, columnName string) int {
+	for i, c := range columns {
+		if c.Name == columnName {
+			return i
+		}
+	}
+	return -1
+}
+
+func getBlockColumnValues(columns []BlockColumn, columnName string, rowsCount int) []string {
+	for _, c := range columns {
+		if c.Name == columnName {
+			return c.Values
+		}
+	}
+	return getEmptyStrings(rowsCount)
+}
+
+func appendBlockColumnValues(dst [][]string, columns []BlockColumn, fields []string, rowsCount int) [][]string {
+	for _, f := range fields {
+		values := getBlockColumnValues(columns, f, rowsCount)
+		dst = append(dst, values)
+	}
+	return dst
+}
+
+func getEmptyStrings(rowsCount int) []string {
+	p := emptyStrings.Load()
+	if p == nil {
+		values := make([]string, rowsCount)
+		emptyStrings.Store(&values)
+		return values
+	}
+	values := *p
+	return slicesutil.SetLength(values, rowsCount)
+}
+
+var emptyStrings atomic.Pointer[[]string]
+
 // The number of blocks to search at once by a single worker
 //
 // This number must be increased on systems with many CPU cores in order to amortize
@@ -122,40 +216,47 @@ type searchResultFunc func(workerID uint, br *blockResult)
 
 // search searches for the matching rows according to so.
 //
-// It calls f for each found matching block.
+// It calls processBlockResult for each found matching block.
 func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-chan struct{}, processBlockResult searchResultFunc) {
 	// Spin up workers
-	var wg sync.WaitGroup
+	var wgWorkers sync.WaitGroup
 	workCh := make(chan []*blockSearchWork, workersCount)
-	wg.Add(workersCount)
+	wgWorkers.Add(workersCount)
 	for i := 0; i < workersCount; i++ {
 		go func(workerID uint) {
 			bs := getBlockSearch()
 			for bsws := range workCh {
 				for _, bsw := range bsws {
+					select {
+					case <-stopCh:
+						// The search has been canceled. Just skip all the scheduled work in order to save CPU time.
+						continue
+					default:
+					}
+
 					bs.search(bsw)
-					if bs.br.RowsCount() > 0 {
+					if len(bs.br.timestamps) > 0 {
 						processBlockResult(workerID, &bs.br)
 					}
 				}
 			}
 			putBlockSearch(bs)
-			wg.Done()
+			wgWorkers.Done()
 		}(uint(i))
 	}
 
 	// Obtain common time filter from so.filter
-	tf, f := getCommonTimeFilter(so.filter)
+	ft, f := getCommonFilterTime(so.filter)
 
 	// Select partitions according to the selected time range
 	s.partitionsLock.Lock()
 	ptws := s.partitions
-	minDay := tf.minTimestamp / nsecPerDay
+	minDay := ft.minTimestamp / nsecPerDay
 	n := sort.Search(len(ptws), func(i int) bool {
 		return ptws[i].day >= minDay
 	})
 	ptws = ptws[n:]
-	maxDay := tf.maxTimestamp / nsecPerDay
+	maxDay := ft.maxTimestamp / nsecPerDay
 	n = sort.Search(len(ptws), func(i int) bool {
 		return ptws[i].day > maxDay
 	})
@@ -165,23 +266,31 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 	}
 	s.partitionsLock.Unlock()
 
-	// Obtain common streamFilter from f
+	// Obtain common filterStream from f
 	var sf *StreamFilter
 	sf, f = getCommonStreamFilter(f)
 
-	// Apply search to matching partitions
-	var pws []*partWrapper
-	for _, ptw := range ptws {
-		pws = ptw.pt.search(pws, tf, sf, f, so, workCh, stopCh)
+	// Schedule concurrent search across matching partitions.
+	psfs := make([]partitionSearchFinalizer, len(ptws))
+	var wgSearchers sync.WaitGroup
+	for i, ptw := range ptws {
+		partitionSearchConcurrencyLimitCh <- struct{}{}
+		wgSearchers.Add(1)
+		go func(idx int, pt *partition) {
+			psfs[idx] = pt.search(ft, sf, f, so, workCh, stopCh)
+			wgSearchers.Done()
+			<-partitionSearchConcurrencyLimitCh
+		}(i, ptw.pt)
 	}
+	wgSearchers.Wait()
 
 	// Wait until workers finish their work
 	close(workCh)
-	wg.Wait()
+	wgWorkers.Wait()
 
-	// Decrement references to parts
-	for _, pw := range pws {
-		pw.decRef()
+	// Finalize partition search
+	for _, psf := range psfs {
+		psf()
 	}
 
 	// Decrement references to partitions
@@ -190,9 +299,21 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 	}
 }
 
-func (pt *partition) search(pwsDst []*partWrapper, tf *timeFilter, sf *StreamFilter, f filter, so *genericSearchOptions,
-	workCh chan<- []*blockSearchWork, stopCh <-chan struct{},
-) []*partWrapper {
+// partitionSearchConcurrencyLimitCh limits the number of concurrent searches in partition.
+//
+// This is needed for limiting memory usage under high load.
+var partitionSearchConcurrencyLimitCh = make(chan struct{}, cgroup.AvailableCPUs())
+
+type partitionSearchFinalizer func()
+
+func (pt *partition) search(ft *filterTime, sf *StreamFilter, f filter, so *genericSearchOptions, workCh chan<- []*blockSearchWork, stopCh <-chan struct{}) partitionSearchFinalizer {
+	select {
+	case <-stopCh:
+		// Do not spend CPU time on search, since it is already stopped.
+		return func() {}
+	default:
+	}
+
 	tenantIDs := so.tenantIDs
 	var streamIDs []streamID
 	if sf != nil {
@@ -203,25 +324,27 @@ func (pt *partition) search(pwsDst []*partWrapper, tf *timeFilter, sf *StreamFil
 		f = initStreamFilters(tenantIDs, pt.idb, f)
 	}
 	soInternal := &searchOptions{
-		tenantIDs:         tenantIDs,
-		streamIDs:         streamIDs,
-		minTimestamp:      tf.minTimestamp,
-		maxTimestamp:      tf.maxTimestamp,
-		filter:            f,
-		resultColumnNames: so.resultColumnNames,
+		tenantIDs:           tenantIDs,
+		streamIDs:           streamIDs,
+		minTimestamp:        ft.minTimestamp,
+		maxTimestamp:        ft.maxTimestamp,
+		filter:              f,
+		neededColumnNames:   so.neededColumnNames,
+		unneededColumnNames: so.unneededColumnNames,
+		needAllColumns:      so.needAllColumns,
 	}
-	return pt.ddb.search(pwsDst, soInternal, workCh, stopCh)
+	return pt.ddb.search(soInternal, workCh, stopCh)
 }
 
 func hasStreamFilters(f filter) bool {
 	switch t := f.(type) {
-	case *andFilter:
+	case *filterAnd:
 		return hasStreamFiltersInList(t.filters)
-	case *orFilter:
+	case *filterOr:
 		return hasStreamFiltersInList(t.filters)
-	case *notFilter:
+	case *filterNot:
 		return hasStreamFilters(t.f)
-	case *streamFilter:
+	case *filterStream:
 		return true
 	default:
 		return false
@@ -239,20 +362,20 @@ func hasStreamFiltersInList(filters []filter) bool {
 
 func initStreamFilters(tenantIDs []TenantID, idb *indexdb, f filter) filter {
 	switch t := f.(type) {
-	case *andFilter:
-		return &andFilter{
+	case *filterAnd:
+		return &filterAnd{
 			filters: initStreamFiltersList(tenantIDs, idb, t.filters),
 		}
-	case *orFilter:
-		return &orFilter{
+	case *filterOr:
+		return &filterOr{
 			filters: initStreamFiltersList(tenantIDs, idb, t.filters),
 		}
-	case *notFilter:
-		return &notFilter{
+	case *filterNot:
+		return &filterNot{
 			f: initStreamFilters(tenantIDs, idb, t.f),
 		}
-	case *streamFilter:
-		return &streamFilter{
+	case *filterStream:
+		return &filterStream{
 			f:         t.f,
 			tenantIDs: tenantIDs,
 			idb:       idb,
@@ -270,13 +393,15 @@ func initStreamFiltersList(tenantIDs []TenantID, idb *indexdb, filters []filter)
 	return result
 }
 
-func (ddb *datadb) search(pwsDst []*partWrapper, so *searchOptions, workCh chan<- []*blockSearchWork, stopCh <-chan struct{}) []*partWrapper {
+func (ddb *datadb) search(so *searchOptions, workCh chan<- []*blockSearchWork, stopCh <-chan struct{}) partitionSearchFinalizer {
 	// Select parts with data for the given time range
 	ddb.partsLock.Lock()
-	pwsDstLen := len(pwsDst)
-	pwsDst = appendPartsInTimeRange(pwsDst, ddb.inmemoryParts, so.minTimestamp, so.maxTimestamp)
-	pwsDst = appendPartsInTimeRange(pwsDst, ddb.fileParts, so.minTimestamp, so.maxTimestamp)
-	pws := pwsDst[pwsDstLen:]
+	pws := appendPartsInTimeRange(nil, ddb.bigParts, so.minTimestamp, so.maxTimestamp)
+	pws = appendPartsInTimeRange(pws, ddb.smallParts, so.minTimestamp, so.maxTimestamp)
+	pws = appendPartsInTimeRange(pws, ddb.inmemoryParts, so.minTimestamp, so.maxTimestamp)
+
+	// Increase references to the searched parts, so they aren't deleted during search.
+	// References to the searched parts must be decremented by calling the returned partitionSearchFinalizer.
 	for _, pw := range pws {
 		pw.incRef()
 	}
@@ -287,7 +412,11 @@ func (ddb *datadb) search(pwsDst []*partWrapper, so *searchOptions, workCh chan<
 		pw.p.search(so, workCh, stopCh)
 	}
 
-	return pwsDst
+	return func() {
+		for _, pw := range pws {
+			pw.decRef()
+		}
+	}
 }
 
 func (p *part) search(so *searchOptions, workCh chan<- []*blockSearchWork, stopCh <-chan struct{}) {
@@ -433,7 +562,10 @@ func (p *part) searchByTenantIDs(so *searchOptions, bhss *blockHeaders, workCh c
 
 	// Flush the remaining work
 	if len(bsws) > 0 {
-		workCh <- bsws
+		select {
+		case <-stopCh:
+		case workCh <- bsws:
+		}
 	}
 }
 
@@ -544,7 +676,10 @@ func (p *part) searchByStreamIDs(so *searchOptions, bhss *blockHeaders, workCh c
 
 	// Flush the remaining work
 	if len(bsws) > 0 {
-		workCh <- bsws
+		select {
+		case <-stopCh:
+		case workCh <- bsws:
+		}
 	}
 }
 
@@ -560,41 +695,41 @@ func appendPartsInTimeRange(dst, src []*partWrapper, minTimestamp, maxTimestamp 
 
 func getCommonStreamFilter(f filter) (*StreamFilter, filter) {
 	switch t := f.(type) {
-	case *andFilter:
+	case *filterAnd:
 		filters := t.filters
 		for i, filter := range filters {
-			sf, ok := filter.(*streamFilter)
+			sf, ok := filter.(*filterStream)
 			if ok && !sf.f.isEmpty() {
 				// Remove sf from filters, since it doesn't filter out anything then.
-				af := &andFilter{
+				fa := &filterAnd{
 					filters: append(filters[:i:i], filters[i+1:]...),
 				}
-				return sf.f, af
+				return sf.f, fa
 			}
 		}
-	case *streamFilter:
-		return t.f, &noopFilter{}
+	case *filterStream:
+		return t.f, &filterNoop{}
 	}
 	return nil, f
 }
 
-func getCommonTimeFilter(f filter) (*timeFilter, filter) {
+func getCommonFilterTime(f filter) (*filterTime, filter) {
 	switch t := f.(type) {
-	case *andFilter:
+	case *filterAnd:
 		for _, filter := range t.filters {
-			tf, ok := filter.(*timeFilter)
+			ft, ok := filter.(*filterTime)
 			if ok {
-				// The tf must remain in af in order to properly filter out rows outside the selected time range
-				return tf, f
+				// The ft must remain in t.filters order to properly filter out rows outside the selected time range
+				return ft, f
 			}
 		}
-	case *timeFilter:
+	case *filterTime:
 		return t, f
 	}
-	return allTimeFilter, f
+	return allFilterTime, f
 }
 
-var allTimeFilter = &timeFilter{
+var allFilterTime = &filterTime{
 	minTimestamp: math.MinInt64,
 	maxTimestamp: math.MaxInt64,
 }

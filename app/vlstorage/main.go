@@ -1,10 +1,11 @@
 package vlstorage
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -61,10 +62,16 @@ func Init() {
 
 	var ss logstorage.StorageStats
 	strg.UpdateStats(&ss)
-	logger.Infof("successfully opened storage in %.3f seconds; partsCount: %d; blocksCount: %d; rowsCount: %d; sizeBytes: %d",
-		time.Since(startTime).Seconds(), ss.FileParts, ss.FileBlocks, ss.FileRowsCount, ss.CompressedFileSize)
-	storageMetrics = initStorageMetrics(strg)
+	logger.Infof("successfully opened storage in %.3f seconds; smallParts: %d; bigParts: %d; smallPartBlocks: %d; bigPartBlocks: %d; smallPartRows: %d; bigPartRows: %d; "+
+		"smallPartSize: %d bytes; bigPartSize: %d bytes",
+		time.Since(startTime).Seconds(), ss.SmallParts, ss.BigParts, ss.SmallPartBlocks, ss.BigPartBlocks, ss.SmallPartRowsCount, ss.BigPartRowsCount,
+		ss.CompressedSmallPartSize, ss.CompressedBigPartSize)
 
+	// register storage metrics
+	storageMetrics = metrics.NewSet()
+	storageMetrics.RegisterMetricsWriter(func(w io.Writer) {
+		writeStorageMetrics(w, strg)
+	})
 	metrics.RegisterSet(storageMetrics)
 }
 
@@ -99,117 +106,61 @@ func MustAddRows(lr *logstorage.LogRows) {
 	strg.MustAddRows(lr)
 }
 
-// RunQuery runs the given q and calls processBlock for the returned data blocks
-func RunQuery(tenantIDs []logstorage.TenantID, q *logstorage.Query, stopCh <-chan struct{}, processBlock func(columns []logstorage.BlockColumn)) {
-	strg.RunQuery(tenantIDs, q, stopCh, processBlock)
+// RunQuery runs the given q and calls writeBlock for the returned data blocks
+func RunQuery(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, writeBlock func(workerID uint, timestamps []int64, columns []logstorage.BlockColumn)) error {
+	return strg.RunQuery(ctx, tenantIDs, q, writeBlock)
 }
 
-func initStorageMetrics(strg *logstorage.Storage) *metrics.Set {
-	ssCache := &logstorage.StorageStats{}
-	var ssCacheLock sync.Mutex
-	var lastUpdateTime time.Time
+func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {
+	var ss logstorage.StorageStats
+	strg.UpdateStats(&ss)
 
-	m := func() *logstorage.StorageStats {
-		ssCacheLock.Lock()
-		defer ssCacheLock.Unlock()
-		if time.Since(lastUpdateTime) < time.Second {
-			return ssCache
-		}
-		var ss logstorage.StorageStats
-		strg.UpdateStats(&ss)
-		ssCache = &ss
-		lastUpdateTime = time.Now()
-		return ssCache
+	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vl_free_disk_space_bytes{path=%q}`, *storageDataPath), fs.MustGetFreeSpace(*storageDataPath))
+
+	isReadOnly := uint64(0)
+	if ss.IsReadOnly {
+		isReadOnly = 1
 	}
+	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vl_storage_is_read_only{path=%q}`, *storageDataPath), isReadOnly)
 
-	ms := metrics.NewSet()
+	metrics.WriteGaugeUint64(w, `vl_active_merges{type="storage/inmemory"}`, ss.InmemoryActiveMerges)
+	metrics.WriteGaugeUint64(w, `vl_active_merges{type="storage/small"}`, ss.SmallPartActiveMerges)
+	metrics.WriteGaugeUint64(w, `vl_active_merges{type="storage/big"}`, ss.BigPartActiveMerges)
 
-	ms.NewGauge(fmt.Sprintf(`vl_free_disk_space_bytes{path=%q}`, *storageDataPath), func() float64 {
-		return float64(fs.MustGetFreeSpace(*storageDataPath))
-	})
-	ms.NewGauge(fmt.Sprintf(`vl_storage_is_read_only{path=%q}`, *storageDataPath), func() float64 {
-		if m().IsReadOnly {
-			return 1
-		}
-		return 0
-	})
+	metrics.WriteCounterUint64(w, `vl_merges_total{type="storage/inmemory"}`, ss.InmemoryMergesTotal)
+	metrics.WriteCounterUint64(w, `vl_merges_total{type="storage/small"}`, ss.SmallPartMergesTotal)
+	metrics.WriteCounterUint64(w, `vl_merges_total{type="storage/big"}`, ss.BigPartMergesTotal)
 
-	ms.NewGauge(`vl_active_merges{type="inmemory"}`, func() float64 {
-		return float64(m().InmemoryActiveMerges)
-	})
-	ms.NewGauge(`vl_merges_total{type="inmemory"}`, func() float64 {
-		return float64(m().InmemoryMergesTotal)
-	})
-	ms.NewGauge(`vl_active_merges{type="file"}`, func() float64 {
-		return float64(m().FileActiveMerges)
-	})
-	ms.NewGauge(`vl_merges_total{type="file"}`, func() float64 {
-		return float64(m().FileMergesTotal)
-	})
+	metrics.WriteGaugeUint64(w, `vl_storage_rows{type="storage/inmemory"}`, ss.InmemoryRowsCount)
+	metrics.WriteGaugeUint64(w, `vl_storage_rows{type="storage/small"}`, ss.SmallPartRowsCount)
+	metrics.WriteGaugeUint64(w, `vl_storage_rows{type="storage/big"}`, ss.BigPartRowsCount)
 
-	ms.NewGauge(`vl_storage_rows{type="inmemory"}`, func() float64 {
-		return float64(m().InmemoryRowsCount)
-	})
-	ms.NewGauge(`vl_storage_rows{type="file"}`, func() float64 {
-		return float64(m().FileRowsCount)
-	})
-	ms.NewGauge(`vl_storage_parts{type="inmemory"}`, func() float64 {
-		return float64(m().InmemoryParts)
-	})
-	ms.NewGauge(`vl_storage_parts{type="file"}`, func() float64 {
-		return float64(m().FileParts)
-	})
-	ms.NewGauge(`vl_storage_blocks{type="inmemory"}`, func() float64 {
-		return float64(m().InmemoryBlocks)
-	})
-	ms.NewGauge(`vl_storage_blocks{type="file"}`, func() float64 {
-		return float64(m().FileBlocks)
-	})
+	metrics.WriteGaugeUint64(w, `vl_storage_parts{type="storage/inmemory"}`, ss.InmemoryParts)
+	metrics.WriteGaugeUint64(w, `vl_storage_parts{type="storage/small"}`, ss.SmallParts)
+	metrics.WriteGaugeUint64(w, `vl_storage_parts{type="storage/big"}`, ss.BigParts)
 
-	ms.NewGauge(`vl_partitions`, func() float64 {
-		return float64(m().PartitionsCount)
-	})
-	ms.NewGauge(`vl_streams_created_total`, func() float64 {
-		return float64(m().StreamsCreatedTotal)
-	})
+	metrics.WriteGaugeUint64(w, `vl_storage_blocks{type="storage/inmemory"}`, ss.InmemoryBlocks)
+	metrics.WriteGaugeUint64(w, `vl_storage_blocks{type="storage/small"}`, ss.SmallPartBlocks)
+	metrics.WriteGaugeUint64(w, `vl_storage_blocks{type="storage/big"}`, ss.BigPartBlocks)
 
-	ms.NewGauge(`vl_indexdb_rows`, func() float64 {
-		return float64(m().IndexdbItemsCount)
-	})
-	ms.NewGauge(`vl_indexdb_parts`, func() float64 {
-		return float64(m().IndexdbPartsCount)
-	})
-	ms.NewGauge(`vl_indexdb_blocks`, func() float64 {
-		return float64(m().IndexdbBlocksCount)
-	})
+	metrics.WriteGaugeUint64(w, `vl_partitions`, ss.PartitionsCount)
+	metrics.WriteCounterUint64(w, `vl_streams_created_total`, ss.StreamsCreatedTotal)
 
-	ms.NewGauge(`vl_data_size_bytes{type="indexdb"}`, func() float64 {
-		return float64(m().IndexdbSizeBytes)
-	})
-	ms.NewGauge(`vl_data_size_bytes{type="storage"}`, func() float64 {
-		dm := m()
-		return float64(dm.CompressedInmemorySize + dm.CompressedFileSize)
-	})
+	metrics.WriteGaugeUint64(w, `vl_indexdb_rows`, ss.IndexdbItemsCount)
+	metrics.WriteGaugeUint64(w, `vl_indexdb_parts`, ss.IndexdbPartsCount)
+	metrics.WriteGaugeUint64(w, `vl_indexdb_blocks`, ss.IndexdbBlocksCount)
 
-	ms.NewGauge(`vl_compressed_data_size_bytes{type="inmemory"}`, func() float64 {
-		return float64(m().CompressedInmemorySize)
-	})
-	ms.NewGauge(`vl_compressed_data_size_bytes{type="file"}`, func() float64 {
-		return float64(m().CompressedFileSize)
-	})
-	ms.NewGauge(`vl_uncompressed_data_size_bytes{type="inmemory"}`, func() float64 {
-		return float64(m().UncompressedInmemorySize)
-	})
-	ms.NewGauge(`vl_uncompressed_data_size_bytes{type="file"}`, func() float64 {
-		return float64(m().UncompressedFileSize)
-	})
+	metrics.WriteGaugeUint64(w, `vl_data_size_bytes{type="indexdb"}`, ss.IndexdbSizeBytes)
+	metrics.WriteGaugeUint64(w, `vl_data_size_bytes{type="storage"}`, ss.CompressedInmemorySize+ss.CompressedSmallPartSize+ss.CompressedBigPartSize)
 
-	ms.NewGauge(`vl_rows_dropped_total{reason="too_big_timestamp"}`, func() float64 {
-		return float64(m().RowsDroppedTooBigTimestamp)
-	})
-	ms.NewGauge(`vl_rows_dropped_total{reason="too_small_timestamp"}`, func() float64 {
-		return float64(m().RowsDroppedTooSmallTimestamp)
-	})
+	metrics.WriteGaugeUint64(w, `vl_compressed_data_size_bytes{type="storage/inmemory"}`, ss.CompressedInmemorySize)
+	metrics.WriteGaugeUint64(w, `vl_compressed_data_size_bytes{type="storage/small"}`, ss.CompressedSmallPartSize)
+	metrics.WriteGaugeUint64(w, `vl_compressed_data_size_bytes{type="storage/big"}`, ss.CompressedBigPartSize)
 
-	return ms
+	metrics.WriteGaugeUint64(w, `vl_uncompressed_data_size_bytes{type="storage/inmemory"}`, ss.UncompressedInmemorySize)
+	metrics.WriteGaugeUint64(w, `vl_uncompressed_data_size_bytes{type="storage/small"}`, ss.UncompressedSmallPartSize)
+	metrics.WriteGaugeUint64(w, `vl_uncompressed_data_size_bytes{type="storage/big"}`, ss.UncompressedBigPartSize)
+
+	metrics.WriteCounterUint64(w, `vl_rows_dropped_total{reason="too_big_timestamp"}`, ss.RowsDroppedTooBigTimestamp)
+	metrics.WriteCounterUint64(w, `vl_rows_dropped_total{reason="too_small_timestamp"}`, ss.RowsDroppedTooSmallTimestamp)
 }

@@ -24,10 +24,7 @@ func (f *Field) Reset() {
 
 // String returns string representation of f.
 func (f *Field) String() string {
-	name := f.Name
-	if name == "" {
-		name = "_msg"
-	}
+	name := getCanonicalColumnName(f.Name)
 	return fmt.Sprintf("%q:%q", name, f.Value)
 }
 
@@ -37,7 +34,7 @@ func (f *Field) marshal(dst []byte) []byte {
 	return dst
 }
 
-func (f *Field) unmarshal(src []byte) ([]byte, error) {
+func (f *Field) unmarshal(a *arena, src []byte) ([]byte, error) {
 	srcOrig := src
 
 	// Unmarshal field name
@@ -45,8 +42,7 @@ func (f *Field) unmarshal(src []byte) ([]byte, error) {
 	if err != nil {
 		return srcOrig, fmt.Errorf("cannot unmarshal field name: %w", err)
 	}
-	// Do not use bytesutil.InternBytes(b) here, since it works slower than the string(b) in prod
-	f.Name = string(b)
+	f.Name = a.copyBytesToString(b)
 	src = tail
 
 	// Unmarshal field value
@@ -54,11 +50,20 @@ func (f *Field) unmarshal(src []byte) ([]byte, error) {
 	if err != nil {
 		return srcOrig, fmt.Errorf("cannot unmarshal field value: %w", err)
 	}
-	// Do not use bytesutil.InternBytes(b) here, since it works slower than the string(b) in prod
-	f.Value = string(b)
+	f.Value = a.copyBytesToString(b)
 	src = tail
 
 	return src, nil
+}
+
+func appendFields(a *arena, dst, src []Field) []Field {
+	for _, f := range src {
+		dst = append(dst, Field{
+			Name:  a.copyString(f.Name),
+			Value: a.copyString(f.Value),
+		})
+	}
+	return dst
 }
 
 // rows is an aux structure used during rows merge
@@ -120,4 +125,11 @@ func (rs *rows) mergeRows(timestampsA, timestampsB []int64, fieldsA, fieldsB [][
 	} else {
 		rs.appendRows(timestampsA, fieldsA)
 	}
+}
+
+func getCanonicalColumnName(columnName string) string {
+	if columnName == "" {
+		return "_msg"
+	}
+	return columnName
 }
