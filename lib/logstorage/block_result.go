@@ -1599,6 +1599,17 @@ func (c *blockResultColumn) getMaxValue(br *blockResult) float64 {
 			}
 		}
 		return max
+	case valueTypeFloat64:
+		max := nan
+		for _, v := range c.encodedValues {
+			b := bytesutil.ToUnsafeBytes(v)
+			n := encoding.UnmarshalUint64(b)
+			f := math.Float64frombits(n)
+			if math.IsNaN(max) || f > max {
+				max = f
+			}
+		}
+		return max
 	case valueTypeIPv4:
 		return nan
 	case valueTypeTimestampISO8601:
@@ -1692,6 +1703,17 @@ func (c *blockResultColumn) getMinValue(br *blockResult) float64 {
 			b := bytesutil.ToUnsafeBytes(v)
 			f := float64(encoding.UnmarshalUint64(b))
 			if f < min {
+				min = f
+			}
+		}
+		return min
+	case valueTypeFloat64:
+		min := nan
+		for _, v := range c.encodedValues {
+			b := bytesutil.ToUnsafeBytes(v)
+			n := encoding.UnmarshalUint64(b)
+			f := math.Float64frombits(n)
+			if math.IsNaN(min) || f < min {
 				min = f
 			}
 		}
