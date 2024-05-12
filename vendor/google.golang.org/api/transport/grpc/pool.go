@@ -109,9 +109,9 @@ func (p *poolAdapter) Close() error {
 }
 
 func (p *poolAdapter) Invoke(ctx context.Context, method string, args interface{}, reply interface{}, opts ...grpc.CallOption) error {
-	return p.Conn().Invoke(ctx, method, args, reply, opts...)
+	return p.pool.Invoke(ctx, method, args, reply, opts...)
 }
 
 func (p *poolAdapter) NewStream(ctx context.Context, desc *grpc.StreamDesc, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
-	return p.Conn().NewStream(ctx, desc, method, opts...)
+	return p.pool.NewStream(ctx, desc, method, opts...)
 }
