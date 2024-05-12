@@ -13,20 +13,31 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets. This action removes the
-// website configuration for a bucket. Amazon S3 returns a 200 OK response upon
-// successfully deleting a website configuration on the specified bucket. You will
-// get a 200 OK response if the website configuration you are trying to delete
-// does not exist on the bucket. Amazon S3 returns a 404 response if the bucket
-// specified in the request does not exist. This DELETE action requires the
-// S3:DeleteBucketWebsite permission. By default, only the bucket owner can delete
-// the website configuration attached to a bucket. However, bucket owners can grant
-// other users permission to delete the website configuration by writing a bucket
-// policy granting them the S3:DeleteBucketWebsite permission. For more
-// information about hosting websites, see Hosting Websites on Amazon S3 (https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html)
-// . The following operations are related to DeleteBucketWebsite :
-//   - GetBucketWebsite (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketWebsite.html)
-//   - PutBucketWebsite (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketWebsite.html)
+// This operation is not supported by directory buckets.
+//
+// This action removes the website configuration for a bucket. Amazon S3 returns a
+// 200 OK response upon successfully deleting a website configuration on the
+// specified bucket. You will get a 200 OK response if the website configuration
+// you are trying to delete does not exist on the bucket. Amazon S3 returns a 404
+// response if the bucket specified in the request does not exist.
+//
+// This DELETE action requires the S3:DeleteBucketWebsite permission. By default,
+// only the bucket owner can delete the website configuration attached to a bucket.
+// However, bucket owners can grant other users permission to delete the website
+// configuration by writing a bucket policy granting them the
+// S3:DeleteBucketWebsite permission.
+//
+// For more information about hosting websites, see [Hosting Websites on Amazon S3].
+//
+// The following operations are related to DeleteBucketWebsite :
+//
+// [GetBucketWebsite]
+//
+// [PutBucketWebsite]
+//
+// [GetBucketWebsite]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketWebsite.html
+// [PutBucketWebsite]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketWebsite.html
+// [Hosting Websites on Amazon S3]: https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html
 func (c *Client) DeleteBucketWebsite(ctx context.Context, params *DeleteBucketWebsiteInput, optFns ...func(*Options)) (*DeleteBucketWebsiteOutput, error) {
 	if params == nil {
 		params = &DeleteBucketWebsiteInput{}

@@ -76,7 +76,10 @@ func DetectDefault(opts *DetectOptions) (*auth.Credentials, error) {
 	if opts.CredentialsJSON != nil {
 		return readCredentialsFileJSON(opts.CredentialsJSON, opts)
 	}
-	if filename := credsfile.GetFileNameFromEnv(opts.CredentialsFile); filename != "" {
+	if opts.CredentialsFile != "" {
+		return readCredentialsFile(opts.CredentialsFile, opts)
+	}
+	if filename := os.Getenv(credsfile.GoogleAppCredsEnvVar); filename != "" {
 		if creds, err := readCredentialsFile(filename, opts); err == nil {
 			return creds, err
 		}

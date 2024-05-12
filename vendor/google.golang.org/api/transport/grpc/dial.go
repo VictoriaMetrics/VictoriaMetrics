@@ -174,21 +174,30 @@ func DialPool(ctx context.Context, opts ...option.ClientOption) (ConnPool, error
 // dialPoolNewAuth is an adapter to call new auth library.
 func dialPoolNewAuth(ctx context.Context, secure bool, poolSize int, ds *internal.DialSettings) (grpctransport.GRPCClientConnPool, error) {
 	// honor options if set
-	var ts oauth2.TokenSource
-	if ds.InternalCredentials != nil {
-		ts = ds.InternalCredentials.TokenSource
-	} else if ds.Credentials != nil {
-		ts = ds.Credentials.TokenSource
-	} else if ds.TokenSource != nil {
-		ts = ds.TokenSource
-	}
 	var creds *auth.Credentials
-	if ds.AuthCredentials != nil {
+	if ds.InternalCredentials != nil {
+		creds = oauth2adapt.AuthCredentialsFromOauth2Credentials(ds.InternalCredentials)
+	} else if ds.Credentials != nil {
+		creds = oauth2adapt.AuthCredentialsFromOauth2Credentials(ds.Credentials)
+	} else if ds.AuthCredentials != nil {
 		creds = ds.AuthCredentials
-	} else if ts != nil {
-		creds = auth.NewCredentials(&auth.CredentialsOptions{
-			TokenProvider: oauth2adapt.TokenProviderFromTokenSource(ts),
-		})
+	} else if ds.TokenSource != nil {
+		credOpts := &auth.CredentialsOptions{
+			TokenProvider: oauth2adapt.TokenProviderFromTokenSource(ds.TokenSource),
+		}
+		if ds.QuotaProject != "" {
+			credOpts.QuotaProjectIDProvider = auth.CredentialsPropertyFunc(func(ctx context.Context) (string, error) {
+				return ds.QuotaProject, nil
+			})
+		}
+		creds = auth.NewCredentials(credOpts)
+	}
+
+	var skipValidation bool
+	// If our clients explicitly setup the credential skip validation as it is
+	// assumed correct
+	if ds.SkipValidation || ds.InternalCredentials != nil {
+		skipValidation = true
 	}
 
 	var aud string
@@ -202,6 +211,13 @@ func dialPoolNewAuth(ctx context.Context, secure bool, poolSize int, ds *interna
 	if ds.RequestReason != "" {
 		metadata["X-goog-request-reason"] = ds.RequestReason
 	}
+
+	// Defaults for older clients that don't set this value yet
+	defaultEndpointTemplate := ds.DefaultEndpointTemplate
+	if defaultEndpointTemplate == "" {
+		defaultEndpointTemplate = ds.DefaultEndpoint
+	}
+
 	pool, err := grpctransport.Dial(ctx, secure, &grpctransport.Options{
 		DisableTelemetry:      ds.TelemetryDisabled,
 		DisableAuthentication: ds.NoAuth,
@@ -223,9 +239,10 @@ func dialPoolNewAuth(ctx context.Context, secure bool, poolSize int, ds *interna
 			EnableDirectPathXds:             ds.EnableDirectPathXds,
 			EnableJWTWithScope:              ds.EnableJwtWithScope,
 			DefaultAudience:                 ds.DefaultAudience,
-			DefaultEndpointTemplate:         ds.DefaultEndpointTemplate,
+			DefaultEndpointTemplate:         defaultEndpointTemplate,
 			DefaultMTLSEndpoint:             ds.DefaultMTLSEndpoint,
 			DefaultScopes:                   ds.DefaultScopes,
+			SkipValidation:                  skipValidation,
 		},
 	})
 	return pool, err
