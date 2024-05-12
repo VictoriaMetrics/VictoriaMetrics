@@ -34,12 +34,6 @@ var (
 	// The period an MTLS config can be reused before needing refresh.
 	configExpiry = time.Hour
 
-	// mtlsEndpointEnabledForS2A checks if the endpoint is indeed MTLS-enabled, so that we can use S2A for MTLS connection.
-	mtlsEndpointEnabledForS2A = func() bool {
-		// TODO(xmenxk): determine this via discovery config.
-		return true
-	}
-
 	// mdsMTLSAutoConfigSource is an instance of reuseMTLSConfigSource, with metadataMTLSAutoConfig as its config source.
 	mtlsOnce sync.Once
 )
@@ -165,19 +159,16 @@ func shouldUseS2A(clientCertSource cert.Provider, opts *Options) bool {
 	if !isGoogleS2AEnabled() {
 		return false
 	}
-	// If DefaultMTLSEndpoint is not set and no endpoint override, skip S2A.
-	if opts.DefaultMTLSEndpoint == "" && opts.Endpoint == "" {
-		return false
-	}
-	// If MTLS is not enabled for this endpoint, skip S2A.
-	if !mtlsEndpointEnabledForS2A() {
+	// If DefaultMTLSEndpoint is not set or has endpoint override, skip S2A.
+	if opts.DefaultMTLSEndpoint == "" || opts.Endpoint != "" {
 		return false
 	}
 	// If custom HTTP client is provided, skip S2A.
 	if opts.Client != nil {
 		return false
 	}
-	return true
+	// If directPath is enabled, skip S2A.
+	return !opts.EnableDirectPath && !opts.EnableDirectPathXds
 }
 
 func isGoogleS2AEnabled() bool {

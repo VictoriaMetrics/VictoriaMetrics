@@ -44,6 +44,9 @@ type Options struct {
 	// Headers are extra HTTP headers that will be appended to every outgoing
 	// request.
 	Headers http.Header
+	// BaseRoundTripper overrides the base transport used for serving requests.
+	// If specified ClientCertProvider is ignored.
+	BaseRoundTripper http.RoundTripper
 	// Endpoint overrides the default endpoint to be used for a service.
 	Endpoint string
 	// APIKey specifies an API key to be used as the basis for authentication.
@@ -73,6 +76,9 @@ type Options struct {
 func (o *Options) validate() error {
 	if o == nil {
 		return errors.New("httptransport: opts required to be non-nil")
+	}
+	if o.InternalOptions != nil && o.InternalOptions.SkipValidation {
+		return nil
 	}
 	hasCreds := o.APIKey != "" ||
 		o.Credentials != nil ||
@@ -131,6 +137,9 @@ type InternalOptions struct {
 	// DefaultScopes specifies the default OAuth2 scopes to be used for a
 	// service.
 	DefaultScopes []string
+	// SkipValidation bypasses validation on Options. It should only be used
+	// internally for clients that needs more control over their transport.
+	SkipValidation bool
 }
 
 // AddAuthorizationMiddleware adds a middleware to the provided client's
@@ -175,7 +184,11 @@ func NewClient(opts *Options) (*http.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	trans, err := newTransport(defaultBaseTransport(clientCertProvider, dialTLSContext), opts)
+	baseRoundTripper := opts.BaseRoundTripper
+	if baseRoundTripper == nil {
+		baseRoundTripper = defaultBaseTransport(clientCertProvider, dialTLSContext)
+	}
+	trans, err := newTransport(baseRoundTripper, opts)
 	if err != nil {
 		return nil, err
 	}
