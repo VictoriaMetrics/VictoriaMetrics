@@ -322,19 +322,19 @@ func (tf *TagFilter) Marshal(dst []byte) []byte {
 
 // Unmarshal unmarshals tf from src and returns the tail.
 func (tf *TagFilter) Unmarshal(src []byte) ([]byte, error) {
-	tail, k, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal Key: %w", err)
+	k, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal Key")
 	}
+	src = src[nSize:]
 	tf.Key = append(tf.Key[:0], k...)
-	src = tail
 
-	tail, v, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal Value: %w", err)
+	v, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal Value")
 	}
+	src = src[nSize:]
 	tf.Value = append(tf.Value[:0], v...)
-	src = tail
 
 	if len(src) < 1 {
 		return src, fmt.Errorf("cannot unmarshal IsNegative+IsRegexp from empty src")

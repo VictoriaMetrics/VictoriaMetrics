@@ -1145,11 +1145,11 @@ func (vd *valuesDict) unmarshal(a *arena, src []byte) ([]byte, error) {
 	dictLen := int(src[0])
 	src = src[1:]
 	for i := 0; i < dictLen; i++ {
-		tail, data, err := encoding.UnmarshalBytes(src)
-		if err != nil {
-			return srcOrig, fmt.Errorf("cannot umarshal value %d out of %d from dict: %w", i, dictLen, err)
+		data, nSize := encoding.UnmarshalBytes(src)
+		if nSize <= 0 {
+			return srcOrig, fmt.Errorf("cannot umarshal value %d out of %d from dict", i, dictLen)
 		}
-		src = tail
+		src = src[nSize:]
 
 		v := a.copyBytesToString(data)
 		vd.values = append(vd.values, v)

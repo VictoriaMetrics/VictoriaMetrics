@@ -489,17 +489,19 @@ func MarshalBytes(dst, b []byte) []byte {
 	return dst
 }
 
-// UnmarshalBytes returns unmarshaled bytes from src.
-func UnmarshalBytes(src []byte) ([]byte, []byte, error) {
+// UnmarshalBytes returns unmarshaled bytes from src and the size of the unmarshaled bytes.
+//
+// It returns 0 or negative value if it is impossible to unmarshal bytes from src.
+func UnmarshalBytes(src []byte) ([]byte, int) {
 	n, nSize := UnmarshalVarUint64(src)
 	if nSize <= 0 {
-		return nil, nil, fmt.Errorf("cannot unmarshal string size from uvarint")
+		return nil, 0
 	}
 	src = src[nSize:]
 	if uint64(len(src)) < n {
-		return nil, nil, fmt.Errorf("src is too short for reading string with size %d; len(src)=%d", n, len(src))
+		return nil, 0
 	}
-	return src[n:], src[:n], nil
+	return src[:n], nSize + int(n)
 }
 
 // GetInt64s returns an int64 slice with the given size.

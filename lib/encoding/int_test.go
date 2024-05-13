@@ -312,10 +312,11 @@ func testMarshalUnmarshalBytes(t *testing.T, s string) {
 	t.Helper()
 
 	b := MarshalBytes(nil, []byte(s))
-	tail, bNew, err := UnmarshalBytes(b)
-	if err != nil {
-		t.Fatalf("unexpected error when unmarshaling s=%q from b=%x: %s", s, b, err)
+	bNew, nSize := UnmarshalBytes(b)
+	if nSize <= 0 {
+		t.Fatalf("unexpected error when unmarshaling s=%q from b=%x", s, b)
 	}
+	tail := b[nSize:]
 	if string(bNew) != s {
 		t.Fatalf("unexpected sNew from b=%x; got %q; expecting %q", b, bNew, s)
 	}

@@ -504,12 +504,12 @@ func (ch *columnHeader) unmarshal(a *arena, src []byte) ([]byte, error) {
 	srcOrig := src
 
 	// Unmarshal column name
-	tail, data, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return srcOrig, fmt.Errorf("cannot unmarshal column name: %w", err)
+	data, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return srcOrig, fmt.Errorf("cannot unmarshal column name")
 	}
+	src = src[nSize:]
 	ch.name = a.copyBytesToString(data)
-	src = tail
 
 	// Unmarshal value type
 	if len(src) < 1 {
@@ -521,13 +521,13 @@ func (ch *columnHeader) unmarshal(a *arena, src []byte) ([]byte, error) {
 	// Unmarshal the rest of data depending on valueType
 	switch ch.valueType {
 	case valueTypeString:
-		tail, err = ch.unmarshalValuesAndBloomFilters(src)
+		tail, err := ch.unmarshalValuesAndBloomFilters(src)
 		if err != nil {
 			return srcOrig, fmt.Errorf("cannot unmarshal values and bloom filters at valueTypeString for column %q: %w", ch.name, err)
 		}
 		src = tail
 	case valueTypeDict:
-		tail, err = ch.valuesDict.unmarshal(a, src)
+		tail, err := ch.valuesDict.unmarshal(a, src)
 		if err != nil {
 			return srcOrig, fmt.Errorf("cannot unmarshal dict at valueTypeDict for column %q: %w", ch.name, err)
 		}
@@ -546,7 +546,7 @@ func (ch *columnHeader) unmarshal(a *arena, src []byte) ([]byte, error) {
 		ch.maxValue = uint64(src[1])
 		src = src[2:]
 
-		tail, err = ch.unmarshalValuesAndBloomFilters(src)
+		tail, err := ch.unmarshalValuesAndBloomFilters(src)
 		if err != nil {
 			return srcOrig, fmt.Errorf("cannot unmarshal values and bloom filters at valueTypeUint8 for column %q: %w", ch.name, err)
 		}
@@ -559,7 +559,7 @@ func (ch *columnHeader) unmarshal(a *arena, src []byte) ([]byte, error) {
 		ch.maxValue = uint64(encoding.UnmarshalUint16(src[2:]))
 		src = src[4:]
 
-		tail, err = ch.unmarshalValuesAndBloomFilters(src)
+		tail, err := ch.unmarshalValuesAndBloomFilters(src)
 		if err != nil {
 			return srcOrig, fmt.Errorf("cannot unmarshal values and bloom filters at valueTypeUint16 for column %q: %w", ch.name, err)
 		}
@@ -572,7 +572,7 @@ func (ch *columnHeader) unmarshal(a *arena, src []byte) ([]byte, error) {
 		ch.maxValue = uint64(encoding.UnmarshalUint32(src[4:]))
 		src = src[8:]
 
-		tail, err = ch.unmarshalValuesAndBloomFilters(src)
+		tail, err := ch.unmarshalValuesAndBloomFilters(src)
 		if err != nil {
 			return srcOrig, fmt.Errorf("cannot unmarshal values and bloom filters at valueTypeUint32 for column %q: %w", ch.name, err)
 		}
@@ -585,7 +585,7 @@ func (ch *columnHeader) unmarshal(a *arena, src []byte) ([]byte, error) {
 		ch.maxValue = encoding.UnmarshalUint64(src[8:])
 		src = src[16:]
 
-		tail, err = ch.unmarshalValuesAndBloomFilters(src)
+		tail, err := ch.unmarshalValuesAndBloomFilters(src)
 		if err != nil {
 			return srcOrig, fmt.Errorf("cannot unmarshal values and bloom filters at valueTypeUint64 for column %q: %w", ch.name, err)
 		}
@@ -599,7 +599,7 @@ func (ch *columnHeader) unmarshal(a *arena, src []byte) ([]byte, error) {
 		ch.maxValue = encoding.UnmarshalUint64(src[8:])
 		src = src[16:]
 
-		tail, err = ch.unmarshalValuesAndBloomFilters(src)
+		tail, err := ch.unmarshalValuesAndBloomFilters(src)
 		if err != nil {
 			return srcOrig, fmt.Errorf("cannot unmarshal values and bloom filters at valueTypeFloat64 for column %q: %w", ch.name, err)
 		}
@@ -612,7 +612,7 @@ func (ch *columnHeader) unmarshal(a *arena, src []byte) ([]byte, error) {
 		ch.maxValue = uint64(encoding.UnmarshalUint32(src[4:]))
 		src = src[8:]
 
-		tail, err = ch.unmarshalValuesAndBloomFilters(src)
+		tail, err := ch.unmarshalValuesAndBloomFilters(src)
 		if err != nil {
 			return srcOrig, fmt.Errorf("cannot unmarshal values and bloom filters at valueTypeIPv4 for column %q: %w", ch.name, err)
 		}
@@ -626,7 +626,7 @@ func (ch *columnHeader) unmarshal(a *arena, src []byte) ([]byte, error) {
 		ch.maxValue = encoding.UnmarshalUint64(src[8:])
 		src = src[16:]
 
-		tail, err = ch.unmarshalValuesAndBloomFilters(src)
+		tail, err := ch.unmarshalValuesAndBloomFilters(src)
 		if err != nil {
 			return srcOrig, fmt.Errorf("cannot unmarshal values and bloom filters at valueTypeTimestampISO8601 for column %q: %w", ch.name, err)
 		}

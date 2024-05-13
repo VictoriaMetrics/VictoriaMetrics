@@ -238,17 +238,17 @@ func (pup *pipeUniqProcessor) flush() error {
 			rowFields = rowFields[:0]
 			keyBuf := bytesutil.ToUnsafeBytes(k)
 			for len(keyBuf) > 0 {
-				tail, name, err := encoding.UnmarshalBytes(keyBuf)
-				if err != nil {
-					logger.Panicf("BUG: cannot unmarshal field name: %s", err)
+				name, nSize := encoding.UnmarshalBytes(keyBuf)
+				if nSize <= 0 {
+					logger.Panicf("BUG: cannot unmarshal field name")
 				}
-				keyBuf = tail
+				keyBuf = keyBuf[nSize:]
 
-				tail, value, err := encoding.UnmarshalBytes(keyBuf)
-				if err != nil {
-					logger.Panicf("BUG: cannot unmarshal field value: %s", err)
+				value, nSize := encoding.UnmarshalBytes(keyBuf)
+				if nSize <= 0 {
+					logger.Panicf("BUG: cannot unmarshal field value")
 				}
-				keyBuf = tail
+				keyBuf = keyBuf[nSize:]
 
 				rowFields = append(rowFields, Field{
 					Name:  bytesutil.ToUnsafeString(name),
@@ -269,11 +269,11 @@ func (pup *pipeUniqProcessor) flush() error {
 			keyBuf := bytesutil.ToUnsafeBytes(k)
 			fieldIdx := 0
 			for len(keyBuf) > 0 {
-				tail, value, err := encoding.UnmarshalBytes(keyBuf)
-				if err != nil {
-					logger.Panicf("BUG: cannot unmarshal field value: %s", err)
+				value, nSize := encoding.UnmarshalBytes(keyBuf)
+				if nSize <= 0 {
+					logger.Panicf("BUG: cannot unmarshal field value")
 				}
-				keyBuf = tail
+				keyBuf = keyBuf[nSize:]
 
 				rowFields = append(rowFields, Field{
 					Name:  byFields[fieldIdx],
