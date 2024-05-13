@@ -498,11 +498,11 @@ func MarshalBytes(dst, b []byte) []byte {
 
 // UnmarshalBytes returns unmarshaled bytes from src.
 func UnmarshalBytes(src []byte) ([]byte, []byte, error) {
-	tail, n, err := UnmarshalVarUint64(src)
-	if err != nil {
-		return nil, nil, fmt.Errorf("cannot unmarshal string size: %w", err)
+	n, nSize := binary.Uvarint(src)
+	if nSize <= 0 {
+		return nil, nil, fmt.Errorf("cannot unmarshal string size from uvarint")
 	}
-	src = tail
+	src = src[nSize:]
 	if uint64(len(src)) < n {
 		return nil, nil, fmt.Errorf("src is too short for reading string with size %d; len(src)=%d", n, len(src))
 	}

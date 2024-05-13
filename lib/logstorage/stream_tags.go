@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"sort"
 	"strconv"
@@ -119,11 +120,11 @@ func (st *StreamTags) UnmarshalCanonical(src []byte) ([]byte, error) {
 
 	srcOrig := src
 
-	tail, n, err := encoding.UnmarshalVarUint64(src)
-	if err != nil {
-		return srcOrig, fmt.Errorf("cannot unmarshal tags len: %w", err)
+	n, nSize := binary.Uvarint(src)
+	if nSize <= 0 {
+		return srcOrig, fmt.Errorf("cannot unmarshal tags len from uvarint")
 	}
-	src = tail
+	src = src[nSize:]
 	for i := uint64(0); i < n; i++ {
 		tail, name, err := encoding.UnmarshalBytes(src)
 		if err != nil {
