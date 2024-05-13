@@ -396,33 +396,33 @@ func (sq *SearchQuery) Marshal(dst []byte) []byte {
 
 // Unmarshal unmarshals sq from src and returns the tail.
 func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
-	tail, minTs, err := encoding.UnmarshalVarInt64(src)
-	if err != nil {
-		return src, fmt.Errorf("cannot unmarshal MinTimestamp: %w", err)
+	minTs, nSize := encoding.UnmarshalVarInt64(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal MinTimestamp from varint")
 	}
+	src = src[nSize:]
 	sq.MinTimestamp = minTs
-	src = tail
 
-	tail, maxTs, err := encoding.UnmarshalVarInt64(src)
-	if err != nil {
-		return src, fmt.Errorf("cannot unmarshal MaxTimestamp: %w", err)
+	maxTs, nSize := encoding.UnmarshalVarInt64(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal MaxTimestamp from varint")
 	}
+	src = src[nSize:]
 	sq.MaxTimestamp = maxTs
-	src = tail
 
-	tail, tfssCount, err := encoding.UnmarshalVarUint64(src)
-	if err != nil {
-		return src, fmt.Errorf("cannot unmarshal the count of TagFilterss: %w", err)
+	tfssCount, nSize := encoding.UnmarshalVarUint64(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal the count of TagFilterss from uvarint")
 	}
+	src = src[nSize:]
 	sq.TagFilterss = slicesutil.SetLength(sq.TagFilterss, int(tfssCount))
-	src = tail
 
 	for i := 0; i < int(tfssCount); i++ {
-		tail, tfsCount, err := encoding.UnmarshalVarUint64(src)
-		if err != nil {
-			return src, fmt.Errorf("cannot unmarshal the count of TagFilters: %w", err)
+		tfsCount, nSize := encoding.UnmarshalVarUint64(src)
+		if nSize <= 0 {
+			return src, fmt.Errorf("cannot unmarshal the count of TagFilters from uvarint")
 		}
-		src = tail
+		src = src[nSize:]
 
 		tagFilters := sq.TagFilterss[i]
 		tagFilters = slicesutil.SetLength(tagFilters, int(tfsCount))

@@ -867,22 +867,23 @@ func decompressLabels(dst []prompbmarshal.Label, key string) []prompbmarshal.Lab
 
 func getOutputKey(key string) string {
 	src := bytesutil.ToUnsafeBytes(key)
-	tail, inputKeyLen, err := encoding.UnmarshalVarUint64(src)
-	if err != nil {
-		logger.Panicf("BUG: cannot unmarshal inputKeyLen: %s", err)
+	inputKeyLen, nSize := encoding.UnmarshalVarUint64(src)
+	if nSize <= 0 {
+		logger.Panicf("BUG: cannot unmarshal inputKeyLen from uvarint")
 	}
-	outputKey := tail[inputKeyLen:]
+	outputKey := src[inputKeyLen:]
 	return bytesutil.ToUnsafeString(outputKey)
 }
 
 func getInputOutputKey(key string) (string, string) {
 	src := bytesutil.ToUnsafeBytes(key)
-	tail, inputKeyLen, err := encoding.UnmarshalVarUint64(src)
-	if err != nil {
-		logger.Panicf("BUG: cannot unmarshal inputKeyLen: %s", err)
+	inputKeyLen, nSize := encoding.UnmarshalVarUint64(src)
+	if nSize <= 0 {
+		logger.Panicf("BUG: cannot unmarshal inputKeyLen from uvarint")
 	}
-	inputKey := tail[:inputKeyLen]
-	outputKey := tail[inputKeyLen:]
+	src = src[nSize:]
+	inputKey := src[:inputKeyLen]
+	outputKey := src[inputKeyLen:]
 	return bytesutil.ToUnsafeString(inputKey), bytesutil.ToUnsafeString(outputKey)
 }
 

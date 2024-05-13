@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"encoding/binary"
 	"fmt"
 	"sync"
 
@@ -280,7 +279,7 @@ func unmarshalBytesBlock(dst, src []byte) ([]byte, []byte, error) {
 		// Compressed block
 
 		// Read block length
-		blockLen, nSize := binary.Uvarint(src)
+		blockLen, nSize := encoding.UnmarshalVarUint64(src)
 		if nSize <= 0 {
 			return dst, src, fmt.Errorf("cannot unmarshal compressed block size from uvarint")
 		}

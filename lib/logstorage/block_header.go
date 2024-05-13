@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"encoding/binary"
 	"fmt"
 	"math"
 	"sync"
@@ -86,7 +85,7 @@ func (bh *blockHeader) unmarshal(src []byte) ([]byte, error) {
 	src = tail
 
 	// unmarshal bh.uncompressedSizeBytes
-	n, nSize := binary.Uvarint(src)
+	n, nSize := encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
 		return srcOrig, fmt.Errorf("cannot unmarshal uncompressedSizeBytes from uvarint")
 	}
@@ -94,7 +93,7 @@ func (bh *blockHeader) unmarshal(src []byte) ([]byte, error) {
 	bh.uncompressedSizeBytes = n
 
 	// unmarshal bh.rowsCount
-	n, nSize = binary.Uvarint(src)
+	n, nSize = encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
 		return srcOrig, fmt.Errorf("cannot unmarshal rowsCount from uvarint")
 	}
@@ -112,7 +111,7 @@ func (bh *blockHeader) unmarshal(src []byte) ([]byte, error) {
 	src = tail
 
 	// unmarshal columnsHeaderOffset
-	n, nSize = binary.Uvarint(src)
+	n, nSize = encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
 		return srcOrig, fmt.Errorf("cannot unmarshal columnsHeaderOffset from uvarint")
 	}
@@ -120,7 +119,7 @@ func (bh *blockHeader) unmarshal(src []byte) ([]byte, error) {
 	bh.columnsHeaderOffset = n
 
 	// unmarshal columnsHeaderSize
-	n, nSize = binary.Uvarint(src)
+	n, nSize = encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
 		return srcOrig, fmt.Errorf("cannot unmarshal columnsHeaderSize from uvarint")
 	}
@@ -297,7 +296,7 @@ func (csh *columnsHeader) unmarshal(a *arena, src []byte) error {
 	csh.reset()
 
 	// unmarshal columnHeaders
-	n, nSize := binary.Uvarint(src)
+	n, nSize := encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
 		return fmt.Errorf("cannot unmarshal columnHeaders len from uvarint")
 	}
@@ -316,7 +315,7 @@ func (csh *columnsHeader) unmarshal(a *arena, src []byte) error {
 	csh.columnHeaders = chs
 
 	// unmarshal constColumns
-	n, nSize = binary.Uvarint(src)
+	n, nSize = encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
 		return fmt.Errorf("cannot unmarshal constColumns len from uvarint")
 	}
@@ -660,14 +659,14 @@ func (ch *columnHeader) unmarshalValuesAndBloomFilters(src []byte) ([]byte, erro
 func (ch *columnHeader) unmarshalValues(src []byte) ([]byte, error) {
 	srcOrig := src
 
-	n, nSize := binary.Uvarint(src)
+	n, nSize := encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
 		return srcOrig, fmt.Errorf("cannot unmarshal valuesOffset from uvarint")
 	}
 	src = src[nSize:]
 	ch.valuesOffset = n
 
-	n, nSize = binary.Uvarint(src)
+	n, nSize = encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
 		return srcOrig, fmt.Errorf("cannot unmarshal valuesSize from uvarint")
 	}
@@ -683,14 +682,14 @@ func (ch *columnHeader) unmarshalValues(src []byte) ([]byte, error) {
 func (ch *columnHeader) unmarshalBloomFilters(src []byte) ([]byte, error) {
 	srcOrig := src
 
-	n, nSize := binary.Uvarint(src)
+	n, nSize := encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
 		return srcOrig, fmt.Errorf("cannot unmarshal bloomFilterOffset from uvarint")
 	}
 	src = src[nSize:]
 	ch.bloomFilterOffset = n
 
-	n, nSize = binary.Uvarint(src)
+	n, nSize = encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
 		return srcOrig, fmt.Errorf("cannot unmarshal bloomFilterSize from uvarint")
 	}

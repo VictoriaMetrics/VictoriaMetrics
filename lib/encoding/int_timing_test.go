@@ -173,12 +173,12 @@ func benchmarkUnmarshalVarUint64(b *testing.B, maxValue uint64) {
 		for pb.Next() {
 			src := data
 			for len(src) > 0 {
-				tail, n, err := UnmarshalVarUint64(src)
-				if err != nil {
-					panic(fmt.Errorf("unexpected error: %w", err))
+				n, nSize := UnmarshalVarUint64(src)
+				if nSize <= 0 {
+					panic(fmt.Errorf("unexpected error"))
 				}
+				src = src[nSize:]
 				sink += n
-				src = tail
 			}
 		}
 		Sink.Add(sink)
@@ -265,12 +265,12 @@ func benchmarkUnmarshalVarInt64(b *testing.B, maxValue int64) {
 		for pb.Next() {
 			src := data
 			for len(src) > 0 {
-				tail, n, err := UnmarshalVarInt64(src)
-				if err != nil {
-					panic(fmt.Errorf("unexpected error: %w", err))
+				n, nSize := UnmarshalVarInt64(src)
+				if nSize <= 0 {
+					panic(fmt.Errorf("unexpected error"))
 				}
+				src = src[nSize:]
 				sink += uint64(n)
-				src = tail
 			}
 		}
 		Sink.Add(sink)

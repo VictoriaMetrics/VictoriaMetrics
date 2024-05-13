@@ -2,7 +2,6 @@ package logstorage
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"sort"
@@ -508,7 +507,7 @@ func (idb *indexdb) loadStreamIDsFromCache(tenantIDs []TenantID, sf *StreamFilte
 		return nil, false
 	}
 	// Cache hit - unpack streamIDs from data.
-	n, nSize := binary.Uvarint(data)
+	n, nSize := encoding.UnmarshalVarUint64(data)
 	if nSize <= 0 {
 		logger.Panicf("BUG: cannot unmarshal the number of streamIDs from cache")
 	}

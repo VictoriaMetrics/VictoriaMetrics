@@ -167,16 +167,13 @@ func marshalVarInt64sSlow(dst []byte, vs []int64) []byte {
 	return dst
 }
 
-// UnmarshalVarInt64 returns unmarshaled int64 from src and returns the remaining tail from src.
-func UnmarshalVarInt64(src []byte) ([]byte, int64, error) {
+// UnmarshalVarInt64 returns unmarshaled int64 from src and its size in bytes.
+func UnmarshalVarInt64(src []byte) (int64, int) {
 	// TODO substitute binary.Uvarint with binary.Varint when benchmark results will show it is faster.
 	// It is slower on amd64/linux Go1.22.
-	u64, offset := binary.Uvarint(src)
-	if offset <= 0 {
-		return src, 0, fmt.Errorf("cannot unmarshal varint")
-	}
+	u64, nSize := binary.Uvarint(src)
 	i64 := int64(int64(u64>>1) ^ (int64(u64<<63) >> 63))
-	return src[offset:], i64, nil
+	return i64, nSize
 }
 
 // UnmarshalVarInt64s unmarshals len(dst) int64 values from src to dst and returns the remaining tail from src.
@@ -363,13 +360,9 @@ func marshalVarUint64sSlow(dst []byte, us []uint64) []byte {
 	return dst
 }
 
-// UnmarshalVarUint64 returns unmarshaled uint64 from src and returns the remaining tail from src.
-func UnmarshalVarUint64(src []byte) ([]byte, uint64, error) {
-	u64, offset := binary.Uvarint(src)
-	if offset <= 0 {
-		return src, 0, fmt.Errorf("cannot read varuint")
-	}
-	return src[offset:], u64, nil
+// UnmarshalVarUint64 returns unmarshaled uint64 from src and its size in bytes
+func UnmarshalVarUint64(src []byte) (uint64, int) {
+	return binary.Uvarint(src)
 }
 
 // UnmarshalVarUint64s unmarshals len(dst) uint64 values from src to dst and returns the remaining tail from src.
@@ -498,7 +491,7 @@ func MarshalBytes(dst, b []byte) []byte {
 
 // UnmarshalBytes returns unmarshaled bytes from src.
 func UnmarshalBytes(src []byte) ([]byte, []byte, error) {
-	n, nSize := binary.Uvarint(src)
+	n, nSize := UnmarshalVarUint64(src)
 	if nSize <= 0 {
 		return nil, nil, fmt.Errorf("cannot unmarshal string size from uvarint")
 	}
