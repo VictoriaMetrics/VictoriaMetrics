@@ -38,7 +38,7 @@ func (smp *statsMinProcessor) updateStatsForAllRows(br *blockResult) int {
 	if smp.sm.containsStar {
 		// Find the minimum value across all the columns
 		for _, c := range br.getColumns() {
-			f := c.getMinValue(br)
+			f := c.getMinValue()
 			if f < smp.min || math.IsNaN(smp.min) {
 				smp.min = f
 			}
@@ -47,7 +47,7 @@ func (smp *statsMinProcessor) updateStatsForAllRows(br *blockResult) int {
 		// Find the minimum value across the requested columns
 		for _, field := range smp.sm.fields {
 			c := br.getColumnByName(field)
-			f := c.getMinValue(br)
+			f := c.getMinValue()
 			if f < smp.min || math.IsNaN(smp.min) {
 				smp.min = f
 			}

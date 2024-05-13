@@ -70,6 +70,8 @@ func (ve *valuesEncoder) reset() {
 }
 
 // encode encodes values to ve.values and returns the encoded value type with min/max encoded values.
+//
+// ve.values and dict is valid until values are changed.
 func (ve *valuesEncoder) encode(values []string, dict *valuesDict) (valueType, uint64, uint64) {
 	ve.reset()
 
@@ -1089,6 +1091,12 @@ func (vd *valuesDict) copyFrom(a *arena, src *valuesDict) {
 		dstValues = append(dstValues, v)
 	}
 	vd.values = dstValues
+}
+
+func (vd *valuesDict) copyFromNoArena(src *valuesDict) {
+	vd.reset()
+
+	vd.values = append(vd.values[:0], src.values...)
 }
 
 func (vd *valuesDict) getOrAdd(k string) (byte, bool) {

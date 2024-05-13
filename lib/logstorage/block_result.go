@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"math"
 	"slices"
+	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fastnum"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // blockResult holds results for a single block of log entries.
@@ -107,7 +109,7 @@ func (br *blockResult) cloneValues(values []string) []string {
 
 	for _, v := range values {
 		if len(valuesBuf) > 0 && v == valuesBuf[len(valuesBuf)-1] {
-			valuesBuf = append(valuesBuf, v)
+			valuesBuf = append(valuesBuf, valuesBuf[len(valuesBuf)-1])
 		} else {
 			bufLen := len(buf)
 			buf = append(buf, v...)
@@ -259,7 +261,14 @@ func (br *blockResult) mustInit(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Initialize timestamps, since they are required for all the further work with br.
+	if !slices.Contains(bs.bsw.so.neededColumnNames, "_time") || slices.Contains(bs.bsw.so.unneededColumnNames, "_time") {
+		// The fastest path - _time column wasn't requested, so it is enough to initialize br.timestamps with zeroes.
+		rowsLen := bm.onesCount()
+		br.timestamps = fastnum.AppendInt64Zeros(br.timestamps[:0], rowsLen)
+		return
+	}
 
+	// Slow path - the _time column is requested, so we need to initialize br.timestamps with real timestamps.
 	srcTimestamps := bs.getTimestamps()
 	if bm.areAllBitsSet() {
 		// Fast path - all the rows in the block are selected, so copy all the timestamps without any filtering.
@@ -285,7 +294,7 @@ func (br *blockResult) addColumn(bs *blockSearch, ch *columnHeader, bm *bitmap) 
 
 	appendValue := func(v string) {
 		if len(valuesBuf) > 0 && v == valuesBuf[len(valuesBuf)-1] {
-			valuesBuf = append(valuesBuf, v)
+			valuesBuf = append(valuesBuf, valuesBuf[len(valuesBuf)-1])
 		} else {
 			bufLen := len(buf)
 			buf = append(buf, v...)
@@ -1512,7 +1521,7 @@ func (c *blockResultColumn) getFloatValueAtRow(rowIdx int) float64 {
 	}
 }
 
-func (c *blockResultColumn) getMaxValue(_ *blockResult) float64 {
+func (c *blockResultColumn) getMaxValue() float64 {
 	if c.isConst {
 		v := c.encodedValues[0]
 		f, ok := tryParseFloat64(v)
@@ -1620,7 +1629,7 @@ func (c *blockResultColumn) getMaxValue(_ *blockResult) float64 {
 	}
 }
 
-func (c *blockResultColumn) getMinValue(_ *blockResult) float64 {
+func (c *blockResultColumn) getMinValue() float64 {
 	if c.isConst {
 		v := c.encodedValues[0]
 		f, ok := tryParseFloat64(v)
@@ -1851,13 +1860,12 @@ func (rc *resultColumn) resetKeepName() {
 func (rc *resultColumn) addValue(v string) {
 	values := rc.values
 	if len(values) > 0 && string(v) == values[len(values)-1] {
-		rc.values = append(rc.values, values[len(values)-1])
-		return
+		rc.values = append(values, values[len(values)-1])
+	} else {
+		bufLen := len(rc.buf)
+		rc.buf = append(rc.buf, v...)
+		rc.values = append(values, bytesutil.ToUnsafeString(rc.buf[bufLen:]))
 	}
-
-	bufLen := len(rc.buf)
-	rc.buf = append(rc.buf, v...)
-	rc.values = append(values, bytesutil.ToUnsafeString(rc.buf[bufLen:]))
 }
 
 func truncateTimestampToMonth(timestamp int64) int64 {
@@ -1869,6 +1877,19 @@ func truncateTimestampToYear(timestamp int64) int64 {
 	t := time.Unix(0, timestamp).UTC()
 	return time.Date(t.Year(), time.January, 1, 0, 0, 0, 0, time.UTC).UnixNano()
 }
+
+func getEmptyStrings(rowsCount int) []string {
+	p := emptyStrings.Load()
+	if p == nil {
+		values := make([]string, rowsCount)
+		emptyStrings.Store(&values)
+		return values
+	}
+	values := *p
+	return slicesutil.SetLength(values, rowsCount)
+}
+
+var emptyStrings atomic.Pointer[[]string]
 
 var nan = math.NaN()
 var inf = math.Inf(1)
