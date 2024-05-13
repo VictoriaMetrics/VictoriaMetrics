@@ -2170,11 +2170,11 @@ func removeCompositeTagFilters(tfs []*tagFilter, prefix []byte) []*tagFilter {
 			continue
 		}
 		tagKey = tagKey[1:]
-		var nameLen uint64
-		tagKey, nameLen, err = encoding.UnmarshalVarUint64(tagKey)
-		if err != nil {
-			logger.Panicf("BUG: cannot unmarshal nameLen from tagKey %q: %s", tagKey, err)
+		nameLen, nSize := encoding.UnmarshalVarUint64(tagKey)
+		if nSize <= 0 {
+			logger.Panicf("BUG: cannot unmarshal nameLen from tagKey %q", tagKey)
 		}
+		tagKey = tagKey[nSize:]
 		if nameLen == 0 {
 			logger.Panicf("BUG: nameLen must be greater than 0")
 		}
@@ -2987,11 +2987,11 @@ func unmarshalCompositeTagKey(src []byte) ([]byte, []byte, error) {
 		return nil, nil, fmt.Errorf("missing composite tag key prefix in %q", src)
 	}
 	src = src[1:]
-	tail, n, err := encoding.UnmarshalVarUint64(src)
-	if err != nil {
-		return nil, nil, fmt.Errorf("cannot unmarshal metric name length from composite tag key: %w", err)
+	n, nSize := encoding.UnmarshalVarUint64(src)
+	if nSize <= 0 {
+		return nil, nil, fmt.Errorf("cannot unmarshal metric name length from composite tag key")
 	}
-	src = tail
+	src = src[nSize:]
 	if uint64(len(src)) < n {
 		return nil, nil, fmt.Errorf("missing metric name with length %d in composite tag key %q", n, src)
 	}

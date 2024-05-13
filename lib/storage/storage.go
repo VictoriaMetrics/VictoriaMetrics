@@ -1683,25 +1683,26 @@ func UnmarshalMetricRows(dst []MetricRow, src []byte, maxRows int) ([]MetricRow,
 //
 // mr refers to src, so it remains valid until src changes.
 func (mr *MetricRow) UnmarshalX(src []byte) ([]byte, error) {
-	tail, metricNameRaw, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal MetricName: %w", err)
+	metricNameRaw, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal MetricName")
 	}
+	tail := src[nSize:]
 	mr.MetricNameRaw = metricNameRaw
 
 	if len(tail) < 8 {
 		return tail, fmt.Errorf("cannot unmarshal Timestamp: want %d bytes; have %d bytes", 8, len(tail))
 	}
 	timestamp := encoding.UnmarshalUint64(tail)
-	mr.Timestamp = int64(timestamp)
 	tail = tail[8:]
+	mr.Timestamp = int64(timestamp)
 
 	if len(tail) < 8 {
 		return tail, fmt.Errorf("cannot unmarshal Value: want %d bytes; have %d bytes", 8, len(tail))
 	}
 	value := encoding.UnmarshalUint64(tail)
-	mr.Value = math.Float64frombits(value)
 	tail = tail[8:]
+	mr.Value = math.Float64frombits(value)
 
 	return tail, nil
 }

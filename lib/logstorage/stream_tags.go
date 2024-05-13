@@ -119,23 +119,23 @@ func (st *StreamTags) UnmarshalCanonical(src []byte) ([]byte, error) {
 
 	srcOrig := src
 
-	tail, n, err := encoding.UnmarshalVarUint64(src)
-	if err != nil {
-		return srcOrig, fmt.Errorf("cannot unmarshal tags len: %w", err)
+	n, nSize := encoding.UnmarshalVarUint64(src)
+	if nSize <= 0 {
+		return srcOrig, fmt.Errorf("cannot unmarshal tags len")
 	}
-	src = tail
+	src = src[nSize:]
 	for i := uint64(0); i < n; i++ {
-		tail, name, err := encoding.UnmarshalBytes(src)
-		if err != nil {
-			return srcOrig, fmt.Errorf("cannot unmarshal tag name: %w", err)
+		name, nSize := encoding.UnmarshalBytes(src)
+		if nSize <= 0 {
+			return srcOrig, fmt.Errorf("cannot unmarshal tag name")
 		}
-		src = tail
+		src = src[nSize:]
 
-		tail, value, err := encoding.UnmarshalBytes(src)
-		if err != nil {
-			return srcOrig, fmt.Errorf("cannot unmarshal tag value: %w", err)
+		value, nSize := encoding.UnmarshalBytes(src)
+		if nSize <= 0 {
+			return srcOrig, fmt.Errorf("cannot unmarshal tag value")
 		}
-		src = tail
+		src = src[nSize:]
 
 		sName := bytesutil.ToUnsafeString(name)
 		sValue := bytesutil.ToUnsafeString(value)

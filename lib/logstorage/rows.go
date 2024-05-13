@@ -38,20 +38,20 @@ func (f *Field) unmarshal(a *arena, src []byte) ([]byte, error) {
 	srcOrig := src
 
 	// Unmarshal field name
-	tail, b, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return srcOrig, fmt.Errorf("cannot unmarshal field name: %w", err)
+	b, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return srcOrig, fmt.Errorf("cannot unmarshal field name")
 	}
+	src = src[nSize:]
 	f.Name = a.copyBytesToString(b)
-	src = tail
 
 	// Unmarshal field value
-	tail, b, err = encoding.UnmarshalBytes(src)
-	if err != nil {
-		return srcOrig, fmt.Errorf("cannot unmarshal field value: %w", err)
+	b, nSize = encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return srcOrig, fmt.Errorf("cannot unmarshal field value")
 	}
+	src = src[nSize:]
 	f.Value = a.copyBytesToString(b)
-	src = tail
 
 	return src, nil
 }

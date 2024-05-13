@@ -167,33 +167,42 @@ func (bh *blockHeader) marshalPortable(dst []byte) []byte {
 }
 
 func (bh *blockHeader) unmarshalPortable(src []byte) ([]byte, error) {
-	src, minTimestamp, err := encoding.UnmarshalVarInt64(src)
-	if err != nil {
-		return src, fmt.Errorf("cannot unmarshal firstTimestamp: %w", err)
+	minTimestamp, nSize := encoding.UnmarshalVarInt64(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal firstTimestamp from varint")
 	}
+	src = src[nSize:]
 	bh.MinTimestamp = minTimestamp
-	src, maxTimestamp, err := encoding.UnmarshalVarInt64(src)
-	if err != nil {
-		return src, fmt.Errorf("cannot unmarshal firstTimestamp: %w", err)
+
+	maxTimestamp, nSize := encoding.UnmarshalVarInt64(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal firstTimestamp rom varint")
 	}
+	src = src[nSize:]
 	bh.MaxTimestamp = maxTimestamp
-	src, firstValue, err := encoding.UnmarshalVarInt64(src)
-	if err != nil {
-		return src, fmt.Errorf("cannot unmarshal firstValue: %w", err)
+
+	firstValue, nSize := encoding.UnmarshalVarInt64(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal firstValue from varint")
 	}
+	src = src[nSize:]
 	bh.FirstValue = firstValue
-	src, rowsCount, err := encoding.UnmarshalVarUint64(src)
-	if err != nil {
-		return src, fmt.Errorf("cannot unmarshal rowsCount: %w", err)
+
+	rowsCount, nSize := encoding.UnmarshalVarUint64(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal rowsCount from varuint")
 	}
+	src = src[nSize:]
 	if rowsCount > math.MaxUint32 {
 		return src, fmt.Errorf("got too big rowsCount=%d; it mustn't exceed %d", rowsCount, uint32(math.MaxUint32))
 	}
 	bh.RowsCount = uint32(rowsCount)
-	src, scale, err := encoding.UnmarshalVarInt64(src)
-	if err != nil {
-		return src, fmt.Errorf("cannot unmarshal scale: %w", err)
+
+	scale, nSize := encoding.UnmarshalVarInt64(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal scale from varint")
 	}
+	src = src[nSize:]
 	if scale < math.MinInt16 {
 		return src, fmt.Errorf("got too small scale=%d; it mustn't be smaller than %d", scale, math.MinInt16)
 	}
@@ -204,6 +213,7 @@ func (bh *blockHeader) unmarshalPortable(src []byte) ([]byte, error) {
 	if len(src) < 1 {
 		return src, fmt.Errorf("cannot unmarshal marshalType for timestamps from %d bytes; need at least %d bytes", len(src), 1)
 	}
+
 	bh.TimestampsMarshalType = encoding.MarshalType(src[0])
 	src = src[1:]
 	if len(src) < 1 {

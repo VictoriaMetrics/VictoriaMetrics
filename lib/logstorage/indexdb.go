@@ -507,14 +507,14 @@ func (idb *indexdb) loadStreamIDsFromCache(tenantIDs []TenantID, sf *StreamFilte
 		return nil, false
 	}
 	// Cache hit - unpack streamIDs from data.
-	tail, n, err := encoding.UnmarshalVarUint64(data)
-	if err != nil {
-		logger.Panicf("BUG: unexpected error when unmarshaling the number of streamIDs from cache: %s", err)
+	n, nSize := encoding.UnmarshalVarUint64(data)
+	if nSize <= 0 {
+		logger.Panicf("BUG: unexpected error when unmarshaling the number of streamIDs from cache")
 	}
-	src := tail
+	src := data[nSize:]
 	streamIDs := make([]streamID, n)
 	for i := uint64(0); i < n; i++ {
-		tail, err = streamIDs[i].unmarshal(src)
+		tail, err := streamIDs[i].unmarshal(src)
 		if err != nil {
 			logger.Panicf("BUG: unexpected error when unmarshaling streamID #%d: %s", i, err)
 		}

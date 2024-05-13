@@ -398,12 +398,12 @@ func (psp *pipeStatsProcessor) flush() error {
 		values = values[:0]
 		keyBuf := bytesutil.ToUnsafeBytes(key)
 		for len(keyBuf) > 0 {
-			tail, v, err := encoding.UnmarshalBytes(keyBuf)
-			if err != nil {
-				logger.Panicf("BUG: cannot unmarshal value from keyBuf=%q: %w", keyBuf, err)
+			v, nSize := encoding.UnmarshalBytes(keyBuf)
+			if nSize <= 0 {
+				logger.Panicf("BUG: cannot unmarshal value from keyBuf=%q", keyBuf)
 			}
+			keyBuf = keyBuf[nSize:]
 			values = append(values, bytesutil.ToUnsafeString(v))
-			keyBuf = tail
 		}
 		if len(values) != len(byFields) {
 			logger.Panicf("BUG: unexpected number of values decoded from keyBuf; got %d; want %d", len(values), len(byFields))
