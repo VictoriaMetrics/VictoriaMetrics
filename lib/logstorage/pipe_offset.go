@@ -19,7 +19,7 @@ func (po *pipeOffset) String() string {
 func (po *pipeOffset) updateNeededFields(_, _ fieldsSet) {
 }
 
-func (po *pipeOffset) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
+func (po *pipeOffset) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
 	return &pipeOffsetProcessor{
 		po:     po,
 		ppBase: ppBase,
