@@ -445,14 +445,14 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 	if len(src) < 4 {
 		return src, fmt.Errorf("cannot unmarshal AccountID: too short src len: %d; must be at least %d bytes", len(src), 4)
 	}
-	src = src[4:]
 	sq.AccountID = encoding.UnmarshalUint32(src)
+	src = src[4:]
 
 	if len(src) < 4 {
 		return src, fmt.Errorf("cannot unmarshal ProjectID: too short src len: %d; must be at least %d bytes", len(src), 4)
 	}
-	src = src[4:]
 	sq.ProjectID = encoding.UnmarshalUint32(src)
+	src = src[4:]
 
 	minTs, nSize := encoding.UnmarshalVarInt64(src)
 	if nSize <= 0 {
