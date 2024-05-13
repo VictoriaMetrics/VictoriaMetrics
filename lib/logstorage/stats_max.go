@@ -38,7 +38,7 @@ func (smp *statsMaxProcessor) updateStatsForAllRows(br *blockResult) int {
 	if smp.sm.containsStar {
 		// Find the maximum value across all the columns
 		for _, c := range br.getColumns() {
-			f := c.getMaxValue(br)
+			f := c.getMaxValue()
 			if f > smp.max || math.IsNaN(smp.max) {
 				smp.max = f
 			}
@@ -47,7 +47,7 @@ func (smp *statsMaxProcessor) updateStatsForAllRows(br *blockResult) int {
 		// Find the maximum value across the requested columns
 		for _, field := range smp.sm.fields {
 			c := br.getColumnByName(field)
-			f := c.getMaxValue(br)
+			f := c.getMaxValue()
 			if f > smp.max || math.IsNaN(smp.max) {
 				smp.max = f
 			}

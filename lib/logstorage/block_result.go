@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"math"
 	"slices"
+	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fastnum"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // blockResult holds results for a single block of log entries.
@@ -1512,7 +1514,7 @@ func (c *blockResultColumn) getFloatValueAtRow(rowIdx int) float64 {
 	}
 }
 
-func (c *blockResultColumn) getMaxValue(_ *blockResult) float64 {
+func (c *blockResultColumn) getMaxValue() float64 {
 	if c.isConst {
 		v := c.encodedValues[0]
 		f, ok := tryParseFloat64(v)
@@ -1620,7 +1622,7 @@ func (c *blockResultColumn) getMaxValue(_ *blockResult) float64 {
 	}
 }
 
-func (c *blockResultColumn) getMinValue(_ *blockResult) float64 {
+func (c *blockResultColumn) getMinValue() float64 {
 	if c.isConst {
 		v := c.encodedValues[0]
 		f, ok := tryParseFloat64(v)
@@ -1869,6 +1871,19 @@ func truncateTimestampToYear(timestamp int64) int64 {
 	t := time.Unix(0, timestamp).UTC()
 	return time.Date(t.Year(), time.January, 1, 0, 0, 0, 0, time.UTC).UnixNano()
 }
+
+func getEmptyStrings(rowsCount int) []string {
+	p := emptyStrings.Load()
+	if p == nil {
+		values := make([]string, rowsCount)
+		emptyStrings.Store(&values)
+		return values
+	}
+	values := *p
+	return slicesutil.SetLength(values, rowsCount)
+}
+
+var emptyStrings atomic.Pointer[[]string]
 
 var nan = math.NaN()
 var inf = math.Inf(1)

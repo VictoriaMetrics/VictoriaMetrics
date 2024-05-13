@@ -6,10 +6,8 @@ import (
 	"slices"
 	"sort"
 	"sync"
-	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // genericSearchOptions contain options used for search.
@@ -163,19 +161,6 @@ func (c *BlockColumn) reset() {
 	c.Name = ""
 	c.Values = nil
 }
-
-func getEmptyStrings(rowsCount int) []string {
-	p := emptyStrings.Load()
-	if p == nil {
-		values := make([]string, rowsCount)
-		emptyStrings.Store(&values)
-		return values
-	}
-	values := *p
-	return slicesutil.SetLength(values, rowsCount)
-}
-
-var emptyStrings atomic.Pointer[[]string]
 
 // The number of blocks to search at once by a single worker
 //

@@ -1096,11 +1096,7 @@ func (vd *valuesDict) copyFrom(a *arena, src *valuesDict) {
 func (vd *valuesDict) copyFromNoArena(src *valuesDict) {
 	vd.reset()
 
-	dstValues := vd.values
-	for _, v := range src.values {
-		dstValues = append(dstValues, v)
-	}
-	vd.values = dstValues
+	vd.values = append(vd.values[:0], src.values...)
 }
 
 func (vd *valuesDict) getOrAdd(k string) (byte, bool) {
