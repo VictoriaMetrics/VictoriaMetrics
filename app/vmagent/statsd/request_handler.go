@@ -47,13 +47,17 @@ func insertRows(at *auth.Token, rows []parser.Row) error {
 				Value: tag.Value,
 			})
 		}
-		samples = append(samples, prompbmarshal.Sample{
-			Value:     r.Value,
-			Timestamp: r.Timestamp,
-		})
+		samplesLen := len(samples)
+		for _, v := range r.Values {
+			samples = append(samples, prompbmarshal.Sample{
+				Value:     v,
+				Timestamp: r.Timestamp,
+			})
+		}
+
 		tssDst = append(tssDst, prompbmarshal.TimeSeries{
 			Labels:  labels[labelsLen:],
-			Samples: samples[len(samples)-1:],
+			Samples: samples[samplesLen:],
 		})
 	}
 	ctx.WriteRequest.Timeseries = tssDst

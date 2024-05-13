@@ -715,12 +715,25 @@ The `/api/v1/export` endpoint should return the following response:
 
 ## How to send data from Statsd-compatible clients
 
-VictoriaMetrics supports extended statsd protocol with tags. Also it does not support sampling and metric types(it will be ignored).  
-Enable Statsd receiver in VictoriaMetrics by setting `-statsdListenAddr` command line flag. For instance,
+VictoriaMetrics supports extended statsd protocol. Currently, it supports `tags` and `value packing` extensions provided by [dogstatsd](https://docs.datadoghq.com/developers/dogstatsd/datagram_shell). Metric type name added into the special label `__statsd_metric_type__`. Which could be later used for streaming aggregation. 
+
+ Enable Statsd receiver in VictoriaMetrics by setting `-statsdListenAddr` command line flag and configure [steaming aggregation](https://docs.victoriametrics.com/stream-aggregation/). For instance,
 the following command will enable Statsd receiver in VictoriaMetrics on TCP and UDP port `8125`:
 
 ```console
-/path/to/victoria-metrics-prod -statsdListenAddr=:8125
+/path/to/victoria-metrics-prod -statsdListenAddr=:8125 -streamAggr.config=statsd_aggr.yaml
+```
+
+Example for streaming aggregation config:
+
+```yaml
+# statsd_aggr.yaml
+- match: '{__statsd_metric_type__="g"}'
+  outputs: [last]
+  interval: 1m
+- match: '{__statsd_metric_type__="h"}'
+  outputs: [histogram_bucket]
+  interval: 1m
 ```
 
 Example for writing data with Statsd plaintext protocol to local VictoriaMetrics using `nc`:

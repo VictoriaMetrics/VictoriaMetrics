@@ -38,6 +38,7 @@ import (
 	opentsdbserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdb"
 	opentsdbhttpserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdbhttp"
 	statsdserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/statsd"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
@@ -55,6 +56,8 @@ var (
 		"See also -statsdListenAddr.useProxyProtocol")
 	statsdUseProxyProtocol = flag.Bool("statsdListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -statsdListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
+	statsdDisableAggregationEnforcemenet = flag.Bool(`statsd.disableAggregationEnforcement`, false, "Whether to disable configured streaming aggregation check. "+
+		"It's recommended to run statsd with pre-configured streaming aggregation to decreased load at database.")
 	influxListenAddr = flag.String("influxListenAddr", "", "TCP and UDP address to listen for InfluxDB line protocol data. Usually :8089 must be set. Doesn't work if empty. "+
 		"This flag isn't needed when ingesting data over HTTP - just send it to http://<victoriametrics>:8428/write . "+
 		"See also -influxListenAddr.useProxyProtocol")
@@ -100,6 +103,9 @@ func Init() {
 		graphiteServer = graphiteserver.MustStart(*graphiteListenAddr, *graphiteUseProxyProtocol, graphite.InsertHandler)
 	}
 	if len(*statsdListenAddr) > 0 {
+		if !vminsertCommon.HasStreamAggrConfigured() && !*statsdDisableAggregationEnforcemenet {
+			logger.Fatalf("streaming aggregation must be configured with enabled statsd server. It's recommended  to aggregate metrics received at statsd listener. This check could be disabled with flag -statsd.disableAggregationEnforcement")
+		}
 		statsdServer = statsdserver.MustStart(*statsdListenAddr, *statsdUseProxyProtocol, statsd.InsertHandler)
 	}
 	if len(*influxListenAddr) > 0 {

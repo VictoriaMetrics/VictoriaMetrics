@@ -67,6 +67,8 @@ var (
 		"See also -statsdListenAddr.useProxyProtocol")
 	statsdUseProxyProtocol = flag.Bool("statsdListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -statsdListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
+	statsdDisableAggregationEnforcemenet = flag.Bool(`statsd.disableAggregationEnforcement`, false, "Whether to disable configured streaming aggregation check. "+
+		"It's recommended to run statsd with pre-configured streaming aggregation to decreased load at database.")
 	opentsdbListenAddr = flag.String("opentsdbListenAddr", "", "TCP and UDP address to listen for OpenTSDB metrics. "+
 		"Telnet put messages and HTTP /api/put messages are simultaneously served on TCP port. "+
 		"Usually :4242 must be set. Doesn't work if empty. See also -opentsdbListenAddr.useProxyProtocol")
@@ -145,6 +147,9 @@ func main() {
 		graphiteServer = graphiteserver.MustStart(*graphiteListenAddr, *graphiteUseProxyProtocol, graphite.InsertHandler)
 	}
 	if len(*statsdListenAddr) > 0 {
+		if !remotewrite.HasAnyStreamAggrConfigured() && !*statsdDisableAggregationEnforcemenet {
+			logger.Fatalf("streaming aggregation must be configured with enabled statsd server. It's recommended  to aggregate metrics received at statsd listener. This check could be disabled with flag -statsd.disableAggregationEnforcement")
+		}
 		statsdServer = statsdserver.MustStart(*statsdListenAddr, *statsdUseProxyProtocol, statsd.InsertHandler)
 	}
 	if len(*opentsdbListenAddr) > 0 {
