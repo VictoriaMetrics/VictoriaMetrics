@@ -164,32 +164,6 @@ func (c *BlockColumn) reset() {
 	c.Values = nil
 }
 
-func getBlockColumnIndex(columns []BlockColumn, columnName string) int {
-	for i, c := range columns {
-		if c.Name == columnName {
-			return i
-		}
-	}
-	return -1
-}
-
-func getBlockColumnValues(columns []BlockColumn, columnName string, rowsCount int) []string {
-	for _, c := range columns {
-		if c.Name == columnName {
-			return c.Values
-		}
-	}
-	return getEmptyStrings(rowsCount)
-}
-
-func appendBlockColumnValues(dst [][]string, columns []BlockColumn, fields []string, rowsCount int) [][]string {
-	for _, f := range fields {
-		values := getBlockColumnValues(columns, f, rowsCount)
-		dst = append(dst, values)
-	}
-	return dst
-}
-
 func getEmptyStrings(rowsCount int) []string {
 	p := emptyStrings.Load()
 	if p == nil {
