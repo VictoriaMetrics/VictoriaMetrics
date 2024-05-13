@@ -167,16 +167,15 @@ func marshalVarInt64sSlow(dst []byte, vs []int64) []byte {
 	return dst
 }
 
-// UnmarshalVarInt64 returns unmarshaled int64 from src and returns the remaining tail from src.
-func UnmarshalVarInt64(src []byte) ([]byte, int64, error) {
+// UnmarshalVarInt64 returns unmarshaled int64 from src and its size in bytes.
+//
+// It returns 0 or negative value if it cannot unmarshal int64 from src.
+func UnmarshalVarInt64(src []byte) (int64, int) {
 	// TODO substitute binary.Uvarint with binary.Varint when benchmark results will show it is faster.
 	// It is slower on amd64/linux Go1.22.
-	u64, offset := binary.Uvarint(src)
-	if offset <= 0 {
-		return src, 0, fmt.Errorf("cannot unmarshal varint")
-	}
+	u64, nSize := binary.Uvarint(src)
 	i64 := int64(int64(u64>>1) ^ (int64(u64<<63) >> 63))
-	return src[offset:], i64, nil
+	return i64, nSize
 }
 
 // UnmarshalVarInt64s unmarshals len(dst) int64 values from src to dst and returns the remaining tail from src.
@@ -363,13 +362,27 @@ func marshalVarUint64sSlow(dst []byte, us []uint64) []byte {
 	return dst
 }
 
-// UnmarshalVarUint64 returns unmarshaled uint64 from src and returns the remaining tail from src.
-func UnmarshalVarUint64(src []byte) ([]byte, uint64, error) {
-	u64, offset := binary.Uvarint(src)
-	if offset <= 0 {
-		return src, 0, fmt.Errorf("cannot read varuint")
+// UnmarshalVarUint64 returns unmarshaled uint64 from src and its size in bytes.
+//
+// It returns 0 or negative value if it cannot unmarshal uint64 from src.
+func UnmarshalVarUint64(src []byte) (uint64, int) {
+	if len(src) == 0 {
+		return 0, 0
 	}
-	return src[offset:], u64, nil
+	if src[0] < 0x80 {
+		// Fast path for a single byte
+		return uint64(src[0]), 1
+	}
+	if len(src) == 1 {
+		return 0, 0
+	}
+	if src[1] < 0x80 {
+		// Fast path for two bytes
+		return uint64(src[0]&0x7f) | uint64(src[1])<<7, 2
+	}
+
+	// Slow path for other number of bytes
+	return binary.Uvarint(src)
 }
 
 // UnmarshalVarUint64s unmarshals len(dst) uint64 values from src to dst and returns the remaining tail from src.
@@ -496,17 +509,20 @@ func MarshalBytes(dst, b []byte) []byte {
 	return dst
 }
 
-// UnmarshalBytes returns unmarshaled bytes from src.
-func UnmarshalBytes(src []byte) ([]byte, []byte, error) {
-	tail, n, err := UnmarshalVarUint64(src)
-	if err != nil {
-		return nil, nil, fmt.Errorf("cannot unmarshal string size: %w", err)
+// UnmarshalBytes returns unmarshaled bytes from src and the size of the unmarshaled bytes.
+//
+// It returns 0 or negative value if it is impossible to unmarshal bytes from src.
+func UnmarshalBytes(src []byte) ([]byte, int) {
+	n, nSize := UnmarshalVarUint64(src)
+	if nSize <= 0 {
+		return nil, 0
 	}
-	src = tail
-	if uint64(len(src)) < n {
-		return nil, nil, fmt.Errorf("src is too short for reading string with size %d; len(src)=%d", n, len(src))
+	if uint64(nSize)+n > uint64(len(src)) {
+		return nil, 0
 	}
-	return src[n:], src[:n], nil
+	start := nSize
+	nSize += int(n)
+	return src[start:nSize], nSize
 }
 
 // GetInt64s returns an int64 slice with the given size.

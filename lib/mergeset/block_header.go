@@ -77,20 +77,20 @@ func (bh *blockHeader) Marshal(dst []byte) []byte {
 func (bh *blockHeader) UnmarshalNoCopy(src []byte) ([]byte, error) {
 	bh.noCopy = true
 	// Unmarshal commonPrefix
-	tail, cp, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal commonPrefix: %w", err)
+	cp, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal commonPrefix")
 	}
+	src = src[nSize:]
 	bh.commonPrefix = cp[:len(cp):len(cp)]
-	src = tail
 
 	// Unmarshal firstItem
-	tail, fi, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal firstItem: %w", err)
+	fi, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal firstItem")
 	}
+	src = src[nSize:]
 	bh.firstItem = fi[:len(fi):len(fi)]
-	src = tail
 
 	// Unmarshal marshalType
 	if len(src) == 0 {
