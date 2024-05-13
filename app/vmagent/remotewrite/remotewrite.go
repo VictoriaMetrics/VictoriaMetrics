@@ -29,7 +29,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
 )
@@ -39,10 +38,6 @@ var (
 		"or Prometheus remote_write protocol. Example url: http://<victoriametrics-host>:8428/api/v1/write . "+
 		"Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. "+
 		"The data can be sharded among the configured remote storage systems if -remoteWrite.shardByURL flag is set")
-	remoteWriteMultitenantURLs = flagutil.NewArrayString("remoteWrite.multitenantURL", "Base path for multitenant remote storage URL to write data to. "+
-		"See https://docs.victoriametrics.com/vmagent/#multitenancy for details. Example url: http://<vminsert>:8480 . "+
-		"Pass multiple -remoteWrite.multitenantURL flags in order to replicate data to multiple remote storage systems. "+
-		"This flag is deprecated in favor of -enableMultitenantHandlers . See https://docs.victoriametrics.com/vmagent/#multitenancy")
 	enableMultitenantHandlers = flag.Bool("enableMultitenantHandlers", false, "Whether to process incoming data via multitenant insert handlers according to "+
 		"https://docs.victoriametrics.com/cluster-victoriametrics/#url-format . By default incoming data is processed via single-node insert handlers "+
 		"according to https://docs.victoriametrics.com/#how-to-import-time-series-data ."+
@@ -118,14 +113,10 @@ var (
 )
 
 var (
-	// rwctxsDefault contains statically populated entries when -remoteWrite.url is specified.
-	rwctxsDefault []*remoteWriteCtx
+	// rwctxs contains statically populated entries when -remoteWrite.url is specified.
+	rwctxs []*remoteWriteCtx
 
-	// rwctxsMap contains dynamically populated entries when -remoteWrite.multitenantURL is specified.
-	rwctxsMap     = make(map[tenantmetrics.TenantID][]*remoteWriteCtx)
-	rwctxsMapLock sync.Mutex
-
-	// Data without tenant id is written to defaultAuthToken if -remoteWrite.multitenantURL is specified.
+	// Data without tenant id is written to defaultAuthToken if -enableMultitenantHandlers is specified.
 	defaultAuthToken = &auth.Token{}
 
 	// ErrQueueFullHTTPRetry must be returned when TryPush() returns false.
@@ -140,9 +131,9 @@ var (
 	disableOnDiskQueueAll bool
 )
 
-// MultitenancyEnabled returns true if -enableMultitenantHandlers or -remoteWrite.multitenantURL is specified.
+// MultitenancyEnabled returns true if -enableMultitenantHandlers is specified.
 func MultitenancyEnabled() bool {
-	return *enableMultitenantHandlers || len(*remoteWriteMultitenantURLs) > 0
+	return *enableMultitenantHandlers
 }
 
 // Contains the current relabelConfigs.
@@ -173,11 +164,8 @@ var (
 //
 // Stop must be called for graceful shutdown.
 func Init() {
-	if len(*remoteWriteURLs) == 0 && len(*remoteWriteMultitenantURLs) == 0 {
-		logger.Fatalf("at least one `-remoteWrite.url` or `-remoteWrite.multitenantURL` command-line flag must be set")
-	}
-	if len(*remoteWriteURLs) > 0 && len(*remoteWriteMultitenantURLs) > 0 {
-		logger.Fatalf("cannot set both `-remoteWrite.url` and `-remoteWrite.multitenantURL` command-line flags")
+	if len(*remoteWriteURLs) == 0 {
+		logger.Fatalf("at least one `-remoteWrite.url` command-line flag must be set")
 	}
 	if *maxHourlySeries > 0 {
 		hourlySeriesLimiter = bloomfilter.NewLimiter(*maxHourlySeries, time.Hour)
@@ -228,7 +216,7 @@ func Init() {
 	relabelConfigTimestamp.Set(fasttime.UnixTimestamp())
 
 	if len(*remoteWriteURLs) > 0 {
-		rwctxsDefault = newRemoteWriteCtxs(nil, *remoteWriteURLs)
+		rwctxs = newRemoteWriteCtxs(nil, *remoteWriteURLs)
 	}
 
 	disableOnDiskQueueAll = true
@@ -261,12 +249,6 @@ func dropDanglingQueues() {
 	if *keepDanglingQueues {
 		return
 	}
-	if len(*remoteWriteMultitenantURLs) > 0 {
-		// Do not drop dangling queues for *remoteWriteMultitenantURLs, since it is impossible to determine
-		// unused queues for multitenant urls - they are created on demand when new sample for the given
-		// tenant is pushed to remote storage.
-		return
-	}
 	// Remove dangling persistent queues, if any.
 	// This is required for the case when the number of queues has been changed or URL have been changed.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4014
@@ -274,8 +256,8 @@ func dropDanglingQueues() {
 	// In case if there were many persistent queues with identical *remoteWriteURLs
 	// the queue with the last index will be dropped.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6140
-	existingQueues := make(map[string]struct{}, len(rwctxsDefault))
-	for _, rwctx := range rwctxsDefault {
+	existingQueues := make(map[string]struct{}, len(rwctxs))
+	for _, rwctx := range rwctxs {
 		existingQueues[rwctx.fq.Dirname()] = struct{}{}
 	}
 
@@ -292,7 +274,7 @@ func dropDanglingQueues() {
 		}
 	}
 	if removed > 0 {
-		logger.Infof("removed %d dangling queues from %q, active queues: %d", removed, *tmpDataPath, len(rwctxsDefault))
+		logger.Infof("removed %d dangling queues from %q, active queues: %d", removed, *tmpDataPath, len(rwctxs))
 	}
 }
 
@@ -320,18 +302,6 @@ var (
 )
 
 func reloadStreamAggrConfigs() {
-	if len(*remoteWriteMultitenantURLs) > 0 {
-		rwctxsMapLock.Lock()
-		for _, rwctxs := range rwctxsMap {
-			reinitStreamAggr(rwctxs)
-		}
-		rwctxsMapLock.Unlock()
-	} else {
-		reinitStreamAggr(rwctxsDefault)
-	}
-}
-
-func reinitStreamAggr(rwctxs []*remoteWriteCtx) {
 	for _, rwctx := range rwctxs {
 		rwctx.reinitStreamAggr()
 	}
@@ -411,18 +381,10 @@ func Stop() {
 	close(configReloaderStopCh)
 	configReloaderWG.Wait()
 
-	for _, rwctx := range rwctxsDefault {
+	for _, rwctx := range rwctxs {
 		rwctx.MustStop()
 	}
-	rwctxsDefault = nil
-
-	// There is no need in locking rwctxsMapLock here, since nobody should call TryPush during the Stop call.
-	for _, rwctxs := range rwctxsMap {
-		for _, rwctx := range rwctxs {
-			rwctx.MustStop()
-		}
-	}
-	rwctxsMap = nil
+	rwctxs = nil
 
 	if sl := hourlySeriesLimiter; sl != nil {
 		sl.MustStop()
@@ -432,20 +394,14 @@ func Stop() {
 	}
 }
 
-// PushDropSamplesOnFailure pushes wr to the configured remote storage systems set via -remoteWrite.url and -remoteWrite.multitenantURL
-//
-// If at is nil, then the data is pushed to the configured -remoteWrite.url.
-// If at isn't nil, the data is pushed to the configured -remoteWrite.multitenantURL.
+// PushDropSamplesOnFailure pushes wr to the configured remote storage systems set via -remoteWrite.url
 //
 // PushDropSamplesOnFailure can modify wr contents.
 func PushDropSamplesOnFailure(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 	_ = tryPush(at, wr, true)
 }
 
-// TryPush tries sending wr to the configured remote storage systems set via -remoteWrite.url and -remoteWrite.multitenantURL
-//
-// If at is nil, then the data is pushed to the configured -remoteWrite.url.
-// If at isn't nil, the data is pushed to the configured -remoteWrite.multitenantURL.
+// TryPush tries sending wr to the configured remote storage systems set via -remoteWrite.url
 //
 // TryPush can modify wr contents, so the caller must re-initialize wr before calling TryPush() after unsuccessful attempt.
 // TryPush may send partial data from wr on unsuccessful attempt, so repeated call for the same wr may send the data multiple times.
@@ -464,28 +420,11 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnF
 	}
 
 	var tenantRctx *relabelCtx
-	var rwctxs []*remoteWriteCtx
-	if at == nil {
-		rwctxs = rwctxsDefault
-	} else if len(*remoteWriteMultitenantURLs) == 0 {
+	if at != nil {
 		// Convert at to (vm_account_id, vm_project_id) labels.
 		tenantRctx = getRelabelCtx()
 		defer putRelabelCtx(tenantRctx)
-		rwctxs = rwctxsDefault
-	} else {
-		rwctxsMapLock.Lock()
-		tenantID := tenantmetrics.TenantID{
-			AccountID: at.AccountID,
-			ProjectID: at.ProjectID,
-		}
-		rwctxs = rwctxsMap[tenantID]
-		if rwctxs == nil {
-			rwctxs = newRemoteWriteCtxs(at, *remoteWriteMultitenantURLs)
-			rwctxsMap[tenantID] = rwctxs
-		}
-		rwctxsMapLock.Unlock()
 	}
-
 	rowsCount := getRowsCount(tss)
 
 	// Quick check whether writes to configured remote storage systems are blocked.
@@ -552,14 +491,14 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnF
 		}
 		sortLabelsIfNeeded(tssBlock)
 		tssBlock = limitSeriesCardinality(tssBlock)
-		if !tryPushBlockToRemoteStorages(rwctxs, tssBlock, forceDropSamplesOnFailure) {
+		if !tryPushBlockToRemoteStorages(tssBlock, forceDropSamplesOnFailure) {
 			return false
 		}
 	}
 	return true
 }
 
-func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmarshal.TimeSeries, forceDropSamplesOnFailure bool) bool {
+func tryPushBlockToRemoteStorages(tssBlock []prompbmarshal.TimeSeries, forceDropSamplesOnFailure bool) bool {
 	if len(tssBlock) == 0 {
 		// Nothing to push
 		return true
@@ -578,7 +517,7 @@ func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmar
 		if replicas <= 0 {
 			replicas = 1
 		}
-		return tryShardingBlockAmongRemoteStorages(rwctxs, tssBlock, replicas, forceDropSamplesOnFailure)
+		return tryShardingBlockAmongRemoteStorages(tssBlock, replicas, forceDropSamplesOnFailure)
 	}
 
 	// Replicate tssBlock samples among rwctxs.
@@ -599,7 +538,7 @@ func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmar
 	return !anyPushFailed.Load()
 }
 
-func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmarshal.TimeSeries, replicas int, forceDropSamplesOnFailure bool) bool {
+func tryShardingBlockAmongRemoteStorages(tssBlock []prompbmarshal.TimeSeries, replicas int, forceDropSamplesOnFailure bool) bool {
 	x := getTSSShards(len(rwctxs))
 	defer putTSSShards(x)
 
