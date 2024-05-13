@@ -57,7 +57,7 @@ var dataFlushInterval = 5 * time.Second
 //
 // This function must be called before initializing the indexdb.
 func SetDataFlushInterval(d time.Duration) {
-	if d > pendingItemsFlushInterval {
+	if d >= time.Second {
 		dataFlushInterval = d
 	}
 }

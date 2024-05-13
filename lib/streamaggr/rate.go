@@ -19,7 +19,7 @@ type rateAggrState struct {
 
 type rateStateValue struct {
 	mu             sync.Mutex
-	lastValues     map[string]*rateLastValueState
+	lastValues     map[string]rateLastValueState
 	deleteDeadline uint64
 	deleted        bool
 }
@@ -57,7 +57,7 @@ func (as *rateAggrState) pushSamples(samples []pushSample) {
 		if !ok {
 			// The entry is missing in the map. Try creating it.
 			v = &rateStateValue{
-				lastValues: make(map[string]*rateLastValueState),
+				lastValues: make(map[string]rateLastValueState),
 			}
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if loaded {
@@ -85,8 +85,6 @@ func (as *rateAggrState) pushSamples(samples []pushSample) {
 					// counter reset
 					lv.total += s.value
 				}
-			} else {
-				lv = &rateLastValueState{}
 			}
 			lv.value = s.value
 			lv.timestamp = s.timestamp
@@ -103,7 +101,8 @@ func (as *rateAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *rateAggrState) flushState(ctx *flushCtx, _ bool) {
+func (as *rateAggrState) flushState(ctx *flushCtx, resetState bool) {
+	_ = resetState // it isn't used here
 	currentTime := fasttime.UnixTimestamp()
 	currentTimeMsec := int64(currentTime) * 1000
 
@@ -132,6 +131,7 @@ func (as *rateAggrState) flushState(ctx *flushCtx, _ bool) {
 				rate += v1.total * 1000 / float64(v1.timestamp-v1.prevTimestamp)
 				v1.prevTimestamp = v1.timestamp
 				v1.total = 0
+				m[k1] = v1
 			}
 		}
 		if as.suffix == "rate_avg" {
