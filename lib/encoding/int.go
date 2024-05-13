@@ -168,6 +168,8 @@ func marshalVarInt64sSlow(dst []byte, vs []int64) []byte {
 }
 
 // UnmarshalVarInt64 returns unmarshaled int64 from src and its size in bytes.
+//
+// It returns 0 or negative value if it cannot unmarshal int64 from src.
 func UnmarshalVarInt64(src []byte) (int64, int) {
 	// TODO substitute binary.Uvarint with binary.Varint when benchmark results will show it is faster.
 	// It is slower on amd64/linux Go1.22.
