@@ -1512,7 +1512,7 @@ func (c *blockResultColumn) getFloatValueAtRow(rowIdx int) float64 {
 	}
 }
 
-func (c *blockResultColumn) getMaxValue(br *blockResult) float64 {
+func (c *blockResultColumn) getMaxValue(_ *blockResult) float64 {
 	if c.isConst {
 		v := c.encodedValues[0]
 		f, ok := tryParseFloat64(v)
@@ -1620,7 +1620,7 @@ func (c *blockResultColumn) getMaxValue(br *blockResult) float64 {
 	}
 }
 
-func (c *blockResultColumn) getMinValue(br *blockResult) float64 {
+func (c *blockResultColumn) getMinValue(_ *blockResult) float64 {
 	if c.isConst {
 		v := c.encodedValues[0]
 		f, ok := tryParseFloat64(v)

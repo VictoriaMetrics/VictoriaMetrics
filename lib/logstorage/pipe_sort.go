@@ -316,17 +316,17 @@ func (shard *pipeSortProcessorShard) createFloat64Values(values []string) []floa
 	return a
 }
 
-func (psp *pipeSortProcessorShard) Len() int {
-	return len(psp.rowRefs)
+func (shard *pipeSortProcessorShard) Len() int {
+	return len(shard.rowRefs)
 }
 
-func (psp *pipeSortProcessorShard) Swap(i, j int) {
-	rowRefs := psp.rowRefs
+func (shard *pipeSortProcessorShard) Swap(i, j int) {
+	rowRefs := shard.rowRefs
 	rowRefs[i], rowRefs[j] = rowRefs[j], rowRefs[i]
 }
 
-func (psp *pipeSortProcessorShard) Less(i, j int) bool {
-	return sortBlockLess(psp, i, psp, j)
+func (shard *pipeSortProcessorShard) Less(i, j int) bool {
+	return sortBlockLess(shard, i, shard, j)
 }
 
 func (psp *pipeSortProcessor) writeBlock(workerID uint, br *blockResult) {

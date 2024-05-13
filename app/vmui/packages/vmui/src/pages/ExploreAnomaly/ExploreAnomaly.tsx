@@ -87,7 +87,7 @@ const ExploreAnomaly: FC = () => {
         setHideError={setHideError}
         stats={queryStats}
         onRunQuery={handleRunQuery}
-        hideButtons={{ addQuery: true, prettify: true, autocomplete: true, traceQuery: true }}
+        hideButtons={{ addQuery: true, prettify: true, autocomplete: true, traceQuery: true, anomalyConfig: true }}
       />
       {isLoading && <Spinner/>}
       {(!hideError && error) && <Alert variant="error">{error}</Alert>}

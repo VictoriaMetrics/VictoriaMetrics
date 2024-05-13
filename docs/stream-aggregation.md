@@ -513,6 +513,8 @@ Below are aggregation functions that can be put in the `outputs` list at [stream
 * [count_series](#count_series)
 * [increase](#increase)
 * [increase_prometheus](#increase_prometheus)
+* [rate_sum](#rate_sum)
+* [rate_avg](#rate_avg)
 * [histogram_bucket](#histogram_bucket)
 * [last](#last)
 * [max](#max)
@@ -577,7 +579,7 @@ The results of `increase` is equal to the following [MetricsQL](https://docs.vic
 sum(increase_pure(some_counter[interval]))
 ```
 
-`increase` assumes that all the counters start from 0. For example, if the fist seen sample for new [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
+`increase` assumes that all the counters start from 0. For example, if the first seen sample for new [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
 is `10`, then `increase` assumes that the time series has been increased by `10`. If you need ignoring the first sample for new time series,
 then take a look at [increase_prometheus](#increase_prometheus).
 
@@ -585,20 +587,36 @@ For example, see below time series produced by config with aggregation interval 
 
 <img alt="increase aggregation" src="stream-aggregation-check-increase.webp">
 
-`increase` can be used as an alternative for [rate](https://docs.victoriametrics.com/metricsql/#rate) function.
-For example, if `increase` is calculated for `some_counter` with `interval: 5m`, then `rate` can be calculated
-by dividing the resulting aggregation by `5m`:
-
-```metricsql
-some_counter:5m_increase / 5m
-```
-
-This is similar to `rate(some_counter[5m])`.
-
 Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
 or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_interval](#staleness) option.
 
 See also [increase_prometheus](#increase_prometheus) and [total](#total).
+
+### rate_sum
+
+`rate_sum` returns the sum of average per-second change of input [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) over the given `interval`.
+`rate_sum` makes sense only for aggregating [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
+
+The results of `rate_sum` are equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+
+```metricsql
+sum(rate(some_counter[interval]))
+```
+
+See also [rate_avg](#rate_avg) and [total](#total) outputs.
+
+### rate_avg
+
+`rate_avg` returns the average of average per-second of input [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) over the given `interval`.
+`rate_avg` makes sense only for aggregating [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
+
+The results of `rate_avg` are equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+
+```metricsql
+avg(rate(some_counter[interval]))
+```
+
+See also [rate_sum](#rate_avg) and [total](#total) outputs.
 
 ### increase_prometheus
 
@@ -741,7 +759,7 @@ The results of `total` is roughly equal to the the following [MetricsQL](https:/
 sum(running_sum(increase_pure(some_counter)))
 ```
 
-`total` assumes that all the counters start from 0. For example, if the fist seen sample for new [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
+`total` assumes that all the counters start from 0. For example, if the first seen sample for new [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
 is `10`, then `total` assumes that the time series has been increased by `10`. If you need ignoring the first sample for new time series,
 then take a look at [total_prometheus](#total_prometheus).
 

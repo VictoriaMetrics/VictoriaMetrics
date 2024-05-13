@@ -828,7 +828,7 @@ cpu_usage:1m_without_cpu_quantiles{quantile="1"} 90
 `, `
 foo{abc="123"} 4
 bar 5
-foo{abc="123"} 8.5
+foo{abc="123"} 8.5 10
 foo{abc="456",de="fg"} 8
 `, `bar-1m-without-abc-count-samples{new_label="must_keep_metric_name"} 1
 bar-1m-without-abc-count-series{new_label="must_keep_metric_name"} 1
@@ -836,6 +836,20 @@ bar-1m-without-abc-sum-samples{new_label="must_keep_metric_name"} 5
 foo-1m-without-abc-count-samples{new_label="must_keep_metric_name"} 2
 foo-1m-without-abc-count-series{new_label="must_keep_metric_name"} 1
 foo-1m-without-abc-sum-samples{new_label="must_keep_metric_name"} 12.5
+`, "1111")
+
+	// test rate_sum and rate_avg
+	f(`     
+- interval: 1m
+  by: [cde]
+  outputs: [rate_sum, rate_avg]
+`, `
+foo{abc="123", cde="1"} 4
+foo{abc="123", cde="1"} 8.5 10
+foo{abc="456", cde="1"} 8
+foo{abc="456", cde="1"} 10 10
+`, `foo:1m_by_cde_rate_avg{cde="1"} 0.325
+foo:1m_by_cde_rate_sum{cde="1"} 0.65
 `, "1111")
 
 	// keep_metric_names
@@ -979,6 +993,7 @@ func mustParsePromMetrics(s string) []prompbmarshal.TimeSeries {
 	}
 	rows.UnmarshalWithErrLogger(s, errLogger)
 	var tss []prompbmarshal.TimeSeries
+	now := time.Now().UnixMilli()
 	samples := make([]prompbmarshal.Sample, 0, len(rows.Rows))
 	for _, row := range rows.Rows {
 		labels := make([]prompbmarshal.Label, 0, len(row.Tags)+1)
@@ -994,7 +1009,7 @@ func mustParsePromMetrics(s string) []prompbmarshal.TimeSeries {
 		}
 		samples = append(samples, prompbmarshal.Sample{
 			Value:     row.Value,
-			Timestamp: row.Timestamp,
+			Timestamp: now + row.Timestamp,
 		})
 		ts := prompbmarshal.TimeSeries{
 			Labels:  labels,
