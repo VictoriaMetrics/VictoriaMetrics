@@ -57,13 +57,13 @@ func TestGetLabelsHash_Distribution(t *testing.T) {
 func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 	f := func(streamAggrConfig, relabelConfig string, dedupInterval time.Duration, keepInput, dropInput bool, input string) {
 		t.Helper()
-		perURLRelabel, err := promrelabel.ParseRelabelConfigsData([]byte(relabelConfig))
+		perCtxRelabel, err := promrelabel.ParseRelabelConfigsData([]byte(relabelConfig))
 		if err != nil {
 			t.Fatalf("cannot load relabel configs: %s", err)
 		}
 		rcs := &relabelConfigs{
-			perURL: []*promrelabel.ParsedConfigs{
-				perURLRelabel,
+			perCtx: []*promrelabel.ParsedConfigs{
+				perCtxRelabel,
 			},
 		}
 		allRelabelConfigs.Store(rcs)
@@ -84,11 +84,16 @@ func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 
 		if len(streamAggrConfig) > 0 {
 			f := createFile(t, []byte(streamAggrConfig))
-			sas, err := streamaggr.LoadFromFile(f.Name(), nil, nil)
-			if err != nil {
+			sas := streamaggr.NewAggregators(f.Name(), nil, nil)
+			if err := sas.Load(); err != nil {
 				t.Fatalf("cannot load streamaggr configs: %s", err)
 			}
-			rwctx.sas.Store(sas)
+			sac := &streamAggrConfigs{
+				perCtx: []*streamaggr.Aggregators{
+					sas,
+				},
+			}
+			allStreamAggrConfigs.Store(sac)
 		}
 
 		inputTss := mustParsePromMetrics(input)

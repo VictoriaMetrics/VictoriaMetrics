@@ -48,9 +48,9 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 	}
 	if len(*relabelConfigPaths) > len(*remoteWriteURLs) {
 		return nil, fmt.Errorf("too many -remoteWrite.urlRelabelConfig args: %d; it mustn't exceed the number of -remoteWrite.url args: %d",
-			len(*relabelConfigPaths), (len(*remoteWriteURLs)))
+			len(*relabelConfigPaths), len(*remoteWriteURLs))
 	}
-	rcs.perURL = make([]*promrelabel.ParsedConfigs, len(*remoteWriteURLs))
+	rcs.perCtx = make([]*promrelabel.ParsedConfigs, len(*remoteWriteURLs))
 	for i, path := range *relabelConfigPaths {
 		if len(path) == 0 {
 			// Skip empty relabel config.
@@ -60,14 +60,14 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot load relabel configs from -remoteWrite.urlRelabelConfig=%q: %w", path, err)
 		}
-		rcs.perURL[i] = prc
+		rcs.perCtx[i] = prc
 	}
 	return &rcs, nil
 }
 
 type relabelConfigs struct {
 	global *promrelabel.ParsedConfigs
-	perURL []*promrelabel.ParsedConfigs
+	perCtx []*promrelabel.ParsedConfigs
 }
 
 // initLabelsGlobal must be called after parsing command-line flags.

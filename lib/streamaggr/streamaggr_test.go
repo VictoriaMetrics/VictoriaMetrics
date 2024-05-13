@@ -17,15 +17,10 @@ import (
 func TestAggregatorsFailure(t *testing.T) {
 	f := func(config string) {
 		t.Helper()
-		pushFunc := func(_ []prompbmarshal.TimeSeries) {
-			panic(fmt.Errorf("pushFunc shouldn't be called"))
-		}
-		a, err := newAggregatorsFromData([]byte(config), pushFunc, nil)
+		a := &Aggregators{}
+		err := a.loadAggregatorsFromData([]byte(config))
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
-		}
-		if a != nil {
-			t.Fatalf("expecting nil a")
 		}
 	}
 
@@ -158,12 +153,16 @@ func TestAggregatorsEqual(t *testing.T) {
 		t.Helper()
 
 		pushFunc := func(_ []prompbmarshal.TimeSeries) {}
-		aa, err := newAggregatorsFromData([]byte(a), pushFunc, nil)
-		if err != nil {
+		aa := &Aggregators{
+			pushFunc: pushFunc,
+		}
+		if err := aa.loadAggregatorsFromData([]byte(a)); err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
-		ab, err := newAggregatorsFromData([]byte(b), pushFunc, nil)
-		if err != nil {
+		ab := &Aggregators{
+			pushFunc: pushFunc,
+		}
+		if err := ab.loadAggregatorsFromData([]byte(b)); err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
 		result := aa.Equal(ab)
@@ -221,19 +220,21 @@ func TestAggregatorsSuccess(t *testing.T) {
 			tssOutput = appendClonedTimeseries(tssOutput, tss)
 			tssOutputLock.Unlock()
 		}
-		opts := &Options{
-			FlushOnShutdown:        true,
-			NoAlignFlushToInterval: true,
+		a := &Aggregators{
+			opts: &Options{
+				FlushOnShutdown:        true,
+				NoAlignFlushToInterval: true,
+			},
+			pushFunc: pushFunc,
 		}
-		a, err := newAggregatorsFromData([]byte(config), pushFunc, opts)
-		if err != nil {
+		if err := a.loadAggregatorsFromData([]byte(config)); err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
 
 		// Push the inputMetrics to Aggregators
 		tssInput := mustParsePromMetrics(inputMetrics)
 		matchIdxs := a.Push(tssInput, nil)
-		a.MustStop()
+		a.MustStop(nil)
 
 		// Verify matchIdxs equals to matchIdxsExpected
 		matchIdxsStr := ""
@@ -905,19 +906,21 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 			}
 			tssOutputLock.Unlock()
 		}
-		opts := &Options{
-			DedupInterval:   30 * time.Second,
-			FlushOnShutdown: true,
+		a := &Aggregators{
+			pushFunc: pushFunc,
+			opts: &Options{
+				DedupInterval:   30 * time.Second,
+				FlushOnShutdown: true,
+			},
 		}
-		a, err := newAggregatorsFromData([]byte(config), pushFunc, opts)
-		if err != nil {
+		if err := a.loadAggregatorsFromData([]byte(config)); err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
 
 		// Push the inputMetrics to Aggregators
 		tssInput := mustParsePromMetrics(inputMetrics)
 		matchIdxs := a.Push(tssInput, nil)
-		a.MustStop()
+		a.MustStop(nil)
 
 		// Verify matchIdxs equals to matchIdxsExpected
 		matchIdxsStr := ""
