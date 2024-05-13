@@ -1395,6 +1395,7 @@ func TestQueryGetNeededColumns(t *testing.T) {
 
 	f(`* | sort by (f1)`, `*`, ``)
 	f(`* | sort by (f1) | fields f2`, `f1,f2`, ``)
+	f(`_time:5m | sort by (_time) | fields foo`, `_time,foo`, ``)
 	f(`* | sort by (f1) | fields *`, `*`, ``)
 	f(`* | sort by (f1) | sort by (f2,f3 desc) desc`, `*`, ``)
 	f(`* | sort by (f1) | sort by (f2,f3 desc) desc | fields f4`, `f1,f2,f3,f4`, ``)

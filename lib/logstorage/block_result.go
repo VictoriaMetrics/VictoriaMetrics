@@ -109,7 +109,7 @@ func (br *blockResult) cloneValues(values []string) []string {
 
 	for _, v := range values {
 		if len(valuesBuf) > 0 && v == valuesBuf[len(valuesBuf)-1] {
-			valuesBuf = append(valuesBuf, v)
+			valuesBuf = append(valuesBuf, valuesBuf[len(valuesBuf)-1])
 		} else {
 			bufLen := len(buf)
 			buf = append(buf, v...)
@@ -287,7 +287,7 @@ func (br *blockResult) addColumn(bs *blockSearch, ch *columnHeader, bm *bitmap) 
 
 	appendValue := func(v string) {
 		if len(valuesBuf) > 0 && v == valuesBuf[len(valuesBuf)-1] {
-			valuesBuf = append(valuesBuf, v)
+			valuesBuf = append(valuesBuf, valuesBuf[len(valuesBuf)-1])
 		} else {
 			bufLen := len(buf)
 			buf = append(buf, v...)
@@ -1853,13 +1853,12 @@ func (rc *resultColumn) resetKeepName() {
 func (rc *resultColumn) addValue(v string) {
 	values := rc.values
 	if len(values) > 0 && string(v) == values[len(values)-1] {
-		rc.values = append(rc.values, values[len(values)-1])
-		return
+		rc.values = append(values, values[len(values)-1])
+	} else {
+		bufLen := len(rc.buf)
+		rc.buf = append(rc.buf, v...)
+		rc.values = append(values, bytesutil.ToUnsafeString(rc.buf[bufLen:]))
 	}
-
-	bufLen := len(rc.buf)
-	rc.buf = append(rc.buf, v...)
-	rc.values = append(values, bytesutil.ToUnsafeString(rc.buf[bufLen:]))
 }
 
 func truncateTimestampToMonth(timestamp int64) int64 {
