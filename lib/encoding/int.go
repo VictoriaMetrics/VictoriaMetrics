@@ -517,11 +517,12 @@ func UnmarshalBytes(src []byte) ([]byte, int) {
 	if nSize <= 0 {
 		return nil, 0
 	}
-	src = src[nSize:]
-	if uint64(len(src)) < n {
+	if uint64(nSize)+n > uint64(len(src)) {
 		return nil, 0
 	}
-	return src[:n], nSize + int(n)
+	start := nSize
+	nSize += int(n)
+	return src[start:nSize], nSize
 }
 
 // GetInt64s returns an int64 slice with the given size.

@@ -509,7 +509,7 @@ func (idb *indexdb) loadStreamIDsFromCache(tenantIDs []TenantID, sf *StreamFilte
 	// Cache hit - unpack streamIDs from data.
 	n, nSize := encoding.UnmarshalVarUint64(data)
 	if nSize <= 0 {
-		logger.Panicf("BUG: cannot unmarshal the number of streamIDs from cache")
+		logger.Panicf("BUG: unexpected error when unmarshaling the number of streamIDs from cache")
 	}
 	src := data[nSize:]
 	streamIDs := make([]streamID, n)

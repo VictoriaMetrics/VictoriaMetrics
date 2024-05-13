@@ -87,7 +87,7 @@ func (bh *blockHeader) unmarshal(src []byte) ([]byte, error) {
 	// unmarshal bh.uncompressedSizeBytes
 	n, nSize := encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
-		return srcOrig, fmt.Errorf("cannot unmarshal uncompressedSizeBytes from uvarint")
+		return srcOrig, fmt.Errorf("cannot unmarshal uncompressedSizeBytes")
 	}
 	src = src[nSize:]
 	bh.uncompressedSizeBytes = n
@@ -95,7 +95,7 @@ func (bh *blockHeader) unmarshal(src []byte) ([]byte, error) {
 	// unmarshal bh.rowsCount
 	n, nSize = encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
-		return srcOrig, fmt.Errorf("cannot unmarshal rowsCount from uvarint")
+		return srcOrig, fmt.Errorf("cannot unmarshal rowsCount")
 	}
 	src = src[nSize:]
 	if n > maxRowsPerBlock {
@@ -113,7 +113,7 @@ func (bh *blockHeader) unmarshal(src []byte) ([]byte, error) {
 	// unmarshal columnsHeaderOffset
 	n, nSize = encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
-		return srcOrig, fmt.Errorf("cannot unmarshal columnsHeaderOffset from uvarint")
+		return srcOrig, fmt.Errorf("cannot unmarshal columnsHeaderOffset")
 	}
 	src = src[nSize:]
 	bh.columnsHeaderOffset = n
@@ -121,7 +121,7 @@ func (bh *blockHeader) unmarshal(src []byte) ([]byte, error) {
 	// unmarshal columnsHeaderSize
 	n, nSize = encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
-		return srcOrig, fmt.Errorf("cannot unmarshal columnsHeaderSize from uvarint")
+		return srcOrig, fmt.Errorf("cannot unmarshal columnsHeaderSize")
 	}
 	src = src[nSize:]
 	if n > maxColumnsHeaderSize {
@@ -298,12 +298,13 @@ func (csh *columnsHeader) unmarshal(a *arena, src []byte) error {
 	// unmarshal columnHeaders
 	n, nSize := encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
-		return fmt.Errorf("cannot unmarshal columnHeaders len from uvarint")
+		return fmt.Errorf("cannot unmarshal columnHeaders len")
 	}
 	src = src[nSize:]
 	if n > maxColumnsPerBlock {
 		return fmt.Errorf("too many column headers: %d; mustn't exceed %d", n, maxColumnsPerBlock)
 	}
+
 	chs := csh.resizeColumnHeaders(int(n))
 	for i := range chs {
 		tail, err := chs[i].unmarshal(a, src)
@@ -317,12 +318,13 @@ func (csh *columnsHeader) unmarshal(a *arena, src []byte) error {
 	// unmarshal constColumns
 	n, nSize = encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
-		return fmt.Errorf("cannot unmarshal constColumns len from uvarint")
+		return fmt.Errorf("cannot unmarshal constColumns len")
 	}
 	src = src[nSize:]
 	if n+uint64(len(csh.columnHeaders)) > maxColumnsPerBlock {
 		return fmt.Errorf("too many columns: %d; mustn't exceed %d", n+uint64(len(csh.columnHeaders)), maxColumnsPerBlock)
 	}
+
 	ccs := csh.resizeConstColumns(int(n))
 	for i := range ccs {
 		tail, err := ccs[i].unmarshal(a, src)
@@ -661,14 +663,14 @@ func (ch *columnHeader) unmarshalValues(src []byte) ([]byte, error) {
 
 	n, nSize := encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
-		return srcOrig, fmt.Errorf("cannot unmarshal valuesOffset from uvarint")
+		return srcOrig, fmt.Errorf("cannot unmarshal valuesOffset")
 	}
 	src = src[nSize:]
 	ch.valuesOffset = n
 
 	n, nSize = encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
-		return srcOrig, fmt.Errorf("cannot unmarshal valuesSize from uvarint")
+		return srcOrig, fmt.Errorf("cannot unmarshal valuesSize")
 	}
 	src = src[nSize:]
 	if n > maxValuesBlockSize {
@@ -684,14 +686,14 @@ func (ch *columnHeader) unmarshalBloomFilters(src []byte) ([]byte, error) {
 
 	n, nSize := encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
-		return srcOrig, fmt.Errorf("cannot unmarshal bloomFilterOffset from uvarint")
+		return srcOrig, fmt.Errorf("cannot unmarshal bloomFilterOffset")
 	}
 	src = src[nSize:]
 	ch.bloomFilterOffset = n
 
 	n, nSize = encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
-		return srcOrig, fmt.Errorf("cannot unmarshal bloomFilterSize from uvarint")
+		return srcOrig, fmt.Errorf("cannot unmarshal bloomFilterSize")
 	}
 	src = src[nSize:]
 	if n > maxBloomFilterBlockSize {

@@ -281,7 +281,7 @@ func unmarshalBytesBlock(dst, src []byte) ([]byte, []byte, error) {
 		// Read block length
 		blockLen, nSize := encoding.UnmarshalVarUint64(src)
 		if nSize <= 0 {
-			return dst, src, fmt.Errorf("cannot unmarshal compressed block size from uvarint")
+			return dst, src, fmt.Errorf("cannot unmarshal compressed block size")
 		}
 		src = src[nSize:]
 		if uint64(len(src)) < blockLen {
