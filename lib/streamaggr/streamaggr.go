@@ -164,7 +164,7 @@ type Config struct {
 	//
 	// The following names are allowed:
 	//
-	// - rate - calculates sum of rate for input counters
+	// - rate_sum - calculates sum of rate for input counters
 	// - rate_avg - calculates average of rate for input counters
 	// - total - aggregates input counters
 	// - total_prometheus - aggregates input counters, ignoring the first sample in new time series
