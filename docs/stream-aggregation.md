@@ -513,7 +513,7 @@ Below are aggregation functions that can be put in the `outputs` list at [stream
 * [count_series](#count_series)
 * [increase](#increase)
 * [increase_prometheus](#increase_prometheus)
-* [rate](#rate)
+* [rate_sum](#rate_sum)
 * [rate_avg](#rate_avg)
 * [histogram_bucket](#histogram_bucket)
 * [last](#last)
@@ -592,16 +592,18 @@ or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via 
 
 See also [increase_prometheus](#increase_prometheus) and [total](#total).
 
-### rate
+### rate_sum
 
-`rate` returns the sum of average per-second of input [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) over the given `interval`.
-`rate` makes sense only for aggregating [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
+`rate_sum` returns the sum of average per-second change of input [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) over the given `interval`.
+`rate_sum` makes sense only for aggregating [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
 
-The results of `rate` are equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `rate_sum` are equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
 
 ```metricsql
 sum(rate(some_counter[interval]))
 ```
+
+See also [rate_avg](#rate_avg) and [total](#total) outputs.
 
 ### rate_avg
 
@@ -613,6 +615,8 @@ The results of `rate_avg` are equal to the following [MetricsQL](https://docs.vi
 ```metricsql
 avg(rate(some_counter[interval]))
 ```
+
+See also [rate_sum](#rate_avg) and [total](#total) outputs.
 
 ### increase_prometheus
 

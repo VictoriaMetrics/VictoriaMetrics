@@ -532,8 +532,8 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 			aggrStates[i] = newTotalAggrState(stalenessInterval, true, true)
 		case "increase_prometheus":
 			aggrStates[i] = newTotalAggrState(stalenessInterval, true, false)
-		case "rate":
-			aggrStates[i] = newRateAggrState(stalenessInterval, "rate")
+		case "rate_sum":
+			aggrStates[i] = newRateAggrState(stalenessInterval, "rate_sum")
 		case "rate_avg":
 			aggrStates[i] = newRateAggrState(stalenessInterval, "rate_avg")
 		case "count_series":

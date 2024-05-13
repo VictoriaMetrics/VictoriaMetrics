@@ -838,18 +838,18 @@ foo-1m-without-abc-count-series{new_label="must_keep_metric_name"} 1
 foo-1m-without-abc-sum-samples{new_label="must_keep_metric_name"} 12.5
 `, "1111")
 
-	// test rate and rate_avg
+	// test rate_sum and rate_avg
 	f(`     
 - interval: 1m
   by: [cde]
-  outputs: [rate, rate_avg]
+  outputs: [rate_sum, rate_avg]
 `, `
 foo{abc="123", cde="1"} 4
 foo{abc="123", cde="1"} 8.5 10
 foo{abc="456", cde="1"} 8
 foo{abc="456", cde="1"} 10 10
 `, `foo:1m_by_cde_rate_avg{cde="1"} 0.325
-foo:1m_by_cde_rate{cde="1"} 0.65
+foo:1m_by_cde_rate_sum{cde="1"} 0.65
 `, "1111")
 
 	// keep_metric_names

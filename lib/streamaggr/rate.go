@@ -7,7 +7,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
-// rateAggrState calculates output=rate, e.g. the summary counter over input counters.
+// rateAggrState calculates output=rate, e.g. the counter per-second change.
 type rateAggrState struct {
 	m sync.Map
 
@@ -28,8 +28,13 @@ type rateLastValueState struct {
 	value          float64
 	timestamp      int64
 	deleteDeadline uint64
-	total          float64
-	startTimestamp int64
+
+	// total stores cumulative difference between registered values
+	// in the aggregation interval
+	total float64
+	// prevTimestamp stores timestamp of the last registered value
+	// in the previous aggregation interval
+	prevTimestamp int64
 }
 
 func newRateAggrState(stalenessInterval time.Duration, suffix string) *rateAggrState {
@@ -71,8 +76,8 @@ func (as *rateAggrState) pushSamples(samples []pushSample) {
 					sv.mu.Unlock()
 					continue
 				}
-				if lv.startTimestamp == 0 {
-					lv.startTimestamp = lv.timestamp
+				if lv.prevTimestamp == 0 {
+					lv.prevTimestamp = lv.timestamp
 				}
 				if s.value >= lv.value {
 					lv.total += s.value - lv.value
@@ -106,33 +111,37 @@ func (as *rateAggrState) flushState(ctx *flushCtx, resetState bool) {
 	m.Range(func(k, v interface{}) bool {
 		sv := v.(*rateStateValue)
 		sv.mu.Lock()
+
+		// check for stale entries
 		deleted := currentTime > sv.deleteDeadline
 		if deleted {
 			// Mark the current entry as deleted
 			sv.deleted = deleted
 			sv.mu.Unlock()
 			m.Delete(k)
-		} else {
-			// Delete outdated entries in sv.lastValues
-			var rate float64
-			m := sv.lastValues
-			count := float64(len(m))
-			for k1, v1 := range m {
-				if currentTime > v1.deleteDeadline {
-					delete(m, k1)
-				} else if v1.startTimestamp > 0 {
-					rate += v1.total * 1000 / float64(v1.timestamp-v1.startTimestamp)
-					v1.startTimestamp = v1.timestamp
-					v1.total = 0
-				}
-			}
-			sv.mu.Unlock()
-			key := k.(string)
-			if as.suffix == "rate_avg" {
-				rate /= count
-			}
-			ctx.appendSeries(key, as.suffix, currentTimeMsec, rate)
+			return true
 		}
+
+		// Delete outdated entries in sv.lastValues
+		var rate float64
+		m := sv.lastValues
+		for k1, v1 := range m {
+			if currentTime > v1.deleteDeadline {
+				delete(m, k1)
+			} else if v1.prevTimestamp > 0 {
+				rate += v1.total * 1000 / float64(v1.timestamp-v1.prevTimestamp)
+				v1.prevTimestamp = v1.timestamp
+				v1.total = 0
+			}
+		}
+		if as.suffix == "rate_avg" {
+			// note: capture m length after deleted items were removed
+			rate /= float64(len(m))
+		}
+		sv.mu.Unlock()
+
+		key := k.(string)
+		ctx.appendSeries(key, as.suffix, currentTimeMsec, rate)
 		return true
 	})
 }
