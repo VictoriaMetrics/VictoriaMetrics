@@ -175,6 +175,7 @@ func (sup *statsCountUniqProcessor) updateStatsForAllRows(br *blockResult) int {
 				stateSizeIncrease += len(keyBuf) + int(unsafe.Sizeof(""))
 			}
 		}
+		sup.keyBuf = keyBuf
 		return stateSizeIncrease
 	}
 
@@ -307,7 +308,7 @@ func (sup *statsCountUniqProcessor) updateStatsForRow(br *blockResult, rowIdx in
 				m[string(keyBuf)] = struct{}{}
 				stateSizeIncrease += len(keyBuf) + int(unsafe.Sizeof(""))
 			}
-			//sup.keyBuf = keyBuf
+			sup.keyBuf = keyBuf
 			return stateSizeIncrease
 		}
 
@@ -324,6 +325,7 @@ func (sup *statsCountUniqProcessor) updateStatsForRow(br *blockResult, rowIdx in
 			m[string(keyBuf)] = struct{}{}
 			stateSizeIncrease += len(keyBuf) + int(unsafe.Sizeof(""))
 		}
+		sup.keyBuf = keyBuf
 		return stateSizeIncrease
 	}
 

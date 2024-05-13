@@ -1175,7 +1175,10 @@ See also:
 
 ### sort pipe
 
-By default logs are selected in arbitrary order because of performance reasons. If logs must be sorted, then `| sort by (field1, ..., fieldN)` [pipe](#pipes) must be used.
+By default logs are selected in arbitrary order because of performance reasons. If logs must be sorted, then `| sort by (field1, ..., fieldN)` [pipe](#pipes) can be used.
+The returned logs are sorted by the given [fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
+using [natural sorting](https://en.wikipedia.org/wiki/Natural_sort_order).
+
 For example, the following query returns logs for the last 5 minutes sorted by [`_stream`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
 and then by [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field):
 
@@ -1210,7 +1213,7 @@ See also:
 ### uniq pipe
 
 `| uniq ...` pipe allows returning only unique results over the selected logs. For example, the following LogsQL query
-returns uniq values for `ip` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+returns unique values for `ip` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
 
 ```logsql
@@ -1536,7 +1539,7 @@ See also:
 
 `uniq_values(field1, ..., fieldN)` [stats pipe](#stats-pipe) returns the unique non-empty values across
 the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-The returned values are sorted and encoded in JSON array.
+The returned values are encoded in JSON array. The order of the returned values is arbitrary.
 
 For example, the following query returns unique non-empty values for the `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:

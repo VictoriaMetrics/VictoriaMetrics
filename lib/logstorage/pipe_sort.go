@@ -13,6 +13,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 // pipeSort processes '| sort ...' queries.
@@ -639,9 +640,9 @@ func sortBlockLess(shardA *pipeSortProcessorShard, rowIdxA int, shardB *pipeSort
 			continue
 		}
 		if isDesc {
-			return sB < sA
+			return stringsutil.LessNatural(sB, sA)
 		}
-		return sA < sB
+		return stringsutil.LessNatural(sA, sB)
 	}
 	return false
 }

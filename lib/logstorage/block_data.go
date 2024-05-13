@@ -110,20 +110,18 @@ func (bd *blockData) mustWriteTo(bh *blockHeader, sw *streamWriters) {
 	// Marshal columns
 	cds := bd.columnsData
 
-	a := getArena()
 	csh := getColumnsHeader()
 
 	chs := csh.resizeColumnHeaders(len(cds))
 	for i := range cds {
-		cds[i].mustWriteTo(a, &chs[i], sw)
+		cds[i].mustWriteToNoArena(&chs[i], sw)
 	}
-	csh.constColumns = appendFields(a, csh.constColumns[:0], bd.constColumns)
+	csh.constColumns = append(csh.constColumns[:0], bd.constColumns...)
 
 	bb := longTermBufPool.Get()
 	bb.B = csh.marshal(bb.B)
 
 	putColumnsHeader(csh)
-	putArena(a)
 
 	bh.columnsHeaderOffset = sw.columnsHeaderWriter.bytesWritten
 	bh.columnsHeaderSize = uint64(len(bb.B))
@@ -310,8 +308,8 @@ func (cd *columnData) copyFrom(a *arena, src *columnData) {
 
 // mustWriteTo writes cd to sw and updates ch accordingly.
 //
-// ch is valid until a.reset() is called.
-func (cd *columnData) mustWriteTo(a *arena, ch *columnHeader, sw *streamWriters) {
+// ch is valid until cd is changed.
+func (cd *columnData) mustWriteToNoArena(ch *columnHeader, sw *streamWriters) {
 	ch.reset()
 
 	valuesWriter := &sw.fieldValuesWriter
@@ -321,12 +319,12 @@ func (cd *columnData) mustWriteTo(a *arena, ch *columnHeader, sw *streamWriters)
 		bloomFilterWriter = &sw.messageBloomFilterWriter
 	}
 
-	ch.name = a.copyString(cd.name)
+	ch.name = cd.name
 	ch.valueType = cd.valueType
 
 	ch.minValue = cd.minValue
 	ch.maxValue = cd.maxValue
-	ch.valuesDict.copyFrom(a, &cd.valuesDict)
+	ch.valuesDict.copyFromNoArena(&cd.valuesDict)
 
 	// marshal values
 	ch.valuesSize = uint64(len(cd.valuesData))
