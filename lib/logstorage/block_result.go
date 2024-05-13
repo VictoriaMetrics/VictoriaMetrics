@@ -261,7 +261,14 @@ func (br *blockResult) mustInit(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Initialize timestamps, since they are required for all the further work with br.
+	if !slices.Contains(bs.bsw.so.neededColumnNames, "_time") || slices.Contains(bs.bsw.so.unneededColumnNames, "_time") {
+		// The fastest path - _time column wasn't requested, so it is enough to initialize br.timestamps with zeroes.
+		rowsLen := bm.onesCount()
+		br.timestamps = fastnum.AppendInt64Zeros(br.timestamps[:0], rowsLen)
+		return
+	}
 
+	// Slow path - the _time column is requested, so we need to initialize br.timestamps with real timestamps.
 	srcTimestamps := bs.getTimestamps()
 	if bm.areAllBitsSet() {
 		// Fast path - all the rows in the block are selected, so copy all the timestamps without any filtering.
