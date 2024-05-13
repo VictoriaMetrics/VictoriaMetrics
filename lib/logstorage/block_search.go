@@ -8,6 +8,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
+// The number of blocks to search at once by a single worker
+//
+// This number must be increased on systems with many CPU cores in order to amortize
+// the overhead for passing the blockSearchWork to worker goroutines.
+const blockSearchWorksPerBatch = 64
+
 type blockSearchWork struct {
 	// p is the part where the block belongs to.
 	p *part
@@ -19,12 +25,54 @@ type blockSearchWork struct {
 	bh blockHeader
 }
 
-func newBlockSearchWork(p *part, so *searchOptions, bh *blockHeader) *blockSearchWork {
-	var bsw blockSearchWork
-	bsw.p = p
-	bsw.so = so
+func (bsw *blockSearchWork) reset() {
+	bsw.p = nil
+	bsw.so = nil
+	bsw.bh.reset()
+}
+
+type blockSearchWorkBatch struct {
+	bsws []blockSearchWork
+}
+
+func (bswb *blockSearchWorkBatch) reset() {
+	bsws := bswb.bsws
+	for i := range bsws {
+		bsws[i].reset()
+	}
+	bswb.bsws = bsws[:0]
+}
+
+func getBlockSearchWorkBatch() *blockSearchWorkBatch {
+	v := blockSearchWorkBatchPool.Get()
+	if v == nil {
+		return &blockSearchWorkBatch{
+			bsws: make([]blockSearchWork, 0, blockSearchWorksPerBatch),
+		}
+	}
+	return v.(*blockSearchWorkBatch)
+}
+
+func putBlockSearchWorkBatch(bswb *blockSearchWorkBatch) {
+	bswb.reset()
+	blockSearchWorkBatchPool.Put(bswb)
+}
+
+var blockSearchWorkBatchPool sync.Pool
+
+func (bswb *blockSearchWorkBatch) appendBlockSearchWork(p *part, so *searchOptions, bh *blockHeader) bool {
+	bsws := bswb.bsws
+
+	bsws = append(bsws, blockSearchWork{
+		p:  p,
+		so: so,
+	})
+	bsw := &bsws[len(bsws)-1]
 	bsw.bh.copyFrom(bh)
-	return &bsw
+
+	bswb.bsws = bsws
+
+	return len(bsws) < cap(bsws)
 }
 
 func getBlockSearch() *blockSearch {
