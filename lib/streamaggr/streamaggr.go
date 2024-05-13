@@ -164,6 +164,8 @@ type Config struct {
 	//
 	// The following names are allowed:
 	//
+	// - rate - calculates sum of rate for input counters
+	// - rate_avg - calculates average of rate for input counters
 	// - total - aggregates input counters
 	// - total_prometheus - aggregates input counters, ignoring the first sample in new time series
 	// - increase - calculates the increase over input series
@@ -530,6 +532,10 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 			aggrStates[i] = newTotalAggrState(stalenessInterval, true, true)
 		case "increase_prometheus":
 			aggrStates[i] = newTotalAggrState(stalenessInterval, true, false)
+		case "rate":
+			aggrStates[i] = newRateAggrState(stalenessInterval, "rate")
+		case "rate_avg":
+			aggrStates[i] = newRateAggrState(stalenessInterval, "rate_avg")
 		case "count_series":
 			aggrStates[i] = newCountSeriesAggrState()
 		case "count_samples":
