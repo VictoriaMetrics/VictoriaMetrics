@@ -202,12 +202,10 @@ func (sup *statsUniqValuesProcessor) finalizeStats() string {
 		return "[]"
 	}
 
-	// Sort unique items
 	items := make([]string, 0, len(sup.m))
 	for k := range sup.m {
 		items = append(items, k)
 	}
-	slices.SortFunc(items, compareValues)
 
 	if limit := sup.su.limit; limit > 0 && uint64(len(items)) > limit {
 		items = items[:limit]
@@ -240,27 +238,6 @@ func marshalJSONArray(items []string) string {
 	b = append(b, ']')
 
 	return bytesutil.ToUnsafeString(b)
-}
-
-func compareValues(a, b string) int {
-	fA, okA := tryParseFloat64(a)
-	fB, okB := tryParseFloat64(b)
-	if okA && okB {
-		if fA == fB {
-			return 0
-		}
-		if fA < fB {
-			return -1
-		}
-		return 1
-	}
-	if okA {
-		return -1
-	}
-	if okB {
-		return 1
-	}
-	return strings.Compare(a, b)
 }
 
 func parseStatsUniqValues(lex *lexer) (*statsUniqValues, error) {
