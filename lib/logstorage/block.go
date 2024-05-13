@@ -149,8 +149,8 @@ func (c *column) resizeValues(valuesLen int) []string {
 
 // mustWriteTo writes c to sw and updates ch accordingly.
 //
-// ch is valid until a.reset() is called.
-func (c *column) mustWriteTo(a *arena, ch *columnHeader, sw *streamWriters) {
+// ch is valid until c is changed.
+func (c *column) mustWriteToNoArena(ch *columnHeader, sw *streamWriters) {
 	ch.reset()
 
 	valuesWriter := &sw.fieldValuesWriter
@@ -160,7 +160,7 @@ func (c *column) mustWriteTo(a *arena, ch *columnHeader, sw *streamWriters) {
 		bloomFilterWriter = &sw.messageBloomFilterWriter
 	}
 
-	ch.name = a.copyString(c.name)
+	ch.name = c.name
 
 	// encode values
 	ve := getValuesEncoder()
@@ -454,20 +454,18 @@ func (b *block) mustWriteTo(sid *streamID, bh *blockHeader, sw *streamWriters) {
 	// Marshal columns
 	cs := b.columns
 
-	a := getArena()
 	csh := getColumnsHeader()
 
 	chs := csh.resizeColumnHeaders(len(cs))
 	for i := range cs {
-		cs[i].mustWriteTo(a, &chs[i], sw)
+		cs[i].mustWriteToNoArena(&chs[i], sw)
 	}
-	csh.constColumns = appendFields(a, csh.constColumns[:0], b.constColumns)
+	csh.constColumns = append(csh.constColumns[:0], b.constColumns...)
 
 	bb := longTermBufPool.Get()
 	bb.B = csh.marshal(bb.B)
 
 	putColumnsHeader(csh)
-	putArena(a)
 
 	bh.columnsHeaderOffset = sw.columnsHeaderWriter.bytesWritten
 	bh.columnsHeaderSize = uint64(len(bb.B))

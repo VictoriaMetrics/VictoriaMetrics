@@ -3,6 +3,8 @@ package logstorage
 import (
 	"strings"
 	"sync"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 // filterAnd contains filters joined by AND opertor.
@@ -30,19 +32,10 @@ func (fa *filterAnd) String() string {
 }
 
 func (fa *filterAnd) apply(bs *blockSearch, bm *bitmap) {
-	if tokens := fa.getMsgTokens(); len(tokens) > 0 {
-		// Verify whether fa tokens for the _msg field match bloom filter.
-		ch := bs.csh.getColumnHeader("_msg")
-		if ch == nil {
-			// Fast path - there is no _msg field in the block.
-			bm.resetBits()
-			return
-		}
-		if !matchBloomFilterAllTokens(bs, ch, tokens) {
-			// Fast path - fa tokens for the _msg field do not match bloom filter.
-			bm.resetBits()
-			return
-		}
+	if !fa.matchMessageBloomFilter(bs) {
+		// Fast path - fa doesn't match _msg bloom filter.
+		bm.resetBits()
+		return
 	}
 
 	// Slow path - verify every filter separately.
@@ -56,7 +49,29 @@ func (fa *filterAnd) apply(bs *blockSearch, bm *bitmap) {
 	}
 }
 
-func (fa *filterAnd) getMsgTokens() []string {
+func (fa *filterAnd) matchMessageBloomFilter(bs *blockSearch) bool {
+	tokens := fa.getMessageTokens()
+	if len(tokens) == 0 {
+		return true
+	}
+
+	v := bs.csh.getConstColumnValue("_msg")
+	if v != "" {
+		return matchStringByAllTokens(v, tokens)
+	}
+
+	ch := bs.csh.getColumnHeader("_msg")
+	if ch == nil {
+		return false
+	}
+
+	if ch.valueType == valueTypeDict {
+		return matchDictValuesByAllTokens(ch.valuesDict.values, tokens)
+	}
+	return matchBloomFilterAllTokens(bs, ch, tokens)
+}
+
+func (fa *filterAnd) getMessageTokens() []string {
 	fa.msgTokensOnce.Do(fa.initMsgTokens)
 	return fa.msgTokens
 }
@@ -88,4 +103,25 @@ func (fa *filterAnd) initMsgTokens() {
 		}
 	}
 	fa.msgTokens = a
+}
+
+func matchStringByAllTokens(v string, tokens []string) bool {
+	for _, token := range tokens {
+		if !matchPhrase(v, token) {
+			return false
+		}
+	}
+	return true
+}
+
+func matchDictValuesByAllTokens(dictValues, tokens []string) bool {
+	bb := bbPool.Get()
+	for _, v := range dictValues {
+		bb.B = append(bb.B, v...)
+		bb.B = append(bb.B, ',')
+	}
+	v := bytesutil.ToUnsafeString(bb.B)
+	ok := matchStringByAllTokens(v, tokens)
+	bbPool.Put(bb)
+	return ok
 }
