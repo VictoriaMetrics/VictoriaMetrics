@@ -360,8 +360,26 @@ func marshalVarUint64sSlow(dst []byte, us []uint64) []byte {
 	return dst
 }
 
-// UnmarshalVarUint64 returns unmarshaled uint64 from src and its size in bytes
+// UnmarshalVarUint64 returns unmarshaled uint64 from src and its size in bytes.
+//
+// It returns 0 or negative value if it cannot unmarshal uint64 from src.
 func UnmarshalVarUint64(src []byte) (uint64, int) {
+	if len(src) == 0 {
+		return 0, 0
+	}
+	if src[0] < 0x80 {
+		// Fast path for a single byte
+		return uint64(src[0]), 1
+	}
+	if len(src) == 1 {
+		return 0, 0
+	}
+	if src[1] < 0x80 {
+		// Fast path for two bytes
+		return uint64(src[0]&0x7f) | uint64(src[1])<<7, 2
+	}
+
+	// Slow path for other number of bytes
 	return binary.Uvarint(src)
 }
 
