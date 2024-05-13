@@ -72,7 +72,7 @@ export const useFetchQuery = (): {
 
     const prevDayParams = {
       ...requestParams,
-      date: dayjs(requestParams.date).subtract(1, "day").tz().format(DATE_FORMAT),
+      date: dayjs(requestParams.date).subtract(1, "day").format(DATE_FORMAT),
     };
 
     const urls = [
@@ -80,15 +80,15 @@ export const useFetchQuery = (): {
       getCardinalityInfo(serverUrl, prevDayParams),
     ];
 
-    if (prevDate !== date) {
+    if (prevDate !== date && totalParams.match || totalParams.focusLabel) {
       urls.push(getCardinalityInfo(serverUrl, totalParams));
     }
 
     try {
-      const [resp, respPrev, respTotals = {}] = await Promise.all(urls.map(getResponseJson));
+      const [resp, respPrev, respTotals] = await Promise.all(urls.map(getResponseJson));
 
       const prevResult = { ...respPrev.data };
-      const { data: dataTotal } = respTotals;
+      const { data: dataTotal } = respTotals || resp;
       const result: TSDBStatus = {
         ...resp.data,
         totalSeries: resp.data?.totalSeries || resp.data?.headStats?.numSeries || 0,
