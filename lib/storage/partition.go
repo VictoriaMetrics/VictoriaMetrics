@@ -58,7 +58,7 @@ var dataFlushInterval = 5 * time.Second
 //
 // This function must be called before initializing the storage.
 func SetDataFlushInterval(d time.Duration) {
-	if d > pendingRowsFlushInterval {
+	if d >= time.Second {
 		dataFlushInterval = d
 		mergeset.SetDataFlushInterval(d)
 	}
