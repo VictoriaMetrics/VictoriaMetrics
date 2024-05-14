@@ -80,7 +80,7 @@ export const useFetchQuery = (): {
       getCardinalityInfo(serverUrl, prevDayParams),
     ];
 
-    if (prevDate !== date && totalParams.match || totalParams.focusLabel) {
+    if (prevDate !== date && (totalParams.match || totalParams.focusLabel)) {
       urls.push(getCardinalityInfo(serverUrl, totalParams));
     }
 
