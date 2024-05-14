@@ -1641,11 +1641,7 @@ according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying
 
 ## Sorting
 
-By default VictoriaLogs sorts the returned results by [`_time` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field)
-if their total size doesn't exceed `-select.maxSortBufferSize` command-line value (by default it is set to 1MB).
-Otherwise sorting is skipped because of performance reasons.
-
-Use [`sort` pipe](#sort-pipe) for sorting the results.
+By default VictoriaLogs doesn't sort the returned results because of performance reasons. Use [`sort` pipe](#sort-pipe) for sorting the results.
 
 ## Limiters
 
