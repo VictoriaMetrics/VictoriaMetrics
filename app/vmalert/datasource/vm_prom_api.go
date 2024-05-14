@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -58,8 +57,6 @@ var jsonParserPool fastjson.ParserPool
 //	[{"metric":{"__name__":"up","job":"prometheus"},value": [ 1435781451.781,"1"]},
 //	{"metric":{"__name__":"up","job":"node"},value": [ 1435781451.781,"0"]}]
 func (pi *promInstant) Unmarshal(b []byte) error {
-	pi.reset()
-
 	p := jsonParserPool.Get()
 	defer jsonParserPool.Put(p)
 
@@ -75,6 +72,9 @@ func (pi *promInstant) Unmarshal(b []byte) error {
 	pi.ms = make([]Metric, len(rows))
 	for i, row := range rows {
 		metric := row.Get("metric")
+		if metric == nil {
+			return fmt.Errorf("can't find `metric` object in %q", row)
+		}
 		labels := metric.GetObject()
 
 		r := &pi.ms[i]
@@ -82,7 +82,7 @@ func (pi *promInstant) Unmarshal(b []byte) error {
 		labels.Visit(func(key []byte, v *fastjson.Value) {
 			lv, errLocal := v.StringBytes()
 			if errLocal != nil {
-				err = fmt.Errorf("failed to parse label value %q: %s", v, errLocal)
+				err = fmt.Errorf("error when parsing label value %q: %s", v, errLocal)
 				return
 			}
 			r.Labels = append(r.Labels, Label{
@@ -94,39 +94,24 @@ func (pi *promInstant) Unmarshal(b []byte) error {
 			return fmt.Errorf("error when parsing `metric` object: %w", err)
 		}
 
-		tv := row.Get("value").GetArray()
-		r.Timestamps = []int64{tv[0].GetInt64()}
-		val, err := tv[1].StringBytes()
+		value := row.Get("value")
+		if value == nil {
+			return fmt.Errorf("can't find `value` object in %q", row)
+		}
+		sample := value.GetArray()
+		r.Timestamps = []int64{sample[0].GetInt64()}
+		val, err := sample[1].StringBytes()
 		if err != nil {
-			return fmt.Errorf("failed to parse value %q: %s", tv[1], err)
+			return fmt.Errorf("error when parsing `value` object %q: %s", sample[1], err)
 		}
 		f, err := strconv.ParseFloat(bytesutil.ToUnsafeString(val), 64)
 		if err != nil {
-			return fmt.Errorf("unable to parse float64 from %s: %w", tv[1], err)
+			return fmt.Errorf("error when parsing float64 from %s: %w", sample[1], err)
 		}
 		r.Values = []float64{f}
 	}
 	return nil
 }
-
-func (pi *promInstant) reset() {
-	pi.ms = pi.ms[:0]
-}
-
-func getPromInstant() *promInstant {
-	v := promInstantPool.Get()
-	if v == nil {
-		return &promInstant{}
-	}
-	return v.(*promInstant)
-}
-
-func putRequest(pi *promInstant) {
-	pi.reset()
-	promInstantPool.Put(pi)
-}
-
-var promInstantPool sync.Pool
 
 type promRange struct {
 	Result []struct {
@@ -191,8 +176,7 @@ func parsePrometheusResponse(req *http.Request, resp *http.Response) (res Result
 	var parseFn func() ([]Metric, error)
 	switch r.Data.ResultType {
 	case rtVector:
-		pi := getPromInstant()
-		defer putRequest(pi)
+		var pi promInstant
 		if err := pi.Unmarshal(r.Data.Result); err != nil {
 			return res, fmt.Errorf("unmarshal err %w; \n %#v", err, string(r.Data.Result))
 		}
