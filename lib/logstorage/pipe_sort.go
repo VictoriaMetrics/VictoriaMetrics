@@ -583,7 +583,10 @@ func sortBlockLess(shardA *pipeSortProcessorShard, rowIdxA int, shardB *pipeSort
 			if ccA == ccB {
 				continue
 			}
-			return cA.c.encodedValues[0] < cB.c.encodedValues[0]
+			if isDesc {
+				return ccB < ccA
+			}
+			return ccA < ccB
 		}
 
 		if cA.c.isTime && cB.c.isTime {

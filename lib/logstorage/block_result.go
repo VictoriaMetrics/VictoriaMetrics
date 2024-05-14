@@ -261,7 +261,8 @@ func (br *blockResult) mustInit(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Initialize timestamps, since they are required for all the further work with br.
-	if !slices.Contains(bs.bsw.so.neededColumnNames, "_time") || slices.Contains(bs.bsw.so.unneededColumnNames, "_time") {
+	so := bs.bsw.so
+	if !so.needAllColumns && !slices.Contains(so.neededColumnNames, "_time") || so.needAllColumns && slices.Contains(so.unneededColumnNames, "_time") {
 		// The fastest path - _time column wasn't requested, so it is enough to initialize br.timestamps with zeroes.
 		rowsLen := bm.onesCount()
 		br.timestamps = fastnum.AppendInt64Zeros(br.timestamps[:0], rowsLen)
