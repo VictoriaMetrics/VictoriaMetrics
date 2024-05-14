@@ -940,6 +940,13 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats quantile(0.99, *) bar`, `* | stats quantile(0.99, *) as bar`)
 	f(`* | stats quantile(0.99, a, *, b) bar`, `* | stats quantile(0.99, *) as bar`)
 
+	// stats pipe median
+	f(`* | stats Median(foo) bar`, `* | stats median(foo) as bar`)
+	f(`* | stats BY(x, y, ) MEDIAN(foo,bar,) bar`, `* | stats by (x, y) median(foo, bar) as bar`)
+	f(`* | stats median() x`, `* | stats median(*) as x`)
+	f(`* | stats median(*) x`, `* | stats median(*) as x`)
+	f(`* | stats median(foo,*,bar) x`, `* | stats median(*) as x`)
+
 	// stats pipe multiple funcs
 	f(`* | stats count() "foo.bar:baz", count_uniq(a) bar`, `* | stats count(*) as "foo.bar:baz", count_uniq(a) as bar`)
 	f(`* | stats by (x, y) count(*) foo, count_uniq(a,b) bar`, `* | stats by (x, y) count(*) as foo, count_uniq(a, b) as bar`)

@@ -1371,6 +1371,7 @@ LogsQL supports the following functions for [`stats` pipe](#stats-pipe):
 - [`count_empty`](#count_empty-stats) calculates the number logs with empty [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`count_uniq`](#count_uniq-stats) calculates the number of unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`max`](#max-stats) calcualtes the maximum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`median`](#median-stats) calcualtes the [median](https://en.wikipedia.org/wiki/Median) value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`min`](#min-stats) calculates the minumum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`quantile`](#quantile-stats) calculates the given quantile for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`sum`](#sum-stats) calculates the sum for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
@@ -1393,9 +1394,10 @@ _time:5m | stats avg(duration) avg_duration
 
 See also:
 
+- [`median`](#median-stats)
+- [`quantile`](#quantile-stats)
 - [`min`](#min-stats)
 - [`max`](#max-stats)
-- [`quantile`](#quantile-stats)
 - [`sum`](#sum-stats)
 - [`count`](#count-stats)
 
@@ -1500,6 +1502,23 @@ See also:
 - [`sum`](#sum-stats)
 - [`count`](#count-stats)
 
+### median stats
+
+`median(field1, ..., fieldN)` [stats pipe](#stats-pipe) calculates the [median](https://en.wikipedia.org/wiki/Median) value across
+the give numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+
+For example, the following query return median for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+over logs for the last 5 minutes:
+
+```logsql
+_time:5m | stats median(duration) median_duration
+```
+
+See also:
+
+- [`quantile`](#quantile-stats)
+- [`avg`](#avg-stats)
+
 ### min stats
 
 `min(field1, ..., fieldN)` [stats pipe](#stats-pipe) calculates the minimum value across
@@ -1541,6 +1560,7 @@ See also:
 
 - [`min`](#min-stats)
 - [`max`](#max-stats)
+- [`median`](#median-stats)
 - [`avg`](#avg-stats)
 
 ### sum stats
@@ -1673,8 +1693,6 @@ Stats over the selected logs can be calculated via [`stats` pipe](#stats-pipe).
 
 LogsQL will support calculating the following additional stats based on the [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
 and fields created by [transformations](#transformations):
-
-- The median and [percentile](https://en.wikipedia.org/wiki/Percentile) for the given field.
 
 It will be possible specifying an optional condition [filter](#post-filters) when calculating the stats.
 For example, `sum(response_size) if (is_admin:true)` calculates the total response size for admins only.

@@ -546,6 +546,12 @@ func parseStatsFunc(lex *lexer) (statsFunc, string, error) {
 			return nil, "", fmt.Errorf("cannot parse 'quantile' func: %w", err)
 		}
 		sf = sqs
+	case lex.isKeyword("median"):
+		sms, err := parseStatsMedian(lex)
+		if err != nil {
+			return nil, "", fmt.Errorf("cannot parse 'median' func: %w", err)
+		}
+		sf = sms
 	default:
 		return nil, "", fmt.Errorf("unknown stats func %q", lex.token)
 	}
