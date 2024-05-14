@@ -206,6 +206,15 @@ func (q *Query) String() string {
 	return s
 }
 
+// AddPipeLimit adds `| limit n` pipe to q.
+//
+// See https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe
+func (q *Query) AddPipeLimit(n uint64) {
+	q.pipes = append(q.pipes, &pipeLimit{
+		n: n,
+	})
+}
+
 func (q *Query) getNeededColumns() ([]string, []string) {
 	neededFields := newFieldsSet()
 	neededFields.add("*")
