@@ -926,6 +926,13 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats by(x) values() limit 1_000 AS y`, `* | stats by (x) values(*) limit 1000 as y`)
 	f(`* | stats by(x) values(a,*,b) y`, `* | stats by (x) values(*) as y`)
 
+	// stats pipe sum_len
+	f(`* | stats Sum_len(foo) bar`, `* | stats sum_len(foo) as bar`)
+	f(`* | stats BY(x, y, ) SUM_Len(foo,bar,) bar`, `* | stats by (x, y) sum_len(foo, bar) as bar`)
+	f(`* | stats sum_len() x`, `* | stats sum_len(*) as x`)
+	f(`* | stats sum_len(*) x`, `* | stats sum_len(*) as x`)
+	f(`* | stats sum_len(foo,*,bar) x`, `* | stats sum_len(*) as x`)
+
 	// stats pipe multiple funcs
 	f(`* | stats count() "foo.bar:baz", count_uniq(a) bar`, `* | stats count(*) as "foo.bar:baz", count_uniq(a) as bar`)
 	f(`* | stats by (x, y) count(*) foo, count_uniq(a,b) bar`, `* | stats by (x, y) count(*) as foo, count_uniq(a, b) as bar`)
@@ -1274,6 +1281,10 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | stats values(a) limit foo`)
 	f(`foo | stats values(a) limit 0.5`)
 	f(`foo | stats values(a) limit -1`)
+
+	// invalid stats sum_len
+	f(`foo | stats sum_len`)
+	f(`foo | stats sum_len()`)
 
 	// invalid stats grouping fields
 	f(`foo | stats by(foo:bar) count() baz`)

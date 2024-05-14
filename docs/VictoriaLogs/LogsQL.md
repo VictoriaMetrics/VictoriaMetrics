@@ -1373,6 +1373,7 @@ LogsQL supports the following functions for [`stats` pipe](#stats-pipe):
 - [`max`](#max-stats) calcualtes the maximum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`min`](#min-stats) calculates the minumum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`sum`](#sum-stats) calculates the sum for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`sum_len`](#sum_len-stats) calculates the sum of lengths for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`uniq_values`](#uniq_values-stats) returns unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`values`](#values-stats) returns all the values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
@@ -1534,6 +1535,22 @@ See also:
 - [`avg`](#avg-stats)
 - [`max`](#max-stats)
 - [`min`](#min-stats)
+
+### sum_len stats
+
+`sum_len(field1, ..., fieldN)` [stats pipe](#stats-pipe) calculates the sum of lengths of all the values
+for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+
+For example, the following query returns the sum of lengths of [`_msg` fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+across all the logs for the last 5 minutes:
+
+```logsql
+_time:5m | stats sum_len(_msg) messages_len
+```
+
+See also:
+
+- [`count`](#count-stats)
 
 ### uniq_values stats
 
