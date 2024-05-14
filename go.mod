@@ -135,3 +135,5 @@ require (
 	k8s.io/klog/v2 v2.120.1 // indirect
 	k8s.io/utils v0.0.0-20240502163921-fe8a2dddb1d0 // indirect
 )
+
+replace github.com/valyala/gozstd => github.com/f41gh7/gozstd v1.12.1-0.20240514104918-c42dd7d06806
