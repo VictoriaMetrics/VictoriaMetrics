@@ -86,7 +86,7 @@ func (smp *statsMaxProcessor) mergeState(sfp statsProcessor) {
 }
 
 func (smp *statsMaxProcessor) finalizeStats() string {
-	return strconv.FormatFloat(smp.max, 'g', -1, 64)
+	return strconv.FormatFloat(smp.max, 'f', -1, 64)
 }
 
 func parseStatsMax(lex *lexer) (*statsMax, error) {
