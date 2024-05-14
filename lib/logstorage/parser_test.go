@@ -933,6 +933,13 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats sum_len(*) x`, `* | stats sum_len(*) as x`)
 	f(`* | stats sum_len(foo,*,bar) x`, `* | stats sum_len(*) as x`)
 
+	// stats pipe quantile
+	f(`* | stats quantile(0, foo) bar`, `* | stats quantile(0, foo) as bar`)
+	f(`* | stats quantile(1, foo) bar`, `* | stats quantile(1, foo) as bar`)
+	f(`* | stats quantile(0.5, a, b, c) bar`, `* | stats quantile(0.5, a, b, c) as bar`)
+	f(`* | stats quantile(0.99, *) bar`, `* | stats quantile(0.99, *) as bar`)
+	f(`* | stats quantile(0.99, a, *, b) bar`, `* | stats quantile(0.99, *) as bar`)
+
 	// stats pipe multiple funcs
 	f(`* | stats count() "foo.bar:baz", count_uniq(a) bar`, `* | stats count(*) as "foo.bar:baz", count_uniq(a) as bar`)
 	f(`* | stats by (x, y) count(*) foo, count_uniq(a,b) bar`, `* | stats by (x, y) count(*) as foo, count_uniq(a, b) as bar`)
@@ -1285,6 +1292,14 @@ func TestParseQueryFailure(t *testing.T) {
 	// invalid stats sum_len
 	f(`foo | stats sum_len`)
 	f(`foo | stats sum_len()`)
+
+	// invalid stats quantile
+	f(`foo | stats quantile`)
+	f(`foo | stats quantile() foo`)
+	f(`foo | stats quantile(bar, baz) foo`)
+	f(`foo | stats quantile(0.5) foo`)
+	f(`foo | stats quantile(-1, x) foo`)
+	f(`foo | stats quantile(10, x) foo`)
 
 	// invalid stats grouping fields
 	f(`foo | stats by(foo:bar) count() baz`)

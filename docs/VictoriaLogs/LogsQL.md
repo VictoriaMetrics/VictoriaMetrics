@@ -1372,6 +1372,7 @@ LogsQL supports the following functions for [`stats` pipe](#stats-pipe):
 - [`count_uniq`](#count_uniq-stats) calculates the number of unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`max`](#max-stats) calcualtes the maximum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`min`](#min-stats) calculates the minumum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`quantile`](#quantile-stats) calculates the given quantile for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`sum`](#sum-stats) calculates the sum for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`sum_len`](#sum_len-stats) calculates the sum of lengths for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`uniq_values`](#uniq_values-stats) returns unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
@@ -1394,6 +1395,7 @@ See also:
 
 - [`min`](#min-stats)
 - [`max`](#max-stats)
+- [`quantile`](#quantile-stats)
 - [`sum`](#sum-stats)
 - [`count`](#count-stats)
 
@@ -1493,6 +1495,7 @@ _time:5m | stats max(duration) max_duration
 See also:
 
 - [`min`](#min-stats)
+- [`quantile`](#quantile-stats)
 - [`avg`](#avg-stats)
 - [`sum`](#sum-stats)
 - [`count`](#count-stats)
@@ -1513,9 +1516,32 @@ _time:5m | stats min(duration) min_duration
 See also:
 
 - [`max`](#max-stats)
+- [`quantile`](#quantile-stats)
 - [`avg`](#avg-stats)
 - [`sum`](#sum-stats)
 - [`count`](#count-stats)
+
+### quantile stats
+
+`quantile(phi, field1, ..., fieldN)` [stats pipe](#stats-pipe) calculates `phi` [percentile](https://en.wikipedia.org/wiki/Percentile) over numeric values
+for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). The `phi` must be in the range `0 ... 1`, where `0` means `0th` percentile,
+while `1` means `100th` percentile.
+
+For example, the following query calculates `50th`, `90th` and `99th` percentiles for the `request_duration_seconds` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+over logs for the last 5 minutes:
+
+```logsql
+_time:5m | stats
+  quantile(0.5, request_duration_seconds) p50,
+  quantile(0.9, request_duration_seconds) p90,
+  quantile(0.99, request_duration_seconds) p99
+```
+
+See also:
+
+- [`min`](#min-stats)
+- [`max`](#max-stats)
+- [`avg`](#avg-stats)
 
 ### sum stats
 

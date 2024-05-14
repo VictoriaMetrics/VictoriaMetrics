@@ -540,6 +540,12 @@ func parseStatsFunc(lex *lexer) (statsFunc, string, error) {
 			return nil, "", fmt.Errorf("cannot parse 'sum_len' func: %w", err)
 		}
 		sf = sss
+	case lex.isKeyword("quantile"):
+		sqs, err := parseStatsQuantile(lex)
+		if err != nil {
+			return nil, "", fmt.Errorf("cannot parse 'quantile' func: %w", err)
+		}
+		sf = sqs
 	default:
 		return nil, "", fmt.Errorf("unknown stats func %q", lex.token)
 	}
