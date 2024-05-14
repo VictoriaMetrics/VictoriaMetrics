@@ -300,16 +300,8 @@ func (c *client) runWorker() {
 			return
 		}
 		if len(block) == 0 {
-			logger.Warnf("remote-write worker skip block with size 0")  // The log here is optional since it does not help with solving the issue. It only indicates that the issue happens.
+			logger.Warnf("remote-write worker skip block with size 0") // The log here is optional since it does not help with solving the issue. It only indicates that the issue happens.
 			continue
-		}
-			return
-		}
-		if len(block) == 0 {
-			logger.Warnf("remote-write worker skip block with size 0")  // The log here is optional since it does not help with solving the issue. It only indicates that the issue happens.
-			continue
-		}
-			return
 		}
 		go func() {
 			startTime := time.Now()
