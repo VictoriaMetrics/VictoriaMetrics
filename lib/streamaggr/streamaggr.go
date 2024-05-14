@@ -871,6 +871,7 @@ func getOutputKey(key string) string {
 	if nSize <= 0 {
 		logger.Panicf("BUG: cannot unmarshal inputKeyLen from uvarint")
 	}
+	src = src[nSize:]
 	outputKey := src[inputKeyLen:]
 	return bytesutil.ToUnsafeString(outputKey)
 }
