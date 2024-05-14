@@ -9,9 +9,10 @@ import (
 	"hash/fnv"
 	"net/url"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 
 	"github.com/cheggaaa/pb/v3"
 
@@ -724,13 +725,19 @@ func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDurati
 	return errGr.Err()
 }
 
+var bbPool bytesutil.ByteBufferPool
+
 // getStaleSeries checks whether there are stale series from previously sent ones.
 func (e *executor) getStaleSeries(r Rule, tss []prompbmarshal.TimeSeries, timestamp time.Time) []prompbmarshal.TimeSeries {
+	bb := bbPool.Get()
+	defer bbPool.Put(bb)
+
 	ruleLabels := make(map[string][]prompbmarshal.Label, len(tss))
 	for _, ts := range tss {
-		// convert labels to strings so we can compare with previously sent series
-		key := labelsToString(ts.Labels)
-		ruleLabels[key] = ts.Labels
+		// convert labels to strings, so we can compare with previously sent series
+		bb.B = labelsToString(bb.B, ts.Labels)
+		ruleLabels[string(bb.B)] = ts.Labels
+		bb.Reset()
 	}
 
 	rID := r.ID()
@@ -776,21 +783,20 @@ func (e *executor) purgeStaleSeries(activeRules []Rule) {
 	e.previouslySentSeriesToRWMu.Unlock()
 }
 
-func labelsToString(labels []prompbmarshal.Label) string {
-	var b strings.Builder
-	b.WriteRune('{')
+func labelsToString(dst []byte, labels []prompbmarshal.Label) []byte {
+	dst = append(dst, '{')
 	for i, label := range labels {
 		if len(label.Name) == 0 {
-			b.WriteString("__name__")
+			dst = append(dst, "__name__"...)
 		} else {
-			b.WriteString(label.Name)
+			dst = append(dst, label.Name...)
 		}
-		b.WriteRune('=')
-		b.WriteString(strconv.Quote(label.Value))
+		dst = append(dst, '=')
+		dst = strconv.AppendQuote(dst, label.Value)
 		if i < len(labels)-1 {
-			b.WriteRune(',')
+			dst = append(dst, ',')
 		}
 	}
-	b.WriteRune('}')
-	return b.String()
+	dst = append(dst, '}')
+	return dst
 }
