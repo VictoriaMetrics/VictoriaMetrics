@@ -146,6 +146,28 @@ func (bm *bitmap) forEachSetBit(f func(idx int) bool) {
 	}
 }
 
+// forEachSetBitReadonly calls f for each set bit
+func (bm *bitmap) forEachSetBitReadonly(f func(idx int)) {
+	a := bm.a
+	bitsLen := bm.bitsLen
+	for i, word := range a {
+		if word == 0 {
+			continue
+		}
+		for j := 0; j < 64; j++ {
+			mask := uint64(1) << j
+			if (word & mask) == 0 {
+				continue
+			}
+			idx := i*64 + j
+			if idx >= bitsLen {
+				break
+			}
+			f(idx)
+		}
+	}
+}
+
 func (bm *bitmap) onesCount() int {
 	n := 0
 	for _, word := range bm.a {

@@ -278,10 +278,9 @@ func (br *blockResult) mustInit(bs *blockSearch, bm *bitmap) {
 
 	// Slow path - copy only the needed timestamps to br according to filter results.
 	dstTimestamps := br.timestamps[:0]
-	bm.forEachSetBit(func(idx int) bool {
+	bm.forEachSetBitReadonly(func(idx int) {
 		ts := srcTimestamps[idx]
 		dstTimestamps = append(dstTimestamps, ts)
-		return true
 	})
 	br.timestamps = dstTimestamps
 }
