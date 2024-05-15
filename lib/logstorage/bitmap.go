@@ -148,6 +148,13 @@ func (bm *bitmap) forEachSetBit(f func(idx int) bool) {
 
 // forEachSetBitReadonly calls f for each set bit
 func (bm *bitmap) forEachSetBitReadonly(f func(idx int)) {
+	if bm.areAllBitsSet() {
+		for i := range bm.bitsLen {
+			f(i)
+		}
+		return
+	}
+
 	a := bm.a
 	bitsLen := bm.bitsLen
 	for i, word := range a {
