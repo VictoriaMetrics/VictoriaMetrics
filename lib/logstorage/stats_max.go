@@ -4,6 +4,8 @@ import (
 	"slices"
 	"strings"
 	"unsafe"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 type statsMax struct {
@@ -39,17 +41,13 @@ func (smp *statsMaxProcessor) updateStatsForAllRows(br *blockResult) int {
 	if smp.sm.containsStar {
 		// Find the minimum value across all the columns
 		for _, c := range br.getColumns() {
-			for _, v := range c.getValues(br) {
-				smp.updateState(v)
-			}
+			smp.updateStateForColumn(br, c)
 		}
 	} else {
 		// Find the minimum value across the requested columns
 		for _, field := range smp.sm.fields {
 			c := br.getColumnByName(field)
-			for _, v := range c.getValues(br) {
-				smp.updateState(v)
-			}
+			smp.updateStateForColumn(br, c)
 		}
 	}
 
@@ -81,6 +79,40 @@ func (smp *statsMaxProcessor) mergeState(sfp statsProcessor) {
 	src := sfp.(*statsMaxProcessor)
 	if src.hasMax {
 		smp.updateState(src.max)
+	}
+}
+
+func (smp *statsMaxProcessor) updateStateForColumn(br *blockResult, c *blockResultColumn) {
+	if c.isTime {
+		// Special case for time column
+		timestamps := br.timestamps
+		if len(timestamps) == 0 {
+			return
+		}
+		maxTimestamp := timestamps[len(timestamps)-1]
+		for _, timestamp := range timestamps[:len(timestamps)-1] {
+			if timestamp > maxTimestamp {
+				maxTimestamp = timestamp
+			}
+		}
+
+		bb := bbPool.Get()
+		bb.B = marshalTimestampRFC3339Nano(bb.B[:0], maxTimestamp)
+		v := bytesutil.ToUnsafeString(bb.B)
+		smp.updateState(v)
+		bbPool.Put(bb)
+
+		return
+	}
+	if c.isConst {
+		// Special case for const column
+		v := c.encodedValues[0]
+		smp.updateState(v)
+		return
+	}
+
+	for _, v := range c.getValues(br) {
+		smp.updateState(v)
 	}
 }
 
