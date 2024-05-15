@@ -283,6 +283,7 @@ func (shard *pipeTopkProcessorShard) sortRows(stopCh <-chan struct{}) {
 			return
 		}
 	}
+	shard.rows = rows
 }
 
 func (ptp *pipeTopkProcessor) writeBlock(workerID uint, br *blockResult) {
