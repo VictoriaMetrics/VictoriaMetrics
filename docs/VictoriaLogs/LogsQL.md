@@ -1198,11 +1198,23 @@ The reverse order can be applied globally via `desc` keyword after `by(...)` cla
 _time:5m | sort by (foo, bar) desc
 ```
 
+Sorting of big number of logs can consume a lot of CPU time and memory. Sometimes it is enough to return the first `N` entries with the biggest
+or smallest values. This can be done by adding ``first N` to the end of `sort ...` pipe.
+Such a query consumes lower amounts of memory when sorting big number of logs, since it keeps in memory only `N` log entries.
+For example, the following query returns top 10 log entries with the biggest values
+for the `request_duration` [field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) during the last hour:
+
+```logsql
+_time:1h | sort by (request_duration desc) first 10
+```
+
 Note that sorting of big number of logs can be slow and can consume a lot of additional memory.
 It is recommended limiting the number of logs before sorting with the following approaches:
 
+- Adding `first N` to the end of `sort ...` pipe.
 - Reducing the selected time range with [time filter](#time-filter).
 - Using more specific [filters](#filters), so they select less logs.
+- Limiting the number of selected [fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) via [`fields` pipe](#fields-pipe).
 
 See also:
 

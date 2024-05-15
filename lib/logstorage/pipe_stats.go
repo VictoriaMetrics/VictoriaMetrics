@@ -345,10 +345,8 @@ func (psp *pipeStatsProcessor) flush() error {
 		for key, psg := range shard.m {
 			// shard.m may be quite big, so this loop can take a lot of time and CPU.
 			// Stop processing data as soon as stopCh is closed without wasting additional CPU time.
-			select {
-			case <-psp.stopCh:
+			if needStop(psp.stopCh) {
 				return nil
-			default:
 			}
 
 			spgBase := m[key]
@@ -388,10 +386,8 @@ func (psp *pipeStatsProcessor) flush() error {
 	for key, psg := range m {
 		// m may be quite big, so this loop can take a lot of time and CPU.
 		// Stop processing data as soon as stopCh is closed without wasting additional CPU time.
-		select {
-		case <-psp.stopCh:
+		if needStop(psp.stopCh) {
 			return nil
-		default:
 		}
 
 		// Unmarshal values for byFields from key.
