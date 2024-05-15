@@ -1457,11 +1457,10 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | sort by (f1) | sort by (f2,f3 desc) desc | fields f4 | rm f1,f2,f5`, `f1,f2,f3,f4`, ``)
 
 	f(`* | stats by(f1) count(f2) r1, count(f3,f4) r2`, `f1,f2,f3,f4`, ``)
-	f(`* | stats by(f1) count(f2) r1, count(f3,f4) r2 | fields f5,f6`, ``, ``)
+	f(`* | stats by(f1) count(f2) r1, count(f3,f4) r2 | fields f5,f6`, `f1`, ``)
 	f(`* | stats by(f1) count(f2) r1, count(f3,f4) r2 | fields f1,f5`, `f1`, ``)
 	f(`* | stats by(f1) count(f2) r1, count(f3,f4) r2 | fields r1`, `f1,f2`, ``)
 	f(`* | stats by(f1) count(f2) r1, count(f3,f4) r2 | fields r2,r3`, `f1,f3,f4`, ``)
-	f(`_time:5m | stats by(_time:day) count() r1 | stats values(_time) r2`, `_time`, ``)
 	f(`* | stats count(f1) r1 | stats count() r1`, ``, ``)
 	f(`* | stats count(f1) r1 | stats count() r2`, ``, ``)
 	f(`* | stats count(f1) r1 | stats count(r1) r2`, `f1`, ``)
@@ -1472,6 +1471,9 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | stats count(f1,f2) r1 | stats count(f2) r1, count(r1) r2 | fields r2`, `f1,f2`, ``)
 	f(`* | stats by(f3,f4) count(f1,f2) r1 | stats count(f2) r1, count(r1) r2 | fields r2`, `f1,f2,f3,f4`, ``)
 	f(`* | stats by(f3,f4) count(f1,f2) r1 | stats count(f3) r1, count(r1) r2 | fields r1`, `f3,f4`, ``)
+
+	f(`_time:5m | stats by(_time:day) count() r1 | stats values(_time) r2`, `_time`, ``)
+	f(`_time:1y | stats (_time:1w) count() r1 | stats count() r2`, `_time`, ``)
 
 	f(`* | uniq`, `*`, ``)
 	f(`* | uniq by (f1,f2)`, `f1,f2`, ``)

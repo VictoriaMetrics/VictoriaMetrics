@@ -87,21 +87,14 @@ func (ps *pipeStats) updateNeededFields(neededFields, unneededFields fieldsSet) 
 	neededFieldsOrig := neededFields.clone()
 	neededFields.reset()
 
-	byFields := make([]string, len(ps.byFields))
-	for i, bf := range ps.byFields {
-		byFields[i] = bf.name
-	}
-
-	for _, f := range byFields {
-		if neededFieldsOrig.contains(f) && !unneededFields.contains(f) {
-			neededFields.addAll(byFields)
-		}
+	// byFields are needed unconditionally, since the output number of rows depends on them.
+	for _, bf := range ps.byFields {
+		neededFields.add(bf.name)
 	}
 
 	for i, resultName := range ps.resultNames {
 		if neededFieldsOrig.contains(resultName) && !unneededFields.contains(resultName) {
 			funcFields := ps.funcs[i].neededFields()
-			neededFields.addAll(byFields)
 			neededFields.addAll(funcFields)
 		}
 	}
