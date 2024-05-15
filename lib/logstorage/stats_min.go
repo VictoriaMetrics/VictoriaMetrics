@@ -122,88 +122,25 @@ func (smp *statsMinProcessor) updateStateForColumn(br *blockResult, c *blockResu
 		for _, v := range c.dictValues {
 			smp.updateStateString(v)
 		}
-	case valueTypeUint8:
-		minN := unmarshalUint8(c.encodedValues[0])
-		for _, v := range c.encodedValues[1:] {
-			n := unmarshalUint8(v)
-			if n < minN {
-				minN = n
-			}
-		}
+	case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64:
 		bb := bbPool.Get()
-		bb.B = marshalUint8String(bb.B[:0], minN)
-		smp.updateStateBytes(bb.B)
-		bbPool.Put(bb)
-	case valueTypeUint16:
-		minN := unmarshalUint16(c.encodedValues[0])
-		for _, v := range c.encodedValues[1:] {
-			n := unmarshalUint16(v)
-			if n < minN {
-				minN = n
-			}
-		}
-		bb := bbPool.Get()
-		bb.B = marshalUint16String(bb.B[:0], minN)
-		smp.updateStateBytes(bb.B)
-		bbPool.Put(bb)
-	case valueTypeUint32:
-		minN := unmarshalUint32(c.encodedValues[0])
-		for _, v := range c.encodedValues[1:] {
-			n := unmarshalUint32(v)
-			if n < minN {
-				minN = n
-			}
-		}
-		bb := bbPool.Get()
-		bb.B = marshalUint32String(bb.B[:0], minN)
-		smp.updateStateBytes(bb.B)
-		bbPool.Put(bb)
-	case valueTypeUint64:
-		minN := unmarshalUint64(c.encodedValues[0])
-		for _, v := range c.encodedValues[1:] {
-			n := unmarshalUint64(v)
-			if n < minN {
-				minN = n
-			}
-		}
-		bb := bbPool.Get()
-		bb.B = marshalUint64String(bb.B[:0], minN)
+		bb.B = marshalUint64String(bb.B[:0], c.minValue)
 		smp.updateStateBytes(bb.B)
 		bbPool.Put(bb)
 	case valueTypeFloat64:
-		minF := unmarshalFloat64(c.encodedValues[0])
-		for _, v := range c.encodedValues[1:] {
-			f := unmarshalFloat64(v)
-			if math.IsNaN(minF) || f < minF {
-				minF = f
-			}
-		}
+		f := math.Float64frombits(c.minValue)
 		bb := bbPool.Get()
-		bb.B = marshalFloat64String(bb.B[:0], minF)
+		bb.B = marshalFloat64String(bb.B[:0], f)
 		smp.updateStateBytes(bb.B)
 		bbPool.Put(bb)
 	case valueTypeIPv4:
-		minIP := unmarshalIPv4(c.encodedValues[0])
-		for _, v := range c.encodedValues[1:] {
-			ip := unmarshalIPv4(v)
-			if ip < minIP {
-				minIP = ip
-			}
-		}
 		bb := bbPool.Get()
-		bb.B = marshalIPv4String(bb.B[:0], minIP)
+		bb.B = marshalIPv4String(bb.B[:0], uint32(c.minValue))
 		smp.updateStateBytes(bb.B)
 		bbPool.Put(bb)
 	case valueTypeTimestampISO8601:
-		minTimestamp := unmarshalTimestampISO8601(c.encodedValues[0])
-		for _, v := range c.encodedValues[1:] {
-			timestamp := unmarshalTimestampISO8601(v)
-			if timestamp < minTimestamp {
-				minTimestamp = timestamp
-			}
-		}
 		bb := bbPool.Get()
-		bb.B = marshalTimestampISO8601String(bb.B[:0], minTimestamp)
+		bb.B = marshalTimestampISO8601String(bb.B[:0], int64(c.minValue))
 		smp.updateStateBytes(bb.B)
 		bbPool.Put(bb)
 	default:

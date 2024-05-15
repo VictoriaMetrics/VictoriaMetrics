@@ -396,6 +396,8 @@ func (br *blockResult) addColumn(bs *blockSearch, ch *columnHeader, bm *bitmap) 
 
 	br.csBuf = append(br.csBuf, blockResultColumn{
 		name:          getCanonicalColumnName(name),
+		minValue:      ch.minValue,
+		maxValue:      ch.maxValue,
 		valueType:     ch.valueType,
 		dictValues:    dictValues,
 		encodedValues: encodedValues,
@@ -1332,6 +1334,12 @@ func (br *blockResult) truncateRows(keepRows int) {
 type blockResultColumn struct {
 	// name is column name.
 	name string
+
+	// minValue is the minimum value in the block for uint*, float64, ipv4 and timestamp valueType
+	minValue uint64
+
+	// maxValue is the maximum value in the block for uint*, float64, ipv4 and timestamp valueType
+	maxValue uint64
 
 	// isConst is set to true if the column is const.
 	//

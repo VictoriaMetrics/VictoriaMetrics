@@ -122,88 +122,25 @@ func (smp *statsMaxProcessor) updateStateForColumn(br *blockResult, c *blockResu
 		for _, v := range c.dictValues {
 			smp.updateStateString(v)
 		}
-	case valueTypeUint8:
-		maxN := unmarshalUint8(c.encodedValues[0])
-		for _, v := range c.encodedValues[1:] {
-			n := unmarshalUint8(v)
-			if n > maxN {
-				maxN = n
-			}
-		}
+	case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64:
 		bb := bbPool.Get()
-		bb.B = marshalUint8String(bb.B[:0], maxN)
-		smp.updateStateBytes(bb.B)
-		bbPool.Put(bb)
-	case valueTypeUint16:
-		maxN := unmarshalUint16(c.encodedValues[0])
-		for _, v := range c.encodedValues[1:] {
-			n := unmarshalUint16(v)
-			if n > maxN {
-				maxN = n
-			}
-		}
-		bb := bbPool.Get()
-		bb.B = marshalUint16String(bb.B[:0], maxN)
-		smp.updateStateBytes(bb.B)
-		bbPool.Put(bb)
-	case valueTypeUint32:
-		maxN := unmarshalUint32(c.encodedValues[0])
-		for _, v := range c.encodedValues[1:] {
-			n := unmarshalUint32(v)
-			if n > maxN {
-				maxN = n
-			}
-		}
-		bb := bbPool.Get()
-		bb.B = marshalUint32String(bb.B[:0], maxN)
-		smp.updateStateBytes(bb.B)
-		bbPool.Put(bb)
-	case valueTypeUint64:
-		maxN := unmarshalUint64(c.encodedValues[0])
-		for _, v := range c.encodedValues[1:] {
-			n := unmarshalUint64(v)
-			if n > maxN {
-				maxN = n
-			}
-		}
-		bb := bbPool.Get()
-		bb.B = marshalUint64String(bb.B[:0], maxN)
+		bb.B = marshalUint64String(bb.B[:0], c.maxValue)
 		smp.updateStateBytes(bb.B)
 		bbPool.Put(bb)
 	case valueTypeFloat64:
-		maxF := unmarshalFloat64(c.encodedValues[0])
-		for _, v := range c.encodedValues[1:] {
-			f := unmarshalFloat64(v)
-			if math.IsNaN(maxF) || f > maxF {
-				maxF = f
-			}
-		}
+		f := math.Float64frombits(c.maxValue)
 		bb := bbPool.Get()
-		bb.B = marshalFloat64String(bb.B[:0], maxF)
+		bb.B = marshalFloat64String(bb.B[:0], f)
 		smp.updateStateBytes(bb.B)
 		bbPool.Put(bb)
 	case valueTypeIPv4:
-		maxIP := unmarshalIPv4(c.encodedValues[0])
-		for _, v := range c.encodedValues[1:] {
-			ip := unmarshalIPv4(v)
-			if ip > maxIP {
-				maxIP = ip
-			}
-		}
 		bb := bbPool.Get()
-		bb.B = marshalIPv4String(bb.B[:0], maxIP)
+		bb.B = marshalIPv4String(bb.B[:0], uint32(c.maxValue))
 		smp.updateStateBytes(bb.B)
 		bbPool.Put(bb)
 	case valueTypeTimestampISO8601:
-		maxTimestamp := unmarshalTimestampISO8601(c.encodedValues[0])
-		for _, v := range c.encodedValues[1:] {
-			timestamp := unmarshalTimestampISO8601(v)
-			if timestamp > maxTimestamp {
-				maxTimestamp = timestamp
-			}
-		}
 		bb := bbPool.Get()
-		bb.B = marshalTimestampISO8601String(bb.B[:0], maxTimestamp)
+		bb.B = marshalTimestampISO8601String(bb.B[:0], int64(c.maxValue))
 		smp.updateStateBytes(bb.B)
 		bbPool.Put(bb)
 	default:
