@@ -217,7 +217,30 @@ func (q *Query) AddPipeLimit(n uint64) {
 
 // Optimize tries optimizing the query.
 func (q *Query) Optimize() {
+	q.pipes = optimizeSortOffsetPipes(q.pipes)
 	q.pipes = optimizeSortLimitPipes(q.pipes)
+}
+
+func optimizeSortOffsetPipes(pipes []pipe) []pipe {
+	// Merge 'sort ... | offset ...' into 'sort ... offset ...'
+	i := 1
+	for i < len(pipes) {
+		po, ok := pipes[i].(*pipeOffset)
+		if !ok {
+			i++
+			continue
+		}
+		ps, ok := pipes[i-1].(*pipeSort)
+		if !ok {
+			i++
+			continue
+		}
+		if ps.offset == 0 && ps.limit == 0 {
+			ps.offset = po.n
+		}
+		pipes = append(pipes[:i], pipes[i+1:]...)
+	}
+	return pipes
 }
 
 func optimizeSortLimitPipes(pipes []pipe) []pipe {
