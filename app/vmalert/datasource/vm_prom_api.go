@@ -76,6 +76,9 @@ func (pi *promInstant) Unmarshal(b []byte) error {
 			return fmt.Errorf("can't find `metric` object in %q", row)
 		}
 		labels := metric.GetObject()
+		if labels.Len() == 0 {
+			return fmt.Errorf("object `metric` in %q should contain at least one label-value pair", row)
+		}
 
 		r := &pi.ms[i]
 		r.Labels = make([]Label, 0, labels.Len())
@@ -91,7 +94,7 @@ func (pi *promInstant) Unmarshal(b []byte) error {
 			})
 		})
 		if err != nil {
-			return fmt.Errorf("error when parsing `metric` object: %w", err)
+			return fmt.Errorf("error when parsing `metric` object in %q: %w", row, err)
 		}
 
 		value := row.Get("value")
@@ -99,6 +102,9 @@ func (pi *promInstant) Unmarshal(b []byte) error {
 			return fmt.Errorf("can't find `value` object in %q", row)
 		}
 		sample := value.GetArray()
+		if len(sample) != 2 {
+			return fmt.Errorf("object `value` in %q should contain 2 values, but contains %d instead", row, len(sample))
+		}
 		r.Timestamps = []int64{sample[0].GetInt64()}
 		val, err := sample[1].StringBytes()
 		if err != nil {
@@ -106,7 +112,7 @@ func (pi *promInstant) Unmarshal(b []byte) error {
 		}
 		f, err := strconv.ParseFloat(bytesutil.ToUnsafeString(val), 64)
 		if err != nil {
-			return fmt.Errorf("error when parsing float64 from %s: %w", sample[1], err)
+			return fmt.Errorf("error when parsing float64 from %s in %q: %w", sample[1], row, err)
 		}
 		r.Values = []float64{f}
 	}

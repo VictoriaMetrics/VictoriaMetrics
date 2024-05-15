@@ -65,4 +65,11 @@ func TestPromInstant_UnmarshalNegative(t *testing.T) {
 	f(`[{"value":[1583780000,"42"]}]`)
 	// no `value` object
 	f(`[{"metric":{"__name__":"up"}}]`)
+	// less than 2 values in `value` object
+	f(`[{"metric":{"__name__":"up"},"value":["42"]}]`)
+	f(`[{"metric":{"__name__":"up"},"value":[1583780000]}]`)
+	// no values in `metric` object
+	f(`[{"metric":{},"value":[1583780000,"42"]}]`)
+	// non-numeric sample value
+	f(`[{"metric":{"__name__":"up"},"value":[1583780000,"foo"]}]`)
 }
