@@ -82,9 +82,7 @@ func (br *blockResult) clone() *blockResult {
 	brNew := &blockResult{}
 
 	brNew.bs = br.bs
-
-	brNew.bm = getBitmap(br.bm.bitsLen)
-	brNew.bm.copyFrom(br.bm)
+	brNew.bm = br.bm
 
 	cs := br.getColumns()
 
@@ -137,7 +135,6 @@ func (br *blockResult) addValue(v string) {
 func (br *blockResult) sizeBytes() int {
 	n := int(unsafe.Sizeof(*br))
 
-	n += br.bm.sizeBytes()
 	n += br.a.sizeBytes()
 	n += cap(br.valuesBuf) * int(unsafe.Sizeof(br.valuesBuf[0]))
 	n += cap(br.timestamps) * int(unsafe.Sizeof(br.timestamps[0]))
