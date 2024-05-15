@@ -65,7 +65,7 @@ func parsePipes(lex *lexer) ([]pipe, error) {
 	var pipes []pipe
 	for !lex.isKeyword(")", "") {
 		if !lex.isKeyword("|") {
-			return nil, fmt.Errorf("expecting '|'")
+			return nil, fmt.Errorf("expecting '|'; got %q", lex.token)
 		}
 		if !lex.mustNextToken() {
 			return nil, fmt.Errorf("missing token after '|'")

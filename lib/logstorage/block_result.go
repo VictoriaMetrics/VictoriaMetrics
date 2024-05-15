@@ -1738,6 +1738,55 @@ func (c *blockResultColumn) getMinValue() float64 {
 	}
 }
 
+func (c *blockResultColumn) sumLenValues(br *blockResult) uint64 {
+	if c.isConst {
+		v := c.encodedValues[0]
+		return uint64(len(v)) * uint64(len(br.timestamps))
+	}
+	if c.isTime {
+		return uint64(len(time.RFC3339Nano)) * uint64(len(br.timestamps))
+	}
+
+	switch c.valueType {
+	case valueTypeString:
+		return c.sumLenStringValues(br)
+	case valueTypeDict:
+		n := uint64(0)
+		dictValues := c.dictValues
+		for _, v := range c.encodedValues {
+			idx := v[0]
+			v := dictValues[idx]
+			n += uint64(len(v))
+		}
+		return n
+	case valueTypeUint8:
+		return c.sumLenStringValues(br)
+	case valueTypeUint16:
+		return c.sumLenStringValues(br)
+	case valueTypeUint32:
+		return c.sumLenStringValues(br)
+	case valueTypeUint64:
+		return c.sumLenStringValues(br)
+	case valueTypeFloat64:
+		return c.sumLenStringValues(br)
+	case valueTypeIPv4:
+		return c.sumLenStringValues(br)
+	case valueTypeTimestampISO8601:
+		return uint64(len(iso8601Timestamp)) * uint64(len(br.timestamps))
+	default:
+		logger.Panicf("BUG: unknown valueType=%d", c.valueType)
+		return 0
+	}
+}
+
+func (c *blockResultColumn) sumLenStringValues(br *blockResult) uint64 {
+	n := uint64(0)
+	for _, v := range c.getValues(br) {
+		n += uint64(len(v))
+	}
+	return n
+}
+
 func (c *blockResultColumn) sumValues(br *blockResult) (float64, int) {
 	if c.isConst {
 		v := c.encodedValues[0]

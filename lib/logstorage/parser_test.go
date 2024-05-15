@@ -926,6 +926,27 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats by(x) values() limit 1_000 AS y`, `* | stats by (x) values(*) limit 1000 as y`)
 	f(`* | stats by(x) values(a,*,b) y`, `* | stats by (x) values(*) as y`)
 
+	// stats pipe sum_len
+	f(`* | stats Sum_len(foo) bar`, `* | stats sum_len(foo) as bar`)
+	f(`* | stats BY(x, y, ) SUM_Len(foo,bar,) bar`, `* | stats by (x, y) sum_len(foo, bar) as bar`)
+	f(`* | stats sum_len() x`, `* | stats sum_len(*) as x`)
+	f(`* | stats sum_len(*) x`, `* | stats sum_len(*) as x`)
+	f(`* | stats sum_len(foo,*,bar) x`, `* | stats sum_len(*) as x`)
+
+	// stats pipe quantile
+	f(`* | stats quantile(0, foo) bar`, `* | stats quantile(0, foo) as bar`)
+	f(`* | stats quantile(1, foo) bar`, `* | stats quantile(1, foo) as bar`)
+	f(`* | stats quantile(0.5, a, b, c) bar`, `* | stats quantile(0.5, a, b, c) as bar`)
+	f(`* | stats quantile(0.99, *) bar`, `* | stats quantile(0.99, *) as bar`)
+	f(`* | stats quantile(0.99, a, *, b) bar`, `* | stats quantile(0.99, *) as bar`)
+
+	// stats pipe median
+	f(`* | stats Median(foo) bar`, `* | stats median(foo) as bar`)
+	f(`* | stats BY(x, y, ) MEDIAN(foo,bar,) bar`, `* | stats by (x, y) median(foo, bar) as bar`)
+	f(`* | stats median() x`, `* | stats median(*) as x`)
+	f(`* | stats median(*) x`, `* | stats median(*) as x`)
+	f(`* | stats median(foo,*,bar) x`, `* | stats median(*) as x`)
+
 	// stats pipe multiple funcs
 	f(`* | stats count() "foo.bar:baz", count_uniq(a) bar`, `* | stats count(*) as "foo.bar:baz", count_uniq(a) as bar`)
 	f(`* | stats by (x, y) count(*) foo, count_uniq(a,b) bar`, `* | stats by (x, y) count(*) as foo, count_uniq(a, b) as bar`)
@@ -953,6 +974,15 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | sort bY (foo)`, `* | sort by (foo)`)
 	f(`* | sORt bY (_time, _stream DEsc, host)`, `* | sort by (_time, _stream desc, host)`)
 	f(`* | sort bY (foo desc, bar,) desc`, `* | sort by (foo desc, bar) desc`)
+	f(`* | sort limit 10`, `* | sort limit 10`)
+	f(`* | sort offset 20 limit 10`, `* | sort offset 20 limit 10`)
+	f(`* | sort desc limit 10`, `* | sort desc limit 10`)
+	f(`* | sort desc offset 20 limit 10`, `* | sort desc offset 20 limit 10`)
+	f(`* | sort by (foo desc, bar) limit 10`, `* | sort by (foo desc, bar) limit 10`)
+	f(`* | sort by (foo desc, bar) oFFset 20 limit 10`, `* | sort by (foo desc, bar) offset 20 limit 10`)
+	f(`* | sort by (foo desc, bar) desc limit 10`, `* | sort by (foo desc, bar) desc limit 10`)
+	f(`* | sort by (foo desc, bar) desc OFFSET 30 limit 10`, `* | sort by (foo desc, bar) desc offset 30 limit 10`)
+	f(`* | sort by (foo desc, bar) desc limit 10 OFFSET 30`, `* | sort by (foo desc, bar) desc offset 30 limit 10`)
 
 	// uniq pipe
 	f(`* | uniq`, `* | uniq`)
@@ -1275,6 +1305,18 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | stats values(a) limit 0.5`)
 	f(`foo | stats values(a) limit -1`)
 
+	// invalid stats sum_len
+	f(`foo | stats sum_len`)
+	f(`foo | stats sum_len()`)
+
+	// invalid stats quantile
+	f(`foo | stats quantile`)
+	f(`foo | stats quantile() foo`)
+	f(`foo | stats quantile(bar, baz) foo`)
+	f(`foo | stats quantile(0.5) foo`)
+	f(`foo | stats quantile(-1, x) foo`)
+	f(`foo | stats quantile(10, x) foo`)
+
 	// invalid stats grouping fields
 	f(`foo | stats by(foo:bar) count() baz`)
 	f(`foo | stats by(foo:/bar) count() baz`)
@@ -1297,6 +1339,16 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | sort by(baz`)
 	f(`foo | sort by(baz,`)
 	f(`foo | sort by(bar) foo`)
+	f(`foo | sort by(bar) limit`)
+	f(`foo | sort by(bar) limit foo`)
+	f(`foo | sort by(bar) limit -1234`)
+	f(`foo | sort by(bar) limit 12.34`)
+	f(`foo | sort by(bar) limit 10 limit 20`)
+	f(`foo | sort by(bar) offset`)
+	f(`foo | sort by(bar) offset limit`)
+	f(`foo | sort by(bar) offset -1234`)
+	f(`foo | sort by(bar) offset 12.34`)
+	f(`foo | sort by(bar) offset 10 offset 20`)
 
 	// invalid uniq pipe
 	f(`foo | uniq bar`)

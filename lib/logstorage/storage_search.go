@@ -182,12 +182,10 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 				bsws := bswb.bsws
 				for i := range bsws {
 					bsw := &bsws[i]
-					select {
-					case <-stopCh:
+					if needStop(stopCh) {
 						// The search has been canceled. Just skip all the scheduled work in order to save CPU time.
 						bsw.reset()
 						continue
-					default:
 					}
 
 					bs.search(bsw)
@@ -266,11 +264,9 @@ var partitionSearchConcurrencyLimitCh = make(chan struct{}, cgroup.AvailableCPUs
 type partitionSearchFinalizer func()
 
 func (pt *partition) search(ft *filterTime, sf *StreamFilter, f filter, so *genericSearchOptions, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}) partitionSearchFinalizer {
-	select {
-	case <-stopCh:
+	if needStop(stopCh) {
 		// Do not spend CPU time on search, since it is already stopped.
 		return func() {}
-	default:
 	}
 
 	tenantIDs := so.tenantIDs
@@ -436,10 +432,8 @@ func (p *part) searchByTenantIDs(so *searchOptions, bhss *blockHeaders, workCh c
 	// it is assumed that ibhs are sorted
 	ibhs := p.indexBlockHeaders
 	for len(ibhs) > 0 && len(tenantIDs) > 0 {
-		select {
-		case <-stopCh:
+		if needStop(stopCh) {
 			return
-		default:
 		}
 
 		// locate tenantID equal or bigger than the tenantID in ibhs[0]
@@ -541,10 +535,8 @@ func (p *part) searchByStreamIDs(so *searchOptions, bhss *blockHeaders, workCh c
 	ibhs := p.indexBlockHeaders
 
 	for len(ibhs) > 0 && len(streamIDs) > 0 {
-		select {
-		case <-stopCh:
+		if needStop(stopCh) {
 			return
-		default:
 		}
 
 		// locate streamID equal or bigger than the streamID in ibhs[0]

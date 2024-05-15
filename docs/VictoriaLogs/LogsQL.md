@@ -1128,6 +1128,7 @@ By default rows are selected in arbitrary order because of performance reasons, 
 
 See also:
 
+- [`sort` pipe](#sort-pipe)
 - [`offset` pipe](#offset-pipe)
 
 ### offset pipe
@@ -1147,6 +1148,7 @@ Rows can be sorted with [`sort` pipe](#sort-pipe).
 See also:
 
 - [`limit` pipe](#limit-pipe)
+- [`sort` pipe](#sort-pipe)
 
 ### rename pipe
 
@@ -1198,11 +1200,31 @@ The reverse order can be applied globally via `desc` keyword after `by(...)` cla
 _time:5m | sort by (foo, bar) desc
 ```
 
+Sorting of big number of logs can consume a lot of CPU time and memory. Sometimes it is enough to return the first `N` entries with the biggest
+or the smallest values. This can be done by adding `limit N` to the end of `sort ...` pipe.
+Such a query consumes lower amounts of memory when sorting big number of logs, since it keeps in memory only `N` log entries.
+For example, the following query returns top 10 log entries with the biggest values
+for the `request_duration` [field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) during the last hour:
+
+```logsql
+_time:1h | sort by (request_duration desc) limit 10
+```
+
+If the first `N` sorted results must be skipped, then `offset N` can be added to `sort` pipe. For example,
+the following query skips the first 10 logs with the biggest `request_duration` [field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model),
+and then returns the next 20 sorted logs for the last 5 minutes:
+
+```logsql
+_time:1h | sort by (request_duration desc) offset 10 limit 20
+```
+
 Note that sorting of big number of logs can be slow and can consume a lot of additional memory.
 It is recommended limiting the number of logs before sorting with the following approaches:
 
+- Adding `limit N` to the end of `sort ...` pipe.
 - Reducing the selected time range with [time filter](#time-filter).
 - Using more specific [filters](#filters), so they select less logs.
+- Limiting the number of selected [fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) via [`fields` pipe](#fields-pipe).
 
 See also:
 
@@ -1371,8 +1393,11 @@ LogsQL supports the following functions for [`stats` pipe](#stats-pipe):
 - [`count_empty`](#count_empty-stats) calculates the number logs with empty [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`count_uniq`](#count_uniq-stats) calculates the number of unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`max`](#max-stats) calcualtes the maximum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`median`](#median-stats) calcualtes the [median](https://en.wikipedia.org/wiki/Median) value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`min`](#min-stats) calculates the minumum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`quantile`](#quantile-stats) calculates the given quantile for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`sum`](#sum-stats) calculates the sum for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`sum_len`](#sum_len-stats) calculates the sum of lengths for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`uniq_values`](#uniq_values-stats) returns unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`values`](#values-stats) returns all the values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
@@ -1391,6 +1416,8 @@ _time:5m | stats avg(duration) avg_duration
 
 See also:
 
+- [`median`](#median-stats)
+- [`quantile`](#quantile-stats)
 - [`min`](#min-stats)
 - [`max`](#max-stats)
 - [`sum`](#sum-stats)
@@ -1492,9 +1519,27 @@ _time:5m | stats max(duration) max_duration
 See also:
 
 - [`min`](#min-stats)
+- [`quantile`](#quantile-stats)
 - [`avg`](#avg-stats)
 - [`sum`](#sum-stats)
 - [`count`](#count-stats)
+
+### median stats
+
+`median(field1, ..., fieldN)` [stats pipe](#stats-pipe) calculates the [median](https://en.wikipedia.org/wiki/Median) value across
+the give numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+
+For example, the following query return median for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+over logs for the last 5 minutes:
+
+```logsql
+_time:5m | stats median(duration) median_duration
+```
+
+See also:
+
+- [`quantile`](#quantile-stats)
+- [`avg`](#avg-stats)
 
 ### min stats
 
@@ -1512,9 +1557,33 @@ _time:5m | stats min(duration) min_duration
 See also:
 
 - [`max`](#max-stats)
+- [`quantile`](#quantile-stats)
 - [`avg`](#avg-stats)
 - [`sum`](#sum-stats)
 - [`count`](#count-stats)
+
+### quantile stats
+
+`quantile(phi, field1, ..., fieldN)` [stats pipe](#stats-pipe) calculates `phi` [percentile](https://en.wikipedia.org/wiki/Percentile) over numeric values
+for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). The `phi` must be in the range `0 ... 1`, where `0` means `0th` percentile,
+while `1` means `100th` percentile.
+
+For example, the following query calculates `50th`, `90th` and `99th` percentiles for the `request_duration_seconds` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+over logs for the last 5 minutes:
+
+```logsql
+_time:5m | stats
+  quantile(0.5, request_duration_seconds) p50,
+  quantile(0.9, request_duration_seconds) p90,
+  quantile(0.99, request_duration_seconds) p99
+```
+
+See also:
+
+- [`min`](#min-stats)
+- [`max`](#max-stats)
+- [`median`](#median-stats)
+- [`avg`](#avg-stats)
 
 ### sum stats
 
@@ -1534,6 +1603,22 @@ See also:
 - [`avg`](#avg-stats)
 - [`max`](#max-stats)
 - [`min`](#min-stats)
+
+### sum_len stats
+
+`sum_len(field1, ..., fieldN)` [stats pipe](#stats-pipe) calculates the sum of lengths of all the values
+for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+
+For example, the following query returns the sum of lengths of [`_msg` fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+across all the logs for the last 5 minutes:
+
+```logsql
+_time:5m | stats sum_len(_msg) messages_len
+```
+
+See also:
+
+- [`count`](#count-stats)
 
 ### uniq_values stats
 
@@ -1630,8 +1715,6 @@ Stats over the selected logs can be calculated via [`stats` pipe](#stats-pipe).
 
 LogsQL will support calculating the following additional stats based on the [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
 and fields created by [transformations](#transformations):
-
-- The median and [percentile](https://en.wikipedia.org/wiki/Percentile) for the given field.
 
 It will be possible specifying an optional condition [filter](#post-filters) when calculating the stats.
 For example, `sum(response_size) if (is_admin:true)` calculates the total response size for admins only.
