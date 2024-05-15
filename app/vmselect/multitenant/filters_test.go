@@ -25,8 +25,11 @@ func TestApplyFiltersToTenants(t *testing.T) {
 	}
 
 	f([]string{`{vm_account_id="1"}`}, []string{"1:1", "1:0"}, []string{"1:1", "1"})
-	//f([]string{`{vm_account_id="1",vm_project_id="0"}`}, []string{"1:1", "1:0"}, []string{"1:0"}) // todo: undef behaviour
+	f([]string{`{vm_account_id="1",vm_project_id="0"}`}, []string{"1:1", "1:0"}, []string{"1"})
 
+	f([]string{`{vm_account_id=~"1[0-9]+"}`}, []string{"1:1", "12323:0", "12323:3", "345:0"}, []string{"12323", "12323:3"})
+
+	f([]string{`{vm_account_id="1",vm_project_id!="0"}`}, []string{"1:1", "1:0"}, []string{"1:1"})
 }
 
 func TestIsTenancyLabel(t *testing.T) {

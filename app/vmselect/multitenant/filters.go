@@ -33,12 +33,10 @@ func ApplyFiltersToTenants(tenants, filters []string) ([]*auth.Token, error) {
 			Value: fmt.Sprintf("%d", token.AccountID),
 		})
 
-		if token.ProjectID != 0 {
-			lbsL = append(lbsL, prompbmarshal.Label{
-				Name:  "vm_project_id",
-				Value: fmt.Sprintf("%d", token.ProjectID),
-			})
-		}
+		lbsL = append(lbsL, prompbmarshal.Label{
+			Name:  "vm_project_id",
+			Value: fmt.Sprintf("%d", token.ProjectID),
+		})
 
 		lbs = append(lbs, lbsL)
 	}
@@ -55,7 +53,7 @@ func ApplyFiltersToTenants(tenants, filters []string) ([]*auth.Token, error) {
 		for _, promIf := range promIfs {
 			if promIf.Match(lb) {
 				resultingTokens = append(resultingTokens, tokens[i])
-				continue
+				break
 			}
 		}
 	}
