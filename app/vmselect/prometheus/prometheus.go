@@ -603,7 +603,7 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.To
 	denyPartialResponse := httputils.GetDenyPartialResponse(r)
 
 	rc := getResultsCollector()
-	if err = executeAcrossTenants(qt, at, cp, func(qt *querytracer.Tracer, t *auth.Token) error {
+	if err = executeAcrossTenants(qt, at, cp, func(qt *querytracer.Tracer, t *auth.Token, isMultiTenant bool) error {
 		sq := storage.NewSearchQuery(t.AccountID, t.ProjectID, cp.start, cp.end, cp.filterss, *maxLabelsAPISeries)
 		labelValues, isPartial, err := netstorage.LabelValues(qt, denyPartialResponse, labelName, sq, limit, cp.deadline)
 		if err != nil {
@@ -620,7 +620,7 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.To
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	WriteLabelValuesResponse(bw, rc.getIsPartial(), rc.getValues(), qt)
+	WriteLabelValuesResponse(bw, rc.getIsPartial(), rc.getResults(), qt)
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("canot flush label values to remote client: %w", err)
 	}
@@ -695,9 +695,9 @@ func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 
 var tsdbStatusDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/status/tsdb"}`)
 
-func executeAcrossTenants(qt *querytracer.Tracer, at *auth.Token, cp *commonParams, cb func(qt *querytracer.Tracer, at *auth.Token) error) error {
+func executeAcrossTenants(qt *querytracer.Tracer, at *auth.Token, cp *commonParams, cb func(qt *querytracer.Tracer, at *auth.Token, isMultiTenant bool) error) error {
 	if at != nil {
-		return cb(qt, at)
+		return cb(qt, at, false)
 	}
 
 	tr := storage.TimeRange{
@@ -738,7 +738,7 @@ func executeAcrossTenants(qt *querytracer.Tracer, at *auth.Token, cp *commonPara
 
 	for _, t := range ats {
 		qtl := qt.NewChild("eval: tenant=%q", t.String())
-		if err := cb(qtl, t); err != nil {
+		if err := cb(qtl, t, true); err != nil {
 			return err
 		}
 		qtl.Done()
@@ -754,6 +754,7 @@ type resultsCollector struct {
 }
 
 func getResultsCollector() *resultsCollector {
+	// todo: pool
 	return &resultsCollector{
 		results:   make([][]string, 0),
 		isPartial: make([]bool, 0),
@@ -767,7 +768,11 @@ func (rc *resultsCollector) addResults(results []string, isPartial bool) {
 	rc.m.Unlock()
 }
 
-func (rc *resultsCollector) getValues() []string {
+func (rc *resultsCollector) hasMultiTenantResults() bool {
+	return len(rc.results) > 1
+}
+
+func (rc *resultsCollector) getResults() []string {
 	values := make([]string, 0)
 	for _, r := range rc.results {
 		values = append(values, r...)
@@ -792,7 +797,7 @@ func (rc *resultsCollector) getIsPartial() bool {
 func applyFiltersToTenants(tenants []string, tfs [][]storage.TagFilter) []*auth.Token {
 	filtersStr := make([]string, 0, len(tfs))
 	for _, filter := range tfs {
-		fs := ""
+		fs := "{"
 
 		for idx, f := range filter {
 			fs += f.String()
@@ -800,6 +805,7 @@ func applyFiltersToTenants(tenants []string, tfs [][]storage.TagFilter) []*auth.
 				fs += ","
 			}
 		}
+		fs += "}"
 		filtersStr = append(filtersStr, fs)
 	}
 
@@ -828,24 +834,32 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	denyPartialResponse := httputils.GetDenyPartialResponse(r)
 
 	rc := getResultsCollector()
-	if err = executeAcrossTenants(qt, at, cp, func(qt *querytracer.Tracer, at *auth.Token) error {
+	if err = executeAcrossTenants(qt, at, cp, func(qt *querytracer.Tracer, at *auth.Token, isMultiTenant bool) error {
 		sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxLabelsAPISeries)
-		labelsL, isPartialL, err := netstorage.LabelNames(qt, denyPartialResponse, sq, limit, cp.deadline)
+		labels, isPartial, err := netstorage.LabelNames(qt, denyPartialResponse, sq, limit, cp.deadline)
 		if err != nil {
 			return fmt.Errorf("cannot obtain labels: %w", err)
 		}
 
-		rc.addResults(labelsL, isPartialL)
+		rc.addResults(labels, isPartial)
 
 		return nil
 	}); err != nil {
 		return err
 	}
 
+	if rc.hasMultiTenantResults() {
+		// Insert pseudo-labels for multi-tenant querying
+		rc.addResults([]string{
+			"vm_account_id",
+			"vm_project_id",
+		}, false)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	WriteLabelsResponse(bw, rc.getIsPartial(), rc.getValues(), qt)
+	WriteLabelsResponse(bw, rc.getIsPartial(), rc.getResults(), qt)
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot send labels response to remote client: %w", err)
 	}
@@ -898,12 +912,35 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	}
 
 	rc := getResultsCollector()
-	if err = executeAcrossTenants(qt, at, cp, func(qt *querytracer.Tracer, at *auth.Token) error {
+	if err = executeAcrossTenants(qt, at, cp, func(qt *querytracer.Tracer, at *auth.Token, isMultiTenant bool) error {
 		sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxSeriesLimit)
 		denyPartialResponse := httputils.GetDenyPartialResponse(r)
 		metricNames, isPartial, err := netstorage.SearchMetricNames(qt, denyPartialResponse, sq, cp.deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
+		}
+
+		if isMultiTenant {
+			bts := make([]byte, 0, 32)
+			st := []storage.Tag{
+				{
+					Key:   []byte("vm_account_id"),
+					Value: strconv.AppendUint(nil, uint64(at.AccountID), 10),
+				},
+				{
+					Key:   []byte("vm_project_id"),
+					Value: strconv.AppendUint(nil, uint64(at.ProjectID), 10),
+				},
+			}
+			for _, t := range st {
+				bts = t.Marshal(bts)
+			}
+			s := string(bts)
+
+			// Add pseudo-labels for multi-tenant querying
+			for i, mn := range metricNames {
+				metricNames[i] = mn + s
+			}
 		}
 
 		rc.addResults(metricNames, isPartial)
@@ -913,7 +950,7 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 		return err
 	}
 
-	metricNames := rc.getValues()
+	metricNames := rc.getResults()
 
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
