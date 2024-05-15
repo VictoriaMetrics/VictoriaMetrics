@@ -263,7 +263,7 @@ func (shard *pipeTopkProcessorShard) addRow(byColumns []string, otherColumns []F
 	// Slow path - add r to shard.rows.
 	r = r.clone()
 	shard.stateSizeBudget -= r.sizeBytes()
-	if uint64(len(rows)) < shard.ps.limit {
+	if uint64(len(rows)) < shard.ps.offset+shard.ps.limit {
 		heap.Push(shard, r)
 		shard.stateSizeBudget -= int(unsafe.Sizeof(r))
 	} else {
