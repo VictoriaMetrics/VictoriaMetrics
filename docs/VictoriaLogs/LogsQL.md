@@ -1128,6 +1128,7 @@ By default rows are selected in arbitrary order because of performance reasons, 
 
 See also:
 
+- [`sort` pipe](#sort-pipe)
 - [`offset` pipe](#offset-pipe)
 
 ### offset pipe
@@ -1147,6 +1148,7 @@ Rows can be sorted with [`sort` pipe](#sort-pipe).
 See also:
 
 - [`limit` pipe](#limit-pipe)
+- [`sort` pipe](#sort-pipe)
 
 ### rename pipe
 
@@ -1206,6 +1208,14 @@ for the `request_duration` [field](https://docs.victoriametrics.com/VictoriaLogs
 
 ```logsql
 _time:1h | sort by (request_duration desc) limit 10
+```
+
+If the first `N` sorted results must be skipped, then `offset N` can be added to `sort` pipe. For example,
+the following query skips the first 10 logs with the biggest `request_duration` [field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model),
+and then returns the next 20 sorted logs for the last 5 minutes:
+
+```logsql
+_time:1h | sort by (request_duration desc) offset 10 limit 20
 ```
 
 Note that sorting of big number of logs can be slow and can consume a lot of additional memory.

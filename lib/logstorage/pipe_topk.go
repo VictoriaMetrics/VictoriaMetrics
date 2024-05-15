@@ -410,16 +410,22 @@ type pipeTopkWriteContext struct {
 }
 
 func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bool {
-	if wctx.rowsWritten >= wctx.ptp.ps.limit {
-		return false
-	}
-	wctx.rowsWritten++
+	ps := shard.ps
 
 	rowIdx := shard.rowNext
 	shard.rowNext++
+
+	wctx.rowsWritten++
+	if wctx.rowsWritten <= ps.offset {
+		return true
+	}
+	if wctx.rowsWritten > ps.offset+ps.limit {
+		return false
+	}
+
 	r := shard.rows[rowIdx]
 
-	byFields := shard.ps.byFields
+	byFields := ps.byFields
 	rcs := wctx.rcs
 
 	areEqualColumns := len(rcs) == len(byFields)+len(r.otherColumns)

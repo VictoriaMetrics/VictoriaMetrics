@@ -26,6 +26,9 @@ type pipeSort struct {
 	// whether to apply descending order
 	isDesc bool
 
+	// how many results to skip
+	offset uint64
+
 	// how many results to return
 	//
 	// if zero, then all the results are returned
@@ -43,6 +46,9 @@ func (ps *pipeSort) String() string {
 	}
 	if ps.isDesc {
 		s += " desc"
+	}
+	if ps.offset > 0 {
+		s += fmt.Sprintf(" offset %d", ps.offset)
 	}
 	if ps.limit > 0 {
 		s += fmt.Sprintf(" limit %d", ps.limit)
@@ -470,16 +476,25 @@ type pipeSortWriteContext struct {
 	rcs []resultColumn
 	br  blockResult
 
-	valuesLen int
+	rowsWritten uint64
+	valuesLen   int
 }
 
 func (wctx *pipeSortWriteContext) writeNextRow(shard *pipeSortProcessorShard) {
+	ps := shard.ps
+
 	rowIdx := shard.rowRefNext
 	shard.rowRefNext++
+
+	wctx.rowsWritten++
+	if wctx.rowsWritten <= ps.offset {
+		return
+	}
+
 	rr := shard.rowRefs[rowIdx]
 	b := &shard.blocks[rr.blockIdx]
 
-	byFields := shard.ps.byFields
+	byFields := ps.byFields
 	rcs := wctx.rcs
 
 	areEqualColumns := len(rcs) == len(byFields)+len(b.otherColumns)
@@ -688,18 +703,36 @@ func parsePipeSort(lex *lexer) (*pipeSort, error) {
 		ps.isDesc = true
 	}
 
-	switch {
-	case lex.isKeyword("limit"):
-		lex.nextToken()
-		n, ok := tryParseUint64(lex.token)
-		lex.nextToken()
-		if !ok {
-			return nil, fmt.Errorf("cannot parse 'limit %s'", lex.token)
+	for {
+		switch {
+		case lex.isKeyword("offset"):
+			lex.nextToken()
+			s := lex.token
+			n, ok := tryParseUint64(s)
+			lex.nextToken()
+			if !ok {
+				return nil, fmt.Errorf("cannot parse 'offset %s'", s)
+			}
+			if ps.offset > 0 {
+				return nil, fmt.Errorf("duplicate 'offset'; the previous one is %d; the new one is %s", ps.offset, s)
+			}
+			ps.offset = n
+		case lex.isKeyword("limit"):
+			lex.nextToken()
+			s := lex.token
+			n, ok := tryParseUint64(s)
+			lex.nextToken()
+			if !ok {
+				return nil, fmt.Errorf("cannot parse 'limit %s'", s)
+			}
+			if ps.limit > 0 {
+				return nil, fmt.Errorf("duplicate 'limit'; the previous one is %d; the new one is %s", ps.limit, s)
+			}
+			ps.limit = n
+		default:
+			return &ps, nil
 		}
-		ps.limit = n
 	}
-
-	return &ps, nil
 }
 
 // bySortField represents 'by (...)' part of the pipeSort.
