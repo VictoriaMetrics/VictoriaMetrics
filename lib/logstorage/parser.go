@@ -215,6 +215,33 @@ func (q *Query) AddPipeLimit(n uint64) {
 	})
 }
 
+// Optimize tries optimizing the query.
+func (q *Query) Optimize() {
+	q.pipes = optimizeSortLimitPipes(q.pipes)
+}
+
+func optimizeSortLimitPipes(pipes []pipe) []pipe {
+	// Merge 'sort ... | limit ...' into 'sort ... limit ...'
+	i := 1
+	for i < len(pipes) {
+		pl, ok := pipes[i].(*pipeLimit)
+		if !ok {
+			i++
+			continue
+		}
+		ps, ok := pipes[i-1].(*pipeSort)
+		if !ok {
+			i++
+			continue
+		}
+		if ps.limit == 0 || pl.n < ps.limit {
+			ps.limit = pl.n
+		}
+		pipes = append(pipes[:i], pipes[i+1:]...)
+	}
+	return pipes
+}
+
 func (q *Query) getNeededColumns() ([]string, []string) {
 	neededFields := newFieldsSet()
 	neededFields.add("*")

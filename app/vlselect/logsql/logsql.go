@@ -36,6 +36,7 @@ func ProcessQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 	if limit > 0 {
 		q.AddPipeLimit(uint64(limit))
 	}
+	q.Optimize()
 
 	tenantIDs := []logstorage.TenantID{tenantID}
 
