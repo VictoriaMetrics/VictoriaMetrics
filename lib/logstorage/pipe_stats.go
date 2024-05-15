@@ -182,14 +182,14 @@ func (shard *pipeStatsProcessorShard) writeBlock(br *blockResult) {
 		c := br.getColumnByName(bf.name)
 		if c.isConst {
 			// Fast path for column with constant value.
-			v := br.getBucketedValue(c.encodedValues[0], bf)
+			v := br.getBucketedValue(c.valuesEncoded[0], bf)
 			shard.keyBuf = encoding.MarshalBytes(shard.keyBuf[:0], bytesutil.ToUnsafeBytes(v))
 			psg := shard.getPipeStatsGroup(shard.keyBuf)
 			shard.stateSizeBudget -= psg.updateStatsForAllRows(br)
 			return
 		}
 
-		values := c.getBucketedValues(br, bf)
+		values := c.getValuesBucketed(br, bf)
 		if areConstValues(values) {
 			// Fast path for column with constant values.
 			shard.keyBuf = encoding.MarshalBytes(shard.keyBuf[:0], bytesutil.ToUnsafeBytes(values[0]))
@@ -216,7 +216,7 @@ func (shard *pipeStatsProcessorShard) writeBlock(br *blockResult) {
 	columnValues := shard.columnValues[:0]
 	for _, bf := range byFields {
 		c := br.getColumnByName(bf.name)
-		values := c.getBucketedValues(br, bf)
+		values := c.getValuesBucketed(br, bf)
 		columnValues = append(columnValues, values)
 	}
 	shard.columnValues = columnValues

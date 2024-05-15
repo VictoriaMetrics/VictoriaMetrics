@@ -5,7 +5,7 @@ import (
 )
 
 func BenchmarkBitmapForEachSetBitReadonly(b *testing.B) {
-	const bitsLen = 64*1024
+	const bitsLen = 64 * 1024
 
 	b.Run("no-zero-bits", func(b *testing.B) {
 		bm := getBitmap(bitsLen)
@@ -34,7 +34,7 @@ func BenchmarkBitmapForEachSetBitReadonly(b *testing.B) {
 }
 
 func BenchmarkBitmapForEachSetBit(b *testing.B) {
-	const bitsLen = 64*1024
+	const bitsLen = 64 * 1024
 
 	b.Run("no-zero-bits-noclear", func(b *testing.B) {
 		bm := getBitmap(bitsLen)

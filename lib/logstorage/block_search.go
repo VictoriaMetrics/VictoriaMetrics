@@ -168,9 +168,9 @@ func (bs *blockSearch) search(bsw *blockSearchWork) {
 
 	// fetch the requested columns to bs.br.
 	if bs.bsw.so.needAllColumns {
-		bs.br.fetchAllColumns(bs, bm)
+		bs.br.initAllColumns()
 	} else {
-		bs.br.fetchRequestedColumns(bs, bm)
+		bs.br.initRequestedColumns()
 	}
 }
 

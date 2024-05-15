@@ -57,7 +57,7 @@ func (sap *statsAvgProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 	if sap.sa.containsStar {
 		// Scan all the fields for the given row
 		for _, c := range br.getColumns() {
-			f, ok := c.getFloatValueAtRow(rowIdx)
+			f, ok := c.getFloatValueAtRow(br, rowIdx)
 			if ok {
 				sap.sum += f
 				sap.count++
@@ -67,7 +67,7 @@ func (sap *statsAvgProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 		// Scan only the given fields for the given row
 		for _, field := range sap.sa.fields {
 			c := br.getColumnByName(field)
-			f, ok := c.getFloatValueAtRow(rowIdx)
+			f, ok := c.getFloatValueAtRow(br, rowIdx)
 			if ok {
 				sap.sum += f
 				sap.count++

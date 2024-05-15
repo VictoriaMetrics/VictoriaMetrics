@@ -122,7 +122,7 @@ func (sup *statsCountUniqProcessor) updateStatsForAllRows(br *blockResult) int {
 		}
 		if c.isConst {
 			// count unique const values
-			v := c.encodedValues[0]
+			v := c.valuesEncoded[0]
 			if v == "" {
 				// Do not count empty values
 				return stateSizeIncrease
@@ -156,7 +156,7 @@ func (sup *statsCountUniqProcessor) updateStatsForAllRows(br *blockResult) int {
 			return stateSizeIncrease
 		}
 
-		// Count unique values across encodedValues
+		// Count unique values across values
 		values := c.getValues(br)
 		keyBuf := sup.keyBuf[:0]
 		for i, v := range values {
@@ -278,7 +278,7 @@ func (sup *statsCountUniqProcessor) updateStatsForRow(br *blockResult, rowIdx in
 		}
 		if c.isConst {
 			// count unique const values
-			v := c.encodedValues[0]
+			v := c.valuesEncoded[0]
 			if v == "" {
 				// Do not count empty values
 				return stateSizeIncrease
@@ -295,7 +295,8 @@ func (sup *statsCountUniqProcessor) updateStatsForRow(br *blockResult, rowIdx in
 		}
 		if c.valueType == valueTypeDict {
 			// count unique non-zero c.dictValues
-			dictIdx := c.encodedValues[rowIdx][0]
+			valuesEncoded := c.getValuesEncoded(br)
+			dictIdx := valuesEncoded[rowIdx][0]
 			v := c.dictValues[dictIdx]
 			if v == "" {
 				// Do not count empty values

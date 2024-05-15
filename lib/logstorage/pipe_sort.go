@@ -232,13 +232,13 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 			{
 				c: &blockResultColumn{
 					valueType:     valueTypeString,
-					encodedValues: rc.values,
+					valuesEncoded: rc.values,
 				},
 				i64Values: i64Values,
 				f64Values: f64Values,
 			},
 		}
-		shard.stateSizeBudget -= len(rc.buf) + int(unsafe.Sizeof(byColumns[0])+unsafe.Sizeof(*byColumns[0].c))
+		shard.stateSizeBudget -= rc.sizeBytes() + int(unsafe.Sizeof(byColumns[0])+unsafe.Sizeof(*byColumns[0].c))
 
 		// Append br to shard.blocks.
 		shard.blocks = append(shard.blocks, sortBlock{
@@ -260,8 +260,8 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 				continue
 			}
 			if c.isConst {
-				bc.i64Values = shard.createInt64Values(c.encodedValues)
-				bc.f64Values = shard.createFloat64Values(c.encodedValues)
+				bc.i64Values = shard.createInt64Values(c.valuesEncoded)
+				bc.f64Values = shard.createFloat64Values(c.valuesEncoded)
 				continue
 			}
 
@@ -610,8 +610,8 @@ func sortBlockLess(shardA *pipeSortProcessorShard, rowIdxA int, shardB *pipeSort
 
 		if cA.c.isConst && cB.c.isConst {
 			// Fast path - compare const values
-			ccA := cA.c.encodedValues[0]
-			ccB := cB.c.encodedValues[0]
+			ccA := cA.c.valuesEncoded[0]
+			ccB := cB.c.valuesEncoded[0]
 			if ccA == ccB {
 				continue
 			}

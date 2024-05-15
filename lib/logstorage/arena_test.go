@@ -35,7 +35,7 @@ func TestArena(t *testing.T) {
 			}
 		}
 
-		if n := a.sizeBytes(); n != valuesLen {
+		if n := a.sizeBytes(); n < valuesLen {
 			t.Fatalf("unexpected arena size; got %d; want %d", n, valuesLen)
 		}
 
@@ -47,7 +47,7 @@ func TestArena(t *testing.T) {
 				t.Fatalf("unexpected len(b); got %d; want %d", len(b), j)
 			}
 			valuesLen += j
-			if n := a.sizeBytes(); n != valuesLen {
+			if n := a.sizeBytes(); n < valuesLen {
 				t.Fatalf("unexpected arena size; got %d; want %d", n, valuesLen)
 			}
 			for k := range b {

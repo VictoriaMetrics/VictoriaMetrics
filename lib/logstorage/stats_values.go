@@ -61,7 +61,7 @@ func (svp *statsValuesProcessor) updateStatsForAllRows(br *blockResult) int {
 func (svp *statsValuesProcessor) updateStatsForAllRowsColumn(c *blockResultColumn, br *blockResult) int {
 	stateSizeIncrease := 0
 	if c.isConst {
-		v := strings.Clone(c.encodedValues[0])
+		v := strings.Clone(c.valuesEncoded[0])
 		stateSizeIncrease += len(v)
 
 		values := svp.values
@@ -81,7 +81,7 @@ func (svp *statsValuesProcessor) updateStatsForAllRowsColumn(c *blockResultColum
 		}
 
 		values := svp.values
-		for _, encodedValue := range c.encodedValues {
+		for _, encodedValue := range c.getValuesEncoded(br) {
 			idx := encodedValue[0]
 			values = append(values, dictValues[idx])
 		}
@@ -128,7 +128,7 @@ func (svp *statsValuesProcessor) updateStatsForRow(br *blockResult, rowIdx int) 
 func (svp *statsValuesProcessor) updateStatsForRowColumn(c *blockResultColumn, br *blockResult, rowIdx int) int {
 	stateSizeIncrease := 0
 	if c.isConst {
-		v := strings.Clone(c.encodedValues[0])
+		v := strings.Clone(c.valuesEncoded[0])
 		stateSizeIncrease += len(v)
 
 		svp.values = append(svp.values, v)
@@ -138,7 +138,8 @@ func (svp *statsValuesProcessor) updateStatsForRowColumn(c *blockResultColumn, b
 	}
 	if c.valueType == valueTypeDict {
 		// collect unique non-zero c.dictValues
-		dictIdx := c.encodedValues[rowIdx][0]
+		valuesEncoded := c.getValuesEncoded(br)
+		dictIdx := valuesEncoded[rowIdx][0]
 		v := strings.Clone(c.dictValues[dictIdx])
 		stateSizeIncrease += len(v)
 

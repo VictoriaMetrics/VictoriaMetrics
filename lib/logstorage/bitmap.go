@@ -3,6 +3,7 @@ package logstorage
 import (
 	"math/bits"
 	"sync"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
@@ -35,6 +36,10 @@ func (bm *bitmap) reset() {
 	bm.a = bm.a[:0]
 
 	bm.bitsLen = 0
+}
+
+func (bm *bitmap) sizeBytes() int {
+	return int(unsafe.Sizeof(*bm)) + cap(bm.a)*int(unsafe.Sizeof(bm.a[0]))
 }
 
 func (bm *bitmap) copyFrom(src *bitmap) {
@@ -149,7 +154,8 @@ func (bm *bitmap) forEachSetBit(f func(idx int) bool) {
 // forEachSetBitReadonly calls f for each set bit
 func (bm *bitmap) forEachSetBitReadonly(f func(idx int)) {
 	if bm.areAllBitsSet() {
-		for i := range bm.bitsLen {
+		n := bm.bitsLen
+		for i := 0; i < n; i++ {
 			f(i)
 		}
 		return
