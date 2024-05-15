@@ -50,6 +50,13 @@ By default the `/select/logsql/query` returns all the log entries matching the g
   ```sh
   curl http://localhost:9428/select/logsql/query -d 'query=error' -d 'limit=10'
   ```
+- By adding [`limit` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe) to the query. For example:
+  ```sh
+  curl http://localhost:9428/select/logsql/query -d 'query=error | limit 10'
+  ```
+- By adding [`_time` filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter). The time range for the query can be specified via optional
+  `start` and `end` query ars formatted according to [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats).
+- By adding other [filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters) to the query.
 
 The `/select/logsql/query` endpoint returns [a stream of JSON lines](https://jsonlines.org/),
 where each line contains JSON-encoded log entry in the form `{field1="value1",...,fieldN="valueN"}`.

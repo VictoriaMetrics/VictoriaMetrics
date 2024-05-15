@@ -206,6 +206,29 @@ func (q *Query) String() string {
 	return s
 }
 
+// AddTimeFilter adds global filter _time:[start ... end] to q.
+func (q *Query) AddTimeFilter(start, end int64) {
+	startStr := marshalTimestampRFC3339Nano(nil, start)
+	endStr := marshalTimestampRFC3339Nano(nil, end)
+	ft := &filterTime{
+		minTimestamp: start,
+		maxTimestamp: end,
+		stringRepr:   fmt.Sprintf("[%s, %s]", startStr, endStr),
+	}
+
+	fa, ok := q.f.(*filterAnd)
+	if ok {
+		filters := make([]filter, len(fa.filters)+1)
+		filters[0] = ft
+		copy(filters[1:], fa.filters)
+		fa.filters = filters
+	} else {
+		q.f = &filterAnd{
+			filters: []filter{ft, q.f},
+		}
+	}
+}
+
 // AddPipeLimit adds `| limit n` pipe to q.
 //
 // See https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe
