@@ -76,9 +76,6 @@ func (pi *promInstant) Unmarshal(b []byte) error {
 			return fmt.Errorf("can't find `metric` object in %q", row)
 		}
 		labels := metric.GetObject()
-		if labels.Len() == 0 {
-			return fmt.Errorf("object `metric` in %q should contain at least one label-value pair", row)
-		}
 
 		r := &pi.ms[i]
 		r.Labels = make([]Label, 0, labels.Len())
