@@ -209,10 +209,8 @@ func (pup *pipeUniqProcessor) flush() error {
 	m := shards[0].m
 	shards = shards[1:]
 	for i := range shards {
-		select {
-		case <-pup.stopCh:
+		if needStop(pup.stopCh) {
 			return nil
-		default:
 		}
 
 		for k := range shards[i].m {
@@ -229,10 +227,8 @@ func (pup *pipeUniqProcessor) flush() error {
 
 	if len(byFields) == 0 {
 		for k := range m {
-			select {
-			case <-pup.stopCh:
+			if needStop(pup.stopCh) {
 				return nil
-			default:
 			}
 
 			rowFields = rowFields[:0]
@@ -259,10 +255,8 @@ func (pup *pipeUniqProcessor) flush() error {
 		}
 	} else {
 		for k := range m {
-			select {
-			case <-pup.stopCh:
+			if needStop(pup.stopCh) {
 				return nil
-			default:
 			}
 
 			rowFields = rowFields[:0]

@@ -25,6 +25,14 @@ type pipeSort struct {
 
 	// whether to apply descending order
 	isDesc bool
+
+	// how many results to skip
+	offset uint64
+
+	// how many results to return
+	//
+	// if zero, then all the results are returned
+	limit uint64
 }
 
 func (ps *pipeSort) String() string {
@@ -38,6 +46,12 @@ func (ps *pipeSort) String() string {
 	}
 	if ps.isDesc {
 		s += " desc"
+	}
+	if ps.offset > 0 {
+		s += fmt.Sprintf(" offset %d", ps.offset)
+	}
+	if ps.limit > 0 {
+		s += fmt.Sprintf(" limit %d", ps.limit)
 	}
 	return s
 }
@@ -55,6 +69,13 @@ func (ps *pipeSort) updateNeededFields(neededFields, unneededFields fieldsSet) {
 }
 
 func (ps *pipeSort) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {
+	if ps.limit > 0 {
+		return newPipeTopkProcessor(ps, workersCount, stopCh, cancel, ppBase)
+	}
+	return newPipeSortProcessor(ps, workersCount, stopCh, cancel, ppBase)
+}
+
+func newPipeSortProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {
 	maxStateSize := int64(float64(memory.Allowed()) * 0.2)
 
 	shards := make([]pipeSortProcessorShard, workersCount)
@@ -117,6 +138,9 @@ type pipeSortProcessorShardNopad struct {
 	// stateSizeBudget is the remaining budget for the whole state size for the shard.
 	// The per-shard budget is provided in chunks from the parent pipeSortProcessor.
 	stateSizeBudget int
+
+	// columnValues is used as temporary buffer at pipeSortProcessorShard.writeBlock
+	columnValues [][]string
 }
 
 // sortBlock represents a block of logs for sorting.
@@ -176,16 +200,23 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 	if len(byFields) == 0 {
 		// Sort by all the columns
 
+		columnValues := shard.columnValues[:0]
+		for _, c := range cs {
+			columnValues = append(columnValues, c.getValues(br))
+		}
+		shard.columnValues = columnValues
+
 		// Generate byColumns
 		var rc resultColumn
+
 		bb := bbPool.Get()
-		for i := range br.timestamps {
-			// JSON-encode all the columns per each row into a single string
+		for rowIdx := range br.timestamps {
+			// Marshal all the columns per each row into a single string
 			// and sort rows by the resulting string.
 			bb.B = bb.B[:0]
-			for _, c := range cs {
-				v := c.getValueAtRow(br, i)
-				bb.B = marshalJSONKeyValue(bb.B, c.name, v)
+			for i, values := range columnValues {
+				v := values[rowIdx]
+				bb.B = marshalJSONKeyValue(bb.B, cs[i].name, v)
 				bb.B = append(bb.B, ',')
 			}
 			rc.addValue(bytesutil.ToUnsafeString(bb.B))
@@ -358,10 +389,8 @@ func (psp *pipeSortProcessor) flush() error {
 		return fmt.Errorf("cannot calculate [%s], since it requires more than %dMB of memory", psp.ps.String(), psp.maxStateSize/(1<<20))
 	}
 
-	select {
-	case <-psp.stopCh:
+	if needStop(psp.stopCh) {
 		return nil
-	default:
 	}
 
 	// Sort every shard in parallel
@@ -377,17 +406,15 @@ func (psp *pipeSortProcessor) flush() error {
 	}
 	wg.Wait()
 
-	select {
-	case <-psp.stopCh:
+	if needStop(psp.stopCh) {
 		return nil
-	default:
 	}
 
 	// Merge sorted results across shards
 	sh := pipeSortProcessorShardsHeap(make([]*pipeSortProcessorShard, 0, len(shards)))
 	for i := range shards {
 		shard := &shards[i]
-		if shard.Len() > 0 {
+		if len(shard.rowRefs) > 0 {
 			sh = append(sh, shard)
 		}
 	}
@@ -400,49 +427,43 @@ func (psp *pipeSortProcessor) flush() error {
 	wctx := &pipeSortWriteContext{
 		psp: psp,
 	}
-	var shardNext *pipeSortProcessorShard
+	shardNextIdx := 0
 
 	for len(sh) > 1 {
 		shard := sh[0]
-		wctx.writeRow(shard, shard.rowRefNext)
-		shard.rowRefNext++
+		wctx.writeNextRow(shard)
 
 		if shard.rowRefNext >= len(shard.rowRefs) {
 			_ = heap.Pop(&sh)
-			shardNext = nil
+			shardNextIdx = 0
 
-			select {
-			case <-psp.stopCh:
+			if needStop(psp.stopCh) {
 				return nil
-			default:
 			}
 
 			continue
 		}
 
-		if shardNext == nil {
-			shardNext = sh[1]
-			if len(sh) > 2 && sortBlockLess(sh[2], sh[2].rowRefNext, shardNext, shardNext.rowRefNext) {
-				shardNext = sh[2]
+		if shardNextIdx == 0 {
+			shardNextIdx = 1
+			if len(sh) > 2 && sh.Less(2, 1) {
+				shardNextIdx = 2
 			}
 		}
 
-		if sortBlockLess(shardNext, shardNext.rowRefNext, shard, shard.rowRefNext) {
+		if sh.Less(shardNextIdx, 0) {
 			heap.Fix(&sh, 0)
-			shardNext = nil
+			shardNextIdx = 0
 
-			select {
-			case <-psp.stopCh:
+			if needStop(psp.stopCh) {
 				return nil
-			default:
 			}
 		}
 	}
 	if len(sh) == 1 {
 		shard := sh[0]
 		for shard.rowRefNext < len(shard.rowRefs) {
-			wctx.writeRow(shard, shard.rowRefNext)
-			shard.rowRefNext++
+			wctx.writeNextRow(shard)
 		}
 	}
 	wctx.flush()
@@ -455,14 +476,25 @@ type pipeSortWriteContext struct {
 	rcs []resultColumn
 	br  blockResult
 
-	valuesLen int
+	rowsWritten uint64
+	valuesLen   int
 }
 
-func (wctx *pipeSortWriteContext) writeRow(shard *pipeSortProcessorShard, rowIdx int) {
+func (wctx *pipeSortWriteContext) writeNextRow(shard *pipeSortProcessorShard) {
+	ps := shard.ps
+
+	rowIdx := shard.rowRefNext
+	shard.rowRefNext++
+
+	wctx.rowsWritten++
+	if wctx.rowsWritten <= ps.offset {
+		return
+	}
+
 	rr := shard.rowRefs[rowIdx]
 	b := &shard.blocks[rr.blockIdx]
 
-	byFields := shard.ps.byFields
+	byFields := ps.byFields
 	rcs := wctx.rcs
 
 	areEqualColumns := len(rcs) == len(byFields)+len(b.otherColumns)
@@ -671,7 +703,36 @@ func parsePipeSort(lex *lexer) (*pipeSort, error) {
 		ps.isDesc = true
 	}
 
-	return &ps, nil
+	for {
+		switch {
+		case lex.isKeyword("offset"):
+			lex.nextToken()
+			s := lex.token
+			n, ok := tryParseUint64(s)
+			lex.nextToken()
+			if !ok {
+				return nil, fmt.Errorf("cannot parse 'offset %s'", s)
+			}
+			if ps.offset > 0 {
+				return nil, fmt.Errorf("duplicate 'offset'; the previous one is %d; the new one is %s", ps.offset, s)
+			}
+			ps.offset = n
+		case lex.isKeyword("limit"):
+			lex.nextToken()
+			s := lex.token
+			n, ok := tryParseUint64(s)
+			lex.nextToken()
+			if !ok {
+				return nil, fmt.Errorf("cannot parse 'limit %s'", s)
+			}
+			if ps.limit > 0 {
+				return nil, fmt.Errorf("duplicate 'limit'; the previous one is %d; the new one is %s", ps.limit, s)
+			}
+			ps.limit = n
+		default:
+			return &ps, nil
+		}
+	}
 }
 
 // bySortField represents 'by (...)' part of the pipeSort.
@@ -725,13 +786,6 @@ func parseBySortFields(lex *lexer) ([]*bySortField, error) {
 	}
 }
 
-func marshalJSONKeyValue(dst []byte, k, v string) []byte {
-	dst = strconv.AppendQuote(dst, k)
-	dst = append(dst, ':')
-	dst = strconv.AppendQuote(dst, v)
-	return dst
-}
-
 func tryParseInt64(s string) (int64, bool) {
 	if len(s) == 0 {
 		return 0, false
@@ -755,4 +809,11 @@ func tryParseInt64(s string) (int64, bool) {
 		return 0, false
 	}
 	return -int64(u64), true
+}
+
+func marshalJSONKeyValue(dst []byte, k, v string) []byte {
+	dst = strconv.AppendQuote(dst, k)
+	dst = append(dst, ':')
+	dst = strconv.AppendQuote(dst, v)
+	return dst
 }

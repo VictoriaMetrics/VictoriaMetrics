@@ -86,7 +86,7 @@ func (smp *statsMinProcessor) mergeState(sfp statsProcessor) {
 }
 
 func (smp *statsMinProcessor) finalizeStats() string {
-	return strconv.FormatFloat(smp.min, 'g', -1, 64)
+	return strconv.FormatFloat(smp.min, 'f', -1, 64)
 }
 
 func parseStatsMin(lex *lexer) (*statsMin, error) {

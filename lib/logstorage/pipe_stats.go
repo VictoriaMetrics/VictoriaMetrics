@@ -345,10 +345,8 @@ func (psp *pipeStatsProcessor) flush() error {
 		for key, psg := range shard.m {
 			// shard.m may be quite big, so this loop can take a lot of time and CPU.
 			// Stop processing data as soon as stopCh is closed without wasting additional CPU time.
-			select {
-			case <-psp.stopCh:
+			if needStop(psp.stopCh) {
 				return nil
-			default:
 			}
 
 			spgBase := m[key]
@@ -388,10 +386,8 @@ func (psp *pipeStatsProcessor) flush() error {
 	for key, psg := range m {
 		// m may be quite big, so this loop can take a lot of time and CPU.
 		// Stop processing data as soon as stopCh is closed without wasting additional CPU time.
-		select {
-		case <-psp.stopCh:
+		if needStop(psp.stopCh) {
 			return nil
-		default:
 		}
 
 		// Unmarshal values for byFields from key.
@@ -534,6 +530,24 @@ func parseStatsFunc(lex *lexer) (statsFunc, string, error) {
 			return nil, "", fmt.Errorf("cannot parse 'values' func: %w", err)
 		}
 		sf = svs
+	case lex.isKeyword("sum_len"):
+		sss, err := parseStatsSumLen(lex)
+		if err != nil {
+			return nil, "", fmt.Errorf("cannot parse 'sum_len' func: %w", err)
+		}
+		sf = sss
+	case lex.isKeyword("quantile"):
+		sqs, err := parseStatsQuantile(lex)
+		if err != nil {
+			return nil, "", fmt.Errorf("cannot parse 'quantile' func: %w", err)
+		}
+		sf = sqs
+	case lex.isKeyword("median"):
+		sms, err := parseStatsMedian(lex)
+		if err != nil {
+			return nil, "", fmt.Errorf("cannot parse 'median' func: %w", err)
+		}
+		sf = sms
 	default:
 		return nil, "", fmt.Errorf("unknown stats func %q", lex.token)
 	}

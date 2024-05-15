@@ -206,6 +206,29 @@ func (q *Query) String() string {
 	return s
 }
 
+// AddTimeFilter adds global filter _time:[start ... end] to q.
+func (q *Query) AddTimeFilter(start, end int64) {
+	startStr := marshalTimestampRFC3339Nano(nil, start)
+	endStr := marshalTimestampRFC3339Nano(nil, end)
+	ft := &filterTime{
+		minTimestamp: start,
+		maxTimestamp: end,
+		stringRepr:   fmt.Sprintf("[%s, %s]", startStr, endStr),
+	}
+
+	fa, ok := q.f.(*filterAnd)
+	if ok {
+		filters := make([]filter, len(fa.filters)+1)
+		filters[0] = ft
+		copy(filters[1:], fa.filters)
+		fa.filters = filters
+	} else {
+		q.f = &filterAnd{
+			filters: []filter{ft, q.f},
+		}
+	}
+}
+
 // AddPipeLimit adds `| limit n` pipe to q.
 //
 // See https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe
@@ -213,6 +236,56 @@ func (q *Query) AddPipeLimit(n uint64) {
 	q.pipes = append(q.pipes, &pipeLimit{
 		n: n,
 	})
+}
+
+// Optimize tries optimizing the query.
+func (q *Query) Optimize() {
+	q.pipes = optimizeSortOffsetPipes(q.pipes)
+	q.pipes = optimizeSortLimitPipes(q.pipes)
+}
+
+func optimizeSortOffsetPipes(pipes []pipe) []pipe {
+	// Merge 'sort ... | offset ...' into 'sort ... offset ...'
+	i := 1
+	for i < len(pipes) {
+		po, ok := pipes[i].(*pipeOffset)
+		if !ok {
+			i++
+			continue
+		}
+		ps, ok := pipes[i-1].(*pipeSort)
+		if !ok {
+			i++
+			continue
+		}
+		if ps.offset == 0 && ps.limit == 0 {
+			ps.offset = po.n
+		}
+		pipes = append(pipes[:i], pipes[i+1:]...)
+	}
+	return pipes
+}
+
+func optimizeSortLimitPipes(pipes []pipe) []pipe {
+	// Merge 'sort ... | limit ...' into 'sort ... limit ...'
+	i := 1
+	for i < len(pipes) {
+		pl, ok := pipes[i].(*pipeLimit)
+		if !ok {
+			i++
+			continue
+		}
+		ps, ok := pipes[i-1].(*pipeSort)
+		if !ok {
+			i++
+			continue
+		}
+		if ps.limit == 0 || pl.n < ps.limit {
+			ps.limit = pl.n
+		}
+		pipes = append(pipes[:i], pipes[i+1:]...)
+	}
+	return pipes
 }
 
 func (q *Query) getNeededColumns() ([]string, []string) {
