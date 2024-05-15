@@ -126,6 +126,7 @@ func (bm *bitmap) forEachSetBit(f func(idx int) bool) {
 		if word == 0 {
 			continue
 		}
+		wordNew := word
 		for j := 0; j < 64; j++ {
 			mask := uint64(1) << j
 			if (word & mask) == 0 {
@@ -136,8 +137,11 @@ func (bm *bitmap) forEachSetBit(f func(idx int) bool) {
 				break
 			}
 			if !f(idx) {
-				a[i] &= ^mask
+				wordNew &= ^mask
 			}
+		}
+		if word != wordNew {
+			a[i] = wordNew
 		}
 	}
 }
