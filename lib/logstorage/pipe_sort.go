@@ -45,7 +45,7 @@ func (ps *pipeSort) String() string {
 		s += " desc"
 	}
 	if ps.limit > 0 {
-		s += fmt.Sprintf(" first %d", ps.limit)
+		s += fmt.Sprintf(" limit %d", ps.limit)
 	}
 	return s
 }
@@ -689,12 +689,12 @@ func parsePipeSort(lex *lexer) (*pipeSort, error) {
 	}
 
 	switch {
-	case lex.isKeyword("first"):
+	case lex.isKeyword("limit"):
 		lex.nextToken()
 		n, ok := tryParseUint64(lex.token)
 		lex.nextToken()
 		if !ok {
-			return nil, fmt.Errorf("cannot parse 'first %s'", lex.token)
+			return nil, fmt.Errorf("cannot parse 'limit %s'", lex.token)
 		}
 		ps.limit = n
 	}

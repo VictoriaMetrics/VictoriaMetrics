@@ -974,10 +974,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | sort bY (foo)`, `* | sort by (foo)`)
 	f(`* | sORt bY (_time, _stream DEsc, host)`, `* | sort by (_time, _stream desc, host)`)
 	f(`* | sort bY (foo desc, bar,) desc`, `* | sort by (foo desc, bar) desc`)
-	f(`* | sort first 10`, `* | sort first 10`)
-	f(`* | sort desc first 10`, `* | sort desc first 10`)
-	f(`* | sort by (foo desc, bar) first 10`, `* | sort by (foo desc, bar) first 10`)
-	f(`* | sort by (foo desc, bar) desc first 10`, `* | sort by (foo desc, bar) desc first 10`)
+	f(`* | sort limit 10`, `* | sort limit 10`)
+	f(`* | sort desc limit 10`, `* | sort desc limit 10`)
+	f(`* | sort by (foo desc, bar) limit 10`, `* | sort by (foo desc, bar) limit 10`)
+	f(`* | sort by (foo desc, bar) desc limit 10`, `* | sort by (foo desc, bar) desc limit 10`)
 
 	// uniq pipe
 	f(`* | uniq`, `* | uniq`)
@@ -1334,10 +1334,10 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | sort by(baz`)
 	f(`foo | sort by(baz,`)
 	f(`foo | sort by(bar) foo`)
-	f(`foo | sort by(bar) first`)
-	f(`foo | sort by(bar) first foo`)
-	f(`foo | sort by(bar) first -1234`)
-	f(`foo | sort by(bar) first 12.34`)
+	f(`foo | sort by(bar) limit`)
+	f(`foo | sort by(bar) limit foo`)
+	f(`foo | sort by(bar) limit -1234`)
+	f(`foo | sort by(bar) limit 12.34`)
 
 	// invalid uniq pipe
 	f(`foo | uniq bar`)
