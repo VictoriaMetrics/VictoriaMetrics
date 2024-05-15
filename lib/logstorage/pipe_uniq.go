@@ -360,8 +360,10 @@ func parsePipeUniq(lex *lexer) (*pipeUniq, error) {
 	lex.nextToken()
 
 	var pu pipeUniq
-	if lex.isKeyword("by") {
-		lex.nextToken()
+	if lex.isKeyword("by", "(") {
+		if lex.isKeyword("by") {
+			lex.nextToken()
+		}
 		bfs, err := parseFieldNamesInParens(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'by' clause: %w", err)

@@ -966,6 +966,7 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats by (_time:week) count() foo`, `* | stats by (_time:week) count(*) as foo`)
 	f(`* | stats by (_time:month) count() foo`, `* | stats by (_time:month) count(*) as foo`)
 	f(`* | stats by (_time:year offset 6.5h) count() foo`, `* | stats by (_time:year offset 6.5h) count(*) as foo`)
+	f(`* | stats (_time:year offset 6.5h) count() foo`, `* | stats by (_time:year offset 6.5h) count(*) as foo`)
 
 	// sort pipe
 	f(`* | sort`, `* | sort`)
@@ -983,6 +984,7 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | sort by (foo desc, bar) desc limit 10`, `* | sort by (foo desc, bar) desc limit 10`)
 	f(`* | sort by (foo desc, bar) desc OFFSET 30 limit 10`, `* | sort by (foo desc, bar) desc offset 30 limit 10`)
 	f(`* | sort by (foo desc, bar) desc limit 10 OFFSET 30`, `* | sort by (foo desc, bar) desc offset 30 limit 10`)
+	f(`* | sort (foo desc, bar) desc limit 10 OFFSET 30`, `* | sort by (foo desc, bar) desc offset 30 limit 10`)
 
 	// uniq pipe
 	f(`* | uniq`, `* | uniq`)
@@ -991,6 +993,7 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | uniq by(foo,*,bar)`, `* | uniq`)
 	f(`* | uniq by(f1,f2)`, `* | uniq by (f1, f2)`)
 	f(`* | uniq by(f1,f2) limit 10`, `* | uniq by (f1, f2) limit 10`)
+	f(`* | uniq (f1,f2) limit 10`, `* | uniq by (f1, f2) limit 10`)
 	f(`* | uniq limit 10`, `* | uniq limit 10`)
 
 	// multiple different pipes

@@ -689,8 +689,10 @@ func parsePipeSort(lex *lexer) (*pipeSort, error) {
 	lex.nextToken()
 
 	var ps pipeSort
-	if lex.isKeyword("by") {
-		lex.nextToken()
+	if lex.isKeyword("by", "(") {
+		if lex.isKeyword("by") {
+			lex.nextToken()
+		}
 		bfs, err := parseBySortFields(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'by' clause: %w", err)

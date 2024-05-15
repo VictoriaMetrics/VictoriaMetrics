@@ -443,8 +443,10 @@ func parsePipeStats(lex *lexer) (*pipeStats, error) {
 	lex.nextToken()
 
 	var ps pipeStats
-	if lex.isKeyword("by") {
-		lex.nextToken()
+	if lex.isKeyword("by", "(") {
+		if lex.isKeyword("by") {
+			lex.nextToken()
+		}
 		bfs, err := parseByStatsFields(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'by' clause: %w", err)

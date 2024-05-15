@@ -1200,6 +1200,12 @@ The reverse order can be applied globally via `desc` keyword after `by(...)` cla
 _time:5m | sort by (foo, bar) desc
 ```
 
+The `by` keyword can be skipped in `sort ...` pipe. For example, the following query is equivalent to the previous one:
+
+```logsql
+_time:5m | sort (foo, bar) desc
+```
+
 Sorting of big number of logs can consume a lot of CPU time and memory. Sometimes it is enough to return the first `N` entries with the biggest
 or the smallest values. This can be done by adding `limit N` to the end of `sort ...` pipe.
 Such a query consumes lower amounts of memory when sorting big number of logs, since it keeps in memory only `N` log entries.
@@ -1255,6 +1261,12 @@ This allows limiting memory usage. For example, the following query returns up t
 
 ```logsql
 _time:5m | uniq by (host, path) limit 100
+```
+
+The `by` keyword can be skipped in `uniq ...` pipe. For example, the following query is equivalent to the previous one:
+
+```logsql
+_time:5m | uniq (host, path) limit 100
 ```
 
 See also:
@@ -1314,6 +1326,12 @@ grouped by `(host, path)` fields:
 
 ```logsql
 _time:5m | stats by (host, path) count() logs_total, count_uniq(ip) ips_total
+```
+
+The `by` keyword can be skipped in `stats ...` pipe. For example, the following query is equvalent to the previous one:
+
+```logsql
+_time:5m | stats (host, path) count() logs_total, count_uniq(ip) ips_total
 ```
 
 #### Stats by time buckets
