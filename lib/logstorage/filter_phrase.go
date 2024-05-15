@@ -107,7 +107,7 @@ func matchTimestampISO8601ByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap
 
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toTimestampISO8601StringExt(bs, bb, v)
+		s := toTimestampISO8601String(bs, bb, v)
 		return matchPhrase(s, phrase)
 	})
 	bbPool.Put(bb)
@@ -131,7 +131,7 @@ func matchIPv4ByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase str
 
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toIPv4StringExt(bs, bb, v)
+		s := toIPv4String(bs, bb, v)
 		return matchPhrase(s, phrase)
 	})
 	bbPool.Put(bb)
@@ -160,7 +160,7 @@ func matchFloat64ByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase 
 
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toFloat64StringExt(bs, bb, v)
+		s := toFloat64String(bs, bb, v)
 		return matchPhrase(s, phrase)
 	})
 	bbPool.Put(bb)
@@ -294,26 +294,29 @@ func isMsgFieldName(fieldName string) bool {
 	return fieldName == "" || fieldName == "_msg"
 }
 
-func toFloat64StringExt(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string {
+func toFloat64String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string {
 	if len(v) != 8 {
 		logger.Panicf("FATAL: %s: unexpected length for binary representation of floating-point number: got %d; want 8", bs.partPath(), len(v))
 	}
-	bb.B = toFloat64String(bb.B[:0], v)
+	f := unmarshalFloat64(v)
+	bb.B = marshalFloat64String(bb.B[:0], f)
 	return bytesutil.ToUnsafeString(bb.B)
 }
 
-func toIPv4StringExt(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string {
+func toIPv4String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string {
 	if len(v) != 4 {
 		logger.Panicf("FATAL: %s: unexpected length for binary representation of IPv4: got %d; want 4", bs.partPath(), len(v))
 	}
-	bb.B = toIPv4String(bb.B[:0], v)
+	ip := unmarshalIPv4(v)
+	bb.B = marshalIPv4String(bb.B[:0], ip)
 	return bytesutil.ToUnsafeString(bb.B)
 }
 
-func toTimestampISO8601StringExt(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string {
+func toTimestampISO8601String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string {
 	if len(v) != 8 {
 		logger.Panicf("FATAL: %s: unexpected length for binary representation of ISO8601 timestamp: got %d; want 8", bs.partPath(), len(v))
 	}
-	bb.B = toTimestampISO8601String(bb.B[:0], v)
+	timestamp := unmarshalTimestampISO8601(v)
+	bb.B = marshalTimestampISO8601String(bb.B[:0], timestamp)
 	return bytesutil.ToUnsafeString(bb.B)
 }

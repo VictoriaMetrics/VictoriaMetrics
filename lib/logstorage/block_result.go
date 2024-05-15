@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"encoding/binary"
 	"math"
 	"slices"
 	"sync/atomic"
@@ -524,7 +523,7 @@ func (br *blockResult) getBucketedTimestampValues(bf *byStatsField) []string {
 			}
 
 			bufLen := len(buf)
-			buf = marshalTimestampRFC3339Nano(buf, timestamps[i])
+			buf = marshalTimestampRFC3339NanoString(buf, timestamps[i])
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
 			valuesBuf = append(valuesBuf, s)
 		}
@@ -560,7 +559,7 @@ func (br *blockResult) getBucketedTimestampValues(bf *byStatsField) []string {
 			timestampPrev = timestamp
 
 			bufLen := len(buf)
-			buf = marshalTimestampRFC3339Nano(buf, timestamp)
+			buf = marshalTimestampRFC3339NanoString(buf, timestamp)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
 			valuesBuf = append(valuesBuf, s)
 		}
@@ -625,9 +624,9 @@ func (br *blockResult) getBucketedUint8Values(encodedValues []string, bf *byStat
 				continue
 			}
 
-			n := uint64(v[0])
+			n := unmarshalUint8(v)
 			bufLen := len(buf)
-			buf = marshalUint64(buf, n)
+			buf = marshalUint8String(buf, n)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
 			valuesBuf = append(valuesBuf, s)
 		}
@@ -645,7 +644,7 @@ func (br *blockResult) getBucketedUint8Values(encodedValues []string, bf *byStat
 				continue
 			}
 
-			n := uint64(v[0])
+			n := uint64(unmarshalUint8(v))
 			n -= bucketOffsetInt
 			n -= n % bucketSizeInt
 			n += bucketOffsetInt
@@ -657,7 +656,7 @@ func (br *blockResult) getBucketedUint8Values(encodedValues []string, bf *byStat
 			nPrev = n
 
 			bufLen := len(buf)
-			buf = marshalUint64(buf, n)
+			buf = marshalUint64String(buf, n)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
 			valuesBuf = append(valuesBuf, s)
 		}
@@ -683,10 +682,9 @@ func (br *blockResult) getBucketedUint16Values(encodedValues []string, bf *bySta
 				continue
 			}
 
-			b := bytesutil.ToUnsafeBytes(v)
-			n := uint64(encoding.UnmarshalUint16(b))
+			n := unmarshalUint16(v)
 			bufLen := len(buf)
-			buf = marshalUint64(buf, n)
+			buf = marshalUint16String(buf, n)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
 			valuesBuf = append(valuesBuf, s)
 		}
@@ -704,8 +702,7 @@ func (br *blockResult) getBucketedUint16Values(encodedValues []string, bf *bySta
 				continue
 			}
 
-			b := bytesutil.ToUnsafeBytes(v)
-			n := uint64(encoding.UnmarshalUint16(b))
+			n := uint64(unmarshalUint16(v))
 			n -= bucketOffsetInt
 			n -= n % bucketSizeInt
 			n += bucketOffsetInt
@@ -717,7 +714,7 @@ func (br *blockResult) getBucketedUint16Values(encodedValues []string, bf *bySta
 			nPrev = n
 
 			bufLen := len(buf)
-			buf = marshalUint64(buf, n)
+			buf = marshalUint64String(buf, n)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
 			valuesBuf = append(valuesBuf, s)
 		}
@@ -743,10 +740,9 @@ func (br *blockResult) getBucketedUint32Values(encodedValues []string, bf *bySta
 				continue
 			}
 
-			b := bytesutil.ToUnsafeBytes(v)
-			n := uint64(encoding.UnmarshalUint32(b))
+			n := unmarshalUint32(v)
 			bufLen := len(buf)
-			buf = marshalUint64(buf, n)
+			buf = marshalUint32String(buf, n)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
 			valuesBuf = append(valuesBuf, s)
 		}
@@ -764,8 +760,7 @@ func (br *blockResult) getBucketedUint32Values(encodedValues []string, bf *bySta
 				continue
 			}
 
-			b := bytesutil.ToUnsafeBytes(v)
-			n := uint64(encoding.UnmarshalUint32(b))
+			n := uint64(unmarshalUint32(v))
 			n -= bucketOffsetInt
 			n -= n % bucketSizeInt
 			n += bucketOffsetInt
@@ -777,7 +772,7 @@ func (br *blockResult) getBucketedUint32Values(encodedValues []string, bf *bySta
 			nPrev = n
 
 			bufLen := len(buf)
-			buf = marshalUint64(buf, n)
+			buf = marshalUint64String(buf, n)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
 			valuesBuf = append(valuesBuf, s)
 		}
@@ -803,10 +798,9 @@ func (br *blockResult) getBucketedUint64Values(encodedValues []string, bf *bySta
 				continue
 			}
 
-			b := bytesutil.ToUnsafeBytes(v)
-			n := encoding.UnmarshalUint64(b)
+			n := unmarshalUint64(v)
 			bufLen := len(buf)
-			buf = marshalUint64(buf, n)
+			buf = marshalUint64String(buf, n)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
 			valuesBuf = append(valuesBuf, s)
 		}
@@ -824,8 +818,7 @@ func (br *blockResult) getBucketedUint64Values(encodedValues []string, bf *bySta
 				continue
 			}
 
-			b := bytesutil.ToUnsafeBytes(v)
-			n := encoding.UnmarshalUint64(b)
+			n := unmarshalUint64(v)
 			n -= bucketOffsetInt
 			n -= n % bucketSizeInt
 			n += bucketOffsetInt
@@ -837,7 +830,7 @@ func (br *blockResult) getBucketedUint64Values(encodedValues []string, bf *bySta
 			nPrev = n
 
 			bufLen := len(buf)
-			buf = marshalUint64(buf, n)
+			buf = marshalUint64String(buf, n)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
 			valuesBuf = append(valuesBuf, s)
 		}
@@ -863,12 +856,10 @@ func (br *blockResult) getBucketedFloat64Values(encodedValues []string, bf *bySt
 				continue
 			}
 
-			b := bytesutil.ToUnsafeBytes(v)
-			n := encoding.UnmarshalUint64(b)
-			f := math.Float64frombits(n)
+			f := unmarshalFloat64(v)
 
 			bufLen := len(buf)
-			buf = marshalFloat64(buf, f)
+			buf = marshalFloat64String(buf, f)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
 			valuesBuf = append(valuesBuf, s)
 		}
@@ -889,9 +880,7 @@ func (br *blockResult) getBucketedFloat64Values(encodedValues []string, bf *bySt
 				continue
 			}
 
-			b := bytesutil.ToUnsafeBytes(v)
-			n := encoding.UnmarshalUint64(b)
-			f := math.Float64frombits(n)
+			f := unmarshalFloat64(v)
 
 			f -= bf.bucketOffset
 
@@ -909,7 +898,7 @@ func (br *blockResult) getBucketedFloat64Values(encodedValues []string, bf *bySt
 			fPrev = f
 
 			bufLen := len(buf)
-			buf = marshalFloat64(buf, f)
+			buf = marshalFloat64String(buf, f)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
 			valuesBuf = append(valuesBuf, s)
 		}
@@ -935,8 +924,9 @@ func (br *blockResult) getBucketedIPv4Values(encodedValues []string, bf *byStats
 				continue
 			}
 
+			ip := unmarshalIPv4(v)
 			bufLen := len(buf)
-			buf = toIPv4String(buf, v)
+			buf = marshalIPv4String(buf, ip)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
 			valuesBuf = append(valuesBuf, s)
 		}
@@ -954,8 +944,7 @@ func (br *blockResult) getBucketedIPv4Values(encodedValues []string, bf *byStats
 				continue
 			}
 
-			b := bytesutil.ToUnsafeBytes(v)
-			n := binary.BigEndian.Uint32(b)
+			n := unmarshalIPv4(v)
 			n -= bucketOffsetInt
 			n -= n % bucketSizeInt
 			n += bucketOffsetInt
@@ -967,7 +956,7 @@ func (br *blockResult) getBucketedIPv4Values(encodedValues []string, bf *byStats
 			nPrev = n
 
 			bufLen := len(buf)
-			buf = marshalIPv4(buf, n)
+			buf = marshalIPv4String(buf, n)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
 			valuesBuf = append(valuesBuf, s)
 		}
@@ -993,11 +982,10 @@ func (br *blockResult) getBucketedTimestampISO8601Values(encodedValues []string,
 				continue
 			}
 
-			b := bytesutil.ToUnsafeBytes(v)
-			n := encoding.UnmarshalUint64(b)
+			n := unmarshalTimestampISO8601(v)
 
 			bufLen := len(buf)
-			buf = marshalTimestampISO8601(buf, int64(n))
+			buf = marshalTimestampISO8601String(buf, n)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
 			valuesBuf = append(valuesBuf, s)
 		}
@@ -1016,8 +1004,7 @@ func (br *blockResult) getBucketedTimestampISO8601Values(encodedValues []string,
 				continue
 			}
 
-			b := bytesutil.ToUnsafeBytes(v)
-			timestamp := int64(encoding.UnmarshalUint64(b))
+			timestamp := unmarshalTimestampISO8601(v)
 			timestamp -= bucketOffsetInt
 			if bf.bucketSizeStr == "month" {
 				timestamp = truncateTimestampToMonth(timestamp)
@@ -1036,7 +1023,7 @@ func (br *blockResult) getBucketedTimestampISO8601Values(encodedValues []string,
 			timestampPrev = timestamp
 
 			bufLen := len(buf)
-			buf = marshalTimestampISO8601(buf, int64(timestamp))
+			buf = marshalTimestampISO8601String(buf, timestamp)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
 			valuesBuf = append(valuesBuf, s)
 		}
@@ -1082,7 +1069,7 @@ func (br *blockResult) getBucketedValue(s string, bf *byStatsField) string {
 		f += bf.bucketOffset
 
 		bufLen := len(br.buf)
-		br.buf = marshalFloat64(br.buf, f)
+		br.buf = marshalFloat64String(br.buf, f)
 		return bytesutil.ToUnsafeString(br.buf[bufLen:])
 	}
 
@@ -1104,7 +1091,7 @@ func (br *blockResult) getBucketedValue(s string, bf *byStatsField) string {
 		timestamp += bucketOffset
 
 		bufLen := len(br.buf)
-		br.buf = marshalTimestampISO8601(br.buf, timestamp)
+		br.buf = marshalTimestampISO8601String(br.buf, timestamp)
 		return bytesutil.ToUnsafeString(br.buf[bufLen:])
 	}
 
@@ -1126,7 +1113,7 @@ func (br *blockResult) getBucketedValue(s string, bf *byStatsField) string {
 		timestamp += bucketOffset
 
 		bufLen := len(br.buf)
-		br.buf = marshalTimestampRFC3339Nano(br.buf, timestamp)
+		br.buf = marshalTimestampRFC3339NanoString(br.buf, timestamp)
 		return bytesutil.ToUnsafeString(br.buf[bufLen:])
 	}
 
@@ -1142,7 +1129,7 @@ func (br *blockResult) getBucketedValue(s string, bf *byStatsField) string {
 		n += bucketOffset
 
 		bufLen := len(br.buf)
-		br.buf = marshalIPv4(br.buf, n)
+		br.buf = marshalIPv4String(br.buf, n)
 		return bytesutil.ToUnsafeString(br.buf[bufLen:])
 	}
 
@@ -1488,20 +1475,20 @@ func (c *blockResultColumn) getFloatValueAtRow(rowIdx int) (float64, bool) {
 		v := c.dictValues[dictIdx]
 		return tryParseFloat64(v)
 	case valueTypeUint8:
-		return float64(c.encodedValues[rowIdx][0]), true
+		v := c.encodedValues[rowIdx]
+		return float64(unmarshalUint8(v)), true
 	case valueTypeUint16:
-		b := bytesutil.ToUnsafeBytes(c.encodedValues[rowIdx])
-		return float64(encoding.UnmarshalUint16(b)), true
+		v := c.encodedValues[rowIdx]
+		return float64(unmarshalUint16(v)), true
 	case valueTypeUint32:
-		b := bytesutil.ToUnsafeBytes(c.encodedValues[rowIdx])
-		return float64(encoding.UnmarshalUint32(b)), true
+		v := c.encodedValues[rowIdx]
+		return float64(unmarshalUint32(v)), true
 	case valueTypeUint64:
-		b := bytesutil.ToUnsafeBytes(c.encodedValues[rowIdx])
-		return float64(encoding.UnmarshalUint64(b)), true
+		v := c.encodedValues[rowIdx]
+		return float64(unmarshalUint64(v)), true
 	case valueTypeFloat64:
-		b := bytesutil.ToUnsafeBytes(c.encodedValues[rowIdx])
-		n := encoding.UnmarshalUint64(b)
-		f := math.Float64frombits(n)
+		v := c.encodedValues[rowIdx]
+		f := unmarshalFloat64(v)
 		return f, !math.IsNaN(f)
 	case valueTypeIPv4:
 		return 0, false
@@ -1617,36 +1604,31 @@ func (c *blockResultColumn) sumValues(br *blockResult) (float64, int) {
 	case valueTypeUint8:
 		sum := uint64(0)
 		for _, v := range c.encodedValues {
-			sum += uint64(v[0])
+			sum += uint64(unmarshalUint8(v))
 		}
 		return float64(sum), len(br.timestamps)
 	case valueTypeUint16:
 		sum := uint64(0)
 		for _, v := range c.encodedValues {
-			b := bytesutil.ToUnsafeBytes(v)
-			sum += uint64(encoding.UnmarshalUint16(b))
+			sum += uint64(unmarshalUint16(v))
 		}
 		return float64(sum), len(br.timestamps)
 	case valueTypeUint32:
 		sum := uint64(0)
 		for _, v := range c.encodedValues {
-			b := bytesutil.ToUnsafeBytes(v)
-			sum += uint64(encoding.UnmarshalUint32(b))
+			sum += uint64(unmarshalUint32(v))
 		}
 		return float64(sum), len(br.timestamps)
 	case valueTypeUint64:
 		sum := float64(0)
 		for _, v := range c.encodedValues {
-			b := bytesutil.ToUnsafeBytes(v)
-			sum += float64(encoding.UnmarshalUint64(b))
+			sum += float64(unmarshalUint64(v))
 		}
 		return sum, len(br.timestamps)
 	case valueTypeFloat64:
 		sum := float64(0)
 		for _, v := range c.encodedValues {
-			b := bytesutil.ToUnsafeBytes(v)
-			n := encoding.UnmarshalUint64(b)
-			f := math.Float64frombits(n)
+			f := unmarshalFloat64(v)
 			if !math.IsNaN(f) {
 				sum += f
 			}

@@ -3,8 +3,6 @@ package logstorage
 import (
 	"fmt"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -18,9 +16,9 @@ type filterIPv4Range struct {
 }
 
 func (fr *filterIPv4Range) String() string {
-	minValue := string(encoding.MarshalUint32(nil, fr.minValue))
-	maxValue := string(encoding.MarshalUint32(nil, fr.maxValue))
-	return fmt.Sprintf("%sipv4_range(%s, %s)", quoteFieldNameIfNeeded(fr.fieldName), toIPv4String(nil, minValue), toIPv4String(nil, maxValue))
+	minValue := marshalIPv4String(nil, fr.minValue)
+	maxValue := marshalIPv4String(nil, fr.maxValue)
+	return fmt.Sprintf("%sipv4_range(%s, %s)", quoteFieldNameIfNeeded(fr.fieldName), minValue, maxValue)
 }
 
 func (fr *filterIPv4Range) apply(bs *blockSearch, bm *bitmap) {
@@ -108,8 +106,7 @@ func matchIPv4ByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, m
 		if len(v) != 4 {
 			logger.Panicf("FATAL: %s: unexpected length for binary representation of IPv4: got %d; want 4", bs.partPath(), len(v))
 		}
-		b := bytesutil.ToUnsafeBytes(v)
-		n := encoding.UnmarshalUint32(b)
+		n := unmarshalIPv4(v)
 		return n >= minValue && n <= maxValue
 	})
 }

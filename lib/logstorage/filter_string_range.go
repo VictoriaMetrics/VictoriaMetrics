@@ -81,7 +81,7 @@ func matchTimestampISO8601ByStringRange(bs *blockSearch, ch *columnHeader, bm *b
 
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toTimestampISO8601StringExt(bs, bb, v)
+		s := toTimestampISO8601String(bs, bb, v)
 		return matchStringRange(s, minValue, maxValue)
 	})
 	bbPool.Put(bb)
@@ -95,7 +95,7 @@ func matchIPv4ByStringRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minVa
 
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toIPv4StringExt(bs, bb, v)
+		s := toIPv4String(bs, bb, v)
 		return matchStringRange(s, minValue, maxValue)
 	})
 	bbPool.Put(bb)
@@ -109,7 +109,7 @@ func matchFloat64ByStringRange(bs *blockSearch, ch *columnHeader, bm *bitmap, mi
 
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toFloat64StringExt(bs, bb, v)
+		s := toFloat64String(bs, bb, v)
 		return matchStringRange(s, minValue, maxValue)
 	})
 	bbPool.Put(bb)

@@ -91,7 +91,7 @@ func matchTimestampISO8601ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *b
 
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toTimestampISO8601StringExt(bs, bb, v)
+		s := toTimestampISO8601String(bs, bb, v)
 		return matchExactPrefix(s, prefix)
 	})
 	bbPool.Put(bb)
@@ -108,7 +108,7 @@ func matchIPv4ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefi
 
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toIPv4StringExt(bs, bb, v)
+		s := toIPv4String(bs, bb, v)
 		return matchExactPrefix(s, prefix)
 	})
 	bbPool.Put(bb)
@@ -126,7 +126,7 @@ func matchFloat64ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, pr
 
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toFloat64StringExt(bs, bb, v)
+		s := toFloat64String(bs, bb, v)
 		return matchExactPrefix(s, prefix)
 	})
 	bbPool.Put(bb)

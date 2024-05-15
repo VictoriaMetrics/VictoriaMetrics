@@ -208,8 +208,8 @@ func (q *Query) String() string {
 
 // AddTimeFilter adds global filter _time:[start ... end] to q.
 func (q *Query) AddTimeFilter(start, end int64) {
-	startStr := marshalTimestampRFC3339Nano(nil, start)
-	endStr := marshalTimestampRFC3339Nano(nil, end)
+	startStr := marshalTimestampRFC3339NanoString(nil, start)
+	endStr := marshalTimestampRFC3339NanoString(nil, end)
 	ft := &filterTime{
 		minTimestamp: start,
 		maxTimestamp: end,

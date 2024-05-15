@@ -124,7 +124,7 @@ func matchTimestampISO8601BySequence(bs *blockSearch, ch *columnHeader, bm *bitm
 	// Slow path - phrases contain incomplete timestamp. Search over string representation of the timestamp.
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toTimestampISO8601StringExt(bs, bb, v)
+		s := toTimestampISO8601String(bs, bb, v)
 		return matchSequence(s, phrases)
 	})
 	bbPool.Put(bb)
@@ -145,7 +145,7 @@ func matchIPv4BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases,
 	// the ip to string before searching for prefix there.
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toIPv4StringExt(bs, bb, v)
+		s := toIPv4String(bs, bb, v)
 		return matchSequence(s, phrases)
 	})
 	bbPool.Put(bb)
@@ -163,7 +163,7 @@ func matchFloat64BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phras
 	// of floating-point numbers :(
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toFloat64StringExt(bs, bb, v)
+		s := toFloat64String(bs, bb, v)
 		return matchSequence(s, phrases)
 	})
 	bbPool.Put(bb)

@@ -3,7 +3,6 @@ package logstorage
 import (
 	"unicode/utf8"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -89,7 +88,7 @@ func matchIPv4ByLenRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minLen, 
 
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toIPv4StringExt(bs, bb, v)
+		s := toIPv4String(bs, bb, v)
 		return matchLenRange(s, minLen, maxLen)
 	})
 	bbPool.Put(bb)
@@ -103,7 +102,7 @@ func matchFloat64ByLenRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minLe
 
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toFloat64StringExt(bs, bb, v)
+		s := toFloat64String(bs, bb, v)
 		return matchLenRange(s, minLen, maxLen)
 	})
 	bbPool.Put(bb)
@@ -191,12 +190,10 @@ func matchMinMaxValueLen(ch *columnHeader, minLen, maxLen uint64) bool {
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
 
-	bb.B = marshalUint64(bb.B[:0], ch.minValue)
-	s := bytesutil.ToUnsafeString(bb.B)
-	if maxLen < uint64(len(s)) {
+	bb.B = marshalUint64String(bb.B[:0], ch.minValue)
+	if maxLen < uint64(len(bb.B)) {
 		return false
 	}
-	bb.B = marshalUint64(bb.B[:0], ch.maxValue)
-	s = bytesutil.ToUnsafeString(bb.B)
-	return minLen <= uint64(len(s))
+	bb.B = marshalUint64String(bb.B[:0], ch.maxValue)
+	return minLen <= uint64(len(bb.B))
 }

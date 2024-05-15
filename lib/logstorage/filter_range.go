@@ -3,8 +3,6 @@ package logstorage
 import (
 	"math"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -83,9 +81,7 @@ func matchFloat64ByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue
 		if len(v) != 8 {
 			logger.Panicf("FATAL: %s: unexpected length for binary representation of floating-point number: got %d; want 8", bs.partPath(), len(v))
 		}
-		b := bytesutil.ToUnsafeBytes(v)
-		n := encoding.UnmarshalUint64(b)
-		f := math.Float64frombits(n)
+		f := unmarshalFloat64(v)
 		return f >= minValue && f <= maxValue
 	})
 }
@@ -118,7 +114,7 @@ func matchUint8ByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, 
 		if len(v) != 1 {
 			logger.Panicf("FATAL: %s: unexpected length for binary representation of uint8 number: got %d; want 1", bs.partPath(), len(v))
 		}
-		n := uint64(v[0])
+		n := uint64(unmarshalUint8(v))
 		return n >= minValueUint && n <= maxValueUint
 	})
 	bbPool.Put(bb)
@@ -135,8 +131,7 @@ func matchUint16ByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue,
 		if len(v) != 2 {
 			logger.Panicf("FATAL: %s: unexpected length for binary representation of uint16 number: got %d; want 2", bs.partPath(), len(v))
 		}
-		b := bytesutil.ToUnsafeBytes(v)
-		n := uint64(encoding.UnmarshalUint16(b))
+		n := uint64(unmarshalUint16(v))
 		return n >= minValueUint && n <= maxValueUint
 	})
 	bbPool.Put(bb)
@@ -153,8 +148,7 @@ func matchUint32ByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue,
 		if len(v) != 4 {
 			logger.Panicf("FATAL: %s: unexpected length for binary representation of uint8 number: got %d; want 4", bs.partPath(), len(v))
 		}
-		b := bytesutil.ToUnsafeBytes(v)
-		n := uint64(encoding.UnmarshalUint32(b))
+		n := uint64(unmarshalUint32(v))
 		return n >= minValueUint && n <= maxValueUint
 	})
 	bbPool.Put(bb)
@@ -171,8 +165,7 @@ func matchUint64ByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue,
 		if len(v) != 8 {
 			logger.Panicf("FATAL: %s: unexpected length for binary representation of uint8 number: got %d; want 8", bs.partPath(), len(v))
 		}
-		b := bytesutil.ToUnsafeBytes(v)
-		n := encoding.UnmarshalUint64(b)
+		n := unmarshalUint64(v)
 		return n >= minValueUint && n <= maxValueUint
 	})
 	bbPool.Put(bb)

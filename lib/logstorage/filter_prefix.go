@@ -7,7 +7,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -102,7 +101,7 @@ func matchTimestampISO8601ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap
 
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toTimestampISO8601StringExt(bs, bb, v)
+		s := toTimestampISO8601String(bs, bb, v)
 		return matchPrefix(s, prefix)
 	})
 	bbPool.Put(bb)
@@ -123,7 +122,7 @@ func matchIPv4ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix str
 
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toIPv4StringExt(bs, bb, v)
+		s := toIPv4String(bs, bb, v)
 		return matchPrefix(s, prefix)
 	})
 	bbPool.Put(bb)
@@ -151,7 +150,7 @@ func matchFloat64ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix 
 
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toFloat64StringExt(bs, bb, v)
+		s := toFloat64String(bs, bb, v)
 		return matchPrefix(s, prefix)
 	})
 	bbPool.Put(bb)
@@ -321,8 +320,8 @@ func toUint8String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string {
 	if len(v) != 1 {
 		logger.Panicf("FATAL: %s: unexpected length for binary representation of uint8 number: got %d; want 1", bs.partPath(), len(v))
 	}
-	n := uint64(v[0])
-	bb.B = marshalUint64(bb.B[:0], n)
+	n := unmarshalUint8(v)
+	bb.B = marshalUint8String(bb.B[:0], n)
 	return bytesutil.ToUnsafeString(bb.B)
 }
 
@@ -330,9 +329,8 @@ func toUint16String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string 
 	if len(v) != 2 {
 		logger.Panicf("FATAL: %s: unexpected length for binary representation of uint16 number: got %d; want 2", bs.partPath(), len(v))
 	}
-	b := bytesutil.ToUnsafeBytes(v)
-	n := uint64(encoding.UnmarshalUint16(b))
-	bb.B = marshalUint64(bb.B[:0], n)
+	n := unmarshalUint16(v)
+	bb.B = marshalUint16String(bb.B[:0], n)
 	return bytesutil.ToUnsafeString(bb.B)
 }
 
@@ -340,9 +338,8 @@ func toUint32String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string 
 	if len(v) != 4 {
 		logger.Panicf("FATAL: %s: unexpected length for binary representation of uint32 number: got %d; want 4", bs.partPath(), len(v))
 	}
-	b := bytesutil.ToUnsafeBytes(v)
-	n := uint64(encoding.UnmarshalUint32(b))
-	bb.B = marshalUint64(bb.B[:0], n)
+	n := unmarshalUint32(v)
+	bb.B = marshalUint32String(bb.B[:0], n)
 	return bytesutil.ToUnsafeString(bb.B)
 }
 
@@ -350,8 +347,7 @@ func toUint64String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string 
 	if len(v) != 8 {
 		logger.Panicf("FATAL: %s: unexpected length for binary representation of uint64 number: got %d; want 8", bs.partPath(), len(v))
 	}
-	b := bytesutil.ToUnsafeBytes(v)
-	n := encoding.UnmarshalUint64(b)
-	bb.B = marshalUint64(bb.B[:0], n)
+	n := unmarshalUint64(v)
+	bb.B = marshalUint64String(bb.B[:0], n)
 	return bytesutil.ToUnsafeString(bb.B)
 }

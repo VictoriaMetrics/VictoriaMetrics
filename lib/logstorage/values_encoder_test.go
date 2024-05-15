@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"strconv"
 	"testing"
 )
 
@@ -96,7 +97,7 @@ func TestValuesEncoder(t *testing.T) {
 	f(values, valueTypeTimestampISO8601, 1303184641000000000, 1303184641008000000)
 }
 
-func TestTryParseIPv4_Success(t *testing.T) {
+func TestTryParseIPv4String_Success(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 
@@ -104,7 +105,7 @@ func TestTryParseIPv4_Success(t *testing.T) {
 		if !ok {
 			t.Fatalf("cannot parse %q", s)
 		}
-		data := marshalIPv4(nil, n)
+		data := marshalIPv4String(nil, n)
 		if string(data) != s {
 			t.Fatalf("unexpected ip; got %q; want %q", data, s)
 		}
@@ -147,14 +148,14 @@ func TestTryParseIPv4_Failure(t *testing.T) {
 	f("127.127.127.-1")
 }
 
-func TestTryParseTimestampRFC3339Nano_Success(t *testing.T) {
+func TestTryParseTimestampRFC3339NanoString_Success(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		nsecs, ok := tryParseTimestampRFC3339Nano(s)
 		if !ok {
 			t.Fatalf("cannot parse timestamp %q", s)
 		}
-		data := marshalTimestampRFC3339Nano(nil, nsecs)
+		data := marshalTimestampRFC3339NanoString(nil, nsecs)
 		if string(data) != s {
 			t.Fatalf("unexpected timestamp; got %q; want %q", data, s)
 		}
@@ -236,14 +237,14 @@ func TestTryParseTimestampRFC3339Nano_Failure(t *testing.T) {
 	f("2023-01-23T23:33:ssZ")
 }
 
-func TestTryParseTimestampISO8601_Success(t *testing.T) {
+func TestTryParseTimestampISO8601String_Success(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		nsecs, ok := tryParseTimestampISO8601(s)
 		if !ok {
 			t.Fatalf("cannot parse timestamp %q", s)
 		}
-		data := marshalTimestampISO8601(nil, nsecs)
+		data := marshalTimestampISO8601String(nil, nsecs)
 		if string(data) != s {
 			t.Fatalf("unexpected timestamp; got %q; want %q", data, s)
 		}
@@ -554,11 +555,11 @@ func TestTryParseFloat64_Failure(t *testing.T) {
 	f("12-5")
 }
 
-func TestMarshalFloat64(t *testing.T) {
+func TestMarshalFloat64String(t *testing.T) {
 	f := func(f float64, resultExpected string) {
 		t.Helper()
 
-		result := marshalFloat64(nil, f)
+		result := marshalFloat64String(nil, f)
 		if string(result) != resultExpected {
 			t.Fatalf("unexpected result; got %q; want %q", result, resultExpected)
 		}
@@ -618,11 +619,79 @@ func TestTryParseUint64_Failure(t *testing.T) {
 	f("foo")
 }
 
-func TestMarshalUint64(t *testing.T) {
+func TestMarshalUint8String(t *testing.T) {
+	f := func(n uint8, resultExpected string) {
+		t.Helper()
+
+		result := marshalUint8String(nil, n)
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result; got %q; want %q", result, resultExpected)
+		}
+	}
+
+	for i := 0; i < 256; i++ {
+		resultExpected := strconv.Itoa(i)
+		f(uint8(i), resultExpected)
+	}
+
+	// the maximum possible value
+	f(math.MaxUint8, "255")
+}
+
+func TestMarshalUint16String(t *testing.T) {
+	f := func(n uint16, resultExpected string) {
+		t.Helper()
+
+		result := marshalUint16String(nil, n)
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result; got %q; want %q", result, resultExpected)
+		}
+	}
+
+	f(0, "0")
+	f(1, "1")
+	f(10, "10")
+	f(12, "12")
+	f(120, "120")
+	f(1203, "1203")
+	f(12345, "12345")
+
+	// the maximum possible value
+	f(math.MaxUint16, "65535")
+}
+
+func TestMarshalUint32String(t *testing.T) {
+	f := func(n uint32, resultExpected string) {
+		t.Helper()
+
+		result := marshalUint32String(nil, n)
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result; got %q; want %q", result, resultExpected)
+		}
+	}
+
+	f(0, "0")
+	f(1, "1")
+	f(10, "10")
+	f(12, "12")
+	f(120, "120")
+	f(1203, "1203")
+	f(12034, "12034")
+	f(123456, "123456")
+	f(1234567, "1234567")
+	f(12345678, "12345678")
+	f(123456789, "123456789")
+	f(1234567890, "1234567890")
+
+	// the maximum possible value
+	f(math.MaxUint32, "4294967295")
+}
+
+func TestMarshalUint64String(t *testing.T) {
 	f := func(n uint64, resultExpected string) {
 		t.Helper()
 
-		result := marshalUint64(nil, n)
+		result := marshalUint64String(nil, n)
 		if string(result) != resultExpected {
 			t.Fatalf("unexpected result; got %q; want %q", result, resultExpected)
 		}
@@ -632,8 +701,7 @@ func TestMarshalUint64(t *testing.T) {
 	f(123456, "123456")
 
 	// the maximum possible value
-	f(18446744073709551615, "18446744073709551615")
-	f(18_446_744_073_709_551_615, "18446744073709551615")
+	f(math.MaxUint64, "18446744073709551615")
 }
 
 func TestTryParseIPv4Mask_Success(t *testing.T) {
