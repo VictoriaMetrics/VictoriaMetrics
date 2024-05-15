@@ -1307,8 +1307,10 @@ func (br *blockResult) skipRows(skipRows int) {
 		if c.isConst {
 			continue
 		}
-		if c.valuesEncoded != nil {
-			c.valuesEncoded = append(c.valuesEncoded[:0], c.valuesEncoded[skipRows:]...)
+
+		valuesEncoded := c.getValuesEncoded(br)
+		if valuesEncoded != nil {
+			c.valuesEncoded = append(valuesEncoded[:0], valuesEncoded[skipRows:]...)
 		}
 		if c.valuesBucketed != nil {
 			c.valuesBucketed = append(c.valuesBucketed[:0], c.valuesBucketed[skipRows:]...)
@@ -1325,8 +1327,10 @@ func (br *blockResult) truncateRows(keepRows int) {
 		if c.isConst {
 			continue
 		}
-		if c.valuesEncoded != nil {
-			c.valuesEncoded = c.valuesEncoded[:keepRows]
+
+		valuesEncoded := c.getValuesEncoded(br)
+		if valuesEncoded != nil {
+			c.valuesEncoded = valuesEncoded[:keepRows]
 		}
 		if c.valuesBucketed != nil {
 			c.valuesBucketed = append(c.valuesBucketed[:0], c.valuesBucketed[keepRows:]...)
