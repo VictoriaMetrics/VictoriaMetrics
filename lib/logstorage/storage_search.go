@@ -178,6 +178,7 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 	for i := 0; i < workersCount; i++ {
 		go func(workerID uint) {
 			bs := getBlockSearch()
+			bm := getBitmap(0)
 			for bswb := range workCh {
 				bsws := bswb.bsws
 				for i := range bsws {
@@ -188,7 +189,7 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 						continue
 					}
 
-					bs.search(bsw)
+					bs.search(bsw, bm)
 					if len(bs.br.timestamps) > 0 {
 						processBlockResult(workerID, &bs.br)
 					}
@@ -198,6 +199,7 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 				putBlockSearchWorkBatch(bswb)
 			}
 			putBlockSearch(bs)
+			putBitmap(bm)
 			wgWorkers.Done()
 		}(uint(i))
 	}
