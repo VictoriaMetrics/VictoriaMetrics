@@ -1,9 +1,8 @@
 package logstorage
 
 import (
-	"math"
 	"slices"
-	"strconv"
+	"strings"
 	"unsafe"
 )
 
@@ -22,8 +21,7 @@ func (sm *statsMin) neededFields() []string {
 
 func (sm *statsMin) newStatsProcessor() (statsProcessor, int) {
 	smp := &statsMinProcessor{
-		sm:  sm,
-		min: nan,
+		sm: sm,
 	}
 	return smp, int(unsafe.Sizeof(*smp))
 }
@@ -31,62 +29,74 @@ func (sm *statsMin) newStatsProcessor() (statsProcessor, int) {
 type statsMinProcessor struct {
 	sm *statsMin
 
-	min float64
+	min string
+	hasMin bool
 }
 
 func (smp *statsMinProcessor) updateStatsForAllRows(br *blockResult) int {
+	minLen := len(smp.min)
+
 	if smp.sm.containsStar {
 		// Find the minimum value across all the columns
 		for _, c := range br.getColumns() {
-			f := c.getMinValue()
-			if f < smp.min || math.IsNaN(smp.min) {
-				smp.min = f
+			for _, v := range c.getValues(br) {
+				smp.updateState(v)
 			}
 		}
 	} else {
 		// Find the minimum value across the requested columns
 		for _, field := range smp.sm.fields {
 			c := br.getColumnByName(field)
-			f := c.getMinValue()
-			if f < smp.min || math.IsNaN(smp.min) {
-				smp.min = f
+			for _, v := range c.getValues(br) {
+				smp.updateState(v)
 			}
 		}
 	}
-	return 0
+
+	return len(smp.min) - minLen
 }
 
 func (smp *statsMinProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
+	minLen := len(smp.min)
+
 	if smp.sm.containsStar {
 		// Find the minimum value across all the fields for the given row
 		for _, c := range br.getColumns() {
-			f := c.getFloatValueAtRow(rowIdx)
-			if f < smp.min || math.IsNaN(smp.min) {
-				smp.min = f
-			}
+			v := c.getValueAtRow(br, rowIdx)
+			smp.updateState(v)
 		}
 	} else {
 		// Find the minimum value across the requested fields for the given row
 		for _, field := range smp.sm.fields {
 			c := br.getColumnByName(field)
-			f := c.getFloatValueAtRow(rowIdx)
-			if f < smp.min || math.IsNaN(smp.min) {
-				smp.min = f
-			}
+			v := c.getValueAtRow(br, rowIdx)
+			smp.updateState(v)
 		}
 	}
-	return 0
+
+	return minLen - len(smp.min)
 }
 
 func (smp *statsMinProcessor) mergeState(sfp statsProcessor) {
 	src := sfp.(*statsMinProcessor)
-	if src.min < smp.min {
-		smp.min = src.min
+	if src.hasMin {
+		smp.updateState(src.min)
 	}
 }
 
+func (smp *statsMinProcessor) updateState(v string) {
+	if smp.hasMin && !lessString(v, smp.min) {
+		return
+	}
+	smp.min = strings.Clone(v)
+	smp.hasMin = true
+}
+
 func (smp *statsMinProcessor) finalizeStats() string {
-	return strconv.FormatFloat(smp.min, 'f', -1, 64)
+	if !smp.hasMin {
+		return "NaN"
+	}
+	return smp.min
 }
 
 func parseStatsMin(lex *lexer) (*statsMin, error) {

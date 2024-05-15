@@ -1505,9 +1505,8 @@ See also:
 
 ### max stats
 
-`max(field1, ..., fieldN)` [stats pipe](#stats-pipe) calculates the maximum value across
+`max(field1, ..., fieldN)` [stats pipe](#stats-pipe) returns the maximum value across
 all the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-Non-numeric values are ignored.
 
 For example, the following query returns the maximum value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
@@ -1543,9 +1542,8 @@ See also:
 
 ### min stats
 
-`min(field1, ..., fieldN)` [stats pipe](#stats-pipe) calculates the minimum value across
+`min(field1, ..., fieldN)` [stats pipe](#stats-pipe) returns the minimum value across
 all the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-Non-numeric values are ignored.
 
 For example, the following query returns the minimum value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:

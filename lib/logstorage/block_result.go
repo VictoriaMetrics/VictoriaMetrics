@@ -1470,271 +1470,46 @@ func (c *blockResultColumn) getValues(br *blockResult) []string {
 	return c.values
 }
 
-func (c *blockResultColumn) getFloatValueAtRow(rowIdx int) float64 {
+func (c *blockResultColumn) getFloatValueAtRow(rowIdx int) (float64, bool) {
 	if c.isConst {
 		v := c.encodedValues[0]
-		f, ok := tryParseFloat64(v)
-		if !ok {
-			return nan
-		}
-		return f
+		return tryParseFloat64(v)
 	}
 	if c.isTime {
-		return nan
+		return 0, false
 	}
 
 	switch c.valueType {
 	case valueTypeString:
-		f, ok := tryParseFloat64(c.encodedValues[rowIdx])
-		if !ok {
-			return nan
-		}
-		return f
+		v := c.encodedValues[rowIdx]
+		return tryParseFloat64(v)
 	case valueTypeDict:
 		dictIdx := c.encodedValues[rowIdx][0]
-		f, ok := tryParseFloat64(c.dictValues[dictIdx])
-		if !ok {
-			return nan
-		}
-		return f
+		v := c.dictValues[dictIdx]
+		return tryParseFloat64(v)
 	case valueTypeUint8:
-		return float64(c.encodedValues[rowIdx][0])
+		return float64(c.encodedValues[rowIdx][0]), true
 	case valueTypeUint16:
 		b := bytesutil.ToUnsafeBytes(c.encodedValues[rowIdx])
-		return float64(encoding.UnmarshalUint16(b))
+		return float64(encoding.UnmarshalUint16(b)), true
 	case valueTypeUint32:
 		b := bytesutil.ToUnsafeBytes(c.encodedValues[rowIdx])
-		return float64(encoding.UnmarshalUint32(b))
+		return float64(encoding.UnmarshalUint32(b)), true
 	case valueTypeUint64:
 		b := bytesutil.ToUnsafeBytes(c.encodedValues[rowIdx])
-		return float64(encoding.UnmarshalUint64(b))
+		return float64(encoding.UnmarshalUint64(b)), true
 	case valueTypeFloat64:
 		b := bytesutil.ToUnsafeBytes(c.encodedValues[rowIdx])
 		n := encoding.UnmarshalUint64(b)
-		return math.Float64frombits(n)
+		f := math.Float64frombits(n)
+		return f, !math.IsNaN(f)
 	case valueTypeIPv4:
-		return nan
+		return 0, false
 	case valueTypeTimestampISO8601:
-		return nan
+		return 0, false
 	default:
 		logger.Panicf("BUG: unknown valueType=%d", c.valueType)
-		return nan
-	}
-}
-
-func (c *blockResultColumn) getMaxValue() float64 {
-	if c.isConst {
-		v := c.encodedValues[0]
-		f, ok := tryParseFloat64(v)
-		if !ok {
-			return nan
-		}
-		return f
-	}
-	if c.isTime {
-		return nan
-	}
-
-	switch c.valueType {
-	case valueTypeString:
-		max := nan
-		f := float64(0)
-		ok := false
-		values := c.encodedValues
-		for i := range values {
-			if i == 0 || values[i-1] != values[i] {
-				f, ok = tryParseFloat64(values[i])
-			}
-			if ok && (f > max || math.IsNaN(max)) {
-				max = f
-			}
-		}
-		return max
-	case valueTypeDict:
-		a := encoding.GetFloat64s(len(c.dictValues))
-		dictValuesFloat := a.A
-		for i, v := range c.dictValues {
-			f, ok := tryParseFloat64(v)
-			if !ok {
-				f = nan
-			}
-			dictValuesFloat[i] = f
-		}
-		max := nan
-		for _, v := range c.encodedValues {
-			dictIdx := v[0]
-			f := dictValuesFloat[dictIdx]
-			if f > max || math.IsNaN(max) {
-				max = f
-			}
-		}
-		encoding.PutFloat64s(a)
-		return max
-	case valueTypeUint8:
-		max := -inf
-		for _, v := range c.encodedValues {
-			f := float64(v[0])
-			if f > max {
-				max = f
-			}
-		}
-		return max
-	case valueTypeUint16:
-		max := -inf
-		for _, v := range c.encodedValues {
-			b := bytesutil.ToUnsafeBytes(v)
-			f := float64(encoding.UnmarshalUint16(b))
-			if f > max {
-				max = f
-			}
-		}
-		return max
-	case valueTypeUint32:
-		max := -inf
-		for _, v := range c.encodedValues {
-			b := bytesutil.ToUnsafeBytes(v)
-			f := float64(encoding.UnmarshalUint32(b))
-			if f > max {
-				max = f
-			}
-		}
-		return max
-	case valueTypeUint64:
-		max := -inf
-		for _, v := range c.encodedValues {
-			b := bytesutil.ToUnsafeBytes(v)
-			f := float64(encoding.UnmarshalUint64(b))
-			if f > max {
-				max = f
-			}
-		}
-		return max
-	case valueTypeFloat64:
-		max := nan
-		for _, v := range c.encodedValues {
-			b := bytesutil.ToUnsafeBytes(v)
-			n := encoding.UnmarshalUint64(b)
-			f := math.Float64frombits(n)
-			if math.IsNaN(max) || f > max {
-				max = f
-			}
-		}
-		return max
-	case valueTypeIPv4:
-		return nan
-	case valueTypeTimestampISO8601:
-		return nan
-	default:
-		logger.Panicf("BUG: unknown valueType=%d", c.valueType)
-		return nan
-	}
-}
-
-func (c *blockResultColumn) getMinValue() float64 {
-	if c.isConst {
-		v := c.encodedValues[0]
-		f, ok := tryParseFloat64(v)
-		if !ok {
-			return nan
-		}
-		return f
-	}
-	if c.isTime {
-		return nan
-	}
-
-	switch c.valueType {
-	case valueTypeString:
-		min := nan
-		f := float64(0)
-		ok := false
-		values := c.encodedValues
-		for i := range values {
-			if i == 0 || values[i-1] != values[i] {
-				f, ok = tryParseFloat64(values[i])
-			}
-			if ok && (f < min || math.IsNaN(min)) {
-				min = f
-			}
-		}
-		return min
-	case valueTypeDict:
-		a := encoding.GetFloat64s(len(c.dictValues))
-		dictValuesFloat := a.A
-		for i, v := range c.dictValues {
-			f, ok := tryParseFloat64(v)
-			if !ok {
-				f = nan
-			}
-			dictValuesFloat[i] = f
-		}
-		min := nan
-		for _, v := range c.encodedValues {
-			dictIdx := v[0]
-			f := dictValuesFloat[dictIdx]
-			if f < min || math.IsNaN(min) {
-				min = f
-			}
-		}
-		encoding.PutFloat64s(a)
-		return min
-	case valueTypeUint8:
-		min := inf
-		for _, v := range c.encodedValues {
-			f := float64(v[0])
-			if f < min {
-				min = f
-			}
-		}
-		return min
-	case valueTypeUint16:
-		min := inf
-		for _, v := range c.encodedValues {
-			b := bytesutil.ToUnsafeBytes(v)
-			f := float64(encoding.UnmarshalUint16(b))
-			if f < min {
-				min = f
-			}
-		}
-		return min
-	case valueTypeUint32:
-		min := inf
-		for _, v := range c.encodedValues {
-			b := bytesutil.ToUnsafeBytes(v)
-			f := float64(encoding.UnmarshalUint32(b))
-			if f < min {
-				min = f
-			}
-		}
-		return min
-	case valueTypeUint64:
-		min := inf
-		for _, v := range c.encodedValues {
-			b := bytesutil.ToUnsafeBytes(v)
-			f := float64(encoding.UnmarshalUint64(b))
-			if f < min {
-				min = f
-			}
-		}
-		return min
-	case valueTypeFloat64:
-		min := nan
-		for _, v := range c.encodedValues {
-			b := bytesutil.ToUnsafeBytes(v)
-			n := encoding.UnmarshalUint64(b)
-			f := math.Float64frombits(n)
-			if math.IsNaN(min) || f < min {
-				min = f
-			}
-		}
-		return min
-	case valueTypeIPv4:
-		return nan
-	case valueTypeTimestampISO8601:
-		return nan
-	default:
-		logger.Panicf("BUG: unknown valueType=%d", c.valueType)
-		return nan
+		return 0, false
 	}
 }
 

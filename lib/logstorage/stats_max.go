@@ -1,9 +1,8 @@
 package logstorage
 
 import (
-	"math"
 	"slices"
-	"strconv"
+	"strings"
 	"unsafe"
 )
 
@@ -22,8 +21,7 @@ func (sm *statsMax) neededFields() []string {
 
 func (sm *statsMax) newStatsProcessor() (statsProcessor, int) {
 	smp := &statsMaxProcessor{
-		sm:  sm,
-		max: nan,
+		sm: sm,
 	}
 	return smp, int(unsafe.Sizeof(*smp))
 }
@@ -31,62 +29,74 @@ func (sm *statsMax) newStatsProcessor() (statsProcessor, int) {
 type statsMaxProcessor struct {
 	sm *statsMax
 
-	max float64
+	max    string
+	hasMax bool
 }
 
 func (smp *statsMaxProcessor) updateStatsForAllRows(br *blockResult) int {
+	maxLen := len(smp.max)
+
 	if smp.sm.containsStar {
-		// Find the maximum value across all the columns
+		// Find the minimum value across all the columns
 		for _, c := range br.getColumns() {
-			f := c.getMaxValue()
-			if f > smp.max || math.IsNaN(smp.max) {
-				smp.max = f
+			for _, v := range c.getValues(br) {
+				smp.updateState(v)
 			}
 		}
 	} else {
-		// Find the maximum value across the requested columns
+		// Find the minimum value across the requested columns
 		for _, field := range smp.sm.fields {
 			c := br.getColumnByName(field)
-			f := c.getMaxValue()
-			if f > smp.max || math.IsNaN(smp.max) {
-				smp.max = f
+			for _, v := range c.getValues(br) {
+				smp.updateState(v)
 			}
 		}
 	}
-	return 0
+
+	return len(smp.max) - maxLen
 }
 
 func (smp *statsMaxProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
+	maxLen := len(smp.max)
+
 	if smp.sm.containsStar {
-		// Find the maximum value across all the fields for the given row
+		// Find the minimum value across all the fields for the given row
 		for _, c := range br.getColumns() {
-			f := c.getFloatValueAtRow(rowIdx)
-			if f > smp.max || math.IsNaN(smp.max) {
-				smp.max = f
-			}
+			v := c.getValueAtRow(br, rowIdx)
+			smp.updateState(v)
 		}
 	} else {
-		// Find the maximum value across the requested fields for the given row
+		// Find the minimum value across the requested fields for the given row
 		for _, field := range smp.sm.fields {
 			c := br.getColumnByName(field)
-			f := c.getFloatValueAtRow(rowIdx)
-			if f > smp.max || math.IsNaN(smp.max) {
-				smp.max = f
-			}
+			v := c.getValueAtRow(br, rowIdx)
+			smp.updateState(v)
 		}
 	}
-	return 0
+
+	return maxLen - len(smp.max)
 }
 
 func (smp *statsMaxProcessor) mergeState(sfp statsProcessor) {
 	src := sfp.(*statsMaxProcessor)
-	if src.max > smp.max {
-		smp.max = src.max
+	if src.hasMax {
+		smp.updateState(src.max)
 	}
 }
 
+func (smp *statsMaxProcessor) updateState(v string) {
+	if smp.hasMax && !lessString(smp.max, v) {
+		return
+	}
+	smp.max = strings.Clone(v)
+	smp.hasMax = true
+}
+
 func (smp *statsMaxProcessor) finalizeStats() string {
-	return strconv.FormatFloat(smp.max, 'f', -1, 64)
+	if !smp.hasMax {
+		return "NaN"
+	}
+	return smp.max
 }
 
 func parseStatsMax(lex *lexer) (*statsMax, error) {

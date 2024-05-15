@@ -68,8 +68,8 @@ func (ssp *statsSumProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 	if ssp.ss.containsStar {
 		// Sum all the fields for the given row
 		for _, c := range br.getColumns() {
-			f := c.getFloatValueAtRow(rowIdx)
-			if !math.IsNaN(f) {
+			f, ok := c.getFloatValueAtRow(rowIdx)
+			if ok {
 				if math.IsNaN(ssp.sum) {
 					ssp.sum = f
 				} else {
@@ -81,8 +81,8 @@ func (ssp *statsSumProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 		// Sum only the given fields for the given row
 		for _, field := range ssp.ss.fields {
 			c := br.getColumnByName(field)
-			f := c.getFloatValueAtRow(rowIdx)
-			if !math.IsNaN(f) {
+			f, ok := c.getFloatValueAtRow(rowIdx)
+			if ok {
 				if math.IsNaN(ssp.sum) {
 					ssp.sum = f
 				} else {

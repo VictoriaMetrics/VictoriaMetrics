@@ -545,9 +545,29 @@ func topkLess(ps *pipeSort, a, b *pipeTopkRow) bool {
 		}
 
 		if isDesc {
-			return stringsutil.LessNatural(vB, vA)
+			return lessString(vB, vA)
 		}
-		return stringsutil.LessNatural(vA, vB)
+		return lessString(vA, vB)
 	}
 	return false
+}
+
+func lessString(a, b string) bool {
+	if a == b {
+		return false
+	}
+
+	nA, okA := tryParseUint64(a)
+	nB, okB := tryParseUint64(b)
+	if okA && okB {
+		return nA < nB
+	}
+
+	fA, okA := tryParseFloat64(a)
+	fB, okB := tryParseFloat64(b)
+	if okA && okB {
+		return fA < fB
+	}
+
+	return stringsutil.LessNatural(a, b)
 }

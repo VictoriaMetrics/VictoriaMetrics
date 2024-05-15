@@ -2,7 +2,6 @@ package logstorage
 
 import (
 	"fmt"
-	"math"
 	"slices"
 	"strconv"
 	"unsafe"
@@ -72,16 +71,16 @@ func (sqp *statsQuantileProcessor) updateStatsForRow(br *blockResult, rowIdx int
 
 	if sqp.sq.containsStar {
 		for _, c := range br.getColumns() {
-			f := c.getFloatValueAtRow(rowIdx)
-			if !math.IsNaN(f) {
+			f, ok := c.getFloatValueAtRow(rowIdx)
+			if ok {
 				stateSizeIncrease += h.update(f)
 			}
 		}
 	} else {
 		for _, field := range sqp.sq.fields {
 			c := br.getColumnByName(field)
-			f := c.getFloatValueAtRow(rowIdx)
-			if !math.IsNaN(f) {
+			f, ok := c.getFloatValueAtRow(rowIdx)
+			if ok {
 				stateSizeIncrease += h.update(f)
 			}
 		}
