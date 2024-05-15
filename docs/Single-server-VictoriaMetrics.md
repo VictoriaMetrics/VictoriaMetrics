@@ -715,7 +715,22 @@ The `/api/v1/export` endpoint should return the following response:
 
 ## How to send data from Statsd-compatible clients
 
+
 VictoriaMetrics supports extended statsd protocol. Currently, it supports `tags` and `value packing` extensions provided by [dogstatsd](https://docs.datadoghq.com/developers/dogstatsd/datagram_shell). Metric type name added into the special label `__statsd_metric_type__`. Which could be later used for streaming aggregation. 
+
+ VictoriaMetrics supports the following metric types:
+
+* `c` Counter type.
+* `g`  Gauge type.
+* `ms` Timer type.
+* `m` Meters type.
+* `h` Histogram type.
+* `s` Set type with only numeric values.
+* `d` Distribution type.
+
+The `Not Assigned` type is not supported due to the ambiguity surrounding its aggregation method. The aggregation process cannot be determined as the type is undefined.
+
+It is strongly advisable to configure streaming aggregation for each metric type. This process serves two primary objectives: firstly, it involves the transformation of the statsd data model into the VictoriaMetrics data model. VictoriaMetrics requires a consistent interval between data points. Secondly, it aims to minimize disk space utilization and overall resource consumption during data ingestion.
 
  Enable Statsd receiver in VictoriaMetrics by setting `-statsdListenAddr` command line flag and configure [steaming aggregation](https://docs.victoriametrics.com/stream-aggregation/). For instance,
 the following command will enable Statsd receiver in VictoriaMetrics on TCP and UDP port `8125`:
@@ -730,9 +745,6 @@ Example for streaming aggregation config:
 # statsd_aggr.yaml
 - match: '{__statsd_metric_type__="g"}'
   outputs: [last]
-  interval: 1m
-- match: '{__statsd_metric_type__="h"}'
-  outputs: [histogram_bucket]
   interval: 1m
 ```
 
@@ -3196,6 +3208,12 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 0)
   -sortLabels
      Whether to sort labels for incoming samples before writing them to storage. This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. Enabled sorting for labels can slow down ingestion performance a bit
+  -statsd.disableAggregationEnforcement
+    	Whether to disable streaming aggregation requirement check. It's recommended to run statsdServer with pre-configured streaming aggregation to decrease load at database.
+  -statsdListenAddr string
+    	TCP and UDP address to listen for Statsd plaintext data. Usually :8125 must be set. Doesn't work if empty. See also -statsdListenAddr.useProxyProtocol
+  -statsdListenAddr.useProxyProtocol
+    	Whether to use proxy protocol for connections accepted at -statsdListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
   -storage.cacheSizeIndexDBDataBlocks size
      Overrides max size for indexdb/dataBlocks cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)

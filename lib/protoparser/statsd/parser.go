@@ -17,8 +17,9 @@ const (
 	statsdPairsSeparator     = ':'
 	statsdTagsStartSeparator = '#'
 	statsdTagsSeparator      = ','
-	statsdTypeTagName        = "__statsd_metric_type__"
 )
+
+const statsdTypeTagName = "__statsd_metric_type__"
 
 // https://github.com/b/statsd_spec
 var validTypes = []string{

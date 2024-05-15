@@ -56,8 +56,8 @@ var (
 		"See also -statsdListenAddr.useProxyProtocol")
 	statsdUseProxyProtocol = flag.Bool("statsdListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -statsdListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
-	statsdDisableAggregationEnforcemenet = flag.Bool(`statsd.disableAggregationEnforcement`, false, "Whether to disable configured streaming aggregation check. "+
-		"It's recommended to run statsd with pre-configured streaming aggregation to decreased load at database.")
+	statsdDisableAggregationEnforcemenet = flag.Bool(`statsd.disableAggregationEnforcement`, false, "Whether to disable streaming aggregation requirement check. "+
+		"It's recommended to run statsdServer with pre-configured streaming aggregation to decrease load at database.")
 	influxListenAddr = flag.String("influxListenAddr", "", "TCP and UDP address to listen for InfluxDB line protocol data. Usually :8089 must be set. Doesn't work if empty. "+
 		"This flag isn't needed when ingesting data over HTTP - just send it to http://<victoriametrics>:8428/write . "+
 		"See also -influxListenAddr.useProxyProtocol")
