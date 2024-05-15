@@ -450,10 +450,15 @@ func parsePipeStats(lex *lexer) (*pipeStats, error) {
 	var resultNames []string
 	var funcs []statsFunc
 	for {
-		sf, resultName, err := parseStatsFunc(lex)
+		sf, err := parseStatsFunc(lex)
 		if err != nil {
 			return nil, err
 		}
+		resultName, err := parseResultName(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse result name for %s: %w", sf, err)
+		}
+
 		resultNames = append(resultNames, resultName)
 		funcs = append(funcs, sf)
 		if lex.isKeyword("|", ")", "") {
@@ -468,90 +473,83 @@ func parsePipeStats(lex *lexer) (*pipeStats, error) {
 	}
 }
 
-func parseStatsFunc(lex *lexer) (statsFunc, string, error) {
-	var sf statsFunc
+func parseStatsFunc(lex *lexer) (statsFunc, error) {
 	switch {
 	case lex.isKeyword("count"):
 		scs, err := parseStatsCount(lex)
 		if err != nil {
-			return nil, "", fmt.Errorf("cannot parse 'count' func: %w", err)
+			return nil, fmt.Errorf("cannot parse 'count' func: %w", err)
 		}
-		sf = scs
+		return scs, nil
 	case lex.isKeyword("count_empty"):
 		scs, err := parseStatsCountEmpty(lex)
 		if err != nil {
-			return nil, "", fmt.Errorf("cannot parse 'count_empty' func: %w", err)
+			return nil, fmt.Errorf("cannot parse 'count_empty' func: %w", err)
 		}
-		sf = scs
+		return scs, nil
 	case lex.isKeyword("count_uniq"):
 		sus, err := parseStatsCountUniq(lex)
 		if err != nil {
-			return nil, "", fmt.Errorf("cannot parse 'count_uniq' func: %w", err)
+			return nil, fmt.Errorf("cannot parse 'count_uniq' func: %w", err)
 		}
-		sf = sus
+		return sus, nil
 	case lex.isKeyword("sum"):
 		sss, err := parseStatsSum(lex)
 		if err != nil {
-			return nil, "", fmt.Errorf("cannot parse 'sum' func: %w", err)
+			return nil, fmt.Errorf("cannot parse 'sum' func: %w", err)
 		}
-		sf = sss
+		return sss, nil
 	case lex.isKeyword("max"):
 		sms, err := parseStatsMax(lex)
 		if err != nil {
-			return nil, "", fmt.Errorf("cannot parse 'max' func: %w", err)
+			return nil, fmt.Errorf("cannot parse 'max' func: %w", err)
 		}
-		sf = sms
+		return sms, nil
 	case lex.isKeyword("min"):
 		sms, err := parseStatsMin(lex)
 		if err != nil {
-			return nil, "", fmt.Errorf("cannot parse 'min' func: %w", err)
+			return nil, fmt.Errorf("cannot parse 'min' func: %w", err)
 		}
-		sf = sms
+		return sms, nil
 	case lex.isKeyword("avg"):
 		sas, err := parseStatsAvg(lex)
 		if err != nil {
-			return nil, "", fmt.Errorf("cannot parse 'avg' func: %w", err)
+			return nil, fmt.Errorf("cannot parse 'avg' func: %w", err)
 		}
-		sf = sas
+		return sas, nil
 	case lex.isKeyword("uniq_values"):
 		sus, err := parseStatsUniqValues(lex)
 		if err != nil {
-			return nil, "", fmt.Errorf("cannot parse 'uniq_values' func: %w", err)
+			return nil, fmt.Errorf("cannot parse 'uniq_values' func: %w", err)
 		}
-		sf = sus
+		return sus, nil
 	case lex.isKeyword("values"):
 		svs, err := parseStatsValues(lex)
 		if err != nil {
-			return nil, "", fmt.Errorf("cannot parse 'values' func: %w", err)
+			return nil, fmt.Errorf("cannot parse 'values' func: %w", err)
 		}
-		sf = svs
+		return svs, nil
 	case lex.isKeyword("sum_len"):
 		sss, err := parseStatsSumLen(lex)
 		if err != nil {
-			return nil, "", fmt.Errorf("cannot parse 'sum_len' func: %w", err)
+			return nil, fmt.Errorf("cannot parse 'sum_len' func: %w", err)
 		}
-		sf = sss
+		return sss, nil
 	case lex.isKeyword("quantile"):
 		sqs, err := parseStatsQuantile(lex)
 		if err != nil {
-			return nil, "", fmt.Errorf("cannot parse 'quantile' func: %w", err)
+			return nil, fmt.Errorf("cannot parse 'quantile' func: %w", err)
 		}
-		sf = sqs
+		return sqs, nil
 	case lex.isKeyword("median"):
 		sms, err := parseStatsMedian(lex)
 		if err != nil {
-			return nil, "", fmt.Errorf("cannot parse 'median' func: %w", err)
+			return nil, fmt.Errorf("cannot parse 'median' func: %w", err)
 		}
-		sf = sms
+		return sms, nil
 	default:
-		return nil, "", fmt.Errorf("unknown stats func %q", lex.token)
+		return nil, fmt.Errorf("unknown stats func %q", lex.token)
 	}
-
-	resultName, err := parseResultName(lex)
-	if err != nil {
-		return nil, "", fmt.Errorf("cannot parse result name for %s: %w", sf, err)
-	}
-	return sf, resultName, nil
 }
 
 func parseResultName(lex *lexer) (string, error) {
