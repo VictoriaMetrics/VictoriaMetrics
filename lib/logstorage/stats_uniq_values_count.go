@@ -106,7 +106,8 @@ func (sup *statsUniqValuesCountProcessor) updateStatsForAllRowsColumn(c *blockRe
 			continue
 		}
 		if i > 0 && values[i-1] == v {
-			// This value has been already counted.
+			// This value has been already stored.
+			m[v] += 1
 			continue
 		}
 		if _, ok := m[v]; !ok {
@@ -196,11 +197,11 @@ func (sup *statsUniqValuesCountProcessor) mergeState(sfp statsProcessor) {
 
 	src := sfp.(*statsUniqValuesCountProcessor)
 	m := sup.m
-	for k := range src.m {
+	for k, v := range src.m {
 		if _, ok := m[k]; !ok {
 			m[k] = 0
 		}
-		m[k] += src.m[k]
+		m[k] += v
 	}
 }
 
@@ -234,12 +235,12 @@ func marshalJSONObject(m map[string]uint64, keys []string) string {
 	b = append(b, '{')
 	b = strconv.AppendQuote(b, keys[0])
 	b = append(b, ':')
-	b = strconv.AppendQuote(b, strconv.FormatUint(m[keys[0]], 10))
+	b = append(b, strconv.FormatUint(m[keys[0]], 10)...)
 	for _, key := range keys[1:] {
 		b = append(b, ',')
 		b = strconv.AppendQuote(b, key)
 		b = append(b, ':')
-		b = strconv.AppendQuote(b, strconv.FormatUint(m[key], 10))
+		b = append(b, strconv.FormatUint(m[key], 10)...)
 	}
 	b = append(b, '}')
 
