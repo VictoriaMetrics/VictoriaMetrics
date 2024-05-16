@@ -68,15 +68,14 @@ func (sup *statsUniqValuesCountProcessor) updateStatsForAllRowsColumn(c *blockRe
 	stateSizeIncrease := 0
 	if c.isConst {
 		// collect unique const values
-		v := c.encodedValues[0]
+		v := strings.Clone(c.encodedValues[0])
 		if v == "" {
 			// skip empty values
 			return stateSizeIncrease
 		}
 		if _, ok := m[v]; !ok {
-			vCopy := strings.Clone(v)
-			m[vCopy] = 0
-			stateSizeIncrease += len(vCopy) + int(unsafe.Sizeof(vCopy)) + 8
+			m[v] = 0
+			stateSizeIncrease += len(v) + int(unsafe.Sizeof(v)) + 8
 		}
 		m[v] += 1
 		return stateSizeIncrease
@@ -145,15 +144,14 @@ func (sup *statsUniqValuesCountProcessor) updateStatsForRowColumn(c *blockResult
 	stateSizeIncrease := 0
 	if c.isConst {
 		// collect unique const values
-		v := c.encodedValues[0]
+		v := strings.Clone(c.encodedValues[0])
 		if v == "" {
 			// skip empty values
 			return stateSizeIncrease
 		}
 		if _, ok := m[v]; !ok {
-			vCopy := strings.Clone(v)
-			m[vCopy] = 0
-			stateSizeIncrease += len(vCopy) + int(unsafe.Sizeof(vCopy)) + 8
+			m[v] = 0
+			stateSizeIncrease += len(v) + int(unsafe.Sizeof(v)) + 8
 		}
 		m[v] += 1
 		return stateSizeIncrease
@@ -161,30 +159,28 @@ func (sup *statsUniqValuesCountProcessor) updateStatsForRowColumn(c *blockResult
 	if c.valueType == valueTypeDict {
 		// collect unique non-zero c.dictValues
 		dictIdx := c.encodedValues[rowIdx][0]
-		v := c.dictValues[dictIdx]
+		v := strings.Clone(c.dictValues[dictIdx])
 		if v == "" {
 			// skip empty values
 			return stateSizeIncrease
 		}
 		if _, ok := m[v]; !ok {
-			vCopy := strings.Clone(v)
-			m[vCopy] = 0
-			stateSizeIncrease += len(vCopy) + int(unsafe.Sizeof(vCopy)) + 8
+			m[v] = 0
+			stateSizeIncrease += len(v) + int(unsafe.Sizeof(v)) + 8
 		}
 		m[v] += 1
 		return stateSizeIncrease
 	}
 
 	// collect unique values for the given rowIdx.
-	v := c.getValueAtRow(br, rowIdx)
+	v := strings.Clone(c.getValueAtRow(br, rowIdx))
 	if v == "" {
 		// skip empty values
 		return stateSizeIncrease
 	}
 	if _, ok := m[v]; !ok {
-		vCopy := strings.Clone(v)
-		m[vCopy] = 0
-		stateSizeIncrease += len(vCopy) + int(unsafe.Sizeof(vCopy)) + 8
+		m[v] = 0
+		stateSizeIncrease += len(v) + int(unsafe.Sizeof(v)) + 8
 	}
 	m[v] += 1
 	return stateSizeIncrease
