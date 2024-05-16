@@ -342,8 +342,10 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 	return rwctxs
 }
 
-var configReloaderStopCh = make(chan struct{})
-var configReloaderWG sync.WaitGroup
+var (
+	configReloaderStopCh = make(chan struct{})
+	configReloaderWG     sync.WaitGroup
+)
 
 // StartIngestionRateLimiter starts ingestion rate limiter.
 //
@@ -1032,6 +1034,11 @@ func getRowsCount(tss []prompbmarshal.TimeSeries) int {
 		rowsCount += len(ts.Samples)
 	}
 	return rowsCount
+}
+
+// HasAnyStreamAggrConfigured checks if any streaming aggregation config provided
+func HasAnyStreamAggrConfigured() bool {
+	return len(*streamAggrConfig) > 0
 }
 
 // CheckStreamAggrConfigs checks configs pointed by -remoteWrite.streamAggr.config

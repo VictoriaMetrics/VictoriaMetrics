@@ -44,9 +44,15 @@ func insertRows(rows []parser.Row) error {
 			continue
 		}
 		ctx.SortLabelsIfNeeded()
-		if err := ctx.WriteDataPoint(nil, ctx.Labels, r.Timestamp, r.Value); err != nil {
-			return err
+		var metricName []byte
+		var err error
+		for _, v := range r.Values {
+			metricName, err = ctx.WriteDataPointExt(metricName, ctx.Labels, r.Timestamp, v)
+			if err != nil {
+				return err
+			}
 		}
+
 	}
 	rowsInserted.Add(len(rows))
 	rowsPerInsert.Update(float64(len(rows)))

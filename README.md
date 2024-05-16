@@ -702,45 +702,79 @@ The `/api/v1/export` endpoint should return the following response:
 {"metric":{"__name__":"measurement_field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1695902762311]}
 ```
 
-## How to send data from Statsd-compatible clients
+## How to send data from StatsD-compatible clients
 
-VictoriaMetrics supports extended statsd protocol with tags. Also it does not support sampling and metric types(it will be ignored).  
-Enable Statsd receiver in VictoriaMetrics by setting `-statsdListenAddr` command line flag. For instance,
-the following command will enable Statsd receiver in VictoriaMetrics on TCP and UDP port `8125`:
+VictoriaMetrics supports extended StatsD protocol. Currently, it supports `tags` and `value packing` 
+extensions provided by [dogstatsd](https://docs.datadoghq.com/developers/dogstatsd/datagram_shell). 
+During parsing, metric's `<TYPE>` is added as a special label `__statsd_metric_type__`. 
+
+It is strongly advisable to configure streaming aggregation for each metric type. This process serves two primary 
+objectives: 
+* transformation of the StatsD data model into the VictoriaMetrics data model. VictoriaMetrics requires a consistent 
+interval between data points. 
+* minimizing of the disk space utilization and overall resource consumption during data ingestion.
+
+VictoriaMetrics supports the following metric [types](https://docs.datadoghq.com/metrics/types):
+
+* `c` Counter type.
+* `g`  Gauge type.
+* `ms` Timer type.
+* `m` Meters type.
+* `h` Histogram type.
+* `s` Set type with only numeric values.
+* `d` Distribution type.
+
+_The `Not Assigned` type is not supported due to the ambiguity surrounding its aggregation method. 
+The correct aggregation method cannot be determined for the undefined metric._
+
+Enable Statsd receiver in VictoriaMetrics by setting `-statsdListenAddr` command line flag and configure [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/). 
+For instance, the following command will enable StatsD receiver in VictoriaMetrics on TCP and UDP port `8125`:
 
 ```console
-/path/to/victoria-metrics-prod -statsdListenAddr=:8125
+/path/to/victoria-metrics-prod -statsdListenAddr=:8125 -streamAggr.config=statsd_aggr.yaml
 ```
 
-Example for writing data with Statsd plaintext protocol to local VictoriaMetrics using `nc`:
+Example of stream aggregation config:
+
+```yaml
+# statsd_aggr.yaml
+# `last` output will keep the last sample on `interval`
+# for each series that match `{__statsd_metric_type__="g"}` selector
+- match: '{__statsd_metric_type__="g"}'
+  outputs: [last]
+  interval: 1m
+```
+
+Example for writing data with StatsD plaintext protocol to local VictoriaMetrics using `nc`:
 
 ```console
-echo "foo.bar:123|g|#foo:bar" | nc -N localhost 8125
+echo "foo.bar:123|g|#tag1:baz" | nc -N localhost 8125
 ```
 
-Explicit setting of timestamps is not supported for statsd protocol. Timestamp is set to the current time when VictoriaMetrics or vmagent receives it.
+_An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go._
 
-An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
-After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
+Explicit setting of timestamps is not supported for StatsD protocol. Timestamp is set to the current time when 
+VictoriaMetrics or vmagent receives it.
 
-<div class="with-copy" markdown="1">
+Once ingested, the data can be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
 ```console
-curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
+curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"foo.*"}'
 ```
 
-</div>
+_Please note, with stream aggregation enabled data will become available only after specified aggregation interval._
 
 The `/api/v1/export` endpoint should return the following response:
 
 ```json
-{"metric":{"__name__":"foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560277406000]}
+{"metric":{"__name__":"foo.bar:1m_last","__statsd_metric_type__":"g","tag1":"baz"},"values":[123],"timestamps":[1715843939000]}
 ```
 
 Some examples of compatible statsd clients:
 - [statsd-instrument](https://github.com/Shopify/statsd-instrument)
 - [dogstatsd-ruby](https://github.com/DataDog/dogstatsd-ruby)
 - [go-statsd-client](https://github.com/cactus/go-statsd-client)
+
 ## How to send data from Graphite-compatible agents such as [StatsD](https://github.com/etsy/statsd)
 
 Enable Graphite receiver in VictoriaMetrics by setting `-graphiteListenAddr` command line flag. For instance,
@@ -3172,6 +3206,12 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 0)
   -sortLabels
      Whether to sort labels for incoming samples before writing them to storage. This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. Enabled sorting for labels can slow down ingestion performance a bit
+  -statsd.disableAggregationEnforcement
+    	Whether to disable streaming aggregation requirement check. It's recommended to run statsdServer with pre-configured streaming aggregation to decrease load at database.
+  -statsdListenAddr string
+    	TCP and UDP address to listen for Statsd plaintext data. Usually :8125 must be set. Doesn't work if empty. See also -statsdListenAddr.useProxyProtocol
+  -statsdListenAddr.useProxyProtocol
+    	Whether to use proxy protocol for connections accepted at -statsdListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
   -storage.cacheSizeIndexDBDataBlocks size
      Overrides max size for indexdb/dataBlocks cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)

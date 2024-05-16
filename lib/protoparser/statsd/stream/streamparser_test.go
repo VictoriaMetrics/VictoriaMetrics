@@ -40,8 +40,14 @@ func Test_streamContext_Read(t *testing.T) {
 	// Full line without tags
 	f("aaa:1123|c", &statsd.Rows{
 		Rows: []statsd.Row{{
-			Metric:    "aaa",
-			Value:     1123,
+			Metric: "aaa",
+			Tags: []statsd.Tag{
+				{
+					Key:   "__statsd_metric_type__",
+					Value: "c",
+				},
+			},
+			Values:    []float64{1123},
 			Timestamp: int64(fasttime.UnixTimestamp()) * 1000,
 		}},
 	})
@@ -49,11 +55,17 @@ func Test_streamContext_Read(t *testing.T) {
 	f("aaa:1123|c|#x:y", &statsd.Rows{
 		Rows: []statsd.Row{{
 			Metric: "aaa",
-			Tags: []statsd.Tag{{
-				Key:   "x",
-				Value: "y",
-			}},
-			Value:     1123,
+			Tags: []statsd.Tag{
+				{
+					Key:   "__statsd_metric_type__",
+					Value: "c",
+				},
+				{
+					Key:   "x",
+					Value: "y",
+				},
+			},
+			Values:    []float64{1123},
 			Timestamp: int64(fasttime.UnixTimestamp()) * 1000,
 		}},
 	})
