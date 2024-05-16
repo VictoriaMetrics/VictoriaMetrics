@@ -77,7 +77,7 @@ func (sup *statsUniqValuesCountProcessor) updateStatsForAllRowsColumn(c *blockRe
 			m[v] = 0
 			stateSizeIncrease += len(v) + int(unsafe.Sizeof(v)) + 8
 		}
-		m[v] += 1
+		m[v]++
 		return stateSizeIncrease
 	}
 	if c.valueType == valueTypeDict {
@@ -92,7 +92,7 @@ func (sup *statsUniqValuesCountProcessor) updateStatsForAllRowsColumn(c *blockRe
 				m[vCopy] = 0
 				stateSizeIncrease += len(vCopy) + int(unsafe.Sizeof(vCopy)) + 8
 			}
-			m[v] += 1
+			m[v]++
 		}
 		return stateSizeIncrease
 	}
@@ -106,7 +106,7 @@ func (sup *statsUniqValuesCountProcessor) updateStatsForAllRowsColumn(c *blockRe
 		}
 		if i > 0 && values[i-1] == v {
 			// This value has been already stored.
-			m[v] += 1
+			m[v]++
 			continue
 		}
 		if _, ok := m[v]; !ok {
@@ -114,7 +114,7 @@ func (sup *statsUniqValuesCountProcessor) updateStatsForAllRowsColumn(c *blockRe
 			m[vCopy] = 0
 			stateSizeIncrease += len(vCopy) + int(unsafe.Sizeof(vCopy)) + 8
 		}
-		m[v] += 1
+		m[v]++
 	}
 	return stateSizeIncrease
 }
@@ -153,7 +153,7 @@ func (sup *statsUniqValuesCountProcessor) updateStatsForRowColumn(c *blockResult
 			m[v] = 0
 			stateSizeIncrease += len(v) + int(unsafe.Sizeof(v)) + 8
 		}
-		m[v] += 1
+		m[v]++
 		return stateSizeIncrease
 	}
 	if c.valueType == valueTypeDict {
@@ -168,7 +168,7 @@ func (sup *statsUniqValuesCountProcessor) updateStatsForRowColumn(c *blockResult
 			m[v] = 0
 			stateSizeIncrease += len(v) + int(unsafe.Sizeof(v)) + 8
 		}
-		m[v] += 1
+		m[v]++
 		return stateSizeIncrease
 	}
 
@@ -182,7 +182,7 @@ func (sup *statsUniqValuesCountProcessor) updateStatsForRowColumn(c *blockResult
 		m[v] = 0
 		stateSizeIncrease += len(v) + int(unsafe.Sizeof(v)) + 8
 	}
-	m[v] += 1
+	m[v]++
 	return stateSizeIncrease
 }
 
