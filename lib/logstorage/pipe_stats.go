@@ -524,6 +524,12 @@ func parseStatsFunc(lex *lexer) (statsFunc, string, error) {
 			return nil, "", fmt.Errorf("cannot parse 'uniq_values' func: %w", err)
 		}
 		sf = sus
+	case lex.isKeyword("uniq_values_count"):
+		suvcs, err := parseStatsUniqValuesCount(lex)
+		if err != nil {
+			return nil, "", fmt.Errorf("cannot parse 'uniq_values_count' func: %w", err)
+		}
+		sf = suvcs
 	case lex.isKeyword("values"):
 		svs, err := parseStatsValues(lex)
 		if err != nil {
