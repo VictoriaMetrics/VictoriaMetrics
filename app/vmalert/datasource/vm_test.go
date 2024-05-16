@@ -640,7 +640,7 @@ func TestHeaders(t *testing.T) {
 		{
 			name: "basic auth",
 			vmFn: func() *VMStorage {
-				cfg, err := utils.AuthConfig(utils.WithBasicAuth("foo", "bar", ""))
+				cfg, err := utils.AuthConfig(utils.WithBasicAuth("foo", "", "bar", ""))
 				if err != nil {
 					t.Errorf("Error get auth config: %s", err)
 				}
@@ -689,7 +689,7 @@ func TestHeaders(t *testing.T) {
 		{
 			name: "custom header overrides basic auth",
 			vmFn: func() *VMStorage {
-				cfg, err := utils.AuthConfig(utils.WithBasicAuth("foo", "bar", ""))
+				cfg, err := utils.AuthConfig(utils.WithBasicAuth("foo", "", "bar", ""))
 				if err != nil {
 					t.Errorf("Error get auth config: %s", err)
 				}

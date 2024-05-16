@@ -25,6 +25,7 @@ var (
 		"Multiple headers must be delimited by '^^': -remoteRead.headers='header1:value1^^header2:value2'")
 
 	basicAuthUsername     = flag.String("remoteRead.basicAuth.username", "", "Optional basic auth username for -remoteRead.url")
+	basicAuthUsernameFile = flag.String("remoteRead.basicAuth.usernameFile", "", "Optional path to basic auth username to use for -remoteRead.url")
 	basicAuthPassword     = flag.String("remoteRead.basicAuth.password", "", "Optional basic auth password for -remoteRead.url")
 	basicAuthPasswordFile = flag.String("remoteRead.basicAuth.passwordFile", "", "Optional path to basic auth password to use for -remoteRead.url")
 
@@ -71,7 +72,7 @@ func Init() (datasource.QuerierBuilder, error) {
 		return nil, fmt.Errorf("cannot parse JSON for -remoteRead.oauth2.endpointParams=%s: %w", *oauth2EndpointParams, err)
 	}
 	authCfg, err := utils.AuthConfig(
-		utils.WithBasicAuth(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile),
+		utils.WithBasicAuth(*basicAuthUsername, *basicAuthUsernameFile, *basicAuthPassword, *basicAuthPasswordFile),
 		utils.WithBearer(*bearerToken, *bearerTokenFile),
 		utils.WithOAuth(*oauth2ClientID, *oauth2ClientSecret, *oauth2ClientSecretFile, *oauth2TokenURL, *oauth2Scopes, endpointParams),
 		utils.WithHeaders(*headers))
