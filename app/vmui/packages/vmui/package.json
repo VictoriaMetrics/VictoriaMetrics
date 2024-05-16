@@ -18,6 +18,7 @@
     "lodash.get": "^4.4.2",
     "lodash.throttle": "^4.1.1",
     "marked": "^12.0.2",
+    "marked-emoji": "^1.4.0",
     "preact": "^10.7.1",
     "qs": "^6.10.3",
     "react-input-mask": "^2.0.4",
