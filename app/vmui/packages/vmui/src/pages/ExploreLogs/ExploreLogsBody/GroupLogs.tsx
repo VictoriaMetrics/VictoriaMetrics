@@ -49,7 +49,10 @@ const GroupLogs: FC<TableLogsProps> = ({ logs, columns }) => {
                   <div className="vm-explore-logs-body-content-group-rows-item__time">
                     {value.time}
                   </div>
-                  <div className="vm-explore-logs-body-content-group-rows-item__msg">
+                  <div
+                    className="vm-explore-logs-body-content-group-rows-item__msg"
+                    dangerouslySetInnerHTML={{ __html: value._markdown || value._msg }}
+                  >
                     {value._msg}
                   </div>
                 </div>

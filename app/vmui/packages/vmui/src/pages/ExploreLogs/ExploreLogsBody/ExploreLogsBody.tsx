@@ -14,6 +14,7 @@ import TableSettings from "../../../components/Table/TableSettings/TableSettings
 import useBoolean from "../../../hooks/useBoolean";
 import TableLogs from "./TableLogs";
 import GroupLogs from "./GroupLogs";
+import { marked } from "marked";
 
 export interface ExploreLogBodyProps {
   data: Logs[];
@@ -42,6 +43,7 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded }) => {
   const { value: tableCompact, toggle: toggleTableCompact } = useBoolean(false);
 
   const logs = useMemo(() => data.map((item) => ({
+    _markdown: marked(item._msg.replace(/```/g, "\n```\n")) as string,
     time: dayjs(item._time).tz().format("MMM DD, YYYY \nHH:mm:ss.SSS"),
     data: JSON.stringify(item, null, 2),
     ...item,
@@ -49,7 +51,7 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded }) => {
 
   const columns = useMemo(() => {
     if (!logs?.length) return [];
-    const hideColumns = ["data", "_time"];
+    const hideColumns = ["data", "_time", "_markdown"];
     const keys = new Set<string>();
     for (const item of logs) {
       for (const key in item) {
