@@ -14,25 +14,25 @@ import (
 
 var (
 	// Global config
-	streamAggrGlobalConfig = flag.String("streamAggr.config", "", "Optional path to file with stream aggregation global config. "+
+	streamAggrGlobalConfig = flag.String("streamAggr.config", "", "Optional path to file with stream aggregation config. "+
 		"See https://docs.victoriametrics.com/stream-aggregation/ . "+
 		"See also -streamAggr.keepInput, -streamAggr.dropInput and -streamAggr.dedupInterval")
-	streamAggrGlobalKeepInput = flag.Bool("streamAggr.keepInput", false, "Whether to keep all the input samples after the global aggregation "+
+	streamAggrGlobalKeepInput = flag.Bool("streamAggr.keepInput", false, "Whether to keep all the input samples after the aggregation "+
 		"with -streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples "+
 		"are written to remote storages write. See also -streamAggr.dropInput and https://docs.victoriametrics.com/stream-aggregation/")
-	streamAggrGlobalDropInput = flag.Bool("streamAggr.dropInput", false, "Whether to drop all the input samples after the global aggregation "+
+	streamAggrGlobalDropInput = flag.Bool("streamAggr.dropInput", false, "Whether to drop all the input samples after the aggregation "+
 		"with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples "+
 		"are written to remote storages write. See also -streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation/")
-	streamAggrGlobalDedupInterval = flagutil.NewDuration("streamAggr.dedupInterval", "0s", "Input samples are de-duplicated with this interval on global "+
+	streamAggrGlobalDedupInterval = flagutil.NewDuration("streamAggr.dedupInterval", "0s", "Input samples are de-duplicated with this interval on "+
 		"aggregator before optional aggregation with -streamAggr.config . "+
 		"See also -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation/#deduplication")
 	streamAggrGlobalIgnoreOldSamples = flag.Bool("streamAggr.ignoreOldSamples", false, "Whether to ignore input samples with old timestamps outside the "+
-		"current aggregation interval for global aggregator. "+
+		"current aggregation interval for aggregator. "+
 		"See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples")
-	streamAggrGlobalIgnoreFirstIntervals = flag.Int("streamAggr.ignoreFirstIntervals", 0, "Number of aggregation intervals to skip after the start for global "+
+	streamAggrGlobalIgnoreFirstIntervals = flag.Int("streamAggr.ignoreFirstIntervals", 0, "Number of aggregation intervals to skip after the start for "+
 		"aggregator. Increase this value if you observe incorrect aggregation results after vmagent restarts. It could be caused by receiving unordered delayed data from "+
 		"clients pushing data into the vmagent. See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start")
-	streamAggrGlobalDropInputLabels = flagutil.NewArrayString("streamAggr.dropInputLabels", "An optional list of labels to drop from samples for global aggregator "+
+	streamAggrGlobalDropInputLabels = flagutil.NewArrayString("streamAggr.dropInputLabels", "An optional list of labels to drop from samples for aggregator "+
 		"before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels")
 
 	// Per URL config
@@ -57,12 +57,12 @@ var (
 		"before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels")
 )
 
-// CheckStreamAggrConfigs checks -remoteWrite.streamAggr.config and -remoteWrite.streamAggr.globalConfig.
+// CheckStreamAggrConfigs checks -remoteWrite.streamAggr.config and -streamAggr.config.
 func CheckStreamAggrConfigs() error {
 	pushNoop := func(_ []prompbmarshal.TimeSeries) {}
 
 	if _, err := newStreamAggrConfig(-1, pushNoop); err != nil {
-		return fmt.Errorf("could not load global stream aggregation config: %w", err)
+		return fmt.Errorf("could not load -streamAggr.config stream aggregation config: %w", err)
 	}
 	if len(*streamAggrConfig) > len(*remoteWriteURLs) {
 		return fmt.Errorf("too many -remoteWrite.streamAggr.config args: %d; it mustn't exceed the number of -remoteWrite.url args: %d",
