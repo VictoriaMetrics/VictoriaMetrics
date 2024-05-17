@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"math"
 	"reflect"
 	"strings"
 	"testing"
@@ -492,15 +491,25 @@ func TestParseRangeFilter(t *testing.T) {
 	f(`range:range["-1.234e5", "-2e-5"]`, `range`, -1.234e5, -2e-5)
 
 	f(`_msg:range[1, 2]`, `_msg`, 1, 2)
-	f(`:range(1, 2)`, ``, math.Nextafter(1, inf), math.Nextafter(2, -inf))
-	f(`range[1, 2)`, ``, 1, math.Nextafter(2, -inf))
-	f(`range("1", 2]`, ``, math.Nextafter(1, inf), 2)
+	f(`:range(1, 2)`, ``, nextafter(1, inf), nextafter(2, -inf))
+	f(`range[1, 2)`, ``, 1, nextafter(2, -inf))
+	f(`range("1", 2]`, ``, nextafter(1, inf), 2)
 
 	f(`response_size:range[1KB, 10MiB]`, `response_size`, 1_000, 10*(1<<20))
 	f(`response_size:range[1G, 10Ti]`, `response_size`, 1_000_000_000, 10*(1<<40))
 	f(`response_size:range[10, inf]`, `response_size`, 10, inf)
 
 	f(`duration:range[100ns, 1y2w2.5m3s5ms]`, `duration`, 100, 1*nsecsPerYear+2*nsecsPerWeek+2.5*nsecsPerMinute+3*nsecsPerSecond+5*nsecsPerMillisecond)
+
+	f(`foo:>10.43`, `foo`, nextafter(10.43, inf), inf)
+	f(`foo: > -10.43`, `foo`, nextafter(-10.43, inf), inf)
+	f(`foo:>=10.43`, `foo`, 10.43, inf)
+	f(`foo: >= -10.43`, `foo`, -10.43, inf)
+
+	f(`foo:<10.43`, `foo`, -inf, nextafter(10.43, -inf))
+	f(`foo: < -10.43`, `foo`, -inf, nextafter(-10.43, -inf))
+	f(`foo:<=10.43`, `foo`, -inf, 10.43)
+	f(`foo: <= 10.43`, `foo`, -inf, 10.43)
 }
 
 func TestParseQuerySuccess(t *testing.T) {
@@ -723,6 +732,13 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`range(0x1ff, inf)`, `range(0x1ff, inf)`)
 	f(`range(-INF,+inF)`, `range(-INF, +inF)`)
 	f(`range(1.5K, 22.5GiB)`, `range(1.5K, 22.5GiB)`)
+	f(`foo:range(5,inf)`, `foo:range(5, inf)`)
+
+	// >,  >=, < and <= filter
+	f(`foo: > 10.5M`, `foo:>10.5M`)
+	f(`foo: >= 10.5M`, `foo:>=10.5M`)
+	f(`foo: < 10.5M`, `foo:<10.5M`)
+	f(`foo: <= 10.5M`, `foo:<=10.5M`)
 
 	// re filter
 	f("re('foo|ba(r.+)')", `re("foo|ba(r.+)")`)

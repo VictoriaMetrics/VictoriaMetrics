@@ -406,6 +406,10 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 			return nil, fmt.Errorf("missing whitespace before the search word %q", lex.prevToken)
 		}
 		return parseParensFilter(lex, fieldName)
+	case lex.isKeyword(">"):
+		return parseFilterGT(lex, fieldName)
+	case lex.isKeyword("<"):
+		return parseFilterLT(lex, fieldName)
 	case lex.isKeyword("not", "!"):
 		return parseFilterNot(lex, fieldName)
 	case lex.isKeyword("exact"):
@@ -754,6 +758,70 @@ func parseFilterRegexp(lex *lexer, fieldName string) (filter, error) {
 	})
 }
 
+func parseFilterGT(lex *lexer, fieldName string) (filter, error) {
+	if fieldName == "" {
+		return nil, fmt.Errorf("'>' and '>=' must be prefixed with the field name")
+	}
+	lex.nextToken()
+
+	includeMinValue := false
+	op := ">"
+	if lex.isKeyword("=") {
+		lex.nextToken()
+		includeMinValue = true
+		op = ">="
+	}
+
+	minValue, fStr, err := parseFloat64(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse number after '%s': %w", op, err)
+	}
+
+	if !includeMinValue {
+		minValue = nextafter(minValue, inf)
+	}
+	fr := &filterRange{
+		fieldName: fieldName,
+		minValue:  minValue,
+		maxValue:  inf,
+
+		stringRepr: op + fStr,
+	}
+	return fr, nil
+}
+
+func parseFilterLT(lex *lexer, fieldName string) (filter, error) {
+	if fieldName == "" {
+		return nil, fmt.Errorf("'<' and '<=' must be prefixed with the field name")
+	}
+	lex.nextToken()
+
+	includeMaxValue := false
+	op := "<"
+	if lex.isKeyword("=") {
+		lex.nextToken()
+		includeMaxValue = true
+		op = "<="
+	}
+
+	maxValue, fStr, err := parseFloat64(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse number after '%s': %w", op, err)
+	}
+
+	if !includeMaxValue {
+		maxValue = nextafter(maxValue, -inf)
+	}
+	fr := &filterRange{
+		fieldName: fieldName,
+		minValue:  -inf,
+		maxValue:  maxValue,
+
+		stringRepr: op + fStr,
+	}
+	return fr, nil
+}
+
 func parseFilterRange(lex *lexer, fieldName string) (filter, error) {
 	funcName := lex.token
 	lex.nextToken()
@@ -801,19 +869,19 @@ func parseFilterRange(lex *lexer, fieldName string) (filter, error) {
 	}
 	lex.nextToken()
 
-	stringRepr := ""
+	stringRepr := "range"
 	if includeMinValue {
 		stringRepr += "["
 	} else {
 		stringRepr += "("
-		minValue = math.Nextafter(minValue, inf)
+		minValue = nextafter(minValue, inf)
 	}
 	stringRepr += minValueStr + ", " + maxValueStr
 	if includeMaxValue {
 		stringRepr += "]"
 	} else {
 		stringRepr += ")"
-		maxValue = math.Nextafter(maxValue, -inf)
+		maxValue = nextafter(maxValue, -inf)
 	}
 
 	fr := &filterRange{
@@ -1215,4 +1283,11 @@ func parseInt(s string) (int64, error) {
 		}
 	}
 	return nn, nil
+}
+
+func nextafter(f, xInf float64) float64 {
+	if math.IsInf(f, 0) {
+		return f
+	}
+	return math.Nextafter(f, xInf)
 }

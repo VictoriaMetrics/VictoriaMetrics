@@ -11,6 +11,7 @@ import (
 // Example LogsQL: `fieldName:range(minValue, maxValue]`
 type filterRange struct {
 	fieldName string
+
 	minValue  float64
 	maxValue  float64
 
@@ -18,7 +19,7 @@ type filterRange struct {
 }
 
 func (fr *filterRange) String() string {
-	return quoteFieldNameIfNeeded(fr.fieldName) + "range" + fr.stringRepr
+	return quoteFieldNameIfNeeded(fr.fieldName) + fr.stringRepr
 }
 
 func (fr *filterRange) updateNeededFields(neededFields fieldsSet) {
