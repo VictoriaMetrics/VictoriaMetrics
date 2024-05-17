@@ -23,6 +23,10 @@ func (fep *filterExactPrefix) String() string {
 	return fmt.Sprintf("%sexact(%s*)", quoteFieldNameIfNeeded(fep.fieldName), quoteTokenIfNeeded(fep.prefix))
 }
 
+func (fep *filterExactPrefix) updateNeededFields(neededFields fieldsSet) {
+	neededFields.add(fep.fieldName)
+}
+
 func (fep *filterExactPrefix) getTokens() []string {
 	fep.tokensOnce.Do(fep.initTokens)
 	return fep.tokens
@@ -30,6 +34,10 @@ func (fep *filterExactPrefix) getTokens() []string {
 
 func (fep *filterExactPrefix) initTokens() {
 	fep.tokens = getTokensSkipLast(fep.prefix)
+}
+
+func (fep *filterExactPrefix) applyToBlockResult(br *blockResult, bm *bitmap) {
+	applyToBlockResultGeneric(br, bm, fep.fieldName, fep.prefix, matchExactPrefix)
 }
 
 func (fep *filterExactPrefix) apply(bs *blockSearch, bm *bitmap) {
@@ -134,10 +142,12 @@ func matchFloat64ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, pr
 
 func matchValuesDictByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string) {
 	bb := bbPool.Get()
-	for i, v := range ch.valuesDict.values {
+	for _, v := range ch.valuesDict.values {
+		c := byte(0)
 		if matchExactPrefix(v, prefix) {
-			bb.B = append(bb.B, byte(i))
+			c = 1
 		}
+		bb.B = append(bb.B, c)
 	}
 	matchEncodedValuesDict(bs, ch, bm, bb.B)
 	bbPool.Put(bb)

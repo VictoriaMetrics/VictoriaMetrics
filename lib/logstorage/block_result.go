@@ -19,20 +19,11 @@ import (
 //
 // It is expected that its contents is accessed only from a single goroutine at a time.
 type blockResult struct {
-	// bs is the blockSearch used for fetching block data.
-	bs *blockSearch
-
-	// bm is bitamp for fetching the needed rows from bs.
-	bm *bitmap
-
 	// a holds all the bytes behind the requested column values in the block.
 	a arena
 
 	// values holds all the requested column values in the block.
 	valuesBuf []string
-
-	// streamID is streamID for the given blockResult.
-	streamID streamID
 
 	// timestamps contain timestamps for the selected log entries in the block.
 	timestamps []int64
@@ -54,15 +45,10 @@ type blockResult struct {
 }
 
 func (br *blockResult) reset() {
-	br.bs = nil
-	br.bm = nil
-
 	br.a.reset()
 
 	clear(br.valuesBuf)
 	br.valuesBuf = br.valuesBuf[:0]
-
-	br.streamID.reset()
 
 	br.timestamps = br.timestamps[:0]
 
@@ -81,9 +67,6 @@ func (br *blockResult) reset() {
 func (br *blockResult) clone() *blockResult {
 	brNew := &blockResult{}
 
-	brNew.bs = br.bs
-	brNew.bm = br.bm
-
 	cs := br.getColumns()
 
 	bufLen := 0
@@ -98,8 +81,6 @@ func (br *blockResult) clone() *blockResult {
 	}
 	brNew.valuesBuf = make([]string, 0, valuesBufLen)
 
-	brNew.streamID = br.streamID
-
 	brNew.timestamps = make([]int64, len(br.timestamps))
 	copy(brNew.timestamps, br.timestamps)
 
@@ -110,6 +91,55 @@ func (br *blockResult) clone() *blockResult {
 	brNew.csBuf = csNew
 
 	return brNew
+}
+
+// initFromNeededColumns initializes br from brSrc, by copying only the given neededColumns for rows identified by set bits at bm.
+//
+// The br valid until brSrc is reset or bm is updated.
+func (br *blockResult) initFromNeededColumns(brSrc *blockResult, bm *bitmap, neededColumns []string) {
+	br.reset()
+
+	srcTimestamps := brSrc.timestamps
+	dstTimestamps := br.timestamps[:0]
+	bm.forEachSetBitReadonly(func(idx int) {
+		dstTimestamps = append(dstTimestamps, srcTimestamps[idx])
+	})
+	br.timestamps = dstTimestamps
+
+	for _, neededColumn := range neededColumns {
+		cSrc := brSrc.getColumnByName(neededColumn)
+
+		cDst := blockResultColumn{
+			name: cSrc.name,
+		}
+
+		if cSrc.isConst {
+			cDst.isConst = true
+			cDst.valuesEncoded = cSrc.valuesEncoded
+		} else if cSrc.isTime {
+			cDst.isTime = true
+		} else {
+			cDst.valueType = cSrc.valueType
+			cDst.minValue = cSrc.minValue
+			cDst.maxValue = cSrc.maxValue
+			cDst.dictValues = cSrc.dictValues
+			cDst.newValuesEncodedFunc = func(br *blockResult) []string {
+				valuesEncodedSrc := cSrc.getValuesEncoded(brSrc)
+
+				valuesBuf := br.valuesBuf
+				valuesBufLen := len(valuesBuf)
+				bm.forEachSetBitReadonly(func(idx int) {
+					valuesBuf = append(valuesBuf, valuesEncodedSrc[idx])
+				})
+				br.valuesBuf = valuesBuf
+
+				return valuesBuf[valuesBufLen:]
+			}
+		}
+
+		br.csBuf = append(br.csBuf, cDst)
+		br.csInitialized = false
+	}
 }
 
 // cloneValues clones the given values into br and returns the cloned values.
@@ -176,9 +206,10 @@ func (br *blockResult) setResultColumns(rcs []resultColumn) {
 	br.csInitialized = false
 }
 
-func (br *blockResult) initAllColumns() {
-	bs := br.bs
-
+// initAllColumns initializes all the columns in br according to bs and bm.
+//
+// The initialized columns are valid until bs and bm are changed.
+func (br *blockResult) initAllColumns(bs *blockSearch, bm *bitmap) {
 	unneededColumnNames := bs.bsw.so.unneededColumnNames
 
 	if !slices.Contains(unneededColumnNames, "_time") {
@@ -201,7 +232,7 @@ func (br *blockResult) initAllColumns() {
 		if v != "" {
 			br.addConstColumn("_msg", v)
 		} else if ch := bs.csh.getColumnHeader("_msg"); ch != nil {
-			br.addColumn(ch)
+			br.addColumn(bs, bm, ch)
 		} else {
 			br.addConstColumn("_msg", "")
 		}
@@ -225,14 +256,15 @@ func (br *blockResult) initAllColumns() {
 			continue
 		}
 		if !slices.Contains(unneededColumnNames, ch.name) {
-			br.addColumn(ch)
+			br.addColumn(bs, bm, ch)
 		}
 	}
 }
 
-func (br *blockResult) initRequestedColumns() {
-	bs := br.bs
-
+// initRequestedColumns initialized only requested columns in br according to bs and bm.
+//
+// The initialized columns are valid until bs and bm are changed.
+func (br *blockResult) initRequestedColumns(bs *blockSearch, bm *bitmap) {
 	for _, columnName := range bs.bsw.so.neededColumnNames {
 		switch columnName {
 		case "_stream":
@@ -248,7 +280,7 @@ func (br *blockResult) initRequestedColumns() {
 			if v != "" {
 				br.addConstColumn(columnName, v)
 			} else if ch := bs.csh.getColumnHeader(columnName); ch != nil {
-				br.addColumn(ch)
+				br.addColumn(bs, bm, ch)
 			} else {
 				br.addConstColumn(columnName, "")
 			}
@@ -258,10 +290,6 @@ func (br *blockResult) initRequestedColumns() {
 
 func (br *blockResult) mustInit(bs *blockSearch, bm *bitmap) {
 	br.reset()
-
-	br.bs = bs
-	br.bm = bm
-	br.streamID = bs.bsw.bh.streamID
 
 	if bm.isZero() {
 		// Nothing to initialize for zero matching log entries in the block.
@@ -294,21 +322,10 @@ func (br *blockResult) mustInit(bs *blockSearch, bm *bitmap) {
 	br.timestamps = dstTimestamps
 }
 
-func (br *blockResult) newValuesEncodedForColumn(c *blockResultColumn) []string {
-	if c.isConst {
-		logger.Panicf("BUG: newValuesEncodedForColumn() musn't be called for const column")
-	}
-	if c.isTime {
-		logger.Panicf("BUG: newValuesEncodedForColumn() musn't be called for time column")
-	}
-
+func (br *blockResult) newValuesEncodedFromColumnHeader(bs *blockSearch, bm *bitmap, ch *columnHeader) []string {
 	valuesBufLen := len(br.valuesBuf)
 
-	bs := br.bs
-	bm := br.bm
-	ch := &c.ch
-
-	switch c.valueType {
+	switch ch.valueType {
 	case valueTypeString:
 		visitValuesReadonly(bs, ch, bm, br.addValue)
 	case valueTypeDict:
@@ -317,8 +334,8 @@ func (br *blockResult) newValuesEncodedForColumn(c *blockResultColumn) []string 
 				logger.Panicf("FATAL: %s: unexpected dict value size for column %q; got %d bytes; want 1 byte", bs.partPath(), ch.name, len(v))
 			}
 			dictIdx := v[0]
-			if int(dictIdx) >= len(c.dictValues) {
-				logger.Panicf("FATAL: %s: too big dict index for column %q: %d; should be smaller than %d", bs.partPath(), ch.name, dictIdx, len(c.dictValues))
+			if int(dictIdx) >= len(ch.valuesDict.values) {
+				logger.Panicf("FATAL: %s: too big dict index for column %q: %d; should be smaller than %d", bs.partPath(), ch.name, dictIdx, len(ch.valuesDict.values))
 			}
 			br.addValue(v)
 		})
@@ -380,18 +397,19 @@ func (br *blockResult) newValuesEncodedForColumn(c *blockResultColumn) []string 
 
 // addColumn adds column for the given ch to br.
 //
-// The added column is valid until ch is changed.
-func (br *blockResult) addColumn(ch *columnHeader) {
+// The added column is valid until bs, bm or ch is changed.
+func (br *blockResult) addColumn(bs *blockSearch, bm *bitmap, ch *columnHeader) {
 	br.csBuf = append(br.csBuf, blockResultColumn{
 		name:       getCanonicalColumnName(ch.name),
-		ch:         *ch,
 		valueType:  ch.valueType,
+		minValue:   ch.minValue,
+		maxValue:   ch.maxValue,
 		dictValues: ch.valuesDict.values,
+		newValuesEncodedFunc: func(br *blockResult) []string {
+			return br.newValuesEncodedFromColumnHeader(bs, bm, ch)
+		},
 	})
 	br.csInitialized = false
-
-	c := &br.csBuf[len(br.csBuf)-1]
-	c.ch.valuesDict.values = nil
 }
 
 func (br *blockResult) addTimeColumn() {
@@ -406,7 +424,8 @@ func (br *blockResult) addStreamColumn(bs *blockSearch) bool {
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
 
-	bb.B = bs.bsw.p.pt.appendStreamTagsByStreamID(bb.B[:0], &br.streamID)
+	streamID := &bs.bsw.bh.streamID
+	bb.B = bs.bsw.p.pt.appendStreamTagsByStreamID(bb.B[:0], streamID)
 	if len(bb.B) == 0 {
 		// Couldn't find stream tags by streamID. This may be the case when the corresponding log stream
 		// was recently registered and its tags aren't visible to search yet.
@@ -1340,13 +1359,8 @@ func (br *blockResult) truncateRows(keepRows int) {
 // blockResultColumn doesn't own any referred data - all the referred data must be owned by blockResult.
 // This simplifies copying, resetting and re-using of the struct.
 type blockResultColumn struct {
-	// name is column name.
+	// name is column name
 	name string
-
-	// ch is is used for initializing valuesEncoded for non-time and non-const columns.
-	//
-	// ch.valuesDict.values must be set to nil, since dict values for valueTypeDict are stored at dictValues.
-	ch columnHeader
 
 	// isConst is set to true if the column is const.
 	//
@@ -1361,6 +1375,16 @@ type blockResultColumn struct {
 	// valueType is the type of non-cost value
 	valueType valueType
 
+	// minValue is the minimum encoded value for uint*, ipv4, timestamp and float64 value
+	//
+	// It is used for fast detection of whether the given column contains values in the given range
+	minValue uint64
+
+	// maxValue is the maximum encoded value for uint*, ipv4, timestamp and float64 value
+	//
+	// It is used for fast detection of whether the given column contains values in the given range
+	maxValue uint64
+
 	// dictValues contains dict values for valueType=valueTypeDict.
 	dictValues []string
 
@@ -1372,6 +1396,11 @@ type blockResultColumn struct {
 
 	// valuesBucketed contains values after getValuesBucketed() call
 	valuesBucketed []string
+
+	// newValuesEncodedFunc must return valuesEncoded.
+	//
+	// This func must be set for non-const and non-time columns if valuesEncoded field isn't set.
+	newValuesEncodedFunc func(br *blockResult) []string
 
 	// bucketSizeStr contains bucketSizeStr for valuesBucketed
 	bucketSizeStr string
@@ -1388,12 +1417,11 @@ func (c *blockResultColumn) clone(br *blockResult) blockResultColumn {
 
 	cNew.name = br.a.copyString(c.name)
 
-	cNew.ch = c.ch
-	cNew.ch.valuesDict.values = nil
-
 	cNew.isConst = c.isConst
 	cNew.isTime = c.isTime
 	cNew.valueType = c.valueType
+	cNew.minValue = c.minValue
+	cNew.maxValue = c.maxValue
 
 	cNew.dictValues = br.cloneValues(c.dictValues)
 	cNew.valuesEncoded = br.cloneValues(c.valuesEncoded)
@@ -1401,6 +1429,8 @@ func (c *blockResultColumn) clone(br *blockResult) blockResultColumn {
 		cNew.values = br.cloneValues(c.values)
 	}
 	cNew.valuesBucketed = br.cloneValues(c.valuesBucketed)
+
+	cNew.newValuesEncodedFunc = c.newValuesEncodedFunc
 
 	cNew.bucketSizeStr = c.bucketSizeStr
 	cNew.bucketOffsetStr = c.bucketOffsetStr
@@ -1492,11 +1522,12 @@ func (c *blockResultColumn) getValuesEncoded(br *blockResult) []string {
 	if c.isTime {
 		return nil
 	}
+
 	if values := c.valuesEncoded; values != nil {
 		return values
 	}
 
-	c.valuesEncoded = br.newValuesEncodedForColumn(c)
+	c.valuesEncoded = c.newValuesEncodedFunc(br)
 	return c.valuesEncoded
 }
 

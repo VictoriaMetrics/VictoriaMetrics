@@ -5,6 +5,12 @@ type filter interface {
 	// String returns string representation of the filter
 	String() string
 
+	// udpdateNeededFields must update neededFields with fields needed for the filter
+	updateNeededFields(neededFields fieldsSet)
+
 	// apply must update bm according to the filter applied to the given bs block
 	apply(bs *blockSearch, bm *bitmap)
+
+	// applyToBlockResult must update bm according to the filter applied to the given br block
+	applyToBlockResult(br *blockResult, bm *bitmap)
 }

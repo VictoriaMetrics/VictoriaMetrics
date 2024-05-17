@@ -30,6 +30,10 @@ func (fp *filterPrefix) String() string {
 	return fmt.Sprintf("%s%s*", quoteFieldNameIfNeeded(fp.fieldName), quoteTokenIfNeeded(fp.prefix))
 }
 
+func (fp *filterPrefix) updateNeededFields(neededFields fieldsSet) {
+	neededFields.add(fp.fieldName)
+}
+
 func (fp *filterPrefix) getTokens() []string {
 	fp.tokensOnce.Do(fp.initTokens)
 	return fp.tokens
@@ -37,6 +41,10 @@ func (fp *filterPrefix) getTokens() []string {
 
 func (fp *filterPrefix) initTokens() {
 	fp.tokens = getTokensSkipLast(fp.prefix)
+}
+
+func (fp *filterPrefix) applyToBlockResult(bs *blockResult, bm *bitmap) {
+	applyToBlockResultGeneric(bs, bm, fp.fieldName, fp.prefix, matchPrefix)
 }
 
 func (fp *filterPrefix) apply(bs *blockSearch, bm *bitmap) {
@@ -158,10 +166,12 @@ func matchFloat64ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix 
 
 func matchValuesDictByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string) {
 	bb := bbPool.Get()
-	for i, v := range ch.valuesDict.values {
+	for _, v := range ch.valuesDict.values {
+		c := byte(0)
 		if matchPrefix(v, prefix) {
-			bb.B = append(bb.B, byte(i))
+			c = 1
 		}
+		bb.B = append(bb.B, c)
 	}
 	matchEncodedValuesDict(bs, ch, bm, bb.B)
 	bbPool.Put(bb)

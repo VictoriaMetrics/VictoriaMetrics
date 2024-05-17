@@ -24,8 +24,8 @@ func (sq *statsQuantile) String() string {
 	return fmt.Sprintf("quantile(%g, %s)", sq.phi, fieldNamesString(sq.fields))
 }
 
-func (sq *statsQuantile) neededFields() []string {
-	return sq.fields
+func (sq *statsQuantile) updateNeededFields(neededFields fieldsSet) {
+	neededFields.addAll(sq.fields)
 }
 
 func (sq *statsQuantile) newStatsProcessor() (statsProcessor, int) {

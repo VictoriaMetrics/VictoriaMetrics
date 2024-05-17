@@ -24,8 +24,8 @@ func (su *statsCountUniq) String() string {
 	return s
 }
 
-func (su *statsCountUniq) neededFields() []string {
-	return su.fields
+func (su *statsCountUniq) updateNeededFields(neededFields fieldsSet) {
+	neededFields.addAll(su.fields)
 }
 
 func (su *statsCountUniq) newStatsProcessor() (statsProcessor, int) {

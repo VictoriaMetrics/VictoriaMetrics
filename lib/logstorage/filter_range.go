@@ -21,6 +21,120 @@ func (fr *filterRange) String() string {
 	return quoteFieldNameIfNeeded(fr.fieldName) + "range" + fr.stringRepr
 }
 
+func (fr *filterRange) updateNeededFields(neededFields fieldsSet) {
+	neededFields.add(fr.fieldName)
+}
+
+func (fr *filterRange) applyToBlockResult(br *blockResult, bm *bitmap) {
+	minValue := fr.minValue
+	maxValue := fr.maxValue
+
+	if minValue > maxValue {
+		bm.resetBits()
+		return
+	}
+
+	c := br.getColumnByName(fr.fieldName)
+	if c.isConst {
+		v := c.valuesEncoded[0]
+		if !matchRange(v, minValue, maxValue) {
+			bm.resetBits()
+		}
+		return
+	}
+	if c.isTime {
+		bm.resetBits()
+		return
+	}
+
+	switch c.valueType {
+	case valueTypeString:
+		values := c.getValues(br)
+		bm.forEachSetBit(func(idx int) bool {
+			v := values[idx]
+			return matchRange(v, minValue, maxValue)
+		})
+	case valueTypeDict:
+		bb := bbPool.Get()
+		for _, v := range c.dictValues {
+			c := byte(0)
+			if matchRange(v, minValue, maxValue) {
+				c = 1
+			}
+			bb.B = append(bb.B, c)
+		}
+		valuesEncoded := c.getValuesEncoded(br)
+		bm.forEachSetBit(func(idx int) bool {
+			n := valuesEncoded[idx][0]
+			return bb.B[n] == 1
+		})
+		bbPool.Put(bb)
+	case valueTypeUint8:
+		minValueUint, maxValueUint := toUint64Range(minValue, maxValue)
+		if maxValue < 0 || minValueUint > c.maxValue || maxValueUint < c.minValue {
+			bm.resetBits()
+			return
+		}
+		valuesEncoded := c.getValuesEncoded(br)
+		bm.forEachSetBit(func(idx int) bool {
+			v := valuesEncoded[idx]
+			n := uint64(unmarshalUint8(v))
+			return n >= minValueUint && n <= maxValueUint
+		})
+	case valueTypeUint16:
+		minValueUint, maxValueUint := toUint64Range(minValue, maxValue)
+		if maxValue < 0 || minValueUint > c.maxValue || maxValueUint < c.minValue {
+			bm.resetBits()
+			return
+		}
+		valuesEncoded := c.getValuesEncoded(br)
+		bm.forEachSetBit(func(idx int) bool {
+			v := valuesEncoded[idx]
+			n := uint64(unmarshalUint16(v))
+			return n >= minValueUint && n <= maxValueUint
+		})
+	case valueTypeUint32:
+		minValueUint, maxValueUint := toUint64Range(minValue, maxValue)
+		if maxValue < 0 || minValueUint > c.maxValue || maxValueUint < c.minValue {
+			bm.resetBits()
+			return
+		}
+		valuesEncoded := c.getValuesEncoded(br)
+		bm.forEachSetBit(func(idx int) bool {
+			v := valuesEncoded[idx]
+			n := uint64(unmarshalUint32(v))
+			return n >= minValueUint && n <= maxValueUint
+		})
+	case valueTypeUint64:
+		minValueUint, maxValueUint := toUint64Range(minValue, maxValue)
+		if maxValue < 0 || minValueUint > c.maxValue || maxValueUint < c.minValue {
+			bm.resetBits()
+			return
+		}
+		valuesEncoded := c.getValuesEncoded(br)
+		bm.forEachSetBit(func(idx int) bool {
+			v := valuesEncoded[idx]
+			n := unmarshalUint64(v)
+			return n >= minValueUint && n <= maxValueUint
+		})
+	case valueTypeFloat64:
+		if minValue > math.Float64frombits(c.maxValue) || maxValue < math.Float64frombits(c.minValue) {
+			bm.resetBits()
+			return
+		}
+		valuesEncoded := c.getValuesEncoded(br)
+		bm.forEachSetBit(func(idx int) bool {
+			v := valuesEncoded[idx]
+			f := unmarshalFloat64(v)
+			return f >= minValue && f <= maxValue
+		})
+	case valueTypeTimestampISO8601:
+		bm.resetBits()
+	default:
+		logger.Panicf("FATAL: unknown valueType=%d", c.valueType)
+	}
+}
+
 func (fr *filterRange) apply(bs *blockSearch, bm *bitmap) {
 	fieldName := fr.fieldName
 	minValue := fr.minValue
@@ -88,10 +202,12 @@ func matchFloat64ByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue
 
 func matchValuesDictByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue float64) {
 	bb := bbPool.Get()
-	for i, v := range ch.valuesDict.values {
+	for _, v := range ch.valuesDict.values {
+		c := byte(0)
 		if matchRange(v, minValue, maxValue) {
-			bb.B = append(bb.B, byte(i))
+			c = 1
 		}
+		bb.B = append(bb.B, c)
 	}
 	matchEncodedValuesDict(bs, ch, bm, bb.B)
 	bbPool.Put(bb)

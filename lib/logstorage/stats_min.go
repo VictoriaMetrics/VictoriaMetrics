@@ -19,8 +19,8 @@ func (sm *statsMin) String() string {
 	return "min(" + fieldNamesString(sm.fields) + ")"
 }
 
-func (sm *statsMin) neededFields() []string {
-	return sm.fields
+func (sm *statsMin) updateNeededFields(neededFields fieldsSet) {
+	neededFields.addAll(sm.fields)
 }
 
 func (sm *statsMin) newStatsProcessor() (statsProcessor, int) {
@@ -124,23 +124,23 @@ func (smp *statsMinProcessor) updateStateForColumn(br *blockResult, c *blockResu
 		}
 	case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64:
 		bb := bbPool.Get()
-		bb.B = marshalUint64String(bb.B[:0], c.ch.minValue)
+		bb.B = marshalUint64String(bb.B[:0], c.minValue)
 		smp.updateStateBytes(bb.B)
 		bbPool.Put(bb)
 	case valueTypeFloat64:
-		f := math.Float64frombits(c.ch.minValue)
+		f := math.Float64frombits(c.minValue)
 		bb := bbPool.Get()
 		bb.B = marshalFloat64String(bb.B[:0], f)
 		smp.updateStateBytes(bb.B)
 		bbPool.Put(bb)
 	case valueTypeIPv4:
 		bb := bbPool.Get()
-		bb.B = marshalIPv4String(bb.B[:0], uint32(c.ch.minValue))
+		bb.B = marshalIPv4String(bb.B[:0], uint32(c.minValue))
 		smp.updateStateBytes(bb.B)
 		bbPool.Put(bb)
 	case valueTypeTimestampISO8601:
 		bb := bbPool.Get()
-		bb.B = marshalTimestampISO8601String(bb.B[:0], int64(c.ch.minValue))
+		bb.B = marshalTimestampISO8601String(bb.B[:0], int64(c.minValue))
 		smp.updateStateBytes(bb.B)
 		bbPool.Put(bb)
 	default:

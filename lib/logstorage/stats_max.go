@@ -19,8 +19,8 @@ func (sm *statsMax) String() string {
 	return "max(" + fieldNamesString(sm.fields) + ")"
 }
 
-func (sm *statsMax) neededFields() []string {
-	return sm.fields
+func (sm *statsMax) updateNeededFields(neededFields fieldsSet) {
+	neededFields.addAll(sm.fields)
 }
 
 func (sm *statsMax) newStatsProcessor() (statsProcessor, int) {
@@ -124,23 +124,23 @@ func (smp *statsMaxProcessor) updateStateForColumn(br *blockResult, c *blockResu
 		}
 	case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64:
 		bb := bbPool.Get()
-		bb.B = marshalUint64String(bb.B[:0], c.ch.maxValue)
+		bb.B = marshalUint64String(bb.B[:0], c.maxValue)
 		smp.updateStateBytes(bb.B)
 		bbPool.Put(bb)
 	case valueTypeFloat64:
-		f := math.Float64frombits(c.ch.maxValue)
+		f := math.Float64frombits(c.maxValue)
 		bb := bbPool.Get()
 		bb.B = marshalFloat64String(bb.B[:0], f)
 		smp.updateStateBytes(bb.B)
 		bbPool.Put(bb)
 	case valueTypeIPv4:
 		bb := bbPool.Get()
-		bb.B = marshalIPv4String(bb.B[:0], uint32(c.ch.maxValue))
+		bb.B = marshalIPv4String(bb.B[:0], uint32(c.maxValue))
 		smp.updateStateBytes(bb.B)
 		bbPool.Put(bb)
 	case valueTypeTimestampISO8601:
 		bb := bbPool.Get()
-		bb.B = marshalTimestampISO8601String(bb.B[:0], int64(c.ch.maxValue))
+		bb.B = marshalTimestampISO8601String(bb.B[:0], int64(c.maxValue))
 		smp.updateStateBytes(bb.B)
 		bbPool.Put(bb)
 	default:

@@ -968,6 +968,13 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats by (_time:year offset 6.5h) count() foo`, `* | stats by (_time:year offset 6.5h) count(*) as foo`)
 	f(`* | stats (_time:year offset 6.5h) count() foo`, `* | stats by (_time:year offset 6.5h) count(*) as foo`)
 
+	// stats pipe with per-func filters
+	f(`* | stats count() if (foo bar) rows`, `* | stats count(*) if (foo bar) as rows`)
+	f(`* | stats by (_time:1d offset -2h, f2)
+	   count() if (is_admin:true or _msg:"foo bar"*) as foo,
+	   sum(duration) if (host:in('foo.com', 'bar.com') and path:/foobar) as bar`,
+		`* | stats by (_time:1d offset -2h, f2) count(*) if (is_admin:true or "foo bar"*) as foo, sum(duration) if (host:in(foo.com,bar.com) path:"/foobar") as bar`)
+
 	// sort pipe
 	f(`* | sort`, `* | sort`)
 	f(`* | sort desc`, `* | sort desc`)

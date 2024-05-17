@@ -32,6 +32,10 @@ func (fp *filterPhrase) String() string {
 	return quoteFieldNameIfNeeded(fp.fieldName) + quoteTokenIfNeeded(fp.phrase)
 }
 
+func (fp *filterPhrase) updateNeededFields(neededColumns fieldsSet) {
+	neededColumns.add(fp.fieldName)
+}
+
 func (fp *filterPhrase) getTokens() []string {
 	fp.tokensOnce.Do(fp.initTokens)
 	return fp.tokens
@@ -39,6 +43,10 @@ func (fp *filterPhrase) getTokens() []string {
 
 func (fp *filterPhrase) initTokens() {
 	fp.tokens = tokenizeStrings(nil, []string{fp.phrase})
+}
+
+func (fp *filterPhrase) applyToBlockResult(br *blockResult, bm *bitmap) {
+	applyToBlockResultGeneric(br, bm, fp.fieldName, fp.phrase, matchPhrase)
 }
 
 func (fp *filterPhrase) apply(bs *blockSearch, bm *bitmap) {
@@ -168,10 +176,12 @@ func matchFloat64ByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase 
 
 func matchValuesDictByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string) {
 	bb := bbPool.Get()
-	for i, v := range ch.valuesDict.values {
+	for _, v := range ch.valuesDict.values {
+		c := byte(0)
 		if matchPhrase(v, phrase) {
-			bb.B = append(bb.B, byte(i))
+			c = 1
 		}
+		bb.B = append(bb.B, c)
 	}
 	matchEncodedValuesDict(bs, ch, bm, bb.B)
 	bbPool.Put(bb)
@@ -249,7 +259,7 @@ func getPhrasePos(s, phrase string) int {
 }
 
 func matchEncodedValuesDict(bs *blockSearch, ch *columnHeader, bm *bitmap, encodedValues []byte) {
-	if len(encodedValues) == 0 {
+	if bytes.IndexByte(encodedValues, 1) < 0 {
 		// Fast path - the phrase is missing in the valuesDict
 		bm.resetBits()
 		return
@@ -259,8 +269,11 @@ func matchEncodedValuesDict(bs *blockSearch, ch *columnHeader, bm *bitmap, encod
 		if len(v) != 1 {
 			logger.Panicf("FATAL: %s: unexpected length for dict value: got %d; want 1", bs.partPath(), len(v))
 		}
-		n := bytes.IndexByte(encodedValues, v[0])
-		return n >= 0
+		idx := v[0]
+		if int(idx) >= len(encodedValues) {
+			logger.Panicf("FATAL: %s: too big index for dict value; got %d; must be smaller than %d", bs.partPath(), idx, len(encodedValues))
+		}
+		return encodedValues[idx] == 1
 	})
 }
 
@@ -319,4 +332,82 @@ func toTimestampISO8601String(bs *blockSearch, bb *bytesutil.ByteBuffer, v strin
 	timestamp := unmarshalTimestampISO8601(v)
 	bb.B = marshalTimestampISO8601String(bb.B[:0], timestamp)
 	return bytesutil.ToUnsafeString(bb.B)
+}
+
+func applyToBlockResultGeneric(br *blockResult, bm *bitmap, fieldName, phrase string, matchFunc func(v, phrase string) bool) {
+	c := br.getColumnByName(fieldName)
+	if c.isConst {
+		v := c.valuesEncoded[0]
+		if !matchFunc(v, phrase) {
+			bm.resetBits()
+		}
+		return
+	}
+	if c.isTime {
+		matchColumnByPhraseGeneric(br, bm, c, phrase, matchFunc)
+		return
+	}
+
+	switch c.valueType {
+	case valueTypeString:
+		matchColumnByPhraseGeneric(br, bm, c, phrase, matchFunc)
+	case valueTypeDict:
+		bb := bbPool.Get()
+		for _, v := range c.dictValues {
+			c := byte(0)
+			if matchFunc(v, phrase) {
+				c = 1
+			}
+			bb.B = append(bb.B, c)
+		}
+		valuesEncoded := c.getValuesEncoded(br)
+		bm.forEachSetBit(func(idx int) bool {
+			n := valuesEncoded[idx][0]
+			return bb.B[n] == 1
+		})
+		bbPool.Put(bb)
+	case valueTypeUint8:
+		n, ok := tryParseUint64(phrase)
+		if !ok || n >= (1<<8) {
+			bm.resetBits()
+			return
+		}
+		matchColumnByPhraseGeneric(br, bm, c, phrase, matchFunc)
+	case valueTypeUint16:
+		n, ok := tryParseUint64(phrase)
+		if !ok || n >= (1<<16) {
+			bm.resetBits()
+			return
+		}
+		matchColumnByPhraseGeneric(br, bm, c, phrase, matchFunc)
+	case valueTypeUint32:
+		n, ok := tryParseUint64(phrase)
+		if !ok || n >= (1<<32) {
+			bm.resetBits()
+			return
+		}
+		matchColumnByPhraseGeneric(br, bm, c, phrase, matchFunc)
+	case valueTypeUint64:
+		_, ok := tryParseUint64(phrase)
+		if !ok {
+			bm.resetBits()
+			return
+		}
+		matchColumnByPhraseGeneric(br, bm, c, phrase, matchFunc)
+	case valueTypeFloat64:
+		matchColumnByPhraseGeneric(br, bm, c, phrase, matchFunc)
+	case valueTypeIPv4:
+		matchColumnByPhraseGeneric(br, bm, c, phrase, matchFunc)
+	case valueTypeTimestampISO8601:
+		matchColumnByPhraseGeneric(br, bm, c, phrase, matchFunc)
+	default:
+		logger.Panicf("FATAL: unknown valueType=%d", c.valueType)
+	}
+}
+
+func matchColumnByPhraseGeneric(br *blockResult, bm *bitmap, c *blockResultColumn, phrase string, matchFunc func(v, phrase string) bool) {
+	values := c.getValues(br)
+	bm.forEachSetBit(func(idx int) bool {
+		return matchFunc(values[idx], phrase)
+	})
 }

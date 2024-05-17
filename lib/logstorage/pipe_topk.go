@@ -18,9 +18,12 @@ func newPipeTopkProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}
 
 	shards := make([]pipeTopkProcessorShard, workersCount)
 	for i := range shards {
-		shard := &shards[i]
-		shard.ps = ps
-		shard.stateSizeBudget = stateSizeBudgetChunk
+		shards[i] = pipeTopkProcessorShard{
+			pipeTopkProcessorShardNopad: pipeTopkProcessorShardNopad{
+				ps:              ps,
+				stateSizeBudget: stateSizeBudgetChunk,
+			},
+		}
 		maxStateSize -= stateSizeBudgetChunk
 	}
 

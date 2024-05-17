@@ -17,12 +17,12 @@ func (sc *statsCount) String() string {
 	return "count(" + fieldNamesString(sc.fields) + ")"
 }
 
-func (sc *statsCount) neededFields() []string {
+func (sc *statsCount) updateNeededFields(neededFields fieldsSet) {
 	if sc.containsStar {
 		// There is no need in fetching any columns for count(*) - the number of matching rows can be calculated as len(blockResult.timestamps)
-		return nil
+		return
 	}
-	return sc.fields
+	neededFields.addAll(sc.fields)
 }
 
 func (sc *statsCount) newStatsProcessor() (statsProcessor, int) {

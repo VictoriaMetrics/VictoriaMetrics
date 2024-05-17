@@ -37,12 +37,10 @@ func (fs fieldsSet) getAll() []string {
 	return a
 }
 
-func (fs fieldsSet) contains(field string) bool {
-	_, ok := fs[field]
-	if !ok {
-		_, ok = fs["*"]
+func (fs fieldsSet) addAll(fields []string) {
+	for _, f := range fields {
+		fs.add(f)
 	}
-	return ok
 }
 
 func (fs fieldsSet) removeAll(fields []string) {
@@ -51,19 +49,27 @@ func (fs fieldsSet) removeAll(fields []string) {
 	}
 }
 
+func (fs fieldsSet) contains(field string) bool {
+	if field == "" {
+		field = "_msg"
+	}
+	_, ok := fs[field]
+	if !ok {
+		_, ok = fs["*"]
+	}
+	return ok
+}
+
 func (fs fieldsSet) remove(field string) {
 	if field == "*" {
 		fs.reset()
 		return
 	}
 	if !fs.contains("*") {
+		if field == "" {
+			field = "_msg"
+		}
 		delete(fs, field)
-	}
-}
-
-func (fs fieldsSet) addAll(fields []string) {
-	for _, f := range fields {
-		fs.add(f)
 	}
 }
 
@@ -75,6 +81,9 @@ func (fs fieldsSet) add(field string) {
 		fs.reset()
 		fs["*"] = struct{}{}
 		return
+	}
+	if field == "" {
+		field = "_msg"
 	}
 	fs[field] = struct{}{}
 }

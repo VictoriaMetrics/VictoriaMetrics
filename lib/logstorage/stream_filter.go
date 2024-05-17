@@ -3,6 +3,7 @@ package logstorage
 import (
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -12,6 +13,29 @@ import (
 // StreamFilter is a filter for streams, e.g. `_stream:{...}`
 type StreamFilter struct {
 	orFilters []*andStreamFilter
+}
+
+func (sf *StreamFilter) matchStreamName(s string) bool {
+	sn := getStreamName()
+	defer putStreamName(sn)
+
+	if !sn.parse(s) {
+		return false
+	}
+
+	for _, of := range sf.orFilters {
+		matchAndFilters := true
+		for _, tf := range of.tagFilters {
+			if !sn.match(tf) {
+				matchAndFilters = false
+				break
+			}
+		}
+		if matchAndFilters {
+			return true
+		}
+	}
+	return false
 }
 
 func (sf *StreamFilter) isEmpty() bool {
@@ -69,10 +93,96 @@ type streamTagFilter struct {
 	regexp *regexutil.PromRegex
 }
 
-func (tf *streamTagFilter) getRegexp() *regexutil.PromRegex {
-	return tf.regexp
-}
-
 func (tf *streamTagFilter) String() string {
 	return quoteTokenIfNeeded(tf.tagName) + tf.op + strconv.Quote(tf.value)
+}
+
+func getStreamName() *streamName {
+	v := streamNamePool.Get()
+	if v == nil {
+		return &streamName{}
+	}
+	return v.(*streamName)
+}
+
+func putStreamName(sn *streamName) {
+	sn.reset()
+	streamNamePool.Put(sn)
+}
+
+var streamNamePool sync.Pool
+
+type streamName struct {
+	tags []Field
+}
+
+func (sn *streamName) reset() {
+	clear(sn.tags)
+	sn.tags = sn.tags[:0]
+}
+
+func (sn *streamName) parse(s string) bool {
+	if len(s) < 2 || s[0] != '{' || s[len(s)-1] != '}' {
+		return false
+	}
+	s = s[1 : len(s)-1]
+	if len(s) == 0 {
+		return true
+	}
+
+	for {
+		// Parse tag name
+		n := strings.IndexByte(s, '=')
+		if n < 0 {
+			// cannot find tag name
+			return false
+		}
+		name := s[:n]
+		s = s[n+1:]
+
+		// Parse tag value
+		if len(s) == 0 || s[0] != '"' {
+			return false
+		}
+		qPrefix, err := strconv.QuotedPrefix(s)
+		if err != nil {
+			return false
+		}
+		s = s[len(qPrefix):]
+		value, err := strconv.Unquote(qPrefix)
+		if err != nil {
+			return false
+		}
+
+		sn.tags = append(sn.tags, Field{
+			Name:  name,
+			Value: value,
+		})
+
+		if len(s) == 0 {
+			return true
+		}
+		if s[0] != ',' {
+			return false
+		}
+	}
+}
+
+func (sn *streamName) match(tf *streamTagFilter) bool {
+	for _, t := range sn.tags {
+		if t.Name != tf.tagName {
+			continue
+		}
+		switch tf.op {
+		case "=":
+			return t.Value == tf.value
+		case "!=":
+			return t.Value != tf.value
+		case "=~":
+			return tf.regexp.MatchString(t.Value)
+		case "!~":
+			return !tf.regexp.MatchString(t.Value)
+		}
+	}
+	return false
 }

@@ -21,6 +21,100 @@ func (fr *filterLenRange) String() string {
 	return quoteFieldNameIfNeeded(fr.fieldName) + "len_range" + fr.stringRepr
 }
 
+func (fr *filterLenRange) updateNeededFields(neededFields fieldsSet) {
+	neededFields.add(fr.fieldName)
+}
+
+func (fr *filterLenRange) applyToBlockResult(br *blockResult, bm *bitmap) {
+	minLen := fr.minLen
+	maxLen := fr.maxLen
+
+	if minLen > maxLen {
+		bm.resetBits()
+		return
+	}
+
+	c := br.getColumnByName(fr.fieldName)
+	if c.isConst {
+		v := c.valuesEncoded[0]
+		if !matchLenRange(v, minLen, maxLen) {
+			bm.resetBits()
+		}
+		return
+	}
+	if c.isTime {
+		matchColumnByLenRange(br, bm, c, minLen, maxLen)
+	}
+
+	switch c.valueType {
+	case valueTypeString:
+		matchColumnByLenRange(br, bm, c, minLen, maxLen)
+	case valueTypeDict:
+		bb := bbPool.Get()
+		for _, v := range c.dictValues {
+			c := byte(0)
+			if matchLenRange(v, minLen, maxLen) {
+				c = 1
+			}
+			bb.B = append(bb.B, c)
+		}
+		valuesEncoded := c.getValuesEncoded(br)
+		bm.forEachSetBit(func(idx int) bool {
+			n := valuesEncoded[idx][0]
+			return bb.B[n] == 1
+		})
+		bbPool.Put(bb)
+	case valueTypeUint8:
+		if minLen > 3 || maxLen == 0 {
+			bm.resetBits()
+			return
+		}
+		matchColumnByLenRange(br, bm, c, minLen, maxLen)
+	case valueTypeUint16:
+		if minLen > 5 || maxLen == 0 {
+			bm.resetBits()
+			return
+		}
+		matchColumnByLenRange(br, bm, c, minLen, maxLen)
+	case valueTypeUint32:
+		if minLen > 10 || maxLen == 0 {
+			bm.resetBits()
+			return
+		}
+		matchColumnByLenRange(br, bm, c, minLen, maxLen)
+	case valueTypeUint64:
+		if minLen > 20 || maxLen == 0 {
+			bm.resetBits()
+			return
+		}
+		matchColumnByLenRange(br, bm, c, minLen, maxLen)
+	case valueTypeFloat64:
+		if minLen > 24 || maxLen == 0 {
+			bm.resetBits()
+			return
+		}
+		matchColumnByLenRange(br, bm, c, minLen, maxLen)
+	case valueTypeIPv4:
+		if minLen > uint64(len("255.255.255.255")) || maxLen < uint64(len("0.0.0.0")) {
+			bm.resetBits()
+			return
+		}
+		matchColumnByLenRange(br, bm, c, minLen, maxLen)
+	case valueTypeTimestampISO8601:
+		matchTimestampISO8601ByLenRange(bm, minLen, maxLen)
+	default:
+		logger.Panicf("FATAL: unknown valueType=%d", c.valueType)
+	}
+}
+
+func matchColumnByLenRange(br *blockResult, bm *bitmap, c *blockResultColumn, minLen, maxLen uint64) {
+	values := c.getValues(br)
+	bm.forEachSetBit(func(idx int) bool {
+		v := values[idx]
+		return matchLenRange(v, minLen, maxLen)
+	})
+}
+
 func (fr *filterLenRange) apply(bs *blockSearch, bm *bitmap) {
 	fieldName := fr.fieldName
 	minLen := fr.minLen
@@ -110,10 +204,12 @@ func matchFloat64ByLenRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minLe
 
 func matchValuesDictByLenRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minLen, maxLen uint64) {
 	bb := bbPool.Get()
-	for i, v := range ch.valuesDict.values {
+	for _, v := range ch.valuesDict.values {
+		c := byte(0)
 		if matchLenRange(v, minLen, maxLen) {
-			bb.B = append(bb.B, byte(i))
+			c = 1
 		}
+		bb.B = append(bb.B, c)
 	}
 	matchEncodedValuesDict(bs, ch, bm, bb.B)
 	bbPool.Put(bb)
@@ -126,6 +222,10 @@ func matchStringByLenRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minLen
 }
 
 func matchUint8ByLenRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minLen, maxLen uint64) {
+	if minLen > 3 || maxLen == 0 {
+		bm.resetBits()
+		return
+	}
 	if !matchMinMaxValueLen(ch, minLen, maxLen) {
 		bm.resetBits()
 		return
@@ -140,6 +240,10 @@ func matchUint8ByLenRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minLen,
 }
 
 func matchUint16ByLenRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minLen, maxLen uint64) {
+	if minLen > 5 || maxLen == 0 {
+		bm.resetBits()
+		return
+	}
 	if !matchMinMaxValueLen(ch, minLen, maxLen) {
 		bm.resetBits()
 		return
@@ -154,6 +258,10 @@ func matchUint16ByLenRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minLen
 }
 
 func matchUint32ByLenRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minLen, maxLen uint64) {
+	if minLen > 10 || maxLen == 0 {
+		bm.resetBits()
+		return
+	}
 	if !matchMinMaxValueLen(ch, minLen, maxLen) {
 		bm.resetBits()
 		return
@@ -168,6 +276,10 @@ func matchUint32ByLenRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minLen
 }
 
 func matchUint64ByLenRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minLen, maxLen uint64) {
+	if minLen > 20 || maxLen == 0 {
+		bm.resetBits()
+		return
+	}
 	if !matchMinMaxValueLen(ch, minLen, maxLen) {
 		bm.resetBits()
 		return

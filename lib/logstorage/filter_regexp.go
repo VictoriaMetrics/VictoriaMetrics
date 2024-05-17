@@ -19,6 +19,17 @@ func (fr *filterRegexp) String() string {
 	return fmt.Sprintf("%sre(%q)", quoteFieldNameIfNeeded(fr.fieldName), fr.re.String())
 }
 
+func (fr *filterRegexp) updateNeededFields(neededFields fieldsSet) {
+	neededFields.add(fr.fieldName)
+}
+
+func (fr *filterRegexp) applyToBlockResult(br *blockResult, bm *bitmap) {
+	re := fr.re
+	applyToBlockResultGeneric(br, bm, fr.fieldName, "", func(v, _ string) bool {
+		return re.MatchString(v)
+	})
+}
+
 func (fr *filterRegexp) apply(bs *blockSearch, bm *bitmap) {
 	fieldName := fr.fieldName
 	re := fr.re
@@ -95,10 +106,12 @@ func matchFloat64ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *reg
 
 func matchValuesDictByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
 	bb := bbPool.Get()
-	for i, v := range ch.valuesDict.values {
+	for _, v := range ch.valuesDict.values {
+		c := byte(0)
 		if re.MatchString(v) {
-			bb.B = append(bb.B, byte(i))
+			c = 1
 		}
+		bb.B = append(bb.B, c)
 	}
 	matchEncodedValuesDict(bs, ch, bm, bb.B)
 	bbPool.Put(bb)

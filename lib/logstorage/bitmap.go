@@ -50,6 +50,8 @@ func (bm *bitmap) copyFrom(src *bitmap) {
 }
 
 func (bm *bitmap) init(bitsLen int) {
+	bm.reset()
+
 	a := bm.a
 	wordsLen := (bitsLen + 63) / 64
 	a = slicesutil.SetLength(a, wordsLen)

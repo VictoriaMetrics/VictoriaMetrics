@@ -14,8 +14,8 @@ func (sm *statsMedian) String() string {
 	return "median(" + fieldNamesString(sm.fields) + ")"
 }
 
-func (sm *statsMedian) neededFields() []string {
-	return sm.fields
+func (sm *statsMedian) updateNeededFields(neededFields fieldsSet) {
+	neededFields.addAll(sm.fields)
 }
 
 func (sm *statsMedian) newStatsProcessor() (statsProcessor, int) {

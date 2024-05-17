@@ -21,8 +21,8 @@ func (sv *statsValues) String() string {
 	return s
 }
 
-func (sv *statsValues) neededFields() []string {
-	return sv.fields
+func (sv *statsValues) updateNeededFields(neededFields fieldsSet) {
+	neededFields.addAll(sv.fields)
 }
 
 func (sv *statsValues) newStatsProcessor() (statsProcessor, int) {

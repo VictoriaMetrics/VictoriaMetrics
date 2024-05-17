@@ -17,8 +17,8 @@ func (sc *statsCountEmpty) String() string {
 	return "count_empty(" + fieldNamesString(sc.fields) + ")"
 }
 
-func (sc *statsCountEmpty) neededFields() []string {
-	return sc.fields
+func (sc *statsCountEmpty) updateNeededFields(neededFields fieldsSet) {
+	neededFields.addAll(sc.fields)
 }
 
 func (sc *statsCountEmpty) newStatsProcessor() (statsProcessor, int) {

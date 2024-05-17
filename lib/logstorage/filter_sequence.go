@@ -31,6 +31,10 @@ func (fs *filterSequence) String() string {
 	return fmt.Sprintf("%sseq(%s)", quoteFieldNameIfNeeded(fs.fieldName), strings.Join(a, ","))
 }
 
+func (fs *filterSequence) updateNeededFields(neededFields fieldsSet) {
+	neededFields.add(fs.fieldName)
+}
+
 func (fs *filterSequence) getTokens() []string {
 	fs.tokensOnce.Do(fs.initTokens)
 	return fs.tokens
@@ -56,6 +60,17 @@ func (fs *filterSequence) initNonEmptyPhrases() {
 		}
 	}
 	fs.nonEmptyPhrases = result
+}
+
+func (fs *filterSequence) applyToBlockResult(br *blockResult, bm *bitmap) {
+	phrases := fs.getNonEmptyPhrases()
+	if len(phrases) == 0 {
+		return
+	}
+
+	applyToBlockResultGeneric(br, bm, fs.fieldName, "", func(v, _ string) bool {
+		return matchSequence(v, phrases)
+	})
 }
 
 func (fs *filterSequence) apply(bs *blockSearch, bm *bitmap) {
@@ -171,10 +186,12 @@ func matchFloat64BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phras
 
 func matchValuesDictBySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases []string) {
 	bb := bbPool.Get()
-	for i, v := range ch.valuesDict.values {
+	for _, v := range ch.valuesDict.values {
+		c := byte(0)
 		if matchSequence(v, phrases) {
-			bb.B = append(bb.B, byte(i))
+			c = 1
 		}
+		bb.B = append(bb.B, c)
 	}
 	matchEncodedValuesDict(bs, ch, bm, bb.B)
 	bbPool.Put(bb)

@@ -49,10 +49,13 @@ func (pu *pipeUniq) newPipeProcessor(workersCount int, stopCh <-chan struct{}, c
 
 	shards := make([]pipeUniqProcessorShard, workersCount)
 	for i := range shards {
-		shard := &shards[i]
-		shard.pu = pu
-		shard.m = make(map[string]struct{})
-		shard.stateSizeBudget = stateSizeBudgetChunk
+		shards[i] = pipeUniqProcessorShard{
+			pipeUniqProcessorShardNopad: pipeUniqProcessorShardNopad{
+				pu:              pu,
+				m:               make(map[string]struct{}),
+				stateSizeBudget: stateSizeBudgetChunk,
+			},
+		}
 		maxStateSize -= stateSizeBudgetChunk
 	}
 

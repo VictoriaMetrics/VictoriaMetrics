@@ -15,8 +15,8 @@ func (sa *statsAvg) String() string {
 	return "avg(" + fieldNamesString(sa.fields) + ")"
 }
 
-func (sa *statsAvg) neededFields() []string {
-	return sa.fields
+func (sa *statsAvg) updateNeededFields(neededFields fieldsSet) {
+	neededFields.addAll(sa.fields)
 }
 
 func (sa *statsAvg) newStatsProcessor() (statsProcessor, int) {

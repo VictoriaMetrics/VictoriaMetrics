@@ -15,8 +15,8 @@ func (ss *statsSumLen) String() string {
 	return "sum_len(" + fieldNamesString(ss.fields) + ")"
 }
 
-func (ss *statsSumLen) neededFields() []string {
-	return ss.fields
+func (ss *statsSumLen) updateNeededFields(neededFields fieldsSet) {
+	neededFields.addAll(ss.fields)
 }
 
 func (ss *statsSumLen) newStatsProcessor() (statsProcessor, int) {
