@@ -1752,13 +1752,7 @@ See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) fo
 
 Stats over the selected logs can be calculated via [`stats` pipe](#stats-pipe).
 
-LogsQL will support calculating the following additional stats based on the [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
-and fields created by [transformations](#transformations):
-
-It will be possible specifying an optional condition [filter](#post-filters) when calculating the stats.
-For example, `sum(response_size) if (is_admin:true)` calculates the total response size for admins only.
-
-It is possible to perform stats calculations on the [selected log entries](#filters) at client side with `sort`, `uniq`, etc. Unix commands
+It is also possible to perform stats calculations on the [selected log entries](#filters) at client side with `sort`, `uniq`, etc. Unix commands
 according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
 
 ## Sorting
