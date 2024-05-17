@@ -300,7 +300,8 @@ func (c *client) runWorker() {
 			return
 		}
 		if len(block) == 0 {
-			logger.Warnf("remote-write worker skip block with size 0") // The log here is optional since it does not help with solving the issue. It only indicates that the issue happens.
+			// skip empty data blocks from sending
+			// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6241
 			continue
 		}
 		go func() {
