@@ -32,8 +32,8 @@ func (fp *filterPhrase) String() string {
 	return quoteFieldNameIfNeeded(fp.fieldName) + quoteTokenIfNeeded(fp.phrase)
 }
 
-func (fp *filterPhrase) updateNeededFields(neededColumns fieldsSet) {
-	neededColumns.add(fp.fieldName)
+func (fp *filterPhrase) updateNeededFields(neededFields fieldsSet) {
+	neededFields.add(fp.fieldName)
 }
 
 func (fp *filterPhrase) getTokens() []string {

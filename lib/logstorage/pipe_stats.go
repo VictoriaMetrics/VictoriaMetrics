@@ -523,16 +523,16 @@ func parsePipeStats(lex *lexer) (*pipeStats, error) {
 		}
 		f.f = sf
 
-		neededFields := newFieldsSet()
-		f.f.updateNeededFields(neededFields)
-		f.neededFieldsForFunc = neededFields.getAll()
-
 		if lex.isKeyword("if") {
 			iff, err := parseIfFilter(lex)
 			if err != nil {
 				return nil, fmt.Errorf("cannot parse 'if' filter for %s: %w", sf, err)
 			}
 			f.iff = iff
+
+			neededFields := newFieldsSet()
+			iff.updateNeededFields(neededFields)
+			f.neededFieldsForFunc = neededFields.getAll()
 		}
 
 		resultName, err := parseResultName(lex)

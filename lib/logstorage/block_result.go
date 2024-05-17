@@ -95,7 +95,7 @@ func (br *blockResult) clone() *blockResult {
 
 // initFromNeededColumns initializes br from brSrc, by copying only the given neededColumns for rows identified by set bits at bm.
 //
-// The br valid until brSrc is reset or bm is updated.
+// The br valid until brSrc or bm is updated.
 func (br *blockResult) initFromNeededColumns(brSrc *blockResult, bm *bitmap, neededColumns []string) {
 	br.reset()
 
@@ -105,6 +105,11 @@ func (br *blockResult) initFromNeededColumns(brSrc *blockResult, bm *bitmap, nee
 		dstTimestamps = append(dstTimestamps, srcTimestamps[idx])
 	})
 	br.timestamps = dstTimestamps
+
+	if len(br.timestamps) == 0 {
+		// There is no need in initializing columns for zero rows.
+		return
+	}
 
 	for _, neededColumn := range neededColumns {
 		cSrc := brSrc.getColumnByName(neededColumn)
@@ -1277,6 +1282,9 @@ func (br *blockResult) areSameColumns(columnNames []string) bool {
 }
 
 func (br *blockResult) getColumnByName(columnName string) *blockResultColumn {
+	if columnName == "" {
+		columnName = "_msg"
+	}
 	for _, c := range br.getColumns() {
 		if c.name == columnName {
 			return c
