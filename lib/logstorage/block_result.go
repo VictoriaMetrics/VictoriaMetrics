@@ -63,12 +63,18 @@ func (br *blockResult) reset() {
 	br.csInitialized = false
 }
 
-// clone returns a clone of br, which owns its own memory.
+// clone returns a clone of br, which owns its own data.
 func (br *blockResult) clone() *blockResult {
 	brNew := &blockResult{}
 
 	cs := br.getColumns()
 
+	// Pre-populate valuesEncoded in every column in order to properly calculate the needed backing buffer size below.
+	for _, c := range cs {
+		_ = c.getValuesEncoded(br)
+	}
+
+	// Calculate the backing buffer size needed for cloning column values.
 	bufLen := 0
 	for _, c := range cs {
 		bufLen += c.neededBackingBufLen()
@@ -1423,7 +1429,9 @@ type blockResultColumn struct {
 
 // clone returns a clone of c backed by data from br.
 //
-// the clone is valid until br is reset.
+// It is expected that c.valuesEncoded is already initialized for non-time column.
+//
+// The clone is valid until br is reset.
 func (c *blockResultColumn) clone(br *blockResult) blockResultColumn {
 	var cNew blockResultColumn
 
@@ -1436,13 +1444,19 @@ func (c *blockResultColumn) clone(br *blockResult) blockResultColumn {
 	cNew.maxValue = c.maxValue
 
 	cNew.dictValues = br.cloneValues(c.dictValues)
+
+	if !c.isTime && c.valuesEncoded == nil {
+		logger.Panicf("BUG: valuesEncoded must be non-nil for non-time column %q; isConst=%v; valueType=%d", c.name, c.isConst, c.valueType)
+	}
 	cNew.valuesEncoded = br.cloneValues(c.valuesEncoded)
+
 	if c.valueType != valueTypeString {
 		cNew.values = br.cloneValues(c.values)
 	}
 	cNew.valuesBucketed = br.cloneValues(c.valuesBucketed)
 
-	cNew.newValuesEncodedFunc = c.newValuesEncodedFunc
+	// Do not copy c.newValuesEncodedFunc, since it may refer to data, which may change over time.
+	// We already copied c.valuesEncoded, so cNew.newValuesEncodedFunc must be nil.
 
 	cNew.bucketSizeStr = c.bucketSizeStr
 	cNew.bucketOffsetStr = c.bucketOffsetStr
@@ -1535,11 +1549,9 @@ func (c *blockResultColumn) getValuesEncoded(br *blockResult) []string {
 		return nil
 	}
 
-	if values := c.valuesEncoded; values != nil {
-		return values
+	if c.valuesEncoded == nil {
+		c.valuesEncoded = c.newValuesEncodedFunc(br)
 	}
-
-	c.valuesEncoded = c.newValuesEncodedFunc(br)
 	return c.valuesEncoded
 }
 
