@@ -47,7 +47,7 @@ func (fp *filterPrefix) applyToBlockResult(bs *blockResult, bm *bitmap) {
 	applyToBlockResultGeneric(bs, bm, fp.fieldName, fp.prefix, matchPrefix)
 }
 
-func (fp *filterPrefix) apply(bs *blockSearch, bm *bitmap) {
+func (fp *filterPrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fp.fieldName
 	prefix := fp.prefix
 

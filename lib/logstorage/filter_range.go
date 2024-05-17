@@ -135,7 +135,7 @@ func (fr *filterRange) applyToBlockResult(br *blockResult, bm *bitmap) {
 	}
 }
 
-func (fr *filterRange) apply(bs *blockSearch, bm *bitmap) {
+func (fr *filterRange) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fr.fieldName
 	minValue := fr.minValue
 	maxValue := fr.maxValue

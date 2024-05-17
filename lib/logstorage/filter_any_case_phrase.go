@@ -56,7 +56,7 @@ func (fp *filterAnyCasePhrase) applyToBlockResult(br *blockResult, bm *bitmap) {
 	applyToBlockResultGeneric(br, bm, fp.fieldName, phraseLowercase, matchAnyCasePhrase)
 }
 
-func (fp *filterAnyCasePhrase) apply(bs *blockSearch, bm *bitmap) {
+func (fp *filterAnyCasePhrase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fp.fieldName
 	phraseLowercase := fp.getPhraseLowercase()
 

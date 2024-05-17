@@ -30,7 +30,7 @@ func (fr *filterRegexp) applyToBlockResult(br *blockResult, bm *bitmap) {
 	})
 }
 
-func (fr *filterRegexp) apply(bs *blockSearch, bm *bitmap) {
+func (fr *filterRegexp) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fr.fieldName
 	re := fr.re
 

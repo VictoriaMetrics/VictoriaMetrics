@@ -50,7 +50,7 @@ func (fo *filterOr) applyToBlockResult(br *blockResult, bm *bitmap) {
 	putBitmap(bmResult)
 }
 
-func (fo *filterOr) apply(bs *blockSearch, bm *bitmap) {
+func (fo *filterOr) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	bmResult := getBitmap(bm.bitsLen)
 	bmTmp := getBitmap(bm.bitsLen)
 	for _, f := range fo.filters {
@@ -65,7 +65,7 @@ func (fo *filterOr) apply(bs *blockSearch, bm *bitmap) {
 			// since the result already matches all the values from the block.
 			break
 		}
-		f.apply(bs, bmTmp)
+		f.applyToBlockSearch(bs, bmTmp)
 		bmResult.or(bmTmp)
 	}
 	putBitmap(bmTmp)

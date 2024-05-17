@@ -73,7 +73,7 @@ func (fs *filterSequence) applyToBlockResult(br *blockResult, bm *bitmap) {
 	})
 }
 
-func (fs *filterSequence) apply(bs *blockSearch, bm *bitmap) {
+func (fs *filterSequence) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fs.fieldName
 	phrases := fs.getNonEmptyPhrases()
 

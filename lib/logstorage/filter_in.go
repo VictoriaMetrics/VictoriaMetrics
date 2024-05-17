@@ -341,7 +341,7 @@ func matchColumnByBinValues(br *blockResult, bm *bitmap, c *blockResultColumn, b
 	})
 }
 
-func (fi *filterIn) apply(bs *blockSearch, bm *bitmap) {
+func (fi *filterIn) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fi.fieldName
 
 	if len(fi.values) == 0 {

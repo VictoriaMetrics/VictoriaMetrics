@@ -60,7 +60,7 @@ func (fp *filterAnyCasePrefix) applyToBlockResult(br *blockResult, bm *bitmap) {
 	applyToBlockResultGeneric(br, bm, fp.fieldName, prefixLowercase, matchAnyCasePrefix)
 }
 
-func (fp *filterAnyCasePrefix) apply(bs *blockSearch, bm *bitmap) {
+func (fp *filterAnyCasePrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fp.fieldName
 	prefixLowercase := fp.getPrefixLowercase()
 

@@ -110,7 +110,7 @@ func (ft *filterTime) matchTimestampValue(timestamp int64) bool {
 	return timestamp >= ft.minTimestamp && timestamp <= ft.maxTimestamp
 }
 
-func (ft *filterTime) apply(bs *blockSearch, bm *bitmap) {
+func (ft *filterTime) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	minTimestamp := ft.minTimestamp
 	maxTimestamp := ft.maxTimestamp
 

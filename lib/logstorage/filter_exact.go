@@ -163,7 +163,7 @@ func matchColumnByExactValue(br *blockResult, bm *bitmap, c *blockResultColumn, 
 	})
 }
 
-func (fe *filterExact) apply(bs *blockSearch, bm *bitmap) {
+func (fe *filterExact) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fe.fieldName
 	value := fe.value
 

@@ -92,7 +92,7 @@ func (fr *filterIPv4Range) applyToBlockResult(br *blockResult, bm *bitmap) {
 	}
 }
 
-func (fr *filterIPv4Range) apply(bs *blockSearch, bm *bitmap) {
+func (fr *filterIPv4Range) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fr.fieldName
 	minValue := fr.minValue
 	maxValue := fr.maxValue

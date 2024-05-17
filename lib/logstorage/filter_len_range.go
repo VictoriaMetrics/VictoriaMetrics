@@ -115,7 +115,7 @@ func matchColumnByLenRange(br *blockResult, bm *bitmap, c *blockResultColumn, mi
 	})
 }
 
-func (fr *filterLenRange) apply(bs *blockSearch, bm *bitmap) {
+func (fr *filterLenRange) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fr.fieldName
 	minLen := fr.minLen
 	maxLen := fr.maxLen

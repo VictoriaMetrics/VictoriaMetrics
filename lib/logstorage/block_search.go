@@ -156,7 +156,7 @@ func (bs *blockSearch) search(bsw *blockSearchWork, bm *bitmap) {
 	// search rows matching the given filter
 	bm.init(int(bsw.bh.rowsCount))
 	bm.setBits()
-	bs.bsw.so.filter.apply(bs, bm)
+	bs.bsw.so.filter.applyToBlockSearch(bs, bm)
 
 	if bm.isZero() {
 		// The filter doesn't match any logs in the current block.

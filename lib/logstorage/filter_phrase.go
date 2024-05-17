@@ -49,7 +49,7 @@ func (fp *filterPhrase) applyToBlockResult(br *blockResult, bm *bitmap) {
 	applyToBlockResultGeneric(br, bm, fp.fieldName, fp.phrase, matchPhrase)
 }
 
-func (fp *filterPhrase) apply(bs *blockSearch, bm *bitmap) {
+func (fp *filterPhrase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fp.fieldName
 	phrase := fp.phrase
 

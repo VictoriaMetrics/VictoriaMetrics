@@ -106,7 +106,7 @@ func (fs *filterStream) applyToBlockResult(br *blockResult, bm *bitmap) {
 	}
 }
 
-func (fs *filterStream) apply(bs *blockSearch, bm *bitmap) {
+func (fs *filterStream) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	if fs.f.isEmpty() {
 		return
 	}

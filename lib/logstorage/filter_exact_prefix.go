@@ -40,7 +40,7 @@ func (fep *filterExactPrefix) applyToBlockResult(br *blockResult, bm *bitmap) {
 	applyToBlockResultGeneric(br, bm, fep.fieldName, fep.prefix, matchExactPrefix)
 }
 
-func (fep *filterExactPrefix) apply(bs *blockSearch, bm *bitmap) {
+func (fep *filterExactPrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fep.fieldName
 	prefix := fep.prefix
 
