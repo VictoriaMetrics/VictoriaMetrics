@@ -19,15 +19,16 @@ The aggregation is applied to all the metrics received via any [supported data i
 and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 after applying all the configured [relabeling stages](https://docs.victoriametrics.com/vmagent/#relabeling).
 
-By default, stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples).
-It expects that the ingested samples have timestamps close to the current time. See [how to ignore old samples](#ignoring-old-samples).
+_By default, stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples).
+It expects that the ingested samples have timestamps close to the current time. See [how to ignore old samples](#ignoring-old-samples)._
 
 Stream aggregation can be configured via the following command-line flags:
 
-- `-remoteWrite.streamAggr.config` at [vmagent](https://docs.victoriametrics.com/vmagent/).
-  This flag can be specified individually per each `-remoteWrite.url`.
+- `-streamAggr.config` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
+  and at [vmagent](https://docs.victoriametrics.com/vmagent/).
+- `-remoteWrite.streamAggr.config` at [vmagent](https://docs.victoriametrics.com/vmagent/) only.
+  This flag can be specified individually per each `-remoteWrite.url` and aggregation will happen independently for each of them.
   This allows writing different aggregates to different remote storage destinations.
-- `-streamAggr.config` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/).
 
 These flags must point to a file containing [stream aggregation config](#stream-aggregation-config).
 The file may contain `%{ENV_VAR}` placeholders which are substituted by the corresponding `ENV_VAR` environment variable values.
@@ -39,29 +40,61 @@ By default, the following data is written to the storage when stream aggregation
 
 This behaviour can be changed via the following command-line flags:
 
-- `-remoteWrite.streamAggr.keepInput` at [vmagent](https://docs.victoriametrics.com/vmagent/) and `-streamAggr.keepInput`
-  at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/).
+- `-streamAggr.keepInput` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) 
+  and [vmagent](https://docs.victoriametrics.com/vmagent/). At [vmagent](https://docs.victoriametrics.com/vmagent/)
+  `-remoteWrite.streamAggr.keepInput` flag can be specified individually per each `-remoteWrite.url`.
   If one of these flags is set, then all the input samples are written to the storage alongside the aggregated samples.
-  The `-remoteWrite.streamAggr.keepInput` flag can be specified individually per each `-remoteWrite.url`.
-- `-remoteWrite.streamAggr.dropInput` at [vmagent](https://docs.victoriametrics.com/vmagent/) and `-streamAggr.dropInput`
-  at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/).
+- `-streamAggr.dropInput` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) 
+  and [vmagent](https://docs.victoriametrics.com/vmagent/). At [vmagent](https://docs.victoriametrics.com/vmagent/)
+  `-remoteWrite.streamAggr.dropInput` flag can be specified individually per each `-remoteWrite.url`.
   If one of these flags are set, then all the input samples are dropped, while only the aggregated samples are written to the storage.
-  The `-remoteWrite.streamAggr.dropInput` flag can be specified individually per each `-remoteWrite.url`.
+
+## Routing
+
+[Single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) supports relabeling,
+deduplication and stream aggregation for all the received data, scraped or pushed. 
+The processed data is then stored in local storage and **can't be forwarded further**.
+
+[vmagent](https://docs.victoriametrics.com/vmagent/) supports relabeling, deduplication and stream aggregation for all 
+the received data, scraped or pushed. Then, the collected data will be forwarded to specified `-remoteWrite.url` destinations.
+The data processing order is the following:
+1. All the received data is [relabeled](https://docs.victoriametrics.com/vmagent/#relabeling) according to 
+   specified `-remoteWrite.relabelConfig`;
+1. All the received data is [deduplicated](https://docs.victoriametrics.com/stream-aggregation/#deduplication)
+   according to specified `-streamAggr.dedupInterval`;
+1. All the received data is aggregated according to specified `-streamAggr.config`;
+1. The resulting data from p1 and p2 is then replicated to each `-remoteWrite.url`;
+1. Data sent to each `-remoteWrite.url` can be additionally relabeled according to the 
+   corresponding `-remoteWrite.urlRelabelConfig` (set individually per URL);
+1. Data sent to each `-remoteWrite.url` can be additionally deduplicated according to the
+   corresponding `-remoteWrite.streamAggr.dedupInterval` (set individually per URL);
+1. Data sent to each `-remoteWrite.url` can be additionally aggregated according to the
+   corresponding `-remoteWrite.streamAggr.config` (set individually per URL). Please note, it is not recommended
+   to use `-streamAggr.config` and `-remoteWrite.streamAggr.config` together, unless you understand the complications.
+
+Typical scenarios for data routing with vmagent:
+1. **Aggregate incoming data and replicate to N destinations**. For this one should configure `-streamAggr.config`
+to aggregate the incoming data before replicating it to all the configured `-remoteWrite.url` destinations.
+2. **Individually aggregate incoming data for each destination**. For this on should configure `-remoteWrite.streamAggr.config`
+for each `-remoteWrite.url` destination. [Relabeling](https://docs.victoriametrics.com/vmagent/#relabeling) 
+via `-remoteWrite.urlRelabelConfig` can be used for routing only selected metrics to each `-remoteWrite.url` destination.
 
 ## Deduplication
 
 [vmagent](https://docs.victoriametrics.com/vmagent/) supports online [de-duplication](https://docs.victoriametrics.com/#deduplication) of samples
 before sending them to the configured `-remoteWrite.url`. The de-duplication can be enabled via the following options:
 
-- By specifying the desired de-duplication interval via `-remoteWrite.streamAggr.dedupInterval` command-line flag for the particular `-remoteWrite.url`.
+- By specifying the desired de-duplication interval via `-streamAggr.dedupInterval` command-line flag for all received data 
+  or via `-remoteWrite.streamAggr.dedupInterval` command-line flag for the particular `-remoteWrite.url` destination.
   For example, `./vmagent -remoteWrite.url=http://remote-storage/api/v1/write -remoteWrite.streamAggr.dedupInterval=30s` instructs `vmagent` to leave
   only the last sample per each seen [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) per every 30 seconds.
-  The de-duplication is performed after applying `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` [relabeling](https://docs.victoriametrics.com/vmagent/#relabeling).
+  The de-deduplication is performed after applying [relabeling](https://docs.victoriametrics.com/vmagent/#relabeling) and
+  before performing the aggregation.
+  If the `-remoteWrite.streamAggr.config` and / or `-streamAggr.config` is set, then the de-duplication is performed individually per each
+  [stream aggregation config](#stream-aggregation-config) for the matching samples after applying [input_relabel_configs](#relabeling).
 
-  If the `-remoteWrite.streamAggr.config` is set, then the de-duplication is performed individually per each [stream aggregation config](#stream-aggregation-config)
-  for the matching samples after applying [input_relabel_configs](#relabeling).
-
-- By specifying `dedup_interval` option individually per each [stream aggregation config](#stream-aggregation-config) at `-remoteWrite.streamAggr.config`.
+- By specifying `dedup_interval` option individually per each [stream aggregation config](#stream-aggregation-config) 
+  in `-remoteWrite.streamAggr.config` or `-streamAggr.config` configs.
 
 [Single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) supports two types of de-duplication:
 - After storing the duplicate samples to local storage. See [`-dedup.minScrapeInterval`](https://docs.victoriametrics.com/#deduplication) command-line option.
@@ -82,11 +115,12 @@ The online de-duplication uses the same logic as [`-dedup.minScrapeInterval` com
 
 ## Ignoring old samples
 
-By default, all the input samples are taken into account during stream aggregation. If samples with old timestamps outside the current [aggregation interval](#stream-aggregation-config)
-must be ignored, then the following options can be used:
+By default, all the input samples are taken into account during stream aggregation. If samples with old timestamps 
+outside the current [aggregation interval](#stream-aggregation-config) must be ignored, then the following options can be used:
 
-- To pass `-remoteWrite.streamAggr.ignoreOldSamples` command-line flag to [vmagent](https://docs.victoriametrics.com/vmagent/)
-  or `-streamAggr.ignoreOldSamples` command-line flag to [single-node VictoriaMetrics](https://docs.victoriametrics.com/).
+- To pass `-streamAggr.ignoreOldSamples` command-line flag to [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
+  or to [vmagent](https://docs.victoriametrics.com/vmagent/). At [vmagent](https://docs.victoriametrics.com/vmagent/)
+  `-remoteWrite.streamAggr.ignoreOldSamples` flag can be specified individually per each `-remoteWrite.url`.
   This enables ignoring old samples for all the [aggregation configs](#stream-aggregation-config).
 
 - To set `ignore_old_samples: true` option at the particular [aggregation config](#stream-aggregation-config).
@@ -99,11 +133,12 @@ received from clients that maintain a queue of unsent data, such as Prometheus o
 cleared within the aggregation `interval`, only a portion of the time series may be processed, leading to distorted 
 calculations. To mitigate this, consider the following options:
 
-- Set `-remoteWrite.streamAggr.ignoreFirstIntervals=<intervalsCount>` command-line flag to [vmagent](https://docs.victoriametrics.com/vmagent/)
-  or `-streamAggr.ignoreFirstIntervals=<intervalsCount>` command-line flag to [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
-  to skip first `<intervalsCount>` [aggregation intervals](#stream-aggregation-config)
-  from persisting to the storage. It is expected that all incomplete or queued data will be processed during 
-  specified `<intervalsCount>` and all subsequent aggregation intervals will produce correct data.
+- Set `-streamAggr.ignoreFirstIntervals=<intervalsCount>` command-line flag to [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
+  or to [vmagent](https://docs.victoriametrics.com/vmagent/) to skip first `<intervalsCount>` [aggregation intervals](#stream-aggregation-config)
+  from persisting to the storage. At [vmagent](https://docs.victoriametrics.com/vmagent/)
+  `-remoteWrite.streamAggr.ignoreFirstIntervals=<intervalsCount>` flag can be specified individually per each `-remoteWrite.url`.
+  It is expected that all incomplete or queued data will be processed during specified `<intervalsCount>` 
+  and all subsequent aggregation intervals will produce correct data.
 
 - Set `ignore_first_intervals: <intervalsCount>` option individually per [aggregation config](#stream-aggregation-config).
   This enables ignoring first `<intervalsCount>` aggregation intervals for that particular aggregation config.
@@ -480,7 +515,8 @@ See also [dropping unneded labels](#dropping-unneeded-labels).
 If you need dropping some labels from input samples before [input relabeling](#relabeling), [de-duplication](#deduplication)
 and [stream aggregation](#aggregation-outputs), then the following options exist:
 
-- To specify comma-separated list of label names to drop in `-streamAggr.dropInputLabels` command-line flag.
+- To specify comma-separated list of label names to drop in `-streamAggr.dropInputLabels` command-line flag
+  or via `-remoteWrite.streamAggr.dropInputLabels` individually per each `-remoteWrite.url`.
   For example, `-streamAggr.dropInputLabels=replica,az` instructs to drop `replica` and `az` labels from input samples
   before applying de-duplication and stream aggregation.
 
@@ -879,9 +915,10 @@ See also [aggregation outputs](#aggregation-outputs).
 
 ## Stream aggregation config
 
-Below is the format for stream aggregation config file, which may be referred via `-remoteWrite.streamAggr.config` command-line flag
-at [vmagent](https://docs.victoriametrics.com/vmagent/) or via `-streamAggr.config` command-line flag
-at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/):
+Below is the format for stream aggregation config file, which may be referred via `-streamAggr.config` command-line flag at
+[single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/).
+At [vmagent](https://docs.victoriametrics.com/vmagent/) `-remoteWrite.streamAggr.config` command-line flag can be
+specified individually per each `-remoteWrite.url`:
 
 ```yaml
   # match is an optional filter for incoming samples to aggregate.
@@ -957,13 +994,13 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-
 
   # ignore_old_samples instructs ignoring input samples with old timestamps outside the current aggregation interval.
   # See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples
-  # See also -streamAggr.ignoreOldSamples command-line flag.
+  # See also -remoteWrite.streamAggr.ignoreOldSamples or -streamAggr.ignoreOldSamples command-line flag.
   #
   # ignore_old_samples: false
 
   # ignore_first_intervals instructs ignoring first N aggregation intervals after process start.
   # See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start
-  # See also -remoteWrite.streamAggr.ignoreFirstIntervals or -streamAggr.ignoreFirstIntervals
+  # See also -remoteWrite.streamAggr.ignoreFirstIntervals or -streamAggr.ignoreFirstIntervals command-line flag.
   #
   # ignore_first_intervals: false
 
@@ -1019,6 +1056,8 @@ support the following approaches for hot reloading stream aggregation configs fr
 
 The following outputs track the last seen per-series values in order to properly calculate output values:
 
+- [rate_sum](#rate_sum)
+- [rate_avg](#rate_avg)
 - [total](#total)
 - [total_prometheus](#total_prometheus)
 - [increase](#increase)
