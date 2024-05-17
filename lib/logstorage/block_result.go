@@ -69,9 +69,9 @@ func (br *blockResult) clone() *blockResult {
 
 	cs := br.getColumns()
 
-	// Pre-populate valuesEncoded in every column in order to properly calculate the needed backing buffer size below.
+	// Pre-populate values in every column in order to properly calculate the needed backing buffer size below.
 	for _, c := range cs {
-		_ = c.getValuesEncoded(br)
+		_ = c.getValues(br)
 	}
 
 	// Calculate the backing buffer size needed for cloning column values.
