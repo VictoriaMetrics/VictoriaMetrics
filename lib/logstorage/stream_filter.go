@@ -165,6 +165,7 @@ func (sn *streamName) parse(s string) bool {
 		if s[0] != ',' {
 			return false
 		}
+		s = s[1:]
 	}
 }
 

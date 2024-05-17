@@ -57,8 +57,8 @@ func (fs *filterStream) applyToBlockResult(br *blockResult, bm *bitmap) {
 		v := c.valuesEncoded[0]
 		if !fs.f.matchStreamName(v) {
 			bm.resetBits()
-			return
 		}
+		return
 	}
 	if c.isTime {
 		bm.resetBits()
