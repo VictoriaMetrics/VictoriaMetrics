@@ -27,6 +27,8 @@ import (
 )
 
 var supportedOutputs = []string{
+	"rate_sum",
+	"rate_avg",
 	"total",
 	"total_prometheus",
 	"increase",
