@@ -22,7 +22,7 @@ func (sv *statsValues) String() string {
 }
 
 func (sv *statsValues) updateNeededFields(neededFields fieldsSet) {
-	neededFields.addAll(sv.fields)
+	neededFields.addFields(sv.fields)
 }
 
 func (sv *statsValues) newStatsProcessor() (statsProcessor, int) {

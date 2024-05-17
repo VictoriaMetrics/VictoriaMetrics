@@ -25,7 +25,7 @@ func (su *statsCountUniq) String() string {
 }
 
 func (su *statsCountUniq) updateNeededFields(neededFields fieldsSet) {
-	neededFields.addAll(su.fields)
+	neededFields.addFields(su.fields)
 }
 
 func (su *statsCountUniq) newStatsProcessor() (statsProcessor, int) {

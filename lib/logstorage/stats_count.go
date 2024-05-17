@@ -22,7 +22,7 @@ func (sc *statsCount) updateNeededFields(neededFields fieldsSet) {
 		// There is no need in fetching any columns for count(*) - the number of matching rows can be calculated as len(blockResult.timestamps)
 		return
 	}
-	neededFields.addAll(sc.fields)
+	neededFields.addFields(sc.fields)
 }
 
 func (sc *statsCount) newStatsProcessor() (statsProcessor, int) {

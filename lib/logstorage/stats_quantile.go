@@ -25,7 +25,7 @@ func (sq *statsQuantile) String() string {
 }
 
 func (sq *statsQuantile) updateNeededFields(neededFields fieldsSet) {
-	neededFields.addAll(sq.fields)
+	neededFields.addFields(sq.fields)
 }
 
 func (sq *statsQuantile) newStatsProcessor() (statsProcessor, int) {

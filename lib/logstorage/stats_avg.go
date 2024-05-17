@@ -16,7 +16,7 @@ func (sa *statsAvg) String() string {
 }
 
 func (sa *statsAvg) updateNeededFields(neededFields fieldsSet) {
-	neededFields.addAll(sa.fields)
+	neededFields.addFields(sa.fields)
 }
 
 func (sa *statsAvg) newStatsProcessor() (statsProcessor, int) {

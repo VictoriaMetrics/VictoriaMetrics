@@ -16,7 +16,7 @@ func (ss *statsSumLen) String() string {
 }
 
 func (ss *statsSumLen) updateNeededFields(neededFields fieldsSet) {
-	neededFields.addAll(ss.fields)
+	neededFields.addFields(ss.fields)
 }
 
 func (ss *statsSumLen) newStatsProcessor() (statsProcessor, int) {

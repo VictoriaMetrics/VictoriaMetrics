@@ -15,7 +15,7 @@ func (sm *statsMedian) String() string {
 }
 
 func (sm *statsMedian) updateNeededFields(neededFields fieldsSet) {
-	neededFields.addAll(sm.fields)
+	neededFields.addFields(sm.fields)
 }
 
 func (sm *statsMedian) newStatsProcessor() (statsProcessor, int) {

@@ -73,8 +73,8 @@ func TestFieldsSet(t *testing.T) {
 		t.Fatalf("fs must be empty")
 	}
 
-	// verify addAll, getAll, removeAll
-	fs.addAll([]string{"foo", "bar", "_msg"})
+	// verify addFields, removeFields, getAll
+	fs.addFields([]string{"foo", "bar", "_msg"})
 	if !fs.contains("foo") || !fs.contains("bar") || !fs.contains("_msg") {
 		t.Fatalf("fs must contain foo, bar and _msg")
 	}
@@ -82,7 +82,7 @@ func TestFieldsSet(t *testing.T) {
 	if !reflect.DeepEqual(a, []string{"_msg", "bar", "foo"}) {
 		t.Fatalf("unexpected result from getAll(); got %q; want %q", a, []string{"_msg", "bar", "foo"})
 	}
-	fs.removeAll([]string{"bar", "baz", "_msg"})
+	fs.removeFields([]string{"bar", "baz", "_msg"})
 	if fs.contains("bar") || fs.contains("baz") || fs.contains("_msg") {
 		t.Fatalf("fs mustn't contain bar, baz and _msg")
 	}
@@ -91,7 +91,7 @@ func TestFieldsSet(t *testing.T) {
 	}
 
 	// verify clone
-	fs.addAll([]string{"foo", "bar", "baz"})
+	fs.addFields([]string{"foo", "bar", "baz"})
 	fsStr := fs.String()
 	fsCopy := fs.clone()
 	fsCopyStr := fsCopy.String()

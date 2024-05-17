@@ -40,7 +40,7 @@ func (pu *pipeUniq) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	if len(pu.byFields) == 0 {
 		neededFields.add("*")
 	} else {
-		neededFields.addAll(pu.byFields)
+		neededFields.addFields(pu.byFields)
 	}
 }
 

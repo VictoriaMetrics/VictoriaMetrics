@@ -20,7 +20,7 @@ func (sm *statsMax) String() string {
 }
 
 func (sm *statsMax) updateNeededFields(neededFields fieldsSet) {
-	neededFields.addAll(sm.fields)
+	neededFields.addFields(sm.fields)
 }
 
 func (sm *statsMax) newStatsProcessor() (statsProcessor, int) {

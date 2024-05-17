@@ -75,7 +75,7 @@ func assertNeededFields(t *testing.T, nfs, unfs fieldsSet, neededFieldsExpected,
 func newTestFieldsSet(fields string) fieldsSet {
 	fs := newFieldsSet()
 	if fields != "" {
-		fs.addAll(strings.Split(fields, ","))
+		fs.addFields(strings.Split(fields, ","))
 	}
 	return fs
 }

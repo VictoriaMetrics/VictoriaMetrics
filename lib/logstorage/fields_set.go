@@ -37,13 +37,13 @@ func (fs fieldsSet) getAll() []string {
 	return a
 }
 
-func (fs fieldsSet) addAll(fields []string) {
+func (fs fieldsSet) addFields(fields []string) {
 	for _, f := range fields {
 		fs.add(f)
 	}
 }
 
-func (fs fieldsSet) removeAll(fields []string) {
+func (fs fieldsSet) removeFields(fields []string) {
 	for _, f := range fields {
 		fs.remove(f)
 	}

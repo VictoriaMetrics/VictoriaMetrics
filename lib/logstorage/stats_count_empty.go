@@ -18,7 +18,7 @@ func (sc *statsCountEmpty) String() string {
 }
 
 func (sc *statsCountEmpty) updateNeededFields(neededFields fieldsSet) {
-	neededFields.addAll(sc.fields)
+	neededFields.addFields(sc.fields)
 }
 
 func (sc *statsCountEmpty) newStatsProcessor() (statsProcessor, int) {
