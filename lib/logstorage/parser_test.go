@@ -237,6 +237,21 @@ func TestParseTimeRange(t *testing.T) {
 	f("2023-02-28T23:59:59", minTimestamp, maxTimestamp)
 	f("2023-02-28T23:59:59Z", minTimestamp, maxTimestamp)
 
+	// _time:[YYYY-MM-DDTHH:MM:SS.sss, YYYY-MM-DDTHH:MM:SS.sss)
+	minTimestamp = time.Date(2024, time.May, 12, 0, 0, 0, 333000000, time.UTC).UnixNano()
+	maxTimestamp = time.Date(2024, time.May, 12, 0, 0, 0, 555000000, time.UTC).UnixNano() - 1
+	f("[2024-05-12T00:00:00.333+00:00,2024-05-12T00:00:00.555+00:00)", minTimestamp, maxTimestamp)
+
+	// _time:[YYYY-MM-DDTHH:MM:SS.sss, YYYY-MM-DDTHH:MM:SS.sss]
+	minTimestamp = time.Date(2024, time.May, 12, 0, 0, 0, 333000000, time.UTC).UnixNano()
+	maxTimestamp = time.Date(2024, time.May, 12, 0, 0, 0, 556000000, time.UTC).UnixNano() - 1
+	f("[2024-05-12T00:00:00.333+00:00,2024-05-12T00:00:00.555+00:00]", minTimestamp, maxTimestamp)
+
+	// _time:YYYY-MM-DDTHH:MM:SS.sss
+	minTimestamp = time.Date(2024, time.May, 14, 13, 54, 59, 134000000, time.UTC).UnixNano()
+	maxTimestamp = time.Date(2024, time.May, 14, 13, 54, 59, 135000000, time.UTC).UnixNano() - 1
+	f("2024-05-14T13:54:59.134Z", minTimestamp, maxTimestamp)
+
 	// _time:YYYY-MM-DDTHH:MM:SS-hh:mm
 	minTimestamp = time.Date(2023, time.February, 28, 23, 59, 59, 0, time.UTC).UnixNano()
 	maxTimestamp = time.Date(2023, time.March, 1, 0, 0, 0, 0, time.UTC).UnixNano() - 1
