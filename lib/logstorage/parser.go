@@ -1111,15 +1111,6 @@ func parseFilterStream(lex *lexer) (*filterStream, error) {
 	}
 }
 
-func newStreamFilter(s string) (*StreamFilter, error) {
-	lex := newLexer(s)
-	fs, err := parseFilterStream(lex)
-	if err != nil {
-		return nil, err
-	}
-	return fs.f, nil
-}
-
 func parseAndStreamFilter(lex *lexer) (*andStreamFilter, error) {
 	var filters []*streamTagFilter
 	for {

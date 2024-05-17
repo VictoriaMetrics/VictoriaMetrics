@@ -501,7 +501,7 @@ func TestStorageSearch(t *testing.T) {
 		}
 	})
 	t.Run("stream-filter-mismatch", func(_ *testing.T) {
-		sf := mustNewStreamFilter(`{job="foobar",instance=~"host-.+:2345"}`)
+		sf := mustNewTestStreamFilter(`{job="foobar",instance=~"host-.+:2345"}`)
 		minTimestamp := baseTimestamp
 		maxTimestamp := baseTimestamp + rowsPerBlock*1e9 + blocksPerStream
 		f := getBaseFilter(minTimestamp, maxTimestamp, sf)
@@ -517,7 +517,7 @@ func TestStorageSearch(t *testing.T) {
 	})
 	t.Run("matching-stream-id", func(t *testing.T) {
 		for i := 0; i < streamsPerTenant; i++ {
-			sf := mustNewStreamFilter(fmt.Sprintf(`{job="foobar",instance="host-%d:234"}`, i))
+			sf := mustNewTestStreamFilter(fmt.Sprintf(`{job="foobar",instance="host-%d:234"}`, i))
 			tenantID := TenantID{
 				AccountID: 1,
 				ProjectID: 11,
@@ -543,7 +543,7 @@ func TestStorageSearch(t *testing.T) {
 		}
 	})
 	t.Run("matching-multiple-stream-ids", func(t *testing.T) {
-		sf := mustNewStreamFilter(`{job="foobar",instance=~"host-[^:]+:234"}`)
+		sf := mustNewTestStreamFilter(`{job="foobar",instance=~"host-[^:]+:234"}`)
 		tenantID := TenantID{
 			AccountID: 1,
 			ProjectID: 11,
@@ -568,7 +568,7 @@ func TestStorageSearch(t *testing.T) {
 		}
 	})
 	t.Run("matching-multiple-stream-ids-with-re-filter", func(t *testing.T) {
-		sf := mustNewStreamFilter(`{job="foobar",instance=~"host-[^:]+:234"}`)
+		sf := mustNewTestStreamFilter(`{job="foobar",instance=~"host-[^:]+:234"}`)
 		tenantID := TenantID{
 			AccountID: 1,
 			ProjectID: 11,
@@ -602,7 +602,7 @@ func TestStorageSearch(t *testing.T) {
 		}
 	})
 	t.Run("matching-stream-id-smaller-time-range", func(t *testing.T) {
-		sf := mustNewStreamFilter(`{job="foobar",instance="host-1:234"}`)
+		sf := mustNewTestStreamFilter(`{job="foobar",instance="host-1:234"}`)
 		tenantID := TenantID{
 			AccountID: 1,
 			ProjectID: 11,
@@ -627,7 +627,7 @@ func TestStorageSearch(t *testing.T) {
 		}
 	})
 	t.Run("matching-stream-id-missing-time-range", func(_ *testing.T) {
-		sf := mustNewStreamFilter(`{job="foobar",instance="host-1:234"}`)
+		sf := mustNewTestStreamFilter(`{job="foobar",instance="host-1:234"}`)
 		tenantID := TenantID{
 			AccountID: 1,
 			ProjectID: 11,
@@ -648,12 +648,4 @@ func TestStorageSearch(t *testing.T) {
 
 	s.MustClose()
 	fs.MustRemoveAll(path)
-}
-
-func mustNewStreamFilter(s string) *StreamFilter {
-	sf, err := newStreamFilter(s)
-	if err != nil {
-		panic(fmt.Errorf("unexpected error in newStreamFilter(%q): %w", s, err))
-	}
-	return sf
 }
