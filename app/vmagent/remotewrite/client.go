@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -20,7 +22,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -297,6 +298,11 @@ func (c *client) runWorker() {
 		block, ok = c.fq.MustReadBlock(block[:0])
 		if !ok {
 			return
+		}
+		if len(block) == 0 {
+			// skip empty data blocks from sending
+			// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6241
+			continue
 		}
 		go func() {
 			startTime := time.Now()
