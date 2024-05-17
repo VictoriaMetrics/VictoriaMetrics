@@ -11,7 +11,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
 )
 
 type lexer struct {
@@ -1076,100 +1075,14 @@ func stripTimezoneSuffix(s string) string {
 }
 
 func parseFilterStream(lex *lexer) (*filterStream, error) {
-	if !lex.isKeyword("{") {
-		return nil, fmt.Errorf("unexpected token %q instead of '{' in _stream filter", lex.token)
+	sf, err := parseStreamFilter(lex)
+	if err != nil {
+		return nil, err
 	}
-	if !lex.mustNextToken() {
-		return nil, fmt.Errorf("incomplete _stream filter after '{'")
+	fs := &filterStream{
+		f: sf,
 	}
-	var filters []*andStreamFilter
-	for {
-		f, err := parseAndStreamFilter(lex)
-		if err != nil {
-			return nil, err
-		}
-		filters = append(filters, f)
-		switch {
-		case lex.isKeyword("}"):
-			lex.nextToken()
-			fs := &filterStream{
-				f: &StreamFilter{
-					orFilters: filters,
-				},
-			}
-			return fs, nil
-		case lex.isKeyword("or"):
-			if !lex.mustNextToken() {
-				return nil, fmt.Errorf("incomplete _stream filter after 'or'")
-			}
-			if lex.isKeyword("}") {
-				return nil, fmt.Errorf("unexpected '}' after 'or' in _stream filter")
-			}
-		default:
-			return nil, fmt.Errorf("unexpected token in _stream filter: %q; want '}' or 'or'", lex.token)
-		}
-	}
-}
-
-func parseAndStreamFilter(lex *lexer) (*andStreamFilter, error) {
-	var filters []*streamTagFilter
-	for {
-		if lex.isKeyword("}") {
-			asf := &andStreamFilter{
-				tagFilters: filters,
-			}
-			return asf, nil
-		}
-		f, err := parseStreamTagFilter(lex)
-		if err != nil {
-			return nil, err
-		}
-		filters = append(filters, f)
-		switch {
-		case lex.isKeyword("or", "}"):
-			asf := &andStreamFilter{
-				tagFilters: filters,
-			}
-			return asf, nil
-		case lex.isKeyword(","):
-			if !lex.mustNextToken() {
-				return nil, fmt.Errorf("missing stream filter after ','")
-			}
-		default:
-			return nil, fmt.Errorf("unexpected token %q in _stream filter; want 'or', 'and', '}' or ','", lex.token)
-		}
-	}
-}
-
-func parseStreamTagFilter(lex *lexer) (*streamTagFilter, error) {
-	tagName := lex.token
-	if !lex.mustNextToken() {
-		return nil, fmt.Errorf("missing operation in _stream filter for %q field", tagName)
-	}
-	if !lex.isKeyword("=", "!=", "=~", "!~") {
-		return nil, fmt.Errorf("unsupported operation %q in _steam filter for %q field; supported operations: =, !=, =~, !~", lex.token, tagName)
-	}
-	op := lex.token
-	if !lex.mustNextToken() {
-		return nil, fmt.Errorf("missing _stream filter value for %q field", tagName)
-	}
-	value := lex.token
-	if !lex.mustNextToken() {
-		return nil, fmt.Errorf("missing token after %q%s%q filter", tagName, op, value)
-	}
-	stf := &streamTagFilter{
-		tagName: tagName,
-		op:      op,
-		value:   value,
-	}
-	if op == "=~" || op == "!~" {
-		re, err := regexutil.NewPromRegex(value)
-		if err != nil {
-			return nil, fmt.Errorf("invalid regexp %q for stream filter: %w", value, err)
-		}
-		stf.regexp = re
-	}
-	return stf, nil
+	return fs, nil
 }
 
 func parseTime(lex *lexer) (int64, string, error) {
