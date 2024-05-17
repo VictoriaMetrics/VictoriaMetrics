@@ -125,6 +125,24 @@
                 text-decoration: underline;
               }
             }
+
+            strong {
+              font-weight: bold;
+            }
+
+            em {
+              font-style: italic;
+            }
+
+            blockquote {
+              border-left: 4px solid $color-hover-black;
+              margin: calc($padding-small/2) $padding-small;
+              padding: calc($padding-small/2) $padding-small;
+            }
+
+            ul, ol {
+              list-style-position: inside;
+            }
           }
         }
       }

@@ -7,9 +7,10 @@ import { groupByMultipleKeys } from "../../../utils/array";
 interface TableLogsProps {
   logs: Logs[];
   columns: string[];
+  markdownParsing: boolean;
 }
 
-const GroupLogs: FC<TableLogsProps> = ({ logs, columns }) => {
+const GroupLogs: FC<TableLogsProps> = ({ logs, columns, markdownParsing }) => {
 
   const groupData = useMemo(() => {
     const excludeColumns = ["_msg", "time", "data", "_time"];
@@ -51,7 +52,7 @@ const GroupLogs: FC<TableLogsProps> = ({ logs, columns }) => {
                   </div>
                   <div
                     className="vm-explore-logs-body-content-group-rows-item__msg"
-                    dangerouslySetInnerHTML={{ __html: value._markdown || value._msg }}
+                    dangerouslySetInnerHTML={{ __html: markdownParsing ? value._markdown : value._msg }}
                   >
                     {value._msg}
                   </div>

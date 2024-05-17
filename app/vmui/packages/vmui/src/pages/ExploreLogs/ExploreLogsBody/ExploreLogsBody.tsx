@@ -19,6 +19,7 @@ import { marked } from "marked";
 export interface ExploreLogBodyProps {
   data: Logs[];
   loaded?: boolean;
+  markdownParsing: boolean;
 }
 
 enum DisplayType {
@@ -33,7 +34,7 @@ const tabs = [
   { label: "JSON", value: DisplayType.json, icon: <CodeIcon/> },
 ];
 
-const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded }) => {
+const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded, markdownParsing }) => {
   const { isMobile } = useDeviceDetect();
   const { timezone } = useTimeState();
   const { setSearchParamsFromKeys } = useSearchParamsFromObject();
@@ -126,6 +127,7 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded }) => {
               <GroupLogs
                 logs={logs}
                 columns={columns}
+                markdownParsing={markdownParsing}
               />
             )}
             {activeTab === DisplayType.json && (
