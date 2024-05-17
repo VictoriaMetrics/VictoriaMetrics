@@ -1402,6 +1402,21 @@ extracted from the `ip` [log field](https://docs.victoriametrics.com/victorialog
 _time:5m | stats by (ip:/24) count() requests_per_subnet
 ```
 
+#### Stats with additional filters
+
+Sometimes it is needed to calculate stats on different subsets of matching logs. This can be done by inserting `if (<any_filters>)` condition
+between [stats function](#stats-pipe-functions) and `result_name`, where `any_filter` can contain arbitrary [filters](#filters).
+For example, the following query calculates individually the number of [logs messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+with `GET`, `POST` and `PUT` [words](#word), additionally to the total number of logs over the last 5 minutes:
+
+```logsql
+_time:5m | stats
+  count() if (GET) gets,
+  count() if (POST) posts,
+  count() if (PUT) puts,
+  count() total
+```
+
 ## stats pipe functions
 
 LogsQL supports the following functions for [`stats` pipe](#stats-pipe):
