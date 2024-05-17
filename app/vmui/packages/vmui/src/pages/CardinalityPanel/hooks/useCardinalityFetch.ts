@@ -1,6 +1,6 @@
 import { ErrorTypes } from "../../../types";
 import { useAppState } from "../../../state/common/StateContext";
-import { useEffect, useState } from "preact/compat";
+import { useEffect, useRef, useState } from "preact/compat";
 import { CardinalityRequestsParams, getCardinalityInfo } from "../../../api/tsdb";
 import { TSDBStatus } from "../types";
 import AppConfigurator from "../appConfigurator";
@@ -25,6 +25,7 @@ export const useFetchQuery = (): {
   const topN = +(searchParams.get("topN") || 10);
   const date = searchParams.get("date") || dayjs().tz().format(DATE_FORMAT);
   const prevDate = usePrevious(date);
+  const prevTotal = useRef<{data: TSDBStatus}>();
 
   const { serverUrl } = useAppState();
   const [isLoading, setIsLoading] = useState(false);
@@ -72,7 +73,7 @@ export const useFetchQuery = (): {
 
     const prevDayParams = {
       ...requestParams,
-      date: dayjs(requestParams.date).subtract(1, "day").tz().format(DATE_FORMAT),
+      date: dayjs(requestParams.date).subtract(1, "day").format(DATE_FORMAT),
     };
 
     const urls = [
@@ -80,15 +81,16 @@ export const useFetchQuery = (): {
       getCardinalityInfo(serverUrl, prevDayParams),
     ];
 
-    if (prevDate !== date) {
+    if (prevDate !== date && (requestParams.match || requestParams.focusLabel)) {
       urls.push(getCardinalityInfo(serverUrl, totalParams));
     }
 
     try {
-      const [resp, respPrev, respTotals = {}] = await Promise.all(urls.map(getResponseJson));
+      const [resp, respPrev, respTotals] = await Promise.all(urls.map(getResponseJson));
 
       const prevResult = { ...respPrev.data };
-      const { data: dataTotal } = respTotals;
+      const { data: dataTotal } = respTotals || prevTotal.current || resp;
+      prevTotal.current = { data: dataTotal as TSDBStatus };
       const result: TSDBStatus = {
         ...resp.data,
         totalSeries: resp.data?.totalSeries || resp.data?.headStats?.numSeries || 0,

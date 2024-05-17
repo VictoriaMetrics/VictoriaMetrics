@@ -1,6 +1,7 @@
 import React, { FC, useMemo } from "preact/compat";
 import dayjs, { Dayjs } from "dayjs";
 import classNames from "classnames";
+import Tooltip from "../../../Tooltip/Tooltip";
 
 interface CalendarBodyProps {
   viewDate: Dayjs
@@ -10,9 +11,10 @@ interface CalendarBodyProps {
 
 const weekday = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-const CalendarBody: FC<CalendarBodyProps> = ({ viewDate, selectDate, onChangeSelectDate }) => {
+const CalendarBody: FC<CalendarBodyProps> = ({ viewDate: date, selectDate, onChangeSelectDate }) => {
   const format = "YYYY-MM-DD";
-  const today = dayjs().tz().startOf("day");
+  const today = dayjs.tz();
+  const viewDate = dayjs(date.format(format));
 
   const days: (Dayjs|null)[] = useMemo(() => {
     const result = new Array(42).fill(null);
@@ -32,12 +34,14 @@ const CalendarBody: FC<CalendarBodyProps> = ({ viewDate, selectDate, onChangeSel
   return (
     <div className="vm-calendar-body">
       {weekday.map(w => (
-        <div
-          className="vm-calendar-body-cell vm-calendar-body-cell_weekday"
+        <Tooltip
+          title={w}
           key={w}
         >
-          {w[0]}
-        </div>
+          <div className="vm-calendar-body-cell vm-calendar-body-cell_weekday">
+            {w[0]}
+          </div>
+        </Tooltip>
       ))}
 
       {days.map((d, i) => (

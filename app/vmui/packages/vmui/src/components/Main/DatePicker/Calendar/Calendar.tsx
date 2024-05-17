@@ -3,7 +3,7 @@ import dayjs, { Dayjs } from "dayjs";
 import CalendarHeader from "./CalendarHeader/CalendarHeader";
 import CalendarBody from "./CalendarBody/CalendarBody";
 import YearsList from "./YearsList/YearsList";
-import { DATE_TIME_FORMAT } from "../../../../constants/date";
+import { DATE_FORMAT, DATE_TIME_FORMAT } from "../../../../constants/date";
 import "./style.scss";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 import classNames from "classnames";
@@ -31,8 +31,8 @@ const Calendar: FC<DatePickerProps> = ({
   const [viewDate, setViewDate] = useState(dayjs.tz(date));
   const [selectDate, setSelectDate] = useState(dayjs.tz(date));
 
-  const today = dayjs().startOf("day").tz();
-  const viewDateIsToday = today.format() === viewDate.format();
+  const today = dayjs.tz();
+  const viewDateIsToday = today.format(DATE_FORMAT) === viewDate.format(DATE_FORMAT);
   const { isMobile } = useDeviceDetect();
 
   const toggleDisplayYears = () => {
