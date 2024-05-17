@@ -149,6 +149,10 @@ func (br *blockResult) initFromNeededColumns(brSrc *blockResult, bm *bitmap, nee
 
 // cloneValues clones the given values into br and returns the cloned values.
 func (br *blockResult) cloneValues(values []string) []string {
+	if values == nil {
+		return nil
+	}
+
 	valuesBufLen := len(br.valuesBuf)
 	for _, v := range values {
 		br.addValue(v)
@@ -1494,7 +1498,7 @@ func (c *blockResultColumn) getValueAtRow(br *blockResult, rowIdx int) string {
 	return values[rowIdx]
 }
 
-// getValues returns values for the given column, bucketed according to bf.
+// getValuesBucketed returns values for the given column, bucketed according to bf.
 //
 // The returned values are valid until br.reset() is called.
 func (c *blockResultColumn) getValuesBucketed(br *blockResult, bf *byStatsField) []string {
