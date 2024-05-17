@@ -825,6 +825,18 @@ for searching for log entries with request durations exceeding 4.2 seconds:
 request.duration:range(4.2, Inf)
 ```
 
+This query can be shortened to:
+
+```logsql
+request.duration:>4.2
+```
+
+The following query returns logs with request durations smaller or equal to 1.5 seconds:
+
+```logsql
+request.duration:<=1.5
+```
+
 The lower and the upper bounds of the range are excluded by default. If they must be included, then substitute the corresponding
 parentheses with square brackets. For example:
 
@@ -832,11 +844,7 @@ parentheses with square brackets. For example:
 - `range(1, 10]` includes `10` in the matching range
 - `range[1, 10]` includes `1` and `10` in the matching range
 
-The range boundaries can be expressed in the following forms:
-
-- Hexadecimal form. For example, `range(0xff, 0xABCD)`.
-- Binary form. Form example, `range(0b100110, 0b11111101)`
-- Integer form with `_` delimiters for better readability. For example, `range(1_000, 2_345_678)`.
+The range boundaries can contain any [supported numeric values](#numeric-values).
 
 Note that the `range()` filter doesn't match [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
 with non-numeric values alongside numeric values. For example, `range(1, 10)` doesn't match `the request took 4.2 seconds`
