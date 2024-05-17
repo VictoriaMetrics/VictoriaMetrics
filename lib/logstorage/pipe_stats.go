@@ -563,6 +563,10 @@ func parseIfFilter(lex *lexer) (filter, error) {
 		return nil, fmt.Errorf("unexpected token %q after 'if'; expecting '('", lex.token)
 	}
 	lex.nextToken()
+	if lex.isKeyword(")") {
+		lex.nextToken()
+		return &filterNoop{}, nil
+	}
 	f, err := parseFilter(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse 'if' filter: %w", err)

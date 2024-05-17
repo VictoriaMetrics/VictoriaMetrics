@@ -929,6 +929,7 @@ func TestParseQuerySuccess(t *testing.T) {
 	   count() if (is_admin:true or _msg:"foo bar"*) as foo,
 	   sum(duration) if (host:in('foo.com', 'bar.com') and path:/foobar) as bar`,
 		`* | stats by (_time:1d offset -2h, f2) count(*) if (is_admin:true or "foo bar"*) as foo, sum(duration) if (host:in(foo.com,bar.com) path:"/foobar") as bar`)
+	f(`* | stats count() if () rows`, `* | stats count(*) if () as rows`)
 
 	// sort pipe
 	f(`* | sort`, `* | sort`)
