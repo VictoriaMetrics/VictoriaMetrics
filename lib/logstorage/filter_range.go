@@ -12,8 +12,8 @@ import (
 type filterRange struct {
 	fieldName string
 
-	minValue  float64
-	maxValue  float64
+	minValue float64
+	maxValue float64
 
 	stringRepr string
 }

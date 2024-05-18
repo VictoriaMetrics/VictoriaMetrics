@@ -320,7 +320,11 @@ func (shard *pipeStatsProcessorShard) applyPerFunctionFilters(brSrc *blockResult
 
 		// Store the remaining rows for the needed per-func fields to brDst
 		brDst := &shard.brsBuf[i]
-		brDst.initFromNeededColumns(brSrc, bm, funcs[i].neededFieldsForFunc)
+		if bm.isZero() {
+			brDst.reset()
+		} else {
+			brDst.initFromFilterNeededColumns(brSrc, bm, funcs[i].neededFieldsForFunc)
+		}
 		brs[i] = brDst
 	}
 	return brs

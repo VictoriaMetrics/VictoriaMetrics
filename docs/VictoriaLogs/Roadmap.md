@@ -37,7 +37,6 @@ The following functionality is planned in the future versions of VictoriaLogs:
 - Add missing functionality to [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html):
   - [Stream context](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#stream-context).
   - [Transformation functions](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#transformations).
-  - [Post-filtering](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#post-filters).
   - The ability to use subqueries inside [in()](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#multi-exact-filter) function.
 - Live tailing for [LogsQL filters](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#filters) aka `tail -f`.
 - Web UI with the following abilities:

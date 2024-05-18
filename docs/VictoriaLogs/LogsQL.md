@@ -184,7 +184,7 @@ For example, the following query selects all the logs for the last 5 minutes by 
 _time:5m
 ```
 
-Additionally to filters, LogQL query may contain arbitrary mix of optional actions for processing the selected logs. These actions are delimited by `|` and are known as `pipes`.
+Additionally to filters, LogQL query may contain arbitrary mix of optional actions for processing the selected logs. These actions are delimited by `|` and are known as [`pipes`](#pipes).
 For example, the following query uses [`stats` pipe](#stats-pipe) for returning the number of [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 with the `error` [word](#word) for the last 5 minutes:
 
@@ -212,7 +212,6 @@ single quotes `'` and backticks:
 ```
 
 If doubt, it is recommended quoting field names and filter args.
-
 
 The list of LogsQL filters:
 
@@ -850,7 +849,7 @@ Note that the `range()` filter doesn't match [log fields](https://docs.victoriam
 with non-numeric values alongside numeric values. For example, `range(1, 10)` doesn't match `the request took 4.2 seconds`
 [log message](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field), since the `4.2` number is surrounded by other text.
 Extract the numeric value from the message with `parse(_msg, "the request took <request_duration> seconds")` [transformation](#transformations)
-and then apply the `range()` [post-filter](#post-filters) to the extracted `request_duration` field.
+and then apply the `range()` [filter pipe](#filter-pipe) to the extracted `request_duration` field.
 
 Performance tips:
 
@@ -892,7 +891,7 @@ user.ip:ipv4_range("1.2.3.4")
 Note that the `ipv4_range()` doesn't match a string with IPv4 address if this string contains other text. For example, `ipv4_range("127.0.0.0/24")`
 doesn't match `request from 127.0.0.1: done` [log message](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field),
 since the `127.0.0.1` ip is surrounded by other text. Extract the IP from the message with `parse(_msg, "request from <ip>: done")` [transformation](#transformations)
-and then apply the `ipv4_range()` [post-filter](#post-filters) to the extracted `ip` field.
+and then apply the `ipv4_range()` [filter pipe](#filter-pipe) to the extracted `ip` field.
 
 Hints:
 
@@ -1054,6 +1053,7 @@ LogsQL supports the following pipes:
 - [`copy`](#copy-pipe) copies [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - [`delete`](#delete-pipe) deletes [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - [`fields`](#fields-pipe) selects the given set of [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
+- [`filter`](#filter-pipe) applies additional [filters](#filters) to results.
 - [`limit`](#limit-pipe) limits the number selected logs.
 - [`offset`](#offset-pipe) skips the given number of selected logs.
 - [`rename`](#rename-pipe) renames [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
@@ -1119,6 +1119,22 @@ See also:
 - [`copy` pipe](#copy-pipe)
 - [`rename` pipe](#rename-pipe)
 - [`delete` pipe](#delete-pipe)
+
+### filter pipe
+
+Sometimes it is needed to apply additional filters on the calculated results. This can be done with `| filter ...` [pipe](#pipes).
+The `filter` pipe can contain arbitrary [filters](#filters).
+
+For example, the following query returns `host` [field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) values
+if the number of log messages with the `error` [word](#word) for them over the last hour exceeds `1_000`:
+
+```logsql
+_time:1h error | stats by (host) count() logs_count | filter logs_count:> 1_000
+```
+
+See also:
+
+- [`stats` pipe](#stats-pipe)
 
 ### limit pipe
 
@@ -1730,23 +1746,15 @@ LogsQL will support the following transformations for the [selected](#filters) l
   according to the provided format.
 - Creating a new field according to math calculations over existing [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - Parsing duration strings into floating-point seconds for further [stats calculations](#stats-pipe).
-- Creating a boolean field with the result of arbitrary [post-filters](#post-filters) applied to the current fields.
-- Creating an integer field with the length of the given field value. This can be useful for [stats calculations](#stats-pipe).
 
 See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
 
 ## Post-filters
 
-It is possible to perform post-filtering on the [selected log entries](#filters) at client side with `grep` or similar Unix commands
+Post-filtering of query results can be performed at any step by using [`filter` pipe](#filter-pipe).
+
+It is also possible to perform post-filtering of the [selected log entries](#filters) at client side with `grep` and similar Unix commands
 according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
-
-LogsQL will support post-filtering on the original [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
-and fields created by various [transformations](#transformations). The following post-filters will be supported:
-
-- Full-text [filtering](#filters).
-- [Logical filtering](#logical-filter).
-
-See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
 
 ## Stats
 

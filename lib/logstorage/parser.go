@@ -241,6 +241,16 @@ func (q *Query) AddPipeLimit(n uint64) {
 func (q *Query) Optimize() {
 	q.pipes = optimizeSortOffsetPipes(q.pipes)
 	q.pipes = optimizeSortLimitPipes(q.pipes)
+	q.pipes = optimizeFilterPipes(q.pipes)
+
+	// Merge `q | filter ...` into q.
+	if len(q.pipes) > 0 {
+		pf, ok := q.pipes[0].(*pipeFilter)
+		if ok {
+			q.f = mergeFiltersAnd(q.f, pf.f)
+			q.pipes = append(q.pipes[:0], q.pipes[1:]...)
+		}
+	}
 }
 
 func optimizeSortOffsetPipes(pipes []pipe) []pipe {
@@ -285,6 +295,48 @@ func optimizeSortLimitPipes(pipes []pipe) []pipe {
 		pipes = append(pipes[:i], pipes[i+1:]...)
 	}
 	return pipes
+}
+
+func optimizeFilterPipes(pipes []pipe) []pipe {
+	// Merge multiple `| filter ...` pipes into a single `filter ...` pipe
+	i := 1
+	for i < len(pipes) {
+		pf1, ok := pipes[i-1].(*pipeFilter)
+		if !ok {
+			i++
+			continue
+		}
+		pf2, ok := pipes[i].(*pipeFilter)
+		if !ok {
+			i++
+			continue
+		}
+
+		pf1.f = mergeFiltersAnd(pf1.f, pf2.f)
+		pipes = append(pipes[:i], pipes[i+1:]...)
+	}
+	return pipes
+}
+
+func mergeFiltersAnd(f1, f2 filter) filter {
+	fa1, ok := f1.(*filterAnd)
+	if ok {
+		fa1.filters = append(fa1.filters, f2)
+		return fa1
+	}
+
+	fa2, ok := f2.(*filterAnd)
+	if ok {
+		filters := make([]filter, len(fa2.filters)+1)
+		filters[0] = f1
+		copy(filters[1:], fa2.filters)
+		fa2.filters = filters
+		return fa2
+	}
+
+	return &filterAnd{
+		filters: []filter{f1, f2},
+	}
 }
 
 func (q *Query) getNeededColumns() ([]string, []string) {

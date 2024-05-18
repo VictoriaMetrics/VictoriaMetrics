@@ -99,10 +99,10 @@ func (br *blockResult) clone() *blockResult {
 	return brNew
 }
 
-// initFromNeededColumns initializes br from brSrc, by copying only the given neededColumns for rows identified by set bits at bm.
+// initFromFilterAllColumns initializes br from brSrc by copying rows identified by set bets at bm.
 //
-// The br valid until brSrc or bm is updated.
-func (br *blockResult) initFromNeededColumns(brSrc *blockResult, bm *bitmap, neededColumns []string) {
+// The br is valid until brSrc or bm is updated.
+func (br *blockResult) initFromFilterAllColumns(brSrc *blockResult, bm *bitmap) {
 	br.reset()
 
 	srcTimestamps := brSrc.timestamps
@@ -112,45 +112,61 @@ func (br *blockResult) initFromNeededColumns(brSrc *blockResult, bm *bitmap, nee
 	})
 	br.timestamps = dstTimestamps
 
-	if len(br.timestamps) == 0 {
-		// There is no need in initializing columns for zero rows.
-		return
+	for _, cSrc := range brSrc.getColumns() {
+		br.appendFilteredColumn(brSrc, cSrc, bm)
 	}
+}
+
+// initFromFilterNeededColumns initializes br from brSrc by copying only the given neededColumns for rows identified by set bits at bm.
+//
+// The br is valid until brSrc or bm is updated.
+func (br *blockResult) initFromFilterNeededColumns(brSrc *blockResult, bm *bitmap, neededColumns []string) {
+	br.reset()
+
+	srcTimestamps := brSrc.timestamps
+	dstTimestamps := br.timestamps[:0]
+	bm.forEachSetBitReadonly(func(idx int) {
+		dstTimestamps = append(dstTimestamps, srcTimestamps[idx])
+	})
+	br.timestamps = dstTimestamps
 
 	for _, neededColumn := range neededColumns {
 		cSrc := brSrc.getColumnByName(neededColumn)
-
-		cDst := blockResultColumn{
-			name: cSrc.name,
-		}
-
-		if cSrc.isConst {
-			cDst.isConst = true
-			cDst.valuesEncoded = cSrc.valuesEncoded
-		} else if cSrc.isTime {
-			cDst.isTime = true
-		} else {
-			cDst.valueType = cSrc.valueType
-			cDst.minValue = cSrc.minValue
-			cDst.maxValue = cSrc.maxValue
-			cDst.dictValues = cSrc.dictValues
-			cDst.newValuesEncodedFunc = func(br *blockResult) []string {
-				valuesEncodedSrc := cSrc.getValuesEncoded(brSrc)
-
-				valuesBuf := br.valuesBuf
-				valuesBufLen := len(valuesBuf)
-				bm.forEachSetBitReadonly(func(idx int) {
-					valuesBuf = append(valuesBuf, valuesEncodedSrc[idx])
-				})
-				br.valuesBuf = valuesBuf
-
-				return valuesBuf[valuesBufLen:]
-			}
-		}
-
-		br.csBuf = append(br.csBuf, cDst)
-		br.csInitialized = false
+		br.appendFilteredColumn(brSrc, cSrc, bm)
 	}
+}
+
+func (br *blockResult) appendFilteredColumn(brSrc *blockResult, cSrc *blockResultColumn, bm *bitmap) {
+	cDst := blockResultColumn{
+		name: cSrc.name,
+	}
+
+	if cSrc.isConst {
+		cDst.isConst = true
+		cDst.valuesEncoded = cSrc.valuesEncoded
+	} else if cSrc.isTime {
+		cDst.isTime = true
+	} else {
+		cDst.valueType = cSrc.valueType
+		cDst.minValue = cSrc.minValue
+		cDst.maxValue = cSrc.maxValue
+		cDst.dictValues = cSrc.dictValues
+		cDst.newValuesEncodedFunc = func(br *blockResult) []string {
+			valuesEncodedSrc := cSrc.getValuesEncoded(brSrc)
+
+			valuesBuf := br.valuesBuf
+			valuesBufLen := len(valuesBuf)
+			bm.forEachSetBitReadonly(func(idx int) {
+				valuesBuf = append(valuesBuf, valuesEncodedSrc[idx])
+			})
+			br.valuesBuf = valuesBuf
+
+			return valuesBuf[valuesBufLen:]
+		}
+	}
+
+	br.csBuf = append(br.csBuf, cDst)
+	br.csInitialized = false
 }
 
 // cloneValues clones the given values into br and returns the cloned values.

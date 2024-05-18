@@ -975,6 +975,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | uniq (f1,f2) limit 10`, `* | uniq by (f1, f2) limit 10`)
 	f(`* | uniq limit 10`, `* | uniq limit 10`)
 
+	// filter pipe
+	f(`* | filter error ip:12.3.4.5 or warn`, `* | filter error ip:12.3.4.5 or warn`)
+	f(`foo | stats by (host) count() logs | filter logs:>50 | sort by (logs desc) | limit 10`, `foo | stats by (host) count(*) as logs | filter logs:>50 | sort by (logs desc) | limit 10`)
+
 	// multiple different pipes
 	f(`* | fields foo, bar | limit 100 | stats by(foo,bar) count(baz) as qwert`, `* | fields foo, bar | limit 100 | stats by (foo, bar) count(baz) as qwert`)
 	f(`* | skip 100 | head 20 | skip 10`, `* | offset 100 | limit 20 | offset 10`)
@@ -1341,6 +1345,12 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | uniq by(a) bar`)
 	f(`foo | uniq by(a) limit -10`)
 	f(`foo | uniq by(a) limit foo`)
+
+	// invalid filter pipe
+	f(`foo | filter`)
+	f(`foo | filter | sort by (x)`)
+	f(`foo | filter (`)
+	f(`foo | filter )`)
 }
 
 func TestQueryGetNeededColumns(t *testing.T) {
