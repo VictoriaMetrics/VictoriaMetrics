@@ -87,10 +87,15 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 	}
 
 	pp := newDefaultPipeProcessor(func(workerID uint, br *blockResult) {
+		if len(br.timestamps) == 0 {
+			return
+		}
+
 		brs := getBlockRows()
 		csDst := brs.cs
 
-		for _, c := range br.getColumns() {
+		cs := br.getColumns()
+		for _, c := range cs {
 			values := c.getValues(br)
 			csDst = append(csDst, BlockColumn{
 				Name:   c.name,

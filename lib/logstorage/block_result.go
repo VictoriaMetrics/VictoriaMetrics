@@ -137,6 +137,9 @@ func (br *blockResult) initFromFilterNeededColumns(brSrc *blockResult, bm *bitma
 }
 
 func (br *blockResult) appendFilteredColumn(brSrc *blockResult, cSrc *blockResultColumn, bm *bitmap) {
+	if len(br.timestamps) == 0 {
+		return
+	}
 	cDst := blockResultColumn{
 		name: cSrc.name,
 	}
@@ -210,7 +213,8 @@ func (br *blockResult) sizeBytes() int {
 // The returned result is valid only until rcs are modified.
 func (br *blockResult) setResultColumns(rcs []resultColumn) {
 	br.reset()
-	if len(rcs) == 0 {
+
+	if len(rcs) == 0 || len(rcs[0].values) == 0 {
 		return
 	}
 
