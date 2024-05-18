@@ -713,6 +713,7 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`in(err|fields x)`, `in(err | fields x)`)
 	f(`ip:in(foo and user:in(admin, moderator)|fields ip)`, `ip:in(foo user:in(admin,moderator) | fields ip)`)
 	f(`x:in(_time:5m y:in(*|fields z) | stats by (q) count() rows|fields q)`, `x:in(_time:5m y:in(* | fields z) | stats by (q) count(*) as rows | fields q)`)
+	f(`in(bar:in(1,2,3) | uniq (x)) | stats count() rows`, `in(bar:in(1,2,3) | uniq by (x)) | stats count(*) as rows`)
 
 	// ipv4_range filter
 	f(`ipv4_range(1.2.3.4, "5.6.7.8")`, `ipv4_range(1.2.3.4, 5.6.7.8)`)

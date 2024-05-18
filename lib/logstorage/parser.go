@@ -398,7 +398,7 @@ func ParseQuery(s string) (*Query, error) {
 		return nil, err
 	}
 	if !lex.isEnd() {
-		return nil, fmt.Errorf("unexpected unparsed tail; context: [%s]; tail: [%s]", lex.context(), lex.s)
+		return nil, fmt.Errorf("unexpected unparsed tail after [%s]; context: [%s]; tail: [%s]", q, lex.context(), lex.s)
 	}
 	return q, nil
 }
@@ -582,7 +582,7 @@ func getCompoundFuncArg(lex *lexer) string {
 	rawArg := lex.rawToken
 	lex.nextToken()
 	suffix := ""
-	for !lex.isSkippedSpace && !lex.isKeyword("*", ",", ")", "|", "") {
+	for !lex.isSkippedSpace && !lex.isKeyword("*", ",", "(", ")", "|", "") {
 		suffix += lex.rawToken
 		lex.nextToken()
 	}
