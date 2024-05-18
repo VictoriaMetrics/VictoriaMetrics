@@ -268,7 +268,7 @@ func (q *Query) Optimize() {
 		}
 	}
 
-	// Optimize `q | field_names ...` by marking pipeFieldNames as first pipe
+	// Optimize `q | field_names ...` by marking pipeFieldNames as first pipe.
 	if len(q.pipes) > 0 {
 		pf, ok := q.pipes[0].(*pipeFieldNames)
 		if ok {
@@ -276,10 +276,10 @@ func (q *Query) Optimize() {
 		}
 	}
 
-	// Substitute '*' prefixFilter with filterNoop.
+	// Substitute '*' prefixFilter with filterNoop in order to avoid reading _msg data.
 	q.f = removeStarFilters(q.f)
 
-	// Optimize 'in(query)' filters
+	// Call Optimize for queries from 'in(query)' filters.
 	optimizeFilterIn(q.f)
 	for _, p := range q.pipes {
 		switch t := p.(type) {

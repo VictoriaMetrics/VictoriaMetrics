@@ -397,18 +397,19 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 		}(uint(i))
 	}
 
-	// Obtain common time filter from so.filter
-	ft, f := getCommonFilterTime(so.filter)
+	// Obtain time range from so.filter
+	f := so.filter
+	minTimestamp, maxTimestamp := getFilterTimeRange(f)
 
 	// Select partitions according to the selected time range
 	s.partitionsLock.Lock()
 	ptws := s.partitions
-	minDay := ft.minTimestamp / nsecPerDay
+	minDay := minTimestamp / nsecPerDay
 	n := sort.Search(len(ptws), func(i int) bool {
 		return ptws[i].day >= minDay
 	})
 	ptws = ptws[n:]
-	maxDay := ft.maxTimestamp / nsecPerDay
+	maxDay := maxTimestamp / nsecPerDay
 	n = sort.Search(len(ptws), func(i int) bool {
 		return ptws[i].day > maxDay
 	})
@@ -429,7 +430,7 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 		partitionSearchConcurrencyLimitCh <- struct{}{}
 		wgSearchers.Add(1)
 		go func(idx int, pt *partition) {
-			psfs[idx] = pt.search(ft, sf, f, so, workCh, stopCh)
+			psfs[idx] = pt.search(minTimestamp, maxTimestamp, sf, f, so, workCh, stopCh)
 			wgSearchers.Done()
 			<-partitionSearchConcurrencyLimitCh
 		}(i, ptw.pt)
@@ -458,7 +459,7 @@ var partitionSearchConcurrencyLimitCh = make(chan struct{}, cgroup.AvailableCPUs
 
 type partitionSearchFinalizer func()
 
-func (pt *partition) search(ft *filterTime, sf *StreamFilter, f filter, so *genericSearchOptions, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}) partitionSearchFinalizer {
+func (pt *partition) search(minTimestamp, maxTimestamp int64, sf *StreamFilter, f filter, so *genericSearchOptions, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}) partitionSearchFinalizer {
 	if needStop(stopCh) {
 		// Do not spend CPU time on search, since it is already stopped.
 		return func() {}
@@ -476,8 +477,8 @@ func (pt *partition) search(ft *filterTime, sf *StreamFilter, f filter, so *gene
 	soInternal := &searchOptions{
 		tenantIDs:           tenantIDs,
 		streamIDs:           streamIDs,
-		minTimestamp:        ft.minTimestamp,
-		maxTimestamp:        ft.maxTimestamp,
+		minTimestamp:        minTimestamp,
+		maxTimestamp:        maxTimestamp,
 		filter:              f,
 		neededColumnNames:   so.neededColumnNames,
 		unneededColumnNames: so.unneededColumnNames,
@@ -813,23 +814,25 @@ func getCommonStreamFilter(f filter) (*StreamFilter, filter) {
 	return nil, f
 }
 
-func getCommonFilterTime(f filter) (*filterTime, filter) {
+func getFilterTimeRange(f filter) (int64, int64) {
 	switch t := f.(type) {
 	case *filterAnd:
+		minTimestamp := int64(math.MinInt64)
+		maxTimestamp := int64(math.MaxInt64)
 		for _, filter := range t.filters {
 			ft, ok := filter.(*filterTime)
 			if ok {
-				// The ft must remain in t.filters order to properly filter out rows outside the selected time range
-				return ft, f
+				if ft.minTimestamp > minTimestamp {
+					minTimestamp = ft.minTimestamp
+				}
+				if ft.maxTimestamp < maxTimestamp {
+					maxTimestamp = ft.maxTimestamp
+				}
 			}
 		}
+		return minTimestamp, maxTimestamp
 	case *filterTime:
-		return t, f
+		return t.minTimestamp, t.maxTimestamp
 	}
-	return allFilterTime, f
-}
-
-var allFilterTime = &filterTime{
-	minTimestamp: math.MinInt64,
-	maxTimestamp: math.MaxInt64,
+	return math.MinInt64, math.MaxInt64
 }

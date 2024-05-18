@@ -28,7 +28,7 @@ func ProcessFieldNamesRequest(ctx context.Context, w http.ResponseWriter, r *htt
 	q.Optimize()
 	fieldNames, err := vlstorage.GetFieldNames(ctx, tenantIDs, q)
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot obtain field names: %w", err)
+		httpserver.Errorf(w, r, "cannot obtain field names: %s", err)
 		return
 	}
 

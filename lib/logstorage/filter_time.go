@@ -6,7 +6,7 @@ import (
 
 // filterTime filters by time.
 //
-// It is expressed as `_time:(start, end]` in LogsQL.
+// It is expressed as `_time:[start, end]` in LogsQL.
 type filterTime struct {
 	// mintimestamp is the minimum timestamp in nanoseconds to find
 	minTimestamp int64
