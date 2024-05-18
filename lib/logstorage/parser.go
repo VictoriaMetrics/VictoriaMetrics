@@ -1090,6 +1090,9 @@ func parseFuncArgs(lex *lexer, fieldName string, callback func(args []string) (f
 		if lex.isKeyword(",") {
 			return nil, fmt.Errorf("unexpected ',' - missing arg in %s()", funcName)
 		}
+		if lex.isKeyword("(") {
+			return nil, fmt.Errorf("unexpected '(' - missing arg in %s()", funcName)
+		}
 		arg := getCompoundFuncArg(lex)
 		args = append(args, arg)
 		if lex.isKeyword(")") {
