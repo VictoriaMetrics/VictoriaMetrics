@@ -136,11 +136,27 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 	return errFlush
 }
 
-// GetUniqueFieldValues returns unique values for the given fieldName returned by q for the given tenantIDs.
+// GetFieldNames returns field names from q results for the given tenantIDs.
+func (s *Storage) GetFieldNames(ctx context.Context, tenantIDs []TenantID, q *Query) ([]string, error) {
+	// add `field_names ...` to the end of q.pipes
+	isFirstPipe := len(q.pipes) == 0
+	pipes := append([]pipe{}, q.pipes...)
+	pipes = append(pipes, &pipeFieldNames{
+		isFirstPipe: isFirstPipe,
+	})
+	q = &Query{
+		f:     q.f,
+		pipes: pipes,
+	}
+
+	return s.runSingleColumnQuery(ctx, tenantIDs, q)
+}
+
+// GetFieldValues returns unique values for the given fieldName returned by q for the given tenantIDs.
 //
 // If limit > 0, then up to limit unique values are returned. The values are returned in arbitrary order because of performance reasons.
 // The caller may sort the returned values if needed.
-func (s *Storage) GetUniqueFieldValues(ctx context.Context, tenantIDs []TenantID, q *Query, fieldName string, limit uint64) ([]string, error) {
+func (s *Storage) GetFieldValues(ctx context.Context, tenantIDs []TenantID, q *Query, fieldName string, limit uint64) ([]string, error) {
 	// add 'uniq fieldName' to the end of q.pipes
 	if !endsWithPipeUniqSingleField(q.pipes, fieldName) {
 		pipes := append([]pipe{}, q.pipes...)
@@ -154,6 +170,21 @@ func (s *Storage) GetUniqueFieldValues(ctx context.Context, tenantIDs []TenantID
 		}
 	}
 
+	return s.runSingleColumnQuery(ctx, tenantIDs, q)
+}
+
+func endsWithPipeUniqSingleField(pipes []pipe, fieldName string) bool {
+	if len(pipes) == 0 {
+		return false
+	}
+	pu, ok := pipes[len(pipes)-1].(*pipeUniq)
+	if !ok {
+		return false
+	}
+	return len(pu.byFields) == 1 && pu.byFields[0] == fieldName
+}
+
+func (s *Storage) runSingleColumnQuery(ctx context.Context, tenantIDs []TenantID, q *Query) ([]string, error) {
 	var values []string
 	var valuesLock sync.Mutex
 	writeBlock := func(workerID uint, timestamps []int64, columns []BlockColumn) {
@@ -173,31 +204,20 @@ func (s *Storage) GetUniqueFieldValues(ctx context.Context, tenantIDs []TenantID
 	return values, nil
 }
 
-func endsWithPipeUniqSingleField(pipes []pipe, fieldName string) bool {
-	if len(pipes) == 0 {
-		return false
-	}
-	pu, ok := pipes[len(pipes)-1].(*pipeUniq)
-	if !ok {
-		return false
-	}
-	return len(pu.byFields) == 1 && pu.byFields[0] == fieldName
-}
-
 func (s *Storage) initFilterInValues(ctx context.Context, tenantIDs []TenantID, q *Query) (*Query, error) {
 	if !hasFilterInWithQueryForFilter(q.f) && !hasFilterInWithQueryForPipes(q.pipes) {
 		return q, nil
 	}
 
-	getUniqueValues := func(q *Query, fieldName string) ([]string, error) {
-		return s.GetUniqueFieldValues(ctx, tenantIDs, q, fieldName, 0)
+	getFieldValues := func(q *Query, fieldName string) ([]string, error) {
+		return s.GetFieldValues(ctx, tenantIDs, q, fieldName, 0)
 	}
 	cache := make(map[string][]string)
-	fNew, err := initFilterInValuesForFilter(cache, q.f, getUniqueValues)
+	fNew, err := initFilterInValuesForFilter(cache, q.f, getFieldValues)
 	if err != nil {
 		return nil, err
 	}
-	pipesNew, err := initFilterInValuesForPipes(cache, q.pipes, getUniqueValues)
+	pipesNew, err := initFilterInValuesForPipes(cache, q.pipes, getFieldValues)
 	if err != nil {
 		return nil, err
 	}
@@ -231,9 +251,9 @@ func hasFilterInWithQueryForPipes(pipes []pipe) bool {
 	return false
 }
 
-type getUniqueValuesFunc func(q *Query, fieldName string) ([]string, error)
+type getFieldValuesFunc func(q *Query, fieldName string) ([]string, error)
 
-func initFilterInValuesForFilter(cache map[string][]string, f filter, getUniqueValuesFunc getUniqueValuesFunc) (filter, error) {
+func initFilterInValuesForFilter(cache map[string][]string, f filter, getFieldValuesFunc getFieldValuesFunc) (filter, error) {
 	visitFunc := func(f filter) bool {
 		fi, ok := f.(*filterIn)
 		return ok && fi.needExecuteQuery
@@ -244,7 +264,7 @@ func initFilterInValuesForFilter(cache map[string][]string, f filter, getUniqueV
 		qStr := fi.q.String()
 		values, ok := cache[qStr]
 		if !ok {
-			vs, err := getUniqueValuesFunc(fi.q, fi.qFieldName)
+			vs, err := getFieldValuesFunc(fi.q, fi.qFieldName)
 			if err != nil {
 				return nil, fmt.Errorf("cannot obtain unique values for %s: %w", fi, err)
 			}
@@ -262,7 +282,7 @@ func initFilterInValuesForFilter(cache map[string][]string, f filter, getUniqueV
 	return copyFilter(f, visitFunc, copyFunc)
 }
 
-func initFilterInValuesForPipes(cache map[string][]string, pipes []pipe, getUniqueValuesFunc getUniqueValuesFunc) ([]pipe, error) {
+func initFilterInValuesForPipes(cache map[string][]string, pipes []pipe, getFieldValuesFunc getFieldValuesFunc) ([]pipe, error) {
 	pipesNew := make([]pipe, len(pipes))
 	for i, p := range pipes {
 		switch t := p.(type) {
@@ -270,7 +290,7 @@ func initFilterInValuesForPipes(cache map[string][]string, pipes []pipe, getUniq
 			funcsNew := make([]pipeStatsFunc, len(t.funcs))
 			for j, f := range t.funcs {
 				if f.iff != nil {
-					fNew, err := initFilterInValuesForFilter(cache, f.iff, getUniqueValuesFunc)
+					fNew, err := initFilterInValuesForFilter(cache, f.iff, getFieldValuesFunc)
 					if err != nil {
 						return nil, err
 					}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
@@ -14,6 +15,29 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
+
+// ProcessFieldNamesRequest handles /select/logsql/field_names request.
+func ProcessFieldNamesRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	q, tenantIDs, err := parseCommonArgs(r)
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+
+	// Obtain field names for the given query
+	q.Optimize()
+	fieldNames, err := vlstorage.GetFieldNames(ctx, tenantIDs, q)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot obtain field names: %w", err)
+		return
+	}
+
+	slices.Sort(fieldNames)
+
+	// Write results
+	w.Header().Set("Content-Type", "application/json")
+	WriteFieldNamesResponse(w, fieldNames)
+}
 
 // ProcessFieldValuesRequest handles /select/logsql/field_values request.
 func ProcessFieldValuesRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -42,10 +66,17 @@ func ProcessFieldValuesRequest(ctx context.Context, w http.ResponseWriter, r *ht
 
 	// Obtain unique values for the given field
 	q.Optimize()
-	values, err := vlstorage.GetUniqueFieldValues(ctx, tenantIDs, q, fieldName, uint64(limit))
+	values, err := vlstorage.GetFieldValues(ctx, tenantIDs, q, fieldName, uint64(limit))
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot obtain values for field %q: %s", fieldName, err)
 		return
+	}
+
+	if limit == 0 || len(values) < limit {
+		// Sort values only if their number is below the limit.
+		// Otherwise there is little sense in sorting, since the query may return
+		// different subset of values on every execution.
+		slices.Sort(values)
 	}
 
 	// Write results

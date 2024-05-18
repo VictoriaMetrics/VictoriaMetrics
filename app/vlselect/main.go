@@ -151,6 +151,11 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		httpserver.EnableCORS(w, r)
 		logsql.ProcessFieldValuesRequest(ctx, w, r)
 		return true
+	case "/logsql/field_names":
+		logsqlFieldNamesRequests.Inc()
+		httpserver.EnableCORS(w, r)
+		logsql.ProcessFieldNamesRequest(ctx, w, r)
+		return true
 	default:
 		return false
 	}
@@ -172,4 +177,5 @@ func getMaxQueryDuration(r *http.Request) time.Duration {
 var (
 	logsqlQueryRequests       = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/query"}`)
 	logsqlFieldValuesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/field_values"}`)
+	logsqlFieldNamesRequests  = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/field_names"}`)
 )
