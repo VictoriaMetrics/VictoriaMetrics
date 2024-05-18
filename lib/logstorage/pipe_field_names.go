@@ -101,6 +101,9 @@ func (pfp *pipeFieldNamesProcessor) flush() error {
 			m[k] = struct{}{}
 		}
 	}
+	if pfp.pf.isFirstPipe {
+		m["_time"] = struct{}{}
+	}
 
 	// write result
 	wctx := &pipeFieldNamesWriteContext{

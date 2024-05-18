@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/http"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
@@ -16,7 +17,83 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
+// ProcessHitsRequest handles /select/logsql/hits request.
+//
+// See https://docs.victoriametrics.com/victorialogs/querying/#querying-hits-stats
+func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	q, tenantIDs, err := parseCommonArgs(r)
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+
+	// Obtain step
+	stepStr := r.FormValue("step")
+	if stepStr == "" {
+		stepStr = "1d"
+	}
+	step, err := promutils.ParseDuration(stepStr)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot parse 'step' arg: %s", err)
+		return
+	}
+	if step <= 0 {
+		httpserver.Errorf(w, r, "'step' must be bigger than zero")
+	}
+
+	// Obtain offset
+	offsetStr := r.FormValue("offset")
+	if offsetStr == "" {
+		offsetStr = "0s"
+	}
+	offset, err := promutils.ParseDuration(offsetStr)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot parse 'offset' arg: %s", err)
+		return
+	}
+
+	q.AddCountByTimePipe(int64(step), int64(offset))
+	q.Optimize()
+
+	var wLock sync.Mutex
+	isFirstWrite := true
+	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
+		if len(columns) == 0 || len(columns[0].Values) == 0 {
+			return
+		}
+
+		bb := blockResultPool.Get()
+		for i := range timestamps {
+			bb.B = append(bb.B, ',')
+			WriteJSONRow(bb, columns, i)
+			// Remove newline at the end
+			bb.B = bb.B[:len(bb.B)-1]
+		}
+		wLock.Lock()
+		buf := bb.B
+		if isFirstWrite {
+			buf = buf[1:]
+			isFirstWrite = false
+		}
+		_, _ = w.Write(buf)
+		wLock.Unlock()
+		blockResultPool.Put(bb)
+	}
+
+	// Write response
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprintf(w, `{"rows":[`)
+	err = vlstorage.RunQuery(ctx, tenantIDs, q, writeBlock)
+	fmt.Fprintf(w, `]}`)
+
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot execute query [%s]: %s", q, err)
+	}
+}
+
 // ProcessFieldNamesRequest handles /select/logsql/field_names request.
+//
+// See https://docs.victoriametrics.com/victorialogs/querying/#querying-field-names
 func ProcessFieldNamesRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	q, tenantIDs, err := parseCommonArgs(r)
 	if err != nil {
@@ -40,6 +117,8 @@ func ProcessFieldNamesRequest(ctx context.Context, w http.ResponseWriter, r *htt
 }
 
 // ProcessFieldValuesRequest handles /select/logsql/field_values request.
+//
+// See https://docs.victoriametrics.com/victorialogs/querying/#querying-field-values
 func ProcessFieldValuesRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	q, tenantIDs, err := parseCommonArgs(r)
 	if err != nil {
@@ -107,7 +186,7 @@ func ProcessQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 	bw := getBufferedWriter(w)
 
 	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
-		if len(columns) == 0 {
+		if len(columns) == 0 || len(columns[0].Values) == 0 {
 			return
 		}
 

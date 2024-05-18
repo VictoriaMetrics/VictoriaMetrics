@@ -220,6 +220,33 @@ func (q *Query) String() string {
 	return s
 }
 
+// AddCountByTimePipe adds '| stats by (_time:step offset off) count() hits' to the end of q.
+func (q *Query) AddCountByTimePipe(step, off int64) {
+	{
+		// add 'stats by (_time:step offset off) count() hits'
+		stepStr := string(marshalDuration(nil, step))
+		offsetStr := string(marshalDuration(nil, off))
+		s := fmt.Sprintf("stats by (_time:%s offset %s) count() hits", stepStr, offsetStr)
+		lex := newLexer(s)
+		ps, err := parsePipeStats(lex)
+		if err != nil {
+			logger.Panicf("BUG: unexpected error when parsing %q: %s", s, err)
+		}
+		q.pipes = append(q.pipes, ps)
+	}
+
+	{
+		// Add 'sort by (_time)' in order to get consistent order of the results.
+		s := "sort by (_time)"
+		lex := newLexer(s)
+		ps, err := parsePipeSort(lex)
+		if err != nil {
+			logger.Panicf("BUG: unexpected error when parsing %q: %s", s, err)
+		}
+		q.pipes = append(q.pipes, ps)
+	}
+}
+
 // AddTimeFilter adds global filter _time:[start ... end] to q.
 func (q *Query) AddTimeFilter(start, end int64) {
 	startStr := marshalTimestampRFC3339NanoString(nil, start)
