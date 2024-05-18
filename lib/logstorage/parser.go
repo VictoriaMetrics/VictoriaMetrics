@@ -10,6 +10,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
@@ -275,6 +276,9 @@ func (q *Query) Optimize() {
 		}
 	}
 
+	// Substitute '*' prefixFilter with filterNoop.
+	q.f = removeStarFilters(q.f)
+
 	// Optimize 'in(query)' filters
 	optimizeFilterIn(q.f)
 	for _, p := range q.pipes {
@@ -287,6 +291,22 @@ func (q *Query) Optimize() {
 			}
 		}
 	}
+}
+
+func removeStarFilters(f filter) filter {
+	visitFunc := func(f filter) bool {
+		fp, ok := f.(*filterPrefix)
+		return ok && isMsgFieldName(fp.fieldName) && fp.prefix == ""
+	}
+	copyFunc := func(_ filter) (filter, error) {
+		fn := &filterNoop{}
+		return fn, nil
+	}
+	f, err := copyFilter(f, visitFunc, copyFunc)
+	if err != nil {
+		logger.Fatalf("BUG: unexpected error: %s", err)
+	}
+	return f
 }
 
 func optimizeFilterIn(f filter) {
