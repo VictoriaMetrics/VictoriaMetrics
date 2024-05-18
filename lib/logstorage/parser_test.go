@@ -277,6 +277,10 @@ func TestParseFilterIn(t *testing.T) {
 	f(`:in("foo bar,baz")`, ``, []string{"foo bar,baz"})
 	f(`ip:in(1.2.3.4, 5.6.7.8, 9.10.11.12)`, `ip`, []string{"1.2.3.4", "5.6.7.8", "9.10.11.12"})
 	f(`foo-bar:in(foo,bar-baz.aa"bb","c,)d")`, `foo-bar`, []string{"foo", `bar-baz.aa"bb"`, "c,)d"})
+
+	// verify `in(query)` - it shouldn't set values
+	f(`in(x|fields foo)`, ``, nil)
+	f(`a:in(* | fields bar)`, `a`, nil)
 }
 
 func TestParseFilterIPv4Range(t *testing.T) {
@@ -687,8 +691,8 @@ func TestParseQuerySuccess(t *testing.T) {
 	f("exact(foo*)", `exact(foo*)`)
 	f("exact('foo bar),|baz')", `exact("foo bar),|baz")`)
 	f("exact('foo bar),|baz'*)", `exact("foo bar),|baz"*)`)
-	f(`exact(foo|b:ar)`, `exact("foo|b:ar")`)
-	f(`foo:exact(foo|b:ar*)`, `foo:exact("foo|b:ar"*)`)
+	f(`exact(foo/b:ar)`, `exact("foo/b:ar")`)
+	f(`foo:exact(foo/b:ar*)`, `foo:exact("foo/b:ar"*)`)
 
 	// i filter
 	f("i(foo)", `i(foo)`)
@@ -696,14 +700,19 @@ func TestParseQuerySuccess(t *testing.T) {
 	f("i(`foo`* )", `i(foo*)`)
 	f("i(' foo ) bar')", `i(" foo ) bar")`)
 	f("i('foo bar'*)", `i("foo bar"*)`)
-	f(`foo:i(foo:bar-baz|aa+bb)`, `foo:i("foo:bar-baz|aa+bb")`)
+	f(`foo:i(foo:bar-baz/aa+bb)`, `foo:i("foo:bar-baz/aa+bb")`)
 
-	// in filter
+	// in filter with values
 	f(`in()`, `in()`)
 	f(`in(foo)`, `in(foo)`)
 	f(`in(foo, bar)`, `in(foo,bar)`)
 	f(`in("foo bar", baz)`, `in("foo bar",baz)`)
-	f(`foo:in(foo-bar|baz)`, `foo:in("foo-bar|baz")`)
+	f(`foo:in(foo-bar/baz)`, `foo:in("foo-bar/baz")`)
+
+	// in filter with query
+	f(`in(err|fields x)`, `in(err | fields x)`)
+	f(`ip:in(foo and user:in(admin, moderator)|fields ip)`, `ip:in(foo user:in(admin,moderator) | fields ip)`)
+	f(`x:in(_time:5m y:in(*|fields z) | stats by (q) count() rows|fields q)`, `x:in(_time:5m y:in(* | fields z) | stats by (q) count(*) as rows | fields q)`)
 
 	// ipv4_range filter
 	f(`ipv4_range(1.2.3.4, "5.6.7.8")`, `ipv4_range(1.2.3.4, 5.6.7.8)`)
@@ -743,7 +752,7 @@ func TestParseQuerySuccess(t *testing.T) {
 	// re filter
 	f("re('foo|ba(r.+)')", `re("foo|ba(r.+)")`)
 	f("re(foo)", `re("foo")`)
-	f(`foo:re(foo-bar|baz.)`, `foo:re("foo-bar|baz.")`)
+	f(`foo:re(foo-bar/baz.)`, `foo:re("foo-bar/baz.")`)
 
 	// seq filter
 	f(`seq()`, `seq()`)
@@ -945,6 +954,7 @@ func TestParseQuerySuccess(t *testing.T) {
 	   count() if (is_admin:true or _msg:"foo bar"*) as foo,
 	   sum(duration) if (host:in('foo.com', 'bar.com') and path:/foobar) as bar`,
 		`* | stats by (_time:1d offset -2h, f2) count(*) if (is_admin:true or "foo bar"*) as foo, sum(duration) if (host:in(foo.com,bar.com) path:"/foobar") as bar`)
+	f(`* | stats count(x) if (error ip:in(_time:1d | fields ip)) rows`, `* | stats count(x) if (error ip:in(_time:1d | fields ip)) as rows`)
 	f(`* | stats count() if () rows`, `* | stats count(*) if () as rows`)
 
 	// sort pipe
@@ -1116,6 +1126,10 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`in(foo, "bar baz"*, abc)`)
 	f(`in(foo bar)`)
 	f(`in(foo, bar`)
+	f(`in(foo|bar)`)
+	f(`in(|foo`)
+	f(`in(x | limit 10)`)
+	f(`in(x | fields a,b)`)
 
 	// invalid ipv4_range
 	f(`ipv4_range(`)

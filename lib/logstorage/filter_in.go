@@ -18,6 +18,15 @@ type filterIn struct {
 	fieldName string
 	values    []string
 
+	// needeExecuteQuery is set to true if q must be executed for populating values before filter execution.
+	needExecuteQuery bool
+
+	// If q is non-nil, then values must be populated from q before filter execution.
+	q *Query
+
+	// qFieldName must be set to field name for obtaining values from if q is non-nil.
+	qFieldName string
+
 	tokenSetsOnce sync.Once
 	tokenSets     [][]string
 
@@ -47,12 +56,18 @@ type filterIn struct {
 }
 
 func (fi *filterIn) String() string {
-	values := fi.values
-	a := make([]string, len(values))
-	for i, value := range values {
-		a[i] = quoteTokenIfNeeded(value)
+	args := ""
+	if fi.q != nil {
+		args = fi.q.String()
+	} else {
+		values := fi.values
+		a := make([]string, len(values))
+		for i, value := range values {
+			a[i] = quoteTokenIfNeeded(value)
+		}
+		args = strings.Join(a, ",")
 	}
-	return fmt.Sprintf("%sin(%s)", quoteFieldNameIfNeeded(fi.fieldName), strings.Join(a, ","))
+	return fmt.Sprintf("%sin(%s)", quoteFieldNameIfNeeded(fi.fieldName), args)
 }
 
 func (fi *filterIn) updateNeededFields(neededFields fieldsSet) {

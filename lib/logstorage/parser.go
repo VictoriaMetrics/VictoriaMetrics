@@ -38,6 +38,20 @@ type lexer struct {
 	currentTimestamp int64
 }
 
+type lexerState struct {
+	lex lexer
+}
+
+func (lex *lexer) backupState() *lexerState {
+	return &lexerState{
+		lex: *lex,
+	}
+}
+
+func (lex *lexer) restoreState(ls *lexerState) {
+	*lex = ls.lex
+}
+
 // newLexer returns new lexer for the given s.
 //
 // The lex.token points to the first token in s.
@@ -251,6 +265,30 @@ func (q *Query) Optimize() {
 			q.pipes = append(q.pipes[:0], q.pipes[1:]...)
 		}
 	}
+
+	// Optimize 'in(query)' filters
+	optimizeFilterIn(q.f)
+	for _, p := range q.pipes {
+		switch t := p.(type) {
+		case *pipeStats:
+			for _, f := range t.funcs {
+				if f.iff != nil {
+					optimizeFilterIn(f.iff)
+				}
+			}
+		}
+	}
+}
+
+func optimizeFilterIn(f filter) {
+	visitFunc := func(f filter) bool {
+		fi, ok := f.(*filterIn)
+		if ok && fi.q != nil {
+			fi.q.Optimize()
+		}
+		return false
+	}
+	_ = visitFilter(f, visitFunc)
 }
 
 func optimizeSortOffsetPipes(pipes []pipe) []pipe {
@@ -355,7 +393,17 @@ func (q *Query) getNeededColumns() ([]string, []string) {
 // ParseQuery parses s.
 func ParseQuery(s string) (*Query, error) {
 	lex := newLexer(s)
+	q, err := parseQuery(lex)
+	if err != nil {
+		return nil, err
+	}
+	if !lex.isEnd() {
+		return nil, fmt.Errorf("unexpected unparsed tail; context: [%s]; tail: [%s]", lex.context(), lex.s)
+	}
+	return q, nil
+}
 
+func parseQuery(lex *lexer) (*Query, error) {
 	f, err := parseFilter(lex)
 	if err != nil {
 		return nil, fmt.Errorf("%w; context: [%s]", err, lex.context())
@@ -369,10 +417,6 @@ func ParseQuery(s string) (*Query, error) {
 		return nil, fmt.Errorf("%w; context: [%s]", err, lex.context())
 	}
 	q.pipes = pipes
-
-	if !lex.isEnd() {
-		return nil, fmt.Errorf("unexpected unparsed tail; context: [%s]; tail: [%s]", lex.context(), lex.s)
-	}
 
 	return q, nil
 }
@@ -538,7 +582,7 @@ func getCompoundFuncArg(lex *lexer) string {
 	rawArg := lex.rawToken
 	lex.nextToken()
 	suffix := ""
-	for !lex.isSkippedSpace && !lex.isKeyword("*", ",", ")", "") {
+	for !lex.isSkippedSpace && !lex.isKeyword("*", ",", ")", "|", "") {
 		suffix += lex.rawToken
 		lex.nextToken()
 	}
@@ -759,13 +803,72 @@ func tryParseIPv4CIDR(s string) (uint32, uint32, bool) {
 }
 
 func parseFilterIn(lex *lexer, fieldName string) (filter, error) {
-	return parseFuncArgs(lex, fieldName, func(args []string) (filter, error) {
-		f := &filterIn{
+	if !lex.isKeyword("in") {
+		return nil, fmt.Errorf("expecting 'in' keyword")
+	}
+
+	// Try parsing in(arg1, ..., argN) at first
+	lexState := lex.backupState()
+	fi, err := parseFuncArgs(lex, fieldName, func(args []string) (filter, error) {
+		fi := &filterIn{
 			fieldName: fieldName,
 			values:    args,
 		}
-		return f, nil
+		return fi, nil
 	})
+	if err == nil {
+		return fi, nil
+	}
+
+	// Parse in(query | fields someField) then
+	lex.restoreState(lexState)
+	lex.nextToken()
+	if !lex.isKeyword("(") {
+		return nil, fmt.Errorf("missing '(' after 'in'")
+	}
+	lex.nextToken()
+
+	q, err := parseQuery(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse query inside 'in(...)': %w", err)
+	}
+
+	if !lex.isKeyword(")") {
+		return nil, fmt.Errorf("missing ')' after 'in(%s)'", q)
+	}
+	lex.nextToken()
+
+	qFieldName, err := getFieldNameFromPipes(q.pipes)
+	if err != nil {
+		return nil, fmt.Errorf("cannot determine field name for values in 'in(%s)': %w", q, err)
+	}
+	fi = &filterIn{
+		fieldName:        fieldName,
+		needExecuteQuery: true,
+		q:                q,
+		qFieldName:       qFieldName,
+	}
+	return fi, nil
+}
+
+func getFieldNameFromPipes(pipes []pipe) (string, error) {
+	if len(pipes) == 0 {
+		return "", fmt.Errorf("missing 'fields' or 'uniq' pipes at the end of query")
+	}
+	switch t := pipes[len(pipes)-1].(type) {
+	case *pipeFields:
+		if t.containsStar || len(t.fields) != 1 {
+			return "", fmt.Errorf("'%s' pipe must contain only a single non-star field name", t)
+		}
+		return t.fields[0], nil
+	case *pipeUniq:
+		if len(t.byFields) != 1 {
+			return "", fmt.Errorf("'%s' pipe must contain only a single non-star field name", t)
+		}
+		return t.byFields[0], nil
+	default:
+		return "", fmt.Errorf("missing 'fields' or 'uniq' pipe at the end of query")
+	}
 }
 
 func parseFilterSequence(lex *lexer, fieldName string) (filter, error) {

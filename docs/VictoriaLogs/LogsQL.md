@@ -652,15 +652,15 @@ log.level:in("error", "fatal")
 
 It works very fast for long lists passed to `in()`.
 
-The future VictoriaLogs versions will allow passing arbitrary [queries](#query-syntax) into `in()` filter.
-For example, the following query selects all the logs for the last hour for users, who visited pages with `admin` [word](#word) in the `path`
+It is possible to pass arbitrary [query](#query-syntax) inside `in(...)` filter in order to match against the results of this query.
+The query inside `in(...)` must end with [`fields`](#fields-pipe) pipe containing a single field name, so VictoriaLogs could
+fetch results from this field. For example, the following query selects all the logs for the last 5 minutes for users,
+who visited pages with `admin` [word](#word) in the `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 during the last day:
 
 ```logsql
-_time:1h AND user_id:in(_time:1d AND path:admin | fields user_id)
+_time:5m AND user_id:in(_time:1d AND path:admin | fields user_id)
 ```
-
-See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
 
 See also:
 

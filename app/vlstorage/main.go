@@ -107,7 +107,7 @@ func MustAddRows(lr *logstorage.LogRows) {
 }
 
 // RunQuery runs the given q and calls writeBlock for the returned data blocks
-func RunQuery(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, writeBlock func(workerID uint, timestamps []int64, columns []logstorage.BlockColumn)) error {
+func RunQuery(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, writeBlock logstorage.WriteBlockFunc) error {
 	return strg.RunQuery(ctx, tenantIDs, q, writeBlock)
 }
 
