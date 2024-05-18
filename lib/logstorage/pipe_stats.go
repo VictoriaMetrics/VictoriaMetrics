@@ -721,10 +721,11 @@ func parseByStatsFields(lex *lexer) ([]*byStatsField, error) {
 			lex.nextToken()
 			return bfs, nil
 		}
-		fieldName, err := parseFieldName(lex)
+		fieldName, err := getCompoundPhrase(lex, false)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse field name: %w", err)
 		}
+		fieldName = getCanonicalColumnName(fieldName)
 		bf := &byStatsField{
 			name: fieldName,
 		}
@@ -898,10 +899,10 @@ func parseFieldNamesInParens(lex *lexer) ([]string, error) {
 }
 
 func parseFieldName(lex *lexer) (string, error) {
-	if lex.isKeyword(",", "(", ")", "[", "]", "|", ":", "") {
-		return "", fmt.Errorf("unexpected token: %q", lex.token)
+	fieldName, err := getCompoundToken(lex)
+	if err != nil {
+		return "", fmt.Errorf("cannot parse field name: %w", err)
 	}
-	fieldName := getCompoundPhrase(lex, false)
 	fieldName = getCanonicalColumnName(fieldName)
 	return fieldName, nil
 }

@@ -562,19 +562,27 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 	case lex.isKeyword(",", ")", "[", "]"):
 		return nil, fmt.Errorf("unexpected token %q", lex.token)
 	}
-	phrase := getCompoundPhrase(lex, fieldName != "")
+	phrase, err := getCompoundPhrase(lex, fieldName != "")
+	if err != nil {
+		return nil, err
+	}
 	return parseFilterForPhrase(lex, phrase, fieldName)
 }
 
-func getCompoundPhrase(lex *lexer, allowColon bool) string {
+func getCompoundPhrase(lex *lexer, allowColon bool) (string, error) {
+	stopTokens := []string{"*", ",", "(", ")", "[", "]", "|", ""}
+	if lex.isKeyword(stopTokens...) {
+		return "", fmt.Errorf("compound phrase cannot start with '%s'", lex.token)
+	}
+
 	phrase := lex.token
 	rawPhrase := lex.rawToken
 	lex.nextToken()
 	suffix := getCompoundSuffix(lex, allowColon)
 	if suffix == "" {
-		return phrase
+		return phrase, nil
 	}
-	return rawPhrase + suffix
+	return rawPhrase + suffix, nil
 }
 
 func getCompoundSuffix(lex *lexer, allowColon bool) string {
@@ -590,19 +598,24 @@ func getCompoundSuffix(lex *lexer, allowColon bool) string {
 	return s
 }
 
-func getCompoundToken(lex *lexer) string {
+func getCompoundToken(lex *lexer) (string, error) {
+	stopTokens := []string{",", "(", ")", "[", "]", "|", ""}
+	if lex.isKeyword(stopTokens...) {
+		return "", fmt.Errorf("compound token cannot start with '%s'", lex.token)
+	}
+
 	s := lex.token
 	rawS := lex.rawToken
 	lex.nextToken()
 	suffix := ""
-	for !lex.isSkippedSpace && !lex.isKeyword(",", "(", ")", "[", "]", "|", "") {
+	for !lex.isSkippedSpace && !lex.isKeyword(stopTokens...) {
 		s += lex.token
 		lex.nextToken()
 	}
 	if suffix == "" {
-		return s
+		return s, nil
 	}
-	return rawS + suffix
+	return rawS + suffix, nil
 }
 
 func getCompoundFuncArg(lex *lexer) string {
@@ -1081,7 +1094,10 @@ func parseFilterRange(lex *lexer, fieldName string) (filter, error) {
 }
 
 func parseFloat64(lex *lexer) (float64, string, error) {
-	s := getCompoundToken(lex)
+	s, err := getCompoundToken(lex)
+	if err != nil {
+		return 0, "", fmt.Errorf("cannot parse float64: %w", err)
+	}
 	f, err := strconv.ParseFloat(s, 64)
 	if err == nil {
 		return f, s, nil
@@ -1168,13 +1184,14 @@ func parseFilterTimeWithOffset(lex *lexer) (*filterTime, error) {
 	if !lex.isKeyword("offset") {
 		return ft, nil
 	}
-	if !lex.mustNextToken() {
-		return nil, fmt.Errorf("missing offset for _time filter %s", ft)
+	lex.nextToken()
+	s, err := getCompoundToken(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse offset in _time filter: %w", err)
 	}
-	s := getCompoundToken(lex)
 	d, ok := tryParseDuration(s)
 	if !ok {
-		return nil, fmt.Errorf("cannot parse offset %q for _time filter %s: %w", s, ft, err)
+		return nil, fmt.Errorf("cannot parse offset %q for _time filter %s", s, ft)
 	}
 	offset := int64(d)
 	ft.minTimestamp -= offset
@@ -1191,7 +1208,10 @@ func parseFilterTime(lex *lexer) (*filterTime, error) {
 	case lex.isKeyword("("):
 		startTimeInclude = false
 	default:
-		s := getCompoundToken(lex)
+		s, err := getCompoundToken(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse _time filter: %w", err)
+		}
 		sLower := strings.ToLower(s)
 		if sLower == "now" || startsWithYear(s) {
 			// Parse '_time:YYYY-MM-DD', which transforms to '_time:[YYYY-MM-DD, YYYY-MM-DD+1)'
@@ -1343,7 +1363,10 @@ func parseFilterStream(lex *lexer) (*filterStream, error) {
 }
 
 func parseTime(lex *lexer) (int64, string, error) {
-	s := getCompoundToken(lex)
+	s, err := getCompoundToken(lex)
+	if err != nil {
+		return 0, "", err
+	}
 	t, err := promutils.ParseTimeAt(s, float64(lex.currentTimestamp)/1e9)
 	if err != nil {
 		return 0, "", err

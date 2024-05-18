@@ -152,7 +152,10 @@ func parsePipeFieldNames(lex *lexer) (*pipeFieldNames, error) {
 	if lex.isKeyword("as") {
 		lex.nextToken()
 	}
-	resultName := getCompoundPhrase(lex, false)
+	resultName, err := parseFieldName(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse result name for 'field_names': %w", err)
+	}
 
 	pf := &pipeFieldNames{
 		resultName: resultName,

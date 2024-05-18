@@ -1215,6 +1215,11 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | fields bar,,`)
 
 	// invalid field_names
+	f(`foo | field_names`)
+	f(`foo | field_names |`)
+	f(`foo | field_names (`)
+	f(`foo | field_names )`)
+	f(`foo | field_names ,`)
 	f(`foo | field_names ()`)
 	f(`foo | field_names (x)`)
 	f(`foo | field_names (x,y)`)
