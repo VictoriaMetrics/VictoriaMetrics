@@ -5,9 +5,9 @@ MAKE_PARALLEL := $(MAKE) -j $(MAKE_CONCURRENCY)
 DATEINFO_TAG ?= $(shell date -u +'%Y%m%d-%H%M%S')
 BUILDINFO_TAG ?= $(shell echo $$(git describe --long --all | tr '/' '-')$$( \
 	      git diff-index --quiet HEAD -- || echo '-dirty-'$$(git diff-index -u HEAD | openssl sha1 | cut -d' ' -f2 | cut -c 1-8)))
-LATEST_TAG ?= cluster-latest
+LATEST_TAG ?= latest
 
-PKG_TAG ?= $(shell git tag -l --points-at HEAD)
+PKG_TAG ?= $(shell sh -c 'git describe --tags --exact-match 2>/dev/null >/dev/null && echo $$(git describe --tags --exact-match)-$$(git rev-parse --short HEAD) || git rev-parse --short HEAD')
 ifeq ($(PKG_TAG),)
 PKG_TAG := $(BUILDINFO_TAG)
 endif
@@ -21,6 +21,9 @@ include docs/Makefile
 include deployment/*/Makefile
 include dashboards/Makefile
 include package/release/Makefile
+
+echo:
+	@echo $(PKG_TAG)
 
 all: \
 	vminsert \
@@ -89,7 +92,12 @@ vmcluster-crossbuild:
 publish: \
 	publish-vminsert \
 	publish-vmselect \
-	publish-vmstorage
+	publish-vmstorage \
+	publish-vmauth \
+	publish-vmagent \
+	publish-vmbackup \
+	publish-vmrestore \
+	publish-vmctl
 
 package: \
 	package-vminsert \

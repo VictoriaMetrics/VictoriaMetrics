@@ -1,6 +1,6 @@
 # All these commands must run from repository root.
 
-DOCKER_NAMESPACE ?= victoriametrics
+DOCKER_NAMESPACE ?= docker.17usoft.com/lhhdz/victoriametrics
 
 ROOT_IMAGE ?= alpine:3.20.0
 ROOT_IMAGE_SCRATCH ?= scratch
@@ -43,7 +43,7 @@ app-via-docker: package-builder
 		go build $(RACE) -trimpath -buildvcs=false \
 			-ldflags "-extldflags '-static' $(GO_BUILDINFO)" \
 			-tags 'netgo osusergo nethttpomithttp2 musl' \
-			-o bin/$(APP_NAME)$(APP_SUFFIX)-prod $(PKG_PREFIX)/app/$(APP_NAME)
+			-o bin/$(APP_NAME)/$(APP_NAME)$(APP_SUFFIX)-prod $(PKG_PREFIX)/app/$(APP_NAME)
 
 app-via-docker-windows: package-builder
 	mkdir -p gocache-for-docker
@@ -58,25 +58,22 @@ app-via-docker-windows: package-builder
 		go build $(RACE) -trimpath -buildvcs=false \
 			-ldflags "-s -w -extldflags '-static' $(GO_BUILDINFO)" \
 			-tags 'netgo osusergo nethttpomithttp2' \
-			-o bin/$(APP_NAME)-windows$(APP_SUFFIX)-prod.exe $(PKG_PREFIX)/app/$(APP_NAME)
+			-o bin/$(APP_NAME)/$(APP_NAME)-windows$(APP_SUFFIX)-prod.exe $(PKG_PREFIX)/app/$(APP_NAME)
 
 package-via-docker: package-base
 	($(DOCKER_IMAGE_LS) | grep -q '$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(APP_SUFFIX)$(RACE)$$') || (\
 		$(MAKE) app-via-docker && \
 		$(DOCKER_BUILD) \
-			--build-arg src_binary=$(APP_NAME)$(APP_SUFFIX)-prod \
+			--build-arg src_binary=$(APP_NAME)/$(APP_NAME)$(APP_SUFFIX)-prod \
 			--build-arg base_image=$(BASE_IMAGE) \
 			--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(APP_SUFFIX)$(RACE) \
-			-f app/$(APP_NAME)/deployment/Dockerfile bin)
+			-f app/$(APP_NAME)/deployment/Dockerfile bin/$(APP_NAME))
 
 publish-via-docker:
 	$(MAKE_PARALLEL) app-via-docker-linux-amd64 \
-		app-via-docker-linux-arm \
-		app-via-docker-linux-arm64 \
-		app-via-docker-linux-ppc64le \
-		app-via-docker-linux-386
+		app-via-docker-linux-arm64
 	$(DOCKER) buildx build \
-		--platform=linux/amd64,linux/arm,linux/arm64,linux/ppc64le,linux/386 \
+		--platform=linux/amd64,linux/arm64 \
 		--build-arg certs_image=$(CERTS_IMAGE) \
 		--build-arg root_image=$(ROOT_IMAGE) \
 		--build-arg APP_NAME=$(APP_NAME) \
@@ -86,25 +83,8 @@ publish-via-docker:
 		--provenance=false \
 		-f app/$(APP_NAME)/multiarch/Dockerfile \
 		--push \
-		bin
-	$(DOCKER) buildx build \
-		--platform=linux/amd64,linux/arm,linux/arm64,linux/ppc64le,linux/386 \
-		--build-arg certs_image=$(CERTS_IMAGE) \
-		--build-arg root_image=$(ROOT_IMAGE_SCRATCH) \
-		--build-arg APP_NAME=$(APP_NAME) \
-		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)-scratch \
-		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE)-scratch \
-		-o type=image \
-		--provenance=false \
-		-f app/$(APP_NAME)/multiarch/Dockerfile \
-		--push \
-		bin
-	cd bin && rm -rf \
-		$(APP_NAME)-linux-amd64-prod \
-		$(APP_NAME)-linux-arm-prod \
-		$(APP_NAME)-linux-arm64-prod \
-		$(APP_NAME)-linux-ppc64le-prod \
-		$(APP_NAME)-linux-386-prod
+		--load \
+		bin/$(APP_NAME)
 
 run-via-docker: package-via-docker
 	$(DOCKER_RUN) -it --rm \
