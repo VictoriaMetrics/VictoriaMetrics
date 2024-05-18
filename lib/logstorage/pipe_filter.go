@@ -17,7 +17,7 @@ func (pf *pipeFilter) String() string {
 	return "filter " + pf.f.String()
 }
 
-func (pf *pipeFilter) updateNeededFields(neededFields, unneededFields fieldsSet) {
+func (pf *pipeFilter) updateNeededFields(neededFields, _ fieldsSet) {
 	pf.f.updateNeededFields(neededFields)
 }
 

@@ -136,16 +136,16 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 	return errFlush
 }
 
-// GetUniqueValuesForColumn returns unique values for the column with the given columnName returned by q for the given tenantIDs.
+// GetUniqueFieldValues returns unique values for the given fieldName returned by q for the given tenantIDs.
 //
 // If limit > 0, then up to limit unique values are returned. The values are returned in arbitrary order because of performance reasons.
 // The caller may sort the returned values if needed.
-func (s *Storage) GetUniqueValuesForColumn(ctx context.Context, tenantIDs []TenantID, q *Query, columnName string, limit uint64) ([]string, error) {
-	// add 'uniq columnName' to the end of q.pipes
-	if !endsWithPipeUniqSingleColumn(q.pipes, columnName) {
+func (s *Storage) GetUniqueFieldValues(ctx context.Context, tenantIDs []TenantID, q *Query, fieldName string, limit uint64) ([]string, error) {
+	// add 'uniq fieldName' to the end of q.pipes
+	if !endsWithPipeUniqSingleField(q.pipes, fieldName) {
 		pipes := append([]pipe{}, q.pipes...)
 		pipes = append(pipes, &pipeUniq{
-			byFields: []string{columnName},
+			byFields: []string{fieldName},
 			limit:    limit,
 		})
 		q = &Query{
@@ -173,7 +173,7 @@ func (s *Storage) GetUniqueValuesForColumn(ctx context.Context, tenantIDs []Tena
 	return values, nil
 }
 
-func endsWithPipeUniqSingleColumn(pipes []pipe, columnName string) bool {
+func endsWithPipeUniqSingleField(pipes []pipe, fieldName string) bool {
 	if len(pipes) == 0 {
 		return false
 	}
@@ -181,7 +181,7 @@ func endsWithPipeUniqSingleColumn(pipes []pipe, columnName string) bool {
 	if !ok {
 		return false
 	}
-	return len(pu.byFields) == 1 && pu.byFields[0] == columnName
+	return len(pu.byFields) == 1 && pu.byFields[0] == fieldName
 }
 
 func (s *Storage) initFilterInValues(ctx context.Context, tenantIDs []TenantID, q *Query) (*Query, error) {
@@ -189,8 +189,8 @@ func (s *Storage) initFilterInValues(ctx context.Context, tenantIDs []TenantID, 
 		return q, nil
 	}
 
-	getUniqueValues := func(q *Query, columnName string) ([]string, error) {
-		return s.GetUniqueValuesForColumn(ctx, tenantIDs, q, columnName, 0)
+	getUniqueValues := func(q *Query, fieldName string) ([]string, error) {
+		return s.GetUniqueFieldValues(ctx, tenantIDs, q, fieldName, 0)
 	}
 	cache := make(map[string][]string)
 	fNew, err := initFilterInValuesForFilter(cache, q.f, getUniqueValues)
@@ -231,7 +231,7 @@ func hasFilterInWithQueryForPipes(pipes []pipe) bool {
 	return false
 }
 
-type getUniqueValuesFunc func(q *Query, columnName string) ([]string, error)
+type getUniqueValuesFunc func(q *Query, fieldName string) ([]string, error)
 
 func initFilterInValuesForFilter(cache map[string][]string, f filter, getUniqueValuesFunc getUniqueValuesFunc) (filter, error) {
 	visitFunc := func(f filter) bool {

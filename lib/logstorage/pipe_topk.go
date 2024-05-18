@@ -93,11 +93,6 @@ type pipeTopkRow struct {
 	timestamp       int64
 }
 
-type pipeTopkOtherColumn struct {
-	name   string
-	values []string
-}
-
 func (r *pipeTopkRow) clone() *pipeTopkRow {
 	byColumnsCopy := make([]string, len(r.byColumns))
 	for i := range byColumnsCopy {

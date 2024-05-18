@@ -140,11 +140,16 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 	}
 
-	switch {
-	case path == "/logsql/query":
+	switch path {
+	case "/logsql/query":
 		logsqlQueryRequests.Inc()
 		httpserver.EnableCORS(w, r)
 		logsql.ProcessQueryRequest(ctx, w, r)
+		return true
+	case "/logsql/field_values":
+		logsqlFieldValuesRequests.Inc()
+		httpserver.EnableCORS(w, r)
+		logsql.ProcessFieldValuesRequest(ctx, w, r)
 		return true
 	default:
 		return false
@@ -165,5 +170,6 @@ func getMaxQueryDuration(r *http.Request) time.Duration {
 }
 
 var (
-	logsqlQueryRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/query"}`)
+	logsqlQueryRequests       = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/query"}`)
+	logsqlFieldValuesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/field_values"}`)
 )

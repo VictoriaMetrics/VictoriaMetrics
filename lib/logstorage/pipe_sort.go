@@ -205,7 +205,8 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 
 		columnValues := shard.columnValues[:0]
 		for _, c := range cs {
-			columnValues = append(columnValues, c.getValues(br))
+			values := c.getValues(br)
+			columnValues = append(columnValues, values)
 		}
 		shard.columnValues = columnValues
 

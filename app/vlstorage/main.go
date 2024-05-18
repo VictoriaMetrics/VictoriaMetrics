@@ -111,6 +111,13 @@ func RunQuery(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorag
 	return strg.RunQuery(ctx, tenantIDs, q, writeBlock)
 }
 
+// GetUniqueFieldValues executes q and returns unique values for the given fieldName.
+//
+// If limit > 0, then up to limit unique values are returned.
+func GetUniqueFieldValues(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, fieldName string, limit uint64) ([]string, error) {
+	return strg.GetUniqueFieldValues(ctx, tenantIDs, q, fieldName, limit)
+}
+
 func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {
 	var ss logstorage.StorageStats
 	strg.UpdateStats(&ss)

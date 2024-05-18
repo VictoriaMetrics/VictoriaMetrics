@@ -88,6 +88,23 @@ curl http://localhost:9428/select/logsql/query -H 'AccountID: 12' -H 'ProjectID:
 The number of requests to `/select/logsql/query` can be [monitored](https://docs.victoriametrics.com/VictoriaLogs/#monitoring)
 with `vl_http_requests_total{path="/select/logsql/query"}` metric.
 
+### Querying field values
+
+VictoriaLogs provides `/select/logsql/field_values?query=<query>&field_name=<fieldName>&start=<start>&end=<end>` HTTP endpoint, which returns
+unique values for the given `<fieldName>` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+for the given `<query>` [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) on the given [`<start> ... <end>`] time range.
+The `<start>` and `<end>` args can contain values in [supported formats](https://docs.victoriametrics.com/#timestamp-formats).
+
+For example, the following command returns unique the values for `host` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+across logs with `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) for the last 5 minutes:
+
+```sh
+curl http://localhost:9428/select/logsql/field_values -d 'query=error' -d 'field_name=host' -d 'start=5m'
+```
+
+The `/select/logsql/field_names` endpoint supports optional `limit=N` query arg, which allows limiting the number of returned values to `N`.
+The endpoint returns arbitrary subset of values if their number exceeds `N`, so `limit=N` cannot be used for pagination over big number of field values.
+
 ## Web UI
 
 VictoriaLogs provides a simple Web UI for logs [querying](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html) and exploration

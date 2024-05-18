@@ -8,7 +8,7 @@ func (fn *filterNoop) String() string {
 	return ""
 }
 
-func (fn *filterNoop) updateNeededFields(neededFields fieldsSet) {
+func (fn *filterNoop) updateNeededFields(_ fieldsSet) {
 	// nothing to do
 }
 
