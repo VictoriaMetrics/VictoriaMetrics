@@ -1052,6 +1052,7 @@ LogsQL supports the following pipes:
 
 - [`copy`](#copy-pipe) copies [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - [`delete`](#delete-pipe) deletes [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
+- [`field_names`](#field_names-pipe) returns all the names of [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - [`fields`](#fields-pipe) selects the given set of [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - [`filter`](#filter-pipe) applies additional [filters](#filters) to results.
 - [`limit`](#limit-pipe) limits the number selected logs.
@@ -1104,6 +1105,22 @@ See also:
 - [`rename` pipe](#rename-pipe)
 - [`fields` pipe](#fields-pipe)
 
+### field_names pipe
+
+Sometimes it may be needed to get all the field names for the selected results. This may be done with `| field_names ...` [pipe](#pipes).
+For example, the following query returns all the names of [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
+from the logs over the last 5 minutes:
+
+```logsql
+_time:5m | field_names as names
+```
+
+Field names are returned in arbitrary order. Use [`sort` pipe](#sort-pipe) in order to sort them if needed.
+
+See also:
+
+- [`uniq` pipe](#uniq-pipe)
+
 ### fields pipe
 
 By default all the [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) are returned in the response.
@@ -1135,6 +1152,7 @@ _time:1h error | stats by (host) count() logs_count | filter logs_count:> 1_000
 See also:
 
 - [`stats` pipe](#stats-pipe)
+- [`sort` pipe](#sort-pipe)
 
 ### limit pipe
 
@@ -1278,6 +1296,8 @@ are returned. For example, the following query returns all the unique `(host, pa
 ```logsql
 _time:5m | uniq by (host, path)
 ```
+
+The unique entries are returned in arbitrary order. Use [`sort` pipe](#sort-pipe) in order to sort them if needed.
 
 Unique entries are stored in memory during query execution. Big number of unique selected entries may require a lot of memory.
 Sometimes it is enough to return up to `N` unique entries. This can be done by adding `limit N` after `by (...)` clause.
