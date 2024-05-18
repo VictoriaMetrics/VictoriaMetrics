@@ -811,6 +811,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	// multiple fields pipes
 	f(`foo | fields bar | fields baz, abc`, `foo | fields bar | fields baz, abc`)
 
+	// field_names pipe
+	f(`foo | field_names as x`, `foo | field_names as x`)
+	f(`foo | field_names y`, `foo | field_names as y`)
+
 	// copy and cp pipe
 	f(`* | copy foo as bar`, `* | copy foo as bar`)
 	f(`* | cp foo bar`, `* | copy foo as bar`)
@@ -1210,6 +1214,13 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | fields bar,`)
 	f(`foo | fields bar,,`)
 
+	// invalid field_names
+	f(`foo | field_names ()`)
+	f(`foo | field_names (x)`)
+	f(`foo | field_names (x,y)`)
+	f(`foo | field_names x y`)
+	f(`foo | field_names x, y`)
+
 	// invalid copy and cp pipe
 	f(`foo | copy`)
 	f(`foo | cp`)
@@ -1375,8 +1386,9 @@ func TestQueryGetNeededColumns(t *testing.T) {
 
 		q, err := ParseQuery(s)
 		if err != nil {
-			t.Fatalf("cannot parse query %s: %s", s, err)
+			t.Fatalf("cannot parse query [%s]: %s", s, err)
 		}
+		q.Optimize()
 
 		needed, unneeded := q.getNeededColumns()
 		neededColumns := strings.Join(needed, ",")
@@ -1485,6 +1497,27 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | uniq by (f1,f2) | fields f1,f3`, `f1,f2`, ``)
 	f(`* | uniq by (f1,f2) | rm f1,f3`, `f1,f2`, ``)
 	f(`* | uniq by (f1,f2) | fields f3`, `f1,f2`, ``)
+
+	f(`* | filter foo f1:bar`, `*`, ``)
+	f(`* | filter foo f1:bar | fields f2`, `f2`, ``)
+	f(`* | limit 10 | filter foo f1:bar | fields f2`, `_msg,f1,f2`, ``)
+	f(`* | filter foo f1:bar | fields f1`, `f1`, ``)
+	f(`* | filter foo f1:bar | rm f1`, `*`, `f1`)
+	f(`* | limit 10 | filter foo f1:bar | rm f1`, `*`, ``)
+	f(`* | filter foo f1:bar | rm f2`, `*`, `f2`)
+	f(`* | limit 10 | filter foo f1:bar | rm f2`, `*`, `f2`)
+	f(`* | fields x | filter foo f1:bar | rm f2`, `x`, ``)
+	f(`* | fields x,f1 | filter foo f1:bar | rm f2`, `f1,x`, ``)
+	f(`* | rm x,f1 | filter foo f1:bar`, `*`, `f1,x`)
+
+	f(`* | field_names as foo`, `*`, `_time`)
+	f(`* | field_names foo | fields bar`, `*`, `_time`)
+	f(`* | field_names foo | fields foo`, `*`, `_time`)
+	f(`* | field_names foo | rm foo`, `*`, `_time`)
+	f(`* | field_names foo | rm bar`, `*`, `_time`)
+	f(`* | field_names foo | rm _time`, `*`, `_time`)
+	f(`* | fields x,y | field_names as bar | fields baz`, `x,y`, ``)
+	f(`* | rm x,y | field_names as bar | fields baz`, `*`, `x,y`)
 
 	f(`* | rm f1, f2`, `*`, `f1,f2`)
 	f(`* | rm f1, f2 | mv f2 f3`, `*`, `f1,f2,f3`)

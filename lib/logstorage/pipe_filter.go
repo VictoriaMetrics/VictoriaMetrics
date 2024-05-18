@@ -17,19 +17,20 @@ func (pf *pipeFilter) String() string {
 	return "filter " + pf.f.String()
 }
 
-func (pf *pipeFilter) updateNeededFields(neededFields, _ fieldsSet) {
-	pf.f.updateNeededFields(neededFields)
+func (pf *pipeFilter) updateNeededFields(neededFields, unneededFields fieldsSet) {
+	if neededFields.contains("*") {
+		fs := newFieldsSet()
+		pf.f.updateNeededFields(fs)
+		for f := range fs {
+			unneededFields.remove(f)
+		}
+	} else {
+		pf.f.updateNeededFields(neededFields)
+	}
 }
 
 func (pf *pipeFilter) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
 	shards := make([]pipeFilterProcessorShard, workersCount)
-	for i := range shards {
-		shards[i] = pipeFilterProcessorShard{
-			pipeFilterProcessorShardNopad: pipeFilterProcessorShardNopad{
-				pf: pf,
-			},
-		}
-	}
 
 	pfp := &pipeFilterProcessor{
 		pf:     pf,
@@ -55,8 +56,6 @@ type pipeFilterProcessorShard struct {
 }
 
 type pipeFilterProcessorShardNopad struct {
-	pf *pipeFilter
-
 	br blockResult
 	bm bitmap
 }
@@ -71,7 +70,7 @@ func (pfp *pipeFilterProcessor) writeBlock(workerID uint, br *blockResult) {
 	bm := &shard.bm
 	bm.init(len(br.timestamps))
 	bm.setBits()
-	shard.pf.f.applyToBlockResult(br, bm)
+	pfp.pf.f.applyToBlockResult(br, bm)
 	if bm.areAllBitsSet() {
 		// Fast path - the filter didn't filter out anything - send br to the base pipe as is.
 		pfp.ppBase.writeBlock(workerID, br)

@@ -83,6 +83,12 @@ func parsePipes(lex *lexer) ([]pipe, error) {
 				return nil, fmt.Errorf("cannot parse 'delete' pipe: %w", err)
 			}
 			pipes = append(pipes, pd)
+		case lex.isKeyword("field_names"):
+			pf, err := parsePipeFieldNames(lex)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse 'field_names' pipe: %w", err)
+			}
+			pipes = append(pipes, pf)
 		case lex.isKeyword("fields"):
 			pf, err := parsePipeFields(lex)
 			if err != nil {

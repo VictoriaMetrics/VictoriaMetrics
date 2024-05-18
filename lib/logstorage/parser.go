@@ -247,7 +247,7 @@ func (q *Query) AddTimeFilter(start, end int64) {
 // See https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe
 func (q *Query) AddPipeLimit(n uint64) {
 	q.pipes = append(q.pipes, &pipeLimit{
-		n: n,
+		limit: n,
 	})
 }
 
@@ -255,6 +255,7 @@ func (q *Query) AddPipeLimit(n uint64) {
 func (q *Query) Optimize() {
 	q.pipes = optimizeSortOffsetPipes(q.pipes)
 	q.pipes = optimizeSortLimitPipes(q.pipes)
+	q.pipes = optimizeUniqLimitPipes(q.pipes)
 	q.pipes = optimizeFilterPipes(q.pipes)
 
 	// Merge `q | filter ...` into q.
@@ -263,6 +264,14 @@ func (q *Query) Optimize() {
 		if ok {
 			q.f = mergeFiltersAnd(q.f, pf.f)
 			q.pipes = append(q.pipes[:0], q.pipes[1:]...)
+		}
+	}
+
+	// Optimize `q | field_names ...` by marking pipeFieldNames as first pipe
+	if len(q.pipes) > 0 {
+		pf, ok := q.pipes[0].(*pipeFieldNames)
+		if ok {
+			pf.isFirstPipe = true
 		}
 	}
 
@@ -306,7 +315,7 @@ func optimizeSortOffsetPipes(pipes []pipe) []pipe {
 			continue
 		}
 		if ps.offset == 0 && ps.limit == 0 {
-			ps.offset = po.n
+			ps.offset = po.offset
 		}
 		pipes = append(pipes[:i], pipes[i+1:]...)
 	}
@@ -327,8 +336,30 @@ func optimizeSortLimitPipes(pipes []pipe) []pipe {
 			i++
 			continue
 		}
-		if ps.limit == 0 || pl.n < ps.limit {
-			ps.limit = pl.n
+		if ps.limit == 0 || pl.limit < ps.limit {
+			ps.limit = pl.limit
+		}
+		pipes = append(pipes[:i], pipes[i+1:]...)
+	}
+	return pipes
+}
+
+func optimizeUniqLimitPipes(pipes []pipe) []pipe {
+	// Merge 'uniq ... | limit ...' into 'uniq ... limit ...'
+	i := 1
+	for i < len(pipes) {
+		pl, ok := pipes[i].(*pipeLimit)
+		if !ok {
+			i++
+			continue
+		}
+		pu, ok := pipes[i-1].(*pipeUniq)
+		if !ok {
+			i++
+			continue
+		}
+		if pu.limit == 0 || pl.limit < pu.limit {
+			pu.limit = pl.limit
 		}
 		pipes = append(pipes[:i], pipes[i+1:]...)
 	}
