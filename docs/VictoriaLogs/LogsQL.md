@@ -1879,10 +1879,10 @@ LogsQL supports the following transformations on the log entries selected with [
 
 - Extracting arbitrary text from [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) according to the provided pattern.
   See [these docs](#extract-pipe) for details.
+- Unpacking JSON strings from [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model). See [these docs](#unpack_json-pipe).
 
 LogsQL will support the following transformations in the future:
 
-- Extracting the specified fields from JSON strings stored inside [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - Extracting the specified fields from [logfmt](https://brandur.org/logfmt) strings stored
   inside [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - Creating a new field from existing [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
