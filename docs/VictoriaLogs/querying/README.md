@@ -102,10 +102,10 @@ The `<step>` arg can contain values in [the format specified here](https://docs.
 If `<step>` is missing, then it equals to `1d` (one day).
 
 For example, the following command returns per-hour number of [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
-with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) over logs for the 3 hour day:
+with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) over logs for the 3 hours:
 
 ```sh
-curl http://localhost:9428/select/logsql/hits -d 'query=error' -d 'start=1d' -d 'step=1h'
+curl http://localhost:9428/select/logsql/hits -d 'query=error' -d 'start=3h' -d 'step=1h'
 ```
 
 Below is an example JSON output returned from this endpoint:
@@ -130,6 +130,19 @@ Below is an example JSON output returned from this endpoint:
 
 Additionally, the `offset=<offset>` arg can be passed to `/select/logsql/hits` in order to group buckets according to the given timezone offset.
 The `<offset>` can contain values in [the format specified here](https://docs.victoriametrics.com/victorialogs/logsql/#duration-values).
+For example, the following command returns per-day number of logs with `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word)
+over the last week in New York time zone (`-4h`):
+
+```logsql
+curl http://localhost:9428/select/logsql/hits -d 'query=error' -d 'start=1w' -d 'step=1d' -d 'offset=-4h'
+```
+
+Additionally, any number of `field=<field_name>` args can be passed to `/select/logsql/hits` for grouping hits buckets by the mentioned `<field_name>` fields.
+For example, the following query groups hits by `level` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) additionally to the provided `step`:
+
+```logsql
+curl http://localhost:9428/select/logsql/hits -d 'query=*' -d 'start=1w' -d 'step=1d' -d 'field=level'
+```
 
 See also:
 

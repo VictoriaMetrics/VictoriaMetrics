@@ -52,7 +52,10 @@ func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	q.AddCountByTimePipe(int64(step), int64(offset))
+	// Obtain field entries
+	fields := r.Form["field"]
+
+	q.AddCountByTimePipe(int64(step), int64(offset), fields)
 	q.Optimize()
 
 	var wLock sync.Mutex

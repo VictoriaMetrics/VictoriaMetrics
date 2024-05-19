@@ -220,13 +220,17 @@ func (q *Query) String() string {
 	return s
 }
 
-// AddCountByTimePipe adds '| stats by (_time:step offset off) count() hits' to the end of q.
-func (q *Query) AddCountByTimePipe(step, off int64) {
+// AddCountByTimePipe adds '| stats by (_time:step offset off, field1, ..., fieldN) count() hits' to the end of q.
+func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 	{
-		// add 'stats by (_time:step offset off) count() hits'
+		// add 'stats by (_time:step offset off, fields) count() hits'
 		stepStr := string(marshalDuration(nil, step))
 		offsetStr := string(marshalDuration(nil, off))
-		s := fmt.Sprintf("stats by (_time:%s offset %s) count() hits", stepStr, offsetStr)
+		byFieldsStr := "_time:" + stepStr + " offset " + offsetStr
+		for _, f := range fields {
+			byFieldsStr += ", " + quoteTokenIfNeeded(f)
+		}
+		s := fmt.Sprintf("stats by (%s) count() hits", byFieldsStr)
 		lex := newLexer(s)
 		ps, err := parsePipeStats(lex)
 		if err != nil {
@@ -236,8 +240,12 @@ func (q *Query) AddCountByTimePipe(step, off int64) {
 	}
 
 	{
-		// Add 'sort by (_time)' in order to get consistent order of the results.
-		s := "sort by (_time)"
+		// Add 'sort by (_time, fields)' in order to get consistent order of the results.
+		sortFieldsStr := "_time"
+		for _, f := range fields {
+			sortFieldsStr += ", " + quoteTokenIfNeeded(f)
+		}
+		s := fmt.Sprintf("sort by (%s)", sortFieldsStr)
 		lex := newLexer(s)
 		ps, err := parsePipeSort(lex)
 		if err != nil {
