@@ -9,41 +9,56 @@ func TestExtractFormatApply(t *testing.T) {
 	f := func(format, s string, resultsExpected []string) {
 		t.Helper()
 
-		ef, err := parseExtractFormat(format)
+		steps, err := parseExtractFormatSteps(format)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
+		ef := newExtractFormat(steps)
 		ef.apply(s)
 
-		if !reflect.DeepEqual(ef.results, resultsExpected) {
-			t.Fatalf("unexpected results; got %q; want %q", ef.results, resultsExpected)
+		if len(ef.fields) != len(resultsExpected) {
+			t.Fatalf("unexpected number of results; got %d; want %d", len(ef.fields), len(resultsExpected))
+		}
+		for i, f := range ef.fields {
+			if v := *f.value; v != resultsExpected[i] {
+				t.Fatalf("unexpected value for field %q; got %q; want %q", f.name, v, resultsExpected[i])
+			}
 		}
 	}
 
 	f("<foo>", "", []string{""})
 	f("<foo>", "abc", []string{"abc"})
-	f("<foo>bar", "", []string{"", ""})
-	f("<foo>bar", "bar", []string{"", ""})
-	f("<foo>bar", "bazbar", []string{"baz", ""})
-	f("<foo>bar", "a bazbar xdsf", []string{"a baz", " xdsf"})
+	f("<foo>bar", "", []string{""})
+	f("<foo>bar", "bar", []string{""})
+	f("<foo>bar", "bazbar", []string{"baz"})
+	f("<foo>bar", "a bazbar xdsf", []string{"a baz"})
+	f("<foo>bar<>", "a bazbar xdsf", []string{"a baz"})
+	f("<foo>bar<>x", "a bazbar xdsf", []string{"a baz"})
 	f("foo<bar>", "", []string{""})
 	f("foo<bar>", "foo", []string{""})
 	f("foo<bar>", "a foo xdf sdf", []string{" xdf sdf"})
 	f("foo<bar>", "a foo foobar", []string{" foobar"})
-	f("foo<bar>baz", "a foo foobar", []string{"", ""})
-	f("foo<bar>baz", "a foo foobar baz", []string{" foobar ", ""})
-	f("foo<bar>baz", "a foo foobar bazabc", []string{" foobar ", "abc"})
-	f("ip=<ip> <> path=<path> ", "x=a, ip=1.2.3.4 method=GET host='abc' path=/foo/bar some tail here", []string{"1.2.3.4", "method=GET host='abc'", "/foo/bar", "some tail here"})
-	f("ip=&lt;<ip>&gt;", "foo ip=<1.2.3.4> bar", []string{"1.2.3.4", " bar"})
+	f("foo<bar>baz", "a foo foobar", []string{""})
+	f("foo<bar>baz", "a foobaz bar", []string{""})
+	f("foo<bar>baz", "a foo foobar baz", []string{" foobar "})
+	f("foo<bar>baz", "a foo foobar bazabc", []string{" foobar "})
+
+	f("ip=<ip> <> path=<path> ", "x=a, ip=1.2.3.4 method=GET host='abc' path=/foo/bar some tail here", []string{"1.2.3.4", "/foo/bar"})
+
+	// escaped format
+	f("ip=&lt;<ip>&gt;", "foo ip=<1.2.3.4> bar", []string{"1.2.3.4"})
+	f("ip=&lt;<ip>&gt;", "foo ip=<foo&amp;bar> bar", []string{"foo&amp;bar"})
 
 	// quoted fields
-	f(`"msg":<msg>,`, `{"foo":"bar","msg":"foo,b\"ar\n\t","baz":"x"}`, []string{`foo,b"ar`+"\n\t", `"baz":"x"}`})
+	f(`"msg":<msg>,`, `{"foo":"bar","msg":"foo,b\"ar\n\t","baz":"x"}`, []string{`foo,b"ar` + "\n\t"})
 	f(`foo=<bar>`, "foo=`bar baz,abc` def", []string{"bar baz,abc"})
-	f(`foo=<bar> `, "foo=`bar baz,abc` def", []string{"bar baz,abc", "def"})
+	f(`foo=<bar> `, "foo=`bar baz,abc` def", []string{"bar baz,abc"})
+	f(`<foo>`, `"foo,\"bar"`, []string{`foo,"bar`})
+	f(`<foo>,"bar`, `"foo,\"bar"`, []string{`foo,"bar`})
 }
 
 func TestParseExtractFormatStepsSuccess(t *testing.T) {
-	f := func(s string, stepsExpected []*extractFormatStep) {
+	f := func(s string, stepsExpected []extractFormatStep) {
 		t.Helper()
 
 		steps, err := parseExtractFormatSteps(s)
@@ -55,21 +70,12 @@ func TestParseExtractFormatStepsSuccess(t *testing.T) {
 		}
 	}
 
-	f("<foo>", []*extractFormatStep{
+	f("<foo>", []extractFormatStep{
 		{
 			field: "foo",
 		},
 	})
-	f("<_>", []*extractFormatStep{
-		{},
-	})
-	f("<*>", []*extractFormatStep{
-		{},
-	})
-	f("<>", []*extractFormatStep{
-		{},
-	})
-	f("<foo>bar", []*extractFormatStep{
+	f("<foo>bar", []extractFormatStep{
 		{
 			field: "foo",
 		},
@@ -77,59 +83,59 @@ func TestParseExtractFormatStepsSuccess(t *testing.T) {
 			prefix: "bar",
 		},
 	})
-	f("<>bar<foo>", []*extractFormatStep{
+	f("<>bar<foo>", []extractFormatStep{
 		{},
 		{
 			prefix: "bar",
-			field:     "foo",
+			field:  "foo",
 		},
 	})
-	f("bar<foo>", []*extractFormatStep{
+	f("bar<foo>", []extractFormatStep{
 		{
 			prefix: "bar",
-			field:     "foo",
+			field:  "foo",
 		},
 	})
-	f("bar<foo>abc", []*extractFormatStep{
+	f("bar<foo>abc", []extractFormatStep{
 		{
 			prefix: "bar",
-			field:     "foo",
+			field:  "foo",
 		},
 		{
 			prefix: "abc",
 		},
 	})
-	f("bar<foo>abc<_>", []*extractFormatStep{
+	f("bar<foo>abc<_>", []extractFormatStep{
 		{
 			prefix: "bar",
-			field:     "foo",
+			field:  "foo",
 		},
 		{
 			prefix: "abc",
 		},
 	})
-	f("<foo>bar<baz>", []*extractFormatStep{
+	f("<foo>bar<baz>", []extractFormatStep{
 		{
 			field: "foo",
 		},
 		{
 			prefix: "bar",
-			field:     "baz",
+			field:  "baz",
 		},
 	})
-	f("bar<foo>baz", []*extractFormatStep{
+	f("bar<foo>baz", []extractFormatStep{
 		{
 			prefix: "bar",
-			field:     "foo",
+			field:  "foo",
 		},
 		{
 			prefix: "baz",
 		},
 	})
-	f("&lt;<foo>&amp;gt;", []*extractFormatStep{
+	f("&lt;<foo>&amp;gt;", []extractFormatStep{
 		{
 			prefix: "<",
-			field:     "foo",
+			field:  "foo",
 		},
 		{
 			prefix: "&gt;",
@@ -153,8 +159,17 @@ func TestParseExtractFormatStepFailure(t *testing.T) {
 	// zero fields
 	f("foobar")
 
+	// Zero named fields
+	f("<>")
+	f("foo<>")
+	f("<>foo")
+	f("foo<_>bar<*>baz<>xxx")
+
 	// missing delimiter between fields
 	f("<foo><bar>")
+	f("<><bar>")
+	f("<foo><>")
+	f("bb<foo><><bar>aa")
 	f("aa<foo><bar>")
 	f("aa<foo><bar>bb")
 
