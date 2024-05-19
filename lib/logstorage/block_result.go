@@ -208,9 +208,22 @@ func (br *blockResult) sizeBytes() int {
 	return n
 }
 
+// addResultColumns adds the given rcs to br.
+//
+// The br is valid only until rcs are modified.
+func (br *blockResult) addResultColumns(rcs []resultColumn) {
+	if len(rcs) == 0 || len(rcs[0].values) == 0 {
+		return
+	}
+
+	for i := range rcs {
+		br.addResultColumn(&rcs[i])
+	}
+}
+
 // setResultColumns sets the given rcs as br columns.
 //
-// The returned result is valid only until rcs are modified.
+// The br is valid only until rcs are modified.
 func (br *blockResult) setResultColumns(rcs []resultColumn) {
 	br.reset()
 
@@ -220,24 +233,29 @@ func (br *blockResult) setResultColumns(rcs []resultColumn) {
 
 	br.timestamps = fastnum.AppendInt64Zeros(br.timestamps[:0], len(rcs[0].values))
 
-	csBuf := br.csBuf
-	for _, rc := range rcs {
-		if areConstValues(rc.values) {
-			// This optimization allows reducing memory usage after br cloning
-			csBuf = append(csBuf, blockResultColumn{
-				name:          br.a.copyString(rc.name),
-				isConst:       true,
-				valuesEncoded: rc.values[:1],
-			})
-		} else {
-			csBuf = append(csBuf, blockResultColumn{
-				name:          br.a.copyString(rc.name),
-				valueType:     valueTypeString,
-				valuesEncoded: rc.values,
-			})
-		}
+	for i := range rcs {
+		br.addResultColumn(&rcs[i])
 	}
-	br.csBuf = csBuf
+}
+
+func (br *blockResult) addResultColumn(rc *resultColumn) {
+	if len(rc.values) != len(br.timestamps) {
+		logger.Panicf("BUG: column %q must contain %d rows, but it contains %d rows", rc.name, len(br.timestamps), len(rc.values))
+	}
+	if areConstValues(rc.values) {
+		// This optimization allows reducing memory usage after br cloning
+		br.csBuf = append(br.csBuf, blockResultColumn{
+			name:          rc.name,
+			isConst:       true,
+			valuesEncoded: rc.values[:1],
+		})
+	} else {
+		br.csBuf = append(br.csBuf, blockResultColumn{
+			name:          rc.name,
+			valueType:     valueTypeString,
+			valuesEncoded: rc.values,
+		})
+	}
 	br.csInitialized = false
 }
 
@@ -1765,37 +1783,25 @@ func (c *blockResultColumn) sumValues(br *blockResult) (float64, int) {
 	}
 }
 
-// resultColumn represents a column with result values
+// resultColumn represents a column with result values.
+//
+// It doesn't own the result values.
 type resultColumn struct {
 	// name is column name.
 	name string
 
-	// a contains values data.
-	a arena
-
-	// values is the result values. They are backed by data inside a.
+	// values is the result values.
 	values []string
 }
 
-func (rc *resultColumn) sizeBytes() int {
-	return len(rc.name) + rc.a.sizeBytes() + len(rc.values)*int(unsafe.Sizeof(rc.values[0]))
-}
-
 func (rc *resultColumn) resetKeepName() {
-	rc.a.reset()
 	clear(rc.values)
 	rc.values = rc.values[:0]
 }
 
 // addValue adds the given values v to rc.
 func (rc *resultColumn) addValue(v string) {
-	values := rc.values
-	if len(values) > 0 && string(v) == values[len(values)-1] {
-		v = values[len(values)-1]
-	} else {
-		v = rc.a.copyString(v)
-	}
-	rc.values = append(values, v)
+	rc.values = append(rc.values, v)
 }
 
 func truncateTimestampToMonth(timestamp int64) int64 {

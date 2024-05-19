@@ -11,7 +11,6 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
@@ -211,7 +210,8 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 		shard.columnValues = columnValues
 
 		// Generate byColumns
-		var rc resultColumn
+		valuesEncoded := make([]string, len(br.timestamps))
+		shard.stateSizeBudget -= len(valuesEncoded) * int(unsafe.Sizeof(valuesEncoded[0]))
 
 		bb := bbPool.Get()
 		for rowIdx := range br.timestamps {
@@ -223,7 +223,12 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 				bb.B = marshalJSONKeyValue(bb.B, cs[i].name, v)
 				bb.B = append(bb.B, ',')
 			}
-			rc.addValue(bytesutil.ToUnsafeString(bb.B))
+			if rowIdx > 0 && valuesEncoded[rowIdx-1] == string(bb.B) {
+				valuesEncoded[rowIdx] = valuesEncoded[rowIdx-1]
+			} else {
+				valuesEncoded[rowIdx] = string(bb.B)
+				shard.stateSizeBudget -= len(bb.B)
+			}
 		}
 		bbPool.Put(bb)
 
@@ -236,13 +241,13 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 			{
 				c: &blockResultColumn{
 					valueType:     valueTypeString,
-					valuesEncoded: rc.values,
+					valuesEncoded: valuesEncoded,
 				},
 				i64Values: i64Values,
 				f64Values: f64Values,
 			},
 		}
-		shard.stateSizeBudget -= rc.sizeBytes() + int(unsafe.Sizeof(byColumns[0])+unsafe.Sizeof(*byColumns[0].c))
+		shard.stateSizeBudget -= int(unsafe.Sizeof(byColumns[0]) + unsafe.Sizeof(*byColumns[0].c))
 
 		// Append br to shard.blocks.
 		shard.blocks = append(shard.blocks, sortBlock{

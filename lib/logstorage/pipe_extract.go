@@ -37,9 +37,15 @@ func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet
 func (pe *pipeExtract) newPipeProcessor(workersCount int, stopCh <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
 	shards := make([]pipeExtractProcessorShard, workersCount)
 	for i := range shards {
+		ef := newExtractFormat(pe.steps)
+		rcs := make([]resultColumn, len(ef.fields))
+		for j := range rcs {
+			rcs[j].name = ef.fields[j].name
+		}
 		shards[i] = pipeExtractProcessorShard{
 			pipeExtractProcessorShardNopad: pipeExtractProcessorShardNopad{
-				ef: newExtractFormat(pe.steps),
+				ef:  ef,
+				rcs: rcs,
 			},
 		}
 	}
@@ -71,6 +77,8 @@ type pipeExtractProcessorShard struct {
 
 type pipeExtractProcessorShardNopad struct {
 	ef *extractFormat
+
+	rcs []resultColumn
 }
 
 func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
@@ -83,12 +91,18 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 	values := c.getValues(br)
 
 	ef := shard.ef
+	rcs := shard.rcs
 	for _, v := range values {
 		ef.apply(v)
-		/*		for i, result := range ef.results {
-					rcs[i].addValue(result)
-				}
-		*/
+		for i, f := range ef.fields {
+			rcs[i].addValue(*f.value)
+		}
+	}
+	br.addResultColumns(rcs)
+	pep.ppBase.writeBlock(workerID, br)
+
+	for i := range rcs {
+		rcs[i].resetKeepName()
 	}
 }
 
@@ -162,7 +176,7 @@ func (ef *extractFormat) apply(s string) {
 	matches := ef.matches
 	for i := range steps {
 		nextPrefix := ""
-		if i + 1 < len(steps) {
+		if i+1 < len(steps) {
 			nextPrefix = steps[i+1].prefix
 		}
 
