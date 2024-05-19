@@ -6,20 +6,9 @@ import (
 )
 
 func TestPipeCopyUpdateNeededFields(t *testing.T) {
-	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	f := func(s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
 		t.Helper()
-
-		nfs := newTestFieldsSet(neededFields)
-		unfs := newTestFieldsSet(unneededFields)
-
-		lex := newLexer(s)
-		p, err := parsePipeCopy(lex)
-		if err != nil {
-			t.Fatalf("cannot parse %s: %s", s, err)
-		}
-		p.updateNeededFields(nfs, unfs)
-
-		assertNeededFields(t, nfs, unfs, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
 	}
 
 	// all the needed fields
@@ -51,6 +40,22 @@ func TestPipeCopyUpdateNeededFields(t *testing.T) {
 	f("copy s1 d1, s2 d2", "s1,d1,f1,f2", "", "s1,f1,f2", "")
 	f("copy s1 d1, s2 d2", "s1,d2,f1,f2", "", "s1,s2,f1,f2", "")
 	f("copy s1 d1, s2 d2", "s2,d1,f1,f2", "", "s1,s2,f1,f2", "")
+}
+
+func expectPipeNeededFields(t *testing.T, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+	t.Helper()
+
+	nfs := newTestFieldsSet(neededFields)
+	unfs := newTestFieldsSet(unneededFields)
+
+	lex := newLexer(s)
+	p, err := parsePipe(lex)
+	if err != nil {
+		t.Fatalf("cannot parse %s: %s", s, err)
+	}
+	p.updateNeededFields(nfs, unfs)
+
+	assertNeededFields(t, nfs, unfs, neededFieldsExpected, unneededFieldsExpected)
 }
 
 func assertNeededFields(t *testing.T, nfs, unfs fieldsSet, neededFieldsExpected, unneededFieldsExpected string) {

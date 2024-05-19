@@ -181,18 +181,7 @@ func TestParseExtractFormatStepFailure(t *testing.T) {
 func TestPipeExtractUpdateNeededFields(t *testing.T) {
 	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
 		t.Helper()
-
-		nfs := newTestFieldsSet(neededFields)
-		unfs := newTestFieldsSet(unneededFields)
-
-		lex := newLexer(s)
-		p, err := parsePipeExtract(lex)
-		if err != nil {
-			t.Fatalf("cannot parse %s: %s", s, err)
-		}
-		p.updateNeededFields(nfs, unfs)
-
-		assertNeededFields(t, nfs, unfs, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
 	}
 
 	// all the needed fields
