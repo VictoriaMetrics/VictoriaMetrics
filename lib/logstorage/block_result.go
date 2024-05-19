@@ -1335,11 +1335,9 @@ func (br *blockResult) getColumnByName(columnName string) *blockResultColumn {
 	}
 	cs := br.getColumns()
 
-	// Search for the needed column in reverse order, since the old column may be overridden by new column in addResultColumn()
-	for i := len(cs) - 1; i >= 0; i-- {
-		if cs[i].name == columnName {
-			return cs[i]
-		}
+	idx := getBlockResultColumnIdxByName(cs, columnName)
+	if idx >= 0 {
+		return cs[idx]
 	}
 
 	br.addConstColumn(columnName, "")
@@ -1365,12 +1363,27 @@ func (br *blockResult) getColumns() []*blockResultColumn {
 	clear(br.cs)
 	cs := br.cs[:0]
 	for i := range csBuf {
-		cs = append(cs, &csBuf[i])
+		c := &csBuf[i]
+		idx := getBlockResultColumnIdxByName(cs, c.name)
+		if idx >= 0 {
+			cs[idx] = c
+		} else {
+			cs = append(cs, c)
+		}
 	}
 	br.cs = cs
 	br.csInitialized = true
 
 	return br.cs
+}
+
+func getBlockResultColumnIdxByName(cs []*blockResultColumn, name string) int {
+	for i, c := range cs {
+		if c.name == name {
+			return i
+		}
+	}
+	return -1
 }
 
 func (br *blockResult) skipRows(skipRows int) {
