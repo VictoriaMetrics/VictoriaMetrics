@@ -1002,6 +1002,12 @@ func TestParseQuerySuccess(t *testing.T) {
 	f("* | extract from x `foo<bar>baz`", `* | extract from x "foo<bar>baz"`)
 	f("* | extract from x foo<bar>baz", `* | extract from x "foo<bar>baz"`)
 
+	// unpack_json pipe
+	f(`* | unpack_json`, `* | unpack_json`)
+	f(`* | unpack_json result_prefix y`, `* | unpack_json result_prefix y`)
+	f(`* | unpack_json from x`, `* | unpack_json from x`)
+	f(`* | unpack_json from x result_prefix y`, `* | unpack_json from x result_prefix y`)
+
 	// multiple different pipes
 	f(`* | fields foo, bar | limit 100 | stats by(foo,bar) count(baz) as qwert`, `* | fields foo, bar | limit 100 | stats by (foo, bar) count(baz) as qwert`)
 	f(`* | skip 100 | head 20 | skip 10`, `* | offset 100 | limit 20 | offset 10`)
@@ -1403,6 +1409,13 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | extract from x "abc"`)
 	f(`foo | extract from x "<abc`)
 	f(`foo | extract from x "<abc>" de`)
+
+	// invalid unpack_json pipe
+	f(`foo | extract_json bar`)
+	f(`foo | extract_json from`)
+	f(`foo | extract_json result_prefix`)
+	f(`foo | extract_json result_prefix x from y`)
+	f(`foo | extract_json from x result_prefix`)
 }
 
 func TestQueryGetNeededColumns(t *testing.T) {
@@ -1544,15 +1557,22 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | fields x,y | field_names as bar | fields baz`, `x,y`, ``)
 	f(`* | rm x,y | field_names as bar | fields baz`, `*`, `x,y`)
 
-	f(`* | extract from s1 "<f1>x<f2>"`, `*`, ``)
+	f(`* | extract from s1 "<f1>x<f2>"`, `*`, `f1,f2`)
 	f(`* | extract from s1 "<f1>x<f2>" | fields foo`, `foo`, ``)
 	f(`* | extract from s1 "<f1>x<f2>" | fields foo,s1`, `foo,s1`, ``)
 	f(`* | extract from s1 "<f1>x<f2>" | fields foo,f1`, `foo,s1`, ``)
 	f(`* | extract from s1 "<f1>x<f2>" | fields foo,f1,f2`, `foo,s1`, ``)
-	f(`* | extract from s1 "<f1>x<f2>" | rm foo`, `*`, `foo`)
-	f(`* | extract from s1 "<f1>x<f2>" | rm foo,s1`, `*`, `foo`)
-	f(`* | extract from s1 "<f1>x<f2>" | rm foo,f1`, `*`, `foo`)
-	f(`* | extract from s1 "<f1>x<f2>" | rm foo,f1,f2`, `*`, `foo,s1`)
+	f(`* | extract from s1 "<f1>x<f2>" | rm foo`, `*`, `f1,f2,foo`)
+	f(`* | extract from s1 "<f1>x<f2>" | rm foo,s1`, `*`, `f1,f2,foo`)
+	f(`* | extract from s1 "<f1>x<f2>" | rm foo,f1`, `*`, `f1,f2,foo`)
+	f(`* | extract from s1 "<f1>x<f2>" | rm foo,f1,f2`, `*`, `f1,f2,foo,s1`)
+
+	f(`* | unpack_json`, `*`, ``)
+	f(`* | unpack_json from s1`, `*`, ``)
+	f(`* | unpack_json from s1 | fields f1`, `f1,s1`, ``)
+	f(`* | unpack_json from s1 | fields s1,f1`, `f1,s1`, ``)
+	f(`* | unpack_json from s1 | rm f1`, `*`, `f1`)
+	f(`* | unpack_json from s1 | rm f1,s1`, `*`, `f1`)
 
 	f(`* | rm f1, f2`, `*`, `f1,f2`)
 	f(`* | rm f1, f2 | mv f2 f3`, `*`, `f1,f2,f3`)

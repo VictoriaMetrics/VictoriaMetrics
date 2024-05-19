@@ -1,8 +1,327 @@
 package logstorage
 
 import (
+	"math/rand"
+	"slices"
+	"strings"
+	"sync"
 	"testing"
 )
+
+func TestPipeUnpackJSON(t *testing.T) {
+	f := func(pipeStr string, rows, rowsExpected [][]Field) {
+		t.Helper()
+		expectPipeResults(t, pipeStr, rows, rowsExpected)
+	}
+
+	// single row, unpack from _msg
+	f("unpack_json", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"foo", "bar"},
+		},
+	})
+
+	// single row, unpack from _msg into _msg
+	f("unpack_json", [][]Field{
+		{
+			{"_msg", `{"_msg":"bar"}`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", "bar"},
+		},
+	})
+
+	// single row, unpack from missing field
+	f("unpack_json from x", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+		},
+	})
+
+	// single row, unpack from non-json field
+	f("unpack_json from x", [][]Field{
+		{
+			{"x", `foobar`},
+		},
+	}, [][]Field{
+		{
+			{"x", `foobar`},
+		},
+	})
+
+	// single row, unpack from non-dict json
+	f("unpack_json from x", [][]Field{
+		{
+			{"x", `["foobar"]`},
+		},
+	}, [][]Field{
+		{
+			{"x", `["foobar"]`},
+		},
+	})
+	f("unpack_json from x", [][]Field{
+		{
+			{"x", `1234`},
+		},
+	}, [][]Field{
+		{
+			{"x", `1234`},
+		},
+	})
+	f("unpack_json from x", [][]Field{
+		{
+			{"x", `"xxx"`},
+		},
+	}, [][]Field{
+		{
+			{"x", `"xxx"`},
+		},
+	})
+
+	// single row, unpack from named field
+	f("unpack_json from x", [][]Field{
+		{
+			{"x", `{"foo":"bar","baz":"xyz","a":123,"b":["foo","bar"],"x":NaN}`},
+		},
+	}, [][]Field{
+		{
+			{"x", `NaN`},
+			{"foo", "bar"},
+			{"baz", "xyz"},
+			{"a", "123"},
+			{"b", `["foo","bar"]`},
+		},
+	})
+
+	// multiple rows with distinct number of fields
+	f("unpack_json from x", [][]Field{
+		{
+			{"x", `{"foo":"bar","baz":"xyz"}`},
+			{"y", `abc`},
+		},
+		{
+			{"y", `abc`},
+		},
+		{
+			{"z", `foobar`},
+			{"x", `{"z":["bar",123]}`},
+		},
+	}, [][]Field{
+		{
+			{"x", `{"foo":"bar","baz":"xyz"}`},
+			{"y", "abc"},
+			{"foo", "bar"},
+			{"baz", "xyz"},
+		},
+		{
+			{"y", `abc`},
+		},
+		{
+			{"z", `["bar",123]`},
+			{"x", `{"z":["bar",123]}`},
+		},
+	})
+
+}
+
+func expectPipeResults(t *testing.T, pipeStr string, rows, rowsExpected [][]Field) {
+	t.Helper()
+
+	lex := newLexer(pipeStr)
+	p, err := parsePipe(lex)
+	if err != nil {
+		t.Fatalf("unexpected error when parsing %q: %s", pipeStr, err)
+	}
+
+	workersCount := 5
+	stopCh := make(chan struct{})
+	cancel := func() {}
+	ppTest := newTestPipeProcessor()
+	pp := p.newPipeProcessor(workersCount, stopCh, cancel, ppTest)
+
+	brw := newTestBlockResultWriter(workersCount, pp)
+	for _, row := range rows {
+		brw.writeRow(row)
+	}
+	brw.flush()
+
+	ppTest.expectRows(t, rowsExpected)
+}
+
+func newTestBlockResultWriter(workersCount int, ppBase pipeProcessor) *testBlockResultWriter {
+	return &testBlockResultWriter{
+		workersCount: workersCount,
+		ppBase:       ppBase,
+	}
+}
+
+type testBlockResultWriter struct {
+	workersCount int
+	ppBase       pipeProcessor
+	rcs          []resultColumn
+	br           blockResult
+}
+
+func (brw *testBlockResultWriter) writeRow(row []Field) {
+	if !brw.areSameFields(row) {
+		brw.flush()
+
+		brw.rcs = brw.rcs[:0]
+		for _, field := range row {
+			brw.rcs = appendResultColumnWithName(brw.rcs, field.Name)
+		}
+	}
+
+	for i, field := range row {
+		brw.rcs[i].addValue(field.Value)
+	}
+	if rand.Intn(5) == 0 {
+		brw.flush()
+	}
+}
+
+func (brw *testBlockResultWriter) areSameFields(row []Field) bool {
+	if len(brw.rcs) != len(row) {
+		return false
+	}
+	for i, rc := range brw.rcs {
+		if rc.name != row[i].Name {
+			return false
+		}
+	}
+	return true
+}
+
+func (brw *testBlockResultWriter) flush() {
+	brw.br.setResultColumns(brw.rcs)
+	workerID := rand.Intn(brw.workersCount)
+	brw.ppBase.writeBlock(uint(workerID), &brw.br)
+	brw.br.reset()
+	for i := range brw.rcs {
+		brw.rcs[i].resetValues()
+	}
+}
+
+func newTestPipeProcessor() *testPipeProcessor {
+	return &testPipeProcessor{}
+}
+
+type testPipeProcessor struct {
+	resultRowsLock sync.Mutex
+	resultRows     [][]Field
+}
+
+func (pp *testPipeProcessor) writeBlock(workerID uint, br *blockResult) {
+	cs := br.getColumns()
+	var columnValues [][]string
+	for _, c := range cs {
+		values := c.getValues(br)
+		columnValues = append(columnValues, values)
+	}
+
+	for i := range br.timestamps {
+		row := make([]Field, len(columnValues))
+		for j, values := range columnValues {
+			r := &row[j]
+			r.Name = strings.Clone(cs[j].name)
+			r.Value = strings.Clone(values[i])
+		}
+		pp.resultRowsLock.Lock()
+		pp.resultRows = append(pp.resultRows, row)
+		pp.resultRowsLock.Unlock()
+	}
+}
+
+func (pp *testPipeProcessor) flush() error {
+	return nil
+}
+
+func (pp *testPipeProcessor) expectRows(t *testing.T, expectedRows [][]Field) {
+	t.Helper()
+
+	if len(pp.resultRows) != len(expectedRows) {
+		t.Fatalf("unexpected number of rows; got %d; want %d\nrows got\n%s\nrows expected\n%s",
+			len(pp.resultRows), len(expectedRows), rowsToString(pp.resultRows), rowsToString(expectedRows))
+	}
+
+	sortTestRows(pp.resultRows)
+	sortTestRows(expectedRows)
+
+	for i, resultRow := range pp.resultRows {
+		expectedRow := expectedRows[i]
+		if len(resultRow) != len(expectedRow) {
+			t.Fatalf("unexpected number of fields at row #%d; got %d; want %d\nrow got\n%s\nrow expected\n%s",
+				i, len(resultRow), len(expectedRow), rowToString(resultRow), rowToString(expectedRow))
+		}
+		for j, resultField := range resultRow {
+			expectedField := expectedRow[j]
+			if resultField.Name != expectedField.Name {
+				t.Fatalf("unexpected field name at row #%d; got %q; want %q\nrow got\n%s\nrow expected\n%s",
+					i, resultField.Name, expectedField.Name, rowToString(resultRow), rowToString(expectedRow))
+			}
+			if resultField.Value != expectedField.Value {
+				t.Fatalf("unexpected value for field %q at row #%d; got %q; want %q\nrow got\n%s\nrow expected\n%s",
+					resultField.Name, i, resultField.Value, expectedField.Value, rowToString(resultRow), rowToString(expectedRow))
+			}
+		}
+	}
+}
+
+func sortTestRows(rows [][]Field) {
+	slices.SortFunc(rows, func(a, b []Field) int {
+		reverse := -1
+		if len(a) > len(b) {
+			reverse = 1
+			a, b = b, a
+		}
+		for i, fA := range a {
+			fB := b[i]
+			if fA.Name == fB.Name {
+				if fA.Value == fB.Value {
+					continue
+				}
+				if fA.Value < fB.Value {
+					return reverse
+				}
+				return -reverse
+			}
+			if fA.Name < fB.Name {
+				return reverse
+			}
+			return -reverse
+		}
+		if len(a) == len(b) {
+			return 0
+		}
+		return reverse
+	})
+}
+
+func rowsToString(rows [][]Field) string {
+	a := make([]string, len(rows))
+	for i, row := range rows {
+		a[i] = rowToString(row)
+	}
+	return strings.Join(a, "\n")
+}
+
+func rowToString(row []Field) string {
+	a := make([]string, len(row))
+	for i, f := range row {
+		a[i] = f.String()
+	}
+	return "{" + strings.Join(a, ",") + "}"
+}
 
 func TestPipeUnpackJSONUpdateNeededFields(t *testing.T) {
 	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {

@@ -24,7 +24,7 @@ func (pu *pipeUnpackJSON) String() string {
 		s += " from " + quoteTokenIfNeeded(pu.fromField)
 	}
 	if pu.resultPrefix != "" {
-		s += " prefix " + quoteTokenIfNeeded(pu.resultPrefix)
+		s += " result_prefix " + quoteTokenIfNeeded(pu.resultPrefix)
 	}
 	return s
 }
@@ -80,7 +80,7 @@ func (shard *pipeUnpackJSONProcessorShard) writeRow(ppBase pipeProcessor, br *bl
 	areEqualColumns := len(rcs) == len(cs)+len(extraFields)
 	if areEqualColumns {
 		for i, f := range extraFields {
-			if rcs[len(rcs)+i].name != f.Name {
+			if rcs[len(cs)+i].name != f.Name {
 				areEqualColumns = false
 				break
 			}
@@ -107,7 +107,7 @@ func (shard *pipeUnpackJSONProcessorShard) writeRow(ppBase pipeProcessor, br *bl
 	}
 	for i, f := range extraFields {
 		v := f.Value
-		rcs[len(rcs)+i].addValue(v)
+		rcs[len(cs)+i].addValue(v)
 		shard.valuesLen += len(v)
 	}
 	if shard.valuesLen >= 1_000_000 {
