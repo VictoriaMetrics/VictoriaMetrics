@@ -1052,6 +1052,7 @@ LogsQL supports the following pipes:
 
 - [`copy`](#copy-pipe) copies [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - [`delete`](#delete-pipe) deletes [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
+- [`extract`](#extract-pipe) extracts the sepcified text into the given log fields.
 - [`field_names`](#field_names-pipe) returns all the names of [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - [`fields`](#fields-pipe) selects the given set of [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - [`filter`](#filter-pipe) applies additional [filters](#filters) to results.
@@ -1104,6 +1105,79 @@ See also:
 
 - [`rename` pipe](#rename-pipe)
 - [`fields` pipe](#fields-pipe)
+
+### extract pipe
+
+`| extract from field_name "pattern"` [pipe](#pipes) allows extracting additional fields specified in the `pattern` from the given
+`field_name` [log field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model). Existing log fields remain unchanged
+after the `| extract ...` pipe.
+
+`| extract ...` pipe can be useful for extracting additional fields needed for further data processing with other pipes such as [`stats` pipe](#stats-pipe) or [`sort` pipe](#sort-pipe).
+
+For example, the following query selects logs with the `error` [word](#word) for the last day,
+extracts ip address from [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) into `ip` field and then calculates top 10 ip addresses
+with the biggest number of logs:
+
+```logsql
+_time:1d error | extract from _msg "ip=<ip> " | stats by (ip) count() logs | sort by (logs) desc limit 10
+```
+
+It is expected that `_msg` field contains `ip=...` substring, which ends with space. For example, `error from ip=1.2.3.4, user_id=42`.
+
+If the `| extract ...` pipe is applied to [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field), then the `from _msg` part can be omitted.
+For example, the following query is equivalent to the previous one:
+
+```logsql
+_time:1d error | extract "ip=<ip> " | stats by (ip) count() logs | sort by (logs) desc limit 10
+```
+
+See also:
+
+- [format for extract pipe pattern](#format-for-extract-pipe-pattern)
+
+#### Format for extract pipe pattern
+
+The `pattern` part from [`| extract from src_field "pattern"` pipe](#extract-pipes) may contain arbitrary text, which matches as is to the `src_field` value.
+Additionally to arbitrary text, the `pattern` may contain placeholders in the form `<...>`, which match any strings, including empty strings.
+Placeholders may be named, such as `<ip>`, or anonymous, such as `<_>`. Named placeholders extract the matching text into
+the corresponding [log field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
+Anonymous placeholders are useful for skipping arbitrary text during pattern matching.
+
+For example, if [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) contains the following text:
+
+```
+1.2.3.4 GET /foo/bar?baz 404 "Mozilla  foo bar baz" some tail here
+```
+
+Then the following `| extract ...` [pipe](#pipes) can be used for extracting `ip`, `path` and `user_agent` fields from it:
+
+```
+| extract '<ip> <_> <path> <_> "<user_agent>"'
+```
+
+Note that the user-agent part of the log message is in double quotes. This means that it may contain special chars, including escaped double quote, e.g. `\"`.
+This may break proper matching of the string in double quotes.
+
+VictoriaLogs automatically detects the whole string in quotes and automatically decodes it if the first char in the placeholder is double quote or backtick.
+So it is better to use the following `pattern` for proper matching of quoted strings:
+
+```
+| extract "<ip> <_> <path> <_> <user_agent>"
+```
+
+Note that the `user_agent` now matches double quotes, but VictoriaLogs automatically unquotes the matching string before storing it in the `user_agent` field.
+This propery is useful for extracting JSON strings. For example, the following `pattern` properly extracts the `message` JSON string into `msg` field:
+
+```
+| extract '"message":<msg>'
+```
+
+If some special chars such as `<` must be matched by the `pattern`, then they can be [html-escaped](https://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references).
+For example, the following `pattern` properly matches `a < 123.456` text:
+
+```
+| extract "<left> &lt; <right>"
+```
 
 ### field_names pipe
 
@@ -1349,6 +1423,13 @@ _time:5m | stats count() logs_total, count_uniq(_stream) streams_total
 
 See also:
 
+- [stats by fields](#stats-by-fields)
+- [stats by time buckets](#stats-by-time-buckets)
+- [stats by time buckets with timezone offset](#stats-by-time-buckets-with-timezone-offset)
+- [stats by field buckets](#stats-by-field-buckets)
+- [stats by IPv4 buckets](#stats-by-ipv4-buckets)
+- [stats with additional filters](#stats-with-additional-filters)
+- [stats pipe functions](#stats-pipe-functions)
 - [`sort` pipe](#sort-pipe)
 
 
