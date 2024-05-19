@@ -6,6 +6,8 @@ import (
 	"math"
 	"net/http"
 	"slices"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -55,43 +57,74 @@ func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	// Obtain field entries
 	fields := r.Form["field"]
 
+	// Prepare the query
 	q.AddCountByTimePipe(int64(step), int64(offset), fields)
 	q.Optimize()
 
-	var wLock sync.Mutex
-	isFirstWrite := true
+	var mLock sync.Mutex
+	m := make(map[string]*hitsSeries)
 	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
 		if len(columns) == 0 || len(columns[0].Values) == 0 {
 			return
 		}
 
+		timestampValues := columns[0].Values
+		hitsValues := columns[len(columns)-1].Values
+		columns = columns[1 : len(columns)-1]
+
 		bb := blockResultPool.Get()
 		for i := range timestamps {
-			bb.B = append(bb.B, ',')
-			WriteJSONRow(bb, columns, i)
-			// Remove newline at the end
-			bb.B = bb.B[:len(bb.B)-1]
+			timestampStr := strings.Clone(timestampValues[i])
+			hitsStr := strings.Clone(hitsValues[i])
+
+			bb.Reset()
+			WriteLabelsForHits(bb, columns, i)
+
+			mLock.Lock()
+			hs, ok := m[string(bb.B)]
+			if !ok {
+				k := string(bb.B)
+				hs = &hitsSeries{}
+				m[k] = hs
+			}
+			hs.timestamps = append(hs.timestamps, timestampStr)
+			hs.values = append(hs.values, hitsStr)
+			mLock.Unlock()
 		}
-		wLock.Lock()
-		buf := bb.B
-		if isFirstWrite {
-			buf = buf[1:]
-			isFirstWrite = false
-		}
-		_, _ = w.Write(buf)
-		wLock.Unlock()
 		blockResultPool.Put(bb)
+	}
+
+	// Execute the query
+	if err := vlstorage.RunQuery(ctx, tenantIDs, q, writeBlock); err != nil {
+		httpserver.Errorf(w, r, "cannot execute query [%s]: %s", q, err)
+		return
 	}
 
 	// Write response
 	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprintf(w, `{"rows":[`)
-	err = vlstorage.RunQuery(ctx, tenantIDs, q, writeBlock)
-	fmt.Fprintf(w, `]}`)
+	WriteHitsSeries(w, m)
+}
 
-	if err != nil {
-		httpserver.Errorf(w, r, "cannot execute query [%s]: %s", q, err)
-	}
+type hitsSeries struct {
+	timestamps []string
+	values     []string
+}
+
+func (hs *hitsSeries) sort() {
+	sort.Sort(hs)
+}
+
+func (hs *hitsSeries) Len() int {
+	return len(hs.timestamps)
+}
+
+func (hs *hitsSeries) Swap(i, j int) {
+	hs.timestamps[i], hs.timestamps[j] = hs.timestamps[j], hs.timestamps[i]
+	hs.values[i], hs.values[j] = hs.values[j], hs.values[i]
+}
+
+func (hs *hitsSeries) Less(i, j int) bool {
+	return hs.timestamps[i] < hs.timestamps[j]
 }
 
 // ProcessFieldNamesRequest handles /select/logsql/field_names request.

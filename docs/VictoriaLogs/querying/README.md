@@ -112,19 +112,21 @@ Below is an example JSON output returned from this endpoint:
 
 ```json
 {
-  "rows": [
+  "hits": [
     {
-      "_time": "2024-01-12T00:00:00Z",
-      "hits": "800000"
-    },
-    {
-      "_time": "2024-01-12T01:00:00Z",
-      "hits": "800000"
-    },
-    {
-      "_time": "2024-01-12T02:00:00Z",
-      "hits": "820000"
+      "fields": {},
+      "timestamps": [
+        "2024-01-01T00:00:00Z",
+        "2024-01-01T01:00:00Z",
+        "2024-01-01T02:00:00Z"
+      ],
+      "values": [
+        410339,
+        450311,
+        899506
+      ]
     }
+  ]
 }
 ```
 
@@ -141,7 +143,46 @@ Additionally, any number of `field=<field_name>` args can be passed to `/select/
 For example, the following query groups hits by `level` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) additionally to the provided `step`:
 
 ```logsql
-curl http://localhost:9428/select/logsql/hits -d 'query=*' -d 'start=1w' -d 'step=1d' -d 'field=level'
+curl http://localhost:9428/select/logsql/hits -d 'query=*' -d 'start=3h' -d 'step=1h' -d 'field=level'
+```
+
+The grouped fields are put inside `"fields"` object:
+
+```json
+{
+  "hits": [
+    {
+      "fields": {
+        "level": "error"
+      },
+      "timestamps": [
+        "2024-01-01T00:00:00Z",
+        "2024-01-01T01:00:00Z",
+        "2024-01-01T02:00:00Z"
+      ],
+      "values": [
+        25,
+        20,
+        15
+      ]
+    },
+    {
+      "fields": {
+        "level": "info"
+      },
+      "timestamps": [
+        "2024-01-01T00:00:00Z",
+        "2024-01-01T01:00:00Z",
+        "2024-01-01T02:00:00Z"
+      ],
+      "values": [
+        25625,
+        35043,
+        25230
+      ]
+    }
+  ]
+}
 ```
 
 See also:
