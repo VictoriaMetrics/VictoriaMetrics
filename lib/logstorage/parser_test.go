@@ -1544,6 +1544,16 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | fields x,y | field_names as bar | fields baz`, `x,y`, ``)
 	f(`* | rm x,y | field_names as bar | fields baz`, `*`, `x,y`)
 
+	f(`* | extract from s1 "<f1>x<f2>"`, `*`, ``)
+	f(`* | extract from s1 "<f1>x<f2>" | fields foo`, `foo`, ``)
+	f(`* | extract from s1 "<f1>x<f2>" | fields foo,s1`, `foo,s1`, ``)
+	f(`* | extract from s1 "<f1>x<f2>" | fields foo,f1`, `foo,s1`, ``)
+	f(`* | extract from s1 "<f1>x<f2>" | fields foo,f1,f2`, `foo,s1`, ``)
+	f(`* | extract from s1 "<f1>x<f2>" | rm foo`, `*`, `foo`)
+	f(`* | extract from s1 "<f1>x<f2>" | rm foo,s1`, `*`, `foo`)
+	f(`* | extract from s1 "<f1>x<f2>" | rm foo,f1`, `*`, `foo`)
+	f(`* | extract from s1 "<f1>x<f2>" | rm foo,f1,f2`, `*`, `foo,s1`)
+
 	f(`* | rm f1, f2`, `*`, `f1,f2`)
 	f(`* | rm f1, f2 | mv f2 f3`, `*`, `f1,f2,f3`)
 	f(`* | rm f1, f2 | cp f2 f3`, `*`, `f1,f2,f3`)

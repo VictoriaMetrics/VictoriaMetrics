@@ -6,10 +6,10 @@ import (
 )
 
 func TestExtractFormatApply(t *testing.T) {
-	f := func(format, s string, resultsExpected []string) {
+	f := func(pattern, s string, resultsExpected []string) {
 		t.Helper()
 
-		steps, err := parseExtractFormatSteps(format)
+		steps, err := parseExtractFormatSteps(pattern)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -45,7 +45,7 @@ func TestExtractFormatApply(t *testing.T) {
 
 	f("ip=<ip> <> path=<path> ", "x=a, ip=1.2.3.4 method=GET host='abc' path=/foo/bar some tail here", []string{"1.2.3.4", "/foo/bar"})
 
-	// escaped format
+	// escaped pattern
 	f("ip=&lt;<ip>&gt;", "foo ip=<1.2.3.4> bar", []string{"1.2.3.4"})
 	f("ip=&lt;<ip>&gt;", "foo ip=<foo&amp;bar> bar", []string{"foo&amp;bar"})
 
@@ -176,4 +176,49 @@ func TestParseExtractFormatStepFailure(t *testing.T) {
 	// missing >
 	f("<foo")
 	f("foo<bar")
+}
+
+func TestPipeExtractUpdateNeededFields(t *testing.T) {
+	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+		t.Helper()
+
+		nfs := newTestFieldsSet(neededFields)
+		unfs := newTestFieldsSet(unneededFields)
+
+		lex := newLexer(s)
+		p, err := parsePipeExtract(lex)
+		if err != nil {
+			t.Fatalf("cannot parse %s: %s", s, err)
+		}
+		p.updateNeededFields(nfs, unfs)
+
+		assertNeededFields(t, nfs, unfs, neededFieldsExpected, unneededFieldsExpected)
+	}
+
+	// all the needed fields
+	f("extract from x '<foo>'", "*", "", "*", "")
+
+	// all the needed fields, unneeded fields do not intersect with fromField and output fields
+	f("extract from x '<foo>'", "*", "f1,f2", "*", "f1,f2")
+
+	// all the needed fields, unneeded fields intersect with fromField
+	f("extract from x '<foo>'", "*", "f2,x", "*", "f2")
+
+	// all the needed fields, unneeded fields intersect with output fields
+	f("extract from x '<foo>x<bar>'", "*", "f2,foo", "*", "f2")
+
+	// all the needed fields, unneeded fields intersect with all the output fields
+	f("extract from x '<foo>x<bar>'", "*", "f2,foo,bar", "*", "f2,x")
+
+	// needed fields do not intersect with fromField and output fields
+	f("extract from x '<foo>x<bar>'", "f1,f2", "", "f1,f2", "")
+
+	// needed fields intersect with fromField
+	f("extract from x '<foo>x<bar>'", "f2,x", "", "f2,x", "")
+
+	// needed fields intersect with output fields
+	f("extract from x '<foo>x<bar>'", "f2,foo", "", "f2,x", "")
+
+	// needed fields intersect with fromField and output fields
+	f("extract from x '<foo>x<bar>'", "f2,foo,x,y", "", "f2,x,y", "")
 }

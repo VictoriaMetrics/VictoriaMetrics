@@ -10,14 +10,14 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-// pipeExtract processes '| extract (field, format)' pipe.
+// pipeExtract processes '| extract from <field> <pattern>' pipe.
 //
 // See https://docs.victoriametrics.com/victorialogs/logsql/#extract-pipe
 type pipeExtract struct {
 	fromField string
 	steps     []extractFormatStep
 
-	format string
+	pattern string
 }
 
 func (pe *pipeExtract) String() string {
@@ -25,16 +25,39 @@ func (pe *pipeExtract) String() string {
 	if !isMsgFieldName(pe.fromField) {
 		s += " from " + quoteTokenIfNeeded(pe.fromField)
 	}
-	s += " " + quoteTokenIfNeeded(pe.format)
+	s += " " + quoteTokenIfNeeded(pe.pattern)
 	return s
 }
 
 func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	neededFields.add(pe.fromField)
-
-	for _, step := range pe.steps {
-		if step.field != "" {
-			unneededFields.remove(step.field)
+	if neededFields.contains("*") {
+		needFromField := false
+		for _, step := range pe.steps {
+			if step.field != "" {
+				if !unneededFields.contains(step.field) {
+					needFromField = true
+				} else {
+					unneededFields.remove(step.field)
+				}
+			}
+		}
+		if needFromField {
+			unneededFields.remove(pe.fromField)
+		} else {
+			unneededFields.add(pe.fromField)
+		}
+	} else {
+		needFromField := false
+		for _, step := range pe.steps {
+			if step.field != "" {
+				if neededFields.contains(step.field) {
+					needFromField = true
+					neededFields.remove(step.field)
+				}
+			}
+		}
+		if needFromField {
+			neededFields.add(pe.fromField)
 		}
 	}
 }
@@ -146,19 +169,19 @@ func parsePipeExtract(lex *lexer) (*pipeExtract, error) {
 		fromField = f
 	}
 
-	format, err := getCompoundToken(lex)
+	pattern, err := getCompoundToken(lex)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read 'format': %w", err)
+		return nil, fmt.Errorf("cannot read 'pattern': %w", err)
 	}
-	steps, err := parseExtractFormatSteps(format)
+	steps, err := parseExtractFormatSteps(pattern)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse 'format' %q: %w", format, err)
+		return nil, fmt.Errorf("cannot parse 'pattern' %q: %w", pattern, err)
 	}
 
 	pe := &pipeExtract{
 		fromField: fromField,
 		steps:     steps,
-		format:    format,
+		pattern:   pattern,
 	}
 	return pe, nil
 }

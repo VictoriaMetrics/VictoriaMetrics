@@ -51,8 +51,8 @@ func BenchmarkExtractFormatApply(b *testing.B) {
 	})
 }
 
-func benchmarkExtractFormatApply(b *testing.B, format string, a []string) {
-	steps, err := parseExtractFormatSteps(format)
+func benchmarkExtractFormatApply(b *testing.B, pattern string, a []string) {
+	steps, err := parseExtractFormatSteps(pattern)
 	if err != nil {
 		b.Fatalf("unexpected error: %s", err)
 	}
