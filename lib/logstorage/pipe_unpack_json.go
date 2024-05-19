@@ -37,12 +37,11 @@ func (pu *pipeUnpackJSON) updateNeededFields(neededFields, unneededFields fields
 	}
 }
 
-func (pu *pipeUnpackJSON) newPipeProcessor(workersCount int, stopCh <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
+func (pu *pipeUnpackJSON) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
 	shards := make([]pipeUnpackJSONProcessorShard, workersCount)
 
 	pup := &pipeUnpackJSONProcessor{
 		pu:     pu,
-		stopCh: stopCh,
 		ppBase: ppBase,
 
 		shards: shards,
@@ -52,7 +51,6 @@ func (pu *pipeUnpackJSON) newPipeProcessor(workersCount int, stopCh <-chan struc
 
 type pipeUnpackJSONProcessor struct {
 	pu     *pipeUnpackJSON
-	stopCh <-chan struct{}
 	ppBase pipeProcessor
 
 	shards []pipeUnpackJSONProcessorShard
