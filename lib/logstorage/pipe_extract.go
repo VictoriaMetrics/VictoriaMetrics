@@ -14,18 +14,23 @@ import (
 //
 // See https://docs.victoriametrics.com/victorialogs/logsql/#extract-pipe
 type pipeExtract struct {
-	field string
-	steps []extractFormatStep
+	fromField string
+	steps     []extractFormatStep
 
-	stepsStr string
+	format string
 }
 
 func (pe *pipeExtract) String() string {
-	return fmt.Sprintf("extract(%s, %s)", quoteTokenIfNeeded(pe.field), pe.stepsStr)
+	s := "extract"
+	if !isMsgFieldName(pe.fromField) {
+		s += " from " + quoteTokenIfNeeded(pe.fromField)
+	}
+	s += " " + quoteTokenIfNeeded(pe.format)
+	return s
 }
 
 func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	neededFields.add(pe.field)
+	neededFields.add(pe.fromField)
 
 	for _, step := range pe.steps {
 		if step.field != "" {
@@ -87,7 +92,7 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	shard := &pep.shards[workerID]
-	c := br.getColumnByName(pep.pe.field)
+	c := br.getColumnByName(pep.pe.fromField)
 	values := c.getValues(br)
 
 	ef := shard.ef
@@ -108,6 +113,39 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 
 func (pep *pipeExtractProcessor) flush() error {
 	return nil
+}
+
+func parsePipeExtract(lex *lexer) (*pipeExtract, error) {
+	if !lex.isKeyword("extract") {
+		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "extract")
+	}
+	lex.nextToken()
+
+	fromField := "_msg"
+	if lex.isKeyword("from") {
+		lex.nextToken()
+		f, err := parseFieldName(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'from' field name: %w", err)
+		}
+		fromField = f
+	}
+
+	format, err := getCompoundToken(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read 'format': %w", err)
+	}
+	steps, err := parseExtractFormatSteps(format)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse 'format' %q: %w", format, err)
+	}
+
+	pe := &pipeExtract{
+		fromField: fromField,
+		steps:     steps,
+		format:    format,
+	}
+	return pe, nil
 }
 
 type extractFormat struct {

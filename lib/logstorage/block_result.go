@@ -1333,9 +1333,12 @@ func (br *blockResult) getColumnByName(columnName string) *blockResultColumn {
 	if columnName == "" {
 		columnName = "_msg"
 	}
-	for _, c := range br.getColumns() {
-		if c.name == columnName {
-			return c
+	cs := br.getColumns()
+
+	// Search for the needed column in reverse order, since the old column may be overridden by new column in addResultColumn()
+	for i := len(cs) - 1; i >= 0; i-- {
+		if cs[i].name == columnName {
+			return cs[i]
 		}
 	}
 

@@ -995,6 +995,13 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | filter error ip:12.3.4.5 or warn`, `* | filter error ip:12.3.4.5 or warn`)
 	f(`foo | stats by (host) count() logs | filter logs:>50 | sort by (logs desc) | limit 10`, `foo | stats by (host) count(*) as logs | filter logs:>50 | sort by (logs desc) | limit 10`)
 
+	// extract pipe
+	f(`* | extract "foo<bar>baz"`, `* | extract "foo<bar>baz"`)
+	f(`* | extract from _msg "foo<bar>baz"`, `* | extract "foo<bar>baz"`)
+	f(`* | extract from '' 'foo<bar>baz'`, `* | extract "foo<bar>baz"`)
+	f("* | extract from x `foo<bar>baz`", `* | extract from x "foo<bar>baz"`)
+	f("* | extract from x foo<bar>baz", `* | extract from x "foo<bar>baz"`)
+
 	// multiple different pipes
 	f(`* | fields foo, bar | limit 100 | stats by(foo,bar) count(baz) as qwert`, `* | fields foo, bar | limit 100 | stats by (foo, bar) count(baz) as qwert`)
 	f(`* | skip 100 | head 20 | skip 10`, `* | offset 100 | limit 20 | offset 10`)
@@ -1383,6 +1390,19 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | filter | sort by (x)`)
 	f(`foo | filter (`)
 	f(`foo | filter )`)
+
+	// invalid extract pipe
+	f(`foo | extract`)
+	f(`foo | extract bar`)
+	f(`foo | extract "xy"`)
+	f(`foo | extract "<>"`)
+	f(`foo | extract "foo<>foo"`)
+	f(`foo | extract "foo<>foo<_>bar<*>asdf"`)
+	f(`foo | extract from`)
+	f(`foo | extract from x`)
+	f(`foo | extract from x "abc"`)
+	f(`foo | extract from x "<abc`)
+	f(`foo | extract from x "<abc>" de`)
 }
 
 func TestQueryGetNeededColumns(t *testing.T) {
