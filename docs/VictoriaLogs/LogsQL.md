@@ -1834,12 +1834,13 @@ See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) fo
 
 ## Transformations
 
-It is possible to perform various transformations on the [selected log entries](#filters) at client side
-with `jq`, `awk`, `cut`, etc. Unix commands according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
+LogsQL supports the following transformations on the log entries selected with [filters](#filters):
 
-LogsQL will support the following transformations for the [selected](#filters) log entries:
+- Extracting arbitrary text from [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) according to the provided pattern.
+  See [these docs](#extract-pipe) for details.
 
-- Extracting the specified fields from text [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) according to the provided pattern.
+LogsQL will support the following transformations in the future:
+
 - Extracting the specified fields from JSON strings stored inside [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - Extracting the specified fields from [logfmt](https://brandur.org/logfmt) strings stored
   inside [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
@@ -1849,6 +1850,9 @@ LogsQL will support the following transformations for the [selected](#filters) l
 - Parsing duration strings into floating-point seconds for further [stats calculations](#stats-pipe).
 
 See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
+
+It is also possible to perform various transformations on the [selected log entries](#filters) at client side
+with `jq`, `awk`, `cut`, etc. Unix commands according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
 
 ## Post-filters
 

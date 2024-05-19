@@ -35,13 +35,13 @@ The following functionality is planned in the future versions of VictoriaLogs:
   - Syslog
   - Journald (systemd)
 - Add missing functionality to [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html):
-  - [Stream context](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#stream-context).
   - [Transformation functions](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#transformations).
+  - [Stream context](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#stream-context).
 - Live tailing for [LogsQL filters](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#filters) aka `tail -f`.
 - Web UI with the following abilities:
   - Explore the ingested logs ([partially done](https://docs.victoriametrics.com/VictoriaLogs/querying/#web-ui)).
-  - Build graphs over time for the ingested logs.
-- Integration with Grafana.
+  - Build graphs over time for the ingested logs via [hits HTTP API](https://docs.victoriametrics.com/victorialogs/querying/#querying-hits-stats).
+- Integration with Grafana ([partially done](https://github.com/VictoriaMetrics/victorialogs-datasource)).
 - Ability to make instant snapshots and backups in the way [similar to VictoriaMetrics](https://docs.victoriametrics.com/#how-to-work-with-snapshots).
 - Cluster version of VictoriaLogs.
 - Ability to store data to object storage (such as S3, GCS, Minio).
