@@ -1062,6 +1062,7 @@ LogsQL supports the following pipes:
 - [`sort`](#sort-pipe) sorts logs by the given [fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - [`stats`](#stats-pipe) calculates various stats over the selected logs.
 - [`uniq`](#uniq-pipe) returns unique log entires.
+- [`unpack_json`](#unpack_json-pipe) unpacks JSON value from [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 
 ### copy pipe
 
@@ -1134,6 +1135,7 @@ _time:1d error | extract "ip=<ip> " | stats by (ip) count() logs | sort by (logs
 See also:
 
 - [format for extract pipe pattern](#format-for-extract-pipe-pattern)
+- [`unpack_json` pipe](#unpack_json-pipe)
 
 #### Format for extract pipe pattern
 
@@ -1354,43 +1356,6 @@ See also:
 - [`limit` pipe](#limit-pipe)
 - [`offset` pipe](#offset-pipe)
 
-### uniq pipe
-
-`| uniq ...` pipe allows returning only unique results over the selected logs. For example, the following LogsQL query
-returns unique values for `ip` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-over logs for the last 5 minutes:
-
-```logsql
-_time:5m | uniq by (ip)
-```
-
-It is possible to specify multiple fields inside `by(...)` clause. In this case all the unique sets for the given fields
-are returned. For example, the following query returns all the unique `(host, path)` pairs for the logs over the last 5 minutes:
-
-```logsql
-_time:5m | uniq by (host, path)
-```
-
-The unique entries are returned in arbitrary order. Use [`sort` pipe](#sort-pipe) in order to sort them if needed.
-
-Unique entries are stored in memory during query execution. Big number of unique selected entries may require a lot of memory.
-Sometimes it is enough to return up to `N` unique entries. This can be done by adding `limit N` after `by (...)` clause.
-This allows limiting memory usage. For example, the following query returns up to 100 unique `(host, path)` pairs for the logs over the last 5 minutes:
-
-```logsql
-_time:5m | uniq by (host, path) limit 100
-```
-
-The `by` keyword can be skipped in `uniq ...` pipe. For example, the following query is equivalent to the previous one:
-
-```logsql
-_time:5m | uniq (host, path) limit 100
-```
-
-See also:
-
-- [`uniq_values` stats function](#uniq_values-stats)
-
 ### stats pipe
 
 `| stats ...` pipe allows calculating various stats over the selected logs. For example, the following LogsQL query
@@ -1541,6 +1506,82 @@ _time:5m | stats
   count() if (PUT) puts,
   count() total
 ```
+
+### uniq pipe
+
+`| uniq ...` pipe allows returning only unique results over the selected logs. For example, the following LogsQL query
+returns unique values for `ip` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+over logs for the last 5 minutes:
+
+```logsql
+_time:5m | uniq by (ip)
+```
+
+It is possible to specify multiple fields inside `by(...)` clause. In this case all the unique sets for the given fields
+are returned. For example, the following query returns all the unique `(host, path)` pairs for the logs over the last 5 minutes:
+
+```logsql
+_time:5m | uniq by (host, path)
+```
+
+The unique entries are returned in arbitrary order. Use [`sort` pipe](#sort-pipe) in order to sort them if needed.
+
+Unique entries are stored in memory during query execution. Big number of unique selected entries may require a lot of memory.
+Sometimes it is enough to return up to `N` unique entries. This can be done by adding `limit N` after `by (...)` clause.
+This allows limiting memory usage. For example, the following query returns up to 100 unique `(host, path)` pairs for the logs over the last 5 minutes:
+
+```logsql
+_time:5m | uniq by (host, path) limit 100
+```
+
+The `by` keyword can be skipped in `uniq ...` pipe. For example, the following query is equivalent to the previous one:
+
+```logsql
+_time:5m | uniq (host, path) limit 100
+```
+
+See also:
+
+- [`uniq_values` stats function](#uniq_values-stats)
+
+### unpack_json pipe
+
+`| unpack_json from field_name` pipe unpacks `{"k1":"v1", ..., "kN":"vN"}` JSON from the given `field_name` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+into `k1`, ... `kN` field names with the corresponding `v1`, ..., `vN` values. It overrides existing fields with names from the `k1`, ..., `kN` list. Other fields remain untouched.
+
+Nexted JSON is unpacked according to the rules defined [here](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+
+For example, the following query unpacks JSON from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) across logs for the last 5 minutes:
+
+```logsql
+_time:5m | unpack_json from _msg
+```
+
+The `from _json` part can be omitted when JSON is unpacked from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+The following query is equivalent to the previous one:
+
+```logsql
+_time:5m | unpack_json
+```
+
+If you want to make sure that the JSON fields do not clash with the existing fields, then it is possible to specify common prefix for all the fields extracted from JSON,
+by adding `result_prefix "prefix_name"` to `unpack_json`. For example, the following query adds `foo_` prefix for all the fields extracted from the JSON
+at [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
+
+```logsql
+_time:5m | unpack_json result_prefix "foo_"
+```
+
+Performance tip: if you need extracting a single field from long JSON, it is faster to use [`extract` pipe](#extract-pipe). For example, the following query extracts `"ip"` field from JSON
+stored in [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
+
+```
+_time:5m | extract '"ip":<field_value>'
+```
+
+See also:
+
+- [`extract` pipe](#extract-pipe)
 
 ## stats pipe functions
 
