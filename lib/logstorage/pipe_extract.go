@@ -31,14 +31,14 @@ func (pe *pipeExtract) String() string {
 
 func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	if neededFields.contains("*") {
+		unneededFieldsOrig := unneededFields.clone()
 		needFromField := false
 		for _, step := range pe.steps {
 			if step.field != "" {
-				if !unneededFields.contains(step.field) {
+				if !unneededFieldsOrig.contains(step.field) {
 					needFromField = true
-				} else {
-					unneededFields.remove(step.field)
 				}
+				unneededFields.add(step.field)
 			}
 		}
 		if needFromField {
@@ -49,11 +49,9 @@ func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet
 	} else {
 		needFromField := false
 		for _, step := range pe.steps {
-			if step.field != "" {
-				if neededFields.contains(step.field) {
-					needFromField = true
-					neededFields.remove(step.field)
-				}
+			if step.field != "" && neededFields.contains(step.field) {
+				needFromField = true
+				neededFields.remove(step.field)
 			}
 		}
 		if needFromField {
@@ -145,7 +143,7 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 	pep.ppBase.writeBlock(workerID, br)
 
 	for i := range rcs {
-		rcs[i].resetKeepName()
+		rcs[i].resetValues()
 	}
 }
 

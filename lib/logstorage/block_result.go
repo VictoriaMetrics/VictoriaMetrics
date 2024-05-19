@@ -1810,9 +1810,17 @@ type resultColumn struct {
 	values []string
 }
 
-func (rc *resultColumn) resetKeepName() {
+func (rc *resultColumn) resetValues() {
 	clear(rc.values)
 	rc.values = rc.values[:0]
+}
+
+func appendResultColumnWithName(dst []resultColumn, name string) []resultColumn {
+	dst = slicesutil.SetLength(dst, len(dst)+1)
+	rc := &dst[len(dst)-1]
+	rc.resetValues()
+	rc.name = name
+	return dst
 }
 
 // addValue adds the given values v to rc.

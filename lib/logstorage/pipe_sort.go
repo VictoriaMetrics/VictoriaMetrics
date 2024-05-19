@@ -521,14 +521,10 @@ func (wctx *pipeSortWriteContext) writeNextRow(shard *pipeSortProcessorShard) {
 
 		rcs = wctx.rcs[:0]
 		for _, bf := range byFields {
-			rcs = append(rcs, resultColumn{
-				name: bf.name,
-			})
+			rcs = appendResultColumnWithName(rcs, bf.name)
 		}
 		for _, c := range b.otherColumns {
-			rcs = append(rcs, resultColumn{
-				name: c.name,
-			})
+			rcs = appendResultColumnWithName(rcs, c.name)
 		}
 		wctx.rcs = rcs
 	}
@@ -567,7 +563,7 @@ func (wctx *pipeSortWriteContext) flush() {
 	wctx.psp.ppBase.writeBlock(0, br)
 	br.reset()
 	for i := range rcs {
-		rcs[i].resetKeepName()
+		rcs[i].resetValues()
 	}
 }
 

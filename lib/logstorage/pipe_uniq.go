@@ -359,9 +359,7 @@ func (wctx *pipeUniqWriteContext) writeRow(rowFields []Field) {
 
 		rcs = wctx.rcs[:0]
 		for _, f := range rowFields {
-			rcs = append(rcs, resultColumn{
-				name: f.Name,
-			})
+			rcs = appendResultColumnWithName(rcs, f.Name)
 		}
 		wctx.rcs = rcs
 	}
@@ -391,7 +389,7 @@ func (wctx *pipeUniqWriteContext) flush() {
 	wctx.pup.ppBase.writeBlock(0, br)
 	br.reset()
 	for i := range rcs {
-		rcs[i].resetKeepName()
+		rcs[i].resetValues()
 	}
 }
 

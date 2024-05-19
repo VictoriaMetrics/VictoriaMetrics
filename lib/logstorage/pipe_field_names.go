@@ -143,7 +143,7 @@ func (wctx *pipeFieldNamesWriteContext) flush() {
 	br.setResultColumns(wctx.rcs[:1])
 	wctx.pfp.ppBase.writeBlock(0, br)
 	br.reset()
-	wctx.rcs[0].resetKeepName()
+	wctx.rcs[0].resetValues()
 }
 
 func parsePipeFieldNames(lex *lexer) (*pipeFieldNames, error) {

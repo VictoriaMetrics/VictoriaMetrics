@@ -434,14 +434,10 @@ func (psp *pipeStatsProcessor) flush() error {
 
 	rcs := make([]resultColumn, 0, len(byFields)+len(psp.ps.funcs))
 	for _, bf := range byFields {
-		rcs = append(rcs, resultColumn{
-			name: bf.name,
-		})
+		rcs = appendResultColumnWithName(rcs, bf.name)
 	}
 	for _, f := range psp.ps.funcs {
-		rcs = append(rcs, resultColumn{
-			name: f.resultName,
-		})
+		rcs = appendResultColumnWithName(rcs, f.resultName)
 	}
 	var br blockResult
 
@@ -487,7 +483,7 @@ func (psp *pipeStatsProcessor) flush() error {
 			psp.ppBase.writeBlock(0, &br)
 			br.reset()
 			for i := range rcs {
-				rcs[i].resetKeepName()
+				rcs[i].resetValues()
 			}
 			valuesLen = 0
 		}

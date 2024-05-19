@@ -462,14 +462,10 @@ func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bo
 
 		rcs = wctx.rcs[:0]
 		for _, bf := range byFields {
-			rcs = append(rcs, resultColumn{
-				name: bf.name,
-			})
+			rcs = appendResultColumnWithName(rcs, bf.name)
 		}
 		for _, c := range r.otherColumns {
-			rcs = append(rcs, resultColumn{
-				name: c.Name,
-			})
+			rcs = appendResultColumnWithName(rcs, c.Name)
 		}
 		wctx.rcs = rcs
 	}
@@ -515,7 +511,7 @@ func (wctx *pipeTopkWriteContext) flush() {
 	wctx.ptp.ppBase.writeBlock(0, br)
 	br.reset()
 	for i := range rcs {
-		rcs[i].resetKeepName()
+		rcs[i].resetValues()
 	}
 }
 
