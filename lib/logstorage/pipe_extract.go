@@ -60,7 +60,7 @@ func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet
 	}
 }
 
-func (pe *pipeExtract) newPipeProcessor(workersCount int, stopCh <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
+func (pe *pipeExtract) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
 	shards := make([]pipeExtractProcessorShard, workersCount)
 	for i := range shards {
 		ef := newExtractFormat(pe.steps)
@@ -78,7 +78,6 @@ func (pe *pipeExtract) newPipeProcessor(workersCount int, stopCh <-chan struct{}
 
 	pep := &pipeExtractProcessor{
 		pe:     pe,
-		stopCh: stopCh,
 		ppBase: ppBase,
 
 		shards: shards,
@@ -88,7 +87,6 @@ func (pe *pipeExtract) newPipeProcessor(workersCount int, stopCh <-chan struct{}
 
 type pipeExtractProcessor struct {
 	pe     *pipeExtract
-	stopCh <-chan struct{}
 	ppBase pipeProcessor
 
 	shards []pipeExtractProcessorShard
