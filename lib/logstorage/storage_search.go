@@ -206,7 +206,7 @@ func endsWithPipeUniqSingleField(pipes []pipe, fieldName string) bool {
 func (s *Storage) runSingleColumnQuery(ctx context.Context, tenantIDs []TenantID, q *Query) ([]string, error) {
 	var values []string
 	var valuesLock sync.Mutex
-	writeBlockResult := func(workerID uint, br *blockResult) {
+	writeBlockResult := func(_ uint, br *blockResult) {
 		if len(br.timestamps) == 0 {
 			return
 		}

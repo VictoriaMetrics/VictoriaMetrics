@@ -94,7 +94,7 @@ func benchmarkBitmapForEachSetBitReadonly(b *testing.B, bm *bitmap) {
 		n := 0
 		for pb.Next() {
 			bmLocal.copyFrom(bm)
-			bmLocal.forEachSetBitReadonly(func(idx int) {
+			bmLocal.forEachSetBitReadonly(func(_ int) {
 				n++
 			})
 		}
@@ -111,7 +111,7 @@ func benchmarkBitmapForEachSetBit(b *testing.B, bm *bitmap, isClearBits bool) {
 		n := 0
 		for pb.Next() {
 			bmLocal.copyFrom(bm)
-			bmLocal.forEachSetBit(func(idx int) bool {
+			bmLocal.forEachSetBit(func(_ int) bool {
 				n++
 				return !isClearBits
 			})
