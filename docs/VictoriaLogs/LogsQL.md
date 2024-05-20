@@ -1124,7 +1124,7 @@ with the biggest number of logs:
 _time:1d error | extract from _msg "ip=<ip> " | stats by (ip) count() logs | sort by (logs) desc limit 10
 ```
 
-It is expected that `_msg` field contains `ip=...` substring, which ends with space. For example, `error from ip=1.2.3.4, user_id=42`.
+It is expected that `_msg` field contains `ip=...` substring, which ends with space. For example, `error ip=1.2.3.4 from user_id=42`.
 
 If the `| extract ...` pipe is applied to [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field), then the `from _msg` part can be omitted.
 For example, the following query is equivalent to the previous one:
