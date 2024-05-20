@@ -70,7 +70,7 @@ func TestPipeFields(t *testing.T) {
 	})
 
 	// single row, mention existing field multiple times
-	f("fileds a, a", [][]Field{
+	f("fields a, a", [][]Field{
 		{
 			{"_msg", `{"foo":"bar"}`},
 			{"a", `test`},
@@ -111,24 +111,24 @@ func TestPipeFields(t *testing.T) {
 		},
 		{
 			{"c", "dss"},
-			{"b", "df"},
+			{"d", "df"},
 		},
 	}, [][]Field{
 		{
 			{"a", `test`},
-			{"b", `test`},
+			{"b", ``},
 		},
 		{
 			{"a", `foobar`},
-			{"b", `foobar`},
-		},
-		{
-			{"a", ""},
 			{"b", ""},
 		},
 		{
 			{"a", ""},
-			{"b", "df"},
+			{"b", "baz"},
+		},
+		{
+			{"a", ""},
+			{"b", ""},
 		},
 	})
 }
