@@ -133,6 +133,35 @@ func TestPipeUnpackJSON(t *testing.T) {
 		},
 	})
 
+	// multiple rows with distinct number of fields with result_prefix
+	f("unpack_json from x result_prefix qwe_", [][]Field{
+		{
+			{"x", `{"foo":"bar","baz":"xyz"}`},
+			{"y", `abc`},
+		},
+		{
+			{"y", `abc`},
+		},
+		{
+			{"z", `foobar`},
+			{"x", `{"z":["bar",123]}`},
+		},
+	}, [][]Field{
+		{
+			{"x", `{"foo":"bar","baz":"xyz"}`},
+			{"y", "abc"},
+			{"qwe_foo", "bar"},
+			{"qwe_baz", "xyz"},
+		},
+		{
+			{"y", `abc`},
+		},
+		{
+			{"z", `foobar`},
+			{"x", `{"z":["bar",123]}`},
+			{"qwe_z", `["bar",123]`},
+		},
+	})
 }
 
 func expectPipeResults(t *testing.T, pipeStr string, rows, rowsExpected [][]Field) {

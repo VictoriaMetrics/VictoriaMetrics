@@ -252,8 +252,8 @@ func (ef *extractFormat) apply(s string) {
 			nextPrefix = steps[i+1].prefix
 		}
 
-		us, nOffset, ok := tryUnquoteString(s)
-		if ok {
+		us, nOffset := tryUnquoteString(s)
+		if nOffset >= 0 {
 			// Matched quoted string
 			matches[i] = us
 			s = s[nOffset:]
@@ -279,22 +279,22 @@ func (ef *extractFormat) apply(s string) {
 	}
 }
 
-func tryUnquoteString(s string) (string, int, bool) {
+func tryUnquoteString(s string) (string, int) {
 	if len(s) == 0 {
-		return s, 0, false
+		return s, -1
 	}
 	if s[0] != '"' && s[0] != '`' {
-		return s, 0, false
+		return s, -1
 	}
 	qp, err := strconv.QuotedPrefix(s)
 	if err != nil {
-		return s, 0, false
+		return s, -1
 	}
 	us, err := strconv.Unquote(qp)
 	if err != nil {
-		return s, 0, false
+		return s, -1
 	}
-	return us, len(qp), true
+	return us, len(qp)
 }
 
 func parseExtractFormatSteps(s string) ([]extractFormatStep, error) {

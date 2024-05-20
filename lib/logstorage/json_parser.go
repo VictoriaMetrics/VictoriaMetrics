@@ -33,10 +33,15 @@ type JSONParser struct {
 }
 
 func (p *JSONParser) reset() {
+	p.resetNobuf()
+
+	p.buf = p.buf[:0]
+}
+
+func (p *JSONParser) resetNobuf() {
 	clear(p.Fields)
 	p.Fields = p.Fields[:0]
 
-	p.buf = p.buf[:0]
 	p.prefixBuf = p.prefixBuf[:0]
 }
 
@@ -90,6 +95,8 @@ func (p *JSONParser) parseLogMessage(msg, prefix string, resetBuf bool) error {
 	}
 	if resetBuf {
 		p.reset()
+	} else {
+		p.resetNobuf()
 	}
 	p.prefixBuf = append(p.prefixBuf[:0], prefix...)
 	p.Fields, p.buf, p.prefixBuf = appendLogFields(p.Fields, p.buf, p.prefixBuf, v)

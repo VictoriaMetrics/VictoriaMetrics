@@ -157,6 +157,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'unpack_json' pipe: %w", err)
 		}
 		return pu, nil
+	case lex.isKeyword("unpack_logfmt"):
+		pu, err := parsePipeUnpackLogfmt(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'unpack_logfmt' pipe: %w", err)
+		}
+		return pu, nil
 	default:
 		return nil, fmt.Errorf("unexpected pipe %q", lex.token)
 	}

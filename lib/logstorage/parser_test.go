@@ -1008,6 +1008,12 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | unpack_json from x`, `* | unpack_json from x`)
 	f(`* | unpack_json from x result_prefix y`, `* | unpack_json from x result_prefix y`)
 
+	// unpack_logfmt pipe
+	f(`* | unpack_logfmt`, `* | unpack_logfmt`)
+	f(`* | unpack_logfmt result_prefix y`, `* | unpack_logfmt result_prefix y`)
+	f(`* | unpack_logfmt from x`, `* | unpack_logfmt from x`)
+	f(`* | unpack_logfmt from x result_prefix y`, `* | unpack_logfmt from x result_prefix y`)
+
 	// multiple different pipes
 	f(`* | fields foo, bar | limit 100 | stats by(foo,bar) count(baz) as qwert`, `* | fields foo, bar | limit 100 | stats by (foo, bar) count(baz) as qwert`)
 	f(`* | skip 100 | head 20 | skip 10`, `* | offset 100 | limit 20 | offset 10`)
@@ -1411,11 +1417,18 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | extract from x "<abc>" de`)
 
 	// invalid unpack_json pipe
-	f(`foo | extract_json bar`)
-	f(`foo | extract_json from`)
-	f(`foo | extract_json result_prefix`)
-	f(`foo | extract_json result_prefix x from y`)
-	f(`foo | extract_json from x result_prefix`)
+	f(`foo | unpack_json bar`)
+	f(`foo | unpack_json from`)
+	f(`foo | unpack_json result_prefix`)
+	f(`foo | unpack_json result_prefix x from y`)
+	f(`foo | unpack_json from x result_prefix`)
+
+	// invalid unpack_logfmt pipe
+	f(`foo | unpack_logfmt bar`)
+	f(`foo | unpack_logfmt from`)
+	f(`foo | unpack_logfmt result_prefix`)
+	f(`foo | unpack_logfmt result_prefix x from y`)
+	f(`foo | unpack_logfmt from x result_prefix`)
 }
 
 func TestQueryGetNeededColumns(t *testing.T) {
@@ -1573,6 +1586,13 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | unpack_json from s1 | fields s1,f1`, `f1,s1`, ``)
 	f(`* | unpack_json from s1 | rm f1`, `*`, `f1`)
 	f(`* | unpack_json from s1 | rm f1,s1`, `*`, `f1`)
+
+	f(`* | unpack_logfmt`, `*`, ``)
+	f(`* | unpack_logfmt from s1`, `*`, ``)
+	f(`* | unpack_logfmt from s1 | fields f1`, `f1,s1`, ``)
+	f(`* | unpack_logfmt from s1 | fields s1,f1`, `f1,s1`, ``)
+	f(`* | unpack_logfmt from s1 | rm f1`, `*`, `f1`)
+	f(`* | unpack_logfmt from s1 | rm f1,s1`, `*`, `f1`)
 
 	f(`* | rm f1, f2`, `*`, `f1,f2`)
 	f(`* | rm f1, f2 | mv f2 f3`, `*`, `f1,f2,f3`)

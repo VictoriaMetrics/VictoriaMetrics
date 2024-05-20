@@ -60,72 +60,9 @@ type pipeUnpackJSONProcessorShard struct {
 }
 
 type pipeUnpackJSONProcessorShardNopad struct {
-	jsonParser JSONParser
+	p JSONParser
 
-	rcs []resultColumn
-	br  blockResult
-
-	valuesLen int
-}
-
-func (shard *pipeUnpackJSONProcessorShard) writeRow(ppBase pipeProcessor, br *blockResult, cs []*blockResultColumn, rowIdx int, extraFields []Field) {
-	rcs := shard.rcs
-
-	areEqualColumns := len(rcs) == len(cs)+len(extraFields)
-	if areEqualColumns {
-		for i, f := range extraFields {
-			if rcs[len(cs)+i].name != f.Name {
-				areEqualColumns = false
-				break
-			}
-		}
-	}
-	if !areEqualColumns {
-		// send the current block to bbBase and construct a block with new set of columns
-		shard.flush(ppBase)
-
-		rcs = shard.rcs[:0]
-		for _, c := range cs {
-			rcs = appendResultColumnWithName(rcs, c.name)
-		}
-		for _, f := range extraFields {
-			rcs = appendResultColumnWithName(rcs, f.Name)
-		}
-		shard.rcs = rcs
-	}
-
-	for i, c := range cs {
-		v := c.getValueAtRow(br, rowIdx)
-		rcs[i].addValue(v)
-		shard.valuesLen += len(v)
-	}
-	for i, f := range extraFields {
-		v := f.Value
-		rcs[len(cs)+i].addValue(v)
-		shard.valuesLen += len(v)
-	}
-	if shard.valuesLen >= 1_000_000 {
-		shard.flush(ppBase)
-	}
-}
-
-func (shard *pipeUnpackJSONProcessorShard) flush(ppBase pipeProcessor) {
-	rcs := shard.rcs
-
-	shard.valuesLen = 0
-
-	if len(rcs) == 0 {
-		return
-	}
-
-	// Flush rcs to ppBase
-	br := &shard.br
-	br.setResultColumns(rcs)
-	ppBase.writeBlock(0, br)
-	br.reset()
-	for i := range rcs {
-		rcs[i].resetValues()
-	}
+	wctx pipeUnpackWriteContext
 }
 
 func (shard *pipeUnpackJSONProcessorShard) parseJSON(v, resultPrefix string) []Field {
@@ -133,11 +70,11 @@ func (shard *pipeUnpackJSONProcessorShard) parseJSON(v, resultPrefix string) []F
 		// This isn't a JSON object
 		return nil
 	}
-	if err := shard.jsonParser.ParseLogMessageNoResetBuf(v, resultPrefix); err != nil {
+	if err := shard.p.ParseLogMessageNoResetBuf(v, resultPrefix); err != nil {
 		// Cannot parse v
 		return nil
 	}
-	return shard.jsonParser.Fields
+	return shard.p.Fields
 }
 
 func (pup *pipeUnpackJSONProcessor) writeBlock(workerID uint, br *blockResult) {
@@ -147,14 +84,15 @@ func (pup *pipeUnpackJSONProcessor) writeBlock(workerID uint, br *blockResult) {
 
 	resultPrefix := pup.pu.resultPrefix
 	shard := &pup.shards[workerID]
+	wctx := &shard.wctx
+	wctx.init(br, pup.ppBase)
 
-	cs := br.getColumns()
 	c := br.getColumnByName(pup.pu.fromField)
 	if c.isConst {
 		v := c.valuesEncoded[0]
 		extraFields := shard.parseJSON(v, resultPrefix)
 		for rowIdx := range br.timestamps {
-			shard.writeRow(pup.ppBase, br, cs, rowIdx, extraFields)
+			wctx.writeRow(rowIdx, extraFields)
 		}
 	} else {
 		values := c.getValues(br)
@@ -163,12 +101,12 @@ func (pup *pipeUnpackJSONProcessor) writeBlock(workerID uint, br *blockResult) {
 			if i == 0 || values[i-1] != v {
 				extraFields = shard.parseJSON(v, resultPrefix)
 			}
-			shard.writeRow(pup.ppBase, br, cs, i, extraFields)
+			wctx.writeRow(i, extraFields)
 		}
 	}
 
-	shard.flush(pup.ppBase)
-	shard.jsonParser.reset()
+	wctx.flush()
+	shard.p.reset()
 }
 
 func (pup *pipeUnpackJSONProcessor) flush() error {
