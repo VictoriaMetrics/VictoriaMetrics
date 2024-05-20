@@ -1578,7 +1578,7 @@ Performance tip: if you need extracting a single field from long JSON, it is fas
 stored in [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 
 ```
-_time:5m | extract '"ip":<field_value>'
+_time:5m | extract '"ip":<ip>'
 ```
 
 See also:
@@ -1619,7 +1619,7 @@ For example, the following query extracts `"ip"` field from [logfmt](https://bra
 in [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 
 ```
-_time:5m | extract ' ip=<field_value>'
+_time:5m | extract ' ip=<ip>'
 ```
 
 See also:
