@@ -3,7 +3,6 @@ package logstorage
 import (
 	"math"
 	"slices"
-	"strings"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -199,19 +198,6 @@ func (br *blockResult) sizeBytes() int {
 	n += cap(br.cs) * int(unsafe.Sizeof(br.cs[0]))
 
 	return n
-}
-
-// addResultColumns adds the given rcs to br.
-//
-// The br is valid only until rcs are modified.
-func (br *blockResult) addResultColumns(rcs []resultColumn) {
-	if len(rcs) == 0 || len(rcs[0].values) == 0 {
-		return
-	}
-
-	for i := range rcs {
-		br.addResultColumn(&rcs[i])
-	}
 }
 
 // setResultColumns sets the given rcs as br columns.
@@ -1275,14 +1261,6 @@ func (br *blockResult) renameSingleColumn(srcName, dstName string) {
 	br.csInitialized = false
 }
 
-func debugColumnNames(cs []*blockResultColumn) string {
-	a := make([]string, len(cs))
-	for i, c := range cs {
-		a[i] = c.name
-	}
-	return strings.Join(a, ",")
-}
-
 // deleteColumns deletes columns with the given columnNames.
 func (br *blockResult) deleteColumns(columnNames []string) {
 	if len(columnNames) == 0 {
@@ -1811,6 +1789,11 @@ type resultColumn struct {
 	values []string
 }
 
+func (rc *resultColumn) reset() {
+	rc.name = ""
+	rc.resetValues()
+}
+
 func (rc *resultColumn) resetValues() {
 	clear(rc.values)
 	rc.values = rc.values[:0]
@@ -1819,8 +1802,8 @@ func (rc *resultColumn) resetValues() {
 func appendResultColumnWithName(dst []resultColumn, name string) []resultColumn {
 	dst = slicesutil.SetLength(dst, len(dst)+1)
 	rc := &dst[len(dst)-1]
-	rc.resetValues()
 	rc.name = name
+	rc.resetValues()
 	return dst
 }
 

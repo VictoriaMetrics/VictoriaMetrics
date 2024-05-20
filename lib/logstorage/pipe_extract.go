@@ -68,10 +68,9 @@ func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet
 func (pe *pipeExtract) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
 	shards := make([]pipeExtractProcessorShard, workersCount)
 	for i := range shards {
-		ef := newPattern(pe.steps)
 		shards[i] = pipeExtractProcessorShard{
 			pipeExtractProcessorShardNopad: pipeExtractProcessorShardNopad{
-				ef: ef,
+				ef: newPattern(pe.steps),
 			},
 		}
 	}

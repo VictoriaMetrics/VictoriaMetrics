@@ -457,7 +457,7 @@ func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bo
 		}
 	}
 	if !areEqualColumns {
-		// send the current block to bbBase and construct a block with new set of columns
+		// send the current block to ppBase and construct a block with new set of columns
 		wctx.flush()
 
 		rcs = wctx.rcs[:0]

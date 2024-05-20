@@ -22,10 +22,15 @@ func (uctx *fieldsUnpackerContext) resetFields() {
 }
 
 func (uctx *fieldsUnpackerContext) addField(name, value, fieldPrefix string) {
-	nameBuf := uctx.a.newBytes(len(fieldPrefix) + len(name))
-	copy(nameBuf, fieldPrefix)
-	copy(nameBuf[len(fieldPrefix):], name)
-	nameCopy := bytesutil.ToUnsafeString(nameBuf)
+	nameCopy := ""
+	if fieldPrefix != "" {
+		nameBuf := uctx.a.newBytes(len(fieldPrefix) + len(name))
+		copy(nameBuf, fieldPrefix)
+		copy(nameBuf[len(fieldPrefix):], name)
+		nameCopy = bytesutil.ToUnsafeString(nameBuf)
+	} else {
+		nameCopy = uctx.a.copyString(name)
+	}
 
 	valueCopy := uctx.a.copyString(value)
 
@@ -115,7 +120,23 @@ type pipeUnpackWriteContext struct {
 	valuesLen int
 }
 
+func (wctx *pipeUnpackWriteContext) reset() {
+	wctx.brSrc = nil
+	wctx.csSrc = nil
+	wctx.ppBase = nil
+
+	rcs := wctx.rcs
+	for i := range rcs {
+		rcs[i].reset()
+	}
+	wctx.rcs = rcs[:0]
+
+	wctx.valuesLen = 0
+}
+
 func (wctx *pipeUnpackWriteContext) init(brSrc *blockResult, ppBase pipeProcessor) {
+	wctx.reset()
+
 	wctx.brSrc = brSrc
 	wctx.csSrc = brSrc.getColumns()
 	wctx.ppBase = ppBase
@@ -135,7 +156,7 @@ func (wctx *pipeUnpackWriteContext) writeRow(rowIdx int, extraFields []Field) {
 		}
 	}
 	if !areEqualColumns {
-		// send the current block to bbBase and construct a block with new set of columns
+		// send the current block to ppBase and construct a block with new set of columns
 		wctx.flush()
 
 		rcs = wctx.rcs[:0]

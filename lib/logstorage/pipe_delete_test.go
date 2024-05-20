@@ -60,7 +60,9 @@ func TestPipeDelete(t *testing.T) {
 			{"_msg", `{"foo":"bar"}`},
 			{"a", `test`},
 		},
-	}, [][]Field{})
+	}, [][]Field{
+		{},
+	})
 
 	// delete non-existing fields
 	f("delete foo, _msg, bar", [][]Field{
@@ -93,6 +95,8 @@ func TestPipeDelete(t *testing.T) {
 			{"b", "df"},
 		},
 	}, [][]Field{
+		{},
+		{},
 		{
 			{"b", `baz`},
 			{"c", "d"},

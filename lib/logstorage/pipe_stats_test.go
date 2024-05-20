@@ -4,6 +4,85 @@ import (
 	"testing"
 )
 
+func TestParsePipeStatsSuccess(t *testing.T) {
+	f := func(pipeStr string) {
+		t.Helper()
+		expectParsePipeSuccess(t, pipeStr)
+	}
+
+	f(`stats count(*) as rows`)
+	f(`stats by (x) count(*) as rows, count_uniq(x) as uniqs`)
+	f(`stats by (_time:month offset 6.5h, y) count(*) as rows, count_uniq(x) as uniqs`)
+	f(`stats by (_time:month offset 6.5h, y) count(*) if (q:w) as rows, count_uniq(x) as uniqs`)
+}
+
+func TestParsePipeStatsFailure(t *testing.T) {
+	f := func(pipeStr string) {
+		t.Helper()
+		expectParsePipeFailure(t, pipeStr)
+	}
+
+	f(`stats`)
+	f(`stats by`)
+	f(`stats foo`)
+	f(`stats count`)
+	f(`stats if (x:y)`)
+	f(`stats by(x) foo`)
+	f(`stats by(x:abc) count() rows`)
+	f(`stats by(x:1h offset) count () rows`)
+	f(`stats by(x:1h offset foo) count() rows`)
+}
+
+func TestPipeStats(t *testing.T) {
+	f := func(pipeStr string, rows, rowsExpected [][]Field) {
+		t.Helper()
+		expectPipeResults(t, pipeStr, rows, rowsExpected)
+	}
+
+	f("stats count(*) as rows", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+		},
+		{
+			{"a", `2`},
+			{"b", `54`},
+		},
+	}, [][]Field{
+		{
+			{"rows", "3"},
+		},
+	})
+
+	f("stats by (a) count(*) as rows", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+		},
+		{
+			{"a", `2`},
+			{"b", `54`},
+		},
+	}, [][]Field{
+		{
+			{"a", "1"},
+			{"rows", "1"},
+			{"a", "2"},
+			{"rows", "2"},
+		},
+	})
+}
+
 func TestPipeStatsUpdateNeededFields(t *testing.T) {
 	f := func(s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
 		t.Helper()
