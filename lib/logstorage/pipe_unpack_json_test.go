@@ -216,6 +216,7 @@ func expectPipeResults(t *testing.T, pipeStr string, rows, rowsExpected [][]Fiel
 		brw.writeRow(row)
 	}
 	brw.flush()
+	pp.flush()
 
 	ppTest.expectRows(t, rowsExpected)
 }
@@ -272,7 +273,6 @@ func (brw *testBlockResultWriter) flush() {
 	for i := range brw.rcs {
 		brw.rcs[i].resetValues()
 	}
-	brw.ppBase.flush()
 }
 
 func newTestPipeProcessor() *testPipeProcessor {

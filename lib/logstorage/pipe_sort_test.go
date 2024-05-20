@@ -129,6 +129,7 @@ func TestPipeSort(t *testing.T) {
 		{
 			{"_msg", `def`},
 			{"a", `1`},
+			{"b", ""},
 		},
 	})
 
