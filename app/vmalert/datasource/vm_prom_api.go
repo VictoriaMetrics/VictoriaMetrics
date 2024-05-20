@@ -7,6 +7,10 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+
+	"github.com/valyala/fastjson"
 )
 
 var (
@@ -31,27 +35,85 @@ type promResponse struct {
 	} `json:"stats,omitempty"`
 }
 
+// see https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
 type promInstant struct {
-	Result []struct {
-		Labels map[string]string `json:"metric"`
-		TV     [2]interface{}    `json:"value"`
-	} `json:"result"`
+	// ms is populated after Unmarshal call
+	ms []Metric
 }
 
-func (r promInstant) metrics() ([]Metric, error) {
-	result := make([]Metric, len(r.Result))
-	for i, res := range r.Result {
-		f, err := strconv.ParseFloat(res.TV[1].(string), 64)
-		if err != nil {
-			return nil, fmt.Errorf("metric %v, unable to parse float64 from %s: %w", res, res.TV[1], err)
-		}
-		var m Metric
-		m.SetLabels(res.Labels)
-		m.Timestamps = append(m.Timestamps, int64(res.TV[0].(float64)))
-		m.Values = append(m.Values, f)
-		result[i] = m
+// metrics returned parsed Metric slice
+// Must be called only after Unmarshal
+func (pi *promInstant) metrics() ([]Metric, error) {
+	return pi.ms, nil
+}
+
+var jsonParserPool fastjson.ParserPool
+
+// Unmarshal unmarshals the given byte slice into promInstant
+// It is using fastjson to reduce number of allocations compared to
+// standard json.Unmarshal function.
+// Response example:
+//
+//	[{"metric":{"__name__":"up","job":"prometheus"},value": [ 1435781451.781,"1"]},
+//	{"metric":{"__name__":"up","job":"node"},value": [ 1435781451.781,"0"]}]
+func (pi *promInstant) Unmarshal(b []byte) error {
+	p := jsonParserPool.Get()
+	defer jsonParserPool.Put(p)
+
+	v, err := p.ParseBytes(b)
+	if err != nil {
+		return err
 	}
-	return result, nil
+
+	rows, err := v.Array()
+	if err != nil {
+		return fmt.Errorf("cannot find the top-level array of result objects: %w", err)
+	}
+	pi.ms = make([]Metric, len(rows))
+	for i, row := range rows {
+		metric := row.Get("metric")
+		if metric == nil {
+			return fmt.Errorf("can't find `metric` object in %q", row)
+		}
+		labels := metric.GetObject()
+
+		r := &pi.ms[i]
+		r.Labels = make([]Label, 0, labels.Len())
+		labels.Visit(func(key []byte, v *fastjson.Value) {
+			lv, errLocal := v.StringBytes()
+			if errLocal != nil {
+				err = fmt.Errorf("error when parsing label value %q: %s", v, errLocal)
+				return
+			}
+			r.Labels = append(r.Labels, Label{
+				Name:  string(key),
+				Value: string(lv),
+			})
+		})
+		if err != nil {
+			return fmt.Errorf("error when parsing `metric` object in %q: %w", row, err)
+		}
+
+		value := row.Get("value")
+		if value == nil {
+			return fmt.Errorf("can't find `value` object in %q", row)
+		}
+		sample := value.GetArray()
+		if len(sample) != 2 {
+			return fmt.Errorf("object `value` in %q should contain 2 values, but contains %d instead", row, len(sample))
+		}
+		r.Timestamps = []int64{sample[0].GetInt64()}
+		val, err := sample[1].StringBytes()
+		if err != nil {
+			return fmt.Errorf("error when parsing `value` object %q: %s", sample[1], err)
+		}
+		f, err := strconv.ParseFloat(bytesutil.ToUnsafeString(val), 64)
+		if err != nil {
+			return fmt.Errorf("error when parsing float64 from %s in %q: %w", sample[1], row, err)
+		}
+		r.Values = []float64{f}
+	}
+	return nil
 }
 
 type promRange struct {
@@ -118,7 +180,7 @@ func parsePrometheusResponse(req *http.Request, resp *http.Response) (res Result
 	switch r.Data.ResultType {
 	case rtVector:
 		var pi promInstant
-		if err := json.Unmarshal(r.Data.Result, &pi.Result); err != nil {
+		if err := pi.Unmarshal(r.Data.Result); err != nil {
 			return res, fmt.Errorf("unmarshal err %w; \n %#v", err, string(r.Data.Result))
 		}
 		parseFn = pi.metrics

@@ -2,11 +2,9 @@ package stream
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"io"
 	"sync"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
@@ -15,11 +13,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/statsd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
-)
-
-var (
-	trimTimestamp = flag.Duration("statsdTrimTimestamp", time.Second, "Trim timestamps for Statsd data to this duration. "+
-		"Minimum practical duration is 1s. Higher duration (i.e. 1m) may be used for reducing disk space usage for timestamp data")
 )
 
 // Parse parses Statsd lines from r and calls callback for the parsed rows.
@@ -141,8 +134,10 @@ func putStreamContext(ctx *streamContext) {
 	}
 }
 
-var streamContextPool sync.Pool
-var streamContextPoolCh = make(chan *streamContext, cgroup.AvailableCPUs())
+var (
+	streamContextPool   sync.Pool
+	streamContextPoolCh = make(chan *streamContext, cgroup.AvailableCPUs())
+)
 
 type unmarshalWork struct {
 	rows     statsd.Rows
@@ -181,20 +176,7 @@ func (uw *unmarshalWork) Unmarshal() {
 	for i := range rows {
 		r := &rows[i]
 		if r.Timestamp == 0 || r.Timestamp == -1 {
-			r.Timestamp = currentTimestamp
-		}
-	}
-
-	// Convert timestamps from seconds to milliseconds.
-	for i := range rows {
-		rows[i].Timestamp *= 1e3
-	}
-
-	// Trim timestamps if required.
-	if tsTrim := trimTimestamp.Milliseconds(); tsTrim > 1000 {
-		for i := range rows {
-			row := &rows[i]
-			row.Timestamp -= row.Timestamp % tsTrim
+			r.Timestamp = currentTimestamp * 1e3
 		}
 	}
 

@@ -5,15 +5,48 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson/fastfloat"
 )
 
 // Statsd metric format with tags: MetricName:value|type|@sample_rate|#tag1:value,tag1...
-const statsdSeparator = '|'
-const statsdPairsSeparator = ':'
-const statsdTagsStartSeparator = '#'
-const statsdTagsSeparator = ','
+// https://docs.datadoghq.com/developers/dogstatsd/datagram_shell?tab=metrics#the-dogstatsd-protocol
+const (
+	statsdSeparator          = '|'
+	statsdPairsSeparator     = ':'
+	statsdTagsStartSeparator = '#'
+	statsdTagsSeparator      = ','
+)
+
+const statsdTypeTagName = "__statsd_metric_type__"
+
+// https://github.com/b/statsd_spec
+var validTypes = []string{
+	// counter
+	"c",
+	// gauge
+	"g",
+	// histogram
+	"h",
+	// timer
+	"ms",
+	// distribution
+	"d",
+	// set
+	"s",
+	// meters
+	"m",
+}
+
+func isValidType(src string) bool {
+	for _, t := range validTypes {
+		if src == t {
+			return true
+		}
+	}
+	return false
+}
 
 // Rows contains parsed statsd rows.
 type Rows struct {
@@ -48,14 +81,14 @@ func (rs *Rows) Unmarshal(s string) {
 type Row struct {
 	Metric    string
 	Tags      []Tag
-	Value     float64
+	Values    []float64
 	Timestamp int64
 }
 
 func (r *Row) reset() {
 	r.Metric = ""
 	r.Tags = nil
-	r.Value = 0
+	r.Values = r.Values[:0]
 	r.Timestamp = 0
 }
 
@@ -63,42 +96,72 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	r.reset()
 	originalString := s
 	s = stripTrailingWhitespace(s)
-	separatorPosition := strings.IndexByte(s, statsdSeparator)
-	if separatorPosition < 0 {
-		s = stripTrailingWhitespace(s)
-	} else {
-		s = stripTrailingWhitespace(s[:separatorPosition])
+	nextSeparator := strings.IndexByte(s, statsdSeparator)
+	if nextSeparator <= 0 {
+		return tagsPool, fmt.Errorf("cannot find type separator %q position at: %q", statsdSeparator, originalString)
+	}
+	metricWithValues := s[:nextSeparator]
+	s = s[nextSeparator+1:]
+	valuesSeparatorPosition := strings.IndexByte(metricWithValues, statsdPairsSeparator)
+	if valuesSeparatorPosition <= 0 {
+		return tagsPool, fmt.Errorf("cannot find metric name value separator=%q at: %q; original line: %q", statsdPairsSeparator, metricWithValues, originalString)
 	}
 
-	valuesSeparatorPosition := strings.LastIndexByte(s, statsdPairsSeparator)
-
-	if valuesSeparatorPosition == 0 {
-		return tagsPool, fmt.Errorf("cannot find metric name for %q", s)
+	r.Metric = metricWithValues[:valuesSeparatorPosition]
+	metricWithValues = metricWithValues[valuesSeparatorPosition+1:]
+	// datadog extension v1.1 for statsd allows multiple packed values at single line
+	for {
+		nextSeparator = strings.IndexByte(metricWithValues, statsdPairsSeparator)
+		if nextSeparator <= 0 {
+			// last element
+			metricWithValues = stripTrailingWhitespace(metricWithValues)
+			v, err := fastfloat.Parse(metricWithValues)
+			if err != nil {
+				return tagsPool, fmt.Errorf("cannot unmarshal value from %q: %w; original line: %q", metricWithValues, err, originalString)
+			}
+			r.Values = append(r.Values, v)
+			break
+		}
+		valueStr := metricWithValues[:nextSeparator]
+		v, err := fastfloat.Parse(valueStr)
+		if err != nil {
+			return tagsPool, fmt.Errorf("cannot unmarshal value from %q: %w; original line: %q", valueStr, err, originalString)
+		}
+		r.Values = append(r.Values, v)
+		metricWithValues = metricWithValues[nextSeparator+1:]
 	}
-
-	if valuesSeparatorPosition < 0 {
-		return tagsPool, fmt.Errorf("cannot find separator for %q", s)
+	// search for the type end
+	nextSeparator = strings.IndexByte(s, statsdSeparator)
+	typeValue := s
+	if nextSeparator >= 0 {
+		typeValue = s[:nextSeparator]
+		s = s[nextSeparator+1:]
 	}
-
-	r.Metric = s[:valuesSeparatorPosition]
-	valueStr := s[valuesSeparatorPosition+1:]
-
-	v, err := fastfloat.Parse(valueStr)
-	if err != nil {
-		return tagsPool, fmt.Errorf("cannot unmarshal value from %q: %w; original line: %q", valueStr, err, originalString)
+	if !isValidType(typeValue) {
+		return tagsPool, fmt.Errorf("provided type=%q is not supported; original line: %q", typeValue, originalString)
 	}
-	r.Value = v
+	tagsStart := len(tagsPool)
+	tagsPool = slicesutil.SetLength(tagsPool, len(tagsPool)+1)
+	// add metric type as tag
+	tag := &tagsPool[len(tagsPool)-1]
+	tag.Key = statsdTypeTagName
+	tag.Value = typeValue
 
-	// parsing tags
-	tagsSeparatorPosition := strings.LastIndexByte(originalString, statsdTagsStartSeparator)
-
-	if tagsSeparatorPosition < 0 {
-		// no tags
+	// process tags
+	nextSeparator = strings.IndexByte(s, statsdTagsStartSeparator)
+	if nextSeparator < 0 {
+		tags := tagsPool[tagsStart:]
+		r.Tags = tags[:len(tags):len(tags)]
 		return tagsPool, nil
 	}
+	tagsStr := s[nextSeparator+1:]
+	// search for end of tags
+	nextSeparator = strings.IndexByte(tagsStr, statsdSeparator)
+	if nextSeparator >= 0 {
+		tagsStr = tagsStr[:nextSeparator]
+	}
 
-	tagsStart := len(tagsPool)
-	tagsPool = unmarshalTags(tagsPool, originalString[tagsSeparatorPosition+1:])
+	tagsPool = unmarshalTags(tagsPool, tagsStr)
 	tags := tagsPool[tagsStart:]
 	r.Tags = tags[:len(tags):len(tags)]
 
@@ -147,11 +210,7 @@ var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="statsd"}`)
 
 func unmarshalTags(dst []Tag, s string) []Tag {
 	for {
-		if cap(dst) > len(dst) {
-			dst = dst[:len(dst)+1]
-		} else {
-			dst = append(dst, Tag{})
-		}
+		dst = slicesutil.SetLength(dst, len(dst)+1)
 		tag := &dst[len(dst)-1]
 
 		n := strings.IndexByte(s, statsdTagsSeparator)
