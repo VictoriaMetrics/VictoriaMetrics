@@ -102,7 +102,7 @@ The `<step>` arg can contain values in [the format specified here](https://docs.
 If `<step>` is missing, then it equals to `1d` (one day).
 
 For example, the following command returns per-hour number of [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
-with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) over logs for the 3 hours:
+with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) over logs for the last 3 hours:
 
 ```sh
 curl http://localhost:9428/select/logsql/hits -d 'query=error' -d 'start=3h' -d 'step=1h'
