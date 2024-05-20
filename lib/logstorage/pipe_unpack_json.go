@@ -3,10 +3,6 @@ package logstorage
 import (
 	"fmt"
 	"unsafe"
-
-	"github.com/valyala/fastjson"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 // pipeUnpackJSON processes '| unpack_json ...' pipe.
@@ -64,9 +60,7 @@ type pipeUnpackJSONProcessorShard struct {
 }
 
 type pipeUnpackJSONProcessorShardNopad struct {
-	jsonParser    fastjson.Parser
-	jsonFields    []Field
-	jsonValuesBuf []byte
+	jsonParser JSONParser
 
 	rcs []resultColumn
 	br  blockResult
@@ -134,38 +128,16 @@ func (shard *pipeUnpackJSONProcessorShard) flush(ppBase pipeProcessor) {
 	}
 }
 
-func (shard *pipeUnpackJSONProcessorShard) parseJSONFields(resultPrefix, v string) {
-	clear(shard.jsonFields)
-	shard.jsonFields = shard.jsonFields[:0]
-	shard.jsonValuesBuf = shard.jsonValuesBuf[:0]
-
-	jsv, err := shard.jsonParser.Parse(v)
-	if err != nil {
-		return
+func (shard *pipeUnpackJSONProcessorShard) parseJSON(v, resultPrefix string) []Field {
+	if len(v) == 0 || v[0] != '{' {
+		// This isn't a JSON object
+		return nil
 	}
-	jso := jsv.GetObject()
-	buf := shard.jsonValuesBuf
-	jso.Visit(func(k []byte, v *fastjson.Value) {
-		var bv []byte
-		if v.Type() == fastjson.TypeString {
-			bv = v.GetStringBytes()
-		} else {
-			bufLen := len(buf)
-			buf = v.MarshalTo(buf)
-			bv = buf[bufLen:]
-		}
-		if resultPrefix != "" {
-			bufLen := len(buf)
-			buf = append(buf, resultPrefix...)
-			buf = append(buf, k...)
-			k = buf[bufLen:]
-		}
-		shard.jsonFields = append(shard.jsonFields, Field{
-			Name:  bytesutil.ToUnsafeString(k),
-			Value: bytesutil.ToUnsafeString(bv),
-		})
-	})
-	shard.jsonValuesBuf = buf
+	if err := shard.jsonParser.ParseLogMessageNoResetBuf(v, resultPrefix); err != nil {
+		// Cannot parse v
+		return nil
+	}
+	return shard.jsonParser.Fields
 }
 
 func (pup *pipeUnpackJSONProcessor) writeBlock(workerID uint, br *blockResult) {
@@ -180,21 +152,23 @@ func (pup *pipeUnpackJSONProcessor) writeBlock(workerID uint, br *blockResult) {
 	c := br.getColumnByName(pup.pu.fromField)
 	if c.isConst {
 		v := c.valuesEncoded[0]
-		shard.parseJSONFields(resultPrefix, v)
+		extraFields := shard.parseJSON(v, resultPrefix)
 		for rowIdx := range br.timestamps {
-			shard.writeRow(pup.ppBase, br, cs, rowIdx, shard.jsonFields)
+			shard.writeRow(pup.ppBase, br, cs, rowIdx, extraFields)
 		}
 	} else {
 		values := c.getValues(br)
+		var extraFields []Field
 		for i, v := range values {
 			if i == 0 || values[i-1] != v {
-				shard.parseJSONFields(resultPrefix, v)
+				extraFields = shard.parseJSON(v, resultPrefix)
 			}
-			shard.writeRow(pup.ppBase, br, cs, i, shard.jsonFields)
+			shard.writeRow(pup.ppBase, br, cs, i, extraFields)
 		}
 	}
 
 	shard.flush(pup.ppBase)
+	shard.jsonParser.reset()
 }
 
 func (pup *pipeUnpackJSONProcessor) flush() error {

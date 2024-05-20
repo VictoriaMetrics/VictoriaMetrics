@@ -91,7 +91,7 @@ func TestPipeUnpackJSON(t *testing.T) {
 	// single row, unpack from named field
 	f("unpack_json from x", [][]Field{
 		{
-			{"x", `{"foo":"bar","baz":"xyz","a":123,"b":["foo","bar"],"x":NaN}`},
+			{"x", `{"foo":"bar","baz":"xyz","a":123,"b":["foo","bar"],"x":NaN,"y":{"z":{"a":"b"}}}`},
 		},
 	}, [][]Field{
 		{
@@ -100,6 +100,7 @@ func TestPipeUnpackJSON(t *testing.T) {
 			{"baz", "xyz"},
 			{"a", "123"},
 			{"b", `["foo","bar"]`},
+			{"y.z.a", "b"},
 		},
 	})
 
