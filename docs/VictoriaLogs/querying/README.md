@@ -195,7 +195,7 @@ See also:
 ### Querying field names
 
 VictoriaLogs provides `/select/logsql/field_names?query=<query>&start=<start>&end=<end>` HTTP endpoint, which returns field names
-from result of the given `<query>` [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
+from results of the given `<query>` [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
 
 The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
 If `<start>` is missing, then it equals to the minimum timestamp across logs stored in VictoriaLogs.
@@ -239,7 +239,7 @@ The `<start>` and `<end>` args can contain values in [any supported format](http
 If `<start>` is missing, then it equals to the minimum timestamp across logs stored in VictoriaLogs.
 If `<end>` is missing, then it equals to the maximum timestamp across logs stored in VictoriaLogs.
 
-For example, the following command returns unique the values for `host` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+For example, the following command returns unique values for `host` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 across logs with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) for the last 5 minutes:
 
 ```sh
