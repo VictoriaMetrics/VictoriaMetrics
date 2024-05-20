@@ -377,8 +377,10 @@ func Stop() {
 	configReloaderWG.Wait()
 
 	sasGlobal.Load().MustStop()
-	deduplicatorGlobal.MustStop()
-	deduplicatorGlobal = nil
+	if deduplicatorGlobal != nil {
+		deduplicatorGlobal.MustStop()
+		deduplicatorGlobal = nil
+	}
 
 	for _, rwctx := range rwctxs {
 		rwctx.MustStop()
