@@ -494,7 +494,7 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnF
 		}
 		sortLabelsIfNeeded(tssBlock)
 		tssBlock = limitSeriesCardinality(tssBlock)
-		if sas != nil {
+		if sas.IsEnabled() {
 			matchIdxs := matchIdxsPool.Get()
 			matchIdxs.B = sas.Push(tssBlock, matchIdxs.B)
 			if !*streamAggrGlobalKeepInput {
@@ -901,7 +901,7 @@ func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries, forceDropSa
 
 	// Apply stream aggregation or deduplication if they are configured
 	sas := rwctx.sas.Load()
-	if sas != nil {
+	if sas.IsEnabled() {
 		matchIdxs := matchIdxsPool.Get()
 		matchIdxs.B = sas.Push(tss, matchIdxs.B)
 		if !rwctx.streamAggrKeepInput {
