@@ -4,6 +4,35 @@ import (
 	"testing"
 )
 
+func TestParsePipeExtractSuccess(t *testing.T) {
+	f := func(pipeStr string) {
+		t.Helper()
+		expectParsePipeSuccess(t, pipeStr)
+	}
+
+	f(`extract "foo<bar>"`)
+	f(`extract from x "foo<bar>"`)
+	f(`extract from x "foo<bar>" if (y:in(a:foo bar | uniq by (qwe) limit 10))`)
+}
+
+func TestParsePipeExtractFailure(t *testing.T) {
+	f := func(pipeStr string) {
+		t.Helper()
+		expectParsePipeFailure(t, pipeStr)
+	}
+
+	f(`extract`)
+	f(`extract from`)
+	f(`extract if (x:y)`)
+	f(`extract if (x:y) "a<b>"`)
+	f(`extract "a<b>" if`)
+	f(`extract "a<b>" if (foo`)
+	f(`extract "a<b>" if "foo"`)
+	f(`extract "a"`)
+	f(`extract "<a><b>"`)
+	f(`extract "<*>foo<_>bar"`)
+}
+
 func TestPipeExtract(t *testing.T) {
 	f := func(pipeStr string, rows, rowsExpected [][]Field) {
 		t.Helper()
@@ -210,4 +239,29 @@ func TestPipeExtractUpdateNeededFields(t *testing.T) {
 	// needed fields intersect with pattern and output fields
 	f("extract from x '<foo>x<bar>'", "f2,foo,x,y", "", "f2,x,y", "")
 	f("extract from x '<foo>x<bar>' if (a:b foo:q)", "f2,foo,x,y", "", "a,f2,foo,x,y", "")
+}
+
+func expectParsePipeFailure(t *testing.T, pipeStr string) {
+	t.Helper()
+
+	lex := newLexer(pipeStr)
+	p, err := parsePipe(lex)
+	if err == nil {
+		t.Fatalf("expecting error when parsing [%s]; parsed result: [%s]", pipeStr, p)
+	}
+}
+
+func expectParsePipeSuccess(t *testing.T, pipeStr string) {
+	t.Helper()
+
+	lex := newLexer(pipeStr)
+	p, err := parsePipe(lex)
+	if err != nil {
+		t.Fatalf("cannot parse [%s]: %s", pipeStr, err)
+	}
+
+	pipeStrResult := p.String()
+	if pipeStrResult != pipeStr {
+		t.Fatalf("unexpected string representation of pipe; got\n%s\nwant\n%s", pipeStrResult, pipeStr)
+	}
 }

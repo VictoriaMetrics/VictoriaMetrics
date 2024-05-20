@@ -260,6 +260,9 @@ func (s *Storage) initFilterInValues(ctx context.Context, tenantIDs []TenantID, 
 }
 
 func hasFilterInWithQueryForFilter(f filter) bool {
+	if f == nil {
+		return false
+	}
 	visitFunc := func(f filter) bool {
 		fi, ok := f.(*filterIn)
 		return ok && fi.needExecuteQuery
@@ -269,12 +272,15 @@ func hasFilterInWithQueryForFilter(f filter) bool {
 
 func hasFilterInWithQueryForPipes(pipes []pipe) bool {
 	for _, p := range pipes {
-		ps, ok := p.(*pipeStats)
-		if !ok {
-			continue
-		}
-		for _, f := range ps.funcs {
-			if f.iff != nil && hasFilterInWithQueryForFilter(f.iff) {
+		switch t := p.(type) {
+		case *pipeStats:
+			for _, f := range t.funcs {
+				if hasFilterInWithQueryForFilter(f.iff) {
+					return true
+				}
+			}
+		case *pipeExtract:
+			if hasFilterInWithQueryForFilter(t.iff) {
 				return true
 			}
 		}
@@ -333,6 +339,14 @@ func initFilterInValuesForPipes(cache map[string][]string, pipes []pipe, getFiel
 				byFields: t.byFields,
 				funcs:    funcsNew,
 			}
+		case *pipeExtract:
+			fNew, err := initFilterInValuesForFilter(cache, t.iff, getFieldValuesFunc)
+			if err != nil {
+				return nil, err
+			}
+			pe := *t
+			pe.iff = fNew
+			pipesNew[i] = &pe
 		default:
 			pipesNew[i] = p
 		}

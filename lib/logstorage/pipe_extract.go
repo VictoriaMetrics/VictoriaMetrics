@@ -205,7 +205,7 @@ func parsePipeExtract(lex *lexer) (*pipeExtract, error) {
 	if lex.isKeyword("if") {
 		iff, err := parseIfFilter(lex)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'if' filter for %s: %w", pe, err)
+			return nil, err
 		}
 		pe.iff = iff
 

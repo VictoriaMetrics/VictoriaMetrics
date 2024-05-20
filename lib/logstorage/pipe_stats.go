@@ -526,7 +526,7 @@ func parsePipeStats(lex *lexer) (*pipeStats, error) {
 		if lex.isKeyword("if") {
 			iff, err := parseIfFilter(lex)
 			if err != nil {
-				return nil, fmt.Errorf("cannot parse 'if' filter for %s: %w", sf, err)
+				return nil, err
 			}
 			f.iff = iff
 
@@ -537,7 +537,7 @@ func parsePipeStats(lex *lexer) (*pipeStats, error) {
 
 		resultName, err := parseResultName(lex)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse result name for %s: %w", sf, err)
+			return nil, fmt.Errorf("cannot parse result name for [%s]: %w", sf, err)
 		}
 		f.resultName = resultName
 

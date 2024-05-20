@@ -320,10 +320,10 @@ func (q *Query) Optimize() {
 		switch t := p.(type) {
 		case *pipeStats:
 			for _, f := range t.funcs {
-				if f.iff != nil {
-					optimizeFilterIn(f.iff)
-				}
+				optimizeFilterIn(f.iff)
 			}
+		case *pipeExtract:
+			optimizeFilterIn(t.iff)
 		}
 	}
 }
@@ -345,6 +345,10 @@ func removeStarFilters(f filter) filter {
 }
 
 func optimizeFilterIn(f filter) {
+	if f == nil {
+		return
+	}
+
 	visitFunc := func(f filter) bool {
 		fi, ok := f.(*filterIn)
 		if ok && fi.q != nil {
