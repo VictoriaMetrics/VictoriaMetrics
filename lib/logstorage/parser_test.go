@@ -1001,6 +1001,7 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | extract from '' 'foo<bar>baz'`, `* | extract "foo<bar>baz"`)
 	f("* | extract from x `foo<bar>baz`", `* | extract from x "foo<bar>baz"`)
 	f("* | extract from x foo<bar>baz", `* | extract from x "foo<bar>baz"`)
+	f("* | extract from x foo<bar>baz if (a:b)", `* | extract from x "foo<bar>baz" if (a:b)`)
 
 	// unpack_json pipe
 	f(`* | unpack_json`, `* | unpack_json`)
@@ -1571,14 +1572,24 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | rm x,y | field_names as bar | fields baz`, `*`, `x,y`)
 
 	f(`* | extract from s1 "<f1>x<f2>"`, `*`, `f1,f2`)
+	f(`* | extract from s1 "<f1>x<f2>" if (f3:foo)`, `*`, `f1,f2`)
+	f(`* | extract from s1 "<f1>x<f2>" if (f1:foo)`, `*`, `f2`)
 	f(`* | extract from s1 "<f1>x<f2>" | fields foo`, `foo`, ``)
+	f(`* | extract from s1 "<f1>x<f2>" if (x:bar) | fields foo`, `foo`, ``)
 	f(`* | extract from s1 "<f1>x<f2>" | fields foo,s1`, `foo,s1`, ``)
+	f(`* | extract from s1 "<f1>x<f2>" if (x:bar) | fields foo,s1`, `foo,s1`, ``)
 	f(`* | extract from s1 "<f1>x<f2>" | fields foo,f1`, `foo,s1`, ``)
+	f(`* | extract from s1 "<f1>x<f2>" if (x:bar) | fields foo,f1`, `foo,s1,x`, ``)
 	f(`* | extract from s1 "<f1>x<f2>" | fields foo,f1,f2`, `foo,s1`, ``)
+	f(`* | extract from s1 "<f1>x<f2>" if (x:bar) | fields foo,f1,f2`, `foo,s1,x`, ``)
 	f(`* | extract from s1 "<f1>x<f2>" | rm foo`, `*`, `f1,f2,foo`)
+	f(`* | extract from s1 "<f1>x<f2>" if (x:bar) | rm foo`, `*`, `f1,f2,foo`)
 	f(`* | extract from s1 "<f1>x<f2>" | rm foo,s1`, `*`, `f1,f2,foo`)
+	f(`* | extract from s1 "<f1>x<f2>" if (x:bar) | rm foo,s1`, `*`, `f1,f2,foo`)
 	f(`* | extract from s1 "<f1>x<f2>" | rm foo,f1`, `*`, `f1,f2,foo`)
+	f(`* | extract from s1 "<f1>x<f2>" if (x:bar) | rm foo,f1`, `*`, `f1,f2,foo`)
 	f(`* | extract from s1 "<f1>x<f2>" | rm foo,f1,f2`, `*`, `f1,f2,foo,s1`)
+	f(`* | extract from s1 "<f1>x<f2>" if (x:bar) | rm foo,f1,f2`, `*`, `f1,f2,foo,s1`)
 
 	f(`* | unpack_json`, `*`, ``)
 	f(`* | unpack_json from s1`, `*`, ``)

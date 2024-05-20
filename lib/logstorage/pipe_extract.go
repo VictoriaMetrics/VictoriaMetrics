@@ -13,6 +13,10 @@ type pipeExtract struct {
 	steps     []patternStep
 
 	pattern string
+
+	// iff is an optional filter for skipping the extract func
+	iff             filter
+	iffNeededFields []string
 }
 
 func (pe *pipeExtract) String() string {
@@ -21,6 +25,9 @@ func (pe *pipeExtract) String() string {
 		s += " from " + quoteTokenIfNeeded(pe.fromField)
 	}
 	s += " " + quoteTokenIfNeeded(pe.pattern)
+	if pe.iff != nil {
+		s += " if (" + pe.iff.String() + ")"
+	}
 	return s
 }
 
@@ -37,19 +44,22 @@ func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet
 			}
 		}
 		if needFromField {
+			unneededFields.removeFields(pe.iffNeededFields)
 			unneededFields.remove(pe.fromField)
 		} else {
 			unneededFields.add(pe.fromField)
 		}
 	} else {
+		neededFieldsOrig := neededFields.clone()
 		needFromField := false
 		for _, step := range pe.steps {
-			if step.field != "" && neededFields.contains(step.field) {
+			if step.field != "" && neededFieldsOrig.contains(step.field) {
 				needFromField = true
 				neededFields.remove(step.field)
 			}
 		}
 		if needFromField {
+			neededFields.addFields(pe.iffNeededFields)
 			neededFields.add(pe.fromField)
 		}
 	}
@@ -59,14 +69,9 @@ func (pe *pipeExtract) newPipeProcessor(workersCount int, _ <-chan struct{}, _ f
 	shards := make([]pipeExtractProcessorShard, workersCount)
 	for i := range shards {
 		ef := newPattern(pe.steps)
-		rcs := make([]resultColumn, len(ef.fields))
-		for j := range rcs {
-			rcs[j].name = ef.fields[j].name
-		}
 		shards[i] = pipeExtractProcessorShard{
 			pipeExtractProcessorShardNopad: pipeExtractProcessorShardNopad{
-				ef:  ef,
-				rcs: rcs,
+				ef: ef,
 			},
 		}
 	}
@@ -97,7 +102,10 @@ type pipeExtractProcessorShard struct {
 type pipeExtractProcessorShardNopad struct {
 	ef *pattern
 
-	rcs []resultColumn
+	bm bitmap
+
+	uctx fieldsUnpackerContext
+	wctx pipeUnpackWriteContext
 }
 
 func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
@@ -106,38 +114,55 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	shard := &pep.shards[workerID]
+	shard.wctx.init(br, pep.ppBase)
 	ef := shard.ef
-	rcs := shard.rcs
+
+	bm := &shard.bm
+	bm.init(len(br.timestamps))
+	bm.setBits()
+	if iff := pep.pe.iff; iff != nil {
+		iff.applyToBlockResult(br, bm)
+		if bm.isZero() {
+			// Fast path - nothing to extract.
+			pep.ppBase.writeBlock(workerID, br)
+			return
+		}
+	}
 
 	c := br.getColumnByName(pep.pe.fromField)
 	if c.isConst {
 		v := c.valuesEncoded[0]
 		ef.apply(v)
-		for i, f := range ef.fields {
-			fieldValue := *f.value
-			rc := &rcs[i]
-			for range br.timestamps {
-				rc.addValue(fieldValue)
+		for i := range br.timestamps {
+			shard.uctx.resetFields()
+			if bm.isSetBit(i) {
+				for _, f := range ef.fields {
+					shard.uctx.addField(f.name, *f.value, "")
+				}
 			}
+			shard.wctx.writeRow(i, shard.uctx.fields)
+
 		}
 	} else {
 		values := c.getValues(br)
+		vPrevApplied := ""
 		for i, v := range values {
-			if i == 0 || values[i-1] != v {
-				ef.apply(v)
+			shard.uctx.resetFields()
+			if bm.isSetBit(i) {
+				if vPrevApplied != v {
+					ef.apply(v)
+					vPrevApplied = v
+				}
+				for _, f := range ef.fields {
+					shard.uctx.addField(f.name, *f.value, "")
+				}
 			}
-			for j, f := range ef.fields {
-				rcs[j].addValue(*f.value)
-			}
+			shard.wctx.writeRow(i, shard.uctx.fields)
 		}
 	}
 
-	br.addResultColumns(rcs)
-	pep.ppBase.writeBlock(workerID, br)
-
-	for i := range rcs {
-		rcs[i].resetValues()
-	}
+	shard.wctx.flush()
+	shard.uctx.reset()
 }
 
 func (pep *pipeExtractProcessor) flush() error {
@@ -160,6 +185,7 @@ func parsePipeExtract(lex *lexer) (*pipeExtract, error) {
 		fromField = f
 	}
 
+	// parse pattern
 	pattern, err := getCompoundToken(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read 'pattern': %w", err)
@@ -174,5 +200,19 @@ func parsePipeExtract(lex *lexer) (*pipeExtract, error) {
 		steps:     steps,
 		pattern:   pattern,
 	}
+
+	// parse optional if (...)
+	if lex.isKeyword("if") {
+		iff, err := parseIfFilter(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'if' filter for %s: %w", pe, err)
+		}
+		pe.iff = iff
+
+		neededFields := newFieldsSet()
+		iff.updateNeededFields(neededFields)
+		pe.iffNeededFields = neededFields.getAll()
+	}
+
 	return pe, nil
 }

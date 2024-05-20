@@ -173,6 +173,11 @@ func expectPipeResults(t *testing.T, pipeStr string, rows, rowsExpected [][]Fiel
 		t.Fatalf("unexpected error when parsing %q: %s", pipeStr, err)
 	}
 
+	pipeStrResult := p.String()
+	if pipeStrResult != pipeStr {
+		t.Fatalf("unexpected string representation for the pipe; got\n%s\nwant\n%s", pipeStrResult, pipeStr)
+	}
+
 	workersCount := 5
 	stopCh := make(chan struct{})
 	cancel := func() {}
@@ -240,6 +245,7 @@ func (brw *testBlockResultWriter) flush() {
 	for i := range brw.rcs {
 		brw.rcs[i].resetValues()
 	}
+	brw.ppBase.flush()
 }
 
 func newTestPipeProcessor() *testPipeProcessor {
