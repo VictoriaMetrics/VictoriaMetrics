@@ -77,6 +77,8 @@ func TestPipeStats(t *testing.T) {
 		{
 			{"a", "1"},
 			{"rows", "1"},
+		},
+		{
 			{"a", "2"},
 			{"rows", "2"},
 		},
