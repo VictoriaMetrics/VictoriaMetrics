@@ -61,8 +61,8 @@ func TestPipeOffset(t *testing.T) {
 		},
 	}, [][]Field{
 		{
-			{"_msg", `{"foo":"bar"}`},
-			{"a", `test`},
+			{"_msg", `abc`},
+			{"a", `aiewr`},
 		},
 	})
 
