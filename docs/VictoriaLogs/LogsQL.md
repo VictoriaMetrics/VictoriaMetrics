@@ -1062,7 +1062,8 @@ LogsQL supports the following pipes:
 - [`sort`](#sort-pipe) sorts logs by the given [fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - [`stats`](#stats-pipe) calculates various stats over the selected logs.
 - [`uniq`](#uniq-pipe) returns unique log entires.
-- [`unpack_json`](#unpack_json-pipe) unpacks JSON value from [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
+- [`unpack_json`](#unpack_json-pipe) unpacks JSON fields from [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
+- [`unpack_logfmt`](#unpack_logfmt-pipe) unpacks [logfmt](https://brandur.org/logfmt) fields from [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 
 ### copy pipe
 
@@ -1136,6 +1137,7 @@ See also:
 
 - [format for extract pipe pattern](#format-for-extract-pipe-pattern)
 - [`unpack_json` pipe](#unpack_json-pipe)
+- [`unpack_logfmt` pipe](#unpack_logfmt-pipe)
 
 #### Format for extract pipe pattern
 
@@ -1549,24 +1551,24 @@ See also:
 `| unpack_json from field_name` pipe unpacks `{"k1":"v1", ..., "kN":"vN"}` JSON from the given `field_name` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 into `k1`, ... `kN` field names with the corresponding `v1`, ..., `vN` values. It overrides existing fields with names from the `k1`, ..., `kN` list. Other fields remain untouched.
 
-Nexted JSON is unpacked according to the rules defined [here](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+Nested JSON is unpacked according to the rules defined [here](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
-For example, the following query unpacks JSON from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) across logs for the last 5 minutes:
+For example, the following query unpacks JSON fields from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) across logs for the last 5 minutes:
 
 ```logsql
 _time:5m | unpack_json from _msg
 ```
 
-The `from _json` part can be omitted when JSON is unpacked from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+The `from _json` part can be omitted when JSON fields are unpacked from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
 The following query is equivalent to the previous one:
 
 ```logsql
 _time:5m | unpack_json
 ```
 
-If you want to make sure that the JSON fields do not clash with the existing fields, then it is possible to specify common prefix for all the fields extracted from JSON,
-by adding `result_prefix "prefix_name"` to `unpack_json`. For example, the following query adds `foo_` prefix for all the fields extracted from the JSON
-at [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
+If you want to make sure that the unpacked JSON fields do not clash with the existing fields, then specify common prefix for all the fields extracted from JSON,
+by adding `result_prefix "prefix_name"` to `unpack_json`. For example, the following query adds `foo_` prefix for all the unpacked fields
+form [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 
 ```logsql
 _time:5m | unpack_json result_prefix "foo_"
@@ -1581,6 +1583,48 @@ _time:5m | extract '"ip":<field_value>'
 
 See also:
 
+- [`unpack_logfmt` pipe](#unpack_logfmt-pipe)
+- [`extract` pipe](#extract-pipe)
+
+### unpack_logfmt pipe
+
+`| unpack_logfmt from field_name` pipe unpacks `k1=v1 ... kN=vN` [logfmt](https://brandur.org/logfmt) fields
+from the given `field_name` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into `k1`, ... `kN` field names
+with the corresponding `v1`, ..., `vN` values. It overrides existing fields with names from the `k1`, ..., `kN` list. Other fields remain untouched.
+
+For example, the following query unpacks [logfmt](https://brandur.org/logfmt) fields from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+across logs for the last 5 minutes:
+
+```logsql
+_time:5m | unpack_logfmt from _msg
+```
+
+The `from _json` part can be omitted when [logfmt](https://brandur.org/logfmt) fields are unpacked from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+The following query is equivalent to the previous one:
+
+```logsql
+_time:5m | unpack_logfmt
+```
+
+If you want to make sure that the unpacked [logfmt](https://brandur.org/logfmt) fields do not clash with the existing fields, then specify common prefix for all the fields extracted from JSON,
+by adding `result_prefix "prefix_name"` to `unpack_logfmt`. For example, the following query adds `foo_` prefix for all the unpacked fields
+from [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
+
+```logsql
+_time:5m | unpack_logfmt result_prefix "foo_"
+```
+
+Performance tip: if you need extracting a single field from long [logfmt](https://brandur.org/logfmt) line, it is faster to use [`extract` pipe](#extract-pipe).
+For example, the following query extracts `"ip"` field from [logfmt](https://brandur.org/logfmt) line stored
+in [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
+
+```
+_time:5m | extract ' ip=<field_value>'
+```
+
+See also:
+
+- [`unpack_json` pipe](#unpack_json-pipe)
 - [`extract` pipe](#extract-pipe)
 
 ## stats pipe functions
@@ -1879,12 +1923,11 @@ LogsQL supports the following transformations on the log entries selected with [
 
 - Extracting arbitrary text from [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) according to the provided pattern.
   See [these docs](#extract-pipe) for details.
-- Unpacking JSON strings from [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model). See [these docs](#unpack_json-pipe).
+- Unpacking JSON fields from [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model). See [these docs](#unpack_json-pipe).
+- Unpacking [logfmt](https://brandur.org/logfmt) fields from [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model). See [these docs](#unpack_logfmt-pipe).
 
 LogsQL will support the following transformations in the future:
 
-- Extracting the specified fields from [logfmt](https://brandur.org/logfmt) strings stored
-  inside [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - Creating a new field from existing [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
   according to the provided format.
 - Creating a new field according to math calculations over existing [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
