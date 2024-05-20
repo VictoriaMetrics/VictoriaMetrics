@@ -22,7 +22,25 @@ func (fr *filterStringRange) String() string {
 	return fmt.Sprintf("%sstring_range(%s, %s)", quoteFieldNameIfNeeded(fr.fieldName), quoteTokenIfNeeded(fr.minValue), quoteTokenIfNeeded(fr.maxValue))
 }
 
-func (fr *filterStringRange) apply(bs *blockSearch, bm *bitmap) {
+func (fr *filterStringRange) updateNeededFields(neededFields fieldsSet) {
+	neededFields.add(fr.fieldName)
+}
+
+func (fr *filterStringRange) applyToBlockResult(br *blockResult, bm *bitmap) {
+	minValue := fr.minValue
+	maxValue := fr.maxValue
+
+	if minValue > maxValue {
+		bm.resetBits()
+		return
+	}
+
+	applyToBlockResultGeneric(br, bm, fr.fieldName, "", func(v, _ string) bool {
+		return matchStringRange(v, minValue, maxValue)
+	})
+}
+
+func (fr *filterStringRange) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fr.fieldName
 	minValue := fr.minValue
 	maxValue := fr.maxValue
@@ -81,7 +99,7 @@ func matchTimestampISO8601ByStringRange(bs *blockSearch, ch *columnHeader, bm *b
 
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toTimestampISO8601StringExt(bs, bb, v)
+		s := toTimestampISO8601String(bs, bb, v)
 		return matchStringRange(s, minValue, maxValue)
 	})
 	bbPool.Put(bb)
@@ -95,7 +113,7 @@ func matchIPv4ByStringRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minVa
 
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toIPv4StringExt(bs, bb, v)
+		s := toIPv4String(bs, bb, v)
 		return matchStringRange(s, minValue, maxValue)
 	})
 	bbPool.Put(bb)
@@ -109,7 +127,7 @@ func matchFloat64ByStringRange(bs *blockSearch, ch *columnHeader, bm *bitmap, mi
 
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toFloat64StringExt(bs, bb, v)
+		s := toFloat64String(bs, bb, v)
 		return matchStringRange(s, minValue, maxValue)
 	})
 	bbPool.Put(bb)
@@ -117,10 +135,12 @@ func matchFloat64ByStringRange(bs *blockSearch, ch *columnHeader, bm *bitmap, mi
 
 func matchValuesDictByStringRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue string) {
 	bb := bbPool.Get()
-	for i, v := range ch.valuesDict.values {
+	for _, v := range ch.valuesDict.values {
+		c := byte(0)
 		if matchStringRange(v, minValue, maxValue) {
-			bb.B = append(bb.B, byte(i))
+			c = 1
 		}
+		bb.B = append(bb.B, c)
 	}
 	matchEncodedValuesDict(bs, ch, bm, bb.B)
 	bbPool.Put(bb)

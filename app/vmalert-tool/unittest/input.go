@@ -18,6 +18,8 @@ import (
 	"github.com/VictoriaMetrics/metricsql"
 )
 
+var numReg = regexp.MustCompile(`\D?\d*\D?`)
+
 // series holds input_series defined in the test file
 type series struct {
 	Series string `yaml:"series"`
@@ -86,13 +88,12 @@ func writeInputSeries(input []series, interval *promutils.Duration, startStamp t
 func parseInputValue(input string, origin bool) ([]sequenceValue, error) {
 	var res []sequenceValue
 	items := strings.Split(input, " ")
-	reg := regexp.MustCompile(`\D?\d*\D?`)
 	for _, item := range items {
 		if item == "stale" {
 			res = append(res, sequenceValue{Value: decimal.StaleNaN})
 			continue
 		}
-		vals := reg.FindAllString(item, -1)
+		vals := numReg.FindAllString(item, -1)
 		switch len(vals) {
 		case 1:
 			if vals[0] == "_" {

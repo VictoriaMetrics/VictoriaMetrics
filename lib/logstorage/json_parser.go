@@ -1,4 +1,4 @@
-package logjson
+package logstorage
 
 import (
 	"fmt"
@@ -6,21 +6,20 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/valyala/fastjson"
 )
 
-// Parser parses a single JSON log message into Fields.
+// JSONParser parses a single JSON log message into Fields.
 //
 // See https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model
 //
 // Use GetParser() for obtaining the parser.
-type Parser struct {
+type JSONParser struct {
 	// Fields contains the parsed JSON line after Parse() call
 	//
 	// The Fields are valid until the next call to ParseLogMessage()
 	// or until the parser is returned to the pool with PutParser() call.
-	Fields []logstorage.Field
+	Fields []Field
 
 	// p is used for fast JSON parsing
 	p fastjson.Parser
@@ -33,59 +32,79 @@ type Parser struct {
 	prefixBuf []byte
 }
 
-func (p *Parser) reset() {
-	fields := p.Fields
-	for i := range fields {
-		lf := &fields[i]
-		lf.Name = ""
-		lf.Value = ""
-	}
-	p.Fields = fields[:0]
+func (p *JSONParser) reset() {
+	p.resetNobuf()
 
 	p.buf = p.buf[:0]
+}
+
+func (p *JSONParser) resetNobuf() {
+	clear(p.Fields)
+	p.Fields = p.Fields[:0]
+
 	p.prefixBuf = p.prefixBuf[:0]
 }
 
-// GetParser returns Parser ready to parse JSON lines.
+// GetJSONParser returns JSONParser ready to parse JSON lines.
 //
-// Return the parser to the pool when it is no longer needed by calling PutParser().
-func GetParser() *Parser {
+// Return the parser to the pool when it is no longer needed by calling PutJSONParser().
+func GetJSONParser() *JSONParser {
 	v := parserPool.Get()
 	if v == nil {
-		return &Parser{}
+		return &JSONParser{}
 	}
-	return v.(*Parser)
+	return v.(*JSONParser)
 }
 
-// PutParser returns the parser to the pool.
+// PutJSONParser returns the parser to the pool.
 //
 // The parser cannot be used after returning to the pool.
-func PutParser(p *Parser) {
+func PutJSONParser(p *JSONParser) {
 	p.reset()
 	parserPool.Put(p)
 }
 
 var parserPool sync.Pool
 
+// ParseLogMessageNoResetBuf parses the given JSON log message msg into p.Fields.
+//
+// It adds the given prefix to all the parsed field names.
+//
+// The p.Fields remains valid until the next call to PutJSONParser().
+func (p *JSONParser) ParseLogMessageNoResetBuf(msg, prefix string) error {
+	return p.parseLogMessage(msg, prefix, false)
+}
+
 // ParseLogMessage parses the given JSON log message msg into p.Fields.
 //
-// The p.Fields remains valid until the next call to ParseLogMessage() or PutParser().
-func (p *Parser) ParseLogMessage(msg []byte) error {
-	s := bytesutil.ToUnsafeString(msg)
-	v, err := p.p.Parse(s)
+// It adds the given prefix to all the parsed field names.
+//
+// The p.Fields remains valid until the next call to ParseLogMessage() or PutJSONParser().
+func (p *JSONParser) ParseLogMessage(msg []byte, prefix string) error {
+	msgStr := bytesutil.ToUnsafeString(msg)
+	return p.parseLogMessage(msgStr, prefix, true)
+}
+
+func (p *JSONParser) parseLogMessage(msg, prefix string, resetBuf bool) error {
+	v, err := p.p.Parse(msg)
 	if err != nil {
 		return fmt.Errorf("cannot parse json: %w", err)
 	}
 	if t := v.Type(); t != fastjson.TypeObject {
 		return fmt.Errorf("expecting json dictionary; got %s", t)
 	}
-	p.reset()
+	if resetBuf {
+		p.reset()
+	} else {
+		p.resetNobuf()
+	}
+	p.prefixBuf = append(p.prefixBuf[:0], prefix...)
 	p.Fields, p.buf, p.prefixBuf = appendLogFields(p.Fields, p.buf, p.prefixBuf, v)
 	return nil
 }
 
 // RenameField renames field with the oldName to newName in p.Fields
-func (p *Parser) RenameField(oldName, newName string) {
+func (p *JSONParser) RenameField(oldName, newName string) {
 	if oldName == "" {
 		return
 	}
@@ -99,7 +118,7 @@ func (p *Parser) RenameField(oldName, newName string) {
 	}
 }
 
-func appendLogFields(dst []logstorage.Field, dstBuf, prefixBuf []byte, v *fastjson.Value) ([]logstorage.Field, []byte, []byte) {
+func appendLogFields(dst []Field, dstBuf, prefixBuf []byte, v *fastjson.Value) ([]Field, []byte, []byte) {
 	o := v.GetObject()
 	o.Visit(func(k []byte, v *fastjson.Value) {
 		t := v.Type()
@@ -133,13 +152,13 @@ func appendLogFields(dst []logstorage.Field, dstBuf, prefixBuf []byte, v *fastjs
 	return dst, dstBuf, prefixBuf
 }
 
-func appendLogField(dst []logstorage.Field, dstBuf, prefixBuf, k, value []byte) ([]logstorage.Field, []byte) {
+func appendLogField(dst []Field, dstBuf, prefixBuf, k, value []byte) ([]Field, []byte) {
 	dstBufLen := len(dstBuf)
 	dstBuf = append(dstBuf, prefixBuf...)
 	dstBuf = append(dstBuf, k...)
 	name := dstBuf[dstBufLen:]
 
-	dst = append(dst, logstorage.Field{
+	dst = append(dst, Field{
 		Name:  bytesutil.ToUnsafeString(name),
 		Value: bytesutil.ToUnsafeString(value),
 	})

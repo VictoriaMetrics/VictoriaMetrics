@@ -51,6 +51,8 @@ var (
 		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model")
 	timestampFieldsPerLog = flag.Int("timestampFieldsPerLog", 1, "The number of fields with ISO8601 timestamps per each log entry; "+
 		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model")
+	jsonFieldsPerLog = flag.Int("jsonFieldsPerLog", 1, "The number of JSON fields to generate per each log entry; "+
+		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model")
 
 	statInterval = flag.Duration("statInterval", 10*time.Second, "The interval between publishing the stats")
 )
@@ -262,6 +264,9 @@ func generateLogsAtTimestamp(bw *bufio.Writer, workerID int, ts int64, firstStre
 		for j := 0; j < *timestampFieldsPerLog; j++ {
 			timestamp := toISO8601(int64(rand.Uint64()))
 			fmt.Fprintf(bw, `,"timestamp_%d":"%s"`, j, timestamp)
+		}
+		for j := 0; j < *jsonFieldsPerLog; j++ {
+			fmt.Fprintf(bw, `,"json_%d":"{\"foo\":\"bar_%d\",\"baz\":{\"a\":[\"x\",\"y\"]},\"f3\":NaN,\"f4\":%d}"`, j, rand.Intn(10), rand.Intn(100))
 		}
 		fmt.Fprintf(bw, "}\n")
 

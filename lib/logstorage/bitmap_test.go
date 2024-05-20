@@ -32,7 +32,7 @@ func TestBitmap(t *testing.T) {
 
 		// Make sure that all the bits are set.
 		nextIdx := 0
-		bm.forEachSetBit(func(idx int) bool {
+		bm.forEachSetBitReadonly(func(idx int) {
 			if idx >= i {
 				t.Fatalf("index must be smaller than %d", i)
 			}
@@ -40,7 +40,6 @@ func TestBitmap(t *testing.T) {
 				t.Fatalf("unexpected idx; got %d; want %d", idx, nextIdx)
 			}
 			nextIdx++
-			return true
 		})
 
 		if !bm.areAllBitsSet() {
@@ -66,12 +65,11 @@ func TestBitmap(t *testing.T) {
 		}
 
 		nextIdx = 1
-		bm.forEachSetBit(func(idx int) bool {
+		bm.forEachSetBitReadonly(func(idx int) {
 			if idx != nextIdx {
 				t.Fatalf("unexpected idx; got %d; want %d", idx, nextIdx)
 			}
 			nextIdx += 2
-			return true
 		})
 
 		// Clear all the bits
@@ -93,9 +91,8 @@ func TestBitmap(t *testing.T) {
 		}
 
 		bitsCount := 0
-		bm.forEachSetBit(func(_ int) bool {
+		bm.forEachSetBitReadonly(func(_ int) {
 			bitsCount++
-			return true
 		})
 		if bitsCount != 0 {
 			t.Fatalf("unexpected non-zero number of set bits remained: %d", bitsCount)

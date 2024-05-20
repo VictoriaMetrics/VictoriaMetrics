@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 func getArena() *arena {
@@ -29,8 +30,12 @@ func (a *arena) reset() {
 	a.b = a.b[:0]
 }
 
+func (a *arena) preallocate(n int) {
+	a.b = slicesutil.ExtendCapacity(a.b, n)
+}
+
 func (a *arena) sizeBytes() int {
-	return len(a.b)
+	return cap(a.b)
 }
 
 func (a *arena) copyBytes(b []byte) []byte {
@@ -41,9 +46,8 @@ func (a *arena) copyBytes(b []byte) []byte {
 	ab := a.b
 	abLen := len(ab)
 	ab = append(ab, b...)
-	result := ab[abLen:]
 	a.b = ab
-	return result
+	return ab[abLen:]
 }
 
 func (a *arena) copyBytesToString(b []byte) string {

@@ -8,6 +8,9 @@ import (
 	"unsafe"
 
 	"github.com/valyala/fastrand"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 type statsQuantile struct {
@@ -21,8 +24,8 @@ func (sq *statsQuantile) String() string {
 	return fmt.Sprintf("quantile(%g, %s)", sq.phi, fieldNamesString(sq.fields))
 }
 
-func (sq *statsQuantile) neededFields() []string {
-	return sq.fields
+func (sq *statsQuantile) updateNeededFields(neededFields fieldsSet) {
+	neededFields.addFields(sq.fields)
 }
 
 func (sq *statsQuantile) newStatsProcessor() (statsProcessor, int) {
@@ -39,27 +42,16 @@ type statsQuantileProcessor struct {
 }
 
 func (sqp *statsQuantileProcessor) updateStatsForAllRows(br *blockResult) int {
-	h := &sqp.h
 	stateSizeIncrease := 0
 
 	if sqp.sq.containsStar {
 		for _, c := range br.getColumns() {
-			for _, v := range c.getValues(br) {
-				f, ok := tryParseFloat64(v)
-				if ok {
-					stateSizeIncrease += h.update(f)
-				}
-			}
+			stateSizeIncrease += sqp.updateStateForColumn(br, c)
 		}
 	} else {
 		for _, field := range sqp.sq.fields {
 			c := br.getColumnByName(field)
-			for _, v := range c.getValues(br) {
-				f, ok := tryParseFloat64(v)
-				if ok {
-					stateSizeIncrease += h.update(f)
-				}
-			}
+			stateSizeIncrease += sqp.updateStateForColumn(br, c)
 		}
 	}
 
@@ -72,19 +64,98 @@ func (sqp *statsQuantileProcessor) updateStatsForRow(br *blockResult, rowIdx int
 
 	if sqp.sq.containsStar {
 		for _, c := range br.getColumns() {
-			f := c.getFloatValueAtRow(rowIdx)
-			if !math.IsNaN(f) {
+			f, ok := c.getFloatValueAtRow(br, rowIdx)
+			if ok {
 				stateSizeIncrease += h.update(f)
 			}
 		}
 	} else {
 		for _, field := range sqp.sq.fields {
 			c := br.getColumnByName(field)
-			f := c.getFloatValueAtRow(rowIdx)
-			if !math.IsNaN(f) {
+			f, ok := c.getFloatValueAtRow(br, rowIdx)
+			if ok {
 				stateSizeIncrease += h.update(f)
 			}
 		}
+	}
+
+	return stateSizeIncrease
+}
+
+func (sqp *statsQuantileProcessor) updateStateForColumn(br *blockResult, c *blockResultColumn) int {
+	h := &sqp.h
+	stateSizeIncrease := 0
+
+	if c.isConst {
+		f, ok := tryParseFloat64(c.valuesEncoded[0])
+		if ok {
+			for range br.timestamps {
+				stateSizeIncrease += h.update(f)
+			}
+		}
+		return stateSizeIncrease
+	}
+	if c.isTime {
+		return 0
+	}
+
+	switch c.valueType {
+	case valueTypeString:
+		for _, v := range c.getValues(br) {
+			f, ok := tryParseFloat64(v)
+			if ok {
+				stateSizeIncrease += h.update(f)
+			}
+		}
+	case valueTypeDict:
+		dictValues := c.dictValues
+		a := encoding.GetFloat64s(len(dictValues))
+		for i, v := range dictValues {
+			f, ok := tryParseFloat64(v)
+			if !ok {
+				f = nan
+			}
+			a.A[i] = f
+		}
+		for _, v := range c.getValuesEncoded(br) {
+			idx := v[0]
+			f := a.A[idx]
+			if !math.IsNaN(f) {
+				h.update(f)
+			}
+		}
+		encoding.PutFloat64s(a)
+	case valueTypeUint8:
+		for _, v := range c.getValuesEncoded(br) {
+			n := unmarshalUint8(v)
+			h.update(float64(n))
+		}
+	case valueTypeUint16:
+		for _, v := range c.getValuesEncoded(br) {
+			n := unmarshalUint16(v)
+			h.update(float64(n))
+		}
+	case valueTypeUint32:
+		for _, v := range c.getValuesEncoded(br) {
+			n := unmarshalUint32(v)
+			h.update(float64(n))
+		}
+	case valueTypeUint64:
+		for _, v := range c.getValuesEncoded(br) {
+			n := unmarshalUint64(v)
+			h.update(float64(n))
+		}
+	case valueTypeFloat64:
+		for _, v := range c.getValuesEncoded(br) {
+			f := unmarshalFloat64(v)
+			if !math.IsNaN(f) {
+				h.update(f)
+			}
+		}
+	case valueTypeIPv4:
+	case valueTypeTimestampISO8601:
+	default:
+		logger.Panicf("BUG: unexpected valueType=%d", c.valueType)
 	}
 
 	return stateSizeIncrease

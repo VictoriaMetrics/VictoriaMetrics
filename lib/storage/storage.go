@@ -2004,7 +2004,7 @@ func createAllIndexesForMetricName(is *indexSearch, mn *MetricName, tsid *TSID, 
 }
 
 func (s *Storage) putSeriesToCache(metricNameRaw []byte, genTSID *generationTSID, date uint64) {
-	// Store the TSID for for the current indexdb into cache,
+	// Store the TSID for the current indexdb into cache,
 	// so future rows for that TSID are ingested via fast path.
 	s.putTSIDToCache(genTSID, metricNameRaw)
 
