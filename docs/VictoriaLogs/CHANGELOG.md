@@ -19,6 +19,10 @@ according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/QuickSta
 
 ## tip
 
+## [v0.8.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.8.0-victorialogs)
+
+Released at 2024-05-20
+
 * FEATURE: add ability to extract JSON fields from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_json-pipe).
 * FEATURE: add ability to extract [logfmt](https://brandur.org/logfmt) fields from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_logfmt-pipe).
 * FEATURE: add ability to extract arbitrary text from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into the output fields. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#extact-pipe).
