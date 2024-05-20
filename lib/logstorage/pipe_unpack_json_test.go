@@ -222,7 +222,7 @@ type testPipeProcessor struct {
 	resultRows     [][]Field
 }
 
-func (pp *testPipeProcessor) writeBlock(workerID uint, br *blockResult) {
+func (pp *testPipeProcessor) writeBlock(_ uint, br *blockResult) {
 	cs := br.getColumns()
 	var columnValues [][]string
 	for _, c := range cs {
