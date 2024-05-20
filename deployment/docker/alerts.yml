@@ -131,3 +131,12 @@ groups:
           description: "VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.\n
            This prevents ingestion of metrics with too many labels. Please verify that `-maxLabelsPerTimeseries` is configured
            correctly or that clients which send these metrics aren't misbehaving."
+
+      - alert: IndexDBRecordsDrop
+        expr: rate(vm_indexdb_items_dropped_total) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "IndexDB dropped items during data ingestion with reason={{ $labels.reason}}."
+          description: "Check settings for `-maxLabelValueLen` and `-maxLabelsPerTimeseries` flags. Total metric size cannot exceed 64kb."
+
