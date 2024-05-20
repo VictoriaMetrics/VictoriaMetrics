@@ -1170,7 +1170,7 @@ So it is better to use the following `pattern` for proper matching of quoted str
 ```
 
 Note that the `user_agent` now matches double quotes, but VictoriaLogs automatically unquotes the matching string before storing it in the `user_agent` field.
-This propery is useful for extracting JSON strings. For example, the following `pattern` properly extracts the `message` JSON string into `msg` field:
+This is useful for extracting JSON strings. For example, the following `pattern` properly extracts the `message` JSON string into `msg` field:
 
 ```
 | extract '"message":<msg>'
