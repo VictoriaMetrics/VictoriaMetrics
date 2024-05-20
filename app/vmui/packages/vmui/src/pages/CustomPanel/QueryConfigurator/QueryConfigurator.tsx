@@ -178,6 +178,10 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
     }
   }, [stateQuery, awaitStateQuery]);
 
+  useEffect(() => {
+    setStateQuery(query || []);
+  }, [query]);
+
   return <div
     className={classNames({
       "vm-query-configurator": true,
