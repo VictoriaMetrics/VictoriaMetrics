@@ -32,7 +32,7 @@ func (pr *pipeRename) String() string {
 }
 
 func (pr *pipeRename) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	for i := len(pr.srcFields)-1; i >=0 ; i-- {
+	for i := len(pr.srcFields) - 1; i >= 0; i-- {
 		srcField := pr.srcFields[i]
 		dstField := pr.dstFields[i]
 

@@ -56,6 +56,19 @@ func TestPipeFields(t *testing.T) {
 		},
 	})
 
+	// single row, no existing fields
+	f("fields x, y", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+		},
+	}, [][]Field{
+		{
+			{"x", ``},
+			{"y", ``},
+		},
+	})
+
 	// single row, mention existing field multiple times
 	f("fileds a, a", [][]Field{
 		{

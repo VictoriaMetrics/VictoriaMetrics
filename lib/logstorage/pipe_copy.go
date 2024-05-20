@@ -32,7 +32,7 @@ func (pc *pipeCopy) String() string {
 }
 
 func (pc *pipeCopy) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	for i := len(pc.srcFields)-1; i >=0 ; i-- {
+	for i := len(pc.srcFields) - 1; i >= 0; i-- {
 		srcField := pc.srcFields[i]
 		dstField := pc.dstFields[i]
 
