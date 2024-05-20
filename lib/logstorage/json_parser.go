@@ -33,16 +33,10 @@ type JSONParser struct {
 }
 
 func (p *JSONParser) reset() {
-	p.resetNobuf()
-
-	p.buf = p.buf[:0]
-}
-
-func (p *JSONParser) resetNobuf() {
 	clear(p.Fields)
 	p.Fields = p.Fields[:0]
 
-	p.prefixBuf = p.prefixBuf[:0]
+	p.buf = p.buf[:0]
 }
 
 // GetJSONParser returns JSONParser ready to parse JSON lines.
@@ -66,36 +60,20 @@ func PutJSONParser(p *JSONParser) {
 
 var parserPool sync.Pool
 
-// ParseLogMessageNoResetBuf parses the given JSON log message msg into p.Fields.
-//
-// It adds the given prefix to all the parsed field names.
-//
-// The p.Fields remains valid until the next call to PutJSONParser().
-func (p *JSONParser) ParseLogMessageNoResetBuf(msg, prefix string) error {
-	p.resetNobuf()
-	return p.parseLogMessage(msg, prefix)
-}
-
 // ParseLogMessage parses the given JSON log message msg into p.Fields.
 //
-// It adds the given prefix to all the parsed field names.
-//
 // The p.Fields remains valid until the next call to ParseLogMessage() or PutJSONParser().
-func (p *JSONParser) ParseLogMessage(msg []byte, prefix string) error {
-	msgStr := bytesutil.ToUnsafeString(msg)
+func (p *JSONParser) ParseLogMessage(msg []byte) error {
 	p.reset()
-	return p.parseLogMessage(msgStr, prefix)
-}
 
-func (p *JSONParser) parseLogMessage(msg, prefix string) error {
-	v, err := p.p.Parse(msg)
+	msgStr := bytesutil.ToUnsafeString(msg)
+	v, err := p.p.Parse(msgStr)
 	if err != nil {
 		return fmt.Errorf("cannot parse json: %w", err)
 	}
 	if t := v.Type(); t != fastjson.TypeObject {
 		return fmt.Errorf("expecting json dictionary; got %s", t)
 	}
-	p.prefixBuf = append(p.prefixBuf[:0], prefix...)
 	p.Fields, p.buf, p.prefixBuf = appendLogFields(p.Fields, p.buf, p.prefixBuf, v)
 	return nil
 }

@@ -2,7 +2,8 @@ package logstorage
 
 import (
 	"fmt"
-	"unsafe"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 // pipeUnpackJSON processes '| unpack_json ...' pipe.
@@ -34,83 +35,21 @@ func (pu *pipeUnpackJSON) updateNeededFields(neededFields, unneededFields fields
 }
 
 func (pu *pipeUnpackJSON) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
-	shards := make([]pipeUnpackJSONProcessorShard, workersCount)
-
-	pup := &pipeUnpackJSONProcessor{
-		pu:     pu,
-		ppBase: ppBase,
-
-		shards: shards,
-	}
-	return pup
+	return newPipeUnpackProcessor(workersCount, unpackJSON, ppBase, pu.fromField, pu.resultPrefix)
 }
 
-type pipeUnpackJSONProcessor struct {
-	pu     *pipeUnpackJSON
-	ppBase pipeProcessor
-
-	shards []pipeUnpackJSONProcessorShard
-}
-
-type pipeUnpackJSONProcessorShard struct {
-	pipeUnpackJSONProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeUnpackJSONProcessorShardNopad{})%128]byte
-}
-
-type pipeUnpackJSONProcessorShardNopad struct {
-	p JSONParser
-
-	wctx pipeUnpackWriteContext
-}
-
-func (shard *pipeUnpackJSONProcessorShard) parseJSON(v, resultPrefix string) []Field {
-	if len(v) == 0 || v[0] != '{' {
+func unpackJSON(uctx *fieldsUnpackerContext, s, fieldPrefix string) {
+	if len(s) == 0 || s[0] != '{' {
 		// This isn't a JSON object
-		return nil
-	}
-	if err := shard.p.ParseLogMessageNoResetBuf(v, resultPrefix); err != nil {
-		// Cannot parse v
-		return nil
-	}
-	return shard.p.Fields
-}
-
-func (pup *pipeUnpackJSONProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
 		return
 	}
-
-	resultPrefix := pup.pu.resultPrefix
-	shard := &pup.shards[workerID]
-	wctx := &shard.wctx
-	wctx.init(br, pup.ppBase)
-
-	c := br.getColumnByName(pup.pu.fromField)
-	if c.isConst {
-		v := c.valuesEncoded[0]
-		extraFields := shard.parseJSON(v, resultPrefix)
-		for rowIdx := range br.timestamps {
-			wctx.writeRow(rowIdx, extraFields)
-		}
-	} else {
-		values := c.getValues(br)
-		var extraFields []Field
-		for i, v := range values {
-			if i == 0 || values[i-1] != v {
-				extraFields = shard.parseJSON(v, resultPrefix)
-			}
-			wctx.writeRow(i, extraFields)
+	p := GetJSONParser()
+	if err := p.ParseLogMessage(bytesutil.ToUnsafeBytes(s)); err == nil {
+		for _, f := range p.Fields {
+			uctx.addField(f.Name, f.Value, fieldPrefix)
 		}
 	}
-
-	wctx.flush()
-	shard.p.reset()
-}
-
-func (pup *pipeUnpackJSONProcessor) flush() error {
-	return nil
+	PutJSONParser(p)
 }
 
 func parsePipeUnpackJSON(lex *lexer) (*pipeUnpackJSON, error) {
