@@ -146,7 +146,7 @@ func (bs *blockSearch) partPath() string {
 	return bs.bsw.p.path
 }
 
-func (bs *blockSearch) search(bsw *blockSearchWork) {
+func (bs *blockSearch) search(bsw *blockSearchWork, bm *bitmap) {
 	bs.reset()
 
 	bs.bsw = bsw
@@ -154,23 +154,22 @@ func (bs *blockSearch) search(bsw *blockSearchWork) {
 	bs.csh.initFromBlockHeader(&bs.a, bsw.p, &bsw.bh)
 
 	// search rows matching the given filter
-	bm := getBitmap(int(bsw.bh.rowsCount))
-	defer putBitmap(bm)
-
+	bm.init(int(bsw.bh.rowsCount))
 	bm.setBits()
-	bs.bsw.so.filter.apply(bs, bm)
+	bs.bsw.so.filter.applyToBlockSearch(bs, bm)
 
-	bs.br.mustInit(bs, bm)
 	if bm.isZero() {
 		// The filter doesn't match any logs in the current block.
 		return
 	}
 
+	bs.br.mustInit(bs, bm)
+
 	// fetch the requested columns to bs.br.
 	if bs.bsw.so.needAllColumns {
-		bs.br.fetchAllColumns(bs, bm)
+		bs.br.initAllColumns(bs, bm)
 	} else {
-		bs.br.fetchRequestedColumns(bs, bm)
+		bs.br.initRequestedColumns(bs, bm)
 	}
 }
 

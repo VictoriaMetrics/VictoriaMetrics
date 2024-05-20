@@ -29,6 +29,10 @@ func (fp *filterAnyCasePhrase) String() string {
 	return fmt.Sprintf("%si(%s)", quoteFieldNameIfNeeded(fp.fieldName), quoteTokenIfNeeded(fp.phrase))
 }
 
+func (fp *filterAnyCasePhrase) updateNeededFields(neededFields fieldsSet) {
+	neededFields.add(fp.fieldName)
+}
+
 func (fp *filterAnyCasePhrase) getTokens() []string {
 	fp.tokensOnce.Do(fp.initTokens)
 	return fp.tokens
@@ -47,7 +51,12 @@ func (fp *filterAnyCasePhrase) initPhraseLowercase() {
 	fp.phraseLowercase = strings.ToLower(fp.phrase)
 }
 
-func (fp *filterAnyCasePhrase) apply(bs *blockSearch, bm *bitmap) {
+func (fp *filterAnyCasePhrase) applyToBlockResult(br *blockResult, bm *bitmap) {
+	phraseLowercase := fp.getPhraseLowercase()
+	applyToBlockResultGeneric(br, bm, fp.fieldName, phraseLowercase, matchAnyCasePhrase)
+}
+
+func (fp *filterAnyCasePhrase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fp.fieldName
 	phraseLowercase := fp.getPhraseLowercase()
 
@@ -100,10 +109,12 @@ func (fp *filterAnyCasePhrase) apply(bs *blockSearch, bm *bitmap) {
 
 func matchValuesDictByAnyCasePhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phraseLowercase string) {
 	bb := bbPool.Get()
-	for i, v := range ch.valuesDict.values {
+	for _, v := range ch.valuesDict.values {
+		c := byte(0)
 		if matchAnyCasePhrase(v, phraseLowercase) {
-			bb.B = append(bb.B, byte(i))
+			c = 1
 		}
+		bb.B = append(bb.B, c)
 	}
 	matchEncodedValuesDict(bs, ch, bm, bb.B)
 	bbPool.Put(bb)

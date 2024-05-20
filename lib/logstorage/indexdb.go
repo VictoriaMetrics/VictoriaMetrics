@@ -268,7 +268,7 @@ func (is *indexSearch) getStreamIDsForTagFilter(tenantID TenantID, tf *streamTag
 		}
 		return ids
 	case "=~":
-		re := tf.getRegexp()
+		re := tf.regexp
 		if re.MatchString("") {
 			// (field=~"|re") => (field="" or field=~"re")
 			ids := is.getStreamIDsForEmptyTagValue(tenantID, tf.tagName)
@@ -280,7 +280,7 @@ func (is *indexSearch) getStreamIDsForTagFilter(tenantID TenantID, tf *streamTag
 		}
 		return is.getStreamIDsForTagRegexp(tenantID, tf.tagName, re)
 	case "!~":
-		re := tf.getRegexp()
+		re := tf.regexp
 		if re.MatchString("") {
 			// (field!~"|re") => (field!="" and not field=~"re")
 			ids := is.getStreamIDsForTagName(tenantID, tf.tagName)

@@ -40,7 +40,7 @@ func (pc *pipeCopy) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	}
 	if neededFields.contains("*") {
 		// update only unneeded fields
-		unneededFields.addAll(pc.dstFields)
+		unneededFields.addFields(pc.dstFields)
 		for i, srcField := range pc.srcFields {
 			if neededSrcFields[i] {
 				unneededFields.remove(srcField)
@@ -48,7 +48,7 @@ func (pc *pipeCopy) updateNeededFields(neededFields, unneededFields fieldsSet) {
 		}
 	} else {
 		// update only needed fields and reset unneeded fields
-		neededFields.removeAll(pc.dstFields)
+		neededFields.removeFields(pc.dstFields)
 		for i, srcField := range pc.srcFields {
 			if neededSrcFields[i] {
 				neededFields.add(srcField)
