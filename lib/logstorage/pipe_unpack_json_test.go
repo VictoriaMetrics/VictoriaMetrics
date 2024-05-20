@@ -341,33 +341,54 @@ func (pp *testPipeProcessor) expectRows(t *testing.T, expectedRows [][]Field) {
 }
 
 func sortTestRows(rows [][]Field) {
+	for _, row := range rows {
+		sortTestFields(row)
+	}
 	slices.SortFunc(rows, func(a, b []Field) int {
-		reverse := -1
+		reverse := false
 		if len(a) > len(b) {
-			reverse = 1
+			reverse = true
 			a, b = b, a
 		}
 		for i, fA := range a {
 			fB := b[i]
-			if fA.Name == fB.Name {
-				if fA.Value == fB.Value {
-					continue
-				}
-				if fA.Value < fB.Value {
-					return reverse
-				}
-				return -reverse
+			result := cmpTestFields(fA, fB)
+			if result == 0 {
+				continue
 			}
-			if fA.Name < fB.Name {
-				return reverse
+			if reverse {
+				result = -result
 			}
-			return -reverse
+			return result
 		}
 		if len(a) == len(b) {
 			return 0
 		}
-		return reverse
+		if reverse {
+			return 1
+		}
+		return -1
 	})
+}
+
+func sortTestFields(fields []Field) {
+	slices.SortFunc(fields, cmpTestFields)
+}
+
+func cmpTestFields(a, b Field) int {
+	if a.Name == b.Name {
+		if a.Value == b.Value {
+			return 0
+		}
+		if a.Value < b.Value {
+			return -1
+		}
+		return 1
+	}
+	if a.Name < b.Name {
+		return -1
+	}
+	return 1
 }
 
 func rowsToString(rows [][]Field) string {
