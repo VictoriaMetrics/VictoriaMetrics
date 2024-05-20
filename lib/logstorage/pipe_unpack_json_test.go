@@ -8,6 +8,33 @@ import (
 	"testing"
 )
 
+func TestParsePipeUnpackJSONSuccess(t *testing.T) {
+	f := func(pipeStr string) {
+		t.Helper()
+		expectParsePipeSuccess(t, pipeStr)
+	}
+
+	f(`unpack_json`)
+	f(`unpack_json from x`)
+	f(`unpack_json from x result_prefix abc`)
+	f(`unpack_json result_prefix abc`)
+}
+
+func TestParsePipeUnpackJSONFailure(t *testing.T) {
+	f := func(pipeStr string) {
+		t.Helper()
+		expectParsePipeFailure(t, pipeStr)
+	}
+
+	f(`unpack_json foo`)
+	f(`unpack_json from`)
+	f(`unpack_json from x y`)
+	f(`unpack_json from x result_prefix`)
+	f(`unpack_json from x result_prefix a b`)
+	f(`unpack_json result_prefix`)
+	f(`unpack_json result_prefix a b`)
+}
+
 func TestPipeUnpackJSON(t *testing.T) {
 	f := func(pipeStr string, rows, rowsExpected [][]Field) {
 		t.Helper()
