@@ -72,7 +72,8 @@ var parserPool sync.Pool
 //
 // The p.Fields remains valid until the next call to PutJSONParser().
 func (p *JSONParser) ParseLogMessageNoResetBuf(msg, prefix string) error {
-	return p.parseLogMessage(msg, prefix, false)
+	p.resetNobuf()
+	return p.parseLogMessage(msg, prefix)
 }
 
 // ParseLogMessage parses the given JSON log message msg into p.Fields.
@@ -82,21 +83,17 @@ func (p *JSONParser) ParseLogMessageNoResetBuf(msg, prefix string) error {
 // The p.Fields remains valid until the next call to ParseLogMessage() or PutJSONParser().
 func (p *JSONParser) ParseLogMessage(msg []byte, prefix string) error {
 	msgStr := bytesutil.ToUnsafeString(msg)
-	return p.parseLogMessage(msgStr, prefix, true)
+	p.reset()
+	return p.parseLogMessage(msgStr, prefix)
 }
 
-func (p *JSONParser) parseLogMessage(msg, prefix string, resetBuf bool) error {
+func (p *JSONParser) parseLogMessage(msg, prefix string) error {
 	v, err := p.p.Parse(msg)
 	if err != nil {
 		return fmt.Errorf("cannot parse json: %w", err)
 	}
 	if t := v.Type(); t != fastjson.TypeObject {
 		return fmt.Errorf("expecting json dictionary; got %s", t)
-	}
-	if resetBuf {
-		p.reset()
-	} else {
-		p.resetNobuf()
 	}
 	p.prefixBuf = append(p.prefixBuf[:0], prefix...)
 	p.Fields, p.buf, p.prefixBuf = appendLogFields(p.Fields, p.buf, p.prefixBuf, v)
