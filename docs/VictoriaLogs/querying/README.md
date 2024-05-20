@@ -88,6 +88,188 @@ curl http://localhost:9428/select/logsql/query -H 'AccountID: 12' -H 'ProjectID:
 The number of requests to `/select/logsql/query` can be [monitored](https://docs.victoriametrics.com/VictoriaLogs/#monitoring)
 with `vl_http_requests_total{path="/select/logsql/query"}` metric.
 
+### Querying hits stats
+
+VictoriaMetrics provides `/select/logsql/hits?query=<query>&start=<start>&end=<end>&step=<step>` HTTP endpoint, which returns the number
+of matching log entries for the given `<query>` [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]`
+time range grouped by `<step>` buckets. The returned results are sorted by time.
+
+The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
+If `<start>` is missing, then it equals to the minimum timestamp across logs stored in VictoriaLogs.
+If `<end>` is missing, then it equals to the maximum timestamp across logs stored in VictoriaLogs.
+
+The `<step>` arg can contain values in [the format specified here](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-time-buckets).
+If `<step>` is missing, then it equals to `1d` (one day).
+
+For example, the following command returns per-hour number of [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) over logs for the 3 hours:
+
+```sh
+curl http://localhost:9428/select/logsql/hits -d 'query=error' -d 'start=3h' -d 'step=1h'
+```
+
+Below is an example JSON output returned from this endpoint:
+
+```json
+{
+  "hits": [
+    {
+      "fields": {},
+      "timestamps": [
+        "2024-01-01T00:00:00Z",
+        "2024-01-01T01:00:00Z",
+        "2024-01-01T02:00:00Z"
+      ],
+      "values": [
+        410339,
+        450311,
+        899506
+      ]
+    }
+  ]
+}
+```
+
+Additionally, the `offset=<offset>` arg can be passed to `/select/logsql/hits` in order to group buckets according to the given timezone offset.
+The `<offset>` can contain values in [the format specified here](https://docs.victoriametrics.com/victorialogs/logsql/#duration-values).
+For example, the following command returns per-day number of logs with `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word)
+over the last week in New York time zone (`-4h`):
+
+```logsql
+curl http://localhost:9428/select/logsql/hits -d 'query=error' -d 'start=1w' -d 'step=1d' -d 'offset=-4h'
+```
+
+Additionally, any number of `field=<field_name>` args can be passed to `/select/logsql/hits` for grouping hits buckets by the mentioned `<field_name>` fields.
+For example, the following query groups hits by `level` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) additionally to the provided `step`:
+
+```logsql
+curl http://localhost:9428/select/logsql/hits -d 'query=*' -d 'start=3h' -d 'step=1h' -d 'field=level'
+```
+
+The grouped fields are put inside `"fields"` object:
+
+```json
+{
+  "hits": [
+    {
+      "fields": {
+        "level": "error"
+      },
+      "timestamps": [
+        "2024-01-01T00:00:00Z",
+        "2024-01-01T01:00:00Z",
+        "2024-01-01T02:00:00Z"
+      ],
+      "values": [
+        25,
+        20,
+        15
+      ]
+    },
+    {
+      "fields": {
+        "level": "info"
+      },
+      "timestamps": [
+        "2024-01-01T00:00:00Z",
+        "2024-01-01T01:00:00Z",
+        "2024-01-01T02:00:00Z"
+      ],
+      "values": [
+        25625,
+        35043,
+        25230
+      ]
+    }
+  ]
+}
+```
+
+See also:
+
+- [Querying field names](#querying-field-names)
+- [Querying field values](#querying-field-values)
+- [HTTP API](#http-api)
+
+
+### Querying field names
+
+VictoriaLogs provides `/select/logsql/field_names?query=<query>&start=<start>&end=<end>` HTTP endpoint, which returns field names
+from result of the given `<query>` [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
+
+The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
+If `<start>` is missing, then it equals to the minimum timestamp across logs stored in VictoriaLogs.
+If `<end>` is missing, then it equals to the maximum timestamp across logs stored in VictoriaLogs.
+
+For example, the following command returns field names across logs with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word)
+for the last 5 minutes:
+
+```sh
+curl http://localhost:9428/select/logsql/field_names -d 'query=error' -d 'start=5m'
+```
+
+Below is an example JSON output returned from this endpoint:
+
+```json
+{
+  "names": [
+    "_msg",
+    "_stream",
+    "_time",
+    "host",
+    "level",
+    "location"
+  ]
+}
+```
+
+See also:
+
+- [Querying field values](#querying-field-values)
+- [Querying hits stats](#querying-hits-stats)
+- [HTTP API](#http-api)
+
+### Querying field values
+
+VictoriaLogs provides `/select/logsql/field_values?query=<query>&field_name=<fieldName>&start=<start>&end=<end>` HTTP endpoint, which returns
+unique values for the given `<fieldName>` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+from results of the given `<query>` [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
+
+The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
+If `<start>` is missing, then it equals to the minimum timestamp across logs stored in VictoriaLogs.
+If `<end>` is missing, then it equals to the maximum timestamp across logs stored in VictoriaLogs.
+
+For example, the following command returns unique the values for `host` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+across logs with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) for the last 5 minutes:
+
+```sh
+curl http://localhost:9428/select/logsql/field_values -d 'query=error' -d 'field_name=host' -d 'start=5m'
+```
+
+Below is an example JSON output returned from this endpoint:
+
+```json
+{
+  "values": [
+    "host_0",
+    "host_1",
+    "host_10",
+    "host_100",
+    "host_1000"
+  ]
+}
+```
+
+The `/select/logsql/field_names` endpoint supports optional `limit=N` query arg, which allows limiting the number of returned values to `N`.
+The endpoint returns arbitrary subset of values if their number exceeds `N`, so `limit=N` cannot be used for pagination over big number of field values.
+
+See also:
+
+- [Querying field names](#querying-field-names)
+- [Querying hits stats](#querying-hits-stats)
+- [HTTP API](#http-api)
+
+
 ## Web UI
 
 VictoriaLogs provides a simple Web UI for logs [querying](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html) and exploration

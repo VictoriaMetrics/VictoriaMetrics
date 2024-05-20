@@ -45,6 +45,8 @@ func (bm *bitmap) copyFrom(src *bitmap) {
 }
 
 func (bm *bitmap) init(bitsLen int) {
+	bm.reset()
+
 	a := bm.a
 	wordsLen := (bitsLen + 63) / 64
 	a = slicesutil.SetLength(a, wordsLen)
@@ -126,6 +128,7 @@ func (bm *bitmap) forEachSetBit(f func(idx int) bool) {
 		if word == 0 {
 			continue
 		}
+		wordNew := word
 		for j := 0; j < 64; j++ {
 			mask := uint64(1) << j
 			if (word & mask) == 0 {
@@ -136,8 +139,41 @@ func (bm *bitmap) forEachSetBit(f func(idx int) bool) {
 				break
 			}
 			if !f(idx) {
-				a[i] &= ^mask
+				wordNew &= ^mask
 			}
+		}
+		if word != wordNew {
+			a[i] = wordNew
+		}
+	}
+}
+
+// forEachSetBitReadonly calls f for each set bit
+func (bm *bitmap) forEachSetBitReadonly(f func(idx int)) {
+	if bm.areAllBitsSet() {
+		n := bm.bitsLen
+		for i := 0; i < n; i++ {
+			f(i)
+		}
+		return
+	}
+
+	a := bm.a
+	bitsLen := bm.bitsLen
+	for i, word := range a {
+		if word == 0 {
+			continue
+		}
+		for j := 0; j < 64; j++ {
+			mask := uint64(1) << j
+			if (word & mask) == 0 {
+				continue
+			}
+			idx := i*64 + j
+			if idx >= bitsLen {
+				break
+			}
+			f(idx)
 		}
 	}
 }

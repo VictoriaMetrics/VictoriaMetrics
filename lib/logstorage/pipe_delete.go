@@ -25,10 +25,10 @@ func (pd *pipeDelete) String() string {
 func (pd *pipeDelete) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	if neededFields.contains("*") {
 		// update only unneeded fields
-		unneededFields.addAll(pd.fields)
+		unneededFields.addFields(pd.fields)
 	} else {
 		// update only needed fields
-		neededFields.removeAll(pd.fields)
+		neededFields.removeFields(pd.fields)
 	}
 }
 

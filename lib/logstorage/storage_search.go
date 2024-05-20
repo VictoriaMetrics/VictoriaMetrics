@@ -2,12 +2,15 @@ package logstorage
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"slices"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // genericSearchOptions contain options used for search.
@@ -60,8 +63,44 @@ type searchOptions struct {
 	needAllColumns bool
 }
 
+// WriteBlockFunc must write a block with the given timestamps and columns.
+//
+// WriteBlockFunc cannot hold references to timestamps and columns after returning.
+type WriteBlockFunc func(workerID uint, timestamps []int64, columns []BlockColumn)
+
 // RunQuery runs the given q and calls writeBlock for results.
-func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlock func(workerID uint, timestamps []int64, columns []BlockColumn)) error {
+func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlock WriteBlockFunc) error {
+	qNew, err := s.initFilterInValues(ctx, tenantIDs, q)
+	if err != nil {
+		return err
+	}
+
+	writeBlockResult := func(workerID uint, br *blockResult) {
+		if len(br.timestamps) == 0 {
+			return
+		}
+
+		brs := getBlockRows()
+		csDst := brs.cs
+
+		cs := br.getColumns()
+		for _, c := range cs {
+			values := c.getValues(br)
+			csDst = append(csDst, BlockColumn{
+				Name:   c.name,
+				Values: values,
+			})
+		}
+		writeBlock(workerID, br.timestamps, csDst)
+
+		brs.cs = csDst
+		putBlockRows(brs)
+	}
+
+	return s.runQuery(ctx, tenantIDs, qNew, writeBlockResult)
+}
+
+func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlockResultFunc func(workerID uint, br *blockResult)) error {
 	neededColumnNames, unneededColumnNames := q.getNeededColumns()
 	so := &genericSearchOptions{
 		tenantIDs:           tenantIDs,
@@ -73,24 +112,8 @@ func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 
 	workersCount := cgroup.AvailableCPUs()
 
-	pp := newDefaultPipeProcessor(func(workerID uint, br *blockResult) {
-		brs := getBlockRows()
-		csDst := brs.cs
-
-		for _, c := range br.getColumns() {
-			values := c.getValues(br)
-			csDst = append(csDst, BlockColumn{
-				Name:   c.name,
-				Values: values,
-			})
-		}
-		writeBlock(workerID, br.timestamps, csDst)
-
-		brs.cs = csDst
-		putBlockRows(brs)
-	})
-
-	ppMain := pp
+	ppMain := newDefaultPipeProcessor(writeBlockResultFunc)
+	pp := ppMain
 	stopCh := ctx.Done()
 	cancels := make([]func(), len(q.pipes))
 	pps := make([]pipeProcessor, len(q.pipes))
@@ -119,6 +142,202 @@ func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 		errFlush = err
 	}
 	return errFlush
+}
+
+// GetFieldNames returns field names from q results for the given tenantIDs.
+func (s *Storage) GetFieldNames(ctx context.Context, tenantIDs []TenantID, q *Query) ([]string, error) {
+	// add `field_names ...` to the end of q.pipes
+	pipes := append([]pipe{}, q.pipes...)
+
+	pipeStr := "field_names as names"
+	lex := newLexer(pipeStr)
+	pf, err := parsePipeFieldNames(lex)
+	if err != nil {
+		logger.Panicf("BUG: unexpected error when parsing 'field_names' pipe: %s", err)
+	}
+	pf.isFirstPipe = len(pipes) == 0
+	pipes = append(pipes, pf)
+
+	q = &Query{
+		f:     q.f,
+		pipes: pipes,
+	}
+
+	return s.runSingleColumnQuery(ctx, tenantIDs, q)
+}
+
+// GetFieldValues returns unique values for the given fieldName returned by q for the given tenantIDs.
+//
+// If limit > 0, then up to limit unique values are returned. The values are returned in arbitrary order because of performance reasons.
+// The caller may sort the returned values if needed.
+func (s *Storage) GetFieldValues(ctx context.Context, tenantIDs []TenantID, q *Query, fieldName string, limit uint64) ([]string, error) {
+	// add 'uniq fieldName' to the end of q.pipes
+	if !endsWithPipeUniqSingleField(q.pipes, fieldName) {
+		pipes := append([]pipe{}, q.pipes...)
+
+		pipeStr := fmt.Sprintf("uniq by (%s) limit %d", quoteTokenIfNeeded(fieldName), limit)
+		lex := newLexer(pipeStr)
+		pu, err := parsePipeUniq(lex)
+		if err != nil {
+			logger.Panicf("BUG: unexpected error when parsing 'uniq' pipe: %s", err)
+		}
+		pipes = append(pipes, pu)
+
+		q = &Query{
+			f:     q.f,
+			pipes: pipes,
+		}
+	}
+
+	return s.runSingleColumnQuery(ctx, tenantIDs, q)
+}
+
+func endsWithPipeUniqSingleField(pipes []pipe, fieldName string) bool {
+	if len(pipes) == 0 {
+		return false
+	}
+	pu, ok := pipes[len(pipes)-1].(*pipeUniq)
+	if !ok {
+		return false
+	}
+	return len(pu.byFields) == 1 && pu.byFields[0] == fieldName
+}
+
+func (s *Storage) runSingleColumnQuery(ctx context.Context, tenantIDs []TenantID, q *Query) ([]string, error) {
+	var values []string
+	var valuesLock sync.Mutex
+	writeBlockResult := func(workerID uint, br *blockResult) {
+		if len(br.timestamps) == 0 {
+			return
+		}
+
+		cs := br.getColumns()
+		if len(cs) != 1 {
+			logger.Panicf("BUG: expecting only a single column; got %d columns", len(cs))
+		}
+		columnValues := cs[0].getValues(br)
+
+		columnValuesCopy := make([]string, len(columnValues))
+		for i, v := range columnValues {
+			columnValuesCopy[i] = strings.Clone(v)
+		}
+
+		valuesLock.Lock()
+		values = append(values, columnValuesCopy...)
+		valuesLock.Unlock()
+	}
+
+	err := s.runQuery(ctx, tenantIDs, q, writeBlockResult)
+	if err != nil {
+		return nil, err
+	}
+
+	return values, nil
+}
+
+func (s *Storage) initFilterInValues(ctx context.Context, tenantIDs []TenantID, q *Query) (*Query, error) {
+	if !hasFilterInWithQueryForFilter(q.f) && !hasFilterInWithQueryForPipes(q.pipes) {
+		return q, nil
+	}
+
+	getFieldValues := func(q *Query, fieldName string) ([]string, error) {
+		return s.GetFieldValues(ctx, tenantIDs, q, fieldName, 0)
+	}
+	cache := make(map[string][]string)
+	fNew, err := initFilterInValuesForFilter(cache, q.f, getFieldValues)
+	if err != nil {
+		return nil, err
+	}
+	pipesNew, err := initFilterInValuesForPipes(cache, q.pipes, getFieldValues)
+	if err != nil {
+		return nil, err
+	}
+	qNew := &Query{
+		f:     fNew,
+		pipes: pipesNew,
+	}
+	return qNew, nil
+}
+
+func hasFilterInWithQueryForFilter(f filter) bool {
+	visitFunc := func(f filter) bool {
+		fi, ok := f.(*filterIn)
+		return ok && fi.needExecuteQuery
+	}
+	return visitFilter(f, visitFunc)
+}
+
+func hasFilterInWithQueryForPipes(pipes []pipe) bool {
+	for _, p := range pipes {
+		ps, ok := p.(*pipeStats)
+		if !ok {
+			continue
+		}
+		for _, f := range ps.funcs {
+			if f.iff != nil && hasFilterInWithQueryForFilter(f.iff) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+type getFieldValuesFunc func(q *Query, fieldName string) ([]string, error)
+
+func initFilterInValuesForFilter(cache map[string][]string, f filter, getFieldValuesFunc getFieldValuesFunc) (filter, error) {
+	visitFunc := func(f filter) bool {
+		fi, ok := f.(*filterIn)
+		return ok && fi.needExecuteQuery
+	}
+	copyFunc := func(f filter) (filter, error) {
+		fi := f.(*filterIn)
+
+		qStr := fi.q.String()
+		values, ok := cache[qStr]
+		if !ok {
+			vs, err := getFieldValuesFunc(fi.q, fi.qFieldName)
+			if err != nil {
+				return nil, fmt.Errorf("cannot obtain unique values for %s: %w", fi, err)
+			}
+			cache[qStr] = vs
+			values = vs
+		}
+
+		fiNew := &filterIn{
+			fieldName: fi.fieldName,
+			q:         fi.q,
+			values:    values,
+		}
+		return fiNew, nil
+	}
+	return copyFilter(f, visitFunc, copyFunc)
+}
+
+func initFilterInValuesForPipes(cache map[string][]string, pipes []pipe, getFieldValuesFunc getFieldValuesFunc) ([]pipe, error) {
+	pipesNew := make([]pipe, len(pipes))
+	for i, p := range pipes {
+		switch t := p.(type) {
+		case *pipeStats:
+			funcsNew := make([]pipeStatsFunc, len(t.funcs))
+			for j, f := range t.funcs {
+				if f.iff != nil {
+					fNew, err := initFilterInValuesForFilter(cache, f.iff, getFieldValuesFunc)
+					if err != nil {
+						return nil, err
+					}
+					f.iff = fNew
+				}
+				funcsNew[j] = f
+			}
+			pipesNew[i] = &pipeStats{
+				byFields: t.byFields,
+				funcs:    funcsNew,
+			}
+		default:
+			pipesNew[i] = p
+		}
+	}
+	return pipesNew, nil
 }
 
 type blockRows struct {
@@ -169,7 +388,7 @@ type searchResultFunc func(workerID uint, br *blockResult)
 
 // search searches for the matching rows according to so.
 //
-// It calls processBlockResult for each found matching block.
+// It calls processBlockResult for each matching block.
 func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-chan struct{}, processBlockResult searchResultFunc) {
 	// Spin up workers
 	var wgWorkers sync.WaitGroup
@@ -178,6 +397,7 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 	for i := 0; i < workersCount; i++ {
 		go func(workerID uint) {
 			bs := getBlockSearch()
+			bm := getBitmap(0)
 			for bswb := range workCh {
 				bsws := bswb.bsws
 				for i := range bsws {
@@ -188,7 +408,7 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 						continue
 					}
 
-					bs.search(bsw)
+					bs.search(bsw, bm)
 					if len(bs.br.timestamps) > 0 {
 						processBlockResult(workerID, &bs.br)
 					}
@@ -198,22 +418,24 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 				putBlockSearchWorkBatch(bswb)
 			}
 			putBlockSearch(bs)
+			putBitmap(bm)
 			wgWorkers.Done()
 		}(uint(i))
 	}
 
-	// Obtain common time filter from so.filter
-	ft, f := getCommonFilterTime(so.filter)
+	// Obtain time range from so.filter
+	f := so.filter
+	minTimestamp, maxTimestamp := getFilterTimeRange(f)
 
 	// Select partitions according to the selected time range
 	s.partitionsLock.Lock()
 	ptws := s.partitions
-	minDay := ft.minTimestamp / nsecPerDay
+	minDay := minTimestamp / nsecPerDay
 	n := sort.Search(len(ptws), func(i int) bool {
 		return ptws[i].day >= minDay
 	})
 	ptws = ptws[n:]
-	maxDay := ft.maxTimestamp / nsecPerDay
+	maxDay := maxTimestamp / nsecPerDay
 	n = sort.Search(len(ptws), func(i int) bool {
 		return ptws[i].day > maxDay
 	})
@@ -234,7 +456,7 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 		partitionSearchConcurrencyLimitCh <- struct{}{}
 		wgSearchers.Add(1)
 		go func(idx int, pt *partition) {
-			psfs[idx] = pt.search(ft, sf, f, so, workCh, stopCh)
+			psfs[idx] = pt.search(minTimestamp, maxTimestamp, sf, f, so, workCh, stopCh)
 			wgSearchers.Done()
 			<-partitionSearchConcurrencyLimitCh
 		}(i, ptw.pt)
@@ -263,7 +485,7 @@ var partitionSearchConcurrencyLimitCh = make(chan struct{}, cgroup.AvailableCPUs
 
 type partitionSearchFinalizer func()
 
-func (pt *partition) search(ft *filterTime, sf *StreamFilter, f filter, so *genericSearchOptions, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}) partitionSearchFinalizer {
+func (pt *partition) search(minTimestamp, maxTimestamp int64, sf *StreamFilter, f filter, so *genericSearchOptions, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}) partitionSearchFinalizer {
 	if needStop(stopCh) {
 		// Do not spend CPU time on search, since it is already stopped.
 		return func() {}
@@ -281,8 +503,8 @@ func (pt *partition) search(ft *filterTime, sf *StreamFilter, f filter, so *gene
 	soInternal := &searchOptions{
 		tenantIDs:           tenantIDs,
 		streamIDs:           streamIDs,
-		minTimestamp:        ft.minTimestamp,
-		maxTimestamp:        ft.maxTimestamp,
+		minTimestamp:        minTimestamp,
+		maxTimestamp:        maxTimestamp,
 		filter:              f,
 		neededColumnNames:   so.neededColumnNames,
 		unneededColumnNames: so.unneededColumnNames,
@@ -292,60 +514,32 @@ func (pt *partition) search(ft *filterTime, sf *StreamFilter, f filter, so *gene
 }
 
 func hasStreamFilters(f filter) bool {
-	switch t := f.(type) {
-	case *filterAnd:
-		return hasStreamFiltersInList(t.filters)
-	case *filterOr:
-		return hasStreamFiltersInList(t.filters)
-	case *filterNot:
-		return hasStreamFilters(t.f)
-	case *filterStream:
-		return true
-	default:
-		return false
+	visitFunc := func(f filter) bool {
+		_, ok := f.(*filterStream)
+		return ok
 	}
-}
-
-func hasStreamFiltersInList(filters []filter) bool {
-	for _, f := range filters {
-		if hasStreamFilters(f) {
-			return true
-		}
-	}
-	return false
+	return visitFilter(f, visitFunc)
 }
 
 func initStreamFilters(tenantIDs []TenantID, idb *indexdb, f filter) filter {
-	switch t := f.(type) {
-	case *filterAnd:
-		return &filterAnd{
-			filters: initStreamFiltersList(tenantIDs, idb, t.filters),
-		}
-	case *filterOr:
-		return &filterOr{
-			filters: initStreamFiltersList(tenantIDs, idb, t.filters),
-		}
-	case *filterNot:
-		return &filterNot{
-			f: initStreamFilters(tenantIDs, idb, t.f),
-		}
-	case *filterStream:
-		return &filterStream{
-			f:         t.f,
+	visitFunc := func(f filter) bool {
+		_, ok := f.(*filterStream)
+		return ok
+	}
+	copyFunc := func(f filter) (filter, error) {
+		fs := f.(*filterStream)
+		fsNew := &filterStream{
+			f:         fs.f,
 			tenantIDs: tenantIDs,
 			idb:       idb,
 		}
-	default:
-		return t
+		return fsNew, nil
 	}
-}
-
-func initStreamFiltersList(tenantIDs []TenantID, idb *indexdb, filters []filter) []filter {
-	result := make([]filter, len(filters))
-	for i, f := range filters {
-		result[i] = initStreamFilters(tenantIDs, idb, f)
+	f, err := copyFilter(f, visitFunc, copyFunc)
+	if err != nil {
+		logger.Panicf("BUG: unexpected error: %s", err)
 	}
-	return result
+	return f
 }
 
 func (ddb *datadb) search(so *searchOptions, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}) partitionSearchFinalizer {
@@ -646,23 +840,25 @@ func getCommonStreamFilter(f filter) (*StreamFilter, filter) {
 	return nil, f
 }
 
-func getCommonFilterTime(f filter) (*filterTime, filter) {
+func getFilterTimeRange(f filter) (int64, int64) {
 	switch t := f.(type) {
 	case *filterAnd:
+		minTimestamp := int64(math.MinInt64)
+		maxTimestamp := int64(math.MaxInt64)
 		for _, filter := range t.filters {
 			ft, ok := filter.(*filterTime)
 			if ok {
-				// The ft must remain in t.filters order to properly filter out rows outside the selected time range
-				return ft, f
+				if ft.minTimestamp > minTimestamp {
+					minTimestamp = ft.minTimestamp
+				}
+				if ft.maxTimestamp < maxTimestamp {
+					maxTimestamp = ft.maxTimestamp
+				}
 			}
 		}
+		return minTimestamp, maxTimestamp
 	case *filterTime:
-		return t, f
+		return t.minTimestamp, t.maxTimestamp
 	}
-	return allFilterTime, f
-}
-
-var allFilterTime = &filterTime{
-	minTimestamp: math.MinInt64,
-	maxTimestamp: math.MaxInt64,
+	return math.MinInt64, math.MaxInt64
 }
