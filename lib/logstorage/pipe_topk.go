@@ -258,7 +258,8 @@ func (shard *pipeTopkProcessorShard) addRow(br *blockResult, byColumns []string,
 	r.timestamp = timestamp
 
 	rows := shard.rows
-	if len(rows) > 0 && !topkLess(shard.ps, r, rows[0]) {
+	maxRows := shard.ps.offset + shard.ps.limit
+	if uint64(len(rows)) >= maxRows && !topkLess(shard.ps, r, rows[0]) {
 		// Fast path - nothing to add.
 		return
 	}
@@ -282,7 +283,7 @@ func (shard *pipeTopkProcessorShard) addRow(br *blockResult, byColumns []string,
 	shard.stateSizeBudget -= r.sizeBytes()
 
 	// Push r to shard.rows.
-	if uint64(len(rows)) < shard.ps.offset+shard.ps.limit {
+	if uint64(len(rows)) < maxRows {
 		heap.Push(shard, r)
 		shard.stateSizeBudget -= int(unsafe.Sizeof(r))
 	} else {
