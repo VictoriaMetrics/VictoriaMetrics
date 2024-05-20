@@ -4,6 +4,33 @@ import (
 	"testing"
 )
 
+func TestParsePipeUnpackLogfmtSuccess(t *testing.T) {
+	f := func(pipeStr string) {
+		t.Helper()
+		expectParsePipeSuccess(t, pipeStr)
+	}
+
+	f(`unpack_logfmt`)
+	f(`unpack_logfmt from x`)
+	f(`unpack_logfmt from x result_prefix abc`)
+	f(`unpack_logfmt result_prefix abc`)
+}
+
+func TestParsePipeUnpackLogfmtFailure(t *testing.T) {
+	f := func(pipeStr string) {
+		t.Helper()
+		expectParsePipeFailure(t, pipeStr)
+	}
+
+	f(`unpack_logfmt foo`)
+	f(`unpack_logfmt from`)
+	f(`unpack_logfmt from x y`)
+	f(`unpack_logfmt from x result_prefix`)
+	f(`unpack_logfmt from x result_prefix a b`)
+	f(`unpack_logfmt result_prefix`)
+	f(`unpack_logfmt result_prefix a b`)
+}
+
 func TestPipeUnpackLogfmt(t *testing.T) {
 	f := func(pipeStr string, rows, rowsExpected [][]Field) {
 		t.Helper()
