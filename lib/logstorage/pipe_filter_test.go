@@ -41,7 +41,7 @@ func TestPipeFilter(t *testing.T) {
 	}, [][]Field{})
 
 	// filter match
-	f("filter _msg:foo", [][]Field{
+	f("filter foo", [][]Field{
 		{
 			{"_msg", `{"foo":"bar"}`},
 			{"a", `test`},
