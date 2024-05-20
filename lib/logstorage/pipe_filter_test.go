@@ -4,6 +4,103 @@ import (
 	"testing"
 )
 
+func TestParsePipeFilterSuccess(t *testing.T) {
+	f := func(pipeStr string) {
+		t.Helper()
+		expectParsePipeSuccess(t, pipeStr)
+	}
+
+	f(`filter *`)
+	f(`filter foo bar`)
+	f(`filter a:b or c:d in(x,y) z:>343`)
+}
+
+func TestParsePipeFilterFailure(t *testing.T) {
+	f := func(pipeStr string) {
+		t.Helper()
+		expectParsePipeFailure(t, pipeStr)
+	}
+
+	f(`filter`)
+	f(`filter |`)
+	f(`filter ()`)
+}
+
+func TestPipeFilter(t *testing.T) {
+	f := func(pipeStr string, rows, rowsExpected [][]Field) {
+		t.Helper()
+		expectPipeResults(t, pipeStr, rows, rowsExpected)
+	}
+
+	// filter mismatch
+	f("filter abc", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+		},
+	}, [][]Field{})
+
+	// filter match
+	f("filter _msg:foo", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+		},
+	})
+
+	// multiple rows
+	f("filter x:foo y:bar", [][]Field{
+		{
+			{"a", "f1"},
+			{"x", "foo"},
+			{"y", "bar"},
+		},
+		{
+			{"a", "f2"},
+			{"x", "x foo bar"},
+			{"y", "aa bar bbb"},
+			{"z", "iwert"},
+		},
+		{
+			{"a", "f3"},
+			{"x", "x fo bar"},
+			{"y", "aa bar bbb"},
+			{"z", "it"},
+		},
+		{
+			{"a", "f4"},
+			{"x", "x foo bar"},
+			{"y", "aa ba bbb"},
+			{"z", "t"},
+		},
+		{
+			{"x", "x foo"},
+			{"y", "aa bar"},
+		},
+	}, [][]Field{
+		{
+			{"a", "f1"},
+			{"x", "foo"},
+			{"y", "bar"},
+		},
+		{
+			{"a", "f2"},
+			{"x", "x foo bar"},
+			{"y", "aa bar bbb"},
+			{"z", "iwert"},
+		},
+		{
+			{"x", "x foo"},
+			{"y", "aa bar"},
+		},
+	})
+}
+
 func TestPipeFilterUpdateNeededFields(t *testing.T) {
 	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
 		t.Helper()
