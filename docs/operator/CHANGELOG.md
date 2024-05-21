@@ -17,6 +17,7 @@ aliases:
 ## Next release
 
 - [vmalertmanager](./api.md#vmalertmanager): ignores content of `cr.spec.configSecret` if it's name clashes with secret used by operator for storing alertmanager config. See this [issue](https://github.com/VictoriaMetrics/operator/issues/954) for details.
+- [operator](./README.md): skip storageClass check if there is no PVC size change. See this [issue](https://github.com/VictoriaMetrics/operator/issues/957) for details.
 
 ## [v0.44.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.44.0) - 9 May 2024
 
