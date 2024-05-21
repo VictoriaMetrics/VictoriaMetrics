@@ -882,6 +882,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats min(*) x`, `* | stats min(*) as x`)
 	f(`* | stats min(foo,*,bar) x`, `* | stats min(*) as x`)
 
+	// stats pipe fields_min
+	f(`* | stats fields_Min(foo) bar`, `* | stats fields_min(foo) as bar`)
+	f(`* | stats BY(x, y, ) fields_MIN(foo,bar,) bar`, `* | stats by (x, y) fields_min(foo, bar) as bar`)
+
 	// stats pipe avg
 	f(`* | stats Avg(foo) bar`, `* | stats avg(foo) as bar`)
 	f(`* | stats BY(x, y, ) AVG(foo,bar,) bar`, `* | stats by (x, y) avg(foo, bar) as bar`)
@@ -1314,6 +1318,10 @@ func TestParseQueryFailure(t *testing.T) {
 	// invalid stats min
 	f(`foo | stats min`)
 	f(`foo | stats min()`)
+
+	// invalid stats min
+	f(`foo | stats fields_min`)
+	f(`foo | stats fields_min()`)
 
 	// invalid stats avg
 	f(`foo | stats avg`)

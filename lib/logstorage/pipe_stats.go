@@ -553,6 +553,12 @@ func parsePipeStats(lex *lexer) (*pipeStats, error) {
 
 func parseStatsFunc(lex *lexer) (statsFunc, error) {
 	switch {
+	case lex.isKeyword("avg"):
+		sas, err := parseStatsAvg(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'avg' func: %w", err)
+		}
+		return sas, nil
 	case lex.isKeyword("count"):
 		scs, err := parseStatsCount(lex)
 		if err != nil {
@@ -571,16 +577,22 @@ func parseStatsFunc(lex *lexer) (statsFunc, error) {
 			return nil, fmt.Errorf("cannot parse 'count_uniq' func: %w", err)
 		}
 		return sus, nil
-	case lex.isKeyword("sum"):
-		sss, err := parseStatsSum(lex)
+	case lex.isKeyword("fields_min"):
+		sms, err := parseStatsFieldsMin(lex)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'sum' func: %w", err)
+			return nil, fmt.Errorf("cannot parse 'fields_min' func: %w", err)
 		}
-		return sss, nil
+		return sms, nil
 	case lex.isKeyword("max"):
 		sms, err := parseStatsMax(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'max' func: %w", err)
+		}
+		return sms, nil
+	case lex.isKeyword("median"):
+		sms, err := parseStatsMedian(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'median' func: %w", err)
 		}
 		return sms, nil
 	case lex.isKeyword("min"):
@@ -589,12 +601,24 @@ func parseStatsFunc(lex *lexer) (statsFunc, error) {
 			return nil, fmt.Errorf("cannot parse 'min' func: %w", err)
 		}
 		return sms, nil
-	case lex.isKeyword("avg"):
-		sas, err := parseStatsAvg(lex)
+	case lex.isKeyword("quantile"):
+		sqs, err := parseStatsQuantile(lex)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'avg' func: %w", err)
+			return nil, fmt.Errorf("cannot parse 'quantile' func: %w", err)
 		}
-		return sas, nil
+		return sqs, nil
+	case lex.isKeyword("sum"):
+		sss, err := parseStatsSum(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'sum' func: %w", err)
+		}
+		return sss, nil
+	case lex.isKeyword("sum_len"):
+		sss, err := parseStatsSumLen(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'sum_len' func: %w", err)
+		}
+		return sss, nil
 	case lex.isKeyword("uniq_values"):
 		sus, err := parseStatsUniqValues(lex)
 		if err != nil {
@@ -607,24 +631,6 @@ func parseStatsFunc(lex *lexer) (statsFunc, error) {
 			return nil, fmt.Errorf("cannot parse 'values' func: %w", err)
 		}
 		return svs, nil
-	case lex.isKeyword("sum_len"):
-		sss, err := parseStatsSumLen(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'sum_len' func: %w", err)
-		}
-		return sss, nil
-	case lex.isKeyword("quantile"):
-		sqs, err := parseStatsQuantile(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'quantile' func: %w", err)
-		}
-		return sqs, nil
-	case lex.isKeyword("median"):
-		sms, err := parseStatsMedian(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'median' func: %w", err)
-		}
-		return sms, nil
 	default:
 		return nil, fmt.Errorf("unknown stats func %q", lex.token)
 	}

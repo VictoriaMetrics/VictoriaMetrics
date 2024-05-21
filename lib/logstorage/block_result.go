@@ -1842,5 +1842,12 @@ func visitValuesReadonly(bs *blockSearch, ch *columnHeader, bm *bitmap, f func(v
 	})
 }
 
+func getCanonicalColumnName(columnName string) string {
+	if columnName == "" {
+		return "_msg"
+	}
+	return columnName
+}
+
 var nan = math.NaN()
 var inf = math.Inf(1)

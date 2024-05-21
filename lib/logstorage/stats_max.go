@@ -34,7 +34,6 @@ type statsMaxProcessor struct {
 	sm *statsMax
 
 	max    string
-	hasMax bool
 }
 
 func (smp *statsMaxProcessor) updateStatsForAllRows(br *blockResult) int {
@@ -79,9 +78,7 @@ func (smp *statsMaxProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 
 func (smp *statsMaxProcessor) mergeState(sfp statsProcessor) {
 	src := sfp.(*statsMaxProcessor)
-	if src.hasMax {
-		smp.updateStateString(src.max)
-	}
+	smp.updateStateString(src.max)
 }
 
 func (smp *statsMaxProcessor) updateStateForColumn(br *blockResult, c *blockResultColumn) {
@@ -157,17 +154,13 @@ func (smp *statsMaxProcessor) updateStateString(v string) {
 	if v == "" {
 		// Skip empty strings
 	}
-	if smp.hasMax && !lessString(smp.max, v) {
+	if smp.max != "" && !lessString(smp.max, v) {
 		return
 	}
 	smp.max = strings.Clone(v)
-	smp.hasMax = true
 }
 
 func (smp *statsMaxProcessor) finalizeStats() string {
-	if !smp.hasMax {
-		return ""
-	}
 	return smp.max
 }
 

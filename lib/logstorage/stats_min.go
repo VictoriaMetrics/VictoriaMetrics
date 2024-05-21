@@ -34,7 +34,6 @@ type statsMinProcessor struct {
 	sm *statsMin
 
 	min    string
-	hasMin bool
 }
 
 func (smp *statsMinProcessor) updateStatsForAllRows(br *blockResult) int {
@@ -79,9 +78,7 @@ func (smp *statsMinProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 
 func (smp *statsMinProcessor) mergeState(sfp statsProcessor) {
 	src := sfp.(*statsMinProcessor)
-	if src.hasMin {
-		smp.updateStateString(src.min)
-	}
+	smp.updateStateString(src.min)
 }
 
 func (smp *statsMinProcessor) updateStateForColumn(br *blockResult, c *blockResultColumn) {
@@ -158,17 +155,13 @@ func (smp *statsMinProcessor) updateStateString(v string) {
 		// Skip empty strings
 		return
 	}
-	if smp.hasMin && !lessString(v, smp.min) {
+	if smp.min != "" && !lessString(v, smp.min) {
 		return
 	}
 	smp.min = strings.Clone(v)
-	smp.hasMin = true
 }
 
 func (smp *statsMinProcessor) finalizeStats() string {
-	if !smp.hasMin {
-		return ""
-	}
 	return smp.min
 }
 
