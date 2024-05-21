@@ -81,6 +81,94 @@ func TestPipeStats(t *testing.T) {
 		},
 	})
 
+	f("stats uniq_values(*) as values", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+		},
+		{},
+		{
+			{"a", `2`},
+			{"b", `54`},
+		},
+		{},
+	}, [][]Field{
+		{
+			{"values", `["1","2","3","54","abc","def"]`},
+		},
+	})
+
+	f("stats uniq_values(*) limit 6 as values", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+		},
+		{},
+		{
+			{"a", `2`},
+			{"b", `54`},
+		},
+		{},
+	}, [][]Field{
+		{
+			{"values", `["1","2","3","54","abc","def"]`},
+		},
+	})
+
+	f("stats uniq_values(a) as values", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+		},
+		{},
+		{
+			{"a", `2`},
+			{"b", `54`},
+		},
+		{},
+	}, [][]Field{
+		{
+			{"values", `["1","2"]`},
+		},
+	})
+
+	f("stats uniq_values(a, b, c) as values", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+		},
+		{},
+		{
+			{"a", `2`},
+			{"b", `54`},
+		},
+		{},
+	}, [][]Field{
+		{
+			{"values", `["1","2","3","54"]`},
+		},
+	})
+
 	f("stats count_empty(*) as rows", [][]Field{
 		{
 			{"_msg", `abc`},

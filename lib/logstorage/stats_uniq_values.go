@@ -207,12 +207,25 @@ func (sup *statsUniqValuesProcessor) finalizeStats() string {
 	for k := range sup.m {
 		items = append(items, k)
 	}
+	sortStrings(items)
 
 	if limit := sup.su.limit; limit > 0 && uint64(len(items)) > limit {
 		items = items[:limit]
 	}
 
 	return marshalJSONArray(items)
+}
+
+func sortStrings(a []string) {
+	slices.SortFunc(a, func(x, y string) int {
+		if x == y {
+			return 0
+		}
+		if lessString(x, y) {
+			return -1
+		}
+		return 1
+	})
 }
 
 func (sup *statsUniqValuesProcessor) limitReached() bool {

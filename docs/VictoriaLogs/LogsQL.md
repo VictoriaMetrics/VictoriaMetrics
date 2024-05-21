@@ -1865,7 +1865,7 @@ See also:
 
 `uniq_values(field1, ..., fieldN)` [stats pipe](#stats-pipe) returns the unique non-empty values across
 the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-The returned values are encoded in JSON array. The order of the returned values is arbitrary.
+The returned values are encoded in sorted JSON array.
 
 For example, the following query returns unique non-empty values for the `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
@@ -1878,11 +1878,13 @@ Every unique value is stored in memory during query execution. Big number of uni
 only a subset of unique values. In this case add `limit N` after `uniq_values(...)` in order to limit the number of returned unique values to `N`,
 while limiting the maximum memory usage.
 For example, the following query returns up to `100` unique values for the `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-over the logs for the last 5 minutes. Note that arbitrary subset of unique `ip` values is returned every time:
+over the logs for the last 5 minutes:
 
 ```logsql
 _time:5m | stats uniq_values(ip) limit 100 as unique_ips_100
 ```
+
+Arbitrary subset of unique `ip` values is returned every time if the `limit` is reached.
 
 See also:
 
