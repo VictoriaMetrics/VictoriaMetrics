@@ -6,15 +6,16 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var connStateMetricsRegistry map[string]connStateMetrics
+var statConnMetricsRegistry sync.Map
 
-type connStateMetrics struct {
+type statConnMetrics struct {
 	dialsTotal *metrics.Counter
 	dialErrors *metrics.Counter
 	conns      *metrics.Counter
@@ -27,47 +28,47 @@ type connStateMetrics struct {
 	connBytesWritten *metrics.Counter
 }
 
-func (cms *connStateMetrics) init(metricPrefix string) {
-	cms.dialsTotal = metrics.NewCounter(fmt.Sprintf(`%s_dials_total`, metricPrefix))
-	cms.dialErrors = metrics.NewCounter(fmt.Sprintf(`%s_dial_errors_total`, metricPrefix))
-	cms.conns = metrics.NewCounter(fmt.Sprintf(`%s_conns`, metricPrefix))
+func newStatConnMetrics(metricPrefix string) statConnMetrics {
+	scm := statConnMetrics{}
 
-	cms.connReadsTotal = metrics.NewCounter(fmt.Sprintf(`%s_conn_reads_total`, metricPrefix))
-	cms.connWritesTotal = metrics.NewCounter(fmt.Sprintf(`%s_conn_writes_total`, metricPrefix))
-	cms.connReadErrors = metrics.NewCounter(fmt.Sprintf(`%s_conn_read_errors_total`, metricPrefix))
-	cms.connWriteErrors = metrics.NewCounter(fmt.Sprintf(`%s_conn_write_errors_total`, metricPrefix))
-	cms.connBytesRead = metrics.NewCounter(fmt.Sprintf(`%s_conn_bytes_read_total`, metricPrefix))
-	cms.connBytesWritten = metrics.NewCounter(fmt.Sprintf(`%s_conn_bytes_written_total`, metricPrefix))
+	scm.dialsTotal = metrics.NewCounter(fmt.Sprintf(`%s_dials_total`, metricPrefix))
+	scm.dialErrors = metrics.NewCounter(fmt.Sprintf(`%s_dial_errors_total`, metricPrefix))
+	scm.conns = metrics.NewCounter(fmt.Sprintf(`%s_conns`, metricPrefix))
+
+	scm.connReadsTotal = metrics.NewCounter(fmt.Sprintf(`%s_conn_reads_total`, metricPrefix))
+	scm.connWritesTotal = metrics.NewCounter(fmt.Sprintf(`%s_conn_writes_total`, metricPrefix))
+	scm.connReadErrors = metrics.NewCounter(fmt.Sprintf(`%s_conn_read_errors_total`, metricPrefix))
+	scm.connWriteErrors = metrics.NewCounter(fmt.Sprintf(`%s_conn_write_errors_total`, metricPrefix))
+	scm.connBytesRead = metrics.NewCounter(fmt.Sprintf(`%s_conn_bytes_read_total`, metricPrefix))
+	scm.connBytesWritten = metrics.NewCounter(fmt.Sprintf(`%s_conn_bytes_written_total`, metricPrefix))
+
+	return scm
 }
 
 // GetStatDialFunc returns dial function that supports DNS SRV records,
 // and register stats metrics for conns.
-// GetStatDialFunc is not concurrent safe.
 func GetStatDialFunc(metricPrefix string) func(ctx context.Context, network, addr string) (net.Conn, error) {
-	if connStateMetricsRegistry == nil {
-		connStateMetricsRegistry = make(map[string]connStateMetrics)
-	}
-	newSet, ok := connStateMetricsRegistry[metricPrefix]
+	v, ok := statConnMetricsRegistry.Load(metricPrefix)
 	if !ok {
-		newSet.init(metricPrefix)
-		connStateMetricsRegistry[metricPrefix] = newSet
+		v = newStatConnMetrics(metricPrefix)
+		statConnMetricsRegistry.Store(metricPrefix, v)
 	}
-
+	sm := v.(statConnMetrics)
 	return func(ctx context.Context, _, addr string) (net.Conn, error) {
 		network := netutil.GetTCPNetwork()
 		conn, err := netutil.DialMaybeSRV(ctx, network, addr)
-		newSet.dialsTotal.Inc()
+		sm.dialsTotal.Inc()
 		if err != nil {
-			newSet.dialErrors.Inc()
+			sm.dialErrors.Inc()
 			if !netutil.TCP6Enabled() && !isTCPv4Addr(addr) {
 				err = fmt.Errorf("%w; try -enableTCP6 command-line flag if you scrape ipv6 addresses", err)
 			}
 			return nil, err
 		}
-		newSet.conns.Inc()
+		sm.conns.Inc()
 		sc := &statConn{
-			Conn:             conn,
-			connStateMetrics: newSet,
+			Conn:            conn,
+			statConnMetrics: sm,
 		}
 		return sc, nil
 	}
@@ -76,7 +77,7 @@ func GetStatDialFunc(metricPrefix string) func(ctx context.Context, network, add
 type statConn struct {
 	closed atomic.Int32
 	net.Conn
-	connStateMetrics
+	statConnMetrics
 }
 
 func (sc *statConn) Read(p []byte) (int, error) {

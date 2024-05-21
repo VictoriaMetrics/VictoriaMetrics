@@ -80,7 +80,7 @@
       }
     ]
   },
-  "description": "Overview for VictoriaMetrics vmalert v1.96.0 or higher",
+  "description": "Overview for VictoriaMetrics vmalert v1.102.0 or higher",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
