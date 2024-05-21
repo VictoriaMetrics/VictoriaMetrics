@@ -127,7 +127,7 @@ VictoriaLogs doesn't perform per-tenant authorization. Use [vmauth](https://docs
 ## Benchmarks
 
 Here is a [benchmark suite](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/logs-benchmark) for comparing data ingestion performance
-and resource usage between VictoriaLogs and Elasticsearch.
+and resource usage between VictoriaLogs and Elasticsearch or Loki.
 
 It is recommended [setting up VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/QuickStart.html) in production alongside the existing
 log management systems and comparing resource usage + query performance between VictoriaLogs and your system such as Elasticsearch or Grafana Loki.

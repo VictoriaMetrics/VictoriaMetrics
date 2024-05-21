@@ -24,8 +24,8 @@ func (su *statsUniqValues) String() string {
 	return s
 }
 
-func (su *statsUniqValues) neededFields() []string {
-	return su.fields
+func (su *statsUniqValues) updateNeededFields(neededFields fieldsSet) {
+	neededFields.addFields(su.fields)
 }
 
 func (su *statsUniqValues) newStatsProcessor() (statsProcessor, int) {
@@ -68,7 +68,7 @@ func (sup *statsUniqValuesProcessor) updateStatsForAllRowsColumn(c *blockResultC
 	stateSizeIncrease := 0
 	if c.isConst {
 		// collect unique const values
-		v := c.encodedValues[0]
+		v := c.valuesEncoded[0]
 		if v == "" {
 			// skip empty values
 			return stateSizeIncrease
@@ -141,7 +141,7 @@ func (sup *statsUniqValuesProcessor) updateStatsForRowColumn(c *blockResultColum
 	stateSizeIncrease := 0
 	if c.isConst {
 		// collect unique const values
-		v := c.encodedValues[0]
+		v := c.valuesEncoded[0]
 		if v == "" {
 			// skip empty values
 			return stateSizeIncrease
@@ -155,7 +155,8 @@ func (sup *statsUniqValuesProcessor) updateStatsForRowColumn(c *blockResultColum
 	}
 	if c.valueType == valueTypeDict {
 		// collect unique non-zero c.dictValues
-		dictIdx := c.encodedValues[rowIdx][0]
+		valuesEncoded := c.getValuesEncoded(br)
+		dictIdx := valuesEncoded[rowIdx][0]
 		v := c.dictValues[dictIdx]
 		if v == "" {
 			// skip empty values

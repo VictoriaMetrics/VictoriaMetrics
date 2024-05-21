@@ -18,6 +18,15 @@ type filterIn struct {
 	fieldName string
 	values    []string
 
+	// needeExecuteQuery is set to true if q must be executed for populating values before filter execution.
+	needExecuteQuery bool
+
+	// If q is non-nil, then values must be populated from q before filter execution.
+	q *Query
+
+	// qFieldName must be set to field name for obtaining values from if q is non-nil.
+	qFieldName string
+
 	tokenSetsOnce sync.Once
 	tokenSets     [][]string
 
@@ -47,12 +56,22 @@ type filterIn struct {
 }
 
 func (fi *filterIn) String() string {
-	values := fi.values
-	a := make([]string, len(values))
-	for i, value := range values {
-		a[i] = quoteTokenIfNeeded(value)
+	args := ""
+	if fi.q != nil {
+		args = fi.q.String()
+	} else {
+		values := fi.values
+		a := make([]string, len(values))
+		for i, value := range values {
+			a[i] = quoteTokenIfNeeded(value)
+		}
+		args = strings.Join(a, ",")
 	}
-	return fmt.Sprintf("%sin(%s)", quoteFieldNameIfNeeded(fi.fieldName), strings.Join(a, ","))
+	return fmt.Sprintf("%sin(%s)", quoteFieldNameIfNeeded(fi.fieldName), args)
+}
+
+func (fi *filterIn) updateNeededFields(neededFields fieldsSet) {
+	neededFields.add(fi.fieldName)
 }
 
 func (fi *filterIn) getTokenSets() [][]string {
@@ -249,7 +268,95 @@ func (fi *filterIn) initTimestampISO8601Values() {
 	fi.timestampISO8601Values = m
 }
 
-func (fi *filterIn) apply(bs *blockSearch, bm *bitmap) {
+func (fi *filterIn) applyToBlockResult(br *blockResult, bm *bitmap) {
+	if len(fi.values) == 0 {
+		bm.resetBits()
+		return
+	}
+
+	c := br.getColumnByName(fi.fieldName)
+	if c.isConst {
+		stringValues := fi.getStringValues()
+		v := c.valuesEncoded[0]
+		if _, ok := stringValues[v]; !ok {
+			bm.resetBits()
+		}
+		return
+	}
+	if c.isTime {
+		fi.matchColumnByStringValues(br, bm, c)
+		return
+	}
+
+	switch c.valueType {
+	case valueTypeString:
+		fi.matchColumnByStringValues(br, bm, c)
+	case valueTypeDict:
+		stringValues := fi.getStringValues()
+		bb := bbPool.Get()
+		for _, v := range c.dictValues {
+			c := byte(0)
+			if _, ok := stringValues[v]; ok {
+				c = 1
+			}
+			bb.B = append(bb.B, c)
+		}
+		valuesEncoded := c.getValuesEncoded(br)
+		bm.forEachSetBit(func(idx int) bool {
+			n := valuesEncoded[idx][0]
+			return bb.B[n] == 1
+		})
+		bbPool.Put(bb)
+	case valueTypeUint8:
+		binValues := fi.getUint8Values()
+		matchColumnByBinValues(br, bm, c, binValues)
+	case valueTypeUint16:
+		binValues := fi.getUint16Values()
+		matchColumnByBinValues(br, bm, c, binValues)
+	case valueTypeUint32:
+		binValues := fi.getUint32Values()
+		matchColumnByBinValues(br, bm, c, binValues)
+	case valueTypeUint64:
+		binValues := fi.getUint64Values()
+		matchColumnByBinValues(br, bm, c, binValues)
+	case valueTypeFloat64:
+		binValues := fi.getFloat64Values()
+		matchColumnByBinValues(br, bm, c, binValues)
+	case valueTypeIPv4:
+		binValues := fi.getIPv4Values()
+		matchColumnByBinValues(br, bm, c, binValues)
+	case valueTypeTimestampISO8601:
+		binValues := fi.getTimestampISO8601Values()
+		matchColumnByBinValues(br, bm, c, binValues)
+	default:
+		logger.Panicf("FATAL: unknown valueType=%d", c.valueType)
+	}
+}
+
+func (fi *filterIn) matchColumnByStringValues(br *blockResult, bm *bitmap, c *blockResultColumn) {
+	stringValues := fi.getStringValues()
+	values := c.getValues(br)
+	bm.forEachSetBit(func(idx int) bool {
+		v := values[idx]
+		_, ok := stringValues[v]
+		return ok
+	})
+}
+
+func matchColumnByBinValues(br *blockResult, bm *bitmap, c *blockResultColumn, binValues map[string]struct{}) {
+	if len(binValues) == 0 {
+		bm.resetBits()
+		return
+	}
+	valuesEncoded := c.getValuesEncoded(br)
+	bm.forEachSetBit(func(idx int) bool {
+		v := valuesEncoded[idx]
+		_, ok := binValues[v]
+		return ok
+	})
+}
+
+func (fi *filterIn) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fi.fieldName
 
 	if len(fi.values) == 0 {
@@ -314,6 +421,10 @@ func (fi *filterIn) apply(bs *blockSearch, bm *bitmap) {
 }
 
 func matchAnyValue(bs *blockSearch, ch *columnHeader, bm *bitmap, values map[string]struct{}, tokenSets [][]string) {
+	if len(values) == 0 {
+		bm.resetBits()
+		return
+	}
 	if !matchBloomFilterAnyTokenSet(bs, ch, tokenSets) {
 		bm.resetBits()
 		return
@@ -344,10 +455,12 @@ func matchBloomFilterAnyTokenSet(bs *blockSearch, ch *columnHeader, tokenSets []
 
 func matchValuesDictByAnyValue(bs *blockSearch, ch *columnHeader, bm *bitmap, values map[string]struct{}) {
 	bb := bbPool.Get()
-	for i, v := range ch.valuesDict.values {
+	for _, v := range ch.valuesDict.values {
+		c := byte(0)
 		if _, ok := values[v]; ok {
-			bb.B = append(bb.B, byte(i))
+			c = 1
 		}
+		bb.B = append(bb.B, c)
 	}
 	matchEncodedValuesDict(bs, ch, bm, bb.B)
 	bbPool.Put(bb)

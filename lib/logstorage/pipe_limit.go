@@ -9,18 +9,18 @@ import (
 //
 // See https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe
 type pipeLimit struct {
-	n uint64
+	limit uint64
 }
 
 func (pl *pipeLimit) String() string {
-	return fmt.Sprintf("limit %d", pl.n)
+	return fmt.Sprintf("limit %d", pl.limit)
 }
 
 func (pl *pipeLimit) updateNeededFields(_, _ fieldsSet) {
 }
 
 func (pl *pipeLimit) newPipeProcessor(_ int, _ <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {
-	if pl.n == 0 {
+	if pl.limit == 0 {
 		// Special case - notify the caller to stop writing data to the returned pipeLimitProcessor
 		cancel()
 	}
@@ -45,7 +45,7 @@ func (plp *pipeLimitProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	rowsProcessed := plp.rowsProcessed.Add(uint64(len(br.timestamps)))
-	if rowsProcessed <= plp.pl.n {
+	if rowsProcessed <= plp.pl.limit {
 		// Fast path - write all the rows to ppBase.
 		plp.ppBase.writeBlock(workerID, br)
 		return
@@ -53,13 +53,13 @@ func (plp *pipeLimitProcessor) writeBlock(workerID uint, br *blockResult) {
 
 	// Slow path - overflow. Write the remaining rows if needed.
 	rowsProcessed -= uint64(len(br.timestamps))
-	if rowsProcessed >= plp.pl.n {
+	if rowsProcessed >= plp.pl.limit {
 		// Nothing to write. There is no need in cancel() call, since it has been called by another goroutine.
 		return
 	}
 
 	// Write remaining rows.
-	keepRows := plp.pl.n - rowsProcessed
+	keepRows := plp.pl.limit - rowsProcessed
 	br.truncateRows(int(keepRows))
 	plp.ppBase.writeBlock(workerID, br)
 
@@ -83,7 +83,7 @@ func parsePipeLimit(lex *lexer) (*pipeLimit, error) {
 	}
 	lex.nextToken()
 	pl := &pipeLimit{
-		n: n,
+		limit: n,
 	}
 	return pl, nil
 }

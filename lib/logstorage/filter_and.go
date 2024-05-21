@@ -31,7 +31,24 @@ func (fa *filterAnd) String() string {
 	return strings.Join(a, " ")
 }
 
-func (fa *filterAnd) apply(bs *blockSearch, bm *bitmap) {
+func (fa *filterAnd) updateNeededFields(neededFields fieldsSet) {
+	for _, f := range fa.filters {
+		f.updateNeededFields(neededFields)
+	}
+}
+
+func (fa *filterAnd) applyToBlockResult(br *blockResult, bm *bitmap) {
+	for _, f := range fa.filters {
+		f.applyToBlockResult(br, bm)
+		if bm.isZero() {
+			// Shortcut - there is no need in applying the remaining filters,
+			// since the result will be zero anyway.
+			return
+		}
+	}
+}
+
+func (fa *filterAnd) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	if !fa.matchMessageBloomFilter(bs) {
 		// Fast path - fa doesn't match _msg bloom filter.
 		bm.resetBits()
@@ -40,7 +57,7 @@ func (fa *filterAnd) apply(bs *blockSearch, bm *bitmap) {
 
 	// Slow path - verify every filter separately.
 	for _, f := range fa.filters {
-		f.apply(bs, bm)
+		f.applyToBlockSearch(bs, bm)
 		if bm.isZero() {
 			// Shortcut - there is no need in applying the remaining filters,
 			// since the result will be zero anyway.

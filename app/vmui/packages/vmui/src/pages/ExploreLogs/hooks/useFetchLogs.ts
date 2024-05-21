@@ -13,27 +13,18 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
 
   const url = useMemo(() => getLogsUrl(server), [server]);
 
-  // include time range in query if not already present
-  const queryWithTime = useMemo(() => {
-    if (!/_time/.test(query)) {
-      const start = dayjs(period.start * 1000).tz().toISOString();
-      const end = dayjs(period.end * 1000).tz().toISOString();
-      const timerange = `_time:[${start}, ${end}]`;
-      return `${timerange} AND (${query})`;
-    }
-    return query;
-  }, [query, period]);
-
   const options = useMemo(() => ({
     method: "POST",
     headers: {
       "Accept": "application/stream+json",
     },
     body: new URLSearchParams({
-      query: queryWithTime.trim(),
-      limit: `${limit}`
+      query: query.trim(),
+      limit: `${limit}`,
+      start: dayjs(period.start * 1000).tz().toISOString(),
+      end: dayjs(period.end * 1000).tz().toISOString()
     })
-  }), [queryWithTime, limit]);
+  }), [query, limit, period]);
 
   const parseLineToJSON = (line: string): Logs | null => {
     try {

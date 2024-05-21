@@ -242,7 +242,7 @@ func (ctx *streamAggrCtx) push(mrs []storage.MetricRow, matchIdxs []byte) []byte
 	tss = tss[tssLen:]
 
 	sas := sasGlobal.Load()
-	if sas != nil {
+	if sas.IsEnabled() {
 		matchIdxs = sas.Push(tss, matchIdxs)
 	} else if deduplicator != nil {
 		matchIdxs = bytesutil.ResizeNoCopyMayOverallocate(matchIdxs, len(tss))

@@ -294,6 +294,17 @@ func newAggregatorsFromData(data []byte, pushFunc PushFunc, opts *Options) (*Agg
 	}, nil
 }
 
+// IsEnabled returns true if Aggregators has at least one configured aggregator
+func (a *Aggregators) IsEnabled() bool {
+	if a == nil {
+		return false
+	}
+	if len(a.as) == 0 {
+		return false
+	}
+	return true
+}
+
 // MustStop stops a.
 func (a *Aggregators) MustStop() {
 	if a == nil {

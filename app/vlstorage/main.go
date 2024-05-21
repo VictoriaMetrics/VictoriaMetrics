@@ -107,8 +107,20 @@ func MustAddRows(lr *logstorage.LogRows) {
 }
 
 // RunQuery runs the given q and calls writeBlock for the returned data blocks
-func RunQuery(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, writeBlock func(workerID uint, timestamps []int64, columns []logstorage.BlockColumn)) error {
+func RunQuery(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, writeBlock logstorage.WriteBlockFunc) error {
 	return strg.RunQuery(ctx, tenantIDs, q, writeBlock)
+}
+
+// GetFieldNames executes q and returns field names seen in results.
+func GetFieldNames(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query) ([]string, error) {
+	return strg.GetFieldNames(ctx, tenantIDs, q)
+}
+
+// GetFieldValues executes q and returns unique values for the fieldName seen in results.
+//
+// If limit > 0, then up to limit unique values are returned.
+func GetFieldValues(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, fieldName string, limit uint64) ([]string, error) {
+	return strg.GetFieldValues(ctx, tenantIDs, q, fieldName, limit)
 }
 
 func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {

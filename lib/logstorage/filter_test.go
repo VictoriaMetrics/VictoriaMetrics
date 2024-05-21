@@ -197,11 +197,6 @@ func testFilterMatchForStorage(t *testing.T, s *Storage, tenantID TenantID, f fi
 	}
 	workersCount := 3
 	s.search(workersCount, so, nil, func(_ uint, br *blockResult) {
-		// Verify tenantID
-		if !br.streamID.tenantID.equal(&tenantID) {
-			t.Fatalf("unexpected tenantID in blockResult; got %s; want %s", &br.streamID.tenantID, &tenantID)
-		}
-
 		// Verify columns
 		cs := br.getColumns()
 		if len(cs) != 1 {

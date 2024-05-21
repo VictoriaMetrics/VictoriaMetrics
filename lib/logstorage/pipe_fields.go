@@ -32,7 +32,7 @@ func (pf *pipeFields) updateNeededFields(neededFields, unneededFields fieldsSet)
 	if neededFields.contains("*") {
 		// subtract unneeded fields from pf.fields
 		neededFields.reset()
-		neededFields.addAll(pf.fields)
+		neededFields.addFields(pf.fields)
 		for _, f := range unneededFields.getAll() {
 			neededFields.remove(f)
 		}

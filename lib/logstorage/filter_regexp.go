@@ -19,7 +19,18 @@ func (fr *filterRegexp) String() string {
 	return fmt.Sprintf("%sre(%q)", quoteFieldNameIfNeeded(fr.fieldName), fr.re.String())
 }
 
-func (fr *filterRegexp) apply(bs *blockSearch, bm *bitmap) {
+func (fr *filterRegexp) updateNeededFields(neededFields fieldsSet) {
+	neededFields.add(fr.fieldName)
+}
+
+func (fr *filterRegexp) applyToBlockResult(br *blockResult, bm *bitmap) {
+	re := fr.re
+	applyToBlockResultGeneric(br, bm, fr.fieldName, "", func(v, _ string) bool {
+		return re.MatchString(v)
+	})
+}
+
+func (fr *filterRegexp) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fr.fieldName
 	re := fr.re
 
@@ -69,7 +80,7 @@ func (fr *filterRegexp) apply(bs *blockSearch, bm *bitmap) {
 func matchTimestampISO8601ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toTimestampISO8601StringExt(bs, bb, v)
+		s := toTimestampISO8601String(bs, bb, v)
 		return re.MatchString(s)
 	})
 	bbPool.Put(bb)
@@ -78,7 +89,7 @@ func matchTimestampISO8601ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap
 func matchIPv4ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toIPv4StringExt(bs, bb, v)
+		s := toIPv4String(bs, bb, v)
 		return re.MatchString(s)
 	})
 	bbPool.Put(bb)
@@ -87,7 +98,7 @@ func matchIPv4ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp
 func matchFloat64ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toFloat64StringExt(bs, bb, v)
+		s := toFloat64String(bs, bb, v)
 		return re.MatchString(s)
 	})
 	bbPool.Put(bb)
@@ -95,10 +106,12 @@ func matchFloat64ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *reg
 
 func matchValuesDictByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
 	bb := bbPool.Get()
-	for i, v := range ch.valuesDict.values {
+	for _, v := range ch.valuesDict.values {
+		c := byte(0)
 		if re.MatchString(v) {
-			bb.B = append(bb.B, byte(i))
+			c = 1
 		}
+		bb.B = append(bb.B, c)
 	}
 	matchEncodedValuesDict(bs, ch, bm, bb.B)
 	bbPool.Put(bb)

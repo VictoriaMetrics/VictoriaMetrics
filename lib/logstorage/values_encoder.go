@@ -168,9 +168,9 @@ func (vd *valuesDecoder) decodeInplace(values []string, vt valueType, dictValues
 			if len(v) != 1 {
 				return fmt.Errorf("unexpected value length for uint8; got %d; want 1", len(v))
 			}
-			n := uint64(v[0])
+			n := unmarshalUint8(v)
 			dstLen := len(dstBuf)
-			dstBuf = marshalUint64(dstBuf, n)
+			dstBuf = marshalUint8String(dstBuf, n)
 			values[i] = bytesutil.ToUnsafeString(dstBuf[dstLen:])
 		}
 	case valueTypeUint16:
@@ -178,10 +178,9 @@ func (vd *valuesDecoder) decodeInplace(values []string, vt valueType, dictValues
 			if len(v) != 2 {
 				return fmt.Errorf("unexpected value length for uint16; got %d; want 2", len(v))
 			}
-			b := bytesutil.ToUnsafeBytes(v)
-			n := uint64(encoding.UnmarshalUint16(b))
+			n := unmarshalUint16(v)
 			dstLen := len(dstBuf)
-			dstBuf = marshalUint64(dstBuf, n)
+			dstBuf = marshalUint16String(dstBuf, n)
 			values[i] = bytesutil.ToUnsafeString(dstBuf[dstLen:])
 		}
 	case valueTypeUint32:
@@ -189,10 +188,9 @@ func (vd *valuesDecoder) decodeInplace(values []string, vt valueType, dictValues
 			if len(v) != 4 {
 				return fmt.Errorf("unexpected value length for uint32; got %d; want 4", len(v))
 			}
-			b := bytesutil.ToUnsafeBytes(v)
-			n := uint64(encoding.UnmarshalUint32(b))
+			n := unmarshalUint32(v)
 			dstLen := len(dstBuf)
-			dstBuf = marshalUint64(dstBuf, n)
+			dstBuf = marshalUint32String(dstBuf, n)
 			values[i] = bytesutil.ToUnsafeString(dstBuf[dstLen:])
 		}
 	case valueTypeUint64:
@@ -200,10 +198,9 @@ func (vd *valuesDecoder) decodeInplace(values []string, vt valueType, dictValues
 			if len(v) != 8 {
 				return fmt.Errorf("unexpected value length for uint64; got %d; want 8", len(v))
 			}
-			b := bytesutil.ToUnsafeBytes(v)
-			n := encoding.UnmarshalUint64(b)
+			n := unmarshalUint64(v)
 			dstLen := len(dstBuf)
-			dstBuf = marshalUint64(dstBuf, n)
+			dstBuf = marshalUint64String(dstBuf, n)
 			values[i] = bytesutil.ToUnsafeString(dstBuf[dstLen:])
 		}
 	case valueTypeFloat64:
@@ -211,8 +208,9 @@ func (vd *valuesDecoder) decodeInplace(values []string, vt valueType, dictValues
 			if len(v) != 8 {
 				return fmt.Errorf("unexpected value length for uint64; got %d; want 8", len(v))
 			}
+			f := unmarshalFloat64(v)
 			dstLen := len(dstBuf)
-			dstBuf = toFloat64String(dstBuf, v)
+			dstBuf = marshalFloat64String(dstBuf, f)
 			values[i] = bytesutil.ToUnsafeString(dstBuf[dstLen:])
 		}
 	case valueTypeIPv4:
@@ -220,8 +218,9 @@ func (vd *valuesDecoder) decodeInplace(values []string, vt valueType, dictValues
 			if len(v) != 4 {
 				return fmt.Errorf("unexpected value length for ipv4; got %d; want 4", len(v))
 			}
+			ip := unmarshalIPv4(v)
 			dstLen := len(dstBuf)
-			dstBuf = toIPv4String(dstBuf, v)
+			dstBuf = marshalIPv4String(dstBuf, ip)
 			values[i] = bytesutil.ToUnsafeString(dstBuf[dstLen:])
 		}
 	case valueTypeTimestampISO8601:
@@ -229,8 +228,9 @@ func (vd *valuesDecoder) decodeInplace(values []string, vt valueType, dictValues
 			if len(v) != 8 {
 				return fmt.Errorf("unexpected value length for uint64; got %d; want 8", len(v))
 			}
+			timestamp := unmarshalTimestampISO8601(v)
 			dstLen := len(dstBuf)
-			dstBuf = toTimestampISO8601String(dstBuf, v)
+			dstBuf = marshalTimestampISO8601String(dstBuf, timestamp)
 			values[i] = bytesutil.ToUnsafeString(dstBuf[dstLen:])
 		}
 	default:
@@ -239,32 +239,6 @@ func (vd *valuesDecoder) decodeInplace(values []string, vt valueType, dictValues
 
 	vd.buf = dstBuf
 	return nil
-}
-
-func toTimestampISO8601String(dst []byte, v string) []byte {
-	b := bytesutil.ToUnsafeBytes(v)
-	n := encoding.UnmarshalUint64(b)
-	dst = marshalTimestampISO8601(dst, int64(n))
-	return dst
-}
-
-func toIPv4String(dst []byte, v string) []byte {
-	dst = marshalUint64(dst, uint64(v[0]))
-	dst = append(dst, '.')
-	dst = marshalUint64(dst, uint64(v[1]))
-	dst = append(dst, '.')
-	dst = marshalUint64(dst, uint64(v[2]))
-	dst = append(dst, '.')
-	dst = marshalUint64(dst, uint64(v[3]))
-	return dst
-}
-
-func toFloat64String(dst []byte, v string) []byte {
-	b := bytesutil.ToUnsafeBytes(v)
-	n := encoding.UnmarshalUint64(b)
-	f := math.Float64frombits(n)
-	dst = marshalFloat64(dst, f)
-	return dst
 }
 
 func getValuesDecoder() *valuesDecoder {
@@ -356,11 +330,6 @@ func tryParseTimestampRFC3339Nano(s string) (int64, bool) {
 	return nsecs, true
 }
 
-// marshalTimestampRFC3339Nano appends RFC3339Nano-formatted nsecs to dst and returns the result.
-func marshalTimestampRFC3339Nano(dst []byte, nsecs int64) []byte {
-	return time.Unix(0, nsecs).UTC().AppendFormat(dst, time.RFC3339Nano)
-}
-
 // tryParseTimestampISO8601 parses 'YYYY-MM-DDThh:mm:ss.mssZ' and returns unix timestamp in nanoseconds.
 //
 // The returned timestamp can be negative if s is smaller than 1970 year.
@@ -403,13 +372,6 @@ func tryParseTimestampISO8601(s string) (int64, bool) {
 	nsecs += int64(msecs) * 1e6
 	return nsecs, true
 }
-
-// marshalTimestampISO8601 appends ISO8601-formatted nsecs to dst and returns the result.
-func marshalTimestampISO8601(dst []byte, nsecs int64) []byte {
-	return time.Unix(0, nsecs).UTC().AppendFormat(dst, iso8601Timestamp)
-}
-
-const iso8601Timestamp = "2006-01-02T15:04:05.000Z"
 
 // tryParseTimestampSecs parses YYYY-MM-DDTHH:mm:ss into unix timestamp in seconds.
 func tryParseTimestampSecs(s string) (int64, bool, string) {
@@ -517,11 +479,6 @@ func tryParseUint64(s string) (uint64, bool) {
 	return n, true
 }
 
-// marshalUint64 appends string representation of n to dst and returns the result.
-func marshalUint64(dst []byte, n uint64) []byte {
-	return strconv.AppendUint(dst, n, 10)
-}
-
 func tryIPv4Encoding(dstBuf []byte, dstValues, srcValues []string) ([]byte, []string, valueType, uint64, uint64) {
 	u32s := encoding.GetUint32s(len(srcValues))
 	defer encoding.PutUint32s(u32s)
@@ -605,18 +562,6 @@ func tryParseIPv4(s string) (uint32, bool) {
 
 	ipv4 := encoding.UnmarshalUint32(octets[:])
 	return ipv4, true
-}
-
-// marshalIPv4 appends string representation of IPv4 address in n to dst and returns the result.
-func marshalIPv4(dst []byte, n uint32) []byte {
-	dst = marshalUint64(dst, uint64(n>>24))
-	dst = append(dst, '.')
-	dst = marshalUint64(dst, uint64((n>>16)&0xff))
-	dst = append(dst, '.')
-	dst = marshalUint64(dst, uint64((n>>8)&0xff))
-	dst = append(dst, '.')
-	dst = marshalUint64(dst, uint64(n&0xff))
-	return dst
 }
 
 func tryFloat64Encoding(dstBuf []byte, dstValues, srcValues []string) ([]byte, []string, valueType, uint64, uint64) {
@@ -708,11 +653,6 @@ func tryParseFloat64(s string) (float64, bool) {
 		f = -f
 	}
 	return f, true
-}
-
-// marshalFloat64 appends formatted f to dst and returns the result.
-func marshalFloat64(dst []byte, f float64) []byte {
-	return strconv.AppendFloat(dst, f, 'f', -1, 64)
 }
 
 // tryParseBytes parses user-readable bytes representation in s.
@@ -935,53 +875,53 @@ func marshalDuration(dst []byte, nsecs int64) []byte {
 	if nsecs >= nsecsPerWeek {
 		weeks := nsecs / nsecsPerWeek
 		nsecs -= weeks * nsecsPerWeek
-		dst = marshalUint64(dst, uint64(weeks))
+		dst = marshalUint64String(dst, uint64(weeks))
 		dst = append(dst, 'w')
 	}
 	if nsecs >= nsecsPerDay {
 		days := nsecs / nsecsPerDay
 		nsecs -= days * nsecsPerDay
-		dst = marshalUint64(dst, uint64(days))
+		dst = marshalUint8String(dst, uint8(days))
 		dst = append(dst, 'd')
 	}
 	if nsecs >= nsecsPerHour {
 		hours := nsecs / nsecsPerHour
 		nsecs -= hours * nsecsPerHour
-		dst = marshalUint64(dst, uint64(hours))
+		dst = marshalUint8String(dst, uint8(hours))
 		dst = append(dst, 'h')
 	}
 	if nsecs >= nsecsPerMinute {
 		minutes := nsecs / nsecsPerMinute
 		nsecs -= minutes * nsecsPerMinute
-		dst = marshalUint64(dst, uint64(minutes))
+		dst = marshalUint8String(dst, uint8(minutes))
 		dst = append(dst, 'm')
 	}
 	if nsecs >= nsecsPerSecond {
 		if formatFloat64Seconds {
 			seconds := float64(nsecs) / nsecsPerSecond
-			dst = marshalFloat64(dst, seconds)
+			dst = marshalFloat64String(dst, seconds)
 			dst = append(dst, 's')
 			return dst
 		}
 		seconds := nsecs / nsecsPerSecond
 		nsecs -= seconds * nsecsPerSecond
-		dst = marshalUint64(dst, uint64(seconds))
+		dst = marshalUint8String(dst, uint8(seconds))
 		dst = append(dst, 's')
 	}
 	if nsecs >= nsecsPerMillisecond {
 		msecs := nsecs / nsecsPerMillisecond
 		nsecs -= msecs * nsecsPerMillisecond
-		dst = marshalUint64(dst, uint64(msecs))
+		dst = marshalUint16String(dst, uint16(msecs))
 		dst = append(dst, "ms"...)
 	}
 	if nsecs >= nsecsPerMicrosecond {
 		usecs := nsecs / nsecsPerMicrosecond
 		nsecs -= usecs * nsecsPerMicrosecond
-		dst = marshalUint64(dst, uint64(usecs))
+		dst = marshalUint16String(dst, uint16(usecs))
 		dst = append(dst, "µs"...)
 	}
 	if nsecs > 0 {
-		dst = marshalUint64(dst, uint64(nsecs))
+		dst = marshalUint16String(dst, uint16(nsecs))
 		dst = append(dst, "ns"...)
 	}
 	return dst
@@ -1155,4 +1095,97 @@ func (vd *valuesDict) unmarshal(a *arena, src []byte) ([]byte, error) {
 		vd.values = append(vd.values, v)
 	}
 	return src, nil
+}
+
+func unmarshalUint8(v string) uint8 {
+	return uint8(v[0])
+}
+
+func unmarshalUint16(v string) uint16 {
+	b := bytesutil.ToUnsafeBytes(v)
+	return encoding.UnmarshalUint16(b)
+}
+
+func unmarshalUint32(v string) uint32 {
+	b := bytesutil.ToUnsafeBytes(v)
+	return encoding.UnmarshalUint32(b)
+}
+
+func unmarshalUint64(v string) uint64 {
+	b := bytesutil.ToUnsafeBytes(v)
+	return encoding.UnmarshalUint64(b)
+}
+
+func unmarshalFloat64(v string) float64 {
+	n := unmarshalUint64(v)
+	return math.Float64frombits(n)
+}
+
+func unmarshalIPv4(v string) uint32 {
+	return unmarshalUint32(v)
+}
+
+func unmarshalTimestampISO8601(v string) int64 {
+	n := unmarshalUint64(v)
+	return int64(n)
+}
+
+func marshalUint8String(dst []byte, n uint8) []byte {
+	if n < 10 {
+		return append(dst, '0'+n)
+	}
+	if n < 100 {
+		return append(dst, '0'+n/10, '0'+n%10)
+	}
+
+	if n < 200 {
+		dst = append(dst, '1')
+		n -= 100
+	} else {
+		dst = append(dst, '2')
+		n -= 200
+	}
+	if n < 10 {
+		return append(dst, '0', '0'+n)
+	}
+	return append(dst, '0'+n/10, '0'+n%10)
+}
+
+func marshalUint16String(dst []byte, n uint16) []byte {
+	return marshalUint64String(dst, uint64(n))
+}
+
+func marshalUint32String(dst []byte, n uint32) []byte {
+	return marshalUint64String(dst, uint64(n))
+}
+
+func marshalUint64String(dst []byte, n uint64) []byte {
+	return strconv.AppendUint(dst, n, 10)
+}
+
+func marshalFloat64String(dst []byte, f float64) []byte {
+	return strconv.AppendFloat(dst, f, 'f', -1, 64)
+}
+
+func marshalIPv4String(dst []byte, n uint32) []byte {
+	dst = marshalUint8String(dst, uint8(n>>24))
+	dst = append(dst, '.')
+	dst = marshalUint8String(dst, uint8(n>>16))
+	dst = append(dst, '.')
+	dst = marshalUint8String(dst, uint8(n>>8))
+	dst = append(dst, '.')
+	dst = marshalUint8String(dst, uint8(n))
+	return dst
+}
+
+// marshalTimestampISO8601String appends ISO8601-formatted nsecs to dst and returns the result.
+func marshalTimestampISO8601String(dst []byte, nsecs int64) []byte {
+	return time.Unix(0, nsecs).UTC().AppendFormat(dst, iso8601Timestamp)
+}
+
+const iso8601Timestamp = "2006-01-02T15:04:05.000Z"
+
+// marshalTimestampRFC3339NanoString appends RFC3339Nano-formatted nsecs to dst and returns the result.
+func marshalTimestampRFC3339NanoString(dst []byte, nsecs int64) []byte {
+	return time.Unix(0, nsecs).UTC().AppendFormat(dst, time.RFC3339Nano)
 }

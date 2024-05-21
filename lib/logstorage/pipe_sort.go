@@ -11,7 +11,6 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
@@ -80,9 +79,12 @@ func newPipeSortProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}
 
 	shards := make([]pipeSortProcessorShard, workersCount)
 	for i := range shards {
-		shard := &shards[i]
-		shard.ps = ps
-		shard.stateSizeBudget = stateSizeBudgetChunk
+		shards[i] = pipeSortProcessorShard{
+			pipeSortProcessorShardNopad: pipeSortProcessorShardNopad{
+				ps:              ps,
+				stateSizeBudget: stateSizeBudgetChunk,
+			},
+		}
 		maxStateSize -= stateSizeBudgetChunk
 	}
 
@@ -202,12 +204,14 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 
 		columnValues := shard.columnValues[:0]
 		for _, c := range cs {
-			columnValues = append(columnValues, c.getValues(br))
+			values := c.getValues(br)
+			columnValues = append(columnValues, values)
 		}
 		shard.columnValues = columnValues
 
 		// Generate byColumns
-		var rc resultColumn
+		valuesEncoded := make([]string, len(br.timestamps))
+		shard.stateSizeBudget -= len(valuesEncoded) * int(unsafe.Sizeof(valuesEncoded[0]))
 
 		bb := bbPool.Get()
 		for rowIdx := range br.timestamps {
@@ -219,7 +223,12 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 				bb.B = marshalJSONKeyValue(bb.B, cs[i].name, v)
 				bb.B = append(bb.B, ',')
 			}
-			rc.addValue(bytesutil.ToUnsafeString(bb.B))
+			if rowIdx > 0 && valuesEncoded[rowIdx-1] == string(bb.B) {
+				valuesEncoded[rowIdx] = valuesEncoded[rowIdx-1]
+			} else {
+				valuesEncoded[rowIdx] = string(bb.B)
+				shard.stateSizeBudget -= len(bb.B)
+			}
 		}
 		bbPool.Put(bb)
 
@@ -232,13 +241,13 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 			{
 				c: &blockResultColumn{
 					valueType:     valueTypeString,
-					encodedValues: rc.values,
+					valuesEncoded: valuesEncoded,
 				},
 				i64Values: i64Values,
 				f64Values: f64Values,
 			},
 		}
-		shard.stateSizeBudget -= len(rc.buf) + int(unsafe.Sizeof(byColumns[0])+unsafe.Sizeof(*byColumns[0].c))
+		shard.stateSizeBudget -= int(unsafe.Sizeof(byColumns[0]) + unsafe.Sizeof(*byColumns[0].c))
 
 		// Append br to shard.blocks.
 		shard.blocks = append(shard.blocks, sortBlock{
@@ -260,8 +269,8 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 				continue
 			}
 			if c.isConst {
-				bc.i64Values = shard.createInt64Values(c.encodedValues)
-				bc.f64Values = shard.createFloat64Values(c.encodedValues)
+				bc.i64Values = shard.createInt64Values(c.valuesEncoded)
+				bc.f64Values = shard.createFloat64Values(c.valuesEncoded)
 				continue
 			}
 
@@ -512,14 +521,10 @@ func (wctx *pipeSortWriteContext) writeNextRow(shard *pipeSortProcessorShard) {
 
 		rcs = wctx.rcs[:0]
 		for _, bf := range byFields {
-			rcs = append(rcs, resultColumn{
-				name: bf.name,
-			})
+			rcs = appendResultColumnWithName(rcs, bf.name)
 		}
 		for _, c := range b.otherColumns {
-			rcs = append(rcs, resultColumn{
-				name: c.name,
-			})
+			rcs = appendResultColumnWithName(rcs, c.name)
 		}
 		wctx.rcs = rcs
 	}
@@ -558,7 +563,7 @@ func (wctx *pipeSortWriteContext) flush() {
 	wctx.psp.ppBase.writeBlock(0, br)
 	br.reset()
 	for i := range rcs {
-		rcs[i].resetKeepName()
+		rcs[i].resetValues()
 	}
 }
 
@@ -610,8 +615,8 @@ func sortBlockLess(shardA *pipeSortProcessorShard, rowIdxA int, shardB *pipeSort
 
 		if cA.c.isConst && cB.c.isConst {
 			// Fast path - compare const values
-			ccA := cA.c.encodedValues[0]
-			ccB := cB.c.encodedValues[0]
+			ccA := cA.c.valuesEncoded[0]
+			ccB := cB.c.valuesEncoded[0]
 			if ccA == ccB {
 				continue
 			}
@@ -689,8 +694,10 @@ func parsePipeSort(lex *lexer) (*pipeSort, error) {
 	lex.nextToken()
 
 	var ps pipeSort
-	if lex.isKeyword("by") {
-		lex.nextToken()
+	if lex.isKeyword("by", "(") {
+		if lex.isKeyword("by") {
+			lex.nextToken()
+		}
 		bfs, err := parseBySortFields(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'by' clause: %w", err)

@@ -140,7 +140,7 @@ func (ctx *InsertCtx) ApplyRelabeling() {
 // FlushBufs flushes buffered rows to the underlying storage.
 func (ctx *InsertCtx) FlushBufs() error {
 	sas := sasGlobal.Load()
-	if (sas != nil || deduplicator != nil) && !ctx.skipStreamAggr {
+	if (sas.IsEnabled() || deduplicator != nil) && !ctx.skipStreamAggr {
 		matchIdxs := matchIdxsPool.Get()
 		matchIdxs.B = ctx.streamAggrCtx.push(ctx.mrs, matchIdxs.B)
 		if !*streamAggrKeepInput {

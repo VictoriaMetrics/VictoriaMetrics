@@ -11,8 +11,8 @@ func TestArena(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		a := getArena()
-		if n := a.sizeBytes(); n != 0 {
-			t.Fatalf("unexpected non-zero size of empty arena: %d", n)
+		if n := len(a.b); n != 0 {
+			t.Fatalf("unexpected non-zero length of empty arena: %d", n)
 		}
 
 		// add values to arena
@@ -35,8 +35,11 @@ func TestArena(t *testing.T) {
 			}
 		}
 
-		if n := a.sizeBytes(); n != valuesLen {
+		if n := len(a.b); n != valuesLen {
 			t.Fatalf("unexpected arena size; got %d; want %d", n, valuesLen)
+		}
+		if n := a.sizeBytes(); n < valuesLen {
+			t.Fatalf("unexpected arena capacity; got %d; want at least %d", n, valuesLen)
 		}
 
 		// Try allocating slices with different lengths
@@ -47,8 +50,11 @@ func TestArena(t *testing.T) {
 				t.Fatalf("unexpected len(b); got %d; want %d", len(b), j)
 			}
 			valuesLen += j
-			if n := a.sizeBytes(); n != valuesLen {
+			if n := len(a.b); n != valuesLen {
 				t.Fatalf("unexpected arena size; got %d; want %d", n, valuesLen)
+			}
+			if n := a.sizeBytes(); n < valuesLen {
+				t.Fatalf("unexpected arena capacity; got %d; want at least %d", n, valuesLen)
 			}
 			for k := range b {
 				b[k] = byte(k)

@@ -40,7 +40,7 @@ func (pr *pipeRename) updateNeededFields(neededFields, unneededFields fieldsSet)
 	}
 	if neededFields.contains("*") {
 		// update only unneeded fields
-		unneededFields.addAll(pr.dstFields)
+		unneededFields.addFields(pr.dstFields)
 		for i, srcField := range pr.srcFields {
 			if neededSrcFields[i] {
 				unneededFields.remove(srcField)
@@ -50,7 +50,7 @@ func (pr *pipeRename) updateNeededFields(neededFields, unneededFields fieldsSet)
 		}
 	} else {
 		// update only needed fields and reset unneeded fields
-		neededFields.removeAll(pr.dstFields)
+		neededFields.removeFields(pr.dstFields)
 		for i, srcField := range pr.srcFields {
 			if neededSrcFields[i] {
 				neededFields.add(srcField)

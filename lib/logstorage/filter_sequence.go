@@ -31,6 +31,10 @@ func (fs *filterSequence) String() string {
 	return fmt.Sprintf("%sseq(%s)", quoteFieldNameIfNeeded(fs.fieldName), strings.Join(a, ","))
 }
 
+func (fs *filterSequence) updateNeededFields(neededFields fieldsSet) {
+	neededFields.add(fs.fieldName)
+}
+
 func (fs *filterSequence) getTokens() []string {
 	fs.tokensOnce.Do(fs.initTokens)
 	return fs.tokens
@@ -58,7 +62,18 @@ func (fs *filterSequence) initNonEmptyPhrases() {
 	fs.nonEmptyPhrases = result
 }
 
-func (fs *filterSequence) apply(bs *blockSearch, bm *bitmap) {
+func (fs *filterSequence) applyToBlockResult(br *blockResult, bm *bitmap) {
+	phrases := fs.getNonEmptyPhrases()
+	if len(phrases) == 0 {
+		return
+	}
+
+	applyToBlockResultGeneric(br, bm, fs.fieldName, "", func(v, _ string) bool {
+		return matchSequence(v, phrases)
+	})
+}
+
+func (fs *filterSequence) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fs.fieldName
 	phrases := fs.getNonEmptyPhrases()
 
@@ -124,7 +139,7 @@ func matchTimestampISO8601BySequence(bs *blockSearch, ch *columnHeader, bm *bitm
 	// Slow path - phrases contain incomplete timestamp. Search over string representation of the timestamp.
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toTimestampISO8601StringExt(bs, bb, v)
+		s := toTimestampISO8601String(bs, bb, v)
 		return matchSequence(s, phrases)
 	})
 	bbPool.Put(bb)
@@ -145,7 +160,7 @@ func matchIPv4BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases,
 	// the ip to string before searching for prefix there.
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toIPv4StringExt(bs, bb, v)
+		s := toIPv4String(bs, bb, v)
 		return matchSequence(s, phrases)
 	})
 	bbPool.Put(bb)
@@ -163,7 +178,7 @@ func matchFloat64BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phras
 	// of floating-point numbers :(
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toFloat64StringExt(bs, bb, v)
+		s := toFloat64String(bs, bb, v)
 		return matchSequence(s, phrases)
 	})
 	bbPool.Put(bb)
@@ -171,10 +186,12 @@ func matchFloat64BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phras
 
 func matchValuesDictBySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases []string) {
 	bb := bbPool.Get()
-	for i, v := range ch.valuesDict.values {
+	for _, v := range ch.valuesDict.values {
+		c := byte(0)
 		if matchSequence(v, phrases) {
-			bb.B = append(bb.B, byte(i))
+			c = 1
 		}
+		bb.B = append(bb.B, c)
 	}
 	matchEncodedValuesDict(bs, ch, bm, bb.B)
 	bbPool.Put(bb)

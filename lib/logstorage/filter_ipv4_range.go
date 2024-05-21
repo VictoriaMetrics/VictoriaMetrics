@@ -3,8 +3,6 @@ package logstorage
 import (
 	"fmt"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -18,12 +16,83 @@ type filterIPv4Range struct {
 }
 
 func (fr *filterIPv4Range) String() string {
-	minValue := string(encoding.MarshalUint32(nil, fr.minValue))
-	maxValue := string(encoding.MarshalUint32(nil, fr.maxValue))
-	return fmt.Sprintf("%sipv4_range(%s, %s)", quoteFieldNameIfNeeded(fr.fieldName), toIPv4String(nil, minValue), toIPv4String(nil, maxValue))
+	minValue := marshalIPv4String(nil, fr.minValue)
+	maxValue := marshalIPv4String(nil, fr.maxValue)
+	return fmt.Sprintf("%sipv4_range(%s, %s)", quoteFieldNameIfNeeded(fr.fieldName), minValue, maxValue)
 }
 
-func (fr *filterIPv4Range) apply(bs *blockSearch, bm *bitmap) {
+func (fr *filterIPv4Range) updateNeededFields(neededFields fieldsSet) {
+	neededFields.add(fr.fieldName)
+}
+
+func (fr *filterIPv4Range) applyToBlockResult(br *blockResult, bm *bitmap) {
+	minValue := fr.minValue
+	maxValue := fr.maxValue
+
+	if minValue > maxValue {
+		bm.resetBits()
+		return
+	}
+
+	c := br.getColumnByName(fr.fieldName)
+	if c.isConst {
+		v := c.valuesEncoded[0]
+		if !matchIPv4Range(v, minValue, maxValue) {
+			bm.resetBits()
+		}
+		return
+	}
+	if c.isTime {
+		bm.resetBits()
+		return
+	}
+
+	switch c.valueType {
+	case valueTypeString:
+		values := c.getValues(br)
+		bm.forEachSetBit(func(idx int) bool {
+			v := values[idx]
+			return matchIPv4Range(v, minValue, maxValue)
+		})
+	case valueTypeDict:
+		bb := bbPool.Get()
+		for _, v := range c.dictValues {
+			c := byte(0)
+			if matchIPv4Range(v, minValue, maxValue) {
+				c = 1
+			}
+			bb.B = append(bb.B, c)
+		}
+		valuesEncoded := c.getValuesEncoded(br)
+		bm.forEachSetBit(func(idx int) bool {
+			n := valuesEncoded[idx][0]
+			return bb.B[n] == 1
+		})
+		bbPool.Put(bb)
+	case valueTypeUint8:
+		bm.resetBits()
+	case valueTypeUint16:
+		bm.resetBits()
+	case valueTypeUint32:
+		bm.resetBits()
+	case valueTypeUint64:
+		bm.resetBits()
+	case valueTypeFloat64:
+		bm.resetBits()
+	case valueTypeIPv4:
+		valuesEncoded := c.getValuesEncoded(br)
+		bm.forEachSetBit(func(idx int) bool {
+			ip := unmarshalIPv4(valuesEncoded[idx])
+			return ip >= minValue && ip <= maxValue
+		})
+	case valueTypeTimestampISO8601:
+		bm.resetBits()
+	default:
+		logger.Panicf("FATAL: unknown valueType=%d", c.valueType)
+	}
+}
+
+func (fr *filterIPv4Range) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fr.fieldName
 	minValue := fr.minValue
 	maxValue := fr.maxValue
@@ -75,10 +144,12 @@ func (fr *filterIPv4Range) apply(bs *blockSearch, bm *bitmap) {
 
 func matchValuesDictByIPv4Range(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue uint32) {
 	bb := bbPool.Get()
-	for i, v := range ch.valuesDict.values {
+	for _, v := range ch.valuesDict.values {
+		c := byte(0)
 		if matchIPv4Range(v, minValue, maxValue) {
-			bb.B = append(bb.B, byte(i))
+			c = 1
 		}
+		bb.B = append(bb.B, c)
 	}
 	matchEncodedValuesDict(bs, ch, bm, bb.B)
 	bbPool.Put(bb)
@@ -108,8 +179,7 @@ func matchIPv4ByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, m
 		if len(v) != 4 {
 			logger.Panicf("FATAL: %s: unexpected length for binary representation of IPv4: got %d; want 4", bs.partPath(), len(v))
 		}
-		b := bytesutil.ToUnsafeBytes(v)
-		n := encoding.UnmarshalUint32(b)
+		n := unmarshalIPv4(v)
 		return n >= minValue && n <= maxValue
 	})
 }

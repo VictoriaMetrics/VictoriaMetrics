@@ -7,7 +7,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -31,6 +30,10 @@ func (fp *filterPrefix) String() string {
 	return fmt.Sprintf("%s%s*", quoteFieldNameIfNeeded(fp.fieldName), quoteTokenIfNeeded(fp.prefix))
 }
 
+func (fp *filterPrefix) updateNeededFields(neededFields fieldsSet) {
+	neededFields.add(fp.fieldName)
+}
+
 func (fp *filterPrefix) getTokens() []string {
 	fp.tokensOnce.Do(fp.initTokens)
 	return fp.tokens
@@ -40,7 +43,11 @@ func (fp *filterPrefix) initTokens() {
 	fp.tokens = getTokensSkipLast(fp.prefix)
 }
 
-func (fp *filterPrefix) apply(bs *blockSearch, bm *bitmap) {
+func (fp *filterPrefix) applyToBlockResult(bs *blockResult, bm *bitmap) {
+	applyToBlockResultGeneric(bs, bm, fp.fieldName, fp.prefix, matchPrefix)
+}
+
+func (fp *filterPrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fp.fieldName
 	prefix := fp.prefix
 
@@ -102,7 +109,7 @@ func matchTimestampISO8601ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap
 
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toTimestampISO8601StringExt(bs, bb, v)
+		s := toTimestampISO8601String(bs, bb, v)
 		return matchPrefix(s, prefix)
 	})
 	bbPool.Put(bb)
@@ -123,7 +130,7 @@ func matchIPv4ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix str
 
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toIPv4StringExt(bs, bb, v)
+		s := toIPv4String(bs, bb, v)
 		return matchPrefix(s, prefix)
 	})
 	bbPool.Put(bb)
@@ -151,7 +158,7 @@ func matchFloat64ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix 
 
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toFloat64StringExt(bs, bb, v)
+		s := toFloat64String(bs, bb, v)
 		return matchPrefix(s, prefix)
 	})
 	bbPool.Put(bb)
@@ -159,10 +166,12 @@ func matchFloat64ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix 
 
 func matchValuesDictByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string) {
 	bb := bbPool.Get()
-	for i, v := range ch.valuesDict.values {
+	for _, v := range ch.valuesDict.values {
+		c := byte(0)
 		if matchPrefix(v, prefix) {
-			bb.B = append(bb.B, byte(i))
+			c = 1
 		}
+		bb.B = append(bb.B, c)
 	}
 	matchEncodedValuesDict(bs, ch, bm, bb.B)
 	bbPool.Put(bb)
@@ -321,8 +330,8 @@ func toUint8String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string {
 	if len(v) != 1 {
 		logger.Panicf("FATAL: %s: unexpected length for binary representation of uint8 number: got %d; want 1", bs.partPath(), len(v))
 	}
-	n := uint64(v[0])
-	bb.B = marshalUint64(bb.B[:0], n)
+	n := unmarshalUint8(v)
+	bb.B = marshalUint8String(bb.B[:0], n)
 	return bytesutil.ToUnsafeString(bb.B)
 }
 
@@ -330,9 +339,8 @@ func toUint16String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string 
 	if len(v) != 2 {
 		logger.Panicf("FATAL: %s: unexpected length for binary representation of uint16 number: got %d; want 2", bs.partPath(), len(v))
 	}
-	b := bytesutil.ToUnsafeBytes(v)
-	n := uint64(encoding.UnmarshalUint16(b))
-	bb.B = marshalUint64(bb.B[:0], n)
+	n := unmarshalUint16(v)
+	bb.B = marshalUint16String(bb.B[:0], n)
 	return bytesutil.ToUnsafeString(bb.B)
 }
 
@@ -340,9 +348,8 @@ func toUint32String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string 
 	if len(v) != 4 {
 		logger.Panicf("FATAL: %s: unexpected length for binary representation of uint32 number: got %d; want 4", bs.partPath(), len(v))
 	}
-	b := bytesutil.ToUnsafeBytes(v)
-	n := uint64(encoding.UnmarshalUint32(b))
-	bb.B = marshalUint64(bb.B[:0], n)
+	n := unmarshalUint32(v)
+	bb.B = marshalUint32String(bb.B[:0], n)
 	return bytesutil.ToUnsafeString(bb.B)
 }
 
@@ -350,8 +357,7 @@ func toUint64String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string 
 	if len(v) != 8 {
 		logger.Panicf("FATAL: %s: unexpected length for binary representation of uint64 number: got %d; want 8", bs.partPath(), len(v))
 	}
-	b := bytesutil.ToUnsafeBytes(v)
-	n := encoding.UnmarshalUint64(b)
-	bb.B = marshalUint64(bb.B[:0], n)
+	n := unmarshalUint64(v)
+	bb.B = marshalUint64String(bb.B[:0], n)
 	return bytesutil.ToUnsafeString(bb.B)
 }

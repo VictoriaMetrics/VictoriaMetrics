@@ -67,67 +67,103 @@ func parsePipes(lex *lexer) ([]pipe, error) {
 		if !lex.isKeyword("|") {
 			return nil, fmt.Errorf("expecting '|'; got %q", lex.token)
 		}
-		if !lex.mustNextToken() {
-			return nil, fmt.Errorf("missing token after '|'")
+		lex.nextToken()
+		p, err := parsePipe(lex)
+		if err != nil {
+			return nil, err
 		}
-		switch {
-		case lex.isKeyword("stats"):
-			ps, err := parsePipeStats(lex)
-			if err != nil {
-				return nil, fmt.Errorf("cannot parse 'stats' pipe: %w", err)
-			}
-			pipes = append(pipes, ps)
-		case lex.isKeyword("sort"):
-			ps, err := parsePipeSort(lex)
-			if err != nil {
-				return nil, fmt.Errorf("cannot parse 'sort' pipe: %w", err)
-			}
-			pipes = append(pipes, ps)
-		case lex.isKeyword("uniq"):
-			pu, err := parsePipeUniq(lex)
-			if err != nil {
-				return nil, fmt.Errorf("cannot parse 'uniq' pipe: %w", err)
-			}
-			pipes = append(pipes, pu)
-		case lex.isKeyword("limit", "head"):
-			pl, err := parsePipeLimit(lex)
-			if err != nil {
-				return nil, fmt.Errorf("cannot parse 'limit' pipe: %w", err)
-			}
-			pipes = append(pipes, pl)
-		case lex.isKeyword("offset", "skip"):
-			ps, err := parsePipeOffset(lex)
-			if err != nil {
-				return nil, fmt.Errorf("cannot parse 'offset' pipe: %w", err)
-			}
-			pipes = append(pipes, ps)
-		case lex.isKeyword("fields"):
-			pf, err := parsePipeFields(lex)
-			if err != nil {
-				return nil, fmt.Errorf("cannot parse 'fields' pipe: %w", err)
-			}
-			pipes = append(pipes, pf)
-		case lex.isKeyword("copy", "cp"):
-			pc, err := parsePipeCopy(lex)
-			if err != nil {
-				return nil, fmt.Errorf("cannot parse 'copy' pipe: %w", err)
-			}
-			pipes = append(pipes, pc)
-		case lex.isKeyword("rename", "mv"):
-			pr, err := parsePipeRename(lex)
-			if err != nil {
-				return nil, fmt.Errorf("cannot parse 'rename' pipe: %w", err)
-			}
-			pipes = append(pipes, pr)
-		case lex.isKeyword("delete", "del", "rm"):
-			pd, err := parsePipeDelete(lex)
-			if err != nil {
-				return nil, fmt.Errorf("cannot parse 'delete' pipe: %w", err)
-			}
-			pipes = append(pipes, pd)
-		default:
-			return nil, fmt.Errorf("unexpected pipe %q", lex.token)
-		}
+		pipes = append(pipes, p)
 	}
 	return pipes, nil
+}
+
+func parsePipe(lex *lexer) (pipe, error) {
+	switch {
+	case lex.isKeyword("copy", "cp"):
+		pc, err := parsePipeCopy(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'copy' pipe: %w", err)
+		}
+		return pc, nil
+	case lex.isKeyword("delete", "del", "rm"):
+		pd, err := parsePipeDelete(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'delete' pipe: %w", err)
+		}
+		return pd, nil
+	case lex.isKeyword("extract"):
+		pe, err := parsePipeExtract(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'extract' pipe: %w", err)
+		}
+		return pe, nil
+	case lex.isKeyword("field_names"):
+		pf, err := parsePipeFieldNames(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'field_names' pipe: %w", err)
+		}
+		return pf, nil
+	case lex.isKeyword("fields"):
+		pf, err := parsePipeFields(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'fields' pipe: %w", err)
+		}
+		return pf, nil
+	case lex.isKeyword("filter"):
+		pf, err := parsePipeFilter(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'filter' pipe: %w", err)
+		}
+		return pf, nil
+	case lex.isKeyword("limit", "head"):
+		pl, err := parsePipeLimit(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'limit' pipe: %w", err)
+		}
+		return pl, nil
+	case lex.isKeyword("offset", "skip"):
+		ps, err := parsePipeOffset(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'offset' pipe: %w", err)
+		}
+		return ps, nil
+	case lex.isKeyword("rename", "mv"):
+		pr, err := parsePipeRename(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'rename' pipe: %w", err)
+		}
+		return pr, nil
+	case lex.isKeyword("sort"):
+		ps, err := parsePipeSort(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'sort' pipe: %w", err)
+		}
+		return ps, nil
+	case lex.isKeyword("stats"):
+		ps, err := parsePipeStats(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'stats' pipe: %w", err)
+		}
+		return ps, nil
+	case lex.isKeyword("uniq"):
+		pu, err := parsePipeUniq(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'uniq' pipe: %w", err)
+		}
+		return pu, nil
+	case lex.isKeyword("unpack_json"):
+		pu, err := parsePipeUnpackJSON(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'unpack_json' pipe: %w", err)
+		}
+		return pu, nil
+	case lex.isKeyword("unpack_logfmt"):
+		pu, err := parsePipeUnpackLogfmt(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'unpack_logfmt' pipe: %w", err)
+		}
+		return pu, nil
+	default:
+		return nil, fmt.Errorf("unexpected pipe %q", lex.token)
+	}
 }

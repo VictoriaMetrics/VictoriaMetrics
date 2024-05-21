@@ -184,7 +184,7 @@ For example, the following query selects all the logs for the last 5 minutes by 
 _time:5m
 ```
 
-Additionally to filters, LogQL query may contain arbitrary mix of optional actions for processing the selected logs. These actions are delimited by `|` and are known as `pipes`.
+Additionally to filters, LogQL query may contain arbitrary mix of optional actions for processing the selected logs. These actions are delimited by `|` and are known as [`pipes`](#pipes).
 For example, the following query uses [`stats` pipe](#stats-pipe) for returning the number of [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 with the `error` [word](#word) for the last 5 minutes:
 
@@ -212,7 +212,6 @@ single quotes `'` and backticks:
 ```
 
 If doubt, it is recommended quoting field names and filter args.
-
 
 The list of LogsQL filters:
 
@@ -653,15 +652,15 @@ log.level:in("error", "fatal")
 
 It works very fast for long lists passed to `in()`.
 
-The future VictoriaLogs versions will allow passing arbitrary [queries](#query-syntax) into `in()` filter.
-For example, the following query selects all the logs for the last hour for users, who visited pages with `admin` [word](#word) in the `path`
+It is possible to pass arbitrary [query](#query-syntax) inside `in(...)` filter in order to match against the results of this query.
+The query inside `in(...)` must end with [`fields`](#fields-pipe) pipe containing a single field name, so VictoriaLogs could
+fetch results from this field. For example, the following query selects all the logs for the last 5 minutes for users,
+who visited pages with `admin` [word](#word) in the `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 during the last day:
 
 ```logsql
-_time:1h AND user_id:in(_time:1d AND path:admin | fields user_id)
+_time:5m AND user_id:in(_time:1d AND path:admin | fields user_id)
 ```
-
-See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
 
 See also:
 
@@ -825,6 +824,18 @@ for searching for log entries with request durations exceeding 4.2 seconds:
 request.duration:range(4.2, Inf)
 ```
 
+This query can be shortened to:
+
+```logsql
+request.duration:>4.2
+```
+
+The following query returns logs with request durations smaller or equal to 1.5 seconds:
+
+```logsql
+request.duration:<=1.5
+```
+
 The lower and the upper bounds of the range are excluded by default. If they must be included, then substitute the corresponding
 parentheses with square brackets. For example:
 
@@ -832,17 +843,13 @@ parentheses with square brackets. For example:
 - `range(1, 10]` includes `10` in the matching range
 - `range[1, 10]` includes `1` and `10` in the matching range
 
-The range boundaries can be expressed in the following forms:
-
-- Hexadecimal form. For example, `range(0xff, 0xABCD)`.
-- Binary form. Form example, `range(0b100110, 0b11111101)`
-- Integer form with `_` delimiters for better readability. For example, `range(1_000, 2_345_678)`.
+The range boundaries can contain any [supported numeric values](#numeric-values).
 
 Note that the `range()` filter doesn't match [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
 with non-numeric values alongside numeric values. For example, `range(1, 10)` doesn't match `the request took 4.2 seconds`
 [log message](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field), since the `4.2` number is surrounded by other text.
 Extract the numeric value from the message with `parse(_msg, "the request took <request_duration> seconds")` [transformation](#transformations)
-and then apply the `range()` [post-filter](#post-filters) to the extracted `request_duration` field.
+and then apply the `range()` [filter pipe](#filter-pipe) to the extracted `request_duration` field.
 
 Performance tips:
 
@@ -884,7 +891,7 @@ user.ip:ipv4_range("1.2.3.4")
 Note that the `ipv4_range()` doesn't match a string with IPv4 address if this string contains other text. For example, `ipv4_range("127.0.0.0/24")`
 doesn't match `request from 127.0.0.1: done` [log message](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field),
 since the `127.0.0.1` ip is surrounded by other text. Extract the IP from the message with `parse(_msg, "request from <ip>: done")` [transformation](#transformations)
-and then apply the `ipv4_range()` [post-filter](#post-filters) to the extracted `ip` field.
+and then apply the `ipv4_range()` [filter pipe](#filter-pipe) to the extracted `ip` field.
 
 Hints:
 
@@ -1045,13 +1052,18 @@ LogsQL supports the following pipes:
 
 - [`copy`](#copy-pipe) copies [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - [`delete`](#delete-pipe) deletes [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
+- [`extract`](#extract-pipe) extracts the sepcified text into the given log fields.
+- [`field_names`](#field_names-pipe) returns all the names of [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - [`fields`](#fields-pipe) selects the given set of [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
+- [`filter`](#filter-pipe) applies additional [filters](#filters) to results.
 - [`limit`](#limit-pipe) limits the number selected logs.
 - [`offset`](#offset-pipe) skips the given number of selected logs.
 - [`rename`](#rename-pipe) renames [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - [`sort`](#sort-pipe) sorts logs by the given [fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - [`stats`](#stats-pipe) calculates various stats over the selected logs.
 - [`uniq`](#uniq-pipe) returns unique log entires.
+- [`unpack_json`](#unpack_json-pipe) unpacks JSON fields from [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
+- [`unpack_logfmt`](#unpack_logfmt-pipe) unpacks [logfmt](https://brandur.org/logfmt) fields from [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 
 ### copy pipe
 
@@ -1096,6 +1108,97 @@ See also:
 - [`rename` pipe](#rename-pipe)
 - [`fields` pipe](#fields-pipe)
 
+### extract pipe
+
+`| extract from field_name "pattern"` [pipe](#pipes) allows extracting additional fields specified in the `pattern` from the given
+`field_name` [log field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model). Existing log fields remain unchanged
+after the `| extract ...` pipe.
+
+`| extract ...` pipe can be useful for extracting additional fields needed for further data processing with other pipes such as [`stats` pipe](#stats-pipe) or [`sort` pipe](#sort-pipe).
+
+For example, the following query selects logs with the `error` [word](#word) for the last day,
+extracts ip address from [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) into `ip` field and then calculates top 10 ip addresses
+with the biggest number of logs:
+
+```logsql
+_time:1d error | extract from _msg "ip=<ip> " | stats by (ip) count() logs | sort by (logs) desc limit 10
+```
+
+It is expected that `_msg` field contains `ip=...` substring, which ends with space. For example, `error ip=1.2.3.4 from user_id=42`.
+
+If the `| extract ...` pipe is applied to [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field), then the `from _msg` part can be omitted.
+For example, the following query is equivalent to the previous one:
+
+```logsql
+_time:1d error | extract "ip=<ip> " | stats by (ip) count() logs | sort by (logs) desc limit 10
+```
+
+See also:
+
+- [format for extract pipe pattern](#format-for-extract-pipe-pattern)
+- [`unpack_json` pipe](#unpack_json-pipe)
+- [`unpack_logfmt` pipe](#unpack_logfmt-pipe)
+
+#### Format for extract pipe pattern
+
+The `pattern` part from [`| extract from src_field "pattern"` pipe](#extract-pipes) may contain arbitrary text, which matches as is to the `src_field` value.
+Additionally to arbitrary text, the `pattern` may contain placeholders in the form `<...>`, which match any strings, including empty strings.
+Placeholders may be named, such as `<ip>`, or anonymous, such as `<_>`. Named placeholders extract the matching text into
+the corresponding [log field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
+Anonymous placeholders are useful for skipping arbitrary text during pattern matching.
+
+For example, if [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) contains the following text:
+
+```
+1.2.3.4 GET /foo/bar?baz 404 "Mozilla  foo bar baz" some tail here
+```
+
+Then the following `| extract ...` [pipe](#pipes) can be used for extracting `ip`, `path` and `user_agent` fields from it:
+
+```
+| extract '<ip> <_> <path> <_> "<user_agent>"'
+```
+
+Note that the user-agent part of the log message is in double quotes. This means that it may contain special chars, including escaped double quote, e.g. `\"`.
+This may break proper matching of the string in double quotes.
+
+VictoriaLogs automatically detects the whole string in quotes and automatically decodes it if the first char in the placeholder is double quote or backtick.
+So it is better to use the following `pattern` for proper matching of quoted strings:
+
+```
+| extract "<ip> <_> <path> <_> <user_agent>"
+```
+
+Note that the `user_agent` now matches double quotes, but VictoriaLogs automatically unquotes the matching string before storing it in the `user_agent` field.
+This is useful for extracting JSON strings. For example, the following `pattern` properly extracts the `message` JSON string into `msg` field:
+
+```
+| extract '"message":<msg>'
+```
+
+If some special chars such as `<` must be matched by the `pattern`, then they can be [html-escaped](https://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references).
+For example, the following `pattern` properly matches `a < 123.456` text:
+
+```
+| extract "<left> &lt; <right>"
+```
+
+### field_names pipe
+
+Sometimes it may be needed to get all the field names for the selected results. This may be done with `| field_names ...` [pipe](#pipes).
+For example, the following query returns all the names of [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
+from the logs over the last 5 minutes:
+
+```logsql
+_time:5m | field_names as names
+```
+
+Field names are returned in arbitrary order. Use [`sort` pipe](#sort-pipe) in order to sort them if needed.
+
+See also:
+
+- [`uniq` pipe](#uniq-pipe)
+
 ### fields pipe
 
 By default all the [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) are returned in the response.
@@ -1111,6 +1214,23 @@ See also:
 - [`copy` pipe](#copy-pipe)
 - [`rename` pipe](#rename-pipe)
 - [`delete` pipe](#delete-pipe)
+
+### filter pipe
+
+Sometimes it is needed to apply additional filters on the calculated results. This can be done with `| filter ...` [pipe](#pipes).
+The `filter` pipe can contain arbitrary [filters](#filters).
+
+For example, the following query returns `host` [field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) values
+if the number of log messages with the `error` [word](#word) for them over the last hour exceeds `1_000`:
+
+```logsql
+_time:1h error | stats by (host) count() logs_count | filter logs_count:> 1_000
+```
+
+See also:
+
+- [`stats` pipe](#stats-pipe)
+- [`sort` pipe](#sort-pipe)
 
 ### limit pipe
 
@@ -1200,6 +1320,12 @@ The reverse order can be applied globally via `desc` keyword after `by(...)` cla
 _time:5m | sort by (foo, bar) desc
 ```
 
+The `by` keyword can be skipped in `sort ...` pipe. For example, the following query is equivalent to the previous one:
+
+```logsql
+_time:5m | sort (foo, bar) desc
+```
+
 Sorting of big number of logs can consume a lot of CPU time and memory. Sometimes it is enough to return the first `N` entries with the biggest
 or the smallest values. This can be done by adding `limit N` to the end of `sort ...` pipe.
 Such a query consumes lower amounts of memory when sorting big number of logs, since it keeps in memory only `N` log entries.
@@ -1231,35 +1357,6 @@ See also:
 - [`stats` pipe](#stats-pipe)
 - [`limit` pipe](#limit-pipe)
 - [`offset` pipe](#offset-pipe)
-
-### uniq pipe
-
-`| uniq ...` pipe allows returning only unique results over the selected logs. For example, the following LogsQL query
-returns unique values for `ip` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-over logs for the last 5 minutes:
-
-```logsql
-_time:5m | uniq by (ip)
-```
-
-It is possible to specify multiple fields inside `by(...)` clause. In this case all the unique sets for the given fields
-are returned. For example, the following query returns all the unique `(host, path)` pairs for the logs over the last 5 minutes:
-
-```logsql
-_time:5m | uniq by (host, path)
-```
-
-Unique entries are stored in memory during query execution. Big number of unique selected entries may require a lot of memory.
-Sometimes it is enough to return up to `N` unique entries. This can be done by adding `limit N` after `by (...)` clause.
-This allows limiting memory usage. For example, the following query returns up to 100 unique `(host, path)` pairs for the logs over the last 5 minutes:
-
-```logsql
-_time:5m | uniq by (host, path) limit 100
-```
-
-See also:
-
-- [`uniq_values` stats function](#uniq_values-stats)
 
 ### stats pipe
 
@@ -1293,6 +1390,13 @@ _time:5m | stats count() logs_total, count_uniq(_stream) streams_total
 
 See also:
 
+- [stats by fields](#stats-by-fields)
+- [stats by time buckets](#stats-by-time-buckets)
+- [stats by time buckets with timezone offset](#stats-by-time-buckets-with-timezone-offset)
+- [stats by field buckets](#stats-by-field-buckets)
+- [stats by IPv4 buckets](#stats-by-ipv4-buckets)
+- [stats with additional filters](#stats-with-additional-filters)
+- [stats pipe functions](#stats-pipe-functions)
 - [`sort` pipe](#sort-pipe)
 
 
@@ -1314,6 +1418,12 @@ grouped by `(host, path)` fields:
 
 ```logsql
 _time:5m | stats by (host, path) count() logs_total, count_uniq(ip) ips_total
+```
+
+The `by` keyword can be skipped in `stats ...` pipe. For example, the following query is equvalent to the previous one:
+
+```logsql
+_time:5m | stats (host, path) count() logs_total, count_uniq(ip) ips_total
 ```
 
 #### Stats by time buckets
@@ -1383,6 +1493,139 @@ extracted from the `ip` [log field](https://docs.victoriametrics.com/victorialog
 ```logsql
 _time:5m | stats by (ip:/24) count() requests_per_subnet
 ```
+
+#### Stats with additional filters
+
+Sometimes it is needed to calculate stats on different subsets of matching logs. This can be done by inserting `if (<any_filters>)` condition
+between [stats function](#stats-pipe-functions) and `result_name`, where `any_filter` can contain arbitrary [filters](#filters).
+For example, the following query calculates individually the number of [logs messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+with `GET`, `POST` and `PUT` [words](#word), additionally to the total number of logs over the last 5 minutes:
+
+```logsql
+_time:5m | stats
+  count() if (GET) gets,
+  count() if (POST) posts,
+  count() if (PUT) puts,
+  count() total
+```
+
+### uniq pipe
+
+`| uniq ...` pipe allows returning only unique results over the selected logs. For example, the following LogsQL query
+returns unique values for `ip` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+over logs for the last 5 minutes:
+
+```logsql
+_time:5m | uniq by (ip)
+```
+
+It is possible to specify multiple fields inside `by(...)` clause. In this case all the unique sets for the given fields
+are returned. For example, the following query returns all the unique `(host, path)` pairs for the logs over the last 5 minutes:
+
+```logsql
+_time:5m | uniq by (host, path)
+```
+
+The unique entries are returned in arbitrary order. Use [`sort` pipe](#sort-pipe) in order to sort them if needed.
+
+Unique entries are stored in memory during query execution. Big number of unique selected entries may require a lot of memory.
+Sometimes it is enough to return up to `N` unique entries. This can be done by adding `limit N` after `by (...)` clause.
+This allows limiting memory usage. For example, the following query returns up to 100 unique `(host, path)` pairs for the logs over the last 5 minutes:
+
+```logsql
+_time:5m | uniq by (host, path) limit 100
+```
+
+The `by` keyword can be skipped in `uniq ...` pipe. For example, the following query is equivalent to the previous one:
+
+```logsql
+_time:5m | uniq (host, path) limit 100
+```
+
+See also:
+
+- [`uniq_values` stats function](#uniq_values-stats)
+
+### unpack_json pipe
+
+`| unpack_json from field_name` pipe unpacks `{"k1":"v1", ..., "kN":"vN"}` JSON from the given `field_name` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+into `k1`, ... `kN` field names with the corresponding `v1`, ..., `vN` values. It overrides existing fields with names from the `k1`, ..., `kN` list. Other fields remain untouched.
+
+Nested JSON is unpacked according to the rules defined [here](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+
+For example, the following query unpacks JSON fields from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) across logs for the last 5 minutes:
+
+```logsql
+_time:5m | unpack_json from _msg
+```
+
+The `from _json` part can be omitted when JSON fields are unpacked from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+The following query is equivalent to the previous one:
+
+```logsql
+_time:5m | unpack_json
+```
+
+If you want to make sure that the unpacked JSON fields do not clash with the existing fields, then specify common prefix for all the fields extracted from JSON,
+by adding `result_prefix "prefix_name"` to `unpack_json`. For example, the following query adds `foo_` prefix for all the unpacked fields
+form [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
+
+```logsql
+_time:5m | unpack_json result_prefix "foo_"
+```
+
+Performance tip: if you need extracting a single field from long JSON, it is faster to use [`extract` pipe](#extract-pipe). For example, the following query extracts `"ip"` field from JSON
+stored in [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
+
+```
+_time:5m | extract '"ip":<ip>'
+```
+
+See also:
+
+- [`unpack_logfmt` pipe](#unpack_logfmt-pipe)
+- [`extract` pipe](#extract-pipe)
+
+### unpack_logfmt pipe
+
+`| unpack_logfmt from field_name` pipe unpacks `k1=v1 ... kN=vN` [logfmt](https://brandur.org/logfmt) fields
+from the given `field_name` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into `k1`, ... `kN` field names
+with the corresponding `v1`, ..., `vN` values. It overrides existing fields with names from the `k1`, ..., `kN` list. Other fields remain untouched.
+
+For example, the following query unpacks [logfmt](https://brandur.org/logfmt) fields from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+across logs for the last 5 minutes:
+
+```logsql
+_time:5m | unpack_logfmt from _msg
+```
+
+The `from _json` part can be omitted when [logfmt](https://brandur.org/logfmt) fields are unpacked from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+The following query is equivalent to the previous one:
+
+```logsql
+_time:5m | unpack_logfmt
+```
+
+If you want to make sure that the unpacked [logfmt](https://brandur.org/logfmt) fields do not clash with the existing fields, then specify common prefix for all the fields extracted from JSON,
+by adding `result_prefix "prefix_name"` to `unpack_logfmt`. For example, the following query adds `foo_` prefix for all the unpacked fields
+from [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
+
+```logsql
+_time:5m | unpack_logfmt result_prefix "foo_"
+```
+
+Performance tip: if you need extracting a single field from long [logfmt](https://brandur.org/logfmt) line, it is faster to use [`extract` pipe](#extract-pipe).
+For example, the following query extracts `"ip"` field from [logfmt](https://brandur.org/logfmt) line stored
+in [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
+
+```
+_time:5m | extract ' ip=<ip>'
+```
+
+See also:
+
+- [`unpack_json` pipe](#unpack_json-pipe)
+- [`extract` pipe](#extract-pipe)
 
 ## stats pipe functions
 
@@ -1505,9 +1748,8 @@ See also:
 
 ### max stats
 
-`max(field1, ..., fieldN)` [stats pipe](#stats-pipe) calculates the maximum value across
+`max(field1, ..., fieldN)` [stats pipe](#stats-pipe) returns the maximum value across
 all the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-Non-numeric values are ignored.
 
 For example, the following query returns the maximum value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
@@ -1543,9 +1785,8 @@ See also:
 
 ### min stats
 
-`min(field1, ..., fieldN)` [stats pipe](#stats-pipe) calculates the minimum value across
+`min(field1, ..., fieldN)` [stats pipe](#stats-pipe) returns the minimum value across
 all the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-Non-numeric values are ignored.
 
 For example, the following query returns the minimum value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
@@ -1678,48 +1919,37 @@ See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) fo
 
 ## Transformations
 
-It is possible to perform various transformations on the [selected log entries](#filters) at client side
-with `jq`, `awk`, `cut`, etc. Unix commands according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
+LogsQL supports the following transformations on the log entries selected with [filters](#filters):
 
-LogsQL will support the following transformations for the [selected](#filters) log entries:
+- Extracting arbitrary text from [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) according to the provided pattern.
+  See [these docs](#extract-pipe) for details.
+- Unpacking JSON fields from [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model). See [these docs](#unpack_json-pipe).
+- Unpacking [logfmt](https://brandur.org/logfmt) fields from [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model). See [these docs](#unpack_logfmt-pipe).
 
-- Extracting the specified fields from text [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) according to the provided pattern.
-- Extracting the specified fields from JSON strings stored inside [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
-- Extracting the specified fields from [logfmt](https://brandur.org/logfmt) strings stored
-  inside [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
+LogsQL will support the following transformations in the future:
+
 - Creating a new field from existing [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
   according to the provided format.
 - Creating a new field according to math calculations over existing [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - Parsing duration strings into floating-point seconds for further [stats calculations](#stats-pipe).
-- Creating a boolean field with the result of arbitrary [post-filters](#post-filters) applied to the current fields.
-- Creating an integer field with the length of the given field value. This can be useful for [stats calculations](#stats-pipe).
 
 See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
+
+It is also possible to perform various transformations on the [selected log entries](#filters) at client side
+with `jq`, `awk`, `cut`, etc. Unix commands according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
 
 ## Post-filters
 
-It is possible to perform post-filtering on the [selected log entries](#filters) at client side with `grep` or similar Unix commands
+Post-filtering of query results can be performed at any step by using [`filter` pipe](#filter-pipe).
+
+It is also possible to perform post-filtering of the [selected log entries](#filters) at client side with `grep` and similar Unix commands
 according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
-
-LogsQL will support post-filtering on the original [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
-and fields created by various [transformations](#transformations). The following post-filters will be supported:
-
-- Full-text [filtering](#filters).
-- [Logical filtering](#logical-filter).
-
-See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
 
 ## Stats
 
 Stats over the selected logs can be calculated via [`stats` pipe](#stats-pipe).
 
-LogsQL will support calculating the following additional stats based on the [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
-and fields created by [transformations](#transformations):
-
-It will be possible specifying an optional condition [filter](#post-filters) when calculating the stats.
-For example, `sum(response_size) if (is_admin:true)` calculates the total response size for admins only.
-
-It is possible to perform stats calculations on the [selected log entries](#filters) at client side with `sort`, `uniq`, etc. Unix commands
+It is also possible to perform stats calculations on the [selected log entries](#filters) at client side with `sort`, `uniq`, etc. Unix commands
 according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
 
 ## Sorting

@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"math"
 	"slices"
 	"strconv"
 	"unsafe"
@@ -16,8 +15,8 @@ func (sa *statsAvg) String() string {
 	return "avg(" + fieldNamesString(sa.fields) + ")"
 }
 
-func (sa *statsAvg) neededFields() []string {
-	return sa.fields
+func (sa *statsAvg) updateNeededFields(neededFields fieldsSet) {
+	neededFields.addFields(sa.fields)
 }
 
 func (sa *statsAvg) newStatsProcessor() (statsProcessor, int) {
@@ -58,8 +57,8 @@ func (sap *statsAvgProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 	if sap.sa.containsStar {
 		// Scan all the fields for the given row
 		for _, c := range br.getColumns() {
-			f := c.getFloatValueAtRow(rowIdx)
-			if !math.IsNaN(f) {
+			f, ok := c.getFloatValueAtRow(br, rowIdx)
+			if ok {
 				sap.sum += f
 				sap.count++
 			}
@@ -68,8 +67,8 @@ func (sap *statsAvgProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 		// Scan only the given fields for the given row
 		for _, field := range sap.sa.fields {
 			c := br.getColumnByName(field)
-			f := c.getFloatValueAtRow(rowIdx)
-			if !math.IsNaN(f) {
+			f, ok := c.getFloatValueAtRow(br, rowIdx)
+			if ok {
 				sap.sum += f
 				sap.count++
 			}

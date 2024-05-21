@@ -12,7 +12,6 @@ import Alert from "../../components/Main/Alert/Alert";
 import classNames from "classnames";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import InstantQueryTip from "./InstantQueryTip/InstantQueryTip";
-import useEventListener from "../../hooks/useEventListener";
 import { useRef } from "react";
 import CustomPanelTraces from "./CustomPanelTraces/CustomPanelTraces";
 import WarningLimitSeries from "./WarningLimitSeries/WarningLimitSeries";
@@ -64,9 +63,6 @@ const CustomPanel: FC = () => {
   const handleRunQuery = () => {
     setHideError(false);
   };
-
-  const handleChangePopstate = () => window.location.reload();
-  useEventListener("popstate", handleChangePopstate);
 
   useEffect(() => {
     graphDispatch({ type: "SET_IS_HISTOGRAM", payload: isHistogram });
