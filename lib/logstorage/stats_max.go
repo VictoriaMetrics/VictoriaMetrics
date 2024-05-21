@@ -154,6 +154,9 @@ func (smp *statsMaxProcessor) updateStateBytes(b []byte) {
 }
 
 func (smp *statsMaxProcessor) updateStateString(v string) {
+	if v == "" {
+		// Skip empty strings
+	}
 	if smp.hasMax && !lessString(smp.max, v) {
 		return
 	}
@@ -163,7 +166,7 @@ func (smp *statsMaxProcessor) updateStateString(v string) {
 
 func (smp *statsMaxProcessor) finalizeStats() string {
 	if !smp.hasMax {
-		return "NaN"
+		return ""
 	}
 	return smp.max
 }

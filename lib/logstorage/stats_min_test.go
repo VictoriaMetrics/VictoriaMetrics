@@ -4,35 +4,35 @@ import (
 	"testing"
 )
 
-func TestParseStatsCountEmptySuccess(t *testing.T) {
+func TestParseStatsMinSuccess(t *testing.T) {
 	f := func(pipeStr string) {
 		t.Helper()
 		expectParseStatsFuncSuccess(t, pipeStr)
 	}
 
-	f(`count_empty(*)`)
-	f(`count_empty(a)`)
-	f(`count_empty(a, b)`)
+	f(`min(*)`)
+	f(`min(a)`)
+	f(`min(a, b)`)
 }
 
-func TestParseStatsCountEmptyFailure(t *testing.T) {
+func TestParseStatsMinFailure(t *testing.T) {
 	f := func(pipeStr string) {
 		t.Helper()
 		expectParseStatsFuncFailure(t, pipeStr)
 	}
 
-	f(`count_empty`)
-	f(`count_empty(a b)`)
-	f(`count_empty(x) y`)
+	f(`min`)
+	f(`min(a b)`)
+	f(`min(x) y`)
 }
 
-func TestStatsCountEmpty(t *testing.T) {
+func TestStatsMin(t *testing.T) {
 	f := func(pipeStr string, rows, rowsExpected [][]Field) {
 		t.Helper()
 		expectPipeResults(t, pipeStr, rows, rowsExpected)
 	}
 
-	f("stats count_empty(*) as x", [][]Field{
+	f("stats min(*) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `2`},
@@ -42,7 +42,6 @@ func TestStatsCountEmpty(t *testing.T) {
 			{"_msg", `def`},
 			{"a", `1`},
 		},
-		{},
 		{
 			{"a", `3`},
 			{"b", `54`},
@@ -53,7 +52,7 @@ func TestStatsCountEmpty(t *testing.T) {
 		},
 	})
 
-	f("stats count_empty(b) as x", [][]Field{
+	f("stats min(a) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `2`},
@@ -63,18 +62,17 @@ func TestStatsCountEmpty(t *testing.T) {
 			{"_msg", `def`},
 			{"a", `1`},
 		},
-		{},
 		{
 			{"a", `3`},
 			{"b", `54`},
 		},
 	}, [][]Field{
 		{
-			{"x", "2"},
+			{"x", "1"},
 		},
 	})
 
-	f("stats count_empty(a, b) as x", [][]Field{
+	f("stats min(a, b) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `2`},
@@ -84,18 +82,18 @@ func TestStatsCountEmpty(t *testing.T) {
 			{"_msg", `def`},
 			{"a", `1`},
 		},
-		{},
 		{
-			{"aa", `3`},
-			{"bb", `54`},
+			{"a", `3`},
+			{"b", `54`},
+			{"c", "1232"},
 		},
 	}, [][]Field{
 		{
-			{"x", "2"},
+			{"x", "1"},
 		},
 	})
 
-	f("stats count_empty(c) as x", [][]Field{
+	f("stats min(b) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `2`},
@@ -115,7 +113,7 @@ func TestStatsCountEmpty(t *testing.T) {
 		},
 	})
 
-	f("stats count_empty(a) if (b:*) as x", [][]Field{
+	f("stats min(c) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `2`},
@@ -126,15 +124,62 @@ func TestStatsCountEmpty(t *testing.T) {
 			{"a", `1`},
 		},
 		{
+			{"a", `3`},
 			{"b", `54`},
 		},
 	}, [][]Field{
 		{
-			{"x", "1"},
+			{"x", ""},
 		},
 	})
 
-	f("stats by (a) count_empty(b) as x", [][]Field{
+	f("stats min(a) if (b:*) as x", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+		},
+		{
+			{"a", `3`},
+			{"b", `54`},
+		},
+	}, [][]Field{
+		{
+			{"x", "2"},
+		},
+	})
+
+	f("stats by (b) min(a) if (b:*) as x", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `-12.34`},
+			{"b", "3"},
+		},
+		{
+			{"a", `3`},
+			{"c", `54`},
+		},
+	}, [][]Field{
+		{
+			{"b", "3"},
+			{"x", "-12.34"},
+		},
+		{
+			{"b", ""},
+			{"x", ""},
+		},
+	})
+
+	f("stats by (a) min(b) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `1`},
@@ -155,15 +200,137 @@ func TestStatsCountEmpty(t *testing.T) {
 	}, [][]Field{
 		{
 			{"a", "1"},
+			{"x", "3"},
+		},
+		{
+			{"a", "3"},
+			{"x", "5"},
+		},
+	})
+
+	f("stats by (a) min(*) as x", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `1`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+			{"c", "-34"},
+		},
+		{
+			{"a", `3`},
+			{"b", `5`},
+		},
+		{
+			{"a", `3`},
+			{"b", `7`},
+		},
+	}, [][]Field{
+		{
+			{"a", "1"},
+			{"x", "-34"},
+		},
+		{
+			{"a", "3"},
+			{"x", "3"},
+		},
+	})
+
+	f("stats by (a) min(c) as x", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `1`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+		},
+		{
+			{"a", `3`},
+			{"c", `foo`},
+		},
+		{
+			{"a", `3`},
+			{"b", `7`},
+		},
+	}, [][]Field{
+		{
+			{"a", "1"},
+			{"x", ""},
+		},
+		{
+			{"a", "3"},
+			{"x", "foo"},
+		},
+	})
+
+	f("stats by (a) min(a, b, c) as x", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `1`},
+			{"b", `34`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+			{"c", "3"},
+		},
+		{
+			{"a", `3`},
+			{"b", `5`},
+		},
+		{
+			{"a", `3`},
+			{"b", `7`},
+		},
+	}, [][]Field{
+		{
+			{"a", "1"},
 			{"x", "1"},
 		},
 		{
 			{"a", "3"},
-			{"x", "0"},
+			{"x", "3"},
 		},
 	})
 
-	f("stats by (a) count_empty(b) if (!c:foo) as x", [][]Field{
+	f("stats by (a, b) min(a) as x", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `1`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+			{"c", "3"},
+		},
+		{
+			{"a", `3`},
+			{"b", `5`},
+		},
+	}, [][]Field{
+		{
+			{"a", "1"},
+			{"b", "3"},
+			{"x", "1"},
+		},
+		{
+			{"a", "1"},
+			{"b", ""},
+			{"x", "1"},
+		},
+		{
+			{"a", "3"},
+			{"b", "5"},
+			{"x", "3"},
+		},
+	})
+
+	f("stats by (a, b) min(c) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `1`},
@@ -177,146 +344,23 @@ func TestStatsCountEmpty(t *testing.T) {
 		{
 			{"a", `3`},
 			{"b", `5`},
-			{"c", "bar"},
-		},
-		{
-			{"a", `3`},
-		},
-	}, [][]Field{
-		{
-			{"a", "1"},
-			{"x", "0"},
-		},
-		{
-			{"a", "3"},
-			{"x", "1"},
-		},
-	})
-
-	f("stats by (a) count_empty(*) as x", [][]Field{
-		{
-			{"_msg", `abc`},
-			{"a", `1`},
-			{"b", `3`},
-		},
-		{
-			{"_msg", `def`},
-			{"a", `1`},
-			{"c", "3"},
-		},
-		{},
-		{
-			{"a", `3`},
-			{"b", `5`},
-		},
-		{
-			{"a", `3`},
-			{"b", `7`},
-		},
-	}, [][]Field{
-		{
-			{"a", ""},
-			{"x", "1"},
-		},
-		{
-			{"a", "1"},
-			{"x", "0"},
-		},
-		{
-			{"a", "3"},
-			{"x", "0"},
-		},
-	})
-
-	f("stats by (a) count_empty(c) as x", [][]Field{
-		{
-			{"_msg", `abc`},
-			{"a", `1`},
-			{"b", `3`},
-		},
-		{
-			{"_msg", `def`},
-			{"a", `1`},
-		},
-		{
-			{"a", `3`},
-			{"c", `5`},
-		},
-		{
-			{"a", `3`},
-			{"b", `7`},
-		},
-	}, [][]Field{
-		{
-			{"a", "1"},
-			{"x", "2"},
-		},
-		{
-			{"a", "3"},
-			{"x", "1"},
-		},
-	})
-
-	f("stats by (a) count_empty(a, b, c) as x", [][]Field{
-		{
-			{"_msg", `abc`},
-			{"a", `1`},
-			{"b", `3`},
-		},
-		{
-			{"_msg", `def`},
-			{"a", `1`},
-			{"c", "3"},
-		},
-		{
-			{"a", `3`},
-			{"b", `5`},
-		},
-		{
-			{"a", `3`},
-			{"b", `7`},
-		},
-	}, [][]Field{
-		{
-			{"a", "1"},
-			{"x", "0"},
-		},
-		{
-			{"a", "3"},
-			{"x", "0"},
-		},
-	})
-
-	f("stats by (a, b) count_empty(a) as x", [][]Field{
-		{
-			{"_msg", `abc`},
-			{"a", `1`},
-			{"b", `3`},
-		},
-		{
-			{"_msg", `def`},
-			{"a", `1`},
-			{"c", "3"},
-		},
-		{
-			{"c", `3`},
-			{"b", `5`},
+			{"c", "4"},
 		},
 	}, [][]Field{
 		{
 			{"a", "1"},
 			{"b", "3"},
-			{"x", "0"},
+			{"x", ""},
 		},
 		{
 			{"a", "1"},
 			{"b", ""},
-			{"x", "0"},
+			{"x", "foo"},
 		},
 		{
-			{"a", ""},
+			{"a", "3"},
 			{"b", "5"},
-			{"x", "1"},
+			{"x", "4"},
 		},
 	})
 }

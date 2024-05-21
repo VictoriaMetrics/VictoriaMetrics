@@ -154,6 +154,10 @@ func (smp *statsMinProcessor) updateStateBytes(b []byte) {
 }
 
 func (smp *statsMinProcessor) updateStateString(v string) {
+	if v == "" {
+		// Skip empty strings
+		return
+	}
 	if smp.hasMin && !lessString(v, smp.min) {
 		return
 	}
@@ -163,7 +167,7 @@ func (smp *statsMinProcessor) updateStateString(v string) {
 
 func (smp *statsMinProcessor) finalizeStats() string {
 	if !smp.hasMin {
-		return "NaN"
+		return ""
 	}
 	return smp.min
 }

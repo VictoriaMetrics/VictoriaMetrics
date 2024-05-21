@@ -42,8 +42,7 @@ func TestStatsCount(t *testing.T) {
 			{"_msg", `def`},
 			{"a", `1`},
 		},
-		{
-		},
+		{},
 		{
 			{"a", `3`},
 			{"b", `54`},
@@ -64,8 +63,7 @@ func TestStatsCount(t *testing.T) {
 			{"_msg", `def`},
 			{"a", `1`},
 		},
-		{
-		},
+		{},
 		{
 			{"a", `3`},
 			{"b", `54`},
@@ -86,8 +84,7 @@ func TestStatsCount(t *testing.T) {
 			{"_msg", `def`},
 			{"a", `1`},
 		},
-		{
-		},
+		{},
 		{
 			{"aa", `3`},
 			{"bb", `54`},
@@ -208,8 +205,7 @@ func TestStatsCount(t *testing.T) {
 			{"a", `1`},
 			{"c", "3"},
 		},
-		{
-		},
+		{},
 		{
 			{"a", `3`},
 			{"b", `5`},
