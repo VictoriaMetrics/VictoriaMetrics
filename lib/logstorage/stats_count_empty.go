@@ -96,8 +96,7 @@ func (scp *statsCountEmptyProcessor) updateStatsForAllRows(br *blockResult) int 
 	for _, f := range fields {
 		c := br.getColumnByName(f)
 		if c.isConst {
-			if c.valuesEncoded[0] == "" {
-				scp.rowsCount += uint64(len(br.timestamps))
+			if c.valuesEncoded[0] != "" {
 				return 0
 			}
 			continue

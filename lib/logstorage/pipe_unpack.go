@@ -117,6 +117,10 @@ type pipeUnpackWriteContext struct {
 	rcs []resultColumn
 	br  blockResult
 
+	// rowsCount is the number of rows in the current block
+	rowsCount int
+
+	// valuesLen is the total length of values in the current block
 	valuesLen int
 }
 
@@ -131,6 +135,7 @@ func (wctx *pipeUnpackWriteContext) reset() {
 	}
 	wctx.rcs = rcs[:0]
 
+	wctx.rowsCount = 0
 	wctx.valuesLen = 0
 }
 
@@ -180,6 +185,8 @@ func (wctx *pipeUnpackWriteContext) writeRow(rowIdx int, extraFields []Field) {
 		rcs[len(csSrc)+i].addValue(v)
 		wctx.valuesLen += len(v)
 	}
+
+	wctx.rowsCount++
 	if wctx.valuesLen >= 1_000_000 {
 		wctx.flush()
 	}
@@ -190,13 +197,10 @@ func (wctx *pipeUnpackWriteContext) flush() {
 
 	wctx.valuesLen = 0
 
-	if len(rcs) == 0 {
-		return
-	}
-
 	// Flush rcs to ppBase
 	br := &wctx.br
-	br.setResultColumns(rcs)
+	br.setResultColumns(rcs, wctx.rowsCount)
+	wctx.rowsCount = 0
 	wctx.ppBase.writeBlock(0, br)
 	br.reset()
 	for i := range rcs {

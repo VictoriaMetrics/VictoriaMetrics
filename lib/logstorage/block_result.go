@@ -203,14 +203,10 @@ func (br *blockResult) sizeBytes() int {
 // setResultColumns sets the given rcs as br columns.
 //
 // The br is valid only until rcs are modified.
-func (br *blockResult) setResultColumns(rcs []resultColumn) {
+func (br *blockResult) setResultColumns(rcs []resultColumn, rowsCount int) {
 	br.reset()
 
-	if len(rcs) == 0 || len(rcs[0].values) == 0 {
-		return
-	}
-
-	br.timestamps = fastnum.AppendInt64Zeros(br.timestamps[:0], len(rcs[0].values))
+	br.timestamps = fastnum.AppendInt64Zeros(br.timestamps[:0], rowsCount)
 
 	for i := range rcs {
 		br.addResultColumn(&rcs[i])

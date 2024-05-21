@@ -233,6 +233,8 @@ type testBlockResultWriter struct {
 	ppBase       pipeProcessor
 	rcs          []resultColumn
 	br           blockResult
+
+	rowsCount int
 }
 
 func (brw *testBlockResultWriter) writeRow(row []Field) {
@@ -248,6 +250,7 @@ func (brw *testBlockResultWriter) writeRow(row []Field) {
 	for i, field := range row {
 		brw.rcs[i].addValue(field.Value)
 	}
+	brw.rowsCount++
 	if rand.Intn(5) == 0 {
 		brw.flush()
 	}
@@ -266,7 +269,8 @@ func (brw *testBlockResultWriter) areSameFields(row []Field) bool {
 }
 
 func (brw *testBlockResultWriter) flush() {
-	brw.br.setResultColumns(brw.rcs)
+	brw.br.setResultColumns(brw.rcs, brw.rowsCount)
+	brw.rowsCount = 0
 	workerID := rand.Intn(brw.workersCount)
 	brw.ppBase.writeBlock(uint(workerID), &brw.br)
 	brw.br.reset()

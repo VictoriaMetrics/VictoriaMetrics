@@ -442,6 +442,7 @@ func (psp *pipeStatsProcessor) flush() error {
 	var br blockResult
 
 	var values []string
+	rowsCount := 0
 	valuesLen := 0
 	for key, psg := range m {
 		// m may be quite big, so this loop can take a lot of time and CPU.
@@ -478,8 +479,11 @@ func (psp *pipeStatsProcessor) flush() error {
 			rcs[i].addValue(v)
 			valuesLen += len(v)
 		}
+
+		rowsCount++
 		if valuesLen >= 1_000_000 {
-			br.setResultColumns(rcs)
+			br.setResultColumns(rcs, rowsCount)
+			rowsCount = 0
 			psp.ppBase.writeBlock(0, &br)
 			br.reset()
 			for i := range rcs {
@@ -489,7 +493,7 @@ func (psp *pipeStatsProcessor) flush() error {
 		}
 	}
 
-	br.setResultColumns(rcs)
+	br.setResultColumns(rcs, rowsCount)
 	psp.ppBase.writeBlock(0, &br)
 
 	return nil
