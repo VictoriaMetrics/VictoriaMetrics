@@ -9,9 +9,14 @@ import (
 //
 // See https://docs.victoriametrics.com/victorialogs/logsql/#unpack_logfmt-pipe
 type pipeUnpackLogfmt struct {
+	// fromField is the field to unpack logfmt fields from
 	fromField string
 
+	// resultPrefix is prefix to add to unpacked field names
 	resultPrefix string
+
+	// iff is an optional filter for skipping unpacking logfmt
+	iff *ifFilter
 }
 
 func (pu *pipeUnpackLogfmt) String() string {
@@ -22,19 +27,28 @@ func (pu *pipeUnpackLogfmt) String() string {
 	if pu.resultPrefix != "" {
 		s += " result_prefix " + quoteTokenIfNeeded(pu.resultPrefix)
 	}
+	if pu.iff != nil {
+		s += " " + pu.iff.String()
+	}
 	return s
 }
 
 func (pu *pipeUnpackLogfmt) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	if neededFields.contains("*") {
 		unneededFields.remove(pu.fromField)
+		if pu.iff != nil {
+			unneededFields.removeFields(pu.iff.neededFields)
+		}
 	} else {
 		neededFields.add(pu.fromField)
+		if pu.iff != nil {
+			neededFields.addFields(pu.iff.neededFields)
+		}
 	}
 }
 
 func (pu *pipeUnpackLogfmt) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
-	return newPipeUnpackProcessor(workersCount, unpackLogfmt, ppBase, pu.fromField, pu.resultPrefix)
+	return newPipeUnpackProcessor(workersCount, unpackLogfmt, ppBase, pu.fromField, pu.resultPrefix, pu.iff)
 }
 
 func unpackLogfmt(uctx *fieldsUnpackerContext, s, fieldPrefix string) {
@@ -106,5 +120,14 @@ func parsePipeUnpackLogfmt(lex *lexer) (*pipeUnpackLogfmt, error) {
 		fromField:    fromField,
 		resultPrefix: resultPrefix,
 	}
+
+	if lex.isKeyword("if") {
+		iff, err := parseIfFilter(lex)
+		if err != nil {
+			return nil, err
+		}
+		pu.iff = iff
+	}
+
 	return pu, nil
 }

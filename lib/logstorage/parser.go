@@ -320,10 +320,14 @@ func (q *Query) Optimize() {
 		switch t := p.(type) {
 		case *pipeStats:
 			for _, f := range t.funcs {
-				optimizeFilterIn(f.iff)
+				f.iff.optimizeFilterIn()
 			}
 		case *pipeExtract:
-			optimizeFilterIn(t.iff)
+			t.iff.optimizeFilterIn()
+		case *pipeUnpackJSON:
+			t.iff.optimizeFilterIn()
+		case *pipeUnpackLogfmt:
+			t.iff.optimizeFilterIn()
 		}
 	}
 }
@@ -342,21 +346,6 @@ func removeStarFilters(f filter) filter {
 		logger.Fatalf("BUG: unexpected error: %s", err)
 	}
 	return f
-}
-
-func optimizeFilterIn(f filter) {
-	if f == nil {
-		return
-	}
-
-	visitFunc := func(f filter) bool {
-		fi, ok := f.(*filterIn)
-		if ok && fi.q != nil {
-			fi.q.Optimize()
-		}
-		return false
-	}
-	_ = visitFilter(f, visitFunc)
 }
 
 func optimizeSortOffsetPipes(pipes []pipe) []pipe {

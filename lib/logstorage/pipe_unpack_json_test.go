@@ -15,9 +15,13 @@ func TestParsePipeUnpackJSONSuccess(t *testing.T) {
 	}
 
 	f(`unpack_json`)
+	f(`unpack_json if (a:x)`)
 	f(`unpack_json from x`)
+	f(`unpack_json from x if (a:x)`)
 	f(`unpack_json from x result_prefix abc`)
+	f(`unpack_json from x result_prefix abc if (a:x)`)
 	f(`unpack_json result_prefix abc`)
+	f(`unpack_json result_prefix abc if (a:x)`)
 }
 
 func TestParsePipeUnpackJSONFailure(t *testing.T) {
@@ -27,12 +31,19 @@ func TestParsePipeUnpackJSONFailure(t *testing.T) {
 	}
 
 	f(`unpack_json foo`)
+	f(`unpack_json if`)
+	f(`unpack_json if (x:y) foobar`)
 	f(`unpack_json from`)
+	f(`unpack_json from if`)
 	f(`unpack_json from x y`)
+	f(`unpack_json from x if`)
 	f(`unpack_json from x result_prefix`)
+	f(`unpack_json from x result_prefix if`)
 	f(`unpack_json from x result_prefix a b`)
+	f(`unpack_json from x result_prefix a if`)
 	f(`unpack_json result_prefix`)
 	f(`unpack_json result_prefix a b`)
+	f(`unpack_json result_prefix a if`)
 }
 
 func TestPipeUnpackJSON(t *testing.T) {
@@ -43,6 +54,30 @@ func TestPipeUnpackJSON(t *testing.T) {
 
 	// single row, unpack from _msg
 	f("unpack_json", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"foo", "bar"},
+		},
+	})
+
+	// failed if condition
+	f("unpack_json if (x:foo)", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"x", ""},
+		},
+	})
+
+	// matched if condition
+	f("unpack_json if (foo)", [][]Field{
 		{
 			{"_msg", `{"foo":"bar"}`},
 		},
@@ -160,8 +195,8 @@ func TestPipeUnpackJSON(t *testing.T) {
 		},
 	})
 
-	// multiple rows with distinct number of fields with result_prefix
-	f("unpack_json from x result_prefix qwe_", [][]Field{
+	// multiple rows with distinct number of fields with result_prefix and if condition
+	f("unpack_json from x result_prefix qwe_ if (y:abc)", [][]Field{
 		{
 			{"x", `{"foo":"bar","baz":"xyz"}`},
 			{"y", `abc`},
@@ -184,9 +219,9 @@ func TestPipeUnpackJSON(t *testing.T) {
 			{"y", `abc`},
 		},
 		{
+			{"y", ""},
 			{"z", `foobar`},
 			{"x", `{"z":["bar",123]}`},
-			{"qwe_z", `["bar",123]`},
 		},
 	})
 }
@@ -419,16 +454,25 @@ func TestPipeUnpackJSONUpdateNeededFields(t *testing.T) {
 
 	// all the needed fields
 	f("unpack_json from x", "*", "", "*", "")
+	f("unpack_json from x if (y:z)", "*", "", "*", "")
 
 	// all the needed fields, unneeded fields do not intersect with src
 	f("unpack_json from x", "*", "f1,f2", "*", "f1,f2")
+	f("unpack_json from x if (y:z)", "*", "f1,f2", "*", "f1,f2")
+	f("unpack_json from x if (f1:z)", "*", "f1,f2", "*", "f2")
 
 	// all the needed fields, unneeded fields intersect with src
 	f("unpack_json from x", "*", "f2,x", "*", "f2")
+	f("unpack_json from x if (y:z)", "*", "f2,x", "*", "f2")
+	f("unpack_json from x if (f2:z)", "*", "f1,f2,x", "*", "f1")
 
 	// needed fields do not intersect with src
 	f("unpack_json from x", "f1,f2", "", "f1,f2,x", "")
+	f("unpack_json from x if (y:z)", "f1,f2", "", "f1,f2,x,y", "")
+	f("unpack_json from x if (f1:z)", "f1,f2", "", "f1,f2,x", "")
 
 	// needed fields intersect with src
 	f("unpack_json from x", "f2,x", "", "f2,x", "")
+	f("unpack_json from x if (y:z)", "f2,x", "", "f2,x,y", "")
+	f("unpack_json from x if (f2:z y:qwe)", "f2,x", "", "f2,x,y", "")
 }

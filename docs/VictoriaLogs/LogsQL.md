@@ -1142,7 +1142,7 @@ See also:
 
 #### Conditional extract
 
-Sometimes it is needed to skip some entries from applying [`extract` pipe](#extract-pipe). This can be done by adding `if (<filters>)` filter to the end of `| extract ...` pipe.
+If some log entries must be skipped from [`extract` pipe](#extract-pipe), then add `if (<filters>)` filter to the end of `| extract ...` pipe.
 The `<filters>` can contain arbitrary [filters](#filters). For example, the following query extracts `ip` field only
 if the input [log entry](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) doesn't contain `ip` field or this field is empty:
 
@@ -1594,8 +1594,19 @@ _time:5m | extract '"ip":<ip>'
 
 See also:
 
+- [Conditional `unpack_json`](#conditional-unpack_json)
 - [`unpack_logfmt` pipe](#unpack_logfmt-pipe)
 - [`extract` pipe](#extract-pipe)
+
+#### Conditional unpack_json
+
+If the [`unpack_json` pipe](#unpack_json-pipe) musn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
+then add `if (<filters>)` to the end of `unpack_json ...`.
+The `<filters>` can contain arbitrary [filters](#filters). For example, the following query unpacks JSON fields only if `ip` field in the current log entry isn't set or empty:
+
+```logsql
+_time:5m | unpack_json if (ip:"")
+```
 
 ### unpack_logfmt pipe
 
@@ -1635,8 +1646,19 @@ _time:5m | extract ' ip=<ip>'
 
 See also:
 
+- [Conditional unpack_logfmt](#conditional-unpack_logfmt)
 - [`unpack_json` pipe](#unpack_json-pipe)
 - [`extract` pipe](#extract-pipe)
+
+#### Conditional unpack_logfmt
+
+If the [`unpack_logfmt` pipe](#unpack_logfmt-pipe) musn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
+then add `if (<filters>)` to the end of `unpack_logfmt ...`.
+The `<filters>` can contain arbitrary [filters](#filters). For example, the following query unpacks logfmt fields only if `ip` field in the current log entry isn't set or empty:
+
+```logsql
+_time:5m | unpack_logfmt if (ip:"")
+```
 
 ## stats pipe functions
 

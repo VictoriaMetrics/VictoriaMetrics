@@ -10,9 +10,14 @@ import (
 //
 // See https://docs.victoriametrics.com/victorialogs/logsql/#unpack_json-pipe
 type pipeUnpackJSON struct {
+	// fromField is the field to unpack json fields from
 	fromField string
 
+	// resultPrefix is prefix to add to unpacked field names
 	resultPrefix string
+
+	// iff is an optional filter for skipping unpacking json
+	iff *ifFilter
 }
 
 func (pu *pipeUnpackJSON) String() string {
@@ -23,19 +28,28 @@ func (pu *pipeUnpackJSON) String() string {
 	if pu.resultPrefix != "" {
 		s += " result_prefix " + quoteTokenIfNeeded(pu.resultPrefix)
 	}
+	if pu.iff != nil {
+		s += " " + pu.iff.String()
+	}
 	return s
 }
 
 func (pu *pipeUnpackJSON) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	if neededFields.contains("*") {
 		unneededFields.remove(pu.fromField)
+		if pu.iff != nil {
+			unneededFields.removeFields(pu.iff.neededFields)
+		}
 	} else {
 		neededFields.add(pu.fromField)
+		if pu.iff != nil {
+			neededFields.addFields(pu.iff.neededFields)
+		}
 	}
 }
 
 func (pu *pipeUnpackJSON) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
-	return newPipeUnpackProcessor(workersCount, unpackJSON, ppBase, pu.fromField, pu.resultPrefix)
+	return newPipeUnpackProcessor(workersCount, unpackJSON, ppBase, pu.fromField, pu.resultPrefix, pu.iff)
 }
 
 func unpackJSON(uctx *fieldsUnpackerContext, s, fieldPrefix string) {
@@ -82,5 +96,14 @@ func parsePipeUnpackJSON(lex *lexer) (*pipeUnpackJSON, error) {
 		fromField:    fromField,
 		resultPrefix: resultPrefix,
 	}
+
+	if lex.isKeyword("if") {
+		iff, err := parseIfFilter(lex)
+		if err != nil {
+			return nil, err
+		}
+		pu.iff = iff
+	}
+
 	return pu, nil
 }

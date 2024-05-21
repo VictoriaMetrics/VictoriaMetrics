@@ -40,7 +40,8 @@ func (uctx *fieldsUnpackerContext) addField(name, value, fieldPrefix string) {
 	})
 }
 
-func newPipeUnpackProcessor(workersCount int, unpackFunc func(uctx *fieldsUnpackerContext, s, fieldPrefix string), ppBase pipeProcessor, fromField, fieldPrefix string) *pipeUnpackProcessor {
+func newPipeUnpackProcessor(workersCount int, unpackFunc func(uctx *fieldsUnpackerContext, s, fieldPrefix string), ppBase pipeProcessor,
+	fromField, fieldPrefix string, iff *ifFilter) *pipeUnpackProcessor {
 	return &pipeUnpackProcessor{
 		unpackFunc: unpackFunc,
 		ppBase:     ppBase,
@@ -49,6 +50,7 @@ func newPipeUnpackProcessor(workersCount int, unpackFunc func(uctx *fieldsUnpack
 
 		fromField:   fromField,
 		fieldPrefix: fieldPrefix,
+		iff:         iff,
 	}
 }
 
@@ -60,6 +62,8 @@ type pipeUnpackProcessor struct {
 
 	fromField   string
 	fieldPrefix string
+
+	iff *ifFilter
 }
 
 type pipeUnpackProcessorShard struct {
@@ -70,6 +74,8 @@ type pipeUnpackProcessorShard struct {
 }
 
 type pipeUnpackProcessorShardNopad struct {
+	bm bitmap
+
 	uctx fieldsUnpackerContext
 	wctx pipeUnpackWriteContext
 }
@@ -82,22 +88,43 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard := &pup.shards[workerID]
 	shard.wctx.init(br, pup.ppBase)
 
+	bm := &shard.bm
+	bm.init(len(br.timestamps))
+	bm.setBits()
+	if pup.iff != nil {
+		pup.iff.f.applyToBlockResult(br, bm)
+		if bm.isZero() {
+			pup.ppBase.writeBlock(workerID, br)
+			return
+		}
+	}
+
 	c := br.getColumnByName(pup.fromField)
 	if c.isConst {
 		v := c.valuesEncoded[0]
 		shard.uctx.resetFields()
 		pup.unpackFunc(&shard.uctx, v, pup.fieldPrefix)
 		for rowIdx := range br.timestamps {
-			shard.wctx.writeRow(rowIdx, shard.uctx.fields)
+			if bm.isSetBit(rowIdx) {
+				shard.wctx.writeRow(rowIdx, shard.uctx.fields)
+			} else {
+				shard.wctx.writeRow(rowIdx, nil)
+			}
 		}
 	} else {
 		values := c.getValues(br)
+		vPrevApplied := ""
 		for i, v := range values {
-			if i == 0 || values[i-1] != v {
-				shard.uctx.resetFields()
-				pup.unpackFunc(&shard.uctx, v, pup.fieldPrefix)
+			if bm.isSetBit(i) {
+				if vPrevApplied != v {
+					shard.uctx.resetFields()
+					pup.unpackFunc(&shard.uctx, v, pup.fieldPrefix)
+					vPrevApplied = v
+				}
+				shard.wctx.writeRow(i, shard.uctx.fields)
+			} else {
+				shard.wctx.writeRow(i, nil)
 			}
-			shard.wctx.writeRow(i, shard.uctx.fields)
 		}
 	}
 

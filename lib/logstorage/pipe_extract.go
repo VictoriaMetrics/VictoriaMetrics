@@ -15,8 +15,7 @@ type pipeExtract struct {
 	pattern string
 
 	// iff is an optional filter for skipping the extract func
-	iff             filter
-	iffNeededFields []string
+	iff *ifFilter
 }
 
 func (pe *pipeExtract) String() string {
@@ -26,7 +25,7 @@ func (pe *pipeExtract) String() string {
 	}
 	s += " " + quoteTokenIfNeeded(pe.pattern)
 	if pe.iff != nil {
-		s += " if (" + pe.iff.String() + ")"
+		s += " " + pe.iff.String()
 	}
 	return s
 }
@@ -44,7 +43,9 @@ func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet
 			}
 		}
 		if needFromField {
-			unneededFields.removeFields(pe.iffNeededFields)
+			if pe.iff != nil {
+				unneededFields.removeFields(pe.iff.neededFields)
+			}
 			unneededFields.remove(pe.fromField)
 		} else {
 			unneededFields.add(pe.fromField)
@@ -59,7 +60,9 @@ func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet
 			}
 		}
 		if needFromField {
-			neededFields.addFields(pe.iffNeededFields)
+			if pe.iff != nil {
+				neededFields.addFields(pe.iff.neededFields)
+			}
 			neededFields.add(pe.fromField)
 		}
 	}
@@ -120,7 +123,7 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 	bm.init(len(br.timestamps))
 	bm.setBits()
 	if iff := pep.pe.iff; iff != nil {
-		iff.applyToBlockResult(br, bm)
+		iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
 			// Fast path - nothing to extract.
 			pep.ppBase.writeBlock(workerID, br)
@@ -132,31 +135,34 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 	if c.isConst {
 		v := c.valuesEncoded[0]
 		ef.apply(v)
+		for _, f := range ef.fields {
+			shard.uctx.addField(f.name, *f.value, "")
+		}
 		for i := range br.timestamps {
-			shard.uctx.resetFields()
 			if bm.isSetBit(i) {
-				for _, f := range ef.fields {
-					shard.uctx.addField(f.name, *f.value, "")
-				}
+				shard.wctx.writeRow(i, shard.uctx.fields)
+			} else {
+				shard.wctx.writeRow(i, nil)
 			}
-			shard.wctx.writeRow(i, shard.uctx.fields)
 
 		}
 	} else {
 		values := c.getValues(br)
 		vPrevApplied := ""
 		for i, v := range values {
-			shard.uctx.resetFields()
 			if bm.isSetBit(i) {
 				if vPrevApplied != v {
 					ef.apply(v)
+					shard.uctx.resetFields()
+					for _, f := range ef.fields {
+						shard.uctx.addField(f.name, *f.value, "")
+					}
 					vPrevApplied = v
 				}
-				for _, f := range ef.fields {
-					shard.uctx.addField(f.name, *f.value, "")
-				}
+				shard.wctx.writeRow(i, shard.uctx.fields)
+			} else {
+				shard.wctx.writeRow(i, nil)
 			}
-			shard.wctx.writeRow(i, shard.uctx.fields)
 		}
 	}
 
@@ -207,10 +213,6 @@ func parsePipeExtract(lex *lexer) (*pipeExtract, error) {
 			return nil, err
 		}
 		pe.iff = iff
-
-		neededFields := newFieldsSet()
-		iff.updateNeededFields(neededFields)
-		pe.iffNeededFields = neededFields.getAll()
 	}
 
 	return pe, nil

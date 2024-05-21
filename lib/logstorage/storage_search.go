@@ -259,6 +259,13 @@ func (s *Storage) initFilterInValues(ctx context.Context, tenantIDs []TenantID, 
 	return qNew, nil
 }
 
+func (iff *ifFilter) hasFilterInWithQuery() bool {
+	if iff == nil {
+		return false
+	}
+	return hasFilterInWithQueryForFilter(iff.f)
+}
+
 func hasFilterInWithQueryForFilter(f filter) bool {
 	if f == nil {
 		return false
@@ -275,12 +282,20 @@ func hasFilterInWithQueryForPipes(pipes []pipe) bool {
 		switch t := p.(type) {
 		case *pipeStats:
 			for _, f := range t.funcs {
-				if hasFilterInWithQueryForFilter(f.iff) {
+				if f.iff.hasFilterInWithQuery() {
 					return true
 				}
 			}
 		case *pipeExtract:
-			if hasFilterInWithQueryForFilter(t.iff) {
+			if t.iff.hasFilterInWithQuery() {
+				return true
+			}
+		case *pipeUnpackJSON:
+			if t.iff.hasFilterInWithQuery() {
+				return true
+			}
+		case *pipeUnpackLogfmt:
+			if t.iff.hasFilterInWithQuery() {
 				return true
 			}
 		}
@@ -290,7 +305,26 @@ func hasFilterInWithQueryForPipes(pipes []pipe) bool {
 
 type getFieldValuesFunc func(q *Query, fieldName string) ([]string, error)
 
+func (iff *ifFilter) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (*ifFilter, error) {
+	if iff == nil {
+		return nil, nil
+	}
+
+	f, err := initFilterInValuesForFilter(cache, iff.f, getFieldValuesFunc)
+	if err != nil {
+		return nil, err
+	}
+
+	iffNew := *iff
+	iffNew.f = f
+	return &iffNew, nil
+}
+
 func initFilterInValuesForFilter(cache map[string][]string, f filter, getFieldValuesFunc getFieldValuesFunc) (filter, error) {
+	if f == nil {
+		return nil, nil
+	}
+
 	visitFunc := func(f filter) bool {
 		fi, ok := f.(*filterIn)
 		return ok && fi.needExecuteQuery
@@ -326,13 +360,11 @@ func initFilterInValuesForPipes(cache map[string][]string, pipes []pipe, getFiel
 		case *pipeStats:
 			funcsNew := make([]pipeStatsFunc, len(t.funcs))
 			for j, f := range t.funcs {
-				if f.iff != nil {
-					fNew, err := initFilterInValuesForFilter(cache, f.iff, getFieldValuesFunc)
-					if err != nil {
-						return nil, err
-					}
-					f.iff = fNew
+				iffNew, err := f.iff.initFilterInValues(cache, getFieldValuesFunc)
+				if err != nil {
+					return nil, err
 				}
+				f.iff = iffNew
 				funcsNew[j] = f
 			}
 			pipesNew[i] = &pipeStats{
@@ -340,13 +372,29 @@ func initFilterInValuesForPipes(cache map[string][]string, pipes []pipe, getFiel
 				funcs:    funcsNew,
 			}
 		case *pipeExtract:
-			fNew, err := initFilterInValuesForFilter(cache, t.iff, getFieldValuesFunc)
+			iffNew, err := t.iff.initFilterInValues(cache, getFieldValuesFunc)
 			if err != nil {
 				return nil, err
 			}
 			pe := *t
-			pe.iff = fNew
+			pe.iff = iffNew
 			pipesNew[i] = &pe
+		case *pipeUnpackJSON:
+			iffNew, err := t.iff.initFilterInValues(cache, getFieldValuesFunc)
+			if err != nil {
+				return nil, err
+			}
+			pu := *t
+			pu.iff = iffNew
+			pipesNew[i] = &pu
+		case *pipeUnpackLogfmt:
+			iffNew, err := t.iff.initFilterInValues(cache, getFieldValuesFunc)
+			if err != nil {
+				return nil, err
+			}
+			pu := *t
+			pu.iff = iffNew
+			pipesNew[i] = &pu
 		default:
 			pipesNew[i] = p
 		}
