@@ -30,7 +30,6 @@ func TestParsePipeUnpackLogfmtFailure(t *testing.T) {
 	f(`unpack_logfmt if`)
 	f(`unpack_logfmt if (x:y) foobar`)
 	f(`unpack_logfmt from`)
-	f(`unpack_logfmt from if`)
 	f(`unpack_logfmt from x y`)
 	f(`unpack_logfmt from x if`)
 	f(`unpack_logfmt from x result_prefix`)

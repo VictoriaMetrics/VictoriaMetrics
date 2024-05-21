@@ -34,7 +34,6 @@ func TestParsePipeUnpackJSONFailure(t *testing.T) {
 	f(`unpack_json if`)
 	f(`unpack_json if (x:y) foobar`)
 	f(`unpack_json from`)
-	f(`unpack_json from if`)
 	f(`unpack_json from x y`)
 	f(`unpack_json from x if`)
 	f(`unpack_json from x result_prefix`)
