@@ -89,7 +89,7 @@
           "uid": "$ds"
         },
         "enable": true,
-        "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"})) by(job)",
+        "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[5m])) by(job)",
         "hide": true,
         "iconColor": "dark-yellow",
         "name": "restarts",
