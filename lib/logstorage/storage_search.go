@@ -146,17 +146,30 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 
 // GetFieldNames returns field names from q results for the given tenantIDs.
 func (s *Storage) GetFieldNames(ctx context.Context, tenantIDs []TenantID, q *Query) ([]string, error) {
-	// add `field_names ...` to the end of q.pipes
 	pipes := append([]pipe{}, q.pipes...)
-
-	pipeStr := "field_names as names"
+	pipeStr := "field_names as names | sort by (names)"
 	lex := newLexer(pipeStr)
+
 	pf, err := parsePipeFieldNames(lex)
 	if err != nil {
-		logger.Panicf("BUG: unexpected error when parsing 'field_names' pipe: %s", err)
+		logger.Panicf("BUG: unexpected error when parsing 'field_names' pipe at [%s]: %s", pipeStr, err)
 	}
 	pf.isFirstPipe = len(pipes) == 0
-	pipes = append(pipes, pf)
+
+	if !lex.isKeyword("|") {
+		logger.Panicf("BUG: unexpected token after 'field_names' pipe at [%s]: %q", pipeStr, lex.token)
+	}
+	lex.nextToken()
+
+	ps, err := parsePipeSort(lex)
+	if err != nil {
+		logger.Panicf("BUG: unexpected error when parsing 'sort' pipe at [%s]: %s", pipeStr, err)
+	}
+	if !lex.isEnd() {
+		logger.Panicf("BUG: unexpected tail left after parsing pipes [%s]: %q", pipeStr, lex.s)
+	}
+
+	pipes = append(pipes, pf, ps)
 
 	q = &Query{
 		f:     q.f,
@@ -168,39 +181,39 @@ func (s *Storage) GetFieldNames(ctx context.Context, tenantIDs []TenantID, q *Qu
 
 // GetFieldValues returns unique values for the given fieldName returned by q for the given tenantIDs.
 //
-// If limit > 0, then up to limit unique values are returned. The values are returned in arbitrary order because of performance reasons.
-// The caller may sort the returned values if needed.
+// If limit > 0, then up to limit unique values are returned.
 func (s *Storage) GetFieldValues(ctx context.Context, tenantIDs []TenantID, q *Query, fieldName string, limit uint64) ([]string, error) {
-	// add 'uniq fieldName' to the end of q.pipes
-	if !endsWithPipeUniqSingleField(q.pipes, fieldName) {
-		pipes := append([]pipe{}, q.pipes...)
+	pipes := append([]pipe{}, q.pipes...)
+	quotedFieldName := quoteTokenIfNeeded(fieldName)
+	pipeStr := fmt.Sprintf("uniq by (%s) limit %d | sort by (%s)", quotedFieldName, limit, quotedFieldName)
+	lex := newLexer(pipeStr)
 
-		pipeStr := fmt.Sprintf("uniq by (%s) limit %d", quoteTokenIfNeeded(fieldName), limit)
-		lex := newLexer(pipeStr)
-		pu, err := parsePipeUniq(lex)
-		if err != nil {
-			logger.Panicf("BUG: unexpected error when parsing 'uniq' pipe: %s", err)
-		}
-		pipes = append(pipes, pu)
+	pu, err := parsePipeUniq(lex)
+	if err != nil {
+		logger.Panicf("BUG: unexpected error when parsing 'uniq' pipe at [%s]: %s", pipeStr, err)
+	}
 
-		q = &Query{
-			f:     q.f,
-			pipes: pipes,
-		}
+	if !lex.isKeyword("|") {
+		logger.Panicf("BUG: unexpected token after 'uniq' pipe at [%s]: %q", pipeStr, lex.token)
+	}
+	lex.nextToken()
+
+	ps, err := parsePipeSort(lex)
+	if err != nil {
+		logger.Panicf("BUG: unexpected error when parsing 'sort' pipe at [%s]: %s", pipeStr, err)
+	}
+	if !lex.isEnd() {
+		logger.Panicf("BUG: unexpected tail left after parsing pipes [%s]: %q", pipeStr, lex.s)
+	}
+
+	pipes = append(pipes, pu, ps)
+
+	q = &Query{
+		f:     q.f,
+		pipes: pipes,
 	}
 
 	return s.runSingleColumnQuery(ctx, tenantIDs, q)
-}
-
-func endsWithPipeUniqSingleField(pipes []pipe, fieldName string) bool {
-	if len(pipes) == 0 {
-		return false
-	}
-	pu, ok := pipes[len(pipes)-1].(*pipeUniq)
-	if !ok {
-		return false
-	}
-	return len(pu.byFields) == 1 && pu.byFields[0] == fieldName
 }
 
 func (s *Storage) runSingleColumnQuery(ctx context.Context, tenantIDs []TenantID, q *Query) ([]string, error) {

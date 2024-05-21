@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -145,8 +144,6 @@ func ProcessFieldNamesRequest(ctx context.Context, w http.ResponseWriter, r *htt
 		return
 	}
 
-	slices.Sort(fieldNames)
-
 	// Write results
 	w.Header().Set("Content-Type", "application/json")
 	WriteFieldNamesResponse(w, fieldNames)
@@ -163,9 +160,9 @@ func ProcessFieldValuesRequest(ctx context.Context, w http.ResponseWriter, r *ht
 	}
 
 	// Parse fieldName query arg
-	fieldName := r.FormValue("field_name")
+	fieldName := r.FormValue("field")
 	if fieldName == "" {
-		httpserver.Errorf(w, r, "missing 'field_name' query arg")
+		httpserver.Errorf(w, r, "missing 'field' query arg")
 		return
 	}
 
@@ -187,16 +184,41 @@ func ProcessFieldValuesRequest(ctx context.Context, w http.ResponseWriter, r *ht
 		return
 	}
 
-	if limit == 0 || len(values) < limit {
-		// Sort values only if their number is below the limit.
-		// Otherwise there is little sense in sorting, since the query may return
-		// different subset of values on every execution.
-		slices.Sort(values)
+	// Write results
+	w.Header().Set("Content-Type", "application/json")
+	WriteFieldValuesResponse(w, values)
+}
+
+// ProcessStreamsRequest processes /select/logsql/streams request.
+//
+// See https://docs.victoriametrics.com/victorialogs/querying/#querying-streams
+func ProcessStreamsRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	q, tenantIDs, err := parseCommonArgs(r)
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+
+	// Parse limit query arg
+	limit, err := httputils.GetInt(r, "limit")
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+	if limit < 0 {
+		limit = 0
+	}
+
+	// Obtain streams for the given query
+	q.Optimize()
+	streams, err := vlstorage.GetFieldValues(ctx, tenantIDs, q, "_stream", uint64(limit))
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot obtain streams: %s", err)
 	}
 
 	// Write results
 	w.Header().Set("Content-Type", "application/json")
-	WriteFieldValuesResponse(w, values)
+	WriteStreamsResponse(w, streams)
 }
 
 // ProcessQueryRequest handles /select/logsql/query request.

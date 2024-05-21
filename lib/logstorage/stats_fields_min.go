@@ -41,7 +41,7 @@ func (sm *statsFieldsMin) newStatsProcessor() (statsProcessor, int) {
 type statsFieldsMinProcessor struct {
 	sm *statsFieldsMin
 
-	min    string
+	min string
 
 	fields []Field
 }

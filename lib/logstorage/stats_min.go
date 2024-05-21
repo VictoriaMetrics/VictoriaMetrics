@@ -33,7 +33,7 @@ func (sm *statsMin) newStatsProcessor() (statsProcessor, int) {
 type statsMinProcessor struct {
 	sm *statsMin
 
-	min    string
+	min string
 }
 
 func (smp *statsMinProcessor) updateStatsForAllRows(br *blockResult) int {

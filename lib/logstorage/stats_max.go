@@ -33,7 +33,7 @@ func (sm *statsMax) newStatsProcessor() (statsProcessor, int) {
 type statsMaxProcessor struct {
 	sm *statsMax
 
-	max    string
+	max string
 }
 
 func (smp *statsMaxProcessor) updateStatsForAllRows(br *blockResult) int {
@@ -153,6 +153,7 @@ func (smp *statsMaxProcessor) updateStateBytes(b []byte) {
 func (smp *statsMaxProcessor) updateStateString(v string) {
 	if v == "" {
 		// Skip empty strings
+		return
 	}
 	if smp.max != "" && !lessString(smp.max, v) {
 		return

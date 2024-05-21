@@ -63,21 +63,20 @@ func (dpp defaultPipeProcessor) flush() error {
 
 func parsePipes(lex *lexer) ([]pipe, error) {
 	var pipes []pipe
-	for !lex.isKeyword(")", "") {
-		if !lex.isKeyword("|") {
-			if len(pipes) == 0 {
-				return nil, fmt.Errorf("expecting '|' after the query filters; got %q", lex.token)
-			}
-			return nil, fmt.Errorf("expecting '|' after [%s] pipe; got %q", pipes[len(pipes)-1], lex.token)
-		}
-		lex.nextToken()
+	for {
 		p, err := parsePipe(lex)
 		if err != nil {
 			return nil, err
 		}
 		pipes = append(pipes, p)
+
+		switch {
+		case lex.isKeyword("|"):
+			lex.nextToken()
+		case lex.isKeyword(")", ""):
+			return pipes, nil
+		}
 	}
-	return pipes, nil
 }
 
 func parsePipe(lex *lexer) (pipe, error) {

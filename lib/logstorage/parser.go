@@ -232,10 +232,15 @@ func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 		}
 		s := fmt.Sprintf("stats by (%s) count() hits", byFieldsStr)
 		lex := newLexer(s)
+
 		ps, err := parsePipeStats(lex)
 		if err != nil {
-			logger.Panicf("BUG: unexpected error when parsing %q: %s", s, err)
+			logger.Panicf("BUG: unexpected error when parsing [%s]: %s", s, err)
 		}
+		if !lex.isEnd() {
+			logger.Panicf("BUG: unexpected tail left after parsing [%s]: %q", s, lex.s)
+		}
+
 		q.pipes = append(q.pipes, ps)
 	}
 
@@ -491,11 +496,14 @@ func parseQuery(lex *lexer) (*Query, error) {
 		f: f,
 	}
 
-	pipes, err := parsePipes(lex)
-	if err != nil {
-		return nil, fmt.Errorf("%w; context: [%s]", err, lex.context())
+	if lex.isKeyword("|") {
+		lex.nextToken()
+		pipes, err := parsePipes(lex)
+		if err != nil {
+			return nil, fmt.Errorf("%w; context: [%s]", err, lex.context())
+		}
+		q.pipes = pipes
 	}
-	q.pipes = pipes
 
 	return q, nil
 }

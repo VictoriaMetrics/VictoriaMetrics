@@ -187,10 +187,49 @@ The grouped fields are put inside `"fields"` object:
 
 See also:
 
+- [Querying streams](#querying-streams)
 - [Querying field names](#querying-field-names)
 - [Querying field values](#querying-field-values)
 - [HTTP API](#http-api)
 
+### Querying streams
+
+VictoriaLogs provides `/select/logsql/streams?query=<query>&start=<start>&end=<end>` HTTP endpoint, which returns [streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+from results of the given `<query>` [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
+
+The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
+If `<start>` is missing, then it equals to the minimum timestamp across logs stored in VictoriaLogs.
+If `<end>` is missing, then it equals to the maximum timestamp across logs stored in VictoriaLogs.
+
+For example, the following command returns streams across logs with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word)
+for the last 5 minutes:
+
+```sh
+curl http://localhost:9428/select/logsql/streams -d 'query=error' -d 'start=5m'
+```
+
+Below is an example JSON output returned from this endpoint:
+
+```json
+{
+  "streams": [
+    "{host=\"1.2.3.4\",app=\"foo\"}",
+    "{host=\"1.2.3.4\",app=\"bar\"}",
+    "{host=\"10.2.3.4\",app=\"foo\"}",
+    "{host=\"10.2.3.5\",app=\"baz\"}",
+  ]
+}
+```
+
+The `/select/logsql/streams` endpoint supports optional `limit=N` query arg, which allows limiting the number of returned streams to `N`.
+The endpoint returns arbitrary subset of values if their number exceeds `N`, so `limit=N` cannot be used for pagination over big number of streams.
+
+See also:
+
+- [Querying field names](#querying-field-names)
+- [Querying field values](#querying-field-values)
+- [Querying hits stats](#querying-hits-stats)
+- [HTTP API](#http-api)
 
 ### Querying field names
 
@@ -226,12 +265,13 @@ Below is an example JSON output returned from this endpoint:
 See also:
 
 - [Querying field values](#querying-field-values)
+- [Querying streams](#querying-streams)
 - [Querying hits stats](#querying-hits-stats)
 - [HTTP API](#http-api)
 
 ### Querying field values
 
-VictoriaLogs provides `/select/logsql/field_values?query=<query>&field_name=<fieldName>&start=<start>&end=<end>` HTTP endpoint, which returns
+VictoriaLogs provides `/select/logsql/field_values?query=<query>&field=<fieldName>&start=<start>&end=<end>` HTTP endpoint, which returns
 unique values for the given `<fieldName>` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 from results of the given `<query>` [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
 
@@ -243,7 +283,7 @@ For example, the following command returns unique values for `host` [field](http
 across logs with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) for the last 5 minutes:
 
 ```sh
-curl http://localhost:9428/select/logsql/field_values -d 'query=error' -d 'field_name=host' -d 'start=5m'
+curl http://localhost:9428/select/logsql/field_values -d 'query=error' -d 'field=host' -d 'start=5m'
 ```
 
 Below is an example JSON output returned from this endpoint:
@@ -266,6 +306,7 @@ The endpoint returns arbitrary subset of values if their number exceeds `N`, so 
 See also:
 
 - [Querying field names](#querying-field-names)
+- [Querying streams](#querying-streams)
 - [Querying hits stats](#querying-hits-stats)
 - [HTTP API](#http-api)
 
