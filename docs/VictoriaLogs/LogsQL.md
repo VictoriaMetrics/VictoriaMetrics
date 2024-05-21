@@ -1664,22 +1664,24 @@ _time:5m | unpack_logfmt if (ip:"")
 
 LogsQL supports the following functions for [`stats` pipe](#stats-pipe):
 
-- [`avg`](#avg-stats) calculates the average value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-- [`count`](#count-stats) calculates the number of log entries.
-- [`count_empty`](#count_empty-stats) calculates the number logs with empty [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-- [`count_uniq`](#count_uniq-stats) calculates the number of unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-- [`max`](#max-stats) calcualtes the maximum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-- [`median`](#median-stats) calcualtes the [median](https://en.wikipedia.org/wiki/Median) value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-- [`min`](#min-stats) calculates the minumum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-- [`quantile`](#quantile-stats) calculates the given quantile for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-- [`sum`](#sum-stats) calculates the sum for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-- [`sum_len`](#sum_len-stats) calculates the sum of lengths for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`avg`](#avg-stats) returns the average value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`count`](#count-stats) returns the number of log entries.
+- [`count_empty`](#count_empty-stats) returns the number logs with empty [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`count_uniq`](#count_uniq-stats) returns the number of unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`fields_max`](#fields_max-stats) returns the [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with the minimum value at the given field.
+- [`fields_min`](#fields_min-stats) returns the [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with the maximum value at the given field.
+- [`max`](#max-stats) returns the maximum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`median`](#median-stats) returns the [median](https://en.wikipedia.org/wiki/Median) value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`min`](#min-stats) returns the minumum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`quantile`](#quantile-stats) returns the given quantile for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`sum`](#sum-stats) returns the sum for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`sum_len`](#sum_len-stats) returns the sum of lengths for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`uniq_values`](#uniq_values-stats) returns unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`values`](#values-stats) returns all the values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
 ### avg stats
 
-`avg(field1, ..., fieldN)` [stats pipe](#stats-pipe) calculates the average value across
+`avg(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the average value across
 all the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 Non-numeric values are ignored.
 
@@ -1701,7 +1703,7 @@ See also:
 
 ### count stats
 
-`count()` calculates the number of selected logs.
+`count()` [stats pipe function](#stats-pipe-functions) calculates the number of selected logs.
 
 For example, the following query returns the number of logs over the last 5 minutes:
 
@@ -1733,7 +1735,7 @@ See also:
 
 ### count_empty stats
 
-`count_empty(field1, ..., fieldN)` calculates the number of logs with empty `(field1, ..., fieldN)` tuples.
+`count_empty(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the number of logs with empty `(field1, ..., fieldN)` tuples.
 
 For example, the following query calculates the number of logs with empty `username` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 during the last 5 minutes:
@@ -1749,7 +1751,7 @@ See also:
 
 ### count_uniq stats
 
-`count_uniq(field1, ..., fieldN)` [stats pipe](#stats-pipe) calculates the number of unique non-empty `(field1, ..., fieldN)` tuples.
+`count_uniq(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the number of unique non-empty `(field1, ..., fieldN)` tuples.
 
 For example, the following query returns the number of unique non-empty values for `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over the last 5 minutes:
@@ -1779,9 +1781,62 @@ See also:
 - [`uniq_values`](#uniq_values-stats)
 - [`count`](#count-stats)
 
+### fields_max stats
+
+`fields_max(field)` [stats pipe function](#stats-pipe-functions) returns [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+with the maximum value for the given `field`. Log entry is returned as JSON-encoded dictionary with all the fields from the original log.
+
+For example, the following query returns log entry with the maximum value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+across logs for the last 5 minutes:
+
+```logsql
+_time:5m | stats fields_max(duration) as log_with_max_duration
+```
+
+Fields from the returned values can be decoded with [`unpack_json`](#unpack_json-pipe) or [`extract`](#extract) pipes.
+
+If only the specific fields are needed from the returned log entry, then they can be enumerated inside `fields_max(...)`.
+For example, the following query returns only `_time`, `path` and `duration` fields from the log entry with the maximum `duration` over the last 5 minutes:
+
+```logsql
+_time:5m | stats fields_max(duration, _time, path, duration) as time_and_ip_with_max_duration
+```
+
+See also:
+
+- [`max`](#max-stats)
+- [`fields_min`](#fields_min-stats)
+
+
+### fields_min stats
+
+`fields_min(field)` [stats pipe function](#stats-pipe-functions) returns [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+with the minimum value for the given `field`. Log entry is returned as JSON-encoded dictionary with all the fields from the original log.
+
+For example, the following query returns log entry with the minimum value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+across logs for the last 5 minutes:
+
+```logsql
+_time:5m | stats fields_min(duration) as log_with_min_duration
+```
+
+Fields from the returned values can be decoded with [`unpack_json`](#unpack_json-pipe) or [`extract`](#extract) pipes.
+
+If only the specific fields are needed from the returned log entry, then they can be enumerated inside `fields_max(...)`.
+For example, the following query returns only `_time`, `path` and `duration` fields from the log entry with the minimum `duration` over the last 5 minutes:
+
+```logsql
+_time:5m | stats fields_min(duration, _time, path, duration) as time_and_ip_with_min_duration
+```
+
+See also:
+
+- [`min`](#min-stats)
+- [`fields_max`](#fields_max-stats)
+
 ### max stats
 
-`max(field1, ..., fieldN)` [stats pipe](#stats-pipe) returns the maximum value across
+`max(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) returns the maximum value across
 all the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
 For example, the following query returns the maximum value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
@@ -1791,17 +1846,18 @@ over logs for the last 5 minutes:
 _time:5m | stats max(duration) max_duration
 ```
 
+[`fields_max`](#fields_max-stats) function can be used for obtaining other fields with the maximum duration.
+
 See also:
 
+- [`fields_max`](#fields_max-stats)
 - [`min`](#min-stats)
 - [`quantile`](#quantile-stats)
 - [`avg`](#avg-stats)
-- [`sum`](#sum-stats)
-- [`count`](#count-stats)
 
 ### median stats
 
-`median(field1, ..., fieldN)` [stats pipe](#stats-pipe) calculates the [median](https://en.wikipedia.org/wiki/Median) value across
+`median(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the [median](https://en.wikipedia.org/wiki/Median) value across
 the give numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
 For example, the following query return median for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
@@ -1818,7 +1874,7 @@ See also:
 
 ### min stats
 
-`min(field1, ..., fieldN)` [stats pipe](#stats-pipe) returns the minimum value across
+`min(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) returns the minimum value across
 all the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
 For example, the following query returns the minimum value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
@@ -1828,17 +1884,18 @@ over logs for the last 5 minutes:
 _time:5m | stats min(duration) min_duration
 ```
 
+[`fields_min`](#fields_min-stats) function can be used for obtaining other fields with the minimum duration.
+
 See also:
 
+- [`fields_min`](#fields_min-stats)
 - [`max`](#max-stats)
 - [`quantile`](#quantile-stats)
 - [`avg`](#avg-stats)
-- [`sum`](#sum-stats)
-- [`count`](#count-stats)
 
 ### quantile stats
 
-`quantile(phi, field1, ..., fieldN)` [stats pipe](#stats-pipe) calculates `phi` [percentile](https://en.wikipedia.org/wiki/Percentile) over numeric values
+`quantile(phi, field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates `phi` [percentile](https://en.wikipedia.org/wiki/Percentile) over numeric values
 for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). The `phi` must be in the range `0 ... 1`, where `0` means `0th` percentile,
 while `1` means `100th` percentile.
 
@@ -1861,7 +1918,7 @@ See also:
 
 ### sum stats
 
-`sum(field1, ..., fieldN)` [stats pipe](#stats-pipe) calculates the sum of numeric values across
+`sum(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the sum of numeric values across
 all the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
 For example, the following query returns the sum of numeric values for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
@@ -1880,7 +1937,7 @@ See also:
 
 ### sum_len stats
 
-`sum_len(field1, ..., fieldN)` [stats pipe](#stats-pipe) calculates the sum of lengths of all the values
+`sum_len(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the sum of lengths of all the values
 for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
 For example, the following query returns the sum of lengths of [`_msg` fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
@@ -1896,7 +1953,7 @@ See also:
 
 ### uniq_values stats
 
-`uniq_values(field1, ..., fieldN)` [stats pipe](#stats-pipe) returns the unique non-empty values across
+`uniq_values(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) returns the unique non-empty values across
 the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 The returned values are encoded in sorted JSON array.
 
@@ -1928,7 +1985,7 @@ See also:
 
 ### values stats
 
-`values(field1, ..., fieldN)` [stats pipe](#stats-pipe) returns all the values (including empty values)
+`values(field1, ..., fieldN)` [stats pipe fuction](#stats-pipe-functions) returns all the values (including empty values)
 for the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 The returned values are encoded in JSON array.
 
