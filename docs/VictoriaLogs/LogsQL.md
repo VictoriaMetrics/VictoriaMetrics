@@ -1135,9 +1135,20 @@ _time:1d error | extract "ip=<ip> " | stats by (ip) count() logs | sort by (logs
 
 See also:
 
-- [format for extract pipe pattern](#format-for-extract-pipe-pattern)
+- [Format for extract pipe pattern](#format-for-extract-pipe-pattern)
+- [Conditional extract](#conditional-extract)
 - [`unpack_json` pipe](#unpack_json-pipe)
 - [`unpack_logfmt` pipe](#unpack_logfmt-pipe)
+
+#### Conditional extract
+
+Sometimes it is needed to skip some entries from applying [`extract` pipe](#extract-pipe). This can be done by adding `if (<filters>)` filter to the end of `| extract ...` pipe.
+The `<filters>` can contain arbitrary [filters](#filters). For example, the following query extracts `ip` field only
+if the input [log entry](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) doesn't contain `ip` field or this field is empty:
+
+```logsql
+_time:5m | extract "ip=<ip> " if (ip:"")
+```
 
 #### Format for extract pipe pattern
 
