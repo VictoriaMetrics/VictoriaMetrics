@@ -89,7 +89,9 @@ func (ssp *statsSumProcessor) updateState(f float64) {
 
 func (ssp *statsSumProcessor) mergeState(sfp statsProcessor) {
 	src := sfp.(*statsSumProcessor)
-	ssp.sum += src.sum
+	if !math.IsNaN(src.sum) {
+		ssp.updateState(src.sum)
+	}
 }
 
 func (ssp *statsSumProcessor) finalizeStats() string {
