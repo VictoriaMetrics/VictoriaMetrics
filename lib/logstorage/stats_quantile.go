@@ -18,10 +18,11 @@ type statsQuantile struct {
 	containsStar bool
 
 	phi float64
+	phiStr string
 }
 
 func (sq *statsQuantile) String() string {
-	return fmt.Sprintf("quantile(%g, %s)", sq.phi, fieldNamesString(sq.fields))
+	return fmt.Sprintf("quantile(%s, %s)", sq.phiStr, fieldNamesString(sq.fields))
 }
 
 func (sq *statsQuantile) updateNeededFields(neededFields fieldsSet) {
@@ -186,12 +187,13 @@ func parseStatsQuantile(lex *lexer) (*statsQuantile, error) {
 	}
 
 	// Parse phi
-	phi, ok := tryParseFloat64(fields[0])
+	phiStr := fields[0]
+	phi, ok := tryParseFloat64(phiStr)
 	if !ok {
-		return nil, fmt.Errorf("phi arg in 'quantile' must be floating point number; got %q", fields[0])
+		return nil, fmt.Errorf("phi arg in 'quantile' must be floating point number; got %q", phiStr)
 	}
 	if phi < 0 || phi > 1 {
-		return nil, fmt.Errorf("phi arg in 'quantile' must be in the range [0..1]; got %q", fields[0])
+		return nil, fmt.Errorf("phi arg in 'quantile' must be in the range [0..1]; got %q", phiStr)
 	}
 
 	// Parse fields
@@ -205,6 +207,7 @@ func parseStatsQuantile(lex *lexer) (*statsQuantile, error) {
 		containsStar: slices.Contains(fields, "*"),
 
 		phi: phi,
+		phiStr: phiStr,
 	}
 	return sq, nil
 }

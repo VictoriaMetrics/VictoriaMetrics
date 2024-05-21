@@ -5,6 +5,31 @@ import (
 	"testing"
 )
 
+func TestParseStatsQuantileSuccess(t *testing.T) {
+	f := func(pipeStr string) {
+		t.Helper()
+		expectParseStatsFuncSuccess(t, pipeStr)
+	}
+
+	f(`quantile(0.3, *)`)
+	f(`quantile(1, a)`)
+	f(`quantile(0.99, a, b)`)
+}
+
+func TestParseStatsQuantileFailure(t *testing.T) {
+	f := func(pipeStr string) {
+		t.Helper()
+		expectParseStatsFuncFailure(t, pipeStr)
+	}
+
+	f(`quantile`)
+	f(`quantile(a)`)
+	f(`quantile(a, b)`)
+	f(`quantile(10, b)`)
+	f(`quantile(-1, b)`)
+	f(`quantile(0.5, b) c`)
+}
+
 func TestHistogramQuantile(t *testing.T) {
 	f := func(a []float64, phi, qExpected float64) {
 		t.Helper()
