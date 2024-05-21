@@ -27,8 +27,12 @@ func (sm *statsFieldsMin) String() string {
 }
 
 func (sm *statsFieldsMin) updateNeededFields(neededFields fieldsSet) {
+	if len(sm.resultFields) == 0 {
+		neededFields.add("*")
+	} else {
+		neededFields.addFields(sm.resultFields)
+	}
 	neededFields.add(sm.srcField)
-	neededFields.addFields(sm.resultFields)
 }
 
 func (sm *statsFieldsMin) newStatsProcessor() (statsProcessor, int) {

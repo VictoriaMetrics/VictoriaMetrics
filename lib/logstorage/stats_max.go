@@ -11,11 +11,13 @@ import (
 )
 
 type statsMax struct {
-	fields       []string
-	containsStar bool
+	fields []string
 }
 
 func (sm *statsMax) String() string {
+	if len(sm.fields) == 0 {
+		return "max(*)"
+	}
 	return "max(" + fieldNamesString(sm.fields) + ")"
 }
 
@@ -39,7 +41,7 @@ type statsMaxProcessor struct {
 func (smp *statsMaxProcessor) updateStatsForAllRows(br *blockResult) int {
 	maxLen := len(smp.max)
 
-	if smp.sm.containsStar {
+	if len(smp.sm.fields) == 0 {
 		// Find the minimum value across all the columns
 		for _, c := range br.getColumns() {
 			smp.updateStateForColumn(br, c)
@@ -58,7 +60,7 @@ func (smp *statsMaxProcessor) updateStatsForAllRows(br *blockResult) int {
 func (smp *statsMaxProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
 	maxLen := len(smp.max)
 
-	if smp.sm.containsStar {
+	if len(smp.sm.fields) == 0 {
 		// Find the minimum value across all the fields for the given row
 		for _, c := range br.getColumns() {
 			v := c.getValueAtRow(br, rowIdx)
@@ -170,9 +172,11 @@ func parseStatsMax(lex *lexer) (*statsMax, error) {
 	if err != nil {
 		return nil, err
 	}
+	if slices.Contains(fields, "*") {
+		fields = nil
+	}
 	sm := &statsMax{
-		fields:       fields,
-		containsStar: slices.Contains(fields, "*"),
+		fields: fields,
 	}
 	return sm, nil
 }

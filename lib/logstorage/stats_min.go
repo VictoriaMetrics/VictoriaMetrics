@@ -11,11 +11,13 @@ import (
 )
 
 type statsMin struct {
-	fields       []string
-	containsStar bool
+	fields []string
 }
 
 func (sm *statsMin) String() string {
+	if len(sm.fields) == 0 {
+		return "min(*)"
+	}
 	return "min(" + fieldNamesString(sm.fields) + ")"
 }
 
@@ -39,7 +41,7 @@ type statsMinProcessor struct {
 func (smp *statsMinProcessor) updateStatsForAllRows(br *blockResult) int {
 	minLen := len(smp.min)
 
-	if smp.sm.containsStar {
+	if len(smp.sm.fields) == 0 {
 		// Find the minimum value across all the columns
 		for _, c := range br.getColumns() {
 			smp.updateStateForColumn(br, c)
@@ -58,7 +60,7 @@ func (smp *statsMinProcessor) updateStatsForAllRows(br *blockResult) int {
 func (smp *statsMinProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
 	minLen := len(smp.min)
 
-	if smp.sm.containsStar {
+	if len(smp.sm.fields) == 0 {
 		// Find the minimum value across all the fields for the given row
 		for _, c := range br.getColumns() {
 			v := c.getValueAtRow(br, rowIdx)
@@ -170,9 +172,11 @@ func parseStatsMin(lex *lexer) (*statsMin, error) {
 	if err != nil {
 		return nil, err
 	}
+	if slices.Contains(fields, "*") {
+		fields = nil
+	}
 	sm := &statsMin{
-		fields:       fields,
-		containsStar: slices.Contains(fields, "*"),
+		fields: fields,
 	}
 	return sm, nil
 }

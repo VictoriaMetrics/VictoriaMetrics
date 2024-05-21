@@ -27,8 +27,12 @@ func (sm *statsFieldsMax) String() string {
 }
 
 func (sm *statsFieldsMax) updateNeededFields(neededFields fieldsSet) {
+	if len(sm.resultFields) == 0 {
+		neededFields.add("*")
+	} else {
+		neededFields.addFields(sm.resultFields)
+	}
 	neededFields.add(sm.srcField)
-	neededFields.addFields(sm.resultFields)
 }
 
 func (sm *statsFieldsMax) newStatsProcessor() (statsProcessor, int) {
