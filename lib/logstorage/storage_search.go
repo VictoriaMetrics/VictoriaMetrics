@@ -216,6 +216,63 @@ func (s *Storage) GetFieldValues(ctx context.Context, tenantIDs []TenantID, q *Q
 	return s.runSingleColumnQuery(ctx, tenantIDs, q)
 }
 
+// GetStreamLabelNames returns stream label names from q results for the given tenantIDs.
+func (s *Storage) GetStreamLabelNames(ctx context.Context, tenantIDs []TenantID, q *Query) ([]string, error) {
+	streams, err := s.GetStreams(ctx, tenantIDs, q, math.MaxUint64)
+	if err != nil {
+		return nil, err
+	}
+
+	var names []string
+	m := make(map[string]struct{})
+	forEachStreamLabel(streams, func(label Field) {
+		if _, ok := m[label.Name]; !ok {
+			nameCopy := strings.Clone(label.Name)
+			names = append(names, nameCopy)
+			m[nameCopy] = struct{}{}
+		}
+	})
+	sortStrings(names)
+
+	return names, nil
+}
+
+// GetStreamLabelValues returns stream label values for the given labelName from q results for the given tenantIDs.
+//
+// If limit > 9, then up to limit unique label values are returned.
+func (s *Storage) GetStreamLabelValues(ctx context.Context, tenantIDs []TenantID, q *Query, labelName string, limit uint64) ([]string, error) {
+	streams, err := s.GetStreams(ctx, tenantIDs, q, math.MaxUint64)
+	if err != nil {
+		return nil, err
+	}
+
+	var values []string
+	m := make(map[string]struct{})
+	forEachStreamLabel(streams, func(label Field) {
+		if label.Name != labelName {
+			return
+		}
+		if _, ok := m[label.Value]; !ok {
+			valueCopy := strings.Clone(label.Value)
+			values = append(values, valueCopy)
+			m[valueCopy] = struct{}{}
+		}
+	})
+	if uint64(len(values)) > limit {
+		values = values[:limit]
+	}
+	sortStrings(values)
+
+	return values, nil
+}
+
+// GetStreams returns streams from q results for the given tenantIDs.
+//
+// If limit > 0, then up to limit unique streams are returned.
+func (s *Storage) GetStreams(ctx context.Context, tenantIDs []TenantID, q *Query, limit uint64) ([]string, error) {
+	return s.GetFieldValues(ctx, tenantIDs, q, "_stream", limit)
+}
+
 func (s *Storage) runSingleColumnQuery(ctx context.Context, tenantIDs []TenantID, q *Query) ([]string, error) {
 	var values []string
 	var valuesLock sync.Mutex
@@ -936,4 +993,60 @@ func getFilterTimeRange(f filter) (int64, int64) {
 		return t.minTimestamp, t.maxTimestamp
 	}
 	return math.MinInt64, math.MaxInt64
+}
+
+func forEachStreamLabel(streams []string, f func(label Field)) {
+	var labels []Field
+	for _, stream := range streams {
+		var err error
+		labels, err = parseStreamLabels(labels[:0], stream)
+		if err != nil {
+			continue
+		}
+		for i := range labels {
+			f(labels[i])
+		}
+	}
+}
+
+func parseStreamLabels(dst []Field, s string) ([]Field, error) {
+	if len(s) == 0 || s[0] != '{' {
+		return dst, fmt.Errorf("missing '{' at the beginning of stream name")
+	}
+	s = s[1:]
+	if len(s) == 0 || s[len(s)-1] != '}' {
+		return dst, fmt.Errorf("missing '}' at the end of stream name")
+	}
+	s = s[:len(s)-1]
+	if len(s) == 0 {
+		return dst, nil
+	}
+
+	for {
+		n := strings.Index(s, `="`)
+		if n < 0 {
+			return dst, fmt.Errorf("cannot find label value in double quotes at [%s]", s)
+		}
+		name := s[:n]
+		s = s[n+1:]
+
+		value, nOffset := tryUnquoteString(s)
+		if nOffset < 0 {
+			return dst, fmt.Errorf("cannot find parse label value in double quotes at [%s]", s)
+		}
+		s = s[nOffset:]
+
+		dst = append(dst, Field{
+			Name:  name,
+			Value: value,
+		})
+
+		if len(s) == 0 {
+			return dst, nil
+		}
+		if s[0] != ',' {
+			return dst, fmt.Errorf("missing ',' after %s=%q", name, value)
+		}
+		s = s[1:]
+	}
 }

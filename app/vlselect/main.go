@@ -157,6 +157,14 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		logsqlQueryRequests.Inc()
 		logsql.ProcessQueryRequest(ctx, w, r)
 		return true
+	case "/select/logsql/stream_label_names":
+		logsqlStreamLabelNamesRequests.Inc()
+		logsql.ProcessStreamLabelNamesRequest(ctx, w, r)
+		return true
+	case "/select/logsql/stream_label_values":
+		logsqlStreamLabelValuesRequests.Inc()
+		logsql.ProcessStreamLabelValuesRequest(ctx, w, r)
+		return true
 	case "/select/logsql/streams":
 		logsqlStreamsRequests.Inc()
 		logsql.ProcessStreamsRequest(ctx, w, r)
@@ -180,9 +188,11 @@ func getMaxQueryDuration(r *http.Request) time.Duration {
 }
 
 var (
-	logsqlFieldNamesRequests  = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/field_names"}`)
-	logsqlFieldValuesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/field_values"}`)
-	logsqlHitsRequests        = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/hits"}`)
-	logsqlQueryRequests       = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/query"}`)
-	logsqlStreamsRequests     = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/streams"}`)
+	logsqlFieldNamesRequests        = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/field_names"}`)
+	logsqlFieldValuesRequests       = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/field_values"}`)
+	logsqlHitsRequests              = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/hits"}`)
+	logsqlQueryRequests             = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/query"}`)
+	logsqlStreamLabelNamesRequests  = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_label_names"}`)
+	logsqlStreamLabelValuesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_label_values"}`)
+	logsqlStreamsRequests           = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/streams"}`)
 )

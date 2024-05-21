@@ -189,6 +189,67 @@ func ProcessFieldValuesRequest(ctx context.Context, w http.ResponseWriter, r *ht
 	WriteFieldValuesResponse(w, values)
 }
 
+// ProcessStreamLabelNamesRequest processes /select/logsql/stream_label_names request.
+//
+// See https://docs.victoriametrics.com/victorialogs/querying/#querying-stream-label-names
+func ProcessStreamLabelNamesRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	q, tenantIDs, err := parseCommonArgs(r)
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+
+	// Obtain stream label names for the given query
+	q.Optimize()
+	names, err := vlstorage.GetStreamLabelNames(ctx, tenantIDs, q)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot obtain stream label names: %s", err)
+	}
+
+	// Write results
+	w.Header().Set("Content-Type", "application/json")
+	WriteStreamLabelNamesResponse(w, names)
+}
+
+// ProcessStreamLabelValuesRequest processes /select/logsql/stream_label_values request.
+//
+// See https://docs.victoriametrics.com/victorialogs/querying/#querying-stream-label-values
+func ProcessStreamLabelValuesRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	q, tenantIDs, err := parseCommonArgs(r)
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+
+	// Parse labelName query arg
+	labelName := r.FormValue("label")
+	if labelName == "" {
+		httpserver.Errorf(w, r, "missing 'label' query arg")
+		return
+	}
+
+	// Parse limit query arg
+	limit, err := httputils.GetInt(r, "limit")
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+	if limit < 0 {
+		limit = 0
+	}
+
+	// Obtain stream label names for the given query
+	q.Optimize()
+	values, err := vlstorage.GetStreamLabelValues(ctx, tenantIDs, q, labelName, uint64(limit))
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot obtain stream label values: %s", err)
+	}
+
+	// Write results
+	w.Header().Set("Content-Type", "application/json")
+	WriteStreamLabelValuesResponse(w, values)
+}
+
 // ProcessStreamsRequest processes /select/logsql/streams request.
 //
 // See https://docs.victoriametrics.com/victorialogs/querying/#querying-streams
@@ -211,7 +272,7 @@ func ProcessStreamsRequest(ctx context.Context, w http.ResponseWriter, r *http.R
 
 	// Obtain streams for the given query
 	q.Optimize()
-	streams, err := vlstorage.GetFieldValues(ctx, tenantIDs, q, "_stream", uint64(limit))
+	streams, err := vlstorage.GetStreams(ctx, tenantIDs, q, uint64(limit))
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot obtain streams: %s", err)
 	}

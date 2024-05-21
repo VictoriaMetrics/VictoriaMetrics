@@ -23,7 +23,19 @@ via the following ways:
 
 ## HTTP API
 
-VictoriaLogs can be queried at the `/select/logsql/query` HTTP endpoint.
+VictoriaLogs provides the following HTTP endpoints:
+
+- [`/select/logsql/query`](#querying-logs) for querying logs
+- [`/select/logsql/hits`](#querying-hits-stats) for querying log hits stats over the given time range
+- [`/select/logsql/streams`](#querying-streams) for querying [log streams](#https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+- [`/select/logsql/stream_label_names`](#querying-stream-label-names) for querying [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) label names
+- [`/select/logsql/stream_label_values`](#querying-stream-label-values) for querying [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) label values
+- [`/select/logsql/field_names`](#querying-field-names) for querying [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) names.
+- [`/select/logsql/field_values`](#querying-field-values) for querying [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values.
+
+### Querying logs
+
+Logs stored in VictoriaLogs can be queried at the `/select/logsql/query` HTTP endpoint.
 The [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html) query must be passed via `query` argument.
 For example, the following query returns all the log entries with the `error` word:
 
@@ -87,6 +99,10 @@ curl http://localhost:9428/select/logsql/query -H 'AccountID: 12' -H 'ProjectID:
 
 The number of requests to `/select/logsql/query` can be [monitored](https://docs.victoriametrics.com/VictoriaLogs/#monitoring)
 with `vl_http_requests_total{path="/select/logsql/query"}` metric.
+
+- [Querying hits stats](#querying-hits-stats)
+- [Querying streams](#querying-streams)
+- [HTTP API](#http-api)
 
 ### Querying hits stats
 
@@ -187,9 +203,8 @@ The grouped fields are put inside `"fields"` object:
 
 See also:
 
+- [Querying logs](#querying-logs)
 - [Querying streams](#querying-streams)
-- [Querying field names](#querying-field-names)
-- [Querying field values](#querying-field-values)
 - [HTTP API](#http-api)
 
 ### Querying streams
@@ -216,7 +231,7 @@ Below is an example JSON output returned from this endpoint:
     "{host=\"1.2.3.4\",app=\"foo\"}",
     "{host=\"1.2.3.4\",app=\"bar\"}",
     "{host=\"10.2.3.4\",app=\"foo\"}",
-    "{host=\"10.2.3.5\",app=\"baz\"}",
+    "{host=\"10.2.3.5\",app=\"baz\"}"
   ]
 }
 ```
@@ -226,9 +241,86 @@ The endpoint returns arbitrary subset of values if their number exceeds `N`, so 
 
 See also:
 
-- [Querying field names](#querying-field-names)
-- [Querying field values](#querying-field-values)
+- [Querying logs](#querying-logs)
 - [Querying hits stats](#querying-hits-stats)
+- [HTTP API](#http-api)
+
+### Querying stream label names
+
+VictoriaLogs provides `/select/logsql/stream_label_names?query=<query>&start=<start>&end=<end>` HTTP endpoint, which returns
+[log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) label names from results
+of the given `<query>` [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
+
+The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
+If `<start>` is missing, then it equals to the minimum timestamp across logs stored in VictoriaLogs.
+If `<end>` is missing, then it equals to the maximum timestamp across logs stored in VictoriaLogs.
+
+For example, the following command returns stream label names across logs with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word)
+for the last 5 minutes:
+
+```sh
+curl http://localhost:9428/select/logsql/stream_label_names -d 'query=error' -d 'start=5m'
+```
+
+Below is an example JSON output returned from this endpoint:
+
+```json
+{
+  "names": [
+    "app",
+    "container",
+    "datacenter",
+    "host",
+    "namespace"
+  ]
+}
+```
+
+See also:
+
+- [Querying stream label names](#querying-stream-label-names)
+- [Querying field values](#querying-field-values)
+- [Querying streams](#querying-streams)
+- [HTTP API](#http-api)
+
+### Querying stream label values
+
+VictoriaLogs provides `/select/logsql/stream_label_values?query=<query>&start=<start>&<end>&label=<labelName>` HTTP endpoint,
+which returns [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) label values for the label with the given `<labelName>` name
+from results of the given `<query>` [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
+
+The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
+If `<start>` is missing, then it equals to the minimum timestamp across logs stored in VictoriaLogs.
+If `<end>` is missing, then it equals to the maximum timestamp across logs stored in VictoriaLogs.
+
+For example, the following command returns values for the stream label `host` across logs with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word)
+for the last 5 minutes:
+
+```sh
+curl http://localhost:9428/select/logsql/stream_label_values -d 'query=error' -d 'start=5m' -d 'label=host'
+```
+
+Below is an example JSON output returned from this endpoint:
+
+```json
+{
+  "values": [
+    "host-0",
+    "host-1",
+    "host-2",
+    "host-3"
+  ]
+}
+```
+
+The `/select/logsql/stream_label_names` endpoint supports optional `limit=N` query arg, which allows limiting the number of returned values to `N`.
+The endpoint returns arbitrary subset of values if their number exceeds `N`, so `limit=N` cannot be used for pagination over big number of field values.
+
+See also:
+
+- [Querying stream label values](#querying-stream-label-values)
+- [Querying field names](#querying-field-names)
+- [Querying streams](#querying-streams)
 - [HTTP API](#http-api)
 
 ### Querying field names
@@ -264,9 +356,9 @@ Below is an example JSON output returned from this endpoint:
 
 See also:
 
+- [Querying stream label names](#querying-stream-label-names)
 - [Querying field values](#querying-field-values)
 - [Querying streams](#querying-streams)
-- [Querying hits stats](#querying-hits-stats)
 - [HTTP API](#http-api)
 
 ### Querying field values
@@ -305,9 +397,9 @@ The endpoint returns arbitrary subset of values if their number exceeds `N`, so 
 
 See also:
 
+- [Querying stream label values](#querying-stream-label-values)
 - [Querying field names](#querying-field-names)
 - [Querying streams](#querying-streams)
-- [Querying hits stats](#querying-hits-stats)
 - [HTTP API](#http-api)
 
 
