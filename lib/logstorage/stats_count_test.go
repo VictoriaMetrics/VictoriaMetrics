@@ -4,35 +4,35 @@ import (
 	"testing"
 )
 
-func TestParseStatsAvgSuccess(t *testing.T) {
+func TestParseStatsCountSuccess(t *testing.T) {
 	f := func(pipeStr string) {
 		t.Helper()
 		expectParseStatsFuncSuccess(t, pipeStr)
 	}
 
-	f(`avg(*)`)
-	f(`avg(a)`)
-	f(`avg(a, b)`)
+	f(`count(*)`)
+	f(`count(a)`)
+	f(`count(a, b)`)
 }
 
-func TestParseStatsAvgFailure(t *testing.T) {
+func TestParseStatsCountFailure(t *testing.T) {
 	f := func(pipeStr string) {
 		t.Helper()
 		expectParseStatsFuncFailure(t, pipeStr)
 	}
 
-	f(`avg`)
-	f(`avg(a b)`)
-	f(`avg(x) y`)
+	f(`count`)
+	f(`count(a b)`)
+	f(`count(x) y`)
 }
 
-func TestStatsAvg(t *testing.T) {
+func TestStatsCount(t *testing.T) {
 	f := func(pipeStr string, rows, rowsExpected [][]Field) {
 		t.Helper()
 		expectPipeResults(t, pipeStr, rows, rowsExpected)
 	}
 
-	f("stats avg(*) as x", [][]Field{
+	f("stats count(*) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `2`},
@@ -41,6 +41,8 @@ func TestStatsAvg(t *testing.T) {
 		{
 			{"_msg", `def`},
 			{"a", `1`},
+		},
+		{
 		},
 		{
 			{"a", `3`},
@@ -48,11 +50,11 @@ func TestStatsAvg(t *testing.T) {
 		},
 	}, [][]Field{
 		{
-			{"x", "12.6"},
+			{"x", "4"},
 		},
 	})
 
-	f("stats avg(a) as x", [][]Field{
+	f("stats count(b) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `2`},
@@ -61,6 +63,8 @@ func TestStatsAvg(t *testing.T) {
 		{
 			{"_msg", `def`},
 			{"a", `1`},
+		},
+		{
 		},
 		{
 			{"a", `3`},
@@ -72,7 +76,29 @@ func TestStatsAvg(t *testing.T) {
 		},
 	})
 
-	f("stats avg(a) as a", [][]Field{
+	f("stats count(a, b) as x", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+		},
+		{
+		},
+		{
+			{"aa", `3`},
+			{"bb", `54`},
+		},
+	}, [][]Field{
+		{
+			{"x", "2"},
+		},
+	})
+
+	f("stats count(c) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `2`},
@@ -88,11 +114,11 @@ func TestStatsAvg(t *testing.T) {
 		},
 	}, [][]Field{
 		{
-			{"a", "2"},
+			{"x", "0"},
 		},
 	})
 
-	f("stats avg(a, b) as x", [][]Field{
+	f("stats count(a) if (b:*) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `2`},
@@ -103,102 +129,15 @@ func TestStatsAvg(t *testing.T) {
 			{"a", `1`},
 		},
 		{
-			{"a", `3`},
 			{"b", `54`},
 		},
 	}, [][]Field{
 		{
-			{"x", "12.6"},
+			{"x", "1"},
 		},
 	})
 
-	f("stats avg(b) as x", [][]Field{
-		{
-			{"_msg", `abc`},
-			{"a", `2`},
-			{"b", `3`},
-		},
-		{
-			{"_msg", `def`},
-			{"a", `1`},
-		},
-		{
-			{"a", `3`},
-			{"b", `54`},
-		},
-	}, [][]Field{
-		{
-			{"x", "28.5"},
-		},
-	})
-
-	f("stats avg(c) as x", [][]Field{
-		{
-			{"_msg", `abc`},
-			{"a", `2`},
-			{"b", `3`},
-		},
-		{
-			{"_msg", `def`},
-			{"a", `1`},
-		},
-		{
-			{"a", `3`},
-			{"b", `54`},
-		},
-	}, [][]Field{
-		{
-			{"x", "NaN"},
-		},
-	})
-
-	f("stats avg(a) if (b:*) as x", [][]Field{
-		{
-			{"_msg", `abc`},
-			{"a", `2`},
-			{"b", `3`},
-		},
-		{
-			{"_msg", `def`},
-			{"a", `1`},
-		},
-		{
-			{"a", `3`},
-			{"b", `54`},
-		},
-	}, [][]Field{
-		{
-			{"x", "2.5"},
-		},
-	})
-
-	f("stats by (b) avg(a) if (b:*) as x", [][]Field{
-		{
-			{"_msg", `abc`},
-			{"a", `2`},
-			{"b", `3`},
-		},
-		{
-			{"_msg", `def`},
-			{"a", `1`},
-			{"b", "3"},
-		},
-		{
-			{"a", `3`},
-			{"c", `54`},
-		},
-	}, [][]Field{
-		{
-			{"b", "3"},
-			{"x", "1.5"},
-		},
-		{
-			{"b", ""},
-			{"x", "NaN"},
-		},
-	})
-
-	f("stats by (a) avg(b) as x", [][]Field{
+	f("stats by (a) count(b) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `1`},
@@ -219,15 +158,46 @@ func TestStatsAvg(t *testing.T) {
 	}, [][]Field{
 		{
 			{"a", "1"},
-			{"x", "3"},
+			{"x", "1"},
 		},
 		{
 			{"a", "3"},
-			{"x", "6"},
+			{"x", "2"},
 		},
 	})
 
-	f("stats by (a) avg(*) as x", [][]Field{
+	f("stats by (a) count(b) if (!c:foo) as x", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `1`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+			{"b", "aadf"},
+			{"c", "foo"},
+		},
+		{
+			{"a", `3`},
+			{"b", `5`},
+			{"c", "bar"},
+		},
+		{
+			{"a", `3`},
+		},
+	}, [][]Field{
+		{
+			{"a", "1"},
+			{"x", "1"},
+		},
+		{
+			{"a", "3"},
+			{"x", "1"},
+		},
+	})
+
+	f("stats by (a) count(*) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `1`},
@@ -239,25 +209,27 @@ func TestStatsAvg(t *testing.T) {
 			{"c", "3"},
 		},
 		{
-			{"a", `3`},
-			{"b", `5`},
 		},
 		{
 			{"a", `3`},
-			{"b", `7`},
+			{"b", `5`},
 		},
 	}, [][]Field{
+		{
+			{"a", ""},
+			{"x", "1"},
+		},
 		{
 			{"a", "1"},
 			{"x", "2"},
 		},
 		{
 			{"a", "3"},
-			{"x", "4.5"},
+			{"x", "1"},
 		},
 	})
 
-	f("stats by (a) avg(c) as x", [][]Field{
+	f("stats by (a) count(c) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `1`},
@@ -278,15 +250,15 @@ func TestStatsAvg(t *testing.T) {
 	}, [][]Field{
 		{
 			{"a", "1"},
-			{"x", "NaN"},
+			{"x", "0"},
 		},
 		{
 			{"a", "3"},
-			{"x", "5"},
+			{"x", "1"},
 		},
 	})
 
-	f("stats by (a) avg(a, b, c) as x", [][]Field{
+	f("stats by (a) count(a, b, c) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `1`},
@@ -300,6 +272,9 @@ func TestStatsAvg(t *testing.T) {
 		{
 			{"a", `3`},
 			{"b", `5`},
+		},
+		{
+			{"foo", "bar"},
 		},
 		{
 			{"a", `3`},
@@ -311,12 +286,16 @@ func TestStatsAvg(t *testing.T) {
 			{"x", "2"},
 		},
 		{
+			{"a", ""},
+			{"x", "0"},
+		},
+		{
 			{"a", "3"},
-			{"x", "4.5"},
+			{"x", "2"},
 		},
 	})
 
-	f("stats by (a, b) avg(a) as x", [][]Field{
+	f("stats by (a, b) count(a) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `1`},
@@ -328,7 +307,7 @@ func TestStatsAvg(t *testing.T) {
 			{"c", "3"},
 		},
 		{
-			{"a", `3`},
+			{"c", `3`},
 			{"b", `5`},
 		},
 	}, [][]Field{
@@ -343,70 +322,9 @@ func TestStatsAvg(t *testing.T) {
 			{"x", "1"},
 		},
 		{
-			{"a", "3"},
+			{"a", ""},
 			{"b", "5"},
-			{"x", "3"},
+			{"x", "0"},
 		},
 	})
-
-	f("stats by (a, b) avg(c) as x", [][]Field{
-		{
-			{"_msg", `abc`},
-			{"a", `1`},
-			{"b", `3`},
-		},
-		{
-			{"_msg", `def`},
-			{"a", `1`},
-			{"c", "3"},
-		},
-		{
-			{"a", `3`},
-			{"b", `5`},
-		},
-	}, [][]Field{
-		{
-			{"a", "1"},
-			{"b", "3"},
-			{"x", "NaN"},
-		},
-		{
-			{"a", "1"},
-			{"b", ""},
-			{"x", "3"},
-		},
-		{
-			{"a", "3"},
-			{"b", "5"},
-			{"x", "NaN"},
-		},
-	})
-}
-
-func expectParseStatsFuncFailure(t *testing.T, s string) {
-	t.Helper()
-
-	lex := newLexer(s)
-	sf, err := parseStatsFunc(lex)
-	if err == nil && lex.isEnd() {
-		t.Fatalf("expecting error when parsing [%s]; parsed result: [%s]", s, sf)
-	}
-}
-
-func expectParseStatsFuncSuccess(t *testing.T, s string) {
-	t.Helper()
-
-	lex := newLexer(s)
-	p, err := parseStatsFunc(lex)
-	if err != nil {
-		t.Fatalf("cannot parse [%s]: %s", s, err)
-	}
-	if !lex.isEnd() {
-		t.Fatalf("unexpected tail after parsing [%s]: [%s]", s, lex.s)
-	}
-
-	sResult := p.String()
-	if sResult != s {
-		t.Fatalf("unexpected string representation of stats func; got\n%s\nwant\n%s", sResult, s)
-	}
 }
