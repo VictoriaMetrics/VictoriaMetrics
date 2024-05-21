@@ -17,7 +17,7 @@ type statsQuantile struct {
 	fields       []string
 	containsStar bool
 
-	phi float64
+	phi    float64
 	phiStr string
 }
 
@@ -206,7 +206,7 @@ func parseStatsQuantile(lex *lexer) (*statsQuantile, error) {
 		fields:       fields,
 		containsStar: slices.Contains(fields, "*"),
 
-		phi: phi,
+		phi:    phi,
 		phiStr: phiStr,
 	}
 	return sq, nil
