@@ -34,6 +34,7 @@ according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/QuickSta
 
 * BUGFIX: fix `invalid memory address or nil pointer dereference` panic when using [`extract`](https://docs.victoriametrics.com/victorialogs/logsql/#extract-pipe), [`unpack_json`](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_json-pipe) or [`unpack_logfmt`](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_logfmt-pipe) pipes. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6306).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/VictoriaLogs/querying/#web-ui): fix an issue where logs with long `_msg` values might not display. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6281).
+* BUGFIX: properly handle time range boundaries with millisecond precision. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6293).
 
 ## [v0.8.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.8.0-victorialogs)
 
