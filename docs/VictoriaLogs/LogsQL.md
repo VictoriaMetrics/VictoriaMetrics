@@ -1630,8 +1630,8 @@ See also:
 
 ### unpack_json pipe
 
-`| unpack_json from field_name` pipe unpacks `{"k1":"v1", ..., "kN":"vN"}` JSON from the given `field_name` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-into `k1`, ... `kN` field names with the corresponding `v1`, ..., `vN` values. It overrides existing fields with names from the `k1`, ..., `kN` list. Other fields remain untouched.
+`| unpack_json from field_name` pipe unpacks `{"k1":"v1", ..., "kN":"vN"}` JSON from the given input [`field_name`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+into `k1`, ... `kN` output field names with the corresponding `v1`, ..., `vN` values. It overrides existing fields with names from the `k1`, ..., `kN` list. Other fields remain untouched.
 
 Nested JSON is unpacked according to the rules defined [here](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
@@ -1648,19 +1648,26 @@ The following query is equivalent to the previous one:
 _time:5m | unpack_json
 ```
 
-If you want to make sure that the unpacked JSON fields do not clash with the existing fields, then specify common prefix for all the fields extracted from JSON,
-by adding `result_prefix "prefix_name"` to `unpack_json`. For example, the following query adds `foo_` prefix for all the unpacked fields
-form [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
+If only some fields must be extracted from JSON, then they can be enumerated inside `fields (...)`. For example, the following query unpacks only `foo` and `bar`
+fields from JSON value stored in `my_json` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
 
 ```logsql
-_time:5m | unpack_json result_prefix "foo_"
+_time:5m | unpack_json from my_json fields (foo, bar)
 ```
 
 Performance tip: if you need extracting a single field from long JSON, it is faster to use [`extract` pipe](#extract-pipe). For example, the following query extracts `"ip"` field from JSON
-stored in [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
+stored in [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) at the maximum speed:
 
 ```
 _time:5m | extract '"ip":<ip>'
+```
+
+If you want to make sure that the unpacked JSON fields do not clash with the existing fields, then specify common prefix for all the fields extracted from JSON,
+by adding `result_prefix "prefix_name"` to `unpack_json`. For example, the following query adds `foo_` prefix for all the unpacked fields
+form `foo`:
+
+```logsql
+_time:5m | unpack_json from foo result_prefix "foo_"
 ```
 
 See also:

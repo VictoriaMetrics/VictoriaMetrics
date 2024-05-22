@@ -121,7 +121,10 @@ func statsFuncFieldsToString(fields []string) string {
 	if len(fields) == 0 {
 		return "*"
 	}
+	return fieldsToString(fields)
+}
 
+func fieldsToString(fields []string) string {
 	a := make([]string, len(fields))
 	for i, f := range fields {
 		a[i] = quoteTokenIfNeeded(f)
