@@ -93,7 +93,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			// See https://developer.chrome.com/docs/lighthouse/performance/uses-long-cache-ttl/
 			w.Header().Set("Cache-Control", "max-age=31536000")
 		}
-		r.URL.Path = path
+		r.URL.Path = strings.TrimPrefix(path, "/select")
 		vmuiFileServer.ServeHTTP(w, r)
 		return true
 	}
