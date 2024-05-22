@@ -86,7 +86,7 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	shard := &pup.shards[workerID]
-	shard.wctx.init(br, pup.ppBase)
+	shard.wctx.init(workerID, br, pup.ppBase)
 
 	bm := &shard.bm
 	bm.init(len(br.timestamps))
@@ -137,9 +137,10 @@ func (pup *pipeUnpackProcessor) flush() error {
 }
 
 type pipeUnpackWriteContext struct {
-	brSrc  *blockResult
-	csSrc  []*blockResultColumn
-	ppBase pipeProcessor
+	workerID uint
+	brSrc    *blockResult
+	csSrc    []*blockResultColumn
+	ppBase   pipeProcessor
 
 	rcs []resultColumn
 	br  blockResult
@@ -152,6 +153,7 @@ type pipeUnpackWriteContext struct {
 }
 
 func (wctx *pipeUnpackWriteContext) reset() {
+	wctx.workerID = 0
 	wctx.brSrc = nil
 	wctx.csSrc = nil
 	wctx.ppBase = nil
@@ -166,9 +168,10 @@ func (wctx *pipeUnpackWriteContext) reset() {
 	wctx.valuesLen = 0
 }
 
-func (wctx *pipeUnpackWriteContext) init(brSrc *blockResult, ppBase pipeProcessor) {
+func (wctx *pipeUnpackWriteContext) init(workerID uint, brSrc *blockResult, ppBase pipeProcessor) {
 	wctx.reset()
 
+	wctx.workerID = workerID
 	wctx.brSrc = brSrc
 	wctx.csSrc = brSrc.getColumns()
 	wctx.ppBase = ppBase
@@ -228,7 +231,7 @@ func (wctx *pipeUnpackWriteContext) flush() {
 	br := &wctx.br
 	br.setResultColumns(rcs, wctx.rowsCount)
 	wctx.rowsCount = 0
-	wctx.ppBase.writeBlock(0, br)
+	wctx.ppBase.writeBlock(wctx.workerID, br)
 	br.reset()
 	for i := range rcs {
 		rcs[i].resetValues()

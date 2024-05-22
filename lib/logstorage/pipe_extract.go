@@ -116,7 +116,7 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	shard := &pep.shards[workerID]
-	shard.wctx.init(br, pep.ppBase)
+	shard.wctx.init(workerID, br, pep.ppBase)
 	ef := shard.ef
 
 	bm := &shard.bm
