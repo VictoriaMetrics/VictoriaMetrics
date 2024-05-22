@@ -98,6 +98,13 @@ func (bm *bitmap) areAllBitsSet() bool {
 	return true
 }
 
+func (bm *bitmap) isSetBit(i int) bool {
+	wordIdx := uint(i) / 64
+	wordOffset := uint(i) % 64
+	word := bm.a[wordIdx]
+	return (word & (1 << wordOffset)) != 0
+}
+
 func (bm *bitmap) andNot(x *bitmap) {
 	if bm.bitsLen != x.bitsLen {
 		logger.Panicf("BUG: cannot merge bitmaps with distinct lengths; %d vs %d", bm.bitsLen, x.bitsLen)

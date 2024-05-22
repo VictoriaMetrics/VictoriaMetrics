@@ -258,7 +258,8 @@ func (shard *pipeTopkProcessorShard) addRow(br *blockResult, byColumns []string,
 	r.timestamp = timestamp
 
 	rows := shard.rows
-	if len(rows) > 0 && !topkLess(shard.ps, r, rows[0]) {
+	maxRows := shard.ps.offset + shard.ps.limit
+	if uint64(len(rows)) >= maxRows && !topkLess(shard.ps, r, rows[0]) {
 		// Fast path - nothing to add.
 		return
 	}
@@ -282,7 +283,7 @@ func (shard *pipeTopkProcessorShard) addRow(br *blockResult, byColumns []string,
 	shard.stateSizeBudget -= r.sizeBytes()
 
 	// Push r to shard.rows.
-	if uint64(len(rows)) < shard.ps.offset+shard.ps.limit {
+	if uint64(len(rows)) < maxRows {
 		heap.Push(shard, r)
 		shard.stateSizeBudget -= int(unsafe.Sizeof(r))
 	} else {
@@ -424,8 +425,14 @@ type pipeTopkWriteContext struct {
 	rcs []resultColumn
 	br  blockResult
 
+	// rowsWritten is the total number of rows passed to writeNextRow.
 	rowsWritten uint64
-	valuesLen   int
+
+	// rowsCount is the number of rows in the current block
+	rowsCount int
+
+	// valuesLen is the total length of values in the current block
+	valuesLen int
 }
 
 func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bool {
@@ -457,7 +464,7 @@ func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bo
 		}
 	}
 	if !areEqualColumns {
-		// send the current block to bbBase and construct a block with new set of columns
+		// send the current block to ppBase and construct a block with new set of columns
 		wctx.flush()
 
 		rcs = wctx.rcs[:0]
@@ -489,6 +496,7 @@ func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bo
 		wctx.valuesLen += len(v)
 	}
 
+	wctx.rowsCount++
 	if wctx.valuesLen >= 1_000_000 {
 		wctx.flush()
 	}
@@ -502,12 +510,9 @@ func (wctx *pipeTopkWriteContext) flush() {
 
 	wctx.valuesLen = 0
 
-	if len(rcs) == 0 {
-		return
-	}
-
 	// Flush rcs to ppBase
-	br.setResultColumns(rcs)
+	br.setResultColumns(rcs, wctx.rowsCount)
+	wctx.rowsCount = 0
 	wctx.ptp.ppBase.writeBlock(0, br)
 	br.reset()
 	for i := range rcs {

@@ -77,7 +77,7 @@ func (pfp *pipeFieldsProcessor) flush() error {
 }
 
 func parsePipeFields(lex *lexer) (*pipeFields, error) {
-	if !lex.isKeyword("fields") {
+	if !lex.isKeyword("fields", "keep") {
 		return nil, fmt.Errorf("expecting 'fields'; got %q", lex.token)
 	}
 
