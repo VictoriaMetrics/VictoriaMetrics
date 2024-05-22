@@ -52,7 +52,7 @@ func (pu *pipeUnpackJSON) newPipeProcessor(workersCount int, _ <-chan struct{}, 
 	return newPipeUnpackProcessor(workersCount, unpackJSON, ppBase, pu.fromField, pu.resultPrefix, pu.iff)
 }
 
-func unpackJSON(uctx *fieldsUnpackerContext, s, fieldPrefix string) {
+func unpackJSON(uctx *fieldsUnpackerContext, s string) {
 	if len(s) == 0 || s[0] != '{' {
 		// This isn't a JSON object
 		return
@@ -60,7 +60,7 @@ func unpackJSON(uctx *fieldsUnpackerContext, s, fieldPrefix string) {
 	p := GetJSONParser()
 	if err := p.ParseLogMessage(bytesutil.ToUnsafeBytes(s)); err == nil {
 		for _, f := range p.Fields {
-			uctx.addField(f.Name, f.Value, fieldPrefix)
+			uctx.addField(f.Name, f.Value)
 		}
 	}
 	PutJSONParser(p)

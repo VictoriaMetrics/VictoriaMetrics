@@ -11,7 +11,7 @@ type pipeExtract struct {
 	fromField string
 	steps     []patternStep
 
-	pattern string
+	patternStr string
 
 	// iff is an optional filter for skipping the extract func
 	iff *ifFilter
@@ -22,7 +22,7 @@ func (pe *pipeExtract) String() string {
 	if !isMsgFieldName(pe.fromField) {
 		s += " from " + quoteTokenIfNeeded(pe.fromField)
 	}
-	s += " " + quoteTokenIfNeeded(pe.pattern)
+	s += " " + quoteTokenIfNeeded(pe.patternStr)
 	if pe.iff != nil {
 		s += " " + pe.iff.String()
 	}
@@ -73,11 +73,11 @@ func (pe *pipeExtract) newPipeProcessor(workersCount int, _ <-chan struct{}, _ f
 		patterns[i] = newPattern(pe.steps)
 	}
 
-	unpackFunc := func(uctx *fieldsUnpackerContext, s, fieldPrefix string) {
+	unpackFunc := func(uctx *fieldsUnpackerContext, s string) {
 		ptn := patterns[uctx.workerID]
 		ptn.apply(s)
 		for _, f := range ptn.fields {
-			uctx.addField(f.name, *f.value, fieldPrefix)
+			uctx.addField(f.name, *f.value)
 		}
 	}
 
@@ -101,19 +101,19 @@ func parsePipeExtract(lex *lexer) (*pipeExtract, error) {
 	}
 
 	// parse pattern
-	pattern, err := getCompoundToken(lex)
+	patternStr, err := getCompoundToken(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read 'pattern': %w", err)
 	}
-	steps, err := parsePatternSteps(pattern)
+	steps, err := parsePatternSteps(patternStr)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse 'pattern' %q: %w", pattern, err)
+		return nil, fmt.Errorf("cannot parse 'pattern' %q: %w", patternStr, err)
 	}
 
 	pe := &pipeExtract{
-		fromField: fromField,
-		steps:     steps,
-		pattern:   pattern,
+		fromField:  fromField,
+		steps:      steps,
+		patternStr: patternStr,
 	}
 
 	// parse optional if (...)

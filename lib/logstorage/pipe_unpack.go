@@ -7,13 +7,16 @@ import (
 )
 
 type fieldsUnpackerContext struct {
-	workerID uint
-	fields   []Field
-	a        arena
+	workerID    uint
+	fieldPrefix string
+
+	fields []Field
+	a      arena
 }
 
 func (uctx *fieldsUnpackerContext) reset() {
 	uctx.workerID = 0
+	uctx.fieldPrefix = ""
 	uctx.resetFields()
 	uctx.a.reset()
 }
@@ -23,8 +26,16 @@ func (uctx *fieldsUnpackerContext) resetFields() {
 	uctx.fields = uctx.fields[:0]
 }
 
-func (uctx *fieldsUnpackerContext) addField(name, value, fieldPrefix string) {
+func (uctx *fieldsUnpackerContext) init(workerID uint, fieldPrefix string) {
+	uctx.reset()
+
+	uctx.workerID = workerID
+	uctx.fieldPrefix = fieldPrefix
+}
+
+func (uctx *fieldsUnpackerContext) addField(name, value string) {
 	nameCopy := ""
+	fieldPrefix := uctx.fieldPrefix
 	if fieldPrefix != "" {
 		nameBuf := uctx.a.newBytes(len(fieldPrefix) + len(name))
 		copy(nameBuf, fieldPrefix)
@@ -42,13 +53,8 @@ func (uctx *fieldsUnpackerContext) addField(name, value, fieldPrefix string) {
 	})
 }
 
-func newPipeUnpackProcessor(workersCount int, unpackFunc func(uctx *fieldsUnpackerContext, s, fieldPrefix string), ppBase pipeProcessor,
+func newPipeUnpackProcessor(workersCount int, unpackFunc func(uctx *fieldsUnpackerContext, s string), ppBase pipeProcessor,
 	fromField, fieldPrefix string, iff *ifFilter) *pipeUnpackProcessor {
-
-	shards := make([]pipeUnpackProcessorShard, workersCount)
-	for i := range shards {
-		shards[i].wctx.workerID = uint(i)
-	}
 
 	return &pipeUnpackProcessor{
 		unpackFunc: unpackFunc,
@@ -63,7 +69,7 @@ func newPipeUnpackProcessor(workersCount int, unpackFunc func(uctx *fieldsUnpack
 }
 
 type pipeUnpackProcessor struct {
-	unpackFunc func(uctx *fieldsUnpackerContext, s, fieldPrefix string)
+	unpackFunc func(uctx *fieldsUnpackerContext, s string)
 	ppBase     pipeProcessor
 
 	shards []pipeUnpackProcessorShard
@@ -94,7 +100,8 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	shard := &pup.shards[workerID]
-	shard.wctx.init(workerID, br, pup.ppBase)
+	shard.wctx.init(workerID, pup.ppBase, br)
+	shard.uctx.init(workerID, pup.fieldPrefix)
 
 	bm := &shard.bm
 	bm.init(len(br.timestamps))
@@ -111,7 +118,7 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 	if c.isConst {
 		v := c.valuesEncoded[0]
 		shard.uctx.resetFields()
-		pup.unpackFunc(&shard.uctx, v, pup.fieldPrefix)
+		pup.unpackFunc(&shard.uctx, v)
 		for rowIdx := range br.timestamps {
 			if bm.isSetBit(rowIdx) {
 				shard.wctx.writeRow(rowIdx, shard.uctx.fields)
@@ -126,7 +133,7 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 			if bm.isSetBit(i) {
 				if vPrevApplied != v {
 					shard.uctx.resetFields()
-					pup.unpackFunc(&shard.uctx, v, pup.fieldPrefix)
+					pup.unpackFunc(&shard.uctx, v)
 					vPrevApplied = v
 				}
 				shard.wctx.writeRow(i, shard.uctx.fields)
@@ -137,6 +144,7 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	shard.wctx.flush()
+	shard.wctx.reset()
 	shard.uctx.reset()
 }
 
@@ -146,9 +154,10 @@ func (pup *pipeUnpackProcessor) flush() error {
 
 type pipeUnpackWriteContext struct {
 	workerID uint
-	brSrc    *blockResult
-	csSrc    []*blockResultColumn
 	ppBase   pipeProcessor
+
+	brSrc *blockResult
+	csSrc []*blockResultColumn
 
 	rcs []resultColumn
 	br  blockResult
@@ -162,9 +171,10 @@ type pipeUnpackWriteContext struct {
 
 func (wctx *pipeUnpackWriteContext) reset() {
 	wctx.workerID = 0
+	wctx.ppBase = nil
+
 	wctx.brSrc = nil
 	wctx.csSrc = nil
-	wctx.ppBase = nil
 
 	rcs := wctx.rcs
 	for i := range rcs {
@@ -176,13 +186,14 @@ func (wctx *pipeUnpackWriteContext) reset() {
 	wctx.valuesLen = 0
 }
 
-func (wctx *pipeUnpackWriteContext) init(workerID uint, brSrc *blockResult, ppBase pipeProcessor) {
+func (wctx *pipeUnpackWriteContext) init(workerID uint, ppBase pipeProcessor, brSrc *blockResult) {
 	wctx.reset()
 
 	wctx.workerID = workerID
+	wctx.ppBase = ppBase
+
 	wctx.brSrc = brSrc
 	wctx.csSrc = brSrc.getColumns()
-	wctx.ppBase = ppBase
 }
 
 func (wctx *pipeUnpackWriteContext) writeRow(rowIdx int, extraFields []Field) {

@@ -51,7 +51,7 @@ func (pu *pipeUnpackLogfmt) newPipeProcessor(workersCount int, _ <-chan struct{}
 	return newPipeUnpackProcessor(workersCount, unpackLogfmt, ppBase, pu.fromField, pu.resultPrefix, pu.iff)
 }
 
-func unpackLogfmt(uctx *fieldsUnpackerContext, s, fieldPrefix string) {
+func unpackLogfmt(uctx *fieldsUnpackerContext, s string) {
 	for {
 		// Search for field name
 		n := strings.IndexByte(s, '=')
@@ -63,13 +63,13 @@ func unpackLogfmt(uctx *fieldsUnpackerContext, s, fieldPrefix string) {
 		name := strings.TrimSpace(s[:n])
 		s = s[n+1:]
 		if len(s) == 0 {
-			uctx.addField(name, "", fieldPrefix)
+			uctx.addField(name, "")
 		}
 
 		// Search for field value
 		value, nOffset := tryUnquoteString(s)
 		if nOffset >= 0 {
-			uctx.addField(name, value, fieldPrefix)
+			uctx.addField(name, value)
 			s = s[nOffset:]
 			if len(s) == 0 {
 				return
@@ -81,10 +81,10 @@ func unpackLogfmt(uctx *fieldsUnpackerContext, s, fieldPrefix string) {
 		} else {
 			n := strings.IndexByte(s, ' ')
 			if n < 0 {
-				uctx.addField(name, s, fieldPrefix)
+				uctx.addField(name, s)
 				return
 			}
-			uctx.addField(name, s[:n], fieldPrefix)
+			uctx.addField(name, s[:n])
 			s = s[n+1:]
 		}
 	}
