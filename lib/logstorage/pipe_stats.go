@@ -2,7 +2,6 @@ package logstorage
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 	"sync/atomic"
 	"unsafe"
@@ -829,24 +828,6 @@ func tryParseBucketSize(s string) (float64, bool) {
 	}
 
 	return 0, false
-}
-
-// parseFieldNamesForStatsFunc parses field names for statsFunc.
-//
-// It returns ["*"] if the fields names list is empty or if it contains "*" field.
-func parseFieldNamesForStatsFunc(lex *lexer, funcName string) ([]string, error) {
-	if !lex.isKeyword(funcName) {
-		return nil, fmt.Errorf("unexpected func; got %q; want %q", lex.token, funcName)
-	}
-	lex.nextToken()
-	fields, err := parseFieldNamesInParens(lex)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse %q args: %w", funcName, err)
-	}
-	if len(fields) == 0 || slices.Contains(fields, "*") {
-		fields = []string{"*"}
-	}
-	return fields, nil
 }
 
 func parseFieldNamesInParens(lex *lexer) ([]string, error) {

@@ -14,19 +14,23 @@ import (
 )
 
 type statsQuantile struct {
-	fields       []string
-	containsStar bool
+	fields []string
 
 	phi    float64
 	phiStr string
 }
 
 func (sq *statsQuantile) String() string {
-	return fmt.Sprintf("quantile(%s, %s)", sq.phiStr, fieldNamesString(sq.fields))
+	s := "quantile(" + sq.phiStr
+	if len(sq.fields) > 0 {
+		s += ", " + fieldNamesString(sq.fields)
+	}
+	s += ")"
+	return s
 }
 
 func (sq *statsQuantile) updateNeededFields(neededFields fieldsSet) {
-	neededFields.addFields(sq.fields)
+	updateNeededFieldsForStatsFunc(neededFields, sq.fields)
 }
 
 func (sq *statsQuantile) newStatsProcessor() (statsProcessor, int) {
@@ -45,12 +49,13 @@ type statsQuantileProcessor struct {
 func (sqp *statsQuantileProcessor) updateStatsForAllRows(br *blockResult) int {
 	stateSizeIncrease := 0
 
-	if sqp.sq.containsStar {
+	fields := sqp.sq.fields
+	if len(fields) == 0 {
 		for _, c := range br.getColumns() {
 			stateSizeIncrease += sqp.updateStateForColumn(br, c)
 		}
 	} else {
-		for _, field := range sqp.sq.fields {
+		for _, field := range fields {
 			c := br.getColumnByName(field)
 			stateSizeIncrease += sqp.updateStateForColumn(br, c)
 		}
@@ -63,7 +68,8 @@ func (sqp *statsQuantileProcessor) updateStatsForRow(br *blockResult, rowIdx int
 	h := &sqp.h
 	stateSizeIncrease := 0
 
-	if sqp.sq.containsStar {
+	fields := sqp.sq.fields
+	if len(fields) == 0 {
 		for _, c := range br.getColumns() {
 			f, ok := c.getFloatValueAtRow(br, rowIdx)
 			if ok {
@@ -71,7 +77,7 @@ func (sqp *statsQuantileProcessor) updateStatsForRow(br *blockResult, rowIdx int
 			}
 		}
 	} else {
-		for _, field := range sqp.sq.fields {
+		for _, field := range fields {
 			c := br.getColumnByName(field)
 			f, ok := c.getFloatValueAtRow(br, rowIdx)
 			if ok {
@@ -182,8 +188,8 @@ func parseStatsQuantile(lex *lexer) (*statsQuantile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse 'quantile' args: %w", err)
 	}
-	if len(fields) < 2 {
-		return nil, fmt.Errorf("'quantile' must have at least two args: phi and field name")
+	if len(fields) < 1 {
+		return nil, fmt.Errorf("'quantile' must have at least phi arg")
 	}
 
 	// Parse phi
@@ -199,12 +205,11 @@ func parseStatsQuantile(lex *lexer) (*statsQuantile, error) {
 	// Parse fields
 	fields = fields[1:]
 	if slices.Contains(fields, "*") {
-		fields = []string{"*"}
+		fields = nil
 	}
 
 	sq := &statsQuantile{
-		fields:       fields,
-		containsStar: slices.Contains(fields, "*"),
+		fields: fields,
 
 		phi:    phi,
 		phiStr: phiStr,

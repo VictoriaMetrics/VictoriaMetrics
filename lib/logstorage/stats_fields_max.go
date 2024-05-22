@@ -14,23 +14,23 @@ import (
 type statsFieldsMax struct {
 	srcField string
 
-	resultFields []string
+	fetchFields []string
 }
 
 func (sm *statsFieldsMax) String() string {
 	s := "fields_max(" + quoteTokenIfNeeded(sm.srcField)
-	if len(sm.resultFields) > 0 {
-		s += ", " + fieldNamesString(sm.resultFields)
+	if len(sm.fetchFields) > 0 {
+		s += ", " + fieldNamesString(sm.fetchFields)
 	}
 	s += ")"
 	return s
 }
 
 func (sm *statsFieldsMax) updateNeededFields(neededFields fieldsSet) {
-	if len(sm.resultFields) == 0 {
+	if len(sm.fetchFields) == 0 {
 		neededFields.add("*")
 	} else {
-		neededFields.addFields(sm.resultFields)
+		neededFields.addFields(sm.fetchFields)
 	}
 	neededFields.add(sm.srcField)
 }
@@ -177,7 +177,8 @@ func (smp *statsFieldsMaxProcessor) updateState(v string, br *blockResult, rowId
 
 	clear(fields)
 	fields = fields[:0]
-	if len(smp.sm.resultFields) == 0 {
+	fetchFields := smp.sm.fetchFields
+	if len(fetchFields) == 0 {
 		cs := br.getColumns()
 		for _, c := range cs {
 			v := c.getValueAtRow(br, rowIdx)
@@ -188,7 +189,7 @@ func (smp *statsFieldsMaxProcessor) updateState(v string, br *blockResult, rowId
 			stateSizeIncrease += len(c.name) + len(v)
 		}
 	} else {
-		for _, field := range smp.sm.resultFields {
+		for _, field := range fetchFields {
 			c := br.getColumnByName(field)
 			v := c.getValueAtRow(br, rowIdx)
 			fields = append(fields, Field{
@@ -227,14 +228,14 @@ func parseStatsFieldsMax(lex *lexer) (*statsFieldsMax, error) {
 	}
 
 	srcField := fields[0]
-	resultFields := fields[1:]
-	if slices.Contains(resultFields, "*") {
-		resultFields = nil
+	fetchFields := fields[1:]
+	if slices.Contains(fetchFields, "*") {
+		fetchFields = nil
 	}
 
 	sm := &statsFieldsMax{
-		srcField:     srcField,
-		resultFields: resultFields,
+		srcField:    srcField,
+		fetchFields: fetchFields,
 	}
 	return sm, nil
 }

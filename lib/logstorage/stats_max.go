@@ -2,7 +2,6 @@ package logstorage
 
 import (
 	"math"
-	"slices"
 	"strings"
 	"unsafe"
 
@@ -15,14 +14,11 @@ type statsMax struct {
 }
 
 func (sm *statsMax) String() string {
-	if len(sm.fields) == 0 {
-		return "max(*)"
-	}
-	return "max(" + fieldNamesString(sm.fields) + ")"
+	return "max(" + statsFuncFieldsToString(sm.fields) + ")"
 }
 
 func (sm *statsMax) updateNeededFields(neededFields fieldsSet) {
-	neededFields.addFields(sm.fields)
+	updateNeededFieldsForStatsFunc(neededFields, sm.fields)
 }
 
 func (sm *statsMax) newStatsProcessor() (statsProcessor, int) {
@@ -168,12 +164,9 @@ func (smp *statsMaxProcessor) finalizeStats() string {
 }
 
 func parseStatsMax(lex *lexer) (*statsMax, error) {
-	fields, err := parseFieldNamesForStatsFunc(lex, "max")
+	fields, err := parseStatsFuncFields(lex, "max")
 	if err != nil {
 		return nil, err
-	}
-	if slices.Contains(fields, "*") {
-		fields = nil
 	}
 	sm := &statsMax{
 		fields: fields,

@@ -1,42 +1,43 @@
 package logstorage
 
 import (
-	"math"
 	"testing"
 )
 
-func TestParseStatsQuantileSuccess(t *testing.T) {
+func TestParseStatsCountUniqSuccess(t *testing.T) {
 	f := func(pipeStr string) {
 		t.Helper()
 		expectParseStatsFuncSuccess(t, pipeStr)
 	}
 
-	f(`quantile(0.3)`)
-	f(`quantile(1, a)`)
-	f(`quantile(0.99, a, b)`)
+	f(`count_uniq(*)`)
+	f(`count_uniq(a)`)
+	f(`count_uniq(a, b)`)
+	f(`count_uniq(*) limit 10`)
+	f(`count_uniq(a) limit 20`)
+	f(`count_uniq(a, b) limit 5`)
 }
 
-func TestParseStatsQuantileFailure(t *testing.T) {
+func TestParseStatsCountUniqFailure(t *testing.T) {
 	f := func(pipeStr string) {
 		t.Helper()
 		expectParseStatsFuncFailure(t, pipeStr)
 	}
 
-	f(`quantile`)
-	f(`quantile(a)`)
-	f(`quantile(a, b)`)
-	f(`quantile(10, b)`)
-	f(`quantile(-1, b)`)
-	f(`quantile(0.5, b) c`)
+	f(`count_uniq`)
+	f(`count_uniq(a b)`)
+	f(`count_uniq(x) y`)
+	f(`count_uniq(x) limit`)
+	f(`count_uniq(x) limit N`)
 }
 
-func TestStatsQuantile(t *testing.T) {
+func TestStatsCountUniq(t *testing.T) {
 	f := func(pipeStr string, rows, rowsExpected [][]Field) {
 		t.Helper()
 		expectPipeResults(t, pipeStr, rows, rowsExpected)
 	}
 
-	f("stats quantile(0.9) as x", [][]Field{
+	f("stats count_uniq(*) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `2`},
@@ -46,26 +47,7 @@ func TestStatsQuantile(t *testing.T) {
 			{"_msg", `def`},
 			{"a", `1`},
 		},
-		{
-			{"a", `3`},
-			{"b", `54`},
-		},
-	}, [][]Field{
-		{
-			{"x", "54"},
-		},
-	})
-
-	f("stats quantile(0.9, a) as x", [][]Field{
-		{
-			{"_msg", `abc`},
-			{"a", `2`},
-			{"b", `3`},
-		},
-		{
-			{"_msg", `def`},
-			{"a", `1`},
-		},
+		{},
 		{
 			{"a", `3`},
 			{"b", `54`},
@@ -76,7 +58,7 @@ func TestStatsQuantile(t *testing.T) {
 		},
 	})
 
-	f("stats quantile(0.9, a, b) as x", [][]Field{
+	f("stats count_uniq(*) limit 2 as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `2`},
@@ -86,103 +68,120 @@ func TestStatsQuantile(t *testing.T) {
 			{"_msg", `def`},
 			{"a", `1`},
 		},
+		{},
 		{
 			{"a", `3`},
 			{"b", `54`},
 		},
 	}, [][]Field{
 		{
-			{"x", "54"},
-		},
-	})
-
-	f("stats quantile(0.9, b) as x", [][]Field{
-		{
-			{"_msg", `abc`},
-			{"a", `2`},
-			{"b", `3`},
-		},
-		{
-			{"_msg", `def`},
-			{"a", `1`},
-		},
-		{
-			{"a", `3`},
-			{"b", `54`},
-		},
-	}, [][]Field{
-		{
-			{"x", "54"},
-		},
-	})
-
-	f("stats quantile(0.9, c) as x", [][]Field{
-		{
-			{"_msg", `abc`},
-			{"a", `2`},
-			{"b", `3`},
-		},
-		{
-			{"_msg", `def`},
-			{"a", `1`},
-		},
-		{
-			{"a", `3`},
-			{"b", `54`},
-		},
-	}, [][]Field{
-		{
-			{"x", "NaN"},
-		},
-	})
-
-	f("stats quantile(0.9, a) if (b:*) as x", [][]Field{
-		{
-			{"_msg", `abc`},
-			{"a", `2`},
-			{"b", `3`},
-		},
-		{
-			{"_msg", `def`},
-			{"a", `1`},
-		},
-		{
-			{"a", `3`},
-			{"b", `54`},
-		},
-	}, [][]Field{
-		{
-			{"x", "3"},
-		},
-	})
-
-	f("stats by (b) quantile(0.9, a) if (b:*) as x", [][]Field{
-		{
-			{"_msg", `abc`},
-			{"a", `2`},
-			{"b", `3`},
-		},
-		{
-			{"_msg", `def`},
-			{"a", `1`},
-			{"b", "3"},
-		},
-		{
-			{"a", `3`},
-			{"c", `54`},
-		},
-	}, [][]Field{
-		{
-			{"b", "3"},
 			{"x", "2"},
 		},
+	})
+
+	f("stats count_uniq(*) limit 10 as x", [][]Field{
 		{
-			{"b", ""},
-			{"x", "NaN"},
+			{"_msg", `abc`},
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+		},
+		{},
+		{
+			{"a", `3`},
+			{"b", `54`},
+		},
+	}, [][]Field{
+		{
+			{"x", "3"},
 		},
 	})
 
-	f("stats by (a) quantile(0.9, b) as x", [][]Field{
+	f("stats count_uniq(b) as x", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+		},
+		{},
+		{
+			{"a", `3`},
+			{"b", `54`},
+		},
+	}, [][]Field{
+		{
+			{"x", "2"},
+		},
+	})
+
+	f("stats count_uniq(a, b) as x", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+		},
+		{},
+		{
+			{"aa", `3`},
+			{"bb", `54`},
+		},
+	}, [][]Field{
+		{
+			{"x", "2"},
+		},
+	})
+
+	f("stats count_uniq(c) as x", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+		},
+		{
+			{"a", `3`},
+			{"b", `54`},
+		},
+	}, [][]Field{
+		{
+			{"x", "0"},
+		},
+	})
+
+	f("stats count_uniq(a) if (b:*) as x", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+		},
+		{
+			{"b", `54`},
+		},
+	}, [][]Field{
+		{
+			{"x", "1"},
+		},
+	})
+
+	f("stats by (a) count_uniq(b) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `1`},
@@ -203,15 +202,46 @@ func TestStatsQuantile(t *testing.T) {
 	}, [][]Field{
 		{
 			{"a", "1"},
-			{"x", "3"},
+			{"x", "1"},
 		},
 		{
 			{"a", "3"},
-			{"x", "7"},
+			{"x", "2"},
 		},
 	})
 
-	f("stats by (a) quantile(0.9) as x", [][]Field{
+	f("stats by (a) count_uniq(b) if (!c:foo) as x", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `1`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+			{"b", "aadf"},
+			{"c", "foo"},
+		},
+		{
+			{"a", `3`},
+			{"b", `5`},
+			{"c", "bar"},
+		},
+		{
+			{"a", `3`},
+		},
+	}, [][]Field{
+		{
+			{"a", "1"},
+			{"x", "1"},
+		},
+		{
+			{"a", "3"},
+			{"x", "1"},
+		},
+	})
+
+	f("stats by (a) count_uniq(*) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `1`},
@@ -222,26 +252,27 @@ func TestStatsQuantile(t *testing.T) {
 			{"a", `1`},
 			{"c", "3"},
 		},
+		{},
 		{
 			{"a", `3`},
 			{"b", `5`},
 		},
-		{
-			{"a", `3`},
-			{"b", `7`},
-		},
 	}, [][]Field{
 		{
+			{"a", ""},
+			{"x", "0"},
+		},
+		{
 			{"a", "1"},
-			{"x", "3"},
+			{"x", "2"},
 		},
 		{
 			{"a", "3"},
-			{"x", "7"},
+			{"x", "1"},
 		},
 	})
 
-	f("stats by (a) quantile(0.9, c) as x", [][]Field{
+	f("stats by (a) count_uniq(c) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `1`},
@@ -262,15 +293,15 @@ func TestStatsQuantile(t *testing.T) {
 	}, [][]Field{
 		{
 			{"a", "1"},
-			{"x", "NaN"},
+			{"x", "0"},
 		},
 		{
 			{"a", "3"},
-			{"x", "5"},
+			{"x", "1"},
 		},
 	})
 
-	f("stats by (a) quantile(0.9, a, b, c) as x", [][]Field{
+	f("stats by (a) count_uniq(a, b, c) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `1`},
@@ -284,6 +315,9 @@ func TestStatsQuantile(t *testing.T) {
 		{
 			{"a", `3`},
 			{"b", `5`},
+		},
+		{
+			{"foo", "bar"},
 		},
 		{
 			{"a", `3`},
@@ -292,15 +326,19 @@ func TestStatsQuantile(t *testing.T) {
 	}, [][]Field{
 		{
 			{"a", "1"},
-			{"x", "3"},
+			{"x", "2"},
+		},
+		{
+			{"a", ""},
+			{"x", "0"},
 		},
 		{
 			{"a", "3"},
-			{"x", "7"},
+			{"x", "2"},
 		},
 	})
 
-	f("stats by (a, b) quantile(0.9, a) as x", [][]Field{
+	f("stats by (a, b) count_uniq(a) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `1`},
@@ -312,7 +350,7 @@ func TestStatsQuantile(t *testing.T) {
 			{"c", "3"},
 		},
 		{
-			{"a", `3`},
+			{"c", `3`},
 			{"b", `5`},
 		},
 	}, [][]Field{
@@ -327,91 +365,9 @@ func TestStatsQuantile(t *testing.T) {
 			{"x", "1"},
 		},
 		{
-			{"a", "3"},
+			{"a", ""},
 			{"b", "5"},
-			{"x", "3"},
+			{"x", "0"},
 		},
 	})
-
-	f("stats by (a, b) quantile(0.9, c) as x", [][]Field{
-		{
-			{"_msg", `abc`},
-			{"a", `1`},
-			{"b", `3`},
-		},
-		{
-			{"_msg", `def`},
-			{"a", `1`},
-			{"c", "3"},
-		},
-		{
-			{"a", `3`},
-			{"b", `5`},
-		},
-	}, [][]Field{
-		{
-			{"a", "1"},
-			{"b", "3"},
-			{"x", "NaN"},
-		},
-		{
-			{"a", "1"},
-			{"b", ""},
-			{"x", "3"},
-		},
-		{
-			{"a", "3"},
-			{"b", "5"},
-			{"x", "NaN"},
-		},
-	})
-}
-
-func TestHistogramQuantile(t *testing.T) {
-	f := func(a []float64, phi, qExpected float64) {
-		t.Helper()
-
-		var h histogram
-		for _, f := range a {
-			h.update(f)
-		}
-		q := h.quantile(phi)
-
-		if math.IsNaN(qExpected) {
-			if !math.IsNaN(q) {
-				t.Fatalf("unexpected result for q=%v, phi=%v; got %v; want %v", a, phi, q, qExpected)
-			}
-		} else if q != qExpected {
-			t.Fatalf("unexpected result for q=%v, phi=%v; got %v; want %v", a, phi, q, qExpected)
-		}
-	}
-
-	f(nil, -1, nan)
-	f(nil, 0, nan)
-	f(nil, 0.5, nan)
-	f(nil, 1, nan)
-	f(nil, 10, nan)
-
-	f([]float64{123}, -1, 123)
-	f([]float64{123}, 0, 123)
-	f([]float64{123}, 0.5, 123)
-	f([]float64{123}, 1, 123)
-	f([]float64{123}, 10, 123)
-
-	f([]float64{5, 1}, -1, 1)
-	f([]float64{5, 1}, 0, 1)
-	f([]float64{5, 1}, 0.5-1e-5, 1)
-	f([]float64{5, 1}, 0.5, 5)
-	f([]float64{5, 1}, 1, 5)
-	f([]float64{5, 1}, 10, 5)
-
-	f([]float64{5, 1, 3}, -1, 1)
-	f([]float64{5, 1, 3}, 0, 1)
-	f([]float64{5, 1, 3}, 1.0/3-1e-5, 1)
-	f([]float64{5, 1, 3}, 1.0/3, 3)
-	f([]float64{5, 1, 3}, 2.0/3-1e-5, 3)
-	f([]float64{5, 1, 3}, 2.0/3, 5)
-	f([]float64{5, 1, 3}, 1-1e-5, 5)
-	f([]float64{5, 1, 3}, 1, 5)
-	f([]float64{5, 1, 3}, 10, 5)
 }

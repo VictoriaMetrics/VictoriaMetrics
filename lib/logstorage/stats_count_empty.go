@@ -9,16 +9,15 @@ import (
 )
 
 type statsCountEmpty struct {
-	fields       []string
-	containsStar bool
+	fields []string
 }
 
 func (sc *statsCountEmpty) String() string {
-	return "count_empty(" + fieldNamesString(sc.fields) + ")"
+	return "count_empty(" + statsFuncFieldsToString(sc.fields) + ")"
 }
 
 func (sc *statsCountEmpty) updateNeededFields(neededFields fieldsSet) {
-	neededFields.addFields(sc.fields)
+	updateNeededFieldsForStatsFunc(neededFields, sc.fields)
 }
 
 func (sc *statsCountEmpty) newStatsProcessor() (statsProcessor, int) {
@@ -36,7 +35,7 @@ type statsCountEmptyProcessor struct {
 
 func (scp *statsCountEmptyProcessor) updateStatsForAllRows(br *blockResult) int {
 	fields := scp.sc.fields
-	if scp.sc.containsStar {
+	if len(fields) == 0 {
 		bm := getBitmap(len(br.timestamps))
 		bm.setBits()
 		for _, c := range br.getColumns() {
@@ -133,7 +132,7 @@ func (scp *statsCountEmptyProcessor) updateStatsForAllRows(br *blockResult) int 
 
 func (scp *statsCountEmptyProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
 	fields := scp.sc.fields
-	if scp.sc.containsStar {
+	if len(fields) == 0 {
 		for _, c := range br.getColumns() {
 			if v := c.getValueAtRow(br, rowIdx); v != "" {
 				return 0
@@ -197,13 +196,12 @@ func (scp *statsCountEmptyProcessor) finalizeStats() string {
 }
 
 func parseStatsCountEmpty(lex *lexer) (*statsCountEmpty, error) {
-	fields, err := parseFieldNamesForStatsFunc(lex, "count_empty")
+	fields, err := parseStatsFuncFields(lex, "count_empty")
 	if err != nil {
 		return nil, err
 	}
 	sc := &statsCountEmpty{
-		fields:       fields,
-		containsStar: slices.Contains(fields, "*"),
+		fields: fields,
 	}
 	return sc, nil
 }
