@@ -101,3 +101,10 @@ victoria-logs-windows-amd64:
 
 victoria-logs-pure:
 	APP_NAME=victoria-logs $(MAKE) app-local-pure
+
+run-victoria-logs:
+	mkdir -p victoria-logs-data
+	DOCKER_OPTS='-v $(shell pwd)/victoria-logs-data:/victoria-logs-data' \
+	APP_NAME=victoria-logs \
+	ARGS='' \
+	$(MAKE) run-via-docker

@@ -8,14 +8,92 @@ import (
 	"testing"
 )
 
+func TestParsePipeUnpackJSONSuccess(t *testing.T) {
+	f := func(pipeStr string) {
+		t.Helper()
+		expectParsePipeSuccess(t, pipeStr)
+	}
+
+	f(`unpack_json`)
+	f(`unpack_json fields (a)`)
+	f(`unpack_json fields (a, b, c)`)
+	f(`unpack_json if (a:x)`)
+	f(`unpack_json from x`)
+	f(`unpack_json from x fields (a, b)`)
+	f(`unpack_json if (a:x) from x fields (a, b)`)
+	f(`unpack_json from x result_prefix abc`)
+	f(`unpack_json if (a:x) from x fields (a, b) result_prefix abc`)
+	f(`unpack_json result_prefix abc`)
+	f(`unpack_json if (a:x) fields (a, b) result_prefix abc`)
+}
+
+func TestParsePipeUnpackJSONFailure(t *testing.T) {
+	f := func(pipeStr string) {
+		t.Helper()
+		expectParsePipeFailure(t, pipeStr)
+	}
+
+	f(`unpack_json foo`)
+	f(`unpack_json if`)
+	f(`unpack_json fields`)
+	f(`unpack_json fields x`)
+	f(`unpack_json if (x:y) foobar`)
+	f(`unpack_json from`)
+	f(`unpack_json from x y`)
+	f(`unpack_json from x if`)
+	f(`unpack_json from x result_prefix`)
+	f(`unpack_json from x result_prefix a b`)
+	f(`unpack_json from x result_prefix a if`)
+	f(`unpack_json result_prefix`)
+	f(`unpack_json result_prefix a b`)
+	f(`unpack_json result_prefix a if`)
+}
+
 func TestPipeUnpackJSON(t *testing.T) {
 	f := func(pipeStr string, rows, rowsExpected [][]Field) {
 		t.Helper()
 		expectPipeResults(t, pipeStr, rows, rowsExpected)
 	}
 
+	// unpack only the requested fields
+	f("unpack_json fields (foo, b)", [][]Field{
+		{
+			{"_msg", `{"foo":"bar","z":"q","a":"b"}`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `{"foo":"bar","z":"q","a":"b"}`},
+			{"foo", "bar"},
+			{"b", ""},
+		},
+	})
+
 	// single row, unpack from _msg
 	f("unpack_json", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"foo", "bar"},
+		},
+	})
+
+	// failed if condition
+	f("unpack_json if (x:foo)", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"x", ""},
+		},
+	})
+
+	// matched if condition
+	f("unpack_json if (foo)", [][]Field{
 		{
 			{"_msg", `{"foo":"bar"}`},
 		},
@@ -133,8 +211,8 @@ func TestPipeUnpackJSON(t *testing.T) {
 		},
 	})
 
-	// multiple rows with distinct number of fields with result_prefix
-	f("unpack_json from x result_prefix qwe_", [][]Field{
+	// multiple rows with distinct number of fields with result_prefix and if condition
+	f("unpack_json if (y:abc) from x result_prefix qwe_", [][]Field{
 		{
 			{"x", `{"foo":"bar","baz":"xyz"}`},
 			{"y", `abc`},
@@ -157,9 +235,9 @@ func TestPipeUnpackJSON(t *testing.T) {
 			{"y", `abc`},
 		},
 		{
+			{"y", ""},
 			{"z", `foobar`},
 			{"x", `{"z":["bar",123]}`},
-			{"qwe_z", `["bar",123]`},
 		},
 	})
 }
@@ -184,6 +262,7 @@ func expectPipeResults(t *testing.T, pipeStr string, rows, rowsExpected [][]Fiel
 		brw.writeRow(row)
 	}
 	brw.flush()
+	pp.flush()
 
 	ppTest.expectRows(t, rowsExpected)
 }
@@ -200,6 +279,8 @@ type testBlockResultWriter struct {
 	ppBase       pipeProcessor
 	rcs          []resultColumn
 	br           blockResult
+
+	rowsCount int
 }
 
 func (brw *testBlockResultWriter) writeRow(row []Field) {
@@ -215,6 +296,7 @@ func (brw *testBlockResultWriter) writeRow(row []Field) {
 	for i, field := range row {
 		brw.rcs[i].addValue(field.Value)
 	}
+	brw.rowsCount++
 	if rand.Intn(5) == 0 {
 		brw.flush()
 	}
@@ -233,7 +315,8 @@ func (brw *testBlockResultWriter) areSameFields(row []Field) bool {
 }
 
 func (brw *testBlockResultWriter) flush() {
-	brw.br.setResultColumns(brw.rcs)
+	brw.br.setResultColumns(brw.rcs, brw.rowsCount)
+	brw.rowsCount = 0
 	workerID := rand.Intn(brw.workersCount)
 	brw.ppBase.writeBlock(uint(workerID), &brw.br)
 	brw.br.reset()
@@ -308,33 +391,54 @@ func (pp *testPipeProcessor) expectRows(t *testing.T, expectedRows [][]Field) {
 }
 
 func sortTestRows(rows [][]Field) {
+	for _, row := range rows {
+		sortTestFields(row)
+	}
 	slices.SortFunc(rows, func(a, b []Field) int {
-		reverse := -1
+		reverse := false
 		if len(a) > len(b) {
-			reverse = 1
+			reverse = true
 			a, b = b, a
 		}
 		for i, fA := range a {
 			fB := b[i]
-			if fA.Name == fB.Name {
-				if fA.Value == fB.Value {
-					continue
-				}
-				if fA.Value < fB.Value {
-					return reverse
-				}
-				return -reverse
+			result := cmpTestFields(fA, fB)
+			if result == 0 {
+				continue
 			}
-			if fA.Name < fB.Name {
-				return reverse
+			if reverse {
+				result = -result
 			}
-			return -reverse
+			return result
 		}
 		if len(a) == len(b) {
 			return 0
 		}
-		return reverse
+		if reverse {
+			return 1
+		}
+		return -1
 	})
+}
+
+func sortTestFields(fields []Field) {
+	slices.SortFunc(fields, cmpTestFields)
+}
+
+func cmpTestFields(a, b Field) int {
+	if a.Name == b.Name {
+		if a.Value == b.Value {
+			return 0
+		}
+		if a.Value < b.Value {
+			return -1
+		}
+		return 1
+	}
+	if a.Name < b.Name {
+		return -1
+	}
+	return 1
 }
 
 func rowsToString(rows [][]Field) string {
@@ -361,16 +465,35 @@ func TestPipeUnpackJSONUpdateNeededFields(t *testing.T) {
 
 	// all the needed fields
 	f("unpack_json from x", "*", "", "*", "")
+	f("unpack_json if (y:z) from x", "*", "", "*", "")
+	f("unpack_json if (y:z) from x fields (a, b)", "*", "", "*", "a,b")
 
 	// all the needed fields, unneeded fields do not intersect with src
 	f("unpack_json from x", "*", "f1,f2", "*", "f1,f2")
+	f("unpack_json if (y:z) from x", "*", "f1,f2", "*", "f1,f2")
+	f("unpack_json if (f1:z) from x", "*", "f1,f2", "*", "f2")
+	f("unpack_json if (y:z) from x fields (f3)", "*", "f1,f2", "*", "f1,f2,f3")
+	f("unpack_json if (y:z) from x fields (f1)", "*", "f1,f2", "*", "f1,f2")
 
 	// all the needed fields, unneeded fields intersect with src
 	f("unpack_json from x", "*", "f2,x", "*", "f2")
+	f("unpack_json if (y:z) from x", "*", "f2,x", "*", "f2")
+	f("unpack_json if (f2:z) from x", "*", "f1,f2,x", "*", "f1")
+	f("unpack_json if (f2:z) from x fields (f3)", "*", "f1,f2,x", "*", "f1,f3")
 
 	// needed fields do not intersect with src
 	f("unpack_json from x", "f1,f2", "", "f1,f2,x", "")
+	f("unpack_json if (y:z) from x", "f1,f2", "", "f1,f2,x,y", "")
+	f("unpack_json if (f1:z) from x", "f1,f2", "", "f1,f2,x", "")
+	f("unpack_json if (y:z) from x fields (f3)", "f1,f2", "", "f1,f2", "")
+	f("unpack_json if (y:z) from x fields (f2)", "f1,f2", "", "f1,x,y", "")
+	f("unpack_json if (f2:z) from x fields (f2)", "f1,f2", "", "f1,f2,x", "")
 
 	// needed fields intersect with src
 	f("unpack_json from x", "f2,x", "", "f2,x", "")
+	f("unpack_json if (y:z) from x", "f2,x", "", "f2,x,y", "")
+	f("unpack_json if (f2:z y:qwe) from x", "f2,x", "", "f2,x,y", "")
+	f("unpack_json if (y:z) from x fields (f1)", "f2,x", "", "f2,x", "")
+	f("unpack_json if (y:z) from x fields (f2)", "f2,x", "", "x,y", "")
+	f("unpack_json if (y:z) from x fields (x)", "f2,x", "", "f2,x,y", "")
 }

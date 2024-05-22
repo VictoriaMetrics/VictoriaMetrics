@@ -16,7 +16,7 @@ type filterRegexp struct {
 }
 
 func (fr *filterRegexp) String() string {
-	return fmt.Sprintf("%sre(%q)", quoteFieldNameIfNeeded(fr.fieldName), fr.re.String())
+	return fmt.Sprintf("%s~%q", quoteFieldNameIfNeeded(fr.fieldName), fr.re.String())
 }
 
 func (fr *filterRegexp) updateNeededFields(neededFields fieldsSet) {

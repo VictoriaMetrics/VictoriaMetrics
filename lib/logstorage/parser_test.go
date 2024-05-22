@@ -191,6 +191,21 @@ func TestParseTimeRange(t *testing.T) {
 	f("2023-02-28T23:59:59", minTimestamp, maxTimestamp)
 	f("2023-02-28T23:59:59Z", minTimestamp, maxTimestamp)
 
+	// _time:[YYYY-MM-DDTHH:MM:SS.sss, YYYY-MM-DDTHH:MM:SS.sss)
+	minTimestamp = time.Date(2024, time.May, 12, 0, 0, 0, 333000000, time.UTC).UnixNano()
+	maxTimestamp = time.Date(2024, time.May, 12, 0, 0, 0, 555000000, time.UTC).UnixNano() - 1
+	f("[2024-05-12T00:00:00.333+00:00,2024-05-12T00:00:00.555+00:00)", minTimestamp, maxTimestamp)
+
+	// _time:[YYYY-MM-DDTHH:MM:SS.sss, YYYY-MM-DDTHH:MM:SS.sss]
+	minTimestamp = time.Date(2024, time.May, 12, 0, 0, 0, 333000000, time.UTC).UnixNano()
+	maxTimestamp = time.Date(2024, time.May, 12, 0, 0, 0, 556000000, time.UTC).UnixNano() - 1
+	f("[2024-05-12T00:00:00.333+00:00,2024-05-12T00:00:00.555+00:00]", minTimestamp, maxTimestamp)
+
+	// _time:YYYY-MM-DDTHH:MM:SS.sss
+	minTimestamp = time.Date(2024, time.May, 14, 13, 54, 59, 134000000, time.UTC).UnixNano()
+	maxTimestamp = time.Date(2024, time.May, 14, 13, 54, 59, 135000000, time.UTC).UnixNano() - 1
+	f("2024-05-14T13:54:59.134Z", minTimestamp, maxTimestamp)
+
 	// _time:YYYY-MM-DDTHH:MM:SS-hh:mm
 	minTimestamp = time.Date(2023, time.February, 28, 23, 59, 59, 0, time.UTC).UnixNano()
 	maxTimestamp = time.Date(2023, time.March, 1, 0, 0, 0, 0, time.UTC).UnixNano() - 1
@@ -505,6 +520,8 @@ func TestParseRangeFilter(t *testing.T) {
 
 	f(`duration:range[100ns, 1y2w2.5m3s5ms]`, `duration`, 100, 1*nsecsPerYear+2*nsecsPerWeek+2.5*nsecsPerMinute+3*nsecsPerSecond+5*nsecsPerMillisecond)
 
+	f(`>=10`, ``, 10, inf)
+	f(`<=10`, ``, -inf, 10)
 	f(`foo:>10.43`, `foo`, nextafter(10.43, inf), inf)
 	f(`foo: > -10.43`, `foo`, nextafter(-10.43, inf), inf)
 	f(`foo:>=10.43`, `foo`, 10.43, inf)
@@ -569,7 +586,7 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`foo:(bar baz or not :xxx)`, `foo:bar foo:baz or !foo:xxx`)
 	f(`(foo:bar and (foo:baz or aa:bb) and xx) and y`, `foo:bar (foo:baz or aa:bb) xx y`)
 	f("level:error and _msg:(a or b)", "level:error (a or b)")
-	f("level: ( ((error or warn*) and re(foo))) (not (bar))", `(level:error or level:warn*) level:re("foo") !bar`)
+	f("level: ( ((error or warn*) and re(foo))) (not (bar))", `(level:error or level:warn*) level:~"foo" !bar`)
 	f("!(foo bar or baz and not aa*)", `!(foo bar or baz !aa*)`)
 
 	// prefix search
@@ -687,12 +704,17 @@ func TestParseQuerySuccess(t *testing.T) {
 	f("string_range-a:x", `string_range-a:x`)
 
 	// exact filter
-	f("exact(foo)", `exact(foo)`)
-	f("exact(foo*)", `exact(foo*)`)
-	f("exact('foo bar),|baz')", `exact("foo bar),|baz")`)
-	f("exact('foo bar),|baz'*)", `exact("foo bar),|baz"*)`)
-	f(`exact(foo/b:ar)`, `exact("foo/b:ar")`)
-	f(`foo:exact(foo/b:ar*)`, `foo:exact("foo/b:ar"*)`)
+	f("exact(foo)", `=foo`)
+	f("exact(foo*)", `=foo*`)
+	f("exact('foo bar),|baz')", `="foo bar),|baz"`)
+	f("exact('foo bar),|baz'*)", `="foo bar),|baz"*`)
+	f(`exact(foo/b:ar)`, `="foo/b:ar"`)
+	f(`foo:exact(foo/b:ar*)`, `foo:="foo/b:ar"*`)
+	f(`exact("foo/bar")`, `="foo/bar"`)
+	f(`exact('foo/bar')`, `="foo/bar"`)
+	f(`="foo/bar"`, `="foo/bar"`)
+	f("=foo=bar =b<=a>z ='abc'*", `="foo=bar" ="b<=a>z" =abc*`)
+	f("==foo =>=bar x : ( = =a<b*='c*' >=20)", `="=foo" =">=bar" x:="=a<b"* x:="c*" x:>=20`)
 
 	// i filter
 	f("i(foo)", `i(foo)`)
@@ -750,11 +772,16 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`foo: >= 10.5M`, `foo:>=10.5M`)
 	f(`foo: < 10.5M`, `foo:<10.5M`)
 	f(`foo: <= 10.5M`, `foo:<=10.5M`)
+	f(`foo:(>10 <=20)`, `foo:>10 foo:<=20`)
+	f(`>=10 <20`, `>=10 <20`)
 
 	// re filter
-	f("re('foo|ba(r.+)')", `re("foo|ba(r.+)")`)
-	f("re(foo)", `re("foo")`)
-	f(`foo:re(foo-bar/baz.)`, `foo:re("foo-bar/baz.")`)
+	f("re('foo|ba(r.+)')", `~"foo|ba(r.+)"`)
+	f("re(foo)", `~"foo"`)
+	f(`foo:re(foo-bar/baz.)`, `foo:~"foo-bar/baz."`)
+	f(`~foo.bar.baz`, `~"foo.bar.baz"`)
+	f(`foo:~~foo~ba/ba>z`, `foo:~"~foo~ba/ba>z"`)
+	f(`foo:~'.*'`, `foo:~".*"`)
 
 	// seq filter
 	f(`seq()`, `seq()`)
@@ -882,6 +909,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats min(*) x`, `* | stats min(*) as x`)
 	f(`* | stats min(foo,*,bar) x`, `* | stats min(*) as x`)
 
+	// stats pipe fields_min
+	f(`* | stats fields_Min(foo) bar`, `* | stats fields_min(foo) as bar`)
+	f(`* | stats BY(x, y, ) fields_MIN(foo,bar,) bar`, `* | stats by (x, y) fields_min(foo, bar) as bar`)
+
 	// stats pipe avg
 	f(`* | stats Avg(foo) bar`, `* | stats avg(foo) as bar`)
 	f(`* | stats BY(x, y, ) AVG(foo,bar,) bar`, `* | stats by (x, y) avg(foo, bar) as bar`)
@@ -923,8 +954,8 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats quantile(0, foo) bar`, `* | stats quantile(0, foo) as bar`)
 	f(`* | stats quantile(1, foo) bar`, `* | stats quantile(1, foo) as bar`)
 	f(`* | stats quantile(0.5, a, b, c) bar`, `* | stats quantile(0.5, a, b, c) as bar`)
-	f(`* | stats quantile(0.99, *) bar`, `* | stats quantile(0.99, *) as bar`)
-	f(`* | stats quantile(0.99, a, *, b) bar`, `* | stats quantile(0.99, *) as bar`)
+	f(`* | stats quantile(0.99) bar`, `* | stats quantile(0.99) as bar`)
+	f(`* | stats quantile(0.99, a, *, b) bar`, `* | stats quantile(0.99) as bar`)
 
 	// stats pipe median
 	f(`* | stats Median(foo) bar`, `* | stats median(foo) as bar`)
@@ -997,10 +1028,11 @@ func TestParseQuerySuccess(t *testing.T) {
 
 	// extract pipe
 	f(`* | extract "foo<bar>baz"`, `* | extract "foo<bar>baz"`)
-	f(`* | extract from _msg "foo<bar>baz"`, `* | extract "foo<bar>baz"`)
-	f(`* | extract from '' 'foo<bar>baz'`, `* | extract "foo<bar>baz"`)
-	f("* | extract from x `foo<bar>baz`", `* | extract from x "foo<bar>baz"`)
-	f("* | extract from x foo<bar>baz", `* | extract from x "foo<bar>baz"`)
+	f(`* | extract "foo<bar>baz" from _msg`, `* | extract "foo<bar>baz"`)
+	f(`* | extract 'foo<bar>baz' from ''`, `* | extract "foo<bar>baz"`)
+	f("* | extract `foo<bar>baz` from x", `* | extract "foo<bar>baz" from x`)
+	f("* | extract foo<bar>baz from x", `* | extract "foo<bar>baz" from x`)
+	f("* | extract if (a:b) foo<bar>baz from x", `* | extract if (a:b) "foo<bar>baz" from x`)
 
 	// unpack_json pipe
 	f(`* | unpack_json`, `* | unpack_json`)
@@ -1314,6 +1346,10 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | stats min`)
 	f(`foo | stats min()`)
 
+	// invalid stats min
+	f(`foo | stats fields_min`)
+	f(`foo | stats fields_min()`)
+
 	// invalid stats avg
 	f(`foo | stats avg`)
 	f(`foo | stats avg()`)
@@ -1350,7 +1386,6 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | stats quantile`)
 	f(`foo | stats quantile() foo`)
 	f(`foo | stats quantile(bar, baz) foo`)
-	f(`foo | stats quantile(0.5) foo`)
 	f(`foo | stats quantile(-1, x) foo`)
 	f(`foo | stats quantile(10, x) foo`)
 
@@ -1540,6 +1575,49 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | stats by(f3,f4) count(f1,f2) r1 | stats count(f2) r1, count(r1) r2 | fields r2`, `f1,f2,f3,f4`, ``)
 	f(`* | stats by(f3,f4) count(f1,f2) r1 | stats count(f3) r1, count(r1) r2 | fields r1`, `f3,f4`, ``)
 
+	f(`* | stats avg() q`, `*`, ``)
+	f(`* | stats avg(*) q`, `*`, ``)
+	f(`* | stats avg(x) q`, `x`, ``)
+	f(`* | stats count_empty() q`, `*`, ``)
+	f(`* | stats count_empty(*) q`, `*`, ``)
+	f(`* | stats count_empty(x) q`, `x`, ``)
+	f(`* | stats count() q`, ``, ``)
+	f(`* | stats count(*) q`, ``, ``)
+	f(`* | stats count(x) q`, `x`, ``)
+	f(`* | stats count_uniq() q`, `*`, ``)
+	f(`* | stats count_uniq(*) q`, `*`, ``)
+	f(`* | stats count_uniq(x) q`, `x`, ``)
+	f(`* | stats fields_max(a) q`, `*`, ``)
+	f(`* | stats fields_max(a, *) q`, `*`, ``)
+	f(`* | stats fields_max(a, x) q`, `a,x`, ``)
+	f(`* | stats fields_min(a) q`, `*`, ``)
+	f(`* | stats fields_min(a, *) q`, `*`, ``)
+	f(`* | stats fields_min(a, x) q`, `a,x`, ``)
+	f(`* | stats min() q`, `*`, ``)
+	f(`* | stats min(*) q`, `*`, ``)
+	f(`* | stats min(x) q`, `x`, ``)
+	f(`* | stats median() q`, `*`, ``)
+	f(`* | stats median(*) q`, `*`, ``)
+	f(`* | stats median(x) q`, `x`, ``)
+	f(`* | stats max() q`, `*`, ``)
+	f(`* | stats max(*) q`, `*`, ``)
+	f(`* | stats max(x) q`, `x`, ``)
+	f(`* | stats quantile(0.5) q`, `*`, ``)
+	f(`* | stats quantile(0.5, *) q`, `*`, ``)
+	f(`* | stats quantile(0.5, x) q`, `x`, ``)
+	f(`* | stats sum() q`, `*`, ``)
+	f(`* | stats sum(*) q`, `*`, ``)
+	f(`* | stats sum(x) q`, `x`, ``)
+	f(`* | stats sum_len() q`, `*`, ``)
+	f(`* | stats sum_len(*) q`, `*`, ``)
+	f(`* | stats sum_len(x) q`, `x`, ``)
+	f(`* | stats uniq_values() q`, `*`, ``)
+	f(`* | stats uniq_values(*) q`, `*`, ``)
+	f(`* | stats uniq_values(x) q`, `x`, ``)
+	f(`* | stats values() q`, `*`, ``)
+	f(`* | stats values(*) q`, `*`, ``)
+	f(`* | stats values(x) q`, `x`, ``)
+
 	f(`_time:5m | stats by(_time:day) count() r1 | stats values(_time) r2`, `_time`, ``)
 	f(`_time:1y | stats (_time:1w) count() r1 | stats count() r2`, `_time`, ``)
 
@@ -1570,15 +1648,80 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | fields x,y | field_names as bar | fields baz`, `x,y`, ``)
 	f(`* | rm x,y | field_names as bar | fields baz`, `*`, `x,y`)
 
-	f(`* | extract from s1 "<f1>x<f2>"`, `*`, `f1,f2`)
-	f(`* | extract from s1 "<f1>x<f2>" | fields foo`, `foo`, ``)
-	f(`* | extract from s1 "<f1>x<f2>" | fields foo,s1`, `foo,s1`, ``)
-	f(`* | extract from s1 "<f1>x<f2>" | fields foo,f1`, `foo,s1`, ``)
-	f(`* | extract from s1 "<f1>x<f2>" | fields foo,f1,f2`, `foo,s1`, ``)
-	f(`* | extract from s1 "<f1>x<f2>" | rm foo`, `*`, `f1,f2,foo`)
-	f(`* | extract from s1 "<f1>x<f2>" | rm foo,s1`, `*`, `f1,f2,foo`)
-	f(`* | extract from s1 "<f1>x<f2>" | rm foo,f1`, `*`, `f1,f2,foo`)
-	f(`* | extract from s1 "<f1>x<f2>" | rm foo,f1,f2`, `*`, `f1,f2,foo,s1`)
+	f(`* | format "foo" as s1`, `*`, `s1`)
+	f(`* | format "foo<f1>" as s1`, `*`, `s1`)
+	f(`* | format "foo<s1>" as s1`, `*`, ``)
+
+	f(`* | format if (x1:y) "foo" as s1`, `*`, `s1`)
+	f(`* | format if (x1:y) "foo<f1>" as s1`, `*`, `s1`)
+	f(`* | format if (s1:y) "foo<f1>" as s1`, `*`, ``)
+	f(`* | format if (x1:y) "foo<s1>" as s1`, `*`, ``)
+
+	f(`* | format "foo" as s1 | fields f1`, `f1`, ``)
+	f(`* | format "foo" as s1 | fields s1`, ``, ``)
+	f(`* | format "foo<f1>" as s1 | fields f2`, `f2`, ``)
+	f(`* | format "foo<f1>" as s1 | fields f1`, `f1`, ``)
+	f(`* | format "foo<f1>" as s1 | fields s1`, `f1`, ``)
+	f(`* | format "foo<s1>" as s1 | fields f1`, `f1`, ``)
+	f(`* | format "foo<s1>" as s1 | fields s1`, `s1`, ``)
+
+	f(`* | format if (f1:x) "foo" as s1 | fields s1`, `f1`, ``)
+	f(`* | format if (f1:x) "foo" as s1 | fields s2`, `s2`, ``)
+
+	f(`* | format "foo" as s1 | rm f1`, `*`, `f1,s1`)
+	f(`* | format "foo" as s1 | rm s1`, `*`, `s1`)
+	f(`* | format "foo<f1>" as s1 | rm f2`, `*`, `f2,s1`)
+	f(`* | format "foo<f1>" as s1 | rm f1`, `*`, `s1`)
+	f(`* | format "foo<f1>" as s1 | rm s1`, `*`, `s1`)
+	f(`* | format "foo<s1>" as s1 | rm f1`, `*`, `f1`)
+	f(`* | format "foo<s1>" as s1 | rm s1`, `*`, `s1`)
+
+	f(`* | format if (f1:x) "foo" as s1 | rm s1`, `*`, `s1`)
+	f(`* | format if (f1:x) "foo" as s1 | rm f1`, `*`, `s1`)
+	f(`* | format if (f1:x) "foo" as s1 | rm f2`, `*`, `f2,s1`)
+
+	f(`* | extract "<f1>x<f2>" from s1`, `*`, `f1,f2`)
+	f(`* | extract if (f3:foo) "<f1>x<f2>" from s1`, `*`, `f1,f2`)
+	f(`* | extract if (f1:foo) "<f1>x<f2>" from s1`, `*`, `f2`)
+	f(`* | extract "<f1>x<f2>" from s1 | fields foo`, `foo`, ``)
+	f(`* | extract if (x:bar) "<f1>x<f2>" from s1 | fields foo`, `foo`, ``)
+	f(`* | extract "<f1>x<f2>" from s1| fields foo,s1`, `foo,s1`, ``)
+	f(`* | extract if (x:bar) "<f1>x<f2>" from s1 | fields foo,s1`, `foo,s1`, ``)
+	f(`* | extract "<f1>x<f2>" from s1 | fields foo,f1`, `foo,s1`, ``)
+	f(`* | extract if (x:bar) "<f1>x<f2>" from s1 | fields foo,f1`, `foo,s1,x`, ``)
+	f(`* | extract "<f1>x<f2>" from s1 | fields foo,f1,f2`, `foo,s1`, ``)
+	f(`* | extract if (x:bar) "<f1>x<f2>" from s1 | fields foo,f1,f2`, `foo,s1,x`, ``)
+	f(`* | extract "<f1>x<f2>" from s1 | rm foo`, `*`, `f1,f2,foo`)
+	f(`* | extract if (x:bar) "<f1>x<f2>" from s1 | rm foo`, `*`, `f1,f2,foo`)
+	f(`* | extract "<f1>x<f2>" from s1 | rm foo,s1`, `*`, `f1,f2,foo`)
+	f(`* | extract if (x:bar) "<f1>x<f2>" from s1 | rm foo,s1`, `*`, `f1,f2,foo`)
+	f(`* | extract "<f1>x<f2>" from s1 | rm foo,f1`, `*`, `f1,f2,foo`)
+	f(`* | extract if (x:bar) "<f1>x<f2>" from s1 | rm foo,f1`, `*`, `f1,f2,foo`)
+	f(`* | extract "<f1>x<f2>" from s1 | rm foo,f1,f2`, `*`, `f1,f2,foo,s1`)
+	f(`* | extract if (x:bar) "<f1>x<f2>" from s1 | rm foo,f1,f2`, `*`, `f1,f2,foo,s1`)
+
+	f(`* | extract "x<s1>y" from s1 `, `*`, ``)
+	f(`* | extract if (x:foo) "x<s1>y" from s1`, `*`, ``)
+	f(`* | extract if (s1:foo) "x<s1>y" from s1`, `*`, ``)
+	f(`* | extract if (s1:foo) "x<f1>y" from s1`, `*`, `f1`)
+
+	f(`* | extract "x<s1>y" from s1 | fields s2`, `s2`, ``)
+	f(`* | extract "x<s1>y" from s1 | fields s1`, `s1`, ``)
+	f(`* | extract if (x:foo) "x<s1>y" from s1 | fields s1`, `s1,x`, ``)
+	f(`* | extract if (x:foo) "x<s1>y" from s1 | fields s2`, `s2`, ``)
+	f(`* | extract if (s1:foo) "x<s1>y" from s1 | fields s1`, `s1`, ``)
+	f(`* | extract if (s1:foo) "x<s1>y" from s1 | fields s2`, `s2`, ``)
+	f(`* | extract if (s1:foo) "x<f1>y" from s1 | fields s1`, `s1`, ``)
+	f(`* | extract if (s1:foo) "x<f1>y" from s1 | fields s2`, `s2`, ``)
+
+	f(`* | extract "x<s1>y" from s1 | rm s2`, `*`, `s2`)
+	f(`* | extract "x<s1>y" from s1 | rm s1`, `*`, `s1`)
+	f(`* | extract if (x:foo) "x<s1>y" from s1 | rm s1`, `*`, `s1`)
+	f(`* | extract if (x:foo) "x<s1>y" from s1 | rm s2`, `*`, `s2`)
+	f(`* | extract if (s1:foo) "x<s1>y" from s1 | rm s1`, `*`, `s1`)
+	f(`* | extract if (s1:foo) "x<s1>y" from s1 | rm s2`, `*`, `s2`)
+	f(`* | extract if (s1:foo) "x<f1>y" from s1 | rm s1`, `*`, `f1`)
+	f(`* | extract if (s1:foo) "x<f1>y" from s1 | rm s2`, `*`, `f1,s2`)
 
 	f(`* | unpack_json`, `*`, ``)
 	f(`* | unpack_json from s1`, `*`, ``)

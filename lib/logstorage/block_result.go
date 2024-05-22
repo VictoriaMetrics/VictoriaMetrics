@@ -28,12 +28,6 @@ type blockResult struct {
 	// timestamps contain timestamps for the selected log entries in the block.
 	timestamps []int64
 
-	// csBufOffset contains csBuf offset for the requested columns.
-	//
-	// columns with indexes below csBufOffset are ignored.
-	// This is needed for simplifying data transformations at pipe stages.
-	csBufOffset int
-
 	// csBuf contains requested columns.
 	csBuf []blockResultColumn
 
@@ -51,8 +45,6 @@ func (br *blockResult) reset() {
 	br.valuesBuf = br.valuesBuf[:0]
 
 	br.timestamps = br.timestamps[:0]
-
-	br.csBufOffset = 0
 
 	clear(br.csBuf)
 	br.csBuf = br.csBuf[:0]
@@ -208,30 +200,13 @@ func (br *blockResult) sizeBytes() int {
 	return n
 }
 
-// addResultColumns adds the given rcs to br.
-//
-// The br is valid only until rcs are modified.
-func (br *blockResult) addResultColumns(rcs []resultColumn) {
-	if len(rcs) == 0 || len(rcs[0].values) == 0 {
-		return
-	}
-
-	for i := range rcs {
-		br.addResultColumn(&rcs[i])
-	}
-}
-
 // setResultColumns sets the given rcs as br columns.
 //
 // The br is valid only until rcs are modified.
-func (br *blockResult) setResultColumns(rcs []resultColumn) {
+func (br *blockResult) setResultColumns(rcs []resultColumn, rowsCount int) {
 	br.reset()
 
-	if len(rcs) == 0 || len(rcs[0].values) == 0 {
-		return
-	}
-
-	br.timestamps = fastnum.AppendInt64Zeros(br.timestamps[:0], len(rcs[0].values))
+	br.timestamps = fastnum.AppendInt64Zeros(br.timestamps[:0], rowsCount)
 
 	for i := range rcs {
 		br.addResultColumn(&rcs[i])
@@ -1227,56 +1202,59 @@ func (br *blockResult) getBucketedValue(s string, bf *byStatsField) string {
 
 // copyColumns copies columns from srcColumnNames to dstColumnNames.
 func (br *blockResult) copyColumns(srcColumnNames, dstColumnNames []string) {
-	if len(srcColumnNames) == 0 {
-		return
+	for i, srcName := range srcColumnNames {
+		br.copySingleColumn(srcName, dstColumnNames[i])
 	}
+}
 
-	csBuf := br.csBuf
-	csBufOffset := len(csBuf)
-	for _, c := range br.getColumns() {
-		if idx := slices.Index(srcColumnNames, c.name); idx >= 0 {
-			c.name = dstColumnNames[idx]
-			csBuf = append(csBuf, *c)
-			// continue is skipped intentionally in order to leave the original column in the columns list.
+func (br *blockResult) copySingleColumn(srcName, dstName string) {
+	found := false
+	cs := br.getColumns()
+	csBufLen := len(br.csBuf)
+	for _, c := range cs {
+		if c.name != dstName {
+			br.csBuf = append(br.csBuf, *c)
 		}
-		if !slices.Contains(dstColumnNames, c.name) {
-			csBuf = append(csBuf, *c)
+		if c.name == srcName {
+			cCopy := *c
+			cCopy.name = dstName
+			br.csBuf = append(br.csBuf, cCopy)
+			found = true
 		}
 	}
-	br.csBufOffset = csBufOffset
-	br.csBuf = csBuf
+	if !found {
+		br.addConstColumn(dstName, "")
+	}
+	br.csBuf = append(br.csBuf[:0], br.csBuf[csBufLen:]...)
 	br.csInitialized = false
-
-	for _, dstColumnName := range dstColumnNames {
-		br.createMissingColumnByName(dstColumnName)
-	}
 }
 
 // renameColumns renames columns from srcColumnNames to dstColumnNames.
 func (br *blockResult) renameColumns(srcColumnNames, dstColumnNames []string) {
-	if len(srcColumnNames) == 0 {
-		return
+	for i, srcName := range srcColumnNames {
+		br.renameSingleColumn(srcName, dstColumnNames[i])
 	}
+}
 
-	csBuf := br.csBuf
-	csBufOffset := len(csBuf)
-	for _, c := range br.getColumns() {
-		if idx := slices.Index(srcColumnNames, c.name); idx >= 0 {
-			c.name = dstColumnNames[idx]
-			csBuf = append(csBuf, *c)
-			continue
-		}
-		if !slices.Contains(dstColumnNames, c.name) {
-			csBuf = append(csBuf, *c)
+func (br *blockResult) renameSingleColumn(srcName, dstName string) {
+	found := false
+	cs := br.getColumns()
+	csBufLen := len(br.csBuf)
+	for _, c := range cs {
+		if c.name == srcName {
+			cCopy := *c
+			cCopy.name = dstName
+			br.csBuf = append(br.csBuf, cCopy)
+			found = true
+		} else if c.name != dstName {
+			br.csBuf = append(br.csBuf, *c)
 		}
 	}
-	br.csBufOffset = csBufOffset
-	br.csBuf = csBuf
+	if !found {
+		br.addConstColumn(dstName, "")
+	}
+	br.csBuf = append(br.csBuf[:0], br.csBuf[csBufLen:]...)
 	br.csInitialized = false
-
-	for _, dstColumnName := range dstColumnNames {
-		br.createMissingColumnByName(dstColumnName)
-	}
 }
 
 // deleteColumns deletes columns with the given columnNames.
@@ -1285,15 +1263,15 @@ func (br *blockResult) deleteColumns(columnNames []string) {
 		return
 	}
 
-	csBuf := br.csBuf
-	csBufOffset := len(csBuf)
-	for _, c := range br.getColumns() {
+	cs := br.getColumns()
+	csBufLen := len(br.csBuf)
+	for _, c := range cs {
 		if !slices.Contains(columnNames, c.name) {
-			csBuf = append(csBuf, *c)
+			br.csBuf = append(br.csBuf, *c)
 		}
 	}
-	br.csBufOffset = csBufOffset
-	br.csBuf = csBuf
+
+	br.csBuf = append(br.csBuf[:0], br.csBuf[csBufLen:]...)
 	br.csInitialized = false
 }
 
@@ -1305,14 +1283,21 @@ func (br *blockResult) setColumns(columnNames []string) {
 	}
 
 	// Slow path - construct the requested columns
-	csBuf := br.csBuf
-	csBufOffset := len(csBuf)
-	for _, columnName := range columnNames {
-		c := br.getColumnByName(columnName)
-		csBuf = append(csBuf, *c)
+	cs := br.getColumns()
+	csBufLen := len(br.csBuf)
+	for _, c := range cs {
+		if slices.Contains(columnNames, c.name) {
+			br.csBuf = append(br.csBuf, *c)
+		}
 	}
-	br.csBufOffset = csBufOffset
-	br.csBuf = csBuf
+
+	for _, columnName := range columnNames {
+		if idx := getBlockResultColumnIdxByName(cs, columnName); idx < 0 {
+			br.addConstColumn(columnName, "")
+		}
+	}
+
+	br.csBuf = append(br.csBuf[:0], br.csBuf[csBufLen:]...)
 	br.csInitialized = false
 }
 
@@ -1344,22 +1329,12 @@ func (br *blockResult) getColumnByName(columnName string) *blockResultColumn {
 	return &br.csBuf[len(br.csBuf)-1]
 }
 
-func (br *blockResult) createMissingColumnByName(columnName string) {
-	for _, c := range br.getColumns() {
-		if c.name == columnName {
-			return
-		}
-	}
-
-	br.addConstColumn(columnName, "")
-}
-
 func (br *blockResult) getColumns() []*blockResultColumn {
 	if br.csInitialized {
 		return br.cs
 	}
 
-	csBuf := br.csBuf[br.csBufOffset:]
+	csBuf := br.csBuf
 	clear(br.cs)
 	cs := br.cs[:0]
 	for i := range csBuf {
@@ -1810,6 +1785,11 @@ type resultColumn struct {
 	values []string
 }
 
+func (rc *resultColumn) reset() {
+	rc.name = ""
+	rc.resetValues()
+}
+
 func (rc *resultColumn) resetValues() {
 	clear(rc.values)
 	rc.values = rc.values[:0]
@@ -1818,8 +1798,8 @@ func (rc *resultColumn) resetValues() {
 func appendResultColumnWithName(dst []resultColumn, name string) []resultColumn {
 	dst = slicesutil.SetLength(dst, len(dst)+1)
 	rc := &dst[len(dst)-1]
-	rc.resetValues()
 	rc.name = name
+	rc.resetValues()
 	return dst
 }
 
@@ -1860,6 +1840,13 @@ func visitValuesReadonly(bs *blockSearch, ch *columnHeader, bm *bitmap, f func(v
 	bm.forEachSetBitReadonly(func(idx int) {
 		f(values[idx])
 	})
+}
+
+func getCanonicalColumnName(columnName string) string {
+	if columnName == "" {
+		return "_msg"
+	}
+	return columnName
 }
 
 var nan = math.NaN()

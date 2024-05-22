@@ -20,7 +20,7 @@ type filterExactPrefix struct {
 }
 
 func (fep *filterExactPrefix) String() string {
-	return fmt.Sprintf("%sexact(%s*)", quoteFieldNameIfNeeded(fep.fieldName), quoteTokenIfNeeded(fep.prefix))
+	return fmt.Sprintf("%s=%s*", quoteFieldNameIfNeeded(fep.fieldName), quoteTokenIfNeeded(fep.prefix))
 }
 
 func (fep *filterExactPrefix) updateNeededFields(neededFields fieldsSet) {

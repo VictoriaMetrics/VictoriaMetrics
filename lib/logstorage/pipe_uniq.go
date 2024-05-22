@@ -331,8 +331,13 @@ type pipeUniqWriteContext struct {
 	rcs []resultColumn
 	br  blockResult
 
+	// rowsWritten is the total number of rows passed to writeRow.
 	rowsWritten uint64
 
+	// rowsCount is the number of rows in the current block
+	rowsCount int
+
+	// valuesLen is the total length of values in the current block
 	valuesLen int
 }
 
@@ -354,7 +359,7 @@ func (wctx *pipeUniqWriteContext) writeRow(rowFields []Field) {
 		}
 	}
 	if !areEqualColumns {
-		// send the current block to bbBase and construct a block with new set of columns
+		// send the current block to ppBase and construct a block with new set of columns
 		wctx.flush()
 
 		rcs = wctx.rcs[:0]
@@ -369,6 +374,8 @@ func (wctx *pipeUniqWriteContext) writeRow(rowFields []Field) {
 		rcs[i].addValue(v)
 		wctx.valuesLen += len(v)
 	}
+
+	wctx.rowsCount++
 	if wctx.valuesLen >= 1_000_000 {
 		wctx.flush()
 	}
@@ -380,12 +387,9 @@ func (wctx *pipeUniqWriteContext) flush() {
 
 	wctx.valuesLen = 0
 
-	if len(rcs) == 0 {
-		return
-	}
-
 	// Flush rcs to ppBase
-	br.setResultColumns(rcs)
+	br.setResultColumns(rcs, wctx.rowsCount)
+	wctx.rowsCount = 0
 	wctx.pup.ppBase.writeBlock(0, br)
 	br.reset()
 	for i := range rcs {

@@ -2,22 +2,40 @@ package logstorage
 
 import (
 	"fmt"
-	"unsafe"
+	"slices"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 // pipeUnpackJSON processes '| unpack_json ...' pipe.
 //
 // See https://docs.victoriametrics.com/victorialogs/logsql/#unpack_json-pipe
 type pipeUnpackJSON struct {
+	// fromField is the field to unpack json fields from
 	fromField string
 
+	// fields is an optional list of fields to extract from json.
+	//
+	// if it is empty, then all the fields are extracted.
+	fields []string
+
+	// resultPrefix is prefix to add to unpacked field names
 	resultPrefix string
+
+	// iff is an optional filter for skipping unpacking json
+	iff *ifFilter
 }
 
 func (pu *pipeUnpackJSON) String() string {
 	s := "unpack_json"
+	if pu.iff != nil {
+		s += " " + pu.iff.String()
+	}
 	if !isMsgFieldName(pu.fromField) {
 		s += " from " + quoteTokenIfNeeded(pu.fromField)
+	}
+	if len(pu.fields) > 0 {
+		s += " fields (" + fieldsToString(pu.fields) + ")"
 	}
 	if pu.resultPrefix != "" {
 		s += " result_prefix " + quoteTokenIfNeeded(pu.resultPrefix)
@@ -26,91 +44,84 @@ func (pu *pipeUnpackJSON) String() string {
 }
 
 func (pu *pipeUnpackJSON) updateNeededFields(neededFields, unneededFields fieldsSet) {
+	updateNeededFieldsForUnpackPipe(pu.fromField, pu.fields, pu.iff, neededFields, unneededFields)
+}
+
+func updateNeededFieldsForUnpackPipe(fromField string, outFields []string, iff *ifFilter, neededFields, unneededFields fieldsSet) {
 	if neededFields.contains("*") {
-		unneededFields.remove(pu.fromField)
+		unneededFieldsOrig := unneededFields.clone()
+		unneededFieldsCount := 0
+		if len(outFields) > 0 {
+			for _, f := range outFields {
+				if unneededFieldsOrig.contains(f) {
+					unneededFieldsCount++
+				}
+				unneededFields.add(f)
+			}
+		}
+		if len(outFields) == 0 || unneededFieldsCount < len(outFields) {
+			unneededFields.remove(fromField)
+			if iff != nil {
+				unneededFields.removeFields(iff.neededFields)
+			}
+		}
 	} else {
-		neededFields.add(pu.fromField)
+		neededFieldsOrig := neededFields.clone()
+		needFromField := len(outFields) == 0
+		if len(outFields) > 0 {
+			needFromField = false
+			for _, f := range outFields {
+				if neededFieldsOrig.contains(f) {
+					needFromField = true
+				}
+				neededFields.remove(f)
+			}
+		}
+		if needFromField {
+			neededFields.add(fromField)
+			if iff != nil {
+				neededFields.addFields(iff.neededFields)
+			}
+		}
 	}
 }
 
 func (pu *pipeUnpackJSON) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
-	shards := make([]pipeUnpackJSONProcessorShard, workersCount)
-
-	pup := &pipeUnpackJSONProcessor{
-		pu:     pu,
-		ppBase: ppBase,
-
-		shards: shards,
-	}
-	return pup
-}
-
-type pipeUnpackJSONProcessor struct {
-	pu     *pipeUnpackJSON
-	ppBase pipeProcessor
-
-	shards []pipeUnpackJSONProcessorShard
-}
-
-type pipeUnpackJSONProcessorShard struct {
-	pipeUnpackJSONProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeUnpackJSONProcessorShardNopad{})%128]byte
-}
-
-type pipeUnpackJSONProcessorShardNopad struct {
-	p JSONParser
-
-	wctx pipeUnpackWriteContext
-}
-
-func (shard *pipeUnpackJSONProcessorShard) parseJSON(v, resultPrefix string) []Field {
-	if len(v) == 0 || v[0] != '{' {
-		// This isn't a JSON object
-		return nil
-	}
-	if err := shard.p.ParseLogMessageNoResetBuf(v, resultPrefix); err != nil {
-		// Cannot parse v
-		return nil
-	}
-	return shard.p.Fields
-}
-
-func (pup *pipeUnpackJSONProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
-		return
-	}
-
-	resultPrefix := pup.pu.resultPrefix
-	shard := &pup.shards[workerID]
-	wctx := &shard.wctx
-	wctx.init(br, pup.ppBase)
-
-	c := br.getColumnByName(pup.pu.fromField)
-	if c.isConst {
-		v := c.valuesEncoded[0]
-		extraFields := shard.parseJSON(v, resultPrefix)
-		for rowIdx := range br.timestamps {
-			wctx.writeRow(rowIdx, extraFields)
+	unpackJSON := func(uctx *fieldsUnpackerContext, s string) {
+		if len(s) == 0 || s[0] != '{' {
+			// This isn't a JSON object
+			return
 		}
-	} else {
-		values := c.getValues(br)
-		var extraFields []Field
-		for i, v := range values {
-			if i == 0 || values[i-1] != v {
-				extraFields = shard.parseJSON(v, resultPrefix)
+		p := GetJSONParser()
+		err := p.ParseLogMessage(bytesutil.ToUnsafeBytes(s))
+		if err != nil {
+			for _, fieldName := range pu.fields {
+				uctx.addField(fieldName, "")
 			}
-			wctx.writeRow(i, extraFields)
+		} else {
+			if len(pu.fields) == 0 {
+				for _, f := range p.Fields {
+					uctx.addField(f.Name, f.Value)
+				}
+			} else {
+				for _, fieldName := range pu.fields {
+					addedField := false
+					for _, f := range p.Fields {
+						if f.Name == fieldName {
+							uctx.addField(f.Name, f.Value)
+							addedField = true
+							break
+						}
+					}
+					if !addedField {
+						uctx.addField(fieldName, "")
+					}
+				}
+			}
 		}
+		PutJSONParser(p)
 	}
-
-	wctx.flush()
-	shard.p.reset()
-}
-
-func (pup *pipeUnpackJSONProcessor) flush() error {
-	return nil
+	return newPipeUnpackProcessor(workersCount, unpackJSON, ppBase, pu.fromField, pu.resultPrefix, pu.iff)
 }
 
 func parsePipeUnpackJSON(lex *lexer) (*pipeUnpackJSON, error) {
@@ -118,6 +129,15 @@ func parsePipeUnpackJSON(lex *lexer) (*pipeUnpackJSON, error) {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "unpack_json")
 	}
 	lex.nextToken()
+
+	var iff *ifFilter
+	if lex.isKeyword("if") {
+		f, err := parseIfFilter(lex)
+		if err != nil {
+			return nil, err
+		}
+		iff = f
+	}
 
 	fromField := "_msg"
 	if lex.isKeyword("from") {
@@ -127,6 +147,19 @@ func parsePipeUnpackJSON(lex *lexer) (*pipeUnpackJSON, error) {
 			return nil, fmt.Errorf("cannot parse 'from' field name: %w", err)
 		}
 		fromField = f
+	}
+
+	var fields []string
+	if lex.isKeyword("fields") {
+		lex.nextToken()
+		fs, err := parseFieldNamesInParens(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'fields': %w", err)
+		}
+		fields = fs
+		if slices.Contains(fields, "*") {
+			fields = nil
+		}
 	}
 
 	resultPrefix := ""
@@ -141,7 +174,10 @@ func parsePipeUnpackJSON(lex *lexer) (*pipeUnpackJSON, error) {
 
 	pu := &pipeUnpackJSON{
 		fromField:    fromField,
+		fields:       fields,
 		resultPrefix: resultPrefix,
+		iff:          iff,
 	}
+
 	return pu, nil
 }
