@@ -11,13 +11,19 @@ func TestParsePipeUnpackLogfmtSuccess(t *testing.T) {
 	}
 
 	f(`unpack_logfmt`)
+	f(`unpack_logfmt fields (a, b)`)
 	f(`unpack_logfmt if (a:x)`)
+	f(`unpack_logfmt if (a:x) fields (a, b)`)
 	f(`unpack_logfmt from x`)
-	f(`unpack_logfmt from x if (a:x)`)
+	f(`unpack_logfmt from x fields (a, b)`)
+	f(`unpack_logfmt if (a:x) from x`)
+	f(`unpack_logfmt if (a:x) from x fields (a, b)`)
 	f(`unpack_logfmt from x result_prefix abc`)
-	f(`unpack_logfmt from x result_prefix abc if (a:x)`)
+	f(`unpack_logfmt if (a:x) from x result_prefix abc`)
+	f(`unpack_logfmt if (a:x) from x fields (a, b) result_prefix abc`)
 	f(`unpack_logfmt result_prefix abc`)
-	f(`unpack_logfmt result_prefix abc if (a:x)`)
+	f(`unpack_logfmt if (a:x) result_prefix abc`)
+	f(`unpack_logfmt if (a:x) fields (a, b) result_prefix abc`)
 }
 
 func TestParsePipeUnpackLogfmtFailure(t *testing.T) {
@@ -27,6 +33,7 @@ func TestParsePipeUnpackLogfmtFailure(t *testing.T) {
 	}
 
 	f(`unpack_logfmt foo`)
+	f(`unpack_logfmt fields`)
 	f(`unpack_logfmt if`)
 	f(`unpack_logfmt if (x:y) foobar`)
 	f(`unpack_logfmt from`)
@@ -45,6 +52,19 @@ func TestPipeUnpackLogfmt(t *testing.T) {
 		t.Helper()
 		expectPipeResults(t, pipeStr, rows, rowsExpected)
 	}
+
+	// unpack a subset of fields
+	f("unpack_logfmt fields (foo, a, b)", [][]Field{
+		{
+			{"_msg", `foo=bar baz="x y=z" a=b`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `foo=bar baz="x y=z" a=b`},
+			{"foo", "bar"},
+			{"a", "b"},
+		},
+	})
 
 	// single row, unpack from _msg
 	f("unpack_logfmt", [][]Field{
@@ -184,7 +204,7 @@ func TestPipeUnpackLogfmt(t *testing.T) {
 	})
 
 	// multiple rows with distinct number of fields, with result_prefix and if condition
-	f("unpack_logfmt from x result_prefix qwe_ if (y:abc)", [][]Field{
+	f("unpack_logfmt if (y:abc) from x result_prefix qwe_", [][]Field{
 		{
 			{"x", `foo=bar baz=xyz`},
 			{"y", `abc`},
@@ -222,25 +242,25 @@ func TestPipeUnpackLogfmtUpdateNeededFields(t *testing.T) {
 
 	// all the needed fields
 	f("unpack_logfmt from x", "*", "", "*", "")
-	f("unpack_logfmt from x if (y:z)", "*", "", "*", "")
+	f("unpack_logfmt if (y:z) from x", "*", "", "*", "")
 
 	// all the needed fields, unneeded fields do not intersect with src
 	f("unpack_logfmt from x", "*", "f1,f2", "*", "f1,f2")
-	f("unpack_logfmt from x if (y:z)", "*", "f1,f2", "*", "f1,f2")
-	f("unpack_logfmt from x if (f1:z)", "*", "f1,f2", "*", "f2")
+	f("unpack_logfmt if (y:z) from x", "*", "f1,f2", "*", "f1,f2")
+	f("unpack_logfmt if (f1:z) from x", "*", "f1,f2", "*", "f2")
 
 	// all the needed fields, unneeded fields intersect with src
 	f("unpack_logfmt from x", "*", "f2,x", "*", "f2")
-	f("unpack_logfmt from x if (y:z)", "*", "f2,x", "*", "f2")
-	f("unpack_logfmt from x if (f2:z)", "*", "f1,f2,x", "*", "f1")
+	f("unpack_logfmt if (y:z) from x", "*", "f2,x", "*", "f2")
+	f("unpack_logfmt if (f2:z) from x", "*", "f1,f2,x", "*", "f1")
 
 	// needed fields do not intersect with src
 	f("unpack_logfmt from x", "f1,f2", "", "f1,f2,x", "")
-	f("unpack_logfmt from x if (y:z)", "f1,f2", "", "f1,f2,x,y", "")
-	f("unpack_logfmt from x if (f1:z)", "f1,f2", "", "f1,f2,x", "")
+	f("unpack_logfmt if (y:z) from x", "f1,f2", "", "f1,f2,x,y", "")
+	f("unpack_logfmt if (f1:z) from x", "f1,f2", "", "f1,f2,x", "")
 
 	// needed fields intersect with src
 	f("unpack_logfmt from x", "f2,x", "", "f2,x", "")
-	f("unpack_logfmt from x if (y:z)", "f2,x", "", "f2,x,y", "")
-	f("unpack_logfmt from x if (f2:z y:qwe)", "f2,x", "", "f2,x,y", "")
+	f("unpack_logfmt if (y:z) from x", "f2,x", "", "f2,x,y", "")
+	f("unpack_logfmt if (f2:z y:qwe) from x", "f2,x", "", "f2,x,y", "")
 }

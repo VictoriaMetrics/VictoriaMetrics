@@ -71,15 +71,11 @@ func (pu *pipeUnpackJSON) newPipeProcessor(workersCount int, _ <-chan struct{}, 
 				}
 			} else {
 				for _, fieldName := range pu.fields {
-					found := false
 					for _, f := range p.Fields {
 						if f.Name == fieldName {
 							uctx.addField(f.Name, f.Value)
-							found = true
+							break
 						}
-					}
-					if !found {
-						uctx.addField(fieldName, "")
 					}
 				}
 			}

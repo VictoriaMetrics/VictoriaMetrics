@@ -64,7 +64,6 @@ func TestPipeUnpackJSON(t *testing.T) {
 		{
 			{"_msg", `{"foo":"bar","z":"q","a":"b"}`},
 			{"foo", "bar"},
-			{"b", ""},
 		},
 	})
 

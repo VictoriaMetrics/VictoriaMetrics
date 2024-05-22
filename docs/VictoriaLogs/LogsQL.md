@@ -1679,17 +1679,17 @@ See also:
 #### Conditional unpack_json
 
 If the [`unpack_json` pipe](#unpack_json-pipe) musn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
-then add `if (<filters>)` to the end of `unpack_json ...`.
-The `<filters>` can contain arbitrary [filters](#filters). For example, the following query unpacks JSON fields only if `ip` field in the current log entry isn't set or empty:
+then add `if (<filters>)` after `unpack_json`.
+The `<filters>` can contain arbitrary [filters](#filters). For example, the following query unpacks JSON fields from `foo` field only if `ip` field in the current log entry isn't set or empty:
 
 ```logsql
-_time:5m | unpack_json if (ip:"")
+_time:5m | unpack_json if (ip:"") from foo
 ```
 
 ### unpack_logfmt pipe
 
 `| unpack_logfmt from field_name` pipe unpacks `k1=v1 ... kN=vN` [logfmt](https://brandur.org/logfmt) fields
-from the given `field_name` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into `k1`, ... `kN` field names
+from the given [`field_name`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into `k1`, ... `kN` field names
 with the corresponding `v1`, ..., `vN` values. It overrides existing fields with names from the `k1`, ..., `kN` list. Other fields remain untouched.
 
 For example, the following query unpacks [logfmt](https://brandur.org/logfmt) fields from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
@@ -1706,12 +1706,11 @@ The following query is equivalent to the previous one:
 _time:5m | unpack_logfmt
 ```
 
-If you want to make sure that the unpacked [logfmt](https://brandur.org/logfmt) fields do not clash with the existing fields, then specify common prefix for all the fields extracted from JSON,
-by adding `result_prefix "prefix_name"` to `unpack_logfmt`. For example, the following query adds `foo_` prefix for all the unpacked fields
-from [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
+If only some fields must be unpacked from logfmt, then they can be enumerated inside `fields (...)`. For example, the following query extracts only `foo` and `bar` fields
+from logfmt stored in the `my_logfmt` field:
 
 ```logsql
-_time:5m | unpack_logfmt result_prefix "foo_"
+_time:5m | unpack_logfmt from my_logfmt fields (foo, bar)
 ```
 
 Performance tip: if you need extracting a single field from long [logfmt](https://brandur.org/logfmt) line, it is faster to use [`extract` pipe](#extract-pipe).
@@ -1720,6 +1719,14 @@ in [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#mes
 
 ```
 _time:5m | extract ' ip=<ip>'
+```
+
+If you want to make sure that the unpacked [logfmt](https://brandur.org/logfmt) fields do not clash with the existing fields, then specify common prefix for all the fields extracted from JSON,
+by adding `result_prefix "prefix_name"` to `unpack_logfmt`. For example, the following query adds `foo_` prefix for all the unpacked fields
+from `foo` field:
+
+```logsql
+_time:5m | unpack_logfmt from foo result_prefix "foo_"
 ```
 
 See also:
@@ -1731,11 +1738,12 @@ See also:
 #### Conditional unpack_logfmt
 
 If the [`unpack_logfmt` pipe](#unpack_logfmt-pipe) musn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
-then add `if (<filters>)` to the end of `unpack_logfmt ...`.
-The `<filters>` can contain arbitrary [filters](#filters). For example, the following query unpacks logfmt fields only if `ip` field in the current log entry isn't set or empty:
+then add `if (<filters>)` after `unpack_logfmt`.
+The `<filters>` can contain arbitrary [filters](#filters). For example, the following query unpacks logfmt fields from `foo` field
+only if `ip` field in the current log entry isn't set or empty:
 
 ```logsql
-_time:5m | unpack_logfmt if (ip:"")
+_time:5m | unpack_logfmt if (ip:"") from foo
 ```
 
 ## stats pipe functions
