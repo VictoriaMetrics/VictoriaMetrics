@@ -1272,11 +1272,11 @@ See also:
 
 ### format pipe
 
-`| format "pattern" as result_field` [pipe](#format-pipe) combines [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+`| format "pattern" as result_field` [pipe](#pipe) combines [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 according to the `pattern` and stores it to the `result_field`. All the other fields remain unchanged after the `| format ...` pipe.
 
 For example, the following query stores `request from <ip>:<port>` text into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
-by substituting `<ip>` and `<port>` with the corresponding [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) names:
+by substituting `<ip>` and `<port>` with the corresponding [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values:
 
 ```logsql
 _time:5m | format "request from <ip>:<port>" as _msg
@@ -1670,6 +1670,10 @@ form `foo`:
 _time:5m | unpack_json from foo result_prefix "foo_"
 ```
 
+Performance tip: it is better from performance and resource usage PoV ingesting parsed JSON logs into VictoriaLogs
+according to the [supported data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+instead of ingesting unparsed JSON lines into VictoriaLogs and then parsing them at query time with [`unpack_json` pipe](#unpack_json-pipe).
+
 See also:
 
 - [Conditional `unpack_json`](#conditional-unpack_json)
@@ -1728,6 +1732,10 @@ from `foo` field:
 ```logsql
 _time:5m | unpack_logfmt from foo result_prefix "foo_"
 ```
+
+Performance tip: it is better from performance and resource usage PoV ingesting parsed [logfmt](https://brandur.org/logfmt) logs into VictoriaLogs
+according to the [supported data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+instead of ingesting unparsed logfmt lines into VictoriaLogs and then parsing them at query time with [`unpack_logfmt` pipe](#unpack_logfmt-pipe).
 
 See also:
 
@@ -2103,11 +2111,10 @@ LogsQL supports the following transformations on the log entries selected with [
   See [these docs](#extract-pipe) for details.
 - Unpacking JSON fields from [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model). See [these docs](#unpack_json-pipe).
 - Unpacking [logfmt](https://brandur.org/logfmt) fields from [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model). See [these docs](#unpack_logfmt-pipe).
+- Creating a new field from existing [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) according to the provided format. See [these docs](#format-pipe).
 
 LogsQL will support the following transformations in the future:
 
-- Creating a new field from existing [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
-  according to the provided format.
 - Creating a new field according to math calculations over existing [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - Parsing duration strings into floating-point seconds for further [stats calculations](#stats-pipe).
 
