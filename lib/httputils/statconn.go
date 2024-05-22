@@ -61,7 +61,7 @@ func GetStatDialFunc(metricPrefix string) func(ctx context.Context, network, add
 		if err != nil {
 			sm.dialErrors.Inc()
 			if !netutil.TCP6Enabled() && !isTCPv4Addr(addr) {
-				err = fmt.Errorf("%w; try -enableTCP6 command-line flag if you scrape ipv6 addresses", err)
+				err = fmt.Errorf("%w; try -enableTCP6 command-line flag for dialing ipv6 addresses", err)
 			}
 			return nil, err
 		}
