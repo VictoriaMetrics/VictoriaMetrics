@@ -1,4 +1,4 @@
-package promscrape
+package httputils
 
 import (
 	"testing"

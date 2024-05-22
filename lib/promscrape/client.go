@@ -14,6 +14,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 )
 
 var (
@@ -71,7 +72,7 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 			IdleConnTimeout:        2 * sw.ScrapeInterval,
 			DisableCompression:     *disableCompression || sw.DisableCompression,
 			DisableKeepAlives:      *disableKeepAlive || sw.DisableKeepAlive,
-			DialContext:            statStdDial,
+			DialContext:            httputils.GetStatDialFunc("vm_promscrape"),
 			MaxIdleConnsPerHost:    100,
 			MaxResponseHeaderBytes: int64(maxResponseHeadersSize.N),
 		}),
