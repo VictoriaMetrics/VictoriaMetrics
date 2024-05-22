@@ -1272,11 +1272,11 @@ See also:
 
 ### format pipe
 
-`| format "pattern" as result_field` [pipe](#format-pipe) combines [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+`| format "pattern" as result_field` [pipe](#pipe) combines [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 according to the `pattern` and stores it to the `result_field`. All the other fields remain unchanged after the `| format ...` pipe.
 
 For example, the following query stores `request from <ip>:<port>` text into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
-by substituting `<ip>` and `<port>` with the corresponding [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) names:
+by substituting `<ip>` and `<port>` with the corresponding [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values:
 
 ```logsql
 _time:5m | format "request from <ip>:<port>" as _msg
