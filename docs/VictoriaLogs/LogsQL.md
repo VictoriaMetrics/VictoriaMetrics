@@ -1887,7 +1887,7 @@ across logs for the last 5 minutes:
 _time:5m | stats fields_max(duration) as log_with_max_duration
 ```
 
-Fields from the returned values can be decoded with [`unpack_json`](#unpack_json-pipe) or [`extract`](#extract) pipes.
+Fields from the returned values can be decoded with [`unpack_json`](#unpack_json-pipe) or [`extract`](#extract-pipe) pipes.
 
 If only the specific fields are needed from the returned log entry, then they can be enumerated inside `fields_max(...)`.
 For example, the following query returns only `_time`, `path` and `duration` fields from the log entry with the maximum `duration` over the last 5 minutes:
@@ -1914,7 +1914,7 @@ across logs for the last 5 minutes:
 _time:5m | stats fields_min(duration) as log_with_min_duration
 ```
 
-Fields from the returned values can be decoded with [`unpack_json`](#unpack_json-pipe) or [`extract`](#extract) pipes.
+Fields from the returned values can be decoded with [`unpack_json`](#unpack_json-pipe) or [`extract`](#extract-pipe) pipes.
 
 If only the specific fields are needed from the returned log entry, then they can be enumerated inside `fields_max(...)`.
 For example, the following query returns only `_time`, `path` and `duration` fields from the log entry with the minimum `duration` over the last 5 minutes:
