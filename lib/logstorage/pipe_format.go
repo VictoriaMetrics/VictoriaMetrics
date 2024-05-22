@@ -21,11 +21,14 @@ type pipeFormat struct {
 }
 
 func (pf *pipeFormat) String() string {
-	s := "format " + quoteTokenIfNeeded(pf.formatStr)
+	s := "format"
 	if pf.iff != nil {
 		s += " " + pf.iff.String()
 	}
-	s += " as " + quoteTokenIfNeeded(pf.resultField)
+	s += " " + quoteTokenIfNeeded(pf.formatStr)
+	if !isMsgFieldName(pf.resultField) {
+		s += " as " + quoteTokenIfNeeded(pf.resultField)
+	}
 	return s
 }
 
@@ -150,16 +153,6 @@ func parsePipeFormat(lex *lexer) (*pipeFormat, error) {
 	}
 	lex.nextToken()
 
-	// parse format
-	formatStr, err := getCompoundToken(lex)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read 'format': %w", err)
-	}
-	steps, err := parsePatternSteps(formatStr)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse 'pattern' %q: %w", formatStr, err)
-	}
-
 	// parse optional if (...)
 	var iff *ifFilter
 	if lex.isKeyword("if") {
@@ -170,14 +163,25 @@ func parsePipeFormat(lex *lexer) (*pipeFormat, error) {
 		iff = f
 	}
 
-	// parse resultField
-	if !lex.isKeyword("as") {
-		return nil, fmt.Errorf("missing 'as' keyword after 'format %q'", formatStr)
-	}
-	lex.nextToken()
-	resultField, err := parseFieldName(lex)
+	// parse format
+	formatStr, err := getCompoundToken(lex)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse result field after 'format %q as': %w", formatStr, err)
+		return nil, fmt.Errorf("cannot read 'format': %w", err)
+	}
+	steps, err := parsePatternSteps(formatStr)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse 'pattern' %q: %w", formatStr, err)
+	}
+
+	// parse optional 'as ...` part
+	resultField := "_msg"
+	if lex.isKeyword("as") {
+		lex.nextToken()
+		field, err := parseFieldName(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse result field after 'format %q as': %w", formatStr, err)
+		}
+		resultField = field
 	}
 
 	pf := &pipeFormat{

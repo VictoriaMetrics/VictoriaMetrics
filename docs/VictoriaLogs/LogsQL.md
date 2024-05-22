@@ -1056,6 +1056,7 @@ LogsQL supports the following pipes:
 - [`field_names`](#field_names-pipe) returns all the names of [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - [`fields`](#fields-pipe) selects the given set of [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - [`filter`](#filter-pipe) applies additional [filters](#filters) to results.
+- [`format`](#format-pipe) formats ouptut field from input [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 - [`limit`](#limit-pipe) limits the number selected logs.
 - [`offset`](#offset-pipe) skips the given number of selected logs.
 - [`rename`](#rename-pipe) renames [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
@@ -1110,27 +1111,33 @@ See also:
 
 ### extract pipe
 
-`| extract from field_name "pattern"` [pipe](#pipes) allows extracting additional fields specified in the `pattern` from the given
-`field_name` [log field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model). Existing log fields remain unchanged
-after the `| extract ...` pipe.
+`| extract "pattern" from field_name` [pipe](#pipes) allows extracting abitrary text into output fields according to the [`pattern`](#format-for-extract-pipe-pattern) from the given
+[`field_name`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model). Existing log fields remain unchanged after the `| extract ...` pipe.
 
-`| extract ...` pipe can be useful for extracting additional fields needed for further data processing with other pipes such as [`stats` pipe](#stats-pipe) or [`sort` pipe](#sort-pipe).
+`| extract ...` can be useful for extracting additional fields needed for further data processing with other pipes such as [`stats` pipe](#stats-pipe) or [`sort` pipe](#sort-pipe).
 
 For example, the following query selects logs with the `error` [word](#word) for the last day,
 extracts ip address from [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) into `ip` field and then calculates top 10 ip addresses
 with the biggest number of logs:
 
 ```logsql
-_time:1d error | extract from _msg "ip=<ip> " | stats by (ip) count() logs | sort by (logs) desc limit 10
+_time:1d error | extract "ip=<ip> " from _msg | stats by (ip) count() logs | sort by (logs) desc limit 10
 ```
 
-It is expected that `_msg` field contains `ip=...` substring, which ends with space. For example, `error ip=1.2.3.4 from user_id=42`.
+It is expected that `_msg` field contains `ip=...` substring ending with space. For example, `error ip=1.2.3.4 from user_id=42`.
+If there is no such substring in the current `_msg` field, then the `ip` output field will be empty.
 
 If the `| extract ...` pipe is applied to [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field), then the `from _msg` part can be omitted.
 For example, the following query is equivalent to the previous one:
 
 ```logsql
 _time:1d error | extract "ip=<ip> " | stats by (ip) count() logs | sort by (logs) desc limit 10
+```
+
+If the `pattern` contains double quotes, then it can be quoted into single quotes. For example, the following query extracts `ip` from the corresponding JSON field:
+
+```logsql
+_time:5m | extract '"ip":"<ip>"'
 ```
 
 See also:
@@ -1140,23 +1147,27 @@ See also:
 - [`unpack_json` pipe](#unpack_json-pipe)
 - [`unpack_logfmt` pipe](#unpack_logfmt-pipe)
 
-#### Conditional extract
-
-If some log entries must be skipped from [`extract` pipe](#extract-pipe), then add `if (<filters>)` filter to the end of `| extract ...` pipe.
-The `<filters>` can contain arbitrary [filters](#filters). For example, the following query extracts `ip` field only
-if the input [log entry](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) doesn't contain `ip` field or this field is empty:
-
-```logsql
-_time:5m | extract "ip=<ip> " if (ip:"")
-```
-
 #### Format for extract pipe pattern
 
-The `pattern` part from [`| extract from src_field "pattern"` pipe](#extract-pipes) may contain arbitrary text, which matches as is to the `src_field` value.
-Additionally to arbitrary text, the `pattern` may contain placeholders in the form `<...>`, which match any strings, including empty strings.
-Placeholders may be named, such as `<ip>`, or anonymous, such as `<_>`. Named placeholders extract the matching text into
-the corresponding [log field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
-Anonymous placeholders are useful for skipping arbitrary text during pattern matching.
+The `pattern` part from [`extract ` pipe](#extract-pipe) has the following format:
+
+```
+text1<field1>text2<field2>...textN<fieldN>textN+1
+```
+
+Where `text1`, ... `textN+1` is arbitrary non-empty text, which matches as is to the input text.
+
+The `field1`, ... `fieldN` are placeholders, which match a substring of any length (including zero length) in the input text until the next `textX`.
+Placeholders can be anonymous and named. Anonymous placeholders are written as `<_>`. They are used for convenience when some input text
+must be skipped until the next `textX`. Named palceholders are written as `<some_name>`, where `some_name` is the name of the log field to store
+the corresponding matching substring to.
+
+The matching starts from the first occurence of the `text1` in the input text. If the `pattern` starts with `<field1>` and doesn't contain `text1`,
+then the matching starts from the beginning of the input text. Matching is performed sequentially according to the `pattern`. If some `textX` isn't found
+in the remaining input text, then the remaining named placeholders receive empty string values and the matching finishes prematurely.
+
+Matching finishes successfully when `textN+1` is found in the input text.
+If the `pattern` ends with `<fieldN>` and doesn't contain `textN+1`, then the `<fieldN>` matches the remaining input text.
 
 For example, if [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) contains the following text:
 
@@ -1164,34 +1175,44 @@ For example, if [`_msg` field](https://docs.victoriametrics.com/victorialogs/key
 1.2.3.4 GET /foo/bar?baz 404 "Mozilla  foo bar baz" some tail here
 ```
 
-Then the following `| extract ...` [pipe](#pipes) can be used for extracting `ip`, `path` and `user_agent` fields from it:
+Then the following `pattern` can be used for extracting `ip`, `path` and `user_agent` fields from it:
 
 ```
-| extract '<ip> <_> <path> <_> "<user_agent>"'
+<ip> <_> <path> <_> "<user_agent>"
 ```
 
 Note that the user-agent part of the log message is in double quotes. This means that it may contain special chars, including escaped double quote, e.g. `\"`.
 This may break proper matching of the string in double quotes.
 
-VictoriaLogs automatically detects the whole string in quotes and automatically decodes it if the first char in the placeholder is double quote or backtick.
-So it is better to use the following `pattern` for proper matching of quoted strings:
+VictoriaLogs automatically detects quoted strings and automatically unquotes them if the first matching char in the placeholder is double quote or backtick.
+So it is better to use the following `pattern` for proper matching of quoted `user_agent` string:
 
 ```
-| extract "<ip> <_> <path> <_> <user_agent>"
+<ip> <_> <path> <_> <user_agent>
 ```
 
-Note that the `user_agent` now matches double quotes, but VictoriaLogs automatically unquotes the matching string before storing it in the `user_agent` field.
-This is useful for extracting JSON strings. For example, the following `pattern` properly extracts the `message` JSON string into `msg` field:
+This is useful for extracting JSON strings. For example, the following `pattern` properly extracts the `message` JSON string into `msg` field, even if it contains special chars:
 
 ```
-| extract '"message":<msg>'
+"message":<msg>
 ```
 
 If some special chars such as `<` must be matched by the `pattern`, then they can be [html-escaped](https://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references).
-For example, the following `pattern` properly matches `a < 123.456` text:
+For example, the following `pattern` properly matches `a < b` text by extracting `a` into `left` field and `b` into `right` field:
 
 ```
-| extract "<left> &lt; <right>"
+<left> &lt; <right>
+```
+
+#### Conditional extract
+
+If some log entries must be skipped from [`extract` pipe](#extract-pipe), then add `if (<filters>)` filter after the `extract` word.
+The `<filters>` can contain arbitrary [filters](#filters). For example, the following query extracts `ip` field
+from [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) only
+if the input [log entry](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) doesn't contain `ip` field or this field is empty:
+
+```logsql
+_time:5m | extract if (ip:"") "ip=<ip> "
 ```
 
 ### field_names pipe
@@ -1248,6 +1269,49 @@ See also:
 
 - [`stats` pipe](#stats-pipe)
 - [`sort` pipe](#sort-pipe)
+
+### format pipe
+
+`| format "pattern" as result_field` [pipe](#format-pipe) combines [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+according to the `pattern` and stores it to the `result_field`.
+
+For example, the following query stores `request from <ip>:<port>` text into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
+by substituting `<ip>` and `<port>` with the corresponding [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) names:
+
+```logsql
+_time:5m | format "request from <ip>:<port>" as _msg
+```
+
+If the result of the `format` pattern is stored into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
+then `as _msg` part can be omitted. The following query is equivalent to the previous one:
+
+```logsql
+_time:5m | format "request from <ip>:<port>"
+```
+
+If some field values must be put into double quotes before formatting, then add `:q` after the corresponding field name.
+For example, the following command generates properly encoded JSON object from `_msg` and `stacktrace` [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+and stores it into `my_json` output field:
+
+```logsql
+_time:5m | format '{"_msg":<_msg:q>,"stacktrace":<stacktrace:q>}' as my_json
+```
+
+See also:
+
+- [Conditional format](#conditional-format)
+- [`extract` pipe](#extract-pipe)
+
+#### Conditional format
+
+If the [`format` pipe](#format-pipe) musn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
+then add `if (<filters>)` just after the `format` word.
+The `<filters>` can contain arbitrary [filters](#filters). For example, the following query stores the formatted result to `message` field
+only if `ip` and `host` [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) aren't empty:
+
+```logsql
+_time:5m | format if (ip:* and host:*) "request from <ip>:<host>" as message
+```
 
 ### limit pipe
 

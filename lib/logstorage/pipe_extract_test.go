@@ -11,8 +11,8 @@ func TestParsePipeExtractSuccess(t *testing.T) {
 	}
 
 	f(`extract "foo<bar>"`)
-	f(`extract from x "foo<bar>"`)
-	f(`extract from x "foo<bar>" if (y:in(a:foo bar | uniq by (qwe) limit 10))`)
+	f(`extract "foo<bar>" from x`)
+	f(`extract if (x:y) "foo<bar>" from baz`)
 }
 
 func TestParsePipeExtractFailure(t *testing.T) {
@@ -23,11 +23,10 @@ func TestParsePipeExtractFailure(t *testing.T) {
 
 	f(`extract`)
 	f(`extract from`)
+	f(`extract from x`)
+	f(`extract from x "y<foo>"`)
 	f(`extract if (x:y)`)
-	f(`extract if (x:y) "a<b>"`)
-	f(`extract "a<b>" if`)
-	f(`extract "a<b>" if (foo`)
-	f(`extract "a<b>" if "foo"`)
+	f(`extract "a<b>" if (x:y)`)
 	f(`extract "a"`)
 	f(`extract "<a><b>"`)
 	f(`extract "<*>foo<_>bar"`)
@@ -64,7 +63,7 @@ func TestPipeExtract(t *testing.T) {
 	})
 
 	// single row, extract from non-existing field
-	f(`extract from x "foo=<bar>"`, [][]Field{
+	f(`extract "foo=<bar>" from x`, [][]Field{
 		{
 			{"_msg", `foo=bar`},
 		},
@@ -76,7 +75,7 @@ func TestPipeExtract(t *testing.T) {
 	})
 
 	// single row, pattern mismatch
-	f(`extract from x "foo=<bar>"`, [][]Field{
+	f(`extract "foo=<bar>" from x`, [][]Field{
 		{
 			{"x", `foobar`},
 		},
@@ -88,7 +87,7 @@ func TestPipeExtract(t *testing.T) {
 	})
 
 	// single row, partial partern match
-	f(`extract from x "foo=<bar> baz=<xx>"`, [][]Field{
+	f(`extract "foo=<bar> baz=<xx>" from x`, [][]Field{
 		{
 			{"x", `a foo="a\"b\\c" cde baz=aa`},
 		},
@@ -101,7 +100,7 @@ func TestPipeExtract(t *testing.T) {
 	})
 
 	// single row, overwirte existing column
-	f(`extract from x "foo=<bar> baz=<xx>"`, [][]Field{
+	f(`extract "foo=<bar> baz=<xx>" from x`, [][]Field{
 		{
 			{"x", `a foo=cc baz=aa b`},
 			{"bar", "abc"},
@@ -115,7 +114,7 @@ func TestPipeExtract(t *testing.T) {
 	})
 
 	// single row, if match
-	f(`extract from x "foo=<bar> baz=<xx>" if (x:baz)`, [][]Field{
+	f(`extract if (x:baz) "foo=<bar> baz=<xx>" from x`, [][]Field{
 		{
 			{"x", `a foo=cc baz=aa b`},
 			{"bar", "abc"},
@@ -129,7 +128,7 @@ func TestPipeExtract(t *testing.T) {
 	})
 
 	// single row, if mismatch
-	f(`extract from x "foo=<bar> baz=<xx>" if (bar:"")`, [][]Field{
+	f(`extract if (bar:"") "foo=<bar> baz=<xx>" from x`, [][]Field{
 		{
 			{"x", `a foo=cc baz=aa b`},
 			{"bar", "abc"},
@@ -142,7 +141,7 @@ func TestPipeExtract(t *testing.T) {
 	})
 
 	// multiple rows with distinct set of labels
-	f(`extract "ip=<ip> " if (!ip:keep)`, [][]Field{
+	f(`extract if (!ip:keep) "ip=<ip> "`, [][]Field{
 		{
 			{"foo", "bar"},
 			{"_msg", "request from ip=1.2.3.4 xxx"},
@@ -201,44 +200,44 @@ func TestPipeExtractUpdateNeededFields(t *testing.T) {
 	}
 
 	// all the needed fields
-	f("extract from x '<foo>'", "*", "", "*", "foo")
-	f("extract from x '<foo>' if (foo:bar)", "*", "", "*", "")
+	f("extract '<foo>' from x", "*", "", "*", "foo")
+	f("extract if (foo:bar) '<foo>' from x", "*", "", "*", "")
 
 	// unneeded fields do not intersect with pattern and output fields
-	f("extract from x '<foo>'", "*", "f1,f2", "*", "f1,f2,foo")
-	f("extract from x '<foo>' if (f1:x)", "*", "f1,f2", "*", "f2,foo")
-	f("extract from x '<foo>' if (foo:bar f1:x)", "*", "f1,f2", "*", "f2")
+	f("extract '<foo>' from x", "*", "f1,f2", "*", "f1,f2,foo")
+	f("extract if (f1:x) '<foo>' from x", "*", "f1,f2", "*", "f2,foo")
+	f("extract if (foo:bar f1:x) '<foo>' from x", "*", "f1,f2", "*", "f2")
 
 	// unneeded fields intersect with pattern
-	f("extract from x '<foo>'", "*", "f2,x", "*", "f2,foo")
-	f("extract from x '<foo>' if (f1:abc)", "*", "f2,x", "*", "f2,foo")
-	f("extract from x '<foo>' if (f2:abc)", "*", "f2,x", "*", "foo")
+	f("extract '<foo>' from x", "*", "f2,x", "*", "f2,foo")
+	f("extract if (f1:abc) '<foo>' from x", "*", "f2,x", "*", "f2,foo")
+	f("extract if (f2:abc) '<foo>' from x", "*", "f2,x", "*", "foo")
 
 	// unneeded fields intersect with output fields
-	f("extract from x '<foo>x<bar>'", "*", "f2,foo", "*", "bar,f2,foo")
-	f("extract from x '<foo>x<bar>' if (f1:abc)", "*", "f2,foo", "*", "bar,f2,foo")
-	f("extract from x '<foo>x<bar>' if (f2:abc foo:w)", "*", "f2,foo", "*", "bar")
+	f("extract '<foo>x<bar>' from x", "*", "f2,foo", "*", "bar,f2,foo")
+	f("extract if (f1:abc) '<foo>x<bar>' from x", "*", "f2,foo", "*", "bar,f2,foo")
+	f("extract if (f2:abc foo:w) '<foo>x<bar>' from x", "*", "f2,foo", "*", "bar")
 
 	// unneeded fields intersect with all the output fields
-	f("extract from x '<foo>x<bar>'", "*", "f2,foo,bar", "*", "bar,f2,foo,x")
-	f("extract from x '<foo>x<bar> if (a:b f2:q x:y foo:w)'", "*", "f2,foo,bar", "*", "bar,f2,foo,x")
+	f("extract '<foo>x<bar>' from x", "*", "f2,foo,bar", "*", "bar,f2,foo,x")
+	f("extract if (a:b f2:q x:y foo:w) '<foo>x<bar>' from x", "*", "f2,foo,bar", "*", "bar,f2,foo,x")
 
 	// needed fields do not intersect with pattern and output fields
-	f("extract from x '<foo>x<bar>'", "f1,f2", "", "f1,f2", "")
-	f("extract from x '<foo>x<bar>' if (a:b)", "f1,f2", "", "f1,f2", "")
-	f("extract from x '<foo>x<bar>' if (f1:b)", "f1,f2", "", "f1,f2", "")
+	f("extract '<foo>x<bar>' from x", "f1,f2", "", "f1,f2", "")
+	f("extract if (a:b) '<foo>x<bar>' from x", "f1,f2", "", "f1,f2", "")
+	f("extract if (f1:b) '<foo>x<bar>' from x", "f1,f2", "", "f1,f2", "")
 
 	// needed fields intersect with pattern field
-	f("extract from x '<foo>x<bar>'", "f2,x", "", "f2,x", "")
-	f("extract from x '<foo>x<bar>' if (a:b)", "f2,x", "", "f2,x", "")
+	f("extract '<foo>x<bar>' from x", "f2,x", "", "f2,x", "")
+	f("extract if (a:b) '<foo>x<bar>' from x", "f2,x", "", "f2,x", "")
 
 	// needed fields intersect with output fields
-	f("extract from x '<foo>x<bar>'", "f2,foo", "", "f2,x", "")
-	f("extract from x '<foo>x<bar>' if (a:b)", "f2,foo", "", "a,f2,x", "")
+	f("extract '<foo>x<bar>' from x", "f2,foo", "", "f2,x", "")
+	f("extract if (a:b) '<foo>x<bar>' from x", "f2,foo", "", "a,f2,x", "")
 
 	// needed fields intersect with pattern and output fields
-	f("extract from x '<foo>x<bar>'", "f2,foo,x,y", "", "f2,x,y", "")
-	f("extract from x '<foo>x<bar>' if (a:b foo:q)", "f2,foo,x,y", "", "a,f2,foo,x,y", "")
+	f("extract '<foo>x<bar>' from x", "f2,foo,x,y", "", "f2,x,y", "")
+	f("extract if (a:b foo:q) '<foo>x<bar>' from x", "f2,foo,x,y", "", "a,f2,foo,x,y", "")
 }
 
 func expectParsePipeFailure(t *testing.T, pipeStr string) {

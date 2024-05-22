@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-// pipeExtract processes '| extract from <field> <pattern>' pipe.
+// pipeExtract processes '| extract ...' pipe.
 //
 // See https://docs.victoriametrics.com/victorialogs/logsql/#extract-pipe
 type pipeExtract struct {
@@ -19,12 +19,12 @@ type pipeExtract struct {
 
 func (pe *pipeExtract) String() string {
 	s := "extract"
-	if !isMsgFieldName(pe.fromField) {
-		s += " from " + quoteTokenIfNeeded(pe.fromField)
-	}
-	s += " " + quoteTokenIfNeeded(pe.patternStr)
 	if pe.iff != nil {
 		s += " " + pe.iff.String()
+	}
+	s += " " + quoteTokenIfNeeded(pe.patternStr)
+	if !isMsgFieldName(pe.fromField) {
+		s += " from " + quoteTokenIfNeeded(pe.fromField)
 	}
 	return s
 }
@@ -90,14 +90,14 @@ func parsePipeExtract(lex *lexer) (*pipeExtract, error) {
 	}
 	lex.nextToken()
 
-	fromField := "_msg"
-	if lex.isKeyword("from") {
-		lex.nextToken()
-		f, err := parseFieldName(lex)
+	// parse optional if (...)
+	var iff *ifFilter
+	if lex.isKeyword("if") {
+		f, err := parseIfFilter(lex)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'from' field name: %w", err)
+			return nil, err
 		}
-		fromField = f
+		iff = f
 	}
 
 	// parse pattern
@@ -110,19 +110,22 @@ func parsePipeExtract(lex *lexer) (*pipeExtract, error) {
 		return nil, fmt.Errorf("cannot parse 'pattern' %q: %w", patternStr, err)
 	}
 
+	// parse optional 'from ...' part
+	fromField := "_msg"
+	if lex.isKeyword("from") {
+		lex.nextToken()
+		f, err := parseFieldName(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'from' field name: %w", err)
+		}
+		fromField = f
+	}
+
 	pe := &pipeExtract{
 		fromField:  fromField,
 		ptn:        ptn,
 		patternStr: patternStr,
-	}
-
-	// parse optional if (...)
-	if lex.isKeyword("if") {
-		iff, err := parseIfFilter(lex)
-		if err != nil {
-			return nil, err
-		}
-		pe.iff = iff
+		iff: iff,
 	}
 
 	return pe, nil
