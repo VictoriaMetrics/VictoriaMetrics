@@ -6,24 +6,32 @@ import (
 )
 
 func TestPatternApply(t *testing.T) {
-	f := func(pattern, s string, resultsExpected []string) {
+	f := func(patternStr, s string, resultsExpected []string) {
 		t.Helper()
 
-		steps, err := parsePatternSteps(pattern)
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
-		ef := newPattern(steps)
-		ef.apply(s)
-
-		if len(ef.fields) != len(resultsExpected) {
-			t.Fatalf("unexpected number of results; got %d; want %d", len(ef.fields), len(resultsExpected))
-		}
-		for i, f := range ef.fields {
-			if v := *f.value; v != resultsExpected[i] {
-				t.Fatalf("unexpected value for field %q; got %q; want %q", f.name, v, resultsExpected[i])
+		checkFields := func(ptn *pattern) {
+			t.Helper()
+			if len(ptn.fields) != len(resultsExpected) {
+				t.Fatalf("unexpected number of results; got %d; want %d", len(ptn.fields), len(resultsExpected))
+			}
+			for i, f := range ptn.fields {
+				if v := *f.value; v != resultsExpected[i] {
+					t.Fatalf("unexpected value for field %q; got %q; want %q", f.name, v, resultsExpected[i])
+				}
 			}
 		}
+
+		ptn, err := parsePattern(patternStr)
+		if err != nil {
+			t.Fatalf("cannot parse %q: %s", patternStr, err)
+		}
+		ptn.apply(s)
+		checkFields(ptn)
+
+		// clone pattern and check fields again
+		ptnCopy := ptn.clone()
+		ptnCopy.apply(s)
+		checkFields(ptn)
 	}
 
 	f("<foo>", "", []string{""})
@@ -57,6 +65,30 @@ func TestPatternApply(t *testing.T) {
 	f(`<foo>,"bar`, `"foo,\"bar"`, []string{`foo,"bar`})
 }
 
+func TestParsePatternFailure(t *testing.T) {
+	f := func(patternStr string) {
+		t.Helper()
+
+		ptn, err := parsePattern(patternStr)
+		if err == nil {
+			t.Fatalf("expecting error when parsing %q; got %v", patternStr, ptn)
+		}
+	}
+
+	// Missing named fields
+	f("")
+	f("foobar")
+	f("<>")
+	f("<>foo<>bar")
+
+	// Missing delimiter between fields
+	f("<foo><bar>")
+	f("abc<foo><bar>def")
+	f("abc<foo><bar>")
+	f("abc<foo><_>")
+	f("abc<_><_>")
+}
+
 func TestParsePatternStepsSuccess(t *testing.T) {
 	f := func(s string, stepsExpected []patternStep) {
 		t.Helper()
@@ -69,6 +101,33 @@ func TestParsePatternStepsSuccess(t *testing.T) {
 			t.Fatalf("unexpected steps for [%s]; got %v; want %v", s, steps, stepsExpected)
 		}
 	}
+
+	f("", nil)
+
+	f("foobar", []patternStep{
+		{
+			prefix: "foobar",
+		},
+	})
+
+	f("<>", []patternStep{
+		{},
+	})
+
+	f("foo<>", []patternStep{
+		{
+			prefix: "foo",
+		},
+	})
+
+	f("<foo><bar>", []patternStep{
+		{
+			field: "foo",
+		},
+		{
+			field: "bar",
+		},
+	})
 
 	f("<foo>", []patternStep{
 		{
@@ -141,37 +200,18 @@ func TestParsePatternStepsSuccess(t *testing.T) {
 			prefix: "&gt;",
 		},
 	})
+
 }
 
 func TestParsePatternStepsFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 
-		_, err := parsePatternSteps(s)
+		steps, err := parsePatternSteps(s)
 		if err == nil {
-			t.Fatalf("expecting non-nil error when parsing %q", s)
+			t.Fatalf("expecting non-nil error when parsing %q; got steps: %v", s, steps)
 		}
 	}
-
-	// empty string
-	f("")
-
-	// zero fields
-	f("foobar")
-
-	// Zero named fields
-	f("<>")
-	f("foo<>")
-	f("<>foo")
-	f("foo<_>bar<*>baz<>xxx")
-
-	// missing delimiter between fields
-	f("<foo><bar>")
-	f("<><bar>")
-	f("<foo><>")
-	f("bb<foo><><bar>aa")
-	f("aa<foo><bar>")
-	f("aa<foo><bar>bb")
 
 	// missing >
 	f("<foo")

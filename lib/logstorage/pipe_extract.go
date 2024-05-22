@@ -9,7 +9,7 @@ import (
 // See https://docs.victoriametrics.com/victorialogs/logsql/#extract-pipe
 type pipeExtract struct {
 	fromField string
-	steps     []patternStep
+	ptn       *pattern
 
 	patternStr string
 
@@ -33,7 +33,7 @@ func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet
 	if neededFields.contains("*") {
 		unneededFieldsOrig := unneededFields.clone()
 		needFromField := false
-		for _, step := range pe.steps {
+		for _, step := range pe.ptn.steps {
 			if step.field != "" {
 				if !unneededFieldsOrig.contains(step.field) {
 					needFromField = true
@@ -52,7 +52,7 @@ func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet
 	} else {
 		neededFieldsOrig := neededFields.clone()
 		needFromField := false
-		for _, step := range pe.steps {
+		for _, step := range pe.ptn.steps {
 			if step.field != "" && neededFieldsOrig.contains(step.field) {
 				needFromField = true
 				neededFields.remove(step.field)
@@ -70,7 +70,7 @@ func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet
 func (pe *pipeExtract) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
 	patterns := make([]*pattern, workersCount)
 	for i := range patterns {
-		patterns[i] = newPattern(pe.steps)
+		patterns[i] = pe.ptn.clone()
 	}
 
 	unpackFunc := func(uctx *fieldsUnpackerContext, s string) {
@@ -105,14 +105,14 @@ func parsePipeExtract(lex *lexer) (*pipeExtract, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot read 'pattern': %w", err)
 	}
-	steps, err := parsePatternSteps(patternStr)
+	ptn, err := parsePattern(patternStr)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse 'pattern' %q: %w", patternStr, err)
 	}
 
 	pe := &pipeExtract{
 		fromField:  fromField,
-		steps:      steps,
+		ptn:        ptn,
 		patternStr: patternStr,
 	}
 

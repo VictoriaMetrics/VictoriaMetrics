@@ -51,10 +51,10 @@ func BenchmarkPatternApply(b *testing.B) {
 	})
 }
 
-func benchmarkPatternApply(b *testing.B, pattern string, a []string) {
-	steps, err := parsePatternSteps(pattern)
+func benchmarkPatternApply(b *testing.B, patternStr string, a []string) {
+	ptnMain, err := parsePattern(patternStr)
 	if err != nil {
-		b.Fatalf("unexpected error: %s", err)
+		b.Fatalf("cannot parse pattern %q: %s", patternStr, err)
 	}
 
 	n := 0
@@ -65,12 +65,12 @@ func benchmarkPatternApply(b *testing.B, pattern string, a []string) {
 	b.ReportAllocs()
 	b.SetBytes(int64(n))
 	b.RunParallel(func(pb *testing.PB) {
+		ptn := ptnMain.clone()
 		sink := 0
-		ef := newPattern(steps)
 		for pb.Next() {
 			for _, s := range a {
-				ef.apply(s)
-				for _, v := range ef.matches {
+				ptn.apply(s)
+				for _, v := range ptn.matches {
 					sink += len(v)
 				}
 			}

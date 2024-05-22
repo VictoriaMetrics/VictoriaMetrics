@@ -31,11 +31,47 @@ type patternStep struct {
 	field  string
 }
 
-func newPattern(steps []patternStep) *pattern {
-	if len(steps) == 0 {
-		logger.Panicf("BUG: steps cannot be empty")
+func (ptn *pattern) clone() *pattern {
+	steps := ptn.steps
+	fields, matches := newFieldsAndMatchesFromPatternSteps(steps)
+	if len(fields) == 0 {
+		logger.Panicf("BUG: fields cannot be empty for steps=%v", steps)
+	}
+	return &pattern{
+		steps:   steps,
+		matches: matches,
+		fields:  fields,
+	}
+}
+
+func parsePattern(s string) (*pattern, error) {
+	steps, err := parsePatternSteps(s)
+	if err != nil {
+		return nil, err
 	}
 
+	// Verify that prefixes are non-empty between fields. The first prefix may be empty.
+	for i := 1; i < len(steps); i++ {
+		if steps[i].prefix == "" {
+			return nil, fmt.Errorf("missing delimiter between <%s> and <%s>", steps[i-1].field, steps[i].field)
+		}
+	}
+
+	// Build pattern struct
+	fields, matches := newFieldsAndMatchesFromPatternSteps(steps)
+	if len(fields) == 0 {
+		return nil, fmt.Errorf("pattern %q must contain at least a single named field in the form <field_name>", s)
+	}
+
+	ptn := &pattern{
+		steps:   steps,
+		matches: matches,
+		fields:  fields,
+	}
+	return ptn, nil
+}
+
+func newFieldsAndMatchesFromPatternSteps(steps []patternStep) ([]patternField, []string) {
 	matches := make([]string, len(steps))
 
 	var fields []patternField
@@ -47,22 +83,14 @@ func newPattern(steps []patternStep) *pattern {
 			})
 		}
 	}
-	if len(fields) == 0 {
-		logger.Panicf("BUG: fields cannot be empty")
-	}
 
-	ef := &pattern{
-		steps:   steps,
-		matches: matches,
-		fields:  fields,
-	}
-	return ef
+	return fields, matches
 }
 
-func (ef *pattern) apply(s string) {
-	clear(ef.matches)
+func (ptn *pattern) apply(s string) {
+	clear(ptn.matches)
 
-	steps := ef.steps
+	steps := ptn.steps
 
 	if prefix := steps[0].prefix; prefix != "" {
 		n := strings.Index(s, prefix)
@@ -73,7 +101,7 @@ func (ef *pattern) apply(s string) {
 		s = s[n+len(prefix):]
 	}
 
-	matches := ef.matches
+	matches := ptn.matches
 	for i := range steps {
 		nextPrefix := ""
 		if i+1 < len(steps) {
@@ -126,13 +154,18 @@ func tryUnquoteString(s string) (string, int) {
 }
 
 func parsePatternSteps(s string) ([]patternStep, error) {
-	var steps []patternStep
+	if len(s) == 0 {
+		return nil, nil
+	}
 
-	hasNamedField := false
+	var steps []patternStep
 
 	n := strings.IndexByte(s, '<')
 	if n < 0 {
-		return nil, fmt.Errorf("missing <...> fields")
+		steps = append(steps, patternStep{
+			prefix: s,
+		})
+		return steps, nil
 	}
 	prefix := s[:n]
 	s = s[n+1:]
@@ -151,9 +184,6 @@ func parsePatternSteps(s string) ([]patternStep, error) {
 			prefix: prefix,
 			field:  field,
 		})
-		if !hasNamedField && field != "" {
-			hasNamedField = true
-		}
 		if len(s) == 0 {
 			break
 		}
@@ -165,15 +195,8 @@ func parsePatternSteps(s string) ([]patternStep, error) {
 			})
 			break
 		}
-		if n == 0 {
-			return nil, fmt.Errorf("missing delimiter after <%s>", field)
-		}
 		prefix = s[:n]
 		s = s[n+1:]
-	}
-
-	if !hasNamedField {
-		return nil, fmt.Errorf("missing named fields like <name>")
 	}
 
 	for i := range steps {
