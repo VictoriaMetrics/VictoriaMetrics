@@ -232,10 +232,15 @@ func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 		}
 		s := fmt.Sprintf("stats by (%s) count() hits", byFieldsStr)
 		lex := newLexer(s)
+
 		ps, err := parsePipeStats(lex)
 		if err != nil {
-			logger.Panicf("BUG: unexpected error when parsing %q: %s", s, err)
+			logger.Panicf("BUG: unexpected error when parsing [%s]: %s", s, err)
 		}
+		if !lex.isEnd() {
+			logger.Panicf("BUG: unexpected tail left after parsing [%s]: %q", s, lex.s)
+		}
+
 		q.pipes = append(q.pipes, ps)
 	}
 
@@ -320,10 +325,16 @@ func (q *Query) Optimize() {
 		switch t := p.(type) {
 		case *pipeStats:
 			for _, f := range t.funcs {
-				if f.iff != nil {
-					optimizeFilterIn(f.iff)
-				}
+				f.iff.optimizeFilterIn()
 			}
+		case *pipeFormat:
+			t.iff.optimizeFilterIn()
+		case *pipeExtract:
+			t.iff.optimizeFilterIn()
+		case *pipeUnpackJSON:
+			t.iff.optimizeFilterIn()
+		case *pipeUnpackLogfmt:
+			t.iff.optimizeFilterIn()
 		}
 	}
 }
@@ -342,17 +353,6 @@ func removeStarFilters(f filter) filter {
 		logger.Fatalf("BUG: unexpected error: %s", err)
 	}
 	return f
-}
-
-func optimizeFilterIn(f filter) {
-	visitFunc := func(f filter) bool {
-		fi, ok := f.(*filterIn)
-		if ok && fi.q != nil {
-			fi.q.Optimize()
-		}
-		return false
-	}
-	_ = visitFilter(f, visitFunc)
 }
 
 func optimizeSortOffsetPipes(pipes []pipe) []pipe {
@@ -498,11 +498,14 @@ func parseQuery(lex *lexer) (*Query, error) {
 		f: f,
 	}
 
-	pipes, err := parsePipes(lex)
-	if err != nil {
-		return nil, fmt.Errorf("%w; context: [%s]", err, lex.context())
+	if lex.isKeyword("|") {
+		lex.nextToken()
+		pipes, err := parsePipes(lex)
+		if err != nil {
+			return nil, fmt.Errorf("%w; context: [%s]", err, lex.context())
+		}
+		q.pipes = pipes
 	}
-	q.pipes = pipes
 
 	return q, nil
 }
@@ -592,6 +595,10 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		return parseFilterGT(lex, fieldName)
 	case lex.isKeyword("<"):
 		return parseFilterLT(lex, fieldName)
+	case lex.isKeyword("="):
+		return parseFilterEQ(lex, fieldName)
+	case lex.isKeyword("~"):
+		return parseFilterTilda(lex, fieldName)
 	case lex.isKeyword("not", "!"):
 		return parseFilterNot(lex, fieldName)
 	case lex.isKeyword("exact"):
@@ -1012,10 +1019,39 @@ func parseFilterRegexp(lex *lexer, fieldName string) (filter, error) {
 	})
 }
 
-func parseFilterGT(lex *lexer, fieldName string) (filter, error) {
-	if fieldName == "" {
-		return nil, fmt.Errorf("'>' and '>=' must be prefixed with the field name")
+func parseFilterTilda(lex *lexer, fieldName string) (filter, error) {
+	lex.nextToken()
+	arg := getCompoundFuncArg(lex)
+	re, err := regexp.Compile(arg)
+	if err != nil {
+		return nil, fmt.Errorf("invalid regexp %q: %w", arg, err)
 	}
+	fr := &filterRegexp{
+		fieldName: fieldName,
+		re:        re,
+	}
+	return fr, nil
+}
+
+func parseFilterEQ(lex *lexer, fieldName string) (filter, error) {
+	lex.nextToken()
+	phrase := getCompoundFuncArg(lex)
+	if lex.isKeyword("*") && !lex.isSkippedSpace {
+		lex.nextToken()
+		f := &filterExactPrefix{
+			fieldName: fieldName,
+			prefix:    phrase,
+		}
+		return f, nil
+	}
+	f := &filterExact{
+		fieldName: fieldName,
+		value:     phrase,
+	}
+	return f, nil
+}
+
+func parseFilterGT(lex *lexer, fieldName string) (filter, error) {
 	lex.nextToken()
 
 	includeMinValue := false
@@ -1045,9 +1081,6 @@ func parseFilterGT(lex *lexer, fieldName string) (filter, error) {
 }
 
 func parseFilterLT(lex *lexer, fieldName string) (filter, error) {
-	if fieldName == "" {
-		return nil, fmt.Errorf("'<' and '<=' must be prefixed with the field name")
-	}
 	lex.nextToken()
 
 	includeMaxValue := false
@@ -1151,7 +1184,7 @@ func parseFilterRange(lex *lexer, fieldName string) (filter, error) {
 func parseFloat64(lex *lexer) (float64, string, error) {
 	s, err := getCompoundToken(lex)
 	if err != nil {
-		return 0, "", fmt.Errorf("cannot parse float64: %w", err)
+		return 0, "", fmt.Errorf("cannot parse float64 from %q: %w", s, err)
 	}
 	f, err := strconv.ParseFloat(s, 64)
 	if err == nil {
@@ -1164,7 +1197,7 @@ func parseFloat64(lex *lexer) (float64, string, error) {
 	if err == nil {
 		return float64(n), s, nil
 	}
-	return 0, "", fmt.Errorf("cannot parse %q as float64: %w", lex.token, err)
+	return 0, "", fmt.Errorf("cannot parse %q as float64: %w", s, err)
 }
 
 func parseFuncArg(lex *lexer, fieldName string, callback func(args string) (filter, error)) (filter, error) {

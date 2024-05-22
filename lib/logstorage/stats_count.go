@@ -9,16 +9,15 @@ import (
 )
 
 type statsCount struct {
-	fields       []string
-	containsStar bool
+	fields []string
 }
 
 func (sc *statsCount) String() string {
-	return "count(" + fieldNamesString(sc.fields) + ")"
+	return "count(" + statsFuncFieldsToString(sc.fields) + ")"
 }
 
 func (sc *statsCount) updateNeededFields(neededFields fieldsSet) {
-	if sc.containsStar {
+	if len(sc.fields) == 0 {
 		// There is no need in fetching any columns for count(*) - the number of matching rows can be calculated as len(blockResult.timestamps)
 		return
 	}
@@ -40,7 +39,7 @@ type statsCountProcessor struct {
 
 func (scp *statsCountProcessor) updateStatsForAllRows(br *blockResult) int {
 	fields := scp.sc.fields
-	if scp.sc.containsStar {
+	if len(fields) == 0 {
 		// Fast path - unconditionally count all the columns.
 		scp.rowsCount += uint64(len(br.timestamps))
 		return 0
@@ -138,7 +137,7 @@ func (scp *statsCountProcessor) updateStatsForAllRows(br *blockResult) int {
 
 func (scp *statsCountProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
 	fields := scp.sc.fields
-	if scp.sc.containsStar {
+	if len(fields) == 0 {
 		// Fast path - unconditionally count the given column
 		scp.rowsCount++
 		return 0
@@ -200,13 +199,12 @@ func (scp *statsCountProcessor) finalizeStats() string {
 }
 
 func parseStatsCount(lex *lexer) (*statsCount, error) {
-	fields, err := parseFieldNamesForStatsFunc(lex, "count")
+	fields, err := parseStatsFuncFields(lex, "count")
 	if err != nil {
 		return nil, err
 	}
 	sc := &statsCount{
-		fields:       fields,
-		containsStar: slices.Contains(fields, "*"),
+		fields: fields,
 	}
 	return sc, nil
 }

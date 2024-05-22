@@ -31,6 +31,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 ## tip
 
 **Update note 1: the `-remoteWrite.multitenantURL` command-line flag at `vmagent` was removed starting from this release. This flag was deprecated since [v1.96.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.96.0). Use `-enableMultitenantHandlers` instead, as it is easier to use and combine with [multitenant URL at vminsert](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy-via-labels). See these [docs for details](https://docs.victoriametrics.com/vmagent.html#multitenancy).**
+
 **Update note 2: the `-streamAggr.dropInputLabels` command-line flag at `vmagent` was renamed to `-remoteWrite.streamAggr.dropInputLabels`. `-streamAggr.dropInputLabels` is now used for global streaming aggregation.**
 
 * SECURITY: upgrade Go builder from Go1.22.2 to Go1.22.3. See [the list of issues addressed in Go1.22.3](https://github.com/golang/go/issues?q=milestone%3AGo1.22.3+label%3ACherryPickApproved).
@@ -46,6 +47,10 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add labels `path` and `url` to metrics `vmagent_remotewrite_push_failures_total` and `vmagent_remotewrite_samples_dropped_total`. Now number of failed pushes and dropped samples can be tracked per `-remoteWrite.url`.
 * FEATURE: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): add [rate_sum](https://docs.victoriametrics.com/stream-aggregation/#rate_sum) and [rate_avg](https://docs.victoriametrics.com/stream-aggregation/#rate_avg) aggregation outputs.
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): reduce CPU usage when evaluating high number of alerting and recording rules.
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): speed up retrieving rules files from object storages by skipping unchanged objects during reloading. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6210).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): support reading [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) records in `-datasource.url`, `-remoteWrite.url` and `-remoteRead.url` command-line option. For example, `-remoteWrite.url=http://srv+victoria-metrics` automatically resolves the `victoria-metrics` DNS SRV to a list of hostnames with TCP ports and then sends data to one of the addresses. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6053).
+* FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmrestore](https://docs.victoriametrics.com/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): add `-s3TLSInsecureSkipVerify` command-line flag for skipping TLS certificates verification when connecting to S3 endpoint.
+* FEATURE: [dashboards](https://grafana.com/orgs/victoriametrics): use `$__interval` variable for offsets and look-behind windows in annotations. This should improve precision of `restarts` and `version change` annotations when zooming-in/zooming-out on the dashboards.
 
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix bug that prevents the first query trace from expanding on click event. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6186). The issue was introduced in [v1.100.0](https://docs.victoriametrics.com/changelog/#v11000) release.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix calendar display when `UTC+00:00` timezone is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6239).
