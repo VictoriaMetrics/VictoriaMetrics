@@ -37,10 +37,11 @@ func TestCalculateRetryDuration(t *testing.T) {
 		testFunc("default backoff policy", 0, time.Second, 1, 2*time.Second)
 		testFunc("default backoff policy exceed max limit", 0, 10*time.Minute, 1, time.Minute)
 
-		// retry after header test cases
-		testFunc("retry after header > default backoff policy", 10*time.Second, 1*time.Second, 1, 10*time.Second)
-		testFunc("retry after header < default backoff policy", 1*time.Second, 10*time.Second, 1, 20*time.Second)
-		testFunc("retry after header invalid", 0, time.Second, 1, 2*time.Second)
+		// retry after test cases
+		testFunc("retry after > default backoff policy", 10*time.Second, 1*time.Second, 1, 10*time.Second)
+		testFunc("retry after < default backoff policy", 1*time.Second, 10*time.Second, 1, 20*time.Second)
+		testFunc("retry after invalid and < default backoff policy", 0, time.Second, 1, 2*time.Second)
+
 	}
 
 	// Call calculateRetryDuration for multiple times.
@@ -49,14 +50,14 @@ func TestCalculateRetryDuration(t *testing.T) {
 		testFunc("default backoff policy 3 times", 0, time.Second, 3, 8*time.Second)
 		testFunc("default backoff policy N times exceed max limit", 0, time.Second, 10, time.Minute)
 
-		testFunc("retry after header 10s 2 times", 10*time.Second, time.Second, 2, 20*time.Second)
-		testFunc("retry after header 10s 3 times", 10*time.Second, time.Second, 3, 40*time.Second)
-		testFunc("retry after header 10s 4 times exceed max limit", 10*time.Second, time.Second, 4, time.Minute)
-		testFunc("retry after header 10s 10 times exceed max limit", 10*time.Second, time.Second, 10, time.Minute)
+		testFunc("retry after 10s 2 times", 10*time.Second, time.Second, 2, 20*time.Second)
+		testFunc("retry after 10s 3 times", 10*time.Second, time.Second, 3, 40*time.Second)
+		testFunc("retry after 10s 4 times exceed max limit", 10*time.Second, time.Second, 4, time.Minute)
+		testFunc("retry after 10s 10 times exceed max limit", 10*time.Second, time.Second, 10, time.Minute)
 
-		testFunc("retry after header 120s 1 times", 120*time.Second, time.Second, 1, 120*time.Second)
-		testFunc("retry after header 120s 2 times", 120*time.Second, time.Second, 2, 120*time.Second)
-		testFunc("retry after header 120s 10 times", 120*time.Second, time.Second, 10, 120*time.Second)
+		testFunc("retry after 120s 1 times", 120*time.Second, time.Second, 1, 120*time.Second)
+		testFunc("retry after 120s 2 times", 120*time.Second, time.Second, 2, 120*time.Second)
+		testFunc("retry after 120s 10 times", 120*time.Second, time.Second, 10, 120*time.Second)
 	}
 }
 
