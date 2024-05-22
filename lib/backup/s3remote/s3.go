@@ -3,8 +3,10 @@ package s3remote
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
+	"net/http"
 	"path"
 	"strings"
 
@@ -72,6 +74,9 @@ type FS struct {
 	// The name of S3 config profile to use.
 	ProfileName string
 
+	// Whether to use HTTP client with tls.InsecureSkipVerify setting
+	TLSInsecureSkipVerify bool
+
 	s3       *s3.Client
 	uploader *manager.Uploader
 }
@@ -112,12 +117,19 @@ func (fs *FS) Init() error {
 		return err
 	}
 
+	if fs.TLSInsecureSkipVerify {
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		cfg.HTTPClient = &http.Client{Transport: tr}
+	}
+
 	var outerErr error
 	fs.s3 = s3.NewFromConfig(cfg, func(o *s3.Options) {
 		if len(fs.CustomEndpoint) > 0 {
 			logger.Infof("Using provided custom S3 endpoint: %q", fs.CustomEndpoint)
 			o.UsePathStyle = fs.S3ForcePathStyle
-			o.EndpointResolver = s3.EndpointResolverFromURL(fs.CustomEndpoint)
+			o.BaseEndpoint = &fs.CustomEndpoint
 		} else {
 			region, err := manager.GetBucketRegion(context.Background(), s3.NewFromConfig(cfg), fs.Bucket)
 			if err != nil {
