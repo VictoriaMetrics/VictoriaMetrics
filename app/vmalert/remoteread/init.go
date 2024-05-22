@@ -15,7 +15,8 @@ var (
 	addr = flag.String("remoteRead.url", "", "Optional URL to datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect."+
 		"Remote read is used to restore alerts state."+
 		"This configuration makes sense only if `vmalert` was configured with `remoteWrite.url` before and has been successfully persisted its state. "+
-		"E.g. http://127.0.0.1:8428. See also '-remoteRead.disablePathAppend', '-remoteRead.showURL'.")
+		"Supports address in the form of IP address with a port (e.g., 127.0.0.1:8428) or DNS SRV record. "+
+		"See also '-remoteRead.disablePathAppend', '-remoteRead.showURL'.")
 
 	showRemoteReadURL = flag.Bool("remoteRead.showURL", false, "Whether to show -remoteRead.url in the exported metrics. "+
 		"It is hidden by default, since it can contain sensitive info such as auth key")
@@ -65,6 +66,7 @@ func Init() (datasource.QuerierBuilder, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
+	tr.DialContext = httputils.GetStatDialFunc("vmalert_remoteread")
 
 	endpointParams, err := flagutil.ParseJSONMap(*oauth2EndpointParams)
 	if err != nil {
