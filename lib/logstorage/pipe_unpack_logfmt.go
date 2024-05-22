@@ -3,7 +3,6 @@ package logstorage
 import (
 	"fmt"
 	"slices"
-	"strings"
 )
 
 // pipeUnpackLogfmt processes '| unpack_logfmt ...' pipe.
@@ -43,63 +42,35 @@ func (pu *pipeUnpackLogfmt) String() string {
 }
 
 func (pu *pipeUnpackLogfmt) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if neededFields.contains("*") {
-		unneededFields.remove(pu.fromField)
-		if pu.iff != nil {
-			unneededFields.removeFields(pu.iff.neededFields)
-		}
-	} else {
-		neededFields.add(pu.fromField)
-		if pu.iff != nil {
-			neededFields.addFields(pu.iff.neededFields)
-		}
-	}
+	updateNeededFieldsForUnpackPipe(pu.fromField, pu.fields, pu.iff, neededFields, unneededFields)
 }
 
 func (pu *pipeUnpackLogfmt) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
-	addField := func(uctx *fieldsUnpackerContext, name, value string) {
-		if len(pu.fields) == 0 || slices.Contains(pu.fields, name) {
-			uctx.addField(name, value)
-		}
-	}
-
 	unpackLogfmt := func(uctx *fieldsUnpackerContext, s string) {
-		for {
-			// Search for field name
-			n := strings.IndexByte(s, '=')
-			if n < 0 {
-				// field name couldn't be read
-				return
-			}
+		p := getLogfmtParser()
 
-			name := strings.TrimSpace(s[:n])
-			s = s[n+1:]
-			if len(s) == 0 {
-				addField(uctx, name, "")
+		p.parse(s)
+		if len(pu.fields) == 0 {
+			for _, f := range p.fields {
+				uctx.addField(f.Name, f.Value)
 			}
-
-			// Search for field value
-			value, nOffset := tryUnquoteString(s)
-			if nOffset >= 0 {
-				addField(uctx, name, value)
-				s = s[nOffset:]
-				if len(s) == 0 {
-					return
+		} else {
+			for _, fieldName := range pu.fields {
+				addedField := false
+				for _, f := range p.fields {
+					if f.Name == fieldName {
+						uctx.addField(f.Name, f.Value)
+						addedField = true
+						break
+					}
 				}
-				if s[0] != ' ' {
-					return
+				if !addedField {
+					uctx.addField(fieldName, "")
 				}
-				s = s[1:]
-			} else {
-				n := strings.IndexByte(s, ' ')
-				if n < 0 {
-					addField(uctx, name, s)
-					return
-				}
-				addField(uctx, name, s[:n])
-				s = s[n+1:]
 			}
 		}
+
+		putLogfmtParser(p)
 	}
 
 	return newPipeUnpackProcessor(workersCount, unpackLogfmt, ppBase, pu.fromField, pu.resultPrefix, pu.iff)

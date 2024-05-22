@@ -63,6 +63,7 @@ func TestPipeUnpackLogfmt(t *testing.T) {
 			{"_msg", `foo=bar baz="x y=z" a=b`},
 			{"foo", "bar"},
 			{"a", "b"},
+			{"b", ""},
 		},
 	})
 

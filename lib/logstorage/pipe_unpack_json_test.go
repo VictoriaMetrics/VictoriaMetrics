@@ -64,6 +64,7 @@ func TestPipeUnpackJSON(t *testing.T) {
 		{
 			{"_msg", `{"foo":"bar","z":"q","a":"b"}`},
 			{"foo", "bar"},
+			{"b", ""},
 		},
 	})
 
@@ -465,24 +466,34 @@ func TestPipeUnpackJSONUpdateNeededFields(t *testing.T) {
 	// all the needed fields
 	f("unpack_json from x", "*", "", "*", "")
 	f("unpack_json if (y:z) from x", "*", "", "*", "")
+	f("unpack_json if (y:z) from x fields (a, b)", "*", "", "*", "a,b")
 
 	// all the needed fields, unneeded fields do not intersect with src
 	f("unpack_json from x", "*", "f1,f2", "*", "f1,f2")
 	f("unpack_json if (y:z) from x", "*", "f1,f2", "*", "f1,f2")
 	f("unpack_json if (f1:z) from x", "*", "f1,f2", "*", "f2")
+	f("unpack_json if (y:z) from x fields (f3)", "*", "f1,f2", "*", "f1,f2,f3")
+	f("unpack_json if (y:z) from x fields (f1)", "*", "f1,f2", "*", "f1,f2")
 
 	// all the needed fields, unneeded fields intersect with src
 	f("unpack_json from x", "*", "f2,x", "*", "f2")
 	f("unpack_json if (y:z) from x", "*", "f2,x", "*", "f2")
 	f("unpack_json if (f2:z) from x", "*", "f1,f2,x", "*", "f1")
+	f("unpack_json if (f2:z) from x fields (f3)", "*", "f1,f2,x", "*", "f1,f3")
 
 	// needed fields do not intersect with src
 	f("unpack_json from x", "f1,f2", "", "f1,f2,x", "")
 	f("unpack_json if (y:z) from x", "f1,f2", "", "f1,f2,x,y", "")
 	f("unpack_json if (f1:z) from x", "f1,f2", "", "f1,f2,x", "")
+	f("unpack_json if (y:z) from x fields (f3)", "f1,f2", "", "f1,f2", "")
+	f("unpack_json if (y:z) from x fields (f2)", "f1,f2", "", "f1,x,y", "")
+	f("unpack_json if (f2:z) from x fields (f2)", "f1,f2", "", "f1,f2,x", "")
 
 	// needed fields intersect with src
 	f("unpack_json from x", "f2,x", "", "f2,x", "")
 	f("unpack_json if (y:z) from x", "f2,x", "", "f2,x,y", "")
 	f("unpack_json if (f2:z y:qwe) from x", "f2,x", "", "f2,x,y", "")
+	f("unpack_json if (y:z) from x fields (f1)", "f2,x", "", "f2,x", "")
+	f("unpack_json if (y:z) from x fields (f2)", "f2,x", "", "x,y", "")
+	f("unpack_json if (y:z) from x fields (x)", "f2,x", "", "f2,x,y", "")
 }

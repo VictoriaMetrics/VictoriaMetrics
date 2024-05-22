@@ -44,15 +44,44 @@ func (pu *pipeUnpackJSON) String() string {
 }
 
 func (pu *pipeUnpackJSON) updateNeededFields(neededFields, unneededFields fieldsSet) {
+	updateNeededFieldsForUnpackPipe(pu.fromField, pu.fields, pu.iff, neededFields, unneededFields)
+}
+
+func updateNeededFieldsForUnpackPipe(fromField string, outFields []string, iff *ifFilter, neededFields, unneededFields fieldsSet) {
 	if neededFields.contains("*") {
-		unneededFields.remove(pu.fromField)
-		if pu.iff != nil {
-			unneededFields.removeFields(pu.iff.neededFields)
+		unneededFieldsOrig := unneededFields.clone()
+		unneededFieldsCount := 0
+		if len(outFields) > 0 {
+			for _, f := range outFields {
+				if unneededFieldsOrig.contains(f) {
+					unneededFieldsCount++
+				}
+				unneededFields.add(f)
+			}
+		}
+		if len(outFields) == 0 || unneededFieldsCount < len(outFields) {
+			unneededFields.remove(fromField)
+			if iff != nil {
+				unneededFields.removeFields(iff.neededFields)
+			}
 		}
 	} else {
-		neededFields.add(pu.fromField)
-		if pu.iff != nil {
-			neededFields.addFields(pu.iff.neededFields)
+		neededFieldsOrig := neededFields.clone()
+		needFromField := len(outFields) == 0
+		if len(outFields) > 0 {
+			needFromField = false
+			for _, f := range outFields {
+				if neededFieldsOrig.contains(f) {
+					needFromField = true
+				}
+				neededFields.remove(f)
+			}
+		}
+		if needFromField {
+			neededFields.add(fromField)
+			if iff != nil {
+				neededFields.addFields(iff.neededFields)
+			}
 		}
 	}
 }
@@ -64,18 +93,28 @@ func (pu *pipeUnpackJSON) newPipeProcessor(workersCount int, _ <-chan struct{}, 
 			return
 		}
 		p := GetJSONParser()
-		if err := p.ParseLogMessage(bytesutil.ToUnsafeBytes(s)); err == nil {
+		err := p.ParseLogMessage(bytesutil.ToUnsafeBytes(s))
+		if err != nil {
+			for _, fieldName := range pu.fields {
+				uctx.addField(fieldName, "")
+			}
+		} else {
 			if len(pu.fields) == 0 {
 				for _, f := range p.Fields {
 					uctx.addField(f.Name, f.Value)
 				}
 			} else {
 				for _, fieldName := range pu.fields {
+					addedField := false
 					for _, f := range p.Fields {
 						if f.Name == fieldName {
 							uctx.addField(f.Name, f.Value)
+							addedField = true
 							break
 						}
+					}
+					if !addedField {
+						uctx.addField(fieldName, "")
 					}
 				}
 			}
