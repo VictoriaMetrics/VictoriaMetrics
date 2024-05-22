@@ -463,7 +463,7 @@ again:
 
 	// Unexpected status code returned
 	retriesCount++
-	retryDuration = calculateRetryDuration(resp.Header.Get("Retry-After"), retryDuration, maxRetryDuration)
+	retryDuration = calculateRetryDuration(parseRetryAfterHeader(resp.Header.Get("Retry-After")), retryDuration, maxRetryDuration)
 
 	// Handle response
 	body, err := io.ReadAll(resp.Body)
@@ -490,21 +490,18 @@ var remoteWriteRejectedLogger = logger.WithThrottler("remoteWriteRejected", 5*ti
 
 // calculateRetryAfterDuration calculate the retry duration.
 // 1. Calculate next retry duration by backoff policy (x2) and max retry duration limit.
-// 2. If Retry-After is valid, use max(Retry-After duration, next retry duration).
+// 2. use max(Retry-After duration, next retry duration).
 //
-// It returns `retryDuration` if `retryAfterString` does not follow RFC 7231.
 // Also see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6097
-func calculateRetryDuration(retryAfterString string, retryDuration, maxRetryDuration time.Duration) time.Duration {
+func calculateRetryDuration(retryAfterDuration, retryDuration, maxRetryDuration time.Duration) time.Duration {
 	// default backoff retry policy
 	retryDuration *= 2
 	if retryDuration > maxRetryDuration {
 		retryDuration = maxRetryDuration
 	}
 
-	retryAfterDuration := parseRetryAfterHeader(retryAfterString)
-
 	if retryDuration > retryAfterDuration {
-		// Stick with the default policy when: `retryAfter` is shorter, or `retryAfter` is not valid.
+		// Stick with the default policy when `retryAfter` is shorter.
 		return retryDuration
 	}
 

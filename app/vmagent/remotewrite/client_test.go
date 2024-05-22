@@ -12,10 +12,10 @@ func TestCalculateRetryDuration(t *testing.T) {
 	// and evaluate if the result of `calculateRetryDuration` is
 	// 1. >= expectMinDuration
 	// 2. <= expectMinDuration + 10% (see timeutil.AddJitterToDuration)
-	testFunc := func(name string, retryAfterString string, retryDuration time.Duration, n int, expectMinDuration time.Duration) {
+	testFunc := func(name string, retryAfterDuration, retryDuration time.Duration, n int, expectMinDuration time.Duration) {
 		t.Run(name, func(t *testing.T) {
 			for i := 0; i < n; i++ {
-				retryDuration = calculateRetryDuration(retryAfterString, retryDuration, time.Minute)
+				retryDuration = calculateRetryDuration(retryAfterDuration, retryDuration, time.Minute)
 			}
 
 			expectMaxDuration := helper(expectMinDuration)
@@ -34,29 +34,29 @@ func TestCalculateRetryDuration(t *testing.T) {
 	// Call calculateRetryDuration for 1 time.
 	{
 		// default backoff policy test cases
-		testFunc("default backoff policy", "", time.Second, 1, 2*time.Second)
-		testFunc("default backoff policy exceed max limit", "", 10*time.Minute, 1, time.Minute)
+		testFunc("default backoff policy", 0, time.Second, 1, 2*time.Second)
+		testFunc("default backoff policy exceed max limit", 0, 10*time.Minute, 1, time.Minute)
 
 		// retry after header test cases
-		testFunc("retry after header > default backoff policy", "10", 1*time.Second, 1, 10*time.Second)
-		testFunc("retry after header < default backoff policy", "1", 10*time.Second, 1, 20*time.Second)
-		testFunc("retry after header invalid", "in-correct-header", time.Second, 1, 2*time.Second)
+		testFunc("retry after header > default backoff policy", 10*time.Second, 1*time.Second, 1, 10*time.Second)
+		testFunc("retry after header < default backoff policy", 1*time.Second, 10*time.Second, 1, 20*time.Second)
+		testFunc("retry after header invalid", 0, time.Second, 1, 2*time.Second)
 	}
 
 	// Call calculateRetryDuration for multiple times.
 	{
-		testFunc("default backoff policy 2 times", "", time.Second, 2, 4*time.Second)
-		testFunc("default backoff policy 3 times", "", time.Second, 3, 8*time.Second)
-		testFunc("default backoff policy N times exceed max limit", "", time.Second, 10, time.Minute)
+		testFunc("default backoff policy 2 times", 0, time.Second, 2, 4*time.Second)
+		testFunc("default backoff policy 3 times", 0, time.Second, 3, 8*time.Second)
+		testFunc("default backoff policy N times exceed max limit", 0, time.Second, 10, time.Minute)
 
-		testFunc("retry after header 10s 2 times", "10", time.Second, 2, 20*time.Second)
-		testFunc("retry after header 10s 3 times", "10", time.Second, 3, 40*time.Second)
-		testFunc("retry after header 10s 4 times exceed max limit", "10", time.Second, 4, time.Minute)
-		testFunc("retry after header 10s 10 times exceed max limit", "10", time.Second, 10, time.Minute)
+		testFunc("retry after header 10s 2 times", 10*time.Second, time.Second, 2, 20*time.Second)
+		testFunc("retry after header 10s 3 times", 10*time.Second, time.Second, 3, 40*time.Second)
+		testFunc("retry after header 10s 4 times exceed max limit", 10*time.Second, time.Second, 4, time.Minute)
+		testFunc("retry after header 10s 10 times exceed max limit", 10*time.Second, time.Second, 10, time.Minute)
 
-		testFunc("retry after header 120s 1 times", "120", time.Second, 1, 120*time.Second)
-		testFunc("retry after header 120s 2 times", "120", time.Second, 2, 120*time.Second)
-		testFunc("retry after header 120s 10 times", "120", time.Second, 10, 120*time.Second)
+		testFunc("retry after header 120s 1 times", 120*time.Second, time.Second, 1, 120*time.Second)
+		testFunc("retry after header 120s 2 times", 120*time.Second, time.Second, 2, 120*time.Second)
+		testFunc("retry after header 120s 10 times", 120*time.Second, time.Second, 10, 120*time.Second)
 	}
 }
 
