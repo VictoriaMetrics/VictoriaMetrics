@@ -485,8 +485,14 @@ type pipeSortWriteContext struct {
 	rcs []resultColumn
 	br  blockResult
 
+	// rowsWritten is the total number of rows passed to writeNextRow.
 	rowsWritten uint64
-	valuesLen   int
+
+	// rowsCount is the number of rows in the current block
+	rowsCount int
+
+	// valuesLen is the length of all the values in the current block
+	valuesLen int
 }
 
 func (wctx *pipeSortWriteContext) writeNextRow(shard *pipeSortProcessorShard) {
@@ -516,7 +522,7 @@ func (wctx *pipeSortWriteContext) writeNextRow(shard *pipeSortProcessorShard) {
 		}
 	}
 	if !areEqualColumns {
-		// send the current block to bbBase and construct a block with new set of columns
+		// send the current block to ppBase and construct a block with new set of columns
 		wctx.flush()
 
 		rcs = wctx.rcs[:0]
@@ -543,6 +549,7 @@ func (wctx *pipeSortWriteContext) writeNextRow(shard *pipeSortProcessorShard) {
 		wctx.valuesLen += len(v)
 	}
 
+	wctx.rowsCount++
 	if wctx.valuesLen >= 1_000_000 {
 		wctx.flush()
 	}
@@ -554,12 +561,9 @@ func (wctx *pipeSortWriteContext) flush() {
 
 	wctx.valuesLen = 0
 
-	if len(rcs) == 0 {
-		return
-	}
-
 	// Flush rcs to ppBase
-	br.setResultColumns(rcs)
+	br.setResultColumns(rcs, wctx.rowsCount)
+	wctx.rowsCount = 0
 	wctx.psp.ppBase.writeBlock(0, br)
 	br.reset()
 	for i := range rcs {

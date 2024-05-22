@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func BenchmarkExtractFormatApply(b *testing.B) {
+func BenchmarkPatternApply(b *testing.B) {
 	a := []string{
 		`{"level":"error","ts":1716113701.63973,"caller":"gcm/export.go:498","msg":"Failed to export self-observability metrics to Cloud Monitoring","error":"rpc error: code = PermissionDenied desc = Permission monitoring.timeSeries.create denied (or the resource may not exist).","stacktrace":"google3/cloud/kubernetes/metrics/common/gcm/gcm.(*exporter).startSelfObservability\n\tcloud/kubernetes/metrics/common/gcm/export.go:498","foo":"bar"}`,
 		`{"level":"error","ts":1716113370.2321634,"caller":"gcm/export.go:434","msg":"Failed to export metrics to Cloud Monitoring","error":"rpc error: code = PermissionDenied desc = Permission monitoring.timeSeries.create denied (or the resource may not exist).","stacktrace":"google3/cloud/kubernetes/metrics/common/gcm/gcm.(*exporter).exportBuffer\n\tcloud/kubernetes/metrics/common/gcm/export.go:434\ngoogle3/cloud/kubernetes/metrics/common/gcm/gcm.(*exporter).flush\n\tcloud/kubernetes/metrics/common/gcm/export.go:383\ngoogle3/cloud/kubernetes/metrics/common/gcm/gcm.(*exporter).Flush\n\tcloud/kubernetes/metrics/common/gcm/export.go:365\ngoogle3/cloud/kubernetes/metrics/components/collector/adapter/adapter.(*adapter).Finalize\n\tcloud/kubernetes/metrics/components/collector/adapter/consume.go:131\ngoogle3/cloud/kubernetes/metrics/components/collector/prometheus/prometheus.(*parser).ParseText\n\tcloud/kubernetes/metrics/components/collector/prometheus/parse.go:158\ngoogle3/cloud/kubernetes/metrics/components/collector/collector.runScrapeLoop\n\tcloud/kubernetes/metrics/components/collector/collector.go:103\ngoogle3/cloud/kubernetes/metrics/components/collector/collector.Run\n\tcloud/kubernetes/metrics/components/collector/collector.go:81\ngoogle3/cloud/kubernetes/metrics/components/collector/collector.Start.func1\n\tcloud/kubernetes/metrics/components/collector/multi_target_collector.go:45","foo":"bar"}`,
@@ -14,47 +14,47 @@ func BenchmarkExtractFormatApply(b *testing.B) {
 	}
 
 	b.Run("single-small-field-at-start", func(b *testing.B) {
-		benchmarkExtractFormatApply(b, `"level":"<level>"`, a)
+		benchmarkPatternApply(b, `"level":"<level>"`, a)
 	})
 	b.Run("single-small-field-at-start-unquote", func(b *testing.B) {
-		benchmarkExtractFormatApply(b, `"level":<level>`, a)
+		benchmarkPatternApply(b, `"level":<level>`, a)
 	})
 	b.Run("single-small-field-at-end", func(b *testing.B) {
-		benchmarkExtractFormatApply(b, `"foo":"<foo>"`, a)
+		benchmarkPatternApply(b, `"foo":"<foo>"`, a)
 	})
 	b.Run("single-small-field-at-end-unquote", func(b *testing.B) {
-		benchmarkExtractFormatApply(b, `"foo":<foo>`, a)
+		benchmarkPatternApply(b, `"foo":<foo>`, a)
 	})
 	b.Run("single-medium-field", func(b *testing.B) {
-		benchmarkExtractFormatApply(b, `"msg":"<message>"`, a)
+		benchmarkPatternApply(b, `"msg":"<message>"`, a)
 	})
 	b.Run("single-medium-field-unquote", func(b *testing.B) {
-		benchmarkExtractFormatApply(b, `"msg":<message>`, a)
+		benchmarkPatternApply(b, `"msg":<message>`, a)
 	})
 	b.Run("single-large-field", func(b *testing.B) {
-		benchmarkExtractFormatApply(b, `"stacktrace":"<stacktrace>"`, a)
+		benchmarkPatternApply(b, `"stacktrace":"<stacktrace>"`, a)
 	})
 	b.Run("single-large-field-unquote", func(b *testing.B) {
-		benchmarkExtractFormatApply(b, `"stacktrace":<stacktrace>`, a)
+		benchmarkPatternApply(b, `"stacktrace":<stacktrace>`, a)
 	})
 	b.Run("two-fields", func(b *testing.B) {
-		benchmarkExtractFormatApply(b, `"level":"<level>",<_>"msg":"<msg>"`, a)
+		benchmarkPatternApply(b, `"level":"<level>",<_>"msg":"<msg>"`, a)
 	})
 	b.Run("two-fields-unquote", func(b *testing.B) {
-		benchmarkExtractFormatApply(b, `"level":<level>,<_>"msg":<msg>`, a)
+		benchmarkPatternApply(b, `"level":<level>,<_>"msg":<msg>`, a)
 	})
 	b.Run("many-fields", func(b *testing.B) {
-		benchmarkExtractFormatApply(b, `"level":"<level>","ts":"<ts>","caller":"<caller>","msg":"<msg>","error":"<error>"`, a)
+		benchmarkPatternApply(b, `"level":"<level>","ts":"<ts>","caller":"<caller>","msg":"<msg>","error":"<error>"`, a)
 	})
 	b.Run("many-fields-unquote", func(b *testing.B) {
-		benchmarkExtractFormatApply(b, `"level":<level>,"ts":<ts>,"caller":<caller>,"msg":<msg>,"error":<error>`, a)
+		benchmarkPatternApply(b, `"level":<level>,"ts":<ts>,"caller":<caller>,"msg":<msg>,"error":<error>`, a)
 	})
 }
 
-func benchmarkExtractFormatApply(b *testing.B, pattern string, a []string) {
-	steps, err := parseExtractFormatSteps(pattern)
+func benchmarkPatternApply(b *testing.B, patternStr string, a []string) {
+	ptnMain, err := parsePattern(patternStr)
 	if err != nil {
-		b.Fatalf("unexpected error: %s", err)
+		b.Fatalf("cannot parse pattern %q: %s", patternStr, err)
 	}
 
 	n := 0
@@ -65,12 +65,12 @@ func benchmarkExtractFormatApply(b *testing.B, pattern string, a []string) {
 	b.ReportAllocs()
 	b.SetBytes(int64(n))
 	b.RunParallel(func(pb *testing.PB) {
+		ptn := ptnMain.clone()
 		sink := 0
-		ef := newExtractFormat(steps)
 		for pb.Next() {
 			for _, s := range a {
-				ef.apply(s)
-				for _, v := range ef.matches {
+				ptn.apply(s)
+				for _, v := range ptn.matches {
 					sink += len(v)
 				}
 			}

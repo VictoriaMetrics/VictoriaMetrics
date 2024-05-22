@@ -11,7 +11,7 @@ import (
 
 // filterExact matches the exact value.
 //
-// Example LogsQL: `fieldName:exact("foo bar")`
+// Example LogsQL: `fieldName:exact("foo bar")` of `fieldName:="foo bar"
 type filterExact struct {
 	fieldName string
 	value     string
@@ -21,7 +21,7 @@ type filterExact struct {
 }
 
 func (fe *filterExact) String() string {
-	return fmt.Sprintf("%sexact(%s)", quoteFieldNameIfNeeded(fe.fieldName), quoteTokenIfNeeded(fe.value))
+	return fmt.Sprintf("%s=%s", quoteFieldNameIfNeeded(fe.fieldName), quoteTokenIfNeeded(fe.value))
 }
 
 func (fe *filterExact) updateNeededFields(neededFields fieldsSet) {

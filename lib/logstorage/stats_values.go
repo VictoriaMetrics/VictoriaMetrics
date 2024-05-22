@@ -2,19 +2,17 @@ package logstorage
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 	"unsafe"
 )
 
 type statsValues struct {
-	fields       []string
-	containsStar bool
-	limit        uint64
+	fields []string
+	limit  uint64
 }
 
 func (sv *statsValues) String() string {
-	s := "values(" + fieldNamesString(sv.fields) + ")"
+	s := "values(" + statsFuncFieldsToString(sv.fields) + ")"
 	if sv.limit > 0 {
 		s += fmt.Sprintf(" limit %d", sv.limit)
 	}
@@ -22,7 +20,7 @@ func (sv *statsValues) String() string {
 }
 
 func (sv *statsValues) updateNeededFields(neededFields fieldsSet) {
-	neededFields.addFields(sv.fields)
+	updateNeededFieldsForStatsFunc(neededFields, sv.fields)
 }
 
 func (sv *statsValues) newStatsProcessor() (statsProcessor, int) {
@@ -45,12 +43,13 @@ func (svp *statsValuesProcessor) updateStatsForAllRows(br *blockResult) int {
 	}
 
 	stateSizeIncrease := 0
-	if svp.sv.containsStar {
+	fields := svp.sv.fields
+	if len(fields) == 0 {
 		for _, c := range br.getColumns() {
 			stateSizeIncrease += svp.updateStatsForAllRowsColumn(c, br)
 		}
 	} else {
-		for _, field := range svp.sv.fields {
+		for _, field := range fields {
 			c := br.getColumnByName(field)
 			stateSizeIncrease += svp.updateStatsForAllRowsColumn(c, br)
 		}
@@ -112,12 +111,13 @@ func (svp *statsValuesProcessor) updateStatsForRow(br *blockResult, rowIdx int) 
 	}
 
 	stateSizeIncrease := 0
-	if svp.sv.containsStar {
+	fields := svp.sv.fields
+	if len(fields) == 0 {
 		for _, c := range br.getColumns() {
 			stateSizeIncrease += svp.updateStatsForRowColumn(c, br, rowIdx)
 		}
 	} else {
-		for _, field := range svp.sv.fields {
+		for _, field := range fields {
 			c := br.getColumnByName(field)
 			stateSizeIncrease += svp.updateStatsForRowColumn(c, br, rowIdx)
 		}
@@ -188,13 +188,12 @@ func (svp *statsValuesProcessor) limitReached() bool {
 }
 
 func parseStatsValues(lex *lexer) (*statsValues, error) {
-	fields, err := parseFieldNamesForStatsFunc(lex, "values")
+	fields, err := parseStatsFuncFields(lex, "values")
 	if err != nil {
 		return nil, err
 	}
 	sv := &statsValues{
-		fields:       fields,
-		containsStar: slices.Contains(fields, "*"),
+		fields: fields,
 	}
 	if lex.isKeyword("limit") {
 		lex.nextToken()
