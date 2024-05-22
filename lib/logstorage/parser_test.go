@@ -1621,6 +1621,38 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | fields x,y | field_names as bar | fields baz`, `x,y`, ``)
 	f(`* | rm x,y | field_names as bar | fields baz`, `*`, `x,y`)
 
+	f(`* | format "foo" as s1`, `*`, `s1`)
+	f(`* | format "foo<f1>" as s1`, `*`, `s1`)
+	f(`* | format "foo<s1>" as s1`, `*`, ``)
+
+	f(`* | format "foo" if (x1:y) as s1`, `*`, `s1`)
+	f(`* | format "foo<f1>" if (x1:y) as s1`, `*`, `s1`)
+	f(`* | format "foo<f1>" if (s1:y) as s1`, `*`, ``)
+	f(`* | format "foo<s1>" if (x1:y) as s1`, `*`, ``)
+
+	f(`* | format "foo" as s1 | fields f1`, `f1`, ``)
+	f(`* | format "foo" as s1 | fields s1`, ``, ``)
+	f(`* | format "foo<f1>" as s1 | fields f2`, `f2`, ``)
+	f(`* | format "foo<f1>" as s1 | fields f1`, `f1`, ``)
+	f(`* | format "foo<f1>" as s1 | fields s1`, `f1`, ``)
+	f(`* | format "foo<s1>" as s1 | fields f1`, `f1`, ``)
+	f(`* | format "foo<s1>" as s1 | fields s1`, `s1`, ``)
+
+	f(`* | format "foo" if (f1:x) as s1 | fields s1`, `f1`, ``)
+	f(`* | format "foo" if (f1:x) as s1 | fields s2`, `s2`, ``)
+
+	f(`* | format "foo" as s1 | rm f1`, `*`, `f1,s1`)
+	f(`* | format "foo" as s1 | rm s1`, `*`, `s1`)
+	f(`* | format "foo<f1>" as s1 | rm f2`, `*`, `f2,s1`)
+	f(`* | format "foo<f1>" as s1 | rm f1`, `*`, `s1`)
+	f(`* | format "foo<f1>" as s1 | rm s1`, `*`, `s1`)
+	f(`* | format "foo<s1>" as s1 | rm f1`, `*`, `f1`)
+	f(`* | format "foo<s1>" as s1 | rm s1`, `*`, `s1`)
+
+	f(`* | format "foo" if (f1:x) as s1 | rm s1`, `*`, `s1`)
+	f(`* | format "foo" if (f1:x) as s1 | rm f1`, `*`, `s1`)
+	f(`* | format "foo" if (f1:x) as s1 | rm f2`, `*`, `f2,s1`)
+
 	f(`* | extract from s1 "<f1>x<f2>"`, `*`, `f1,f2`)
 	f(`* | extract from s1 "<f1>x<f2>" if (f3:foo)`, `*`, `f1,f2`)
 	f(`* | extract from s1 "<f1>x<f2>" if (f1:foo)`, `*`, `f2`)
@@ -1640,6 +1672,29 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | extract from s1 "<f1>x<f2>" if (x:bar) | rm foo,f1`, `*`, `f1,f2,foo`)
 	f(`* | extract from s1 "<f1>x<f2>" | rm foo,f1,f2`, `*`, `f1,f2,foo,s1`)
 	f(`* | extract from s1 "<f1>x<f2>" if (x:bar) | rm foo,f1,f2`, `*`, `f1,f2,foo,s1`)
+
+	f(`* | extract from s1 "x<s1>y"`, `*`, ``)
+	f(`* | extract from s1 "x<s1>y" if (x:foo)`, `*`, ``)
+	f(`* | extract from s1 "x<s1>y" if (s1:foo)`, `*`, ``)
+	f(`* | extract from s1 "x<f1>y" if (s1:foo)`, `*`, `f1`)
+
+	f(`* | extract from s1 "x<s1>y" | fields s2`, `s2`, ``)
+	f(`* | extract from s1 "x<s1>y" | fields s1`, `s1`, ``)
+	f(`* | extract from s1 "x<s1>y" if (x:foo) | fields s1`, `s1,x`, ``)
+	f(`* | extract from s1 "x<s1>y" if (x:foo) | fields s2`, `s2`, ``)
+	f(`* | extract from s1 "x<s1>y" if (s1:foo) | fields s1`, `s1`, ``)
+	f(`* | extract from s1 "x<s1>y" if (s1:foo) | fields s2`, `s2`, ``)
+	f(`* | extract from s1 "x<f1>y" if (s1:foo) | fields s1`, `s1`, ``)
+	f(`* | extract from s1 "x<f1>y" if (s1:foo) | fields s2`, `s2`, ``)
+
+	f(`* | extract from s1 "x<s1>y" | rm s2`, `*`, `s2`)
+	f(`* | extract from s1 "x<s1>y" | rm s1`, `*`, `s1`)
+	f(`* | extract from s1 "x<s1>y" if (x:foo) | rm s1`, `*`, `s1`)
+	f(`* | extract from s1 "x<s1>y" if (x:foo) | rm s2`, `*`, `s2`)
+	f(`* | extract from s1 "x<s1>y" if (s1:foo) | rm s1`, `*`, `s1`)
+	f(`* | extract from s1 "x<s1>y" if (s1:foo) | rm s2`, `*`, `s2`)
+	f(`* | extract from s1 "x<f1>y" if (s1:foo) | rm s1`, `*`, `f1`)
+	f(`* | extract from s1 "x<f1>y" if (s1:foo) | rm s2`, `*`, `f1,s2`)
 
 	f(`* | unpack_json`, `*`, ``)
 	f(`* | unpack_json from s1`, `*`, ``)

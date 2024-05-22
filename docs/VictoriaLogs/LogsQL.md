@@ -1220,6 +1220,12 @@ and [`_msg`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-
 _time:5m | fields host, _msg
 ```
 
+`keep` can be used instead of `fields` for convenience. For example, the following query is equivalent to the previous one:
+
+```logsql
+_time:5m | keep host, _msg
+```
+
 See also:
 
 - [`copy` pipe](#copy-pipe)

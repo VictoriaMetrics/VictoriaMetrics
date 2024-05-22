@@ -21,7 +21,7 @@ type pipeFormat struct {
 }
 
 func (pf *pipeFormat) String() string {
-	s := "format" + quoteTokenIfNeeded(pf.formatStr)
+	s := "format " + quoteTokenIfNeeded(pf.formatStr)
 	if pf.iff != nil {
 		s += " " + pf.iff.String()
 	}
@@ -33,6 +33,9 @@ func (pf *pipeFormat) updateNeededFields(neededFields, unneededFields fieldsSet)
 	if neededFields.contains("*") {
 		if !unneededFields.contains(pf.resultField) {
 			unneededFields.add(pf.resultField)
+			if pf.iff != nil {
+				unneededFields.removeFields(pf.iff.neededFields)
+			}
 			for _, step := range pf.steps {
 				if step.field != "" {
 					unneededFields.remove(step.field)
@@ -42,6 +45,9 @@ func (pf *pipeFormat) updateNeededFields(neededFields, unneededFields fieldsSet)
 	} else {
 		if neededFields.contains(pf.resultField) {
 			neededFields.remove(pf.resultField)
+			if pf.iff != nil {
+				neededFields.addFields(pf.iff.neededFields)
+			}
 			for _, step := range pf.steps {
 				if step.field != "" {
 					neededFields.add(step.field)
@@ -154,11 +160,21 @@ func parsePipeFormat(lex *lexer) (*pipeFormat, error) {
 		return nil, fmt.Errorf("cannot parse 'pattern' %q: %w", formatStr, err)
 	}
 
+	// parse optional if (...)
+	var iff *ifFilter
+	if lex.isKeyword("if") {
+		f, err := parseIfFilter(lex)
+		if err != nil {
+			return nil, err
+		}
+		iff = f
+	}
+
+	// parse resultField
 	if !lex.isKeyword("as") {
 		return nil, fmt.Errorf("missing 'as' keyword after 'format %q'", formatStr)
 	}
 	lex.nextToken()
-
 	resultField, err := parseFieldName(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse result field after 'format %q as': %w", formatStr, err)
@@ -168,15 +184,7 @@ func parsePipeFormat(lex *lexer) (*pipeFormat, error) {
 		formatStr:   formatStr,
 		steps:       steps,
 		resultField: resultField,
-	}
-
-	// parse optional if (...)
-	if lex.isKeyword("if") {
-		iff, err := parseIfFilter(lex)
-		if err != nil {
-			return nil, err
-		}
-		pf.iff = iff
+		iff:         iff,
 	}
 
 	return pf, nil

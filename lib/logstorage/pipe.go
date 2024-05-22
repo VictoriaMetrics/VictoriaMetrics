@@ -105,7 +105,7 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'field_names' pipe: %w", err)
 		}
 		return pf, nil
-	case lex.isKeyword("fields"):
+	case lex.isKeyword("fields", "keep"):
 		pf, err := parsePipeFields(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'fields' pipe: %w", err)
@@ -115,6 +115,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 		pf, err := parsePipeFilter(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'filter' pipe: %w", err)
+		}
+		return pf, nil
+	case lex.isKeyword("format"):
+		pf, err := parsePipeFormat(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'format' pipe: %w", err)
 		}
 		return pf, nil
 	case lex.isKeyword("limit", "head"):

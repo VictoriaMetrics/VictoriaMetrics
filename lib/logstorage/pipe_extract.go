@@ -42,10 +42,10 @@ func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet
 			}
 		}
 		if needFromField {
+			unneededFields.remove(pe.fromField)
 			if pe.iff != nil {
 				unneededFields.removeFields(pe.iff.neededFields)
 			}
-			unneededFields.remove(pe.fromField)
 		} else {
 			unneededFields.add(pe.fromField)
 		}
@@ -59,10 +59,10 @@ func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet
 			}
 		}
 		if needFromField {
+			neededFields.add(pe.fromField)
 			if pe.iff != nil {
 				neededFields.addFields(pe.iff.neededFields)
 			}
-			neededFields.add(pe.fromField)
 		}
 	}
 }

@@ -191,6 +191,11 @@ func TestParsePatternStepsSuccess(t *testing.T) {
 			prefix: "baz",
 		},
 	})
+	f("&lt;&amp;&gt;", []patternStep{
+		{
+			prefix: "<&>",
+		},
+	})
 	f("&lt;<foo>&amp;gt;", []patternStep{
 		{
 			prefix: "<",

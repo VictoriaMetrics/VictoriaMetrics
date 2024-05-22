@@ -163,7 +163,7 @@ func parsePatternSteps(s string) ([]patternStep, error) {
 	n := strings.IndexByte(s, '<')
 	if n < 0 {
 		steps = append(steps, patternStep{
-			prefix: s,
+			prefix: html.UnescapeString(s),
 		})
 		return steps, nil
 	}
