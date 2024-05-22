@@ -505,6 +505,8 @@ func TestParseRangeFilter(t *testing.T) {
 
 	f(`duration:range[100ns, 1y2w2.5m3s5ms]`, `duration`, 100, 1*nsecsPerYear+2*nsecsPerWeek+2.5*nsecsPerMinute+3*nsecsPerSecond+5*nsecsPerMillisecond)
 
+	f(`>=10`, ``, 10, inf)
+	f(`<=10`, ``, -inf, 10)
 	f(`foo:>10.43`, `foo`, nextafter(10.43, inf), inf)
 	f(`foo: > -10.43`, `foo`, nextafter(-10.43, inf), inf)
 	f(`foo:>=10.43`, `foo`, 10.43, inf)
@@ -750,6 +752,8 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`foo: >= 10.5M`, `foo:>=10.5M`)
 	f(`foo: < 10.5M`, `foo:<10.5M`)
 	f(`foo: <= 10.5M`, `foo:<=10.5M`)
+	f(`foo:(>10 <=20)`, `foo:>10 foo:<=20`)
+	f(`>=10 <20`, `>=10 <20`)
 
 	// re filter
 	f("re('foo|ba(r.+)')", `re("foo|ba(r.+)")`)

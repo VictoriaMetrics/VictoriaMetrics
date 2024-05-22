@@ -1016,9 +1016,6 @@ func parseFilterRegexp(lex *lexer, fieldName string) (filter, error) {
 }
 
 func parseFilterGT(lex *lexer, fieldName string) (filter, error) {
-	if fieldName == "" {
-		return nil, fmt.Errorf("'>' and '>=' must be prefixed with the field name")
-	}
 	lex.nextToken()
 
 	includeMinValue := false
@@ -1048,9 +1045,6 @@ func parseFilterGT(lex *lexer, fieldName string) (filter, error) {
 }
 
 func parseFilterLT(lex *lexer, fieldName string) (filter, error) {
-	if fieldName == "" {
-		return nil, fmt.Errorf("'<' and '<=' must be prefixed with the field name")
-	}
 	lex.nextToken()
 
 	includeMaxValue := false
