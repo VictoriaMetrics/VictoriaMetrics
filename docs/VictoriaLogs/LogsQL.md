@@ -306,10 +306,10 @@ with `app` field equal to `nginx`:
 _stream:{app="nginx"}
 ```
 
-This query is equivalent to the following [exact()](#exact-filter) query, but the upper query usually works much faster:
+This query is equivalent to the following [`exact` filter](#exact-filter) query, but the upper query usually works much faster:
 
 ```logsql
-app:exact("nginx")
+app:="nginx"
 ```
 
 Performance tips:
@@ -449,7 +449,7 @@ This query matches the following [log messages](https://docs.victoriametrics.com
 This query doesn't match the following log messages:
 
 - `Error: foobar`, since the `Error` [word](#word) starts with capital letter. Use `i(err*)` for this case. See [these docs](#case-insensitive-filter) for details.
-- `fooerror`, since the `fooerror` [word](#word) doesn't start with `err`. Use `re("err")` for this case. See [these docs](#regexp-filter) for details.
+- `fooerror`, since the `fooerror` [word](#word) doesn't start with `err`. Use `~"err"` for this case. See [these docs](#regexp-filter) for details.
 
 Prefix filter can be applied to [phrases](#phrase-filter). For example, the following query matches
 [log messages](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field) containing phrases with `unexpected fail` prefix:
@@ -537,43 +537,37 @@ See also:
 
 The [word filter](#word-filter) and [phrase filter](#phrase-filter) return [log messages](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field),
 which contain the given word or phrase inside them. The message may contain additional text other than the requested word or phrase. If you need searching for log messages
-or [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field) with the exact value, then use the `exact(...)` filter.
+or [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field) with the exact value, then use the `exact` filter.
 For example, the following query returns log messages wih the exact value `fatal error: cannot find /foo/bar`:
 
 ```logsql
-exact("fatal error: cannot find /foo/bar")
+="fatal error: cannot find /foo/bar"
 ```
 
 The query doesn't match the following log messages:
 
 - `fatal error: cannot find /foo/bar/baz` or `some-text fatal error: cannot find /foo/bar`, since they contain an additional text
-  other than the specified in the `exact()` filter. Use `"fatal error: cannot find /foo/bar"` query in this case. See [these docs](#phrase-filter) for details.
+  other than the specified in the `exact` filter. Use `"fatal error: cannot find /foo/bar"` query in this case. See [these docs](#phrase-filter) for details.
 
-- `FATAL ERROR: cannot find /foo/bar`, since the `exact()` filter is case-sensitive. Use `i("fatal error: cannot find /foo/bar")` in this case.
+- `FATAL ERROR: cannot find /foo/bar`, since the `exact` filter is case-sensitive. Use `i("fatal error: cannot find /foo/bar")` in this case.
   See [these docs](#case-insensitive-filter) for details.
 
-By default the `exact()` filter is applied to the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
-Specify the [field name](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) in front of the `exact()` filter and put a colon after it
+By default the `exact` filter is applied to the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
+Specify the [field name](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) in front of the `exact` filter and put a colon after it
 if it must be searched in the given field. For example, the following query returns log entries with the exact `error` value at `log.level` field:
 
 ```logsql
-log.level:exact("error")
+log.level:="error"
 ```
 
 Both the field name and the phrase can contain arbitrary [utf-8](https://en.wikipedia.org/wiki/UTF-8)-encoded chars. For example:
 
 ```logsql
-log.уровень:exact("ошибка")
+log.уровень:="ошибка"
 ```
 
 The field name can be put inside quotes if it contains special chars, which may clash with the query syntax.
 For example, the following query matches the `error` value in the field `log:level`:
-
-```logsql
-"log:level":exact("error")
-```
-
-The `exact(...)` filter can be replaced with `=...` for convenience. For example, the following query is equivalent to the previous one:
 
 ```logsql
 "log:level":="error"
@@ -591,11 +585,11 @@ See also:
 
 ### Exact prefix filter
 
-Sometimes it is needed to find log messages starting with some prefix. This can be done with the `exact("prefix"*)` filter.
+Sometimes it is needed to find log messages starting with some prefix. This can be done with the `="prefix"*` filter.
 For example, the following query matches log messages, which start from `Processing request` prefix:
 
 ```logsql
-exact("Processing request"*)
+="Processing request"*
 ```
 
 This filter matches the following [log messages](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field):
@@ -605,33 +599,27 @@ This filter matches the following [log messages](https://docs.victoriametrics.co
 
 It doesn't match the following log messages:
 
-- `processing request foobar`, since the log message starts with lowercase `p`. Use `exact("processing request"*) OR exact("Processing request"*)`
+- `processing request foobar`, since the log message starts with lowercase `p`. Use `="processing request"* OR ="Processing request"*`
   query in this case. See [these docs](#logical-filter) for details.
 - `start: Processing request`, since the log message doesn't start with `Processing request`. Use `"Processing request"` query in this case.
   See [these docs](#phrase-filter) for details.
 
-By default the `exact()` filter is applied to the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
-Specify the [field name](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) in front of the `exact()` filter and put a colon after it
+By default the `exact` filter is applied to the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
+Specify the [field name](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) in front of the `exact` filter and put a colon after it
 if it must be searched in the given field. For example, the following query returns log entries with `log.level` field, which starts with `err` prefix:
 
 ```logsql
-log.level:exact("err"*)
+log.level:="err"*
 ```
 
 Both the field name and the phrase can contain arbitrary [utf-8](https://en.wikipedia.org/wiki/UTF-8)-encoded chars. For example:
 
 ```logsql
-log.уровень:exact("ошиб"*)
+log.уровень:="ошиб"*
 ```
 
 The field name can be put inside quotes if it contains special chars, which may clash with the query syntax.
 For example, the following query matches `log:level` values starting with `err` prefix:
-
-```logsql
-"log:level":exact("err"*)
-```
-
-The `exact(...)` filter can be replaced with `=...` for convenience. For example, the following query is equivalent to the previous one:
 
 ```logsql
 "log:level":="err"*
@@ -653,7 +641,7 @@ combined into a single [logical filter](#logical-filter). For example, the follo
 containing either `error` or `fatal` exact values:
 
 ```logsql
-log.level:(exact("error") OR exact("fatal"))
+log.level:(="error" OR ="fatal")
 ```
 
 While this solution works OK, LogsQL provides simpler and faster solution for this case - the `in()` filter.
@@ -702,7 +690,7 @@ The query matches the following [log messages](https://docs.victoriametrics.com/
 
 The query doesn't match the following log messages:
 
-- `FooError`, since the `FooError` [word](#word) has superflouos prefix `Foo`. Use `re("(?i)error")` for this case. See [these docs](#regexp-filter) for details.
+- `FooError`, since the `FooError` [word](#word) has superflouos prefix `Foo`. Use `~"(?i)error"` for this case. See [these docs](#regexp-filter) for details.
 - `too many Errors`, since the `Errors` [word](#word) has superflouos suffix `s`. Use `i(error*)` for this case.
 
 By default the `i()` filter is applied to the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
@@ -776,11 +764,11 @@ See also:
 
 ### Regexp filter
 
-LogsQL supports regular expression filter with [re2 syntax](https://github.com/google/re2/wiki/Syntax) via `re(...)` expression.
+LogsQL supports regular expression filter with [re2 syntax](https://github.com/google/re2/wiki/Syntax) via `~"regex"` syntax.
 For example, the following query returns all the log messages containing `err` or `warn` susbstrings:
 
 ```logsql
-re("err|warn")
+~"err|warn"
 ```
 
 The query matches the following [log messages](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field), which contain either `err` or `warn` substrings:
@@ -791,33 +779,33 @@ The query matches the following [log messages](https://docs.victoriametrics.com/
 
 The query doesn't match the following log messages:
 
-- `ERROR: cannot open file`, since the `ERROR` word is in uppercase letters. Use `re("(?i)(err|warn)")` query for case-insensitive regexp search.
+- `ERROR: cannot open file`, since the `ERROR` word is in uppercase letters. Use `~"(?i)(err|warn)"` query for case-insensitive regexp search.
   See [these docs](https://github.com/google/re2/wiki/Syntax) for details. See also [case-insenstive filter docs](#case-insensitive-filter).
 - `it is warmer than usual`, since it doesn't contain neither `err` nor `warn` substrings.
 
-By default the `re()` filter is applied to the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
+By default the regexp filter is applied to the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
 Specify the needed [field name](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) in front of the filter
 in order to apply it to the given field. For example, the following query matches `event.original` field containing either `err` or `warn` substrings:
 
 ```logsql
-event.original:re("err|warn")
+event.original:~"err|warn"
 ```
 
 If the field name contains special chars, which may clash with the query syntax, then it may be put into quotes in the query.
 For example, the following query matches `event:original` field containing either `err` or `warn` substrings:
 
 ```logsql
-"event:original":re("err|warn")
+"event:original":~"err|warn"
 ```
 
 Performance tips:
 
 - Prefer combining simple [word filter](#word-filter) with [logical filter](#logical-filter) instead of using regexp filter.
-  For example, the `re("error|warning")` query can be substituted with `error OR warning` query, which usually works much faster.
-  Note that the `re("error|warning")` matches `errors` as well as `warnings` [words](#word), while `error OR warning` matches
+  For example, the `~"error|warning"` query can be substituted with `error OR warning` query, which usually works much faster.
+  Note that the `~"error|warning"` matches `errors` as well as `warnings` [words](#word), while `error OR warning` matches
   only the specified [words](#word). See also [multi-exact filter](#multi-exact-filter).
 - Prefer moving the regexp filter to the end of the [logical filter](#logical-filter), so lightweighter filters are executed first.
-- Prefer using `exact("some prefix"*)` instead of `re("^some prefix")`, since the [exact()](#exact-prefix-filter) works much faster than the `re()` filter.
+- Prefer using `="some prefix"*` instead of `~"^some prefix"`, since the [`exact` filter](#exact-prefix-filter) works much faster than the regexp filter.
 - See [other performance tips](#performance-tips).
 
 See also:
@@ -1043,7 +1031,7 @@ Performance tips:
   while moving less specific and the slowest filters (such as [regexp filter](#regexp-filter) and [case-insensitive filter](#case-insensitive-filter))
   to the right. For example, if you need to find [log messages](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field)
   with the `error` word, which match some `/foo/(bar|baz)` regexp,
-  it is better from performance PoV to use the query `error re("/foo/(bar|baz)")` instead of `re("/foo/(bar|baz)") error`.
+  it is better from performance PoV to use the query `error ~"/foo/(bar|baz)"` instead of `~"/foo/(bar|baz)" error`.
 
   The most specific filter means that it matches the lowest number of log entries comparing to other filters.
 

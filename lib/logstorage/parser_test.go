@@ -571,7 +571,7 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`foo:(bar baz or not :xxx)`, `foo:bar foo:baz or !foo:xxx`)
 	f(`(foo:bar and (foo:baz or aa:bb) and xx) and y`, `foo:bar (foo:baz or aa:bb) xx y`)
 	f("level:error and _msg:(a or b)", "level:error (a or b)")
-	f("level: ( ((error or warn*) and re(foo))) (not (bar))", `(level:error or level:warn*) level:re("foo") !bar`)
+	f("level: ( ((error or warn*) and re(foo))) (not (bar))", `(level:error or level:warn*) level:~"foo" !bar`)
 	f("!(foo bar or baz and not aa*)", `!(foo bar or baz !aa*)`)
 
 	// prefix search
@@ -761,9 +761,12 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`>=10 <20`, `>=10 <20`)
 
 	// re filter
-	f("re('foo|ba(r.+)')", `re("foo|ba(r.+)")`)
-	f("re(foo)", `re("foo")`)
-	f(`foo:re(foo-bar/baz.)`, `foo:re("foo-bar/baz.")`)
+	f("re('foo|ba(r.+)')", `~"foo|ba(r.+)"`)
+	f("re(foo)", `~"foo"`)
+	f(`foo:re(foo-bar/baz.)`, `foo:~"foo-bar/baz."`)
+	f(`~foo.bar.baz`, `~"foo.bar.baz"`)
+	f(`foo:~~foo~ba/ba>z`, `foo:~"~foo~ba/ba>z"`)
+	f(`foo:~'.*'`, `foo:~".*"`)
 
 	// seq filter
 	f(`seq()`, `seq()`)

@@ -597,6 +597,8 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		return parseFilterLT(lex, fieldName)
 	case lex.isKeyword("="):
 		return parseFilterEQ(lex, fieldName)
+	case lex.isKeyword("~"):
+		return parseFilterTilda(lex, fieldName)
 	case lex.isKeyword("not", "!"):
 		return parseFilterNot(lex, fieldName)
 	case lex.isKeyword("exact"):
@@ -1017,6 +1019,20 @@ func parseFilterRegexp(lex *lexer, fieldName string) (filter, error) {
 	})
 }
 
+func parseFilterTilda(lex *lexer, fieldName string) (filter, error) {
+	lex.nextToken()
+	arg := getCompoundFuncArg(lex)
+	re, err := regexp.Compile(arg)
+	if err != nil {
+		return nil, fmt.Errorf("invalid regexp %q: %w", arg, err)
+	}
+	fr := &filterRegexp{
+		fieldName: fieldName,
+		re:        re,
+	}
+	return fr, nil
+}
+
 func parseFilterEQ(lex *lexer, fieldName string) (filter, error) {
 	lex.nextToken()
 	phrase := getCompoundFuncArg(lex)
@@ -1024,13 +1040,13 @@ func parseFilterEQ(lex *lexer, fieldName string) (filter, error) {
 		lex.nextToken()
 		f := &filterExactPrefix{
 			fieldName: fieldName,
-			prefix: phrase,
+			prefix:    phrase,
 		}
 		return f, nil
 	}
 	f := &filterExact{
 		fieldName: fieldName,
-		value: phrase,
+		value:     phrase,
 	}
 	return f, nil
 }
