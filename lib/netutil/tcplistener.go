@@ -11,6 +11,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
+
+	"github.com/coreos/go-systemd/v22/activation"
 )
 
 var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used")
@@ -22,10 +24,21 @@ var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable IPv6 for list
 // If useProxyProtocol is set to true, then the returned listener accepts TCP connections via proxy protocol.
 // See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
 func NewTCPListener(name, addr string, useProxyProtocol bool, tlsConfig *tls.Config) (*TCPListener, error) {
+	var ln net.Listener
 	network := GetTCPNetwork()
-	ln, err := net.Listen(network, addr)
-	if err != nil {
-		return nil, err
+	// check for socket acivation on systemd linux systems
+	listeners, err := activation.ListenersWithNames()
+	if err == nil {
+		saLn, ok := listeners[addr]
+		if ok && len(saLn) == 1 {
+			ln = saLn[0]
+		}
+	}
+	if ln == nil {
+		ln, err = net.Listen(network, addr)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if tlsConfig != nil {
 		ln = tls.NewListener(ln, tlsConfig)
