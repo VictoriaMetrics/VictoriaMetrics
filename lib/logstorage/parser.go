@@ -1307,7 +1307,8 @@ func parseFilterTime(lex *lexer) (*filterTime, error) {
 			if err != nil {
 				return nil, fmt.Errorf("cannot parse _time filter: %w", err)
 			}
-			startTime := int64(t * 1e9)
+			// Round to milliseconds
+			startTime := int64(math.Round(t*1e3)) * 1e6
 			endTime := getMatchingEndTime(startTime, s)
 			ft := &filterTime{
 				minTimestamp: startTime,
@@ -1416,6 +1417,8 @@ func getMatchingEndTime(startTime int64, stringRepr string) int64 {
 		tEnd = tStart.Add(time.Minute)
 	case len(timeStr) == len("YYYY-MM-DDThh:mm:ss") && timeStr[len("YYYY")] == '-':
 		tEnd = tStart.Add(time.Second)
+	case len(timeStr) == len("YYYY-MM-DDThh:mm:ss.SSS") && timeStr[len("YYYY")] == '-':
+		tEnd = tStart.Add(time.Millisecond)
 	default:
 		tEnd = tStart.Add(time.Nanosecond)
 	}
@@ -1459,7 +1462,8 @@ func parseTime(lex *lexer) (int64, string, error) {
 	if err != nil {
 		return 0, "", err
 	}
-	return int64(t * 1e9), s, nil
+	// round to milliseconds
+	return int64(math.Round(t*1e3)) * 1e6, s, nil
 }
 
 func quoteTokenIfNeeded(s string) string {
