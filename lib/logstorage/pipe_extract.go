@@ -125,7 +125,7 @@ func parsePipeExtract(lex *lexer) (*pipeExtract, error) {
 		fromField:  fromField,
 		ptn:        ptn,
 		patternStr: patternStr,
-		iff: iff,
+		iff:        iff,
 	}
 
 	return pe, nil

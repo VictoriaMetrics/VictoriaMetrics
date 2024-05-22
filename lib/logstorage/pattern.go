@@ -29,6 +29,7 @@ type patternField struct {
 type patternStep struct {
 	prefix string
 	field  string
+	opt    string
 }
 
 func (ptn *pattern) clone() *pattern {
@@ -154,6 +155,31 @@ func tryUnquoteString(s string) (string, int) {
 }
 
 func parsePatternSteps(s string) ([]patternStep, error) {
+	steps, err := parsePatternStepsInternal(s)
+	if err != nil {
+		return nil, err
+	}
+
+	// Unescape prefixes
+	for i := range steps {
+		step := &steps[i]
+		step.prefix = html.UnescapeString(step.prefix)
+	}
+
+	// extract options part from fields
+	for i := range steps {
+		step := &steps[i]
+		field := step.field
+		if n := strings.IndexByte(field, ':'); n >= 0 {
+			step.opt = field[:n]
+			step.field = field[n+1:]
+		}
+	}
+
+	return steps, nil
+}
+
+func parsePatternStepsInternal(s string) ([]patternStep, error) {
 	if len(s) == 0 {
 		return nil, nil
 	}
@@ -163,7 +189,7 @@ func parsePatternSteps(s string) ([]patternStep, error) {
 	n := strings.IndexByte(s, '<')
 	if n < 0 {
 		steps = append(steps, patternStep{
-			prefix: html.UnescapeString(s),
+			prefix: s,
 		})
 		return steps, nil
 	}
@@ -197,11 +223,6 @@ func parsePatternSteps(s string) ([]patternStep, error) {
 		}
 		prefix = s[:n]
 		s = s[n+1:]
-	}
-
-	for i := range steps {
-		step := &steps[i]
-		step.prefix = html.UnescapeString(step.prefix)
 	}
 
 	return steps, nil

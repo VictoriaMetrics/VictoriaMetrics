@@ -205,6 +205,21 @@ func TestParsePatternStepsSuccess(t *testing.T) {
 			prefix: "&gt;",
 		},
 	})
+	f("<q:foo>bar<abc:baz:c:y>f<:foo:bar:baz>", []patternStep{
+		{
+			field: "foo",
+			opt:   "q",
+		},
+		{
+			prefix: "bar",
+			field:  "baz:c:y",
+			opt:    "abc",
+		},
+		{
+			prefix: "f",
+			field:  "foo:bar:baz",
+		},
+	})
 
 }
 

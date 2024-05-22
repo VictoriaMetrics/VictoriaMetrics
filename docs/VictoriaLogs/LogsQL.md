@@ -1273,7 +1273,7 @@ See also:
 ### format pipe
 
 `| format "pattern" as result_field` [pipe](#format-pipe) combines [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-according to the `pattern` and stores it to the `result_field`.
+according to the `pattern` and stores it to the `result_field`. All the other fields remain unchanged after the `| format ...` pipe.
 
 For example, the following query stores `request from <ip>:<port>` text into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
 by substituting `<ip>` and `<port>` with the corresponding [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) names:
@@ -1289,18 +1289,19 @@ then `as _msg` part can be omitted. The following query is equivalent to the pre
 _time:5m | format "request from <ip>:<port>"
 ```
 
-If some field values must be put into double quotes before formatting, then add `:q` after the corresponding field name.
+If some field values must be put into double quotes before formatting, then add `q:` in front of the corresponding field name.
 For example, the following command generates properly encoded JSON object from `_msg` and `stacktrace` [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 and stores it into `my_json` output field:
 
 ```logsql
-_time:5m | format '{"_msg":<_msg:q>,"stacktrace":<stacktrace:q>}' as my_json
+_time:5m | format '{"_msg":<q:_msg>,"stacktrace":<q:stacktrace>}' as my_json
 ```
 
 See also:
 
 - [Conditional format](#conditional-format)
 - [`extract` pipe](#extract-pipe)
+
 
 #### Conditional format
 

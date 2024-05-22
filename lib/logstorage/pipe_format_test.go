@@ -40,6 +40,20 @@ func TestPipeFormat(t *testing.T) {
 	}
 
 	// plain string into a single field
+	f(`format '{"foo":<q:foo>,"bar":"<bar>"}' as x`, [][]Field{
+		{
+			{"foo", `"abc"`},
+			{"bar", `cde`},
+		},
+	}, [][]Field{
+		{
+			{"foo", `"abc"`},
+			{"bar", `cde`},
+			{"x", `{"foo":"\"abc\"","bar":"cde"}`},
+		},
+	})
+
+	// plain string into a single field
 	f(`format foo as x`, [][]Field{
 		{
 			{"_msg", `foobar`},
@@ -95,7 +109,7 @@ func TestPipeFormat(t *testing.T) {
 	})
 
 	// format into existing field
-	f(`format "a<foo>aa<_msg>xx<a>x" as _msg`, [][]Field{
+	f(`format "a<foo>aa<_msg>xx<a>x"`, [][]Field{
 		{
 			{"_msg", `foobar`},
 			{"a", "b"},
