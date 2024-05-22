@@ -75,10 +75,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		// Skip requests, which do not start with /select/, since these aren't our requests.
 		return false
 	}
-	path = strings.TrimPrefix(path, "/select")
 	path = strings.ReplaceAll(path, "//", "/")
 
-	if path == "/vmui" {
+	if path == "/select/vmui" {
 		// VMUI access via incomplete url without `/` in the end. Redirect to complete url.
 		// Use relative redirect, since the hostname and path prefix may be incorrect if VictoriaMetrics
 		// is hidden behind vmauth or similar proxy.
@@ -87,8 +86,8 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		httpserver.Redirect(w, newURL)
 		return true
 	}
-	if strings.HasPrefix(path, "/vmui/") {
-		if strings.HasPrefix(path, "/vmui/static/") {
+	if strings.HasPrefix(path, "/select/vmui/") {
+		if strings.HasPrefix(path, "/select/vmui/static/") {
 			// Allow clients caching static contents for long period of time, since it shouldn't change over time.
 			// Path to static contents (such as js and css) must be changed whenever its contents is changed.
 			// See https://developer.chrome.com/docs/lighthouse/performance/uses-long-cache-ttl/
@@ -140,26 +139,35 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 	}
 
+	httpserver.EnableCORS(w, r)
 	switch path {
-	case "/logsql/query":
-		logsqlQueryRequests.Inc()
-		httpserver.EnableCORS(w, r)
-		logsql.ProcessQueryRequest(ctx, w, r)
-		return true
-	case "/logsql/field_values":
-		logsqlFieldValuesRequests.Inc()
-		httpserver.EnableCORS(w, r)
-		logsql.ProcessFieldValuesRequest(ctx, w, r)
-		return true
-	case "/logsql/field_names":
+	case "/select/logsql/field_names":
 		logsqlFieldNamesRequests.Inc()
-		httpserver.EnableCORS(w, r)
 		logsql.ProcessFieldNamesRequest(ctx, w, r)
 		return true
-	case "/logsql/hits":
+	case "/select/logsql/field_values":
+		logsqlFieldValuesRequests.Inc()
+		logsql.ProcessFieldValuesRequest(ctx, w, r)
+		return true
+	case "/select/logsql/hits":
 		logsqlHitsRequests.Inc()
-		httpserver.EnableCORS(w, r)
 		logsql.ProcessHitsRequest(ctx, w, r)
+		return true
+	case "/select/logsql/query":
+		logsqlQueryRequests.Inc()
+		logsql.ProcessQueryRequest(ctx, w, r)
+		return true
+	case "/select/logsql/stream_label_names":
+		logsqlStreamLabelNamesRequests.Inc()
+		logsql.ProcessStreamLabelNamesRequest(ctx, w, r)
+		return true
+	case "/select/logsql/stream_label_values":
+		logsqlStreamLabelValuesRequests.Inc()
+		logsql.ProcessStreamLabelValuesRequest(ctx, w, r)
+		return true
+	case "/select/logsql/streams":
+		logsqlStreamsRequests.Inc()
+		logsql.ProcessStreamsRequest(ctx, w, r)
 		return true
 	default:
 		return false
@@ -180,8 +188,11 @@ func getMaxQueryDuration(r *http.Request) time.Duration {
 }
 
 var (
-	logsqlQueryRequests       = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/query"}`)
-	logsqlFieldValuesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/field_values"}`)
-	logsqlFieldNamesRequests  = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/field_names"}`)
-	logsqlHitsRequests        = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/hits"}`)
+	logsqlFieldNamesRequests        = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/field_names"}`)
+	logsqlFieldValuesRequests       = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/field_values"}`)
+	logsqlHitsRequests              = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/hits"}`)
+	logsqlQueryRequests             = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/query"}`)
+	logsqlStreamLabelNamesRequests  = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_label_names"}`)
+	logsqlStreamLabelValuesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_label_values"}`)
+	logsqlStreamsRequests           = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/streams"}`)
 )
