@@ -7,11 +7,13 @@ import (
 )
 
 type fieldsUnpackerContext struct {
-	fields []Field
-	a      arena
+	workerID uint
+	fields   []Field
+	a        arena
 }
 
 func (uctx *fieldsUnpackerContext) reset() {
+	uctx.workerID = 0
 	uctx.resetFields()
 	uctx.a.reset()
 }
@@ -42,6 +44,12 @@ func (uctx *fieldsUnpackerContext) addField(name, value, fieldPrefix string) {
 
 func newPipeUnpackProcessor(workersCount int, unpackFunc func(uctx *fieldsUnpackerContext, s, fieldPrefix string), ppBase pipeProcessor,
 	fromField, fieldPrefix string, iff *ifFilter) *pipeUnpackProcessor {
+
+	shards := make([]pipeUnpackProcessorShard, workersCount)
+	for i := range shards {
+		shards[i].wctx.workerID = uint(i)
+	}
+
 	return &pipeUnpackProcessor{
 		unpackFunc: unpackFunc,
 		ppBase:     ppBase,
