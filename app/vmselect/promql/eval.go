@@ -283,39 +283,95 @@ type tenantFiltersCacheItem struct {
 	filters [][]metricsql.LabelFilter
 }
 
-// todo: should there be a cache size limit / eviction policy?
-type tenantFiltersCacheS struct {
-	m    map[string]*tenantFiltersCacheItem
-	lock sync.RWMutex
+type tenantFiltersCache struct {
+	requests atomic.Uint64
+	misses   atomic.Uint64
+
+	m  map[string]*tenantFiltersCacheItem
+	mu sync.RWMutex
 }
 
-func (tfc *tenantFiltersCacheS) put(original, converted metricsql.Expr, filters [][]metricsql.LabelFilter) {
-	tfc.lock.Lock()
-	defer tfc.lock.Unlock()
+func (tfc *tenantFiltersCache) put(original, converted metricsql.Expr, filters [][]metricsql.LabelFilter) {
+	tfc.mu.Lock()
+	defer tfc.mu.Unlock()
 
-	tfc.m[string(original.AppendString(nil))] = &tenantFiltersCacheItem{
+	overflow := len(tfc.m) - parseCacheMaxLen
+	if overflow > 0 {
+		// Remove 10% of items from the cache.
+		overflow = int(float64(len(tfc.m)) * 0.1)
+		for k := range tfc.m {
+			delete(tfc.m, k)
+			overflow--
+			if overflow <= 0 {
+				break
+			}
+		}
+	}
+
+	bb := bbPool.Get()
+	defer bbPool.Put(bb)
+
+	bb.B = original.AppendString(bb.B)
+	tfc.m[string(bb.B)] = &tenantFiltersCacheItem{
 		ne:      converted,
 		filters: filters,
 	}
 }
 
-func (tfc *tenantFiltersCacheS) get(e metricsql.Expr) *tenantFiltersCacheItem {
-	tfc.lock.RLock()
-	defer tfc.lock.RUnlock()
+func (tfc *tenantFiltersCache) get(e metricsql.Expr) *tenantFiltersCacheItem {
+	tfc.mu.RLock()
+	defer tfc.mu.RUnlock()
+	tfc.requests.Add(1)
 
-	result, _ := tfc.m[string(e.AppendString(nil))]
+	bb := bbPool.Get()
+	defer bbPool.Put(bb)
+
+	bb.B = e.AppendString(bb.B)
+	result := tfc.m[string(bb.B)]
+
+	if result == nil {
+		tfc.misses.Add(1)
+	}
+
 	return result
 }
+func (tfc *tenantFiltersCache) Requests() uint64 {
+	return tfc.requests.Load()
+}
 
-var tentantsFilterCache = func() *tenantFiltersCacheS {
+func (tfc *tenantFiltersCache) Misses() uint64 {
+	return tfc.misses.Load()
+}
+
+func (tfc *tenantFiltersCache) Len() uint64 {
+	tfc.mu.RLock()
+	n := len(tfc.m)
+	tfc.mu.RUnlock()
+	return uint64(n)
+}
+
+var tentantsFilterCacheV = func() *tenantFiltersCache {
 	m := make(map[string]*tenantFiltersCacheItem)
-	return &tenantFiltersCacheS{
+
+	tfc := &tenantFiltersCache{
 		m: m,
 	}
+
+	metrics.GetOrCreateGauge(`vm_cache_requests_total{type="multitenancy/filters"}`, func() float64 {
+		return float64(tfc.Requests())
+	})
+	metrics.GetOrCreateGauge(`vm_cache_misses_total{type="multitenancy/filters"}`, func() float64 {
+		return float64(tfc.Misses())
+	})
+	metrics.GetOrCreateGauge(`vm_cache_entries{type="multitenancy/filters"}`, func() float64 {
+		return float64(tfc.Len())
+	})
+
+	return tfc
 }()
 
 func extractTenantFilters(e metricsql.Expr, dst [][]metricsql.LabelFilter) ([][]metricsql.LabelFilter, metricsql.Expr) {
-	if cache := tentantsFilterCache.get(e); cache != nil {
+	if cache := tentantsFilterCacheV.get(e); cache != nil {
 		return cache.filters, cache.ne
 	}
 
@@ -344,10 +400,12 @@ func extractTenantFilters(e metricsql.Expr, dst [][]metricsql.LabelFilter) ([][]
 			exp.LabelFilterss[idx] = newLabels
 			dst = append(dst, newFilters)
 		}
+		tentantsFilterCacheV.put(e, ne, dst)
 		return dst, exp
 
 	case *metricsql.RollupExpr:
 		dst, exp.Expr = extractTenantFilters(exp.Expr, dst)
+		tentantsFilterCacheV.put(e, ne, dst)
 		return dst, exp
 
 	case *metricsql.BinaryOpExpr:
@@ -358,6 +416,7 @@ func extractTenantFilters(e metricsql.Expr, dst [][]metricsql.LabelFilter) ([][]
 
 		exp.Left = newL
 		exp.Right = newR
+		tentantsFilterCacheV.put(e, ne, dst)
 		return dst, exp
 
 	case *metricsql.AggrFuncExpr:
@@ -366,6 +425,7 @@ func extractTenantFilters(e metricsql.Expr, dst [][]metricsql.LabelFilter) ([][]
 			dst, newArg = extractTenantFilters(arg, dst)
 			exp.Args[i] = newArg
 		}
+		tentantsFilterCacheV.put(e, ne, dst)
 		return dst, exp
 
 	case *metricsql.FuncExpr:
@@ -374,10 +434,12 @@ func extractTenantFilters(e metricsql.Expr, dst [][]metricsql.LabelFilter) ([][]
 			dst, newArg = extractTenantFilters(arg, dst)
 			exp.Args[i] = newArg
 		}
+		tentantsFilterCacheV.put(e, ne, dst)
 		return dst, exp
 
 	}
 
+	tentantsFilterCacheV.put(e, ne, dst)
 	return dst, ne
 }
 
@@ -501,19 +563,9 @@ func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*time
 			qtl.Donef("series=%d, points=%d, pointsPerSeries=%d", seriesCount, pointsCount, pointsPerSeries)
 		}
 
-		tags := []storage.Tag{
-			{
-				Key:   bytesutil.ToUnsafeBytes("vm_account_id"),
-				Value: strconv.AppendUint(nil, uint64(token.AccountID), 10),
-			},
-			{
-				Key:   bytesutil.ToUnsafeBytes("vm_project_id"),
-				Value: strconv.AppendUint(nil, uint64(token.ProjectID), 10),
-			},
-		}
-
-		for _, ts := range rvL {
-			ts.MetricName.Tags = append(ts.MetricName.Tags, tags...)
+		for i := range rvL {
+			rvL[i].MetricName.AddTagBytes([]byte("vm_account_id"), strconv.AppendUint(nil, uint64(token.AccountID), 10))
+			rvL[i].MetricName.AddTagBytes([]byte("vm_project_id"), strconv.AppendUint(nil, uint64(token.ProjectID), 10))
 		}
 
 		rv = append(rv, rvL...)

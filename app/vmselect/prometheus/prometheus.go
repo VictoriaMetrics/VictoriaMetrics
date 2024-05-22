@@ -603,7 +603,8 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.To
 	denyPartialResponse := httputils.GetDenyPartialResponse(r)
 
 	rc := getResultsCollector()
-	if err = executeAcrossTenants(qt, at, cp, func(qt *querytracer.Tracer, t *auth.Token, isMultiTenant bool) error {
+	defer putResultsCollector(rc)
+	if err = executeAcrossTenants(qt, at, cp, func(qt *querytracer.Tracer, t *auth.Token, _ bool) error {
 		sq := storage.NewSearchQuery(t.AccountID, t.ProjectID, cp.start, cp.end, cp.filterss, *maxLabelsAPISeries)
 		labelValues, isPartial, err := netstorage.LabelValues(qt, denyPartialResponse, labelName, sq, limit, cp.deadline)
 		if err != nil {
@@ -753,12 +754,23 @@ type resultsCollector struct {
 	m         sync.Mutex
 }
 
+var resultsCollectorPool sync.Pool
+
 func getResultsCollector() *resultsCollector {
-	// todo: pool
-	return &resultsCollector{
-		results:   make([][]string, 0),
-		isPartial: make([]bool, 0),
+	rc := resultsCollectorPool.Get()
+	if rc == nil {
+		rc = &resultsCollector{
+			results:   make([][]string, 0),
+			isPartial: make([]bool, 0),
+		}
 	}
+
+	return rc.(*resultsCollector)
+}
+
+func putResultsCollector(rc *resultsCollector) {
+	rc.results = rc.results[:0]
+	rc.isPartial = rc.isPartial[:0]
 }
 
 func (rc *resultsCollector) addResults(results []string, isPartial bool) {
@@ -834,7 +846,8 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	denyPartialResponse := httputils.GetDenyPartialResponse(r)
 
 	rc := getResultsCollector()
-	if err = executeAcrossTenants(qt, at, cp, func(qt *querytracer.Tracer, at *auth.Token, isMultiTenant bool) error {
+	defer putResultsCollector(rc)
+	if err = executeAcrossTenants(qt, at, cp, func(qt *querytracer.Tracer, at *auth.Token, _ bool) error {
 		sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxLabelsAPISeries)
 		labels, isPartial, err := netstorage.LabelNames(qt, denyPartialResponse, sq, limit, cp.deadline)
 		if err != nil {
@@ -912,6 +925,7 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	}
 
 	rc := getResultsCollector()
+	defer putResultsCollector(rc)
 	if err = executeAcrossTenants(qt, at, cp, func(qt *querytracer.Tracer, at *auth.Token, isMultiTenant bool) error {
 		sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxSeriesLimit)
 		denyPartialResponse := httputils.GetDenyPartialResponse(r)

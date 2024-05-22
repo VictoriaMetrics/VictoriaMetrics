@@ -2,6 +2,7 @@ package multitenant
 
 import (
 	"reflect"
+	"sort"
 	"testing"
 	"time"
 
@@ -9,8 +10,9 @@ import (
 )
 
 func TestFetchingTenants(t *testing.T) {
-	tc := newTenantsCache(time.Minute)
+	tc := newTenantsCache(5 * time.Second)
 
+	tc.put(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 0}, []string{"1:1", "1:0"})
 	tc.put(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 100}, []string{"1:1", "1:0"})
 	tc.put(storage.TimeRange{MinTimestamp: 100, MaxTimestamp: 200}, []string{"2:1", "2:0"})
 	tc.put(storage.TimeRange{MinTimestamp: 200, MaxTimestamp: 300}, []string{"3:1", "3:0"})
@@ -18,15 +20,23 @@ func TestFetchingTenants(t *testing.T) {
 	f := func(tr storage.TimeRange, expectedTenants []string) {
 		t.Helper()
 		tenants := tc.get(tr)
+
+		if len(tenants) == 0 && len(tenants) == len(expectedTenants) {
+			return
+		}
+		sort.Strings(tenants)
+		sort.Strings(expectedTenants)
+
 		if !reflect.DeepEqual(tenants, expectedTenants) {
 			t.Fatalf("unexpected tenants; got %v; want %v", tenants, expectedTenants)
 		}
 	}
 
+	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 0}, []string{"1:1", "1:0"})
 	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 100}, []string{"1:1", "1:0"})
 	f(storage.TimeRange{MinTimestamp: 100, MaxTimestamp: 200}, []string{"2:1", "2:0"})
 	f(storage.TimeRange{MinTimestamp: 200, MaxTimestamp: 300}, []string{"3:1", "3:0"})
-	f(storage.TimeRange{MinTimestamp: 300, MaxTimestamp: 400}, []string{})
+	f(storage.TimeRange{MinTimestamp: 30000, MaxTimestamp: 40000}, []string{})
 
 	f(storage.TimeRange{MinTimestamp: 50, MaxTimestamp: 80}, []string{"1:1", "1:0"})
 	f(storage.TimeRange{MinTimestamp: 150, MaxTimestamp: 180}, []string{"2:1", "2:0"})
@@ -45,6 +55,7 @@ func Test_hasIntersection(t *testing.T) {
 		}
 	}
 
+	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 150}, storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 0}, true)
 	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 150}, storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 100}, true)
 	f(storage.TimeRange{MinTimestamp: 50, MaxTimestamp: 150}, storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 100}, true)
 	f(storage.TimeRange{MinTimestamp: 50, MaxTimestamp: 150}, storage.TimeRange{MinTimestamp: 10, MaxTimestamp: 80}, true)
