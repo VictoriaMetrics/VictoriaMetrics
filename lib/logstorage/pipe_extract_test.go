@@ -114,7 +114,7 @@ func TestPipeExtract(t *testing.T) {
 	})
 
 	// single row, if match
-	f(`extract if (x:baz) "foo=<bar> baz=<xx>" from x`, [][]Field{
+	f(`extract if (x:baz) "foo=<bar> baz=<xx>" from "x"`, [][]Field{
 		{
 			{"x", `a foo=cc baz=aa b`},
 			{"bar", "abc"},
@@ -128,7 +128,7 @@ func TestPipeExtract(t *testing.T) {
 	})
 
 	// single row, if mismatch
-	f(`extract if (bar:"") "foo=<bar> baz=<xx>" from x`, [][]Field{
+	f(`extract if (bar:"") "foo=<bar> baz=<xx>" from 'x'`, [][]Field{
 		{
 			{"x", `a foo=cc baz=aa b`},
 			{"bar", "abc"},

@@ -689,12 +689,17 @@ func TestParseQuerySuccess(t *testing.T) {
 	f("string_range-a:x", `string_range-a:x`)
 
 	// exact filter
-	f("exact(foo)", `exact(foo)`)
-	f("exact(foo*)", `exact(foo*)`)
-	f("exact('foo bar),|baz')", `exact("foo bar),|baz")`)
-	f("exact('foo bar),|baz'*)", `exact("foo bar),|baz"*)`)
-	f(`exact(foo/b:ar)`, `exact("foo/b:ar")`)
-	f(`foo:exact(foo/b:ar*)`, `foo:exact("foo/b:ar"*)`)
+	f("exact(foo)", `=foo`)
+	f("exact(foo*)", `=foo*`)
+	f("exact('foo bar),|baz')", `="foo bar),|baz"`)
+	f("exact('foo bar),|baz'*)", `="foo bar),|baz"*`)
+	f(`exact(foo/b:ar)`, `="foo/b:ar"`)
+	f(`foo:exact(foo/b:ar*)`, `foo:="foo/b:ar"*`)
+	f(`exact("foo/bar")`, `="foo/bar"`)
+	f(`exact('foo/bar')`, `="foo/bar"`)
+	f(`="foo/bar"`, `="foo/bar"`)
+	f("=foo=bar =b<=a>z ='abc'*", `="foo=bar" ="b<=a>z" =abc*`)
+	f("==foo =>=bar x : ( = =a<b*='c*' >=20)", `="=foo" =">=bar" x:="=a<b"* x:="c*" x:>=20`)
 
 	// i filter
 	f("i(foo)", `i(foo)`)

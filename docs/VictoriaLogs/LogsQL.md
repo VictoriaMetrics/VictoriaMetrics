@@ -573,6 +573,12 @@ For example, the following query matches the `error` value in the field `log:lev
 "log:level":exact("error")
 ```
 
+The `exact(...)` filter can be replaced with `=...` for convenience. For example, the following query is equivalent to the previous one:
+
+```logsql
+"log:level":="error"
+```
+
 See also:
 
 - [Exact prefix filter](#exact-prefix-filter)
@@ -623,6 +629,12 @@ For example, the following query matches `log:level` values starting with `err` 
 
 ```logsql
 "log:level":exact("err"*)
+```
+
+The `exact(...)` filter can be replaced with `=...` for convenience. For example, the following query is equivalent to the previous one:
+
+```logsql
+"log:level":="err"*
 ```
 
 See also:

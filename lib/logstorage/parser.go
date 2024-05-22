@@ -595,6 +595,8 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		return parseFilterGT(lex, fieldName)
 	case lex.isKeyword("<"):
 		return parseFilterLT(lex, fieldName)
+	case lex.isKeyword("="):
+		return parseFilterEQ(lex, fieldName)
 	case lex.isKeyword("not", "!"):
 		return parseFilterNot(lex, fieldName)
 	case lex.isKeyword("exact"):
@@ -1015,6 +1017,24 @@ func parseFilterRegexp(lex *lexer, fieldName string) (filter, error) {
 	})
 }
 
+func parseFilterEQ(lex *lexer, fieldName string) (filter, error) {
+	lex.nextToken()
+	phrase := getCompoundFuncArg(lex)
+	if lex.isKeyword("*") && !lex.isSkippedSpace {
+		lex.nextToken()
+		f := &filterExactPrefix{
+			fieldName: fieldName,
+			prefix: phrase,
+		}
+		return f, nil
+	}
+	f := &filterExact{
+		fieldName: fieldName,
+		value: phrase,
+	}
+	return f, nil
+}
+
 func parseFilterGT(lex *lexer, fieldName string) (filter, error) {
 	lex.nextToken()
 
@@ -1148,7 +1168,7 @@ func parseFilterRange(lex *lexer, fieldName string) (filter, error) {
 func parseFloat64(lex *lexer) (float64, string, error) {
 	s, err := getCompoundToken(lex)
 	if err != nil {
-		return 0, "", fmt.Errorf("cannot parse float64: %w", err)
+		return 0, "", fmt.Errorf("cannot parse float64 from %q: %w", s, err)
 	}
 	f, err := strconv.ParseFloat(s, 64)
 	if err == nil {
@@ -1161,7 +1181,7 @@ func parseFloat64(lex *lexer) (float64, string, error) {
 	if err == nil {
 		return float64(n), s, nil
 	}
-	return 0, "", fmt.Errorf("cannot parse %q as float64: %w", lex.token, err)
+	return 0, "", fmt.Errorf("cannot parse %q as float64: %w", s, err)
 }
 
 func parseFuncArg(lex *lexer, fieldName string, callback func(args string) (filter, error)) (filter, error) {
