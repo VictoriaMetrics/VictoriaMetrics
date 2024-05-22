@@ -12,8 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/metrics"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -24,6 +22,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -491,8 +490,9 @@ var remoteWriteRejectedLogger = logger.WithThrottler("remoteWriteRejected", 5*ti
 
 // calculateRetryAfterDuration calculate the retry duration.
 // 1. Calculate next retry duration by backoff policy (x2) and max retry duration limit.
-// 2. If Retry-After exists in response header, use max(Retry-After duration, next retry duration).
-// It returns `retryDuration` if `retryAfterString` does not follows RFC 7231.
+// 2. If Retry-After is valid, use max(Retry-After duration, next retry duration).
+//
+// It returns `retryDuration` if `retryAfterString` does not follow RFC 7231.
 // Also see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6097
 func calculateRetryDuration(retryAfterString string, retryDuration, maxRetryDuration time.Duration) time.Duration {
 	// default backoff retry policy
@@ -501,11 +501,26 @@ func calculateRetryDuration(retryAfterString string, retryDuration, maxRetryDura
 		retryDuration = maxRetryDuration
 	}
 
-	if retryAfterString == "" {
+	retryAfterDuration := parseRetryAfterHeader(retryAfterString)
+
+	if retryDuration > retryAfterDuration {
+		// Stick with the default policy when: `retryAfter` is shorter, or `retryAfter` is not valid.
 		return retryDuration
 	}
 
+	// Follow retryAfter
+	return timeutil.AddJitterToDuration(retryAfterDuration)
+}
+
+// parseRetryAfterHeader parse Retry-After value retrieved from HTTP response header.
+// `retryAfterString` should be in either HTTP-date or a number of seconds.
+// It will return time.Duration(0) if `retryAfterString` does not follow RFC 7231.
+func parseRetryAfterHeader(retryAfterString string) time.Duration {
 	var retryAfterDuration time.Duration
+
+	if retryAfterString == "" {
+		return retryAfterDuration
+	}
 
 	// Retry-After could be in "Mon, 02 Jan 2006 15:04:05 GMT" format.
 	parsedTime, err := time.Parse(http.TimeFormat, retryAfterString)
@@ -515,15 +530,8 @@ func calculateRetryDuration(retryAfterString string, retryDuration, maxRetryDura
 		// Retry-After could be in seconds.
 		if d, err := strconv.Atoi(retryAfterString); err == nil {
 			retryAfterDuration = time.Duration(d) * time.Second
-		} else {
-			// Format does not match RFC 7231. Fallback with retryDuration
-			return retryDuration
 		}
 	}
 
-	if retryDuration > retryAfterDuration {
-		return retryDuration
-	}
-
-	return timeutil.AddJitterToDuration(retryAfterDuration)
+	return retryAfterDuration
 }
