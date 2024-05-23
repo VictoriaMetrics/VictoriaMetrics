@@ -15,6 +15,9 @@ import (
 // - prefix match such as "foo.*" or "foo.+"
 // - substring match such as ".*foo.*" or ".+bar.+"
 type Regex struct {
+	// exprStr is the original expression.
+	exprStr string
+
 	// prefix contains literal prefix for regex.
 	// For example, prefix="foo" for regex="foo(a|b)"
 	prefix string
@@ -38,8 +41,8 @@ type Regex struct {
 	// For example, orValues contain ["foo","bar","baz"] for regex suffix="foo|bar|baz"
 	orValues []string
 
-	// re is the original regexp.
-	re *regexp.Regexp
+	// suffixRe is the regexp for suffix
+	suffixRe *regexp.Regexp
 }
 
 // NewRegex returns Regex for the given expr.
@@ -57,16 +60,16 @@ func NewRegex(expr string) (*Regex, error) {
 	substrDotStar := getSubstringLiteral(sre, syntax.OpStar)
 	substrDotPlus := getSubstringLiteral(sre, syntax.OpPlus)
 
-	var re *regexp.Regexp
 	suffixAnchored := suffix
 	if len(prefix) > 0 {
 		suffixAnchored = "^(?:" + suffix + ")"
 	}
 	// The suffixAnchored must be properly compiled, since it has been already checked above.
 	// Otherwise it is a bug, which must be fixed.
-	re = regexp.MustCompile(suffixAnchored)
+	suffixRe := regexp.MustCompile(suffixAnchored)
 
 	r := &Regex{
+		exprStr:         expr,
 		prefix:          prefix,
 		isOnlyPrefix:    isOnlyPrefix,
 		isSuffixDotStar: isSuffixDotStar,
@@ -74,20 +77,26 @@ func NewRegex(expr string) (*Regex, error) {
 		substrDotStar:   substrDotStar,
 		substrDotPlus:   substrDotPlus,
 		orValues:        orValues,
-		re:              re,
+		suffixRe:        suffixRe,
 	}
 	return r, nil
 }
 
-// MatchString returns true if s matches pr.
+// MatchString returns true if s matches r.
 func (r *Regex) MatchString(s string) bool {
 	if r.isOnlyPrefix {
 		return strings.Contains(s, r.prefix)
 	}
+
 	if len(r.prefix) == 0 {
 		return r.matchStringNoPrefix(s)
 	}
 	return r.matchStringWithPrefix(s)
+}
+
+// String returns string represetnation for r
+func (r *Regex) String() string {
+	return r.exprStr
 }
 
 func (r *Regex) matchStringNoPrefix(s string) bool {
@@ -108,11 +117,11 @@ func (r *Regex) matchStringNoPrefix(s string) bool {
 	}
 
 	if len(r.orValues) == 0 {
-		// Fall back to slow path by matching the original regexp.
-		return r.re.MatchString(s)
+		// Fall back to slow path by matching the suffix regexp.
+		return r.suffixRe.MatchString(s)
 	}
 
-	// Fast path - compare s to pr.orValues
+	// Fast path - compare s to r.orValues
 	for _, v := range r.orValues {
 		if strings.Contains(s, v) {
 			return true
@@ -148,12 +157,12 @@ func (r *Regex) matchStringWithPrefix(s string) bool {
 
 	for {
 		if len(r.orValues) == 0 {
-			// Fall back to slow path by matching the original regexp.
-			if r.re.MatchString(s) {
+			// Fall back to slow path by matching the suffix regexp.
+			if r.suffixRe.MatchString(s) {
 				return true
 			}
 		} else {
-			// Fast path - compare s to pr.orValues
+			// Fast path - compare s to r.orValues
 			for _, v := range r.orValues {
 				if strings.HasPrefix(s, v) {
 					return true

@@ -2,9 +2,9 @@ package logstorage
 
 import (
 	"fmt"
-	"regexp"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
 )
 
 // filterRegexp matches the given regexp
@@ -12,7 +12,7 @@ import (
 // Example LogsQL: `fieldName:re("regexp")`
 type filterRegexp struct {
 	fieldName string
-	re        *regexp.Regexp
+	re        *regexutil.Regex
 }
 
 func (fr *filterRegexp) String() string {
@@ -77,7 +77,7 @@ func (fr *filterRegexp) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 }
 
-func matchTimestampISO8601ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
+func matchTimestampISO8601ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex) {
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toTimestampISO8601String(bs, bb, v)
@@ -86,7 +86,7 @@ func matchTimestampISO8601ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap
 	bbPool.Put(bb)
 }
 
-func matchIPv4ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
+func matchIPv4ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex) {
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toIPv4String(bs, bb, v)
@@ -95,7 +95,7 @@ func matchIPv4ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp
 	bbPool.Put(bb)
 }
 
-func matchFloat64ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
+func matchFloat64ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex) {
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toFloat64String(bs, bb, v)
@@ -104,7 +104,7 @@ func matchFloat64ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *reg
 	bbPool.Put(bb)
 }
 
-func matchValuesDictByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
+func matchValuesDictByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex) {
 	bb := bbPool.Get()
 	for _, v := range ch.valuesDict.values {
 		c := byte(0)
@@ -117,13 +117,13 @@ func matchValuesDictByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *
 	bbPool.Put(bb)
 }
 
-func matchStringByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
+func matchStringByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex) {
 	visitValues(bs, ch, bm, func(v string) bool {
 		return re.MatchString(v)
 	})
 }
 
-func matchUint8ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
+func matchUint8ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex) {
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toUint8String(bs, bb, v)
@@ -132,7 +132,7 @@ func matchUint8ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regex
 	bbPool.Put(bb)
 }
 
-func matchUint16ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
+func matchUint16ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex) {
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toUint16String(bs, bb, v)
@@ -141,7 +141,7 @@ func matchUint16ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *rege
 	bbPool.Put(bb)
 }
 
-func matchUint32ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
+func matchUint32ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex) {
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toUint32String(bs, bb, v)
@@ -150,7 +150,7 @@ func matchUint32ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *rege
 	bbPool.Put(bb)
 }
 
-func matchUint64ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
+func matchUint64ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex) {
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toUint64String(bs, bb, v)

@@ -5,12 +5,12 @@ import (
 )
 
 func TestNewRegexFailure(t *testing.T) {
-	f := func(regex string) {
+	f := func(expr string) {
 		t.Helper()
 
-		re, err := NewRegex(regex)
+		r, err := NewRegex(expr)
 		if err == nil {
-			t.Fatalf("expecting non-nil error when parsing %q; got %q", regex, re.re)
+			t.Fatalf("expecting non-nil error when parsing %q; got %q", expr, r)
 		}
 	}
 
@@ -19,16 +19,20 @@ func TestNewRegexFailure(t *testing.T) {
 }
 
 func TestRegexMatchString(t *testing.T) {
-	f := func(regex, s string, resultExpected bool) {
+	f := func(expr, s string, resultExpected bool) {
 		t.Helper()
 
-		re, err := NewRegex(regex)
+		r, err := NewRegex(expr)
 		if err != nil {
-			t.Fatalf("cannot parse %q: %s", regex, err)
+			t.Fatalf("cannot parse %q: %s", expr, err)
 		}
-		result := re.MatchString(s)
+		exprResult := r.String()
+		if exprResult != expr {
+			t.Fatalf("unexpected string representation for %q: %q", expr, exprResult)
+		}
+		result := r.MatchString(s)
 		if result != resultExpected {
-			t.Fatalf("unexpected result when matching %q against regex=%q; got %v; want %v", s, regex, result, resultExpected)
+			t.Fatalf("unexpected result when matching %q against regex=%q; got %v; want %v", s, expr, result, resultExpected)
 		}
 	}
 

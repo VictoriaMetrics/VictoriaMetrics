@@ -19,6 +19,9 @@ import (
 //
 // The rest of regexps are also optimized by returning cached match results for the same input strings.
 type PromRegex struct {
+	// exprStr is the original expression.
+	exprStr string
+
 	// prefix contains literal prefix for regex.
 	// For example, prefix="foo" for regex="foo(a|b)"
 	prefix string
@@ -65,6 +68,7 @@ func NewPromRegex(expr string) (*PromRegex, error) {
 	reSuffix := regexp.MustCompile(suffixExpr)
 	reSuffixMatcher := bytesutil.NewFastStringMatcher(reSuffix.MatchString)
 	pr := &PromRegex{
+		exprStr:         expr,
 		prefix:          prefix,
 		isOnlyPrefix:    isOnlyPrefix,
 		isSuffixDotStar: isSuffixDotStar,
@@ -124,4 +128,9 @@ func (pr *PromRegex) MatchString(s string) bool {
 
 	// Fall back to slow path by matching the original regexp.
 	return pr.reSuffixMatcher.Match(s)
+}
+
+// String returns string representation of pr.
+func (pr *PromRegex) String() string {
+	return pr.exprStr
 }
