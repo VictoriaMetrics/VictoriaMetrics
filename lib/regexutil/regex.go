@@ -94,6 +94,32 @@ func (r *Regex) MatchString(s string) bool {
 	return r.matchStringWithPrefix(s)
 }
 
+// GetLiterals returns literals for r.
+func (r *Regex) GetLiterals() []string {
+	sre := mustParseRegexp(r.exprStr)
+	for sre.Op == syntax.OpCapture {
+		sre = sre.Sub[0]
+	}
+
+	v, ok := getLiteral(sre)
+	if ok {
+		return []string{v}
+	}
+
+	if sre.Op != syntax.OpConcat {
+		return nil
+	}
+
+	var a []string
+	for _, sub := range sre.Sub {
+		v, ok := getLiteral(sub)
+		if ok {
+			a = append(a, v)
+		}
+	}
+	return a
+}
+
 // String returns string represetnation for r
 func (r *Regex) String() string {
 	return r.exprStr

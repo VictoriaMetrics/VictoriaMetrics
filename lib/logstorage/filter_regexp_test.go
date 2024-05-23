@@ -370,6 +370,25 @@ func TestFilterRegexp(t *testing.T) {
 	})
 }
 
+func TestSkipFirstLastToken(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+
+		result := skipFirstLastToken(s)
+		if result != resultExpected {
+			t.Fatalf("unexpected result in skipFirstLastToken(%q); got %q; want %q", s, result, resultExpected)
+		}
+	}
+
+	f("", "")
+	f("foobar", "")
+	f("foo bar", " ")
+	f("foo bar baz", " bar ")
+	f(" foo bar baz", " foo bar ")
+	f(",foo bar baz!", ",foo bar baz!")
+	f("фыад длоа д!", " длоа д!")
+}
+
 func mustCompileRegex(expr string) *regexutil.Regex {
 	re, err := regexutil.NewRegex(expr)
 	if err != nil {

@@ -1,6 +1,7 @@
 package regexutil
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -143,4 +144,28 @@ func TestRegexMatchString(t *testing.T) {
 	f("foo(bar|baz)", "a fooxfoobaz a", true)
 	f("foo(bar|baz)", "a fooxfooban a", false)
 	f("foo(bar|baz)", "a fooxfooban foobar a", true)
+}
+
+func TestGetLiterals(t *testing.T) {
+	f := func(expr string, literalsExpected []string) {
+		t.Helper()
+
+		r, err := NewRegex(expr)
+		if err != nil {
+			t.Fatalf("cannot parse %q: %s", expr, err)
+		}
+		literals := r.GetLiterals()
+		if !reflect.DeepEqual(literals, literalsExpected) {
+			t.Fatalf("unexpected literals; got %q; want %q", literals, literalsExpected)
+		}
+	}
+
+	f("", nil)
+	f("foo bar baz", []string{"foo bar baz"})
+	f("foo.*bar(a|b)baz.+", []string{"foo", "bar", "baz"})
+	f("(foo[ab](?:bar))", []string{"foo", "bar"})
+	f("foo|bar", nil)
+	f("((foo|bar)baz xxx(?:yzabc))", []string{"baz xxxyzabc"})
+	f("((foo|bar)baz xxx(?:yzabc)*)", []string{"baz xxx"})
+	f("((foo|bar)baz? xxx(?:yzabc)*)", []string{"ba", " xxx"})
 }
