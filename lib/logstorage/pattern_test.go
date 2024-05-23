@@ -196,7 +196,7 @@ func TestParsePatternStepsSuccess(t *testing.T) {
 			prefix: "<&>",
 		},
 	})
-	f("&lt;<foo>&amp;gt;", []patternStep{
+	f("&lt;< foo >&amp;gt;", []patternStep{
 		{
 			prefix: "<",
 			field:  "foo",
@@ -205,7 +205,7 @@ func TestParsePatternStepsSuccess(t *testing.T) {
 			prefix: "&gt;",
 		},
 	})
-	f("<q:foo>bar<abc:baz:c:y>f<:foo:bar:baz>", []patternStep{
+	f("< q : foo >bar<plain : baz:c:y>f<:foo:bar:baz>", []patternStep{
 		{
 			field: "foo",
 			opt:   "q",
@@ -213,7 +213,7 @@ func TestParsePatternStepsSuccess(t *testing.T) {
 		{
 			prefix: "bar",
 			field:  "baz:c:y",
-			opt:    "abc",
+			opt:    "plain",
 		},
 		{
 			prefix: "f",

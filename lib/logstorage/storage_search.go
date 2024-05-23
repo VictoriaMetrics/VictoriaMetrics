@@ -1042,7 +1042,7 @@ func parseStreamLabels(dst []Field, s string) ([]Field, error) {
 		name := s[:n]
 		s = s[n+1:]
 
-		value, nOffset := tryUnquoteString(s)
+		value, nOffset := tryUnquoteString(s, "")
 		if nOffset < 0 {
 			return dst, fmt.Errorf("cannot find parse label value in double quotes at [%s]", s)
 		}

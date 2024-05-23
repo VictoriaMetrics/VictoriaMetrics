@@ -109,7 +109,7 @@ func (ptn *pattern) apply(s string) {
 			nextPrefix = steps[i+1].prefix
 		}
 
-		us, nOffset := tryUnquoteString(s)
+		us, nOffset := tryUnquoteString(s, steps[i].opt)
 		if nOffset >= 0 {
 			// Matched quoted string
 			matches[i] = us
@@ -136,20 +136,23 @@ func (ptn *pattern) apply(s string) {
 	}
 }
 
-func tryUnquoteString(s string) (string, int) {
+func tryUnquoteString(s, opt string) (string, int) {
+	if opt == "plain" {
+		return "", -1
+	}
 	if len(s) == 0 {
-		return s, -1
+		return "", -1
 	}
 	if s[0] != '"' && s[0] != '`' {
-		return s, -1
+		return "", -1
 	}
 	qp, err := strconv.QuotedPrefix(s)
 	if err != nil {
-		return s, -1
+		return "", -1
 	}
 	us, err := strconv.Unquote(qp)
 	if err != nil {
-		return s, -1
+		return "", -1
 	}
 	return us, len(qp)
 }
@@ -171,9 +174,10 @@ func parsePatternSteps(s string) ([]patternStep, error) {
 		step := &steps[i]
 		field := step.field
 		if n := strings.IndexByte(field, ':'); n >= 0 {
-			step.opt = field[:n]
-			step.field = field[n+1:]
+			step.opt = strings.TrimSpace(field[:n])
+			field = field[n+1:]
 		}
+		step.field = strings.TrimSpace(field)
 	}
 
 	return steps, nil

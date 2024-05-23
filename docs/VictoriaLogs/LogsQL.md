@@ -1184,7 +1184,7 @@ Placeholders can be anonymous and named. Anonymous placeholders are written as `
 must be skipped until the next `textX`. Named palceholders are written as `<some_name>`, where `some_name` is the name of the log field to store
 the corresponding matching substring to.
 
-The matching starts from the first occurence of the `text1` in the input text. If the `pattern` starts with `<field1>` and doesn't contain `text1`,
+Matching starts from the first occurence of the `text1` in the input text. If the `pattern` starts with `<field1>` and doesn't contain `text1`,
 then the matching starts from the beginning of the input text. Matching is performed sequentially according to the `pattern`. If some `textX` isn't found
 in the remaining input text, then the remaining named placeholders receive empty string values and the matching finishes prematurely.
 
@@ -1217,6 +1217,13 @@ This is useful for extracting JSON strings. For example, the following `pattern`
 
 ```
 "message":<msg>
+```
+
+The automatic string unquoting can be disabled if needed by adding `plain:` prefix in front of the field name. For example, if some JSON array of string values must be captured
+into `json_array` field, then the following `pattern` can be used:
+
+```
+some json string array: [<plain:json_array>]
 ```
 
 If some special chars such as `<` must be matched by the `pattern`, then they can be [html-escaped](https://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references).
