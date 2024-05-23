@@ -77,7 +77,7 @@ func TestSimplifyPromRegex(t *testing.T) {
 	f("^foobar|foobaz", "fooba", "[rz]")
 	f("^foobar|^foobaz$", "fooba", "[rz]")
 	f("foobar|foobaz", "fooba", "[rz]")
-	f("(?:^foobar|^foobaz)aa.*", "fooba", "(?-s:[rz]aa.*)")
+	f("(?:^foobar|^foobaz)aa.*", "fooba", "(?s:[rz]aa.*)")
 	f("foo[bar]+", "foo", "[abr]+")
 	f("foo[a-z]+", "foo", "[a-z]+")
 	f("foo[bar]*", "foo", "[abr]*")
@@ -88,12 +88,12 @@ func TestSimplifyPromRegex(t *testing.T) {
 	f("foo[^x]*", "foo", "[^x]*")
 	f("foo[x]*bar", "foo", "x*bar")
 	f("fo\\Bo[x]*bar?", "fo", "\\Box*bar?")
-	f("foo.+bar", "foo", "(?-s:.+bar)")
-	f("a(b|c.*).+", "a", "(?-s:(?:b|c.*).+)")
+	f("foo.+bar", "foo", "(?s:.+bar)")
+	f("a(b|c.*).+", "a", "(?s:(?:b|c.*).+)")
 	f("ab|ac", "a", "[bc]")
 	f("(?i)xyz", "", "(?i:XYZ)")
 	f("(?i)foo|bar", "", "(?i:FOO|BAR)")
-	f("(?i)up.+x", "", "(?i-s:UP.+X)")
+	f("(?i)up.+x", "", "(?is:UP.+X)")
 	f("(?smi)xy.*z$", "", "(?ims:XY.*Z$)")
 
 	// test invalid regexps
@@ -111,12 +111,12 @@ func TestSimplifyPromRegex(t *testing.T) {
 	f("(foo|bar$)x*", "", "(?-m:(?:foo|bar$)x*)")
 
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5297
-	f(".+;|;.+", "", "(?-s:.+;|;.+)")
-	f("^(.+);|;(.+)$", "", "(?-s:.+;|;.+)")
-	f("^(.+);$|^;(.+)$", "", "(?-s:.+;|;.+)")
-	f(".*;|;.*", "", "(?-s:.*;|;.*)")
-	f("^(.*);|;(.*)$", "", "(?-s:.*;|;.*)")
-	f("^(.*);$|^;(.*)$", "", "(?-s:.*;|;.*)")
+	f(".+;|;.+", "", "(?s:.+;|;.+)")
+	f("^(.+);|;(.+)$", "", "(?s:.+;|;.+)")
+	f("^(.+);$|^;(.+)$", "", "(?s:.+;|;.+)")
+	f(".*;|;.*", "", "(?s:.*;|;.*)")
+	f("^(.*);|;(.*)$", "", "(?s:.*;|;.*)")
+	f("^(.*);$|^;(.*)$", "", "(?s:.*;|;.*)")
 }
 
 func TestRemoveStartEndAnchors(t *testing.T) {
