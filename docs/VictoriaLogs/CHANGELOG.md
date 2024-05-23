@@ -19,6 +19,11 @@ according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/QuickSta
 
 ## tip
 
+* FEATURE: improve performance for [regexp filter](https://docs.victoriametrics.com/victorialogs/logsql/#regexp-filter) in the following cases:
+  - If the regexp contains just a phrase without special regular expression chars. For example, `~"foo"`.
+  - If the regexp starts with `.*` or ends with `.*`. For example, `~".*foo.*"`.
+  - If the regexp contains multiple strings delimited by `|`. For example, `~"foo|bar|baz"`.
+  - If the regexp contains multiple [words](https://docs.victoriametrics.com/victorialogs/logsql/#word). For example, `~"foo bar baz"`.
 * FEATURE: allow disabling automatic unquoting of the matched placeholders in [`extract` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#extract-pipe). See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#format-for-extract-pipe-pattern).
 
 * BUGFIX: properly parse `!` in front of [exact filter](https://docs.victoriametrics.com/victorialogs/logsql/#exact-filter), [exact-prefix filter](https://docs.victoriametrics.com/victorialogs/logsql/#exact-prefix-filter) and [regexp filter](https://docs.victoriametrics.com/victorialogs/logsql/#regexp-filter). For example, `!~"some regexp"` is properly parsed as `not ="some regexp"`. Previously it was incorrectly parsed as `'~="some regexp"'` [phrase filter](https://docs.victoriametrics.com/victorialogs/logsql/#phrase-filter).
