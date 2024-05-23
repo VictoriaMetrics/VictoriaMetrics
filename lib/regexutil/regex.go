@@ -19,6 +19,9 @@ type Regex struct {
 	// For example, prefix="foo" for regex="foo(a|b)"
 	prefix string
 
+	// isOnlyPrefix is set to true if the regex contains only the prefix.
+	isOnlyPrefix bool
+
 	// isSuffixDotStar is set to true if suffix is ".*"
 	isSuffixDotStar bool
 
@@ -44,25 +47,28 @@ func NewRegex(expr string) (*Regex, error) {
 	if _, err := regexp.Compile(expr); err != nil {
 		return nil, err
 	}
+
 	prefix, suffix := SimplifyRegex(expr)
-	orValues := GetOrValuesRegex(suffix)
-	isSuffixDotStar := isDotOpRegexp(suffix, syntax.OpStar)
-	isSuffixDotPlus := isDotOpRegexp(suffix, syntax.OpPlus)
-	substrDotStar := getSubstringLiteral(suffix, syntax.OpStar)
-	substrDotPlus := getSubstringLiteral(suffix, syntax.OpPlus)
+	sre := mustParseRegexp(suffix)
+	orValues := getOrValues(sre)
+	isOnlyPrefix := len(orValues) == 1 && orValues[0] == ""
+	isSuffixDotStar := isDotOp(sre, syntax.OpStar)
+	isSuffixDotPlus := isDotOp(sre, syntax.OpPlus)
+	substrDotStar := getSubstringLiteral(sre, syntax.OpStar)
+	substrDotPlus := getSubstringLiteral(sre, syntax.OpPlus)
 
 	var re *regexp.Regexp
-	if len(orValues) == 0 && substrDotStar == "" && substrDotPlus == "" && suffix != ".*" && suffix != ".+" {
-		suffixAnchored := suffix
-		if len(prefix) > 0 {
-			suffixAnchored = "^(?:" + suffix + ")"
-		}
-		// The suffixAnchored must be properly compiled, since it has been already checked above.
-		// Otherwise it is a bug, which must be fixed.
-		re = regexp.MustCompile(suffixAnchored)
+	suffixAnchored := suffix
+	if len(prefix) > 0 {
+		suffixAnchored = "^(?:" + suffix + ")"
 	}
+	// The suffixAnchored must be properly compiled, since it has been already checked above.
+	// Otherwise it is a bug, which must be fixed.
+	re = regexp.MustCompile(suffixAnchored)
+
 	r := &Regex{
 		prefix:          prefix,
+		isOnlyPrefix:    isOnlyPrefix,
 		isSuffixDotStar: isSuffixDotStar,
 		isSuffixDotPlus: isSuffixDotPlus,
 		substrDotStar:   substrDotStar,
@@ -75,6 +81,9 @@ func NewRegex(expr string) (*Regex, error) {
 
 // MatchString returns true if s matches pr.
 func (r *Regex) MatchString(s string) bool {
+	if r.isOnlyPrefix {
+		return strings.Contains(s, r.prefix)
+	}
 	if len(r.prefix) == 0 {
 		return r.matchStringNoPrefix(s)
 	}

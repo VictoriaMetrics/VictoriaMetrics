@@ -45,9 +45,9 @@ func getOrValuesRegex(expr string, keepAnchors bool) []string {
 	if tailExpr == "" {
 		return []string{prefix}
 	}
-	sre, err := syntax.Parse(tailExpr, regexParseFlags)
+	sre, err := parseRegexp(tailExpr)
 	if err != nil {
-		panic(fmt.Errorf("BUG: unexpected error when parsing verified tailExpr=%q: %w", tailExpr, err))
+		return nil
 	}
 	orValues := getOrValues(sre)
 
@@ -69,10 +69,11 @@ func getOrValues(sre *syntax.Regexp) []string {
 	case syntax.OpCapture:
 		return getOrValues(sre.Sub[0])
 	case syntax.OpLiteral:
-		if !isLiteral(sre) {
+		v, ok := getLiteral(sre)
+		if !ok {
 			return nil
 		}
-		return []string{string(sre.Rune)}
+		return []string{v}
 	case syntax.OpEmptyMatch:
 		return []string{""}
 	case syntax.OpAlternate:
@@ -137,11 +138,14 @@ func getOrValues(sre *syntax.Regexp) []string {
 	}
 }
 
-func isLiteral(sre *syntax.Regexp) bool {
+func getLiteral(sre *syntax.Regexp) (string, bool) {
 	if sre.Op == syntax.OpCapture {
-		return isLiteral(sre.Sub[0])
+		return getLiteral(sre.Sub[0])
 	}
-	return sre.Op == syntax.OpLiteral && sre.Flags&syntax.FoldCase == 0
+	if sre.Op == syntax.OpLiteral && sre.Flags&syntax.FoldCase == 0 {
+		return string(sre.Rune), true
+	}
+	return "", false
 }
 
 const maxOrValues = 100
@@ -167,7 +171,7 @@ func SimplifyPromRegex(expr string) (string, string) {
 }
 
 func simplifyRegex(expr string, keepAnchors bool) (string, string) {
-	sre, err := syntax.Parse(expr, regexParseFlags)
+	sre, err := parseRegexp(expr)
 	if err != nil {
 		// Cannot parse the regexp. Return it all as prefix.
 		return expr, ""
@@ -176,14 +180,14 @@ func simplifyRegex(expr string, keepAnchors bool) (string, string) {
 	if sre == emptyRegexp {
 		return "", ""
 	}
-	if isLiteral(sre) {
-		return string(sre.Rune), ""
+	v, ok := getLiteral(sre)
+	if ok {
+		return v, ""
 	}
 	var prefix string
 	if sre.Op == syntax.OpConcat {
-		sub0 := sre.Sub[0]
-		if isLiteral(sub0) {
-			prefix = string(sub0.Rune)
+		prefix, ok = getLiteral(sre.Sub[0])
+		if ok {
 			sre.Sub = sre.Sub[1:]
 			if len(sre.Sub) == 0 {
 				return prefix, ""
@@ -216,11 +220,7 @@ func simplifyRegexp(sre *syntax.Regexp, keepBeginOp, keepEndOp bool) *syntax.Reg
 		if sNew == s {
 			return sre
 		}
-		var err error
-		sre, err = syntax.Parse(sNew, regexParseFlags)
-		if err != nil {
-			panic(fmt.Errorf("BUG: cannot parse simplified regexp %q: %w", sNew, err))
-		}
+		sre = mustParseRegexp(sNew)
 		s = sNew
 	}
 }
@@ -282,36 +282,23 @@ func simplifyRegexpExt(sre *syntax.Regexp, keepBeginOp, keepEndOp bool) *syntax.
 	}
 }
 
-// getSubstringLiteral returns regex part from expr surrounded by .+ or .* depending on the prefixSuffixOp.
+// getSubstringLiteral returns regex part from sre surrounded by .+ or .* depending on the prefixSuffixOp.
 //
-// For example, if expr=".+foo.+" and prefixSuffix=syntax.OpPlus, then the function returns "foo".
+// For example, if sre=".+foo.+" and prefixSuffix=syntax.OpPlus, then the function returns "foo".
 //
-// An empty string is returned if expr doesn't contain the given prefixSuffix prefix and suffix
-// or if the regex part surrounded by prefixSuffix contains alternate regexps.
-func getSubstringLiteral(expr string, prefixSuffixOp syntax.Op) string {
-	// Verify that the expr doesn't contain alternate regexps. In this case it is unsafe removing prefix and suffix.
-	sre, err := syntax.Parse(expr, regexParseFlags)
-	if err != nil {
+// An empty string is returned if sre doesn't contain the given prefixSuffixOp prefix and suffix.
+func getSubstringLiteral(sre *syntax.Regexp, prefixSuffixOp syntax.Op) string {
+	if sre.Op != syntax.OpConcat || len(sre.Sub) != 3 {
 		return ""
 	}
-	if sre.Op != syntax.OpConcat {
+	if !isDotOp(sre.Sub[0], prefixSuffixOp) || !isDotOp(sre.Sub[2], prefixSuffixOp) {
 		return ""
 	}
-	if len(sre.Sub) != 3 {
+	v, ok := getLiteral(sre.Sub[1])
+	if !ok {
 		return ""
 	}
-	if !isDotOp(sre.Sub[0], prefixSuffixOp) || !isDotOp(sre.Sub[2], prefixSuffixOp) || !isLiteral(sre.Sub[1]) {
-		return ""
-	}
-	return string(sre.Sub[1].Rune)
-}
-
-func isDotOpRegexp(expr string, op syntax.Op) bool {
-	sre, err := syntax.Parse(expr, regexParseFlags)
-	if err != nil {
-		return false
-	}
-	return isDotOp(sre, op)
+	return v
 }
 
 func isDotOp(sre *syntax.Regexp, op syntax.Op) bool {
@@ -325,4 +312,14 @@ var emptyRegexp = &syntax.Regexp{
 	Op: syntax.OpEmptyMatch,
 }
 
-const regexParseFlags = syntax.Perl | syntax.DotNL
+func parseRegexp(expr string) (*syntax.Regexp, error) {
+	return syntax.Parse(expr, syntax.Perl|syntax.DotNL)
+}
+
+func mustParseRegexp(expr string) *syntax.Regexp {
+	sre, err := parseRegexp(expr)
+	if err != nil {
+		panic(fmt.Errorf("BUG: cannot parse already verified regexp %q: %w", expr, err))
+	}
+	return sre
+}

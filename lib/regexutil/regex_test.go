@@ -4,6 +4,20 @@ import (
 	"testing"
 )
 
+func TestNewRegexFailure(t *testing.T) {
+	f := func(regex string) {
+		t.Helper()
+
+		re, err := NewRegex(regex)
+		if err == nil {
+			t.Fatalf("expecting non-nil error when parsing %q; got %q", regex, re.re)
+		}
+	}
+
+	f("[foo")
+	f("(foo")
+}
+
 func TestRegexMatchString(t *testing.T) {
 	f := func(regex, s string, resultExpected bool) {
 		t.Helper()
@@ -122,4 +136,7 @@ func TestRegexMatchString(t *testing.T) {
 	f("baz$", "foobarbaz", true)
 	f("(bar$|^foo)", "foobarbaz", true)
 	f("(bar$^boo)", "foobarbaz", false)
+	f("foo(bar|baz)", "a fooxfoobaz a", true)
+	f("foo(bar|baz)", "a fooxfooban a", false)
+	f("foo(bar|baz)", "a fooxfooban foobar a", true)
 }

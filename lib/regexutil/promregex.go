@@ -23,6 +23,9 @@ type PromRegex struct {
 	// For example, prefix="foo" for regex="foo(a|b)"
 	prefix string
 
+	// isOnlyPrefix is set to true if the regex contains only the prefix.
+	isOnlyPrefix bool
+
 	// isSuffixDotStar is set to true if suffix is ".*"
 	isSuffixDotStar bool
 
@@ -49,11 +52,13 @@ func NewPromRegex(expr string) (*PromRegex, error) {
 		return nil, err
 	}
 	prefix, suffix := SimplifyPromRegex(expr)
-	orValues := GetOrValuesPromRegex(suffix)
-	isSuffixDotStar := isDotOpRegexp(suffix, syntax.OpStar)
-	isSuffixDotPlus := isDotOpRegexp(suffix, syntax.OpPlus)
-	substrDotStar := getSubstringLiteral(suffix, syntax.OpStar)
-	substrDotPlus := getSubstringLiteral(suffix, syntax.OpPlus)
+	sre := mustParseRegexp(suffix)
+	orValues := getOrValues(sre)
+	isOnlyPrefix := len(orValues) == 1 && orValues[0] == ""
+	isSuffixDotStar := isDotOp(sre, syntax.OpStar)
+	isSuffixDotPlus := isDotOp(sre, syntax.OpPlus)
+	substrDotStar := getSubstringLiteral(sre, syntax.OpStar)
+	substrDotPlus := getSubstringLiteral(sre, syntax.OpPlus)
 	// It is expected that Optimize returns valid regexp in suffix, so use MustCompile here.
 	// Anchor suffix to the beginning and the end of the matching string.
 	suffixExpr := "^(?:" + suffix + ")$"
@@ -61,6 +66,7 @@ func NewPromRegex(expr string) (*PromRegex, error) {
 	reSuffixMatcher := bytesutil.NewFastStringMatcher(reSuffix.MatchString)
 	pr := &PromRegex{
 		prefix:          prefix,
+		isOnlyPrefix:    isOnlyPrefix,
 		isSuffixDotStar: isSuffixDotStar,
 		isSuffixDotPlus: isSuffixDotPlus,
 		substrDotStar:   substrDotStar,
@@ -76,6 +82,10 @@ func NewPromRegex(expr string) (*PromRegex, error) {
 // The pr is automatically anchored to the beginning and to the end
 // of the matching string with '^' and '$'.
 func (pr *PromRegex) MatchString(s string) bool {
+	if pr.isOnlyPrefix {
+		return s == pr.prefix
+	}
+
 	if len(pr.prefix) > 0 {
 		if !strings.HasPrefix(s, pr.prefix) {
 			// Fast path - s has another prefix than pr.
