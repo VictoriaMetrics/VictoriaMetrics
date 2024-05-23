@@ -137,7 +137,7 @@ func (shard *pipeFormatProcessorShard) formatRow(pf *pipeFormat, br *blockResult
 		if step.field != "" {
 			c := br.getColumnByName(step.field)
 			v := c.getValueAtRow(br, rowIdx)
-			if step.opt == "q" {
+			if step.fieldOpt == "q" {
 				b = strconv.AppendQuote(b, v)
 			} else {
 				b = append(b, v...)

@@ -63,6 +63,9 @@ func TestPatternApply(t *testing.T) {
 	f(`foo=<bar> `, "foo=`bar baz,abc` def", []string{"bar baz,abc"})
 	f(`<foo>`, `"foo,\"bar"`, []string{`foo,"bar`})
 	f(`<foo>,"bar`, `"foo,\"bar"`, []string{`foo,"bar`})
+
+	// disable automatic unquoting of quoted field
+	f(`[<plain:foo>]`, `["foo","bar"]`, []string{`"foo","bar"`})
 }
 
 func TestParsePatternFailure(t *testing.T) {
@@ -207,13 +210,13 @@ func TestParsePatternStepsSuccess(t *testing.T) {
 	})
 	f("< q : foo >bar<plain : baz:c:y>f<:foo:bar:baz>", []patternStep{
 		{
-			field: "foo",
-			opt:   "q",
+			field:    "foo",
+			fieldOpt: "q",
 		},
 		{
-			prefix: "bar",
-			field:  "baz:c:y",
-			opt:    "plain",
+			prefix:   "bar",
+			field:    "baz:c:y",
+			fieldOpt: "plain",
 		},
 		{
 			prefix: "f",
