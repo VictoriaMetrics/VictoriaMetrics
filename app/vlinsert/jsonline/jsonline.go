@@ -105,7 +105,7 @@ func readLine(sc *bufio.Scanner, timeField, msgField string, processLogMessage f
 	}
 
 	p := logstorage.GetJSONParser()
-	if err := p.ParseLogMessage(line, ""); err != nil {
+	if err := p.ParseLogMessage(line); err != nil {
 		return false, fmt.Errorf("cannot parse json-encoded log entry: %w", err)
 	}
 	ts, err := extractTimestampFromFields(timeField, p.Fields)

@@ -2,22 +2,20 @@ package logstorage
 
 import (
 	"math"
-	"slices"
 	"strconv"
 	"unsafe"
 )
 
 type statsSum struct {
-	fields       []string
-	containsStar bool
+	fields []string
 }
 
 func (ss *statsSum) String() string {
-	return "sum(" + fieldNamesString(ss.fields) + ")"
+	return "sum(" + statsFuncFieldsToString(ss.fields) + ")"
 }
 
 func (ss *statsSum) updateNeededFields(neededFields fieldsSet) {
-	neededFields.addFields(ss.fields)
+	updateNeededFieldsForStatsFunc(neededFields, ss.fields)
 }
 
 func (ss *statsSum) newStatsProcessor() (statsProcessor, int) {
@@ -35,14 +33,15 @@ type statsSumProcessor struct {
 }
 
 func (ssp *statsSumProcessor) updateStatsForAllRows(br *blockResult) int {
-	if ssp.ss.containsStar {
+	fields := ssp.ss.fields
+	if len(fields) == 0 {
 		// Sum all the columns
 		for _, c := range br.getColumns() {
 			ssp.updateStateForColumn(br, c)
 		}
 	} else {
 		// Sum the requested columns
-		for _, field := range ssp.ss.fields {
+		for _, field := range fields {
 			c := br.getColumnByName(field)
 			ssp.updateStateForColumn(br, c)
 		}
@@ -51,7 +50,8 @@ func (ssp *statsSumProcessor) updateStatsForAllRows(br *blockResult) int {
 }
 
 func (ssp *statsSumProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
-	if ssp.ss.containsStar {
+	fields := ssp.ss.fields
+	if len(fields) == 0 {
 		// Sum all the fields for the given row
 		for _, c := range br.getColumns() {
 			f, ok := c.getFloatValueAtRow(br, rowIdx)
@@ -61,7 +61,7 @@ func (ssp *statsSumProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 		}
 	} else {
 		// Sum only the given fields for the given row
-		for _, field := range ssp.ss.fields {
+		for _, field := range fields {
 			c := br.getColumnByName(field)
 			f, ok := c.getFloatValueAtRow(br, rowIdx)
 			if ok {
@@ -89,7 +89,9 @@ func (ssp *statsSumProcessor) updateState(f float64) {
 
 func (ssp *statsSumProcessor) mergeState(sfp statsProcessor) {
 	src := sfp.(*statsSumProcessor)
-	ssp.sum += src.sum
+	if !math.IsNaN(src.sum) {
+		ssp.updateState(src.sum)
+	}
 }
 
 func (ssp *statsSumProcessor) finalizeStats() string {
@@ -97,13 +99,12 @@ func (ssp *statsSumProcessor) finalizeStats() string {
 }
 
 func parseStatsSum(lex *lexer) (*statsSum, error) {
-	fields, err := parseFieldNamesForStatsFunc(lex, "sum")
+	fields, err := parseStatsFuncFields(lex, "sum")
 	if err != nil {
 		return nil, err
 	}
 	ss := &statsSum{
-		fields:       fields,
-		containsStar: slices.Contains(fields, "*"),
+		fields: fields,
 	}
 	return ss, nil
 }

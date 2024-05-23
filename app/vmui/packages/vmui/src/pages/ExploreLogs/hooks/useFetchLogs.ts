@@ -35,49 +35,22 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
   };
 
   const fetchLogs = useCallback(async () => {
-    const limit = Number(options.body.get("limit")) + 1;
+    const limit = Number(options.body.get("limit"));
     setIsLoading(true);
     setError(undefined);
     try {
       const response = await fetch(url, options);
+      const text = await response.text();
 
       if (!response.ok || !response.body) {
-        const errorText = await response.text();
-        setError(errorText);
+        setError(text);
         setLogs([]);
         setIsLoading(false);
         return;
       }
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder("utf-8");
-      const result = [];
-
-      while (reader) {
-        const { done, value } = await reader.read();
-
-        if (done) {
-          // "Stream finished, no more data."
-          break;
-        }
-
-        const lines = decoder.decode(value, { stream: true }).split("\n");
-        result.push(...lines);
-
-        // Trim result to limit
-        // This will lose its meaning with these changes:
-        // https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5778
-        if (result.length > limit) {
-          result.splice(0, result.length - limit);
-        }
-
-        if (result.length >= limit) {
-          // Reached the maximum line limit
-          reader.cancel();
-          break;
-        }
-      }
-      const data = result.map(parseLineToJSON).filter(line => line) as Logs[];
+      const lines = text.split("\n").filter(line => line).slice(0, limit);
+      const data = lines.map(parseLineToJSON).filter(line => line) as Logs[];
       setLogs(data);
     } catch (e) {
       console.error(e);
@@ -96,4 +69,3 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
     fetchLogs,
   };
 };
-

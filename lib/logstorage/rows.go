@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -24,8 +25,8 @@ func (f *Field) Reset() {
 
 // String returns string representation of f.
 func (f *Field) String() string {
-	name := getCanonicalColumnName(f.Name)
-	return fmt.Sprintf("%q:%q", name, f.Value)
+	x := f.marshalToJSON(nil)
+	return string(x)
 }
 
 func (f *Field) marshal(dst []byte) []byte {
@@ -54,6 +55,27 @@ func (f *Field) unmarshal(a *arena, src []byte) ([]byte, error) {
 	f.Value = a.copyBytesToString(b)
 
 	return src, nil
+}
+
+func (f *Field) marshalToJSON(dst []byte) []byte {
+	dst = strconv.AppendQuote(dst, f.Name)
+	dst = append(dst, ':')
+	dst = strconv.AppendQuote(dst, f.Value)
+	return dst
+}
+
+func marshalFieldsToJSON(dst []byte, fields []Field) []byte {
+	dst = append(dst, '{')
+	if len(fields) > 0 {
+		dst = fields[0].marshalToJSON(dst)
+		fields = fields[1:]
+		for i := range fields {
+			dst = append(dst, ',')
+			dst = fields[i].marshalToJSON(dst)
+		}
+	}
+	dst = append(dst, '}')
+	return dst
 }
 
 func appendFields(a *arena, dst, src []Field) []Field {
@@ -125,11 +147,4 @@ func (rs *rows) mergeRows(timestampsA, timestampsB []int64, fieldsA, fieldsB [][
 	} else {
 		rs.appendRows(timestampsA, fieldsA)
 	}
-}
-
-func getCanonicalColumnName(columnName string) string {
-	if columnName == "" {
-		return "_msg"
-	}
-	return columnName
 }

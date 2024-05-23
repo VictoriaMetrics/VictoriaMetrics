@@ -650,3 +650,23 @@ func TestStorageSearch(t *testing.T) {
 	s.MustClose()
 	fs.MustRemoveAll(path)
 }
+
+func TestParseStreamLabelsSuccess(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+
+		labels, err := parseStreamLabels(nil, s)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		result := marshalFieldsToJSON(nil, labels)
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result\ngot\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+
+	f(`{}`, `{}`)
+	f(`{foo="bar"}`, `{"foo":"bar"}`)
+	f(`{a="b",c="d"}`, `{"a":"b","c":"d"}`)
+	f(`{a="a=,b\"c}",b="d"}`, `{"a":"a=,b\"c}","b":"d"}`)
+}

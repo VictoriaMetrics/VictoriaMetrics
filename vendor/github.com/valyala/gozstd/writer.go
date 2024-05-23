@@ -160,13 +160,13 @@ func NewWriterParams(w io.Writer, params *WriterParams) *Writer {
 	cs := C.ZSTD_createCStream()
 	initCStream(cs, *params)
 
-	inBuf := (*C.ZSTD_inBuffer)(C.malloc(C.sizeof_ZSTD_inBuffer))
-	inBuf.src = C.malloc(cstreamInBufSize)
+	inBuf := (*C.ZSTD_inBuffer)(C.calloc(1, C.sizeof_ZSTD_inBuffer))
+	inBuf.src = C.calloc(1, cstreamInBufSize)
 	inBuf.size = 0
 	inBuf.pos = 0
 
-	outBuf := (*C.ZSTD_outBuffer)(C.malloc(C.sizeof_ZSTD_outBuffer))
-	outBuf.dst = C.malloc(cstreamOutBufSize)
+	outBuf := (*C.ZSTD_outBuffer)(C.calloc(1, C.sizeof_ZSTD_outBuffer))
+	outBuf.dst = C.calloc(1, cstreamOutBufSize)
 	outBuf.size = cstreamOutBufSize
 	outBuf.pos = 0
 

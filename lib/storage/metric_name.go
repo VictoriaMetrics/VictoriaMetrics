@@ -475,7 +475,7 @@ const maxLabelNameLen = 256
 // The maximum length of label value.
 //
 // Longer values are truncated.
-var maxLabelValueLen = 16 * 1024
+var maxLabelValueLen = 1024
 
 // SetMaxLabelValueLen sets the limit on the label value length.
 //
@@ -590,8 +590,10 @@ func trackTruncatedLabels(labels []prompb.Label, truncated *prompb.Label) {
 	}
 }
 
-var droppedLabelsLogTicker = time.NewTicker(5 * time.Second)
-var truncatedLabelsLogTicker = time.NewTicker(5 * time.Second)
+var (
+	droppedLabelsLogTicker   = time.NewTicker(5 * time.Second)
+	truncatedLabelsLogTicker = time.NewTicker(5 * time.Second)
+)
 
 func labelsToString(labels []prompb.Label) string {
 	labelsCopy := append([]prompb.Label{}, labels...)
@@ -767,6 +769,7 @@ func (ts *canonicalTagsSort) Less(i, j int) bool {
 	x := *ts
 	return string(x[i].key) < string(x[j].key)
 }
+
 func (ts *canonicalTagsSort) Swap(i, j int) {
 	x := *ts
 	x[i], x[j] = x[j], x[i]

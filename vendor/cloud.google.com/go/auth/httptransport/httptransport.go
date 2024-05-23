@@ -152,7 +152,14 @@ func AddAuthorizationMiddleware(client *http.Client, creds *auth.Credentials) er
 	}
 	base := client.Transport
 	if base == nil {
-		base = http.DefaultTransport.(*http.Transport).Clone()
+		if dt, ok := http.DefaultTransport.(*http.Transport); ok {
+			base = dt.Clone()
+		} else {
+			// Directly reuse the DefaultTransport if the application has
+			// replaced it with an implementation of RoundTripper other than
+			// http.Transport.
+			base = http.DefaultTransport
+		}
 	}
 	client.Transport = &authTransport{
 		creds: creds,

@@ -10,7 +10,7 @@ func TestJSONParserFailure(t *testing.T) {
 		t.Helper()
 
 		p := GetJSONParser()
-		err := p.ParseLogMessage([]byte(data), "")
+		err := p.ParseLogMessage([]byte(data))
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -23,11 +23,11 @@ func TestJSONParserFailure(t *testing.T) {
 }
 
 func TestJSONParserSuccess(t *testing.T) {
-	f := func(data, prefix string, fieldsExpected []Field) {
+	f := func(data string, fieldsExpected []Field) {
 		t.Helper()
 
 		p := GetJSONParser()
-		err := p.ParseLogMessage([]byte(data), prefix)
+		err := p.ParseLogMessage([]byte(data))
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -37,23 +37,21 @@ func TestJSONParserSuccess(t *testing.T) {
 		PutJSONParser(p)
 	}
 
-	f("{}", "", nil)
-	f(`{"foo":"bar"}`, "", []Field{
+	f("{}", nil)
+	f(`{"foo":"bar"}`, []Field{
 		{
 			Name:  "foo",
 			Value: "bar",
 		},
 	})
-	f(`{"foo":"bar"}`, "prefix_", []Field{
+	f(`{"foo":{"bar":{"x":"y","z":["foo"]}},"a":1,"b":true,"c":[1,2],"d":false}`, []Field{
 		{
-			Name:  "prefix_foo",
-			Value: "bar",
+			Name:  "foo.bar.x",
+			Value: "y",
 		},
-	})
-	f(`{"foo":{"bar":"baz"},"a":1,"b":true,"c":[1,2],"d":false}`, "", []Field{
 		{
-			Name:  "foo.bar",
-			Value: "baz",
+			Name:  "foo.bar.z",
+			Value: `["foo"]`,
 		},
 		{
 			Name:  "a",
@@ -69,28 +67,6 @@ func TestJSONParserSuccess(t *testing.T) {
 		},
 		{
 			Name:  "d",
-			Value: "false",
-		},
-	})
-	f(`{"foo":{"bar":"baz"},"a":1,"b":true,"c":[1,2],"d":false}`, "prefix_", []Field{
-		{
-			Name:  "prefix_foo.bar",
-			Value: "baz",
-		},
-		{
-			Name:  "prefix_a",
-			Value: "1",
-		},
-		{
-			Name:  "prefix_b",
-			Value: "true",
-		},
-		{
-			Name:  "prefix_c",
-			Value: "[1,2]",
-		},
-		{
-			Name:  "prefix_d",
 			Value: "false",
 		},
 	})

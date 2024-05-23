@@ -1,181 +1,196 @@
 package logstorage
 
 import (
-	"reflect"
 	"testing"
 )
 
-func TestExtractFormatApply(t *testing.T) {
-	f := func(pattern, s string, resultsExpected []string) {
+func TestParsePipeExtractSuccess(t *testing.T) {
+	f := func(pipeStr string) {
 		t.Helper()
-
-		steps, err := parseExtractFormatSteps(pattern)
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
-		ef := newExtractFormat(steps)
-		ef.apply(s)
-
-		if len(ef.fields) != len(resultsExpected) {
-			t.Fatalf("unexpected number of results; got %d; want %d", len(ef.fields), len(resultsExpected))
-		}
-		for i, f := range ef.fields {
-			if v := *f.value; v != resultsExpected[i] {
-				t.Fatalf("unexpected value for field %q; got %q; want %q", f.name, v, resultsExpected[i])
-			}
-		}
+		expectParsePipeSuccess(t, pipeStr)
 	}
 
-	f("<foo>", "", []string{""})
-	f("<foo>", "abc", []string{"abc"})
-	f("<foo>bar", "", []string{""})
-	f("<foo>bar", "bar", []string{""})
-	f("<foo>bar", "bazbar", []string{"baz"})
-	f("<foo>bar", "a bazbar xdsf", []string{"a baz"})
-	f("<foo>bar<>", "a bazbar xdsf", []string{"a baz"})
-	f("<foo>bar<>x", "a bazbar xdsf", []string{"a baz"})
-	f("foo<bar>", "", []string{""})
-	f("foo<bar>", "foo", []string{""})
-	f("foo<bar>", "a foo xdf sdf", []string{" xdf sdf"})
-	f("foo<bar>", "a foo foobar", []string{" foobar"})
-	f("foo<bar>baz", "a foo foobar", []string{""})
-	f("foo<bar>baz", "a foobaz bar", []string{""})
-	f("foo<bar>baz", "a foo foobar baz", []string{" foobar "})
-	f("foo<bar>baz", "a foo foobar bazabc", []string{" foobar "})
-
-	f("ip=<ip> <> path=<path> ", "x=a, ip=1.2.3.4 method=GET host='abc' path=/foo/bar some tail here", []string{"1.2.3.4", "/foo/bar"})
-
-	// escaped pattern
-	f("ip=&lt;<ip>&gt;", "foo ip=<1.2.3.4> bar", []string{"1.2.3.4"})
-	f("ip=&lt;<ip>&gt;", "foo ip=<foo&amp;bar> bar", []string{"foo&amp;bar"})
-
-	// quoted fields
-	f(`"msg":<msg>,`, `{"foo":"bar","msg":"foo,b\"ar\n\t","baz":"x"}`, []string{`foo,b"ar` + "\n\t"})
-	f(`foo=<bar>`, "foo=`bar baz,abc` def", []string{"bar baz,abc"})
-	f(`foo=<bar> `, "foo=`bar baz,abc` def", []string{"bar baz,abc"})
-	f(`<foo>`, `"foo,\"bar"`, []string{`foo,"bar`})
-	f(`<foo>,"bar`, `"foo,\"bar"`, []string{`foo,"bar`})
+	f(`extract "foo<bar>"`)
+	f(`extract "foo<bar>" from x`)
+	f(`extract if (x:y) "foo<bar>" from baz`)
 }
 
-func TestParseExtractFormatStepsSuccess(t *testing.T) {
-	f := func(s string, stepsExpected []extractFormatStep) {
+func TestParsePipeExtractFailure(t *testing.T) {
+	f := func(pipeStr string) {
 		t.Helper()
-
-		steps, err := parseExtractFormatSteps(s)
-		if err != nil {
-			t.Fatalf("unexpected error when parsing %q: %s", s, err)
-		}
-		if !reflect.DeepEqual(steps, stepsExpected) {
-			t.Fatalf("unexpected steps for [%s]; got %v; want %v", s, steps, stepsExpected)
-		}
+		expectParsePipeFailure(t, pipeStr)
 	}
 
-	f("<foo>", []extractFormatStep{
-		{
-			field: "foo",
-		},
-	})
-	f("<foo>bar", []extractFormatStep{
-		{
-			field: "foo",
-		},
-		{
-			prefix: "bar",
-		},
-	})
-	f("<>bar<foo>", []extractFormatStep{
-		{},
-		{
-			prefix: "bar",
-			field:  "foo",
-		},
-	})
-	f("bar<foo>", []extractFormatStep{
-		{
-			prefix: "bar",
-			field:  "foo",
-		},
-	})
-	f("bar<foo>abc", []extractFormatStep{
-		{
-			prefix: "bar",
-			field:  "foo",
-		},
-		{
-			prefix: "abc",
-		},
-	})
-	f("bar<foo>abc<_>", []extractFormatStep{
-		{
-			prefix: "bar",
-			field:  "foo",
-		},
-		{
-			prefix: "abc",
-		},
-	})
-	f("<foo>bar<baz>", []extractFormatStep{
-		{
-			field: "foo",
-		},
-		{
-			prefix: "bar",
-			field:  "baz",
-		},
-	})
-	f("bar<foo>baz", []extractFormatStep{
-		{
-			prefix: "bar",
-			field:  "foo",
-		},
-		{
-			prefix: "baz",
-		},
-	})
-	f("&lt;<foo>&amp;gt;", []extractFormatStep{
-		{
-			prefix: "<",
-			field:  "foo",
-		},
-		{
-			prefix: "&gt;",
-		},
-	})
+	f(`extract`)
+	f(`extract from`)
+	f(`extract from x`)
+	f(`extract from x "y<foo>"`)
+	f(`extract if (x:y)`)
+	f(`extract "a<b>" if (x:y)`)
+	f(`extract "a"`)
+	f(`extract "<a><b>"`)
+	f(`extract "<*>foo<_>bar"`)
 }
 
-func TestParseExtractFormatStepFailure(t *testing.T) {
-	f := func(s string) {
+func TestPipeExtract(t *testing.T) {
+	f := func(pipeStr string, rows, rowsExpected [][]Field) {
 		t.Helper()
-
-		_, err := parseExtractFormatSteps(s)
-		if err == nil {
-			t.Fatalf("expecting non-nil error when parsing %q", s)
-		}
+		expectPipeResults(t, pipeStr, rows, rowsExpected)
 	}
 
-	// empty string
-	f("")
+	// single row, extract from _msg
+	f(`extract "baz=<abc> a=<aa>"`, [][]Field{
+		{
+			{"_msg", `foo=bar baz="x y=z" a=b`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `foo=bar baz="x y=z" a=b`},
+			{"abc", "x y=z"},
+			{"aa", "b"},
+		},
+	})
 
-	// zero fields
-	f("foobar")
+	// single row, extract from _msg into _msg
+	f(`extract "msg=<_msg>"`, [][]Field{
+		{
+			{"_msg", `msg=bar`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", "bar"},
+		},
+	})
 
-	// Zero named fields
-	f("<>")
-	f("foo<>")
-	f("<>foo")
-	f("foo<_>bar<*>baz<>xxx")
+	// single row, extract from non-existing field
+	f(`extract "foo=<bar>" from x`, [][]Field{
+		{
+			{"_msg", `foo=bar`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `foo=bar`},
+			{"bar", ""},
+		},
+	})
 
-	// missing delimiter between fields
-	f("<foo><bar>")
-	f("<><bar>")
-	f("<foo><>")
-	f("bb<foo><><bar>aa")
-	f("aa<foo><bar>")
-	f("aa<foo><bar>bb")
+	// single row, pattern mismatch
+	f(`extract "foo=<bar>" from x`, [][]Field{
+		{
+			{"x", `foobar`},
+		},
+	}, [][]Field{
+		{
+			{"x", `foobar`},
+			{"bar", ""},
+		},
+	})
 
-	// missing >
-	f("<foo")
-	f("foo<bar")
+	// single row, partial partern match
+	f(`extract "foo=<bar> baz=<xx>" from x`, [][]Field{
+		{
+			{"x", `a foo="a\"b\\c" cde baz=aa`},
+		},
+	}, [][]Field{
+		{
+			{"x", `a foo="a\"b\\c" cde baz=aa`},
+			{"bar", `a"b\c`},
+			{"xx", ""},
+		},
+	})
+
+	// single row, overwirte existing column
+	f(`extract "foo=<bar> baz=<xx>" from x`, [][]Field{
+		{
+			{"x", `a foo=cc baz=aa b`},
+			{"bar", "abc"},
+		},
+	}, [][]Field{
+		{
+			{"x", `a foo=cc baz=aa b`},
+			{"bar", `cc`},
+			{"xx", `aa b`},
+		},
+	})
+
+	// single row, if match
+	f(`extract if (x:baz) "foo=<bar> baz=<xx>" from "x"`, [][]Field{
+		{
+			{"x", `a foo=cc baz=aa b`},
+			{"bar", "abc"},
+		},
+	}, [][]Field{
+		{
+			{"x", `a foo=cc baz=aa b`},
+			{"bar", `cc`},
+			{"xx", `aa b`},
+		},
+	})
+
+	// single row, if mismatch
+	f(`extract if (bar:"") "foo=<bar> baz=<xx>" from 'x'`, [][]Field{
+		{
+			{"x", `a foo=cc baz=aa b`},
+			{"bar", "abc"},
+		},
+	}, [][]Field{
+		{
+			{"x", `a foo=cc baz=aa b`},
+			{"bar", `abc`},
+		},
+	})
+
+	// multiple rows with distinct set of labels
+	f(`extract if (!ip:keep) "ip=<ip> "`, [][]Field{
+		{
+			{"foo", "bar"},
+			{"_msg", "request from ip=1.2.3.4 xxx"},
+			{"f3", "y"},
+		},
+		{
+			{"foo", "aaa"},
+			{"_msg", "ip=5.4.3.1 abcd"},
+			{"ip", "keep"},
+			{"a", "b"},
+		},
+		{
+			{"foo", "aaa"},
+			{"_msg", "ip=34.32.11.94 abcd"},
+			{"ip", "ppp"},
+			{"a", "b"},
+		},
+		{
+			{"foo", "klkfs"},
+			{"_msg", "sdfdsfds dsf fd fdsa ip=123 abcd"},
+			{"ip", "bbbsd"},
+			{"a", "klo2i"},
+		},
+	}, [][]Field{
+		{
+			{"foo", "bar"},
+			{"_msg", "request from ip=1.2.3.4 xxx"},
+			{"f3", "y"},
+			{"ip", "1.2.3.4"},
+		},
+		{
+			{"foo", "aaa"},
+			{"_msg", "ip=5.4.3.1 abcd"},
+			{"ip", "keep"},
+			{"a", "b"},
+		},
+		{
+			{"foo", "aaa"},
+			{"_msg", "ip=34.32.11.94 abcd"},
+			{"ip", "34.32.11.94"},
+			{"a", "b"},
+		},
+		{
+			{"foo", "klkfs"},
+			{"_msg", "sdfdsfds dsf fd fdsa ip=123 abcd"},
+			{"ip", "123"},
+			{"a", "klo2i"},
+		},
+	})
 }
 
 func TestPipeExtractUpdateNeededFields(t *testing.T) {
@@ -185,29 +200,70 @@ func TestPipeExtractUpdateNeededFields(t *testing.T) {
 	}
 
 	// all the needed fields
-	f("extract from x '<foo>'", "*", "", "*", "foo")
+	f("extract '<foo>' from x", "*", "", "*", "foo")
+	f("extract if (foo:bar) '<foo>' from x", "*", "", "*", "")
 
-	// all the needed fields, unneeded fields do not intersect with fromField and output fields
-	f("extract from x '<foo>'", "*", "f1,f2", "*", "f1,f2,foo")
+	// unneeded fields do not intersect with pattern and output fields
+	f("extract '<foo>' from x", "*", "f1,f2", "*", "f1,f2,foo")
+	f("extract if (f1:x) '<foo>' from x", "*", "f1,f2", "*", "f2,foo")
+	f("extract if (foo:bar f1:x) '<foo>' from x", "*", "f1,f2", "*", "f2")
 
-	// all the needed fields, unneeded fields intersect with fromField
-	f("extract from x '<foo>'", "*", "f2,x", "*", "f2,foo")
+	// unneeded fields intersect with pattern
+	f("extract '<foo>' from x", "*", "f2,x", "*", "f2,foo")
+	f("extract if (f1:abc) '<foo>' from x", "*", "f2,x", "*", "f2,foo")
+	f("extract if (f2:abc) '<foo>' from x", "*", "f2,x", "*", "foo")
 
-	// all the needed fields, unneeded fields intersect with output fields
-	f("extract from x '<foo>x<bar>'", "*", "f2,foo", "*", "bar,f2,foo")
+	// unneeded fields intersect with output fields
+	f("extract '<foo>x<bar>' from x", "*", "f2,foo", "*", "bar,f2,foo")
+	f("extract if (f1:abc) '<foo>x<bar>' from x", "*", "f2,foo", "*", "bar,f2,foo")
+	f("extract if (f2:abc foo:w) '<foo>x<bar>' from x", "*", "f2,foo", "*", "bar")
 
-	// all the needed fields, unneeded fields intersect with all the output fields
-	f("extract from x '<foo>x<bar>'", "*", "f2,foo,bar", "*", "bar,f2,foo,x")
+	// unneeded fields intersect with all the output fields
+	f("extract '<foo>x<bar>' from x", "*", "f2,foo,bar", "*", "bar,f2,foo,x")
+	f("extract if (a:b f2:q x:y foo:w) '<foo>x<bar>' from x", "*", "f2,foo,bar", "*", "bar,f2,foo,x")
 
-	// needed fields do not intersect with fromField and output fields
-	f("extract from x '<foo>x<bar>'", "f1,f2", "", "f1,f2", "")
+	// needed fields do not intersect with pattern and output fields
+	f("extract '<foo>x<bar>' from x", "f1,f2", "", "f1,f2", "")
+	f("extract if (a:b) '<foo>x<bar>' from x", "f1,f2", "", "f1,f2", "")
+	f("extract if (f1:b) '<foo>x<bar>' from x", "f1,f2", "", "f1,f2", "")
 
-	// needed fields intersect with fromField
-	f("extract from x '<foo>x<bar>'", "f2,x", "", "f2,x", "")
+	// needed fields intersect with pattern field
+	f("extract '<foo>x<bar>' from x", "f2,x", "", "f2,x", "")
+	f("extract if (a:b) '<foo>x<bar>' from x", "f2,x", "", "f2,x", "")
 
 	// needed fields intersect with output fields
-	f("extract from x '<foo>x<bar>'", "f2,foo", "", "f2,x", "")
+	f("extract '<foo>x<bar>' from x", "f2,foo", "", "f2,x", "")
+	f("extract if (a:b) '<foo>x<bar>' from x", "f2,foo", "", "a,f2,x", "")
 
-	// needed fields intersect with fromField and output fields
-	f("extract from x '<foo>x<bar>'", "f2,foo,x,y", "", "f2,x,y", "")
+	// needed fields intersect with pattern and output fields
+	f("extract '<foo>x<bar>' from x", "f2,foo,x,y", "", "f2,x,y", "")
+	f("extract if (a:b foo:q) '<foo>x<bar>' from x", "f2,foo,x,y", "", "a,f2,foo,x,y", "")
+}
+
+func expectParsePipeFailure(t *testing.T, pipeStr string) {
+	t.Helper()
+
+	lex := newLexer(pipeStr)
+	p, err := parsePipe(lex)
+	if err == nil && lex.isEnd() {
+		t.Fatalf("expecting error when parsing [%s]; parsed result: [%s]", pipeStr, p)
+	}
+}
+
+func expectParsePipeSuccess(t *testing.T, pipeStr string) {
+	t.Helper()
+
+	lex := newLexer(pipeStr)
+	p, err := parsePipe(lex)
+	if err != nil {
+		t.Fatalf("cannot parse [%s]: %s", pipeStr, err)
+	}
+	if !lex.isEnd() {
+		t.Fatalf("unexpected tail after parsing [%s]: [%s]", pipeStr, lex.s)
+	}
+
+	pipeStrResult := p.String()
+	if pipeStrResult != pipeStr {
+		t.Fatalf("unexpected string representation of pipe; got\n%s\nwant\n%s", pipeStrResult, pipeStr)
+	}
 }

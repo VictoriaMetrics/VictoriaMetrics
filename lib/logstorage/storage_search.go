@@ -146,17 +146,30 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 
 // GetFieldNames returns field names from q results for the given tenantIDs.
 func (s *Storage) GetFieldNames(ctx context.Context, tenantIDs []TenantID, q *Query) ([]string, error) {
-	// add `field_names ...` to the end of q.pipes
 	pipes := append([]pipe{}, q.pipes...)
-
-	pipeStr := "field_names as names"
+	pipeStr := "field_names as names | sort by (names)"
 	lex := newLexer(pipeStr)
+
 	pf, err := parsePipeFieldNames(lex)
 	if err != nil {
-		logger.Panicf("BUG: unexpected error when parsing 'field_names' pipe: %s", err)
+		logger.Panicf("BUG: unexpected error when parsing 'field_names' pipe at [%s]: %s", pipeStr, err)
 	}
 	pf.isFirstPipe = len(pipes) == 0
-	pipes = append(pipes, pf)
+
+	if !lex.isKeyword("|") {
+		logger.Panicf("BUG: unexpected token after 'field_names' pipe at [%s]: %q", pipeStr, lex.token)
+	}
+	lex.nextToken()
+
+	ps, err := parsePipeSort(lex)
+	if err != nil {
+		logger.Panicf("BUG: unexpected error when parsing 'sort' pipe at [%s]: %s", pipeStr, err)
+	}
+	if !lex.isEnd() {
+		logger.Panicf("BUG: unexpected tail left after parsing pipes [%s]: %q", pipeStr, lex.s)
+	}
+
+	pipes = append(pipes, pf, ps)
 
 	q = &Query{
 		f:     q.f,
@@ -168,39 +181,96 @@ func (s *Storage) GetFieldNames(ctx context.Context, tenantIDs []TenantID, q *Qu
 
 // GetFieldValues returns unique values for the given fieldName returned by q for the given tenantIDs.
 //
-// If limit > 0, then up to limit unique values are returned. The values are returned in arbitrary order because of performance reasons.
-// The caller may sort the returned values if needed.
+// If limit > 0, then up to limit unique values are returned.
 func (s *Storage) GetFieldValues(ctx context.Context, tenantIDs []TenantID, q *Query, fieldName string, limit uint64) ([]string, error) {
-	// add 'uniq fieldName' to the end of q.pipes
-	if !endsWithPipeUniqSingleField(q.pipes, fieldName) {
-		pipes := append([]pipe{}, q.pipes...)
+	pipes := append([]pipe{}, q.pipes...)
+	quotedFieldName := quoteTokenIfNeeded(fieldName)
+	pipeStr := fmt.Sprintf("uniq by (%s) limit %d | sort by (%s)", quotedFieldName, limit, quotedFieldName)
+	lex := newLexer(pipeStr)
 
-		pipeStr := fmt.Sprintf("uniq by (%s) limit %d", quoteTokenIfNeeded(fieldName), limit)
-		lex := newLexer(pipeStr)
-		pu, err := parsePipeUniq(lex)
-		if err != nil {
-			logger.Panicf("BUG: unexpected error when parsing 'uniq' pipe: %s", err)
-		}
-		pipes = append(pipes, pu)
+	pu, err := parsePipeUniq(lex)
+	if err != nil {
+		logger.Panicf("BUG: unexpected error when parsing 'uniq' pipe at [%s]: %s", pipeStr, err)
+	}
 
-		q = &Query{
-			f:     q.f,
-			pipes: pipes,
-		}
+	if !lex.isKeyword("|") {
+		logger.Panicf("BUG: unexpected token after 'uniq' pipe at [%s]: %q", pipeStr, lex.token)
+	}
+	lex.nextToken()
+
+	ps, err := parsePipeSort(lex)
+	if err != nil {
+		logger.Panicf("BUG: unexpected error when parsing 'sort' pipe at [%s]: %s", pipeStr, err)
+	}
+	if !lex.isEnd() {
+		logger.Panicf("BUG: unexpected tail left after parsing pipes [%s]: %q", pipeStr, lex.s)
+	}
+
+	pipes = append(pipes, pu, ps)
+
+	q = &Query{
+		f:     q.f,
+		pipes: pipes,
 	}
 
 	return s.runSingleColumnQuery(ctx, tenantIDs, q)
 }
 
-func endsWithPipeUniqSingleField(pipes []pipe, fieldName string) bool {
-	if len(pipes) == 0 {
-		return false
+// GetStreamLabelNames returns stream label names from q results for the given tenantIDs.
+func (s *Storage) GetStreamLabelNames(ctx context.Context, tenantIDs []TenantID, q *Query) ([]string, error) {
+	streams, err := s.GetStreams(ctx, tenantIDs, q, math.MaxUint64)
+	if err != nil {
+		return nil, err
 	}
-	pu, ok := pipes[len(pipes)-1].(*pipeUniq)
-	if !ok {
-		return false
+
+	var names []string
+	m := make(map[string]struct{})
+	forEachStreamLabel(streams, func(label Field) {
+		if _, ok := m[label.Name]; !ok {
+			nameCopy := strings.Clone(label.Name)
+			names = append(names, nameCopy)
+			m[nameCopy] = struct{}{}
+		}
+	})
+	sortStrings(names)
+
+	return names, nil
+}
+
+// GetStreamLabelValues returns stream label values for the given labelName from q results for the given tenantIDs.
+//
+// If limit > 9, then up to limit unique label values are returned.
+func (s *Storage) GetStreamLabelValues(ctx context.Context, tenantIDs []TenantID, q *Query, labelName string, limit uint64) ([]string, error) {
+	streams, err := s.GetStreams(ctx, tenantIDs, q, math.MaxUint64)
+	if err != nil {
+		return nil, err
 	}
-	return len(pu.byFields) == 1 && pu.byFields[0] == fieldName
+
+	var values []string
+	m := make(map[string]struct{})
+	forEachStreamLabel(streams, func(label Field) {
+		if label.Name != labelName {
+			return
+		}
+		if _, ok := m[label.Value]; !ok {
+			valueCopy := strings.Clone(label.Value)
+			values = append(values, valueCopy)
+			m[valueCopy] = struct{}{}
+		}
+	})
+	if uint64(len(values)) > limit {
+		values = values[:limit]
+	}
+	sortStrings(values)
+
+	return values, nil
+}
+
+// GetStreams returns streams from q results for the given tenantIDs.
+//
+// If limit > 0, then up to limit unique streams are returned.
+func (s *Storage) GetStreams(ctx context.Context, tenantIDs []TenantID, q *Query, limit uint64) ([]string, error) {
+	return s.GetFieldValues(ctx, tenantIDs, q, "_stream", limit)
 }
 
 func (s *Storage) runSingleColumnQuery(ctx context.Context, tenantIDs []TenantID, q *Query) ([]string, error) {
@@ -259,7 +329,17 @@ func (s *Storage) initFilterInValues(ctx context.Context, tenantIDs []TenantID, 
 	return qNew, nil
 }
 
+func (iff *ifFilter) hasFilterInWithQuery() bool {
+	if iff == nil {
+		return false
+	}
+	return hasFilterInWithQueryForFilter(iff.f)
+}
+
 func hasFilterInWithQueryForFilter(f filter) bool {
+	if f == nil {
+		return false
+	}
 	visitFunc := func(f filter) bool {
 		fi, ok := f.(*filterIn)
 		return ok && fi.needExecuteQuery
@@ -269,12 +349,27 @@ func hasFilterInWithQueryForFilter(f filter) bool {
 
 func hasFilterInWithQueryForPipes(pipes []pipe) bool {
 	for _, p := range pipes {
-		ps, ok := p.(*pipeStats)
-		if !ok {
-			continue
-		}
-		for _, f := range ps.funcs {
-			if f.iff != nil && hasFilterInWithQueryForFilter(f.iff) {
+		switch t := p.(type) {
+		case *pipeStats:
+			for _, f := range t.funcs {
+				if f.iff.hasFilterInWithQuery() {
+					return true
+				}
+			}
+		case *pipeFormat:
+			if t.iff.hasFilterInWithQuery() {
+				return true
+			}
+		case *pipeExtract:
+			if t.iff.hasFilterInWithQuery() {
+				return true
+			}
+		case *pipeUnpackJSON:
+			if t.iff.hasFilterInWithQuery() {
+				return true
+			}
+		case *pipeUnpackLogfmt:
+			if t.iff.hasFilterInWithQuery() {
 				return true
 			}
 		}
@@ -284,7 +379,26 @@ func hasFilterInWithQueryForPipes(pipes []pipe) bool {
 
 type getFieldValuesFunc func(q *Query, fieldName string) ([]string, error)
 
+func (iff *ifFilter) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (*ifFilter, error) {
+	if iff == nil {
+		return nil, nil
+	}
+
+	f, err := initFilterInValuesForFilter(cache, iff.f, getFieldValuesFunc)
+	if err != nil {
+		return nil, err
+	}
+
+	iffNew := *iff
+	iffNew.f = f
+	return &iffNew, nil
+}
+
 func initFilterInValuesForFilter(cache map[string][]string, f filter, getFieldValuesFunc getFieldValuesFunc) (filter, error) {
+	if f == nil {
+		return nil, nil
+	}
+
 	visitFunc := func(f filter) bool {
 		fi, ok := f.(*filterIn)
 		return ok && fi.needExecuteQuery
@@ -320,19 +434,49 @@ func initFilterInValuesForPipes(cache map[string][]string, pipes []pipe, getFiel
 		case *pipeStats:
 			funcsNew := make([]pipeStatsFunc, len(t.funcs))
 			for j, f := range t.funcs {
-				if f.iff != nil {
-					fNew, err := initFilterInValuesForFilter(cache, f.iff, getFieldValuesFunc)
-					if err != nil {
-						return nil, err
-					}
-					f.iff = fNew
+				iffNew, err := f.iff.initFilterInValues(cache, getFieldValuesFunc)
+				if err != nil {
+					return nil, err
 				}
+				f.iff = iffNew
 				funcsNew[j] = f
 			}
 			pipesNew[i] = &pipeStats{
 				byFields: t.byFields,
 				funcs:    funcsNew,
 			}
+		case *pipeFormat:
+			iffNew, err := t.iff.initFilterInValues(cache, getFieldValuesFunc)
+			if err != nil {
+				return nil, err
+			}
+			pf := *t
+			pf.iff = iffNew
+			pipesNew[i] = &pf
+		case *pipeExtract:
+			iffNew, err := t.iff.initFilterInValues(cache, getFieldValuesFunc)
+			if err != nil {
+				return nil, err
+			}
+			pe := *t
+			pe.iff = iffNew
+			pipesNew[i] = &pe
+		case *pipeUnpackJSON:
+			iffNew, err := t.iff.initFilterInValues(cache, getFieldValuesFunc)
+			if err != nil {
+				return nil, err
+			}
+			pu := *t
+			pu.iff = iffNew
+			pipesNew[i] = &pu
+		case *pipeUnpackLogfmt:
+			iffNew, err := t.iff.initFilterInValues(cache, getFieldValuesFunc)
+			if err != nil {
+				return nil, err
+			}
+			pu := *t
+			pu.iff = iffNew
+			pipesNew[i] = &pu
 		default:
 			pipesNew[i] = p
 		}
@@ -861,4 +1005,60 @@ func getFilterTimeRange(f filter) (int64, int64) {
 		return t.minTimestamp, t.maxTimestamp
 	}
 	return math.MinInt64, math.MaxInt64
+}
+
+func forEachStreamLabel(streams []string, f func(label Field)) {
+	var labels []Field
+	for _, stream := range streams {
+		var err error
+		labels, err = parseStreamLabels(labels[:0], stream)
+		if err != nil {
+			continue
+		}
+		for i := range labels {
+			f(labels[i])
+		}
+	}
+}
+
+func parseStreamLabels(dst []Field, s string) ([]Field, error) {
+	if len(s) == 0 || s[0] != '{' {
+		return dst, fmt.Errorf("missing '{' at the beginning of stream name")
+	}
+	s = s[1:]
+	if len(s) == 0 || s[len(s)-1] != '}' {
+		return dst, fmt.Errorf("missing '}' at the end of stream name")
+	}
+	s = s[:len(s)-1]
+	if len(s) == 0 {
+		return dst, nil
+	}
+
+	for {
+		n := strings.Index(s, `="`)
+		if n < 0 {
+			return dst, fmt.Errorf("cannot find label value in double quotes at [%s]", s)
+		}
+		name := s[:n]
+		s = s[n+1:]
+
+		value, nOffset := tryUnquoteString(s)
+		if nOffset < 0 {
+			return dst, fmt.Errorf("cannot find parse label value in double quotes at [%s]", s)
+		}
+		s = s[nOffset:]
+
+		dst = append(dst, Field{
+			Name:  name,
+			Value: value,
+		})
+
+		if len(s) == 0 {
+			return dst, nil
+		}
+		if s[0] != ',' {
+			return dst, fmt.Errorf("missing ',' after %s=%q", name, value)
+		}
+		s = s[1:]
+	}
 }

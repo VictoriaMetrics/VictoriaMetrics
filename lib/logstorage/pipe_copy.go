@@ -32,29 +32,21 @@ func (pc *pipeCopy) String() string {
 }
 
 func (pc *pipeCopy) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	neededSrcFields := make([]bool, len(pc.srcFields))
-	for i, dstField := range pc.dstFields {
-		if neededFields.contains(dstField) && !unneededFields.contains(dstField) {
-			neededSrcFields[i] = true
-		}
-	}
-	if neededFields.contains("*") {
-		// update only unneeded fields
-		unneededFields.addFields(pc.dstFields)
-		for i, srcField := range pc.srcFields {
-			if neededSrcFields[i] {
+	for i := len(pc.srcFields) - 1; i >= 0; i-- {
+		srcField := pc.srcFields[i]
+		dstField := pc.dstFields[i]
+
+		if neededFields.contains("*") {
+			if !unneededFields.contains(dstField) {
+				unneededFields.add(dstField)
 				unneededFields.remove(srcField)
 			}
-		}
-	} else {
-		// update only needed fields and reset unneeded fields
-		neededFields.removeFields(pc.dstFields)
-		for i, srcField := range pc.srcFields {
-			if neededSrcFields[i] {
+		} else {
+			if neededFields.contains(dstField) {
+				neededFields.remove(dstField)
 				neededFields.add(srcField)
 			}
 		}
-		unneededFields.reset()
 	}
 }
 

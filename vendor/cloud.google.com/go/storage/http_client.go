@@ -107,12 +107,12 @@ func newHTTPStorageClient(ctx context.Context, opts ...storageOption) (storageCl
 		// Append the emulator host as default endpoint for the user
 		o = append([]option.ClientOption{option.WithoutAuthentication()}, o...)
 
-		o = append(o, internaloption.WithDefaultEndpoint(endpoint))
+		o = append(o, internaloption.WithDefaultEndpointTemplate(endpoint))
 		o = append(o, internaloption.WithDefaultMTLSEndpoint(endpoint))
 	}
 	s.clientOption = o
 
-	// htransport selects the correct endpoint among WithEndpoint (user override), WithDefaultEndpoint, and WithDefaultMTLSEndpoint.
+	// htransport selects the correct endpoint among WithEndpoint (user override), WithDefaultEndpointTemplate, and WithDefaultMTLSEndpoint.
 	hc, ep, err := htransport.NewClient(ctx, s.clientOption...)
 	if err != nil {
 		return nil, fmt.Errorf("dialing: %w", err)
@@ -337,6 +337,9 @@ func (c *httpStorageClient) ListObjects(ctx context.Context, bucket string, q *Q
 	}
 	fetch := func(pageSize int, pageToken string) (string, error) {
 		req := c.raw.Objects.List(bucket)
+		if it.query.SoftDeleted {
+			req.SoftDeleted(it.query.SoftDeleted)
+		}
 		setClientHeader(req.Header())
 		projection := it.query.Projection
 		if projection == ProjectionDefault {
@@ -409,18 +412,22 @@ func (c *httpStorageClient) DeleteObject(ctx context.Context, bucket, object str
 	return err
 }
 
-func (c *httpStorageClient) GetObject(ctx context.Context, bucket, object string, gen int64, encryptionKey []byte, conds *Conditions, opts ...storageOption) (*ObjectAttrs, error) {
+func (c *httpStorageClient) GetObject(ctx context.Context, params *getObjectParams, opts ...storageOption) (*ObjectAttrs, error) {
 	s := callSettings(c.settings, opts...)
-	req := c.raw.Objects.Get(bucket, object).Projection("full").Context(ctx)
-	if err := applyConds("Attrs", gen, conds, req); err != nil {
+	req := c.raw.Objects.Get(params.bucket, params.object).Projection("full").Context(ctx)
+	if err := applyConds("Attrs", params.gen, params.conds, req); err != nil {
 		return nil, err
 	}
 	if s.userProject != "" {
 		req.UserProject(s.userProject)
 	}
-	if err := setEncryptionHeaders(req.Header(), encryptionKey, false); err != nil {
+	if err := setEncryptionHeaders(req.Header(), params.encryptionKey, false); err != nil {
 		return nil, err
 	}
+	if params.softDeleted {
+		req.SoftDeleted(params.softDeleted)
+	}
+
 	var obj *raw.Object
 	var err error
 	err = run(ctx, func(ctx context.Context) error {
@@ -545,6 +552,33 @@ func (c *httpStorageClient) UpdateObject(ctx context.Context, params *updateObje
 		return nil, err
 	}
 	return newObject(obj), nil
+}
+
+func (c *httpStorageClient) RestoreObject(ctx context.Context, params *restoreObjectParams, opts ...storageOption) (*ObjectAttrs, error) {
+	s := callSettings(c.settings, opts...)
+	req := c.raw.Objects.Restore(params.bucket, params.object, params.gen).Context(ctx)
+	// Do not set the generation here since it's not an optional condition; it gets set above.
+	if err := applyConds("RestoreObject", defaultGen, params.conds, req); err != nil {
+		return nil, err
+	}
+	if s.userProject != "" {
+		req.UserProject(s.userProject)
+	}
+	if params.copySourceACL {
+		req.CopySourceAcl(params.copySourceACL)
+	}
+	if err := setEncryptionHeaders(req.Header(), params.encryptionKey, false); err != nil {
+		return nil, err
+	}
+
+	var obj *raw.Object
+	var err error
+	err = run(ctx, func(ctx context.Context) error { obj, err = req.Context(ctx).Do(); return err }, s.retry, s.idempotent)
+	var e *googleapi.Error
+	if ok := errors.As(err, &e); ok && e.Code == http.StatusNotFound {
+		return nil, ErrObjectNotExist
+	}
+	return newObject(obj), err
 }
 
 // Default Object ACL methods.

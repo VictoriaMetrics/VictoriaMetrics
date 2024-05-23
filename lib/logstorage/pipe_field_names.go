@@ -123,12 +123,17 @@ type pipeFieldNamesWriteContext struct {
 	rcs [1]resultColumn
 	br  blockResult
 
+	// rowsCount is the number of rows in the current block
+	rowsCount int
+
+	// valuesLen is the total length of values in the current block
 	valuesLen int
 }
 
 func (wctx *pipeFieldNamesWriteContext) writeRow(v string) {
 	wctx.rcs[0].addValue(v)
 	wctx.valuesLen += len(v)
+	wctx.rowsCount++
 	if wctx.valuesLen >= 1_000_000 {
 		wctx.flush()
 	}
@@ -140,7 +145,8 @@ func (wctx *pipeFieldNamesWriteContext) flush() {
 	wctx.valuesLen = 0
 
 	// Flush rcs to ppBase
-	br.setResultColumns(wctx.rcs[:1])
+	br.setResultColumns(wctx.rcs[:1], wctx.rowsCount)
+	wctx.rowsCount = 0
 	wctx.pfp.ppBase.writeBlock(0, br)
 	br.reset()
 	wctx.rcs[0].resetValues()

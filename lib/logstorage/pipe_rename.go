@@ -32,33 +32,25 @@ func (pr *pipeRename) String() string {
 }
 
 func (pr *pipeRename) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	neededSrcFields := make([]bool, len(pr.srcFields))
-	for i, dstField := range pr.dstFields {
-		if neededFields.contains(dstField) && !unneededFields.contains(dstField) {
-			neededSrcFields[i] = true
-		}
-	}
-	if neededFields.contains("*") {
-		// update only unneeded fields
-		unneededFields.addFields(pr.dstFields)
-		for i, srcField := range pr.srcFields {
-			if neededSrcFields[i] {
-				unneededFields.remove(srcField)
-			} else {
+	for i := len(pr.srcFields) - 1; i >= 0; i-- {
+		srcField := pr.srcFields[i]
+		dstField := pr.dstFields[i]
+
+		if neededFields.contains("*") {
+			if unneededFields.contains(dstField) {
 				unneededFields.add(srcField)
+			} else {
+				unneededFields.add(dstField)
+				unneededFields.remove(srcField)
 			}
-		}
-	} else {
-		// update only needed fields and reset unneeded fields
-		neededFields.removeFields(pr.dstFields)
-		for i, srcField := range pr.srcFields {
-			if neededSrcFields[i] {
+		} else {
+			if neededFields.contains(dstField) {
+				neededFields.remove(dstField)
 				neededFields.add(srcField)
 			} else {
 				neededFields.remove(srcField)
 			}
 		}
-		unneededFields.reset()
 	}
 }
 

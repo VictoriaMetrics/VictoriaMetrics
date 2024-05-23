@@ -39,6 +39,16 @@ func TestLessNatural(t *testing.T) {
 	f("123", "99", false)
 	f("99", "123", true)
 
+	// negative numbers (works unexpectedly - this is OK for natural sort order)
+	f("-93", "5", false)
+	f("5", "-93", true)
+	f("-9", "-5", false)
+	f("-5", "-9", true)
+	f("-93", "foo", true)
+	f("foo", "-93", false)
+	f("foo-9", "foo-10", true)
+	f("foo-10", "foo-9", false)
+
 	// floating-point comparsion (works unexpectedly - this is OK for natural sort order)
 	f("1.23", "1.123", true)
 	f("1.123", "1.23", false)
