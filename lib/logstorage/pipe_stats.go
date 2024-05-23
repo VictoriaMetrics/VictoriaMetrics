@@ -399,9 +399,8 @@ func (psp *pipeStatsProcessor) flush() error {
 	// Merge states across shards
 	shards := psp.shards
 	m := shards[0].m
-	shards = shards[1:]
-	for i := range shards {
-		shard := &shards[i]
+	for i := range shards[1:] {
+		shard := &shards[i+1]
 		for key, psg := range shard.m {
 			// shard.m may be quite big, so this loop can take a lot of time and CPU.
 			// Stop processing data as soon as stopCh is closed without wasting additional CPU time.
@@ -425,7 +424,6 @@ func (psp *pipeStatsProcessor) flush() error {
 	if len(byFields) == 0 && len(m) == 0 {
 		// Special case - zero matching rows.
 		_ = shards[0].getPipeStatsGroup(nil)
-		m = shards[0].m
 	}
 
 	rcs := make([]resultColumn, 0, len(byFields)+len(psp.ps.funcs))
