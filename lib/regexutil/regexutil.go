@@ -158,6 +158,9 @@ func SimplifyRegex(expr string) (string, string) {
 	prefix, suffix := simplifyRegex(expr, true)
 	sre := mustParseRegexp(suffix)
 
+	if isDotOp(sre, syntax.OpStar) {
+		return prefix, ""
+	}
 	if sre.Op == syntax.OpConcat {
 		subs := sre.Sub
 		if prefix == "" {
