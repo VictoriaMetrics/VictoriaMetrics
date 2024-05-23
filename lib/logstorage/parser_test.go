@@ -544,6 +544,16 @@ func TestParseQuerySuccess(t *testing.T) {
 		if result != resultExpected {
 			t.Fatalf("unexpected result;\ngot\n%s\nwant\n%s", result, resultExpected)
 		}
+
+		// verify that the marshaled query is parsed to the same query
+		qParsed, err := ParseQuery(result)
+		if err != nil {
+			t.Fatalf("cannot parse marshaled query: %s", err)
+		}
+		qStr := qParsed.String()
+		if qStr != result {
+			t.Fatalf("unexpected marshaled query\ngot\n%s\nwant\n%s", qStr, result)
+		}
 	}
 
 	f("foo", "foo")
@@ -586,7 +596,7 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`foo:(bar baz or not :xxx)`, `foo:bar foo:baz or !foo:xxx`)
 	f(`(foo:bar and (foo:baz or aa:bb) and xx) and y`, `foo:bar (foo:baz or aa:bb) xx y`)
 	f("level:error and _msg:(a or b)", "level:error (a or b)")
-	f("level: ( ((error or warn*) and re(foo))) (not (bar))", `(level:error or level:warn*) level:~"foo" !bar`)
+	f("level: ( ((error or warn*) and re(foo))) (not (bar))", `(level:error or level:warn*) level:~foo !bar`)
 	f("!(foo bar or baz and not aa*)", `!(foo bar or baz !aa*)`)
 
 	// prefix search
@@ -600,7 +610,7 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`"" or foo:"" and not bar:""`, `"" or foo:"" !bar:""`)
 
 	// _stream filters
-	f(`_stream:{}`, ``)
+	f(`_stream:{}`, `_stream:{}`)
 	f(`_stream:{foo="bar", baz=~"x" OR or!="b", "x=},"="d}{"}`, `_stream:{foo="bar",baz=~"x" or "or"!="b","x=},"="d}{"}`)
 	f(`_stream:{or=a or ","="b"}`, `_stream:{"or"="a" or ","="b"}`)
 	f("_stream : { foo =  bar , }  ", `_stream:{foo="bar"}`)
@@ -713,7 +723,7 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`exact("foo/bar")`, `="foo/bar"`)
 	f(`exact('foo/bar')`, `="foo/bar"`)
 	f(`="foo/bar"`, `="foo/bar"`)
-	f("=foo=bar =b<=a>z ='abc'*", `="foo=bar" ="b<=a>z" =abc*`)
+	f("=foo=bar !=b<=a>z foo:!='abc'*", `="foo=bar" !="b<=a>z" !foo:=abc*`)
 	f("==foo =>=bar x : ( = =a<b*='c*' >=20)", `="=foo" =">=bar" x:="=a<b"* x:="c*" x:>=20`)
 
 	// i filter
@@ -772,14 +782,14 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`foo: >= 10.5M`, `foo:>=10.5M`)
 	f(`foo: < 10.5M`, `foo:<10.5M`)
 	f(`foo: <= 10.5M`, `foo:<=10.5M`)
-	f(`foo:(>10 <=20)`, `foo:>10 foo:<=20`)
-	f(`>=10 <20`, `>=10 <20`)
+	f(`foo:(>10 !<=20)`, `foo:>10 !foo:<=20`)
+	f(`>=10 !<20`, `>=10 !<20`)
 
 	// re filter
 	f("re('foo|ba(r.+)')", `~"foo|ba(r.+)"`)
-	f("re(foo)", `~"foo"`)
+	f("re(foo)", `~foo`)
 	f(`foo:re(foo-bar/baz.)`, `foo:~"foo-bar/baz."`)
-	f(`~foo.bar.baz`, `~"foo.bar.baz"`)
+	f(`~foo.bar.baz !~bar`, `~foo.bar.baz !~bar`)
 	f(`foo:~~foo~ba/ba>z`, `foo:~"~foo~ba/ba>z"`)
 	f(`foo:~'.*'`, `foo:~".*"`)
 

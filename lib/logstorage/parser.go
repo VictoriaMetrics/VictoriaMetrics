@@ -597,8 +597,12 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		return parseFilterLT(lex, fieldName)
 	case lex.isKeyword("="):
 		return parseFilterEQ(lex, fieldName)
+	case lex.isKeyword("!="):
+		return parseFilterNEQ(lex, fieldName)
 	case lex.isKeyword("~"):
 		return parseFilterTilda(lex, fieldName)
+	case lex.isKeyword("!~"):
+		return parseFilterNotTilda(lex, fieldName)
 	case lex.isKeyword("not", "!"):
 		return parseFilterNot(lex, fieldName)
 	case lex.isKeyword("exact"):
@@ -1033,6 +1037,17 @@ func parseFilterTilda(lex *lexer, fieldName string) (filter, error) {
 	return fr, nil
 }
 
+func parseFilterNotTilda(lex *lexer, fieldName string) (filter, error) {
+	f, err := parseFilterTilda(lex, fieldName)
+	if err != nil {
+		return nil, err
+	}
+	fn := &filterNot{
+		f: f,
+	}
+	return fn, nil
+}
+
 func parseFilterEQ(lex *lexer, fieldName string) (filter, error) {
 	lex.nextToken()
 	phrase := getCompoundFuncArg(lex)
@@ -1049,6 +1064,17 @@ func parseFilterEQ(lex *lexer, fieldName string) (filter, error) {
 		value:     phrase,
 	}
 	return f, nil
+}
+
+func parseFilterNEQ(lex *lexer, fieldName string) (filter, error) {
+	f, err := parseFilterEQ(lex, fieldName)
+	if err != nil {
+		return nil, err
+	}
+	fn := &filterNot{
+		f: f,
+	}
+	return fn, nil
 }
 
 func parseFilterGT(lex *lexer, fieldName string) (filter, error) {

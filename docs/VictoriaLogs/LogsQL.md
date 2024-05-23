@@ -403,6 +403,13 @@ This query doesn't match the following log messages:
 - `SSH: login fail`, since the `SSH` word is in capital letters. Use `i("ssh: login fail")` for case-insensitive search.
   See [these docs](#case-insensitive-filter) for details.
 
+If the phrase contains double quotes, then either put `\` in front of double quotes or put the phrase inside single quotes. For example, the following filter searches
+logs with `"foo":"bar"` phrase:
+
+```logsql
+'"foo":"bar"'
+```
+
 By default the given phrase is searched in the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
 Specify the [field name](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) in front of the phrase and put a colon after it
 if it must be searched in the given field. For example, the following query returns log entries containing the `cannot open file` phrase in the `event.original` field:
@@ -469,6 +476,13 @@ This query doesn't match the following log messages:
   See [these docs](#logical-filter) for details.
 - `failed to open file: unexpected EOF`, since `failed` [word](#word) occurs before the `unexpected` word. Use `unexpected AND fail*` for this case.
   See [these docs](#logical-filter) for details.
+
+If the prefix contains double quotes, then either put `\` in front of double quotes or put the prefix inside single quotes. For example, the following filter searches
+logs with `"foo":"bar` prefix:
+
+```logsql
+'"foo":"bar'*
+```
 
 By default the prefix filter is applied to the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
 Specify the needed [field name](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) in front of the prefix filter
@@ -782,6 +796,13 @@ The query doesn't match the following log messages:
 - `ERROR: cannot open file`, since the `ERROR` word is in uppercase letters. Use `~"(?i)(err|warn)"` query for case-insensitive regexp search.
   See [these docs](https://github.com/google/re2/wiki/Syntax) for details. See also [case-insenstive filter docs](#case-insensitive-filter).
 - `it is warmer than usual`, since it doesn't contain neither `err` nor `warn` substrings.
+
+If the regexp contains double quotes, then either put `\` in front of double quotes or put the regexp inside single quotes. For example, the following regexp searches
+logs matching `"foo":"(bar|baz)"` regexp:
+
+```logsql
+'"foo":"(bar|baz)"'
+```
 
 By default the regexp filter is applied to the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
 Specify the needed [field name](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) in front of the filter
@@ -1134,7 +1155,8 @@ For example, the following query is equivalent to the previous one:
 _time:1d error | extract "ip=<ip> " | stats by (ip) count() logs | sort by (logs) desc limit 10
 ```
 
-If the `pattern` contains double quotes, then it can be quoted into single quotes. For example, the following query extracts `ip` from the corresponding JSON field:
+If the `pattern` contains double quotes, then either put `\` in front of double quotes or put the `pattern` inside single quotes.
+For example, the following query extracts `ip` from the corresponding JSON field:
 
 ```logsql
 _time:5m | extract '"ip":"<ip>"'
