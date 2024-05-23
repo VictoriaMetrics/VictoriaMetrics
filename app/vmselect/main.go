@@ -654,7 +654,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 	}
 	switch p.Suffix {
 	case "prometheus/api/v1/status/active_queries":
-		at, err := auth.NewToken(p.AuthToken)
+		at, err := auth.NewTokenPossibleMultitenant(p.AuthToken)
 		if err != nil {
 			return false
 		}

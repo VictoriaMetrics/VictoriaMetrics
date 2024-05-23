@@ -18,18 +18,17 @@ import (
 //
 // If at is nil, then all the active queries across all the tenants are written.
 func ActiveQueriesHandler(at *auth.Token, w http.ResponseWriter, _ *http.Request) {
-	// handle multi-tenant queries?
 	aqes := activeQueriesV.GetAll()
-	if at != nil {
-		// Filter out queries, which do not belong to at.
-		dst := aqes[:0]
-		for _, aqe := range aqes {
-			if aqe.accountID == at.AccountID && aqe.projectID == at.ProjectID {
-				dst = append(dst, aqe)
-			}
+
+	// Filter out queries, which do not belong to at.
+	// if at is nil, then all the queries are returned for multi-tenant request
+	dst := aqes[:0]
+	for _, aqe := range aqes {
+		if at == nil || (aqe.accountID == at.AccountID && aqe.projectID == at.ProjectID) {
+			dst = append(dst, aqe)
 		}
-		aqes = dst
 	}
+	aqes = dst
 	writeActiveQueries(w, aqes)
 }
 
