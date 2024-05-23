@@ -46,8 +46,8 @@ func NewPromRegex(expr string) (*PromRegex, error) {
 	if _, err := regexp.Compile(expr); err != nil {
 		return nil, err
 	}
-	prefix, suffix := Simplify(expr)
-	orValues := GetOrValues(suffix)
+	prefix, suffix := SimplifyPromRegex(expr)
+	orValues := GetOrValuesPromRegex(suffix)
 	substrDotStar := getSubstringLiteral(suffix, ".*")
 	substrDotPlus := getSubstringLiteral(suffix, ".+")
 	// It is expected that Optimize returns valid regexp in suffix, so use MustCompile here.
@@ -130,7 +130,7 @@ func getSubstringLiteral(expr, prefixSuffix string) string {
 		return ""
 	}
 	expr = expr[:len(expr)-len(prefixSuffix)]
-	prefix, suffix := Simplify(expr)
+	prefix, suffix := SimplifyPromRegex(expr)
 	if suffix != "" {
 		return ""
 	}

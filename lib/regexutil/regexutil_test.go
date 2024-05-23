@@ -5,10 +5,10 @@ import (
 	"testing"
 )
 
-func TestGetOrValues(t *testing.T) {
+func TestGetOrValuesPromRegex(t *testing.T) {
 	f := func(s string, valuesExpected []string) {
 		t.Helper()
-		values := GetOrValues(s)
+		values := GetOrValuesPromRegex(s)
 		if !reflect.DeepEqual(values, valuesExpected) {
 			t.Fatalf("unexpected values for s=%q; got %q; want %q", s, values, valuesExpected)
 		}
@@ -46,10 +46,10 @@ func TestGetOrValues(t *testing.T) {
 	f("^a(^foo|bar$)z$", nil)
 }
 
-func TestSimplify(t *testing.T) {
+func TestSimplifyPromRegex(t *testing.T) {
 	f := func(s, expectedPrefix, expectedSuffix string) {
 		t.Helper()
-		prefix, suffix := Simplify(s)
+		prefix, suffix := SimplifyPromRegex(s)
 		if prefix != expectedPrefix {
 			t.Fatalf("unexpected prefix for s=%q; got %q; want %q", s, prefix, expectedPrefix)
 		}

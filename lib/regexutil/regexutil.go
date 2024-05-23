@@ -18,16 +18,16 @@ func RemoveStartEndAnchors(expr string) string {
 	return expr
 }
 
-// GetOrValues returns "or" values from the given regexp expr.
+// GetOrValuesPromRegex returns "or" values from the given Prometheus-like regexp expr.
 //
 // It ignores start and end anchors ('^') and ('$') at the start and the end of expr.
 // It returns ["foo", "bar"] for "foo|bar" regexp.
 // It returns ["foo"] for "foo" regexp.
 // It returns [""] for "" regexp.
 // It returns an empty list if it is impossible to extract "or" values from the regexp.
-func GetOrValues(expr string) []string {
+func GetOrValuesPromRegex(expr string) []string {
 	expr = RemoveStartEndAnchors(expr)
-	prefix, tailExpr := Simplify(expr)
+	prefix, tailExpr := SimplifyPromRegex(expr)
 	if tailExpr == "" {
 		return []string{prefix}
 	}
@@ -132,7 +132,7 @@ func isLiteral(sre *syntax.Regexp) bool {
 
 const maxOrValues = 100
 
-// Simplify simplifies the given expr.
+// SimplifyPromRegex simplifies the given Prometheus-like expr.
 //
 // It returns plaintext prefix and the remaining regular expression
 // with dropped '^' and '$' anchors at the beginning and the end
@@ -140,7 +140,7 @@ const maxOrValues = 100
 //
 // The function removes capturing parens from the expr,
 // so it cannot be used when capturing parens are necessary.
-func Simplify(expr string) (string, string) {
+func SimplifyPromRegex(expr string) (string, string) {
 	sre, err := syntax.Parse(expr, syntax.Perl)
 	if err != nil {
 		// Cannot parse the regexp. Return it all as prefix.
