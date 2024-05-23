@@ -13,6 +13,7 @@ import (
 )
 
 // vpsModel struct from API.
+// See: https://eu.api.ovh.com/console/#/vps/%7BserviceName%7D~GET and getVPSDetails
 type vpsModel struct {
 	MaximumAdditionalIP int      `json:"maximumAdditionnalIp"`
 	Offer               string   `json:"offer"`

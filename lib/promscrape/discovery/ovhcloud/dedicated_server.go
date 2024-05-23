@@ -15,6 +15,7 @@ import (
 
 // dedicatedServer struct from API.
 // IP addresses are fetched independently.
+// See: https://eu.api.ovh.com/console/#/dedicated/server/%7BserviceName%7D~GET and getDedicatedServerDetails
 type dedicatedServer struct {
 	State           string `json:"state"`
 	IPs             []netip.Addr

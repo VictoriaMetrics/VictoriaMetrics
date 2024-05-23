@@ -8,6 +8,8 @@ import (
 	"net/netip"
 	"strconv"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 func getAuthHeaders(cfg *apiConfig, headers http.Header, endpoint, path string) (http.Header, error) {
@@ -15,6 +17,7 @@ func getAuthHeaders(cfg *apiConfig, headers http.Header, endpoint, path string) 
 
 	timeDelta, err := getTimeDelta(cfg)
 	if err != nil {
+		logger.Errorf("get time delta for auth headers failed: %w", err)
 		return nil, err
 	}
 
@@ -47,7 +50,7 @@ func getServerTime(cfg *apiConfig) (*time.Time, error) {
 		req.Header = setGeneralHeaders(cfg, req.Header)
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get server time from /auth/time: %w", err)
 	}
 	ts, err := strconv.ParseInt(string(resp), 10, 0)
 	if err != nil {
@@ -57,6 +60,8 @@ func getServerTime(cfg *apiConfig) (*time.Time, error) {
 	return &serverTime, nil
 }
 
+// getTimeDelta calculates the time difference between the host and the remote API.
+// It also saves the time difference for future reference.
 func getTimeDelta(cfg *apiConfig) (time.Duration, error) {
 	d, ok := cfg.timeDelta.Load().(time.Duration)
 	if ok {
@@ -75,7 +80,6 @@ func getTimeDelta(cfg *apiConfig) (time.Duration, error) {
 
 }
 
-// ParseIPList parses ip list as they can have different formats.
 func parseIPList(ipList []string) ([]netip.Addr, error) {
 	var ipAddresses []netip.Addr
 	for _, ip := range ipList {
