@@ -155,7 +155,30 @@ const maxOrValues = 100
 // It returns plaintext pefix and the remaining regular expression
 // without capturing parens.
 func SimplifyRegex(expr string) (string, string) {
-	return simplifyRegex(expr, true)
+	prefix, suffix := simplifyRegex(expr, true)
+	sre := mustParseRegexp(suffix)
+
+	if sre.Op == syntax.OpConcat {
+		subs := sre.Sub
+		if prefix == "" {
+			// Drop .* at the start
+			for len(subs) > 0 && isDotOp(subs[0], syntax.OpStar) {
+				subs = subs[1:]
+			}
+		}
+
+		// Drop .* at the end.
+		for len(subs) > 0 && isDotOp(subs[len(subs)-1], syntax.OpStar) {
+			subs = subs[:len(subs)-1]
+		}
+
+		sre.Sub = subs
+		if len(subs) == 0 {
+			return prefix, ""
+		}
+		suffix = sre.String()
+	}
+	return prefix, suffix
 }
 
 // SimplifyPromRegex simplifies the given Prometheus-like expr.
