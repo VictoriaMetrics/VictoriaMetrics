@@ -20,6 +20,9 @@ type pipeUniq struct {
 	// fields contains field names for returning unique values
 	byFields []string
 
+	// if hitsFieldName isn't empty, then the number of hits per each unique value is stored in this field.
+	hitsFieldName string
+
 	limit uint64
 }
 
@@ -27,6 +30,9 @@ func (pu *pipeUniq) String() string {
 	s := "uniq"
 	if len(pu.byFields) > 0 {
 		s += " by (" + fieldNamesString(pu.byFields) + ")"
+	}
+	if pu.hitsFieldName != "" {
+		s += " hits"
 	}
 	if pu.limit > 0 {
 		s += fmt.Sprintf(" limit %d", pu.limit)
@@ -53,7 +59,6 @@ func (pu *pipeUniq) newPipeProcessor(workersCount int, stopCh <-chan struct{}, c
 		shards[i] = pipeUniqProcessorShard{
 			pipeUniqProcessorShardNopad: pipeUniqProcessorShardNopad{
 				pu:              pu,
-				m:               make(map[string]struct{}),
 				stateSizeBudget: stateSizeBudgetChunk,
 			},
 		}
@@ -98,8 +103,8 @@ type pipeUniqProcessorShardNopad struct {
 	// pu points to the parent pipeUniq.
 	pu *pipeUniq
 
-	// m holds unique rows.
-	m map[string]struct{}
+	// m holds per-row hits.
+	m map[string]*uint64
 
 	// keyBuf is a temporary buffer for building keys for m.
 	keyBuf []byte
@@ -120,6 +125,7 @@ func (shard *pipeUniqProcessorShard) writeBlock(br *blockResult) bool {
 		return false
 	}
 
+	needHits := shard.pu.hitsFieldName != ""
 	byFields := shard.pu.byFields
 	if len(byFields) == 0 {
 		// Take into account all the columns in br.
@@ -132,7 +138,7 @@ func (shard *pipeUniqProcessorShard) writeBlock(br *blockResult) bool {
 				keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(c.name))
 				keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(v))
 			}
-			shard.updateState(bytesutil.ToUnsafeString(keyBuf))
+			shard.updateState(bytesutil.ToUnsafeString(keyBuf), 1)
 		}
 		shard.keyBuf = keyBuf
 		return true
@@ -142,20 +148,34 @@ func (shard *pipeUniqProcessorShard) writeBlock(br *blockResult) bool {
 		c := br.getColumnByName(byFields[0])
 		if c.isConst {
 			v := c.valuesEncoded[0]
-			shard.updateState(v)
+			shard.updateState(v, uint64(len(br.timestamps)))
 			return true
 		}
 		if c.valueType == valueTypeDict {
-			for _, v := range c.dictValues {
-				shard.updateState(v)
+			if needHits {
+				a := encoding.GetUint64s(len(c.dictValues))
+				hits := a.A
+				valuesEncoded := c.getValuesEncoded(br)
+				for _, v := range valuesEncoded {
+					idx := unmarshalUint8(v)
+					hits[idx]++
+				}
+				for i, v := range c.dictValues {
+					shard.updateState(v, hits[i])
+				}
+				encoding.PutUint64s(a)
+			} else {
+				for _, v := range c.dictValues {
+					shard.updateState(v, 0)
+				}
 			}
 			return true
 		}
 
 		values := c.getValues(br)
 		for i, v := range values {
-			if i == 0 || values[i-1] != values[i] {
-				shard.updateState(v)
+			if needHits || i == 0 || values[i-1] != values[i] {
+				shard.updateState(v, 1)
 			}
 		}
 		return true
@@ -174,7 +194,7 @@ func (shard *pipeUniqProcessorShard) writeBlock(br *blockResult) bool {
 	for i := range br.timestamps {
 		seenValue := true
 		for _, values := range columnValues {
-			if i == 0 || values[i-1] != values[i] {
+			if needHits || i == 0 || values[i-1] != values[i] {
 				seenValue = false
 				break
 			}
@@ -187,19 +207,31 @@ func (shard *pipeUniqProcessorShard) writeBlock(br *blockResult) bool {
 		for _, values := range columnValues {
 			keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(values[i]))
 		}
-		shard.updateState(bytesutil.ToUnsafeString(keyBuf))
+		shard.updateState(bytesutil.ToUnsafeString(keyBuf), 1)
 	}
 	shard.keyBuf = keyBuf
 
 	return true
 }
 
-func (shard *pipeUniqProcessorShard) updateState(v string) {
-	if _, ok := shard.m[v]; !ok {
+func (shard *pipeUniqProcessorShard) updateState(v string, hits uint64) {
+	m := shard.getM()
+	pHits, ok := m[v]
+	if !ok {
 		vCopy := strings.Clone(v)
-		shard.m[vCopy] = struct{}{}
-		shard.stateSizeBudget -= len(vCopy) + int(unsafe.Sizeof(vCopy))
+		hits := uint64(0)
+		pHits = &hits
+		m[vCopy] = pHits
+		shard.stateSizeBudget -= len(vCopy) + int(unsafe.Sizeof(vCopy)+unsafe.Sizeof(hits)+unsafe.Sizeof(pHits))
 	}
+	*pHits += hits
+}
+
+func (shard *pipeUniqProcessorShard) getM() map[string]*uint64 {
+	if shard.m == nil {
+		shard.m = make(map[string]*uint64)
+	}
+	return shard.m
 }
 
 func (pup *pipeUniqProcessor) writeBlock(workerID uint, br *blockResult) {
@@ -235,17 +267,26 @@ func (pup *pipeUniqProcessor) flush() error {
 
 	// merge state across shards
 	shards := pup.shards
-	m := shards[0].m
+	m := shards[0].getM()
 	shards = shards[1:]
 	for i := range shards {
 		if needStop(pup.stopCh) {
 			return nil
 		}
 
-		for k := range shards[i].m {
-			m[k] = struct{}{}
+		for k, pHitsSrc := range shards[i].getM() {
+			pHits, ok := m[k]
+			if !ok {
+				m[k] = pHitsSrc
+			} else {
+				*pHits += *pHitsSrc
+			}
 		}
 	}
+
+	// There is little sense in returning partial hits when the limit on the number of unique entries is reached.
+	// It is better from UX experience is to return zero hits instead.
+	resetHits := pup.pu.limit > 0 && uint64(len(m)) >= pup.pu.limit
 
 	// write result
 	wctx := &pipeUniqWriteContext{
@@ -254,8 +295,23 @@ func (pup *pipeUniqProcessor) flush() error {
 	byFields := pup.pu.byFields
 	var rowFields []Field
 
+	addHitsFieldIfNeeded := func(dst []Field, hits uint64) []Field {
+		if pup.pu.hitsFieldName == "" {
+			return dst
+		}
+		if resetHits {
+			hits = 0
+		}
+		hitsStr := string(marshalUint64String(nil, hits))
+		dst = append(dst, Field{
+			Name:  pup.pu.hitsFieldName,
+			Value: hitsStr,
+		})
+		return dst
+	}
+
 	if len(byFields) == 0 {
-		for k := range m {
+		for k, pHits := range m {
 			if needStop(pup.stopCh) {
 				return nil
 			}
@@ -280,11 +336,12 @@ func (pup *pipeUniqProcessor) flush() error {
 					Value: bytesutil.ToUnsafeString(value),
 				})
 			}
+			rowFields = addHitsFieldIfNeeded(rowFields, *pHits)
 			wctx.writeRow(rowFields)
 		}
 	} else if len(byFields) == 1 {
 		fieldName := byFields[0]
-		for k := range m {
+		for k, pHits := range m {
 			if needStop(pup.stopCh) {
 				return nil
 			}
@@ -293,10 +350,11 @@ func (pup *pipeUniqProcessor) flush() error {
 				Name:  fieldName,
 				Value: k,
 			})
+			rowFields = addHitsFieldIfNeeded(rowFields, *pHits)
 			wctx.writeRow(rowFields)
 		}
 	} else {
-		for k := range m {
+		for k, pHits := range m {
 			if needStop(pup.stopCh) {
 				return nil
 			}
@@ -317,6 +375,7 @@ func (pup *pipeUniqProcessor) flush() error {
 				})
 				fieldIdx++
 			}
+			rowFields = addHitsFieldIfNeeded(rowFields, *pHits)
 			wctx.writeRow(rowFields)
 		}
 	}
@@ -416,6 +475,16 @@ func parsePipeUniq(lex *lexer) (*pipeUniq, error) {
 			bfs = nil
 		}
 		pu.byFields = bfs
+	}
+
+	if lex.isKeyword("hits") {
+		lex.nextToken()
+		hitsFieldName := "hits"
+		for slices.Contains(pu.byFields, hitsFieldName) {
+			hitsFieldName += "s"
+		}
+
+		pu.hitsFieldName = hitsFieldName
 	}
 
 	if lex.isKeyword("limit") {

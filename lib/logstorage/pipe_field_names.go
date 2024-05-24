@@ -10,7 +10,8 @@ import (
 //
 // See https://docs.victoriametrics.com/victorialogs/logsql/#field-names-pipe
 type pipeFieldNames struct {
-	// resultName is the name of the column to write results to.
+	// resultName is an optional name of the column to write results to.
+	// By default results are written into 'name' column.
 	resultName string
 
 	// isFirstPipe is set to true if '| field_names' pipe is the first in the query.
@@ -20,7 +21,11 @@ type pipeFieldNames struct {
 }
 
 func (pf *pipeFieldNames) String() string {
-	return "field_names as " + quoteTokenIfNeeded(pf.resultName)
+	s := "field_names"
+	if pf.resultName != "name" {
+		s += " as " + quoteTokenIfNeeded(pf.resultName)
+	}
+	return s
 }
 
 func (pf *pipeFieldNames) updateNeededFields(neededFields, unneededFields fieldsSet) {
@@ -34,13 +39,6 @@ func (pf *pipeFieldNames) updateNeededFields(neededFields, unneededFields fields
 
 func (pf *pipeFieldNames) newPipeProcessor(workersCount int, stopCh <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
 	shards := make([]pipeFieldNamesProcessorShard, workersCount)
-	for i := range shards {
-		shards[i] = pipeFieldNamesProcessorShard{
-			pipeFieldNamesProcessorShardNopad: pipeFieldNamesProcessorShardNopad{
-				m: make(map[string]struct{}),
-			},
-		}
-	}
 
 	pfp := &pipeFieldNamesProcessor{
 		pf:     pf,
@@ -68,8 +66,15 @@ type pipeFieldNamesProcessorShard struct {
 }
 
 type pipeFieldNamesProcessorShardNopad struct {
-	// m holds unique field names.
-	m map[string]struct{}
+	// m holds hits per each field name
+	m map[string]*uint64
+}
+
+func (shard *pipeFieldNamesProcessorShard) getM() map[string]*uint64 {
+	if shard.m == nil {
+		shard.m = make(map[string]*uint64)
+	}
+	return shard.m
 }
 
 func (pfp *pipeFieldNamesProcessor) writeBlock(workerID uint, br *blockResult) {
@@ -78,12 +83,21 @@ func (pfp *pipeFieldNamesProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	shard := &pfp.shards[workerID]
+	m := shard.getM()
+
 	cs := br.getColumns()
 	for _, c := range cs {
-		if _, ok := shard.m[c.name]; !ok {
+		pHits, ok := m[c.name]
+		if !ok {
 			nameCopy := strings.Clone(c.name)
-			shard.m[nameCopy] = struct{}{}
+			hits := uint64(0)
+			pHits = &hits
+			m[nameCopy] = pHits
 		}
+
+		// Assume that the column is set for all the rows in the block.
+		// This is much faster than reading all the column values and counting non-empty rows.
+		*pHits += uint64(len(br.timestamps))
 	}
 }
 
@@ -94,15 +108,25 @@ func (pfp *pipeFieldNamesProcessor) flush() error {
 
 	// merge state across shards
 	shards := pfp.shards
-	m := shards[0].m
+	m := shards[0].getM()
 	shards = shards[1:]
 	for i := range shards {
-		for k := range shards[i].m {
-			m[k] = struct{}{}
+		for name, pHitsSrc := range shards[i].getM() {
+			pHits, ok := m[name]
+			if !ok {
+				m[name] = pHitsSrc
+			} else {
+				*pHits += *pHitsSrc
+			}
 		}
 	}
 	if pfp.pf.isFirstPipe {
-		m["_time"] = struct{}{}
+		pHits := m["_stream"]
+		if pHits == nil {
+			hits := uint64(0)
+			pHits = &hits
+		}
+		m["_time"] = pHits
 	}
 
 	// write result
@@ -110,8 +134,11 @@ func (pfp *pipeFieldNamesProcessor) flush() error {
 		pfp: pfp,
 	}
 	wctx.rcs[0].name = pfp.pf.resultName
-	for k := range m {
-		wctx.writeRow(k)
+	wctx.rcs[1].name = "hits"
+
+	for name, pHits := range m {
+		hits := string(marshalUint64String(nil, *pHits))
+		wctx.writeRow(name, hits)
 	}
 	wctx.flush()
 
@@ -120,7 +147,7 @@ func (pfp *pipeFieldNamesProcessor) flush() error {
 
 type pipeFieldNamesWriteContext struct {
 	pfp *pipeFieldNamesProcessor
-	rcs [1]resultColumn
+	rcs [2]resultColumn
 	br  blockResult
 
 	// rowsCount is the number of rows in the current block
@@ -130,9 +157,10 @@ type pipeFieldNamesWriteContext struct {
 	valuesLen int
 }
 
-func (wctx *pipeFieldNamesWriteContext) writeRow(v string) {
-	wctx.rcs[0].addValue(v)
-	wctx.valuesLen += len(v)
+func (wctx *pipeFieldNamesWriteContext) writeRow(name, hits string) {
+	wctx.rcs[0].addValue(name)
+	wctx.rcs[1].addValue(hits)
+	wctx.valuesLen += len(name) + len(hits)
 	wctx.rowsCount++
 	if wctx.valuesLen >= 1_000_000 {
 		wctx.flush()
@@ -145,11 +173,12 @@ func (wctx *pipeFieldNamesWriteContext) flush() {
 	wctx.valuesLen = 0
 
 	// Flush rcs to ppBase
-	br.setResultColumns(wctx.rcs[:1], wctx.rowsCount)
+	br.setResultColumns(wctx.rcs[:], wctx.rowsCount)
 	wctx.rowsCount = 0
 	wctx.pfp.ppBase.writeBlock(0, br)
 	br.reset()
 	wctx.rcs[0].resetValues()
+	wctx.rcs[1].resetValues()
 }
 
 func parsePipeFieldNames(lex *lexer) (*pipeFieldNames, error) {
@@ -158,12 +187,20 @@ func parsePipeFieldNames(lex *lexer) (*pipeFieldNames, error) {
 	}
 	lex.nextToken()
 
+	resultName := "name"
 	if lex.isKeyword("as") {
 		lex.nextToken()
-	}
-	resultName, err := parseFieldName(lex)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse result name for 'field_names': %w", err)
+		name, err := parseFieldName(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse result name for 'field_names': %w", err)
+		}
+		resultName = name
+	} else if !lex.isKeyword("", "|") {
+		name, err := parseFieldName(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse result name for 'field_names': %w", err)
+		}
+		resultName = name
 	}
 
 	pf := &pipeFieldNames{

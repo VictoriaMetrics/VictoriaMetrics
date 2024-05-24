@@ -2,9 +2,11 @@ package logstorage
 
 import (
 	"fmt"
-	"regexp"
+	"sync"
+	"unicode/utf8"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
 )
 
 // filterRegexp matches the given regexp
@@ -12,15 +14,49 @@ import (
 // Example LogsQL: `fieldName:re("regexp")`
 type filterRegexp struct {
 	fieldName string
-	re        *regexp.Regexp
+	re        *regexutil.Regex
+
+	tokens     []string
+	tokensOnce sync.Once
 }
 
 func (fr *filterRegexp) String() string {
-	return fmt.Sprintf("%s~%q", quoteFieldNameIfNeeded(fr.fieldName), fr.re.String())
+	return fmt.Sprintf("%s~%s", quoteFieldNameIfNeeded(fr.fieldName), quoteTokenIfNeeded(fr.re.String()))
 }
 
 func (fr *filterRegexp) updateNeededFields(neededFields fieldsSet) {
 	neededFields.add(fr.fieldName)
+}
+
+func (fr *filterRegexp) getTokens() []string {
+	fr.tokensOnce.Do(fr.initTokens)
+	return fr.tokens
+}
+
+func (fr *filterRegexp) initTokens() {
+	literals := fr.re.GetLiterals()
+	for i, literal := range literals {
+		literals[i] = skipFirstLastToken(literal)
+	}
+	fr.tokens = tokenizeStrings(nil, literals)
+}
+
+func skipFirstLastToken(s string) string {
+	for {
+		r, runeSize := utf8.DecodeRuneInString(s)
+		if !isTokenRune(r) {
+			break
+		}
+		s = s[runeSize:]
+	}
+	for {
+		r, runeSize := utf8.DecodeLastRuneInString(s)
+		if !isTokenRune(r) {
+			break
+		}
+		s = s[:len(s)-runeSize]
+	}
+	return s
 }
 
 func (fr *filterRegexp) applyToBlockResult(br *blockResult, bm *bitmap) {
@@ -53,31 +89,37 @@ func (fr *filterRegexp) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
+	tokens := fr.getTokens()
+
 	switch ch.valueType {
 	case valueTypeString:
-		matchStringByRegexp(bs, ch, bm, re)
+		matchStringByRegexp(bs, ch, bm, re, tokens)
 	case valueTypeDict:
 		matchValuesDictByRegexp(bs, ch, bm, re)
 	case valueTypeUint8:
-		matchUint8ByRegexp(bs, ch, bm, re)
+		matchUint8ByRegexp(bs, ch, bm, re, tokens)
 	case valueTypeUint16:
-		matchUint16ByRegexp(bs, ch, bm, re)
+		matchUint16ByRegexp(bs, ch, bm, re, tokens)
 	case valueTypeUint32:
-		matchUint32ByRegexp(bs, ch, bm, re)
+		matchUint32ByRegexp(bs, ch, bm, re, tokens)
 	case valueTypeUint64:
-		matchUint64ByRegexp(bs, ch, bm, re)
+		matchUint64ByRegexp(bs, ch, bm, re, tokens)
 	case valueTypeFloat64:
-		matchFloat64ByRegexp(bs, ch, bm, re)
+		matchFloat64ByRegexp(bs, ch, bm, re, tokens)
 	case valueTypeIPv4:
-		matchIPv4ByRegexp(bs, ch, bm, re)
+		matchIPv4ByRegexp(bs, ch, bm, re, tokens)
 	case valueTypeTimestampISO8601:
-		matchTimestampISO8601ByRegexp(bs, ch, bm, re)
+		matchTimestampISO8601ByRegexp(bs, ch, bm, re, tokens)
 	default:
 		logger.Panicf("FATAL: %s: unknown valueType=%d", bs.partPath(), ch.valueType)
 	}
 }
 
-func matchTimestampISO8601ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
+func matchTimestampISO8601ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []string) {
+	if !matchBloomFilterAllTokens(bs, ch, tokens) {
+		bm.resetBits()
+		return
+	}
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toTimestampISO8601String(bs, bb, v)
@@ -86,7 +128,11 @@ func matchTimestampISO8601ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap
 	bbPool.Put(bb)
 }
 
-func matchIPv4ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
+func matchIPv4ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []string) {
+	if !matchBloomFilterAllTokens(bs, ch, tokens) {
+		bm.resetBits()
+		return
+	}
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toIPv4String(bs, bb, v)
@@ -95,7 +141,11 @@ func matchIPv4ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp
 	bbPool.Put(bb)
 }
 
-func matchFloat64ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
+func matchFloat64ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []string) {
+	if !matchBloomFilterAllTokens(bs, ch, tokens) {
+		bm.resetBits()
+		return
+	}
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toFloat64String(bs, bb, v)
@@ -104,7 +154,7 @@ func matchFloat64ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *reg
 	bbPool.Put(bb)
 }
 
-func matchValuesDictByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
+func matchValuesDictByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex) {
 	bb := bbPool.Get()
 	for _, v := range ch.valuesDict.values {
 		c := byte(0)
@@ -117,13 +167,21 @@ func matchValuesDictByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *
 	bbPool.Put(bb)
 }
 
-func matchStringByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
+func matchStringByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []string) {
+	if !matchBloomFilterAllTokens(bs, ch, tokens) {
+		bm.resetBits()
+		return
+	}
 	visitValues(bs, ch, bm, func(v string) bool {
 		return re.MatchString(v)
 	})
 }
 
-func matchUint8ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
+func matchUint8ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []string) {
+	if !matchBloomFilterAllTokens(bs, ch, tokens) {
+		bm.resetBits()
+		return
+	}
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toUint8String(bs, bb, v)
@@ -132,7 +190,11 @@ func matchUint8ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regex
 	bbPool.Put(bb)
 }
 
-func matchUint16ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
+func matchUint16ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []string) {
+	if !matchBloomFilterAllTokens(bs, ch, tokens) {
+		bm.resetBits()
+		return
+	}
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toUint16String(bs, bb, v)
@@ -141,7 +203,11 @@ func matchUint16ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *rege
 	bbPool.Put(bb)
 }
 
-func matchUint32ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
+func matchUint32ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []string) {
+	if !matchBloomFilterAllTokens(bs, ch, tokens) {
+		bm.resetBits()
+		return
+	}
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toUint32String(bs, bb, v)
@@ -150,7 +216,11 @@ func matchUint32ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *rege
 	bbPool.Put(bb)
 }
 
-func matchUint64ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexp.Regexp) {
+func matchUint64ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []string) {
+	if !matchBloomFilterAllTokens(bs, ch, tokens) {
+		bm.resetBits()
+		return
+	}
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toUint64String(bs, bb, v)
