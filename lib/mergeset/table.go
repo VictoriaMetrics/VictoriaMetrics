@@ -276,7 +276,8 @@ func (ris *rawItemsShard) addItems(items [][]byte) ([][]byte, []*inmemoryBlock) 
 		if len(itemPrefix) > 128 {
 			itemPrefix = itemPrefix[:128]
 		}
-		tooLongItemLogger.Errorf("skipping adding too long item to indexdb: len(item)=%d; it souldn't exceed %d bytes; item prefix=%q", len(item), maxInmemoryBlockSize, itemPrefix)
+		tooLongItemsTotal.Add(1)
+		tooLongItemLogger.Errorf("skipping adding too long item to indexdb: len(item)=%d; it shouldn't exceed %d bytes; item prefix=%q", len(item), maxInmemoryBlockSize, itemPrefix)
 	}
 	ris.ibs = ibs
 	ris.mu.Unlock()
@@ -289,6 +290,8 @@ func (ris *rawItemsShard) updateFlushDeadline() {
 }
 
 var tooLongItemLogger = logger.WithThrottler("tooLongItem", 5*time.Second)
+
+var tooLongItemsTotal atomic.Uint64
 
 type partWrapper struct {
 	// refCount is the number of references to partWrapper
@@ -575,6 +578,8 @@ type TableMetrics struct {
 	IndexBlocksCacheMisses       uint64
 
 	PartsRefCount uint64
+
+	TooLongItemsDroppedTotal uint64
 }
 
 // TotalItemsCount returns the total number of items in the table.
@@ -632,6 +637,8 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 	m.IndexBlocksCacheSizeMaxBytes = uint64(idxbCache.SizeMaxBytes())
 	m.IndexBlocksCacheRequests = idxbCache.Requests()
 	m.IndexBlocksCacheMisses = idxbCache.Misses()
+
+	m.TooLongItemsDroppedTotal += tooLongItemsTotal.Load()
 }
 
 // AddItems adds the given items to the tb.

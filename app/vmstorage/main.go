@@ -195,7 +195,8 @@ func SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer, tfss []*stor
 
 // SearchLabelValuesWithFiltersOnTimeRange searches for label values for the given labelName, tfss and tr.
 func SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer, labelName string, tfss []*storage.TagFilters,
-	tr storage.TimeRange, maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
+	tr storage.TimeRange, maxLabelValues, maxMetrics int, deadline uint64,
+) ([]string, error) {
 	WG.Add(1)
 	labelValues, err := Storage.SearchLabelValuesWithFiltersOnTimeRange(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
 	WG.Done()
@@ -492,6 +493,7 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 
 	metrics.WriteCounterUint64(w, `vm_indexdb_items_added_total`, idbm.ItemsAdded)
 	metrics.WriteCounterUint64(w, `vm_indexdb_items_added_size_bytes_total`, idbm.ItemsAddedSizeBytes)
+	metrics.WriteCounterUint64(w, `vm_indexdb_items_dropped_total{reason="too_long_item"}`, idbm.TooLongItemsDroppedTotal)
 
 	metrics.WriteGaugeUint64(w, `vm_pending_rows{type="storage"}`, tm.PendingRows)
 	metrics.WriteGaugeUint64(w, `vm_pending_rows{type="indexdb"}`, idbm.PendingItems)
