@@ -277,7 +277,7 @@ func (ris *rawItemsShard) addItems(items [][]byte) ([][]byte, []*inmemoryBlock) 
 			itemPrefix = itemPrefix[:128]
 		}
 		tooLongItemsTotal.Add(1)
-		tooLongItemLogger.Errorf("skipping adding too long item to indexdb: len(item)=%d; it souldn't exceed %d bytes; item prefix=%q", len(item), maxInmemoryBlockSize, itemPrefix)
+		tooLongItemLogger.Errorf("skipping adding too long item to indexdb: len(item)=%d; it shouldn't exceed %d bytes; item prefix=%q", len(item), maxInmemoryBlockSize, itemPrefix)
 	}
 	ris.ibs = ibs
 	ris.mu.Unlock()

@@ -176,12 +176,3 @@ groups:
             is saturated by more than 90% and vminsert won't be able to keep up.\n
             This usually means that more vminsert or vmstorage nodes must be added to the cluster in order to increase
             the total number of vminsert -> vmstorage links."
-
-      - alert: IndexDBRecordsDrop
-        expr: rate(vm_indexdb_items_dropped_total) > 0
-        labels:
-          severity: critical
-        annotations:
-          summary: "IndexDB dropped items during data ingestion with reason={{ $labels.reason}}."
-          description: "Check settings for `-maxLabelValueLen` and `-maxLabelsPerTimeseries` flags. Total metric size cannot exceed 64kb."
-
