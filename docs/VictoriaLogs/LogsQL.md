@@ -28,7 +28,7 @@ If you aren't familiar with VictoriaLogs, then start with [key concepts docs](ht
 Then follow these docs:
 - [How to run VictoriaLogs](https://docs.victoriametrics.com/victorialogs/quickstart/).
 - [how to ingest data into VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
 
 The simplest LogsQL query is just a [word](#word), which must be found in the [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
 For example, the following query finds all the logs with `error` word:
@@ -2192,21 +2192,21 @@ LogsQL will support the following transformations in the future:
 See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
 
 It is also possible to perform various transformations on the [selected log entries](#filters) at client side
-with `jq`, `awk`, `cut`, etc. Unix commands according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
+with `jq`, `awk`, `cut`, etc. Unix commands according to [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line).
 
 ## Post-filters
 
 Post-filtering of query results can be performed at any step by using [`filter` pipe](#filter-pipe).
 
 It is also possible to perform post-filtering of the [selected log entries](#filters) at client side with `grep` and similar Unix commands
-according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
+according to [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line).
 
 ## Stats
 
 Stats over the selected logs can be calculated via [`stats` pipe](#stats-pipe).
 
 It is also possible to perform stats calculations on the [selected log entries](#filters) at client side with `sort`, `uniq`, etc. Unix commands
-according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
+according to [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line).
 
 ## Sorting
 

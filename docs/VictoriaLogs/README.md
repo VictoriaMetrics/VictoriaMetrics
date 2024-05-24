@@ -19,7 +19,7 @@ VictoriaLogs provides the following key features:
   all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) -
   see [LogsQL docs](https://docs.victoriametrics.com/victorialogs/logsql/).
 - VictoriaLogs can be seamlessly combined with good old Unix tools for log analysis such as `grep`, `less`, `sort`, `jq`, etc.
-  See [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line) for details.
+  See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line) for details.
 - VictoriaLogs capacity and performance scales linearly with the available resources (CPU, RAM, disk IO, disk space).
   It runs smoothly on both Raspberry PI and a server with hundreds of CPU cores and terabytes of RAM.
 - VictoriaLogs can handle up to 30x bigger data volumes than Elasticsearch and Grafana Loki when running on the same hardware.
@@ -28,7 +28,7 @@ VictoriaLogs provides the following key features:
   such as `trace_id`, `user_id` and `ip`.
 - VictoriaLogs supports multitenancy - see [these docs](#multitenancy).
 - VictoriaLogs supports out-of-order logs' ingestion aka backfilling.
-- VictoriaLogs provides a simple web UI for querying logs - see [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#web-ui).
+- VictoriaLogs provides a simple web UI for querying logs - see [these docs](https://docs.victoriametrics.com/victorialogs/querying/#web-ui).
 
 VictoriaLogs is at the Preview stage now. It is ready for evaluation in production and verifying the claims given above.
 It isn't recommended to migrate from existing logging solutions to VictoriaLogs Preview in general cases yet.
@@ -116,7 +116,7 @@ VictoriaLogs automatically creates the `-storageDataPath` directory on the first
 
 VictoriaLogs supports multitenancy. A tenant is identified by `(AccountID, ProjectID)` pair, where `AccountID` and `ProjectID` are arbitrary 32-bit unsigned integers.
 The `AccountID` and `ProjectID` fields can be set during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
-and [querying](https://docs.victoriametrics.com/VictoriaLogs/querying/) via `AccountID` and `ProjectID` request headers.
+and [querying](https://docs.victoriametrics.com/victorialogs/querying/) via `AccountID` and `ProjectID` request headers.
 
 If `AccountID` and/or `ProjectID` request headers aren't set, then the default `0` value is used.
 

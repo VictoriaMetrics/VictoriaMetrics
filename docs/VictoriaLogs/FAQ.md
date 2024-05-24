@@ -37,7 +37,7 @@ VictoriaLogs is optimized specifically for logs. So it provides the following fe
 - Ability to work with hundreds of terabytes of logs on a single node.
 - Very easy to use query language optimized for typical log analysis tasks - [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
 - Fast full-text search over all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) out of the box.
-- Good integration with traditional command-line tools for log analysis. See [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
+- Good integration with traditional command-line tools for log analysis. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line).
 
 
 ## What is the difference between VictoriaLogs and Grafana Loki?

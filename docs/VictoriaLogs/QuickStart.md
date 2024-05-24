@@ -40,7 +40,7 @@ tar xzf victoria-logs-linux-amd64-v0.10.0-victorialogs.tar.gz
 ```
 
 VictoriaLogs is ready for [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
-and [querying](https://docs.victoriametrics.com/VictoriaLogs/querying/) at the TCP port `9428` now!
+and [querying](https://docs.victoriametrics.com/victorialogs/querying/) at the TCP port `9428` now!
 It has no any external dependencies, so it may run in various environments without additional setup and configuration.
 VictoriaLogs automatically adapts to the available CPU and RAM resources. It also automatically setups and creates
 the needed indexes during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
@@ -49,7 +49,7 @@ See also:
 
 - [How to configure VictoriaLogs](#how-to-configure-victorialogs)
 - [How to ingest logs into VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/)
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/)
 
 
 ### Docker image
@@ -66,7 +66,7 @@ See also:
 
 - [How to configure VictoriaLogs](#how-to-configure-victorialogs)
 - [How to ingest logs into VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/)
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/)
 
 ### Helm charts
 
@@ -97,7 +97,7 @@ Follow the following steps in order to build VictoriaLogs from source code:
   ```
 
 VictoriaLogs is ready for [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
-and [querying](https://docs.victoriametrics.com/VictoriaLogs/querying/) at the TCP port `9428` now!
+and [querying](https://docs.victoriametrics.com/victorialogs/querying/) at the TCP port `9428` now!
 It has no any external dependencies, so it may run in various environments without additional setup and configuration.
 VictoriaLogs automatically adapts to the available CPU and RAM resources. It also automatically setups and creates
 the needed indexes during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
@@ -106,7 +106,7 @@ See also:
 
 - [How to configure VictoriaLogs](#how-to-configure-victorialogs)
 - [How to ingest logs into VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/)
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/)
 
 
 ## How to configure VictoriaLogs
@@ -134,7 +134,7 @@ It is recommended setting up monitoring of VictoriaLogs according to [these docs
 See also:
 
 - [How to ingest logs into VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/)
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/)
 
 ## Docker demos
 

@@ -96,6 +96,6 @@ For example, the following `fluentbit.conf` config instructs Fluentbit to store 
 See also:
 
 - [Data ingestion troubleshooting](https://docs.victoriametrics.com/victorialogs/data-ingestion/#troubleshooting).
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
 - [Fluentbit HTTP output config docs](https://docs.fluentbit.io/manual/pipeline/outputs/http).
 - [Docker-compose demo for Fluentbit integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/fluentbit-docker).

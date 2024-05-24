@@ -22,8 +22,8 @@ It isn't recommended migrating from existing solutions to VictoriaLogs Preview y
 The following functionality is available in VictoriaLogs Preview:
 
 - [Data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
-- [Querying](https://docs.victoriametrics.com/VictoriaLogs/querying/).
-- [Querying via command-line](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
+- [Querying](https://docs.victoriametrics.com/victorialogs/querying/).
+- [Querying via command-line](https://docs.victoriametrics.com/victorialogs/querying/#command-line).
 
 See [these docs](https://docs.victoriametrics.com/VictoriaLogs/) for details.
 
@@ -39,7 +39,7 @@ The following functionality is planned in the future versions of VictoriaLogs:
   - [Stream context](https://docs.victoriametrics.com/victorialogs/logsql/#stream-context).
 - Live tailing for [LogsQL filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters) aka `tail -f`.
 - Web UI with the following abilities:
-  - Explore the ingested logs ([partially done](https://docs.victoriametrics.com/VictoriaLogs/querying/#web-ui)).
+  - Explore the ingested logs ([partially done](https://docs.victoriametrics.com/victorialogs/querying/#web-ui)).
   - Build graphs over time for the ingested logs via [hits HTTP API](https://docs.victoriametrics.com/victorialogs/querying/#querying-hits-stats).
 - Integration with Grafana ([partially done](https://github.com/VictoriaMetrics/victorialogs-datasource)).
 - Ability to make instant snapshots and backups in the way [similar to VictoriaMetrics](https://docs.victoriametrics.com/#how-to-work-with-snapshots).

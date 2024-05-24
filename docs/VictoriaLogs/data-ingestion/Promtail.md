@@ -64,6 +64,6 @@ clients:
     tenant_id: "12:34"
 ```
 
-The ingested log entries can be queried according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
+The ingested log entries can be queried according to [these docs](https://docs.victoriametrics.com/victorialogs/querying/).
 
 See also [data ingestion troubleshooting](https://docs.victoriametrics.com/victorialogs/data-ingestion/#troubleshooting) docs.

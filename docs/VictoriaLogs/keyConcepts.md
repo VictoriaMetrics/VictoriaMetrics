@@ -200,7 +200,7 @@ Never associate high-cardinality fields with [log streams](#stream-fields), sinc
 to the following issues:
 
 - Performance degradation during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
-  and [querying](https://docs.victoriametrics.com/VictoriaLogs/querying/)
+  and [querying](https://docs.victoriametrics.com/victorialogs/querying/)
 - Increased memory usage
 - Increased CPU usage
 - Increased disk space usage

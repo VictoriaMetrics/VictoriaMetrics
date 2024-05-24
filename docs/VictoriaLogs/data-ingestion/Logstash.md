@@ -110,6 +110,6 @@ output {
 See also:
 
 - [Data ingestion troubleshooting](https://docs.victoriametrics.com/victorialogs/data-ingestion/#troubleshooting).
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
 - [Logstash `output.elasticsearch` docs](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html).
 - [Docker-compose demo for Logstash integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/logstash).

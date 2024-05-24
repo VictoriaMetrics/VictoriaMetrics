@@ -22,7 +22,7 @@ aliases:
 - Vector. See [how to setup Vector for sending logs to VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/Vector.html).
 - Promtail (aka Grafana Loki). See [how to setup Promtail for sending logs to VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/Promtail.html).
 
-The ingested logs can be queried according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
+The ingested logs can be queried according to [these docs](https://docs.victoriametrics.com/victorialogs/querying/).
 
 See also:
 
@@ -67,7 +67,7 @@ which must be present in the ingested log messages.
 
 The API accepts various http parameters, which can change the data ingestion behavior - [these docs](#http-parameters) for details.
 
-The following command verifies that the data has been successfully ingested to VictoriaLogs by [querying](https://docs.victoriametrics.com/VictoriaLogs/querying/) it:
+The following command verifies that the data has been successfully ingested to VictoriaLogs by [querying](https://docs.victoriametrics.com/victorialogs/querying/) it:
 
 ```sh
 curl http://localhost:9428/select/logsql/query -d 'query=host.name:host123'
@@ -88,7 +88,7 @@ See also:
 
 - [How to debug data ingestion](#troubleshooting).
 - [HTTP parameters, which can be passed to the API](#http-parameters).
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
 
 ### JSON stream API
 
@@ -117,7 +117,7 @@ which must be present in the ingested log messages.
 
 The API accepts various http parameters, which can change the data ingestion behavior - [these docs](#http-parameters) for details.
 
-The following command verifies that the data has been successfully ingested into VictoriaLogs by [querying](https://docs.victoriametrics.com/VictoriaLogs/querying/) it:
+The following command verifies that the data has been successfully ingested into VictoriaLogs by [querying](https://docs.victoriametrics.com/victorialogs/querying/) it:
 
 ```sh
 curl http://localhost:9428/select/logsql/query -d 'query=log.level:*'
@@ -140,7 +140,7 @@ See also:
 
 - [How to debug data ingestion](#troubleshooting).
 - [HTTP parameters, which can be passed to the API](#http-parameters).
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
 
 ### Loki JSON API
 
@@ -158,7 +158,7 @@ It is possible to push thousands of log streams and log lines in a single reques
 The API accepts various http parameters, which can change the data ingestion behavior - [these docs](#http-parameters) for details.
 There is no need in specifying `_msg_field` and `_time_field` query args, since VictoriaLogs automatically extracts log message and timestamp from the ingested Loki data.
 
-The following command verifies that the data has been successfully ingested into VictoriaLogs by [querying](https://docs.victoriametrics.com/VictoriaLogs/querying/) it:
+The following command verifies that the data has been successfully ingested into VictoriaLogs by [querying](https://docs.victoriametrics.com/victorialogs/querying/) it:
 
 ```sh
 curl http://localhost:9428/select/logsql/query -d 'query=fizzbuzz'
@@ -179,7 +179,7 @@ See also:
 
 - [How to debug data ingestion](#troubleshooting).
 - [HTTP parameters, which can be passed to the API](#http-parameters).
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
 
 ### HTTP parameters
 
@@ -221,9 +221,9 @@ The following command can be used for verifying whether the data is successfully
 curl http://localhost:9428/select/logsql/query -d 'query=*' | head
 ```
 
-This command selects all the data ingested into VictoriaLogs via [HTTP query API](https://docs.victoriametrics.com/VictoriaLogs/querying/#http-api)
+This command selects all the data ingested into VictoriaLogs via [HTTP query API](https://docs.victoriametrics.com/victorialogs/querying/#http-api)
 using [any value filter](https://docs.victoriametrics.com/victorialogs/logsql/#any-value-filter),
-while `head` cancels query execution after reading the first 10 log lines. See [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line)
+while `head` cancels query execution after reading the first 10 log lines. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line)
 for more details on how `head` integrates with VictoriaLogs.
 
 The response by default contains all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
