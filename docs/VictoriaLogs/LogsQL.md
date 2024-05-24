@@ -1081,6 +1081,7 @@ LogsQL supports the following pipes:
 - [`limit`](#limit-pipe) limits the number selected logs.
 - [`offset`](#offset-pipe) skips the given number of selected logs.
 - [`rename`](#rename-pipe) renames [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`replace`](#replace-pipe) replaces substrings in the specified [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`sort`](#sort-pipe) sorts logs by the given [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`stats`](#stats-pipe) calculates various stats over the selected logs.
 - [`uniq`](#uniq-pipe) returns unique log entires.
@@ -1365,6 +1366,7 @@ _time:5m | format "<field1><field2>" as foo skip_empty_results
 See also:
 
 - [Conditional format](#conditional-format)
+- [`replace` pipe](#replace-pipe)
 - [`extract` pipe](#extract-pipe)
 
 
@@ -1441,6 +1443,49 @@ See also:
 - [`copy` pipe](#copy-pipe)
 - [`fields` pipe](#fields-pipe)
 - [`delete` pipe](#delete-pipe)
+
+### replace pipe
+
+`| replace ("old", "new") at field` [pipe](#pipes) replaces all the occurences of the `old` substring with the `new` substring
+in the given [`field`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+
+For example, the following query replaces all the `secret-password` substrings with `***` in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+for logs over the last 5 minutes:
+
+```logsql
+_time:5m | replace ("secret-password", "***") at _msg
+```
+
+The `at _msg` part can be omitted if the replacement occurs in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+The following query is equivalent to the previous one:
+
+```logsql
+_time:5m | replace ("secret-password", "***")
+```
+
+The number of replacements can be limited with `limit N` at the end of `replace`. For example, the following query replaces only the first `foo` substring with `bar`
+at the [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) `baz`:
+
+```logsql
+_time:5m | replace ('foo', 'bar') at baz limit 1
+```
+
+See also:
+
+- [Conditional replace](#conditional-replace)
+- [`format` pipe](#format-pipe)
+- [`extract` pipe](#extract-pipe)
+
+#### Conditional replace
+
+If the [`replace` pipe](#replace-pipe) musn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
+then add `if (<filters>)` after `replace`.
+The `<filters>` can contain arbitrary [filters](#filters). For example, the following query replaces `secret` with `***` in the `password` field
+only if `user_type` field equals to `admin`:
+
+```logsql
+_time:5m | replace if (user_type:=admin) replace ("secret", "***") at password
+```
 
 ### sort pipe
 
@@ -2213,6 +2258,7 @@ LogsQL supports the following transformations on the log entries selected with [
 - Unpacking JSON fields from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). See [these docs](#unpack_json-pipe).
 - Unpacking [logfmt](https://brandur.org/logfmt) fields from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). See [these docs](#unpack_logfmt-pipe).
 - Creating a new field from existing [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) according to the provided format. See [these docs](#format-pipe).
+- Replacing substrings in the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). See [these docs](#replace-pipe).
 
 LogsQL will support the following transformations in the future:
 
