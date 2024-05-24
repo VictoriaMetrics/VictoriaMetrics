@@ -146,7 +146,7 @@ func ProcessFieldNamesRequest(ctx context.Context, w http.ResponseWriter, r *htt
 
 	// Write results
 	w.Header().Set("Content-Type", "application/json")
-	WriteFieldNamesResponse(w, fieldNames)
+	WriteValuesWithHitsJSON(w, fieldNames)
 }
 
 // ProcessFieldValuesRequest handles /select/logsql/field_values request.
@@ -186,7 +186,7 @@ func ProcessFieldValuesRequest(ctx context.Context, w http.ResponseWriter, r *ht
 
 	// Write results
 	w.Header().Set("Content-Type", "application/json")
-	WriteFieldValuesResponse(w, values)
+	WriteValuesWithHitsJSON(w, values)
 }
 
 // ProcessStreamLabelNamesRequest processes /select/logsql/stream_label_names request.
@@ -208,7 +208,7 @@ func ProcessStreamLabelNamesRequest(ctx context.Context, w http.ResponseWriter, 
 
 	// Write results
 	w.Header().Set("Content-Type", "application/json")
-	WriteStreamLabelNamesResponse(w, names)
+	WriteValuesWithHitsJSON(w, names)
 }
 
 // ProcessStreamLabelValuesRequest processes /select/logsql/stream_label_values request.
@@ -247,7 +247,7 @@ func ProcessStreamLabelValuesRequest(ctx context.Context, w http.ResponseWriter,
 
 	// Write results
 	w.Header().Set("Content-Type", "application/json")
-	WriteStreamLabelValuesResponse(w, values)
+	WriteValuesWithHitsJSON(w, values)
 }
 
 // ProcessStreamsRequest processes /select/logsql/streams request.
@@ -279,7 +279,7 @@ func ProcessStreamsRequest(ctx context.Context, w http.ResponseWriter, r *http.R
 
 	// Write results
 	w.Header().Set("Content-Type", "application/json")
-	WriteStreamsResponse(w, streams)
+	WriteValuesWithHitsJSON(w, streams)
 }
 
 // ProcessQueryRequest handles /select/logsql/query request.

@@ -112,33 +112,33 @@ func RunQuery(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorag
 }
 
 // GetFieldNames executes q and returns field names seen in results.
-func GetFieldNames(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query) ([]string, error) {
+func GetFieldNames(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query) ([]logstorage.ValueWithHits, error) {
 	return strg.GetFieldNames(ctx, tenantIDs, q)
 }
 
 // GetFieldValues executes q and returns unique values for the fieldName seen in results.
 //
 // If limit > 0, then up to limit unique values are returned.
-func GetFieldValues(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, fieldName string, limit uint64) ([]string, error) {
+func GetFieldValues(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, fieldName string, limit uint64) ([]logstorage.ValueWithHits, error) {
 	return strg.GetFieldValues(ctx, tenantIDs, q, fieldName, limit)
 }
 
 // GetStreamLabelNames executes q and returns stream labels names seen in results.
-func GetStreamLabelNames(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query) ([]string, error) {
+func GetStreamLabelNames(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query) ([]logstorage.ValueWithHits, error) {
 	return strg.GetStreamLabelNames(ctx, tenantIDs, q)
 }
 
 // GetStreamLabelValues executes q and returns stream label values for the given labelName seen in results.
 //
 // If limit > 0, then up to limit unique stream label values are returned.
-func GetStreamLabelValues(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, labelName string, limit uint64) ([]string, error) {
+func GetStreamLabelValues(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, labelName string, limit uint64) ([]logstorage.ValueWithHits, error) {
 	return strg.GetStreamLabelValues(ctx, tenantIDs, q, labelName, limit)
 }
 
 // GetStreams executes q and returns streams seen in query results.
 //
 // If limit > 0, then up to limit unique streams are returned.
-func GetStreams(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, limit uint64) ([]string, error) {
+func GetStreams(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, limit uint64) ([]logstorage.ValueWithHits, error) {
 	return strg.GetStreams(ctx, tenantIDs, q, limit)
 }
 

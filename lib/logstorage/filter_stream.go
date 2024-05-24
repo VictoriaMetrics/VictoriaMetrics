@@ -22,11 +22,7 @@ type filterStream struct {
 }
 
 func (fs *filterStream) String() string {
-	s := fs.f.String()
-	if s == "{}" {
-		return ""
-	}
-	return "_stream:" + s
+	return "_stream:" + fs.f.String()
 }
 
 func (fs *filterStream) updateNeededFields(neededFields fieldsSet) {
