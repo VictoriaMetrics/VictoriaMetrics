@@ -2173,7 +2173,7 @@ See also:
 LogsQL will support the ability to select the given number of surrounding log lines for the selected log lines
 on a [per-stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) basis.
 
-See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
+See the [Roadmap](https://docs.victoriametrics.com/victorialogs/roadmap/) for details.
 
 ## Transformations
 
@@ -2189,7 +2189,7 @@ LogsQL will support the following transformations in the future:
 
 - Creating a new field according to math calculations over existing [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
-See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
+See the [Roadmap](https://docs.victoriametrics.com/victorialogs/roadmap/) for details.
 
 It is also possible to perform various transformations on the [selected log entries](#filters) at client side
 with `jq`, `awk`, `cut`, etc. Unix commands according to [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line).

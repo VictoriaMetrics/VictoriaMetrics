@@ -32,7 +32,7 @@ VictoriaLogs provides the following key features:
 
 VictoriaLogs is at the Preview stage now. It is ready for evaluation in production and verifying the claims given above.
 It isn't recommended to migrate from existing logging solutions to VictoriaLogs Preview in general cases yet.
-See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
+See the [Roadmap](https://docs.victoriametrics.com/victorialogs/roadmap/) for details.
 
 If you have questions about VictoriaLogs, then read [this FAQ](https://docs.victoriametrics.com/VictoriaLogs/FAQ.html).
 Also feel free asking any questions at [VictoriaMetrics community Slack chat](https://victoriametrics.slack.com/), 
