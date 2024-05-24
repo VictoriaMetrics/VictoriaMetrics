@@ -14,6 +14,7 @@ type pipeExtract struct {
 	patternStr string
 
 	keepOriginalFields bool
+	skipEmptyResults   bool
 
 	// iff is an optional filter for skipping the extract func
 	iff *ifFilter
@@ -31,6 +32,9 @@ func (pe *pipeExtract) String() string {
 	if pe.keepOriginalFields {
 		s += " keep_original_fields"
 	}
+	if pe.skipEmptyResults {
+		s += " skip_empty_results"
+	}
 	return s
 }
 
@@ -43,7 +47,7 @@ func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet
 				if !unneededFieldsOrig.contains(step.field) {
 					needFromField = true
 				}
-				if !pe.keepOriginalFields {
+				if !pe.keepOriginalFields && !pe.skipEmptyResults {
 					unneededFields.add(step.field)
 				}
 			}
@@ -62,7 +66,7 @@ func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet
 		for _, step := range pe.ptn.steps {
 			if step.field != "" && neededFieldsOrig.contains(step.field) {
 				needFromField = true
-				if !pe.keepOriginalFields {
+				if !pe.keepOriginalFields && !pe.skipEmptyResults {
 					neededFields.remove(step.field)
 				}
 			}
@@ -90,7 +94,7 @@ func (pe *pipeExtract) newPipeProcessor(workersCount int, _ <-chan struct{}, _ f
 		}
 	}
 
-	return newPipeUnpackProcessor(workersCount, unpackFunc, ppBase, pe.fromField, "", pe.keepOriginalFields, pe.iff)
+	return newPipeUnpackProcessor(workersCount, unpackFunc, ppBase, pe.fromField, "", pe.keepOriginalFields, pe.skipEmptyResults, pe.iff)
 }
 
 func parsePipeExtract(lex *lexer) (*pipeExtract, error) {
@@ -131,9 +135,14 @@ func parsePipeExtract(lex *lexer) (*pipeExtract, error) {
 	}
 
 	keepOriginalFields := false
-	if lex.isKeyword("keep_original_fields") {
+	skipEmptyResults := false
+	switch {
+	case lex.isKeyword("keep_original_fields"):
 		lex.nextToken()
 		keepOriginalFields = true
+	case lex.isKeyword("skip_empty_results"):
+		lex.nextToken()
+		skipEmptyResults = true
 	}
 
 	pe := &pipeExtract{
@@ -141,6 +150,7 @@ func parsePipeExtract(lex *lexer) (*pipeExtract, error) {
 		ptn:                ptn,
 		patternStr:         patternStr,
 		keepOriginalFields: keepOriginalFields,
+		skipEmptyResults:   skipEmptyResults,
 		iff:                iff,
 	}
 

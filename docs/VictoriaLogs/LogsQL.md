@@ -1162,11 +1162,19 @@ For example, the following query extracts `ip` from the corresponding JSON field
 _time:5m | extract '"ip":"<ip>"'
 ```
 
-Add `keep_original_fields` to the end of `extract ...` when the original non-empty values of the named fields mentioned in the pattern must be preserved
+Add `keep_original_fields` to the end of `extract ...` when the original non-empty values of the fields mentioned in the pattern must be preserved
 instead of overwriting it with the extracted values. For example, the following query extracts `<ip>` only if the original value for `ip` field is missing or is empty:
 
 ```logsql
 _time:5m | extract 'ip=<ip> ' keep_original_fields
+```
+
+By default `extract` writes empty matching fields to the output, which may overwrite existing values. Add `skip_empty_results` to the end of `extract ...`
+in order to prevent from overwriting the existing values for the corresponding fields with empty values.
+For example, the following query preserves the original `ip` field value if `foo` field doesn't contain the matching ip:
+
+```logsql
+_time:5m | extract 'ip=<ip> ' from foo skip_empty_results
 ```
 
 See also:
@@ -1345,6 +1353,13 @@ instead of overwriting it with the `format` results. For example, the following 
 
 ```logsql
 _time:5m | format 'some_text' as foo keep_original_fields
+```
+
+Add `skip_empty_results` to the end of `format ...` if emty results shouldn't be written to the output. For example, the following query adds formatted result to `foo` field
+when at least `field1` or `field2` aren't empty, while preserving the original `foo` value:
+
+```logsql
+_time:5m | format "<field1><field2>" as foo skip_empty_results
 ```
 
 See also:
@@ -1713,11 +1728,18 @@ fields from JSON value stored in `my_json` [log field](https://docs.victoriametr
 _time:5m | unpack_json from my_json fields (foo, bar)
 ```
 
-If it is needed to preserve the original non-empty values of the unpacked fields, then add `keep_original_fields` to the end of `unpack_json ...`. For example,
-the following query preserves the original non-empty values for `ip` and `host` fields instead of overwriting it with the unpacked values:
+If it is needed to preserve the original non-empty field values, then add `keep_original_fields` to the end of `unpack_json ...`. For example,
+the following query preserves the original non-empty values for `ip` and `host` fields instead of overwriting them with the unpacked values:
 
 ```logsql
 _time:5m | unpack_json from foo fields (ip, host) keep_original_fields
+```
+
+Add `skip_empty_results` to the end of `unpack_json ...` if the original field values must be preserved when the corresponding unpacked values are empty.
+For example, the following query preserves the original `ip` and `host` field values for empty unpacked values:
+
+```logsql
+_time:5m | unpack_json fields (ip, host) skip_empty_results
 ```
 
 Performance tip: if you need extracting a single field from long JSON, it is faster to use [`extract` pipe](#extract-pipe). For example, the following query extracts `"ip"` field from JSON
@@ -1782,11 +1804,18 @@ from logfmt stored in the `my_logfmt` field:
 _time:5m | unpack_logfmt from my_logfmt fields (foo, bar)
 ```
 
-If it is needed to preserve the original non-empty values of the unpacked fields, then add `keep_original_fields` to the end of `unpack_logfmt ...`. For example,
-the following query preserves the original non-empty values for `ip` and `host` fields instead of overwriting it with the unpacked values:
+If it is needed to preserve the original non-empty field values, then add `keep_original_fields` to the end of `unpack_logfmt ...`. For example,
+the following query preserves the original non-empty values for `ip` and `host` fields instead of overwriting them with the unpacked values:
 
 ```logsql
 _time:5m | unpack_logfmt from foo fields (ip, host) keep_original_fields
+```
+
+Add `skip_empty_results` to the end of `unpack_logfmt ...` if the original field values must be preserved when the corresponding unpacked values are empty.
+For example, the following query preserves the original `ip` and `host` field values for empty unpacked values:
+
+```logsql
+_time:5m | unpack_logfmt fields (ip, host) skip_empty_results
 ```
 
 Performance tip: if you need extracting a single field from long [logfmt](https://brandur.org/logfmt) line, it is faster to use [`extract` pipe](#extract-pipe).

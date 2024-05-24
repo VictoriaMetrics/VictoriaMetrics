@@ -23,6 +23,7 @@ type pipeUnpackJSON struct {
 	resultPrefix string
 
 	keepOriginalFields bool
+	skipEmptyResults   bool
 
 	// iff is an optional filter for skipping unpacking json
 	iff *ifFilter
@@ -45,14 +46,17 @@ func (pu *pipeUnpackJSON) String() string {
 	if pu.keepOriginalFields {
 		s += " keep_original_fields"
 	}
+	if pu.skipEmptyResults {
+		s += " skip_empty_results"
+	}
 	return s
 }
 
 func (pu *pipeUnpackJSON) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	updateNeededFieldsForUnpackPipe(pu.fromField, pu.fields, pu.keepOriginalFields, pu.iff, neededFields, unneededFields)
+	updateNeededFieldsForUnpackPipe(pu.fromField, pu.fields, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff, neededFields, unneededFields)
 }
 
-func updateNeededFieldsForUnpackPipe(fromField string, outFields []string, keepOriginalFields bool, iff *ifFilter, neededFields, unneededFields fieldsSet) {
+func updateNeededFieldsForUnpackPipe(fromField string, outFields []string, keepOriginalFields, skipEmptyResults bool, iff *ifFilter, neededFields, unneededFields fieldsSet) {
 	if neededFields.contains("*") {
 		unneededFieldsOrig := unneededFields.clone()
 		unneededFieldsCount := 0
@@ -61,7 +65,7 @@ func updateNeededFieldsForUnpackPipe(fromField string, outFields []string, keepO
 				if unneededFieldsOrig.contains(f) {
 					unneededFieldsCount++
 				}
-				if !keepOriginalFields {
+				if !keepOriginalFields && !skipEmptyResults {
 					unneededFields.add(f)
 				}
 			}
@@ -81,7 +85,7 @@ func updateNeededFieldsForUnpackPipe(fromField string, outFields []string, keepO
 				if neededFieldsOrig.contains(f) {
 					needFromField = true
 				}
-				if !keepOriginalFields {
+				if !keepOriginalFields && !skipEmptyResults {
 					neededFields.remove(f)
 				}
 			}
@@ -130,7 +134,7 @@ func (pu *pipeUnpackJSON) newPipeProcessor(workersCount int, _ <-chan struct{}, 
 		}
 		PutJSONParser(p)
 	}
-	return newPipeUnpackProcessor(workersCount, unpackJSON, ppBase, pu.fromField, pu.resultPrefix, pu.keepOriginalFields, pu.iff)
+	return newPipeUnpackProcessor(workersCount, unpackJSON, ppBase, pu.fromField, pu.resultPrefix, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff)
 }
 
 func parsePipeUnpackJSON(lex *lexer) (*pipeUnpackJSON, error) {
@@ -182,9 +186,14 @@ func parsePipeUnpackJSON(lex *lexer) (*pipeUnpackJSON, error) {
 	}
 
 	keepOriginalFields := false
-	if lex.isKeyword("keep_original_fields") {
+	skipEmptyResults := false
+	switch {
+	case lex.isKeyword("keep_original_fields"):
 		lex.nextToken()
 		keepOriginalFields = true
+	case lex.isKeyword("skip_empty_results"):
+		lex.nextToken()
+		skipEmptyResults = true
 	}
 
 	pu := &pipeUnpackJSON{
@@ -192,6 +201,7 @@ func parsePipeUnpackJSON(lex *lexer) (*pipeUnpackJSON, error) {
 		fields:             fields,
 		resultPrefix:       resultPrefix,
 		keepOriginalFields: keepOriginalFields,
+		skipEmptyResults:   skipEmptyResults,
 		iff:                iff,
 	}
 

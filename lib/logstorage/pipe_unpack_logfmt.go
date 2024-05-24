@@ -21,6 +21,7 @@ type pipeUnpackLogfmt struct {
 	resultPrefix string
 
 	keepOriginalFields bool
+	skipEmptyResults   bool
 
 	// iff is an optional filter for skipping unpacking logfmt
 	iff *ifFilter
@@ -43,11 +44,14 @@ func (pu *pipeUnpackLogfmt) String() string {
 	if pu.keepOriginalFields {
 		s += " keep_original_fields"
 	}
+	if pu.skipEmptyResults {
+		s += " skip_empty_results"
+	}
 	return s
 }
 
 func (pu *pipeUnpackLogfmt) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	updateNeededFieldsForUnpackPipe(pu.fromField, pu.fields, pu.keepOriginalFields, pu.iff, neededFields, unneededFields)
+	updateNeededFieldsForUnpackPipe(pu.fromField, pu.fields, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff, neededFields, unneededFields)
 }
 
 func (pu *pipeUnpackLogfmt) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
@@ -78,7 +82,7 @@ func (pu *pipeUnpackLogfmt) newPipeProcessor(workersCount int, _ <-chan struct{}
 		putLogfmtParser(p)
 	}
 
-	return newPipeUnpackProcessor(workersCount, unpackLogfmt, ppBase, pu.fromField, pu.resultPrefix, pu.keepOriginalFields, pu.iff)
+	return newPipeUnpackProcessor(workersCount, unpackLogfmt, ppBase, pu.fromField, pu.resultPrefix, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff)
 
 }
 
@@ -131,9 +135,14 @@ func parsePipeUnpackLogfmt(lex *lexer) (*pipeUnpackLogfmt, error) {
 	}
 
 	keepOriginalFields := false
-	if lex.isKeyword("keep_original_fields") {
+	skipEmptyResults := false
+	switch {
+	case lex.isKeyword("keep_original_fields"):
 		lex.nextToken()
 		keepOriginalFields = true
+	case lex.isKeyword("skip_empty_results"):
+		lex.nextToken()
+		skipEmptyResults = true
 	}
 
 	pu := &pipeUnpackLogfmt{
@@ -141,6 +150,7 @@ func parsePipeUnpackLogfmt(lex *lexer) (*pipeUnpackLogfmt, error) {
 		fields:             fields,
 		resultPrefix:       resultPrefix,
 		keepOriginalFields: keepOriginalFields,
+		skipEmptyResults:   skipEmptyResults,
 		iff:                iff,
 	}
 

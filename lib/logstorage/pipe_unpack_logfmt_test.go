@@ -11,25 +11,32 @@ func TestParsePipeUnpackLogfmtSuccess(t *testing.T) {
 	}
 
 	f(`unpack_logfmt`)
+	f(`unpack_logfmt skip_empty_results`)
 	f(`unpack_logfmt keep_original_fields`)
 	f(`unpack_logfmt fields (a, b)`)
+	f(`unpack_logfmt fields (a, b) skip_empty_results`)
 	f(`unpack_logfmt fields (a, b) keep_original_fields`)
 	f(`unpack_logfmt if (a:x)`)
+	f(`unpack_logfmt if (a:x) skip_empty_results`)
 	f(`unpack_logfmt if (a:x) keep_original_fields`)
 	f(`unpack_logfmt if (a:x) fields (a, b)`)
 	f(`unpack_logfmt from x`)
+	f(`unpack_logfmt from x skip_empty_results`)
 	f(`unpack_logfmt from x keep_original_fields`)
 	f(`unpack_logfmt from x fields (a, b)`)
+	f(`unpack_logfmt from x fields (a, b) skip_empty_results`)
 	f(`unpack_logfmt from x fields (a, b) keep_original_fields`)
 	f(`unpack_logfmt if (a:x) from x`)
 	f(`unpack_logfmt if (a:x) from x fields (a, b)`)
 	f(`unpack_logfmt from x result_prefix abc`)
 	f(`unpack_logfmt if (a:x) from x result_prefix abc`)
 	f(`unpack_logfmt if (a:x) from x fields (a, b) result_prefix abc`)
+	f(`unpack_logfmt if (a:x) from x fields (a, b) result_prefix abc skip_empty_results`)
 	f(`unpack_logfmt if (a:x) from x fields (a, b) result_prefix abc keep_original_fields`)
 	f(`unpack_logfmt result_prefix abc`)
 	f(`unpack_logfmt if (a:x) result_prefix abc`)
 	f(`unpack_logfmt if (a:x) fields (a, b) result_prefix abc`)
+	f(`unpack_logfmt if (a:x) fields (a, b) result_prefix abc skip_empty_results`)
 	f(`unpack_logfmt if (a:x) fields (a, b) result_prefix abc keep_original_fields`)
 }
 
@@ -72,6 +79,38 @@ func TestPipeUnpackLogfmt(t *testing.T) {
 			{"foo", "bar"},
 			{"a", "b"},
 			{"b", ""},
+		},
+	})
+
+	// no skip empty results
+	f("unpack_logfmt", [][]Field{
+		{
+			{"_msg", `foo= baz="x y=z" a=b`},
+			{"foo", "321"},
+			{"baz", "abcdef"},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `foo= baz="x y=z" a=b`},
+			{"foo", ""},
+			{"baz", "x y=z"},
+			{"a", "b"},
+		},
+	})
+
+	// skip empty results
+	f("unpack_logfmt skip_empty_results", [][]Field{
+		{
+			{"_msg", `foo= baz="x y=z" a=b`},
+			{"foo", "321"},
+			{"baz", "abcdef"},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `foo= baz="x y=z" a=b`},
+			{"foo", "321"},
+			{"baz", "x y=z"},
+			{"a", "b"},
 		},
 	})
 
@@ -268,6 +307,7 @@ func TestPipeUnpackLogfmtUpdateNeededFields(t *testing.T) {
 	// all the needed fields
 	f("unpack_logfmt", "*", "", "*", "")
 	f("unpack_logfmt fields (f1, f2)", "*", "", "*", "f1,f2")
+	f("unpack_logfmt fields (f1, f2) skip_empty_results", "*", "", "*", "")
 	f("unpack_logfmt fields (f1, f2) keep_original_fields", "*", "", "*", "")
 	f("unpack_logfmt keep_original_fields", "*", "", "*", "")
 	f("unpack_logfmt if (y:z) from x", "*", "", "*", "")

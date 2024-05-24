@@ -54,7 +54,7 @@ func (uctx *fieldsUnpackerContext) addField(name, value string) {
 }
 
 func newPipeUnpackProcessor(workersCount int, unpackFunc func(uctx *fieldsUnpackerContext, s string), ppBase pipeProcessor,
-	fromField string, fieldPrefix string, keepOriginalFields bool, iff *ifFilter) *pipeUnpackProcessor {
+	fromField string, fieldPrefix string, keepOriginalFields, skipEmptyResults bool, iff *ifFilter) *pipeUnpackProcessor {
 
 	return &pipeUnpackProcessor{
 		unpackFunc: unpackFunc,
@@ -65,6 +65,7 @@ func newPipeUnpackProcessor(workersCount int, unpackFunc func(uctx *fieldsUnpack
 		fromField:          fromField,
 		fieldPrefix:        fieldPrefix,
 		keepOriginalFields: keepOriginalFields,
+		skipEmptyResults:   skipEmptyResults,
 		iff:                iff,
 	}
 }
@@ -78,6 +79,7 @@ type pipeUnpackProcessor struct {
 	fromField          string
 	fieldPrefix        string
 	keepOriginalFields bool
+	skipEmptyResults   bool
 
 	iff *ifFilter
 }
@@ -102,7 +104,7 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	shard := &pup.shards[workerID]
-	shard.wctx.init(workerID, pup.ppBase, pup.keepOriginalFields, br)
+	shard.wctx.init(workerID, pup.ppBase, pup.keepOriginalFields, pup.skipEmptyResults, br)
 	shard.uctx.init(workerID, pup.fieldPrefix)
 
 	bm := &shard.bm
@@ -158,6 +160,7 @@ type pipeUnpackWriteContext struct {
 	workerID           uint
 	ppBase             pipeProcessor
 	keepOriginalFields bool
+	skipEmptyResults   bool
 
 	brSrc *blockResult
 	csSrc []*blockResultColumn
@@ -190,12 +193,13 @@ func (wctx *pipeUnpackWriteContext) reset() {
 	wctx.valuesLen = 0
 }
 
-func (wctx *pipeUnpackWriteContext) init(workerID uint, ppBase pipeProcessor, keepOriginalFields bool, brSrc *blockResult) {
+func (wctx *pipeUnpackWriteContext) init(workerID uint, ppBase pipeProcessor, keepOriginalFields, skipEmptyResults bool, brSrc *blockResult) {
 	wctx.reset()
 
 	wctx.workerID = workerID
 	wctx.ppBase = ppBase
 	wctx.keepOriginalFields = keepOriginalFields
+	wctx.skipEmptyResults = skipEmptyResults
 
 	wctx.brSrc = brSrc
 	wctx.csSrc = brSrc.getColumns()
@@ -236,7 +240,7 @@ func (wctx *pipeUnpackWriteContext) writeRow(rowIdx int, extraFields []Field) {
 	}
 	for i, f := range extraFields {
 		v := f.Value
-		if wctx.keepOriginalFields {
+		if v == "" && wctx.skipEmptyResults || wctx.keepOriginalFields {
 			idx := getBlockResultColumnIdxByName(csSrc, f.Name)
 			if idx >= 0 {
 				vOrig := csSrc[idx].getValueAtRow(brSrc, rowIdx)
