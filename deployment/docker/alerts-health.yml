@@ -87,3 +87,34 @@ groups:
             In some cases for components like vmagent or vminsert the alert might trigger if there are too many clients
             making write attempts. If vmagent's or vminsert's CPU usage and network saturation are at normal level, then 
             it might be worth adjusting `-maxConcurrentInserts` cmd-line flag."
+
+      - alert: IndexDBRecordsDrop
+        expr: increase(vm_indexdb_items_dropped_total[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "IndexDB skipped registering items during data ingestion with reason={{ $labels.reason }}."
+          description: "VictoriaMetrics could skip registering new timeseries during ingestion if they fail the validation process. 
+          For example, `reason=too_long_item` means that time series cannot exceed 64KB. Please, reduce the number 
+          of labels or label values for such series. Or enforce these limits via `-maxLabelsPerTimeseries` and 
+          `-maxLabelValueLen` command-line flags."
+
+      - alert: TooLongLabelValues
+        expr: increase(vm_too_long_label_values_total[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "VictoriaMetrics truncates too long label values"
+          description: "The maximum length of a label value is limited via `-maxLabelValueLen` cmd-line flag. 
+           Longer label values are truncated and may result into time series overlapping.
+           Please, check your logs to find which labels were truncated and  
+           either reduce the size of label values or increase `-maxLabelValueLen`".
+
+      - alert: TooLongLabelNames
+        expr: increase(vm_too_long_label_names_total[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "VictoriaMetrics truncates too long label names"
+          description: "The maximum length of a label name is limited by 256 bytes. 
+           Longer label names are truncated and may result into time series overlapping.".
