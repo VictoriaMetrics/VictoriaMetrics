@@ -14,7 +14,7 @@ VictoriaLogs provides the following key features:
 
 - VictoriaLogs can accept logs from popular log collectors. See [these docs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
 - VictoriaLogs is much easier to set up and operate compared to Elasticsearch and Grafana Loki.
-  See [these docs](https://docs.victoriametrics.com/VictoriaLogs/QuickStart.html).
+  See [these docs](https://docs.victoriametrics.com/victorialogs/quickstart/).
 - VictoriaLogs provides easy yet powerful query language with full-text search capabilities across
   all the [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) -
   see [LogsQL docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html).
@@ -38,7 +38,7 @@ If you have questions about VictoriaLogs, then read [this FAQ](https://docs.vict
 Also feel free asking any questions at [VictoriaMetrics community Slack chat](https://victoriametrics.slack.com/), 
 you can join it via [Slack Inviter](https://slack.victoriametrics.com/).
 
-See [Quick start docs](https://docs.victoriametrics.com/VictoriaLogs/QuickStart.html) for start working with VictoriaLogs.
+See [Quick start docs](https://docs.victoriametrics.com/victorialogs/quickstart/) for start working with VictoriaLogs.
 
 ## Monitoring
 
@@ -129,7 +129,7 @@ VictoriaLogs doesn't perform per-tenant authorization. Use [vmauth](https://docs
 Here is a [benchmark suite](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/logs-benchmark) for comparing data ingestion performance
 and resource usage between VictoriaLogs and Elasticsearch or Loki.
 
-It is recommended [setting up VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/QuickStart.html) in production alongside the existing
+It is recommended [setting up VictoriaLogs](https://docs.victoriametrics.com/victorialogs/quickstart/) in production alongside the existing
 log management systems and comparing resource usage + query performance between VictoriaLogs and your system such as Elasticsearch or Grafana Loki.
 
 Please share benchmark results and ideas on how to improve benchmarks / VictoriaLogs

@@ -26,7 +26,7 @@ It provides the following features:
 If you aren't familiar with VictoriaLogs, then start with [key concepts docs](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html).
 
 Then follow these docs:
-- [How to run VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/QuickStart.html).
+- [How to run VictoriaLogs](https://docs.victoriametrics.com/victorialogs/quickstart/).
 - [how to ingest data into VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
 - [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
 

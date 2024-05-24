@@ -15,7 +15,7 @@ aliases:
 # VictoriaLogs changelog
 
 The following `tip` changes can be tested by building VictoriaLogs from the latest commit of [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/) repository
-according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/QuickStart.html#building-from-source-code)
+according to [these docs](https://docs.victoriametrics.com/victorialogs/quickstart/#building-from-source-code)
 
 ## tip
 
