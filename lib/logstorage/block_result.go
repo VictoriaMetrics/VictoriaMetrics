@@ -1700,7 +1700,7 @@ func (c *blockResultColumn) sumValues(br *blockResult) (float64, int) {
 		values := c.getValuesEncoded(br)
 		for i := range values {
 			if i == 0 || values[i-1] != values[i] {
-				f, ok = tryParseFloat64(values[i])
+				f, ok = tryParseNumber(values[i])
 			}
 			if ok {
 				sum += f
@@ -1713,7 +1713,7 @@ func (c *blockResultColumn) sumValues(br *blockResult) (float64, int) {
 		a := encoding.GetFloat64s(len(dictValues))
 		dictValuesFloat := a.A
 		for i, v := range dictValues {
-			f, ok := tryParseFloat64(v)
+			f, ok := tryParseNumber(v)
 			if !ok {
 				f = nan
 			}
