@@ -663,7 +663,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		promql.ActiveQueriesHandler(at, w, r)
 		return true
 	case "prometheus/api/v1/status/top_queries":
-		at, err := auth.NewToken(p.AuthToken)
+		at, err := auth.NewTokenPossibleMultitenant(p.AuthToken)
 		if err != nil {
 			return false
 		}
