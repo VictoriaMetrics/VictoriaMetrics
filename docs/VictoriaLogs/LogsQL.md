@@ -857,7 +857,7 @@ The following query returns logs with request durations smaller or equal to 1.5 
 request.duration:<=1.5
 ```
 
-The lower and the upper bounds of the range are excluded by default. If they must be included, then substitute the corresponding
+The lower and the upper bounds of the `range(lower, upper)` are excluded by default. If they must be included, then substitute the corresponding
 parentheses with square brackets. For example:
 
 - `range[1, 10)` includes `1` in the matching range
@@ -2188,7 +2188,6 @@ LogsQL supports the following transformations on the log entries selected with [
 LogsQL will support the following transformations in the future:
 
 - Creating a new field according to math calculations over existing [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
-- Parsing duration strings into floating-point seconds for further [stats calculations](#stats-pipe).
 
 See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
 
