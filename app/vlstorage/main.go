@@ -20,19 +20,19 @@ import (
 var (
 	retentionPeriod = flagutil.NewDuration("retentionPeriod", "7d", "Log entries with timestamps older than now-retentionPeriod are automatically deleted; "+
 		"log entries with timestamps outside the retention are also rejected during data ingestion; the minimum supported retention is 1d (one day); "+
-		"see https://docs.victoriametrics.com/VictoriaLogs/#retention")
+		"see https://docs.victoriametrics.com/victorialogs/#retention")
 	futureRetention = flagutil.NewDuration("futureRetention", "2d", "Log entries with timestamps bigger than now+futureRetention are rejected during data ingestion; "+
-		"see https://docs.victoriametrics.com/VictoriaLogs/#retention")
+		"see https://docs.victoriametrics.com/victorialogs/#retention")
 	storageDataPath = flag.String("storageDataPath", "victoria-logs-data", "Path to directory with the VictoriaLogs data; "+
-		"see https://docs.victoriametrics.com/VictoriaLogs/#storage")
+		"see https://docs.victoriametrics.com/victorialogs/#storage")
 	inmemoryDataFlushInterval = flag.Duration("inmemoryDataFlushInterval", 5*time.Second, "The interval for guaranteed saving of in-memory data to disk. "+
 		"The saved data survives unclean shutdowns such as OOM crash, hardware reset, SIGKILL, etc. "+
 		"Bigger intervals may help increase the lifetime of flash storage with limited write cycles (e.g. Raspberry PI). "+
 		"Smaller intervals increase disk IO load. Minimum supported value is 1s")
 	logNewStreams = flag.Bool("logNewStreams", false, "Whether to log creation of new streams; this can be useful for debugging of high cardinality issues with log streams; "+
-		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields ; see also -logIngestedRows")
+		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields ; see also -logIngestedRows")
 	logIngestedRows = flag.Bool("logIngestedRows", false, "Whether to log all the ingested log entries; this can be useful for debugging of data ingestion; "+
-		"see https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/ ; see also -logNewStreams")
+		"see https://docs.victoriametrics.com/victorialogs/data-ingestion/ ; see also -logNewStreams")
 	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 10e6, "The minimum free disk space at -storageDataPath after which "+
 		"the storage stops accepting new data")
 )

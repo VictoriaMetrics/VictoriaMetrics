@@ -327,6 +327,8 @@ func (q *Query) Optimize() {
 			for _, f := range t.funcs {
 				f.iff.optimizeFilterIn()
 			}
+		case *pipeReplace:
+			t.iff.optimizeFilterIn()
 		case *pipeFormat:
 			t.iff.optimizeFilterIn()
 		case *pipeExtract:

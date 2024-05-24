@@ -11,7 +11,7 @@ import (
 
 // JSONParser parses a single JSON log message into Fields.
 //
-// See https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model
+// See https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model
 //
 // Use GetParser() for obtaining the parser.
 type JSONParser struct {

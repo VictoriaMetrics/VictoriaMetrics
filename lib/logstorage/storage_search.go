@@ -436,6 +436,10 @@ func hasFilterInWithQueryForPipes(pipes []pipe) bool {
 					return true
 				}
 			}
+		case *pipeReplace:
+			if t.iff.hasFilterInWithQuery() {
+				return true
+			}
 		case *pipeFormat:
 			if t.iff.hasFilterInWithQuery() {
 				return true
@@ -525,6 +529,14 @@ func initFilterInValuesForPipes(cache map[string][]string, pipes []pipe, getFiel
 				byFields: t.byFields,
 				funcs:    funcsNew,
 			}
+		case *pipeReplace:
+			iffNew, err := t.iff.initFilterInValues(cache, getFieldValuesFunc)
+			if err != nil {
+				return nil, err
+			}
+			pr := *t
+			pr.iff = iffNew
+			pipesNew[i] = &pr
 		case *pipeFormat:
 			iffNew, err := t.iff.initFilterInValues(cache, getFieldValuesFunc)
 			if err != nil {

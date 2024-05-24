@@ -141,6 +141,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'rename' pipe: %w", err)
 		}
 		return pr, nil
+	case lex.isKeyword("replace"):
+		pr, err := parsePipeReplace(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'replace' pipe: %w", err)
+		}
+		return pr, nil
 	case lex.isKeyword("sort"):
 		ps, err := parsePipeSort(lex)
 		if err != nil {

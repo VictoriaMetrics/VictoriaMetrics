@@ -9,9 +9,12 @@ import (
 // See https://docs.victoriametrics.com/victorialogs/logsql/#extract-pipe
 type pipeExtract struct {
 	fromField string
-	ptn       *pattern
 
+	ptn        *pattern
 	patternStr string
+
+	keepOriginalFields bool
+	skipEmptyResults   bool
 
 	// iff is an optional filter for skipping the extract func
 	iff *ifFilter
@@ -26,6 +29,12 @@ func (pe *pipeExtract) String() string {
 	if !isMsgFieldName(pe.fromField) {
 		s += " from " + quoteTokenIfNeeded(pe.fromField)
 	}
+	if pe.keepOriginalFields {
+		s += " keep_original_fields"
+	}
+	if pe.skipEmptyResults {
+		s += " skip_empty_results"
+	}
 	return s
 }
 
@@ -38,7 +47,9 @@ func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet
 				if !unneededFieldsOrig.contains(step.field) {
 					needFromField = true
 				}
-				unneededFields.add(step.field)
+				if !pe.keepOriginalFields && !pe.skipEmptyResults {
+					unneededFields.add(step.field)
+				}
 			}
 		}
 		if needFromField {
@@ -55,7 +66,9 @@ func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet
 		for _, step := range pe.ptn.steps {
 			if step.field != "" && neededFieldsOrig.contains(step.field) {
 				needFromField = true
-				neededFields.remove(step.field)
+				if !pe.keepOriginalFields && !pe.skipEmptyResults {
+					neededFields.remove(step.field)
+				}
 			}
 		}
 		if needFromField {
@@ -81,7 +94,7 @@ func (pe *pipeExtract) newPipeProcessor(workersCount int, _ <-chan struct{}, _ f
 		}
 	}
 
-	return newPipeUnpackProcessor(workersCount, unpackFunc, ppBase, pe.fromField, "", pe.iff)
+	return newPipeUnpackProcessor(workersCount, unpackFunc, ppBase, pe.fromField, "", pe.keepOriginalFields, pe.skipEmptyResults, pe.iff)
 }
 
 func parsePipeExtract(lex *lexer) (*pipeExtract, error) {
@@ -121,11 +134,24 @@ func parsePipeExtract(lex *lexer) (*pipeExtract, error) {
 		fromField = f
 	}
 
+	keepOriginalFields := false
+	skipEmptyResults := false
+	switch {
+	case lex.isKeyword("keep_original_fields"):
+		lex.nextToken()
+		keepOriginalFields = true
+	case lex.isKeyword("skip_empty_results"):
+		lex.nextToken()
+		skipEmptyResults = true
+	}
+
 	pe := &pipeExtract{
-		fromField:  fromField,
-		ptn:        ptn,
-		patternStr: patternStr,
-		iff:        iff,
+		fromField:          fromField,
+		ptn:                ptn,
+		patternStr:         patternStr,
+		keepOriginalFields: keepOriginalFields,
+		skipEmptyResults:   skipEmptyResults,
+		iff:                iff,
 	}
 
 	return pe, nil
