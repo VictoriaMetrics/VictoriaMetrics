@@ -14,7 +14,7 @@ aliases:
 
 # Querying
 
-[VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) can be queried with [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/)
+[VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) can be queried with [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/)
 via the following ways:
 
 - [Web UI](#web-ui) - a web-based UI for querying logs
@@ -89,7 +89,7 @@ The returned lines aren't sorted, since sorting disables the ability to send mat
 Query results can be sorted either at VictoriaLogs side according [to these docs](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe)
 or at client side with the usual `sort` command according to [these docs](#command-line).
 
-By default the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/VictoriaLogs/#multitenancy) is queried.
+By default the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) is queried.
 If you need querying other tenant, then specify the needed tenant via http request headers. For example, the following query searches
 for log messages at `(AccountID=12, ProjectID=34)` tenant:
 
@@ -97,7 +97,7 @@ for log messages at `(AccountID=12, ProjectID=34)` tenant:
 curl http://localhost:9428/select/logsql/query -H 'AccountID: 12' -H 'ProjectID: 34' -d 'query=error'
 ```
 
-The number of requests to `/select/logsql/query` can be [monitored](https://docs.victoriametrics.com/VictoriaLogs/#monitoring)
+The number of requests to `/select/logsql/query` can be [monitored](https://docs.victoriametrics.com/victorialogs/#monitoring)
 with `vl_http_requests_total{path="/select/logsql/query"}` metric.
 
 - [Querying hits stats](#querying-hits-stats)
@@ -459,7 +459,7 @@ This is the first version that has minimal functionality. It comes with the foll
 - The number of query results is always limited to 1000 lines. Iteratively add
   more specific [filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters) to the query
   in order to get full response with less than 1000 lines.
-- Queries are always executed against [tenant](https://docs.victoriametrics.com/VictoriaLogs/#multitenancy) `0`.
+- Queries are always executed against [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) `0`.
 
 These limitations will be removed in future versions.
 

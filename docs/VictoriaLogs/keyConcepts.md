@@ -15,7 +15,7 @@ aliases:
 
 ## Data model
 
-[VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) works with both structured and unstructured logs.
+[VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) works with both structured and unstructured logs.
 Every log entry must contain at least [log message field](#message-field) plus arbitrary number of additional `key=value` fields.
 A single log entry can be expressed as a single-level [JSON](https://www.json.org/json-en.html) object with string keys and values.
 For example:
@@ -206,7 +206,7 @@ to the following issues:
 - Increased disk space usage
 - Increased disk read / write IO
 
-VictoriaLogs exposes `vl_streams_created_total` [metric](https://docs.victoriametrics.com/VictoriaLogs/#monitoring),
+VictoriaLogs exposes `vl_streams_created_total` [metric](https://docs.victoriametrics.com/victorialogs/#monitoring),
 which shows the number of created streams since the last VictoriaLogs restart. If this metric grows at a rapid rate
 during long period of time, then there are high chances of high cardinality issues mentioned above.
 VictoriaLogs can log all the newly registered streams when `-logNewStreams` command-line flag is passed to it.

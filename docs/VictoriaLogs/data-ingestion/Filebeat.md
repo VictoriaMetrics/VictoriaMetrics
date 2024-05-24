@@ -13,7 +13,7 @@ aliases:
 # Filebeat setup
 
 Specify [`output.elasicsearch`](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html) section in the `filebeat.yml`
-for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/):
+for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
 
 ```yaml
 output.elasticsearch:
@@ -84,7 +84,7 @@ output.elasticsearch:
   compression_level: 1
 ```
 
-By default, the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/VictoriaLogs/#multitenancy).
+By default, the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy).
 If you need storing logs in other tenant, then specify the needed tenant via `headers` at `output.elasticsearch` section.
 For example, the following `filebeat.yml` config instructs Filebeat to store the data to `(AccountID=12, ProjectID=34)` tenant:
 

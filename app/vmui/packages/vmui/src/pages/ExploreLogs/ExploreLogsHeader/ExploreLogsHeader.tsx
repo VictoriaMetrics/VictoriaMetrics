@@ -79,7 +79,7 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({ query, limit, error, onC
           <a
             className="vm-link vm-link_with-icon"
             target="_blank"
-            href="https://docs.victoriametrics.com/VictoriaLogs/"
+            href="https://docs.victoriametrics.com/victorialogs/"
             rel="help noreferrer"
           >
             <WikiIcon/>

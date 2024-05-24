@@ -15,7 +15,7 @@ aliases:
 ## Elasticsearch sink 
 
 Specify [Elasticsearch sink type](https://vector.dev/docs/reference/configuration/sinks/elasticsearch/) in the `vector.toml`
-for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/):
+for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
 
 ```toml
 [sinks.vlogs]

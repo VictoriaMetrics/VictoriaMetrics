@@ -14,7 +14,7 @@ aliases:
 
 # VictoriaLogs roadmap
 
-The [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) Preview is ready for evaluation in production.
+The [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) Preview is ready for evaluation in production.
 It is recommended running it alongside the existing solutions such as Elasticsearch and Grafana Loki
 and comparing their resource usage and usability.
 It isn't recommended migrating from existing solutions to VictoriaLogs Preview yet.
@@ -25,7 +25,7 @@ The following functionality is available in VictoriaLogs Preview:
 - [Querying](https://docs.victoriametrics.com/victorialogs/querying/).
 - [Querying via command-line](https://docs.victoriametrics.com/victorialogs/querying/#command-line).
 
-See [these docs](https://docs.victoriametrics.com/VictoriaLogs/) for details.
+See [these docs](https://docs.victoriametrics.com/victorialogs/) for details.
 
 The following functionality is planned in the future versions of VictoriaLogs:
 

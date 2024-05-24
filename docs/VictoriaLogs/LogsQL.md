@@ -12,7 +12,7 @@ aliases:
 
 # LogsQL
 
-LogsQL is a simple yet powerful query language for [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/).
+LogsQL is a simple yet powerful query language for [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/).
 It provides the following features:
 
 - Full-text search across [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).

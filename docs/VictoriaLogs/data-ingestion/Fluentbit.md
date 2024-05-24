@@ -13,7 +13,7 @@ aliases:
 # Fluentbit setup
 
 Specify [http output](https://docs.fluentbit.io/manual/pipeline/outputs/http) section in the `fluentbit.conf`
-for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/):
+for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
 
 ```conf
 [Output]
