@@ -55,7 +55,7 @@ during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-inges
   }
   ```
 
-- Arrays, numbers and boolean values are converted into strings. This simplifies [full-text search](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html) over such values.
+- Arrays, numbers and boolean values are converted into strings. This simplifies [full-text search](https://docs.victoriametrics.com/victorialogs/logsql/) over such values.
   For example, the following JSON with an array, a number and a boolean value is converted into the following JSON with string values:
 
   ```json
@@ -87,7 +87,7 @@ Unicode chars must be encoded with [UTF-8](https://en.wikipedia.org/wiki/UTF-8) 
 ```
 
 VictoriaLogs automatically indexes all the fields in all the [ingested](https://docs.victoriametrics.com/victorialogs/data-ingestion/) logs.
-This enables [full-text search](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html) across all the fields.
+This enables [full-text search](https://docs.victoriametrics.com/victorialogs/logsql/) across all the fields.
 
 VictoriaLogs supports the following field types:
 
@@ -133,7 +133,7 @@ during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-inges
 If `_time` field is missing, then the data ingestion time is used as log entry timestamp.
 
 The log entry timestamp allows quickly narrowing down the search to a particular time range.
-See [these docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#time-filter) for details.
+See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter) for details.
 
 ### Stream fields
 
@@ -149,7 +149,7 @@ VictoriaLogs optimizes storing and querying of individual log streams. This prov
   than a mixed log stream from multiple distinct applications.
 
 - Increased query performance, since VictoriaLogs needs to scan lower amounts of data
-  when [searching by stream labels](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#stream-filter).
+  when [searching by stream labels](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter).
 
 VictoriaLogs cannot determine automatically, which fields uniquely identify every log stream,
 so it stores all the received log entries in a single default stream - `{}`.
@@ -186,7 +186,7 @@ In this case it is OK to associate the log stream with filepath fields such as `
 Structured logs may contain big number of fields, which do not change across log entries received from a single application instance.
 There is no need in associating all these fields with log stream - it is enough to associate only those fields, which uniquely identify
 the application instance across all the ingested logs. Additionally, some fields such as `datacenter`, `environment`, `namespace`, `job` or `app`,
-can be associated with log stream in order to optimize searching by these fields with [stream filtering](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#stream-filter).
+can be associated with log stream in order to optimize searching by these fields with [stream filtering](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter).
 
 Never associate log streams with fields, which may change across log entries of the same application instance. See [these docs](#high-cardinality) for details.
 
@@ -218,5 +218,5 @@ The rest of [structured logging](#data-model) fields are optional. They can be u
 For example, it is usually faster to search over a dedicated `trace_id` field instead of searching for the `trace_id` inside long log message.
 E.g. the `trace_id:XXXX-YYYY-ZZZZ` query usually works faster than the `_msg:"trace_id=XXXX-YYYY-ZZZZ"` query.
 
-See [LogsQL docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html) for more details.
+See [LogsQL docs](https://docs.victoriametrics.com/victorialogs/logsql/) for more details.
 

@@ -17,7 +17,7 @@ VictoriaLogs provides the following key features:
   See [these docs](https://docs.victoriametrics.com/victorialogs/quickstart/).
 - VictoriaLogs provides easy yet powerful query language with full-text search capabilities across
   all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) -
-  see [LogsQL docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html).
+  see [LogsQL docs](https://docs.victoriametrics.com/victorialogs/logsql/).
 - VictoriaLogs can be seamlessly combined with good old Unix tools for log analysis such as `grep`, `less`, `sort`, `jq`, etc.
   See [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line) for details.
 - VictoriaLogs capacity and performance scales linearly with the available resources (CPU, RAM, disk IO, disk space).

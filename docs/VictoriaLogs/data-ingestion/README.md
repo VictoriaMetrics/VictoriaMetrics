@@ -80,7 +80,7 @@ The command should return the following response:
 ```
 
 The response by default contains all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-See [how to query specific fields](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#querying-specific-fields).
+See [how to query specific fields](https://docs.victoriametrics.com/victorialogs/logsql/#querying-specific-fields).
 
 The duration of requests to `/insert/elasticsearch/_bulk` can be monitored with `vl_http_request_duration_seconds{path="/insert/elasticsearch/_bulk"}` metric.
 
@@ -132,7 +132,7 @@ The command should return the following response:
 ```
 
 The response by default contains all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-See [how to query specific fields](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#querying-specific-fields).
+See [how to query specific fields](https://docs.victoriametrics.com/victorialogs/logsql/#querying-specific-fields).
 
 The duration of requests to `/insert/jsonline` can be monitored with `vl_http_request_duration_seconds{path="/insert/jsonline"}` metric.
 
@@ -171,7 +171,7 @@ The command should return the following response:
 ```
 
 The response by default contains all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-See [how to query specific fields](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#querying-specific-fields).
+See [how to query specific fields](https://docs.victoriametrics.com/victorialogs/logsql/#querying-specific-fields).
 
 The duration of requests to `/insert/loki/api/v1/push` can be monitored with `vl_http_request_duration_seconds{path="/insert/loki/api/v1/push"}` metric.
 
@@ -222,12 +222,12 @@ curl http://localhost:9428/select/logsql/query -d 'query=*' | head
 ```
 
 This command selects all the data ingested into VictoriaLogs via [HTTP query API](https://docs.victoriametrics.com/VictoriaLogs/querying/#http-api)
-using [any value filter](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#any-value-filter),
+using [any value filter](https://docs.victoriametrics.com/victorialogs/logsql/#any-value-filter),
 while `head` cancels query execution after reading the first 10 log lines. See [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line)
 for more details on how `head` integrates with VictoriaLogs.
 
 The response by default contains all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-See [how to query specific fields](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#querying-specific-fields).
+See [how to query specific fields](https://docs.victoriametrics.com/victorialogs/logsql/#querying-specific-fields).
 
 VictoriaLogs provides the following command-line flags, which can help debugging data ingestion issues:
 

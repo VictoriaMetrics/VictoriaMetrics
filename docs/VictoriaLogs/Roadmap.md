@@ -34,10 +34,10 @@ The following functionality is planned in the future versions of VictoriaLogs:
   - Fluentd
   - Syslog
   - Journald (systemd)
-- Add missing functionality to [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html):
-  - [Transformation functions](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#transformations).
-  - [Stream context](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#stream-context).
-- Live tailing for [LogsQL filters](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#filters) aka `tail -f`.
+- Add missing functionality to [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/):
+  - [Transformation functions](https://docs.victoriametrics.com/victorialogs/logsql/#transformations).
+  - [Stream context](https://docs.victoriametrics.com/victorialogs/logsql/#stream-context).
+- Live tailing for [LogsQL filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters) aka `tail -f`.
 - Web UI with the following abilities:
   - Explore the ingested logs ([partially done](https://docs.victoriametrics.com/VictoriaLogs/querying/#web-ui)).
   - Build graphs over time for the ingested logs via [hits HTTP API](https://docs.victoriametrics.com/victorialogs/querying/#querying-hits-stats).

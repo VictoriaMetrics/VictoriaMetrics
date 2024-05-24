@@ -35,7 +35,7 @@ VictoriaLogs is optimized specifically for logs. So it provides the following fe
 - Up to 30x less RAM usage than Elasticsearch for the same workload.
 - Up to 15x less disk space usage than Elasticsearch for the same amounts of stored logs.
 - Ability to work with hundreds of terabytes of logs on a single node.
-- Very easy to use query language optimized for typical log analysis tasks - [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html).
+- Very easy to use query language optimized for typical log analysis tasks - [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
 - Fast full-text search over all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) out of the box.
 - Good integration with traditional command-line tools for log analysis. See [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
 
@@ -57,7 +57,7 @@ VictoriaLogs and Grafana Loki have the following differences:
 - Grafana Loki provides very inconvenient query language - [LogQL](https://grafana.com/docs/loki/latest/logql/).
   This query language is hard to use for typical log analysis tasks.
 
-  VictoriaMetrics provides easy to use query language for typical log analysis tasks - [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html).
+  VictoriaMetrics provides easy to use query language for typical log analysis tasks - [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
 
 - VictoriaLogs performs typical full-text queries up to 1000x faster than Grafana Loki.
 
@@ -88,7 +88,7 @@ VictoriaLogs is designed solely for logs. VictoriaLogs uses [similar design idea
   over the stored logs.
 
   VictoriaLogs provides easy to use query language with full-text search specifically optimized
-  for log analysis - [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html).
+  for log analysis - [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
   LogsQL is usually much easier to use than SQL for typical log analysis tasks, while some
   non-trivial analytics may require SQL power.
 
@@ -119,11 +119,11 @@ This architecture is inspired by [ClickHouse architecture](https://clickhouse.co
 On top of this, VictoriaLogs employs additional optimizations for achieving high query performance:
 
 - It uses [bloom filters](https://en.wikipedia.org/wiki/Bloom_filter) for skipping blocks without the given
-  [word](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#word-filter) or [phrase](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#phrase-filter).
+  [word](https://docs.victoriametrics.com/victorialogs/logsql/#word-filter) or [phrase](https://docs.victoriametrics.com/victorialogs/logsql/#phrase-filter).
 - It uses custom encoding and compression for fields with different data types.
   For example, it encodes IP addresses as 4-byte tuples. Custom fields' encoding reduces data size on disk and improves query performance.
 - It physically groups logs for the same [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
   close to each other. This improves compression ratio, which helps reducing disk space usage. This also improves query performance
-  by skipping blocks for unneeded streams when [stream filter](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#stream-filter) is used.
+  by skipping blocks for unneeded streams when [stream filter](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter) is used.
 - It maintains sparse index for [log timestamps](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field),
-  which allow improving query performance when [time filter](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#time-filter) is used.
+  which allow improving query performance when [time filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter) is used.
