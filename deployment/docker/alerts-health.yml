@@ -87,3 +87,14 @@ groups:
             In some cases for components like vmagent or vminsert the alert might trigger if there are too many clients
             making write attempts. If vmagent's or vminsert's CPU usage and network saturation are at normal level, then 
             it might be worth adjusting `-maxConcurrentInserts` cmd-line flag."
+
+      - alert: IndexDBRecordsDrop
+        expr: increase(vm_indexdb_items_dropped_total[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "IndexDB skipped registering items during data ingestion with reason={{ $labels.reason }}."
+          description: "VictoriaMetrics could skip registering new timeseries during ingestion if they fail the validation process. 
+          For example, `reason=too_long_item` means that time series cannot exceed 64KB. Please, reduce the number 
+          of labels or label values for such series. Or enforce these limits via `-maxLabelsPerTimeseries` and 
+          `-maxLabelValueLen` command-line flags."
