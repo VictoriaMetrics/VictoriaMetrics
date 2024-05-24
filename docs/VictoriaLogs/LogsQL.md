@@ -27,7 +27,7 @@ If you aren't familiar with VictoriaLogs, then start with [key concepts docs](ht
 
 Then follow these docs:
 - [How to run VictoriaLogs](https://docs.victoriametrics.com/victorialogs/quickstart/).
-- [how to ingest data into VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
+- [how to ingest data into VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
 - [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
 
 The simplest LogsQL query is just a [word](#word), which must be found in the [log message](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
@@ -150,7 +150,7 @@ _time:5m log.level:error !app:(buggy_app OR foobar)
 
 The `app` field uniquely identifies the application instance if a single instance runs per each unique `app`.
 In this case it is recommended associating the `app` field with [log stream fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields)
-during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/). This usually improves both compression rate
+during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/). This usually improves both compression rate
 and query performance when querying the needed streams via [`_stream` filter](#stream-filter).
 If the `app` field is associated with the log stream, then the query above can be rewritten to more performant one:
 

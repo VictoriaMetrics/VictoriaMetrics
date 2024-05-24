@@ -39,16 +39,16 @@ tar xzf victoria-logs-linux-amd64-v0.10.0-victorialogs.tar.gz
 ./victoria-logs-prod
 ```
 
-VictoriaLogs is ready for [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/)
+VictoriaLogs is ready for [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
 and [querying](https://docs.victoriametrics.com/VictoriaLogs/querying/) at the TCP port `9428` now!
 It has no any external dependencies, so it may run in various environments without additional setup and configuration.
 VictoriaLogs automatically adapts to the available CPU and RAM resources. It also automatically setups and creates
-the needed indexes during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
+the needed indexes during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
 
 See also:
 
 - [How to configure VictoriaLogs](#how-to-configure-victorialogs)
-- [How to ingest logs into VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/)
+- [How to ingest logs into VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
 - [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/)
 
 
@@ -65,7 +65,7 @@ docker run --rm -it -p 9428:9428 -v ./victoria-logs-data:/victoria-logs-data \
 See also:
 
 - [How to configure VictoriaLogs](#how-to-configure-victorialogs)
-- [How to ingest logs into VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/)
+- [How to ingest logs into VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
 - [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/)
 
 ### Helm charts
@@ -96,16 +96,16 @@ Follow the following steps in order to build VictoriaLogs from source code:
   bin/victoria-logs
   ```
 
-VictoriaLogs is ready for [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/)
+VictoriaLogs is ready for [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
 and [querying](https://docs.victoriametrics.com/VictoriaLogs/querying/) at the TCP port `9428` now!
 It has no any external dependencies, so it may run in various environments without additional setup and configuration.
 VictoriaLogs automatically adapts to the available CPU and RAM resources. It also automatically setups and creates
-the needed indexes during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
+the needed indexes during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
 
 See also:
 
 - [How to configure VictoriaLogs](#how-to-configure-victorialogs)
-- [How to ingest logs into VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/)
+- [How to ingest logs into VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
 - [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/)
 
 
@@ -127,13 +127,13 @@ via `-storageDataPath` command-line flag. See [these docs](https://docs.victoria
 By default VictoriaLogs stores [log entries](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html) with timestamps
 in the time range `[now-7d, now]`, while dropping logs outside the given time range.
 E.g. it uses the retention of 7 days. Read [these docs](https://docs.victoriametrics.com/VictoriaLogs/#retention) on how to control the retention
-for the [ingested](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/) logs.
+for the [ingested](https://docs.victoriametrics.com/victorialogs/data-ingestion/) logs.
 
 It is recommended setting up monitoring of VictoriaLogs according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/#monitoring).
 
 See also:
 
-- [How to ingest logs into VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/)
+- [How to ingest logs into VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
 - [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/)
 
 ## Docker demos

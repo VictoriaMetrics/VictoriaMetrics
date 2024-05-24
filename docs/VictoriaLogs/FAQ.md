@@ -92,7 +92,7 @@ VictoriaLogs is designed solely for logs. VictoriaLogs uses [similar design idea
   LogsQL is usually much easier to use than SQL for typical log analysis tasks, while some
   non-trivial analytics may require SQL power.
 
-- VictoriaLogs accepts logs from popular log shippers out of the box - see [these docs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
+- VictoriaLogs accepts logs from popular log shippers out of the box - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
 
   ClickHouse needs an intermediate applications for converting the ingested logs into `INSERT` SQL statements for the particular database schema.
   This may increase the complexity of the system and, subsequently, increase its' maintenance costs.

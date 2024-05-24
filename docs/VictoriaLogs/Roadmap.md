@@ -21,7 +21,7 @@ It isn't recommended migrating from existing solutions to VictoriaLogs Preview y
 
 The following functionality is available in VictoriaLogs Preview:
 
-- [Data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
+- [Data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
 - [Querying](https://docs.victoriametrics.com/VictoriaLogs/querying/).
 - [Querying via command-line](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
 
@@ -29,7 +29,7 @@ See [these docs](https://docs.victoriametrics.com/VictoriaLogs/) for details.
 
 The following functionality is planned in the future versions of VictoriaLogs:
 
-- Support for [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/) from popular log collectors and formats:
+- Support for [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/) from popular log collectors and formats:
   - OpenTelemetry for logs
   - Fluentd
   - Syslog

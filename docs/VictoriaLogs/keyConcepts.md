@@ -32,7 +32,7 @@ For example:
 ```
 
 VictoriaLogs automatically transforms multi-level JSON (aka nested JSON) into single-level JSON
-during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/) according to the following rules:
+during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/) according to the following rules:
 
 - Nested dictionaries are flattened by concatenating dictionary keys with `.` char. For example, the following multi-level JSON
   is transformed into the following single-level JSON:
@@ -75,7 +75,7 @@ during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-inges
   ```
 
 Both label name and label value may contain arbitrary chars. Such chars must be encoded
-during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/)
+during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
 according to [JSON string encoding](https://www.rfc-editor.org/rfc/rfc7159.html#section-7).
 Unicode chars must be encoded with [UTF-8](https://en.wikipedia.org/wiki/UTF-8) encoding:
 
@@ -86,7 +86,7 @@ Unicode chars must be encoded with [UTF-8](https://en.wikipedia.org/wiki/UTF-8) 
 }
 ```
 
-VictoriaLogs automatically indexes all the fields in all the [ingested](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/) logs.
+VictoriaLogs automatically indexes all the fields in all the [ingested](https://docs.victoriametrics.com/victorialogs/data-ingestion/) logs.
 This enables [full-text search](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html) across all the fields.
 
 VictoriaLogs supports the following field types:
@@ -109,9 +109,9 @@ log entry, which can be ingested into VictoriaLogs:
 ```
 
 If the actual log message has other than `_msg` field name, then it is possible to specify the real log message field
-via `_msg_field` query arg during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
+via `_msg_field` query arg during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
 For example, if log message is located in the `event.original` field, then specify `_msg_field=event.original` query arg
-during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
+during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
 
 ### Time field
 
@@ -126,9 +126,9 @@ For example:
 ```
 
 If the actual timestamp has other than `_time` field name, then it is possible to specify the real timestamp
-field via `_time_field` query arg during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
+field via `_time_field` query arg during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
 For example, if timestamp is located in the `event.created` field, then specify `_time_field=event.created` query arg
-during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
+during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
 
 If `_time` field is missing, then the data ingestion time is used as log entry timestamp.
 
@@ -156,7 +156,7 @@ so it stores all the received log entries in a single default stream - `{}`.
 This may lead to not-so-optimal resource usage and query performance.
 
 Therefore it is recommended specifying stream-level fields via `_stream_fields` query arg
-during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
+during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
 For example, if logs from Kubernetes containers have the following fields:
 
 ```json
@@ -170,7 +170,7 @@ For example, if logs from Kubernetes containers have the following fields:
 ```
 
 then sepcify `_stream_fields=kubernetes.namespace,kubernetes.node.name,kubernetes.pod.name,kubernetes.container.name`
-query arg during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/) in order to properly store
+query arg during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/) in order to properly store
 per-container logs into distinct streams.
 
 #### How to determine which fields must be associated with log streams?
@@ -199,7 +199,7 @@ VictoriaLogs works perfectly with such fields unless they are associated with [l
 Never associate high-cardinality fields with [log streams](#stream-fields), since this may result
 to the following issues:
 
-- Performance degradation during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/)
+- Performance degradation during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
   and [querying](https://docs.victoriametrics.com/VictoriaLogs/querying/)
 - Increased memory usage
 - Increased CPU usage
