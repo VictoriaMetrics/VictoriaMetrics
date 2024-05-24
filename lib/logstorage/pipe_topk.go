@@ -477,14 +477,12 @@ func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bo
 		wctx.rcs = rcs
 	}
 
-	var tmpBuf []byte
 	byColumns := r.byColumns
 	byColumnsIsTime := r.byColumnsIsTime
 	for i := range byFields {
 		v := byColumns[i]
 		if byColumnsIsTime[i] {
-			tmpBuf = marshalTimestampRFC3339NanoString(tmpBuf[:0], r.timestamp)
-			v = bytesutil.ToUnsafeString(tmpBuf)
+			v = string(marshalTimestampRFC3339NanoString(nil, r.timestamp))
 		}
 		rcs[i].addValue(v)
 		wctx.valuesLen += len(v)

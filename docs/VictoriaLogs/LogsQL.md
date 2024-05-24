@@ -403,6 +403,13 @@ This query doesn't match the following log messages:
 - `SSH: login fail`, since the `SSH` word is in capital letters. Use `i("ssh: login fail")` for case-insensitive search.
   See [these docs](#case-insensitive-filter) for details.
 
+If the phrase contains double quotes, then either put `\` in front of double quotes or put the phrase inside single quotes. For example, the following filter searches
+logs with `"foo":"bar"` phrase:
+
+```logsql
+'"foo":"bar"'
+```
+
 By default the given phrase is searched in the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
 Specify the [field name](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) in front of the phrase and put a colon after it
 if it must be searched in the given field. For example, the following query returns log entries containing the `cannot open file` phrase in the `event.original` field:
@@ -469,6 +476,13 @@ This query doesn't match the following log messages:
   See [these docs](#logical-filter) for details.
 - `failed to open file: unexpected EOF`, since `failed` [word](#word) occurs before the `unexpected` word. Use `unexpected AND fail*` for this case.
   See [these docs](#logical-filter) for details.
+
+If the prefix contains double quotes, then either put `\` in front of double quotes or put the prefix inside single quotes. For example, the following filter searches
+logs with `"foo":"bar` prefix:
+
+```logsql
+'"foo":"bar'*
+```
 
 By default the prefix filter is applied to the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
 Specify the needed [field name](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) in front of the prefix filter
@@ -782,6 +796,13 @@ The query doesn't match the following log messages:
 - `ERROR: cannot open file`, since the `ERROR` word is in uppercase letters. Use `~"(?i)(err|warn)"` query for case-insensitive regexp search.
   See [these docs](https://github.com/google/re2/wiki/Syntax) for details. See also [case-insenstive filter docs](#case-insensitive-filter).
 - `it is warmer than usual`, since it doesn't contain neither `err` nor `warn` substrings.
+
+If the regexp contains double quotes, then either put `\` in front of double quotes or put the regexp inside single quotes. For example, the following regexp searches
+logs matching `"foo":"(bar|baz)"` regexp:
+
+```logsql
+'"foo":"(bar|baz)"'
+```
 
 By default the regexp filter is applied to the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
 Specify the needed [field name](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) in front of the filter
@@ -1134,7 +1155,8 @@ For example, the following query is equivalent to the previous one:
 _time:1d error | extract "ip=<ip> " | stats by (ip) count() logs | sort by (logs) desc limit 10
 ```
 
-If the `pattern` contains double quotes, then it can be quoted into single quotes. For example, the following query extracts `ip` from the corresponding JSON field:
+If the `pattern` contains double quotes, then either put `\` in front of double quotes or put the `pattern` inside single quotes.
+For example, the following query extracts `ip` from the corresponding JSON field:
 
 ```logsql
 _time:5m | extract '"ip":"<ip>"'
@@ -1162,7 +1184,7 @@ Placeholders can be anonymous and named. Anonymous placeholders are written as `
 must be skipped until the next `textX`. Named palceholders are written as `<some_name>`, where `some_name` is the name of the log field to store
 the corresponding matching substring to.
 
-The matching starts from the first occurence of the `text1` in the input text. If the `pattern` starts with `<field1>` and doesn't contain `text1`,
+Matching starts from the first occurence of the `text1` in the input text. If the `pattern` starts with `<field1>` and doesn't contain `text1`,
 then the matching starts from the beginning of the input text. Matching is performed sequentially according to the `pattern`. If some `textX` isn't found
 in the remaining input text, then the remaining named placeholders receive empty string values and the matching finishes prematurely.
 
@@ -1197,6 +1219,13 @@ This is useful for extracting JSON strings. For example, the following `pattern`
 "message":<msg>
 ```
 
+The automatic string unquoting can be disabled if needed by adding `plain:` prefix in front of the field name. For example, if some JSON array of string values must be captured
+into `json_array` field, then the following `pattern` can be used:
+
+```
+some json string array: [<plain:json_array>]
+```
+
 If some special chars such as `<` must be matched by the `pattern`, then they can be [html-escaped](https://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references).
 For example, the following `pattern` properly matches `a < b` text by extracting `a` into `left` field and `b` into `right` field:
 
@@ -1217,12 +1246,12 @@ _time:5m | extract if (ip:"") "ip=<ip> "
 
 ### field_names pipe
 
-Sometimes it may be needed to get all the field names for the selected results. This may be done with `| field_names ...` [pipe](#pipes).
-For example, the following query returns all the names of [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
-from the logs over the last 5 minutes:
+`| field_names` [pipe](#pipes) returns all the names of [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
+with an estimated number of logs per each field name.
+For example, the following query returns all the field names with the number of matching logs over the last 5 minutes:
 
 ```logsql
-_time:5m | field_names as names
+_time:5m | field_names
 ```
 
 Field names are returned in arbitrary order. Use [`sort` pipe](#sort-pipe) in order to sort them if needed.
@@ -1593,7 +1622,7 @@ _time:5m | stats
 
 ### uniq pipe
 
-`| uniq ...` pipe allows returning only unique results over the selected logs. For example, the following LogsQL query
+`| uniq ...` pipe returns unique results over the selected logs. For example, the following LogsQL query
 returns unique values for `ip` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
 
@@ -1610,6 +1639,12 @@ _time:5m | uniq by (host, path)
 
 The unique entries are returned in arbitrary order. Use [`sort` pipe](#sort-pipe) in order to sort them if needed.
 
+Add `hits` after `uniq by (...)` in order to return the number of matching logs per each field value:
+
+```logsql
+_time:5m | uniq by (host) hits
+```
+
 Unique entries are stored in memory during query execution. Big number of unique selected entries may require a lot of memory.
 Sometimes it is enough to return up to `N` unique entries. This can be done by adding `limit N` after `by (...)` clause.
 This allows limiting memory usage. For example, the following query returns up to 100 unique `(host, path)` pairs for the logs over the last 5 minutes:
@@ -1617,6 +1652,8 @@ This allows limiting memory usage. For example, the following query returns up t
 ```logsql
 _time:5m | uniq by (host, path) limit 100
 ```
+
+If the `limit` is reached, then arbitrary subset of unique values can be returned. The `hits` calculation doesn't work when the `limit` is reached.
 
 The `by` keyword can be skipped in `uniq ...` pipe. For example, the following query is equivalent to the previous one:
 
@@ -1887,7 +1924,7 @@ across logs for the last 5 minutes:
 _time:5m | stats fields_max(duration) as log_with_max_duration
 ```
 
-Fields from the returned values can be decoded with [`unpack_json`](#unpack_json-pipe) or [`extract`](#extract) pipes.
+Fields from the returned values can be decoded with [`unpack_json`](#unpack_json-pipe) or [`extract`](#extract-pipe) pipes.
 
 If only the specific fields are needed from the returned log entry, then they can be enumerated inside `fields_max(...)`.
 For example, the following query returns only `_time`, `path` and `duration` fields from the log entry with the maximum `duration` over the last 5 minutes:
@@ -1914,7 +1951,7 @@ across logs for the last 5 minutes:
 _time:5m | stats fields_min(duration) as log_with_min_duration
 ```
 
-Fields from the returned values can be decoded with [`unpack_json`](#unpack_json-pipe) or [`extract`](#extract) pipes.
+Fields from the returned values can be decoded with [`unpack_json`](#unpack_json-pipe) or [`extract`](#extract-pipe) pipes.
 
 If only the specific fields are needed from the returned log entry, then they can be enumerated inside `fields_max(...)`.
 For example, the following query returns only `_time`, `path` and `duration` fields from the log entry with the minimum `duration` over the last 5 minutes:

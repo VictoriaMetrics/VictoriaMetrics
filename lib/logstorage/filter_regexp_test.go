@@ -1,8 +1,10 @@
 package logstorage
 
 import (
-	"regexp"
+	"fmt"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
 )
 
 func TestFilterRegexp(t *testing.T) {
@@ -21,32 +23,32 @@ func TestFilterRegexp(t *testing.T) {
 		// match
 		fr := &filterRegexp{
 			fieldName: "foo",
-			re:        regexp.MustCompile("0.0"),
+			re:        mustCompileRegex("0.0"),
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", []int{0, 1, 2})
 
 		fr = &filterRegexp{
 			fieldName: "foo",
-			re:        regexp.MustCompile(`^127\.0\.0\.1$`),
+			re:        mustCompileRegex(`^127\.0\.0\.1$`),
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", []int{0, 1, 2})
 
 		fr = &filterRegexp{
 			fieldName: "non-existing-column",
-			re:        regexp.MustCompile("foo.+bar|"),
+			re:        mustCompileRegex("foo.+bar|"),
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", []int{0, 1, 2})
 
 		// mismatch
 		fr = &filterRegexp{
 			fieldName: "foo",
-			re:        regexp.MustCompile("foo.+bar"),
+			re:        mustCompileRegex("foo.+bar"),
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", nil)
 
 		fr = &filterRegexp{
 			fieldName: "non-existing-column",
-			re:        regexp.MustCompile("foo.+bar"),
+			re:        mustCompileRegex("foo.+bar"),
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", nil)
 	})
@@ -71,20 +73,20 @@ func TestFilterRegexp(t *testing.T) {
 		// match
 		fr := &filterRegexp{
 			fieldName: "foo",
-			re:        regexp.MustCompile("foo|bar|^$"),
+			re:        mustCompileRegex("foo|bar|^$"),
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", []int{0, 5, 6})
 
 		fr = &filterRegexp{
 			fieldName: "foo",
-			re:        regexp.MustCompile("27.0"),
+			re:        mustCompileRegex("27.0"),
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", []int{1, 5, 6, 7})
 
 		// mismatch
 		fr = &filterRegexp{
 			fieldName: "foo",
-			re:        regexp.MustCompile("bar.+foo"),
+			re:        mustCompileRegex("bar.+foo"),
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", nil)
 	})
@@ -111,14 +113,14 @@ func TestFilterRegexp(t *testing.T) {
 		// match
 		fr := &filterRegexp{
 			fieldName: "foo",
-			re:        regexp.MustCompile("(?i)foo|йцу"),
+			re:        mustCompileRegex("(?i)foo|йцу"),
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", []int{0, 6, 8})
 
 		// mismatch
 		fr = &filterRegexp{
 			fieldName: "foo",
-			re:        regexp.MustCompile("qwe.+rty|^$"),
+			re:        mustCompileRegex("qwe.+rty|^$"),
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", nil)
 	})
@@ -146,14 +148,14 @@ func TestFilterRegexp(t *testing.T) {
 		// match
 		fr := &filterRegexp{
 			fieldName: "foo",
-			re:        regexp.MustCompile("[32][23]?"),
+			re:        mustCompileRegex("[32][23]?"),
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", []int{0, 1, 2, 5, 7, 8})
 
 		// mismatch
 		fr = &filterRegexp{
 			fieldName: "foo",
-			re:        regexp.MustCompile("foo|bar"),
+			re:        mustCompileRegex("foo|bar"),
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", nil)
 	})
@@ -181,14 +183,14 @@ func TestFilterRegexp(t *testing.T) {
 		// match
 		fr := &filterRegexp{
 			fieldName: "foo",
-			re:        regexp.MustCompile("[32][23]?"),
+			re:        mustCompileRegex("[32][23]?"),
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", []int{0, 1, 2, 5, 7, 8})
 
 		// mismatch
 		fr = &filterRegexp{
 			fieldName: "foo",
-			re:        regexp.MustCompile("foo|bar"),
+			re:        mustCompileRegex("foo|bar"),
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", nil)
 	})
@@ -216,14 +218,14 @@ func TestFilterRegexp(t *testing.T) {
 		// match
 		fr := &filterRegexp{
 			fieldName: "foo",
-			re:        regexp.MustCompile("[32][23]?"),
+			re:        mustCompileRegex("[32][23]?"),
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", []int{0, 1, 2, 5, 7, 8})
 
 		// mismatch
 		fr = &filterRegexp{
 			fieldName: "foo",
-			re:        regexp.MustCompile("foo|bar"),
+			re:        mustCompileRegex("foo|bar"),
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", nil)
 	})
@@ -251,14 +253,14 @@ func TestFilterRegexp(t *testing.T) {
 		// match
 		fr := &filterRegexp{
 			fieldName: "foo",
-			re:        regexp.MustCompile("[32][23]?"),
+			re:        mustCompileRegex("[32][23]?"),
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", []int{0, 1, 2, 5, 7, 8})
 
 		// mismatch
 		fr = &filterRegexp{
 			fieldName: "foo",
-			re:        regexp.MustCompile("foo|bar"),
+			re:        mustCompileRegex("foo|bar"),
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", nil)
 	})
@@ -286,14 +288,14 @@ func TestFilterRegexp(t *testing.T) {
 		// match
 		fr := &filterRegexp{
 			fieldName: "foo",
-			re:        regexp.MustCompile("[32][23]?"),
+			re:        mustCompileRegex("[32][23]?"),
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", []int{0, 1, 2, 5, 6, 7, 8})
 
 		// mismatch
 		fr = &filterRegexp{
 			fieldName: "foo",
-			re:        regexp.MustCompile("foo|bar"),
+			re:        mustCompileRegex("foo|bar"),
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", nil)
 	})
@@ -322,14 +324,14 @@ func TestFilterRegexp(t *testing.T) {
 		// match
 		fr := &filterRegexp{
 			fieldName: "foo",
-			re:        regexp.MustCompile("127.0.[40].(1|2)"),
+			re:        mustCompileRegex("127.0.[40].(1|2)"),
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", []int{2, 4, 5, 6, 7})
 
 		// mismatch
 		fr = &filterRegexp{
 			fieldName: "foo",
-			re:        regexp.MustCompile("foo|bar|834"),
+			re:        mustCompileRegex("foo|bar|834"),
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", nil)
 	})
@@ -355,15 +357,42 @@ func TestFilterRegexp(t *testing.T) {
 		// match
 		fr := &filterRegexp{
 			fieldName: "_msg",
-			re:        regexp.MustCompile("2006-[0-9]{2}-.+?(2|5)Z"),
+			re:        mustCompileRegex("2006-[0-9]{2}-.+?(2|5)Z"),
 		}
 		testFilterMatchForColumns(t, columns, fr, "_msg", []int{1, 4})
 
 		// mismatch
 		fr = &filterRegexp{
 			fieldName: "_msg",
-			re:        regexp.MustCompile("^01|04$"),
+			re:        mustCompileRegex("^01|04$"),
 		}
 		testFilterMatchForColumns(t, columns, fr, "_msg", nil)
 	})
+}
+
+func TestSkipFirstLastToken(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+
+		result := skipFirstLastToken(s)
+		if result != resultExpected {
+			t.Fatalf("unexpected result in skipFirstLastToken(%q); got %q; want %q", s, result, resultExpected)
+		}
+	}
+
+	f("", "")
+	f("foobar", "")
+	f("foo bar", " ")
+	f("foo bar baz", " bar ")
+	f(" foo bar baz", " foo bar ")
+	f(",foo bar baz!", ",foo bar baz!")
+	f("фыад длоа д!", " длоа д!")
+}
+
+func mustCompileRegex(expr string) *regexutil.Regex {
+	re, err := regexutil.NewRegex(expr)
+	if err != nil {
+		panic(fmt.Errorf("BUG: cannot compile %q: %w", expr, err))
+	}
+	return re
 }

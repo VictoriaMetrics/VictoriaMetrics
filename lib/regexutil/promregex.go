@@ -19,13 +19,21 @@ import (
 //
 // The rest of regexps are also optimized by returning cached match results for the same input strings.
 type PromRegex struct {
+	// exprStr is the original expression.
+	exprStr string
+
 	// prefix contains literal prefix for regex.
 	// For example, prefix="foo" for regex="foo(a|b)"
 	prefix string
 
-	// Suffix contains regex suffix left after removing the prefix.
-	// For example, suffix="a|b" for regex="foo(a|b)"
-	suffix string
+	// isOnlyPrefix is set to true if the regex contains only the prefix.
+	isOnlyPrefix bool
+
+	// isSuffixDotStar is set to true if suffix is ".*"
+	isSuffixDotStar bool
+
+	// isSuffixDotPlus is set to true if suffix is ".+"
+	isSuffixDotPlus bool
 
 	// substrDotStar contains literal string for regex suffix=".*string.*"
 	substrDotStar string
@@ -46,18 +54,25 @@ func NewPromRegex(expr string) (*PromRegex, error) {
 	if _, err := regexp.Compile(expr); err != nil {
 		return nil, err
 	}
-	prefix, suffix := Simplify(expr)
-	orValues := GetOrValues(suffix)
-	substrDotStar := getSubstringLiteral(suffix, ".*")
-	substrDotPlus := getSubstringLiteral(suffix, ".+")
+	prefix, suffix := SimplifyPromRegex(expr)
+	sre := mustParseRegexp(suffix)
+	orValues := getOrValues(sre)
+	isOnlyPrefix := len(orValues) == 1 && orValues[0] == ""
+	isSuffixDotStar := isDotOp(sre, syntax.OpStar)
+	isSuffixDotPlus := isDotOp(sre, syntax.OpPlus)
+	substrDotStar := getSubstringLiteral(sre, syntax.OpStar)
+	substrDotPlus := getSubstringLiteral(sre, syntax.OpPlus)
 	// It is expected that Optimize returns valid regexp in suffix, so use MustCompile here.
 	// Anchor suffix to the beginning and the end of the matching string.
 	suffixExpr := "^(?:" + suffix + ")$"
 	reSuffix := regexp.MustCompile(suffixExpr)
 	reSuffixMatcher := bytesutil.NewFastStringMatcher(reSuffix.MatchString)
 	pr := &PromRegex{
+		exprStr:         expr,
 		prefix:          prefix,
-		suffix:          suffix,
+		isOnlyPrefix:    isOnlyPrefix,
+		isSuffixDotStar: isSuffixDotStar,
+		isSuffixDotPlus: isSuffixDotPlus,
 		substrDotStar:   substrDotStar,
 		substrDotPlus:   substrDotPlus,
 		orValues:        orValues,
@@ -71,19 +86,25 @@ func NewPromRegex(expr string) (*PromRegex, error) {
 // The pr is automatically anchored to the beginning and to the end
 // of the matching string with '^' and '$'.
 func (pr *PromRegex) MatchString(s string) bool {
-	if !strings.HasPrefix(s, pr.prefix) {
-		// Fast path - s has another prefix than pr.
-		return false
+	if pr.isOnlyPrefix {
+		return s == pr.prefix
 	}
-	s = s[len(pr.prefix):]
-	if len(pr.orValues) > 0 {
-		// Fast path - pr contains only alternate strings such as 'foo|bar|baz'
-		for _, v := range pr.orValues {
-			if s == v {
-				return true
-			}
+
+	if len(pr.prefix) > 0 {
+		if !strings.HasPrefix(s, pr.prefix) {
+			// Fast path - s has another prefix than pr.
+			return false
 		}
-		return false
+		s = s[len(pr.prefix):]
+	}
+
+	if pr.isSuffixDotStar {
+		// Fast path - the pr contains "prefix.*"
+		return true
+	}
+	if pr.isSuffixDotPlus {
+		// Fast path - the pr contains "prefix.+"
+		return len(s) > 0
 	}
 	if pr.substrDotStar != "" {
 		// Fast path - pr contains ".*someText.*"
@@ -94,45 +115,22 @@ func (pr *PromRegex) MatchString(s string) bool {
 		n := strings.Index(s, pr.substrDotPlus)
 		return n > 0 && n+len(pr.substrDotPlus) < len(s)
 	}
-	switch pr.suffix {
-	case ".*":
-		// Fast path - the pr contains "prefix.*"
-		return true
-	case ".+":
-		// Fast path - the pr contains "prefix.+"
-		return len(s) > 0
+
+	if len(pr.orValues) > 0 {
+		// Fast path - pr contains only alternate strings such as 'foo|bar|baz'
+		for _, v := range pr.orValues {
+			if s == v {
+				return true
+			}
+		}
+		return false
 	}
+
 	// Fall back to slow path by matching the original regexp.
 	return pr.reSuffixMatcher.Match(s)
 }
 
-// getSubstringLiteral returns regex part from expr surrounded by prefixSuffix.
-//
-// For example, if expr=".+foo.+" and prefixSuffix=".+", then the function returns "foo".
-//
-// An empty string is returned if expr doesn't contain the given prefixSuffix prefix and suffix
-// or if the regex part surrounded by prefixSuffix contains alternate regexps.
-func getSubstringLiteral(expr, prefixSuffix string) string {
-	// Verify that the expr doesn't contain alternate regexps. In this case it is unsafe removing prefix and suffix.
-	sre, err := syntax.Parse(expr, syntax.Perl)
-	if err != nil {
-		return ""
-	}
-	if sre.Op == syntax.OpAlternate {
-		return ""
-	}
-
-	if !strings.HasPrefix(expr, prefixSuffix) {
-		return ""
-	}
-	expr = expr[len(prefixSuffix):]
-	if !strings.HasSuffix(expr, prefixSuffix) {
-		return ""
-	}
-	expr = expr[:len(expr)-len(prefixSuffix)]
-	prefix, suffix := Simplify(expr)
-	if suffix != "" {
-		return ""
-	}
-	return prefix
+// String returns string representation of pr.
+func (pr *PromRegex) String() string {
+	return pr.exprStr
 }

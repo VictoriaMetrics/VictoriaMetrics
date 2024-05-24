@@ -10,6 +10,7 @@ func TestParsePipeFieldNamesSuccess(t *testing.T) {
 		expectParsePipeSuccess(t, pipeStr)
 	}
 
+	f(`field_names`)
 	f(`field_names as x`)
 }
 
@@ -19,7 +20,6 @@ func TestParsePipeFieldNamesFailure(t *testing.T) {
 		expectParsePipeFailure(t, pipeStr)
 	}
 
-	f(`field_names`)
 	f(`field_names(foo)`)
 	f(`field_names a b`)
 	f(`field_names as`)
@@ -32,32 +32,47 @@ func TestPipeFieldNames(t *testing.T) {
 	}
 
 	// single row, result column doesn't clash with original columns
-	f("field_names as x", [][]Field{
+	f("field_names", [][]Field{
 		{
 			{"_msg", `{"foo":"bar"}`},
 			{"a", `test`},
 		},
 	}, [][]Field{
 		{
-			{"x", "_msg"},
+			{"name", "_msg"},
+			{"hits", "1"},
 		},
 		{
-			{"x", "a"},
+			{"name", "a"},
+			{"hits", "1"},
 		},
 	})
 
 	// single row, result column do clashes with original columns
-	f("field_names as _msg", [][]Field{
+	f("field_names as x", [][]Field{
 		{
-			{"_msg", `{"foo":"bar"}`},
 			{"a", `test`},
+			{"b", "aaa"},
+		},
+		{
+			{"a", `bar`},
+		},
+		{
+			{"a", `bar`},
+			{"c", `bar`},
 		},
 	}, [][]Field{
 		{
-			{"_msg", "_msg"},
+			{"x", "a"},
+			{"hits", "3"},
 		},
 		{
-			{"_msg", "a"},
+			{"x", "b"},
+			{"hits", "1"},
+		},
+		{
+			{"x", "c"},
+			{"hits", "1"},
 		},
 	})
 }

@@ -38,7 +38,7 @@ func (p *logfmtParser) parse(s string) {
 		}
 
 		// Search for field value
-		value, nOffset := tryUnquoteString(s)
+		value, nOffset := tryUnquoteString(s, "")
 		if nOffset >= 0 {
 			p.addField(name, value)
 			s = s[nOffset:]

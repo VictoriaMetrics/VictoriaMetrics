@@ -5,8 +5,6 @@ import (
 	"html"
 	"strconv"
 	"strings"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // pattern represents text pattern in the form 'some_text<some_field>other_text...'
@@ -28,18 +26,25 @@ type patternField struct {
 
 type patternStep struct {
 	prefix string
-	field  string
-	opt    string
+
+	field    string
+	fieldOpt string
 }
 
 func (ptn *pattern) clone() *pattern {
-	steps := ptn.steps
-	fields, matches := newFieldsAndMatchesFromPatternSteps(steps)
-	if len(fields) == 0 {
-		logger.Panicf("BUG: fields cannot be empty for steps=%v", steps)
+	matches := make([]string, len(ptn.steps))
+	var fields []patternField
+	for i, step := range ptn.steps {
+		if step.field != "" {
+			fields = append(fields, patternField{
+				name:  step.field,
+				value: &matches[i],
+			})
+		}
 	}
+
 	return &pattern{
-		steps:   steps,
+		steps:   ptn.steps,
 		matches: matches,
 		fields:  fields,
 	}
@@ -59,7 +64,18 @@ func parsePattern(s string) (*pattern, error) {
 	}
 
 	// Build pattern struct
-	fields, matches := newFieldsAndMatchesFromPatternSteps(steps)
+
+	matches := make([]string, len(steps))
+
+	var fields []patternField
+	for i, step := range steps {
+		if step.field != "" {
+			fields = append(fields, patternField{
+				name:  step.field,
+				value: &matches[i],
+			})
+		}
+	}
 	if len(fields) == 0 {
 		return nil, fmt.Errorf("pattern %q must contain at least a single named field in the form <field_name>", s)
 	}
@@ -72,35 +88,17 @@ func parsePattern(s string) (*pattern, error) {
 	return ptn, nil
 }
 
-func newFieldsAndMatchesFromPatternSteps(steps []patternStep) ([]patternField, []string) {
-	matches := make([]string, len(steps))
-
-	var fields []patternField
-	for i, step := range steps {
-		if step.field != "" {
-			fields = append(fields, patternField{
-				name:  step.field,
-				value: &matches[i],
-			})
-		}
-	}
-
-	return fields, matches
-}
-
 func (ptn *pattern) apply(s string) {
 	clear(ptn.matches)
 
 	steps := ptn.steps
 
-	if prefix := steps[0].prefix; prefix != "" {
-		n := strings.Index(s, prefix)
-		if n < 0 {
-			// Mismatch
-			return
-		}
-		s = s[n+len(prefix):]
+	n, prefixLen := prefixIndex(s, steps[0].prefix)
+	if n < 0 {
+		// Mismatch
+		return
 	}
+	s = s[n+prefixLen:]
 
 	matches := ptn.matches
 	for i := range steps {
@@ -109,7 +107,7 @@ func (ptn *pattern) apply(s string) {
 			nextPrefix = steps[i+1].prefix
 		}
 
-		us, nOffset := tryUnquoteString(s)
+		us, nOffset := tryUnquoteString(s, steps[i].fieldOpt)
 		if nOffset >= 0 {
 			// Matched quoted string
 			matches[i] = us
@@ -125,31 +123,45 @@ func (ptn *pattern) apply(s string) {
 				matches[i] = s
 				return
 			}
-			n := strings.Index(s, nextPrefix)
+			n, prefixLen := prefixIndex(s, nextPrefix)
 			if n < 0 {
 				// Mismatch
 				return
 			}
 			matches[i] = s[:n]
-			s = s[n+len(nextPrefix):]
+			s = s[n+prefixLen:]
 		}
 	}
 }
 
-func tryUnquoteString(s string) (string, int) {
+func prefixIndex(s, prefix string) (int, int) {
+	if len(prefix) == 0 {
+		return 0, 0
+	}
+	n := strings.Index(s, prefix)
+	if n < 0 {
+		return -1, 0
+	}
+	return n, len(prefix)
+}
+
+func tryUnquoteString(s, opt string) (string, int) {
+	if opt == "plain" {
+		return "", -1
+	}
 	if len(s) == 0 {
-		return s, -1
+		return "", -1
 	}
 	if s[0] != '"' && s[0] != '`' {
-		return s, -1
+		return "", -1
 	}
 	qp, err := strconv.QuotedPrefix(s)
 	if err != nil {
-		return s, -1
+		return "", -1
 	}
 	us, err := strconv.Unquote(qp)
 	if err != nil {
-		return s, -1
+		return "", -1
 	}
 	return us, len(qp)
 }
@@ -160,7 +172,7 @@ func parsePatternSteps(s string) ([]patternStep, error) {
 		return nil, err
 	}
 
-	// Unescape prefixes
+	// unescape prefixes
 	for i := range steps {
 		step := &steps[i]
 		step.prefix = html.UnescapeString(step.prefix)
@@ -171,9 +183,10 @@ func parsePatternSteps(s string) ([]patternStep, error) {
 		step := &steps[i]
 		field := step.field
 		if n := strings.IndexByte(field, ':'); n >= 0 {
-			step.opt = field[:n]
-			step.field = field[n+1:]
+			step.fieldOpt = strings.TrimSpace(field[:n])
+			field = field[n+1:]
 		}
+		step.field = strings.TrimSpace(field)
 	}
 
 	return steps, nil

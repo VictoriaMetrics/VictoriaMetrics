@@ -211,6 +211,7 @@ See also:
 
 VictoriaLogs provides `/select/logsql/streams?query=<query>&start=<start>&end=<end>` HTTP endpoint, which returns [streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
 from results of the given `<query>` [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
+The response also contains the number of log results per every `stream`.
 
 The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
 If `<start>` is missing, then it equals to the minimum timestamp across logs stored in VictoriaLogs.
@@ -227,11 +228,19 @@ Below is an example JSON output returned from this endpoint:
 
 ```json
 {
-  "streams": [
-    "{host=\"1.2.3.4\",app=\"foo\"}",
-    "{host=\"1.2.3.4\",app=\"bar\"}",
-    "{host=\"10.2.3.4\",app=\"foo\"}",
-    "{host=\"10.2.3.5\",app=\"baz\"}"
+  "values": [
+    {
+      "value": "{host=\"host-123\",app=\"foo\"}",
+      "hits": 34980
+    },
+    {
+      "value": "{host=\"host-124\",app=\"bar\"}",
+      "hits": 32892
+    },
+    {
+      "value": "{host=\"host-125\",app=\"baz\"}",
+      "hits": 32877
+    }
   ]
 }
 ```
@@ -250,6 +259,7 @@ See also:
 VictoriaLogs provides `/select/logsql/stream_label_names?query=<query>&start=<start>&end=<end>` HTTP endpoint, which returns
 [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) label names from results
 of the given `<query>` [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
+The response also contains the number of log results per every label name.
 
 The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
 If `<start>` is missing, then it equals to the minimum timestamp across logs stored in VictoriaLogs.
@@ -266,12 +276,19 @@ Below is an example JSON output returned from this endpoint:
 
 ```json
 {
-  "names": [
-    "app",
-    "container",
-    "datacenter",
-    "host",
-    "namespace"
+  "values": [
+    {
+      "value": "app",
+      "hits": 1033300623
+    },
+    {
+      "value": "container",
+      "hits": 1033300623
+    },
+    {
+      "value": "datacenter",
+      "hits": 1033300623
+    }
   ]
 }
 ```
@@ -288,6 +305,7 @@ See also:
 VictoriaLogs provides `/select/logsql/stream_label_values?query=<query>&start=<start>&<end>&label=<labelName>` HTTP endpoint,
 which returns [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) label values for the label with the given `<labelName>` name
 from results of the given `<query>` [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
+The response also contains the number of log results per every label value.
 
 The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
 If `<start>` is missing, then it equals to the minimum timestamp across logs stored in VictoriaLogs.
@@ -305,10 +323,14 @@ Below is an example JSON output returned from this endpoint:
 ```json
 {
   "values": [
-    "host-0",
-    "host-1",
-    "host-2",
-    "host-3"
+    {
+      "value": "host-1",
+      "hits": 69426656
+    },
+    {
+      "value": "host-2",
+      "hits": 66507749
+    }
   ]
 }
 ```
@@ -327,6 +349,7 @@ See also:
 
 VictoriaLogs provides `/select/logsql/field_names?query=<query>&start=<start>&end=<end>` HTTP endpoint, which returns field names
 from results of the given `<query>` [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
+The response also contains the number of log results per every field name.
 
 The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
 If `<start>` is missing, then it equals to the minimum timestamp across logs stored in VictoriaLogs.
@@ -343,13 +366,19 @@ Below is an example JSON output returned from this endpoint:
 
 ```json
 {
-  "names": [
-    "_msg",
-    "_stream",
-    "_time",
-    "host",
-    "level",
-    "location"
+  "values": [
+    {
+      "value": "_msg",
+      "hits": 1033300623
+    },
+    {
+      "value": "_stream",
+      "hits": 1033300623
+    },
+    {
+      "value": "_time",
+      "hits": 1033300623
+    }
   ]
 }
 ```
@@ -366,6 +395,7 @@ See also:
 VictoriaLogs provides `/select/logsql/field_values?query=<query>&field=<fieldName>&start=<start>&end=<end>` HTTP endpoint, which returns
 unique values for the given `<fieldName>` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 from results of the given `<query>` [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
+The response also contains the number of log results per every field value.
 
 The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
 If `<start>` is missing, then it equals to the minimum timestamp across logs stored in VictoriaLogs.
@@ -383,17 +413,25 @@ Below is an example JSON output returned from this endpoint:
 ```json
 {
   "values": [
-    "host_0",
-    "host_1",
-    "host_10",
-    "host_100",
-    "host_1000"
+    {
+      "value": "host-1",
+      "hits": 69426656
+    },
+    {
+      "value": "host-2",
+      "hits": 66507749
+    },
+    {
+      "value": "host-3",
+      "hits": 65454351
+    }
   ]
 }
 ```
 
 The `/select/logsql/field_names` endpoint supports optional `limit=N` query arg, which allows limiting the number of returned values to `N`.
 The endpoint returns arbitrary subset of values if their number exceeds `N`, so `limit=N` cannot be used for pagination over big number of field values.
+When the `limit` is reached, `hits` are zeroed, since they cannot be calculated reliably.
 
 See also:
 

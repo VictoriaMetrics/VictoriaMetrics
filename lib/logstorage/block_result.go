@@ -1804,6 +1804,8 @@ func appendResultColumnWithName(dst []resultColumn, name string) []resultColumn 
 }
 
 // addValue adds the given values v to rc.
+//
+// rc is valid until v is modified.
 func (rc *resultColumn) addValue(v string) {
 	rc.values = append(rc.values, v)
 }

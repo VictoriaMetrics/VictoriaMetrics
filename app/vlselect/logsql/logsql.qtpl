@@ -1,0 +1,32 @@
+{% import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
+) %}
+
+{% stripspace %}
+
+// ValuesWithHitsJSON generates JSON from the given values.
+{% func ValuesWithHitsJSON(values []logstorage.ValueWithHits) %}
+{
+	"values":{%= valuesWithHitsJSONArray(values) %}
+}
+{% endfunc %}
+
+{% func valuesWithHitsJSONArray(values []logstorage.ValueWithHits) %}
+[
+	{% if len(values) > 0 %}
+		{%= valueWithHitsJSON(values[0]) %}
+		{% for _, v := range values[1:] %}
+			,{%= valueWithHitsJSON(v) %}
+		{% endfor %}
+	{% endif %}
+]
+{% endfunc %}
+
+{% func valueWithHitsJSON(v logstorage.ValueWithHits) %}
+{
+	"value":{%q= v.Value %},
+	"hits":{%dul= v.Hits %}
+}
+{% endfunc %}
+
+{% endstripspace %}

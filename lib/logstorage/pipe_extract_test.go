@@ -99,6 +99,30 @@ func TestPipeExtract(t *testing.T) {
 		},
 	})
 
+	// single row, disable unquoting
+	f(`extract 'foo=[< plain : bar >]' from x`, [][]Field{
+		{
+			{"x", `a foo=["bc","de"]`},
+		},
+	}, [][]Field{
+		{
+			{"x", `a foo=["bc","de"]`},
+			{"bar", `"bc","de"`},
+		},
+	})
+
+	// single row, default unquoting
+	f(`extract 'foo=[< bar >]' from x`, [][]Field{
+		{
+			{"x", `a foo=["bc","de"]`},
+		},
+	}, [][]Field{
+		{
+			{"x", `a foo=["bc","de"]`},
+			{"bar", `bc`},
+		},
+	})
+
 	// single row, overwirte existing column
 	f(`extract "foo=<bar> baz=<xx>" from x`, [][]Field{
 		{

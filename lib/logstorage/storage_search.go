@@ -145,9 +145,9 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 }
 
 // GetFieldNames returns field names from q results for the given tenantIDs.
-func (s *Storage) GetFieldNames(ctx context.Context, tenantIDs []TenantID, q *Query) ([]string, error) {
+func (s *Storage) GetFieldNames(ctx context.Context, tenantIDs []TenantID, q *Query) ([]ValueWithHits, error) {
 	pipes := append([]pipe{}, q.pipes...)
-	pipeStr := "field_names as names | sort by (names)"
+	pipeStr := "field_names"
 	lex := newLexer(pipeStr)
 
 	pf, err := parsePipeFieldNames(lex)
@@ -156,36 +156,24 @@ func (s *Storage) GetFieldNames(ctx context.Context, tenantIDs []TenantID, q *Qu
 	}
 	pf.isFirstPipe = len(pipes) == 0
 
-	if !lex.isKeyword("|") {
-		logger.Panicf("BUG: unexpected token after 'field_names' pipe at [%s]: %q", pipeStr, lex.token)
-	}
-	lex.nextToken()
-
-	ps, err := parsePipeSort(lex)
-	if err != nil {
-		logger.Panicf("BUG: unexpected error when parsing 'sort' pipe at [%s]: %s", pipeStr, err)
-	}
 	if !lex.isEnd() {
 		logger.Panicf("BUG: unexpected tail left after parsing pipes [%s]: %q", pipeStr, lex.s)
 	}
 
-	pipes = append(pipes, pf, ps)
+	pipes = append(pipes, pf)
 
 	q = &Query{
 		f:     q.f,
 		pipes: pipes,
 	}
 
-	return s.runSingleColumnQuery(ctx, tenantIDs, q)
+	return s.runValuesWithHitsQuery(ctx, tenantIDs, q)
 }
 
-// GetFieldValues returns unique values for the given fieldName returned by q for the given tenantIDs.
-//
-// If limit > 0, then up to limit unique values are returned.
-func (s *Storage) GetFieldValues(ctx context.Context, tenantIDs []TenantID, q *Query, fieldName string, limit uint64) ([]string, error) {
+func (s *Storage) getFieldValuesNoHits(ctx context.Context, tenantIDs []TenantID, q *Query, fieldName string) ([]string, error) {
 	pipes := append([]pipe{}, q.pipes...)
 	quotedFieldName := quoteTokenIfNeeded(fieldName)
-	pipeStr := fmt.Sprintf("uniq by (%s) limit %d | sort by (%s)", quotedFieldName, limit, quotedFieldName)
+	pipeStr := fmt.Sprintf("uniq by (%s)", quotedFieldName)
 	lex := newLexer(pipeStr)
 
 	pu, err := parsePipeUniq(lex)
@@ -193,87 +181,17 @@ func (s *Storage) GetFieldValues(ctx context.Context, tenantIDs []TenantID, q *Q
 		logger.Panicf("BUG: unexpected error when parsing 'uniq' pipe at [%s]: %s", pipeStr, err)
 	}
 
-	if !lex.isKeyword("|") {
-		logger.Panicf("BUG: unexpected token after 'uniq' pipe at [%s]: %q", pipeStr, lex.token)
-	}
-	lex.nextToken()
-
-	ps, err := parsePipeSort(lex)
-	if err != nil {
-		logger.Panicf("BUG: unexpected error when parsing 'sort' pipe at [%s]: %s", pipeStr, err)
-	}
 	if !lex.isEnd() {
 		logger.Panicf("BUG: unexpected tail left after parsing pipes [%s]: %q", pipeStr, lex.s)
 	}
 
-	pipes = append(pipes, pu, ps)
+	pipes = append(pipes, pu)
 
 	q = &Query{
 		f:     q.f,
 		pipes: pipes,
 	}
 
-	return s.runSingleColumnQuery(ctx, tenantIDs, q)
-}
-
-// GetStreamLabelNames returns stream label names from q results for the given tenantIDs.
-func (s *Storage) GetStreamLabelNames(ctx context.Context, tenantIDs []TenantID, q *Query) ([]string, error) {
-	streams, err := s.GetStreams(ctx, tenantIDs, q, math.MaxUint64)
-	if err != nil {
-		return nil, err
-	}
-
-	var names []string
-	m := make(map[string]struct{})
-	forEachStreamLabel(streams, func(label Field) {
-		if _, ok := m[label.Name]; !ok {
-			nameCopy := strings.Clone(label.Name)
-			names = append(names, nameCopy)
-			m[nameCopy] = struct{}{}
-		}
-	})
-	sortStrings(names)
-
-	return names, nil
-}
-
-// GetStreamLabelValues returns stream label values for the given labelName from q results for the given tenantIDs.
-//
-// If limit > 9, then up to limit unique label values are returned.
-func (s *Storage) GetStreamLabelValues(ctx context.Context, tenantIDs []TenantID, q *Query, labelName string, limit uint64) ([]string, error) {
-	streams, err := s.GetStreams(ctx, tenantIDs, q, math.MaxUint64)
-	if err != nil {
-		return nil, err
-	}
-
-	var values []string
-	m := make(map[string]struct{})
-	forEachStreamLabel(streams, func(label Field) {
-		if label.Name != labelName {
-			return
-		}
-		if _, ok := m[label.Value]; !ok {
-			valueCopy := strings.Clone(label.Value)
-			values = append(values, valueCopy)
-			m[valueCopy] = struct{}{}
-		}
-	})
-	if uint64(len(values)) > limit {
-		values = values[:limit]
-	}
-	sortStrings(values)
-
-	return values, nil
-}
-
-// GetStreams returns streams from q results for the given tenantIDs.
-//
-// If limit > 0, then up to limit unique streams are returned.
-func (s *Storage) GetStreams(ctx context.Context, tenantIDs []TenantID, q *Query, limit uint64) ([]string, error) {
-	return s.GetFieldValues(ctx, tenantIDs, q, "_stream", limit)
-}
-
-func (s *Storage) runSingleColumnQuery(ctx context.Context, tenantIDs []TenantID, q *Query) ([]string, error) {
 	var values []string
 	var valuesLock sync.Mutex
 	writeBlockResult := func(_ uint, br *blockResult) {
@@ -283,13 +201,14 @@ func (s *Storage) runSingleColumnQuery(ctx context.Context, tenantIDs []TenantID
 
 		cs := br.getColumns()
 		if len(cs) != 1 {
-			logger.Panicf("BUG: expecting only a single column; got %d columns", len(cs))
+			logger.Panicf("BUG: expecting one column; got %d columns", len(cs))
 		}
+
 		columnValues := cs[0].getValues(br)
 
 		columnValuesCopy := make([]string, len(columnValues))
-		for i, v := range columnValues {
-			columnValuesCopy[i] = strings.Clone(v)
+		for i := range columnValues {
+			columnValuesCopy[i] = strings.Clone(columnValues[i])
 		}
 
 		valuesLock.Lock()
@@ -297,12 +216,173 @@ func (s *Storage) runSingleColumnQuery(ctx context.Context, tenantIDs []TenantID
 		valuesLock.Unlock()
 	}
 
-	err := s.runQuery(ctx, tenantIDs, q, writeBlockResult)
-	if err != nil {
+	if err := s.runQuery(ctx, tenantIDs, q, writeBlockResult); err != nil {
 		return nil, err
 	}
 
 	return values, nil
+}
+
+// GetFieldValues returns unique values with the number of hits for the given fieldName returned by q for the given tenantIDs.
+//
+// If limit > 0, then up to limit unique values are returned.
+func (s *Storage) GetFieldValues(ctx context.Context, tenantIDs []TenantID, q *Query, fieldName string, limit uint64) ([]ValueWithHits, error) {
+	pipes := append([]pipe{}, q.pipes...)
+	quotedFieldName := quoteTokenIfNeeded(fieldName)
+	pipeStr := fmt.Sprintf("uniq by (%s) hits limit %d", quotedFieldName, limit)
+	lex := newLexer(pipeStr)
+
+	pu, err := parsePipeUniq(lex)
+	if err != nil {
+		logger.Panicf("BUG: unexpected error when parsing 'uniq' pipe at [%s]: %s", pipeStr, err)
+	}
+
+	if !lex.isEnd() {
+		logger.Panicf("BUG: unexpected tail left after parsing pipes [%s]: %q", pipeStr, lex.s)
+	}
+
+	pipes = append(pipes, pu)
+
+	q = &Query{
+		f:     q.f,
+		pipes: pipes,
+	}
+
+	return s.runValuesWithHitsQuery(ctx, tenantIDs, q)
+}
+
+// ValueWithHits contains value and hits.
+type ValueWithHits struct {
+	Value string
+	Hits  uint64
+}
+
+func toValuesWithHits(m map[string]*uint64) []ValueWithHits {
+	results := make([]ValueWithHits, 0, len(m))
+	for k, pHits := range m {
+		results = append(results, ValueWithHits{
+			Value: k,
+			Hits:  *pHits,
+		})
+	}
+	sortValuesWithHits(results)
+	return results
+}
+
+func sortValuesWithHits(results []ValueWithHits) {
+	slices.SortFunc(results, func(a, b ValueWithHits) int {
+		if a.Hits == b.Hits {
+			if a.Value == b.Value {
+				return 0
+			}
+			if lessString(a.Value, b.Value) {
+				return -1
+			}
+			return 1
+		}
+		// Sort in descending order of hits
+		if a.Hits < b.Hits {
+			return 1
+		}
+		return -1
+	})
+}
+
+// GetStreamLabelNames returns stream label names from q results for the given tenantIDs.
+func (s *Storage) GetStreamLabelNames(ctx context.Context, tenantIDs []TenantID, q *Query) ([]ValueWithHits, error) {
+	streams, err := s.GetStreams(ctx, tenantIDs, q, math.MaxUint64)
+	if err != nil {
+		return nil, err
+	}
+
+	m := make(map[string]*uint64)
+	forEachStreamLabel(streams, func(label Field, hits uint64) {
+		pHits, ok := m[label.Name]
+		if !ok {
+			nameCopy := strings.Clone(label.Name)
+			hitsLocal := uint64(0)
+			pHits = &hitsLocal
+			m[nameCopy] = pHits
+		}
+		*pHits += hits
+	})
+	names := toValuesWithHits(m)
+	return names, nil
+}
+
+// GetStreamLabelValues returns stream label values for the given labelName from q results for the given tenantIDs.
+//
+// If limit > 9, then up to limit unique label values are returned.
+func (s *Storage) GetStreamLabelValues(ctx context.Context, tenantIDs []TenantID, q *Query, labelName string, limit uint64) ([]ValueWithHits, error) {
+	streams, err := s.GetStreams(ctx, tenantIDs, q, math.MaxUint64)
+	if err != nil {
+		return nil, err
+	}
+
+	m := make(map[string]*uint64)
+	forEachStreamLabel(streams, func(label Field, hits uint64) {
+		if label.Name != labelName {
+			return
+		}
+		pHits, ok := m[label.Value]
+		if !ok {
+			valueCopy := strings.Clone(label.Value)
+			hitsLocal := uint64(0)
+			pHits = &hitsLocal
+			m[valueCopy] = pHits
+		}
+		*pHits += hits
+	})
+	values := toValuesWithHits(m)
+	if limit > 0 && uint64(len(values)) > limit {
+		values = values[:limit]
+	}
+	return values, nil
+}
+
+// GetStreams returns streams from q results for the given tenantIDs.
+//
+// If limit > 0, then up to limit unique streams are returned.
+func (s *Storage) GetStreams(ctx context.Context, tenantIDs []TenantID, q *Query, limit uint64) ([]ValueWithHits, error) {
+	return s.GetFieldValues(ctx, tenantIDs, q, "_stream", limit)
+}
+
+func (s *Storage) runValuesWithHitsQuery(ctx context.Context, tenantIDs []TenantID, q *Query) ([]ValueWithHits, error) {
+	var results []ValueWithHits
+	var resultsLock sync.Mutex
+	writeBlockResult := func(_ uint, br *blockResult) {
+		if len(br.timestamps) == 0 {
+			return
+		}
+
+		cs := br.getColumns()
+		if len(cs) != 2 {
+			logger.Panicf("BUG: expecting two columns; got %d columns", len(cs))
+		}
+
+		columnValues := cs[0].getValues(br)
+		columnHits := cs[1].getValues(br)
+
+		valuesWithHits := make([]ValueWithHits, len(columnValues))
+		for i := range columnValues {
+			x := &valuesWithHits[i]
+			hits, _ := tryParseUint64(columnHits[i])
+			x.Value = strings.Clone(columnValues[i])
+			x.Hits = hits
+		}
+
+		resultsLock.Lock()
+		results = append(results, valuesWithHits...)
+		resultsLock.Unlock()
+	}
+
+	err := s.runQuery(ctx, tenantIDs, q, writeBlockResult)
+	if err != nil {
+		return nil, err
+	}
+	sortValuesWithHits(results)
+
+	return results, nil
 }
 
 func (s *Storage) initFilterInValues(ctx context.Context, tenantIDs []TenantID, q *Query) (*Query, error) {
@@ -311,7 +391,7 @@ func (s *Storage) initFilterInValues(ctx context.Context, tenantIDs []TenantID, 
 	}
 
 	getFieldValues := func(q *Query, fieldName string) ([]string, error) {
-		return s.GetFieldValues(ctx, tenantIDs, q, fieldName, 0)
+		return s.getFieldValuesNoHits(ctx, tenantIDs, q, fieldName)
 	}
 	cache := make(map[string][]string)
 	fNew, err := initFilterInValuesForFilter(cache, q.f, getFieldValues)
@@ -1007,16 +1087,17 @@ func getFilterTimeRange(f filter) (int64, int64) {
 	return math.MinInt64, math.MaxInt64
 }
 
-func forEachStreamLabel(streams []string, f func(label Field)) {
+func forEachStreamLabel(streams []ValueWithHits, f func(label Field, hits uint64)) {
 	var labels []Field
-	for _, stream := range streams {
+	for i := range streams {
 		var err error
-		labels, err = parseStreamLabels(labels[:0], stream)
+		labels, err = parseStreamLabels(labels[:0], streams[i].Value)
 		if err != nil {
 			continue
 		}
-		for i := range labels {
-			f(labels[i])
+		hits := streams[i].Hits
+		for j := range labels {
+			f(labels[j], hits)
 		}
 	}
 }
@@ -1042,7 +1123,7 @@ func parseStreamLabels(dst []Field, s string) ([]Field, error) {
 		name := s[:n]
 		s = s[n+1:]
 
-		value, nOffset := tryUnquoteString(s)
+		value, nOffset := tryUnquoteString(s, "")
 		if nOffset < 0 {
 			return dst, fmt.Errorf("cannot find parse label value in double quotes at [%s]", s)
 		}

@@ -435,9 +435,9 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 }
 
 func isDefaultRegex(expr string) bool {
-	prefix, suffix := regexutil.Simplify(expr)
+	prefix, suffix := regexutil.SimplifyPromRegex(expr)
 	if prefix != "" {
 		return false
 	}
-	return suffix == "(?-s:.*)"
+	return suffix == "(?s:.*)"
 }

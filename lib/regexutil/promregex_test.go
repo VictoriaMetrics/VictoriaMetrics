@@ -8,6 +8,7 @@ import (
 func TestPromRegexParseFailure(t *testing.T) {
 	f := func(expr string) {
 		t.Helper()
+
 		pr, err := NewPromRegex(expr)
 		if err == nil {
 			t.Fatalf("expecting non-nil error for expr=%s", expr)
@@ -23,9 +24,14 @@ func TestPromRegexParseFailure(t *testing.T) {
 func TestPromRegex(t *testing.T) {
 	f := func(expr, s string, resultExpected bool) {
 		t.Helper()
+
 		pr, err := NewPromRegex(expr)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
+		}
+		exprResult := pr.String()
+		if exprResult != expr {
+			t.Fatalf("unexpected string representation for %q: %q", expr, exprResult)
 		}
 		result := pr.MatchString(s)
 		if result != resultExpected {
@@ -40,6 +46,7 @@ func TestPromRegex(t *testing.T) {
 			t.Fatalf("unexpected result when matching %q against %q during sanity check; got %v; want %v", exprAnchored, s, result, resultExpected)
 		}
 	}
+
 	f("", "", true)
 	f("", "foo", false)
 	f("foo", "", false)
@@ -118,4 +125,8 @@ func TestPromRegex(t *testing.T) {
 	f(".*;|;.*", "foo;bar", false)
 	f(".*;|;.*", "foo;", true)
 	f(".*;|;.*", ";foo", true)
+
+	f(".*foo(bar|baz)", "fooxfoobaz", true)
+	f(".*foo(bar|baz)", "fooxfooban", false)
+	f(".*foo(bar|baz)", "fooxfooban foobar", true)
 }

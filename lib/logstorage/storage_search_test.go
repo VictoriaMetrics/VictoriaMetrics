@@ -3,7 +3,6 @@ package logstorage
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -582,7 +581,7 @@ func TestStorageSearch(t *testing.T) {
 				f,
 				&filterRegexp{
 					fieldName: "_msg",
-					re:        regexp.MustCompile("message [02] at "),
+					re:        mustCompileRegex("message [02] at "),
 				},
 			},
 		}

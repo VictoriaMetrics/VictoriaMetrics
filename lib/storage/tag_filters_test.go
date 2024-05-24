@@ -1183,7 +1183,7 @@ func TestSimplifyRegexp(t *testing.T) {
 	f("ab|ad", "a", "[bd]")
 	f("(?i)xyz", "", "(?i:XYZ)")
 	f("(?i)foo|bar", "", "(?i:FOO|BAR)")
-	f("(?i)up.+x", "", "(?i-s:UP.+X)")
+	f("(?i)up.+x", "", "(?is:UP.+X)")
 	f("(?smi)xy.*z$", "", "(?ims:XY.*Z$)")
 
 	// test invalid regexps
