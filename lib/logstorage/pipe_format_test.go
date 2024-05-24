@@ -11,13 +11,21 @@ func TestParsePipeFormatSuccess(t *testing.T) {
 	}
 
 	f(`format "foo<bar>"`)
+	f(`format "foo<bar>" skip_empty_results`)
+	f(`format "foo<bar>" keep_original_fields`)
 	f(`format "" as x`)
 	f(`format "<>" as x`)
 	f(`format foo as x`)
+	f(`format foo as x skip_empty_results`)
+	f(`format foo as x keep_original_fields`)
 	f(`format "<foo>"`)
 	f(`format "<foo>bar<baz>"`)
 	f(`format "bar<baz><xyz>bac"`)
+	f(`format "bar<baz><xyz>bac" skip_empty_results`)
+	f(`format "bar<baz><xyz>bac" keep_original_fields`)
 	f(`format if (x:y) "bar<baz><xyz>bac"`)
+	f(`format if (x:y) "bar<baz><xyz>bac" skip_empty_results`)
+	f(`format if (x:y) "bar<baz><xyz>bac" keep_original_fields`)
 }
 
 func TestParsePipeFormatFailure(t *testing.T) {
@@ -38,6 +46,104 @@ func TestPipeFormat(t *testing.T) {
 		t.Helper()
 		expectPipeResults(t, pipeStr, rows, rowsExpected)
 	}
+
+	// skip_empty_results
+	f(`format '<foo><bar>' as x skip_empty_results`, [][]Field{
+		{
+			{"foo", `abc`},
+			{"bar", `cde`},
+			{"x", "111"},
+		},
+		{
+			{"xfoo", `ppp`},
+			{"xbar", `123`},
+			{"x", "222"},
+		},
+	}, [][]Field{
+		{
+			{"foo", `abc`},
+			{"bar", `cde`},
+			{"x", `abccde`},
+		},
+		{
+			{"xfoo", `ppp`},
+			{"xbar", `123`},
+			{"x", `222`},
+		},
+	})
+
+	// no skip_empty_results
+	f(`format '<foo><bar>' as x`, [][]Field{
+		{
+			{"foo", `abc`},
+			{"bar", `cde`},
+			{"x", "111"},
+		},
+		{
+			{"xfoo", `ppp`},
+			{"xbar", `123`},
+			{"x", "222"},
+		},
+	}, [][]Field{
+		{
+			{"foo", `abc`},
+			{"bar", `cde`},
+			{"x", `abccde`},
+		},
+		{
+			{"xfoo", `ppp`},
+			{"xbar", `123`},
+			{"x", ``},
+		},
+	})
+
+	// no keep_original_fields
+	f(`format '{"foo":<q:foo>,"bar":"<bar>"}' as x`, [][]Field{
+		{
+			{"foo", `abc`},
+			{"bar", `cde`},
+			{"x", "qwe"},
+		},
+		{
+			{"foo", `ppp`},
+			{"bar", `123`},
+		},
+	}, [][]Field{
+		{
+			{"foo", `abc`},
+			{"bar", `cde`},
+			{"x", `{"foo":"abc","bar":"cde"}`},
+		},
+		{
+			{"foo", `ppp`},
+			{"bar", `123`},
+			{"x", `{"foo":"ppp","bar":"123"}`},
+		},
+	})
+
+	// keep_original_fields
+	f(`format '{"foo":<q:foo>,"bar":"<bar>"}' as x keep_original_fields`, [][]Field{
+		{
+			{"foo", `abc`},
+			{"bar", `cde`},
+			{"x", "qwe"},
+		},
+		{
+			{"foo", `ppp`},
+			{"bar", `123`},
+		},
+	}, [][]Field{
+		{
+			{"foo", `abc`},
+			{"bar", `cde`},
+			{"x", `qwe`},
+		},
+		{
+			{"foo", `ppp`},
+			{"bar", `123`},
+			{"x", `{"foo":"ppp","bar":"123"}`},
+		},
+	})
 
 	// plain string into a single field
 	f(`format '{"foo":<q:foo>,"bar":"<bar>"}' as x`, [][]Field{
@@ -160,42 +266,80 @@ func TestPipeFormatUpdateNeededFields(t *testing.T) {
 
 	// all the needed fields
 	f(`format "foo" as x`, "*", "", "*", "x")
+	f(`format "foo" as x skip_empty_results`, "*", "", "*", "")
+	f(`format "foo" as x keep_original_fields`, "*", "", "*", "")
 	f(`format "<f1>foo" as x`, "*", "", "*", "x")
 	f(`format if (f2:z) "<f1>foo" as x`, "*", "", "*", "x")
+	f(`format if (f2:z) "<f1>foo" as x skip_empty_results`, "*", "", "*", "")
+	f(`format if (f2:z) "<f1>foo" as x keep_original_fields`, "*", "", "*", "")
 
 	// unneeded fields do not intersect with pattern and output field
 	f(`format "foo" as x`, "*", "f1,f2", "*", "f1,f2,x")
 	f(`format "<f3>foo" as x`, "*", "f1,f2", "*", "f1,f2,x")
 	f(`format if (f4:z) "<f3>foo" as x`, "*", "f1,f2", "*", "f1,f2,x")
 	f(`format if (f1:z) "<f3>foo" as x`, "*", "f1,f2", "*", "f2,x")
+	f(`format if (f1:z) "<f3>foo" as x skip_empty_results`, "*", "f1,f2", "*", "f2")
+	f(`format if (f1:z) "<f3>foo" as x keep_original_fields`, "*", "f1,f2", "*", "f2")
 
 	// unneeded fields intersect with pattern
 	f(`format "<f1>foo" as x`, "*", "f1,f2", "*", "f2,x")
+	f(`format "<f1>foo" as x skip_empty_results`, "*", "f1,f2", "*", "f2")
+	f(`format "<f1>foo" as x keep_original_fields`, "*", "f1,f2", "*", "f2")
 	f(`format if (f4:z) "<f1>foo" as x`, "*", "f1,f2", "*", "f2,x")
+	f(`format if (f4:z) "<f1>foo" as x skip_empty_results`, "*", "f1,f2", "*", "f2")
+	f(`format if (f4:z) "<f1>foo" as x keep_original_fields`, "*", "f1,f2", "*", "f2")
 	f(`format if (f2:z) "<f1>foo" as x`, "*", "f1,f2", "*", "x")
+	f(`format if (f2:z) "<f1>foo" as x skip_empty_results`, "*", "f1,f2", "*", "")
+	f(`format if (f2:z) "<f1>foo" as x keep_original_fields`, "*", "f1,f2", "*", "")
 
 	// unneeded fields intersect with output field
 	f(`format "<f1>foo" as x`, "*", "x,y", "*", "x,y")
+	f(`format "<f1>foo" as x skip_empty_results`, "*", "x,y", "*", "x,y")
+	f(`format "<f1>foo" as x keep_original_fields`, "*", "x,y", "*", "x,y")
 	f(`format if (f2:z) "<f1>foo" as x`, "*", "x,y", "*", "x,y")
+	f(`format if (f2:z) "<f1>foo" as x skip_empty_results`, "*", "x,y", "*", "x,y")
+	f(`format if (f2:z) "<f1>foo" as x keep_original_fields`, "*", "x,y", "*", "x,y")
 	f(`format if (y:z) "<f1>foo" as x`, "*", "x,y", "*", "x,y")
+	f(`format if (y:z) "<f1>foo" as x skip_empty_results`, "*", "x,y", "*", "x,y")
+	f(`format if (y:z) "<f1>foo" as x keep_original_fields`, "*", "x,y", "*", "x,y")
 
 	// needed fields do not intersect with pattern and output field
 	f(`format "<f1>foo" as f2`, "x,y", "", "x,y", "")
+	f(`format "<f1>foo" as f2 keep_original_fields`, "x,y", "", "x,y", "")
+	f(`format "<f1>foo" as f2 skip_empty_results`, "x,y", "", "x,y", "")
 	f(`format if (f3:z) "<f1>foo" as f2`, "x,y", "", "x,y", "")
+	f(`format if (f3:z) "<f1>foo" as f2 skip_empty_results`, "x,y", "", "x,y", "")
+	f(`format if (f3:z) "<f1>foo" as f2 keep_original_fields`, "x,y", "", "x,y", "")
 	f(`format if (x:z) "<f1>foo" as f2`, "x,y", "", "x,y", "")
+	f(`format if (x:z) "<f1>foo" as f2 skip_empty_results`, "x,y", "", "x,y", "")
+	f(`format if (x:z) "<f1>foo" as f2 keep_original_fields`, "x,y", "", "x,y", "")
 
 	// needed fields intersect with pattern field
 	f(`format "<f1>foo" as f2`, "f1,y", "", "f1,y", "")
+	f(`format "<f1>foo" as f2 skip_empty_results`, "f1,y", "", "f1,y", "")
+	f(`format "<f1>foo" as f2 keep_original_fields`, "f1,y", "", "f1,y", "")
 	f(`format if (f3:z) "<f1>foo" as f2`, "f1,y", "", "f1,y", "")
 	f(`format if (x:z) "<f1>foo" as f2`, "f1,y", "", "f1,y", "")
+	f(`format if (x:z) "<f1>foo" as f2 skip_empty_results`, "f1,y", "", "f1,y", "")
+	f(`format if (x:z) "<f1>foo" as f2 keep_original_fields`, "f1,y", "", "f1,y", "")
 
 	// needed fields intersect with output field
 	f(`format "<f1>foo" as f2`, "f2,y", "", "f1,y", "")
+	f(`format "<f1>foo" as f2 skip_empty_results`, "f2,y", "", "f1,f2,y", "")
+	f(`format "<f1>foo" as f2 keep_original_fields`, "f2,y", "", "f1,f2,y", "")
 	f(`format if (f3:z) "<f1>foo" as f2`, "f2,y", "", "f1,f3,y", "")
 	f(`format if (x:z or y:w) "<f1>foo" as f2`, "f2,y", "", "f1,x,y", "")
+	f(`format if (x:z or y:w) "<f1>foo" as f2 skip_empty_results`, "f2,y", "", "f1,f2,x,y", "")
+	f(`format if (x:z or y:w) "<f1>foo" as f2 keep_original_fields`, "f2,y", "", "f1,f2,x,y", "")
 
 	// needed fields intersect with pattern and output fields
 	f(`format "<f1>foo" as f2`, "f1,f2,y", "", "f1,y", "")
+	f(`format "<f1>foo" as f2 skip_empty_results`, "f1,f2,y", "", "f1,f2,y", "")
+	f(`format "<f1>foo" as f2 keep_original_fields`, "f1,f2,y", "", "f1,f2,y", "")
 	f(`format if (f3:z) "<f1>foo" as f2`, "f1,f2,y", "", "f1,f3,y", "")
+	f(`format if (f3:z) "<f1>foo" as f2 skip_empty_results`, "f1,f2,y", "", "f1,f2,f3,y", "")
+	f(`format if (f3:z) "<f1>foo" as f2 keep_original_fields`, "f1,f2,y", "", "f1,f2,f3,y", "")
 	f(`format if (x:z or y:w) "<f1>foo" as f2`, "f1,f2,y", "", "f1,x,y", "")
+	f(`format if (x:z or y:w) "<f1>foo" as f2 skip_empty_results`, "f1,f2,y", "", "f1,f2,x,y", "")
+	f(`format if (x:z or y:w) "<f1>foo" as f2 keep_original_fields`, "f1,f2,y", "", "f1,f2,x,y", "")
 }

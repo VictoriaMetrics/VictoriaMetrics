@@ -621,8 +621,8 @@ func lessString(a, b string) bool {
 		return nA < nB
 	}
 
-	fA, okA := tryParseFloat64(a)
-	fB, okB := tryParseFloat64(b)
+	fA, okA := tryParseNumber(a)
+	fB, okB := tryParseNumber(b)
 	if okA && okB {
 		return fA < fB
 	}

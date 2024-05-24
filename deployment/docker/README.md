@@ -185,7 +185,7 @@ To access Grafana use link [http://localhost:3000](http://localhost:3000).
 To access [VictoriaLogs UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui)
 use link [http://localhost:9428/select/vmui](http://localhost:9428/select/vmui).
 
-Please, also see [how to monitor](https://docs.victoriametrics.com/VictoriaLogs/#monitoring) 
+Please, also see [how to monitor](https://docs.victoriametrics.com/victorialogs/#monitoring) 
 VictoriaLogs installations.
 
 To shutdown environment execute the following command:
