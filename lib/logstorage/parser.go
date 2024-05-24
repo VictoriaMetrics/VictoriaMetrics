@@ -3,7 +3,6 @@ package logstorage
 import (
 	"fmt"
 	"math"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
 )
 
 type lexer struct {
@@ -597,8 +597,12 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		return parseFilterLT(lex, fieldName)
 	case lex.isKeyword("="):
 		return parseFilterEQ(lex, fieldName)
+	case lex.isKeyword("!="):
+		return parseFilterNEQ(lex, fieldName)
 	case lex.isKeyword("~"):
 		return parseFilterTilda(lex, fieldName)
+	case lex.isKeyword("!~"):
+		return parseFilterNotTilda(lex, fieldName)
 	case lex.isKeyword("not", "!"):
 		return parseFilterNot(lex, fieldName)
 	case lex.isKeyword("exact"):
@@ -1007,7 +1011,7 @@ func parseFilterExact(lex *lexer, fieldName string) (filter, error) {
 func parseFilterRegexp(lex *lexer, fieldName string) (filter, error) {
 	funcName := lex.token
 	return parseFuncArg(lex, fieldName, func(arg string) (filter, error) {
-		re, err := regexp.Compile(arg)
+		re, err := regexutil.NewRegex(arg)
 		if err != nil {
 			return nil, fmt.Errorf("invalid regexp %q for %s(): %w", arg, funcName, err)
 		}
@@ -1022,7 +1026,7 @@ func parseFilterRegexp(lex *lexer, fieldName string) (filter, error) {
 func parseFilterTilda(lex *lexer, fieldName string) (filter, error) {
 	lex.nextToken()
 	arg := getCompoundFuncArg(lex)
-	re, err := regexp.Compile(arg)
+	re, err := regexutil.NewRegex(arg)
 	if err != nil {
 		return nil, fmt.Errorf("invalid regexp %q: %w", arg, err)
 	}
@@ -1031,6 +1035,17 @@ func parseFilterTilda(lex *lexer, fieldName string) (filter, error) {
 		re:        re,
 	}
 	return fr, nil
+}
+
+func parseFilterNotTilda(lex *lexer, fieldName string) (filter, error) {
+	f, err := parseFilterTilda(lex, fieldName)
+	if err != nil {
+		return nil, err
+	}
+	fn := &filterNot{
+		f: f,
+	}
+	return fn, nil
 }
 
 func parseFilterEQ(lex *lexer, fieldName string) (filter, error) {
@@ -1049,6 +1064,17 @@ func parseFilterEQ(lex *lexer, fieldName string) (filter, error) {
 		value:     phrase,
 	}
 	return f, nil
+}
+
+func parseFilterNEQ(lex *lexer, fieldName string) (filter, error) {
+	f, err := parseFilterEQ(lex, fieldName)
+	if err != nil {
+		return nil, err
+	}
+	fn := &filterNot{
+		f: f,
+	}
+	return fn, nil
 }
 
 func parseFilterGT(lex *lexer, fieldName string) (filter, error) {
