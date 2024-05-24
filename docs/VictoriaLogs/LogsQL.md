@@ -1246,12 +1246,12 @@ _time:5m | extract if (ip:"") "ip=<ip> "
 
 ### field_names pipe
 
-Sometimes it may be needed to get all the field names for the selected results. This may be done with `| field_names ...` [pipe](#pipes).
-For example, the following query returns all the names of [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
-from the logs over the last 5 minutes:
+`| field_names` [pipe](#pipes) returns all the names of [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
+with an estimated number of logs per each field name.
+For example, the following query returns all the field names with the number of matching logs over the last 5 minutes:
 
 ```logsql
-_time:5m | field_names as names
+_time:5m | field_names
 ```
 
 Field names are returned in arbitrary order. Use [`sort` pipe](#sort-pipe) in order to sort them if needed.
@@ -1622,7 +1622,7 @@ _time:5m | stats
 
 ### uniq pipe
 
-`| uniq ...` pipe allows returning only unique results over the selected logs. For example, the following LogsQL query
+`| uniq ...` pipe returns unique results over the selected logs. For example, the following LogsQL query
 returns unique values for `ip` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
 
@@ -1639,6 +1639,12 @@ _time:5m | uniq by (host, path)
 
 The unique entries are returned in arbitrary order. Use [`sort` pipe](#sort-pipe) in order to sort them if needed.
 
+Add `hits` after `uniq by (...)` in order to return the number of matching logs per each field value:
+
+```logsql
+_time:5m | uniq by (host) hits
+```
+
 Unique entries are stored in memory during query execution. Big number of unique selected entries may require a lot of memory.
 Sometimes it is enough to return up to `N` unique entries. This can be done by adding `limit N` after `by (...)` clause.
 This allows limiting memory usage. For example, the following query returns up to 100 unique `(host, path)` pairs for the logs over the last 5 minutes:
@@ -1646,6 +1652,8 @@ This allows limiting memory usage. For example, the following query returns up t
 ```logsql
 _time:5m | uniq by (host, path) limit 100
 ```
+
+If the `limit` is reached, then arbitrary subset of unique values can be returned. The `hits` calculation doesn't work when the `limit` is reached.
 
 The `by` keyword can be skipped in `uniq ...` pipe. For example, the following query is equivalent to the previous one:
 

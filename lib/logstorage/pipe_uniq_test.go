@@ -11,11 +11,15 @@ func TestParsePipeUniqSuccess(t *testing.T) {
 	}
 
 	f(`uniq`)
+	f(`uniq hits`)
 	f(`uniq limit 10`)
+	f(`uniq hits limit 10`)
 	f(`uniq by (x)`)
 	f(`uniq by (x) limit 10`)
 	f(`uniq by (x, y)`)
+	f(`uniq by (x, y) hits`)
 	f(`uniq by (x, y) limit 10`)
+	f(`uniq by (x, y) hits limit 10`)
 }
 
 func TestParsePipeUniqFailure(t *testing.T) {
@@ -26,6 +30,7 @@ func TestParsePipeUniqFailure(t *testing.T) {
 
 	f(`uniq foo`)
 	f(`uniq by`)
+	f(`uniq by hits`)
 	f(`uniq by(x) limit`)
 	f(`uniq by(x) limit foo`)
 }
@@ -62,6 +67,62 @@ func TestPipeUniq(t *testing.T) {
 		},
 	})
 
+	f("uniq hits", [][]Field{
+		{
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"a", "2"},
+			{"b", "3"},
+		},
+		{
+			{"a", `2`},
+			{"b", `54`},
+			{"c", "d"},
+		},
+	}, [][]Field{
+		{
+			{"a", "2"},
+			{"b", "3"},
+			{"hits", "2"},
+		},
+		{
+			{"a", `2`},
+			{"b", `54`},
+			{"c", "d"},
+			{"hits", "1"},
+		},
+	})
+
+	f("uniq hits limit 2", [][]Field{
+		{
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"a", "2"},
+			{"b", "3"},
+		},
+		{
+			{"a", `2`},
+			{"b", `54`},
+			{"c", "d"},
+		},
+	}, [][]Field{
+		{
+			{"a", "2"},
+			{"b", "3"},
+			{"hits", "0"},
+		},
+		{
+			{"a", `2`},
+			{"b", `54`},
+			{"c", "d"},
+			{"hits", "0"},
+		},
+	})
+
 	f("uniq by (a)", [][]Field{
 		{
 			{"a", `2`},
@@ -79,6 +140,27 @@ func TestPipeUniq(t *testing.T) {
 	}, [][]Field{
 		{
 			{"a", "2"},
+		},
+	})
+
+	f("uniq by (a) hits", [][]Field{
+		{
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"a", "2"},
+			{"b", "3"},
+		},
+		{
+			{"a", `2`},
+			{"b", `54`},
+			{"c", "d"},
+		},
+	}, [][]Field{
+		{
+			{"a", "2"},
+			{"hits", "3"},
 		},
 	})
 
@@ -105,6 +187,31 @@ func TestPipeUniq(t *testing.T) {
 		},
 	})
 
+	f("uniq by (b) hits", [][]Field{
+		{
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"a", "2"},
+			{"b", "3"},
+		},
+		{
+			{"a", `2`},
+			{"b", `54`},
+			{"c", "d"},
+		},
+	}, [][]Field{
+		{
+			{"b", "3"},
+			{"hits", "2"},
+		},
+		{
+			{"b", "54"},
+			{"hits", "1"},
+		},
+	})
+
 	f("uniq by (c)", [][]Field{
 		{
 			{"a", `2`},
@@ -128,6 +235,31 @@ func TestPipeUniq(t *testing.T) {
 		},
 	})
 
+	f("uniq by (c) hits", [][]Field{
+		{
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"a", "2"},
+			{"b", "3"},
+		},
+		{
+			{"a", `2`},
+			{"b", `54`},
+			{"c", "d"},
+		},
+	}, [][]Field{
+		{
+			{"c", ""},
+			{"hits", "2"},
+		},
+		{
+			{"c", "d"},
+			{"hits", "1"},
+		},
+	})
+
 	f("uniq by (d)", [][]Field{
 		{
 			{"a", `2`},
@@ -145,6 +277,27 @@ func TestPipeUniq(t *testing.T) {
 	}, [][]Field{
 		{
 			{"d", ""},
+		},
+	})
+
+	f("uniq by (d) hits", [][]Field{
+		{
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"a", "2"},
+			{"b", "3"},
+		},
+		{
+			{"a", `2`},
+			{"b", `54`},
+			{"c", "d"},
+		},
+	}, [][]Field{
+		{
+			{"d", ""},
+			{"hits", "3"},
 		},
 	})
 
@@ -170,6 +323,33 @@ func TestPipeUniq(t *testing.T) {
 		{
 			{"a", "2"},
 			{"b", "54"},
+		},
+	})
+
+	f("uniq by (a, b) hits", [][]Field{
+		{
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"a", "2"},
+			{"b", "3"},
+		},
+		{
+			{"a", `2`},
+			{"b", `54`},
+			{"c", "d"},
+		},
+	}, [][]Field{
+		{
+			{"a", "2"},
+			{"b", "3"},
+			{"hits", "2"},
+		},
+		{
+			{"a", "2"},
+			{"b", "54"},
+			{"hits", "1"},
 		},
 	})
 }
