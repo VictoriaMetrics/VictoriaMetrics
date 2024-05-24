@@ -17,6 +17,8 @@ type pipeFormat struct {
 
 	resultField string
 
+	keepOriginalFields bool
+
 	// iff is an optional filter for skipping the format func
 	iff *ifFilter
 }
@@ -30,13 +32,18 @@ func (pf *pipeFormat) String() string {
 	if !isMsgFieldName(pf.resultField) {
 		s += " as " + quoteTokenIfNeeded(pf.resultField)
 	}
+	if pf.keepOriginalFields {
+		s += " keep_original_fields"
+	}
 	return s
 }
 
 func (pf *pipeFormat) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	if neededFields.contains("*") {
 		if !unneededFields.contains(pf.resultField) {
-			unneededFields.add(pf.resultField)
+			if !pf.keepOriginalFields {
+				unneededFields.add(pf.resultField)
+			}
 			if pf.iff != nil {
 				unneededFields.removeFields(pf.iff.neededFields)
 			}
@@ -48,7 +55,9 @@ func (pf *pipeFormat) updateNeededFields(neededFields, unneededFields fieldsSet)
 		}
 	} else {
 		if neededFields.contains(pf.resultField) {
-			neededFields.remove(pf.resultField)
+			if !pf.keepOriginalFields {
+				neededFields.remove(pf.resultField)
+			}
 			if pf.iff != nil {
 				neededFields.addFields(pf.iff.neededFields)
 			}
@@ -97,7 +106,7 @@ func (pfp *pipeFormatProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	shard := &pfp.shards[workerID]
-	shard.wctx.init(workerID, pfp.ppBase, br)
+	shard.wctx.init(workerID, pfp.ppBase, pfp.pf.keepOriginalFields, br)
 	shard.uctx.init(workerID, "")
 
 	bm := &shard.bm
@@ -189,11 +198,18 @@ func parsePipeFormat(lex *lexer) (*pipeFormat, error) {
 		resultField = field
 	}
 
+	keepOriginalFields := false
+	if lex.isKeyword("keep_original_fields") {
+		lex.nextToken()
+		keepOriginalFields = true
+	}
+
 	pf := &pipeFormat{
-		formatStr:   formatStr,
-		steps:       steps,
-		resultField: resultField,
-		iff:         iff,
+		formatStr:          formatStr,
+		steps:              steps,
+		resultField:        resultField,
+		keepOriginalFields: keepOriginalFields,
+		iff:                iff,
 	}
 
 	return pf, nil

@@ -1162,6 +1162,13 @@ For example, the following query extracts `ip` from the corresponding JSON field
 _time:5m | extract '"ip":"<ip>"'
 ```
 
+Add `keep_original_fields` to the end of `extract ...` when the original non-empty values of the named fields mentioned in the pattern must be preserved
+instead of overwriting it with the extracted values. For example, the following query extracts `<ip>` only if the original value for `ip` field is missing or is empty:
+
+```logsql
+_time:5m | extract 'ip=<ip> ' keep_original_fields
+```
+
 See also:
 
 - [Format for extract pipe pattern](#format-for-extract-pipe-pattern)
@@ -1244,6 +1251,13 @@ if the input [log entry](https://docs.victoriametrics.com/VictoriaLogs/keyConcep
 _time:5m | extract if (ip:"") "ip=<ip> "
 ```
 
+An alternative approach is to add `keep_original_fields` to the end of `extract`, in order to keep the original non-empty values for the extracted fields.
+For example, the following query is equivalent to the previous one:
+
+```logsql
+_time:5m | extract "ip=<ip> " keep_original_fields
+```
+
 ### field_names pipe
 
 `| field_names` [pipe](#pipes) returns all the names of [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
@@ -1302,7 +1316,7 @@ See also:
 ### format pipe
 
 `| format "pattern" as result_field` [pipe](#pipe) combines [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-according to the `pattern` and stores it to the `result_field`. All the other fields remain unchanged after the `| format ...` pipe.
+according to the `pattern` and stores it to the `result_field`.
 
 For example, the following query stores `request from <ip>:<port>` text into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
 by substituting `<ip>` and `<port>` with the corresponding [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values:
@@ -1324,6 +1338,13 @@ and stores it into `my_json` output field:
 
 ```logsql
 _time:5m | format '{"_msg":<q:_msg>,"stacktrace":<q:stacktrace>}' as my_json
+```
+
+Add `keep_original_fields` to the end of `format ... as result_field` when the original non-empty value of the `result_field` must be preserved
+instead of overwriting it with the `format` results. For example, the following query adds formatted result to `foo` field only if it was missing or empty:
+
+```logsql
+_time:5m | format 'some_text' as foo keep_original_fields
 ```
 
 See also:
@@ -1692,6 +1713,13 @@ fields from JSON value stored in `my_json` [log field](https://docs.victoriametr
 _time:5m | unpack_json from my_json fields (foo, bar)
 ```
 
+If it is needed to preserve the original non-empty values of the unpacked fields, then add `keep_original_fields` to the end of `unpack_json ...`. For example,
+the following query preserves the original non-empty values for `ip` and `host` fields instead of overwriting it with the unpacked values:
+
+```logsql
+_time:5m | unpack_json from foo fields (ip, host) keep_original_fields
+```
+
 Performance tip: if you need extracting a single field from long JSON, it is faster to use [`extract` pipe](#extract-pipe). For example, the following query extracts `"ip"` field from JSON
 stored in [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) at the maximum speed:
 
@@ -1752,6 +1780,13 @@ from logfmt stored in the `my_logfmt` field:
 
 ```logsql
 _time:5m | unpack_logfmt from my_logfmt fields (foo, bar)
+```
+
+If it is needed to preserve the original non-empty values of the unpacked fields, then add `keep_original_fields` to the end of `unpack_logfmt ...`. For example,
+the following query preserves the original non-empty values for `ip` and `host` fields instead of overwriting it with the unpacked values:
+
+```logsql
+_time:5m | unpack_logfmt from foo fields (ip, host) keep_original_fields
 ```
 
 Performance tip: if you need extracting a single field from long [logfmt](https://brandur.org/logfmt) line, it is faster to use [`extract` pipe](#extract-pipe).

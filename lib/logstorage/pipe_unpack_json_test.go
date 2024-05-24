@@ -15,16 +15,23 @@ func TestParsePipeUnpackJSONSuccess(t *testing.T) {
 	}
 
 	f(`unpack_json`)
+	f(`unpack_json keep_original_fields`)
 	f(`unpack_json fields (a)`)
 	f(`unpack_json fields (a, b, c)`)
+	f(`unpack_json fields (a, b, c) keep_original_fields`)
 	f(`unpack_json if (a:x)`)
+	f(`unpack_json if (a:x) keep_original_fields`)
 	f(`unpack_json from x`)
+	f(`unpack_json from x keep_original_fields`)
 	f(`unpack_json from x fields (a, b)`)
 	f(`unpack_json if (a:x) from x fields (a, b)`)
+	f(`unpack_json if (a:x) from x fields (a, b) keep_original_fields`)
 	f(`unpack_json from x result_prefix abc`)
 	f(`unpack_json if (a:x) from x fields (a, b) result_prefix abc`)
+	f(`unpack_json if (a:x) from x fields (a, b) result_prefix abc keep_original_fields`)
 	f(`unpack_json result_prefix abc`)
 	f(`unpack_json if (a:x) fields (a, b) result_prefix abc`)
+	f(`unpack_json if (a:x) fields (a, b) result_prefix abc keep_original_fields`)
 }
 
 func TestParsePipeUnpackJSONFailure(t *testing.T) {
@@ -54,6 +61,38 @@ func TestPipeUnpackJSON(t *testing.T) {
 		t.Helper()
 		expectPipeResults(t, pipeStr, rows, rowsExpected)
 	}
+
+	// no keep original fields fields
+	f("unpack_json", [][]Field{
+		{
+			{"_msg", `{"foo":"bar","z":"q","a":"b"}`},
+			{"foo", "x"},
+			{"a", ""},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `{"foo":"bar","z":"q","a":"b"}`},
+			{"foo", "bar"},
+			{"z", "q"},
+			{"a", "b"},
+		},
+	})
+
+	// keep original fields
+	f("unpack_json keep_original_fields", [][]Field{
+		{
+			{"_msg", `{"foo":"bar","z":"q","a":"b"}`},
+			{"foo", "x"},
+			{"a", ""},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `{"foo":"bar","z":"q","a":"b"}`},
+			{"foo", "x"},
+			{"z", "q"},
+			{"a", "b"},
+		},
+	})
 
 	// unpack only the requested fields
 	f("unpack_json fields (foo, b)", [][]Field{
@@ -465,35 +504,48 @@ func TestPipeUnpackJSONUpdateNeededFields(t *testing.T) {
 
 	// all the needed fields
 	f("unpack_json from x", "*", "", "*", "")
+	f("unpack_json from x keep_original_fields", "*", "", "*", "")
 	f("unpack_json if (y:z) from x", "*", "", "*", "")
 	f("unpack_json if (y:z) from x fields (a, b)", "*", "", "*", "a,b")
+	f("unpack_json if (y:z) from x fields (a, b) keep_original_fields", "*", "", "*", "")
 
 	// all the needed fields, unneeded fields do not intersect with src
 	f("unpack_json from x", "*", "f1,f2", "*", "f1,f2")
+	f("unpack_json from x keep_original_fields", "*", "f1,f2", "*", "f1,f2")
 	f("unpack_json if (y:z) from x", "*", "f1,f2", "*", "f1,f2")
 	f("unpack_json if (f1:z) from x", "*", "f1,f2", "*", "f2")
 	f("unpack_json if (y:z) from x fields (f3)", "*", "f1,f2", "*", "f1,f2,f3")
 	f("unpack_json if (y:z) from x fields (f1)", "*", "f1,f2", "*", "f1,f2")
+	f("unpack_json if (y:z) from x fields (f1) keep_original_fields", "*", "f1,f2", "*", "f1,f2")
 
 	// all the needed fields, unneeded fields intersect with src
 	f("unpack_json from x", "*", "f2,x", "*", "f2")
+	f("unpack_json from x keep_original_fields", "*", "f2,x", "*", "f2")
 	f("unpack_json if (y:z) from x", "*", "f2,x", "*", "f2")
 	f("unpack_json if (f2:z) from x", "*", "f1,f2,x", "*", "f1")
 	f("unpack_json if (f2:z) from x fields (f3)", "*", "f1,f2,x", "*", "f1,f3")
+	f("unpack_json if (f2:z) from x fields (f3) keep_original_fields", "*", "f1,f2,x", "*", "f1")
 
 	// needed fields do not intersect with src
 	f("unpack_json from x", "f1,f2", "", "f1,f2,x", "")
+	f("unpack_json from x keep_original_fields", "f1,f2", "", "f1,f2,x", "")
 	f("unpack_json if (y:z) from x", "f1,f2", "", "f1,f2,x,y", "")
 	f("unpack_json if (f1:z) from x", "f1,f2", "", "f1,f2,x", "")
 	f("unpack_json if (y:z) from x fields (f3)", "f1,f2", "", "f1,f2", "")
+	f("unpack_json if (y:z) from x fields (f3) keep_original_fields", "f1,f2", "", "f1,f2", "")
 	f("unpack_json if (y:z) from x fields (f2)", "f1,f2", "", "f1,x,y", "")
 	f("unpack_json if (f2:z) from x fields (f2)", "f1,f2", "", "f1,f2,x", "")
+	f("unpack_json if (f2:z) from x fields (f2) keep_original_fields", "f1,f2", "", "f1,f2,x", "")
 
 	// needed fields intersect with src
 	f("unpack_json from x", "f2,x", "", "f2,x", "")
+	f("unpack_json from x keep_original_fields", "f2,x", "", "f2,x", "")
 	f("unpack_json if (y:z) from x", "f2,x", "", "f2,x,y", "")
 	f("unpack_json if (f2:z y:qwe) from x", "f2,x", "", "f2,x,y", "")
 	f("unpack_json if (y:z) from x fields (f1)", "f2,x", "", "f2,x", "")
+	f("unpack_json if (y:z) from x fields (f1) keep_original_fields", "f2,x", "", "f2,x", "")
 	f("unpack_json if (y:z) from x fields (f2)", "f2,x", "", "x,y", "")
+	f("unpack_json if (y:z) from x fields (f2) keep_original_fields", "f2,x", "", "f2,x,y", "")
 	f("unpack_json if (y:z) from x fields (x)", "f2,x", "", "f2,x,y", "")
+	f("unpack_json if (y:z) from x fields (x) keep_original_fields", "f2,x", "", "f2,x,y", "")
 }

@@ -54,7 +54,7 @@ func (uctx *fieldsUnpackerContext) addField(name, value string) {
 }
 
 func newPipeUnpackProcessor(workersCount int, unpackFunc func(uctx *fieldsUnpackerContext, s string), ppBase pipeProcessor,
-	fromField, fieldPrefix string, iff *ifFilter) *pipeUnpackProcessor {
+	fromField string, fieldPrefix string, keepOriginalFields bool, iff *ifFilter) *pipeUnpackProcessor {
 
 	return &pipeUnpackProcessor{
 		unpackFunc: unpackFunc,
@@ -62,9 +62,10 @@ func newPipeUnpackProcessor(workersCount int, unpackFunc func(uctx *fieldsUnpack
 
 		shards: make([]pipeUnpackProcessorShard, workersCount),
 
-		fromField:   fromField,
-		fieldPrefix: fieldPrefix,
-		iff:         iff,
+		fromField:          fromField,
+		fieldPrefix:        fieldPrefix,
+		keepOriginalFields: keepOriginalFields,
+		iff:                iff,
 	}
 }
 
@@ -74,8 +75,9 @@ type pipeUnpackProcessor struct {
 
 	shards []pipeUnpackProcessorShard
 
-	fromField   string
-	fieldPrefix string
+	fromField          string
+	fieldPrefix        string
+	keepOriginalFields bool
 
 	iff *ifFilter
 }
@@ -100,7 +102,7 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	shard := &pup.shards[workerID]
-	shard.wctx.init(workerID, pup.ppBase, br)
+	shard.wctx.init(workerID, pup.ppBase, pup.keepOriginalFields, br)
 	shard.uctx.init(workerID, pup.fieldPrefix)
 
 	bm := &shard.bm
@@ -153,8 +155,9 @@ func (pup *pipeUnpackProcessor) flush() error {
 }
 
 type pipeUnpackWriteContext struct {
-	workerID uint
-	ppBase   pipeProcessor
+	workerID           uint
+	ppBase             pipeProcessor
+	keepOriginalFields bool
 
 	brSrc *blockResult
 	csSrc []*blockResultColumn
@@ -172,6 +175,7 @@ type pipeUnpackWriteContext struct {
 func (wctx *pipeUnpackWriteContext) reset() {
 	wctx.workerID = 0
 	wctx.ppBase = nil
+	wctx.keepOriginalFields = false
 
 	wctx.brSrc = nil
 	wctx.csSrc = nil
@@ -186,11 +190,12 @@ func (wctx *pipeUnpackWriteContext) reset() {
 	wctx.valuesLen = 0
 }
 
-func (wctx *pipeUnpackWriteContext) init(workerID uint, ppBase pipeProcessor, brSrc *blockResult) {
+func (wctx *pipeUnpackWriteContext) init(workerID uint, ppBase pipeProcessor, keepOriginalFields bool, brSrc *blockResult) {
 	wctx.reset()
 
 	wctx.workerID = workerID
 	wctx.ppBase = ppBase
+	wctx.keepOriginalFields = keepOriginalFields
 
 	wctx.brSrc = brSrc
 	wctx.csSrc = brSrc.getColumns()
@@ -231,6 +236,15 @@ func (wctx *pipeUnpackWriteContext) writeRow(rowIdx int, extraFields []Field) {
 	}
 	for i, f := range extraFields {
 		v := f.Value
+		if wctx.keepOriginalFields {
+			idx := getBlockResultColumnIdxByName(csSrc, f.Name)
+			if idx >= 0 {
+				vOrig := csSrc[idx].getValueAtRow(brSrc, rowIdx)
+				if vOrig != "" {
+					v = vOrig
+				}
+			}
+		}
 		rcs[len(csSrc)+i].addValue(v)
 		wctx.valuesLen += len(v)
 	}

@@ -11,19 +11,26 @@ func TestParsePipeUnpackLogfmtSuccess(t *testing.T) {
 	}
 
 	f(`unpack_logfmt`)
+	f(`unpack_logfmt keep_original_fields`)
 	f(`unpack_logfmt fields (a, b)`)
+	f(`unpack_logfmt fields (a, b) keep_original_fields`)
 	f(`unpack_logfmt if (a:x)`)
+	f(`unpack_logfmt if (a:x) keep_original_fields`)
 	f(`unpack_logfmt if (a:x) fields (a, b)`)
 	f(`unpack_logfmt from x`)
+	f(`unpack_logfmt from x keep_original_fields`)
 	f(`unpack_logfmt from x fields (a, b)`)
+	f(`unpack_logfmt from x fields (a, b) keep_original_fields`)
 	f(`unpack_logfmt if (a:x) from x`)
 	f(`unpack_logfmt if (a:x) from x fields (a, b)`)
 	f(`unpack_logfmt from x result_prefix abc`)
 	f(`unpack_logfmt if (a:x) from x result_prefix abc`)
 	f(`unpack_logfmt if (a:x) from x fields (a, b) result_prefix abc`)
+	f(`unpack_logfmt if (a:x) from x fields (a, b) result_prefix abc keep_original_fields`)
 	f(`unpack_logfmt result_prefix abc`)
 	f(`unpack_logfmt if (a:x) result_prefix abc`)
 	f(`unpack_logfmt if (a:x) fields (a, b) result_prefix abc`)
+	f(`unpack_logfmt if (a:x) fields (a, b) result_prefix abc keep_original_fields`)
 }
 
 func TestParsePipeUnpackLogfmtFailure(t *testing.T) {
@@ -57,6 +64,7 @@ func TestPipeUnpackLogfmt(t *testing.T) {
 	f("unpack_logfmt fields (foo, a, b)", [][]Field{
 		{
 			{"_msg", `foo=bar baz="x y=z" a=b`},
+			{"a", "xxx"},
 		},
 	}, [][]Field{
 		{
@@ -67,10 +75,26 @@ func TestPipeUnpackLogfmt(t *testing.T) {
 		},
 	})
 
+	// keep original fields
+	f("unpack_logfmt keep_original_fields", [][]Field{
+		{
+			{"_msg", `foo=bar baz="x y=z" a=b`},
+			{"baz", "abcdef"},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `foo=bar baz="x y=z" a=b`},
+			{"foo", "bar"},
+			{"baz", "abcdef"},
+			{"a", "b"},
+		},
+	})
+
 	// single row, unpack from _msg
 	f("unpack_logfmt", [][]Field{
 		{
 			{"_msg", `foo=bar baz="x y=z" a=b`},
+			{"baz", "abcdef"},
 		},
 	}, [][]Field{
 		{
@@ -242,7 +266,10 @@ func TestPipeUnpackLogfmtUpdateNeededFields(t *testing.T) {
 	}
 
 	// all the needed fields
-	f("unpack_logfmt from x", "*", "", "*", "")
+	f("unpack_logfmt", "*", "", "*", "")
+	f("unpack_logfmt fields (f1, f2)", "*", "", "*", "f1,f2")
+	f("unpack_logfmt fields (f1, f2) keep_original_fields", "*", "", "*", "")
+	f("unpack_logfmt keep_original_fields", "*", "", "*", "")
 	f("unpack_logfmt if (y:z) from x", "*", "", "*", "")
 
 	// all the needed fields, unneeded fields do not intersect with src
