@@ -24,17 +24,17 @@ clients:
 
 Substitute `localhost:9428` address inside `clients` with the real TCP address of VictoriaLogs.
 
-By default VictoriaLogs stores all the ingested logs into a single [log stream](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields).
+By default VictoriaLogs stores all the ingested logs into a single [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 Storing all the logs in a single log stream may be not so efficient, so it is recommended to specify `_stream_fields` query arg
 with the list of labels, which uniquely identify log streams. There is no need in specifying all the labels Promtail generates there -
-it is usually enough specifying `instance` and `job` labels. See [these docs](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields)
+it is usually enough specifying `instance` and `job` labels. See [these docs](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
 for details.
 
 See also [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details on other supported query args.
 There is no need in specifying `_msg_field` and `_time_field` query args, since VictoriaLogs automatically extracts log message and timestamp from the ingested Loki data.
 
-It is recommended verifying whether the initial setup generates the needed [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
-and uses the correct [stream fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields).
+It is recommended verifying whether the initial setup generates the needed [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+and uses the correct [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 This can be done by specifying `debug` [parameter](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters)
 and inspecting VictoriaLogs logs then:
 
@@ -43,7 +43,7 @@ clients:
   - url: http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance,job,host,app&debug=1
 ```
 
-If some [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) must be skipped
+If some [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) must be skipped
 during data ingestion, then they can be put into `ignore_fields` [parameter](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters).
 For example, the following config instructs VictoriaLogs to ignore `filename` and `stream` fields in the ingested logs:
 

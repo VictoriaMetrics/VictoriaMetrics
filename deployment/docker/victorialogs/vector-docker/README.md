@@ -58,4 +58,4 @@ the example of vector configuration(`vector.toml`)
     ProjectID = "0"
 ```
 
-Please, note that `_stream_fields` parameter must follow recommended [best practices](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields) to achieve better performance.
+Please, note that `_stream_fields` parameter must follow recommended [best practices](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) to achieve better performance.

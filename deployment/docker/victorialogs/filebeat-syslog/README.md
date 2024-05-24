@@ -42,4 +42,4 @@ output.elasticsearch:
     _stream_fields: "host.name,process.program,process.pid,container.name"
 ```
 
-Please, note that `_stream_fields` parameter must follow recommended [best practices](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields) to achieve better performance.
+Please, note that `_stream_fields` parameter must follow recommended [best practices](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) to achieve better performance.

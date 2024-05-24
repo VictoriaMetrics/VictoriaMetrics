@@ -30,8 +30,8 @@ Substitute the host (`localhost`) and port (`9428`) with the real TCP address of
 
 See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details on the query args specified in the `uri`.
 
-It is recommended verifying whether the initial setup generates the needed [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
-and uses the correct [stream fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields).
+It is recommended verifying whether the initial setup generates the needed [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+and uses the correct [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 This can be done by specifying `debug` [parameter](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) in the `uri`
 and inspecting VictoriaLogs logs then:
 
@@ -46,7 +46,7 @@ and inspecting VictoriaLogs logs then:
      json_date_format iso8601
 ```
 
-If some [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) must be skipped
+If some [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) must be skipped
 during data ingestion, then they can be put into `ignore_fields` [parameter](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters).
 For example, the following config instructs VictoriaLogs to ignore `log.offset` and `event.original` fields in the ingested logs:
 
@@ -76,7 +76,7 @@ This usually allows saving network bandwidth and costs by up to 5 times:
      compress gzip
 ```
 
-By default, the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#multitenancy).
+By default, the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/keyconcepts/#multitenancy).
 If you need storing logs in other tenant, then specify the needed tenant via `header` options.
 For example, the following `fluentbit.conf` config instructs Fluentbit to store the data to `(AccountID=12, ProjectID=34)` tenant:
 

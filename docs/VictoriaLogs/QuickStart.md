@@ -14,7 +14,7 @@ aliases:
 # VictoriaLogs Quick Start
 
 It is recommended to read [README](https://docs.victoriametrics.com/VictoriaLogs/)
-and [Key Concepts](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html)
+and [Key Concepts](https://docs.victoriametrics.com/victorialogs/keyconcepts/)
 before you start working with VictoriaLogs.
 
 ## How to install and run VictoriaLogs
@@ -124,7 +124,7 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
 VictoriaLogs stores the ingested data to the `victoria-logs-data` directory by default. The directory can be changed
 via `-storageDataPath` command-line flag. See [these docs](https://docs.victoriametrics.com/VictoriaLogs/#storage) for details.
 
-By default VictoriaLogs stores [log entries](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html) with timestamps
+By default VictoriaLogs stores [log entries](https://docs.victoriametrics.com/victorialogs/keyconcepts/) with timestamps
 in the time range `[now-7d, now]`, while dropping logs outside the given time range.
 E.g. it uses the retention of 7 days. Read [these docs](https://docs.victoriametrics.com/VictoriaLogs/#retention) on how to control the retention
 for the [ingested](https://docs.victoriametrics.com/victorialogs/data-ingestion/) logs.

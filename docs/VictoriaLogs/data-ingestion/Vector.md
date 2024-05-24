@@ -39,8 +39,8 @@ Replace `your_input` with the name of the `inputs` section, which collects logs.
 See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details on parameters specified
 in the `[sinks.vlogs.query]` section.
 
-It is recommended verifying whether the initial setup generates the needed [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
-and uses the correct [stream fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields).
+It is recommended verifying whether the initial setup generates the needed [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+and uses the correct [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 This can be done by specifying `debug` [parameter](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters)
 in the `[sinks.vlogs.query]` section and inspecting VictoriaLogs logs then:
 
@@ -60,7 +60,7 @@ in the `[sinks.vlogs.query]` section and inspecting VictoriaLogs logs then:
     debug = "1"
 ```
 
-If some [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) must be skipped
+If some [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) must be skipped
 during data ingestion, then they can be put into `ignore_fields` [parameter](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters).
 For example, the following config instructs VictoriaLogs to ignore `log.offset` and `event.original` fields in the ingested logs:
 
@@ -120,7 +120,7 @@ This usually allows saving network bandwidth and costs by up to 5 times:
     _stream_fields = "host,container_name"
 ```
 
-By default, the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#multitenancy).
+By default, the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/keyconcepts/#multitenancy).
 If you need storing logs in other tenant, then specify the needed tenant via `[sinks.vlogq.request.headers]` section.
 For example, the following `vector.toml` config instructs Vector to store the data to `(AccountID=12, ProjectID=34)` tenant:
 

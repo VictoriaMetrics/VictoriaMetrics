@@ -58,4 +58,4 @@ the example of fluentbit configuration(`filebeat.yml`)
     header ProjectID 0
 ```
 
-Please, note that `_stream_fields` parameter must follow recommended [best practices](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields) to achieve better performance.
+Please, note that `_stream_fields` parameter must follow recommended [best practices](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) to achieve better performance.

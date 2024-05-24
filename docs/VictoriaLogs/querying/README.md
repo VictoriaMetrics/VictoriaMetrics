@@ -532,7 +532,7 @@ which are usually used for log analysis - `grep`, `jq`, `awk`, `sort`, `uniq`, `
 
 For example, the following command uses `wc -l` Unix command for counting the number of log messages
 with the `error` [word](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#word)
-received from [streams](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields) with `app="nginx"` field
+received from [streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) with `app="nginx"` field
 during the last 5 minutes:
 
 ```sh
@@ -543,14 +543,14 @@ See [these docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#strea
 [these docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#time-filter) about `_time` filter
 and [these docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#logical-filter) about `AND` operator.
 
-The following example shows how to sort query results by the [`_time` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field):
+The following example shows how to sort query results by the [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field):
 
 ```sh
 curl http://localhost:9428/select/logsql/query -d 'query=error' | jq -r '._time + " " + ._msg' | sort | less
 ```
 
-This command uses `jq` for extracting [`_time`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field)
-and [`_msg`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field) fields from the returned results,
+This command uses `jq` for extracting [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field)
+and [`_msg`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) fields from the returned results,
 and piping them to `sort` command.
 
 Note that the `sort` command needs to read all the response stream before returning the sorted results. So the command above
@@ -559,7 +559,7 @@ before sorting the results. See [these tips](https://docs.victoriametrics.com/Vi
 on how to narrow down query results.
 
 The following example calculates stats on the number of log messages received during the last 5 minutes
-grouped by `log.level` [field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model):
+grouped by `log.level` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
 
 ```sh
 curl http://localhost:9428/select/logsql/query -d 'query=_time:5m log.level:*' | jq -r '."log.level"' | sort | uniq -c 
@@ -571,5 +571,5 @@ are sorted with `sort` command and, finally, they are passed to `uniq -c` comman
 
 See also:
 
-- [Key concepts](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html).
+- [Key concepts](https://docs.victoriametrics.com/victorialogs/keyconcepts/).
 - [LogsQL docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html).

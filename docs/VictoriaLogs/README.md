@@ -16,7 +16,7 @@ VictoriaLogs provides the following key features:
 - VictoriaLogs is much easier to set up and operate compared to Elasticsearch and Grafana Loki.
   See [these docs](https://docs.victoriametrics.com/victorialogs/quickstart/).
 - VictoriaLogs provides easy yet powerful query language with full-text search capabilities across
-  all the [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) -
+  all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) -
   see [LogsQL docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html).
 - VictoriaLogs can be seamlessly combined with good old Unix tools for log analysis such as `grep`, `less`, `sort`, `jq`, etc.
   See [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line) for details.
@@ -24,7 +24,7 @@ VictoriaLogs provides the following key features:
   It runs smoothly on both Raspberry PI and a server with hundreds of CPU cores and terabytes of RAM.
 - VictoriaLogs can handle up to 30x bigger data volumes than Elasticsearch and Grafana Loki when running on the same hardware.
   See [these docs](#benchmarks).
-- VictoriaLogs supports fast full-text search over high-cardinality [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
+- VictoriaLogs supports fast full-text search over high-cardinality [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
   such as `trace_id`, `user_id` and `ip`.
 - VictoriaLogs supports multitenancy - see [these docs](#multitenancy).
 - VictoriaLogs supports out-of-order logs' ingestion aka backfilling.
@@ -203,7 +203,7 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
   -logIngestedRows
     	Whether to log all the ingested log entries; this can be useful for debugging of data ingestion; see https://docs.victoriametrics.com/victorialogs/data-ingestion/ ; see also -logNewStreams
   -logNewStreams
-    	Whether to log creation of new streams; this can be useful for debugging of high cardinality issues with log streams; see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields ; see also -logIngestedRows
+    	Whether to log creation of new streams; this can be useful for debugging of high cardinality issues with log streams; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields ; see also -logIngestedRows
   -loggerDisableTimestamps
     	Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int

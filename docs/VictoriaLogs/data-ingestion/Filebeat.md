@@ -28,8 +28,8 @@ Substitute the `localhost:9428` address inside `hosts` section with the real TCP
 
 See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details on the `parameters` section.
 
-It is recommended verifying whether the initial setup generates the needed [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
-and uses the correct [stream fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields).
+It is recommended verifying whether the initial setup generates the needed [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+and uses the correct [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 This can be done by specifying `debug` [parameter](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters)
 and inspecting VictoriaLogs logs then:
 
@@ -43,7 +43,7 @@ output.elasticsearch:
     debug: "1"
 ```
 
-If some [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) must be skipped
+If some [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) must be skipped
 during data ingestion, then they can be put into `ignore_fields` [parameter](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters).
 For example, the following config instructs VictoriaLogs to ignore `log.offset` and `event.original` fields in the ingested logs:
 
