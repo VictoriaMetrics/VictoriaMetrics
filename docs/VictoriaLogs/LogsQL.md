@@ -1178,6 +1178,9 @@ For example, the following query preserves the original `ip` field value if `foo
 _time:5m | extract 'ip=<ip> ' from foo skip_empty_results
 ```
 
+Performance tip: it is recommended using more specific [log filters](#filters) in order to reduce the number of log entries, which are passed to `extract`.
+See [general performance tips](#performance-tips) for details.
+
 See also:
 
 - [Format for extract pipe pattern](#format-for-extract-pipe-pattern)
@@ -1363,6 +1366,9 @@ when at least `field1` or `field2` aren't empty, while preserving the original `
 _time:5m | format "<field1><field2>" as foo skip_empty_results
 ```
 
+Performance tip: it is recommended using more specific [log filters](#filters) in order to reduce the number of log entries, which are passed to `format`.
+See [general performance tips](#performance-tips) for details.
+
 See also:
 
 - [Conditional format](#conditional-format)
@@ -1469,6 +1475,9 @@ at the [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#da
 ```logsql
 _time:5m | replace ('foo', 'bar') at baz limit 1
 ```
+
+Performance tip: it is recommended using more specific [log filters](#filters) in order to reduce the number of log entries, which are passed to `replace`.
+See [general performance tips](#performance-tips) for details.
 
 See also:
 
@@ -1802,9 +1811,14 @@ form `foo`:
 _time:5m | unpack_json from foo result_prefix "foo_"
 ```
 
-Performance tip: it is better from performance and resource usage PoV ingesting parsed JSON logs into VictoriaLogs
-according to the [supported data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-instead of ingesting unparsed JSON lines into VictoriaLogs and then parsing them at query time with [`unpack_json` pipe](#unpack_json-pipe).
+Performance tips:
+
+- It is better from performance and resource usage PoV ingesting parsed JSON logs into VictoriaLogs
+  according to the [supported data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  instead of ingesting unparsed JSON lines into VictoriaLogs and then parsing them at query time with [`unpack_json` pipe](#unpack_json-pipe).
+
+- It is recommended using more specific [log filters](#filters) in order to reduce the number of log entries, which are passed to `unpack_json`.
+  See [general performance tips](#performance-tips) for details.
 
 See also:
 
@@ -1879,9 +1893,14 @@ from `foo` field:
 _time:5m | unpack_logfmt from foo result_prefix "foo_"
 ```
 
-Performance tip: it is better from performance and resource usage PoV ingesting parsed [logfmt](https://brandur.org/logfmt) logs into VictoriaLogs
-according to the [supported data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-instead of ingesting unparsed logfmt lines into VictoriaLogs and then parsing them at query time with [`unpack_logfmt` pipe](#unpack_logfmt-pipe).
+Performance tips:
+
+- It is better from performance and resource usage PoV ingesting parsed [logfmt](https://brandur.org/logfmt) logs into VictoriaLogs
+  according to the [supported data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  instead of ingesting unparsed logfmt lines into VictoriaLogs and then parsing them at query time with [`unpack_logfmt` pipe](#unpack_logfmt-pipe).
+
+- It is recommended using more specific [log filters](#filters) in order to reduce the number of log entries, which are passed to `unpack_logfmt`.
+  See [general performance tips](#performance-tips) for details.
 
 See also:
 
