@@ -30,13 +30,17 @@ const AnomalyConfig: FC = () => {
     try {
       const url = `${serverUrl}/api/vmanomaly/config.yaml`;
       const response = await fetch(url);
+      const contentType = response.headers.get("Content-Type");
       if (!response.ok) {
-        setError(` ${response.status} ${response.statusText}`);
-      } else {
+        const bodyText = await response.text();
+        setError(` ${response.status} ${response.statusText} ${bodyText}`);
+      } else if (contentType == "application/yaml") {
         const blob = await response.blob();
         const yamlAsString = await blob.text();
         setTextConfig(yamlAsString);
         setDownloadUrl(URL.createObjectURL(blob));
+      } else {
+        setError("Response Content-Type is not YAML, does `Server URL` point to VMAnomaly server?");
       }
     } catch (error) {
       console.error(error);

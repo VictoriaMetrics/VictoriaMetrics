@@ -34,7 +34,7 @@
     "start": "react-app-rewired start",
     "start:logs": "cross-env REACT_APP_TYPE=logs npm run start",
     "start:anomaly": "cross-env REACT_APP_TYPE=anomaly npm run start",
-    "build": "react-app-rewired build",
+    "build": "GENERATE_SOURCEMAP=false react-app-rewired build",
     "build:logs": "cross-env REACT_APP_TYPE=logs npm run build",
     "build:anomaly": "cross-env REACT_APP_TYPE=anomaly npm run build",
     "lint": "eslint src --ext tsx,ts",
