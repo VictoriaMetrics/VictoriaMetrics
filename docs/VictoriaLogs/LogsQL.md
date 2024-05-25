@@ -1080,6 +1080,7 @@ LogsQL supports the following pipes:
 - [`format`](#format-pipe) formats ouptut field from input [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`limit`](#limit-pipe) limits the number selected logs.
 - [`offset`](#offset-pipe) skips the given number of selected logs.
+- [`pack_json`](#pack_json-pipe) packs [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into JSON object.
 - [`rename`](#rename-pipe) renames [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`replace`](#replace-pipe) replaces substrings in the specified [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`replace_regexp`](#replace_regexp-pipe) updates [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with regular expressions.
@@ -1427,6 +1428,37 @@ See also:
 
 - [`limit` pipe](#limit-pipe)
 - [`sort` pipe](#sort-pipe)
+
+### pack_json pipe
+
+`| pack_json as field_name` [pipe](#pipe) packs all [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into JSON object
+and stores its as a string in the given `field_name`.
+
+For example, the following query packs all the fields into JSON object and stores it into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+for logs over the last 5 minutes:
+
+```logsql
+_time:5m | pack_json as _msg
+```
+
+The `as _msg` part can be omitted if packed JSON object is stored into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+The following query is equivalent to the previous one:
+
+```logsql
+_time:5m | pack_json
+```
+
+The `pack_json` doesn't touch other labels. If you do not need them, then add [`| fields ...`](#fields-pipe) after the `pack_json` pipe. For example, the following query
+leaves only the `foo` label with the original log fields packed into JSON:
+
+```logsql
+_time:5m | pack_json as foo | fields foo
+```
+
+See also:
+
+- [`unpack_json` pipe](#unpack_json-pipe)
+
 
 ### rename pipe
 
@@ -1882,6 +1914,7 @@ See also:
 - [`unpack_logfmt` pipe](#unpack_logfmt-pipe)
 - [`extract` pipe](#extract-pipe)
 - [`unroll` pipe](#unroll-pipe)
+- [`pack_json` pipe](#pack_json-pipe)
 
 #### Conditional unpack_json
 
@@ -1993,6 +2026,16 @@ See also:
 - [`extract` pipe](#extract-pipe)
 - [`uniq_values` stats function](#uniq_values-stats)
 - [`values` stats function](#values-stats)
+
+#### Conditional unroll
+
+If the [`unroll` pipe](#unpack_logfmt-pipe) musn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
+then add `if (<filters>)` after `unroll`.
+The `<filters>` can contain arbitrary [filters](#filters). For example, the following query unrolls `value` field only if `value_type` field equals to `json_array`:
+
+```logsql
+_time:5m | unroll if (value_type:="json_array") (value)
+```
 
 ## stats pipe functions
 

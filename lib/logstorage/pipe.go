@@ -146,6 +146,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'offset' pipe: %w", err)
 		}
 		return ps, nil
+	case lex.isKeyword("pack_json"):
+		pp, err := parsePackJSON(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'pack_json' pipe: %w", err)
+		}
+		return pp, nil
 	case lex.isKeyword("rename", "mv"):
 		pr, err := parsePipeRename(lex)
 		if err != nil {
