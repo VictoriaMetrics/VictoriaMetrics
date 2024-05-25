@@ -32,7 +32,7 @@ func (pu *pipeUniq) String() string {
 		s += " by (" + fieldNamesString(pu.byFields) + ")"
 	}
 	if pu.hitsFieldName != "" {
-		s += " hits"
+		s += " with hits"
 	}
 	if pu.limit > 0 {
 		s += fmt.Sprintf(" limit %d", pu.limit)
@@ -51,7 +51,19 @@ func (pu *pipeUniq) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	}
 }
 
-func (pu *pipeUniq) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {
+func (pu *pipeUniq) optimize() {
+	// nothing to do
+}
+
+func (pu *pipeUniq) hasFilterInWithQuery() bool {
+	return false
+}
+
+func (pu *pipeUniq) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	return pu, nil
+}
+
+func (pu *pipeUniq) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	maxStateSize := int64(float64(memory.Allowed()) * 0.2)
 
 	shards := make([]pipeUniqProcessorShard, workersCount)
@@ -69,7 +81,7 @@ func (pu *pipeUniq) newPipeProcessor(workersCount int, stopCh <-chan struct{}, c
 		pu:     pu,
 		stopCh: stopCh,
 		cancel: cancel,
-		ppBase: ppBase,
+		ppNext: ppNext,
 
 		shards: shards,
 
@@ -84,7 +96,7 @@ type pipeUniqProcessor struct {
 	pu     *pipeUniq
 	stopCh <-chan struct{}
 	cancel func()
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 
 	shards []pipeUniqProcessorShard
 
@@ -418,7 +430,7 @@ func (wctx *pipeUniqWriteContext) writeRow(rowFields []Field) {
 		}
 	}
 	if !areEqualColumns {
-		// send the current block to ppBase and construct a block with new set of columns
+		// send the current block to ppNext and construct a block with new set of columns
 		wctx.flush()
 
 		rcs = wctx.rcs[:0]
@@ -446,10 +458,10 @@ func (wctx *pipeUniqWriteContext) flush() {
 
 	wctx.valuesLen = 0
 
-	// Flush rcs to ppBase
+	// Flush rcs to ppNext
 	br.setResultColumns(rcs, wctx.rowsCount)
 	wctx.rowsCount = 0
-	wctx.pup.ppBase.writeBlock(0, br)
+	wctx.pup.ppNext.writeBlock(0, br)
 	br.reset()
 	for i := range rcs {
 		rcs[i].resetValues()
@@ -477,6 +489,12 @@ func parsePipeUniq(lex *lexer) (*pipeUniq, error) {
 		pu.byFields = bfs
 	}
 
+	if lex.isKeyword("with") {
+		lex.nextToken()
+		if !lex.isKeyword("hits") {
+			return nil, fmt.Errorf("missing 'hits' after 'with'")
+		}
+	}
 	if lex.isKeyword("hits") {
 		lex.nextToken()
 		hitsFieldName := "hits"

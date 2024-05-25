@@ -3,16 +3,13 @@ package logstorage
 import (
 	"fmt"
 	"strings"
-	"unsafe"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 // pipeReplace processes '| replace ...' pipe.
 //
 // See https://docs.victoriametrics.com/victorialogs/logsql/#replace-pipe
 type pipeReplace struct {
-	srcField  string
+	field     string
 	oldSubstr string
 	newSubstr string
 
@@ -29,8 +26,8 @@ func (pr *pipeReplace) String() string {
 		s += " " + pr.iff.String()
 	}
 	s += fmt.Sprintf(" (%s, %s)", quoteTokenIfNeeded(pr.oldSubstr), quoteTokenIfNeeded(pr.newSubstr))
-	if pr.srcField != "_msg" {
-		s += " at " + quoteTokenIfNeeded(pr.srcField)
+	if pr.field != "_msg" {
+		s += " at " + quoteTokenIfNeeded(pr.field)
 	}
 	if pr.limit > 0 {
 		s += fmt.Sprintf(" limit %d", pr.limit)
@@ -39,97 +36,37 @@ func (pr *pipeReplace) String() string {
 }
 
 func (pr *pipeReplace) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if neededFields.contains("*") {
-		if !unneededFields.contains(pr.srcField) && pr.iff != nil {
-			unneededFields.removeFields(pr.iff.neededFields)
-		}
-	} else {
-		if neededFields.contains(pr.srcField) && pr.iff != nil {
-			neededFields.addFields(pr.iff.neededFields)
-		}
+	updateNeededFieldsForUpdatePipe(neededFields, unneededFields, pr.field, pr.iff)
+}
+
+func (pr *pipeReplace) optimize() {
+	pr.iff.optimizeFilterIn()
+}
+
+func (pr *pipeReplace) hasFilterInWithQuery() bool {
+	return pr.iff.hasFilterInWithQuery()
+}
+
+func (pr *pipeReplace) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	iffNew, err := pr.iff.initFilterInValues(cache, getFieldValuesFunc)
+	if err != nil {
+		return nil, err
 	}
+	peNew := *pr
+	peNew.iff = iffNew
+	return &peNew, nil
 }
 
-func (pr *pipeReplace) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
-	return &pipeReplaceProcessor{
-		pr:     pr,
-		ppBase: ppBase,
-
-		shards: make([]pipeReplaceProcessorShard, workersCount),
-	}
-}
-
-type pipeReplaceProcessor struct {
-	pr     *pipeReplace
-	ppBase pipeProcessor
-
-	shards []pipeReplaceProcessorShard
-}
-
-type pipeReplaceProcessorShard struct {
-	pipeReplaceProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeReplaceProcessorShardNopad{})%128]byte
-}
-
-type pipeReplaceProcessorShardNopad struct {
-	bm bitmap
-
-	uctx fieldsUnpackerContext
-	wctx pipeUnpackWriteContext
-}
-
-func (prp *pipeReplaceProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
-		return
+func (pr *pipeReplace) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+	updateFunc := func(a *arena, v string) string {
+		bb := bbPool.Get()
+		bb.B = appendReplace(bb.B[:0], v, pr.oldSubstr, pr.newSubstr, pr.limit)
+		result := a.copyBytesToString(bb.B)
+		bbPool.Put(bb)
+		return result
 	}
 
-	shard := &prp.shards[workerID]
-	shard.wctx.init(workerID, prp.ppBase, false, false, br)
-	shard.uctx.init(workerID, "")
-
-	pr := prp.pr
-	bm := &shard.bm
-	bm.init(len(br.timestamps))
-	bm.setBits()
-	if iff := pr.iff; iff != nil {
-		iff.f.applyToBlockResult(br, bm)
-		if bm.isZero() {
-			prp.ppBase.writeBlock(workerID, br)
-			return
-		}
-	}
-
-	c := br.getColumnByName(pr.srcField)
-	values := c.getValues(br)
-
-	bb := bbPool.Get()
-	vPrev := ""
-	shard.uctx.addField(pr.srcField, "")
-	for rowIdx, v := range values {
-		if bm.isSetBit(rowIdx) {
-			if vPrev != v {
-				bb.B = appendReplace(bb.B[:0], v, pr.oldSubstr, pr.newSubstr, pr.limit)
-				s := bytesutil.ToUnsafeString(bb.B)
-				shard.uctx.resetFields()
-				shard.uctx.addField(pr.srcField, s)
-				vPrev = v
-			}
-			shard.wctx.writeRow(rowIdx, shard.uctx.fields)
-		} else {
-			shard.wctx.writeRow(rowIdx, nil)
-		}
-	}
-	bbPool.Put(bb)
-
-	shard.wctx.flush()
-	shard.wctx.reset()
-	shard.uctx.reset()
-}
-
-func (prp *pipeReplaceProcessor) flush() error {
-	return nil
+	return newPipeUpdateProcessor(workersCount, updateFunc, ppNext, pr.field, pr.iff)
 }
 
 func parsePipeReplace(lex *lexer) (*pipeReplace, error) {
@@ -164,7 +101,7 @@ func parsePipeReplace(lex *lexer) (*pipeReplace, error) {
 
 	newSubstr, err := getCompoundToken(lex)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse newSubstr in 'replace': %w", err)
+		return nil, fmt.Errorf("cannot parse newSubstr in 'replace(%q': %w", oldSubstr, err)
 	}
 
 	if !lex.isKeyword(")") {
@@ -172,14 +109,14 @@ func parsePipeReplace(lex *lexer) (*pipeReplace, error) {
 	}
 	lex.nextToken()
 
-	srcField := "_msg"
+	field := "_msg"
 	if lex.isKeyword("at") {
 		lex.nextToken()
 		f, err := parseFieldName(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'at' field after 'replace(%q, %q)': %w", oldSubstr, newSubstr, err)
 		}
-		srcField = f
+		field = f
 	}
 
 	limit := uint64(0)
@@ -194,7 +131,7 @@ func parsePipeReplace(lex *lexer) (*pipeReplace, error) {
 	}
 
 	pr := &pipeReplace{
-		srcField:  srcField,
+		field:     field,
 		oldSubstr: oldSubstr,
 		newSubstr: newSubstr,
 		limit:     limit,

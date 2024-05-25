@@ -6,6 +6,49 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
+func updateNeededFieldsForUnpackPipe(fromField string, outFields []string, keepOriginalFields, skipEmptyResults bool, iff *ifFilter, neededFields, unneededFields fieldsSet) {
+	if neededFields.contains("*") {
+		unneededFieldsOrig := unneededFields.clone()
+		unneededFieldsCount := 0
+		if len(outFields) > 0 {
+			for _, f := range outFields {
+				if unneededFieldsOrig.contains(f) {
+					unneededFieldsCount++
+				}
+				if !keepOriginalFields && !skipEmptyResults {
+					unneededFields.add(f)
+				}
+			}
+		}
+		if len(outFields) == 0 || unneededFieldsCount < len(outFields) {
+			unneededFields.remove(fromField)
+			if iff != nil {
+				unneededFields.removeFields(iff.neededFields)
+			}
+		}
+	} else {
+		neededFieldsOrig := neededFields.clone()
+		needFromField := len(outFields) == 0
+		if len(outFields) > 0 {
+			needFromField = false
+			for _, f := range outFields {
+				if neededFieldsOrig.contains(f) {
+					needFromField = true
+				}
+				if !keepOriginalFields && !skipEmptyResults {
+					neededFields.remove(f)
+				}
+			}
+		}
+		if needFromField {
+			neededFields.add(fromField)
+			if iff != nil {
+				neededFields.addFields(iff.neededFields)
+			}
+		}
+	}
+}
+
 type fieldsUnpackerContext struct {
 	workerID    uint
 	fieldPrefix string
@@ -53,12 +96,12 @@ func (uctx *fieldsUnpackerContext) addField(name, value string) {
 	})
 }
 
-func newPipeUnpackProcessor(workersCount int, unpackFunc func(uctx *fieldsUnpackerContext, s string), ppBase pipeProcessor,
+func newPipeUnpackProcessor(workersCount int, unpackFunc func(uctx *fieldsUnpackerContext, s string), ppNext pipeProcessor,
 	fromField string, fieldPrefix string, keepOriginalFields, skipEmptyResults bool, iff *ifFilter) *pipeUnpackProcessor {
 
 	return &pipeUnpackProcessor{
 		unpackFunc: unpackFunc,
-		ppBase:     ppBase,
+		ppNext:     ppNext,
 
 		shards: make([]pipeUnpackProcessorShard, workersCount),
 
@@ -72,7 +115,7 @@ func newPipeUnpackProcessor(workersCount int, unpackFunc func(uctx *fieldsUnpack
 
 type pipeUnpackProcessor struct {
 	unpackFunc func(uctx *fieldsUnpackerContext, s string)
-	ppBase     pipeProcessor
+	ppNext     pipeProcessor
 
 	shards []pipeUnpackProcessorShard
 
@@ -104,7 +147,7 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	shard := &pup.shards[workerID]
-	shard.wctx.init(workerID, pup.ppBase, pup.keepOriginalFields, pup.skipEmptyResults, br)
+	shard.wctx.init(workerID, pup.ppNext, pup.keepOriginalFields, pup.skipEmptyResults, br)
 	shard.uctx.init(workerID, pup.fieldPrefix)
 
 	bm := &shard.bm
@@ -113,7 +156,7 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 	if pup.iff != nil {
 		pup.iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
-			pup.ppBase.writeBlock(workerID, br)
+			pup.ppNext.writeBlock(workerID, br)
 			return
 		}
 	}
@@ -132,13 +175,16 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 		}
 	} else {
 		values := c.getValues(br)
-		vPrevApplied := ""
+		vPrev := ""
+		hadUnpacks := false
 		for i, v := range values {
 			if bm.isSetBit(i) {
-				if vPrevApplied != v {
+				if !hadUnpacks || vPrev != v {
+					vPrev = v
+					hadUnpacks = true
+
 					shard.uctx.resetFields()
 					pup.unpackFunc(&shard.uctx, v)
-					vPrevApplied = v
 				}
 				shard.wctx.writeRow(i, shard.uctx.fields)
 			} else {
@@ -158,7 +204,7 @@ func (pup *pipeUnpackProcessor) flush() error {
 
 type pipeUnpackWriteContext struct {
 	workerID           uint
-	ppBase             pipeProcessor
+	ppNext             pipeProcessor
 	keepOriginalFields bool
 	skipEmptyResults   bool
 
@@ -177,7 +223,7 @@ type pipeUnpackWriteContext struct {
 
 func (wctx *pipeUnpackWriteContext) reset() {
 	wctx.workerID = 0
-	wctx.ppBase = nil
+	wctx.ppNext = nil
 	wctx.keepOriginalFields = false
 
 	wctx.brSrc = nil
@@ -193,11 +239,11 @@ func (wctx *pipeUnpackWriteContext) reset() {
 	wctx.valuesLen = 0
 }
 
-func (wctx *pipeUnpackWriteContext) init(workerID uint, ppBase pipeProcessor, keepOriginalFields, skipEmptyResults bool, brSrc *blockResult) {
+func (wctx *pipeUnpackWriteContext) init(workerID uint, ppNext pipeProcessor, keepOriginalFields, skipEmptyResults bool, brSrc *blockResult) {
 	wctx.reset()
 
 	wctx.workerID = workerID
-	wctx.ppBase = ppBase
+	wctx.ppNext = ppNext
 	wctx.keepOriginalFields = keepOriginalFields
 	wctx.skipEmptyResults = skipEmptyResults
 
@@ -219,7 +265,7 @@ func (wctx *pipeUnpackWriteContext) writeRow(rowIdx int, extraFields []Field) {
 		}
 	}
 	if !areEqualColumns {
-		// send the current block to ppBase and construct a block with new set of columns
+		// send the current block to ppNext and construct a block with new set of columns
 		wctx.flush()
 
 		rcs = wctx.rcs[:0]
@@ -264,11 +310,11 @@ func (wctx *pipeUnpackWriteContext) flush() {
 
 	wctx.valuesLen = 0
 
-	// Flush rcs to ppBase
+	// Flush rcs to ppNext
 	br := &wctx.br
 	br.setResultColumns(rcs, wctx.rowsCount)
 	wctx.rowsCount = 0
-	wctx.ppBase.writeBlock(wctx.workerID, br)
+	wctx.ppNext.writeBlock(wctx.workerID, br)
 	br.reset()
 	for i := range rcs {
 		rcs[i].resetValues()

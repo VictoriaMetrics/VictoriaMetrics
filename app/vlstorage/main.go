@@ -123,16 +123,16 @@ func GetFieldValues(ctx context.Context, tenantIDs []logstorage.TenantID, q *log
 	return strg.GetFieldValues(ctx, tenantIDs, q, fieldName, limit)
 }
 
-// GetStreamLabelNames executes q and returns stream labels names seen in results.
-func GetStreamLabelNames(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query) ([]logstorage.ValueWithHits, error) {
-	return strg.GetStreamLabelNames(ctx, tenantIDs, q)
+// GetStreamFieldNames executes q and returns stream field names seen in results.
+func GetStreamFieldNames(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query) ([]logstorage.ValueWithHits, error) {
+	return strg.GetStreamFieldNames(ctx, tenantIDs, q)
 }
 
-// GetStreamLabelValues executes q and returns stream label values for the given labelName seen in results.
+// GetStreamFieldValues executes q and returns stream field values for the given fieldName seen in results.
 //
-// If limit > 0, then up to limit unique stream label values are returned.
-func GetStreamLabelValues(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, labelName string, limit uint64) ([]logstorage.ValueWithHits, error) {
-	return strg.GetStreamLabelValues(ctx, tenantIDs, q, labelName, limit)
+// If limit > 0, then up to limit unique stream field values are returned.
+func GetStreamFieldValues(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, fieldName string, limit uint64) ([]logstorage.ValueWithHits, error) {
+	return strg.GetStreamFieldValues(ctx, tenantIDs, q, fieldName, limit)
 }
 
 // GetStreams executes q and returns streams seen in query results.

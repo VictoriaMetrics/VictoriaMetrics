@@ -2,6 +2,9 @@ package logstorage
 
 import (
 	"fmt"
+	"unsafe"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // pipeExtract processes '| extract ...' pipe.
@@ -36,6 +39,24 @@ func (pe *pipeExtract) String() string {
 		s += " skip_empty_results"
 	}
 	return s
+}
+
+func (pe *pipeExtract) optimize() {
+	pe.iff.optimizeFilterIn()
+}
+
+func (pe *pipeExtract) hasFilterInWithQuery() bool {
+	return pe.iff.hasFilterInWithQuery()
+}
+
+func (pe *pipeExtract) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	iffNew, err := pe.iff.initFilterInValues(cache, getFieldValuesFunc)
+	if err != nil {
+		return nil, err
+	}
+	peNew := *pe
+	peNew.iff = iffNew
+	return &peNew, nil
 }
 
 func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet) {
@@ -80,21 +101,129 @@ func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet
 	}
 }
 
-func (pe *pipeExtract) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
-	patterns := make([]*pattern, workersCount)
-	for i := range patterns {
-		patterns[i] = pe.ptn.clone()
+func (pe *pipeExtract) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+	return &pipeExtractProcessor{
+		pe:     pe,
+		ppNext: ppNext,
+
+		shards: make([]pipeExtractProcessorShard, workersCount),
+	}
+}
+
+type pipeExtractProcessor struct {
+	pe     *pipeExtract
+	ppNext pipeProcessor
+
+	shards []pipeExtractProcessorShard
+}
+
+type pipeExtractProcessorShard struct {
+	pipeExtractProcessorShardNopad
+
+	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
+	_ [128 - unsafe.Sizeof(pipeExtractProcessorShardNopad{})%128]byte
+}
+
+type pipeExtractProcessorShardNopad struct {
+	bm  bitmap
+	ptn *pattern
+
+	resultColumns []*blockResultColumn
+	resultValues  []string
+
+	rcs []resultColumn
+	a   arena
+}
+
+func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
+	if len(br.timestamps) == 0 {
+		return
 	}
 
-	unpackFunc := func(uctx *fieldsUnpackerContext, s string) {
-		ptn := patterns[uctx.workerID]
-		ptn.apply(s)
-		for _, f := range ptn.fields {
-			uctx.addField(f.name, *f.value)
+	pe := pep.pe
+	shard := &pep.shards[workerID]
+
+	bm := &shard.bm
+	bm.init(len(br.timestamps))
+	bm.setBits()
+	if iff := pe.iff; iff != nil {
+		iff.f.applyToBlockResult(br, bm)
+		if bm.isZero() {
+			pep.ppNext.writeBlock(workerID, br)
+			return
 		}
 	}
 
-	return newPipeUnpackProcessor(workersCount, unpackFunc, ppBase, pe.fromField, "", pe.keepOriginalFields, pe.skipEmptyResults, pe.iff)
+	if shard.ptn == nil {
+		shard.ptn = pe.ptn.clone()
+	}
+	ptn := shard.ptn
+
+	shard.rcs = slicesutil.SetLength(shard.rcs, len(ptn.fields))
+	rcs := shard.rcs
+	for i := range ptn.fields {
+		rcs[i].name = ptn.fields[i].name
+	}
+
+	c := br.getColumnByName(pe.fromField)
+	values := c.getValues(br)
+
+	shard.resultColumns = slicesutil.SetLength(shard.resultColumns, len(rcs))
+	resultColumns := shard.resultColumns
+	for i := range resultColumns {
+		resultColumns[i] = br.getColumnByName(rcs[i].name)
+	}
+
+	shard.resultValues = slicesutil.SetLength(shard.resultValues, len(rcs))
+	resultValues := shard.resultValues
+
+	hadUpdates := false
+	vPrev := ""
+	for rowIdx, v := range values {
+		if bm.isSetBit(rowIdx) {
+			if !hadUpdates || vPrev != v {
+				vPrev = v
+				hadUpdates = true
+
+				ptn.apply(v)
+
+				for i, f := range ptn.fields {
+					v := *f.value
+					if v == "" && pe.skipEmptyResults || pe.keepOriginalFields {
+						c := resultColumns[i]
+						if vOrig := c.getValueAtRow(br, rowIdx); vOrig != "" {
+							v = vOrig
+						}
+					} else {
+						v = shard.a.copyString(v)
+					}
+					resultValues[i] = v
+				}
+			}
+		} else {
+			for i, c := range resultColumns {
+				resultValues[i] = c.getValueAtRow(br, rowIdx)
+			}
+		}
+
+		for i, v := range resultValues {
+			rcs[i].addValue(v)
+		}
+	}
+
+	for i := range rcs {
+		br.addResultColumn(&rcs[i])
+	}
+	pep.ppNext.writeBlock(workerID, br)
+
+	for i := range rcs {
+		rcs[i].reset()
+	}
+	shard.a.reset()
+}
+
+func (pep *pipeExtractProcessor) flush() error {
+	return nil
 }
 
 func parsePipeExtract(lex *lexer) (*pipeExtract, error) {

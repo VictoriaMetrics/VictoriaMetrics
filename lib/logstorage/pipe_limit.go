@@ -17,9 +17,22 @@ func (pl *pipeLimit) String() string {
 }
 
 func (pl *pipeLimit) updateNeededFields(_, _ fieldsSet) {
+	// nothing to do
 }
 
-func (pl *pipeLimit) newPipeProcessor(_ int, _ <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {
+func (pl *pipeLimit) optimize() {
+	// nothing to do
+}
+
+func (pl *pipeLimit) hasFilterInWithQuery() bool {
+	return false
+}
+
+func (pl *pipeLimit) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	return pl, nil
+}
+
+func (pl *pipeLimit) newPipeProcessor(_ int, _ <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	if pl.limit == 0 {
 		// Special case - notify the caller to stop writing data to the returned pipeLimitProcessor
 		cancel()
@@ -27,14 +40,14 @@ func (pl *pipeLimit) newPipeProcessor(_ int, _ <-chan struct{}, cancel func(), p
 	return &pipeLimitProcessor{
 		pl:     pl,
 		cancel: cancel,
-		ppBase: ppBase,
+		ppNext: ppNext,
 	}
 }
 
 type pipeLimitProcessor struct {
 	pl     *pipeLimit
 	cancel func()
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 
 	rowsProcessed atomic.Uint64
 }
@@ -46,8 +59,8 @@ func (plp *pipeLimitProcessor) writeBlock(workerID uint, br *blockResult) {
 
 	rowsProcessed := plp.rowsProcessed.Add(uint64(len(br.timestamps)))
 	if rowsProcessed <= plp.pl.limit {
-		// Fast path - write all the rows to ppBase.
-		plp.ppBase.writeBlock(workerID, br)
+		// Fast path - write all the rows to ppNext.
+		plp.ppNext.writeBlock(workerID, br)
 		return
 	}
 
@@ -61,7 +74,7 @@ func (plp *pipeLimitProcessor) writeBlock(workerID uint, br *blockResult) {
 	// Write remaining rows.
 	keepRows := plp.pl.limit - rowsProcessed
 	br.truncateRows(int(keepRows))
-	plp.ppBase.writeBlock(workerID, br)
+	plp.ppNext.writeBlock(workerID, br)
 
 	// Notify the caller that it should stop passing more data to writeBlock().
 	plp.cancel()

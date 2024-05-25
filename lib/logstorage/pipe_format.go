@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"unsafe"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 // pipeFormat processes '| format ...' pipe.
@@ -74,10 +72,28 @@ func (pf *pipeFormat) updateNeededFields(neededFields, unneededFields fieldsSet)
 	}
 }
 
-func (pf *pipeFormat) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
+func (pf *pipeFormat) optimize() {
+	pf.iff.optimizeFilterIn()
+}
+
+func (pf *pipeFormat) hasFilterInWithQuery() bool {
+	return pf.iff.hasFilterInWithQuery()
+}
+
+func (pf *pipeFormat) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	iffNew, err := pf.iff.initFilterInValues(cache, getFieldValuesFunc)
+	if err != nil {
+		return nil, err
+	}
+	pfNew := *pf
+	pfNew.iff = iffNew
+	return &pfNew, nil
+}
+
+func (pf *pipeFormat) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeFormatProcessor{
 		pf:     pf,
-		ppBase: ppBase,
+		ppNext: ppNext,
 
 		shards: make([]pipeFormatProcessorShard, workersCount),
 	}
@@ -85,7 +101,7 @@ func (pf *pipeFormat) newPipeProcessor(workersCount int, _ <-chan struct{}, _ fu
 
 type pipeFormatProcessor struct {
 	pf     *pipeFormat
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 
 	shards []pipeFormatProcessorShard
 }
@@ -100,8 +116,8 @@ type pipeFormatProcessorShard struct {
 type pipeFormatProcessorShardNopad struct {
 	bm bitmap
 
-	uctx fieldsUnpackerContext
-	wctx pipeUnpackWriteContext
+	a  arena
+	rc resultColumn
 }
 
 func (pfp *pipeFormatProcessor) writeBlock(workerID uint, br *blockResult) {
@@ -110,39 +126,49 @@ func (pfp *pipeFormatProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	shard := &pfp.shards[workerID]
-	shard.wctx.init(workerID, pfp.ppBase, pfp.pf.keepOriginalFields, pfp.pf.skipEmptyResults, br)
-	shard.uctx.init(workerID, "")
+	pf := pfp.pf
 
 	bm := &shard.bm
 	bm.init(len(br.timestamps))
 	bm.setBits()
-	if iff := pfp.pf.iff; iff != nil {
+	if iff := pf.iff; iff != nil {
 		iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
-			pfp.ppBase.writeBlock(workerID, br)
+			pfp.ppNext.writeBlock(workerID, br)
 			return
 		}
 	}
 
+	shard.rc.name = pf.resultField
+
+	resultColumn := br.getColumnByName(pf.resultField)
 	for rowIdx := range br.timestamps {
+		v := ""
 		if bm.isSetBit(rowIdx) {
-			shard.formatRow(pfp.pf, br, rowIdx)
-			shard.wctx.writeRow(rowIdx, shard.uctx.fields)
+			v = shard.formatRow(pf, br, rowIdx)
+			if v == "" && pf.skipEmptyResults || pf.keepOriginalFields {
+				if vOrig := resultColumn.getValueAtRow(br, rowIdx); vOrig != "" {
+					v = vOrig
+				}
+			}
 		} else {
-			shard.wctx.writeRow(rowIdx, nil)
+			v = resultColumn.getValueAtRow(br, rowIdx)
 		}
+		shard.rc.addValue(v)
 	}
 
-	shard.wctx.flush()
-	shard.wctx.reset()
-	shard.uctx.reset()
+	br.addResultColumn(&shard.rc)
+	pfp.ppNext.writeBlock(workerID, br)
+
+	shard.a.reset()
+	shard.rc.reset()
 }
 
 func (pfp *pipeFormatProcessor) flush() error {
 	return nil
 }
 
-func (shard *pipeFormatProcessorShard) formatRow(pf *pipeFormat, br *blockResult, rowIdx int) {
+func (shard *pipeFormatProcessorShard) formatRow(pf *pipeFormat, br *blockResult, rowIdx int) string {
 	bb := bbPool.Get()
 	b := bb.B
 	for _, step := range pf.steps {
@@ -159,10 +185,9 @@ func (shard *pipeFormatProcessorShard) formatRow(pf *pipeFormat, br *blockResult
 	}
 	bb.B = b
 
-	s := bytesutil.ToUnsafeString(b)
-	shard.uctx.resetFields()
-	shard.uctx.addField(pf.resultField, s)
+	v := shard.a.copyBytesToString(b)
 	bbPool.Put(bb)
+	return v
 }
 
 func parsePipeFormat(lex *lexer) (*pipeFormat, error) {

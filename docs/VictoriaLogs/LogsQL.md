@@ -37,6 +37,8 @@ For example, the following query finds all the logs with `error` word:
 error
 ```
 
+See [how to send queries to VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
+
 If the queried [word](#word) clashes with LogsQL keywords, then just wrap it into quotes.
 For example, the following query finds all the log messages with `and` [word](#word):
 
@@ -80,11 +82,32 @@ Typical LogsQL query constists of multiple [filters](#filters) joined with `AND`
 So LogsQL allows omitting `AND` words. For example, the following query is equivalent to the query above:
 
 ```logsql
-error _time:5m
+_time:5m error
 ```
 
-The query returns all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) by default.
-See [how to query specific fields](#querying-specific-fields).
+The query returns logs in arbitrary order because sorting of big amounts of logs may require non-trivial amounts of CPU and RAM.
+The number of logs with `error` word over the last 5 minutes isn't usually too big (e.g. less than a few millions), so it is OK to sort them with [`sort` pipe](#sort-pipe).
+The following query sorts the selected logs by [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) field:
+
+```logsql
+_time:5m error | sort by (_time)
+```
+
+It is unlikely you are going to investigate more than a few hundreds of logs returned by the query above. So you can limit the number of returned logs
+with [`limit` pipe](#limit-pipe). The following query returns the last 10 logs with the `error` word over the last 5 minutes:
+
+```logsql
+_time:5m error | sort by (_time) desc | limit 10
+```
+
+By default VictoriaLogs returns all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+If you need only the given set of fields, then add [`fields` pipe](#fields-pipe) to the end of the query. For example, the following query returns only
+[`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field), [`_stream`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+and [`_msg`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) fields:
+
+```logsql
+error _time:5m | fields _time, _stream, _msg
+```
 
 Suppose the query above selects too many rows because some buggy app pushes invalid error logs to VictoriaLogs. Suppose the app adds `buggy_app` [word](#word) to every log line.
 Then the following query removes all the logs from the buggy app, allowing us paying attention to the real errors:
@@ -93,8 +116,10 @@ Then the following query removes all the logs from the buggy app, allowing us pa
 _time:5m error NOT buggy_app
 ```
 
-This query uses `NOT` [operator](#logical-filter) for removing log lines from the buggy app. The `NOT` operator is used frequently, so it can be substituted with `!` char.
-So the following query is equivalent to the previous one:
+This query uses `NOT` [operator](#logical-filter) for removing log lines from the buggy app. The `NOT` operator is used frequently, so it can be substituted with `!` char
+(the `!` char is used instead of `-` char as a shorthand for `NOT` operator becasue it nicely combines with [`=`](https://docs.victoriametrics.com/victorialogs/logsql/#exact-filter)
+and [`~`](https://docs.victoriametrics.com/victorialogs/logsql/#regexp-filter) filters like `!=` and `!~`).
+The following query is equivalent to the previous one:
 
 ```logsql
 _time:5m error !buggy_app
@@ -113,17 +138,15 @@ This query can be rewritten to more clear query with the `OR` [operator](#logica
 _time:5m error !(buggy_app OR foobar)
 ```
 
-Note that the parentheses are required here, since otherwise the query won't return the expected results.
-The query `error !buggy_app OR foobar` is interpreted as `(error AND NOT buggy_app) OR foobar`. This query may return error logs
-from the buggy app if they contain `foobar` [word](#word). This query also continues returning all the error logs from the second buggy app.
-This is because of different priorities for `NOT`, `AND` and `OR` operators.
-Read [these docs](#logical-filter) for more details. There is no need in remembering all these priority rules -
-just wrap the needed query parts into explicit parentheses if you aren't sure in priority rules.
+The parentheses are **required** here, since otherwise the query won't return the expected results.
+The query `error !buggy_app OR foobar` is interpreted as `(error AND NOT buggy_app) OR foobar` according to [priorities for AND, OR and NOT operator](#logical-filters).
+This query returns logs with `foobar` [word](#word), even if do not contain `error` word or contain `buggy_app` word.
+So it is recommended wrapping the needed query parts into explicit parentheses if you are unsure in priority rules.
 As an additional bonus, explicit parentheses make queries easier to read and maintain.
 
 Queries above assume that the `error` [word](#word) is stored in the [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
-This word can be stored in other [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) such as `log.level`.
-How to select error logs in this case? Just add the `log.level:` prefix in front of the `error` word:
+If this word is stored in other [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) such as `log.level`, then add `log.level:` prefix
+in front of the `error` word:
 
 ```logsq
 _time:5m log.level:error !(buggy_app OR foobar)
@@ -158,8 +181,16 @@ If the `app` field is associated with the log stream, then the query above can b
 _time:5m log.level:error _stream:{app!~"buggy_app|foobar"}
 ```
 
-This query completely skips scanning for logs from `buggy_app` and `foobar` apps, thus significantly reducing disk read IO and CPU time
-needed for performing the query.
+This query skips scanning for [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) from `buggy_app` and `foobar` apps.
+It inpsects only `log.level` and [`_stream`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) labels.
+This significantly reduces disk read IO and CPU time needed for performing the query.
+
+LogsQL also provides [functions for statistics calculation](#stats-pipe) over the selected logs. For example, the following query returns the number of logs
+with the `error` word for the last 5 minutes:
+
+```logsql
+_time:5m error | stats count() logs_with_error
+```
 
 Finally, it is recommended reading [performance tips](#performance-tips).
 
@@ -177,12 +208,15 @@ These words are taken into account by full-text search filters such as
 
 #### Query syntax
 
-LogsQL query must contain [filters](#filters) for selecting the matching logs. At least a single filter is required.
+LogsQL query must contain at least a single [filter](#filters) for selecting the matching logs.
 For example, the following query selects all the logs for the last 5 minutes by using [`_time` filter](#time-filter):
 
 ```logsql
 _time:5m
 ```
+
+Tip: try [`*` filter](https://docs.victoriametrics.com/victorialogs/logsql/#any-value-filter), which selects all the logs stored in VictoriaLogs.
+Do not worry - this doesn't crash VictoriaLogs, even if it contains trillions of logs. In the worst case it will return 
 
 Additionally to filters, LogQL query may contain arbitrary mix of optional actions for processing the selected logs. These actions are delimited by `|` and are known as [`pipes`](#pipes).
 For example, the following query uses [`stats` pipe](#stats-pipe) for returning the number of [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
@@ -1080,13 +1114,16 @@ LogsQL supports the following pipes:
 - [`format`](#format-pipe) formats ouptut field from input [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`limit`](#limit-pipe) limits the number selected logs.
 - [`offset`](#offset-pipe) skips the given number of selected logs.
+- [`pack_json`](#pack_json-pipe) packs [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into JSON object.
 - [`rename`](#rename-pipe) renames [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`replace`](#replace-pipe) replaces substrings in the specified [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`replace_regexp`](#replace_regexp-pipe) updates [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with regular expressions.
 - [`sort`](#sort-pipe) sorts logs by the given [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`stats`](#stats-pipe) calculates various stats over the selected logs.
 - [`uniq`](#uniq-pipe) returns unique log entires.
 - [`unpack_json`](#unpack_json-pipe) unpacks JSON fields from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`unpack_logfmt`](#unpack_logfmt-pipe) unpacks [logfmt](https://brandur.org/logfmt) fields from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`unroll`](#unroll-pipe) unrolls JSON arrays from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
 ### copy pipe
 
@@ -1177,6 +1214,9 @@ For example, the following query preserves the original `ip` field value if `foo
 ```logsql
 _time:5m | extract 'ip=<ip> ' from foo skip_empty_results
 ```
+
+Performance tip: it is recommended using more specific [log filters](#filters) in order to reduce the number of log entries, which are passed to `extract`.
+See [general performance tips](#performance-tips) for details.
 
 See also:
 
@@ -1363,10 +1403,14 @@ when at least `field1` or `field2` aren't empty, while preserving the original `
 _time:5m | format "<field1><field2>" as foo skip_empty_results
 ```
 
+Performance tip: it is recommended using more specific [log filters](#filters) in order to reduce the number of log entries, which are passed to `format`.
+See [general performance tips](#performance-tips) for details.
+
 See also:
 
 - [Conditional format](#conditional-format)
 - [`replace` pipe](#replace-pipe)
+- [`replace_regexp` pipe](#replace_regexp-pipe)
 - [`extract` pipe](#extract-pipe)
 
 
@@ -1419,6 +1463,37 @@ See also:
 - [`limit` pipe](#limit-pipe)
 - [`sort` pipe](#sort-pipe)
 
+### pack_json pipe
+
+`| pack_json as field_name` [pipe](#pipe) packs all [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into JSON object
+and stores its as a string in the given `field_name`.
+
+For example, the following query packs all the fields into JSON object and stores it into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+for logs over the last 5 minutes:
+
+```logsql
+_time:5m | pack_json as _msg
+```
+
+The `as _msg` part can be omitted if packed JSON object is stored into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+The following query is equivalent to the previous one:
+
+```logsql
+_time:5m | pack_json
+```
+
+The `pack_json` doesn't touch other labels. If you do not need them, then add [`| fields ...`](#fields-pipe) after the `pack_json` pipe. For example, the following query
+leaves only the `foo` label with the original log fields packed into JSON:
+
+```logsql
+_time:5m | pack_json as foo | fields foo
+```
+
+See also:
+
+- [`unpack_json` pipe](#unpack_json-pipe)
+
+
 ### rename pipe
 
 If some [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) must be renamed, then `| rename src1 as dst1, ..., srcN as dstN` [pipe](#pipes) can be used.
@@ -1470,9 +1545,13 @@ at the [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#da
 _time:5m | replace ('foo', 'bar') at baz limit 1
 ```
 
+Performance tip: it is recommended using more specific [log filters](#filters) in order to reduce the number of log entries, which are passed to `replace`.
+See [general performance tips](#performance-tips) for details.
+
 See also:
 
 - [Conditional replace](#conditional-replace)
+- [`replace_regexp` pipe](#replace_regexp-pipe)
 - [`format` pipe](#format-pipe)
 - [`extract` pipe](#extract-pipe)
 
@@ -1485,6 +1564,58 @@ only if `user_type` field equals to `admin`:
 
 ```logsql
 _time:5m | replace if (user_type:=admin) replace ("secret", "***") at password
+```
+
+### replace_regexp pipe
+
+`| replace_regexp ("regexp", "replacement") at field` [pipe](#pipes) replaces all the substrings matching the given `regexp` with the given `replacement`
+in the given [`field`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+
+The `regexp` must contain regular expression with [RE2 syntax](https://github.com/google/re2/wiki/Syntax).
+The `replacement` may contain `$N` or `${N}` placeholders, which are substituted with the `N-th` capturing group in the `regexp`.
+
+For example, the following query replaces all the substrings starting with `host-` and ending with `-foo` with the contents between `host-` and `-foo` in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) for logs over the last 5 minutes:
+
+```logsql
+_time:5m | replace_regexp ("host-(.+?)-foo", "$1") at _msg
+```
+
+The `at _msg` part can be omitted if the replacement occurs in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+The following query is equivalent to the previous one:
+
+```logsql
+_time:5m | replace_regexp ("host-(.+?)-foo", "$1")
+```
+
+The number of replacements can be limited with `limit N` at the end of `replace`. For example, the following query replaces only the first `password: ...` substring
+ending with whitespace with empty substring at the [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) `baz`:
+
+```logsql
+_time:5m | replace_regexp ('password: [^ ]+', '') at baz limit 1
+```
+
+Performance tips:
+
+- It is recommended using [`replace` pipe](#replace-pipe) instead of `replace_regexp` if possible, since it works faster.
+- It is recommended using more specific [log filters](#filters) in order to reduce the number of log entries, which are passed to `replace`.
+  See [general performance tips](#performance-tips) for details.
+
+See also:
+
+- [Conditional replace_regexp](#conditional-replace_regexp)
+- [`replace` pipe](#replace-pipe)
+- [`format` pipe](#format-pipe)
+- [`extract` pipe](#extract-pipe)
+
+#### Conditional replace_regexp
+
+If the [`replace_regexp` pipe](#replace-pipe) musn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
+then add `if (<filters>)` after `replace_regexp`.
+The `<filters>` can contain arbitrary [filters](#filters). For example, the following query replaces `password: ...` substrings ending with whitespace
+with `***` in the `foo` field only if `user_type` field equals to `admin`:
+
+```logsql
+_time:5m | replace_regexp if (user_type:=admin) replace ("password: [^ ]+", "") at foo
 ```
 
 ### sort pipe
@@ -1720,10 +1851,10 @@ _time:5m | uniq by (host, path)
 
 The unique entries are returned in arbitrary order. Use [`sort` pipe](#sort-pipe) in order to sort them if needed.
 
-Add `hits` after `uniq by (...)` in order to return the number of matching logs per each field value:
+Add `with hits` after `uniq by (...)` in order to return the number of matching logs per each field value:
 
 ```logsql
-_time:5m | uniq by (host) hits
+_time:5m | uniq by (host) with hits
 ```
 
 Unique entries are stored in memory during query execution. Big number of unique selected entries may require a lot of memory.
@@ -1802,15 +1933,22 @@ form `foo`:
 _time:5m | unpack_json from foo result_prefix "foo_"
 ```
 
-Performance tip: it is better from performance and resource usage PoV ingesting parsed JSON logs into VictoriaLogs
-according to the [supported data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-instead of ingesting unparsed JSON lines into VictoriaLogs and then parsing them at query time with [`unpack_json` pipe](#unpack_json-pipe).
+Performance tips:
+
+- It is better from performance and resource usage PoV ingesting parsed JSON logs into VictoriaLogs
+  according to the [supported data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  instead of ingesting unparsed JSON lines into VictoriaLogs and then parsing them at query time with [`unpack_json` pipe](#unpack_json-pipe).
+
+- It is recommended using more specific [log filters](#filters) in order to reduce the number of log entries, which are passed to `unpack_json`.
+  See [general performance tips](#performance-tips) for details.
 
 See also:
 
 - [Conditional `unpack_json`](#conditional-unpack_json)
 - [`unpack_logfmt` pipe](#unpack_logfmt-pipe)
 - [`extract` pipe](#extract-pipe)
+- [`unroll` pipe](#unroll-pipe)
+- [`pack_json` pipe](#pack_json-pipe)
 
 #### Conditional unpack_json
 
@@ -1879,9 +2017,14 @@ from `foo` field:
 _time:5m | unpack_logfmt from foo result_prefix "foo_"
 ```
 
-Performance tip: it is better from performance and resource usage PoV ingesting parsed [logfmt](https://brandur.org/logfmt) logs into VictoriaLogs
-according to the [supported data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-instead of ingesting unparsed logfmt lines into VictoriaLogs and then parsing them at query time with [`unpack_logfmt` pipe](#unpack_logfmt-pipe).
+Performance tips:
+
+- It is better from performance and resource usage PoV ingesting parsed [logfmt](https://brandur.org/logfmt) logs into VictoriaLogs
+  according to the [supported data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  instead of ingesting unparsed logfmt lines into VictoriaLogs and then parsing them at query time with [`unpack_logfmt` pipe](#unpack_logfmt-pipe).
+
+- It is recommended using more specific [log filters](#filters) in order to reduce the number of log entries, which are passed to `unpack_logfmt`.
+  See [general performance tips](#performance-tips) for details.
 
 See also:
 
@@ -1898,6 +2041,34 @@ only if `ip` field in the current log entry isn't set or empty:
 
 ```logsql
 _time:5m | unpack_logfmt if (ip:"") from foo
+```
+
+### unroll pipe
+
+`| unroll by (field1, ..., fieldN)` [pipe](#pipes) can be used for unrolling JSON arrays from `field1`, `fieldN`
+[log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into separate rows.
+
+For example, the following query unrolls `timestamp` and `value` [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) from logs for the last 5 minutes:
+
+```logsql
+_time:5m | unroll (timestamp, value)
+```
+
+See also:
+
+- [`unpack_json` pipe](#unpack_json-pipe)
+- [`extract` pipe](#extract-pipe)
+- [`uniq_values` stats function](#uniq_values-stats)
+- [`values` stats function](#values-stats)
+
+#### Conditional unroll
+
+If the [`unroll` pipe](#unpack_logfmt-pipe) musn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
+then add `if (<filters>)` after `unroll`.
+The `<filters>` can contain arbitrary [filters](#filters). For example, the following query unrolls `value` field only if `value_type` field equals to `json_array`:
+
+```logsql
+_time:5m | unroll if (value_type:="json_array") (value)
 ```
 
 ## stats pipe functions
@@ -2204,6 +2375,8 @@ over logs for the last 5 minutes:
 _time:5m | stats uniq_values(ip) unique_ips
 ```
 
+The returned unique ip addresses can be unrolled into distinct log entries with [`unroll` pipe](#unroll-pipe).
+
 Every unique value is stored in memory during query execution. Big number of unique values may require a lot of memory. Sometimes it is enough to return
 only a subset of unique values. In this case add `limit N` after `uniq_values(...)` in order to limit the number of returned unique values to `N`,
 while limiting the maximum memory usage.
@@ -2236,6 +2409,8 @@ over logs for the last 5 minutes:
 _time:5m | stats values(ip) ips
 ```
 
+The returned ip addresses can be unrolled into distinct log entries with [`unroll` pipe](#unroll-pipe).
+
 See also:
 
 - [`uniq_values`](#uniq_values-stats)
@@ -2257,8 +2432,9 @@ LogsQL supports the following transformations on the log entries selected with [
   See [these docs](#extract-pipe) for details.
 - Unpacking JSON fields from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). See [these docs](#unpack_json-pipe).
 - Unpacking [logfmt](https://brandur.org/logfmt) fields from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). See [these docs](#unpack_logfmt-pipe).
-- Creating a new field from existing [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) according to the provided format. See [these docs](#format-pipe).
-- Replacing substrings in the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). See [these docs](#replace-pipe).
+- Creating a new field from existing [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) according to the provided format. See [`format` pipe](#format-pipe).
+- Replacing substrings in the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+  See [`replace` pipe](#replace-pipe) and [`replace_regexp` pipe](#replace_regexp-pipe) docs.
 
 LogsQL will support the following transformations in the future:
 
@@ -2350,3 +2526,5 @@ Internally duration values are converted into nanoseconds.
   This rule doesn't apply to [time filter](#time-filter) and [stream filter](#stream-filter), which can be put at any place of the query.
 - Move more specific filters, which match lower number of log entries, to the beginning of the query.
   This rule doesn't apply to [time filter](#time-filter) and [stream filter](#stream-filter), which can be put at any place of the query.
+- If the selected logs are passed to [pipes](#pipes) for further transformations and statistics' calculations, then it is recommended
+  reducing the number of selected logs by using more specific [filters](#filters), which return lower number of logs to process by [pipes](#pipes).

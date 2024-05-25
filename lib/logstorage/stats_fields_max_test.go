@@ -275,7 +275,7 @@ func TestStatsFieldsMax(t *testing.T) {
 		{
 			{"a", "1"},
 			{"b", ""},
-			{"x", `{"_msg":"def","a":"1","c":"foo","b":""}`},
+			{"x", `{"_msg":"def","a":"1","c":"foo"}`},
 		},
 		{
 			{"a", "3"},

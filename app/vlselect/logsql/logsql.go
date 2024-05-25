@@ -77,7 +77,7 @@ func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Requ
 			hitsStr := strings.Clone(hitsValues[i])
 
 			bb.Reset()
-			WriteLabelsForHits(bb, columns, i)
+			WriteFieldsForHits(bb, columns, i)
 
 			mLock.Lock()
 			hs, ok := m[string(bb.B)]
@@ -189,21 +189,21 @@ func ProcessFieldValuesRequest(ctx context.Context, w http.ResponseWriter, r *ht
 	WriteValuesWithHitsJSON(w, values)
 }
 
-// ProcessStreamLabelNamesRequest processes /select/logsql/stream_label_names request.
+// ProcessStreamFieldNamesRequest processes /select/logsql/stream_field_names request.
 //
-// See https://docs.victoriametrics.com/victorialogs/querying/#querying-stream-label-names
-func ProcessStreamLabelNamesRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+// See https://docs.victoriametrics.com/victorialogs/querying/#querying-stream-field-names
+func ProcessStreamFieldNamesRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	q, tenantIDs, err := parseCommonArgs(r)
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
 
-	// Obtain stream label names for the given query
+	// Obtain stream field names for the given query
 	q.Optimize()
-	names, err := vlstorage.GetStreamLabelNames(ctx, tenantIDs, q)
+	names, err := vlstorage.GetStreamFieldNames(ctx, tenantIDs, q)
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot obtain stream label names: %s", err)
+		httpserver.Errorf(w, r, "cannot obtain stream field names: %s", err)
 	}
 
 	// Write results
@@ -211,20 +211,20 @@ func ProcessStreamLabelNamesRequest(ctx context.Context, w http.ResponseWriter, 
 	WriteValuesWithHitsJSON(w, names)
 }
 
-// ProcessStreamLabelValuesRequest processes /select/logsql/stream_label_values request.
+// ProcessStreamFieldValuesRequest processes /select/logsql/stream_field_values request.
 //
-// See https://docs.victoriametrics.com/victorialogs/querying/#querying-stream-label-values
-func ProcessStreamLabelValuesRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+// See https://docs.victoriametrics.com/victorialogs/querying/#querying-stream-field-values
+func ProcessStreamFieldValuesRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	q, tenantIDs, err := parseCommonArgs(r)
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
 
-	// Parse labelName query arg
-	labelName := r.FormValue("label")
-	if labelName == "" {
-		httpserver.Errorf(w, r, "missing 'label' query arg")
+	// Parse fieldName query arg
+	fieldName := r.FormValue("field")
+	if fieldName == "" {
+		httpserver.Errorf(w, r, "missing 'field' query arg")
 		return
 	}
 
@@ -238,11 +238,11 @@ func ProcessStreamLabelValuesRequest(ctx context.Context, w http.ResponseWriter,
 		limit = 0
 	}
 
-	// Obtain stream label names for the given query
+	// Obtain stream field values for the given query and the given fieldName
 	q.Optimize()
-	values, err := vlstorage.GetStreamLabelValues(ctx, tenantIDs, q, labelName, uint64(limit))
+	values, err := vlstorage.GetStreamFieldValues(ctx, tenantIDs, q, fieldName, uint64(limit))
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot obtain stream label values: %s", err)
+		httpserver.Errorf(w, r, "cannot obtain stream field values: %s", err)
 	}
 
 	// Write results

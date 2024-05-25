@@ -29,12 +29,30 @@ func (pf *pipeFilter) updateNeededFields(neededFields, unneededFields fieldsSet)
 	}
 }
 
-func (pf *pipeFilter) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
+func (pf *pipeFilter) optimize() {
+	optimizeFilterIn(pf.f)
+}
+
+func (pf *pipeFilter) hasFilterInWithQuery() bool {
+	return hasFilterInWithQueryForFilter(pf.f)
+}
+
+func (pf *pipeFilter) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	fNew, err := initFilterInValuesForFilter(cache, pf.f, getFieldValuesFunc)
+	if err != nil {
+		return nil, err
+	}
+	pfNew := *pf
+	pf.f = fNew
+	return &pfNew, nil
+}
+
+func (pf *pipeFilter) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	shards := make([]pipeFilterProcessorShard, workersCount)
 
 	pfp := &pipeFilterProcessor{
 		pf:     pf,
-		ppBase: ppBase,
+		ppNext: ppNext,
 
 		shards: shards,
 	}
@@ -43,7 +61,7 @@ func (pf *pipeFilter) newPipeProcessor(workersCount int, _ <-chan struct{}, _ fu
 
 type pipeFilterProcessor struct {
 	pf     *pipeFilter
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 
 	shards []pipeFilterProcessorShard
 }
@@ -72,8 +90,8 @@ func (pfp *pipeFilterProcessor) writeBlock(workerID uint, br *blockResult) {
 	bm.setBits()
 	pfp.pf.f.applyToBlockResult(br, bm)
 	if bm.areAllBitsSet() {
-		// Fast path - the filter didn't filter out anything - send br to the base pipe as is.
-		pfp.ppBase.writeBlock(workerID, br)
+		// Fast path - the filter didn't filter out anything - send br to the next pipe as is.
+		pfp.ppNext.writeBlock(workerID, br)
 		return
 	}
 	if bm.isZero() {
@@ -81,9 +99,9 @@ func (pfp *pipeFilterProcessor) writeBlock(workerID uint, br *blockResult) {
 		return
 	}
 
-	// Slow path - copy the remaining rows from br to shard.br before sending them to base pipe.
+	// Slow path - copy the remaining rows from br to shard.br before sending them to the next pipe.
 	shard.br.initFromFilterAllColumns(br, bm)
-	pfp.ppBase.writeBlock(workerID, &shard.br)
+	pfp.ppNext.writeBlock(workerID, &shard.br)
 }
 
 func (pfp *pipeFilterProcessor) flush() error {
