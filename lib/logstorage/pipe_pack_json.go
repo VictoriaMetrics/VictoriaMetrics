@@ -104,6 +104,7 @@ func (ppp *pipePackJSONProcessor) writeBlock(workerID uint, br *blockResult) {
 		v := bytesutil.ToUnsafeString(buf[bufLen:])
 		shard.rc.addValue(v)
 	}
+	shard.fields = fields
 
 	br.addResultColumn(&shard.rc)
 	ppp.ppNext.writeBlock(workerID, br)

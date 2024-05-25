@@ -201,6 +201,7 @@ func (shard *pipeUnrollProcessorShard) writeUnrolledFields(br *blockResult, fiel
 		}
 		shard.wctx.writeRow(rowIdx, fields)
 	}
+	shard.fields = fields
 }
 
 func (pup *pipeUnrollProcessor) flush() error {
