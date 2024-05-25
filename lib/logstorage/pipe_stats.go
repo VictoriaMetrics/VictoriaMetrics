@@ -436,8 +436,9 @@ func (psp *pipeStatsProcessor) flush() error {
 
 	// Merge states across shards
 	shards := psp.shards
-	shards[0].init()
-	m := shards[0].m
+	shardMain := &shards[0]
+	shardMain.init()
+	m := shardMain.m
 	shards = shards[1:]
 	for i := range shards {
 		shard := &shards[i]
@@ -463,8 +464,8 @@ func (psp *pipeStatsProcessor) flush() error {
 	byFields := psp.ps.byFields
 	if len(byFields) == 0 && len(m) == 0 {
 		// Special case - zero matching rows.
-		_ = shards[0].getPipeStatsGroup(nil)
-		m = shards[0].m
+		_ = shardMain.getPipeStatsGroup(nil)
+		m = shardMain.m
 	}
 
 	rcs := make([]resultColumn, 0, len(byFields)+len(psp.ps.funcs))
