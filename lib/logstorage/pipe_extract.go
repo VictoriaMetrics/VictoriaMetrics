@@ -128,7 +128,9 @@ type pipeExtractProcessorShardNopad struct {
 	bm  bitmap
 	ptn *pattern
 
-	resultValues []string
+	resultColumns []*blockResultColumn
+	resultValues  []string
+
 	rcs []resultColumn
 	a   arena
 }
@@ -166,8 +168,15 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 	c := br.getColumnByName(pe.fromField)
 	values := c.getValues(br)
 
+	shard.resultColumns = slicesutil.SetLength(shard.resultColumns, len(rcs))
+	resultColumns := shard.resultColumns
+	for i := range resultColumns {
+		resultColumns[i] = br.getColumnByName(rcs[i].name)
+	}
+
 	shard.resultValues = slicesutil.SetLength(shard.resultValues, len(rcs))
 	resultValues := shard.resultValues
+
 	hadUpdates := false
 	vPrev := ""
 	for rowIdx, v := range values {
@@ -181,7 +190,7 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 				for i, f := range ptn.fields {
 					v := *f.value
 					if v == "" && pe.skipEmptyResults || pe.keepOriginalFields {
-						c := br.getColumnByName(rcs[i].name)
+						c := resultColumns[i]
 						if vOrig := c.getValueAtRow(br, rowIdx); vOrig != "" {
 							v = vOrig
 						}
@@ -192,10 +201,8 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 				}
 			}
 		} else {
-			for i := range rcs {
-				c := br.getColumnByName(rcs[i].name)
-				v := c.getValueAtRow(br, rowIdx)
-				resultValues[i] = v
+			for i, c := range resultColumns {
+				resultValues[i] = c.getValueAtRow(br, rowIdx)
 			}
 		}
 

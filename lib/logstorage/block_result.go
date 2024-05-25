@@ -1343,8 +1343,8 @@ func (br *blockResult) getColumnByName(columnName string) *blockResultColumn {
 
 	// Create missing empty column
 	br.csEmpty = append(br.csEmpty, blockResultColumn{
-		name: br.a.copyString(columnName),
-		isConst: true,
+		name:          br.a.copyString(columnName),
+		isConst:       true,
 		valuesEncoded: getEmptyStrings(1),
 	})
 	return &br.csEmpty[len(br.csEmpty)-1]
