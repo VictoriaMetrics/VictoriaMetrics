@@ -43,8 +43,8 @@ For example, the following query returns all the log entries with the `error` wo
 curl http://localhost:9428/select/logsql/query -d 'query=error'
 ```
 
-The response by default contains all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-See [how to query specific fields](https://docs.victoriametrics.com/victorialogs/logsql/#querying-specific-fields).
+The response by default contains all the [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) for the selected logs.
+Use [`fields` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe) for selecting only the needed fields.
 
 The `query` argument can be passed either in the request url itself (aka HTTP GET request) or via request body
 with the `x-www-form-urlencoded` encoding (aka HTTP POST request). The HTTP POST is useful for sending long queries
@@ -56,7 +56,8 @@ or similar tools.
 
 By default the `/select/logsql/query` returns all the log entries matching the given `query`. The response size can be limited in the following ways:
 
-- By closing the response stream at any time. In this case VictoriaLogs stops query execution and frees all the resources occupied by the request.
+- By closing the response stream at any time. VictoriaLogs stops query execution and frees all the resources occupied by the request as soon as it detects closed client connection.
+  So it is safe running [`*` query](https://docs.victoriametrics.com/victorialogs/logsql/#any-value-filter), which selects all the logs, even if trillions of logs are stored in VictoriaLogs.
 - By specifying the maximum number of log entries, which can be returned in the response via `limit` query arg. For example, the following request returns
   up to 10 matching log entries:
   ```sh
@@ -68,7 +69,7 @@ By default the `/select/logsql/query` returns all the log entries matching the g
   ```
 - By adding [`_time` filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter). The time range for the query can be specified via optional
   `start` and `end` query ars formatted according to [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats).
-- By adding other [filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters) to the query.
+- By adding more specific [filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters) to the query, which select lower number of logs.
 
 The `/select/logsql/query` endpoint returns [a stream of JSON lines](https://jsonlines.org/),
 where each line contains JSON-encoded log entry in the form `{field1="value1",...,fieldN="valueN"}`.
@@ -79,18 +80,18 @@ Example response:
 {"_msg":"some other error","_stream":"{}","_time":"2023-01-01T13:32:15Z"}
 ```
 
-The matching lines are sent to the response stream as soon as they are found in VictoriaLogs storage.
+Logs lines are sent to the response stream as soon as they are found in VictoriaLogs storage.
 This means that the returned response may contain billions of lines for queries matching too many log entries.
 The response can be interrupted at any time by closing the connection to VictoriaLogs server.
-This allows post-processing the returned lines at the client side with the usual Unix commands such as `grep`, `jq`, `less`, `head`, etc.
-See [these docs](#command-line) for more details.
+This allows post-processing the returned lines at the client side with the usual Unix commands such as `grep`, `jq`, `less`, `head`, etc.,
+without worrying about resource usage at VictoriaLogs side. See [these docs](#command-line) for more details.
 
-The returned lines aren't sorted, since sorting disables the ability to send matching log entries to response stream as soon as they are found.
-Query results can be sorted either at VictoriaLogs side according [to these docs](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe)
+The returned lines aren't sorted by default, since sorting disables the ability to send matching log entries to response stream as soon as they are found.
+Query results can be sorted either at VictoriaLogs side via [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe)
 or at client side with the usual `sort` command according to [these docs](#command-line).
 
 By default the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) is queried.
-If you need querying other tenant, then specify the needed tenant via http request headers. For example, the following query searches
+If you need querying other tenant, then specify it via `AccounID` and `ProjectID` http request headers. For example, the following query searches
 for log messages at `(AccountID=12, ProjectID=34)` tenant:
 
 ```sh
@@ -100,9 +101,15 @@ curl http://localhost:9428/select/logsql/query -H 'AccountID: 12' -H 'ProjectID:
 The number of requests to `/select/logsql/query` can be [monitored](https://docs.victoriametrics.com/victorialogs/#monitoring)
 with `vl_http_requests_total{path="/select/logsql/query"}` metric.
 
+See also:
+
 - [Querying hits stats](#querying-hits-stats)
 - [Querying streams](#querying-streams)
-- [HTTP API](#http-api)
+- [Querying stream field names](#querying-stream-field-names)
+- [Querying stream field values](#querying-stream-field-values)
+- [Querying field names](#querying-field-names)
+- [Querying field values](#querying-field-values)
+
 
 ### Querying hits stats
 
@@ -454,32 +461,25 @@ There are three modes of displaying query results:
 - `Table` - displays query results as a table.
 - `JSON` - displays raw JSON response from [HTTP API](#http-api).
 
-This is the first version that has minimal functionality. It comes with the following limitations:
-
-- The number of query results is always limited to 1000 lines. Iteratively add
-  more specific [filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters) to the query
-  in order to get full response with less than 1000 lines.
-- Queries are always executed against [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) `0`.
-
-These limitations will be removed in future versions.
-
-To get around the current limitations, you can use an alternative - the [command line interface](#command-line).
+This is the first version that has minimal functionality and may contain bugs.
+It is recommended trying [command line interface](#command-line), which has no known bugs :)
 
 ## Command-line
 
 VictoriaLogs integrates well with `curl` and other command-line tools during querying because of the following features:
 
-- VictoriaLogs sends the matching log entries to the response stream as soon as they are found.
-  This allows forwarding the response stream to arbitrary [Unix pipes](https://en.wikipedia.org/wiki/Pipeline_(Unix)).
-- VictoriaLogs automatically adjusts query execution speed to the speed of the client, which reads the response stream.
+- Matching log entries are sent to the response stream as soon as they are found.
+  This allows forwarding the response stream to arbitrary [Unix pipes](https://en.wikipedia.org/wiki/Pipeline_(Unix))
+  without waiting until the response finishes.
+- Query execution speed is automatically adjusted to the speed of the client, which reads the response stream.
   For example, if the response stream is piped to `less` command, then the query is suspended
   until the `less` command reads the next block from the response stream.
-- VictoriaLogs automatically cancels query execution when the client closes the response stream.
+- Query is automatically canceled when the client closes the response stream.
   For example, if the query response is piped to `head` command, then VictoriaLogs stops executing the query
   when the `head` command closes the response stream.
 
 These features allow executing queries at command-line interface, which potentially select billions of rows,
-without the risk of high resource usage (CPU, RAM, disk IO) at VictoriaLogs server.
+without the risk of high resource usage (CPU, RAM, disk IO) at VictoriaLogs.
 
 For example, the following query can return very big number of matching log entries (e.g. billions) if VictoriaLogs contains
 many log messages with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word):
@@ -488,8 +488,8 @@ many log messages with the `error` [word](https://docs.victoriametrics.com/victo
 curl http://localhost:9428/select/logsql/query -d 'query=error'
 ```
 
-If the command returns "never-ending" response, then just press `ctrl+C` at any time in order to cancel the query.
-VictoriaLogs notices that the response stream is closed, so it cancels the query and instantly stops consuming CPU, RAM and disk IO for this query.
+If the command above returns "never-ending" response, then just press `ctrl+C` at any time in order to cancel the query.
+VictoriaLogs notices that the response stream is closed, so it cancels the query and stops consuming CPU, RAM and disk IO for this query.
 
 Then just use `head` command for investigating the returned log messages and narrowing down the query:
 
@@ -500,6 +500,12 @@ curl http://localhost:9428/select/logsql/query -d 'query=error' | head -10
 The `head -10` command reads only the first 10 log messages from the response and then closes the response stream.
 This automatically cancels the query at VictoriaLogs side, so it stops consuming CPU, RAM and disk IO resources.
 
+Alternatively, you can limit the number of returned logs at VictoriaLogs side via [`limit` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe):
+
+```sh
+curl http://localhost:9428/select/logsql/query -d 'query=error | limit 10'
+```
+
 Sometimes it may be more convenient to use `less` command instead of `head` during the investigation of the returned response:
 
 ```sh
@@ -509,7 +515,7 @@ curl http://localhost:9428/select/logsql/query -d 'query=error' | less
 The `less` command reads the response stream on demand, when the user scrolls down the output.
 VictoriaLogs suspends query execution when `less` stops reading the response stream.
 It doesn't consume CPU and disk IO resources during this time. It resumes query execution
-when the `less` continues reading the response stream.
+after the `less` continues reading the response stream.
 
 Suppose that the initial investigation of the returned query results helped determining that the needed log messages contain
 `cannot open file` [phrase](https://docs.victoriametrics.com/victorialogs/logsql/#phrase-filter).
@@ -543,7 +549,13 @@ See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#stream-fi
 [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter) about `_time` filter
 and [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#logical-filter) about `AND` operator.
 
-The following example shows how to sort query results by the [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field):
+Alternatively, you can count the number of matching logs at VictoriaLogs side with [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe):
+
+```sh
+curl http://localhost:9428/select/logsql/query -d 'query=_stream:{app="nginx"} AND _time:5m AND error | stats count() logs_with_error'
+```
+
+The following example shows how to sort query results by the [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) with traditional Unix tools:
 
 ```sh
 curl http://localhost:9428/select/logsql/query -d 'query=error' | jq -r '._time + " " + ._msg' | sort | less
@@ -558,8 +570,14 @@ can take non-trivial amounts of time if the `query` returns too many results. Th
 before sorting the results. See [these tips](https://docs.victoriametrics.com/victorialogs/logsql/#performance-tips)
 on how to narrow down query results.
 
+Alternatively, sorting of matching logs can be performed at VictoriaLogs side via [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe):
+
+```sh
+curl http://localhost:9428/select/logsql/query -d 'query=error | sort by (_time)' | less
+```
+
 The following example calculates stats on the number of log messages received during the last 5 minutes
-grouped by `log.level` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
+grouped by `log.level` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with traditional Unix tools:
 
 ```sh
 curl http://localhost:9428/select/logsql/query -d 'query=_time:5m log.level:*' | jq -r '."log.level"' | sort | uniq -c 
@@ -568,6 +586,12 @@ curl http://localhost:9428/select/logsql/query -d 'query=_time:5m log.level:*' |
 The query selects all the log messages with non-empty `log.level` field via ["any value" filter](https://docs.victoriametrics.com/victorialogs/logsql/#any-value-filter),
 then pipes them to `jq` command, which extracts the `log.level` field value from the returned JSON stream, then the extracted `log.level` values
 are sorted with `sort` command and, finally, they are passed to `uniq -c` command for calculating the needed stats.
+
+Alternatively, all the stats calculations above can be performed at VictoriaLogs side via [`stats by(...)`](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-fields):
+
+```sh
+curl http://localhost:9428/select/logsql/query -d 'query=_time:5m log.level:* | stats by (log.level) count() matching_logs'
+```
 
 See also:
 

@@ -37,6 +37,8 @@ For example, the following query finds all the logs with `error` word:
 error
 ```
 
+See [how to send queries to VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
+
 If the queried [word](#word) clashes with LogsQL keywords, then just wrap it into quotes.
 For example, the following query finds all the log messages with `and` [word](#word):
 
@@ -80,11 +82,32 @@ Typical LogsQL query constists of multiple [filters](#filters) joined with `AND`
 So LogsQL allows omitting `AND` words. For example, the following query is equivalent to the query above:
 
 ```logsql
-error _time:5m
+_time:5m error
 ```
 
-The query returns all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) by default.
-See [how to query specific fields](#querying-specific-fields).
+The query returns logs in arbitrary order because sorting of big amounts of logs may require non-trivial amounts of CPU and RAM.
+The number of logs with `error` word over the last 5 minutes isn't usually too big (e.g. less than a few millions), so it is OK to sort them with [`sort` pipe](#sort-pipe).
+The following query sorts the selected logs by [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) field:
+
+```logsql
+_time:5m error | sort by (_time)
+```
+
+It is unlikely you are going to investigate more than a few hundreds of logs returned by the query above. So you can limit the number of returned logs
+with [`limit` pipe](#limit-pipe). The following query returns the last 10 logs with the `error` word over the last 5 minutes:
+
+```logsql
+_time:5m error | sort by (_time) desc | limit 10
+```
+
+By default VictoriaLogs returns all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+If you need only the given set of fields, then add [`fields` pipe](#fields-pipe) to the end of the query. For example, the following query returns only
+[`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field), [`_stream`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+and [`_msg`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) fields:
+
+```logsql
+error _time:5m | fields _time, _stream, _msg
+```
 
 Suppose the query above selects too many rows because some buggy app pushes invalid error logs to VictoriaLogs. Suppose the app adds `buggy_app` [word](#word) to every log line.
 Then the following query removes all the logs from the buggy app, allowing us paying attention to the real errors:
@@ -93,8 +116,10 @@ Then the following query removes all the logs from the buggy app, allowing us pa
 _time:5m error NOT buggy_app
 ```
 
-This query uses `NOT` [operator](#logical-filter) for removing log lines from the buggy app. The `NOT` operator is used frequently, so it can be substituted with `!` char.
-So the following query is equivalent to the previous one:
+This query uses `NOT` [operator](#logical-filter) for removing log lines from the buggy app. The `NOT` operator is used frequently, so it can be substituted with `!` char
+(the `!` char is used instead of `-` char as a shorthand for `NOT` operator becasue it nicely combines with [`=`](https://docs.victoriametrics.com/victorialogs/logsql/#exact-filter)
+and [`~`](https://docs.victoriametrics.com/victorialogs/logsql/#regexp-filter) filters like `!=` and `!~`).
+The following query is equivalent to the previous one:
 
 ```logsql
 _time:5m error !buggy_app
@@ -113,17 +138,15 @@ This query can be rewritten to more clear query with the `OR` [operator](#logica
 _time:5m error !(buggy_app OR foobar)
 ```
 
-Note that the parentheses are required here, since otherwise the query won't return the expected results.
-The query `error !buggy_app OR foobar` is interpreted as `(error AND NOT buggy_app) OR foobar`. This query may return error logs
-from the buggy app if they contain `foobar` [word](#word). This query also continues returning all the error logs from the second buggy app.
-This is because of different priorities for `NOT`, `AND` and `OR` operators.
-Read [these docs](#logical-filter) for more details. There is no need in remembering all these priority rules -
-just wrap the needed query parts into explicit parentheses if you aren't sure in priority rules.
+The parentheses are **required** here, since otherwise the query won't return the expected results.
+The query `error !buggy_app OR foobar` is interpreted as `(error AND NOT buggy_app) OR foobar` according to [priorities for AND, OR and NOT operator](#logical-filters).
+This query returns logs with `foobar` [word](#word), even if do not contain `error` word or contain `buggy_app` word.
+So it is recommended wrapping the needed query parts into explicit parentheses if you are unsure in priority rules.
 As an additional bonus, explicit parentheses make queries easier to read and maintain.
 
 Queries above assume that the `error` [word](#word) is stored in the [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
-This word can be stored in other [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) such as `log.level`.
-How to select error logs in this case? Just add the `log.level:` prefix in front of the `error` word:
+If this word is stored in other [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) such as `log.level`, then add `log.level:` prefix
+in front of the `error` word:
 
 ```logsq
 _time:5m log.level:error !(buggy_app OR foobar)
@@ -158,8 +181,16 @@ If the `app` field is associated with the log stream, then the query above can b
 _time:5m log.level:error _stream:{app!~"buggy_app|foobar"}
 ```
 
-This query completely skips scanning for logs from `buggy_app` and `foobar` apps, thus significantly reducing disk read IO and CPU time
-needed for performing the query.
+This query skips scanning for [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) from `buggy_app` and `foobar` apps.
+It inpsects only `log.level` and [`_stream`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) labels.
+This significantly reduces disk read IO and CPU time needed for performing the query.
+
+LogsQL also provides [functions for statistics calculation](#stats-pipe) over the selected logs. For example, the following query returns the number of logs
+with the `error` word for the last 5 minutes:
+
+```logsql
+_time:5m error | stats count() logs_with_error
+```
 
 Finally, it is recommended reading [performance tips](#performance-tips).
 
@@ -177,12 +208,15 @@ These words are taken into account by full-text search filters such as
 
 #### Query syntax
 
-LogsQL query must contain [filters](#filters) for selecting the matching logs. At least a single filter is required.
+LogsQL query must contain at least a single [filter](#filters) for selecting the matching logs.
 For example, the following query selects all the logs for the last 5 minutes by using [`_time` filter](#time-filter):
 
 ```logsql
 _time:5m
 ```
+
+Tip: try [`*` filter](https://docs.victoriametrics.com/victorialogs/logsql/#any-value-filter), which selects all the logs stored in VictoriaLogs.
+Do not worry - this doesn't crash VictoriaLogs, even if it contains trillions of logs. In the worst case it will return 
 
 Additionally to filters, LogQL query may contain arbitrary mix of optional actions for processing the selected logs. These actions are delimited by `|` and are known as [`pipes`](#pipes).
 For example, the following query uses [`stats` pipe](#stats-pipe) for returning the number of [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
@@ -2492,3 +2526,5 @@ Internally duration values are converted into nanoseconds.
   This rule doesn't apply to [time filter](#time-filter) and [stream filter](#stream-filter), which can be put at any place of the query.
 - Move more specific filters, which match lower number of log entries, to the beginning of the query.
   This rule doesn't apply to [time filter](#time-filter) and [stream filter](#stream-filter), which can be put at any place of the query.
+- If the selected logs are passed to [pipes](#pipes) for further transformations and statistics' calculations, then it is recommended
+  reducing the number of selected logs by using more specific [filters](#filters), which return lower number of logs to process by [pipes](#pipes).
