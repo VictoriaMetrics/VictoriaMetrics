@@ -3,6 +3,8 @@ package logstorage
 import (
 	"context"
 	"fmt"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -310,6 +312,163 @@ func TestStorageRunQuery(t *testing.T) {
 		mustRunQuery(tenantIDs, q, writeBlock)
 	})
 
+	// Run more complex tests
+	f := func(t *testing.T, query string, rowsExpected [][]Field) {
+		t.Helper()
+
+		q := mustParseQuery(query)
+		var resultRowsLock sync.Mutex
+		var resultRows [][]Field
+		writeBlock := func(_ uint, _ []int64, bcs []BlockColumn) {
+			if len(bcs) == 0 {
+				return
+			}
+
+			for i := 0; i < len(bcs[0].Values); i++ {
+				row := make([]Field, len(bcs))
+				for j, bc := range bcs {
+					row[j] = Field{
+						Name:  strings.Clone(bc.Name),
+						Value: strings.Clone(bc.Values[i]),
+					}
+				}
+				resultRowsLock.Lock()
+				resultRows = append(resultRows, row)
+				resultRowsLock.Unlock()
+			}
+		}
+		mustRunQuery(allTenantIDs, q, writeBlock)
+
+		assertRowsEqual(t, resultRows, rowsExpected)
+	}
+
+	t.Run("stats-count-total", func(t *testing.T) {
+		f(t, `* | stats count() rows`, [][]Field{
+			{
+				{"rows", "1155"},
+			},
+		})
+	})
+	t.Run("in-filter-with-subquery-match", func(t *testing.T) {
+		f(t, `tenant.id:in(tenant.id:2 | fields tenant.id) | stats count() rows`, [][]Field{
+			{
+				{"rows", "105"},
+			},
+		})
+	})
+	t.Run("in-filter-with-subquery-mismatch", func(t *testing.T) {
+		f(t, `tenant.id:in(tenant.id:23243 | fields tenant.id) | stats count() rows`, [][]Field{
+			{
+				{"rows", "0"},
+			},
+		})
+	})
+	t.Run("conditional-stats", func(t *testing.T) {
+		f(t, `* | stats
+			count() rows_total,
+			count() if (stream-id:0) stream_0_rows,
+			count() if (stream-id:1123) stream_x_rows
+		`, [][]Field{
+			{
+				{"rows_total", "1155"},
+				{"stream_0_rows", "385"},
+				{"stream_x_rows", "0"},
+			},
+		})
+	})
+	t.Run("in-filter-with-subquery-in-conditional-stats-mismatch", func(t *testing.T) {
+		f(t, `* | stats
+			count() rows_total,
+			count() if (tenant.id:in(tenant.id:3 | fields tenant.id)) rows_nonzero,
+			count() if (tenant.id:in(tenant.id:23243 | fields tenant.id)) rows_zero
+		`, [][]Field{
+			{
+				{"rows_total", "1155"},
+				{"rows_nonzero", "105"},
+				{"rows_zero", "0"},
+			},
+		})
+	})
+	t.Run("pipe-extract", func(*testing.T) {
+		f(t, `* | extract "host-<host>:" from instance | uniq (host) with hits | sort by (host)`, [][]Field{
+			{
+				{"host", "0"},
+				{"hits", "385"},
+			},
+			{
+				{"host", "1"},
+				{"hits", "385"},
+			},
+			{
+				{"host", "2"},
+				{"hits", "385"},
+			},
+		})
+	})
+	t.Run("pipe-extract-if-filter-with-subquery", func(*testing.T) {
+		f(t, `* | extract
+				if (tenant.id:in(tenant.id:(3 or 4) | fields tenant.id))
+				"host-<host>:" from instance
+			| filter host:~"1|2"
+			| uniq (tenant.id, host) with hits
+			| sort by (tenant.id, host)`, [][]Field{
+			{
+				{"tenant.id", "{accountID=3,projectID=31}"},
+				{"host", "1"},
+				{"hits", "35"},
+			},
+			{
+				{"tenant.id", "{accountID=3,projectID=31}"},
+				{"host", "2"},
+				{"hits", "35"},
+			},
+			{
+				{"tenant.id", "{accountID=4,projectID=41}"},
+				{"host", "1"},
+				{"hits", "35"},
+			},
+			{
+				{"tenant.id", "{accountID=4,projectID=41}"},
+				{"host", "2"},
+				{"hits", "35"},
+			},
+		})
+	})
+	t.Run("pipe-extract-if-filter-with-subquery-non-empty-host", func(*testing.T) {
+		f(t, `* | extract
+				if (tenant.id:in(tenant.id:3 | fields tenant.id))
+				"host-<host>:" from instance
+			| filter host:*
+			| uniq (host) with hits
+			| sort by (host)`, [][]Field{
+			{
+				{"host", "0"},
+				{"hits", "35"},
+			},
+			{
+				{"host", "1"},
+				{"hits", "35"},
+			},
+			{
+				{"host", "2"},
+				{"hits", "35"},
+			},
+		})
+	})
+	t.Run("pipe-extract-if-filter-with-subquery-empty-host", func(*testing.T) {
+		f(t, `* | extract
+				if (tenant.id:in(tenant.id:3 | fields tenant.id))
+				"host-<host>:" from instance
+			| filter host:""
+			| uniq (host) with hits
+			| sort by (host)`, [][]Field{
+			{
+				{"host", ""},
+				{"hits", "1050"},
+			},
+		})
+	})
+
 	// Close the storage and delete its data
 	s.MustClose()
 	fs.MustRemoveAll(path)
@@ -318,7 +477,7 @@ func TestStorageRunQuery(t *testing.T) {
 func mustParseQuery(query string) *Query {
 	q, err := ParseQuery(query)
 	if err != nil {
-		panic(fmt.Errorf("BUG: cannot parse %s: %w", query, err))
+		panic(fmt.Errorf("BUG: cannot parse [%s]: %w", query, err))
 	}
 	return q
 }

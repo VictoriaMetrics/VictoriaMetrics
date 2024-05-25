@@ -43,7 +43,7 @@ func (pf *pipeFilter) initFilterInValues(cache map[string][]string, getFieldValu
 		return nil, err
 	}
 	pfNew := *pf
-	pf.f = fNew
+	pfNew.f = fNew
 	return &pfNew, nil
 }
 

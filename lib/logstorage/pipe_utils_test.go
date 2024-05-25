@@ -128,15 +128,21 @@ func (pp *testPipeProcessor) flush() error {
 func (pp *testPipeProcessor) expectRows(t *testing.T, expectedRows [][]Field) {
 	t.Helper()
 
-	if len(pp.resultRows) != len(expectedRows) {
+	assertRowsEqual(t, pp.resultRows, expectedRows)
+}
+
+func assertRowsEqual(t *testing.T, resultRows, expectedRows [][]Field) {
+	t.Helper()
+
+	if len(resultRows) != len(expectedRows) {
 		t.Fatalf("unexpected number of rows; got %d; want %d\nrows got\n%s\nrows expected\n%s",
-			len(pp.resultRows), len(expectedRows), rowsToString(pp.resultRows), rowsToString(expectedRows))
+			len(resultRows), len(expectedRows), rowsToString(resultRows), rowsToString(expectedRows))
 	}
 
-	sortTestRows(pp.resultRows)
+	sortTestRows(resultRows)
 	sortTestRows(expectedRows)
 
-	for i, resultRow := range pp.resultRows {
+	for i, resultRow := range resultRows {
 		expectedRow := expectedRows[i]
 		if len(resultRow) != len(expectedRow) {
 			t.Fatalf("unexpected number of fields at row #%d; got %d; want %d\nrow got\n%s\nrow expected\n%s",

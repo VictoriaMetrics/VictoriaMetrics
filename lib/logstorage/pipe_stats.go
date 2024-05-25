@@ -133,16 +133,18 @@ func (ps *pipeStats) hasFilterInWithQuery() bool {
 
 func (ps *pipeStats) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
 	funcsNew := make([]pipeStatsFunc, len(ps.funcs))
-	for i, f := range ps.funcs {
+	for i := range ps.funcs {
+		f := &ps.funcs[i]
 		iffNew, err := f.iff.initFilterInValues(cache, getFieldValuesFunc)
 		if err != nil {
 			return nil, err
 		}
-		f.iff = iffNew
-		funcsNew[i] = f
+		fNew := *f
+		fNew.iff = iffNew
+		funcsNew[i] = fNew
 	}
 	psNew := *ps
-	ps.funcs = funcsNew
+	psNew.funcs = funcsNew
 	return &psNew, nil
 }
 
