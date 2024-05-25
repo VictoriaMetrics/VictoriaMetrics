@@ -44,16 +44,16 @@ func (pd *pipeDelete) initFilterInValues(cache map[string][]string, getFieldValu
 	return pd, nil
 }
 
-func (pd *pipeDelete) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
+func (pd *pipeDelete) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeDeleteProcessor{
 		pd:     pd,
-		ppBase: ppBase,
+		ppNext: ppNext,
 	}
 }
 
 type pipeDeleteProcessor struct {
 	pd     *pipeDelete
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 }
 
 func (pdp *pipeDeleteProcessor) writeBlock(workerID uint, br *blockResult) {
@@ -62,7 +62,7 @@ func (pdp *pipeDeleteProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	br.deleteColumns(pdp.pd.fields)
-	pdp.ppBase.writeBlock(workerID, br)
+	pdp.ppNext.writeBlock(workerID, br)
 }
 
 func (pdp *pipeDeleteProcessor) flush() error {

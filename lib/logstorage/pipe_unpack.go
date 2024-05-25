@@ -96,12 +96,12 @@ func (uctx *fieldsUnpackerContext) addField(name, value string) {
 	})
 }
 
-func newPipeUnpackProcessor(workersCount int, unpackFunc func(uctx *fieldsUnpackerContext, s string), ppBase pipeProcessor,
+func newPipeUnpackProcessor(workersCount int, unpackFunc func(uctx *fieldsUnpackerContext, s string), ppNext pipeProcessor,
 	fromField string, fieldPrefix string, keepOriginalFields, skipEmptyResults bool, iff *ifFilter) *pipeUnpackProcessor {
 
 	return &pipeUnpackProcessor{
 		unpackFunc: unpackFunc,
-		ppBase:     ppBase,
+		ppNext:     ppNext,
 
 		shards: make([]pipeUnpackProcessorShard, workersCount),
 
@@ -115,7 +115,7 @@ func newPipeUnpackProcessor(workersCount int, unpackFunc func(uctx *fieldsUnpack
 
 type pipeUnpackProcessor struct {
 	unpackFunc func(uctx *fieldsUnpackerContext, s string)
-	ppBase     pipeProcessor
+	ppNext     pipeProcessor
 
 	shards []pipeUnpackProcessorShard
 
@@ -147,7 +147,7 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	shard := &pup.shards[workerID]
-	shard.wctx.init(workerID, pup.ppBase, pup.keepOriginalFields, pup.skipEmptyResults, br)
+	shard.wctx.init(workerID, pup.ppNext, pup.keepOriginalFields, pup.skipEmptyResults, br)
 	shard.uctx.init(workerID, pup.fieldPrefix)
 
 	bm := &shard.bm
@@ -156,7 +156,7 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 	if pup.iff != nil {
 		pup.iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
-			pup.ppBase.writeBlock(workerID, br)
+			pup.ppNext.writeBlock(workerID, br)
 			return
 		}
 	}
@@ -204,7 +204,7 @@ func (pup *pipeUnpackProcessor) flush() error {
 
 type pipeUnpackWriteContext struct {
 	workerID           uint
-	ppBase             pipeProcessor
+	ppNext             pipeProcessor
 	keepOriginalFields bool
 	skipEmptyResults   bool
 
@@ -223,7 +223,7 @@ type pipeUnpackWriteContext struct {
 
 func (wctx *pipeUnpackWriteContext) reset() {
 	wctx.workerID = 0
-	wctx.ppBase = nil
+	wctx.ppNext = nil
 	wctx.keepOriginalFields = false
 
 	wctx.brSrc = nil
@@ -239,11 +239,11 @@ func (wctx *pipeUnpackWriteContext) reset() {
 	wctx.valuesLen = 0
 }
 
-func (wctx *pipeUnpackWriteContext) init(workerID uint, ppBase pipeProcessor, keepOriginalFields, skipEmptyResults bool, brSrc *blockResult) {
+func (wctx *pipeUnpackWriteContext) init(workerID uint, ppNext pipeProcessor, keepOriginalFields, skipEmptyResults bool, brSrc *blockResult) {
 	wctx.reset()
 
 	wctx.workerID = workerID
-	wctx.ppBase = ppBase
+	wctx.ppNext = ppNext
 	wctx.keepOriginalFields = keepOriginalFields
 	wctx.skipEmptyResults = skipEmptyResults
 
@@ -265,7 +265,7 @@ func (wctx *pipeUnpackWriteContext) writeRow(rowIdx int, extraFields []Field) {
 		}
 	}
 	if !areEqualColumns {
-		// send the current block to ppBase and construct a block with new set of columns
+		// send the current block to ppNext and construct a block with new set of columns
 		wctx.flush()
 
 		rcs = wctx.rcs[:0]
@@ -310,11 +310,11 @@ func (wctx *pipeUnpackWriteContext) flush() {
 
 	wctx.valuesLen = 0
 
-	// Flush rcs to ppBase
+	// Flush rcs to ppNext
 	br := &wctx.br
 	br.setResultColumns(rcs, wctx.rowsCount)
 	wctx.rowsCount = 0
-	wctx.ppBase.writeBlock(wctx.workerID, br)
+	wctx.ppNext.writeBlock(wctx.workerID, br)
 	br.reset()
 	for i := range rcs {
 		rcs[i].resetValues()

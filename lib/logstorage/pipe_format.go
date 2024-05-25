@@ -90,10 +90,10 @@ func (pf *pipeFormat) initFilterInValues(cache map[string][]string, getFieldValu
 	return &pfNew, nil
 }
 
-func (pf *pipeFormat) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
+func (pf *pipeFormat) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeFormatProcessor{
 		pf:     pf,
-		ppBase: ppBase,
+		ppNext: ppNext,
 
 		shards: make([]pipeFormatProcessorShard, workersCount),
 	}
@@ -101,7 +101,7 @@ func (pf *pipeFormat) newPipeProcessor(workersCount int, _ <-chan struct{}, _ fu
 
 type pipeFormatProcessor struct {
 	pf     *pipeFormat
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 
 	shards []pipeFormatProcessorShard
 }
@@ -134,7 +134,7 @@ func (pfp *pipeFormatProcessor) writeBlock(workerID uint, br *blockResult) {
 	if iff := pf.iff; iff != nil {
 		iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
-			pfp.ppBase.writeBlock(workerID, br)
+			pfp.ppNext.writeBlock(workerID, br)
 			return
 		}
 	}
@@ -158,7 +158,7 @@ func (pfp *pipeFormatProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	br.addResultColumn(&shard.rc)
-	pfp.ppBase.writeBlock(workerID, br)
+	pfp.ppNext.writeBlock(workerID, br)
 
 	shard.a.reset()
 	shard.rc.reset()

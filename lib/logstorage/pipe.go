@@ -11,15 +11,15 @@ type pipe interface {
 	// updateNeededFields must update neededFields and unneededFields with fields it needs and not needs at the input.
 	updateNeededFields(neededFields, unneededFields fieldsSet)
 
-	// newPipeProcessor must return new pipeProcessor for the given ppBase.
+	// newPipeProcessor must return new pipeProcessor, which writes data to the given ppNext.
 	//
 	// workersCount is the number of goroutine workers, which will call writeBlock() method.
 	//
 	// If stopCh is closed, the returned pipeProcessor must stop performing CPU-intensive tasks which take more than a few milliseconds.
 	// It is OK to continue processing pipeProcessor calls if they take less than a few milliseconds.
 	//
-	// The returned pipeProcessor may call cancel() at any time in order to notify worker goroutines to stop sending new data to pipeProcessor.
-	newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor
+	// The returned pipeProcessor may call cancel() at any time in order to notify the caller to stop sending new data to it.
+	newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor
 
 	// optimize must optimize the pipe
 	optimize()
@@ -50,7 +50,7 @@ type pipeProcessor interface {
 	// cancel() may be called also when the pipeProcessor decides to stop accepting new data, even if there is no any error.
 	writeBlock(workerID uint, br *blockResult)
 
-	// flush must flush all the data accumulated in the pipeProcessor to the base pipeProcessor.
+	// flush must flush all the data accumulated in the pipeProcessor to the next pipeProcessor.
 	//
 	// flush is called after all the worker goroutines are stopped.
 	//

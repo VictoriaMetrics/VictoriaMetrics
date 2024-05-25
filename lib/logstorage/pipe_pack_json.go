@@ -46,10 +46,10 @@ func (pp *pipePackJSON) initFilterInValues(cache map[string][]string, getFieldVa
 	return pp, nil
 }
 
-func (pp *pipePackJSON) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
+func (pp *pipePackJSON) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipePackJSONProcessor{
 		pp:     pp,
-		ppBase: ppBase,
+		ppNext: ppNext,
 
 		shards: make([]pipePackJSONProcessorShard, workersCount),
 	}
@@ -57,7 +57,7 @@ func (pp *pipePackJSON) newPipeProcessor(workersCount int, _ <-chan struct{}, _ 
 
 type pipePackJSONProcessor struct {
 	pp     *pipePackJSON
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 
 	shards []pipePackJSONProcessorShard
 }
@@ -106,7 +106,7 @@ func (ppp *pipePackJSONProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	br.addResultColumn(&shard.rc)
-	ppp.ppBase.writeBlock(workerID, br)
+	ppp.ppNext.writeBlock(workerID, br)
 
 	shard.rc.reset()
 }

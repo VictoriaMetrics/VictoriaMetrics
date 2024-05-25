@@ -101,10 +101,10 @@ func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet
 	}
 }
 
-func (pe *pipeExtract) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
+func (pe *pipeExtract) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeExtractProcessor{
 		pe:     pe,
-		ppBase: ppBase,
+		ppNext: ppNext,
 
 		shards: make([]pipeExtractProcessorShard, workersCount),
 	}
@@ -112,7 +112,7 @@ func (pe *pipeExtract) newPipeProcessor(workersCount int, _ <-chan struct{}, _ f
 
 type pipeExtractProcessor struct {
 	pe     *pipeExtract
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 
 	shards []pipeExtractProcessorShard
 }
@@ -149,7 +149,7 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 	if iff := pe.iff; iff != nil {
 		iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
-			pep.ppBase.writeBlock(workerID, br)
+			pep.ppNext.writeBlock(workerID, br)
 			return
 		}
 	}
@@ -214,7 +214,7 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 	for i := range rcs {
 		br.addResultColumn(&rcs[i])
 	}
-	pep.ppBase.writeBlock(workerID, br)
+	pep.ppNext.writeBlock(workerID, br)
 
 	for i := range rcs {
 		rcs[i].reset()

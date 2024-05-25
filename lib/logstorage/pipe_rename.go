@@ -66,16 +66,16 @@ func (pr *pipeRename) initFilterInValues(cache map[string][]string, getFieldValu
 	return pr, nil
 }
 
-func (pr *pipeRename) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
+func (pr *pipeRename) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeRenameProcessor{
 		pr:     pr,
-		ppBase: ppBase,
+		ppNext: ppNext,
 	}
 }
 
 type pipeRenameProcessor struct {
 	pr     *pipeRename
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 }
 
 func (prp *pipeRenameProcessor) writeBlock(workerID uint, br *blockResult) {
@@ -84,7 +84,7 @@ func (prp *pipeRenameProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	br.renameColumns(prp.pr.srcFields, prp.pr.dstFields)
-	prp.ppBase.writeBlock(workerID, br)
+	prp.ppNext.writeBlock(workerID, br)
 }
 
 func (prp *pipeRenameProcessor) flush() error {

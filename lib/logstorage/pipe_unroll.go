@@ -74,10 +74,10 @@ func (pu *pipeUnroll) updateNeededFields(neededFields, unneededFields fieldsSet)
 	}
 }
 
-func (pu *pipeUnroll) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
+func (pu *pipeUnroll) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeUnrollProcessor{
 		pu:     pu,
-		ppBase: ppBase,
+		ppNext: ppNext,
 
 		shards: make([]pipeUnrollProcessorShard, workersCount),
 	}
@@ -85,7 +85,7 @@ func (pu *pipeUnroll) newPipeProcessor(workersCount int, _ <-chan struct{}, _ fu
 
 type pipeUnrollProcessor struct {
 	pu     *pipeUnroll
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 
 	shards []pipeUnrollProcessorShard
 }
@@ -116,7 +116,7 @@ func (pup *pipeUnrollProcessor) writeBlock(workerID uint, br *blockResult) {
 
 	pu := pup.pu
 	shard := &pup.shards[workerID]
-	shard.wctx.init(workerID, pup.ppBase, false, false, br)
+	shard.wctx.init(workerID, pup.ppNext, false, false, br)
 
 	bm := &shard.bm
 	bm.init(len(br.timestamps))
@@ -124,7 +124,7 @@ func (pup *pipeUnrollProcessor) writeBlock(workerID uint, br *blockResult) {
 	if iff := pu.iff; iff != nil {
 		iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
-			pup.ppBase.writeBlock(workerID, br)
+			pup.ppNext.writeBlock(workerID, br)
 			return
 		}
 	}

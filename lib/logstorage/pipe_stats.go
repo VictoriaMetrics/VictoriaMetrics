@@ -148,7 +148,7 @@ func (ps *pipeStats) initFilterInValues(cache map[string][]string, getFieldValue
 
 const stateSizeBudgetChunk = 1 << 20
 
-func (ps *pipeStats) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {
+func (ps *pipeStats) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	maxStateSize := int64(float64(memory.Allowed()) * 0.3)
 
 	shards := make([]pipeStatsProcessorShard, workersCount)
@@ -167,7 +167,7 @@ func (ps *pipeStats) newPipeProcessor(workersCount int, stopCh <-chan struct{}, 
 		ps:     ps,
 		stopCh: stopCh,
 		cancel: cancel,
-		ppBase: ppBase,
+		ppNext: ppNext,
 
 		shards: shards,
 
@@ -182,7 +182,7 @@ type pipeStatsProcessor struct {
 	ps     *pipeStats
 	stopCh <-chan struct{}
 	cancel func()
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 
 	shards []pipeStatsProcessorShard
 
@@ -459,7 +459,7 @@ func (psp *pipeStatsProcessor) flush() error {
 		}
 	}
 
-	// Write per-group states to ppBase
+	// Write per-group states to ppNext
 	byFields := psp.ps.byFields
 	if len(byFields) == 0 && len(m) == 0 {
 		// Special case - zero matching rows.
@@ -519,7 +519,7 @@ func (psp *pipeStatsProcessor) flush() error {
 		if valuesLen >= 1_000_000 {
 			br.setResultColumns(rcs, rowsCount)
 			rowsCount = 0
-			psp.ppBase.writeBlock(0, &br)
+			psp.ppNext.writeBlock(0, &br)
 			br.reset()
 			for i := range rcs {
 				rcs[i].resetValues()
@@ -529,7 +529,7 @@ func (psp *pipeStatsProcessor) flush() error {
 	}
 
 	br.setResultColumns(rcs, rowsCount)
-	psp.ppBase.writeBlock(0, &br)
+	psp.ppNext.writeBlock(0, &br)
 
 	return nil
 }

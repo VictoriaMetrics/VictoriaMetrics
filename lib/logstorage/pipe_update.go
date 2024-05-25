@@ -16,14 +16,14 @@ func updateNeededFieldsForUpdatePipe(neededFields, unneededFields fieldsSet, fie
 	}
 }
 
-func newPipeUpdateProcessor(workersCount int, updateFunc func(a *arena, v string) string, ppBase pipeProcessor, field string, iff *ifFilter) pipeProcessor {
+func newPipeUpdateProcessor(workersCount int, updateFunc func(a *arena, v string) string, ppNext pipeProcessor, field string, iff *ifFilter) pipeProcessor {
 	return &pipeUpdateProcessor{
 		updateFunc: updateFunc,
 
 		field: field,
 		iff:   iff,
 
-		ppBase: ppBase,
+		ppNext: ppNext,
 
 		shards: make([]pipeUpdateProcessorShard, workersCount),
 	}
@@ -35,7 +35,7 @@ type pipeUpdateProcessor struct {
 	field string
 	iff   *ifFilter
 
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 
 	shards []pipeUpdateProcessorShard
 }
@@ -67,7 +67,7 @@ func (pup *pipeUpdateProcessor) writeBlock(workerID uint, br *blockResult) {
 	if iff := pup.iff; iff != nil {
 		iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
-			pup.ppBase.writeBlock(workerID, br)
+			pup.ppNext.writeBlock(workerID, br)
 			return
 		}
 	}
@@ -92,7 +92,7 @@ func (pup *pipeUpdateProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	br.addResultColumn(&shard.rc)
-	pup.ppBase.writeBlock(workerID, br)
+	pup.ppNext.writeBlock(workerID, br)
 
 	shard.rc.reset()
 	shard.a.reset()

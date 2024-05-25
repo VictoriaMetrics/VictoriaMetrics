@@ -57,7 +57,7 @@ func (pr *pipeReplace) initFilterInValues(cache map[string][]string, getFieldVal
 	return &peNew, nil
 }
 
-func (pr *pipeReplace) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
+func (pr *pipeReplace) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	updateFunc := func(a *arena, v string) string {
 		bb := bbPool.Get()
 		bb.B = appendReplace(bb.B[:0], v, pr.oldSubstr, pr.newSubstr, pr.limit)
@@ -66,7 +66,7 @@ func (pr *pipeReplace) newPipeProcessor(workersCount int, _ <-chan struct{}, _ f
 		return result
 	}
 
-	return newPipeUpdateProcessor(workersCount, updateFunc, ppBase, pr.field, pr.iff)
+	return newPipeUpdateProcessor(workersCount, updateFunc, ppNext, pr.field, pr.iff)
 }
 
 func parsePipeReplace(lex *lexer) (*pipeReplace, error) {

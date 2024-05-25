@@ -62,16 +62,16 @@ func (pc *pipeCopy) initFilterInValues(cache map[string][]string, getFieldValues
 	return pc, nil
 }
 
-func (pc *pipeCopy) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
+func (pc *pipeCopy) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeCopyProcessor{
 		pc:     pc,
-		ppBase: ppBase,
+		ppNext: ppNext,
 	}
 }
 
 type pipeCopyProcessor struct {
 	pc     *pipeCopy
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 }
 
 func (pcp *pipeCopyProcessor) writeBlock(workerID uint, br *blockResult) {
@@ -80,7 +80,7 @@ func (pcp *pipeCopyProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	br.copyColumns(pcp.pc.srcFields, pcp.pc.dstFields)
-	pcp.ppBase.writeBlock(workerID, br)
+	pcp.ppNext.writeBlock(workerID, br)
 }
 
 func (pcp *pipeCopyProcessor) flush() error {
