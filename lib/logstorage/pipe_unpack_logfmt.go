@@ -101,7 +101,6 @@ func (pu *pipeUnpackLogfmt) newPipeProcessor(workersCount int, _ <-chan struct{}
 	}
 
 	return newPipeUnpackProcessor(workersCount, unpackLogfmt, ppNext, pu.fromField, pu.resultPrefix, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff)
-
 }
 
 func parsePipeUnpackLogfmt(lex *lexer) (*pipeUnpackLogfmt, error) {
