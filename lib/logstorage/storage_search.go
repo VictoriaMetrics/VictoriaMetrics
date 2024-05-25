@@ -229,7 +229,7 @@ func (s *Storage) getFieldValuesNoHits(ctx context.Context, tenantIDs []TenantID
 func (s *Storage) GetFieldValues(ctx context.Context, tenantIDs []TenantID, q *Query, fieldName string, limit uint64) ([]ValueWithHits, error) {
 	pipes := append([]pipe{}, q.pipes...)
 	quotedFieldName := quoteTokenIfNeeded(fieldName)
-	pipeStr := fmt.Sprintf("uniq by (%s) hits limit %d", quotedFieldName, limit)
+	pipeStr := fmt.Sprintf("uniq by (%s) with hits limit %d", quotedFieldName, limit)
 	lex := newLexer(pipeStr)
 
 	pu, err := parsePipeUniq(lex)

@@ -1720,10 +1720,10 @@ _time:5m | uniq by (host, path)
 
 The unique entries are returned in arbitrary order. Use [`sort` pipe](#sort-pipe) in order to sort them if needed.
 
-Add `hits` after `uniq by (...)` in order to return the number of matching logs per each field value:
+Add `with hits` after `uniq by (...)` in order to return the number of matching logs per each field value:
 
 ```logsql
-_time:5m | uniq by (host) hits
+_time:5m | uniq by (host) with hits
 ```
 
 Unique entries are stored in memory during query execution. Big number of unique selected entries may require a lot of memory.

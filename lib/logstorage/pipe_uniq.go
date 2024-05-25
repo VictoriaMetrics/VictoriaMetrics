@@ -32,7 +32,7 @@ func (pu *pipeUniq) String() string {
 		s += " by (" + fieldNamesString(pu.byFields) + ")"
 	}
 	if pu.hitsFieldName != "" {
-		s += " hits"
+		s += " with hits"
 	}
 	if pu.limit > 0 {
 		s += fmt.Sprintf(" limit %d", pu.limit)
@@ -477,6 +477,12 @@ func parsePipeUniq(lex *lexer) (*pipeUniq, error) {
 		pu.byFields = bfs
 	}
 
+	if lex.isKeyword("with") {
+		lex.nextToken()
+		if !lex.isKeyword("hits") {
+			return nil, fmt.Errorf("missing 'hits' after 'with'")
+		}
+	}
 	if lex.isKeyword("hits") {
 		lex.nextToken()
 		hitsFieldName := "hits"
