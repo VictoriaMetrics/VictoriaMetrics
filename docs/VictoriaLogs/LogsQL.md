@@ -1088,6 +1088,7 @@ LogsQL supports the following pipes:
 - [`uniq`](#uniq-pipe) returns unique log entires.
 - [`unpack_json`](#unpack_json-pipe) unpacks JSON fields from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`unpack_logfmt`](#unpack_logfmt-pipe) unpacks [logfmt](https://brandur.org/logfmt) fields from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`unroll`](#unroll-pipe) unrolls JSON arrays from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
 ### copy pipe
 
@@ -1880,6 +1881,7 @@ See also:
 - [Conditional `unpack_json`](#conditional-unpack_json)
 - [`unpack_logfmt` pipe](#unpack_logfmt-pipe)
 - [`extract` pipe](#extract-pipe)
+- [`unroll` pipe](#unroll-pipe)
 
 #### Conditional unpack_json
 
@@ -1973,6 +1975,24 @@ only if `ip` field in the current log entry isn't set or empty:
 ```logsql
 _time:5m | unpack_logfmt if (ip:"") from foo
 ```
+
+### unroll pipe
+
+`| unroll by (field1, ..., fieldN)` [pipe](#pipes) can be used for unrolling JSON arrays from `field1`, `fieldN`
+[log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into separate rows.
+
+For example, the following query unrolls `timestamp` and `value` [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) from logs for the last 5 minutes:
+
+```logsql
+_time:5m | unroll (timestamp, value)
+```
+
+See also:
+
+- [`unpack_json` pipe](#unpack_json-pipe)
+- [`extract` pipe](#extract-pipe)
+- [`uniq_values` stats function](#uniq_values-stats)
+- [`values` stats function](#values-stats)
 
 ## stats pipe functions
 
@@ -2278,6 +2298,8 @@ over logs for the last 5 minutes:
 _time:5m | stats uniq_values(ip) unique_ips
 ```
 
+The returned unique ip addresses can be unrolled into distinct log entries with [`unroll` pipe](#unroll-pipe).
+
 Every unique value is stored in memory during query execution. Big number of unique values may require a lot of memory. Sometimes it is enough to return
 only a subset of unique values. In this case add `limit N` after `uniq_values(...)` in order to limit the number of returned unique values to `N`,
 while limiting the maximum memory usage.
@@ -2309,6 +2331,8 @@ over logs for the last 5 minutes:
 ```logsql
 _time:5m | stats values(ip) ips
 ```
+
+The returned ip addresses can be unrolled into distinct log entries with [`unroll` pipe](#unroll-pipe).
 
 See also:
 
