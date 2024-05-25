@@ -429,33 +429,8 @@ func hasFilterInWithQueryForFilter(f filter) bool {
 
 func hasFilterInWithQueryForPipes(pipes []pipe) bool {
 	for _, p := range pipes {
-		switch t := p.(type) {
-		case *pipeStats:
-			for _, f := range t.funcs {
-				if f.iff.hasFilterInWithQuery() {
-					return true
-				}
-			}
-		case *pipeReplace:
-			if t.iff.hasFilterInWithQuery() {
-				return true
-			}
-		case *pipeFormat:
-			if t.iff.hasFilterInWithQuery() {
-				return true
-			}
-		case *pipeExtract:
-			if t.iff.hasFilterInWithQuery() {
-				return true
-			}
-		case *pipeUnpackJSON:
-			if t.iff.hasFilterInWithQuery() {
-				return true
-			}
-		case *pipeUnpackLogfmt:
-			if t.iff.hasFilterInWithQuery() {
-				return true
-			}
+		if p.hasFilterInWithQuery() {
+			return true
 		}
 	}
 	return false
@@ -514,64 +489,11 @@ func initFilterInValuesForFilter(cache map[string][]string, f filter, getFieldVa
 func initFilterInValuesForPipes(cache map[string][]string, pipes []pipe, getFieldValuesFunc getFieldValuesFunc) ([]pipe, error) {
 	pipesNew := make([]pipe, len(pipes))
 	for i, p := range pipes {
-		switch t := p.(type) {
-		case *pipeStats:
-			funcsNew := make([]pipeStatsFunc, len(t.funcs))
-			for j, f := range t.funcs {
-				iffNew, err := f.iff.initFilterInValues(cache, getFieldValuesFunc)
-				if err != nil {
-					return nil, err
-				}
-				f.iff = iffNew
-				funcsNew[j] = f
-			}
-			pipesNew[i] = &pipeStats{
-				byFields: t.byFields,
-				funcs:    funcsNew,
-			}
-		case *pipeReplace:
-			iffNew, err := t.iff.initFilterInValues(cache, getFieldValuesFunc)
-			if err != nil {
-				return nil, err
-			}
-			pr := *t
-			pr.iff = iffNew
-			pipesNew[i] = &pr
-		case *pipeFormat:
-			iffNew, err := t.iff.initFilterInValues(cache, getFieldValuesFunc)
-			if err != nil {
-				return nil, err
-			}
-			pf := *t
-			pf.iff = iffNew
-			pipesNew[i] = &pf
-		case *pipeExtract:
-			iffNew, err := t.iff.initFilterInValues(cache, getFieldValuesFunc)
-			if err != nil {
-				return nil, err
-			}
-			pe := *t
-			pe.iff = iffNew
-			pipesNew[i] = &pe
-		case *pipeUnpackJSON:
-			iffNew, err := t.iff.initFilterInValues(cache, getFieldValuesFunc)
-			if err != nil {
-				return nil, err
-			}
-			pu := *t
-			pu.iff = iffNew
-			pipesNew[i] = &pu
-		case *pipeUnpackLogfmt:
-			iffNew, err := t.iff.initFilterInValues(cache, getFieldValuesFunc)
-			if err != nil {
-				return nil, err
-			}
-			pu := *t
-			pu.iff = iffNew
-			pipesNew[i] = &pu
-		default:
-			pipesNew[i] = p
+		pNew, err := p.initFilterInValues(cache, getFieldValuesFunc)
+		if err != nil {
+			return nil, err
 		}
+		pipesNew[i] = pNew
 	}
 	return pipesNew, nil
 }

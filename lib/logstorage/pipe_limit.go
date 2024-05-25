@@ -17,6 +17,19 @@ func (pl *pipeLimit) String() string {
 }
 
 func (pl *pipeLimit) updateNeededFields(_, _ fieldsSet) {
+	// nothing to do
+}
+
+func (pl *pipeLimit) optimize() {
+	// nothing to do
+}
+
+func (pl *pipeLimit) hasFilterInWithQuery() bool {
+	return false
+}
+
+func (pl *pipeLimit) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	return pl, nil
 }
 
 func (pl *pipeLimit) newPipeProcessor(_ int, _ <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {

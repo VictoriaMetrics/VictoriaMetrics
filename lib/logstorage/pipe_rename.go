@@ -54,6 +54,18 @@ func (pr *pipeRename) updateNeededFields(neededFields, unneededFields fieldsSet)
 	}
 }
 
+func (pr *pipeRename) optimize() {
+	// nothing to do
+}
+
+func (pr *pipeRename) hasFilterInWithQuery() bool {
+	return false
+}
+
+func (pr *pipeRename) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	return pr, nil
+}
+
 func (pr *pipeRename) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
 	return &pipeRenameProcessor{
 		pr:     pr,

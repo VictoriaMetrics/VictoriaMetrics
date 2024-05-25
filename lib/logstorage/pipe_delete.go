@@ -32,6 +32,18 @@ func (pd *pipeDelete) updateNeededFields(neededFields, unneededFields fieldsSet)
 	}
 }
 
+func (pd *pipeDelete) optimize() {
+	// nothing to do
+}
+
+func (pd *pipeDelete) hasFilterInWithQuery() bool {
+	return false
+}
+
+func (pd *pipeDelete) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	return pd, nil
+}
+
 func (pd *pipeDelete) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
 	return &pipeDeleteProcessor{
 		pd:     pd,

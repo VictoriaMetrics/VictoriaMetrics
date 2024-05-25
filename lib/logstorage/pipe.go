@@ -20,6 +20,17 @@ type pipe interface {
 	//
 	// The returned pipeProcessor may call cancel() at any time in order to notify worker goroutines to stop sending new data to pipeProcessor.
 	newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor
+
+	// optimize must optimize the pipe
+	optimize()
+
+	// hasFilterInWithQuery must return true of pipe contains 'in(subquery)' filter (recursively).
+	hasFilterInWithQuery() bool
+
+	// initFilterInValues must return new pipe with the initialized values for 'in(subquery)' filters (recursively).
+	//
+	// It is OK to return the pipe itself if it doesn't contain 'in(subquery)' filters.
+	initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error)
 }
 
 // pipeProcessor must process a single pipe.
@@ -145,6 +156,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 		pr, err := parsePipeReplace(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'replace' pipe: %w", err)
+		}
+		return pr, nil
+	case lex.isKeyword("replace_regexp"):
+		pr, err := parsePipeReplaceRegexp(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'replace_regexp' pipe: %w", err)
 		}
 		return pr, nil
 	case lex.isKeyword("sort"):

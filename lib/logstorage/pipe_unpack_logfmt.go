@@ -54,6 +54,24 @@ func (pu *pipeUnpackLogfmt) updateNeededFields(neededFields, unneededFields fiel
 	updateNeededFieldsForUnpackPipe(pu.fromField, pu.fields, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff, neededFields, unneededFields)
 }
 
+func (pu *pipeUnpackLogfmt) optimize() {
+	pu.iff.optimizeFilterIn()
+}
+
+func (pu *pipeUnpackLogfmt) hasFilterInWithQuery() bool {
+	return pu.iff.hasFilterInWithQuery()
+}
+
+func (pu *pipeUnpackLogfmt) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc)
+	if err != nil {
+		return nil, err
+	}
+	puNew := *pu
+	puNew.iff = iffNew
+	return &puNew, nil
+}
+
 func (pu *pipeUnpackLogfmt) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
 	unpackLogfmt := func(uctx *fieldsUnpackerContext, s string) {
 		p := getLogfmtParser()

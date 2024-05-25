@@ -17,6 +17,19 @@ func (po *pipeOffset) String() string {
 }
 
 func (po *pipeOffset) updateNeededFields(_, _ fieldsSet) {
+	// nothing to do
+}
+
+func (po *pipeOffset) optimize() {
+	// nothing to do
+}
+
+func (po *pipeOffset) hasFilterInWithQuery() bool {
+	return false
+}
+
+func (po *pipeOffset) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	return po, nil
 }
 
 func (po *pipeOffset) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {

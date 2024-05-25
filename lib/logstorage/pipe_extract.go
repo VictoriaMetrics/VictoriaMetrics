@@ -38,6 +38,24 @@ func (pe *pipeExtract) String() string {
 	return s
 }
 
+func (pe *pipeExtract) optimize() {
+	pe.iff.optimizeFilterIn()
+}
+
+func (pe *pipeExtract) hasFilterInWithQuery() bool {
+	return pe.iff.hasFilterInWithQuery()
+}
+
+func (pe *pipeExtract) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	iffNew, err := pe.iff.initFilterInValues(cache, getFieldValuesFunc)
+	if err != nil {
+		return nil, err
+	}
+	peNew := *pe
+	peNew.iff = iffNew
+	return &peNew, nil
+}
+
 func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	if neededFields.contains("*") {
 		unneededFieldsOrig := unneededFields.clone()

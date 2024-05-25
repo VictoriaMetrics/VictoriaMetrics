@@ -116,6 +116,36 @@ func (ps *pipeStats) updateNeededFields(neededFields, unneededFields fieldsSet) 
 	unneededFields.reset()
 }
 
+func (ps *pipeStats) optimize() {
+	for _, f := range ps.funcs {
+		f.iff.optimizeFilterIn()
+	}
+}
+
+func (ps *pipeStats) hasFilterInWithQuery() bool {
+	for _, f := range ps.funcs {
+		if f.iff.hasFilterInWithQuery() {
+			return true
+		}
+	}
+	return false
+}
+
+func (ps *pipeStats) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	funcsNew := make([]pipeStatsFunc, len(ps.funcs))
+	for i, f := range ps.funcs {
+		iffNew, err := f.iff.initFilterInValues(cache, getFieldValuesFunc)
+		if err != nil {
+			return nil, err
+		}
+		f.iff = iffNew
+		funcsNew[i] = f
+	}
+	psNew := *ps
+	ps.funcs = funcsNew
+	return &psNew, nil
+}
+
 const stateSizeBudgetChunk = 1 << 20
 
 func (ps *pipeStats) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {

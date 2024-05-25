@@ -74,6 +74,24 @@ func (pf *pipeFormat) updateNeededFields(neededFields, unneededFields fieldsSet)
 	}
 }
 
+func (pf *pipeFormat) optimize() {
+	pf.iff.optimizeFilterIn()
+}
+
+func (pf *pipeFormat) hasFilterInWithQuery() bool {
+	return pf.iff.hasFilterInWithQuery()
+}
+
+func (pf *pipeFormat) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	iffNew, err := pf.iff.initFilterInValues(cache, getFieldValuesFunc)
+	if err != nil {
+		return nil, err
+	}
+	pfNew := *pf
+	pfNew.iff = iffNew
+	return &pfNew, nil
+}
+
 func (pf *pipeFormat) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
 	return &pipeFormatProcessor{
 		pf:     pf,

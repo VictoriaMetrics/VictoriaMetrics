@@ -29,6 +29,24 @@ func (pf *pipeFilter) updateNeededFields(neededFields, unneededFields fieldsSet)
 	}
 }
 
+func (pf *pipeFilter) optimize() {
+	optimizeFilterIn(pf.f)
+}
+
+func (pf *pipeFilter) hasFilterInWithQuery() bool {
+	return hasFilterInWithQueryForFilter(pf.f)
+}
+
+func (pf *pipeFilter) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	fNew, err := initFilterInValuesForFilter(cache, pf.f, getFieldValuesFunc)
+	if err != nil {
+		return nil, err
+	}
+	pfNew := *pf
+	pf.f = fNew
+	return &pfNew, nil
+}
+
 func (pf *pipeFilter) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
 	shards := make([]pipeFilterProcessorShard, workersCount)
 

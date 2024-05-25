@@ -321,23 +321,10 @@ func (q *Query) Optimize() {
 
 	// Call Optimize for queries from 'in(query)' filters.
 	optimizeFilterIn(q.f)
+
+	// Optimize individual pipes.
 	for _, p := range q.pipes {
-		switch t := p.(type) {
-		case *pipeStats:
-			for _, f := range t.funcs {
-				f.iff.optimizeFilterIn()
-			}
-		case *pipeReplace:
-			t.iff.optimizeFilterIn()
-		case *pipeFormat:
-			t.iff.optimizeFilterIn()
-		case *pipeExtract:
-			t.iff.optimizeFilterIn()
-		case *pipeUnpackJSON:
-			t.iff.optimizeFilterIn()
-		case *pipeUnpackLogfmt:
-			t.iff.optimizeFilterIn()
-		}
+		p.optimize()
 	}
 }
 

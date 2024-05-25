@@ -1082,6 +1082,7 @@ LogsQL supports the following pipes:
 - [`offset`](#offset-pipe) skips the given number of selected logs.
 - [`rename`](#rename-pipe) renames [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`replace`](#replace-pipe) replaces substrings in the specified [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`replace_regexp`](#replace_regexp-pipe) updates [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with regular expressions.
 - [`sort`](#sort-pipe) sorts logs by the given [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`stats`](#stats-pipe) calculates various stats over the selected logs.
 - [`uniq`](#uniq-pipe) returns unique log entires.
@@ -1373,6 +1374,7 @@ See also:
 
 - [Conditional format](#conditional-format)
 - [`replace` pipe](#replace-pipe)
+- [`replace_regexp` pipe](#replace_regexp-pipe)
 - [`extract` pipe](#extract-pipe)
 
 
@@ -1482,6 +1484,7 @@ See [general performance tips](#performance-tips) for details.
 See also:
 
 - [Conditional replace](#conditional-replace)
+- [`replace_regexp` pipe](#replace_regexp-pipe)
 - [`format` pipe](#format-pipe)
 - [`extract` pipe](#extract-pipe)
 
@@ -1494,6 +1497,58 @@ only if `user_type` field equals to `admin`:
 
 ```logsql
 _time:5m | replace if (user_type:=admin) replace ("secret", "***") at password
+```
+
+### replace_regexp pipe
+
+`| replace_regexp ("regexp", "replacement") at field` [pipe](#pipes) replaces all the substrings matching the given `regexp` with the given `replacement`
+in the given [`field`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+
+The `regexp` must contain regular expression with [RE2 syntax](https://github.com/google/re2/wiki/Syntax).
+The `replacement` may contain `$N` or `${N}` placeholders, which are substituted with the `N-th` capturing group in the `regexp`.
+
+For example, the following query replaces all the substrings starting with `host-` and ending with `-foo` with the contents between `host-` and `-foo` in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) for logs over the last 5 minutes:
+
+```logsql
+_time:5m | replace_regexp ("host-(.+?)-foo", "$1") at _msg
+```
+
+The `at _msg` part can be omitted if the replacement occurs in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+The following query is equivalent to the previous one:
+
+```logsql
+_time:5m | replace_regexp ("host-(.+?)-foo", "$1")
+```
+
+The number of replacements can be limited with `limit N` at the end of `replace`. For example, the following query replaces only the first `password: ...` substring
+ending with whitespace with empty substring at the [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) `baz`:
+
+```logsql
+_time:5m | replace_regexp ('password: [^ ]+', '') at baz limit 1
+```
+
+Performance tips:
+
+- It is recommended using [`replace` pipe](#replace-pipe) instead of `replace_regexp` if possible, since it works faster.
+- It is recommended using more specific [log filters](#filters) in order to reduce the number of log entries, which are passed to `replace`.
+  See [general performance tips](#performance-tips) for details.
+
+See also:
+
+- [Conditional replace_regexp](#conditional-replace_regexp)
+- [`replace` pipe](#replace-pipe)
+- [`format` pipe](#format-pipe)
+- [`extract` pipe](#extract-pipe)
+
+#### Conditional replace_regexp
+
+If the [`replace_regexp` pipe](#replace-pipe) musn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
+then add `if (<filters>)` after `replace_regexp`.
+The `<filters>` can contain arbitrary [filters](#filters). For example, the following query replaces `password: ...` substrings ending with whitespace
+with `***` in the `foo` field only if `user_type` field equals to `admin`:
+
+```logsql
+_time:5m | replace_regexp if (user_type:=admin) replace ("password: [^ ]+", "") at foo
 ```
 
 ### sort pipe

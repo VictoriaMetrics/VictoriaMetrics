@@ -51,6 +51,18 @@ func (pu *pipeUniq) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	}
 }
 
+func (pu *pipeUniq) optimize() {
+	// nothing to do
+}
+
+func (pu *pipeUniq) hasFilterInWithQuery() bool {
+	return false
+}
+
+func (pu *pipeUniq) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	return pu, nil
+}
+
 func (pu *pipeUniq) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {
 	maxStateSize := int64(float64(memory.Allowed()) * 0.2)
 

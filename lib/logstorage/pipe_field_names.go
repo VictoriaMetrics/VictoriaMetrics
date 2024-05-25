@@ -37,6 +37,18 @@ func (pf *pipeFieldNames) updateNeededFields(neededFields, unneededFields fields
 	}
 }
 
+func (pf *pipeFieldNames) optimize() {
+	// nothing to do
+}
+
+func (pf *pipeFieldNames) hasFilterInWithQuery() bool {
+	return false
+}
+
+func (pf *pipeFieldNames) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	return pf, nil
+}
+
 func (pf *pipeFieldNames) newPipeProcessor(workersCount int, stopCh <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
 	shards := make([]pipeFieldNamesProcessorShard, workersCount)
 

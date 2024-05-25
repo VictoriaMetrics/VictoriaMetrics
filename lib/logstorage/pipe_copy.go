@@ -50,6 +50,18 @@ func (pc *pipeCopy) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	}
 }
 
+func (pc *pipeCopy) optimize() {
+	// Nothing to do
+}
+
+func (pc *pipeCopy) hasFilterInWithQuery() bool {
+	return false
+}
+
+func (pc *pipeCopy) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	return pc, nil
+}
+
 func (pc *pipeCopy) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
 	return &pipeCopyProcessor{
 		pc:     pc,

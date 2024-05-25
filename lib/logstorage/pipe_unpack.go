@@ -6,6 +6,49 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
+func updateNeededFieldsForUnpackPipe(fromField string, outFields []string, keepOriginalFields, skipEmptyResults bool, iff *ifFilter, neededFields, unneededFields fieldsSet) {
+	if neededFields.contains("*") {
+		unneededFieldsOrig := unneededFields.clone()
+		unneededFieldsCount := 0
+		if len(outFields) > 0 {
+			for _, f := range outFields {
+				if unneededFieldsOrig.contains(f) {
+					unneededFieldsCount++
+				}
+				if !keepOriginalFields && !skipEmptyResults {
+					unneededFields.add(f)
+				}
+			}
+		}
+		if len(outFields) == 0 || unneededFieldsCount < len(outFields) {
+			unneededFields.remove(fromField)
+			if iff != nil {
+				unneededFields.removeFields(iff.neededFields)
+			}
+		}
+	} else {
+		neededFieldsOrig := neededFields.clone()
+		needFromField := len(outFields) == 0
+		if len(outFields) > 0 {
+			needFromField = false
+			for _, f := range outFields {
+				if neededFieldsOrig.contains(f) {
+					needFromField = true
+				}
+				if !keepOriginalFields && !skipEmptyResults {
+					neededFields.remove(f)
+				}
+			}
+		}
+		if needFromField {
+			neededFields.add(fromField)
+			if iff != nil {
+				neededFields.addFields(iff.neededFields)
+			}
+		}
+	}
+}
+
 type fieldsUnpackerContext struct {
 	workerID    uint
 	fieldPrefix string
@@ -132,13 +175,16 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 		}
 	} else {
 		values := c.getValues(br)
-		vPrevApplied := ""
+		vPrev := ""
+		hadUnpacks := false
 		for i, v := range values {
 			if bm.isSetBit(i) {
-				if vPrevApplied != v {
+				if !hadUnpacks || vPrev != v {
+					vPrev = v
+					hadUnpacks = true
+
 					shard.uctx.resetFields()
 					pup.unpackFunc(&shard.uctx, v)
-					vPrevApplied = v
 				}
 				shard.wctx.writeRow(i, shard.uctx.fields)
 			} else {

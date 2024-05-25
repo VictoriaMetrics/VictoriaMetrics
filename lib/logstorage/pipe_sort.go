@@ -67,6 +67,18 @@ func (ps *pipeSort) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	}
 }
 
+func (ps *pipeSort) optimize() {
+	// nothing to do
+}
+
+func (ps *pipeSort) hasFilterInWithQuery() bool {
+	return false
+}
+
+func (ps *pipeSort) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	return ps, nil
+}
+
 func (ps *pipeSort) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {
 	if ps.limit > 0 {
 		return newPipeTopkProcessor(ps, workersCount, stopCh, cancel, ppBase)
