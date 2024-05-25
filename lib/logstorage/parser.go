@@ -123,9 +123,12 @@ func (lex *lexer) nextToken() {
 	lex.token = ""
 	lex.rawToken = ""
 	lex.isSkippedSpace = false
+
 	if len(s) == 0 {
 		return
 	}
+
+again:
 	r, size := utf8.DecodeRuneInString(s)
 	if r == utf8.RuneError {
 		lex.nextCharToken(s, size)
@@ -137,6 +140,17 @@ func (lex *lexer) nextToken() {
 		lex.isSkippedSpace = true
 		s = s[size:]
 		r, size = utf8.DecodeRuneInString(s)
+	}
+
+	if r == '#' {
+		// skip comment till \n
+		n := strings.IndexByte(s, '\n')
+		if n < 0 {
+			s = ""
+		} else {
+			s = s[n+1:]
+		}
+		goto again
 	}
 
 	// Try decoding simple token
