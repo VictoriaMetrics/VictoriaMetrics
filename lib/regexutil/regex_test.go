@@ -165,6 +165,8 @@ func TestGetLiterals(t *testing.T) {
 	f("foo.*bar(a|b)baz.+", []string{"foo", "bar", "baz"})
 	f("(foo[ab](?:bar))", []string{"foo", "bar"})
 	f("foo|bar", nil)
+	f("(?i)foo", nil)
+	f("foo((?i)bar)baz", []string{"foo", "baz"})
 	f("((foo|bar)baz xxx(?:yzabc))", []string{"baz xxxyzabc"})
 	f("((foo|bar)baz xxx(?:yzabc)*)", []string{"baz xxx"})
 	f("((foo|bar)baz? xxx(?:yzabc)*)", []string{"ba", " xxx"})

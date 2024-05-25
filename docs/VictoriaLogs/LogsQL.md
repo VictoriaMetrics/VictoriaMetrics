@@ -254,6 +254,7 @@ The list of LogsQL filters:
 - [Word filter](#word-filter) - matches logs with the given [word](#word)
 - [Phrase filter](#phrase-filter) - matches logs with the given phrase
 - [Prefix filter](#prefix-filter) - matches logs with the given word prefix or phrase prefix
+- [Substring filter](#substring-filter) - matches logs with the given substring
 - [Empty value filter](#empty-value-filter) - matches logs without the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 - [Any value filter](#any-value-filter) - matches logs with the given non-empty [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 - [Exact filter](#exact-filter) - matches logs with the exact value
@@ -490,7 +491,7 @@ This query matches the following [log messages](https://docs.victoriametrics.com
 This query doesn't match the following log messages:
 
 - `Error: foobar`, since the `Error` [word](#word) starts with capital letter. Use `i(err*)` for this case. See [these docs](#case-insensitive-filter) for details.
-- `fooerror`, since the `fooerror` [word](#word) doesn't start with `err`. Use `~"err"` for this case. See [these docs](#regexp-filter) for details.
+- `fooerror`, since the `fooerror` [word](#word) doesn't start with `err`. Use `~"err"` for this case. See [these docs](#substring-filter) for details.
 
 Prefix filter can be applied to [phrases](#phrase-filter). For example, the following query matches
 [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) containing phrases with `unexpected fail` prefix:
@@ -547,6 +548,32 @@ See also:
 - [Phrase filter](#phrase-filter)
 - [Exact-filter](#exact-filter)
 - [Logical filter](#logical-filter)
+
+
+### Substring filter
+
+If it is needed to find logs with some substring, then `~"substring"` filter can be used. For example, the following query matches log entries,
+which contain `ampl` text in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
+
+```logsql
+~"ampl"
+```
+
+It matches the following messages:
+
+- `Example message`
+- `This is a sample`
+
+It doesn't match `EXAMPLE message`, since `AMPL` substring here is in uppercase. Use `~"(?i)ampl"` filter instead. Note that case-insensitive filter
+may be much slower than case-sensitive one.
+
+Performance tip: prefer using [word filter](#word-filter) and [phrase filter](#phrase-filter), since substring filter may be quite slow.
+
+See also:
+
+- [Word filter](#word-filter)
+- [Phrase filter](#phrase-filter)
+- [Regexp filter](#regexp-filter)
 
 
 ### Empty value filter
