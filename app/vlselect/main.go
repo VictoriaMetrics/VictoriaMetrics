@@ -157,13 +157,13 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		logsqlQueryRequests.Inc()
 		logsql.ProcessQueryRequest(ctx, w, r)
 		return true
-	case "/select/logsql/stream_label_names":
-		logsqlStreamLabelNamesRequests.Inc()
-		logsql.ProcessStreamLabelNamesRequest(ctx, w, r)
+	case "/select/logsql/stream_field_names":
+		logsqlStreamFieldNamesRequests.Inc()
+		logsql.ProcessStreamFieldNamesRequest(ctx, w, r)
 		return true
-	case "/select/logsql/stream_label_values":
-		logsqlStreamLabelValuesRequests.Inc()
-		logsql.ProcessStreamLabelValuesRequest(ctx, w, r)
+	case "/select/logsql/stream_field_values":
+		logsqlStreamFieldValuesRequests.Inc()
+		logsql.ProcessStreamFieldValuesRequest(ctx, w, r)
 		return true
 	case "/select/logsql/streams":
 		logsqlStreamsRequests.Inc()
@@ -192,7 +192,7 @@ var (
 	logsqlFieldValuesRequests       = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/field_values"}`)
 	logsqlHitsRequests              = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/hits"}`)
 	logsqlQueryRequests             = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/query"}`)
-	logsqlStreamLabelNamesRequests  = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_label_names"}`)
-	logsqlStreamLabelValuesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_label_values"}`)
+	logsqlStreamFieldNamesRequests  = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_field_names"}`)
+	logsqlStreamFieldValuesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_field_values"}`)
 	logsqlStreamsRequests           = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/streams"}`)
 )

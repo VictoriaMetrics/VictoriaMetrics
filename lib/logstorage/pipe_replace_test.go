@@ -163,10 +163,11 @@ func TestAppendReplace(t *testing.T) {
 
 	f("", "", "", 0, "")
 	f("", "foo", "bar", 0, "")
+	f("abc", "foo", "bar", 0, "abc")
 	f("foo", "foo", "bar", 0, "bar")
 	f("foox", "foo", "bar", 0, "barx")
 	f("afoo", "foo", "bar", 0, "abar")
 	f("afoox", "foo", "bar", 0, "abarx")
 	f("foo-bar-baz", "-", "_", 0, "foo_bar_baz")
-	f("foo bar baz   ", " ", "", 0, "foobarbaz")
+	f("foo bar baz  ", " ", "", 1, "foobar baz  ")
 }

@@ -116,23 +116,46 @@ func (ps *pipeStats) updateNeededFields(neededFields, unneededFields fieldsSet) 
 	unneededFields.reset()
 }
 
+func (ps *pipeStats) optimize() {
+	for _, f := range ps.funcs {
+		f.iff.optimizeFilterIn()
+	}
+}
+
+func (ps *pipeStats) hasFilterInWithQuery() bool {
+	for _, f := range ps.funcs {
+		if f.iff.hasFilterInWithQuery() {
+			return true
+		}
+	}
+	return false
+}
+
+func (ps *pipeStats) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	funcsNew := make([]pipeStatsFunc, len(ps.funcs))
+	for i, f := range ps.funcs {
+		iffNew, err := f.iff.initFilterInValues(cache, getFieldValuesFunc)
+		if err != nil {
+			return nil, err
+		}
+		f.iff = iffNew
+		funcsNew[i] = f
+	}
+	psNew := *ps
+	ps.funcs = funcsNew
+	return &psNew, nil
+}
+
 const stateSizeBudgetChunk = 1 << 20
 
-func (ps *pipeStats) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {
+func (ps *pipeStats) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	maxStateSize := int64(float64(memory.Allowed()) * 0.3)
 
 	shards := make([]pipeStatsProcessorShard, workersCount)
-	funcsLen := len(ps.funcs)
 	for i := range shards {
 		shards[i] = pipeStatsProcessorShard{
 			pipeStatsProcessorShardNopad: pipeStatsProcessorShardNopad{
 				ps: ps,
-
-				m: make(map[string]*pipeStatsGroup),
-
-				bms:    make([]bitmap, funcsLen),
-				brs:    make([]*blockResult, funcsLen),
-				brsBuf: make([]blockResult, funcsLen),
 
 				stateSizeBudget: stateSizeBudgetChunk,
 			},
@@ -144,7 +167,7 @@ func (ps *pipeStats) newPipeProcessor(workersCount int, stopCh <-chan struct{}, 
 		ps:     ps,
 		stopCh: stopCh,
 		cancel: cancel,
-		ppBase: ppBase,
+		ppNext: ppNext,
 
 		shards: shards,
 
@@ -159,7 +182,7 @@ type pipeStatsProcessor struct {
 	ps     *pipeStats
 	stopCh <-chan struct{}
 	cancel func()
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 
 	shards []pipeStatsProcessorShard
 
@@ -190,7 +213,22 @@ type pipeStatsProcessorShardNopad struct {
 	stateSizeBudget int
 }
 
+func (shard *pipeStatsProcessorShard) init() {
+	if shard.m != nil {
+		// Already initialized
+		return
+	}
+
+	funcsLen := len(shard.ps.funcs)
+
+	shard.m = make(map[string]*pipeStatsGroup)
+	shard.bms = make([]bitmap, funcsLen)
+	shard.brs = make([]*blockResult, funcsLen)
+	shard.brsBuf = make([]blockResult, funcsLen)
+}
+
 func (shard *pipeStatsProcessorShard) writeBlock(br *blockResult) {
+	shard.init()
 	byFields := shard.ps.byFields
 
 	// Apply per-function filters
@@ -398,7 +436,9 @@ func (psp *pipeStatsProcessor) flush() error {
 
 	// Merge states across shards
 	shards := psp.shards
-	m := shards[0].m
+	shardMain := &shards[0]
+	shardMain.init()
+	m := shardMain.m
 	shards = shards[1:]
 	for i := range shards {
 		shard := &shards[i]
@@ -420,12 +460,12 @@ func (psp *pipeStatsProcessor) flush() error {
 		}
 	}
 
-	// Write per-group states to ppBase
+	// Write per-group states to ppNext
 	byFields := psp.ps.byFields
 	if len(byFields) == 0 && len(m) == 0 {
 		// Special case - zero matching rows.
-		_ = shards[0].getPipeStatsGroup(nil)
-		m = shards[0].m
+		_ = shardMain.getPipeStatsGroup(nil)
+		m = shardMain.m
 	}
 
 	rcs := make([]resultColumn, 0, len(byFields)+len(psp.ps.funcs))
@@ -480,7 +520,7 @@ func (psp *pipeStatsProcessor) flush() error {
 		if valuesLen >= 1_000_000 {
 			br.setResultColumns(rcs, rowsCount)
 			rowsCount = 0
-			psp.ppBase.writeBlock(0, &br)
+			psp.ppNext.writeBlock(0, &br)
 			br.reset()
 			for i := range rcs {
 				rcs[i].resetValues()
@@ -490,7 +530,7 @@ func (psp *pipeStatsProcessor) flush() error {
 	}
 
 	br.setResultColumns(rcs, rowsCount)
-	psp.ppBase.writeBlock(0, &br)
+	psp.ppNext.writeBlock(0, &br)
 
 	return nil
 }

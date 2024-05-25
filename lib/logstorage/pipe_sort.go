@@ -67,14 +67,26 @@ func (ps *pipeSort) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	}
 }
 
-func (ps *pipeSort) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {
-	if ps.limit > 0 {
-		return newPipeTopkProcessor(ps, workersCount, stopCh, cancel, ppBase)
-	}
-	return newPipeSortProcessor(ps, workersCount, stopCh, cancel, ppBase)
+func (ps *pipeSort) optimize() {
+	// nothing to do
 }
 
-func newPipeSortProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {
+func (ps *pipeSort) hasFilterInWithQuery() bool {
+	return false
+}
+
+func (ps *pipeSort) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	return ps, nil
+}
+
+func (ps *pipeSort) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
+	if ps.limit > 0 {
+		return newPipeTopkProcessor(ps, workersCount, stopCh, cancel, ppNext)
+	}
+	return newPipeSortProcessor(ps, workersCount, stopCh, cancel, ppNext)
+}
+
+func newPipeSortProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	maxStateSize := int64(float64(memory.Allowed()) * 0.2)
 
 	shards := make([]pipeSortProcessorShard, workersCount)
@@ -92,7 +104,7 @@ func newPipeSortProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}
 		ps:     ps,
 		stopCh: stopCh,
 		cancel: cancel,
-		ppBase: ppBase,
+		ppNext: ppNext,
 
 		shards: shards,
 
@@ -107,7 +119,7 @@ type pipeSortProcessor struct {
 	ps     *pipeSort
 	stopCh <-chan struct{}
 	cancel func()
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 
 	shards []pipeSortProcessorShard
 
@@ -522,7 +534,7 @@ func (wctx *pipeSortWriteContext) writeNextRow(shard *pipeSortProcessorShard) {
 		}
 	}
 	if !areEqualColumns {
-		// send the current block to ppBase and construct a block with new set of columns
+		// send the current block to ppNext and construct a block with new set of columns
 		wctx.flush()
 
 		rcs = wctx.rcs[:0]
@@ -561,10 +573,10 @@ func (wctx *pipeSortWriteContext) flush() {
 
 	wctx.valuesLen = 0
 
-	// Flush rcs to ppBase
+	// Flush rcs to ppNext
 	br.setResultColumns(rcs, wctx.rowsCount)
 	wctx.rowsCount = 0
-	wctx.psp.ppBase.writeBlock(0, br)
+	wctx.psp.ppNext.writeBlock(0, br)
 	br.reset()
 	for i := range rcs {
 		rcs[i].resetValues()

@@ -11,15 +11,26 @@ type pipe interface {
 	// updateNeededFields must update neededFields and unneededFields with fields it needs and not needs at the input.
 	updateNeededFields(neededFields, unneededFields fieldsSet)
 
-	// newPipeProcessor must return new pipeProcessor for the given ppBase.
+	// newPipeProcessor must return new pipeProcessor, which writes data to the given ppNext.
 	//
 	// workersCount is the number of goroutine workers, which will call writeBlock() method.
 	//
 	// If stopCh is closed, the returned pipeProcessor must stop performing CPU-intensive tasks which take more than a few milliseconds.
 	// It is OK to continue processing pipeProcessor calls if they take less than a few milliseconds.
 	//
-	// The returned pipeProcessor may call cancel() at any time in order to notify worker goroutines to stop sending new data to pipeProcessor.
-	newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor
+	// The returned pipeProcessor may call cancel() at any time in order to notify the caller to stop sending new data to it.
+	newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor
+
+	// optimize must optimize the pipe
+	optimize()
+
+	// hasFilterInWithQuery must return true of pipe contains 'in(subquery)' filter (recursively).
+	hasFilterInWithQuery() bool
+
+	// initFilterInValues must return new pipe with the initialized values for 'in(subquery)' filters (recursively).
+	//
+	// It is OK to return the pipe itself if it doesn't contain 'in(subquery)' filters.
+	initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error)
 }
 
 // pipeProcessor must process a single pipe.
@@ -39,7 +50,7 @@ type pipeProcessor interface {
 	// cancel() may be called also when the pipeProcessor decides to stop accepting new data, even if there is no any error.
 	writeBlock(workerID uint, br *blockResult)
 
-	// flush must flush all the data accumulated in the pipeProcessor to the base pipeProcessor.
+	// flush must flush all the data accumulated in the pipeProcessor to the next pipeProcessor.
 	//
 	// flush is called after all the worker goroutines are stopped.
 	//
@@ -135,6 +146,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'offset' pipe: %w", err)
 		}
 		return ps, nil
+	case lex.isKeyword("pack_json"):
+		pp, err := parsePackJSON(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'pack_json' pipe: %w", err)
+		}
+		return pp, nil
 	case lex.isKeyword("rename", "mv"):
 		pr, err := parsePipeRename(lex)
 		if err != nil {
@@ -145,6 +162,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 		pr, err := parsePipeReplace(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'replace' pipe: %w", err)
+		}
+		return pr, nil
+	case lex.isKeyword("replace_regexp"):
+		pr, err := parsePipeReplaceRegexp(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'replace_regexp' pipe: %w", err)
 		}
 		return pr, nil
 	case lex.isKeyword("sort"):
@@ -175,6 +198,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 		pu, err := parsePipeUnpackLogfmt(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'unpack_logfmt' pipe: %w", err)
+		}
+		return pu, nil
+	case lex.isKeyword("unroll"):
+		pu, err := parsePipeUnroll(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'unroll' pipe: %w", err)
 		}
 		return pu, nil
 	default:

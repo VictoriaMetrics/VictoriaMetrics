@@ -56,50 +56,25 @@ func (pu *pipeUnpackJSON) updateNeededFields(neededFields, unneededFields fields
 	updateNeededFieldsForUnpackPipe(pu.fromField, pu.fields, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff, neededFields, unneededFields)
 }
 
-func updateNeededFieldsForUnpackPipe(fromField string, outFields []string, keepOriginalFields, skipEmptyResults bool, iff *ifFilter, neededFields, unneededFields fieldsSet) {
-	if neededFields.contains("*") {
-		unneededFieldsOrig := unneededFields.clone()
-		unneededFieldsCount := 0
-		if len(outFields) > 0 {
-			for _, f := range outFields {
-				if unneededFieldsOrig.contains(f) {
-					unneededFieldsCount++
-				}
-				if !keepOriginalFields && !skipEmptyResults {
-					unneededFields.add(f)
-				}
-			}
-		}
-		if len(outFields) == 0 || unneededFieldsCount < len(outFields) {
-			unneededFields.remove(fromField)
-			if iff != nil {
-				unneededFields.removeFields(iff.neededFields)
-			}
-		}
-	} else {
-		neededFieldsOrig := neededFields.clone()
-		needFromField := len(outFields) == 0
-		if len(outFields) > 0 {
-			needFromField = false
-			for _, f := range outFields {
-				if neededFieldsOrig.contains(f) {
-					needFromField = true
-				}
-				if !keepOriginalFields && !skipEmptyResults {
-					neededFields.remove(f)
-				}
-			}
-		}
-		if needFromField {
-			neededFields.add(fromField)
-			if iff != nil {
-				neededFields.addFields(iff.neededFields)
-			}
-		}
-	}
+func (pu *pipeUnpackJSON) optimize() {
+	pu.iff.optimizeFilterIn()
 }
 
-func (pu *pipeUnpackJSON) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
+func (pu *pipeUnpackJSON) hasFilterInWithQuery() bool {
+	return pu.iff.hasFilterInWithQuery()
+}
+
+func (pu *pipeUnpackJSON) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc)
+	if err != nil {
+		return nil, err
+	}
+	puNew := *pu
+	puNew.iff = iffNew
+	return &puNew, nil
+}
+
+func (pu *pipeUnpackJSON) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	unpackJSON := func(uctx *fieldsUnpackerContext, s string) {
 		if len(s) == 0 || s[0] != '{' {
 			// This isn't a JSON object
@@ -134,7 +109,7 @@ func (pu *pipeUnpackJSON) newPipeProcessor(workersCount int, _ <-chan struct{}, 
 		}
 		PutJSONParser(p)
 	}
-	return newPipeUnpackProcessor(workersCount, unpackJSON, ppBase, pu.fromField, pu.resultPrefix, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff)
+	return newPipeUnpackProcessor(workersCount, unpackJSON, ppNext, pu.fromField, pu.resultPrefix, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff)
 }
 
 func parsePipeUnpackJSON(lex *lexer) (*pipeUnpackJSON, error) {

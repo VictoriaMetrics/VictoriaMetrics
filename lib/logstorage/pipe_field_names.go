@@ -37,13 +37,25 @@ func (pf *pipeFieldNames) updateNeededFields(neededFields, unneededFields fields
 	}
 }
 
-func (pf *pipeFieldNames) newPipeProcessor(workersCount int, stopCh <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
+func (pf *pipeFieldNames) optimize() {
+	// nothing to do
+}
+
+func (pf *pipeFieldNames) hasFilterInWithQuery() bool {
+	return false
+}
+
+func (pf *pipeFieldNames) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+	return pf, nil
+}
+
+func (pf *pipeFieldNames) newPipeProcessor(workersCount int, stopCh <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	shards := make([]pipeFieldNamesProcessorShard, workersCount)
 
 	pfp := &pipeFieldNamesProcessor{
 		pf:     pf,
 		stopCh: stopCh,
-		ppBase: ppBase,
+		ppNext: ppNext,
 
 		shards: shards,
 	}
@@ -53,7 +65,7 @@ func (pf *pipeFieldNames) newPipeProcessor(workersCount int, stopCh <-chan struc
 type pipeFieldNamesProcessor struct {
 	pf     *pipeFieldNames
 	stopCh <-chan struct{}
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 
 	shards []pipeFieldNamesProcessorShard
 }
@@ -172,10 +184,10 @@ func (wctx *pipeFieldNamesWriteContext) flush() {
 
 	wctx.valuesLen = 0
 
-	// Flush rcs to ppBase
+	// Flush rcs to ppNext
 	br.setResultColumns(wctx.rcs[:], wctx.rowsCount)
 	wctx.rowsCount = 0
-	wctx.pfp.ppBase.writeBlock(0, br)
+	wctx.pfp.ppNext.writeBlock(0, br)
 	br.reset()
 	wctx.rcs[0].resetValues()
 	wctx.rcs[1].resetValues()

@@ -13,7 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
-func newPipeTopkProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {
+func newPipeTopkProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	maxStateSize := int64(float64(memory.Allowed()) * 0.2)
 
 	shards := make([]pipeTopkProcessorShard, workersCount)
@@ -31,7 +31,7 @@ func newPipeTopkProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}
 		ps:     ps,
 		stopCh: stopCh,
 		cancel: cancel,
-		ppBase: ppBase,
+		ppNext: ppNext,
 
 		shards: shards,
 
@@ -46,7 +46,7 @@ type pipeTopkProcessor struct {
 	ps     *pipeSort
 	stopCh <-chan struct{}
 	cancel func()
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 
 	shards []pipeTopkProcessorShard
 
@@ -464,7 +464,7 @@ func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bo
 		}
 	}
 	if !areEqualColumns {
-		// send the current block to ppBase and construct a block with new set of columns
+		// send the current block to ppNext and construct a block with new set of columns
 		wctx.flush()
 
 		rcs = wctx.rcs[:0]
@@ -508,10 +508,10 @@ func (wctx *pipeTopkWriteContext) flush() {
 
 	wctx.valuesLen = 0
 
-	// Flush rcs to ppBase
+	// Flush rcs to ppNext
 	br.setResultColumns(rcs, wctx.rowsCount)
 	wctx.rowsCount = 0
-	wctx.ptp.ppBase.writeBlock(0, br)
+	wctx.ptp.ppNext.writeBlock(0, br)
 	br.reset()
 	for i := range rcs {
 		rcs[i].resetValues()
