@@ -39,6 +39,9 @@ type blockResult struct {
 
 	// csInitialized is set to true if cs is properly initialized and can be returned from getColumns().
 	csInitialized bool
+
+	fvecs []filteredValuesEncodedCreator
+	svecs []searchValuesEncodedCreator
 }
 
 func (br *blockResult) reset() {
@@ -59,6 +62,12 @@ func (br *blockResult) reset() {
 	br.cs = br.cs[:0]
 
 	br.csInitialized = false
+
+	clear(br.fvecs)
+	br.fvecs = br.fvecs[:0]
+
+	clear(br.svecs)
+	br.svecs = br.svecs[:0]
 }
 
 // clone returns a clone of br, which owns its own data.
@@ -95,6 +104,8 @@ func (br *blockResult) clone() *blockResult {
 	brNew.csBuf = csNew
 
 	// do not clone br.csEmpty - it will be populated by the caller via getColumnByName().
+
+	// do not clone br.fvecs and br.svecs, since they may point to external data.
 
 	return brNew
 }
@@ -136,6 +147,9 @@ func (br *blockResult) initFromFilterNeededColumns(brSrc *blockResult, bm *bitma
 	}
 }
 
+// appendFilteredColumn adds cSrc with the given bm filter to br.
+//
+// the br is valid until brSrc, cSrc or bm is updated.
 func (br *blockResult) appendFilteredColumn(brSrc *blockResult, cSrc *blockResultColumn, bm *bitmap) {
 	if len(br.timestamps) == 0 {
 		return
@@ -154,22 +168,35 @@ func (br *blockResult) appendFilteredColumn(brSrc *blockResult, cSrc *blockResul
 		cDst.minValue = cSrc.minValue
 		cDst.maxValue = cSrc.maxValue
 		cDst.dictValues = cSrc.dictValues
-		cDst.newValuesEncodedFunc = func(br *blockResult) []string {
-			valuesEncodedSrc := cSrc.getValuesEncoded(brSrc)
-
-			valuesBuf := br.valuesBuf
-			valuesBufLen := len(valuesBuf)
-			bm.forEachSetBitReadonly(func(idx int) {
-				valuesBuf = append(valuesBuf, valuesEncodedSrc[idx])
-			})
-			br.valuesBuf = valuesBuf
-
-			return valuesBuf[valuesBufLen:]
-		}
+		br.fvecs = append(br.fvecs, filteredValuesEncodedCreator{
+			br: brSrc,
+			c:  cSrc,
+			bm: bm,
+		})
+		cDst.valuesEncodedCreator = &br.fvecs[len(br.fvecs)-1]
 	}
 
 	br.csBuf = append(br.csBuf, cDst)
 	br.csInitialized = false
+}
+
+type filteredValuesEncodedCreator struct {
+	br *blockResult
+	c  *blockResultColumn
+	bm *bitmap
+}
+
+func (fvec *filteredValuesEncodedCreator) newValuesEncoded(br *blockResult) []string {
+	valuesEncodedSrc := fvec.c.getValuesEncoded(fvec.br)
+
+	valuesBuf := br.valuesBuf
+	valuesBufLen := len(valuesBuf)
+	fvec.bm.forEachSetBitReadonly(func(idx int) {
+		valuesBuf = append(valuesBuf, valuesEncodedSrc[idx])
+	})
+	br.valuesBuf = valuesBuf
+
+	return valuesBuf[valuesBufLen:]
 }
 
 // cloneValues clones the given values into br and returns the cloned values.
@@ -445,11 +472,26 @@ func (br *blockResult) addColumn(bs *blockSearch, bm *bitmap, ch *columnHeader) 
 		minValue:   ch.minValue,
 		maxValue:   ch.maxValue,
 		dictValues: ch.valuesDict.values,
-		newValuesEncodedFunc: func(br *blockResult) []string {
-			return br.newValuesEncodedFromColumnHeader(bs, bm, ch)
-		},
 	})
+	c := &br.csBuf[len(br.csBuf)-1]
+
+	br.svecs = append(br.svecs, searchValuesEncodedCreator{
+		bs: bs,
+		bm: bm,
+		ch: ch,
+	})
+	c.valuesEncodedCreator = &br.svecs[len(br.svecs)-1]
 	br.csInitialized = false
+}
+
+type searchValuesEncodedCreator struct {
+	bs *blockSearch
+	bm *bitmap
+	ch *columnHeader
+}
+
+func (svec *searchValuesEncodedCreator) newValuesEncoded(br *blockResult) []string {
+	return br.newValuesEncodedFromColumnHeader(svec.bs, svec.bm, svec.ch)
 }
 
 func (br *blockResult) addTimeColumn() {
@@ -1481,16 +1523,21 @@ type blockResultColumn struct {
 	// valuesBucketed contains values after getValuesBucketed() call
 	valuesBucketed []string
 
-	// newValuesEncodedFunc must return valuesEncoded.
+	// valuesEncodedCreator must return valuesEncoded.
 	//
-	// This func must be set for non-const and non-time columns if valuesEncoded field isn't set.
-	newValuesEncodedFunc func(br *blockResult) []string
+	// This interface must be set for non-const and non-time columns if valuesEncoded field isn't set.
+	valuesEncodedCreator columnValuesEncodedCreator
 
 	// bucketSizeStr contains bucketSizeStr for valuesBucketed
 	bucketSizeStr string
 
 	// bucketOffsetStr contains bucketOffset for valuesBucketed
 	bucketOffsetStr string
+}
+
+// columnValuesEncodedCreator must return encoded values for the current column.
+type columnValuesEncodedCreator interface {
+	newValuesEncoded(br *blockResult) []string
 }
 
 // clone returns a clone of c backed by data from br.
@@ -1521,8 +1568,8 @@ func (c *blockResultColumn) clone(br *blockResult) blockResultColumn {
 	}
 	cNew.valuesBucketed = br.cloneValues(c.valuesBucketed)
 
-	// Do not copy c.newValuesEncodedFunc, since it may refer to data, which may change over time.
-	// We already copied c.valuesEncoded, so cNew.newValuesEncodedFunc must be nil.
+	// Do not copy c.valuesEncodedCreator, since it may refer to data, which may change over time.
+	// We already copied c.valuesEncoded, so cNew.valuesEncodedCreator must be nil.
 
 	cNew.bucketSizeStr = c.bucketSizeStr
 	cNew.bucketOffsetStr = c.bucketOffsetStr
@@ -1616,7 +1663,7 @@ func (c *blockResultColumn) getValuesEncoded(br *blockResult) []string {
 	}
 
 	if c.valuesEncoded == nil {
-		c.valuesEncoded = c.newValuesEncodedFunc(br)
+		c.valuesEncoded = c.valuesEncodedCreator.newValuesEncoded(br)
 	}
 	return c.valuesEncoded
 }
