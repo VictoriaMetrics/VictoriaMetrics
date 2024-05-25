@@ -295,6 +295,8 @@ func (br *blockResult) initAllColumns(bs *blockSearch, bm *bitmap) {
 			br.addColumn(bs, bm, ch)
 		}
 	}
+
+	br.csInitFast()
 }
 
 // initRequestedColumns initialized only requested columns in br according to bs and bm.
@@ -322,6 +324,8 @@ func (br *blockResult) initRequestedColumns(bs *blockSearch, bm *bitmap) {
 			}
 		}
 	}
+
+	br.csInitFast()
 }
 
 func (br *blockResult) mustInit(bs *blockSearch, bm *bitmap) {
@@ -1351,10 +1355,13 @@ func (br *blockResult) getColumnByName(columnName string) *blockResultColumn {
 }
 
 func (br *blockResult) getColumns() []*blockResultColumn {
-	if br.csInitialized {
-		return br.cs
+	if !br.csInitialized {
+		br.csInit()
 	}
+	return br.cs
+}
 
+func (br *blockResult) csInit() {
 	csBuf := br.csBuf
 	clear(br.cs)
 	cs := br.cs[:0]
@@ -1369,8 +1376,17 @@ func (br *blockResult) getColumns() []*blockResultColumn {
 	}
 	br.cs = cs
 	br.csInitialized = true
+}
 
-	return br.cs
+func (br *blockResult) csInitFast() {
+	csBuf := br.csBuf
+	clear(br.cs)
+	cs := slicesutil.SetLength(br.cs, len(csBuf))
+	for i := range csBuf {
+		cs[i] = &csBuf[i]
+	}
+	br.cs = cs
+	br.csInitialized = true
 }
 
 func getBlockResultColumnIdxByName(cs []*blockResultColumn, name string) int {
