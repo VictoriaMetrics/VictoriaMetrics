@@ -28,8 +28,8 @@ VictoriaLogs provides the following HTTP endpoints:
 - [`/select/logsql/query`](#querying-logs) for querying logs
 - [`/select/logsql/hits`](#querying-hits-stats) for querying log hits stats over the given time range
 - [`/select/logsql/streams`](#querying-streams) for querying [log streams](#https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
-- [`/select/logsql/stream_label_names`](#querying-stream-label-names) for querying [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) label names
-- [`/select/logsql/stream_label_values`](#querying-stream-label-values) for querying [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) label values
+- [`/select/logsql/stream_field_names`](#querying-stream-field-names) for querying [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) field names
+- [`/select/logsql/stream_field_values`](#querying-stream-field-values) for querying [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) field values
 - [`/select/logsql/field_names`](#querying-field-names) for querying [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) names.
 - [`/select/logsql/field_values`](#querying-field-values) for querying [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values.
 
@@ -107,7 +107,7 @@ with `vl_http_requests_total{path="/select/logsql/query"}` metric.
 ### Querying hits stats
 
 VictoriaMetrics provides `/select/logsql/hits?query=<query>&start=<start>&end=<end>&step=<step>` HTTP endpoint, which returns the number
-of matching log entries for the given `<query>` [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]`
+of matching log entries for the given [`<query>`](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]`
 time range grouped by `<step>` buckets. The returned results are sorted by time.
 
 The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
@@ -210,7 +210,7 @@ See also:
 ### Querying streams
 
 VictoriaLogs provides `/select/logsql/streams?query=<query>&start=<start>&end=<end>` HTTP endpoint, which returns [streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
-from results of the given `<query>` [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
+from results of the given [`<query>`](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
 The response also contains the number of log results per every `stream`.
 
 The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
@@ -254,22 +254,22 @@ See also:
 - [Querying hits stats](#querying-hits-stats)
 - [HTTP API](#http-api)
 
-### Querying stream label names
+### Querying stream field names
 
-VictoriaLogs provides `/select/logsql/stream_label_names?query=<query>&start=<start>&end=<end>` HTTP endpoint, which returns
-[log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) label names from results
-of the given `<query>` [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
-The response also contains the number of log results per every label name.
+VictoriaLogs provides `/select/logsql/stream_field_names?query=<query>&start=<start>&end=<end>` HTTP endpoint, which returns
+[log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) field names from results
+of the given [`<query>`](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
+The response also contains the number of log results per every field name.
 
 The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
 If `<start>` is missing, then it equals to the minimum timestamp across logs stored in VictoriaLogs.
 If `<end>` is missing, then it equals to the maximum timestamp across logs stored in VictoriaLogs.
 
-For example, the following command returns stream label names across logs with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word)
+For example, the following command returns stream field names across logs with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word)
 for the last 5 minutes:
 
 ```sh
-curl http://localhost:9428/select/logsql/stream_label_names -d 'query=error' -d 'start=5m'
+curl http://localhost:9428/select/logsql/stream_field_names -d 'query=error' -d 'start=5m'
 ```
 
 Below is an example JSON output returned from this endpoint:
@@ -295,27 +295,27 @@ Below is an example JSON output returned from this endpoint:
 
 See also:
 
-- [Querying stream label names](#querying-stream-label-names)
+- [Querying stream field names](#querying-stream-field-names)
 - [Querying field values](#querying-field-values)
 - [Querying streams](#querying-streams)
 - [HTTP API](#http-api)
 
-### Querying stream label values
+### Querying stream field values
 
-VictoriaLogs provides `/select/logsql/stream_label_values?query=<query>&start=<start>&<end>&label=<labelName>` HTTP endpoint,
-which returns [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) label values for the label with the given `<labelName>` name
-from results of the given `<query>` [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
-The response also contains the number of log results per every label value.
+VictoriaLogs provides `/select/logsql/stream_field_values?query=<query>&start=<start>&<end>&field=<fieldName>` HTTP endpoint,
+which returns [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) field values for the field with the given `<fieldName>` name
+from results of the given [`<query>`](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
+The response also contains the number of log results per every field value.
 
 The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
 If `<start>` is missing, then it equals to the minimum timestamp across logs stored in VictoriaLogs.
 If `<end>` is missing, then it equals to the maximum timestamp across logs stored in VictoriaLogs.
 
-For example, the following command returns values for the stream label `host` across logs with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word)
+For example, the following command returns values for the stream field `host` across logs with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word)
 for the last 5 minutes:
 
 ```sh
-curl http://localhost:9428/select/logsql/stream_label_values -d 'query=error' -d 'start=5m' -d 'label=host'
+curl http://localhost:9428/select/logsql/stream_field_values -d 'query=error' -d 'start=5m' -d 'field=host'
 ```
 
 Below is an example JSON output returned from this endpoint:
@@ -335,12 +335,12 @@ Below is an example JSON output returned from this endpoint:
 }
 ```
 
-The `/select/logsql/stream_label_names` endpoint supports optional `limit=N` query arg, which allows limiting the number of returned values to `N`.
+The `/select/logsql/stream_field_names` endpoint supports optional `limit=N` query arg, which allows limiting the number of returned values to `N`.
 The endpoint returns arbitrary subset of values if their number exceeds `N`, so `limit=N` cannot be used for pagination over big number of field values.
 
 See also:
 
-- [Querying stream label values](#querying-stream-label-values)
+- [Querying stream field values](#querying-stream-field-values)
 - [Querying field names](#querying-field-names)
 - [Querying streams](#querying-streams)
 - [HTTP API](#http-api)
@@ -348,7 +348,7 @@ See also:
 ### Querying field names
 
 VictoriaLogs provides `/select/logsql/field_names?query=<query>&start=<start>&end=<end>` HTTP endpoint, which returns field names
-from results of the given `<query>` [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
+from results of the given [`<query>`](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
 The response also contains the number of log results per every field name.
 
 The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
@@ -385,7 +385,7 @@ Below is an example JSON output returned from this endpoint:
 
 See also:
 
-- [Querying stream label names](#querying-stream-label-names)
+- [Querying stream field names](#querying-stream-field-names)
 - [Querying field values](#querying-field-values)
 - [Querying streams](#querying-streams)
 - [HTTP API](#http-api)
@@ -394,7 +394,7 @@ See also:
 
 VictoriaLogs provides `/select/logsql/field_values?query=<query>&field=<fieldName>&start=<start>&end=<end>` HTTP endpoint, which returns
 unique values for the given `<fieldName>` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-from results of the given `<query>` [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
+from results of the given [`<query>`](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
 The response also contains the number of log results per every field value.
 
 The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
@@ -435,7 +435,7 @@ When the `limit` is reached, `hits` are zeroed, since they cannot be calculated 
 
 See also:
 
-- [Querying stream label values](#querying-stream-label-values)
+- [Querying stream field values](#querying-stream-field-values)
 - [Querying field names](#querying-field-names)
 - [Querying streams](#querying-streams)
 - [HTTP API](#http-api)

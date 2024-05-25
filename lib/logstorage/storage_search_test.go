@@ -650,11 +650,11 @@ func TestStorageSearch(t *testing.T) {
 	fs.MustRemoveAll(path)
 }
 
-func TestParseStreamLabelsSuccess(t *testing.T) {
+func TestParseStreamFieldsSuccess(t *testing.T) {
 	f := func(s, resultExpected string) {
 		t.Helper()
 
-		labels, err := parseStreamLabels(nil, s)
+		labels, err := parseStreamFields(nil, s)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}

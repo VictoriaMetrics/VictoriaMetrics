@@ -6,8 +6,8 @@
 
 {% stripspace %}
 
-// LabelsForHits formats labels for /select/logsql/hits response
-{% func LabelsForHits(columns []logstorage.BlockColumn, rowIdx int) %}
+// FieldsForHits formats labels for /select/logsql/hits response
+{% func FieldsForHits(columns []logstorage.BlockColumn, rowIdx int) %}
 {
 	{% if len(columns) > 0 %}
 		{%q= columns[0].Name %}:{%q= columns[0].Values[rowIdx] %}

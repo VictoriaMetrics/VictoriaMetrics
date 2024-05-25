@@ -288,18 +288,18 @@ func sortValuesWithHits(results []ValueWithHits) {
 	})
 }
 
-// GetStreamLabelNames returns stream label names from q results for the given tenantIDs.
-func (s *Storage) GetStreamLabelNames(ctx context.Context, tenantIDs []TenantID, q *Query) ([]ValueWithHits, error) {
+// GetStreamFieldNames returns stream field names from q results for the given tenantIDs.
+func (s *Storage) GetStreamFieldNames(ctx context.Context, tenantIDs []TenantID, q *Query) ([]ValueWithHits, error) {
 	streams, err := s.GetStreams(ctx, tenantIDs, q, math.MaxUint64)
 	if err != nil {
 		return nil, err
 	}
 
 	m := make(map[string]*uint64)
-	forEachStreamLabel(streams, func(label Field, hits uint64) {
-		pHits, ok := m[label.Name]
+	forEachStreamField(streams, func(f Field, hits uint64) {
+		pHits, ok := m[f.Name]
 		if !ok {
-			nameCopy := strings.Clone(label.Name)
+			nameCopy := strings.Clone(f.Name)
 			hitsLocal := uint64(0)
 			pHits = &hitsLocal
 			m[nameCopy] = pHits
@@ -310,23 +310,23 @@ func (s *Storage) GetStreamLabelNames(ctx context.Context, tenantIDs []TenantID,
 	return names, nil
 }
 
-// GetStreamLabelValues returns stream label values for the given labelName from q results for the given tenantIDs.
+// GetStreamFieldValues returns stream field values for the given fieldName from q results for the given tenantIDs.
 //
-// If limit > 9, then up to limit unique label values are returned.
-func (s *Storage) GetStreamLabelValues(ctx context.Context, tenantIDs []TenantID, q *Query, labelName string, limit uint64) ([]ValueWithHits, error) {
+// If limit > 9, then up to limit unique values are returned.
+func (s *Storage) GetStreamFieldValues(ctx context.Context, tenantIDs []TenantID, q *Query, fieldName string, limit uint64) ([]ValueWithHits, error) {
 	streams, err := s.GetStreams(ctx, tenantIDs, q, math.MaxUint64)
 	if err != nil {
 		return nil, err
 	}
 
 	m := make(map[string]*uint64)
-	forEachStreamLabel(streams, func(label Field, hits uint64) {
-		if label.Name != labelName {
+	forEachStreamField(streams, func(f Field, hits uint64) {
+		if f.Name != fieldName {
 			return
 		}
-		pHits, ok := m[label.Value]
+		pHits, ok := m[f.Value]
 		if !ok {
-			valueCopy := strings.Clone(label.Value)
+			valueCopy := strings.Clone(f.Value)
 			hitsLocal := uint64(0)
 			pHits = &hitsLocal
 			m[valueCopy] = pHits
@@ -1099,22 +1099,22 @@ func getFilterTimeRange(f filter) (int64, int64) {
 	return math.MinInt64, math.MaxInt64
 }
 
-func forEachStreamLabel(streams []ValueWithHits, f func(label Field, hits uint64)) {
-	var labels []Field
+func forEachStreamField(streams []ValueWithHits, f func(f Field, hits uint64)) {
+	var fields []Field
 	for i := range streams {
 		var err error
-		labels, err = parseStreamLabels(labels[:0], streams[i].Value)
+		fields, err = parseStreamFields(fields[:0], streams[i].Value)
 		if err != nil {
 			continue
 		}
 		hits := streams[i].Hits
-		for j := range labels {
-			f(labels[j], hits)
+		for j := range fields {
+			f(fields[j], hits)
 		}
 	}
 }
 
-func parseStreamLabels(dst []Field, s string) ([]Field, error) {
+func parseStreamFields(dst []Field, s string) ([]Field, error) {
 	if len(s) == 0 || s[0] != '{' {
 		return dst, fmt.Errorf("missing '{' at the beginning of stream name")
 	}
@@ -1130,14 +1130,14 @@ func parseStreamLabels(dst []Field, s string) ([]Field, error) {
 	for {
 		n := strings.Index(s, `="`)
 		if n < 0 {
-			return dst, fmt.Errorf("cannot find label value in double quotes at [%s]", s)
+			return dst, fmt.Errorf("cannot find field value in double quotes at [%s]", s)
 		}
 		name := s[:n]
 		s = s[n+1:]
 
 		value, nOffset := tryUnquoteString(s, "")
 		if nOffset < 0 {
-			return dst, fmt.Errorf("cannot find parse label value in double quotes at [%s]", s)
+			return dst, fmt.Errorf("cannot find parse field value in double quotes at [%s]", s)
 		}
 		s = s[nOffset:]
 
