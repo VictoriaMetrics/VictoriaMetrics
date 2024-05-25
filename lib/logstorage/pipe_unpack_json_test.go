@@ -166,7 +166,6 @@ func TestPipeUnpackJSON(t *testing.T) {
 	}, [][]Field{
 		{
 			{"_msg", `{"foo":"bar"}`},
-			{"x", ""},
 		},
 	})
 
@@ -313,7 +312,6 @@ func TestPipeUnpackJSON(t *testing.T) {
 			{"y", `abc`},
 		},
 		{
-			{"y", ""},
 			{"z", `foobar`},
 			{"x", `{"z":["bar",123]}`},
 		},

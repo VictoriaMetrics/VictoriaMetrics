@@ -31,6 +31,9 @@ type blockResult struct {
 	// csBuf contains requested columns.
 	csBuf []blockResultColumn
 
+	// csEmpty contains non-existing columns, which were referenced via getColumnByName()
+	csEmpty []blockResultColumn
+
 	// cs contains cached pointers to requested columns returned from getColumns() if csInitialized=true.
 	cs []*blockResultColumn
 
@@ -48,6 +51,9 @@ func (br *blockResult) reset() {
 
 	clear(br.csBuf)
 	br.csBuf = br.csBuf[:0]
+
+	clear(br.csEmpty)
+	br.csEmpty = br.csEmpty[:0]
 
 	clear(br.cs)
 	br.cs = br.cs[:0]
@@ -87,6 +93,8 @@ func (br *blockResult) clone() *blockResult {
 		csNew[i] = c.clone(brNew)
 	}
 	brNew.csBuf = csNew
+
+	// do not clone br.csEmpty - it will be populated by the caller via getColumnByName().
 
 	return brNew
 }
@@ -1325,8 +1333,21 @@ func (br *blockResult) getColumnByName(columnName string) *blockResultColumn {
 		return cs[idx]
 	}
 
-	br.addConstColumn(columnName, "")
-	return &br.csBuf[len(br.csBuf)-1]
+	// Search for empty column with the given name
+	csEmpty := br.csEmpty
+	for i := range csEmpty {
+		if csEmpty[i].name == columnName {
+			return &csEmpty[i]
+		}
+	}
+
+	// Create missing empty column
+	br.csEmpty = append(br.csEmpty, blockResultColumn{
+		name: br.a.copyString(columnName),
+		isConst: true,
+		valuesEncoded: getEmptyStrings(1),
+	})
+	return &br.csEmpty[len(br.csEmpty)-1]
 }
 
 func (br *blockResult) getColumns() []*blockResultColumn {

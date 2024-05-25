@@ -151,7 +151,6 @@ func TestPipeUnpackLogfmt(t *testing.T) {
 		},
 	}, [][]Field{
 		{
-			{"foo", ""},
 			{"_msg", `foo=bar baz="x y=z" a=b`},
 		},
 	})
@@ -291,7 +290,6 @@ func TestPipeUnpackLogfmt(t *testing.T) {
 			{"y", `abc`},
 		},
 		{
-			{"y", ""},
 			{"z", `foobar`},
 			{"x", `z=bar`},
 		},
