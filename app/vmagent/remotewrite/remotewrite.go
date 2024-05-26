@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -17,7 +18,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -28,30 +28,37 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
 )
 
+var urlPrefixIgnoreFn = func(key string) bool {
+	ignoredKeys := []string{
+		"http:",
+		"https:",
+	}
+	return slices.Contains(ignoredKeys, key)
+}
+
 var (
-	remoteWriteURLs = flagutil.NewArrayString("remoteWrite.url", "Remote storage URL to write data to. It must support either VictoriaMetrics remote write protocol "+
+	remoteWriteURLs = flagutil.NewDictValue("remoteWrite.url", "", '/', "Remote storage URL to write data to. It must support either VictoriaMetrics remote write protocol "+
 		"or Prometheus remote_write protocol. Example url: http://<victoriametrics-host>:8428/api/v1/write . "+
 		"Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. "+
-		"The data can be sharded among the configured remote storage systems if -remoteWrite.shardByURL flag is set")
+		"The data can be sharded among the configured remote storage systems if -remoteWrite.shardByURL flag is set", urlPrefixIgnoreFn)
 	enableMultitenantHandlers = flag.Bool("enableMultitenantHandlers", false, "Whether to process incoming data via multitenant insert handlers according to "+
 		"https://docs.victoriametrics.com/cluster-victoriametrics/#url-format . By default incoming data is processed via single-node insert handlers "+
 		"according to https://docs.victoriametrics.com/#how-to-import-time-series-data ."+
 		"See https://docs.victoriametrics.com/vmagent/#multitenancy for details")
 
-	shardByURL = flag.Bool("remoteWrite.shardByURL", false, "Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url . "+
+	shardByURL = flagutil.NewDictValue("remoteWrite.shardByURL", false, '/', "Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url . "+
 		"By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages . "+
 		"See also -remoteWrite.shardByURLReplicas")
-	shardByURLReplicas = flag.Int("remoteWrite.shardByURLReplicas", 1, "How many copies of data to make among remote storage systems enumerated via -remoteWrite.url "+
+	shardByURLReplicas = flagutil.NewDictValue("remoteWrite.shardByURLReplicas", 1, '/', "How many copies of data to make among remote storage systems enumerated via -remoteWrite.url "+
 		"when -remoteWrite.shardByURL is set. See https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages")
-	shardByURLLabels = flagutil.NewArrayString("remoteWrite.shardByURL.labels", "Optional list of labels, which must be used for sharding outgoing samples "+
+	shardByURLLabels = flagutil.NewDictValue("remoteWrite.shardByURL.labels", "", '/', "Optional list of labels, which must be used for sharding outgoing samples "+
 		"among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain "+
 		"even distribution of series over the specified -remoteWrite.url systems. See also -remoteWrite.shardByURL.ignoreLabels")
-	shardByURLIgnoreLabels = flagutil.NewArrayString("remoteWrite.shardByURL.ignoreLabels", "Optional list of labels, which must be ignored when sharding outgoing samples "+
+	shardByURLIgnoreLabels = flagutil.NewDictValue("remoteWrite.shardByURL.ignoreLabels", "", '/', "Optional list of labels, which must be ignored when sharding outgoing samples "+
 		"among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain "+
 		"even distribution of series over the specified -remoteWrite.url systems. See also -remoteWrite.shardByURL.labels")
 
@@ -64,14 +71,14 @@ var (
 		"Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage")
 	showRemoteWriteURL = flag.Bool("remoteWrite.showURL", false, "Whether to show -remoteWrite.url in the exported metrics. "+
 		"It is hidden by default, since it can contain sensitive info such as auth key")
-	maxPendingBytesPerURL = flagutil.NewArrayBytes("remoteWrite.maxDiskUsagePerURL", 0, "The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath "+
+	maxPendingBytesPerURL = flagutil.NewDictValue("remoteWrite.maxDiskUsagePerURL", int64(0), '/', "The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath "+
 		"for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. "+
 		"Buffered data is stored in ~500MB chunks. It is recommended to set the value for this flag to a multiple of the block size 500MB. "+
 		"Disk usage is unlimited if the value is set to 0")
-	significantFigures = flagutil.NewArrayInt("remoteWrite.significantFigures", 0, "The number of significant figures to leave in metric values before writing them "+
+	significantFigures = flagutil.NewDictValue("remoteWrite.significantFigures", 0, '/', "The number of significant figures to leave in metric values before writing them "+
 		"to remote storage. See https://en.wikipedia.org/wiki/Significant_figures . Zero value saves all the significant figures. "+
 		"This option may be used for improving data compression for the stored metrics. See also -remoteWrite.roundDigits")
-	roundDigits = flagutil.NewArrayInt("remoteWrite.roundDigits", 100, "Round metric values to this number of decimal digits after the point before "+
+	roundDigits = flagutil.NewDictValue("remoteWrite.roundDigits", 100, '/', "Round metric values to this number of decimal digits after the point before "+
 		"writing them to remote storage. "+
 		"Examples: -remoteWrite.roundDigits=2 would round 1.236 to 1.24, while -remoteWrite.roundDigits=-1 would round 126.78 to 130. "+
 		"By default, digits rounding is disabled. Set it to 100 for disabling it for a particular remote storage. "+
@@ -87,16 +94,16 @@ var (
 	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmagent can receive per second. Data ingestion is paused when the limit is exceeded. "+
 		"By default there are no limits on samples ingestion rate. See also -remoteWrite.rateLimit")
 
-	disableOnDiskQueue = flagutil.NewArrayBool("remoteWrite.disableOnDiskQueue", "Whether to disable storing pending data to -remoteWrite.tmpDataPath "+
+	disableOnDiskQueue = flagutil.NewDictValue("remoteWrite.disableOnDiskQueue", false, '/', "Whether to disable storing pending data to -remoteWrite.tmpDataPath "+
 		"when the configured remote storage systems cannot keep up with the data ingestion rate. See https://docs.victoriametrics.com/vmagent#disabling-on-disk-persistence ."+
 		"See also -remoteWrite.dropSamplesOnOverload")
-	dropSamplesOnOverload = flagutil.NewArrayBool("remoteWrite.dropSamplesOnOverload", "Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples "+
+	dropSamplesOnOverload = flagutil.NewDictValue("remoteWrite.dropSamplesOnOverload", false, '/', "Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples "+
 		"cannot be pushed into the configured remote storage systems in a timely manner. See https://docs.victoriametrics.com/vmagent#disabling-on-disk-persistence")
 )
 
 var (
-	// rwctxs contains statically populated entries when -remoteWrite.url is specified.
-	rwctxs []*remoteWriteCtx
+	// rwctxGroups contains statically populated entries when -remoteWrite.url is specified.
+	rwctxGroups []*remoteWriteCtxGroup
 
 	// Data without tenant id is written to defaultAuthToken if -enableMultitenantHandlers is specified.
 	defaultAuthToken = &auth.Token{}
@@ -118,14 +125,11 @@ func MultitenancyEnabled() bool {
 	return *enableMultitenantHandlers
 }
 
-// Contains the current relabelConfigs.
-var allRelabelConfigs atomic.Pointer[relabelConfigs]
+// Contains all relabel configs.
+var allRelabelConfigs *relabelConfigs
 
-// Contains the current global stream aggregators.
-var sasGlobal atomic.Pointer[streamaggr.Aggregators]
-
-// Contains the current global deduplicator.
-var deduplicatorGlobal *streamaggr.Deduplicator
+// Contains all aggregators stream aggregators.
+var allAggrConfigs *aggrConfigs
 
 // maxQueues limits the maximum value for `-remoteWrite.queues`. There is no sense in setting too high value,
 // since it may lead to high memory usage due to big number of buffers.
@@ -141,18 +145,13 @@ func InitSecretFlags() {
 	}
 }
 
-var (
-	shardByURLLabelsMap       map[string]struct{}
-	shardByURLIgnoreLabelsMap map[string]struct{}
-)
-
 // Init initializes remotewrite.
 //
 // It must be called after flag.Parse().
 //
 // Stop must be called for graceful shutdown.
 func Init() {
-	if len(*remoteWriteURLs) == 0 {
+	if len(remoteWriteURLs.Keys()) == 0 {
 		logger.Fatalf("at least one `-remoteWrite.url` command-line flag must be set")
 	}
 	if *maxHourlySeries > 0 {
@@ -181,48 +180,32 @@ func Init() {
 		*queues = 1
 	}
 
-	if len(*shardByURLLabels) > 0 && len(*shardByURLIgnoreLabels) > 0 {
-		logger.Fatalf("-remoteWrite.shardByURL.labels and -remoteWrite.shardByURL.ignoreLabels cannot be set simultaneously; " +
-			"see https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages")
-	}
-	shardByURLLabelsMap = newMapFromStrings(*shardByURLLabels)
-	shardByURLIgnoreLabelsMap = newMapFromStrings(*shardByURLIgnoreLabels)
-
 	initLabelsGlobal()
 
-	// Register SIGHUP handler for config reload before loadRelabelConfigs.
+	// Register SIGHUP handler for config reload before loadRelabelConfig.
 	// This guarantees that the config will be re-read if the signal arrives just after loadRelabelConfig.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
 	sighupCh := procutil.NewSighupChan()
 
-	rcs, err := loadRelabelConfigs()
-	if err != nil {
+	allRelabelConfigs = &relabelConfigs{}
+	if err := allRelabelConfigs.loadRelabelConfigs(); err != nil {
 		logger.Fatalf("cannot load relabel configs: %s", err)
 	}
-	allRelabelConfigs.Store(rcs)
-	relabelConfigSuccess.Set(1)
-	relabelConfigTimestamp.Set(fasttime.UnixTimestamp())
 
-	sasFile, sasOpts := getStreamAggrOpts(-1)
-	if sasFile != "" {
-		sas, err := newStreamAggrConfig(-1, pushToRemoteStoragesDropFailed)
-		if err != nil {
-			logger.Fatalf("cannot initialize stream aggregators from -streamAggr.config=%q: %s", sasFile, err)
-		}
-		sasGlobal.Store(sas)
-	} else if sasOpts.DedupInterval > 0 {
-		deduplicatorGlobal = streamaggr.NewDeduplicator(pushToRemoteStoragesDropFailed, sasOpts.DedupInterval, sasOpts.DropInputLabels, sasOpts.Alias)
-	}
+	rwctxGroups = newRemoteWriteCtxGroups(nil)
 
-	if len(*remoteWriteURLs) > 0 {
-		rwctxs = newRemoteWriteCtxs(nil, *remoteWriteURLs)
+	allAggrConfigs = &aggrConfigs{}
+	if err := allAggrConfigs.loadAggrConfigs(nil); err != nil {
+		logger.Fatalf("cannot load aggregation configs: %s", err)
 	}
 
 	disableOnDiskQueueAll = true
-	for _, v := range *disableOnDiskQueue {
-		if !v {
-			disableOnDiskQueueAll = false
-			break
+	for _, groupName := range disableOnDiskQueue.Keys() {
+		for _, v := range disableOnDiskQueue.GetAll(groupName) {
+			if !v {
+				disableOnDiskQueueAll = false
+				break
+			}
 		}
 	}
 
@@ -238,8 +221,8 @@ func Init() {
 			case <-configReloaderStopCh:
 				return
 			}
-			reloadRelabelConfigs()
-			reloadStreamAggrConfigs()
+			allRelabelConfigs.reloadConfigs()
+			allAggrConfigs.reloadConfigs()
 		}
 	}()
 }
@@ -255,9 +238,11 @@ func dropDanglingQueues() {
 	// In case if there were many persistent queues with identical *remoteWriteURLs
 	// the queue with the last index will be dropped.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6140
-	existingQueues := make(map[string]struct{}, len(rwctxs))
-	for _, rwctx := range rwctxs {
-		existingQueues[rwctx.fq.Dirname()] = struct{}{}
+	existingQueues := make(map[string]struct{}, len(rwctxGroups))
+	for _, rwctxGroup := range rwctxGroups {
+		for _, ctx := range rwctxGroup.ctxs {
+			existingQueues[ctx.fq.Dirname()] = struct{}{}
+		}
 	}
 
 	queuesDir := filepath.Join(*tmpDataPath, persistentQueueDirname)
@@ -273,66 +258,62 @@ func dropDanglingQueues() {
 		}
 	}
 	if removed > 0 {
-		logger.Infof("removed %d dangling queues from %q, active queues: %d", removed, *tmpDataPath, len(rwctxs))
+		logger.Infof("removed %d dangling queues from %q, active queues: %d", removed, *tmpDataPath, len(rwctxGroups))
 	}
 }
 
-func reloadRelabelConfigs() {
-	relabelConfigReloads.Inc()
-	logger.Infof("reloading relabel configs pointed by -remoteWrite.relabelConfig and -remoteWrite.urlRelabelConfig")
-	rcs, err := loadRelabelConfigs()
-	if err != nil {
-		relabelConfigReloadErrors.Inc()
-		relabelConfigSuccess.Set(0)
-		logger.Errorf("cannot reload relabel configs; preserving the previous configs; error: %s", err)
-		return
-	}
-	allRelabelConfigs.Store(rcs)
-	relabelConfigSuccess.Set(1)
-	relabelConfigTimestamp.Set(fasttime.UnixTimestamp())
-	logger.Infof("successfully reloaded relabel configs")
-}
-
-var (
-	relabelConfigReloads      = metrics.NewCounter(`vmagent_relabel_config_reloads_total`)
-	relabelConfigReloadErrors = metrics.NewCounter(`vmagent_relabel_config_reloads_errors_total`)
-	relabelConfigSuccess      = metrics.NewGauge(`vmagent_relabel_config_last_reload_successful`, nil)
-	relabelConfigTimestamp    = metrics.NewCounter(`vmagent_relabel_config_last_reload_success_timestamp_seconds`)
-)
-
-func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
-	if len(urls) == 0 {
-		logger.Panicf("BUG: urls must be non-empty")
-	}
-
-	maxInmemoryBlocks := memory.Allowed() / len(urls) / *maxRowsPerBlock / 100
-	if maxInmemoryBlocks / *queues > 100 {
-		// There is no much sense in keeping higher number of blocks in memory,
-		// since this means that the producer outperforms consumer and the queue
-		// will continue growing. It is better storing the queue to file.
-		maxInmemoryBlocks = 100 * *queues
-	}
-	if maxInmemoryBlocks < 2 {
-		maxInmemoryBlocks = 2
-	}
-	rwctxs := make([]*remoteWriteCtx, len(urls))
-	for i, remoteWriteURLRaw := range urls {
-		remoteWriteURL, err := url.Parse(remoteWriteURLRaw)
-		if err != nil {
-			logger.Fatalf("invalid -remoteWrite.url=%q: %s", remoteWriteURL, err)
+func newRemoteWriteCtxGroups(at *auth.Token) []*remoteWriteCtxGroup {
+	rwctxGroupNames := remoteWriteURLs.Keys()
+	rwctxGroups := make([]*remoteWriteCtxGroup, len(rwctxGroupNames))
+	allURLs := remoteWriteURLs.AllValuesFlat()
+	for g, groupName := range rwctxGroupNames {
+		urls := remoteWriteURLs.GetAll(groupName)
+		shardByURL := shardByURL.GetOptionalArg(groupName, 0) && len(shardByURLReplicas.GetAll(groupName)) < len(urls)
+		replicas := shardByURLReplicas.GetOptionalArg(groupName, 0)
+		if replicas <= 0 {
+			replicas = 1
 		}
-		sanitizedURL := fmt.Sprintf("%d:secret-url", i+1)
-		if at != nil {
-			// Construct full remote_write url for the given tenant according to https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
-			remoteWriteURL.Path = fmt.Sprintf("%s/insert/%d:%d/prometheus/api/v1/write", remoteWriteURL.Path, at.AccountID, at.ProjectID)
-			sanitizedURL = fmt.Sprintf("%s:%d:%d", sanitizedURL, at.AccountID, at.ProjectID)
+		shardLabels := shardByURLLabels.GetAll(groupName)
+		shardIgnoreLabels := shardByURLIgnoreLabels.GetAll(groupName)
+		if len(shardLabels) > 0 && len(shardIgnoreLabels) > 0 {
+			logger.Fatalf("-remoteWrite.shardByURL.labels and -remoteWrite.shardByURL.ignoreLabels cannot be set simultaneously; " +
+				"see https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages")
 		}
-		if *showRemoteWriteURL {
-			sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
+		groupIdx := g
+		if groupName == "" {
+			groupIdx = -1
 		}
-		rwctxs[i] = newRemoteWriteCtx(i, remoteWriteURL, maxInmemoryBlocks, sanitizedURL)
+		rwctxGroup := remoteWriteCtxGroup{
+			idx:                    groupIdx,
+			name:                   groupName,
+			streamAggrKeepInput:    streamAggrKeepInput.GetOptionalArg(groupName, 0),
+			streamAggrDropInput:    streamAggrDropInput.GetOptionalArg(groupName, 0),
+			shardByURL:             shardByURL,
+			shardByURLLabels:       newMapFromStrings(shardLabels),
+			shardByURLIgnoreLabels: newMapFromStrings(shardIgnoreLabels),
+			replicas:               replicas,
+			rowsPushedAfterRelabel: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rows_pushed_after_relabel_total{group=%q}`, groupName)),
+			rowsDroppedByRelabel:   metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{group=%q}`, groupName)),
+		}
+
+		maxInMemoryBlocks := memory.Allowed() / len(allURLs) / *maxRowsPerBlock / 100 * len(urls)
+		if maxInMemoryBlocks / *queues > 100 {
+			// There is no much sense in keeping higher number of blocks in memory,
+			// since this means that the producer outperforms consumer and the queue
+			// will continue growing. It is better storing the queue to file.
+			maxInMemoryBlocks = 100 * *queues
+		}
+		if maxInMemoryBlocks < 2 {
+			maxInMemoryBlocks = 2
+		}
+		rwctxGroup.ctxs = make([]*remoteWriteCtx, len(urls))
+		for i := range urls {
+			rwctx := newRemoteWriteCtx(groupName, i, at, maxInMemoryBlocks)
+			rwctxGroup.ctxs[i] = rwctx
+		}
+		rwctxGroups[g] = &rwctxGroup
 	}
-	return rwctxs
+	return rwctxGroups
 }
 
 var (
@@ -376,16 +357,12 @@ func Stop() {
 	close(configReloaderStopCh)
 	configReloaderWG.Wait()
 
-	sasGlobal.Load().MustStop()
-	if deduplicatorGlobal != nil {
-		deduplicatorGlobal.MustStop()
-		deduplicatorGlobal = nil
-	}
+	allAggrConfigs.MustStop()
 
-	for _, rwctx := range rwctxs {
-		rwctx.MustStop()
+	for _, rwctxGroup := range rwctxGroups {
+		rwctxGroup.MustStop()
 	}
-	rwctxs = nil
+	rwctxGroups = nil
 
 	if sl := hourlySeriesLimiter; sl != nil {
 		sl.MustStop()
@@ -433,23 +410,24 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnF
 	// if some of remote storage systems cannot keep up with the data ingestion rate.
 	// this shortcut is only applicable if all remote writes have disableOnDiskQueue = true
 	if disableOnDiskQueueAll {
-		for _, rwctx := range rwctxs {
-			if rwctx.fq.IsWriteBlocked() {
-				rwctx.pushFailures.Inc()
-				if forceDropSamplesOnFailure || rwctx.dropSamplesOnOverload {
-					// Just drop samples
-					rwctx.rowsDroppedOnPushFailure.Add(rowsCount)
-					continue
+		for _, rwctxGroup := range rwctxGroups {
+			for _, rwctx := range rwctxGroup.ctxs {
+				if rwctx.fq.IsWriteBlocked() {
+					rwctx.pushFailures.Inc()
+					if forceDropSamplesOnFailure || rwctx.dropSamplesOnOverload {
+						// Just drop samples
+						rwctx.rowsDroppedOnPushFailure.Add(rowsCount)
+						continue
+					}
+					return false
 				}
-				return false
 			}
 		}
 	}
 
 	var rctx *relabelCtx
-	rcs := allRelabelConfigs.Load()
-	pcsGlobal := rcs.global
-	if pcsGlobal.Len() > 0 {
+	rcs := allRelabelConfigs.global.Load()
+	if rcs.Len() > 0 {
 		rctx = getRelabelCtx()
 		defer putRelabelCtx(rctx)
 	}
@@ -458,7 +436,7 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnF
 	// Allow up to 10x of labels per each block on average.
 	maxLabelsPerBlock := 10 * maxSamplesPerBlock
 
-	sas := sasGlobal.Load()
+	ac := allAggrConfigs.global.Load()
 
 	for len(tss) > 0 {
 		// Process big tss in smaller blocks in order to reduce the maximum memory usage
@@ -488,22 +466,24 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnF
 		}
 		if rctx != nil {
 			rowsCountBeforeRelabel := getRowsCount(tssBlock)
-			tssBlock = rctx.applyRelabeling(tssBlock, pcsGlobal)
+			tssBlock = rctx.applyRelabeling(tssBlock, rcs)
 			rowsCountAfterRelabel := getRowsCount(tssBlock)
 			rowsDroppedByGlobalRelabel.Add(rowsCountBeforeRelabel - rowsCountAfterRelabel)
 		}
 		sortLabelsIfNeeded(tssBlock)
 		tssBlock = limitSeriesCardinality(tssBlock)
-		if sas.IsEnabled() {
-			matchIdxs := matchIdxsPool.Get()
-			matchIdxs.B = sas.Push(tssBlock, matchIdxs.B)
-			if !*streamAggrGlobalKeepInput {
-				tssBlock = dropAggregatedSeries(tssBlock, matchIdxs.B, *streamAggrGlobalDropInput)
+		if ac != nil {
+			if ac.aggregator.IsEnabled() {
+				matchIdxs := matchIdxsPool.Get()
+				matchIdxs.B = ac.aggregator.Push(tssBlock, matchIdxs.B)
+				if !*streamAggrGlobalKeepInput {
+					tssBlock = dropAggregatedSeries(tssBlock, matchIdxs.B, *streamAggrGlobalDropInput)
+				}
+				matchIdxsPool.Put(matchIdxs)
+			} else if ac.deduplicator != nil {
+				ac.deduplicator.Push(tssBlock)
+				tssBlock = tssBlock[:0]
 			}
-			matchIdxsPool.Put(matchIdxs)
-		} else if deduplicatorGlobal != nil {
-			deduplicatorGlobal.Push(tssBlock)
-			tssBlock = tssBlock[:0]
 		}
 		if !tryPushBlockToRemoteStorages(tssBlock, forceDropSamplesOnFailure) {
 			return false
@@ -524,90 +504,141 @@ func tryPushBlockToRemoteStorages(tssBlock []prompbmarshal.TimeSeries, forceDrop
 		return true
 	}
 
-	if len(rwctxs) == 1 {
-		// Fast path - just push data to the configured single remote storage
-		return rwctxs[0].TryPush(tssBlock, forceDropSamplesOnFailure)
-	}
+	var anyPushFailed atomic.Bool
+	var wg sync.WaitGroup
 
 	// We need to push tssBlock to multiple remote storages.
 	// This is either sharding or replication depending on -remoteWrite.shardByURL command-line flag value.
-	if *shardByURL && *shardByURLReplicas < len(rwctxs) {
-		// Shard tssBlock samples among rwctxs.
-		replicas := *shardByURLReplicas
-		if replicas <= 0 {
-			replicas = 1
-		}
-		return tryShardingBlockAmongRemoteStorages(tssBlock, replicas, forceDropSamplesOnFailure)
-	}
-
-	// Replicate tssBlock samples among rwctxs.
-	// Push tssBlock to remote storage systems in parallel in order to reduce
-	// the time needed for sending the data to multiple remote storage systems.
-	var wg sync.WaitGroup
-	wg.Add(len(rwctxs))
-	var anyPushFailed atomic.Bool
-	for _, rwctx := range rwctxs {
-		go func(rwctx *remoteWriteCtx) {
+	for _, group := range rwctxGroups {
+		wg.Add(1)
+		go func(rwctxGroup *remoteWriteCtxGroup, tss []prompbmarshal.TimeSeries) {
 			defer wg.Done()
-			if !rwctx.TryPush(tssBlock, forceDropSamplesOnFailure) {
+			if !rwctxGroup.TryPush(tss, forceDropSamplesOnFailure) {
 				anyPushFailed.Store(true)
 			}
-		}(rwctx)
+		}(group, tssBlock)
 	}
 	wg.Wait()
 	return !anyPushFailed.Load()
 }
 
-func tryShardingBlockAmongRemoteStorages(tssBlock []prompbmarshal.TimeSeries, replicas int, forceDropSamplesOnFailure bool) bool {
-	x := getTSSShards(len(rwctxs))
-	defer putTSSShards(x)
-
-	shards := x.shards
-	tmpLabels := promutils.GetLabels()
-	for _, ts := range tssBlock {
-		hashLabels := ts.Labels
-		if len(shardByURLLabelsMap) > 0 {
-			hashLabels = tmpLabels.Labels[:0]
-			for _, label := range ts.Labels {
-				if _, ok := shardByURLLabelsMap[label.Name]; ok {
-					hashLabels = append(hashLabels, label)
-				}
-			}
-			tmpLabels.Labels = hashLabels
-		} else if len(shardByURLIgnoreLabelsMap) > 0 {
-			hashLabels = tmpLabels.Labels[:0]
-			for _, label := range ts.Labels {
-				if _, ok := shardByURLIgnoreLabelsMap[label.Name]; !ok {
-					hashLabels = append(hashLabels, label)
-				}
-			}
-			tmpLabels.Labels = hashLabels
+func (rwctxGroup *remoteWriteCtxGroup) TryPush(tss []prompbmarshal.TimeSeries, forceDropSamplesOnFailure bool) bool {
+	// Apply relabeling
+	var rctx *relabelCtx
+	var v *[]prompbmarshal.TimeSeries
+	if rwctxGroup.idx >= 0 {
+		pcs := allRelabelConfigs.perGroup[rwctxGroup.idx].Load()
+		if pcs.Len() > 0 {
+			rctx = getRelabelCtx()
+			// Make a copy of tss before applying relabeling in order to prevent
+			// from affecting time series for other remoteWrite.url configs.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/467
+			// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/599
+			v = tssPool.Get().(*[]prompbmarshal.TimeSeries)
+			tss = append(*v, tss...)
+			rowsCountBeforeRelabel := getRowsCount(tss)
+			tss = rctx.applyRelabeling(tss, pcs)
+			rowsCountAfterRelabel := getRowsCount(tss)
+			rwctxGroup.rowsDroppedByRelabel.Add(rowsCountBeforeRelabel - rowsCountAfterRelabel)
 		}
-		h := getLabelsHash(hashLabels)
-		idx := h % uint64(len(shards))
-		i := 0
-		for {
-			shards[idx] = append(shards[idx], ts)
-			i++
-			if i >= replicas {
-				break
-			}
-			idx++
-			if idx >= uint64(len(shards)) {
-				idx = 0
+		rowsCount := getRowsCount(tss)
+		rwctxGroup.rowsPushedAfterRelabel.Add(rowsCount)
+		ac := allAggrConfigs.perGroup[rwctxGroup.idx].Load()
+		if ac != nil {
+			if ac.aggregator.IsEnabled() {
+				matchIdxs := matchIdxsPool.Get()
+				matchIdxs.B = ac.aggregator.Push(tss, matchIdxs.B)
+				if !rwctxGroup.streamAggrKeepInput {
+					if rctx == nil {
+						rctx = getRelabelCtx()
+						// Make a copy of tss before dropping aggregated series
+						v = tssPool.Get().(*[]prompbmarshal.TimeSeries)
+						tss = append(*v, tss...)
+					}
+					tss = dropAggregatedSeries(tss, matchIdxs.B, rwctxGroup.streamAggrDropInput)
+				}
+				matchIdxsPool.Put(matchIdxs)
+			} else if ac.deduplicator != nil {
+				ac.deduplicator.Push(tss)
+				tss = tss[:0]
 			}
 		}
 	}
-	promutils.PutLabels(tmpLabels)
+	// Try pushing the data to remote storage
+	ok := rwctxGroup.tryPushInternal(tss, forceDropSamplesOnFailure)
 
-	// Push sharded samples to remote storage systems in parallel in order to reduce
+	// Return back relabeling contexts to the pool
+	if rctx != nil {
+		*v = prompbmarshal.ResetTimeSeries(tss)
+		tssPool.Put(v)
+		putRelabelCtx(rctx)
+	}
+	return ok
+}
+
+func (rwctxGroup *remoteWriteCtxGroup) pushInternalTrackDropped(tss []prompbmarshal.TimeSeries) {
+	if rwctxGroup.tryPushInternal(tss, true) {
+		return
+	}
+}
+
+func (rwctxGroup *remoteWriteCtxGroup) tryPushInternal(tssBlock []prompbmarshal.TimeSeries, forceDropSamplesOnFailure bool) bool {
+	var shards [][]prompbmarshal.TimeSeries
+	if rwctxGroup.shardByURL {
+		x := getTSSShards(len(rwctxGroup.ctxs))
+		defer putTSSShards(x)
+		shards = x.shards
+		tmpLabels := promutils.GetLabels()
+		for _, ts := range tssBlock {
+			hashLabels := ts.Labels
+			if len(rwctxGroup.shardByURLLabels) > 0 {
+				hashLabels = tmpLabels.Labels[:0]
+				for _, label := range ts.Labels {
+					if _, ok := rwctxGroup.shardByURLLabels[label.Name]; ok {
+						hashLabels = append(hashLabels, label)
+					}
+				}
+				tmpLabels.Labels = hashLabels
+			} else if len(rwctxGroup.shardByURLIgnoreLabels) > 0 {
+				hashLabels = tmpLabels.Labels[:0]
+				for _, label := range ts.Labels {
+					if _, ok := rwctxGroup.shardByURLIgnoreLabels[label.Name]; !ok {
+						hashLabels = append(hashLabels, label)
+					}
+				}
+				tmpLabels.Labels = hashLabels
+			}
+			h := getLabelsHash(hashLabels)
+			idx := h % uint64(len(shards))
+			i := 0
+			for {
+				shards[idx] = append(shards[idx], ts)
+				i++
+				if i >= rwctxGroup.replicas {
+					break
+				}
+				idx++
+				if idx >= uint64(len(shards)) {
+					idx = 0
+				}
+			}
+		}
+		promutils.PutLabels(tmpLabels)
+	}
+
+	// Push tssBlock to remote storage systems in parallel in order to reduce
 	// the time needed for sending the data to multiple remote storage systems.
-	var wg sync.WaitGroup
+	var shard []prompbmarshal.TimeSeries
 	var anyPushFailed atomic.Bool
-	for i, rwctx := range rwctxs {
-		shard := shards[i]
-		if len(shard) == 0 {
-			continue
+	var wg sync.WaitGroup
+	for i, ctx := range rwctxGroup.ctxs {
+		if len(shards) == 0 {
+			shard = tssBlock
+		} else {
+			shard = shards[i]
+			if len(shard) == 0 {
+				continue
+			}
 		}
 		wg.Add(1)
 		go func(rwctx *remoteWriteCtx, tss []prompbmarshal.TimeSeries) {
@@ -615,7 +646,7 @@ func tryShardingBlockAmongRemoteStorages(tssBlock []prompbmarshal.TimeSeries, re
 			if !rwctx.TryPush(tss, forceDropSamplesOnFailure) {
 				anyPushFailed.Store(true)
 			}
-		}(rwctx, shard)
+		}(ctx, shard)
 	}
 	wg.Wait()
 	return !anyPushFailed.Load()
@@ -737,13 +768,30 @@ var (
 	rowsDroppedByGlobalRelabel    = metrics.NewCounter("vmagent_remotewrite_global_relabel_metrics_dropped_total")
 )
 
+type remoteWriteCtxGroup struct {
+	idx                    int
+	name                   string
+	streamAggrKeepInput    bool
+	streamAggrDropInput    bool
+	shardByURL             bool
+	shardByURLLabels       map[string]struct{}
+	shardByURLIgnoreLabels map[string]struct{}
+	replicas               int
+	ctxs                   []*remoteWriteCtx
+	rowsPushedAfterRelabel *metrics.Counter
+	rowsDroppedByRelabel   *metrics.Counter
+}
+
+func (rwctxGroup *remoteWriteCtxGroup) MustStop() {
+	for _, rwctx := range rwctxGroup.ctxs {
+		rwctx.MustStop()
+	}
+}
+
 type remoteWriteCtx struct {
 	idx int
 	fq  *persistentqueue.FastQueue
 	c   *client
-
-	sas          atomic.Pointer[streamaggr.Aggregators]
-	deduplicator *streamaggr.Deduplicator
 
 	streamAggrKeepInput   bool
 	streamAggrDropInput   bool
@@ -760,28 +808,53 @@ type remoteWriteCtx struct {
 	rowsDroppedOnPushFailure *metrics.Counter
 }
 
-func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks int, sanitizedURL string) *remoteWriteCtx {
+func newRemoteWriteCtx(groupName string, argIdx int, at *auth.Token, maxInmemoryBlocks int) *remoteWriteCtx {
+	rawURL, err := remoteWriteURLs.Get(groupName, argIdx)
+	if err != nil {
+		logger.Fatalf("bug: cannot find -remoteWrite.url=%q: %s", rawURL, err)
+	}
+	remoteWriteURL, err := url.Parse(rawURL)
+	if err != nil {
+		logger.Fatalf("invalid -remoteWrite.url=%q: %s", rawURL, err)
+	}
+	sanitizedURL := fmt.Sprintf("%d:secret-url", argIdx+1)
+	if at != nil {
+		// Construct full remote_write url for the given tenant according to https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
+		remoteWriteURL.Path = fmt.Sprintf("%s/insert/%d:%d/prometheus/api/v1/write", remoteWriteURL.Path, at.AccountID, at.ProjectID)
+		sanitizedURL = fmt.Sprintf("%s:%d:%d", sanitizedURL, at.AccountID, at.ProjectID)
+	}
+	if *showRemoteWriteURL {
+		sanitizedURL = fmt.Sprintf("%d:%s", argIdx+1, remoteWriteURL)
+	}
+
 	// strip query params, otherwise changing params resets pq
 	pqURL := *remoteWriteURL
 	pqURL.RawQuery = ""
 	pqURL.Fragment = ""
-	h := xxhash.Sum64([]byte(pqURL.String()))
+	var queueName string
+	if groupName != "" {
+		queueName = groupName
+	} else {
+		queueName = pqURL.String()
+	}
+	h := xxhash.Sum64([]byte(queueName))
 	queuePath := filepath.Join(*tmpDataPath, persistentQueueDirname, fmt.Sprintf("%d_%016X", argIdx+1, h))
-	maxPendingBytes := maxPendingBytesPerURL.GetOptionalArg(argIdx)
+	maxPendingBytes := maxPendingBytesPerURL.GetOptionalArg(groupName, argIdx)
 	if maxPendingBytes != 0 && maxPendingBytes < persistentqueue.DefaultChunkFileSize {
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4195
 		logger.Warnf("rounding the -remoteWrite.maxDiskUsagePerURL=%d to the minimum supported value: %d", maxPendingBytes, persistentqueue.DefaultChunkFileSize)
 		maxPendingBytes = persistentqueue.DefaultChunkFileSize
 	}
-	isPQDisabled := disableOnDiskQueue.GetOptionalArg(argIdx)
+	isPQDisabled := disableOnDiskQueue.GetOptionalArg(groupName, argIdx)
+	metricLabels := fmt.Sprintf("path=%q, url=%q, group=%q", queuePath, sanitizedURL, groupName)
 	fq := persistentqueue.MustOpenFastQueue(queuePath, sanitizedURL, maxInmemoryBlocks, maxPendingBytes, isPQDisabled)
-	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_data_bytes{path=%q, url=%q}`, queuePath, sanitizedURL), func() float64 {
+	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_data_bytes{%s}`, metricLabels), func() float64 {
 		return float64(fq.GetPendingBytes())
 	})
-	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_inmemory_blocks{path=%q, url=%q}`, queuePath, sanitizedURL), func() float64 {
+	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_inmemory_blocks{%s}`, metricLabels), func() float64 {
 		return float64(fq.GetInmemoryQueueLen())
 	})
-	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_queue_blocked{path=%q, url=%q}`, queuePath, sanitizedURL), func() float64 {
+	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_queue_blocked{%s}`, metricLabels), func() float64 {
 		if fq.IsWriteBlocked() {
 			return 1
 		}
@@ -791,15 +864,15 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 	var c *client
 	switch remoteWriteURL.Scheme {
 	case "http", "https":
-		c = newHTTPClient(argIdx, remoteWriteURL.String(), sanitizedURL, fq, *queues)
+		c = newHTTPClient(groupName, argIdx, remoteWriteURL.String(), sanitizedURL, fq, *queues)
 	default:
 		logger.Fatalf("unsupported scheme: %s for remoteWriteURL: %s, want `http`, `https`", remoteWriteURL.Scheme, sanitizedURL)
 	}
-	c.init(argIdx, *queues, sanitizedURL)
+	c.init(groupName, argIdx, *queues, sanitizedURL)
 
 	// Initialize pss
-	sf := significantFigures.GetOptionalArg(argIdx)
-	rd := roundDigits.GetOptionalArg(argIdx)
+	sf := significantFigures.GetOptionalArg(groupName, argIdx)
+	rd := roundDigits.GetOptionalArg(groupName, argIdx)
 	pssLen := *queues
 	if n := cgroup.AvailableCPUs(); pssLen > n {
 		// There is no sense in running more than availableCPUs concurrent pendingSeries,
@@ -811,56 +884,35 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 		pss[i] = newPendingSeries(fq, c.useVMProto, sf, rd)
 	}
 
+	ctxIdx := argIdx
+	if groupName != "" {
+		ctxIdx = -1
+	}
 	rwctx := &remoteWriteCtx{
-		idx: argIdx,
+		idx: ctxIdx,
 		fq:  fq,
 		c:   c,
 		pss: pss,
 
-		dropSamplesOnOverload: dropSamplesOnOverload.GetOptionalArg(argIdx),
+		streamAggrKeepInput:   streamAggrKeepInput.GetOptionalArg(groupName, argIdx),
+		streamAggrDropInput:   streamAggrDropInput.GetOptionalArg(groupName, argIdx),
+		dropSamplesOnOverload: dropSamplesOnOverload.GetOptionalArg(groupName, argIdx),
 		disableOnDiskQueue:    isPQDisabled,
 
-		rowsPushedAfterRelabel: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rows_pushed_after_relabel_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
-		rowsDroppedByRelabel:   metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
+		rowsPushedAfterRelabel: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rows_pushed_after_relabel_total{%s}`, metricLabels)),
+		rowsDroppedByRelabel:   metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{%s}`, metricLabels)),
 
-		pushFailures:             metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_push_failures_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
-		rowsDroppedOnPushFailure: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_samples_dropped_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
-	}
-
-	// Initialize sas
-	sasFile, sasOpts := getStreamAggrOpts(argIdx)
-	if sasFile != "" {
-		sas, err := newStreamAggrConfig(argIdx, rwctx.pushInternalTrackDropped)
-		if err != nil {
-			logger.Fatalf("cannot initialize stream aggregators from -remoteWrite.streamAggr.config=%q: %s", sasFile, err)
-		}
-		rwctx.sas.Store(sas)
-		rwctx.streamAggrKeepInput = streamAggrKeepInput.GetOptionalArg(argIdx)
-		rwctx.streamAggrDropInput = streamAggrDropInput.GetOptionalArg(argIdx)
-		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, sasFile)).Set(1)
-		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_success_timestamp_seconds{path=%q}`, sasFile)).Set(fasttime.UnixTimestamp())
-	} else if sasOpts.DedupInterval > 0 {
-		rwctx.deduplicator = streamaggr.NewDeduplicator(rwctx.pushInternalTrackDropped, sasOpts.DedupInterval, sasOpts.DropInputLabels, sasOpts.Alias)
+		pushFailures:             metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_push_failures_total{%s}`, metricLabels)),
+		rowsDroppedOnPushFailure: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_samples_dropped_total{%s}`, metricLabels)),
 	}
 
 	return rwctx
 }
 
 func (rwctx *remoteWriteCtx) MustStop() {
-	// sas and deduplicator must be stopped before rwctx is closed
-	// because sas can write pending series to rwctx.pss if there are any
-	sas := rwctx.sas.Swap(nil)
-	sas.MustStop()
-
-	if rwctx.deduplicator != nil {
-		rwctx.deduplicator.MustStop()
-		rwctx.deduplicator = nil
-	}
-
 	for _, ps := range rwctx.pss {
 		ps.MustStop()
 	}
-	rwctx.idx = 0
 	rwctx.pss = nil
 	rwctx.fq.UnblockAllReaders()
 	rwctx.c.MustStop()
@@ -881,42 +933,42 @@ func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries, forceDropSa
 	// Apply relabeling
 	var rctx *relabelCtx
 	var v *[]prompbmarshal.TimeSeries
-	rcs := allRelabelConfigs.Load()
-	pcs := rcs.perURL[rwctx.idx]
-	if pcs.Len() > 0 {
-		rctx = getRelabelCtx()
-		// Make a copy of tss before applying relabeling in order to prevent
-		// from affecting time series for other remoteWrite.url configs.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/467
-		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/599
-		v = tssPool.Get().(*[]prompbmarshal.TimeSeries)
-		tss = append(*v, tss...)
-		rowsCountBeforeRelabel := getRowsCount(tss)
-		tss = rctx.applyRelabeling(tss, pcs)
-		rowsCountAfterRelabel := getRowsCount(tss)
-		rwctx.rowsDroppedByRelabel.Add(rowsCountBeforeRelabel - rowsCountAfterRelabel)
-	}
-	rowsCount := getRowsCount(tss)
-	rwctx.rowsPushedAfterRelabel.Add(rowsCount)
-
-	// Apply stream aggregation or deduplication if they are configured
-	sas := rwctx.sas.Load()
-	if sas.IsEnabled() {
-		matchIdxs := matchIdxsPool.Get()
-		matchIdxs.B = sas.Push(tss, matchIdxs.B)
-		if !rwctx.streamAggrKeepInput {
-			if rctx == nil {
-				rctx = getRelabelCtx()
-				// Make a copy of tss before dropping aggregated series
-				v = tssPool.Get().(*[]prompbmarshal.TimeSeries)
-				tss = append(*v, tss...)
-			}
-			tss = dropAggregatedSeries(tss, matchIdxs.B, rwctx.streamAggrDropInput)
+	if rwctx.idx >= 0 {
+		pcs := allRelabelConfigs.perCtx[rwctx.idx].Load()
+		if pcs.Len() > 0 {
+			rctx = getRelabelCtx()
+			// Make a copy of tss before applying relabeling in order to prevent
+			// from affecting time series for other remoteWrite.url configs.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/467
+			// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/599
+			v = tssPool.Get().(*[]prompbmarshal.TimeSeries)
+			tss = append(*v, tss...)
+			rowsCountBeforeRelabel := getRowsCount(tss)
+			tss = rctx.applyRelabeling(tss, pcs)
+			rowsCountAfterRelabel := getRowsCount(tss)
+			rwctx.rowsDroppedByRelabel.Add(rowsCountBeforeRelabel - rowsCountAfterRelabel)
 		}
-		matchIdxsPool.Put(matchIdxs)
-	} else if rwctx.deduplicator != nil {
-		rwctx.deduplicator.Push(tss)
-		tss = tss[:0]
+		rowsCount := getRowsCount(tss)
+		rwctx.rowsPushedAfterRelabel.Add(rowsCount)
+
+		// Apply stream aggregation or deduplication if they are configured
+		ac := allAggrConfigs.perCtx[rwctx.idx].Load()
+		if ac != nil {
+			if ac.aggregator.IsEnabled() {
+				matchIdxs := matchIdxsPool.Get()
+				matchIdxs.B = ac.aggregator.Push(tss, matchIdxs.B)
+				if !rwctx.streamAggrKeepInput {
+					if rctx == nil {
+						rctx = getRelabelCtx()
+						// Make a copy of tss before dropping aggregated series
+						v = tssPool.Get().(*[]prompbmarshal.TimeSeries)
+						tss = append(*v, tss...)
+					}
+					tss = dropAggregatedSeries(tss, matchIdxs.B, rwctx.streamAggrDropInput)
+				}
+				matchIdxsPool.Put(matchIdxs)
+			}
+		}
 	}
 
 	// Try pushing the data to remote storage
@@ -965,7 +1017,7 @@ func (rwctx *remoteWriteCtx) pushInternalTrackDropped(tss []prompbmarshal.TimeSe
 		logger.Panicf("BUG: tryPushInternal must return true if -remoteWrite.disableOnDiskQueue isn't set")
 	}
 	rwctx.pushFailures.Inc()
-	if dropSamplesOnOverload.GetOptionalArg(rwctx.idx) {
+	if rwctx.dropSamplesOnOverload {
 		rowsCount := getRowsCount(tss)
 		rwctx.rowsDroppedOnPushFailure.Add(rowsCount)
 	}

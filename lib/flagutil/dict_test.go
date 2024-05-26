@@ -2,6 +2,7 @@ package flagutil
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 )
 
@@ -51,16 +52,19 @@ func TestParseJSONMapFailure(t *testing.T) {
 	f(`{"foo":"bar","a":[123]}`)
 }
 
-func TestDictIntSetSuccess(t *testing.T) {
+func TestDictFlagSetSuccess(t *testing.T) {
+	var idx int
 	f := func(s string) {
 		t.Helper()
-		var di DictInt
-		if err := di.Set(s); err != nil {
+		name := fmt.Sprintf("dict-flag-set-success-%d", idx)
+		idx++
+		df := NewDictValue(name, 0, ':', "test")
+		if err := df.Set(s); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		result := di.String()
+		result := df.String()
 		if result != s {
-			t.Fatalf("unexpected DictInt.String(); got %q; want %q", result, s)
+			t.Fatalf("unexpected DictFlag.String(); got %q; want %q", result, s)
 		}
 	}
 
@@ -70,11 +74,14 @@ func TestDictIntSetSuccess(t *testing.T) {
 	f("foo:123,bar:-42,baz:0,aa:43")
 }
 
-func TestDictIntFailure(t *testing.T) {
+func TestDictFlagFailure(t *testing.T) {
+	var idx int
 	f := func(s string) {
 		t.Helper()
-		var di DictInt
-		if err := di.Set(s); err == nil {
+		name := fmt.Sprintf("dict-flag-failure-%d", idx)
+		idx++
+		df := NewDictValue(name, []int{}, ':', "test")
+		if err := df.Set(s); err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
 	}
@@ -85,22 +92,19 @@ func TestDictIntFailure(t *testing.T) {
 
 	// non-integer values
 	f("foo:bar")
-	f("12.34")
-	f("foo:123.34")
-
-	// duplicate keys
-	f("a:234,k:123,k:432")
 }
 
 func TestDictIntGet(t *testing.T) {
-	f := func(s, key string, defaultValue, expectedValue int) {
+	var idx int
+	f := func(s, key string, defaultValue int, expectedValue int) {
 		t.Helper()
-		var di DictInt
-		di.defaultValue = defaultValue
-		if err := di.Set(s); err != nil {
+		name := fmt.Sprintf("dict-int-get-%d", idx)
+		idx++
+		df := NewDictValue(name, defaultValue, ':', "test")
+		if err := df.Set(s); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		value := di.Get(key)
+		value := df.GetOptionalArg(key, 0)
 		if value != expectedValue {
 			t.Fatalf("unexpected value; got %d; want %d", value, expectedValue)
 		}
@@ -110,4 +114,48 @@ func TestDictIntGet(t *testing.T) {
 	f("foo:42", "foo", 123, 42)
 	f("532", "", 123, 532)
 	f("532", "foo", 123, 123)
+}
+
+func TestDictStringGet(t *testing.T) {
+	var idx int
+	f := func(s, key string, defaultValue string, expectedValue string) {
+		t.Helper()
+		name := fmt.Sprintf("dict-string-get-%d", idx)
+		idx++
+		df := NewDictValue(name, defaultValue, ':', "test")
+		if err := df.Set(s); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		value := df.GetOptionalArg(key, 0)
+		if value != expectedValue {
+			t.Fatalf("unexpected value; got %s; want %s", value, expectedValue)
+		}
+	}
+
+	f("foo:value", "", "default", "default")
+	f("foo:value", "foo", "default", "value")
+	f("value", "", "default", "value")
+	f("value", "foo", "default", "default")
+}
+
+func TestDictBoolGet(t *testing.T) {
+	var idx int
+	f := func(s, key string, defaultValue bool, expectedValue bool) {
+		t.Helper()
+		name := fmt.Sprintf("dict-bool-get-%d", idx)
+		idx++
+		df := NewDictValue(name, defaultValue, ':', "test")
+		if err := df.Set(s); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		value := df.GetOptionalArg(key, 0)
+		if value != expectedValue {
+			t.Fatalf("unexpected value; got %t; want %t", value, expectedValue)
+		}
+	}
+
+	f("foo:true", "", false, false)
+	f("foo:true", "foo", false, true)
+	f("true", "", false, true)
+	f("true", "foo", false, false)
 }

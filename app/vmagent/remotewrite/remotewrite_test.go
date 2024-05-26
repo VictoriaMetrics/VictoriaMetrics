@@ -5,6 +5,7 @@ import (
 	"math"
 	"os"
 	"reflect"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -57,16 +58,30 @@ func TestGetLabelsHash_Distribution(t *testing.T) {
 func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 	f := func(streamAggrConfig, relabelConfig string, dedupInterval time.Duration, keepInput, dropInput bool, input string) {
 		t.Helper()
-		perURLRelabel, err := promrelabel.ParseRelabelConfigsData([]byte(relabelConfig))
+		perCtxRelabel, err := promrelabel.ParseRelabelConfigsData([]byte(relabelConfig))
 		if err != nil {
 			t.Fatalf("cannot load relabel configs: %s", err)
 		}
-		rcs := &relabelConfigs{
-			perURL: []*promrelabel.ParsedConfigs{
-				perURLRelabel,
-			},
+		allRelabelConfigs = &relabelConfigs{}
+		allRelabelConfigs.perCtx = make([]atomic.Pointer[promrelabel.ParsedConfigs], 1)
+		allRelabelConfigs.perCtx[0].Store(perCtxRelabel)
+
+		perCtxAggr := &aggrConfig{}
+		if dedupInterval > 0 {
+			perCtxAggr.deduplicator = streamaggr.NewDeduplicator(nil, dedupInterval, nil)
 		}
-		allRelabelConfigs.Store(rcs)
+
+		if len(streamAggrConfig) > 0 {
+			f := createFile(t, []byte(streamAggrConfig))
+			sas, err := streamaggr.LoadFromFile(f.Name(), nil, nil)
+			if err != nil {
+				t.Fatalf("cannot load streamaggr configs: %s", err)
+			}
+			perCtxAggr.aggregator = sas
+		}
+		allAggrConfigs = &aggrConfigs{}
+		allAggrConfigs.perCtx = make([]atomic.Pointer[aggrConfig], 1)
+		allAggrConfigs.perCtx[0].Store(perCtxAggr)
 
 		pss := make([]*pendingSeries, 1)
 		pss[0] = newPendingSeries(nil, true, 0, 100)
@@ -77,18 +92,6 @@ func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 			pss:                    pss,
 			rowsPushedAfterRelabel: metrics.GetOrCreateCounter(`foo`),
 			rowsDroppedByRelabel:   metrics.GetOrCreateCounter(`bar`),
-		}
-		if dedupInterval > 0 {
-			rwctx.deduplicator = streamaggr.NewDeduplicator(nil, dedupInterval, nil, "global")
-		}
-
-		if len(streamAggrConfig) > 0 {
-			f := createFile(t, []byte(streamAggrConfig))
-			sas, err := streamaggr.LoadFromFile(f.Name(), nil, streamaggr.Options{})
-			if err != nil {
-				t.Fatalf("cannot load streamaggr configs: %s", err)
-			}
-			rwctx.sas.Store(sas)
 		}
 
 		inputTss := mustParsePromMetrics(input)

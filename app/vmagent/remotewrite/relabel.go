@@ -3,14 +3,18 @@ package remotewrite
 import (
 	"flag"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -20,7 +24,7 @@ var (
 		"to all the metrics before sending them to -remoteWrite.url. See also -remoteWrite.urlRelabelConfig. "+
 		"The path can point either to local file or to http url. "+
 		"See https://docs.victoriametrics.com/vmagent/#relabeling")
-	relabelConfigPaths = flagutil.NewArrayString("remoteWrite.urlRelabelConfig", "Optional path to relabel configs for the corresponding -remoteWrite.url. "+
+	relabelConfigPaths = flagutil.NewDictValue("remoteWrite.urlRelabelConfig", "", '/', "Optional path to relabel configs for the corresponding -remoteWrite.url. "+
 		"See also -remoteWrite.relabelConfig. The path can point either to local file or to http url. "+
 		"See https://docs.victoriametrics.com/vmagent/#relabeling")
 
@@ -33,41 +37,98 @@ var labelsGlobal []prompbmarshal.Label
 
 // CheckRelabelConfigs checks -remoteWrite.relabelConfig and -remoteWrite.urlRelabelConfig.
 func CheckRelabelConfigs() error {
-	_, err := loadRelabelConfigs()
-	return err
-}
-
-func loadRelabelConfigs() (*relabelConfigs, error) {
-	var rcs relabelConfigs
-	if *relabelConfigPathGlobal != "" {
-		global, err := promrelabel.LoadRelabelConfigs(*relabelConfigPathGlobal)
-		if err != nil {
-			return nil, fmt.Errorf("cannot load -remoteWrite.relabelConfig=%q: %w", *relabelConfigPathGlobal, err)
-		}
-		rcs.global = global
+	rcs := &relabelConfigs{}
+	if err := rcs.loadRelabelConfigs(); err != nil {
+		return err
 	}
-	if len(*relabelConfigPaths) > len(*remoteWriteURLs) {
-		return nil, fmt.Errorf("too many -remoteWrite.urlRelabelConfig args: %d; it mustn't exceed the number of -remoteWrite.url args: %d",
-			len(*relabelConfigPaths), (len(*remoteWriteURLs)))
-	}
-	rcs.perURL = make([]*promrelabel.ParsedConfigs, len(*remoteWriteURLs))
-	for i, path := range *relabelConfigPaths {
-		if len(path) == 0 {
-			// Skip empty relabel config.
-			continue
-		}
-		prc, err := promrelabel.LoadRelabelConfigs(path)
-		if err != nil {
-			return nil, fmt.Errorf("cannot load relabel configs from -remoteWrite.urlRelabelConfig=%q: %w", path, err)
-		}
-		rcs.perURL[i] = prc
-	}
-	return &rcs, nil
+	return nil
 }
 
 type relabelConfigs struct {
-	global *promrelabel.ParsedConfigs
-	perURL []*promrelabel.ParsedConfigs
+	global   atomic.Pointer[promrelabel.ParsedConfigs]
+	perGroup []atomic.Pointer[promrelabel.ParsedConfigs]
+	perCtx   []atomic.Pointer[promrelabel.ParsedConfigs]
+}
+
+func (rcs *relabelConfigs) reloadConfigs() {
+	logger.Infof("reloading relabel configs pointed by -remoteWrite.relabelConfig and -remoteWrite.urlRelabelConfig")
+	if err := rcs.loadRelabelConfigs(); err != nil {
+		logger.Errorf("partually updated relabel configs; error: %s", err)
+		return
+	}
+	logger.Infof("successfully reloaded relabel configs")
+}
+
+func (rcs *relabelConfigs) loadRelabelConfigs() error {
+	if err := rcs.loadInternalRelabelConfigs(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func updateRelabelConfig(rc *atomic.Pointer[promrelabel.ParsedConfigs], path, group, flag string) error {
+	if path != "" {
+		if group != "" {
+			flag = fmt.Sprintf(`-%s="%s/%s"`, flag, group, path)
+		} else {
+			flag = fmt.Sprintf("-%s=%q", flag, path)
+		}
+		metricLabels := fmt.Sprintf("path=%q", path)
+		metrics.GetOrCreateCounter(fmt.Sprintf("vmagent_relabel_config_reloads_total{%s}", metricLabels)).Inc()
+		rcs, err := promrelabel.LoadRelabelConfigs(path)
+		if err != nil {
+			metrics.GetOrCreateCounter(fmt.Sprintf("vmagent_relabel_config_reloads_errors_total{%s}", metricLabels)).Inc()
+			metrics.GetOrCreateCounter(fmt.Sprintf("vmagent_relabel_config_last_reload_successful{%s}", metricLabels)).Set(0)
+			return fmt.Errorf("cannot load -%s: %w", flag, err)
+		}
+		rc.Store(rcs)
+		metrics.GetOrCreateCounter(fmt.Sprintf("vmagent_relabel_config_last_reload_successful{%s}", metricLabels)).Set(1)
+		metrics.GetOrCreateCounter(fmt.Sprintf("vmagent_relabel_config_last_reload_success_timestamp_seconds{%s}", metricLabels)).Set(fasttime.UnixTimestamp())
+	}
+	return nil
+}
+
+func (rcs *relabelConfigs) loadInternalRelabelConfigs() error {
+	flag := "remoteWrite.relabelConfig"
+	if err := updateRelabelConfig(&rcs.global, *relabelConfigPathGlobal, "", flag); err != nil {
+		return err
+	}
+	remoteWriteGroups := remoteWriteURLs.Keys()
+	relabelConfigGroups := relabelConfigPaths.Keys()
+	if len(rcs.perGroup) == 0 {
+		rcs.perGroup = make([]atomic.Pointer[promrelabel.ParsedConfigs], len(remoteWriteGroups))
+	}
+	perCtxURLs := remoteWriteURLs.GetAll("")
+	if len(rcs.perCtx) == 0 {
+		rcs.perCtx = make([]atomic.Pointer[promrelabel.ParsedConfigs], len(perCtxURLs))
+	}
+	flag = "remoteWrite.urlRelabelConfig"
+	for g, groupName := range relabelConfigGroups {
+		if !slices.Contains(remoteWriteGroups, groupName) {
+			return fmt.Errorf("no -remoteWrite.url args in group %q, which appeared in -%s", groupName, flag)
+		}
+		relabelConfigs := relabelConfigPaths.GetAll(groupName)
+		if groupName != "" {
+			if len(relabelConfigs) > 1 {
+				return fmt.Errorf("no more than 1 -%s flag (defined %d) should be defined for group %q", flag, len(relabelConfigs), groupName)
+			}
+			path := relabelConfigPaths.GetOptionalArg(groupName, 0)
+			if err := updateRelabelConfig(&rcs.perGroup[g], path, groupName, flag); err != nil {
+				return err
+			}
+		} else {
+			if len(relabelConfigs) > len(perCtxURLs) {
+				return fmt.Errorf("too many ungrouped -%s args: %d; it mustn't exceed the number of -remoteWrite.url args: %d", flag,
+					len(relabelConfigs), len(perCtxURLs))
+			}
+			for i, path := range relabelConfigs {
+				if err := updateRelabelConfig(&rcs.perCtx[i], path, groupName, flag); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // initLabelsGlobal must be called after parsing command-line flags.

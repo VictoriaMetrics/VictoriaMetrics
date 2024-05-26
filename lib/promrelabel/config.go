@@ -156,6 +156,9 @@ func (pcs *ParsedConfigs) String() string {
 
 // LoadRelabelConfigs loads relabel configs from the given path.
 func LoadRelabelConfigs(path string) (*ParsedConfigs, error) {
+	if path == "" {
+		return nil, nil
+	}
 	data, err := fscore.ReadFileOrHTTP(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read `relabel_configs` from %q: %w", path, err)

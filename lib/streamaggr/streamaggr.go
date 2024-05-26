@@ -69,6 +69,9 @@ var (
 //
 // The returned Aggregators must be stopped with MustStop() when no longer needed.
 func LoadFromFile(path string, pushFunc PushFunc, opts Options) (*Aggregators, error) {
+	if path == "" {
+		return nil, nil
+	}
 	data, err := fscore.ReadFileOrHTTP(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot load aggregators: %w", err)

@@ -3,6 +3,9 @@ package remotewrite
 import (
 	"flag"
 	"fmt"
+	"slices"
+	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -36,41 +39,176 @@ var (
 		"before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels")
 
 	// Per URL config
-	streamAggrConfig = flagutil.NewArrayString("remoteWrite.streamAggr.config", "Optional path to file with stream aggregation config. "+
+	streamAggrConfig = flagutil.NewDictValue("remoteWrite.streamAggr.config", "", '/', "Optional path to file with stream aggregation config. "+
 		"See https://docs.victoriametrics.com/stream-aggregation/ . "+
 		"See also -remoteWrite.streamAggr.keepInput, -remoteWrite.streamAggr.dropInput and -remoteWrite.streamAggr.dedupInterval")
-	streamAggrDropInput = flagutil.NewArrayBool("remoteWrite.streamAggr.dropInput", "Whether to drop all the input samples after the aggregation "+
+	streamAggrDropInput = flagutil.NewDictValue("remoteWrite.streamAggr.dropInput", false, '/', "Whether to drop all the input samples after the aggregation "+
 		"with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples "+
 		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation/")
-	streamAggrKeepInput = flagutil.NewArrayBool("remoteWrite.streamAggr.keepInput", "Whether to keep all the input samples after the aggregation "+
+	streamAggrKeepInput = flagutil.NewDictValue("remoteWrite.streamAggr.keepInput", false, '/', "Whether to keep all the input samples after the aggregation "+
 		"with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples "+
 		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.dropInput and https://docs.victoriametrics.com/stream-aggregation/")
-	streamAggrDedupInterval = flagutil.NewArrayDuration("remoteWrite.streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval before optional aggregation "+
+	streamAggrDedupInterval = flagutil.NewDictValue("remoteWrite.streamAggr.dedupInterval", time.Duration(0), '/', "Input samples are de-duplicated with this interval before optional aggregation "+
 		"with -remoteWrite.streamAggr.config . See also -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation/#deduplication")
-	streamAggrIgnoreOldSamples = flagutil.NewArrayBool("remoteWrite.streamAggr.ignoreOldSamples", "Whether to ignore input samples with old timestamps outside the current "+
+	streamAggrIgnoreOldSamples = flagutil.NewDictValue("remoteWrite.streamAggr.ignoreOldSamples", false, '/', "Whether to ignore input samples with old timestamps outside the current "+
 		"aggregation interval for the corresponding -remoteWrite.streamAggr.config . "+
 		"See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples")
-	streamAggrIgnoreFirstIntervals = flag.Int("remoteWrite.streamAggr.ignoreFirstIntervals", 0, "Number of aggregation intervals to skip after the start. Increase this value if "+
+	streamAggrIgnoreFirstIntervals = flagutil.NewDictValue("remoteWrite.streamAggr.ignoreFirstIntervals", 0, '/', "Number of aggregation intervals to skip after the start. Increase this value if "+
 		"you observe incorrect aggregation results after vmagent restarts. It could be caused by receiving unordered delayed data from clients pushing data into the vmagent. "+
 		"See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start")
-	streamAggrDropInputLabels = flagutil.NewArrayString("remoteWrite.streamAggr.dropInputLabels", "An optional list of labels to drop from samples "+
+	streamAggrDropInputLabels = flagutil.NewDictValue("remoteWrite.streamAggr.dropInputLabels", "", '/', "An optional list of labels to drop from samples "+
 		"before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels")
 )
 
 // CheckStreamAggrConfigs checks -remoteWrite.streamAggr.config and -streamAggr.config.
 func CheckStreamAggrConfigs() error {
 	pushNoop := func(_ []prompbmarshal.TimeSeries) {}
+	as := &aggrConfigs{}
+	if err := as.loadAggrConfigs(pushNoop); err != nil {
+		return err
+	}
+	return nil
+}
 
-	if _, err := newStreamAggrConfig(-1, pushNoop); err != nil {
-		return fmt.Errorf("could not load -streamAggr.config stream aggregation config: %w", err)
+type aggrConfig struct {
+	aggregator   *streamaggr.Aggregators
+	deduplicator *streamaggr.Deduplicator
+}
+
+type aggrConfigs struct {
+	global   atomic.Pointer[aggrConfig]
+	perGroup []atomic.Pointer[aggrConfig]
+	perCtx   []atomic.Pointer[aggrConfig]
+}
+
+func (as *aggrConfigs) reloadConfigs() {
+	logger.Infof("reloading aggregators configs pointed by -streamAggr.config and -remoteWrite.streamAggr.config")
+	if err := as.loadAggrConfigs(nil); err != nil {
+		logger.Errorf("cannot reload aggregators configs; preserving the previous configs; error: %s", err)
+		return
 	}
-	if len(*streamAggrConfig) > len(*remoteWriteURLs) {
-		return fmt.Errorf("too many -remoteWrite.streamAggr.config args: %d; it mustn't exceed the number of -remoteWrite.url args: %d",
-			len(*streamAggrConfig), len(*remoteWriteURLs))
+	logger.Infof("successfully reloaded aggregators configs")
+}
+
+func (as *aggrConfigs) loadAggrConfigs(pushFunc streamaggr.PushFunc) error {
+	if err := as.loadInternalAggrConfigs(pushFunc); err != nil {
+		return err
 	}
-	for idx := range *streamAggrConfig {
-		if _, err := newStreamAggrConfig(idx, pushNoop); err != nil {
-			return err
+	return nil
+}
+
+func aggrMustStop(ac *atomic.Pointer[aggrConfig]) {
+	sac := ac.Load()
+	if sac != nil {
+		sac.deduplicator.MustStop()
+		sac.aggregator.MustStop()
+	}
+}
+
+func (as *aggrConfigs) MustStop() {
+	aggrMustStop(&as.global)
+	for i := range as.perGroup {
+		aggrMustStop(&as.perGroup[i])
+	}
+	for i := range as.perCtx {
+		aggrMustStop(&as.perCtx[i])
+	}
+}
+
+func updateAggrConfig(as *atomic.Pointer[aggrConfig], pushFunc streamaggr.PushFunc, opts streamaggr.Options, path, group, flag string) error {
+	acOld := as.Load()
+	acNew := aggrConfig{}
+	var err error
+	if path != "" {
+		metricLabels := fmt.Sprintf("path=%q", path)
+		if group != "" {
+			flag = fmt.Sprintf(`-%s="%s/%s"`, flag, group, path)
+		} else {
+			flag = fmt.Sprintf("-%s=%q", flag, path)
+		}
+		metrics.GetOrCreateCounter(fmt.Sprintf("vmagent_streamaggr_config_reloads_total{%s}", metricLabels)).Inc()
+		acNew.aggregator, err = streamaggr.LoadFromFile(path, pushFunc, opts)
+		if err != nil {
+			metrics.GetOrCreateCounter(fmt.Sprintf("vmagent_streamaggr_config_reloads_errors_total{%s}", metricLabels)).Inc()
+			metrics.GetOrCreateCounter(fmt.Sprintf("vmagent_streamaggr_config_last_reload_successful{%s}", metricLabels)).Set(0)
+			return fmt.Errorf("cannot load -%s: %w", flag, err)
+		}
+		if acOld == nil {
+			as.Store(&acNew)
+		} else if !acOld.aggregator.Equal(acNew.aggregator) {
+			acOld = as.Swap(&acNew)
+			acOld.aggregator.MustStop()
+			logger.Infof("successfully reloaded config at -%s", flag)
+		} else {
+			acNew.aggregator.MustStop()
+			logger.Infof(`the config at -%s wasn't changed`, flag)
+		}
+		metrics.GetOrCreateCounter(fmt.Sprintf("vmagent_streamaggr_config_last_reload_successful{%s}", metricLabels)).Set(1)
+		metrics.GetOrCreateCounter(fmt.Sprintf("vmagent_streamaggr_config_last_reload_success_timestamp_seconds{%s}", metricLabels)).Set(fasttime.UnixTimestamp())
+	} else if opts.DedupInterval > 0 && acOld == nil {
+		acNew.deduplicator = streamaggr.NewDeduplicator(pushFunc, opts.DedupInterval, opts.DropInputLabels, opts.Alias)
+		as.Store(&acNew)
+	}
+	return nil
+}
+
+func (as *aggrConfigs) loadInternalAggrConfigs(pushFunc streamaggr.PushFunc) error {
+	flag := "streamAggr.config"
+	path, opts := getAggrOpts("", -1)
+	var pf streamaggr.PushFunc
+	if pushFunc == nil {
+		pf = pushToRemoteStoragesDropFailed
+	} else {
+		pf = pushFunc
+	}
+	if err := updateAggrConfig(&as.global, pf, opts, path, "", flag); err != nil {
+		return err
+	}
+	remoteWriteGroups := remoteWriteURLs.Keys()
+	streamAggrGroups := streamAggrConfig.Keys()
+	if len(as.perGroup) == 0 {
+		as.perGroup = make([]atomic.Pointer[aggrConfig], len(remoteWriteGroups))
+	}
+	perCtxURLs := remoteWriteURLs.GetAll("")
+	if len(as.perCtx) == 0 {
+		as.perCtx = make([]atomic.Pointer[aggrConfig], len(perCtxURLs))
+	}
+	flag = "remoteWrite.streamAggr.config"
+	for g, groupName := range streamAggrGroups {
+		if pushFunc == nil {
+			pf = rwctxGroups[g].pushInternalTrackDropped
+		} else {
+			pf = pushFunc
+		}
+		if !slices.Contains(remoteWriteGroups, groupName) {
+			return fmt.Errorf("no -remoteWrite.url args in group %q, which appeared in -%s", groupName, flag)
+		}
+		aggrConfigs := streamAggrConfig.GetAll(groupName)
+		if groupName != "" {
+			if len(aggrConfigs) > 1 {
+				return fmt.Errorf("no more than 1 -%s flag (defined %d) should be defined for group %q", flag, len(aggrConfigs), groupName)
+			}
+			path, opts := getAggrOpts(groupName, 0)
+			if err := updateAggrConfig(&as.perGroup[g], pf, opts, path, groupName, flag); err != nil {
+				return err
+			}
+		} else {
+			perCtxURLs := remoteWriteURLs.GetAll(groupName)
+			if len(aggrConfigs) > len(perCtxURLs) {
+				return fmt.Errorf("too many ungrouped -%s args: %d; it mustn't exceed the number of -remoteWrite.url args: %d", flag,
+					len(aggrConfigs), len(perCtxURLs))
+			}
+			for i := range aggrConfigs {
+				if pushFunc == nil {
+					pf = rwctxGroups[g].ctxs[i].pushInternalTrackDropped
+				} else {
+					pf = pushFunc
+				}
+				path, opts := getAggrOpts(groupName, i)
+				if err := updateAggrConfig(&as.perCtx[i], pf, opts, path, groupName, flag); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	return nil
@@ -78,54 +216,10 @@ func CheckStreamAggrConfigs() error {
 
 // HasAnyStreamAggrConfigured checks if any streaming aggregation config provided
 func HasAnyStreamAggrConfigured() bool {
-	return len(*streamAggrConfig) > 0 || *streamAggrGlobalConfig != ""
+	return len(streamAggrConfig.Keys()) > 0 || *streamAggrGlobalConfig != ""
 }
 
-func reloadStreamAggrConfigs() {
-	reloadStreamAggrConfig(-1, pushToRemoteStoragesDropFailed)
-	for idx, rwctx := range rwctxs {
-		reloadStreamAggrConfig(idx, rwctx.pushInternalTrackDropped)
-	}
-}
-
-func reloadStreamAggrConfig(idx int, pushFunc streamaggr.PushFunc) {
-	path, opts := getStreamAggrOpts(idx)
-	logger.Infof("reloading stream aggregation configs pointed by -remoteWrite.streamAggr.config=%q", path)
-	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reloads_total{path=%q}`, path)).Inc()
-
-	sasNew, err := newStreamAggrConfigWithOpts(pushFunc, path, opts)
-	if err != nil {
-		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reloads_errors_total{path=%q}`, path)).Inc()
-		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, path)).Set(0)
-		logger.Errorf("cannot reload stream aggregation config at %q; continue using the previously loaded config; error: %s", path, err)
-		return
-	}
-
-	var sas *streamaggr.Aggregators
-	if idx < 0 {
-		sas = sasGlobal.Load()
-	} else {
-		sas = rwctxs[idx].sas.Load()
-	}
-
-	if !sasNew.Equal(sas) {
-		var sasOld *streamaggr.Aggregators
-		if idx < 0 {
-			sasOld = sasGlobal.Swap(sasNew)
-		} else {
-			sasOld = rwctxs[idx].sas.Swap(sasNew)
-		}
-		sasOld.MustStop()
-		logger.Infof("successfully reloaded stream aggregation configs at %q", path)
-	} else {
-		sasNew.MustStop()
-		logger.Infof("successfully reloaded stream aggregation configs at %q", path)
-	}
-	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, path)).Set(1)
-	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_success_timestamp_seconds{path=%q}`, path)).Set(fasttime.UnixTimestamp())
-}
-
-func getStreamAggrOpts(idx int) (string, streamaggr.Options) {
+func getAggrOpts(groupName string, idx int) (string, streamaggr.Options) {
 	if idx < 0 {
 		return *streamAggrGlobalConfig, streamaggr.Options{
 			DedupInterval:        streamAggrGlobalDedupInterval.Duration(),
@@ -137,31 +231,14 @@ func getStreamAggrOpts(idx int) (string, streamaggr.Options) {
 	}
 	url := fmt.Sprintf("%d:secret-url", idx+1)
 	if *showRemoteWriteURL {
-		url = fmt.Sprintf("%d:%s", idx+1, remoteWriteURLs.GetOptionalArg(idx))
+		url = fmt.Sprintf("%d:%s", idx+1, remoteWriteURLs.GetOptionalArg(groupName, idx))
 	}
 	opts := streamaggr.Options{
-		DedupInterval:        streamAggrDedupInterval.GetOptionalArg(idx),
-		DropInputLabels:      *streamAggrDropInputLabels,
-		IgnoreOldSamples:     streamAggrIgnoreOldSamples.GetOptionalArg(idx),
-		IgnoreFirstIntervals: *streamAggrIgnoreFirstIntervals,
+		DedupInterval:        streamAggrDedupInterval.GetOptionalArg(groupName, idx),
+		DropInputLabels:      streamAggrDropInputLabels.GetAll(groupName),
+		IgnoreOldSamples:     streamAggrIgnoreOldSamples.GetOptionalArg(groupName, idx),
+		IgnoreFirstIntervals: streamAggrIgnoreFirstIntervals.GetOptionalArg(groupName, idx),
 		Alias:                url,
 	}
-
-	if len(*streamAggrConfig) == 0 {
-		return "", opts
-	}
-	return streamAggrConfig.GetOptionalArg(idx), opts
-}
-
-func newStreamAggrConfigWithOpts(pushFunc streamaggr.PushFunc, path string, opts streamaggr.Options) (*streamaggr.Aggregators, error) {
-	if len(path) == 0 {
-		// Skip empty stream aggregation config.
-		return nil, nil
-	}
-	return streamaggr.LoadFromFile(path, pushFunc, opts)
-}
-
-func newStreamAggrConfig(idx int, pushFunc streamaggr.PushFunc) (*streamaggr.Aggregators, error) {
-	path, opts := getStreamAggrOpts(idx)
-	return newStreamAggrConfigWithOpts(pushFunc, path, opts)
+	return streamAggrConfig.GetOptionalArg(groupName, idx), opts
 }
