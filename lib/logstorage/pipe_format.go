@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"unsafe"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 // pipeFormat processes '| format ...' pipe.
@@ -169,8 +171,8 @@ func (pfp *pipeFormatProcessor) flush() error {
 }
 
 func (shard *pipeFormatProcessorShard) formatRow(pf *pipeFormat, br *blockResult, rowIdx int) string {
-	bb := bbPool.Get()
-	b := bb.B
+	b := shard.a.b
+	bLen := len(b)
 	for _, step := range pf.steps {
 		b = append(b, step.prefix...)
 		if step.field != "" {
@@ -183,11 +185,9 @@ func (shard *pipeFormatProcessorShard) formatRow(pf *pipeFormat, br *blockResult
 			}
 		}
 	}
-	bb.B = b
+	shard.a.b = b
 
-	v := shard.a.copyBytesToString(b)
-	bbPool.Put(bb)
-	return v
+	return bytesutil.ToUnsafeString(b[bLen:])
 }
 
 func parsePipeFormat(lex *lexer) (*pipeFormat, error) {
