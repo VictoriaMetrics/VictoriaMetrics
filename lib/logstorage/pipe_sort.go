@@ -75,7 +75,7 @@ func (ps *pipeSort) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (ps *pipeSort) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+func (ps *pipeSort) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
 	return ps, nil
 }
 
