@@ -27,8 +27,7 @@ func (fa *filterAnd) String() string {
 	a := make([]string, len(filters))
 	for i, f := range filters {
 		s := f.String()
-		switch f.(type) {
-		case *filterOr:
+		if _, ok := f.(*filterOr); ok {
 			s = "(" + s + ")"
 		}
 		a[i] = s

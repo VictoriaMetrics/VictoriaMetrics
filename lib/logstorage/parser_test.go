@@ -594,6 +594,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`NOT foo AND bar OR baz`, `!foo bar or baz`)
 	f(`NOT (foo AND bar) OR baz`, `!(foo bar) or baz`)
 	f(`foo OR bar AND baz`, `foo or bar baz`)
+	f(`foo bar or baz xyz`, `foo bar or baz xyz`)
+	f(`foo (bar or baz) xyz`, `foo (bar or baz) xyz`)
+	f(`foo or bar baz or xyz`, `foo or bar baz or xyz`)
+	f(`(foo or bar) (baz or xyz)`, `(foo or bar) (baz or xyz)`)
 	f(`(foo OR bar) AND baz`, `(foo or bar) baz`)
 
 	// parens
