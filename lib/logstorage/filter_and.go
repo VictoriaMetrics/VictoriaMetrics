@@ -97,14 +97,6 @@ func (fa *filterAnd) initMsgTokens() {
 	var a []string
 	for _, f := range fa.filters {
 		switch t := f.(type) {
-		case *filterPhrase:
-			if isMsgFieldName(t.fieldName) {
-				a = append(a, t.getTokens()...)
-			}
-		case *filterSequence:
-			if isMsgFieldName(t.fieldName) {
-				a = append(a, t.getTokens()...)
-			}
 		case *filterExact:
 			if isMsgFieldName(t.fieldName) {
 				a = append(a, t.getTokens()...)
@@ -113,7 +105,19 @@ func (fa *filterAnd) initMsgTokens() {
 			if isMsgFieldName(t.fieldName) {
 				a = append(a, t.getTokens()...)
 			}
+		case *filterPhrase:
+			if isMsgFieldName(t.fieldName) {
+				a = append(a, t.getTokens()...)
+			}
 		case *filterPrefix:
+			if isMsgFieldName(t.fieldName) {
+				a = append(a, t.getTokens()...)
+			}
+		case *filterRegexp:
+			if isMsgFieldName(t.fieldName) {
+				a = append(a, t.getTokens()...)
+			}
+		case *filterSequence:
 			if isMsgFieldName(t.fieldName) {
 				a = append(a, t.getTokens()...)
 			}
