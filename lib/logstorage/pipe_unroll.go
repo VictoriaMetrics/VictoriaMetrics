@@ -144,7 +144,7 @@ func (pup *pipeUnrollProcessor) writeBlock(workerID uint, br *blockResult) {
 			if needStop(pup.stopCh) {
 				return
 			}
-			shard.writeUnrolledFields(br, pu.fields, columnValues, rowIdx)
+			shard.writeUnrolledFields(pu.fields, columnValues, rowIdx)
 		} else {
 			fields = fields[:0]
 			for i, f := range pu.fields {
@@ -163,7 +163,7 @@ func (pup *pipeUnrollProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.a.reset()
 }
 
-func (shard *pipeUnrollProcessorShard) writeUnrolledFields(br *blockResult, fieldNames []string, columnValues [][]string, rowIdx int) {
+func (shard *pipeUnrollProcessorShard) writeUnrolledFields(fieldNames []string, columnValues [][]string, rowIdx int) {
 	// unroll values at rowIdx row
 
 	shard.unrolledValues = slicesutil.SetLength(shard.unrolledValues, len(columnValues))
