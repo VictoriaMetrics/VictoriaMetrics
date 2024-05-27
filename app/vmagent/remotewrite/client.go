@@ -520,15 +520,13 @@ func parseRetryAfterHeader(retryAfterString string) time.Duration {
 	}
 
 	// Retry-After could be in "Mon, 02 Jan 2006 15:04:05 GMT" format.
-	parsedTime, err := time.Parse(http.TimeFormat, retryAfterString)
-	if err == nil {
-		retryAfterDuration = time.Duration(time.Until(parsedTime).Seconds()) * time.Second
-	} else {
-		// Retry-After could be in seconds.
-		if d, err := strconv.Atoi(retryAfterString); err == nil {
-			retryAfterDuration = time.Duration(d) * time.Second
-		}
+	if parsedTime, err := time.Parse(http.TimeFormat, retryAfterString); err == nil {
+		return time.Duration(time.Until(parsedTime).Seconds()) * time.Second
+	}
+	// Retry-After could be in seconds.
+	if d, err := strconv.Atoi(retryAfterString); err == nil {
+		return time.Duration(d) * time.Second
 	}
 
-	return retryAfterDuration
+	return 0
 }
