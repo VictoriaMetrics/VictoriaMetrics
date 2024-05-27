@@ -353,6 +353,10 @@ func TestParseFilterStringRange(t *testing.T) {
 
 	f("string_range(foo, bar)", ``, "foo", "bar")
 	f(`abc:string_range("foo,bar", "baz) !")`, `abc`, `foo,bar`, `baz) !`)
+	f(">foo", ``, "foo\x00", maxStringRangeValue)
+	f("x:>=foo", `x`, "foo", maxStringRangeValue)
+	f("x:<foo", `x`, ``, `foo`)
+	f(`<="123"`, ``, ``, "123\x00")
 }
 
 func TestParseFilterRegexp(t *testing.T) {
@@ -527,9 +531,9 @@ func TestParseRangeFilter(t *testing.T) {
 	f(`foo:>=10.43`, `foo`, 10.43, inf)
 	f(`foo: >= -10.43`, `foo`, -10.43, inf)
 
-	f(`foo:<10.43`, `foo`, -inf, nextafter(10.43, -inf))
+	f(`foo:<10.43K`, `foo`, -inf, nextafter(10_430, -inf))
 	f(`foo: < -10.43`, `foo`, -inf, nextafter(-10.43, -inf))
-	f(`foo:<=10.43`, `foo`, -inf, 10.43)
+	f(`foo:<=10.43ms`, `foo`, -inf, 10_430_000)
 	f(`foo: <= 10.43`, `foo`, -inf, 10.43)
 }
 
@@ -802,6 +806,12 @@ func TestParseQuerySuccess(t *testing.T) {
 	// string_range filter
 	f(`string_range(foo, bar)`, `string_range(foo, bar)`)
 	f(`foo:string_range("foo, bar", baz)`, `foo:string_range("foo, bar", baz)`)
+	f(`foo:>bar`, `foo:>bar`)
+	f(`foo:>"1234"`, `foo:>"1234"`)
+	f(`>="abc"`, `>=abc`)
+	f(`foo:<bar`, `foo:<bar`)
+	f(`foo:<"-12.34"`, `foo:<"-12.34"`)
+	f(`<="abc < de"`, `<="abc < de"`)
 
 	// reserved field names
 	f(`"_stream"`, `_stream`)
@@ -1266,6 +1276,7 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`string_range(foo, bar`)
 	f(`string_range(foo)`)
 	f(`string_range(foo, bar, baz)`)
+	f(`>(`)
 
 	// missing filter
 	f(`| fields *`)

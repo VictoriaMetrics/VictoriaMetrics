@@ -255,6 +255,7 @@ The list of LogsQL filters:
 - [Phrase filter](#phrase-filter) - matches logs with the given phrase
 - [Prefix filter](#prefix-filter) - matches logs with the given word prefix or phrase prefix
 - [Substring filter](#substring-filter) - matches logs with the given substring
+- [Range comparison filter](#range-comparison-filter) - matches logs with field values in the provided range
 - [Empty value filter](#empty-value-filter) - matches logs without the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 - [Any value filter](#any-value-filter) - matches logs with the given non-empty [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 - [Exact filter](#exact-filter) - matches logs with the exact value
@@ -575,6 +576,26 @@ See also:
 - [Phrase filter](#phrase-filter)
 - [Regexp filter](#regexp-filter)
 
+
+### Range comparison filter
+
+LogsQL supports `field:>X`, `field:>=X`, `field:<X` and `field:<=X` filters, where `field` is the name of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+and `X` is either [numeric value](#numeric-values) or a string. For example, the following query returns logs containing numeric values for the `response_size` field bigger than 10*1024:
+
+```logsql
+response_size:>10KiB
+```
+
+The following query returns logs with `user` field containing string values smaller than 'John`:
+
+```logsql
+username:<"John"
+```
+
+See also:
+
+- [String range filter](#string-range-filter)
+- [Range filter](#range-filter)
 
 ### Empty value filter
 
@@ -906,16 +927,10 @@ for searching for log entries with request durations exceeding 4.2 seconds:
 request.duration:range(4.2, Inf)
 ```
 
-This query can be shortened to:
+This query can be shortened to by using [range comparison filter](#range-comparison-filter):
 
 ```logsql
 request.duration:>4.2
-```
-
-The following query returns logs with request durations smaller or equal to 1.5 seconds:
-
-```logsql
-request.duration:<=1.5
 ```
 
 The lower and the upper bounds of the `range(lower, upper)` are excluded by default. If they must be included, then substitute the corresponding
@@ -941,6 +956,7 @@ Performance tips:
 
 See also:
 
+- [Range comparison filter](#range-comparison-filter)
 - [IPv4 range filter](#ipv4-range-filter)
 - [String range filter](#string-range-filter)
 - [Length range filter](#length-range-filter)
@@ -1012,6 +1028,7 @@ For example, the `user.name:string_range(C, E)` would match `user.name` fields, 
 
 See also:
 
+- [Range comparison filter](#range-comparison-filter)
 - [Range filter](#range-filter)
 - [IPv4 range filter](#ipv4-range-filter)
 - [Length range filter](#length-range-filter)
