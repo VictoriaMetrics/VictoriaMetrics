@@ -1153,6 +1153,7 @@ LogsQL supports the following pipes:
 - [`delete`](#delete-pipe) deletes [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`extract`](#extract-pipe) extracts the sepcified text into the given log fields.
 - [`field_names`](#field_names-pipe) returns all the names of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`field_values`](#field_values-pipe) returns all the values for the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`fields`](#fields-pipe) selects the given set of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`filter`](#filter-pipe) applies additional [filters](#filters) to results.
 - [`format`](#format-pipe) formats ouptut field from input [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
@@ -1365,7 +1366,32 @@ Field names are returned in arbitrary order. Use [`sort` pipe](#sort-pipe) in or
 
 See also:
 
+- [`field_values` pipe](#field_values-pipe)
 - [`uniq` pipe](#uniq-pipe)
+
+### field_values pipe
+
+`| field_values field_name` [pipe](#pipe) returns all the values for the given [`field_name` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+with the number of logs per each value.
+For example, the following query returns all the values with the number of matching logs for the field `level` over logs logs for the last 5 minutes:
+
+```logsql
+_time:5m | field_values level
+```
+
+It is possible limiting the number of returned values by adding `limit N` to the end of the `field_values ...`. For example, the following query returns
+up to 10 values for the field `user_id` over logs for the last 5 minutes:
+
+```logsql
+_time:5m | field_values user_id limit 10
+```
+
+If the limit is reached, then the set of returned values is random. Also the number of matchin logs per each returned value is zeroed for performance reasons.
+
+See also:
+
+- [`field_names` pipe](#field_names-pipe)
+- [`uniq` pipe)(#uniq-pipe)
 
 ### fields pipe
 
