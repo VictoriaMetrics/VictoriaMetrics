@@ -252,7 +252,7 @@ func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 		s := fmt.Sprintf("stats by (%s) count() hits", byFieldsStr)
 		lex := newLexer(s)
 
-		ps, err := parsePipeStats(lex)
+		ps, err := parsePipeStats(lex, true)
 		if err != nil {
 			logger.Panicf("BUG: unexpected error when parsing [%s]: %s", s, err)
 		}

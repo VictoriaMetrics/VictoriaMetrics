@@ -86,6 +86,8 @@ func parsePipes(lex *lexer) ([]pipe, error) {
 			lex.nextToken()
 		case lex.isKeyword(")", ""):
 			return pipes, nil
+		default:
+			return nil, fmt.Errorf("unexpected token after [%s]: %q; expecting '|' or ')'", pipes[len(pipes)-1], lex.token)
 		}
 	}
 }
@@ -123,7 +125,7 @@ func parsePipe(lex *lexer) (pipe, error) {
 		}
 		return pf, nil
 	case lex.isKeyword("filter"):
-		pf, err := parsePipeFilter(lex)
+		pf, err := parsePipeFilter(lex, true)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'filter' pipe: %w", err)
 		}
@@ -177,7 +179,7 @@ func parsePipe(lex *lexer) (pipe, error) {
 		}
 		return ps, nil
 	case lex.isKeyword("stats"):
-		ps, err := parsePipeStats(lex)
+		ps, err := parsePipeStats(lex, true)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'stats' pipe: %w", err)
 		}
@@ -207,6 +209,22 @@ func parsePipe(lex *lexer) (pipe, error) {
 		}
 		return pu, nil
 	default:
+		lexState := lex.backupState()
+
+		// Try parsing stats pipe without 'stats' keyword
+		ps, err := parsePipeStats(lex, false)
+		if err == nil {
+			return ps, nil
+		}
+		lex.restoreState(lexState)
+
+		// Try parsing filter pipe without 'filter' keyword
+		pf, err := parsePipeFilter(lex, false)
+		if err == nil {
+			return pf, nil
+		}
+		lex.restoreState(lexState)
+
 		return nil, fmt.Errorf("unexpected pipe %q", lex.token)
 	}
 }

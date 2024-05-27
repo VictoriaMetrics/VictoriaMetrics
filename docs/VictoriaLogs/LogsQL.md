@@ -1391,14 +1391,20 @@ See also:
 
 ### filter pipe
 
-Sometimes it is needed to apply additional filters on the calculated results. This can be done with `| filter ...` [pipe](#pipes).
-The `filter` pipe can contain arbitrary [filters](#filters).
+The `| filter ...` [pipe](#pipes) allows filtering the selected logs entries with arbitrary [filters](#filters).
 
 For example, the following query returns `host` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values
 if the number of log messages with the `error` [word](#word) for them over the last hour exceeds `1_000`:
 
 ```logsql
 _time:1h error | stats by (host) count() logs_count | filter logs_count:> 1_000
+```
+
+It is allowed to omit `filter` prefix if the used filters do not clash with [pipe names](#pipes).
+So the following query is equivalent to the previous one:
+
+```logsql
+_time:1h error | stats by (host) count() logs_count | logs_count:> 1_000
 ```
 
 See also:
@@ -1759,6 +1765,12 @@ For example, the following query calculates the following stats for logs over th
 
 ```logsql
 _time:5m | stats count() logs_total, count_uniq(_stream) streams_total
+```
+
+It is allowed to omit `stats` prefix for convenience. So the following query is equivalent to the previous one:
+
+```logsql
+_time:5m | count() logs_total, count_uniq(_stream) streams_total
 ```
 
 See also:

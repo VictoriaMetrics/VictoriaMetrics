@@ -1094,7 +1094,7 @@ func TestParseQueryFailure(t *testing.T) {
 	f("")
 	f("|")
 	f("foo|")
-	f("foo|bar")
+	f("foo|bar(")
 	f("foo and")
 	f("foo OR ")
 	f("not")
@@ -1163,7 +1163,7 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`very long query with error aaa ffdfd fdfdfd fdfd:( ffdfdfdfdfd`)
 
 	// query with unexpected tail
-	f(`foo | bar`)
+	f(`foo | bar(`)
 
 	// unexpected comma
 	f(`foo,bar`)
@@ -1284,9 +1284,9 @@ func TestParseQueryFailure(t *testing.T) {
 	// missing pipe keyword
 	f(`foo |`)
 
-	// unknown pipe keyword
-	f(`foo | bar`)
-	f(`foo | fields bar | baz`)
+	// invlaid pipe
+	f(`foo | bar(`)
+	f(`foo | fields bar | baz(`)
 
 	// missing field in fields pipe
 	f(`foo | fields`)
