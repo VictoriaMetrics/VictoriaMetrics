@@ -869,8 +869,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | DELETE foo, bar`, `* | delete foo, bar`)
 
 	// limit and head pipe
-	f(`foo | limit 10`, `foo | limit 10`)
-	f(`foo | head 10`, `foo | limit 10`)
+	f(`foo | limit`, `foo | limit 10`)
+	f(`foo | head`, `foo | limit 10`)
+	f(`foo | limit 20`, `foo | limit 20`)
+	f(`foo | head 20`, `foo | limit 20`)
 	f(`foo | HEAD 1_123_432`, `foo | limit 1123432`)
 	f(`foo | head 10K`, `foo | limit 10000`)
 
@@ -1312,10 +1314,6 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | rm`)
 	f(`foo | delete foo,`)
 	f(`foo | delete foo,,`)
-
-	// missing limit and head pipe value
-	f(`foo | limit`)
-	f(`foo | head`)
 
 	// invalid limit pipe value
 	f(`foo | limit bar`)

@@ -20,7 +20,6 @@ func TestParsePipeLimitFailure(t *testing.T) {
 		expectParsePipeFailure(t, pipeStr)
 	}
 
-	f(`limit`)
 	f(`limit -10`)
 	f(`limit foo`)
 }
@@ -30,6 +29,17 @@ func TestPipeLimit(t *testing.T) {
 		t.Helper()
 		expectPipeResults(t, pipeStr, rows, rowsExpected)
 	}
+	f("limit", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+		},
+	})
 
 	f("limit 100", [][]Field{
 		{

@@ -1463,6 +1463,12 @@ _time:5m | limit 100
 
 `head` keyword can be used instead of `limit` for convenience. For example, `_time:5m | head 100` is equivalent to `_time:5m | limit 100`.
 
+The `N` in `head N` can be omitted - in this case up to 10 matching logs are returned:
+
+```logsql
+error | head
+```
+
 By default rows are selected in arbitrary order because of performance reasons, so the query above can return different sets of logs every time it is executed.
 [`sort` pipe](#sort-pipe) can be used for making sure the logs are in the same order before applying `limit ...` to them.
 
