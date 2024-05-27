@@ -524,8 +524,8 @@ func parseRetryAfterHeader(retryAfterString string) time.Duration {
 		return time.Duration(time.Until(parsedTime).Seconds()) * time.Second
 	}
 	// Retry-After could be in seconds.
-	if d, err := strconv.Atoi(retryAfterString); err == nil {
-		return time.Duration(d) * time.Second
+	if seconds, err := strconv.Atoi(retryAfterString); err == nil {
+		return time.Duration(seconds) * time.Second
 	}
 
 	return 0
