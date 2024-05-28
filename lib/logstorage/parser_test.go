@@ -1081,6 +1081,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`foo | # some comment | foo bar
 	  fields x # another comment
 	  |filter "foo#this#isn't a comment"#this is comment`, `foo | fields x | filter "foo#this#isn't a comment"`)
+
+	// skip 'stats' and 'filter' prefixes
+	f(`* | by (host) count() rows | rows:>10`, `* | stats by (host) count(*) as rows | filter rows:>10`)
+	f(`* | (host) count() rows, count() if (error) errors | rows:>10`, `* | stats by (host) count(*) as rows, count(*) if (error) as errors | filter rows:>10`)
 }
 
 func TestParseQueryFailure(t *testing.T) {
