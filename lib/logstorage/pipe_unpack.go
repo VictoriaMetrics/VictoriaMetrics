@@ -80,10 +80,12 @@ func (uctx *fieldsUnpackerContext) addField(name, value string) {
 	nameCopy := ""
 	fieldPrefix := uctx.fieldPrefix
 	if fieldPrefix != "" {
-		nameBuf := uctx.a.newBytes(len(fieldPrefix) + len(name))
-		copy(nameBuf, fieldPrefix)
-		copy(nameBuf[len(fieldPrefix):], name)
-		nameCopy = bytesutil.ToUnsafeString(nameBuf)
+		b := uctx.a.b
+		bLen := len(b)
+		b = append(b, fieldPrefix...)
+		b = append(b, name...)
+		uctx.a.b = b
+		nameCopy = bytesutil.ToUnsafeString(b[bLen:])
 	} else {
 		nameCopy = uctx.a.copyString(name)
 	}

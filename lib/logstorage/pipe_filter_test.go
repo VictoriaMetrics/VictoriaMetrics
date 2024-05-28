@@ -32,6 +32,14 @@ func TestPipeFilter(t *testing.T) {
 		expectPipeResults(t, pipeStr, rows, rowsExpected)
 	}
 
+	// filter mismatch, missing 'filter' prefix
+	f("abc", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+		},
+	}, [][]Field{})
+
 	// filter mismatch
 	f("filter abc", [][]Field{
 		{
@@ -39,6 +47,19 @@ func TestPipeFilter(t *testing.T) {
 			{"a", `test`},
 		},
 	}, [][]Field{})
+
+	// filter match, missing 'filter' prefix
+	f("foo", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+		},
+	})
 
 	// filter match
 	f("filter foo", [][]Field{

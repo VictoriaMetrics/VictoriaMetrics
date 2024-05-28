@@ -2,19 +2,20 @@ package logstorage
 
 import (
 	"fmt"
+	"regexp"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
-// pipeExtract processes '| extract ...' pipe.
+// pipeExtractRegexp processes '| extract_regexp ...' pipe.
 //
-// See https://docs.victoriametrics.com/victorialogs/logsql/#extract-pipe
-type pipeExtract struct {
+// See https://docs.victoriametrics.com/victorialogs/logsql/#extract_regexp-pipe
+type pipeExtractRegexp struct {
 	fromField string
 
-	ptn        *pattern
-	patternStr string
+	re       *regexp.Regexp
+	reFields []string
 
 	keepOriginalFields bool
 	skipEmptyResults   bool
@@ -23,12 +24,13 @@ type pipeExtract struct {
 	iff *ifFilter
 }
 
-func (pe *pipeExtract) String() string {
-	s := "extract"
+func (pe *pipeExtractRegexp) String() string {
+	s := "extract_regexp"
 	if pe.iff != nil {
 		s += " " + pe.iff.String()
 	}
-	s += " " + quoteTokenIfNeeded(pe.patternStr)
+	reStr := pe.re.String()
+	s += " " + quoteTokenIfNeeded(reStr)
 	if !isMsgFieldName(pe.fromField) {
 		s += " from " + quoteTokenIfNeeded(pe.fromField)
 	}
@@ -41,15 +43,15 @@ func (pe *pipeExtract) String() string {
 	return s
 }
 
-func (pe *pipeExtract) optimize() {
+func (pe *pipeExtractRegexp) optimize() {
 	pe.iff.optimizeFilterIn()
 }
 
-func (pe *pipeExtract) hasFilterInWithQuery() bool {
+func (pe *pipeExtractRegexp) hasFilterInWithQuery() bool {
 	return pe.iff.hasFilterInWithQuery()
 }
 
-func (pe *pipeExtract) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+func (pe *pipeExtractRegexp) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
 	iffNew, err := pe.iff.initFilterInValues(cache, getFieldValuesFunc)
 	if err != nil {
 		return nil, err
@@ -59,19 +61,19 @@ func (pe *pipeExtract) initFilterInValues(cache map[string][]string, getFieldVal
 	return &peNew, nil
 }
 
-func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet) {
+func (pe *pipeExtractRegexp) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	if neededFields.contains("*") {
 		unneededFieldsOrig := unneededFields.clone()
 		needFromField := false
-		for _, step := range pe.ptn.steps {
-			if step.field == "" {
+		for _, f := range pe.reFields {
+			if f == "" {
 				continue
 			}
-			if !unneededFieldsOrig.contains(step.field) {
+			if !unneededFieldsOrig.contains(f) {
 				needFromField = true
 			}
 			if !pe.keepOriginalFields && !pe.skipEmptyResults {
-				unneededFields.add(step.field)
+				unneededFields.add(f)
 			}
 		}
 		if needFromField {
@@ -85,14 +87,14 @@ func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet
 	} else {
 		neededFieldsOrig := neededFields.clone()
 		needFromField := false
-		for _, step := range pe.ptn.steps {
-			if step.field == "" {
+		for _, f := range pe.reFields {
+			if f == "" {
 				continue
 			}
-			if neededFieldsOrig.contains(step.field) {
+			if neededFieldsOrig.contains(f) {
 				needFromField = true
 				if !pe.keepOriginalFields && !pe.skipEmptyResults {
-					neededFields.remove(step.field)
+					neededFields.remove(f)
 				}
 			}
 		}
@@ -105,41 +107,63 @@ func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet
 	}
 }
 
-func (pe *pipeExtract) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
-	return &pipeExtractProcessor{
+func (pe *pipeExtractRegexp) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+	return &pipeExtractRegexpProcessor{
 		pe:     pe,
 		ppNext: ppNext,
 
-		shards: make([]pipeExtractProcessorShard, workersCount),
+		shards: make([]pipeExtractRegexpProcessorShard, workersCount),
 	}
 }
 
-type pipeExtractProcessor struct {
-	pe     *pipeExtract
+type pipeExtractRegexpProcessor struct {
+	pe     *pipeExtractRegexp
 	ppNext pipeProcessor
 
-	shards []pipeExtractProcessorShard
+	shards []pipeExtractRegexpProcessorShard
 }
 
-type pipeExtractProcessorShard struct {
-	pipeExtractProcessorShardNopad
+type pipeExtractRegexpProcessorShard struct {
+	pipeExtractRegexpProcessorShardNopad
 
 	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeExtractProcessorShardNopad{})%128]byte
+	_ [128 - unsafe.Sizeof(pipeExtractRegexpProcessorShardNopad{})%128]byte
 }
 
-type pipeExtractProcessorShardNopad struct {
-	bm  bitmap
-	ptn *pattern
+func (shard *pipeExtractRegexpProcessorShard) apply(re *regexp.Regexp, v string) {
+	shard.fields = slicesutil.SetLength(shard.fields, len(shard.rcs))
+	fields := shard.fields
+	clear(fields)
+
+	locs := re.FindStringSubmatchIndex(v)
+	if locs == nil {
+		return
+	}
+
+	for i := range fields {
+		start := locs[2*i]
+		if start < 0 {
+			// mismatch
+			continue
+		}
+		end := locs[2*i+1]
+		fields[i] = v[start:end]
+	}
+}
+
+type pipeExtractRegexpProcessorShardNopad struct {
+	bm bitmap
 
 	resultColumns []*blockResultColumn
 	resultValues  []string
 
 	rcs []resultColumn
 	a   arena
+
+	fields []string
 }
 
-func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
+func (pep *pipeExtractRegexpProcessor) writeBlock(workerID uint, br *blockResult) {
 	if len(br.timestamps) == 0 {
 		return
 	}
@@ -158,15 +182,12 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 		}
 	}
 
-	if shard.ptn == nil {
-		shard.ptn = pe.ptn.clone()
-	}
-	ptn := shard.ptn
+	reFields := pe.reFields
 
-	shard.rcs = slicesutil.SetLength(shard.rcs, len(ptn.fields))
+	shard.rcs = slicesutil.SetLength(shard.rcs, len(reFields))
 	rcs := shard.rcs
-	for i := range ptn.fields {
-		rcs[i].name = ptn.fields[i].name
+	for i := range reFields {
+		rcs[i].name = reFields[i]
 	}
 
 	c := br.getColumnByName(pe.fromField)
@@ -175,7 +196,9 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.resultColumns = slicesutil.SetLength(shard.resultColumns, len(rcs))
 	resultColumns := shard.resultColumns
 	for i := range resultColumns {
-		resultColumns[i] = br.getColumnByName(rcs[i].name)
+		if reFields[i] != "" {
+			resultColumns[i] = br.getColumnByName(rcs[i].name)
+		}
 	}
 
 	shard.resultValues = slicesutil.SetLength(shard.resultValues, len(rcs))
@@ -189,10 +212,12 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 				vPrev = v
 				hadUpdates = true
 
-				ptn.apply(v)
+				shard.apply(pe.re, v)
 
-				for i, f := range ptn.fields {
-					v := *f.value
+				for i, v := range shard.fields {
+					if reFields[i] == "" {
+						continue
+					}
 					if v == "" && pe.skipEmptyResults || pe.keepOriginalFields {
 						c := resultColumns[i]
 						if vOrig := c.getValueAtRow(br, rowIdx); vOrig != "" {
@@ -206,17 +231,23 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 			}
 		} else {
 			for i, c := range resultColumns {
-				resultValues[i] = c.getValueAtRow(br, rowIdx)
+				if reFields[i] != "" {
+					resultValues[i] = c.getValueAtRow(br, rowIdx)
+				}
 			}
 		}
 
 		for i, v := range resultValues {
-			rcs[i].addValue(v)
+			if reFields[i] != "" {
+				rcs[i].addValue(v)
+			}
 		}
 	}
 
 	for i := range rcs {
-		br.addResultColumn(&rcs[i])
+		if reFields[i] != "" {
+			br.addResultColumn(&rcs[i])
+		}
 	}
 	pep.ppNext.writeBlock(workerID, br)
 
@@ -226,13 +257,13 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.a.reset()
 }
 
-func (pep *pipeExtractProcessor) flush() error {
+func (pep *pipeExtractRegexpProcessor) flush() error {
 	return nil
 }
 
-func parsePipeExtract(lex *lexer) (*pipeExtract, error) {
-	if !lex.isKeyword("extract") {
-		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "extract")
+func parsePipeExtractRegexp(lex *lexer) (*pipeExtractRegexp, error) {
+	if !lex.isKeyword("extract_regexp") {
+		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "extract_regexp")
 	}
 	lex.nextToken()
 
@@ -251,9 +282,21 @@ func parsePipeExtract(lex *lexer) (*pipeExtract, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot read 'pattern': %w", err)
 	}
-	ptn, err := parsePattern(patternStr)
+	re, err := regexp.Compile(patternStr)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse 'pattern' %q: %w", patternStr, err)
+	}
+	reFields := re.SubexpNames()
+
+	hasNamedFields := false
+	for _, f := range reFields {
+		if f != "" {
+			hasNamedFields = true
+			break
+		}
+	}
+	if !hasNamedFields {
+		return nil, fmt.Errorf("the 'pattern' %q must contain at least a single named group in the form (?P<group_name>...)", patternStr)
 	}
 
 	// parse optional 'from ...' part
@@ -278,10 +321,10 @@ func parsePipeExtract(lex *lexer) (*pipeExtract, error) {
 		skipEmptyResults = true
 	}
 
-	pe := &pipeExtract{
+	pe := &pipeExtractRegexp{
 		fromField:          fromField,
-		ptn:                ptn,
-		patternStr:         patternStr,
+		re:                 re,
+		reFields:           reFields,
 		keepOriginalFields: keepOriginalFields,
 		skipEmptyResults:   skipEmptyResults,
 		iff:                iff,

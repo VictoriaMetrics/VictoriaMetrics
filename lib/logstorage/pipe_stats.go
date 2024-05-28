@@ -537,12 +537,13 @@ func (psp *pipeStatsProcessor) flush() error {
 	return nil
 }
 
-func parsePipeStats(lex *lexer) (*pipeStats, error) {
-	if !lex.isKeyword("stats") {
-		return nil, fmt.Errorf("expecting 'stats'; got %q", lex.token)
+func parsePipeStats(lex *lexer, needStatsKeyword bool) (*pipeStats, error) {
+	if needStatsKeyword {
+		if !lex.isKeyword("stats") {
+			return nil, fmt.Errorf("expecting 'stats'; got %q", lex.token)
+		}
+		lex.nextToken()
 	}
-
-	lex.nextToken()
 
 	var ps pipeStats
 	if lex.isKeyword("by", "(") {
