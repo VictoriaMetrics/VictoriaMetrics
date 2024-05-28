@@ -49,6 +49,20 @@ func TestPipeMath(t *testing.T) {
 		expectPipeResults(t, pipeStr, rows, rowsExpected)
 	}
 
+	f("math b+1 as a, a*2 as b, b-10.5+c as c", [][]Field{
+		{
+			{"a", "v1"},
+			{"b", "2"},
+			{"c", "3"},
+		},
+	}, [][]Field{
+		{
+			{"a", "3"},
+			{"b", "6"},
+			{"c", "-1.5"},
+		},
+	})
+
 	f("math 1 as a", [][]Field{
 		{
 			{"a", "v1"},

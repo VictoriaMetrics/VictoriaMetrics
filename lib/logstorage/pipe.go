@@ -100,7 +100,7 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'copy' pipe: %w", err)
 		}
 		return pc, nil
-	case lex.isKeyword("delete", "del", "rm"):
+	case lex.isKeyword("delete", "del", "rm", "drop"):
 		pd, err := parsePipeDelete(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'delete' pipe: %w", err)
@@ -110,6 +110,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 		pe, err := parsePipeExtract(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'extract' pipe: %w", err)
+		}
+		return pe, nil
+	case lex.isKeyword("extract_regexp"):
+		pe, err := parsePipeExtractRegexp(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'extract_regexp' pipe: %w", err)
 		}
 		return pe, nil
 	case lex.isKeyword("field_names"):

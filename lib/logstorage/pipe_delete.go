@@ -70,8 +70,8 @@ func (pdp *pipeDeleteProcessor) flush() error {
 }
 
 func parsePipeDelete(lex *lexer) (*pipeDelete, error) {
-	if !lex.isKeyword("delete", "del", "rm") {
-		return nil, fmt.Errorf("expecting 'delete', 'del' or 'rm'; got %q", lex.token)
+	if !lex.isKeyword("delete", "del", "rm", "drop") {
+		return nil, fmt.Errorf("expecting 'delete', 'del', 'rm' or 'drop'; got %q", lex.token)
 	}
 
 	var fields []string
