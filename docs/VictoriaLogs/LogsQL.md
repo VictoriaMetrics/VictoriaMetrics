@@ -1375,13 +1375,47 @@ So the following query is equivalent to the previous one:
 _time:5m | extract_regexp "(?P<ip>([0-9]+[.]){3}[0-9]+)"
 ```
 
+Add `keep_original_fields` to the end of `extract_regexp ...` when the original non-empty values of the fields mentioned in the pattern must be preserved
+instead of overwriting it with the extracted values. For example, the following query extracts `<ip>` only if the original value for `ip` field is missing or is empty:
+
+```logsql
+_time:5m | extract_regexp 'ip=(?P<ip>([0-9]+[.]){3}[0-9]+)' keep_original_fields
+```
+
+By default `extract_regexp` writes empty matching fields to the output, which may overwrite existing values. Add `skip_empty_results` to the end of `extract_regexp ...`
+in order to prevent from overwriting the existing values for the corresponding fields with empty values.
+For example, the following query preserves the original `ip` field value if `foo` field doesn't contain the matching ip:
+
+```logsql
+_time:5m | extract_regexp 'ip=(?P<ip>([0-9]+[.]){3}[0-9]+)' from foo skip_empty_results
+```
+
 Performance tip: it is recommended using [`extract` pipe](#extract-pipe) instead of `extract_regexp` for achieving higher query performance.
 
 See also:
 
+- [Conditional `extract_regexp`](#conditional-extract_regexp)
 - [`extract` pipe](#extract-pipe)
 - [`replace_regexp` pipe](#replace_regexp-pipe)
 - [`unpack_json` pipe](#unpack_json-pipe)
+
+#### Conditional extract_regexp
+
+If some log entries must be skipped from [`extract_regexp` pipe](#extract-pipe), then add `if (<filters>)` filter after the `extract` word.
+The `<filters>` can contain arbitrary [filters](#filters). For example, the following query extracts `ip`
+from [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) only
+if the input [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) doesn't contain `ip` field or this field is empty:
+
+```logsql
+_time:5m | extract_regexp if (ip:"") "ip=(?P<ip>([0-9]+[.]){3}[0-9]+)"
+```
+
+An alternative approach is to add `keep_original_fields` to the end of `extract_regexp`, in order to keep the original non-empty values for the extracted fields.
+For example, the following query is equivalent to the previous one:
+
+```logsql
+_time:5m | extract_regexp "ip=(?P<ip>([0-9]+[.]){3}[0-9]+)" keep_original_fields
+```
 
 ### field_names pipe
 
@@ -1637,6 +1671,13 @@ The following query is equivalent to the previous one:
 
 ```logsql
 _time:5m | pack_json
+```
+
+If only a subset of labels must be packed into JSON, then it must be listed inside `fields (...)` after `pack_json`. For example, the following query builds JSON with `foo` and `bar` fields
+only and stores the result in `baz` field:
+
+```logsql
+_time:5m | pack_json fields (foo, bar) as baz
 ```
 
 The `pack_json` doesn't modify or delete other labels. If you do not need them, then add [`| fields ...`](#fields-pipe) after the `pack_json` pipe. For example, the following query

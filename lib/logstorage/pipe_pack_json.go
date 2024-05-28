@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"fmt"
+	"slices"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -12,10 +13,15 @@ import (
 // See https://docs.victoriametrics.com/victorialogs/logsql/#pack_json-pipe
 type pipePackJSON struct {
 	resultField string
+
+	fields []string
 }
 
 func (pp *pipePackJSON) String() string {
 	s := "pack_json"
+	if len(pp.fields) > 0 {
+		s += " fields (" + fieldsToString(pp.fields) + ")"
+	}
 	if !isMsgFieldName(pp.resultField) {
 		s += " as " + quoteTokenIfNeeded(pp.resultField)
 	}
@@ -25,11 +31,19 @@ func (pp *pipePackJSON) String() string {
 func (pp *pipePackJSON) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	if neededFields.contains("*") {
 		if !unneededFields.contains(pp.resultField) {
-			unneededFields.reset()
+			if len(pp.fields) > 0 {
+				unneededFields.removeFields(pp.fields)
+			} else {
+				unneededFields.reset()
+			}
 		}
 	} else {
 		if neededFields.contains(pp.resultField) {
-			neededFields.add("*")
+			if len(pp.fields) > 0 {
+				neededFields.addFields(pp.fields)
+			} else {
+				neededFields.add("*")
+			}
 		}
 	}
 }
@@ -74,6 +88,8 @@ type pipePackJSONProcessorShardNopad struct {
 
 	buf    []byte
 	fields []Field
+
+	cs []*blockResultColumn
 }
 
 func (ppp *pipePackJSONProcessor) writeBlock(workerID uint, br *blockResult) {
@@ -85,7 +101,17 @@ func (ppp *pipePackJSONProcessor) writeBlock(workerID uint, br *blockResult) {
 
 	shard.rc.name = ppp.pp.resultField
 
-	cs := br.getColumns()
+	cs := shard.cs[:0]
+	if len(ppp.pp.fields) == 0 {
+		csAll := br.getColumns()
+		cs = append(cs, csAll...)
+	} else {
+		for _, f := range ppp.pp.fields {
+			c := br.getColumnByName(f)
+			cs = append(cs, c)
+		}
+	}
+	shard.cs = cs
 
 	buf := shard.buf[:0]
 	fields := shard.fields
@@ -122,10 +148,25 @@ func parsePackJSON(lex *lexer) (*pipePackJSON, error) {
 	}
 	lex.nextToken()
 
+	var fields []string
+	if lex.isKeyword("fields") {
+		lex.nextToken()
+		fs, err := parseFieldNamesInParens(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse fields: %w", err)
+		}
+		if slices.Contains(fs, "*") {
+			fs = nil
+		}
+		fields = fs
+	}
+
 	// parse optional 'as ...` part
 	resultField := "_msg"
 	if lex.isKeyword("as") {
 		lex.nextToken()
+	}
+	if !lex.isKeyword("|", ")", "") {
 		field, err := parseFieldName(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse result field for 'pack_json': %w", err)
@@ -135,6 +176,7 @@ func parsePackJSON(lex *lexer) (*pipePackJSON, error) {
 
 	pp := &pipePackJSON{
 		resultField: resultField,
+		fields:      fields,
 	}
 
 	return pp, nil
