@@ -12,6 +12,8 @@ func TestParsePipePackJSONSuccess(t *testing.T) {
 
 	f(`pack_json`)
 	f(`pack_json as x`)
+	f(`pack_json fields (a, b)`)
+	f(`pack_json fields (a, b) as x`)
 }
 
 func TestParsePipePackJSONFailure(t *testing.T) {
@@ -21,6 +23,7 @@ func TestParsePipePackJSONFailure(t *testing.T) {
 	}
 
 	f(`pack_json foo bar`)
+	f(`pack_json fields`)
 }
 
 func TestPipePackJSON(t *testing.T) {
@@ -73,6 +76,30 @@ func TestPipePackJSON(t *testing.T) {
 		},
 		{
 			{"a", `{"a":"b","c":"d"}`},
+			{"c", "d"},
+		},
+	})
+
+	// pack only the needed fields
+	f(`pack_json fields (foo, baz) a`, [][]Field{
+		{
+			{"_msg", "x"},
+			{"foo", `abc`},
+			{"bar", `cde`},
+		},
+		{
+			{"a", "b"},
+			{"c", "d"},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `x`},
+			{"foo", `abc`},
+			{"bar", `cde`},
+			{"a", `{"foo":"abc","baz":""}`},
+		},
+		{
+			{"a", `{"foo":"","baz":""}`},
 			{"c", "d"},
 		},
 	})

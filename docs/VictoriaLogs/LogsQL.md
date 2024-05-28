@@ -1560,7 +1560,7 @@ See also:
 ### math pipe
 
 `| math ...` [pipe](#pipes) performs mathematical calculations over numeric values stored in [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-For example, the following query divides `duration_msecs` field value by 1000, then rounds them to integer and stores the result in the `duration_secs` field:
+For example, the following query divides `duration_msecs` field value by 1000, then rounds it to integer and stores the result in the `duration_secs` field:
 
 ```logsql
 _time:5m | math round(duration_msecs / 1000) as duration_secs
@@ -1639,7 +1639,14 @@ The following query is equivalent to the previous one:
 _time:5m | pack_json
 ```
 
-The `pack_json` doesn't touch other labels. If you do not need them, then add [`| fields ...`](#fields-pipe) after the `pack_json` pipe. For example, the following query
+If only a subset of labels must be packed into JSON, then it must be listed inside `fields (...)` after `pack_json`. For example, the following query builds JSON with `foo` and `bar` fields
+only and stores the result in `baz` field:
+
+```logsql
+_time:5m | pack_json fields (foo, bar) as baz
+```
+
+The `pack_json` doesn't modify or delete other labels. If you do not need them, then add [`| fields ...`](#fields-pipe) after the `pack_json` pipe. For example, the following query
 leaves only the `foo` label with the original log fields packed into JSON:
 
 ```logsql
