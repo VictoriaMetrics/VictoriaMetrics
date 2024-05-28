@@ -148,6 +148,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'limit' pipe: %w", err)
 		}
 		return pl, nil
+	case lex.isKeyword("math"):
+		pm, err := parsePipeMath(lex, true)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'math' pipe: %w", err)
+		}
+		return pm, nil
 	case lex.isKeyword("offset", "skip"):
 		ps, err := parsePipeOffset(lex)
 		if err != nil {
@@ -221,6 +227,13 @@ func parsePipe(lex *lexer) (pipe, error) {
 		ps, err := parsePipeStats(lex, false)
 		if err == nil {
 			return ps, nil
+		}
+		lex.restoreState(lexState)
+
+		// Try parsing math pipe without 'math' keyword
+		pm, err := parsePipeMath(lex, false)
+		if err == nil {
+			return pm, nil
 		}
 		lex.restoreState(lexState)
 
