@@ -289,11 +289,30 @@ func matchUint64ByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue,
 }
 
 func matchRange(s string, minValue, maxValue float64) bool {
-	f, ok := tryParseFloat64(s)
+	f, ok := tryParseNumber(s)
 	if !ok {
 		return false
 	}
 	return f >= minValue && f <= maxValue
+}
+
+func tryParseNumber(s string) (float64, bool) {
+	if len(s) == 0 {
+		return 0, false
+	}
+	f, ok := tryParseFloat64(s)
+	if ok {
+		return f, true
+	}
+	nsecs, ok := tryParseDuration(s)
+	if ok {
+		return float64(nsecs), true
+	}
+	bytes, ok := tryParseBytes(s)
+	if ok {
+		return float64(bytes), true
+	}
+	return 0, false
 }
 
 func toUint64Range(minValue, maxValue float64) (uint64, uint64) {

@@ -17,18 +17,31 @@ func (po *pipeOffset) String() string {
 }
 
 func (po *pipeOffset) updateNeededFields(_, _ fieldsSet) {
+	// nothing to do
 }
 
-func (po *pipeOffset) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
+func (po *pipeOffset) optimize() {
+	// nothing to do
+}
+
+func (po *pipeOffset) hasFilterInWithQuery() bool {
+	return false
+}
+
+func (po *pipeOffset) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+	return po, nil
+}
+
+func (po *pipeOffset) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeOffsetProcessor{
 		po:     po,
-		ppBase: ppBase,
+		ppNext: ppNext,
 	}
 }
 
 type pipeOffsetProcessor struct {
 	po     *pipeOffset
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 
 	rowsProcessed atomic.Uint64
 }
@@ -45,13 +58,13 @@ func (pop *pipeOffsetProcessor) writeBlock(workerID uint, br *blockResult) {
 
 	rowsProcessed -= uint64(len(br.timestamps))
 	if rowsProcessed >= pop.po.offset {
-		pop.ppBase.writeBlock(workerID, br)
+		pop.ppNext.writeBlock(workerID, br)
 		return
 	}
 
 	rowsSkip := pop.po.offset - rowsProcessed
 	br.skipRows(int(rowsSkip))
-	pop.ppBase.writeBlock(workerID, br)
+	pop.ppNext.writeBlock(workerID, br)
 }
 
 func (pop *pipeOffsetProcessor) flush() error {

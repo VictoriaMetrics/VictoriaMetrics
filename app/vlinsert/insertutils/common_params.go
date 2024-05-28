@@ -14,7 +14,7 @@ import (
 
 // CommonParams contains common HTTP parameters used by log ingestion APIs.
 //
-// See https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#http-parameters
+// See https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters
 type CommonParams struct {
 	TenantID     logstorage.TenantID
 	TimeField    string

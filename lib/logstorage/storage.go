@@ -59,7 +59,7 @@ type StorageConfig struct {
 	// LogNewStreams indicates whether to log newly created log streams.
 	//
 	// This can be useful for debugging of high cardinality issues.
-	// https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#high-cardinality
+	// https://docs.victoriametrics.com/victorialogs/keyconcepts/#high-cardinality
 	LogNewStreams bool
 
 	// LogIngestedRows indicates whether to log the ingested log entries.
@@ -440,7 +440,7 @@ func (s *Storage) MustAddRows(lr *LogRows) {
 			tsf := TimeFormatter(ts)
 			minAllowedTsf := TimeFormatter(minAllowedDay * nsecPerDay)
 			tooSmallTimestampLogger.Warnf("skipping log entry with too small timestamp=%s; it must be bigger than %s according "+
-				"to the configured -retentionPeriod=%dd. See https://docs.victoriametrics.com/VictoriaLogs/#retention ; "+
+				"to the configured -retentionPeriod=%dd. See https://docs.victoriametrics.com/victorialogs/#retention ; "+
 				"log entry: %s", &tsf, &minAllowedTsf, durationToDays(s.retention), &rf)
 			s.rowsDroppedTooSmallTimestamp.Add(1)
 			continue
@@ -450,7 +450,7 @@ func (s *Storage) MustAddRows(lr *LogRows) {
 			tsf := TimeFormatter(ts)
 			maxAllowedTsf := TimeFormatter(maxAllowedDay * nsecPerDay)
 			tooBigTimestampLogger.Warnf("skipping log entry with too big timestamp=%s; it must be smaller than %s according "+
-				"to the configured -futureRetention=%dd; see https://docs.victoriametrics.com/VictoriaLogs/#retention ; "+
+				"to the configured -futureRetention=%dd; see https://docs.victoriametrics.com/victorialogs/#retention ; "+
 				"log entry: %s", &tsf, &maxAllowedTsf, durationToDays(s.futureRetention), &rf)
 			s.rowsDroppedTooBigTimestamp.Add(1)
 			continue

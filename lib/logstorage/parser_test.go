@@ -1059,6 +1059,12 @@ func TestParseQuerySuccess(t *testing.T) {
 	// multiple different pipes
 	f(`* | fields foo, bar | limit 100 | stats by(foo,bar) count(baz) as qwert`, `* | fields foo, bar | limit 100 | stats by (foo, bar) count(baz) as qwert`)
 	f(`* | skip 100 | head 20 | skip 10`, `* | offset 100 | limit 20 | offset 10`)
+
+	// comments
+	f(`* # some comment | foo bar`, `*`)
+	f(`foo | # some comment | foo bar
+	  fields x # another comment
+	  |filter "foo#this#isn't a comment"#this is comment`, `foo | fields x | filter "foo#this#isn't a comment"`)
 }
 
 func TestParseQueryFailure(t *testing.T) {

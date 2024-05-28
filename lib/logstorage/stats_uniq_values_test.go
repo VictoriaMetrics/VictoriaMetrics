@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -414,4 +415,25 @@ func TestStatsUniqValues(t *testing.T) {
 			{"x", `[]`},
 		},
 	})
+}
+
+func TestSortStrings(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+
+		a := strings.Split(s, ",")
+		sortStrings(a)
+		result := strings.Join(a, ",")
+		if result != resultExpected {
+			t.Fatalf("unexpected sort result\ngot\n%q\nwant\n%q", a, resultExpected)
+		}
+	}
+
+	f("", "")
+	f("1", "1")
+	f("foo,bar,baz", "bar,baz,foo")
+	f("100ms,1.5s,1.23s", "100ms,1.23s,1.5s")
+	f("10KiB,10KB,5.34K", "5.34K,10KB,10KiB")
+	f("v1.10.9,v1.10.10,v1.9.0", "v1.9.0,v1.10.9,v1.10.10")
+	f("10s,123,100M", "123,100M,10s")
 }

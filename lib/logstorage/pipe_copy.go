@@ -50,16 +50,28 @@ func (pc *pipeCopy) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	}
 }
 
-func (pc *pipeCopy) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
+func (pc *pipeCopy) optimize() {
+	// Nothing to do
+}
+
+func (pc *pipeCopy) hasFilterInWithQuery() bool {
+	return false
+}
+
+func (pc *pipeCopy) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+	return pc, nil
+}
+
+func (pc *pipeCopy) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeCopyProcessor{
 		pc:     pc,
-		ppBase: ppBase,
+		ppNext: ppNext,
 	}
 }
 
 type pipeCopyProcessor struct {
 	pc     *pipeCopy
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 }
 
 func (pcp *pipeCopyProcessor) writeBlock(workerID uint, br *blockResult) {
@@ -68,7 +80,7 @@ func (pcp *pipeCopyProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	br.copyColumns(pcp.pc.srcFields, pcp.pc.dstFields)
-	pcp.ppBase.writeBlock(workerID, br)
+	pcp.ppNext.writeBlock(workerID, br)
 }
 
 func (pcp *pipeCopyProcessor) flush() error {

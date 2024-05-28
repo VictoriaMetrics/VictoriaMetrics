@@ -11,7 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 )
 
-// LabelsForHits formats labels for /select/logsql/hits response
+// FieldsForHits formats labels for /select/logsql/hits response
 
 //line app/vlselect/logsql/hits_response.qtpl:10
 import (
@@ -27,7 +27,7 @@ var (
 )
 
 //line app/vlselect/logsql/hits_response.qtpl:10
-func StreamLabelsForHits(qw422016 *qt422016.Writer, columns []logstorage.BlockColumn, rowIdx int) {
+func StreamFieldsForHits(qw422016 *qt422016.Writer, columns []logstorage.BlockColumn, rowIdx int) {
 //line app/vlselect/logsql/hits_response.qtpl:10
 	qw422016.N().S(`{`)
 //line app/vlselect/logsql/hits_response.qtpl:12
@@ -58,22 +58,22 @@ func StreamLabelsForHits(qw422016 *qt422016.Writer, columns []logstorage.BlockCo
 }
 
 //line app/vlselect/logsql/hits_response.qtpl:19
-func WriteLabelsForHits(qq422016 qtio422016.Writer, columns []logstorage.BlockColumn, rowIdx int) {
+func WriteFieldsForHits(qq422016 qtio422016.Writer, columns []logstorage.BlockColumn, rowIdx int) {
 //line app/vlselect/logsql/hits_response.qtpl:19
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vlselect/logsql/hits_response.qtpl:19
-	StreamLabelsForHits(qw422016, columns, rowIdx)
+	StreamFieldsForHits(qw422016, columns, rowIdx)
 //line app/vlselect/logsql/hits_response.qtpl:19
 	qt422016.ReleaseWriter(qw422016)
 //line app/vlselect/logsql/hits_response.qtpl:19
 }
 
 //line app/vlselect/logsql/hits_response.qtpl:19
-func LabelsForHits(columns []logstorage.BlockColumn, rowIdx int) string {
+func FieldsForHits(columns []logstorage.BlockColumn, rowIdx int) string {
 //line app/vlselect/logsql/hits_response.qtpl:19
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vlselect/logsql/hits_response.qtpl:19
-	WriteLabelsForHits(qb422016, columns, rowIdx)
+	WriteFieldsForHits(qb422016, columns, rowIdx)
 //line app/vlselect/logsql/hits_response.qtpl:19
 	qs422016 := string(qb422016.B)
 //line app/vlselect/logsql/hits_response.qtpl:19

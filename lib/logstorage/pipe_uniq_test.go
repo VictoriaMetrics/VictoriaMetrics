@@ -11,15 +11,15 @@ func TestParsePipeUniqSuccess(t *testing.T) {
 	}
 
 	f(`uniq`)
-	f(`uniq hits`)
+	f(`uniq with hits`)
 	f(`uniq limit 10`)
-	f(`uniq hits limit 10`)
+	f(`uniq with hits limit 10`)
 	f(`uniq by (x)`)
 	f(`uniq by (x) limit 10`)
 	f(`uniq by (x, y)`)
-	f(`uniq by (x, y) hits`)
+	f(`uniq by (x, y) with hits`)
 	f(`uniq by (x, y) limit 10`)
-	f(`uniq by (x, y) hits limit 10`)
+	f(`uniq by (x, y) with hits limit 10`)
 }
 
 func TestParsePipeUniqFailure(t *testing.T) {
@@ -33,6 +33,7 @@ func TestParsePipeUniqFailure(t *testing.T) {
 	f(`uniq by hits`)
 	f(`uniq by(x) limit`)
 	f(`uniq by(x) limit foo`)
+	f(`uniq by (x) with`)
 }
 
 func TestPipeUniq(t *testing.T) {
@@ -365,10 +366,12 @@ func TestPipeUniqUpdateNeededFields(t *testing.T) {
 	f("uniq by()", "*", "", "*", "")
 	f("uniq by(*)", "*", "", "*", "")
 	f("uniq by(f1,f2)", "*", "", "f1,f2", "")
+	f("uniq by(f1,f2) with hits", "*", "", "f1,f2", "")
 
 	// all the needed fields, unneeded fields do not intersect with src
 	f("uniq by(s1, s2)", "*", "f1,f2", "s1,s2", "")
 	f("uniq", "*", "f1,f2", "*", "")
+	f("uniq with hits", "*", "f1,f2", "*", "")
 
 	// all the needed fields, unneeded fields intersect with src
 	f("uniq by(s1, s2)", "*", "s1,f1,f2", "s1,s2", "")
