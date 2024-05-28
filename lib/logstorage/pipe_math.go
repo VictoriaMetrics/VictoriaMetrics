@@ -535,8 +535,8 @@ func parseMathExprRound(lex *lexer) (*mathExpr, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(me.args) != 2 {
-		return nil, fmt.Errorf("'round' function needs 2 args; got %d args: [%s]", len(me.args), me)
+	if len(me.args) != 1 && len(me.args) != 2 {
+		return nil, fmt.Errorf("'round' function needs 1 or 2 args; got %d args: [%s]", len(me.args), me)
 	}
 	return me, nil
 }
@@ -749,6 +749,15 @@ func mathFuncMin(result []float64, args [][]float64) {
 
 func mathFuncRound(result []float64, args [][]float64) {
 	arg := args[0]
+	if len(args) == 1 {
+		// Round to integer
+		for i := range result {
+			result[i] = math.Round(arg[i])
+		}
+		return
+	}
+
+	// Round to nearest
 	nearest := args[1]
 	var f float64
 	for i := range result {

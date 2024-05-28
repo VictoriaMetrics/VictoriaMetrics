@@ -20,6 +20,7 @@ func TestParsePipeMathSuccess(t *testing.T) {
 	f(`math (foo / ((bar + baz) * abc) ^ -2) as a`)
 	f(`math (foo + bar / baz - abc) as a`)
 	f(`math min(3, foo, (1 + bar) / baz) as a, max(a, b) as b, (abs(c) + 5) as d`)
+	f(`math round(foo) as x`)
 	f(`math round(foo, 0.1) as y`)
 }
 
@@ -39,7 +40,6 @@ func TestParsePipeMathFailure(t *testing.T) {
 	f(`math max() as x`)
 	f(`math max(a) as x`)
 	f(`math round() as x`)
-	f(`math round(a) as x`)
 	f(`math round(a, b, c) as x`)
 }
 
@@ -134,7 +134,7 @@ func TestPipeMath(t *testing.T) {
 		},
 	})
 
-	f("math abs(-min(a,b)) as min, max(b,c) as max", [][]Field{
+	f("math abs(-min(a,b)) as min, round(max(40*b/30,c)) as max", [][]Field{
 		{
 			{"a", "v1"},
 			{"b", "2"},
@@ -150,7 +150,7 @@ func TestPipeMath(t *testing.T) {
 		},
 	})
 
-	f("math round((2*c + (b%c))/(c-b)^(b-1), 0.001) as a", [][]Field{
+	f("math round((2*c + (b%c))/(c-b)^(b-1), -0.001) as a", [][]Field{
 		{
 			{"a", "v"},
 			{"b", "2"},

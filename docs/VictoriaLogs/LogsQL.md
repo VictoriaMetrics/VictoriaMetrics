@@ -1158,6 +1158,7 @@ LogsQL supports the following pipes:
 - [`filter`](#filter-pipe) applies additional [filters](#filters) to results.
 - [`format`](#format-pipe) formats ouptut field from input [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`limit`](#limit-pipe) limits the number selected logs.
+- [`math`](#math-pipe) performs mathematical calculations over numeric values stored in [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`offset`](#offset-pipe) skips the given number of selected logs.
 - [`pack_json`](#pack_json-pipe) packs [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into JSON object.
 - [`rename`](#rename-pipe) renames [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
@@ -1269,6 +1270,7 @@ See also:
 - [Conditional extract](#conditional-extract)
 - [`unpack_json` pipe](#unpack_json-pipe)
 - [`unpack_logfmt` pipe](#unpack_logfmt-pipe)
+- [`math` pipe](#math-pipe)
 
 #### Format for extract pipe pattern
 
@@ -1525,6 +1527,50 @@ See also:
 
 - [`sort` pipe](#sort-pipe)
 - [`offset` pipe](#offset-pipe)
+
+### math pipe
+
+`| math ...` [pipe](#pipes) performs mathematical calculations over numeric values stored in [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+For example, the following query divides `duration_msecs` field value by 1000, then rounds them to integer and stores the result in the `duration_secs` field:
+
+```logsql
+_time:5m | math round(duration_msecs / 1000) as duration_secs
+```
+
+The following mathematical operations are supported by `math` pipe:
+
+- `arg1 + arg2` - returns the sum of `arg1` and `arg2`
+- `arg1 - arg2` - returns the difference between `arg1` and `arg2`
+- `arg1 * arg2` - multiplies `arg1` by `arg2`
+- `arg1 / arg2` - divides `arg1` by `arg2`
+- `arg1 % arg2` - returns the remainder of the division of `arg1` by `arg2`
+- `arg1 ^ arg2` - returns the power of `arg1` by `arg2`
+- `abs(arg)` - returns an absolute values for the given `arg`
+- `max(arg1, ..., argN)` - returns the maximum value among the given `arg1`, ..., `argN`
+- `min(arg1, ..., argN)` - returns the minimum value among the given `arg1`, ..., `argN`
+- `round(arg)` - returns rounded to integer value for the given `arg`. The `round()` accepts optional `nearest` arg, which allows rounding the number to the given `nearest` multiple.
+  For example, `round(temperature, 0.1)` rounds `temperature` field to one decimal digit after the point.
+
+Every `argX` argument in every mathematical operation can contain one of the following values:
+
+- The name of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). For example, `errors_total / requests_total`.
+- Any [supported numeric value](#numeric-values). For example, `response_size_bytes / 1MiB`.
+- Another mathematical expression. Optionally, it may be put inside `(...)`. For example, `(a + b) * c`.
+
+Multiple distinct results can be calculated in a single `math ...` pipe - just separate them with `,`. For example, the following query calculates the error rate
+and the number of successful requests from `errors`, `warnings` and `requests` [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
+
+```logsql
+_time:5m | math
+    (errors / requests) as error_rate,
+    (requests - (errors + warnings)) as success_requests
+```
+
+See also:
+
+- [`stats` pipe](#stats-pipe)
+- [`extract` pipe](#extract-pipe)
+
 
 ### offset pipe
 
@@ -1808,6 +1854,7 @@ See also:
 - [stats by IPv4 buckets](#stats-by-ipv4-buckets)
 - [stats with additional filters](#stats-with-additional-filters)
 - [stats pipe functions](#stats-pipe-functions)
+- [`math` pipe](#math-pipe)
 - [`sort` pipe](#sort-pipe)
 
 
