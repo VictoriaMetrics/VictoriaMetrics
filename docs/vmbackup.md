@@ -272,7 +272,7 @@ metadata:
     iam.gke.io/gcp-service-account: {sa_name}@{project_name}.iam.gserviceaccount.com
 ```
 And [configure pod to use service account](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/).
-After this `vmbackup` and `vmbackupmanager` will automatically use Workload Identity for servicpe account in order to obtain credentials.
+After this `vmbackup` and `vmbackupmanager` will automatically use Workload Identity for service account in order to obtain credentials.
 
 ### Using custom S3 endpoint
 
@@ -292,7 +292,7 @@ You have to add a custom url endpoint via flag:
 ### Permanent deletion of objects in S3-compatible storages
 
 `vmbackup` and [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/) use standard delete operation
-for S3-compatible object storage when pefrorming [incremental backups](#incremental-backups).
+for S3-compatible object storage when performing [incremental backups](#incremental-backups).
 This operation removes only the current version of the object. This works OK in most cases.
 
 Sometimes it is needed to remove all the versions of an object. In this case pass `-deleteAllObjectVersions` command-line flag to `vmbackup`.
@@ -369,9 +369,9 @@ Run `vmbackup -help` in order to see all the available options:
   -internStringMaxLen int
      The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -license string
-     Lisense key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed via file specified by -licenseFile command-line flag
+     License key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed via file specified by -licenseFile command-line flag
   -license.forceOffline
-     Whether to enable offline verification for VictoriaMetrics Enterprise license key, which has been passed either via -license or via -licenseFile command-line flag. The issued license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification. This flag is avilable only in Enterprise binaries
+     Whether to enable offline verification for VictoriaMetrics Enterprise license key, which has been passed either via -license or via -licenseFile command-line flag. The issued license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification. This flag is available only in Enterprise binaries
   -licenseFile string
      Path to file with license key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed inline via -license command-line flag
   -loggerDisableTimestamps

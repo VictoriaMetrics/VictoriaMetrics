@@ -193,6 +193,16 @@ vmutils-crossbuild: \
 	vmutils-openbsd-amd64 \
 	vmutils-windows-amd64
 
+pre-commit:
+	pre-commit run
+
+pre-commit-setup:
+	pnpm install
+
+pre-commit-update:
+	pre-commit autoupdate
+	pnpm update
+
 publish-release:
 	rm -rf bin/*
 	git checkout $(TAG) && $(MAKE) release && LATEST_TAG=stable $(MAKE) publish && \

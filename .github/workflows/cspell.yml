@@ -1,0 +1,44 @@
+name: cspell
+
+on:
+  pull_request:
+    branches:
+      - cluster
+      - master
+    paths:
+      - 'docs/**'
+  push:
+    branches:
+      - cluster
+      - master
+    paths:
+      - 'docs/**'
+  workflow_dispatch:
+
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+
+jobs:
+  cspell:
+    name: Run cspell
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4.0.0
+        with:
+          version: 8
+
+      - uses: actions/setup-node@v4
+        with:
+          cache: pnpm
+          node-version: 20.x
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - uses: streetsidesoftware/cspell-action@v6
+        with:
+          strict: false

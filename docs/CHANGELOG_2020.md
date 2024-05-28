@@ -32,7 +32,7 @@ Released at 2020-12-19
 * FEATURE: do not publish duplicate Docker images with `-cluster` tag suffix for [vmagent](https://docs.victoriametrics.com/vmagent/), [vmalert](https://docs.victoriametrics.com/vmalert/), [vmauth](https://docs.victoriametrics.com/vmauth/), [vmbackup](https://docs.victoriametrics.com/vmbackup/) and [vmrestore](https://docs.victoriametrics.com/vmrestore/), since they are identical to images without `-cluster` tag suffix.
 
 * BUGFIX: vmalert: properly populate template variables. This has been broken in v1.50.0. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/974>
-* BUGFIX: properly parse negative combined duration in MetricsQL such as `-1h3m4s`. It must be parsed as `-(1h + 3m + 4s)`. Prevsiously it was parsed as `-1h + 3m + 4s`.
+* BUGFIX: properly parse negative combined duration in MetricsQL such as `-1h3m4s`. It must be parsed as `-(1h + 3m + 4s)`. Previously it was parsed as `-1h + 3m + 4s`.
 * BUGFIX: properly parse lines in [Prometheus exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md) and in [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md) with whitespace after the timestamp. For example, `foo 123 456 ## some comment here`. See <https://github.com/VictoriaMetrics/VictoriaMetrics/pull/970>
 
 ## [v1.50.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.50.1)
@@ -312,7 +312,7 @@ Released at 2020-09-30
 * BUGFIX: properly apply `-search.maxStalenessInterval` command-line flag value. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/784> .
 * BUGFIX: fix displaying data in Grafana tables. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/720> .
 * BUGFIX: do not adjust the number of detected CPU cores found at `/sys/devices/system/cpu/online`.
-  The adjustment was increasing the resulting GOMAXPROC by 1, which looked confusing to users.
+  The adjustment was increasing the resulting GOMAXPROCS by 1, which looked confusing to users.
   See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/685#issuecomment-698595309> .
 * BUGFIX: vmagent: do not show `-remoteWrite.url` in initial logs if `-remoteWrite.showURL` isn't set. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/773> .
 * BUGFIX: properly handle case when [/metrics/find](https://docs.victoriametrics.com/#graphite-metrics-api-usage) finds both a leaf and a node for the given `query=prefix.*`.

@@ -220,7 +220,7 @@ VMAlertmanagerSpec is a specification of the desired behavior of the VMAlertmana
 | volumeMounts | VolumeMounts allows configuration of additional VolumeMounts on the output StatefulSet definition. VolumeMounts specified will be appended to other VolumeMounts in the alertmanager container, that are generated as a result of StorageSpec objects. | [][v1.VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#volumemount-v1-core) | false |
 | externalURL | ExternalURL the VMAlertmanager instances will be available under. This is necessary to generate correct URLs. This is necessary if VMAlertmanager is not served from root of a DNS name. | string | false |
 | routePrefix | RoutePrefix VMAlertmanager registers HTTP handlers for. This is useful, if using ExternalURL and a proxy is rewriting HTTP routes of a request, and the actual ExternalURL is still true, but the server serves requests under a different route prefix. For example for use with `kubectl proxy`. | string | false |
-| paused | Paused If set to true all actions on the underlaying managed objects are not goint to be performed, except for delete actions. | bool | false |
+| paused | Paused If set to true all actions on the underlaying managed objects are not going to be performed, except for delete actions. | bool | false |
 | nodeSelector | NodeSelector Define which Nodes the Pods are scheduled on. | map[string]string | false |
 | resources | Resources container resource request and limits, https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ | [v1.ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#resourcerequirements-v1-core) | false |
 | affinity | Affinity If specified, the pod&#39;s scheduling constraints. | *[v1.Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#affinity-v1-core) | false |
@@ -643,7 +643,7 @@ TimeInterval defines intervals of time
 | times | Times defines time range for mute | [][TimeRange](#timerange) | false |
 | weekdays | Weekdays defines list of days of the week, where the week begins on Sunday and ends on Saturday. | []string | false |
 | days_of_month | DayOfMonth defines list of numerical days in the month. Days begin at 1. Negative values are also accepted. for example, [&#39;1:5&#39;, &#39;-3:-1&#39;] | []string | false |
-| months | Months  defines list of calendar months identified by a case-insentive name (e.g. ‘January’) or numeric 1. For example, [&#39;1:3&#39;, &#39;may:august&#39;, &#39;december&#39;] | []string | false |
+| months | Months  defines list of calendar months identified by a case-insensitive name (e.g. ‘January’) or numeric 1. For example, [&#39;1:3&#39;, &#39;may:august&#39;, &#39;december&#39;] | []string | false |
 | years | Years defines numerical list of years, ranges are accepted. For example, [&#39;2020:2022&#39;, &#39;2030&#39;] | []string | false |
 | location | Location in golang time location form, e.g. UTC | string | false |
 
@@ -943,8 +943,8 @@ VMAgentStatus defines the observed state of VMAgent
 | updatedReplicas | UpdatedReplicas Total number of non-terminated pods targeted by this VMAgent cluster that have the desired version spec. | int32 | false |
 | availableReplicas | AvailableReplicas Total number of available pods (ready for at least minReadySeconds) targeted by this VMAlert cluster. | int32 | false |
 | unavailableReplicas | UnavailableReplicas Total number of unavailable pods targeted by this VMAgent cluster. | int32 | false |
-| updateStatus | UpdateStatus defines a status for update rollout, effective only for statefuleMode | UpdateStatus | false |
-| reason | Reason defines fail reason for update process, effective only for statefuleMode | string | false |
+| updateStatus | UpdateStatus defines a status for update rollout, effective only for statefulMode | UpdateStatus | false |
+| reason | Reason defines fail reason for update process, effective only for statefulMode | string | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -954,7 +954,7 @@ ServiceSpec defines additional service for CRD with user-defined params. by defa
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| useAsDefault | UseAsDefault applies changes from given service definition to the main object Service Changing from headless service to clusterIP or loadbalancer may break cross-component communication | bool | false |
+| useAsDefault | UseAsDefault applies changes from given service definition to the main object Service Changing from headless service to clusterIP or load balancer may break cross-component communication | bool | false |
 | metadata | EmbeddedObjectMetadata defines objectMeta for additional service. | [EmbeddedObjectMetadata](#embeddedobjectmetadata) | false |
 | spec | ServiceSpec describes the attributes that a user creates on a service. More info: https://kubernetes.io/docs/concepts/services-networking/service/ | v1.ServiceSpec | true |
 
@@ -1135,7 +1135,7 @@ StreamAggrRule defines the rule in stream aggregation config
 | ----- | ----------- | ------ | -------- |
 | match | Match is a label selector (or list of label selectors) for filtering time series for the given selector.\n\nIf the match isn&#39;t set, then all the input time series are processed. | StringOrArray | false |
 | interval | Interval is the interval between aggregations. | string | true |
-| no_align_flush_to_interval | NoAlighFlushToInterval disables aligning of flushes to multiples of Interval. By default flushes are aligned to Interval. | *bool | false |
+| no_align_flush_to_interval | NoAlignFlushToInterval disables aligning of flushes to multiples of Interval. By default flushes are aligned to Interval. | *bool | false |
 | flush_on_shutdown | FlushOnShutdown defines whether to flush the aggregation state on process termination or config reload. Is `false` by default. It is not recommended changing this setting, unless unfinished aggregations states are preferred to missing data points. | bool | false |
 | dedup_interval | DedupInterval is an optional interval for deduplication. | string | false |
 | staleness_interval | Staleness interval is interval after which the series state will be reset if no samples have been sent during it. The parameter is only relevant for outputs: total, total_prometheus, increase, increase_prometheus and histogram_bucket. | string | false |
@@ -1319,8 +1319,8 @@ VMAlertStatus defines the observed state of VMAlert
 | updatedReplicas | UpdatedReplicas Total number of non-terminated pods targeted by this VMAlert cluster that have the desired version spec. | int32 | false |
 | availableReplicas | AvailableReplicas Total number of available pods (ready for at least minReadySeconds) targeted by this VMAlert cluster. | int32 | false |
 | unavailableReplicas | UnavailableReplicas Total number of unavailable pods targeted by this VMAlert cluster. | int32 | false |
-| updateStatus | UpdateStatus defines a status for update rollout, effective only for statefuleMode | UpdateStatus | false |
-| reason | Reason defines fail reason for update process, effective only for statefuleMode | string | false |
+| updateStatus | UpdateStatus defines a status for update rollout, effective only for statefulMode | UpdateStatus | false |
+| reason | Reason defines fail reason for update process, effective only for statefulMode | string | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -1556,7 +1556,7 @@ Endpoint defines a scrapeable endpoint serving Prometheus metrics.
 | metricRelabelConfigs | MetricRelabelConfigs to apply to samples before ingestion. | []*[RelabelConfig](#relabelconfig) | false |
 | relabelConfigs | RelabelConfigs to apply to samples before scraping. More info: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config | []*[RelabelConfig](#relabelconfig) | false |
 | proxyURL | ProxyURL eg http://proxyserver:2195 Directs scrapes to proxy through this endpoint. | *string | false |
-| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parametrs | *[VMScrapeParams](#vmscrapeparams) | false |
+| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parameters | *[VMScrapeParams](#vmscrapeparams) | false |
 | attach_metadata | AttachMetadata configures metadata attaching from service discovery | [AttachMetadata](#attachmetadata) | false |
 
 [Back to TOC](#table-of-contents)
@@ -1748,7 +1748,7 @@ PodMetricsEndpoint defines a scrapeable endpoint of a Kubernetes Pod serving Pro
 | tlsConfig | TLSConfig configuration to use when scraping the endpoint | *[TLSConfig](#tlsconfig) | false |
 | oauth2 | OAuth2 defines auth configuration | *[OAuth2](#oauth2) | false |
 | authorization | Authorization with http header Authorization | *[Authorization](#authorization) | false |
-| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parametrs | *[VMScrapeParams](#vmscrapeparams) | false |
+| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parameters | *[VMScrapeParams](#vmscrapeparams) | false |
 | attach_metadata | AttachMetadata configures metadata attaching from service discovery | [AttachMetadata](#attachmetadata) | false |
 | filterRunning | FilterRunning applies filter with pod status == running it prevents from scrapping metrics at failed or succeed state pods. enabled by default | *bool | false |
 
@@ -2004,7 +2004,7 @@ VMClusterStatus defines the observed state of VMCluster
 | dnsConfig | Specifies the DNS parameters of a pod. Parameters specified here will be merged to the generated DNS configuration based on DNSPolicy. | *v1.PodDNSConfig | false |
 | topologySpreadConstraints | TopologySpreadConstraints embedded kubernetes pod configuration option, controls how pods are spread across your cluster among failure-domains such as regions, zones, nodes, and other user-defined topology domains https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/ | [][v1.TopologySpreadConstraint](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/) | false |
 | cacheMountPath | CacheMountPath allows to add cache persistent for VMSelect, will use \&#34;/cache\&#34; as default if not specified. | string | false |
-| persistentVolume | Storage - add persistent volume for cacheMounthPath its useful for persistent cache use storage instead of persistentVolume. | *[StorageSpec](#storagespec) | false |
+| persistentVolume | Storage - add persistent volume for cacheMountPath its useful for persistent cache use storage instead of persistentVolume. | *[StorageSpec](#storagespec) | false |
 | storage | StorageSpec - add persistent volume claim for cacheMountPath its needed for persistent cache | *[StorageSpec](#storagespec) | false |
 | extraEnvs | ExtraEnvs that will be added to VMSelect pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#envvar-v1-core) | false |
 | extraArgs |  | map[string]string | false |
@@ -2134,7 +2134,7 @@ VMNodeScrapeSpec defines specification for VMNodeScrape.
 | selector | Selector to select kubernetes Nodes. | [metav1.LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#labelselector-v1-meta) | false |
 | sampleLimit | SampleLimit defines per-scrape limit on number of scraped samples that will be accepted. | uint64 | false |
 | seriesLimit | SeriesLimit defines per-scrape limit on number of unique time series a single target can expose during all the scrapes on the time window of 24h. | uint64 | false |
-| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parametrs | *[VMScrapeParams](#vmscrapeparams) | false |
+| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parameters | *[VMScrapeParams](#vmscrapeparams) | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -2415,8 +2415,8 @@ VMAuthStatus defines the observed state of VMAuth
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| updateStatus | UpdateStatus defines a status for update rollout, effective only for statefuleMode | UpdateStatus | false |
-| reason | Reason defines fail reason for update process, effective only for statefuleMode | string | false |
+| updateStatus | UpdateStatus defines a status for update rollout, effective only for statefulMode | UpdateStatus | false |
+| reason | Reason defines fail reason for update process, effective only for statefulMode | string | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -2449,7 +2449,7 @@ TargetEndpoint defines single static target endpoint.
 | proxyURL | ProxyURL eg http://proxyserver:2195 Directs scrapes to proxy through this endpoint. | *string | false |
 | honorLabels | HonorLabels chooses the metric&#39;s labels on collisions with target labels. | bool | false |
 | honorTimestamps | HonorTimestamps controls whether vmagent respects the timestamps present in scraped data. | *bool | false |
-| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parametrs | *[VMScrapeParams](#vmscrapeparams) | false |
+| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parameters | *[VMScrapeParams](#vmscrapeparams) | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -2548,7 +2548,7 @@ VMProbeSpec contains specification parameters for a Probe.
 | authorization | Authorization with http header Authorization | *[Authorization](#authorization) | false |
 | tlsConfig | TLSConfig configuration to use when scraping the endpoint | *[TLSConfig](#tlsconfig) | false |
 | proxyURL | ProxyURL eg http://proxyserver:2195 Directs scrapes to proxy through this endpoint. | *string | false |
-| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parametrs | *[VMScrapeParams](#vmscrapeparams) | false |
+| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parameters | *[VMScrapeParams](#vmscrapeparams) | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -2852,7 +2852,7 @@ VMScrapeConfigSpec defines the desired state of VMScrapeConfig
 | honorLabels | HonorLabels chooses the metric&#39;s labels on collisions with target labels. | bool | false |
 | params | Optional HTTP URL parameters | map[string][]string | false |
 | scheme | Configures the protocol scheme used for requests. If empty, use HTTP by default. | *string | false |
-| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parametrs | *[VMScrapeParams](#vmscrapeparams) | false |
+| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parameters | *[VMScrapeParams](#vmscrapeparams) | false |
 | follow_redirects | FollowRedirects controls redirects for scraping. | *bool | false |
 | proxyURL | ProxyURL eg http://proxyserver:2195 Directs scrapes to proxy through this endpoint. | *string | false |
 | basicAuth | BasicAuth information to use on every scrape request. | *[BasicAuth](#basicauth) | false |

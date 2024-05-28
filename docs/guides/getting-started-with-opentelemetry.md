@@ -75,8 +75,8 @@ helm upgrade -i otl-collector open-telemetry/opentelemetry-collector --set mode=
 
 # check if pod is healthy
 kubectl get pod
-NAME                                                    READY   STATUS    RESTARTS   AGE
-otl-colletor-opentelemetry-collector-7467bbb559-2pq2n   1/1     Running   0          23m
+NAME                                                     READY   STATUS    RESTARTS   AGE
+otl-collector-opentelemetry-collector-7467bbb559-2pq2n   1/1     Running   0          23m
 
 # forward port to local machine to verify metrics are ingested
 kubectl port-forward victoria-metrics-victoria-metrics-single-server-0 8428
