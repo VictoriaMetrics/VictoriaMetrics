@@ -134,6 +134,22 @@ func TestPipeMath(t *testing.T) {
 		},
 	})
 
+	f("math abs(-min(a,b)) as min, max(b,c) as max", [][]Field{
+		{
+			{"a", "v1"},
+			{"b", "2"},
+			{"c", "3"},
+		},
+	}, [][]Field{
+		{
+			{"a", "v1"},
+			{"b", "2"},
+			{"c", "3"},
+			{"min", "2"},
+			{"max", "3"},
+		},
+	})
+
 	f("math round((2*c + (b%c))/(c-b)^(b-1), 0.001) as a", [][]Field{
 		{
 			{"a", "v"},
