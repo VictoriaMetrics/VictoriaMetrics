@@ -56,6 +56,9 @@ type ScrapeWork struct {
 	// MaxScrapeSize sets max amount of data, that can be scraped by a job
 	MaxScrapeSize int64
 
+	// Protocols to support exposition formats.
+	ScrapeProtocols []ScrapeProtocol
+
 	// How to deal with conflicting labels.
 	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
 	HonorLabels bool
@@ -188,7 +191,7 @@ type scrapeWork struct {
 	Config *ScrapeWork
 
 	// ReadData is called for reading the scrape response data into dst.
-	ReadData func(dst *bytesutil.ByteBuffer) error
+	ReadData func(dst *bytesutil.ByteBuffer, contentType *string) error
 
 	// PushData is called for pushing collected data.
 	PushData func(at *auth.Token, wr *prompbmarshal.WriteRequest)
@@ -215,6 +218,9 @@ type scrapeWork struct {
 	// prevLabelsLen contains the number labels scraped during the previous scrape.
 	// It is used as a hint in order to reduce memory usage when parsing scrape responses.
 	prevLabelsLen int
+
+	// contentType contains scraped Content-Type header
+	contentType string
 
 	// lastScrape holds the last response from scrape target.
 	// It is used for staleness tracking and for populating scrape_series_added metric.
@@ -411,7 +417,7 @@ func (sw *scrapeWork) needStreamParseMode(responseSize int) bool {
 // getTargetResponse() fetches response from sw target in the same way as when scraping the target.
 func (sw *scrapeWork) getTargetResponse() ([]byte, error) {
 	var bb bytesutil.ByteBuffer
-	if err := sw.ReadData(&bb); err != nil {
+	if err := sw.ReadData(&bb, &sw.contentType); err != nil {
 		return nil, err
 	}
 	return bb.B, nil
@@ -425,7 +431,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	// is occupied during parsing of the read response body below.
 	// This also allows measuring the real scrape duration, which doesn't include
 	// the time needed for processing of the read response.
-	err := sw.ReadData(body)
+	err := sw.ReadData(body, &sw.contentType)
 
 	// Measure scrape duration.
 	endTimestamp := time.Now().UnixNano() / 1e6
@@ -470,7 +476,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		up = 0
 		scrapesFailed.Inc()
 	} else {
-		wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
+		wc.rows.UnmarshalWithErrLogger(bodyString, sw.contentType, sw.logError)
 	}
 	srcRows := wc.rows.Rows
 	samplesScraped := len(srcRows)
@@ -539,7 +545,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 
 	r := body.NewReader()
 	var mu sync.Mutex
-	err := stream.Parse(r, scrapeTimestamp, false, false, func(rows []parser.Row) error {
+	err := stream.Parse(r, sw.contentType, scrapeTimestamp, false, false, func(rows []parser.Row) error {
 		mu.Lock()
 		defer mu.Unlock()
 
@@ -759,7 +765,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3675
 		var mu sync.Mutex
 		br := bytes.NewBufferString(bodyString)
-		err := stream.Parse(br, timestamp, false, false, func(rows []parser.Row) error {
+		err := stream.Parse(br, sw.contentType, timestamp, false, false, func(rows []parser.Row) error {
 			mu.Lock()
 			defer mu.Unlock()
 			for i := range rows {
@@ -923,7 +929,7 @@ func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, tim
 		wc.exemplars = append(wc.exemplars, prompbmarshal.Exemplar{
 			Labels:    exemplarLabels,
 			Value:     r.Exemplar.Value,
-			Timestamp: r.Exemplar.Timestamp,
+			Timestamp: r.Exemplar.Timestamp.Milli,
 		})
 
 	}

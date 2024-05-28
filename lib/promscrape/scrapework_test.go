@@ -91,7 +91,7 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 	}
 
 	readDataCalls := 0
-	sw.ReadData = func(_ *bytesutil.ByteBuffer) error {
+	sw.ReadData = func(_ *bytesutil.ByteBuffer, _ *string) error {
 		readDataCalls++
 		return fmt.Errorf("error when reading data")
 	}
@@ -132,7 +132,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		sw.Config = cfg
 
 		readDataCalls := 0
-		sw.ReadData = func(dst *bytesutil.ByteBuffer) error {
+		sw.ReadData = func(dst *bytesutil.ByteBuffer, _ *string) error {
 			readDataCalls++
 			dst.B = append(dst.B, data...)
 			return nil
@@ -772,7 +772,7 @@ func parsePromRow(data string) *parser.Row {
 	errLogger := func(s string) {
 		panic(fmt.Errorf("unexpected error when unmarshaling Prometheus rows: %s", s))
 	}
-	rows.UnmarshalWithErrLogger(data, errLogger)
+	rows.UnmarshalWithErrLogger(data, "", errLogger)
 	if len(rows.Rows) != 1 {
 		panic(fmt.Errorf("unexpected number of rows parsed from %q; got %d; want %d", data, len(rows.Rows), 1))
 	}
@@ -784,7 +784,7 @@ func parseData(data string) []prompbmarshal.TimeSeries {
 	errLogger := func(s string) {
 		panic(fmt.Errorf("unexpected error when unmarshaling Prometheus rows: %s", s))
 	}
-	rows.UnmarshalWithErrLogger(data, errLogger)
+	rows.UnmarshalWithErrLogger(data, "", errLogger)
 	var tss []prompbmarshal.TimeSeries
 	var exemplars []prompbmarshal.Exemplar
 
@@ -812,7 +812,7 @@ func parseData(data string) []prompbmarshal.TimeSeries {
 			exemplars = append(exemplars, prompbmarshal.Exemplar{
 				Labels:    exemplarLabels,
 				Value:     r.Exemplar.Value,
-				Timestamp: r.Exemplar.Timestamp,
+				Timestamp: r.Exemplar.Timestamp.Milli,
 			})
 		}
 
