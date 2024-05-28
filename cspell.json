@@ -29,6 +29,7 @@
     "k8s",
     "makefile",
     "misc",
+    "networking-terms",
     "npm",
     "python",
     "rust",
