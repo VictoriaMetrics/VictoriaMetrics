@@ -167,3 +167,37 @@ func TestPipeMath(t *testing.T) {
 		},
 	})
 }
+
+func TestPipeMathUpdateNeededFields(t *testing.T) {
+	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
+		t.Helper()
+		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
+	}
+
+	// all the needed fields
+	f("math (x + 1) as y", "*", "", "*", "y")
+
+	// all the needed fields, unneeded fields do not intersect with src and dst
+	f("math (x + 1) as y", "*", "f1,f2", "*", "f1,f2,y")
+
+	// all the needed fields, unneeded fields intersect with src
+	f("math (x + 1) as y", "*", "f1,x", "*", "f1,y")
+
+	// all the needed fields, unneeded fields intersect with dst
+	f("math (x + 1) as y", "*", "f1,y", "*", "f1,y")
+
+	// all the needed fields, unneeded fields intersect with src and dst
+	f("math (x + 1) as y", "*", "f1,x,y", "*", "f1,x,y")
+
+	// needed fields do not intersect with src and dst
+	f("math (x + 1) as y", "f1,f2", "", "f1,f2", "")
+
+	// needed fields intersect with src
+	f("math (x + 1) as y", "f1,x", "", "f1,x", "")
+
+	// needed fields intersect with dst
+	f("math (x + 1) as y", "f1,y", "", "f1,x", "")
+
+	// needed fields intersect with src and dst
+	f("math (x + 1) as y", "f1,x,y", "", "f1,x", "")
+}
