@@ -74,6 +74,11 @@ func (lex *lexer) isQuotedToken() bool {
 	return lex.token != lex.rawToken
 }
 
+func (lex *lexer) isNumber() bool {
+	s := lex.rawToken + lex.s
+	return isNumberPrefix(s)
+}
+
 func (lex *lexer) isPrevToken(tokens ...string) bool {
 	for _, token := range tokens {
 		if token == lex.prevToken {
@@ -247,7 +252,7 @@ func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 		s := fmt.Sprintf("stats by (%s) count() hits", byFieldsStr)
 		lex := newLexer(s)
 
-		ps, err := parsePipeStats(lex)
+		ps, err := parsePipeStats(lex, true)
 		if err != nil {
 			logger.Panicf("BUG: unexpected error when parsing [%s]: %s", s, err)
 		}
@@ -855,6 +860,8 @@ func parseFilterStringRange(lex *lexer, fieldName string) (filter, error) {
 			fieldName: fieldName,
 			minValue:  args[0],
 			maxValue:  args[1],
+
+			stringRepr: fmt.Sprintf("string_range(%s, %s)", quoteTokenIfNeeded(args[0]), quoteTokenIfNeeded(args[1])),
 		}
 		return fr, nil
 	})
@@ -1091,6 +1098,15 @@ func parseFilterGT(lex *lexer, fieldName string) (filter, error) {
 		op = ">="
 	}
 
+	if !lex.isNumber() {
+		lexState := lex.backupState()
+		fr := tryParseFilterGTString(lex, fieldName, op, includeMinValue)
+		if fr != nil {
+			return fr, nil
+		}
+		lex.restoreState(lexState)
+	}
+
 	minValue, fStr, err := parseFloat64(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse number after '%s': %w", op, err)
@@ -1120,6 +1136,15 @@ func parseFilterLT(lex *lexer, fieldName string) (filter, error) {
 		op = "<="
 	}
 
+	if !lex.isNumber() {
+		lexState := lex.backupState()
+		fr := tryParseFilterLTString(lex, fieldName, op, includeMaxValue)
+		if fr != nil {
+			return fr, nil
+		}
+		lex.restoreState(lexState)
+	}
+
 	maxValue, fStr, err := parseFloat64(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse number after '%s': %w", op, err)
@@ -1136,6 +1161,43 @@ func parseFilterLT(lex *lexer, fieldName string) (filter, error) {
 		stringRepr: op + fStr,
 	}
 	return fr, nil
+}
+
+func tryParseFilterGTString(lex *lexer, fieldName, op string, includeMinValue bool) filter {
+	minValueOrig, err := getCompoundToken(lex)
+	if err != nil {
+		return nil
+	}
+	minValue := minValueOrig
+	if !includeMinValue {
+		minValue = string(append([]byte(minValue), 0))
+	}
+	fr := &filterStringRange{
+		fieldName: fieldName,
+		minValue:  minValue,
+		maxValue:  maxStringRangeValue,
+
+		stringRepr: op + quoteStringTokenIfNeeded(minValueOrig),
+	}
+	return fr
+}
+
+func tryParseFilterLTString(lex *lexer, fieldName, op string, includeMaxValue bool) filter {
+	maxValueOrig, err := getCompoundToken(lex)
+	if err != nil {
+		return nil
+	}
+	maxValue := maxValueOrig
+	if includeMaxValue {
+		maxValue = string(append([]byte(maxValue), 0))
+	}
+	fr := &filterStringRange{
+		fieldName: fieldName,
+		maxValue:  maxValue,
+
+		stringRepr: op + quoteStringTokenIfNeeded(maxValueOrig),
+	}
+	return fr
 }
 
 func parseFilterRange(lex *lexer, fieldName string) (filter, error) {
@@ -1495,11 +1557,35 @@ func parseTime(lex *lexer) (int64, string, error) {
 	return int64(math.Round(t*1e3)) * 1e6, s, nil
 }
 
+func quoteStringTokenIfNeeded(s string) string {
+	if !needQuoteStringToken(s) {
+		return s
+	}
+	return strconv.Quote(s)
+}
+
 func quoteTokenIfNeeded(s string) string {
 	if !needQuoteToken(s) {
 		return s
 	}
 	return strconv.Quote(s)
+}
+
+func needQuoteStringToken(s string) bool {
+	return isNumberPrefix(s) || needQuoteToken(s)
+}
+
+func isNumberPrefix(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	if s[0] == '-' || s[0] == '+' {
+		s = s[1:]
+		if len(s) == 0 {
+			return false
+		}
+	}
+	return s[0] >= '0' && s[0] <= '9'
 }
 
 func needQuoteToken(s string) bool {
