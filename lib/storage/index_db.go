@@ -1583,6 +1583,9 @@ func (db *indexDB) deleteMetricIDs(metricIDs []uint64) {
 	// Reset MetricName -> TSID cache, since it may contain deleted TSIDs.
 	db.s.resetAndSaveTSIDCache()
 
+	// Reset MetricName -> MetricID cache, since it may contain deleted MetricIDs.
+	db.s.resetUniqueMetricIDCache()
+
 	// Store the metricIDs as deleted.
 	// Make this after updating the deletedMetricIDs and resetting caches
 	// in order to exclude the possibility of the inconsistent state when the deleted metricIDs

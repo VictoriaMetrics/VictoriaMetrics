@@ -97,6 +97,9 @@ type Storage struct {
 	// See generationTSID for details.
 	dateMetricIDCache *dateMetricIDCache
 
+	// uniqueMetricIDCache is MetricName -> MetricID cache.
+	uniqueMetricIDCache *uniqueMetricIDCache
+
 	// Fast cache for MetricID values occurred during the current hour.
 	currHourMetricIDs atomic.Pointer[hourMetricIDs]
 
@@ -217,6 +220,7 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 	s.metricIDCache = s.mustLoadCache("metricID_tsid", mem/16)
 	s.metricNameCache = s.mustLoadCache("metricID_metricName", mem/10)
 	s.dateMetricIDCache = newDateMetricIDCache()
+	s.uniqueMetricIDCache = newUniqueMetricIDCache(1 * time.Second)
 
 	hour := fasttime.UnixHour()
 	hmCurr := s.mustLoadHourMetricIDs(hour, "curr_hour_metric_ids")
@@ -852,6 +856,10 @@ func (s *Storage) resetAndSaveTSIDCache() {
 	s.mustSaveCache(s.tsidCache, "metricName_tsid")
 }
 
+func (s *Storage) resetUniqueMetricIDCache() {
+	s.uniqueMetricIDCache.reset()
+}
+
 // MustClose closes the storage.
 //
 // It is expected that the s is no longer used during the close.
@@ -1264,7 +1272,8 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters) (int,
 	if err != nil {
 		return deletedCount, fmt.Errorf("cannot delete tsids: %w", err)
 	}
-	// Do not reset MetricName->TSID cache, since it is already reset inside DeleteTSIDs.
+	// Do not reset MetricName->TSID and MetricName->MetricID caches, since they
+	// are already reset inside DeleteTSIDs.
 
 	// Do not reset MetricID->MetricName cache, since it must be used only
 	// after filtering out deleted metricIDs.
@@ -1945,10 +1954,20 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			continue
 		}
 
+		// New time series inserted concurrently may result in duplicate metric
+		// IDs. Deduplicate them to guarantee, that each metric name has one and
+		// only one corresponding metric ID.
+		//
+		// It is rare but a valid use case that can, happen when one imports
+		// historical data and new metrics for each day are imported
+		// concurrently.
+		if !s.uniqueMetricIDCache.deduplicate(mr.MetricNameRaw, &genTSID.TSID.MetricID) {
+			newSeriesCount++
+		}
+
 		createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
 		genTSID.generation = generation
 		s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
-		newSeriesCount++
 
 		r.TSID = genTSID.TSID
 		prevTSID = r.TSID
@@ -2516,6 +2535,86 @@ func (dmm *byDateMetricIDMap) getOrCreate(generation, date uint64) *uint64set.Se
 type byDateMetricIDEntry struct {
 	k generationDateKey
 	v uint64set.Set
+}
+
+// uniqueMetricIDCache is a simple MetricName -> MetricID cache that is used to
+// guarantee the uniqueness of metric IDs when the new time series are inserted
+// concurrently.
+//
+// The cache is emphemeral (i.e. it is not persisted) and its entries are
+// supposed to be evicted quickly by constantly rotating curr and prev maps.
+// The rotation period should be not smaller that the time required to execute
+// the slow path of the Storage.add() for a single row and register the TSID in
+// the main tsidCache. Once this happens, the corresponding record in
+// uniqueMetricIDCache is no longer needed. Thus, setting the rotationPeriod to
+// 1s should be more than enough.
+type uniqueMetricIDCache struct {
+	mu   sync.Mutex
+	prev *map[string]uint64
+	curr *map[string]uint64
+}
+
+// newUniqueMetricIDCache creates a new MetricName -> MetricID cache with
+// rotation period.
+func newUniqueMetricIDCache(rotationPeriod time.Duration) *uniqueMetricIDCache {
+	c := uniqueMetricIDCache{
+		prev: &map[string]uint64{},
+		curr: &map[string]uint64{},
+	}
+	go func() {
+		for {
+			time.Sleep(rotationPeriod)
+			c.rotate()
+		}
+	}()
+	return &c
+}
+
+// rotate drops all cache entries older than the rotation period.
+func (c *uniqueMetricIDCache) rotate() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.prev = c.curr
+	c.curr = &map[string]uint64{}
+}
+
+// reset drops all cache entries at once.
+func (c *uniqueMetricIDCache) reset() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.prev = &map[string]uint64{}
+	c.curr = &map[string]uint64{}
+}
+
+// deduplicate either stores the MetricName -> MetricID if the cache does not
+// have such mapping yet or replaces the value of incoming metric ID with the
+// stored value if the mapping is already present in cache.
+//
+// The former case means that we are seeing the metricName for the first time
+// and the metricID that corresponds to it is not a duplicate. So we just store
+// the mapping and leave metricID as is. No deduplication happens, and therefore
+// the function returns false.
+//
+// The latter case means that we've seen the metricName before and the incoming
+// metricID is a duplicate. And so we replace that duplicate with the value
+// stored in cache, i.e. deduplicate it. In this case, function returns true.
+func (c *uniqueMetricIDCache) deduplicate(metricName []byte, metricID *uint64) bool {
+	k := string(metricName)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if v, found := (*c.prev)[k]; found {
+		*metricID = v
+		return true
+	}
+
+	if v, found := (*c.curr)[k]; found {
+		*metricID = v
+		return true
+	}
+
+	(*c.curr)[k] = *metricID
+	return false
 }
 
 func (s *Storage) updateNextDayMetricIDs(date uint64) {
