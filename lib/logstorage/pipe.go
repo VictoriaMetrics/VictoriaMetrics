@@ -86,6 +86,8 @@ func parsePipes(lex *lexer) ([]pipe, error) {
 			lex.nextToken()
 		case lex.isKeyword(")", ""):
 			return pipes, nil
+		default:
+			return nil, fmt.Errorf("unexpected token after [%s]: %q; expecting '|' or ')'", pipes[len(pipes)-1], lex.token)
 		}
 	}
 }
@@ -98,7 +100,7 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'copy' pipe: %w", err)
 		}
 		return pc, nil
-	case lex.isKeyword("delete", "del", "rm"):
+	case lex.isKeyword("delete", "del", "rm", "drop"):
 		pd, err := parsePipeDelete(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'delete' pipe: %w", err)
@@ -110,10 +112,22 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'extract' pipe: %w", err)
 		}
 		return pe, nil
+	case lex.isKeyword("extract_regexp"):
+		pe, err := parsePipeExtractRegexp(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'extract_regexp' pipe: %w", err)
+		}
+		return pe, nil
 	case lex.isKeyword("field_names"):
 		pf, err := parsePipeFieldNames(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'field_names' pipe: %w", err)
+		}
+		return pf, nil
+	case lex.isKeyword("field_values"):
+		pf, err := parsePipeFieldValues(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot pase 'field_values' pipe: %w", err)
 		}
 		return pf, nil
 	case lex.isKeyword("fields", "keep"):
@@ -123,7 +137,7 @@ func parsePipe(lex *lexer) (pipe, error) {
 		}
 		return pf, nil
 	case lex.isKeyword("filter"):
-		pf, err := parsePipeFilter(lex)
+		pf, err := parsePipeFilter(lex, true)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'filter' pipe: %w", err)
 		}
@@ -140,6 +154,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'limit' pipe: %w", err)
 		}
 		return pl, nil
+	case lex.isKeyword("math"):
+		pm, err := parsePipeMath(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'math' pipe: %w", err)
+		}
+		return pm, nil
 	case lex.isKeyword("offset", "skip"):
 		ps, err := parsePipeOffset(lex)
 		if err != nil {
@@ -177,7 +197,7 @@ func parsePipe(lex *lexer) (pipe, error) {
 		}
 		return ps, nil
 	case lex.isKeyword("stats"):
-		ps, err := parsePipeStats(lex)
+		ps, err := parsePipeStats(lex, true)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'stats' pipe: %w", err)
 		}
@@ -207,6 +227,22 @@ func parsePipe(lex *lexer) (pipe, error) {
 		}
 		return pu, nil
 	default:
+		lexState := lex.backupState()
+
+		// Try parsing stats pipe without 'stats' keyword
+		ps, err := parsePipeStats(lex, false)
+		if err == nil {
+			return ps, nil
+		}
+		lex.restoreState(lexState)
+
+		// Try parsing filter pipe without 'filter' keyword
+		pf, err := parsePipeFilter(lex, false)
+		if err == nil {
+			return pf, nil
+		}
+		lex.restoreState(lexState)
+
 		return nil, fmt.Errorf("unexpected pipe %q", lex.token)
 	}
 }
