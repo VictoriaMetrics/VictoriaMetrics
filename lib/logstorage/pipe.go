@@ -223,17 +223,17 @@ func parsePipe(lex *lexer) (pipe, error) {
 	default:
 		lexState := lex.backupState()
 
-		// Try parsing stats pipe without 'stats' keyword
-		ps, err := parsePipeStats(lex, false)
-		if err == nil {
-			return ps, nil
-		}
-		lex.restoreState(lexState)
-
 		// Try parsing math pipe without 'math' keyword
 		pm, err := parsePipeMath(lex, false)
 		if err == nil {
 			return pm, nil
+		}
+		lex.restoreState(lexState)
+
+		// Try parsing stats pipe without 'stats' keyword
+		ps, err := parsePipeStats(lex, false)
+		if err == nil {
+			return ps, nil
 		}
 		lex.restoreState(lexState)
 

@@ -19,10 +19,41 @@ type pipeMath struct {
 }
 
 type mathEntry struct {
-	resultField  string
-	be           *mathBinaryExpr
-	neededFields []string
+	// The calculated expr result is stored in resultField.
+	resultField string
+
+	// expr is the expression to calculate.
+	expr *mathExpr
 }
+
+type mathExpr struct {
+	// if isConst is set, then the given mathExpr returns the given constValue.
+	isConst    bool
+	constValue float64
+
+	// constValueStr is the original string representation of constValue.
+	//
+	// It is used in String() method for returning the original representation of the given constValue.
+	constValueStr string
+
+	// if fieldName isn't empty, then the given mathExpr fetches numeric values from the given fieldName.
+	fieldName string
+
+	// args are args for the given mathExpr.
+	args []*mathExpr
+
+	// op is the operation name (aka function name) for the given mathExpr.
+	op string
+
+	// f is the function for calculating results for the given mathExpr.
+	f mathFunc
+
+	// whether the mathExpr was wrapped in parens.
+	wrappedInParens bool
+}
+
+// mathFunc must fill result with calculated results based on the given args.
+type mathFunc func(result []float64, args [][]float64)
 
 func (pm *pipeMath) String() string {
 	s := "math"
@@ -35,7 +66,105 @@ func (pm *pipeMath) String() string {
 }
 
 func (me *mathEntry) String() string {
-	return quoteTokenIfNeeded(me.resultField) + " = " + me.be.String()
+	s := me.expr.String()
+	if isMathBinaryOp(me.expr.op) {
+		s = "(" + s + ")"
+	}
+	s += " as " + quoteTokenIfNeeded(me.resultField)
+	return s
+}
+
+func (me *mathExpr) String() string {
+	if me.isConst {
+		return me.constValueStr
+	}
+	if me.fieldName != "" {
+		return quoteTokenIfNeeded(me.fieldName)
+	}
+
+	args := me.args
+	if isMathBinaryOp(me.op) {
+		opPriority := getMathBinaryOpPriority(me.op)
+		left := me.args[0]
+		right := me.args[1]
+		leftStr := left.String()
+		rightStr := right.String()
+		if isMathBinaryOp(left.op) && getMathBinaryOpPriority(left.op) > opPriority {
+			leftStr = "(" + leftStr + ")"
+		}
+		if isMathBinaryOp(right.op) && getMathBinaryOpPriority(right.op) > opPriority {
+			rightStr = "(" + rightStr + ")"
+		}
+		return fmt.Sprintf("%s %s %s", leftStr, me.op, rightStr)
+	}
+
+	if me.op == "unary_minus" {
+		argStr := args[0].String()
+		if isMathBinaryOp(args[0].op) {
+			argStr = "(" + argStr + ")"
+		}
+		return "-" + argStr
+	}
+
+	a := make([]string, len(args))
+	for i, arg := range args {
+		a[i] = arg.String()
+	}
+	argsStr := strings.Join(a, ", ")
+	return fmt.Sprintf("%s(%s)", me.op, argsStr)
+}
+
+func isMathBinaryOp(op string) bool {
+	_, ok := mathBinaryOps[op]
+	return ok
+}
+
+func getMathBinaryOpPriority(op string) int {
+	bo, ok := mathBinaryOps[op]
+	if !ok {
+		logger.Panicf("BUG: unexpected binary op: %q", op)
+	}
+	return bo.priority
+}
+
+func getMathFuncForBinaryOp(op string) (mathFunc, error) {
+	bo, ok := mathBinaryOps[op]
+	if !ok {
+		return nil, fmt.Errorf("unsupported binary operation: %q", op)
+	}
+	return bo.f, nil
+}
+
+var mathBinaryOps = map[string]mathBinaryOp{
+	"^": {
+		priority: 1,
+		f:        mathFuncPow,
+	},
+	"*": {
+		priority: 2,
+		f:        mathFuncMul,
+	},
+	"/": {
+		priority: 2,
+		f:        mathFuncDiv,
+	},
+	"%": {
+		priority: 2,
+		f:        mathFuncMod,
+	},
+	"+": {
+		priority: 3,
+		f:        mathFuncPlus,
+	},
+	"-": {
+		priority: 3,
+		f:        mathFuncMinus,
+	},
+}
+
+type mathBinaryOp struct {
+	priority int
+	f        mathFunc
 }
 
 func (pm *pipeMath) updateNeededFields(neededFields, unneededFields fieldsSet) {
@@ -44,14 +173,37 @@ func (pm *pipeMath) updateNeededFields(neededFields, unneededFields fieldsSet) {
 		if neededFields.contains("*") {
 			if !unneededFields.contains(e.resultField) {
 				unneededFields.add(e.resultField)
-				unneededFields.removeFields(e.neededFields)
+
+				entryFields := e.getNeededFields()
+				unneededFields.removeFields(entryFields)
 			}
 		} else {
 			if neededFields.contains(e.resultField) {
 				neededFields.remove(e.resultField)
-				neededFields.addFields(e.neededFields)
+
+				entryFields := e.getNeededFields()
+				neededFields.addFields(entryFields)
 			}
 		}
+	}
+}
+
+func (me *mathEntry) getNeededFields() []string {
+	neededFields := newFieldsSet()
+	me.expr.updateNeededFields(neededFields)
+	return neededFields.getAll()
+}
+
+func (me *mathExpr) updateNeededFields(neededFields fieldsSet) {
+	if me.isConst {
+		return
+	}
+	if me.fieldName != "" {
+		neededFields.add(me.fieldName)
+		return
+	}
+	for _, arg := range me.args {
+		arg.updateNeededFields(neededFields)
 	}
 }
 
@@ -92,15 +244,25 @@ type pipeMathProcessorShard struct {
 }
 
 type pipeMathProcessorShardNopad struct {
-	a   arena
+	// a holds all the data for rcs.
+	a arena
+
+	// rcs is used for storing calculated results before they are written to ppNext.
 	rcs []resultColumn
 
+	// rs is storage for temporary results
 	rs [][]float64
+
+	// rsBuf is backing storage for rs slices
+	rsBuf []float64
 }
 
 func (shard *pipeMathProcessorShard) executeMathEntry(e *mathEntry, rc *resultColumn, br *blockResult) {
+	clear(shard.rs)
 	shard.rs = shard.rs[:0]
-	shard.executeBinaryExpr(e.be, br)
+	shard.rsBuf = shard.rsBuf[:0]
+
+	shard.executeExpr(e.expr, br)
 	r := shard.rs[0]
 
 	b := shard.a.b
@@ -113,20 +275,22 @@ func (shard *pipeMathProcessorShard) executeMathEntry(e *mathEntry, rc *resultCo
 	shard.a.b = b
 }
 
-func (shard *pipeMathProcessorShard) executeBinaryExpr(expr *mathBinaryExpr, br *blockResult) {
+func (shard *pipeMathProcessorShard) executeExpr(me *mathExpr, br *blockResult) {
 	rIdx := len(shard.rs)
 	shard.rs = slicesutil.SetLength(shard.rs, len(shard.rs)+1)
-	shard.rs[rIdx] = slicesutil.SetLength(shard.rs[rIdx], len(br.timestamps))
 
-	if expr.isConst {
+	shard.rsBuf = slicesutil.SetLength(shard.rsBuf, len(shard.rsBuf)+len(br.timestamps))
+	shard.rs[rIdx] = shard.rsBuf[len(shard.rsBuf)-len(br.timestamps):]
+
+	if me.isConst {
 		r := shard.rs[rIdx]
 		for i := range br.timestamps {
-			r[i] = expr.constValue
+			r[i] = me.constValue
 		}
 		return
 	}
-	if expr.fieldName != "" {
-		c := br.getColumnByName(expr.fieldName)
+	if me.fieldName != "" {
+		c := br.getColumnByName(me.fieldName)
 		values := c.getValues(br)
 		r := shard.rs[rIdx]
 		var f float64
@@ -143,19 +307,15 @@ func (shard *pipeMathProcessorShard) executeBinaryExpr(expr *mathBinaryExpr, br 
 		return
 	}
 
-	shard.executeBinaryExpr(expr.left, br)
-	shard.executeBinaryExpr(expr.right, br)
-
-	r := shard.rs[rIdx]
-	rLeft := shard.rs[rIdx+1]
-	rRight := shard.rs[rIdx+2]
-
-	mathFunc := expr.mathFunc
-	for i := range r {
-		r[i] = mathFunc(rLeft[i], rRight[i])
+	rsBufLen := len(shard.rsBuf)
+	for _, arg := range me.args {
+		shard.executeExpr(arg, br)
 	}
 
+	me.f(shard.rs[rIdx], shard.rs[rIdx+1:])
+
 	shard.rs = shard.rs[:rIdx+1]
+	shard.rsBuf = shard.rsBuf[:rsBufLen]
 }
 
 func (pmp *pipeMathProcessor) writeBlock(workerID uint, br *blockResult) {
@@ -215,271 +375,262 @@ func parsePipeMath(lex *lexer, needMathKeyword bool) (*pipeMath, error) {
 			}
 			return pm, nil
 		default:
-			return nil, fmt.Errorf("unexpected token after 'math' expression [%s]: %q; expacting ',', '|' or ')'", mes[len(mes)-1], lex.token)
+			return nil, fmt.Errorf("unexpected token after 'math' expression [%s]: %q; expecting ',', '|' or ')'", mes[len(mes)-1], lex.token)
 		}
 	}
 }
 
 func parseMathEntry(lex *lexer) (*mathEntry, error) {
+	me, err := parseMathExpr(lex)
+	if err != nil {
+		return nil, err
+	}
+
+	if !lex.isKeyword("as") {
+		return nil, fmt.Errorf("missing 'as' after [%s]", me)
+	}
+	lex.nextToken()
+
 	resultField, err := parseFieldName(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse result name: %w", err)
 	}
 
-	if !lex.isKeyword("=") {
-		return nil, fmt.Errorf("missing '=' after %q", resultField)
+	e := &mathEntry{
+		resultField: resultField,
+		expr:        me,
 	}
-	lex.nextToken()
-
-	be, err := parseMathBinaryExpr(lex)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse expression after '%q=': %w", resultField, err)
-	}
-
-	neededFields := newFieldsSet()
-	be.updateNeededFields(neededFields)
-
-	me := &mathEntry{
-		resultField:  resultField,
-		be:           be,
-		neededFields: neededFields.getAll(),
-	}
-	return me, nil
+	return e, nil
 }
 
-type mathBinaryExpr struct {
-	isConst       bool
-	constValue    float64
-	constValueStr string
-
-	fieldName string
-
-	left  *mathBinaryExpr
-	right *mathBinaryExpr
-	op    string
-
-	mathFunc func(a, b float64) float64
-}
-
-func (be *mathBinaryExpr) String() string {
-	if be.isConst {
-		return be.constValueStr
-	}
-	if be.fieldName != "" {
-		return quoteTokenIfNeeded(be.fieldName)
-	}
-
-	leftStr := be.left.String()
-	rightStr := be.right.String()
-
-	if binaryOpPriority(be.op) > binaryOpPriority(be.left.op) {
-		leftStr = "(" + leftStr + ")"
-	}
-	if binaryOpPriority(be.op) > binaryOpPriority(be.right.op) {
-		rightStr = "(" + rightStr + ")"
-	}
-	if be.op == "unary_minus" {
-		// Unary minus
-		return "-" + rightStr
-	}
-
-	return leftStr + " " + be.op + " " + rightStr
-}
-
-func (be *mathBinaryExpr) updateNeededFields(neededFields fieldsSet) {
-	if be.isConst {
-		return
-	}
-	if be.fieldName != "" {
-		neededFields.add(be.fieldName)
-		return
-	}
-	be.left.updateNeededFields(neededFields)
-	be.right.updateNeededFields(neededFields)
-}
-
-func parseMathBinaryExpr(lex *lexer) (*mathBinaryExpr, error) {
+func parseMathExpr(lex *lexer) (*mathExpr, error) {
 	// parse left operand
-	leftParens := lex.isKeyword("(")
-	left, err := parseMathBinaryExprOperand(lex)
+	left, err := parseMathExprOperand(lex)
 	if err != nil {
 		return nil, err
 	}
 
-	if lex.isKeyword("|", ")", ",", "") {
+	if lex.isKeyword("as", "|", ")", ",", "") {
 		// There is no right operand
 		return left, nil
 	}
 
-again:
-	// parse operator
-	op := lex.token
-	lex.nextToken()
+	for {
+		// parse operator
+		op := lex.token
+		lex.nextToken()
 
-	mathFunc, err := getMathFuncForOp(op)
-	if err != nil {
-		return nil, err
-	}
+		f, err := getMathFuncForBinaryOp(op)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse operator after [%s]: %w", left, err)
+		}
 
-	// parse right operand
-	right, err := parseMathBinaryExprOperand(lex)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse right operand after [%s %s]: %w", left, op, err)
-	}
+		// parse right operand
+		right, err := parseMathExprOperand(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse operand after [%s %s]: %w", left, op, err)
+		}
 
-	be := &mathBinaryExpr{
-		left:     left,
-		right:    right,
-		op:       op,
-		mathFunc: mathFunc,
-	}
+		me := &mathExpr{
+			args: []*mathExpr{left, right},
+			op:   op,
+			f:    f,
+		}
 
-	// balance operands according to their priority
-	if !leftParens && binaryOpPriority(op) > binaryOpPriority(left.op) {
-		be.left = left.right
-		left.right = be
-		be = left
-	}
+		// balance operands according to their priority
+		if !left.wrappedInParens && isMathBinaryOp(left.op) && getMathBinaryOpPriority(left.op) > getMathBinaryOpPriority(op) {
+			me.args[0] = left.args[1]
+			left.args[1] = me
+			me = left
+		}
 
-	if !lex.isKeyword("|", ")", ",", "") {
-		left = be
-		goto again
-	}
-
-	return be, nil
-}
-
-func getMathFuncForOp(op string) (func(a, b float64) float64, error) {
-	switch op {
-	case "+":
-		return mathFuncPlus, nil
-	case "-":
-		return mathFuncMinus, nil
-	case "*":
-		return mathFuncMul, nil
-	case "/":
-		return mathFuncDiv, nil
-	case "%":
-		return mathFuncMod, nil
-	case "^":
-		return mathFuncPow, nil
-	default:
-		return nil, fmt.Errorf("unsupported math operator: %q; supported operators: '+', '-', '*', '/'", op)
+		if !lex.isKeyword("as", "|", ")", ",", "") {
+			left = me
+			continue
+		}
+		return me, nil
 	}
 }
 
-func mathFuncPlus(a, b float64) float64 {
-	return a + b
-}
-
-func mathFuncMinus(a, b float64) float64 {
-	return a - b
-}
-
-func mathFuncMul(a, b float64) float64 {
-	return a * b
-}
-
-func mathFuncDiv(a, b float64) float64 {
-	return a / b
-}
-
-func mathFuncMod(a, b float64) float64 {
-	return math.Mod(a, b)
-}
-
-func mathFuncPow(a, b float64) float64 {
-	return math.Pow(a, b)
-}
-
-func binaryOpPriority(op string) int {
-	switch op {
-	case "+", "-":
-		return 10
-	case "*", "/", "%":
-		return 20
-	case "^":
-		return 30
-	case "unary_minus":
-		return 40
-	case "":
-		return 100
-	default:
-		logger.Panicf("BUG: unexpected binary operation %q", op)
-		return 0
-	}
-}
-
-func parseMathBinaryExprInParens(lex *lexer) (*mathBinaryExpr, error) {
+func parseMathExprInParens(lex *lexer) (*mathExpr, error) {
 	if !lex.isKeyword("(") {
 		return nil, fmt.Errorf("missing '('")
 	}
 	lex.nextToken()
 
-	be, err := parseMathBinaryExpr(lex)
+	me, err := parseMathExpr(lex)
 	if err != nil {
 		return nil, err
 	}
+	me.wrappedInParens = true
 
 	if !lex.isKeyword(")") {
 		return nil, fmt.Errorf("missing ')'; got %q instead", lex.token)
 	}
 	lex.nextToken()
-	return be, nil
+	return me, nil
 }
 
-func parseMathBinaryExprOperand(lex *lexer) (*mathBinaryExpr, error) {
+func parseMathExprOperand(lex *lexer) (*mathExpr, error) {
 	if lex.isKeyword("(") {
-		return parseMathBinaryExprInParens(lex)
+		return parseMathExprInParens(lex)
 	}
 
-	if lex.isKeyword("-") {
+	switch {
+	case lex.isKeyword("abs"):
+		return parseMathExprAbs(lex)
+	case lex.isKeyword("min"):
+		return parseMathExprMin(lex)
+	case lex.isKeyword("max"):
+		return parseMathExprMax(lex)
+	case lex.isKeyword("-"):
+		return parseMathExprUnaryMinus(lex)
+	case lex.isKeyword("+"):
+		// just skip unary plus
 		lex.nextToken()
-		be, err := parseMathBinaryExprOperand(lex)
+		return parseMathExprOperand(lex)
+	case lex.isNumber():
+		return parseMathExprConstNumber(lex)
+	default:
+		return parseMathExprFieldName(lex)
+	}
+}
+
+func parseMathExprAbs(lex *lexer) (*mathExpr, error) {
+	me, err := parseMathExprGenericFunc(lex, "abs", mathFuncAbs)
+	if err != nil {
+		return nil, err
+	}
+	if len(me.args) != 1 {
+		return nil, fmt.Errorf("'abs' function accepts only one arg; got %d args: [%s]", len(me.args), me)
+	}
+	return me, nil
+}
+
+func parseMathExprMin(lex *lexer) (*mathExpr, error) {
+	me, err := parseMathExprGenericFunc(lex, "min", mathFuncMin)
+	if err != nil {
+		return nil, err
+	}
+	if len(me.args) < 2 {
+		return nil, fmt.Errorf("'min' function needs at least 2 args; got %d args: [%s]", len(me.args), me)
+	}
+	return me, nil
+}
+
+func parseMathExprMax(lex *lexer) (*mathExpr, error) {
+	me, err := parseMathExprGenericFunc(lex, "max", mathFuncMax)
+	if err != nil {
+		return nil, err
+	}
+	if len(me.args) < 2 {
+		return nil, fmt.Errorf("'max' function needs at least 2 args; got %d args: [%s]", len(me.args), me)
+	}
+	return me, nil
+}
+
+func parseMathExprGenericFunc(lex *lexer, funcName string, f mathFunc) (*mathExpr, error) {
+	if !lex.isKeyword(funcName) {
+		return nil, fmt.Errorf("missing %q keyword", funcName)
+	}
+	lex.nextToken()
+
+	args, err := parseMathFuncArgs(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse args for %q function: %w", funcName, err)
+	}
+	if len(args) == 0 {
+		return nil, fmt.Errorf("%q function needs at least one org", funcName)
+	}
+	me := &mathExpr{
+		args: args,
+		op:   funcName,
+		f:    f,
+	}
+	return me, nil
+}
+
+func parseMathFuncArgs(lex *lexer) ([]*mathExpr, error) {
+	if !lex.isKeyword("(") {
+		return nil, fmt.Errorf("missing '('")
+	}
+	lex.nextToken()
+
+	var args []*mathExpr
+	for {
+		if lex.isKeyword(")") {
+			lex.nextToken()
+			return args, nil
+		}
+
+		me, err := parseMathExpr(lex)
 		if err != nil {
 			return nil, err
 		}
-		be = &mathBinaryExpr{
-			left: &mathBinaryExpr{
-				isConst: true,
-			},
-			right:    be,
-			op:       "unary_minus",
-			mathFunc: mathFuncMinus,
-		}
-		return be, nil
-	}
+		args = append(args, me)
 
-	if lex.isNumber() {
-		numStr, err := getCompoundMathToken(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse number: %w", err)
+		switch {
+		case lex.isKeyword(")"):
+		case lex.isKeyword(","):
+			lex.nextToken()
+		default:
+			return nil, fmt.Errorf("unexpected token after [%s]: %q; want ',' or ')'", me, lex.token)
 		}
-		f, ok := tryParseNumber(numStr)
-		if !ok {
-			return nil, fmt.Errorf("cannot parse number from %q", numStr)
-		}
-		be := &mathBinaryExpr{
-			isConst:       true,
-			constValue:    f,
-			constValueStr: numStr,
-		}
-		return be, nil
 	}
+}
 
-	fieldName, err := getCompoundMathToken(lex)
+func parseMathExprUnaryMinus(lex *lexer) (*mathExpr, error) {
+	if !lex.isKeyword("-") {
+		return nil, fmt.Errorf("missing '-'")
+	}
+	lex.nextToken()
+
+	expr, err := parseMathExprOperand(lex)
+	if err != nil {
+		return nil, err
+	}
+	me := &mathExpr{
+		args: []*mathExpr{expr},
+		op:   "unary_minus",
+		f:    mathFuncUnaryMinus,
+	}
+	return me, nil
+}
+
+func parseMathExprConstNumber(lex *lexer) (*mathExpr, error) {
+	if !lex.isNumber() {
+		return nil, fmt.Errorf("cannot parse number from %q", lex.token)
+	}
+	numStr, err := getCompoundMathToken(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse number: %w", err)
+	}
+	f, ok := tryParseNumber(numStr)
+	if !ok {
+		return nil, fmt.Errorf("cannot parse number from %q", numStr)
+	}
+	me := &mathExpr{
+		isConst:       true,
+		constValue:    f,
+		constValueStr: numStr,
+	}
+	return me, nil
+}
+
+func parseMathExprFieldName(lex *lexer) (*mathExpr, error) {
+	fieldName, err := parseFieldName(lex)
 	if err != nil {
 		return nil, err
 	}
 	fieldName = getCanonicalColumnName(fieldName)
-	be := &mathBinaryExpr{
+	me := &mathExpr{
 		fieldName: fieldName,
 	}
-	return be, nil
+	return me, nil
 }
 
 func getCompoundMathToken(lex *lexer) (string, error) {
-	stopTokens := []string{"+", "*", "/", "%", "^", ",", ")", "|", ""}
+	stopTokens := []string{"=", "+", "-", "*", "/", "%", "^", ",", ")", "|", ""}
 	if lex.isKeyword(stopTokens...) {
 		return "", fmt.Errorf("compound token cannot start with '%s'", lex.token)
 	}
@@ -488,7 +639,6 @@ func getCompoundMathToken(lex *lexer) (string, error) {
 	rawS := lex.rawToken
 	lex.nextToken()
 	suffix := ""
-	stopTokens = append(stopTokens, "-")
 	for !lex.isSkippedSpace && !lex.isKeyword(stopTokens...) {
 		s += lex.token
 		lex.nextToken()
@@ -497,4 +647,90 @@ func getCompoundMathToken(lex *lexer) (string, error) {
 		return s, nil
 	}
 	return rawS + suffix, nil
+}
+
+func mathFuncPlus(result []float64, args [][]float64) {
+	a := args[0]
+	b := args[1]
+	for i := range result {
+		result[i] = a[i] + b[i]
+	}
+}
+
+func mathFuncMinus(result []float64, args [][]float64) {
+	a := args[0]
+	b := args[1]
+	for i := range result {
+		result[i] = a[i] - b[i]
+	}
+}
+
+func mathFuncMul(result []float64, args [][]float64) {
+	a := args[0]
+	b := args[1]
+	for i := range result {
+		result[i] = a[i] * b[i]
+	}
+}
+
+func mathFuncDiv(result []float64, args [][]float64) {
+	a := args[0]
+	b := args[1]
+	for i := range result {
+		result[i] = a[i] / b[i]
+	}
+}
+
+func mathFuncMod(result []float64, args [][]float64) {
+	a := args[0]
+	b := args[1]
+	for i := range result {
+		result[i] = math.Mod(a[i], b[i])
+	}
+}
+
+func mathFuncPow(result []float64, args [][]float64) {
+	a := args[0]
+	b := args[1]
+	for i := range result {
+		result[i] = math.Pow(a[i], b[i])
+	}
+}
+
+func mathFuncAbs(result []float64, args [][]float64) {
+	arg := args[0]
+	for i := range result {
+		result[i] = math.Abs(arg[i])
+	}
+}
+
+func mathFuncUnaryMinus(result []float64, args [][]float64) {
+	arg := args[0]
+	for i := range result {
+		result[i] = -arg[i]
+	}
+}
+
+func mathFuncMin(result []float64, args [][]float64) {
+	for i := range result {
+		f := nan
+		for _, arg := range args {
+			if math.IsNaN(f) || arg[i] < f {
+				f = arg[i]
+			}
+		}
+		result[i] = f
+	}
+}
+
+func mathFuncMax(result []float64, args [][]float64) {
+	for i := range result {
+		f := nan
+		for _, arg := range args {
+			if math.IsNaN(f) || arg[i] > f {
+				f = arg[i]
+			}
+		}
+		result[i] = f
+	}
 }
