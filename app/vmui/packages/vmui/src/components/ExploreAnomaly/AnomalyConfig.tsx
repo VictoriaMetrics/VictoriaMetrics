@@ -9,6 +9,9 @@ import useDeviceDetect from "../../hooks/useDeviceDetect";
 import { useAppState } from "../../state/common/StateContext";
 import classNames from "classnames";
 import "./style.scss";
+import { useQueryState } from "../../state/query/QueryStateContext";
+import { useTimeState } from "../../state/time/TimeStateContext";
+import { getStepFromDuration } from "../../utils/time";
 
 const AnomalyConfig: FC = () => {
   const { serverUrl } = useAppState();
@@ -20,6 +23,8 @@ const AnomalyConfig: FC = () => {
     setFalse: setCloseModal,
   } = useBoolean(false);
 
+  const { query } = useQueryState();
+  const { period } = useTimeState();
   const [isLoading, setIsLoading] = useState(false);
   const [textConfig, setTextConfig] = useState<string>("");
   const [downloadUrl, setDownloadUrl] = useState<string>("");
@@ -28,12 +33,15 @@ const AnomalyConfig: FC = () => {
   const fetchConfig = async () => {
     setIsLoading(true);
     try {
-      const url = `${serverUrl}/api/vmanomaly/config.yaml`;
+      const queryParam = encodeURIComponent(query[0] || "");
+      const stepParam = encodeURIComponent(period.step || getStepFromDuration(period.end - period.start, false));
+
+      const url = `${serverUrl}/api/vmanomaly/config.yaml?query=${queryParam}&step=${stepParam}`;
       const response = await fetch(url);
       const contentType = response.headers.get("Content-Type");
       if (!response.ok) {
         const bodyText = await response.text();
-        setError(` ${response.status} ${response.statusText} ${bodyText}`);
+        setError(` ${response.status} ${response.statusText}: ${bodyText}`);
       } else if (contentType == "application/yaml") {
         const blob = await response.blob();
         const yamlAsString = await blob.text();
