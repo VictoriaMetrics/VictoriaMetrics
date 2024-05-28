@@ -1404,7 +1404,7 @@ See also:
 
 `| field_values field_name` [pipe](#pipe) returns all the values for the given [`field_name` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 with the number of logs per each value.
-For example, the following query returns all the values with the number of matching logs for the field `level` over logs logs for the last 5 minutes:
+For example, the following query returns all the values with the number of matching logs for the field `level` over logs for the last 5 minutes:
 
 ```logsql
 _time:5m | field_values level
@@ -1417,12 +1417,12 @@ up to 10 values for the field `user_id` over logs for the last 5 minutes:
 _time:5m | field_values user_id limit 10
 ```
 
-If the limit is reached, then the set of returned values is random. Also the number of matchin logs per each returned value is zeroed for performance reasons.
+If the limit is reached, then the set of returned values is random. Also the number of matching logs per each returned value is zeroed for performance reasons.
 
 See also:
 
 - [`field_names` pipe](#field_names-pipe)
-- [`uniq` pipe)(#uniq-pipe)
+- [`uniq` pipe](#uniq-pipe)
 
 ### fields pipe
 
@@ -1560,7 +1560,7 @@ See also:
 ### math pipe
 
 `| math ...` [pipe](#pipes) performs mathematical calculations over numeric values stored in [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-For example, the following query divides `duration_msecs` field value by 1000, then rounds them to integer and stores the result in the `duration_secs` field:
+For example, the following query divides `duration_msecs` field value by 1000, then rounds it to integer and stores the result in the `duration_secs` field:
 
 ```logsql
 _time:5m | math round(duration_msecs / 1000) as duration_secs
@@ -1574,7 +1574,7 @@ The following mathematical operations are supported by `math` pipe:
 - `arg1 / arg2` - divides `arg1` by `arg2`
 - `arg1 % arg2` - returns the remainder of the division of `arg1` by `arg2`
 - `arg1 ^ arg2` - returns the power of `arg1` by `arg2`
-- `abs(arg)` - returns an absolute values for the given `arg`
+- `abs(arg)` - returns an absolute value for the given `arg`
 - `max(arg1, ..., argN)` - returns the maximum value among the given `arg1`, ..., `argN`
 - `min(arg1, ..., argN)` - returns the minimum value among the given `arg1`, ..., `argN`
 - `round(arg)` - returns rounded to integer value for the given `arg`. The `round()` accepts optional `nearest` arg, which allows rounding the number to the given `nearest` multiple.
@@ -1639,7 +1639,7 @@ The following query is equivalent to the previous one:
 _time:5m | pack_json
 ```
 
-The `pack_json` doesn't touch other labels. If you do not need them, then add [`| fields ...`](#fields-pipe) after the `pack_json` pipe. For example, the following query
+The `pack_json` doesn't modify or delete other labels. If you do not need them, then add [`| fields ...`](#fields-pipe) after the `pack_json` pipe. For example, the following query
 leaves only the `foo` label with the original log fields packed into JSON:
 
 ```logsql
