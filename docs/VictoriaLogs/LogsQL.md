@@ -1207,7 +1207,7 @@ For example, the following query deletes `host` and `app` fields from the logs o
 _time:5m | delete host, app
 ```
 
-`del` and `rm` keywords can be used instead of `delete` for convenience. For example, `_time:5m | del host` is equivalent to `_time:5m | rm host` and `_time:5m | delete host`.
+`drop`, `del` and `rm` keywords can be used instead of `delete` for convenience. For example, `_time:5m | drop host` is equivalent to `_time:5m | delete host`.
 
 See also:
 
@@ -2570,12 +2570,7 @@ LogsQL supports the following transformations on the log entries selected with [
 - Creating a new field from existing [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) according to the provided format. See [`format` pipe](#format-pipe).
 - Replacing substrings in the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
   See [`replace` pipe](#replace-pipe) and [`replace_regexp` pipe](#replace_regexp-pipe) docs.
-
-LogsQL will support the following transformations in the future:
-
-- Creating a new field according to math calculations over existing [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-
-See the [Roadmap](https://docs.victoriametrics.com/victorialogs/roadmap/) for details.
+- Creating a new field according to math calculations over existing [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). See [`math` pipe](#math-pipe).
 
 It is also possible to perform various transformations on the [selected log entries](#filters) at client side
 with `jq`, `awk`, `cut`, etc. Unix commands according to [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line).
