@@ -7,6 +7,7 @@ import (
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
@@ -312,7 +313,9 @@ func (shard *pipeMathProcessorShard) executeExpr(me *mathExpr, br *blockResult) 
 		shard.executeExpr(arg, br)
 	}
 
-	me.f(shard.rs[rIdx], shard.rs[rIdx+1:])
+	result := shard.rs[rIdx]
+	args := shard.rs[rIdx+1:]
+	me.f(result, args)
 
 	shard.rs = shard.rs[:rIdx+1]
 	shard.rsBuf = shard.rsBuf[:rsBufLen]
@@ -386,14 +389,14 @@ func parseMathEntry(lex *lexer) (*mathEntry, error) {
 		return nil, err
 	}
 
-	if !lex.isKeyword("as") {
-		return nil, fmt.Errorf("missing 'as' after [%s]", me)
+	// skip optional 'as'
+	if lex.isKeyword("as") {
+		lex.nextToken()
 	}
-	lex.nextToken()
 
 	resultField, err := parseFieldName(lex)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse result name: %w", err)
+		return nil, fmt.Errorf("cannot parse result name for [%s]: %w", me, err)
 	}
 
 	e := &mathEntry{
@@ -410,12 +413,12 @@ func parseMathExpr(lex *lexer) (*mathExpr, error) {
 		return nil, err
 	}
 
-	if lex.isKeyword("as", "|", ")", ",", "") {
-		// There is no right operand
-		return left, nil
-	}
-
 	for {
+		if !isMathBinaryOp(lex.token) {
+			// There is no right operand
+			return left, nil
+		}
+
 		// parse operator
 		op := lex.token
 		lex.nextToken()
@@ -444,11 +447,7 @@ func parseMathExpr(lex *lexer) (*mathExpr, error) {
 			me = left
 		}
 
-		if !lex.isKeyword("as", "|", ")", ",", "") {
-			left = me
-			continue
-		}
-		return me, nil
+		left = me
 	}
 }
 
@@ -479,10 +478,12 @@ func parseMathExprOperand(lex *lexer) (*mathExpr, error) {
 	switch {
 	case lex.isKeyword("abs"):
 		return parseMathExprAbs(lex)
-	case lex.isKeyword("min"):
-		return parseMathExprMin(lex)
 	case lex.isKeyword("max"):
 		return parseMathExprMax(lex)
+	case lex.isKeyword("min"):
+		return parseMathExprMin(lex)
+	case lex.isKeyword("round"):
+		return parseMathExprRound(lex)
 	case lex.isKeyword("-"):
 		return parseMathExprUnaryMinus(lex)
 	case lex.isKeyword("+"):
@@ -507,6 +508,17 @@ func parseMathExprAbs(lex *lexer) (*mathExpr, error) {
 	return me, nil
 }
 
+func parseMathExprMax(lex *lexer) (*mathExpr, error) {
+	me, err := parseMathExprGenericFunc(lex, "max", mathFuncMax)
+	if err != nil {
+		return nil, err
+	}
+	if len(me.args) < 2 {
+		return nil, fmt.Errorf("'max' function needs at least 2 args; got %d args: [%s]", len(me.args), me)
+	}
+	return me, nil
+}
+
 func parseMathExprMin(lex *lexer) (*mathExpr, error) {
 	me, err := parseMathExprGenericFunc(lex, "min", mathFuncMin)
 	if err != nil {
@@ -518,13 +530,13 @@ func parseMathExprMin(lex *lexer) (*mathExpr, error) {
 	return me, nil
 }
 
-func parseMathExprMax(lex *lexer) (*mathExpr, error) {
-	me, err := parseMathExprGenericFunc(lex, "max", mathFuncMax)
+func parseMathExprRound(lex *lexer) (*mathExpr, error) {
+	me, err := parseMathExprGenericFunc(lex, "round", mathFuncRound)
 	if err != nil {
 		return nil, err
 	}
-	if len(me.args) < 2 {
-		return nil, fmt.Errorf("'max' function needs at least 2 args; got %d args: [%s]", len(me.args), me)
+	if len(me.args) != 2 {
+		return nil, fmt.Errorf("'round' function needs 2 args; got %d args: [%s]", len(me.args), me)
 	}
 	return me, nil
 }
@@ -618,7 +630,7 @@ func parseMathExprConstNumber(lex *lexer) (*mathExpr, error) {
 }
 
 func parseMathExprFieldName(lex *lexer) (*mathExpr, error) {
-	fieldName, err := parseFieldName(lex)
+	fieldName, err := getCompoundMathToken(lex)
 	if err != nil {
 		return nil, err
 	}
@@ -711,6 +723,18 @@ func mathFuncUnaryMinus(result []float64, args [][]float64) {
 	}
 }
 
+func mathFuncMax(result []float64, args [][]float64) {
+	for i := range result {
+		f := nan
+		for _, arg := range args {
+			if math.IsNaN(f) || arg[i] > f {
+				f = arg[i]
+			}
+		}
+		result[i] = f
+	}
+}
+
 func mathFuncMin(result []float64, args [][]float64) {
 	for i := range result {
 		f := nan
@@ -723,14 +747,23 @@ func mathFuncMin(result []float64, args [][]float64) {
 	}
 }
 
-func mathFuncMax(result []float64, args [][]float64) {
+func mathFuncRound(result []float64, args [][]float64) {
+	arg := args[0]
+	nearest := args[1]
+	var f float64
 	for i := range result {
-		f := nan
-		for _, arg := range args {
-			if math.IsNaN(f) || arg[i] > f {
-				f = arg[i]
-			}
+		if i == 0 || arg[i-1] != arg[i] || nearest[i-1] != nearest[i] {
+			f = round(arg[i], nearest[i])
 		}
 		result[i] = f
 	}
+}
+
+func round(f, nearest float64) float64 {
+	_, e := decimal.FromFloat(nearest)
+	p10 := math.Pow10(int(-e))
+	f += 0.5 * math.Copysign(nearest, f)
+	f -= math.Mod(f, nearest)
+	f, _ = math.Modf(f * p10)
+	return f / p10
 }

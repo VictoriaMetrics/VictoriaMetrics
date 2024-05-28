@@ -14,12 +14,13 @@ func TestParsePipeMathSuccess(t *testing.T) {
 	f(`math -123 as a`)
 	f(`math 12.345KB as a`)
 	f(`math (-2 + 2) as a`)
-	f(`math min(3, foo, (1 + bar) / baz) as a, max(a, b) as b, (abs(c) + 5) as d`)
 	f(`math x as a, z as y`)
 	f(`math (foo / bar + baz * abc % -45ms) as a`)
 	f(`math (foo / (bar + baz) * abc ^ 2) as a`)
 	f(`math (foo / ((bar + baz) * abc) ^ -2) as a`)
 	f(`math (foo + bar / baz - abc) as a`)
+	f(`math min(3, foo, (1 + bar) / baz) as a, max(a, b) as b, (abs(c) + 5) as d`)
+	f(`math round(foo, 0.1) as y`)
 }
 
 func TestParsePipeMathFailure(t *testing.T) {
@@ -30,7 +31,6 @@ func TestParsePipeMathFailure(t *testing.T) {
 
 	f(`math`)
 	f(`math x`)
-	f(`math x y`)
 	f(`math x as`)
 	f(`math abs() as x`)
 	f(`math abs(a, b) as x`)
@@ -38,6 +38,9 @@ func TestParsePipeMathFailure(t *testing.T) {
 	f(`math min(a) as x`)
 	f(`math max() as x`)
 	f(`math max(a) as x`)
+	f(`math round() as x`)
+	f(`math round(a) as x`)
+	f(`math round(a, b, c) as x`)
 }
 
 func TestPipeMath(t *testing.T) {
@@ -60,7 +63,7 @@ func TestPipeMath(t *testing.T) {
 		},
 	})
 
-	f("math 10 * 5 - 3 as a", [][]Field{
+	f("math 10 * 5 - 3 a", [][]Field{
 		{
 			{"a", "v1"},
 			{"b", "2"},
@@ -131,7 +134,7 @@ func TestPipeMath(t *testing.T) {
 		},
 	})
 
-	f("math (2*c + (b%c))/(c-b)^(b-1) as a", [][]Field{
+	f("math round((2*c + (b%c))/(c-b)^(b-1), 0.001) as a", [][]Field{
 		{
 			{"a", "v"},
 			{"b", "2"},
@@ -153,12 +156,12 @@ func TestPipeMath(t *testing.T) {
 			{"c", "3"},
 		},
 		{
-			{"a", "42.25"},
+			{"a", "3.25"},
 			{"b", "3"},
 			{"c", "5"},
 		},
 		{
-			{"a", "25"},
+			{"a", "1.667"},
 			{"b", "3"},
 			{"c", "6"},
 		},
