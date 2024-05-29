@@ -397,6 +397,9 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		fmt.Fprintf(w, "User-agent: *\nDisallow: /\n")
 		return
 	case "/config", "/-/reload":
+		// only some components (vmagent, vmalert, etc.) support these handlers
+		// these components are responsible for CheckAuthFlag call
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6329
 		w = &responseWriterWithAbort{
 			ResponseWriter: w,
 		}
