@@ -757,10 +757,18 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 
 func (is *indexSearch) getLabelNamesForMetricIDs(qt *querytracer.Tracer, metricIDs []uint64, lns map[string]struct{}, maxLabelNames int) error {
 	lns["__name__"] = struct{}{}
+
+	dmis := is.db.s.getDeletedMetricIDs()
+	checkDeleted := dmis.Len() > 0
+
 	var mn MetricName
 	foundLabelNames := 0
 	var buf []byte
 	for _, metricID := range metricIDs {
+		if checkDeleted && dmis.Has(metricID) {
+			// skip deleted IDs from result
+			continue
+		}
 		var err error
 		buf, err = is.searchMetricNameWithCache(buf[:0], metricID)
 		if err != nil {
@@ -1082,10 +1090,18 @@ func (is *indexSearch) getLabelValuesForMetricIDs(qt *querytracer.Tracer, lvs ma
 	if labelName == "" {
 		labelName = "__name__"
 	}
+
+	dmis := is.db.s.getDeletedMetricIDs()
+	checkDeleted := dmis.Len() > 0
+
 	var mn MetricName
 	foundLabelValues := 0
 	var buf []byte
 	for _, metricID := range metricIDs {
+		if checkDeleted && dmis.Has(metricID) {
+			// skip deleted IDs from result
+			continue
+		}
 		var err error
 		buf, err = is.searchMetricNameWithCache(buf[:0], metricID)
 		if err != nil {
