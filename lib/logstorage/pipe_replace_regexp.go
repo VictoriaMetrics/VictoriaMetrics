@@ -3,6 +3,8 @@ package logstorage
 import (
 	"fmt"
 	"regexp"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 // pipeReplaceRegexp processes '| replace_regexp ...' pipe.
@@ -59,11 +61,9 @@ func (pr *pipeReplaceRegexp) initFilterInValues(cache map[string][]string, getFi
 
 func (pr *pipeReplaceRegexp) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	updateFunc := func(a *arena, v string) string {
-		bb := bbPool.Get()
-		bb.B = appendReplaceRegexp(bb.B[:0], v, pr.re, pr.replacement, pr.limit)
-		result := a.copyBytesToString(bb.B)
-		bbPool.Put(bb)
-		return result
+		bLen := len(a.b)
+		a.b = appendReplaceRegexp(a.b, v, pr.re, pr.replacement, pr.limit)
+		return bytesutil.ToUnsafeString(a.b[bLen:])
 	}
 
 	return newPipeUpdateProcessor(workersCount, updateFunc, ppNext, pr.field, pr.iff)

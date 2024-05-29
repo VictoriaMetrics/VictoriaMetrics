@@ -3,6 +3,7 @@ package logstorage
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -310,6 +311,157 @@ func TestStorageRunQuery(t *testing.T) {
 		}
 		tenantIDs := []TenantID{tenantID}
 		mustRunQuery(tenantIDs, q, writeBlock)
+	})
+	t.Run("field_names-all", func(t *testing.T) {
+		q := mustParseQuery("*")
+		names, err := s.GetFieldNames(context.Background(), allTenantIDs, q)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		resultExpected := []ValueWithHits{
+			{"_msg", 1155},
+			{"_stream", 1155},
+			{"_time", 1155},
+			{"instance", 1155},
+			{"job", 1155},
+			{"source-file", 1155},
+			{"stream-id", 1155},
+			{"tenant.id", 1155},
+		}
+		if !reflect.DeepEqual(names, resultExpected) {
+			t.Fatalf("unexpected result; got\n%v\nwant\n%v", names, resultExpected)
+		}
+	})
+	t.Run("field_names-some", func(t *testing.T) {
+		q := mustParseQuery(`_stream:{instance=~"host-1:.+"}`)
+		names, err := s.GetFieldNames(context.Background(), allTenantIDs, q)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		resultExpected := []ValueWithHits{
+			{"_msg", 385},
+			{"_stream", 385},
+			{"_time", 385},
+			{"instance", 385},
+			{"job", 385},
+			{"source-file", 385},
+			{"stream-id", 385},
+			{"tenant.id", 385},
+		}
+		if !reflect.DeepEqual(names, resultExpected) {
+			t.Fatalf("unexpected result; got\n%v\nwant\n%v", names, resultExpected)
+		}
+	})
+	t.Run("field_values-nolimit", func(t *testing.T) {
+		q := mustParseQuery("*")
+		values, err := s.GetFieldValues(context.Background(), allTenantIDs, q, "_stream", 0)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		resultExpected := []ValueWithHits{
+			{`{instance="host-0:234",job="foobar"}`, 385},
+			{`{instance="host-1:234",job="foobar"}`, 385},
+			{`{instance="host-2:234",job="foobar"}`, 385},
+		}
+		if !reflect.DeepEqual(values, resultExpected) {
+			t.Fatalf("unexpected result; got\n%v\nwant\n%v", values, resultExpected)
+		}
+	})
+	t.Run("field_values-limit", func(t *testing.T) {
+		q := mustParseQuery("*")
+		values, err := s.GetFieldValues(context.Background(), allTenantIDs, q, "_stream", 3)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		resultExpected := []ValueWithHits{
+			{`{instance="host-0:234",job="foobar"}`, 0},
+			{`{instance="host-1:234",job="foobar"}`, 0},
+			{`{instance="host-2:234",job="foobar"}`, 0},
+		}
+		if !reflect.DeepEqual(values, resultExpected) {
+			t.Fatalf("unexpected result; got\n%v\nwant\n%v", values, resultExpected)
+		}
+	})
+	t.Run("field_values-limit", func(t *testing.T) {
+		q := mustParseQuery("instance:='host-1:234'")
+		values, err := s.GetFieldValues(context.Background(), allTenantIDs, q, "_stream", 4)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		resultExpected := []ValueWithHits{
+			{`{instance="host-1:234",job="foobar"}`, 385},
+		}
+		if !reflect.DeepEqual(values, resultExpected) {
+			t.Fatalf("unexpected result; got\n%v\nwant\n%v", values, resultExpected)
+		}
+	})
+	t.Run("stream_field_names", func(t *testing.T) {
+		q := mustParseQuery("*")
+		names, err := s.GetStreamFieldNames(context.Background(), allTenantIDs, q)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		resultExpected := []ValueWithHits{
+			{"instance", 1155},
+			{"job", 1155},
+		}
+		if !reflect.DeepEqual(names, resultExpected) {
+			t.Fatalf("unexpected result; got\n%v\nwant\n%v", names, resultExpected)
+		}
+	})
+	t.Run("stream_field_values-nolimit", func(t *testing.T) {
+		q := mustParseQuery("*")
+		values, err := s.GetStreamFieldValues(context.Background(), allTenantIDs, q, "instance", 0)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		resultExpected := []ValueWithHits{
+			{`host-0:234`, 385},
+			{`host-1:234`, 385},
+			{`host-2:234`, 385},
+		}
+		if !reflect.DeepEqual(values, resultExpected) {
+			t.Fatalf("unexpected result; got\n%v\nwant\n%v", values, resultExpected)
+		}
+	})
+	t.Run("stream_field_values-limit", func(t *testing.T) {
+		q := mustParseQuery("*")
+		values, err := s.GetStreamFieldValues(context.Background(), allTenantIDs, q, "instance", 3)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		resultExpected := []ValueWithHits{
+			{`host-0:234`, 385},
+			{`host-1:234`, 385},
+			{`host-2:234`, 385},
+		}
+		if !reflect.DeepEqual(values, resultExpected) {
+			t.Fatalf("unexpected result; got\n%v\nwant\n%v", values, resultExpected)
+		}
+	})
+	t.Run("streams", func(t *testing.T) {
+		q := mustParseQuery("*")
+		names, err := s.GetStreams(context.Background(), allTenantIDs, q, 0)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		resultExpected := []ValueWithHits{
+			{`{instance="host-0:234",job="foobar"}`, 385},
+			{`{instance="host-1:234",job="foobar"}`, 385},
+			{`{instance="host-2:234",job="foobar"}`, 385},
+		}
+		if !reflect.DeepEqual(names, resultExpected) {
+			t.Fatalf("unexpected result; got\n%v\nwant\n%v", names, resultExpected)
+		}
 	})
 
 	// Run more complex tests

@@ -353,6 +353,10 @@ func TestParseFilterStringRange(t *testing.T) {
 
 	f("string_range(foo, bar)", ``, "foo", "bar")
 	f(`abc:string_range("foo,bar", "baz) !")`, `abc`, `foo,bar`, `baz) !`)
+	f(">foo", ``, "foo\x00", maxStringRangeValue)
+	f("x:>=foo", `x`, "foo", maxStringRangeValue)
+	f("x:<foo", `x`, ``, `foo`)
+	f(`<="123"`, ``, ``, "123\x00")
 }
 
 func TestParseFilterRegexp(t *testing.T) {
@@ -527,9 +531,9 @@ func TestParseRangeFilter(t *testing.T) {
 	f(`foo:>=10.43`, `foo`, 10.43, inf)
 	f(`foo: >= -10.43`, `foo`, -10.43, inf)
 
-	f(`foo:<10.43`, `foo`, -inf, nextafter(10.43, -inf))
+	f(`foo:<10.43K`, `foo`, -inf, nextafter(10_430, -inf))
 	f(`foo: < -10.43`, `foo`, -inf, nextafter(-10.43, -inf))
-	f(`foo:<=10.43`, `foo`, -inf, 10.43)
+	f(`foo:<=10.43ms`, `foo`, -inf, 10_430_000)
 	f(`foo: <= 10.43`, `foo`, -inf, 10.43)
 }
 
@@ -590,6 +594,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`NOT foo AND bar OR baz`, `!foo bar or baz`)
 	f(`NOT (foo AND bar) OR baz`, `!(foo bar) or baz`)
 	f(`foo OR bar AND baz`, `foo or bar baz`)
+	f(`foo bar or baz xyz`, `foo bar or baz xyz`)
+	f(`foo (bar or baz) xyz`, `foo (bar or baz) xyz`)
+	f(`foo or bar baz or xyz`, `foo or bar baz or xyz`)
+	f(`(foo or bar) (baz or xyz)`, `(foo or bar) (baz or xyz)`)
 	f(`(foo OR bar) AND baz`, `(foo or bar) baz`)
 
 	// parens
@@ -802,6 +810,12 @@ func TestParseQuerySuccess(t *testing.T) {
 	// string_range filter
 	f(`string_range(foo, bar)`, `string_range(foo, bar)`)
 	f(`foo:string_range("foo, bar", baz)`, `foo:string_range("foo, bar", baz)`)
+	f(`foo:>bar`, `foo:>bar`)
+	f(`foo:>"1234"`, `foo:>"1234"`)
+	f(`>="abc"`, `>=abc`)
+	f(`foo:<bar`, `foo:<bar`)
+	f(`foo:<"-12.34"`, `foo:<"-12.34"`)
+	f(`<="abc < de"`, `<="abc < de"`)
 
 	// reserved field names
 	f(`"_stream"`, `_stream`)
@@ -869,8 +883,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | DELETE foo, bar`, `* | delete foo, bar`)
 
 	// limit and head pipe
-	f(`foo | limit 10`, `foo | limit 10`)
-	f(`foo | head 10`, `foo | limit 10`)
+	f(`foo | limit`, `foo | limit 10`)
+	f(`foo | head`, `foo | limit 10`)
+	f(`foo | limit 20`, `foo | limit 20`)
+	f(`foo | head 20`, `foo | limit 20`)
 	f(`foo | HEAD 1_123_432`, `foo | limit 1123432`)
 	f(`foo | head 10K`, `foo | limit 10000`)
 
@@ -1065,6 +1081,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`foo | # some comment | foo bar
 	  fields x # another comment
 	  |filter "foo#this#isn't a comment"#this is comment`, `foo | fields x | filter "foo#this#isn't a comment"`)
+
+	// skip 'stats' and 'filter' prefixes
+	f(`* | by (host) count() rows | rows:>10`, `* | stats by (host) count(*) as rows | filter rows:>10`)
+	f(`* | (host) count() rows, count() if (error) errors | rows:>10`, `* | stats by (host) count(*) as rows, count(*) if (error) as errors | filter rows:>10`)
 }
 
 func TestParseQueryFailure(t *testing.T) {
@@ -1082,7 +1102,7 @@ func TestParseQueryFailure(t *testing.T) {
 	f("")
 	f("|")
 	f("foo|")
-	f("foo|bar")
+	f("foo|bar(")
 	f("foo and")
 	f("foo OR ")
 	f("not")
@@ -1151,7 +1171,7 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`very long query with error aaa ffdfd fdfdfd fdfd:( ffdfdfdfdfd`)
 
 	// query with unexpected tail
-	f(`foo | bar`)
+	f(`foo | bar(`)
 
 	// unexpected comma
 	f(`foo,bar`)
@@ -1264,6 +1284,7 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`string_range(foo, bar`)
 	f(`string_range(foo)`)
 	f(`string_range(foo, bar, baz)`)
+	f(`>(`)
 
 	// missing filter
 	f(`| fields *`)
@@ -1271,9 +1292,9 @@ func TestParseQueryFailure(t *testing.T) {
 	// missing pipe keyword
 	f(`foo |`)
 
-	// unknown pipe keyword
-	f(`foo | bar`)
-	f(`foo | fields bar | baz`)
+	// invlaid pipe
+	f(`foo | bar(`)
+	f(`foo | fields bar | baz(`)
 
 	// missing field in fields pipe
 	f(`foo | fields`)
@@ -1312,10 +1333,6 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | rm`)
 	f(`foo | delete foo,`)
 	f(`foo | delete foo,,`)
-
-	// missing limit and head pipe value
-	f(`foo | limit`)
-	f(`foo | head`)
 
 	// invalid limit pipe value
 	f(`foo | limit bar`)

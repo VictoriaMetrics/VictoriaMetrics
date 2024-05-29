@@ -1,10 +1,10 @@
 package logstorage
 
 import (
-	"fmt"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
+
+var maxStringRangeValue = string([]byte{255, 255, 255, 255})
 
 // filterStringRange matches tie given string range [minValue..maxValue)
 //
@@ -16,10 +16,12 @@ type filterStringRange struct {
 	fieldName string
 	minValue  string
 	maxValue  string
+
+	stringRepr string
 }
 
 func (fr *filterStringRange) String() string {
-	return fmt.Sprintf("%sstring_range(%s, %s)", quoteFieldNameIfNeeded(fr.fieldName), quoteTokenIfNeeded(fr.minValue), quoteTokenIfNeeded(fr.maxValue))
+	return quoteFieldNameIfNeeded(fr.fieldName) + fr.stringRepr
 }
 
 func (fr *filterStringRange) updateNeededFields(neededFields fieldsSet) {

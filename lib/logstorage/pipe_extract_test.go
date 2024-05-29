@@ -353,31 +353,3 @@ func TestPipeExtractUpdateNeededFields(t *testing.T) {
 	f("extract '<foo>x<bar>' from x skip_empty_results", "f2,foo,x,y", "", "foo,f2,x,y", "")
 	f("extract if (a:b foo:q) '<foo>x<bar>' from x", "f2,foo,x,y", "", "a,f2,foo,x,y", "")
 }
-
-func expectParsePipeFailure(t *testing.T, pipeStr string) {
-	t.Helper()
-
-	lex := newLexer(pipeStr)
-	p, err := parsePipe(lex)
-	if err == nil && lex.isEnd() {
-		t.Fatalf("expecting error when parsing [%s]; parsed result: [%s]", pipeStr, p)
-	}
-}
-
-func expectParsePipeSuccess(t *testing.T, pipeStr string) {
-	t.Helper()
-
-	lex := newLexer(pipeStr)
-	p, err := parsePipe(lex)
-	if err != nil {
-		t.Fatalf("cannot parse [%s]: %s", pipeStr, err)
-	}
-	if !lex.isEnd() {
-		t.Fatalf("unexpected tail after parsing [%s]: [%s]", pipeStr, lex.s)
-	}
-
-	pipeStrResult := p.String()
-	if pipeStrResult != pipeStr {
-		t.Fatalf("unexpected string representation of pipe; got\n%s\nwant\n%s", pipeStrResult, pipeStr)
-	}
-}

@@ -88,15 +88,20 @@ func parsePipeLimit(lex *lexer) (*pipeLimit, error) {
 	if !lex.isKeyword("limit", "head") {
 		return nil, fmt.Errorf("expecting 'limit' or 'head'; got %q", lex.token)
 	}
+	lex.nextToken()
 
-	lex.nextToken()
-	n, err := parseUint(lex.token)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse rows limit from %q: %w", lex.token, err)
+	limit := uint64(10)
+	if !lex.isKeyword("|", ")", "") {
+		n, err := parseUint(lex.token)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse rows limit from %q: %w", lex.token, err)
+		}
+		lex.nextToken()
+		limit = n
 	}
-	lex.nextToken()
+
 	pl := &pipeLimit{
-		limit: n,
+		limit: limit,
 	}
 	return pl, nil
 }

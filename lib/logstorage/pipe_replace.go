@@ -3,6 +3,8 @@ package logstorage
 import (
 	"fmt"
 	"strings"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 // pipeReplace processes '| replace ...' pipe.
@@ -59,11 +61,9 @@ func (pr *pipeReplace) initFilterInValues(cache map[string][]string, getFieldVal
 
 func (pr *pipeReplace) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	updateFunc := func(a *arena, v string) string {
-		bb := bbPool.Get()
-		bb.B = appendReplace(bb.B[:0], v, pr.oldSubstr, pr.newSubstr, pr.limit)
-		result := a.copyBytesToString(bb.B)
-		bbPool.Put(bb)
-		return result
+		bLen := len(a.b)
+		a.b = appendReplace(a.b, v, pr.oldSubstr, pr.newSubstr, pr.limit)
+		return bytesutil.ToUnsafeString(a.b[bLen:])
 	}
 
 	return newPipeUpdateProcessor(workersCount, updateFunc, ppNext, pr.field, pr.iff)
