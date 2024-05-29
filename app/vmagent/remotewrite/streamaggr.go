@@ -143,7 +143,7 @@ func getStreamAggrOpts(idx int) (string, *streamaggr.Options) {
 	if len(*streamAggrConfig) == 0 {
 		return "", &opts
 	}
-	return (*streamAggrConfig)[idx], &opts
+	return streamAggrConfig.GetOptionalArg(idx), &opts
 }
 
 func newStreamAggrConfigWithOpts(pushFunc streamaggr.PushFunc, path string, opts *streamaggr.Options) (*streamaggr.Aggregators, error) {
