@@ -328,7 +328,7 @@ See also [increases_over_time](#increases_over_time).
 
 `default_rollup(series_selector[d])` is a [rollup function](#rollup-functions), which returns the last [raw sample](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
 value on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
-Compared to [last_over_time](last_over_time) it accounts for [staleness markers](https://docs.victoriametrics.com/vmagent/#prometheus-staleness-markers) to detect stale series.
+Compared to [last_over_time](#last_over_time) it accounts for [staleness markers](https://docs.victoriametrics.com/vmagent/#prometheus-staleness-markers) to detect stale series.
 
 If the lookbehind window is skipped in square brackets, then it is automatically calculated as `max(step, scrape_interval)`, where `step` is the query arg value
 passed to [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query) or [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query),

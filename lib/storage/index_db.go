@@ -747,10 +747,18 @@ func (is *indexSearch) getLabelNamesForMetricIDs(qt *querytracer.Tracer, metricI
 	if len(metricIDs) > 0 {
 		lns["__name__"] = struct{}{}
 	}
+
+	dmis := is.db.s.getDeletedMetricIDs()
+	checkDeleted := dmis.Len() > 0
+
 	var mn MetricName
 	foundLabelNames := 0
 	var buf []byte
 	for _, metricID := range metricIDs {
+		if checkDeleted && dmis.Has(metricID) {
+			// skip deleted IDs from result
+			continue
+		}
 		var ok bool
 		buf, ok = is.searchMetricNameWithCache(buf[:0], metricID)
 		if !ok {
@@ -946,10 +954,18 @@ func (is *indexSearch) getLabelValuesForMetricIDs(qt *querytracer.Tracer, lvs ma
 	if labelName == "" {
 		labelName = "__name__"
 	}
+
+	dmis := is.db.s.getDeletedMetricIDs()
+	checkDeleted := dmis.Len() > 0
+
 	var mn MetricName
 	foundLabelValues := 0
 	var buf []byte
 	for _, metricID := range metricIDs {
+		if checkDeleted && dmis.Has(metricID) {
+			// skip deleted IDs from result
+			continue
+		}
 		var ok bool
 		buf, ok = is.searchMetricNameWithCache(buf[:0], metricID)
 		if !ok {
