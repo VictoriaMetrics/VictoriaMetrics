@@ -941,9 +941,9 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats min(foo,*,bar) x`, `* | stats min(*) as x`)
 
 	// stats pipe row_min
-	f(`* | stats fields_Min(foo) bar`, `* | stats row_min(foo) as bar`)
-	f(`* | fields_Min(foo)`, `* | stats row_min(foo) as "row_min(foo)"`)
-	f(`* | stats BY(x, y, ) fields_MIN(foo,bar,) bar`, `* | stats by (x, y) row_min(foo, bar) as bar`)
+	f(`* | stats row_Min(foo) bar`, `* | stats row_min(foo) as bar`)
+	f(`* | row_Min(foo)`, `* | stats row_min(foo) as "row_min(foo)"`)
+	f(`* | stats BY(x, y, ) row_MIN(foo,bar,) bar`, `* | stats by (x, y) row_min(foo, bar) as bar`)
 
 	// stats pipe avg
 	f(`* | stats Avg(foo) bar`, `* | stats avg(foo) as bar`)
