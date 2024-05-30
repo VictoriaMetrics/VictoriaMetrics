@@ -1513,10 +1513,10 @@ func TestQueryGetNeededColumns(t *testing.T) {
 		unneededColumns := strings.Join(unneeded, ",")
 
 		if neededColumns != neededColumnsExpected {
-			t.Fatalf("unexpected neededColumns; got %q; want %q", neededColumns, neededColumnsExpected)
+			t.Fatalf("unexpected neededColumns for [%s]; got %q; want %q", s, neededColumns, neededColumnsExpected)
 		}
 		if unneededColumns != unneededColumnsExpected {
-			t.Fatalf("unexpected unneededColumns; got %q; want %q", unneededColumns, unneededColumnsExpected)
+			t.Fatalf("unexpected unneededColumns for [%s]; got %q; want %q", s, unneededColumns, unneededColumnsExpected)
 		}
 	}
 
@@ -1786,10 +1786,14 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | copy a b, c d | count() r1`, `a`, ``)
 	f(`* | delete a, b | count() r1`, `*`, `a`)
 	f(`* | extract "<f1>bar" from x | count() r1`, `x`, ``)
+	f(`* | extract if (q:w p:a) "<f1>bar" from x | count() r1`, `p,q,x`, ``)
 	f(`* | extract_regexp "(?P<f1>.*)bar" from x | count() r1`, `x`, ``)
+	f(`* | extract_regexp if (q:w p:a) "(?P<f1>.*)bar" from x | count() r1`, `p,q,x`, ``)
 	f(`* | field_names | count() r1`, `*`, `_time`)
 	f(`* | limit 10 | field_names as abc | count() r1`, `*`, ``)
 	f(`* | fields a, b | count() r1`, `a`, ``)
 	f(`* | field_values a | count() r1`, `a`, ``)
 	f(`* | limit 10 | filter a:b c:d | count() r1`, `a,c`, ``)
+	f(`* | format "<a><b>" as c | count() r1`, `a,b`, ``)
+	f(`* | format if (q:w p:a) "<a><b>" as c | count() r1`, `a,b,p,q`, ``)
 }
