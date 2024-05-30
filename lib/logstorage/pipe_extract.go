@@ -60,6 +60,11 @@ func (pe *pipeExtract) initFilterInValues(cache map[string][]string, getFieldVal
 }
 
 func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet) {
+	if neededFields.isEmpty() {
+		neededFields.add(pe.fromField)
+		return
+	}
+
 	if neededFields.contains("*") {
 		unneededFieldsOrig := unneededFields.clone()
 		needFromField := false
