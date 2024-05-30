@@ -1593,7 +1593,7 @@ See also:
 
 ### math pipe
 
-`| math ...` [pipe](#pipes) performs mathematical calculations over numeric values stored in [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+`| math ...` [pipe](#pipes) performs mathematical calculations over [numeric values](#numeric-values) stored in [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 It has the following format:
 
 ```
@@ -1621,10 +1621,10 @@ The following mathematical operations are supported by `math` pipe:
 - `arg1 / arg2` - divides `arg1` by `arg2`
 - `arg1 % arg2` - returns the remainder of the division of `arg1` by `arg2`
 - `arg1 ^ arg2` - returns the power of `arg1` by `arg2`
-- `arg1 default arg2` - returns `arg2` if `arg1` equals to `NaN`.
+- `arg1 default arg2` - returns `arg2` if `arg1` is non-[numeric](#numeric-values) or equals to `NaN`
 - `abs(arg)` - returns an absolute value for the given `arg`
 - `exp(arg)` - powers [`e`](https://en.wikipedia.org/wiki/E_(mathematical_constant)) by `arg`.
-- `ln(arg)` - returns [natural logarightm](https://en.wikipedia.org/wiki/Natural_logarithm) for the given `arg`.
+- `ln(arg)` - returns [natural logarithm](https://en.wikipedia.org/wiki/Natural_logarithm) for the given `arg`
 - `max(arg1, ..., argN)` - returns the maximum value among the given `arg1`, ..., `argN`
 - `min(arg1, ..., argN)` - returns the minimum value among the given `arg1`, ..., `argN`
 - `round(arg)` - returns rounded to integer value for the given `arg`. The `round()` accepts optional `nearest` arg, which allows rounding the number to the given `nearest` multiple.
@@ -2516,7 +2516,7 @@ _time:5m | stats by (_stream) row_any() as sample_row
 Fields from the returned values can be decoded with [`unpack_json`](#unpack_json-pipe) or [`extract`](#extract-pipe) pipes.
 
 If only the specific fields are needed, then they can be enumerated inside `row_any(...)`.
-For example, the following query returns only `_time`, `path` and `duration` fields from a sample log entry for logs over the last 5 minutes:
+For example, the following query returns only `_time` and `path` fields from a sample log entry for logs over the last 5 minutes:
 
 ```logsql
 _time:5m | stats row_any(_time, path) as time_and_path_sample
