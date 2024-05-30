@@ -357,12 +357,13 @@ var (
 )
 
 const (
-	promSnapshot         = "prom-snapshot"
-	promConcurrency      = "prom-concurrency"
-	promFilterTimeStart  = "prom-filter-time-start"
-	promFilterTimeEnd    = "prom-filter-time-end"
-	promFilterLabel      = "prom-filter-label"
-	promFilterLabelValue = "prom-filter-label-value"
+	promSnapshot           = "prom-snapshot"
+	promConcurrency        = "prom-concurrency"
+	promFilterTimeStart    = "prom-filter-time-start"
+	promFilterTimeEnd      = "prom-filter-time-end"
+	promFilterLabel        = "prom-filter-label"
+	promFilterLabelValue   = "prom-filter-label-value"
+	promDisableProgressBar = "prom-disable-progress-bar"
 )
 
 var (
@@ -393,6 +394,10 @@ var (
 			Name:  promFilterLabelValue,
 			Usage: fmt.Sprintf("Prometheus regular expression to filter label from %q flag.", promFilterLabel),
 			Value: ".*",
+		},
+		&cli.BoolFlag{
+			Name:  promDisableProgressBar,
+			Usage: "Whether to disable progress bar per each worker during the import.",
 		},
 	}
 )

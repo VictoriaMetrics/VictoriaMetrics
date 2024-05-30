@@ -5,11 +5,13 @@ import (
 	"log"
 	"sync"
 
+	"github.com/cheggaaa/pb/v3"
+	"github.com/prometheus/prometheus/tsdb"
+	"github.com/prometheus/prometheus/tsdb/chunkenc"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	"github.com/prometheus/prometheus/tsdb"
-	"github.com/prometheus/prometheus/tsdb/chunkenc"
 )
 
 type prometheusProcessor struct {
@@ -24,6 +26,9 @@ type prometheusProcessor struct {
 	// and defines number of concurrently
 	// running snapshot block readers
 	cc int
+
+	// disableProgressBar disables progress bar
+	disableProgressBar bool
 }
 
 func (pp *prometheusProcessor) run(silent, verbose bool) error {
@@ -39,12 +44,15 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 		return nil
 	}
 
-	bar := barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing blocks"), len(blocks))
+	var bar *pb.ProgressBar
+	if !pp.disableProgressBar {
+		bar = barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing blocks"), len(blocks))
 
-	if err := barpool.Start(); err != nil {
-		return err
+		if err := barpool.Start(); err != nil {
+			return err
+		}
+		defer barpool.Stop()
 	}
-	defer barpool.Stop()
 
 	blockReadersCh := make(chan tsdb.BlockReader)
 	errCh := make(chan error, pp.cc)
@@ -60,7 +68,9 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 					errCh <- fmt.Errorf("read failed for block %q: %s", br.Meta().ULID, err)
 					return
 				}
-				bar.Increment()
+				if bar != nil {
+					bar.Increment()
+				}
 			}
 		}()
 	}

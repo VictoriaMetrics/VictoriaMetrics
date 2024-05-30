@@ -245,9 +245,10 @@ func main() {
 						return fmt.Errorf("failed to create prometheus client: %s", err)
 					}
 					pp := prometheusProcessor{
-						cl: cl,
-						im: importer,
-						cc: c.Int(promConcurrency),
+						cl:                 cl,
+						im:                 importer,
+						cc:                 c.Int(promConcurrency),
+						disableProgressBar: c.Bool(promDisableProgressBar),
 					}
 					return pp.run(c.Bool(globalSilent), c.Bool(globalVerbose))
 				},
