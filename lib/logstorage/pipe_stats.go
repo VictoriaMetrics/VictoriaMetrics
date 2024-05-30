@@ -631,18 +631,6 @@ func parseStatsFunc(lex *lexer) (statsFunc, error) {
 			return nil, fmt.Errorf("cannot parse 'count_uniq' func: %w", err)
 		}
 		return sus, nil
-	case lex.isKeyword("row_max"):
-		sms, err := parseStatsRowMax(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'row_max' func: %w", err)
-		}
-		return sms, nil
-	case lex.isKeyword("row_min"):
-		sms, err := parseStatsRowMin(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'row_min' func: %w", err)
-		}
-		return sms, nil
 	case lex.isKeyword("max"):
 		sms, err := parseStatsMax(lex)
 		if err != nil {
@@ -667,6 +655,24 @@ func parseStatsFunc(lex *lexer) (statsFunc, error) {
 			return nil, fmt.Errorf("cannot parse 'quantile' func: %w", err)
 		}
 		return sqs, nil
+	case lex.isKeyword("row_any"):
+		sas, err := parseStatsRowAny(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'row_any' func: %w", err)
+		}
+		return sas, nil
+	case lex.isKeyword("row_max"):
+		sms, err := parseStatsRowMax(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'row_max' func: %w", err)
+		}
+		return sms, nil
+	case lex.isKeyword("row_min"):
+		sms, err := parseStatsRowMin(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'row_min' func: %w", err)
+		}
+		return sms, nil
 	case lex.isKeyword("sum"):
 		sss, err := parseStatsSum(lex)
 		if err != nil {
