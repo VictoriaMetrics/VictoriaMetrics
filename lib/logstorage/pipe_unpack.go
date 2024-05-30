@@ -7,6 +7,13 @@ import (
 )
 
 func updateNeededFieldsForUnpackPipe(fromField string, outFields []string, keepOriginalFields, skipEmptyResults bool, iff *ifFilter, neededFields, unneededFields fieldsSet) {
+	if neededFields.isEmpty() {
+		if iff != nil {
+			neededFields.addFields(iff.neededFields)
+		}
+		return
+	}
+
 	if neededFields.contains("*") {
 		unneededFieldsOrig := unneededFields.clone()
 		unneededFieldsCount := 0

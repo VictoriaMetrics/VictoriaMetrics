@@ -11,14 +11,14 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-type statsFieldsMin struct {
+type statsRowMin struct {
 	srcField string
 
 	fetchFields []string
 }
 
-func (sm *statsFieldsMin) String() string {
-	s := "fields_min(" + quoteTokenIfNeeded(sm.srcField)
+func (sm *statsRowMin) String() string {
+	s := "row_min(" + quoteTokenIfNeeded(sm.srcField)
 	if len(sm.fetchFields) > 0 {
 		s += ", " + fieldNamesString(sm.fetchFields)
 	}
@@ -26,7 +26,7 @@ func (sm *statsFieldsMin) String() string {
 	return s
 }
 
-func (sm *statsFieldsMin) updateNeededFields(neededFields fieldsSet) {
+func (sm *statsRowMin) updateNeededFields(neededFields fieldsSet) {
 	if len(sm.fetchFields) == 0 {
 		neededFields.add("*")
 	} else {
@@ -35,22 +35,22 @@ func (sm *statsFieldsMin) updateNeededFields(neededFields fieldsSet) {
 	neededFields.add(sm.srcField)
 }
 
-func (sm *statsFieldsMin) newStatsProcessor() (statsProcessor, int) {
-	smp := &statsFieldsMinProcessor{
+func (sm *statsRowMin) newStatsProcessor() (statsProcessor, int) {
+	smp := &statsRowMinProcessor{
 		sm: sm,
 	}
 	return smp, int(unsafe.Sizeof(*smp))
 }
 
-type statsFieldsMinProcessor struct {
-	sm *statsFieldsMin
+type statsRowMinProcessor struct {
+	sm *statsRowMin
 
 	min string
 
 	fields []Field
 }
 
-func (smp *statsFieldsMinProcessor) updateStatsForAllRows(br *blockResult) int {
+func (smp *statsRowMinProcessor) updateStatsForAllRows(br *blockResult) int {
 	stateSizeIncrease := 0
 
 	c := br.getColumnByName(smp.sm.srcField)
@@ -114,7 +114,7 @@ func (smp *statsFieldsMinProcessor) updateStatsForAllRows(br *blockResult) int {
 	return stateSizeIncrease
 }
 
-func (smp *statsFieldsMinProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
+func (smp *statsRowMinProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
 	stateSizeIncrease := 0
 
 	c := br.getColumnByName(smp.sm.srcField)
@@ -138,27 +138,27 @@ func (smp *statsFieldsMinProcessor) updateStatsForRow(br *blockResult, rowIdx in
 	return stateSizeIncrease
 }
 
-func (smp *statsFieldsMinProcessor) mergeState(sfp statsProcessor) {
-	src := sfp.(*statsFieldsMinProcessor)
+func (smp *statsRowMinProcessor) mergeState(sfp statsProcessor) {
+	src := sfp.(*statsRowMinProcessor)
 	if smp.needUpdateStateString(src.min) {
 		smp.min = src.min
 		smp.fields = src.fields
 	}
 }
 
-func (smp *statsFieldsMinProcessor) needUpdateStateBytes(b []byte) bool {
+func (smp *statsRowMinProcessor) needUpdateStateBytes(b []byte) bool {
 	v := bytesutil.ToUnsafeString(b)
 	return smp.needUpdateStateString(v)
 }
 
-func (smp *statsFieldsMinProcessor) needUpdateStateString(v string) bool {
+func (smp *statsRowMinProcessor) needUpdateStateString(v string) bool {
 	if v == "" {
 		return false
 	}
 	return smp.min == "" || lessString(v, smp.min)
 }
 
-func (smp *statsFieldsMinProcessor) updateState(v string, br *blockResult, rowIdx int) int {
+func (smp *statsRowMinProcessor) updateState(v string, br *blockResult, rowIdx int) int {
 	stateSizeIncrease := 0
 
 	if !smp.needUpdateStateString(v) {
@@ -204,7 +204,7 @@ func (smp *statsFieldsMinProcessor) updateState(v string, br *blockResult, rowId
 	return stateSizeIncrease
 }
 
-func (smp *statsFieldsMinProcessor) finalizeStats() string {
+func (smp *statsRowMinProcessor) finalizeStats() string {
 	bb := bbPool.Get()
 	bb.B = marshalFieldsToJSON(bb.B, smp.fields)
 	result := string(bb.B)
@@ -213,18 +213,18 @@ func (smp *statsFieldsMinProcessor) finalizeStats() string {
 	return result
 }
 
-func parseStatsFieldsMin(lex *lexer) (*statsFieldsMin, error) {
-	if !lex.isKeyword("fields_min") {
-		return nil, fmt.Errorf("unexpected func; got %q; want 'fields_min'", lex.token)
+func parseStatsRowMin(lex *lexer) (*statsRowMin, error) {
+	if !lex.isKeyword("row_min") {
+		return nil, fmt.Errorf("unexpected func; got %q; want 'row_min'", lex.token)
 	}
 	lex.nextToken()
 	fields, err := parseFieldNamesInParens(lex)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse 'fields_min' args: %w", err)
+		return nil, fmt.Errorf("cannot parse 'row_min' args: %w", err)
 	}
 
 	if len(fields) == 0 {
-		return nil, fmt.Errorf("missing first arg for 'fields_min' func - source field")
+		return nil, fmt.Errorf("missing first arg for 'row_min' func - source field")
 	}
 
 	srcField := fields[0]
@@ -233,7 +233,7 @@ func parseStatsFieldsMin(lex *lexer) (*statsFieldsMin, error) {
 		fetchFields = nil
 	}
 
-	sm := &statsFieldsMin{
+	sm := &statsRowMin{
 		srcField:    srcField,
 		fetchFields: fetchFields,
 	}

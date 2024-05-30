@@ -28,6 +28,10 @@ func (fs fieldsSet) clone() fieldsSet {
 	return fsNew
 }
 
+func (fs fieldsSet) isEmpty() bool {
+	return len(fs) == 0
+}
+
 func (fs fieldsSet) getAll() []string {
 	a := make([]string, 0, len(fs))
 	for f := range fs {

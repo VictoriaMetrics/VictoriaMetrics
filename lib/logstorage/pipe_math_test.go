@@ -22,6 +22,8 @@ func TestParsePipeMathSuccess(t *testing.T) {
 	f(`math min(3, foo, (1 + bar) / baz) as a, max(a, b) as b, (abs(c) + 5) as d`)
 	f(`math round(foo) as x`)
 	f(`math round(foo, 0.1) as y`)
+	f(`math (a / b default 10) as z`)
+	f(`math (ln(a) + exp(b)) as x`)
 }
 
 func TestParsePipeMathFailure(t *testing.T) {
@@ -31,7 +33,6 @@ func TestParsePipeMathFailure(t *testing.T) {
 	}
 
 	f(`math`)
-	f(`math x`)
 	f(`math x as`)
 	f(`math abs() as x`)
 	f(`math abs(a, b) as x`)
@@ -60,6 +61,94 @@ func TestPipeMath(t *testing.T) {
 			{"a", "3"},
 			{"b", "6"},
 			{"c", "-1.5"},
+		},
+	})
+
+	f("math a / b default c", [][]Field{
+		{
+			{"a", "v1"},
+			{"b", "2"},
+			{"c", "3"},
+		},
+		{
+			{"a", "0"},
+			{"b", "0"},
+			{"c", "3"},
+		},
+		{
+			{"a", "3"},
+			{"b", "2"},
+		},
+		{
+			{"a", "3"},
+			{"b", "foo"},
+		},
+	}, [][]Field{
+		{
+			{"a", "v1"},
+			{"b", "2"},
+			{"c", "3"},
+			{"a / b default c", "3"},
+		},
+		{
+			{"a", "0"},
+			{"b", "0"},
+			{"c", "3"},
+			{"a / b default c", "3"},
+		},
+		{
+			{"a", "3"},
+			{"b", "2"},
+			{"a / b default c", "1.5"},
+		},
+		{
+			{"a", "3"},
+			{"b", "foo"},
+			{"a / b default c", "NaN"},
+		},
+	})
+
+	f("math round(exp(a), 0.01), round(ln(a), 0.01)", [][]Field{
+		{
+			{"a", "v1"},
+		},
+		{
+			{"a", "0"},
+		},
+		{
+			{"a", "1"},
+		},
+		{
+			{"a", "2"},
+		},
+		{
+			{"a", "3"},
+		},
+	}, [][]Field{
+		{
+			{"a", "v1"},
+			{"round(exp(a), 0.01)", "NaN"},
+			{"round(ln(a), 0.01)", "NaN"},
+		},
+		{
+			{"a", "0"},
+			{"round(exp(a), 0.01)", "1"},
+			{"round(ln(a), 0.01)", "NaN"},
+		},
+		{
+			{"a", "1"},
+			{"round(exp(a), 0.01)", "2.72"},
+			{"round(ln(a), 0.01)", "0"},
+		},
+		{
+			{"a", "2"},
+			{"round(exp(a), 0.01)", "7.39"},
+			{"round(ln(a), 0.01)", "0.69"},
+		},
+		{
+			{"a", "3"},
+			{"round(exp(a), 0.01)", "20.09"},
+			{"round(ln(a), 0.01)", "1.1"},
 		},
 	})
 
