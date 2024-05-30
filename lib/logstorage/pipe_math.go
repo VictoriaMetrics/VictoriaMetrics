@@ -175,24 +175,17 @@ func (pm *pipeMath) updateNeededFields(neededFields, unneededFields fieldsSet) {
 			if !unneededFields.contains(e.resultField) {
 				unneededFields.add(e.resultField)
 
-				entryFields := e.getNeededFields()
-				unneededFields.removeFields(entryFields)
+				fs := newFieldsSet()
+				e.expr.updateNeededFields(fs)
+				unneededFields.removeFields(fs.getAll())
 			}
 		} else {
 			if neededFields.contains(e.resultField) {
 				neededFields.remove(e.resultField)
-
-				entryFields := e.getNeededFields()
-				neededFields.addFields(entryFields)
+				e.expr.updateNeededFields(neededFields)
 			}
 		}
 	}
-}
-
-func (me *mathEntry) getNeededFields() []string {
-	neededFields := newFieldsSet()
-	me.expr.updateNeededFields(neededFields)
-	return neededFields.getAll()
 }
 
 func (me *mathExpr) updateNeededFields(neededFields fieldsSet) {

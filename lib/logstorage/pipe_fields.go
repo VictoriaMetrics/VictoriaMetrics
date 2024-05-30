@@ -29,10 +29,6 @@ func (pf *pipeFields) updateNeededFields(neededFields, unneededFields fieldsSet)
 	if pf.containsStar {
 		return
 	}
-	if neededFields.isEmpty() {
-		neededFields.add(pf.fields[0])
-		return
-	}
 
 	if neededFields.contains("*") {
 		// subtract unneeded fields from pf.fields

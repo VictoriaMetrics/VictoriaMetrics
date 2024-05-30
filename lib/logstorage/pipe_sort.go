@@ -56,6 +56,10 @@ func (ps *pipeSort) String() string {
 }
 
 func (ps *pipeSort) updateNeededFields(neededFields, unneededFields fieldsSet) {
+	if neededFields.isEmpty() {
+		return
+	}
+
 	if len(ps.byFields) == 0 {
 		neededFields.add("*")
 		unneededFields.reset()

@@ -32,11 +32,6 @@ func (pc *pipeCopy) String() string {
 }
 
 func (pc *pipeCopy) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if neededFields.isEmpty() {
-		neededFields.add(pc.srcFields[0])
-		return
-	}
-
 	for i := len(pc.srcFields) - 1; i >= 0; i-- {
 		srcField := pc.srcFields[i]
 		dstField := pc.dstFields[i]

@@ -61,7 +61,6 @@ func (pe *pipeExtract) initFilterInValues(cache map[string][]string, getFieldVal
 
 func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	if neededFields.isEmpty() {
-		neededFields.add(pe.fromField)
 		if pe.iff != nil {
 			neededFields.addFields(pe.iff.neededFields)
 		}

@@ -23,12 +23,6 @@ func (pd *pipeDelete) String() string {
 }
 
 func (pd *pipeDelete) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if neededFields.isEmpty() {
-		neededFields.add("*")
-		unneededFields.add(pd.fields[0])
-		return
-	}
-
 	if neededFields.contains("*") {
 		unneededFields.addFields(pd.fields)
 	} else {
