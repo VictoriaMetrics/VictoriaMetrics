@@ -426,10 +426,12 @@ func matchAnyValue(bs *blockSearch, ch *columnHeader, bm *bitmap, values map[str
 
 func matchBloomFilterAnyTokenSet(bs *blockSearch, ch *columnHeader, commonTokens []string, tokenSets [][]string) bool {
 	if len(commonTokens) > 0 {
-		return matchBloomFilterAllTokens(bs, ch, commonTokens)
+		if !matchBloomFilterAllTokens(bs, ch, commonTokens) {
+			return false
+		}
 	}
 	if len(tokenSets) == 0 {
-		return false
+		return len(commonTokens) > 0
 	}
 	if len(tokenSets) > maxTokenSetsToInit || uint64(len(tokenSets)) > 10*bs.bsw.bh.rowsCount {
 		// It is faster to match every row in the block against all the values
@@ -471,7 +473,22 @@ func getCommonTokensAndTokenSets(values []string) ([]string, [][]string) {
 	if len(commonTokens) == 0 {
 		return nil, tokenSets
 	}
-	return commonTokens, nil
+
+	// remove commonTokens from tokenSets
+	for i, tokens := range tokenSets {
+		dstTokens := tokens[:0]
+		for _, token := range tokens {
+			if !slices.Contains(commonTokens, token) {
+				dstTokens = append(dstTokens, token)
+			}
+		}
+		if len(dstTokens) == 0 {
+			return commonTokens, nil
+		}
+		tokenSets[i] = dstTokens
+	}
+
+	return commonTokens, tokenSets
 }
 
 func getCommonTokens(tokenSets [][]string) []string {
