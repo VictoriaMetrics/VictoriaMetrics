@@ -22,9 +22,9 @@ func TestLogfmtParser(t *testing.T) {
 	f(`foo=bar`, `{"foo":"bar"}`)
 	f(`foo="bar=baz x=y"`, `{"foo":"bar=baz x=y"}`)
 	f(`foo=`, `{"foo":""}`)
+	f(`foo`, `{"foo":""}`)
+	f(`foo bar`, `{"foo":"","bar":""}`)
+	f(`foo bar=baz`, `{"foo":"","bar":"baz"}`)
 	f(`foo=bar baz="x y" a=b`, `{"foo":"bar","baz":"x y","a":"b"}`)
-
-	// errors
-	f(`foo`, `{}`)
-	f(`foo=bar  baz=x z qwe`, `{"foo":"bar","baz":"x"}`)
+	f(`  foo=bar  baz=x =z qwe`, `{"foo":"bar","baz":"x","":"z","qwe":""}`)
 }
