@@ -1594,6 +1594,19 @@ See also:
 ### math pipe
 
 `| math ...` [pipe](#pipes) performs mathematical calculations over numeric values stored in [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+It has the following format:
+
+```
+| math
+  expr1 as resultName1,
+  ...
+  exprN as resultNameN
+```
+
+Where `exprX` is one of the supported math expressions mentioned below, while `resultNameX` is the name of the field to store the calculated result to.
+The `as` keyword is optional. The result name can be omitted. In this case the result is stored to a field with the name equal to string represenation
+of the corresponding math expression.
+
 For example, the following query divides `duration_msecs` field value by 1000, then rounds it to integer and stores the result in the `duration_secs` field:
 
 ```logsql
@@ -1620,15 +1633,6 @@ Every `argX` argument in every mathematical operation can contain one of the fol
 - The name of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). For example, `errors_total / requests_total`.
 - Any [supported numeric value](#numeric-values). For example, `response_size_bytes / 1MiB`.
 - Another mathematical expression. Optionally, it may be put inside `(...)`. For example, `(a + b) * c`.
-
-Multiple distinct results can be calculated in a single `math ...` pipe - just separate them with `,`. For example, the following query calculates the error rate
-and the number of successful requests from `errors`, `warnings` and `requests` [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
-
-```logsql
-_time:5m | math
-    (errors / requests) as error_rate,
-    (requests - (errors + warnings)) as success_requests
-```
 
 See also:
 

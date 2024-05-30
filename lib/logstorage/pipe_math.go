@@ -384,14 +384,20 @@ func parseMathEntry(lex *lexer) (*mathEntry, error) {
 		return nil, err
 	}
 
-	// skip optional 'as'
-	if lex.isKeyword("as") {
-		lex.nextToken()
-	}
+	resultField := ""
+	if lex.isKeyword(",", "|", ")", "") {
+		resultField = me.String()
+	} else {
+		if lex.isKeyword("as") {
+			// skip optional 'as'
+			lex.nextToken()
+		}
 
-	resultField, err := parseFieldName(lex)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse result name for [%s]: %w", me, err)
+		fieldName, err := parseFieldName(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse result name for [%s]: %w", me, err)
+		}
+		resultField = fieldName
 	}
 
 	e := &mathEntry{

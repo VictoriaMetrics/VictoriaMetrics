@@ -32,7 +32,6 @@ func TestParsePipeMathFailure(t *testing.T) {
 	}
 
 	f(`math`)
-	f(`math x`)
 	f(`math x as`)
 	f(`math abs() as x`)
 	f(`math abs(a, b) as x`)
@@ -64,7 +63,7 @@ func TestPipeMath(t *testing.T) {
 		},
 	})
 
-	f("math a / b default 10 as c", [][]Field{
+	f("math a / b default c", [][]Field{
 		{
 			{"a", "v1"},
 			{"b", "2"},
@@ -78,22 +77,33 @@ func TestPipeMath(t *testing.T) {
 		{
 			{"a", "3"},
 			{"b", "2"},
+		},
+		{
+			{"a", "3"},
+			{"b", "foo"},
 		},
 	}, [][]Field{
 		{
 			{"a", "v1"},
 			{"b", "2"},
-			{"c", "10"},
+			{"c", "3"},
+			{"a / b default c", "3"},
 		},
 		{
 			{"a", "0"},
 			{"b", "0"},
-			{"c", "10"},
+			{"c", "3"},
+			{"a / b default c", "3"},
 		},
 		{
 			{"a", "3"},
 			{"b", "2"},
-			{"c", "1.5"},
+			{"a / b default c", "1.5"},
+		},
+		{
+			{"a", "3"},
+			{"b", "foo"},
+			{"a / b default c", "NaN"},
 		},
 	})
 
