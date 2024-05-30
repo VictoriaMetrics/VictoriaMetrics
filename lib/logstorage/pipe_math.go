@@ -479,6 +479,10 @@ func parseMathExprOperand(lex *lexer) (*mathExpr, error) {
 	switch {
 	case lex.isKeyword("abs"):
 		return parseMathExprAbs(lex)
+	case lex.isKeyword("exp"):
+		return parseMathExprExp(lex)
+	case lex.isKeyword("ln"):
+		return parseMathExprLn(lex)
 	case lex.isKeyword("max"):
 		return parseMathExprMax(lex)
 	case lex.isKeyword("min"):
@@ -505,6 +509,28 @@ func parseMathExprAbs(lex *lexer) (*mathExpr, error) {
 	}
 	if len(me.args) != 1 {
 		return nil, fmt.Errorf("'abs' function accepts only one arg; got %d args: [%s]", len(me.args), me)
+	}
+	return me, nil
+}
+
+func parseMathExprExp(lex *lexer) (*mathExpr, error) {
+	me, err := parseMathExprGenericFunc(lex, "exp", mathFuncExp)
+	if err != nil {
+		return nil, err
+	}
+	if len(me.args) != 1 {
+		return nil, fmt.Errorf("'exp' function accepts only one arg; got %d args: [%s]", len(me.args), me)
+	}
+	return me, nil
+}
+
+func parseMathExprLn(lex *lexer) (*mathExpr, error) {
+	me, err := parseMathExprGenericFunc(lex, "ln", mathFuncLn)
+	if err != nil {
+		return nil, err
+	}
+	if len(me.args) != 1 {
+		return nil, fmt.Errorf("'ln' function accepts only one arg; got %d args: [%s]", len(me.args), me)
 	}
 	return me, nil
 }
@@ -726,6 +752,20 @@ func mathFuncAbs(result []float64, args [][]float64) {
 	arg := args[0]
 	for i := range result {
 		result[i] = math.Abs(arg[i])
+	}
+}
+
+func mathFuncExp(result []float64, args [][]float64) {
+	arg := args[0]
+	for i := range result {
+		result[i] = math.Exp(arg[i])
+	}
+}
+
+func mathFuncLn(result []float64, args [][]float64) {
+	arg := args[0]
+	for i := range result {
+		result[i] = math.Log(arg[i])
 	}
 }
 

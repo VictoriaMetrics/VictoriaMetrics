@@ -1623,6 +1623,8 @@ The following mathematical operations are supported by `math` pipe:
 - `arg1 ^ arg2` - returns the power of `arg1` by `arg2`
 - `arg1 default arg2` - returns `arg2` if `arg1` equals to `NaN`.
 - `abs(arg)` - returns an absolute value for the given `arg`
+- `exp(arg)` - powers [`e`](https://en.wikipedia.org/wiki/E_(mathematical_constant)) by `arg`.
+- `ln(arg)` - returns [natural logarightm](https://en.wikipedia.org/wiki/Natural_logarithm) for the given `arg`.
 - `max(arg1, ..., argN)` - returns the maximum value among the given `arg1`, ..., `argN`
 - `min(arg1, ..., argN)` - returns the minimum value among the given `arg1`, ..., `argN`
 - `round(arg)` - returns rounded to integer value for the given `arg`. The `round()` accepts optional `nearest` arg, which allows rounding the number to the given `nearest` multiple.
@@ -1631,6 +1633,7 @@ The following mathematical operations are supported by `math` pipe:
 Every `argX` argument in every mathematical operation can contain one of the following values:
 
 - The name of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). For example, `errors_total / requests_total`.
+  If the log field contains value, which cannot be parsed into [supported numeric value](#numeric-values), then it is replaced with `NaN`.
 - Any [supported numeric value](#numeric-values). For example, `response_size_bytes / 1MiB`.
 - Another mathematical expression. Optionally, it may be put inside `(...)`. For example, `(a + b) * c`.
 
