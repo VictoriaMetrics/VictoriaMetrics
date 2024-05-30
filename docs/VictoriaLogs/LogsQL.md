@@ -1885,7 +1885,7 @@ See also:
 uses [`count` stats function](#count-stats) for calculating the number of logs for the last 5 minutes:
 
 ```logsql
-_time:5m | stats count() logs_total
+_time:5m | stats count() as logs_total
 ```
 
 `| stats ...` pipe has the following basic format:
@@ -1909,10 +1909,17 @@ For example, the following query calculates the following stats for logs over th
 _time:5m | stats count() logs_total, count_uniq(_stream) streams_total
 ```
 
-It is allowed to omit `stats` prefix for convenience. So the following query is equivalent to the previous one:
+It is allowed omitting `stats` prefix for convenience. So the following query is equivalent to the previous one:
 
 ```logsql
 _time:5m | count() logs_total, count_uniq(_stream) streams_total
+```
+
+It is allowed omitting the result name. In this case the result name equals to the string representation of the used [stats function](#stats-pipe-functions).
+For example, the following query returns the same stats as the previous one, but gives uses `count()` and `count_uniq(_stream)` names for the returned fields:
+
+```logsql
+_time:5m | count(), count_uniq(_stream)
 ```
 
 See also:
