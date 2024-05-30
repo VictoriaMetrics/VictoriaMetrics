@@ -13,7 +13,10 @@ aliases:
 # LogsQL
 
 LogsQL is a simple yet powerful query language for [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/).
-It provides the following features:
+See [examples](https://docs.victoriametrics.com/victorialogs/logsql-examples/) and [tutorial](#logsql-tutorial)
+in order to feel the language.
+
+LogsQL provides the following features:
 
 - Full-text search across [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
   See [word filter](#word-filter), [phrase filter](#phrase-filter) and [prefix filter](#prefix-filter).
@@ -194,7 +197,8 @@ _time:5m error | stats count() logs_with_error
 
 Finally, it is recommended reading [performance tips](#performance-tips).
 
-Now you are familiar with LogsQL basics. Read [query syntax](#query-syntax) if you want to continue learning LogsQL.
+Now you are familiar with LogsQL basics. See [LogsQL examples](https://docs.victoriametrics.com/victorialogs/logsql-examples/) and [query syntax](#query-syntax)
+if you want to continue learning LogsQL.
 
 ### Key concepts
 
