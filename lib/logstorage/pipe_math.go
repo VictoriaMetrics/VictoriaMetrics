@@ -161,6 +161,10 @@ var mathBinaryOps = map[string]mathBinaryOp{
 		priority: 3,
 		f:        mathFuncMinus,
 	},
+	"default": {
+		priority: 10,
+		f:        mathFuncDefault,
+	},
 }
 
 type mathBinaryOp struct {
@@ -697,6 +701,18 @@ func mathFuncPow(result []float64, args [][]float64) {
 	b := args[1]
 	for i := range result {
 		result[i] = math.Pow(a[i], b[i])
+	}
+}
+
+func mathFuncDefault(result []float64, args [][]float64) {
+	values := args[0]
+	defaultValues := args[1]
+	for i := range result {
+		f := values[i]
+		if math.IsNaN(f) {
+			f = defaultValues[i]
+		}
+		result[i] = f
 	}
 }
 
