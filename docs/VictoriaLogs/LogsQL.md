@@ -287,7 +287,7 @@ _time:1h AND error
 
 The following formats are supported for `_time` filter:
 
-- `_time:duration` matches logs with timestamps on the time range `(now-duration, now]`. Examples:
+- `_time:duration` matches logs with timestamps on the time range `(now-duration, now]`, where `duration` can have [these values](#duration-values). Examples:
   - `_time:5m` - returns logs for the last 5 minutes
   - `_time:2.5d15m42.345s` - returns logs for the last 2.5 days, 15 minutes and 42.345 seconds
   - `_time:1y` - returns logs for the last year
