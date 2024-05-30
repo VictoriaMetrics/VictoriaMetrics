@@ -11,14 +11,14 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-type statsFieldsMax struct {
+type statsRowMax struct {
 	srcField string
 
 	fetchFields []string
 }
 
-func (sm *statsFieldsMax) String() string {
-	s := "fields_max(" + quoteTokenIfNeeded(sm.srcField)
+func (sm *statsRowMax) String() string {
+	s := "row_max(" + quoteTokenIfNeeded(sm.srcField)
 	if len(sm.fetchFields) > 0 {
 		s += ", " + fieldNamesString(sm.fetchFields)
 	}
@@ -26,7 +26,7 @@ func (sm *statsFieldsMax) String() string {
 	return s
 }
 
-func (sm *statsFieldsMax) updateNeededFields(neededFields fieldsSet) {
+func (sm *statsRowMax) updateNeededFields(neededFields fieldsSet) {
 	if len(sm.fetchFields) == 0 {
 		neededFields.add("*")
 	} else {
@@ -35,22 +35,22 @@ func (sm *statsFieldsMax) updateNeededFields(neededFields fieldsSet) {
 	neededFields.add(sm.srcField)
 }
 
-func (sm *statsFieldsMax) newStatsProcessor() (statsProcessor, int) {
-	smp := &statsFieldsMaxProcessor{
+func (sm *statsRowMax) newStatsProcessor() (statsProcessor, int) {
+	smp := &statsRowMaxProcessor{
 		sm: sm,
 	}
 	return smp, int(unsafe.Sizeof(*smp))
 }
 
-type statsFieldsMaxProcessor struct {
-	sm *statsFieldsMax
+type statsRowMaxProcessor struct {
+	sm *statsRowMax
 
 	max string
 
 	fields []Field
 }
 
-func (smp *statsFieldsMaxProcessor) updateStatsForAllRows(br *blockResult) int {
+func (smp *statsRowMaxProcessor) updateStatsForAllRows(br *blockResult) int {
 	stateSizeIncrease := 0
 
 	c := br.getColumnByName(smp.sm.srcField)
@@ -114,7 +114,7 @@ func (smp *statsFieldsMaxProcessor) updateStatsForAllRows(br *blockResult) int {
 	return stateSizeIncrease
 }
 
-func (smp *statsFieldsMaxProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
+func (smp *statsRowMaxProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
 	stateSizeIncrease := 0
 
 	c := br.getColumnByName(smp.sm.srcField)
@@ -138,27 +138,27 @@ func (smp *statsFieldsMaxProcessor) updateStatsForRow(br *blockResult, rowIdx in
 	return stateSizeIncrease
 }
 
-func (smp *statsFieldsMaxProcessor) mergeState(sfp statsProcessor) {
-	src := sfp.(*statsFieldsMaxProcessor)
+func (smp *statsRowMaxProcessor) mergeState(sfp statsProcessor) {
+	src := sfp.(*statsRowMaxProcessor)
 	if smp.needUpdateStateString(src.max) {
 		smp.max = src.max
 		smp.fields = src.fields
 	}
 }
 
-func (smp *statsFieldsMaxProcessor) needUpdateStateBytes(b []byte) bool {
+func (smp *statsRowMaxProcessor) needUpdateStateBytes(b []byte) bool {
 	v := bytesutil.ToUnsafeString(b)
 	return smp.needUpdateStateString(v)
 }
 
-func (smp *statsFieldsMaxProcessor) needUpdateStateString(v string) bool {
+func (smp *statsRowMaxProcessor) needUpdateStateString(v string) bool {
 	if v == "" {
 		return false
 	}
 	return smp.max == "" || lessString(smp.max, v)
 }
 
-func (smp *statsFieldsMaxProcessor) updateState(v string, br *blockResult, rowIdx int) int {
+func (smp *statsRowMaxProcessor) updateState(v string, br *blockResult, rowIdx int) int {
 	stateSizeIncrease := 0
 
 	if !smp.needUpdateStateString(v) {
@@ -204,7 +204,7 @@ func (smp *statsFieldsMaxProcessor) updateState(v string, br *blockResult, rowId
 	return stateSizeIncrease
 }
 
-func (smp *statsFieldsMaxProcessor) finalizeStats() string {
+func (smp *statsRowMaxProcessor) finalizeStats() string {
 	bb := bbPool.Get()
 	bb.B = marshalFieldsToJSON(bb.B, smp.fields)
 	result := string(bb.B)
@@ -213,18 +213,18 @@ func (smp *statsFieldsMaxProcessor) finalizeStats() string {
 	return result
 }
 
-func parseStatsFieldsMax(lex *lexer) (*statsFieldsMax, error) {
-	if !lex.isKeyword("fields_max") {
-		return nil, fmt.Errorf("unexpected func; got %q; want 'fields_max'", lex.token)
+func parseStatsRowMax(lex *lexer) (*statsRowMax, error) {
+	if !lex.isKeyword("row_max") {
+		return nil, fmt.Errorf("unexpected func; got %q; want 'row_max'", lex.token)
 	}
 	lex.nextToken()
 	fields, err := parseFieldNamesInParens(lex)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse 'fields_max' args: %w", err)
+		return nil, fmt.Errorf("cannot parse 'row_max' args: %w", err)
 	}
 
 	if len(fields) == 0 {
-		return nil, fmt.Errorf("missing first arg for 'fields_max' func - source field")
+		return nil, fmt.Errorf("missing first arg for 'row_max' func - source field")
 	}
 
 	srcField := fields[0]
@@ -233,7 +233,7 @@ func parseStatsFieldsMax(lex *lexer) (*statsFieldsMax, error) {
 		fetchFields = nil
 	}
 
-	sm := &statsFieldsMax{
+	sm := &statsRowMax{
 		srcField:    srcField,
 		fetchFields: fetchFields,
 	}

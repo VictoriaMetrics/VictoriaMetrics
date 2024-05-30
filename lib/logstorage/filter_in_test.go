@@ -716,6 +716,6 @@ func TestGetCommonTokensAndTokenSets(t *testing.T) {
 	f([]string{"foo", "foo"}, []string{"foo"}, nil)
 	f([]string{"foo", "bar", "bar", "foo"}, nil, [][]string{{"foo"}, {"bar"}, {"bar"}, {"foo"}})
 	f([]string{"foo", "foo bar", "bar foo"}, []string{"foo"}, nil)
-	f([]string{"a foo bar", "bar abc foo", "foo abc a bar"}, []string{"bar", "foo"}, nil)
+	f([]string{"a foo bar", "bar abc foo", "foo abc a bar"}, []string{"bar", "foo"}, [][]string{{"a"}, {"abc"}, {"a", "abc"}})
 	f([]string{"a xfoo bar", "xbar abc foo", "foo abc a bar"}, nil, [][]string{{"a", "bar", "xfoo"}, {"abc", "foo", "xbar"}, {"a", "abc", "bar", "foo"}})
 }

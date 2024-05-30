@@ -1594,6 +1594,19 @@ See also:
 ### math pipe
 
 `| math ...` [pipe](#pipes) performs mathematical calculations over numeric values stored in [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+It has the following format:
+
+```
+| math
+  expr1 as resultName1,
+  ...
+  exprN as resultNameN
+```
+
+Where `exprX` is one of the supported math expressions mentioned below, while `resultNameX` is the name of the field to store the calculated result to.
+The `as` keyword is optional. The result name can be omitted. In this case the result is stored to a field with the name equal to string represenation
+of the corresponding math expression.
+
 For example, the following query divides `duration_msecs` field value by 1000, then rounds it to integer and stores the result in the `duration_secs` field:
 
 ```logsql
@@ -1608,7 +1621,10 @@ The following mathematical operations are supported by `math` pipe:
 - `arg1 / arg2` - divides `arg1` by `arg2`
 - `arg1 % arg2` - returns the remainder of the division of `arg1` by `arg2`
 - `arg1 ^ arg2` - returns the power of `arg1` by `arg2`
+- `arg1 default arg2` - returns `arg2` if `arg1` equals to `NaN`.
 - `abs(arg)` - returns an absolute value for the given `arg`
+- `exp(arg)` - powers [`e`](https://en.wikipedia.org/wiki/E_(mathematical_constant)) by `arg`.
+- `ln(arg)` - returns [natural logarightm](https://en.wikipedia.org/wiki/Natural_logarithm) for the given `arg`.
 - `max(arg1, ..., argN)` - returns the maximum value among the given `arg1`, ..., `argN`
 - `min(arg1, ..., argN)` - returns the minimum value among the given `arg1`, ..., `argN`
 - `round(arg)` - returns rounded to integer value for the given `arg`. The `round()` accepts optional `nearest` arg, which allows rounding the number to the given `nearest` multiple.
@@ -1617,17 +1633,9 @@ The following mathematical operations are supported by `math` pipe:
 Every `argX` argument in every mathematical operation can contain one of the following values:
 
 - The name of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). For example, `errors_total / requests_total`.
+  If the log field contains value, which cannot be parsed into [supported numeric value](#numeric-values), then it is replaced with `NaN`.
 - Any [supported numeric value](#numeric-values). For example, `response_size_bytes / 1MiB`.
 - Another mathematical expression. Optionally, it may be put inside `(...)`. For example, `(a + b) * c`.
-
-Multiple distinct results can be calculated in a single `math ...` pipe - just separate them with `,`. For example, the following query calculates the error rate
-and the number of successful requests from `errors`, `warnings` and `requests` [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
-
-```logsql
-_time:5m | math
-    (errors / requests) as error_rate,
-    (requests - (errors + warnings)) as success_requests
-```
 
 See also:
 
@@ -1885,7 +1893,7 @@ See also:
 uses [`count` stats function](#count-stats) for calculating the number of logs for the last 5 minutes:
 
 ```logsql
-_time:5m | stats count() logs_total
+_time:5m | stats count() as logs_total
 ```
 
 `| stats ...` pipe has the following basic format:
@@ -1909,10 +1917,17 @@ For example, the following query calculates the following stats for logs over th
 _time:5m | stats count() logs_total, count_uniq(_stream) streams_total
 ```
 
-It is allowed to omit `stats` prefix for convenience. So the following query is equivalent to the previous one:
+It is allowed omitting `stats` prefix for convenience. So the following query is equivalent to the previous one:
 
 ```logsql
 _time:5m | count() logs_total, count_uniq(_stream) streams_total
+```
+
+It is allowed omitting the result name. In this case the result name equals to the string representation of the used [stats function](#stats-pipe-functions).
+For example, the following query returns the same stats as the previous one, but gives uses `count()` and `count_uniq(_stream)` names for the returned fields:
+
+```logsql
+_time:5m | count(), count_uniq(_stream)
 ```
 
 See also:
@@ -1953,6 +1968,12 @@ The `by` keyword can be skipped in `stats ...` pipe. For example, the following 
 ```logsql
 _time:5m | stats (host, path) count() logs_total, count_uniq(ip) ips_total
 ```
+
+See also:
+
+- [`row_min`](#row_min-stats)
+- [`row_max`](#row_max-stats)
+- [`row_any`](#row_any-stats)
 
 #### Stats by time buckets
 
@@ -2284,12 +2305,13 @@ LogsQL supports the following functions for [`stats` pipe](#stats-pipe):
 - [`count`](#count-stats) returns the number of log entries.
 - [`count_empty`](#count_empty-stats) returns the number logs with empty [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`count_uniq`](#count_uniq-stats) returns the number of unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-- [`fields_max`](#fields_max-stats) returns the [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with the minimum value at the given field.
-- [`fields_min`](#fields_min-stats) returns the [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with the maximum value at the given field.
 - [`max`](#max-stats) returns the maximum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`median`](#median-stats) returns the [median](https://en.wikipedia.org/wiki/Median) value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`min`](#min-stats) returns the minumum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`quantile`](#quantile-stats) returns the given quantile for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`row_any`](#row_any-stats) returns a sample [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) per each selected [stats group](#stats-by-fields).
+- [`row_max`](#row_max-stats) returns the [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with the minimum value at the given field.
+- [`row_min`](#row_min-stats) returns the [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with the maximum value at the given field.
 - [`sum`](#sum-stats) returns the sum for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`sum_len`](#sum_len-stats) returns the sum of lengths for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`uniq_values`](#uniq_values-stats) returns unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
@@ -2397,59 +2419,6 @@ See also:
 - [`uniq_values`](#uniq_values-stats)
 - [`count`](#count-stats)
 
-### fields_max stats
-
-`fields_max(field)` [stats pipe function](#stats-pipe-functions) returns [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-with the maximum value for the given `field`. Log entry is returned as JSON-encoded dictionary with all the fields from the original log.
-
-For example, the following query returns log entry with the maximum value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-across logs for the last 5 minutes:
-
-```logsql
-_time:5m | stats fields_max(duration) as log_with_max_duration
-```
-
-Fields from the returned values can be decoded with [`unpack_json`](#unpack_json-pipe) or [`extract`](#extract-pipe) pipes.
-
-If only the specific fields are needed from the returned log entry, then they can be enumerated inside `fields_max(...)`.
-For example, the following query returns only `_time`, `path` and `duration` fields from the log entry with the maximum `duration` over the last 5 minutes:
-
-```logsql
-_time:5m | stats fields_max(duration, _time, path, duration) as time_and_ip_with_max_duration
-```
-
-See also:
-
-- [`max`](#max-stats)
-- [`fields_min`](#fields_min-stats)
-
-
-### fields_min stats
-
-`fields_min(field)` [stats pipe function](#stats-pipe-functions) returns [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-with the minimum value for the given `field`. Log entry is returned as JSON-encoded dictionary with all the fields from the original log.
-
-For example, the following query returns log entry with the minimum value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-across logs for the last 5 minutes:
-
-```logsql
-_time:5m | stats fields_min(duration) as log_with_min_duration
-```
-
-Fields from the returned values can be decoded with [`unpack_json`](#unpack_json-pipe) or [`extract`](#extract-pipe) pipes.
-
-If only the specific fields are needed from the returned log entry, then they can be enumerated inside `fields_max(...)`.
-For example, the following query returns only `_time`, `path` and `duration` fields from the log entry with the minimum `duration` over the last 5 minutes:
-
-```logsql
-_time:5m | stats fields_min(duration, _time, path, duration) as time_and_ip_with_min_duration
-```
-
-See also:
-
-- [`min`](#min-stats)
-- [`fields_max`](#fields_max-stats)
-
 ### max stats
 
 `max(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) returns the maximum value across
@@ -2462,11 +2431,11 @@ over logs for the last 5 minutes:
 _time:5m | stats max(duration) max_duration
 ```
 
-[`fields_max`](#fields_max-stats) function can be used for obtaining other fields with the maximum duration.
+[`row_max`](#row_max-stats) function can be used for obtaining other fields with the maximum duration.
 
 See also:
 
-- [`fields_max`](#fields_max-stats)
+- [`row_max`](#row_max-stats)
 - [`min`](#min-stats)
 - [`quantile`](#quantile-stats)
 - [`avg`](#avg-stats)
@@ -2500,11 +2469,11 @@ over logs for the last 5 minutes:
 _time:5m | stats min(duration) min_duration
 ```
 
-[`fields_min`](#fields_min-stats) function can be used for obtaining other fields with the minimum duration.
+[`row_min`](#row_min-stats) function can be used for obtaining other fields with the minimum duration.
 
 See also:
 
-- [`fields_min`](#fields_min-stats)
+- [`row_min`](#row_min-stats)
 - [`max`](#max-stats)
 - [`quantile`](#quantile-stats)
 - [`avg`](#avg-stats)
@@ -2531,6 +2500,86 @@ See also:
 - [`max`](#max-stats)
 - [`median`](#median-stats)
 - [`avg`](#avg-stats)
+
+### row_any stats
+
+`row_any()` [stats pipe function](#stats-pipe-functions) returns arbitrary [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+(aka sample) per each selected [stats group](#stats-by-fields). Log entry is returned as JSON-encoded dictionary with all the fields from the original log.
+
+For example, the following query returns a sample log entry per each [`_stream`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+across logs for the last 5 minutes:
+
+```logsql
+_time:5m | stats by (_stream) row_any() as sample_row
+```
+
+Fields from the returned values can be decoded with [`unpack_json`](#unpack_json-pipe) or [`extract`](#extract-pipe) pipes.
+
+If only the specific fields are needed, then they can be enumerated inside `row_any(...)`.
+For example, the following query returns only `_time`, `path` and `duration` fields from a sample log entry for logs over the last 5 minutes:
+
+```logsql
+_time:5m | stats row_any(_time, path) as time_and_path_sample
+```
+
+See also:
+
+- [`row_max`](#row_max-stats)
+- [`row_min`](#row_min-stats)
+
+### row_max stats
+
+`row_max(field)` [stats pipe function](#stats-pipe-functions) returns [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+with the maximum value for the given `field`. Log entry is returned as JSON-encoded dictionary with all the fields from the original log.
+
+For example, the following query returns log entry with the maximum value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+across logs for the last 5 minutes:
+
+```logsql
+_time:5m | stats row_max(duration) as log_with_max_duration
+```
+
+Fields from the returned values can be decoded with [`unpack_json`](#unpack_json-pipe) or [`extract`](#extract-pipe) pipes.
+
+If only the specific fields are needed from the returned log entry, then they can be enumerated inside `row_max(...)`.
+For example, the following query returns only `_time`, `path` and `duration` fields from the log entry with the maximum `duration` over the last 5 minutes:
+
+```logsql
+_time:5m | stats row_max(duration, _time, path, duration) as time_and_path_with_max_duration
+```
+
+See also:
+
+- [`max`](#max-stats)
+- [`row_min`](#row_min-stats)
+- [`row_any`](#row_any-stats)
+
+### row_min stats
+
+`row_min(field)` [stats pipe function](#stats-pipe-functions) returns [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+with the minimum value for the given `field`. Log entry is returned as JSON-encoded dictionary with all the fields from the original log.
+
+For example, the following query returns log entry with the minimum value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+across logs for the last 5 minutes:
+
+```logsql
+_time:5m | stats row_min(duration) as log_with_min_duration
+```
+
+Fields from the returned values can be decoded with [`unpack_json`](#unpack_json-pipe) or [`extract`](#extract-pipe) pipes.
+
+If only the specific fields are needed from the returned log entry, then they can be enumerated inside `row_max(...)`.
+For example, the following query returns only `_time`, `path` and `duration` fields from the log entry with the minimum `duration` over the last 5 minutes:
+
+```logsql
+_time:5m | stats row_min(duration, _time, path, duration) as time_and_path_with_min_duration
+```
+
+See also:
+
+- [`min`](#min-stats)
+- [`row_max`](#row_max-stats)
+- [`row_any`](#row_any-stats)
 
 ### sum stats
 

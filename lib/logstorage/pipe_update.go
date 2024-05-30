@@ -5,6 +5,13 @@ import (
 )
 
 func updateNeededFieldsForUpdatePipe(neededFields, unneededFields fieldsSet, field string, iff *ifFilter) {
+	if neededFields.isEmpty() {
+		if iff != nil {
+			neededFields.addFields(iff.neededFields)
+		}
+		return
+	}
+
 	if neededFields.contains("*") {
 		if !unneededFields.contains(field) && iff != nil {
 			unneededFields.removeFields(iff.neededFields)

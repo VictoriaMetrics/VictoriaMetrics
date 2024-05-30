@@ -225,13 +225,13 @@ func TestPipeUnrollUpdateNeededFields(t *testing.T) {
 	f("unroll if (f1:b) (x)", "*", "f1,f2", "*", "f2")
 
 	// all the needed fields, unneeded fields intersect with src
-	f("unroll (x)", "*", "f2,x", "*", "f2,x")
-	f("unroll if (a:b) (x)", "*", "f2,x", "*", "f2,x")
-	f("unroll if (f2:b) (x)", "*", "f2,x", "*", "f2,x")
+	f("unroll (x)", "*", "f2,x", "*", "f2")
+	f("unroll if (a:b) (x)", "*", "f2,x", "*", "f2")
+	f("unroll if (f2:b) (x)", "*", "f2,x", "*", "")
 
 	// needed fields do not intersect with src
-	f("unroll (x)", "f1,f2", "", "f1,f2", "")
-	f("unroll if (a:b) (x)", "f1,f2", "", "f1,f2", "")
+	f("unroll (x)", "f1,f2", "", "f1,f2,x", "")
+	f("unroll if (a:b) (x)", "f1,f2", "", "a,f1,f2,x", "")
 
 	// needed fields intersect with src
 	f("unroll (x)", "f2,x", "", "f2,x", "")

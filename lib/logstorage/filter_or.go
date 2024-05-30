@@ -130,39 +130,44 @@ func (fo *filterOr) initByFieldTokens() {
 	byFieldFilters := make(map[string]int)
 	var fieldNames []string
 
-	for _, f := range fo.filters {
-		fieldName := ""
-		var tokens []string
-
-		switch t := f.(type) {
-		case *filterExact:
-			fieldName = t.fieldName
-			tokens = t.getTokens()
-		case *filterExactPrefix:
-			fieldName = t.fieldName
-			tokens = t.getTokens()
-		case *filterPhrase:
-			fieldName = t.fieldName
-			tokens = t.getTokens()
-		case *filterPrefix:
-			fieldName = t.fieldName
-			tokens = t.getTokens()
-		case *filterRegexp:
-			fieldName = t.fieldName
-			tokens = t.getTokens()
-		case *filterSequence:
-			fieldName = t.fieldName
-			tokens = t.getTokens()
-		}
-
+	mergeFieldTokens := func(fieldName string, tokens []string) {
 		fieldName = getCanonicalColumnName(fieldName)
 		byFieldFilters[fieldName]++
+		if len(tokens) == 0 {
+			return
+		}
 
-		if len(tokens) > 0 {
-			if _, ok := m[fieldName]; !ok {
-				fieldNames = append(fieldNames, fieldName)
+		if _, ok := m[fieldName]; !ok {
+			fieldNames = append(fieldNames, fieldName)
+		}
+		m[fieldName] = append(m[fieldName], tokens)
+	}
+
+	for _, f := range fo.filters {
+		switch t := f.(type) {
+		case *filterExact:
+			tokens := t.getTokens()
+			mergeFieldTokens(t.fieldName, tokens)
+		case *filterExactPrefix:
+			tokens := t.getTokens()
+			mergeFieldTokens(t.fieldName, tokens)
+		case *filterPhrase:
+			tokens := t.getTokens()
+			mergeFieldTokens(t.fieldName, tokens)
+		case *filterPrefix:
+			tokens := t.getTokens()
+			mergeFieldTokens(t.fieldName, tokens)
+		case *filterRegexp:
+			tokens := t.getTokens()
+			mergeFieldTokens(t.fieldName, tokens)
+		case *filterSequence:
+			tokens := t.getTokens()
+			mergeFieldTokens(t.fieldName, tokens)
+		case *filterAnd:
+			bfts := t.getByFieldTokens()
+			for _, bft := range bfts {
+				mergeFieldTokens(bft.field, bft.tokens)
 			}
-			m[fieldName] = append(m[fieldName], tokens)
 		}
 	}
 
