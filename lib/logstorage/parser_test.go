@@ -940,10 +940,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats min(*) x`, `* | stats min(*) as x`)
 	f(`* | stats min(foo,*,bar) x`, `* | stats min(*) as x`)
 
-	// stats pipe fields_min
-	f(`* | stats fields_Min(foo) bar`, `* | stats fields_min(foo) as bar`)
-	f(`* | fields_Min(foo)`, `* | stats fields_min(foo) as "fields_min(foo)"`)
-	f(`* | stats BY(x, y, ) fields_MIN(foo,bar,) bar`, `* | stats by (x, y) fields_min(foo, bar) as bar`)
+	// stats pipe row_min
+	f(`* | stats fields_Min(foo) bar`, `* | stats row_min(foo) as bar`)
+	f(`* | fields_Min(foo)`, `* | stats row_min(foo) as "row_min(foo)"`)
+	f(`* | stats BY(x, y, ) fields_MIN(foo,bar,) bar`, `* | stats by (x, y) row_min(foo, bar) as bar`)
 
 	// stats pipe avg
 	f(`* | stats Avg(foo) bar`, `* | stats avg(foo) as bar`)
@@ -1388,7 +1388,7 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | stats min`)
 
 	// invalid stats min
-	f(`foo | stats fields_min`)
+	f(`foo | stats row_min`)
 
 	// invalid stats avg
 	f(`foo | stats avg`)
@@ -1627,12 +1627,12 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | stats count_uniq() q`, `*`, ``)
 	f(`* | stats count_uniq(*) q`, `*`, ``)
 	f(`* | stats count_uniq(x) q`, `x`, ``)
-	f(`* | stats fields_max(a) q`, `*`, ``)
-	f(`* | stats fields_max(a, *) q`, `*`, ``)
-	f(`* | stats fields_max(a, x) q`, `a,x`, ``)
-	f(`* | stats fields_min(a) q`, `*`, ``)
-	f(`* | stats fields_min(a, *) q`, `*`, ``)
-	f(`* | stats fields_min(a, x) q`, `a,x`, ``)
+	f(`* | stats row_max(a) q`, `*`, ``)
+	f(`* | stats row_max(a, *) q`, `*`, ``)
+	f(`* | stats row_max(a, x) q`, `a,x`, ``)
+	f(`* | stats row_min(a) q`, `*`, ``)
+	f(`* | stats row_min(a, *) q`, `*`, ``)
+	f(`* | stats row_min(a, x) q`, `a,x`, ``)
 	f(`* | stats min() q`, `*`, ``)
 	f(`* | stats min(*) q`, `*`, ``)
 	f(`* | stats min(x) q`, `x`, ``)

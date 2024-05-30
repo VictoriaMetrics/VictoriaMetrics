@@ -631,16 +631,16 @@ func parseStatsFunc(lex *lexer) (statsFunc, error) {
 			return nil, fmt.Errorf("cannot parse 'count_uniq' func: %w", err)
 		}
 		return sus, nil
-	case lex.isKeyword("fields_max"):
-		sms, err := parseStatsFieldsMax(lex)
+	case lex.isKeyword("row_max"):
+		sms, err := parseStatsRowMax(lex)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'fields_max' func: %w", err)
+			return nil, fmt.Errorf("cannot parse 'row_max' func: %w", err)
 		}
 		return sms, nil
-	case lex.isKeyword("fields_min"):
-		sms, err := parseStatsFieldsMin(lex)
+	case lex.isKeyword("row_min"):
+		sms, err := parseStatsRowMin(lex)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'fields_min' func: %w", err)
+			return nil, fmt.Errorf("cannot parse 'row_min' func: %w", err)
 		}
 		return sms, nil
 	case lex.isKeyword("max"):
