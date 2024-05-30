@@ -1820,4 +1820,6 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | unpack_logfmt from x fields (a,b) | count() r1`, ``, ``)
 	f(`* | unpack_logfmt if (q:w p:a) from x | count() r1`, `p,q`, ``)
 	f(`* | unpack_logfmt if (q:w p:a) from x fields(a,b) | count() r1`, `p,q`, ``)
+	f(`* | unroll (a, b) | count() r1`, `a,b`, ``)
+	f(`* | unroll if (q:w p:a) (a, b) | count() r1`, `a,b,p,q`, ``)
 }
