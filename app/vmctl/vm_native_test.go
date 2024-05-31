@@ -397,3 +397,48 @@ func Test_buildMatchWithFilter(t *testing.T) {
 		})
 	}
 }
+
+func Test_vmNativeProcessor_isProgressBarDisabled(t *testing.T) {
+	tests := []struct {
+		name               string
+		isSilent           bool
+		disableProgressBar bool
+		want               bool
+	}{
+		{
+			name:               "silent and disable progress bar",
+			isSilent:           true,
+			disableProgressBar: true,
+			want:               false,
+		},
+		{
+			name:               "silent and enable progress bar",
+			isSilent:           true,
+			disableProgressBar: false,
+			want:               false,
+		},
+		{
+			name:               "not silent and disable progress bar",
+			isSilent:           false,
+			disableProgressBar: true,
+			want:               false,
+		},
+		{
+			name:               "not silent and enable progress bar",
+			isSilent:           false,
+			disableProgressBar: false,
+			want:               true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &vmNativeProcessor{
+				isSilent:           tt.isSilent,
+				disableProgressBar: tt.disableProgressBar,
+			}
+			if got := p.enableProgressBar(); got != tt.want {
+				t.Errorf("isProgressBarDisabled() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

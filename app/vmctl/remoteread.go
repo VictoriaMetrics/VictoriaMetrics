@@ -56,14 +56,14 @@ func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 	}
 
 	var bar *pb.ProgressBar
-	if !rrp.isSilent || !rrp.disableProgressBar {
+	if rrp.enableProgressBar() {
 		bar = barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing ranges"), len(ranges))
 		if err := barpool.Start(); err != nil {
 			return err
 		}
 	}
 	defer func() {
-		if !rrp.isSilent || !rrp.disableProgressBar {
+		if rrp.enableProgressBar() {
 			barpool.Stop()
 		}
 		log.Println("Import finished!")
@@ -129,4 +129,8 @@ func (rrp *remoteReadProcessor) do(ctx context.Context, filter *remoteread.Filte
 		}
 		return nil
 	})
+}
+
+func (rrp *remoteReadProcessor) enableProgressBar() bool {
+	return !rrp.disableProgressBar && !rrp.isSilent
 }
