@@ -25,6 +25,7 @@ type influxProcessor struct {
 	disableProgressBar bool
 }
 
+// InfluxProcessorOption defines option for influxProcessor
 type InfluxProcessorOption func(*influxProcessor)
 
 func newInfluxProcessor(opt ...InfluxProcessorOption) *influxProcessor {
