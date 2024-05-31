@@ -398,7 +398,7 @@ func Test_buildMatchWithFilter(t *testing.T) {
 	}
 }
 
-func Test_vmNativeProcessor_isProgressBarDisabled(t *testing.T) {
+func Test_vmNativeProcessor_enableProgressBar(t *testing.T) {
 	tests := []struct {
 		name               string
 		isSilent           bool
