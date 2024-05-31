@@ -1,9 +1,0 @@
-repos:
-  - repo: https://github.com/streetsidesoftware/cspell-cli
-    rev: v8.8.2
-    hooks:
-      - id: cspell
-        # The lines below make pre-commit ignore the exit cod while still
-        # producing valuable spell checking suggestions.
-        entry: bash -c 'cspell "$@" || true' --
-        verbose: true
