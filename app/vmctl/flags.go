@@ -128,7 +128,7 @@ var (
 		},
 		&cli.BoolFlag{
 			Name:  vmDisableProgressBar,
-			Usage: "Whether to disable progress bar per each worker during the import. This flag will be DEPRECATED in the future. Use global flag instead.",
+			Usage: "Whether to disable progress bar per each worker during the import. This flag is deprecated. Use global flag instead.",
 		},
 		&cli.StringFlag{
 			Name:  vmCertFile,
