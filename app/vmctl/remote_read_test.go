@@ -6,11 +6,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/prometheus/prompb"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/testdata/servers_integration_test"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	"github.com/prometheus/prometheus/prompb"
 )
 
 func TestRemoteRead(t *testing.T) {
@@ -156,9 +157,10 @@ func TestRemoteRead(t *testing.T) {
 					timeEnd:   &end,
 					chunk:     tt.chunk,
 				},
-				cc:        1,
-				isSilent:  true,
-				isVerbose: false,
+				cc:                 1,
+				isSilent:           true,
+				isVerbose:          false,
+				disableProgressBar: true,
 			}
 
 			err = rmp.run(ctx)
@@ -311,9 +313,10 @@ func TestSteamRemoteRead(t *testing.T) {
 					timeEnd:   &end,
 					chunk:     tt.chunk,
 				},
-				cc:        1,
-				isSilent:  true,
-				isVerbose: false,
+				cc:                 1,
+				isSilent:           true,
+				isVerbose:          false,
+				disableProgressBar: true,
 			}
 
 			err = rmp.run(ctx)

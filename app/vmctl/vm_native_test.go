@@ -219,16 +219,17 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 			}
 
 			p := &vmNativeProcessor{
-				filter:       tt.fields.filter,
-				dst:          tt.fields.dst,
-				src:          tt.fields.src,
-				backoff:      tt.fields.backoff,
-				s:            tt.fields.s,
-				rateLimit:    tt.fields.rateLimit,
-				interCluster: tt.fields.interCluster,
-				cc:           tt.fields.cc,
-				isSilent:     tt.args.silent,
-				isNative:     true,
+				filter:             tt.fields.filter,
+				dst:                tt.fields.dst,
+				src:                tt.fields.src,
+				backoff:            tt.fields.backoff,
+				s:                  tt.fields.s,
+				rateLimit:          tt.fields.rateLimit,
+				interCluster:       tt.fields.interCluster,
+				cc:                 tt.fields.cc,
+				isSilent:           tt.args.silent,
+				isNative:           true,
+				disableProgressBar: true,
 			}
 
 			if err := p.run(tt.args.ctx); (err != nil) != tt.wantErr {
