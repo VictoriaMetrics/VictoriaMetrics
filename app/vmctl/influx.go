@@ -6,35 +6,90 @@ import (
 	"log"
 	"sync"
 
+	"github.com/cheggaaa/pb/v3"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 )
 
 type influxProcessor struct {
-	ic          *influx.Client
-	im          *vm.Importer
-	cc          int
-	separator   string
-	skipDbLabel bool
-	promMode    bool
-	isSilent    bool
-	isVerbose   bool
+	ic                 *influx.Client
+	im                 *vm.Importer
+	cc                 int
+	separator          string
+	skipDbLabel        bool
+	promMode           bool
+	isSilent           bool
+	isVerbose          bool
+	disableProgressBar bool
 }
 
-func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator string, skipDbLabel, promMode, silent, verbose bool) *influxProcessor {
-	if cc < 1 {
-		cc = 1
+type InfluxProcessorOption func(*influxProcessor)
+
+func newInfluxProcessor(opt ...InfluxProcessorOption) *influxProcessor {
+	ip := &influxProcessor{}
+	for _, fn := range opt {
+		fn(ip)
 	}
-	return &influxProcessor{
-		ic:          ic,
-		im:          im,
-		cc:          cc,
-		separator:   separator,
-		skipDbLabel: skipDbLabel,
-		promMode:    promMode,
-		isSilent:    silent,
-		isVerbose:   verbose,
+	return ip
+}
+
+func WithInfluxClient(ic *influx.Client) InfluxProcessorOption {
+	return func(ip *influxProcessor) {
+		ip.ic = ic
+	}
+}
+
+func WithImporter(im *vm.Importer) InfluxProcessorOption {
+	return func(ip *influxProcessor) {
+		ip.im = im
+	}
+}
+
+func WithConcurrency(cc int) InfluxProcessorOption {
+	return func(ip *influxProcessor) {
+		if cc < 1 {
+			cc = 1
+		}
+
+		ip.cc = cc
+	}
+}
+
+func WithSeparator(separator string) InfluxProcessorOption {
+	return func(ip *influxProcessor) {
+		ip.separator = separator
+	}
+}
+
+func WithSkipDbLabel(skipDbLabel bool) InfluxProcessorOption {
+	return func(ip *influxProcessor) {
+		ip.skipDbLabel = skipDbLabel
+	}
+}
+
+func WithPromMode(promMode bool) InfluxProcessorOption {
+	return func(ip *influxProcessor) {
+		ip.promMode = promMode
+	}
+}
+
+func WithSilent(silent bool) InfluxProcessorOption {
+	return func(ip *influxProcessor) {
+		ip.isSilent = silent
+	}
+}
+
+func WithVerbose(verbose bool) InfluxProcessorOption {
+	return func(ip *influxProcessor) {
+		ip.isVerbose = verbose
+	}
+}
+
+func WithDisableProgressBar(disableProgressBar bool) InfluxProcessorOption {
+	return func(ip *influxProcessor) {
+		ip.disableProgressBar = disableProgressBar
 	}
 }
 
@@ -52,11 +107,14 @@ func (ip *influxProcessor) run() error {
 		return nil
 	}
 
-	bar := barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing series"), len(series))
-	if err := barpool.Start(); err != nil {
-		return err
+	var bar *pb.ProgressBar
+	if !ip.isSilent && !ip.disableProgressBar {
+		bar = barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing series"), len(series))
+		if err := barpool.Start(); err != nil {
+			return err
+		}
+		defer barpool.Stop()
 	}
-	defer barpool.Stop()
 
 	seriesCh := make(chan *influx.Series)
 	errCh := make(chan error)
@@ -72,7 +130,9 @@ func (ip *influxProcessor) run() error {
 					errCh <- fmt.Errorf("request failed for %q.%q: %s", s.Measurement, s.Field, err)
 					return
 				}
-				bar.Increment()
+				if bar != nil {
+					bar.Increment()
+				}
 			}
 		}()
 	}

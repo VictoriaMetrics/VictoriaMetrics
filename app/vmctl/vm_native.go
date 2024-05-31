@@ -37,6 +37,7 @@ type vmNativeProcessor struct {
 	isNative     bool
 
 	disablePerMetricRequests bool
+	disableProgressBar       bool
 }
 
 const (
@@ -88,7 +89,7 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 	}
 
 	for _, tenantID := range tenants {
-		err := p.runBackfilling(ctx, tenantID, ranges, p.isSilent)
+		err := p.runBackfilling(ctx, tenantID, ranges)
 		if err != nil {
 			return fmt.Errorf("migration failed: %s", err)
 		}
@@ -155,7 +156,7 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 	return <-importCh
 }
 
-func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string, ranges [][]time.Time, silent bool) error {
+func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string, ranges [][]time.Time) error {
 	exportAddr := nativeExportAddr
 	importAddr := nativeImportAddr
 	if p.isNative {
@@ -194,7 +195,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 		"": ranges,
 	}
 	if !p.disablePerMetricRequests {
-		metrics, err = p.explore(ctx, p.src, tenantID, ranges, silent)
+		metrics, err = p.explore(ctx, p.src, tenantID, ranges)
 		if err != nil {
 			return fmt.Errorf("failed to explore metric names: %s", err)
 		}
@@ -216,7 +217,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 		// do not prompt for intercluster because there could be many tenants,
 		// and we don't want to interrupt the process when moving to the next tenant.
 		question := foundSeriesMsg + ". Continue?"
-		if !silent && !prompt(question) {
+		if !p.isSilent && !prompt(question) {
 			return nil
 		}
 	} else {
@@ -228,7 +229,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	if p.interCluster {
 		barPrefix = fmt.Sprintf("Requests to make for tenant %s", tenantID)
 	}
-	if !silent {
+	if !p.isSilent || !p.disableProgressBar {
 		bar = barpool.NewSingleProgress(fmt.Sprintf(nativeWithBackoffTpl, barPrefix), requestsToMake)
 		if p.disablePerMetricRequests {
 			bar = barpool.NewSingleProgress(nativeSingleProcessTpl, 0)
@@ -298,11 +299,11 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	return nil
 }
 
-func (p *vmNativeProcessor) explore(ctx context.Context, src *native.Client, tenantID string, ranges [][]time.Time, silent bool) (map[string][][]time.Time, error) {
+func (p *vmNativeProcessor) explore(ctx context.Context, src *native.Client, tenantID string, ranges [][]time.Time) (map[string][][]time.Time, error) {
 	log.Printf("Exploring metrics...")
 
 	var bar *pb.ProgressBar
-	if !silent {
+	if !p.isSilent || !p.disableProgressBar {
 		bar = barpool.NewSingleProgress(fmt.Sprintf(nativeWithBackoffTpl, "Explore requests to make"), len(ranges))
 		bar.Start()
 		defer bar.Finish()

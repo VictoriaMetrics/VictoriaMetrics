@@ -142,14 +142,15 @@ func main() {
 					}
 
 					processor := newInfluxProcessor(
-						influxClient,
-						importer,
-						c.Int(influxConcurrency),
-						c.String(influxMeasurementFieldSeparator),
-						c.Bool(influxSkipDatabaseLabel),
-						c.Bool(influxPrometheusMode),
-						c.Bool(globalSilent),
-						c.Bool(globalVerbose))
+						WithInfluxClient(influxClient),
+						WithImporter(importer),
+						WithConcurrency(c.Int(influxConcurrency)),
+						WithSeparator(c.String(influxMeasurementFieldSeparator)),
+						WithSkipDbLabel(c.Bool(influxSkipDatabaseLabel)),
+						WithPromMode(c.Bool(influxPrometheusMode)),
+						WithSilent(c.Bool(globalSilent)),
+						WithVerbose(c.Bool(globalVerbose)),
+						WithDisableProgressBar(c.Bool(globalDisableProgressBar)))
 					return processor.run()
 				},
 			},
@@ -208,9 +209,10 @@ func main() {
 							chunk:       c.String(remoteReadStepInterval),
 							timeReverse: c.Bool(remoteReadFilterTimeReverse),
 						},
-						cc:        c.Int(remoteReadConcurrency),
-						isSilent:  c.Bool(globalSilent),
-						isVerbose: c.Bool(globalVerbose),
+						cc:                 c.Int(remoteReadConcurrency),
+						isSilent:           c.Bool(globalSilent),
+						isVerbose:          c.Bool(globalVerbose),
+						disableProgressBar: c.Bool(globalDisableProgressBar),
 					}
 					return rmp.run(ctx)
 				},
@@ -248,7 +250,7 @@ func main() {
 						cl:                 cl,
 						im:                 importer,
 						cc:                 c.Int(promConcurrency),
-						disableProgressBar: c.Bool(promDisableProgressBar),
+						disableProgressBar: c.Bool(globalDisableProgressBar),
 					}
 					return pp.run(c.Bool(globalSilent), c.Bool(globalVerbose))
 				},
@@ -347,6 +349,7 @@ func main() {
 						disablePerMetricRequests: c.Bool(vmNativeDisablePerMetricMigration),
 						isSilent:                 c.Bool(globalSilent),
 						isNative:                 !c.Bool(vmNativeDisableBinaryProtocol),
+						disableProgressBar:       c.Bool(globalDisableProgressBar),
 					}
 					return p.run(ctx)
 				},
@@ -434,6 +437,6 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 		RoundDigits:        c.Int(vmRoundDigits),
 		ExtraLabels:        c.StringSlice(vmExtraLabel),
 		RateLimit:          c.Int64(vmRateLimit),
-		DisableProgressBar: c.Bool(vmDisableProgressBar),
+		DisableProgressBar: c.Bool(vmDisableProgressBar) || c.Bool(globalDisableProgressBar),
 	}, nil
 }

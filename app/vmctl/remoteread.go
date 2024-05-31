@@ -21,9 +21,10 @@ type remoteReadProcessor struct {
 	dst *vm.Importer
 	src *remoteread.Client
 
-	cc        int
-	isSilent  bool
-	isVerbose bool
+	cc                 int
+	isSilent           bool
+	isVerbose          bool
+	disableProgressBar bool
 }
 
 type remoteReadFilter struct {
@@ -55,14 +56,14 @@ func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 	}
 
 	var bar *pb.ProgressBar
-	if !rrp.isSilent {
+	if !rrp.isSilent || !rrp.disableProgressBar {
 		bar = barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing ranges"), len(ranges))
 		if err := barpool.Start(); err != nil {
 			return err
 		}
 	}
 	defer func() {
-		if !rrp.isSilent {
+		if !rrp.isSilent || !rrp.disableProgressBar {
 			barpool.Stop()
 		}
 		log.Println("Import finished!")

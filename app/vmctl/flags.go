@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	globalSilent  = "s"
-	globalVerbose = "verbose"
+	globalSilent             = "s"
+	globalVerbose            = "verbose"
+	globalDisableProgressBar = "disable-progress-bar"
 )
 
 var (
@@ -25,6 +26,11 @@ var (
 			Name:  globalVerbose,
 			Value: false,
 			Usage: "Whether to enable verbosity in logs output.",
+		},
+		&cli.BoolFlag{
+			Name:  globalDisableProgressBar,
+			Value: false,
+			Usage: "Whether to disable progress bar for all workers during the import.",
 		},
 	}
 )
@@ -122,7 +128,7 @@ var (
 		},
 		&cli.BoolFlag{
 			Name:  vmDisableProgressBar,
-			Usage: "Whether to disable progress bar per each worker during the import.",
+			Usage: "Whether to disable progress bar per each worker during the import. This flag will be DEPRECATED in the future. Use global flag instead.",
 		},
 		&cli.StringFlag{
 			Name:  vmCertFile,
@@ -357,13 +363,12 @@ var (
 )
 
 const (
-	promSnapshot           = "prom-snapshot"
-	promConcurrency        = "prom-concurrency"
-	promFilterTimeStart    = "prom-filter-time-start"
-	promFilterTimeEnd      = "prom-filter-time-end"
-	promFilterLabel        = "prom-filter-label"
-	promFilterLabelValue   = "prom-filter-label-value"
-	promDisableProgressBar = "prom-disable-progress-bar"
+	promSnapshot         = "prom-snapshot"
+	promConcurrency      = "prom-concurrency"
+	promFilterTimeStart  = "prom-filter-time-start"
+	promFilterTimeEnd    = "prom-filter-time-end"
+	promFilterLabel      = "prom-filter-label"
+	promFilterLabelValue = "prom-filter-label-value"
 )
 
 var (
@@ -394,10 +399,6 @@ var (
 			Name:  promFilterLabelValue,
 			Usage: fmt.Sprintf("Prometheus regular expression to filter label from %q flag.", promFilterLabel),
 			Value: ".*",
-		},
-		&cli.BoolFlag{
-			Name:  promDisableProgressBar,
-			Usage: "Whether to disable progress bar per each worker during the import.",
 		},
 	}
 )
