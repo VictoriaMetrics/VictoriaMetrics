@@ -27,11 +27,16 @@ type prometheusProcessor struct {
 	// running snapshot block readers
 	cc int
 
+	// isSilent disables all prompts
+	isSilent bool
+	// isVerbose enables verbose output
+	isVerbose bool
+
 	// disableProgressBar disables progress bar
 	disableProgressBar bool
 }
 
-func (pp *prometheusProcessor) run(silent, verbose bool) error {
+func (pp *prometheusProcessor) run() error {
 	blocks, err := pp.cl.Explore()
 	if err != nil {
 		return fmt.Errorf("explore failed: %s", err)
@@ -40,7 +45,7 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 		return fmt.Errorf("found no blocks to import")
 	}
 	question := fmt.Sprintf("Found %d blocks to import. Continue?", len(blocks))
-	if !silent && !prompt(question) {
+	if !pp.isSilent && !prompt(question) {
 		return nil
 	}
 
@@ -82,7 +87,7 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 			return fmt.Errorf("prometheus error: %s", promErr)
 		case vmErr := <-pp.im.Errors():
 			close(blockReadersCh)
-			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
+			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, pp.isVerbose))
 		case blockReadersCh <- br:
 		}
 	}
@@ -95,7 +100,7 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 	// drain import errors channel
 	for vmErr := range pp.im.Errors() {
 		if vmErr.Err != nil {
-			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
+			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, pp.isVerbose))
 		}
 	}
 	for err := range errCh {
@@ -165,5 +170,5 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 }
 
 func (pp *prometheusProcessor) enableProgressBar() bool {
-	return !pp.disableProgressBar
+	return !pp.disableProgressBar && !pp.isSilent
 }

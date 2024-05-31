@@ -251,8 +251,10 @@ func main() {
 						im:                 importer,
 						cc:                 c.Int(promConcurrency),
 						disableProgressBar: c.Bool(globalDisableProgressBar),
+						isSilent:           c.Bool(globalSilent),
+						isVerbose:          c.Bool(globalVerbose),
 					}
-					return pp.run(c.Bool(globalSilent), c.Bool(globalVerbose))
+					return pp.run()
 				},
 			},
 			{

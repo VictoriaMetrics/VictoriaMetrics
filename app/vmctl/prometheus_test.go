@@ -119,9 +119,11 @@ func Test_prometheusProcessor_run(t *testing.T) {
 			importer := tt.fields.im(tt.fields.vmCfg)
 
 			pp := &prometheusProcessor{
-				cl: client,
-				im: importer,
-				cc: tt.fields.cc,
+				cl:        client,
+				im:        importer,
+				cc:        tt.fields.cc,
+				isSilent:  tt.args.silent,
+				isVerbose: tt.args.verbose,
 			}
 
 			// we should answer on prompt
@@ -157,7 +159,7 @@ func Test_prometheusProcessor_run(t *testing.T) {
 				go tt.fields.closer(importer)
 			}
 
-			if err := pp.run(tt.args.silent, tt.args.verbose); (err != nil) != tt.wantErr {
+			if err := pp.run(); (err != nil) != tt.wantErr {
 				t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
