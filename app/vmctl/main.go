@@ -142,15 +142,15 @@ func main() {
 					}
 
 					processor := newInfluxProcessor(
-						WithInfluxClient(influxClient),
-						WithImporter(importer),
-						WithConcurrency(c.Int(influxConcurrency)),
-						WithSeparator(c.String(influxMeasurementFieldSeparator)),
-						WithSkipDbLabel(c.Bool(influxSkipDatabaseLabel)),
-						WithPromMode(c.Bool(influxPrometheusMode)),
-						WithSilent(c.Bool(globalSilent)),
-						WithVerbose(c.Bool(globalVerbose)),
-						WithDisableProgressBar(c.Bool(globalDisableProgressBar)))
+						influxClient,
+						importer,
+						c.Int(influxConcurrency),
+						c.String(influxMeasurementFieldSeparator),
+						c.Bool(influxSkipDatabaseLabel),
+						c.Bool(influxPrometheusMode),
+						c.Bool(globalSilent),
+						c.Bool(globalVerbose),
+						c.Bool(globalDisableProgressBar))
 					return processor.run()
 				},
 			},

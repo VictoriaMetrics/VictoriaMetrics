@@ -25,81 +25,21 @@ type influxProcessor struct {
 	disableProgressBar bool
 }
 
-// InfluxProcessorOption defines option for influxProcessor
-type InfluxProcessorOption func(*influxProcessor)
-
-func newInfluxProcessor(opt ...InfluxProcessorOption) *influxProcessor {
-	ip := &influxProcessor{}
-	for _, fn := range opt {
-		fn(ip)
+func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator string, skipDbLabel, promMode, silent, verbose, disableProgressBar bool) *influxProcessor {
+	if cc < 1 {
+		cc = 1
 	}
-	return ip
-}
 
-// WithInfluxClient sets Influx client for processor
-func WithInfluxClient(ic *influx.Client) InfluxProcessorOption {
-	return func(ip *influxProcessor) {
-		ip.ic = ic
-	}
-}
-
-// WithImporter sets importer for processor
-func WithImporter(im *vm.Importer) InfluxProcessorOption {
-	return func(ip *influxProcessor) {
-		ip.im = im
-	}
-}
-
-// WithConcurrency sets concurrency for processor
-func WithConcurrency(cc int) InfluxProcessorOption {
-	return func(ip *influxProcessor) {
-		if cc < 1 {
-			cc = 1
-		}
-
-		ip.cc = cc
-	}
-}
-
-// WithSeparator sets separator for processor
-func WithSeparator(separator string) InfluxProcessorOption {
-	return func(ip *influxProcessor) {
-		ip.separator = separator
-	}
-}
-
-// WithSkipDbLabel sets skip Label for processor
-func WithSkipDbLabel(skipDbLabel bool) InfluxProcessorOption {
-	return func(ip *influxProcessor) {
-		ip.skipDbLabel = skipDbLabel
-	}
-}
-
-// WithPromMode sets prometheus mode for processor
-func WithPromMode(promMode bool) InfluxProcessorOption {
-	return func(ip *influxProcessor) {
-		ip.promMode = promMode
-	}
-}
-
-// WithSilent sets silent mode for processor
-func WithSilent(silent bool) InfluxProcessorOption {
-	return func(ip *influxProcessor) {
-		ip.isSilent = silent
-	}
-}
-
-// WithVerbose sets verbose mode for processor
-func WithVerbose(verbose bool) InfluxProcessorOption {
-	return func(ip *influxProcessor) {
-		ip.isVerbose = verbose
-	}
-}
-
-// WithDisableProgressBar sets disable progress bar for processor
-func WithDisableProgressBar(disableProgressBar bool) InfluxProcessorOption {
-	return func(ip *influxProcessor) {
-		ip.disableProgressBar = disableProgressBar
+	return &influxProcessor{
+		ic:                 ic,
+		im:                 im,
+		cc:                 cc,
+		separator:          separator,
+		skipDbLabel:        skipDbLabel,
+		promMode:           promMode,
+		isSilent:           silent,
+		isVerbose:          verbose,
+		disableProgressBar: disableProgressBar,
 	}
 }
 
