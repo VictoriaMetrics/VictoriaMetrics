@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
 
 // TSID is unique id for a time series.
@@ -57,12 +58,17 @@ var marshaledTSIDSize = func() int {
 
 // Marshal appends marshaled t to dst and returns the result.
 func (t *TSID) Marshal(dst []byte) []byte {
-	// TODO: implement marshaling of TSID
+	// implement marshaling of TSID
 	// hint:
 	// format: MetricGroupID(8 bytes) + JobID(4 bytes) + InstanceID(4 bytes) + MetricID(8 bytes)
 	// size: 8 + 4 + 4 + 8 = 24 bytes
 	// you can use encoding.MarshalUint64(dst, t.MetricGroupID) to marshal MetricGroupID and MetricID
-	return []byte{}
+
+	encoding.MarshalUint64(dst, t.MetricGroupID)
+	encoding.MarshalUint32(dst, t.JobID)
+	encoding.MarshalUint32(dst, t.InstanceID)
+	encoding.MarshalUint64(dst, t.MetricID)
+	return dst
 }
 
 // Unmarshal unmarshals t from src and returns the rest of src.
@@ -76,7 +82,15 @@ func (t *TSID) Unmarshal(src []byte) ([]byte, error) {
 	// size: 8 + 4 + 4 + 8 = 24 bytes
 	// you can use encoding.UnmarshalUint64(src) to unmarshal MetricGroupID and MetricID
 	// you can use encoding.UnmarshalUint32(src) to unmarshal JobID and InstanceID
-	// TODO: implement unmarshaling of TSID
+	// implement unmarshaling of TSID
+	t.MetricGroupID = encoding.UnmarshalUint64(src)
+	src = src[8:]
+	t.JobID = encoding.UnmarshalUint32(src)
+	src = src[4:]
+	t.InstanceID = encoding.UnmarshalUint32(src)
+	src = src[4:]
+	t.MetricID = encoding.UnmarshalUint64(src)
+	src = src[8:]
 	return src, nil
 }
 
@@ -85,9 +99,21 @@ func (t *TSID) Less(b *TSID) bool {
 	// Do not compare MetricIDs here as fast path for determining identical TSIDs,
 	// since identical TSIDs aren't passed here in hot paths.
 
-	// TODO: implement Less for TSID
+	// implement Less for TSID
 	// hint:
 	// compare MetricGroupID, JobID, InstanceID, MetricID as separate conditions
 	// return true if t < b
+	if t.MetricGroupID != b.MetricGroupID {
+		return t.MetricGroupID < b.MetricGroupID
+	}
+	if t.JobID != b.JobID {
+		return t.JobID < b.JobID
+	}
+	if t.InstanceID != b.InstanceID {
+		return t.InstanceID < b.InstanceID
+	}
+	if t.MetricID != b.MetricID {
+		return t.MetricID < b.MetricID
+	}
 	return false
 }
