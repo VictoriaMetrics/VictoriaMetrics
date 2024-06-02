@@ -64,10 +64,10 @@ func (t *TSID) Marshal(dst []byte) []byte {
 	// size: 8 + 4 + 4 + 8 = 24 bytes
 	// you can use encoding.MarshalUint64(dst, t.MetricGroupID) to marshal MetricGroupID and MetricID
 
-	encoding.MarshalUint64(dst, t.MetricGroupID)
-	encoding.MarshalUint32(dst, t.JobID)
-	encoding.MarshalUint32(dst, t.InstanceID)
-	encoding.MarshalUint64(dst, t.MetricID)
+	dst = encoding.MarshalUint64(dst, t.MetricGroupID)
+	dst = encoding.MarshalUint32(dst, t.JobID)
+	dst = encoding.MarshalUint32(dst, t.InstanceID)
+	dst = encoding.MarshalUint64(dst, t.MetricID)
 	return dst
 }
 
