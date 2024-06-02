@@ -2,8 +2,6 @@ package storage
 
 import (
 	"fmt"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
 
 // TSID is unique id for a time series.
@@ -59,11 +57,12 @@ var marshaledTSIDSize = func() int {
 
 // Marshal appends marshaled t to dst and returns the result.
 func (t *TSID) Marshal(dst []byte) []byte {
-	dst = encoding.MarshalUint64(dst, t.MetricGroupID)
-	dst = encoding.MarshalUint32(dst, t.JobID)
-	dst = encoding.MarshalUint32(dst, t.InstanceID)
-	dst = encoding.MarshalUint64(dst, t.MetricID)
-	return dst
+	// TODO: implement marshaling of TSID
+	// hint:
+	// format: MetricGroupID(8 bytes) + JobID(4 bytes) + InstanceID(4 bytes) + MetricID(8 bytes)
+	// size: 8 + 4 + 4 + 8 = 24 bytes
+	// you can use encoding.MarshalUint64(dst, t.MetricGroupID) to marshal MetricGroupID and MetricID
+	return []byte{}
 }
 
 // Unmarshal unmarshals t from src and returns the rest of src.
@@ -72,15 +71,12 @@ func (t *TSID) Unmarshal(src []byte) ([]byte, error) {
 		return nil, fmt.Errorf("too short src; got %d bytes; want %d bytes", len(src), marshaledTSIDSize)
 	}
 
-	t.MetricGroupID = encoding.UnmarshalUint64(src)
-	src = src[8:]
-	t.JobID = encoding.UnmarshalUint32(src)
-	src = src[4:]
-	t.InstanceID = encoding.UnmarshalUint32(src)
-	src = src[4:]
-	t.MetricID = encoding.UnmarshalUint64(src)
-	src = src[8:]
-
+	// hint:
+	// format: MetricGroupID(8 bytes) + JobID(4 bytes) + InstanceID(4 bytes) + MetricID(8 bytes)
+	// size: 8 + 4 + 4 + 8 = 24 bytes
+	// you can use encoding.UnmarshalUint64(src) to unmarshal MetricGroupID and MetricID
+	// you can use encoding.UnmarshalUint32(src) to unmarshal JobID and InstanceID
+	// TODO: implement unmarshaling of TSID
 	return src, nil
 }
 
