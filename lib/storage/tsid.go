@@ -84,14 +84,10 @@ func (t *TSID) Unmarshal(src []byte) ([]byte, error) {
 func (t *TSID) Less(b *TSID) bool {
 	// Do not compare MetricIDs here as fast path for determining identical TSIDs,
 	// since identical TSIDs aren't passed here in hot paths.
-	if t.MetricGroupID != b.MetricGroupID {
-		return t.MetricGroupID < b.MetricGroupID
-	}
-	if t.JobID != b.JobID {
-		return t.JobID < b.JobID
-	}
-	if t.InstanceID != b.InstanceID {
-		return t.InstanceID < b.InstanceID
-	}
-	return t.MetricID < b.MetricID
+
+	// TODO: implement Less for TSID
+	// hint:
+	// compare MetricGroupID, JobID, InstanceID, MetricID as separate conditions
+	// return true if t < b
+	return false
 }
