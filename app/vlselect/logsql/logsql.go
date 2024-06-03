@@ -362,14 +362,14 @@ func getLastNQueryResults(ctx context.Context, tenantIDs []logstorage.TenantID, 
 		return nil, err
 	}
 	if len(rows) <= limit {
-		// Fast path - the requested time range contains up to limit rows
+		// Fast path - the requested time range contains up to limit rows.
 		sortRowsByTime(rows)
 		return rows, nil
 	}
 
 	// Slow path - search for the time range with the requested limit rows.
 	start, end := q.GetFilterTimeRange()
-	d := (end - start) / 2
+	d := end/2 - start/2
 	start += d
 
 	qOrig := q
@@ -381,10 +381,10 @@ func getLastNQueryResults(ctx context.Context, tenantIDs []logstorage.TenantID, 
 			return nil, err
 		}
 
-		if len(rows) == limit || d < 1e6 {
+		if len(rows) == limit || len(rows) > limit && d < 10e6 || d == 0 {
 			sortRowsByTime(rows)
 			if len(rows) > limit {
-				rows = rows[:limit]
+				rows = rows[len(rows)-limit:]
 			}
 			return rows, nil
 		}

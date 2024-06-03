@@ -377,3 +377,23 @@ over logs for the last 5 minutes:
 ```logsql
 _time:5m | uniq by (host, path)
 ```
+
+## How to return last N logs for the given query?
+
+Use [`sort` pipe with limit](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe). For example, the following query returns the last 10 logs with the `error`
+[word](https://docs.victoriametrics.com/victorialogs/logsql/#word) in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+over the logs for the last 5 minutes:
+
+```logsql
+_time:5m error | sort by (_time desc) limit 10
+```
+
+It sorts the matching logs by [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) in descending order and then selects
+the first 10 logs with the highest values for the `_time` field.
+
+If the query is sent to [`/select/logsql/query` HTTP API](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs), then `limit=N` query arg
+can be passed to it in order to return up to `N` latest log entries. For example, the following command returns up to 10 latest log entries with the `error` word:
+
+```sh
+curl http://localhost:9428/select/logsql/query -d 'query=error' -d 'limit=10'
+```
