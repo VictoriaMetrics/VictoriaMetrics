@@ -1280,89 +1280,109 @@ func TestStorageSeriesAreNotCreatedOnStaleMarkers(t *testing.T) {
 }
 
 func TestEachTimeSeriesHasOneUniqueMetricID(t *testing.T) {
-	defer testCleanup(t)
+	defer testCleanup(t, t.Name())
 
-	numBatches := 10
-	numRowsPerBatch := 1000
-	minTimestamp := int64(0)
-	maxTimestamp := int64(numBatches * numRowsPerBatch)
-	mrsBatches := make([][]MetricRow, numBatches)
+	type options struct {
+		mrsBatches            [][]MetricRow
+		concurrency           int
+		splitBatches          bool
+		wantTimeseriesCreated int
+		timeRanges            []TimeRange
+		wantCounts            []int
+	}
+	f := func(t *testing.T, opts *options) {
+		t.Helper()
+
+		path := t.Name()
+		defer testCleanup(t, path)
+
+		s := MustOpenStorage(path, 0, 0, 0)
+		defer s.MustClose()
+
+		if err := testAddConcurrently(s, opts.mrsBatches, opts.concurrency, opts.splitBatches); err != nil {
+			t.Fatalf("testAddConcurrently failed unexpectedly: %v", err)
+		}
+
+		if got, want := s.newTimeseriesCreated.Load(), uint64(opts.wantTimeseriesCreated); got != want {
+			t.Errorf("unexpected s.newTimeseriesCreated value: got %d, want %d", got, want)
+		}
+
+		for i, tr := range opts.timeRanges {
+			want := opts.wantCounts[i]
+			gotNameCount, gotIDCount, err := testCountAllMetricNamesAndIDs(s, tr)
+			if err != nil {
+				t.Fatalf("testCountAllMetricNamesAndIDs(%v) failed unexpectedly: %v", tr, err)
+			}
+			if gotNameCount != want {
+				t.Errorf("unexpected metric name count for %v: got %d, want %d", tr, gotNameCount, want)
+			}
+			if gotIDCount != want {
+				t.Errorf("unexpected metric ID count for %v: got %d, want %d", tr, gotIDCount, want)
+			}
+		}
+	}
+
+	numBatches := 4
+	batches := make([][]MetricRow, numBatches)
+	trs := make([]TimeRange, numBatches)
+	wantCounts := make([]int, numBatches)
 	rng := rand.New(rand.NewSource(1))
-	for batch := range numBatches {
-		mrsBatches[batch] = testGenerateMetricRows(rng, uint64(numRowsPerBatch), int64(batch*1000), int64((batch+1)*1000-1))
+	for i := range numBatches {
+		minTimestamp := time.Date(2024, 1, i+1, 0, 0, 0, 0, time.UTC).UnixMilli()
+		maxTimestamp := time.Date(2024, 1, i+1, 23, 59, 59, 999, time.UTC).UnixMilli()
+		numTimeseries := (i + 1) * 100
+		batches[i] = testGenerateMetricRows(rng, uint64(numTimeseries), minTimestamp, maxTimestamp)
+		trs[i] = TimeRange{minTimestamp, maxTimestamp}
+		wantCounts[i] = numTimeseries
 	}
+	trs = append(trs, TimeRange{trs[0].MinTimestamp, trs[len(trs)-1].MaxTimestamp})
+	wantTimeseriesCreated := len(batches[len(batches)-1])
+	wantCounts = append(wantCounts, wantTimeseriesCreated)
 
-	testCases := []struct {
-		name         string
-		concurrency  int
-		splitBatches bool
-		wantCount    int
-	}{
-		{
-			name:        "SequentialBatches",
-			concurrency: 1,
-			wantCount:   1000,
-		},
-		{
-			name:         "SequentialBatchesConcurrentRows",
-			concurrency:  2,
-			splitBatches: true,
-			wantCount:    1000,
-		},
-		{
-			name:        "ConcurrentBatches",
-			concurrency: 2,
-			wantCount:   1000,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			defer testCleanup(t)
-
-			s := MustOpenStorage(t.Name(), 0, 0, 0)
-			defer s.MustClose()
-
-			testAddConcurrently(t, s, mrsBatches, tc.concurrency, tc.splitBatches)
-
-			if got, want := s.newTimeseriesCreated.Load(), uint64(tc.wantCount); got != want {
-				t.Errorf("unexpected s.newTimeseriesCreated value: got %d, want %d", got, want)
-			}
-			gotNameCount, gotIDCount := testCountAllMetricNamesAndIDs(t, s, minTimestamp, maxTimestamp)
-			if gotNameCount != tc.wantCount {
-				t.Errorf("unexpected metric name count: got %d, want %d", gotNameCount, tc.wantCount)
-			}
-			if gotIDCount != tc.wantCount {
-				t.Errorf("unexpected metric ID count: got %d, want %d", gotIDCount, tc.wantCount)
-			}
+	t.Run("SequentialBatches", func(t *testing.T) {
+		f(t, &options{
+			mrsBatches:            batches,
+			concurrency:           1,
+			splitBatches:          false,
+			wantTimeseriesCreated: wantTimeseriesCreated,
+			timeRanges:            trs,
+			wantCounts:            wantCounts,
 		})
-	}
-}
-
-// testHelper defines the methods that are found in both testing.T and
-// testing.B and used by a helper functions shared between tests and benchmarks.
-type testHelper interface {
-	Helper()
-	Failed() bool
-	Name() string
-	Fatalf(string, ...any)
+	})
+	t.Run("SequentialBatchesConcurrentRows", func(t *testing.T) {
+		f(t, &options{
+			mrsBatches:            batches,
+			concurrency:           numBatches,
+			splitBatches:          true,
+			wantTimeseriesCreated: wantTimeseriesCreated,
+			timeRanges:            trs,
+			wantCounts:            wantCounts,
+		})
+	})
+	t.Run("ConcurrentBatches", func(t *testing.T) {
+		f(t, &options{
+			mrsBatches:            batches,
+			concurrency:           numBatches,
+			splitBatches:          false,
+			wantTimeseriesCreated: wantTimeseriesCreated,
+			timeRanges:            trs,
+			wantCounts:            wantCounts,
+		})
+	})
 }
 
 // testCleanup is a test helper function that removes any temporary files
-// created by a test or a benchmark.
+// created by a test.
 //
 // The files are not removed in case of test or benchmark failure so that
 // created files could be used to debugging.
-func testCleanup[T testHelper](t T) {
+func testCleanup(t *testing.T, path string) {
 	t.Helper()
 
-	if t.Failed() {
-		return
-	}
-
-	path := t.Name()
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("could not remove %q: %v", path, err)
+	if !t.Failed() {
+		if err := os.RemoveAll(path); err != nil {
+			t.Fatalf("could not remove %q: %v", path, err)
+		}
 	}
 }
 
@@ -1374,11 +1394,9 @@ func testCleanup[T testHelper](t T) {
 // each batch is added to the storage in a separate goroutine. Otherwise, rows
 // from a single batch are spread across multiple goroutines and next batch
 // won't be added until all records of the current batch are added.
-func testAddConcurrently[T testHelper](t T, s *Storage, mrsBatches [][]MetricRow, concurrency int, splitBatches bool) {
-	t.Helper()
-
+func testAddConcurrently(s *Storage, mrsBatches [][]MetricRow, concurrency int, splitBatches bool) error {
 	if concurrency < 1 {
-		t.Fatalf("Unexpected concurrency: got %d, want >= 1", concurrency)
+		return fmt.Errorf("Unexpected concurrency: got %d, want >= 1", concurrency)
 	}
 
 	var wg sync.WaitGroup
@@ -1430,130 +1448,93 @@ func testAddConcurrently[T testHelper](t T, s *Storage, mrsBatches [][]MetricRow
 	wg.Wait()
 
 	if err != nil {
-		t.Fatalf("could not add mrs: %v", err)
+		return err
 	}
 	s.DebugFlush()
+	return nil
 }
 
 // testCountMetricNamesAndIDs is a test helper function that counts all time
 // series names and IDs within the timestamp range.
-func testCountAllMetricNamesAndIDs[T testHelper](t T, s *Storage, minTimestamp, maxTimestamp int64) (int, int) {
-	t.Helper()
-
+func testCountAllMetricNamesAndIDs(s *Storage, tr TimeRange) (int, int, error) {
 	tfsAll := NewTagFilters()
 	if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
-		t.Fatalf("unexpected error in TagFilters.Add: %s", err)
+		return 0, 0, fmt.Errorf("unexpected error in TagFilters.Add: %w", err)
 	}
-	tr := TimeRange{MinTimestamp: minTimestamp, MaxTimestamp: maxTimestamp}
-
 	names, err := s.SearchMetricNames(nil, []*TagFilters{tfsAll}, tr, 1e9, noDeadline)
 	if err != nil {
-		t.Fatalf("SeachMetricNames() failed unexpectedly: %v", err)
+		return 0, 0, fmt.Errorf("SeachMetricNames() failed unexpectedly: %w", err)
 	}
 
 	ids, err := s.idb().searchMetricIDs(nil, []*TagFilters{tfsAll}, tr, 1e9, noDeadline)
 	if err != nil {
-		t.Fatalf("seachMetricIDs() failed unexpectedly: %v", err)
+		return 0, 0, fmt.Errorf("seachMetricIDs() failed unexpectedly: %w", err)
 	}
-	return len(names), len(ids)
-}
+	return len(names), len(ids), nil
 
+}
 func TestUniqueMetricIDCache_rotate(t *testing.T) {
-	prev1 := &map[string]uint64{}
-	curr1 := &map[string]uint64{}
+	f := func(t *testing.T, uut *uniqueMetricIDCache, wantPrev, wantCurr map[string]uint64) {
+		uut.rotate()
+		if got, want := uut.prev, wantPrev; !reflect.DeepEqual(got, want) {
+			t.Errorf("unexpected prev cache after rotation: got %v, want %v", got, want)
+		}
+		if got, want := uut.curr, wantCurr; !reflect.DeepEqual(got, want) {
+			t.Fatalf("unexpected curr cache after rotation: got %v, want %v", got, want)
+		}
+	}
 
 	uut := &uniqueMetricIDCache{
-		prev: prev1,
-		curr: curr1,
-	}
-	if uut.prev != prev1 {
-		t.Fatalf("unexpected prev cache: got %v, want %v", uut.prev, prev1)
-	}
-	if uut.curr != curr1 {
-		t.Fatalf("nnexpected curr cache: got %p, want %p", uut.curr, curr1)
+		prev: map[string]uint64{"prev1": 0},
+		curr: map[string]uint64{"curr1": 0},
 	}
 
-	uut.rotate()
-	if uut.prev != curr1 {
-		t.Fatalf("prev cache was not set to curr after rotation: got %v, want %v", uut.prev, curr1)
-	}
-	if uut.curr == curr1 {
-		t.Fatalf("curr was not changed after rotation: %v", uut.curr)
-	}
-
-	curr2 := uut.curr
-	uut.rotate()
-	if uut.prev != curr2 {
-		t.Fatalf("prev cache was not set to curr after rotation: got %v, want %v", uut.prev, curr2)
-	}
-	if uut.curr == curr2 {
-		t.Fatalf("curr was not changed after rotation: %v", uut.curr)
-	}
+	f(t, uut, uut.curr, map[string]uint64{})
+	uut.curr["curr2"] = 0
+	f(t, uut, uut.curr, map[string]uint64{})
 }
 
 func TestUniqueMetricIDCache_reset(t *testing.T) {
-	prev1 := &map[string]uint64{}
-	curr1 := &map[string]uint64{}
-
 	uut := &uniqueMetricIDCache{
-		prev: prev1,
-		curr: curr1,
-	}
-	if uut.prev != prev1 {
-		t.Fatalf("unexpected prev cache: got %v, want %v", uut.prev, prev1)
-	}
-	if uut.curr != curr1 {
-		t.Fatalf("unexpected curr cache: got %p, want %p", uut.curr, curr1)
+		prev: map[string]uint64{"prev": 0},
+		curr: map[string]uint64{"curr": 0},
 	}
 
 	uut.reset()
-	if uut.prev == prev1 {
-		t.Fatalf("prev was not changed after reset: %v", uut.prev)
+	if got, want := len(uut.prev), 0; got != want {
+		t.Errorf("unexpected prev len: got %d, want %d", got, want)
 	}
-	if uut.curr == curr1 {
-		t.Fatalf("curr was not changed after reset: %v", uut.curr)
+	if got, want := len(uut.curr), 0; got != want {
+		t.Errorf("unexpected curr len: got %d, want %d", got, want)
 	}
 }
 
-func TestUniqueMetricIDCache_deduplicate(t *testing.T) {
-	testCases := []struct {
-		name          string
-		metricNames   []string
-		metricIDs     []uint64
-		wantDedupes   []bool
-		wantMetricIDs []uint64
-	}{
-		{
-			name:          "DifferentMetricNames",
-			metricNames:   []string{"m1", "m2", "m3", "m4"},
-			metricIDs:     []uint64{1, 2, 3, 4},
-			wantDedupes:   []bool{false, false, false, false},
-			wantMetricIDs: []uint64{1, 2, 3, 4},
-		},
-		{
-			name:          "DuplicateMetricNames",
-			metricNames:   []string{"m1", "m2", "m2", "m2"},
-			metricIDs:     []uint64{1, 2, 3, 4},
-			wantDedupes:   []bool{false, false, true, true},
-			wantMetricIDs: []uint64{1, 2, 2, 2},
-		},
+func TestUniqueMetricIDCache_getOrPut(t *testing.T) {
+	f := func(t *testing.T, uut *uniqueMetricIDCache, metricName string, metricID, wantMetricID uint64, wantNewTS bool) {
+		t.Helper()
+		gotMetricID, gotNewTS := uut.getOrPut([]byte(metricName), metricID)
+		if gotMetricID != wantMetricID || gotNewTS != wantNewTS {
+			t.Fatalf("getOrPut(%q, %d) unexpected result: got (%d, %t), want (%d, %t)", []any{
+				metricName, metricID,
+				gotMetricID, gotNewTS,
+				wantMetricID, wantNewTS,
+			}...)
+		}
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			uut := &uniqueMetricIDCache{
-				prev: &map[string]uint64{},
-				curr: &map[string]uint64{},
-			}
-			for i, metricName := range tc.metricNames {
-				metricID := tc.metricIDs[i]
-				if got, want := uut.deduplicate([]byte(metricName), &metricID), tc.wantDedupes[i]; got != want {
-					t.Errorf("unexpected deduplicate(%q, %d) result: got %t, want %t", metricName, tc.metricIDs[i], got, want)
-				}
-				if got, want := metricID, tc.wantMetricIDs[i]; got != want {
-					t.Errorf("unexpected metricID: got %d, want %d", got, want)
-				}
-			}
-		})
+	uut := &uniqueMetricIDCache{
+		prev: map[string]uint64{},
+		curr: map[string]uint64{},
 	}
+
+	f(t, uut, "m1", 1, 1, true)
+	f(t, uut, "m2", 2, 2, true)
+	f(t, uut, "m2", 3, 2, false)
+	f(t, uut, "m2", 4, 2, false)
+	// rotate to ensure that metricID is retrieved from prev cache.
+	uut.rotate()
+	f(t, uut, "m2", 5, 2, false)
+	// rotate again to ensure prev cache is gone.
+	uut.rotate()
+	f(t, uut, "m2", 6, 6, true)
 }

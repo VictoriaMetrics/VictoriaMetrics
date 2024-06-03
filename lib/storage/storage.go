@@ -1957,25 +1957,21 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		// New time series inserted concurrently may result in duplicate metric
 		// IDs. Deduplicate them to guarantee, that each metric name has one and
 		// only one corresponding metric ID.
-		//
-		// It is rare but a valid use case that can, happen when one imports
-		// historical data and new metrics for each day are imported
-		// concurrently.
-		if !s.uniqueMetricIDCache.deduplicate(mr.MetricNameRaw, &genTSID.TSID.MetricID) {
+		var newSeries bool
+		if genTSID.TSID.MetricID, newSeries = s.uniqueMetricIDCache.getOrPut(mr.MetricNameRaw, genTSID.TSID.MetricID); newSeries {
+			createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
+			genTSID.generation = generation
+			s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
 			newSeriesCount++
+			if logNewSeries {
+				logger.Infof("new series created: %s", mn.String())
+			}
 		}
-
-		createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
-		genTSID.generation = generation
-		s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
 
 		r.TSID = genTSID.TSID
 		prevTSID = r.TSID
 		prevMetricNameRaw = mr.MetricNameRaw
 
-		if logNewSeries {
-			logger.Infof("new series created: %s", mn.String())
-		}
 	}
 
 	s.slowRowInserts.Add(slowInsertsCount)
@@ -2550,16 +2546,16 @@ type byDateMetricIDEntry struct {
 // 1s should be more than enough.
 type uniqueMetricIDCache struct {
 	mu   sync.Mutex
-	prev *map[string]uint64
-	curr *map[string]uint64
+	prev map[string]uint64
+	curr map[string]uint64
 }
 
 // newUniqueMetricIDCache creates a new MetricName -> MetricID cache with
 // rotation period.
 func newUniqueMetricIDCache(rotationPeriod time.Duration) *uniqueMetricIDCache {
 	c := uniqueMetricIDCache{
-		prev: &map[string]uint64{},
-		curr: &map[string]uint64{},
+		prev: map[string]uint64{},
+		curr: map[string]uint64{},
 	}
 	go func() {
 		for {
@@ -2575,46 +2571,33 @@ func (c *uniqueMetricIDCache) rotate() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.prev = c.curr
-	c.curr = &map[string]uint64{}
+	c.curr = map[string]uint64{}
 }
 
 // reset drops all cache entries at once.
 func (c *uniqueMetricIDCache) reset() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.prev = &map[string]uint64{}
-	c.curr = &map[string]uint64{}
+	c.prev = map[string]uint64{}
+	c.curr = map[string]uint64{}
 }
 
-// deduplicate either stores the MetricName -> MetricID if the cache does not
-// have such mapping yet or replaces the value of incoming metric ID with the
-// stored value if the mapping is already present in cache.
-//
-// The former case means that we are seeing the metricName for the first time
-// and the metricID that corresponds to it is not a duplicate. So we just store
-// the mapping and leave metricID as is. No deduplication happens, and therefore
-// the function returns false.
-//
-// The latter case means that we've seen the metricName before and the incoming
-// metricID is a duplicate. And so we replace that duplicate with the value
-// stored in cache, i.e. deduplicate it. In this case, function returns true.
-func (c *uniqueMetricIDCache) deduplicate(metricName []byte, metricID *uint64) bool {
-	k := string(metricName)
+// getOrPut returns the existing metricID for the metricName if present.
+// Otherwise, it stores and returns the given metricID. The function also
+// returns true if metricID was stored, and false otherwise.
+func (c *uniqueMetricIDCache) getOrPut(metricName []byte, metricID uint64) (uint64, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if v, found := (*c.prev)[k]; found {
-		*metricID = v
-		return true
+	if v, found := c.curr[string(metricName)]; found {
+		return v, false
+	}
+	if v, found := c.prev[string(metricName)]; found {
+		return v, false
 	}
 
-	if v, found := (*c.curr)[k]; found {
-		*metricID = v
-		return true
-	}
-
-	(*c.curr)[k] = *metricID
-	return false
+	c.curr[string(metricName)] = metricID
+	return metricID, true
 }
 
 func (s *Storage) updateNextDayMetricIDs(date uint64) {
