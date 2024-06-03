@@ -76,7 +76,7 @@ func isStaleNFSFileHandleError(err error) bool {
 func isTemporaryNFSError(err error) bool {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 for details.
 	errStr := err.Error()
-	return strings.Contains(errStr, "directory not empty") || strings.Contains(errStr, "device or resource busy")
+	return strings.Contains(errStr, "directory not empty") || strings.Contains(errStr, "file exists") || strings.Contains(errStr, "device or resource busy")
 }
 
 // MustStopDirRemover must be called in the end of graceful shutdown
