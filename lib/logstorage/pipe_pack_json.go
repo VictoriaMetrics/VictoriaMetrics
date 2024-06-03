@@ -126,7 +126,7 @@ func (ppp *pipePackJSONProcessor) writeBlock(workerID uint, br *blockResult) {
 		}
 
 		bufLen := len(buf)
-		buf = marshalFieldsToJSON(buf, fields)
+		buf = MarshalFieldsToJSON(buf, fields)
 		v := bytesutil.ToUnsafeString(buf[bufLen:])
 		shard.rc.addValue(v)
 	}

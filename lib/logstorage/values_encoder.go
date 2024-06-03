@@ -860,8 +860,8 @@ func tryParseDuration(s string) (int64, bool) {
 	return nsecs, true
 }
 
-// marshalDuration appends string representation of nsec duration to dst and returns the result.
-func marshalDuration(dst []byte, nsecs int64) []byte {
+// marshalDurationString appends string representation of nsec duration to dst and returns the result.
+func marshalDurationString(dst []byte, nsecs int64) []byte {
 	if nsecs == 0 {
 		return append(dst, '0')
 	}

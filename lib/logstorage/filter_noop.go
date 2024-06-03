@@ -5,7 +5,7 @@ type filterNoop struct {
 }
 
 func (fn *filterNoop) String() string {
-	return ""
+	return "*"
 }
 
 func (fn *filterNoop) updateNeededFields(_ fieldsSet) {
