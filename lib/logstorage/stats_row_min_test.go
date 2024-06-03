@@ -4,35 +4,35 @@ import (
 	"testing"
 )
 
-func TestParseStatsFieldsMaxSuccess(t *testing.T) {
+func TestParseStatsRowMinSuccess(t *testing.T) {
 	f := func(pipeStr string) {
 		t.Helper()
 		expectParseStatsFuncSuccess(t, pipeStr)
 	}
 
-	f(`fields_max(foo)`)
-	f(`fields_max(foo, bar)`)
-	f(`fields_max(foo, bar, baz)`)
+	f(`row_min(foo)`)
+	f(`row_min(foo, bar)`)
+	f(`row_min(foo, bar, baz)`)
 }
 
-func TestParseStatsFieldsMaxFailure(t *testing.T) {
+func TestParseStatsRowMinFailure(t *testing.T) {
 	f := func(pipeStr string) {
 		t.Helper()
 		expectParseStatsFuncFailure(t, pipeStr)
 	}
 
-	f(`fields_max`)
-	f(`fields_max()`)
-	f(`fields_max(x) bar`)
+	f(`row_min`)
+	f(`row_min()`)
+	f(`row_min(x) bar`)
 }
 
-func TestStatsFieldsMax(t *testing.T) {
+func TestStatsRowMin(t *testing.T) {
 	f := func(pipeStr string, rows, rowsExpected [][]Field) {
 		t.Helper()
 		expectPipeResults(t, pipeStr, rows, rowsExpected)
 	}
 
-	f("stats fields_max(a) as x", [][]Field{
+	f("stats row_min(a) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `2`},
@@ -48,11 +48,11 @@ func TestStatsFieldsMax(t *testing.T) {
 		},
 	}, [][]Field{
 		{
-			{"x", `{"a":"3","b":"54"}`},
+			{"x", `{"_msg":"def","a":"1"}`},
 		},
 	})
 
-	f("stats fields_max(foo) as x", [][]Field{
+	f("stats row_min(foo) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `2`},
@@ -72,7 +72,7 @@ func TestStatsFieldsMax(t *testing.T) {
 		},
 	})
 
-	f("stats fields_max(b, a) as x", [][]Field{
+	f("stats row_min(b, a) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `2`},
@@ -89,11 +89,11 @@ func TestStatsFieldsMax(t *testing.T) {
 		},
 	}, [][]Field{
 		{
-			{"x", `{"a":"3"}`},
+			{"x", `{"a":"2"}`},
 		},
 	})
 
-	f("stats fields_max(b, a, x, b) as x", [][]Field{
+	f("stats row_min(b, a, x, b) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `2`},
@@ -110,11 +110,11 @@ func TestStatsFieldsMax(t *testing.T) {
 		},
 	}, [][]Field{
 		{
-			{"x", `{"a":"3","x":"","b":"54"}`},
+			{"x", `{"a":"2","x":"","b":"3"}`},
 		},
 	})
 
-	f("stats fields_max(a) if (b:*) as x", [][]Field{
+	f("stats row_min(a) if (b:*) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `2`},
@@ -130,11 +130,11 @@ func TestStatsFieldsMax(t *testing.T) {
 		},
 	}, [][]Field{
 		{
-			{"x", `{"a":"3","b":"54"}`},
+			{"x", `{"_msg":"abc","a":"2","b":"3"}`},
 		},
 	})
 
-	f("stats by (b) fields_max(a) if (b:*) as x", [][]Field{
+	f("stats by (b) row_min(a) if (b:*) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `2`},
@@ -152,7 +152,7 @@ func TestStatsFieldsMax(t *testing.T) {
 	}, [][]Field{
 		{
 			{"b", "3"},
-			{"x", `{"_msg":"abc","a":"2","b":"3"}`},
+			{"x", `{"_msg":"def","a":"-12.34","b":"3"}`},
 		},
 		{
 			{"b", ""},
@@ -160,7 +160,7 @@ func TestStatsFieldsMax(t *testing.T) {
 		},
 	})
 
-	f("stats by (a) fields_max(b) as x", [][]Field{
+	f("stats by (a) row_min(b) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `1`},
@@ -185,11 +185,11 @@ func TestStatsFieldsMax(t *testing.T) {
 		},
 		{
 			{"a", "3"},
-			{"x", `{"a":"3","b":"7"}`},
+			{"x", `{"a":"3","b":"5"}`},
 		},
 	})
 
-	f("stats by (a) fields_max(c) as x", [][]Field{
+	f("stats by (a) row_min(c) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `1`},
@@ -218,7 +218,7 @@ func TestStatsFieldsMax(t *testing.T) {
 		},
 	})
 
-	f("stats by (a) fields_max(b, c) as x", [][]Field{
+	f("stats by (a) row_min(b, c) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `1`},
@@ -237,7 +237,6 @@ func TestStatsFieldsMax(t *testing.T) {
 		{
 			{"a", `3`},
 			{"b", `7`},
-			{"c", "bar"},
 		},
 	}, [][]Field{
 		{
@@ -246,11 +245,11 @@ func TestStatsFieldsMax(t *testing.T) {
 		},
 		{
 			{"a", "3"},
-			{"x", `{"c":"bar"}`},
+			{"x", `{"c":"foo"}`},
 		},
 	})
 
-	f("stats by (a, b) fields_max(c) as x", [][]Field{
+	f("stats by (a, b) row_min(c) as x", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `1`},

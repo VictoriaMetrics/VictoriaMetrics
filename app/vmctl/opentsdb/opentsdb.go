@@ -26,7 +26,7 @@ type Retention struct {
 	FirstOrder  string
 	SecondOrder string
 	AggTime     string
-	// The actual ranges will will attempt to query (as offsets from now)
+	// The actual ranges will attempt to query (as offsets from now)
 	QueryRanges []TimeRange
 }
 

@@ -161,6 +161,10 @@ var mathBinaryOps = map[string]mathBinaryOp{
 		priority: 3,
 		f:        mathFuncMinus,
 	},
+	"default": {
+		priority: 10,
+		f:        mathFuncDefault,
+	},
 }
 
 type mathBinaryOp struct {
@@ -175,24 +179,17 @@ func (pm *pipeMath) updateNeededFields(neededFields, unneededFields fieldsSet) {
 			if !unneededFields.contains(e.resultField) {
 				unneededFields.add(e.resultField)
 
-				entryFields := e.getNeededFields()
-				unneededFields.removeFields(entryFields)
+				fs := newFieldsSet()
+				e.expr.updateNeededFields(fs)
+				unneededFields.removeFields(fs.getAll())
 			}
 		} else {
 			if neededFields.contains(e.resultField) {
 				neededFields.remove(e.resultField)
-
-				entryFields := e.getNeededFields()
-				neededFields.addFields(entryFields)
+				e.expr.updateNeededFields(neededFields)
 			}
 		}
 	}
-}
-
-func (me *mathEntry) getNeededFields() []string {
-	neededFields := newFieldsSet()
-	me.expr.updateNeededFields(neededFields)
-	return neededFields.getAll()
 }
 
 func (me *mathExpr) updateNeededFields(neededFields fieldsSet) {
@@ -387,14 +384,20 @@ func parseMathEntry(lex *lexer) (*mathEntry, error) {
 		return nil, err
 	}
 
-	// skip optional 'as'
-	if lex.isKeyword("as") {
-		lex.nextToken()
-	}
+	resultField := ""
+	if lex.isKeyword(",", "|", ")", "") {
+		resultField = me.String()
+	} else {
+		if lex.isKeyword("as") {
+			// skip optional 'as'
+			lex.nextToken()
+		}
 
-	resultField, err := parseFieldName(lex)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse result name for [%s]: %w", me, err)
+		fieldName, err := parseFieldName(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse result name for [%s]: %w", me, err)
+		}
+		resultField = fieldName
 	}
 
 	e := &mathEntry{
@@ -476,6 +479,10 @@ func parseMathExprOperand(lex *lexer) (*mathExpr, error) {
 	switch {
 	case lex.isKeyword("abs"):
 		return parseMathExprAbs(lex)
+	case lex.isKeyword("exp"):
+		return parseMathExprExp(lex)
+	case lex.isKeyword("ln"):
+		return parseMathExprLn(lex)
 	case lex.isKeyword("max"):
 		return parseMathExprMax(lex)
 	case lex.isKeyword("min"):
@@ -502,6 +509,28 @@ func parseMathExprAbs(lex *lexer) (*mathExpr, error) {
 	}
 	if len(me.args) != 1 {
 		return nil, fmt.Errorf("'abs' function accepts only one arg; got %d args: [%s]", len(me.args), me)
+	}
+	return me, nil
+}
+
+func parseMathExprExp(lex *lexer) (*mathExpr, error) {
+	me, err := parseMathExprGenericFunc(lex, "exp", mathFuncExp)
+	if err != nil {
+		return nil, err
+	}
+	if len(me.args) != 1 {
+		return nil, fmt.Errorf("'exp' function accepts only one arg; got %d args: [%s]", len(me.args), me)
+	}
+	return me, nil
+}
+
+func parseMathExprLn(lex *lexer) (*mathExpr, error) {
+	me, err := parseMathExprGenericFunc(lex, "ln", mathFuncLn)
+	if err != nil {
+		return nil, err
+	}
+	if len(me.args) != 1 {
+		return nil, fmt.Errorf("'ln' function accepts only one arg; got %d args: [%s]", len(me.args), me)
 	}
 	return me, nil
 }
@@ -707,10 +736,36 @@ func mathFuncPow(result []float64, args [][]float64) {
 	}
 }
 
+func mathFuncDefault(result []float64, args [][]float64) {
+	values := args[0]
+	defaultValues := args[1]
+	for i := range result {
+		f := values[i]
+		if math.IsNaN(f) {
+			f = defaultValues[i]
+		}
+		result[i] = f
+	}
+}
+
 func mathFuncAbs(result []float64, args [][]float64) {
 	arg := args[0]
 	for i := range result {
 		result[i] = math.Abs(arg[i])
+	}
+}
+
+func mathFuncExp(result []float64, args [][]float64) {
+	arg := args[0]
+	for i := range result {
+		result[i] = math.Exp(arg[i])
+	}
+}
+
+func mathFuncLn(result []float64, args [][]float64) {
+	arg := args[0]
+	for i := range result {
+		result[i] = math.Log(arg[i])
 	}
 }
 

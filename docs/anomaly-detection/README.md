@@ -49,7 +49,7 @@ Got questions about VictoriaMetrics Anomaly Detection? Chances are, we've got th
 Dive into [our FAQ section](/anomaly-detection/FAQ) to find responses to common questions.
 
 ## Get in Touch
-We're eager to connect with you and tailor our solutions to your specific needs. Here's how you can engage with us:
+We are eager to connect with you and adapt our solutions to your specific needs. Here's how you can engage with us:
 * [Book a Demo](https://calendly.com/victoriametrics-anomaly-detection) to discover what our product can do.
 * Interested in exploring our [Enterprise features](https://victoriametrics.com/products/enterprise), including [Anomaly Detection](https://victoriametrics.com/products/enterprise/anomaly-detection)? [Request your trial license](https://victoriametrics.com/products/enterprise/trial/) today and take the first step towards advanced system observability.
 

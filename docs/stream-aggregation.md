@@ -1073,7 +1073,7 @@ This may lead to the following issues:
   since they ignore the first sample in a new time series.
 - Unexpected spikes for [total](#total) and [increase](#increase) outputs, since they assume that new time series start from 0.
 
-These issues can be be fixed in the following ways:
+These issues can be fixed in the following ways:
 
 - By increasing the `interval` option at [stream aggregation config](#stream-aggregation-config), so it covers the expected
   delays in data ingestion pipelines.

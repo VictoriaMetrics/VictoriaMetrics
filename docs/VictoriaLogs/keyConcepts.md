@@ -17,7 +17,7 @@ aliases:
 
 [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) works with both structured and unstructured logs.
 Every log entry must contain at least [log message field](#message-field) plus arbitrary number of additional `key=value` fields.
-A single log entry can be expressed as a single-level [JSON](https://www.json.org/json-en.html) object with string keys and values.
+A single log entry can be expressed as a single-level [JSON](https://www.json.org/json-en.html) object with string keys and string values.
 For example:
 
 ```json
@@ -28,6 +28,30 @@ For example:
   "client_ip": "1.2.3.4",
   "trace_id": "1234-56789-abcdef",
   "_msg": "failed to serve the client request"
+}
+```
+
+Empty values are treated the same as non-existing values. For example, the following log entries are equivalent,
+since they have only one identical non-empty field - [`_msg`](#message-field):
+
+```json
+{
+  "_msg": "foo bar",
+  "some_field": "",
+  "another_field": ""
+}
+```
+
+```json
+{
+  "_msg": "foo bar",
+  "third_field": "",
+}
+```
+
+```json
+{
+  "_msg": "foo bar",
 }
 ```
 

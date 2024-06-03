@@ -43,6 +43,13 @@ func (pf *pipeFormat) String() string {
 }
 
 func (pf *pipeFormat) updateNeededFields(neededFields, unneededFields fieldsSet) {
+	if neededFields.isEmpty() {
+		if pf.iff != nil {
+			neededFields.addFields(pf.iff.neededFields)
+		}
+		return
+	}
+
 	if neededFields.contains("*") {
 		if !unneededFields.contains(pf.resultField) {
 			if !pf.keepOriginalFields && !pf.skipEmptyResults {

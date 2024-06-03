@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
@@ -140,7 +141,7 @@ func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) (Resu
 	}
 	resp, err := s.do(req)
 	if err != nil {
-		if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+		if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) && !netutil.IsTrivialNetworkError(err) {
 			// Return unexpected error to the caller.
 			return Result{}, nil, err
 		}
@@ -185,7 +186,7 @@ func (s *VMStorage) QueryRange(ctx context.Context, query string, start, end tim
 	}
 	resp, err := s.do(req)
 	if err != nil {
-		if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+		if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) && !netutil.IsTrivialNetworkError(err) {
 			// Return unexpected error to the caller.
 			return res, err
 		}

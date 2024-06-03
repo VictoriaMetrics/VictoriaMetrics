@@ -117,43 +117,48 @@ func (fa *filterAnd) initByFieldTokens() {
 	byFieldFilters := make(map[string]int)
 	var fieldNames []string
 
-	for _, f := range fa.filters {
-		fieldName := ""
-		var tokens []string
-
-		switch t := f.(type) {
-		case *filterExact:
-			fieldName = t.fieldName
-			tokens = t.getTokens()
-		case *filterExactPrefix:
-			fieldName = t.fieldName
-			tokens = t.getTokens()
-		case *filterPhrase:
-			fieldName = t.fieldName
-			tokens = t.getTokens()
-		case *filterPrefix:
-			fieldName = t.fieldName
-			tokens = t.getTokens()
-		case *filterRegexp:
-			fieldName = t.fieldName
-			tokens = t.getTokens()
-		case *filterSequence:
-			fieldName = t.fieldName
-			tokens = t.getTokens()
-		}
-
+	mergeFieldTokens := func(fieldName string, tokens []string) {
 		fieldName = getCanonicalColumnName(fieldName)
 		byFieldFilters[fieldName]++
+		if len(tokens) == 0 {
+			return
+		}
 
-		if len(tokens) > 0 {
-			mTokens, ok := m[fieldName]
-			if !ok {
-				fieldNames = append(fieldNames, fieldName)
-				mTokens = make(map[string]struct{})
-				m[fieldName] = mTokens
-			}
-			for _, token := range tokens {
-				mTokens[token] = struct{}{}
+		mTokens, ok := m[fieldName]
+		if !ok {
+			fieldNames = append(fieldNames, fieldName)
+			mTokens = make(map[string]struct{})
+			m[fieldName] = mTokens
+		}
+		for _, token := range tokens {
+			mTokens[token] = struct{}{}
+		}
+	}
+
+	for _, f := range fa.filters {
+		switch t := f.(type) {
+		case *filterExact:
+			tokens := t.getTokens()
+			mergeFieldTokens(t.fieldName, tokens)
+		case *filterExactPrefix:
+			tokens := t.getTokens()
+			mergeFieldTokens(t.fieldName, tokens)
+		case *filterPhrase:
+			tokens := t.getTokens()
+			mergeFieldTokens(t.fieldName, tokens)
+		case *filterPrefix:
+			tokens := t.getTokens()
+			mergeFieldTokens(t.fieldName, tokens)
+		case *filterRegexp:
+			tokens := t.getTokens()
+			mergeFieldTokens(t.fieldName, tokens)
+		case *filterSequence:
+			tokens := t.getTokens()
+			mergeFieldTokens(t.fieldName, tokens)
+		case *filterOr:
+			bfts := t.getByFieldTokens()
+			for _, bft := range bfts {
+				mergeFieldTokens(bft.field, bft.tokens)
 			}
 		}
 	}
