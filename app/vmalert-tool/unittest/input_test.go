@@ -54,8 +54,8 @@ func TestParseInputValue(t *testing.T) {
 			false,
 		},
 		{
-			"1+1x4",
-			[]sequenceValue{{Value: 1}, {Value: 2}, {Value: 3}, {Value: 4}, {Value: 5}},
+			"1+1x2 0.1 0.1+0.3x2 3.14",
+			[]sequenceValue{{Value: 1}, {Value: 2}, {Value: 3}, {Value: 0.1}, {Value: 0.1}, {Value: 0.4}, {Value: 0.7}, {Value: 3.14}},
 			false,
 		},
 		{
