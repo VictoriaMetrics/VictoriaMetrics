@@ -203,7 +203,7 @@ curl -v -X POST http://vminsert:8480/insert/0/prometheus/api/v1/import -T data.j
 ### Check imported metrics
 
 
-```curk
+```curl
 curl -X POST -g http://vmselect:8481/select/0/prometheus/api/v1/export -d match[]=node_memory_MemTotal_bytes
 ```
 
