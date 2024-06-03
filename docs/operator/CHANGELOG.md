@@ -729,7 +729,7 @@ aliases:
 
 * security: new alpine image with security fixes https://github.com/VictoriaMetrics/operator/commit/c991b5f315ebb3176b98f5cb00c64430efa0d9c1
 * alertmanager: metrics endpoint when routePrefix is configured  https://github.com/VictoriaMetrics/operator/pull/488 Thanks [@blesswinsamuel](https://github.com/blesswinsamuel)
-* alertmanager: Automaticaly disable high availability mode for 1 replica  in https://github.com/VictoriaMetrics/operator/pull/495. Thanks [@hadesy](https://github.com/hadesy)
+* alertmanager: Automatically disable high availability mode for 1 replica  in https://github.com/VictoriaMetrics/operator/pull/495. Thanks [@hadesy](https://github.com/hadesy)
 * vmalertmanager: fix extraArgs, add two dashes  https://github.com/VictoriaMetrics/operator/pull/503 Thanks [@flokli](https://github.com/flokli)
 * vmcluster: disables selectNode arg passing to vmselect with enabled `HPA`. It should prevent vmselect cascade restarts https://github.com/VictoriaMetrics/operator/issues/499
 * controllers: changes default rate limiter max delay from 16minutes to 2 minutes. https://github.com/VictoriaMetrics/operator/issues/500
