@@ -22,7 +22,7 @@ services:
       - -beat.uri=http://filebeat-victorialogs:5066
 
   victorialogs:
-    image: docker.io/victoriametrics/victoria-logs:v0.12.1-victorialogs
+    image: docker.io/victoriametrics/victoria-logs:v0.15.0-victorialogs
     volumes:
       - victorialogs-filebeat-docker-vl:/vlogs
     ports:

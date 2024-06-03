@@ -39,6 +39,70 @@ func TestPipeStats(t *testing.T) {
 		expectPipeResults(t, pipeStr, rows, rowsExpected)
 	}
 
+	// missing 'stats' keyword and resutl name
+	f("count(*)", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+		},
+		{
+			{"a", `2`},
+			{"b", `54`},
+		},
+	}, [][]Field{
+		{
+			{`count(*)`, "3"},
+		},
+	})
+
+	// missing 'stats' keyword
+	f("count() as rows, count() if (a:2) rows2", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+		},
+		{
+			{"a", `2`},
+			{"b", `54`},
+		},
+	}, [][]Field{
+		{
+			{"rows", "3"},
+			{"rows2", "2"},
+		},
+	})
+
+	f("stats count() as rows, count() if (a:2) rows2", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+		},
+		{
+			{"a", `2`},
+			{"b", `54`},
+		},
+	}, [][]Field{
+		{
+			{"rows", "3"},
+			{"rows2", "2"},
+		},
+	})
+
 	f("stats count(*) as rows", [][]Field{
 		{
 			{"_msg", `abc`},
@@ -138,6 +202,32 @@ func TestPipeStats(t *testing.T) {
 	}, [][]Field{
 		{
 			{"rows", "3"},
+		},
+	})
+
+	// missing 'stats' keyword
+	f("by (a) count(*) as rows", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+		},
+		{
+			{"a", `2`},
+			{"b", `54`},
+		},
+	}, [][]Field{
+		{
+			{"a", "1"},
+			{"rows", "1"},
+		},
+		{
+			{"a", "2"},
+			{"rows", "2"},
 		},
 	})
 

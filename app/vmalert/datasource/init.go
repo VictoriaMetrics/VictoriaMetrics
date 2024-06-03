@@ -57,9 +57,10 @@ var (
 		`Whether to align "time" parameter with evaluation interval. `+
 		"Alignment supposed to produce deterministic results despite number of vmalert replicas or time they were started. "+
 		"See more details at https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257")
-	maxIdleConnections = flag.Int("datasource.maxIdleConnections", 100, `Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state.`)
-	disableKeepAlive   = flag.Bool("datasource.disableKeepAlive", false, `Whether to disable long-lived connections to the datasource. `+
-		`If true, disables HTTP keep-alives and will only use the connection to the server for a single HTTP request.`)
+	maxIdleConnections    = flag.Int("datasource.maxIdleConnections", 100, `Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state.`)
+	idleConnectionTimeout = flag.Duration("datasource.idleConnTimeout", 50*time.Second, `Defines a duration for idle (keep-alive connections) to exist. Consider setting this value less than "-http.idleConnTimeout". It must prevent possible "write: broken pipe" and "read: connection reset by peer" errors.`)
+	disableKeepAlive      = flag.Bool("datasource.disableKeepAlive", false, `Whether to disable long-lived connections to the datasource. `+
+		`If true, disables HTTP keep-alive and will only use the connection to the server for a single HTTP request.`)
 	roundDigits = flag.Int("datasource.roundDigits", 0, `Adds "round_digits" GET param to datasource requests. `+
 		`In VM "round_digits" limits the number of digits after the decimal point in response values.`)
 )
@@ -105,6 +106,7 @@ func Init(extraParams url.Values) (QuerierBuilder, error) {
 	if tr.MaxIdleConns != 0 && tr.MaxIdleConns < tr.MaxIdleConnsPerHost {
 		tr.MaxIdleConns = tr.MaxIdleConnsPerHost
 	}
+	tr.IdleConnTimeout = *idleConnectionTimeout
 
 	if extraParams == nil {
 		extraParams = url.Values{}

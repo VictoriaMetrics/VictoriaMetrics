@@ -24,10 +24,8 @@ func (pd *pipeDelete) String() string {
 
 func (pd *pipeDelete) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	if neededFields.contains("*") {
-		// update only unneeded fields
 		unneededFields.addFields(pd.fields)
 	} else {
-		// update only needed fields
 		neededFields.removeFields(pd.fields)
 	}
 }
@@ -70,8 +68,8 @@ func (pdp *pipeDeleteProcessor) flush() error {
 }
 
 func parsePipeDelete(lex *lexer) (*pipeDelete, error) {
-	if !lex.isKeyword("delete", "del", "rm") {
-		return nil, fmt.Errorf("expecting 'delete', 'del' or 'rm'; got %q", lex.token)
+	if !lex.isKeyword("delete", "del", "rm", "drop") {
+		return nil, fmt.Errorf("expecting 'delete', 'del', 'rm' or 'drop'; got %q", lex.token)
 	}
 
 	var fields []string

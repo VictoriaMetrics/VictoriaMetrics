@@ -204,10 +204,9 @@ type pipeStatsProcessorShardNopad struct {
 
 	m map[string]*pipeStatsGroup
 
-	// bms, brs and brsBuf are used for applying per-func filters.
-	bms    []bitmap
-	brs    []*blockResult
-	brsBuf []blockResult
+	// bms and brTmp are used for applying per-func filters.
+	bms   []bitmap
+	brTmp blockResult
 
 	columnValues [][]string
 	keyBuf       []byte
@@ -225,22 +224,20 @@ func (shard *pipeStatsProcessorShard) init() {
 
 	shard.m = make(map[string]*pipeStatsGroup)
 	shard.bms = make([]bitmap, funcsLen)
-	shard.brs = make([]*blockResult, funcsLen)
-	shard.brsBuf = make([]blockResult, funcsLen)
 }
 
 func (shard *pipeStatsProcessorShard) writeBlock(br *blockResult) {
 	shard.init()
 	byFields := shard.ps.byFields
 
-	// Apply per-function filters
-	brs := shard.applyPerFunctionFilters(br)
+	// Update shard.bms by applying per-function filters
+	shard.applyPerFunctionFilters(br)
 
 	// Process stats for the defined functions
 	if len(byFields) == 0 {
 		// Fast path - pass all the rows to a single group with empty key.
 		psg := shard.getPipeStatsGroup(nil)
-		shard.stateSizeBudget -= psg.updateStatsForAllRows(brs)
+		shard.stateSizeBudget -= psg.updateStatsForAllRows(shard.bms, br, &shard.brTmp)
 		return
 	}
 	if len(byFields) == 1 {
@@ -252,7 +249,7 @@ func (shard *pipeStatsProcessorShard) writeBlock(br *blockResult) {
 			v := br.getBucketedValue(c.valuesEncoded[0], bf)
 			shard.keyBuf = encoding.MarshalBytes(shard.keyBuf[:0], bytesutil.ToUnsafeBytes(v))
 			psg := shard.getPipeStatsGroup(shard.keyBuf)
-			shard.stateSizeBudget -= psg.updateStatsForAllRows(brs)
+			shard.stateSizeBudget -= psg.updateStatsForAllRows(shard.bms, br, &shard.brTmp)
 			return
 		}
 
@@ -261,7 +258,7 @@ func (shard *pipeStatsProcessorShard) writeBlock(br *blockResult) {
 			// Fast path for column with constant values.
 			shard.keyBuf = encoding.MarshalBytes(shard.keyBuf[:0], bytesutil.ToUnsafeBytes(values[0]))
 			psg := shard.getPipeStatsGroup(shard.keyBuf)
-			shard.stateSizeBudget -= psg.updateStatsForAllRows(brs)
+			shard.stateSizeBudget -= psg.updateStatsForAllRows(shard.bms, br, &shard.brTmp)
 			return
 		}
 
@@ -273,7 +270,7 @@ func (shard *pipeStatsProcessorShard) writeBlock(br *blockResult) {
 				keyBuf = encoding.MarshalBytes(keyBuf[:0], bytesutil.ToUnsafeBytes(values[i]))
 				psg = shard.getPipeStatsGroup(keyBuf)
 			}
-			shard.stateSizeBudget -= psg.updateStatsForRow(brs, i)
+			shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
 		}
 		shard.keyBuf = keyBuf
 		return
@@ -303,7 +300,7 @@ func (shard *pipeStatsProcessorShard) writeBlock(br *blockResult) {
 			keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(values[0]))
 		}
 		psg := shard.getPipeStatsGroup(keyBuf)
-		shard.stateSizeBudget -= psg.updateStatsForAllRows(brs)
+		shard.stateSizeBudget -= psg.updateStatsForAllRows(shard.bms, br, &shard.brTmp)
 		shard.keyBuf = keyBuf
 		return
 	}
@@ -328,42 +325,23 @@ func (shard *pipeStatsProcessorShard) writeBlock(br *blockResult) {
 			}
 			psg = shard.getPipeStatsGroup(keyBuf)
 		}
-		shard.stateSizeBudget -= psg.updateStatsForRow(brs, i)
+		shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
 	}
 	shard.keyBuf = keyBuf
 }
 
-func (shard *pipeStatsProcessorShard) applyPerFunctionFilters(brSrc *blockResult) []*blockResult {
+func (shard *pipeStatsProcessorShard) applyPerFunctionFilters(br *blockResult) {
 	funcs := shard.ps.funcs
-	brs := shard.brs
 	for i := range funcs {
-		iff := funcs[i].iff
-		if iff == nil {
-			// Fast path - there are no per-function filters
-			brs[i] = brSrc
-			continue
-		}
-
 		bm := &shard.bms[i]
-		bm.init(len(brSrc.timestamps))
+		bm.init(len(br.timestamps))
 		bm.setBits()
-		iff.f.applyToBlockResult(brSrc, bm)
-		if bm.areAllBitsSet() {
-			// Fast path - per-function filter doesn't filter out rows
-			brs[i] = brSrc
-			continue
-		}
 
-		// Store the remaining rows for the needed per-func fields to brDst
-		brDst := &shard.brsBuf[i]
-		if bm.isZero() {
-			brDst.reset()
-		} else {
-			brDst.initFromFilterNeededColumns(brSrc, bm, iff.neededFields)
+		iff := funcs[i].iff
+		if iff != nil {
+			iff.f.applyToBlockResult(br, bm)
 		}
-		brs[i] = brDst
 	}
-	return brs
 }
 
 func (shard *pipeStatsProcessorShard) getPipeStatsGroup(key []byte) *pipeStatsGroup {
@@ -379,7 +357,8 @@ func (shard *pipeStatsProcessorShard) getPipeStatsGroup(key []byte) *pipeStatsGr
 		shard.stateSizeBudget -= stateSize
 	}
 	psg = &pipeStatsGroup{
-		sfps: sfps,
+		funcs: shard.ps.funcs,
+		sfps:  sfps,
 	}
 	shard.m[string(key)] = psg
 	shard.stateSizeBudget -= len(key) + int(unsafe.Sizeof("")+unsafe.Sizeof(psg)+unsafe.Sizeof(sfps[0])*uintptr(len(sfps)))
@@ -388,21 +367,30 @@ func (shard *pipeStatsProcessorShard) getPipeStatsGroup(key []byte) *pipeStatsGr
 }
 
 type pipeStatsGroup struct {
-	sfps []statsProcessor
+	funcs []pipeStatsFunc
+	sfps  []statsProcessor
 }
 
-func (psg *pipeStatsGroup) updateStatsForAllRows(brs []*blockResult) int {
+func (psg *pipeStatsGroup) updateStatsForAllRows(bms []bitmap, br, brTmp *blockResult) int {
 	n := 0
 	for i, sfp := range psg.sfps {
-		n += sfp.updateStatsForAllRows(brs[i])
+		iff := psg.funcs[i].iff
+		if iff == nil {
+			n += sfp.updateStatsForAllRows(br)
+		} else {
+			brTmp.initFromFilterAllColumns(br, &bms[i])
+			n += sfp.updateStatsForAllRows(brTmp)
+		}
 	}
 	return n
 }
 
-func (psg *pipeStatsGroup) updateStatsForRow(brs []*blockResult, rowIdx int) int {
+func (psg *pipeStatsGroup) updateStatsForRow(bms []bitmap, br *blockResult, rowIdx int) int {
 	n := 0
 	for i, sfp := range psg.sfps {
-		n += sfp.updateStatsForRow(brs[i], rowIdx)
+		if bms[i].isSetBit(rowIdx) {
+			n += sfp.updateStatsForRow(br, rowIdx)
+		}
 	}
 	return n
 }
@@ -537,12 +525,13 @@ func (psp *pipeStatsProcessor) flush() error {
 	return nil
 }
 
-func parsePipeStats(lex *lexer) (*pipeStats, error) {
-	if !lex.isKeyword("stats") {
-		return nil, fmt.Errorf("expecting 'stats'; got %q", lex.token)
+func parsePipeStats(lex *lexer, needStatsKeyword bool) (*pipeStats, error) {
+	if needStatsKeyword {
+		if !lex.isKeyword("stats") {
+			return nil, fmt.Errorf("expecting 'stats'; got %q", lex.token)
+		}
+		lex.nextToken()
 	}
-
-	lex.nextToken()
 
 	var ps pipeStats
 	if lex.isKeyword("by", "(") {
@@ -556,9 +545,17 @@ func parsePipeStats(lex *lexer) (*pipeStats, error) {
 		ps.byFields = bfs
 	}
 
+	seenByFields := make(map[string]*byStatsField, len(ps.byFields))
+	for _, bf := range ps.byFields {
+		seenByFields[bf.name] = bf
+	}
+
+	seenResultNames := make(map[string]statsFunc)
+
 	var funcs []pipeStatsFunc
 	for {
 		var f pipeStatsFunc
+
 		sf, err := parseStatsFunc(lex)
 		if err != nil {
 			return nil, err
@@ -568,15 +565,31 @@ func parsePipeStats(lex *lexer) (*pipeStats, error) {
 		if lex.isKeyword("if") {
 			iff, err := parseIfFilter(lex)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("cannot parse 'if' filter for [%s]: %w", sf, err)
 			}
 			f.iff = iff
 		}
 
-		resultName, err := parseResultName(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse result name for [%s]: %w", sf, err)
+		resultName := ""
+		if lex.isKeyword(",", "|", ")", "") {
+			resultName = sf.String()
+		} else {
+			if lex.isKeyword("as") {
+				lex.nextToken()
+			}
+			fieldName, err := parseFieldName(lex)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse result name for [%s]: %w", sf, err)
+			}
+			resultName = fieldName
 		}
+		if bf := seenByFields[resultName]; bf != nil {
+			return nil, fmt.Errorf("the %q is used as 'by' field [%s], so it cannot be used as result name for [%s]", resultName, bf, sf)
+		}
+		if sfPrev := seenResultNames[resultName]; sfPrev != nil {
+			return nil, fmt.Errorf("cannot use identical result name %q for [%s] and [%s]", resultName, sfPrev, sf)
+		}
+		seenResultNames[resultName] = sf
 		f.resultName = resultName
 
 		funcs = append(funcs, f)
@@ -586,7 +599,7 @@ func parsePipeStats(lex *lexer) (*pipeStats, error) {
 			return &ps, nil
 		}
 		if !lex.isKeyword(",") {
-			return nil, fmt.Errorf("unexpected token %q; want ',', '|' or ')'", lex.token)
+			return nil, fmt.Errorf("unexpected token %q after [%s]; want ',', '|' or ')'", sf, lex.token)
 		}
 		lex.nextToken()
 	}
@@ -618,18 +631,6 @@ func parseStatsFunc(lex *lexer) (statsFunc, error) {
 			return nil, fmt.Errorf("cannot parse 'count_uniq' func: %w", err)
 		}
 		return sus, nil
-	case lex.isKeyword("fields_max"):
-		sms, err := parseStatsFieldsMax(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'fields_max' func: %w", err)
-		}
-		return sms, nil
-	case lex.isKeyword("fields_min"):
-		sms, err := parseStatsFieldsMin(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'fields_min' func: %w", err)
-		}
-		return sms, nil
 	case lex.isKeyword("max"):
 		sms, err := parseStatsMax(lex)
 		if err != nil {
@@ -654,6 +655,24 @@ func parseStatsFunc(lex *lexer) (statsFunc, error) {
 			return nil, fmt.Errorf("cannot parse 'quantile' func: %w", err)
 		}
 		return sqs, nil
+	case lex.isKeyword("row_any"):
+		sas, err := parseStatsRowAny(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'row_any' func: %w", err)
+		}
+		return sas, nil
+	case lex.isKeyword("row_max"):
+		sms, err := parseStatsRowMax(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'row_max' func: %w", err)
+		}
+		return sms, nil
+	case lex.isKeyword("row_min"):
+		sms, err := parseStatsRowMin(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'row_min' func: %w", err)
+		}
+		return sms, nil
 	case lex.isKeyword("sum"):
 		sss, err := parseStatsSum(lex)
 		if err != nil {
@@ -681,17 +700,6 @@ func parseStatsFunc(lex *lexer) (statsFunc, error) {
 	default:
 		return nil, fmt.Errorf("unknown stats func %q", lex.token)
 	}
-}
-
-func parseResultName(lex *lexer) (string, error) {
-	if lex.isKeyword("as") {
-		lex.nextToken()
-	}
-	resultName, err := parseFieldName(lex)
-	if err != nil {
-		return "", err
-	}
-	return resultName, nil
 }
 
 var zeroByStatsField = &byStatsField{}

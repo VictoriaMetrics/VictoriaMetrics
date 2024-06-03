@@ -3,6 +3,7 @@ package logstorage
 import (
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"sync"
 
@@ -27,8 +28,9 @@ type filterIn struct {
 	// qFieldName must be set to field name for obtaining values from if q is non-nil.
 	qFieldName string
 
-	tokenSetsOnce sync.Once
-	tokenSets     [][]string
+	tokensOnce   sync.Once
+	commonTokens []string
+	tokenSets    [][]string
 
 	stringValuesOnce sync.Once
 	stringValues     map[string]struct{}
@@ -74,28 +76,15 @@ func (fi *filterIn) updateNeededFields(neededFields fieldsSet) {
 	neededFields.add(fi.fieldName)
 }
 
-func (fi *filterIn) getTokenSets() [][]string {
-	fi.tokenSetsOnce.Do(fi.initTokenSets)
-	return fi.tokenSets
+func (fi *filterIn) getTokens() ([]string, [][]string) {
+	fi.tokensOnce.Do(fi.initTokens)
+	return fi.commonTokens, fi.tokenSets
 }
 
-// It is faster to match every row in the block instead of checking too big number of tokenSets against bloom filter.
-const maxTokenSetsToInit = 1000
+func (fi *filterIn) initTokens() {
+	commonTokens, tokenSets := getCommonTokensAndTokenSets(fi.values)
 
-func (fi *filterIn) initTokenSets() {
-	values := fi.values
-	tokenSetsLen := len(values)
-	if tokenSetsLen > maxTokenSetsToInit {
-		tokenSetsLen = maxTokenSetsToInit
-	}
-	tokenSets := make([][]string, 0, tokenSetsLen+1)
-	for _, v := range values {
-		tokens := tokenizeStrings(nil, []string{v})
-		tokenSets = append(tokenSets, tokens)
-		if len(tokens) > maxTokenSetsToInit {
-			break
-		}
-	}
+	fi.commonTokens = commonTokens
 	fi.tokenSets = tokenSets
 }
 
@@ -385,47 +374,47 @@ func (fi *filterIn) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	tokenSets := fi.getTokenSets()
+	commonTokens, tokenSets := fi.getTokens()
 
 	switch ch.valueType {
 	case valueTypeString:
 		stringValues := fi.getStringValues()
-		matchAnyValue(bs, ch, bm, stringValues, tokenSets)
+		matchAnyValue(bs, ch, bm, stringValues, commonTokens, tokenSets)
 	case valueTypeDict:
 		stringValues := fi.getStringValues()
 		matchValuesDictByAnyValue(bs, ch, bm, stringValues)
 	case valueTypeUint8:
 		binValues := fi.getUint8Values()
-		matchAnyValue(bs, ch, bm, binValues, tokenSets)
+		matchAnyValue(bs, ch, bm, binValues, commonTokens, tokenSets)
 	case valueTypeUint16:
 		binValues := fi.getUint16Values()
-		matchAnyValue(bs, ch, bm, binValues, tokenSets)
+		matchAnyValue(bs, ch, bm, binValues, commonTokens, tokenSets)
 	case valueTypeUint32:
 		binValues := fi.getUint32Values()
-		matchAnyValue(bs, ch, bm, binValues, tokenSets)
+		matchAnyValue(bs, ch, bm, binValues, commonTokens, tokenSets)
 	case valueTypeUint64:
 		binValues := fi.getUint64Values()
-		matchAnyValue(bs, ch, bm, binValues, tokenSets)
+		matchAnyValue(bs, ch, bm, binValues, commonTokens, tokenSets)
 	case valueTypeFloat64:
 		binValues := fi.getFloat64Values()
-		matchAnyValue(bs, ch, bm, binValues, tokenSets)
+		matchAnyValue(bs, ch, bm, binValues, commonTokens, tokenSets)
 	case valueTypeIPv4:
 		binValues := fi.getIPv4Values()
-		matchAnyValue(bs, ch, bm, binValues, tokenSets)
+		matchAnyValue(bs, ch, bm, binValues, commonTokens, tokenSets)
 	case valueTypeTimestampISO8601:
 		binValues := fi.getTimestampISO8601Values()
-		matchAnyValue(bs, ch, bm, binValues, tokenSets)
+		matchAnyValue(bs, ch, bm, binValues, commonTokens, tokenSets)
 	default:
 		logger.Panicf("FATAL: %s: unknown valueType=%d", bs.partPath(), ch.valueType)
 	}
 }
 
-func matchAnyValue(bs *blockSearch, ch *columnHeader, bm *bitmap, values map[string]struct{}, tokenSets [][]string) {
+func matchAnyValue(bs *blockSearch, ch *columnHeader, bm *bitmap, values map[string]struct{}, commonTokens []string, tokenSets [][]string) {
 	if len(values) == 0 {
 		bm.resetBits()
 		return
 	}
-	if !matchBloomFilterAnyTokenSet(bs, ch, tokenSets) {
+	if !matchBloomFilterAnyTokenSet(bs, ch, commonTokens, tokenSets) {
 		bm.resetBits()
 		return
 	}
@@ -435,9 +424,14 @@ func matchAnyValue(bs *blockSearch, ch *columnHeader, bm *bitmap, values map[str
 	})
 }
 
-func matchBloomFilterAnyTokenSet(bs *blockSearch, ch *columnHeader, tokenSets [][]string) bool {
+func matchBloomFilterAnyTokenSet(bs *blockSearch, ch *columnHeader, commonTokens []string, tokenSets [][]string) bool {
+	if len(commonTokens) > 0 {
+		if !matchBloomFilterAllTokens(bs, ch, commonTokens) {
+			return false
+		}
+	}
 	if len(tokenSets) == 0 {
-		return false
+		return len(commonTokens) > 0
 	}
 	if len(tokenSets) > maxTokenSetsToInit || uint64(len(tokenSets)) > 10*bs.bsw.bh.rowsCount {
 		// It is faster to match every row in the block against all the values
@@ -453,6 +447,9 @@ func matchBloomFilterAnyTokenSet(bs *blockSearch, ch *columnHeader, tokenSets []
 	return false
 }
 
+// It is faster to match every row in the block instead of checking too big number of tokenSets against bloom filter.
+const maxTokenSetsToInit = 1000
+
 func matchValuesDictByAnyValue(bs *blockSearch, ch *columnHeader, bm *bitmap, values map[string]struct{}) {
 	bb := bbPool.Get()
 	for _, v := range ch.valuesDict.values {
@@ -464,4 +461,60 @@ func matchValuesDictByAnyValue(bs *blockSearch, ch *columnHeader, bm *bitmap, va
 	}
 	matchEncodedValuesDict(bs, ch, bm, bb.B)
 	bbPool.Put(bb)
+}
+
+func getCommonTokensAndTokenSets(values []string) ([]string, [][]string) {
+	tokenSets := make([][]string, len(values))
+	for i, v := range values {
+		tokenSets[i] = tokenizeStrings(nil, []string{v})
+	}
+
+	commonTokens := getCommonTokens(tokenSets)
+	if len(commonTokens) == 0 {
+		return nil, tokenSets
+	}
+
+	// remove commonTokens from tokenSets
+	for i, tokens := range tokenSets {
+		dstTokens := tokens[:0]
+		for _, token := range tokens {
+			if !slices.Contains(commonTokens, token) {
+				dstTokens = append(dstTokens, token)
+			}
+		}
+		if len(dstTokens) == 0 {
+			return commonTokens, nil
+		}
+		tokenSets[i] = dstTokens
+	}
+
+	return commonTokens, tokenSets
+}
+
+func getCommonTokens(tokenSets [][]string) []string {
+	if len(tokenSets) == 0 {
+		return nil
+	}
+
+	m := make(map[string]struct{}, len(tokenSets[0]))
+	for _, token := range tokenSets[0] {
+		m[token] = struct{}{}
+	}
+
+	for _, tokens := range tokenSets[1:] {
+		if len(m) == 0 {
+			return nil
+		}
+		for token := range m {
+			if !slices.Contains(tokens, token) {
+				delete(m, token)
+			}
+		}
+	}
+
+	tokens := make([]string, 0, len(m))
+	for token := range m {
+		tokens = append(tokens, token)
+	}
+	return tokens
 }

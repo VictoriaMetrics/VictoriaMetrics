@@ -91,7 +91,7 @@ Query results can be sorted either at VictoriaLogs side via [`sort` pipe](https:
 or at client side with the usual `sort` command according to [these docs](#command-line).
 
 By default the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) is queried.
-If you need querying other tenant, then specify it via `AccounID` and `ProjectID` http request headers. For example, the following query searches
+If you need querying other tenant, then specify it via `AccountID` and `ProjectID` http request headers. For example, the following query searches
 for log messages at `(AccountID=12, ProjectID=34)` tenant:
 
 ```sh

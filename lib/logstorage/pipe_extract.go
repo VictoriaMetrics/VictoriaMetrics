@@ -60,17 +60,25 @@ func (pe *pipeExtract) initFilterInValues(cache map[string][]string, getFieldVal
 }
 
 func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet) {
+	if neededFields.isEmpty() {
+		if pe.iff != nil {
+			neededFields.addFields(pe.iff.neededFields)
+		}
+		return
+	}
+
 	if neededFields.contains("*") {
 		unneededFieldsOrig := unneededFields.clone()
 		needFromField := false
 		for _, step := range pe.ptn.steps {
-			if step.field != "" {
-				if !unneededFieldsOrig.contains(step.field) {
-					needFromField = true
-				}
-				if !pe.keepOriginalFields && !pe.skipEmptyResults {
-					unneededFields.add(step.field)
-				}
+			if step.field == "" {
+				continue
+			}
+			if !unneededFieldsOrig.contains(step.field) {
+				needFromField = true
+			}
+			if !pe.keepOriginalFields && !pe.skipEmptyResults {
+				unneededFields.add(step.field)
 			}
 		}
 		if needFromField {
@@ -85,7 +93,10 @@ func (pe *pipeExtract) updateNeededFields(neededFields, unneededFields fieldsSet
 		neededFieldsOrig := neededFields.clone()
 		needFromField := false
 		for _, step := range pe.ptn.steps {
-			if step.field != "" && neededFieldsOrig.contains(step.field) {
+			if step.field == "" {
+				continue
+			}
+			if neededFieldsOrig.contains(step.field) {
 				needFromField = true
 				if !pe.keepOriginalFields && !pe.skipEmptyResults {
 					neededFields.remove(step.field)

@@ -128,25 +128,6 @@ func (br *blockResult) initFromFilterAllColumns(brSrc *blockResult, bm *bitmap) 
 	}
 }
 
-// initFromFilterNeededColumns initializes br from brSrc by copying only the given neededColumns for rows identified by set bits at bm.
-//
-// The br is valid until brSrc or bm is updated.
-func (br *blockResult) initFromFilterNeededColumns(brSrc *blockResult, bm *bitmap, neededColumns []string) {
-	br.reset()
-
-	srcTimestamps := brSrc.timestamps
-	dstTimestamps := br.timestamps[:0]
-	bm.forEachSetBitReadonly(func(idx int) {
-		dstTimestamps = append(dstTimestamps, srcTimestamps[idx])
-	})
-	br.timestamps = dstTimestamps
-
-	for _, neededColumn := range neededColumns {
-		cSrc := brSrc.getColumnByName(neededColumn)
-		br.appendFilteredColumn(brSrc, cSrc, bm)
-	}
-}
-
 // appendFilteredColumn adds cSrc with the given bm filter to br.
 //
 // the br is valid until brSrc, cSrc or bm is updated.

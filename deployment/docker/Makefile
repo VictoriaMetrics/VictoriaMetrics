@@ -2,8 +2,9 @@
 
 DOCKER_NAMESPACE ?= victoriametrics
 
-ROOT_IMAGE ?= alpine:3.19.1
-CERTS_IMAGE := alpine:3.19.1
+ROOT_IMAGE ?= alpine:3.20.0
+ROOT_IMAGE_SCRATCH ?= scratch
+CERTS_IMAGE := alpine:3.20.0
 
 GO_BUILDER_IMAGE := golang:1.22.3-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
@@ -81,6 +82,18 @@ publish-via-docker:
 		--build-arg APP_NAME=$(APP_NAME) \
 		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE) \
 		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE) \
+		-o type=image \
+		--provenance=false \
+		-f app/$(APP_NAME)/multiarch/Dockerfile \
+		--push \
+		bin
+	$(DOCKER) buildx build \
+		--platform=linux/amd64,linux/arm,linux/arm64,linux/ppc64le,linux/386 \
+		--build-arg certs_image=$(CERTS_IMAGE) \
+		--build-arg root_image=$(ROOT_IMAGE_SCRATCH) \
+		--build-arg APP_NAME=$(APP_NAME) \
+		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)-scratch \
+		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE)-scratch \
 		-o type=image \
 		--provenance=false \
 		-f app/$(APP_NAME)/multiarch/Dockerfile \

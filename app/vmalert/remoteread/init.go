@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
@@ -31,6 +32,8 @@ var (
 
 	bearerToken     = flag.String("remoteRead.bearerToken", "", "Optional bearer auth token to use for -remoteRead.url.")
 	bearerTokenFile = flag.String("remoteRead.bearerTokenFile", "", "Optional path to bearer token file to use for -remoteRead.url.")
+
+	idleConnectionTimeout = flag.Duration("remoteRead.idleConnTimeout", 50*time.Second, `Defines a duration for idle (keep-alive connections) to exist. Consider settings this value less to the value of "-http.idleConnTimeout". It must prevent possible "write: broken pipe" and "read: connection reset by peer" errors.`)
 
 	tlsInsecureSkipVerify = flag.Bool("remoteRead.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -remoteRead.url")
 	tlsCertFile           = flag.String("remoteRead.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -remoteRead.url")
@@ -66,6 +69,7 @@ func Init() (datasource.QuerierBuilder, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
+	tr.IdleConnTimeout = *idleConnectionTimeout
 	tr.DialContext = httputils.GetStatDialFunc("vmalert_remoteread")
 
 	endpointParams, err := flagutil.ParseJSONMap(*oauth2EndpointParams)

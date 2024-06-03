@@ -507,7 +507,7 @@ Another option to remove the suffix, which is added by stream aggregation, is to
   keep_metric_names: true
 ```
 
-See also [dropping unneded labels](#dropping-unneeded-labels).
+See also [dropping unneeded labels](#dropping-unneeded-labels).
 
 
 ## Dropping unneeded labels
@@ -532,7 +532,7 @@ and [stream aggregation](#aggregation-outputs), then the following options exist
     keep_metric_names: true
   ```
 
-Typical use case is to drop `replica` label from samples, which are recevied from high availability replicas.
+Typical use case is to drop `replica` label from samples, which are received from high availability replicas.
 
 ## Aggregation outputs
 
@@ -1073,7 +1073,7 @@ This may lead to the following issues:
   since they ignore the first sample in a new time series.
 - Unexpected spikes for [total](#total) and [increase](#increase) outputs, since they assume that new time series start from 0.
 
-These issues can be be fixed in the following ways:
+These issues can be fixed in the following ways:
 
 - By increasing the `interval` option at [stream aggregation config](#stream-aggregation-config), so it covers the expected
   delays in data ingestion pipelines.
@@ -1093,7 +1093,7 @@ The following solutions can help reducing memory usage and CPU usage durting str
 ### Cluster mode
 
 If you use [vmagent in cluster mode](https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets) for streaming aggregation
-then be careful when using [`by` or `without` options](#aggregating-by-labels) or when modfying sample labels
+then be careful when using [`by` or `without` options](#aggregating-by-labels) or when modifying sample labels
 via [relabeling](#relabeling), since incorrect usage may result in duplicates and data collision.
 
 For example, if more than one `vmagent` instance calculates [increase](#increase) for `http_requests_total` metric
