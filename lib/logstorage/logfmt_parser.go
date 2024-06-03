@@ -15,6 +15,10 @@ func (p *logfmtParser) reset() {
 }
 
 func (p *logfmtParser) addField(name, value string) {
+	name = strings.TrimSpace(name)
+	if name == "" && value == "" {
+		return
+	}
 	p.fields = append(p.fields, Field{
 		Name:  name,
 		Value: value,
@@ -22,16 +26,24 @@ func (p *logfmtParser) addField(name, value string) {
 }
 
 func (p *logfmtParser) parse(s string) {
+	p.reset()
 	for {
 		// Search for field name
-		n := strings.IndexByte(s, '=')
+		n := strings.IndexAny(s, "= ")
 		if n < 0 {
-			// field name couldn't be read
+			// empty value
+			p.addField(s, "")
 			return
 		}
 
-		name := strings.TrimSpace(s[:n])
+		name := s[:n]
+		ch := s[n]
 		s = s[n+1:]
+		if ch == ' ' {
+			// empty value
+			p.addField(name, "")
+			continue
+		}
 		if len(s) == 0 {
 			p.addField(name, "")
 			return

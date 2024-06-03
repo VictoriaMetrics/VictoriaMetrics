@@ -106,6 +106,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'delete' pipe: %w", err)
 		}
 		return pd, nil
+	case lex.isKeyword("drop_empty_fields"):
+		pd, err := parsePipeDropEmptyFields(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'drop_empty_fields' pipe: %w", err)
+		}
+		return pd, nil
 	case lex.isKeyword("extract"):
 		pe, err := parsePipeExtract(lex)
 		if err != nil {
@@ -218,6 +224,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 		pu, err := parsePipeUnpackLogfmt(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'unpack_logfmt' pipe: %w", err)
+		}
+		return pu, nil
+	case lex.isKeyword("unpack_syslog"):
+		pu, err := parsePipeUnpackSyslog(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'unpack_syslog' pipe: %w", err)
 		}
 		return pu, nil
 	case lex.isKeyword("unroll"):
