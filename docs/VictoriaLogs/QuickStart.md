@@ -28,7 +28,7 @@ There are the following options exist:
 
 ### Pre-built binaries
 
-Pre-built binaries for VictoriaLogs are availble at the [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/) page.
+Pre-built binaries for VictoriaLogs are available at the [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/) page.
 Just download archive for the needed Operating system and architecture, unpack it and run `victoria-logs-prod` from it.
 
 For example, the following commands download VictoriaLogs archive for Linux/amd64, unpack and run it:
