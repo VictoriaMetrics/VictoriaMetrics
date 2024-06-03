@@ -381,7 +381,7 @@ func getLastNQueryResults(ctx context.Context, tenantIDs []logstorage.TenantID, 
 			return nil, err
 		}
 
-		if len(rows) == limit || d == 0 {
+		if len(rows) == limit || d < 1e6 {
 			sortRowsByTime(rows)
 			if len(rows) > limit {
 				rows = rows[:limit]
