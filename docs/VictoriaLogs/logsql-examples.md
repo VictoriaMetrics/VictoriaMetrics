@@ -75,14 +75,14 @@ See also:
 
 - [How to select logs with all the given words in log message?](#how-to-select-logs-with-all-the-given-words-in-log-message)
 - [How to select logs with some of the given words in log message?](#how-to-select-logs-with-some-of-the-given-words-in-log-message)
-- [How to select logs without the given word in log message?](#how-to-select-logs-without-the-given-word-in-log-message)
+- [How to skip logs with the given word in log message?](#how-to-skip-logs-with-the-given-word-in-log-message)
 - [Filtering by phrase](https://docs.victoriametrics.com/victorialogs/logsql/#phrase-filter)
 - [Filtering by prefix](https://docs.victoriametrics.com/victorialogs/logsql/#prefix-filter)
 - [Filtering by regular expression](https://docs.victoriametrics.com/victorialogs/logsql/#regexp-filter)
 - [Filtering by substring](https://docs.victoriametrics.com/victorialogs/logsql/#substring-filter)
 
 
-## How to select logs without the given word in log message?
+## How to skip logs with the given word in log message?
 
 Use [`NOT` logical filter](https://docs.victoriametrics.com/victorialogs/logsql/#logical-filter). For example, the following query returns all the logs
 without the `INFO` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) in the [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
@@ -162,7 +162,7 @@ error kubernetes _time:1h | sort by (_time)
 See also:
 
 - [How to select logs with some of given words in log message?](#how-to-select-logs-with-some-of-the-given-words-in-log-message)
-- [How to select logs without the given word in log message?](#how-to-select-logs-without-the-given-word-in-log-message)
+- [How to skip logs with the given word in log message?](#how-to-skip-logs-with-the-given-word-in-log-message)
 - [Filtering by phrase](https://docs.victoriametrics.com/victorialogs/logsql/#phrase-filter)
 - [Filtering by prefix](https://docs.victoriametrics.com/victorialogs/logsql/#prefix-filter)
 - [Filtering by regular expression](https://docs.victoriametrics.com/victorialogs/logsql/#regexp-filter)
@@ -207,7 +207,7 @@ sorts the selected logs by [`_time` field](https://docs.victoriametrics.com/vict
 See also:
 
 - [How to select logs with all the given words in log message?](#how-to-select-logs-with-all-the-given-words-in-log-message)
-- [How to select logs without the given word in log message?](#how-to-select-logs-without-the-given-word-in-log-message)
+- [How to skip logs with the given word in log message?](#how-to-skip-logs-with-the-given-word-in-log-message)
 - [Filtering by phrase](https://docs.victoriametrics.com/victorialogs/logsql/#phrase-filter)
 - [Filtering by prefix](https://docs.victoriametrics.com/victorialogs/logsql/#prefix-filter)
 - [Filtering by regular expression](https://docs.victoriametrics.com/victorialogs/logsql/#regexp-filter)
@@ -252,7 +252,7 @@ _stream:{job="app-42",instance="host-123:5678"} _time:1d | sort by (_time)
 See also:
 
 - [How to determine applications with the most logs?](#how-to-determine-applications-with-the-most-logs)
-- [How to select logs without the given word in log message?](#how-to-select-logs-without-the-given-word-in-log-message)
+- [How to skip logs with the given word in log message?](#how-to-skip-logs-with-the-given-word-in-log-message)
 
 
 ## How to count the number of matching logs?
@@ -287,7 +287,7 @@ This query uses the following [LogsQL](https://docs.victoriametrics.com/victoria
 See also:
 
 - [How to filter out data after stats calculation?](#how-to-filter-out-data-after-stats-calculation)
-- [How to calculate the number of logs per some interval?](#how-to-calculate-the-number-of-logs-per-some-interval)
+- [How to calculate the number of logs per the given interval?](#how-to-calculate-the-number-of-logs-per-the-given-interval)
 - [How to select logs from the given application instance?](#how-to-select-logs-from-the-given-application-instance)
 
 
@@ -332,7 +332,7 @@ over the last 5 minutes:
 _time:5m | stats by (_stream) count() rows | filter rows:>1000
 ```
 
-## How to calculate the number of logs per some interval?
+## How to calculate the number of logs per the given interval?
 
 Use [`stats` by time bucket](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-time-buckets). For example, the following query
 returns per-hour number of logs with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) for the last day:
@@ -343,3 +343,37 @@ _time:1d error | stats by (_time:1h) count() rows | sort by (_time)
 
 This query uses [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe) in order to sort per-hour stats
 by [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
+
+
+## How to calculate the number of logs per every value of the given field?
+
+Use [`stats` by field](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-fields). For example, the following query
+calculates the number of logs per `level` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) for logs over the last 5 minutes:
+
+```logsql
+_time:5m | stats by (level) count() rows
+```
+
+An alternative is to use [`field_values` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#field_values-pipe):
+
+```logsql
+_time:5m | field_values level
+```
+
+## How to get unique values for the given field?
+
+Use [`uniq` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#uniq-pipe). For example, the following query returns unique values for the `ip` field
+over logs for the last 5 minutes:
+
+```logsql
+_time:5m | uniq by (ip)
+```
+
+## How to get unique sets of values for the given fields?
+
+Use [`uniq` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#uniq-pipe). For example, the following query returns unique sets for (`host`, `path`) fields
+over logs for the last 5 minutes:
+
+```logsql
+_time:5m | uniq by (host, path)
+```

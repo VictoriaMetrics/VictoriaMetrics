@@ -26,6 +26,7 @@ func (p *logfmtParser) addField(name, value string) {
 }
 
 func (p *logfmtParser) parse(s string) {
+	p.reset()
 	for {
 		// Search for field name
 		n := strings.IndexAny(s, "= ")
