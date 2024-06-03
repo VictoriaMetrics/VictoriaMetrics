@@ -138,7 +138,6 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 
 	default:
-		httpserver.Errorf(w, r, "unsupported path requested: %q ", r.URL.Path)
 		return false
 	}
 }
