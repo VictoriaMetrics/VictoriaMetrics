@@ -1832,3 +1832,72 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | unroll (a, b) | count() r1`, `a,b`, ``)
 	f(`* | unroll if (q:w p:a) (a, b) | count() r1`, `a,b,p,q`, ``)
 }
+
+func TestQueryClone(t *testing.T) {
+	f := func(qStr string) {
+		t.Helper()
+
+		q, err := ParseQuery(qStr)
+		if err != nil {
+			t.Fatalf("cannot parse [%s]: %s", qStr, err)
+		}
+		qCopy := q.Clone()
+		qCopyStr := qCopy.String()
+		if qStr != qCopyStr {
+			t.Fatalf("unexpected cloned query\ngot\n%s\nwant\n%s", qCopyStr, qStr)
+		}
+	}
+
+	f("*")
+	f("error")
+	f("_time:5m error | fields foo, bar")
+	f("ip:in(foo | fields user_ip) bar | stats by (x:1h, y) count(*) if (user_id:in(q:w | fields abc)) as ccc")
+}
+
+func TestQueryGetFilterTimeRange(t *testing.T) {
+	f := func(qStr string, startExpected, endExpected int64) {
+		t.Helper()
+
+		q, err := ParseQuery(qStr)
+		if err != nil {
+			t.Fatalf("cannot parse [%s]: %s", qStr, err)
+		}
+		start, end := q.GetFilterTimeRange()
+		if start != startExpected || end != endExpected {
+			t.Fatalf("unexpected filter time range; got [%d, %d]; want [%d, %d]", start, end, startExpected, endExpected)
+		}
+	}
+
+	f("*", -9223372036854775808, 9223372036854775807)
+	f("_time:2024-05-31T10:20:30.456789123Z", 1717150830456789123, 1717150830456789123)
+	f("_time:2024-05-31", 1717113600000000000, 1717199999999999999)
+}
+
+func TestQueryCanReturnLastNResults(t *testing.T) {
+	f := func(qStr string, resultExpected bool) {
+		t.Helper()
+
+		q, err := ParseQuery(qStr)
+		if err != nil {
+			t.Fatalf("cannot parse [%s]: %s", qStr, err)
+		}
+		result := q.CanReturnLastNResults()
+		if result != resultExpected {
+			t.Fatalf("unexpected result for CanRetrurnLastNResults(%q); got %v; want %v", qStr, result, resultExpected)
+		}
+	}
+
+	f("*", true)
+	f("error", true)
+	f("error | fields foo | filter foo:bar", true)
+	f("error | extract '<foo>bar<baz>'", true)
+	f("* | rm x", true)
+	f("* | stats count() rows", false)
+	f("* | sort by (x)", false)
+	f("* | limit 10", false)
+	f("* | offset 10", false)
+	f("* | uniq (x)", false)
+	f("* | field_names", false)
+	f("* | field_values x", false)
+
+}

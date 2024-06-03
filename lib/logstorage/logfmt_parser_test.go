@@ -12,7 +12,7 @@ func TestLogfmtParser(t *testing.T) {
 		defer putLogfmtParser(p)
 
 		p.parse(s)
-		result := marshalFieldsToJSON(nil, p.fields)
+		result := MarshalFieldsToJSON(nil, p.fields)
 		if string(result) != resultExpected {
 			t.Fatalf("unexpected result when parsing [%s]; got\n%s\nwant\n%s\n", s, result, resultExpected)
 		}

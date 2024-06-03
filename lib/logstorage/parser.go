@@ -279,6 +279,38 @@ func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 	}
 }
 
+// Clone returns a copy of q.
+func (q *Query) Clone() *Query {
+	qStr := q.String()
+	qCopy, err := ParseQuery(qStr)
+	if err != nil {
+		logger.Panicf("BUG: cannot parse %q: %s", qStr, err)
+	}
+	return qCopy
+}
+
+// CanReturnLastNResults returns true if time range filter at q can be adjusted for returning the last N results.
+func (q *Query) CanReturnLastNResults() bool {
+	for _, p := range q.pipes {
+		switch p.(type) {
+		case *pipeFieldNames,
+			*pipeFieldValues,
+			*pipeLimit,
+			*pipeOffset,
+			*pipeSort,
+			*pipeStats,
+			*pipeUniq:
+			return false
+		}
+	}
+	return true
+}
+
+// GetFilterTimeRange returns filter time range for the given q.
+func (q *Query) GetFilterTimeRange() (int64, int64) {
+	return getFilterTimeRange(q.f)
+}
+
 // AddTimeFilter adds global filter _time:[start ... end] to q.
 func (q *Query) AddTimeFilter(start, end int64) {
 	startStr := marshalTimestampRFC3339NanoString(nil, start)
@@ -1394,12 +1426,12 @@ func parseFilterTime(lex *lexer) (*filterTime, error) {
 		sLower := strings.ToLower(s)
 		if sLower == "now" || startsWithYear(s) {
 			// Parse '_time:YYYY-MM-DD', which transforms to '_time:[YYYY-MM-DD, YYYY-MM-DD+1)'
-			t, err := promutils.ParseTimeAt(s, float64(lex.currentTimestamp)/1e9)
+			nsecs, err := promutils.ParseTimeAt(s, lex.currentTimestamp)
 			if err != nil {
 				return nil, fmt.Errorf("cannot parse _time filter: %w", err)
 			}
 			// Round to milliseconds
-			startTime := int64(math.Round(t*1e3)) * 1e6
+			startTime := nsecs
 			endTime := getMatchingEndTime(startTime, s)
 			ft := &filterTime{
 				minTimestamp: startTime,
@@ -1549,12 +1581,11 @@ func parseTime(lex *lexer) (int64, string, error) {
 	if err != nil {
 		return 0, "", err
 	}
-	t, err := promutils.ParseTimeAt(s, float64(lex.currentTimestamp)/1e9)
+	nsecs, err := promutils.ParseTimeAt(s, lex.currentTimestamp)
 	if err != nil {
 		return 0, "", err
 	}
-	// round to milliseconds
-	return int64(math.Round(t*1e3)) * 1e6, s, nil
+	return nsecs, s, nil
 }
 
 func quoteStringTokenIfNeeded(s string) string {
