@@ -243,8 +243,8 @@ func (q *Query) String() string {
 func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 	{
 		// add 'stats by (_time:step offset off, fields) count() hits'
-		stepStr := string(marshalDuration(nil, step))
-		offsetStr := string(marshalDuration(nil, off))
+		stepStr := string(marshalDurationString(nil, step))
+		offsetStr := string(marshalDurationString(nil, off))
 		byFieldsStr := "_time:" + stepStr + " offset " + offsetStr
 		for _, f := range fields {
 			byFieldsStr += ", " + quoteTokenIfNeeded(f)
