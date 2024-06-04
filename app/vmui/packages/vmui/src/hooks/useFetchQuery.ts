@@ -12,7 +12,7 @@ import { useTimeState } from "../state/time/TimeStateContext";
 import { useCustomPanelState } from "../state/customPanel/CustomPanelStateContext";
 import { isHistogramData } from "../utils/metric";
 import { useGraphState } from "../state/graph/GraphStateContext";
-import { getSecondsFromDuration, getStepFromDuration } from "../utils/time";
+import { getStepFromDuration } from "../utils/time";
 import { AppType } from "../types/appType";
 
 interface FetchQueryParams {
@@ -183,7 +183,7 @@ export const useFetchQuery = ({
       setQueryErrors(expr.map(() => ErrorTypes.validQuery));
     } else if (isValidHttpUrl(serverUrl)) {
       const updatedPeriod = { ...period };
-      updatedPeriod.step = isAnomalyUI ? `${getSecondsFromDuration(customStep)*1000}ms` : customStep;
+      updatedPeriod.step = customStep;
       return expr.map(q => displayChart
         ? getQueryRangeUrl(serverUrl, q, updatedPeriod, nocache, isTracingEnabled)
         : getQueryUrl(serverUrl, q, updatedPeriod, nocache, isTracingEnabled));
