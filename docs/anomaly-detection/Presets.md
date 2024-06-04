@@ -151,5 +151,5 @@ At this timestamp on the "Number of Anomalous Indicators by Node" we can identif
 For this node from the timestamp `2024-06-03 10:35:00` CPU time spent handling software interrupts started to grow.
 (`cpu_seconds_total{mode="softirq"}`)
 <img alt="irq" src="presets_cpu_seconds_softirq.webp">
-At the same time `cpu_seconds_total` for `steal` mode started to grow:
+At the same time `cpu_seconds_total` for `steal` mode started to grow.
 <img alt="steal" src="presets_cpu_seconds_steal.webp">
