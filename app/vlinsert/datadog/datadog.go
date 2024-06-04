@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -32,6 +33,18 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 	startTime := time.Now()
 	v2LogsRequestsTotal.Inc()
 	reader := r.Body
+	tsValue := r.Header.Get("dd-message-timestamp")
+
+	// dd-agent sends initial empty request with dd-message-timestamp set to 0
+	if tsValue == "0" || tsValue == "" {
+		return false
+	}
+	ts, err := strconv.ParseInt(tsValue, 10, 64)
+	if err != nil {
+		httpserver.Errorf(w, r, "could not parse dd-message-timestamp header value: %s", err)
+	}
+	ts *= 1e6
+
 	if r.Header.Get("Content-Encoding") == "gzip" {
 		zr, err := common.GetGzipReader(reader)
 		if err != nil {
@@ -61,7 +74,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	lmp := cp.NewLogMessageProcessor()
-	n, err := readLogsRequest(data, lmp.AddRow)
+	n, err := readLogsRequest(ts, data, lmp.AddRow)
 	lmp.MustClose()
 	if err != nil {
 		logger.Warnf("cannot decode log message in /api/v2/logs request: %s, stream fields: %s", err, cp.StreamFields)
@@ -84,7 +97,7 @@ var (
 	v2LogsRequestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/api/v2/logs"}`)
 )
 
-func readLogsRequest(data []byte, processLogMessage func(int64, []logstorage.Field)) (int, error) {
+func readLogsRequest(ts int64, data []byte, processLogMessage func(int64, []logstorage.Field)) (int, error) {
 	p := parserPool.Get()
 	defer parserPool.Put(p)
 	v, err := p.ParseBytes(data)
@@ -96,7 +109,6 @@ func readLogsRequest(data []byte, processLogMessage func(int64, []logstorage.Fie
 		return 0, fmt.Errorf("cannot extract array from parsed JSON: %w", err)
 	}
 
-	ts := time.Now().UnixNano()
 	var fields []logstorage.Field
 	for _, r := range records {
 		o, err := r.Object()

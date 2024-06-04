@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 )
@@ -12,11 +13,13 @@ func TestReadLogsRequestFailure(t *testing.T) {
 	f := func(data string) {
 		t.Helper()
 
+		ts := time.Now().UnixNano()
+
 		processLogMessage := func(timestamp int64, fields []logstorage.Field) {
 			t.Fatalf("unexpected call to processLogMessage with timestamp=%d, fields=%s", timestamp, fields)
 		}
 
-		rows, err := readLogsRequest([]byte(data), processLogMessage)
+		rows, err := readLogsRequest(ts, []byte(data), processLogMessage)
 		if err == nil {
 			t.Fatalf("expecting non-empty error")
 		}
@@ -35,6 +38,7 @@ func TestReadLogsRequestSuccess(t *testing.T) {
 	f := func(data string, rowsExpected int, resultExpected string) {
 		t.Helper()
 
+		ts := time.Now().UnixNano()
 		var result string
 		processLogMessage := func(_ int64, fields []logstorage.Field) {
 			a := make([]string, len(fields))
@@ -49,7 +53,7 @@ func TestReadLogsRequestSuccess(t *testing.T) {
 		}
 
 		// Read the request without compression
-		rows, err := readLogsRequest([]byte(data), processLogMessage)
+		rows, err := readLogsRequest(ts, []byte(data), processLogMessage)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}

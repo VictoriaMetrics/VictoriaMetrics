@@ -28,7 +28,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	// agents, which do not support custom path prefix
 	switch {
 	case strings.HasPrefix(path, "/api/v2/logs"):
-		return datadog.RequestHandler(path, w, r)
+		if r.Header.Get("dd-protocol") != "" {
+			return datadog.RequestHandler(path, w, r)
+		}
 	}
 	if !strings.HasPrefix(path, "/insert/") {
 		// Skip requests, which do not start with /insert/, since these aren't our requests.

@@ -16,7 +16,7 @@ Enable logs and specify a custom URL instead of default one for sending collecte
 ```yaml
 logs_enabled: true
 logs_config:
-  logs_dd_url: http://localhost:9428/insert/datadog/
+  logs_dd_url: http://localhost:9428/
   use_http: true
 ```
 
@@ -28,7 +28,7 @@ custom:
     apiKey: fakekey                 # Set any key, otherwise plugin fails
 provider:
   environment:
-    LOGS_DD_URL: <<vm-url>>/datadog/   # VictoriaLogs endpoint for DataDog
+    LOGS_DD_URL: <<vm-url>>/   # VictoriaLogs endpoint for DataDog
 ```
 
 Substitute the `localhost:9428` address with the real address of VictoriaLogs.
