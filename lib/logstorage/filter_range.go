@@ -44,7 +44,11 @@ func (fr *filterRange) applyToBlockResult(br *blockResult, bm *bitmap) {
 		return
 	}
 	if c.isTime {
-		bm.resetBits()
+		minValueInt, maxValueInt := toInt64Range(minValue, maxValue)
+		bm.forEachSetBit(func(idx int) bool {
+			timestamp := br.timestamps[idx]
+			return timestamp >= minValueInt && timestamp <= maxValueInt
+		})
 		return
 	}
 
