@@ -79,9 +79,9 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 }
 
 var (
-	v2LogsRequestsTotal   = metrics.NewCounter(`vl_http_requests_total{path="/insert/datadog/api/v2/logs"}`)
+	v2LogsRequestsTotal   = metrics.NewCounter(`vl_http_requests_total{path="/api/v2/logs"}`)
 	rowsIngestedTotal     = metrics.NewCounter(`vl_rows_ingested_total{type="datadog"}`)
-	v2LogsRequestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/datadog/api/v2/logs"}`)
+	v2LogsRequestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/api/v2/logs"}`)
 )
 
 func readLogsRequest(data []byte, processLogMessage func(int64, []logstorage.Field)) (int, error) {

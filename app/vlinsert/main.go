@@ -24,6 +24,12 @@ func Stop() {
 // RequestHandler handles insert requests for VictoriaLogs
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
+
+	// agents, which do not support custom path prefix
+	switch {
+	case strings.HasPrefix(path, "/api/v2/logs"):
+		return datadog.RequestHandler(path, w, r)
+	}
 	if !strings.HasPrefix(path, "/insert/") {
 		// Skip requests, which do not start with /insert/, since these aren't our requests.
 		return false
