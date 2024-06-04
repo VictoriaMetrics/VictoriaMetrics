@@ -58,8 +58,9 @@ func (ip *influxProcessor) run() error {
 	}
 
 	var bar *pb.ProgressBar
-	if ip.enableProgressBar() {
-		bar = barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing series"), len(series))
+
+	bar = barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing series"), len(series), ip.disableProgressBar)
+	if bar != nil {
 		if err := barpool.Start(); err != nil {
 			return err
 		}
@@ -178,8 +179,4 @@ func (ip *influxProcessor) do(s *influx.Series) error {
 			return err
 		}
 	}
-}
-
-func (ip *influxProcessor) enableProgressBar() bool {
-	return !ip.disableProgressBar && !ip.isSilent
 }

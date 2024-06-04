@@ -12,11 +12,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cheggaaa/pb/v3"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
-	"github.com/cheggaaa/pb/v3"
 )
 
 // Config contains list of params to configure
@@ -160,10 +161,9 @@ func NewImporter(ctx context.Context, cfg Config) (*Importer, error) {
 	im.wg.Add(int(cfg.Concurrency))
 	for i := 0; i < int(cfg.Concurrency); i++ {
 		var bar *pb.ProgressBar
-		if !cfg.DisableProgressBar {
-			pbPrefix := fmt.Sprintf(`{{ green "VM worker %d:" }}`, i)
-			bar = barpool.AddWithTemplate(pbPrefix+pbTpl, 0)
-		}
+		pbPrefix := fmt.Sprintf(`{{ green "VM worker %d:" }}`, i)
+		bar = barpool.AddWithTemplate(pbPrefix+pbTpl, 0, cfg.DisableProgressBar)
+
 		go func(bar *pb.ProgressBar) {
 			defer im.wg.Done()
 			im.startWorker(ctx, bar, cfg.BatchSize, cfg.SignificantFigures, cfg.RoundDigits)

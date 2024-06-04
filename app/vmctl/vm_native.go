@@ -229,11 +229,12 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	if p.interCluster {
 		barPrefix = fmt.Sprintf("Requests to make for tenant %s", tenantID)
 	}
-	if p.enableProgressBar() {
-		bar = barpool.NewSingleProgress(fmt.Sprintf(nativeWithBackoffTpl, barPrefix), requestsToMake)
-		if p.disablePerMetricRequests {
-			bar = barpool.NewSingleProgress(nativeSingleProcessTpl, 0)
-		}
+
+	bar = barpool.NewSingleProgress(fmt.Sprintf(nativeWithBackoffTpl, barPrefix), requestsToMake, p.disableProgressBar)
+	if p.disablePerMetricRequests {
+		bar = barpool.NewSingleProgress(nativeSingleProcessTpl, 0, p.disableProgressBar)
+	}
+	if bar != nil {
 		bar.Start()
 		defer bar.Finish()
 	}
@@ -303,8 +304,8 @@ func (p *vmNativeProcessor) explore(ctx context.Context, src *native.Client, ten
 	log.Printf("Exploring metrics...")
 
 	var bar *pb.ProgressBar
-	if p.enableProgressBar() {
-		bar = barpool.NewSingleProgress(fmt.Sprintf(nativeWithBackoffTpl, "Explore requests to make"), len(ranges))
+	bar = barpool.NewSingleProgress(fmt.Sprintf(nativeWithBackoffTpl, "Explore requests to make"), len(ranges), p.disableProgressBar)
+	if bar != nil {
 		bar.Start()
 		defer bar.Finish()
 	}
@@ -323,10 +324,6 @@ func (p *vmNativeProcessor) explore(ctx context.Context, src *native.Client, ten
 		}
 	}
 	return metrics, nil
-}
-
-func (p *vmNativeProcessor) enableProgressBar() bool {
-	return !p.disableProgressBar && !p.isSilent
 }
 
 // stats represents client statistic

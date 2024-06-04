@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/terminal"
 	"github.com/cheggaaa/pb/v3"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/terminal"
 )
 
 var pool = pb.NewPool()
@@ -25,7 +26,10 @@ func Stop() { _ = pool.Stop() }
 
 // AddWithTemplate adds bar with the given template
 // to the global pool
-func AddWithTemplate(format string, total int) *pb.ProgressBar {
+func AddWithTemplate(format string, total int, isDisabled bool) *pb.ProgressBar {
+	if isDisabled {
+		return nil
+	}
 	tpl := getTemplate(format)
 	bar := pb.ProgressBarTemplate(tpl).New(total)
 	Add(bar)
@@ -33,7 +37,10 @@ func AddWithTemplate(format string, total int) *pb.ProgressBar {
 }
 
 // NewSingleProgress returns progress bar with given template
-func NewSingleProgress(format string, total int) *pb.ProgressBar {
+func NewSingleProgress(format string, total int, isDisabled bool) *pb.ProgressBar {
+	if isDisabled {
+		return nil
+	}
 	tpl := getTemplate(format)
 	return pb.ProgressBarTemplate(tpl).New(total)
 }

@@ -50,9 +50,8 @@ func (pp *prometheusProcessor) run() error {
 	}
 
 	var bar *pb.ProgressBar
-	if pp.enableProgressBar() {
-		bar = barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing blocks"), len(blocks))
-
+	bar = barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing blocks"), len(blocks), pp.disableProgressBar)
+	if bar != nil {
 		if err := barpool.Start(); err != nil {
 			return err
 		}
@@ -167,8 +166,4 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 		}
 	}
 	return ss.Err()
-}
-
-func (pp *prometheusProcessor) enableProgressBar() bool {
-	return !pp.disableProgressBar && !pp.isSilent
 }

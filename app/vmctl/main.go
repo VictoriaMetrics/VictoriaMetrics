@@ -439,6 +439,6 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 		RoundDigits:        c.Int(vmRoundDigits),
 		ExtraLabels:        c.StringSlice(vmExtraLabel),
 		RateLimit:          c.Int64(vmRateLimit),
-		DisableProgressBar: c.Bool(vmDisableProgressBar) || c.Bool(globalDisableProgressBar),
+		DisableProgressBar: c.Bool(vmDisableProgressBar) && c.Bool(globalDisableProgressBar),
 	}, nil
 }
