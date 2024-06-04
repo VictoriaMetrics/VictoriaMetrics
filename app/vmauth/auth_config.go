@@ -399,7 +399,7 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 	}
 
 	pbus := up.bus.Load()
-	if len(busNew) == 0 || areEqualBackendURLs(*pbus, busNew) {
+	if areEqualBackendURLs(*pbus, busNew) {
 		return
 	}
 
