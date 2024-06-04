@@ -228,7 +228,7 @@ docker pull victoriametrics/vmanomaly:latest
 
 > Note: `us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial` is deprecated since [v1.6.0](/anomaly-detection/CHANGELOG.html#v160). Use [DockerHub repo](https://hub.docker.com/r/victoriametrics/vmanomaly/tags) instead
 
-You can put a tag on it for your convinience:
+You can put a tag on it for your convenience:
 
 ```sh
 docker image tag victoriametrics/vmanomaly:latest vmanomaly

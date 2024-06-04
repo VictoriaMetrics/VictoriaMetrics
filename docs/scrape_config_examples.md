@@ -126,7 +126,7 @@ can come to rescue. It allows defining a list of scrape targets in `JSON` files,
 at [vmagent](https://docs.victoriametrics.com/vmagent/) or [single-node VictoriaMetrics](https://docs.victoriametrics.com/) side
 when the corresponding `JSON` files are updated.
 
-Let's create `node_exporter_targets.json` file with the following conents:
+Let's create `node_exporter_targets.json` file with the following contents:
 
 ```json
 [

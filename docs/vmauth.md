@@ -504,7 +504,7 @@ Each `url_prefix` in the [-auth.config](#auth-config) can be specified in the fo
   See also [discovering backend IPs](#discovering-backend-ips).
 
   `vmauth` automatically detects temporarily unavailable backends and spreads incoming queries among the remaining available backends.
-  This allows restarting the backends and peforming mantenance tasks on the backends without the need to remove them from the `url_prefix` list.
+  This allows restarting the backends and performing maintenance tasks on the backends without the need to remove them from the `url_prefix` list.
 
   By default `vmauth` returns backend responses with all the http status codes to the client. It is possible to configure automatic retry of requests
   at other backends if the backend responds with status code specified in the `-retryStatusCodes` command-line flag.
@@ -550,7 +550,7 @@ Load balancing feature can be used in the following cases:
     retry_status_codes: [500, 502]
   ```
 
-- Sending select queries to the closest availability zone (AZ), while falling back to other AZs with identical data if the closest AZ is unavaialable.
+- Sending select queries to the closest availability zone (AZ), while falling back to other AZs with identical data if the closest AZ is unavailable.
   For example, the following [`-auth.config`](#auth-config) sends select queries to `https://vmselect-az1/` and uses the `https://vmselect-az2/` as a fallback
   when `https://vmselect-az1/` is temporarily unavailable or cannot return full responses.
   See [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-availability) for details about `deny_partial_response` query arg,
@@ -565,7 +565,7 @@ Load balancing feature can be used in the following cases:
     load_balancing_policy: first_available
   ```
 
-Load balancig can be configured independently per each `user` entry and per each `url_map` entry. See [auth config docs](#auth-config) for more details.
+Load balancing can be configured independently per each `user` entry and per each `url_map` entry. See [auth config docs](#auth-config) for more details.
 
 See also [discovering backend IPs](#discovering-backend-ips), [authorization](#authorization) and [routing](#routing).
 
@@ -722,7 +722,7 @@ in the [`-auth.config`](#auth-config). These settings can be overridden with the
     tls_insecure_skip_verify: true
   ```
 
-- `-backend.tlsCAFile` allows specifying the path to TLS Root CA for verifying backend TLS ceritifcates.
+- `-backend.tlsCAFile` allows specifying the path to TLS Root CA for verifying backend TLS certificates.
   This global setting can be overridden at per-user level inside [`-auth.config`](#auth-config)
   via `tls_ca_file` option. For example:
 
@@ -733,7 +733,7 @@ in the [`-auth.config`](#auth-config). These settings can be overridden with the
   ```
 
 - `-backend.tlsCertFile` and `-backend.tlsKeyFile` allows specifying client TLS certificate for passing in requests to HTTPS backends,
-  so these ceritifcate could be verified at the backend side (aka [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)).
+  so these certificate could be verified at the backend side (aka [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)).
   This global setting can be overridden at per-user level inside [`-auth.config`](#auth-config)
   via `tls_cert_file` and `tls_key_file` options. For example:
 
@@ -1213,9 +1213,9 @@ See the docs at https://docs.victoriametrics.com/vmauth/ .
   -internStringMaxLen int
      The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -license string
-     Lisense key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed via file specified by -licenseFile command-line flag
+     License key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed via file specified by -licenseFile command-line flag
   -license.forceOffline
-     Whether to enable offline verification for VictoriaMetrics Enterprise license key, which has been passed either via -license or via -licenseFile command-line flag. The issued license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification. This flag is avilable only in Enterprise binaries
+     Whether to enable offline verification for VictoriaMetrics Enterprise license key, which has been passed either via -license or via -licenseFile command-line flag. The issued license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification. This flag is available only in Enterprise binaries
   -licenseFile string
      Path to file with license key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed inline via -license command-line flag
   -loadBalancingPolicy string

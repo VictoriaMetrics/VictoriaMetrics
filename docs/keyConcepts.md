@@ -302,7 +302,7 @@ go_gc_duration_seconds_sum 0.015077078
 go_gc_duration_seconds_count 83
 ```
 
-The visualisation of summaries is pretty straightforward:
+The visualization of summaries is pretty straightforward:
 
 <img src="keyConcepts_summary.webp">
 

@@ -241,7 +241,7 @@ VictoriaLogs provides the following command-line flags, which can help debugging
 VictoriaLogs exposes various [metrics](https://docs.victoriametrics.com/victorialogs/#monitoring), which may help debugging data ingestion issues:
 
 - `vl_rows_ingested_total` - the number of ingested [log entries](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-  since the last VictoriaLogs restart. If this number icreases over time, then logs are successfully ingested into VictoriaLogs.
+  since the last VictoriaLogs restart. If this number increases over time, then logs are successfully ingested into VictoriaLogs.
   The ingested logs can be inspected in the following ways:
   - By passing `debug=1` parameter to every request to [data ingestion APIs](#http-apis). The ingested rows aren't stored in VictoriaLogs
     in this case. Instead, they are logged, so they can be investigated later.

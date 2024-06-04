@@ -64,7 +64,8 @@ func (f *Field) marshalToJSON(dst []byte) []byte {
 	return dst
 }
 
-func marshalFieldsToJSON(dst []byte, fields []Field) []byte {
+// MarshalFieldsToJSON appends JSON-marshaled fields to dt and returns the result.
+func MarshalFieldsToJSON(dst []byte, fields []Field) []byte {
 	dst = append(dst, '{')
 	if len(fields) > 0 {
 		dst = fields[0].marshalToJSON(dst)

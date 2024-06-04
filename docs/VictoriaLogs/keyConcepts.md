@@ -105,7 +105,7 @@ Unicode chars must be encoded with [UTF-8](https://en.wikipedia.org/wiki/UTF-8) 
 
 ```json
 {
-  "field with whitepsace": "value\nwith\nnewlines",
+  "field with whitespace": "value\nwith\nnewlines",
   "Поле": "价值",
 }
 ```
@@ -203,7 +203,7 @@ For example, if logs from Kubernetes containers have the following fields:
 }
 ```
 
-then sepcify `_stream_fields=kubernetes.namespace,kubernetes.node.name,kubernetes.pod.name,kubernetes.container.name`
+then specify `_stream_fields=kubernetes.namespace,kubernetes.node.name,kubernetes.pod.name,kubernetes.container.name`
 query arg during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/) in order to properly store
 per-container logs into distinct streams.
 
@@ -218,7 +218,7 @@ makes sense if you are going to use these fields during search and want speeding
 
 There is **no need to add all the constant fields to log streams**, since this may increase resource usage during data ingestion and querying.
 
-**Never add non-nonstant fields to streams if these fields may change with every log entry of the same stream**.
+**Never add non-constant fields to streams if these fields may change with every log entry of the same stream**.
 For example, `ip`, `user_id` and `trace_id` **must never be associated with log streams**, since this may lead to [high cardinality issues](#high-cardinality).
 
 #### High cardinality

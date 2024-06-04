@@ -167,7 +167,7 @@ Numbers:
 We are running 1 Prometheus, 1 VictoriaMetrics and 1 Grafana server in each datacenter on baremetal servers, scraping 350+ targets
 (and 3k+ devices collected via SNMPCollector sending metrics directly to VM). Each Prometheus is scraping all targets
 so we have all metrics in both VictoriaMetrics instances. We are using [Promxy](https://github.com/jacksontj/promxy) to deduplicate metrics from both instances.
-Grafana has an LB infront so if one DC has problems we can still view all metrics from both DCs on the other Grafana instance.
+Grafana has an LB in front so if one DC has problems we can still view all metrics from both DCs on the other Grafana instance.
 
 We are still in the process of migration, but we are really happy with the whole stack. It has proven to be an essential tool
 for gathering insights into our services during COVID-19 and has enabled us to provide better service and identify problems faster.
@@ -229,14 +229,14 @@ VictoriaMetrics is used for the following purposes as a part of the "CMS Monitor
 - As a long-term storage for Prometheus monitoring system (30 days retention policy. There are plans to increase it up to ½ year)
 - As a data source for visualizing metrics in Grafana.
 
-R&D topic: Evaluate VictoraMetrics vs InfluxDB for large cardinality data.
+R&D topic: Evaluate VictoriaMetrics vs InfluxDB for large cardinality data.
 
 Please also see [The CMS monitoring infrastructure and applications](https://arxiv.org/pdf/2007.03630.pdf) publication from CERN with details about their VictoriaMetrics usage.
 
 ## COLOPL
 
 [COLOPL](http://www.colopl.co.jp/en/) is Japanese game development company. It started using VictoriaMetrics
-after evaulating the following remote storage solutions for Prometheus:
+after evaluating the following remote storage solutions for Prometheus:
 
 - Cortex
 - Thanos
@@ -347,7 +347,7 @@ Numbers:
 
 [Grammarly](https://www.grammarly.com/) provides digital writing assistant that helps 30 million people and 30 thousand teams write more clearly and effectively every day. In building a product that scales across multiple platforms and devices, Grammarly works to empower users whenever and wherever they communicate.
 
-See [this blogpost on how Grammarly reduces costs and maintenance burden for their observability solution by 10x after switching to VistoriaMetrics](https://www.grammarly.com/blog/engineering/monitoring-with-victoriametrics/).
+See [this blogpost on how Grammarly reduces costs and maintenance burden for their observability solution by 10x after switching to VictoriaMetrics](https://www.grammarly.com/blog/engineering/monitoring-with-victoriametrics/).
 
 ## Groove X
 
@@ -576,12 +576,12 @@ Numbers:
 
 Numbers:
 
-- The number of acitve time series: 32M.
+- The number of active time series: 32M.
 - Ingestion rate: 1.6M data points per second.
 - Query duration: median is ~2ms, 99th percentile is ~50ms.
 - The total number of datapoints per VictoriaMetrics "hot" storage is 5.3 trillion
 
-> We like that VictoriaMetrics is simple to configuree and requires zero maintenance. It works right out of the box and once it's set up you can just forget about it.
+> We like that VictoriaMetrics is simple to configure and requires zero maintenance. It works right out of the box and once it's set up you can just forget about it.
 
 ## Wix.com
 
@@ -626,7 +626,7 @@ Across our production VictoriaMetrics clusters, numbers as below:
 - Cpu cores in all VictoriaMetrics clusters: almost 50000
 - Data size on disk: 2400 TB
 - Retention period: 1 month
-- Largset VictoriaMetrics cluster: 450 million samples every scrape interval (15 seconds)
+- Largest VictoriaMetrics cluster: 450 million samples every scrape interval (15 seconds)
 - Total scrape sample every scrape interval: 2400 million samples
 - Query rate:
   - /api/v1/query_range: 2300 queries per second

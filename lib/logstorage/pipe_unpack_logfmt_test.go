@@ -191,17 +191,6 @@ func TestPipeUnpackLogfmt(t *testing.T) {
 		},
 	})
 
-	// single row, unpack from non-json field
-	f("unpack_logfmt from x", [][]Field{
-		{
-			{"x", `foobar`},
-		},
-	}, [][]Field{
-		{
-			{"x", `foobar`},
-		},
-	})
-
 	// single row, unpack from non-logfmt
 	f("unpack_logfmt from x", [][]Field{
 		{
@@ -210,6 +199,7 @@ func TestPipeUnpackLogfmt(t *testing.T) {
 	}, [][]Field{
 		{
 			{"x", `foobar`},
+			{"foobar", ""},
 		},
 	})
 

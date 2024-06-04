@@ -725,9 +725,12 @@ func parsePipeSort(lex *lexer) (*pipeSort, error) {
 		ps.byFields = bfs
 	}
 
-	if lex.isKeyword("desc") {
+	switch {
+	case lex.isKeyword("desc"):
 		lex.nextToken()
 		ps.isDesc = true
+	case lex.isKeyword("asc"):
+		lex.nextToken()
 	}
 
 	for {
@@ -797,9 +800,12 @@ func parseBySortFields(lex *lexer) ([]*bySortField, error) {
 		bf := &bySortField{
 			name: fieldName,
 		}
-		if lex.isKeyword("desc") {
+		switch {
+		case lex.isKeyword("desc"):
 			lex.nextToken()
 			bf.isDesc = true
+		case lex.isKeyword("asc"):
+			lex.nextToken()
 		}
 		bfs = append(bfs, bf)
 		switch {

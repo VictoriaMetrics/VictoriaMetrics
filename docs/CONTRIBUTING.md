@@ -37,7 +37,7 @@ Before sending a pull request to [VictoriaMetrics repository](https://github.com
 - Tests are passing locally. Use `make test` to run all tests locally.
 - Linting is passing locally. Use `make check-all` to run all linters locally.
 - If the change fixes some bug, it would be great to cover it by [tests](https://pkg.go.dev/testing) (if it isn't covered yet by existsing tests).
-- If the change improves pefromance or reduces resource usage, then it would be great to add [benchmarks](https://pkg.go.dev/testing#hdr-Benchmarks)
+- If the change improves performance or reduces resource usage, then it would be great to add [benchmarks](https://pkg.go.dev/testing#hdr-Benchmarks)
   and mention benchmark results before and after the change in the description to the pull request.
 - If the change implements some specifics or uses some APIs, then please provide permanent links to these specs and APIs directly in the relevant source code,
   in order to simplify further maintenance of the code.

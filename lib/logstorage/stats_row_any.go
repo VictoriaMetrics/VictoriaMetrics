@@ -99,7 +99,7 @@ func (sap *statsRowAnyProcessor) updateState(br *blockResult, rowIdx int) int {
 
 func (sap *statsRowAnyProcessor) finalizeStats() string {
 	bb := bbPool.Get()
-	bb.B = marshalFieldsToJSON(bb.B, sap.fields)
+	bb.B = MarshalFieldsToJSON(bb.B, sap.fields)
 	result := string(bb.B)
 	bbPool.Put(bb)
 

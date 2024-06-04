@@ -1226,7 +1226,7 @@ func (br *blockResult) getBucketedValue(s string, bf *byStatsField) string {
 
 		buf := br.a.b
 		bufLen := len(buf)
-		buf = marshalDuration(buf, nsecs)
+		buf = marshalDurationString(buf, nsecs)
 		br.a.b = buf
 		return bytesutil.ToUnsafeString(buf[bufLen:])
 	}

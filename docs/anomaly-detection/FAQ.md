@@ -88,8 +88,8 @@ schedulers:
 models:
   model_alias1:
     # ...
-    schedulers: ['scheduler_alias']  # if ommited, all the defined schedulers will be attached
-    queries: ['query_alias1']  # if ommited, all the defined queries will be attached
+    schedulers: ['scheduler_alias']  # if omitted, all the defined schedulers will be attached
+    queries: ['query_alias1']  # if omitted, all the defined queries will be attached
     # https://docs.victoriametrics.com/anomaly-detection/components/models/#provide-series
     provide_series: ['anomaly_score']  
   # ... other models

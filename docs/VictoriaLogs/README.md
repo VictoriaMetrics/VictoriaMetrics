@@ -10,7 +10,7 @@ aliases:
 VictoriaLogs is [open source](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/victoria-logs) user-friendly database for logs
 from [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/).
 
-VictoriaLogs provides the following key features:
+VictoriaLogs provides the following features:
 
 - VictoriaLogs can accept logs from popular log collectors. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
 - VictoriaLogs is much easier to set up and operate compared to Elasticsearch and Grafana Loki.

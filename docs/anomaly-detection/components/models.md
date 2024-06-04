@@ -128,7 +128,7 @@ models:
     provide_series: ['anomaly_score']  # only `anomaly_score` metric will be available for writing back to the database
 ```
 
-**Note** If `provide_series` is not specified in model config, the model will produce its default [model-dependent output](#vmanomaly-output). The output can't be less than `['anomaly_score']`. Even if `timestamp` column is ommitted, it will be implicitly added to `provide_series` list, as it's required for metrics to be properly written.
+**Note** If `provide_series` is not specified in model config, the model will produce its default [model-dependent output](#vmanomaly-output). The output can't be less than `['anomaly_score']`. Even if `timestamp` column is omitted, it will be implicitly added to `provide_series` list, as it's required for metrics to be properly written.
 
 ## Model types
 
@@ -154,7 +154,7 @@ If during an inference, you got a series having **new labelset** (not present in
 **Examples:** [Prophet](#prophet), [Holt-Winters](#holt-winters)
 
 <p></p>
-<img alt="vmanomaly-model-type-univatiate" src="/anomaly-detection/components/model-lifecycle-univariate.webp" width="800px"/>
+<img alt="vmanomaly-model-type-univariate" src="/anomaly-detection/components/model-lifecycle-univariate.webp" width="800px"/>
 
 ### Multivariate Models
 
@@ -437,7 +437,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 
 ### [Isolation forest](https://en.wikipedia.org/wiki/Isolation_forest) (Multivariate)
-Detects anomalies using binary trees. The algorithm has a linear time complexity and a low memory requirement, which works well with high-volume data. It can be used on both univatiate and multivariate data, but it is more effective in multivariate case.
+Detects anomalies using binary trees. The algorithm has a linear time complexity and a low memory requirement, which works well with high-volume data. It can be used on both univariate and multivariate data, but it is more effective in multivariate case.
 
 **Important**: Be aware of [the curse of dimensionality](https://en.wikipedia.org/wiki/Curse_of_dimensionality). Don't use single multivariate model if you expect your queries to return many time series of less datapoints that the number of metrics. In such case it is hard for a model to learn meaningful dependencies from too sparse data hypercube.
 

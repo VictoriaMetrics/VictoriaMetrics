@@ -12,7 +12,7 @@ aliases:
 
 # Filebeat setup
 
-Specify [`output.elasicsearch`](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html) section in the `filebeat.yml`
+Specify [`output.elasticsearch`](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html) section in the `filebeat.yml`
 for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
 
 ```yaml

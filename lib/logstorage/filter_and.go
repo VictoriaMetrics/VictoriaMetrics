@@ -114,16 +114,14 @@ func (fa *filterAnd) getByFieldTokens() []fieldTokens {
 
 func (fa *filterAnd) initByFieldTokens() {
 	m := make(map[string]map[string]struct{})
-	byFieldFilters := make(map[string]int)
 	var fieldNames []string
 
 	mergeFieldTokens := func(fieldName string, tokens []string) {
-		fieldName = getCanonicalColumnName(fieldName)
-		byFieldFilters[fieldName]++
 		if len(tokens) == 0 {
 			return
 		}
 
+		fieldName = getCanonicalColumnName(fieldName)
 		mTokens, ok := m[fieldName]
 		if !ok {
 			fieldNames = append(fieldNames, fieldName)
@@ -165,11 +163,6 @@ func (fa *filterAnd) initByFieldTokens() {
 
 	var byFieldTokens []fieldTokens
 	for _, fieldName := range fieldNames {
-		if byFieldFilters[fieldName] < 2 {
-			// It is faster to perform bloom filter match inline when visiting the corresponding column
-			continue
-		}
-
 		mTokens := m[fieldName]
 		tokens := make([]string, 0, len(mTokens))
 		for token := range mTokens {

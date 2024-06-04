@@ -35,7 +35,6 @@ The following functionality is planned in the future versions of VictoriaLogs:
   - Syslog
   - Journald (systemd)
 - Add missing functionality to [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/):
-  - [Transformation functions](https://docs.victoriametrics.com/victorialogs/logsql/#transformations).
   - [Stream context](https://docs.victoriametrics.com/victorialogs/logsql/#stream-context).
 - Live tailing for [LogsQL filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters) aka `tail -f`.
 - Web UI with the following abilities:

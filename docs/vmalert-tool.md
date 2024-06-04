@@ -216,10 +216,10 @@ tests:
         values: "0+0x1440"
 
     metricsql_expr_test:
-      - expr: suquery_interval_test
+      - expr: subquery_interval_test
         eval_time: 4m
         exp_samples:
-          - labels: '{__name__="suquery_interval_test", datacenter="dc-123", instance="localhost:9090", job="prometheus"}'
+          - labels: '{__name__="subquery_interval_test", datacenter="dc-123", instance="localhost:9090", job="prometheus"}'
             value: 1
 
     alert_rule_test:
@@ -275,6 +275,6 @@ groups:
     rules:
       - record: job:test:count_over_time1m
         expr: sum without(instance) (count_over_time(test[1m]))
-      - record: suquery_interval_test
+      - record: subquery_interval_test
         expr: count_over_time(up[5m:])
 ```

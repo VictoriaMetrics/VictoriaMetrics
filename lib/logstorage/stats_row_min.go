@@ -206,7 +206,7 @@ func (smp *statsRowMinProcessor) updateState(v string, br *blockResult, rowIdx i
 
 func (smp *statsRowMinProcessor) finalizeStats() string {
 	bb := bbPool.Get()
-	bb.B = marshalFieldsToJSON(bb.B, smp.fields)
+	bb.B = MarshalFieldsToJSON(bb.B, smp.fields)
 	result := string(bb.B)
 	bbPool.Put(bb)
 

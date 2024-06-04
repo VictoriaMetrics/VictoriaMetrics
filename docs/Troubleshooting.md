@@ -300,7 +300,7 @@ There are the following most commons reasons for slow data ingestion in Victoria
    See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183) for more details.
 
 1. If you see constant and abnormally high CPU usage of VictoriaMetrics component, check `CPU spent on GC` panel
-   on the corresponding [Grafana dasbhoard](https://grafana.com/orgs/victoriametrics) in `Resource usage` section. If percentage of CPU time spent on garbage collection
+   on the corresponding [Grafana dashboard](https://grafana.com/orgs/victoriametrics) in `Resource usage` section. If percentage of CPU time spent on garbage collection
    is high, then CPU usage of the component can be reduced at the cost of higher memory usage by changing [GOGC](https://tip.golang.org/doc/gc-guide#GOGC) environment variable
    to higher values. By default VictoriaMetrics components use `GOGC=30`. Try running VictoriaMetrics components with `GOGC=100` and see whether this helps reducing CPU usage.
    Note that higher `GOGC` values may increase memory usage.

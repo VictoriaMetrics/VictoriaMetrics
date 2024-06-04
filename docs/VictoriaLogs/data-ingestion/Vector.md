@@ -121,7 +121,7 @@ This usually allows saving network bandwidth and costs by up to 5 times:
 ```
 
 By default, the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/keyconcepts/#multitenancy).
-If you need storing logs in other tenant, then specify the needed tenant via `[sinks.vlogq.request.headers]` section.
+If you need storing logs in other tenant, then specify the needed tenant via `[sinks.vlogs.request.headers]` section.
 For example, the following `vector.toml` config instructs Vector to store the data to `(AccountID=12, ProjectID=34)` tenant:
 
 ```toml

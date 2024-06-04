@@ -487,7 +487,7 @@ when some of `vmstorage` nodes are removed from the cluster because of the follo
   This copying takes additional CPU, disk IO and network bandwidth at `vmstorage` nodes. This may negatively impact
   VictoriaMetrics cluster availability during extended periods of time.
 
-- It is unclear when the automatic replication factor recovery must be started. How to distiguinsh the expected temporary
+- It is unclear when the automatic replication factor recovery must be started. How to distinguish the expected temporary
   `vmstorage` node unavailability because of maintenance, upgrade or config changes from permanent loss of data at the `vmstorage` node?
 
 It is recommended reading [replication and data safety docs](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety)

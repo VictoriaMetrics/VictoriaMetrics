@@ -18,7 +18,7 @@ import (
 	"github.com/VictoriaMetrics/metricsql"
 )
 
-var numReg = regexp.MustCompile(`\D?\d*\D?`)
+var numReg = regexp.MustCompile(`\D?\d*\.?\d*\D?`)
 
 // series holds input_series defined in the test file
 type series struct {

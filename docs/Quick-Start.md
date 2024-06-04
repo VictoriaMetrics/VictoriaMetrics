@@ -126,7 +126,7 @@ command line tool. It supports the following databases for migration to Victoria
 * [OpenTSDB](https://docs.victoriametrics.com/vmctl/#migrating-data-from-opentsdb);
 * [Migrate data between VictoriaMetrics single and cluster versions](https://docs.victoriametrics.com/vmctl/#migrating-data-from-victoriametrics).
 
-## Productionisation
+## Productionization
 
 When going to production with VictoriaMetrics we recommend following the recommendations.
 
