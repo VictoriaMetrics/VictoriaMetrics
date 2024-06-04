@@ -308,6 +308,9 @@ func (up *URLPrefix) getBackendURL() *backendURL {
 
 	pbus := up.bus.Load()
 	bus := *pbus
+	if len(bus) == 0 {
+		return nil
+	}
 	if up.loadBalancingPolicy == "first_available" {
 		return getFirstAvailableBackendURL(bus)
 	}

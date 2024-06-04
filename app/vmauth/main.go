@@ -206,21 +206,23 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	}
 	for i := 0; i < maxAttempts; i++ {
 		bu := up.getBackendURL()
-		targetURL := bu.url
-		// Don't change path and add request_path query param for default route.
-		if isDefault {
-			query := targetURL.Query()
-			query.Set("request_path", u.String())
-			targetURL.RawQuery = query.Encode()
-		} else { // Update path for regular routes.
-			targetURL = mergeURLs(targetURL, u, up.dropSrcPathPrefixParts)
+		if bu != nil {
+			targetURL := bu.url
+			// Don't change path and add request_path query param for default route.
+			if isDefault {
+				query := targetURL.Query()
+				query.Set("request_path", u.String())
+				targetURL.RawQuery = query.Encode()
+			} else { // Update path for regular routes.
+				targetURL = mergeURLs(targetURL, u, up.dropSrcPathPrefixParts)
+			}
+			ok := tryProcessingRequest(w, r, targetURL, hc, up.retryStatusCodes, ui)
+			bu.put()
+			if ok {
+				return
+			}
+			bu.setBroken()
 		}
-		ok := tryProcessingRequest(w, r, targetURL, hc, up.retryStatusCodes, ui)
-		bu.put()
-		if ok {
-			return
-		}
-		bu.setBroken()
 	}
 	err := &httpserver.ErrorWithStatusCode{
 		Err:        fmt.Errorf("all the backends for the user %q are unavailable", ui.name()),
