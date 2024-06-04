@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"math"
+	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -311,6 +312,16 @@ func tryParseNumber(s string) (float64, bool) {
 	bytes, ok := tryParseBytes(s)
 	if ok {
 		return float64(bytes), true
+	}
+	if isNumberPrefix(s) {
+		f, err := strconv.ParseFloat(s, 64)
+		if err == nil {
+			return f, true
+		}
+		n, err := strconv.ParseInt(s, 0, 64)
+		if err == nil {
+			return float64(n), true
+		}
 	}
 	return 0, false
 }

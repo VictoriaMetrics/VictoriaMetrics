@@ -1316,10 +1316,20 @@ func parseFloat64(lex *lexer) (float64, string, error) {
 
 	// Try parsing s as integer.
 	// This handles 0x..., 0b... and 0... prefixes, alongside '_' delimiters.
-	n, err := parseInt(s)
+	n, err := strconv.ParseInt(s, 0, 64)
 	if err == nil {
 		return float64(n), s, nil
 	}
+
+	nn, ok := tryParseBytes(s)
+	if ok {
+		return float64(nn), s, nil
+	}
+	nn, ok = tryParseDuration(s)
+	if ok {
+		return float64(nn), s, nil
+	}
+
 	return 0, "", fmt.Errorf("cannot parse %q as float64: %w", s, err)
 }
 
@@ -1616,6 +1626,12 @@ func isNumberPrefix(s string) bool {
 			return false
 		}
 	}
+	if s[0] == '.' {
+		s = s[1:]
+		if len(s) == 0 {
+			return false
+		}
+	}
 	return s[0] >= '0' && s[0] <= '9'
 }
 
@@ -1711,28 +1727,6 @@ func parseUint(s string) (uint64, error) {
 		}
 	}
 	return uint64(nn), nil
-}
-
-func parseInt(s string) (int64, error) {
-	switch {
-	case strings.EqualFold(s, "inf"), strings.EqualFold(s, "+inf"):
-		return math.MaxInt64, nil
-	case strings.EqualFold(s, "-inf"):
-		return math.MinInt64, nil
-	}
-
-	n, err := strconv.ParseInt(s, 0, 64)
-	if err == nil {
-		return n, nil
-	}
-	nn, ok := tryParseBytes(s)
-	if !ok {
-		nn, ok = tryParseDuration(s)
-		if !ok {
-			return 0, fmt.Errorf("cannot parse %q as integer: %w", s, err)
-		}
-	}
-	return nn, nil
 }
 
 func nextafter(f, xInf float64) float64 {

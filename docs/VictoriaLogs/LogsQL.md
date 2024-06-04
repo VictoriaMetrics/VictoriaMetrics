@@ -1657,6 +1657,9 @@ The following mathematical operations are supported by `math` pipe:
 - `arg1 / arg2` - divides `arg1` by `arg2`
 - `arg1 % arg2` - returns the remainder of the division of `arg1` by `arg2`
 - `arg1 ^ arg2` - returns the power of `arg1` by `arg2`
+- `arg1 & arg2` - returns bitwise `and` for `arg1` and `arg2`. It is expected that `arg1` and `arg2` are in the range `[0 .. 2^53-1]`
+- `arg1 | arg2` - returns bitwise `or` for `arg1` and `arg2`. It is expected that `arg1` and `arg2` are in the range `[0 .. 2^53-1]`
+- `arg1 xor arg2` - returns bitwise `xor` for `arg1` and `arg2`. It is expected that `arg1` and `arg2` are in the range `[0 .. 2^53-1]`
 - `arg1 default arg2` - returns `arg2` if `arg1` is non-[numeric](#numeric-values) or equals to `NaN`
 - `abs(arg)` - returns an absolute value for the given `arg`
 - `exp(arg)` - powers [`e`](https://en.wikipedia.org/wiki/E_(mathematical_constant)) by `arg`.
@@ -1669,9 +1672,11 @@ The following mathematical operations are supported by `math` pipe:
 Every `argX` argument in every mathematical operation can contain one of the following values:
 
 - The name of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). For example, `errors_total / requests_total`.
-  If the log field contains value, which cannot be parsed into [supported numeric value](#numeric-values), then it is replaced with `NaN`.
-- Any [supported numeric value](#numeric-values). For example, `response_size_bytes / 1MiB`.
-- Another mathematical expression. Optionally, it may be put inside `(...)`. For example, `(a + b) * c`.
+  The log field is parsed into numeric value if it contains [supported numeric value](#numeric-values). The log field is parsed into [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time)
+  in nanoseconds if it contains [rfc3339 time](https://www.rfc-editor.org/rfc/rfc3339). The log field is parsed into `uint32` number if it contains IPv4 address.
+  The log field is parsed into `NaN` in other cases.
+- Any [supported numeric value](#numeric-values), [rfc3339 time](https://www.rfc-editor.org/rfc/rfc3339) or IPv4 address. For example, `1MiB`, `"2024-05-15T10:20:30.934324Z"` or `"12.34.56.78"`.
+- Another mathematical expression, which can be put inside `(...)`. For example, `(a + b) * c`.
 
 See also:
 

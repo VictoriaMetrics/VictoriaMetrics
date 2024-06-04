@@ -54,12 +54,23 @@ func TestPipeFormat(t *testing.T) {
 			{"bar", `210123456789`},
 			{"baz", "1234567890"},
 		},
+		{
+			{"foo", `abc`},
+			{"bar", `de`},
+			{"baz", "ghkl"},
+		},
 	}, [][]Field{
 		{
 			{"foo", `1717328141123456789`},
 			{"bar", `210123456789`},
 			{"baz", "1234567890"},
 			{"x", "time=2024-06-02T11:35:41.123456789Z, duration=3m30.123456789s, ip=73.150.2.210"},
+		},
+		{
+			{"foo", `abc`},
+			{"bar", `de`},
+			{"baz", "ghkl"},
+			{"x", "time=abc, duration=de, ip=ghkl"},
 		},
 	})
 
