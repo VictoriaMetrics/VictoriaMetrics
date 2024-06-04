@@ -3,7 +3,6 @@ package promscrape
 import (
 	"flag"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"io"
 	"net/http"
 	"regexp"
@@ -14,6 +13,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
@@ -314,8 +314,8 @@ func (ts *targetStatus) getDurationFromLastScrape() string {
 }
 
 type droppedTargets struct {
-	mu sync.Mutex
-	m  map[uint64]droppedTarget
+	mu     sync.Mutex
+	m      map[uint64]droppedTarget
 	filter *bloomfilter.Filter
 
 	// totalTargets contains the total number of dropped targets registered via Register() call.
@@ -428,7 +428,7 @@ func (dt *droppedTargets) WriteDroppedTargetsJSON(w io.Writer) {
 }
 
 var droppedTargetsMap = &droppedTargets{
-	m: make(map[uint64]droppedTarget),
+	m:      make(map[uint64]droppedTarget),
 	filter: bloomfilter.NewFilter(10000),
 }
 
