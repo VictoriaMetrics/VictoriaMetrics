@@ -3,6 +3,7 @@ package logstorage
 import (
 	"math"
 	"slices"
+	"strconv"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -1914,6 +1915,35 @@ func getCanonicalColumnName(columnName string) string {
 		return "_msg"
 	}
 	return columnName
+}
+
+func tryParseNumber(s string) (float64, bool) {
+	if len(s) == 0 {
+		return 0, false
+	}
+	f, ok := tryParseFloat64(s)
+	if ok {
+		return f, true
+	}
+	nsecs, ok := tryParseDuration(s)
+	if ok {
+		return float64(nsecs), true
+	}
+	bytes, ok := tryParseBytes(s)
+	if ok {
+		return float64(bytes), true
+	}
+	if isNumberPrefix(s) {
+		f, err := strconv.ParseFloat(s, 64)
+		if err == nil {
+			return f, true
+		}
+		n, err := strconv.ParseInt(s, 0, 64)
+		if err == nil {
+			return float64(n), true
+		}
+	}
+	return 0, false
 }
 
 var nan = math.NaN()

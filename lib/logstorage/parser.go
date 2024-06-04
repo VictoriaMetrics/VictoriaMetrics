@@ -1309,28 +1309,13 @@ func parseFloat64(lex *lexer) (float64, string, error) {
 	if err != nil {
 		return 0, "", fmt.Errorf("cannot parse float64 from %q: %w", s, err)
 	}
-	f, err := strconv.ParseFloat(s, 64)
-	if err == nil {
+
+	f := parseMathNumber(s)
+	if !math.IsNaN(f) || strings.EqualFold(s, "nan") {
 		return f, s, nil
 	}
 
-	// Try parsing s as integer.
-	// This handles 0x..., 0b... and 0... prefixes, alongside '_' delimiters.
-	n, err := strconv.ParseInt(s, 0, 64)
-	if err == nil {
-		return float64(n), s, nil
-	}
-
-	nn, ok := tryParseBytes(s)
-	if ok {
-		return float64(nn), s, nil
-	}
-	nn, ok = tryParseDuration(s)
-	if ok {
-		return float64(nn), s, nil
-	}
-
-	return 0, "", fmt.Errorf("cannot parse %q as float64: %w", s, err)
+	return 0, "", fmt.Errorf("cannot parse %q as float64", s)
 }
 
 func parseFuncArg(lex *lexer, fieldName string, callback func(args string) (filter, error)) (filter, error) {
@@ -1625,6 +1610,9 @@ func isNumberPrefix(s string) bool {
 		if len(s) == 0 {
 			return false
 		}
+	}
+	if len(s) >= 3 && strings.EqualFold(s, "inf") {
+		return true
 	}
 	if s[0] == '.' {
 		s = s[1:]
