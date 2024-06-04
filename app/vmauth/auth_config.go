@@ -380,6 +380,9 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 	var busNew []*backendURL
 	for _, bu := range up.busOriginal {
 		host := bu.Hostname()
+		if strings.HasPrefix(host, "srv+") {
+			host = strings.TrimPrefix(host, "srv+")
+		}
 		port := bu.Port()
 		for _, addr := range hostToAddrs[host] {
 			buCopy := *bu
