@@ -294,8 +294,6 @@ func (bu *backendURL) put() {
 }
 
 func (up *URLPrefix) getBackendsCount() int {
-	up.discoverBackendAddrsIfNeeded()
-
 	pbus := up.bus.Load()
 	return len(*pbus)
 }
