@@ -298,11 +298,36 @@ func ProcessQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
-	if limit > 0 {
-		q.AddPipeLimit(uint64(limit))
-	}
 
 	bw := getBufferedWriter(w)
+	defer func() {
+		bw.FlushIgnoreErrors()
+		putBufferedWriter(bw)
+	}()
+	w.Header().Set("Content-Type", "application/stream+json")
+
+	if limit > 0 {
+		if q.CanReturnLastNResults() {
+			rows, err := getLastNQueryResults(ctx, tenantIDs, q, limit)
+			if err != nil {
+				httpserver.Errorf(w, r, "%s", err)
+				return
+			}
+			bb := blockResultPool.Get()
+			b := bb.B
+			for i := range rows {
+				b = logstorage.MarshalFieldsToJSON(b[:0], rows[i].fields)
+				b = append(b, '\n')
+				bw.WriteIgnoreErrors(b)
+			}
+			bb.B = b
+			blockResultPool.Put(bb)
+			return
+		}
+
+		q.AddPipeLimit(uint64(limit))
+		q.Optimize()
+	}
 
 	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
 		if len(columns) == 0 || len(columns[0].Values) == 0 {
@@ -317,19 +342,102 @@ func ProcessQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 		blockResultPool.Put(bb)
 	}
 
-	w.Header().Set("Content-Type", "application/stream+json")
-	q.Optimize()
-	err = vlstorage.RunQuery(ctx, tenantIDs, q, writeBlock)
-
-	bw.FlushIgnoreErrors()
-	putBufferedWriter(bw)
-
-	if err != nil {
+	if err := vlstorage.RunQuery(ctx, tenantIDs, q, writeBlock); err != nil {
 		httpserver.Errorf(w, r, "cannot execute query [%s]: %s", q, err)
 	}
 }
 
 var blockResultPool bytesutil.ByteBufferPool
+
+type row struct {
+	timestamp int64
+	fields    []logstorage.Field
+}
+
+func getLastNQueryResults(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, limit int) ([]row, error) {
+	q.AddPipeLimit(uint64(limit + 1))
+	q.Optimize()
+	rows, err := getQueryResultsWithLimit(ctx, tenantIDs, q, limit+1)
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) <= limit {
+		// Fast path - the requested time range contains up to limit rows.
+		sortRowsByTime(rows)
+		return rows, nil
+	}
+
+	// Slow path - search for the time range with the requested limit rows.
+	start, end := q.GetFilterTimeRange()
+	d := end/2 - start/2
+	start += d
+
+	qOrig := q
+	for {
+		q = qOrig.Clone()
+		q.AddTimeFilter(start, end)
+		rows, err := getQueryResultsWithLimit(ctx, tenantIDs, q, limit+1)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(rows) == limit || len(rows) > limit && d < 10e6 || d == 0 {
+			sortRowsByTime(rows)
+			if len(rows) > limit {
+				rows = rows[len(rows)-limit:]
+			}
+			return rows, nil
+		}
+
+		lastBit := d & 1
+		d /= 2
+		if len(rows) > limit {
+			start += d
+		} else {
+			start -= d + lastBit
+		}
+	}
+}
+
+func sortRowsByTime(rows []row) {
+	sort.Slice(rows, func(i, j int) bool {
+		return rows[i].timestamp < rows[j].timestamp
+	})
+}
+
+func getQueryResultsWithLimit(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, limit int) ([]row, error) {
+	ctxWithCancel, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	var rows []row
+	var rowsLock sync.Mutex
+	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
+		rowsLock.Lock()
+		defer rowsLock.Unlock()
+
+		for i, timestamp := range timestamps {
+			fields := make([]logstorage.Field, len(columns))
+			for j := range columns {
+				f := &fields[j]
+				f.Name = strings.Clone(columns[j].Name)
+				f.Value = strings.Clone(columns[j].Values[i])
+			}
+			rows = append(rows, row{
+				timestamp: timestamp,
+				fields:    fields,
+			})
+		}
+
+		if len(rows) >= limit {
+			cancel()
+		}
+	}
+	if err := vlstorage.RunQuery(ctxWithCancel, tenantIDs, q, writeBlock); err != nil {
+		return nil, err
+	}
+
+	return rows, nil
+}
 
 func parseCommonArgs(r *http.Request) (*logstorage.Query, []logstorage.TenantID, error) {
 	// Extract tenantID
@@ -373,10 +481,10 @@ func getTimeNsec(r *http.Request, argName string) (int64, bool, error) {
 	if s == "" {
 		return 0, false, nil
 	}
-	currentTimestamp := float64(time.Now().UnixNano()) / 1e9
-	secs, err := promutils.ParseTimeAt(s, currentTimestamp)
+	currentTimestamp := time.Now().UnixNano()
+	nsecs, err := promutils.ParseTimeAt(s, currentTimestamp)
 	if err != nil {
 		return 0, false, fmt.Errorf("cannot parse %s=%s: %w", argName, s, err)
 	}
-	return int64(secs * 1e9), true, nil
+	return nsecs, true, nil
 }
