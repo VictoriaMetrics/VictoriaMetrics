@@ -135,7 +135,7 @@ func TestPipeMath(t *testing.T) {
 		},
 	})
 
-	f("math round(exp(a), 0.01), round(ln(a), 0.01)", [][]Field{
+	f("math round(exp(a), 0.01), round(ln(a), 0.01), ceil(exp(a)), floor(exp(a))", [][]Field{
 		{
 			{"a", "v1"},
 		},
@@ -156,26 +156,36 @@ func TestPipeMath(t *testing.T) {
 			{"a", "v1"},
 			{"round(exp(a), 0.01)", "NaN"},
 			{"round(ln(a), 0.01)", "NaN"},
+			{"ceil(exp(a))", "NaN"},
+			{"floor(exp(a))", "NaN"},
 		},
 		{
 			{"a", "0"},
 			{"round(exp(a), 0.01)", "1"},
 			{"round(ln(a), 0.01)", "NaN"},
+			{"ceil(exp(a))", "1"},
+			{"floor(exp(a))", "1"},
 		},
 		{
 			{"a", "1"},
 			{"round(exp(a), 0.01)", "2.72"},
 			{"round(ln(a), 0.01)", "0"},
+			{"ceil(exp(a))", "3"},
+			{"floor(exp(a))", "2"},
 		},
 		{
 			{"a", "2"},
 			{"round(exp(a), 0.01)", "7.39"},
 			{"round(ln(a), 0.01)", "0.69"},
+			{"ceil(exp(a))", "8"},
+			{"floor(exp(a))", "7"},
 		},
 		{
 			{"a", "3"},
 			{"round(exp(a), 0.01)", "20.09"},
 			{"round(ln(a), 0.01)", "1.1"},
+			{"ceil(exp(a))", "21"},
+			{"floor(exp(a))", "20"},
 		},
 	})
 

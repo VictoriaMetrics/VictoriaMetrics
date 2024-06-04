@@ -497,6 +497,10 @@ func parseMathExprOperand(lex *lexer) (*mathExpr, error) {
 		return parseMathExprMin(lex)
 	case lex.isKeyword("round"):
 		return parseMathExprRound(lex)
+	case lex.isKeyword("ceil"):
+		return parseMathExprCeil(lex)
+	case lex.isKeyword("floor"):
+		return parseMathExprFloor(lex)
 	case lex.isKeyword("-"):
 		return parseMathExprUnaryMinus(lex)
 	case lex.isKeyword("+"):
@@ -572,6 +576,28 @@ func parseMathExprRound(lex *lexer) (*mathExpr, error) {
 	}
 	if len(me.args) != 1 && len(me.args) != 2 {
 		return nil, fmt.Errorf("'round' function needs 1 or 2 args; got %d args: [%s]", len(me.args), me)
+	}
+	return me, nil
+}
+
+func parseMathExprCeil(lex *lexer) (*mathExpr, error) {
+	me, err := parseMathExprGenericFunc(lex, "ceil", mathFuncCeil)
+	if err != nil {
+		return nil, err
+	}
+	if len(me.args) != 1 {
+		return nil, fmt.Errorf("'ceil' function needs one arg; got %d args: [%s]", len(me.args), me)
+	}
+	return me, nil
+}
+
+func parseMathExprFloor(lex *lexer) (*mathExpr, error) {
+	me, err := parseMathExprGenericFunc(lex, "floor", mathFuncFloor)
+	if err != nil {
+		return nil, err
+	}
+	if len(me.args) != 1 {
+		return nil, fmt.Errorf("'floor' function needs one arg; got %d args: [%s]", len(me.args), me)
 	}
 	return me, nil
 }
@@ -841,6 +867,20 @@ func mathFuncMin(result []float64, args [][]float64) {
 			}
 		}
 		result[i] = f
+	}
+}
+
+func mathFuncCeil(result []float64, args [][]float64) {
+	arg := args[0]
+	for i := range result {
+		result[i] = math.Ceil(arg[i])
+	}
+}
+
+func mathFuncFloor(result []float64, args [][]float64) {
+	arg := args[0]
+	for i := range result {
+		result[i] = math.Floor(arg[i])
 	}
 }
 

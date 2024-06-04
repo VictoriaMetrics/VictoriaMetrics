@@ -1662,7 +1662,9 @@ The following mathematical operations are supported by `math` pipe:
 - `arg1 xor arg2` - returns bitwise `xor` for `arg1` and `arg2`. It is expected that `arg1` and `arg2` are in the range `[0 .. 2^53-1]`
 - `arg1 default arg2` - returns `arg2` if `arg1` is non-[numeric](#numeric-values) or equals to `NaN`
 - `abs(arg)` - returns an absolute value for the given `arg`
-- `exp(arg)` - powers [`e`](https://en.wikipedia.org/wiki/E_(mathematical_constant)) by `arg`.
+- `ceil(arg)` - returns the least integer value greater than or equal to `arg`
+- `exp(arg)` - powers [`e`](https://en.wikipedia.org/wiki/E_(mathematical_constant)) by `arg`
+- `floor(arg)` - returns the greatest integer values less than or equal to `arg`
 - `ln(arg)` - returns [natural logarithm](https://en.wikipedia.org/wiki/Natural_logarithm) for the given `arg`
 - `max(arg1, ..., argN)` - returns the maximum value among the given `arg1`, ..., `argN`
 - `min(arg1, ..., argN)` - returns the minimum value among the given `arg1`, ..., `argN`
