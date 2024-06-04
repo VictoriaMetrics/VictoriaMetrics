@@ -304,8 +304,7 @@ func (p *vmNativeProcessor) explore(ctx context.Context, src *native.Client, ten
 	log.Printf("Exploring metrics...")
 
 	var bar *pb.ProgressBar
-	bar = barpool.NewSingleProgress(fmt.Sprintf(nativeWithBackoffTpl, "Explore requests to make"), len(ranges), p.disableProgressBar)
-	if bar != nil {
+	if bar = barpool.NewSingleProgress(fmt.Sprintf(nativeWithBackoffTpl, "Explore requests to make"), len(ranges), p.disableProgressBar); bar != nil {
 		bar.Start()
 		defer bar.Finish()
 	}
