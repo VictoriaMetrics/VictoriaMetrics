@@ -50,8 +50,7 @@ func (pp *prometheusProcessor) run() error {
 	}
 
 	var bar *pb.ProgressBar
-	bar = barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing blocks"), len(blocks), pp.disableProgressBar)
-	if bar != nil {
+	if bar = barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing blocks"), len(blocks), pp.disableProgressBar); bar != nil {
 		if err := barpool.Start(); err != nil {
 			return err
 		}

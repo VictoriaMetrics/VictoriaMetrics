@@ -59,8 +59,7 @@ func (ip *influxProcessor) run() error {
 
 	var bar *pb.ProgressBar
 
-	bar = barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing series"), len(series), ip.disableProgressBar)
-	if bar != nil {
+	if bar = barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing series"), len(series), ip.disableProgressBar); bar != nil {
 		if err := barpool.Start(); err != nil {
 			return err
 		}

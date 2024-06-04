@@ -56,8 +56,7 @@ func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 	}
 
 	var bar *pb.ProgressBar
-	bar = barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing ranges"), len(ranges), rrp.disableProgressBar)
-	if bar != nil {
+	if bar = barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing ranges"), len(ranges), rrp.disableProgressBar); bar != nil {
 		if err := barpool.Start(); err != nil {
 			return err
 		}
