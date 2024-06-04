@@ -25,6 +25,7 @@ the returned logs by some field (usually [`_time` field](https://docs.victoriame
 
 ```logsql
 _time:5m | sort by (_time)
+```
 
 If the number of returned logs is too big, it may be limited with the [`limit` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe).
 For example, the following query returns 10 most recent logs, which were ingested during the last 5 minutes:
@@ -294,7 +295,7 @@ See also:
 ## How to parse JSON inside log message?
 
 It is better from performance and resource usage PoV to avoid storing JSON inside [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
-It is recommended storing individual JSON fields and log fields instead according to [VictoriaLogs data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+It is recommended storing individual JSON fields as log fields instead according to [VictoriaLogs data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
 If you have to store JSON inside log message or inside any other [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
 then the stored JSON can be parsed during query time via [`unpack_json` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_json-pipe).
