@@ -353,7 +353,7 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 				logger.Warnf("cannot discover backend SRV records for %s: %s; use it literally", bu, err)
 				resolvedAddrs = []string{host}
 			} else {
-				resolvedAddrs := make([]string, len(addrs))
+				resolvedAddrs = make([]string, len(addrs))
 				for i, addr := range addrs {
 					resolvedAddrs[i] = fmt.Sprintf("%s:%d", addr.Target, addr.Port)
 				}
@@ -398,7 +398,7 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 	}
 
 	pbus := up.bus.Load()
-	if areEqualBackendURLs(*pbus, busNew) {
+	if len(busNew) == 0 || areEqualBackendURLs(*pbus, busNew) {
 		return
 	}
 
