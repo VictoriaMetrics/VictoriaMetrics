@@ -25,6 +25,7 @@ the returned logs by some field (usually [`_time` field](https://docs.victoriame
 
 ```logsql
 _time:5m | sort by (_time)
+```
 
 If the number of returned logs is too big, it may be limited with the [`limit` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe).
 For example, the following query returns 10 most recent logs, which were ingested during the last 5 minutes:
