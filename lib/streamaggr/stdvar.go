@@ -1,6 +1,7 @@
 package streamaggr
 
 import (
+	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -33,7 +34,7 @@ func (as *stdvarAggrState) pushSamples(samples []pushSample) {
 		if !ok {
 			// The entry is missing in the map. Try creating it.
 			v = &stdvarStateValue{}
-			vNew, loaded := as.m.LoadOrStore(outputKey, v)
+			vNew, loaded := as.m.LoadOrStore(strings.Clone(outputKey), v)
 			if loaded {
 				// Use the entry created by a concurrent goroutine.
 				v = vNew

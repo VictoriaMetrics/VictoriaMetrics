@@ -1,6 +1,7 @@
 package streamaggr
 
 import (
+	"strings"
 	"sync"
 	"unsafe"
 
@@ -175,7 +176,7 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample) {
 	for _, sample := range samples {
 		s, ok := m[sample.key]
 		if !ok {
-			m[sample.key] = dedupAggrSample{
+			m[strings.Clone(sample.key)] = dedupAggrSample{
 				value:     sample.value,
 				timestamp: sample.timestamp,
 			}
@@ -183,6 +184,7 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample) {
 		}
 		// Update the existing value according to logic described at https://docs.victoriametrics.com/#deduplication
 		if sample.timestamp > s.timestamp || (sample.timestamp == s.timestamp && sample.value > s.value) {
+			// we don't clone sample.key because it should already exist in map and was cloned before
 			m[sample.key] = dedupAggrSample{
 				value:     sample.value,
 				timestamp: sample.timestamp,
