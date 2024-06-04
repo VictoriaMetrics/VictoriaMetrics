@@ -355,7 +355,7 @@ type row struct {
 }
 
 func getLastNQueryResults(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, limit int) ([]row, error) {
-	limitUpper := 2*limit
+	limitUpper := 2 * limit
 	q.AddPipeLimit(uint64(limitUpper))
 	q.Optimize()
 	rows, err := getQueryResultsWithLimit(ctx, tenantIDs, q, limitUpper)

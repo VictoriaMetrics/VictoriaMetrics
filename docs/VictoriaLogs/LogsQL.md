@@ -1554,6 +1554,18 @@ and stores it into `my_json` output field:
 _time:5m | format '{"_msg":<q:_msg>,"stacktrace":<q:stacktrace>}' as my_json
 ```
 
+Numeric fields can be transformed into the following string representation at `format` pipe:
+
+- [RFC3339 time](https://www.rfc-editor.org/rfc/rfc3339) - by adding `time:` in front of the corresponding field name
+  containing [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time) in nanoseconds.
+  For example, `format "time=<time:timestamp_nsecs>"`. The timestamp can be converted into nanoseconds with the [`math` pipe](#math-pipe).
+
+- Human-readable duration - by adding `duration:` in front of the corresponding numeric field name containing duration in nanoseconds.
+  For example, `format "duration=<duration:duration_nsecs>"`. The duration can be converted into nanoseconds with the [`math` pipe](#math-pipe).
+
+- IPv4 - by adding `ipv4:` in front of the corresponding field name containing `uint32` representation of the IPv4 address.
+  For example, `format "ip=<ipv4:ip_num>"`.
+
 Add `keep_original_fields` to the end of `format ... as result_field` when the original non-empty value of the `result_field` must be preserved
 instead of overwriting it with the `format` results. For example, the following query adds formatted result to `foo` field only if it was missing or empty:
 
@@ -2301,13 +2313,14 @@ _time:5m | unpack_logfmt if (ip:"") from foo
 from the given [`field_name`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). It understands the following Syslog formats:
 
 - [RFC3164](https://datatracker.ietf.org/doc/html/rfc3164) aka `<PRI>MMM DD hh:mm:ss HOSTNAME TAG: MESSAGE`
-- [RFC5424](https://datatracker.ietf.org/doc/html/rfc5424) aka `<PRI>VERSION TIMESTAMP HOSTNAME APP-NAME PROCID MSGID [STRUCTURED-DATA] MESSAGE`
+- [RFC5424](https://datatracker.ietf.org/doc/html/rfc5424) aka `<PRI>1 TIMESTAMP HOSTNAME APP-NAME PROCID MSGID [STRUCTURED-DATA] MESSAGE`
 
 The following fields are unpacked:
 
 - `priority` - it is obtained from `PRI`.
 - `facility` - it is calculated as `PRI / 8`.
 - `severity` - it is calculated as `PRI % 8`.
+- `format` - either `rfc3164` or `rfc5424` depending on which Syslog format is unpacked.
 - `timestamp` - timestamp in [ISO8601 format](https://en.wikipedia.org/wiki/ISO_8601). The `MMM DD hh:mm:ss` timestamp in [RFC3164](https://datatracker.ietf.org/doc/html/rfc3164)
   is automatically converted into [ISO8601 format](https://en.wikipedia.org/wiki/ISO_8601) by assuming that the timestamp belongs to the last 12 months.
 - `hostname`
@@ -2315,6 +2328,8 @@ The following fields are unpacked:
 - `proc_id`
 - `msg_id`
 - `message`
+
+The `<PRI>` part is optional. If it is missing, then `priority`, `facility` and `severity` fields aren't set.
 
 The `[STRUCTURED-DATA]` is parsed into fields with the `SD-ID` name and `param1="value1" ... paramN="valueN"` value
 according to [the specification](https://datatracker.ietf.org/doc/html/rfc5424#section-6.3). The value then can be parsed to separate fields with [`unpack_logfmt` pipe](#unpack_logfmt-pipe).
