@@ -10,15 +10,15 @@ import (
 const hashesCount = 4
 const bitsPerItem = 16
 
-type filter struct {
+type Filter struct {
 	maxItems int
 	bits     []uint64
 }
 
-func newFilter(maxItems int) *filter {
+func NewFilter(maxItems int) *Filter {
 	bitsCount := maxItems * bitsPerItem
 	bits := make([]uint64, (bitsCount+63)/64)
-	return &filter{
+	return &Filter{
 		maxItems: maxItems,
 		bits:     bits,
 	}
@@ -27,7 +27,7 @@ func newFilter(maxItems int) *filter {
 // Reset resets f to initial state.
 //
 // It is expected no other goroutines call f methods during Reset call.
-func (f *filter) Reset() {
+func (f *Filter) Reset() {
 	bits := f.bits
 	for i := range bits {
 		bits[i] = 0
@@ -37,7 +37,7 @@ func (f *filter) Reset() {
 // Has checks whether h presents in f.
 //
 // Has can be called from concurrent goroutines.
-func (f *filter) Has(h uint64) bool {
+func (f *Filter) Has(h uint64) bool {
 	bits := f.bits
 	maxBits := uint64(len(bits)) * 64
 	bp := (*[8]byte)(unsafe.Pointer(&h))
@@ -63,7 +63,7 @@ func (f *filter) Has(h uint64) bool {
 //
 // Add can be called from concurrent goroutines.
 // If the same h is added to f from concurrent goroutines, then both goroutines may return true.
-func (f *filter) Add(h uint64) bool {
+func (f *Filter) Add(h uint64) bool {
 	bits := f.bits
 	maxBits := uint64(len(bits)) * 64
 	bp := (*[8]byte)(unsafe.Pointer(&h))

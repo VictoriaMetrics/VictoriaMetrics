@@ -3,6 +3,7 @@ package promscrape
 import (
 	"flag"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"io"
 	"net/http"
 	"regexp"
@@ -315,6 +316,7 @@ func (ts *targetStatus) getDurationFromLastScrape() string {
 type droppedTargets struct {
 	mu sync.Mutex
 	m  map[uint64]droppedTarget
+	filter *bloomfilter.Filter
 
 	// totalTargets contains the total number of dropped targets registered via Register() call.
 	totalTargets int
@@ -364,7 +366,7 @@ func (dt *droppedTargets) Register(originalLabels *promutils.Labels, relabelConf
 	// It is better to have hash collisions instead of spending additional CPU on originalLabels.String() call.
 	key := labelsHash(originalLabels)
 	dt.mu.Lock()
-	if _, ok := dt.m[key]; !ok {
+	if !dt.filter.Has(key) {
 		dt.totalTargets++
 	}
 	dt.m[key] = droppedTarget{
@@ -373,6 +375,7 @@ func (dt *droppedTargets) Register(originalLabels *promutils.Labels, relabelConf
 		dropReason:        reason,
 		clusterMemberNums: clusterMemberNums,
 	}
+	dt.filter.Add(key)
 	if len(dt.m) > *maxDroppedTargets {
 		for k := range dt.m {
 			delete(dt.m, k)
@@ -426,6 +429,7 @@ func (dt *droppedTargets) WriteDroppedTargetsJSON(w io.Writer) {
 
 var droppedTargetsMap = &droppedTargets{
 	m: make(map[uint64]droppedTarget),
+	filter: bloomfilter.NewFilter(10000),
 }
 
 type jobTargetsStatuses struct {

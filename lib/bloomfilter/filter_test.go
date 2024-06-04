@@ -15,7 +15,7 @@ func TestFilter(t *testing.T) {
 
 func testFilter(t *testing.T, maxItems int) {
 	r := rand.New(rand.NewSource(int64(0)))
-	f := newFilter(maxItems)
+	f := NewFilter(maxItems)
 	items := make(map[uint64]struct{}, maxItems)
 
 	// Populate f with maxItems
@@ -76,7 +76,7 @@ func TestFilterConcurrent(t *testing.T) {
 	concurrency := 3
 	maxItems := 10000
 	doneCh := make(chan struct{}, concurrency)
-	f := newFilter(maxItems)
+	f := NewFilter(maxItems)
 	for i := 0; i < concurrency; i++ {
 		go func(randSeed int) {
 			r := rand.New(rand.NewSource(int64(randSeed)))

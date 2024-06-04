@@ -73,12 +73,12 @@ func (l *Limiter) Add(h uint64) bool {
 
 type limiter struct {
 	currentItems atomic.Uint64
-	f            *filter
+	f            *Filter
 }
 
 func newLimiter(maxItems int) *limiter {
 	return &limiter{
-		f: newFilter(maxItems),
+		f: NewFilter(maxItems),
 	}
 }
 
