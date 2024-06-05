@@ -590,7 +590,7 @@ and `X` is [numeric value](#numeric-values), IPv4 address or a string. For examp
 response_size:>10KiB
 ```
 
-The following query returns logs with `user` field containing string values smaller than 'John`:
+The following query returns logs with `user` field containing string values smaller than `John`:
 
 ```logsql
 username:<"John"
@@ -1709,7 +1709,7 @@ See also:
 ### pack_json pipe
 
 `| pack_json as field_name` [pipe](#pipe) packs all [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into JSON object
-and stores its as a string in the given `field_name`.
+and stores it as a string in the given `field_name`.
 
 For example, the following query packs all the fields into JSON object and stores it into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 for logs over the last 5 minutes:
@@ -1748,7 +1748,7 @@ See also:
 ### pack_logfmt pipe
 
 `| pack_logfmt as field_name` [pipe](#pipe) packs all [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into [logfmt](https://brandur.org/logfmt) message
-and stores its as a string in the given `field_name`.
+and stores it as a string in the given `field_name`.
 
 For example, the following query packs all the fields into [logfmt](https://brandur.org/logfmt) message and stores it
 into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) for logs over the last 5 minutes:
