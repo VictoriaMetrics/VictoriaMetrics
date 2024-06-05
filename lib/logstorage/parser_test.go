@@ -496,7 +496,7 @@ func TestParseRangeFilter(t *testing.T) {
 		}
 		fr, ok := q.f.(*filterRange)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *filterIPv4Range; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterRange; filter: %s", q.f, q.f)
 		}
 		if fr.fieldName != fieldNameExpected {
 			t.Fatalf("unexpected fieldName; got %q; want %q", fr.fieldName, fieldNameExpected)

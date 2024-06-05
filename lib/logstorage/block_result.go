@@ -4,6 +4,7 @@ import (
 	"math"
 	"slices"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -1933,7 +1934,7 @@ func tryParseNumber(s string) (float64, bool) {
 	if ok {
 		return float64(bytes), true
 	}
-	if isNumberPrefix(s) {
+	if isLikelyNumber(s) {
 		f, err := strconv.ParseFloat(s, 64)
 		if err == nil {
 			return f, true
@@ -1944,6 +1945,21 @@ func tryParseNumber(s string) (float64, bool) {
 		}
 	}
 	return 0, false
+}
+
+func isLikelyNumber(s string) bool {
+	if !isNumberPrefix(s) {
+		return false
+	}
+	if strings.Count(s, ".") > 1 {
+		// This is likely IP address
+		return false
+	}
+	if strings.IndexByte(s, ':') >= 0 || strings.Count(s, "-") > 2 {
+		// This is likely a timestamp
+		return false
+	}
+	return true
 }
 
 var nan = math.NaN()
