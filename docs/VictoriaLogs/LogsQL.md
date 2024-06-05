@@ -1681,10 +1681,25 @@ Every `argX` argument in every mathematical operation can contain one of the fol
 - Any [supported numeric value](#numeric-values), [rfc3339 time](https://www.rfc-editor.org/rfc/rfc3339) or IPv4 address. For example, `1MiB`, `"2024-05-15T10:20:30.934324Z"` or `"12.34.56.78"`.
 - Another mathematical expression, which can be put inside `(...)`. For example, `(a + b) * c`.
 
+The parsed time, duration and IPv4 address can be converted back to string representation after math transformations with the help of [`format` pipe](#format-pipe). For example,
+the following query rounds the `request_duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) to seconds before converting it back to string representation:
+
+```logsql
+_time:5m | math round(request_duration, 1e9) as request_duration_nsecs | format '<duration:request_duration_nsecs>' as request_duration
+```
+
+The `eval` keyword can be used instead of `math` for convenince. For example, the following query calculates `duration_msecs` field
+by multiplying `duration_secs` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) to `1000`:
+
+```logsql
+_time:5m | eval (duration_secs * 1000) as duration_msecs
+```
+
 See also:
 
 - [`stats` pipe](#stats-pipe)
 - [`extract` pipe](#extract-pipe)
+- [`format` pipe](#format-pipe)
 
 
 ### offset pipe
@@ -2199,7 +2214,7 @@ For example, the following query unpacks JSON fields from the [`_msg` field](htt
 _time:5m | unpack_json from _msg
 ```
 
-The `from _json` part can be omitted when JSON fields are unpacked from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+The `from _msg` part can be omitted when JSON fields are unpacked from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
 The following query is equivalent to the previous one:
 
 ```logsql
@@ -2284,7 +2299,7 @@ across logs for the last 5 minutes:
 _time:5m | unpack_logfmt from _msg
 ```
 
-The `from _json` part can be omitted when [logfmt](https://brandur.org/logfmt) fields are unpacked from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+The `from _msg` part can be omitted when [logfmt](https://brandur.org/logfmt) fields are unpacked from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
 The following query is equivalent to the previous one:
 
 ```logsql
@@ -2360,7 +2375,7 @@ _time:5m | unpack_logfmt if (ip:"") from foo
 `| unpack_syslog from field_name` [pipe](#pipes) unpacks [syslog](https://en.wikipedia.org/wiki/Syslog) message
 from the given [`field_name`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). It understands the following Syslog formats:
 
-- [RFC3164](https://datatracker.ietf.org/doc/html/rfc3164) aka `<PRI>MMM DD hh:mm:ss HOSTNAME TAG: MESSAGE`
+- [RFC3164](https://datatracker.ietf.org/doc/html/rfc3164) aka `<PRI>MMM DD hh:mm:ss HOSTNAME APP-NAME[PROCID]: MESSAGE`
 - [RFC5424](https://datatracker.ietf.org/doc/html/rfc5424) aka `<PRI>1 TIMESTAMP HOSTNAME APP-NAME PROCID MSGID [STRUCTURED-DATA] MESSAGE`
 
 The following fields are unpacked:
@@ -2389,7 +2404,7 @@ across logs for the last 5 minutes:
 _time:5m | unpack_syslog from _msg
 ```
 
-The `from _json` part can be omitted when [syslog](https://en.wikipedia.org/wiki/Syslog) message is unpacked
+The `from _msg` part can be omitted when [syslog](https://en.wikipedia.org/wiki/Syslog) message is unpacked
 from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
 The following query is equivalent to the previous one:
 

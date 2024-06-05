@@ -160,7 +160,7 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'limit' pipe: %w", err)
 		}
 		return pl, nil
-	case lex.isKeyword("math"):
+	case lex.isKeyword("math", "eval"):
 		pm, err := parsePipeMath(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'math' pipe: %w", err)

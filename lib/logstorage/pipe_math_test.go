@@ -77,7 +77,7 @@ func TestPipeMath(t *testing.T) {
 		},
 	})
 
-	f("math b+1 as a, a*2 as b, b-10.5+c as c", [][]Field{
+	f("eval b+1 as a, a*2 as b, b-10.5+c as c", [][]Field{
 		{
 			{"a", "v1"},
 			{"b", "2"},
