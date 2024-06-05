@@ -429,7 +429,7 @@ func (dt *droppedTargets) WriteDroppedTargetsJSON(w io.Writer) {
 
 var droppedTargetsMap = &droppedTargets{
 	m:      make(map[uint64]droppedTarget),
-	filter: bloomfilter.NewFilter(10000),
+	filter: bloomfilter.NewFilter(1000),
 }
 
 type jobTargetsStatuses struct {
