@@ -13,12 +13,15 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
+	"strconv"
+	"flag"
 )
 
 var (
 	rowsInserted       = metrics.NewCounter(`vmagent_rows_inserted_total{type="prometheus"}`)
 	rowsTenantInserted = tenantmetrics.NewCounterMap(`vmagent_tenant_inserted_rows_total{type="prometheus"}`)
 	rowsPerInsert      = metrics.NewHistogram(`vmagent_rows_per_insert{type="prometheus"}`)
+	prom_bucket_metric_name = flag.String("prom_bucket_metric_name", "", "Metric name for prometheus convertion bucket type.")
 )
 
 // InsertHandler processes `/api/v1/import/prometheus` request.
@@ -53,6 +56,18 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 			Name:  "__name__",
 			Value: r.Metric,
 		})
+		if *prom_bucket_metric_name != "" && r.Metric == *prom_bucket_metric_name {
+			PromValue := strconv.FormatFloat(r.Value, 'f', -1, 32)
+			labels = append(labels, prompbmarshal.Label{
+				Name:  "le",
+				Value: PromValue,
+			})
+			NewValue, err := strconv.ParseFloat("1", 64)
+			if err != nil {
+				return err
+			}
+			r.Value = NewValue
+		}
 		for j := range r.Tags {
 			tag := &r.Tags[j]
 			labels = append(labels, prompbmarshal.Label{
