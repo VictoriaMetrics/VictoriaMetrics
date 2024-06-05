@@ -2214,7 +2214,7 @@ For example, the following query unpacks JSON fields from the [`_msg` field](htt
 _time:5m | unpack_json from _msg
 ```
 
-The `from _json` part can be omitted when JSON fields are unpacked from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+The `from _msg` part can be omitted when JSON fields are unpacked from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
 The following query is equivalent to the previous one:
 
 ```logsql
@@ -2299,7 +2299,7 @@ across logs for the last 5 minutes:
 _time:5m | unpack_logfmt from _msg
 ```
 
-The `from _json` part can be omitted when [logfmt](https://brandur.org/logfmt) fields are unpacked from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+The `from _msg` part can be omitted when [logfmt](https://brandur.org/logfmt) fields are unpacked from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
 The following query is equivalent to the previous one:
 
 ```logsql
@@ -2404,7 +2404,7 @@ across logs for the last 5 minutes:
 _time:5m | unpack_syslog from _msg
 ```
 
-The `from _json` part can be omitted when [syslog](https://en.wikipedia.org/wiki/Syslog) message is unpacked
+The `from _msg` part can be omitted when [syslog](https://en.wikipedia.org/wiki/Syslog) message is unpacked
 from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
 The following query is equivalent to the previous one:
 
