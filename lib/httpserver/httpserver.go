@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"context"
+	"crypto/subtle"
 	"crypto/tls"
 	_ "embed"
 	"errors"
@@ -430,7 +431,7 @@ func CheckAuthFlag(w http.ResponseWriter, r *http.Request, flagValue string, fla
 	if flagValue == "" {
 		return CheckBasicAuth(w, r)
 	}
-	if r.FormValue("authKey") != flagValue {
+	if subtle.ConstantTimeCompare([]byte(r.FormValue("authKey")), []byte(flagValue)) != 1 {
 		authKeyRequestErrors.Inc()
 		http.Error(w, fmt.Sprintf("The provided authKey doesn't match -%s", flagName), http.StatusUnauthorized)
 		return false
@@ -447,7 +448,7 @@ func CheckBasicAuth(w http.ResponseWriter, r *http.Request) bool {
 	}
 	username, password, ok := r.BasicAuth()
 	if ok {
-		if username == *httpAuthUsername && password == httpAuthPassword.Get() {
+		if subtle.ConstantTimeCompare([]byte(username), []byte(*httpAuthUsername)) == 1 && subtle.ConstantTimeCompare([]byte(password), []byte(httpAuthPassword.Get())) == 1 {
 			return true
 		}
 		authBasicRequestErrors.Inc()
