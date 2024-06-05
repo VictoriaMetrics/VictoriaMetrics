@@ -10,11 +10,13 @@ import (
 const hashesCount = 4
 const bitsPerItem = 16
 
+// Filter is a Bloom filter.
 type Filter struct {
 	maxItems int
 	bits     []uint64
 }
 
+// NewFilter creates a new Bloom filter with maxItems items.
 func NewFilter(maxItems int) *Filter {
 	bitsCount := maxItems * bitsPerItem
 	bits := make([]uint64, (bitsCount+63)/64)
