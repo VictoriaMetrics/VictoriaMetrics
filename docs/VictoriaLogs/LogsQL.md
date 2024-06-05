@@ -584,7 +584,7 @@ See also:
 ### Range comparison filter
 
 LogsQL supports `field:>X`, `field:>=X`, `field:<X` and `field:<=X` filters, where `field` is the name of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-and `X` is either [numeric value](#numeric-values) or a string. For example, the following query returns logs containing numeric values for the `response_size` field bigger than `10*1024`:
+and `X` is [numeric value](#numeric-values), IPv4 address or a string. For example, the following query returns logs containing numeric values for the `response_size` field bigger than `10*1024`:
 
 ```logsql
 response_size:>10KiB
