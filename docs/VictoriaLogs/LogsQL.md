@@ -590,7 +590,7 @@ and `X` is [numeric value](#numeric-values), IPv4 address or a string. For examp
 response_size:>10KiB
 ```
 
-The following query returns logs with `user` field containing string values smaller than 'John`:
+The following query returns logs with `user` field containing string values smaller than `John`:
 
 ```logsql
 username:<"John"
