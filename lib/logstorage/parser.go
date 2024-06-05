@@ -1130,18 +1130,15 @@ func parseFilterGT(lex *lexer, fieldName string) (filter, error) {
 		op = ">="
 	}
 
-	if !lex.isNumber() {
-		lexState := lex.backupState()
-		fr := tryParseFilterGTString(lex, fieldName, op, includeMinValue)
-		if fr != nil {
-			return fr, nil
-		}
-		lex.restoreState(lexState)
-	}
-
-	minValue, fStr, err := parseFloat64(lex)
+	lexState := lex.backupState()
+	minValue, fStr, err := parseNumber(lex)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse number after '%s': %w", op, err)
+		lex.restoreState(lexState)
+		fr := tryParseFilterGTString(lex, fieldName, op, includeMinValue)
+		if fr == nil {
+			return nil, fmt.Errorf("cannot parse [%s] as number: %w", fStr, err)
+		}
+		return fr, nil
 	}
 
 	if !includeMinValue {
@@ -1168,16 +1165,17 @@ func parseFilterLT(lex *lexer, fieldName string) (filter, error) {
 		op = "<="
 	}
 
-	if !lex.isNumber() {
-		lexState := lex.backupState()
-		fr := tryParseFilterLTString(lex, fieldName, op, includeMaxValue)
-		if fr != nil {
-			return fr, nil
-		}
+	lexState := lex.backupState()
+	maxValue, fStr, err := parseNumber(lex)
+	if err != nil {
 		lex.restoreState(lexState)
+		fr := tryParseFilterLTString(lex, fieldName, op, includeMaxValue)
+		if fr == nil {
+			return nil, fmt.Errorf("cannot parse [%s] as number: %w", fStr, err)
+		}
+		return fr, nil
 	}
 
-	maxValue, fStr, err := parseFloat64(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse number after '%s': %w", op, err)
 	}
@@ -1250,7 +1248,7 @@ func parseFilterRange(lex *lexer, fieldName string) (filter, error) {
 	if !lex.mustNextToken() {
 		return nil, fmt.Errorf("missing args for %s()", funcName)
 	}
-	minValue, minValueStr, err := parseFloat64(lex)
+	minValue, minValueStr, err := parseNumber(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse minValue in %s(): %w", funcName, err)
 	}
@@ -1264,7 +1262,7 @@ func parseFilterRange(lex *lexer, fieldName string) (filter, error) {
 	}
 
 	// Parse maxValue
-	maxValue, maxValueStr, err := parseFloat64(lex)
+	maxValue, maxValueStr, err := parseNumber(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse maxValue in %s(): %w", funcName, err)
 	}
@@ -1304,7 +1302,7 @@ func parseFilterRange(lex *lexer, fieldName string) (filter, error) {
 	return fr, nil
 }
 
-func parseFloat64(lex *lexer) (float64, string, error) {
+func parseNumber(lex *lexer) (float64, string, error) {
 	s, err := getCompoundToken(lex)
 	if err != nil {
 		return 0, "", fmt.Errorf("cannot parse float64 from %q: %w", s, err)
