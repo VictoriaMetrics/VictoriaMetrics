@@ -207,5 +207,5 @@ func matchUint64ByStringRange(bs *blockSearch, ch *columnHeader, bm *bitmap, min
 }
 
 func matchStringRange(s, minValue, maxValue string) bool {
-	return s >= minValue && s < maxValue
+	return !lessString(s, minValue) && lessString(s, maxValue)
 }
