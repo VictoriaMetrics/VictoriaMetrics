@@ -39,6 +39,6 @@ func TestDroppedTargetsRegister(t *testing.T) {
 
 	// over 98% coverage rate
 	if tmpDroppedTargetsMap.totalTargets > 9800 {
-		t.Fatalf("%d", tmpDroppedTargetsMap.totalTargets)
+		t.Fatalf("expected total targets higher than 9800, get %d", tmpDroppedTargetsMap.totalTargets)
 	}
 }
