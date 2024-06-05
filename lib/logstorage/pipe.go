@@ -160,7 +160,7 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'limit' pipe: %w", err)
 		}
 		return pl, nil
-	case lex.isKeyword("math"):
+	case lex.isKeyword("math", "eval"):
 		pm, err := parsePipeMath(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'math' pipe: %w", err)
@@ -176,6 +176,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 		pp, err := parsePackJSON(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'pack_json' pipe: %w", err)
+		}
+		return pp, nil
+	case lex.isKeyword("pack_logfmt"):
+		pp, err := parsePackLogfmt(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'pack_logfmt' pipe: %w", err)
 		}
 		return pp, nil
 	case lex.isKeyword("rename", "mv"):

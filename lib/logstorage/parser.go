@@ -74,11 +74,6 @@ func (lex *lexer) isQuotedToken() bool {
 	return lex.token != lex.rawToken
 }
 
-func (lex *lexer) isNumber() bool {
-	s := lex.rawToken + lex.s
-	return isNumberPrefix(s)
-}
-
 func (lex *lexer) isPrevToken(tokens ...string) bool {
 	for _, token := range tokens {
 		if token == lex.prevToken {
@@ -1130,18 +1125,15 @@ func parseFilterGT(lex *lexer, fieldName string) (filter, error) {
 		op = ">="
 	}
 
-	if !lex.isNumber() {
-		lexState := lex.backupState()
-		fr := tryParseFilterGTString(lex, fieldName, op, includeMinValue)
-		if fr != nil {
-			return fr, nil
-		}
-		lex.restoreState(lexState)
-	}
-
-	minValue, fStr, err := parseFloat64(lex)
+	lexState := lex.backupState()
+	minValue, fStr, err := parseNumber(lex)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse number after '%s': %w", op, err)
+		lex.restoreState(lexState)
+		fr := tryParseFilterGTString(lex, fieldName, op, includeMinValue)
+		if fr == nil {
+			return nil, fmt.Errorf("cannot parse [%s] as number: %w", fStr, err)
+		}
+		return fr, nil
 	}
 
 	if !includeMinValue {
@@ -1168,16 +1160,17 @@ func parseFilterLT(lex *lexer, fieldName string) (filter, error) {
 		op = "<="
 	}
 
-	if !lex.isNumber() {
-		lexState := lex.backupState()
-		fr := tryParseFilterLTString(lex, fieldName, op, includeMaxValue)
-		if fr != nil {
-			return fr, nil
-		}
+	lexState := lex.backupState()
+	maxValue, fStr, err := parseNumber(lex)
+	if err != nil {
 		lex.restoreState(lexState)
+		fr := tryParseFilterLTString(lex, fieldName, op, includeMaxValue)
+		if fr == nil {
+			return nil, fmt.Errorf("cannot parse [%s] as number: %w", fStr, err)
+		}
+		return fr, nil
 	}
 
-	maxValue, fStr, err := parseFloat64(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse number after '%s': %w", op, err)
 	}
@@ -1250,7 +1243,7 @@ func parseFilterRange(lex *lexer, fieldName string) (filter, error) {
 	if !lex.mustNextToken() {
 		return nil, fmt.Errorf("missing args for %s()", funcName)
 	}
-	minValue, minValueStr, err := parseFloat64(lex)
+	minValue, minValueStr, err := parseNumber(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse minValue in %s(): %w", funcName, err)
 	}
@@ -1264,7 +1257,7 @@ func parseFilterRange(lex *lexer, fieldName string) (filter, error) {
 	}
 
 	// Parse maxValue
-	maxValue, maxValueStr, err := parseFloat64(lex)
+	maxValue, maxValueStr, err := parseNumber(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse maxValue in %s(): %w", funcName, err)
 	}
@@ -1304,23 +1297,18 @@ func parseFilterRange(lex *lexer, fieldName string) (filter, error) {
 	return fr, nil
 }
 
-func parseFloat64(lex *lexer) (float64, string, error) {
+func parseNumber(lex *lexer) (float64, string, error) {
 	s, err := getCompoundToken(lex)
 	if err != nil {
 		return 0, "", fmt.Errorf("cannot parse float64 from %q: %w", s, err)
 	}
-	f, err := strconv.ParseFloat(s, 64)
-	if err == nil {
+
+	f := parseMathNumber(s)
+	if !math.IsNaN(f) || strings.EqualFold(s, "nan") {
 		return f, s, nil
 	}
 
-	// Try parsing s as integer.
-	// This handles 0x..., 0b... and 0... prefixes, alongside '_' delimiters.
-	n, err := parseInt(s)
-	if err == nil {
-		return float64(n), s, nil
-	}
-	return 0, "", fmt.Errorf("cannot parse %q as float64: %w", s, err)
+	return 0, "", fmt.Errorf("cannot parse %q as float64", s)
 }
 
 func parseFuncArg(lex *lexer, fieldName string, callback func(args string) (filter, error)) (filter, error) {
@@ -1616,6 +1604,15 @@ func isNumberPrefix(s string) bool {
 			return false
 		}
 	}
+	if len(s) >= 3 && strings.EqualFold(s, "inf") {
+		return true
+	}
+	if s[0] == '.' {
+		s = s[1:]
+		if len(s) == 0 {
+			return false
+		}
+	}
 	return s[0] >= '0' && s[0] <= '9'
 }
 
@@ -1711,28 +1708,6 @@ func parseUint(s string) (uint64, error) {
 		}
 	}
 	return uint64(nn), nil
-}
-
-func parseInt(s string) (int64, error) {
-	switch {
-	case strings.EqualFold(s, "inf"), strings.EqualFold(s, "+inf"):
-		return math.MaxInt64, nil
-	case strings.EqualFold(s, "-inf"):
-		return math.MinInt64, nil
-	}
-
-	n, err := strconv.ParseInt(s, 0, 64)
-	if err == nil {
-		return n, nil
-	}
-	nn, ok := tryParseBytes(s)
-	if !ok {
-		nn, ok = tryParseDuration(s)
-		if !ok {
-			return 0, fmt.Errorf("cannot parse %q as integer: %w", s, err)
-		}
-	}
-	return nn, nil
 }
 
 func nextafter(f, xInf float64) float64 {

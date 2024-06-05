@@ -44,7 +44,11 @@ func (fr *filterRange) applyToBlockResult(br *blockResult, bm *bitmap) {
 		return
 	}
 	if c.isTime {
-		bm.resetBits()
+		minValueInt, maxValueInt := toInt64Range(minValue, maxValue)
+		bm.forEachSetBit(func(idx int) bool {
+			timestamp := br.timestamps[idx]
+			return timestamp >= minValueInt && timestamp <= maxValueInt
+		})
 		return
 	}
 
@@ -129,8 +133,30 @@ func (fr *filterRange) applyToBlockResult(br *blockResult, bm *bitmap) {
 			f := unmarshalFloat64(v)
 			return f >= minValue && f <= maxValue
 		})
+	case valueTypeIPv4:
+		minValueUint32, maxValueUint32 := toUint32Range(minValue, maxValue)
+		if maxValue < 0 || uint64(minValueUint32) > c.maxValue || uint64(maxValueUint32) < c.minValue {
+			bm.resetBits()
+			return
+		}
+		valuesEncoded := c.getValuesEncoded(br)
+		bm.forEachSetBit(func(idx int) bool {
+			v := valuesEncoded[idx]
+			n := unmarshalIPv4(v)
+			return n >= minValueUint32 && n <= maxValueUint32
+		})
 	case valueTypeTimestampISO8601:
-		bm.resetBits()
+		minValueInt, maxValueInt := toInt64Range(minValue, maxValue)
+		if maxValue < 0 || minValueInt > int64(c.maxValue) || maxValueInt < int64(c.minValue) {
+			bm.resetBits()
+			return
+		}
+		valuesEncoded := c.getValuesEncoded(br)
+		bm.forEachSetBit(func(idx int) bool {
+			v := valuesEncoded[idx]
+			n := unmarshalTimestampISO8601(v)
+			return n >= minValueInt && n <= maxValueInt
+		})
 	default:
 		logger.Panicf("FATAL: unknown valueType=%d", c.valueType)
 	}
@@ -178,9 +204,10 @@ func (fr *filterRange) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	case valueTypeFloat64:
 		matchFloat64ByRange(bs, ch, bm, minValue, maxValue)
 	case valueTypeIPv4:
-		bm.resetBits()
+		minValueUint32, maxValueUint32 := toUint32Range(minValue, maxValue)
+		matchIPv4ByRange(bs, ch, bm, minValueUint32, maxValueUint32)
 	case valueTypeTimestampISO8601:
-		bm.resetBits()
+		matchTimestampISO8601ByRange(bs, ch, bm, minValue, maxValue)
 	default:
 		logger.Panicf("FATAL: %s: unknown valueType=%d", bs.partPath(), ch.valueType)
 	}
@@ -263,7 +290,7 @@ func matchUint32ByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue,
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		if len(v) != 4 {
-			logger.Panicf("FATAL: %s: unexpected length for binary representation of uint8 number: got %d; want 4", bs.partPath(), len(v))
+			logger.Panicf("FATAL: %s: unexpected length for binary representation of uint32 number: got %d; want 4", bs.partPath(), len(v))
 		}
 		n := uint64(unmarshalUint32(v))
 		return n >= minValueUint && n <= maxValueUint
@@ -280,7 +307,7 @@ func matchUint64ByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue,
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		if len(v) != 8 {
-			logger.Panicf("FATAL: %s: unexpected length for binary representation of uint8 number: got %d; want 8", bs.partPath(), len(v))
+			logger.Panicf("FATAL: %s: unexpected length for binary representation of uint64 number: got %d; want 8", bs.partPath(), len(v))
 		}
 		n := unmarshalUint64(v)
 		return n >= minValueUint && n <= maxValueUint
@@ -288,31 +315,26 @@ func matchUint64ByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue,
 	bbPool.Put(bb)
 }
 
-func matchRange(s string, minValue, maxValue float64) bool {
-	f, ok := tryParseNumber(s)
-	if !ok {
-		return false
+func matchTimestampISO8601ByRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue float64) {
+	minValueInt, maxValueInt := toInt64Range(minValue, maxValue)
+	if maxValue < 0 || minValueInt > int64(ch.maxValue) || maxValueInt < int64(ch.minValue) {
+		bm.resetBits()
+		return
 	}
-	return f >= minValue && f <= maxValue
+	bb := bbPool.Get()
+	visitValues(bs, ch, bm, func(v string) bool {
+		if len(v) != 8 {
+			logger.Panicf("FATAL: %s: unexpected length for binary representation of timestampISO8601: got %d; want 8", bs.partPath(), len(v))
+		}
+		n := unmarshalTimestampISO8601(v)
+		return n >= minValueInt && n <= maxValueInt
+	})
+	bbPool.Put(bb)
 }
 
-func tryParseNumber(s string) (float64, bool) {
-	if len(s) == 0 {
-		return 0, false
-	}
-	f, ok := tryParseFloat64(s)
-	if ok {
-		return f, true
-	}
-	nsecs, ok := tryParseDuration(s)
-	if ok {
-		return float64(nsecs), true
-	}
-	bytes, ok := tryParseBytes(s)
-	if ok {
-		return float64(bytes), true
-	}
-	return 0, false
+func matchRange(s string, minValue, maxValue float64) bool {
+	f := parseMathNumber(s)
+	return f >= minValue && f <= maxValue
 }
 
 func toUint64Range(minValue, maxValue float64) (uint64, uint64) {
@@ -329,4 +351,36 @@ func toUint64Clamp(f float64) uint64 {
 		return math.MaxUint64
 	}
 	return uint64(f)
+}
+
+func toInt64Range(minValue, maxValue float64) (int64, int64) {
+	minValue = math.Ceil(minValue)
+	maxValue = math.Floor(maxValue)
+	return toInt64Clamp(minValue), toInt64Clamp(maxValue)
+}
+
+func toInt64Clamp(f float64) int64 {
+	if f < math.MinInt64 {
+		return math.MinInt64
+	}
+	if f > math.MaxInt64 {
+		return math.MaxInt64
+	}
+	return int64(f)
+}
+
+func toUint32Range(minValue, maxValue float64) (uint32, uint32) {
+	minValue = math.Ceil(minValue)
+	maxValue = math.Floor(maxValue)
+	return toUint32Clamp(minValue), toUint32Clamp(maxValue)
+}
+
+func toUint32Clamp(f float64) uint32 {
+	if f < 0 {
+		return 0
+	}
+	if f > math.MaxUint32 {
+		return math.MaxUint32
+	}
+	return uint32(f)
 }

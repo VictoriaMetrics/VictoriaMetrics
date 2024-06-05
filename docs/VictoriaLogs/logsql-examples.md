@@ -36,7 +36,8 @@ _time:5m | sort by (_time desc) | limit 10
 
 See also:
 
-- [How to count the number of matching logs](#how-to-count-the-number-of-matching-logs)
+- [How to count the number of matching logs?](#how-to-count-the-number-of-matching-logs)
+- [How to return last N logs for the given query?](#how-to-return-last-n-logs-for-the-given-query)
 
 ## How to select logs with the given word in log message?
 
@@ -398,3 +399,25 @@ can be passed to it in order to return up to `N` latest log entries. For example
 ```sh
 curl http://localhost:9428/select/logsql/query -d 'query=error' -d 'limit=10'
 ```
+
+See also:
+
+- [How to select recently ingested logs?](#how-to-select-recently-ingested-logs)
+- [How to return last N logs for the given query?](#how-to-return-last-n-logs-for-the-given-query)
+
+
+## How to calculate the share of error logs to the total number of logs?
+
+Use the following query:
+
+```logsql
+_time:5m | stats count() logs, count() if (error) errors | math errors / logs
+```
+
+This query uses the following [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) features:
+
+- [`_time` filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter) for selecting logs on the given time range (last 5 minutes in the query above).
+- [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) with [additional filtering](https://docs.victoriametrics.com/victorialogs/logsql/#stats-with-additional-filters)
+  for calculating the total number of logs and the number of logs with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) on the selected time range.
+- [`math` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#math-pipe) for calculating the share of logs with `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word)
+  comparing to the total number of logs.

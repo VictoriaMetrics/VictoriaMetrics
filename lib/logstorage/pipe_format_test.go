@@ -47,6 +47,33 @@ func TestPipeFormat(t *testing.T) {
 		expectPipeResults(t, pipeStr, rows, rowsExpected)
 	}
 
+	// format time, duration and ipv4
+	f(`format 'time=<time:foo>, duration=<duration:bar>, ip=<ipv4:baz>' as x`, [][]Field{
+		{
+			{"foo", `1717328141123456789`},
+			{"bar", `210123456789`},
+			{"baz", "1234567890"},
+		},
+		{
+			{"foo", `abc`},
+			{"bar", `de`},
+			{"baz", "ghkl"},
+		},
+	}, [][]Field{
+		{
+			{"foo", `1717328141123456789`},
+			{"bar", `210123456789`},
+			{"baz", "1234567890"},
+			{"x", "time=2024-06-02T11:35:41.123456789Z, duration=3m30.123456789s, ip=73.150.2.210"},
+		},
+		{
+			{"foo", `abc`},
+			{"bar", `de`},
+			{"baz", "ghkl"},
+			{"x", "time=abc, duration=de, ip=ghkl"},
+		},
+	})
+
 	// skip_empty_results
 	f(`format '<foo><bar>' as x skip_empty_results`, [][]Field{
 		{

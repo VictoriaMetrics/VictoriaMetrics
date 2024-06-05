@@ -356,7 +356,7 @@ func TestParseFilterStringRange(t *testing.T) {
 	f(">foo", ``, "foo\x00", maxStringRangeValue)
 	f("x:>=foo", `x`, "foo", maxStringRangeValue)
 	f("x:<foo", `x`, ``, `foo`)
-	f(`<="123"`, ``, ``, "123\x00")
+	f(`<="123.456.789"`, ``, ``, "123.456.789\x00")
 }
 
 func TestParseFilterRegexp(t *testing.T) {
@@ -496,7 +496,7 @@ func TestParseRangeFilter(t *testing.T) {
 		}
 		fr, ok := q.f.(*filterRange)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *filterIPv4Range; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterRange; filter: %s", q.f, q.f)
 		}
 		if fr.fieldName != fieldNameExpected {
 			t.Fatalf("unexpected fieldName; got %q; want %q", fr.fieldName, fieldNameExpected)
@@ -535,6 +535,12 @@ func TestParseRangeFilter(t *testing.T) {
 	f(`foo: < -10.43`, `foo`, -inf, nextafter(-10.43, -inf))
 	f(`foo:<=10.43ms`, `foo`, -inf, 10_430_000)
 	f(`foo: <= 10.43`, `foo`, -inf, 10.43)
+
+	f(`foo:<=1.2.3.4`, `foo`, -inf, 16909060)
+	f(`foo:<='1.2.3.4'`, `foo`, -inf, 16909060)
+	f(`foo:>=0xffffffff`, `foo`, (1<<32)-1, inf)
+	f(`foo:>=1_234e3`, `foo`, 1234000, inf)
+	f(`foo:>=1_234e-3`, `foo`, 1.234, inf)
 }
 
 func TestParseQuerySuccess(t *testing.T) {
@@ -811,10 +817,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`string_range(foo, bar)`, `string_range(foo, bar)`)
 	f(`foo:string_range("foo, bar", baz)`, `foo:string_range("foo, bar", baz)`)
 	f(`foo:>bar`, `foo:>bar`)
-	f(`foo:>"1234"`, `foo:>"1234"`)
+	f(`foo:>"1234"`, `foo:>1234`)
 	f(`>="abc"`, `>=abc`)
 	f(`foo:<bar`, `foo:<bar`)
-	f(`foo:<"-12.34"`, `foo:<"-12.34"`)
+	f(`foo:<"-12.34"`, `foo:<-12.34`)
 	f(`<="abc < de"`, `<="abc < de"`)
 
 	// reserved field names

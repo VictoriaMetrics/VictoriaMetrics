@@ -110,6 +110,8 @@ func (p *syslogParser) parseNoHeader(s string) {
 func (p *syslogParser) parseRFC5424(s string) {
 	// See https://datatracker.ietf.org/doc/html/rfc5424
 
+	p.addField("format", "rfc5424")
+
 	if len(s) == 0 {
 		return
 	}
@@ -242,6 +244,9 @@ func (p *syslogParser) parseRFC3164(s string) {
 	if len(s) < n {
 		return
 	}
+
+	p.addField("format", "rfc3164")
+
 	t, err := time.Parse(time.Stamp, s[:n])
 	if err != nil {
 		// TODO: fall back to parsing ISO8601 timestamp?
