@@ -584,7 +584,7 @@ See also:
 ### Range comparison filter
 
 LogsQL supports `field:>X`, `field:>=X`, `field:<X` and `field:<=X` filters, where `field` is the name of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-and `X` is either [numeric value](#numeric-values) or a string. For example, the following query returns logs containing numeric values for the `response_size` field bigger than `10*1024`:
+and `X` is [numeric value](#numeric-values), IPv4 address or a string. For example, the following query returns logs containing numeric values for the `response_size` field bigger than `10*1024`:
 
 ```logsql
 response_size:>10KiB
@@ -1167,6 +1167,7 @@ LogsQL supports the following pipes:
 - [`math`](#math-pipe) performs mathematical calculations over [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`offset`](#offset-pipe) skips the given number of selected logs.
 - [`pack_json`](#pack_json-pipe) packs [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into JSON object.
+- [`pack_logfmt`](#pack_logfmt-pipe) packs [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into [logfmt](https://brandur.org/logfmt) message.
 - [`rename`](#rename-pipe) renames [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`replace`](#replace-pipe) replaces substrings in the specified [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`replace_regexp`](#replace_regexp-pipe) updates [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with regular expressions.
@@ -1554,6 +1555,18 @@ and stores it into `my_json` output field:
 _time:5m | format '{"_msg":<q:_msg>,"stacktrace":<q:stacktrace>}' as my_json
 ```
 
+Numeric fields can be transformed into the following string representation at `format` pipe:
+
+- [RFC3339 time](https://www.rfc-editor.org/rfc/rfc3339) - by adding `time:` in front of the corresponding field name
+  containing [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time) in nanoseconds.
+  For example, `format "time=<time:timestamp_nsecs>"`. The timestamp can be converted into nanoseconds with the [`math` pipe](#math-pipe).
+
+- Human-readable duration - by adding `duration:` in front of the corresponding numeric field name containing duration in nanoseconds.
+  For example, `format "duration=<duration:duration_nsecs>"`. The duration can be converted into nanoseconds with the [`math` pipe](#math-pipe).
+
+- IPv4 - by adding `ipv4:` in front of the corresponding field name containing `uint32` representation of the IPv4 address.
+  For example, `format "ip=<ipv4:ip_num>"`.
+
 Add `keep_original_fields` to the end of `format ... as result_field` when the original non-empty value of the `result_field` must be preserved
 instead of overwriting it with the `format` results. For example, the following query adds formatted result to `foo` field only if it was missing or empty:
 
@@ -1645,9 +1658,14 @@ The following mathematical operations are supported by `math` pipe:
 - `arg1 / arg2` - divides `arg1` by `arg2`
 - `arg1 % arg2` - returns the remainder of the division of `arg1` by `arg2`
 - `arg1 ^ arg2` - returns the power of `arg1` by `arg2`
+- `arg1 & arg2` - returns bitwise `and` for `arg1` and `arg2`. It is expected that `arg1` and `arg2` are in the range `[0 .. 2^53-1]`
+- `arg1 | arg2` - returns bitwise `or` for `arg1` and `arg2`. It is expected that `arg1` and `arg2` are in the range `[0 .. 2^53-1]`
+- `arg1 xor arg2` - returns bitwise `xor` for `arg1` and `arg2`. It is expected that `arg1` and `arg2` are in the range `[0 .. 2^53-1]`
 - `arg1 default arg2` - returns `arg2` if `arg1` is non-[numeric](#numeric-values) or equals to `NaN`
 - `abs(arg)` - returns an absolute value for the given `arg`
-- `exp(arg)` - powers [`e`](https://en.wikipedia.org/wiki/E_(mathematical_constant)) by `arg`.
+- `ceil(arg)` - returns the least integer value greater than or equal to `arg`
+- `exp(arg)` - powers [`e`](https://en.wikipedia.org/wiki/E_(mathematical_constant)) by `arg`
+- `floor(arg)` - returns the greatest integer values less than or equal to `arg`
 - `ln(arg)` - returns [natural logarithm](https://en.wikipedia.org/wiki/Natural_logarithm) for the given `arg`
 - `max(arg1, ..., argN)` - returns the maximum value among the given `arg1`, ..., `argN`
 - `min(arg1, ..., argN)` - returns the minimum value among the given `arg1`, ..., `argN`
@@ -1657,9 +1675,11 @@ The following mathematical operations are supported by `math` pipe:
 Every `argX` argument in every mathematical operation can contain one of the following values:
 
 - The name of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). For example, `errors_total / requests_total`.
-  If the log field contains value, which cannot be parsed into [supported numeric value](#numeric-values), then it is replaced with `NaN`.
-- Any [supported numeric value](#numeric-values). For example, `response_size_bytes / 1MiB`.
-- Another mathematical expression. Optionally, it may be put inside `(...)`. For example, `(a + b) * c`.
+  The log field is parsed into numeric value if it contains [supported numeric value](#numeric-values). The log field is parsed into [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time)
+  in nanoseconds if it contains [rfc3339 time](https://www.rfc-editor.org/rfc/rfc3339). The log field is parsed into `uint32` number if it contains IPv4 address.
+  The log field is parsed into `NaN` in other cases.
+- Any [supported numeric value](#numeric-values), [rfc3339 time](https://www.rfc-editor.org/rfc/rfc3339) or IPv4 address. For example, `1MiB`, `"2024-05-15T10:20:30.934324Z"` or `"12.34.56.78"`.
+- Another mathematical expression, which can be put inside `(...)`. For example, `(a + b) * c`.
 
 See also:
 
@@ -1721,8 +1741,47 @@ _time:5m | pack_json as foo | fields foo
 
 See also:
 
+- [`pack_logfmt` pipe](#pack_logfmt-pipe)
 - [`unpack_json` pipe](#unpack_json-pipe)
 
+
+### pack_logfmt pipe
+
+`| pack_logfmt as field_name` [pipe](#pipe) packs all [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into [logfmt](https://brandur.org/logfmt) message
+and stores its as a string in the given `field_name`.
+
+For example, the following query packs all the fields into [logfmt](https://brandur.org/logfmt) message and stores it
+into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) for logs over the last 5 minutes:
+
+```logsql
+_time:5m | pack_logfmt as _msg
+```
+
+The `as _msg` part can be omitted if packed message is stored into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+The following query is equivalent to the previous one:
+
+```logsql
+_time:5m | pack_logfmt
+```
+
+If only a subset of labels must be packed into [logfmt](https://brandur.org/logfmt), then it must be listed inside `fields (...)` after `pack_logfmt`.
+For example, the following query builds [logfmt](https://brandur.org/logfmt) message with `foo` and `bar` fields only and stores the result in `baz` field:
+
+```logsql
+_time:5m | pack_logfmt fields (foo, bar) as baz
+```
+
+The `pack_logfmt` doesn't modify or delete other labels. If you do not need them, then add [`| fields ...`](#fields-pipe) after the `pack_logfmt` pipe. For example, the following query
+leaves only the `foo` label with the original log fields packed into [logfmt](https://brandur.org/logfmt):
+
+```logsql
+_time:5m | pack_logfmt as foo | fields foo
+```
+
+See also:
+
+- [`pack_json` pipe](#pack_json-pipe)
+- [`unpack_logfmt` pipe](#unpack_logfmt-pipe)
 
 ### rename pipe
 
@@ -2200,6 +2259,7 @@ See also:
 - [`extract` pipe](#extract-pipe)
 - [`unroll` pipe](#unroll-pipe)
 - [`pack_json` pipe](#pack_json-pipe)
+- [`pack_logfmt` pipe](#pack_logfmt-pipe)
 
 #### Conditional unpack_json
 
@@ -2301,13 +2361,14 @@ _time:5m | unpack_logfmt if (ip:"") from foo
 from the given [`field_name`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). It understands the following Syslog formats:
 
 - [RFC3164](https://datatracker.ietf.org/doc/html/rfc3164) aka `<PRI>MMM DD hh:mm:ss HOSTNAME TAG: MESSAGE`
-- [RFC5424](https://datatracker.ietf.org/doc/html/rfc5424) aka `<PRI>VERSION TIMESTAMP HOSTNAME APP-NAME PROCID MSGID [STRUCTURED-DATA] MESSAGE`
+- [RFC5424](https://datatracker.ietf.org/doc/html/rfc5424) aka `<PRI>1 TIMESTAMP HOSTNAME APP-NAME PROCID MSGID [STRUCTURED-DATA] MESSAGE`
 
 The following fields are unpacked:
 
 - `priority` - it is obtained from `PRI`.
 - `facility` - it is calculated as `PRI / 8`.
 - `severity` - it is calculated as `PRI % 8`.
+- `format` - either `rfc3164` or `rfc5424` depending on which Syslog format is unpacked.
 - `timestamp` - timestamp in [ISO8601 format](https://en.wikipedia.org/wiki/ISO_8601). The `MMM DD hh:mm:ss` timestamp in [RFC3164](https://datatracker.ietf.org/doc/html/rfc3164)
   is automatically converted into [ISO8601 format](https://en.wikipedia.org/wiki/ISO_8601) by assuming that the timestamp belongs to the last 12 months.
 - `hostname`
@@ -2315,6 +2376,8 @@ The following fields are unpacked:
 - `proc_id`
 - `msg_id`
 - `message`
+
+The `<PRI>` part is optional. If it is missing, then `priority`, `facility` and `severity` fields aren't set.
 
 The `[STRUCTURED-DATA]` is parsed into fields with the `SD-ID` name and `param1="value1" ... paramN="valueN"` value
 according to [the specification](https://datatracker.ietf.org/doc/html/rfc5424#section-6.3). The value then can be parsed to separate fields with [`unpack_logfmt` pipe](#unpack_logfmt-pipe).
