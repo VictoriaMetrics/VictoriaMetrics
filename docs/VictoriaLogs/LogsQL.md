@@ -1167,6 +1167,7 @@ LogsQL supports the following pipes:
 - [`math`](#math-pipe) performs mathematical calculations over [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`offset`](#offset-pipe) skips the given number of selected logs.
 - [`pack_json`](#pack_json-pipe) packs [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into JSON object.
+- [`pack_logfmt`](#pack_logfmt-pipe) packs [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into [logfmt](https://brandur.org/logfmt) message.
 - [`rename`](#rename-pipe) renames [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`replace`](#replace-pipe) replaces substrings in the specified [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`replace_regexp`](#replace_regexp-pipe) updates [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with regular expressions.
@@ -1740,8 +1741,47 @@ _time:5m | pack_json as foo | fields foo
 
 See also:
 
+- [`pack_logfmt` pipe](#pack_logfmt-pipe)
 - [`unpack_json` pipe](#unpack_json-pipe)
 
+
+### pack_logfmt pipe
+
+`| pack_logfmt as field_name` [pipe](#pipe) packs all [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into [logfmt](https://brandur.org/logfmt) message
+and stores its as a string in the given `field_name`.
+
+For example, the following query packs all the fields into [logfmt](https://brandur.org/logfmt) message and stores it
+into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) for logs over the last 5 minutes:
+
+```logsql
+_time:5m | pack_logfmt as _msg
+```
+
+The `as _msg` part can be omitted if packed message is stored into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+The following query is equivalent to the previous one:
+
+```logsql
+_time:5m | pack_logfmt
+```
+
+If only a subset of labels must be packed into [logfmt](https://brandur.org/logfmt), then it must be listed inside `fields (...)` after `pack_logfmt`.
+For example, the following query builds [logfmt](https://brandur.org/logfmt) message with `foo` and `bar` fields only and stores the result in `baz` field:
+
+```logsql
+_time:5m | pack_logfmt fields (foo, bar) as baz
+```
+
+The `pack_logfmt` doesn't modify or delete other labels. If you do not need them, then add [`| fields ...`](#fields-pipe) after the `pack_logfmt` pipe. For example, the following query
+leaves only the `foo` label with the original log fields packed into [logfmt](https://brandur.org/logfmt):
+
+```logsql
+_time:5m | pack_logfmt as foo | fields foo
+```
+
+See also:
+
+- [`pack_json` pipe](#pack_json-pipe)
+- [`unpack_logfmt` pipe](#unpack_logfmt-pipe)
 
 ### rename pipe
 
@@ -2219,6 +2259,7 @@ See also:
 - [`extract` pipe](#extract-pipe)
 - [`unroll` pipe](#unroll-pipe)
 - [`pack_json` pipe](#pack_json-pipe)
+- [`pack_logfmt` pipe](#pack_logfmt-pipe)
 
 #### Conditional unpack_json
 

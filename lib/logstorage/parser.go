@@ -74,11 +74,6 @@ func (lex *lexer) isQuotedToken() bool {
 	return lex.token != lex.rawToken
 }
 
-func (lex *lexer) isNumber() bool {
-	s := lex.rawToken + lex.s
-	return isNumberPrefix(s)
-}
-
 func (lex *lexer) isPrevToken(tokens ...string) bool {
 	for _, token := range tokens {
 		if token == lex.prevToken {
