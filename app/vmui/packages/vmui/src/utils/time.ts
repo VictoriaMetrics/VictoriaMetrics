@@ -34,7 +34,7 @@ export const humanizeSeconds = (num: number): string => {
   return getDurationFromMilliseconds(dayjs.duration(num, "seconds").asMilliseconds());
 };
 
-export const roundStep = (step: number) => {
+export const roundStep = (step: number): string => {
   let result = roundToMilliseconds(step);
   const integerStep = Math.round(step);
 
@@ -87,7 +87,7 @@ export const getSecondsFromDuration = (dur: string) => {
   return dayjs.duration(durObject).asSeconds();
 };
 
-export const getStepFromDuration = (dur: number, histogram?: boolean) => {
+export const getStepFromDuration = (dur: number, histogram?: boolean): string => {
   const size = histogram ? MAX_ITEMS_PER_HISTOGRAM : MAX_ITEMS_PER_CHART;
   return roundStep(dur / size);
 };
