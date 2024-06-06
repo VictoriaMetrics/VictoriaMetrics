@@ -346,6 +346,28 @@ _time:1d error | stats by (_time:1h) count() rows | sort by (_time)
 This query uses [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe) in order to sort per-hour stats
 by [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
 
+## How to calculate the number of logs per IPv4 subnetwork?
+
+Use [`stats` by IPv4 bucket](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-ipv4-buckets). For example, the following
+query returns top 10 `/24` subnetworks with the biggest number of logs for the last 5 minutes:
+
+```logsql
+_time:5m | stats by (ip:/24) count() rows | sort by (rows desc) limit 10
+```
+
+This query uses [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe) in order to sort per-subnetwork stats
+by descending number of rows and limiting the result to top 10 rows.
+
+The query assumes the original logs have `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with the IPv4 address.
+If the IPv4 address is located inside [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) or any other text field,
+then it can be extracted with the [`extract`](https://docs.victoriametrics.com/victorialogs/logsql/#extract-pipe)
+or [`extract_regexp`](https://docs.victoriametrics.com/victorialogs/logsql/#extract_regexp-pipe) pipes. For example, the following query
+extracts IPv4 address from [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) and then returns top 10
+`/16` subnetworks with the biggest number of logs for the last 5 minutes:
+
+```logsql
+_time:5m | extract_regexp "(?P<ip>([0-9]+[.]){3}[0-9]+)" | stats by (ip:/16) count() rows | sort by (rows desc) limit 10
+```
 
 ## How to calculate the number of logs per every value of the given field?
 
@@ -421,3 +443,16 @@ This query uses the following [LogsQL](https://docs.victoriametrics.com/victoria
   for calculating the total number of logs and the number of logs with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) on the selected time range.
 - [`math` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#math-pipe) for calculating the share of logs with `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word)
   comparing to the total number of logs.
+
+
+## How to select logs for working hours and weekdays?
+
+Use [`day_range`](https://docs.victoriametrics.com/victorialogs/logsql/#day-range-filter) and [`week_range`](https://docs.victoriametrics.com/victorialogs/logsql/#week-range-filter) filters.
+For example, the following query selects logs from Monday to Friday in working hours `[08:00 - 18:00]` over the last 4 weeks:
+
+```logsql
+_time:4w _time:week_range[Mon, Fri] _time:day_range[08:00, 18:00)
+```
+
+It uses implicit [`AND` logical filtere](https://docs.victoriametrics.com/victorialogs/logsql/#logical-filter) for joining multiple filters
+on [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
