@@ -220,7 +220,7 @@ VMAlertmanagerSpec is a specification of the desired behavior of the VMAlertmana
 | volumeMounts | VolumeMounts allows configuration of additional VolumeMounts on the output StatefulSet definition. VolumeMounts specified will be appended to other VolumeMounts in the alertmanager container, that are generated as a result of StorageSpec objects. | [][v1.VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#volumemount-v1-core) | false |
 | externalURL | ExternalURL the VMAlertmanager instances will be available under. This is necessary to generate correct URLs. This is necessary if VMAlertmanager is not served from root of a DNS name. | string | false |
 | routePrefix | RoutePrefix VMAlertmanager registers HTTP handlers for. This is useful, if using ExternalURL and a proxy is rewriting HTTP routes of a request, and the actual ExternalURL is still true, but the server serves requests under a different route prefix. For example for use with `kubectl proxy`. | string | false |
-| paused | Paused If set to true all actions on the underlaying managed objects are not going to be performed, except for delete actions. | bool | false |
+| paused | Paused If set to true all actions on the underlying managed objects are not going to be performed, except for delete actions. | bool | false |
 | nodeSelector | NodeSelector Define which Nodes the Pods are scheduled on. | map[string]string | false |
 | resources | Resources container resource request and limits, https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ | [v1.ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#resourcerequirements-v1-core) | false |
 | affinity | Affinity If specified, the pod&#39;s scheduling constraints. | *[v1.Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#affinity-v1-core) | false |
@@ -927,7 +927,7 @@ VMAgentSpec defines the desired state of VMAgent
 | useStrictSecurity | UseStrictSecurity enables strict security mode for component it restricts disk writes access uses non-root user out of the box drops not needed security permissions | *bool | false |
 | ingestOnlyMode | IngestOnlyMode switches vmagent into unmanaged mode it disables any config generation for scraping Currently it prevents vmagent from managing tls and auth options for remote write | bool | false |
 | license | License allows to configure license key to be used for enterprise features. Using license key is supported starting from VictoriaMetrics v1.94.0. See: https://docs.victoriametrics.com/enterprise.html | *[License](#license) | false |
-| paused | Paused If set to true all actions on the underlaying managed objects are not going to be performed, except for delete actions. | bool | false |
+| paused | Paused If set to true all actions on the underlying managed objects are not going to be performed, except for delete actions. | bool | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -954,7 +954,7 @@ ServiceSpec defines additional service for CRD with user-defined params. by defa
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| useAsDefault | UseAsDefault applies changes from given service definition to the main object Service Changing from headless service to clusterIP or load balancer may break cross-component communication | bool | false |
+| useAsDefault | UseAsDefault applies changes from given service definition to the main object Service Changing from headless service to clusterIP or loadbalancer may break cross-component communication | bool | false |
 | metadata | EmbeddedObjectMetadata defines objectMeta for additional service. | [EmbeddedObjectMetadata](#embeddedobjectmetadata) | false |
 | spec | ServiceSpec describes the attributes that a user creates on a service. More info: https://kubernetes.io/docs/concepts/services-networking/service/ | v1.ServiceSpec | true |
 
@@ -1305,7 +1305,7 @@ VMAlertSpec defines the desired state of VMAlert
 | readinessGates | ReadinessGates defines pod readiness gates | []v1.PodReadinessGate | false |
 | useStrictSecurity | UseStrictSecurity enables strict security mode for component it restricts disk writes access uses non-root user out of the box drops not needed security permissions | *bool | false |
 | license | License allows to configure license key to be used for enterprise features. Using license key is supported starting from VictoriaMetrics v1.94.0. See: https://docs.victoriametrics.com/enterprise.html | *[License](#license) | false |
-| paused | Paused If set to true all actions on the underlaying managed objects are not going to be performed, except for delete actions. | bool | false |
+| paused | Paused If set to true all actions on the underlying managed objects are not going to be performed, except for delete actions. | bool | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -1400,7 +1400,7 @@ VMSingleSpec defines the desired state of VMSingle
 | readinessGates | ReadinessGates defines pod readiness gates | []v1.PodReadinessGate | false |
 | streamAggrConfig | StreamAggrConfig defines stream aggregation configuration for VMSingle | *[StreamAggrConfig](#streamaggrconfig) | false |
 | useStrictSecurity | UseStrictSecurity enables strict security mode for component it restricts disk writes access uses non-root user out of the box drops not needed security permissions | *bool | false |
-| paused | Paused If set to true all actions on the underlaying managed objects are not going to be performed, except for delete actions. | bool | false |
+| paused | Paused If set to true all actions on the underlying managed objects are not going to be performed, except for delete actions. | bool | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -1887,7 +1887,7 @@ VMClusterSpec defines the desired state of VMCluster
 | vmselect |  | *[VMSelect](#vmselect) | false |
 | vminsert |  | *[VMInsert](#vminsert) | false |
 | vmstorage |  | *[VMStorage](#vmstorage) | false |
-| paused | Paused If set to true all actions on the underlaying managed objects are not going to be performed, except for delete actions. | bool | false |
+| paused | Paused If set to true all actions on the underlying managed objects are not going to be performed, except for delete actions. | bool | false |
 | useStrictSecurity | UseStrictSecurity enables strict security mode for component it restricts disk writes access uses non-root user out of the box drops not needed security permissions | *bool | false |
 
 [Back to TOC](#table-of-contents)
@@ -2405,7 +2405,7 @@ VMAuthSpec defines the desired state of VMAuth
 | useStrictSecurity | UseStrictSecurity enables strict security mode for component it restricts disk writes access uses non-root user out of the box drops not needed security permissions | *bool | false |
 | license | License allows to configure license key to be used for enterprise features. Using license key is supported starting from VictoriaMetrics v1.94.0. See: https://docs.victoriametrics.com/enterprise.html | *[License](#license) | false |
 | configSecret | ConfigSecret is the name of a Kubernetes Secret in the same namespace as the VMAuth object, which contains auth configuration for vmauth, configuration must be inside secret key: config.yaml. It must be created and managed manually. If it&#39;s defined, configuration for vmauth becomes unmanaged and operator&#39;ll not create any related secrets/config-reloaders | string | false |
-| paused | Paused If set to true all actions on the underlaying managed objects are not going to be performed, except for delete actions. | bool | false |
+| paused | Paused If set to true all actions on the underlying managed objects are not going to be performed, except for delete actions. | bool | false |
 
 [Back to TOC](#table-of-contents)
 
