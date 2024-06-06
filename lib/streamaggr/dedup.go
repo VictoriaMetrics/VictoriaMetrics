@@ -184,8 +184,9 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample) {
 		}
 		// Update the existing value according to logic described at https://docs.victoriametrics.com/#deduplication
 		if sample.timestamp > s.timestamp || (sample.timestamp == s.timestamp && sample.value > s.value) {
-			// we don't clone sample.key because it should already exist in map and was cloned before
-			m[sample.key] = dedupAggrSample{
+			// sample.key needs to be copied, because go will re-assign both: key and value
+			// see https://github.com/golang/go/issues/52971
+			m[strings.Clone(sample.key)] = dedupAggrSample{
 				value:     sample.value,
 				timestamp: sample.timestamp,
 			}
