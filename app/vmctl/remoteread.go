@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cheggaaa/pb/v3"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
@@ -55,17 +53,13 @@ func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 		return nil
 	}
 
-	var bar *pb.ProgressBar
-	if bar = barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing ranges"), len(ranges), rrp.disableProgressBar); bar != nil {
-		if err := barpool.Start(); err != nil {
-			return err
-		}
+	bar := barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing ranges"), len(ranges))
+	if err := barpool.Start(); err != nil {
+		return err
 	}
 
 	defer func() {
-		if bar != nil {
-			barpool.Stop()
-		}
+		barpool.Stop()
 		log.Println("Import finished!")
 		log.Print(rrp.dst.Stats())
 	}()

@@ -6,40 +6,34 @@ import (
 	"log"
 	"sync"
 
-	"github.com/cheggaaa/pb/v3"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 )
 
 type influxProcessor struct {
-	ic                 *influx.Client
-	im                 *vm.Importer
-	cc                 int
-	separator          string
-	skipDbLabel        bool
-	promMode           bool
-	isSilent           bool
-	isVerbose          bool
-	disableProgressBar bool
+	ic          *influx.Client
+	im          *vm.Importer
+	cc          int
+	separator   string
+	skipDbLabel bool
+	promMode    bool
+	isVerbose   bool
 }
 
-func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator string, skipDbLabel, promMode, silent, verbose, disableProgressBar bool) *influxProcessor {
+func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator string, skipDbLabel, promMode, verbose bool) *influxProcessor {
 	if cc < 1 {
 		cc = 1
 	}
 
 	return &influxProcessor{
-		ic:                 ic,
-		im:                 im,
-		cc:                 cc,
-		separator:          separator,
-		skipDbLabel:        skipDbLabel,
-		promMode:           promMode,
-		isSilent:           silent,
-		isVerbose:          verbose,
-		disableProgressBar: disableProgressBar,
+		ic:          ic,
+		im:          im,
+		cc:          cc,
+		separator:   separator,
+		skipDbLabel: skipDbLabel,
+		promMode:    promMode,
+		isVerbose:   verbose,
 	}
 }
 
@@ -53,18 +47,15 @@ func (ip *influxProcessor) run() error {
 	}
 
 	question := fmt.Sprintf("Found %d timeseries to import. Continue?", len(series))
-	if !ip.isSilent && !prompt(question) {
+	if !prompt(question) {
 		return nil
 	}
 
-	var bar *pb.ProgressBar
-
-	if bar = barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing series"), len(series), ip.disableProgressBar); bar != nil {
-		if err := barpool.Start(); err != nil {
-			return err
-		}
-		defer barpool.Stop()
+	bar := barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing series"), len(series))
+	if err := barpool.Start(); err != nil {
+		return err
 	}
+	defer barpool.Stop()
 
 	seriesCh := make(chan *influx.Series)
 	errCh := make(chan error)

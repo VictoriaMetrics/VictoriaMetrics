@@ -30,7 +30,7 @@ var (
 		&cli.BoolFlag{
 			Name:  globalDisableProgressBar,
 			Value: false,
-			Usage: "Whether to disable progress bar for all workers during the import.",
+			Usage: "Whether to disable progress bar during the import.",
 		},
 	}
 )

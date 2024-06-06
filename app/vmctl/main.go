@@ -16,6 +16,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
 
@@ -37,15 +38,23 @@ func main() {
 
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	start := time.Now()
+	beforeFn := func(c *cli.Context) error {
+		isSilent = c.Bool(globalSilent)
+		if c.Bool(globalDisableProgressBar) {
+			barpool.Disable(true)
+		}
+		return nil
+	}
 	app := &cli.App{
 		Name:    "vmctl",
 		Usage:   "VictoriaMetrics command-line tool",
 		Version: buildinfo.Version,
 		Commands: []*cli.Command{
 			{
-				Name:  "opentsdb",
-				Usage: "Migrate time series from OpenTSDB",
-				Flags: mergeFlags(globalFlags, otsdbFlags, vmFlags),
+				Name:   "opentsdb",
+				Usage:  "Migrate time series from OpenTSDB",
+				Flags:  mergeFlags(globalFlags, otsdbFlags, vmFlags),
+				Before: beforeFn,
 				Action: func(c *cli.Context) error {
 					fmt.Println("OpenTSDB import mode")
 
@@ -81,9 +90,6 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("failed to init VM configuration: %s", err)
 					}
-					// disable progress bars since openTSDB implementation
-					// does not use progress bar pool
-					vmCfg.DisableProgressBar = true
 					importer, err := vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
@@ -94,9 +100,10 @@ func main() {
 				},
 			},
 			{
-				Name:  "influx",
-				Usage: "Migrate time series from InfluxDB",
-				Flags: mergeFlags(globalFlags, influxFlags, vmFlags),
+				Name:   "influx",
+				Usage:  "Migrate time series from InfluxDB",
+				Flags:  mergeFlags(globalFlags, influxFlags, vmFlags),
+				Before: beforeFn,
 				Action: func(c *cli.Context) error {
 					fmt.Println("InfluxDB import mode")
 
@@ -148,16 +155,15 @@ func main() {
 						c.String(influxMeasurementFieldSeparator),
 						c.Bool(influxSkipDatabaseLabel),
 						c.Bool(influxPrometheusMode),
-						c.Bool(globalSilent),
-						c.Bool(globalVerbose),
-						c.Bool(globalDisableProgressBar))
+						c.Bool(globalVerbose))
 					return processor.run()
 				},
 			},
 			{
-				Name:  "remote-read",
-				Usage: "Migrate time series via Prometheus remote-read protocol",
-				Flags: mergeFlags(globalFlags, remoteReadFlags, vmFlags),
+				Name:   "remote-read",
+				Usage:  "Migrate time series via Prometheus remote-read protocol",
+				Flags:  mergeFlags(globalFlags, remoteReadFlags, vmFlags),
+				Before: beforeFn,
 				Action: func(c *cli.Context) error {
 					fmt.Println("Remote-read import mode")
 
@@ -218,9 +224,10 @@ func main() {
 				},
 			},
 			{
-				Name:  "prometheus",
-				Usage: "Migrate time series from Prometheus",
-				Flags: mergeFlags(globalFlags, promFlags, vmFlags),
+				Name:   "prometheus",
+				Usage:  "Migrate time series from Prometheus",
+				Flags:  mergeFlags(globalFlags, promFlags, vmFlags),
+				Before: beforeFn,
 				Action: func(c *cli.Context) error {
 					fmt.Println("Prometheus import mode")
 
@@ -247,20 +254,19 @@ func main() {
 						return fmt.Errorf("failed to create prometheus client: %s", err)
 					}
 					pp := prometheusProcessor{
-						cl:                 cl,
-						im:                 importer,
-						cc:                 c.Int(promConcurrency),
-						disableProgressBar: c.Bool(globalDisableProgressBar),
-						isSilent:           c.Bool(globalSilent),
-						isVerbose:          c.Bool(globalVerbose),
+						cl:        cl,
+						im:        importer,
+						cc:        c.Int(promConcurrency),
+						isVerbose: c.Bool(globalVerbose),
 					}
 					return pp.run()
 				},
 			},
 			{
-				Name:  "vm-native",
-				Usage: "Migrate time series between VictoriaMetrics installations via native binary format",
-				Flags: mergeFlags(globalFlags, vmNativeFlags),
+				Name:   "vm-native",
+				Usage:  "Migrate time series between VictoriaMetrics installations via native binary format",
+				Flags:  mergeFlags(globalFlags, vmNativeFlags),
+				Before: beforeFn,
 				Action: func(c *cli.Context) error {
 					fmt.Println("VictoriaMetrics Native import mode")
 
@@ -349,9 +355,7 @@ func main() {
 						backoff:                  backoff.New(),
 						cc:                       c.Int(vmConcurrency),
 						disablePerMetricRequests: c.Bool(vmNativeDisablePerMetricMigration),
-						isSilent:                 c.Bool(globalSilent),
 						isNative:                 !c.Bool(vmNativeDisableBinaryProtocol),
-						disableProgressBar:       c.Bool(globalDisableProgressBar),
 					}
 					return p.run(ctx)
 				},
@@ -366,6 +370,7 @@ func main() {
 						Value: false,
 					},
 				},
+				Before: beforeFn,
 				Action: func(c *cli.Context) error {
 					common.StartUnmarshalWorkers()
 					blockPath := c.Args().First()
@@ -439,6 +444,5 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 		RoundDigits:        c.Int(vmRoundDigits),
 		ExtraLabels:        c.StringSlice(vmExtraLabel),
 		RateLimit:          c.Int64(vmRateLimit),
-		DisableProgressBar: c.Bool(vmDisableProgressBar) && c.Bool(globalDisableProgressBar),
 	}, nil
 }

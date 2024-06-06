@@ -5,7 +5,6 @@ import (
 	"log"
 	"sync"
 
-	"github.com/cheggaaa/pb/v3"
 	"github.com/prometheus/prometheus/tsdb"
 	"github.com/prometheus/prometheus/tsdb/chunkenc"
 
@@ -27,13 +26,8 @@ type prometheusProcessor struct {
 	// running snapshot block readers
 	cc int
 
-	// isSilent disables all prompts
-	isSilent bool
 	// isVerbose enables verbose output
 	isVerbose bool
-
-	// disableProgressBar disables progress bar
-	disableProgressBar bool
 }
 
 func (pp *prometheusProcessor) run() error {
@@ -45,17 +39,15 @@ func (pp *prometheusProcessor) run() error {
 		return fmt.Errorf("found no blocks to import")
 	}
 	question := fmt.Sprintf("Found %d blocks to import. Continue?", len(blocks))
-	if !pp.isSilent && !prompt(question) {
+	if !prompt(question) {
 		return nil
 	}
 
-	var bar *pb.ProgressBar
-	if bar = barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing blocks"), len(blocks), pp.disableProgressBar); bar != nil {
-		if err := barpool.Start(); err != nil {
-			return err
-		}
-		defer barpool.Stop()
+	bar := barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing blocks"), len(blocks))
+	if err := barpool.Start(); err != nil {
+		return err
 	}
+	defer barpool.Stop()
 
 	blockReadersCh := make(chan tsdb.BlockReader)
 	errCh := make(chan error, pp.cc)

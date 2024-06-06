@@ -25,6 +25,9 @@ const (
 // This test simulates close process if user abort it
 func Test_prometheusProcessor_run(t *testing.T) {
 	t.Skip()
+
+	defer func() { isSilent = false }()
+
 	type fields struct {
 		cfg    prometheus.Config
 		vmCfg  vm.Config
@@ -117,12 +120,11 @@ func Test_prometheusProcessor_run(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client := tt.fields.cl(tt.fields.cfg)
 			importer := tt.fields.im(tt.fields.vmCfg)
-
+			isSilent = tt.args.silent
 			pp := &prometheusProcessor{
 				cl:        client,
 				im:        importer,
 				cc:        tt.fields.cc,
-				isSilent:  tt.args.silent,
 				isVerbose: tt.args.verbose,
 			}
 
