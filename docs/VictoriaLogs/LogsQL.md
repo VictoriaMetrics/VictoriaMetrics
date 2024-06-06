@@ -254,6 +254,8 @@ If doubt, it is recommended quoting field names and filter args.
 The list of LogsQL filters:
 
 - [Time filter](#time-filter) - matches logs with [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) in the given time range
+- [Day range filter](#day-range-filter) - matches logs with [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) in the given per-day time range
+- [Week range filter](#week-range-filter) - matches logs with [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) in the given per-week day range
 - [Stream filter](#stream-filter) - matches logs, which belong to the given [streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
 - [Word filter](#word-filter) - matches logs with the given [word](#word)
 - [Phrase filter](#phrase-filter) - matches logs with the given phrase
@@ -330,8 +332,98 @@ Performance tips:
 
 See also:
 
+- [Day range filter](#day-range-filter)
+- [Week range filter](#week-range-filter)
 - [Stream filter](#stream-filter)
 - [Word filter](#word-filter)
+
+### Day range filter
+
+`_time:day_range[start, end]` filter allows returning logs on the particular `start ... end` time per every day, where `start` and `end` have the format `hh:mm`.
+For example, the following query matches logs between `08:00` and `18:00` UTC every day:
+
+```logsql
+_time:day_range[08:00, 18:00)
+```
+
+This query includes `08:00`, while `18:00` is excluded, e.g. the last matching time is `17:59:59.999999999`.
+Replace `[` with `(` in order to exclude the starting time. Replace `)` with `]` in order to include the ending time.
+For example, the following query matches logs between `08:00` and `18:00`, excluding `08:00:00.000000000` and including `18:00`:
+
+```logsql
+_time:day_range(08:00, 18:00]
+```
+
+If the time range must be applied to other than UTC time zone, then add `offset <duration>`, where `<duration>` can have [any supported duration value](#duration-values).
+For example, the following query selects logs between `08:00` and `18:00` at `+0200` time zone:
+
+```logsql
+_time:day_range[08:00, 18:00) offset 2h
+```
+
+Performance tip: it is recommended specifying regular [time filter](#time-filter) additionally to `day_range` filter. For example, the following query selects logs
+between `08:00` and `20:00` every day for the last week:
+
+```logsql
+_time:1w _time:day_range[08:00, 18:00)
+```
+
+See also:
+
+- [Week range filter](#week-range-filter)
+- [Time filter](#time-filter)
+
+### Week range filter
+
+`_time:week_range[start, end]` filter allows returning logs on the particular `start ... end` days per every day, where `start` and `end` can have the following values:
+
+- `Sun` or `Sunday`
+- `Mon` or `Monday`
+- `Tue` or `Tuesday`
+- `Wed` or `Wednesday`
+- `Thu` or `Thusday`
+- `Fri` or `Friday`
+- `Sat` or `Saturday`
+
+For example, the following query matches logs between Monday and Friday UTC every day:
+
+```logsql
+_time:week_range[Mon, Fri]
+```
+
+This query includes Monday and Friday.
+Replace `[` with `(` in order to exclude the starting day. Replace `]` with `)` in order to exclude the ending day.
+For example, the following query matches logs between Sunday and Saturday, excluding Sunday and Saturday (e.g. it is equivalent to the previous query):
+
+```logsql
+_time:week_range(Sun, Sat)
+```
+
+If the day range must be applied to other than UTC time zone, then add `offset <duration>`, where `<duration>` can have [any supported duration value](#duration-values).
+For example, the following query selects logs between Monday and Friday at `+0200` time zone:
+
+```logsql
+_time:week_range[Mon, Fri] offset 2h
+```
+
+The `week_range` filter can be combined with [`day_range` filter](#day-range-filter) using [logical filters](#logical-filter). For example, the following query
+selects logs between `08:00` and `18:00` every day of the week excluding Sunday and Saturday:
+
+```logsql
+_time:week_range[Mon, Fri] _time:day_range[08:00, 18:00)
+```
+
+Performance tip: it is recommended specifying regular [time filter](#time-filter) additionally to `week_range` filter. For example, the following query selects logs
+between Monday and Friday per every week for the last 4 weeks:
+
+```logsql
+_time:4w _time:week_range[Mon, Fri]
+```
+
+See also:
+
+- [Day range filter](#day-range-filter)
+- [Time filter](#time-filter)
 
 ### Stream filter
 

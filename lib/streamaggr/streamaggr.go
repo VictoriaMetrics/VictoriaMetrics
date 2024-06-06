@@ -389,9 +389,12 @@ type aggregator struct {
 
 	flushDuration      *metrics.Histogram
 	dedupFlushDuration *metrics.Histogram
+	samplesLag         *metrics.Histogram
 
 	flushTimeouts      *metrics.Counter
 	dedupFlushTimeouts *metrics.Counter
+	ignoredOldSamples  *metrics.Counter
+	ignoredNanSamples  *metrics.Counter
 }
 
 type aggrState interface {
@@ -610,9 +613,12 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 
 		flushDuration:      ms.GetOrCreateHistogram(`vm_streamaggr_flush_duration_seconds`),
 		dedupFlushDuration: ms.GetOrCreateHistogram(`vm_streamaggr_dedup_flush_duration_seconds`),
+		samplesLag:         ms.GetOrCreateHistogram(`vm_streamaggr_samples_lag_seconds`),
 
 		flushTimeouts:      ms.GetOrCreateCounter(`vm_streamaggr_flush_timeouts_total`),
 		dedupFlushTimeouts: ms.GetOrCreateCounter(`vm_streamaggr_dedup_flush_timeouts_total`),
+		ignoredNanSamples:  ms.GetOrCreateCounter(`vm_streamaggr_ignored_samples_total{reason="nan"}`),
+		ignoredOldSamples:  ms.GetOrCreateCounter(`vm_streamaggr_ignored_samples_total{reason="too_old"}`),
 	}
 	if dedupInterval > 0 {
 		a.da = newDedupAggr()
@@ -798,6 +804,7 @@ func (a *aggregator) MustStop() {
 
 // Push pushes tss to a.
 func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
+	now := time.Now().UnixMilli()
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 
@@ -810,6 +817,8 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	dropLabels := a.dropInputLabels
 	ignoreOldSamples := a.ignoreOldSamples
 	minTimestamp := a.minTimestamp.Load()
+	var totalLag int64
+	var totalSamples int
 	for idx, ts := range tss {
 		if !a.match.Match(ts.Labels) {
 			continue
@@ -840,19 +849,26 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 		key := bytesutil.InternBytes(buf)
 		for _, sample := range ts.Samples {
 			if math.IsNaN(sample.Value) {
+				a.ignoredNanSamples.Inc()
 				// Skip NaN values
 				continue
 			}
 			if ignoreOldSamples && sample.Timestamp < minTimestamp {
+				a.ignoredOldSamples.Inc()
 				// Skip old samples outside the current aggregation interval
 				continue
 			}
+			totalLag += now - sample.Timestamp
+			totalSamples++
 			samples = append(samples, pushSample{
 				key:       key,
 				value:     sample.Value,
 				timestamp: sample.Timestamp,
 			})
 		}
+	}
+	if totalSamples > 0 {
+		a.samplesLag.Update(float64(totalLag/int64(totalSamples)) / 1000)
 	}
 	ctx.samples = samples
 	ctx.buf = buf

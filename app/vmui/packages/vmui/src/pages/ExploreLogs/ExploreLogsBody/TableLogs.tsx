@@ -13,9 +13,9 @@ interface TableLogsProps {
 const TableLogs: FC<TableLogsProps> = ({ logs, displayColumns, tableCompact, columns }) => {
   const getColumnClass = (key: string) => {
     switch (key) {
-      case "time":
+      case "_time":
         return "vm-table-cell_logs-time";
-      case "data":
+      case "_vmui_data":
         return "vm-table-cell_logs vm-table-cell_pre";
       default:
         return "vm-table-cell_logs";
@@ -25,9 +25,9 @@ const TableLogs: FC<TableLogsProps> = ({ logs, displayColumns, tableCompact, col
   const tableColumns = useMemo(() => {
     if (tableCompact) {
       return [{
-        key: "data",
+        key: "_vmui_data",
         title: "Data",
-        className: getColumnClass("data")
+        className: getColumnClass("_vmui_data")
       }];
     }
     return columns.map((key) => ({
@@ -48,8 +48,8 @@ const TableLogs: FC<TableLogsProps> = ({ logs, displayColumns, tableCompact, col
       <Table
         rows={logs}
         columns={filteredColumns}
-        defaultOrderBy={"time"}
-        copyToClipboard={"data"}
+        defaultOrderBy={"_vmui_time"}
+        copyToClipboard={"_vmui_data"}
         paginationOffset={{ startIndex: 0, endIndex: Infinity }}
       />
     </>

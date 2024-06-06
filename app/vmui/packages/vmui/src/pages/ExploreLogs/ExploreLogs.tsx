@@ -14,7 +14,7 @@ import { useTimeState } from "../../state/time/TimeStateContext";
 import { getFromStorage, saveToStorage } from "../../utils/storage";
 
 const storageLimit = Number(getFromStorage("LOGS_LIMIT"));
-const defaultLimit = isNaN(storageLimit) ? 1000 : storageLimit;
+const defaultLimit = isNaN(storageLimit) ? 50 : storageLimit;
 
 const ExploreLogs: FC = () => {
   const { serverUrl } = useAppState();
@@ -22,7 +22,7 @@ const ExploreLogs: FC = () => {
   const { setSearchParamsFromKeys } = useSearchParamsFromObject();
 
   const [limit, setLimit] = useStateSearchParams(defaultLimit, "limit");
-  const [query, setQuery] = useStateSearchParams("", "query");
+  const [query, setQuery] = useStateSearchParams("*", "query");
   const { logs, isLoading, error, fetchLogs } = useFetchLogs(serverUrl, query, limit);
   const [queryError, setQueryError] = useState<ErrorTypes | string>("");
   const [loaded, isLoaded] = useState(false);

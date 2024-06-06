@@ -78,13 +78,15 @@
     }
 
     &_logs-time {
-      white-space: pre;
+      white-space: nowrap;
       overflow-wrap: normal;
     }
 
     &_logs {
       font-family: $font-family-monospace;
       line-height: 1.2;
+      width: 100%;
+      overflow-wrap: normal;
     }
   }
 
