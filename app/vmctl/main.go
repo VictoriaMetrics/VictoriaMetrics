@@ -95,7 +95,7 @@ func main() {
 						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
 
-					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, c.Int(otsdbConcurrency), c.Bool(globalSilent), c.Bool(globalVerbose))
+					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, c.Int(otsdbConcurrency), c.Bool(globalVerbose))
 					return otsdbProcessor.run()
 				},
 			},
@@ -215,10 +215,8 @@ func main() {
 							chunk:       c.String(remoteReadStepInterval),
 							timeReverse: c.Bool(remoteReadFilterTimeReverse),
 						},
-						cc:                 c.Int(remoteReadConcurrency),
-						isSilent:           c.Bool(globalSilent),
-						isVerbose:          c.Bool(globalVerbose),
-						disableProgressBar: c.Bool(globalDisableProgressBar),
+						cc:        c.Int(remoteReadConcurrency),
+						isVerbose: c.Bool(globalVerbose),
 					}
 					return rmp.run(ctx)
 				},

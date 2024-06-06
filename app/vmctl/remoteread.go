@@ -19,10 +19,8 @@ type remoteReadProcessor struct {
 	dst *vm.Importer
 	src *remoteread.Client
 
-	cc                 int
-	isSilent           bool
-	isVerbose          bool
-	disableProgressBar bool
+	cc        int
+	isVerbose bool
 }
 
 type remoteReadFilter struct {
@@ -49,7 +47,7 @@ func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 
 	question := fmt.Sprintf("Selected time range %q - %q will be split into %d ranges according to %q step. Continue?",
 		rrp.filter.timeStart.String(), rrp.filter.timeEnd.String(), len(ranges), rrp.filter.chunk)
-	if !rrp.isSilent && !prompt(question) {
+	if !prompt(question) {
 		return nil
 	}
 

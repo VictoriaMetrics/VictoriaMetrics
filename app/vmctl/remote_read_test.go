@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/prometheus/prometheus/prompb"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/testdata/servers_integration_test"
@@ -20,6 +20,7 @@ func TestRemoteRead(t *testing.T) {
 	defer func() {
 		barpool.Disable(false)
 	}()
+	defer func() { isSilent = false }()
 
 	var testCases = []struct {
 		name             string
@@ -162,10 +163,8 @@ func TestRemoteRead(t *testing.T) {
 					timeEnd:   &end,
 					chunk:     tt.chunk,
 				},
-				cc:                 1,
-				isSilent:           true,
-				isVerbose:          false,
-				disableProgressBar: true,
+				cc:        1,
+				isVerbose: false,
 			}
 
 			err = rmp.run(ctx)
@@ -181,6 +180,7 @@ func TestSteamRemoteRead(t *testing.T) {
 	defer func() {
 		barpool.Disable(false)
 	}()
+	defer func() { isSilent = false }()
 
 	var testCases = []struct {
 		name             string
@@ -322,10 +322,8 @@ func TestSteamRemoteRead(t *testing.T) {
 					timeEnd:   &end,
 					chunk:     tt.chunk,
 				},
-				cc:                 1,
-				isSilent:           true,
-				isVerbose:          false,
-				disableProgressBar: true,
+				cc:        1,
+				isVerbose: false,
 			}
 
 			err = rmp.run(ctx)
