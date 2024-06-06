@@ -19,6 +19,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): improve displaying of logs. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6419) and the following issues: [6408](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6408), [6405](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6405), [6406](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6406) and [6407](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6407).
 * FEATURE: allow using `eval` instead of `math` keyword in [`math` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#math-pipe).
 
 ## [v0.17.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.17.0-victorialogs)
