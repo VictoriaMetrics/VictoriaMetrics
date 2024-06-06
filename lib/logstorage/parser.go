@@ -764,7 +764,7 @@ func parseFilterForPhrase(lex *lexer, phrase, fieldName string) (filter, error) 
 	}
 	switch fieldName {
 	case "_time":
-		return parseFilterTimeWithOffset(lex)
+		return parseFilterTimeGeneric(lex)
 	case "_stream":
 		return parseFilterStream(lex)
 	default:
@@ -1375,7 +1375,228 @@ func startsWithYear(s string) bool {
 	return c == '-' || c == '+' || c == 'Z' || c == 'z'
 }
 
-func parseFilterTimeWithOffset(lex *lexer) (*filterTime, error) {
+func parseFilterTimeGeneric(lex *lexer) (filter, error) {
+	switch {
+	case lex.isKeyword("day_range"):
+		return parseFilterDayRange(lex)
+	case lex.isKeyword("week_range"):
+		return parseFilterWeekRange(lex)
+	default:
+		return parseFilterTimeRange(lex)
+	}
+}
+
+func parseFilterDayRange(lex *lexer) (*filterDayRange, error) {
+	if !lex.isKeyword("day_range") {
+		return nil, fmt.Errorf("unexpected token %q; want 'day_range'", lex.token)
+	}
+	lex.nextToken()
+
+	startBrace := "["
+	switch {
+	case lex.isKeyword("["):
+		lex.nextToken()
+	case lex.isKeyword("("):
+		lex.nextToken()
+		startBrace = "("
+	default:
+		return nil, fmt.Errorf("missing '[' or '(' at day_range filter")
+	}
+
+	start, startStr, err := getDayRangeArg(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read `start` arg at day_range filter: %w", err)
+	}
+
+	if !lex.isKeyword(",") {
+		return nil, fmt.Errorf("unexpected token %q; want ','", lex.token)
+	}
+	lex.nextToken()
+
+	end, endStr, err := getDayRangeArg(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read `end` arg at day_range filter: %w", err)
+	}
+
+	endBrace := "]"
+	switch {
+	case lex.isKeyword("]"):
+		lex.nextToken()
+	case lex.isKeyword(")"):
+		lex.nextToken()
+		endBrace = ")"
+	default:
+		return nil, fmt.Errorf("missing ']' or ')' after day_range filter")
+	}
+
+	offset := int64(0)
+	offsetStr := ""
+	if lex.isKeyword("offset") {
+		lex.nextToken()
+		s, err := getCompoundToken(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse offset in day_range filter: %w", err)
+		}
+		d, ok := tryParseDuration(s)
+		if !ok {
+			return nil, fmt.Errorf("cannot parse offset %q for day_range filter", s)
+		}
+		offset = int64(d)
+		offsetStr = " offset " + s
+	}
+
+	if startBrace == "(" {
+		start++
+	}
+	if endBrace == ")" {
+		end--
+	}
+
+	fr := &filterDayRange{
+		start:  start,
+		end:    end,
+		offset: offset,
+
+		stringRepr: fmt.Sprintf("%s%s, %s%s%s", startBrace, startStr, endStr, endBrace, offsetStr),
+	}
+	return fr, nil
+}
+
+func parseFilterWeekRange(lex *lexer) (*filterWeekRange, error) {
+	if !lex.isKeyword("week_range") {
+		return nil, fmt.Errorf("unexpected token %q; want 'week_range'", lex.token)
+	}
+	lex.nextToken()
+
+	startBrace := "["
+	switch {
+	case lex.isKeyword("["):
+		lex.nextToken()
+	case lex.isKeyword("("):
+		lex.nextToken()
+		startBrace = "("
+	default:
+		return nil, fmt.Errorf("missing '[' or '(' at week_range filter")
+	}
+
+	startDay, startStr, err := getWeekRangeArg(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read `start` arg at week_range filter: %w", err)
+	}
+
+	if !lex.isKeyword(",") {
+		return nil, fmt.Errorf("unexpected token %q; want ','", lex.token)
+	}
+	lex.nextToken()
+
+	endDay, endStr, err := getWeekRangeArg(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read `end` arg at week_range filter: %w", err)
+	}
+
+	endBrace := "]"
+	switch {
+	case lex.isKeyword("]"):
+		lex.nextToken()
+	case lex.isKeyword(")"):
+		lex.nextToken()
+		endBrace = ")"
+	default:
+		return nil, fmt.Errorf("missing ']' or ')' after week_range filter")
+	}
+
+	offset := int64(0)
+	offsetStr := ""
+	if lex.isKeyword("offset") {
+		lex.nextToken()
+		s, err := getCompoundToken(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse offset in week_range filter: %w", err)
+		}
+		d, ok := tryParseDuration(s)
+		if !ok {
+			return nil, fmt.Errorf("cannot parse offset %q for week_range filter", s)
+		}
+		offset = int64(d)
+		offsetStr = " offset " + s
+	}
+
+	if startBrace == "(" {
+		startDay++
+	}
+	if endBrace == ")" {
+		endDay--
+	}
+
+	fr := &filterWeekRange{
+		startDay: startDay,
+		endDay:   endDay,
+		offset:   offset,
+
+		stringRepr: fmt.Sprintf("%s%s, %s%s%s", startBrace, startStr, endStr, endBrace, offsetStr),
+	}
+	return fr, nil
+}
+
+func getDayRangeArg(lex *lexer) (int64, string, error) {
+	argStr, err := getCompoundToken(lex)
+	if err != nil {
+		return 0, "", err
+	}
+	n := strings.IndexByte(argStr, ':')
+	if n < 0 {
+		return 0, "", fmt.Errorf("invalid format for day_range arg; want 'hh:mm'; got %q", argStr)
+	}
+	hoursStr := argStr[:n]
+	minutesStr := argStr[n+1:]
+
+	hours, ok := tryParseUint64(hoursStr)
+	if !ok {
+		return 0, "", fmt.Errorf("cannot parse hh from %q; expected format: 'hh:mm'", hoursStr)
+	}
+	minutes, ok := tryParseUint64(minutesStr)
+	if !ok {
+		return 0, "", fmt.Errorf("cannot parse mm from %q; expected format: 'hh:mm'", minutesStr)
+	}
+
+	offset := int64(hours*nsecsPerHour + minutes*nsecsPerMinute)
+	if offset < 0 {
+		offset = 0
+	}
+	if offset >= nsecPerDay {
+		offset = nsecPerDay - 1
+	}
+	return offset, argStr, nil
+}
+
+func getWeekRangeArg(lex *lexer) (time.Weekday, string, error) {
+	argStr, err := getCompoundToken(lex)
+	if err != nil {
+		return 0, "", err
+	}
+
+	var day time.Weekday
+	switch strings.ToLower(argStr) {
+	case "sun", "sunday":
+		day = time.Sunday
+	case "mon", "monday":
+		day = time.Monday
+	case "tue", "tuesday":
+		day = time.Tuesday
+	case "wed", "wednesday":
+		day = time.Wednesday
+	case "thu", "thursday":
+		day = time.Thursday
+	case "fri", "friday":
+		day = time.Friday
+	case "sat", "saturday":
+		day = time.Saturday
+	}
+
+	return day, argStr, nil
+}
+
+func parseFilterTimeRange(lex *lexer) (*filterTime, error) {
 	ft, err := parseFilterTime(lex)
 	if err != nil {
 		return nil, err
