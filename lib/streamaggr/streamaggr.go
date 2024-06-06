@@ -809,7 +809,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	defer putPushCtx(ctx)
 
 	samples := ctx.samples
-	buf := ctx.buf[:0]
+	buf := ctx.buf
 	labels := &ctx.labels
 	inputLabels := &ctx.inputLabels
 	outputLabels := &ctx.outputLabels
