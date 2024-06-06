@@ -117,7 +117,7 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 		return fmt.Errorf("failed to init export pipe: %w", err)
 	}
 
-	if p.disablePerMetricRequests && bar != nil {
+	if p.disablePerMetricRequests {
 		pr := bar.NewProxyReader(reader)
 		if pr != nil {
 			reader = bar.NewProxyReader(reader)
@@ -232,10 +232,8 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	if p.disablePerMetricRequests {
 		bar = barpool.NewSingleProgress(nativeSingleProcessTpl, 0)
 	}
-	if bar != nil {
-		bar.Start()
-		defer bar.Finish()
-	}
+	bar.Start()
+	defer bar.Finish()
 
 	filterCh := make(chan native.Filter)
 	errCh := make(chan error, p.cc)
@@ -251,9 +249,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 						errCh <- err
 						return
 					}
-					if bar != nil {
-						bar.Increment()
-					}
+					bar.Increment()
 				} else {
 					if err := p.runSingle(ctx, f, srcURL, dstURL, bar); err != nil {
 						errCh <- err
@@ -314,9 +310,7 @@ func (p *vmNativeProcessor) explore(ctx context.Context, src *native.Client, ten
 		for i := range ms {
 			metrics[ms[i]] = append(metrics[ms[i]], r)
 		}
-		if bar != nil {
-			bar.Increment()
-		}
+		bar.Increment()
 	}
 	return metrics, nil
 }

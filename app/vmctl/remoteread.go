@@ -77,9 +77,7 @@ func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 					errCh <- fmt.Errorf("request failed for: %s", err)
 					return
 				}
-				if bar != nil {
-					bar.Increment()
-				}
+				bar.Increment()
 			}
 		}()
 	}

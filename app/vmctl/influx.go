@@ -71,9 +71,7 @@ func (ip *influxProcessor) run() error {
 					errCh <- fmt.Errorf("request failed for %q.%q: %s", s.Measurement, s.Field, err)
 					return
 				}
-				if bar != nil {
-					bar.Increment()
-				}
+				bar.Increment()
 			}
 		}()
 	}

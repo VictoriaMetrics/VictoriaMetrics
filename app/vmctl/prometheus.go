@@ -63,9 +63,7 @@ func (pp *prometheusProcessor) run() error {
 					errCh <- fmt.Errorf("read failed for block %q: %s", br.Meta().ULID, err)
 					return
 				}
-				if bar != nil {
-					bar.Increment()
-				}
+				bar.Increment()
 			}
 		}()
 	}

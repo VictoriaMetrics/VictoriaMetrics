@@ -247,9 +247,7 @@ func (im *Importer) startWorker(ctx context.Context, bar barpool.Bar, batchSize,
 			batch = append(batch, ts)
 			dataPoints += len(ts.Values)
 
-			if bar != nil {
-				bar.Add(len(ts.Values))
-			}
+			bar.Add(len(ts.Values))
 
 			if dataPoints < batchSize {
 				continue
