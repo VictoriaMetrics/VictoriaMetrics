@@ -181,14 +181,14 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
 			t.Fatalf("unexpected result; got\n%s\nwant\n%s", result, resultExpected)
 		}
 	}
-	t.Run("empty_relabel_configs", func(t *testing.T) {
+	t.Run("empty_relabel_configs", func(_ *testing.T) {
 		f("", `{}`, false, `{}`)
 		f("", `{}`, true, `{}`)
 		f("", `{foo="bar"}`, false, `{foo="bar"}`)
 		f("", `xxx{foo="bar",__aaa="yyy"}`, false, `xxx{__aaa="yyy",foo="bar"}`)
 		f("", `xxx{foo="bar",__aaa="yyy"}`, true, `xxx{foo="bar"}`)
 	})
-	t.Run("replace-miss", func(t *testing.T) {
+	t.Run("replace-miss", func(_ *testing.T) {
 		f(`
 - action: replace
   target_label: bar
@@ -216,7 +216,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   regex: ".+"
 `, `{xxx="yyy"}`, false, `{xxx="yyy"}`)
 	})
-	t.Run("replace-if-miss", func(t *testing.T) {
+	t.Run("replace-if-miss", func(_ *testing.T) {
 		f(`
 - action: replace
   if: '{foo="bar"}'
@@ -225,7 +225,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   replacement: "a-$1-b"
 `, `{xxx="yyy"}`, false, `{xxx="yyy"}`)
 	})
-	t.Run("replace-hit", func(t *testing.T) {
+	t.Run("replace-hit", func(_ *testing.T) {
 		f(`
 - action: replace
   source_labels: ["xxx", "foo"]
@@ -243,7 +243,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   target_label: "xxx"
 `, `{xxx="yyy"}`, false, `{}`)
 	})
-	t.Run("replace-if-hit", func(t *testing.T) {
+	t.Run("replace-if-hit", func(_ *testing.T) {
 		f(`
 - action: replace
   if: '{xxx=~".y."}'
@@ -252,7 +252,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   replacement: "a-$1-b"
 `, `{xxx="yyy"}`, false, `{bar="a-yyy;-b",xxx="yyy"}`)
 	})
-	t.Run("replace-remove-label-value-hit", func(t *testing.T) {
+	t.Run("replace-remove-label-value-hit", func(_ *testing.T) {
 		f(`
 - action: replace
   source_labels: ["foo"]
@@ -261,7 +261,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   replacement: ""
 `, `{foo="xxx",bar="baz"}`, false, `{bar="baz"}`)
 	})
-	t.Run("replace-remove-label-value-miss", func(t *testing.T) {
+	t.Run("replace-remove-label-value-miss", func(_ *testing.T) {
 		f(`
 - action: replace
   source_labels: ["foo"]
@@ -270,7 +270,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   replacement: ""
 `, `{foo="yyy",bar="baz"}`, false, `{bar="baz",foo="yyy"}`)
 	})
-	t.Run("replace-hit-remove-label", func(t *testing.T) {
+	t.Run("replace-hit-remove-label", func(_ *testing.T) {
 		f(`
 - action: replace
   source_labels: ["xxx", "foo"]
@@ -279,7 +279,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   replacement: ""
 `, `{xxx="yyy",foo="bar"}`, false, `{xxx="yyy"}`)
 	})
-	t.Run("replace-miss-remove-label", func(t *testing.T) {
+	t.Run("replace-miss-remove-label", func(_ *testing.T) {
 		f(`
 - action: replace
   source_labels: ["xxx", "foo"]
@@ -288,7 +288,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   replacement: ""
 `, `{xxx="yyyz",foo="bar"}`, false, `{foo="bar",xxx="yyyz"}`)
 	})
-	t.Run("replace-hit-target-label-with-capture-group", func(t *testing.T) {
+	t.Run("replace-hit-target-label-with-capture-group", func(_ *testing.T) {
 		f(`
 - action: replace
   source_labels: ["xxx", "foo"]
@@ -296,7 +296,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   replacement: "a-$1-b"
 `, `{xxx="yyy"}`, false, `{bar-yyy;="a-yyy;-b",xxx="yyy"}`)
 	})
-	t.Run("replace_all-miss", func(t *testing.T) {
+	t.Run("replace_all-miss", func(_ *testing.T) {
 		f(`
 - action: replace_all
   source_labels: [foo]
@@ -319,7 +319,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   regex: ".+"
 `, `{xxx="yyy"}`, false, `{xxx="yyy"}`)
 	})
-	t.Run("replace_all-if-miss", func(t *testing.T) {
+	t.Run("replace_all-if-miss", func(_ *testing.T) {
 		f(`
 - action: replace_all
   if: 'foo'
@@ -329,7 +329,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   replacement: "."
 `, `{xxx="a-b-c"}`, false, `{xxx="a-b-c"}`)
 	})
-	t.Run("replace_all-hit", func(t *testing.T) {
+	t.Run("replace_all-hit", func(_ *testing.T) {
 		f(`
 - action: replace_all
   source_labels: ["xxx"]
@@ -338,7 +338,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   replacement: "."
 `, `{xxx="a-b-c"}`, false, `{xxx="a.b.c"}`)
 	})
-	t.Run("replace_all-if-hit", func(t *testing.T) {
+	t.Run("replace_all-if-hit", func(_ *testing.T) {
 		f(`
 - action: replace_all
   if: '{non_existing_label=~".*"}'
@@ -348,7 +348,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   replacement: "."
 `, `{xxx="a-b-c"}`, false, `{xxx="a.b.c"}`)
 	})
-	t.Run("replace_all-regex-hit", func(t *testing.T) {
+	t.Run("replace_all-regex-hit", func(_ *testing.T) {
 		f(`
 - action: replace_all
   source_labels: ["xxx", "foo"]
@@ -357,7 +357,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   replacement: "-$1-"
 `, `{xxx="y;y"}`, false, `{xxx="y-;-y-;-"}`)
 	})
-	t.Run("replace-add-multi-labels", func(t *testing.T) {
+	t.Run("replace-add-multi-labels", func(_ *testing.T) {
 		f(`
 - action: replace
   source_labels: ["xxx"]
@@ -369,7 +369,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   replacement: "b-$1"
 `, `{xxx="yyy",instance="a.bc"}`, true, `{bar="a-yyy",instance="a.bc",xxx="yyy",zar="b-a-yyy"}`)
 	})
-	t.Run("replace-self", func(t *testing.T) {
+	t.Run("replace-self", func(_ *testing.T) {
 		f(`
 - action: replace
   source_labels: ["foo"]
@@ -377,14 +377,14 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   replacement: "a-$1"
 `, `{foo="aaxx"}`, true, `{foo="a-aaxx"}`)
 	})
-	t.Run("replace-missing-source", func(t *testing.T) {
+	t.Run("replace-missing-source", func(_ *testing.T) {
 		f(`
 - action: replace
   target_label: foo
   replacement: "foobar"
 `, `{}`, true, `{foo="foobar"}`)
 	})
-	t.Run("keep_if_equal-miss", func(t *testing.T) {
+	t.Run("keep_if_equal-miss", func(_ *testing.T) {
 		f(`
 - action: keep_if_equal
   source_labels: ["foo", "bar"]
@@ -394,13 +394,13 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   source_labels: ["xxx", "bar"]
 `, `{xxx="yyy"}`, true, `{}`)
 	})
-	t.Run("keep_if_equal-hit", func(t *testing.T) {
+	t.Run("keep_if_equal-hit", func(_ *testing.T) {
 		f(`
 - action: keep_if_equal
   source_labels: ["xxx", "bar"]
 `, `{xxx="yyy",bar="yyy"}`, true, `{bar="yyy",xxx="yyy"}`)
 	})
-	t.Run("drop_if_equal-miss", func(t *testing.T) {
+	t.Run("drop_if_equal-miss", func(_ *testing.T) {
 		f(`
 - action: drop_if_equal
   source_labels: ["foo", "bar"]
@@ -410,41 +410,41 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   source_labels: ["xxx", "bar"]
 `, `{xxx="yyy"}`, true, `{xxx="yyy"}`)
 	})
-	t.Run("drop_if_equal-hit", func(t *testing.T) {
+	t.Run("drop_if_equal-hit", func(_ *testing.T) {
 		f(`
 - action: drop_if_equal
   source_labels: [xxx, bar]
 `, `{xxx="yyy",bar="yyy"}`, true, `{}`)
 	})
-	t.Run("keepequal-hit", func(t *testing.T) {
+	t.Run("keepequal-hit", func(_ *testing.T) {
 		f(`
 - action: keepequal
   source_labels: [foo]
   target_label: bar
 `, `{foo="a",bar="a"}`, true, `{bar="a",foo="a"}`)
 	})
-	t.Run("keepequal-miss", func(t *testing.T) {
+	t.Run("keepequal-miss", func(_ *testing.T) {
 		f(`
 - action: keepequal
   source_labels: [foo]
   target_label: bar
 `, `{foo="a",bar="x"}`, true, `{}`)
 	})
-	t.Run("dropequal-hit", func(t *testing.T) {
+	t.Run("dropequal-hit", func(_ *testing.T) {
 		f(`
 - action: dropequal
   source_labels: [foo]
   target_label: bar
 `, `{foo="a",bar="a"}`, true, `{}`)
 	})
-	t.Run("dropequal-miss", func(t *testing.T) {
+	t.Run("dropequal-miss", func(_ *testing.T) {
 		f(`
 - action: dropequal
   source_labels: [foo]
   target_label: bar
 `, `{foo="a",bar="x"}`, true, `{bar="x",foo="a"}`)
 	})
-	t.Run("keep-miss", func(t *testing.T) {
+	t.Run("keep-miss", func(_ *testing.T) {
 		f(`
 - action: keep
   source_labels: [foo]
@@ -456,33 +456,33 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   regex: ".+"
 `, `{xxx="yyy"}`, true, `{}`)
 	})
-	t.Run("keep-if-miss", func(t *testing.T) {
+	t.Run("keep-if-miss", func(_ *testing.T) {
 		f(`
 - action: keep
   if: '{foo="bar"}'
 `, `{foo="yyy"}`, false, `{}`)
 	})
-	t.Run("keep-if-hit", func(t *testing.T) {
+	t.Run("keep-if-hit", func(_ *testing.T) {
 		f(`
 - action: keep
   if: ['foobar', '{foo="yyy"}', '{a="b"}']
 `, `{foo="yyy"}`, false, `{foo="yyy"}`)
 	})
-	t.Run("keep-hit", func(t *testing.T) {
+	t.Run("keep-hit", func(_ *testing.T) {
 		f(`
 - action: keep
   source_labels: [foo]
   regex: "yyy"
 `, `{foo="yyy"}`, false, `{foo="yyy"}`)
 	})
-	t.Run("keep-hit-regexp", func(t *testing.T) {
+	t.Run("keep-hit-regexp", func(_ *testing.T) {
 		f(`
 - action: keep
   source_labels: ["foo"]
   regex: ".+"
 `, `{foo="yyy"}`, false, `{foo="yyy"}`)
 	})
-	t.Run("keep_metrics-miss", func(t *testing.T) {
+	t.Run("keep_metrics-miss", func(_ *testing.T) {
 		f(`
 - action: keep_metrics
   regex:
@@ -490,19 +490,19 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   - bar
 `, `xxx`, true, `{}`)
 	})
-	t.Run("keep_metrics-if-miss", func(t *testing.T) {
+	t.Run("keep_metrics-if-miss", func(_ *testing.T) {
 		f(`
 - action: keep_metrics
   if: 'bar'
 `, `foo`, true, `{}`)
 	})
-	t.Run("keep_metrics-if-hit", func(t *testing.T) {
+	t.Run("keep_metrics-if-hit", func(_ *testing.T) {
 		f(`
 - action: keep_metrics
   if: 'foo'
 `, `foo`, true, `foo`)
 	})
-	t.Run("keep_metrics-hit", func(t *testing.T) {
+	t.Run("keep_metrics-hit", func(_ *testing.T) {
 		f(`
 - action: keep_metrics
   regex:
@@ -510,7 +510,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   - bar
 `, `foo`, true, `foo`)
 	})
-	t.Run("drop-miss", func(t *testing.T) {
+	t.Run("drop-miss", func(_ *testing.T) {
 		f(`
 - action: drop
   source_labels: [foo]
@@ -522,33 +522,33 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   regex: ".+"
 `, `{xxx="yyy"}`, true, `{xxx="yyy"}`)
 	})
-	t.Run("drop-if-miss", func(t *testing.T) {
+	t.Run("drop-if-miss", func(_ *testing.T) {
 		f(`
 - action: drop
   if: '{foo="bar"}'
 `, `{foo="yyy"}`, true, `{foo="yyy"}`)
 	})
-	t.Run("drop-if-hit", func(t *testing.T) {
+	t.Run("drop-if-hit", func(_ *testing.T) {
 		f(`
 - action: drop
   if: '{foo="yyy"}'
 `, `{foo="yyy"}`, true, `{}`)
 	})
-	t.Run("drop-hit", func(t *testing.T) {
+	t.Run("drop-hit", func(_ *testing.T) {
 		f(`
 - action: drop
   source_labels: [foo]
   regex: yyy
 `, `{foo="yyy"}`, true, `{}`)
 	})
-	t.Run("drop-hit-regexp", func(t *testing.T) {
+	t.Run("drop-hit-regexp", func(_ *testing.T) {
 		f(`
 - action: drop
   source_labels: [foo]
   regex: ".+"
 `, `{foo="yyy"}`, true, `{}`)
 	})
-	t.Run("drop_metrics-miss", func(t *testing.T) {
+	t.Run("drop_metrics-miss", func(_ *testing.T) {
 		f(`
 - action: drop_metrics
   regex:
@@ -556,19 +556,19 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   - bar
 `, `xxx`, true, `xxx`)
 	})
-	t.Run("drop_metrics-if-miss", func(t *testing.T) {
+	t.Run("drop_metrics-if-miss", func(_ *testing.T) {
 		f(`
 - action: drop_metrics
   if: bar
 `, `foo`, true, `foo`)
 	})
-	t.Run("drop_metrics-if-hit", func(t *testing.T) {
+	t.Run("drop_metrics-if-hit", func(_ *testing.T) {
 		f(`
 - action: drop_metrics
   if: foo
 `, `foo`, true, `{}`)
 	})
-	t.Run("drop_metrics-hit", func(t *testing.T) {
+	t.Run("drop_metrics-hit", func(_ *testing.T) {
 		f(`
 - action: drop_metrics
   regex:
@@ -576,7 +576,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   - bar
 `, `foo`, true, `{}`)
 	})
-	t.Run("hashmod-miss", func(t *testing.T) {
+	t.Run("hashmod-miss", func(_ *testing.T) {
 		f(`
 - action: hashmod
   source_labels: [foo]
@@ -584,7 +584,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   modulus: 123
 `, `{xxx="yyy"}`, false, `{aaa="81",xxx="yyy"}`)
 	})
-	t.Run("hashmod-if-miss", func(t *testing.T) {
+	t.Run("hashmod-if-miss", func(_ *testing.T) {
 		f(`
 - action: hashmod
   if: '{foo="bar"}'
@@ -593,7 +593,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   modulus: 123
 `, `{foo="yyy"}`, true, `{foo="yyy"}`)
 	})
-	t.Run("hashmod-if-hit", func(t *testing.T) {
+	t.Run("hashmod-if-hit", func(_ *testing.T) {
 		f(`
 - action: hashmod
   if: '{foo="yyy"}'
@@ -602,7 +602,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   modulus: 123
 `, `{foo="yyy"}`, true, `{aaa="73",foo="yyy"}`)
 	})
-	t.Run("hashmod-hit", func(t *testing.T) {
+	t.Run("hashmod-hit", func(_ *testing.T) {
 		f(`
 - action: hashmod
   source_labels: [foo]
@@ -610,7 +610,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   modulus: 123
 `, `{foo="yyy"}`, true, `{aaa="73",foo="yyy"}`)
 	})
-	t.Run("labelmap-copy-label-if-miss", func(t *testing.T) {
+	t.Run("labelmap-copy-label-if-miss", func(_ *testing.T) {
 		f(`
 - action: labelmap
   if: '{foo="yyy",foobar="aab"}'
@@ -618,7 +618,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   replacement: "bar"
 `, `{foo="yyy",foobar="aaa"}`, true, `{foo="yyy",foobar="aaa"}`)
 	})
-	t.Run("labelmap-copy-label-if-hit", func(t *testing.T) {
+	t.Run("labelmap-copy-label-if-hit", func(_ *testing.T) {
 		f(`
 - action: labelmap
   if: '{foo="yyy",foobar="aaa"}'
@@ -626,33 +626,33 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   replacement: "bar"
 `, `{foo="yyy",foobar="aaa"}`, true, `{bar="yyy",foo="yyy",foobar="aaa"}`)
 	})
-	t.Run("labelmap-copy-label", func(t *testing.T) {
+	t.Run("labelmap-copy-label", func(_ *testing.T) {
 		f(`
 - action: labelmap
   regex: "foo"
   replacement: "bar"
 `, `{foo="yyy",foobar="aaa"}`, true, `{bar="yyy",foo="yyy",foobar="aaa"}`)
 	})
-	t.Run("labelmap-remove-prefix-dot-star", func(t *testing.T) {
+	t.Run("labelmap-remove-prefix-dot-star", func(_ *testing.T) {
 		f(`
 - action: labelmap
   regex: "foo(.*)"
 `, `{xoo="yyy",foobar="aaa"}`, true, `{bar="aaa",foobar="aaa",xoo="yyy"}`)
 	})
-	t.Run("labelmap-remove-prefix-dot-plus", func(t *testing.T) {
+	t.Run("labelmap-remove-prefix-dot-plus", func(_ *testing.T) {
 		f(`
 - action: labelmap
   regex: "foo(.+)"
 `, `{foo="yyy",foobar="aaa"}`, true, `{bar="aaa",foo="yyy",foobar="aaa"}`)
 	})
-	t.Run("labelmap-regex", func(t *testing.T) {
+	t.Run("labelmap-regex", func(_ *testing.T) {
 		f(`
 - action: labelmap
   regex: "foo(.+)"
   replacement: "$1-x"
 `, `{foo="yyy",foobar="aaa"}`, true, `{bar-x="aaa",foo="yyy",foobar="aaa"}`)
 	})
-	t.Run("labelmap_all-if-miss", func(t *testing.T) {
+	t.Run("labelmap_all-if-miss", func(_ *testing.T) {
 		f(`
 - action: labelmap_all
   if: foobar
@@ -660,7 +660,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   replacement: "-"
 `, `{foo.bar.baz="yyy",foobar="aaa"}`, true, `{foo.bar.baz="yyy",foobar="aaa"}`)
 	})
-	t.Run("labelmap_all-if-hit", func(t *testing.T) {
+	t.Run("labelmap_all-if-hit", func(_ *testing.T) {
 		f(`
 - action: labelmap_all
   if: '{foo.bar.baz="yyy"}'
@@ -668,21 +668,21 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   replacement: "-"
 `, `{foo.bar.baz="yyy",foobar="aaa"}`, true, `{foo-bar-baz="yyy",foobar="aaa"}`)
 	})
-	t.Run("labelmap_all", func(t *testing.T) {
+	t.Run("labelmap_all", func(_ *testing.T) {
 		f(`
 - action: labelmap_all
   regex: "\\."
   replacement: "-"
 `, `{foo.bar.baz="yyy",foobar="aaa"}`, true, `{foo-bar-baz="yyy",foobar="aaa"}`)
 	})
-	t.Run("labelmap_all-regexp", func(t *testing.T) {
+	t.Run("labelmap_all-regexp", func(_ *testing.T) {
 		f(`
 - action: labelmap_all
   regex: "ba(.)"
   replacement: "${1}ss"
 `, `{foo.bar.baz="yyy",foozar="aaa"}`, true, `{foo.rss.zss="yyy",foozar="aaa"}`)
 	})
-	t.Run("labeldrop", func(t *testing.T) {
+	t.Run("labeldrop", func(_ *testing.T) {
 		f(`
 - action: labeldrop
   regex: dropme
@@ -714,7 +714,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   regex: "dropme"
 `, `{xxx="yyy",dropme="aaa"}`, false, `{xxx="yyy"}`)
 	})
-	t.Run("labeldrop-prefix", func(t *testing.T) {
+	t.Run("labeldrop-prefix", func(_ *testing.T) {
 		f(`
 - action: labeldrop
   regex: "dropme.*"
@@ -724,7 +724,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   regex: "dropme(.+)"
 `, `{xxx="yyy",dropme-please="aaa",foo="bar"}`, false, `{foo="bar",xxx="yyy"}`)
 	})
-	t.Run("labeldrop-regexp", func(t *testing.T) {
+	t.Run("labeldrop-regexp", func(_ *testing.T) {
 		f(`
 - action: labeldrop
   regex: ".*dropme.*"
@@ -734,7 +734,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   regex: ".*dropme.*"
 `, `{xxx="yyy",dropme-please="aaa",foo="bar"}`, false, `{foo="bar",xxx="yyy"}`)
 	})
-	t.Run("labelkeep", func(t *testing.T) {
+	t.Run("labelkeep", func(_ *testing.T) {
 		f(`
 - action: labelkeep
   regex: "keepme"
@@ -756,7 +756,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   regex: keepme
 `, `{keepme="aaa",aaaa="awef",keepme-aaa="234"}`, false, `{keepme="aaa"}`)
 	})
-	t.Run("labelkeep-regexp", func(t *testing.T) {
+	t.Run("labelkeep-regexp", func(_ *testing.T) {
 		f(`
 - action: labelkeep
   regex: "keepme.*"
@@ -766,7 +766,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   regex: "keepme.*"
 `, `{keepme="aaa",aaaa="awef",keepme-aaa="234"}`, false, `{keepme="aaa",keepme-aaa="234"}`)
 	})
-	t.Run("upper-lower-case", func(t *testing.T) {
+	t.Run("upper-lower-case", func(_ *testing.T) {
 		f(`
 - action: uppercase
   source_labels: ["foo"]
@@ -788,7 +788,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   target_label: baz
 `, `{qux="quux"}`, true, `{qux="quux"}`)
 	})
-	t.Run("graphite-match", func(t *testing.T) {
+	t.Run("graphite-match", func(_ *testing.T) {
 		f(`
 - action: graphite
   match: foo.*.baz
@@ -797,7 +797,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
     job: ${1}-zz
 `, `foo.bar.baz`, true, `aaa{job="bar-zz"}`)
 	})
-	t.Run("graphite-mismatch", func(t *testing.T) {
+	t.Run("graphite-mismatch", func(_ *testing.T) {
 		f(`
 - action: graphite
   match: foo.*.baz
@@ -806,7 +806,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
     job: ${1}-zz
 `, `foo.bar.bazz`, true, `foo.bar.bazz`)
 	})
-	t.Run("replacement-with-label-refs", func(t *testing.T) {
+	t.Run("replacement-with-label-refs", func(_ *testing.T) {
 		// no regex
 		f(`
 - target_label: abc
@@ -821,7 +821,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
 `, `qwe{foo="bar",baz="aaa"}`, true, `qwe{abc="qwe.bar.aa",baz="aaa",foo="bar"}`)
 	})
 	// Check $ at the end of regex - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3131
-	t.Run("replacement-with-$-at-the-end-of-regex", func(t *testing.T) {
+	t.Run("replacement-with-$-at-the-end-of-regex", func(_ *testing.T) {
 		f(`
 - target_label: xyz
   regex: "foo\\$$"
@@ -829,7 +829,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   source_labels: [xyz]
 `, `metric{xyz="foo$",a="b"}`, true, `metric{a="b",xyz="bar"}`)
 	})
-	t.Run("issue-3251", func(t *testing.T) {
+	t.Run("issue-3251", func(_ *testing.T) {
 		f(`
 - source_labels: [instance, container_label_com_docker_swarm_task_name]
   separator: ';'
@@ -966,7 +966,7 @@ func TestParsedRelabelConfigsApplyForMultipleSeries(t *testing.T) {
 		}
 	}
 
-	t.Run("drops one of series", func(t *testing.T) {
+	t.Run("drops one of series", func(_ *testing.T) {
 		f(`
 - action: drop
   if: '{__name__!~"smth"}' 

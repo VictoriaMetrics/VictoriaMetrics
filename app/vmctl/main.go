@@ -284,7 +284,7 @@ func main() {
 					}
 					defer f.Close()
 					var blocksCount uint64
-					if err := stream.Parse(f, isBlockGzipped, func(block *stream.Block) error {
+					if err := stream.Parse(f, isBlockGzipped, func(_ *stream.Block) error {
 						atomic.AddUint64(&blocksCount, 1)
 						return nil
 					}); err != nil {

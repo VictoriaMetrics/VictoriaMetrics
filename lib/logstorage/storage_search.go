@@ -51,7 +51,7 @@ func (s *Storage) RunQuery(tenantIDs []TenantID, q *Query, stopCh <-chan struct{
 		resultColumnNames: resultColumnNames,
 	}
 	workersCount := cgroup.AvailableCPUs()
-	s.search(workersCount, so, stopCh, func(workerID uint, br *blockResult) {
+	s.search(workersCount, so, stopCh, func(_ uint, br *blockResult) {
 		brs := getBlockRows()
 		cs := brs.cs
 

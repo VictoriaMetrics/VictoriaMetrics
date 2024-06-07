@@ -178,7 +178,7 @@ func TestAlert_ExecTemplate(t *testing.T) {
 		},
 	}
 
-	qFn := func(q string) ([]datasource.Metric, error) {
+	qFn := func(_ string) ([]datasource.Metric, error) {
 		return []datasource.Metric{
 			{
 				Labels: []datasource.Label{

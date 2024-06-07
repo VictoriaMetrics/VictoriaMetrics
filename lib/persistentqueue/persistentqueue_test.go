@@ -22,7 +22,7 @@ func TestQueueOpenClose(t *testing.T) {
 }
 
 func TestQueueOpen(t *testing.T) {
-	t.Run("invalid-metainfo", func(t *testing.T) {
+	t.Run("invalid-metainfo", func(_ *testing.T) {
 		path := "queue-open-invalid-metainfo"
 		mustCreateDir(path)
 		mustCreateFile(filepath.Join(path, metainfoFilename), "foobarbaz")
@@ -30,7 +30,7 @@ func TestQueueOpen(t *testing.T) {
 		q.MustClose()
 		mustDeleteDir(path)
 	})
-	t.Run("junk-files-and-dirs", func(t *testing.T) {
+	t.Run("junk-files-and-dirs", func(_ *testing.T) {
 		path := "queue-open-junk-files-and-dir"
 		mustCreateDir(path)
 		mustCreateEmptyMetainfo(path, "foobar")
@@ -40,7 +40,7 @@ func TestQueueOpen(t *testing.T) {
 		q.MustClose()
 		mustDeleteDir(path)
 	})
-	t.Run("invalid-chunk-offset", func(t *testing.T) {
+	t.Run("invalid-chunk-offset", func(_ *testing.T) {
 		path := "queue-open-invalid-chunk-offset"
 		mustCreateDir(path)
 		mustCreateEmptyMetainfo(path, "foobar")
@@ -49,7 +49,7 @@ func TestQueueOpen(t *testing.T) {
 		q.MustClose()
 		mustDeleteDir(path)
 	})
-	t.Run("too-new-chunk", func(t *testing.T) {
+	t.Run("too-new-chunk", func(_ *testing.T) {
 		path := "queue-open-too-new-chunk"
 		mustCreateDir(path)
 		mustCreateEmptyMetainfo(path, "foobar")
@@ -88,7 +88,7 @@ func TestQueueOpen(t *testing.T) {
 		q.MustClose()
 		mustDeleteDir(path)
 	})
-	t.Run("metainfo-dir", func(t *testing.T) {
+	t.Run("metainfo-dir", func(_ *testing.T) {
 		path := "queue-open-metainfo-dir"
 		mustCreateDir(path)
 		mustCreateDir(filepath.Join(path, metainfoFilename))
@@ -112,7 +112,7 @@ func TestQueueOpen(t *testing.T) {
 		q.MustClose()
 		mustDeleteDir(path)
 	})
-	t.Run("invalid-writer-file-size", func(t *testing.T) {
+	t.Run("invalid-writer-file-size", func(_ *testing.T) {
 		path := "too-small-reader-file"
 		mustCreateDir(path)
 		mustCreateEmptyMetainfo(path, "foobar")

@@ -476,7 +476,7 @@ func templateFuncs() textTpl.FuncMap {
 		// For example, {{ query "foo" | first | value }} will
 		// execute "/api/v1/query?query=foo" request and will return
 		// the first value in response.
-		"query": func(q string) ([]metric, error) {
+		"query": func(_ string) ([]metric, error) {
 			// query function supposed to be substituted at FuncsWithQuery().
 			// it is present here only for validation purposes, when there is no
 			// provided datasource.

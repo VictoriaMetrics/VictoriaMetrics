@@ -74,7 +74,7 @@ func newBinaryOpCmpFunc(cf func(left, right float64) bool) binaryOpFunc {
 }
 
 func newBinaryOpArithFunc(af func(left, right float64) float64) binaryOpFunc {
-	afe := func(left, right float64, isBool bool) float64 {
+	afe := func(left, right float64, _ bool) float64 {
 		return af(left, right)
 	}
 	return newBinaryOpFunc(afe)

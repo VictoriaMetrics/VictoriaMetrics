@@ -60,7 +60,7 @@ func TestHandler(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { rh.handler(w, r) }))
 	defer ts.Close()
 
-	t.Run("/", func(t *testing.T) {
+	t.Run("/", func(_ *testing.T) {
 		getResp(ts.URL, nil, 200)
 		getResp(ts.URL+"/vmalert", nil, 200)
 		getResp(ts.URL+"/vmalert/alerts", nil, 200)
@@ -69,19 +69,19 @@ func TestHandler(t *testing.T) {
 		getResp(ts.URL+"/rules", nil, 200)
 	})
 
-	t.Run("/vmalert/rule", func(t *testing.T) {
+	t.Run("/vmalert/rule", func(_ *testing.T) {
 		a := ar.ToAPI()
 		getResp(ts.URL+"/vmalert/"+a.WebLink(), nil, 200)
 		r := rr.ToAPI()
 		getResp(ts.URL+"/vmalert/"+r.WebLink(), nil, 200)
 	})
-	t.Run("/vmalert/alert", func(t *testing.T) {
+	t.Run("/vmalert/alert", func(_ *testing.T) {
 		alerts := ar.AlertsToAPI()
 		for _, a := range alerts {
 			getResp(ts.URL+"/vmalert/"+a.WebLink(), nil, 200)
 		}
 	})
-	t.Run("/vmalert/rule?badParam", func(t *testing.T) {
+	t.Run("/vmalert/rule?badParam", func(_ *testing.T) {
 		params := fmt.Sprintf("?%s=0&%s=1", paramGroupID, paramRuleID)
 		getResp(ts.URL+"/vmalert/rule"+params, nil, 404)
 
@@ -117,7 +117,7 @@ func TestHandler(t *testing.T) {
 		}
 	})
 
-	t.Run("/api/v1/alert?badParams", func(t *testing.T) {
+	t.Run("/api/v1/alert?badParams", func(_ *testing.T) {
 		params := fmt.Sprintf("?%s=0&%s=1", paramGroupID, paramAlertID)
 		getResp(ts.URL+"/api/v1/alert"+params, nil, 404)
 		getResp(ts.URL+"/vmalert/api/v1/alert"+params, nil, 404)

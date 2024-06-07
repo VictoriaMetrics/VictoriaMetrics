@@ -326,10 +326,10 @@ func getRollupTag(expr metricsql.Expr) (string, error) {
 func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start, end, step int64, maxPointsPerSeries int,
 	window, lookbackDelta int64, sharedTimestamps []int64) (
 	func(values []float64, timestamps []int64), []*rollupConfig, error) {
-	preFunc := func(values []float64, timestamps []int64) {}
+	preFunc := func(_ []float64, _ []int64) {}
 	funcName = strings.ToLower(funcName)
 	if rollupFuncsRemoveCounterResets[funcName] {
-		preFunc = func(values []float64, timestamps []int64) {
+		preFunc = func(values []float64, _ []int64) {
 			removeCounterResets(values)
 		}
 	}
@@ -441,7 +441,7 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 		for _, aggrFuncName := range aggrFuncNames {
 			if rollupFuncsRemoveCounterResets[aggrFuncName] {
 				// There is no need to save the previous preFunc, since it is either empty or the same.
-				preFunc = func(values []float64, timestamps []int64) {
+				preFunc = func(values []float64, _ []int64) {
 					removeCounterResets(values)
 				}
 			}
