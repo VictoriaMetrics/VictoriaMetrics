@@ -32,10 +32,7 @@ type bloomFilter struct {
 }
 
 func (bf *bloomFilter) reset() {
-	bits := bf.bits
-	for i := range bits {
-		bits[i] = 0
-	}
+	clear(bf.bits)
 	bf.bits = bits[:0]
 }
 
