@@ -1,9 +1,9 @@
 package streamaggr
 
 import (
-	"strings"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
@@ -36,7 +36,8 @@ func (as *avgAggrState) pushSamples(samples []pushSample) {
 				sum:   s.value,
 				count: 1,
 			}
-			vNew, loaded := as.m.LoadOrStore(strings.Clone(outputKey), v)
+			outputKey = bytesutil.InternString(outputKey)
+			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if !loaded {
 				// The entry has been successfully stored
 				continue
