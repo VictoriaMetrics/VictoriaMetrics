@@ -33,7 +33,7 @@ type bloomFilter struct {
 
 func (bf *bloomFilter) reset() {
 	clear(bf.bits)
-	bf.bits = bits[:0]
+	bf.bits = bf.bits[:0]
 }
 
 // marshal appends marshaled bf to dst and returns the result.
