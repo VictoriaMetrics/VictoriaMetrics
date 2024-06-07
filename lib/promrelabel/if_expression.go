@@ -289,10 +289,9 @@ func (lf *labelFilter) match(labels []prompbmarshal.Label) bool {
 
 func (lf *labelFilter) equalNameValue(labels []prompbmarshal.Label) bool {
 	for _, label := range labels {
-		if label.Name != "__name__" {
-			continue
+		if label.Name == "__name__" {
+			return label.Value == lf.value
 		}
-		return label.Value == lf.value
 	}
 	return false
 }

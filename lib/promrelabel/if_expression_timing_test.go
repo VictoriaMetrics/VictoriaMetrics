@@ -18,7 +18,6 @@ func BenchmarkIfExpression(b *testing.B) {
 		}
 		labels[i] = label
 	}
-	b.ResetTimer()
 
 	b.Run("equal label: last", func(b *testing.B) {
 		n := maxLabels - 1
@@ -72,7 +71,7 @@ func benchIfExpr(b *testing.B, expr string, labels []prompbmarshal.Label) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			if !ie.Match(labels) {
-				b.Fatalf("expected to have a match")
+				panic(fmt.Sprintf("expected to have a match for %q", expr))
 			}
 		}
 	})
