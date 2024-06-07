@@ -116,9 +116,9 @@ Configuration above will produce N intervals of full length (`fit_window`=14d + 
 ## Resource consumption of vmanomaly
 `vmanomaly` itself is a lightweight service, resource usage is primarily dependent on [scheduling](/anomaly-detection/components/scheduler.html) (how often and on what data to fit/infer your models), [# and size of timeseries returned by your queries](/anomaly-detection/components/reader.html#vm-reader), and the complexity of the employed [models](anomaly-detection/components/models.html). Its resource usage is directly related to these factors, making it adaptable to various operational scales.
 
-> **Note**: Starting from [v1.13.0](/anomaly-detection/changelog/#v1130), there is a mode to save anomaly detection models on host filesystem after `fit` stage (instead of keeping them in-memory by default). **Resource-intensive setups** (many models, many metrics, bigger [`fit_window` arg](/anomaly-detection/components/scheduler/#periodic-scheduler-config-example)) and/or 3rd-party models that store fit data (like [ProphetModel](/anomaly-detection/components/models/index.html#prophet) or [HoltWinters](/anomaly-detection/components/models/index.html#holt-winters)) will have RAM consumption greatly reduced at a cost of slightly slower `infer` stage. To enable it, you need to set environment variable `VMANOMALY_MODEL_DUMPS_DIR` to desired location. [Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/README.md) are updated accordingly ([`StatefulSet`](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) for persistent storage).
+> **Note**: Starting from [v1.13.0](/anomaly-detection/changelog/#v1130), there is a mode to save anomaly detection models on host filesystem after `fit` stage (instead of keeping them in-memory by default). **Resource-intensive setups** (many models, many metrics, bigger [`fit_window` arg](/anomaly-detection/components/scheduler/#periodic-scheduler-config-example)) and/or 3rd-party models that store fit data (like [ProphetModel](/anomaly-detection/components/models/index.html#prophet) or [HoltWinters](/anomaly-detection/components/models/index.html#holt-winters)) will have RAM consumption greatly reduced at a cost of slightly slower `infer` stage. To enable it, you need to set environment variable `VMANOMALY_MODEL_DUMPS_DIR` to desired location. [Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/README.md) are being updated accordingly ([`StatefulSet`](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) for persistent storage starting from chart version `1.3.0`).
 
-Here's an example of how to do it in docker-compose with volumes:
+Here's an example of how to set it up in docker-compose using volumes:
 ```yaml
 services:
   # ...
@@ -128,8 +128,6 @@ services:
     # ...
     ports:
       - "8490:8490"
-    networks:
-      - vm_net
     restart: always
     volumes:
       - ./vmanomaly_config.yml:/config.yaml
@@ -147,8 +145,6 @@ services:
 volumes:
   # ...
   vmanomaly_model_dump_dir: {}
-networks:
-  vm_net:
 ```
 
 ## Scaling vmanomaly
