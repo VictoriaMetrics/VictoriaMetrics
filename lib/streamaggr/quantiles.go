@@ -2,6 +2,7 @@ package streamaggr
 
 import (
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -41,7 +42,7 @@ func (as *quantilesAggrState) pushSamples(samples []pushSample) {
 			v = &quantilesStateValue{
 				h: h,
 			}
-			vNew, loaded := as.m.LoadOrStore(outputKey, v)
+			vNew, loaded := as.m.LoadOrStore(strings.Clone(outputKey), v)
 			if loaded {
 				// Use the entry created by a concurrent goroutine.
 				histogram.PutFast(h)
