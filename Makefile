@@ -99,6 +99,12 @@ publish: \
 	publish-vmrestore \
 	publish-vmctl
 
+publish-common: \
+	publish-vminsert \
+	publish-vmselect \
+	publish-vmstorage \
+	publish-vmauth
+
 package: \
 	package-vminsert \
 	package-vmselect \
