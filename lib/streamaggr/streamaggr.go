@@ -845,8 +845,11 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 			outputLabels.Labels = append(outputLabels.Labels, labels.Labels...)
 		}
 
-		buf = compressLabels(buf[:0], inputLabels.Labels, outputLabels.Labels)
-		key := bytesutil.InternBytes(buf)
+		bufLen := len(buf)
+		buf = compressLabels(buf, inputLabels.Labels, outputLabels.Labels)
+		// key remains valid only by the end of this function and can't be reused after
+		// do not intern key because number of unique keys could be too high
+		key := bytesutil.ToUnsafeString(buf[bufLen:])
 		for _, sample := range ts.Samples {
 			if math.IsNaN(sample.Value) {
 				a.ignoredNanSamples.Inc()
@@ -942,6 +945,8 @@ func (ctx *pushCtx) reset() {
 }
 
 type pushSample struct {
+	// key identifies a sample that belongs to unique series
+	// key value can't be re-used
 	key       string
 	value     float64
 	timestamp int64
