@@ -326,6 +326,13 @@ type EndpointParameters struct {
 	// is required.
 	Prefix *string
 
+	// The Copy Source used for Copy Object request. This is an optional parameter that
+	// will be set automatically for operations that are scoped to Copy
+	// Source.
+	//
+	// Parameter is required.
+	CopySource *string
+
 	// Internal parameter to disable Access Point Buckets
 	//
 	// Parameter is required.
