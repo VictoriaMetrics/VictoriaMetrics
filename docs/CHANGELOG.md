@@ -259,6 +259,28 @@ Released at 2024-02-14
 * BUGFIX: [dashboards](https://grafana.com/orgs/victoriametrics): update `Storage full ETA` panels for Single-node and Cluster dashboards to prevent them from showing negative or blank results caused by increase of deduplicated samples. Deduplicated samples were part of the expression to provide a better estimate for disk usage, but due to sporadic nature of [deduplication](https://docs.victoriametrics.com/#deduplication) in VictoriaMetrics it rather produced skewed results. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5747).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/#vmalert): reduce memory usage for ENT version of vmalert for configurations with high number of groups with enabled multitenancy.
 
+## [v1.97.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.5)
+
+Released at 2024-06-07
+
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG.html#v1970) release**
+
+* SECURITY: upgrade Go builder from Go1.22.2 to Go1.22.4. See the list of issues addressed in [Go1.22.3](https://github.com/golang/go/issues?q=milestone%3AGo1.22.3+label%3ACherryPickApproved) and [Go1.22.4](https://github.com/golang/go/issues?q=milestone%3AGo1.22.4+label%3ACherryPickApproved).
+* SECURITY: upgrade base docker image (Alpine) from 3.19.1 to 3.20.0. See [alpine 3.20.0 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.0-released.html).
+
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix calendar display when `UTC+00:00` timezone is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6239).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): remove redundant requests on the `Explore Cardinality` page. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6240).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix handling of URL params for browser history navigation (back and forward buttons). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6126) and [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5516#issuecomment-1867507232).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): skip empty data blocks before sending to the remote write destination. Thanks to @viperstars for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6241).
+* BUGFIX: properly estimate the needed memory for query execution if it has the format [`aggr_func`](https://docs.victoriametrics.com/metricsql/#aggregate-functions)([`rollup_func[d]`](https://docs.victoriametrics.com/metricsql/#rollup-functions) (for example, `sum(rate(request_duration_seconds_bucket[5m]))`). This should allow performing aggregations over bigger number of time series when VictoriaMetrics runs in environments with small amounts of available memory. The issue has been introduced in [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/5138eaeea0791caa34bcfab410e0ca9cd253cd8f) in [v1.83.0](https://docs.victoriametrics.com/changelog_2022/#v1830).
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): correctly apply `-inmemoryDataFlushInterval` when it's set to minimum supported value 1s.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly release memory used for metrics during config reload. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6247).
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): filter deleted label names and values from [`/api/v1/labels`](https://docs.victoriametrics.com/url-examples/#apiv1labels) and [`/api/v1/label/.../values`](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues) responses when `match[]` filter matches small number of time series. The issue was introduced [v1.81.0](https://docs.victoriametrics.com/changelog_2022/#v1810).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix misleading error logs in vmalert's stdout when unsupported HTTP path is requested.
+* BUGFIX: retry files delete attempts on vXFS file system for `EEXIST` error type. See the [related issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6396). Thanks to @pludov for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6398).
+
 ## [v1.97.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.4)
 
 Released at 2024-04-19
