@@ -33,7 +33,7 @@ type ClientCertProvider = func(*tls.CertificateRequestInfo) (*tls.Certificate, e
 
 // Options used to configure a [net/http.Client] from [NewClient].
 type Options struct {
-	// DisableTelemetry disables default telemetry (OpenCensus). An example
+	// DisableTelemetry disables default telemetry (OpenTelemetry). An example
 	// reason to do so would be to bind custom telemetry that overrides the
 	// defaults.
 	DisableTelemetry bool

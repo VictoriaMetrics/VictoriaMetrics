@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
@@ -80,6 +81,7 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 			v = &totalStateValue{
 				lastValues: make(map[string]totalLastValueState),
 			}
+			outputKey = bytesutil.InternString(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if loaded {
 				// Use the entry created by a concurrent goroutine.
@@ -108,6 +110,8 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 			lv.value = s.value
 			lv.timestamp = s.timestamp
 			lv.deleteDeadline = deleteDeadline
+
+			inputKey = bytesutil.InternString(inputKey)
 			sv.lastValues[inputKey] = lv
 			sv.deleteDeadline = deleteDeadline
 		}
