@@ -151,14 +151,14 @@ Below is an illustrative example of a `vmanomaly_config.yml` configuration file.
 ``` yaml
 schedulers:
   periodic:
-    # class: "scheduler.periodic.PeriodicScheduler"
+    # class: "scheduler.periodic.PeriodicScheduler"  # or 'periodic' starting from v1.13.0
     infer_every: "1m"
     fit_every: "2m"
     fit_window: "3h"
 
 models:
   prophet:
-    class: "model.prophet.ProphetModel"
+    class: "model.prophet.ProphetModel"  # or 'prophet' starting from v1.13.0
     args:
       interval_width: 0.98
 

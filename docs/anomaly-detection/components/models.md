@@ -69,7 +69,7 @@ From [1.10.0](/anomaly-detection/changelog#1100), **common args**, supported by 
 
 ### Queries
 
-Introduced in [1.10.0](/anomaly-detection/changelog#1100), as a part to support multi-model configs, `queries` arg is meant to define [queries from VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=queries#config-parameters) particular model should be run on (meaning, all the series returned by each of these queries will be used in such model for fitting and inferencing).
+Introduced in [1.10.0](/anomaly-detection/changelog#1100), as a part to support multi-model configs, `queries` arg is meant to define [queries from VmReader](/anomaly-detection/components/reader/?highlight=queries#config-parameters) particular model should be run on (meaning, all the series returned by each of these queries will be used in such model for fitting and inferencing).
 
 `queries` arg is supported for all [the built-in](#built-in-models) (as well as for [custom](#custom-model-guide)) models.
 
@@ -130,6 +130,76 @@ models:
 
 **Note** If `provide_series` is not specified in model config, the model will produce its default [model-dependent output](#vmanomaly-output). The output can't be less than `['anomaly_score']`. Even if `timestamp` column is omitted, it will be implicitly added to `provide_series` list, as it's required for metrics to be properly written.
 
+### Detection direction
+Introduced in [1.13.0](/anomaly-detection/CHANGELOG/#1130), `detection_direction` arg can help in reducing the number of [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/index.html#false-positive) and increasing the accuracy, when domain knowledge suggest to identify anomalies occurring when actual values (`y`) are *above, below, or in both directions* relative to the expected values (`yhat`). Available choices are: `both`, `above_expected`, `below_expected`.
+
+Here's how default (backward-compatible) behavior looks like - anomalies will be tracked in `both` directions (`y > yhat` or `y < yhat`). This is useful when there is no domain expertise to filter the required direction.
+
+<img src="schema_detection_direction=both.webp" width="800px" alt="schema_detection_direction=both"/>
+
+When set to `above_expected`, anomalies are tracked only when `y > yhat`.
+
+*Example metrics*: Error rate, response time, page load time, number of failed transactions - metrics where *lower values are better*, so **higher** values are typically tracked.
+
+<img src="schema_detection_direction=above_expected.webp" width="800px" alt="schema_detection_direction=above_expected"/>
+
+When set to `below_expected`, anomalies are tracked only when `y < yhat`. 
+
+*Example metrics*: Service Level Agreement (SLA) compliance, conversion rate, Customer Satisfaction Score (CSAT) - metrics where *higher values are better*, so **lower** values are typically tracked.
+
+<img src="schema_detection_direction=below_expected.webp" width="800px" alt="schema_detection_direction=below_expected"/>
+
+Config with a split example:
+
+```yaml
+models:
+  model_above_expected:
+    class: 'zscore'
+    z_threshold: 3.0
+    # track only cases when y > yhat, otherwise anomaly_score would be explicitly set to 0
+    detection_direction: 'above_expected'
+    # for this query we do not need to track lower values, thus, set anomaly detection tracking for y > yhat (above_expected)
+    queries: ['query_values_the_lower_the_better']
+  model_below_expected:
+    class: 'zscore'
+    z_threshold: 3.0
+    # track only cases when y < yhat, otherwise anomaly_score would be explicitly set to 0
+    detection_direction: 'below_expected'
+    # for this query we do not need to track higher values, thus, set anomaly detection tracking for y < yhat (above_expected)
+    queries: ['query_values_the_higher_the_better']
+  model_bidirectional_default:
+    class: 'zscore'
+    z_threshold: 3.0
+    # track in both direction, same backward-compatible behavior in case this arg is missing
+    detection_direction: 'both'
+    # for this query both directions can be equally important for anomaly detection, thus, setting it bidirectional (both)
+    queries: ['query_values_both_direction_matters']
+reader:
+  # ...
+  queries:
+    query_values_the_lower_the_better: metricql_expression1
+    query_values_the_higher_the_better: metricql_expression2
+    query_values_both_direction_matters: metricql_expression3
+# other components like writer, schedule, monitoring
+```
+
+### Minimal deviation from expected
+
+Introduced in [v1.13.0](/anomaly-detection/CHANGELOG/#1130), the `min_dev_from_expected` argument is designed to **reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive)** in scenarios where deviations between the actual value (`y`) and the expected value (`yhat`) are **relatively** high. Such deviations can cause models to generate high [anomaly scores](/anomaly-detection/faq/#what-is-anomaly-score). However, these deviations may not be significant enough in **absolute values** from a business perspective to be considered anomalies. This parameter ensures that anomaly scores for data points where `|y - yhat| < min_dev_from_expected` are explicitly set to 0. By default, if this parameter is not set, it behaves as `min_dev_from_expected=0` to maintain backward compatibility.
+
+> **Note**: `min_dev_from_expected` must be >= 0. The higher the value of `min_dev_from_expected`, the fewer data points will be available for anomaly detection, and vice versa.
+
+*Example*: Consider a scenario where CPU utilization is low and oscillates around 0.3% (0.003). A sudden spike to 1.3% (0.013) represents a +333% increase in **relative** terms, but only a +1 percentage point (0.01) increase in **absolute** terms, which may be negligible and not warrant an alert. Setting the `min_dev_from_expected` argument to `0.01` (1%) will ensure that all anomaly scores for deviations <= `0.01` are set to 0.
+
+Visualizations below demonstrate this concept; the green zone defined as the `[yhat - min_dev_from_expected, yhat + min_dev_from_expected]` range excludes actual data points (`y`) from generating anomaly scores if they fall within that range.
+
+<img src="schema_min_dev_from_expected=0.webp" width="800px" alt="min_dev_from_expected-default"/>
+
+<img src="schema_min_dev_from_expected=1.0.webp" width="800px" alt="min_dev_from_expected-small"/>
+
+<img src="schema_min_dev_from_expected=5.0.webp" width="800px" alt="min_dev_from_expected-big"/>
+
+
 ## Model types
 
 There are **2 model types**, supported in `vmanomaly`, resulting in **4 possible combinations**:
@@ -137,7 +207,7 @@ There are **2 model types**, supported in `vmanomaly`, resulting in **4 possible
 - [Univariate models](#univariate-models)
 - [Multivariate models](#multivariate-models)
 
-Each of these models can be
+Each of these models can also be
 - [Rolling](#rolling-models)
 - [Non-rolling](#non-rolling-models)
 
@@ -154,7 +224,7 @@ If during an inference, you got a series having **new labelset** (not present in
 **Examples:** [Prophet](#prophet), [Holt-Winters](#holt-winters)
 
 <p></p>
-<img alt="vmanomaly-model-type-univariate" src="/anomaly-detection/components/model-lifecycle-univariate.webp" width="800px"/>
+<img alt="vmanomaly-model-type-univariate" src="model-lifecycle-univariate.webp" width="800px"/>
 
 ### Multivariate Models
 
@@ -169,7 +239,7 @@ If during an inference, you got a **different amount of series** or some series 
 **Examples:** [IsolationForest](#isolation-forest-multivariate)
 
 <p></p>
-<img alt="vmanomaly-model-type-multivariate" src="/anomaly-detection/components/model-lifecycle-multivariate.webp" width="800px"/>
+<img alt="vmanomaly-model-type-multivariate" src="model-lifecycle-multivariate.webp" width="800px"/>
 
 ### Rolling Models
 
@@ -186,7 +256,7 @@ Such models put **more pressure** on your reader's source, i.e. if your model sh
 **Examples:** [RollingQuantile](#rolling-quantile)
 
 <p></p>
-<img alt="vmanomaly-model-type-rolling" src="/anomaly-detection/components/model-type-rolling.webp" width="800px"/>
+<img alt="vmanomaly-model-type-rolling" src="model-type-rolling.webp" width="800px"/>
 
 ### Non-Rolling Models
 
@@ -203,7 +273,7 @@ Produced model instances are **stored in-memory** between consecutive re-fit cal
 **Examples:** [Prophet](#prophet)
 
 <p></p>
-<img alt="vmanomaly-model-type-non-rolling" src="/anomaly-detection/components/model-type-non-rolling.webp" width="800px"/>
+<img alt="vmanomaly-model-type-non-rolling" src="model-type-non-rolling.webp" width="800px"/>
 
 ## Built-in Models 
 
@@ -233,8 +303,8 @@ Tuning hyperparameters of a model can be tricky and often requires in-depth know
 
 *Parameters specific for vmanomaly*:
 
-* `class` (string) - model class name `"model.auto.AutoTunedModel"`
-* `tuned_class_name` (string) - Built-in model class to tune, i.e. `model.zscore.ZscoreModel`.
+* `class` (string) - model class name `"model.auto.AutoTunedModel"` (or `auto` starting from [v1.13.0](/anomaly-detection/CHANGELOG/#1130) with class alias support)
+* `tuned_class_name` (string) - Built-in model class to tune, i.e. `model.zscore.ZscoreModel` (or `zscore` starting from [v1.13.0](/anomaly-detection/CHANGELOG/#1130) with class alias support).
 * `optimization_params` (dict) - Optimization parameters for unsupervised model tuning. Control % of found anomalies, as well as a tradeoff between time spent and the accuracy. The more `timeout` and `n_trials` are, the better model configuration can be found for `tuned_class_name`, but the longer it takes and vice versa. Set `n_jobs` to `-1` to use all the CPUs available, it makes sense if only you have a big dataset to train on during `fit` calls, otherwise overhead isn't worth it.
   - `anomaly_percentage` (float) - expected percentage of anomalies that can be seen in training data, from (0, 0.5) interval.
   - `seed` (int) - Random seed for reproducibility and deterministic nature of underlying optimizations.
@@ -242,14 +312,14 @@ Tuning hyperparameters of a model can be tricky and often requires in-depth know
   - `n_trials` (int) - How many trials to sample from hyperparameter search space. The higher, the longer it takes but the better the results can be. Defaults to 128.
   - `timeout` (float) - How many seconds in total can be spent on each model to tune hyperparameters. The higher, the longer it takes, allowing to test more trials out of defined `n_trials`, but the better the results can be.
 
-<img alt="vmanomaly-autotune-schema" src="/anomaly-detection/components/autotune.webp" width="800px"/>
+<img alt="vmanomaly-autotune-schema" src="autotune.webp" width="800px"/>
 
 ```yaml
 # ...
 models:
   your_desired_alias_for_a_model:
-    class: 'model.auto.AutoTunedModel'
-    tuned_class_name: 'model.zscore.ZscoreModel'
+    class: 'model.auto.AutoTunedModel'  # or 'auto' starting from v1.13.0
+    tuned_class_name: 'model.zscore.ZscoreModel'  # or 'zscore' starting from v1.13.0
     optimization_params:
       anomaly_percentage: 0.004  # required. i.e. we expect <= 0.4% of anomalies to be present in training data
       seed: 42  # fix reproducibility & determinism
@@ -268,7 +338,7 @@ Here we utilize the Facebook Prophet implementation, as detailed in their [libra
 
 *Parameters specific for vmanomaly*:
 
-* `class` (string) - model class name `"model.prophet.ProphetModel"`
+* `class` (string) - model class name `"model.prophet.ProphetModel"` (or `prophet` starting from [v1.13.0](/anomaly-detection/CHANGELOG/#1130) with class alias support)
 * `seasonalities` (list[dict], optional) - Extra seasonalities to pass to Prophet. See [`add_seasonality()`](https://facebook.github.io/prophet/docs/seasonality,_holiday_effects,_and_regressors.html#modeling-holidays-and-special-events:~:text=modeling%20the%20cycle-,Specifying,-Custom%20Seasonalities) Prophet param.
 
 **Note**: Apart from standard `vmanomaly` output, Prophet model can provide [additional metrics](#additional-output-metrics-produced-by-fb-prophet).
@@ -288,7 +358,7 @@ Depending on chosen `seasonality` parameter FB Prophet can return additional met
 ```yaml
 models:
   your_desired_alias_for_a_model:
-    class: 'model.prophet.ProphetModel'
+    class: 'model.prophet.ProphetModel'  # or 'prophet' starting from v1.13.0
     provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper', 'trend']
     seasonalities:
       - name: 'hourly'
@@ -308,7 +378,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output)
 ### [Z-score](https://en.wikipedia.org/wiki/Standard_score)
 *Parameters specific for vmanomaly*:
 
-* `class` (string) - model class name `"model.zscore.ZscoreModel"`
+* `class` (string) - model class name `"model.zscore.ZscoreModel"` (or `zscore` starting from [v1.13.0](/anomaly-detection/CHANGELOG/#1130) with class alias support)
 * `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculation boundaries and anomaly score. Defaults to `2.5`.
 
 *Config Example*
@@ -317,8 +387,8 @@ Resulting metrics of the model are described [here](#vmanomaly-output)
 ```yaml
 models:
   your_desired_alias_for_a_model:
-    class: "model.zscore.ZscoreModel"
-    z_threshold: 2.5
+    class: "model.zscore.ZscoreModel"  # or 'zscore' starting from v1.13.0
+    z_threshold: 3.5
 ```
 
 
@@ -329,7 +399,7 @@ Here we use Holt-Winters Exponential Smoothing implementation from `statsmodels`
 
 *Parameters specific for vmanomaly*:
 
-* `class` (string) - model class name `"model.holtwinters.HoltWinters"`
+* `class` (string) - model class name `"model.holtwinters.HoltWinters"` (or `holtwinters` starting from [v1.13.0](/anomaly-detection/CHANGELOG/#1130) with class alias support)
 
 * `frequency` (string) - Must be set equal to sampling_period. Model needs to know expected data-points frequency (e.g. '10m'). If omitted, frequency is guessed during fitting as **the median of intervals between fitting data timestamps**. During inference, if incoming data doesn't have the same frequency, then it will be interpolated.  E.g. data comes at 15 seconds resolution, and our resample_freq is '1m'. Then fitting data will be downsampled to '1m' and internal model is trained at '1m' intervals. So, during inference, prediction data would be produced at '1m' intervals, but interpolated to "15s" to match with expected output, as output data must have the same timestamps. As accepted by pandas.Timedelta (e.g. '5m').
 
@@ -354,7 +424,7 @@ Used to compute "seasonal_periods" param for the model (e.g. '1D' or '1W').
 ```yaml
 models:
   your_desired_alias_for_a_model:
-    class: "model.holtwinters.HoltWinters"
+    class: "model.holtwinters.HoltWinters"  # or 'holtwinters' starting from v1.13.0
     seasonality: '1d'
     frequency: '1h'
     # Inner model args (key-value pairs) accepted by statsmodels.tsa.holtwinters.ExponentialSmoothing
@@ -371,7 +441,7 @@ The MAD model is a robust method for anomaly detection that is *less sensitive* 
 
 *Parameters specific for vmanomaly*:
 
-* `class` (string) - model class name `"model.mad.MADModel"`
+* `class` (string) - model class name `"model.mad.MADModel"` (or `mad` starting from [v1.13.0](/anomaly-detection/CHANGELOG/#1130) with class alias support)
 * `threshold` (float, optional) - The threshold multiplier for the MAD to determine anomalies. Defaults to `2.5`. Higher values will identify fewer points as anomalies.
 
 *Config Example*
@@ -380,7 +450,7 @@ The MAD model is a robust method for anomaly detection that is *less sensitive* 
 ```yaml
 models:
   your_desired_alias_for_a_model:
-    class: "model.mad.MADModel"
+    class: "model.mad.MADModel"  # or 'mad' starting from v1.13.0
     threshold: 2.5
 ```
 
@@ -391,7 +461,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 *Parameters specific for vmanomaly*:
 
-* `class` (string) - model class name `"model.rolling_quantile.RollingQuantileModel"`
+* `class` (string) - model class name `"model.rolling_quantile.RollingQuantileModel"` (or `rolling_quantile` starting from [v1.13.0](/anomaly-detection/CHANGELOG/#1130) with class alias support)
 * `quantile` (float) - quantile value, from 0.5 to 1.0. This constraint is implied by 2-sided confidence interval.
 * `window_steps` (integer) - size of the moving window. (see 'sampling_period')
 
@@ -400,7 +470,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 ```yaml
 models:
   your_desired_alias_for_a_model:
-    class: "model.rolling_quantile.RollingQuantileModel"
+    class: "model.rolling_quantile.RollingQuantileModel" # or 'rolling_quantile' starting from v1.13.0
     quantile: 0.9
     window_steps: 96
 ```
@@ -412,7 +482,7 @@ Here we use Seasonal Decompose implementation from `statsmodels` [library](https
 
 *Parameters specific for vmanomaly*:
 
-* `class` (string) - model class name `"model.std.StdModel"`
+* `class` (string) - model class name `"model.std.StdModel"` (or `std` starting from [v1.13.0](/anomaly-detection/CHANGELOG/#1130) with class alias support)
 * `period` (integer) -  Number of datapoints in one season.
 * `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculating boundaries to define anomaly score. Defaults to `2.5`.
 
@@ -423,7 +493,7 @@ Here we use Seasonal Decompose implementation from `statsmodels` [library](https
 ```yaml
 models:
   your_desired_alias_for_a_model:
-    class: "model.std.StdModel"
+    class: "model.std.StdModel"  # or 'std' starting from v1.13.0
     period: 2
 ```
 
@@ -445,7 +515,7 @@ Here we use Isolation Forest implementation from `scikit-learn` [library](https:
 
 *Parameters specific for vmanomaly*:
 
-* `class` (string) - model class name `"model.isolation_forest.IsolationForestMultivariateModel"`
+* `class` (string) - model class name `"model.isolation_forest.IsolationForestMultivariateModel"` (or `isolation_forest_multivariate` starting from [v1.13.0](/anomaly-detection/CHANGELOG/#1130) with class alias support)
 
 * `contamination` (float or string, optional) - The amount of contamination of the data set, i.e. the proportion of outliers in the data set. Used when fitting to define the threshold on the scores of the samples. Default value - "auto". Should be either `"auto"` or be in the range (0.0, 0.5].
 
@@ -467,7 +537,7 @@ Here we use Isolation Forest implementation from `scikit-learn` [library](https:
 models:
   your_desired_alias_for_a_model:
     # To use univariate model, substitute class argument with "model.isolation_forest.IsolationForestModel".
-    class: "model.isolation_forest.IsolationForestMultivariateModel"
+    class: "model.isolation_forest.IsolationForestMultivariateModel" # or 'isolation_forest_multivariate' starting from v1.13.0
     contamination: "0.01"
     provide_series: ['anomaly_score']
     seasonal_features: ['dow', 'hod']
@@ -589,9 +659,8 @@ class CustomModel(Model):
 ### 2. Configuration file
 
 Next, we need to create `config.yaml` file with `vmanomaly` configuration and model input parameters.
-In the config file's `models` section we need to put our model class `model.custom.CustomModel` and all parameters used in `__init__` method.
+In the config file's `models` section we need to set our model class to `model.custom.CustomModel` (or `custom` starting from [v1.13.0](/anomaly-detection/CHANGELOG/#1130) with class alias support) and define all parameters used in `__init__` method.
 You can find out more about configuration parameters in `vmanomaly` [config docs](/anomaly-detection/components/).
-
 
 ```yaml
 schedulers:
@@ -603,7 +672,7 @@ schedulers:
 models:
   custom_model:
     # note: every custom model should implement this exact path, specified in `class` field
-    class: "model.model.CustomModel"
+    class: "model.model.CustomModel"  # or 'custom' starting from v1.13.0
     # custom model params are defined here
     percentage: 0.9
 
