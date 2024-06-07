@@ -39,7 +39,7 @@ const (
 
 	// 3 minutes and 45 seconds before expiration. The shortest MDS cache is 4 minutes,
 	// so we give it 15 seconds to refresh it's cache before attempting to refresh a token.
-	defaultExpiryDelta = 215 * time.Second
+	defaultExpiryDelta = 225 * time.Second
 
 	universeDomainDefault = "googleapis.com"
 )

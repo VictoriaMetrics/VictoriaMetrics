@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.5.1](https://github.com/googleapis/google-cloud-go/compare/auth/v0.5.0...auth/v0.5.1) (2024-05-31)
+
+
+### Bug Fixes
+
+* **auth:** Pass through client to 2LO and 3LO flows ([#10290](https://github.com/googleapis/google-cloud-go/issues/10290)) ([685784e](https://github.com/googleapis/google-cloud-go/commit/685784ea84358c15e9214bdecb307d37aa3b6d2f))
+
+## [0.5.0](https://github.com/googleapis/google-cloud-go/compare/auth/v0.4.2...auth/v0.5.0) (2024-05-28)
+
+
+### Features
+
+* **auth:** Adds X509 workload certificate provider ([#10233](https://github.com/googleapis/google-cloud-go/issues/10233)) ([17a9db7](https://github.com/googleapis/google-cloud-go/commit/17a9db73af35e3d1a7a25ac4fd1377a103de6150))
+
+## [0.4.2](https://github.com/googleapis/google-cloud-go/compare/auth/v0.4.1...auth/v0.4.2) (2024-05-16)
+
+
+### Bug Fixes
+
+* **auth:** Enable client certificates by default only for GDU ([#10151](https://github.com/googleapis/google-cloud-go/issues/10151)) ([7c52978](https://github.com/googleapis/google-cloud-go/commit/7c529786275a39b7e00525f7d5e7be0d963e9e15))
+* **auth:** Handle non-Transport DefaultTransport ([#10162](https://github.com/googleapis/google-cloud-go/issues/10162)) ([fa3bfdb](https://github.com/googleapis/google-cloud-go/commit/fa3bfdb23aaa45b34394a8b61e753b3587506782)), refs [#10159](https://github.com/googleapis/google-cloud-go/issues/10159)
+* **auth:** Have refresh time match docs ([#10147](https://github.com/googleapis/google-cloud-go/issues/10147)) ([bcb5568](https://github.com/googleapis/google-cloud-go/commit/bcb5568c07a54dd3d2e869d15f502b0741a609e8))
+* **auth:** Update compute token fetching error with named prefix ([#10180](https://github.com/googleapis/google-cloud-go/issues/10180)) ([4573504](https://github.com/googleapis/google-cloud-go/commit/4573504828d2928bebedc875d87650ba227829ea))
+
 ## [0.4.1](https://github.com/googleapis/google-cloud-go/compare/auth/v0.4.0...auth/v0.4.1) (2024-05-09)
 
 
