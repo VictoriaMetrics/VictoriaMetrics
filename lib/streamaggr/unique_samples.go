@@ -1,9 +1,9 @@
 package streamaggr
 
 import (
-	"strings"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
@@ -36,7 +36,8 @@ func (as *uniqueSamplesAggrState) pushSamples(samples []pushSample) {
 					s.value: {},
 				},
 			}
-			vNew, loaded := as.m.LoadOrStore(strings.Clone(outputKey), v)
+			outputKey = bytesutil.InternString(outputKey)
+			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if !loaded {
 				// The new entry has been successfully created.
 				continue

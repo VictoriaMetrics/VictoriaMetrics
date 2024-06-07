@@ -398,7 +398,11 @@ type aggregator struct {
 }
 
 type aggrState interface {
+	// pushSamples must push samples to the aggrState.
+	//
+	// samples[].key must be cloned by aggrState, since it may change after returning from pushSamples.
 	pushSamples(samples []pushSample)
+
 	flushState(ctx *flushCtx, resetState bool)
 }
 
