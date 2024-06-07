@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
-	"strings"
 	"sync"
 	"time"
 
@@ -621,13 +620,20 @@ func (sw *scrapeWork) pushData(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 	pushDataDuration.UpdateDuration(startTime)
 }
 
+func (sw *scrapeWork) isBinary() bool {
+	return sw.contentType == parser.ProtoHeader
+}
+
 func (sw *scrapeWork) areIdenticalSeries(prevData, currData string) bool {
 	if sw.Config.NoStaleMarkers && sw.Config.SeriesLimit <= 0 {
 		// Do not spend CPU time on tracking the changes in series if stale markers are disabled.
 		// The check for series_limit is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3660
 		return true
 	}
-	return parser.AreIdenticalSeriesFast(prevData, currData)
+	if sw.isBinary() {
+		return prevData == currData
+	}
+	return parser.AreIdenticalTextSeriesFast(prevData, currData)
 }
 
 // leveledWriteRequestCtxPool allows reducing memory usage when writeRequesCtx
@@ -705,8 +711,8 @@ func (sw *scrapeWork) getSeriesAdded(lastScrape, currScrape string) int {
 	if currScrape == "" {
 		return 0
 	}
-	bodyString := parser.GetRowsDiff(currScrape, lastScrape)
-	return strings.Count(bodyString, "\n")
+	_, count := parser.GetRowsDiff(currScrape, lastScrape, sw.isBinary())
+	return count
 }
 
 func (sw *scrapeWork) applySeriesLimit(wc *writeRequestCtx) int {
@@ -751,7 +757,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 	}
 	bodyString := lastScrape
 	if currScrape != "" {
-		bodyString = parser.GetRowsDiff(lastScrape, currScrape)
+		bodyString, _ = parser.GetRowsDiff(lastScrape, currScrape, sw.isBinary())
 	}
 	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 	defer func() {
@@ -919,17 +925,21 @@ func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, tim
 	})
 	// Add Exemplars to Timeseries
 	exemplarsLen := len(wc.exemplars)
-	exemplarTagsLen := len(r.Exemplar.Tags)
-	if exemplarTagsLen > 0 {
+	if r.Exemplar != nil && len(r.Exemplar.Tags) > 0 {
+		exemplarTagsLen := len(r.Exemplar.Tags)
 		exemplarLabels := make([]prompbmarshal.Label, exemplarTagsLen)
 		for i, label := range r.Exemplar.Tags {
 			exemplarLabels[i].Name = label.Key
 			exemplarLabels[i].Value = label.Value
 		}
+		var ts int64
+		if r.Exemplar.Timestamp != nil {
+			ts = r.Exemplar.Timestamp.Milli
+		}
 		wc.exemplars = append(wc.exemplars, prompbmarshal.Exemplar{
 			Labels:    exemplarLabels,
 			Value:     r.Exemplar.Value,
-			Timestamp: r.Exemplar.Timestamp.Milli,
+			Timestamp: ts,
 		})
 
 	}

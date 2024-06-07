@@ -2,8 +2,8 @@ package prompb
 
 import (
 	"fmt"
-	"slices"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/easyproto"
 )
 
@@ -288,8 +288,7 @@ func (ts *TimeSeries) unmarshalProtobuf(src []byte, p *sharedPool) error {
 			if !ok {
 				return fmt.Errorf("cannot read label data")
 			}
-			p.labels = slices.Grow(p.labels, len(p.labels)+1)
-			p.labels = append(p.labels, Label{})
+			p.labels = slicesutil.SetLength(p.labels, len(p.labels)+1)
 			label := &p.labels[len(p.labels)-1]
 			if err := label.unmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal label: %w", err)
@@ -299,8 +298,7 @@ func (ts *TimeSeries) unmarshalProtobuf(src []byte, p *sharedPool) error {
 			if !ok {
 				return fmt.Errorf("cannot read the sample data")
 			}
-			p.samples = slices.Grow(p.samples, len(p.samples)+1)
-			p.samples = append(p.samples, Sample{})
+			p.samples = slicesutil.SetLength(p.samples, len(p.samples)+1)
 			sample := &p.samples[len(p.samples)-1]
 			if err := sample.unmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal sample: %w", err)
@@ -310,8 +308,7 @@ func (ts *TimeSeries) unmarshalProtobuf(src []byte, p *sharedPool) error {
 			if !ok {
 				return fmt.Errorf("cannot read the exemplar data")
 			}
-			p.exemplars = slices.Grow(p.exemplars, len(p.exemplars)+1)
-			p.exemplars = append(p.exemplars, Exemplar{})
+			p.exemplars = slicesutil.SetLength(p.exemplars, len(p.exemplars)+1)
 			exemplar := &p.exemplars[len(p.exemplars)-1]
 			if p.exemplarLabels, err = exemplar.unmarshalProtobuf(data, p.exemplarLabels); err != nil {
 				return fmt.Errorf("cannot unmarshal exemplar: %w", err)
@@ -321,8 +318,7 @@ func (ts *TimeSeries) unmarshalProtobuf(src []byte, p *sharedPool) error {
 			if !ok {
 				return fmt.Errorf("cannot read the histogram data")
 			}
-			p.histograms = slices.Grow(p.histograms, len(p.histograms)+1)
-			p.histograms = append(p.histograms, Histogram{})
+			p.histograms = slicesutil.SetLength(p.histograms, len(p.histograms)+1)
 			histogram := &p.histograms[len(p.histograms)-1]
 			if err := histogram.unmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal histogram: %w", err)
@@ -358,8 +354,7 @@ func (exemplar *Exemplar) unmarshalProtobuf(src []byte, labelsPool []Label) ([]L
 			if !ok {
 				return labelsPool, fmt.Errorf("cannot read label data")
 			}
-			labelsPool = slices.Grow(labelsPool, len(labelsPool)+1)
-			labelsPool = append(labelsPool, Label{})
+			labelsPool = slicesutil.SetLength(labelsPool, len(labelsPool)+1)
 			label := &labelsPool[len(labelsPool)-1]
 			if err := label.unmarshalProtobuf(data); err != nil {
 				return labelsPool, fmt.Errorf("cannot unmarshal label: %w", err)

@@ -1,7 +1,6 @@
 package prometheus
 
 import (
-	"encoding/binary"
 	"fmt"
 	"time"
 
@@ -77,30 +76,50 @@ const (
 	GaugeHistogramType MetricType = 5
 )
 
+var mp easyproto.MarshalerPool
+
 // ProtoRequest stores collection of metric families
 type ProtoRequest struct {
-	Families []MetricFamily
+	Families []*MetricFamily
+}
+
+func protobufRange(src []byte, process func([]byte) error) error {
+	var ok bool
+	var messageLen int
+	for len(src) > 0 {
+		messageLen, src, ok = easyproto.UnmarshalMessageLen(src)
+		if !ok {
+			return fmt.Errorf("failed to read message length")
+		}
+		if err := process(src[:messageLen]); err != nil {
+			return fmt.Errorf("failed to process message item: %s", err)
+		}
+		src = src[messageLen:]
+	}
+	return nil
 }
 
 func (r *ProtoRequest) unmarshalProtobuf(src []byte) error {
-	r.Families = []MetricFamily{}
-	for len(src) > 0 {
-		messageLength, varIntLength := binary.Uvarint(src)
-		if varIntLength > binary.MaxVarintLen32 {
-			return fmt.Errorf("cannot parse ProtoRequest: invalid variant")
+	return protobufRange(src, func(dst []byte) error {
+		f := &MetricFamily{}
+		if err := f.unmarshalProtobuf(dst, false); err != nil {
+			return fmt.Errorf("cannot parse MetricFamily: %w", err)
 		}
-		totalLength := varIntLength + int(messageLength)
-		if totalLength > len(src) {
-			return fmt.Errorf("cannot parse ProtoRequest: insufficient length of buffer")
-		}
-		var metricFamily MetricFamily
-		if err := metricFamily.unmarshalProtobuf(src[varIntLength:totalLength]); err != nil {
-			return fmt.Errorf("cannot parse MetricFamily")
-		}
-		r.Families = append(r.Families, metricFamily)
-		src = src[totalLength:]
+		r.Families = append(r.Families, f)
+		return nil
+	})
+}
+
+func (r *ProtoRequest) marshalProtobuf(dst []byte) []byte {
+	m := mp.Get()
+	for _, f := range r.Families {
+		mm := m.MessageMarshaler()
+		f.marshalProtobuf(mm)
+		dst = m.MarshalWithLen(dst)
+		m.Reset()
 	}
-	return nil
+	mp.Put(m)
+	return dst
 }
 
 // MetricFamily stores collection of Prometheus metrics
@@ -115,16 +134,31 @@ func (r *ProtoRequest) unmarshalProtobuf(src []byte) error {
 //
 // See https://github.com/prometheus/prometheus/blob/aba007148057c1947122b18b2ad606883cc27220/prompb/io/prometheus/client/metrics.proto#L154
 type MetricFamily struct {
-	Name string
-	// Help    string
+	Name    string
 	Type    MetricType
 	Metrics []*Metric
-	// Unit    string
+}
+
+func (f *MetricFamily) marshalProtobuf(mm *easyproto.MessageMarshaler) {
+	mm.AppendString(1, f.Name)
+	mm.AppendInt32(3, int32(f.Type))
+	for _, m := range f.Metrics {
+		m.marshalProtobuf(mm.AppendMessage(4))
+	}
+}
+
+func (f *MetricFamily) getRows() []Row {
+	rows := make([]Row, len(f.Metrics))
+	for i, m := range f.Metrics {
+		rows[i].Metric = fmt.Sprintf("%s_%d", f.Name, f.Type)
+		rows[i].Tags = m.Tags
+	}
+	return rows
 }
 
 // unmarshalProtobuf decodes src to MetricFamily struct
-func (mf *MetricFamily) unmarshalProtobuf(src []byte) (err error) {
-	mf.Metrics = nil
+func (f *MetricFamily) unmarshalProtobuf(src []byte, partial bool) (err error) {
+	f.Metrics = nil
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
@@ -137,23 +171,23 @@ func (mf *MetricFamily) unmarshalProtobuf(src []byte) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read name")
 			}
-			mf.Name = name
+			f.Name = name
 		case 3:
 			metricType, ok := fc.Int32()
 			if !ok {
 				return fmt.Errorf("cannot read type")
 			}
-			mf.Type = MetricType(metricType)
+			f.Type = MetricType(metricType)
 		case 4:
 			data, ok := fc.MessageData()
 			if !ok {
 				return fmt.Errorf("cannot read Metric data")
 			}
-			var m Metric
-			if err := m.unmarshalProtobuf(data); err != nil {
+			m := &Metric{}
+			if err := m.unmarshalProtobuf(data, partial); err != nil {
 				return fmt.Errorf("cannot unmarshal Metric: %w", err)
 			}
-			mf.Metrics = append(mf.Metrics, &m)
+			f.Metrics = append(f.Metrics, m)
 		}
 	}
 	return nil
@@ -180,17 +214,35 @@ type Metric struct {
 	Untyped   *Untyped
 	Histogram *Histogram
 	Timestamp int64
+	raw       []byte
+}
+
+func (m *Metric) marshalProtobuf(mm *easyproto.MessageMarshaler) {
+	for _, t := range m.Tags {
+		t.marshalProtobuf(mm.AppendMessage(1))
+	}
+	if len(m.raw) > 0 {
+		mm.AppendRaw(m.raw)
+	}
 }
 
 // unmarshalProtobuf decodes src to Metric struct
-func (m *Metric) unmarshalProtobuf(src []byte) (err error) {
+func (m *Metric) unmarshalProtobuf(src []byte, partial bool) error {
 	m.Tags = nil
 	var fc easyproto.FieldContext
+	var tmp []byte
+	var err error
+	target := src
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
 		if err != nil {
 			return fmt.Errorf("cannot read next field in Metric message: %w", err)
 		}
+		if partial {
+			tmp = target[:len(target)-len(src)]
+			target = src
+		}
+
 		switch fc.FieldNum {
 		case 1:
 			data, ok := fc.MessageData()
@@ -203,6 +255,10 @@ func (m *Metric) unmarshalProtobuf(src []byte) (err error) {
 			}
 			m.Tags = append(m.Tags, t)
 		case 2:
+			if partial {
+				m.raw = append(m.raw, tmp...)
+				continue
+			}
 			data, ok := fc.MessageData()
 			if !ok {
 				return fmt.Errorf("cannot read gauge data")
@@ -213,6 +269,10 @@ func (m *Metric) unmarshalProtobuf(src []byte) (err error) {
 			}
 			m.Gauge = &gauge
 		case 3:
+			if partial {
+				m.raw = append(m.raw, tmp...)
+				continue
+			}
 			data, ok := fc.MessageData()
 			if !ok {
 				return fmt.Errorf("cannot read counter data")
@@ -223,6 +283,10 @@ func (m *Metric) unmarshalProtobuf(src []byte) (err error) {
 			}
 			m.Counter = &counter
 		case 4:
+			if partial {
+				m.raw = append(m.raw, tmp...)
+				continue
+			}
 			data, ok := fc.MessageData()
 			if !ok {
 				return fmt.Errorf("cannot read summary data")
@@ -233,6 +297,10 @@ func (m *Metric) unmarshalProtobuf(src []byte) (err error) {
 			}
 			m.Summary = &summary
 		case 5:
+			if partial {
+				m.raw = append(m.raw, tmp...)
+				continue
+			}
 			data, ok := fc.MessageData()
 			if !ok {
 				return fmt.Errorf("cannot read untyped data")
@@ -243,6 +311,10 @@ func (m *Metric) unmarshalProtobuf(src []byte) (err error) {
 			}
 			m.Untyped = &untyped
 		case 7:
+			if partial {
+				m.raw = append(m.raw, tmp...)
+				continue
+			}
 			data, ok := fc.MessageData()
 			if !ok {
 				return fmt.Errorf("cannot read histogram data")
@@ -253,6 +325,10 @@ func (m *Metric) unmarshalProtobuf(src []byte) (err error) {
 			}
 			m.Histogram = &histogram
 		case 6:
+			if partial {
+				m.raw = append(m.raw, tmp...)
+				continue
+			}
 			ts, ok := fc.Int64()
 			if !ok {
 				return fmt.Errorf("cannot read timestamp")
@@ -287,6 +363,11 @@ func (t *Tag) unmarshalProtobuf(src []byte) (err error) {
 		}
 	}
 	return nil
+}
+
+func (t *Tag) marshalProtobuf(mm *easyproto.MessageMarshaler) {
+	mm.AppendString(1, t.Key)
+	mm.AppendString(2, t.Value)
 }
 
 // Gauge stores Prometheus metric gauge value
@@ -330,7 +411,7 @@ func (g *Gauge) unmarshalProtobuf(src []byte) (err error) {
 // See https://github.com/prometheus/prometheus/blob/aba007148057c1947122b18b2ad606883cc27220/prompb/io/prometheus/client/metrics.proto#L47
 type Counter struct {
 	Value    float64
-	Exemplar Exemplar
+	Exemplar *Exemplar
 }
 
 // unmarshalProtobuf decodes src to Counter struct

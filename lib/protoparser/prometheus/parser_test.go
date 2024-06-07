@@ -2,35 +2,89 @@ package prometheus
 
 import (
 	"encoding/base64"
+	"fmt"
 	"math"
 	"reflect"
 	"testing"
 )
 
 func TestGetRowsDiff(t *testing.T) {
-	f := func(s1, s2, resultExpected string) {
+	f := func(s1, s2, resultExpected string, countExpected int, binary bool) {
 		t.Helper()
-		result := GetRowsDiff(s1, s2)
+		result, count := GetRowsDiff(s1, s2, binary)
 		if result != resultExpected {
 			t.Fatalf("unexpected result for GetRowsDiff(%q, %q); got %q; want %q", s1, s2, result, resultExpected)
 		}
+		if count != countExpected {
+			t.Fatalf("unexpected count for GetRowsDiff(%q, %q); got %d; want %d", s1, s2, count, countExpected)
+		}
 	}
-	f("", "", "")
-	f("", "foo 1", "")
-	f("  ", "foo 1", "")
-	f("foo 123", "", "foo 0\n")
-	f("foo 123", "bar 3", "foo 0\n")
-	f("foo 123", "bar 3\nfoo 344", "")
-	f("foo{x=\"y\", z=\"a a a\"} 123", "bar 3\nfoo{x=\"y\", z=\"b b b\"} 344", "foo{x=\"y\",z=\"a a a\"} 0\n")
-	f("foo{bar=\"baz\"} 123\nx 3.4 5\ny 5 6", "x 34 342", "foo{bar=\"baz\"} 0\ny 0\n")
+
+	protoMetricGenAndTest := func(totalCount, newCount, oldCount int) {
+		families := make([]*MetricFamily, totalCount)
+		metricsPerFamily := 5
+		for f := range families {
+			families[f] = &MetricFamily{
+				Name:    fmt.Sprintf("foo_%s", string(rune(f+65))),
+				Metrics: make([]*Metric, metricsPerFamily),
+			}
+			for m := range families[f].Metrics {
+				families[f].Metrics[m] = &Metric{
+					Tags: []Tag{
+						{
+							Key:   fmt.Sprintf("name_%s", string(rune(m+65))),
+							Value: fmt.Sprintf("value_%s", string(rune(m+65))),
+						},
+					},
+					Counter: &Counter{
+						Value: float64(f + m),
+					},
+				}
+			}
+		}
+
+		incomingReq := &ProtoRequest{
+			Families: families[:totalCount-oldCount],
+		}
+		cachedReq := &ProtoRequest{
+			Families: families[newCount:],
+		}
+		expectedReq := &ProtoRequest{
+			Families: families[:newCount],
+		}
+		var output []byte
+		output = incomingReq.marshalProtobuf(output)
+		incomingEnd := len(output)
+		output = cachedReq.marshalProtobuf(output)
+		cachedEnd := len(output)
+		output = expectedReq.marshalProtobuf(output)
+		expectedCount := metricsPerFamily * newCount
+		f(string(output[:incomingEnd]), string(output[incomingEnd:cachedEnd]), string(output[cachedEnd:]), expectedCount, true)
+	}
+
+	f("", "", "", 0, false)
+	f("", "foo 1", "", 0, false)
+	f("  ", "foo 1", "", 0, false)
+	f("foo 123", "", "foo 0\n", 1, false)
+	f("foo 123", "bar 3", "foo 0\n", 1, false)
+	f("foo 123", "bar 3\nfoo 344", "", 0, false)
+	f("foo{x=\"y\", z=\"a a a\"} 123", "bar 3\nfoo{x=\"y\", z=\"b b b\"} 344", "foo{x=\"y\",z=\"a a a\"} 0\n", 1, false)
+	f("foo{bar=\"baz\"} 123\nx 3.4 5\ny 5 6", "x 34 342", "foo{bar=\"baz\"} 0\ny 0\n", 2, false)
+
+	// protobuf data
+	f("", "", "", 0, true)
+	protoMetricGenAndTest(5, 1, 2)
+	protoMetricGenAndTest(10, 0, 0)
+	protoMetricGenAndTest(10, 10, 0)
+	protoMetricGenAndTest(35, 17, 15)
 }
 
-func TestAreIdenticalSeriesFast(t *testing.T) {
+func TestAreIdenticalTextSeriesFast(t *testing.T) {
 	f := func(s1, s2 string, resultExpected bool) {
 		t.Helper()
-		result := AreIdenticalSeriesFast(s1, s2)
+		result := AreIdenticalTextSeriesFast(s1, s2)
 		if result != resultExpected {
-			t.Fatalf("unexpected result for AreIdenticalSeries(%q, %q); got %v; want %v", s1, s2, result, resultExpected)
+			t.Fatalf("unexpected result for AreIdenticalTextSeries(%q, %q); got %v; want %v", s1, s2, result, resultExpected)
 		}
 	}
 	f("", "", true)
@@ -384,7 +438,7 @@ cassandra_token_ownership_ratio 78.9`, "", &Rows{
 					},
 				},
 				Value: 17,
-				Exemplar: Exemplar{
+				Exemplar: &Exemplar{
 					Value: 9.8,
 					Tags: []Tag{
 						{
@@ -431,7 +485,7 @@ foo_created  1520430000.123`, "", &Rows{
 					},
 				},
 				Value: 8,
-				Exemplar: Exemplar{
+				Exemplar: &Exemplar{
 					Value: 0.054,
 					Timestamp: &Timestamp{
 						Milli: 0,
@@ -447,7 +501,7 @@ foo_created  1520430000.123`, "", &Rows{
 					},
 				},
 				Value: 11,
-				Exemplar: Exemplar{
+				Exemplar: &Exemplar{
 					Value: 0.67,
 					Tags: []Tag{
 						{
@@ -469,7 +523,7 @@ foo_created  1520430000.123`, "", &Rows{
 					},
 				},
 				Value: 17,
-				Exemplar: Exemplar{
+				Exemplar: &Exemplar{
 					Value: 9.8,
 					Tags: []Tag{
 						{
@@ -491,7 +545,7 @@ foo_created  1520430000.123`, "", &Rows{
 					},
 				},
 				Value: 17,
-				Exemplar: Exemplar{
+				Exemplar: &Exemplar{
 					Value: 9.8,
 					Tags: []Tag{
 						{
@@ -517,7 +571,7 @@ foo_created  1520430000.123`, "", &Rows{
 					},
 				},
 				Value: 17,
-				Exemplar: Exemplar{
+				Exemplar: &Exemplar{
 					Value: 9.8,
 					Tags: []Tag{
 						{

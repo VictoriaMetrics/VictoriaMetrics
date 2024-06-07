@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -65,17 +65,18 @@ func stdErrLogger(s string) {
 //
 // s shouldn't be modified while rs is in use.
 func (rs *Rows) UnmarshalWithErrLogger(s string, contentType string, errLogger func(s string)) {
+	rs.Reset()
 	switch contentType {
 	case ProtoHeader:
-		rs.Rows, rs.tagsPool = unmarshalProtobuf(rs.Rows[:0], bytesutil.ToUnsafeBytes(s), rs.tagsPool[:0])
+		unmarshalProtobuf(rs, bytesutil.ToUnsafeBytes(s))
 	default:
 		noEscapes := strings.IndexByte(s, '\\') < 0
-		rs.Rows, rs.tagsPool = unmarshalTextRows(rs.Rows[:0], s, rs.tagsPool[:0], noEscapes, errLogger)
+		unmarshalTextRows(rs, s, noEscapes, errLogger)
 	}
 }
 
 const tagsPrefix = '{'
-const exemplarPreifx = '{'
+const exemplarPrefix = '{'
 
 // Row is a single Prometheus row.
 type Row struct {
@@ -83,7 +84,7 @@ type Row struct {
 	Tags      []Tag
 	Value     float64
 	Timestamp int64
-	Exemplar  Exemplar
+	Exemplar  *Exemplar
 }
 
 func (r *Row) reset() {
@@ -91,7 +92,7 @@ func (r *Row) reset() {
 	r.Tags = nil
 	r.Value = 0
 	r.Timestamp = 0
-	r.Exemplar = Exemplar{}
+	r.Exemplar = nil
 }
 
 func skipTrailingComment(s string) string {
@@ -303,7 +304,7 @@ func (e *Exemplar) unmarshalText(s string, tagsPool []Tag, noEscapes bool) ([]Ta
 	s = skipLeadingWhitespace(s)
 	// If we are a comment immediately followed by whitespace or a labelset
 	// then we are an exemplar
-	if len(s) != 0 && s[0] == exemplarPreifx {
+	if len(s) != 0 && s[0] == exemplarPrefix {
 		var err error
 		var tvt *tagsValueTimestamp
 		tagsStart := len(tagsPool)
@@ -334,53 +335,59 @@ func (r *Row) unmarshalText(s string, tagsPool []Tag, noEscapes bool) ([]Tag, er
 	if err != nil {
 		return nil, err
 	}
-	tagsPool, err = r.Exemplar.unmarshalText(comments, tagsPool, noEscapes)
+	e := &Exemplar{}
+	tagsPool, err = e.unmarshalText(comments, tagsPool, noEscapes)
 	if err != nil {
 		return nil, err
 	}
+	if e.Timestamp != nil {
+		r.Exemplar = e
+	}
+
 	return tagsPool, nil
 }
 
 var protobufRowsReadScrape = metrics.NewCounter(`vm_protoparser_rows_read_total{type="promscrape",format="PrometheusProto"}`)
 
-func appendRow(dst *[]Row, tagsPool *[]Tag, metric string, value float64, ts int64, tags []Tag) {
-	rowIndex := len(*dst)
-	if cap(*dst) > rowIndex {
-		*dst = (*dst)[:rowIndex+1]
+func appendRow(rs *Rows, metric string, value float64, ts int64, tags []Tag, exemplar *Exemplar) {
+	rowIndex := len(rs.Rows)
+	if cap(rs.Rows) > rowIndex {
+		rs.Rows = rs.Rows[:rowIndex+1]
 	} else {
-		*dst = append(*dst, Row{})
+		rs.Rows = append(rs.Rows, Row{})
 	}
-	(*dst)[rowIndex].Metric = metric
-	(*dst)[rowIndex].Value = value
-	(*dst)[rowIndex].Timestamp = ts
-	(*dst)[rowIndex].Tags = tags
-	*tagsPool = append(*tagsPool, tags...)
+	rs.Rows[rowIndex].Metric = metric
+	rs.Rows[rowIndex].Value = value
+	rs.Rows[rowIndex].Timestamp = ts
+	rs.Rows[rowIndex].Tags = tags
+	rs.Rows[rowIndex].Exemplar = exemplar
+	rs.tagsPool = append(rs.tagsPool, tags...)
 }
 
-func unmarshalProtobuf(dst []Row, s []byte, tagsPool []Tag) ([]Row, []Tag) {
-	dstLen := len(dst)
+func unmarshalProtobuf(rs *Rows, s []byte) {
+	rowsLen := len(rs.Rows)
 	var r ProtoRequest
 	if err := r.unmarshalProtobuf(s); err != nil {
-		return dst, tagsPool
+		return
 	}
 	for _, mf := range r.Families {
 		for _, m := range mf.Metrics {
 			switch mf.Type {
 			case CounterType:
-				appendRow(&dst, &tagsPool, mf.Name, m.Counter.Value, m.Timestamp, m.Tags)
+				appendRow(rs, mf.Name, m.Counter.Value, m.Timestamp, m.Tags, m.Counter.Exemplar)
 			case GaugeType:
-				appendRow(&dst, &tagsPool, mf.Name, m.Gauge.Value, m.Timestamp, m.Tags)
+				appendRow(rs, mf.Name, m.Gauge.Value, m.Timestamp, m.Tags, nil)
 			case UntypedType:
-				appendRow(&dst, &tagsPool, mf.Name, m.Untyped.Value, m.Timestamp, m.Tags)
+				appendRow(rs, mf.Name, m.Untyped.Value, m.Timestamp, m.Tags, nil)
 			case HistogramType, GaugeHistogramType:
 				sampleCount := float64(m.Histogram.SampleCount)
 				if sampleCount == 0 {
 					sampleCount = m.Histogram.SampleCountFloat
 				}
 				countMetricName := fmt.Sprintf("%s_count", mf.Name)
-				appendRow(&dst, &tagsPool, countMetricName, sampleCount, m.Timestamp, m.Tags)
+				appendRow(rs, countMetricName, sampleCount, m.Timestamp, m.Tags, nil)
 				sumMetricName := fmt.Sprintf("%s_sum", mf.Name)
-				appendRow(&dst, &tagsPool, sumMetricName, m.Histogram.SampleSum, m.Timestamp, m.Tags)
+				appendRow(rs, sumMetricName, m.Histogram.SampleSum, m.Timestamp, m.Tags, nil)
 				bucketMetricName := fmt.Sprintf("%s_bucket", mf.Name)
 				if len(m.Histogram.PositiveSpans) == 0 && len(m.Histogram.NegativeSpans) == 0 {
 					for _, b := range m.Histogram.Buckets {
@@ -388,10 +395,10 @@ func unmarshalProtobuf(dst []Row, s []byte, tagsPool []Tag) ([]Row, []Tag) {
 						if cumulativeCount == 0 {
 							cumulativeCount = b.CumulativeCountFloat
 						}
-						appendRow(&dst, &tagsPool, bucketMetricName, cumulativeCount, m.Timestamp, append(m.Tags, Tag{
+						appendRow(rs, bucketMetricName, cumulativeCount, m.Timestamp, append(m.Tags, Tag{
 							Key:   "le",
 							Value: strconv.FormatFloat(b.UpperBound, 'g', 3, 64),
-						}))
+						}), b.Exemplar)
 					}
 				} else {
 					ratio := math.Pow(2, -float64(m.Histogram.Schema))
@@ -403,10 +410,10 @@ func unmarshalProtobuf(dst []Row, s []byte, tagsPool []Tag) ([]Row, []Tag) {
 					var value float64
 
 					if m.Histogram.ZeroCount > 0 {
-						appendRow(&dst, &tagsPool, bucketMetricName, float64(m.Histogram.ZeroCount), m.Timestamp, append(m.Tags, Tag{
+						appendRow(rs, bucketMetricName, float64(m.Histogram.ZeroCount), m.Timestamp, append(m.Tags, Tag{
 							Key:   "vmrange",
 							Value: fmt.Sprintf("%0.3e...%0.3e", lowerBound, base),
-						}))
+						}), nil)
 					}
 
 					for s := range m.Histogram.PositiveSpans {
@@ -419,10 +426,10 @@ func unmarshalProtobuf(dst []Row, s []byte, tagsPool []Tag) ([]Row, []Tag) {
 							idx++
 							lowerBound = upperBound
 							upperBound *= base
-							appendRow(&dst, &tagsPool, bucketMetricName, value, m.Timestamp, append(m.Tags, Tag{
+							appendRow(rs, bucketMetricName, value, m.Timestamp, append(m.Tags, Tag{
 								Key:   "vmrange",
 								Value: fmt.Sprintf("%0.3e...%0.3e", lowerBound, upperBound),
-							}))
+							}), nil)
 						}
 					}
 
@@ -440,82 +447,79 @@ func unmarshalProtobuf(dst []Row, s []byte, tagsPool []Tag) ([]Row, []Tag) {
 							idx++
 							upperBound = lowerBound
 							lowerBound /= ratio
-							appendRow(&dst, &tagsPool, bucketMetricName, value, m.Timestamp, append(m.Tags, Tag{
+							appendRow(rs, bucketMetricName, value, m.Timestamp, append(m.Tags, Tag{
 								Key:   "vmrange",
 								Value: fmt.Sprintf("%0.3e...%0.3e", lowerBound, upperBound),
-							}))
+							}), nil)
 
 						}
 					}
 				}
 			case SummaryType:
 				for _, q := range m.Summary.Quantiles {
-					appendRow(&dst, &tagsPool, mf.Name, q.Value, m.Timestamp, append(m.Tags, Tag{
+					appendRow(rs, mf.Name, q.Value, m.Timestamp, append(m.Tags, Tag{
 						Key:   "quantile",
 						Value: strconv.FormatFloat(q.Quantile, 'g', 3, 64),
-					}))
+					}), nil)
 				}
 				countMetricName := fmt.Sprintf("%s_count", mf.Name)
 				sampleCount := float64(m.Summary.SampleCount)
-				appendRow(&dst, &tagsPool, countMetricName, sampleCount, m.Timestamp, m.Tags)
+				appendRow(rs, countMetricName, sampleCount, m.Timestamp, m.Tags, nil)
 				sumMetricName := fmt.Sprintf("%s_sum", mf.Name)
 				sampleSum := m.Summary.SampleSum
-				appendRow(&dst, &tagsPool, sumMetricName, sampleSum, m.Timestamp, m.Tags)
+				appendRow(rs, sumMetricName, sampleSum, m.Timestamp, m.Tags, nil)
 			}
 		}
 	}
-	protobufRowsReadScrape.Add(len(dst) - dstLen)
-	return dst, tagsPool
+	protobufRowsReadScrape.Add(len(rs.Rows) - rowsLen)
 }
 
 var textRowsReadScrape = metrics.NewCounter(`vm_protoparser_rows_read_total{type="promscrape",format="PrometheusText"}`)
 
-func unmarshalTextRows(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger func(s string)) ([]Row, []Tag) {
-	dstLen := len(dst)
+func unmarshalTextRows(rs *Rows, s string, noEscapes bool, errLogger func(s string)) {
+	rowsLen := len(rs.Rows)
 	for len(s) > 0 {
 		n := strings.IndexByte(s, '\n')
 		if n < 0 {
 			// The last line.
-			dst, tagsPool = unmarshalTextRow(dst, s, tagsPool, noEscapes, errLogger)
+			unmarshalTextRow(rs, s, noEscapes, errLogger)
 			break
 		}
-		dst, tagsPool = unmarshalTextRow(dst, s[:n], tagsPool, noEscapes, errLogger)
+		unmarshalTextRow(rs, s[:n], noEscapes, errLogger)
 		s = s[n+1:]
 	}
-	textRowsReadScrape.Add(len(dst) - dstLen)
-	return dst, tagsPool
+	textRowsReadScrape.Add(len(rs.Rows) - rowsLen)
 }
 
-func unmarshalTextRow(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger func(s string)) ([]Row, []Tag) {
+func unmarshalTextRow(rs *Rows, s string, noEscapes bool, errLogger func(s string)) {
 	if len(s) > 0 && s[len(s)-1] == '\r' {
 		s = s[:len(s)-1]
 	}
 	s = skipLeadingWhitespace(s)
 	if len(s) == 0 {
 		// Skip empty line
-		return dst, tagsPool
+		return
 	}
 	if s[0] == '#' {
 		// Skip comment
-		return dst, tagsPool
+		return
 	}
-	if cap(dst) > len(dst) {
-		dst = dst[:len(dst)+1]
+	if cap(rs.Rows) > len(rs.Rows) {
+		rs.Rows = rs.Rows[:len(rs.Rows)+1]
 	} else {
-		dst = append(dst, Row{})
+		rs.Rows = append(rs.Rows, Row{})
 	}
-	r := &dst[len(dst)-1]
+	r := &rs.Rows[len(rs.Rows)-1]
 	var err error
-	tagsPool, err = r.unmarshalText(s, tagsPool, noEscapes)
+	rs.tagsPool, err = r.unmarshalText(s, rs.tagsPool, noEscapes)
 	if err != nil {
-		dst = dst[:len(dst)-1]
+		rs.Rows = rs.Rows[:len(rs.Rows)-1]
 		if errLogger != nil {
 			msg := fmt.Sprintf("cannot unmarshal Prometheus line %q: %s", s, err)
 			errLogger(msg)
 		}
 		invalidLines.Inc()
 	}
-	return dst, tagsPool
 }
 
 var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="prometheus"}`)
@@ -682,108 +686,235 @@ func prevBackslashesCount(s string) int {
 // GetRowsDiff returns rows from s1, which are missing in s2.
 //
 // The returned rows have default value 0 and have no timestamps.
-func GetRowsDiff(s1, s2 string) string {
-	li1 := getLinesIterator()
-	li2 := getLinesIterator()
+func GetRowsDiff(s1, s2 string, isBinary bool) (string, int) {
+	si1 := getSeriesIterator(isBinary)
+	si2 := getSeriesIterator(isBinary)
 	defer func() {
-		putLinesIterator(li1)
-		putLinesIterator(li2)
+		putSeriesIterator(si1)
+		putSeriesIterator(si2)
 	}()
-	li1.Init(s1)
-	li2.Init(s2)
-	if !li1.NextKey() {
-		return ""
+	si1.init(s1)
+	si2.init(s2)
+	var count int
+	if !si1.nextItem() {
+		return "", count
 	}
 	var diff []byte
-	if !li2.NextKey() {
-		diff = appendKeys(diff, li1)
-		return string(diff)
+	if !si2.nextItem() {
+		diff, count = appendItems(diff, si1, count)
+		return string(diff), count
 	}
 	for {
-		switch bytes.Compare(li1.Key, li2.Key) {
+		switch bytes.Compare(si1.key(), si2.key()) {
 		case -1:
-			diff = appendKey(diff, li1.Key)
-			if !li1.NextKey() {
-				return string(diff)
+			count++
+			diff = si1.append(diff)
+			if !si1.nextItem() {
+				diff = si1.append(diff)
+				return string(diff), count
 			}
 		case 0:
-			if !li1.NextKey() {
-				return string(diff)
+			si1.remove()
+			if !si1.nextItem() {
+				diff = si1.append(diff)
+				return string(diff), count
 			}
-			if !li2.NextKey() {
-				diff = appendKeys(diff, li1)
-				return string(diff)
+			if !si2.nextItem() {
+				diff, count = appendItems(diff, si1, count)
+				return string(diff), count
 			}
 		case 1:
-			if !li2.NextKey() {
-				diff = appendKeys(diff, li1)
-				return string(diff)
+			if !si2.nextItem() {
+				diff, count = appendItems(diff, si1, count)
+				return string(diff), count
 			}
 		}
 	}
 }
 
-type linesIterator struct {
-	rows     []Row
-	a        []string
-	tagsPool []Tag
-
-	// Key contains the next key after NextKey call
-	Key []byte
-}
-
-var linesIteratorPool sync.Pool
-
-func getLinesIterator() *linesIterator {
-	v := linesIteratorPool.Get()
-	if v == nil {
-		return &linesIterator{}
-	}
-	return v.(*linesIterator)
-}
-
-func putLinesIterator(li *linesIterator) {
-	li.a = nil
-	linesIteratorPool.Put(li)
-}
-
-func (li *linesIterator) Init(s string) {
-	a := strings.Split(s, "\n")
-	sort.Strings(a)
-	li.a = a
-}
-
-// NextKey advances to the next key in li.
-//
-// It returns true if the next key is found and Key is successfully updated.
-func (li *linesIterator) NextKey() bool {
+func appendItems(dst []byte, si seriesIterator, count int) ([]byte, int) {
 	for {
-		if len(li.a) == 0 {
+		dst = si.append(dst)
+		count++
+		if !si.nextItem() {
+			dst = si.append(dst)
+			return dst, count
+		}
+	}
+}
+
+type seriesIterator interface {
+	key() []byte
+	nextItem() bool
+	init(string)
+	append([]byte) []byte
+	remove()
+}
+
+type textSeriesIterator struct {
+	rs Rows
+	a  []string
+
+	// k contains the next key after nextItem call
+	k []byte
+}
+
+func (si *textSeriesIterator) init(s string) {
+	a := strings.Split(s, "\n")
+	slices.Sort(a)
+	si.a = a
+}
+
+func (si *textSeriesIterator) key() []byte {
+	return si.k
+}
+
+// nextItem advances to the next item in si.
+//
+// It returns true if the next item is found and key is successfully updated.
+func (si *textSeriesIterator) nextItem() bool {
+	for {
+		// Do not log errors here, since they will be logged during the real data parsing later.
+		if len(si.a) == 0 {
 			return false
 		}
-		// Do not log errors here, since they will be logged during the real data parsing later.
-		li.rows, li.tagsPool = unmarshalTextRow(li.rows[:0], li.a[0], li.tagsPool[:0], false, nil)
-		li.a = li.a[1:]
-		if len(li.rows) > 0 {
-			li.Key = marshalMetricNameWithTags(li.Key[:0], &li.rows[0])
+		si.rs.Reset()
+		unmarshalTextRow(&si.rs, si.a[0], false, nil)
+		si.a = si.a[1:]
+		if len(si.rs.Rows) > 0 {
+			si.k = marshalMetricNameWithTags(si.k[:0], &si.rs.Rows[0])
 			return true
 		}
 	}
 }
 
-func appendKey(dst, key []byte) []byte {
-	dst = append(dst, key...)
-	dst = append(dst, " 0\n"...)
+func (si *textSeriesIterator) remove() {
+	si.k = si.k[:0]
+}
+
+func (si *textSeriesIterator) append(dst []byte) []byte {
+	if len(si.k) == 0 {
+		return dst
+	}
+	dst = slices.Concat(dst, si.k, []byte(" 0\n"))
+	si.k = si.k[:0]
 	return dst
 }
 
-func appendKeys(dst []byte, li *linesIterator) []byte {
+type binarySeriesIterator struct {
+	buf  []byte
+	rows []Row
+	a    [][]byte
+	f    *MetricFamily
+
+	// k contains the next key after nextItem call
+	k []byte
+}
+
+func (si *binarySeriesIterator) init(s string) {
+	err := protobufRange(bytesutil.ToUnsafeBytes(s), func(dst []byte) error {
+		si.a = append(si.a, dst)
+		return nil
+	})
+	if err != nil {
+		logger.Fatalf("bug: unexpected error: %s", err)
+	}
+}
+
+func (si *binarySeriesIterator) key() []byte {
+	return si.k
+}
+
+// nextItem advances to the next item in si.
+//
+// It returns true if the next item is found and key is successfully updated.
+func (si *binarySeriesIterator) nextItem() bool {
 	for {
-		dst = appendKey(dst, li.Key)
-		if !li.NextKey() {
-			return dst
+		if len(si.rows) == 0 {
+			if si.f != nil {
+				if len(si.f.Metrics) > 0 {
+					m := mp.Get()
+					defer mp.Put(m)
+					mm := m.MessageMarshaler()
+					si.f.marshalProtobuf(mm)
+					si.buf = m.MarshalWithLen(si.buf)
+				}
+			} else {
+				si.f = &MetricFamily{}
+			}
+			// Do not log errors here, since they will be logged during the real data parsing later.
+			if len(si.a) == 0 {
+				return false
+			}
+			if err := si.f.unmarshalProtobuf(si.a[0], true); err != nil {
+				logger.Fatalf("bug: unexpected error: %s", err)
+			}
+			si.rows = si.f.getRows()
+			si.a = si.a[1:]
+		}
+		if len(si.rows) > 0 {
+			si.k = marshalMetricNameWithTags(si.k[:0], &si.rows[0])
+			si.rows = si.rows[1:]
+			return true
 		}
 	}
+}
+
+func (si *binarySeriesIterator) append(dst []byte) []byte {
+	if len(si.buf) == 0 || si.f == nil {
+		return dst
+	}
+	dst = append(dst, si.buf...)
+	si.buf = si.buf[:0]
+	return dst
+}
+
+func (si *binarySeriesIterator) remove() {
+	i := len(si.f.Metrics) - len(si.rows) - 1
+	si.f.Metrics = append(si.f.Metrics[:i], si.f.Metrics[i+1:]...)
+}
+
+var binarySeriesIteratorPool, textSeriesIteratorPool sync.Pool
+
+func getSeriesIterator(isBinary bool) seriesIterator {
+	if isBinary {
+		v := binarySeriesIteratorPool.Get()
+		if v == nil {
+			return &binarySeriesIterator{}
+		}
+		return v.(*binarySeriesIterator)
+	}
+	v := textSeriesIteratorPool.Get()
+	if v == nil {
+		return &textSeriesIterator{}
+	}
+	return v.(*textSeriesIterator)
+}
+
+func putSeriesIterator(si seriesIterator) {
+	switch i := si.(type) {
+	case *binarySeriesIterator:
+		putBinarySeriesIterator(i)
+	case *textSeriesIterator:
+		putTextSeriesIterator(i)
+	}
+}
+
+func putTextSeriesIterator(si *textSeriesIterator) {
+	si.a = nil
+	si.k = si.k[:0]
+	textSeriesIteratorPool.Put(si)
+}
+
+func putBinarySeriesIterator(si *binarySeriesIterator) {
+	si.a = nil
+	si.k = si.k[:0]
+	si.buf = si.buf[:0]
+	if si.f != nil {
+		clear(si.f.Metrics)
+		si.f.Metrics = si.f.Metrics[:0]
+	}
+	binarySeriesIteratorPool.Put(si)
 }
 
 func marshalMetricNameWithTags(dst []byte, r *Row) []byte {
@@ -805,10 +936,10 @@ func marshalMetricNameWithTags(dst []byte, r *Row) []byte {
 	return dst
 }
 
-// AreIdenticalSeriesFast returns true if s1 and s2 contains identical Prometheus series with possible different values.
+// AreIdenticalTextSeriesFast returns true if s1 and s2 contains identical Prometheus series with possible different values.
 //
 // This function is optimized for speed.
-func AreIdenticalSeriesFast(s1, s2 string) bool {
+func AreIdenticalTextSeriesFast(s1, s2 string) bool {
 	for {
 		if len(s1) == 0 {
 			// The last byte on the line reached.
