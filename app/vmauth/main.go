@@ -177,6 +177,8 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	<-concurrencyLimitCh
 }
 
+var bufPool sync.Pool
+
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	u := normalizeURL(r.URL)
 	up, hc := ui.getURLPrefixAndHeaders(u, r.Header)
@@ -200,8 +202,23 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	}
 	maxAttempts := up.getBackendsCount()
 	if maxAttempts > 1 {
-		r.Body = &readTrackingBody{
-			r: r.Body,
+		if r.ContentLength <= int64(maxRequestBodySizeToRetry.IntN()) {
+			bufReader := bufPool.Get()
+			if bufReader == nil {
+				bufReader = &readTrackingBody{}
+			}
+			br := bufReader.(*readTrackingBody)
+			if r.ContentLength > 0 {
+				br.buf = bytesutil.ResizeNoCopyMayOverallocate(br.buf, int(r.ContentLength))[:0]
+			} else {
+				br.buf = bytesutil.ResizeNoCopyMayOverallocate(br.buf, 1024)[:0]
+			}
+			br.r = r.Body
+			r.Body = br
+			defer func() {
+				_ = br.Reset()
+				bufPool.Put(br)
+			}()
 		}
 	}
 	for i := 0; i < maxAttempts; i++ {
@@ -494,9 +511,6 @@ type readTrackingBody struct {
 	// bufComplete is set to true when buf contains complete request body read from r.
 	bufComplete bool
 
-	// needReadBuf is set to true when Read() must be performed from buf instead of r.
-	needReadBuf bool
-
 	// offset is an offset at buf for the next data read if needReadBuf is set to true.
 	offset int
 }
@@ -504,50 +518,63 @@ type readTrackingBody struct {
 // Read implements io.Reader interface
 // tracks body reading requests
 func (rtb *readTrackingBody) Read(p []byte) (int, error) {
-	if rtb.needReadBuf {
-		if rtb.offset >= len(rtb.buf) {
-			return 0, io.EOF
+	if rtb.offset < len(rtb.buf) {
+		if rtb.cannotRetry {
+			return 0, fmt.Errorf("cannot retry reading data from buf")
 		}
-		n := copy(p, rtb.buf[rtb.offset:])
-		rtb.offset += n
-		return n, nil
+		nb := copy(p, rtb.buf[rtb.offset:])
+		rtb.offset += nb
+		if rtb.bufComplete {
+			if rtb.offset == len(rtb.buf) {
+				return nb, io.EOF
+			}
+			return nb, nil
+		}
+		if nb < len(p) {
+			nr, err := rtb.readFromStream(p[nb:])
+			if err != nil {
+				return 0, err
+			}
+			return nb + nr, err
+		}
+		return nb, nil
 	}
+	if rtb.bufComplete {
+		return 0, io.EOF
+	}
+	return rtb.readFromStream(p)
+}
 
+func (rtb *readTrackingBody) readFromStream(p []byte) (int, error) {
 	if rtb.r == nil {
 		return 0, fmt.Errorf("cannot read data after closing the reader")
 	}
-
 	n, err := rtb.r.Read(p)
+	if rtb.offset+n > maxRequestBodySizeToRetry.IntN() {
+		rtb.cannotRetry = true
+	}
 	if rtb.cannotRetry {
 		return n, err
 	}
-	if len(rtb.buf)+n > maxRequestBodySizeToRetry.IntN() {
-		rtb.cannotRetry = true
-		return n, err
+	if n > 0 {
+		rtb.offset += n
+		rtb.buf = append(rtb.buf, p[:n]...)
 	}
-	rtb.buf = append(rtb.buf, p[:n]...)
 	if err == io.EOF {
 		rtb.bufComplete = true
+	} else if err != nil {
+		rtb.cannotRetry = true
 	}
 	return n, err
 }
 
 func (rtb *readTrackingBody) canRetry() bool {
-	if rtb.cannotRetry {
-		return false
-	}
-	if len(rtb.buf) > 0 && !rtb.needReadBuf {
-		return false
-	}
-	return true
+	return !rtb.cannotRetry
 }
 
 // Close implements io.Closer interface.
 func (rtb *readTrackingBody) Close() error {
 	rtb.offset = 0
-	if rtb.bufComplete {
-		rtb.needReadBuf = true
-	}
 
 	// Close rtb.r only if the request body is completely read or if it is too big.
 	// http.Roundtrip performs body.Close call even without any Read calls,
@@ -561,5 +588,16 @@ func (rtb *readTrackingBody) Close() error {
 		return err
 	}
 
+	return nil
+}
+
+func (rtb *readTrackingBody) Reset() error {
+	if rtb.r != nil {
+		_ = rtb.r.Close()
+	}
+	rtb.r = nil
+	rtb.offset = 0
+	rtb.cannotRetry = false
+	rtb.bufComplete = false
 	return nil
 }
