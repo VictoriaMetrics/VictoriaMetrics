@@ -33,7 +33,7 @@ type ClientCertProvider = func(*tls.CertificateRequestInfo) (*tls.Certificate, e
 
 // Options used to configure a [net/http.Client] from [NewClient].
 type Options struct {
-	// DisableTelemetry disables default telemetry (OpenCensus). An example
+	// DisableTelemetry disables default telemetry (OpenTelemetry). An example
 	// reason to do so would be to bind custom telemetry that overrides the
 	// defaults.
 	DisableTelemetry bool
@@ -152,7 +152,14 @@ func AddAuthorizationMiddleware(client *http.Client, creds *auth.Credentials) er
 	}
 	base := client.Transport
 	if base == nil {
-		base = http.DefaultTransport.(*http.Transport).Clone()
+		if dt, ok := http.DefaultTransport.(*http.Transport); ok {
+			base = dt.Clone()
+		} else {
+			// Directly reuse the DefaultTransport if the application has
+			// replaced it with an implementation of RoundTripper other than
+			// http.Transport.
+			base = http.DefaultTransport
+		}
 	}
 	client.Transport = &authTransport{
 		creds: creds,
