@@ -1,7 +1,6 @@
 package streamaggr
 
 import (
-	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -42,7 +41,8 @@ func (as *countSeriesAggrState) pushSamples(samples []pushSample) {
 					h: {},
 				},
 			}
-			vNew, loaded := as.m.LoadOrStore(strings.Clone(outputKey), v)
+			outputKey = bytesutil.InternString(outputKey)
+			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if !loaded {
 				// The entry has been added to the map.
 				continue

@@ -2,10 +2,10 @@ package streamaggr
 
 import (
 	"math"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
@@ -81,7 +81,8 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 			v = &totalStateValue{
 				lastValues: make(map[string]totalLastValueState),
 			}
-			vNew, loaded := as.m.LoadOrStore(strings.Clone(outputKey), v)
+			outputKey = bytesutil.InternString(outputKey)
+			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if loaded {
 				// Use the entry created by a concurrent goroutine.
 				v = vNew
@@ -109,9 +110,8 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 			lv.value = s.value
 			lv.timestamp = s.timestamp
 			lv.deleteDeadline = deleteDeadline
-			if !ok {
-				inputKey = strings.Clone(inputKey)
-			}
+
+			inputKey = bytesutil.InternString(inputKey)
 			sv.lastValues[inputKey] = lv
 			sv.deleteDeadline = deleteDeadline
 		}
