@@ -91,10 +91,11 @@ func cloneLabel(label prompbmarshal.Label) prompbmarshal.Label {
 //
 // It is safe calling Decompress from concurrent goroutines.
 func (lc *LabelsCompressor) Decompress(dst []prompbmarshal.Label, src []byte) []prompbmarshal.Label {
-	tail, labelsLen, err := encoding.UnmarshalVarUint64(src)
-	if err != nil {
-		logger.Panicf("BUG: cannot unmarshal labels length: %s", err)
+	labelsLen, nSize := encoding.UnmarshalVarUint64(src)
+	if nSize <= 0 {
+		logger.Panicf("BUG: cannot unmarshal labels length from uvarint")
 	}
+	tail := src[nSize:]
 	if labelsLen == 0 {
 		// fast path - nothing to decode
 		if len(tail) > 0 {
@@ -104,6 +105,7 @@ func (lc *LabelsCompressor) Decompress(dst []prompbmarshal.Label, src []byte) []
 	}
 
 	a := encoding.GetUint64s(int(labelsLen))
+	var err error
 	tail, err = encoding.UnmarshalVarUint64s(a.A, tail)
 	if err != nil {
 		logger.Panicf("BUG: cannot unmarshal label indexes: %s", err)

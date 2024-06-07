@@ -164,7 +164,7 @@ Released: 2023-02-04
 - FEATURE: With arg `--watch` watches for config(s) changes and reloads the service automatically.
 - IMPROVEMENT: Remove "provide_series" from HoltWinters model. Only Prophet model now has it, because it may produce a lot of series if "holidays" is on.
 - IMPROVEMENT: if Prophet's "provide_series" is omitted, then all series are returned.
-- DEPRECATION: Config monitoring.endpount_url is deprecated in favor of monitoring.url.
+- DEPRECATION: Config monitoring.endpoint_url is deprecated in favor of monitoring.url.
 - DEPRECATION: Remove 'enable' param from config monitoring.pull. Now /metrics server is started whenever monitoring.pull is present.
 - IMPROVEMENT: include example configs into the docker image at /vmanomaly/config/*
 - IMPROVEMENT: include self-monitoring grafana dashboard into the docker image under /vmanomaly/dashboard/vmanomaly_grafana_dashboard.json

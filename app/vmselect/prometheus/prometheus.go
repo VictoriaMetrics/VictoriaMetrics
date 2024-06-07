@@ -61,7 +61,7 @@ var (
 		"See also -search.maxResponseSeries")
 	ignoreExtraFiltersAtLabelsAPI = flag.Bool("search.ignoreExtraFiltersAtLabelsAPI", false, "Whether to ignore match[], extra_filters[] and extra_label query args at "+
 		"/api/v1/labels and /api/v1/label/.../values . This may be useful for decreasing load on VictoriaMetrics when extra filters "+
-		"match too many time series. The downside is that suprflouos labels or series could be returned, which do not match the extra filters. "+
+		"match too many time series. The downside is that superfluous labels or series could be returned, which do not match the extra filters. "+
 		"See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration")
 )
 
@@ -1113,7 +1113,7 @@ func (cp *commonParams) IsDefaultTimeRange() bool {
 	return cp.start == 0 && cp.currentTimestamp-cp.end < 1000
 }
 
-// getCommonParams obtains common params from r, which are used in /api/v1/export* handlers
+// getExportParams obtains common params from r, which are used in /api/v1/export* handlers
 //
 // - timeout
 // - start

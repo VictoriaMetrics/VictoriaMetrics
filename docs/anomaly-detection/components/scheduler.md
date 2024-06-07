@@ -376,8 +376,8 @@ In `BacktestingScheduler`, the inference window is *implicitly* defined as a per
 ```yaml
 scheduler:
  class: "scheduler.backtesting.BacktestingScheduler"
- from_start_iso: '2021-01-01T00:00:00Z'
- to_end_iso: '2021-01-14T00:00:00Z'
+ from_iso: '2021-01-01T00:00:00Z'
+ to_iso: '2021-01-14T00:00:00Z'
  fit_window: 'P14D'
  fit_every: 'PT1H'
 ```
@@ -386,8 +386,8 @@ scheduler:
 ```yaml
 scheduler:
  class: "scheduler.backtesting.BacktestingScheduler"
- from_start_s: 167253120
- to_end_s: 167443200
+ from_s: 167253120
+ to_s: 167443200
  fit_window: '14d'
  fit_every: '1h'
 ```

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 func TestGetPutConcurrent(t *testing.T) {
@@ -19,7 +21,7 @@ func TestGetPutConcurrent(t *testing.T) {
 				if capacity < 0 {
 					capacity = 0
 				}
-				bb.B = append(bb.B, make([]byte, capacity)...)
+				bb.B = slicesutil.SetLength(bb.B, len(bb.B)+capacity)
 				Put(bb)
 			}
 			doneCh <- struct{}{}

@@ -34,7 +34,7 @@ function submitRelabelDebugForm(e) {
 <body>
     {%= htmlcomponents.Navbar() %}
     <div class="container-fluid">
-        <a href="https://docs.victoriametrics.com/relabeling.html" target="_blank">Relabeling docs</a>{% space %}
+        <a href="https://docs.victoriametrics.com/relabeling/" target="_blank">Relabeling docs</a>{% space %}
 
         {% if targetURL != "" %}
           <a href="metric-relabel-debug{% if targetID != "" %}?id={%s targetID %}{% endif %}">Metric relabel debug</a>

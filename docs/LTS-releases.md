@@ -19,9 +19,9 @@ for the migration to new LTS lines for [VictoriaMetrics Enterprise](https://docs
 
 All the bugfixes and security fixes, which are included in LTS releases, are also available in [the latest release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest),
 so non-enterprise users are advised to regularly [upgrade](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics) VictoriaMetrics products
-to [the latest available releases](https://docs.victoriametrics.com/CHANGELOG.html).
+to [the latest available releases](https://docs.victoriametrics.com/changelog/).
 
 ## Currently supported LTS release lines
 
-- 1.97.x - the latest one is [v1.97.3 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.3)
-- 1.93.x - the latest one is [v1.93.13 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.13)
+- 1.97.x - the latest one is [v1.97.4 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.4)
+- 1.93.x - the latest one is [v1.93.14 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.14)

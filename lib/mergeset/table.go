@@ -57,7 +57,7 @@ var dataFlushInterval = 5 * time.Second
 //
 // This function must be called before initializing the indexdb.
 func SetDataFlushInterval(d time.Duration) {
-	if d > pendingItemsFlushInterval {
+	if d >= time.Second {
 		dataFlushInterval = d
 	}
 }
@@ -167,7 +167,7 @@ var rawItemsShardsPerTable = func() int {
 	return cpus * multiplier
 }()
 
-const maxBlocksPerShard = 256
+var maxBlocksPerShard = 256
 
 func (riss *rawItemsShards) init() {
 	riss.shards = make([]rawItemsShard, rawItemsShardsPerTable)
@@ -198,7 +198,7 @@ func (riss *rawItemsShards) addIbsToFlush(tb *Table, ibsToFlush []*inmemoryBlock
 	}
 	riss.ibsToFlush = append(riss.ibsToFlush, ibsToFlush...)
 	if len(riss.ibsToFlush) >= maxBlocksPerShard*cgroup.AvailableCPUs() {
-		ibsToMerge = ibsToFlush
+		ibsToMerge = riss.ibsToFlush
 		riss.ibsToFlush = nil
 	}
 	riss.ibsToFlushLock.Unlock()
@@ -276,7 +276,8 @@ func (ris *rawItemsShard) addItems(items [][]byte) ([][]byte, []*inmemoryBlock) 
 		if len(itemPrefix) > 128 {
 			itemPrefix = itemPrefix[:128]
 		}
-		tooLongItemLogger.Errorf("skipping adding too long item to indexdb: len(item)=%d; it souldn't exceed %d bytes; item prefix=%q", len(item), maxInmemoryBlockSize, itemPrefix)
+		tooLongItemsTotal.Add(1)
+		tooLongItemLogger.Errorf("skipping adding too long item to indexdb: len(item)=%d; it shouldn't exceed %d bytes; item prefix=%q", len(item), maxInmemoryBlockSize, itemPrefix)
 	}
 	ris.ibs = ibs
 	ris.mu.Unlock()
@@ -289,6 +290,8 @@ func (ris *rawItemsShard) updateFlushDeadline() {
 }
 
 var tooLongItemLogger = logger.WithThrottler("tooLongItem", 5*time.Second)
+
+var tooLongItemsTotal atomic.Uint64
 
 type partWrapper struct {
 	// refCount is the number of references to partWrapper
@@ -575,6 +578,8 @@ type TableMetrics struct {
 	IndexBlocksCacheMisses       uint64
 
 	PartsRefCount uint64
+
+	TooLongItemsDroppedTotal uint64
 }
 
 // TotalItemsCount returns the total number of items in the table.
@@ -632,6 +637,8 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 	m.IndexBlocksCacheSizeMaxBytes = uint64(idxbCache.SizeMaxBytes())
 	m.IndexBlocksCacheRequests = idxbCache.Requests()
 	m.IndexBlocksCacheMisses = idxbCache.Misses()
+
+	m.TooLongItemsDroppedTotal += tooLongItemsTotal.Load()
 }
 
 // AddItems adds the given items to the tb.
@@ -1471,7 +1478,8 @@ func mustOpenParts(path string) []*partWrapper {
 	fs.MustRemoveAll(filepath.Join(path, "txn"))
 	fs.MustRemoveAll(filepath.Join(path, "tmp"))
 
-	partNames := mustReadPartNames(path)
+	partsFile := filepath.Join(path, partsFilename)
+	partNames := mustReadPartNames(partsFile, path)
 
 	// Remove dirs missing in partNames. These dirs may be left after unclean shutdown
 	// or after the update from versions prior to v1.90.0.
@@ -1484,7 +1492,6 @@ func mustOpenParts(path string) []*partWrapper {
 		// including unclean shutdown.
 		partPath := filepath.Join(path, partName)
 		if !fs.IsPathExist(partPath) {
-			partsFile := filepath.Join(path, partsFilename)
 			logger.Panicf("FATAL: part %q is listed in %q, but is missing on disk; "+
 				"ensure %q contents is not corrupted; remove %q to rebuild its' content from the list of existing parts",
 				partPath, partsFile, partsFile, partsFile)
@@ -1500,6 +1507,7 @@ func mustOpenParts(path string) []*partWrapper {
 		fn := de.Name()
 		if _, ok := m[fn]; !ok {
 			deletePath := filepath.Join(path, fn)
+			logger.Infof("deleting %q because it isn't listed in %q; this is the expected case after unclean shutdown", deletePath, partsFile)
 			fs.MustRemoveAll(deletePath)
 		}
 	}
@@ -1516,8 +1524,7 @@ func mustOpenParts(path string) []*partWrapper {
 		pw.incRef()
 		pws = append(pws, pw)
 	}
-	partNamesPath := filepath.Join(path, partsFilename)
-	if !fs.IsPathExist(partNamesPath) {
+	if !fs.IsPathExist(partsFile) {
 		// Create parts.json file if it doesn't exist yet.
 		// This should protect from possible carshloops just after the migration from versions below v1.90.0
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4336
@@ -1595,20 +1602,19 @@ func mustWritePartNames(pws []*partWrapper, dstDir string) {
 	if err != nil {
 		logger.Panicf("BUG: cannot marshal partNames to JSON: %s", err)
 	}
-	partNamesPath := filepath.Join(dstDir, partsFilename)
-	fs.MustWriteAtomic(partNamesPath, data, true)
+	partsFile := filepath.Join(dstDir, partsFilename)
+	fs.MustWriteAtomic(partsFile, data, true)
 }
 
-func mustReadPartNames(srcDir string) []string {
-	partNamesPath := filepath.Join(srcDir, partsFilename)
-	if fs.IsPathExist(partNamesPath) {
-		data, err := os.ReadFile(partNamesPath)
+func mustReadPartNames(partsFile, srcDir string) []string {
+	if fs.IsPathExist(partsFile) {
+		data, err := os.ReadFile(partsFile)
 		if err != nil {
-			logger.Panicf("FATAL: cannot read %s file: %s", partsFilename, err)
+			logger.Panicf("FATAL: cannot read %q: %s", partsFile, err)
 		}
 		var partNames []string
 		if err := json.Unmarshal(data, &partNames); err != nil {
-			logger.Panicf("FATAL: cannot parse %s: %s", partNamesPath, err)
+			logger.Panicf("FATAL: cannot parse %q: %s", partsFile, err)
 		}
 		return partNames
 	}

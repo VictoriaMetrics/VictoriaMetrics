@@ -13,7 +13,7 @@ aliases:
 
 # Monitoring
 
-There are 2 models to monitor VictoriaMetrics Anomaly Detection behavior - [push](https://docs.victoriametrics.com/keyConcepts.html#push-model) and [pull](https://docs.victoriametrics.com/keyConcepts.html#pull-model). Parameters for each of them should be specified in the config file, `monitoring` section.
+There are 2 models to monitor VictoriaMetrics Anomaly Detection behavior - [push](https://docs.victoriametrics.com/keyconcepts/#push-model) and [pull](https://docs.victoriametrics.com/keyconcepts/#pull-model). Parameters for each of them should be specified in the config file, `monitoring` section.
 
 ## Pull Model Config parameters
 

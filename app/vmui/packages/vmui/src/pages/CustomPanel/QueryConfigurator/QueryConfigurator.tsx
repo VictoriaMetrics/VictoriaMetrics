@@ -24,14 +24,22 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import { QueryStats } from "../../../api/types";
 import { usePrettifyQuery } from "./hooks/usePrettifyQuery";
 import QueryHistory from "../QueryHistory/QueryHistory";
+import AnomalyConfig from "../../../components/ExploreAnomaly/AnomalyConfig";
 
 export interface QueryConfiguratorProps {
   queryErrors: string[];
   setQueryErrors: StateUpdater<string[]>;
   setHideError: StateUpdater<boolean>;
   stats: QueryStats[];
-  onHideQuery: (queries: number[]) => void
-  onRunQuery: () => void
+  onHideQuery?: (queries: number[]) => void
+  onRunQuery: () => void;
+  hideButtons?: {
+    addQuery?: boolean;
+    prettify?: boolean;
+    autocomplete?: boolean;
+    traceQuery?: boolean;
+    anomalyConfig?: boolean;
+  }
 }
 
 const QueryConfigurator: FC<QueryConfiguratorProps> = ({
@@ -40,7 +48,8 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   setHideError,
   stats,
   onHideQuery,
-  onRunQuery
+  onRunQuery,
+  hideButtons
 }) => {
 
   const { isMobile } = useDeviceDetect();
@@ -159,7 +168,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   }, [stateQuery]);
 
   useEffect(() => {
-    onHideQuery(hideQuery);
+    onHideQuery && onHideQuery(hideQuery);
   }, [hideQuery]);
 
   useEffect(() => {
@@ -168,6 +177,10 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
       setAwaitStateQuery(false);
     }
   }, [stateQuery, awaitStateQuery]);
+
+  useEffect(() => {
+    setStateQuery(query || []);
+  }, [query]);
 
   return <div
     className={classNames({
@@ -188,40 +201,43 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
         >
           <QueryEditor
             value={stateQuery[i]}
-            autocomplete={autocomplete || autocompleteQuick}
+            autocomplete={!hideButtons?.autocomplete && (autocomplete || autocompleteQuick)}
             error={queryErrors[i]}
             stats={stats[i]}
             onArrowUp={createHandlerArrow(-1, i)}
             onArrowDown={createHandlerArrow(1, i)}
             onEnter={handleRunQuery}
             onChange={createHandlerChangeQuery(i)}
-            label={`Query ${i + 1}`}
+            label={`Query ${stateQuery.length > 1 ? i + 1 : ""}`}
             disabled={hideQuery.includes(i)}
           />
-          <Tooltip title={hideQuery.includes(i) ? "Enable query" : "Disable query"}>
-            <div className="vm-query-configurator-list-row__button">
-              <Button
-                variant={"text"}
-                color={"gray"}
-                startIcon={hideQuery.includes(i) ? <VisibilityOffIcon/> : <VisibilityIcon/>}
-                onClick={createHandlerHideQuery(i)}
-                ariaLabel="visibility query"
-              />
-            </div>
-          </Tooltip>
+          {onHideQuery && (
+            <Tooltip title={hideQuery.includes(i) ? "Enable query" : "Disable query"}>
+              <div className="vm-query-configurator-list-row__button">
+                <Button
+                  variant={"text"}
+                  color={"gray"}
+                  startIcon={hideQuery.includes(i) ? <VisibilityOffIcon/> : <VisibilityIcon/>}
+                  onClick={createHandlerHideQuery(i)}
+                  ariaLabel="visibility query"
+                />
+              </div>
+            </Tooltip>
+          )}
 
-          <Tooltip title={"Prettify query"}>
-            <div className="vm-query-configurator-list-row__button">
-              <Button
-                variant={"text"}
-                color={"gray"}
-                startIcon={<Prettify/>}
-                onClick={async () => await handlePrettifyQuery(i)}
-                className="prettify"
-                ariaLabel="prettify the query"
-              />
-            </div>
-          </Tooltip>
+          {!hideButtons?.prettify && (
+            <Tooltip title={"Prettify query"}>
+              <div className="vm-query-configurator-list-row__button">
+                <Button
+                  variant={"text"}
+                  color={"gray"}
+                  startIcon={<Prettify/>}
+                  onClick={async () => await handlePrettifyQuery(i)}
+                  className="prettify"
+                  ariaLabel="prettify the query"
+                />
+              </div>
+            </Tooltip>)}
 
           {stateQuery.length > 1 && (
             <Tooltip title="Remove Query">
@@ -240,10 +256,11 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
       ))}
     </div>
     <div className="vm-query-configurator-settings">
-      <AdditionalSettings/>
+      <AdditionalSettings hideButtons={hideButtons}/>
       <div className="vm-query-configurator-settings__buttons">
         <QueryHistory handleSelectQuery={handleSelectHistory}/>
-        {stateQuery.length < MAX_QUERY_FIELDS && (
+        {hideButtons?.anomalyConfig && <AnomalyConfig/>}
+        {!hideButtons?.addQuery && stateQuery.length < MAX_QUERY_FIELDS && (
           <Button
             variant="outlined"
             onClick={handleAddQuery}

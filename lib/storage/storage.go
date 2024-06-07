@@ -1282,7 +1282,58 @@ func (s *Storage) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer,
 func (s *Storage) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer, labelName string, tfss []*TagFilters,
 	tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64,
 ) ([]string, error) {
-	return s.idb().SearchLabelValuesWithFiltersOnTimeRange(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
+	idb := s.idb()
+
+	key := labelName
+	if key == "__name__" {
+		key = ""
+	}
+	if len(tfss) == 1 && len(tfss[0].tfs) == 1 && string(tfss[0].tfs[0].key) == key {
+		// tfss contains only a single filter on labelName. It is faster searching for label values
+		// without any filters and limits and then later applying the filter and the limit to the found label values.
+		qt.Printf("search for up to %d values for the label %q on the time range %s", maxMetrics, labelName, &tr)
+		lvs, err := idb.SearchLabelValuesWithFiltersOnTimeRange(qt, labelName, nil, tr, maxMetrics, maxMetrics, deadline)
+		if err != nil {
+			return nil, err
+		}
+		needSlowSearch := len(lvs) == maxMetrics
+
+		lvsLen := len(lvs)
+		lvs = filterLabelValues(lvs, &tfss[0].tfs[0], key)
+		qt.Printf("found %d out of %d values for the label %q after filtering", len(lvs), lvsLen, labelName)
+		if len(lvs) >= maxLabelValues {
+			qt.Printf("leave %d out of %d values for the label %q because of the limit", maxLabelValues, len(lvs), labelName)
+			lvs = lvs[:maxLabelValues]
+
+			// We found at least maxLabelValues unique values for the label with the given filters.
+			// It is OK returning all these values instead of falling back to the slow search.
+			needSlowSearch = false
+		}
+		if !needSlowSearch {
+			return lvs, nil
+		}
+		qt.Printf("fall back to slow search because only a subset of label values is found")
+	}
+
+	return idb.SearchLabelValuesWithFiltersOnTimeRange(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
+}
+
+func filterLabelValues(lvs []string, tf *tagFilter, key string) []string {
+	var b []byte
+	result := lvs[:0]
+	for _, lv := range lvs {
+		b = marshalCommonPrefix(b[:0], nsPrefixTagToMetricIDs)
+		b = marshalTagValue(b, bytesutil.ToUnsafeBytes(key))
+		b = marshalTagValue(b, bytesutil.ToUnsafeBytes(lv))
+		ok, err := tf.match(b)
+		if err != nil {
+			logger.Panicf("BUG: cannot match label %q=%q with tagFilter %s: %w", key, lv, tf.String(), err)
+		}
+		if ok {
+			result = append(result, lv)
+		}
+	}
+	return result
 }
 
 // SearchTagValueSuffixes returns all the tag value suffixes for the given tagKey and tagValuePrefix on the given tr.
@@ -1524,25 +1575,26 @@ func (mr *MetricRow) Marshal(dst []byte) []byte {
 //
 // mr refers to src, so it remains valid until src changes.
 func (mr *MetricRow) UnmarshalX(src []byte) ([]byte, error) {
-	tail, metricNameRaw, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal MetricName: %w", err)
+	metricNameRaw, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal MetricName")
 	}
+	tail := src[nSize:]
 	mr.MetricNameRaw = metricNameRaw
 
 	if len(tail) < 8 {
 		return tail, fmt.Errorf("cannot unmarshal Timestamp: want %d bytes; have %d bytes", 8, len(tail))
 	}
 	timestamp := encoding.UnmarshalUint64(tail)
-	mr.Timestamp = int64(timestamp)
 	tail = tail[8:]
+	mr.Timestamp = int64(timestamp)
 
 	if len(tail) < 8 {
 		return tail, fmt.Errorf("cannot unmarshal Value: want %d bytes; have %d bytes", 8, len(tail))
 	}
 	value := encoding.UnmarshalUint64(tail)
-	mr.Value = math.Float64frombits(value)
 	tail = tail[8:]
+	mr.Value = math.Float64frombits(value)
 
 	return tail, nil
 }
@@ -1952,7 +2004,7 @@ func createAllIndexesForMetricName(is *indexSearch, mn *MetricName, tsid *TSID, 
 }
 
 func (s *Storage) putSeriesToCache(metricNameRaw []byte, genTSID *generationTSID, date uint64) {
-	// Store the TSID for for the current indexdb into cache,
+	// Store the TSID for the current indexdb into cache,
 	// so future rows for that TSID are ingested via fast path.
 	s.putTSIDToCache(genTSID, metricNameRaw)
 

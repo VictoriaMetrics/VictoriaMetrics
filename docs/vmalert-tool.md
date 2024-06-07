@@ -18,7 +18,7 @@ You can use `vmalert-tool` to run unit tests for alerting and recording rules.
 It will perform the following actions:
 * sets up an isolated VictoriaMetrics instance;
 * simulates the periodic ingestion of time series;
-* queries the ingested data for recording and alerting rules evaluation like [vmalert](https://docs.victoriametrics.com/vmalert.html);
+* queries the ingested data for recording and alerting rules evaluation like [vmalert](https://docs.victoriametrics.com/vmalert/);
 * checks whether the firing alerts or resulting recording rules match the expected results.
 
 See how to run vmalert-tool for unit test below:
@@ -30,13 +30,13 @@ See how to run vmalert-tool for unit test below:
 
 vmalert-tool unittest is compatible with [Prometheus config format for tests](https://prometheus.io/docs/prometheus/latest/configuration/unit_testing_rules/#test-file-format)
 except `promql_expr_test` field. Use `metricsql_expr_test` field name instead. The name is different because vmalert-tool
-validates and executes [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expressions,
+validates and executes [MetricsQL](https://docs.victoriametrics.com/metricsql/) expressions,
 which aren't always backward compatible with [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/).
 
 ### Limitations
 
 * vmalert-tool evaluates all the groups defined in `rule_files` using `evaluation_interval`(default `1m`) instead of `interval` under each rule group.
-* vmalert-tool shares the same limitation with [vmalert](https://docs.victoriametrics.com/vmalert.html#limitations) on chaining rules under one group:
+* vmalert-tool shares the same limitation with [vmalert](https://docs.victoriametrics.com/vmalert/#limitations) on chaining rules under one group:
 
 >by default, rules execution is sequential within one group, but persistence of execution results to remote storage is asynchronous. Hence, user shouldn’t rely on chaining of recording rules when result of previous recording rule is reused in the next one;
 
@@ -63,7 +63,7 @@ groups:
 The configuration format for files specified in `--files` cmd-line flag is the following:
 
 ```yaml
-# Path to the files or http url containing [rule groups](https://docs.victoriametrics.com/vmalert.html#groups) configuration.
+# Path to the files or http url containing [rule groups](https://docs.victoriametrics.com/vmalert/#groups) configuration.
 # Enterprise version of vmalert-tool supports S3 and GCS paths to rules.
 rule_files:
   [ - <string> ]
@@ -216,10 +216,10 @@ tests:
         values: "0+0x1440"
 
     metricsql_expr_test:
-      - expr: suquery_interval_test
+      - expr: subquery_interval_test
         eval_time: 4m
         exp_samples:
-          - labels: '{__name__="suquery_interval_test", datacenter="dc-123", instance="localhost:9090", job="prometheus"}'
+          - labels: '{__name__="subquery_interval_test", datacenter="dc-123", instance="localhost:9090", job="prometheus"}'
             value: 1
 
     alert_rule_test:
@@ -275,6 +275,6 @@ groups:
     rules:
       - record: job:test:count_over_time1m
         expr: sum without(instance) (count_over_time(test[1m]))
-      - record: suquery_interval_test
+      - record: subquery_interval_test
         expr: count_over_time(up[5m:])
 ```

@@ -16,7 +16,7 @@ EnvironmentFile=-/etc/victoriametrics/single/victoriametrics.conf
 ExecStart=/usr/bin/victoria-metrics-prod $ARGS
 ExecStop=/bin/kill -s SIGTERM $MAINPID
 ExecReload=/bin/kill -HUP $MAINPID
-# See docs https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#tuning
+# See docs https://docs.victoriametrics.com/single-server-victoriametrics/#tuning
 ProtectSystem=full
 LimitNOFILE=1048576
 LimitNPROC=1048576

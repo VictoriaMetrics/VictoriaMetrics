@@ -1,6 +1,6 @@
 import { useState } from "react";
-import useIsomorphicLayoutEffect from "./useIsomorphicLayoutEffect";
 import useEventListener from "./useEventListener";
+import { useEffect } from "preact/compat";
 
 interface WindowSize {
     width: number
@@ -23,7 +23,7 @@ const useWindowSize = (): WindowSize => {
   useEventListener("resize", handleSize);
 
   // Set size at the first client-side load
-  useIsomorphicLayoutEffect(handleSize, []);
+  useEffect(handleSize, []);
 
   return windowSize;
 };

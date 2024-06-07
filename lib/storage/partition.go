@@ -28,14 +28,10 @@ import (
 // This time shouldn't exceed a few days.
 const maxBigPartSize = 1e12
 
-// The maximum number of inmemory parts per partition.
+// The maximum expected number of inmemory parts per partition.
 //
-// This limit allows reducing querying CPU usage under high ingestion rate.
-// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5212
-//
-// This number may be reached when the insertion pace outreaches merger pace.
-// If this number is reached, then the data ingestion is paused until background
-// mergers reduce the number of parts below this number.
+// The actual number of inmemory parts may exceed this value if in-memory mergers
+// cannot keep up with the rate of creating new in-memory parts.
 const maxInmemoryParts = 60
 
 // Default number of parts to merge at once.
@@ -62,7 +58,7 @@ var dataFlushInterval = 5 * time.Second
 //
 // This function must be called before initializing the storage.
 func SetDataFlushInterval(d time.Duration) {
-	if d > pendingRowsFlushInterval {
+	if d >= time.Second {
 		dataFlushInterval = d
 		mergeset.SetDataFlushInterval(d)
 	}
@@ -246,13 +242,13 @@ func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partiti
 		logger.Panicf("FATAL: partition name in bigPartsPath %q doesn't match smallPartsPath %q; want %q", bigPartsPath, smallPartsPath, name)
 	}
 
-	partNamesSmall, partNamesBig := mustReadPartNames(smallPartsPath, bigPartsPath)
+	partsFile := filepath.Join(smallPartsPath, partsFilename)
+	partNamesSmall, partNamesBig := mustReadPartNames(partsFile, smallPartsPath, bigPartsPath)
 
-	smallParts := mustOpenParts(smallPartsPath, partNamesSmall)
-	bigParts := mustOpenParts(bigPartsPath, partNamesBig)
+	smallParts := mustOpenParts(partsFile, smallPartsPath, partNamesSmall)
+	bigParts := mustOpenParts(partsFile, bigPartsPath, partNamesBig)
 
-	partNamesPath := filepath.Join(smallPartsPath, partsFilename)
-	if !fs.IsPathExist(partNamesPath) {
+	if !fs.IsPathExist(partsFile) {
 		// Create parts.json file if it doesn't exist yet.
 		// This should protect from possible carshloops just after the migration from versions below v1.90.0
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4336
@@ -1275,10 +1271,6 @@ func (pt *partition) getMaxSmallPartSize() uint64 {
 	// Small parts are cached in the OS page cache,
 	// so limit their size by the remaining free RAM.
 	mem := memory.Remaining()
-	// It is expected no more than defaultPartsToMerge/2 parts exist
-	// in the OS page cache before they are merged into bigger part.
-	// Half of the remaining RAM must be left for lib/mergeset parts,
-	// so the maxItems is calculated using the below code:
 	n := uint64(mem) / defaultPartsToMerge
 	if n < 10e6 {
 		n = 10e6
@@ -1905,7 +1897,7 @@ func getPartsSize(pws []*partWrapper) uint64 {
 	return n
 }
 
-func mustOpenParts(path string, partNames []string) []*partWrapper {
+func mustOpenParts(partsFile, path string, partNames []string) []*partWrapper {
 	// The path can be missing after restoring from backup, so create it if needed.
 	fs.MustMkdirIfNotExist(path)
 	fs.MustRemoveTemporaryDirs(path)
@@ -1926,7 +1918,6 @@ func mustOpenParts(path string, partNames []string) []*partWrapper {
 		// including unclean shutdown.
 		partPath := filepath.Join(path, partName)
 		if !fs.IsPathExist(partPath) {
-			partsFile := filepath.Join(path, partsFilename)
 			logger.Panicf("FATAL: part %q is listed in %q, but is missing on disk; "+
 				"ensure %q contents is not corrupted; remove %q to rebuild its' content from the list of existing parts",
 				partPath, partsFile, partsFile, partsFile)
@@ -1942,6 +1933,7 @@ func mustOpenParts(path string, partNames []string) []*partWrapper {
 		fn := de.Name()
 		if _, ok := m[fn]; !ok {
 			deletePath := filepath.Join(path, fn)
+			logger.Infof("deleting %q because it isn't listed in %q; this is the expected case after unclean shutdown", deletePath, partsFile)
 			fs.MustRemoveAll(deletePath)
 		}
 	}
@@ -2037,8 +2029,8 @@ func mustWritePartNames(pwsSmall, pwsBig []*partWrapper, dstDir string) {
 	if err != nil {
 		logger.Panicf("BUG: cannot marshal partNames to JSON: %s", err)
 	}
-	partNamesPath := filepath.Join(dstDir, partsFilename)
-	fs.MustWriteAtomic(partNamesPath, data, true)
+	partsFile := filepath.Join(dstDir, partsFilename)
+	fs.MustWriteAtomic(partsFile, data, true)
 }
 
 func getPartNames(pws []*partWrapper) []string {
@@ -2055,20 +2047,19 @@ func getPartNames(pws []*partWrapper) []string {
 	return partNames
 }
 
-func mustReadPartNames(smallPartsPath, bigPartsPath string) ([]string, []string) {
-	partNamesPath := filepath.Join(smallPartsPath, partsFilename)
-	if fs.IsPathExist(partNamesPath) {
-		data, err := os.ReadFile(partNamesPath)
+func mustReadPartNames(partsFile, smallPartsPath, bigPartsPath string) ([]string, []string) {
+	if fs.IsPathExist(partsFile) {
+		data, err := os.ReadFile(partsFile)
 		if err != nil {
-			logger.Panicf("FATAL: cannot read %s file: %s", partsFilename, err)
+			logger.Panicf("FATAL: cannot read %q: %s", partsFile, err)
 		}
 		var partNames partNamesJSON
 		if err := json.Unmarshal(data, &partNames); err != nil {
-			logger.Panicf("FATAL: cannot parse %s: %s", partNamesPath, err)
+			logger.Panicf("FATAL: cannot parse %q: %s", partsFile, err)
 		}
 		return partNames.Small, partNames.Big
 	}
-	// The partsFilename is missing. This is the upgrade from versions previous to v1.90.0.
+	// The partsFile is missing. This is the upgrade from versions previous to v1.90.0.
 	// Read part names from smallPartsPath and bigPartsPath directories
 	partNamesSmall := mustReadPartNamesFromDir(smallPartsPath)
 	partNamesBig := mustReadPartNamesFromDir(bigPartsPath)

@@ -8,7 +8,7 @@ body:
         Before filling a bug report it would be great to [upgrade](https://docs.victoriametrics.com/#how-to-upgrade) 
         to [the latest available release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
         and verify whether the bug is reproducible there.
-        It's also recommended to read the [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html) first.
+        It's also recommended to read the [troubleshooting docs](https://docs.victoriametrics.com/troubleshooting/) first.
   - type: textarea
     id: describe-the-bug
     attributes:
@@ -65,7 +65,7 @@ body:
         
         See how to setup monitoring here:
           * [monitoring for single-node VictoriaMetrics](https://docs.victoriametrics.com/#monitoring)
-          * [monitoring for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#monitoring)
+          * [monitoring for VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#monitoring)
     validations:
       required: false
   - type: textarea

@@ -28,7 +28,7 @@ var (
 	maxRowsPerBlock      = flag.Int("remoteWrite.maxRowsPerBlock", 10000, "The maximum number of samples to send in each block to remote storage. Higher number may improve performance at the cost of the increased memory usage. See also -remoteWrite.maxBlockSize")
 	vmProtoCompressLevel = flag.Int("remoteWrite.vmProtoCompressLevel", 0, "The compression level for VictoriaMetrics remote write protocol. "+
 		"Higher values reduce network traffic at the cost of higher CPU usage. Negative values reduce CPU usage at the cost of increased network traffic. "+
-		"See https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol")
+		"See https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol")
 )
 
 type pendingSeries struct {
@@ -109,9 +109,10 @@ type writeRequest struct {
 
 	wr prompbmarshal.WriteRequest
 
-	tss     []prompbmarshal.TimeSeries
-	labels  []prompbmarshal.Label
-	samples []prompbmarshal.Sample
+	tss       []prompbmarshal.TimeSeries
+	labels    []prompbmarshal.Label
+	samples   []prompbmarshal.Sample
+	exemplars []prompbmarshal.Exemplar
 
 	// buf holds labels data
 	buf []byte
@@ -122,17 +123,14 @@ func (wr *writeRequest) reset() {
 
 	wr.wr.Timeseries = nil
 
-	for i := range wr.tss {
-		ts := &wr.tss[i]
-		ts.Labels = nil
-		ts.Samples = nil
-	}
+	clear(wr.tss)
 	wr.tss = wr.tss[:0]
 
 	promrelabel.CleanLabels(wr.labels)
 	wr.labels = wr.labels[:0]
 
 	wr.samples = wr.samples[:0]
+	wr.exemplars = wr.exemplars[:0]
 	wr.buf = wr.buf[:0]
 }
 
@@ -204,6 +202,7 @@ func (wr *writeRequest) copyTimeSeries(dst, src *prompbmarshal.TimeSeries) {
 	labelsDst := wr.labels
 	labelsLen := len(wr.labels)
 	samplesDst := wr.samples
+	exemplarsDst := wr.exemplars
 	buf := wr.buf
 	for i := range src.Labels {
 		labelsDst = append(labelsDst, prompbmarshal.Label{})
@@ -220,8 +219,12 @@ func (wr *writeRequest) copyTimeSeries(dst, src *prompbmarshal.TimeSeries) {
 	samplesDst = append(samplesDst, src.Samples...)
 	dst.Samples = samplesDst[len(samplesDst)-len(src.Samples):]
 
+	exemplarsDst = append(exemplarsDst, src.Exemplars...)
+	dst.Exemplars = exemplarsDst[len(exemplarsDst)-len(src.Exemplars):]
+
 	wr.samples = samplesDst
 	wr.labels = labelsDst
+	wr.exemplars = exemplarsDst
 	wr.buf = buf
 }
 
@@ -233,7 +236,6 @@ func tryPushWriteRequest(wr *prompbmarshal.WriteRequest, tryPushBlock func(block
 		// Nothing to push
 		return true
 	}
-
 	marshalConcurrencyCh <- struct{}{}
 
 	bb := writeRequestBufPool.Get()
@@ -270,6 +272,8 @@ func tryPushWriteRequest(wr *prompbmarshal.WriteRequest, tryPushBlock func(block
 	if len(wr.Timeseries) == 1 {
 		// A single time series left. Recursively split its samples into smaller parts if possible.
 		samples := wr.Timeseries[0].Samples
+		exemplars := wr.Timeseries[0].Exemplars
+
 		if len(samples) == 1 {
 			logger.Warnf("dropping a sample for metric with too long labels exceeding -remoteWrite.maxBlockSize=%d bytes", maxUnpackedBlockSize.N)
 			return true
@@ -281,11 +285,16 @@ func tryPushWriteRequest(wr *prompbmarshal.WriteRequest, tryPushBlock func(block
 			return false
 		}
 		wr.Timeseries[0].Samples = samples[n:]
+		// We do not want to send exemplars twice
+		wr.Timeseries[0].Exemplars = nil
+
 		if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
 			wr.Timeseries[0].Samples = samples
+			wr.Timeseries[0].Exemplars = exemplars
 			return false
 		}
 		wr.Timeseries[0].Samples = samples
+		wr.Timeseries[0].Exemplars = exemplars
 		return true
 	}
 	timeseries := wr.Timeseries

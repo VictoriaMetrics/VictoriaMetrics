@@ -8,6 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // block represents a block of log entries.
@@ -120,11 +121,8 @@ type column struct {
 func (c *column) reset() {
 	c.name = ""
 
-	values := c.values
-	for i := range values {
-		values[i] = ""
-	}
-	c.values = values[:0]
+	clear(c.values)
+	c.values = c.values[:0]
 }
 
 func (c *column) canStoreInConstColumn() bool {
@@ -145,17 +143,14 @@ func (c *column) canStoreInConstColumn() bool {
 }
 
 func (c *column) resizeValues(valuesLen int) []string {
-	values := c.values
-	if n := valuesLen - cap(values); n > 0 {
-		values = append(values[:cap(values)], make([]string, n)...)
-	}
-	values = values[:valuesLen]
-	c.values = values
-	return values
+	c.values = slicesutil.SetLength(c.values, valuesLen)
+	return c.values
 }
 
 // mustWriteTo writes c to sw and updates ch accordingly.
-func (c *column) mustWriteTo(ch *columnHeader, sw *streamWriters) {
+//
+// ch is valid until c is changed.
+func (c *column) mustWriteToNoArena(ch *columnHeader, sw *streamWriters) {
 	ch.reset()
 
 	valuesWriter := &sw.fieldValuesWriter
@@ -191,7 +186,7 @@ func (c *column) mustWriteTo(ch *columnHeader, sw *streamWriters) {
 		bb.B = bloomFilterMarshal(bb.B[:0], tokensBuf.A)
 		putTokensBuf(tokensBuf)
 	} else {
-		// there is no need in ecoding bloom filter for dictiory type,
+		// there is no need in ecoding bloom filter for dictionary type,
 		// since it isn't used during querying - all the dictionary values are available in ch.valuesDict
 		bb.B = bb.B[:0]
 	}
@@ -226,6 +221,8 @@ func (b *block) assertValid() {
 // MustInitFromRows initializes b from the given timestamps and rows.
 //
 // It is expected that timestamps are sorted.
+//
+// b is valid until rows are changed.
 func (b *block) MustInitFromRows(timestamps []int64, rows [][]Field) {
 	b.reset()
 
@@ -235,6 +232,9 @@ func (b *block) MustInitFromRows(timestamps []int64, rows [][]Field) {
 	b.sortColumnsByName()
 }
 
+// mustInitiFromRows initializes b from rows.
+//
+// b is valid until rows are changed.
 func (b *block) mustInitFromRows(rows [][]Field) {
 	rowsLen := len(rows)
 	if rowsLen == 0 {
@@ -366,13 +366,8 @@ func (b *block) extendColumns() *column {
 }
 
 func (b *block) resizeColumns(columnsLen int) []column {
-	cs := b.columns[:0]
-	if n := columnsLen - cap(cs); n > 0 {
-		cs = append(cs[:cap(cs)], make([]column, n)...)
-	}
-	cs = cs[:columnsLen]
-	b.columns = cs
-	return cs
+	b.columns = slicesutil.SetLength(b.columns, columnsLen)
+	return b.columns
 }
 
 func (b *block) sortColumnsByName() {
@@ -424,23 +419,23 @@ func (b *block) InitFromBlockData(bd *blockData, sbu *stringsBlockUnmarshaler, v
 	for i := range cds {
 		cd := &cds[i]
 		c := &cs[i]
-		c.name = cd.name
+		c.name = sbu.copyString(cd.name)
 		c.values, err = sbu.unmarshal(c.values[:0], cd.valuesData, uint64(rowsCount))
 		if err != nil {
 			return fmt.Errorf("cannot unmarshal column %d: %w", i, err)
 		}
-		if err = vd.decodeInplace(c.values, cd.valueType, &cd.valuesDict); err != nil {
+		if err = vd.decodeInplace(c.values, cd.valueType, cd.valuesDict.values); err != nil {
 			return fmt.Errorf("cannot decode column values: %w", err)
 		}
 	}
 
 	// unmarshal constColumns
-	b.constColumns = append(b.constColumns[:0], bd.constColumns...)
+	b.constColumns = sbu.appendFields(b.constColumns[:0], bd.constColumns)
 
 	return nil
 }
 
-// mustWriteTo writes b with the given sid to sw and updates bh accordingly
+// mustWriteTo writes b with the given sid to sw and updates bh accordingly.
 func (b *block) mustWriteTo(sid *streamID, bh *blockHeader, sw *streamWriters) {
 	// Do not store the version used for encoding directly in the block data, since:
 	// - all the blocks in the same part use the same encoding
@@ -458,16 +453,20 @@ func (b *block) mustWriteTo(sid *streamID, bh *blockHeader, sw *streamWriters) {
 
 	// Marshal columns
 	cs := b.columns
+
 	csh := getColumnsHeader()
+
 	chs := csh.resizeColumnHeaders(len(cs))
 	for i := range cs {
-		cs[i].mustWriteTo(&chs[i], sw)
+		cs[i].mustWriteToNoArena(&chs[i], sw)
 	}
 	csh.constColumns = append(csh.constColumns[:0], b.constColumns...)
 
 	bb := longTermBufPool.Get()
 	bb.B = csh.marshal(bb.B)
+
 	putColumnsHeader(csh)
+
 	bh.columnsHeaderOffset = sw.columnsHeaderWriter.bytesWritten
 	bh.columnsHeaderSize = uint64(len(bb.B))
 	if bh.columnsHeaderSize > maxColumnsHeaderSize {
@@ -489,13 +488,7 @@ func (b *block) appendRowsTo(dst *rows) {
 	for i := range b.timestamps {
 		fieldsLen := len(fieldsBuf)
 		// copy const columns
-		for j := range ccs {
-			cc := &ccs[j]
-			fieldsBuf = append(fieldsBuf, Field{
-				Name:  cc.Name,
-				Value: cc.Value,
-			})
-		}
+		fieldsBuf = append(fieldsBuf, ccs...)
 		// copy other columns
 		for j := range cs {
 			c := &cs[j]
@@ -520,7 +513,7 @@ func areSameFieldsInRows(rows [][]Field) bool {
 	fields := rows[0]
 
 	// Verify that all the field names are unique
-	m := make(map[string]struct{}, len(fields))
+	m := getFieldsSet()
 	for i := range fields {
 		f := &fields[i]
 		if _, ok := m[f.Name]; ok {
@@ -529,6 +522,7 @@ func areSameFieldsInRows(rows [][]Field) bool {
 		}
 		m[f.Name] = struct{}{}
 	}
+	putFieldsSet(m)
 
 	// Verify that all the fields are the same across rows
 	rows = rows[1:]
@@ -546,6 +540,21 @@ func areSameFieldsInRows(rows [][]Field) bool {
 	return true
 }
 
+func getFieldsSet() map[string]struct{} {
+	v := fieldsSetPool.Get()
+	if v == nil {
+		return make(map[string]struct{})
+	}
+	return v.(map[string]struct{})
+}
+
+func putFieldsSet(m map[string]struct{}) {
+	clear(m)
+	fieldsSetPool.Put(m)
+}
+
+var fieldsSetPool sync.Pool
+
 var columnIdxsPool sync.Pool
 
 func getColumnIdxs() map[string]int {
@@ -557,9 +566,7 @@ func getColumnIdxs() map[string]int {
 }
 
 func putColumnIdxs(m map[string]int) {
-	for k := range m {
-		delete(m, k)
-	}
+	clear(m)
 	columnIdxsPool.Put(m)
 }
 

@@ -217,20 +217,21 @@ func TestGroupStart(t *testing.T) {
 
 	const evalInterval = time.Millisecond
 	g := NewGroup(groups[0], fs, evalInterval, map[string]string{"cluster": "east-1"})
-	g.Concurrency = 2
 
 	const inst1, inst2, job = "foo", "bar", "baz"
 	m1 := metricWithLabels(t, "instance", inst1, "job", job)
 	m2 := metricWithLabels(t, "instance", inst2, "job", job)
 
 	r := g.Rules[0].(*AlertingRule)
-	alert1, err := r.newAlert(m1, nil, time.Now(), nil)
-	if err != nil {
-		t.Fatalf("faield to create alert: %s", err)
-	}
+	alert1 := r.newAlert(m1, time.Now(), nil, nil)
 	alert1.State = notifier.StateFiring
+	// add annotations
+	alert1.Annotations["summary"] = "1"
 	// add external label
 	alert1.Labels["cluster"] = "east-1"
+	// add labels from response
+	alert1.Labels["job"] = job
+	alert1.Labels["instance"] = inst1
 	// add rule labels
 	alert1.Labels["label"] = "bar"
 	alert1.Labels["host"] = inst1
@@ -239,13 +240,15 @@ func TestGroupStart(t *testing.T) {
 	alert1.Labels[alertGroupNameLabel] = g.Name
 	alert1.ID = hash(alert1.Labels)
 
-	alert2, err := r.newAlert(m2, nil, time.Now(), nil)
-	if err != nil {
-		t.Fatalf("faield to create alert: %s", err)
-	}
+	alert2 := r.newAlert(m2, time.Now(), nil, nil)
 	alert2.State = notifier.StateFiring
+	// add annotations
+	alert2.Annotations["summary"] = "1"
 	// add external label
 	alert2.Labels["cluster"] = "east-1"
+	// add labels from response
+	alert2.Labels["job"] = job
+	alert2.Labels["instance"] = inst2
 	// add rule labels
 	alert2.Labels["label"] = "bar"
 	alert2.Labels["host"] = inst2
@@ -262,8 +265,25 @@ func TestGroupStart(t *testing.T) {
 		close(finished)
 	}()
 
-	// wait for multiple evals
-	time.Sleep(20 * evalInterval)
+	waitForIterations := func(n int, interval time.Duration) {
+		t.Helper()
+
+		var cur uint64
+		prev := g.metrics.iterationTotal.Get()
+		for i := 0; ; i++ {
+			if i > 40 {
+				t.Fatalf("group wasn't able to perform %d evaluations during %d eval intervals", n, i)
+			}
+			cur = g.metrics.iterationTotal.Get()
+			if int(cur-prev) >= n {
+				return
+			}
+			time.Sleep(interval)
+		}
+	}
+
+	// wait for multiple evaluation iterations
+	waitForIterations(4, evalInterval)
 
 	gotAlerts := fn.GetAlerts()
 	expectedAlerts := []notifier.Alert{*alert1, *alert2}
@@ -280,8 +300,8 @@ func TestGroupStart(t *testing.T) {
 	// and set only one datapoint for response
 	fs.Add(m1)
 
-	// wait for multiple evals
-	time.Sleep(20 * evalInterval)
+	// wait for multiple evaluation iterations
+	waitForIterations(4, evalInterval)
 
 	gotAlerts = fn.GetAlerts()
 	alert2.State = notifier.StateInactive

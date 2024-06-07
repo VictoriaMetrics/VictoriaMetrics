@@ -39,7 +39,7 @@ var (
 		{Name: "Groups", Url: "groups"},
 		{Name: "Alerts", Url: "alerts"},
 		{Name: "Notifiers", Url: "notifiers"},
-		{Name: "Docs", Url: "https://docs.victoriametrics.com/vmalert.html"},
+		{Name: "Docs", Url: "https://docs.victoriametrics.com/vmalert/"},
 	}
 )
 
@@ -176,7 +176,6 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 
 	default:
-		httpserver.Errorf(w, r, "unsupported path requested: %q ", r.URL.Path)
 		return false
 	}
 }

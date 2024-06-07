@@ -21,13 +21,13 @@ textarea { margin: 1em }
   <form method="get">
     <div>
       <p>
-        <a href="https://docs.victoriametrics.com/MetricsQL.html">MetricsQL</a> query with optional WITH expressions:
+        <a href="https://docs.victoriametrics.com/metricsql/">MetricsQL</a> query with optional WITH expressions:
       </p>
       <textarea name="query" style="height: 15em; width: 90%">{%s q %}</textarea><br/>
       <input type="submit" value="Expand" />
 
       <p>
-        <a href="https://docs.victoriametrics.com/MetricsQL.html">MetricsQL</a> query after expanding WITH expressions and applying other optimizations:
+        <a href="https://docs.victoriametrics.com/metricsql/">MetricsQL</a> query after expanding WITH expressions and applying other optimizations:
       </p>
       <textarea style="height: 5em; width: 90%" readonly="readonly">{%= expandWithExprs(q) %}</textarea>
     </div>
@@ -79,7 +79,7 @@ textarea { margin: 1em }
 {% endstripspace %}
 
 {% func withExprsTutorial() %}
-<h3>Tutorial for WITH expressions in <a href="https://docs.victoriametrics.com/MetricsQL.html">MetricsQL</a></h3>
+<h3>Tutorial for WITH expressions in <a href="https://docs.victoriametrics.com/metricsql/">MetricsQL</a></h3>
 
 <p>
     Let's look at the following real query from <a href="https://grafana.com/grafana/dashboards/1860">Node Exporter Full</a> dashboard:

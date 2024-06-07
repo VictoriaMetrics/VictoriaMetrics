@@ -22,6 +22,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
@@ -509,22 +510,23 @@ func (is *indexSearch) createGlobalIndexes(tsid *TSID, mn *MetricName) {
 	ii := getIndexItems()
 	defer putIndexItems(ii)
 
-	// Create MetricID -> MetricName index.
+	// Create metricID -> metricName entry.
 	ii.B = marshalCommonPrefix(ii.B, nsPrefixMetricIDToMetricName)
 	ii.B = encoding.MarshalUint64(ii.B, tsid.MetricID)
 	ii.B = mn.Marshal(ii.B)
 	ii.Next()
 
-	// Create MetricID -> TSID index.
+	// Create metricID -> TSID entry.
 	ii.B = marshalCommonPrefix(ii.B, nsPrefixMetricIDToTSID)
 	ii.B = encoding.MarshalUint64(ii.B, tsid.MetricID)
 	ii.B = tsid.Marshal(ii.B)
 	ii.Next()
 
-	prefix := kbPool.Get()
-	prefix.B = marshalCommonPrefix(prefix.B[:0], nsPrefixTagToMetricIDs)
-	ii.registerTagIndexes(prefix.B, mn, tsid.MetricID)
-	kbPool.Put(prefix)
+	// Create tag -> metricID entries for every tag in mn.
+	kb := kbPool.Get()
+	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
+	ii.registerTagIndexes(kb.B, mn, tsid.MetricID)
+	kbPool.Put(kb)
 
 	is.db.tb.AddItems(ii.Items)
 }
@@ -745,10 +747,18 @@ func (is *indexSearch) getLabelNamesForMetricIDs(qt *querytracer.Tracer, metricI
 	if len(metricIDs) > 0 {
 		lns["__name__"] = struct{}{}
 	}
+
+	dmis := is.db.s.getDeletedMetricIDs()
+	checkDeleted := dmis.Len() > 0
+
 	var mn MetricName
 	foundLabelNames := 0
 	var buf []byte
 	for _, metricID := range metricIDs {
+		if checkDeleted && dmis.Has(metricID) {
+			// skip deleted IDs from result
+			continue
+		}
 		var ok bool
 		buf, ok = is.searchMetricNameWithCache(buf[:0], metricID)
 		if !ok {
@@ -944,10 +954,18 @@ func (is *indexSearch) getLabelValuesForMetricIDs(qt *querytracer.Tracer, lvs ma
 	if labelName == "" {
 		labelName = "__name__"
 	}
+
+	dmis := is.db.s.getDeletedMetricIDs()
+	checkDeleted := dmis.Len() > 0
+
 	var mn MetricName
 	foundLabelValues := 0
 	var buf []byte
 	for _, metricID := range metricIDs {
+		if checkDeleted && dmis.Has(metricID) {
+			// skip deleted IDs from result
+			continue
+		}
 		var ok bool
 		buf, ok = is.searchMetricNameWithCache(buf[:0], metricID)
 		if !ok {
@@ -2013,11 +2031,11 @@ func removeCompositeTagFilters(tfs []*tagFilter, prefix []byte) []*tagFilter {
 			continue
 		}
 		tagKey = tagKey[1:]
-		var nameLen uint64
-		tagKey, nameLen, err = encoding.UnmarshalVarUint64(tagKey)
-		if err != nil {
-			logger.Panicf("BUG: cannot unmarshal nameLen from tagKey %q: %s", tagKey, err)
+		nameLen, nSize := encoding.UnmarshalVarUint64(tagKey)
+		if nSize <= 0 {
+			logger.Panicf("BUG: cannot unmarshal nameLen from tagKey %q", tagKey)
 		}
+		tagKey = tagKey[nSize:]
 		if nameLen == 0 {
 			logger.Panicf("BUG: nameLen must be greater than 0")
 		}
@@ -2717,12 +2735,13 @@ func (is *indexSearch) createPerDayIndexes(date uint64, tsid *TSID, mn *MetricNa
 	ii := getIndexItems()
 	defer putIndexItems(ii)
 
+	// Create date -> metricID entry.
 	ii.B = marshalCommonPrefix(ii.B, nsPrefixDateToMetricID)
 	ii.B = encoding.MarshalUint64(ii.B, date)
 	ii.B = encoding.MarshalUint64(ii.B, tsid.MetricID)
 	ii.Next()
 
-	// Create per-day inverted index entries for TSID.
+	// Create metricName -> TSID entry.
 	ii.B = marshalCommonPrefix(ii.B, nsPrefixDateMetricNameToTSID)
 	ii.B = encoding.MarshalUint64(ii.B, date)
 	ii.B = mn.Marshal(ii.B)
@@ -2730,17 +2749,18 @@ func (is *indexSearch) createPerDayIndexes(date uint64, tsid *TSID, mn *MetricNa
 	ii.B = tsid.Marshal(ii.B)
 	ii.Next()
 
-	// Create per-day inverted index entries for metricID.
+	// Create per-day tag -> metricID entries for every tag in mn.
 	kb := kbPool.Get()
-	defer kbPool.Put(kb)
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
 	kb.B = encoding.MarshalUint64(kb.B, date)
 	ii.registerTagIndexes(kb.B, mn, tsid.MetricID)
+	kbPool.Put(kb)
+
 	is.db.tb.AddItems(ii.Items)
 }
 
 func (ii *indexItems) registerTagIndexes(prefix []byte, mn *MetricName, metricID uint64) {
-	// Add index entry for MetricGroup -> MetricID
+	// Add MetricGroup -> metricID entry.
 	ii.B = append(ii.B, prefix...)
 	ii.B = marshalTagValue(ii.B, nil)
 	ii.B = marshalTagValue(ii.B, mn.MetricGroup)
@@ -2748,7 +2768,7 @@ func (ii *indexItems) registerTagIndexes(prefix []byte, mn *MetricName, metricID
 	ii.Next()
 	ii.addReverseMetricGroupIfNeeded(prefix, mn, metricID)
 
-	// Add index entries for tags: tag -> MetricID
+	// Add tag -> metricID entries.
 	for _, tag := range mn.Tags {
 		ii.B = append(ii.B, prefix...)
 		ii.B = tag.Marshal(ii.B)
@@ -2756,7 +2776,7 @@ func (ii *indexItems) registerTagIndexes(prefix []byte, mn *MetricName, metricID
 		ii.Next()
 	}
 
-	// Add index entries for composite tags: MetricGroup+tag -> MetricID
+	// Add index entries for composite tags: MetricGroup+tag -> metricID.
 	compositeKey := kbPool.Get()
 	for _, tag := range mn.Tags {
 		compositeKey.B = marshalCompositeTagKey(compositeKey.B[:0], mn.MetricGroup, tag.Key)
@@ -2826,11 +2846,11 @@ func unmarshalCompositeTagKey(src []byte) ([]byte, []byte, error) {
 		return nil, nil, fmt.Errorf("missing composite tag key prefix in %q", src)
 	}
 	src = src[1:]
-	tail, n, err := encoding.UnmarshalVarUint64(src)
-	if err != nil {
-		return nil, nil, fmt.Errorf("cannot unmarshal metric name length from composite tag key: %w", err)
+	n, nSize := encoding.UnmarshalVarUint64(src)
+	if nSize <= 0 {
+		return nil, nil, fmt.Errorf("cannot unmarshal metric name length from composite tag key")
 	}
-	src = tail
+	src = src[nSize:]
 	if uint64(len(src)) < n {
 		return nil, nil, fmt.Errorf("missing metric name with length %d in composite tag key %q", n, src)
 	}
@@ -3150,13 +3170,8 @@ func (mp *tagToMetricIDsRowParser) ParseMetricIDs() {
 		return
 	}
 	tail := mp.tail
-	mp.MetricIDs = mp.MetricIDs[:0]
 	n := len(tail) / 8
-	if n <= cap(mp.MetricIDs) {
-		mp.MetricIDs = mp.MetricIDs[:n]
-	} else {
-		mp.MetricIDs = append(mp.MetricIDs[:cap(mp.MetricIDs)], make([]uint64, n-cap(mp.MetricIDs))...)
-	}
+	mp.MetricIDs = slicesutil.SetLength(mp.MetricIDs, n)
 	metricIDs := mp.MetricIDs
 	_ = metricIDs[n-1]
 	for i := 0; i < n; i++ {

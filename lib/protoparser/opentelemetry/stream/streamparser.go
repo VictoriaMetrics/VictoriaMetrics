@@ -238,13 +238,8 @@ type writeContext struct {
 func (wr *writeContext) reset() {
 	wr.bb.Reset()
 
-	tss := wr.tss
-	for i := range tss {
-		ts := &tss[i]
-		ts.Labels = nil
-		ts.Samples = nil
-	}
-	wr.tss = tss[:0]
+	clear(wr.tss)
+	wr.tss = wr.tss[:0]
 
 	wr.baseLabels = resetLabels(wr.baseLabels)
 	wr.pointLabels = resetLabels(wr.pointLabels)
@@ -254,9 +249,7 @@ func (wr *writeContext) reset() {
 }
 
 func resetLabels(labels []prompbmarshal.Label) []prompbmarshal.Label {
-	for i := range labels {
-		labels[i] = prompbmarshal.Label{}
-	}
+	clear(labels)
 	return labels[:0]
 }
 

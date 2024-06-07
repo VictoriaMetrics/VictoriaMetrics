@@ -1,10 +1,11 @@
-FROM node:18-alpine3.17
+FROM node:20-alpine3.19
 
 # Sets a custom location for the npm cache, preventing access errors in system directories
 ENV NPM_CONFIG_CACHE=/build/.npm
 
-RUN apk update && apk upgrade
-RUN apk add --no-cache bash bash-doc bash-completion libtool autoconf automake nasm pkgconfig libpng gcc make g++ zlib-dev gawk
+RUN apk update && \
+    apk upgrade && \
+    apk add --no-cache bash bash-doc bash-completion libtool autoconf automake nasm pkgconfig libpng gcc make g++ zlib-dev gawk && \
+    mkdir -p /app
 
-RUN mkdir -p /app
 WORKDIR /app

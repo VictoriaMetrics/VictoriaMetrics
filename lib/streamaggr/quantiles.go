@@ -41,6 +41,7 @@ func (as *quantilesAggrState) pushSamples(samples []pushSample) {
 			v = &quantilesStateValue{
 				h: h,
 			}
+			outputKey = bytesutil.InternString(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if loaded {
 				// Use the entry created by a concurrent goroutine.

@@ -542,7 +542,7 @@ func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSec
 	if err != nil {
 		return nil, nil, err
 	}
-	if len(tssFirst) == 0 && strings.ToLower(be.Op) != "or" {
+	if len(tssFirst) == 0 && !strings.EqualFold(be.Op, "or") {
 		// Fast path: there is no sense in executing the exprSecond when exprFirst returns an empty result,
 		// since the "exprFirst op exprSecond" would return an empty result in any case.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3349
@@ -1168,7 +1168,7 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 		return evalExpr(qt, ec, be)
 	case "rate":
 		if iafc != nil {
-			if strings.ToLower(iafc.ae.Name) != "sum" {
+			if !strings.EqualFold(iafc.ae.Name, "sum") {
 				qt.Printf("do not apply instant rollup optimization for incremental aggregate %s()", iafc.ae.Name)
 				return evalAt(qt, timestamp, window)
 			}
@@ -1214,7 +1214,7 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 		return evalExpr(qt, ec, be)
 	case "max_over_time":
 		if iafc != nil {
-			if strings.ToLower(iafc.ae.Name) != "max" {
+			if !strings.EqualFold(iafc.ae.Name, "max") {
 				qt.Printf("do not apply instant rollup optimization for non-max incremental aggregate %s()", iafc.ae.Name)
 				return evalAt(qt, timestamp, window)
 			}
@@ -1276,7 +1276,7 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 		return tss, nil
 	case "min_over_time":
 		if iafc != nil {
-			if strings.ToLower(iafc.ae.Name) != "min" {
+			if !strings.EqualFold(iafc.ae.Name, "min") {
 				qt.Printf("do not apply instant rollup optimization for non-min incremental aggregate %s()", iafc.ae.Name)
 				return evalAt(qt, timestamp, window)
 			}
@@ -1345,7 +1345,7 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 		"increase",
 		"increase_pure",
 		"sum_over_time":
-		if iafc != nil && strings.ToLower(iafc.ae.Name) != "sum" {
+		if iafc != nil && !strings.EqualFold(iafc.ae.Name, "sum") {
 			qt.Printf("do not apply instant rollup optimization for non-sum incremental aggregate %s()", iafc.ae.Name)
 			return evalAt(qt, timestamp, window)
 		}
@@ -1729,7 +1729,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		}
 	}
 	rollupPoints := mulNoOverflow(pointsPerSeries, int64(timeseriesLen*len(rcs)))
-	rollupMemorySize := sumNoOverflow(mulNoOverflow(int64(rssLen), 1000), mulNoOverflow(rollupPoints, 16))
+	rollupMemorySize := sumNoOverflow(mulNoOverflow(int64(timeseriesLen), 1000), mulNoOverflow(rollupPoints, 16))
 	if maxMemory := int64(logQueryMemoryUsage.N); maxMemory > 0 && rollupMemorySize > maxMemory {
 		memoryIntensiveQueries.Inc()
 		requestURI := ec.GetRequestURI()

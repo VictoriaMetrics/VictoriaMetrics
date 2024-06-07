@@ -67,7 +67,7 @@ The following steps must be performed during the upgrade / downgrade procedure:
 
 ## Backup Recommendations
 
-VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com/vmbackup.html) and [vmrestore](https://docs.victoriametrics.com/vmrestore.html) tools. There is also [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html), which simplifies backup automation.
+VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com/vmbackup/) and [vmrestore](https://docs.victoriametrics.com/vmrestore/) tools. There is also [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/), which simplifies backup automation.
 
 ## Technical Support and Services
 
@@ -77,4 +77,4 @@ There are the following channels for providing technical support for VictoriaMet
 * [Slack Inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/)
 * [Telegram channel](https://t.me/VictoriaMetrics_en)
 
-We also provide [Enterprise support](https://docs.victoriametrics.com/enterprise.html).
+We also provide [Enterprise support](https://docs.victoriametrics.com/enterprise/).

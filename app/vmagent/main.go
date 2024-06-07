@@ -24,6 +24,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/prometheusimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/promremotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/statsd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/vmimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
@@ -36,6 +37,7 @@ import (
 	influxserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/influx"
 	opentsdbserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdb"
 	opentsdbhttpserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdbhttp"
+	statsdserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/statsd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
@@ -61,6 +63,12 @@ var (
 		"See also -graphiteListenAddr.useProxyProtocol")
 	graphiteUseProxyProtocol = flag.Bool("graphiteListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -graphiteListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
+	statsdListenAddr = flag.String("statsdListenAddr", "", "TCP and UDP address to listen for Statsd plaintext data. Usually :8125 must be set. Doesn't work if empty. "+
+		"See also -statsdListenAddr.useProxyProtocol")
+	statsdUseProxyProtocol = flag.Bool("statsdListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -statsdListenAddr . "+
+		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
+	statsdDisableAggregationEnforcemenet = flag.Bool(`statsd.disableAggregationEnforcement`, false, "Whether to disable streaming aggregation requirement check. "+
+		"It's recommended to run statsdServer with pre-configured streaming aggregation to decrease load at database.")
 	opentsdbListenAddr = flag.String("opentsdbListenAddr", "", "TCP and UDP address to listen for OpenTSDB metrics. "+
 		"Telnet put messages and HTTP /api/put messages are simultaneously served on TCP port. "+
 		"Usually :4242 must be set. Doesn't work if empty. See also -opentsdbListenAddr.useProxyProtocol")
@@ -80,6 +88,7 @@ var (
 var (
 	influxServer       *influxserver.Server
 	graphiteServer     *graphiteserver.Server
+	statsdServer       *statsdserver.Server
 	opentsdbServer     *opentsdbserver.Server
 	opentsdbhttpServer *opentsdbhttpserver.Server
 )
@@ -137,6 +146,12 @@ func main() {
 	if len(*graphiteListenAddr) > 0 {
 		graphiteServer = graphiteserver.MustStart(*graphiteListenAddr, *graphiteUseProxyProtocol, graphite.InsertHandler)
 	}
+	if len(*statsdListenAddr) > 0 {
+		if !remotewrite.HasAnyStreamAggrConfigured() && !*statsdDisableAggregationEnforcemenet {
+			logger.Fatalf("streaming aggregation must be configured with enabled statsd server. It's recommended  to aggregate metrics received at statsd listener. This check could be disabled with flag -statsd.disableAggregationEnforcement")
+		}
+		statsdServer = statsdserver.MustStart(*statsdListenAddr, *statsdUseProxyProtocol, statsd.InsertHandler)
+	}
 	if len(*opentsdbListenAddr) > 0 {
 		httpInsertHandler := getOpenTSDBHTTPInsertHandler()
 		opentsdbServer = opentsdbserver.MustStart(*opentsdbListenAddr, *opentsdbUseProxyProtocol, opentsdb.InsertHandler, httpInsertHandler)
@@ -171,6 +186,9 @@ func main() {
 	}
 	if len(*graphiteListenAddr) > 0 {
 		graphiteServer.MustStop()
+	}
+	if len(*statsdListenAddr) > 0 {
+		statsdServer.MustStop()
 	}
 	if len(*opentsdbListenAddr) > 0 {
 		opentsdbServer.MustStop()
@@ -225,7 +243,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.Header().Add("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintf(w, "<h2>vmagent</h2>")
-		fmt.Fprintf(w, "See docs at <a href='https://docs.victoriametrics.com/vmagent.html'>https://docs.victoriametrics.com/vmagent.html</a></br>")
+		fmt.Fprintf(w, "See docs at <a href='https://docs.victoriametrics.com/vmagent/'>https://docs.victoriametrics.com/vmagent/</a></br>")
 		fmt.Fprintf(w, "Useful endpoints:</br>")
 		httpserver.WriteAPIHelp(w, [][2]string{
 			{"targets", "status for discovered active targets"},
@@ -718,7 +736,7 @@ func usage() {
 	const s = `
 vmagent collects metrics data via popular data ingestion protocols and routes it to VictoriaMetrics.
 
-See the docs at https://docs.victoriametrics.com/vmagent.html .
+See the docs at https://docs.victoriametrics.com/vmagent/ .
 `
 	flagutil.Usage(s)
 }

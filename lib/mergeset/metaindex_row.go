@@ -41,12 +41,12 @@ func (mr *metaindexRow) Marshal(dst []byte) []byte {
 
 func (mr *metaindexRow) Unmarshal(src []byte) ([]byte, error) {
 	// Unmarshal firstItem
-	tail, fi, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal firstItem: %w", err)
+	fi, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal firstItem")
 	}
+	src = src[nSize:]
 	mr.firstItem = append(mr.firstItem[:0], fi...)
-	src = tail
 
 	// Unmarshal blockHeadersCount
 	if len(src) < 4 {

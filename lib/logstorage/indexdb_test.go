@@ -48,9 +48,9 @@ func TestStorageSearchStreamIDs(t *testing.T) {
 	}
 	idb.debugFlush()
 
-	f := func(streamFilter string, expectedStreamIDs []streamID) {
+	f := func(filterStream string, expectedStreamIDs []streamID) {
 		t.Helper()
-		sf := mustNewStreamFilter(streamFilter)
+		sf := mustNewTestStreamFilter(filterStream)
 		if expectedStreamIDs == nil {
 			expectedStreamIDs = []streamID{}
 		}
@@ -68,7 +68,7 @@ func TestStorageSearchStreamIDs(t *testing.T) {
 			AccountID: 1,
 			ProjectID: 2,
 		}
-		sf := mustNewStreamFilter(`{job="job-0",instance="instance-0"}`)
+		sf := mustNewTestStreamFilter(`{job="job-0",instance="instance-0"}`)
 		for i := 0; i < 3; i++ {
 			streamIDs := idb.searchStreamIDs([]TenantID{tenantID}, sf)
 			if len(streamIDs) > 0 {

@@ -140,17 +140,6 @@ groups:
             for the current load. It is likely more RAM is needed for optimal handling of the current number of active time series.
             See also https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183"
 
-      - alert: ProcessNearFDLimits
-        expr: (process_max_fds - process_open_fds) < 100
-        for: 5m
-        labels:
-          severity: critical
-        annotations:
-          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=117&var-instance={{ $labels.instance }}"
-          summary: "Number of free file descriptors is less than 100 for \"{{ $labels.job }}\"(\"{{ $labels.instance }}\") for the last 5m"
-          description: "Exhausting OS file descriptors limit can cause severe degradation of the process.
-          Consider to increase the limit as fast as possible."
-
       - alert: LabelsLimitExceededOnIngestion
         expr: increase(vm_metrics_with_dropped_labels_total[5m]) > 0
         for: 15m
@@ -176,4 +165,3 @@ groups:
             is saturated by more than 90% and vminsert won't be able to keep up.\n
             This usually means that more vminsert or vmstorage nodes must be added to the cluster in order to increase
             the total number of vminsert -> vmstorage links."
-

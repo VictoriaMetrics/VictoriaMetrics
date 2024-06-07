@@ -12,8 +12,8 @@ aliases:
 
 # Filebeat setup
 
-Specify [`output.elasicsearch`](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html) section in the `filebeat.yml`
-for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/):
+Specify [`output.elasticsearch`](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html) section in the `filebeat.yml`
+for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
 
 ```yaml
 output.elasticsearch:
@@ -26,11 +26,11 @@ output.elasticsearch:
 
 Substitute the `localhost:9428` address inside `hosts` section with the real TCP address of VictoriaLogs.
 
-See [these docs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#http-parameters) for details on the `parameters` section.
+See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details on the `parameters` section.
 
-It is recommended verifying whether the initial setup generates the needed [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
-and uses the correct [stream fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields).
-This can be done by specifying `debug` [parameter](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#http-parameters)
+It is recommended verifying whether the initial setup generates the needed [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+and uses the correct [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
+This can be done by specifying `debug` [parameter](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters)
 and inspecting VictoriaLogs logs then:
 
 ```yaml
@@ -43,8 +43,8 @@ output.elasticsearch:
     debug: "1"
 ```
 
-If some [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) must be skipped
-during data ingestion, then they can be put into `ignore_fields` [parameter](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#http-parameters).
+If some [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) must be skipped
+during data ingestion, then they can be put into `ignore_fields` [parameter](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters).
 For example, the following config instructs VictoriaLogs to ignore `log.offset` and `event.original` fields in the ingested logs:
 
 ```yaml
@@ -84,7 +84,7 @@ output.elasticsearch:
   compression_level: 1
 ```
 
-By default, the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/VictoriaLogs/#multitenancy).
+By default, the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy).
 If you need storing logs in other tenant, then specify the needed tenant via `headers` at `output.elasticsearch` section.
 For example, the following `filebeat.yml` config instructs Filebeat to store the data to `(AccountID=12, ProjectID=34)` tenant:
 
@@ -118,7 +118,7 @@ command-line flag.
 
 See also:
 
-- [Data ingestion troubleshooting](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#troubleshooting).
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
+- [Data ingestion troubleshooting](https://docs.victoriametrics.com/victorialogs/data-ingestion/#troubleshooting).
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
 - [Filebeat `output.elasticsearch` docs](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html).
 - [Docker-compose demo for Filebeat integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/filebeat-docker).

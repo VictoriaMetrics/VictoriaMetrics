@@ -13,7 +13,7 @@ import (
 // SDCheckInterval defines interval for targets refresh.
 var SDCheckInterval = flag.Duration("promscrape.kumaSDCheckInterval", 30*time.Second, "Interval for checking for changes in kuma service discovery. "+
 	"This works only if kuma_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://docs.victoriametrics.com/sd_configs.html#kuma_sd_configs for details")
+	"See https://docs.victoriametrics.com/sd_configs/#kuma_sd_configs for details")
 
 // SDConfig represents service discovery config for Kuma Service Mesh.
 //

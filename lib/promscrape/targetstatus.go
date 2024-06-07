@@ -333,7 +333,7 @@ const (
 	targetDropReasonRelabeling       = targetDropReason("relabeling")         // target dropped because of relabeling
 	targetDropReasonMissingScrapeURL = targetDropReason("missing scrape URL") // target dropped because of missing scrape URL
 	targetDropReasonDuplicate        = targetDropReason("duplicate")          // target with the given set of labels already exists
-	targetDropReasonSharding         = targetDropReason("sharding")           // target is dropped becase of sharding https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets
+	targetDropReasonSharding         = targetDropReason("sharding")           // target is dropped becase of sharding https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets
 )
 
 func (dt *droppedTargets) getTargetsList() []droppedTarget {

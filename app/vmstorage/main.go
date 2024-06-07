@@ -62,13 +62,13 @@ var (
 	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 10e6, "The minimum free disk space at -storageDataPath after which the storage stops accepting new data")
 
 	cacheSizeStorageTSID = flagutil.NewBytes("storage.cacheSizeStorageTSID", 0, "Overrides max size for storage/tsid cache. "+
-		"See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
+		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
 	cacheSizeIndexDBIndexBlocks = flagutil.NewBytes("storage.cacheSizeIndexDBIndexBlocks", 0, "Overrides max size for indexdb/indexBlocks cache. "+
-		"See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
+		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
 	cacheSizeIndexDBDataBlocks = flagutil.NewBytes("storage.cacheSizeIndexDBDataBlocks", 0, "Overrides max size for indexdb/dataBlocks cache. "+
-		"See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
+		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
 	cacheSizeIndexDBTagFilters = flagutil.NewBytes("storage.cacheSizeIndexDBTagFilters", 0, "Overrides max size for indexdb/tagFiltersToMetricIDs cache. "+
-		"See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
+		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
 )
 
 // CheckTimeRange returns true if the given tr is denied for querying.
@@ -198,7 +198,8 @@ func SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer, tfss []*stor
 
 // SearchLabelValuesWithFiltersOnTimeRange searches for label values for the given labelName, tfss and tr.
 func SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer, labelName string, tfss []*storage.TagFilters,
-	tr storage.TimeRange, maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
+	tr storage.TimeRange, maxLabelValues, maxMetrics int, deadline uint64,
+) ([]string, error) {
 	WG.Add(1)
 	labelValues, err := Storage.SearchLabelValuesWithFiltersOnTimeRange(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
 	WG.Done()
@@ -496,6 +497,7 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 
 	metrics.WriteCounterUint64(w, `vm_indexdb_items_added_total`, idbm.ItemsAdded)
 	metrics.WriteCounterUint64(w, `vm_indexdb_items_added_size_bytes_total`, idbm.ItemsAddedSizeBytes)
+	metrics.WriteCounterUint64(w, `vm_indexdb_items_dropped_total{reason="too_long_item"}`, idbm.TooLongItemsDroppedTotal)
 
 	metrics.WriteGaugeUint64(w, `vm_pending_rows{type="storage"}`, tm.PendingRows)
 	metrics.WriteGaugeUint64(w, `vm_pending_rows{type="indexdb"}`, idbm.PendingItems)

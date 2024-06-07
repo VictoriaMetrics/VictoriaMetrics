@@ -6,7 +6,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "10.3.1"
+      "version": "10.4.2"
     },
     {
       "type": "datasource",
@@ -65,7 +65,7 @@
           "uid": "$ds"
         },
         "enable": true,
-        "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by(short_version) unless (sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"} offset 20m) by(short_version))",
+        "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by(short_version) unless (sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"} offset $__interval) by(short_version))",
         "hide": true,
         "iconColor": "dark-blue",
         "name": "version",
@@ -78,8 +78,7 @@
           "uid": "$ds"
         },
         "enable": true,
-        "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"})) by(job, instance)",
-        "hide": true,
+        "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(job, instance)",
         "iconColor": "dark-yellow",
         "name": "restarts",
         "textFormat": "{{job}}:{{instance}} restarted"
@@ -99,7 +98,7 @@
       "title": "vmagent wiki",
       "tooltip": "",
       "type": "link",
-      "url": "https://docs.victoriametrics.com/vmagent.html"
+      "url": "https://docs.victoriametrics.com/vmagent/"
     },
     {
       "icon": "external link",
@@ -150,8 +149,7 @@
                 "value": null
               }
             ]
-          },
-          "unitScale": true
+          }
         },
         "overrides": []
       },
@@ -165,7 +163,7 @@
       "links": [
         {
           "title": "Troubleshooting",
-          "url": "https://docs.victoriametrics.com/vmagent.html#troubleshooting"
+          "url": "https://docs.victoriametrics.com/vmagent/#troubleshooting"
         }
       ],
       "options": {
@@ -185,7 +183,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.3.1",
+      "pluginVersion": "10.4.2",
       "targets": [
         {
           "datasource": {
@@ -220,8 +218,7 @@
                 "value": null
               }
             ]
-          },
-          "unitScale": true
+          }
         },
         "overrides": []
       },
@@ -235,7 +232,7 @@
       "links": [
         {
           "title": "Troubleshooting",
-          "url": "https://docs.victoriametrics.com/vmagent.html#troubleshooting"
+          "url": "https://docs.victoriametrics.com/vmagent/#troubleshooting"
         }
       ],
       "options": {
@@ -255,7 +252,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.3.1",
+      "pluginVersion": "10.4.2",
       "targets": [
         {
           "datasource": {
@@ -291,8 +288,7 @@
                 "value": null
               }
             ]
-          },
-          "unitScale": true
+          }
         },
         "overrides": []
       },
@@ -303,7 +299,6 @@
         "y": 1
       },
       "id": 134,
-      "links": [],
       "options": {
         "colorMode": "value",
         "graphMode": "none",
@@ -321,7 +316,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.3.1",
+      "pluginVersion": "10.4.2",
       "targets": [
         {
           "datasource": {
@@ -356,8 +351,7 @@
                 "value": null
               }
             ]
-          },
-          "unitScale": true
+          }
         },
         "overrides": [
           {
@@ -396,7 +390,7 @@
       "links": [
         {
           "title": "Troubleshooting",
-          "url": "https://docs.victoriametrics.com/vmagent.html#troubleshooting"
+          "url": "https://docs.victoriametrics.com/vmagent/#troubleshooting"
         }
       ],
       "options": {
@@ -416,7 +410,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.3.1",
+      "pluginVersion": "10.4.2",
       "targets": [
         {
           "datasource": {
@@ -470,8 +464,7 @@
               }
             ]
           },
-          "unit": "short",
-          "unitScale": true
+          "unit": "short"
         },
         "overrides": []
       },
@@ -486,7 +479,7 @@
         {
           "targetBlank": true,
           "title": "Troubleshooting",
-          "url": "https://docs.victoriametrics.com/vmagent.html#troubleshooting"
+          "url": "https://docs.victoriametrics.com/vmagent/#troubleshooting"
         }
       ],
       "options": {
@@ -506,7 +499,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.3.1",
+      "pluginVersion": "10.4.2",
       "targets": [
         {
           "datasource": {
@@ -544,8 +537,7 @@
               }
             ]
           },
-          "unit": "bytes",
-          "unitScale": true
+          "unit": "bytes"
         },
         "overrides": []
       },
@@ -573,7 +565,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.3.1",
+      "pluginVersion": "10.4.2",
       "targets": [
         {
           "datasource": {
@@ -620,8 +612,7 @@
                 "value": 80
               }
             ]
-          },
-          "unitScale": true
+          }
         },
         "overrides": [
           {
@@ -669,7 +660,7 @@
         },
         "showHeader": true
       },
-      "pluginVersion": "10.3.1",
+      "pluginVersion": "10.4.2",
       "targets": [
         {
           "datasource": {
@@ -746,8 +737,7 @@
               }
             ]
           },
-          "unit": "short",
-          "unitScale": true
+          "unit": "short"
         },
         "overrides": []
       },
@@ -882,8 +872,7 @@
               }
             ]
           },
-          "unit": "short",
-          "unitScale": true
+          "unit": "short"
         },
         "overrides": [
           {
@@ -1021,8 +1010,7 @@
               }
             ]
           },
-          "unit": "bytes",
-          "unitScale": true
+          "unit": "bytes"
         },
         "overrides": []
       },
@@ -1036,7 +1024,7 @@
       "links": [
         {
           "title": "Troubleshooting",
-          "url": "https://docs.victoriametrics.com/vmagent.html#troubleshooting"
+          "url": "https://docs.victoriametrics.com/vmagent/#troubleshooting"
         }
       ],
       "options": {
@@ -1135,8 +1123,7 @@
               }
             ]
           },
-          "unit": "short",
-          "unitScale": true
+          "unit": "short"
         },
         "overrides": []
       },
@@ -1147,7 +1134,6 @@
         "y": 18
       },
       "id": 107,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [
@@ -1247,8 +1233,7 @@
               }
             ]
           },
-          "unit": "decbytes",
-          "unitScale": true
+          "unit": "decbytes"
         },
         "overrides": []
       },
@@ -1263,7 +1248,7 @@
         {
           "targetBlank": true,
           "title": "Troubleshooting",
-          "url": "https://docs.victoriametrics.com/vmagent.html#troubleshooting"
+          "url": "https://docs.victoriametrics.com/vmagent/#troubleshooting"
         }
       ],
       "options": {
@@ -1350,8 +1335,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1371,7 +1355,6 @@
         "y": 26
       },
       "id": 15,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [
@@ -1456,8 +1439,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1481,7 +1463,7 @@
         {
           "targetBlank": true,
           "title": "Troubleshooting",
-          "url": "https://docs.victoriametrics.com/vmagent.html#troubleshooting"
+          "url": "https://docs.victoriametrics.com/vmagent/#troubleshooting"
         }
       ],
       "options": {
@@ -1636,8 +1618,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1753,8 +1734,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1867,8 +1847,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2005,8 +1984,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2138,8 +2116,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2246,8 +2223,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2355,8 +2331,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2463,8 +2438,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3137,7 +3111,7 @@
             {
               "targetBlank": true,
               "title": "Relabeling",
-              "url": "https://docs.victoriametrics.com/vmagent.html#relabeling"
+              "url": "https://docs.victoriametrics.com/vmagent/#relabeling"
             }
           ],
           "options": {
@@ -3582,8 +3556,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3690,8 +3663,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3796,8 +3768,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3904,8 +3875,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4011,8 +3981,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4117,8 +4086,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4222,8 +4190,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4327,8 +4294,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5959,7 +5925,7 @@
           "links": [
             {
               "title": "Troubleshooting",
-              "url": "https://docs.victoriametrics.com/vmagent.html#troubleshooting"
+              "url": "https://docs.victoriametrics.com/vmagent/#troubleshooting"
             }
           ],
           "options": {

@@ -97,8 +97,10 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 		bu := up.getBackendURL()
 		target := mergeURLs(bu.url, u, up.dropSrcPathPrefixParts)
 		bu.put()
-		if target.String() != expectedTarget {
-			t.Fatalf("unexpected target; got %q; want %q", target, expectedTarget)
+
+		gotTarget := target.String()
+		if gotTarget != expectedTarget {
+			t.Fatalf("unexpected target; \ngot:\n%q;\nwant:\n%q", gotTarget, expectedTarget)
 		}
 		if s := headersToString(hc.RequestHeaders); s != expectedRequestHeaders {
 			t.Fatalf("unexpected request headers; got %q; want %q", s, expectedRequestHeaders)
@@ -123,17 +125,11 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar"),
 		HeadersConf: HeadersConf{
-			RequestHeaders: []Header{
-				{
-					Name:  "bb",
-					Value: "aaa",
-				},
+			RequestHeaders: []*Header{
+				mustNewHeader("'bb: aaa'"),
 			},
-			ResponseHeaders: []Header{
-				{
-					Name:  "x",
-					Value: "y",
-				},
+			ResponseHeaders: []*Header{
+				mustNewHeader("'x: y'"),
 			},
 		},
 		RetryStatusCodes:       []int{503, 501},
@@ -162,29 +158,17 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 			{
 				SrcHosts: getRegexs([]string{"host42"}),
 				SrcPaths: getRegexs([]string{"/vmsingle/api/v1/query"}),
-				SrcQueryArgs: []QueryArg{
-					{
-						Name:  "db",
-						Value: "foo",
-					},
+				SrcQueryArgs: []*QueryArg{
+					mustNewQueryArg("db=foo"),
 				},
 				URLPrefix: mustParseURL("http://vmselect/0/prometheus"),
 				HeadersConf: HeadersConf{
-					RequestHeaders: []Header{
-						{
-							Name:  "xx",
-							Value: "aa",
-						},
-						{
-							Name:  "yy",
-							Value: "asdf",
-						},
+					RequestHeaders: []*Header{
+						mustNewHeader("'xx: aa'"),
+						mustNewHeader("'yy: asdf'"),
 					},
-					ResponseHeaders: []Header{
-						{
-							Name:  "qwe",
-							Value: "rty",
-						},
+					ResponseHeaders: []*Header{
+						mustNewHeader("'qwe: rty'"),
 					},
 				},
 				RetryStatusCodes:       []int{503, 500, 501},
@@ -200,14 +184,12 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 		},
 		URLPrefix: mustParseURL("http://default-server"),
 		HeadersConf: HeadersConf{
-			RequestHeaders: []Header{{
-				Name:  "bb",
-				Value: "aaa",
-			}},
-			ResponseHeaders: []Header{{
-				Name:  "x",
-				Value: "y",
-			}},
+			RequestHeaders: []*Header{
+				mustNewHeader("'bb: aaa'"),
+			},
+			ResponseHeaders: []*Header{
+				mustNewHeader("'x: y'"),
+			},
 		},
 		RetryStatusCodes:       []int{502},
 		DropSrcPathPrefixParts: intp(2),
@@ -250,6 +232,30 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar?extra_label=team=mobile"),
 	}, "/api/v1/query?extra_label=team=dev", "http://foo.bar/api/v1/query?extra_label=team%3Dmobile", "", "", nil, "least_loaded", 0)
+
+	// Complex routing regexp query args in `url_map`
+	ui = &UserInfo{
+		URLMaps: []URLMap{
+			{
+				SrcPaths: getRegexs([]string{"/api/v1/query"}),
+				SrcQueryArgs: []*QueryArg{
+					mustNewQueryArg(`query=~.*{.*env="dev".*}*.`),
+				},
+				URLPrefix: mustParseURL("http://vmselect/0/prometheus"),
+			},
+			{
+				SrcPaths: getRegexs([]string{"/api/v1/query"}),
+				SrcQueryArgs: []*QueryArg{
+					mustNewQueryArg(`query=~.*{.*env="prod".*}.*`),
+				},
+				URLPrefix: mustParseURL("http://vmselect/1/prometheus"),
+			},
+		},
+		URLPrefix: mustParseURL("http://default-server"),
+	}
+	f(ui, `/api/v1/query?query=up{env="prod"}`, `http://vmselect/1/prometheus/api/v1/query?query=up%7Benv%3D%22prod%22%7D`, "", "", nil, "least_loaded", 0)
+	f(ui, `/api/v1/query?query=up{foo="bar",env="dev",pod!=""}`, `http://vmselect/0/prometheus/api/v1/query?query=up%7Bfoo%3D%22bar%22%2Cenv%3D%22dev%22%2Cpod%21%3D%22%22%7D`, "", "", nil, "least_loaded", 0)
+	f(ui, `/api/v1/query?query=up{foo="bar"}`, `http://default-server/api/v1/query?query=up%7Bfoo%3D%22bar%22%7D`, "", "", nil, "least_loaded", 0)
 }
 
 func TestCreateTargetURLFailure(t *testing.T) {
@@ -265,10 +271,10 @@ func TestCreateTargetURLFailure(t *testing.T) {
 			t.Fatalf("unexpected non-empty up=%#v", up)
 		}
 		if hc.RequestHeaders != nil {
-			t.Fatalf("unexpected non-empty request headers=%q", hc.RequestHeaders)
+			t.Fatalf("unexpected non-empty request headers: %s", headersToString(hc.RequestHeaders))
 		}
 		if hc.ResponseHeaders != nil {
-			t.Fatalf("unexpected non-empty response headers=%q", hc.ResponseHeaders)
+			t.Fatalf("unexpected non-empty response headers: %s", headersToString(hc.ResponseHeaders))
 		}
 	}
 	f(&UserInfo{}, "/foo/bar")
@@ -282,7 +288,7 @@ func TestCreateTargetURLFailure(t *testing.T) {
 	}, "/api/v1/write")
 }
 
-func headersToString(hs []Header) string {
+func headersToString(hs []*Header) string {
 	a := make([]string, len(hs))
 	for i, h := range hs {
 		a[i] = fmt.Sprintf("%s: %s", h.Name, h.Value)

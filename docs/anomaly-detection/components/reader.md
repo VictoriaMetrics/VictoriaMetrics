@@ -16,7 +16,7 @@ aliases:
 There are 4 sources available to read data into VM Anomaly Detection from: VictoriaMetrics, (ND)JSON file, QueryRange, or CSV file. Depending on the data source, different parameters should be specified in the config file in the `reader` section.
 -->
 
-VictoriaMetrics Anomaly Detection (`vmanomaly`) primarily uses [VmReader](#vm-reader) to ingest data. This reader focuses on fetching time-series data directly from VictoriaMetrics with the help of powerful [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expressions for aggregating, filtering and grouping your data, ensuring seamless integration and efficient data handling. 
+VictoriaMetrics Anomaly Detection (`vmanomaly`) primarily uses [VmReader](#vm-reader) to ingest data. This reader focuses on fetching time-series data directly from VictoriaMetrics with the help of powerful [MetricsQL](https://docs.victoriametrics.com/metricsql/) expressions for aggregating, filtering and grouping your data, ensuring seamless integration and efficient data handling. 
 
 Future updates will introduce additional readers, expanding the range of data sources `vmanomaly` can work with.
 
@@ -52,7 +52,7 @@ Future updates will introduce additional readers, expanding the range of data so
         <tr>
             <td><code>tenant_id</code></td>
             <td><code>"0:0"</code></td>
-            <td>For VictoriaMetrics Cluster version only, tenants are identified by accountID or accountID:projectID. See VictoriaMetrics Cluster <a href="https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy">multitenancy docs</a></td>
+            <td>For VictoriaMetrics Cluster version only, tenants are identified by accountID or accountID:projectID. See VictoriaMetrics Cluster <a href="https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy">multitenancy docs</a></td>
         </tr>
         <tr>
             <td><code>sampling_period</code></td>
