@@ -17,7 +17,7 @@ import (
 func TestAggregatorsFailure(t *testing.T) {
 	f := func(config string) {
 		t.Helper()
-		pushFunc := func(tss []prompbmarshal.TimeSeries) {
+		pushFunc := func(_ []prompbmarshal.TimeSeries) {
 			panic(fmt.Errorf("pushFunc shouldn't be called"))
 		}
 		a, err := NewAggregatorsFromData([]byte(config), pushFunc, 0)
@@ -123,7 +123,7 @@ func TestAggregatorsEqual(t *testing.T) {
 	f := func(a, b string, expectedResult bool) {
 		t.Helper()
 
-		pushFunc := func(tss []prompbmarshal.TimeSeries) {}
+		pushFunc := func(_ []prompbmarshal.TimeSeries) {}
 		aa, err := NewAggregatorsFromData([]byte(a), pushFunc, 0)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)

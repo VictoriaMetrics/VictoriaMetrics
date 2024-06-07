@@ -92,8 +92,8 @@ func newClient(ctx context.Context, sw *ScrapeWork) *client {
 	if isTLS {
 		tlsCfg = sw.AuthConfig.NewTLSConfig()
 	}
-	setProxyHeaders := func(req *http.Request) {}
-	setFasthttpProxyHeaders := func(req *fasthttp.Request) {}
+	setProxyHeaders := func(_ *http.Request) {}
+	setFasthttpProxyHeaders := func(_ *fasthttp.Request) {}
 	proxyURL := sw.ProxyURL
 	if !isTLS && proxyURL.IsHTTPOrHTTPS() {
 		// Send full sw.ScrapeURL in requests to a proxy host for non-TLS scrape targets
@@ -155,7 +155,7 @@ func newClient(ctx context.Context, sw *ScrapeWork) *client {
 		Timeout: sw.ScrapeTimeout,
 	}
 	if sw.DenyRedirects {
-		sc.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		sc.CheckRedirect = func(_ *http.Request, _ []*http.Request) error {
 			return http.ErrUseLastResponse
 		}
 	}

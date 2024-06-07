@@ -299,7 +299,7 @@ func readIn(readFor string, t *testing.T, insertTime time.Time) []test {
 	t.Helper()
 	s := newSuite(t)
 	var tt []test
-	s.noError(filepath.Walk(filepath.Join(testFixturesDir, readFor), func(path string, info os.FileInfo, err error) error {
+	s.noError(filepath.Walk(filepath.Join(testFixturesDir, readFor), func(path string, _ os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}

@@ -101,10 +101,10 @@ func TestLoadRelabelConfigsFailure(t *testing.T) {
 			t.Fatalf("unexpected non-empty rcs: %#v", rcs)
 		}
 	}
-	t.Run("non-existing-file", func(t *testing.T) {
+	t.Run("non-existing-file", func(_ *testing.T) {
 		f("testdata/non-exsiting-file")
 	})
-	t.Run("invalid-file", func(t *testing.T) {
+	t.Run("invalid-file", func(_ *testing.T) {
 		f("testdata/invalid_config.yml")
 	})
 }
@@ -209,7 +209,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			t.Fatalf("unexpected non-empty pcs: %#v", pcs)
 		}
 	}
-	t.Run("invalid-regex", func(t *testing.T) {
+	t.Run("invalid-regex", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				SourceLabels: []string{"aaa"},
@@ -220,7 +220,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("replace-missing-target-label", func(t *testing.T) {
+	t.Run("replace-missing-target-label", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action:       "replace",
@@ -228,7 +228,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("replace_all-missing-source-labels", func(t *testing.T) {
+	t.Run("replace_all-missing-source-labels", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action:      "replace_all",
@@ -236,7 +236,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("replace_all-missing-target-label", func(t *testing.T) {
+	t.Run("replace_all-missing-target-label", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action:       "replace_all",
@@ -244,21 +244,21 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("keep-missing-source-labels", func(t *testing.T) {
+	t.Run("keep-missing-source-labels", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action: "keep",
 			},
 		})
 	})
-	t.Run("keep_if_equal-missing-source-labels", func(t *testing.T) {
+	t.Run("keep_if_equal-missing-source-labels", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action: "keep_if_equal",
 			},
 		})
 	})
-	t.Run("keep_if_equal-single-source-label", func(t *testing.T) {
+	t.Run("keep_if_equal-single-source-label", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action:       "keep_if_equal",
@@ -266,7 +266,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("keep_if_equal-unused-target-label", func(t *testing.T) {
+	t.Run("keep_if_equal-unused-target-label", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action:       "keep_if_equal",
@@ -275,7 +275,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("keep_if_equal-unused-regex", func(t *testing.T) {
+	t.Run("keep_if_equal-unused-regex", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action:       "keep_if_equal",
@@ -286,14 +286,14 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("drop_if_equal-missing-source-labels", func(t *testing.T) {
+	t.Run("drop_if_equal-missing-source-labels", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action: "drop_if_equal",
 			},
 		})
 	})
-	t.Run("drop_if_equal-single-source-label", func(t *testing.T) {
+	t.Run("drop_if_equal-single-source-label", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action:       "drop_if_equal",
@@ -301,7 +301,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("drop_if_equal-unused-target-label", func(t *testing.T) {
+	t.Run("drop_if_equal-unused-target-label", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action:       "drop_if_equal",
@@ -310,7 +310,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("drop_if_equal-unused-regex", func(t *testing.T) {
+	t.Run("drop_if_equal-unused-regex", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action:       "drop_if_equal",
@@ -321,14 +321,14 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("keepequal-missing-source-labels", func(t *testing.T) {
+	t.Run("keepequal-missing-source-labels", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action: "keepequal",
 			},
 		})
 	})
-	t.Run("keepequal-missing-target-label", func(t *testing.T) {
+	t.Run("keepequal-missing-target-label", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action:       "keepequal",
@@ -336,7 +336,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("keepequal-unused-regex", func(t *testing.T) {
+	t.Run("keepequal-unused-regex", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action:       "keepequal",
@@ -348,14 +348,14 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("dropequal-missing-source-labels", func(t *testing.T) {
+	t.Run("dropequal-missing-source-labels", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action: "dropequal",
 			},
 		})
 	})
-	t.Run("dropequal-missing-target-label", func(t *testing.T) {
+	t.Run("dropequal-missing-target-label", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action:       "dropequal",
@@ -363,7 +363,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("dropequal-unused-regex", func(t *testing.T) {
+	t.Run("dropequal-unused-regex", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action:       "dropequal",
@@ -375,14 +375,14 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("drop-missing-source-labels", func(t *testing.T) {
+	t.Run("drop-missing-source-labels", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action: "drop",
 			},
 		})
 	})
-	t.Run("hashmod-missing-source-labels", func(t *testing.T) {
+	t.Run("hashmod-missing-source-labels", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action:      "hashmod",
@@ -391,7 +391,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("hashmod-missing-target-label", func(t *testing.T) {
+	t.Run("hashmod-missing-target-label", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action:       "hashmod",
@@ -400,7 +400,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("hashmod-missing-modulus", func(t *testing.T) {
+	t.Run("hashmod-missing-modulus", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action:       "hashmod",
@@ -409,21 +409,21 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("invalid-action", func(t *testing.T) {
+	t.Run("invalid-action", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action: "invalid-action",
 			},
 		})
 	})
-	t.Run("drop_metrics-missing-regex", func(t *testing.T) {
+	t.Run("drop_metrics-missing-regex", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action: "drop_metrics",
 			},
 		})
 	})
-	t.Run("drop_metrics-non-empty-source-labels", func(t *testing.T) {
+	t.Run("drop_metrics-non-empty-source-labels", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action:       "drop_metrics",
@@ -434,14 +434,14 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("keep_metrics-missing-regex", func(t *testing.T) {
+	t.Run("keep_metrics-missing-regex", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action: "keep_metrics",
 			},
 		})
 	})
-	t.Run("keep_metrics-non-empty-source-labels", func(t *testing.T) {
+	t.Run("keep_metrics-non-empty-source-labels", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action:       "keep_metrics",
@@ -452,7 +452,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("uppercase-missing-sourceLabels", func(t *testing.T) {
+	t.Run("uppercase-missing-sourceLabels", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action:      "uppercase",
@@ -460,7 +460,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("lowercase-missing-targetLabel", func(t *testing.T) {
+	t.Run("lowercase-missing-targetLabel", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action:       "lowercase",
@@ -468,7 +468,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("graphite-missing-match", func(t *testing.T) {
+	t.Run("graphite-missing-match", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action: "graphite",
@@ -478,7 +478,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("graphite-missing-labels", func(t *testing.T) {
+	t.Run("graphite-missing-labels", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action: "graphite",
@@ -486,7 +486,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("graphite-superflouous-sourceLabels", func(t *testing.T) {
+	t.Run("graphite-superflouous-sourceLabels", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action: "graphite",
@@ -498,7 +498,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("graphite-superflouous-targetLabel", func(t *testing.T) {
+	t.Run("graphite-superflouous-targetLabel", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action: "graphite",
@@ -511,7 +511,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 		})
 	})
 	replacement := "foo"
-	t.Run("graphite-superflouous-replacement", func(t *testing.T) {
+	t.Run("graphite-superflouous-replacement", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action: "graphite",
@@ -524,7 +524,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 		})
 	})
 	var re MultiLineRegex
-	t.Run("graphite-superflouous-regex", func(t *testing.T) {
+	t.Run("graphite-superflouous-regex", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action: "graphite",
@@ -536,7 +536,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("non-graphite-superflouos-match", func(t *testing.T) {
+	t.Run("non-graphite-superflouos-match", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action:       "uppercase",
@@ -546,7 +546,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
-	t.Run("non-graphite-superflouos-labels", func(t *testing.T) {
+	t.Run("non-graphite-superflouos-labels", func(_ *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action:       "uppercase",

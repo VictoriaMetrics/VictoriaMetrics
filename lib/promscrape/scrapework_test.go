@@ -96,7 +96,7 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 
 	pushDataCalls := 0
 	var pushDataErr error
-	sw.PushData = func(at *auth.Token, wr *prompbmarshal.WriteRequest) {
+	sw.PushData = func(_ *auth.Token, wr *prompbmarshal.WriteRequest) {
 		if err := expectEqualTimeseries(wr.Timeseries, timeseriesExpected); err != nil {
 			pushDataErr = fmt.Errorf("unexpected data pushed: %w\ngot\n%#v\nwant\n%#v", err, wr.Timeseries, timeseriesExpected)
 		}
@@ -136,7 +136,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 
 		pushDataCalls := 0
 		var pushDataErr error
-		sw.PushData = func(at *auth.Token, wr *prompbmarshal.WriteRequest) {
+		sw.PushData = func(_ *auth.Token, wr *prompbmarshal.WriteRequest) {
 			pushDataCalls++
 			if len(wr.Timeseries) > len(timeseriesExpected) {
 				pushDataErr = fmt.Errorf("too many time series obtained; got %d; want %d\ngot\n%+v\nwant\n%+v",
@@ -716,7 +716,7 @@ func TestSendStaleSeries(t *testing.T) {
 		defer common.StopUnmarshalWorkers()
 
 		var staleMarks int
-		sw.PushData = func(at *auth.Token, wr *prompbmarshal.WriteRequest) {
+		sw.PushData = func(_ *auth.Token, wr *prompbmarshal.WriteRequest) {
 			staleMarks += len(wr.Timeseries)
 		}
 		sw.sendStaleSeries(lastScrape, currScrape, 0, false)

@@ -32,7 +32,7 @@ func GetServerTLSConfig(tlsCertFile, tlsKeyFile, tlsMinVersion string, tlsCipher
 		MinVersion: minVersion,
 		// Do not set MaxVersion, since this has no sense from security PoV.
 		// This can only result in lower security level if improperly set.
-		GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+		GetCertificate: func(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
 			certLock.Lock()
 			defer certLock.Unlock()
 			if fasttime.UnixTimestamp() > certDeadline {

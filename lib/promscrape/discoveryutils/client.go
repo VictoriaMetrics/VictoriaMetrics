@@ -140,20 +140,20 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 		},
 	}
 
-	setHTTPHeaders := func(req *http.Request) {}
+	setHTTPHeaders := func(_ *http.Request) {}
 	if ac != nil {
 		setHTTPHeaders = func(req *http.Request) {
 			ac.SetHeaders(req, true)
 		}
 	}
 	if httpCfg.FollowRedirects != nil && !*httpCfg.FollowRedirects {
-		checkRedirect := func(req *http.Request, via []*http.Request) error {
+		checkRedirect := func(_ *http.Request, _ []*http.Request) error {
 			return http.ErrUseLastResponse
 		}
 		client.CheckRedirect = checkRedirect
 		blockingClient.CheckRedirect = checkRedirect
 	}
-	setHTTPProxyHeaders := func(req *http.Request) {}
+	setHTTPProxyHeaders := func(_ *http.Request) {}
 	if proxyAC != nil {
 		setHTTPProxyHeaders = func(req *http.Request) {
 			proxyURL.SetHeaders(proxyAC, req)

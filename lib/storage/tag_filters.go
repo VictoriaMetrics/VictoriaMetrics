@@ -620,7 +620,7 @@ const (
 func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp) (func(b []byte) bool, string, uint64) {
 	if isDotStar(sre) {
 		// '.*'
-		return func(b []byte) bool {
+		return func(_ []byte) bool {
 			return true
 		}, "", fullMatchCost
 	}

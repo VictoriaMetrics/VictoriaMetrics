@@ -211,11 +211,11 @@ func TestFilterBitmap(t *testing.T) {
 		})
 
 		// Clear all the bits
-		bm.forEachSetBit(func(idx int) bool {
+		bm.forEachSetBit(func(_ int) bool {
 			return false
 		})
 		bitsCount := 0
-		bm.forEachSetBit(func(idx int) bool {
+		bm.forEachSetBit(func(_ int) bool {
 			bitsCount++
 			return true
 		})
@@ -9226,7 +9226,7 @@ func testFilterMatchForStorage(t *testing.T, s *Storage, tenantID TenantID, f fi
 		resultColumnNames: []string{resultColumnName},
 	}
 	workersCount := 3
-	s.search(workersCount, so, nil, func(workerID uint, br *blockResult) {
+	s.search(workersCount, so, nil, func(_ uint, br *blockResult) {
 		// Verify tenantID
 		if !br.streamID.tenantID.equal(&tenantID) {
 			t.Fatalf("unexpected tenantID in blockResult; got %s; want %s", &br.streamID.tenantID, &tenantID)

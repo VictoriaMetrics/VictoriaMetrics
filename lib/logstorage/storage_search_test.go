@@ -78,25 +78,25 @@ func TestStorageRunQuery(t *testing.T) {
 	s.debugFlush()
 
 	// run tests on the storage data
-	t.Run("missing-tenant", func(t *testing.T) {
+	t.Run("missing-tenant", func(_ *testing.T) {
 		q := mustParseQuery(`"log message"`)
 		tenantID := TenantID{
 			AccountID: 0,
 			ProjectID: 0,
 		}
-		processBlock := func(columns []BlockColumn) {
+		processBlock := func(_ []BlockColumn) {
 			panic(fmt.Errorf("unexpected match"))
 		}
 		tenantIDs := []TenantID{tenantID}
 		s.RunQuery(tenantIDs, q, nil, processBlock)
 	})
-	t.Run("missing-message-text", func(t *testing.T) {
+	t.Run("missing-message-text", func(_ *testing.T) {
 		q := mustParseQuery(`foobar`)
 		tenantID := TenantID{
 			AccountID: 1,
 			ProjectID: 11,
 		}
-		processBlock := func(columns []BlockColumn) {
+		processBlock := func(_ []BlockColumn) {
 			panic(fmt.Errorf("unexpected match"))
 		}
 		tenantIDs := []TenantID{tenantID}
@@ -168,9 +168,9 @@ func TestStorageRunQuery(t *testing.T) {
 			t.Fatalf("unexpected number of matching rows; got %d; want %d", rowsCount, expectedRowsCount)
 		}
 	})
-	t.Run("stream-filter-mismatch", func(t *testing.T) {
+	t.Run("stream-filter-mismatch", func(_ *testing.T) {
 		q := mustParseQuery(`_stream:{job="foobar",instance=~"host-.+:2345"} log`)
-		processBlock := func(columns []BlockColumn) {
+		processBlock := func(_ []BlockColumn) {
 			panic(fmt.Errorf("unexpected match"))
 		}
 		s.RunQuery(allTenantIDs, q, nil, processBlock)
@@ -273,7 +273,7 @@ func TestStorageRunQuery(t *testing.T) {
 			t.Fatalf("unexpected number of rows; got %d; want %d", rowsCount, expectedRowsCount)
 		}
 	})
-	t.Run("matching-stream-id-missing-time-range", func(t *testing.T) {
+	t.Run("matching-stream-id-missing-time-range", func(_ *testing.T) {
 		minTimestamp := baseTimestamp + (rowsPerBlock+1)*1e9
 		maxTimestamp := baseTimestamp + (rowsPerBlock+2)*1e9
 		q := mustParseQuery(fmt.Sprintf(`_stream:{job="foobar",instance="host-1:234"} _time:[%d, %d)`, minTimestamp/1e9, maxTimestamp/1e9))
@@ -281,13 +281,13 @@ func TestStorageRunQuery(t *testing.T) {
 			AccountID: 1,
 			ProjectID: 11,
 		}
-		processBlock := func(columns []BlockColumn) {
+		processBlock := func(_ []BlockColumn) {
 			panic(fmt.Errorf("unexpected match"))
 		}
 		tenantIDs := []TenantID{tenantID}
 		s.RunQuery(tenantIDs, q, nil, processBlock)
 	})
-	t.Run("missing-time-range", func(t *testing.T) {
+	t.Run("missing-time-range", func(_ *testing.T) {
 		minTimestamp := baseTimestamp + (rowsPerBlock+1)*1e9
 		maxTimestamp := baseTimestamp + (rowsPerBlock+2)*1e9
 		q := mustParseQuery(fmt.Sprintf(`_time:[%d, %d)`, minTimestamp/1e9, maxTimestamp/1e9))
@@ -295,7 +295,7 @@ func TestStorageRunQuery(t *testing.T) {
 			AccountID: 1,
 			ProjectID: 11,
 		}
-		processBlock := func(columns []BlockColumn) {
+		processBlock := func(_ []BlockColumn) {
 			panic(fmt.Errorf("unexpected match"))
 		}
 		tenantIDs := []TenantID{tenantID}
@@ -392,7 +392,7 @@ func TestStorageSearch(t *testing.T) {
 		}
 	}
 
-	t.Run("missing-tenant-smaller-than-existing", func(t *testing.T) {
+	t.Run("missing-tenant-smaller-than-existing", func(_ *testing.T) {
 		tenantID := TenantID{
 			AccountID: 0,
 			ProjectID: 0,
@@ -405,12 +405,12 @@ func TestStorageSearch(t *testing.T) {
 			filter:            f,
 			resultColumnNames: []string{"_msg"},
 		}
-		processBlock := func(workerID uint, br *blockResult) {
+		processBlock := func(_ uint, _ *blockResult) {
 			panic(fmt.Errorf("unexpected match"))
 		}
 		s.search(workersCount, so, nil, processBlock)
 	})
-	t.Run("missing-tenant-bigger-than-existing", func(t *testing.T) {
+	t.Run("missing-tenant-bigger-than-existing", func(_ *testing.T) {
 		tenantID := TenantID{
 			AccountID: tenantsCount + 1,
 			ProjectID: 0,
@@ -423,12 +423,12 @@ func TestStorageSearch(t *testing.T) {
 			filter:            f,
 			resultColumnNames: []string{"_msg"},
 		}
-		processBlock := func(workerID uint, br *blockResult) {
+		processBlock := func(_ uint, _ *blockResult) {
 			panic(fmt.Errorf("unexpected match"))
 		}
 		s.search(workersCount, so, nil, processBlock)
 	})
-	t.Run("missing-tenant-middle", func(t *testing.T) {
+	t.Run("missing-tenant-middle", func(_ *testing.T) {
 		tenantID := TenantID{
 			AccountID: 1,
 			ProjectID: 0,
@@ -441,7 +441,7 @@ func TestStorageSearch(t *testing.T) {
 			filter:            f,
 			resultColumnNames: []string{"_msg"},
 		}
-		processBlock := func(workerID uint, br *blockResult) {
+		processBlock := func(_ uint, _ *blockResult) {
 			panic(fmt.Errorf("unexpected match"))
 		}
 		s.search(workersCount, so, nil, processBlock)
@@ -461,7 +461,7 @@ func TestStorageSearch(t *testing.T) {
 				resultColumnNames: []string{"_msg"},
 			}
 			rowsCount := uint32(0)
-			processBlock := func(workerID uint, br *blockResult) {
+			processBlock := func(_ uint, br *blockResult) {
 				if !br.streamID.tenantID.equal(&tenantID) {
 					panic(fmt.Errorf("unexpected tenantID; got %s; want %s", &br.streamID.tenantID, &tenantID))
 				}
@@ -485,7 +485,7 @@ func TestStorageSearch(t *testing.T) {
 			resultColumnNames: []string{"_msg"},
 		}
 		rowsCount := uint32(0)
-		processBlock := func(workerID uint, br *blockResult) {
+		processBlock := func(_ uint, br *blockResult) {
 			atomic.AddUint32(&rowsCount, uint32(br.RowsCount()))
 		}
 		s.search(workersCount, so, nil, processBlock)
@@ -495,7 +495,7 @@ func TestStorageSearch(t *testing.T) {
 			t.Fatalf("unexpected number of matching rows; got %d; want %d", rowsCount, expectedRowsCount)
 		}
 	})
-	t.Run("stream-filter-mismatch", func(t *testing.T) {
+	t.Run("stream-filter-mismatch", func(_ *testing.T) {
 		sf := mustNewStreamFilter(`{job="foobar",instance=~"host-.+:2345"}`)
 		minTimestamp := baseTimestamp
 		maxTimestamp := baseTimestamp + rowsPerBlock*1e9 + blocksPerStream
@@ -505,7 +505,7 @@ func TestStorageSearch(t *testing.T) {
 			filter:            f,
 			resultColumnNames: []string{"_msg"},
 		}
-		processBlock := func(workerID uint, br *blockResult) {
+		processBlock := func(_ uint, _ *blockResult) {
 			panic(fmt.Errorf("unexpected match"))
 		}
 		s.search(workersCount, so, nil, processBlock)
@@ -526,7 +526,7 @@ func TestStorageSearch(t *testing.T) {
 				resultColumnNames: []string{"_msg"},
 			}
 			rowsCount := uint32(0)
-			processBlock := func(workerID uint, br *blockResult) {
+			processBlock := func(_ uint, br *blockResult) {
 				if !br.streamID.tenantID.equal(&tenantID) {
 					panic(fmt.Errorf("unexpected tenantID; got %s; want %s", &br.streamID.tenantID, &tenantID))
 				}
@@ -555,7 +555,7 @@ func TestStorageSearch(t *testing.T) {
 			resultColumnNames: []string{"_msg"},
 		}
 		rowsCount := uint32(0)
-		processBlock := func(workerID uint, br *blockResult) {
+		processBlock := func(_ uint, br *blockResult) {
 			if !br.streamID.tenantID.equal(&tenantID) {
 				panic(fmt.Errorf("unexpected tenantID; got %s; want %s", &br.streamID.tenantID, &tenantID))
 			}
@@ -592,7 +592,7 @@ func TestStorageSearch(t *testing.T) {
 			resultColumnNames: []string{"_msg"},
 		}
 		rowsCount := uint32(0)
-		processBlock := func(workerID uint, br *blockResult) {
+		processBlock := func(_ uint, br *blockResult) {
 			if !br.streamID.tenantID.equal(&tenantID) {
 				panic(fmt.Errorf("unexpected tenantID; got %s; want %s", &br.streamID.tenantID, &tenantID))
 			}
@@ -620,7 +620,7 @@ func TestStorageSearch(t *testing.T) {
 			resultColumnNames: []string{"_msg"},
 		}
 		rowsCount := uint32(0)
-		processBlock := func(workerID uint, br *blockResult) {
+		processBlock := func(_ uint, br *blockResult) {
 			atomic.AddUint32(&rowsCount, uint32(br.RowsCount()))
 		}
 		s.search(workersCount, so, nil, processBlock)
@@ -630,7 +630,7 @@ func TestStorageSearch(t *testing.T) {
 			t.Fatalf("unexpected number of rows; got %d; want %d", rowsCount, expectedRowsCount)
 		}
 	})
-	t.Run("matching-stream-id-missing-time-range", func(t *testing.T) {
+	t.Run("matching-stream-id-missing-time-range", func(_ *testing.T) {
 		sf := mustNewStreamFilter(`{job="foobar",instance="host-1:234"}`)
 		tenantID := TenantID{
 			AccountID: 1,
@@ -644,7 +644,7 @@ func TestStorageSearch(t *testing.T) {
 			filter:            f,
 			resultColumnNames: []string{"_msg"},
 		}
-		processBlock := func(workerID uint, br *blockResult) {
+		processBlock := func(_ uint, _ *blockResult) {
 			panic(fmt.Errorf("unexpected match"))
 		}
 		s.search(workersCount, so, nil, processBlock)

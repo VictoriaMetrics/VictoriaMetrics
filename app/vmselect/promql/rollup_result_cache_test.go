@@ -9,13 +9,13 @@ import (
 )
 
 func TestRollupResultCacheInitStop(t *testing.T) {
-	t.Run("inmemory", func(t *testing.T) {
+	t.Run("inmemory", func(_ *testing.T) {
 		for i := 0; i < 5; i++ {
 			InitRollupResultCache("")
 			StopRollupResultCache()
 		}
 	})
-	t.Run("file-based", func(t *testing.T) {
+	t.Run("file-based", func(_ *testing.T) {
 		cacheFilePath := "test-rollup-result-cache"
 		for i := 0; i < 3; i++ {
 			InitRollupResultCache(cacheFilePath)

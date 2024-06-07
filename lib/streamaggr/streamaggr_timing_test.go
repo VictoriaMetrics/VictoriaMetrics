@@ -38,7 +38,7 @@ func benchmarkAggregatorsPush(b *testing.B, output string) {
   outputs: [%q]
 `, output)
 	pushCalls := 0
-	pushFunc := func(tss []prompbmarshal.TimeSeries) {
+	pushFunc := func(_ []prompbmarshal.TimeSeries) {
 		pushCalls++
 		if pushCalls > 1 {
 			panic(fmt.Errorf("pushFunc is expected to be called exactly once at MustStop"))

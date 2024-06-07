@@ -71,7 +71,7 @@ func TestVMInstantQuery(t *testing.T) {
 			w.Write([]byte(`{"status":"success","data":{"resultType":"scalar","result":[1583786142, "1"]},"stats":{"seriesFetched": "42"}}`))
 		}
 	})
-	mux.HandleFunc("/render", func(w http.ResponseWriter, request *http.Request) {
+	mux.HandleFunc("/render", func(w http.ResponseWriter, _ *http.Request) {
 		c++
 		switch c {
 		case 8:

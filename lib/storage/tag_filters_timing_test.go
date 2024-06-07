@@ -411,7 +411,7 @@ func BenchmarkOptimizedReMatchCost(b *testing.B) {
 		})
 	})
 	b.Run(".*", func(b *testing.B) {
-		reMatch := func(b []byte) bool {
+		reMatch := func(_ []byte) bool {
 			return true
 		}
 		suffix := []byte("foo1.bar.baz.sss.ddd")

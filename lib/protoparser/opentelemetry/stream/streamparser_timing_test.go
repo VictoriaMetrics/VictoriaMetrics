@@ -27,7 +27,7 @@ func BenchmarkParseStream(b *testing.B) {
 		}
 
 		for p.Next() {
-			err := ParseStream(bytes.NewBuffer(data), false, func(tss []prompbmarshal.TimeSeries) error {
+			err := ParseStream(bytes.NewBuffer(data), false, func(_ []prompbmarshal.TimeSeries) error {
 				return nil
 			})
 			if err != nil {

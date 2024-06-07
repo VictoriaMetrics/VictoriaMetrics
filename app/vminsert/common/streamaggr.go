@@ -49,7 +49,7 @@ func CheckStreamAggrConfig() error {
 	if *streamAggrConfig == "" {
 		return nil
 	}
-	pushNoop := func(tss []prompbmarshal.TimeSeries) {}
+	pushNoop := func(_ []prompbmarshal.TimeSeries) {}
 	sas, err := streamaggr.LoadFromFile(*streamAggrConfig, pushNoop, *streamAggrDedupInterval)
 	if err != nil {
 		return fmt.Errorf("error when loading -streamAggr.config=%q: %w", *streamAggrConfig, err)

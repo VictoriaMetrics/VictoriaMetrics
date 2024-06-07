@@ -798,7 +798,7 @@ func getRowsCount(tss []prompbmarshal.TimeSeries) int {
 
 // CheckStreamAggrConfigs checks configs pointed by -remoteWrite.streamAggr.config
 func CheckStreamAggrConfigs() error {
-	pushNoop := func(tss []prompbmarshal.TimeSeries) {}
+	pushNoop := func(_ []prompbmarshal.TimeSeries) {}
 	for idx, sasFile := range *streamAggrConfig {
 		if sasFile == "" {
 			continue
