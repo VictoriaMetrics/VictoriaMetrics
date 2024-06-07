@@ -142,14 +142,12 @@ The produced anomaly scores will contain label `for` with the name of correspond
 </table>
 
 ## Example
-On the graph "Percentage of Anomalies" you can see the spike 8.75% of anomalies at the timestamp `2024-06-03 10:35:00`.
-Graph "Anomalies per Indicator" is showing indicators that were anomalous for corresponding time.
+On the graph 'Percentage of Anomalies,' you can see a spike to 8.75% of anomalies at the timestamp '2024-06-03 10:35:00'. The graph 'Anomalies per Indicator' shows the indicators that were anomalous at the corresponding time.
 <img alt="global" src="presets_global_percentage.webp">
-At this timestamp on the "Number of Anomalous Indicators by Node" we can identify the node that had more anomalies of all.
-`10.142.0.27`
+At this timestamp on the 'Number of Anomalous Indicators by Node,' we can identify the node that had the most anomalies: `10.142.0.27`
 <img alt="by_node" src="presets_anomalies_by_node.webp">
 For this node from the timestamp `2024-06-03 10:35:00` CPU time spent handling software interrupts started to grow.
 (`cpu_seconds_total{mode="softirq"}`)
 <img alt="irq" src="presets_cpu_seconds_softirq.webp">
-At the same time `cpu_seconds_total` for `steal` mode started to grow.
+At the same time `cpu_seconds_total` for `steal` mode started to grow as well.
 <img alt="steal" src="presets_cpu_seconds_steal.webp">
