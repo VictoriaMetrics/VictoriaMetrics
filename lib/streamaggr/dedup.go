@@ -1,6 +1,7 @@
 package streamaggr
 
 import (
+	"strings"
 	"sync"
 	"unsafe"
 
@@ -24,7 +25,7 @@ type dedupAggrShard struct {
 
 type dedupAggrShardNopad struct {
 	mu sync.Mutex
-	m  map[string]dedupAggrSample
+	m  map[string]*dedupAggrSample
 }
 
 type dedupAggrSample struct {
@@ -169,13 +170,13 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample) {
 
 	m := das.m
 	if m == nil {
-		m = make(map[string]dedupAggrSample, len(samples))
+		m = make(map[string]*dedupAggrSample, len(samples))
 		das.m = m
 	}
 	for _, sample := range samples {
 		s, ok := m[sample.key]
 		if !ok {
-			m[sample.key] = dedupAggrSample{
+			m[strings.Clone(sample.key)] = &dedupAggrSample{
 				value:     sample.value,
 				timestamp: sample.timestamp,
 			}
@@ -183,10 +184,8 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample) {
 		}
 		// Update the existing value according to logic described at https://docs.victoriametrics.com/#deduplication
 		if sample.timestamp > s.timestamp || (sample.timestamp == s.timestamp && sample.value > s.value) {
-			m[sample.key] = dedupAggrSample{
-				value:     sample.value,
-				timestamp: sample.timestamp,
-			}
+			s.value = sample.value
+			s.timestamp = sample.timestamp
 		}
 	}
 }
@@ -196,7 +195,7 @@ func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f func(samples []pushSample
 
 	m := das.m
 	if resetState && len(m) > 0 {
-		das.m = make(map[string]dedupAggrSample, len(m))
+		das.m = make(map[string]*dedupAggrSample, len(m))
 	}
 
 	das.mu.Unlock()
