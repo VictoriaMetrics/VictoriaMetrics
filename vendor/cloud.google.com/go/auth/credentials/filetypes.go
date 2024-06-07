@@ -137,6 +137,7 @@ func handleServiceAccount(f *credsfile.ServiceAccountFile, opts *DetectOptions) 
 		Scopes:       opts.scopes(),
 		TokenURL:     f.TokenURL,
 		Subject:      opts.Subject,
+		Client:       opts.client(),
 	}
 	if opts2LO.TokenURL == "" {
 		opts2LO.TokenURL = jwtTokenURL
@@ -154,6 +155,7 @@ func handleUserCredential(f *credsfile.UserCredentialsFile, opts *DetectOptions)
 		AuthStyle:        auth.StyleInParams,
 		EarlyTokenExpiry: opts.EarlyTokenRefresh,
 		RefreshToken:     f.RefreshToken,
+		Client:           opts.client(),
 	}
 	return auth.New3LOTokenProvider(opts3LO)
 }
