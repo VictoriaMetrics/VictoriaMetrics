@@ -9,7 +9,7 @@ CERTS_IMAGE := alpine:3.20.0
 GO_BUILDER_IMAGE := golang:1.22.3-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
-DOCKER ?= docker
+DOCKER ?= podman
 DOCKER_RUN ?= $(DOCKER) run
 DOCKER_BUILD ?= $(DOCKER) build
 DOCKER_COMPOSE ?= $(DOCKER) compose
@@ -70,21 +70,19 @@ package-via-docker: package-base
 			-f app/$(APP_NAME)/deployment/Dockerfile bin/$(APP_NAME))
 
 publish-via-docker:
-	$(MAKE_PARALLEL) app-via-docker-linux-amd64 \
-		app-via-docker-linux-arm64
-	$(DOCKER) buildx build \
-		--platform=linux/amd64,linux/arm64 \
+	$(MAKE_PARALLEL) app-via-docker-linux-amd64
+	$(DOCKER) build \
+		--platform=linux/amd64 \
+		--build-arg TARGETARCH=amd64 \
 		--build-arg certs_image=$(CERTS_IMAGE) \
 		--build-arg root_image=$(ROOT_IMAGE) \
 		--build-arg APP_NAME=$(APP_NAME) \
-		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE) \
 		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE) \
-		-o type=image \
-		--provenance=false \
+		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE) \
 		-f app/$(APP_NAME)/multiarch/Dockerfile \
-		--push \
-		--load \
 		bin/$(APP_NAME)
+	$(DOCKER) push $(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE)
+	$(DOCKER) push $(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE)
 
 run-via-docker: package-via-docker
 	$(DOCKER_RUN) -it --rm \
