@@ -6,6 +6,8 @@ import (
 	"os"
 	"sync/atomic"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func BenchmarkStorageAddRows(b *testing.B) {
@@ -56,12 +58,7 @@ func benchmarkStorageAddRows(b *testing.B, rowsPerBatch int) {
 }
 
 func BenchmarkStorageAddHistoricalRowsConcurrently(b *testing.B) {
-	defer func() {
-		path := b.Name()
-		if err := os.RemoveAll(path); err != nil {
-			b.Fatalf("could not remove %q: %v", path, err)
-		}
-	}()
+	defer fs.MustRemoveAll(b.Name())
 
 	numBatches := 100
 	numRowsPerBatch := 1000
@@ -75,23 +72,21 @@ func BenchmarkStorageAddHistoricalRowsConcurrently(b *testing.B) {
 
 	for _, concurrency := range []int{1, 2, 4, 8, 16, 32} {
 		b.Run(fmt.Sprintf("%d", concurrency), func(b *testing.B) {
-			s := MustOpenStorage(b.Name(), 0, 0, 0)
-			defer s.MustClose()
-
-			rowsAdded := 0
-			b.ResetTimer()
+			var rowsAdded, slowInserts, nameCnt, idCnt int
 			for range b.N {
-				if err := testAddConcurrently(s, mrsBatches, concurrency, false); err != nil {
-					b.Fatalf("testAddConcurrently failed unexpectedly: %v", err)
-				}
-				rowsAdded += numRowsTotal
-			}
-			b.StopTimer()
+				path := b.Name()
+				fs.MustRemoveAll(path)
+				s := MustOpenStorage(path, 0, 0, 0)
+				testAddConcurrently(s, mrsBatches, concurrency, false)
 
-			nameCnt, idCnt, err := testCountAllMetricNamesAndIDs(s, tr)
-			if err != nil {
-				b.Fatalf("testCountAllMetricNamesAndIDs failed unexpectedly: %v", err)
+				rowsAdded = numRowsTotal
+				slowInserts = int(s.slowRowInserts.Load())
+				nameCnt, idCnt = testCountAllMetricNamesAndIDs(s, tr)
+
+				s.MustClose()
 			}
+
+			b.ReportMetric(float64(slowInserts), "slow-inserts")
 			b.ReportMetric(float64(nameCnt), "ts-names")
 			b.ReportMetric(float64(idCnt), "ts-ids")
 			b.ReportMetric(float64(rowsAdded)/float64(b.Elapsed().Seconds()), "rows/s")

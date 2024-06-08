@@ -819,6 +819,10 @@ func (s *Storage) mustRotateIndexDB(currentTime time.Time) {
 	// with the updated indexdb generation.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401
 
+	// Do not flush uniqueMetricIDCache since tsidCache is not flushed.
+	// If tsidCache entries are valid after rotation, then uniqueMetricIDCache
+	// entries are also valid.
+
 	// Flush metric id caches for the current and the previous hour,
 	// since they may contain entries missing in idbCurr after the rotation.
 	// This should prevent from missing data in queries when
@@ -1957,15 +1961,17 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		// New time series inserted concurrently may result in duplicate metric
 		// IDs. Deduplicate them to guarantee, that each metric name has one and
 		// only one corresponding metric ID.
-		var newSeries bool
-		if genTSID.TSID.MetricID, newSeries = s.uniqueMetricIDCache.getOrPut(mr.MetricNameRaw, genTSID.TSID.MetricID); newSeries {
-			createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
+		metricID := s.uniqueMetricIDCache.getOrPut(mr.MetricNameRaw, genTSID.TSID.MetricID)
+		if genTSID.TSID.MetricID == metricID {
 			genTSID.generation = generation
 			s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
+			createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
 			newSeriesCount++
 			if logNewSeries {
 				logger.Infof("new series created: %s", mn.String())
 			}
+		} else {
+			genTSID.TSID.MetricID = metricID
 		}
 
 		r.TSID = genTSID.TSID
@@ -2583,21 +2589,20 @@ func (c *uniqueMetricIDCache) reset() {
 }
 
 // getOrPut returns the existing metricID for the metricName if present.
-// Otherwise, it stores and returns the given metricID. The function also
-// returns true if metricID was stored, and false otherwise.
-func (c *uniqueMetricIDCache) getOrPut(metricName []byte, metricID uint64) (uint64, bool) {
+// Otherwise, it stores and returns the given metricID.
+func (c *uniqueMetricIDCache) getOrPut(metricName []byte, metricID uint64) uint64 {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if v, found := c.curr[string(metricName)]; found {
-		return v, false
+		return v
 	}
 	if v, found := c.prev[string(metricName)]; found {
-		return v, false
+		return v
 	}
 
 	c.curr[string(metricName)] = metricID
-	return metricID, true
+	return metricID
 }
 
 func (s *Storage) updateNextDayMetricIDs(date uint64) {
