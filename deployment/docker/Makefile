@@ -77,11 +77,11 @@ publish-via-docker:
 		--build-arg certs_image=$(CERTS_IMAGE) \
 		--build-arg root_image=$(ROOT_IMAGE) \
 		--build-arg APP_NAME=$(APP_NAME) \
-		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE) \
+		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE) \
 		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE) \
 		-f app/$(APP_NAME)/multiarch/Dockerfile \
 		bin/$(APP_NAME)
-	$(DOCKER) push $(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE)
+	$(DOCKER) push $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)
 	$(DOCKER) push $(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE)
 
 run-via-docker: package-via-docker
