@@ -6,6 +6,8 @@ menu:
     parent: 'victoriametrics'
     weight: 12
 title: vmalert-tool
+aliases:
+  - /vmalert-tool.html
 ---
 
 # vmalert-tool
