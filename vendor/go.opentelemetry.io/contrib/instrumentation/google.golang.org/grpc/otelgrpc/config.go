@@ -1,11 +1,20 @@
 // Copyright The OpenTelemetry Authors
-// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package otelgrpc // import "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 
 import (
-	"google.golang.org/grpc/stats"
-
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -22,26 +31,18 @@ const (
 	GRPCStatusCodeKey = attribute.Key("rpc.grpc.status_code")
 )
 
-// InterceptorFilter is a predicate used to determine whether a given request in
-// interceptor info should be instrumented. A InterceptorFilter must return true if
-// the request should be traced.
-//
-// Deprecated: Use stats handlers instead.
-type InterceptorFilter func(*InterceptorInfo) bool
-
 // Filter is a predicate used to determine whether a given request in
-// should be instrumented by the attatched RPC tag info.
-// A Filter must return true if the request should be instrumented.
-type Filter func(*stats.RPCTagInfo) bool
+// interceptor info should be traced. A Filter must return true if
+// the request should be traced.
+type Filter func(*InterceptorInfo) bool
 
 // config is a group of options for this instrumentation.
 type config struct {
-	Filter            Filter
-	InterceptorFilter InterceptorFilter
-	Propagators       propagation.TextMapPropagator
-	TracerProvider    trace.TracerProvider
-	MeterProvider     metric.MeterProvider
-	SpanStartOptions  []trace.SpanStartOption
+	Filter           Filter
+	Propagators      propagation.TextMapPropagator
+	TracerProvider   trace.TracerProvider
+	MeterProvider    metric.MeterProvider
+	SpanStartOptions []trace.SpanStartOption
 
 	ReceivedEvent bool
 	SentEvent     bool
@@ -162,30 +163,15 @@ func (o tracerProviderOption) apply(c *config) {
 // WithInterceptorFilter returns an Option to use the request filter.
 //
 // Deprecated: Use stats handlers instead.
-func WithInterceptorFilter(f InterceptorFilter) Option {
+func WithInterceptorFilter(f Filter) Option {
 	return interceptorFilterOption{f: f}
 }
 
 type interceptorFilterOption struct {
-	f InterceptorFilter
-}
-
-func (o interceptorFilterOption) apply(c *config) {
-	if o.f != nil {
-		c.InterceptorFilter = o.f
-	}
-}
-
-// WithFilter returns an Option to use the request filter.
-func WithFilter(f Filter) Option {
-	return filterOption{f: f}
-}
-
-type filterOption struct {
 	f Filter
 }
 
-func (o filterOption) apply(c *config) {
+func (o interceptorFilterOption) apply(c *config) {
 	if o.f != nil {
 		c.Filter = o.f
 	}

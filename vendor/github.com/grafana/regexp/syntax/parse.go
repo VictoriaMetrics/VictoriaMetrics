@@ -44,7 +44,6 @@ const (
 	ErrTrailingBackslash     ErrorCode = "trailing backslash at end of expression"
 	ErrUnexpectedParen       ErrorCode = "unexpected )"
 	ErrNestingDepth          ErrorCode = "expression nests too deeply"
-	ErrLarge                 ErrorCode = "expression too large"
 )
 
 func (e ErrorCode) String() string {
@@ -160,7 +159,7 @@ func (p *parser) reuse(re *Regexp) {
 
 func (p *parser) checkLimits(re *Regexp) {
 	if p.numRunes > maxRunes {
-		panic(ErrLarge)
+		panic(ErrInternalError)
 	}
 	p.checkSize(re)
 	p.checkHeight(re)
@@ -204,7 +203,7 @@ func (p *parser) checkSize(re *Regexp) {
 	}
 
 	if p.calcSize(re, true) > maxSize {
-		panic(ErrLarge)
+		panic(ErrInternalError)
 	}
 }
 
@@ -249,7 +248,9 @@ func (p *parser) calcSize(re *Regexp, force bool) int64 {
 		size = int64(re.Max)*sub + int64(re.Max-re.Min)
 	}
 
-	size = max(1, size)
+	if size < 1 {
+		size = 1
+	}
 	p.size[re] = size
 	return size
 }
@@ -380,12 +381,14 @@ func minFoldRune(r rune) rune {
 	if r < minFold || r > maxFold {
 		return r
 	}
-	m := r
+	min := r
 	r0 := r
 	for r = unicode.SimpleFold(r); r != r0; r = unicode.SimpleFold(r) {
-		m = min(m, r)
+		if min > r {
+			min = r
+		}
 	}
-	return m
+	return min
 }
 
 // op pushes a regexp with the given op onto the stack
@@ -894,8 +897,8 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 			panic(r)
 		case nil:
 			// ok
-		case ErrLarge: // too big
-			err = &Error{Code: ErrLarge, Expr: s}
+		case ErrInternalError: // too big
+			err = &Error{Code: ErrInternalError, Expr: s}
 		case ErrNestingDepth:
 			err = &Error{Code: ErrNestingDepth, Expr: s}
 		}
@@ -1155,18 +1158,9 @@ func (p *parser) parsePerlFlags(s string) (rest string, err error) {
 	// support all three as well. EcmaScript 4 uses only the Python form.
 	//
 	// In both the open source world (via Code Search) and the
-	// Google source tree, (?P<expr>name) and (?<expr>name) are the
-	// dominant forms of named captures and both are supported.
-	startsWithP := len(t) > 4 && t[2] == 'P' && t[3] == '<'
-	startsWithName := len(t) > 3 && t[2] == '<'
-
-	if startsWithP || startsWithName {
-		// position of expr start
-		exprStartPos := 4
-		if startsWithName {
-			exprStartPos = 3
-		}
-
+	// Google source tree, (?P<expr>name) is the dominant form,
+	// so that's the one we implement. One is enough.
+	if len(t) > 4 && t[2] == 'P' && t[3] == '<' {
 		// Pull out name.
 		end := strings.IndexRune(t, '>')
 		if end < 0 {
@@ -1176,8 +1170,8 @@ func (p *parser) parsePerlFlags(s string) (rest string, err error) {
 			return "", &Error{ErrInvalidNamedCapture, s}
 		}
 
-		capture := t[:end+1]        // "(?P<name>" or "(?<name>"
-		name := t[exprStartPos:end] // "name"
+		capture := t[:end+1] // "(?P<name>"
+		name := t[4:end]     // "name"
 		if err = checkUTF8(name); err != nil {
 			return "", err
 		}
@@ -1859,22 +1853,6 @@ func cleanClass(rp *[]rune) []rune {
 	return r[:w]
 }
 
-// inCharClass reports whether r is in the class.
-// It assumes the class has been cleaned by cleanClass.
-func inCharClass(r rune, class []rune) bool {
-	_, ok := sort.Find(len(class)/2, func(i int) int {
-		lo, hi := class[2*i], class[2*i+1]
-		if r > hi {
-			return +1
-		}
-		if r < lo {
-			return -1
-		}
-		return 0
-	})
-	return ok
-}
-
 // appendLiteral returns the result of appending the literal x to the class r.
 func appendLiteral(r []rune, x rune, flags Flags) []rune {
 	if flags&FoldCase != 0 {
@@ -1959,7 +1937,7 @@ func appendClass(r []rune, x []rune) []rune {
 	return r
 }
 
-// appendFoldedClass returns the result of appending the case folding of the class x to the class r.
+// appendFolded returns the result of appending the case folding of the class x to the class r.
 func appendFoldedClass(r []rune, x []rune) []rune {
 	for i := 0; i < len(x); i += 2 {
 		r = appendFoldedRange(r, x[i], x[i+1])

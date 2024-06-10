@@ -231,27 +231,15 @@ func (v Value) Emit() string {
 	case BOOL:
 		return strconv.FormatBool(v.AsBool())
 	case INT64SLICE:
-		j, err := json.Marshal(v.asInt64Slice())
-		if err != nil {
-			return fmt.Sprintf("invalid: %v", v.asInt64Slice())
-		}
-		return string(j)
+		return fmt.Sprint(v.asInt64Slice())
 	case INT64:
 		return strconv.FormatInt(v.AsInt64(), 10)
 	case FLOAT64SLICE:
-		j, err := json.Marshal(v.asFloat64Slice())
-		if err != nil {
-			return fmt.Sprintf("invalid: %v", v.asFloat64Slice())
-		}
-		return string(j)
+		return fmt.Sprint(v.asFloat64Slice())
 	case FLOAT64:
 		return fmt.Sprint(v.AsFloat64())
 	case STRINGSLICE:
-		j, err := json.Marshal(v.asStringSlice())
-		if err != nil {
-			return fmt.Sprintf("invalid: %v", v.asStringSlice())
-		}
-		return string(j)
+		return fmt.Sprint(v.asStringSlice())
 	case STRING:
 		return v.stringly
 	default:

@@ -148,6 +148,9 @@ func (c *Client) addOperationDeleteBucketMetricsConfigurationMiddlewares(stack *
 	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
 	if err = addOpDeleteBucketMetricsConfigurationValidationMiddleware(stack); err != nil {
 		return err
 	}

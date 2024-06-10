@@ -160,6 +160,9 @@ func (c *Client) addOperationGetBucketCorsMiddlewares(stack *middleware.Stack, o
 	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
 	if err = addOpGetBucketCorsValidationMiddleware(stack); err != nil {
 		return err
 	}

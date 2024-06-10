@@ -149,6 +149,9 @@ func (c *Client) addOperationGetBucketInventoryConfigurationMiddlewares(stack *m
 	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
 	if err = addOpGetBucketInventoryConfigurationValidationMiddleware(stack); err != nil {
 		return err
 	}

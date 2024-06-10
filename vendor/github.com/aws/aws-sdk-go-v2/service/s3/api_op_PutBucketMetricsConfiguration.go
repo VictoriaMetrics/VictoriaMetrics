@@ -163,6 +163,9 @@ func (c *Client) addOperationPutBucketMetricsConfigurationMiddlewares(stack *mid
 	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
 	if err = addOpPutBucketMetricsConfigurationValidationMiddleware(stack); err != nil {
 		return err
 	}

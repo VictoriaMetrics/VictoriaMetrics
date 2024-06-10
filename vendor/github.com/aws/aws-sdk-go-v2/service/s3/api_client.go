@@ -14,6 +14,7 @@ import (
 	internalauth "github.com/aws/aws-sdk-go-v2/internal/auth"
 	internalauthsmithy "github.com/aws/aws-sdk-go-v2/internal/auth/smithy"
 	internalConfig "github.com/aws/aws-sdk-go-v2/internal/configsources"
+	internalmiddleware "github.com/aws/aws-sdk-go-v2/internal/middleware"
 	"github.com/aws/aws-sdk-go-v2/internal/v4a"
 	acceptencodingcust "github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding"
 	internalChecksum "github.com/aws/aws-sdk-go-v2/service/internal/checksum"
@@ -28,6 +29,7 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"net"
 	"net/http"
+	"sync/atomic"
 	"time"
 )
 
@@ -38,6 +40,9 @@ const ServiceAPIVersion = "2006-03-01"
 // Storage Service.
 type Client struct {
 	options Options
+
+	// Difference between the time reported by the server and the client
+	timeOffset *atomic.Int64
 }
 
 // New returns an initialized Client based on the functional options. Provide
@@ -81,6 +86,8 @@ func New(options Options, optFns ...func(*Options)) *Client {
 	}
 
 	finalizeExpressCredentials(&options, client)
+
+	initializeTimeOffsetResolver(client)
 
 	return client
 }
@@ -566,6 +573,17 @@ func newDefaultV4aSigner(o Options) *v4a.Signer {
 		so.Logger = o.Logger
 		so.LogSigning = o.ClientLogMode.IsSigning()
 	})
+}
+
+func addTimeOffsetBuild(stack *middleware.Stack, c *Client) error {
+	mw := internalmiddleware.AddTimeOffsetMiddleware{Offset: c.timeOffset}
+	if err := stack.Build.Add(&mw, middleware.After); err != nil {
+		return err
+	}
+	return stack.Deserialize.Insert(&mw, "RecordResponseTiming", middleware.Before)
+}
+func initializeTimeOffsetResolver(c *Client) {
+	c.timeOffset = new(atomic.Int64)
 }
 
 func addMetadataRetrieverMiddleware(stack *middleware.Stack) error {

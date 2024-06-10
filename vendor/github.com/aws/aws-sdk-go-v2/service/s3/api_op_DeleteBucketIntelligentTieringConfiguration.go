@@ -146,6 +146,9 @@ func (c *Client) addOperationDeleteBucketIntelligentTieringConfigurationMiddlewa
 	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
 	if err = addOpDeleteBucketIntelligentTieringConfigurationValidationMiddleware(stack); err != nil {
 		return err
 	}

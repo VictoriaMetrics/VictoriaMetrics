@@ -144,6 +144,9 @@ func (c *Client) addOperationListDirectoryBucketsMiddlewares(stack *middleware.S
 	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListDirectoryBuckets(options.Region), middleware.Before); err != nil {
 		return err
 	}

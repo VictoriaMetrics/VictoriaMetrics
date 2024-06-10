@@ -161,6 +161,9 @@ func (c *Client) addOperationGetObjectLegalHoldMiddlewares(stack *middleware.Sta
 	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
 	if err = addOpGetObjectLegalHoldValidationMiddleware(stack); err != nil {
 		return err
 	}

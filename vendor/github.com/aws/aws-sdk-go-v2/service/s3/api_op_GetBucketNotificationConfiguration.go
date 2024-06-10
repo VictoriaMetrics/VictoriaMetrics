@@ -175,6 +175,9 @@ func (c *Client) addOperationGetBucketNotificationConfigurationMiddlewares(stack
 	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
 	if err = addOpGetBucketNotificationConfigurationValidationMiddleware(stack); err != nil {
 		return err
 	}

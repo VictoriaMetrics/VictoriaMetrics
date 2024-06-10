@@ -278,6 +278,9 @@ func (c *Client) addOperationSelectObjectContentMiddlewares(stack *middleware.St
 	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
 	if err = addOpSelectObjectContentValidationMiddleware(stack); err != nil {
 		return err
 	}

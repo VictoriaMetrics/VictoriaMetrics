@@ -455,6 +455,9 @@ func (c *Client) addOperationCompleteMultipartUploadMiddlewares(stack *middlewar
 	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
 	if err = addOpCompleteMultipartUploadValidationMiddleware(stack); err != nil {
 		return err
 	}

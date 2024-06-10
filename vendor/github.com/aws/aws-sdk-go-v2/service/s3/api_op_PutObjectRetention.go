@@ -190,6 +190,9 @@ func (c *Client) addOperationPutObjectRetentionMiddlewares(stack *middleware.Sta
 	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
 	if err = addOpPutObjectRetentionValidationMiddleware(stack); err != nil {
 		return err
 	}

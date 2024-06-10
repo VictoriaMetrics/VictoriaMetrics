@@ -152,6 +152,9 @@ func (c *Client) addOperationGetPublicAccessBlockMiddlewares(stack *middleware.S
 	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
 	if err = addOpGetPublicAccessBlockValidationMiddleware(stack); err != nil {
 		return err
 	}

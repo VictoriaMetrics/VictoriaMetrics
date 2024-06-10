@@ -185,6 +185,9 @@ func (c *Client) addOperationPutBucketAnalyticsConfigurationMiddlewares(stack *m
 	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
 	if err = addOpPutBucketAnalyticsConfigurationValidationMiddleware(stack); err != nil {
 		return err
 	}

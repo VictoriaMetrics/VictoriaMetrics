@@ -328,6 +328,9 @@ func (c *Client) addOperationRestoreObjectMiddlewares(stack *middleware.Stack, o
 	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
 	if err = addOpRestoreObjectValidationMiddleware(stack); err != nil {
 		return err
 	}

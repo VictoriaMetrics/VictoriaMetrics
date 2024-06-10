@@ -1,5 +1,16 @@
 // Copyright The OpenTelemetry Authors
-// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package otelgrpc // import "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 
@@ -27,7 +38,6 @@ type gRPCContext struct {
 	messagesReceived int64
 	messagesSent     int64
 	metricAttrs      []attribute.KeyValue
-	record           bool
 }
 
 type serverHandler struct {
@@ -67,10 +77,6 @@ func (h *serverHandler) TagRPC(ctx context.Context, info *stats.RPCTagInfo) cont
 
 	gctx := gRPCContext{
 		metricAttrs: attrs,
-		record:      true,
-	}
-	if h.config.Filter != nil {
-		gctx.record = h.config.Filter(info)
 	}
 	return context.WithValue(ctx, gRPCContextKey{}, &gctx)
 }
@@ -107,10 +113,6 @@ func (h *clientHandler) TagRPC(ctx context.Context, info *stats.RPCTagInfo) cont
 
 	gctx := gRPCContext{
 		metricAttrs: attrs,
-		record:      true,
-	}
-	if h.config.Filter != nil {
-		gctx.record = h.config.Filter(info)
 	}
 
 	return inject(context.WithValue(ctx, gRPCContextKey{}, &gctx), h.config.Propagators)
@@ -139,9 +141,6 @@ func (c *config) handleRPC(ctx context.Context, rs stats.RPCStats, isServer bool
 
 	gctx, _ := ctx.Value(gRPCContextKey{}).(*gRPCContext)
 	if gctx != nil {
-		if !gctx.record {
-			return
-		}
 		metricAttrs = make([]attribute.KeyValue, 0, len(gctx.metricAttrs)+1)
 		metricAttrs = append(metricAttrs, gctx.metricAttrs...)
 	}
