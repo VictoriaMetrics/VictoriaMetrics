@@ -30,7 +30,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
-**Update note 1: the `--vm-disable-progress-bar` command-line flag at `vmctl` is deprecated and will be removed in the future releases. Use `--disable-progress-bar` instead.**
+**Update note 1: the `--vm-disable-progress-bar` command-line flag at `vmctl` was deprecated. Use `--disable-progress-bar` instead.**
 
 * FEATURE: [alerts-vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-vmagent.yml): add new alerting rules `StreamAggrFlushTimeout` and `StreamAggrDedupFlushTimeout` to notify about issues during stream aggregation.
 * FEATURE: [dashboards/vmagent](https://grafana.com/grafana/dashboards/12683): add row `Streaming aggregation` with panels related to [streaming aggregation](https://docs.victoriametrics.com/stream-aggregation/) process.

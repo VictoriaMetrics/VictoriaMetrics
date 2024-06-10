@@ -45,7 +45,6 @@ const (
 	vmBatchSize          = "vm-batch-size"
 	vmSignificantFigures = "vm-significant-figures"
 	vmRoundDigits        = "vm-round-digits"
-	vmDisableProgressBar = "vm-disable-progress-bar"
 	vmCertFile           = "vm-cert-file"
 	vmKeyFile            = "vm-key-file"
 	vmCAFile             = "vm-CA-file"
@@ -125,10 +124,6 @@ var (
 			Name: vmRateLimit,
 			Usage: "Optional data transfer rate limit in bytes per second.\n" +
 				"By default, the rate limit is disabled. It can be useful for limiting load on configured via '--vmAddr' destination.",
-		},
-		&cli.BoolFlag{
-			Name:  vmDisableProgressBar,
-			Usage: "Whether to disable progress bar per each worker during the import. This flag is deprecated. Use global flag instead.",
 		},
 		&cli.StringFlag{
 			Name:  vmCertFile,
