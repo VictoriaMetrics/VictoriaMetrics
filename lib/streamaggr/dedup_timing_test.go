@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
@@ -14,20 +13,6 @@ func BenchmarkDedupAggr(b *testing.B) {
 		b.Run(fmt.Sprintf("samplesPerPush_%d", samplesPerPush), func(b *testing.B) {
 			benchmarkDedupAggr(b, samplesPerPush)
 		})
-	}
-}
-
-func BenchmarkDedupAggrFlushSerial(b *testing.B) {
-	as := newTotalAggrState(time.Hour, true, true)
-	benchSamples := newBenchSamples(100_000)
-	da := newDedupAggr()
-	da.pushSamples(benchSamples)
-
-	b.ResetTimer()
-	b.ReportAllocs()
-	b.SetBytes(int64(len(benchSamples)))
-	for i := 0; i < b.N; i++ {
-		da.flush(as.pushSamples, false)
 	}
 }
 

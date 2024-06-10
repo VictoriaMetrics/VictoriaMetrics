@@ -39,7 +39,7 @@ func TestDedupAggrSerial(t *testing.T) {
 		}
 		mu.Unlock()
 	}
-	da.flush(flushSamples, true)
+	da.flush(flushSamples)
 
 	if !reflect.DeepEqual(expectedSamplesMap, flushedSamplesMap) {
 		t.Fatalf("unexpected samples;\ngot\n%v\nwant\n%v", flushedSamplesMap, expectedSamplesMap)
