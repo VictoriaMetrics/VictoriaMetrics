@@ -37,6 +37,8 @@ var (
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
 	maxIdleConnsPerBackend = flag.Int("maxIdleConnsPerBackend", 100, "The maximum number of idle connections vmauth can open per each backend host. "+
 		"See also -maxConcurrentRequests")
+	idleConnTimeout = flag.Duration("idleConnTimeout", 50*time.Second, `Defines a duration for idle (keep-alive connections) to exist.
+    Consider setting this value less than "-http.idleConnTimeout". It must prevent possible "write: broken pipe" and "read: connection reset by peer" errors.`)
 	responseTimeout       = flag.Duration("responseTimeout", 5*time.Minute, "The timeout for receiving a response from backend")
 	maxConcurrentRequests = flag.Int("maxConcurrentRequests", 1000, "The maximum number of concurrent requests vmauth can process. Other requests are rejected with "+
 		"'429 Too Many Requests' http status code. See also -maxConcurrentPerUserRequests and -maxIdleConnsPerBackend command-line options")
@@ -199,10 +201,8 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		isDefault = true
 	}
 	maxAttempts := up.getBackendsCount()
-	if maxAttempts > 1 {
-		r.Body = &readTrackingBody{
-			r: r.Body,
-		}
+	r.Body = &readTrackingBody{
+		r: r.Body,
 	}
 	for i := 0; i < maxAttempts; i++ {
 		bu := up.getBackendURL()
@@ -243,8 +243,10 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		req.Host = targetURL.Host
 	}
 	updateHeadersByConfig(req.Header, hc.RequestHeaders)
-	res, err := ui.rt.RoundTrip(req)
+	var trivialRetries int
 	rtb, rtbOK := req.Body.(*readTrackingBody)
+again:
+	res, err := ui.rt.RoundTrip(req)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			// Do not retry canceled or timed out requests
@@ -266,6 +268,12 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 			httpserver.Errorf(w, r, "%s", err)
 			ui.backendErrors.Inc()
 			return true
+		}
+		// one time retry trivial network errors, such as proxy idle timeout misconfiguration
+		// or socket close by OS
+		if (netutil.IsTrivialNetworkError(err) || errors.Is(err, io.EOF)) && trivialRetries < 1 {
+			trivialRetries++
+			goto again
 		}
 		// Retry the request if its body wasn't read yet. This usually means that the backend isn't reachable.
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
@@ -434,6 +442,7 @@ func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, i
 	tr.ResponseHeaderTimeout = *responseTimeout
 	// Automatic compression must be disabled in order to fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/535
 	tr.DisableCompression = true
+	tr.IdleConnTimeout = *idleConnTimeout
 	tr.MaxIdleConnsPerHost = *maxIdleConnsPerBackend
 	if tr.MaxIdleConns != 0 && tr.MaxIdleConns < tr.MaxIdleConnsPerHost {
 		tr.MaxIdleConns = tr.MaxIdleConnsPerHost
