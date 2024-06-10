@@ -1,7 +1,6 @@
 package streamaggr
 
 import (
-	"strings"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -173,7 +172,7 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample) {
 			s.value = sample.value
 			s.timestamp = sample.timestamp
 
-			key := strings.Clone(sample.key)
+			key := bytesutil.InternString(sample.key)
 			m[key] = s
 
 			das.itemsCount.Add(1)
