@@ -6,17 +6,29 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import Button from "../../../components/Main/Button/Button";
 import QueryEditor from "../../../components/Configurators/QueryEditor/QueryEditor";
 import TextField from "../../../components/Main/TextField/TextField";
+import Switch from "../../../components/Main/Switch/Switch";
 
 export interface ExploreLogHeaderProps {
   query: string;
   limit: number;
   error?: string;
+  markdownParsing: boolean;
   onChange: (val: string) => void;
   onChangeLimit: (val: number) => void;
   onRun: () => void;
+  onChangeMarkdownParsing: (val: boolean) => void;
 }
 
-const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({ query, limit, error, onChange, onChangeLimit, onRun }) => {
+const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
+  query,
+  limit,
+  error,
+  markdownParsing,
+  onChange,
+  onChangeLimit,
+  onRun,
+  onChangeMarkdownParsing,
+}) => {
   const { isMobile } = useDeviceDetect();
 
   const [errorLimit, setErrorLimit] = useState("");
@@ -66,6 +78,14 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({ query, limit, error, onC
         />
       </div>
       <div className="vm-explore-logs-header-bottom">
+        <div className="vm-explore-logs-header-bottom-contols">
+          <Switch
+            label={"Markdown parsing"}
+            value={markdownParsing}
+            onChange={onChangeMarkdownParsing}
+            fullWidth={isMobile}
+          />
+        </div>
         <div className="vm-explore-logs-header-bottom-helpful">
           <a
             className="vm-link vm-link_with-icon"
