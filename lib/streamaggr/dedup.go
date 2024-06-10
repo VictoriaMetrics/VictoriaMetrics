@@ -9,6 +9,7 @@ import (
 	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 const dedupAggrShardsCount = 128
@@ -28,6 +29,8 @@ type dedupAggrShard struct {
 type dedupAggrShardNopad struct {
 	mu sync.Mutex
 	m  map[string]*dedupAggrSample
+
+	samplesBuf []dedupAggrSample
 
 	sizeBytes  atomic.Uint64
 	itemsCount atomic.Uint64
@@ -161,16 +164,20 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample) {
 		m = make(map[string]*dedupAggrSample, len(samples))
 		das.m = m
 	}
+	samplesBuf := das.samplesBuf
 	for _, sample := range samples {
 		s, ok := m[sample.key]
 		if !ok {
+			samplesBuf = slicesutil.SetLength(samplesBuf, len(samplesBuf)+1)
+			s = &samplesBuf[len(samplesBuf)-1]
+			s.value = sample.value
+			s.timestamp = sample.timestamp
+
 			key := strings.Clone(sample.key)
-			m[key] = &dedupAggrSample{
-				value:     sample.value,
-				timestamp: sample.timestamp,
-			}
+			m[key] = s
+
 			das.itemsCount.Add(1)
-			das.sizeBytes.Add(uint64(len(key)) + uint64(unsafe.Sizeof(key)+unsafe.Sizeof(s)))
+			das.sizeBytes.Add(uint64(len(key)) + uint64(unsafe.Sizeof(key)+unsafe.Sizeof(s)+unsafe.Sizeof(*s)))
 			continue
 		}
 		// Update the existing value according to logic described at https://docs.victoriametrics.com/#deduplication
@@ -179,6 +186,7 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample) {
 			s.timestamp = sample.timestamp
 		}
 	}
+	das.samplesBuf = samplesBuf
 }
 
 func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f func(samples []pushSample)) {
@@ -189,6 +197,7 @@ func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f func(samples []pushSample
 		das.m = make(map[string]*dedupAggrSample, len(m))
 		das.sizeBytes.Store(0)
 		das.itemsCount.Store(0)
+		das.samplesBuf = das.samplesBuf[:0]
 	}
 
 	das.mu.Unlock()
