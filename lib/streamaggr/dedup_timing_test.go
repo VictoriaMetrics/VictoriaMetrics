@@ -17,7 +17,7 @@ func BenchmarkDedupAggr(b *testing.B) {
 }
 
 func benchmarkDedupAggr(b *testing.B, samplesPerPush int) {
-	const loops = 100
+	const loops = 2
 	benchSamples := newBenchSamples(samplesPerPush)
 	da := newDedupAggr()
 
