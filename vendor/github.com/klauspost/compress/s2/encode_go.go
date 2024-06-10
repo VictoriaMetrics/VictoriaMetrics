@@ -316,6 +316,7 @@ func matchLen(a []byte, b []byte) int {
 	return len(a) + checked
 }
 
+// input must be > inputMargin
 func calcBlockSize(src []byte) (d int) {
 	// Initialize the hash table.
 	const (
@@ -501,6 +502,7 @@ emitRemainder:
 	return d
 }
 
+// length must be > inputMargin.
 func calcBlockSizeSmall(src []byte) (d int) {
 	// Initialize the hash table.
 	const (
@@ -716,4 +718,12 @@ func cvtLZ4BlockAsm(dst []byte, src []byte) (uncompressed int, dstUsed int) {
 
 func cvtLZ4BlockSnappyAsm(dst []byte, src []byte) (uncompressed int, dstUsed int) {
 	panic("cvtLZ4BlockSnappyAsm should be unreachable")
+}
+
+func cvtLZ4sBlockAsm(dst []byte, src []byte) (uncompressed int, dstUsed int) {
+	panic("cvtLZ4sBlockAsm should be unreachable")
+}
+
+func cvtLZ4sBlockSnappyAsm(dst []byte, src []byte) (uncompressed int, dstUsed int) {
+	panic("cvtLZ4sBlockSnappyAsm should be unreachable")
 }

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
@@ -69,27 +68,8 @@ func (svc *Service) appendTargetLabels(ms []*promutils.Labels, tagSeparator stri
 	m.Add("__meta_nomad_service_id", svc.ID)
 	m.Add("__meta_nomad_service_job_id", svc.JobID)
 	m.Add("__meta_nomad_service_port", strconv.Itoa(svc.Port))
-	// We surround the separated list with the separator as well. This way regular expressions
-	// in relabeling rules don't have to consider tag positions.
-	m.Add("__meta_nomad_tags", tagSeparator+strings.Join(svc.Tags, tagSeparator)+tagSeparator)
 
-	// Expose individual tags via __meta_nomad_tag_* labels, so users could move all the tags
-	// into the discovered scrape target with the following relabeling rule in the way similar to kubernetes_sd_configs:
-	//
-	// - action: labelmap
-	//   regex: __meta_nomad_tag_(.+)
-	//
-	// This solves https://stackoverflow.com/questions/44339461/relabeling-in-prometheus
-	for _, tag := range svc.Tags {
-		k := tag
-		v := ""
-		if n := strings.IndexByte(tag, '='); n >= 0 {
-			k = tag[:n]
-			v = tag[n+1:]
-		}
-		m.Add(discoveryutils.SanitizeLabelName("__meta_nomad_tag_"+k), v)
-		m.Add(discoveryutils.SanitizeLabelName("__meta_nomad_tagpresent_"+k), "true")
-	}
+	discoveryutils.AddTagsToLabels(m, svc.Tags, "__meta_nomad_", tagSeparator)
 
 	ms = append(ms, m)
 	return ms

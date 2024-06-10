@@ -13,10 +13,7 @@ groups:
         expr: |
           vm_free_disk_space_bytes / ignoring(path)
           (
-             (
-              rate(vm_rows_added_to_storage_total[1d]) -
-              ignoring(type) rate(vm_deduplicated_samples_total{type="merge"}[1d])
-             )
+            rate(vm_rows_added_to_storage_total[1d])
             * scalar(
               sum(vm_data_size_bytes{type!~"indexdb.*"}) /
               sum(vm_rows{type!~"indexdb.*"})
@@ -34,19 +31,19 @@ groups:
 
       - alert: DiskRunsOutOfSpace
         expr: |
-          sum(vm_data_size_bytes) by(instance) /
+          sum(vm_data_size_bytes) by(job, instance) /
           (
-           sum(vm_free_disk_space_bytes) by(instance) +
-           sum(vm_data_size_bytes) by(instance)
+           sum(vm_free_disk_space_bytes) by(job, instance) +
+           sum(vm_data_size_bytes) by(job, instance)
           ) > 0.8
         for: 30m
         labels:
           severity: critical
         annotations:
           dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=53&var-instance={{ $labels.instance }}"
-          summary: "Instance {{ $labels.instance }} will run out of disk space soon"
+          summary: "Instance {{ $labels.instance }} (job={{ $labels.job }}) will run out of disk space soon"
           description: "Disk utilisation on instance {{ $labels.instance }} is more than 80%.\n
-            Having less than 20% of free disk space could cripple merges processes and overall performance.
+            Having less than 20% of free disk space could cripple merge processes and overall performance.
             Consider to limit the ingestion rate, decrease retention or scale the disk space if possible."
 
       - alert: RequestErrorsToAPI
@@ -60,20 +57,8 @@ groups:
           description: "Requests to path {{ $labels.path }} are receiving errors.
             Please verify if clients are sending correct requests."
 
-      - alert: ConcurrentFlushesHitTheLimit
-        expr: avg_over_time(vm_concurrent_insert_current[1m]) >= vm_concurrent_insert_capacity
-        for: 15m
-        labels:
-          severity: warning
-          show_at: dashboard
-        annotations:
-          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=59&var-instance={{ $labels.instance }}"
-          summary: "VictoriaMetrics on instance {{ $labels.instance }} is constantly hitting concurrent flushes limit"
-          description: "The limit of concurrent flushes on instance {{ $labels.instance }} is equal to number of CPUs.\n
-            When VictoriaMetrics constantly hits the limit it means that storage is overloaded and requires more CPU."
-
       - alert: RowsRejectedOnIngestion
-        expr: sum(rate(vm_rows_ignored_total[5m])) by (instance, reason) > 0
+        expr: rate(vm_rows_ignored_total[5m]) > 0
         for: 15m
         labels:
           severity: warning
@@ -132,10 +117,11 @@ groups:
           dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=68&var-instance={{ $labels.instance }}"
           summary: "Percentage of slow inserts is more than 5% on \"{{ $labels.instance }}\" for the last 15m"
           description: "High rate of slow inserts on \"{{ $labels.instance }}\" may be a sign of resource exhaustion
-            for the current load. It is likely more RAM is needed for optimal handling of the current number of active time series."
+            for the current load. It is likely more RAM is needed for optimal handling of the current number of active time series.
+            See also https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183"
 
       - alert: LabelsLimitExceededOnIngestion
-        expr: sum(increase(vm_metrics_with_dropped_labels_total[5m])) by (instance) > 0
+        expr: increase(vm_metrics_with_dropped_labels_total[5m]) > 0
         for: 15m
         labels:
           severity: warning
@@ -143,5 +129,5 @@ groups:
           dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=74&var-instance={{ $labels.instance }}"
           summary: "Metrics ingested in ({{ $labels.instance }}) are exceeding labels limit"
           description: "VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.\n
-           This prevents from ingesting metrics with too many labels. Please verify that `-maxLabelsPerTimeseries` is configured
+           This prevents ingestion of metrics with too many labels. Please verify that `-maxLabelsPerTimeseries` is configured
            correctly or that clients which send these metrics aren't misbehaving."

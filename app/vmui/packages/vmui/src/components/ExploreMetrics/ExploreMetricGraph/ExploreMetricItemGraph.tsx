@@ -1,4 +1,4 @@
-import React, { FC, useMemo, useState } from "preact/compat";
+import React, { FC, useEffect, useMemo, useState } from "preact/compat";
 import { useFetchQuery } from "../../../hooks/useFetchQuery";
 import { useGraphDispatch, useGraphState } from "../../../state/graph/GraphStateContext";
 import GraphView from "../../Views/GraphView/GraphView";
@@ -6,10 +6,11 @@ import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateCont
 import { AxisRange } from "../../../state/graph/reducer";
 import Spinner from "../../Main/Spinner/Spinner";
 import Alert from "../../Main/Alert/Alert";
-import Button from "../../Main/Button/Button";
 import "./style.scss";
 import classNames from "classnames";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import { getDurationFromMilliseconds, getSecondsFromDuration, getStepFromDuration } from "../../../utils/time";
+import WarningLimitSeries from "../../../pages/CustomPanel/WarningLimitSeries/WarningLimitSeries";
 
 interface ExploreMetricItemGraphProps {
   name: string,
@@ -26,16 +27,21 @@ const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({
   instance,
   rateEnabled,
   isBucket,
-  height
+  height,
 }) => {
   const { isMobile } = useDeviceDetect();
   const { customStep, yaxis } = useGraphState();
   const { period } = useTimeState();
-
   const graphDispatch = useGraphDispatch();
   const timeDispatch = useTimeDispatch();
 
+  const defaultStep = getStepFromDuration(period.end - period.start);
+  const stepSeconds = getSecondsFromDuration(customStep);
+  const heatmapStep = getDurationFromMilliseconds(stepSeconds * 10 * 1000);
+  const [isHeatmap, setIsHeatmap] = useState(false);
   const [showAllSeries, setShowAllSeries] = useState(false);
+  const step = isHeatmap && customStep === defaultStep ? heatmapStep : customStep;
+
 
   const query = useMemo(() => {
     const params = Object.entries({ job, instance })
@@ -49,22 +55,7 @@ const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({
 
     const base = `{${params.join(",")}}`;
     if (isBucket) {
-      if (instance) {
-        return `
-label_map(
-  histogram_quantiles("__name__", 0.5, 0.95, 0.99, sum(rate(${base})) by (vmrange, le)),
-  "__name__",
-  "0.5", "q50",
-  "0.95", "q95",
-  "0.99", "q99",
-)`;
-      }
-      return `
-with (q = histogram_quantile(0.95, sum(rate(${base})) by (instance, vmrange, le))) (
-  alias(min(q), "q95min"),
-  alias(max(q), "q95max"),
-  alias(avg(q), "q95avg"),
-)`;
+      return `sum(rate(${base})) by (vmrange, le)`;
     }
     const queryBase = rateEnabled ? `rollup_rate(${base})` : `rollup(${base})`;
     return `
@@ -75,10 +66,10 @@ with (q = ${queryBase}) (
 )`;
   }, [name, job, instance, rateEnabled, isBucket]);
 
-  const { isLoading, graphData, error, warning } = useFetchQuery({
+  const { isLoading, graphData, error, queryErrors, warning, isHistogram } = useFetchQuery({
     predefinedQuery: [query],
     visible: true,
-    customStep,
+    customStep: step,
     showAllSeries
   });
 
@@ -90,9 +81,9 @@ with (q = ${queryBase}) (
     timeDispatch({ type: "SET_PERIOD", payload: { from, to } });
   };
 
-  const handleShowAll = () => {
-    setShowAllSeries(true);
-  };
+  useEffect(() => {
+    setIsHeatmap(isHistogram);
+  }, [isHistogram]);
 
   return (
     <div
@@ -103,29 +94,26 @@ with (q = ${queryBase}) (
     >
       {isLoading && <Spinner />}
       {error && <Alert variant="error">{error}</Alert>}
-      {warning && <Alert variant="warning">
-        <div className="vm-explore-metrics-graph__warning">
-          <p>{warning}</p>
-          <Button
-            color="warning"
-            variant="outlined"
-            onClick={handleShowAll}
-          >
-              Show all
-          </Button>
-        </div>
-      </Alert>}
+      {queryErrors[0] && <Alert variant="error">{queryErrors[0]}</Alert>}
+      {warning && (
+        <WarningLimitSeries
+          warning={warning}
+          query={[query]}
+          onChange={setShowAllSeries}
+        />
+      )}
       {graphData && period && (
         <GraphView
           data={graphData}
           period={period}
-          customStep={customStep}
+          customStep={step}
           query={[query]}
           yaxis={yaxis}
           setYaxisLimits={setYaxisLimits}
           setPeriod={setPeriod}
           showLegend={false}
           height={height}
+          isHistogram={isHistogram}
         />
       )}
     </div>

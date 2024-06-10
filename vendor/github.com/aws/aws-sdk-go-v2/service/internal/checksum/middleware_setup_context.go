@@ -3,6 +3,7 @@ package checksum
 import (
 	"context"
 
+	internalcontext "github.com/aws/aws-sdk-go-v2/internal/context"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -35,31 +36,11 @@ func (m *setupInputContext) HandleInitialize(
 		// check is input resource has a checksum algorithm
 		algorithm, ok := m.GetAlgorithm(in.Parameters)
 		if ok && len(algorithm) != 0 {
-			ctx = setContextInputAlgorithm(ctx, algorithm)
+			ctx = internalcontext.SetChecksumInputAlgorithm(ctx, algorithm)
 		}
 	}
 
 	return next.HandleInitialize(ctx, in)
-}
-
-// inputAlgorithmKey is the key set on context used to identify, retrieves the
-// request checksum algorithm if present on the context.
-type inputAlgorithmKey struct{}
-
-// setContextInputAlgorithm sets the request checksum algorithm on the context.
-//
-// Scoped to stack values.
-func setContextInputAlgorithm(ctx context.Context, value string) context.Context {
-	return middleware.WithStackValue(ctx, inputAlgorithmKey{}, value)
-}
-
-// getContextInputAlgorithm returns the checksum algorithm from the context if
-// one was specified. Empty string is returned if one is not specified.
-//
-// Scoped to stack values.
-func getContextInputAlgorithm(ctx context.Context) (v string) {
-	v, _ = middleware.GetStackValue(ctx, inputAlgorithmKey{}).(string)
-	return v
 }
 
 type setupOutputContext struct {

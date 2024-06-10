@@ -14,7 +14,7 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
-// Transport will wrap a transport with a custom handler
+// Transport will wrap an HTTP transport with a custom handler
 // that will request gzip and automatically decompress it.
 // Using this is significantly faster than using the default transport.
 func Transport(parent http.RoundTripper, opts ...transportOption) http.RoundTripper {
@@ -51,10 +51,21 @@ func TransportEnableGzip(b bool) transportOption {
 	}
 }
 
+// TransportCustomEval will send the header of a response to a custom function.
+// If the function returns false, the response will be returned as-is,
+// Otherwise it will be decompressed based on Content-Encoding field, regardless
+// of whether the transport added the encoding.
+func TransportCustomEval(fn func(header http.Header) bool) transportOption {
+	return func(c *gzRoundtripper) {
+		c.customEval = fn
+	}
+}
+
 type gzRoundtripper struct {
 	parent             http.RoundTripper
 	acceptEncoding     string
 	withZstd, withGzip bool
+	customEval         func(header http.Header) bool
 }
 
 func (g *gzRoundtripper) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -82,16 +93,22 @@ func (g *gzRoundtripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	if err != nil || !requestedComp {
 		return resp, err
 	}
-
+	decompress := false
+	if g.customEval != nil {
+		if !g.customEval(resp.Header) {
+			return resp, nil
+		}
+		decompress = true
+	}
 	// Decompress
-	if g.withGzip && asciiEqualFold(resp.Header.Get("Content-Encoding"), "gzip") {
+	if (decompress || g.withGzip) && asciiEqualFold(resp.Header.Get("Content-Encoding"), "gzip") {
 		resp.Body = &gzipReader{body: resp.Body}
 		resp.Header.Del("Content-Encoding")
 		resp.Header.Del("Content-Length")
 		resp.ContentLength = -1
 		resp.Uncompressed = true
 	}
-	if g.withZstd && asciiEqualFold(resp.Header.Get("Content-Encoding"), "zstd") {
+	if (decompress || g.withZstd) && asciiEqualFold(resp.Header.Get("Content-Encoding"), "zstd") {
 		resp.Body = &zstdReader{body: resp.Body}
 		resp.Header.Del("Content-Encoding")
 		resp.Header.Del("Content-Length")

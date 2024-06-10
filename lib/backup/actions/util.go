@@ -3,6 +3,7 @@ package actions
 import (
 	"flag"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -23,6 +24,10 @@ var (
 		"or if both not set, DefaultSharedConfigProfile is used")
 	customS3Endpoint = flag.String("customS3Endpoint", "", "Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set")
 	s3ForcePathStyle = flag.Bool("s3ForcePathStyle", true, "Prefixing endpoint with bucket name when set false, true by default.")
+	s3StorageClass   = flag.String("s3StorageClass", "", "The Storage Class applied to objects uploaded to AWS S3. Supported values are: GLACIER, "+
+		"DEEP_ARCHIVE, GLACIER_IR, INTELLIGENT_TIERING, ONEZONE_IA, OUTPOSTS, REDUCED_REDUNDANCY, STANDARD, STANDARD_IA.\n"+
+		"See https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html")
+	s3TLSInsecureSkipVerify = flag.Bool("s3TLSInsecureSkipVerify", false, "Whether to skip TLS verification when connecting to the S3 endpoint.")
 )
 
 func runParallel(concurrency int, parts []common.Part, f func(p common.Part) error, progress func(elapsed time.Duration)) error {
@@ -190,11 +195,11 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 	dir := path[n+len("://"):]
 	switch scheme {
 	case "fs":
-		if !strings.HasPrefix(dir, "/") {
+		if !filepath.IsAbs(dir) {
 			return nil, fmt.Errorf("dir must be absolute; got %q", dir)
 		}
 		fs := &fsremote.FS{
-			Dir: dir,
+			Dir: filepath.Clean(dir),
 		}
 		return fs, nil
 	case "gcs", "gs":
@@ -236,13 +241,15 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 		bucket := dir[:n]
 		dir = dir[n:]
 		fs := &s3remote.FS{
-			CredsFilePath:    *credsFilePath,
-			ConfigFilePath:   *configFilePath,
-			CustomEndpoint:   *customS3Endpoint,
-			S3ForcePathStyle: *s3ForcePathStyle,
-			ProfileName:      *configProfile,
-			Bucket:           bucket,
-			Dir:              dir,
+			CredsFilePath:         *credsFilePath,
+			ConfigFilePath:        *configFilePath,
+			CustomEndpoint:        *customS3Endpoint,
+			TLSInsecureSkipVerify: *s3TLSInsecureSkipVerify,
+			StorageClass:          s3remote.StringToS3StorageClass(*s3StorageClass),
+			S3ForcePathStyle:      *s3ForcePathStyle,
+			ProfileName:           *configProfile,
+			Bucket:                bucket,
+			Dir:                   dir,
 		}
 		if err := fs.Init(); err != nil {
 			return nil, fmt.Errorf("cannot initialize connection to s3: %w", err)

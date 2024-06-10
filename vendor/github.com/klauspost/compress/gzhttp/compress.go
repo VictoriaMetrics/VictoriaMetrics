@@ -2,8 +2,15 @@ package gzhttp
 
 import (
 	"bufio"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/binary"
+	"errors"
 	"fmt"
+	"hash/crc32"
 	"io"
+	"math"
+	"math/bits"
 	"mime"
 	"net"
 	"net/http"
@@ -67,6 +74,9 @@ type GzipResponseWriter struct {
 	setContentType   bool   // Add content type, if missing and detected.
 	suffixETag       string // Suffix to add to ETag header if response is compressed.
 	dropETag         bool   // Drop ETag header if response is compressed (supersedes suffixETag).
+	sha256Jitter     bool   // Use sha256 for jitter.
+	randomJitter     string // Add random bytes to output as header field.
+	jitterBuffer     int    // Maximum buffer to accumulate before doing jitter.
 
 	contentTypeFilter func(ct string) bool // Only compress if the response is one of these content-types. All are accepted if empty.
 }
@@ -97,6 +107,9 @@ func (w *GzipResponseWriter) Write(b []byte) (int, error) {
 	if w.minSize > wantBuf {
 		wantBuf = w.minSize
 	}
+	if w.jitterBuffer > 0 && w.jitterBuffer > wantBuf {
+		wantBuf = w.jitterBuffer
+	}
 	toAdd := len(b)
 	if len(w.buf)+toAdd > wantBuf {
 		toAdd = wantBuf - len(w.buf)
@@ -112,7 +125,7 @@ func (w *GzipResponseWriter) Write(b []byte) (int, error) {
 		ct := hdr.Get(contentType)
 		if cl == 0 || cl >= w.minSize && (ct == "" || w.contentTypeFilter(ct)) {
 			// If the current buffer is less than minSize and a Content-Length isn't set, then wait until we have more data.
-			if len(w.buf) < w.minSize && cl == 0 {
+			if len(w.buf) < w.minSize && cl == 0 || (w.jitterBuffer > 0 && len(w.buf) < w.jitterBuffer) {
 				return len(b), nil
 			}
 
@@ -131,7 +144,7 @@ func (w *GzipResponseWriter) Write(b []byte) (int, error) {
 
 				// If the Content-Type is acceptable to GZIP, initialize the GZIP writer.
 				if w.contentTypeFilter(ct) {
-					if err := w.startGzip(); err != nil {
+					if err := w.startGzip(remain); err != nil {
 						return 0, err
 					}
 					if len(remain) > 0 {
@@ -156,8 +169,14 @@ func (w *GzipResponseWriter) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
+func (w *GzipResponseWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
+}
+
+var castagnoliTable = crc32.MakeTable(crc32.Castagnoli)
+
 // startGzip initializes a GZIP writer and writes the buffer.
-func (w *GzipResponseWriter) startGzip() error {
+func (w *GzipResponseWriter) startGzip(remain []byte) error {
 	// Set the GZIP header.
 	w.Header().Set(contentEncoding, "gzip")
 
@@ -199,6 +218,49 @@ func (w *GzipResponseWriter) startGzip() error {
 	if len(w.buf) > 0 {
 		// Initialize the GZIP response.
 		w.init()
+
+		// Set random jitter based on CRC or SHA-256 of current buffer.
+		// Before first write.
+		if len(w.randomJitter) > 0 {
+			var jitRNG uint32
+			if w.jitterBuffer > 0 {
+				if w.sha256Jitter {
+					h := sha256.New()
+					h.Write(w.buf)
+					// Use only up to "w.jitterBuffer", otherwise the output depends on write sizes.
+					if len(remain) > 0 && len(w.buf) < w.jitterBuffer {
+						remain := remain
+						if len(remain)+len(w.buf) > w.jitterBuffer {
+							remain = remain[:w.jitterBuffer-len(w.buf)]
+						}
+						h.Write(remain)
+					}
+					var tmp [sha256.Size]byte
+					jitRNG = binary.LittleEndian.Uint32(h.Sum(tmp[:0]))
+				} else {
+					h := crc32.Update(0, castagnoliTable, w.buf)
+					// Use only up to "w.jitterBuffer", otherwise the output depends on write sizes.
+					if len(remain) > 0 && len(w.buf) < w.jitterBuffer {
+						remain := remain
+						if len(remain)+len(w.buf) > w.jitterBuffer {
+							remain = remain[:w.jitterBuffer-len(w.buf)]
+						}
+						h = crc32.Update(h, castagnoliTable, remain)
+					}
+					jitRNG = bits.RotateLeft32(h, 19) ^ 0xab0755de
+				}
+			} else {
+				// Get from rand.Reader
+				var tmp [4]byte
+				_, err := rand.Read(tmp[:])
+				if err != nil {
+					return fmt.Errorf("gzhttp: %w", err)
+				}
+				jitRNG = binary.LittleEndian.Uint32(tmp[:])
+			}
+			jit := w.randomJitter[:1+jitRNG%uint32(len(w.randomJitter)-1)]
+			w.gw.(writer.GzipWriterExt).SetHeader(writer.Header{Comment: jit})
+		}
 		n, err := w.gw.Write(w.buf)
 
 		// This should never happen (per io.Writer docs), but if the write didn't
@@ -240,7 +302,15 @@ func (w *GzipResponseWriter) startPlain() error {
 }
 
 // WriteHeader just saves the response code until close or GZIP effective writes.
+// In the specific case of 1xx status codes, WriteHeader is directly calling the wrapped ResponseWriter.
 func (w *GzipResponseWriter) WriteHeader(code int) {
+	// Handle informational headers
+	// This is gated to not forward 1xx responses on builds prior to go1.20.
+	if shouldWrite1xxResponses() && code >= 100 && code <= 199 {
+		w.ResponseWriter.WriteHeader(code)
+		return
+	}
+
 	if w.code == 0 {
 		w.code = code
 	}
@@ -259,15 +329,30 @@ func (w *GzipResponseWriter) Close() error {
 	if w.ignore {
 		return nil
 	}
-
 	if w.gw == nil {
-		// GZIP not triggered yet, write out regular response.
-		err := w.startPlain()
-		// Returns the error if any at write.
-		if err != nil {
-			err = fmt.Errorf("gziphandler: write to regular responseWriter at close gets error: %q", err.Error())
+		var (
+			ct = w.Header().Get(contentType)
+			ce = w.Header().Get(contentEncoding)
+			cr = w.Header().Get(contentRange)
+		)
+		if ct == "" {
+			ct = http.DetectContentType(w.buf)
+
+			// Handles the intended case of setting a nil Content-Type (as for http/server or http/fs)
+			// Set the header only if the key does not exist
+			if _, ok := w.Header()[contentType]; w.setContentType && !ok {
+				w.Header().Set(contentType, ct)
+			}
 		}
-		return err
+
+		if len(w.buf) == 0 || len(w.buf) < w.minSize || len(w.Header()[HeaderNoCompression]) != 0 || ce != "" || cr != "" || !w.contentTypeFilter(ct) {
+			// GZIP not triggered, write out regular response.
+			return w.startPlain()
+		}
+		err := w.startGzip(nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	err := w.gw.Close()
@@ -310,7 +395,7 @@ func (w *GzipResponseWriter) Flush() {
 
 		// See if we should compress...
 		if len(w.Header()[HeaderNoCompression]) == 0 && ce == "" && cr == "" && cl >= w.minSize && w.contentTypeFilter(ct) {
-			w.startGzip()
+			w.startGzip(nil)
 		} else {
 			w.startPlain()
 		}
@@ -392,6 +477,9 @@ func NewWrapper(opts ...option) (func(http.Handler) http.HandlerFunc, error) {
 					suffixETag:        c.suffixETag,
 					buf:               gw.buf,
 					setContentType:    c.setContentType,
+					randomJitter:      c.randomJitter,
+					jitterBuffer:      c.jitterBuffer,
+					sha256Jitter:      c.sha256Jitter,
 				}
 				if len(gw.buf) > 0 {
 					gw.buf = gw.buf[:0]
@@ -408,6 +496,7 @@ func NewWrapper(opts ...option) (func(http.Handler) http.HandlerFunc, error) {
 				} else {
 					h.ServeHTTP(gw, r)
 				}
+				w.Header().Del(HeaderNoCompression)
 			} else {
 				h.ServeHTTP(newNoGzipResponseWriter(w), r)
 				w.Header().Del(HeaderNoCompression)
@@ -455,6 +544,9 @@ type config struct {
 	setContentType   bool
 	suffixETag       string
 	dropETag         bool
+	jitterBuffer     int
+	randomJitter     string
+	sha256Jitter     bool
 }
 
 func (c *config) validate() error {
@@ -466,7 +558,16 @@ func (c *config) validate() error {
 	if c.minSize < 0 {
 		return fmt.Errorf("minimum size must be more than zero")
 	}
-
+	if len(c.randomJitter) >= math.MaxUint16 {
+		return fmt.Errorf("random jitter size exceeded")
+	}
+	if len(c.randomJitter) > 0 {
+		gzw, ok := c.writer.New(io.Discard, c.level).(writer.GzipWriterExt)
+		if !ok {
+			return errors.New("the custom compressor does not allow setting headers for random jitter")
+		}
+		gzw.Close()
+	}
 	return nil
 }
 
@@ -496,8 +597,9 @@ func SetContentType(b bool) option {
 
 // Implementation changes the implementation of GzipWriter
 //
-// The default implementation is writer/stdlib/NewWriter
-// which is backed by standard library's compress/zlib
+// The default implementation is backed by github.com/klauspost/compress
+// To support RandomJitter, the GzipWriterExt must also be
+// supported by the returned writers.
 func Implementation(writer writer.GzipWriterFactory) option {
 	return func(c *config) {
 		c.writer = writer
@@ -625,6 +727,31 @@ func DropETag() option {
 	}
 }
 
+// RandomJitter adds 1->n random bytes to output based on checksum of payload.
+// Specify the amount of input to buffer before applying jitter.
+// This should cover the sensitive part of your response.
+// This can be used to obfuscate the exact compressed size.
+// Specifying 0 will use a buffer size of 64KB.
+// 'paranoid' will use a slower hashing function, that MAY provide more safety.
+// See README.md for more information.
+// If a negative buffer is given, the amount of jitter will not be content dependent.
+// This provides *less* security than applying content based jitter.
+func RandomJitter(n, buffer int, paranoid bool) option {
+	return func(c *config) {
+		if n > 0 {
+			c.sha256Jitter = paranoid
+			c.randomJitter = strings.Repeat("Padding-", 1+(n/8))[:n+1]
+			c.jitterBuffer = buffer
+			if c.jitterBuffer == 0 {
+				c.jitterBuffer = 64 << 10
+			}
+		} else {
+			c.randomJitter = ""
+			c.jitterBuffer = 0
+		}
+	}
+}
+
 // acceptsGzip returns true if the given HTTP request indicates that it will
 // accept a gzipped response.
 func acceptsGzip(r *http.Request) bool {
@@ -702,10 +829,23 @@ func parseEncodings(s string) (codings, error) {
 	return c, nil
 }
 
+var errEmptyEncoding = errors.New("empty content-coding")
+
 // parseCoding parses a single coding (content-coding with an optional qvalue),
 // as might appear in an Accept-Encoding header. It attempts to forgive minor
 // formatting errors.
 func parseCoding(s string) (coding string, qvalue float64, err error) {
+	// Avoid splitting if we can...
+	if len(s) == 0 {
+		return "", 0, errEmptyEncoding
+	}
+	if !strings.ContainsRune(s, ';') {
+		coding = strings.ToLower(strings.TrimSpace(s))
+		if coding == "" {
+			err = errEmptyEncoding
+		}
+		return coding, DefaultQValue, err
+	}
 	for n, part := range strings.Split(s, ";") {
 		part = strings.TrimSpace(part)
 		qvalue = DefaultQValue
@@ -724,7 +864,7 @@ func parseCoding(s string) (coding string, qvalue float64, err error) {
 	}
 
 	if coding == "" {
-		err = fmt.Errorf("empty content-coding")
+		err = errEmptyEncoding
 	}
 
 	return
@@ -766,6 +906,9 @@ const intSize = 32 << (^uint(0) >> 63)
 
 // atoi is equivalent to ParseInt(s, 10, 0), converted to type int.
 func atoi(s string) (int, bool) {
+	if len(s) == 0 {
+		return 0, false
+	}
 	sLen := len(s)
 	if intSize == 32 && (0 < sLen && sLen < 10) ||
 		intSize == 64 && (0 < sLen && sLen < 19) {
@@ -797,6 +940,10 @@ func atoi(s string) (int, bool) {
 	return int(i64), err == nil
 }
 
+type unwrapper interface {
+	Unwrap() http.ResponseWriter
+}
+
 // newNoGzipResponseWriter will return a response writer that
 // cleans up compression artifacts.
 // Depending on whether http.Hijacker is supported the returned will as well.
@@ -807,10 +954,12 @@ func newNoGzipResponseWriter(w http.ResponseWriter) http.ResponseWriter {
 			http.ResponseWriter
 			http.Hijacker
 			http.Flusher
+			unwrapper
 		}{
 			ResponseWriter: n,
 			Hijacker:       hj,
 			Flusher:        n,
+			unwrapper:      n,
 		}
 		return x
 	}
@@ -859,4 +1008,8 @@ func (n *NoGzipResponseWriter) WriteHeader(statusCode int) {
 		n.hdrCleaned = true
 	}
 	n.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (n *NoGzipResponseWriter) Unwrap() http.ResponseWriter {
+	return n.ResponseWriter
 }

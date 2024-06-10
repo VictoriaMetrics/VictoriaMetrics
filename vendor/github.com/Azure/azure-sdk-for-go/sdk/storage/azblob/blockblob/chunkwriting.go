@@ -18,6 +18,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/streaming"
 	"github.com/Azure/azure-sdk-for-go/sdk/internal/uuid"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/shared"
 )
 
 // blockWriter provides methods to upload blocks that represent a file to a server and commit them.
@@ -28,27 +29,8 @@ type blockWriter interface {
 	CommitBlockList(context.Context, []string, *CommitBlockListOptions) (CommitBlockListResponse, error)
 }
 
-// bufferManager provides an abstraction for the management of buffers.
-// this is mostly for testing purposes, but does allow for different implementations without changing the algorithm.
-type bufferManager[T ~[]byte] interface {
-	// Acquire returns the channel that contains the pool of buffers.
-	Acquire() <-chan T
-
-	// Release releases the buffer back to the pool for reuse/cleanup.
-	Release(T)
-
-	// Grow grows the number of buffers, up to the predefined max.
-	// It returns the total number of buffers or an error.
-	// No error is returned if the number of buffers has reached max.
-	// This is called only from the reading goroutine.
-	Grow() (int, error)
-
-	// Free cleans up all buffers.
-	Free()
-}
-
 // copyFromReader copies a source io.Reader to blob storage using concurrent uploads.
-func copyFromReader[T ~[]byte](ctx context.Context, src io.Reader, dst blockWriter, options UploadStreamOptions, getBufferManager func(maxBuffers int, bufferSize int64) bufferManager[T]) (CommitBlockListResponse, error) {
+func copyFromReader[T ~[]byte](ctx context.Context, src io.Reader, dst blockWriter, options UploadStreamOptions, getBufferManager func(maxBuffers int, bufferSize int64) shared.BufferManager[T]) (CommitBlockListResponse, error) {
 	options.setDefaults()
 
 	wg := sync.WaitGroup{}       // Used to know when all outgoing blocks have finished processing
@@ -93,7 +75,7 @@ func copyFromReader[T ~[]byte](ctx context.Context, src io.Reader, dst blockWrit
 		}
 
 		var n int
-		n, err = io.ReadFull(src, buffer)
+		n, err = shared.ReadAtLeast(src, buffer, len(buffer))
 
 		if n > 0 {
 			// some data was read, upload it
@@ -126,7 +108,7 @@ func copyFromReader[T ~[]byte](ctx context.Context, src io.Reader, dst blockWrit
 		}
 
 		if err != nil { // The reader is done, no more outgoing buffers
-			if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+			if errors.Is(err, io.EOF) {
 				// these are expected errors, we don't surface those
 				err = nil
 			} else {
@@ -264,50 +246,4 @@ func (ubi uuidBlockID) WithBlockNumber(blockNumber uint32) uuidBlockID {
 
 func (ubi uuidBlockID) ToBase64() string {
 	return blockID(ubi).ToBase64()
-}
-
-// mmbPool implements the bufferManager interface.
-// it uses anonymous memory mapped files for buffers.
-// don't use this type directly, use newMMBPool() instead.
-type mmbPool struct {
-	buffers chan mmb
-	count   int
-	max     int
-	size    int64
-}
-
-func newMMBPool(maxBuffers int, bufferSize int64) bufferManager[mmb] {
-	return &mmbPool{
-		buffers: make(chan mmb, maxBuffers),
-		max:     maxBuffers,
-		size:    bufferSize,
-	}
-}
-
-func (pool *mmbPool) Acquire() <-chan mmb {
-	return pool.buffers
-}
-
-func (pool *mmbPool) Grow() (int, error) {
-	if pool.count < pool.max {
-		buffer, err := newMMB(pool.size)
-		if err != nil {
-			return 0, err
-		}
-		pool.buffers <- buffer
-		pool.count++
-	}
-	return pool.count, nil
-}
-
-func (pool *mmbPool) Release(buffer mmb) {
-	pool.buffers <- buffer
-}
-
-func (pool *mmbPool) Free() {
-	for i := 0; i < pool.count; i++ {
-		buffer := <-pool.buffers
-		buffer.delete()
-	}
-	pool.count = 0
 }

@@ -13,7 +13,7 @@ import (
 // It caches transformed strings and returns them back on the next calls
 // without calling the transformFunc, which may be expensive.
 type FastStringTransformer struct {
-	lastCleanupTime uint64
+	lastCleanupTime atomic.Uint64
 
 	m sync.Map
 
@@ -21,7 +21,7 @@ type FastStringTransformer struct {
 }
 
 type fstEntry struct {
-	lastAccessTime uint64
+	lastAccessTime atomic.Uint64
 	s              string
 }
 
@@ -29,10 +29,11 @@ type fstEntry struct {
 //
 // transformFunc must return the same result for the same input.
 func NewFastStringTransformer(transformFunc func(s string) string) *FastStringTransformer {
-	return &FastStringTransformer{
-		lastCleanupTime: fasttime.UnixTimestamp(),
-		transformFunc:   transformFunc,
+	fst := &FastStringTransformer{
+		transformFunc: transformFunc,
 	}
+	fst.lastCleanupTime.Store(fasttime.UnixTimestamp())
+	return fst
 }
 
 // Transform applies transformFunc to s and returns the result.
@@ -52,10 +53,10 @@ func (fst *FastStringTransformer) Transform(s string) string {
 	if ok {
 		// Fast path - the transformed s is found in the cache.
 		e := v.(*fstEntry)
-		if atomic.LoadUint64(&e.lastAccessTime)+10 < ct {
+		if e.lastAccessTime.Load()+10 < ct {
 			// Reduce the frequency of e.lastAccessTime update to once per 10 seconds
 			// in order to improve the fast path speed on systems with many CPU cores.
-			atomic.StoreUint64(&e.lastAccessTime, ct)
+			e.lastAccessTime.Store(ct)
 		}
 		return e.s
 	}
@@ -72,9 +73,9 @@ func (fst *FastStringTransformer) Transform(s string) string {
 		sTransformed = s
 	}
 	e := &fstEntry{
-		lastAccessTime: ct,
-		s:              sTransformed,
+		s: sTransformed,
 	}
+	e.lastAccessTime.Store(ct)
 	fst.m.Store(s, e)
 
 	if needCleanup(&fst.lastCleanupTime, ct) {
@@ -83,7 +84,7 @@ func (fst *FastStringTransformer) Transform(s string) string {
 		deadline := ct - uint64(cacheExpireDuration.Seconds())
 		m.Range(func(k, v interface{}) bool {
 			e := v.(*fstEntry)
-			if atomic.LoadUint64(&e.lastAccessTime) < deadline {
+			if e.lastAccessTime.Load() < deadline {
 				m.Delete(k)
 			}
 			return true

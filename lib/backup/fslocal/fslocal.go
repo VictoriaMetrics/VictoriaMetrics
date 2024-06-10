@@ -68,7 +68,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 	}
 
 	var parts []common.Part
-	dir += "/"
+	dir += string(filepath.Separator)
 	for _, file := range files {
 		if !strings.HasPrefix(file, dir) {
 			logger.Panicf("BUG: unexpected prefix for file %q; want %q", file, dir)
@@ -77,7 +77,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot stat %q: %w", file, err)
 		}
-		path := file[len(dir):]
+		path := common.ToCanonicalPath(file[len(dir):])
 		size := uint64(fi.Size())
 		if size == 0 {
 			parts = append(parts, common.Part{
@@ -146,8 +146,9 @@ func (fs *FS) NewWriteCloser(p common.Part) (io.WriteCloser, error) {
 	return blwc, nil
 }
 
-// DeletePath deletes the given path from fs and returns the size
-// for the deleted file.
+// DeletePath deletes the given path from fs and returns the size for the deleted file.
+//
+// The path must be in canonical form, e.g. it must have `/` directory separators
 func (fs *FS) DeletePath(path string) (uint64, error) {
 	p := common.Part{
 		Path: path,
@@ -187,11 +188,7 @@ func (fs *FS) mkdirAll(filePath string) error {
 }
 
 func (fs *FS) path(p common.Part) string {
-	dir := fs.Dir
-	for strings.HasSuffix(dir, "/") {
-		dir = dir[:len(dir)-1]
-	}
-	return fs.Dir + "/" + p.Path
+	return p.LocalPath(fs.Dir)
 }
 
 type limitedReadCloser struct {
@@ -235,9 +232,11 @@ func (wc *writeCloser) Write(p []byte) (int, error) {
 }
 
 func (wc *writeCloser) Close() error {
+	wc.w.MustFlush(true)
 	wc.w.MustClose()
 	if wc.n != 0 {
 		return fmt.Errorf("missing data writes for %d bytes", wc.n)
 	}
-	return fscommon.FsyncFile(wc.path)
+
+	return nil
 }

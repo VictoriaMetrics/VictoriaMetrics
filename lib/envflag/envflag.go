@@ -10,9 +10,9 @@ import (
 )
 
 var (
-	enable = flag.Bool("envflag.enable", false, "Whether to enable reading flags from environment variables additionally to command line. "+
+	enable = flag.Bool("envflag.enable", false, "Whether to enable reading flags from environment variables in addition to the command line. "+
 		"Command line flag values have priority over values from environment vars. "+
-		"Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details")
+		"Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details")
 	prefix = flag.String("envflag.prefix", "", "Prefix for environment variables if -envflag.enable is set")
 )
 
@@ -31,6 +31,11 @@ func ParseFlagSet(fs *flag.FlagSet, args []string) {
 	if err := fs.Parse(args); err != nil {
 		// Do not use lib/logger here, since it is uninitialized yet.
 		log.Fatalf("cannot parse flags %q: %s", args, err)
+	}
+	if fs.NArg() > 0 {
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4845
+		log.Fatalf("unprocessed command-line args left: %s; the most likely reason is missing `=` between boolean flag name and value; "+
+			"see https://pkg.go.dev/flag#hdr-Command_line_flag_syntax", fs.Args())
 	}
 	if !*enable {
 		return

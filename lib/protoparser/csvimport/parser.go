@@ -88,6 +88,10 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, metrics []metric, cds []Colum
 			}
 			cd := &cds[col]
 			col++
+			if cd.isEmpty() || sc.Column == "" {
+				// Ignore empty column.
+				continue
+			}
 			if parseTimestamp := cd.ParseTimestamp; parseTimestamp != nil {
 				timestamp, err := parseTimestamp(sc.Column)
 				if err != nil {
@@ -105,9 +109,8 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, metrics []metric, cds []Colum
 				continue
 			}
 			metricName := cd.MetricName
-			if metricName == "" || sc.Column == "" {
-				// The given field is ignored.
-				continue
+			if metricName == "" {
+				logger.Panicf("BUG: unexpected empty MetricName")
 			}
 			value, err := fastfloat.Parse(sc.Column)
 			if err != nil {
@@ -127,7 +130,7 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, metrics []metric, cds []Colum
 			continue
 		}
 		if len(metrics) == 0 {
-			logger.Panicf("BUG: expecting at least a single metric in columnDescriptors=%#v", cds)
+			continue
 		}
 		r.Metric = metrics[0].Name
 		r.Tags = tags[tagsLen:]

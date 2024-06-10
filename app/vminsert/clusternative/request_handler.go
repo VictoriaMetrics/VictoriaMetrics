@@ -1,6 +1,7 @@
 package clusternative
 
 import (
+	"errors"
 	"fmt"
 	"net"
 
@@ -22,8 +23,13 @@ var (
 
 // InsertHandler processes data from vminsert nodes.
 func InsertHandler(c net.Conn) error {
+	// There is no need in response compression, since
+	// lower-level vminsert sends only small packets to upper-level vminsert.
 	bc, err := handshake.VMInsertServer(c, 0)
 	if err != nil {
+		if errors.Is(err, handshake.ErrIgnoreHealthcheck) {
+			return nil
+		}
 		return fmt.Errorf("cannot perform vminsert handshake with client %q: %w", c.RemoteAddr(), err)
 	}
 	return stream.Parse(bc, func(rows []storage.MetricRow) error {

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { isMobileAgent } from "../utils/detect-device";
-import useResize from "./useResize";
+import useWindowSize from "./useWindowSize";
 
 export default function useDeviceDetect() {
-  const windowSize = useResize(document.body);
+  const windowSize = useWindowSize();
 
   const getIsMobile = () => {
     const mobileAgent = isMobileAgent();

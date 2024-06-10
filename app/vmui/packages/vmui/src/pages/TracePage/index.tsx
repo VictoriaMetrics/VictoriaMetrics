@@ -2,7 +2,6 @@ import React, { FC, useEffect, useMemo, useState } from "preact/compat";
 import { ChangeEvent } from "react";
 import Trace from "../../components/TraceQuery/Trace";
 import TracingsView from "../../components/TraceQuery/TracingsView";
-import Tooltip from "../../components/Main/Tooltip/Tooltip";
 import Button from "../../components/Main/Button/Button";
 import Alert from "../../components/Main/Alert/Alert";
 import "./style.scss";
@@ -10,22 +9,20 @@ import { CloseIcon } from "../../components/Main/Icons";
 import Modal from "../../components/Main/Modal/Modal";
 import JsonForm from "./JsonForm/JsonForm";
 import { ErrorTypes } from "../../types";
-import { useSearchParams } from "react-router-dom";
+import useDropzone from "../../hooks/useDropzone";
+import UploadJsonButtons from "../../components/UploadJsonButtons/UploadJsonButtons";
+import useBoolean from "../../hooks/useBoolean";
 
 const TracePage: FC = () => {
-  const [openModal, setOpenModal] = useState(false);
   const [tracesState, setTracesState] = useState<Trace[]>([]);
   const [errors, setErrors] = useState<{filename: string, text: string}[]>([]);
   const hasTraces = useMemo(() => !!tracesState.length, [tracesState]);
-  const [, setSearchParams] = useSearchParams();
 
-  const handleOpenModal = () => {
-    setOpenModal(true);
-  };
-
-  const handleCloseModal = () => {
-    setOpenModal(false);
-  };
+  const {
+    value: openModal,
+    setTrue: handleOpenModal,
+    setFalse: handleCloseModal,
+  } = useBoolean(false);
 
   const handleError = (e: Error, filename = "") => {
     setErrors(prev => [{ filename, text: `: ${e.message}` }, ...prev]);
@@ -46,9 +43,7 @@ const TracePage: FC = () => {
     }
   };
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setErrors([]);
-    const files = Array.from(e.target.files || []);
+  const handleReadFiles = (files: File[]) => {
     files.map(f => {
       const reader = new FileReader();
       const filename = f?.name || "";
@@ -58,6 +53,12 @@ const TracePage: FC = () => {
       };
       reader.readAsText(f);
     });
+  };
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setErrors([]);
+    const files = Array.from(e.target.files || []);
+    handleReadFiles(files);
     e.target.value = "";
   };
 
@@ -74,33 +75,11 @@ const TracePage: FC = () => {
     handleCloseError(index);
   };
 
-  useEffect(() => {
-    setSearchParams({});
-  }, []);
+  const { files, dragging } = useDropzone();
 
-  const UploadButtons = () => (
-    <div className="vm-trace-page-controls">
-      <Button
-        variant="outlined"
-        onClick={handleOpenModal}
-      >
-        Paste JSON
-      </Button>
-      <Tooltip title="The file must contain tracing information in JSON format">
-        <Button>
-          Upload Files
-          <input
-            id="json"
-            type="file"
-            accept="application/json"
-            multiple
-            title=" "
-            onChange={handleChange}
-          />
-        </Button>
-      </Tooltip>
-    </div>
-  );
+  useEffect(() => {
+    handleReadFiles(files);
+  }, [files]);
 
   return (
     <div className="vm-trace-page">
@@ -126,7 +105,12 @@ const TracePage: FC = () => {
           ))}
         </div>
         <div>
-          {hasTraces && <UploadButtons/>}
+          {hasTraces && (
+            <UploadJsonButtons
+              onOpenModal={handleOpenModal}
+              onChange={handleChange}
+            />
+          )}
         </div>
       </div>
 
@@ -158,8 +142,13 @@ const TracePage: FC = () => {
             </a>
             {"\n"}
             Tracing graph will be displayed after file upload.
+            {"\n"}
+            Attach files by dragging & dropping, selecting or pasting them.
           </p>
-          <UploadButtons/>
+          <UploadJsonButtons
+            onOpenModal={handleOpenModal}
+            onChange={handleChange}
+          />
         </div>
       )}
 
@@ -176,6 +165,10 @@ const TracePage: FC = () => {
             onUpload={handleOnload}
           />
         </Modal>
+      )}
+
+      {dragging && (
+        <div className="vm-trace-page__dropzone"/>
       )}
     </div>
   );

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"time"
@@ -21,7 +22,8 @@ import (
 // MaxBlockSize is the maximum size of the block persistent queue can work with.
 const MaxBlockSize = 32 * 1024 * 1024
 
-const defaultChunkFileSize = (MaxBlockSize + 8) * 16
+// DefaultChunkFileSize represents default chunk file size
+const DefaultChunkFileSize = (MaxBlockSize + 8) * 16
 
 var chunkFileNameRegex = regexp.MustCompile("^[0-9A-F]{16}$")
 
@@ -92,17 +94,11 @@ func (q *queue) mustResetFiles() {
 	q.readerLocalOffset = 0
 
 	q.writerPath = q.chunkFilePath(q.writerOffset)
-	w, err := filestream.Create(q.writerPath, false)
-	if err != nil {
-		logger.Panicf("FATAL: cannot create chunk file %q: %s", q.writerPath, err)
-	}
+	w := filestream.MustCreate(q.writerPath, false)
 	q.writer = w
 
 	q.readerPath = q.writerPath
-	r, err := filestream.Open(q.readerPath, true)
-	if err != nil {
-		logger.Panicf("FATAL: cannot open chunk file %q: %s", q.readerPath, err)
-	}
+	r := filestream.MustOpen(q.readerPath, true)
 	q.reader = r
 
 	if err := q.flushMetainfo(); err != nil {
@@ -127,7 +123,7 @@ func mustOpen(path, name string, maxPendingBytes int64) *queue {
 	if maxPendingBytes < 0 {
 		maxPendingBytes = 0
 	}
-	return mustOpenInternal(path, name, defaultChunkFileSize, MaxBlockSize, uint64(maxPendingBytes))
+	return mustOpenInternal(path, name, DefaultChunkFileSize, MaxBlockSize, uint64(maxPendingBytes))
 }
 
 func mustOpenInternal(path, name string, chunkFileSize, maxBlockSize, maxPendingBytes uint64) *queue {
@@ -147,14 +143,6 @@ func mustOpenInternal(path, name string, chunkFileSize, maxBlockSize, maxPending
 		}
 	}
 	return q
-}
-
-func mustCreateFlockFile(path string) *os.File {
-	f, err := fs.CreateFlockFile(path)
-	if err != nil {
-		logger.Panicf("FATAL: %s", err)
-	}
-	return f
 }
 
 func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingBytes uint64) (*queue, error) {
@@ -182,14 +170,12 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 		}
 	}
 
-	if err := fs.MkdirAllIfNotExist(path); err != nil {
-		return nil, fmt.Errorf("cannot create directory %q: %w", path, err)
-	}
-	q.flockF = mustCreateFlockFile(path)
+	fs.MustMkdirIfNotExist(path)
+	q.flockF = fs.MustCreateFlockFile(path)
 	mustCloseFlockF := true
 	defer func() {
 		if mustCloseFlockF {
-			_ = q.flockF.Close()
+			fs.MustClose(q.flockF)
 		}
 	}()
 
@@ -202,7 +188,9 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 		}
 
 		// path contents is broken or missing. Re-create it from scratch.
+		fs.MustClose(q.flockF)
 		fs.RemoveDirContents(path)
+		q.flockF = fs.MustCreateFlockFile(path)
 		mi.Reset()
 		mi.Name = q.name
 		if err := mi.WriteToFile(metainfoPath); err != nil {
@@ -211,31 +199,26 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 
 		// Create initial chunk file.
 		filepath := q.chunkFilePath(0)
-		if err := fs.WriteFileAtomically(filepath, nil, false); err != nil {
-			return nil, fmt.Errorf("cannot create %q: %w", filepath, err)
-		}
+		fs.MustWriteAtomic(filepath, nil, false)
 	}
 	if mi.Name != q.name {
 		return nil, fmt.Errorf("unexpected queue name; got %q; want %q", mi.Name, q.name)
 	}
 
 	// Locate reader and writer chunks in the path.
-	des, err := os.ReadDir(path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read contents of the directory %q: %w", path, err)
-	}
+	des := fs.MustReadDir(path)
 	for _, de := range des {
 		fname := de.Name()
-		filepath := path + "/" + fname
+		filepath := filepath.Join(path, fname)
 		if de.IsDir() {
 			logger.Errorf("skipping unknown directory %q", filepath)
 			continue
 		}
-		if fname == "metainfo.json" {
+		if fname == metainfoFilename {
 			// skip metainfo file
 			continue
 		}
-		if fname == "flock.lock" {
+		if fname == fs.FlockFilename {
 			// skip flock file
 			continue
 		}
@@ -349,18 +332,16 @@ func (q *queue) MustClose() {
 	}
 
 	// Close flockF
-	if err := q.flockF.Close(); err != nil {
-		logger.Panicf("FATAL: cannot close flock file: %s", err)
-	}
+	fs.MustClose(q.flockF)
 	q.flockF = nil
 }
 
 func (q *queue) chunkFilePath(offset uint64) string {
-	return fmt.Sprintf("%s/%016X", q.dir, offset)
+	return filepath.Join(q.dir, fmt.Sprintf("%016X", offset))
 }
 
 func (q *queue) metainfoPath() string {
-	return q.dir + "/metainfo.json"
+	return filepath.Join(q.dir, metainfoFilename)
 }
 
 // MustWriteBlock writes block to q.
@@ -451,10 +432,7 @@ func (q *queue) nextChunkFileForWrite() error {
 	q.writerFlushedOffset = q.writerOffset
 	q.writerLocalOffset = 0
 	q.writerPath = q.chunkFilePath(q.writerOffset)
-	w, err := filestream.Create(q.writerPath, false)
-	if err != nil {
-		return fmt.Errorf("cannot create chunk file %q: %w", q.writerPath, err)
-	}
+	w := filestream.MustCreate(q.writerPath, false)
 	q.writer = w
 	if err := q.flushMetainfo(); err != nil {
 		return fmt.Errorf("cannot flush metainfo: %w", err)
@@ -562,10 +540,7 @@ func (q *queue) nextChunkFileForRead() error {
 	}
 	q.readerLocalOffset = 0
 	q.readerPath = q.chunkFilePath(q.readerOffset)
-	r, err := filestream.Open(q.readerPath, true)
-	if err != nil {
-		return fmt.Errorf("cannot open chunk file %q: %w", q.readerPath, err)
-	}
+	r := filestream.MustOpen(q.readerPath, true)
 	q.reader = r
 	if err := q.flushMetainfo(); err != nil {
 		return fmt.Errorf("cannot flush metainfo: %w", err)

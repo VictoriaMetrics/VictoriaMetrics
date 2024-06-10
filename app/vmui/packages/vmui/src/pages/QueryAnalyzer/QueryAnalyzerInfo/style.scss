@@ -1,0 +1,47 @@
+@use "src/styles/variables" as *;
+
+.vm-query-analyzer-info-header {
+  display: flex;
+  gap: $padding-global;
+
+  &__period {
+    display: flex;
+    align-items: center;
+    gap: $padding-small;
+    border: $border-divider;
+    border-radius: $border-radius-small;
+    padding: 6px $padding-global;
+
+    svg {
+      width: calc($font-size-small + 1px);
+      color: $color-primary;
+    }
+  }
+}
+
+.vm-query-analyzer-info {
+  display: grid;
+  gap: $padding-large;
+  min-width: 300px;
+
+  &-type {
+    text-align: center;
+    font-style: italic;
+    color: $color-text-secondary;
+  }
+
+  &-item {
+    display: grid;
+    padding-bottom: $padding-large;
+    border-bottom: $border-divider;
+    line-height: 130%;
+
+    &__title {
+      font-weight: bold;
+    }
+
+    &__text {
+      white-space: pre-wrap;
+    }
+  }
+}

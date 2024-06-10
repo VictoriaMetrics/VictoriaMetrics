@@ -39,6 +39,19 @@
       padding: 0 $padding-medium;
       border-bottom: $border-divider;
       z-index: 1;
+
+      &__tabs {
+        display: flex;
+        justify-content: flex-start;
+        flex-grow: 1;
+      }
+
+      &__graph-controls {
+        display: flex;
+        align-items: center;
+        gap: $padding-small;
+        margin: 5px 10px;
+      }
     }
 
     &_mobile &-header {

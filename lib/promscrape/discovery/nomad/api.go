@@ -68,7 +68,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse proxy auth config: %w", err)
 	}
-	client, err := discoveryutils.NewClient(apiServer, ac, sdc.ProxyURL, proxyAC)
+	client, err := discoveryutils.NewClient(apiServer, ac, sdc.ProxyURL, proxyAC, &sdc.HTTPClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create HTTP client for %q: %w", apiServer, err)
 	}
@@ -121,6 +121,9 @@ func getBlockingAPIResponse(ctx context.Context, client *discoveryutils.Client, 
 	path += "&index=" + strconv.FormatInt(index, 10)
 	path += "&wait=" + fmt.Sprintf("%ds", int(maxWaitTime().Seconds()))
 	getMeta := func(resp *http.Response) {
+		if resp.StatusCode != http.StatusOK {
+			return
+		}
 		ind := resp.Header.Get("X-Nomad-Index")
 		if len(ind) == 0 {
 			logger.Errorf("cannot find X-Nomad-Index header in response from %q", path)

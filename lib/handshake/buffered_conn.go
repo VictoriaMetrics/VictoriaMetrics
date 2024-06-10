@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 type bufferedWriter interface {
@@ -21,6 +23,9 @@ type BufferedConn struct {
 
 	br io.Reader
 	bw bufferedWriter
+
+	readDeadline  time.Time
+	writeDeadline time.Time
 }
 
 const bufferSize = 64 * 1024
@@ -43,12 +48,40 @@ func newBufferedConn(c net.Conn, compressionLevel int, isReadCompressed bool) *B
 	return bc
 }
 
+// SetDeadline sets read and write deadlines for bc to t.
+//
+// Deadline is checked on each Read and Write call.
+func (bc *BufferedConn) SetDeadline(t time.Time) error {
+	bc.readDeadline = t
+	bc.writeDeadline = t
+	return bc.Conn.SetDeadline(t)
+}
+
+// SetReadDeadline sets read deadline for bc to t.
+//
+// Deadline is checked on each Read call.
+func (bc *BufferedConn) SetReadDeadline(t time.Time) error {
+	bc.readDeadline = t
+	return bc.Conn.SetReadDeadline(t)
+}
+
+// SetWriteDeadline sets write deadline for bc to t.
+//
+// Deadline is checked on each Write call.
+func (bc *BufferedConn) SetWriteDeadline(t time.Time) error {
+	bc.writeDeadline = t
+	return bc.Conn.SetWriteDeadline(t)
+}
+
 // Read reads up to len(p) from bc to p.
 func (bc *BufferedConn) Read(p []byte) (int, error) {
-	startTime := time.Now()
+	startTime := fasttime.UnixTimestamp()
+	if deadlineExceeded(bc.readDeadline, startTime) {
+		return 0, os.ErrDeadlineExceeded
+	}
 	n, err := bc.br.Read(p)
 	if err != nil && err != io.EOF {
-		err = fmt.Errorf("cannot read data in %.3f seconds: %w", time.Since(startTime).Seconds(), err)
+		err = fmt.Errorf("cannot read data in %d seconds: %w", fasttime.UnixTimestamp()-startTime, err)
 	}
 	return n, err
 }
@@ -57,12 +90,22 @@ func (bc *BufferedConn) Read(p []byte) (int, error) {
 //
 // Do not forget to call Flush if needed.
 func (bc *BufferedConn) Write(p []byte) (int, error) {
-	startTime := time.Now()
+	startTime := fasttime.UnixTimestamp()
+	if deadlineExceeded(bc.writeDeadline, startTime) {
+		return 0, os.ErrDeadlineExceeded
+	}
 	n, err := bc.bw.Write(p)
 	if err != nil {
-		err = fmt.Errorf("cannot write data in %.3f seconds: %w", time.Since(startTime).Seconds(), err)
+		err = fmt.Errorf("cannot write data in %d seconds: %w", fasttime.UnixTimestamp()-startTime, err)
 	}
 	return n, err
+}
+
+func deadlineExceeded(deadline time.Time, currentTimestamp uint64) bool {
+	if deadline.IsZero() {
+		return false
+	}
+	return currentTimestamp > uint64(deadline.Unix())
 }
 
 // Close closes bc.

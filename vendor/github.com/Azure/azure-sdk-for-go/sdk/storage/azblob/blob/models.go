@@ -51,7 +51,7 @@ type Tags = generated.BlobTag
 
 // HTTPRange defines a range of bytes within an HTTP resource, starting at offset and
 // ending at offset+count. A zero-value HTTPRange indicates the entire resource. An HTTPRange
-// which has an offset but no zero value count indicates from the offset to the resource's end.
+// which has an offset and zero value count indicates from the offset to the resource's end.
 type HTTPRange = exported.HTTPRange
 
 // Request Model Declaration -------------------------------------------------------------------------------------------
@@ -458,7 +458,7 @@ type SetImmutabilityPolicyOptions struct {
 
 func (o *SetImmutabilityPolicyOptions) format() (*generated.BlobClientSetImmutabilityPolicyOptions, *ModifiedAccessConditions) {
 	if o == nil {
-		return nil, nil
+		return &generated.BlobClientSetImmutabilityPolicyOptions{}, nil
 	}
 	ac := &exported.BlobAccessConditions{
 		ModifiedAccessConditions: o.ModifiedAccessConditions,
@@ -544,11 +544,13 @@ type CopyFromURLOptions struct {
 	SourceModifiedAccessConditions *SourceModifiedAccessConditions
 
 	BlobAccessConditions *AccessConditions
+
+	CPKScopeInfo *CPKScopeInfo
 }
 
-func (o *CopyFromURLOptions) format() (*generated.BlobClientCopyFromURLOptions, *generated.SourceModifiedAccessConditions, *generated.ModifiedAccessConditions, *generated.LeaseAccessConditions) {
+func (o *CopyFromURLOptions) format() (*generated.BlobClientCopyFromURLOptions, *generated.SourceModifiedAccessConditions, *generated.ModifiedAccessConditions, *generated.LeaseAccessConditions, *generated.CPKScopeInfo) {
 	if o == nil {
-		return nil, nil, nil, nil
+		return nil, nil, nil, nil, nil
 	}
 
 	options := &generated.BlobClientCopyFromURLOptions{
@@ -563,5 +565,16 @@ func (o *CopyFromURLOptions) format() (*generated.BlobClientCopyFromURLOptions, 
 	}
 
 	leaseAccessConditions, modifiedAccessConditions := exported.FormatBlobAccessConditions(o.BlobAccessConditions)
-	return options, o.SourceModifiedAccessConditions, modifiedAccessConditions, leaseAccessConditions
+	return options, o.SourceModifiedAccessConditions, modifiedAccessConditions, leaseAccessConditions, o.CPKScopeInfo
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+// GetAccountInfoOptions provides set of options for Client.GetAccountInfo
+type GetAccountInfoOptions struct {
+	// placeholder for future options
+}
+
+func (o *GetAccountInfoOptions) format() *generated.BlobClientGetAccountInfoOptions {
+	return nil
 }

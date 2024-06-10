@@ -19,7 +19,7 @@ import (
 // SDCheckInterval is check interval for Consul service discovery.
 var SDCheckInterval = flag.Duration("promscrape.consulSDCheckInterval", 30*time.Second, "Interval for checking for changes in Consul. "+
 	"This works only if consul_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://docs.victoriametrics.com/sd_configs.html#consul_sd_configs for details")
+	"See https://docs.victoriametrics.com/sd_configs/#consul_sd_configs for details")
 
 // consulWatcher is a watcher for consul api, updates services map in background with long-polling.
 type consulWatcher struct {
@@ -62,13 +62,22 @@ func newConsulWatcher(client *discoveryutils.Client, sdc *SDConfig, datacenter, 
 	for k, v := range sdc.NodeMeta {
 		baseQueryArgs += "&node-meta=" + url.QueryEscape(k+":"+v)
 	}
+
 	serviceNodesQueryArgs := baseQueryArgs
+	// tag is supported only by /v1/health/service/... and isn't supported by /v1/catalog/services
 	for _, tag := range sdc.Tags {
 		serviceNodesQueryArgs += "&tag=" + url.QueryEscape(tag)
 	}
+
+	serviceNamesQueryArgs := baseQueryArgs
+	// filter is supported only by /v1/catalog/services and isn't supported by /v1/health/service/...
+	if len(sdc.Filter) > 0 {
+		serviceNamesQueryArgs += "&filter=" + url.QueryEscape(sdc.Filter)
+	}
+
 	cw := &consulWatcher{
 		client:                client,
-		serviceNamesQueryArgs: baseQueryArgs,
+		serviceNamesQueryArgs: serviceNamesQueryArgs,
 		serviceNodesQueryArgs: serviceNodesQueryArgs,
 		watchServices:         sdc.Services,
 		watchTags:             sdc.Tags,
@@ -227,7 +236,7 @@ func (cw *consulWatcher) getBlockingServiceNames(index int64) ([]string, int64, 
 	}
 	serviceNames := make([]string, 0, len(m))
 	for serviceName, tags := range m {
-		if !shouldCollectServiceByName(cw.watchServices, serviceName) {
+		if !ShouldCollectServiceByName(cw.watchServices, serviceName) {
 			continue
 		}
 		if !shouldCollectServiceByTags(cw.watchTags, tags) {
@@ -257,7 +266,7 @@ func (sw *serviceWatcher) watchForServiceNodesUpdates(cw *consulWatcher, initWG 
 			// Nothing changed.
 			return
 		}
-		sns, err := parseServiceNodes(data)
+		sns, err := ParseServiceNodes(data)
 		if err != nil {
 			logger.Errorf("cannot parse Consul serviceNodes response for serviceName=%q from %q: %s", sw.serviceName, apiServer, err)
 			return
@@ -299,7 +308,8 @@ func (cw *consulWatcher) getServiceNodesSnapshot() map[string][]ServiceNode {
 	return sns
 }
 
-func shouldCollectServiceByName(filterServices []string, serviceName string) bool {
+// ShouldCollectServiceByName returns true if the given serviceName must be collected (present in filterServices).
+func ShouldCollectServiceByName(filterServices []string, serviceName string) bool {
 	if len(filterServices) == 0 {
 		return true
 	}

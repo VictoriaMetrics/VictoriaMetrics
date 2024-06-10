@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -148,20 +149,17 @@ func testPartSearchSerial(r *rand.Rand, p *part, items []string) error {
 func newTestPart(r *rand.Rand, blocksCount, maxItemsPerBlock int) (*part, []string, error) {
 	bsrs, items := newTestInmemoryBlockStreamReaders(r, blocksCount, maxItemsPerBlock)
 
-	var itemsMerged uint64
+	var itemsMerged atomic.Uint64
 	var ip inmemoryPart
 	var bsw blockStreamWriter
-	bsw.InitFromInmemoryPart(&ip, -3)
+	bsw.MustInitFromInmemoryPart(&ip, -3)
 	if err := mergeBlockStreams(&ip.ph, &bsw, bsrs, nil, nil, &itemsMerged); err != nil {
 		return nil, nil, fmt.Errorf("cannot merge blocks: %w", err)
 	}
-	if itemsMerged != uint64(len(items)) {
-		return nil, nil, fmt.Errorf("unexpected itemsMerged; got %d; want %d", itemsMerged, len(items))
+	if n := itemsMerged.Load(); n != uint64(len(items)) {
+		return nil, nil, fmt.Errorf("unexpected itemsMerged; got %d; want %d", n, len(items))
 	}
 	size := ip.size()
-	p, err := newPart(&ip.ph, "partName", size, ip.metaindexData.NewReader(), &ip.indexData, &ip.itemsData, &ip.lensData)
-	if err != nil {
-		return nil, nil, fmt.Errorf("cannot create part: %w", err)
-	}
+	p := newPart(&ip.ph, "partName", size, ip.metaindexData.NewReader(), &ip.indexData, &ip.itemsData, &ip.lensData)
 	return p, items, nil
 }

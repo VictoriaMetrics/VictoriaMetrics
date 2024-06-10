@@ -24,6 +24,12 @@ func init() {
 // poolIndex maps a compression level to its index into gzipWriterPools. It
 // assumes that level is a valid gzip compression level.
 func poolIndex(level int) int {
+	if level > gzip.BestCompression {
+		level = gzip.BestCompression
+	}
+	if level < gzip.StatelessCompression {
+		level = gzip.BestSpeed
+	}
 	return level - gzip.StatelessCompression
 }
 
@@ -59,6 +65,15 @@ func NewWriter(w io.Writer, level int) writer.GzipWriter {
 		Writer: gzw,
 		index:  index,
 	}
+}
+
+// SetHeader will override the gzip header on pw.
+func (pw *pooledWriter) SetHeader(h writer.Header) {
+	pw.Name = h.Name
+	pw.Extra = h.Extra
+	pw.Comment = h.Comment
+	pw.ModTime = h.ModTime
+	pw.OS = h.OS
 }
 
 func Levels() (min, max int) {

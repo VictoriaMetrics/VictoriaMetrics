@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
@@ -119,11 +118,17 @@ var (
 var (
 	configReloads      = metrics.NewCounter(`vm_relabel_config_reloads_total`)
 	configReloadErrors = metrics.NewCounter(`vm_relabel_config_reloads_errors_total`)
-	configSuccess      = metrics.NewCounter(`vm_relabel_config_last_reload_successful`)
+	configSuccess      = metrics.NewGauge(`vm_relabel_config_last_reload_successful`, nil)
 	configTimestamp    = metrics.NewCounter(`vm_relabel_config_last_reload_success_timestamp_seconds`)
 )
 
-var pcsGlobal atomic.Value
+var pcsGlobal atomic.Pointer[promrelabel.ParsedConfigs]
+
+// CheckRelabelConfig checks config pointed by -relabelConfig
+func CheckRelabelConfig() error {
+	_, err := loadRelabelConfig()
+	return err
+}
 
 func loadRelabelConfig() (*promrelabel.ParsedConfigs, error) {
 	if len(*relabelConfig) == 0 {
@@ -138,7 +143,7 @@ func loadRelabelConfig() (*promrelabel.ParsedConfigs, error) {
 
 // HasRelabeling returns true if there is global relabeling.
 func HasRelabeling() bool {
-	pcs := pcsGlobal.Load().(*promrelabel.ParsedConfigs)
+	pcs := pcsGlobal.Load()
 	return pcs.Len() > 0 || *usePromCompatibleNaming
 }
 
@@ -158,7 +163,7 @@ func (ctx *Ctx) Reset() {
 //
 // The returned labels are valid until the next call to ApplyRelabeling.
 func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
-	pcs := pcsGlobal.Load().(*promrelabel.ParsedConfigs)
+	pcs := pcsGlobal.Load()
 	if pcs.Len() == 0 && !*usePromCompatibleNaming {
 		// There are no relabeling rules.
 		return labels
@@ -166,11 +171,11 @@ func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
 	// Convert labels to prompbmarshal.Label format suitable for relabeling.
 	tmpLabels := ctx.tmpLabels[:0]
 	for _, label := range labels {
-		name := bytesutil.ToUnsafeString(label.Name)
-		if len(name) == 0 {
+		name := label.Name
+		if name == "" {
 			name = "__name__"
 		}
-		value := bytesutil.ToUnsafeString(label.Value)
+		value := label.Value
 		tmpLabels = append(tmpLabels, prompbmarshal.Label{
 			Name:  name,
 			Value: value,
@@ -182,9 +187,9 @@ func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
 		for i := range tmpLabels {
 			label := &tmpLabels[i]
 			if label.Name == "__name__" {
-				label.Value = promrelabel.SanitizeName(label.Value)
+				label.Value = promrelabel.SanitizeMetricName(label.Value)
 			} else {
-				label.Name = promrelabel.SanitizeName(label.Name)
+				label.Name = promrelabel.SanitizeLabelName(label.Name)
 			}
 		}
 	}
@@ -203,11 +208,11 @@ func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
 	// Return back labels to the desired format.
 	dst := labels[:0]
 	for _, label := range tmpLabels {
-		name := bytesutil.ToUnsafeBytes(label.Name)
+		name := label.Name
 		if label.Name == "__name__" {
-			name = nil
+			name = ""
 		}
-		value := bytesutil.ToUnsafeBytes(label.Value)
+		value := label.Value
 		dst = append(dst, prompb.Label{
 			Name:  name,
 			Value: value,

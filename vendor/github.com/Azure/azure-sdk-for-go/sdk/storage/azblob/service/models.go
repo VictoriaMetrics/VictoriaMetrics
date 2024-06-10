@@ -8,6 +8,7 @@ package service
 
 import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/container"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/exported"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/generated"
@@ -155,6 +156,9 @@ type ListContainersInclude struct {
 
 	// Tells the service whether to return soft-deleted containers.
 	Deleted bool
+
+	// Tells the service whether to return system containers.
+	System bool
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -298,4 +302,60 @@ func (o *FilterBlobsOptions) format() *generated.ServiceClientFilterBlobsOptions
 		Marker:     o.Marker,
 		Maxresults: o.MaxResults,
 	}
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+// BatchDeleteOptions contains the optional parameters for the BatchBuilder.Delete method.
+type BatchDeleteOptions struct {
+	blob.DeleteOptions
+	VersionID *string
+	Snapshot  *string
+}
+
+func (o *BatchDeleteOptions) format() (*generated.BlobClientDeleteOptions, *generated.LeaseAccessConditions, *generated.ModifiedAccessConditions) {
+	if o == nil {
+		return nil, nil, nil
+	}
+
+	basics := generated.BlobClientDeleteOptions{
+		DeleteSnapshots: o.DeleteSnapshots,
+		DeleteType:      o.BlobDeleteType, // None by default
+		Snapshot:        o.Snapshot,
+		VersionID:       o.VersionID,
+	}
+
+	leaseAccessConditions, modifiedAccessConditions := exported.FormatBlobAccessConditions(o.AccessConditions)
+	return &basics, leaseAccessConditions, modifiedAccessConditions
+}
+
+// BatchSetTierOptions contains the optional parameters for the BatchBuilder.SetTier method.
+type BatchSetTierOptions struct {
+	blob.SetTierOptions
+	VersionID *string
+	Snapshot  *string
+}
+
+func (o *BatchSetTierOptions) format() (*generated.BlobClientSetTierOptions, *generated.LeaseAccessConditions, *generated.ModifiedAccessConditions) {
+	if o == nil {
+		return nil, nil, nil
+	}
+
+	basics := generated.BlobClientSetTierOptions{
+		RehydratePriority: o.RehydratePriority,
+		Snapshot:          o.Snapshot,
+		VersionID:         o.VersionID,
+	}
+
+	leaseAccessConditions, modifiedAccessConditions := exported.FormatBlobAccessConditions(o.AccessConditions)
+	return &basics, leaseAccessConditions, modifiedAccessConditions
+}
+
+// SubmitBatchOptions contains the optional parameters for the Client.SubmitBatch method.
+type SubmitBatchOptions struct {
+	// placeholder for future options
+}
+
+func (o *SubmitBatchOptions) format() *generated.ServiceClientSubmitBatchOptions {
+	return nil
 }

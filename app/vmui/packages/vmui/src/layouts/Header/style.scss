@@ -1,0 +1,71 @@
+@use "src/styles/variables" as *;
+
+.vm-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  padding: $padding-small $padding-medium;
+  gap: 0 $padding-large;
+  min-height: 51px;
+  z-index: 99;
+
+  &_app {
+    padding: $padding-small 0;
+  }
+
+  @media (max-width: 1000px) {
+    position: sticky;
+    top: 0;
+    gap: $padding-small;
+    padding: $padding-small;
+  }
+
+  &_sidebar {
+    display: grid;
+    grid-template-columns: 40px auto 1fr;
+  }
+
+  &_mobile {
+    display: grid;
+    grid-template-columns: 33px 1fr 33px;
+    justify-content: space-between;
+  }
+
+  &_dark {
+    .vm-header-button,
+    button:before,
+    button {
+      background-color: $color-background-block;
+    }
+  }
+
+  &-logo {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    cursor: pointer;
+    width: 100%;
+    max-width: 65px;
+    min-width: 65px;
+    margin-bottom: 2px;
+    overflow: hidden;
+
+    svg {
+      max-width: 65px;
+      min-width: 65px;
+    }
+
+    &_mobile {
+      max-width: 65px;
+      min-width: 65px;
+      margin: 0 auto;
+    }
+
+    &_logs, &_logs svg {
+      max-width: 75px;
+      min-width: 75px;
+    }
+  }
+}

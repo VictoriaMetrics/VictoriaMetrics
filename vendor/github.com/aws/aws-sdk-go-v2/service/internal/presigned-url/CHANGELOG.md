@@ -1,3 +1,150 @@
+# v1.11.10 (2024-06-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.11.9 (2024-05-16)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.11.8 (2024-05-15)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.11.7 (2024-03-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.11.6 (2024-03-18)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.11.5 (2024-03-07)
+
+* **Bug Fix**: Remove dependency on go-cmp.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.11.4 (2024-03-05)
+
+* **Bug Fix**: Restore typo'd API `AddAsIsInternalPresigingMiddleware` as an alias for backwards compatibility.
+
+# v1.11.3 (2024-03-04)
+
+* **Bug Fix**: Correct a typo in internal AddAsIsPresigningMiddleware API.
+
+# v1.11.2 (2024-02-23)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.11.1 (2024-02-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.11.0 (2024-02-13)
+
+* **Feature**: Bump minimum Go version to 1.20 per our language support policy.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.10.10 (2024-01-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.10.9 (2023-12-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.10.8 (2023-12-01)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.10.7 (2023-11-30)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.10.6 (2023-11-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.10.5 (2023-11-28.2)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.10.4 (2023-11-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.10.3 (2023-11-15)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.10.2 (2023-11-09)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.10.1 (2023-11-01)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.10.0 (2023-10-31)
+
+* **Feature**: **BREAKING CHANGE**: Bump minimum go version to 1.19 per the revised [go version support policy](https://aws.amazon.com/blogs/developer/aws-sdk-for-go-aligns-with-go-release-policy-on-supported-runtimes/).
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.9.37 (2023-10-12)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.9.36 (2023-10-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.9.35 (2023-08-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.9.34 (2023-08-18)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.9.33 (2023-08-17)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.9.32 (2023-08-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.9.31 (2023-07-31)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.9.30 (2023-07-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.9.29 (2023-07-13)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.9.28 (2023-06-13)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.9.27 (2023-04-24)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.9.26 (2023-04-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.9.25 (2023-03-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.9.24 (2023-03-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.9.23 (2023-02-20)
 
 * **Dependency Update**: Updated to the latest SDK module versions

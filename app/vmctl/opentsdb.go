@@ -12,9 +12,10 @@ import (
 )
 
 type otsdbProcessor struct {
-	oc      *opentsdb.Client
-	im      *vm.Importer
-	otsdbcc int
+	oc        *opentsdb.Client
+	im        *vm.Importer
+	otsdbcc   int
+	isVerbose bool
 }
 
 type queryObj struct {
@@ -24,18 +25,19 @@ type queryObj struct {
 	StartTime int64
 }
 
-func newOtsdbProcessor(oc *opentsdb.Client, im *vm.Importer, otsdbcc int) *otsdbProcessor {
+func newOtsdbProcessor(oc *opentsdb.Client, im *vm.Importer, otsdbcc int, verbose bool) *otsdbProcessor {
 	if otsdbcc < 1 {
 		otsdbcc = 1
 	}
 	return &otsdbProcessor{
-		oc:      oc,
-		im:      im,
-		otsdbcc: otsdbcc,
+		oc:        oc,
+		im:        im,
+		otsdbcc:   otsdbcc,
+		isVerbose: verbose,
 	}
 }
 
-func (op *otsdbProcessor) run(silent, verbose bool) error {
+func (op *otsdbProcessor) run() error {
 	log.Println("Loading all metrics from OpenTSDB for filters: ", op.oc.Filters)
 	var metrics []string
 	for _, filter := range op.oc.Filters {
@@ -51,7 +53,7 @@ func (op *otsdbProcessor) run(silent, verbose bool) error {
 	}
 
 	question := fmt.Sprintf("Found %d metrics to import. Continue?", len(metrics))
-	if !silent && !prompt(question) {
+	if !prompt(question) {
 		return nil
 	}
 	op.im.ResetStats()
@@ -114,7 +116,7 @@ func (op *otsdbProcessor) run(silent, verbose bool) error {
 					case otsdbErr := <-errCh:
 						return fmt.Errorf("opentsdb error: %s", otsdbErr)
 					case vmErr := <-op.im.Errors():
-						return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
+						return fmt.Errorf("import process failed: %s", wrapErr(vmErr, op.isVerbose))
 					case seriesCh <- queryObj{
 						Tr: tr, StartTime: startTime,
 						Series: series, Rt: opentsdb.RetentionMeta{
@@ -138,7 +140,7 @@ func (op *otsdbProcessor) run(silent, verbose bool) error {
 	op.im.Close()
 	for vmErr := range op.im.Errors() {
 		if vmErr.Err != nil {
-			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
+			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, op.isVerbose))
 		}
 	}
 	log.Println("Import finished!")
@@ -166,8 +168,5 @@ func (op *otsdbProcessor) do(s queryObj) error {
 		Timestamps: data.Timestamps,
 		Values:     data.Values,
 	}
-	if err := op.im.Input(&ts); err != nil {
-		return err
-	}
-	return nil
+	return op.im.Input(&ts)
 }

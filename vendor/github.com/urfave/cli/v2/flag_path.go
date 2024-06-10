@@ -33,10 +33,14 @@ func (f *PathFlag) GetDefaultText() string {
 	if f.DefaultText != "" {
 		return f.DefaultText
 	}
-	if f.defaultValue == "" {
-		return f.defaultValue
+	val := f.Value
+	if f.defaultValueSet {
+		val = f.defaultValue
 	}
-	return fmt.Sprintf("%q", f.defaultValue)
+	if val == "" {
+		return val
+	}
+	return fmt.Sprintf("%q", val)
 }
 
 // GetEnvVars returns the env vars for this flag
@@ -48,6 +52,7 @@ func (f *PathFlag) GetEnvVars() []string {
 func (f *PathFlag) Apply(set *flag.FlagSet) error {
 	// set default value so that environment wont be able to overwrite it
 	f.defaultValue = f.Value
+	f.defaultValueSet = true
 
 	if val, _, found := flagFromEnvOrFile(f.EnvVars, f.FilePath); found {
 		f.Value = val
@@ -90,13 +95,8 @@ func (cCtx *Context) Path(name string) string {
 }
 
 func lookupPath(name string, set *flag.FlagSet) string {
-	f := set.Lookup(name)
-	if f != nil {
-		parsed, err := f.Value.String(), error(nil)
-		if err != nil {
-			return ""
-		}
-		return parsed
+	if f := set.Lookup(name); f != nil {
+		return f.Value.String()
 	}
 	return ""
 }

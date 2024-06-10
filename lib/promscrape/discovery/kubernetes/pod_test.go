@@ -80,6 +80,17 @@ const testPodsList = `
           }
         ],
         "containers": [
+	  {
+            "name": "terminated-container",
+            "image": "terminated-image",
+            "ports": [
+              {
+                "name": "terminated-port",
+                "containerPort": 4321,
+                "protocol": "TCP"
+              }
+	    ]
+          },
           {
             "name": "etcd",
             "image": "k8s.gcr.io/etcd:3.4.3-0",
@@ -197,6 +208,15 @@ const testPodsList = `
         ],
         "startTime": "2020-03-20T13:30:29Z",
         "containerStatuses": [
+	  {
+            "name": "terminated-container",
+            "state": {
+              "terminated": {
+                "exitCode": 432
+              }
+            },
+	    "containerID": "terminated-container-id"
+          },
           {
             "name": "etcd",
             "state": {

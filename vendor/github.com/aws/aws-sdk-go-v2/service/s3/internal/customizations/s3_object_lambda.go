@@ -30,6 +30,10 @@ func (t *s3ObjectLambdaEndpoint) HandleSerialize(
 ) (
 	out middleware.SerializeOutput, metadata middleware.Metadata, err error,
 ) {
+	if !awsmiddleware.GetRequiresLegacyEndpoints(ctx) {
+		return next.HandleSerialize(ctx, in)
+	}
+
 	if !t.UseEndpoint {
 		return next.HandleSerialize(ctx, in)
 	}

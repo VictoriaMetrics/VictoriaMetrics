@@ -9,7 +9,7 @@
 
     &-row {
       display: grid;
-      grid-template-columns: 1fr auto auto;
+      grid-template-columns: 1fr auto auto auto;
       align-items: center;
       gap: $padding-small;
 
@@ -24,6 +24,7 @@
 
       &__button {
         display: grid;
+        align-items: start;
         width: 36px;
         min-height: 36px;
       }
@@ -40,7 +41,7 @@
     &__buttons {
       flex-grow: 1;
       display: grid;
-      grid-template-columns: repeat(2, auto);
+      grid-template-columns: repeat(3, auto);
       gap: $padding-small;
       justify-content: flex-end;
     }

@@ -67,7 +67,7 @@ func MustStart(addr string, useProxyProtocol bool, telnetInsertHandler func(r io
 		httpServer: httpServer,
 		lnUDP:      lnUDP,
 	}
-	s.cm.Init()
+	s.cm.Init("opentsdb")
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
@@ -103,7 +103,7 @@ func (s *Server) MustStop() {
 	if err := s.lnUDP.Close(); err != nil {
 		logger.Errorf("cannot stop UDP OpenTSDB server: %s", err)
 	}
-	s.cm.CloseAll()
+	s.cm.CloseAll(0)
 	s.wg.Wait()
 	logger.Infof("TCP and UDP OpenTSDB servers at %q have been stopped", s.addr)
 }

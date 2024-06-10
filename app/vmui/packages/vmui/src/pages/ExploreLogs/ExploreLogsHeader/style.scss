@@ -1,0 +1,48 @@
+@use "src/styles/variables" as *;
+
+.vm-explore-logs-header {
+  display: grid;
+  align-items: center;
+  gap: $padding-global;
+
+  &-top {
+    display: grid;
+    grid-template-columns: 8fr 2fr;
+    align-items: flex-start;
+    justify-content: center;
+    gap: $padding-global;
+  }
+
+  &-bottom {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: $padding-global;
+
+    @media (max-width: 500px) {
+      display: grid;
+      justify-content: normal;
+    }
+
+    &-contols {
+      flex-grow: 1;
+    }
+
+    &__execute {
+      display: grid;
+    }
+
+    &-helpful {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: $padding-small $padding-global;
+
+      a {
+        color: $color-text-secondary;
+      }
+    }
+  }
+}

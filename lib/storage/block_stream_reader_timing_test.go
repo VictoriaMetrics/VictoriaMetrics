@@ -28,7 +28,7 @@ func benchmarkBlockStreamReader(b *testing.B, mp *inmemoryPart, readRows bool) {
 		var bsr blockStreamReader
 		blockNum := 0
 		for pb.Next() {
-			bsr.InitFromInmemoryPart(mp)
+			bsr.MustInitFromInmemoryPart(mp)
 			for bsr.NextBlock() {
 				if !readRows {
 					continue

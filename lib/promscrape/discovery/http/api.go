@@ -44,7 +44,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse proxy auth config: %w", err)
 	}
-	client, err := discoveryutils.NewClient(apiServer, ac, sdc.ProxyURL, proxyAC)
+	client, err := discoveryutils.NewClient(apiServer, ac, sdc.ProxyURL, proxyAC, &sdc.HTTPClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create HTTP client for %q: %w", apiServer, err)
 	}
@@ -85,7 +85,7 @@ func getHTTPTargets(cfg *apiConfig) ([]httpGroupTarget, error) {
 func parseAPIResponse(data []byte, path string) ([]httpGroupTarget, error) {
 	var r []httpGroupTarget
 	if err := json.Unmarshal(data, &r); err != nil {
-		return nil, fmt.Errorf("cannot parse http_sd api response path: %s, err:  %w", path, err)
+		return nil, fmt.Errorf("cannot parse http_sd api response path=%q: %w", path, err)
 	}
 	return r, nil
 }

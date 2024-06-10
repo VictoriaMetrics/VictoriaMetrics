@@ -59,7 +59,7 @@ func MustStart(addr string, useProxyProtocol bool, insertHandler func(r io.Reade
 		lnTCP: lnTCP,
 		lnUDP: lnUDP,
 	}
-	s.cm.Init()
+	s.cm.Init("graphite")
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
@@ -85,7 +85,7 @@ func (s *Server) MustStop() {
 	if err := s.lnUDP.Close(); err != nil {
 		logger.Errorf("cannot close UDP Graphite server: %s", err)
 	}
-	s.cm.CloseAll()
+	s.cm.CloseAll(0)
 	s.wg.Wait()
 	logger.Infof("TCP and UDP Graphite servers at %q have been stopped", s.addr)
 }

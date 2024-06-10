@@ -1,12 +1,21 @@
 ---
-sort: 20
+sort: 32
+weight: 32
+title: VictoriaMetrics best practices
+menu:
+  docs:
+    parent: 'victoriametrics'
+    weight: 32
+aliases:
+- /BestPractices.html
 ---
 
 # VictoriaMetrics best practices
 
 ## Install Recommendation
 
-It is recommended running the latest available release of VictoriaMetrics from [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases), since it contains all the bugfixes and enhancements.
+It is recommended running the latest available release of VictoriaMetrics from [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest),
+since it contains all the bugfixes and enhancements.
 
 There is no need to tune VictoriaMetrics because it uses reasonable defaults for command-line flags.  These flags are automatically adjusted for the available CPU and RAM resources. There is no need in Operating System tuning because VictoriaMetrics is optimized for default OS settings. The only option is to increase the limit on the [number of open files in the OS](https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a), so VictoriaMetrics could accept more incoming connections and could keep open more data files.
 
@@ -20,7 +29,7 @@ mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
 
 VictoriaMetrics should work OK with other filesystems too.
 
-## Operation System
+## Operating System
 
 VictoriaMetrics is production-ready for the following operating systems:
 
@@ -29,7 +38,7 @@ VictoriaMetrics is production-ready for the following operating systems:
 * OpenBSD
 * Solaris/SmartOS
 
-Some VictoriaMetrics components ([vmagent](https://docs.victoriametrics.com/vmagent.html), [vmalert](https://docs.victoriametrics.com/vmalert.html) and [vmauth](https://docs.victoriametrics.com/vmauth.html)) can run on Windows.
+There is an experimental support of VictoriaMetrics components for Windows.
 
 VictoriaMetrics can run also on MacOS for testing and development purposes.
 
@@ -40,11 +49,13 @@ VictoriaMetrics can run also on MacOS for testing and development purposes.
 * **OpenBSD**: i386, amd64, arm
 * **Solaris/SmartOS**: i386, amd64
 * **MacOS**: amd64, arm64 (for testing and development purposes)
-* **Windows**: amd64 (supported by [vmagent](https://docs.victoriametrics.com/vmagent.html), [vmalert](https://docs.victoriametrics.com/vmalert.html) and [vmauth](https://docs.victoriametrics.com/vmauth.html)).
+* **Windows**: amd64
 
 ## Upgrade procedure
 
-It is safe to upgrade VictoriaMetrics to new versions unless the [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise. It is safe to skip multiple versions during the upgrade unless release notes say otherwise. It is recommended to perform regular upgrades to the latest version, since it may contain important bug fixes, performance optimizations or new features.
+It is safe to upgrade VictoriaMetrics to new versions unless the [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) say otherwise.
+It is safe to skip multiple versions during the upgrade unless release notes say otherwise. It is recommended to perform regular upgrades to the latest version,
+since it may contain important bug fixes, performance optimizations or new features.
 
 It is also safe to downgrade to the previous version unless release notes say otherwise.
 
@@ -56,14 +67,14 @@ The following steps must be performed during the upgrade / downgrade procedure:
 
 ## Backup Recommendations
 
-VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com/vmbackup.html) and [vmrestore](https://docs.victoriametrics.com/vmrestore.html) tools. There is also [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html), which simplifies backup automation.
+VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com/vmbackup/) and [vmrestore](https://docs.victoriametrics.com/vmrestore/) tools. There is also [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/), which simplifies backup automation.
 
 ## Technical Support and Services
 
 There are the following channels for providing technical support for VictoriaMetrics:
 
-* [Github issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues)
-* [Slack channel](https://slack.victoriametrics.com/)
+* [GitHub issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues)
+* [Slack Inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/)
 * [Telegram channel](https://t.me/VictoriaMetrics_en)
 
-We also provide [Enterprise support](https://docs.victoriametrics.com/enterprise.html).
+We also provide [Enterprise support](https://docs.victoriametrics.com/enterprise/).

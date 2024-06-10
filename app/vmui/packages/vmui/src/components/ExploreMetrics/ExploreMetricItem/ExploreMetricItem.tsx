@@ -2,8 +2,8 @@ import React, { FC, useEffect, useMemo, useState } from "preact/compat";
 import ExploreMetricItemGraph from "../ExploreMetricGraph/ExploreMetricItemGraph";
 import ExploreMetricItemHeader from "../ExploreMetricItemHeader/ExploreMetricItemHeader";
 import "./style.scss";
-import useResize from "../../../hooks/useResize";
 import { GraphSize } from "../../../types";
+import useWindowSize from "../../../hooks/useWindowSize";
 
 interface ExploreMetricItemProps {
   name: string
@@ -32,7 +32,7 @@ const ExploreMetricItem: FC<ExploreMetricItemProps> = ({
 
   const [rateEnabled, setRateEnabled] = useState(isCounter);
 
-  const windowSize = useResize(document.body);
+  const windowSize = useWindowSize();
   const graphHeight = useMemo(size.height, [size, windowSize]);
 
   useEffect(() => {

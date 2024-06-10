@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/golang/snappy"
 	"github.com/klauspost/compress/s2"
 )
@@ -22,7 +21,7 @@ func benchmarkCompressWriteRequest(b *testing.B, compressFunc func(dst, src []by
 	for _, rowsCount := range []int{1, 10, 100, 1e3, 1e4} {
 		b.Run(fmt.Sprintf("rows_%d", rowsCount), func(b *testing.B) {
 			wr := newTestWriteRequest(rowsCount, 10)
-			data := prompbmarshal.MarshalWriteRequest(nil, wr)
+			data := wr.MarshalProtobuf(nil)
 			b.ReportAllocs()
 			b.SetBytes(int64(rowsCount))
 			b.RunParallel(func(pb *testing.PB) {

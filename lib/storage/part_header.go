@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
@@ -33,12 +35,35 @@ type partHeader struct {
 
 // String returns string representation of ph.
 func (ph *partHeader) String() string {
-	return fmt.Sprintf("%d_%d_%s_%s", ph.RowsCount, ph.BlocksCount, toUserReadableTimestamp(ph.MinTimestamp), toUserReadableTimestamp(ph.MaxTimestamp))
+	return fmt.Sprintf("partHeader{rowsCount=%d,blocksCount=%d,minTimestamp=%d,maxTimestamp=%d}", ph.RowsCount, ph.BlocksCount, ph.MinTimestamp, ph.MaxTimestamp)
 }
 
-func toUserReadableTimestamp(timestamp int64) string {
-	t := timestampToTime(timestamp)
-	return t.Format(userReadableTimeFormat)
+// Reset resets the ph.
+func (ph *partHeader) Reset() {
+	ph.RowsCount = 0
+	ph.BlocksCount = 0
+	ph.MinTimestamp = (1 << 63) - 1
+	ph.MaxTimestamp = -1 << 63
+	ph.MinDedupInterval = 0
+}
+
+func (ph *partHeader) readMinDedupInterval(partPath string) error {
+	filePath := filepath.Join(partPath, "min_dedup_interval")
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			// The minimum dedup interval may not exist for old parts.
+			ph.MinDedupInterval = 0
+			return nil
+		}
+		return fmt.Errorf("cannot read %q: %w", filePath, err)
+	}
+	dedupInterval, err := promutils.ParseDuration(string(data))
+	if err != nil {
+		return fmt.Errorf("cannot parse minimum dedup interval %q at %q: %w", data, filePath, err)
+	}
+	ph.MinDedupInterval = dedupInterval.Milliseconds()
+	return nil
 }
 
 func fromUserReadableTimestamp(s string) (int64, error) {
@@ -51,15 +76,6 @@ func fromUserReadableTimestamp(s string) (int64, error) {
 
 const userReadableTimeFormat = "20060102150405.000"
 
-// Path returns a path to part header with the given prefix and suffix.
-//
-// Suffix must be random.
-func (ph *partHeader) Path(prefix string, suffix uint64) string {
-	prefix = filepath.Clean(prefix)
-	s := ph.String()
-	return fmt.Sprintf("%s/%s_%016X", prefix, s, suffix)
-}
-
 // ParseFromPath extracts ph info from the given path.
 func (ph *partHeader) ParseFromPath(path string) error {
 	ph.Reset()
@@ -67,11 +83,7 @@ func (ph *partHeader) ParseFromPath(path string) error {
 	path = filepath.Clean(path)
 
 	// Extract encoded part name.
-	n := strings.LastIndexByte(path, '/')
-	if n < 0 {
-		return fmt.Errorf("cannot find encoded part name in the path %q", path)
-	}
-	partName := path[n+1:]
+	partName := filepath.Base(path)
 
 	// PartName must have the following form:
 	// RowsCount_BlocksCount_MinTimestamp_MaxTimestamp_Garbage
@@ -119,40 +131,49 @@ func (ph *partHeader) ParseFromPath(path string) error {
 	return nil
 }
 
-// Reset resets the ph.
-func (ph *partHeader) Reset() {
-	ph.RowsCount = 0
-	ph.BlocksCount = 0
-	ph.MinTimestamp = (1 << 63) - 1
-	ph.MaxTimestamp = -1 << 63
-	ph.MinDedupInterval = 0
-}
+func (ph *partHeader) MustReadMetadata(partPath string) {
+	ph.Reset()
 
-func (ph *partHeader) readMinDedupInterval(partPath string) error {
-	filePath := partPath + "/min_dedup_interval"
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			// The minimum dedup interval may not exist for old parts.
-			ph.MinDedupInterval = 0
-			return nil
+	metadataPath := filepath.Join(partPath, metadataFilename)
+	if !fs.IsPathExist(metadataPath) {
+		// This is a part created before v1.90.0.
+		// Fall back to reading the metadata from the partPath itself.
+		if err := ph.ParseFromPath(partPath); err != nil {
+			logger.Panicf("FATAL: cannot parse metadata from %q: %s", partPath, err)
 		}
-		return fmt.Errorf("cannot read %q: %w", filePath, err)
+	} else {
+		metadata, err := os.ReadFile(metadataPath)
+		if err != nil {
+			logger.Panicf("FATAL: cannot read %q: %s", metadataPath, err)
+		}
+		if err := json.Unmarshal(metadata, ph); err != nil {
+			logger.Panicf("FATAL: cannot parse %q: %s", metadataPath, err)
+		}
 	}
-	dedupInterval, err := promutils.ParseDuration(string(data))
-	if err != nil {
-		return fmt.Errorf("cannot parse minimum dedup interval %q at %q: %w", data, filePath, err)
+
+	// Perform various checks
+	if ph.MinTimestamp > ph.MaxTimestamp {
+		logger.Panicf("FATAL: minTimestamp cannot exceed maxTimestamp at %q; got %d vs %d", metadataPath, ph.MinTimestamp, ph.MaxTimestamp)
 	}
-	ph.MinDedupInterval = dedupInterval.Milliseconds()
-	return nil
+	if ph.RowsCount <= 0 {
+		logger.Panicf("FATAL: rowsCount must be greater than 0 at %q; got %d", metadataPath, ph.RowsCount)
+	}
+	if ph.BlocksCount <= 0 {
+		logger.Panicf("FATAL: blocksCount must be greater than 0 at %q; got %d", metadataPath, ph.BlocksCount)
+	}
+	if ph.BlocksCount > ph.RowsCount {
+		logger.Panicf("FATAL: blocksCount cannot be bigger than rowsCount at %q; got blocksCount=%d, rowsCount=%d", metadataPath, ph.BlocksCount, ph.RowsCount)
+	}
 }
 
-func (ph *partHeader) writeMinDedupInterval(partPath string) error {
-	filePath := partPath + "/min_dedup_interval"
-	dedupInterval := time.Duration(ph.MinDedupInterval) * time.Millisecond
-	data := dedupInterval.String()
-	if err := fs.WriteFileAtomically(filePath, []byte(data), false); err != nil {
-		return fmt.Errorf("cannot create %q: %w", filePath, err)
+func (ph *partHeader) MustWriteMetadata(partPath string) {
+	metadata, err := json.Marshal(ph)
+	if err != nil {
+		logger.Panicf("BUG: cannot marshal partHeader metadata: %s", err)
 	}
-	return nil
+	metadataPath := filepath.Join(partPath, metadataFilename)
+	// There is no need in calling fs.MustWriteAtomic() here,
+	// since the file is created only once during part creating
+	// and the part directory is synced afterwards.
+	fs.MustWriteSync(metadataPath, metadata)
 }

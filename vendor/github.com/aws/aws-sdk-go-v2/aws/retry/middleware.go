@@ -3,6 +3,7 @@ package retry
 import (
 	"context"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/aws/middleware/private/metrics"
 	"strconv"
 	"strings"
 	"time"
@@ -11,7 +12,6 @@ import (
 	awsmiddle "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/internal/sdk"
 	"github.com/aws/smithy-go/logging"
-	"github.com/aws/smithy-go/middleware"
 	smithymiddle "github.com/aws/smithy-go/middleware"
 	"github.com/aws/smithy-go/transport/http"
 )
@@ -226,6 +226,13 @@ func (r *Attempt) handleAttempt(
 	// that time. Potentially early exist if the sleep is canceled via the
 	// context.
 	retryDelay, reqErr := r.retryer.RetryDelay(attemptNum, err)
+	mctx := metrics.Context(ctx)
+	if mctx != nil {
+		attempt, err := mctx.Data().LatestAttempt()
+		if err != nil {
+			attempt.RetryDelay = retryDelay
+		}
+	}
 	if reqErr != nil {
 		return out, attemptResult, releaseRetryToken, reqErr
 	}
@@ -292,7 +299,7 @@ type retryMetadataKey struct{}
 // Scoped to stack values. Use github.com/aws/smithy-go/middleware#ClearStackValues
 // to clear all stack values.
 func getRetryMetadata(ctx context.Context) (metadata retryMetadata, ok bool) {
-	metadata, ok = middleware.GetStackValue(ctx, retryMetadataKey{}).(retryMetadata)
+	metadata, ok = smithymiddle.GetStackValue(ctx, retryMetadataKey{}).(retryMetadata)
 	return metadata, ok
 }
 
@@ -301,7 +308,7 @@ func getRetryMetadata(ctx context.Context) (metadata retryMetadata, ok bool) {
 // Scoped to stack values. Use github.com/aws/smithy-go/middleware#ClearStackValues
 // to clear all stack values.
 func setRetryMetadata(ctx context.Context, metadata retryMetadata) context.Context {
-	return middleware.WithStackValue(ctx, retryMetadataKey{}, metadata)
+	return smithymiddle.WithStackValue(ctx, retryMetadataKey{}, metadata)
 }
 
 // AddRetryMiddlewaresOptions is the set of options that can be passed to
@@ -321,10 +328,12 @@ func AddRetryMiddlewares(stack *smithymiddle.Stack, options AddRetryMiddlewaresO
 		middleware.LogAttempts = options.LogRetryAttempts
 	})
 
-	if err := stack.Finalize.Add(attempt, smithymiddle.After); err != nil {
+	// index retry to before signing, if signing exists
+	if err := stack.Finalize.Insert(attempt, "Signing", smithymiddle.Before); err != nil {
 		return err
 	}
-	if err := stack.Finalize.Add(&MetricsHeader{}, smithymiddle.After); err != nil {
+
+	if err := stack.Finalize.Insert(&MetricsHeader{}, attempt.ID(), smithymiddle.After); err != nil {
 		return err
 	}
 	return nil

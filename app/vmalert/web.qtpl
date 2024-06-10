@@ -12,7 +12,7 @@
 
 
 {% func Welcome(r *http.Request) %}
-    {%= tpl.Header(r, navItems, "vmalert") %}
+    {%= tpl.Header(r, navItems, "vmalert", getLastConfigError()) %}
     <p>
         API:<br>
         {% for _, p := range apiLinks  %}
@@ -30,117 +30,179 @@
     {%= tpl.Footer(r) %}
 {% endfunc %}
 
-{% func ListGroups(r *http.Request, groups []APIGroup) %}
+{% func buttonActive(filter, expValue string) %}
+    {% if filter != expValue %}
+btn-secondary
+    {% else %}
+btn-primary
+    {% endif %}
+{% endfunc %}
+
+{% func ListGroups(r *http.Request, originGroups []apiGroup) %}
     {%code prefix := utils.Prefix(r.URL.Path) %}
-    {%= tpl.Header(r, navItems, "Groups") %}
-    {%  if len(groups) > 0 %}
+    {%= tpl.Header(r, navItems, "Groups", getLastConfigError()) %}
         {%code
+            filter := r.URL.Query().Get("filter")
             rOk := make(map[string]int)
             rNotOk := make(map[string]int)
-            for _, g := range groups {
+            rNoMatch := make(map[string]int)
+            var groups []apiGroup
+            for _, g := range originGroups {
+                var rules []apiRule
                 for _, r := range g.Rules {
                     if r.LastError != "" {
                         rNotOk[g.ID]++
                     } else {
                         rOk[g.ID]++
                     }
+                    if isNoMatch(r) {
+                        rNoMatch[g.ID]++
+                    }
+                    if (filter == "unhealthy" && r.LastError == "") ||
+                       (filter == "noMatch" && !isNoMatch(r)) {
+                        continue
+                    }
+                    rules = append(rules, r)
+                }
+                if len(rules) > 0 {
+                    g.Rules = rules
+                    groups = append(groups, g)
                 }
             }
         %}
-         <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
-         <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
-        {% for _, g := range groups  %}
-              <div class="group-heading{% if rNotOk[g.ID] > 0 %} alert-danger{% endif %}"  data-bs-target="rules-{%s g.ID %}">
-                <span class="anchor" id="group-{%s g.ID %}"></span>
-                <a href="#group-{%s g.ID %}">{%s g.Name %}{% if g.Type != "prometheus" %} ({%s g.Type %}){% endif %} (every {%f.0 g.Interval %}s)</a>
-                 {% if rNotOk[g.ID] > 0 %}<span class="badge bg-danger" title="Number of rules with status Error">{%d rNotOk[g.ID] %}</span> {% endif %}
-                <span class="badge bg-success" title="Number of rules withs status Ok">{%d rOk[g.ID] %}</span>
-                <p class="fs-6 fw-lighter">{%s g.File %}</p>
-                {% if len(g.Params) > 0 %}
-                    <div class="fs-6 fw-lighter">Extra params
-                    {% for _, param := range g.Params %}
-                            <span class="float-left badge bg-primary">{%s param %}</span>
-                    {% endfor %}
-                    </div>
-                {% endif %}
-                {% if len(g.Headers) > 0 %}
-                    <div class="fs-6 fw-lighter">Extra headers
-                    {% for _, header := range g.Headers %}
-                            <span class="float-left badge bg-primary">{%s header %}</span>
-                    {% endfor %}
-                    </div>
-                {% endif %}
+        <div class="btn-toolbar mb-3" role="toolbar">
+          <div>
+            <a class="btn {%= buttonActive(filter, "") %}" role="button" onclick="window.location = window.location.pathname">All</a>
+            <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
+            <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
+            <a class="btn {%= buttonActive(filter, "unhealthy") %}" role="button" onclick="location.href='?filter=unhealthy'" title="Show only rules with errors">Unhealthy</a>
+            <a class="btn {%= buttonActive(filter, "noMatch") %}" role="button" onclick="location.href='?filter=noMatch'" title="Show only rules matching no time series during last evaluation">NoMatch</a>
+          </div>
+          <div class="col-md-4 col-lg-5">
+            <div class="px-3 input-group">
+              <div class="input-group-prepend">
+                <span class="input-group-text">
+                  <svg fill="#000000" height="25px" width="20px" version="1.1" id="Capa_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 490.4 490.4" xml:space="preserve"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <g> <path d="M484.1,454.796l-110.5-110.6c29.8-36.3,47.6-82.8,47.6-133.4c0-116.3-94.3-210.6-210.6-210.6S0,94.496,0,210.796 s94.3,210.6,210.6,210.6c50.8,0,97.4-18,133.8-48l110.5,110.5c12.9,11.8,25,4.2,29.2,0C492.5,475.596,492.5,463.096,484.1,454.796z M41.1,210.796c0-93.6,75.9-169.5,169.5-169.5s169.6,75.9,169.6,169.5s-75.9,169.5-169.5,169.5S41.1,304.396,41.1,210.796z"></path> </g> </g></svg>
+                </span>
+              </div>
+              <input id="search" placeholder="Filter by group, rule or labels" type="text" class="form-control"/>
             </div>
-            <div class="collapse" id="rules-{%s g.ID %}">
-                <table class="table table-striped table-hover table-sm">
-                    <thead>
-                        <tr>
-                            <th scope="col" style="width: 60%">Rule</th>
-                            <th scope="col" style="width: 20%" class="text-center" title="How many samples were produced by the rule">Samples</th>
-                            <th scope="col" style="width: 20%" class="text-center" title="How many seconds ago rule was executed">Updated</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    {% for _, r := range g.Rules %}
-                        <tr{% if r.LastError != "" %} class="alert-danger"{% endif %}>
-                            <td>
-                                <div class="row">
-                                    <div class="col-12 mb-2">
-                                        {% if r.Type == "alerting" %}
-                                        <b>alert:</b> {%s r.Name %} (for: {%v r.Duration %} seconds)
-                                        {% else %}
-                                        <b>record:</b> {%s r.Name %}
-                                        {% endif %}
-                                        | <span><a target="_blank" href="{%s prefix+r.WebLink() %}">Details</a></span>
-                                    </div>
-                                    <div class="col-12">
-                                        <code><pre>{%s r.Query %}</pre></code>
-                                    </div>
-                                    <div class="col-12 mb-2">
-                                        {% if len(r.Labels) > 0 %} <b>Labels:</b>{% endif %}
-                                        {% for k, v := range r.Labels %}
-                                                <span class="ms-1 badge bg-primary">{%s k %}={%s v %}</span>
-                                        {% endfor %}
-                                    </div>
-                                    {% if r.LastError != "" %}
-                                    <div class="col-12">
-                                        <b>Error:</b>
-                                        <div class="error-cell">
-                                        {%s r.LastError %}
-                                        </div>
-                                    </div>
-                                    {% endif %}
-                                </div>
-                            </td>
-                            <td class="text-center">{%d r.LastSamples %}</td>
-                            <td class="text-center">{%f.3 time.Since(r.LastEvaluation).Seconds() %}s ago</td>
-                        </tr>
-                    {% endfor %}
-                 </tbody>
-                </table>
-            </div>
-        {% endfor %}
-
-    {% else %}
-        <div>
-            <p>No groups...</p>
+          </div>
         </div>
-    {% endif %}
+        {%  if len(groups) > 0 %}
+            {% for _, g := range groups  %}
+                  <div
+                    class="group-heading{% if rNotOk[g.ID] > 0 %} alert-danger{%endif%}" data-bs-target="rules-{%s g.ID %}" data-group-name="{%s g.Name %}">
+                    <span class="anchor" id="group-{%s g.ID %}"></span>
+                    <a href="#group-{%s g.ID %}">{%s g.Name %}{% if g.Type != "prometheus" %} ({%s g.Type %}){% endif %} (every {%f.0 g.Interval %}s) #</a>
+                     {% if rNotOk[g.ID] > 0 %}<span class="badge bg-danger" title="Number of rules with status Error">{%d rNotOk[g.ID] %}</span> {% endif %}
+                     {% if rNoMatch[g.ID] > 0 %}<span class="badge bg-warning" title="Number of rules with status NoMatch">{%d rNoMatch[g.ID] %}</span> {% endif %}
+                    <span class="badge bg-success" title="Number of rules withs status Ok">{%d rOk[g.ID] %}</span>
+                    <p class="fs-6 fw-lighter">{%s g.File %}</p>
+                    {% if len(g.Params) > 0 %}
+                        <div class="fs-6 fw-lighter">Extra params
+                        {% for _, param := range g.Params %}
+                                <span class="float-left badge bg-primary">{%s param %}</span>
+                        {% endfor %}
+                        </div>
+                    {% endif %}
+                    {% if len(g.Headers) > 0 %}
+                        <div class="fs-6 fw-lighter">Extra headers
+                        {% for _, header := range g.Headers %}
+                                <span class="float-left badge bg-primary">{%s header %}</span>
+                        {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="collapse rule-table" id="rules-{%s g.ID %}">
+                    <table class="table table-striped table-hover table-sm">
+                        <thead>
+                            <tr>
+                                <th scope="col" style="width: 60%">Rule</th>
+                                <th scope="col" style="width: 20%" class="text-center" title="How many samples were produced by the rule">Samples</th>
+                                <th scope="col" style="width: 20%" class="text-center" title="How many seconds ago rule was executed">Updated</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for _, r := range g.Rules %}
+                            <tr class="rule{% if r.LastError != "" %} alert-danger{% endif %}" data-rule-name="{%s r.Name %}" data-bs-target="{%s g.ID %}">
+                                <td>
+                                    <div class="row">
+                                        <div class="col-12 mb-2">
+                                            {% if r.Type == "alerting" %}
+                                            {% if r.KeepFiringFor > 0 %}
+                                            <b>alert:</b> {%s r.Name %} (for: {%v r.Duration %} seconds, keep_firing_for: {%v r.KeepFiringFor %} seconds)
+                                            {% else %}
+                                            <b>alert:</b> {%s r.Name %} (for: {%v r.Duration %} seconds)
+                                            {% endif %}
+                                            {% else %}
+                                            <b>record:</b> {%s r.Name %}
+                                            {% endif %}
+                                            |
+                                            {%= seriesFetchedWarn(r) %}
+                                            <span><a target="_blank" href="{%s prefix+r.WebLink() %}">Details</a></span>
+                                        </div>
+                                        <div class="col-12">
+                                            <code><pre>{%s r.Query %}</pre></code>
+                                        </div>
+                                        <div class="col-12 mb-2">
+                                            {% if len(r.Labels) > 0 %} <b>Labels:</b>{% endif %}
+                                            {% for k, v := range r.Labels %}
+                                                    <span class="ms-1 badge bg-primary label">{%s k %}={%s v %}</span>
+                                            {% endfor %}
+                                        </div>
+                                        {% if r.LastError != "" %}
+                                        <div class="col-12">
+                                            <b>Error:</b>
+                                            <div class="error-cell">
+                                            {%s r.LastError %}
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="text-center">{%d r.LastSamples %}</td>
+                                <td class="text-center">{%f.3 time.Since(r.LastEvaluation).Seconds() %}s ago</td>
+                            </tr>
+                        {% endfor %}
+                     </tbody>
+                    </table>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div>
+                <p>No groups...</p>
+            </div>
+        {% endif %}
 
     {%= tpl.Footer(r) %}
 
 {% endfunc %}
 
 
-{% func ListAlerts(r *http.Request, groupAlerts []GroupAlerts) %}
+{% func ListAlerts(r *http.Request, groupAlerts []groupAlerts) %}
     {%code prefix := utils.Prefix(r.URL.Path) %}
-    {%= tpl.Header(r, navItems, "Alerts") %}
+    {%= tpl.Header(r, navItems, "Alerts", getLastConfigError()) %}
     {% if len(groupAlerts) > 0 %}
-         <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
-         <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
+         <div class="btn-toolbar mb-3" role="toolbar">
+              <div>
+                <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
+                 <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
+              </div>
+              <div class="col-md-4 col-lg-5">
+                <div class="px-3 input-group">
+                  <div class="input-group-prepend">
+                    <span class="input-group-text">
+                      <svg fill="#000000" height="25px" width="20px" version="1.1" id="Capa_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 490.4 490.4" xml:space="preserve"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <g> <path d="M484.1,454.796l-110.5-110.6c29.8-36.3,47.6-82.8,47.6-133.4c0-116.3-94.3-210.6-210.6-210.6S0,94.496,0,210.796 s94.3,210.6,210.6,210.6c50.8,0,97.4-18,133.8-48l110.5,110.5c12.9,11.8,25,4.2,29.2,0C492.5,475.596,492.5,463.096,484.1,454.796z M41.1,210.796c0-93.6,75.9-169.5,169.5-169.5s169.6,75.9,169.6,169.5s-75.9,169.5-169.5,169.5S41.1,304.396,41.1,210.796z"></path> </g> </g></svg>
+                    </span>
+                  </div>
+                  <input id="search" placeholder="Filter by group, rule or labels" type="text" class="form-control"/>
+                </div>
+              </div>
+          </div>
          {% for _, ga := range groupAlerts %}
             {%code g := ga.Group %}
-            <div class="group-heading alert-danger" data-bs-target="rules-{%s g.ID %}">
+            <div class="group-heading alert-danger" data-bs-target="rules-{%s g.ID %}" data-group-name="{%s g.Name %}">
                 <span class="anchor" id="group-{%s g.ID %}"></span>
                 <a href="#group-{%s g.ID %}">{%s g.Name %}{% if g.Type != "prometheus" %} ({%s g.Type %}){% endif %}</a>
                 <span class="badge bg-danger" title="Number of active alerts">{%d len(ga.Alerts) %}</span>
@@ -149,7 +211,7 @@
             </div>
             {%code
                 var keys []string
-                alertsByRule := make(map[string][]*APIAlert)
+                alertsByRule := make(map[string][]*apiAlert)
                 for _, alert := range ga.Alerts {
                     if len(alertsByRule[alert.RuleID]) < 1 {
                         keys = append(keys, alert.RuleID)
@@ -158,7 +220,7 @@
                 }
                 sort.Strings(keys)
             %}
-            <div class="collapse" id="rules-{%s g.ID %}">
+            <div class="collapse rule-table" id="rules-{%s g.ID %}">
                 {% for _, ruleID := range keys %}
                     {%code
                         defaultAR := alertsByRule[ruleID][0]
@@ -169,44 +231,46 @@
                         sort.Strings(labelKeys)
                     %}
                     <br>
-                    <b>alert:</b> {%s defaultAR.Name %} ({%d len(alertsByRule[ruleID]) %})
-                     | <span><a target="_blank" href="{%s defaultAR.SourceLink %}">Source</a></span>
-                    <br>
-                    <b>expr:</b><code><pre>{%s defaultAR.Expression %}</pre></code>
-                    <table class="table table-striped table-hover table-sm">
-                        <thead>
-                            <tr>
-                                <th scope="col">Labels</th>
-                                <th scope="col">State</th>
-                                <th scope="col">Active at</th>
-                                <th scope="col">Value</th>
-                                <th scope="col">Link</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        {% for _, ar := range alertsByRule[ruleID] %}
-                            <tr>
-                                <td>
-                                    {% for _, k := range labelKeys %}
-                                        <span class="ms-1 badge bg-primary">{%s k %}={%s ar.Labels[k] %}</span>
-                                    {% endfor %}
-                                </td>
-                                <td>{%= badgeState(ar.State) %}</td>
-                                <td>
-                                    {%s ar.ActiveAt.Format("2006-01-02T15:04:05Z07:00") %}
-                                    {% if ar.Restored %}{%= badgeRestored() %}{% endif %}
-                                </td>
-                                <td>{%s ar.Value %}</td>
-                                <td>
-                                    <a href="{%s prefix+ar.WebLink() %}">Details</a>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                     </tbody>
-                    </table>
+                    <div class="rule" data-rule-name="{%s defaultAR.Name %}" data-bs-target="{%s g.ID %}">
+                      <b>alert:</b> {%s defaultAR.Name %} ({%d len(alertsByRule[ruleID]) %})
+                       | <span><a target="_blank" href="{%s defaultAR.SourceLink %}">Source</a></span>
+                      <br>
+                      <b>expr:</b><code><pre>{%s defaultAR.Expression %}</pre></code>
+                      <table class="table table-striped table-hover table-sm">
+                          <thead>
+                              <tr>
+                                  <th scope="col">Labels</th>
+                                  <th scope="col">State</th>
+                                  <th scope="col">Active at</th>
+                                  <th scope="col">Value</th>
+                                  <th scope="col">Link</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+                          {% for _, ar := range alertsByRule[ruleID] %}
+                              <tr>
+                                  <td>
+                                      {% for _, k := range labelKeys %}
+                                          <span class="ms-1 badge bg-primary label">{%s k %}={%s ar.Labels[k] %}</span>
+                                      {% endfor %}
+                                  </td>
+                                  <td>{%= badgeState(ar.State) %}</td>
+                                  <td>
+                                      {%s ar.ActiveAt.Format("2006-01-02T15:04:05Z07:00") %}
+                                      {% if ar.Restored %}{%= badgeRestored() %}{% endif %}
+                                      {% if ar.Stabilizing %}{%= badgeStabilizing() %}{% endif %}
+                                  </td>
+                                  <td>{%s ar.Value %}</td>
+                                  <td>
+                                      <a href="{%s prefix+ar.WebLink() %}">Details</a>
+                                  </td>
+                              </tr>
+                          {% endfor %}
+                       </tbody>
+                      </table>
+                    </div>
                 {% endfor %}
             </div>
-            <br>
         {% endfor %}
 
     {% else %}
@@ -220,7 +284,7 @@
 {% endfunc %}
 
 {% func ListTargets(r *http.Request, targets map[notifier.TargetType][]notifier.Target) %}
-    {%= tpl.Header(r, navItems, "Notifiers") %}
+    {%= tpl.Header(r, navItems, "Notifiers", getLastConfigError()) %}
     {% if len(targets) > 0 %}
          <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
          <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
@@ -237,9 +301,9 @@
            {%code typeK, ns := keys[i], targets[notifier.TargetType(keys[i])]
                 count := len(ns)
             %}
-           <div class="group-heading data-bs-target="rules-{%s typeK %}">
-             <span class="anchor" id="notifiers-{%s typeK %}"></span>
-             <a href="#notifiers-{%s typeK %}">{%s typeK %} ({%d count %})</a>
+           <div class="group-heading" data-bs-target="notifiers-{%s typeK %}">
+             <span class="anchor" id="group-{%s typeK %}"></span>
+             <a href="#group-{%s typeK %}">{%s typeK %} ({%d count %})</a>
          </div>
          <div class="collapse show" id="notifiers-{%s typeK %}">
              <table class="table table-striped table-hover table-sm">
@@ -275,9 +339,9 @@
 
 {% endfunc %}
 
-{% func Alert(r *http.Request, alert *APIAlert) %}
+{% func Alert(r *http.Request, alert *apiAlert) %}
     {%code prefix := utils.Prefix(r.URL.Path) %}
-    {%= tpl.Header(r, navItems, "") %}
+    {%= tpl.Header(r, navItems, "", getLastConfigError()) %}
     {%code
         var labelKeys []string
         for k := range alert.Labels {
@@ -362,9 +426,9 @@
 {% endfunc %}
 
 
-{% func RuleDetails(r *http.Request, rule APIRule) %}
+{% func RuleDetails(r *http.Request, rule apiRule) %}
     {%code prefix := utils.Prefix(r.URL.Path) %}
-    {%= tpl.Header(r, navItems, "") %}
+    {%= tpl.Header(r, navItems, "", getLastConfigError()) %}
     {%code
         var labelKeys []string
         for k := range rule.Labels {
@@ -377,8 +441,20 @@
             annotationKeys = append(annotationKeys, k)
         }
         sort.Strings(annotationKeys)
+
+        var seriesFetchedEnabled bool
+        var seriesFetchedWarning bool
+        for _, u := range rule.Updates {
+          if u.SeriesFetched != nil {
+            seriesFetchedEnabled = true
+            if *u.SeriesFetched == 0 && u.Samples == 0{
+                seriesFetchedWarning = true
+            }
+          }
+        }
+
     %}
-    <div class="display-6 pb-3 mb-3">Rule: {%s rule.Name %}<span class="ms-2 badge {% if rule.Health!="ok" %}bg-danger{% else %} bg-warning text-dark{% endif %}">{%s rule.Health %}</span></div>
+    <div class="display-6 pb-3 mb-3">Rule: {%s rule.Name %}<span class="ms-2 badge {% if rule.Health!="ok" %}bg-danger{% else %} bg-success text-dark{% endif %}">{%s rule.Health %}</span></div>
     <div class="container border-bottom p-2">
       <div class="row">
         <div class="col-2">
@@ -400,6 +476,18 @@
         </div>
       </div>
     </div>
+    {% if rule.KeepFiringFor > 0 %}
+    <div class="container border-bottom p-2">
+      <div class="row">
+        <div class="col-2">
+          Keep firing for
+        </div>
+        <div class="col">
+         {%v rule.KeepFiringFor %} seconds
+        </div>
+      </div>
+    </div>
+    {% endif %}
     {% endif %}
     <div class="container border-bottom p-2">
       <div class="row">
@@ -450,12 +538,26 @@
     </div>
 
     <br>
+    {% if seriesFetchedWarning %}
+    <div class="alert alert-warning" role="alert">
+       <strong>Warning:</strong> some of updates have "Series fetched" equal to 0.<br>
+       It might be that either this data is missing in the datasource or there is a typo in rule's expression.
+       For example, <strong>foo{label="bar"} > 0</strong> could never trigger because <strong>foo{label="bar"}</strong>
+       metric doesn't exist.
+       <br>
+       Rule's expressions without time series selector, like <strong>expr: 42</strong> or <strong>expr: time()</strong>
+       aren't fetching time series from datasource, so they could have "Series fetched" equal to 0 and this won't be a problem.
+       <br>
+       See more details about this detection <a target="_blank" href="https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4039">here</a>.
+    </div>
+    {% endif %}
     <div class="display-6 pb-3">Last {%d len(rule.Updates) %}/{%d rule.MaxUpdates %} updates</span>:</div>
         <table class="table table-striped table-hover table-sm">
             <thead>
                 <tr>
                     <th scope="col" title="The time when event was created">Updated at</th>
                     <th scope="col" style="width: 10%" class="text-center" title="How many samples were returned">Samples</th>
+                    {% if seriesFetchedEnabled %}<th scope="col" style="width: 10%" class="text-center" title="How many series were scanned by datasource during the evaluation">Series fetched</th>{% endif %}
                     <th scope="col" style="width: 10%" class="text-center" title="How many seconds request took">Duration</th>
                     <th scope="col" class="text-center" title="Time used for rule execution">Executed at</th>
                     <th scope="col" class="text-center" title="cURL command with request example">cURL</th>
@@ -464,22 +566,23 @@
             <tbody>
 
      {% for _, u := range rule.Updates %}
-             <tr{% if u.err != nil %} class="alert-danger"{% endif %}>
+             <tr{% if u.Err != nil %} class="alert-danger"{% endif %}>
                  <td>
-                    <span class="badge bg-primary rounded-pill me-3" title="Updated at">{%s u.time.Format(time.RFC3339) %}</span>
+                    <span class="badge bg-primary rounded-pill me-3" title="Updated at">{%s u.Time.Format(time.RFC3339) %}</span>
                  </td>
-                 <td class="text-center" wi>{%d u.samples %}</td>
-                 <td class="text-center">{%f.3 u.duration.Seconds() %}s</td>
-                 <td class="text-center">{%s u.at.Format(time.RFC3339) %}</td>
+                 <td class="text-center">{%d u.Samples %}</td>
+                 {% if seriesFetchedEnabled %}<td class="text-center">{% if u.SeriesFetched != nil %}{%d *u.SeriesFetched %}{% endif %}</td>{% endif %}
+                 <td class="text-center">{%f.3 u.Duration.Seconds() %}s</td>
+                 <td class="text-center">{%s u.At.Format(time.RFC3339) %}</td>
                  <td>
-                    <textarea class="curl-area" rows="1" onclick="this.focus();this.select()">{%s u.curl %}</textarea>
+                    <textarea class="curl-area" rows="1" onclick="this.focus();this.select()">{%s u.Curl %}</textarea>
                 </td>
              </tr>
           </li>
-          {% if u.err != nil %}
-             <tr{% if u.err != nil %} class="alert-danger"{% endif %}>
-               <td colspan="5">
-                   <span class="alert-danger">{%v u.err %}</span>
+          {% if u.Err != nil %}
+             <tr{% if u.Err != nil %} class="alert-danger"{% endif %}>
+               <td colspan="{% if seriesFetchedEnabled %}6{%else%}5{%endif%}">
+                   <span class="alert-danger">{%v u.Err %}</span>
                </td>
              </tr>
           {% endif %}
@@ -503,3 +606,26 @@
 {% func badgeRestored() %}
 <span class="badge bg-warning text-dark" title="Alert state was restored after the service restart from remote storage">restored</span>
 {% endfunc %}
+
+{% func badgeStabilizing() %}
+<span class="badge bg-warning text-dark" title="This firing state is kept because of `keep_firing_for`">stabilizing</span>
+{% endfunc %}
+
+{% func seriesFetchedWarn(r apiRule) %}
+{% if isNoMatch(r) %}
+<svg xmlns="http://www.w3.org/2000/svg"
+    data-bs-toggle="tooltip"
+    title="No match! This rule's last evaluation hasn't selected any time series from the datasource.
+    It might be that either this data is missing in the datasource or there is a typo in rule's expression.
+    See more in Details."
+    width="18" height="18" fill="currentColor" class="bi bi-exclamation-triangle-fill flex-shrink-0 me-2" viewBox="0 0 16 16" role="img" aria-label="Warning:">
+       <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>
+</svg>
+{% endif %}
+{% endfunc %}
+
+{%code
+  func isNoMatch (r apiRule) bool {
+    return r.LastSamples == 0 && r.LastSeriesFetched != nil && *r.LastSeriesFetched == 0
+  }
+%}

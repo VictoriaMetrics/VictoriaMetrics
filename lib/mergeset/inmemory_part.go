@@ -1,7 +1,6 @@
 package mergeset
 
 import (
-	"fmt"
 	"path/filepath"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -32,34 +31,26 @@ func (mp *inmemoryPart) Reset() {
 	mp.lensData.Reset()
 }
 
-// StoreToDisk stores mp to the given path on disk.
-func (mp *inmemoryPart) StoreToDisk(path string) error {
-	if err := fs.MkdirAllIfNotExist(path); err != nil {
-		return fmt.Errorf("cannot create directory %q: %w", path, err)
-	}
-	metaindexPath := path + "/metaindex.bin"
-	if err := fs.WriteFileAndSync(metaindexPath, mp.metaindexData.B); err != nil {
-		return fmt.Errorf("cannot store metaindex: %w", err)
-	}
-	indexPath := path + "/index.bin"
-	if err := fs.WriteFileAndSync(indexPath, mp.indexData.B); err != nil {
-		return fmt.Errorf("cannot store index: %w", err)
-	}
-	itemsPath := path + "/items.bin"
-	if err := fs.WriteFileAndSync(itemsPath, mp.itemsData.B); err != nil {
-		return fmt.Errorf("cannot store items: %w", err)
-	}
-	lensPath := path + "/lens.bin"
-	if err := fs.WriteFileAndSync(lensPath, mp.lensData.B); err != nil {
-		return fmt.Errorf("cannot store lens: %w", err)
-	}
-	if err := mp.ph.WriteMetadata(path); err != nil {
-		return fmt.Errorf("cannot store metadata: %w", err)
-	}
-	// Sync parent directory in order to make sure the written files remain visible after hardware reset
-	parentDirPath := filepath.Dir(path)
-	fs.MustSyncPath(parentDirPath)
-	return nil
+// MustStoreToDisk stores mp to the given path on disk.
+func (mp *inmemoryPart) MustStoreToDisk(path string) {
+	fs.MustMkdirFailIfExist(path)
+
+	metaindexPath := filepath.Join(path, metaindexFilename)
+	fs.MustWriteSync(metaindexPath, mp.metaindexData.B)
+
+	indexPath := filepath.Join(path, indexFilename)
+	fs.MustWriteSync(indexPath, mp.indexData.B)
+
+	itemsPath := filepath.Join(path, itemsFilename)
+	fs.MustWriteSync(itemsPath, mp.itemsData.B)
+
+	lensPath := filepath.Join(path, lensFilename)
+	fs.MustWriteSync(lensPath, mp.lensData.B)
+
+	mp.ph.MustWriteMetadata(path)
+
+	fs.MustSyncPath(path)
+	// Do not sync parent directory - it must be synced by the caller.
 }
 
 // Init initializes mp from ib.
@@ -94,6 +85,10 @@ func (mp *inmemoryPart) Init(ib *inmemoryBlock) {
 
 	bb := inmemoryPartBytePool.Get()
 	bb.B = mp.bh.Marshal(bb.B[:0])
+	if len(bb.B) > 3*maxIndexBlockSize {
+		// marshaled blockHeader can exceed indexBlockSize when firstItem and commonPrefix sizes are close to indexBlockSize
+		logger.Panicf("BUG: too big index block: %d bytes; mustn't exceed %d bytes", len(bb.B), 3*maxIndexBlockSize)
+	}
 	mp.indexData.B = encoding.CompressZSTDLevel(mp.indexData.B[:0], bb.B, compressLevel)
 
 	mp.mr.firstItem = append(mp.mr.firstItem[:0], mp.bh.firstItem...)
@@ -111,10 +106,7 @@ var inmemoryPartBytePool bytesutil.ByteBufferPool
 // It is unsafe re-using mp while the returned part is in use.
 func (mp *inmemoryPart) NewPart() *part {
 	size := mp.size()
-	p, err := newPart(&mp.ph, "", size, mp.metaindexData.NewReader(), &mp.indexData, &mp.itemsData, &mp.lensData)
-	if err != nil {
-		logger.Panicf("BUG: cannot create a part from inmemoryPart: %s", err)
-	}
+	p := newPart(&mp.ph, "", size, mp.metaindexData.NewReader(), &mp.indexData, &mp.itemsData, &mp.lensData)
 	return p
 }
 

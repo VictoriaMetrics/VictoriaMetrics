@@ -3,6 +3,31 @@
 .vm-metrics-content {
   &-header {
     margin: -$padding-medium 0-$padding-medium 0;
+
+    &__title {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    &__tip {
+      max-width: 300px;
+      white-space: normal;
+      padding: $padding-small;
+
+      p {
+        margin-bottom: $padding-small;
+      }
+    }
+
+    &__tip-icon {
+      width: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: $color-primary;
+      margin-right: 4px;
+    }
   }
 
   &_mobile &-header {
@@ -29,5 +54,40 @@
 
   &_mobile &__table {
     width: calc(100vw - ($padding-global * 2) - var(--scrollbar-width));
+  }
+
+  &__chart {
+    padding-top: $padding-medium;
+  }
+
+  &-prom-data {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    gap: $padding-small;
+    margin-top: $padding-global;
+    text-align: center;
+
+    &__icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      margin-bottom: $padding-small;
+      color: $color-primary;
+    }
+
+    &__title {
+      font-size: $font-size-medium;
+      font-weight: bold;
+    }
+
+    &__text {
+      max-width: 700px;
+      line-height: 1.3;
+    }
   }
 }

@@ -10,7 +10,7 @@ import (
 func TestParseServiceNodesFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
-		sns, err := parseServiceNodes([]byte(s))
+		sns, err := ParseServiceNodes([]byte(s))
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -95,7 +95,7 @@ func TestParseServiceNodesSuccess(t *testing.T) {
   }
 ]
 `
-	sns, err := parseServiceNodes([]byte(data))
+	sns, err := ParseServiceNodes([]byte(data))
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

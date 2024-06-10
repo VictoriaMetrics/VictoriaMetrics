@@ -24,6 +24,7 @@
 	{% endfor %}
 {% endfunc %}
 
+{%code const rfc3339Milli = "2006-01-02T15:04:05.999Z07:00" %}
 {% func exportCSVField(mn *storage.MetricName, fieldName string, timestamp int64, value float64) %}
 	{% if fieldName == "__value__" %}
 		{%f= value %}
@@ -45,7 +46,7 @@
 		{% case "rfc3339" %}
 			{% code
 				bb := quicktemplate.AcquireByteBuffer()
-				bb.B = time.Unix(timestamp/1000, (timestamp%1000)*1e6).AppendFormat(bb.B[:0], time.RFC3339)
+				bb.B = time.Unix(timestamp/1000, (timestamp%1000)*1e6).AppendFormat(bb.B[:0], rfc3339Milli)
 			%}
 			{%z= bb.B %}
 			{% code
@@ -149,11 +150,11 @@
 	{% if len(mn.Tags) > 0 %}
 	{
 		{% code tags := mn.Tags %}
-		{%z= tags[0].Key %}={%qz= tags[0].Value %}
+		{%z= tags[0].Key %}={%= escapePrometheusLabel(tags[0].Value) %}
 		{% code tags = tags[1:] %}
 		{% for i := range tags %}
 			{% code tag := &tags[i] %}
-			,{%z= tag.Key %}={%qz= tag.Value %}
+			,{%z= tag.Key %}={%= escapePrometheusLabel(tag.Value) %}
 		{% endfor %}
 	}
 	{% endif %}
@@ -171,6 +172,28 @@
 	{% else %}
 		{%f= v %}
 	{% endif %}
+{% endfunc %}
+
+{% func escapePrometheusLabel(b []byte) %}
+	"
+	{% for len(b) > 0 %}
+		{% code n := bytes.IndexAny(b, "\\\n\"") %}
+		{% if n < 0 %}
+			{%z= b %}
+			{% break %}
+		{% endif %}
+		{%z= b[:n] %}
+		{% switch b[n] %}
+		{% case '\\' %}
+			\\
+		{% case '\n' %}
+			\n
+		{% case '"' %}
+			\"
+		{% endswitch %}
+		{% code b = b[n+1:] %}
+	{% endfor %}
+	"
 {% endfunc %}
 
 {% endstripspace %}

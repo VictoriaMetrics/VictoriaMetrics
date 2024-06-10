@@ -18,12 +18,14 @@ type influxProcessor struct {
 	separator   string
 	skipDbLabel bool
 	promMode    bool
+	isVerbose   bool
 }
 
-func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator string, skipDbLabel bool, promMode bool) *influxProcessor {
+func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator string, skipDbLabel, promMode, verbose bool) *influxProcessor {
 	if cc < 1 {
 		cc = 1
 	}
+
 	return &influxProcessor{
 		ic:          ic,
 		im:          im,
@@ -31,10 +33,11 @@ func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator st
 		separator:   separator,
 		skipDbLabel: skipDbLabel,
 		promMode:    promMode,
+		isVerbose:   verbose,
 	}
 }
 
-func (ip *influxProcessor) run(silent, verbose bool) error {
+func (ip *influxProcessor) run() error {
 	series, err := ip.ic.Explore()
 	if err != nil {
 		return fmt.Errorf("explore query failed: %s", err)
@@ -44,7 +47,7 @@ func (ip *influxProcessor) run(silent, verbose bool) error {
 	}
 
 	question := fmt.Sprintf("Found %d timeseries to import. Continue?", len(series))
-	if !silent && !prompt(question) {
+	if !prompt(question) {
 		return nil
 	}
 
@@ -79,7 +82,7 @@ func (ip *influxProcessor) run(silent, verbose bool) error {
 		case infErr := <-errCh:
 			return fmt.Errorf("influx error: %s", infErr)
 		case vmErr := <-ip.im.Errors():
-			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
+			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, ip.isVerbose))
 		case seriesCh <- s:
 		}
 	}
@@ -91,7 +94,7 @@ func (ip *influxProcessor) run(silent, verbose bool) error {
 	// drain import errors channel
 	for vmErr := range ip.im.Errors() {
 		if vmErr.Err != nil {
-			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
+			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, ip.isVerbose))
 		}
 	}
 	for err := range errCh {

@@ -1,0 +1,32 @@
+name: Question
+description: Ask a question regarding VictoriaMetrics or its components
+labels: [question]
+body:
+  - type: textarea
+    id: describe-the-component
+    attributes:
+      label: Is your question request related to a specific component?
+      placeholder: |
+        VictoriaMetrics, vmagent, vmalert, vmui, etc...
+    validations:
+      required: false
+  - type: textarea
+    id: describe-the-question
+    attributes:
+      label: Describe the question in detail
+      description: |
+        A clear and concise description of the issue and the question.
+    validations:
+      required: true
+  - type: checkboxes
+    id: troubleshooting
+    attributes:
+      label: Troubleshooting docs
+      description: I am familiar with the following troubleshooting docs
+      options:
+        - label: General - https://docs.victoriametrics.com/troubleshooting/
+          required: false
+        - label: vmagent - https://docs.victoriametrics.com/vmagent/#troubleshooting
+          required: false
+        - label: vmalert - https://docs.victoriametrics.com/vmalert/#troubleshooting
+          required: false

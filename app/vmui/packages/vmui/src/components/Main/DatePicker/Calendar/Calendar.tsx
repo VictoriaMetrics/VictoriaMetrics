@@ -3,71 +3,65 @@ import dayjs, { Dayjs } from "dayjs";
 import CalendarHeader from "./CalendarHeader/CalendarHeader";
 import CalendarBody from "./CalendarBody/CalendarBody";
 import YearsList from "./YearsList/YearsList";
-import TimePicker from "../TImePicker/TimePicker";
-import { DATE_TIME_FORMAT } from "../../../../constants/date";
+import { DATE_FORMAT, DATE_TIME_FORMAT } from "../../../../constants/date";
 import "./style.scss";
-import { CalendarIcon, ClockIcon } from "../../Icons";
-import Tabs from "../../Tabs/Tabs";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 import classNames from "classnames";
+import MonthsList from "./MonthsList/MonthsList";
+import Button from "../../Button/Button";
 
 interface DatePickerProps {
   date: Date | Dayjs
   format?: string
-  timepicker?: boolean,
   onChange: (date: string) => void
-  onClose?: () => void
 }
 
-const tabs = [
-  { value: "date", icon: <CalendarIcon/> },
-  { value: "time", icon: <ClockIcon/> }
-];
+enum CalendarTypeView {
+  "days",
+  "months",
+  "years"
+}
 
 const Calendar: FC<DatePickerProps> = ({
   date,
-  timepicker = false,
   format = DATE_TIME_FORMAT,
   onChange,
-  onClose
 }) => {
-  const [displayYears, setDisplayYears] = useState(false);
+  const [viewType, setViewType] = useState<CalendarTypeView>(CalendarTypeView.days);
   const [viewDate, setViewDate] = useState(dayjs.tz(date));
   const [selectDate, setSelectDate] = useState(dayjs.tz(date));
-  const [tab, setTab] = useState(tabs[0].value);
+
+  const today = dayjs.tz();
+  const viewDateIsToday = today.format(DATE_FORMAT) === viewDate.format(DATE_FORMAT);
   const { isMobile } = useDeviceDetect();
 
   const toggleDisplayYears = () => {
-    setDisplayYears(prev => !prev);
+    setViewType(prev => prev === CalendarTypeView.years ? CalendarTypeView.days : CalendarTypeView.years);
   };
 
   const handleChangeViewDate = (date: Dayjs) => {
     setViewDate(date);
-    setDisplayYears(false);
+    setViewType(prev => prev === CalendarTypeView.years ? CalendarTypeView.months : CalendarTypeView.days);
   };
 
   const handleChangeSelectDate = (date: Dayjs) => {
     setSelectDate(date);
-    if (timepicker) setTab("time");
   };
 
-  const handleChangeTime = (time: string) => {
-    const [hour, minute, second] = time.split(":");
-    setSelectDate(prev => prev.set("hour", +hour).set("minute", +minute).set("second", +second));
-  };
-
-  const handleChangeTab = (value: string) => {
-    setTab(value);
-  };
-
-  const handleClose = () => {
-    onClose && onClose();
+  const handleToday = () => {
+    setViewDate(today);
   };
 
   useEffect(() => {
     if (selectDate.format() === dayjs.tz(date).format()) return;
     onChange(selectDate.format(format));
   }, [selectDate]);
+
+  useEffect(() => {
+    const value = dayjs.tz(date);
+    setViewDate(value);
+    setSelectDate(value);
+  }, [date]);
 
   return (
     <div
@@ -76,49 +70,41 @@ const Calendar: FC<DatePickerProps> = ({
         "vm-calendar_mobile": isMobile,
       })}
     >
-      {tab === "date" && (
-        <CalendarHeader
+      <CalendarHeader
+        viewDate={viewDate}
+        onChangeViewDate={handleChangeViewDate}
+        toggleDisplayYears={toggleDisplayYears}
+        showArrowNav={viewType === CalendarTypeView.days}
+      />
+      {viewType === CalendarTypeView.days && (
+        <CalendarBody
+          viewDate={viewDate}
+          selectDate={selectDate}
+          onChangeSelectDate={handleChangeSelectDate}
+        />
+      )}
+      {viewType === CalendarTypeView.years && (
+        <YearsList
           viewDate={viewDate}
           onChangeViewDate={handleChangeViewDate}
-          toggleDisplayYears={toggleDisplayYears}
-          displayYears={displayYears}
         />
       )}
-
-      {tab === "date" && (
-        <>
-          {!displayYears && (
-            <CalendarBody
-              viewDate={viewDate}
-              selectDate={selectDate}
-              onChangeSelectDate={handleChangeSelectDate}
-            />
-          )}
-          {displayYears && (
-            <YearsList
-              viewDate={viewDate}
-              onChangeViewDate={handleChangeViewDate}
-            />
-          )}
-        </>
-      )}
-
-      {tab === "time" && (
-        <TimePicker
+      {viewType === CalendarTypeView.months && (
+        <MonthsList
           selectDate={selectDate}
-          onChangeTime={handleChangeTime}
-          onClose={handleClose}
+          viewDate={viewDate}
+          onChangeViewDate={handleChangeViewDate}
         />
       )}
-
-      {timepicker && (
-        <div className="vm-calendar__tabs">
-          <Tabs
-            activeItem={tab}
-            items={tabs}
-            onChange={handleChangeTab}
-            indicatorPlacement="top"
-          />
+      {!viewDateIsToday && (viewType === CalendarTypeView.days) && (
+        <div className="vm-calendar-footer">
+          <Button
+            variant="text"
+            size="small"
+            onClick={handleToday}
+          >
+              show today
+          </Button>
         </div>
       )}
     </div>

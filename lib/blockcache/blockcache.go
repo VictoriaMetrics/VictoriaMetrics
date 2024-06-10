@@ -2,6 +2,7 @@ package blockcache
 
 import (
 	"container/heap"
+	"flag"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -9,8 +10,12 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/cespare/xxhash/v2"
 )
+
+var missesBeforeCaching = flag.Int("blockcache.missesBeforeCaching", 2, "The number of cache misses before putting the block into cache. "+
+	"Higher values may reduce indexdb/dataBlocks cache size at the cost of higher CPU and disk read usage")
 
 // Cache caches Block entries.
 //
@@ -134,9 +139,12 @@ func (c *Cache) Misses() uint64 {
 }
 
 func (c *Cache) cleaner() {
-	ticker := time.NewTicker(57 * time.Second)
+	d := timeutil.AddJitterToDuration(time.Minute)
+	ticker := time.NewTicker(d)
 	defer ticker.Stop()
-	perKeyMissesTicker := time.NewTicker(3 * time.Minute)
+
+	d = timeutil.AddJitterToDuration(time.Minute * 3)
+	perKeyMissesTicker := time.NewTicker(d)
 	defer perKeyMissesTicker.Stop()
 	for {
 		select {
@@ -164,14 +172,11 @@ func (c *Cache) cleanPerKeyMisses() {
 }
 
 type cache struct {
-	// Atomically updated fields must go first in the struct, so they are properly
-	// aligned to 8 bytes on 32-bit architectures.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
-	requests uint64
-	misses   uint64
+	requests atomic.Uint64
+	misses   atomic.Uint64
 
 	// sizeBytes contains an approximate size for all the blocks stored in the cache.
-	sizeBytes int64
+	sizeBytes atomic.Int64
 
 	// getMaxSizeBytes() is a callback, which returns the maximum allowed cache size in bytes.
 	getMaxSizeBytes func() int
@@ -184,7 +189,7 @@ type cache struct {
 
 	// perKeyMisses contains per-block cache misses.
 	//
-	// Blocks with less than 2 cache misses aren't stored in the cache in order to prevent from eviction for frequently accessed items.
+	// Blocks with up to *missesBeforeCaching cache misses aren't stored in the cache in order to prevent from eviction for frequently accessed items.
 	perKeyMisses map[Key]int
 
 	// The heap for removing the least recently used entries from m.
@@ -248,7 +253,7 @@ func (c *cache) RemoveBlocksForPart(p interface{}) {
 }
 
 func (c *cache) updateSizeBytes(n int) {
-	atomic.AddInt64(&c.sizeBytes, int64(n))
+	c.sizeBytes.Add(int64(n))
 }
 
 func (c *cache) cleanPerKeyMisses() {
@@ -273,7 +278,7 @@ func (c *cache) cleanByTimeout() {
 }
 
 func (c *cache) GetBlock(k Key) Block {
-	atomic.AddUint64(&c.requests, 1)
+	c.requests.Add(1)
 	var e *cacheEntry
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -293,20 +298,21 @@ func (c *cache) GetBlock(k Key) Block {
 	}
 	// Slow path - the entry is missing in the cache.
 	c.perKeyMisses[k]++
-	atomic.AddUint64(&c.misses, 1)
+	c.misses.Add(1)
 	return nil
 }
 
 func (c *cache) PutBlock(k Key, b Block) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	// If the entry wasn't accessed yet (e.g. c.perKeyMisses[k] == 0), then cache it, since it is likely it will be accessed soon.
-	// Do not cache the entry only if there was only a single unsuccessful attempt to access it.
-	// This may be one-time-wonders entry, which won't be accessed more, so there is no need in caching it.
-	doNotCache := c.perKeyMisses[k] == 1
-	if doNotCache {
-		// Do not cache b if it has been requested only once (aka one-time-wonders items).
-		// This should reduce memory usage for the cache.
+	misses := c.perKeyMisses[k]
+	if misses > 0 && misses <= *missesBeforeCaching {
+		// If the entry wasn't accessed yet (e.g. misses == 0), then cache it,
+		// since it has been just created without consulting the cache and will be accessed soon.
+		//
+		// Do not cache the entry if there were up to *missesBeforeCaching unsuccessful attempts to access it.
+		// This may be one-time-wonders entry, which won't be accessed more, so do not cache it
+		// in order to save memory for frequently accessed items.
 		return
 	}
 
@@ -358,7 +364,7 @@ func (c *cache) Len() int {
 }
 
 func (c *cache) SizeBytes() int {
-	return int(atomic.LoadInt64(&c.sizeBytes))
+	return int(c.sizeBytes.Load())
 }
 
 func (c *cache) SizeMaxBytes() int {
@@ -366,11 +372,11 @@ func (c *cache) SizeMaxBytes() int {
 }
 
 func (c *cache) Requests() uint64 {
-	return atomic.LoadUint64(&c.requests)
+	return c.requests.Load()
 }
 
 func (c *cache) Misses() uint64 {
-	return atomic.LoadUint64(&c.misses)
+	return c.misses.Load()
 }
 
 // lastAccessHeap implements heap.Interface

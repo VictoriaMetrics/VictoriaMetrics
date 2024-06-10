@@ -53,9 +53,15 @@ func (f *GenericFlag) GetDefaultText() string {
 	if f.DefaultText != "" {
 		return f.DefaultText
 	}
-	if f.defaultValue != nil {
-		return f.defaultValue.String()
+	val := f.Value
+	if f.defaultValueSet {
+		val = f.defaultValue
 	}
+
+	if val != nil {
+		return val.String()
+	}
+
 	return ""
 }
 
@@ -70,6 +76,7 @@ func (f *GenericFlag) Apply(set *flag.FlagSet) error {
 	// set default value so that environment wont be able to overwrite it
 	if f.Value != nil {
 		f.defaultValue = &stringGeneric{value: f.Value.String()}
+		f.defaultValueSet = true
 	}
 
 	if val, source, found := flagFromEnvOrFile(f.EnvVars, f.FilePath); found {
@@ -117,13 +124,8 @@ func (cCtx *Context) Generic(name string) interface{} {
 }
 
 func lookupGeneric(name string, set *flag.FlagSet) interface{} {
-	f := set.Lookup(name)
-	if f != nil {
-		parsed, err := f.Value, error(nil)
-		if err != nil {
-			return nil
-		}
-		return parsed
+	if f := set.Lookup(name); f != nil {
+		return f.Value
 	}
 	return nil
 }

@@ -16,9 +16,9 @@ export interface ServerConfiguratorProps {
 }
 
 const fields: {label: string, type: DisplayType}[] = [
-  { label: "Graph", type: "chart" },
-  { label: "JSON", type: "code" },
-  { label: "Table", type: "table" }
+  { label: "Graph", type: DisplayType.chart },
+  { label: "JSON", type: DisplayType.code },
+  { label: "Table", type: DisplayType.table }
 ];
 
 const LimitsConfigurator: FC<ServerConfiguratorProps> = ({ limits, onChange , onEnter }) => {
@@ -51,7 +51,7 @@ const LimitsConfigurator: FC<ServerConfiguratorProps> = ({ limits, onChange , on
     <div className="vm-limits-configurator">
       <div className="vm-server-configurator__title">
         Series limits by tabs
-        <Tooltip title="To disable limits set to 0">
+        <Tooltip title="Set to 0 to disable the limit">
           <Button
             variant="text"
             color="primary"
@@ -67,7 +67,7 @@ const LimitsConfigurator: FC<ServerConfiguratorProps> = ({ limits, onChange , on
             startIcon={<RestartIcon/>}
             onClick={handleReset}
           >
-            Reset
+            Reset limits
           </Button>
         </div>
       </div>

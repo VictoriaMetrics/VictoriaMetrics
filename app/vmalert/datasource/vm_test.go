@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -35,13 +34,6 @@ func TestVMInstantQuery(t *testing.T) {
 		t.Errorf("should not be called")
 	})
 	c := -1
-	mux.HandleFunc("/render", func(w http.ResponseWriter, request *http.Request) {
-		c++
-		switch c {
-		case 8:
-			w.Write([]byte(`[{"target":"constantLine(10)","tags":{"name":"constantLine(10)"},"datapoints":[[10,1611758343],[10,1611758373],[10,1611758403]]}]`))
-		}
-	})
 	mux.HandleFunc("/api/v1/query", func(w http.ResponseWriter, r *http.Request) {
 		c++
 		if r.Method != http.MethodPost {
@@ -57,27 +49,33 @@ func TestVMInstantQuery(t *testing.T) {
 		if timeParam == "" {
 			t.Errorf("expected 'time' in query param, got nil instead")
 		}
-		if _, err := strconv.ParseInt(timeParam, 10, 64); err != nil {
-			t.Errorf("failed to parse 'time' query param: %s", err)
+		if _, err := time.Parse(time.RFC3339, timeParam); err != nil {
+			t.Errorf("failed to parse 'time' query param %q: %s", timeParam, err)
 		}
 		switch c {
 		case 0:
-			conn, _, _ := w.(http.Hijacker).Hijack()
-			_ = conn.Close()
-		case 1:
 			w.WriteHeader(500)
-		case 2:
+		case 1:
 			w.Write([]byte("[]"))
-		case 3:
+		case 2:
 			w.Write([]byte(`{"status":"error", "errorType":"type:", "error":"some error msg"}`))
-		case 4:
+		case 3:
 			w.Write([]byte(`{"status":"unknown"}`))
-		case 5:
+		case 4:
 			w.Write([]byte(`{"status":"success","data":{"resultType":"matrix"}}`))
-		case 6:
+		case 5:
 			w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"vm_rows","foo":"bar"},"value":[1583786142,"13763"]},{"metric":{"__name__":"vm_requests","foo":"baz"},"value":[1583786140,"2000"]}]}}`))
-		case 7:
+		case 6:
 			w.Write([]byte(`{"status":"success","data":{"resultType":"scalar","result":[1583786142, "1"]}}`))
+		case 7:
+			w.Write([]byte(`{"status":"success","data":{"resultType":"scalar","result":[1583786142, "1"]},"stats":{"seriesFetched": "42"}}`))
+		}
+	})
+	mux.HandleFunc("/render", func(w http.ResponseWriter, _ *http.Request) {
+		c++
+		switch c {
+		case 8:
+			w.Write([]byte(`[{"target":"constantLine(10)","tags":{"name":"constantLine(10)"},"datapoints":[[10,1611758343],[10,1611758373],[10,1611758403]]}]`))
 		}
 	})
 
@@ -88,31 +86,34 @@ func TestVMInstantQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected: %s", err)
 	}
-	s := NewVMStorage(srv.URL, authCfg, time.Minute, 0, false, srv.Client())
+	s := NewVMStorage(srv.URL, authCfg, 0, false, srv.Client())
 
 	p := datasourcePrometheus
 	pq := s.BuildWithParams(QuerierParams{DataSourceType: string(p), EvaluationInterval: 15 * time.Second})
 	ts := time.Now()
 
 	expErr := func(err string) {
-		if _, _, err := pq.Query(ctx, query, ts); err == nil {
+		_, _, gotErr := pq.Query(ctx, query, ts)
+		if gotErr == nil {
 			t.Fatalf("expected %q got nil", err)
+		}
+		if !strings.Contains(gotErr.Error(), err) {
+			t.Fatalf("expected err %q; got %q", err, gotErr)
 		}
 	}
 
-	expErr("connection error")              // 0
-	expErr("invalid response status error") // 1
-	expErr("response body error")           // 2
-	expErr("error status")                  // 3
-	expErr("unknown status")                // 4
-	expErr("non-vector resultType error")   // 5
+	expErr("500")                              // 0
+	expErr("error parsing prometheus metrics") // 1
+	expErr("response error")                   // 2
+	expErr("unknown status")                   // 3
+	expErr("unexpected end of JSON input")     // 4
 
-	m, _, err := pq.Query(ctx, query, ts) // 6 - vector
+	res, _, err := pq.Query(ctx, query, ts) // 5 - vector
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
-	if len(m) != 2 {
-		t.Fatalf("expected 2 metrics got %d in %+v", len(m), m)
+	if len(res.Data) != 2 {
+		t.Fatalf("expected 2 metrics got %d in %+v", len(res.Data), res.Data)
 	}
 	expected := []Metric{
 		{
@@ -126,17 +127,17 @@ func TestVMInstantQuery(t *testing.T) {
 			Values:     []float64{2000},
 		},
 	}
-	metricsEqual(t, m, expected)
+	metricsEqual(t, res.Data, expected)
 
-	m, req, err := pq.Query(ctx, query, ts) // 7 - scalar
+	res, req, err := pq.Query(ctx, query, ts) // 6 - scalar
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
 	if req == nil {
 		t.Fatalf("expected request to be non-nil")
 	}
-	if len(m) != 1 {
-		t.Fatalf("expected 1 metrics got %d in %+v", len(m), m)
+	if len(res.Data) != 1 {
+		t.Fatalf("expected 1 metrics got %d in %+v", len(res.Data), res.Data)
 	}
 	expected = []Metric{
 		{
@@ -144,18 +145,44 @@ func TestVMInstantQuery(t *testing.T) {
 			Values:     []float64{1},
 		},
 	}
-	if !reflect.DeepEqual(m, expected) {
-		t.Fatalf("unexpected metric %+v want %+v", m, expected)
+	if !reflect.DeepEqual(res.Data, expected) {
+		t.Fatalf("unexpected metric %+v want %+v", res.Data, expected)
+	}
+
+	if res.SeriesFetched != nil {
+		t.Fatalf("expected `seriesFetched` field to be nil when it is missing in datasource response; got %v instead",
+			res.SeriesFetched)
+	}
+
+	res, _, err = pq.Query(ctx, query, ts) // 7 - scalar with stats
+	if err != nil {
+		t.Fatalf("unexpected %s", err)
+	}
+	if len(res.Data) != 1 {
+		t.Fatalf("expected 1 metrics got %d in %+v", len(res.Data), res)
+	}
+	expected = []Metric{
+		{
+			Timestamps: []int64{1583786142},
+			Values:     []float64{1},
+		},
+	}
+	if !reflect.DeepEqual(res.Data, expected) {
+		t.Fatalf("unexpected metric %+v want %+v", res.Data, expected)
+	}
+	if *res.SeriesFetched != 42 {
+		t.Fatalf("expected `seriesFetched` field to be 42; got %d instead",
+			*res.SeriesFetched)
 	}
 
 	gq := s.BuildWithParams(QuerierParams{DataSourceType: string(datasourceGraphite)})
 
-	m, _, err = gq.Query(ctx, queryRender, ts) // 8 - graphite
+	res, _, err = gq.Query(ctx, queryRender, ts) // 8 - graphite
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
-	if len(m) != 1 {
-		t.Fatalf("expected 1 metric  got %d in %+v", len(m), m)
+	if len(res.Data) != 1 {
+		t.Fatalf("expected 1 metric  got %d in %+v", len(res.Data), res.Data)
 	}
 	exp := []Metric{
 		{
@@ -164,7 +191,76 @@ func TestVMInstantQuery(t *testing.T) {
 			Values:     []float64{10},
 		},
 	}
-	metricsEqual(t, m, exp)
+	metricsEqual(t, res.Data, exp)
+}
+
+func TestVMInstantQueryWithRetry(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(_ http.ResponseWriter, _ *http.Request) {
+		t.Errorf("should not be called")
+	})
+	c := -1
+	mux.HandleFunc("/api/v1/query", func(w http.ResponseWriter, r *http.Request) {
+		c++
+		if r.URL.Query().Get("query") != query {
+			t.Errorf("expected %s in query param, got %s", query, r.URL.Query().Get("query"))
+		}
+		switch c {
+		case 0:
+			w.Write([]byte(`{"status":"success","data":{"resultType":"scalar","result":[1583786142, "1"]}}`))
+		case 1:
+			conn, _, _ := w.(http.Hijacker).Hijack()
+			_ = conn.Close()
+		case 2:
+			w.Write([]byte(`{"status":"success","data":{"resultType":"scalar","result":[1583786142, "2"]}}`))
+		case 3:
+			conn, _, _ := w.(http.Hijacker).Hijack()
+			_ = conn.Close()
+		case 4:
+			conn, _, _ := w.(http.Hijacker).Hijack()
+			_ = conn.Close()
+		}
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	s := NewVMStorage(srv.URL, nil, 0, false, srv.Client())
+	pq := s.BuildWithParams(QuerierParams{DataSourceType: string(datasourcePrometheus)})
+
+	expErr := func(err string) {
+		_, _, gotErr := pq.Query(ctx, query, time.Now())
+		if gotErr == nil {
+			t.Fatalf("expected %q got nil", err)
+		}
+		if !strings.Contains(gotErr.Error(), err) {
+			t.Fatalf("expected err %q; got %q", err, gotErr)
+		}
+	}
+
+	expValue := func(v float64) {
+		res, _, err := pq.Query(ctx, query, time.Now())
+		if err != nil {
+			t.Fatalf("unexpected %s", err)
+		}
+		m := res.Data
+		if len(m) != 1 {
+			t.Fatalf("expected 1 metrics got %d in %+v", len(m), m)
+		}
+		expected := []Metric{
+			{
+				Timestamps: []int64{1583786142},
+				Values:     []float64{v},
+			},
+		}
+		if !reflect.DeepEqual(m, expected) {
+			t.Fatalf("unexpected metric %+v want %+v", m, expected)
+		}
+	}
+
+	expValue(1)   // 0
+	expValue(2)   // 1 - fail, 2 - retry
+	expErr("EOF") // 3, 4 - retries
 }
 
 func metricsEqual(t *testing.T, gotM, expectedM []Metric) {
@@ -211,14 +307,14 @@ func TestVMRangeQuery(t *testing.T) {
 		if startTS == "" {
 			t.Errorf("expected 'start' in query param, got nil instead")
 		}
-		if _, err := strconv.ParseInt(startTS, 10, 64); err != nil {
+		if _, err := time.Parse(time.RFC3339, startTS); err != nil {
 			t.Errorf("failed to parse 'start' query param: %s", err)
 		}
 		endTS := r.URL.Query().Get("end")
 		if endTS == "" {
 			t.Errorf("expected 'end' in query param, got nil instead")
 		}
-		if _, err := strconv.ParseInt(endTS, 10, 64); err != nil {
+		if _, err := time.Parse(time.RFC3339, endTS); err != nil {
 			t.Errorf("failed to parse 'end' query param: %s", err)
 		}
 		step := r.URL.Query().Get("step")
@@ -238,7 +334,7 @@ func TestVMRangeQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected: %s", err)
 	}
-	s := NewVMStorage(srv.URL, authCfg, time.Minute, *queryStep, false, srv.Client())
+	s := NewVMStorage(srv.URL, authCfg, *queryStep, false, srv.Client())
 
 	pq := s.BuildWithParams(QuerierParams{DataSourceType: string(datasourcePrometheus), EvaluationInterval: 15 * time.Second})
 
@@ -250,10 +346,11 @@ func TestVMRangeQuery(t *testing.T) {
 
 	start, end := time.Now().Add(-time.Minute), time.Now()
 
-	m, err := pq.QueryRange(ctx, query, start, end)
+	res, err := pq.QueryRange(ctx, query, start, end)
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
+	m := res.Data
 	if len(m) != 1 {
 		t.Fatalf("expected 1 metric  got %d in %+v", len(m), m)
 	}
@@ -279,6 +376,9 @@ func TestRequestParams(t *testing.T) {
 	}
 	query := "up"
 	timestamp := time.Date(2001, 2, 3, 4, 5, 6, 0, time.UTC)
+	storage := VMStorage{
+		extraParams: url.Values{"round_digits": {"10"}},
+	}
 	testCases := []struct {
 		name       string
 		queryRange bool
@@ -353,8 +453,8 @@ func TestRequestParams(t *testing.T) {
 			false,
 			&VMStorage{},
 			func(t *testing.T, r *http.Request) {
-				exp := fmt.Sprintf("query=%s&time=%d", query, timestamp.Unix())
-				checkEqualString(t, exp, r.URL.RawQuery)
+				exp := url.Values{"query": {query}, "time": {timestamp.Format(time.RFC3339)}}
+				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
 		{
@@ -362,8 +462,9 @@ func TestRequestParams(t *testing.T) {
 			true,
 			&VMStorage{},
 			func(t *testing.T, r *http.Request) {
-				exp := fmt.Sprintf("end=%d&query=%s&start=%d", timestamp.Unix(), query, timestamp.Unix())
-				checkEqualString(t, exp, r.URL.RawQuery)
+				ts := timestamp.Format(time.RFC3339)
+				exp := url.Values{"query": {query}, "start": {ts}, "end": {ts}}
+				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
 		{
@@ -387,17 +488,6 @@ func TestRequestParams(t *testing.T) {
 			},
 		},
 		{
-			"lookback",
-			false,
-			&VMStorage{
-				lookBack: time.Minute,
-			},
-			func(t *testing.T, r *http.Request) {
-				exp := fmt.Sprintf("query=%s&time=%d", query, timestamp.Add(-time.Minute).Unix())
-				checkEqualString(t, exp, r.URL.RawQuery)
-			},
-		},
-		{
 			"evaluation interval",
 			false,
 			&VMStorage{
@@ -405,24 +495,8 @@ func TestRequestParams(t *testing.T) {
 			},
 			func(t *testing.T, r *http.Request) {
 				evalInterval := 15 * time.Second
-				tt := timestamp.Truncate(evalInterval)
-				exp := fmt.Sprintf("query=%s&step=%v&time=%d", query, evalInterval, tt.Unix())
-				checkEqualString(t, exp, r.URL.RawQuery)
-			},
-		},
-		{
-			"lookback + evaluation interval",
-			false,
-			&VMStorage{
-				lookBack:           time.Minute,
-				evaluationInterval: 15 * time.Second,
-			},
-			func(t *testing.T, r *http.Request) {
-				evalInterval := 15 * time.Second
-				tt := timestamp.Add(-time.Minute)
-				tt = tt.Truncate(evalInterval)
-				exp := fmt.Sprintf("query=%s&step=%v&time=%d", query, evalInterval, tt.Unix())
-				checkEqualString(t, exp, r.URL.RawQuery)
+				exp := url.Values{"query": {query}, "step": {evalInterval.String()}, "time": {timestamp.Format(time.RFC3339)}}
+				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
 		{
@@ -432,8 +506,12 @@ func TestRequestParams(t *testing.T) {
 				queryStep: time.Minute,
 			},
 			func(t *testing.T, r *http.Request) {
-				exp := fmt.Sprintf("query=%s&step=%ds&time=%d", query, int(time.Minute.Seconds()), timestamp.Unix())
-				checkEqualString(t, exp, r.URL.RawQuery)
+				exp := url.Values{
+					"query": {query},
+					"step":  {fmt.Sprintf("%ds", int(time.Minute.Seconds()))},
+					"time":  {timestamp.Format(time.RFC3339)},
+				}
+				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
 		{
@@ -444,9 +522,8 @@ func TestRequestParams(t *testing.T) {
 			},
 			func(t *testing.T, r *http.Request) {
 				evalInterval := 3 * time.Hour
-				tt := timestamp.Truncate(evalInterval)
-				exp := fmt.Sprintf("query=%s&step=%ds&time=%d", query, int(evalInterval.Seconds()), tt.Unix())
-				checkEqualString(t, exp, r.URL.RawQuery)
+				exp := url.Values{"query": {query}, "step": {fmt.Sprintf("%ds", int(evalInterval.Seconds()))}, "time": {timestamp.Format(time.RFC3339)}}
+				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
 		{
@@ -456,8 +533,8 @@ func TestRequestParams(t *testing.T) {
 				extraParams: url.Values{"round_digits": {"10"}},
 			},
 			func(t *testing.T, r *http.Request) {
-				exp := fmt.Sprintf("query=%s&round_digits=10&time=%d", query, timestamp.Unix())
-				checkEqualString(t, exp, r.URL.RawQuery)
+				exp := url.Values{"query": {query}, "round_digits": {"10"}, "time": {timestamp.Format(time.RFC3339)}}
+				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
 		{
@@ -470,9 +547,36 @@ func TestRequestParams(t *testing.T) {
 				},
 			},
 			func(t *testing.T, r *http.Request) {
-				exp := fmt.Sprintf("end=%d&max_lookback=1h&nocache=1&query=%s&start=%d",
-					timestamp.Unix(), query, timestamp.Unix())
-				checkEqualString(t, exp, r.URL.RawQuery)
+				exp := url.Values{
+					"query":        {query},
+					"end":          {timestamp.Format(time.RFC3339)},
+					"start":        {timestamp.Format(time.RFC3339)},
+					"nocache":      {"1"},
+					"max_lookback": {"1h"},
+				}
+				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
+			},
+		},
+		{
+			"custom params overrides the original params",
+			false,
+			storage.Clone().ApplyParams(QuerierParams{
+				QueryParams: url.Values{"round_digits": {"2"}},
+			}),
+			func(t *testing.T, r *http.Request) {
+				exp := url.Values{"query": {query}, "round_digits": {"2"}, "time": {timestamp.Format(time.RFC3339)}}
+				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
+			},
+		},
+		{
+			"allow duplicates in query params",
+			false,
+			storage.Clone().ApplyParams(QuerierParams{
+				QueryParams: url.Values{"extra_labels": {"env=dev", "foo=bar"}},
+			}),
+			func(t *testing.T, r *http.Request) {
+				exp := url.Values{"query": {query}, "round_digits": {"10"}, "extra_labels": {"env=dev", "foo=bar"}, "time": {timestamp.Format(time.RFC3339)}}
+				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
 		{
@@ -490,13 +594,27 @@ func TestRequestParams(t *testing.T) {
 				checkEqualString(t, exp, r.URL.RawQuery)
 			},
 		},
+		{
+			"graphite extra params allows to override from",
+			false,
+			&VMStorage{
+				dataSourceType: datasourceGraphite,
+				extraParams: url.Values{
+					"from": {"-10m"},
+				},
+			},
+			func(t *testing.T, r *http.Request) {
+				exp := fmt.Sprintf("format=json&from=-10m&target=%s&until=now", query)
+				checkEqualString(t, exp, r.URL.RawQuery)
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			req, err := tc.vm.newRequestPOST()
+			req, err := tc.vm.newRequest(ctx)
 			if err != nil {
-				t.Fatalf("unexpected error: %s", err)
+				t.Fatal(err)
 			}
 			switch tc.vm.dataSourceType {
 			case "", datasourcePrometheus:
@@ -506,7 +624,7 @@ func TestRequestParams(t *testing.T) {
 					tc.vm.setPrometheusInstantReqParams(req, query, timestamp)
 				}
 			case datasourceGraphite:
-				tc.vm.setGraphiteReqParams(req, query, timestamp)
+				tc.vm.setGraphiteReqParams(req, query)
 			}
 			tc.checkFn(t, req)
 		})
@@ -514,7 +632,7 @@ func TestRequestParams(t *testing.T) {
 }
 
 func TestHeaders(t *testing.T) {
-	var testCases = []struct {
+	testCases := []struct {
 		name    string
 		vmFn    func() *VMStorage
 		checkFn func(t *testing.T, r *http.Request)
@@ -579,7 +697,8 @@ func TestHeaders(t *testing.T) {
 					authCfg: cfg,
 					extraHeaders: []keyValue{
 						{key: "Authorization", value: "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="},
-					}}
+					},
+				}
 			},
 			checkFn: func(t *testing.T, r *http.Request) {
 				u, p, _ := r.BasicAuth()
@@ -591,9 +710,9 @@ func TestHeaders(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			vm := tt.vmFn()
-			req, err := vm.newRequestPOST()
+			req, err := vm.newQueryRequest(ctx, "foo", time.Now())
 			if err != nil {
-				t.Fatalf("unexpected error: %s", err)
+				t.Fatal(err)
 			}
 			tt.checkFn(t, req)
 		})

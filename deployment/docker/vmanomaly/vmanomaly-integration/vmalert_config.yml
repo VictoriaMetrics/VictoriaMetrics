@@ -1,0 +1,9 @@
+groups:
+  - name: AnomalyExample
+    rules:
+      - alert: HighAnomalyScore
+        expr: 'anomaly_score > 1.0'
+        labels:
+          severity: warning
+        annotations:
+          summary: Anomaly Score exceeded 1.0. `rate(node_cpu_seconds_total)` is showing abnormal behavior.

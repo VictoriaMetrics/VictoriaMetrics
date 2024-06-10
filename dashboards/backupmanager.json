@@ -12,7 +12,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "9.0.4"
+      "version": "10.4.0"
     },
     {
       "type": "datasource",
@@ -124,9 +124,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.0.4",
+      "pluginVersion": "10.4.0",
       "targets": [
         {
           "datasource": {
@@ -198,9 +200,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.0.4",
+      "pluginVersion": "10.4.0",
       "targets": [
         {
           "datasource": {
@@ -260,9 +264,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.0.4",
+      "pluginVersion": "10.4.0",
       "targets": [
         {
           "datasource": {
@@ -323,9 +329,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.0.4",
+      "pluginVersion": "10.4.0",
       "targets": [
         {
           "datasource": {
@@ -399,9 +407,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.0.4",
+      "pluginVersion": "10.4.0",
       "targets": [
         {
           "datasource": {
@@ -471,9 +481,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.0.4",
+      "pluginVersion": "10.4.0",
       "targets": [
         {
           "datasource": {
@@ -546,9 +558,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.0.4",
+      "pluginVersion": "10.4.0",
       "targets": [
         {
           "datasource": {
@@ -577,7 +591,9 @@
           },
           "custom": {
             "align": "auto",
-            "displayMode": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
             "inspect": false
           },
           "mappings": [],
@@ -630,7 +646,9 @@
       },
       "id": 22,
       "options": {
+        "cellHeight": "sm",
         "footer": {
+          "countRows": false,
           "fields": "",
           "reducer": [
             "sum"
@@ -645,7 +663,7 @@
           }
         ]
       },
-      "pluginVersion": "9.0.4",
+      "pluginVersion": "10.4.0",
       "targets": [
         {
           "datasource": {
@@ -700,7 +718,9 @@
           },
           "custom": {
             "align": "auto",
-            "displayMode": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
             "inspect": false
           },
           "mappings": [],
@@ -753,7 +773,9 @@
       },
       "id": 21,
       "options": {
+        "cellHeight": "sm",
         "footer": {
+          "countRows": false,
           "fields": "",
           "reducer": [
             "sum"
@@ -768,7 +790,7 @@
           }
         ]
       },
-      "pluginVersion": "9.0.4",
+      "pluginVersion": "10.4.0",
       "targets": [
         {
           "datasource": {
@@ -885,7 +907,7 @@
                 "min",
                 "mean"
               ],
-              "displayMode": "table",
+              "displayMode": "list",
               "placement": "bottom",
               "showLegend": false
             },
@@ -1106,7 +1128,9 @@
               },
               "custom": {
                 "align": "auto",
-                "displayMode": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
                 "inspect": false
               },
               "mappings": [],
@@ -1251,7 +1275,8 @@
             "legend": {
               "calcs": [],
               "displayMode": "list",
-              "placement": "bottom"
+              "placement": "bottom",
+              "showLegend": true
             },
             "orientation": "auto",
             "showValue": "auto",
@@ -1343,7 +1368,7 @@
                 "max",
                 "mean"
               ],
-              "displayMode": "table",
+              "displayMode": "list",
               "placement": "right",
               "showLegend": false
             },
@@ -1436,7 +1461,8 @@
             "legend": {
               "calcs": [],
               "displayMode": "list",
-              "placement": "bottom"
+              "placement": "bottom",
+              "showLegend": true
             },
             "orientation": "auto",
             "showValue": "auto",
@@ -1657,8 +1683,7 @@
     }
   ],
   "refresh": "1m",
-  "schemaVersion": 36,
-  "style": "dark",
+  "schemaVersion": 39,
   "tags": [],
   "templating": {
     "list": [

@@ -10,6 +10,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 // BlockRef references a Block.
@@ -86,12 +88,12 @@ func MarshalBlock(dst []byte, b *Block) []byte {
 // Unmarshal unmarshals MetricBlock from src
 func (mb *MetricBlock) Unmarshal(src []byte) ([]byte, error) {
 	mb.Block.Reset()
-	tail, mn, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal MetricName: %w", err)
+	mn, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal MetricName")
 	}
+	src = src[nSize:]
 	mb.MetricName = append(mb.MetricName[:0], mn...)
-	src = tail
 
 	return UnmarshalBlock(&mb.Block, src)
 }
@@ -106,19 +108,19 @@ func UnmarshalBlock(dst *Block, src []byte) ([]byte, error) {
 	}
 	src = tail
 
-	tail, tds, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal timestampsData: %w", err)
+	tds, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return tail, fmt.Errorf("cannot unmarshal timestampsData")
 	}
+	src = src[nSize:]
 	dst.timestampsData = append(dst.timestampsData[:0], tds...)
-	src = tail
 
-	tail, vd, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal valuesData: %w", err)
+	vd, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return tail, fmt.Errorf("cannot unmarshal valuesData")
 	}
+	src = src[nSize:]
 	dst.valuesData = append(dst.valuesData[:0], vd...)
-	src = tail
 
 	return src, nil
 }
@@ -249,16 +251,12 @@ func (s *Search) NextMetricBlock() bool {
 				// Skip the block, since it contains only data outside the configured retention.
 				continue
 			}
-			var err error
-			s.MetricBlockRef.MetricName, err = s.idb.searchMetricNameWithCache(s.MetricBlockRef.MetricName[:0], tsid.MetricID, tsid.AccountID, tsid.ProjectID)
-			if err != nil {
-				if err == io.EOF {
-					// Skip missing metricName for tsid.MetricID.
-					// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
-					continue
-				}
-				s.err = err
-				return false
+			var ok bool
+			s.MetricBlockRef.MetricName, ok = s.idb.searchMetricNameWithCache(s.MetricBlockRef.MetricName[:0], tsid.MetricID, tsid.AccountID, tsid.ProjectID)
+			if !ok {
+				// Skip missing metricName for tsid.MetricID.
+				// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
+				continue
 			}
 			s.prevMetricID = tsid.MetricID
 		}
@@ -300,6 +298,10 @@ func (sq *SearchQuery) GetTimeRange() TimeRange {
 
 // NewSearchQuery creates new search query for the given args.
 func NewSearchQuery(accountID, projectID uint32, start, end int64, tagFilterss [][]TagFilter, maxMetrics int) *SearchQuery {
+	if start < 0 {
+		// This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5553
+		start = 0
+	}
 	if maxMetrics <= 0 {
 		maxMetrics = 2e9
 	}
@@ -324,7 +326,7 @@ type TagFilter struct {
 // String returns string representation of tf.
 func (tf *TagFilter) String() string {
 	op := tf.getOp()
-	value := bytesutil.LimitStringLen(string(tf.Value), 60)
+	value := stringsutil.LimitStringLen(string(tf.Value), 60)
 	if len(tf.Key) == 0 {
 		return fmt.Sprintf("__name__%s%q", op, value)
 	}
@@ -363,19 +365,19 @@ func (tf *TagFilter) Marshal(dst []byte) []byte {
 
 // Unmarshal unmarshals tf from src and returns the tail.
 func (tf *TagFilter) Unmarshal(src []byte) ([]byte, error) {
-	tail, k, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal Key: %w", err)
+	k, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal Key")
 	}
+	src = src[nSize:]
 	tf.Key = append(tf.Key[:0], k...)
-	src = tail
 
-	tail, v, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal Value: %w", err)
+	v, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal Value")
 	}
+	src = src[nSize:]
 	tf.Value = append(tf.Value[:0], v...)
-	src = tail
 
 	if len(src) < 1 {
 		return src, fmt.Errorf("cannot unmarshal IsNegative+IsRegexp from empty src")
@@ -452,42 +454,36 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 	sq.ProjectID = encoding.UnmarshalUint32(src)
 	src = src[4:]
 
-	tail, minTs, err := encoding.UnmarshalVarInt64(src)
-	if err != nil {
-		return src, fmt.Errorf("cannot unmarshal MinTimestamp: %w", err)
+	minTs, nSize := encoding.UnmarshalVarInt64(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal MinTimestamp from varint")
 	}
+	src = src[nSize:]
 	sq.MinTimestamp = minTs
-	src = tail
 
-	tail, maxTs, err := encoding.UnmarshalVarInt64(src)
-	if err != nil {
-		return src, fmt.Errorf("cannot unmarshal MaxTimestamp: %w", err)
+	maxTs, nSize := encoding.UnmarshalVarInt64(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal MaxTimestamp from varint")
 	}
+	src = src[nSize:]
 	sq.MaxTimestamp = maxTs
-	src = tail
 
-	tail, tfssCount, err := encoding.UnmarshalVarUint64(src)
-	if err != nil {
-		return src, fmt.Errorf("cannot unmarshal the count of TagFilterss: %w", err)
+	tfssCount, nSize := encoding.UnmarshalVarUint64(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal the count of TagFilterss from uvarint")
 	}
-	if n := int(tfssCount) - cap(sq.TagFilterss); n > 0 {
-		sq.TagFilterss = append(sq.TagFilterss[:cap(sq.TagFilterss)], make([][]TagFilter, n)...)
-	}
-	sq.TagFilterss = sq.TagFilterss[:tfssCount]
-	src = tail
+	src = src[nSize:]
+	sq.TagFilterss = slicesutil.SetLength(sq.TagFilterss, int(tfssCount))
 
 	for i := 0; i < int(tfssCount); i++ {
-		tail, tfsCount, err := encoding.UnmarshalVarUint64(src)
-		if err != nil {
-			return src, fmt.Errorf("cannot unmarshal the count of TagFilters: %w", err)
+		tfsCount, nSize := encoding.UnmarshalVarUint64(src)
+		if nSize <= 0 {
+			return src, fmt.Errorf("cannot unmarshal the count of TagFilters from uvarint")
 		}
-		src = tail
+		src = src[nSize:]
 
 		tagFilters := sq.TagFilterss[i]
-		if n := int(tfsCount) - cap(tagFilters); n > 0 {
-			tagFilters = append(tagFilters[:cap(tagFilters)], make([]TagFilter, n)...)
-		}
-		tagFilters = tagFilters[:tfsCount]
+		tagFilters = slicesutil.SetLength(tagFilters, int(tfsCount))
 		for j := 0; j < int(tfsCount); j++ {
 			tail, err := tagFilters[j].Unmarshal(src)
 			if err != nil {

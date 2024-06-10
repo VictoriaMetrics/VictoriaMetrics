@@ -1,4 +1,5 @@
 import { MetricBase } from "../api/types";
+export * from "./uplot";
 
 declare global {
   interface Window {
@@ -6,7 +7,11 @@ declare global {
   }
 }
 
-export type DisplayType = "table" | "chart" | "code";
+export enum DisplayType {
+  table = "table",
+  chart = "chart",
+  code = "code",
+}
 
 export interface TimeParams {
   start: number; // timestamp in seconds
@@ -46,7 +51,8 @@ export enum ErrorTypes {
   traceNotFound = "Not found the tracing information",
   emptyTitle = "Please enter title",
   positiveNumber = "Please enter positive number",
-  validStep = "Please enter a valid step"
+  validStep = "Please enter a valid step",
+  unknownType = "Unknown server response format: must have 'errorType'",
 }
 
 export interface PanelSettings {
@@ -86,7 +92,8 @@ export interface TopQuery {
   query: string
   timeRangeSeconds: number
   sumDurationSeconds: number
-  timeRangeHours: number
+  timeRange: string
+  url?: string
 }
 
 export interface TopQueryStats {
@@ -94,12 +101,13 @@ export interface TopQueryStats {
   "search.queryStats.minQueryDuration": string
 }
 
-export interface TopQueriesData extends TopQueryStats{
+export interface TopQueriesData extends TopQueryStats {
   maxLifetime: string
   topN: string
   topByAvgDuration: TopQuery[]
   topByCount: TopQuery[]
   topBySumDuration: TopQuery[]
+  error?: string
 }
 
 export interface SeriesLimits {
@@ -124,4 +132,36 @@ export enum Theme {
   system = "system",
   light = "light",
   dark = "dark",
+}
+
+export interface RelabelStep {
+  rule: string;
+  inLabels: string;
+  outLabels: string;
+}
+
+export interface RelabelData {
+  status: string;
+  originalLabels?: string;
+  resultingLabels?: string;
+  steps: RelabelStep[];
+}
+
+export interface ActiveQueriesType {
+  duration: string;
+  end: number;
+  start: number;
+  id: string;
+  query: string;
+  remote_addr: string;
+  step: number;
+  args?: string;
+  data?: string;
+}
+
+export enum QueryContextType {
+  empty = "empty",
+  metricsql = "metricsql",
+  label = "label",
+  labelValue = "labelValue",
 }

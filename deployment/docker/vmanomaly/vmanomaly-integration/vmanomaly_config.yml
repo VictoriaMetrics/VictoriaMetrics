@@ -1,0 +1,27 @@
+schedulers:
+  periodic:
+    # class: "scheduler.periodic.PeriodicScheduler"
+    infer_every: "1m"
+    fit_every: "2m"
+    fit_window: "3h"
+
+models:
+  prophet:
+    class: "model.prophet.ProphetModel"
+    args:
+      interval_width: 0.98
+
+reader:
+  datasource_url: "http://victoriametrics:8428/"
+  sampling_period: "60s" 
+  queries:
+    node_cpu_rate: "sum(rate(node_cpu_seconds_total[5m])) by (mode, instance, job)"
+
+writer:
+  datasource_url: "http://victoriametrics:8428/"
+
+
+monitoring:
+  pull: # Enable /metrics endpoint.
+    addr: "0.0.0.0"
+    port: 8490

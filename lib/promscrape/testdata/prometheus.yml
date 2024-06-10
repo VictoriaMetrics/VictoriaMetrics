@@ -1,5 +1,29 @@
 scrape_configs:
-- job_name: foo
-  file_sd_configs:
-  - files: ["file_sd_*.yml"]
-  - files: ["file_sd.json"]
+  - job_name: foo
+    scrape_interval: 54s
+    scrape_timeout: 12s
+    metrics_path: /foo/bar
+    scheme: https
+    honor_labels: true
+    honor_timestamps: false
+    follow_redirects: false
+    static_configs:
+      - targets: ["foo.bar", "aaa"]
+        labels:
+          x: y
+          __scrape_timeout__: "5s"
+  - job_name: file-job
+    file_sd_configs:
+      - files: ["file_sd_*.yml"]
+      - files: ["file_sd.json"]
+  - job_name: service-kubernetes
+    kubernetes_sd_configs:
+      - role: endpoints
+        api_server: "https://localhost:1234"
+        follow_redirects: true
+        tls_config:
+          cert_file: valid_cert_file
+          key_file: valid_key_file
+        basic_auth:
+          username: "myusername"
+          password: "mysecret"

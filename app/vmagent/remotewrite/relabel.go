@@ -3,6 +3,7 @@ package remotewrite
 import (
 	"flag"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -18,10 +19,10 @@ var (
 	relabelConfigPathGlobal = flag.String("remoteWrite.relabelConfig", "", "Optional path to file with relabeling configs, which are applied "+
 		"to all the metrics before sending them to -remoteWrite.url. See also -remoteWrite.urlRelabelConfig. "+
 		"The path can point either to local file or to http url. "+
-		"See https://docs.victoriametrics.com/vmagent.html#relabeling")
+		"See https://docs.victoriametrics.com/vmagent/#relabeling")
 	relabelConfigPaths = flagutil.NewArrayString("remoteWrite.urlRelabelConfig", "Optional path to relabel configs for the corresponding -remoteWrite.url. "+
 		"See also -remoteWrite.relabelConfig. The path can point either to local file or to http url. "+
-		"See https://docs.victoriametrics.com/vmagent.html#relabeling")
+		"See https://docs.victoriametrics.com/vmagent/#relabeling")
 
 	usePromCompatibleNaming = flag.Bool("usePromCompatibleNaming", false, "Whether to replace characters unsupported by Prometheus with underscores "+
 		"in the ingested metric names and label names. For example, foo.bar{a.b='c'} is transformed into foo_bar{a_b='c'} during data ingestion if this flag is set. "+
@@ -45,11 +46,11 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 		}
 		rcs.global = global
 	}
-	if len(*relabelConfigPaths) > (len(*remoteWriteURLs) + len(*remoteWriteMultitenantURLs)) {
-		return nil, fmt.Errorf("too many -remoteWrite.urlRelabelConfig args: %d; it mustn't exceed the number of -remoteWrite.url or -remoteWrite.multitenantURL args: %d",
-			len(*relabelConfigPaths), (len(*remoteWriteURLs) + len(*remoteWriteMultitenantURLs)))
+	if len(*relabelConfigPaths) > len(*remoteWriteURLs) {
+		return nil, fmt.Errorf("too many -remoteWrite.urlRelabelConfig args: %d; it mustn't exceed the number of -remoteWrite.url args: %d",
+			len(*relabelConfigPaths), (len(*remoteWriteURLs)))
 	}
-	rcs.perURL = make([]*promrelabel.ParsedConfigs, (len(*remoteWriteURLs) + len(*remoteWriteMultitenantURLs)))
+	rcs.perURL = make([]*promrelabel.ParsedConfigs, len(*remoteWriteURLs))
 	for i, path := range *relabelConfigPaths {
 		if len(path) == 0 {
 			// Skip empty relabel config.
@@ -87,44 +88,26 @@ func initLabelsGlobal() {
 	}
 }
 
-func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, extraLabels []prompbmarshal.Label, pcs *promrelabel.ParsedConfigs) []prompbmarshal.TimeSeries {
-	if len(extraLabels) == 0 && pcs.Len() == 0 && !*usePromCompatibleNaming {
+func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, pcs *promrelabel.ParsedConfigs) []prompbmarshal.TimeSeries {
+	if pcs.Len() == 0 && !*usePromCompatibleNaming {
 		// Nothing to change.
 		return tss
 	}
+	rctx.reset()
 	tssDst := tss[:0]
 	labels := rctx.labels[:0]
 	for i := range tss {
 		ts := &tss[i]
 		labelsLen := len(labels)
 		labels = append(labels, ts.Labels...)
-		// extraLabels must be added before applying relabeling according to https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write
-		for j := range extraLabels {
-			extraLabel := &extraLabels[j]
-			tmp := promrelabel.GetLabelByName(labels[labelsLen:], extraLabel.Name)
-			if tmp != nil {
-				tmp.Value = extraLabel.Value
-			} else {
-				labels = append(labels, *extraLabel)
-			}
-		}
-		if *usePromCompatibleNaming {
-			// Replace unsupported Prometheus chars in label names and metric names with underscores.
-			tmpLabels := labels[labelsLen:]
-			for j := range tmpLabels {
-				label := &tmpLabels[j]
-				if label.Name == "__name__" {
-					label.Value = promrelabel.SanitizeName(label.Value)
-				} else {
-					label.Name = promrelabel.SanitizeName(label.Name)
-				}
-			}
-		}
 		labels = pcs.Apply(labels, labelsLen)
 		labels = promrelabel.FinalizeLabels(labels[:labelsLen], labels[labelsLen:])
 		if len(labels) == labelsLen {
 			// Drop the current time series, since relabeling removed all the labels.
 			continue
+		}
+		if *usePromCompatibleNaming {
+			fixPromCompatibleNaming(labels[labelsLen:])
 		}
 		tssDst = append(tssDst, prompbmarshal.TimeSeries{
 			Labels:  labels[labelsLen:],
@@ -133,6 +116,58 @@ func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, extraLab
 	}
 	rctx.labels = labels
 	return tssDst
+}
+
+func (rctx *relabelCtx) appendExtraLabels(tss []prompbmarshal.TimeSeries, extraLabels []prompbmarshal.Label) {
+	if len(extraLabels) == 0 {
+		return
+	}
+	rctx.reset()
+	labels := rctx.labels[:0]
+	for i := range tss {
+		ts := &tss[i]
+		labelsLen := len(labels)
+		labels = append(labels, ts.Labels...)
+		for j := range extraLabels {
+			extraLabel := extraLabels[j]
+			tmp := promrelabel.GetLabelByName(labels[labelsLen:], extraLabel.Name)
+			if tmp != nil {
+				tmp.Value = extraLabel.Value
+			} else {
+				labels = append(labels, extraLabel)
+			}
+		}
+		ts.Labels = labels[labelsLen:]
+	}
+	rctx.labels = labels
+}
+
+func (rctx *relabelCtx) tenantToLabels(tss []prompbmarshal.TimeSeries, accountID, projectID uint32) {
+	rctx.reset()
+	accountIDStr := strconv.FormatUint(uint64(accountID), 10)
+	projectIDStr := strconv.FormatUint(uint64(projectID), 10)
+	labels := rctx.labels[:0]
+	for i := range tss {
+		ts := &tss[i]
+		labelsLen := len(labels)
+		for _, label := range ts.Labels {
+			labelName := label.Name
+			if labelName == "vm_account_id" || labelName == "vm_project_id" {
+				continue
+			}
+			labels = append(labels, label)
+		}
+		labels = append(labels, prompbmarshal.Label{
+			Name:  "vm_account_id",
+			Value: accountIDStr,
+		})
+		labels = append(labels, prompbmarshal.Label{
+			Name:  "vm_project_id",
+			Value: projectIDStr,
+		})
+		ts.Labels = labels[labelsLen:]
+	}
+	rctx.labels = labels
 }
 
 type relabelCtx struct {
@@ -156,6 +191,18 @@ func getRelabelCtx() *relabelCtx {
 }
 
 func putRelabelCtx(rctx *relabelCtx) {
-	rctx.labels = rctx.labels[:0]
+	rctx.reset()
 	relabelCtxPool.Put(rctx)
+}
+
+func fixPromCompatibleNaming(labels []prompbmarshal.Label) {
+	// Replace unsupported Prometheus chars in label names and metric names with underscores.
+	for i := range labels {
+		label := &labels[i]
+		if label.Name == "__name__" {
+			label.Value = promrelabel.SanitizeMetricName(label.Value)
+		} else {
+			label.Name = promrelabel.SanitizeLabelName(label.Name)
+		}
+	}
 }

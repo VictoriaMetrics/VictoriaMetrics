@@ -16,11 +16,11 @@ func BenchmarkKeyHashUint64(b *testing.B) {
 			h := k.hashUint64()
 			hSum += h
 		}
-		atomic.AddUint64(&BenchSink, hSum)
+		BenchSink.Add(hSum)
 	})
 }
 
-var BenchSink uint64
+var BenchSink atomic.Uint64
 
 func BenchmarkCacheGet(b *testing.B) {
 	c := NewCache(func() int {

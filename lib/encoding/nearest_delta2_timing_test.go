@@ -2,7 +2,6 @@ package encoding
 
 import (
 	"fmt"
-	"sync/atomic"
 	"testing"
 )
 
@@ -21,7 +20,7 @@ func benchmarkMarshalInt64NearestDelta2(b *testing.B, precisionBits uint8) {
 		var dst []byte
 		for pb.Next() {
 			dst, _ = marshalInt64NearestDelta2(dst[:0], benchInt64Array, precisionBits)
-			atomic.AddUint64(&Sink, uint64(len(dst)))
+			Sink.Add(uint64(len(dst)))
 		}
 	})
 }
@@ -37,7 +36,7 @@ func BenchmarkUnmarshalInt64NearestDelta2(b *testing.B) {
 			if err != nil {
 				panic(fmt.Errorf("unexpected error: %w", err))
 			}
-			atomic.AddUint64(&Sink, uint64(len(dst)))
+			Sink.Add(uint64(len(dst)))
 		}
 	})
 }

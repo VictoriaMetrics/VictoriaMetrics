@@ -1,8 +1,19 @@
-import React, { FC, KeyboardEvent, useEffect, useRef, HTMLInputTypeAttribute, ReactNode } from "react";
+import React, {
+  FC,
+  useEffect,
+  useState,
+  useRef,
+  useMemo,
+  FormEvent,
+  KeyboardEvent,
+  MouseEvent,
+  HTMLInputTypeAttribute,
+  ReactNode
+} from "react";
 import classNames from "classnames";
-import { useMemo } from "preact/compat";
 import { useAppState } from "../../../state/common/StateContext";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import TextFieldMessage from "./TextFieldMessage";
 import "./style.scss";
 
 interface TextFieldProps {
@@ -10,6 +21,7 @@ interface TextFieldProps {
   value?: string | number
   type?: HTMLInputTypeAttribute | "textarea"
   error?: string
+  warning?: string
   placeholder?: string
   endIcon?: ReactNode
   startIcon?: ReactNode
@@ -17,11 +29,13 @@ interface TextFieldProps {
   autofocus?: boolean
   helperText?: string
   inputmode?: "search" | "text" | "email" | "tel" | "url" | "none" | "numeric" | "decimal"
+  caretPosition?: [number, number]
   onChange?: (value: string) => void
   onEnter?: () => void
   onKeyDown?: (e: KeyboardEvent) => void
   onFocus?: () => void
   onBlur?: () => void
+  onChangeCaret?: (position: [number, number]) => void
 }
 
 const TextField: FC<TextFieldProps> = ({
@@ -29,18 +43,21 @@ const TextField: FC<TextFieldProps> = ({
   value,
   type = "text",
   error = "",
+  warning = "",
+  helperText = "",
   placeholder,
   endIcon,
   startIcon,
   disabled = false,
   autofocus = false,
-  helperText,
   inputmode = "text",
+  caretPosition,
   onChange,
   onEnter,
   onKeyDown,
   onFocus,
-  onBlur
+  onBlur,
+  onChangeCaret,
 }) => {
   const { isDarkTheme } = useAppState();
   const { isMobile } = useDeviceDetect();
@@ -48,32 +65,46 @@ const TextField: FC<TextFieldProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fieldRef = useMemo(() => type === "textarea" ? textareaRef : inputRef, [type]);
+  const [selectionPos, setSelectionPos] = useState<[start: number, end: number]>([0, 0]);
 
   const inputClasses = classNames({
     "vm-text-field__input": true,
     "vm-text-field__input_error": error,
+    "vm-text-field__input_warning": !error && warning,
     "vm-text-field__input_icon-start": startIcon,
     "vm-text-field__input_disabled": disabled,
     "vm-text-field__input_textarea": type === "textarea",
   });
 
+  const updateCaretPosition = (target: HTMLInputElement | HTMLTextAreaElement) => {
+    const { selectionStart, selectionEnd } = target;
+    setSelectionPos([selectionStart || 0, selectionEnd || 0]);
+  };
+
+  const handleMouseUp = (e: MouseEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    updateCaretPosition(e.currentTarget);
+  };
+
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     onKeyDown && onKeyDown(e);
-    if (e.key === "Enter" && !e.shiftKey) {
+    const { key, ctrlKey, metaKey } = e;
+    const isEnter = key === "Enter";
+    const runByEnter = type !== "textarea" ? isEnter : isEnter && (metaKey || ctrlKey);
+    if (runByEnter && onEnter) {
       e.preventDefault();
-      onEnter && onEnter();
+      onEnter();
     }
   };
 
-  const handleChange = (e: React.FormEvent) => {
-    if (disabled) return;
-    onChange && onChange((e.target as HTMLInputElement).value);
+  const handleKeyUp = (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    updateCaretPosition(e.currentTarget);
   };
 
-  useEffect(() => {
-    if (!autofocus || isMobile) return;
-    fieldRef?.current?.focus && fieldRef.current.focus();
-  }, [fieldRef, autofocus]);
+  const handleChange = (e: FormEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (disabled) return;
+    onChange && onChange(e.currentTarget.value);
+    updateCaretPosition(e.currentTarget);
+  };
 
   const handleFocus = () => {
     onFocus && onFocus();
@@ -82,6 +113,31 @@ const TextField: FC<TextFieldProps> = ({
   const handleBlur = () => {
     onBlur && onBlur();
   };
+
+  const setSelectionRange = (range: [number, number]) => {
+    try {
+      fieldRef.current && fieldRef.current.setSelectionRange(range[0], range[1]);
+    }  catch (e) {
+      return e;
+    }
+  };
+
+  useEffect(() => {
+    if (!autofocus || isMobile) return;
+    fieldRef?.current?.focus && fieldRef.current.focus();
+  }, [fieldRef, autofocus]);
+
+  useEffect(() => {
+    onChangeCaret && onChangeCaret(selectionPos);
+  }, [selectionPos]);
+
+  useEffect(() => {
+    setSelectionRange(selectionPos);
+  }, [value]);
+
+  useEffect(() => {
+    caretPosition && setSelectionRange(caretPosition);
+  }, [caretPosition]);
 
   return <label
     className={classNames({
@@ -106,8 +162,10 @@ const TextField: FC<TextFieldProps> = ({
           autoCapitalize={"none"}
           onInput={handleChange}
           onKeyDown={handleKeyDown}
+          onKeyUp={handleKeyUp}
           onFocus={handleFocus}
           onBlur={handleBlur}
+          onMouseUp={handleMouseUp}
         />
       )
       : (
@@ -122,24 +180,21 @@ const TextField: FC<TextFieldProps> = ({
           autoCapitalize={"none"}
           onInput={handleChange}
           onKeyDown={handleKeyDown}
+          onKeyUp={handleKeyUp}
           onFocus={handleFocus}
           onBlur={handleBlur}
+          onMouseUp={handleMouseUp}
         />
       )
     }
     {label && <span className="vm-text-field__label">{label}</span>}
-    <span
-      className="vm-text-field__error"
-      data-show={!!error}
-    >
-      {error}
-    </span>
-    {helperText && !error && (
-      <span className="vm-text-field__helper-text">
-        {helperText}
-      </span>
-    )}
-  </label>;
+    <TextFieldMessage
+      error={error}
+      warning={warning}
+      info={helperText}
+    />
+  </label>
+  ;
 };
 
 export default TextField;

@@ -1,12 +1,13 @@
 {% import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 ) %}
 
 {% stripspace %}
 QueryResponse generates response for /api/v1/query.
 See https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
-{% func QueryResponse(isPartial bool, rs []netstorage.Result, qt *querytracer.Tracer, qtDone func()) %}
+{% func QueryResponse(isPartial bool, rs []netstorage.Result, qt *querytracer.Tracer, qtDone func(), qs *promql.QueryStats) %}
 {
 	{% code seriesCount := len(rs) %}
 	"status":"success",
@@ -29,6 +30,14 @@ See https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
 				{% endfor %}
 			{% endif %}
 		]
+	},
+	"stats":{
+		{% code
+			// seriesFetched is string instead of int because of historical reasons.
+			// It cannot be converted to int without breaking backwards compatibility at vmalert :(
+		%}
+		"seriesFetched": "{%dl qs.SeriesFetched.Load() %}",
+		"executionTimeMsec": {%dl qs.ExecutionTimeMsec.Load() %}
 	}
 	{% code
 		qt.Printf("generate /api/v1/query response for series=%d", seriesCount)

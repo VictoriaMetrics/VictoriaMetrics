@@ -30,6 +30,8 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 
 	// Missing columns
 	f("3:metric:aaa", "123,456")
+	f("1:metric:foo,2:label:bar", "123")
+	f("1:label:foo,2:metric:bar", "aaa")
 
 	// Invalid value
 	f("1:metric:foo", "12foobar")
@@ -189,9 +191,87 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			Value:  2,
 		},
 	})
+	// last metric with empty value
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4048
+	f("1:metric:foo,2:metric:bar", `123,`, []Row{
+		{
+			Metric: "foo",
+			Value:  123,
+		},
+	})
+	// all the metrics with empty values
+	f(`1:metric:foo,2:metric:bar,3:label:xx`, `,,abc`, nil)
+	// labels with empty value
+	f("1:metric:foo,2:label:bar,3:label:baz,4:label:xxx", "123,x,,", []Row{
+		{
+			Metric: "foo",
+			Tags: []Tag{
+				{
+					Key:   "bar",
+					Value: "x",
+				},
+			},
+			Value: 123,
+		},
+	})
+	f("1:metric:foo,2:label:bar,3:label:baz,4:label:xxx", "123,,,", []Row{
+		{
+			Metric: "foo",
+			Value:  123,
+		},
+	})
 	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3540
 	f("1:label:mytest,2:time:rfc3339,3:metric:M10,4:metric:M20,5:metric:M30,6:metric:M40,7:metric:M50,8:metric:M60",
 		`test,2022-12-25T16:57:12+01:00,10,20,30,,,60,70,80`, []Row{
+			{
+				Metric: "M10",
+				Tags: []Tag{
+					{
+						Key:   "mytest",
+						Value: "test",
+					},
+				},
+				Timestamp: 1671983832000,
+				Value:     10,
+			},
+			{
+				Metric: "M20",
+				Tags: []Tag{
+					{
+						Key:   "mytest",
+						Value: "test",
+					},
+				},
+				Timestamp: 1671983832000,
+				Value:     20,
+			},
+			{
+				Metric: "M30",
+				Tags: []Tag{
+					{
+						Key:   "mytest",
+						Value: "test",
+					},
+				},
+				Timestamp: 1671983832000,
+				Value:     30,
+			},
+			{
+				Metric: "M60",
+				Tags: []Tag{
+					{
+						Key:   "mytest",
+						Value: "test",
+					},
+				},
+				Timestamp: 1671983832000,
+				Value:     60,
+			},
+		})
+	// rfc3339 with millisecond precision
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5837
+	f("1:label:mytest,2:time:rfc3339,3:metric:M10,4:metric:M20,5:metric:M30,6:metric:M40,7:metric:M50,8:metric:M60",
+		`test,2022-12-25T16:57:12.000+01:00,10,20,30,,,60,70,80`, []Row{
 			{
 				Metric: "M10",
 				Tags: []Tag{

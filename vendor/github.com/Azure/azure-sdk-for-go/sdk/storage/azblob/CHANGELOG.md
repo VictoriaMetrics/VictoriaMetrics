@@ -1,5 +1,123 @@
 # Release History
 
+## 1.3.2 (2024-04-09)
+
+### Bugs Fixed
+* Fixed an issue where GetSASURL() was providing HTTPS SAS, instead of the default http+https SAS. Fixes [#22448](https://github.com/Azure/azure-sdk-for-go/issues/22448)
+
+### Other Changes
+* Integrate `InsecureAllowCredentialWithHTTP` client options.
+* Update dependencies.
+
+## 1.3.1 (2024-02-28)
+
+### Bugs Fixed
+
+* Re-enabled `SharedKeyCredential` authentication mode for non TLS protected endpoints.
+* Use random write in `DownloadFile` method. Fixes [#22426](https://github.com/Azure/azure-sdk-for-go/issues/22426).
+
+## 1.3.0 (2024-02-12)
+
+### Bugs Fixed
+* Fix concurrency issue while Downloading File. Fixes [#22156](https://github.com/Azure/azure-sdk-for-go/issues/22156). 
+* Fix panic when nil options bag is passed to NewGetPageRangesPager. Fixes [22356](https://github.com/Azure/azure-sdk-for-go/issues/22356).
+* Fix file offset update after Download file. Fixes [#22297](https://github.com/Azure/azure-sdk-for-go/issues/22297).
+
+### Other Changes
+* Updated the version of `azcore` to `1.9.2`
+
+## 1.3.0-beta.1 (2024-01-09)
+
+### Features Added
+
+* Updated service version to `2023-11-03`.
+* Added support for Audience when OAuth is used.
+
+### Bugs Fixed
+
+* Block `SharedKeyCredential` authentication mode for non TLS protected endpoints. Fixes [#21841](https://github.com/Azure/azure-sdk-for-go/issues/21841).
+
+## 1.2.1 (2023-12-13)
+
+### Features Added
+
+* Exposed GetSASURL from specialized clients
+
+### Bugs Fixed
+
+* Fixed case in Blob Batch API when blob path has / in it. Fixes [#21649](https://github.com/Azure/azure-sdk-for-go/issues/21649).
+* Fixed SharedKeyMissingError when using client.BlobClient().GetSASURL() method
+* Fixed an issue that would cause metadata keys with empty values to be omitted when enumerating blobs.
+* Fixed an issue where passing empty map to set blob tags API was causing panic. Fixes [#21869](https://github.com/Azure/azure-sdk-for-go/issues/21869).
+* Fixed an issue where downloaded file has incorrect size when not a multiple of block size. Fixes [#21995](https://github.com/Azure/azure-sdk-for-go/issues/21995).
+* Fixed case where `io.ErrUnexpectedEOF` was treated as expected error in `UploadStream`. Fixes [#21837](https://github.com/Azure/azure-sdk-for-go/issues/21837).
+
+### Other Changes
+
+* Updated the version of `azcore` to `1.9.1` and `azidentity` to `1.4.0`.
+
+## 1.2.0 (2023-10-11)
+
+### Bugs Fixed
+* Fixed null pointer exception when `SetImmutabilityPolicyOptions` is passed as `nil`.
+
+## 1.2.0-beta.1 (2023-09-18)
+
+### Features Added
+* Added support for service version 2020-12-06, 2021-02-12, 2021-04-10, 2021-06-08, 2021-08-06 , 2021-10-04, 2021-12-02, 2022-11-02, 2023-01-03, 2023-05-03, and 2023-08-03
+* Added support for [Cold Tier](https://learn.microsoft.com/azure/storage/blobs/access-tiers-overview?tabs=azure-portal).
+* Added `CopySourceTag` option for `UploadBlobFromURLOptions`
+* Added [FilterBlobs by Tags](https://learn.microsoft.com/rest/api/storageservices/find-blobs-by-tags-container) API for container client.
+* Added `System` option to `ListContainersInclude` to allow listing of system containers (i.e, $web).
+* Updated the SAS Version to `2021-12-02` and added `Encryption Scope` to Account SAS, Service SAS, and User Delegation SAS
+* Added `ArchiveStatusRehydratePendingToCold` value to `ArchiveStatus` enum.
+* Content length limit for `AppendBlob.AppendBlock()` and `AppendBlob.AppendBlockFromURL()` raised from 4 MB to 100 MB.
+
+### Bugs Fixed
+* Fixed issue where some requests fail with mismatch in string to sign.
+* Fixed service SAS creation where expiry time or permissions can be omitted when stored access policy is used. Fixes [#21229](https://github.com/Azure/azure-sdk-for-go/issues/21229).
+
+### Other Changes
+* Updating version of azcore to 1.6.0.
+
+## 1.1.0 (2023-07-13)
+
+### Features Added
+
+* Added [Blob Batch API](https://learn.microsoft.com/rest/api/storageservices/blob-batch).
+* Added support for bearer challenge for identity based managed disks.
+* Added support for GetAccountInfo to container and blob level clients.
+* Added [UploadBlobFromURL API](https://learn.microsoft.com/rest/api/storageservices/put-blob-from-url).
+* Added support for CopySourceAuthorization to appendblob.AppendBlockFromURL
+* Added support for tag permission in Container SAS.
+
+### Bugs Fixed
+
+* Fixed time formatting for the conditional request headers. Fixes [#20475](https://github.com/Azure/azure-sdk-for-go/issues/20475).
+* Fixed an issue where passing a blob tags map of length 0 would result in the x-ms-tags header to be sent to the service with an empty string as value.
+* Fixed block size and number of blocks calculation in `UploadBuffer` and `UploadFile`. Fixes [#20735](https://github.com/Azure/azure-sdk-for-go/issues/20735).
+
+### Other Changes
+
+* Add `dragonfly` to the list of build constraints for `blockblob`.
+* Updating version of azcore to 1.6.0 and azidentity to 1.3.0
+
+## 1.1.0-beta.1 (2023-05-09)
+
+### Features Added
+
+* Added [Blob Batch API](https://learn.microsoft.com/rest/api/storageservices/blob-batch).
+* Added support for bearer challenge for identity based managed disks.
+* Added support for GetAccountInfo to container and blob level clients. 
+* Added [UploadBlobFromURL API](https://learn.microsoft.com/rest/api/storageservices/put-blob-from-url).
+* Added support for CopySourceAuthorization to appendblob.AppendBlockFromURL
+* Added support for tag permission in Container SAS. 
+
+### Bugs Fixed
+
+* Fixed time formatting for the conditional request headers. Fixes [#20475](https://github.com/Azure/azure-sdk-for-go/issues/20475).
+* Fixed an issue where passing a blob tags map of length 0 would result in the x-ms-tags header to be sent to the service with an empty string as value.
+
 ## 1.0.0 (2023-02-07)
 
 ### Features Added

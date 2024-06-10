@@ -1,7 +1,6 @@
 package mergeset
 
 import (
-	"fmt"
 	"path/filepath"
 	"sync"
 
@@ -12,7 +11,6 @@ import (
 
 type blockStreamWriter struct {
 	compressLevel int
-	path          string
 
 	metaindexWriter filestream.WriteCloser
 	indexWriter     filestream.WriteCloser
@@ -39,7 +37,6 @@ type blockStreamWriter struct {
 
 func (bsw *blockStreamWriter) reset() {
 	bsw.compressLevel = 0
-	bsw.path = ""
 
 	bsw.metaindexWriter = nil
 	bsw.indexWriter = nil
@@ -63,7 +60,7 @@ func (bsw *blockStreamWriter) reset() {
 	bsw.mrFirstItemCaught = false
 }
 
-func (bsw *blockStreamWriter) InitFromInmemoryPart(mp *inmemoryPart, compressLevel int) {
+func (bsw *blockStreamWriter) MustInitFromInmemoryPart(mp *inmemoryPart, compressLevel int) {
 	bsw.reset()
 
 	bsw.compressLevel = compressLevel
@@ -73,65 +70,38 @@ func (bsw *blockStreamWriter) InitFromInmemoryPart(mp *inmemoryPart, compressLev
 	bsw.lensWriter = &mp.lensData
 }
 
-// InitFromFilePart initializes bsw from a file-based part on the given path.
+// MustInitFromFilePart initializes bsw from a file-based part on the given path.
 //
 // The bsw doesn't pollute OS page cache if nocache is set.
-func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compressLevel int) error {
+func (bsw *blockStreamWriter) MustInitFromFilePart(path string, nocache bool, compressLevel int) {
 	path = filepath.Clean(path)
 
 	// Create the directory
-	if err := fs.MkdirAllFailIfExist(path); err != nil {
-		return fmt.Errorf("cannot create directory %q: %w", path, err)
-	}
+	fs.MustMkdirFailIfExist(path)
 
 	// Create part files in the directory.
 
 	// Always cache metaindex file in OS page cache, since it is immediately
 	// read after the merge.
-	metaindexPath := path + "/metaindex.bin"
-	metaindexFile, err := filestream.Create(metaindexPath, false)
-	if err != nil {
-		fs.MustRemoveDirAtomic(path)
-		return fmt.Errorf("cannot create metaindex file: %w", err)
-	}
+	metaindexPath := filepath.Join(path, metaindexFilename)
+	metaindexFile := filestream.MustCreate(metaindexPath, false)
 
-	indexPath := path + "/index.bin"
-	indexFile, err := filestream.Create(indexPath, nocache)
-	if err != nil {
-		metaindexFile.MustClose()
-		fs.MustRemoveDirAtomic(path)
-		return fmt.Errorf("cannot create index file: %w", err)
-	}
+	indexPath := filepath.Join(path, indexFilename)
+	indexFile := filestream.MustCreate(indexPath, nocache)
 
-	itemsPath := path + "/items.bin"
-	itemsFile, err := filestream.Create(itemsPath, nocache)
-	if err != nil {
-		metaindexFile.MustClose()
-		indexFile.MustClose()
-		fs.MustRemoveDirAtomic(path)
-		return fmt.Errorf("cannot create items file: %w", err)
-	}
+	itemsPath := filepath.Join(path, itemsFilename)
+	itemsFile := filestream.MustCreate(itemsPath, nocache)
 
-	lensPath := path + "/lens.bin"
-	lensFile, err := filestream.Create(lensPath, nocache)
-	if err != nil {
-		metaindexFile.MustClose()
-		indexFile.MustClose()
-		itemsFile.MustClose()
-		fs.MustRemoveDirAtomic(path)
-		return fmt.Errorf("cannot create lens file: %w", err)
-	}
+	lensPath := filepath.Join(path, lensFilename)
+	lensFile := filestream.MustCreate(lensPath, nocache)
 
 	bsw.reset()
 	bsw.compressLevel = compressLevel
-	bsw.path = path
 
 	bsw.metaindexWriter = metaindexFile
 	bsw.indexWriter = indexFile
 	bsw.itemsWriter = itemsFile
 	bsw.lensWriter = lensFile
-
-	return nil
 }
 
 // MustClose closes the bsw.
@@ -151,12 +121,6 @@ func (bsw *blockStreamWriter) MustClose() {
 	bsw.itemsWriter.MustClose()
 	bsw.lensWriter.MustClose()
 
-	// Sync bsw.path contents to make sure it doesn't disappear
-	// after system crash or power loss.
-	if bsw.path != "" {
-		fs.MustSyncPath(bsw.path)
-	}
-
 	bsw.reset()
 }
 
@@ -165,11 +129,6 @@ func (bsw *blockStreamWriter) MustClose() {
 // ib must be sorted.
 func (bsw *blockStreamWriter) WriteBlock(ib *inmemoryBlock) {
 	bsw.bh.firstItem, bsw.bh.commonPrefix, bsw.bh.itemsCount, bsw.bh.marshalType = ib.MarshalSortedData(&bsw.sb, bsw.bh.firstItem[:0], bsw.bh.commonPrefix[:0], bsw.compressLevel)
-
-	if !bsw.mrFirstItemCaught {
-		bsw.mr.firstItem = append(bsw.mr.firstItem[:0], bsw.bh.firstItem...)
-		bsw.mrFirstItemCaught = true
-	}
 
 	// Write itemsData
 	fs.MustWriteData(bsw.itemsWriter, bsw.sb.itemsData)
@@ -184,12 +143,20 @@ func (bsw *blockStreamWriter) WriteBlock(ib *inmemoryBlock) {
 	bsw.lensBlockOffset += uint64(bsw.bh.lensBlockSize)
 
 	// Write blockHeader
+	unpackedIndexBlockBufLen := len(bsw.unpackedIndexBlockBuf)
 	bsw.unpackedIndexBlockBuf = bsw.bh.Marshal(bsw.unpackedIndexBlockBuf)
+	if len(bsw.unpackedIndexBlockBuf) > maxIndexBlockSize {
+		bsw.unpackedIndexBlockBuf = bsw.unpackedIndexBlockBuf[:unpackedIndexBlockBufLen]
+		bsw.flushIndexData()
+		bsw.unpackedIndexBlockBuf = bsw.bh.Marshal(bsw.unpackedIndexBlockBuf)
+	}
+
+	if !bsw.mrFirstItemCaught {
+		bsw.mr.firstItem = append(bsw.mr.firstItem[:0], bsw.bh.firstItem...)
+		bsw.mrFirstItemCaught = true
+	}
 	bsw.bh.Reset()
 	bsw.mr.blockHeadersCount++
-	if len(bsw.unpackedIndexBlockBuf) >= maxIndexBlockSize {
-		bsw.flushIndexData()
-	}
 }
 
 // The maximum size of index block with multiple blockHeaders.

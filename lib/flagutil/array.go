@@ -11,42 +11,56 @@ import (
 // NewArrayString returns new ArrayString with the given name and description.
 func NewArrayString(name, description string) *ArrayString {
 	description += "\nSupports an `array` of values separated by comma or specified via multiple flags."
+	description += "\nValue can contain comma inside single-quoted or double-quoted string, {}, [] and () braces."
 	var a ArrayString
 	flag.Var(&a, name, description)
 	return &a
 }
 
-// NewArrayDuration returns new ArrayDuration with the given name and description.
-func NewArrayDuration(name, description string) *ArrayDuration {
+// NewArrayDuration returns new ArrayDuration with the given name, defaultValue and description.
+func NewArrayDuration(name string, defaultValue time.Duration, description string) *ArrayDuration {
+	description += fmt.Sprintf(" (default %s)", defaultValue)
 	description += "\nSupports `array` of values separated by comma or specified via multiple flags."
-	var a ArrayDuration
-	flag.Var(&a, name, description)
-	return &a
+	description += "\nEmpty values are set to default value."
+	a := &ArrayDuration{
+		defaultValue: defaultValue,
+	}
+	flag.Var(a, name, description)
+	return a
 }
 
 // NewArrayBool returns new ArrayBool with the given name and description.
 func NewArrayBool(name, description string) *ArrayBool {
 	description += "\nSupports `array` of values separated by comma or specified via multiple flags."
+	description += "\nEmpty values are set to false."
 	var a ArrayBool
 	flag.Var(&a, name, description)
 	return &a
 }
 
-// NewArrayInt returns new ArrayInt with the given name and description.
-func NewArrayInt(name, description string) *ArrayInt {
+// NewArrayInt returns new ArrayInt with the given name, defaultValue and description.
+func NewArrayInt(name string, defaultValue int, description string) *ArrayInt {
+	description += fmt.Sprintf(" (default %d)", defaultValue)
 	description += "\nSupports `array` of values separated by comma or specified via multiple flags."
-	var a ArrayInt
-	flag.Var(&a, name, description)
-	return &a
+	description += "\nEmpty values are set to default value."
+	a := &ArrayInt{
+		defaultValue: defaultValue,
+	}
+	flag.Var(a, name, description)
+	return a
 }
 
-// NewArrayBytes returns new ArrayBytes with the given name and description.
-func NewArrayBytes(name, description string) *ArrayBytes {
+// NewArrayBytes returns new ArrayBytes with the given name, defaultValue and description.
+func NewArrayBytes(name string, defaultValue int64, description string) *ArrayBytes {
 	description += "\nSupports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB."
+	description += fmt.Sprintf(" (default %d)", defaultValue)
 	description += "\nSupports `array` of values separated by comma or specified via multiple flags."
-	var a ArrayBytes
-	flag.Var(&a, name, description)
-	return &a
+	description += "\nEmpty values are set to default value."
+	a := &ArrayBytes{
+		defaultValue: defaultValue,
+	}
+	flag.Var(a, name, description)
+	return a
 }
 
 // ArrayString is a flag that holds an array of strings.
@@ -59,16 +73,19 @@ func NewArrayBytes(name, description string) *ArrayBytes {
 //	-foo=value1 -foo=value2
 //	-foo=value1,value2
 //
-// Flag values may be quoted. For instance, the following arg creates an array of ("a", "b, c") items:
+// Each flag value may contain commas inside single quotes, double quotes, [], () or {} braces.
+// For example, -foo=[a,b,c] defines a single command-line flag with `[a,b,c]` value.
 //
-//	-foo='a,"b, c"'
+// Flag values may be quoted. For instance, the following arg creates an array of ("a", "b,c") items:
+//
+//	-foo='a,"b,c"'
 type ArrayString []string
 
 // String implements flag.Value interface
 func (a *ArrayString) String() string {
 	aEscaped := make([]string, len(*a))
 	for i, v := range *a {
-		if strings.ContainsAny(v, `", `+"\n") {
+		if strings.ContainsAny(v, `,'"{[(`+"\n") {
 			v = fmt.Sprintf("%q", v)
 		}
 		aEscaped[i] = v
@@ -84,8 +101,8 @@ func (a *ArrayString) Set(value string) error {
 }
 
 func parseArrayValues(s string) []string {
-	if len(s) == 0 {
-		return nil
+	if s == "" {
+		return []string{""}
 	}
 	var values []string
 	for {
@@ -94,55 +111,105 @@ func parseArrayValues(s string) []string {
 		if len(tail) == 0 {
 			return values
 		}
-		if tail[0] == ',' {
-			tail = tail[1:]
-		}
 		s = tail
+		if s[0] == ',' {
+			s = s[1:]
+		}
 	}
 }
 
+var closeQuotes = map[byte]byte{
+	'"':  '"',
+	'\'': '\'',
+	'[':  ']',
+	'{':  '}',
+	'(':  ')',
+}
+
 func getNextArrayValue(s string) (string, string) {
-	if len(s) == 0 {
-		return "", ""
+	v, tail := getNextArrayValueMaybeQuoted(s)
+	if strings.HasPrefix(v, `"`) && strings.HasSuffix(v, `"`) {
+		vUnquoted, err := strconv.Unquote(v)
+		if err == nil {
+			return vUnquoted, tail
+		}
+		v = v[1 : len(v)-1]
+		v = strings.ReplaceAll(v, `\"`, `"`)
+		v = strings.ReplaceAll(v, `\\`, `\`)
+		return v, tail
 	}
-	if s[0] != '"' {
-		// Fast path - unquoted string
-		n := strings.IndexByte(s, ',')
+	if strings.HasPrefix(v, `'`) && strings.HasSuffix(v, `'`) {
+		v = v[1 : len(v)-1]
+		v = strings.ReplaceAll(v, `\'`, "'")
+		v = strings.ReplaceAll(v, `\\`, `\`)
+		return v, tail
+	}
+	return v, tail
+}
+
+func getNextArrayValueMaybeQuoted(s string) (string, string) {
+	idx := 0
+	for {
+		n := strings.IndexAny(s[idx:], `,"'[{(`)
 		if n < 0 {
 			// The last item
 			return s, ""
 		}
-		return s[:n], s[n:]
+		idx += n
+		ch := s[idx]
+		if ch == ',' {
+			// The next item
+			return s[:idx], s[idx:]
+		}
+		idx++
+		m := indexCloseQuote(s[idx:], closeQuotes[ch])
+		idx += m
 	}
+}
 
-	// Find the end of quoted string
-	end := 1
-	ss := s[1:]
+func indexCloseQuote(s string, closeQuote byte) int {
+	if closeQuote == '"' || closeQuote == '\'' {
+		idx := 0
+		for {
+			n := strings.IndexByte(s[idx:], closeQuote)
+			if n < 0 {
+				return 0
+			}
+			idx += n
+			if n := getTrailingBackslashesCount(s[:idx]); n%2 == 1 {
+				// The quote is escaped with backslash. Skip it
+				idx++
+				continue
+			}
+			return idx + 1
+		}
+	}
+	idx := 0
 	for {
-		n := strings.IndexByte(ss, '"')
+		n := strings.IndexAny(s[idx:], `"'[{()}]`)
 		if n < 0 {
-			// Cannot find trailing quote. Return the whole string till the end.
-			return s, ""
+			return 0
 		}
-		end += n + 1
-		// Verify whether the trailing quote is escaped with backslash.
-		backslashes := 0
-		for n > backslashes && ss[n-backslashes-1] == '\\' {
-			backslashes++
+		idx += n
+		ch := s[idx]
+		if ch == closeQuote {
+			return idx + 1
 		}
-		if backslashes&1 == 0 {
-			// The trailing quote isn't escaped.
-			break
+		idx++
+		m := indexCloseQuote(s[idx:], closeQuotes[ch])
+		if m == 0 {
+			return 0
 		}
-		// The trailing quote is escaped. Continue searching for the next quote.
-		ss = ss[n+1:]
+		idx += m
 	}
-	v := s[:end]
-	vUnquoted, err := strconv.Unquote(v)
-	if err == nil {
-		v = vUnquoted
+}
+
+func getTrailingBackslashesCount(s string) int {
+	n := len(s)
+	for n > 0 && s[n-1] == '\\' {
+		n--
 	}
-	return v, s[end:]
+	return len(s) - n
 }
 
 // GetOptionalArg returns optional arg under the given argIdx.
@@ -162,22 +229,25 @@ func (a *ArrayString) GetOptionalArg(argIdx int) string {
 // Has the same api as ArrayString.
 type ArrayBool []bool
 
-// IsBoolFlag  implements flag.IsBoolFlag interface
+// IsBoolFlag implements flag.IsBoolFlag interface
 func (a *ArrayBool) IsBoolFlag() bool { return true }
 
 // String implements flag.Value interface
 func (a *ArrayBool) String() string {
-	formattedBools := make([]string, len(*a))
+	formattedResults := make([]string, len(*a))
 	for i, v := range *a {
-		formattedBools[i] = strconv.FormatBool(v)
+		formattedResults[i] = strconv.FormatBool(v)
 	}
-	return strings.Join(formattedBools, ",")
+	return strings.Join(formattedResults, ",")
 }
 
 // Set implements flag.Value interface
 func (a *ArrayBool) Set(value string) error {
 	values := parseArrayValues(value)
 	for _, v := range values {
+		if v == "" {
+			v = "false"
+		}
 		b, err := strconv.ParseBool(v)
 		if err != nil {
 			return err
@@ -202,39 +272,45 @@ func (a *ArrayBool) GetOptionalArg(argIdx int) bool {
 // ArrayDuration is a flag that holds an array of time.Duration values.
 //
 // Has the same api as ArrayString.
-type ArrayDuration []time.Duration
+type ArrayDuration struct {
+	defaultValue time.Duration
+	a            []time.Duration
+}
 
 // String implements flag.Value interface
 func (a *ArrayDuration) String() string {
-	formattedBools := make([]string, len(*a))
-	for i, v := range *a {
-		formattedBools[i] = v.String()
+	x := a.a
+	formattedResults := make([]string, len(x))
+	for i, v := range x {
+		formattedResults[i] = v.String()
 	}
-	return strings.Join(formattedBools, ",")
+	return strings.Join(formattedResults, ",")
 }
 
 // Set implements flag.Value interface
 func (a *ArrayDuration) Set(value string) error {
 	values := parseArrayValues(value)
 	for _, v := range values {
+		if v == "" {
+			v = a.defaultValue.String()
+		}
 		b, err := time.ParseDuration(v)
 		if err != nil {
 			return err
 		}
-		*a = append(*a, b)
+		a.a = append(a.a, b)
 	}
 	return nil
 }
 
-// GetOptionalArgOrDefault returns optional arg under the given argIdx,
-// or default value, if argIdx not found.
-func (a *ArrayDuration) GetOptionalArgOrDefault(argIdx int, defaultValue time.Duration) time.Duration {
-	x := *a
+// GetOptionalArg returns optional arg under the given argIdx, or default value, if argIdx not found.
+func (a *ArrayDuration) GetOptionalArg(argIdx int) time.Duration {
+	x := a.a
 	if argIdx >= len(x) {
 		if len(x) == 1 {
 			return x[0]
 		}
-		return defaultValue
+		return a.defaultValue
 	}
 	return x[argIdx]
 }
@@ -242,11 +318,19 @@ func (a *ArrayDuration) GetOptionalArgOrDefault(argIdx int, defaultValue time.Du
 // ArrayInt is flag that holds an array of ints.
 //
 // Has the same api as ArrayString.
-type ArrayInt []int
+type ArrayInt struct {
+	defaultValue int
+	a            []int
+}
+
+// Values returns all the values for a.
+func (a *ArrayInt) Values() []int {
+	return a.a
+}
 
 // String implements flag.Value interface
 func (a *ArrayInt) String() string {
-	x := *a
+	x := a.a
 	formattedInts := make([]string, len(x))
 	for i, v := range x {
 		formattedInts[i] = strconv.Itoa(v)
@@ -258,35 +342,41 @@ func (a *ArrayInt) String() string {
 func (a *ArrayInt) Set(value string) error {
 	values := parseArrayValues(value)
 	for _, v := range values {
+		if v == "" {
+			v = fmt.Sprintf("%d", a.defaultValue)
+		}
 		n, err := strconv.Atoi(v)
 		if err != nil {
 			return err
 		}
-		*a = append(*a, n)
+		a.a = append(a.a, n)
 	}
 	return nil
 }
 
-// GetOptionalArgOrDefault returns optional arg under the given argIdx.
-func (a *ArrayInt) GetOptionalArgOrDefault(argIdx, defaultValue int) int {
-	x := *a
+// GetOptionalArg returns optional arg under the given argIdx or default value.
+func (a *ArrayInt) GetOptionalArg(argIdx int) int {
+	x := a.a
 	if argIdx < len(x) {
 		return x[argIdx]
 	}
 	if len(x) == 1 {
 		return x[0]
 	}
-	return defaultValue
+	return a.defaultValue
 }
 
 // ArrayBytes is flag that holds an array of Bytes.
 //
 // Has the same api as ArrayString.
-type ArrayBytes []*Bytes
+type ArrayBytes struct {
+	defaultValue int64
+	a            []*Bytes
+}
 
 // String implements flag.Value interface
 func (a *ArrayBytes) String() string {
-	x := *a
+	x := a.a
 	formattedBytes := make([]string, len(x))
 	for i, v := range x {
 		formattedBytes[i] = v.String()
@@ -299,22 +389,25 @@ func (a *ArrayBytes) Set(value string) error {
 	values := parseArrayValues(value)
 	for _, v := range values {
 		var b Bytes
+		if v == "" {
+			v = fmt.Sprintf("%d", a.defaultValue)
+		}
 		if err := b.Set(v); err != nil {
 			return err
 		}
-		*a = append(*a, &b)
+		a.a = append(a.a, &b)
 	}
 	return nil
 }
 
-// GetOptionalArgOrDefault returns optional arg under the given argIdx.
-func (a *ArrayBytes) GetOptionalArgOrDefault(argIdx int, defaultValue int64) int64 {
-	x := *a
+// GetOptionalArg returns optional arg under the given argIdx, or default value
+func (a *ArrayBytes) GetOptionalArg(argIdx int) int64 {
+	x := a.a
 	if argIdx < len(x) {
 		return x[argIdx].N
 	}
 	if len(x) == 1 {
 		return x[0].N
 	}
-	return defaultValue
+	return a.defaultValue
 }

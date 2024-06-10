@@ -7,7 +7,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
@@ -155,7 +155,7 @@ type kubeConfig struct {
 }
 
 func newKubeConfig(kubeConfigFile string) (*kubeConfig, error) {
-	data, err := fs.ReadFileOrHTTP(kubeConfigFile)
+	data, err := fscore.ReadFileOrHTTP(kubeConfigFile)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read %q: %w", kubeConfigFile, err)
 	}
@@ -223,7 +223,7 @@ func (cfg *Config) buildKubeConfig() (*kubeConfig, error) {
 				if err != nil {
 					return nil, fmt.Errorf("cannot base64-decode certificate-authority-data from config %q at context %q: %w", clusterInfoName, contextName, err)
 				}
-				tlsConfig.CA = ca
+				tlsConfig.CA = string(ca)
 			}
 			tlsConfig.CertFile = configAuthInfo.ClientCertificate
 			tlsConfig.KeyFile = configAuthInfo.ClientKey
@@ -233,14 +233,14 @@ func (cfg *Config) buildKubeConfig() (*kubeConfig, error) {
 				if err != nil {
 					return nil, fmt.Errorf("cannot base64-decode client-certificate-data from %q: %w", authInfoName, err)
 				}
-				tlsConfig.Cert = cert
+				tlsConfig.Cert = string(cert)
 			}
 			if len(configAuthInfo.ClientKeyData) > 0 {
 				key, err := base64.StdEncoding.DecodeString(configAuthInfo.ClientKeyData)
 				if err != nil {
 					return nil, fmt.Errorf("cannot base64-decode client-key-data from %q: %w", authInfoName, err)
 				}
-				tlsConfig.Key = key
+				tlsConfig.Key = string(key)
 			}
 		}
 		if len(configAuthInfo.Username) > 0 || len(configAuthInfo.Password) > 0 {

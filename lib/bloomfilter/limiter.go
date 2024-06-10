@@ -11,7 +11,7 @@ import (
 // It is safe using the Limiter from concurrent goroutines.
 type Limiter struct {
 	maxItems int
-	v        atomic.Value
+	v        atomic.Pointer[limiter]
 
 	wg     sync.WaitGroup
 	stopCh chan struct{}
@@ -55,8 +55,8 @@ func (l *Limiter) MaxItems() int {
 
 // CurrentItems return the current number of items registered in l.
 func (l *Limiter) CurrentItems() int {
-	lm := l.v.Load().(*limiter)
-	n := atomic.LoadUint64(&lm.currentItems)
+	lm := l.v.Load()
+	n := lm.currentItems.Load()
 	return int(n)
 }
 
@@ -67,12 +67,12 @@ func (l *Limiter) CurrentItems() int {
 // True is returned if h is added or already exists in l.
 // False is returned if h cannot be added to l, since it already has maxItems unique items.
 func (l *Limiter) Add(h uint64) bool {
-	lm := l.v.Load().(*limiter)
+	lm := l.v.Load()
 	return lm.Add(h)
 }
 
 type limiter struct {
-	currentItems uint64
+	currentItems atomic.Uint64
 	f            *filter
 }
 
@@ -83,12 +83,12 @@ func newLimiter(maxItems int) *limiter {
 }
 
 func (l *limiter) Add(h uint64) bool {
-	currentItems := atomic.LoadUint64(&l.currentItems)
+	currentItems := l.currentItems.Load()
 	if currentItems >= uint64(l.f.maxItems) {
 		return l.f.Has(h)
 	}
 	if l.f.Add(h) {
-		atomic.AddUint64(&l.currentItems, 1)
+		l.currentItems.Add(1)
 	}
 	return true
 }

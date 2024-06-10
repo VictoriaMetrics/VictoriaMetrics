@@ -9,7 +9,7 @@ import (
 )
 
 func BenchmarkAddMulti(b *testing.B) {
-	for _, itemsCount := range []int{1e3, 1e4, 1e5, 1e6, 1e7} {
+	for _, itemsCount := range []int{1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7} {
 		start := uint64(time.Now().UnixNano())
 		sa := createRangeSet(start, itemsCount)
 		a := sa.AppendTo(nil)

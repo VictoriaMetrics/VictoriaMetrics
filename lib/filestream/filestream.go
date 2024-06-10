@@ -2,6 +2,7 @@ package filestream
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -13,16 +14,22 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
+var disableFadvise = flag.Bool("filestream.disableFadvise", false, "Whether to disable fadvise() syscall when reading large data files. "+
+	"The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. "+
+	"In some rare cases it is better to disable the syscall if it uses too much CPU")
+
 const dontNeedBlockSize = 16 * 1024 * 1024
 
 // ReadCloser is a standard interface for filestream Reader.
 type ReadCloser interface {
+	Path() string
 	Read(p []byte) (int, error)
 	MustClose()
 }
 
 // WriteCloser is a standard interface for filestream Writer.
 type WriteCloser interface {
+	Path() string
 	Write(p []byte) (int, error)
 	MustClose()
 }
@@ -53,14 +60,16 @@ type Reader struct {
 	st streamTracker
 }
 
+// Path returns the path to r
+func (r *Reader) Path() string {
+	return r.f.Name()
+}
+
 // OpenReaderAt opens the file at the given path in nocache mode at the given offset.
 //
 // If nocache is set, then the reader doesn't pollute OS page cache.
 func OpenReaderAt(path string, offset int64, nocache bool) (*Reader, error) {
-	r, err := Open(path, nocache)
-	if err != nil {
-		return nil, err
-	}
+	r := MustOpen(path, nocache)
 	n, err := r.f.Seek(offset, io.SeekStart)
 	if err != nil {
 		r.MustClose()
@@ -73,26 +82,31 @@ func OpenReaderAt(path string, offset int64, nocache bool) (*Reader, error) {
 	return r, nil
 }
 
-// Open opens the file from the given path in nocache mode.
+// MustOpen opens the file from the given path in nocache mode.
 //
 // If nocache is set, then the reader doesn't pollute OS page cache.
-func Open(path string, nocache bool) (*Reader, error) {
+func MustOpen(path string, nocache bool) *Reader {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		logger.Panicf("FATAL: cannot open file: %s", err)
 	}
 	r := &Reader{
 		f:  f,
 		br: getBufioReader(f),
 	}
+	if *disableFadvise {
+		// Unconditionally disable fadvise() syscall
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5120 for details on why this is needed
+		nocache = false
+	}
 	if nocache {
 		r.st.fd = f.Fd()
 	}
 	readersCount.Inc()
-	return r, nil
+	return r
 }
 
-// MustClose closes the underlying file passed to Open.
+// MustClose closes the underlying file passed to MustOpen.
 func (r *Reader) MustClose() {
 	if err := r.st.close(); err != nil {
 		logger.Panicf("FATAL: cannot close streamTracker for file %q: %s", r.f.Name(), err)
@@ -119,11 +133,6 @@ var (
 
 // Read reads file contents to p.
 func (r *Reader) Read(p []byte) (int, error) {
-	startTime := time.Now()
-	defer func() {
-		d := time.Since(startTime).Seconds()
-		readDuration.Add(d)
-	}()
 	readCallsBuffered.Inc()
 	n, err := r.br.Read(p)
 	readBytesBuffered.Add(n)
@@ -141,8 +150,11 @@ type statReader struct {
 }
 
 func (sr *statReader) Read(p []byte) (int, error) {
+	startTime := time.Now()
 	readCallsReal.Inc()
 	n, err := sr.File.Read(p)
+	d := time.Since(startTime).Seconds()
+	readDuration.Add(d)
 	readBytesReal.Add(n)
 	return n, err
 }
@@ -171,6 +183,11 @@ type Writer struct {
 	st streamTracker
 }
 
+// Path returns the path to r
+func (w *Writer) Path() string {
+	return w.f.Name()
+}
+
 // OpenWriterAt opens the file at path in nocache mode for writing at the given offset.
 //
 // The file at path is created if it is missing.
@@ -193,15 +210,15 @@ func OpenWriterAt(path string, offset int64, nocache bool) (*Writer, error) {
 	return newWriter(f, nocache), nil
 }
 
-// Create creates the file for the given path in nocache mode.
+// MustCreate creates the file for the given path in nocache mode.
 //
 // If nocache is set, the writer doesn't pollute OS page cache.
-func Create(path string, nocache bool) (*Writer, error) {
+func MustCreate(path string, nocache bool) *Writer {
 	f, err := os.Create(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create file %q: %w", path, err)
+		logger.Panicf("FATAL: cannot create file %q: %s", path, err)
 	}
-	return newWriter(f, nocache), nil
+	return newWriter(f, nocache)
 }
 
 func newWriter(f *os.File, nocache bool) *Writer {
@@ -249,11 +266,6 @@ var (
 
 // Write writes p to the underlying file.
 func (w *Writer) Write(p []byte) (int, error) {
-	startTime := time.Now()
-	defer func() {
-		d := time.Since(startTime).Seconds()
-		writeDuration.Add(d)
-	}()
 	writeCallsBuffered.Inc()
 	n, err := w.bw.Write(p)
 	writtenBytesBuffered.Add(n)
@@ -290,8 +302,11 @@ type statWriter struct {
 }
 
 func (sw *statWriter) Write(p []byte) (int, error) {
+	startTime := time.Now()
 	writeCallsReal.Inc()
 	n, err := sw.File.Write(p)
+	d := time.Since(startTime).Seconds()
+	writeDuration.Add(d)
 	writtenBytesReal.Add(n)
 	return n, err
 }

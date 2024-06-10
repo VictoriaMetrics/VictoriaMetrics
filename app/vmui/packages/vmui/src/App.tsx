@@ -2,7 +2,7 @@ import React, { FC, useState } from "preact/compat";
 import { HashRouter, Route, Routes } from "react-router-dom";
 import router from "./router";
 import AppContextProvider from "./contexts/AppContextProvider";
-import Layout from "./components/Layout/Layout";
+import MainLayout from "./layouts/MainLayout/MainLayout";
 import CustomPanel from "./pages/CustomPanel";
 import DashboardsLayout from "./pages/PredefinedPanels";
 import CardinalityPanel from "./pages/CardinalityPanel";
@@ -11,9 +11,12 @@ import ThemeProvider from "./components/Main/ThemeProvider/ThemeProvider";
 import TracePage from "./pages/TracePage";
 import ExploreMetrics from "./pages/ExploreMetrics";
 import PreviewIcons from "./components/Main/Icons/PreviewIcons";
+import WithTemplate from "./pages/WithTemplate";
+import Relabel from "./pages/Relabel";
+import ActiveQueries from "./pages/ActiveQueries";
+import QueryAnalyzer from "./pages/QueryAnalyzer";
 
 const App: FC = () => {
-
   const [loadedTheme, setLoadedTheme] = useState(false);
 
   return <>
@@ -25,7 +28,7 @@ const App: FC = () => {
             <Routes>
               <Route
                 path={"/"}
-                element={<Layout/>}
+                element={<MainLayout/>}
               >
                 <Route
                   path={router.home}
@@ -48,8 +51,24 @@ const App: FC = () => {
                   element={<TracePage/>}
                 />
                 <Route
+                  path={router.queryAnalyzer}
+                  element={<QueryAnalyzer/>}
+                />
+                <Route
                   path={router.dashboards}
                   element={<DashboardsLayout/>}
+                />
+                <Route
+                  path={router.withTemplate}
+                  element={<WithTemplate/>}
+                />
+                <Route
+                  path={router.relabel}
+                  element={<Relabel/>}
+                />
+                <Route
+                  path={router.activeQueries}
+                  element={<ActiveQueries/>}
                 />
                 <Route
                   path={router.icons}

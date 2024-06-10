@@ -1,6 +1,8 @@
 package config
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"strings"
@@ -27,11 +29,49 @@ func TestParseGood(t *testing.T) {
 	}
 }
 
+func TestParseFromURL(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/bad", func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte("foo bar"))
+	})
+	mux.HandleFunc("/good-alert", func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte(`
+groups:
+  - name: TestGroup
+    rules:
+      - alert: Conns
+        expr: vm_tcplistener_conns > 0`))
+	})
+	mux.HandleFunc("/good-rr", func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte(`
+groups:
+  - name: TestGroup
+    rules:
+      - record: conns
+        expr: max(vm_tcplistener_conns)`))
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	if _, err := Parse([]string{srv.URL + "/good-alert", srv.URL + "/good-rr"}, notifier.ValidateTemplates, true); err != nil {
+		t.Errorf("error parsing URLs %s", err)
+	}
+
+	if _, err := Parse([]string{srv.URL + "/bad"}, notifier.ValidateTemplates, true); err == nil {
+		t.Errorf("expected parsing error: %s", err)
+	}
+}
+
 func TestParseBad(t *testing.T) {
 	testCases := []struct {
 		path   []string
 		expErr string
 	}{
+		{
+			[]string{"testdata/rules/rules_interval_bad.rules"},
+			"eval_offset should be smaller than interval",
+		},
 		{
 			[]string{"testdata/rules/rules0-bad.rules"},
 			"unexpected token",
@@ -63,6 +103,10 @@ func TestParseBad(t *testing.T) {
 		{
 			[]string{"testdata/dir/rules6-bad.rules"},
 			"missing ':' in header",
+		},
+		{
+			[]string{"http://unreachable-url"},
+			"failed to",
 		},
 	}
 	for _, tc := range testCases {
@@ -102,7 +146,37 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "group name must be set",
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name:     "negative interval",
+				Interval: promutils.NewDuration(-1),
+			},
+			expErr: "interval shouldn't be lower than 0",
+		},
+		{
+			group: &Group{
+				Name:       "wrong eval_offset",
+				Interval:   promutils.NewDuration(time.Minute),
+				EvalOffset: promutils.NewDuration(2 * time.Minute),
+			},
+			expErr: "eval_offset should be smaller than interval",
+		},
+		{
+			group: &Group{
+				Name:  "wrong limit",
+				Limit: -1,
+			},
+			expErr: "invalid limit",
+		},
+		{
+			group: &Group{
+				Name:        "wrong concurrency",
+				Concurrency: -1,
+			},
+			expErr: "invalid concurrency",
+		},
+		{
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{
 						Record: "record",
@@ -113,7 +187,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "",
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{
 						Record: "record",
@@ -125,7 +200,8 @@ func TestGroup_Validate(t *testing.T) {
 			validateExpressions: true,
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{
 						Alert: "alert",
@@ -139,7 +215,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "",
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{
 						Alert: "alert",
@@ -156,7 +233,8 @@ func TestGroup_Validate(t *testing.T) {
 			validateAnnotations: true,
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{
 						Alert: "alert",
@@ -171,7 +249,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "duplicate",
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
 						"summary": "{{ value|query }}",
@@ -184,7 +263,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "duplicate",
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{Record: "record", Expr: "up == 1", Labels: map[string]string{
 						"summary": "{{ value|query }}",
@@ -197,7 +277,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "duplicate",
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
 						"summary": "{{ value|query }}",
@@ -210,7 +291,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "",
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{Record: "alert", Expr: "up == 1", Labels: map[string]string{
 						"summary": "{{ value|query }}",
@@ -223,7 +305,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "",
 		},
 		{
-			group: &Group{Name: "test thanos",
+			group: &Group{
+				Name: "test thanos",
 				Type: NewRawType("thanos"),
 				Rules: []Rule{
 					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
@@ -235,7 +318,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr:              "unknown datasource type",
 		},
 		{
-			group: &Group{Name: "test graphite",
+			group: &Group{
+				Name: "test graphite",
 				Type: NewGraphiteType(),
 				Rules: []Rule{
 					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
@@ -247,7 +331,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr:              "",
 		},
 		{
-			group: &Group{Name: "test prometheus",
+			group: &Group{
+				Name: "test prometheus",
 				Type: NewPrometheusType(),
 				Rules: []Rule{
 					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
@@ -352,7 +437,7 @@ func TestHashRule(t *testing.T) {
 			true,
 		},
 		{
-			Rule{Alert: "alert", Expr: "up == 1", For: promutils.NewDuration(time.Minute)},
+			Rule{Alert: "alert", Expr: "up == 1", For: promutils.NewDuration(time.Minute), KeepFiringFor: promutils.NewDuration(time.Minute)},
 			Rule{Alert: "alert", Expr: "up == 1"},
 			true,
 		},
@@ -531,6 +616,24 @@ rules:
 `, `
 name: TestGroup
 headers:
+  - "TenantID: bar"
+rules:
+  - alert: foo
+    expr: sum by(job) (up == 1)
+`)
+	})
+
+	t.Run("`notifier_headers` change", func(t *testing.T) {
+		f(t, `
+name: TestGroup
+notifier_headers:
+  - "TenantID: foo"
+rules:
+  - alert: foo
+    expr: sum by(job) (up == 1)
+`, `
+name: TestGroup
+notifier_headers:
   - "TenantID: bar"
 rules:
   - alert: foo

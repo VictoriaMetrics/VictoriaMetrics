@@ -184,19 +184,14 @@ func testTableSearchEx(t *testing.T, rng *rand.Rand, trData, trSearch TimeRange,
 
 	// Create a table from rowss and test search on it.
 	strg := newTestStorage()
-	tb, err := openTable("./test-table", strg)
-	if err != nil {
-		t.Fatalf("cannot create table: %s", err)
-	}
+	tb := mustOpenTable("test-table", strg)
 	defer func() {
-		if err := os.RemoveAll("./test-table"); err != nil {
+		if err := os.RemoveAll("test-table"); err != nil {
 			t.Fatalf("cannot remove table directory: %s", err)
 		}
 	}()
 	for _, rows := range rowss {
-		if err := tb.AddRows(rows); err != nil {
-			t.Fatalf("cannot add rows to table: %s", err)
-		}
+		tb.MustAddRows(rows)
 
 		// Flush rows to parts.
 		tb.flushPendingRows()
@@ -205,12 +200,10 @@ func testTableSearchEx(t *testing.T, rng *rand.Rand, trData, trSearch TimeRange,
 	tb.MustClose()
 
 	// Open the created table and test search on it.
-	tb, err = openTable("./test-table", strg)
-	if err != nil {
-		t.Fatalf("cannot open table: %s", err)
-	}
+	tb = mustOpenTable("test-table", strg)
 	testTableSearch(t, tb, tsids, trSearch, rbsExpected, rowsCountExpected)
 	tb.MustClose()
+	stopTestStorage(strg)
 }
 
 func testTableSearch(t *testing.T, tb *table, tsids []TSID, tr TimeRange, rbsExpected []rawBlock, rowsCountExpected int64) {

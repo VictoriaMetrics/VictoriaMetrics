@@ -1,19 +1,31 @@
-import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from "preact/compat";
+import React, { FC, useEffect, useMemo, useState } from "preact/compat";
 import { MetricResult } from "../../../api/types";
-import LineChart from "../../Chart/LineChart/LineChart";
+import LineChart from "../../Chart/Line/LineChart/LineChart";
 import { AlignedData as uPlotData, Series as uPlotSeries } from "uplot";
-import Legend from "../../Chart/Legend/Legend";
-import { getHideSeries, getLegendItem, getSeriesItemContext } from "../../../utils/uplot/series";
-import { getLimitsYAxis, getMinMaxBuffer, getTimeSeries } from "../../../utils/uplot/axes";
-import { LegendItemType } from "../../../utils/uplot/types";
-import { TimeParams } from "../../../types";
+import Legend from "../../Chart/Line/Legend/Legend";
+import LegendHeatmap from "../../Chart/Heatmap/LegendHeatmap/LegendHeatmap";
+import {
+  getHideSeries,
+  getLegendItem,
+  getSeriesItemContext,
+  normalizeData,
+  getLimitsYAxis,
+  getMinMaxBuffer,
+  getTimeSeries,
+} from "../../../utils/uplot";
+import { TimeParams, SeriesItem, LegendItemType } from "../../../types";
 import { AxisRange, YaxisState } from "../../../state/graph/reducer";
 import { getAvgFromArray, getMaxFromArray, getMinFromArray } from "../../../utils/math";
 import classNames from "classnames";
 import { useTimeState } from "../../../state/time/TimeStateContext";
+import HeatmapChart from "../../Chart/Heatmap/HeatmapChart/HeatmapChart";
 import "./style.scss";
 import { promValueToNumber } from "../../../utils/metric";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import useElementSize from "../../../hooks/useElementSize";
+import { ChartTooltipProps } from "../../Chart/ChartTooltip/ChartTooltip";
+import LegendAnomaly from "../../Chart/Line/LegendAnomaly/LegendAnomaly";
+import { groupByMultipleKeys } from "../../../utils/array";
 
 export interface GraphViewProps {
   data?: MetricResult[];
@@ -24,53 +36,102 @@ export interface GraphViewProps {
   yaxis: YaxisState;
   unit?: string;
   showLegend?: boolean;
-  setYaxisLimits: (val: AxisRange) => void
-  setPeriod: ({ from, to }: {from: Date, to: Date}) => void
-  fullWidth?: boolean
-  height?: number
+  setYaxisLimits: (val: AxisRange) => void;
+  setPeriod: ({ from, to }: { from: Date, to: Date }) => void;
+  fullWidth?: boolean;
+  height?: number;
+  isHistogram?: boolean;
+  isAnomalyView?: boolean;
+  spanGaps?: boolean;
 }
 
 const GraphView: FC<GraphViewProps> = ({
-  data = [],
+  data: dataRaw = [],
   period,
   customStep,
   query,
   yaxis,
   unit,
-  showLegend= true,
+  showLegend = true,
   setYaxisLimits,
   setPeriod,
   alias = [],
   fullWidth = true,
-  height
+  height,
+  isHistogram,
+  isAnomalyView,
+  spanGaps
 }) => {
   const { isMobile } = useDeviceDetect();
   const { timezone } = useTimeState();
   const currentStep = useMemo(() => customStep || period.step || "1s", [period.step, customStep]);
-  const getSeriesItem = useCallback(getSeriesItemContext(), [data]);
+
+  const data = useMemo(() => normalizeData(dataRaw, isHistogram), [isHistogram, dataRaw]);
 
   const [dataChart, setDataChart] = useState<uPlotData>([[]]);
   const [series, setSeries] = useState<uPlotSeries[]>([]);
   const [legend, setLegend] = useState<LegendItemType[]>([]);
   const [hideSeries, setHideSeries] = useState<string[]>([]);
+  const [legendValue, setLegendValue] = useState<ChartTooltipProps | null>(null);
 
-  const setLimitsYaxis = (values: {[key: string]: number[]}) => {
-    const limits = getLimitsYAxis(values);
+  const getSeriesItem = useMemo(() => {
+    return getSeriesItemContext(data, hideSeries, alias, isAnomalyView);
+  }, [data, hideSeries, alias, isAnomalyView]);
+
+  const setLimitsYaxis = (values: { [key: string]: number[] }) => {
+    const limits = getLimitsYAxis(values, !isHistogram);
     setYaxisLimits(limits);
   };
 
   const onChangeLegend = (legend: LegendItemType, metaKey: boolean) => {
-    setHideSeries(getHideSeries({ hideSeries, legend, metaKey, series }));
+    setHideSeries(getHideSeries({ hideSeries, legend, metaKey, series, isAnomalyView }));
+  };
+
+  const prepareHistogramData = (data: (number | null)[][]) => {
+    const values = data.slice(1, data.length);
+    const xs: (number | null | undefined)[] = [];
+    const counts: (number | null | undefined)[] = [];
+
+    values.forEach((arr, indexRow) => {
+      arr.forEach((v, indexValue) => {
+        const targetIndex = (indexValue * values.length) + indexRow;
+        counts[targetIndex] = v;
+      });
+    });
+
+    data[0].forEach(t => {
+      const arr = new Array(values.length).fill(t);
+      xs.push(...arr);
+    });
+
+    const ys = new Array(xs.length).fill(0).map((n, i) => i % (values.length));
+
+    return [null, [xs, ys, counts]];
+  };
+
+  const prepareAnomalyLegend = (legend: LegendItemType[]): LegendItemType[] => {
+    if (!isAnomalyView) return legend;
+
+    // For vmanomaly: Only select the first series per group (due to API specs) and clear __name__ in freeFormFields.
+    const grouped = groupByMultipleKeys(legend, ["group", "label"]);
+    return grouped.map((group) => {
+      const firstEl = group.values[0];
+      return {
+        ...firstEl,
+        freeFormFields: { ...firstEl.freeFormFields, __name__: "" }
+      };
+    });
   };
 
   useEffect(() => {
     const tempTimes: number[] = [];
-    const tempValues: {[key: string]: number[]} = {};
+    const tempValues: { [key: string]: number[] } = {};
     const tempLegend: LegendItemType[] = [];
     const tempSeries: uPlotSeries[] = [{}];
 
-    data?.forEach((d) => {
-      const seriesItem = getSeriesItem(d, hideSeries, alias);
+    data?.forEach((d, i) => {
+      const seriesItem = getSeriesItem(d, i);
+
       tempSeries.push(seriesItem);
       tempLegend.push(getLegendItem(seriesItem, d.group));
       const tmpValues = tempValues[d.group] || [];
@@ -107,28 +168,33 @@ const GraphView: FC<GraphViewProps> = ({
       const range = getMinMaxBuffer(getMinFromArray(resultAsNumber), getMaxFromArray(resultAsNumber));
       const rangeStep = Math.abs(range[1] - range[0]);
 
-      return (avg > rangeStep * 1e10) ? results.map(() => avg) : results;
+      return (avg > rangeStep * 1e10) && !isAnomalyView ? results.map(() => avg) : results;
     });
     timeDataSeries.unshift(timeSeries);
     setLimitsYaxis(tempValues);
-    setDataChart(timeDataSeries as uPlotData);
+    const result = isHistogram ? prepareHistogramData(timeDataSeries) : timeDataSeries;
+    setDataChart(result as uPlotData);
     setSeries(tempSeries);
-    setLegend(tempLegend);
-  }, [data, timezone]);
+    const legend = prepareAnomalyLegend(tempLegend);
+    setLegend(legend);
+    if (isAnomalyView) {
+      setHideSeries(legend.map(s => s.label || "").slice(1));
+    }
+  }, [data, timezone, isHistogram]);
 
   useEffect(() => {
     const tempLegend: LegendItemType[] = [];
     const tempSeries: uPlotSeries[] = [{}];
-    data?.forEach(d => {
-      const seriesItem = getSeriesItem(d, hideSeries, alias);
+    data?.forEach((d, i) => {
+      const seriesItem = getSeriesItem(d, i);
       tempSeries.push(seriesItem);
       tempLegend.push(getLegendItem(seriesItem, d.group));
     });
     setSeries(tempSeries);
-    setLegend(tempLegend);
+    setLegend(prepareAnomalyLegend(tempLegend));
   }, [hideSeries]);
 
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerRef, containerSize] = useElementSize();
 
   return (
     <div
@@ -139,7 +205,7 @@ const GraphView: FC<GraphViewProps> = ({
       })}
       ref={containerRef}
     >
-      {containerRef?.current &&
+      {!isHistogram && (
         <LineChart
           data={dataChart}
           series={series}
@@ -148,14 +214,41 @@ const GraphView: FC<GraphViewProps> = ({
           yaxis={yaxis}
           unit={unit}
           setPeriod={setPeriod}
-          container={containerRef?.current}
+          layoutSize={containerSize}
           height={height}
-        />}
-      {showLegend && <Legend
-        labels={legend}
-        query={query}
-        onChange={onChangeLegend}
-      />}
+          isAnomalyView={isAnomalyView}
+          spanGaps={spanGaps}
+        />
+      )}
+      {isHistogram && (
+        <HeatmapChart
+          data={dataChart}
+          metrics={data}
+          period={period}
+          unit={unit}
+          setPeriod={setPeriod}
+          layoutSize={containerSize}
+          height={height}
+          onChangeLegend={setLegendValue}
+        />
+      )}
+      {isAnomalyView && showLegend && (<LegendAnomaly series={series as SeriesItem[]}/>)}
+      {!isHistogram && showLegend && (
+        <Legend
+          labels={legend}
+          query={query}
+          isAnomalyView={isAnomalyView}
+          onChange={onChangeLegend}
+        />
+      )}
+      {isHistogram && showLegend && (
+        <LegendHeatmap
+          series={series as SeriesItem[]}
+          min={yaxis.limits.range[1][0] || 0}
+          max={yaxis.limits.range[1][1] || 0}
+          legendValue={legendValue}
+        />
+      )}
     </div>
   );
 };

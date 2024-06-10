@@ -68,11 +68,13 @@ publish-vmalert:
 
 test-vmalert:
 	go test -v -race -cover ./app/vmalert -loggerLevel=ERROR
+	go test -v -race -cover ./app/vmalert/rule
 	go test -v -race -cover ./app/vmalert/templates
 	go test -v -race -cover ./app/vmalert/datasource
 	go test -v -race -cover ./app/vmalert/notifier
 	go test -v -race -cover ./app/vmalert/config
 	go test -v -race -cover ./app/vmalert/remotewrite
+	go test -v -race -cover ./app/vmalert/utils
 
 run-vmalert: vmalert
 	./bin/vmalert -rule=app/vmalert/config/testdata/rules/rules2-good.rules \
@@ -116,6 +118,9 @@ vmalert-linux-ppc64le:
 
 vmalert-linux-s390x:
 	APP_NAME=vmalert CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-local-goos-goarch
+
+vmalert-linux-loong64:
+	APP_NAME=vmalert CGO_ENABLED=0 GOOS=linux GOARCH=loong64 $(MAKE) app-local-goos-goarch
 
 vmalert-linux-386:
 	APP_NAME=vmalert CGO_ENABLED=0 GOOS=linux GOARCH=386 $(MAKE) app-local-goos-goarch

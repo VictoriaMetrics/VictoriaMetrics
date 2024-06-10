@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -42,12 +41,26 @@ func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSer
 	if isVMRemoteWrite {
 		bb.B, err = zstd.Decompress(bb.B[:0], ctx.reqBuf.B)
 		if err != nil {
-			return fmt.Errorf("cannot decompress zstd-encoded request with length %d: %w", len(ctx.reqBuf.B), err)
+			// Fall back to Snappy decompression, since vmagent may send snappy-encoded messages
+			// with 'Content-Encoding: zstd' header if they were put into persistent queue before vmagent restart.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5301
+			zstdErr := err
+			bb.B, err = snappy.Decode(bb.B[:cap(bb.B)], ctx.reqBuf.B)
+			if err != nil {
+				return fmt.Errorf("cannot decompress zstd-encoded request with length %d: %w", len(ctx.reqBuf.B), zstdErr)
+			}
 		}
 	} else {
 		bb.B, err = snappy.Decode(bb.B[:cap(bb.B)], ctx.reqBuf.B)
 		if err != nil {
-			return fmt.Errorf("cannot decompress snappy-encoded request with length %d: %w", len(ctx.reqBuf.B), err)
+			// Fall back to zstd decompression, since vmagent may send zstd-encoded messages
+			// without 'Content-Encoding: zstd' header if they were put into persistent queue before vmagent restart.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5301#issuecomment-1815871992
+			snappyErr := err
+			bb.B, err = zstd.Decompress(bb.B[:0], ctx.reqBuf.B)
+			if err != nil {
+				return fmt.Errorf("cannot decompress snappy-encoded request with length %d: %w", len(ctx.reqBuf.B), snappyErr)
+			}
 		}
 	}
 	if int64(len(bb.B)) > maxInsertRequestSize.N {
@@ -55,7 +68,7 @@ func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSer
 	}
 	wr := getWriteRequest()
 	defer putWriteRequest(wr)
-	if err := wr.Unmarshal(bb.B); err != nil {
+	if err := wr.UnmarshalProtobuf(bb.B); err != nil {
 		unmarshalErrors.Inc()
 		return fmt.Errorf("cannot unmarshal prompb.WriteRequest with size %d bytes: %w", len(bb.B), err)
 	}
@@ -96,7 +109,7 @@ func (ctx *pushCtx) Read() error {
 	}
 	if reqLen > int64(maxInsertRequestSize.N) {
 		readErrors.Inc()
-		return fmt.Errorf("too big packed request; mustn't exceed `-maxInsertRequestSize=%d` bytes", maxInsertRequestSize.N)
+		return fmt.Errorf("too big packed request; mustn't exceed -maxInsertRequestSize=%d bytes; got %d bytes", maxInsertRequestSize.N, reqLen)
 	}
 	return nil
 }
@@ -109,33 +122,22 @@ var (
 )
 
 func getPushCtx(r io.Reader) *pushCtx {
-	select {
-	case ctx := <-pushCtxPoolCh:
+	if v := pushCtxPool.Get(); v != nil {
+		ctx := v.(*pushCtx)
 		ctx.br.Reset(r)
 		return ctx
-	default:
-		if v := pushCtxPool.Get(); v != nil {
-			ctx := v.(*pushCtx)
-			ctx.br.Reset(r)
-			return ctx
-		}
-		return &pushCtx{
-			br: bufio.NewReaderSize(r, 64*1024),
-		}
+	}
+	return &pushCtx{
+		br: bufio.NewReaderSize(r, 64*1024),
 	}
 }
 
 func putPushCtx(ctx *pushCtx) {
 	ctx.reset()
-	select {
-	case pushCtxPoolCh <- ctx:
-	default:
-		pushCtxPool.Put(ctx)
-	}
+	pushCtxPool.Put(ctx)
 }
 
 var pushCtxPool sync.Pool
-var pushCtxPoolCh = make(chan *pushCtx, cgroup.AvailableCPUs())
 
 func getWriteRequest() *prompb.WriteRequest {
 	v := writeRequestPool.Get()

@@ -25,6 +25,7 @@ var aggrFuncs = map[string]bool{
 	"median":         true,
 	"min":            true,
 	"mode":           true,
+	"outliers_iqr":   true,
 	"outliers_mad":   true,
 	"outliersk":      true,
 	"quantile":       true,
@@ -43,7 +44,8 @@ var aggrFuncs = map[string]bool{
 	"zscore":         true,
 }
 
-func isAggrFunc(s string) bool {
+// IsAggrFunc returns whether funcName is a known aggregate function.
+func IsAggrFunc(s string) bool {
 	s = strings.ToLower(s)
 	return aggrFuncs[s]
 }

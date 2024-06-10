@@ -6,10 +6,10 @@ import {
   getDurationFromPeriod,
   getTimeperiodForDuration,
   getRelativeTime,
-  setTimezone
+  setTimezone,
+  getBrowserTimezone
 } from "../../utils/time";
 import { getQueryStringValue } from "../../utils/query-string";
-import dayjs from "dayjs";
 import { getFromStorage, saveToStorage } from "../../utils/storage";
 
 export interface TimeState {
@@ -17,37 +17,51 @@ export interface TimeState {
   period: TimeParams;
   relativeTime?: string;
   timezone: string;
+  defaultTimezone?: string;
 }
 
 export type TimeAction =
+  | { type: "SET_TIME_STATE", payload: { duration: string, period: TimeParams, relativeTime?: string; } }
   | { type: "SET_DURATION", payload: string }
   | { type: "SET_RELATIVE_TIME", payload: {id: string, duration: string, until: Date} }
   | { type: "SET_PERIOD", payload: TimePeriod }
   | { type: "RUN_QUERY"}
   | { type: "RUN_QUERY_TO_NOW"}
   | { type: "SET_TIMEZONE", payload: string }
+  | { type: "SET_DEFAULT_TIMEZONE", payload: string }
 
-const timezone = getFromStorage("TIMEZONE") as string || dayjs.tz.guess();
+const timezone = getFromStorage("TIMEZONE") as string || getBrowserTimezone().region;
 setTimezone(timezone);
 
-const defaultDuration = getQueryStringValue("g0.range_input") as string;
+export const getInitialTimeState = () => {
+  const defaultDuration = getQueryStringValue("g0.range_input") as string;
 
-const { duration, endInput, relativeTimeId } = getRelativeTime({
-  defaultDuration: defaultDuration || "1h",
-  defaultEndInput: formatDateToLocal(getQueryStringValue("g0.end_input", getDateNowUTC()) as string),
-  relativeTimeId: defaultDuration ? getQueryStringValue("g0.relative_time", "none") as string : undefined
-});
+  const { duration, endInput, relativeTimeId } = getRelativeTime({
+    defaultDuration: defaultDuration || "1h",
+    defaultEndInput: formatDateToLocal(getQueryStringValue("g0.end_input", getDateNowUTC()) as string),
+    relativeTimeId: defaultDuration ? getQueryStringValue("g0.relative_time", "none") as string : undefined
+  });
+
+  return {
+    duration,
+    period: getTimeperiodForDuration(duration, endInput),
+    relativeTime: relativeTimeId,
+  };
+};
 
 export const initialTimeState: TimeState = {
-  duration,
-  period: getTimeperiodForDuration(duration, endInput),
-  relativeTime: relativeTimeId,
+  ...getInitialTimeState(),
   timezone,
 };
 
 
 export function reducer(state: TimeState, action: TimeAction): TimeState {
   switch (action.type) {
+    case "SET_TIME_STATE":
+      return {
+        ...state,
+        ...action.payload
+      };
     case "SET_DURATION":
       return {
         ...state,
@@ -90,9 +104,15 @@ export function reducer(state: TimeState, action: TimeAction): TimeState {
     case "SET_TIMEZONE":
       setTimezone(action.payload);
       saveToStorage("TIMEZONE", action.payload);
+      if (state.defaultTimezone) saveToStorage("DISABLED_DEFAULT_TIMEZONE", action.payload !== state.defaultTimezone);
       return {
         ...state,
         timezone: action.payload
+      };
+    case "SET_DEFAULT_TIMEZONE":
+      return {
+        ...state,
+        defaultTimezone: action.payload
       };
     default:
       throw new Error();

@@ -26,6 +26,24 @@ func TestNewTokenSuccess(t *testing.T) {
 	f("1:4294967295", "1:4294967295")
 	// max uint32 accountID and projectID
 	f("4294967295:4294967295", "4294967295:4294967295")
+}
+
+func TestNewTokenPossibleMultitenantSuccess(t *testing.T) {
+	f := func(token string, want string) {
+		t.Helper()
+		newToken, err := NewTokenPossibleMultitenant(token)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		got := newToken.String()
+		if got != want {
+			t.Fatalf("unexpected NewToken() result;got\n%s\nwant\n%s", got, want)
+		}
+	}
+	// token with accountID only
+	f("1", "1")
+	// token with accountID and projecTID
+	f("1:2", "1:2")
 	// multitenant
 	f("multitenant", "multitenant")
 }
@@ -75,4 +93,6 @@ func TestNewTokenFailure(t *testing.T) {
 	f("a:b:c")
 	// many int parts in the token"
 	f("1:2:3")
+	// multitenant
+	f("multitenant")
 }

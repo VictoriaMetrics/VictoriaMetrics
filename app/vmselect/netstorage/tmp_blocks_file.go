@@ -3,6 +3,7 @@ package netstorage
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -20,11 +21,9 @@ func InitTmpBlocksDir(tmpDirPath string) {
 	if len(tmpDirPath) == 0 {
 		tmpDirPath = os.TempDir()
 	}
-	tmpBlocksDir = tmpDirPath + "/searchResults"
+	tmpBlocksDir = filepath.Join(tmpDirPath, "searchResults")
 	fs.MustRemoveAll(tmpBlocksDir)
-	if err := fs.MkdirAllIfNotExist(tmpBlocksDir); err != nil {
-		logger.Panicf("FATAL: cannot create %q: %s", tmpBlocksDir, err)
-	}
+	fs.MustMkdirIfNotExist(tmpBlocksDir)
 }
 
 var tmpBlocksDir string
@@ -139,18 +138,25 @@ func (tbf *tmpBlocksFile) Finalize() error {
 		return fmt.Errorf("cannot write the remaining %d bytes to %q: %w", len(tbf.buf), fname, err)
 	}
 	tbf.buf = tbf.buf[:0]
-	r := fs.MustOpenReaderAt(fname)
+	r := fs.NewReaderAt(tbf.f)
+
 	// Hint the OS that the file is read almost sequentiallly.
 	// This should reduce the number of disk seeks, which is important
 	// for HDDs.
 	r.MustFadviseSequentialRead(true)
+
+	// Collect local stats in order to improve performance on systems with big number of CPU cores.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3966
+	r.SetUseLocalStats()
+
 	tbf.r = r
+	tbf.f = nil
 	return nil
 }
 
 func (tbf *tmpBlocksFile) MustReadBlockAt(dst *storage.Block, addr tmpBlockAddr) {
 	var buf []byte
-	if tbf.f == nil {
+	if tbf.r == nil {
 		buf = tbf.buf[addr.offset : addr.offset+uint64(addr.size)]
 	} else {
 		bb := tmpBufPool.Get()
@@ -171,23 +177,45 @@ func (tbf *tmpBlocksFile) MustReadBlockAt(dst *storage.Block, addr tmpBlockAddr)
 var tmpBufPool bytesutil.ByteBufferPool
 
 func (tbf *tmpBlocksFile) MustClose() {
-	if tbf.f == nil {
+	if tbf.f != nil {
+		// tbf.f could be non-nil if Finalize wasn't called.
+		// In this case tbf.r must be nil.
+		if tbf.r != nil {
+			logger.Panicf("BUG: tbf.r must be nil when tbf.f!=nil")
+		}
+
+		// Try removing the file before closing it in order to prevent from flushing the in-memory data
+		// from page cache to the disk and save disk write IO. This may fail on non-posix systems such as Windows.
+		// Gracefully handle this case by attempting to remove the file after closing it.
+		fname := tbf.f.Name()
+		errRemove := os.Remove(fname)
+		if err := tbf.f.Close(); err != nil {
+			logger.Panicf("FATAL: cannot close %q: %s", fname, err)
+		}
+		if errRemove != nil {
+			if err := os.Remove(fname); err != nil {
+				logger.Panicf("FATAL: cannot remove %q: %s", fname, err)
+			}
+		}
+		tbf.f = nil
 		return
 	}
-	if tbf.r != nil {
-		// tbf.r could be nil if Finalize wasn't called.
-		tbf.r.MustClose()
-	}
-	fname := tbf.f.Name()
 
-	// Remove the file at first, then close it.
-	// This way the OS shouldn't try to flush file contents to storage
-	// on close.
-	if err := os.Remove(fname); err != nil {
-		logger.Panicf("FATAL: cannot remove %q: %s", fname, err)
+	if tbf.r == nil {
+		// Nothing to do
+		return
 	}
-	if err := tbf.f.Close(); err != nil {
-		logger.Panicf("FATAL: cannot close %q: %s", fname, err)
+
+	// Try removing the file before closing it in order to prevent from flushing the in-memory data
+	// from page cache to the disk and save disk write IO. This may fail on non-posix systems such as Windows.
+	// Gracefully handle this case by attempting to remove the file after closing it.
+	fname := tbf.r.Path()
+	errRemove := os.Remove(fname)
+	tbf.r.MustClose()
+	if errRemove != nil {
+		if err := os.Remove(fname); err != nil {
+			logger.Panicf("FATAL: cannot remove %q: %s", fname, err)
+		}
 	}
-	tbf.f = nil
+	tbf.r = nil
 }

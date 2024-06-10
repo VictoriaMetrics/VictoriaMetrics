@@ -87,8 +87,9 @@ func (o *ObjectHandle) NewReader(ctx context.Context) (*Reader, error) {
 // that file will be served back whole, regardless of the requested range as
 // Google Cloud Storage dictates.
 func (o *ObjectHandle) NewRangeReader(ctx context.Context, offset, length int64) (r *Reader, err error) {
-	ctx = trace.StartSpan(ctx, "cloud.google.com/go/storage.Object.NewRangeReader")
-	defer func() { trace.EndSpan(ctx, err) }()
+	// This span covers the life of the reader. It is closed via the context
+	// in Reader.Close.
+	ctx = trace.StartSpan(ctx, "cloud.google.com/go/storage.Object.Reader")
 
 	if err := o.validate(); err != nil {
 		return nil, err
@@ -117,6 +118,14 @@ func (o *ObjectHandle) NewRangeReader(ctx context.Context, offset, length int64)
 
 	r, err = o.c.tc.NewRangeReader(ctx, params, opts...)
 
+	// Pass the context so that the span can be closed in Reader.Close, or close the
+	// span now if there is an error.
+	if err == nil {
+		r.ctx = ctx
+	} else {
+		trace.EndSpan(ctx, err)
+	}
+
 	return r, err
 }
 
@@ -139,15 +148,23 @@ func uncompressedByServer(res *http.Response) bool {
 		res.Header.Get("Content-Encoding") != "gzip"
 }
 
+// parseCRC32c parses the crc32c hash from the X-Goog-Hash header.
+// It can parse headers in the form [crc32c=xxx md5=xxx] (XML responses) or the
+// form [crc32c=xxx,md5=xxx] (JSON responses). The md5 hash is ignored.
 func parseCRC32c(res *http.Response) (uint32, bool) {
 	const prefix = "crc32c="
 	for _, spec := range res.Header["X-Goog-Hash"] {
-		if strings.HasPrefix(spec, prefix) {
-			c, err := decodeUint32(spec[len(prefix):])
-			if err == nil {
-				return c, true
+		values := strings.Split(spec, ",")
+
+		for _, v := range values {
+			if strings.HasPrefix(v, prefix) {
+				c, err := decodeUint32(v[len(prefix):])
+				if err == nil {
+					return c, true
+				}
 			}
 		}
+
 	}
 	return 0, false
 }
@@ -170,16 +187,6 @@ func setConditionsHeaders(headers http.Header, conds *Conditions) error {
 	return nil
 }
 
-// Wrap a request to look similar to an apiary library request, in order to
-// be used by run().
-type readerRequestWrapper struct {
-	req *http.Request
-}
-
-func (w *readerRequestWrapper) Header() http.Header {
-	return w.req.Header
-}
-
 var emptyBody = ioutil.NopCloser(strings.NewReader(""))
 
 // Reader reads a Cloud Storage object.
@@ -191,16 +198,17 @@ var emptyBody = ioutil.NopCloser(strings.NewReader(""))
 type Reader struct {
 	Attrs              ReaderObjectAttrs
 	seen, remain, size int64
-	checkCRC           bool   // should we check the CRC?
-	wantCRC            uint32 // the CRC32c value the server sent in the header
-	gotCRC             uint32 // running crc
+	checkCRC           bool // Did we check the CRC? This is now only used by tests.
 
 	reader io.ReadCloser
+	ctx    context.Context
 }
 
 // Close closes the Reader. It must be called when done reading.
 func (r *Reader) Close() error {
-	return r.reader.Close()
+	err := r.reader.Close()
+	trace.EndSpan(r.ctx, err)
+	return err
 }
 
 func (r *Reader) Read(p []byte) (int, error) {
@@ -208,17 +216,17 @@ func (r *Reader) Read(p []byte) (int, error) {
 	if r.remain != -1 {
 		r.remain -= int64(n)
 	}
-	if r.checkCRC {
-		r.gotCRC = crc32.Update(r.gotCRC, crc32cTable, p[:n])
-		// Check CRC here. It would be natural to check it in Close, but
-		// everybody defers Close on the assumption that it doesn't return
-		// anything worth looking at.
-		if err == io.EOF {
-			if r.gotCRC != r.wantCRC {
-				return n, fmt.Errorf("storage: bad CRC on read: got %d, want %d",
-					r.gotCRC, r.wantCRC)
-			}
-		}
+	return n, err
+}
+
+// WriteTo writes all the data from the Reader to w. Fulfills the io.WriterTo interface.
+// This is called implicitly when calling io.Copy on a Reader.
+func (r *Reader) WriteTo(w io.Writer) (int64, error) {
+	// This implicitly calls r.reader.WriteTo for gRPC only. JSON and XML don't have an
+	// implementation of WriteTo.
+	n, err := io.Copy(w, r.reader)
+	if r.remain != -1 {
+		r.remain -= int64(n)
 	}
 	return n, err
 }

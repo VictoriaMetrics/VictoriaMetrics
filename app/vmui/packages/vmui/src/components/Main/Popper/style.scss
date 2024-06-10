@@ -49,6 +49,16 @@
       user-select: none;
     }
   }
+
+  &_dark {
+    background-color: $color-background-tooltip;
+    color: $color-white;
+  }
+
+  &_dark &-header {
+    background-color: transparent;
+    color: $color-white;
+  }
 }
 
 @keyframes vm-slider {

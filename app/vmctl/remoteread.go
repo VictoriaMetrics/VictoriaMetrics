@@ -11,7 +11,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	"github.com/cheggaaa/pb/v3"
 )
 
 type remoteReadProcessor struct {
@@ -20,16 +19,18 @@ type remoteReadProcessor struct {
 	dst *vm.Importer
 	src *remoteread.Client
 
-	cc int
+	cc        int
+	isVerbose bool
 }
 
 type remoteReadFilter struct {
-	timeStart *time.Time
-	timeEnd   *time.Time
-	chunk     string
+	timeStart   *time.Time
+	timeEnd     *time.Time
+	chunk       string
+	timeReverse bool
 }
 
-func (rrp *remoteReadProcessor) run(ctx context.Context, silent, verbose bool) error {
+func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 	rrp.dst.ResetStats()
 	if rrp.filter.timeEnd == nil {
 		t := time.Now().In(rrp.filter.timeStart.Location())
@@ -39,28 +40,24 @@ func (rrp *remoteReadProcessor) run(ctx context.Context, silent, verbose bool) e
 		rrp.cc = 1
 	}
 
-	ranges, err := stepper.SplitDateRange(*rrp.filter.timeStart, *rrp.filter.timeEnd, rrp.filter.chunk)
+	ranges, err := stepper.SplitDateRange(*rrp.filter.timeStart, *rrp.filter.timeEnd, rrp.filter.chunk, rrp.filter.timeReverse)
 	if err != nil {
 		return fmt.Errorf("failed to create date ranges for the given time filters: %v", err)
 	}
 
 	question := fmt.Sprintf("Selected time range %q - %q will be split into %d ranges according to %q step. Continue?",
 		rrp.filter.timeStart.String(), rrp.filter.timeEnd.String(), len(ranges), rrp.filter.chunk)
-	if !silent && !prompt(question) {
+	if !prompt(question) {
 		return nil
 	}
 
-	var bar *pb.ProgressBar
-	if !silent {
-		bar = barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing ranges"), len(ranges))
-		if err := barpool.Start(); err != nil {
-			return err
-		}
+	bar := barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing ranges"), len(ranges))
+	if err := barpool.Start(); err != nil {
+		return err
 	}
+
 	defer func() {
-		if !silent {
-			barpool.Stop()
-		}
+		barpool.Stop()
 		log.Println("Import finished!")
 		log.Print(rrp.dst.Stats())
 	}()
@@ -78,9 +75,7 @@ func (rrp *remoteReadProcessor) run(ctx context.Context, silent, verbose bool) e
 					errCh <- fmt.Errorf("request failed for: %s", err)
 					return
 				}
-				if bar != nil {
-					bar.Increment()
-				}
+				bar.Increment()
 			}
 		}()
 	}
@@ -90,7 +85,7 @@ func (rrp *remoteReadProcessor) run(ctx context.Context, silent, verbose bool) e
 		case infErr := <-errCh:
 			return fmt.Errorf("remote read error: %s", infErr)
 		case vmErr := <-rrp.dst.Errors():
-			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
+			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, rrp.isVerbose))
 		case rangeC <- &remoteread.Filter{
 			StartTimestampMs: r[0].UnixMilli(),
 			EndTimestampMs:   r[1].UnixMilli(),
@@ -105,7 +100,7 @@ func (rrp *remoteReadProcessor) run(ctx context.Context, silent, verbose bool) e
 	// drain import errors channel
 	for vmErr := range rrp.dst.Errors() {
 		if vmErr.Err != nil {
-			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
+			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, rrp.isVerbose))
 		}
 	}
 	for err := range errCh {

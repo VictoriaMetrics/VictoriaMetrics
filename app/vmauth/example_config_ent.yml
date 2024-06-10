@@ -1,0 +1,47 @@
+# Arbitrary number of usernames may be put here.
+# It is possible to set multiple identical usernames with different passwords.
+# Such usernames can be differentiated by `name` option.
+
+users:
+  # A single user for querying and inserting data:
+  #
+  # - Requests to http://vmauth:8427/api/v1/query, http://vmauth:8427/api/v1/query_range
+  #   and http://vmauth:8427/api/v1/label/<label_name>/values are proxied to the following urls in a round-robin manner:
+  #     - http://vmselect1:8481/select/42/prometheus
+  #     - http://vmselect2:8481/select/42/prometheus
+  #   For example, http://vmauth:8427/api/v1/query is proxied to http://vmselect1:8480/select/42/prometheus/api/v1/query
+  #   or to http://vmselect2:8480/select/42/prometheus/api/v1/query .
+  #
+  # - Requests to http://vmauth:8427/api/v1/write are proxied to http://vminsert:8480/insert/42/prometheus/api/v1/write .
+  #   The "X-Scope-OrgID: abc" http header is added to these requests.
+  #
+  # Request which do not match `src_paths` from the `url_map` are proxied to the urls from `default_url`
+  # in a round-robin manner. The original request path is passed in `request_path` query arg.
+  # For example, request to http://vmauth:8427/non/existing/path are proxied:
+  #  - to http://default1:8888/unsupported_url_handler?request_path=/non/existing/path
+  #  - or http://default2:8888/unsupported_url_handler?request_path=/non/existing/path
+  #
+  # Regular expressions are allowed in `src_paths` entries.
+- username: "foobar"
+  url_map:
+  - src_paths:
+    - "/api/v1/query"
+    - "/api/v1/query_range"
+    - "/api/v1/label/[^/]+/values"
+    url_prefix:
+    - "http://vmselect1:8481/select/42/prometheus"
+    - "http://vmselect2:8481/select/42/prometheus"
+  - src_paths: ["/api/v1/write"]
+    url_prefix: "http://vminsert:8480/insert/42/prometheus"
+    headers:
+    - "X-Scope-OrgID: abc"
+    ip_filters:
+      deny_list: [127.0.0.1]
+  default_url:
+  - "http://default1:8888/unsupported_url_handler"
+  - "http://default2:8888/unsupported_url_handler"
+
+ip_filters:
+  allow_list: ["1.2.3.0/24", "127.0.0.1"]
+  deny_list:
+  - 10.1.0.1

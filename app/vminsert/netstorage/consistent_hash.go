@@ -28,6 +28,13 @@ func (rh *consistentHash) getNodeIdx(h uint64, excludeIdxs []int) int {
 	var mMax uint64
 	var idx int
 	h ^= rh.hashSeed
+
+	if len(excludeIdxs) == len(rh.nodeHashes) {
+		// All the nodes are excluded. Treat this case as no nodes are excluded.
+		// This is better from load-balacning PoV than selecting some static node.
+		excludeIdxs = nil
+	}
+
 next:
 	for i, nh := range rh.nodeHashes {
 		for _, j := range excludeIdxs {

@@ -9,23 +9,27 @@
   &_textarea:after {
     content: attr(data-replicated-value) " ";
     white-space: pre-wrap;
+    overflow-wrap: break-word;
     visibility: hidden;
   }
 
   &__input,
   &::after {
+    font-family: $font-family-monospace;
     width: 100%;
     padding: $padding-small $padding-global;
     border: $border-divider;
     background-color: transparent;
-    font-size: 12px;
+    font-size: $font-size;
     line-height: 18px;
     grid-area: 1 / 1 / 2 / 2;
     overflow: hidden;
+    box-sizing: border-box;
   }
 
   &__label,
   &__error,
+  &__warning,
   &__helper-text, {
     position: absolute;
     left: calc($padding-global/2);
@@ -40,14 +44,9 @@
     overflow: hidden;
     text-overflow: ellipsis;
     display: -webkit-box;
-    -webkit-line-clamp: 2; /* number of lines to show */
-    line-clamp: 2;
+    -webkit-line-clamp: 1; /* number of lines to show */
+    line-clamp: 1;
     -webkit-box-orient: vertical;
-
-    @media (max-width: 500px) {
-      -webkit-line-clamp: 1; /* number of lines to show */
-      line-clamp: 1;
-    }
   }
 
   &__label {
@@ -55,13 +54,35 @@
     color: $color-text-secondary;
   }
 
+  &__helper-text,
+  &__warning,
   &__error {
-    top: calc((100% - ($font-size-small/2)) - 2px);
+    position: relative;
+    top: calc($font-size-small/-2);
+    width: fit-content;
+    overflow-wrap: anywhere;
+    pointer-events: auto;
+    user-select: text;
+
+    &_full {
+      display: block;
+      overflow: visible;
+    }
+
+    &_overflowed {
+      cursor: pointer;
+    }
+  }
+
+  &__error {
     color: $color-error;
   }
 
+  &__warning {
+    color: $color-warning;
+  }
+
   &__helper-text {
-    bottom: calc($font-size-small/-2);
     color: $color-text-secondary;
   }
 
@@ -69,7 +90,6 @@
     display: block;
     border-radius: $border-radius-small;
     transition: border 200ms ease;
-    min-height: 34px;
     resize: none;
     overflow: hidden;
     background-color: transparent;
@@ -84,14 +104,26 @@
     }
 
     &_error {
-      border: 1px solid $color-error;
+      border-color: $color-error;
 
       &:hover {
-        border: 1px solid $color-error;
+        border-color: $color-error;
       }
 
       &:focus {
-        border: 1px solid $color-error;
+        border-color: $color-error;
+      }
+    }
+
+    &_warning {
+      border-color: $color-warning;
+
+      &:hover {
+        border-color: $color-warning;
+      }
+
+      &:focus {
+        border-color: $color-warning;
       }
     }
 
@@ -115,9 +147,9 @@
     align-items: center;
     justify-content: center;
     max-width: 15px;
-    top: auto;
+    top: 0;
     left: $padding-small;
-    height: 100%;
+    height: 40px;
     position: absolute;
     color: $color-text-secondary;
   }
@@ -125,5 +157,14 @@
   &__icon-end {
     left: auto;
     right: $padding-small;
+  }
+
+  &__controls-info {
+    position: absolute;
+    bottom: $padding-small;
+    right: $padding-global;
+    color: $color-text-secondary;
+    font-size: $font-size-small;
+    opacity: 0.8;
   }
 }

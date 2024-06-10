@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used")
+var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used")
 
 // NewTCPListener returns new TCP listener for the given addr and optional tlsConfig.
 //
@@ -78,6 +79,8 @@ type TCPListener struct {
 	connMetrics
 }
 
+var proxyProtocolReadErrorLogger = logger.WithThrottler("proxyProtocolReadError", 5*time.Second)
+
 // Accept accepts connections from the addr passed to NewTCPListener.
 func (ln *TCPListener) Accept() (net.Conn, error) {
 	for {
@@ -94,10 +97,15 @@ func (ln *TCPListener) Accept() (net.Conn, error) {
 			return nil, err
 		}
 		if ln.useProxyProtocol {
-			conn, err = newProxyProtocolConn(conn)
+			pConn, err := newProxyProtocolConn(conn)
 			if err != nil {
-				return nil, err
+				if !errors.Is(err, io.EOF) {
+					proxyProtocolReadErrorLogger.Errorf("cannot read proxy proto conn for TCP addr %q: %s", ln.Addr(), err)
+				}
+				_ = conn.Close()
+				continue
 			}
+			conn = pConn
 		}
 		ln.conns.Inc()
 		sc := &statConn{

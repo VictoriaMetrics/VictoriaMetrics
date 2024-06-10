@@ -10,13 +10,23 @@ users:
 - bearer_token: "XXXX"
   url_prefix: "http://localhost:8428"
 
+  # Adds labels to the exported metrics for given user section
+  # label name must be prometheus compatible and match regex: `^[a-zA-Z_:.][a-zA-Z0-9_:.]*$`
+  metric_labels:
+    backend_dc: eu
+    access_team: dev
   # Requests with the 'Authorization: Bearer YYY' header are proxied to http://localhost:8428 ,
   # The `X-Scope-OrgID: foobar` http header is added to every proxied request.
+  # The `X-Server-Hostname:` http header is removed from the proxied response.
   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
 - bearer_token: "YYY"
   url_prefix: "http://localhost:8428"
+  # extra headers to add to the request or remove from the request (if header value is empty)
   headers:
   - "X-Scope-OrgID: foobar"
+  # extra headers to add to the response or remove from the response (if header value is empty)
+  response_headers:
+  - "X-Server-Hostname:" # empty value means the header will be removed from the response
 
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
   # are proxied to http://localhost:8428 .
@@ -32,10 +42,19 @@ users:
 
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
   # are proxied to http://localhost:8428 with extra_label=team=dev query arg.
-  # For example, http://vmauth:8427/api/v1/query is routed to http://localhost:8428/api/v1/query?extra_label=team=dev
+  # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query?extra_label=team=dev
 - username: "local-single-node2"
   password: "***"
   url_prefix: "http://localhost:8428?extra_label=team=dev"
+
+  # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
+  # are proxied to https://localhost:8428
+  # For example, http://vmauth:8427/api/v1/query is proxied to https://localhost/api/v1/query
+  # TLS verification is ignored for https://localhost.
+- username: "local-single-node-with-tls"
+  password: "***"
+  url_prefix: "https://localhost"
+  tls_insecure_skip_verify: true
 
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
   # are load-balanced among http://vmselect1:8481/select/123/prometheus and http://vmselect2:8481/select/123/prometheus
@@ -60,14 +79,25 @@ users:
   - "http://vminsert2:8480/insert/42/prometheus"
 
   # A single user for querying and inserting data:
+  #
   # - Requests to http://vmauth:8427/api/v1/query, http://vmauth:8427/api/v1/query_range
   #   and http://vmauth:8427/api/v1/label/<label_name>/values are proxied to the following urls in a round-robin manner:
   #     - http://vmselect1:8481/select/42/prometheus
   #     - http://vmselect2:8481/select/42/prometheus
   #   For example, http://vmauth:8427/api/v1/query is proxied to http://vmselect1:8480/select/42/prometheus/api/v1/query
   #   or to http://vmselect2:8480/select/42/prometheus/api/v1/query .
+  #   Requests are re-tried at other url_prefix backends if response status codes match 500 or 502.
+  #
   # - Requests to http://vmauth:8427/api/v1/write are proxied to http://vminsert:8480/insert/42/prometheus/api/v1/write .
   #   The "X-Scope-OrgID: abc" http header is added to these requests.
+  #
+  # Request which do not match `src_paths` from the `url_map` are proxied to the urls from `default_url`
+  # in a round-robin manner. The original request path is passed in `request_path` query arg.
+  # For example, request to http://vmauth:8427/non/existing/path are proxied:
+  #  - to http://default1:8888/unsupported_url_handler?request_path=/non/existing/path
+  #  - or http://default2:8888/unsupported_url_handler?request_path=/non/existing/path
+  #
+  # Regular expressions are allowed in `src_paths` and `src_hosts` entries.
 - username: "foobar"
   url_map:
   - src_paths:
@@ -77,7 +107,21 @@ users:
     url_prefix:
     - "http://vmselect1:8481/select/42/prometheus"
     - "http://vmselect2:8481/select/42/prometheus"
+    retry_status_codes: [500, 502]
   - src_paths: ["/api/v1/write"]
     url_prefix: "http://vminsert:8480/insert/42/prometheus"
     headers:
     - "X-Scope-OrgID: abc"
+  default_url:
+  - "http://default1:8888/unsupported_url_handler"
+  - "http://default2:8888/unsupported_url_handler"
+
+# Requests without Authorization header are proxied according to `unauthorized_user` section.
+# Requests are proxied in round-robin fashion between `url_prefix` backends.
+# The deny_partial_response query arg is added to all the proxied requests.
+# The requests are re-tried if url_prefix backends send 500 or 503 response status codes.
+unauthorized_user:
+  url_prefix:
+  - http://vmselect-az1/?deny_partial_response=1
+  - http://vmselect-az2/?deny_partial_response=1
+  retry_status_codes: [503, 500]

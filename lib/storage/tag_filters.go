@@ -17,7 +17,31 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/lrucache"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
+
+func getCommonMetricNameForTagFilterss(tfss []*TagFilters) []byte {
+	if len(tfss) == 0 {
+		return nil
+	}
+	prevName := getMetricNameFilter(tfss[0])
+	for _, tfs := range tfss[1:] {
+		name := getMetricNameFilter(tfs)
+		if string(prevName) != string(name) {
+			return nil
+		}
+	}
+	return prevName
+}
+
+func getMetricNameFilter(tfs *TagFilters) []byte {
+	for _, tf := range tfs.tfs {
+		if len(tf.key) == 0 && !tf.isNegative && !tf.isRegexp {
+			return tf.value
+		}
+	}
+	return nil
+}
 
 // convertToCompositeTagFilterss converts tfss to composite filters.
 //
@@ -58,7 +82,7 @@ func convertToCompositeTagFilters(tfs *TagFilters) []*TagFilters {
 	// then it is impossible to construct composite tag filter.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2238
 	if len(names) == 0 || !hasPositiveFilter {
-		atomic.AddUint64(&compositeFilterMissingConversions, 1)
+		compositeFilterMissingConversions.Add(1)
 		return []*TagFilters{tfs}
 	}
 
@@ -117,20 +141,20 @@ func convertToCompositeTagFilters(tfs *TagFilters) []*TagFilters {
 		if compositeFilters == 0 {
 			// Cannot use tfsNew, since it doesn't contain composite filters, e.g. it may match broader set of series.
 			// Fall back to the original tfs.
-			atomic.AddUint64(&compositeFilterMissingConversions, 1)
+			compositeFilterMissingConversions.Add(1)
 			return []*TagFilters{tfs}
 		}
 		tfsCompiled := NewTagFilters(tfs.accountID, tfs.projectID)
 		tfsCompiled.tfs = tfsNew
 		tfssCompiled = append(tfssCompiled, tfsCompiled)
 	}
-	atomic.AddUint64(&compositeFilterSuccessConversions, 1)
+	compositeFilterSuccessConversions.Add(1)
 	return tfssCompiled
 }
 
 var (
-	compositeFilterSuccessConversions uint64
-	compositeFilterMissingConversions uint64
+	compositeFilterSuccessConversions atomic.Uint64
+	compositeFilterMissingConversions atomic.Uint64
 )
 
 // TagFilters represents filters used for filtering tags.
@@ -301,7 +325,7 @@ func (tf *tagFilter) Less(other *tagFilter) bool {
 // String returns human-readable tf value.
 func (tf *tagFilter) String() string {
 	op := tf.getOp()
-	value := bytesutil.LimitStringLen(string(tf.value), 60)
+	value := stringsutil.LimitStringLen(string(tf.value), 60)
 	if bytes.Equal(tf.key, graphiteReverseTagKey) {
 		return fmt.Sprintf("__graphite_reverse__%s%q", op, value)
 	}
@@ -538,7 +562,7 @@ func getRegexpFromCache(expr string) (*regexpCacheValue, error) {
 	}
 
 	sExpr := expr
-	orValues := regexutil.GetOrValues(sExpr)
+	orValues := regexutil.GetOrValuesPromRegex(sExpr)
 	var reMatch func(b []byte) bool
 	var reCost uint64
 	var literalSuffix string
@@ -634,7 +658,7 @@ const (
 func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp) (func(b []byte) bool, string, uint64) {
 	if isDotStar(sre) {
 		// '.*'
-		return func(b []byte) bool {
+		return func(_ []byte) bool {
 			return true
 		}, "", fullMatchCost
 	}
@@ -871,7 +895,7 @@ func simplifyRegexp(expr string) (string, string) {
 	// Make a copy of expr before using it,
 	// since it may be constructed via bytesutil.ToUnsafeString()
 	expr = string(append([]byte{}, expr...))
-	prefix, suffix := regexutil.Simplify(expr)
+	prefix, suffix := regexutil.SimplifyPromRegex(expr)
 
 	// Put the prefix and the suffix to the cache.
 	ps := &prefixSuffix{

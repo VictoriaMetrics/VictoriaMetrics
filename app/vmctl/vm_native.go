@@ -2,178 +2,134 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
-	"net/http"
+	"strings"
+	"sync"
 	"time"
 
-	"github.com/cheggaaa/pb/v3"
-
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 type vmNativeProcessor struct {
-	filter    filter
-	rateLimit int64
+	filter native.Filter
 
-	dst          *vmNativeClient
-	src          *vmNativeClient
+	dst     *native.Client
+	src     *native.Client
+	backoff *backoff.Backoff
+
+	s            *stats
+	rateLimit    int64
 	interCluster bool
-}
+	cc           int
+	isNative     bool
 
-type vmNativeClient struct {
-	addr        string
-	user        string
-	password    string
-	extraLabels []string
-}
-
-type filter struct {
-	match     string
-	timeStart string
-	timeEnd   string
-	chunk     string
-}
-
-func (f filter) String() string {
-	s := fmt.Sprintf("\n\tfilter: match[]=%s", f.match)
-	if f.timeStart != "" {
-		s += fmt.Sprintf("\n\tstart: %s", f.timeStart)
-	}
-	if f.timeEnd != "" {
-		s += fmt.Sprintf("\n\tend: %s", f.timeEnd)
-	}
-	return s
+	disablePerMetricRequests bool
 }
 
 const (
-	nativeExportAddr  = "api/v1/export/native"
-	nativeImportAddr  = "api/v1/import/native"
-	nativeTenantsAddr = "admin/tenants"
-
-	nativeBarTpl = `Total: {{counters . }} {{ cycle . "↖" "↗" "↘" "↙" }} Speed: {{speed . }} {{string . "suffix"}}`
+	nativeExportAddr       = "api/v1/export"
+	nativeImportAddr       = "api/v1/import"
+	nativeWithBackoffTpl   = `{{ blue "%s:" }} {{ counters . }} {{ bar . "[" "█" (cycle . "█") "▒" "]" }} {{ percent . }}`
+	nativeSingleProcessTpl = `Total: {{counters . }} {{ cycle . "↖" "↗" "↘" "↙" }} Speed: {{speed . }} {{string . "suffix"}}`
 )
 
 func (p *vmNativeProcessor) run(ctx context.Context) error {
-	if p.filter.chunk == "" {
-		return p.runWithFilter(ctx, p.filter)
+	if p.cc == 0 {
+		p.cc = 1
+	}
+	p.s = &stats{
+		startTime: time.Now(),
 	}
 
-	startOfRange, err := time.Parse(time.RFC3339, p.filter.timeStart)
+	start, err := utils.ParseTime(p.filter.TimeStart)
 	if err != nil {
-		return fmt.Errorf("failed to parse %s, provided: %s, expected format: %s, error: %v", vmNativeFilterTimeStart, p.filter.timeStart, time.RFC3339, err)
+		return fmt.Errorf("failed to parse %s, provided: %s, error: %w", vmNativeFilterTimeStart, p.filter.TimeStart, err)
 	}
 
-	var endOfRange time.Time
-	if p.filter.timeEnd != "" {
-		endOfRange, err = time.Parse(time.RFC3339, p.filter.timeEnd)
+	end := time.Now().In(start.Location())
+	if p.filter.TimeEnd != "" {
+		end, err = utils.ParseTime(p.filter.TimeEnd)
 		if err != nil {
-			return fmt.Errorf("failed to parse %s, provided: %s, expected format: %s, error: %v", vmNativeFilterTimeEnd, p.filter.timeEnd, time.RFC3339, err)
+			return fmt.Errorf("failed to parse %s, provided: %s, error: %w", vmNativeFilterTimeEnd, p.filter.TimeEnd, err)
 		}
-	} else {
-		endOfRange = time.Now()
 	}
 
-	ranges, err := stepper.SplitDateRange(startOfRange, endOfRange, p.filter.chunk)
-	if err != nil {
-		return fmt.Errorf("failed to create date ranges for the given time filters: %v", err)
-	}
-
-	for rangeIdx, r := range ranges {
-		formattedStartTime := r[0].Format(time.RFC3339)
-		formattedEndTime := r[1].Format(time.RFC3339)
-		log.Printf("Processing range %d/%d: %s - %s \n", rangeIdx+1, len(ranges), formattedStartTime, formattedEndTime)
-		f := filter{
-			match:     p.filter.match,
-			timeStart: formattedStartTime,
-			timeEnd:   formattedEndTime,
-		}
-		err := p.runWithFilter(ctx, f)
-
+	ranges := [][]time.Time{{start, end}}
+	if p.filter.Chunk != "" {
+		ranges, err = stepper.SplitDateRange(start, end, p.filter.Chunk, p.filter.TimeReverse)
 		if err != nil {
-			log.Printf("processing failed for range %d/%d: %s - %s \n", rangeIdx+1, len(ranges), formattedStartTime, formattedEndTime)
-			return err
+			return fmt.Errorf("failed to create date ranges for the given time filters: %w", err)
 		}
 	}
+	tenants := []string{""}
+	if p.interCluster {
+		log.Printf("Discovering tenants...")
+		tenants, err = p.src.GetSourceTenants(ctx, p.filter)
+		if err != nil {
+			return fmt.Errorf("failed to get tenants: %w", err)
+		}
+		question := fmt.Sprintf("The following tenants were discovered: %s.\n Continue?", tenants)
+		if !prompt(question) {
+			return nil
+		}
+	}
+
+	for _, tenantID := range tenants {
+		err := p.runBackfilling(ctx, tenantID, ranges)
+		if err != nil {
+			return fmt.Errorf("migration failed: %s", err)
+		}
+	}
+
+	log.Println("Import finished!")
+	log.Print(p.s)
+
 	return nil
 }
 
-func (p *vmNativeProcessor) runWithFilter(ctx context.Context, f filter) error {
-	nativeImportAddr, err := vm.AddExtraLabelsToImportPath(nativeImportAddr, p.dst.extraLabels)
+func (p *vmNativeProcessor) do(ctx context.Context, f native.Filter, srcURL, dstURL string, bar barpool.Bar) error {
 
+	retryableFunc := func() error { return p.runSingle(ctx, f, srcURL, dstURL, bar) }
+	attempts, err := p.backoff.Retry(ctx, retryableFunc)
+	p.s.Lock()
+	p.s.retries += attempts
+	p.s.Unlock()
 	if err != nil {
-		return fmt.Errorf("failed to add labels to import path: %s", err)
-	}
-
-	if !p.interCluster {
-		srcURL := fmt.Sprintf("%s/%s", p.src.addr, nativeExportAddr)
-		dstURL := fmt.Sprintf("%s/%s", p.dst.addr, nativeImportAddr)
-
-		return p.runSingle(ctx, f, srcURL, dstURL)
-	}
-
-	tenants, err := p.getSourceTenants(ctx, f)
-	if err != nil {
-		return fmt.Errorf("failed to get source tenants: %s", err)
-	}
-
-	log.Printf("Discovered tenants: %v", tenants)
-	for _, tenant := range tenants {
-		// src and dst expected formats: http://vminsert:8480/ and http://vmselect:8481/
-		srcURL := fmt.Sprintf("%s/select/%s/prometheus/%s", p.src.addr, tenant, nativeExportAddr)
-		dstURL := fmt.Sprintf("%s/insert/%s/prometheus/%s", p.dst.addr, tenant, nativeImportAddr)
-
-		if err := p.runSingle(ctx, f, srcURL, dstURL); err != nil {
-			return fmt.Errorf("failed to migrate data for tenant %q: %s", tenant, err)
-		}
+		return fmt.Errorf("failed to migrate from %s to %s (retry attempts: %d): %w\nwith filter %s", srcURL, dstURL, attempts, err, f)
 	}
 
 	return nil
 }
 
-func (p *vmNativeProcessor) runSingle(ctx context.Context, f filter, srcURL, dstURL string) error {
-	log.Printf("Initing export pipe from %q with filters: %s\n", srcURL, f)
-
-	exportReader, err := p.exportPipe(ctx, srcURL, f)
+func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcURL, dstURL string, bar barpool.Bar) error {
+	reader, err := p.src.ExportPipe(ctx, srcURL, f)
 	if err != nil {
-		return fmt.Errorf("failed to init export pipe: %s", err)
+		return fmt.Errorf("failed to init export pipe: %w", err)
+	}
+
+	if p.disablePerMetricRequests {
+		pr := bar.NewProxyReader(reader)
+		if pr != nil {
+			reader = bar.NewProxyReader(reader)
+			fmt.Printf("Continue import process with filter %s:\n", f.String())
+		}
 	}
 
 	pr, pw := io.Pipe()
-	sync := make(chan struct{})
+	importCh := make(chan error)
 	go func() {
-		defer func() { close(sync) }()
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, dstURL, pr)
-		if err != nil {
-			log.Fatalf("cannot create import request to %q: %s", p.dst.addr, err)
-		}
-		importResp, err := p.dst.do(req, http.StatusNoContent)
-		if err != nil {
-			log.Fatalf("import request failed: %s", err)
-		}
-		if err := importResp.Body.Close(); err != nil {
-			log.Fatalf("cannot close import response body: %s", err)
-		}
-	}()
-
-	fmt.Printf("Initing import process to %q:\n", dstURL)
-	pool := pb.NewPool()
-	bar := pb.ProgressBarTemplate(nativeBarTpl).New(0)
-	pool.Add(bar)
-	barReader := bar.NewProxyReader(exportReader)
-	if err := pool.Start(); err != nil {
-		log.Printf("error start process bars pool: %s", err)
-		return err
-	}
-	defer func() {
-		bar.Finish()
-		if err := pool.Stop(); err != nil {
-			fmt.Printf("failed to stop barpool: %+v\n", err)
-		}
+		importCh <- p.dst.ImportPipe(ctx, dstURL, pr)
+		close(importCh)
 	}()
 
 	w := io.Writer(pw)
@@ -182,95 +138,253 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f filter, srcURL, dst
 		w = limiter.NewWriteLimiter(pw, rl)
 	}
 
-	_, err = io.Copy(w, barReader)
+	written, err := io.Copy(w, reader)
 	if err != nil {
-		return fmt.Errorf("failed to write into %q: %s", p.dst.addr, err)
+		return fmt.Errorf("failed to write into %q: %s", p.dst.Addr, err)
 	}
+
+	p.s.Lock()
+	p.s.bytes += uint64(written)
+	p.s.requests++
+	p.s.Unlock()
 
 	if err := pw.Close(); err != nil {
 		return err
 	}
-	<-sync
 
-	log.Println("Import finished!")
+	return <-importCh
+}
+
+func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string, ranges [][]time.Time) error {
+	exportAddr := nativeExportAddr
+	importAddr := nativeImportAddr
+	if p.isNative {
+		exportAddr += "/native"
+		importAddr += "/native"
+	}
+	srcURL := fmt.Sprintf("%s/%s", p.src.Addr, exportAddr)
+
+	importAddr, err := vm.AddExtraLabelsToImportPath(importAddr, p.dst.ExtraLabels)
+	if err != nil {
+		return fmt.Errorf("failed to add labels to import path: %s", err)
+	}
+	dstURL := fmt.Sprintf("%s/%s", p.dst.Addr, importAddr)
+
+	if p.interCluster {
+		srcURL = fmt.Sprintf("%s/select/%s/prometheus/%s", p.src.Addr, tenantID, exportAddr)
+		dstURL = fmt.Sprintf("%s/insert/%s/prometheus/%s", p.dst.Addr, tenantID, importAddr)
+	}
+
+	initMessage := "Initing import process from %q to %q with filter %s"
+	initParams := []interface{}{srcURL, dstURL, p.filter.String()}
+	if p.interCluster {
+		initMessage = "Initing import process from %q to %q with filter %s for tenant %s"
+		initParams = []interface{}{srcURL, dstURL, p.filter.String(), tenantID}
+	}
+
+	fmt.Println("") // extra line for better output formatting
+	log.Printf(initMessage, initParams...)
+	if len(ranges) > 1 {
+		log.Printf("Selected time range will be split into %d ranges according to %q step", len(ranges), p.filter.Chunk)
+	}
+
+	var foundSeriesMsg string
+	var requestsToMake int
+	var metrics = map[string][][]time.Time{
+		"": ranges,
+	}
+	if !p.disablePerMetricRequests {
+		metrics, err = p.explore(ctx, p.src, tenantID, ranges)
+		if err != nil {
+			return fmt.Errorf("failed to explore metric names: %s", err)
+		}
+		if len(metrics) == 0 {
+			errMsg := "no metrics found"
+			if tenantID != "" {
+				errMsg = fmt.Sprintf("%s for tenant id: %s", errMsg, tenantID)
+			}
+			log.Println(errMsg)
+			return nil
+		}
+		for _, m := range metrics {
+			requestsToMake += len(m)
+		}
+		foundSeriesMsg = fmt.Sprintf("Found %d unique metric names to import. Total import/export requests to make %d", len(metrics), requestsToMake)
+	}
+
+	if !p.interCluster {
+		// do not prompt for intercluster because there could be many tenants,
+		// and we don't want to interrupt the process when moving to the next tenant.
+		question := foundSeriesMsg + ". Continue?"
+		if !prompt(question) {
+			return nil
+		}
+	} else {
+		log.Print(foundSeriesMsg)
+	}
+
+	barPrefix := "Requests to make"
+	if p.interCluster {
+		barPrefix = fmt.Sprintf("Requests to make for tenant %s", tenantID)
+	}
+
+	bar := barpool.NewSingleProgress(fmt.Sprintf(nativeWithBackoffTpl, barPrefix), requestsToMake)
+	if p.disablePerMetricRequests {
+		bar = barpool.NewSingleProgress(nativeSingleProcessTpl, 0)
+	}
+	bar.Start()
+	defer bar.Finish()
+
+	filterCh := make(chan native.Filter)
+	errCh := make(chan error, p.cc)
+
+	var wg sync.WaitGroup
+	for i := 0; i < p.cc; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for f := range filterCh {
+				if !p.disablePerMetricRequests {
+					if err := p.do(ctx, f, srcURL, dstURL, nil); err != nil {
+						errCh <- err
+						return
+					}
+					bar.Increment()
+				} else {
+					if err := p.runSingle(ctx, f, srcURL, dstURL, bar); err != nil {
+						errCh <- err
+						return
+					}
+				}
+			}
+		}()
+	}
+
+	// any error breaks the import
+	for mName, mRanges := range metrics {
+		match, err := buildMatchWithFilter(p.filter.Match, mName)
+		if err != nil {
+			logger.Errorf("failed to build filter %q for metric name %q: %s", p.filter.Match, mName, err)
+			continue
+		}
+
+		for _, times := range mRanges {
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("context canceled")
+			case infErr := <-errCh:
+				return fmt.Errorf("export/import error: %s", infErr)
+			case filterCh <- native.Filter{
+				Match:     match,
+				TimeStart: times[0].Format(time.RFC3339),
+				TimeEnd:   times[1].Format(time.RFC3339),
+			}:
+			}
+		}
+	}
+
+	close(filterCh)
+	wg.Wait()
+	close(errCh)
+
+	for err := range errCh {
+		return fmt.Errorf("import process failed: %s", err)
+	}
+
 	return nil
 }
 
-func (p *vmNativeProcessor) getSourceTenants(ctx context.Context, f filter) ([]string, error) {
-	u := fmt.Sprintf("%s/%s", p.src.addr, nativeTenantsAddr)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
-	if err != nil {
-		return nil, fmt.Errorf("cannot create request to %q: %s", u, err)
-	}
+func (p *vmNativeProcessor) explore(ctx context.Context, src *native.Client, tenantID string, ranges [][]time.Time) (map[string][][]time.Time, error) {
+	log.Printf("Exploring metrics...")
 
-	params := req.URL.Query()
-	if f.timeStart != "" {
-		params.Set("start", f.timeStart)
-	}
-	if f.timeEnd != "" {
-		params.Set("end", f.timeEnd)
-	}
-	req.URL.RawQuery = params.Encode()
+	bar := barpool.NewSingleProgress(fmt.Sprintf(nativeWithBackoffTpl, "Explore requests to make"), len(ranges))
+	bar.Start()
+	defer bar.Finish()
 
-	resp, err := p.src.do(req, http.StatusOK)
-	if err != nil {
-		return nil, fmt.Errorf("tenants request failed: %s", err)
-	}
-
-	var r struct {
-		Tenants []string `json:"data"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
-		return nil, fmt.Errorf("cannot decode tenants response: %s", err)
-	}
-
-	if err := resp.Body.Close(); err != nil {
-		return nil, fmt.Errorf("cannot close tenants response body: %s", err)
-	}
-
-	return r.Tenants, nil
-}
-
-func (p *vmNativeProcessor) exportPipe(ctx context.Context, url string, f filter) (io.ReadCloser, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("cannot create request to %q: %s", p.src.addr, err)
-	}
-
-	params := req.URL.Query()
-	params.Set("match[]", f.match)
-	if f.timeStart != "" {
-		params.Set("start", f.timeStart)
-	}
-	if f.timeEnd != "" {
-		params.Set("end", f.timeEnd)
-	}
-	req.URL.RawQuery = params.Encode()
-
-	// disable compression since it is meaningless for native format
-	req.Header.Set("Accept-Encoding", "identity")
-	resp, err := p.src.do(req, http.StatusOK)
-	if err != nil {
-		return nil, fmt.Errorf("export request failed: %s", err)
-	}
-	return resp.Body, nil
-}
-
-func (c *vmNativeClient) do(req *http.Request, expSC int) (*http.Response, error) {
-	if c.user != "" {
-		req.SetBasicAuth(c.user, c.password)
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("unexpected error when performing request: %s", err)
-	}
-
-	if resp.StatusCode != expSC {
-		body, err := io.ReadAll(resp.Body)
+	metrics := make(map[string][][]time.Time)
+	for _, r := range ranges {
+		ms, err := src.Explore(ctx, p.filter, tenantID, r[0], r[1])
 		if err != nil {
-			return nil, fmt.Errorf("failed to read response body for status code %d: %s", resp.StatusCode, err)
+			return nil, fmt.Errorf("cannot get metrics from %s on interval %v-%v: %w", src.Addr, r[0], r[1], err)
 		}
-		return nil, fmt.Errorf("unexpected response code %d: %s", resp.StatusCode, string(body))
+		for i := range ms {
+			metrics[ms[i]] = append(metrics[ms[i]], r)
+		}
+		bar.Increment()
 	}
-	return resp, err
+	return metrics, nil
+}
+
+// stats represents client statistic
+// when processing data
+type stats struct {
+	sync.Mutex
+	startTime time.Time
+	bytes     uint64
+	requests  uint64
+	retries   uint64
+}
+
+func (s *stats) String() string {
+	s.Lock()
+	defer s.Unlock()
+
+	totalImportDuration := time.Since(s.startTime)
+	totalImportDurationS := totalImportDuration.Seconds()
+	bytesPerS := byteCountSI(0)
+	if s.bytes > 0 && totalImportDurationS > 0 {
+		bytesPerS = byteCountSI(int64(float64(s.bytes) / totalImportDurationS))
+	}
+
+	return fmt.Sprintf("VictoriaMetrics importer stats:\n"+
+		"  time spent while importing: %v;\n"+
+		"  total bytes: %s;\n"+
+		"  bytes/s: %s;\n"+
+		"  requests: %d;\n"+
+		"  requests retries: %d;",
+		totalImportDuration,
+		byteCountSI(int64(s.bytes)), bytesPerS,
+		s.requests, s.retries)
+}
+
+func byteCountSI(b int64) string {
+	const unit = 1000
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB",
+		float64(b)/float64(div), "kMGTPE"[exp])
+}
+
+func buildMatchWithFilter(filter string, metricName string) (string, error) {
+	if filter == metricName {
+		return filter, nil
+	}
+	nameFilter := fmt.Sprintf("__name__=%q", metricName)
+
+	tfss, err := searchutils.ParseMetricSelector(filter)
+	if err != nil {
+		return "", err
+	}
+
+	var filters []string
+	for _, tfs := range tfss {
+		var a []string
+		for _, tf := range tfs {
+			if len(tf.Key) == 0 {
+				continue
+			}
+			a = append(a, tf.String())
+		}
+		a = append(a, nameFilter)
+		filters = append(filters, strings.Join(a, ","))
+	}
+
+	match := "{" + strings.Join(filters, " or ") + "}"
+	return match, nil
 }

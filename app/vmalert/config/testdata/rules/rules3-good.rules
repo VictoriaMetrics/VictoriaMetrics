@@ -15,6 +15,7 @@ groups:
     interval: 2s
     concurrency: 2
     type: prometheus
+    eval_delay: 30s
     rules:
       - alert: Conns
         expr: sum(vm_tcplistener_conns) by (instance) > 1

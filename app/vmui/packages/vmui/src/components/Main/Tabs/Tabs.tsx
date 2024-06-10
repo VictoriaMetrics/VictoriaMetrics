@@ -1,9 +1,9 @@
 import React, { Component, FC, useRef, useState } from "preact/compat";
 import { ReactNode, useEffect } from "react";
 import { getCssVariable } from "../../../utils/theme";
-import useResize from "../../../hooks/useResize";
 import TabItem from "./TabItem";
 import "./style.scss";
+import useWindowSize from "../../../hooks/useWindowSize";
 
 export interface TabItemType {
   value: string
@@ -29,7 +29,7 @@ const Tabs: FC<TabsProps> = ({
   indicatorPlacement = "bottom",
   isNavLink,
 }) => {
-  const windowSize = useResize(document.body);
+  const windowSize = useWindowSize();
   const activeNavRef = useRef<Component>(null);
   const [indicatorPosition, setIndicatorPosition] = useState({ left: 0, width: 0, bottom: 0 });
 

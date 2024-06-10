@@ -34,24 +34,6 @@ func TestAppendPartsToMerge(t *testing.T) {
 	testAppendPartsToMerge(t, 3, []uint64{11, 1, 10, 100, 10}, []uint64{10, 10, 11})
 }
 
-func TestAppendPartsToMergeNeedFreeSpace(t *testing.T) {
-	f := func(sizes []uint64, maxOutBytes int, expectedNeedFreeSpace bool) {
-		t.Helper()
-		pws := newTestPartWrappersForSizes(sizes)
-		_, needFreeSpace := appendPartsToMerge(nil, pws, defaultPartsToMerge, uint64(maxOutBytes))
-		if needFreeSpace != expectedNeedFreeSpace {
-			t.Fatalf("unexpected needFreeSpace; got %v; want %v", needFreeSpace, expectedNeedFreeSpace)
-		}
-	}
-	f(nil, 1000, false)
-	f([]uint64{1000}, 100, false)
-	f([]uint64{1000}, 1100, false)
-	f([]uint64{120, 200}, 180, true)
-	f([]uint64{100, 200}, 310, false)
-	f([]uint64{100, 110, 109, 1}, 300, true)
-	f([]uint64{100, 110, 109, 1}, 330, false)
-}
-
 func TestAppendPartsToMergeManyParts(t *testing.T) {
 	// Verify that big number of parts are merged into minimal number of parts
 	// using minimum merges.
@@ -60,9 +42,6 @@ func TestAppendPartsToMergeManyParts(t *testing.T) {
 	r := rand.New(rand.NewSource(1))
 	for i := 0; i < 1024; i++ {
 		n := uint64(uint32(r.NormFloat64() * 1e9))
-		if n < 0 {
-			n = -n
-		}
 		n++
 		maxOutSize += n
 		sizes = append(sizes, n)
@@ -72,7 +51,7 @@ func TestAppendPartsToMergeManyParts(t *testing.T) {
 	iterationsCount := 0
 	sizeMergedTotal := uint64(0)
 	for {
-		pms, _ := appendPartsToMerge(nil, pws, defaultPartsToMerge, maxOutSize)
+		pms := appendPartsToMerge(nil, pws, defaultPartsToMerge, maxOutSize)
 		if len(pms) == 0 {
 			break
 		}
@@ -121,7 +100,7 @@ func testAppendPartsToMerge(t *testing.T, maxPartsToMerge int, initialSizes, exp
 	pws := newTestPartWrappersForSizes(initialSizes)
 
 	// Verify appending to nil.
-	pms, _ := appendPartsToMerge(nil, pws, maxPartsToMerge, 1e9)
+	pms := appendPartsToMerge(nil, pws, maxPartsToMerge, 1e9)
 	sizes := newTestSizesFromPartWrappers(pms)
 	if !reflect.DeepEqual(sizes, expectedSizes) {
 		t.Fatalf("unexpected size for maxPartsToMerge=%d, initialSizes=%d; got\n%d; want\n%d",
@@ -138,7 +117,7 @@ func testAppendPartsToMerge(t *testing.T, maxPartsToMerge int, initialSizes, exp
 		{},
 		{},
 	}
-	pms, _ = appendPartsToMerge(prefix, pws, maxPartsToMerge, 1e9)
+	pms = appendPartsToMerge(prefix, pws, maxPartsToMerge, 1e9)
 	if !reflect.DeepEqual(pms[:len(prefix)], prefix) {
 		t.Fatalf("unexpected prefix for maxPartsToMerge=%d, initialSizes=%d; got\n%+v; want\n%+v",
 			maxPartsToMerge, initialSizes, pms[:len(prefix)], prefix)

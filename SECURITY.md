@@ -2,12 +2,16 @@
 
 ## Supported Versions
 
+The following versions of VictoriaMetrics receive regular security fixes:
+
 | Version | Supported          |
 |---------|--------------------|
-| 1.81.x  | :white_check_mark: |
-| 1.80.x  | :x:                |
-| 1.79.x  | :white_check_mark: |
-| < 1.78  | :x:                |
+| [latest release](https://docs.victoriametrics.com/changelog/) | :white_check_mark: |
+| v1.97.x [LTS line](https://docs.victoriametrics.com/lts-releases/) | :white_check_mark: |
+| v1.93.x [LTS line](https://docs.victoriametrics.com/lts-releases/) | :white_check_mark: |
+| other releases  | :x:                |
+
+See [this page](https://victoriametrics.com/security/) for more details.
 
 ## Reporting a Vulnerability
 

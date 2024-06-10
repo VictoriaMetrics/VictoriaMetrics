@@ -65,7 +65,6 @@ func GetBucketRegion(ctx context.Context, client HeadBucketAPIClient, bucket str
 
 	clientOptionFns := make([]func(*s3.Options), len(optFns)+1)
 	clientOptionFns[0] = func(options *s3.Options) {
-		options.Credentials = aws.AnonymousCredentials{}
 		options.APIOptions = append(options.APIOptions, captureBucketRegion.RegisterMiddleware)
 	}
 	copy(clientOptionFns[1:], optFns)

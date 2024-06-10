@@ -4,16 +4,12 @@
   "private": true,
   "homepage": "./",
   "dependencies": {
-    "@testing-library/jest-dom": "^5.16.2",
-    "@testing-library/react": "^13.0.0",
-    "@testing-library/user-event": "^14.0.4",
-    "@types/jest": "^27.4.1",
     "@types/lodash.debounce": "^4.0.6",
     "@types/lodash.get": "^4.4.6",
     "@types/lodash.throttle": "^4.1.6",
-    "@types/marked": "^4.0.2",
-    "@types/node": "^17.0.21",
+    "@types/node": "^20.4.0",
     "@types/qs": "^6.9.7",
+    "@types/react-input-mask": "^3.0.2",
     "@types/react-router-dom": "^5.3.3",
     "@types/webpack-env": "^1.16.3",
     "classnames": "^2.3.2",
@@ -21,21 +17,30 @@
     "lodash.debounce": "^4.0.8",
     "lodash.get": "^4.4.2",
     "lodash.throttle": "^4.1.1",
-    "marked": "^4.0.14",
+    "marked": "^12.0.2",
+    "marked-emoji": "^1.4.0",
     "preact": "^10.7.1",
     "qs": "^6.10.3",
-    "react-router-dom": "^6.3.0",
+    "react-input-mask": "^2.0.4",
+    "react-router-dom": "^6.10.0",
     "sass": "^1.56.0",
+    "source-map-explorer": "^2.5.3",
     "typescript": "~4.6.2",
-    "uplot": "^1.6.19",
-    "web-vitals": "^2.1.4"
+    "uplot": "^1.6.30",
+    "web-vitals": "^3.3.2"
   },
   "scripts": {
+    "prestart": "npm run copy-metricsql-docs",
     "start": "react-app-rewired start",
+    "start:logs": "cross-env REACT_APP_TYPE=logs npm run start",
+    "start:anomaly": "cross-env REACT_APP_TYPE=anomaly npm run start",
     "build": "GENERATE_SOURCEMAP=false react-app-rewired build",
-    "test": "react-app-rewired test",
+    "build:logs": "cross-env REACT_APP_TYPE=logs npm run build",
+    "build:anomaly": "cross-env REACT_APP_TYPE=anomaly npm run build",
     "lint": "eslint src --ext tsx,ts",
-    "lint:fix": "eslint src --ext tsx,ts --fix"
+    "lint:fix": "eslint src --ext tsx,ts --fix",
+    "analyze": "source-map-explorer 'build/static/js/*.js'",
+    "copy-metricsql-docs": "cp ../../../../docs/MetricsQL.md src/assets/MetricsQL.md || true"
   },
   "eslintConfig": {
     "extends": [
@@ -57,11 +62,18 @@
   },
   "devDependencies": {
     "@babel/plugin-proposal-nullish-coalescing-operator": "^7.16.7",
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
+    "@types/react-dom": "^18.2.6",
     "@typescript-eslint/eslint-plugin": "^5.15.0",
     "@typescript-eslint/parser": "^5.15.0",
+    "cross-env": "^7.0.3",
     "customize-cra": "^1.0.0",
+    "eslint": "^8.44.0",
+    "eslint-config-react-app": "^7.0.1",
     "eslint-plugin-react": "^7.29.4",
-    "react-app-rewired": "^2.2.1"
+    "http-proxy-middleware": "^3.0.0",
+    "react-app-rewired": "^2.2.1",
+    "webpack": "^5.88.1"
   },
   "overrides": {
     "react-app-rewired": {

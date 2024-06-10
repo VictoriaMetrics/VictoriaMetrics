@@ -1,0 +1,15 @@
+filebeat.inputs:
+  - type: syslog
+    format: rfc3164
+    protocol.tcp:
+      host: "0.0.0.0:12345"
+
+output.elasticsearch:
+  hosts: [ "http://elastic:9200" ]
+  worker: 5
+  bulk_max_size: 1000
+
+http:
+  enabled: true
+  host: 0.0.0.0
+  port: 5066

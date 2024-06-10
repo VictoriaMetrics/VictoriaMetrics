@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useRef, useState,  } from "preact/compat";
+import React, { FC, Ref, useEffect, useMemo, useRef, useState, } from "preact/compat";
 import classNames from "classnames";
 import { ArrowDropDownIcon, CloseIcon } from "../Icons";
 import { FormEvent, MouseEvent } from "react";
@@ -6,6 +6,9 @@ import Autocomplete from "../Autocomplete/Autocomplete";
 import { useAppState } from "../../../state/common/StateContext";
 import "./style.scss";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import MultipleSelectedValue from "./MultipleSelectedValue/MultipleSelectedValue";
+import useEventListener from "../../../hooks/useEventListener";
+import useClickOutside from "../../../hooks/useClickOutside";
 
 interface SelectProps {
   value: string | string[]
@@ -16,6 +19,7 @@ interface SelectProps {
   clearable?: boolean
   searchable?: boolean
   autofocus?: boolean
+  disabled?: boolean
   onChange: (value: string) => void
 }
 
@@ -28,6 +32,7 @@ const Select: FC<SelectProps> = ({
   clearable = false,
   searchable = false,
   autofocus,
+  disabled,
   onChange
 }) => {
   const { isDarkTheme } = useAppState();
@@ -35,12 +40,14 @@ const Select: FC<SelectProps> = ({
 
   const [search, setSearch] = useState("");
   const autocompleteAnchorEl = useRef<HTMLDivElement>(null);
+  const [wrapperRef, setWrapperRef] = useState<Ref<HTMLDivElement> | null>(null);
   const [openList, setOpenList] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const isMultiple = useMemo(() => Array.isArray(value), [value]);
-  const selectedValues = useMemo(() => Array.isArray(value) ? value : undefined, [isMultiple, value]);
+  const isMultiple = Array.isArray(value);
+  const selectedValues = Array.isArray(value) ? value : undefined;
+  const hideInput = isMobile && isMultiple && !!selectedValues?.length;
 
   const textFieldValue = useMemo(() => {
     if (openList) return search;
@@ -61,15 +68,21 @@ const Select: FC<SelectProps> = ({
   };
 
   const handleFocus = () => {
+    if (disabled) return;
     setOpenList(true);
   };
 
+  const handleBlur = () => {
+    list.includes(search) && onChange(search);
+  };
+
   const handleToggleList = (e: MouseEvent<HTMLDivElement>) => {
-    if (e.target instanceof HTMLInputElement) return;
+    if (e.target instanceof HTMLInputElement || disabled) return;
     setOpenList(prev => !prev);
   };
 
   const handleSelected = (val: string) => {
+    setSearch("");
     onChange(val);
     if (!isMultiple) handleCloseList();
     if (isMultiple && inputRef.current) inputRef.current.focus();
@@ -103,19 +116,15 @@ const Select: FC<SelectProps> = ({
     inputRef.current.focus();
   }, [autofocus, inputRef]);
 
-  useEffect(() => {
-    window.addEventListener("keyup", handleKeyUp);
-
-    return () => {
-      window.removeEventListener("keyup", handleKeyUp);
-    };
-  }, []);
+  useEventListener("keyup", handleKeyUp);
+  useClickOutside(autocompleteAnchorEl, handleCloseList, wrapperRef);
 
   return (
     <div
       className={classNames({
         "vm-select": true,
-        "vm-select_dark": isDarkTheme
+        "vm-select_dark": isDarkTheme,
+        "vm-select_disabled": disabled
       })}
     >
       <div
@@ -124,29 +133,20 @@ const Select: FC<SelectProps> = ({
         ref={autocompleteAnchorEl}
       >
         <div className="vm-select-input-content">
-          {!isMobile && selectedValues && selectedValues.map(item => (
-            <div
-              className="vm-select-input-content__selected"
-              key={item}
-            >
-              <span>{item}</span>
-              <div onClick={createHandleClick(item)}>
-                <CloseIcon/>
-              </div>
-            </div>
-          ))}
-          {isMobile && !!selectedValues?.length && (
-            <span className="vm-select-input-content__counter">
-              selected {selectedValues.length}
-            </span>
+          {!!selectedValues?.length && (
+            <MultipleSelectedValue
+              values={selectedValues}
+              onRemoveItem={handleSelected}
+            />
           )}
-          {!isMobile || (isMobile && (!selectedValues || !selectedValues?.length)) && (
+          {!hideInput && (
             <input
               value={textFieldValue}
               type="text"
               placeholder={placeholder}
               onInput={handleChange}
               onFocus={handleFocus}
+              onBlur={handleBlur}
               ref={inputRef}
               readOnly={isMobile || !searchable}
             />
@@ -173,15 +173,15 @@ const Select: FC<SelectProps> = ({
       <Autocomplete
         label={label}
         value={autocompleteValue}
-        options={list}
+        options={list.map(el => ({ value: el }))}
         anchor={autocompleteAnchorEl}
         selected={selectedValues}
-        maxWords={10}
-        minLength={0}
+        minLength={1}
         fullWidth
         noOptionsText={noOptionsText}
         onSelect={handleSelected}
         onOpenAutocomplete={setOpenList}
+        onChangeWrapperRef={setWrapperRef}
       />
     </div>
   );

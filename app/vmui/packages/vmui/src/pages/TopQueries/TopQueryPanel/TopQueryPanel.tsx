@@ -11,7 +11,7 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 export interface TopQueryPanelProps {
   rows: TopQuery[],
   title?: string,
-  columns: {title?: string, key: (keyof TopQuery)}[],
+  columns: {title?: string, key: (keyof TopQuery), sortBy?: (keyof TopQuery)}[],
   defaultOrderBy?: keyof TopQuery,
 }
 const tabs = ["table", "JSON"].map((t, i) => ({

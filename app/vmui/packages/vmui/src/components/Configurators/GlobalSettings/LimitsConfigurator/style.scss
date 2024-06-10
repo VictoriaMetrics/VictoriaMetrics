@@ -12,7 +12,8 @@
   }
 
   &__inputs {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
@@ -20,10 +21,6 @@
 
     &_mobile {
       gap: $padding-small;
-    }
-
-    div {
-      flex-grow: 1;
     }
   }
 }

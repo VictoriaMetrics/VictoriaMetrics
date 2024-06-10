@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -47,7 +48,7 @@ type Server struct {
 	wg sync.WaitGroup
 
 	// stopFlag is set to true when the server needs to stop.
-	stopFlag uint32
+	stopFlag atomic.Bool
 
 	concurrencyLimitReached *metrics.Counter
 	concurrencyLimitTimeout *metrics.Counter
@@ -114,9 +115,10 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 		return float64(len(concurrencyLimitCh))
 	})
 	s := &Server{
-		api:    api,
-		limits: limits,
-		ln:     ln,
+		api:                        api,
+		limits:                     limits,
+		disableResponseCompression: disableResponseCompression,
+		ln:                         ln,
 
 		concurrencyLimitCh: concurrencyLimitCh,
 
@@ -143,7 +145,7 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 		metricRowsRead:   metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_rows_read_total{addr=%q}`, addr)),
 	}
 
-	s.connsMap.Init()
+	s.connsMap.Init("vmselect")
 	s.wg.Add(1)
 	go func() {
 		s.run()
@@ -197,7 +199,9 @@ func (s *Server) run() {
 					// c is closed inside Server.MustStop
 					return
 				}
-				logger.Errorf("cannot perform vmselect handshake with client %q: %s", c.RemoteAddr(), err)
+				if !errors.Is(err, handshake.ErrIgnoreHealthcheck) {
+					logger.Errorf("cannot perform vmselect handshake with client %q: %s", c.RemoteAddr(), err)
+				}
 				_ = c.Close()
 				return
 			}
@@ -228,18 +232,18 @@ func (s *Server) MustStop() {
 
 	// Close existing connections from vmselect, so the goroutines
 	// processing these connections are finished.
-	s.connsMap.CloseAll()
+	s.connsMap.CloseAll(0)
 
 	// Wait until all the goroutines processing vmselect conns are finished.
 	s.wg.Wait()
 }
 
 func (s *Server) setIsStopping() {
-	atomic.StoreUint32(&s.stopFlag, 1)
+	s.stopFlag.Store(true)
 }
 
 func (s *Server) isStopping() bool {
-	return atomic.LoadUint32(&s.stopFlag) != 0
+	return s.stopFlag.Load()
 }
 
 func (s *Server) processConn(bc *handshake.BufferedConn) error {
@@ -249,8 +253,7 @@ func (s *Server) processConn(bc *handshake.BufferedConn) error {
 	}
 	for {
 		if err := s.processRequest(ctx); err != nil {
-			if err == io.EOF {
-				// Remote client gracefully closed the connection.
+			if isExpectedError(err) {
 				return nil
 			}
 			if errors.Is(err, storage.ErrDeadlineExceeded) {
@@ -262,6 +265,25 @@ func (s *Server) processConn(bc *handshake.BufferedConn) error {
 			return fmt.Errorf("cannot flush compressed buffers: %w", err)
 		}
 	}
+}
+
+func isExpectedError(err error) bool {
+	if err == io.EOF {
+		// Remote client gracefully closed the connection.
+		return true
+	}
+	if errors.Is(err, net.ErrClosed) {
+		return true
+	}
+	errStr := err.Error()
+	if strings.Contains(errStr, "broken pipe") || strings.Contains(errStr, "connection reset by peer") {
+		// The connection has been interrupted abruptly.
+		// It could happen due to unexpected network glitch or because connection was
+		// interrupted by remote client. In both cases, remote client will notice
+		// connection breach and handle it on its own. No need in mirroring the error here.
+		return true
+	}
+	return false
 }
 
 type vmselectRequestCtx struct {
@@ -343,7 +365,8 @@ func (ctx *vmselectRequestCtx) readAccountIDProjectID() (uint32, uint32, error) 
 }
 
 // maxSearchQuerySize is the maximum size of SearchQuery packet in bytes.
-const maxSearchQuerySize = 1024 * 1024
+// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5154#issuecomment-1757216612
+const maxSearchQuerySize = 5 * 1024 * 1024
 
 func (ctx *vmselectRequestCtx) readSearchQuery() error {
 	if err := ctx.readDataBufBytes(maxSearchQuerySize); err != nil {
@@ -489,7 +512,7 @@ func (s *Server) processRequest(ctx *vmselectRequestCtx) error {
 
 	// Process the rpcName call.
 	if err := s.processRPC(ctx, rpcName); err != nil {
-		return fmt.Errorf("cannot execute %q: %s", rpcName, err)
+		return fmt.Errorf("cannot execute %q: %w", rpcName, err)
 	}
 
 	// Finish query trace.
@@ -668,6 +691,10 @@ func (s *Server) processLabelNames(ctx *vmselectRequestCtx) error {
 
 	// Send labelNames to vmselect
 	for _, labelName := range labelNames {
+		if len(labelName) == 0 {
+			// Skip empty label names, since they may break RPC communication with vmselect
+			continue
+		}
 		if err := ctx.writeString(labelName); err != nil {
 			return fmt.Errorf("cannot write label name %q: %w", labelName, err)
 		}
@@ -719,7 +746,7 @@ func (s *Server) processLabelValues(ctx *vmselectRequestCtx) error {
 	// Send labelValues to vmselect
 	for _, labelValue := range labelValues {
 		if len(labelValue) == 0 {
-			// Skip empty label values, since they have no sense for prometheus.
+			// Skip empty label values, since they may break RPC communication with vmselect
 			continue
 		}
 		if err := ctx.writeString(labelValue); err != nil {
@@ -897,6 +924,9 @@ func (s *Server) processTenants(ctx *vmselectRequestCtx) error {
 
 	// Send tenants to vmselect
 	for _, tenant := range tenants {
+		if len(tenant) == 0 {
+			logger.Panicf("BUG: unexpected empty tenant name")
+		}
 		if err := ctx.writeString(tenant); err != nil {
 			return fmt.Errorf("cannot write tenant %q: %w", tenant, err)
 		}

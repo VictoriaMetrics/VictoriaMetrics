@@ -101,12 +101,12 @@ func TestLoadRelabelConfigsFailure(t *testing.T) {
 			t.Fatalf("unexpected non-empty rcs: %#v", rcs)
 		}
 	}
-	t.Run("non-existing-file", func(t *testing.T) {
-		f("testdata/non-exsiting-file")
-	})
-	t.Run("invalid-file", func(t *testing.T) {
-		f("testdata/invalid_config.yml")
-	})
+
+	// non-existing-file
+	f("testdata/non-exsiting-file")
+
+	// invalid-file
+	f("testdata/invalid_config.yml")
 }
 
 func TestParsedConfigsString(t *testing.T) {
@@ -209,354 +209,410 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			t.Fatalf("unexpected non-empty pcs: %#v", pcs)
 		}
 	}
-	t.Run("invalid-regex", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				SourceLabels: []string{"aaa"},
-				TargetLabel:  "xxx",
-				Regex: &MultiLineRegex{
-					S: "foo[bar",
-				},
+
+	// invalid regex
+	f([]RelabelConfig{
+		{
+			SourceLabels: []string{"aaa"},
+			TargetLabel:  "xxx",
+			Regex: &MultiLineRegex{
+				S: "foo[bar",
 			},
-		})
+		},
 	})
-	t.Run("replace-missing-target-label", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action:       "replace",
-				SourceLabels: []string{"foo"},
+
+	// replace-missing-target-label
+	f([]RelabelConfig{
+		{
+			Action:       "replace",
+			SourceLabels: []string{"foo"},
+		},
+	})
+
+	// replace_all-missing-source-labels
+	f([]RelabelConfig{
+		{
+			Action:      "replace_all",
+			TargetLabel: "xxx",
+		},
+	})
+
+	// replace_all-missing-target-label
+	f([]RelabelConfig{
+		{
+			Action:       "replace_all",
+			SourceLabels: []string{"foo"},
+		},
+	})
+
+	// keep-missing-source-labels
+	f([]RelabelConfig{
+		{
+			Action: "keep",
+		},
+	})
+
+	// keep_if_contains-missing-target-label
+	f([]RelabelConfig{
+		{
+			Action:       "keep_if_contains",
+			SourceLabels: []string{"foo"},
+		},
+	})
+
+	// keep_if_contains-missing-source-labels
+	f([]RelabelConfig{
+		{
+			Action:      "keep_if_contains",
+			TargetLabel: "foo",
+		},
+	})
+
+	// keep_if_contains-unused-regex
+	f([]RelabelConfig{
+		{
+			Action:       "keep_if_contains",
+			TargetLabel:  "foo",
+			SourceLabels: []string{"bar"},
+			Regex: &MultiLineRegex{
+				S: "bar",
 			},
-		})
+		},
 	})
-	t.Run("replace_all-missing-source-labels", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action:      "replace_all",
-				TargetLabel: "xxx",
+
+	// drop_if_contains-missing-target-label
+	f([]RelabelConfig{
+		{
+			Action:       "drop_if_contains",
+			SourceLabels: []string{"foo"},
+		},
+	})
+
+	// drop_if_contains-missing-source-labels
+	f([]RelabelConfig{
+		{
+			Action:      "drop_if_contains",
+			TargetLabel: "foo",
+		},
+	})
+
+	// drop_if_contains-unused-regex
+	f([]RelabelConfig{
+		{
+			Action:       "drop_if_contains",
+			TargetLabel:  "foo",
+			SourceLabels: []string{"bar"},
+			Regex: &MultiLineRegex{
+				S: "bar",
 			},
-		})
+		},
 	})
-	t.Run("replace_all-missing-target-label", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action:       "replace_all",
-				SourceLabels: []string{"foo"},
+
+	// keep_if_equal-missing-source-labels
+	f([]RelabelConfig{
+		{
+			Action: "keep_if_equal",
+		},
+	})
+
+	// keep_if_equal-single-source-label
+	f([]RelabelConfig{
+		{
+			Action:       "keep_if_equal",
+			SourceLabels: []string{"foo"},
+		},
+	})
+
+	// keep_if_equal-unused-target-label
+	f([]RelabelConfig{
+		{
+			Action:       "keep_if_equal",
+			SourceLabels: []string{"foo", "bar"},
+			TargetLabel:  "foo",
+		},
+	})
+
+	// keep_if_equal-unused-regex
+	f([]RelabelConfig{
+		{
+			Action:       "keep_if_equal",
+			SourceLabels: []string{"foo", "bar"},
+			Regex: &MultiLineRegex{
+				S: "bar",
 			},
-		})
+		},
 	})
-	t.Run("keep-missing-source-labels", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action: "keep",
+
+	// drop_if_equal-missing-source-labels
+	f([]RelabelConfig{
+		{
+			Action: "drop_if_equal",
+		},
+	})
+
+	// drop_if_equal-single-source-label
+	f([]RelabelConfig{
+		{
+			Action:       "drop_if_equal",
+			SourceLabels: []string{"foo"},
+		},
+	})
+
+	// drop_if_equal-unused-target-label
+	f([]RelabelConfig{
+		{
+			Action:       "drop_if_equal",
+			SourceLabels: []string{"foo", "bar"},
+			TargetLabel:  "foo",
+		},
+	})
+
+	// drop_if_equal-unused-regex
+	f([]RelabelConfig{
+		{
+			Action:       "drop_if_equal",
+			SourceLabels: []string{"foo", "bar"},
+			Regex: &MultiLineRegex{
+				S: "bar",
 			},
-		})
+		},
 	})
-	t.Run("keep_if_equal-missing-source-labels", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action: "keep_if_equal",
+
+	// keepequal-missing-source-labels
+	f([]RelabelConfig{
+		{
+			Action: "keepequal",
+		},
+	})
+
+	// keepequal-missing-target-label
+	f([]RelabelConfig{
+		{
+			Action:       "keepequal",
+			SourceLabels: []string{"foo"},
+		},
+	})
+
+	// keepequal-unused-regex
+	f([]RelabelConfig{
+		{
+			Action:       "keepequal",
+			SourceLabels: []string{"foo"},
+			TargetLabel:  "foo",
+			Regex: &MultiLineRegex{
+				S: "bar",
 			},
-		})
+		},
 	})
-	t.Run("keep_if_equal-single-source-label", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action:       "keep_if_equal",
-				SourceLabels: []string{"foo"},
+
+	// dropequal-missing-source-labels
+	f([]RelabelConfig{
+		{
+			Action: "dropequal",
+		},
+	})
+
+	// dropequal-missing-target-label
+	f([]RelabelConfig{
+		{
+			Action:       "dropequal",
+			SourceLabels: []string{"foo"},
+		},
+	})
+
+	// dropequal-unused-regex
+	f([]RelabelConfig{
+		{
+			Action:       "dropequal",
+			SourceLabels: []string{"foo"},
+			TargetLabel:  "foo",
+			Regex: &MultiLineRegex{
+				S: "bar",
 			},
-		})
+		},
 	})
-	t.Run("keep_if_equal-unused-target-label", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action:       "keep_if_equal",
-				SourceLabels: []string{"foo", "bar"},
-				TargetLabel:  "foo",
+
+	// drop-missing-source-labels
+	f([]RelabelConfig{
+		{
+			Action: "drop",
+		},
+	})
+
+	// hashmod-missing-source-labels
+	f([]RelabelConfig{
+		{
+			Action:      "hashmod",
+			TargetLabel: "aaa",
+			Modulus:     123,
+		},
+	})
+
+	// hashmod-missing-target-label
+	f([]RelabelConfig{
+		{
+			Action:       "hashmod",
+			SourceLabels: []string{"aaa"},
+			Modulus:      123,
+		},
+	})
+
+	// hashmod-missing-modulus
+	f([]RelabelConfig{
+		{
+			Action:       "hashmod",
+			SourceLabels: []string{"aaa"},
+			TargetLabel:  "xxx",
+		},
+	})
+
+	// invalid-action
+	f([]RelabelConfig{
+		{
+			Action: "invalid-action",
+		},
+	})
+
+	// drop_metrics-missing-regex
+	f([]RelabelConfig{
+		{
+			Action: "drop_metrics",
+		},
+	})
+
+	// drop_metrics-non-empty-source-labels
+	f([]RelabelConfig{
+		{
+			Action:       "drop_metrics",
+			SourceLabels: []string{"foo"},
+			Regex: &MultiLineRegex{
+				S: "bar",
 			},
-		})
+		},
 	})
-	t.Run("keep_if_equal-unused-regex", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action:       "keep_if_equal",
-				SourceLabels: []string{"foo", "bar"},
-				Regex: &MultiLineRegex{
-					S: "bar",
-				},
+
+	// keep_metrics-missing-regex
+	f([]RelabelConfig{
+		{
+			Action: "keep_metrics",
+		},
+	})
+
+	// keep_metrics-non-empty-source-labels
+	f([]RelabelConfig{
+		{
+			Action:       "keep_metrics",
+			SourceLabels: []string{"foo"},
+			Regex: &MultiLineRegex{
+				S: "bar",
 			},
-		})
+		},
 	})
-	t.Run("drop_if_equal-missing-source-labels", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action: "drop_if_equal",
+
+	// uppercase-missing-sourceLabels
+	f([]RelabelConfig{
+		{
+			Action:      "uppercase",
+			TargetLabel: "foobar",
+		},
+	})
+
+	// lowercase-missing-targetLabel
+	f([]RelabelConfig{
+		{
+			Action:       "lowercase",
+			SourceLabels: []string{"foobar"},
+		},
+	})
+
+	// graphite-missing-match
+	f([]RelabelConfig{
+		{
+			Action: "graphite",
+			Labels: map[string]string{
+				"foo": "bar",
 			},
-		})
+		},
 	})
-	t.Run("drop_if_equal-single-source-label", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action:       "drop_if_equal",
-				SourceLabels: []string{"foo"},
+
+	// graphite-missing-labels
+	f([]RelabelConfig{
+		{
+			Action: "graphite",
+			Match:  "foo.*.bar",
+		},
+	})
+
+	// graphite-superflouous-sourceLabels
+	f([]RelabelConfig{
+		{
+			Action: "graphite",
+			Match:  "foo.*.bar",
+			Labels: map[string]string{
+				"foo": "bar",
 			},
-		})
+			SourceLabels: []string{"foo"},
+		},
 	})
-	t.Run("drop_if_equal-unused-target-label", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action:       "drop_if_equal",
-				SourceLabels: []string{"foo", "bar"},
-				TargetLabel:  "foo",
+
+	// graphite-superflouous-targetLabel
+	f([]RelabelConfig{
+		{
+			Action: "graphite",
+			Match:  "foo.*.bar",
+			Labels: map[string]string{
+				"foo": "bar",
 			},
-		})
+			TargetLabel: "foo",
+		},
 	})
-	t.Run("drop_if_equal-unused-regex", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action:       "drop_if_equal",
-				SourceLabels: []string{"foo", "bar"},
-				Regex: &MultiLineRegex{
-					S: "bar",
-				},
-			},
-		})
-	})
-	t.Run("keepequal-missing-source-labels", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action: "keepequal",
-			},
-		})
-	})
-	t.Run("keepequal-missing-target-label", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action:       "keepequal",
-				SourceLabels: []string{"foo"},
-			},
-		})
-	})
-	t.Run("keepequal-unused-regex", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action:       "keepequal",
-				SourceLabels: []string{"foo"},
-				TargetLabel:  "foo",
-				Regex: &MultiLineRegex{
-					S: "bar",
-				},
-			},
-		})
-	})
-	t.Run("dropequal-missing-source-labels", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action: "dropequal",
-			},
-		})
-	})
-	t.Run("dropequal-missing-target-label", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action:       "dropequal",
-				SourceLabels: []string{"foo"},
-			},
-		})
-	})
-	t.Run("dropequal-unused-regex", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action:       "dropequal",
-				SourceLabels: []string{"foo"},
-				TargetLabel:  "foo",
-				Regex: &MultiLineRegex{
-					S: "bar",
-				},
-			},
-		})
-	})
-	t.Run("drop-missing-source-labels", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action: "drop",
-			},
-		})
-	})
-	t.Run("hashmod-missing-source-labels", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action:      "hashmod",
-				TargetLabel: "aaa",
-				Modulus:     123,
-			},
-		})
-	})
-	t.Run("hashmod-missing-target-label", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action:       "hashmod",
-				SourceLabels: []string{"aaa"},
-				Modulus:      123,
-			},
-		})
-	})
-	t.Run("hashmod-missing-modulus", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action:       "hashmod",
-				SourceLabels: []string{"aaa"},
-				TargetLabel:  "xxx",
-			},
-		})
-	})
-	t.Run("invalid-action", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action: "invalid-action",
-			},
-		})
-	})
-	t.Run("drop_metrics-missing-regex", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action: "drop_metrics",
-			},
-		})
-	})
-	t.Run("drop_metrics-non-empty-source-labels", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action:       "drop_metrics",
-				SourceLabels: []string{"foo"},
-				Regex: &MultiLineRegex{
-					S: "bar",
-				},
-			},
-		})
-	})
-	t.Run("keep_metrics-missing-regex", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action: "keep_metrics",
-			},
-		})
-	})
-	t.Run("keep_metrics-non-empty-source-labels", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action:       "keep_metrics",
-				SourceLabels: []string{"foo"},
-				Regex: &MultiLineRegex{
-					S: "bar",
-				},
-			},
-		})
-	})
-	t.Run("uppercase-missing-sourceLabels", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action:      "uppercase",
-				TargetLabel: "foobar",
-			},
-		})
-	})
-	t.Run("lowercase-missing-targetLabel", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action:       "lowercase",
-				SourceLabels: []string{"foobar"},
-			},
-		})
-	})
-	t.Run("graphite-missing-match", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action: "graphite",
-				Labels: map[string]string{
-					"foo": "bar",
-				},
-			},
-		})
-	})
-	t.Run("graphite-missing-labels", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action: "graphite",
-				Match:  "foo.*.bar",
-			},
-		})
-	})
-	t.Run("graphite-superflouous-sourceLabels", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action: "graphite",
-				Match:  "foo.*.bar",
-				Labels: map[string]string{
-					"foo": "bar",
-				},
-				SourceLabels: []string{"foo"},
-			},
-		})
-	})
-	t.Run("graphite-superflouous-targetLabel", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action: "graphite",
-				Match:  "foo.*.bar",
-				Labels: map[string]string{
-					"foo": "bar",
-				},
-				TargetLabel: "foo",
-			},
-		})
-	})
+
+	// graphite-superflouous-replacement
 	replacement := "foo"
-	t.Run("graphite-superflouous-replacement", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action: "graphite",
-				Match:  "foo.*.bar",
-				Labels: map[string]string{
-					"foo": "bar",
-				},
-				Replacement: &replacement,
+	f([]RelabelConfig{
+		{
+			Action: "graphite",
+			Match:  "foo.*.bar",
+			Labels: map[string]string{
+				"foo": "bar",
 			},
-		})
+			Replacement: &replacement,
+		},
 	})
+
+	// graphite-superflouous-regex
 	var re MultiLineRegex
-	t.Run("graphite-superflouous-regex", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action: "graphite",
-				Match:  "foo.*.bar",
-				Labels: map[string]string{
-					"foo": "bar",
-				},
-				Regex: &re,
+	f([]RelabelConfig{
+		{
+			Action: "graphite",
+			Match:  "foo.*.bar",
+			Labels: map[string]string{
+				"foo": "bar",
 			},
-		})
+			Regex: &re,
+		},
 	})
-	t.Run("non-graphite-superflouos-match", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action:       "uppercase",
-				SourceLabels: []string{"foo"},
-				TargetLabel:  "foo",
-				Match:        "aaa",
-			},
-		})
+
+	// non-graphite-superflouos-match
+	f([]RelabelConfig{
+		{
+			Action:       "uppercase",
+			SourceLabels: []string{"foo"},
+			TargetLabel:  "foo",
+			Match:        "aaa",
+		},
 	})
-	t.Run("non-graphite-superflouos-labels", func(t *testing.T) {
-		f([]RelabelConfig{
-			{
-				Action:       "uppercase",
-				SourceLabels: []string{"foo"},
-				TargetLabel:  "foo",
-				Labels: map[string]string{
-					"foo": "Bar",
-				},
+
+	// non-graphite-superflouos-labels
+	f([]RelabelConfig{
+		{
+			Action:       "uppercase",
+			SourceLabels: []string{"foo"},
+			TargetLabel:  "foo",
+			Labels: map[string]string{
+				"foo": "Bar",
 			},
-		})
+		},
 	})
 }
 

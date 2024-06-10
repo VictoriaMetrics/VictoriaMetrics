@@ -1,0 +1,26 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+  - url: http://vlogs:9428/insert/loki/api/v1/push?_stream_fields=hostname,application
+#    batchwait: 5s
+#    batchsize: 5242880
+
+scrape_configs:
+- job_name: syslog
+  syslog:
+    listen_address: 0.0.0.0:5140
+    idle_timeout: 12h
+    use_incoming_timestamp: true
+    labels:
+      job: syslog
+  relabel_configs:
+    - source_labels: [__syslog_message_hostname]
+      target_label: hostname
+    - source_labels: [__syslog_message_app_name]
+      target_label: application

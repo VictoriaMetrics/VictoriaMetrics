@@ -2,12 +2,10 @@ import React, { FC, useEffect, useMemo, KeyboardEvent } from "react";
 import { useFetchTopQueries } from "./hooks/useFetchTopQueries";
 import Spinner from "../../components/Main/Spinner/Spinner";
 import TopQueryPanel from "./TopQueryPanel/TopQueryPanel";
-import { useTopQueriesDispatch, useTopQueriesState } from "../../state/topQueries/TopQueriesStateContext";
-import { formatPrettyNumber } from "../../utils/uplot/helpers";
+import { formatPrettyNumber } from "../../utils/uplot";
 import { isSupportedDuration } from "../../utils/time";
 import dayjs from "dayjs";
 import { TopQueryStats } from "../../types";
-import { useSetQueryParams } from "./hooks/useSetQueryParams";
 import Button from "../../components/Main/Button/Button";
 import { PlayIcon } from "../../components/Main/Icons";
 import TextField from "../../components/Main/TextField/TextField";
@@ -16,16 +14,17 @@ import Tooltip from "../../components/Main/Tooltip/Tooltip";
 import "./style.scss";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import classNames from "classnames";
+import useStateSearchParams from "../../hooks/useStateSearchParams";
 
 const exampleDuration = "30ms, 15s, 3d4h, 1y2w";
 
-const Index: FC = () => {
+const TopQueries: FC = () => {
   const { isMobile } = useDeviceDetect();
 
-  const { data, error, loading } = useFetchTopQueries();
-  const { topN, maxLifetime } = useTopQueriesState();
-  const topQueriesDispatch = useTopQueriesDispatch();
-  useSetQueryParams();
+  const [topN, setTopN] = useStateSearchParams(10, "topN");
+  const [maxLifetime, setMaxLifetime] = useStateSearchParams("10m", "maxLifetime");
+
+  const { data, error, loading, fetch } = useFetchTopQueries({ topN, maxLifetime });
 
   const maxLifetimeValid = useMemo(() => {
     const durItems = maxLifetime.trim().split(" ");
@@ -49,26 +48,31 @@ const Index: FC = () => {
   };
 
   const onTopNChange = (value: string) => {
-    topQueriesDispatch({ type: "SET_TOP_N", payload: +value });
+    setTopN(+value);
   };
 
   const onMaxLifetimeChange = (value: string) => {
-    topQueriesDispatch({ type: "SET_MAX_LIFE_TIME", payload: value });
-  };
-
-  const onApplyQuery = () => {
-    topQueriesDispatch({ type: "SET_RUN_QUERY" });
+    setMaxLifetime(value);
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === "Enter") onApplyQuery();
+    if (e.key === "Enter") fetch();
   };
 
   useEffect(() => {
     if (!data) return;
-    if (!topN) topQueriesDispatch({ type: "SET_TOP_N", payload: +data.topN });
-    if (!maxLifetime) topQueriesDispatch({ type: "SET_MAX_LIFE_TIME", payload: data.maxLifetime });
+    if (!topN) setTopN(+data.topN);
+    if (!maxLifetime) setMaxLifetime(data.maxLifetime);
   }, [data]);
+
+  useEffect(() => {
+    fetch();
+    window.addEventListener("popstate", fetch);
+
+    return () => {
+      window.removeEventListener("popstate", fetch);
+    };
+  }, []);
 
   return (
     <div
@@ -131,7 +135,7 @@ const Index: FC = () => {
           <div className="vm-top-queries-controls-bottom__button">
             <Button
               startIcon={<PlayIcon/>}
-              onClick={onApplyQuery}
+              onClick={fetch}
             >
               Execute
             </Button>
@@ -144,35 +148,35 @@ const Index: FC = () => {
       {data && (<>
         <div className="vm-top-queries-panels">
           <TopQueryPanel
-            rows={data.topByCount}
-            title={"Most frequently executed queries"}
+            rows={data.topBySumDuration}
+            title={"Queries with most summary time to execute"}
             columns={[
               { key: "query" },
-              { key: "timeRangeHours", title: "time range, hours" },
+              { key: "sumDurationSeconds", title: "sum duration, sec" },
+              { key: "timeRange", sortBy: "timeRangeSeconds", title: "query time interval" },
               { key: "count" }
             ]}
+            defaultOrderBy={"sumDurationSeconds"}
           />
           <TopQueryPanel
             rows={data.topByAvgDuration}
             title={"Most heavy queries"}
             columns={[
               { key: "query" },
-              { key: "avgDurationSeconds", title: "avg duration, seconds" },
-              { key: "timeRangeHours", title: "time range, hours" },
+              { key: "avgDurationSeconds", title: "avg duration, sec" },
+              { key: "timeRange", sortBy: "timeRangeSeconds", title: "query time interval" },
               { key: "count" }
             ]}
             defaultOrderBy={"avgDurationSeconds"}
           />
           <TopQueryPanel
-            rows={data.topBySumDuration}
-            title={"Queries with most summary time to execute"}
+            rows={data.topByCount}
+            title={"Most frequently executed queries"}
             columns={[
               { key: "query" },
-              { key: "sumDurationSeconds", title: "sum duration, seconds" },
-              { key: "timeRangeHours", title: "time range, hours" },
+              { key: "timeRange", sortBy: "timeRangeSeconds", title: "query time interval" },
               { key: "count" }
             ]}
-            defaultOrderBy={"sumDurationSeconds"}
           />
         </div>
       </>)}
@@ -180,4 +184,4 @@ const Index: FC = () => {
   );
 };
 
-export default Index;
+export default TopQueries;

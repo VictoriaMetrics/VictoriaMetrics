@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
@@ -89,14 +90,14 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 	}
 
 	readDataCalls := 0
-	sw.ReadData = func(dst []byte) ([]byte, error) {
+	sw.ReadData = func(_ *bytesutil.ByteBuffer) error {
 		readDataCalls++
-		return dst, fmt.Errorf("error when reading data")
+		return fmt.Errorf("error when reading data")
 	}
 
 	pushDataCalls := 0
 	var pushDataErr error
-	sw.PushData = func(at *auth.Token, wr *prompbmarshal.WriteRequest) {
+	sw.PushData = func(_ *auth.Token, wr *prompbmarshal.WriteRequest) {
 		if err := expectEqualTimeseries(wr.Timeseries, timeseriesExpected); err != nil {
 			pushDataErr = fmt.Errorf("unexpected data pushed: %w\ngot\n%#v\nwant\n%#v", err, wr.Timeseries, timeseriesExpected)
 		}
@@ -104,9 +105,11 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 	}
 
 	timestamp := int64(123000)
+	tsmGlobal.Register(&sw)
 	if err := sw.scrapeInternal(timestamp, timestamp); err == nil {
 		t.Fatalf("expecting non-nil error")
 	}
+	tsmGlobal.Unregister(&sw)
 	if pushDataErr != nil {
 		t.Fatalf("unexpected error: %s", pushDataErr)
 	}
@@ -128,15 +131,15 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		sw.Config = cfg
 
 		readDataCalls := 0
-		sw.ReadData = func(dst []byte) ([]byte, error) {
+		sw.ReadData = func(dst *bytesutil.ByteBuffer) error {
 			readDataCalls++
-			dst = append(dst, data...)
-			return dst, nil
+			dst.B = append(dst.B, data...)
+			return nil
 		}
 
 		pushDataCalls := 0
 		var pushDataErr error
-		sw.PushData = func(at *auth.Token, wr *prompbmarshal.WriteRequest) {
+		sw.PushData = func(_ *auth.Token, wr *prompbmarshal.WriteRequest) {
 			pushDataCalls++
 			if len(wr.Timeseries) > len(timeseriesExpected) {
 				pushDataErr = fmt.Errorf("too many time series obtained; got %d; want %d\ngot\n%+v\nwant\n%+v",
@@ -152,11 +155,13 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		}
 
 		timestamp := int64(123000)
+		tsmGlobal.Register(&sw)
 		if err := sw.scrapeInternal(timestamp, timestamp); err != nil {
 			if !strings.Contains(err.Error(), "sample_limit") {
 				t.Fatalf("unexpected error: %s", err)
 			}
 		}
+		tsmGlobal.Unregister(&sw)
 		if pushDataErr != nil {
 			t.Fatalf("unexpected error: %s", pushDataErr)
 		}
@@ -703,6 +708,11 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 			HonorLabels: true,
 		},
 		`metric{a="e",foo="bar"} 0 123`)
+	f(`metric{foo="bar"} 0 123 # {trace_id="12345"} 52 456`,
+		&ScrapeWork{
+			HonorLabels: true,
+		},
+		`metric{foo="bar"} 0 123 # {trace_id="12345"} 52 456`)
 }
 
 func TestSendStaleSeries(t *testing.T) {
@@ -716,7 +726,7 @@ func TestSendStaleSeries(t *testing.T) {
 		defer common.StopUnmarshalWorkers()
 
 		var staleMarks int
-		sw.PushData = func(at *auth.Token, wr *prompbmarshal.WriteRequest) {
+		sw.PushData = func(_ *auth.Token, wr *prompbmarshal.WriteRequest) {
 			staleMarks += len(wr.Timeseries)
 		}
 		sw.sendStaleSeries(lastScrape, currScrape, 0, false)
@@ -760,6 +770,8 @@ func parseData(data string) []prompbmarshal.TimeSeries {
 	}
 	rows.UnmarshalWithErrLogger(data, errLogger)
 	var tss []prompbmarshal.TimeSeries
+	var exemplars []prompbmarshal.Exemplar
+
 	for _, r := range rows.Rows {
 		labels := []prompbmarshal.Label{
 			{
@@ -773,6 +785,21 @@ func parseData(data string) []prompbmarshal.TimeSeries {
 				Value: tag.Value,
 			})
 		}
+		exemplarLabels := []prompbmarshal.Label{}
+		if len(r.Exemplar.Tags) > 0 {
+			for _, tag := range r.Exemplar.Tags {
+				exemplarLabels = append(exemplarLabels, prompbmarshal.Label{
+					Name:  tag.Key,
+					Value: tag.Value,
+				})
+			}
+			exemplars = append(exemplars, prompbmarshal.Exemplar{
+				Labels:    exemplarLabels,
+				Value:     r.Exemplar.Value,
+				Timestamp: r.Exemplar.Timestamp,
+			})
+		}
+
 		var ts prompbmarshal.TimeSeries
 		ts.Labels = labels
 		ts.Samples = []prompbmarshal.Sample{
@@ -781,6 +808,7 @@ func parseData(data string) []prompbmarshal.TimeSeries {
 				Timestamp: r.Timestamp,
 			},
 		}
+		ts.Exemplars = exemplars
 		tss = append(tss, ts)
 	}
 	return tss
@@ -845,6 +873,19 @@ func timeseriesToString(ts *prompbmarshal.TimeSeries) string {
 	}
 	s := ts.Samples[0]
 	fmt.Fprintf(&sb, "%g %d", s.Value, s.Timestamp)
+	// Add Exemplars to the end of string
+	for j, exemplar := range ts.Exemplars {
+		for i, label := range exemplar.Labels {
+			fmt.Fprintf(&sb, "%s=%q", label.Name, label.Value)
+			if i+1 < len(ts.Labels) {
+				fmt.Fprintf(&sb, ",")
+			}
+		}
+		fmt.Fprintf(&sb, "%g %d", exemplar.Value, exemplar.Timestamp)
+		if j+1 < len(ts.Exemplars) {
+			fmt.Fprintf(&sb, ",")
+		}
+	}
 	return sb.String()
 }
 

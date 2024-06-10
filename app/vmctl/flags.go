@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	globalSilent  = "s"
-	globalVerbose = "verbose"
+	globalSilent             = "s"
+	globalVerbose            = "verbose"
+	globalDisableProgressBar = "disable-progress-bar"
 )
 
 var (
@@ -26,6 +27,11 @@ var (
 			Value: false,
 			Usage: "Whether to enable verbosity in logs output.",
 		},
+		&cli.BoolFlag{
+			Name:  globalDisableProgressBar,
+			Value: false,
+			Usage: "Whether to disable progress bar during the import.",
+		},
 	}
 )
 
@@ -39,7 +45,11 @@ const (
 	vmBatchSize          = "vm-batch-size"
 	vmSignificantFigures = "vm-significant-figures"
 	vmRoundDigits        = "vm-round-digits"
-	vmDisableProgressBar = "vm-disable-progress-bar"
+	vmCertFile           = "vm-cert-file"
+	vmKeyFile            = "vm-key-file"
+	vmCAFile             = "vm-CA-file"
+	vmServerName         = "vm-server-name"
+	vmInsecureSkipVerify = "vm-insecure-skip-verify"
 
 	// also used in vm-native
 	vmExtraLabel = "vm-extra-label"
@@ -113,25 +123,47 @@ var (
 		&cli.Int64Flag{
 			Name: vmRateLimit,
 			Usage: "Optional data transfer rate limit in bytes per second.\n" +
-				"By default the rate limit is disabled. It can be useful for limiting load on configured via '--vmAddr' destination.",
+				"By default, the rate limit is disabled. It can be useful for limiting load on configured via '--vmAddr' destination.",
+		},
+		&cli.StringFlag{
+			Name:  vmCertFile,
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to '--vmAddr'",
+		},
+		&cli.StringFlag{
+			Name:  vmKeyFile,
+			Usage: "Optional path to client-side TLS key to use when connecting to '--vmAddr'",
+		},
+		&cli.StringFlag{
+			Name:  vmCAFile,
+			Usage: "Optional path to TLS CA file to use for verifying connections to '--vmAddr'. By default, system CA is used",
+		},
+		&cli.StringFlag{
+			Name:  vmServerName,
+			Usage: "Optional TLS server name to use for connections to '--vmAddr'. By default, the server name from '--vmAddr' is used",
 		},
 		&cli.BoolFlag{
-			Name:  vmDisableProgressBar,
-			Usage: "Whether to disable progress bar per each worker during the import.",
+			Name:  vmInsecureSkipVerify,
+			Usage: "Whether to skip tls verification when connecting to '--vmAddr'",
+			Value: false,
 		},
 	}
 )
 
 const (
-	otsdbAddr        = "otsdb-addr"
-	otsdbConcurrency = "otsdb-concurrency"
-	otsdbQueryLimit  = "otsdb-query-limit"
-	otsdbOffsetDays  = "otsdb-offset-days"
-	otsdbHardTSStart = "otsdb-hard-ts-start"
-	otsdbRetentions  = "otsdb-retentions"
-	otsdbFilters     = "otsdb-filters"
-	otsdbNormalize   = "otsdb-normalize"
-	otsdbMsecsTime   = "otsdb-msecstime"
+	otsdbAddr               = "otsdb-addr"
+	otsdbConcurrency        = "otsdb-concurrency"
+	otsdbQueryLimit         = "otsdb-query-limit"
+	otsdbOffsetDays         = "otsdb-offset-days"
+	otsdbHardTSStart        = "otsdb-hard-ts-start"
+	otsdbRetentions         = "otsdb-retentions"
+	otsdbFilters            = "otsdb-filters"
+	otsdbNormalize          = "otsdb-normalize"
+	otsdbMsecsTime          = "otsdb-msecstime"
+	otsdbCertFile           = "otsdb-cert-file"
+	otsdbKeyFile            = "otsdb-key-file"
+	otsdbCAFile             = "otsdb-CA-file"
+	otsdbServerName         = "otsdb-server-name"
+	otsdbInsecureSkipVerify = "otsdb-insecure-skip-verify"
 )
 
 var (
@@ -191,6 +223,27 @@ var (
 			Value: false,
 			Usage: "Whether to normalize all data received to lower case before forwarding to VictoriaMetrics",
 		},
+		&cli.StringFlag{
+			Name:  otsdbCertFile,
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to -otsdb-addr",
+		},
+		&cli.StringFlag{
+			Name:  otsdbKeyFile,
+			Usage: "Optional path to client-side TLS key to use when connecting to -otsdb-addr",
+		},
+		&cli.StringFlag{
+			Name:  otsdbCAFile,
+			Usage: "Optional path to TLS CA file to use for verifying connections to -otsdb-addr. By default, system CA is used",
+		},
+		&cli.StringFlag{
+			Name:  otsdbServerName,
+			Usage: "Optional TLS server name to use for connections to -otsdb-addr. By default, the server name from -otsdb-addr is used",
+		},
+		&cli.BoolFlag{
+			Name:  otsdbInsecureSkipVerify,
+			Usage: "Whether to skip tls verification when connecting to -otsdb-addr",
+			Value: false,
+		},
 	}
 )
 
@@ -208,6 +261,11 @@ const (
 	influxMeasurementFieldSeparator = "influx-measurement-field-separator"
 	influxSkipDatabaseLabel         = "influx-skip-database-label"
 	influxPrometheusMode            = "influx-prometheus-mode"
+	influxCertFile                  = "influx-cert-file"
+	influxKeyFile                   = "influx-key-file"
+	influxCAFile                    = "influx-CA-file"
+	influxServerName                = "influx-server-name"
+	influxInsecureSkipVerify        = "influx-insecure-skip-verify"
 )
 
 var (
@@ -272,7 +330,28 @@ var (
 		},
 		&cli.BoolFlag{
 			Name:  influxPrometheusMode,
-			Usage: "Wether to restore the original timeseries name previously written from Prometheus to InfluxDB v1 via remote_write.",
+			Usage: "Whether to restore the original timeseries name previously written from Prometheus to InfluxDB v1 via remote_write.",
+			Value: false,
+		},
+		&cli.StringFlag{
+			Name:  influxCertFile,
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to -influx-addr",
+		},
+		&cli.StringFlag{
+			Name:  influxKeyFile,
+			Usage: "Optional path to client-side TLS key to use when connecting to -influx-addr",
+		},
+		&cli.StringFlag{
+			Name:  influxCAFile,
+			Usage: "Optional path to TLS CA file to use for verifying connections to -influx-addr. By default, system CA is used",
+		},
+		&cli.StringFlag{
+			Name:  influxServerName,
+			Usage: "Optional TLS server name to use for connections to -influx-addr. By default, the server name from -influx-addr is used",
+		},
+		&cli.BoolFlag{
+			Name:  influxInsecureSkipVerify,
+			Usage: "Whether to skip tls verification when connecting to -influx-addr",
 			Value: false,
 		},
 	}
@@ -320,18 +399,37 @@ var (
 )
 
 const (
-	vmNativeFilterMatch     = "vm-native-filter-match"
-	vmNativeFilterTimeStart = "vm-native-filter-time-start"
-	vmNativeFilterTimeEnd   = "vm-native-filter-time-end"
-	vmNativeStepInterval    = "vm-native-step-interval"
+	vmNativeFilterMatch       = "vm-native-filter-match"
+	vmNativeFilterTimeStart   = "vm-native-filter-time-start"
+	vmNativeFilterTimeEnd     = "vm-native-filter-time-end"
+	vmNativeFilterTimeReverse = "vm-native-filter-time-reverse"
+	vmNativeStepInterval      = "vm-native-step-interval"
 
-	vmNativeSrcAddr     = "vm-native-src-addr"
-	vmNativeSrcUser     = "vm-native-src-user"
-	vmNativeSrcPassword = "vm-native-src-password"
+	vmNativeDisableBinaryProtocol     = "vm-native-disable-binary-protocol"
+	vmNativeDisableHTTPKeepAlive      = "vm-native-disable-http-keep-alive"
+	vmNativeDisablePerMetricMigration = "vm-native-disable-per-metric-migration"
 
-	vmNativeDstAddr     = "vm-native-dst-addr"
-	vmNativeDstUser     = "vm-native-dst-user"
-	vmNativeDstPassword = "vm-native-dst-password"
+	vmNativeSrcAddr               = "vm-native-src-addr"
+	vmNativeSrcUser               = "vm-native-src-user"
+	vmNativeSrcPassword           = "vm-native-src-password"
+	vmNativeSrcHeaders            = "vm-native-src-headers"
+	vmNativeSrcBearerToken        = "vm-native-src-bearer-token"
+	vmNativeSrcCertFile           = "vm-native-src-cert-file"
+	vmNativeSrcKeyFile            = "vm-native-src-key-file"
+	vmNativeSrcCAFile             = "vm-native-src-ca-file"
+	vmNativeSrcServerName         = "vm-native-src-server-name"
+	vmNativeSrcInsecureSkipVerify = "vm-native-src-insecure-skip-verify"
+
+	vmNativeDstAddr               = "vm-native-dst-addr"
+	vmNativeDstUser               = "vm-native-dst-user"
+	vmNativeDstPassword           = "vm-native-dst-password"
+	vmNativeDstHeaders            = "vm-native-dst-headers"
+	vmNativeDstBearerToken        = "vm-native-dst-bearer-token"
+	vmNativeDstCertFile           = "vm-native-dst-cert-file"
+	vmNativeDstKeyFile            = "vm-native-dst-key-file"
+	vmNativeDstCAFile             = "vm-native-dst-ca-file"
+	vmNativeDstServerName         = "vm-native-dst-server-name"
+	vmNativeDstInsecureSkipVerify = "vm-native-dst-insecure-skip-verify"
 )
 
 var (
@@ -344,22 +442,35 @@ var (
 			Value: `{__name__!=""}`,
 		},
 		&cli.StringFlag{
-			Name:  vmNativeFilterTimeStart,
-			Usage: "The time filter may contain either unix timestamp in seconds or RFC3339 values. E.g. '2020-01-01T20:07:00Z'",
+			Name:     vmNativeFilterTimeStart,
+			Usage:    "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats",
+			Required: true,
 		},
 		&cli.StringFlag{
 			Name:  vmNativeFilterTimeEnd,
-			Usage: "The time filter may contain either unix timestamp in seconds or RFC3339 values. E.g. '2020-01-01T20:07:00Z'",
+			Usage: "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats",
 		},
 		&cli.StringFlag{
-			Name:  vmNativeStepInterval,
-			Usage: fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are '%s','%s','%s','%s'.", vmNativeFilterTimeStart, stepper.StepMonth, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
+			Name: vmNativeStepInterval,
+			Usage: fmt.Sprintf("The time interval to split the migration into steps. For example, to migrate 1y of data with '--%s=month' vmctl will execute it in 12 separate requests from the beginning of the time range to its end. To reverse the order use '--%s'. Requires setting '--%s'. Valid values are '%s','%s','%s','%s','%s'.",
+				vmNativeStepInterval, vmNativeFilterTimeReverse, vmNativeFilterTimeStart, stepper.StepMonth, stepper.StepWeek, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
+			Value: stepper.StepMonth,
+		},
+		&cli.BoolFlag{
+			Name:  vmNativeFilterTimeReverse,
+			Usage: fmt.Sprintf("Whether to reverse the order of time intervals split by '--%s' cmd-line flag. When set, the migration will start from the newest to the oldest data.", vmNativeStepInterval),
+			Value: false,
+		},
+		&cli.BoolFlag{
+			Name:  vmNativeDisableHTTPKeepAlive,
+			Usage: "Disable HTTP persistent connections for requests made to VictoriaMetrics components during export",
+			Value: false,
 		},
 		&cli.StringFlag{
 			Name: vmNativeSrcAddr,
 			Usage: "VictoriaMetrics address to perform export from. \n" +
 				" Should be the same as --httpListenAddr value for single-node version or vmselect component." +
-				" If exporting from cluster version see https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format",
+				" If exporting from cluster version see https://docs.victoriametrics.com/cluster-victoriametrics/#url-format",
 			Required: true,
 		},
 		&cli.StringFlag{
@@ -373,10 +484,42 @@ var (
 			EnvVars: []string{"VM_NATIVE_SRC_PASSWORD"},
 		},
 		&cli.StringFlag{
+			Name: vmNativeSrcHeaders,
+			Usage: "Optional HTTP headers to send with each request to the corresponding source address. \n" +
+				"For example, --vm-native-src-headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding source address. \n" +
+				"Multiple headers must be delimited by '^^': --vm-native-src-headers='header1:value1^^header2:value2'",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeSrcBearerToken,
+			Usage: "Optional bearer auth token to use for the corresponding `--vm-native-src-addr`",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeSrcCertFile,
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to `--vm-native-src-addr`",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeSrcKeyFile,
+			Usage: "Optional path to client-side TLS key to use when connecting to `--vm-native-src-addr`",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeSrcCAFile,
+			Usage: "Optional path to TLS CA file to use for verifying connections to `--vm-native-src-addr`. By default, system CA is used",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeSrcServerName,
+			Usage: "Optional TLS server name to use for connections to `--vm-native-src-addr`. By default, the server name from `--vm-native-src-addr` is used",
+		},
+		&cli.BoolFlag{
+			Name:  vmNativeSrcInsecureSkipVerify,
+			Usage: "Whether to skip TLS certificate verification when connecting to `--vm-native-src-addr`",
+			Value: false,
+		},
+
+		&cli.StringFlag{
 			Name: vmNativeDstAddr,
 			Usage: "VictoriaMetrics address to perform import to. \n" +
 				" Should be the same as --httpListenAddr value for single-node version or vminsert component." +
-				" If importing into cluster version see https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format",
+				" If importing into cluster version see https://docs.victoriametrics.com/cluster-victoriametrics/#url-format",
 			Required: true,
 		},
 		&cli.StringFlag{
@@ -389,6 +532,38 @@ var (
 			Usage:   "VictoriaMetrics password for basic auth",
 			EnvVars: []string{"VM_NATIVE_DST_PASSWORD"},
 		},
+		&cli.StringFlag{
+			Name: vmNativeDstHeaders,
+			Usage: "Optional HTTP headers to send with each request to the corresponding destination address. \n" +
+				"For example, --vm-native-dst-headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding destination address. \n" +
+				"Multiple headers must be delimited by '^^': --vm-native-dst-headers='header1:value1^^header2:value2'",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeDstBearerToken,
+			Usage: "Optional bearer auth token to use for the corresponding `--vm-native-dst-addr`",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeDstCertFile,
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to `--vm-native-dst-addr`",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeDstKeyFile,
+			Usage: "Optional path to client-side TLS key to use when connecting to `--vm-native-dst-addr`",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeDstCAFile,
+			Usage: "Optional path to TLS CA file to use for verifying connections to `--vm-native-dst-addr`. By default, system CA is used",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeDstServerName,
+			Usage: "Optional TLS server name to use for connections to `--vm-native-dst-addr`. By default, the server name from `--vm-native-dst-addr` is used",
+		},
+		&cli.BoolFlag{
+			Name:  vmNativeDstInsecureSkipVerify,
+			Usage: "Whether to skip TLS certificate verification when connecting to `--vm-native-dst-addr`",
+			Value: false,
+		},
+
 		&cli.StringSliceFlag{
 			Name:  vmExtraLabel,
 			Value: nil,
@@ -398,13 +573,31 @@ var (
 		&cli.Int64Flag{
 			Name: vmRateLimit,
 			Usage: "Optional data transfer rate limit in bytes per second.\n" +
-				"By default the rate limit is disabled. It can be useful for limiting load on source or destination databases.",
+				"By default, the rate limit is disabled. It can be useful for limiting load on source or destination databases.",
 		},
 		&cli.BoolFlag{
 			Name: vmInterCluster,
 			Usage: "Enables cluster-to-cluster migration mode with automatic tenants data migration.\n" +
 				fmt.Sprintf(" In this mode --%s flag format is: 'http://vmselect:8481/'. --%s flag format is: http://vminsert:8480/. \n", vmNativeSrcAddr, vmNativeDstAddr) +
 				" TenantID will be appended automatically after discovering tenants from src.",
+		},
+		&cli.UintFlag{
+			Name:  vmConcurrency,
+			Usage: "Number of workers concurrently performing import requests to VM",
+			Value: 2,
+		},
+		&cli.BoolFlag{
+			Name:  vmNativeDisablePerMetricMigration,
+			Usage: "Defines whether to disable per-metric migration and migrate all data via one connection. In this mode, vmctl makes less export/import requests, but can't provide a progress bar or retry failed requests.",
+			Value: false,
+		},
+		&cli.BoolFlag{
+			Name: vmNativeDisableBinaryProtocol,
+			Usage: "Whether to use https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format" +
+				"instead of https://docs.victoriametrics.com/#how-to-export-data-in-native-format API." +
+				"Binary export/import API protocol implies less network and resource usage, as it transfers compressed binary data blocks." +
+				"Non-binary export/import API is less efficient, but supports deduplication if it is configured on vm-native-src-addr side.",
+			Value: false,
 		},
 	}
 )
@@ -415,6 +608,7 @@ const (
 	remoteReadConcurrency        = "remote-read-concurrency"
 	remoteReadFilterTimeStart    = "remote-read-filter-time-start"
 	remoteReadFilterTimeEnd      = "remote-read-filter-time-end"
+	remoteReadFilterTimeReverse  = "remote-read-filter-time-reverse"
 	remoteReadFilterLabel        = "remote-read-filter-label"
 	remoteReadFilterLabelValue   = "remote-read-filter-label-value"
 	remoteReadStepInterval       = "remote-read-step-interval"
@@ -423,7 +617,12 @@ const (
 	remoteReadPassword           = "remote-read-password"
 	remoteReadHTTPTimeout        = "remote-read-http-timeout"
 	remoteReadHeaders            = "remote-read-headers"
+	remoteReadCertFile           = "remote-read-cert-file"
+	remoteReadKeyFile            = "remote-read-key-file"
+	remoteReadCAFile             = "remote-read-CA-file"
+	remoteReadServerName         = "remote-read-server-name"
 	remoteReadInsecureSkipVerify = "remote-read-insecure-skip-verify"
+	remoteReadDisablePathAppend  = "remote-read-disable-path-append"
 )
 
 var (
@@ -434,9 +633,10 @@ var (
 			Value: 1,
 		},
 		&cli.TimestampFlag{
-			Name:   remoteReadFilterTimeStart,
-			Usage:  "The time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'",
-			Layout: time.RFC3339,
+			Name:     remoteReadFilterTimeStart,
+			Usage:    "The time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'",
+			Layout:   time.RFC3339,
+			Required: true,
 		},
 		&cli.TimestampFlag{
 			Name:   remoteReadFilterTimeEnd,
@@ -460,13 +660,18 @@ var (
 		},
 		&cli.BoolFlag{
 			Name:  remoteReadUseStream,
-			Usage: "Defines whether to use SAMPLES or STREAMED_XOR_CHUNKS mode. By default is uses SAMPLES mode. See https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/#streamed-chunks",
+			Usage: "Defines whether to use SAMPLES or STREAMED_XOR_CHUNKS mode. By default, is uses SAMPLES mode. See https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/#streamed-chunks",
 			Value: false,
 		},
 		&cli.StringFlag{
-			Name:     remoteReadStepInterval,
-			Usage:    fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are %q,%q,%q,%q.", remoteReadFilterTimeStart, stepper.StepMonth, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
-			Required: true,
+			Name: remoteReadStepInterval,
+			Usage: fmt.Sprintf("The time interval to split the migration into steps. For example, to migrate 1y of data with '--%s=month' vmctl will execute it in 12 separate requests from the beginning of the time range to its end. To reverse the order use '--%s'. Requires setting '--%s'. Valid values are '%s','%s','%s','%s','%s'.",
+				remoteReadStepInterval, remoteReadFilterTimeReverse, remoteReadFilterTimeStart, stepper.StepMonth, stepper.StepWeek, stepper.StepDay, stepper.StepHour, stepper.StepMinute), Required: true,
+		},
+		&cli.BoolFlag{
+			Name:  remoteReadFilterTimeReverse,
+			Usage: fmt.Sprintf("Whether to reverse the order of time intervals split by '--%s' cmd-line flag. When set, the migration will start from the newest to the oldest data.", remoteReadStepInterval),
+			Value: false,
 		},
 		&cli.StringFlag{
 			Name:     remoteReadSrcAddr,
@@ -485,7 +690,7 @@ var (
 		},
 		&cli.DurationFlag{
 			Name:  remoteReadHTTPTimeout,
-			Usage: "Timeout defines timeout for HTTP write request to remote storage",
+			Usage: "Timeout defines timeout for HTTP requests made by remote read client",
 		},
 		&cli.StringFlag{
 			Name:  remoteReadHeaders,
@@ -494,9 +699,30 @@ var (
 				"For example, --remote-read-headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding remote source storage. \n" +
 				"Multiple headers must be delimited by '^^': --remote-read-headers='header1:value1^^header2:value2'",
 		},
+		&cli.StringFlag{
+			Name:  remoteReadCertFile,
+			Usage: "Optional path to client-side TLS certificate file to use when connecting to -remote-read-src-addr",
+		},
+		&cli.StringFlag{
+			Name:  remoteReadKeyFile,
+			Usage: "Optional path to client-side TLS key to use when connecting to -remote-read-src-addr",
+		},
+		&cli.StringFlag{
+			Name:  remoteReadCAFile,
+			Usage: "Optional path to TLS CA file to use for verifying connections to -remote-read-src-addr. By default, system CA is used",
+		},
+		&cli.StringFlag{
+			Name:  remoteReadServerName,
+			Usage: "Optional TLS server name to use for connections to remoteReadSrcAddr. By default, the server name from -remote-read-src-addr is used",
+		},
 		&cli.BoolFlag{
 			Name:  remoteReadInsecureSkipVerify,
 			Usage: "Whether to skip TLS certificate verification when connecting to the remote read address",
+			Value: false,
+		},
+		&cli.BoolFlag{
+			Name:  remoteReadDisablePathAppend,
+			Usage: "Whether to disable automatic appending of the /api/v1/read suffix to --remote-read-src-addr",
 			Value: false,
 		},
 	}

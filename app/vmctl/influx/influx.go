@@ -1,6 +1,7 @@
 package influx
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io"
 	"log"
@@ -33,7 +34,8 @@ type Config struct {
 	Retention string
 	ChunkSize int
 
-	Filter Filter
+	Filter    Filter
+	TLSConfig *tls.Config
 }
 
 // Filter contains configuration for filtering
@@ -86,10 +88,10 @@ type LabelPair struct {
 // configured with passed Config
 func NewClient(cfg Config) (*Client, error) {
 	c := influx.HTTPConfig{
-		Addr:               cfg.Addr,
-		Username:           cfg.Username,
-		Password:           cfg.Password,
-		InsecureSkipVerify: true,
+		Addr:      cfg.Addr,
+		Username:  cfg.Username,
+		Password:  cfg.Password,
+		TLSConfig: cfg.TLSConfig,
 	}
 	hc, err := influx.NewHTTPClient(c)
 	if err != nil {
@@ -151,6 +153,10 @@ func (c *Client) Explore() ([]*Series, error) {
 	mFields, err := c.fieldsByMeasurement()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get field keys: %s", err)
+	}
+
+	if len(mFields) < 1 {
+		return nil, fmt.Errorf("found no numeric fields for import in database %q", c.database)
 	}
 
 	series, err := c.getSeries()
@@ -354,10 +360,13 @@ func (c *Client) getSeries() ([]*Series, error) {
 func (c *Client) do(q influx.Query) ([]queryValues, error) {
 	res, err := c.Query(q)
 	if err != nil {
-		return nil, fmt.Errorf("query %q err: %s", q.Command, err)
+		return nil, fmt.Errorf("query error: %s", err)
+	}
+	if res.Error() != nil {
+		return nil, fmt.Errorf("response error: %s", res.Error())
 	}
 	if len(res.Results) < 1 {
-		return nil, fmt.Errorf("exploration query %q returned 0 results", q.Command)
+		return nil, fmt.Errorf("query returned 0 results")
 	}
 	return parseResult(res.Results[0])
 }

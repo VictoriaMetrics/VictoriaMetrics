@@ -1,0 +1,44 @@
+@use "src/styles/variables" as *;
+
+.vm-explore-logs-body {
+  &-header {
+    margin: -$padding-medium 0-$padding-medium 0;
+
+    &_mobile {
+      margin: -$padding-global 0-$padding-global 0;
+    }
+
+    &__settings {
+      display: flex;
+      align-items: center;
+      gap: $padding-small;
+    }
+  }
+
+  &__empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+    color: $color-text-disabled;
+    text-align: center;
+  }
+
+  &__table {
+    padding-top: $padding-medium;
+    width: calc(100vw - ($padding-medium * 4) - var(--scrollbar-width));
+    overflow: auto;
+
+    @media (max-width: 768px) {
+      width: calc(100vw - ($padding-medium * 2) - var(--scrollbar-width));
+    }
+
+    &_mobile {
+      width: calc(100vw - ($padding-global * 2) - var(--scrollbar-width));
+    }
+
+    .vm-table {
+      min-width: 700px;
+    }
+  }
+}

@@ -15,15 +15,19 @@ import (
 	"net/http"
 	"time"
 
+	"cloud.google.com/go/auth"
+	"cloud.google.com/go/auth/credentials"
+	"cloud.google.com/go/auth/httptransport"
+	"cloud.google.com/go/auth/oauth2adapt"
 	"go.opencensus.io/plugin/ochttp"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/net/http2"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/googleapi/transport"
 	"google.golang.org/api/internal"
+	"google.golang.org/api/internal/cert"
 	"google.golang.org/api/option"
-	"google.golang.org/api/transport/cert"
 	"google.golang.org/api/transport/http/internal/propagation"
-	"google.golang.org/api/transport/internal/dca"
 )
 
 // NewClient returns an HTTP client for use communicating with a Google cloud
@@ -34,7 +38,7 @@ func NewClient(ctx context.Context, opts ...option.ClientOption) (*http.Client, 
 	if err != nil {
 		return nil, "", err
 	}
-	clientCertSource, endpoint, err := dca.GetClientCertificateSourceAndEndpoint(settings)
+	clientCertSource, dialTLSContext, endpoint, err := internal.GetHTTPTransportConfigAndEndpoint(settings)
 	if err != nil {
 		return nil, "", err
 	}
@@ -42,11 +46,96 @@ func NewClient(ctx context.Context, opts ...option.ClientOption) (*http.Client, 
 	if settings.HTTPClient != nil {
 		return settings.HTTPClient, endpoint, nil
 	}
-	trans, err := newTransport(ctx, defaultBaseTransport(ctx, clientCertSource), settings)
+
+	if settings.IsNewAuthLibraryEnabled() {
+		client, err := newClientNewAuth(ctx, nil, settings)
+		if err != nil {
+			return nil, "", err
+		}
+		return client, endpoint, nil
+	}
+	trans, err := newTransport(ctx, defaultBaseTransport(ctx, clientCertSource, dialTLSContext), settings)
 	if err != nil {
 		return nil, "", err
 	}
 	return &http.Client{Transport: trans}, endpoint, nil
+}
+
+// newClientNewAuth is an adapter to call new auth library.
+func newClientNewAuth(ctx context.Context, base http.RoundTripper, ds *internal.DialSettings) (*http.Client, error) {
+	// honor options if set
+	var creds *auth.Credentials
+	if ds.InternalCredentials != nil {
+		creds = oauth2adapt.AuthCredentialsFromOauth2Credentials(ds.InternalCredentials)
+	} else if ds.Credentials != nil {
+		creds = oauth2adapt.AuthCredentialsFromOauth2Credentials(ds.Credentials)
+	} else if ds.AuthCredentials != nil {
+		creds = ds.AuthCredentials
+	} else if ds.TokenSource != nil {
+		credOpts := &auth.CredentialsOptions{
+			TokenProvider: oauth2adapt.TokenProviderFromTokenSource(ds.TokenSource),
+		}
+		if ds.QuotaProject != "" {
+			credOpts.QuotaProjectIDProvider = auth.CredentialsPropertyFunc(func(ctx context.Context) (string, error) {
+				return ds.QuotaProject, nil
+			})
+		}
+		creds = auth.NewCredentials(credOpts)
+	}
+
+	var skipValidation bool
+	// If our clients explicitly setup the credential skip validation as it is
+	// assumed correct
+	if ds.SkipValidation || ds.InternalCredentials != nil {
+		skipValidation = true
+	}
+
+	// Defaults for older clients that don't set this value yet
+	defaultEndpointTemplate := ds.DefaultEndpointTemplate
+	if defaultEndpointTemplate == "" {
+		defaultEndpointTemplate = ds.DefaultEndpoint
+	}
+
+	var aud string
+	if len(ds.Audiences) > 0 {
+		aud = ds.Audiences[0]
+	}
+	headers := http.Header{}
+	if ds.QuotaProject != "" {
+		headers.Set("X-goog-user-project", ds.QuotaProject)
+	}
+	if ds.RequestReason != "" {
+		headers.Set("X-goog-request-reason", ds.RequestReason)
+	}
+	client, err := httptransport.NewClient(&httptransport.Options{
+		DisableTelemetry:      ds.TelemetryDisabled,
+		DisableAuthentication: ds.NoAuth,
+		Headers:               headers,
+		Endpoint:              ds.Endpoint,
+		APIKey:                ds.APIKey,
+		Credentials:           creds,
+		ClientCertProvider:    ds.ClientCertSource,
+		BaseRoundTripper:      base,
+		DetectOpts: &credentials.DetectOptions{
+			Scopes:          ds.Scopes,
+			Audience:        aud,
+			CredentialsFile: ds.CredentialsFile,
+			CredentialsJSON: ds.CredentialsJSON,
+			Client:          oauth2.NewClient(ctx, nil),
+		},
+		InternalOptions: &httptransport.InternalOptions{
+			EnableJWTWithScope:      ds.EnableJwtWithScope,
+			DefaultAudience:         ds.DefaultAudience,
+			DefaultEndpointTemplate: defaultEndpointTemplate,
+			DefaultMTLSEndpoint:     ds.DefaultMTLSEndpoint,
+			DefaultScopes:           ds.DefaultScopes,
+			SkipValidation:          skipValidation,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
 }
 
 // NewTransport creates an http.RoundTripper for use communicating with a Google
@@ -59,6 +148,13 @@ func NewTransport(ctx context.Context, base http.RoundTripper, opts ...option.Cl
 	if settings.HTTPClient != nil {
 		return nil, errors.New("transport/http: WithHTTPClient passed to NewTransport")
 	}
+	if settings.IsNewAuthLibraryEnabled() {
+		client, err := newClientNewAuth(ctx, base, settings)
+		if err != nil {
+			return nil, err
+		}
+		return client.Transport, nil
+	}
 	return newTransport(ctx, base, settings)
 }
 
@@ -66,15 +162,18 @@ func newTransport(ctx context.Context, base http.RoundTripper, settings *interna
 	paramTransport := &parameterTransport{
 		base:          base,
 		userAgent:     settings.UserAgent,
-		quotaProject:  settings.QuotaProject,
 		requestReason: settings.RequestReason,
 	}
 	var trans http.RoundTripper = paramTransport
+	// Give OpenTelemetry precedence over OpenCensus in case user configuration
+	// causes both to write the same header (`X-Cloud-Trace-Context`).
+	trans = addOpenTelemetryTransport(trans, settings)
 	trans = addOCTransport(trans, settings)
 	switch {
 	case settings.NoAuth:
 		// Do nothing.
 	case settings.APIKey != "":
+		paramTransport.quotaProject = internal.GetQuotaProject(nil, settings.QuotaProject)
 		trans = &transport.APIKey{
 			Transport: trans,
 			Key:       settings.APIKey,
@@ -84,10 +183,18 @@ func newTransport(ctx context.Context, base http.RoundTripper, settings *interna
 		if err != nil {
 			return nil, err
 		}
-		if paramTransport.quotaProject == "" {
-			paramTransport.quotaProject = internal.QuotaProjectFromCreds(creds)
+		if settings.TokenSource == nil {
+			// We only validate non-tokensource creds, as TokenSource-based credentials
+			// don't propagate universe.
+			credsUniverseDomain, err := internal.GetUniverseDomain(creds)
+			if err != nil {
+				return nil, err
+			}
+			if settings.GetUniverseDomain() != credsUniverseDomain {
+				return nil, internal.ErrUniverseNotMatch(settings.GetUniverseDomain(), credsUniverseDomain)
+			}
 		}
-
+		paramTransport.quotaProject = internal.GetQuotaProject(creds, settings.QuotaProject)
 		ts := creds.TokenSource
 		if settings.ImpersonationConfig == nil && settings.TokenSource != nil {
 			ts = settings.TokenSource
@@ -148,22 +255,13 @@ func (t *parameterTransport) RoundTrip(req *http.Request) (*http.Response, error
 	return rt.RoundTrip(&newReq)
 }
 
-// Set at init time by dial_appengine.go. If nil, we're not on App Engine.
-var appengineUrlfetchHook func(context.Context) http.RoundTripper
-
-// defaultBaseTransport returns the base HTTP transport.
-// On App Engine, this is urlfetch.Transport.
-// Otherwise, use a default transport, taking most defaults from
-// http.DefaultTransport.
+// defaultBaseTransport returns the base HTTP transport. It uses a default
+// transport, taking most defaults from http.DefaultTransport.
 // If TLSCertificate is available, set TLSClientConfig as well.
-func defaultBaseTransport(ctx context.Context, clientCertSource cert.Source) http.RoundTripper {
-	if appengineUrlfetchHook != nil {
-		return appengineUrlfetchHook(ctx)
-	}
-
+func defaultBaseTransport(ctx context.Context, clientCertSource cert.Source, dialTLSContext func(context.Context, string, string) (net.Conn, error)) http.RoundTripper {
 	// Copy http.DefaultTransport except for MaxIdleConnsPerHost setting,
-	// which is increased due to reported performance issues under load in the GCS
-	// client. Transport.Clone is only available in Go 1.13 and up.
+	// which is increased due to reported performance issues under load in the
+	// GCS client. Transport.Clone is only available in Go 1.13 and up.
 	trans := clonedTransport(http.DefaultTransport)
 	if trans == nil {
 		trans = fallbackBaseTransport()
@@ -174,6 +272,10 @@ func defaultBaseTransport(ctx context.Context, clientCertSource cert.Source) htt
 		trans.TLSClientConfig = &tls.Config{
 			GetClientCertificate: clientCertSource,
 		}
+	}
+	if dialTLSContext != nil {
+		// If DialTLSContext is set, TLSClientConfig wil be ignored
+		trans.DialTLSContext = dialTLSContext
 	}
 
 	configureHTTP2(trans)
@@ -209,6 +311,13 @@ func fallbackBaseTransport() *http.Transport {
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 	}
+}
+
+func addOpenTelemetryTransport(trans http.RoundTripper, settings *internal.DialSettings) http.RoundTripper {
+	if settings.TelemetryDisabled {
+		return trans
+	}
+	return otelhttp.NewTransport(trans)
 }
 
 func addOCTransport(trans http.RoundTripper, settings *internal.DialSettings) http.RoundTripper {

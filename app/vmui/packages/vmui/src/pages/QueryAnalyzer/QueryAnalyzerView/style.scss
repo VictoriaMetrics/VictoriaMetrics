@@ -1,0 +1,30 @@
+@use "src/styles/variables" as *;
+
+.vm-query-analyzer-view {
+  display: grid;
+  gap: $padding-global;
+  position: relative;
+
+  &-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: $font-size-small;
+    margin: -$padding-medium 0-$padding-medium $padding-medium;
+    padding: 0 $padding-medium;
+    border-bottom: $border-divider;
+    z-index: 1;
+
+    &__left {
+      display: flex;
+      align-items: center;
+      gap: $padding-small;
+    }
+  }
+
+  &_mobile &-header {
+    margin: -$padding-global 0-$padding-global $padding-global;
+    padding: 0 $padding-global;
+  }
+}

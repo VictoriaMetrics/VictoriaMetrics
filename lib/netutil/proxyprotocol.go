@@ -19,7 +19,7 @@ func newProxyProtocolConn(c net.Conn) (net.Conn, error) {
 	// Limit the time needed for reading the proxy protocol header.
 	d := time.Now().Add(5 * time.Second)
 	if err := c.SetReadDeadline(d); err != nil {
-		return nil, fmt.Errorf("cannot set deadline for reading proxy protocol header: %s", err)
+		return nil, fmt.Errorf("cannot set deadline for reading proxy protocol header: %w", err)
 	}
 
 	remoteAddr, err := readProxyProto(c)
@@ -32,7 +32,7 @@ func newProxyProtocolConn(c net.Conn) (net.Conn, error) {
 
 	// Reset the read deadline.
 	if err := c.SetReadDeadline(time.Time{}); err != nil {
-		return nil, fmt.Errorf("cannot reset deadline after reading proxy protocol header: %s", err)
+		return nil, fmt.Errorf("cannot reset deadline after reading proxy protocol header: %w", err)
 	}
 
 	return &proxyProtocolConn{
@@ -71,9 +71,14 @@ func readProxyProto(r io.Reader) (net.Addr, error) {
 	if version != 2 {
 		return nil, fmt.Errorf("unsupported proxy protocol version, only v2 protocol version is supported, got: %d", version)
 	}
-	if proto != 1 {
-		// Only TCP is supported (aka STREAM).
-		return nil, fmt.Errorf("the proxy protocol implementation doesn't support proto %d; expecting 1", proto)
+	// check for supported proto:
+	switch {
+	case proto == 0 && command == 0:
+		// 0 - UNSPEC with LOCAL command 0. Common use case for load balancer health checks.
+	case proto == 1:
+		// 1 - TCP (aka STREAM).
+	default:
+		return nil, fmt.Errorf("the proxy protocol implementation doesn't support proto %d and command: %d; expecting proto 1 or proto 0 with command 0", proto, command)
 	}
 	// The length of the remainder of the header including any TLVs in network byte order
 	// 0, 1, 2

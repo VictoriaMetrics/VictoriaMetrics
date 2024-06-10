@@ -1,0 +1,78 @@
+@use "src/styles/variables" as *;
+
+.vm-cardinality-tip {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background-color: $color-background-block;
+  border-radius: $border-radius-medium;
+  box-shadow: $box-shadow;
+  overflow: hidden;
+  color: $color-text-secondary;
+  flex-grow: 1;
+  width: 300px;
+
+  &-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: $padding-small $padding-global;
+    border-bottom: $border-divider;
+    gap: 4px;
+
+    &:after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: $color-warning;
+      opacity: 0.1;
+      pointer-events: none
+    }
+
+    &__tip-icon {
+      width: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: $color-warning;
+    }
+
+    &__title {
+      font-weight: bold;
+      text-align: center;
+      color: $color-text;
+    }
+
+    &__tooltip {
+      max-width: 280px;
+      white-space: normal;
+      padding: $padding-small;
+      line-height: 130%;
+      font-size: $font-size;
+    }
+  }
+
+  &__description {
+    padding: $padding-small $padding-global;
+    line-height: 130%;
+
+    p {
+      margin-bottom: $padding-small;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+
+    ul, ol {
+      list-style-position: inside;
+
+      li {
+        margin-bottom: calc($padding-small/2);
+      }
+    }
+  }
+}

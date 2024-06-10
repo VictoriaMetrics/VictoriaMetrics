@@ -2,12 +2,15 @@ package stepper
 
 import (
 	"fmt"
+	"sort"
 	"time"
 )
 
 const (
 	// StepMonth represents a one month interval
 	StepMonth string = "month"
+	// StepWeek represents a one week interval
+	StepWeek string = "week"
 	// StepDay represents a one day interval
 	StepDay string = "day"
 	// StepHour represents a one hour interval
@@ -18,7 +21,7 @@ const (
 
 // SplitDateRange splits start-end range in a subset of ranges respecting the given step
 // Ranges with granularity of StepMonth are aligned to 1st of each month in order to improve export efficiency at block transfer level
-func SplitDateRange(start, end time.Time, step string) ([][]time.Time, error) {
+func SplitDateRange(start, end time.Time, step string, timeReverse bool) ([][]time.Time, error) {
 
 	if start.After(end) {
 		return nil, fmt.Errorf("start time %q should come before end time %q", start.Format(time.RFC3339), end.Format(time.RFC3339))
@@ -39,6 +42,10 @@ func SplitDateRange(start, end time.Time, step string) ([][]time.Time, error) {
 	case StepDay:
 		nextStep = func(t time.Time) (time.Time, time.Time) {
 			return t, t.AddDate(0, 0, 1)
+		}
+	case StepWeek:
+		nextStep = func(t time.Time) (time.Time, time.Time) {
+			return t, t.Add(7 * 24 * time.Hour)
 		}
 	case StepHour:
 		nextStep = func(t time.Time) (time.Time, time.Time) {
@@ -64,6 +71,11 @@ func SplitDateRange(start, end time.Time, step string) ([][]time.Time, error) {
 		}
 		ranges = append(ranges, []time.Time{s, e})
 		currentStep = e
+	}
+	if timeReverse {
+		sort.SliceStable(ranges, func(i, j int) bool {
+			return ranges[i][0].After(ranges[j][0])
+		})
 	}
 
 	return ranges, nil

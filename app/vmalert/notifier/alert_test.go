@@ -178,7 +178,7 @@ func TestAlert_ExecTemplate(t *testing.T) {
 		},
 	}
 
-	qFn := func(q string) ([]datasource.Metric, error) {
+	qFn := func(_ string) ([]datasource.Metric, error) {
 		return []datasource.Metric{
 			{
 				Labels: []datasource.Label{
@@ -200,6 +200,9 @@ func TestAlert_ExecTemplate(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			if err := ValidateTemplates(tc.annotations); err != nil {
+				t.Fatal(err)
+			}
 			tpl, err := tc.alert.ExecTemplate(qFn, tc.alert.Labels, tc.annotations)
 			if err != nil {
 				t.Fatal(err)
@@ -232,6 +235,11 @@ func TestAlert_toPromLabels(t *testing.T) {
 	fn(
 		map[string]string{"foo": "bar", "a": "baz"}, // unsorted
 		[]prompbmarshal.Label{{Name: "a", Value: "baz"}, {Name: "foo", Value: "bar"}},
+		nil,
+	)
+	fn(
+		map[string]string{"foo.bar": "baz", "service!name": "qux"},
+		[]prompbmarshal.Label{{Name: "foo_bar", Value: "baz"}, {Name: "service_name", Value: "qux"}},
 		nil,
 	)
 

@@ -2,18 +2,21 @@ package gcsremote
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"path"
 	"strings"
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // FS represents filesystem for backups in GCS.
@@ -130,12 +133,8 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 
 // DeletePart deletes part p from fs.
 func (fs *FS) DeletePart(p common.Part) error {
-	o := fs.object(p)
-	ctx := context.Background()
-	if err := o.Delete(ctx); err != nil {
-		return fmt.Errorf("cannot delete %q at %s (remote path %q): %w", p.Path, fs, o.ObjectName(), err)
-	}
-	return nil
+	path := p.RemotePath(fs.Dir)
+	return fs.delete(path)
 }
 
 // RemoveEmptyDirs recursively removes empty dirs in fs.
@@ -213,14 +212,53 @@ func (fs *FS) object(p common.Part) *storage.ObjectHandle {
 //
 // The function does nothing if the filePath doesn't exists.
 func (fs *FS) DeleteFile(filePath string) error {
-	path := fs.Dir + filePath
+	path := path.Join(fs.Dir, filePath)
+	return fs.delete(path)
+}
+
+func (fs *FS) delete(path string) error {
+	if *common.DeleteAllObjectVersions {
+		return fs.deleteObjectWithGenerations(path)
+	}
+	return fs.deleteObject(path)
+}
+
+// deleteObjectWithGenerations deletes object at path and all its generations.
+func (fs *FS) deleteObjectWithGenerations(path string) error {
+	it := fs.bkt.Objects(context.Background(), &storage.Query{
+		Versions: true,
+		Prefix:   path,
+	})
+	ctx := context.Background()
+	for {
+		attrs, err := it.Next()
+		if errors.Is(err, iterator.Done) {
+			return nil
+		}
+
+		if err != nil {
+			return fmt.Errorf("cannot read %q at %s: %w", path, fs, err)
+		}
+
+		if err := fs.bkt.Object(path).Generation(attrs.Generation).Delete(ctx); err != nil {
+			if !errors.Is(err, storage.ErrObjectNotExist) {
+				return fmt.Errorf("cannot delete %q at %s: %w", path, fs, err)
+			}
+		}
+	}
+}
+
+// deleteObject deletes object at path.
+// It does not specify a Generation, so it will delete the latest generation of the object.
+func (fs *FS) deleteObject(path string) error {
 	o := fs.bkt.Object(path)
 	ctx := context.Background()
 	if err := o.Delete(ctx); err != nil {
-		if err != storage.ErrObjectNotExist {
-			return fmt.Errorf("cannot delete %q at %s (remote path %q): %w", filePath, fs, o.ObjectName(), err)
+		if !errors.Is(err, storage.ErrObjectNotExist) {
+			return fmt.Errorf("cannot delete %q at %s: %w", o.ObjectName(), fs, err)
 		}
 	}
+
 	return nil
 }
 
@@ -228,7 +266,7 @@ func (fs *FS) DeleteFile(filePath string) error {
 //
 // The file is overwritten if it exists.
 func (fs *FS) CreateFile(filePath string, data []byte) error {
-	path := fs.Dir + filePath
+	path := path.Join(fs.Dir, filePath)
 	o := fs.bkt.Object(path)
 	ctx := context.Background()
 	w := o.NewWriter(ctx)
@@ -249,7 +287,7 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 
 // HasFile returns ture if filePath exists at fs.
 func (fs *FS) HasFile(filePath string) (bool, error) {
-	path := fs.Dir + filePath
+	path := path.Join(fs.Dir, filePath)
 	o := fs.bkt.Object(path)
 	ctx := context.Background()
 	_, err := o.Attrs(ctx)
@@ -260,4 +298,17 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 		return false, fmt.Errorf("unexpected error when obtaining attributes for %q at %s (remote path %q): %w", filePath, fs, o.ObjectName(), err)
 	}
 	return true, nil
+}
+
+// ReadFile returns the content of filePath at fs.
+func (fs *FS) ReadFile(filePath string) ([]byte, error) {
+	path := path.Join(fs.Dir, filePath)
+	o := fs.bkt.Object(path)
+	ctx := context.Background()
+	r, err := o.NewReader(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read %q at %s (remote path %q): %w", filePath, fs, o.ObjectName(), err)
+	}
+	defer r.Close()
+	return io.ReadAll(r)
 }

@@ -13,12 +13,6 @@
     padding: 0 $padding-global;
   }
 
-  &__tabs {
-    margin: 0 0-$padding-global 0-$padding-global;
-    border-top: $border-divider;
-    margin-top: $padding-global;
-  }
-
   &-header {
     display: grid;
     grid-template-columns: 1fr auto;
@@ -88,14 +82,14 @@
   &-body {
     display: grid;
     grid-template-columns: repeat(7, 32px);
-    grid-template-rows: repeat(6, 32px);
+    grid-template-rows: repeat(7, 32px);
     align-items: center;
     justify-content: center;
     gap: 2px;
 
     @media (max-width: 500px) {
       grid-template-columns: repeat(7, calc((100vw - ($padding-global * 2) - (6 * 2px))/7));
-      grid-template-rows: repeat(6, calc((100vw - ($padding-global * 2) - (5 * 2px))/7));
+      grid-template-rows: repeat(7, calc((100vw - ($padding-global * 2) - (6 * 2px))/7));
     }
 
     &-cell {
@@ -166,144 +160,16 @@
           background-color: $color-primary;
         }
       }
+
+      &_today {
+        border: 1px solid $color-primary;
+      }
     }
   }
 
-  &-time-picker {
+  &-footer {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    justify-content: center;
-
-    &-clock {
-      $clock-size: 230px;
-      $clock-offset: 42px;
-
-      position: relative;
-      height: $clock-size;
-      width: $clock-size;
-      border-radius: 50%;
-      border: $border-divider;
-      box-shadow: $box-shadow;
-      box-sizing: content-box;
-
-      &:after {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 6px;
-        height: 6px;
-        background-color: $color-primary;
-        border-radius: 50%;
-      }
-
-      &__arrow {
-        position: absolute;
-        top: 0;
-        left: calc(($clock-size/2) - 1px);
-        width: 2px;
-        margin-top: $padding-small;
-        height: calc(($clock-size/2) - $padding-small);
-        background-color: $color-primary;
-        transform-origin: bottom;
-        transition: transform 200ms ease-in-out;
-        opacity: 0.8;
-        z-index: 0;
-
-        &_offset {
-          margin-top: $clock-offset;
-          height: calc(($clock-size/2) - $clock-offset);
-          z-index: 2;
-        }
-
-        &:after {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 30px;
-          height: 30px;
-          background-color: $color-primary;
-          border-radius: 50%;
-        }
-      }
-
-      &__time {
-        display: flex;
-        align-items: flex-start;
-        justify-content: center;
-        text-align: center;
-        padding-top: $padding-small;
-        position: absolute;
-        top: 0;
-        width: 30px;
-        left: calc(($clock-size/2) - 15px);
-        height: calc($clock-size/2);
-        transform-origin: bottom;
-        cursor: pointer;
-        z-index: 1;
-
-        &_hide {
-          display: none;
-        }
-
-        &_offset {
-          padding: 0;
-          margin-top: $clock-offset;
-          height: calc(($clock-size/2) - $clock-offset);
-          z-index: 2;
-        }
-
-        &:hover span {
-          background-color: rgba($color-black, 0.1);
-        }
-
-        span {
-          position: relative;
-          display: grid;
-          align-items: center;
-          justify-content: center;
-          min-width: 30px;
-          min-height: 30px;
-          border-radius: 50%;
-          transform-origin: center;
-          transition: background-color 300ms ease;
-        }
-      }
-    }
-
-    &-fields {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-top: $padding-global;
-
-      &_dark &__input {
-        border-color: $color-text-disabled;
-      }
-
-      span {
-        margin: 0 $padding-small;
-      }
-
-      &__input {
-        width: 64px;
-        height: 32px;
-        border: $border-divider;
-        border-radius: $border-radius-small;
-        font-size: $font-size-medium;
-        padding: 2px $padding-small;
-        text-align: center;
-        background-color: transparent;
-        color: $color-text;
-
-        &:focus {
-          border-color: $color-primary;
-        }
-      }
-    }
+    justify-content: flex-end;
   }
 }

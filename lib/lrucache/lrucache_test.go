@@ -85,7 +85,7 @@ func TestCache(t *testing.T) {
 	}
 }
 
-func TestCacheConcurrentAccess(t *testing.T) {
+func TestCacheConcurrentAccess(_ *testing.T) {
 	const sizeMaxBytes = 16 * 1024 * 1024
 	getMaxSize := func() int {
 		return sizeMaxBytes

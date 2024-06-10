@@ -78,6 +78,36 @@ foo{le="+Inf"} 1.23 456`,
 foo{le="+Inf"} 5.3 0`,
 	)
 
+	// Adjacent empty vmrange bucket
+	f(
+		`foo{vmrange="7.743e+05...8.799e+05"} 5 123
+foo{vmrange="6.813e+05...7.743e+05"} 0 123`,
+		`foo{le="7.743e+05"} 0 123
+foo{le="8.799e+05"} 5 123
+foo{le="+Inf"} 5 123`,
+	)
+
+	// Multiple adjacent empty vmrange bucket
+	f(
+		`foo{vmrange="7.743e+05...8.799e+05"} 5 123
+foo{vmrange="6.813e+05...7.743e+05"} 0 123
+foo{vmrange="5.813e+05...6.813e+05"} 0 123
+`,
+		`foo{le="7.743e+05"} 0 123
+foo{le="8.799e+05"} 5 123
+foo{le="+Inf"} 5 123`,
+	)
+	f(
+		`foo{vmrange="8.799e+05...9.813e+05"} 0 123
+foo{vmrange="7.743e+05...8.799e+05"} 5 123
+foo{vmrange="6.813e+05...7.743e+05"} 0 123
+foo{vmrange="5.813e+05...6.813e+05"} 0 123
+`,
+		`foo{le="7.743e+05"} 0 123
+foo{le="8.799e+05"} 5 123
+foo{le="+Inf"} 5 123`,
+	)
+
 	// Multiple non-empty vmrange buckets
 	f(
 		`foo{vmrange="4.084e+02...4.642e+02"} 2 123

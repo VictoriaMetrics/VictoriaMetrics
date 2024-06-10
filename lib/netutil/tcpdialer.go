@@ -3,30 +3,48 @@ package netutil
 import (
 	"fmt"
 	"net"
+	"syscall"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
 )
 
+// A dialer is a means to establish a connection.
+type dialer interface {
+	Dial(network, addr string) (c net.Conn, err error)
+}
+
 // NewTCPDialer returns new dialer for dialing the given addr.
 //
 // The name is used in metric tags for the returned dialer.
 // The name must be unique among dialers.
-func NewTCPDialer(ms *metrics.Set, name, addr string, dialTimeout time.Duration) *TCPDialer {
+func NewTCPDialer(ms *metrics.Set, name, addr string, dialTimeout, userTimeout time.Duration) *TCPDialer {
+	nd := &net.Dialer{
+		Timeout: dialTimeout,
+
+		// How frequently to send keep-alive packets over established TCP connections.
+		KeepAlive: time.Second,
+	}
 	d := &TCPDialer{
-		d: &net.Dialer{
-			Timeout: dialTimeout,
-
-			// How frequently to send keep-alive packets over established TCP connections.
-			KeepAlive: time.Second,
-		},
-
+		d:    nd,
 		addr: addr,
 
 		dials:      ms.NewCounter(fmt.Sprintf(`vm_tcpdialer_dials_total{name=%q, addr=%q}`, name, addr)),
 		dialErrors: ms.NewCounter(fmt.Sprintf(`vm_tcpdialer_errors_total{name=%q, addr=%q, type="dial"}`, name, addr)),
 	}
 	d.connMetrics.init(ms, "vm_tcpdialer", name, addr)
+	if userTimeout > 0 {
+		nd.Control = func(_, _ string, c syscall.RawConn) error {
+			var err error
+			controlErr := c.Control(func(fd uintptr) {
+				err = setTCPUserTimeout(fd, userTimeout)
+			})
+			if controlErr != nil {
+				return controlErr
+			}
+			return err
+		}
+	}
 	return d
 }
 
@@ -34,7 +52,7 @@ func NewTCPDialer(ms *metrics.Set, name, addr string, dialTimeout time.Duration)
 //
 // It also gathers various stats for dialed connections.
 type TCPDialer struct {
-	d *net.Dialer
+	d dialer
 
 	addr string
 

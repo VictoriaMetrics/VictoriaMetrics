@@ -1,61 +1,61 @@
 import React, { FC } from "react";
 import EnhancedTable from "../Table/Table";
 import TableCells from "../Table/TableCells/TableCells";
-import BarChart from "../../../components/Chart/BarChart/BarChart";
-import { barOptions } from "../../../components/Chart/BarChart/consts";
 import { Data, HeadCell } from "../Table/types";
 import { MutableRef } from "preact/hooks";
 import Tabs from "../../../components/Main/Tabs/Tabs";
-import { useMemo } from "preact/compat";
-import { ChartIcon, TableIcon } from "../../../components/Main/Icons";
+import { useMemo, useState } from "preact/compat";
+import { ChartIcon, InfoIcon, TableIcon } from "../../../components/Main/Icons";
 import "./style.scss";
 import classNames from "classnames";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import Tooltip from "../../../components/Main/Tooltip/Tooltip";
+import SimpleBarChart from "../../../components/Chart/SimpleBarChart/SimpleBarChart";
 
 interface MetricsProperties {
   rows: Data[];
-  activeTab: number;
-  onChange: (newValue: string, tabId: string) => void;
   onActionClick: (name: string) => void;
   tabs: string[];
   chartContainer: MutableRef<HTMLDivElement> | undefined;
   totalSeries: number,
-  tabId: string;
+  totalSeriesPrev: number,
   sectionTitle: string;
+  tip?: string;
   tableHeaderCells: HeadCell[];
+  isPrometheus: boolean;
 }
 
 const MetricsContent: FC<MetricsProperties> = ({
   rows,
-  activeTab,
-  onChange,
-  tabs: tabsProps,
+  tabs: tabsProps = [],
   chartContainer,
   totalSeries,
-  tabId,
+  totalSeriesPrev,
   onActionClick,
   sectionTitle,
+  tip,
   tableHeaderCells,
+  isPrometheus,
 }) => {
   const { isMobile } = useDeviceDetect();
+  const [activeTab, setActiveTab] = useState("table");
+
+  const noDataPrometheus = isPrometheus && !rows.length;
 
   const tableCells = (row: Data) => (
     <TableCells
       row={row}
       totalSeries={totalSeries}
+      totalSeriesPrev={totalSeriesPrev}
       onActionClick={onActionClick}
     />
   );
 
   const tabs = useMemo(() => tabsProps.map((t, i) => ({
-    value: String(i),
+    value: t,
     label: t,
     icon: i === 0 ? <TableIcon /> : <ChartIcon />
   })), [tabsProps]);
-
-  const handleChangeTab = (newValue: string) => {
-    onChange(newValue, tabId);
-  };
 
   return (
     <div
@@ -69,47 +69,64 @@ const MetricsContent: FC<MetricsProperties> = ({
       <div className="vm-metrics-content-header vm-section-header">
         <h5
           className={classNames({
+            "vm-metrics-content-header__title": true,
             "vm-section-header__title": true,
             "vm-section-header__title_mobile": isMobile,
           })}
-        >{sectionTitle}</h5>
+        >
+          {!isMobile && tip && (
+            <Tooltip
+              title={<p
+                dangerouslySetInnerHTML={{ __html: tip }}
+                className="vm-metrics-content-header__tip"
+              />}
+            >
+              <div className="vm-metrics-content-header__tip-icon"><InfoIcon/></div>
+            </Tooltip>
+          )}
+          {sectionTitle}
+        </h5>
         <div className="vm-section-header__tabs">
           <Tabs
-            activeItem={String(activeTab)}
+            activeItem={activeTab}
             items={tabs}
-            onChange={handleChangeTab}
+            onChange={setActiveTab}
           />
         </div>
       </div>
-      <div
-        ref={chartContainer}
-        className={classNames({
-          "vm-metrics-content__table": true,
-          "vm-metrics-content__table_mobile": isMobile
-        })}
-      >
-        {activeTab === 0 && (
+      {noDataPrometheus && (
+        <div className="vm-metrics-content-prom-data">
+          <div className="vm-metrics-content-prom-data__icon"><InfoIcon/></div>
+          <h3 className="vm-metrics-content-prom-data__title">
+            Prometheus Data Limitation
+          </h3>
+          <p className="vm-metrics-content-prom-data__text">
+            Due to missing data from your Prometheus source, some tables may appear empty.<br/>
+            This does not indicate an issue with your system or our tool.
+          </p>
+        </div>
+      )}
+      {!noDataPrometheus && activeTab === "table" && (
+        <div
+          ref={chartContainer}
+          className={classNames({
+            "vm-metrics-content__table": true,
+            "vm-metrics-content__table_mobile": isMobile
+          })}
+        >
           <EnhancedTable
             rows={rows}
             headerCells={tableHeaderCells}
             defaultSortColumn={"value"}
             tableCells={tableCells}
           />
-        )}
-        {activeTab === 1 && (
-          <BarChart
-            data={[
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              // @ts-ignore
-              rows.map((v) => v.name),
-              rows.map((v) => v.value),
-              rows.map((_, i) => i % 12 == 0 ? 1 : i % 10 == 0 ? 2 : 0),
-            ]}
-            container={chartContainer?.current || null}
-            configs={barOptions}
-          />
-        )}
-      </div>
+        </div>
+      )}
+      {!noDataPrometheus && activeTab === "graph" && (
+        <div className="vm-metrics-content__chart">
+          <SimpleBarChart data={rows.map(({ name, value }) => ({ name, value }))}/>
+        </div>
+      )}
     </div>
   );
 };

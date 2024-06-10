@@ -4,86 +4,88 @@ package s3
 
 import (
 	"context"
+	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	internalChecksum "github.com/aws/aws-sdk-go-v2/service/internal/checksum"
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
+// This operation is not supported by directory buckets.
+//
 // Sets the configuration of the website that is specified in the website
 // subresource. To configure a bucket as a website, you can add this subresource on
 // the bucket with website configuration information such as the file name of the
-// index document and any redirect rules. For more information, see Hosting
-// Websites on Amazon S3
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html). This PUT
-// action requires the S3:PutBucketWebsite permission. By default, only the bucket
-// owner can configure the website attached to a bucket; however, bucket owners can
-// allow other users to set the website configuration by writing a bucket policy
-// that grants them the S3:PutBucketWebsite permission. To redirect all website
-// requests sent to the bucket's website endpoint, you add a website configuration
-// with the following elements. Because all requests are sent to another website,
-// you don't need to provide index document name for the bucket.
+// index document and any redirect rules. For more information, see [Hosting Websites on Amazon S3].
 //
-// *
-// WebsiteConfiguration
+// This PUT action requires the S3:PutBucketWebsite permission. By default, only
+// the bucket owner can configure the website attached to a bucket; however, bucket
+// owners can allow other users to set the website configuration by writing a
+// bucket policy that grants them the S3:PutBucketWebsite permission.
 //
-// * RedirectAllRequestsTo
+// To redirect all website requests sent to the bucket's website endpoint, you add
+// a website configuration with the following elements. Because all requests are
+// sent to another website, you don't need to provide index document name for the
+// bucket.
 //
-// * HostName
+//   - WebsiteConfiguration
 //
-// * Protocol
+//   - RedirectAllRequestsTo
 //
-// If you
-// want granular control over redirects, you can use the following elements to add
-// routing rules that describe conditions for redirecting requests and information
-// about the redirect destination. In this case, the website configuration must
-// provide an index document for the bucket, because some requests might not be
-// redirected.
+//   - HostName
 //
-// * WebsiteConfiguration
+//   - Protocol
 //
-// * IndexDocument
+// If you want granular control over redirects, you can use the following elements
+// to add routing rules that describe conditions for redirecting requests and
+// information about the redirect destination. In this case, the website
+// configuration must provide an index document for the bucket, because some
+// requests might not be redirected.
 //
-// * Suffix
+//   - WebsiteConfiguration
 //
-// *
-// ErrorDocument
+//   - IndexDocument
 //
-// * Key
+//   - Suffix
 //
-// * RoutingRules
+//   - ErrorDocument
 //
-// * RoutingRule
+//   - Key
 //
-// * Condition
+//   - RoutingRules
 //
-// *
-// HttpErrorCodeReturnedEquals
+//   - RoutingRule
 //
-// * KeyPrefixEquals
+//   - Condition
 //
-// * Redirect
+//   - HttpErrorCodeReturnedEquals
 //
-// * Protocol
+//   - KeyPrefixEquals
 //
-// *
-// HostName
+//   - Redirect
 //
-// * ReplaceKeyPrefixWith
+//   - Protocol
 //
-// * ReplaceKeyWith
+//   - HostName
 //
-// * HttpRedirectCode
+//   - ReplaceKeyPrefixWith
 //
-// Amazon
-// S3 has a limitation of 50 routing rules per website configuration. If you
-// require more than 50 routing rules, you can use object redirect. For more
-// information, see Configuring an Object Redirect
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/how-to-page-redirect.html) in
-// the Amazon S3 User Guide.
+//   - ReplaceKeyWith
+//
+//   - HttpRedirectCode
+//
+// Amazon S3 has a limitation of 50 routing rules per website configuration. If
+// you require more than 50 routing rules, you can use object redirect. For more
+// information, see [Configuring an Object Redirect]in the Amazon S3 User Guide.
+//
+// The maximum request length is limited to 128 KB.
+//
+// [Hosting Websites on Amazon S3]: https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html
+// [Configuring an Object Redirect]: https://docs.aws.amazon.com/AmazonS3/latest/dev/how-to-page-redirect.html
 func (c *Client) PutBucketWebsite(ctx context.Context, params *PutBucketWebsiteInput, optFns ...func(*Options)) (*PutBucketWebsiteOutput, error) {
 	if params == nil {
 		params = &PutBucketWebsiteInput{}
@@ -111,31 +113,40 @@ type PutBucketWebsiteInput struct {
 	// This member is required.
 	WebsiteConfiguration *types.WebsiteConfiguration
 
-	// Indicates the algorithm used to create the checksum for the object when using
-	// the SDK. This header will not provide any additional functionality if not using
-	// the SDK. When sending this header, there must be a corresponding x-amz-checksum
-	// or x-amz-trailer header sent. Otherwise, Amazon S3 fails the request with the
-	// HTTP status code 400 Bad Request. For more information, see Checking object
-	// integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
-	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
-	// ignores any provided ChecksumAlgorithm parameter.
+	// Indicates the algorithm used to create the checksum for the object when you use
+	// the SDK. This header will not provide any additional functionality if you don't
+	// use the SDK. When you send this header, there must be a corresponding
+	// x-amz-checksum or x-amz-trailer header sent. Otherwise, Amazon S3 fails the
+	// request with the HTTP status code 400 Bad Request . For more information, see [Checking object integrity]
+	// in the Amazon S3 User Guide.
+	//
+	// If you provide an individual checksum, Amazon S3 ignores any provided
+	// ChecksumAlgorithm parameter.
+	//
+	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumAlgorithm types.ChecksumAlgorithm
 
-	// The base64-encoded 128-bit MD5 digest of the data. You must use this header as a
-	// message integrity check to verify that the request body was not corrupted in
-	// transit. For more information, see RFC 1864
-	// (http://www.ietf.org/rfc/rfc1864.txt). For requests made using the Amazon Web
-	// Services Command Line Interface (CLI) or Amazon Web Services SDKs, this field is
-	// calculated automatically.
+	// The base64-encoded 128-bit MD5 digest of the data. You must use this header as
+	// a message integrity check to verify that the request body was not corrupted in
+	// transit. For more information, see [RFC 1864].
+	//
+	// For requests made using the Amazon Web Services Command Line Interface (CLI) or
+	// Amazon Web Services SDKs, this field is calculated automatically.
+	//
+	// [RFC 1864]: http://www.ietf.org/rfc/rfc1864.txt
 	ContentMD5 *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
+}
+
+func (in *PutBucketWebsiteInput) bindEndpointParams(p *EndpointParameters) {
+	p.Bucket = in.Bucket
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type PutBucketWebsiteOutput struct {
@@ -146,6 +157,9 @@ type PutBucketWebsiteOutput struct {
 }
 
 func (c *Client) addOperationPutBucketWebsiteMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsRestxml_serializeOpPutBucketWebsite{}, middleware.After)
 	if err != nil {
 		return err
@@ -154,34 +168,38 @@ func (c *Client) addOperationPutBucketWebsiteMiddlewares(stack *middleware.Stack
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "PutBucketWebsite"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
-		return err
-	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -190,7 +208,10 @@ func (c *Client) addOperationPutBucketWebsiteMiddlewares(stack *middleware.Stack
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
-	if err = swapWithCustomHTTPSignerMiddleware(stack, options); err != nil {
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpPutBucketWebsiteValidationMiddleware(stack); err != nil {
@@ -200,6 +221,9 @@ func (c *Client) addOperationPutBucketWebsiteMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addPutBucketWebsiteInputChecksumMiddlewares(stack, options); err != nil {
@@ -220,14 +244,29 @@ func (c *Client) addOperationPutBucketWebsiteMiddlewares(stack *middleware.Stack
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = s3cust.AddExpressDefaultChecksumMiddleware(stack); err != nil {
+		return err
+	}
 	return nil
+}
+
+func (v *PutBucketWebsiteInput) bucket() (string, bool) {
+	if v.Bucket == nil {
+		return "", false
+	}
+	return *v.Bucket, true
 }
 
 func newServiceMetadataMiddleware_opPutBucketWebsite(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "s3",
 		OperationName: "PutBucketWebsite",
 	}
 }

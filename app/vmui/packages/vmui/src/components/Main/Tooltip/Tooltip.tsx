@@ -31,20 +31,17 @@ const Tooltip: FC<TooltipProps> = ({
   const onScrollWindow = () => setIsOpen(false);
 
   useEffect(() => {
-    window.addEventListener("scroll", onScrollWindow);
-
-    return () => {
-      window.removeEventListener("scroll", onScrollWindow);
-    };
-  }, []);
-
-  useEffect(() => {
     if (!popperRef.current || !isOpen) return;
     setPopperSize({
       width: popperRef.current.clientWidth,
       height: popperRef.current.clientHeight
     });
-  }, [isOpen]);
+    window.addEventListener("scroll", onScrollWindow);
+
+    return () => {
+      window.removeEventListener("scroll", onScrollWindow);
+    };
+  }, [isOpen, title]);
 
   const popperStyle = useMemo(() => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment

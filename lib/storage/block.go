@@ -95,6 +95,9 @@ func (b *Block) Init(tsid *TSID, timestamps, values []int64, scale int16, precis
 	b.bh.PrecisionBits = precisionBits
 	b.timestamps = append(b.timestamps[:0], timestamps...)
 	b.values = append(b.values[:0], values...)
+	if len(b.timestamps) > 0 {
+		b.fixupTimestamps()
+	}
 }
 
 // nextRow advances to the next row.
@@ -168,12 +171,12 @@ func (b *Block) deduplicateSamplesDuringMerge() {
 	srcValues := b.values[b.nextIdx:]
 	timestamps, values := deduplicateSamplesDuringMerge(srcTimestamps, srcValues, dedupInterval)
 	dedups := len(srcTimestamps) - len(timestamps)
-	atomic.AddUint64(&dedupsDuringMerge, uint64(dedups))
+	dedupsDuringMerge.Add(uint64(dedups))
 	b.timestamps = b.timestamps[:b.nextIdx+len(timestamps)]
 	b.values = b.values[:b.nextIdx+len(values)]
 }
 
-var dedupsDuringMerge uint64
+var dedupsDuringMerge atomic.Uint64
 
 func (b *Block) rowsCount() int {
 	if len(b.values) == 0 {
@@ -366,15 +369,18 @@ func (b *Block) UnmarshalPortable(src []byte) ([]byte, error) {
 	if err != nil {
 		return src, err
 	}
-	src, timestampsData, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return src, fmt.Errorf("cannot read timestampsData: %w", err)
+	timestampsData, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot read timestampsData")
 	}
+	src = src[nSize:]
 	b.timestampsData = append(b.timestampsData[:0], timestampsData...)
-	src, valuesData, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return src, fmt.Errorf("cannot read valuesData: %w", err)
+
+	valuesData, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot read valuesData")
 	}
+	src = src[nSize:]
 	b.valuesData = append(b.valuesData[:0], valuesData...)
 
 	if err := b.bh.validate(); err != nil {

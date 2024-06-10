@@ -1,0 +1,87 @@
+@use "src/styles/variables" as *;
+
+.vm-legend-item {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-gap: $padding-small;
+  align-items: start;
+  justify-content: start;
+  padding: $padding-small;
+  background-color: $color-background-block;
+  cursor: pointer;
+  transition: 0.2s ease;
+  font-size: $font-size-small;
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+  }
+
+  &_hide {
+    text-decoration: line-through;
+    opacity: 0.5;
+  }
+
+  &_static {
+    grid-template-columns: 1fr;
+    margin: 0;
+    padding: 0;
+    cursor: default;
+
+    &:hover {
+      background-color: $color-background-block;
+    }
+  }
+
+  &__marker {
+    position: relative;
+    width: 14px;
+    height: 14px;
+    box-sizing: border-box;
+    transition: 0.2s ease;
+    border-radius: 2px;
+  }
+
+  &-info {
+    font-weight: normal;
+    word-break: break-all;
+
+    &__label {
+      margin-right: 2px;
+    }
+
+    &__free-fields {
+      padding: 2px;
+      cursor: pointer;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+
+  &-stats {
+    grid-column: 2;
+    display: flex;
+    align-items: center;
+    gap: $padding-small;
+
+    &-row {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+
+      &:not(:last-child) {
+        padding-right: $padding-global;
+      }
+
+      &__key {
+        line-height: 1;
+        color: $color-text-secondary;
+        margin-right: calc($padding-small / 2);
+      }
+
+      &__value {
+      }
+    }
+  }
+}

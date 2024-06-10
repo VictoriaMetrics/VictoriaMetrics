@@ -1,0 +1,59 @@
+{% stripspace %}
+
+{% import (
+	"math"
+	"sort"
+) %}
+
+RenderJSONResponse generates response for /render?format=json .
+See https://graphite.readthedocs.io/en/stable/render_api.html#json
+{% func RenderJSONResponse(nextSeries nextSeriesFunc, jsonp string) %}
+	{% if jsonp != "" %}{%s= jsonp %}({% endif %}
+	{% code ss, err := fetchAllSeries(nextSeries) %}
+	{% if err != nil %}
+		{
+			"error": {%q= err.Error() %}
+		}
+		{% return %}
+	{% endif %}
+	{% code sort.Slice(ss, func(i, j int) bool { return ss[i].Name < ss[j].Name }) %}
+	[
+		{% for i, s := range ss %}
+			{%= renderSeriesJSON(s) %}
+			{% if i+1 < len(ss) %},{% endif %}
+		{% endfor %}
+	]
+	{% if jsonp != "" %}){% endif %}
+{% endfunc %}
+
+{% func renderSeriesJSON(s *series) %}
+	{
+		"target": {%q= s.Name %},
+		"tags":{
+			{% code
+				tagKeys := make([]string, 0, len(s.Tags))
+				for k := range s.Tags {
+					tagKeys = append(tagKeys, k)
+				}
+				sort.Strings(tagKeys)
+			%}
+			{% for i, k := range tagKeys %}
+				{% code v := s.Tags[k] %}
+				{%q= k %}: {%q= v %}
+				{% if i+1 < len(tagKeys) %},{% endif %}
+			{% endfor %}
+		},
+		"datapoints":[
+			{% code timestamps := s.Timestamps %}
+			{% for i, v := range s.Values %}
+				[
+					{% if math.IsNaN(v) || math.IsInf(v, 0) %}null{% else %}{%f= v %}{% endif %},
+					{%dl= timestamps[i]/1e3 %}
+				]
+				{% if i+1 < len(timestamps) %},{% endif %}
+			{% endfor %}
+		]
+	}
+{% endfunc %}
+
+{% endstripspace %}

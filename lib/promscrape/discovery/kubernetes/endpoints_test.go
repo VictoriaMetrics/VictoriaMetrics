@@ -292,7 +292,10 @@ func TestGetEndpointsLabels(t *testing.T) {
 				"__meta_kubernetes_service_type":                 "service-type",
 			}),
 			promutils.NewLabelsFromMap(map[string]string{
-				"__address__":                                    "192.168.15.1:8428",
+				"__address__": "192.168.15.1:8428",
+				"__meta_kubernetes_endpoint_address_target_kind": "Pod",
+				"__meta_kubernetes_endpoint_address_target_name": "test-pod",
+				"__meta_kubernetes_endpoints_name":               "test-eps",
 				"__meta_kubernetes_namespace":                    "default",
 				"__meta_kubernetes_node_label_node_label":        "xyz",
 				"__meta_kubernetes_node_labelpresent_node_label": "true",

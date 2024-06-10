@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 const (
@@ -318,8 +319,20 @@ func (mn *MetricName) GetTagValue(tagKey string) []byte {
 }
 
 // SetTags sets tags from src with keys matching addTags.
-func (mn *MetricName) SetTags(addTags []string, src *MetricName) {
+//
+// It adds prefix to copied label names.
+// skipTags contains a list of tags, which must be skipped.
+func (mn *MetricName) SetTags(addTags []string, prefix string, skipTags []string, src *MetricName) {
+	if len(addTags) == 1 && addTags[0] == "*" {
+		// Special case for copying all the tags except of skipTags from src to mn.
+		mn.setAllTags(prefix, skipTags, src)
+		return
+	}
+	bb := bbPool.Get()
 	for _, tagName := range addTags {
+		if containsString(skipTags, tagName) {
+			continue
+		}
 		if tagName == string(metricGroupTagKey) {
 			mn.MetricGroup = append(mn.MetricGroup[:0], src.MetricGroup...)
 			continue
@@ -336,19 +349,47 @@ func (mn *MetricName) SetTags(addTags []string, src *MetricName) {
 			mn.RemoveTag(tagName)
 			continue
 		}
-		found := false
-		for i := range mn.Tags {
-			t := &mn.Tags[i]
-			if string(t.Key) == tagName {
-				t.Value = append(t.Value[:0], srcTag.Value...)
-				found = true
-				break
-			}
-		}
-		if !found {
-			mn.AddTagBytes(srcTag.Key, srcTag.Value)
+		bb.B = append(bb.B[:0], prefix...)
+		bb.B = append(bb.B, tagName...)
+		mn.SetTagBytes(bb.B, srcTag.Value)
+	}
+	bbPool.Put(bb)
+}
+
+var bbPool bytesutil.ByteBufferPool
+
+// SetTagBytes sets tag with the given key to the given value.
+func (mn *MetricName) SetTagBytes(key, value []byte) {
+	for i := range mn.Tags {
+		t := &mn.Tags[i]
+		if string(t.Key) == string(key) {
+			t.Value = append(t.Value[:0], value...)
+			return
 		}
 	}
+	mn.AddTagBytes(key, value)
+}
+
+func (mn *MetricName) setAllTags(prefix string, skipTags []string, src *MetricName) {
+	bb := bbPool.Get()
+	for _, tag := range src.Tags {
+		if containsString(skipTags, bytesutil.ToUnsafeString(tag.Key)) {
+			continue
+		}
+		bb.B = append(bb.B[:0], prefix...)
+		bb.B = append(bb.B, tag.Key...)
+		mn.SetTagBytes(bb.B, tag.Value)
+	}
+	bbPool.Put(bb)
+}
+
+func containsString(a []string, s string) bool {
+	for _, x := range a {
+		if x == s {
+			return true
+		}
+	}
+	return false
 }
 
 func hasTag(tags []string, key []byte) bool {
@@ -501,7 +542,7 @@ const maxLabelNameLen = 256
 // The maximum length of label value.
 //
 // Longer values are truncated.
-var maxLabelValueLen = 16 * 1024
+var maxLabelValueLen = 1024
 
 // SetMaxLabelValueLen sets the limit on the label value length.
 //
@@ -538,16 +579,16 @@ func MarshalMetricNameRaw(dst []byte, accountID, projectID uint32, labels []prom
 	dstSize := dstLen + 8
 	for i := range labels {
 		if i >= maxLabelsPerTimeseries {
-			trackDroppedLabels(labels, labels[i:])
+			trackDroppedLabels(labels, labels[i:], accountID, projectID)
 			break
 		}
 		label := &labels[i]
 		if len(label.Name) > maxLabelNameLen {
-			atomic.AddUint64(&TooLongLabelNames, 1)
+			TooLongLabelNames.Add(1)
 			label.Name = label.Name[:maxLabelNameLen]
 		}
 		if len(label.Value) > maxLabelValueLen {
-			atomic.AddUint64(&TooLongLabelValues, 1)
+			trackTruncatedLabels(labels, label, accountID, projectID)
 			label.Value = label.Value[:maxLabelValueLen]
 		}
 		if len(label.Value) == 0 {
@@ -575,37 +616,53 @@ func MarshalMetricNameRaw(dst []byte, accountID, projectID uint32, labels []prom
 			// Skip labels without values, since they have no sense in prometheus.
 			continue
 		}
-		dst = marshalBytesFast(dst, label.Name)
-		dst = marshalBytesFast(dst, label.Value)
+		dst = marshalStringFast(dst, label.Name)
+		dst = marshalStringFast(dst, label.Value)
 	}
 	return dst
 }
 
 var (
 	// MetricsWithDroppedLabels is the number of metrics with at least a single dropped label
-	MetricsWithDroppedLabels uint64
+	MetricsWithDroppedLabels atomic.Uint64
 
 	// TooLongLabelNames is the number of too long label names
-	TooLongLabelNames uint64
+	TooLongLabelNames atomic.Uint64
 
 	// TooLongLabelValues is the number of too long label values
-	TooLongLabelValues uint64
+	TooLongLabelValues atomic.Uint64
 )
 
-func trackDroppedLabels(labels, droppedLabels []prompb.Label) {
-	atomic.AddUint64(&MetricsWithDroppedLabels, 1)
+func trackDroppedLabels(labels, droppedLabels []prompb.Label, accountID, projectID uint32) {
+	MetricsWithDroppedLabels.Add(1)
 	select {
 	case <-droppedLabelsLogTicker.C:
 		// Do not call logger.WithThrottler() here, since this will result in increased CPU usage
-		// because labelsToString() will be called with each trackDroppedLAbels call.
-		logger.Warnf("dropping %d labels for %s; dropped labels: %s; either reduce the number of labels for this metric "+
+		// because labelsToString() will be called with each trackDroppedLabels call.
+		logger.Warnf("dropping %d labels for %s; dropped labels: %s; tenant: %d:%d; either reduce the number of labels for this metric "+
 			"or increase -maxLabelsPerTimeseries=%d command-line flag value",
-			len(droppedLabels), labelsToString(labels), labelsToString(droppedLabels), maxLabelsPerTimeseries)
+			len(droppedLabels), labelsToString(labels), labelsToString(droppedLabels), accountID, projectID, maxLabelsPerTimeseries)
 	default:
 	}
 }
 
-var droppedLabelsLogTicker = time.NewTicker(5 * time.Second)
+func trackTruncatedLabels(labels []prompb.Label, truncated *prompb.Label, accountID, projectID uint32) {
+	TooLongLabelValues.Add(1)
+	select {
+	case <-truncatedLabelsLogTicker.C:
+		// Do not call logger.WithThrottler() here, since this will result in increased CPU usage
+		// because labelsToString() will be called with each trackTruncatedLabels call.
+		logger.Warnf("truncate value for label %s because its length=%d exceeds -maxLabelValueLen=%d; "+
+			"original labels: %s; tenant: %d:%d; either reduce the label value length or increase -maxLabelValueLen command-line flag value",
+			truncated.Name, len(truncated.Value), maxLabelValueLen, labelsToString(labels), accountID, projectID)
+	default:
+	}
+}
+
+var (
+	droppedLabelsLogTicker   = time.NewTicker(5 * time.Second)
+	truncatedLabelsLogTicker = time.NewTicker(5 * time.Second)
+)
 
 func labelsToString(labels []prompb.Label) string {
 	labelsCopy := append([]prompb.Label{}, labels...)
@@ -632,8 +689,8 @@ func labelsToString(labels []prompb.Label) string {
 
 // MarshalMetricLabelRaw marshals label to dst.
 func MarshalMetricLabelRaw(dst []byte, label *prompb.Label) []byte {
-	dst = marshalBytesFast(dst, label.Name)
-	dst = marshalBytesFast(dst, label.Value)
+	dst = marshalStringFast(dst, label.Name)
+	dst = marshalStringFast(dst, label.Value)
 	return dst
 }
 
@@ -693,6 +750,12 @@ func (mn *MetricName) UnmarshalRaw(src []byte) error {
 	return nil
 }
 
+func marshalStringFast(dst []byte, s string) []byte {
+	dst = encoding.MarshalUint16(dst, uint16(len(s)))
+	dst = append(dst, s...)
+	return dst
+}
+
 func marshalBytesFast(dst []byte, s []byte) []byte {
 	dst = encoding.MarshalUint16(dst, uint16(len(s)))
 	dst = append(dst, s...)
@@ -730,10 +793,8 @@ func (mn *MetricName) sortTags() {
 	}
 
 	cts := getCanonicalTags()
-	if n := len(mn.Tags) - cap(cts.tags); n > 0 {
-		cts.tags = append(cts.tags[:cap(cts.tags)], make([]canonicalTag, n)...)
-	}
-	dst := cts.tags[:len(mn.Tags)]
+	cts.tags = slicesutil.SetLength(cts.tags, len(mn.Tags))
+	dst := cts.tags
 	for i := range mn.Tags {
 		tag := &mn.Tags[i]
 		ct := &dst[i]
@@ -796,6 +857,7 @@ func (ts *canonicalTagsSort) Less(i, j int) bool {
 	x := *ts
 	return string(x[i].key) < string(x[j].key)
 }
+
 func (ts *canonicalTagsSort) Swap(i, j int) {
 	x := *ts
 	x[i], x[j] = x[j], x[i]
@@ -803,10 +865,7 @@ func (ts *canonicalTagsSort) Swap(i, j int) {
 
 func copyTags(dst, src []Tag) []Tag {
 	dstLen := len(dst)
-	if n := dstLen + len(src) - cap(dst); n > 0 {
-		dst = append(dst[:cap(dst)], make([]Tag, n)...)
-	}
-	dst = dst[:dstLen+len(src)]
+	dst = slicesutil.SetLength(dst, dstLen+len(src))
 	for i := range src {
 		dst[dstLen+i].copyFrom(&src[i])
 	}

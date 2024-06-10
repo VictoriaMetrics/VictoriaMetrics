@@ -3,15 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/url"
-	"sort"
 	"sync"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -20,7 +18,7 @@ type manager struct {
 	querierBuilder datasource.QuerierBuilder
 	notifiers      func() []notifier.Notifier
 
-	rw *remotewrite.Client
+	rw remotewrite.RWClient
 	// remote read builder.
 	rr datasource.QuerierBuilder
 
@@ -28,28 +26,28 @@ type manager struct {
 	labels map[string]string
 
 	groupsMu sync.RWMutex
-	groups   map[uint64]*Group
+	groups   map[uint64]*rule.Group
 }
 
-// RuleAPI generates APIRule object from alert by its ID(hash)
-func (m *manager) RuleAPI(gID, rID uint64) (APIRule, error) {
+// ruleAPI generates apiRule object from alert by its ID(hash)
+func (m *manager) ruleAPI(gID, rID uint64) (apiRule, error) {
 	m.groupsMu.RLock()
 	defer m.groupsMu.RUnlock()
 
 	g, ok := m.groups[gID]
 	if !ok {
-		return APIRule{}, fmt.Errorf("can't find group with id %d", gID)
+		return apiRule{}, fmt.Errorf("can't find group with id %d", gID)
 	}
 	for _, rule := range g.Rules {
 		if rule.ID() == rID {
-			return rule.ToAPI(), nil
+			return ruleToAPI(rule), nil
 		}
 	}
-	return APIRule{}, fmt.Errorf("can't find rule with id %d in group %q", rID, g.Name)
+	return apiRule{}, fmt.Errorf("can't find rule with id %d in group %q", rID, g.Name)
 }
 
-// AlertAPI generates APIAlert object from alert by its ID(hash)
-func (m *manager) AlertAPI(gID, aID uint64) (*APIAlert, error) {
+// alertAPI generates apiAlert object from alert by its ID(hash)
+func (m *manager) alertAPI(gID, aID uint64) (*apiAlert, error) {
 	m.groupsMu.RLock()
 	defer m.groupsMu.RUnlock()
 
@@ -57,12 +55,12 @@ func (m *manager) AlertAPI(gID, aID uint64) (*APIAlert, error) {
 	if !ok {
 		return nil, fmt.Errorf("can't find group with id %d", gID)
 	}
-	for _, rule := range g.Rules {
-		ar, ok := rule.(*AlertingRule)
+	for _, r := range g.Rules {
+		ar, ok := r.(*rule.AlertingRule)
 		if !ok {
 			continue
 		}
-		if apiAlert := ar.AlertAPI(aID); apiAlert != nil {
+		if apiAlert := alertToAPI(ar, aID); apiAlert != nil {
 			return apiAlert, nil
 		}
 	}
@@ -83,36 +81,16 @@ func (m *manager) close() {
 	m.wg.Wait()
 }
 
-func (m *manager) startGroup(ctx context.Context, g *Group, restore bool) error {
+func (m *manager) startGroup(ctx context.Context, g *rule.Group, restore bool) error {
 	m.wg.Add(1)
 	id := g.ID()
 	go func() {
-		// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
-		if !skipRandSleepOnGroupStart {
-			randSleep := uint64(float64(g.Interval) * (float64(g.ID()) / (1 << 64)))
-			sleepOffset := uint64(time.Now().UnixNano()) % uint64(g.Interval)
-			if randSleep < sleepOffset {
-				randSleep += uint64(g.Interval)
-			}
-			randSleep -= sleepOffset
-			sleepTimer := time.NewTimer(time.Duration(randSleep))
-			select {
-			case <-ctx.Done():
-				sleepTimer.Stop()
-				return
-			case <-g.doneCh:
-				sleepTimer.Stop()
-				return
-			case <-sleepTimer.C:
-			}
-		}
+		defer m.wg.Done()
 		if restore {
-			g.start(ctx, m.notifiers, m.rw, m.rr)
+			g.Start(ctx, m.notifiers, m.rw, m.rr)
 		} else {
-			g.start(ctx, m.notifiers, m.rw, nil)
+			g.Start(ctx, m.notifiers, m.rw, nil)
 		}
-
-		m.wg.Done()
 	}()
 	m.groups[id] = g
 	return nil
@@ -120,7 +98,7 @@ func (m *manager) startGroup(ctx context.Context, g *Group, restore bool) error 
 
 func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore bool) error {
 	var rrPresent, arPresent bool
-	groupsRegistry := make(map[uint64]*Group)
+	groupsRegistry := make(map[uint64]*rule.Group)
 	for _, cfg := range groupsCfg {
 		for _, r := range cfg.Rules {
 			if rrPresent && arPresent {
@@ -133,7 +111,7 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 				arPresent = true
 			}
 		}
-		ng := newGroup(cfg, m.querierBuilder, *evaluationInterval, m.labels)
+		ng := rule.NewGroup(cfg, m.querierBuilder, *evaluationInterval, m.labels)
 		groupsRegistry[ng.ID()] = ng
 	}
 
@@ -141,12 +119,12 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 		return fmt.Errorf("config contains recording rules but `-remoteWrite.url` isn't set")
 	}
 	if arPresent && m.notifiers == nil {
-		return fmt.Errorf("config contains alerting rules but neither `-notifier.url` nor `-notifier.config` aren't set")
+		return fmt.Errorf("config contains alerting rules but neither `-notifier.url` nor `-notifier.config` nor `-notifier.blackhole` aren't set")
 	}
 
 	type updateItem struct {
-		old *Group
-		new *Group
+		old *rule.Group
+		new *rule.Group
 	}
 	var toUpdate []updateItem
 
@@ -156,7 +134,7 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 		if !ok {
 			// old group is not present in new list,
 			// so must be stopped and deleted
-			og.close()
+			og.Close()
 			delete(m.groups, og.ID())
 			og = nil
 			continue
@@ -168,6 +146,7 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 	}
 	for _, ng := range groupsRegistry {
 		if err := m.startGroup(ctx, ng, restore); err != nil {
+			m.groupsMu.Unlock()
 			return err
 		}
 	}
@@ -177,77 +156,16 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 		var wg sync.WaitGroup
 		for _, item := range toUpdate {
 			wg.Add(1)
-			go func(old *Group, new *Group) {
-				old.updateCh <- new
+			// cancel evaluation so the Update will be applied as fast as possible.
+			// it is important to call InterruptEval before the update, because cancel fn
+			// can be re-assigned during the update.
+			item.old.InterruptEval()
+			go func(old *rule.Group, new *rule.Group) {
+				old.UpdateWith(new)
 				wg.Done()
 			}(item.old, item.new)
 		}
 		wg.Wait()
 	}
 	return nil
-}
-
-func (g *Group) toAPI() APIGroup {
-	g.mu.RLock()
-	defer g.mu.RUnlock()
-
-	ag := APIGroup{
-		// encode as string to avoid rounding
-		ID: fmt.Sprintf("%d", g.ID()),
-
-		Name:           g.Name,
-		Type:           g.Type.String(),
-		File:           g.File,
-		Interval:       g.Interval.Seconds(),
-		LastEvaluation: g.LastEvaluation,
-		Concurrency:    g.Concurrency,
-		Params:         urlValuesToStrings(g.Params),
-		Headers:        headersToStrings(g.Headers),
-		Labels:         g.Labels,
-	}
-	for _, r := range g.Rules {
-		ag.Rules = append(ag.Rules, r.ToAPI())
-	}
-	return ag
-}
-
-func urlValuesToStrings(values url.Values) []string {
-	if len(values) < 1 {
-		return nil
-	}
-
-	keys := make([]string, 0, len(values))
-	for k := range values {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	var res []string
-	for _, k := range keys {
-		params := values[k]
-		for _, v := range params {
-			res = append(res, fmt.Sprintf("%s=%s", k, v))
-		}
-	}
-	return res
-}
-
-func headersToStrings(headers map[string]string) []string {
-	if len(headers) < 1 {
-		return nil
-	}
-
-	keys := make([]string, 0, len(headers))
-	for k := range headers {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	var res []string
-	for _, k := range keys {
-		v := headers[k]
-		res = append(res, fmt.Sprintf("%s: %s", k, v))
-	}
-
-	return res
 }

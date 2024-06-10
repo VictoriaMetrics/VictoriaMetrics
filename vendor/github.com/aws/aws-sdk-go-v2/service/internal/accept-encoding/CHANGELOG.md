@@ -1,3 +1,51 @@
+# v1.11.2 (2024-03-29)
+
+* No change notes available for this release.
+
+# v1.11.1 (2024-02-21)
+
+* No change notes available for this release.
+
+# v1.11.0 (2024-02-13)
+
+* **Feature**: Bump minimum Go version to 1.20 per our language support policy.
+
+# v1.10.4 (2023-12-07)
+
+* No change notes available for this release.
+
+# v1.10.3 (2023-11-30)
+
+* No change notes available for this release.
+
+# v1.10.2 (2023-11-29)
+
+* No change notes available for this release.
+
+# v1.10.1 (2023-11-15)
+
+* No change notes available for this release.
+
+# v1.10.0 (2023-10-31)
+
+* **Feature**: **BREAKING CHANGE**: Bump minimum go version to 1.19 per the revised [go version support policy](https://aws.amazon.com/blogs/developer/aws-sdk-for-go-aligns-with-go-release-policy-on-supported-runtimes/).
+
+# v1.9.15 (2023-10-06)
+
+* No change notes available for this release.
+
+# v1.9.14 (2023-08-18)
+
+* No change notes available for this release.
+
+# v1.9.13 (2023-08-07)
+
+* No change notes available for this release.
+
+# v1.9.12 (2023-07-31)
+
+* No change notes available for this release.
+
 # v1.9.11 (2022-12-02)
 
 * No change notes available for this release.

@@ -16,6 +16,7 @@ var rollupFuncs = map[string]bool{
 	"count_le_over_time":      true,
 	"count_ne_over_time":      true,
 	"count_over_time":         true,
+	"count_values_over_time":  true,
 	"decreases_over_time":     true,
 	"default_rollup":          true,
 	"delta":                   true,
@@ -44,8 +45,10 @@ var rollupFuncs = map[string]bool{
 	"lifetime":                true,
 	"mad_over_time":           true,
 	"max_over_time":           true,
+	"median_over_time":        true,
 	"min_over_time":           true,
 	"mode_over_time":          true,
+	"outlier_iqr_over_time":   true,
 	"predict_linear":          true,
 	"present_over_time":       true,
 	"quantile_over_time":      true,
@@ -64,9 +67,13 @@ var rollupFuncs = map[string]bool{
 	"scrape_interval":         true,
 	"share_gt_over_time":      true,
 	"share_le_over_time":      true,
+	"share_eq_over_time":      true,
 	"stale_samples_over_time": true,
 	"stddev_over_time":        true,
 	"stdvar_over_time":        true,
+	"sum_eq_over_time":        true,
+	"sum_gt_over_time":        true,
+	"sum_le_over_time":        true,
 	"sum_over_time":           true,
 	"sum2_over_time":          true,
 	"tfirst_over_time":        true,
@@ -97,7 +104,7 @@ func GetRollupArgIdx(fe *FuncExpr) int {
 		return -1
 	}
 	switch funcName {
-	case "quantile_over_time", "aggr_over_time",
+	case "quantile_over_time", "aggr_over_time", "count_values_over_time",
 		"hoeffding_bound_lower", "hoeffding_bound_upper":
 		return 1
 	case "quantiles_over_time":

@@ -12,7 +12,7 @@ import (
 )
 
 type fakeReplayQuerier struct {
-	fakeQuerier
+	datasource.FakeQuerier
 	registry map[string]map[string]struct{}
 }
 
@@ -20,21 +20,21 @@ func (fr *fakeReplayQuerier) BuildWithParams(_ datasource.QuerierParams) datasou
 	return fr
 }
 
-func (fr *fakeReplayQuerier) QueryRange(_ context.Context, q string, from, to time.Time) ([]datasource.Metric, error) {
+func (fr *fakeReplayQuerier) QueryRange(_ context.Context, q string, from, to time.Time) (res datasource.Result, err error) {
 	key := fmt.Sprintf("%s+%s", from.Format("15:04:05"), to.Format("15:04:05"))
 	dps, ok := fr.registry[q]
 	if !ok {
-		return nil, fmt.Errorf("unexpected query received: %q", q)
+		return res, fmt.Errorf("unexpected query received: %q", q)
 	}
 	_, ok = dps[key]
 	if !ok {
-		return nil, fmt.Errorf("unexpected time range received: %q", key)
+		return res, fmt.Errorf("unexpected time range received: %q", key)
 	}
 	delete(dps, key)
 	if len(fr.registry[q]) < 1 {
 		delete(fr.registry, q)
 	}
-	return nil, nil
+	return res, nil
 }
 
 func TestReplay(t *testing.T) {
@@ -169,82 +169,4 @@ func TestReplay(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestRangeIterator(t *testing.T) {
-	testCases := []struct {
-		ri     rangeIterator
-		result [][2]time.Time
-	}{
-		{
-			ri: rangeIterator{
-				start: parseTime(t, "2021-01-01T12:00:00.000Z"),
-				end:   parseTime(t, "2021-01-01T12:30:00.000Z"),
-				step:  5 * time.Minute,
-			},
-			result: [][2]time.Time{
-				{parseTime(t, "2021-01-01T12:00:00.000Z"), parseTime(t, "2021-01-01T12:05:00.000Z")},
-				{parseTime(t, "2021-01-01T12:05:00.000Z"), parseTime(t, "2021-01-01T12:10:00.000Z")},
-				{parseTime(t, "2021-01-01T12:10:00.000Z"), parseTime(t, "2021-01-01T12:15:00.000Z")},
-				{parseTime(t, "2021-01-01T12:15:00.000Z"), parseTime(t, "2021-01-01T12:20:00.000Z")},
-				{parseTime(t, "2021-01-01T12:20:00.000Z"), parseTime(t, "2021-01-01T12:25:00.000Z")},
-				{parseTime(t, "2021-01-01T12:25:00.000Z"), parseTime(t, "2021-01-01T12:30:00.000Z")},
-			},
-		},
-		{
-			ri: rangeIterator{
-				start: parseTime(t, "2021-01-01T12:00:00.000Z"),
-				end:   parseTime(t, "2021-01-01T12:30:00.000Z"),
-				step:  45 * time.Minute,
-			},
-			result: [][2]time.Time{
-				{parseTime(t, "2021-01-01T12:00:00.000Z"), parseTime(t, "2021-01-01T12:30:00.000Z")},
-				{parseTime(t, "2021-01-01T12:30:00.000Z"), parseTime(t, "2021-01-01T12:30:00.000Z")},
-			},
-		},
-		{
-			ri: rangeIterator{
-				start: parseTime(t, "2021-01-01T12:00:12.000Z"),
-				end:   parseTime(t, "2021-01-01T12:00:17.000Z"),
-				step:  time.Second,
-			},
-			result: [][2]time.Time{
-				{parseTime(t, "2021-01-01T12:00:12.000Z"), parseTime(t, "2021-01-01T12:00:13.000Z")},
-				{parseTime(t, "2021-01-01T12:00:13.000Z"), parseTime(t, "2021-01-01T12:00:14.000Z")},
-				{parseTime(t, "2021-01-01T12:00:14.000Z"), parseTime(t, "2021-01-01T12:00:15.000Z")},
-				{parseTime(t, "2021-01-01T12:00:15.000Z"), parseTime(t, "2021-01-01T12:00:16.000Z")},
-				{parseTime(t, "2021-01-01T12:00:16.000Z"), parseTime(t, "2021-01-01T12:00:17.000Z")},
-			},
-		},
-	}
-
-	for i, tc := range testCases {
-		t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
-			var j int
-			for tc.ri.next() {
-				if len(tc.result) < j+1 {
-					t.Fatalf("unexpected result for iterator on step %d: %v - %v",
-						j, tc.ri.s, tc.ri.e)
-				}
-				s, e := tc.ri.s, tc.ri.e
-				expS, expE := tc.result[j][0], tc.result[j][1]
-				if s != expS {
-					t.Fatalf("expected to get start=%v; got %v", expS, s)
-				}
-				if e != expE {
-					t.Fatalf("expected to get end=%v; got %v", expE, e)
-				}
-				j++
-			}
-		})
-	}
-}
-
-func parseTime(t *testing.T, s string) time.Time {
-	t.Helper()
-	tt, err := time.Parse("2006-01-02T15:04:05.000Z", s)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return tt
 }

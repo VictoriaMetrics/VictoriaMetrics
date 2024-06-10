@@ -10,11 +10,16 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/tpl"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 )
+
+var reloadAuthKey = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings.")
 
 var (
 	apiLinks = [][2]string{
@@ -34,7 +39,7 @@ var (
 		{Name: "Groups", Url: "groups"},
 		{Name: "Alerts", Url: "alerts"},
 		{Name: "Notifiers", Url: "notifiers"},
-		{Name: "Docs", Url: "https://docs.victoriametrics.com/vmalert.html"},
+		{Name: "Docs", Url: "https://docs.victoriametrics.com/vmalert/"},
 	}
 )
 
@@ -83,7 +88,10 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		WriteRuleDetails(w, r, rule)
 		return true
 	case "/vmalert/groups":
-		WriteListGroups(w, r, rh.groups())
+		var data []apiGroup
+		rf := extractRulesFilter(r)
+		data = rh.groups(rf)
+		WriteListGroups(w, r, data)
 		return true
 	case "/vmalert/notifiers":
 		WriteListTargets(w, r, notifier.GetTargets())
@@ -94,12 +102,20 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	case "/rules":
 		// Grafana makes an extra request to `/rules`
 		// handler in addition to `/api/v1/rules` calls in alerts UI,
-		WriteListGroups(w, r, rh.groups())
+		var data []apiGroup
+		rf := extractRulesFilter(r)
+		data = rh.groups(rf)
+		WriteListGroups(w, r, data)
 		return true
 
 	case "/vmalert/api/v1/rules", "/api/v1/rules":
 		// path used by Grafana for ng alerting
-		data, err := rh.listGroups()
+		var data []byte
+		var err error
+
+		rf := extractRulesFilter(r)
+		data, err = rh.listGroups(rf)
+
 		if err != nil {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
@@ -107,6 +123,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(data)
 		return true
+
 	case "/vmalert/api/v1/alerts", "/api/v1/alerts":
 		// path used by Grafana for ng alerting
 		data, err := rh.listAlerts()
@@ -131,69 +148,64 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(data)
 		return true
+	case "/vmalert/api/v1/rule", "/api/v1/rule":
+		rule, err := rh.getRule(r)
+		if err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		rwu := apiRuleWithUpdates{
+			apiRule:      rule,
+			StateUpdates: rule.Updates,
+		}
+		data, err := json.Marshal(rwu)
+		if err != nil {
+			httpserver.Errorf(w, r, "failed to marshal rule: %s", err)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
+		return true
 	case "/-/reload":
+		if !httpserver.CheckAuthFlag(w, r, reloadAuthKey.Get(), "reloadAuthKey") {
+			return true
+		}
 		logger.Infof("api config reload was called, sending sighup")
 		procutil.SelfSIGHUP()
 		w.WriteHeader(http.StatusOK)
 		return true
 
 	default:
-		// Support of deprecated links:
-		// * /api/v1/<groupID>/<alertID>/status
-		// * <groupID>/<alertID>/status
-		// TODO: to remove in next versions
-
-		if !strings.HasSuffix(r.URL.Path, "/status") {
-			httpserver.Errorf(w, r, "unsupported path requested: %q ", r.URL.Path)
-			return false
-		}
-		alert, err := rh.alertByPath(strings.TrimPrefix(r.URL.Path, "/api/v1/"))
-		if err != nil {
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-
-		redirectURL := alert.WebLink()
-		if strings.HasPrefix(r.URL.Path, "/api/v1/") {
-			redirectURL = alert.APILink()
-		}
-		httpserver.Redirect(w, "/"+redirectURL)
-		return true
+		return false
 	}
 }
 
-const (
-	paramGroupID = "group_id"
-	paramAlertID = "alert_id"
-	paramRuleID  = "rule_id"
-)
-
-func (rh *requestHandler) getRule(r *http.Request) (APIRule, error) {
-	groupID, err := strconv.ParseUint(r.FormValue(paramGroupID), 10, 0)
+func (rh *requestHandler) getRule(r *http.Request) (apiRule, error) {
+	groupID, err := strconv.ParseUint(r.FormValue(paramGroupID), 10, 64)
 	if err != nil {
-		return APIRule{}, fmt.Errorf("failed to read %q param: %s", paramGroupID, err)
+		return apiRule{}, fmt.Errorf("failed to read %q param: %w", paramGroupID, err)
 	}
-	ruleID, err := strconv.ParseUint(r.FormValue(paramRuleID), 10, 0)
+	ruleID, err := strconv.ParseUint(r.FormValue(paramRuleID), 10, 64)
 	if err != nil {
-		return APIRule{}, fmt.Errorf("failed to read %q param: %s", paramRuleID, err)
+		return apiRule{}, fmt.Errorf("failed to read %q param: %w", paramRuleID, err)
 	}
-	rule, err := rh.m.RuleAPI(groupID, ruleID)
+	obj, err := rh.m.ruleAPI(groupID, ruleID)
 	if err != nil {
-		return APIRule{}, errResponse(err, http.StatusNotFound)
+		return apiRule{}, errResponse(err, http.StatusNotFound)
 	}
-	return rule, nil
+	return obj, nil
 }
 
-func (rh *requestHandler) getAlert(r *http.Request) (*APIAlert, error) {
-	groupID, err := strconv.ParseUint(r.FormValue(paramGroupID), 10, 0)
+func (rh *requestHandler) getAlert(r *http.Request) (*apiAlert, error) {
+	groupID, err := strconv.ParseUint(r.FormValue(paramGroupID), 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read %q param: %s", paramGroupID, err)
+		return nil, fmt.Errorf("failed to read %q param: %w", paramGroupID, err)
 	}
-	alertID, err := strconv.ParseUint(r.FormValue(paramAlertID), 10, 0)
+	alertID, err := strconv.ParseUint(r.FormValue(paramAlertID), 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read %q param: %s", paramAlertID, err)
+		return nil, fmt.Errorf("failed to read %q param: %w", paramAlertID, err)
 	}
-	a, err := rh.m.AlertAPI(groupID, alertID)
+	a, err := rh.m.alertAPI(groupID, alertID)
 	if err != nil {
 		return nil, errResponse(err, http.StatusNotFound)
 	}
@@ -203,30 +215,98 @@ func (rh *requestHandler) getAlert(r *http.Request) (*APIAlert, error) {
 type listGroupsResponse struct {
 	Status string `json:"status"`
 	Data   struct {
-		Groups []APIGroup `json:"groups"`
+		Groups []apiGroup `json:"groups"`
 	} `json:"data"`
 }
 
-func (rh *requestHandler) groups() []APIGroup {
+// see https://prometheus.io/docs/prometheus/latest/querying/api/#rules
+type rulesFilter struct {
+	files         []string
+	groupNames    []string
+	ruleNames     []string
+	ruleType      string
+	excludeAlerts bool
+}
+
+func extractRulesFilter(r *http.Request) rulesFilter {
+	rf := rulesFilter{}
+
+	var ruleType string
+	ruleTypeParam := r.URL.Query().Get("type")
+	// for some reason, `type` in filter doesn't match `type` in response,
+	// so we use this matching here
+	if ruleTypeParam == "alert" {
+		ruleType = ruleTypeAlerting
+	} else if ruleTypeParam == "record" {
+		ruleType = ruleTypeRecording
+	}
+	rf.ruleType = ruleType
+
+	rf.excludeAlerts = httputils.GetBool(r, "exclude_alerts")
+	rf.ruleNames = append([]string{}, r.Form["rule_name[]"]...)
+	rf.groupNames = append([]string{}, r.Form["rule_group[]"]...)
+	rf.files = append([]string{}, r.Form["file[]"]...)
+	return rf
+}
+
+func (rh *requestHandler) groups(rf rulesFilter) []apiGroup {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
 
-	var groups []APIGroup
-	for _, g := range rh.m.groups {
-		groups = append(groups, g.toAPI())
+	isInList := func(list []string, needle string) bool {
+		if len(list) < 1 {
+			return true
+		}
+		for _, i := range list {
+			if i == needle {
+				return true
+			}
+		}
+		return false
 	}
 
-	// sort list of alerts for deterministic output
-	sort.Slice(groups, func(i, j int) bool {
-		return groups[i].Name < groups[j].Name
-	})
+	groups := make([]apiGroup, 0)
+	for _, group := range rh.m.groups {
+		if !isInList(rf.groupNames, group.Name) {
+			continue
+		}
+		if !isInList(rf.files, group.File) {
+			continue
+		}
 
+		g := groupToAPI(group)
+		// the returned list should always be non-nil
+		// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4221
+		filteredRules := make([]apiRule, 0)
+		for _, r := range g.Rules {
+			if rf.ruleType != "" && rf.ruleType != r.Type {
+				continue
+			}
+			if !isInList(rf.ruleNames, r.Name) {
+				continue
+			}
+			if rf.excludeAlerts {
+				r.Alerts = nil
+			}
+			filteredRules = append(filteredRules, r)
+		}
+		g.Rules = filteredRules
+		groups = append(groups, g)
+	}
+	// sort list of groups for deterministic output
+	sort.Slice(groups, func(i, j int) bool {
+		a, b := groups[i], groups[j]
+		if a.Name != b.Name {
+			return a.Name < b.Name
+		}
+		return a.File < b.File
+	})
 	return groups
 }
 
-func (rh *requestHandler) listGroups() ([]byte, error) {
+func (rh *requestHandler) listGroups(rf rulesFilter) ([]byte, error) {
 	lr := listGroupsResponse{Status: "success"}
-	lr.Data.Groups = rh.groups()
+	lr.Data.Groups = rh.groups(rf)
 	b, err := json.Marshal(lr)
 	if err != nil {
 		return nil, &httpserver.ErrorWithStatusCode{
@@ -240,35 +320,35 @@ func (rh *requestHandler) listGroups() ([]byte, error) {
 type listAlertsResponse struct {
 	Status string `json:"status"`
 	Data   struct {
-		Alerts []*APIAlert `json:"alerts"`
+		Alerts []*apiAlert `json:"alerts"`
 	} `json:"data"`
 }
 
-func (rh *requestHandler) groupAlerts() []GroupAlerts {
+func (rh *requestHandler) groupAlerts() []groupAlerts {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
 
-	var groupAlerts []GroupAlerts
+	var gAlerts []groupAlerts
 	for _, g := range rh.m.groups {
-		var alerts []*APIAlert
+		var alerts []*apiAlert
 		for _, r := range g.Rules {
-			a, ok := r.(*AlertingRule)
+			a, ok := r.(*rule.AlertingRule)
 			if !ok {
 				continue
 			}
-			alerts = append(alerts, a.AlertsToAPI()...)
+			alerts = append(alerts, ruleToAPIAlert(a)...)
 		}
 		if len(alerts) > 0 {
-			groupAlerts = append(groupAlerts, GroupAlerts{
-				Group:  g.toAPI(),
+			gAlerts = append(gAlerts, groupAlerts{
+				Group:  groupToAPI(g),
 				Alerts: alerts,
 			})
 		}
 	}
-	sort.Slice(groupAlerts, func(i, j int) bool {
-		return groupAlerts[i].Group.Name < groupAlerts[j].Group.Name
+	sort.Slice(gAlerts, func(i, j int) bool {
+		return gAlerts[i].Group.Name < gAlerts[j].Group.Name
 	})
-	return groupAlerts
+	return gAlerts
 }
 
 func (rh *requestHandler) listAlerts() ([]byte, error) {
@@ -276,13 +356,14 @@ func (rh *requestHandler) listAlerts() ([]byte, error) {
 	defer rh.m.groupsMu.RUnlock()
 
 	lr := listAlertsResponse{Status: "success"}
+	lr.Data.Alerts = make([]*apiAlert, 0)
 	for _, g := range rh.m.groups {
 		for _, r := range g.Rules {
-			a, ok := r.(*AlertingRule)
+			a, ok := r.(*rule.AlertingRule)
 			if !ok {
 				continue
 			}
-			lr.Data.Alerts = append(lr.Data.Alerts, a.AlertsToAPI()...)
+			lr.Data.Alerts = append(lr.Data.Alerts, ruleToAPIAlert(a)...)
 		}
 	}
 
@@ -299,41 +380,6 @@ func (rh *requestHandler) listAlerts() ([]byte, error) {
 		}
 	}
 	return b, nil
-}
-
-func (rh *requestHandler) alertByPath(path string) (*APIAlert, error) {
-	if strings.HasPrefix(path, "/vmalert") {
-		path = strings.TrimLeft(path, "/vmalert")
-	}
-	parts := strings.SplitN(strings.TrimLeft(path, "/"), "/", -1)
-	if len(parts) != 3 {
-		return nil, &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf(`path %q cointains /status suffix but doesn't match pattern "/groupID/alertID/status"`, path),
-			StatusCode: http.StatusBadRequest,
-		}
-	}
-	groupID, err := uint64FromPath(parts[0])
-	if err != nil {
-		return nil, badRequest(fmt.Errorf(`cannot parse groupID: %w`, err))
-	}
-	alertID, err := uint64FromPath(parts[1])
-	if err != nil {
-		return nil, badRequest(fmt.Errorf(`cannot parse alertID: %w`, err))
-	}
-	resp, err := rh.m.AlertAPI(groupID, alertID)
-	if err != nil {
-		return nil, errResponse(err, http.StatusNotFound)
-	}
-	return resp, nil
-}
-
-func uint64FromPath(path string) (uint64, error) {
-	s := strings.TrimRight(path, "/")
-	return strconv.ParseUint(s, 10, 0)
-}
-
-func badRequest(err error) *httpserver.ErrorWithStatusCode {
-	return errResponse(err, http.StatusBadRequest)
 }
 
 func errResponse(err error, sc int) *httpserver.ErrorWithStatusCode {

@@ -14,7 +14,7 @@
     font-weight: bold;
     transform-style: preserve-3d;
     overflow: hidden;
-    line-height: 14px;
+    line-height: 1;
     box-shadow: $box-shadow;
     transition: box-shadow 200ms ease-in-out;
 
@@ -61,7 +61,7 @@
         height: 20px;
         transform: scale(0);
         transition: transform 200ms ease-in-out;
-        cursor: se-resize;
+        cursor: ew-resize;
         z-index: 1;
 
         &:after {

@@ -21,7 +21,6 @@ import (
 	"math"
 	"net"
 	"net/url"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -29,6 +28,8 @@ import (
 	"sync"
 	textTpl "text/template"
 	"time"
+
+	"github.com/bmatcuk/doublestar/v4"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/formatutil"
@@ -59,12 +60,12 @@ func Load(pathPatterns []string, overwrite bool) error {
 	var err error
 	tmpl := newTemplate()
 	for _, tp := range pathPatterns {
-		p, err := filepath.Glob(tp)
+		p, err := doublestar.FilepathGlob(tp)
 		if err != nil {
 			return fmt.Errorf("failed to retrieve a template glob %q: %w", tp, err)
 		}
 		if len(p) > 0 {
-			tmpl, err = tmpl.ParseGlob(tp)
+			tmpl, err = tmpl.ParseFiles(p...)
 			if err != nil {
 				return fmt.Errorf("failed to parse template glob %q: %w", tp, err)
 			}
@@ -182,6 +183,10 @@ func Get() (*textTpl.Template, error) {
 func FuncsWithQuery(query QueryFn) textTpl.FuncMap {
 	return textTpl.FuncMap{
 		"query": func(q string) ([]metric, error) {
+			if query == nil {
+				return nil, fmt.Errorf("cannot execute query %q: query is not available in this context", q)
+			}
+
 			result, err := query(q)
 			if err != nil {
 				return nil, err
@@ -471,7 +476,7 @@ func templateFuncs() textTpl.FuncMap {
 		// For example, {{ query "foo" | first | value }} will
 		// execute "/api/v1/query?query=foo" request and will return
 		// the first value in response.
-		"query": func(q string) ([]metric, error) {
+		"query": func(_ string) ([]metric, error) {
 			// query function supposed to be substituted at FuncsWithQuery().
 			// it is present here only for validation purposes, when there is no
 			// provided datasource.

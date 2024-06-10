@@ -6,132 +6,196 @@ package prometheus
 
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:1
 import (
+	"fmt"
 	"github.com/VictoriaMetrics/metricsql"
 )
 
 // ExpandWithExprsResponse returns a webpage, which expands with templates in q MetricsQL.
 
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:8
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:9
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:8
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:9
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:8
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:9
 func StreamExpandWithExprsResponse(qw422016 *qt422016.Writer, q string) {
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:8
-	qw422016.N().S(`<html><head><title>Expand WITH expressions</title><style>p { font-weight: bold }textarea { margin: 1em }</style></head><body><div><form method="get"><div><p><a href="https://docs.victoriametrics.com/MetricsQL.html">MetricsQL</a> query with optional WITH expressions:</p><textarea name="query" style="height: 15em; width: 90%">`)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:25
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:9
+	qw422016.N().S(`<html><head><title>Expand WITH expressions</title><style>p { font-weight: bold }textarea { margin: 1em }</style></head><body><div><form method="get"><div><p><a href="https://docs.victoriametrics.com/metricsql/">MetricsQL</a> query with optional WITH expressions:</p><textarea name="query" style="height: 15em; width: 90%">`)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:26
 	qw422016.E().S(q)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:25
-	qw422016.N().S(`</textarea><br/><input type="submit" value="Expand" /><p><a href="https://docs.victoriametrics.com/MetricsQL.html">MetricsQL</a> query after expanding WITH expressions and applying other optimizations:</p><textarea style="height: 5em; width: 90%" readonly="readonly">`)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:31
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:26
+	qw422016.N().S(`</textarea><br/><input type="submit" value="Expand" /><p><a href="https://docs.victoriametrics.com/metricsql/">MetricsQL</a> query after expanding WITH expressions and applying other optimizations:</p><textarea style="height: 5em; width: 90%" readonly="readonly">`)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:32
 	streamexpandWithExprs(qw422016, q)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:31
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:32
 	qw422016.N().S(`</textarea></div></form></div><div>`)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:36
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:37
 	streamwithExprsTutorial(qw422016)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:36
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:37
 	qw422016.N().S(`</div></body></html>`)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:40
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:41
 }
 
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:40
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:41
 func WriteExpandWithExprsResponse(qq422016 qtio422016.Writer, q string) {
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:40
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:41
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:40
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:41
 	StreamExpandWithExprsResponse(qw422016, q)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:40
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:41
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:40
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:41
 }
 
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:40
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:41
 func ExpandWithExprsResponse(q string) string {
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:40
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:41
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:40
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:41
 	WriteExpandWithExprsResponse(qb422016, q)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:40
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:41
 	qs422016 := string(qb422016.B)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:40
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:41
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:40
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:41
 	return qs422016
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:40
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:41
 }
 
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:42
-func streamexpandWithExprs(qw422016 *qt422016.Writer, q string) {
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:43
-	if len(q) == 0 {
+func streamexpandWithExprs(qw422016 *qt422016.Writer, q string) {
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:44
-		return
+	if len(q) == 0 {
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:45
+		return
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:46
 	}
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:47
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:48
 	expr, err := metricsql.Parse(q)
 
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:48
-	if err != nil {
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:48
-		qw422016.N().S(`Cannot parse query:`)
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:49
-		qw422016.E().V(err)
+	if err != nil {
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:49
+		qw422016.N().S(`Cannot parse query:`)
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:50
-	} else {
+		qw422016.E().V(err)
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:51
+	} else {
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:52
 		expr = metricsql.Optimize(expr)
 
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:52
-		qw422016.E().Z(expr.AppendString(nil))
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:53
+		qw422016.E().Z(expr.AppendString(nil))
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:54
 	}
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:54
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:55
 }
 
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:54
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:55
 func writeexpandWithExprs(qq422016 qtio422016.Writer, q string) {
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:54
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:55
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:54
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:55
 	streamexpandWithExprs(qw422016, q)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:54
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:55
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:54
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:55
 }
 
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:54
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:55
 func expandWithExprs(q string) string {
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:54
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:55
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:54
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:55
 	writeexpandWithExprs(qb422016, q)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:54
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:55
 	qs422016 := string(qb422016.B)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:54
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:55
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:54
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:55
 	return qs422016
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:54
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:55
 }
 
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:57
+func StreamExpandWithExprsJSONResponse(qw422016 *qt422016.Writer, q string) {
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:58
+	if len(q) == 0 {
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:58
+		qw422016.N().S(`{"status": "error","error": "query string cannot be empty"}`)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:63
+		return
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:64
+	}
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:64
+	qw422016.N().S(`{`)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:67
+	expr, err := metricsql.Parse(q)
+
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:68
+	if err != nil {
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:68
+		qw422016.N().S(`"status": "error","error":`)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:70
+		qw422016.N().Q(fmt.Sprintf("Cannot parse query: %s", err))
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:71
+	} else {
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:72
+		expr = metricsql.Optimize(expr)
+
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:72
+		qw422016.N().S(`"status": "success","expr":`)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:74
+		qw422016.N().QZ(expr.AppendString(nil))
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:75
+	}
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:75
+	qw422016.N().S(`}`)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:77
+}
+
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:77
+func WriteExpandWithExprsJSONResponse(qq422016 qtio422016.Writer, q string) {
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:77
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:77
+	StreamExpandWithExprsJSONResponse(qw422016, q)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:77
+	qt422016.ReleaseWriter(qw422016)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:77
+}
+
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:77
+func ExpandWithExprsJSONResponse(q string) string {
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:77
+	qb422016 := qt422016.AcquireByteBuffer()
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:77
+	WriteExpandWithExprsJSONResponse(qb422016, q)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:77
+	qs422016 := string(qb422016.B)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:77
+	qt422016.ReleaseByteBuffer(qb422016)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:77
+	return qs422016
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:77
+}
+
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:81
 func streamwithExprsTutorial(qw422016 *qt422016.Writer) {
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:58
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:81
 	qw422016.N().S(`
-<h3>Tutorial for WITH expressions in <a href="https://docs.victoriametrics.com/MetricsQL.html">MetricsQL</a></h3>
+<h3>Tutorial for WITH expressions in <a href="https://docs.victoriametrics.com/metricsql/">MetricsQL</a></h3>
 
 <p>
-    Let's look at the following real query from <a href="https://grafana.com/grafana/dashboards/1860-node-exporter-full/">Node Exporter Full</a> dashboard:
+    Let's look at the following real query from <a href="https://grafana.com/grafana/dashboards/1860">Node Exporter Full</a> dashboard:
 </p>
 
 <pre>
@@ -195,7 +259,7 @@ my_resource_utilization(
 </p>
 
 <p>
-    Let's take another nice query from <a href="https://grafana.com/grafana/dashboards/1860-node-exporter-full/">Node Exporter Full</a> dashboard:
+    Let's take another nice query from <a href="https://grafana.com/grafana/dashboards/1860">Node Exporter Full</a> dashboard:
 </p>
 
 <pre>
@@ -315,31 +379,31 @@ WITH (
 </pre>
 
 `)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:245
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:268
 }
 
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:245
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:268
 func writewithExprsTutorial(qq422016 qtio422016.Writer) {
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:245
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:268
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:245
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:268
 	streamwithExprsTutorial(qw422016)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:245
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:268
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:245
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:268
 }
 
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:245
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:268
 func withExprsTutorial() string {
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:245
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:268
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:245
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:268
 	writewithExprsTutorial(qb422016)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:245
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:268
 	qs422016 := string(qb422016.B)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:245
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:268
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:245
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:268
 	return qs422016
-//line app/vmselect/prometheus/expand-with-exprs.qtpl:245
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:268
 }

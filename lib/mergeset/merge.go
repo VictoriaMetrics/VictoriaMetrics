@@ -28,7 +28,7 @@ type PrepareBlockCallback func(data []byte, items []Item) ([]byte, []Item)
 //
 // It also atomically adds the number of items merged to itemsMerged.
 func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStreamReader, prepareBlock PrepareBlockCallback, stopCh <-chan struct{},
-	itemsMerged *uint64) error {
+	itemsMerged *atomic.Uint64) error {
 	bsm := bsmPool.Get().(*blockStreamMerger)
 	if err := bsm.Init(bsrs, prepareBlock); err != nil {
 		return fmt.Errorf("cannot initialize blockStreamMerger: %w", err)
@@ -100,7 +100,7 @@ func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader, prepareBlock Prepa
 
 var errForciblyStopped = fmt.Errorf("forcibly stopped")
 
-func (bsm *blockStreamMerger) Merge(bsw *blockStreamWriter, ph *partHeader, stopCh <-chan struct{}, itemsMerged *uint64) error {
+func (bsm *blockStreamMerger) Merge(bsw *blockStreamWriter, ph *partHeader, stopCh <-chan struct{}, itemsMerged *atomic.Uint64) error {
 again:
 	if len(bsm.bsrHeap) == 0 {
 		// Write the last (maybe incomplete) inmemoryBlock to bsw.
@@ -125,9 +125,16 @@ again:
 	}
 	items := bsr.Block.items
 	data := bsr.Block.data
-	for bsr.currItemIdx < len(bsr.Block.items) {
+	compareEveryItem := true
+	if bsr.currItemIdx < len(items) {
+		// An optimization, which allows skipping costly comparison for every merged item in the loop below.
+		// Thanks to @ahfuzhang for the suggestion at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5651
+		lastItem := items[len(items)-1].String(data)
+		compareEveryItem = hasNextItem && lastItem > nextItem
+	}
+	for bsr.currItemIdx < len(items) {
 		item := items[bsr.currItemIdx].Bytes(data)
-		if hasNextItem && string(item) > nextItem {
+		if compareEveryItem && string(item) > nextItem {
 			break
 		}
 		if !bsm.ib.Add(item) {
@@ -137,7 +144,7 @@ again:
 		}
 		bsr.currItemIdx++
 	}
-	if bsr.currItemIdx == len(bsr.Block.items) {
+	if bsr.currItemIdx == len(items) {
 		// bsr.Block is fully read. Proceed to the next block.
 		if bsr.Next() {
 			heap.Fix(&bsm.bsrHeap, 0)
@@ -156,14 +163,14 @@ again:
 	goto again
 }
 
-func (bsm *blockStreamMerger) flushIB(bsw *blockStreamWriter, ph *partHeader, itemsMerged *uint64) {
+func (bsm *blockStreamMerger) flushIB(bsw *blockStreamWriter, ph *partHeader, itemsMerged *atomic.Uint64) {
 	items := bsm.ib.items
 	data := bsm.ib.data
 	if len(items) == 0 {
 		// Nothing to flush.
 		return
 	}
-	atomic.AddUint64(itemsMerged, uint64(len(items)))
+	itemsMerged.Add(uint64(len(items)))
 	if bsm.prepareBlock != nil {
 		bsm.firstItem = append(bsm.firstItem[:0], items[0].String(data)...)
 		bsm.lastItem = append(bsm.lastItem[:0], items[len(items)-1].String(data)...)
@@ -176,12 +183,12 @@ func (bsm *blockStreamMerger) flushIB(bsw *blockStreamWriter, ph *partHeader, it
 		}
 		// Consistency checks after prepareBlock call.
 		firstItem := items[0].String(data)
-		if firstItem != string(bsm.firstItem) {
-			logger.Panicf("BUG: prepareBlock must return first item equal to the original first item;\ngot\n%X\nwant\n%X", firstItem, bsm.firstItem)
+		if firstItem < string(bsm.firstItem) {
+			logger.Panicf("BUG: prepareBlock must return the first item bigger or equal to the original first item;\ngot\n%X\nwant\n%X", firstItem, bsm.firstItem)
 		}
 		lastItem := items[len(items)-1].String(data)
-		if lastItem != string(bsm.lastItem) {
-			logger.Panicf("BUG: prepareBlock must return last item equal to the original last item;\ngot\n%X\nwant\n%X", lastItem, bsm.lastItem)
+		if lastItem > string(bsm.lastItem) {
+			logger.Panicf("BUG: prepareBlock must return the last item smaller or equal to the original last item;\ngot\n%X\nwant\n%X", lastItem, bsm.lastItem)
 		}
 		// Verify whether the bsm.ib.items are sorted only in tests, since this
 		// can be expensive check in prod for items with long common prefix.

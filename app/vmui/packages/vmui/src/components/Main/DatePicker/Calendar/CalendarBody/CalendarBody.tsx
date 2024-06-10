@@ -1,6 +1,7 @@
 import React, { FC, useMemo } from "preact/compat";
 import dayjs, { Dayjs } from "dayjs";
 import classNames from "classnames";
+import Tooltip from "../../../Tooltip/Tooltip";
 
 interface CalendarBodyProps {
   viewDate: Dayjs
@@ -10,8 +11,10 @@ interface CalendarBodyProps {
 
 const weekday = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-const CalendarBody: FC<CalendarBodyProps> = ({ viewDate, selectDate, onChangeSelectDate }) => {
-  const today = dayjs().tz().startOf("day");
+const CalendarBody: FC<CalendarBodyProps> = ({ viewDate: date, selectDate, onChangeSelectDate }) => {
+  const format = "YYYY-MM-DD";
+  const today = dayjs.tz();
+  const viewDate = dayjs(date.format(format));
 
   const days: (Dayjs|null)[] = useMemo(() => {
     const result = new Array(42).fill(null);
@@ -31,12 +34,14 @@ const CalendarBody: FC<CalendarBodyProps> = ({ viewDate, selectDate, onChangeSel
   return (
     <div className="vm-calendar-body">
       {weekday.map(w => (
-        <div
-          className="vm-calendar-body-cell vm-calendar-body-cell_weekday"
+        <Tooltip
+          title={w}
           key={w}
         >
-          {w[0]}
-        </div>
+          <div className="vm-calendar-body-cell vm-calendar-body-cell_weekday">
+            {w[0]}
+          </div>
+        </Tooltip>
       ))}
 
       {days.map((d, i) => (
@@ -45,10 +50,10 @@ const CalendarBody: FC<CalendarBodyProps> = ({ viewDate, selectDate, onChangeSel
             "vm-calendar-body-cell": true,
             "vm-calendar-body-cell_day": true,
             "vm-calendar-body-cell_day_empty": !d,
-            "vm-calendar-body-cell_day_active": (d && d.toISOString()) === selectDate.startOf("day").toISOString(),
-            "vm-calendar-body-cell_day_today": (d && d.toISOString()) === today.toISOString()
+            "vm-calendar-body-cell_day_active": (d && d.format(format)) === selectDate.format(format),
+            "vm-calendar-body-cell_day_today": (d && d.format(format)) === today.format(format)
           })}
-          key={d ? d.toISOString() : i}
+          key={d ? d.format(format) : i}
           onClick={createHandlerSelectDate(d)}
         >
           {d && d.format("D")}

@@ -4,42 +4,48 @@ package s3
 
 import (
 	"context"
+	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Gets the S3 Intelligent-Tiering configuration from the specified bucket. The S3
-// Intelligent-Tiering storage class is designed to optimize storage costs by
-// automatically moving data to the most cost-effective storage access tier,
+// This operation is not supported by directory buckets.
+//
+// Gets the S3 Intelligent-Tiering configuration from the specified bucket.
+//
+// The S3 Intelligent-Tiering storage class is designed to optimize storage costs
+// by automatically moving data to the most cost-effective storage access tier,
 // without performance impact or operational overhead. S3 Intelligent-Tiering
 // delivers automatic cost savings in three low latency and high throughput access
 // tiers. To get the lowest storage cost on data that can be accessed in minutes to
-// hours, you can choose to activate additional archiving capabilities. The S3
-// Intelligent-Tiering storage class is the ideal storage class for data with
-// unknown, changing, or unpredictable access patterns, independent of object size
-// or retention period. If the size of an object is less than 128 KB, it is not
-// monitored and not eligible for auto-tiering. Smaller objects can be stored, but
-// they are always charged at the Frequent Access tier rates in the S3
-// Intelligent-Tiering storage class. For more information, see Storage class for
-// automatically optimizing frequently and infrequently accessed objects
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html#sc-dynamic-data-access).
+// hours, you can choose to activate additional archiving capabilities.
+//
+// The S3 Intelligent-Tiering storage class is the ideal storage class for data
+// with unknown, changing, or unpredictable access patterns, independent of object
+// size or retention period. If the size of an object is less than 128 KB, it is
+// not monitored and not eligible for auto-tiering. Smaller objects can be stored,
+// but they are always charged at the Frequent Access tier rates in the S3
+// Intelligent-Tiering storage class.
+//
+// For more information, see [Storage class for automatically optimizing frequently and infrequently accessed objects].
+//
 // Operations related to GetBucketIntelligentTieringConfiguration include:
 //
-// *
-// DeleteBucketIntelligentTieringConfiguration
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketIntelligentTieringConfiguration.html)
+// [DeleteBucketIntelligentTieringConfiguration]
 //
-// *
-// PutBucketIntelligentTieringConfiguration
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketIntelligentTieringConfiguration.html)
+// [PutBucketIntelligentTieringConfiguration]
 //
-// *
-// ListBucketIntelligentTieringConfigurations
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListBucketIntelligentTieringConfigurations.html)
+// [ListBucketIntelligentTieringConfigurations]
+//
+// [ListBucketIntelligentTieringConfigurations]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListBucketIntelligentTieringConfigurations.html
+// [PutBucketIntelligentTieringConfiguration]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketIntelligentTieringConfiguration.html
+// [Storage class for automatically optimizing frequently and infrequently accessed objects]: https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html#sc-dynamic-data-access
+// [DeleteBucketIntelligentTieringConfiguration]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketIntelligentTieringConfiguration.html
 func (c *Client) GetBucketIntelligentTieringConfiguration(ctx context.Context, params *GetBucketIntelligentTieringConfigurationInput, optFns ...func(*Options)) (*GetBucketIntelligentTieringConfigurationOutput, error) {
 	if params == nil {
 		params = &GetBucketIntelligentTieringConfigurationInput{}
@@ -71,6 +77,11 @@ type GetBucketIntelligentTieringConfigurationInput struct {
 	noSmithyDocumentSerde
 }
 
+func (in *GetBucketIntelligentTieringConfigurationInput) bindEndpointParams(p *EndpointParameters) {
+	p.Bucket = in.Bucket
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
+}
+
 type GetBucketIntelligentTieringConfigurationOutput struct {
 
 	// Container for S3 Intelligent-Tiering configuration.
@@ -83,6 +94,9 @@ type GetBucketIntelligentTieringConfigurationOutput struct {
 }
 
 func (c *Client) addOperationGetBucketIntelligentTieringConfigurationMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsRestxml_serializeOpGetBucketIntelligentTieringConfiguration{}, middleware.After)
 	if err != nil {
 		return err
@@ -91,34 +105,38 @@ func (c *Client) addOperationGetBucketIntelligentTieringConfigurationMiddlewares
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "GetBucketIntelligentTieringConfiguration"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
-		return err
-	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -127,7 +145,10 @@ func (c *Client) addOperationGetBucketIntelligentTieringConfigurationMiddlewares
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
-	if err = swapWithCustomHTTPSignerMiddleware(stack, options); err != nil {
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpGetBucketIntelligentTieringConfigurationValidationMiddleware(stack); err != nil {
@@ -137,6 +158,9 @@ func (c *Client) addOperationGetBucketIntelligentTieringConfigurationMiddlewares
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addGetBucketIntelligentTieringConfigurationUpdateEndpoint(stack, options); err != nil {
@@ -154,14 +178,26 @@ func (c *Client) addOperationGetBucketIntelligentTieringConfigurationMiddlewares
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
 	return nil
+}
+
+func (v *GetBucketIntelligentTieringConfigurationInput) bucket() (string, bool) {
+	if v.Bucket == nil {
+		return "", false
+	}
+	return *v.Bucket, true
 }
 
 func newServiceMetadataMiddleware_opGetBucketIntelligentTieringConfiguration(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "s3",
 		OperationName: "GetBucketIntelligentTieringConfiguration",
 	}
 }

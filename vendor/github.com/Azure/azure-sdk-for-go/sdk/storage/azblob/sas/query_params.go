@@ -8,6 +8,7 @@ package sas
 
 import (
 	"errors"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/generated"
 	"net"
 	"net/url"
 	"strings"
@@ -23,7 +24,7 @@ const (
 
 var (
 	// Version is the default version encoded in the SAS token.
-	Version = "2020-02-10"
+	Version = generated.ServiceVersion
 )
 
 // TimeFormats ISO 8601 format.
@@ -143,6 +144,7 @@ type QueryParameters struct {
 	authorizedObjectID   string    `param:"saoid"`
 	unauthorizedObjectID string    `param:"suoid"`
 	correlationID        string    `param:"scid"`
+	encryptionScope      string    `param:"ses"`
 	// private member used for startTime and expiryTime formatting.
 	stTimeFormat string
 	seTimeFormat string
@@ -161,6 +163,11 @@ func (p *QueryParameters) UnauthorizedObjectID() string {
 // SignedCorrelationID returns signedCorrelationID.
 func (p *QueryParameters) SignedCorrelationID() string {
 	return p.correlationID
+}
+
+// EncryptionScope returns encryptionScope
+func (p *QueryParameters) EncryptionScope() string {
+	return p.encryptionScope
 }
 
 // SignedOID returns signedOID.
@@ -355,6 +362,9 @@ func (p *QueryParameters) Encode() string {
 	if p.correlationID != "" {
 		v.Add("scid", p.correlationID)
 	}
+	if p.encryptionScope != "" {
+		v.Add("ses", p.encryptionScope)
+	}
 
 	return v.Encode()
 }
@@ -429,6 +439,8 @@ func NewQueryParameters(values url.Values, deleteSASParametersFromValues bool) Q
 			p.unauthorizedObjectID = val
 		case "scid":
 			p.correlationID = val
+		case "ses":
+			p.encryptionScope = val
 		default:
 			isSASKey = false // We didn't recognize the query parameter
 		}

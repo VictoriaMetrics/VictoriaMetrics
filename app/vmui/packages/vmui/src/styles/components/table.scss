@@ -26,11 +26,11 @@
   }
 
   &-cell {
-    padding: $padding-small;
+    padding: 4px;
     border-bottom: $border-divider;
-    height: 40px;
     vertical-align: top;
-    line-height: 25px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
 
     &__content {
       display: flex;
@@ -48,8 +48,8 @@
 
     &_header {
       font-weight: bold;
-      text-transform: capitalize;
       text-align: left;
+      overflow-wrap: normal;
     }
 
     &_gray {
@@ -67,6 +67,26 @@
 
     &_no-wrap {
       white-space: nowrap;
+    }
+
+    &_no-padding {
+      padding: 0;
+    }
+
+    &_pre {
+      white-space: pre-wrap;
+    }
+
+    &_logs-time {
+      white-space: nowrap;
+      overflow-wrap: normal;
+    }
+
+    &_logs {
+      font-family: $font-family-monospace;
+      line-height: 1.2;
+      width: 100%;
+      overflow-wrap: normal;
     }
   }
 

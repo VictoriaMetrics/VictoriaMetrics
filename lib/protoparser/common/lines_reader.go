@@ -72,7 +72,7 @@ again:
 	// Search for the last newline in dstBuf and put the rest into tailBuf.
 	nn := bytes.LastIndexByte(dstBuf[len(dstBuf)-n:], '\n')
 	if nn < 0 {
-		// Didn't found at least a single line.
+		// Didn't find at least a single line.
 		if len(dstBuf) > maxLineLen {
 			return dstBuf, tailBuf, fmt.Errorf("too long line: more than %d bytes", maxLineLen)
 		}
@@ -93,7 +93,7 @@ again:
 }
 
 func isEOFLikeError(err error) bool {
-	if errors.Is(err, io.EOF) {
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
 		return true
 	}
 	s := err.Error()

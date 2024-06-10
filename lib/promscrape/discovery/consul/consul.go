@@ -19,7 +19,7 @@ type SDConfig struct {
 	// Namespace only supported at enterprise consul.
 	// https://www.consul.io/docs/enterprise/namespaces
 	Namespace string `yaml:"namespace,omitempty"`
-	// Partition only supported at enteprise consul.
+	// Partition only supported at enterprise consul.
 	// https://developer.hashicorp.com/consul/docs/enterprise/admin-partitions
 	Partition string `yaml:"partition,omitempty"`
 
@@ -34,6 +34,10 @@ type SDConfig struct {
 	NodeMeta          map[string]string          `yaml:"node_meta,omitempty"`
 	TagSeparator      *string                    `yaml:"tag_separator,omitempty"`
 	AllowStale        *bool                      `yaml:"allow_stale,omitempty"`
+	// See https://developer.hashicorp.com/consul/api-docs/features/filtering
+	// list of supported filters https://developer.hashicorp.com/consul/api-docs/catalog#filtering-1
+	Filter string `yaml:"filter,omitempty"`
+
 	// RefreshInterval time.Duration `yaml:"refresh_interval"`
 	// refresh_interval is obtained from `-promscrape.consulSDCheckInterval` command-line option.
 }

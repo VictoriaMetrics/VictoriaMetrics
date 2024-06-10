@@ -1,0 +1,73 @@
+@use "src/styles/variables" as *;
+
+.vm-json-form {
+  display: grid;
+  grid-template-rows: auto calc(($vh * 70) - 78px - ($padding-medium*3)) auto;
+  gap: $padding-global;
+  width: 70vw;
+  max-width: 1000px;
+  max-height: 900px;
+  overflow: hidden;
+
+  &_mobile {
+    width: 100%;
+    min-height: 100%;
+    grid-template-rows: auto calc(($vh * 100) - 200px - ($padding-global*3)) auto;
+  }
+
+  &_one-field {
+    grid-template-rows: calc(($vh * 70) - 78px - ($padding-medium*3)) auto;
+
+    &_mobile {
+      grid-template-rows: calc(($vh * 100) - 160px - ($padding-global*2)) auto;
+    }
+  }
+
+  textarea {
+    overflow: auto;
+    width: 100%;
+    height: 100%;
+    max-height: 900px;
+  }
+
+  &-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $padding-small;
+
+    @media (max-width: 500px) {
+      flex-direction: column;
+
+      button {
+        flex-grow: 1;
+      }
+    }
+
+    &__controls {
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: $padding-small;
+
+      @media (max-width: 500px) {
+        grid-template-columns: repeat(2, 1fr);
+        justify-content: center;
+        width: 100%;
+      }
+
+      &_right {
+        display: grid;
+        grid-template-columns: repeat(2, 90px);
+        justify-content: flex-end;
+
+        @media (max-width: 500px) {
+          grid-template-columns: repeat(2, 1fr);
+          justify-content: center;
+          width: 100%;
+        }
+      }
+    }
+  }
+}

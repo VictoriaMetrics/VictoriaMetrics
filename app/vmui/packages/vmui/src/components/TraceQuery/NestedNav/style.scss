@@ -1,29 +1,76 @@
 @use "src/styles/variables" as *;
 
+$color-base-nested-nav: $color-tropical-blue;
+$color-base-nested-nav-dark: $color-background-body;
+$width-line: 2px;
+$left-block-offset: $padding-large;
+$left-line-offset: calc($width-line * 2);
+$left-position: calc(-1 * ($left-block-offset - $left-line-offset));
+$gap-section: calc($padding-large * 2);
+
 .vm-nested-nav {
-  margin-left: $padding-medium;
+  position: relative;
+  margin-left: $left-block-offset;
   border-radius: $border-radius-small;
-  background-color: rgba($color-tropical-blue, 0.4);
+
+  &_dark &-header {
+    background-color: $color-base-nested-nav-dark;
+
+    &:after, &:before {
+      background-color: $color-base-nested-nav-dark;
+    }
+
+    &:hover {
+      box-shadow: rgba($color-white, 0.08) 0 0 0 1px;
+    }
+  }
 
   &_mobile {
     margin-left: $padding-small;
   }
 
-  &_dark {
-    background-color: rgba($color-black, 0.1);
+  &_root > &-header {
+    &:before,
+    &:after {
+      display: none;
+    }
   }
 
   &-header {
+    position: relative;
     display: grid;
     grid-template-columns: auto 1fr;
     gap: $padding-small;
     padding: $padding-small;
     border-radius: $border-radius-small;
-    transition: background-color 200ms ease-in-out;
+    transition: box-shadow 200ms ease-in-out;
     cursor: pointer;
+    background-color: rgba($color-base-nested-nav, 0.4);
+    margin-bottom: $padding-small;
+    z-index: 2;
+
+    &:after {
+      content: "";
+      position: absolute;
+      top: calc(50% - 1px);
+      height: $width-line;
+      width: calc($left-block-offset - $left-line-offset);
+      background-color: $color-base-nested-nav;
+      left: $left-position;
+    }
+
+    &:before {
+      content: "";
+      position: absolute;
+      bottom: 50%;
+      left: $left-position;
+      height: calc(50% + $padding-small);
+      width: $width-line;
+      background-color: $color-base-nested-nav;
+    }
 
     &:hover {
-      background-color: $color-hover-black;
+      box-shadow: rgba($color-black, 0.08) 0 0 0 1px;
     }
 
     &__icon {
@@ -32,9 +79,11 @@
       justify-content: center;
       width: 20px;
       transition: transform 200ms ease-in-out;
+      transform: rotate(-90deg);
+      color: $color-text-secondary;
 
       &_open {
-        transform: rotate(180deg);
+        transform: rotate(0);
       }
     }
 
@@ -43,12 +92,55 @@
     }
 
     &__message {
+      position: relative;
       grid-column: 2;
+      line-height: 130%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -moz-box;
+      -moz-box-orient: vertical;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      line-clamp: 3;
+
+      &_show-full {
+        display: block;
+        overflow: visible;
+      }
+
+      &_duration {
+        color: $color-text-secondary;
+      }
     }
 
-    &__duration {
+    &-bottom {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
       grid-column: 2;
-      color: $color-text-secondary;
     }
+  }
+
+  &__childrens > .vm-nested-nav:not(:last-child) {
+    &:before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: $left-position;
+      height: calc(100% + $gap-section);
+      width: $width-line;
+      background-color: $color-base-nested-nav;
+    }
+  }
+
+  &__childrens > .vm-nested-nav_dark:not(:last-child) {
+    &:before {
+      background-color: $color-base-nested-nav-dark;
+    }
+  }
+
+  &__childrens > .vm-nested-nav:last-child {
+    margin-bottom: $gap-section;
   }
 }

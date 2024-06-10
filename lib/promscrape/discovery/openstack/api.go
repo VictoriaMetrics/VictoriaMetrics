@@ -91,12 +91,12 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		}
 		ac, err := opts.NewConfig()
 		if err != nil {
-			return nil, err
+			cfg.client.CloseIdleConnections()
+			return nil, fmt.Errorf("cannot parse TLS config: %w", err)
 		}
-		cfg.client.Transport = &http.Transport{
-			TLSClientConfig:     ac.NewTLSConfig(),
+		cfg.client.Transport = ac.NewRoundTripper(&http.Transport{
 			MaxIdleConnsPerHost: 100,
-		}
+		})
 	}
 	// use public compute endpoint by default
 	if len(cfg.availability) == 0 {
@@ -111,6 +111,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		sdcAuth = readCredentialsFromEnv()
 	}
 	if strings.HasSuffix(sdcAuth.IdentityEndpoint, "v2.0") {
+		cfg.client.CloseIdleConnections()
 		return nil, errors.New("identity_endpoint v2.0 is not supported")
 	}
 	// trim .0 from v3.0 for prometheus cfg compatibility
@@ -118,11 +119,13 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 
 	parsedURL, err := url.Parse(sdcAuth.IdentityEndpoint)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse identity_endpoint: %s as url, err: %w", sdcAuth.IdentityEndpoint, err)
+		cfg.client.CloseIdleConnections()
+		return nil, fmt.Errorf("cannot parse identity_endpoint %s as url: %w", sdcAuth.IdentityEndpoint, err)
 	}
 	cfg.endpoint = parsedURL
 	tokenReq, err := buildAuthRequestBody(&sdcAuth)
 	if err != nil {
+		cfg.client.CloseIdleConnections()
 		return nil, err
 	}
 	cfg.authTokenReq = tokenReq
@@ -140,7 +143,7 @@ func getCreds(cfg *apiConfig) (*apiCredentials, error) {
 
 	resp, err := cfg.client.Post(apiURL.String(), "application/json", bytes.NewBuffer(cfg.authTokenReq))
 	if err != nil {
-		return nil, fmt.Errorf("failed query openstack identity api, url: %s, err: %w", apiURL.String(), err)
+		return nil, fmt.Errorf("failed query openstack identity api at url %s: %w", apiURL.String(), err)
 	}
 	r, err := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()

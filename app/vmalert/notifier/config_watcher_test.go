@@ -318,3 +318,47 @@ func TestMergeHTTPClientConfigs(t *testing.T) {
 		t.Fatalf("expected BasicAuth tp be present")
 	}
 }
+
+func TestParseLabels(t *testing.T) {
+	testCases := []struct {
+		name            string
+		target          string
+		cfg             *Config
+		expectedAddress string
+		expectedErr     bool
+	}{
+		{
+			"invalid address",
+			"invalid:*//url",
+			&Config{},
+			"",
+			true,
+		},
+		{
+			"use some default params",
+			"alertmanager:9093",
+			&Config{PathPrefix: "test"},
+			"http://alertmanager:9093/test/api/v2/alerts",
+			false,
+		},
+		{
+			"use target address",
+			"https://alertmanager:9093/api/v1/alerts",
+			&Config{Scheme: "http", PathPrefix: "test"},
+			"https://alertmanager:9093/api/v1/alerts",
+			false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			address, _, err := parseLabels(tc.target, nil, tc.cfg)
+			if err == nil == tc.expectedErr {
+				t.Fatalf("unexpected error; got %t; want %t", err != nil, tc.expectedErr)
+			}
+			if address != tc.expectedAddress {
+				t.Fatalf("unexpected address; got %q; want %q", address, tc.expectedAddress)
+			}
+		})
+	}
+}

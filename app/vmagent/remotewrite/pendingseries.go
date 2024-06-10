@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -15,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/golang/snappy"
 )
@@ -26,7 +28,7 @@ var (
 	maxRowsPerBlock      = flag.Int("remoteWrite.maxRowsPerBlock", 10000, "The maximum number of samples to send in each block to remote storage. Higher number may improve performance at the cost of the increased memory usage. See also -remoteWrite.maxBlockSize")
 	vmProtoCompressLevel = flag.Int("remoteWrite.vmProtoCompressLevel", 0, "The compression level for VictoriaMetrics remote write protocol. "+
 		"Higher values reduce network traffic at the cost of higher CPU usage. Negative values reduce CPU usage at the cost of increased network traffic. "+
-		"See https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol")
+		"See https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol")
 )
 
 type pendingSeries struct {
@@ -37,9 +39,9 @@ type pendingSeries struct {
 	periodicFlusherWG sync.WaitGroup
 }
 
-func newPendingSeries(pushBlock func(block []byte), isVMRemoteWrite bool, significantFigures, roundDigits int) *pendingSeries {
+func newPendingSeries(fq *persistentqueue.FastQueue, isVMRemoteWrite bool, significantFigures, roundDigits int) *pendingSeries {
 	var ps pendingSeries
-	ps.wr.pushBlock = pushBlock
+	ps.wr.fq = fq
 	ps.wr.isVMRemoteWrite = isVMRemoteWrite
 	ps.wr.significantFigures = significantFigures
 	ps.wr.roundDigits = roundDigits
@@ -57,10 +59,11 @@ func (ps *pendingSeries) MustStop() {
 	ps.periodicFlusherWG.Wait()
 }
 
-func (ps *pendingSeries) Push(tss []prompbmarshal.TimeSeries) {
+func (ps *pendingSeries) TryPush(tss []prompbmarshal.TimeSeries) bool {
 	ps.mu.Lock()
-	ps.wr.push(tss)
+	ok := ps.wr.tryPush(tss)
 	ps.mu.Unlock()
+	return ok
 }
 
 func (ps *pendingSeries) periodicFlusher() {
@@ -68,85 +71,103 @@ func (ps *pendingSeries) periodicFlusher() {
 	if flushSeconds <= 0 {
 		flushSeconds = 1
 	}
-	ticker := time.NewTicker(*flushInterval)
+	d := timeutil.AddJitterToDuration(*flushInterval)
+	ticker := time.NewTicker(d)
 	defer ticker.Stop()
-	mustStop := false
-	for !mustStop {
+	for {
 		select {
 		case <-ps.stopCh:
-			mustStop = true
+			ps.mu.Lock()
+			ps.wr.mustFlushOnStop()
+			ps.mu.Unlock()
+			return
 		case <-ticker.C:
-			if fasttime.UnixTimestamp()-atomic.LoadUint64(&ps.wr.lastFlushTime) < uint64(flushSeconds) {
+			if fasttime.UnixTimestamp()-ps.wr.lastFlushTime.Load() < uint64(flushSeconds) {
 				continue
 			}
 		}
 		ps.mu.Lock()
-		ps.wr.flush()
+		_ = ps.wr.tryFlush()
 		ps.mu.Unlock()
 	}
 }
 
 type writeRequest struct {
-	// Move lastFlushTime to the top of the struct in order to guarantee atomic access on 32-bit architectures.
-	lastFlushTime uint64
+	lastFlushTime atomic.Uint64
 
-	// pushBlock is called when whe write request is ready to be sent.
-	pushBlock func(block []byte)
+	// The queue to send blocks to.
+	fq *persistentqueue.FastQueue
 
 	// Whether to encode the write request with VictoriaMetrics remote write protocol.
 	isVMRemoteWrite bool
 
-	// How many significant figures must be left before sending the writeRequest to pushBlock.
+	// How many significant figures must be left before sending the writeRequest to fq.
 	significantFigures int
 
-	// How many decimal digits after point must be left before sending the writeRequest to pushBlock.
+	// How many decimal digits after point must be left before sending the writeRequest to fq.
 	roundDigits int
 
 	wr prompbmarshal.WriteRequest
 
-	tss []prompbmarshal.TimeSeries
+	tss       []prompbmarshal.TimeSeries
+	labels    []prompbmarshal.Label
+	samples   []prompbmarshal.Sample
+	exemplars []prompbmarshal.Exemplar
 
-	labels  []prompbmarshal.Label
-	samples []prompbmarshal.Sample
-	buf     []byte
+	// buf holds labels data
+	buf []byte
 }
 
 func (wr *writeRequest) reset() {
-	// Do not reset lastFlushTime, pushBlock, isVMRemoteWrite, significantFigures and roundDigits, since they are re-used.
+	// Do not reset lastFlushTime, fq, isVMRemoteWrite, significantFigures and roundDigits, since they are re-used.
 
 	wr.wr.Timeseries = nil
 
-	for i := range wr.tss {
-		ts := &wr.tss[i]
-		ts.Labels = nil
-		ts.Samples = nil
-	}
+	clear(wr.tss)
 	wr.tss = wr.tss[:0]
 
 	promrelabel.CleanLabels(wr.labels)
 	wr.labels = wr.labels[:0]
 
 	wr.samples = wr.samples[:0]
+	wr.exemplars = wr.exemplars[:0]
 	wr.buf = wr.buf[:0]
 }
 
-func (wr *writeRequest) flush() {
+// mustFlushOnStop force pushes wr data into wr.fq
+//
+// This is needed in order to properly save in-memory data to persistent queue on graceful shutdown.
+func (wr *writeRequest) mustFlushOnStop() {
 	wr.wr.Timeseries = wr.tss
-	wr.adjustSampleValues()
-	atomic.StoreUint64(&wr.lastFlushTime, fasttime.UnixTimestamp())
-	pushWriteRequest(&wr.wr, wr.pushBlock, wr.isVMRemoteWrite)
+	if !tryPushWriteRequest(&wr.wr, wr.mustWriteBlock, wr.isVMRemoteWrite) {
+		logger.Panicf("BUG: final flush must always return true")
+	}
 	wr.reset()
 }
 
-func (wr *writeRequest) adjustSampleValues() {
-	samples := wr.samples
-	if n := wr.significantFigures; n > 0 {
+func (wr *writeRequest) mustWriteBlock(block []byte) bool {
+	wr.fq.MustWriteBlockIgnoreDisabledPQ(block)
+	return true
+}
+
+func (wr *writeRequest) tryFlush() bool {
+	wr.wr.Timeseries = wr.tss
+	wr.lastFlushTime.Store(fasttime.UnixTimestamp())
+	if !tryPushWriteRequest(&wr.wr, wr.fq.TryWriteBlock, wr.isVMRemoteWrite) {
+		return false
+	}
+	wr.reset()
+	return true
+}
+
+func adjustSampleValues(samples []prompbmarshal.Sample, significantFigures, roundDigits int) {
+	if n := significantFigures; n > 0 {
 		for i := range samples {
 			s := &samples[i]
 			s.Value = decimal.RoundToSignificantFigures(s.Value, n)
 		}
 	}
-	if n := wr.roundDigits; n < 100 {
+	if n := roundDigits; n < 100 {
 		for i := range samples {
 			s := &samples[i]
 			s.Value = decimal.RoundToDecimalDigits(s.Value, n)
@@ -154,27 +175,34 @@ func (wr *writeRequest) adjustSampleValues() {
 	}
 }
 
-func (wr *writeRequest) push(src []prompbmarshal.TimeSeries) {
+func (wr *writeRequest) tryPush(src []prompbmarshal.TimeSeries) bool {
 	tssDst := wr.tss
 	maxSamplesPerBlock := *maxRowsPerBlock
 	// Allow up to 10x of labels per each block on average.
 	maxLabelsPerBlock := 10 * maxSamplesPerBlock
 	for i := range src {
-		tssDst = append(tssDst, prompbmarshal.TimeSeries{})
-		wr.copyTimeSeries(&tssDst[len(tssDst)-1], &src[i])
 		if len(wr.samples) >= maxSamplesPerBlock || len(wr.labels) >= maxLabelsPerBlock {
 			wr.tss = tssDst
-			wr.flush()
+			if !wr.tryFlush() {
+				return false
+			}
 			tssDst = wr.tss
 		}
+		tsSrc := &src[i]
+		adjustSampleValues(tsSrc.Samples, wr.significantFigures, wr.roundDigits)
+		tssDst = append(tssDst, prompbmarshal.TimeSeries{})
+		wr.copyTimeSeries(&tssDst[len(tssDst)-1], tsSrc)
 	}
+
 	wr.tss = tssDst
+	return true
 }
 
 func (wr *writeRequest) copyTimeSeries(dst, src *prompbmarshal.TimeSeries) {
 	labelsDst := wr.labels
 	labelsLen := len(wr.labels)
 	samplesDst := wr.samples
+	exemplarsDst := wr.exemplars
 	buf := wr.buf
 	for i := range src.Labels {
 		labelsDst = append(labelsDst, prompbmarshal.Label{})
@@ -191,61 +219,98 @@ func (wr *writeRequest) copyTimeSeries(dst, src *prompbmarshal.TimeSeries) {
 	samplesDst = append(samplesDst, src.Samples...)
 	dst.Samples = samplesDst[len(samplesDst)-len(src.Samples):]
 
+	exemplarsDst = append(exemplarsDst, src.Exemplars...)
+	dst.Exemplars = exemplarsDst[len(exemplarsDst)-len(src.Exemplars):]
+
 	wr.samples = samplesDst
 	wr.labels = labelsDst
+	wr.exemplars = exemplarsDst
 	wr.buf = buf
 }
 
-func pushWriteRequest(wr *prompbmarshal.WriteRequest, pushBlock func(block []byte), isVMRemoteWrite bool) {
+// marshalConcurrency limits the maximum number of concurrent workers, which marshal and compress WriteRequest.
+var marshalConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
+
+func tryPushWriteRequest(wr *prompbmarshal.WriteRequest, tryPushBlock func(block []byte) bool, isVMRemoteWrite bool) bool {
 	if len(wr.Timeseries) == 0 {
 		// Nothing to push
-		return
+		return true
 	}
+	marshalConcurrencyCh <- struct{}{}
+
 	bb := writeRequestBufPool.Get()
-	bb.B = prompbmarshal.MarshalWriteRequest(bb.B[:0], wr)
+	bb.B = wr.MarshalProtobuf(bb.B[:0])
 	if len(bb.B) <= maxUnpackedBlockSize.IntN() {
-		zb := snappyBufPool.Get()
+		zb := compressBufPool.Get()
 		if isVMRemoteWrite {
 			zb.B = zstd.CompressLevel(zb.B[:0], bb.B, *vmProtoCompressLevel)
 		} else {
 			zb.B = snappy.Encode(zb.B[:cap(zb.B)], bb.B)
 		}
 		writeRequestBufPool.Put(bb)
+
+		<-marshalConcurrencyCh
+
 		if len(zb.B) <= persistentqueue.MaxBlockSize {
-			pushBlock(zb.B)
-			blockSizeRows.Update(float64(len(wr.Timeseries)))
-			blockSizeBytes.Update(float64(len(zb.B)))
-			snappyBufPool.Put(zb)
-			return
+			zbLen := len(zb.B)
+			ok := tryPushBlock(zb.B)
+			compressBufPool.Put(zb)
+			if ok {
+				blockSizeRows.Update(float64(len(wr.Timeseries)))
+				blockSizeBytes.Update(float64(zbLen))
+			}
+			return ok
 		}
-		snappyBufPool.Put(zb)
+		compressBufPool.Put(zb)
 	} else {
 		writeRequestBufPool.Put(bb)
+
+		<-marshalConcurrencyCh
 	}
 
 	// Too big block. Recursively split it into smaller parts if possible.
 	if len(wr.Timeseries) == 1 {
 		// A single time series left. Recursively split its samples into smaller parts if possible.
 		samples := wr.Timeseries[0].Samples
+		exemplars := wr.Timeseries[0].Exemplars
+
 		if len(samples) == 1 {
 			logger.Warnf("dropping a sample for metric with too long labels exceeding -remoteWrite.maxBlockSize=%d bytes", maxUnpackedBlockSize.N)
-			return
+			return true
 		}
 		n := len(samples) / 2
 		wr.Timeseries[0].Samples = samples[:n]
-		pushWriteRequest(wr, pushBlock, isVMRemoteWrite)
+		if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
+			wr.Timeseries[0].Samples = samples
+			return false
+		}
 		wr.Timeseries[0].Samples = samples[n:]
-		pushWriteRequest(wr, pushBlock, isVMRemoteWrite)
+		// We do not want to send exemplars twice
+		wr.Timeseries[0].Exemplars = nil
+
+		if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
+			wr.Timeseries[0].Samples = samples
+			wr.Timeseries[0].Exemplars = exemplars
+			return false
+		}
 		wr.Timeseries[0].Samples = samples
-		return
+		wr.Timeseries[0].Exemplars = exemplars
+		return true
 	}
 	timeseries := wr.Timeseries
 	n := len(timeseries) / 2
 	wr.Timeseries = timeseries[:n]
-	pushWriteRequest(wr, pushBlock, isVMRemoteWrite)
+	if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
+		wr.Timeseries = timeseries
+		return false
+	}
 	wr.Timeseries = timeseries[n:]
-	pushWriteRequest(wr, pushBlock, isVMRemoteWrite)
+	if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
+		wr.Timeseries = timeseries
+		return false
+	}
 	wr.Timeseries = timeseries
+	return true
 }
 
 var (
@@ -253,5 +318,7 @@ var (
 	blockSizeRows  = metrics.NewHistogram(`vmagent_remotewrite_block_size_rows`)
 )
 
-var writeRequestBufPool bytesutil.ByteBufferPool
-var snappyBufPool bytesutil.ByteBufferPool
+var (
+	writeRequestBufPool bytesutil.ByteBufferPool
+	compressBufPool     bytesutil.ByteBufferPool
+)

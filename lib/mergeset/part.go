@@ -1,7 +1,6 @@
 package mergeset
 
 import (
-	"fmt"
 	"path/filepath"
 	"sync"
 	"unsafe"
@@ -9,13 +8,14 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/blockcache"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 )
 
 var idxbCache = blockcache.NewCache(getMaxIndexBlocksCacheSize)
 var ibCache = blockcache.NewCache(getMaxInmemoryBlocksCacheSize)
 
-// SetIndexBlocksCacheSize overrides the default size of indexdb/indexBlock cache
+// SetIndexBlocksCacheSize overrides the default size of indexdb/indexBlocks cache
 func SetIndexBlocksCacheSize(size int) {
 	maxIndexBlockCacheSize = size
 }
@@ -67,30 +67,23 @@ type part struct {
 	lensFile  fs.MustReadAtCloser
 }
 
-func openFilePart(path string) (*part, error) {
-	path = filepath.Clean(path)
-
+func mustOpenFilePart(path string) *part {
 	var ph partHeader
-	if err := ph.ParseFromPath(path); err != nil {
-		return nil, fmt.Errorf("cannot parse path to part: %w", err)
-	}
+	ph.MustReadMetadata(path)
 
-	metaindexPath := path + "/metaindex.bin"
-	metaindexFile, err := filestream.Open(metaindexPath, true)
-	if err != nil {
-		return nil, fmt.Errorf("cannot open %q: %w", metaindexPath, err)
-	}
+	metaindexPath := filepath.Join(path, metaindexFilename)
+	metaindexFile := filestream.MustOpen(metaindexPath, true)
 	metaindexSize := fs.MustFileSize(metaindexPath)
 
-	indexPath := path + "/index.bin"
+	indexPath := filepath.Join(path, indexFilename)
 	indexFile := fs.MustOpenReaderAt(indexPath)
 	indexSize := fs.MustFileSize(indexPath)
 
-	itemsPath := path + "/items.bin"
+	itemsPath := filepath.Join(path, itemsFilename)
 	itemsFile := fs.MustOpenReaderAt(itemsPath)
 	itemsSize := fs.MustFileSize(itemsPath)
 
-	lensPath := path + "/lens.bin"
+	lensPath := filepath.Join(path, lensFilename)
 	lensFile := fs.MustOpenReaderAt(lensPath)
 	lensSize := fs.MustFileSize(lensPath)
 
@@ -98,11 +91,10 @@ func openFilePart(path string) (*part, error) {
 	return newPart(&ph, path, size, metaindexFile, indexFile, itemsFile, lensFile)
 }
 
-func newPart(ph *partHeader, path string, size uint64, metaindexReader filestream.ReadCloser, indexFile, itemsFile, lensFile fs.MustReadAtCloser) (*part, error) {
-	var errors []error
+func newPart(ph *partHeader, path string, size uint64, metaindexReader filestream.ReadCloser, indexFile, itemsFile, lensFile fs.MustReadAtCloser) *part {
 	mrs, err := unmarshalMetaindexRows(nil, metaindexReader)
 	if err != nil {
-		errors = append(errors, fmt.Errorf("cannot unmarshal metaindexRows: %w", err))
+		logger.Panicf("FATAL: cannot unmarshal metaindexRows from %q: %s", path, err)
 	}
 	metaindexReader.MustClose()
 
@@ -116,13 +108,7 @@ func newPart(ph *partHeader, path string, size uint64, metaindexReader filestrea
 	p.lensFile = lensFile
 
 	p.ph.CopyFrom(ph)
-	if len(errors) > 0 {
-		// Return only the first error, since it has no sense in returning all errors.
-		err := fmt.Errorf("error opening part %s: %w", p.path, errors[0])
-		p.MustClose()
-		return nil, err
-	}
-	return &p, nil
+	return &p
 }
 
 func (p *part) MustClose() {

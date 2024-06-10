@@ -8,7 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
 	"gopkg.in/yaml.v2"
@@ -156,7 +156,7 @@ func (pcs *ParsedConfigs) String() string {
 
 // LoadRelabelConfigs loads relabel configs from the given path.
 func LoadRelabelConfigs(path string) (*ParsedConfigs, error) {
-	data, err := fs.ReadFileOrHTTP(path)
+	data, err := fscore.ReadFileOrHTTP(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read `relabel_configs` from %q: %w", path, err)
 	}
@@ -204,7 +204,7 @@ var (
 	defaultPromRegex                     = func() *regexutil.PromRegex {
 		pr, err := regexutil.NewPromRegex(".*")
 		if err != nil {
-			panic(fmt.Errorf("BUG: unexpected error: %s", err))
+			panic(fmt.Errorf("BUG: unexpected error: %w", err))
 		}
 		return pr
 	}()
@@ -263,22 +263,22 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 	switch action {
 	case "graphite":
 		if graphiteMatchTemplate == nil {
-			return nil, fmt.Errorf("missing `match` for `action=graphite`; see https://docs.victoriametrics.com/vmagent.html#graphite-relabeling")
+			return nil, fmt.Errorf("missing `match` for `action=graphite`; see https://docs.victoriametrics.com/vmagent/#graphite-relabeling")
 		}
 		if len(graphiteLabelRules) == 0 {
-			return nil, fmt.Errorf("missing `labels` for `action=graphite`; see https://docs.victoriametrics.com/vmagent.html#graphite-relabeling")
+			return nil, fmt.Errorf("missing `labels` for `action=graphite`; see https://docs.victoriametrics.com/vmagent/#graphite-relabeling")
 		}
 		if len(rc.SourceLabels) > 0 {
-			return nil, fmt.Errorf("`source_labels` cannot be used with `action=graphite`; see https://docs.victoriametrics.com/vmagent.html#graphite-relabeling")
+			return nil, fmt.Errorf("`source_labels` cannot be used with `action=graphite`; see https://docs.victoriametrics.com/vmagent/#graphite-relabeling")
 		}
 		if rc.TargetLabel != "" {
-			return nil, fmt.Errorf("`target_label` cannot be used with `action=graphite`; see https://docs.victoriametrics.com/vmagent.html#graphite-relabeling")
+			return nil, fmt.Errorf("`target_label` cannot be used with `action=graphite`; see https://docs.victoriametrics.com/vmagent/#graphite-relabeling")
 		}
 		if rc.Replacement != nil {
-			return nil, fmt.Errorf("`replacement` cannot be used with `action=graphite`; see https://docs.victoriametrics.com/vmagent.html#graphite-relabeling")
+			return nil, fmt.Errorf("`replacement` cannot be used with `action=graphite`; see https://docs.victoriametrics.com/vmagent/#graphite-relabeling")
 		}
 		if rc.Regex != nil {
-			return nil, fmt.Errorf("`regex` cannot be used for `action=graphite`; see https://docs.victoriametrics.com/vmagent.html#graphite-relabeling")
+			return nil, fmt.Errorf("`regex` cannot be used for `action=graphite`; see https://docs.victoriametrics.com/vmagent/#graphite-relabeling")
 		}
 	case "replace":
 		if targetLabel == "" {
@@ -290,6 +290,26 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		}
 		if targetLabel == "" {
 			return nil, fmt.Errorf("missing `target_label` for `action=replace_all`")
+		}
+	case "keep_if_contains":
+		if targetLabel == "" {
+			return nil, fmt.Errorf("`target_label` must be set for `action=keep_if_containes`")
+		}
+		if len(sourceLabels) == 0 {
+			return nil, fmt.Errorf("`source_labels` must contain at least a single entry for `action=keep_if_contains`")
+		}
+		if rc.Regex != nil {
+			return nil, fmt.Errorf("`regex` cannot be used for `action=keep_if_contains`")
+		}
+	case "drop_if_contains":
+		if targetLabel == "" {
+			return nil, fmt.Errorf("`target_label` must be set for `action=drop_if_containes`")
+		}
+		if len(sourceLabels) == 0 {
+			return nil, fmt.Errorf("`source_labels` must contain at least a single entry for `action=drop_if_contains`")
+		}
+		if rc.Regex != nil {
+			return nil, fmt.Errorf("`regex` cannot be used for `action=drop_if_contains`")
 		}
 	case "keep_if_equal":
 		if len(sourceLabels) < 2 {
@@ -415,9 +435,9 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 }
 
 func isDefaultRegex(expr string) bool {
-	prefix, suffix := regexutil.Simplify(expr)
+	prefix, suffix := regexutil.SimplifyPromRegex(expr)
 	if prefix != "" {
 		return false
 	}
-	return suffix == ".*"
+	return suffix == "(?s:.*)"
 }

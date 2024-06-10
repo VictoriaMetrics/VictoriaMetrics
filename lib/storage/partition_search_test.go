@@ -169,37 +169,30 @@ func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, ma
 	// Create partition from rowss and test search on it.
 	strg := newTestStorage()
 	strg.retentionMsecs = timestampFromTime(time.Now()) - ptr.MinTimestamp + 3600*1000
-	pt, err := createPartition(ptt, "./small-table", "./big-table", strg)
-	if err != nil {
-		t.Fatalf("cannot create partition: %s", err)
-	}
+	pt := mustCreatePartition(ptt, "small-table", "big-table", strg)
 	smallPartsPath := pt.smallPartsPath
 	bigPartsPath := pt.bigPartsPath
-	defer func() {
-		if err := os.RemoveAll("./small-table"); err != nil {
-			t.Fatalf("cannot remove small parts directory: %s", err)
-		}
-		if err := os.RemoveAll("./big-table"); err != nil {
-			t.Fatalf("cannot remove big parts directory: %s", err)
-		}
-	}()
-	var tmpRows []rawRow
 	for _, rows := range rowss {
 		pt.AddRows(rows)
 
 		// Flush just added rows to a separate partitions.
-		tmpRows = pt.flushPendingRows(tmpRows[:0], true)
+		pt.flushPendingRows(true)
 	}
 	testPartitionSearch(t, pt, tsids, tr, rbsExpected, -1)
 	pt.MustClose()
 
 	// Open the created partition and test search on it.
-	pt, err = openPartition(smallPartsPath, bigPartsPath, strg)
-	if err != nil {
-		t.Fatalf("cannot open partition: %s", err)
-	}
+	pt = mustOpenPartition(smallPartsPath, bigPartsPath, strg)
 	testPartitionSearch(t, pt, tsids, tr, rbsExpected, rowsCountExpected)
 	pt.MustClose()
+	stopTestStorage(strg)
+
+	if err := os.RemoveAll("small-table"); err != nil {
+		t.Fatalf("cannot remove small parts directory: %s", err)
+	}
+	if err := os.RemoveAll("big-table"); err != nil {
+		t.Fatalf("cannot remove big parts directory: %s", err)
+	}
 }
 
 func testPartitionSearch(t *testing.T, pt *partition, tsids []TSID, tr TimeRange, rbsExpected []rawBlock, rowsCountExpected int64) {

@@ -36,9 +36,9 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
-	pushmetrics.Init()
 
-	go httpserver.Serve(*httpListenAddr, false, nil)
+	listenAddrs := []string{*httpListenAddr}
+	go httpserver.Serve(listenAddrs, nil, nil)
 
 	srcFS, err := newSrcFS()
 	if err != nil {
@@ -54,15 +54,17 @@ func main() {
 		Dst:                     dstFS,
 		SkipBackupCompleteCheck: *skipBackupCompleteCheck,
 	}
+	pushmetrics.Init()
 	if err := a.Run(); err != nil {
 		logger.Fatalf("cannot restore from backup: %s", err)
 	}
+	pushmetrics.Stop()
 	srcFS.MustStop()
 	dstFS.MustStop()
 
 	startTime := time.Now()
-	logger.Infof("gracefully shutting down http server for metrics at %q", *httpListenAddr)
-	if err := httpserver.Stop(*httpListenAddr); err != nil {
+	logger.Infof("gracefully shutting down http server for metrics at %q", listenAddrs)
+	if err := httpserver.Stop(listenAddrs); err != nil {
 		logger.Fatalf("cannot stop http server for metrics: %s", err)
 	}
 	logger.Infof("successfully shut down http server for metrics in %.3f seconds", time.Since(startTime).Seconds())
@@ -72,7 +74,7 @@ func usage() {
 	const s = `
 vmrestore restores VictoriaMetrics data from backups made by vmbackup.
 
-See the docs at https://docs.victoriametrics.com/vmrestore.html .
+See the docs at https://docs.victoriametrics.com/vmrestore/ .
 `
 	flagutil.Usage(s)
 }

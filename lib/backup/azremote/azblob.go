@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path"
 	"strings"
 	"time"
 
@@ -143,12 +144,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 
 // DeletePart deletes part p from fs.
 func (fs *FS) DeletePart(p common.Part) error {
-	bc := fs.clientForPart(p)
-	ctx := context.Background()
-	if _, err := bc.Delete(ctx, &blob.DeleteOptions{}); err != nil {
-		return fmt.Errorf("cannot delete %q at %s (remote path %q): %w", p.Path, fs, bc.URL(), err)
-	}
-	return nil
+	return fs.delete(p.RemotePath(fs.Dir))
 }
 
 // RemoveEmptyDirs recursively removes empty dirs in fs.
@@ -277,15 +273,59 @@ func (fs *FS) DeleteFile(filePath string) error {
 		return nil
 	}
 
-	path := fs.Dir + filePath
-	bc := fs.clientForPath(path)
-	if err != nil {
-		return err
+	path := path.Join(fs.Dir, filePath)
+	return fs.delete(path)
+}
+
+func (fs *FS) delete(path string) error {
+	if *common.DeleteAllObjectVersions {
+		return fs.deleteObjectWithGenerations(path)
 	}
+	return fs.deleteObject(path)
+}
+
+func (fs *FS) deleteObjectWithGenerations(path string) error {
+	pager := fs.client.NewListBlobsFlatPager(&azblob.ListBlobsFlatOptions{
+		Prefix: &path,
+		Include: azblob.ListBlobsInclude{
+			Versions: true,
+		},
+	})
+
+	ctx := context.Background()
+	for pager.More() {
+		resp, err := pager.NextPage(ctx)
+		if err != nil {
+			return fmt.Errorf("cannot list blobs at %s (remote path %q): %w", path, fs.Container, err)
+		}
+
+		for _, v := range resp.Segment.BlobItems {
+			var c *blob.Client
+			// Either versioning is disabled or we are deleting the current version
+			if v.VersionID == nil || (v.VersionID != nil && v.IsCurrentVersion != nil && *v.IsCurrentVersion) {
+				c = fs.client.NewBlobClient(*v.Name)
+			} else {
+				c, err = fs.client.NewBlobClient(*v.Name).WithVersionID(*v.VersionID)
+				if err != nil {
+					return fmt.Errorf("cannot read blob at %q at %s: %w", path, fs.Container, err)
+				}
+			}
+
+			if _, err := c.Delete(ctx, nil); err != nil {
+				return fmt.Errorf("cannot delete %q at %s: %w", path, fs.Container, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (fs *FS) deleteObject(path string) error {
+	bc := fs.clientForPath(path)
 
 	ctx := context.Background()
 	if _, err := bc.Delete(ctx, nil); err != nil {
-		return fmt.Errorf("cannot delete %q at %s (remote path %q): %w", filePath, fs, bc.URL(), err)
+		return fmt.Errorf("cannot delete %q at %s: %w", bc.URL(), fs, err)
 	}
 	return nil
 }
@@ -294,7 +334,7 @@ func (fs *FS) DeleteFile(filePath string) error {
 //
 // The file is overwritten if it exists.
 func (fs *FS) CreateFile(filePath string, data []byte) error {
-	path := fs.Dir + filePath
+	path := path.Join(fs.Dir, filePath)
 	bc := fs.clientForPath(path)
 
 	ctx := context.Background()
@@ -311,8 +351,7 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 
 // HasFile returns true if filePath exists at fs.
 func (fs *FS) HasFile(filePath string) (bool, error) {
-	path := fs.Dir + filePath
-
+	path := path.Join(fs.Dir, filePath)
 	bc := fs.clientForPath(path)
 
 	ctx := context.Background()
@@ -327,4 +366,20 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// ReadFile returns the content of filePath at fs.
+func (fs *FS) ReadFile(filePath string) ([]byte, error) {
+	resp, err := fs.clientForPath(fs.Dir+filePath).DownloadStream(context.Background(), &blob.DownloadStreamOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("cannot download %q at %s (remote dir %q): %w", filePath, fs, fs.Dir, err)
+	}
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read %q at %s (remote dir %q): %w", filePath, fs, fs.Dir, err)
+	}
+
+	return b, nil
 }

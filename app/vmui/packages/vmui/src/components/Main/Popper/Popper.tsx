@@ -7,6 +7,8 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import Button from "../Button/Button";
 import { CloseIcon } from "../Icons";
 import { useLocation, useNavigate } from "react-router-dom";
+import useEventListener from "../../../hooks/useEventListener";
+import { useCallback } from "preact/compat";
 
 interface PopperProps {
   children: ReactNode
@@ -20,6 +22,7 @@ interface PopperProps {
   fullWidth?: boolean
   title?: string
   disabledFullScreen?: boolean
+  variant?: "default" | "dark"
 }
 
 const Popper: FC<PopperProps> = ({
@@ -32,42 +35,29 @@ const Popper: FC<PopperProps> = ({
   clickOutside = true,
   fullWidth,
   title,
-  disabledFullScreen
+  disabledFullScreen,
+  variant
 }) => {
   const { isMobile } = useDeviceDetect();
   const navigate = useNavigate();
   const location = useLocation();
-  const [isOpen, setIsOpen] = useState(false);
   const [popperSize, setPopperSize] = useState({ width: 0, height: 0 });
+  const [isOpen, setIsOpen] = useState(false);
 
   const popperRef = useRef<HTMLDivElement>(null);
 
-  const onScrollWindow = () => {
-    setIsOpen(false);
-  };
-
-  useEffect(() => {
-    window.addEventListener("scroll", onScrollWindow);
-
-    return () => {
-      window.removeEventListener("scroll", onScrollWindow);
-    };
-  }, []);
-
   useEffect(() => {
     setIsOpen(open);
-  }, [open]);
 
-  useEffect(() => {
-    if (!isOpen && onClose) onClose();
-    if (isOpen && isMobile && !disabledFullScreen) {
+    if (!open && onClose) onClose();
+    if (open && isMobile && !disabledFullScreen) {
       document.body.style.overflow = "hidden";
     }
 
     return () => {
       document.body.style.overflow = "auto";
     };
-  }, [isOpen]);
+  }, [open]);
 
   useEffect(() => {
     setPopperSize({
@@ -117,6 +107,7 @@ const Popper: FC<PopperProps> = ({
 
     if (fullWidth) position.width = `${buttonPos.width}px`;
     if (position.top < 0) position.top = 20;
+    if (position.left < 0) position.left = 20;
 
     return position;
   },[buttonRef, placement, isOpen, children, fullWidth]);
@@ -126,7 +117,15 @@ const Popper: FC<PopperProps> = ({
     onClose();
   };
 
-  if (clickOutside) useClickOutside(popperRef, () => setIsOpen(false), buttonRef);
+  const handleClose = () => {
+    setIsOpen(false);
+    onClose();
+  };
+
+  const handleClickOutside = () => {
+    if (!clickOutside) return;
+    handleClose();
+  };
 
   useEffect(() => {
     if (!popperRef.current || !isOpen || (isMobile && !disabledFullScreen)) return;
@@ -137,32 +136,27 @@ const Popper: FC<PopperProps> = ({
     }
   }, [isOpen, popperRef]);
 
-  const handlePopstate = () => {
+  const handlePopstate = useCallback(() => {
     if (isOpen && isMobile && !disabledFullScreen) {
       navigate(location, { replace: true });
       onClose();
     }
-  };
+  }, [isOpen, isMobile, disabledFullScreen, location, onClose]);
 
-  useEffect(() => {
-    window.addEventListener("popstate", handlePopstate);
-
-    return () => {
-      window.removeEventListener("popstate", handlePopstate);
-    };
-  }, [isOpen, isMobile, disabledFullScreen, location]);
-
-  const popperClasses = classNames({
-    "vm-popper": true,
-    "vm-popper_mobile": isMobile && !disabledFullScreen,
-    "vm-popper_open": (isMobile || Object.keys(popperStyle).length) && isOpen,
-  });
+  useEventListener("scroll", handleClose);
+  useEventListener("popstate", handlePopstate);
+  useClickOutside(popperRef, handleClickOutside, buttonRef);
 
   return (
     <>
       {(isOpen || !popperSize.width) && ReactDOM.createPortal((
         <div
-          className={popperClasses}
+          className={classNames({
+            "vm-popper": true,
+            [`vm-popper_${variant}`]: variant,
+            "vm-popper_mobile": isMobile && !disabledFullScreen,
+            "vm-popper_open": (isMobile || Object.keys(popperStyle).length) && isOpen,
+          })}
           ref={popperRef}
           style={(isMobile && !disabledFullScreen) ? {} : popperStyle}
         >
@@ -171,8 +165,10 @@ const Popper: FC<PopperProps> = ({
               <p className="vm-popper-header__title">{title}</p>
               <Button
                 variant="text"
+                color={variant === "dark" ? "white" : "primary"}
                 size="small"
                 onClick={handleClickClose}
+                ariaLabel="close"
               >
                 <CloseIcon/>
               </Button>

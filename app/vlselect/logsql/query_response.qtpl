@@ -1,0 +1,41 @@
+{% import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
+) %}
+
+{% stripspace %}
+
+// JSONRow creates JSON row from the given fields.
+{% func JSONRow(columns []logstorage.BlockColumn, rowIdx int) %}
+{
+	{% code c := &columns[0] %}
+	{%q= c.Name %}:{%q= c.Values[rowIdx] %}
+	{% code columns = columns[1:] %}
+	{% for colIdx := range columns %}
+		{% code c := &columns[colIdx] %}
+		,{%q= c.Name %}:{%q= c.Values[rowIdx] %}
+	{% endfor %}
+}{% newline %}
+{% endfunc %}
+
+// JSONRows prints formatted rows
+{% func JSONRows(rows [][]logstorage.Field) %}
+	{% if len(rows) == 0 %}
+		{% return %}
+	{% endif %}
+	{% for _, fields := range rows %}
+	{
+		{% if len(fields) > 0 %}
+			{% code
+				f := fields[0]
+				fields = fields[1:]
+			%}
+			{%q= f.Name %}:{%q= f.Value %}
+			{% for _, f := range fields %}
+				,{%q= f.Name %}:{%q= f.Value %}
+			{% endfor %}
+		{% endif %}
+	}{% newline %}
+	{% endfor %}
+{% endfunc %}
+
+{% endstripspace %}

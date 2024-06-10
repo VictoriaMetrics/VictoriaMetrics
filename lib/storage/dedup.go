@@ -25,6 +25,8 @@ func isDedupEnabled() bool {
 }
 
 // DeduplicateSamples removes samples from src* if they are closer to each other than dedupInterval in milliseconds.
+// DeduplicateSamples treats StaleNaN (Prometheus stale markers) as values and doesn't skip them on purpose - see
+// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5587
 func DeduplicateSamples(srcTimestamps []int64, srcValues []float64, dedupInterval int64) ([]int64, []float64) {
 	if !needsDedup(srcTimestamps, dedupInterval) {
 		// Fast path - nothing to deduplicate

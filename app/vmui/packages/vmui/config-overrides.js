@@ -1,7 +1,7 @@
-// eslint-disable-next-line @typescript-eslint/no-var-requires,no-undef
-const {override, addExternalBabelPlugin, addWebpackAlias} = require("customize-cra");
+/* eslint-disable */
+const { override, addExternalBabelPlugin, addWebpackAlias, addWebpackPlugin } = require("customize-cra");
+const webpack = require("webpack");
 
-// eslint-disable-next-line no-undef
 module.exports = override(
   addExternalBabelPlugin("@babel/plugin-proposal-nullish-coalescing-operator"),
   addWebpackAlias({
@@ -9,5 +9,18 @@ module.exports = override(
     "react-dom/test-utils": "preact/test-utils",
     "react-dom": "preact/compat", // Must be below test-utils
     "react/jsx-runtime": "preact/jsx-runtime"
-  })
+  }),
+  addWebpackPlugin(
+    new webpack.NormalModuleReplacementPlugin(
+      /\.\/App/,
+      function (resource) {
+        if (process.env.REACT_APP_TYPE === "logs") {
+          resource.request = "./AppLogs";
+        }
+        if (process.env.REACT_APP_TYPE === "anomaly") {
+          resource.request = "./AppAnomaly";
+        }
+      }
+    )
+  )
 );

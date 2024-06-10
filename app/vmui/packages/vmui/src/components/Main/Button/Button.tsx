@@ -5,8 +5,9 @@ import "./style.scss";
 
 interface ButtonProps {
   variant?: "contained" | "outlined" | "text"
-  color?: "primary" | "secondary" | "success" | "error" | "gray"  | "warning"
+  color?: "primary" | "secondary" | "success" | "error" | "gray"  | "warning" | "white"
   size?: "small" | "medium" | "large"
+  ariaLabel?: string // https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-label
   endIcon?: ReactNode
   startIcon?: ReactNode
   fullWidth?: boolean
@@ -21,6 +22,7 @@ const Button: FC<ButtonProps> = ({
   variant = "contained",
   color = "primary",
   size = "medium",
+  ariaLabel,
   children,
   endIcon,
   startIcon,
@@ -46,6 +48,7 @@ const Button: FC<ButtonProps> = ({
     <button
       className={classesButton}
       disabled={disabled}
+      aria-label={ariaLabel}
       onClick={onClick}
       onMouseDown={onMouseDown}
     >

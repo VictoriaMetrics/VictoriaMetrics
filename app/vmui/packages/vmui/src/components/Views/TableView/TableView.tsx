@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
+import React, { FC, useMemo, useRef, useState } from "preact/compat";
 import { InstantMetricResult } from "../../../api/types";
 import { InstantDataSeries } from "../../../types";
 import { useSortedCategories } from "../../../hooks/useSortedCategories";
@@ -7,11 +7,10 @@ import classNames from "classnames";
 import { ArrowDropDownIcon, CopyIcon } from "../../Main/Icons";
 import Tooltip from "../../Main/Tooltip/Tooltip";
 import Button from "../../Main/Button/Button";
-import { useSnack } from "../../../contexts/Snackbar";
+import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
 import { getNameForMetric } from "../../../utils/metric";
 import { useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import "./style.scss";
-import useResize from "../../../hooks/useResize";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 export interface GraphViewProps {
@@ -20,14 +19,11 @@ export interface GraphViewProps {
 }
 
 const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
-  const { showInfoMessage } = useSnack();
+  const copyToClipboard = useCopyToClipboard();
   const { isMobile } = useDeviceDetect();
 
   const { tableCompact } = useCustomPanelState();
-  const windowSize = useResize(document.body);
   const tableRef = useRef<HTMLTableElement>(null);
-  const [tableTop, setTableTop] = useState(0);
-  const [headTop, setHeadTop] = useState(0);
 
   const [orderBy, setOrderBy] = useState("");
   const [orderDir, setOrderDir] = useState<"asc" | "desc">("asc");
@@ -74,38 +70,13 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
     setOrderBy(key);
   };
 
-  const copyHandler = async (copyValue: string) => {
-    await navigator.clipboard.writeText(copyValue);
-    showInfoMessage({ text: "Row has been copied", type: "success" });
-  };
-
   const createSortHandler = (key: string) => () => {
     sortHandler(key);
   };
 
-  const createCopyHandler = (copyValue: string) => () => {
-    copyHandler(copyValue);
+  const createCopyHandler = (copyValue: string) => async () => {
+    await copyToClipboard(copyValue, "Row has been copied");
   };
-
-  const handleScroll = () => {
-    if (!tableRef.current) return;
-    const { top } = tableRef.current.getBoundingClientRect();
-    setHeadTop(top < 0 ? window.scrollY - tableTop : 0);
-  };
-
-  useEffect(() => {
-    window.addEventListener("scroll", handleScroll);
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, [tableRef, tableTop, windowSize]);
-
-  useEffect(() => {
-    if (!tableRef.current) return;
-    const { top } = tableRef.current.getBoundingClientRect();
-    setTableTop(top + window.scrollY);
-  }, [tableRef, windowSize]);
 
   if (!rows.length) return <Alert variant="warning">No data to show</Alert>;
 
@@ -121,10 +92,7 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
         ref={tableRef}
       >
         <thead className="vm-table-header">
-          <tr
-            className="vm-table__row vm-table__row_header"
-            style={{ transform: `translateY(${headTop}px)` }}
-          >
+          <tr className="vm-table__row vm-table__row_header">
             {sortedColumns.map((col, index) => (
               <td
                 className="vm-table-cell vm-table-cell_header vm-table-cell_sort"
@@ -196,6 +164,7 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
                           size="small"
                           startIcon={<CopyIcon/>}
                           onClick={createCopyHandler(row.copyValue)}
+                          ariaLabel="copy row"
                         />
                       </Tooltip>
                     </div>

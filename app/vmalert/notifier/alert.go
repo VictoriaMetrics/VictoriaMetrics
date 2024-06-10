@@ -39,6 +39,8 @@ type Alert struct {
 	ResolvedAt time.Time
 	// LastSent defines the moment when Alert was sent last time
 	LastSent time.Time
+	// KeepFiringSince defines the moment when StateFiring was kept because of `keep_firing_for` instead of real alert
+	KeepFiringSince time.Time
 	// Value stores the value returned from evaluating expression from Expr field
 	Value float64
 	// ID is the unique identifier for the Alert
@@ -111,11 +113,7 @@ func (a *Alert) ExecTemplate(q templates.QueryFn, labels, annotations map[string
 		ActiveAt: a.ActiveAt,
 		For:      a.For,
 	}
-	tmpl, err := templates.GetWithFuncs(templates.FuncsWithQuery(q))
-	if err != nil {
-		return nil, fmt.Errorf("error getting a template: %w", err)
-	}
-	return templateAnnotations(annotations, tplData, tmpl, true)
+	return ExecTemplate(q, annotations, tplData)
 }
 
 // ExecTemplate executes the given template for given annotations map.
@@ -174,6 +172,8 @@ func templateAnnotation(dst io.Writer, text string, data tplData, tmpl *textTpl.
 	if err != nil {
 		return fmt.Errorf("error cloning template before parse annotation: %w", err)
 	}
+	// Clone() doesn't copy tpl Options, so we set them manually
+	tpl = tpl.Option("missingkey=zero")
 	tpl, err = tpl.Parse(text)
 	if err != nil {
 		return fmt.Errorf("error parsing annotation template: %w", err)
@@ -191,7 +191,7 @@ func (a Alert) toPromLabels(relabelCfg *promrelabel.ParsedConfigs) []prompbmarsh
 	var labels []prompbmarshal.Label
 	for k, v := range a.Labels {
 		labels = append(labels, prompbmarshal.Label{
-			Name:  k,
+			Name:  promrelabel.SanitizeMetricName(k),
 			Value: v,
 		})
 	}

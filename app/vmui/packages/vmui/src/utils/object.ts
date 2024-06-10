@@ -12,5 +12,5 @@ export function filterObject<T extends object>(
 }
 
 export function compactObject<T extends object>(obj: T) {
-  return filterObject(obj, (entry) => !!entry[1]);
+  return filterObject(obj, (entry) => !!entry[1] || typeof entry[1] === "number");
 }

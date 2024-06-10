@@ -39,7 +39,7 @@ func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 
 func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	hcc := sdc.HTTPClientConfig
-	token, err := getToken(sdc.Token)
+	token, err := GetToken(sdc.Token)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse proxy auth config: %w", err)
 	}
-	client, err := discoveryutils.NewClient(apiServer, ac, sdc.ProxyURL, proxyAC)
+	client, err := discoveryutils.NewClient(apiServer, ac, sdc.ProxyURL, proxyAC, &sdc.HTTPClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create HTTP client for %q: %w", apiServer, err)
 	}
@@ -90,6 +90,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	}
 	dc, err := getDatacenter(client, sdc.Datacenter)
 	if err != nil {
+		client.Stop()
 		return nil, fmt.Errorf("cannot obtain consul datacenter: %w", err)
 	}
 
@@ -107,7 +108,8 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	return cfg, nil
 }
 
-func getToken(token *promauth.Secret) (string, error) {
+// GetToken returns Consul token.
+func GetToken(token *promauth.Secret) (string, error) {
 	if token != nil {
 		return token.String(), nil
 	}
@@ -123,20 +125,29 @@ func getToken(token *promauth.Secret) (string, error) {
 	return t, nil
 }
 
+// GetAgentInfo returns information about current consul agent.
+func GetAgentInfo(client *discoveryutils.Client) (*Agent, error) {
+	// See https://www.consul.io/api/agent.html#read-configuration
+	data, err := client.GetAPIResponse("/v1/agent/self")
+	if err != nil {
+		return nil, fmt.Errorf("cannot query consul agent info: %w", err)
+	}
+	a, err := ParseAgent(data)
+	if err != nil {
+		return nil, err
+	}
+	return a, nil
+}
+
 func getDatacenter(client *discoveryutils.Client, dc string) (string, error) {
 	if dc != "" {
 		return dc, nil
 	}
-	// See https://www.consul.io/api/agent.html#read-configuration
-	data, err := client.GetAPIResponse("/v1/agent/self")
-	if err != nil {
-		return "", fmt.Errorf("cannot query consul agent info: %w", err)
-	}
-	a, err := parseAgent(data)
+	agent, err := GetAgentInfo(client)
 	if err != nil {
 		return "", err
 	}
-	return a.Config.Datacenter, nil
+	return agent.Config.Datacenter, nil
 }
 
 // maxWaitTime is duration for consul blocking request.
@@ -162,6 +173,9 @@ func getBlockingAPIResponse(ctx context.Context, client *discoveryutils.Client, 
 	path += "&index=" + strconv.FormatInt(index, 10)
 	path += "&wait=" + fmt.Sprintf("%ds", int(maxWaitTime().Seconds()))
 	getMeta := func(resp *http.Response) {
+		if resp.StatusCode != http.StatusOK {
+			return
+		}
 		ind := resp.Header.Get("X-Consul-Index")
 		if len(ind) == 0 {
 			logger.Errorf("cannot find X-Consul-Index header in response from %q", path)

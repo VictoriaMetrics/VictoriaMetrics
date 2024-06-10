@@ -49,7 +49,7 @@ type DebugStep struct {
 	// Rule contains string representation of the rule step
 	Rule string
 
-	// In contains the input labels before the exeuction of the rule step
+	// In contains the input labels before the execution of the rule step
 	In string
 
 	// Out contains the output labels after the execution of the rule step
@@ -70,52 +70,56 @@ func (prc *parsedRelabelConfig) String() string {
 //
 // It returns DebugStep list - one entry per each applied relabeling step.
 func (pcs *ParsedConfigs) ApplyDebug(labels []prompbmarshal.Label) ([]prompbmarshal.Label, []DebugStep) {
-	labels, dss := pcs.applyInternal(labels, 0, true)
-	return labels, dss
-}
+	// Protect from overwriting labels between len(labels) and cap(labels) by limiting labels capacity to its length.
+	labels = labels[:len(labels):len(labels)]
 
-// Apply applies pcs to labels starting from the labelsOffset.
-func (pcs *ParsedConfigs) Apply(labels []prompbmarshal.Label, labelsOffset int) []prompbmarshal.Label {
-	labels, _ = pcs.applyInternal(labels, labelsOffset, false)
-	return labels
-}
-
-func (pcs *ParsedConfigs) applyInternal(labels []prompbmarshal.Label, labelsOffset int, debug bool) ([]prompbmarshal.Label, []DebugStep) {
+	inStr := LabelsToString(labels)
 	var dss []DebugStep
-	inStr := ""
-	if debug {
-		inStr = LabelsToString(labels[labelsOffset:])
-	}
 	if pcs != nil {
 		for _, prc := range pcs.prcs {
-			labels = prc.apply(labels, labelsOffset)
-			if debug {
-				outStr := LabelsToString(labels[labelsOffset:])
-				dss = append(dss, DebugStep{
-					Rule: prc.String(),
-					In:   inStr,
-					Out:  outStr,
-				})
-				inStr = outStr
-			}
-			if len(labels) == labelsOffset {
+			labels = prc.apply(labels, 0)
+			outStr := LabelsToString(labels)
+			dss = append(dss, DebugStep{
+				Rule: prc.String(),
+				In:   inStr,
+				Out:  outStr,
+			})
+			inStr = outStr
+			if len(labels) == 0 {
 				// All the labels have been removed.
 				return labels, dss
 			}
 		}
 	}
-	labels = removeEmptyLabels(labels, labelsOffset)
-	if debug {
-		outStr := LabelsToString(labels[labelsOffset:])
-		if outStr != inStr {
-			dss = append(dss, DebugStep{
-				Rule: "remove empty labels",
-				In:   inStr,
-				Out:  outStr,
-			})
-		}
+
+	labels = removeEmptyLabels(labels, 0)
+	outStr := LabelsToString(labels)
+	if outStr != inStr {
+		dss = append(dss, DebugStep{
+			Rule: "remove empty labels",
+			In:   inStr,
+			Out:  outStr,
+		})
 	}
 	return labels, dss
+}
+
+// Apply applies pcs to labels starting from the labelsOffset.
+//
+// This function may add additional labels after the len(labels), so make sure it doesn't corrupt in-use labels
+// stored between len(labels) and cap(labels).
+func (pcs *ParsedConfigs) Apply(labels []prompbmarshal.Label, labelsOffset int) []prompbmarshal.Label {
+	if pcs != nil {
+		for _, prc := range pcs.prcs {
+			labels = prc.apply(labels, labelsOffset)
+			if len(labels) == labelsOffset {
+				// All the labels have been removed.
+				return labels
+			}
+		}
+	}
+	labels = removeEmptyLabels(labels, labelsOffset)
+	return labels
 }
 
 func removeEmptyLabels(labels []prompbmarshal.Label, labelsOffset int) []prompbmarshal.Label {
@@ -158,7 +162,7 @@ func FinalizeLabels(dst, src []prompbmarshal.Label) []prompbmarshal.Label {
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
 func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset int) []prompbmarshal.Label {
 	src := labels[labelsOffset:]
-	if !prc.If.Match(labels) {
+	if !prc.If.Match(src) {
 		if prc.Action == "keep" {
 			// Drop the target on `if` mismatch for `action: keep`
 			return labels[:labelsOffset]
@@ -250,6 +254,32 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		valueStr := prc.replaceStringSubmatchesFast(sourceStr)
 		if valueStr != sourceStr {
 			labels = setLabelValue(labels, labelsOffset, prc.TargetLabel, valueStr)
+		}
+		return labels
+	case "keep_if_contains":
+		// Keep the entry if target_label contains all the label values listed in source_labels.
+		// For example, the following relabeling rule would leave the entry if __meta_consul_tags
+		// contains values of __meta_required_tag1 and __meta_required_tag2:
+		//
+		//   - action: keep_if_contains
+		//     target_label: __meta_consul_tags
+		//     source_labels: [__meta_required_tag1, __meta_required_tag2]
+		//
+		if containsAllLabelValues(src, prc.TargetLabel, prc.SourceLabels) {
+			return labels
+		}
+		return labels[:labelsOffset]
+	case "drop_if_contains":
+		// Drop the entry if target_label contains all the label values listed in source_labels.
+		// For example, the following relabeling rule would drop the entry if __meta_consul_tags
+		// contains values of __meta_required_tag1 and __meta_required_tag2:
+		//
+		//   - action: drop_if_contains
+		//     target_label: __meta_consul_tags
+		//     source_labels: [__meta_required_tag1, __meta_required_tag2]
+		//
+		if containsAllLabelValues(src, prc.TargetLabel, prc.SourceLabels) {
+			return labels[:labelsOffset]
 		}
 		return labels
 	case "keep_if_equal":
@@ -485,6 +515,17 @@ func (prc *parsedRelabelConfig) expandCaptureGroups(template, source string, mat
 
 var relabelBufPool bytesutil.ByteBufferPool
 
+func containsAllLabelValues(labels []prompbmarshal.Label, targetLabel string, sourceLabels []string) bool {
+	targetLabelValue := getLabelValue(labels, targetLabel)
+	for _, sourceLabel := range sourceLabels {
+		v := getLabelValue(labels, sourceLabel)
+		if !strings.Contains(targetLabelValue, v) {
+			return false
+		}
+	}
+	return true
+}
+
 func areEqualLabelValues(labels []prompbmarshal.Label, labelNames []string) bool {
 	if len(labelNames) < 2 {
 		logger.Panicf("BUG: expecting at least 2 labelNames; got %d", len(labelNames))
@@ -505,10 +546,8 @@ func concatLabelValues(dst []byte, labels []prompbmarshal.Label, labelNames []st
 		return dst
 	}
 	for _, labelName := range labelNames {
-		label := GetLabelByName(labels, labelName)
-		if label != nil {
-			dst = append(dst, label.Value...)
-		}
+		labelValue := getLabelValue(labels, labelName)
+		dst = append(dst, labelValue...)
 		dst = append(dst, separator...)
 	}
 	return dst[:len(dst)-len(separator)]
@@ -550,11 +589,7 @@ func GetLabelByName(labels []prompbmarshal.Label, name string) *prompbmarshal.La
 //
 // This should help GC cleaning up label.Name and label.Value strings.
 func CleanLabels(labels []prompbmarshal.Label) {
-	for i := range labels {
-		label := &labels[i]
-		label.Name = ""
-		label.Value = ""
-	}
+	clear(labels)
 }
 
 // LabelsToString returns Prometheus string representation for the given labels.
@@ -591,10 +626,12 @@ func LabelsToString(labels []prompbmarshal.Label) string {
 
 // SortLabels sorts labels in alphabetical order.
 func SortLabels(labels []prompbmarshal.Label) {
-	x := &promutils.Labels{
-		Labels: labels,
-	}
+	x := promutils.GetLabels()
+	labelsOrig := x.Labels
+	x.Labels = labels
 	x.Sort()
+	x.Labels = labelsOrig
+	promutils.PutLabels(x)
 }
 
 func fillLabelReferences(dst []byte, replacement string, labels []prompbmarshal.Label) []byte {
@@ -619,15 +656,37 @@ func fillLabelReferences(dst []byte, replacement string, labels []prompbmarshal.
 	return dst
 }
 
-// SanitizeName replaces unsupported by Prometheus chars in metric names and label names with _.
+// SanitizeLabelName replaces unsupported by Prometheus chars in label names with _.
 //
 // See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
-func SanitizeName(name string) string {
-	return promSanitizer.Transform(name)
+func SanitizeLabelName(name string) string {
+	return labelNameSanitizer.Transform(name)
 }
 
-var promSanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
-	return unsupportedPromChars.ReplaceAllString(s, "_")
+// SplitMetricNameToTokens returns tokens generated from metric name divided by unsupported Prometheus characters
+//
+// See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
+func SplitMetricNameToTokens(name string) []string {
+	return nonAlphaNumChars.Split(name, -1)
+}
+
+var nonAlphaNumChars = regexp.MustCompile(`[^a-zA-Z0-9]`)
+
+var labelNameSanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
+	return unsupportedLabelNameChars.ReplaceAllString(s, "_")
 })
 
-var unsupportedPromChars = regexp.MustCompile(`[^a-zA-Z0-9_:]`)
+var unsupportedLabelNameChars = regexp.MustCompile(`[^a-zA-Z0-9_]`)
+
+// SanitizeMetricName replaces unsupported by Prometheus chars in metric names with _.
+//
+// See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
+func SanitizeMetricName(value string) string {
+	return metricNameSanitizer.Transform(value)
+}
+
+var metricNameSanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
+	return unsupportedMetricNameChars.ReplaceAllString(s, "_")
+})
+
+var unsupportedMetricNameChars = regexp.MustCompile(`[^a-zA-Z0-9_:]`)

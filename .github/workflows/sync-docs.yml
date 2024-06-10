@@ -1,0 +1,51 @@
+name: publish-docs
+on:
+  push:
+    branches:
+      - 'master'
+    paths:
+      - 'docs/**'
+  workflow_dispatch: {}
+permissions:
+  contents: read  # This is required for actions/checkout and to commit back image update
+  deployments: write
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+        with:
+          path: main
+      - name: Checkout private code
+        uses: actions/checkout@v4
+        with:
+          repository: VictoriaMetrics/vmdocs
+          token: ${{ secrets.VM_BOT_GH_TOKEN }}
+          path: docs
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v5
+        with:
+          gpg_private_key: ${{ secrets.VM_BOT_GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.VM_BOT_PASSPHRASE }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
+          workdir: docs
+      - name: Set short git commit SHA
+        id: vars
+        run: |
+          calculatedSha=$(git rev-parse --short ${{ github.sha }})
+          echo "short_sha=$calculatedSha" >> $GITHUB_OUTPUT
+        working-directory: main
+      - name: update code and commit
+        run: |
+          rm -rf content
+          cp -r ../main/docs content
+          make clean-after-copy
+          git config --global user.name "${{ steps.import-gpg.outputs.email }}"
+          git config --global user.email "${{ steps.import-gpg.outputs.email }}"
+          git add .
+          git commit -S -m "sync docs with VictoriaMetrics/VictoriaMetrics commit: ${{ steps.vars.outputs.short_sha }}"
+          git push
+        working-directory: docs

@@ -10,19 +10,23 @@ import (
 
 	"gopkg.in/yaml.v2"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/log"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 // Group contains list of Rules grouped into
 // entity with one name and evaluation interval
 type Group struct {
-	Type        Type `yaml:"type,omitempty"`
-	File        string
-	Name        string              `yaml:"name"`
-	Interval    *promutils.Duration `yaml:"interval,omitempty"`
+	Type       Type `yaml:"type,omitempty"`
+	File       string
+	Name       string              `yaml:"name"`
+	Interval   *promutils.Duration `yaml:"interval,omitempty"`
+	EvalOffset *promutils.Duration `yaml:"eval_offset,omitempty"`
+	// EvalDelay will adjust the `time` parameter of rule evaluation requests to compensate intentional query delay from datasource.
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155
+	EvalDelay   *promutils.Duration `yaml:"eval_delay,omitempty"`
 	Limit       int                 `yaml:"limit,omitempty"`
 	Rules       []Rule              `yaml:"rules"`
 	Concurrency int                 `yaml:"concurrency"`
@@ -36,7 +40,10 @@ type Group struct {
 	Params url.Values `yaml:"params"`
 	// Headers contains optional HTTP headers added to each rule request
 	Headers []Header `yaml:"headers,omitempty"`
-
+	// NotifierHeaders contains optional HTTP headers sent to notifiers for generated notifications
+	NotifierHeaders []Header `yaml:"notifier_headers,omitempty"`
+	// EvalAlignment will make the timestamp of group query requests be aligned with interval
+	EvalAlignment *bool `yaml:"eval_alignment,omitempty"`
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline"`
 }
@@ -62,10 +69,26 @@ func (g *Group) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
-// Validate check for internal Group or Rule configuration errors
+// Validate checks configuration errors for group and internal rules
 func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) error {
 	if g.Name == "" {
 		return fmt.Errorf("group name must be set")
+	}
+	if g.Interval.Duration() < 0 {
+		return fmt.Errorf("interval shouldn't be lower than 0")
+	}
+	if g.EvalOffset.Duration() < 0 {
+		return fmt.Errorf("eval_offset shouldn't be lower than 0")
+	}
+	// if `eval_offset` is set, interval won't use global evaluationInterval flag and must bigger than offset.
+	if g.EvalOffset.Duration() > g.Interval.Duration() {
+		return fmt.Errorf("eval_offset should be smaller than interval; now eval_offset: %v, interval: %v", g.EvalOffset.Duration(), g.Interval.Duration())
+	}
+	if g.Limit < 0 {
+		return fmt.Errorf("invalid limit %d, shouldn't be less than 0", g.Limit)
+	}
+	if g.Concurrency < 0 {
+		return fmt.Errorf("invalid concurrency %d, shouldn't be less than 0", g.Concurrency)
 	}
 
 	uniqueRules := map[uint64]struct{}{}
@@ -75,26 +98,26 @@ func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) 
 			ruleName = r.Alert
 		}
 		if _, ok := uniqueRules[r.ID]; ok {
-			return fmt.Errorf("%q is a duplicate within the group %q", r.String(), g.Name)
+			return fmt.Errorf("%q is a duplicate in group", r.String())
 		}
 		uniqueRules[r.ID] = struct{}{}
 		if err := r.Validate(); err != nil {
-			return fmt.Errorf("invalid rule %q.%q: %w", g.Name, ruleName, err)
+			return fmt.Errorf("invalid rule %q: %w", ruleName, err)
 		}
 		if validateExpressions {
 			// its needed only for tests.
 			// because correct types must be inherited after unmarshalling.
 			exprValidator := g.Type.ValidateExpr
 			if err := exprValidator(r.Expr); err != nil {
-				return fmt.Errorf("invalid expression for rule %q.%q: %w", g.Name, ruleName, err)
+				return fmt.Errorf("invalid expression for rule  %q: %w", ruleName, err)
 			}
 		}
 		if validateTplFn != nil {
 			if err := validateTplFn(r.Annotations); err != nil {
-				return fmt.Errorf("invalid annotations for rule %q.%q: %w", g.Name, ruleName, err)
+				return fmt.Errorf("invalid annotations for rule  %q: %w", ruleName, err)
 			}
 			if err := validateTplFn(r.Labels); err != nil {
-				return fmt.Errorf("invalid labels for rule %q.%q: %w", g.Name, ruleName, err)
+				return fmt.Errorf("invalid labels for rule  %q: %w", ruleName, err)
 			}
 		}
 	}
@@ -104,14 +127,16 @@ func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) 
 // Rule describes entity that represent either
 // recording rule or alerting rule.
 type Rule struct {
-	ID          uint64
-	Record      string              `yaml:"record,omitempty"`
-	Alert       string              `yaml:"alert,omitempty"`
-	Expr        string              `yaml:"expr"`
-	For         *promutils.Duration `yaml:"for,omitempty"`
-	Labels      map[string]string   `yaml:"labels,omitempty"`
-	Annotations map[string]string   `yaml:"annotations,omitempty"`
-	Debug       bool                `yaml:"debug,omitempty"`
+	ID     uint64
+	Record string              `yaml:"record,omitempty"`
+	Alert  string              `yaml:"alert,omitempty"`
+	Expr   string              `yaml:"expr"`
+	For    *promutils.Duration `yaml:"for,omitempty"`
+	// Alert will continue firing for this long even when the alerting expression no longer has results.
+	KeepFiringFor *promutils.Duration `yaml:"keep_firing_for,omitempty"`
+	Labels        map[string]string   `yaml:"labels,omitempty"`
+	Annotations   map[string]string   `yaml:"annotations,omitempty"`
+	Debug         bool                `yaml:"debug,omitempty"`
 	// UpdateEntriesLimit defines max number of rule's state updates stored in memory.
 	// Overrides `-rule.updateEntriesLimit`.
 	UpdateEntriesLimit *int `yaml:"update_entries_limit,omitempty"`
@@ -199,12 +224,40 @@ func (r *Rule) Validate() error {
 // ValidateTplFn must validate the given annotations
 type ValidateTplFn func(annotations map[string]string) error
 
+// cLogger is a logger with support of logs suppressing.
+// it is used when logs emitted by config package needs
+// to be suppressed.
+var cLogger = &log.Logger{}
+
+// ParseSilent parses rule configs from given file patterns without emitting logs
+func ParseSilent(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
+	cLogger.Suppress(true)
+	defer cLogger.Suppress(false)
+
+	files, err := readFromFS(pathPatterns)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read from the config: %w", err)
+	}
+	return parse(files, validateTplFn, validateExpressions)
+}
+
 // Parse parses rule configs from given file patterns
 func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
 	files, err := readFromFS(pathPatterns)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read from the config: %s", err)
+		return nil, fmt.Errorf("failed to read from the config: %w", err)
 	}
+	groups, err := parse(files, validateTplFn, validateExpressions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse %s: %w", pathPatterns, err)
+	}
+	if len(groups) < 1 {
+		cLogger.Warnf("no groups found in %s", strings.Join(pathPatterns, ";"))
+	}
+	return groups, nil
+}
+
+func parse(files map[string][]byte, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
 	errGroup := new(utils.ErrGroup)
 	var groups []Group
 	for file, data := range files {
@@ -231,9 +284,12 @@ func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressio
 	if err := errGroup.Err(); err != nil {
 		return nil, err
 	}
-	if len(groups) < 1 {
-		logger.Warnf("no groups found in %s", strings.Join(pathPatterns, ";"))
-	}
+	sort.SliceStable(groups, func(i, j int) bool {
+		if groups[i].File != groups[j].File {
+			return groups[i].File < groups[j].File
+		}
+		return groups[i].Name < groups[j].Name
+	})
 	return groups, nil
 }
 

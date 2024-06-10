@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/vmimport"
@@ -15,7 +14,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var maxLineLen = flagutil.NewBytes("import.maxLineLen", 100*1024*1024, "The maximum length in bytes of a single line accepted by /api/v1/import; "+
+var maxLineLen = flagutil.NewBytes("import.maxLineLen", 10*1024*1024, "The maximum length in bytes of a single line accepted by /api/v1/import; "+
 	"the line length can be limited with 'max_rows_per_line' query arg passed to /api/v1/export")
 
 // Parse parses /api/v1/import lines from req and calls callback for the parsed rows.
@@ -110,33 +109,22 @@ func (ctx *streamContext) reset() {
 }
 
 func getStreamContext(r io.Reader) *streamContext {
-	select {
-	case ctx := <-streamContextPoolCh:
+	if v := streamContextPool.Get(); v != nil {
+		ctx := v.(*streamContext)
 		ctx.br.Reset(r)
 		return ctx
-	default:
-		if v := streamContextPool.Get(); v != nil {
-			ctx := v.(*streamContext)
-			ctx.br.Reset(r)
-			return ctx
-		}
-		return &streamContext{
-			br: bufio.NewReaderSize(r, 64*1024),
-		}
+	}
+	return &streamContext{
+		br: bufio.NewReaderSize(r, 64*1024),
 	}
 }
 
 func putStreamContext(ctx *streamContext) {
 	ctx.reset()
-	select {
-	case streamContextPoolCh <- ctx:
-	default:
-		streamContextPool.Put(ctx)
-	}
+	streamContextPool.Put(ctx)
 }
 
 var streamContextPool sync.Pool
-var streamContextPoolCh = make(chan *streamContext, cgroup.AvailableCPUs())
 
 type unmarshalWork struct {
 	rows     vmimport.Rows

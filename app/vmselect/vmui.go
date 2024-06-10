@@ -7,14 +7,16 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 var (
 	vmuiCustomDashboardsPath = flag.String("vmui.customDashboardsPath", "", "Optional path to vmui dashboards. "+
 		"See https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards")
+	vmuiDefaultTimezone = flag.String("vmui.defaultTimezone", "", "The default timezone to be used in vmui. "+
+		"Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local")
 )
 
 // dashboardSettings represents dashboard settings file struct.
@@ -66,6 +68,16 @@ func handleVMUICustomDashboards(w http.ResponseWriter) error {
 	return nil
 }
 
+func handleVMUITimezone(w http.ResponseWriter) error {
+	tz, err := time.LoadLocation(*vmuiDefaultTimezone)
+	if err != nil {
+		return fmt.Errorf("cannot load timezone %q: %w", *vmuiDefaultTimezone, err)
+	}
+	response := fmt.Sprintf(`{"timezone": %q}`, tz)
+	writeSuccessResponse(w, []byte(response))
+	return nil
+}
+
 func writeSuccessResponse(w http.ResponseWriter, data []byte) {
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
@@ -76,18 +88,11 @@ func collectDashboardsSettings(path string) ([]byte, error) {
 	if !fs.IsPathExist(path) {
 		return nil, fmt.Errorf("cannot find folder %q", path)
 	}
-	files, err := os.ReadDir(path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read folder %q", path)
-	}
+	files := fs.MustReadDir(path)
 
 	var dss []dashboardSettings
 	for _, file := range files {
 		filename := file.Name()
-		if err != nil {
-			logger.Errorf("skipping %q at -vmui.customDashboardsPath=%q, since the info for this file cannot be obtained: %s", filename, path, err)
-			continue
-		}
 		if filepath.Ext(filename) != ".json" {
 			continue
 		}

@@ -8,6 +8,10 @@
     color: $color-primary;
   }
 
+  &_underlined {
+    text-decoration: underline;
+  }
+
   &_with-icon {
     display: grid;
     align-items: center;

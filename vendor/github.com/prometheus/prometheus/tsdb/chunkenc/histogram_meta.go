@@ -73,7 +73,6 @@ func readHistogramChunkLayoutSpans(b *bstreamReader) ([]histogram.Span, error) {
 		return nil, err
 	}
 	for i := 0; i < int(num); i++ {
-
 		length, err := readVarbitUint(b)
 		if err != nil {
 			return nil, err
@@ -284,7 +283,7 @@ loop:
 // cover an entirely different set of buckets. The function returns the
 // “forward” inserts to expand 'a' to also cover all the buckets exclusively
 // covered by 'b', and it returns the “backward” inserts to expand 'b' to also
-// cover all the buckets exclusively covered by 'a'
+// cover all the buckets exclusively covered by 'a'.
 func expandSpansBothWays(a, b []histogram.Span) (forward, backward []Insert, mergedSpans []histogram.Span) {
 	ai := newBucketIterator(a)
 	bi := newBucketIterator(b)
@@ -486,4 +485,16 @@ func counterResetHint(crh CounterResetHeader, numRead uint16) histogram.CounterR
 		// might not be worth the effort and/or risk. To be vetted...
 		return histogram.UnknownCounterReset
 	}
+}
+
+// Handle pathological case of empty span when advancing span idx.
+// Call it with idx==-1 to find the first non empty span.
+func nextNonEmptySpanSliceIdx(idx int, bucketIdx int32, spans []histogram.Span) (newIdx int, newBucketIdx int32) {
+	for idx++; idx < len(spans); idx++ {
+		if spans[idx].Length > 0 {
+			return idx, bucketIdx + spans[idx].Offset + 1
+		}
+		bucketIdx += spans[idx].Offset
+	}
+	return idx, 0
 }

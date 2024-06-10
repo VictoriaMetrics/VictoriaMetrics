@@ -41,11 +41,8 @@ func TestTableSearchSerial(t *testing.T) {
 
 	func() {
 		// Re-open the table and verify the search works.
-		var isReadOnly uint32
-		tb, err := OpenTable(path, nil, nil, &isReadOnly)
-		if err != nil {
-			t.Fatalf("cannot open table: %s", err)
-		}
+		var isReadOnly atomic.Bool
+		tb := MustOpenTable(path, nil, nil, &isReadOnly)
 		defer tb.MustClose()
 		if err := testTableSearchSerial(tb, items); err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -78,11 +75,8 @@ func TestTableSearchConcurrent(t *testing.T) {
 
 	// Re-open the table and verify the search works.
 	func() {
-		var isReadOnly uint32
-		tb, err := OpenTable(path, nil, nil, &isReadOnly)
-		if err != nil {
-			t.Fatalf("cannot open table: %s", err)
-		}
+		var isReadOnly atomic.Bool
+		tb := MustOpenTable(path, nil, nil, &isReadOnly)
 		defer tb.MustClose()
 		if err := testTableSearchConcurrent(tb, items); err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -151,15 +145,12 @@ func testTableSearchSerial(tb *Table, items []string) error {
 }
 
 func newTestTable(r *rand.Rand, path string, itemsCount int) (*Table, []string, error) {
-	var flushes uint64
+	var flushes atomic.Uint64
 	flushCallback := func() {
-		atomic.AddUint64(&flushes, 1)
+		flushes.Add(1)
 	}
-	var isReadOnly uint32
-	tb, err := OpenTable(path, flushCallback, nil, &isReadOnly)
-	if err != nil {
-		return nil, nil, fmt.Errorf("cannot open table: %w", err)
-	}
+	var isReadOnly atomic.Bool
+	tb := MustOpenTable(path, flushCallback, nil, &isReadOnly)
 	items := make([]string, itemsCount)
 	for i := 0; i < itemsCount; i++ {
 		item := fmt.Sprintf("%d:%d", r.Intn(1e9), i)
@@ -167,7 +158,7 @@ func newTestTable(r *rand.Rand, path string, itemsCount int) (*Table, []string, 
 		items[i] = item
 	}
 	tb.DebugFlush()
-	if itemsCount > 0 && atomic.LoadUint64(&flushes) == 0 {
+	if itemsCount > 0 && flushes.Load() == 0 {
 		return nil, nil, fmt.Errorf("unexpeted zero flushes for itemsCount=%d", itemsCount)
 	}
 

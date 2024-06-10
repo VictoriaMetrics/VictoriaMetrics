@@ -117,7 +117,7 @@ func (x *Labels) String() string {
 
 // Reset resets x.
 func (x *Labels) Reset() {
-	cleanLabels(x.Labels)
+	clear(x.Labels)
 	x.Labels = x.Labels[:0]
 }
 
@@ -188,6 +188,22 @@ func (x *Labels) Get(name string) string {
 	return ""
 }
 
+// Set label value for label with given name
+// If the label with the given name doesn't exist, it adds as the new label
+func (x *Labels) Set(name, value string) {
+	if name == "" || value == "" {
+		return
+	}
+	labels := x.GetLabels()
+	for i, label := range labels {
+		if label.Name == name {
+			labels[i].Value = value
+			return
+		}
+	}
+	x.Add(name, value)
+}
+
 // InternStrings interns all the strings used in x labels.
 func (x *Labels) InternStrings() {
 	labels := x.GetLabels()
@@ -229,7 +245,7 @@ func (x *Labels) RemoveDuplicates() {
 			prevName = label.Name
 		}
 	}
-	cleanLabels(labels[len(tmp):])
+	clear(labels[len(tmp):])
 	x.Labels = tmp
 }
 
@@ -245,7 +261,7 @@ func (x *Labels) RemoveMetaLabels() {
 		}
 		dst = append(dst, label)
 	}
-	cleanLabels(src[len(dst):])
+	clear(src[len(dst):])
 	x.Labels = dst
 }
 
@@ -255,22 +271,13 @@ func (x *Labels) RemoveLabelsWithDoubleUnderscorePrefix() {
 	dst := x.Labels[:0]
 	for _, label := range src {
 		name := label.Name
-		// A hack: do not delete __vm_filepath label, since it is used by internal logic for FileSDConfig.
-		if strings.HasPrefix(name, "__") && name != "__vm_filepath" {
+		if strings.HasPrefix(name, "__") {
 			continue
 		}
 		dst = append(dst, label)
 	}
-	cleanLabels(src[len(dst):])
+	clear(src[len(dst):])
 	x.Labels = dst
-}
-
-func cleanLabels(labels []prompbmarshal.Label) {
-	for i := range labels {
-		label := &labels[i]
-		label.Name = ""
-		label.Value = ""
-	}
 }
 
 // GetLabels returns and empty Labels instance from the pool.
@@ -307,7 +314,7 @@ func MustNewLabelsFromString(metricWithLabels string) *Labels {
 
 // NewLabelsFromString creates labels from s, which can have the form `metric{labels}`.
 //
-// This function must be used only in tests
+// This function must be used only in non performance-critical code, since it allocates too much
 func NewLabelsFromString(metricWithLabels string) (*Labels, error) {
 	stripDummyMetric := false
 	if strings.HasPrefix(metricWithLabels, "{") {

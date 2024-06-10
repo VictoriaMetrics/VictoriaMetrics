@@ -18,23 +18,14 @@ import (
 	"fmt"
 	"math"
 	"strconv"
-	"unsafe"
-
-	jsoniter "github.com/json-iterator/go"
 )
 
-func init() {
-	jsoniter.RegisterTypeEncoderFunc("model.SamplePair", marshalSamplePairJSON, marshalJSONIsEmpty)
-}
-
-var (
-	// ZeroSamplePair is the pseudo zero-value of SamplePair used to signal a
-	// non-existing sample pair. It is a SamplePair with timestamp Earliest and
-	// value 0.0. Note that the natural zero value of SamplePair has a timestamp
-	// of 0, which is possible to appear in a real SamplePair and thus not
-	// suitable to signal a non-existing SamplePair.
-	ZeroSamplePair = SamplePair{Timestamp: Earliest}
-)
+// ZeroSamplePair is the pseudo zero-value of SamplePair used to signal a
+// non-existing sample pair. It is a SamplePair with timestamp Earliest and
+// value 0.0. Note that the natural zero value of SamplePair has a timestamp
+// of 0, which is possible to appear in a real SamplePair and thus not
+// suitable to signal a non-existing SamplePair.
+var ZeroSamplePair = SamplePair{Timestamp: Earliest}
 
 // A SampleValue is a representation of a value for a given sample at a given
 // time.
@@ -78,18 +69,16 @@ type SamplePair struct {
 	Value     SampleValue
 }
 
-// marshalSamplePairJSON writes `[ts, "val"]`.
-func marshalSamplePairJSON(ptr unsafe.Pointer, stream *jsoniter.Stream) {
-	p := *((*SamplePair)(ptr))
-	stream.WriteArrayStart()
-	MarshalTimestamp(int64(p.Timestamp), stream)
-	stream.WriteMore()
-	MarshalValue(float64(p.Value), stream)
-	stream.WriteArrayEnd()
-}
-
 func (s SamplePair) MarshalJSON() ([]byte, error) {
-	return jsoniter.ConfigCompatibleWithStandardLibrary.Marshal(s)
+	t, err := json.Marshal(s.Timestamp)
+	if err != nil {
+		return nil, err
+	}
+	v, err := json.Marshal(s.Value)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(fmt.Sprintf("[%s,%s]", t, v)), nil
 }
 
 // UnmarshalJSON implements json.Unmarshaler.

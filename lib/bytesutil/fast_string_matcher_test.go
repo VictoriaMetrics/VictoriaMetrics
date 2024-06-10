@@ -2,6 +2,7 @@ package bytesutil
 
 import (
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -27,18 +28,19 @@ func TestFastStringMatcher(t *testing.T) {
 func TestNeedCleanup(t *testing.T) {
 	f := func(lastCleanupTime, currentTime uint64, resultExpected bool) {
 		t.Helper()
-		lct := lastCleanupTime
+		var lct atomic.Uint64
+		lct.Store(lastCleanupTime)
 		result := needCleanup(&lct, currentTime)
 		if result != resultExpected {
 			t.Fatalf("unexpected result for needCleanup(%d, %d); got %v; want %v", lastCleanupTime, currentTime, result, resultExpected)
 		}
 		if result {
-			if lct != currentTime {
-				t.Fatalf("unexpected value for lct; got %d; want currentTime=%d", lct, currentTime)
+			if n := lct.Load(); n != currentTime {
+				t.Fatalf("unexpected value for lct; got %d; want currentTime=%d", n, currentTime)
 			}
 		} else {
-			if lct != lastCleanupTime {
-				t.Fatalf("unexpected value for lct; got %d; want lastCleanupTime=%d", lct, lastCleanupTime)
+			if n := lct.Load(); n != lastCleanupTime {
+				t.Fatalf("unexpected value for lct; got %d; want lastCleanupTime=%d", n, lastCleanupTime)
 			}
 		}
 	}

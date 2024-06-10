@@ -1,12 +1,14 @@
 package bytesutil
 
 import (
+	"fmt"
 	"io"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 var (
@@ -23,6 +25,11 @@ var (
 type ByteBuffer struct {
 	// B is the underlying byte slice.
 	B []byte
+}
+
+// Path returns an unique id for bb.
+func (bb *ByteBuffer) Path() string {
+	return fmt.Sprintf("ByteBuffer/%p/mem", bb)
 }
 
 // Reset resets bb.
@@ -58,8 +65,7 @@ func (bb *ByteBuffer) ReadFrom(r io.Reader) (int64, error) {
 	offset := bLen
 	for {
 		if free := len(b) - offset; free < offset {
-			n := len(b)
-			b = append(b, make([]byte, n)...)
+			b = slicesutil.SetLength(b, 2*len(b))
 		}
 		n, err := r.Read(b[offset:])
 		offset += n
@@ -90,6 +96,11 @@ type reader struct {
 
 	// readOffset is the offset in bb.B for read.
 	readOffset int
+}
+
+// Path returns an unique id for the underlying ByteBuffer.
+func (r *reader) Path() string {
+	return r.bb.Path()
 }
 
 // Read reads up to len(p) bytes from bb.

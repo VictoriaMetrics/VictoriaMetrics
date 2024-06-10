@@ -44,7 +44,7 @@ func testConnPoolStartStop(t *testing.T, name string, ms *metrics.Set) {
 	var cps []*ConnPool
 	for i := 0; i < 5; i++ {
 		addr := fmt.Sprintf("host-%d", i)
-		cp := NewConnPool(ms, name, addr, handshake.VMSelectClient, compressLevel, dialTimeout)
+		cp := NewConnPool(ms, name, addr, handshake.VMSelectClient, compressLevel, dialTimeout, 0)
 		cps = append(cps, cp)
 	}
 	for _, cp := range cps {

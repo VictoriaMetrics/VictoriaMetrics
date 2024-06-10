@@ -63,6 +63,10 @@ func (fc *FloatCounter) marshalTo(prefix string, w io.Writer) {
 	fmt.Fprintf(w, "%s %g\n", prefix, v)
 }
 
+func (fc *FloatCounter) metricType() string {
+	return "counter"
+}
+
 // GetOrCreateFloatCounter returns registered FloatCounter with the given name
 // or creates new FloatCounter if the registry doesn't contain FloatCounter with
 // the given name.

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -23,6 +24,8 @@ var (
 	loggerTimezone = flag.String("loggerTimezone", "UTC", "Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. "+
 		"For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local")
 	disableTimestamps = flag.Bool("loggerDisableTimestamps", false, "Whether to disable writing timestamps in logs")
+	maxLogArgLen      = flag.Int("loggerMaxArgLen", 1000, "The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', "+
+		"where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2")
 
 	errorsPerSecondLimit = flag.Int("loggerErrorsPerSecondLimit", 0, `Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit`)
 	warnsPerSecondLimit  = flag.Int("loggerWarnsPerSecondLimit", 0, `Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit`)
@@ -93,49 +96,66 @@ func StdErrorLogger() *log.Logger {
 
 // Infof logs info message.
 func Infof(format string, args ...interface{}) {
-	logLevel("INFO", format, args...)
+	logLevel("INFO", format, args)
 }
 
 // Warnf logs warn message.
 func Warnf(format string, args ...interface{}) {
-	logLevel("WARN", format, args...)
+	logLevel("WARN", format, args)
 }
 
 // Errorf logs error message.
 func Errorf(format string, args ...interface{}) {
-	logLevel("ERROR", format, args...)
+	logLevel("ERROR", format, args)
 }
 
 // WarnfSkipframes logs warn message and skips the given number of frames for the caller.
 func WarnfSkipframes(skipframes int, format string, args ...interface{}) {
-	logLevelSkipframes(skipframes, "WARN", format, args...)
+	logLevelSkipframes(skipframes, "WARN", format, args)
 }
 
 // ErrorfSkipframes logs error message and skips the given number of frames for the caller.
 func ErrorfSkipframes(skipframes int, format string, args ...interface{}) {
-	logLevelSkipframes(skipframes, "ERROR", format, args...)
+	logLevelSkipframes(skipframes, "ERROR", format, args)
 }
 
 // Fatalf logs fatal message and terminates the app.
 func Fatalf(format string, args ...interface{}) {
-	logLevel("FATAL", format, args...)
+	logLevel("FATAL", format, args)
 }
 
 // Panicf logs panic message and panics.
 func Panicf(format string, args ...interface{}) {
-	logLevel("PANIC", format, args...)
+	logLevel("PANIC", format, args)
 }
 
-func logLevel(level, format string, args ...interface{}) {
-	logLevelSkipframes(1, level, format, args...)
+func logLevel(level, format string, args []interface{}) {
+	logLevelSkipframes(1, level, format, args)
 }
 
-func logLevelSkipframes(skipframes int, level, format string, args ...interface{}) {
+func logLevelSkipframes(skipframes int, level, format string, args []interface{}) {
 	if shouldSkipLog(level) {
 		return
 	}
-	msg := fmt.Sprintf(format, args...)
+	msg := formatLogMessage(*maxLogArgLen, format, args)
 	logMessage(level, msg, 3+skipframes)
+}
+
+func formatLogMessage(maxArgLen int, format string, args []interface{}) string {
+	x := format
+	// Limit the length of every string-like arg in order to prevent from too long log messages
+	for i := range args {
+		n := strings.IndexByte(x, '%')
+		if n < 0 {
+			break
+		}
+		x = x[n+1:]
+		if strings.HasPrefix(x, "s") || strings.HasPrefix(x, "q") {
+			s := fmt.Sprintf("%s", args[i])
+			args[i] = stringsutil.LimitStringLen(s, maxArgLen)
+		}
+	}
+	return fmt.Sprintf(format, args...)
 }
 
 func logLimiterCleaner() {
@@ -197,7 +217,7 @@ type logWriter struct {
 }
 
 func (lw *logWriter) Write(p []byte) (int, error) {
-	logLevelSkipframes(2, "ERROR", "%s", p)
+	logLevelSkipframes(2, "ERROR", "%s", []interface{}{p})
 	return len(p), nil
 }
 

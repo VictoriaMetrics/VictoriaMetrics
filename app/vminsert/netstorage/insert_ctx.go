@@ -57,15 +57,16 @@ func (br *bufRows) pushTo(snb *storageNodesBucket, sn *storageNode) error {
 // Reset resets ctx.
 func (ctx *InsertCtx) Reset() {
 	ctx.snb = getStorageNodesBucket()
-	for i := range ctx.Labels {
-		label := &ctx.Labels[i]
-		label.Name = nil
-		label.Value = nil
+
+	labels := ctx.Labels
+	for i := range labels {
+		labels[i] = prompb.Label{}
 	}
-	ctx.Labels = ctx.Labels[:0]
+	ctx.Labels = labels[:0]
+
 	ctx.MetricNameBuf = ctx.MetricNameBuf[:0]
 
-	if ctx.bufRowss == nil {
+	if ctx.bufRowss == nil || len(ctx.bufRowss) != len(ctx.snb.sns) {
 		ctx.bufRowss = make([]bufRows, len(ctx.snb.sns))
 	}
 	for i := range ctx.bufRowss {
@@ -89,8 +90,8 @@ func (ctx *InsertCtx) AddLabelBytes(name, value []byte) {
 	ctx.Labels = append(ctx.Labels, prompb.Label{
 		// Do not copy name and value contents for performance reasons.
 		// This reduces GC overhead on the number of objects and allocations.
-		Name:  name,
-		Value: value,
+		Name:  bytesutil.ToUnsafeString(name),
+		Value: bytesutil.ToUnsafeString(value),
 	})
 }
 
@@ -107,8 +108,8 @@ func (ctx *InsertCtx) AddLabel(name, value string) {
 	ctx.Labels = append(ctx.Labels, prompb.Label{
 		// Do not copy name and value contents for performance reasons.
 		// This reduces GC overhead on the number of objects and allocations.
-		Name:  bytesutil.ToUnsafeBytes(name),
-		Value: bytesutil.ToUnsafeBytes(value),
+		Name:  name,
+		Value: value,
 	})
 }
 
@@ -174,8 +175,8 @@ func (ctx *InsertCtx) GetStorageNodeIdx(at *auth.Token, labels []prompb.Label) i
 	buf = encoding.MarshalUint32(buf, at.ProjectID)
 	for i := range labels {
 		label := &labels[i]
-		buf = marshalBytesFast(buf, label.Name)
-		buf = marshalBytesFast(buf, label.Value)
+		buf = marshalStringFast(buf, label.Name)
+		buf = marshalStringFast(buf, label.Value)
 	}
 	h := xxhash.Sum64(buf)
 	ctx.labelsBuf = buf
@@ -185,7 +186,7 @@ func (ctx *InsertCtx) GetStorageNodeIdx(at *auth.Token, labels []prompb.Label) i
 	return idx
 }
 
-func marshalBytesFast(dst []byte, s []byte) []byte {
+func marshalStringFast(dst []byte, s string) []byte {
 	dst = encoding.MarshalUint16(dst, uint16(len(s)))
 	dst = append(dst, s...)
 	return dst
@@ -204,29 +205,32 @@ func (ctx *InsertCtx) GetLocalAuthToken(at *auth.Token) *auth.Token {
 	projectID := uint32(0)
 	tmpLabels := ctx.Labels[:0]
 	for _, label := range ctx.Labels {
-		if string(label.Name) == "vm_account_id" {
+		switch string(label.Name) {
+		case "vm_account_id":
 			accountID = parseUint32(label.Value)
 			continue
-		}
-		if string(label.Name) == "vm_project_id" {
+		case "vm_project_id":
 			projectID = parseUint32(label.Value)
 			continue
+		// do not remove labels from labelSet for backward-compatibility
+		// previous realisation kept it
+		case "VictoriaMetrics_AccountID":
+			accountID = parseUint32(label.Value)
+		case "VictoriaMetrics_ProjectID":
+			projectID = parseUint32(label.Value)
 		}
 		tmpLabels = append(tmpLabels, label)
 	}
 	cleanLabels := ctx.Labels[len(tmpLabels):]
 	for i := range cleanLabels {
-		label := &cleanLabels[i]
-		label.Name = nil
-		label.Value = nil
+		cleanLabels[i] = prompb.Label{}
 	}
 	ctx.Labels = tmpLabels
 	ctx.at.Set(accountID, projectID)
 	return &ctx.at
 }
 
-func parseUint32(b []byte) uint32 {
-	s := bytesutil.ToUnsafeString(b)
+func parseUint32(s string) uint32 {
 	n, err := strconv.ParseUint(s, 10, 32)
 	if err != nil {
 		return 0

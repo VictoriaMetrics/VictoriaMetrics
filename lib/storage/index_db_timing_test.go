@@ -2,12 +2,13 @@ package storage
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func BenchmarkRegexpFilterMatch(b *testing.B) {
@@ -39,33 +40,21 @@ func BenchmarkRegexpFilterMismatch(b *testing.B) {
 }
 
 func BenchmarkIndexDBAddTSIDs(b *testing.B) {
+	const path = "BenchmarkIndexDBAddTSIDs"
+	s := MustOpenStorage(path, retentionMax, 0, 0)
+	db := s.idb()
+
 	const recordsPerLoop = 1e3
 
-	s := newTestStorage()
-	defer stopTestStorage(s)
-
-	dbName := nextIndexDBTableName()
-	var isReadOnly uint32
-	db, err := openIndexDB(dbName, s, 0, &isReadOnly)
-	if err != nil {
-		b.Fatalf("cannot open indexDB: %s", err)
-	}
-	defer func() {
-		db.MustClose()
-		if err := os.RemoveAll(dbName); err != nil {
-			b.Fatalf("cannot remove indexDB: %s", err)
-		}
-	}()
-
-	var goroutineID uint32
+	var goroutineID atomic.Uint32
 
 	b.ReportAllocs()
 	b.SetBytes(recordsPerLoop)
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		var mn MetricName
-		var tsid TSID
-		mn.AccountID = atomic.AddUint32(&goroutineID, 1)
+		var genTSID generationTSID
+		mn.AccountID = goroutineID.Add(1)
 
 		// The most common tags.
 		mn.Tags = []Tag{
@@ -79,16 +68,18 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 
 		startOffset := 0
 		for pb.Next() {
-			benchmarkIndexDBAddTSIDs(db, &tsid, &mn, startOffset, recordsPerLoop)
+			benchmarkIndexDBAddTSIDs(db, &genTSID, &mn, startOffset, recordsPerLoop)
 			startOffset += recordsPerLoop
 		}
 	})
 	b.StopTimer()
+
+	s.MustClose()
+	fs.MustRemoveAll(path)
 }
 
-func benchmarkIndexDBAddTSIDs(db *indexDB, tsid *TSID, mn *MetricName, startOffset, recordsPerLoop int) {
-	var metricName []byte
-	var metricNameRaw []byte
+func benchmarkIndexDBAddTSIDs(db *indexDB, genTSID *generationTSID, mn *MetricName, startOffset, recordsPerLoop int) {
+	date := uint64(0)
 	is := db.getIndexSearch(0, 0, noDeadline)
 	defer db.putIndexSearch(is)
 	for i := 0; i < recordsPerLoop; i++ {
@@ -97,42 +88,27 @@ func benchmarkIndexDBAddTSIDs(db *indexDB, tsid *TSID, mn *MetricName, startOffs
 			mn.Tags[j].Value = strconv.AppendUint(mn.Tags[j].Value[:0], uint64(i*j), 16)
 		}
 		mn.sortTags()
-		metricName = mn.Marshal(metricName[:0])
-		metricNameRaw = mn.marshalRaw(metricNameRaw[:0])
-		if err := is.GetOrCreateTSIDByName(tsid, metricName, metricNameRaw, 0); err != nil {
-			panic(fmt.Errorf("cannot insert record: %w", err))
-		}
+
+		generateTSID(&genTSID.TSID, mn)
+		createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
 	}
 }
 
 func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	// This benchmark is equivalent to https://github.com/prometheus/prometheus/blob/23c0299d85bfeb5d9b59e994861553a25ca578e5/tsdb/head_bench_test.go#L52
 	// See https://www.robustperception.io/evaluating-performance-and-correctness for more details.
-	s := newTestStorage()
-	defer stopTestStorage(s)
-
-	dbName := nextIndexDBTableName()
-	var isReadOnly uint32
-	db, err := openIndexDB(dbName, s, 0, &isReadOnly)
-	if err != nil {
-		b.Fatalf("cannot open indexDB: %s", err)
-	}
-	defer func() {
-		db.MustClose()
-		if err := os.RemoveAll(dbName); err != nil {
-			b.Fatalf("cannot remove indexDB: %s", err)
-		}
-	}()
+	const path = "BenchmarkHeadPostingForMatchers"
+	s := MustOpenStorage(path, retentionMax, 0, 0)
+	db := s.idb()
 
 	// Fill the db with data as in https://github.com/prometheus/prometheus/blob/23c0299d85bfeb5d9b59e994861553a25ca578e5/tsdb/head_bench_test.go#L66
 	const accountID = 34327843
 	const projectID = 893433
-	var mn MetricName
-	var metricName []byte
-	var metricNameRaw []byte
-	var tsid TSID
 	is := db.getIndexSearch(0, 0, noDeadline)
 	defer db.putIndexSearch(is)
+	var mn MetricName
+	var genTSID generationTSID
+	date := uint64(0)
 	addSeries := func(kvs ...string) {
 		mn.Reset()
 		for i := 0; i < len(kvs); i += 2 {
@@ -141,11 +117,8 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		mn.sortTags()
 		mn.AccountID = accountID
 		mn.ProjectID = projectID
-		metricName = mn.Marshal(metricName[:0])
-		metricNameRaw = mn.marshalRaw(metricNameRaw[:0])
-		if err := is.createTSIDByName(&tsid, metricName, metricNameRaw, 0); err != nil {
-			b.Fatalf("cannot insert record: %s", err)
-		}
+		generateTSID(&genTSID.TSID, &mn)
+		createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
 	}
 	for n := 0; n < 10; n++ {
 		ns := strconv.Itoa(n)
@@ -161,19 +134,19 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	}
 
 	// Make sure all the items can be searched.
-	db.tb.DebugFlush()
+	db.s.DebugFlush()
 	b.ResetTimer()
 
 	benchSearch := func(b *testing.B, tfs *TagFilters, expectedMetricIDs int) {
-		is := db.getIndexSearch(tfs.accountID, tfs.projectID, noDeadline)
-		defer db.putIndexSearch(is)
 		tfss := []*TagFilters{tfs}
 		tr := TimeRange{
 			MinTimestamp: 0,
 			MaxTimestamp: timestampFromTime(time.Now()),
 		}
 		for i := 0; i < b.N; i++ {
+			is := db.getIndexSearch(tfs.accountID, tfs.projectID, noDeadline)
 			metricIDs, err := is.searchMetricIDs(nil, tfss, tr, 2e9)
+			db.putIndexSearch(is)
 			if err != nil {
 				b.Fatalf("unexpected error in searchMetricIDs: %s", err)
 			}
@@ -289,24 +262,15 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		addTagFilter(tfs, "j", "foo", false, false)
 		benchSearch(b, tfs, 88889)
 	})
+
+	s.MustClose()
+	fs.MustRemoveAll(path)
 }
 
 func BenchmarkIndexDBGetTSIDs(b *testing.B) {
-	s := newTestStorage()
-	defer stopTestStorage(s)
-
-	dbName := nextIndexDBTableName()
-	var isReadOnly uint32
-	db, err := openIndexDB(dbName, s, 0, &isReadOnly)
-	if err != nil {
-		b.Fatalf("cannot open indexDB: %s", err)
-	}
-	defer func() {
-		db.MustClose()
-		if err := os.RemoveAll(dbName); err != nil {
-			b.Fatalf("cannot remove indexDB: %s", err)
-		}
-	}()
+	const path = "BenchmarkIndexDBGetTSIDs"
+	s := MustOpenStorage(path, retentionMax, 0, 0)
+	db := s.idb()
 
 	const recordsPerLoop = 1000
 	const accountsCount = 111
@@ -321,45 +285,46 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 		value := fmt.Sprintf("value_%d", i)
 		mn.AddTag(key, value)
 	}
-	var tsid TSID
-	var metricName []byte
-	var metricNameRaw []byte
+	mn.sortTags()
+
+	var genTSID generationTSID
+	date := uint64(12345)
 
 	is := db.getIndexSearch(0, 0, noDeadline)
 	defer db.putIndexSearch(is)
+
 	for i := 0; i < recordsCount; i++ {
 		mn.AccountID = uint32(i % accountsCount)
 		mn.ProjectID = uint32(i % projectsCount)
-		mn.sortTags()
-		metricName = mn.Marshal(metricName[:0])
-		metricNameRaw = mn.marshalRaw(metricName[:0])
-		if err := is.GetOrCreateTSIDByName(&tsid, metricName, metricNameRaw, 0); err != nil {
-			b.Fatalf("cannot insert record: %s", err)
-		}
+		generateTSID(&genTSID.TSID, &mn)
+		createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
 	}
+	db.s.DebugFlush()
 
 	b.SetBytes(recordsPerLoop)
 	b.ReportAllocs()
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
-		var tsidLocal TSID
+		var genTSIDLocal generationTSID
 		var metricNameLocal []byte
-		var metricNameLocalRaw []byte
-		mnLocal := mn
-		is := db.getIndexSearch(0, 0, noDeadline)
-		defer db.putIndexSearch(is)
+		var mnLocal MetricName
+		mnLocal.CopyFrom(&mn)
+		mnLocal.sortTags()
 		for pb.Next() {
+			is := db.getIndexSearch(0, 0, noDeadline)
 			for i := 0; i < recordsPerLoop; i++ {
 				mnLocal.AccountID = uint32(i % accountsCount)
 				mnLocal.ProjectID = uint32(i % projectsCount)
-				mnLocal.sortTags()
 				metricNameLocal = mnLocal.Marshal(metricNameLocal[:0])
-				metricNameLocalRaw = mnLocal.marshalRaw(metricNameLocalRaw[:0])
-				if err := is.GetOrCreateTSIDByName(&tsidLocal, metricNameLocal, metricNameLocalRaw, 0); err != nil {
-					panic(fmt.Errorf("cannot obtain tsid: %w", err))
+				if !is.getTSIDByMetricName(&genTSIDLocal, metricNameLocal, date) {
+					panic(fmt.Errorf("cannot obtain tsid for row %d", i))
 				}
 			}
+			db.putIndexSearch(is)
 		}
 	})
 	b.StopTimer()
+
+	s.MustClose()
+	fs.MustRemoveAll(path)
 }

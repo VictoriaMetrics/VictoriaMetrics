@@ -1,4 +1,4 @@
-import React, { FC, useState } from "preact/compat";
+import React, { FC } from "preact/compat";
 import "./style.scss";
 import Switch from "../../Main/Switch/Switch";
 import Tooltip from "../../Main/Tooltip/Tooltip";
@@ -6,6 +6,7 @@ import Button from "../../Main/Button/Button";
 import { ArrowDownIcon, CloseIcon, MinusIcon, MoreIcon, PlusIcon } from "../../Main/Icons";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import Modal from "../../Main/Modal/Modal";
+import useBoolean from "../../../hooks/useBoolean";
 
 interface ExploreMetricItemControlsProps {
   name: string
@@ -30,7 +31,12 @@ const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
   onChangeOrder,
 }) => {
   const { isMobile } = useDeviceDetect();
-  const [openOptions, setOpenOptions] = useState(false);
+
+  const {
+    value: openOptions,
+    setTrue: handleOpenOptions,
+    setFalse: handleCloseOptions,
+  } = useBoolean(false);
 
   const handleClickRemove = () => {
     onRemoveItem(name);
@@ -44,14 +50,6 @@ const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
     onChangeOrder(name, index, index - 1);
   };
 
-  const handleOpenOptions = () => {
-    setOpenOptions(true);
-  };
-
-  const handleCloseOptions = () => {
-    setOpenOptions(false);
-  };
-
   if (isMobile) {
     return (
       <div className="vm-explore-metrics-item-header vm-explore-metrics-item-header_mobile">
@@ -61,6 +59,7 @@ const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
           size="small"
           startIcon={<MoreIcon/>}
           onClick={handleOpenOptions}
+          ariaLabel="open panel settings"
         />
         {openOptions && (
           <Modal
@@ -74,6 +73,7 @@ const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
                   variant="outlined"
                   onClick={handleOrderUp}
                   disabled={index === 0}
+                  ariaLabel="move graph up"
                 />
                 <p>position:
                   <span className="vm-explore-metrics-item-header-modal-order__index">#{index + 1}</span>
@@ -83,6 +83,7 @@ const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
                   variant="outlined"
                   onClick={handleOrderDown}
                   disabled={index === length - 1}
+                  ariaLabel="move graph down"
                 />
               </div>
               {!isBucket && (
@@ -125,6 +126,7 @@ const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
             color="gray"
             size="small"
             onClick={handleOrderUp}
+            ariaLabel="move graph up"
           />
         </Tooltip>
         <div className="vm-explore-metrics-item-header__index">#{index+1}</div>
@@ -136,6 +138,7 @@ const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
             color="gray"
             size="small"
             onClick={handleOrderDown}
+            ariaLabel="move graph down"
           />
         </Tooltip>
       </div>
@@ -159,6 +162,7 @@ const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
             color="gray"
             size="small"
             onClick={handleClickRemove}
+            ariaLabel="close graph"
           />
         </Tooltip>
       </div>

@@ -1,0 +1,73 @@
+@use "src/styles/variables" as *;
+
+.vm-query-history {
+  max-width: 80vw;
+  min-width: 500px;
+
+  &_mobile {
+    max-width: 100vw;
+    min-width: 100vw;
+  }
+
+  &__tabs {
+    margin: (-$padding-medium) (-$padding-medium) 0;
+    padding: 0 $padding-small;
+    border-bottom: $border-divider;
+
+    &_mobile {
+      margin: (-$padding-global) (-$padding-medium) 0;
+    }
+  }
+
+  &-list {
+    display: grid;
+    align-items: flex-start;
+
+    &__group-title {
+      font-weight: bold;
+      margin: 0 (-$padding-medium) 0;
+      padding: $padding-medium $padding-global $padding-small;
+
+      &_first {
+        padding-top: $padding-global;
+      }
+    }
+
+    &__no-data {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: $padding-large $padding-global;
+      color: $color-text-secondary;
+      text-align: center;
+      line-height: $font-size-large;
+      white-space: pre-line;
+    }
+  }
+
+  &-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: $padding-small;
+    align-items: center;
+    margin: 0 (-$padding-medium) 0;
+    padding: $padding-small $padding-medium;
+    border-bottom: $border-divider;
+
+    &__value {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font-family: $font-family-monospace;
+    }
+
+    &__buttons {
+      display: flex;
+    }
+  }
+
+  &-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: $padding-medium;
+  }
+}

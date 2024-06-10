@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
@@ -17,7 +19,7 @@ import (
 // AlertManager represents integration provider with Prometheus alert manager
 // https://github.com/prometheus/alertmanager
 type AlertManager struct {
-	addr    string
+	addr    *url.URL
 	argFunc AlertURLGenerator
 	client  *http.Client
 	timeout time.Duration
@@ -48,27 +50,35 @@ func (am *AlertManager) Close() {
 }
 
 // Addr returns address where alerts are sent.
-func (am AlertManager) Addr() string { return am.addr }
+func (am AlertManager) Addr() string {
+	if *showNotifierURL {
+		return am.addr.String()
+	}
+	return am.addr.Redacted()
+}
 
 // Send an alert or resolve message
-func (am *AlertManager) Send(ctx context.Context, alerts []Alert) error {
+func (am *AlertManager) Send(ctx context.Context, alerts []Alert, headers map[string]string) error {
 	am.metrics.alertsSent.Add(len(alerts))
-	err := am.send(ctx, alerts)
+	err := am.send(ctx, alerts, headers)
 	if err != nil {
 		am.metrics.alertsSendErrors.Add(len(alerts))
 	}
 	return err
 }
 
-func (am *AlertManager) send(ctx context.Context, alerts []Alert) error {
+func (am *AlertManager) send(ctx context.Context, alerts []Alert, headers map[string]string) error {
 	b := &bytes.Buffer{}
 	writeamRequest(b, alerts, am.argFunc, am.relabelConfigs)
 
-	req, err := http.NewRequest(http.MethodPost, am.addr, b)
+	req, err := http.NewRequest(http.MethodPost, am.addr.String(), b)
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
 
 	if am.timeout > 0 {
 		var cancel context.CancelFunc
@@ -79,7 +89,10 @@ func (am *AlertManager) send(ctx context.Context, alerts []Alert) error {
 	req = req.WithContext(ctx)
 
 	if am.authCfg != nil {
-		am.authCfg.SetHeaders(req, true)
+		err = am.authCfg.SetHeaders(req, true)
+		if err != nil {
+			return err
+		}
 	}
 	resp, err := am.client.Do(req)
 	if err != nil {
@@ -88,12 +101,16 @@ func (am *AlertManager) send(ctx context.Context, alerts []Alert) error {
 
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusOK {
+	amURL := am.addr.Redacted()
+	if *showNotifierURL {
+		amURL = am.addr.String()
+	}
+	if resp.StatusCode/100 != 2 {
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return fmt.Errorf("failed to read response from %q: %w", am.addr, err)
+			return fmt.Errorf("failed to read response from %q: %w", amURL, err)
 		}
-		return fmt.Errorf("invalid SC %d from %q; response body: %s", resp.StatusCode, am.addr, string(body))
+		return fmt.Errorf("invalid SC %d from %q; response body: %s", resp.StatusCode, amURL, string(body))
 	}
 	return nil
 }
@@ -105,12 +122,13 @@ const alertManagerPath = "/api/v2/alerts"
 
 // NewAlertManager is a constructor for AlertManager
 func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg promauth.HTTPClientConfig,
-	relabelCfg *promrelabel.ParsedConfigs, timeout time.Duration) (*AlertManager, error) {
+	relabelCfg *promrelabel.ParsedConfigs, timeout time.Duration,
+) (*AlertManager, error) {
 	tls := &promauth.TLSConfig{}
 	if authCfg.TLSConfig != nil {
 		tls = authCfg.TLSConfig
 	}
-	tr, err := utils.Transport(alertManagerURL, tls.CertFile, tls.KeyFile, tls.CAFile, tls.ServerName, tls.InsecureSkipVerify)
+	tr, err := httputils.Transport(alertManagerURL, tls.CertFile, tls.KeyFile, tls.CAFile, tls.ServerName, tls.InsecureSkipVerify)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
@@ -127,13 +145,20 @@ func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg proma
 	aCfg, err := utils.AuthConfig(
 		utils.WithBasicAuth(ba.Username, ba.Password.String(), ba.PasswordFile),
 		utils.WithBearer(authCfg.BearerToken.String(), authCfg.BearerTokenFile),
-		utils.WithOAuth(oauth.ClientID, oauth.ClientSecretFile, oauth.ClientSecretFile, oauth.TokenURL, strings.Join(oauth.Scopes, ";")))
+		utils.WithOAuth(oauth.ClientID, oauth.ClientSecretFile, oauth.ClientSecretFile, oauth.TokenURL, strings.Join(oauth.Scopes, ";"), oauth.EndpointParams))
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}
 
+	amURL, err := url.Parse(alertManagerURL)
+	if err != nil {
+		return nil, fmt.Errorf("provided incorrect notifier url: %w", err)
+	}
+	if !*showNotifierURL {
+		alertManagerURL = amURL.Redacted()
+	}
 	return &AlertManager{
-		addr:           alertManagerURL,
+		addr:           amURL,
 		argFunc:        fn,
 		authCfg:        aCfg,
 		relabelConfigs: relabelCfg,

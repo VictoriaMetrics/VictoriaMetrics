@@ -31,19 +31,19 @@ $color-background-tooltip: var(--color-background-tooltip);
 
 
 /************* padding *************/
-$padding-global: 16px;
-$padding-large: 48px;
-$padding-medium: 24px;
+$padding-global: 12px;
+$padding-large: 16px;
+$padding-medium: 12px;
 $padding-small: 8px;
 
 
 /************* fonts *************/
-$font-family-global: 'Lato', sans-serif;
+$font-family-global: system-ui;
 $font-family-monospace: monospace;
-$font-size-large: 16px;
-$font-size-medium: 14px;
-$font-size: 12px;
-$font-size-small: 10px;
+$font-size-large: 18px;
+$font-size-medium: 16px;
+$font-size: 14px;
+$font-size-small: 12px;
 
 
 /************* border *************/

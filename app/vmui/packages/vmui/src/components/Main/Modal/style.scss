@@ -1,6 +1,6 @@
 @use "src/styles/variables" as *;
 
-$padding-modal: 22px;
+$padding-modal: $padding-medium;
 
 .vm-modal {
   position: fixed;
@@ -32,6 +32,10 @@ $padding-modal: 22px;
     &-header {
       padding: $padding-small $padding-small $padding-small $padding-global;
       margin-bottom: $padding-global;
+
+      &__title {
+        max-width: 80vw;
+      }
     }
 
     &-body {
@@ -43,9 +47,6 @@ $padding-modal: 22px;
   }
 
   &-content {
-    display: grid;
-    grid-template-rows: auto 1fr;
-    align-items: flex-start;
     background: $color-background-block;
     box-shadow: 0 0 24px rgba($color-black, 0.07);
     border-radius: $border-radius-small;
@@ -72,6 +73,10 @@ $padding-modal: 22px;
       &__title {
         font-weight: bold;
         user-select: none;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 50vw;
       }
 
       &__close {

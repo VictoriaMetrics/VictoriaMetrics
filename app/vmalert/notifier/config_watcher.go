@@ -87,7 +87,7 @@ func (cw *configWatcher) reload(path string) error {
 func (cw *configWatcher) add(typeK TargetType, interval time.Duration, labelsFn getLabels) error {
 	targets, errors := targetsFromLabels(labelsFn, cw.cfg, cw.genFn)
 	for _, err := range errors {
-		return fmt.Errorf("failed to init notifier for %q: %s", typeK, err)
+		return fmt.Errorf("failed to init notifier for %q: %w", typeK, err)
 	}
 
 	cw.setTargets(typeK, targets)
@@ -107,7 +107,7 @@ func (cw *configWatcher) add(typeK TargetType, interval time.Duration, labelsFn 
 			}
 			updateTargets, errors := targetsFromLabels(labelsFn, cw.cfg, cw.genFn)
 			for _, err := range errors {
-				logger.Errorf("failed to init notifier for %q: %s", typeK, err)
+				logger.Errorf("failed to init notifier for %q: %w", typeK, err)
 			}
 			cw.setTargets(typeK, updateTargets)
 		}
@@ -118,7 +118,7 @@ func (cw *configWatcher) add(typeK TargetType, interval time.Duration, labelsFn 
 func targetsFromLabels(labelsFn getLabels, cfg *Config, genFn AlertURLGenerator) ([]Target, []error) {
 	metaLabels, err := labelsFn()
 	if err != nil {
-		return nil, []error{fmt.Errorf("failed to get labels: %s", err)}
+		return nil, []error{fmt.Errorf("failed to get labels: %w", err)}
 	}
 	var targets []Target
 	var errors []error
@@ -167,11 +167,11 @@ func (cw *configWatcher) start() error {
 			for _, target := range cfg.Targets {
 				address, labels, err := parseLabels(target, nil, cw.cfg)
 				if err != nil {
-					return fmt.Errorf("failed to parse labels for target %q: %s", target, err)
+					return fmt.Errorf("failed to parse labels for target %q: %w", target, err)
 				}
 				notifier, err := NewAlertManager(address, cw.genFn, httpCfg, cw.cfg.parsedAlertRelabelConfigs, cw.cfg.Timeout.Duration())
 				if err != nil {
-					return fmt.Errorf("failed to init alertmanager for addr %q: %s", address, err)
+					return fmt.Errorf("failed to init alertmanager for addr %q: %w", address, err)
 				}
 				targets = append(targets, Target{
 					Notifier: notifier,
@@ -189,14 +189,14 @@ func (cw *configWatcher) start() error {
 				sdc := &cw.cfg.ConsulSDConfigs[i]
 				targetLabels, err := sdc.GetLabels(cw.cfg.baseDir)
 				if err != nil {
-					return nil, fmt.Errorf("got labels err: %s", err)
+					return nil, fmt.Errorf("got labels err: %w", err)
 				}
 				labels = append(labels, targetLabels...)
 			}
 			return labels, nil
 		})
 		if err != nil {
-			return fmt.Errorf("failed to start consulSD discovery: %s", err)
+			return fmt.Errorf("failed to start consulSD discovery: %w", err)
 		}
 	}
 
@@ -207,14 +207,14 @@ func (cw *configWatcher) start() error {
 				sdc := &cw.cfg.DNSSDConfigs[i]
 				targetLabels, err := sdc.GetLabels(cw.cfg.baseDir)
 				if err != nil {
-					return nil, fmt.Errorf("got labels err: %s", err)
+					return nil, fmt.Errorf("got labels err: %w", err)
 				}
 				labels = append(labels, targetLabels...)
 			}
 			return labels, nil
 		})
 		if err != nil {
-			return fmt.Errorf("failed to start DNSSD discovery: %s", err)
+			return fmt.Errorf("failed to start DNSSD discovery: %w", err)
 		}
 	}
 	return nil

@@ -16,7 +16,8 @@ import (
 
 var (
 	maxConcurrentInserts = flag.Int("maxConcurrentInserts", 2*cgroup.AvailableCPUs(), "The maximum number of concurrent insert requests. "+
-		"Default value should work for most cases, since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. "+
+		"Set higher value when clients send data over slow networks. "+
+		"Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. "+
 		"See also -insert.maxQueueDuration")
 	maxQueueDuration = flag.Duration("insert.maxQueueDuration", time.Minute, "The maximum duration to wait in the queue when -maxConcurrentInserts "+
 		"concurrent insert requests are executed")

@@ -87,7 +87,7 @@ func BenchmarkPromRegexMatchString(b *testing.B) {
 func benchmarkPromRegexMatchString(b *testing.B, expr, s string, resultExpected bool) {
 	pr, err := NewPromRegex(expr)
 	if err != nil {
-		panic(fmt.Errorf("unexpected error: %s", err))
+		panic(fmt.Errorf("unexpected error: %w", err))
 	}
 	re := regexp.MustCompile("^(?:" + expr + ")$")
 	f := func(b *testing.B, matchString func(s string) bool) {

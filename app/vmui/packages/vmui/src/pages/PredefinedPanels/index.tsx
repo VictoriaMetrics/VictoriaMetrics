@@ -34,14 +34,13 @@ const DashboardsLayout: FC = () => {
 
   return <div className="vm-predefined-panels">
     {dashboardsLoading && <Spinner />}
-    {dashboardsError && <Alert variant="error">{dashboardsError}</Alert>}
+    {!dashboardsSettings.length && dashboardsError && <Alert variant="error">{dashboardsError}</Alert>}
     {!dashboardsSettings.length && <Alert variant="info">Dashboards not found</Alert>}
     {dashboards.length > 1 && (
       <div
         className={classNames({
           "vm-predefined-panels-tabs": true,
-          "vm-block": true,
-          "vm-block_mobile": isMobile,
+          "vm-predefined-panels-tabs_mobile": isMobile,
         })}
       >
         {dashboards.map(tab => (

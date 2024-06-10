@@ -5,6 +5,7 @@ static_configs:
   - targets:
       - localhost:9093
       - localhost:9095
+      - https://localhost:9093/test/api/v2/alerts
     basic_auth:
       username: foo
       password: bar

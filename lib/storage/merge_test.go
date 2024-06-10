@@ -3,6 +3,7 @@ package storage
 import (
 	"errors"
 	"math/rand"
+	"sync/atomic"
 	"testing"
 )
 
@@ -14,7 +15,7 @@ func TestMergeBlockStreamsOneStreamOneRow(t *testing.T) {
 			PrecisionBits: defaultPrecisionBits,
 		},
 	}
-	bsr := newTestBlockStreamReader(t, rows)
+	bsr := newTestBlockStreamReader(rows)
 	bsrs := []*blockStreamReader{bsr}
 	testMergeBlockStreams(t, bsrs, 1, 1, rows[0].Timestamp, rows[0].Timestamp)
 }
@@ -38,7 +39,7 @@ func TestMergeBlockStreamsOneStreamOneBlockManyRows(t *testing.T) {
 			maxTimestamp = r.Timestamp
 		}
 	}
-	bsr := newTestBlockStreamReader(t, rows)
+	bsr := newTestBlockStreamReader(rows)
 	bsrs := []*blockStreamReader{bsr}
 	testMergeBlockStreams(t, bsrs, 1, maxRowsPerBlock, minTimestamp, maxTimestamp)
 }
@@ -65,7 +66,7 @@ func TestMergeBlockStreamsOneStreamManyBlocksOneRow(t *testing.T) {
 			maxTimestamp = r.Timestamp
 		}
 	}
-	bsr := newTestBlockStreamReader(t, rows)
+	bsr := newTestBlockStreamReader(rows)
 	bsrs := []*blockStreamReader{bsr}
 	testMergeBlockStreams(t, bsrs, blocksCount, blocksCount, minTimestamp, maxTimestamp)
 }
@@ -93,7 +94,7 @@ func TestMergeBlockStreamsOneStreamManyBlocksManyRows(t *testing.T) {
 			maxTimestamp = r.Timestamp
 		}
 	}
-	bsr := newTestBlockStreamReader(t, rows)
+	bsr := newTestBlockStreamReader(rows)
 	bsrs := []*blockStreamReader{bsr}
 	testMergeBlockStreams(t, bsrs, blocksCount, rowsCount, minTimestamp, maxTimestamp)
 }
@@ -107,8 +108,8 @@ func TestMergeBlockStreamsTwoStreamsOneBlockTwoRows(t *testing.T) {
 			PrecisionBits: defaultPrecisionBits,
 		},
 	}
-	bsr1 := newTestBlockStreamReader(t, rows)
-	bsr2 := newTestBlockStreamReader(t, rows)
+	bsr1 := newTestBlockStreamReader(rows)
+	bsr2 := newTestBlockStreamReader(rows)
 	bsrs := []*blockStreamReader{bsr1, bsr2}
 	testMergeBlockStreams(t, bsrs, 1, 2, rows[0].Timestamp, rows[0].Timestamp)
 
@@ -122,7 +123,7 @@ func TestMergeBlockStreamsTwoStreamsOneBlockTwoRows(t *testing.T) {
 			PrecisionBits: defaultPrecisionBits,
 		},
 	}
-	bsr1 = newTestBlockStreamReader(t, rows)
+	bsr1 = newTestBlockStreamReader(rows)
 	rows = []rawRow{
 		{
 			Timestamp:     minTimestamp,
@@ -130,7 +131,7 @@ func TestMergeBlockStreamsTwoStreamsOneBlockTwoRows(t *testing.T) {
 			PrecisionBits: defaultPrecisionBits,
 		},
 	}
-	bsr2 = newTestBlockStreamReader(t, rows)
+	bsr2 = newTestBlockStreamReader(rows)
 	bsrs = []*blockStreamReader{bsr1, bsr2}
 	testMergeBlockStreams(t, bsrs, 1, 2, minTimestamp, maxTimestamp)
 }
@@ -149,7 +150,7 @@ func TestMergeBlockStreamsTwoStreamsTwoBlocksOneRow(t *testing.T) {
 			PrecisionBits: defaultPrecisionBits,
 		},
 	}
-	bsr1 := newTestBlockStreamReader(t, rows)
+	bsr1 := newTestBlockStreamReader(rows)
 
 	rows = []rawRow{
 		{
@@ -161,7 +162,7 @@ func TestMergeBlockStreamsTwoStreamsTwoBlocksOneRow(t *testing.T) {
 			PrecisionBits: defaultPrecisionBits,
 		},
 	}
-	bsr2 := newTestBlockStreamReader(t, rows)
+	bsr2 := newTestBlockStreamReader(rows)
 
 	bsrs := []*blockStreamReader{bsr1, bsr2}
 	testMergeBlockStreams(t, bsrs, 2, 2, minTimestamp, maxTimestamp)
@@ -191,7 +192,7 @@ func TestMergeBlockStreamsTwoStreamsManyBlocksManyRows(t *testing.T) {
 			maxTimestamp = r.Timestamp
 		}
 	}
-	bsr1 := newTestBlockStreamReader(t, rows)
+	bsr1 := newTestBlockStreamReader(rows)
 
 	rows = rows[:0]
 	const rowsCount2 = 3281
@@ -208,7 +209,7 @@ func TestMergeBlockStreamsTwoStreamsManyBlocksManyRows(t *testing.T) {
 			maxTimestamp = r.Timestamp
 		}
 	}
-	bsr2 := newTestBlockStreamReader(t, rows)
+	bsr2 := newTestBlockStreamReader(rows)
 
 	bsrs := []*blockStreamReader{bsr1, bsr2}
 	testMergeBlockStreams(t, bsrs, blocksCount, rowsCount1+rowsCount2, minTimestamp, maxTimestamp)
@@ -235,7 +236,7 @@ func TestMergeBlockStreamsTwoStreamsBigOverlappingBlocks(t *testing.T) {
 			maxTimestamp = r.Timestamp
 		}
 	}
-	bsr1 := newTestBlockStreamReader(t, rows)
+	bsr1 := newTestBlockStreamReader(rows)
 
 	rows = rows[:0]
 	const rowsCount2 = maxRowsPerBlock + 2344
@@ -251,7 +252,7 @@ func TestMergeBlockStreamsTwoStreamsBigOverlappingBlocks(t *testing.T) {
 			maxTimestamp = r.Timestamp
 		}
 	}
-	bsr2 := newTestBlockStreamReader(t, rows)
+	bsr2 := newTestBlockStreamReader(rows)
 
 	bsrs := []*blockStreamReader{bsr1, bsr2}
 	testMergeBlockStreams(t, bsrs, 3, rowsCount1+rowsCount2, minTimestamp, maxTimestamp)
@@ -279,7 +280,7 @@ func TestMergeBlockStreamsTwoStreamsBigSequentialBlocks(t *testing.T) {
 		}
 	}
 	maxTimestampB1 := rows[len(rows)-1].Timestamp
-	bsr1 := newTestBlockStreamReader(t, rows)
+	bsr1 := newTestBlockStreamReader(rows)
 
 	rows = rows[:0]
 	const rowsCount2 = maxRowsPerBlock - 233
@@ -295,7 +296,7 @@ func TestMergeBlockStreamsTwoStreamsBigSequentialBlocks(t *testing.T) {
 			maxTimestamp = r.Timestamp
 		}
 	}
-	bsr2 := newTestBlockStreamReader(t, rows)
+	bsr2 := newTestBlockStreamReader(rows)
 
 	bsrs := []*blockStreamReader{bsr1, bsr2}
 	testMergeBlockStreams(t, bsrs, 3, rowsCount1+rowsCount2, minTimestamp, maxTimestamp)
@@ -329,7 +330,7 @@ func TestMergeBlockStreamsManyStreamsManyBlocksManyRows(t *testing.T) {
 				maxTimestamp = r.Timestamp
 			}
 		}
-		bsr := newTestBlockStreamReader(t, rows)
+		bsr := newTestBlockStreamReader(rows)
 		bsrs = append(bsrs, bsr)
 		rowsCount += rowsPerStream
 	}
@@ -363,27 +364,28 @@ func TestMergeForciblyStop(t *testing.T) {
 				maxTimestamp = r.Timestamp
 			}
 		}
-		bsr := newTestBlockStreamReader(t, rows)
+		bsr := newTestBlockStreamReader(rows)
 		bsrs = append(bsrs, bsr)
 	}
 
 	var mp inmemoryPart
 	var bsw blockStreamWriter
-	bsw.InitFromInmemoryPart(&mp, -5)
+	bsw.MustInitFromInmemoryPart(&mp, -5)
 	ch := make(chan struct{})
-	var rowsMerged, rowsDeleted uint64
+	var rowsMerged, rowsDeleted atomic.Uint64
 	close(ch)
 
 	strg := newTestStorage()
 	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, ch, strg, 0, &rowsMerged, &rowsDeleted); !errors.Is(err, errForciblyStopped) {
 		t.Fatalf("unexpected error in mergeBlockStreams: got %v; want %v", err, errForciblyStopped)
 	}
-	if rowsMerged != 0 {
-		t.Fatalf("unexpected rowsMerged; got %d; want %d", rowsMerged, 0)
+	if n := rowsMerged.Load(); n != 0 {
+		t.Fatalf("unexpected rowsMerged; got %d; want %d", n, 0)
 	}
-	if rowsDeleted != 0 {
-		t.Fatalf("unexpected rowsDeleted; got %d; want %d", rowsDeleted, 0)
+	if n := rowsDeleted.Load(); n != 0 {
+		t.Fatalf("unexpected rowsDeleted; got %d; want %d", n, 0)
 	}
+	stopTestStorage(strg)
 }
 
 func testMergeBlockStreams(t *testing.T, bsrs []*blockStreamReader, expectedBlocksCount, expectedRowsCount int, expectedMinTimestamp, expectedMaxTimestamp int64) {
@@ -392,23 +394,24 @@ func testMergeBlockStreams(t *testing.T, bsrs []*blockStreamReader, expectedBloc
 	var mp inmemoryPart
 
 	var bsw blockStreamWriter
-	bsw.InitFromInmemoryPart(&mp, -5)
+	bsw.MustInitFromInmemoryPart(&mp, -5)
 
 	strg := newTestStorage()
-	var rowsMerged, rowsDeleted uint64
+	var rowsMerged, rowsDeleted atomic.Uint64
 	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, nil, strg, 0, &rowsMerged, &rowsDeleted); err != nil {
 		t.Fatalf("unexpected error in mergeBlockStreams: %s", err)
 	}
+	stopTestStorage(strg)
 
 	// Verify written data.
 	if mp.ph.RowsCount != uint64(expectedRowsCount) {
 		t.Fatalf("unexpected rows count in partHeader; got %d; want %d", mp.ph.RowsCount, expectedRowsCount)
 	}
-	if rowsMerged != mp.ph.RowsCount {
-		t.Fatalf("unexpected rowsMerged; got %d; want %d", rowsMerged, mp.ph.RowsCount)
+	if n := rowsMerged.Load(); n != mp.ph.RowsCount {
+		t.Fatalf("unexpected rowsMerged; got %d; want %d", n, mp.ph.RowsCount)
 	}
-	if rowsDeleted != 0 {
-		t.Fatalf("unexpected rowsDeleted; got %d; want %d", rowsDeleted, 0)
+	if n := rowsDeleted.Load(); n != 0 {
+		t.Fatalf("unexpected rowsDeleted; got %d; want %d", n, 0)
 	}
 	if mp.ph.MinTimestamp != expectedMinTimestamp {
 		t.Fatalf("unexpected MinTimestamp in partHeader; got %d; want %d", mp.ph.MinTimestamp, expectedMinTimestamp)
@@ -418,7 +421,7 @@ func testMergeBlockStreams(t *testing.T, bsrs []*blockStreamReader, expectedBloc
 	}
 
 	var bsr1 blockStreamReader
-	bsr1.InitFromInmemoryPart(&mp)
+	bsr1.MustInitFromInmemoryPart(&mp)
 	blocksCount := 0
 	rowsCount := 0
 	var prevTSID TSID

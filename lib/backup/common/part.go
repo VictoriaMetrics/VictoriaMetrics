@@ -2,10 +2,12 @@ package common
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -15,6 +17,9 @@ import (
 // Each source file can be split into parts with up to MaxPartSize sizes.
 type Part struct {
 	// Path is the path to file for backup.
+	//
+	// Path must consistently use `/` as directory separator.
+	// Use ToCanonicalPath() function for converting local directory separators to `/`.
 	Path string
 
 	// FileSize is the size of the whole file for the given part.
@@ -33,10 +38,22 @@ type Part struct {
 	ActualSize uint64
 }
 
+// key returns a string, which uniquely identifies p.
 func (p *Part) key() string {
+	if strings.HasSuffix(p.Path, "/parts.json") ||
+		strings.HasSuffix(p.Path, "/appliedRetention.txt") {
+		// parts.json and appliedRetention.txt files contents changes over time,
+		// so it must have an unique key in order to always copy it during
+		// backup, restore and server-side copy.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5005
+		id := uniqueKeyID.Add(1)
+		return fmt.Sprintf("unique-%016X", id)
+	}
 	// Do not use p.FileSize in the key, since it cannot be properly initialized when resuming the restore for partially restored file
 	return fmt.Sprintf("%s%016X%016X%016X", p.Path, p.Offset, p.Size, p.ActualSize)
 }
+
+var uniqueKeyID atomic.Uint64
 
 // String returns human-readable representation of the part.
 func (p *Part) String() string {
@@ -51,11 +68,30 @@ func (p *Part) RemotePath(prefix string) string {
 	return fmt.Sprintf("%s/%s/%016X_%016X_%016X", prefix, p.Path, p.FileSize, p.Offset, p.Size)
 }
 
-var partNameRegexp = regexp.MustCompile(`^(.+)/([0-9A-F]{16})_([0-9A-F]{16})_([0-9A-F]{16})$`)
+// LocalPath returns local path for p at the given dir.
+func (p *Part) LocalPath(dir string) string {
+	path := p.Path
+	if filepath.Separator != '/' {
+		path = strings.ReplaceAll(path, "/", string(filepath.Separator))
+	}
+	return filepath.Join(dir, path)
+}
+
+// ToCanonicalPath returns canonical path by replacing local directory separators with `/`.
+func ToCanonicalPath(path string) string {
+	if filepath.Separator == '/' {
+		return path
+	}
+	return strings.ReplaceAll(path, string(filepath.Separator), "/")
+}
+
+var partNameRegexp = regexp.MustCompile(`^(.+)[/\\]([0-9A-F]{16})_([0-9A-F]{16})_([0-9A-F]{16})$`)
 
 // ParseFromRemotePath parses p from remotePath.
 //
 // Returns true on success.
+//
+// remotePath must be in canonical form received from ToCanonicalPath().
 func (p *Part) ParseFromRemotePath(remotePath string) bool {
 	tmp := partNameRegexp.FindStringSubmatch(remotePath)
 	if len(tmp) != 5 {

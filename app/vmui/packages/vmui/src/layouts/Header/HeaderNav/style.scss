@@ -1,0 +1,75 @@
+@use "src/styles/variables" as *;
+
+.vm-header-nav {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: $padding-global;
+
+  &_column {
+    flex-direction: column;
+    align-items: stretch;
+    gap: $padding-small;
+  }
+
+  &_column &-item {
+    padding: $padding-global 0;
+
+    &_sub {
+      justify-content: stretch;
+    }
+  }
+
+  &-item {
+    position: relative;
+    padding: $padding-global $padding-small;
+    opacity: 1;
+    cursor: pointer;
+    transition: opacity 200ms ease-in;
+    text-transform: capitalize;
+    font-size: $font-size;
+    font-weight: normal;
+
+    &_sub {
+      display: grid;
+      grid-template-columns: auto 14px;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      cursor: default;
+    }
+
+    &:hover {
+      opacity: 0.7;
+    }
+
+    &_active {
+      border-bottom: 2px solid rgba($color-black, 0.2);
+    }
+
+    svg {
+      transform: rotate(0deg);
+      transition: transform 200ms ease-in;
+    }
+
+    &_open {
+      svg {
+        transform: rotate(180deg);
+      }
+    }
+
+    &-submenu {
+      display: grid;
+      white-space: nowrap;
+      padding: $padding-small;
+      color: $color-white;
+      border-radius: $border-radius-small;
+      opacity: 1;
+      transform-origin: top center;
+
+      &-item {
+        cursor: pointer;
+      }
+    }
+  }
+}

@@ -3,6 +3,7 @@ package flagutil
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestDurationSetFailure(t *testing.T) {
@@ -13,7 +14,6 @@ func TestDurationSetFailure(t *testing.T) {
 			t.Fatalf("expecting non-nil error in d.Set(%q)", value)
 		}
 	}
-	f("")
 	f("foobar")
 	f("5foobar")
 	f("ah")
@@ -41,8 +41,8 @@ func TestDurationSetSuccess(t *testing.T) {
 		if err := d.Set(value); err != nil {
 			t.Fatalf("unexpected error in d.Set(%q): %s", value, err)
 		}
-		if d.Msecs != expectedMsecs {
-			t.Fatalf("unexpected result; got %d; want %d", d.Msecs, expectedMsecs)
+		if d.Milliseconds() != expectedMsecs {
+			t.Fatalf("unexpected result; got %d; want %d", d.Milliseconds(), expectedMsecs)
 		}
 		valueString := d.String()
 		valueExpected := strings.ToLower(value)
@@ -50,12 +50,32 @@ func TestDurationSetSuccess(t *testing.T) {
 			t.Fatalf("unexpected valueString; got %q; want %q", valueString, valueExpected)
 		}
 	}
+	f("", 0)
 	f("0", 0)
-	f("1", msecsPerMonth)
-	f("123.456", 123.456*msecsPerMonth)
+	f("1", msecsPer31Days)
+	f("123.456", 123.456*msecsPer31Days)
 	f("1h", 3600*1000)
 	f("1.5d", 1.5*24*3600*1000)
 	f("2.3W", 2.3*7*24*3600*1000)
 	f("1w", 7*24*3600*1000)
 	f("0.25y", 0.25*365*24*3600*1000)
+}
+
+func TestDurationDuration(t *testing.T) {
+	f := func(value string, expected time.Duration) {
+		t.Helper()
+		var d Duration
+		if err := d.Set(value); err != nil {
+			t.Fatalf("unexpected error in d.Set(%q): %s", value, err)
+		}
+		if d.Duration() != expected {
+			t.Fatalf("unexpected result; got %v; want %v", d.Duration().String(), expected.String())
+		}
+	}
+	f("0", 0)
+	f("1", 31*24*time.Hour)
+	f("1h", time.Hour)
+	f("1.5d", 1.5*24*time.Hour)
+	f("1w", 7*24*time.Hour)
+	f("0.25y", 0.25*365*24*time.Hour)
 }

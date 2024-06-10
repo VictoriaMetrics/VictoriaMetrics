@@ -10,10 +10,10 @@
   background-color: $color-background-block;
   border-radius: $border-radius-medium;
   box-shadow: $box-shadow;
-  font-size: $font-size-medium;
+  font-size: $font-size;
   font-weight: normal;
   color: $color-text;
-  line-height: 20px;
+  line-height: 1.5;
 
   &_mobile {
     align-items: flex-start;

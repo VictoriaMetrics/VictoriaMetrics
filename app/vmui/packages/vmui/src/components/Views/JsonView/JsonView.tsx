@@ -1,22 +1,21 @@
 import React, { FC, useMemo } from "preact/compat";
-import { InstantMetricResult } from "../../../api/types";
-import { useSnack } from "../../../contexts/Snackbar";
+import { InstantMetricResult, Logs } from "../../../api/types";
+import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
 import { TopQuery } from "../../../types";
 import Button from "../../Main/Button/Button";
 import "./style.scss";
 
 export interface JsonViewProps {
-  data: InstantMetricResult[] | TopQuery[];
+  data: InstantMetricResult[] | TopQuery[] | Logs[];
 }
 
 const JsonView: FC<JsonViewProps> = ({ data }) => {
-  const { showInfoMessage } = useSnack();
+  const copyToClipboard = useCopyToClipboard();
 
   const formattedJson = useMemo(() => JSON.stringify(data, null, 2), [data]);
 
-  const handlerCopy = () => {
-    navigator.clipboard.writeText(formattedJson);
-    showInfoMessage({ text: "Formatted JSON has been copied", type: "success" });
+  const handlerCopy = async () => {
+    await copyToClipboard(formattedJson, "Formatted JSON has been copied");
   };
 
   return (

@@ -8,6 +8,7 @@ import (
 func TestPromRegexParseFailure(t *testing.T) {
 	f := func(expr string) {
 		t.Helper()
+
 		pr, err := NewPromRegex(expr)
 		if err == nil {
 			t.Fatalf("expecting non-nil error for expr=%s", expr)
@@ -23,13 +24,18 @@ func TestPromRegexParseFailure(t *testing.T) {
 func TestPromRegex(t *testing.T) {
 	f := func(expr, s string, resultExpected bool) {
 		t.Helper()
+
 		pr, err := NewPromRegex(expr)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
+		exprResult := pr.String()
+		if exprResult != expr {
+			t.Fatalf("unexpected string representation for %q: %q", expr, exprResult)
+		}
 		result := pr.MatchString(s)
 		if result != resultExpected {
-			t.Fatalf("unexpected result when matching %s against %s; got %v; want %v", expr, s, result, resultExpected)
+			t.Fatalf("unexpected result when matching %q against %q; got %v; want %v", expr, s, result, resultExpected)
 		}
 
 		// Make sure the result is the same for regular regexp
@@ -37,9 +43,10 @@ func TestPromRegex(t *testing.T) {
 		re := regexp.MustCompile(exprAnchored)
 		result = re.MatchString(s)
 		if result != resultExpected {
-			t.Fatalf("unexpected result when matching %s against %s during sanity check; got %v; want %v", exprAnchored, s, result, resultExpected)
+			t.Fatalf("unexpected result when matching %q against %q during sanity check; got %v; want %v", exprAnchored, s, result, resultExpected)
 		}
 	}
+
 	f("", "", true)
 	f("", "foo", false)
 	f("foo", "", false)
@@ -89,4 +96,37 @@ func TestPromRegex(t *testing.T) {
 	f(".*(a|b).*", "xzy", false)
 	f("^(?:true)$", "true", true)
 	f("^(?:true)$", "false", false)
+
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5297
+	f(".+;|;.+", ";", false)
+	f(".+;|;.+", "foo", false)
+	f(".+;|;.+", "foo;bar", false)
+	f(".+;|;.+", "foo;", true)
+	f(".+;|;.+", ";foo", true)
+	f(".+foo|bar|baz.+", "foo", false)
+	f(".+foo|bar|baz.+", "afoo", true)
+	f(".+foo|bar|baz.+", "fooa", false)
+	f(".+foo|bar|baz.+", "afooa", false)
+	f(".+foo|bar|baz.+", "bar", true)
+	f(".+foo|bar|baz.+", "abar", false)
+	f(".+foo|bar|baz.+", "abara", false)
+	f(".+foo|bar|baz.+", "bara", false)
+	f(".+foo|bar|baz.+", "baz", false)
+	f(".+foo|bar|baz.+", "baza", true)
+	f(".+foo|bar|baz.+", "abaz", false)
+	f(".+foo|bar|baz.+", "abaza", false)
+	f(".+foo|bar|baz.+", "afoo|bar|baza", false)
+	f(".+(foo|bar|baz).+", "abara", true)
+	f(".+(foo|bar|baz).+", "afooa", true)
+	f(".+(foo|bar|baz).+", "abaza", true)
+
+	f(".*;|;.*", ";", true)
+	f(".*;|;.*", "foo", false)
+	f(".*;|;.*", "foo;bar", false)
+	f(".*;|;.*", "foo;", true)
+	f(".*;|;.*", ";foo", true)
+
+	f(".*foo(bar|baz)", "fooxfoobaz", true)
+	f(".*foo(bar|baz)", "fooxfooban", false)
+	f(".*foo(bar|baz)", "fooxfooban foobar", true)
 }

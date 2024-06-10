@@ -2,7 +2,7 @@ package discoveryutils
 
 import (
 	"context"
-	"crypto/tls"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -13,10 +13,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -67,8 +69,8 @@ type Client struct {
 
 	apiServer string
 
-	setHTTPHeaders      func(req *http.Request)
-	setHTTPProxyHeaders func(req *http.Request)
+	setHTTPHeaders      func(req *http.Request) error
+	setHTTPProxyHeaders func(req *http.Request) error
 
 	clientCtx    context.Context
 	clientCancel context.CancelFunc
@@ -80,29 +82,27 @@ type HTTPClient struct {
 	ReadTimeout time.Duration
 }
 
-var defaultDialer = &net.Dialer{}
+func (hc *HTTPClient) stop() {
+	// Close idle connections to server in order to free up resources.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4724
+	hc.client.CloseIdleConnections()
+}
 
 // NewClient returns new Client for the given args.
-func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxyAC *promauth.Config) (*Client, error) {
+func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxyAC *promauth.Config, httpCfg *promauth.HTTPClientConfig) (*Client, error) {
 	u, err := url.Parse(apiServer)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse apiServer=%q: %w", apiServer, err)
 	}
 
-	dialFunc := defaultDialer.DialContext
+	dialFunc := netutil.DialMaybeSRV
 	if u.Scheme == "unix" {
 		// special case for unix socket connection
 		dialAddr := u.Path
 		apiServer = "http://unix"
 		dialFunc = func(ctx context.Context, _, _ string) (net.Conn, error) {
-			return defaultDialer.DialContext(ctx, "unix", dialAddr)
+			return netutil.Dialer.DialContext(ctx, "unix", dialAddr)
 		}
-	}
-
-	isTLS := u.Scheme == "https"
-	var tlsCfg *tls.Config
-	if isTLS {
-		tlsCfg = ac.NewTLSConfig()
 	}
 
 	var proxyURLFunc func(*http.Request) (*url.URL, error)
@@ -112,37 +112,42 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 
 	client := &http.Client{
 		Timeout: DefaultClientReadTimeout,
-		Transport: &http.Transport{
-			TLSClientConfig:       tlsCfg,
+		Transport: ac.NewRoundTripper(&http.Transport{
 			Proxy:                 proxyURLFunc,
 			TLSHandshakeTimeout:   10 * time.Second,
 			MaxIdleConnsPerHost:   *maxConcurrency,
 			ResponseHeaderTimeout: DefaultClientReadTimeout,
 			DialContext:           dialFunc,
-		},
+		}),
 	}
 	blockingClient := &http.Client{
 		Timeout: BlockingClientReadTimeout,
-		Transport: &http.Transport{
-			TLSClientConfig:       tlsCfg,
+		Transport: ac.NewRoundTripper(&http.Transport{
 			Proxy:                 proxyURLFunc,
 			TLSHandshakeTimeout:   10 * time.Second,
 			MaxIdleConnsPerHost:   1000,
 			ResponseHeaderTimeout: BlockingClientReadTimeout,
 			DialContext:           dialFunc,
-		},
+		}),
 	}
 
-	setHTTPHeaders := func(req *http.Request) {}
+	setHTTPHeaders := func(_ *http.Request) error { return nil }
 	if ac != nil {
-		setHTTPHeaders = func(req *http.Request) {
-			ac.SetHeaders(req, true)
+		setHTTPHeaders = func(req *http.Request) error {
+			return ac.SetHeaders(req, true)
 		}
 	}
-	setHTTPProxyHeaders := func(req *http.Request) {}
+	if httpCfg.FollowRedirects != nil && !*httpCfg.FollowRedirects {
+		checkRedirect := func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+		client.CheckRedirect = checkRedirect
+		blockingClient.CheckRedirect = checkRedirect
+	}
+	setHTTPProxyHeaders := func(_ *http.Request) error { return nil }
 	if proxyAC != nil {
-		setHTTPProxyHeaders = func(req *http.Request) {
-			proxyURL.SetHeaders(proxyAC, req)
+		setHTTPProxyHeaders = func(req *http.Request) error {
+			return proxyURL.SetHeaders(proxyAC, req)
 		}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -186,7 +191,8 @@ func (c *Client) GetAPIResponse(path string) ([]byte, error) {
 }
 
 func (c *Client) getAPIResponseWithConcurrencyLimit(ctx context.Context, client *HTTPClient, path string,
-	modifyRequest RequestCallback, inspectResponse ResponseCallback) ([]byte, error) {
+	modifyRequest RequestCallback, inspectResponse ResponseCallback,
+) ([]byte, error) {
 	// Limit the number of concurrent API requests.
 	concurrencyLimitChOnce.Do(concurrencyLimitChInit)
 	t := timerpool.Get(*maxWaitTime)
@@ -232,8 +238,12 @@ func (c *Client) getAPIResponseWithParamsAndClientCtx(ctx context.Context, clien
 		return nil, fmt.Errorf("cannot create request for %q: %w", requestURL, err)
 	}
 
-	c.setHTTPHeaders(req)
-	c.setHTTPProxyHeaders(req)
+	if err := c.setHTTPHeaders(req); err != nil {
+		return nil, fmt.Errorf("cannot set request headers for %q: %w", requestURL, err)
+	}
+	if err := c.setHTTPProxyHeaders(req); err != nil {
+		return nil, fmt.Errorf("cannot set request proxy headers for %q: %w", requestURL, err)
+	}
 	if modifyRequest != nil {
 		modifyRequest(req)
 	}
@@ -267,6 +277,8 @@ func (c *Client) APIServer() string {
 // Stop cancels all in-flight requests
 func (c *Client) Stop() {
 	c.clientCancel()
+	c.client.stop()
+	c.blockingClient.stop()
 }
 
 func doRequestWithPossibleRetry(hc *HTTPClient, req *http.Request) (*http.Response, error) {
@@ -284,7 +296,7 @@ func doRequestWithPossibleRetry(hc *HTTPClient, req *http.Request) (*http.Respon
 			if statusCode != http.StatusTooManyRequests {
 				return true
 			}
-		} else if reqErr != net.ErrClosed && !strings.Contains(reqErr.Error(), "broken pipe") {
+		} else if !errors.Is(reqErr, net.ErrClosed) && !strings.Contains(reqErr.Error(), "broken pipe") {
 			return true
 		}
 		return false

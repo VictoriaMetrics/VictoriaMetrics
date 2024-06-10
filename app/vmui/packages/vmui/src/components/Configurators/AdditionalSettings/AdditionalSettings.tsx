@@ -1,4 +1,4 @@
-import React, { FC, useRef, useState } from "preact/compat";
+import React, { FC, useRef } from "preact/compat";
 import { useCustomPanelDispatch, useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
 import "./style.scss";
@@ -8,8 +8,15 @@ import Popper from "../../Main/Popper/Popper";
 import { TuneIcon } from "../../Main/Icons";
 import Button from "../../Main/Button/Button";
 import classNames from "classnames";
+import useBoolean from "../../../hooks/useBoolean";
+import useEventListener from "../../../hooks/useEventListener";
+import Tooltip from "../../Main/Tooltip/Tooltip";
+import { AUTOCOMPLETE_QUICK_KEY } from "../../Main/ShortcutKeys/constants/keyList";
+import { QueryConfiguratorProps } from "../../../pages/CustomPanel/QueryConfigurator/QueryConfigurator";
 
-const AdditionalSettingsControls: FC<{isMobile?: boolean}> = ({ isMobile }) => {
+type Props = Pick<QueryConfiguratorProps, "hideButtons">;
+
+const AdditionalSettingsControls: FC<Props & {isMobile?: boolean}> = ({ isMobile, hideButtons }) => {
   const { autocomplete } = useQueryState();
   const queryDispatch = useQueryDispatch();
 
@@ -28,6 +35,21 @@ const AdditionalSettingsControls: FC<{isMobile?: boolean}> = ({ isMobile }) => {
     queryDispatch({ type: "TOGGLE_AUTOCOMPLETE" });
   };
 
+  const onChangeQuickAutocomplete = () => {
+    queryDispatch({ type: "SET_AUTOCOMPLETE_QUICK", payload: true });
+  };
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    /** @see AUTOCOMPLETE_QUICK_KEY */
+    const { code, ctrlKey, altKey } = e;
+    if (code === "Space" && (ctrlKey || altKey)) {
+      e.preventDefault();
+      onChangeQuickAutocomplete();
+    }
+  };
+
+  useEventListener("keydown", handleKeyDown);
+
   return (
     <div
       className={classNames({
@@ -35,40 +57,43 @@ const AdditionalSettingsControls: FC<{isMobile?: boolean}> = ({ isMobile }) => {
         "vm-additional-settings_mobile": isMobile
       })}
     >
-      <Switch
-        label={"Autocomplete"}
-        value={autocomplete}
-        onChange={onChangeAutocomplete}
-        fullWidth={isMobile}
-      />
+      {!hideButtons?.autocomplete && (
+        <Tooltip title={<>Quick tip: {AUTOCOMPLETE_QUICK_KEY}</>}>
+          <Switch
+            label={"Autocomplete"}
+            value={autocomplete}
+            onChange={onChangeAutocomplete}
+            fullWidth={isMobile}
+          />
+        </Tooltip>
+      )}
       <Switch
         label={"Disable cache"}
         value={nocache}
         onChange={onChangeCache}
         fullWidth={isMobile}
       />
-      <Switch
-        label={"Trace query"}
-        value={isTracingEnabled}
-        onChange={onChangeQueryTracing}
-        fullWidth={isMobile}
-      />
+      {!hideButtons?.traceQuery && (
+        <Switch
+          label={"Trace query"}
+          value={isTracingEnabled}
+          onChange={onChangeQueryTracing}
+          fullWidth={isMobile}
+        />
+      )}
     </div>
   );
 };
 
-const AdditionalSettings: FC = () => {
+const AdditionalSettings: FC<Props> = (props) => {
   const { isMobile } = useDeviceDetect();
-  const [openList, setOpenList] = useState(false);
   const targetRef = useRef<HTMLDivElement>(null);
 
-  const handleToggleList = () => {
-    setOpenList(prev => !prev);
-  };
-
-  const handleCloseList = () => {
-    setOpenList(false);
-  };
+  const {
+    value: openList,
+    toggle: handleToggleList,
+    setFalse: handleCloseList,
+  } = useBoolean(false);
 
   if (isMobile) {
     return (
@@ -78,6 +103,7 @@ const AdditionalSettings: FC = () => {
             variant="outlined"
             startIcon={<TuneIcon/>}
             onClick={handleToggleList}
+            ariaLabel="additional the query settings"
           />
         </div>
         <Popper
@@ -87,13 +113,16 @@ const AdditionalSettings: FC = () => {
           onClose={handleCloseList}
           title={"Query settings"}
         >
-          <AdditionalSettingsControls isMobile={isMobile}/>
+          <AdditionalSettingsControls
+            isMobile={isMobile}
+            {...props}
+          />
         </Popper>
       </>
     );
   }
 
-  return <AdditionalSettingsControls/>;
+  return <AdditionalSettingsControls {...props}/>;
 };
 
 export default AdditionalSettings;

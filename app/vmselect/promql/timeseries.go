@@ -2,7 +2,6 @@ package promql
 
 import (
 	"fmt"
-	"reflect"
 	"sort"
 	"strconv"
 	"sync"
@@ -11,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
@@ -79,18 +79,23 @@ var timeseriesPool sync.Pool
 
 func marshalTimeseriesFast(dst []byte, tss []*timeseries, maxSize int, step int64) []byte {
 	if len(tss) == 0 {
-		logger.Panicf("BUG: tss cannot be empty")
+		// marshal zero timeseries and zero timestamps
+		dst = encoding.MarshalUint64(dst, 0)
+		dst = encoding.MarshalUint64(dst, 0)
+		return dst
 	}
+
+	// timestamps are stored only once for all the tss, since they must be identical
+	assertIdenticalTimestamps(tss, step)
+	timestamps := tss[0].Timestamps
 
 	// Calculate the required size for marshaled tss.
-	size := 0
+	size := 8 + 8                          // 8 bytes for len(tss) and 8 bytes for len(timestamps)
+	size += 8 * len(timestamps)            // encoded timestamps
+	size += 8 * len(tss) * len(timestamps) // encoded values
 	for _, ts := range tss {
-		size += ts.marshaledFastSizeNoTimestamps()
+		size += marshaledFastMetricNameSize(&ts.MetricName)
 	}
-	// timestamps are stored only once for all the tss, since they are identical.
-	assertIdenticalTimestamps(tss, step)
-	size += 8 * len(tss[0].Timestamps)
-
 	if size > maxSize {
 		// Do not marshal tss, since it would occupy too much space
 		return dst
@@ -98,180 +103,146 @@ func marshalTimeseriesFast(dst []byte, tss []*timeseries, maxSize int, step int6
 
 	// Allocate the buffer for the marshaled tss before its' marshaling.
 	// This should reduce memory fragmentation and memory usage.
-	dst = bytesutil.ResizeNoCopyMayOverallocate(dst, size)
-	dst = marshalFastTimestamps(dst[:0], tss[0].Timestamps)
+	dstLen := len(dst)
+	dst = bytesutil.ResizeWithCopyMayOverallocate(dst, size+dstLen)
+	dst = dst[:dstLen]
+
+	// Marshal timestamps and values at first, so they are 8-byte aligned.
+	// This prevents from SIGBUS error on arm architectures.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3927
+	dst = encoding.MarshalUint64(dst, uint64(len(tss)))
+	dst = encoding.MarshalUint64(dst, uint64(len(timestamps)))
+	dst = marshalTimestampsFast(dst, timestamps)
 	for _, ts := range tss {
-		dst = ts.marshalFastNoTimestamps(dst)
+		dst = marshalValuesFast(dst, ts.Values)
+	}
+	for _, ts := range tss {
+		dst = marshalMetricNameFast(dst, &ts.MetricName)
 	}
 	return dst
 }
 
 // unmarshalTimeseriesFast unmarshals timeseries from src.
 //
-// The returned timeseries refer to src, so it is unsafe to modify it
-// until timeseries are in use.
+// The returned timeseries refer to src, so it is unsafe to modify it while timeseries are in use.
 func unmarshalTimeseriesFast(src []byte) ([]*timeseries, error) {
-	tail, timestamps, err := unmarshalFastTimestamps(src)
+	if len(src) < 16 {
+		return nil, fmt.Errorf("cannot unmarshal timeseries from %d bytes; need at least 16 bytes", len(src))
+	}
+	tssLen := encoding.UnmarshalUint64(src)
+	timestampsLen := encoding.UnmarshalUint64(src[8:])
+	src = src[16:]
+
+	// Unmarshal timestamps
+	tail, timestamps, err := unmarshalTimestampsFast(src, timestampsLen)
 	if err != nil {
 		return nil, err
 	}
 	src = tail
 
-	var tss []*timeseries
-	for len(src) > 0 {
+	tss := make([]*timeseries, tssLen)
+	for i := range tss {
 		var ts timeseries
-		ts.denyReuse = false
+		ts.denyReuse = true
 		ts.Timestamps = timestamps
+		tss[i] = &ts
+	}
 
-		tail, err := ts.unmarshalFastNoTimestamps(src)
+	// Unmarshal values
+	for _, ts := range tss {
+		tail, values, err := unmarshalValuesFast(src, timestampsLen)
+		if err != nil {
+			return nil, err
+		}
+		ts.Values = values
+		src = tail
+	}
+
+	// Unmarshal metric names for the time series
+	for _, ts := range tss {
+		tail, err := unmarshalMetricNameFast(&ts.MetricName, src)
 		if err != nil {
 			return nil, err
 		}
 		src = tail
+	}
 
-		tss = append(tss, &ts)
+	if len(src) > 0 {
+		return nil, fmt.Errorf("unexpected non-empty tail left after unmarshaling %d timeseries; len(tail)=%d", len(tss), len(src))
 	}
 	return tss, nil
 }
 
-// marshaledFastSizeNoTimestamps returns the size of marshaled ts
-// returned from marshalFastNoTimestamps.
-func (ts *timeseries) marshaledFastSizeNoTimestamps() int {
-	mn := &ts.MetricName
-	n := 2 + len(mn.MetricGroup)
+// marshaledFastMetricNameSize returns the size of marshaled mn returned from marshalMetricNameFast.
+func marshaledFastMetricNameSize(mn *storage.MetricName) int {
+	n := 8 // AccountID, ProjectID
+	n += 2 + len(mn.MetricGroup)
 	n += 2 // Length of tags.
 	for i := range mn.Tags {
 		tag := &mn.Tags[i]
 		n += 2 + len(tag.Key)
 		n += 2 + len(tag.Value)
 	}
-	n += 8 * len(ts.Values)
 	return n
 }
 
-// marshalFastNoTimestamps appends marshaled ts to dst and returns the result.
-//
-// It doesn't marshal timestamps.
-//
-// The result must be unmarshaled with unmarshalFastNoTimestamps.
-func (ts *timeseries) marshalFastNoTimestamps(dst []byte) []byte {
-	mn := &ts.MetricName
-	dst = marshalBytesFast(dst, mn.MetricGroup)
-	dst = encoding.MarshalUint16(dst, uint16(len(mn.Tags)))
-	// There is no need in tags' sorting - they must be sorted after unmarshaling.
-	for i := range mn.Tags {
-		tag := &mn.Tags[i]
-		dst = marshalBytesFast(dst, tag.Key)
-		dst = marshalBytesFast(dst, tag.Value)
-	}
-
-	// Do not marshal len(ts.Values), since it is already encoded as len(ts.Timestamps)
-	// during marshalFastTimestamps.
-	var valuesBuf []byte
-	if len(ts.Values) > 0 {
-		valuesBuf = float64ToByteSlice(ts.Values)
-	}
+func marshalValuesFast(dst []byte, values []float64) []byte {
+	// Do not marshal len(values), since it is already encoded as len(timestamps) at marshalTimestampsFast.
+	valuesBuf := float64ToByteSlice(values)
 	dst = append(dst, valuesBuf...)
 	return dst
 }
 
-func marshalFastTimestamps(dst []byte, timestamps []int64) []byte {
-	dst = encoding.MarshalUint32(dst, uint32(len(timestamps)))
-	var timestampsBuf []byte
-	if len(timestamps) > 0 {
-		timestampsBuf = int64ToByteSlice(timestamps)
+// it is unsafe modifying src while the returned values is in use.
+func unmarshalValuesFast(src []byte, valuesLen uint64) ([]byte, []float64, error) {
+	bufSize := valuesLen * 8
+	if uint64(len(src)) < bufSize {
+		return src, nil, fmt.Errorf("cannot unmarshal values; got %d ytes; want at least %d bytes", uint64(len(src)), bufSize)
 	}
+	values := byteSliceToFloat64(src[:bufSize])
+	return src[bufSize:], values, nil
+}
+
+func marshalTimestampsFast(dst []byte, timestamps []int64) []byte {
+	timestampsBuf := int64ToByteSlice(timestamps)
 	dst = append(dst, timestampsBuf...)
 	return dst
 }
 
 // it is unsafe modifying src while the returned timestamps is in use.
-func unmarshalFastTimestamps(src []byte) ([]byte, []int64, error) {
-	if len(src) < 4 {
-		return src, nil, fmt.Errorf("cannot decode len(timestamps); got %d bytes; want at least %d bytes", len(src), 4)
-	}
-	timestampsCount := int(encoding.UnmarshalUint32(src))
-	src = src[4:]
-	if timestampsCount == 0 {
-		return src, nil, nil
-	}
-
-	bufSize := timestampsCount * 8
-	if len(src) < bufSize {
+func unmarshalTimestampsFast(src []byte, timestampsLen uint64) ([]byte, []int64, error) {
+	bufSize := timestampsLen * 8
+	if uint64(len(src)) < bufSize {
 		return src, nil, fmt.Errorf("cannot unmarshal timestamps; got %d bytes; want at least %d bytes", len(src), bufSize)
 	}
 	timestamps := byteSliceToInt64(src[:bufSize])
-	src = src[bufSize:]
-
-	return src, timestamps, nil
+	return src[bufSize:], timestamps, nil
 }
 
-// unmarshalFastNoTimestamps unmarshals ts from src, so ts members reference src.
+// marshalMetricNameFast appends marshaled mn to dst and returns the result.
 //
-// It is expected that ts.Timestamps is already unmarshaled.
-//
-// It is unsafe to modify src while ts is in use.
-func (ts *timeseries) unmarshalFastNoTimestamps(src []byte) ([]byte, error) {
-	// ts members point to src, so they cannot be re-used.
-	ts.denyReuse = true
-
-	tail, err := unmarshalMetricNameFast(&ts.MetricName, src)
-	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal MetricName: %w", err)
-	}
-	src = tail
-
-	valuesCount := len(ts.Timestamps)
-	if valuesCount == 0 {
-		return src, nil
-	}
-	bufSize := valuesCount * 8
-	if len(src) < bufSize {
-		return src, fmt.Errorf("cannot unmarshal values; got %d bytes; want at least %d bytes", len(src), bufSize)
-	}
-	ts.Values = byteSliceToFloat64(src[:bufSize])
-
-	return src[bufSize:], nil
+// The result must be unmarshaled with unmarshalMetricNameFast.
+func marshalMetricNameFast(dst []byte, mn *storage.MetricName) []byte {
+	dst = encoding.MarshalUint32(dst, mn.AccountID)
+	dst = encoding.MarshalUint32(dst, mn.ProjectID)
+	dst = marshalBytesFast(dst, mn.MetricGroup)
+	dst = encoding.MarshalUint16(dst, uint16(len(mn.Tags)))
+	// There is no need in tags' sorting - they must be sorted after unmarshaling.
+	return marshalMetricTagsFast(dst, mn.Tags)
 }
 
-func float64ToByteSlice(a []float64) (b []byte) {
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	sh.Data = uintptr(unsafe.Pointer(&a[0]))
-	sh.Len = len(a) * int(unsafe.Sizeof(a[0]))
-	sh.Cap = sh.Len
-	return
-}
-
-func int64ToByteSlice(a []int64) (b []byte) {
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	sh.Data = uintptr(unsafe.Pointer(&a[0]))
-	sh.Len = len(a) * int(unsafe.Sizeof(a[0]))
-	sh.Cap = sh.Len
-	return
-}
-
-func byteSliceToInt64(b []byte) (a []int64) {
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&a))
-	sh.Data = uintptr(unsafe.Pointer(&b[0]))
-	sh.Len = len(b) / int(unsafe.Sizeof(a[0]))
-	sh.Cap = sh.Len
-	return
-}
-
-func byteSliceToFloat64(b []byte) (a []float64) {
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&a))
-	sh.Data = uintptr(unsafe.Pointer(&b[0]))
-	sh.Len = len(b) / int(unsafe.Sizeof(a[0]))
-	sh.Cap = sh.Len
-	return
-}
-
-// unmarshalMetricNameFast unmarshals mn from src, so mn members
-// hold references to src.
+// unmarshalMetricNameFast unmarshals mn from src, so mn members hold references to src.
 //
 // It is unsafe modifying src while mn is in use.
 func unmarshalMetricNameFast(mn *storage.MetricName, src []byte) ([]byte, error) {
 	mn.Reset()
+
+	if len(src) < 8 {
+		return src, fmt.Errorf("cannot unmarshal AccountID, ProjectID from %d bytes; need at least 8 bytes", len(src))
+	}
+	mn.AccountID = encoding.UnmarshalUint32(src)
+	mn.ProjectID = encoding.UnmarshalUint32(src[4:])
+	src = src[8:]
 
 	tail, metricGroup, err := unmarshalBytesFast(src)
 	if err != nil {
@@ -285,10 +256,7 @@ func unmarshalMetricNameFast(mn *storage.MetricName, src []byte) ([]byte, error)
 	}
 	tagsLen := encoding.UnmarshalUint16(src)
 	src = src[2:]
-	if n := int(tagsLen) - cap(mn.Tags); n > 0 {
-		mn.Tags = append(mn.Tags[:cap(mn.Tags)], make([]storage.Tag, n)...)
-	}
-	mn.Tags = mn.Tags[:tagsLen]
+	mn.Tags = slicesutil.SetLength(mn.Tags, int(tagsLen))
 	for i := range mn.Tags {
 		tail, key, err := unmarshalBytesFast(src)
 		if err != nil {
@@ -321,9 +289,7 @@ func marshalMetricTagsFast(dst []byte, tags []storage.Tag) []byte {
 func marshalMetricNameSorted(dst []byte, mn *storage.MetricName) []byte {
 	// Do not marshal AccountID and ProjectID, since they are unused.
 	dst = marshalBytesFast(dst, mn.MetricGroup)
-	sortMetricTags(mn)
-	dst = marshalMetricTagsFast(dst, mn.Tags)
-	return dst
+	return marshalMetricTagsSorted(dst, mn)
 }
 
 func marshalMetricTagsSorted(dst []byte, mn *storage.MetricName) []byte {
@@ -347,6 +313,34 @@ func unmarshalBytesFast(src []byte) ([]byte, []byte, error) {
 		return src, nil, fmt.Errorf("too short src=%X; it must be at least %d bytes", src, n)
 	}
 	return src[n:], src[:n], nil
+}
+
+func float64ToByteSlice(a []float64) []byte {
+	return unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(a))), len(a)*8)
+}
+
+func int64ToByteSlice(a []int64) []byte {
+	return unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(a))), len(a)*8)
+}
+
+func byteSliceToInt64(b []byte) []int64 {
+	// Make sure that the returned slice is properly aligned to 8 bytes.
+	// This prevents from SIGBUS error on arm architectures, which deny unaligned access.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3927
+	if uintptr(unsafe.Pointer(unsafe.SliceData(b)))%8 != 0 {
+		logger.Panicf("BUG: the input byte slice b must be aligned to 8 bytes")
+	}
+	return unsafe.Slice((*int64)(unsafe.Pointer(unsafe.SliceData(b))), len(b)/8)
+}
+
+func byteSliceToFloat64(b []byte) []float64 {
+	// Make sure that the returned slice is properly aligned to 8 bytes.
+	// This prevents from SIGBUS error on arm architectures, which deny unaligned access.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3927
+	if uintptr(unsafe.Pointer(unsafe.SliceData(b)))%8 != 0 {
+		logger.Panicf("BUG: the input byte slice b must be aligned to 8 bytes")
+	}
+	return unsafe.Slice((*float64)(unsafe.Pointer(unsafe.SliceData(b))), len(b)/8)
 }
 
 func stringMetricName(mn *storage.MetricName) string {

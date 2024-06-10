@@ -1,8 +1,10 @@
-version: "3.5"
 services:
+  #  Metrics collector.
+  #  It scrapes targets defined in --promscrape.config
+  #  And forward them to --remoteWrite.url
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:v1.88.0
+    image: victoriametrics/vmagent:v1.101.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -16,9 +18,11 @@ services:
     networks:
       - vm_net
     restart: always
+  # VictoriaMetrics instance, a single process responsible for
+  # storing metrics and serve read requests.
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.88.0
+    image: victoriametrics/victoria-metrics:v1.101.0
     ports:
       - 8428:8428
       - 8089:8089
@@ -38,25 +42,30 @@ services:
     networks:
       - vm_net
     restart: always
+
+  # Grafana instance configured with VictoriaMetrics as datasource
   grafana:
     container_name: grafana
-    image: grafana/grafana:9.2.7
+    image: grafana/grafana:10.4.2
     depends_on:
       - "victoriametrics"
     ports:
       - 3000:3000
     volumes:
       - grafanadata:/var/lib/grafana
-      - ./provisioning/:/etc/grafana/provisioning/
+      - ./provisioning/datasources/prometheus-datasource:/etc/grafana/provisioning/datasources
+      - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
       - ./../../dashboards/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
     networks:
       - vm_net
     restart: always
+
+  # vmalert executes alerting and recording rules
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.88.0
+    image: victoriametrics/vmalert:v1.101.0
     depends_on:
       - "victoriametrics"
       - "alertmanager"
@@ -76,13 +85,16 @@ services:
       # display source of alerts in grafana
       - "--external.url=http://127.0.0.1:3000" #grafana outside container
       # when copypaste the line be aware of '$$' for escaping in '$expr'
-      - '--external.alert.source=explore?orgId=1&left=["now-1h","now","VictoriaMetrics",{"expr":{{$$expr|jsonEscape|queryEscape}} },{"mode":"Metrics"},{"ui":[true,true,true,"none"]}]'
+      - '--external.alert.source=explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{$$expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"now-1h","to":"now"}}'
     networks:
       - vm_net
     restart: always
+
+  # alertmanager receives alerting notifications from vmalert
+  # and distributes them according to --config.file.
   alertmanager:
     container_name: alertmanager
-    image: prom/alertmanager:v0.25.0
+    image: prom/alertmanager:v0.27.0
     volumes:
       - ./alertmanager.yml:/config/alertmanager.yml
     command:
@@ -92,6 +104,7 @@ services:
     networks:
       - vm_net
     restart: always
+
 volumes:
   vmagentdata: {}
   vmdata: {}

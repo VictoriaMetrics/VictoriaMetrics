@@ -24,8 +24,8 @@ func benchmarkFastStringTransformer(b *testing.B, s string) {
 			sTransformed := fst.Transform(s)
 			n += uint64(len(sTransformed))
 		}
-		atomic.AddUint64(&GlobalSink, n)
+		GlobalSink.Add(n)
 	})
 }
 
-var GlobalSink uint64
+var GlobalSink atomic.Uint64

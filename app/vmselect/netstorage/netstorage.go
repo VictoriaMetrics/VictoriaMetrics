@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -17,30 +16,47 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/VictoriaMetrics/metricsql"
+	"github.com/cespare/xxhash/v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/VictoriaMetrics/metricsql"
-	"github.com/cespare/xxhash/v2"
 )
 
 var (
-	replicationFactor = flag.Int("replicationFactor", 1, "How many copies of every time series is available on vmstorage nodes. "+
-		"vmselect cancels responses from the slowest -replicationFactor-1 vmstorage nodes if -replicationFactor is set by assuming it already received complete data. "+
-		"It isn't recommended setting this flag to values other than 1 at vmselect nodes, since it may result in incomplete responses "+
-		"after adding new vmstorage nodes even if the replication is enabled at vminsert nodes")
+	globalReplicationFactor = flag.Int("globalReplicationFactor", 1, "How many copies of every ingested sample is available across vmstorage groups. "+
+		"vmselect continues returning full responses when up to globalReplicationFactor-1 vmstorage groups are temporarily unavailable. "+
+		"See https://docs.victoriametrics.com/cluster-victoriametrics/#vmstorage-groups-at-vmselect . See also -replicationFactor")
+	replicationFactor = flagutil.NewDictInt("replicationFactor", 1, "How many copies of every ingested sample is available across -storageNode nodes. "+
+		"vmselect continues returning full responses when up to replicationFactor-1 vmstorage nodes are temporarily unavailable. "+
+		"See also -globalReplicationFactor and -search.skipSlowReplicas")
+	skipSlowReplicas = flag.Bool("search.skipSlowReplicas", false, "Whether to skip -replicationFactor - 1 slowest vmstorage nodes during querying. "+
+		"Enabling this setting may improve query speed, but it could also lead to incomplete results if some queried data has less than -replicationFactor "+
+		"copies at vmstorage nodes. Consider enabling this setting only if all the queried data contains -replicationFactor copies in the cluster")
 	maxSamplesPerSeries  = flag.Int("search.maxSamplesPerSeries", 30e6, "The maximum number of raw samples a single query can scan per each time series. See also -search.maxSamplesPerQuery")
 	maxSamplesPerQuery   = flag.Int("search.maxSamplesPerQuery", 1e9, "The maximum number of raw samples a single query can process across all time series. This protects from heavy queries, which select unexpectedly high number of raw samples. See also -search.maxSamplesPerSeries")
-	vmstorageDialTimeout = flag.Duration("vmstorageDialTimeout", 5*time.Second, "Timeout for establishing RPC connections from vmselect to vmstorage")
+	vmstorageDialTimeout = flag.Duration("vmstorageDialTimeout", 3*time.Second, "Timeout for establishing RPC connections from vmselect to vmstorage. "+
+		"See also -vmstorageUserTimeout")
+	vmstorageUserTimeout = flag.Duration("vmstorageUserTimeout", 3*time.Second, "Network timeout for RPC connections from vmselect to vmstorage (Linux only). "+
+		"Lower values reduce the maximum query durations when some vmstorage nodes become unavailable because of networking issues. "+
+		"Read more about TCP_USER_TIMEOUT at https://blog.cloudflare.com/when-tcp-sockets-refuse-to-die/ . "+
+		"See also -vmstorageDialTimeout")
+	maxWorkersPerQuery = flag.Int("search.maxWorkersPerQuery", defaultMaxWorkersPerQuery, "The maximum number of CPU cores a single query can use. "+
+		"The default value should work good for most cases. "+
+		"The flag can be set to lower values for improving performance of big number of concurrently executed queries. "+
+		"The flag can be set to bigger values for improving performance of heavy queries, which scan big number of time series (>10K) and/or big number of samples (>100M). "+
+		"There is no sense in setting this flag to values bigger than the number of CPU cores available on the system")
 )
 
 // Result is a single timeseries result.
@@ -93,7 +109,7 @@ func closeTmpBlockFiles(tbfs []*tmpBlocksFile) {
 }
 
 type timeseriesWork struct {
-	mustStop *uint32
+	mustStop *atomic.Bool
 	rss      *Results
 	pts      *packedTimeseries
 	f        func(rs *Result, workerID uint) error
@@ -102,47 +118,23 @@ type timeseriesWork struct {
 	rowsProcessed int
 }
 
-func (tsw *timeseriesWork) reset() {
-	tsw.mustStop = nil
-	tsw.rss = nil
-	tsw.pts = nil
-	tsw.f = nil
-	tsw.err = nil
-	tsw.rowsProcessed = 0
-}
-
-func getTimeseriesWork() *timeseriesWork {
-	v := tswPool.Get()
-	if v == nil {
-		v = &timeseriesWork{}
-	}
-	return v.(*timeseriesWork)
-}
-
-func putTimeseriesWork(tsw *timeseriesWork) {
-	tsw.reset()
-	tswPool.Put(tsw)
-}
-
-var tswPool sync.Pool
-
 func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
-	if atomic.LoadUint32(tsw.mustStop) != 0 {
+	if tsw.mustStop.Load() {
 		return nil
 	}
 	rss := tsw.rss
 	if rss.deadline.Exceeded() {
-		atomic.StoreUint32(tsw.mustStop, 1)
+		tsw.mustStop.Store(true)
 		return fmt.Errorf("timeout exceeded during query execution: %s", rss.deadline.String())
 	}
 	if err := tsw.pts.Unpack(r, rss.tbfs, rss.tr); err != nil {
-		atomic.StoreUint32(tsw.mustStop, 1)
+		tsw.mustStop.Store(true)
 		return fmt.Errorf("error during time series unpacking: %w", err)
 	}
 	tsw.rowsProcessed = len(r.Timestamps)
 	if len(r.Timestamps) > 0 {
 		if err := tsw.f(r, workerID); err != nil {
-			atomic.StoreUint32(tsw.mustStop, 1)
+			tsw.mustStop.Store(true)
 			return err
 		}
 	}
@@ -166,38 +158,29 @@ func timeseriesWorker(qt *querytracer.Tracer, workChs []chan *timeseriesWork, wo
 	// Then help others with the remaining work.
 	rowsProcessed = 0
 	seriesProcessed = 0
-	idx := int(workerID)
-	for {
-		tsw, idxNext := stealTimeseriesWork(workChs, idx)
-		if tsw == nil {
-			// There is no more work
-			break
+	for i := uint(1); i < uint(len(workChs)); i++ {
+		idx := (i + workerID) % uint(len(workChs))
+		ch := workChs[idx]
+		for len(ch) > 0 {
+			// Do not call runtime.Gosched() here in order to give a chance
+			// the real owner of the work to complete it, since it consumes additional CPU
+			// and slows down the code on systems with big number of CPU cores.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3966#issuecomment-1483208419
+
+			// It is expected that every channel in the workChs is already closed,
+			// so the next line should return immediately.
+			tsw, ok := <-ch
+			if !ok {
+				break
+			}
+			tsw.err = tsw.do(&tmpResult.rs, workerID)
+			rowsProcessed += tsw.rowsProcessed
+			seriesProcessed++
 		}
-		tsw.err = tsw.do(&tmpResult.rs, workerID)
-		rowsProcessed += tsw.rowsProcessed
-		seriesProcessed++
-		idx = idxNext
 	}
 	qt.Printf("others work processed: series=%d, samples=%d", seriesProcessed, rowsProcessed)
 
 	putTmpResult(tmpResult)
-}
-
-func stealTimeseriesWork(workChs []chan *timeseriesWork, startIdx int) (*timeseriesWork, int) {
-	for i := startIdx; i < startIdx+len(workChs); i++ {
-		// Give a chance other goroutines to perform their work
-		runtime.Gosched()
-
-		idx := i % len(workChs)
-		ch := workChs[idx]
-		// It is expected that every channel in the workChs is already closed,
-		// so the next line should return immediately.
-		tsw, ok := <-ch
-		if ok {
-			return tsw, idx
-		}
-	}
-	return nil, startIdx
 }
 
 func getTmpResult() *result {
@@ -225,10 +208,38 @@ type result struct {
 
 var resultPool sync.Pool
 
+// MaxWorkers returns the maximum number of concurrent goroutines, which can be used by RunParallel()
+func MaxWorkers() int {
+	n := *maxWorkersPerQuery
+	if n <= 0 {
+		return defaultMaxWorkersPerQuery
+	}
+	if n > gomaxprocs {
+		// There is no sense in running more than gomaxprocs CPU-bound concurrent workers,
+		// since this may worsen the query performance.
+		n = gomaxprocs
+	}
+	return n
+}
+
+var gomaxprocs = cgroup.AvailableCPUs()
+
+var defaultMaxWorkersPerQuery = func() int {
+	// maxWorkersLimit is the maximum number of CPU cores, which can be used in parallel
+	// for processing an average query, without significant impact on inter-CPU communications.
+	const maxWorkersLimit = 32
+
+	n := gomaxprocs
+	if n > maxWorkersLimit {
+		n = maxWorkersLimit
+	}
+	return n
+}()
+
 // RunParallel runs f in parallel for all the results from rss.
 //
 // f shouldn't hold references to rs after returning.
-// workerID is the id of the worker goroutine that calls f.
+// workerID is the id of the worker goroutine that calls f. The workerID is in the range [0..MaxWorkers()-1].
 // Data processing is immediately stopped if f returns non-nil error.
 //
 // rss becomes unusable after the call to RunParallel.
@@ -255,31 +266,30 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 		return 0, nil
 	}
 
-	var mustStop uint32
+	var mustStop atomic.Bool
 	initTimeseriesWork := func(tsw *timeseriesWork, pts *packedTimeseries) {
 		tsw.rss = rss
 		tsw.pts = pts
 		tsw.f = f
 		tsw.mustStop = &mustStop
 	}
-	if gomaxprocs == 1 || tswsLen == 1 {
+	maxWorkers := MaxWorkers()
+	if maxWorkers == 1 || tswsLen == 1 {
 		// It is faster to process time series in the current goroutine.
-		tsw := getTimeseriesWork()
+		var tsw timeseriesWork
 		tmpResult := getTmpResult()
 		rowsProcessedTotal := 0
 		var err error
 		for i := range rss.packedTimeseries {
-			initTimeseriesWork(tsw, &rss.packedTimeseries[i])
+			initTimeseriesWork(&tsw, &rss.packedTimeseries[i])
 			err = tsw.do(&tmpResult.rs, 0)
 			rowsReadPerSeries.Update(float64(tsw.rowsProcessed))
 			rowsProcessedTotal += tsw.rowsProcessed
 			if err != nil {
 				break
 			}
-			tsw.reset()
 		}
 		putTmpResult(tmpResult)
-		putTimeseriesWork(tsw)
 
 		return rowsProcessedTotal, err
 	}
@@ -289,17 +299,15 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	// which reduces the scalability on systems with many CPU cores.
 
 	// Prepare the work for workers.
-	tsws := make([]*timeseriesWork, len(rss.packedTimeseries))
+	tsws := make([]timeseriesWork, len(rss.packedTimeseries))
 	for i := range rss.packedTimeseries {
-		tsw := getTimeseriesWork()
-		initTimeseriesWork(tsw, &rss.packedTimeseries[i])
-		tsws[i] = tsw
+		initTimeseriesWork(&tsws[i], &rss.packedTimeseries[i])
 	}
 
 	// Prepare worker channels.
 	workers := len(tsws)
-	if workers > gomaxprocs {
-		workers = gomaxprocs
+	if workers > maxWorkers {
+		workers = maxWorkers
 	}
 	itemsPerWorker := (len(tsws) + workers - 1) / workers
 	workChs := make([]chan *timeseriesWork, workers)
@@ -308,9 +316,9 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	}
 
 	// Spread work among workers.
-	for i, tsw := range tsws {
+	for i := range tsws {
 		idx := i % len(workChs)
-		workChs[idx] <- tsw
+		workChs[idx] <- &tsws[i]
 	}
 	// Mark worker channels as closed.
 	for _, workCh := range workChs {
@@ -333,14 +341,14 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	// Collect results.
 	var firstErr error
 	rowsProcessedTotal := 0
-	for _, tsw := range tsws {
+	for i := range tsws {
+		tsw := &tsws[i]
 		if tsw.err != nil && firstErr == nil {
 			// Return just the first error, since other errors are likely duplicate the first error.
 			firstErr = tsw.err
 		}
 		rowsReadPerSeries.Update(float64(tsw.rowsProcessed))
 		rowsProcessedTotal += tsw.rowsProcessed
-		putTimeseriesWork(tsw)
 	}
 	return rowsProcessedTotal, firstErr
 }
@@ -350,8 +358,6 @@ var (
 	rowsReadPerQuery   = metrics.NewHistogram(`vm_rows_read_per_query`)
 	seriesReadPerQuery = metrics.NewHistogram(`vm_series_read_per_query`)
 )
-
-var gomaxprocs = cgroup.AvailableCPUs()
 
 type packedTimeseries struct {
 	metricName string
@@ -409,35 +415,26 @@ func unpackWorker(workChs []chan *unpackWork, workerID uint) {
 	}
 
 	// Then help others with their work.
-	idx := int(workerID)
-	for {
-		upw, idxNext := stealUnpackWork(workChs, idx)
-		if upw == nil {
-			// There is no more work
-			break
+	for i := uint(1); i < uint(len(workChs)); i++ {
+		idx := (i + workerID) % uint(len(workChs))
+		ch := workChs[idx]
+		for len(ch) > 0 {
+			// Do not call runtime.Gosched() here in order to give a chance
+			// the real owner of the work to complete it, since it consumes additional CPU
+			// and slows down the code on systems with big number of CPU cores.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3966#issuecomment-1483208419
+
+			// It is expected that every channel in the workChs is already closed,
+			// so the next line should return immediately.
+			upw, ok := <-ch
+			if !ok {
+				break
+			}
+			upw.unpack(tmpBlock)
 		}
-		upw.unpack(tmpBlock)
-		idx = idxNext
 	}
 
 	putTmpStorageBlock(tmpBlock)
-}
-
-func stealUnpackWork(workChs []chan *unpackWork, startIdx int) (*unpackWork, int) {
-	for i := startIdx; i < startIdx+len(workChs); i++ {
-		// Give a chance other goroutines to perform their work
-		runtime.Gosched()
-
-		idx := i % len(workChs)
-		ch := workChs[idx]
-		// It is expected that every channel in the workChs is already closed,
-		// so the next line should return immediately.
-		upw, ok := <-ch
-		if ok {
-			return upw, idx
-		}
-	}
-	return nil, startIdx
 }
 
 func getTmpStorageBlock() *storage.Block {
@@ -500,8 +497,10 @@ func (pts *packedTimeseries) unpackTo(dst []*sortBlock, tbfs []*tmpBlocksFile, t
 			samples += len(upw.sb.Timestamps)
 			if *maxSamplesPerSeries > 0 && samples > *maxSamplesPerSeries {
 				putSortBlock(upw.sb)
-				err = fmt.Errorf("cannot process more than %d samples per series; either increase -search.maxSamplesPerSeries "+
-					"or reduce time range for the query", *maxSamplesPerSeries)
+				err = &limitExceededErr{
+					err: fmt.Errorf("cannot process more than %d samples per series; either increase -search.maxSamplesPerSeries "+
+						"or reduce time range for the query", *maxSamplesPerSeries),
+				}
 				break
 			}
 			dst = append(dst, upw.sb)
@@ -843,7 +842,7 @@ func DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		err          error
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) interface{} {
 		sn.deleteSeriesRequests.Inc()
 		deletedCount, err := sn.deleteSeries(qt, requestData, deadline)
 		if err != nil {
@@ -885,7 +884,7 @@ func LabelNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 		err        error
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) interface{} {
 		sn.labelNamesRequests.Inc()
 		labelNames, err := sn.getLabelNames(qt, requestData, maxLabelNames, deadline)
 		if err != nil {
@@ -988,7 +987,7 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 		err         error
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) interface{} {
 		sn.labelValuesRequests.Inc()
 		labelValues, err := sn.getLabelValues(qt, labelName, requestData, maxLabelValues, deadline)
 		if err != nil {
@@ -1043,7 +1042,7 @@ func Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutils.
 	}
 	sns := getStorageNodes()
 	// Deny partial responses when obtaining the list of tenants, since partial tenants have little sense.
-	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) interface{} {
 		sn.tenantsRequests.Inc()
 		tenants, err := sn.getTenants(qt, tr, deadline)
 		if err != nil {
@@ -1123,7 +1122,7 @@ func TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, denyP
 		err      error
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) interface{} {
 		sn.tagValueSuffixesRequests.Inc()
 		suffixes, err := sn.getTagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
 		if err != nil {
@@ -1188,7 +1187,7 @@ func TSDBStatus(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 		err    error
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) interface{} {
 		sn.tsdbStatusRequests.Inc()
 		status, err := sn.getTSDBStatus(qt, requestData, focusLabel, topN, deadline)
 		if err != nil {
@@ -1294,7 +1293,7 @@ func SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, denyPartia
 		err error
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) interface{} {
 		sn.seriesCountRequests.Inc()
 		n, err := sn.getSeriesCount(qt, accountID, projectID, deadline)
 		if err != nil {
@@ -1324,88 +1323,228 @@ func SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, denyPartia
 }
 
 type tmpBlocksFileWrapper struct {
-	tbfs                []*tmpBlocksFile
-	ms                  []map[string]*blockAddrs
-	orderedMetricNamess [][]string
+	shards []tmpBlocksFileWrapperShardWithPadding
+}
+
+type tmpBlocksFileWrapperShard struct {
+	// once is needed for one-time initialization of the tmpBlocksFileWrapperShard.
+	//
+	// The initialization must be performed at the goroutine, which then works with this struct.
+	// This improves CPU cache locality.
+	once sync.Once
+
+	// tbf is a file where temporary blocks are stored from the read time series.
+	tbf *tmpBlocksFile
+
+	// metricNamesBuf is a buf for holding all the loaded unique metric names for m and orderedMetricNames.
+	// It should reduce pressure on Go GC by reducing the number of string allocations
+	// when constructing metricName string from byte slice.
+	metricNamesBuf []byte
+
+	// addrssPool is a pool for holding all the blockAddrs objects across all the loaded time series.
+	// It should reduce pressure on Go GC by reducing the number of blockAddrs object allocations.
+	addrssPool []blockAddrs
+
+	// addrsPool is a pool for holding the most of blockAddrs.addrs slices.
+	// It should reduce pressure on Go GC by reducing the number of blockAddrs.addrs allocations.
+	addrsPool []tmpBlockAddr
+
+	// m maps metricName to the addrssPool index.
+	m map[string]int
+
+	// orderedMetricNames contains metric names in the order of their load.
+	// This order is important for sequential read of data from tmpBlocksFile.
+	orderedMetricNames []string
+
+	// prevMetricName contains the metric name previously seen at RegisterAndWriteBlock.
+	prevMetricName []byte
+
+	// prevAddrsIdx contains the addrssPool index previously seen at RegisterAndWriteBlock.
+	prevAddrsIdx int
+}
+
+func (tbfwLocal *tmpBlocksFileWrapperShard) initIfNeeded() {
+	tbfwLocal.once.Do(tbfwLocal.init)
+}
+
+func (tbfwLocal *tmpBlocksFileWrapperShard) init() {
+	tbfwLocal.tbf = getTmpBlocksFile()
+	tbfwLocal.m = make(map[string]int)
+}
+
+type tmpBlocksFileWrapperShardWithPadding struct {
+	tmpBlocksFileWrapperShard
+
+	// The padding prevents false sharing on widespread platforms with
+	// 128 mod (cache line size) = 0 .
+	_ [128 - unsafe.Sizeof(tmpBlocksFileWrapperShard{})%128]byte
 }
 
 type blockAddrs struct {
-	addrsPrealloc [4]tmpBlockAddr
-	addrs         []tmpBlockAddr
+	addrs []tmpBlockAddr
 }
 
-func newBlockAddrs() *blockAddrs {
-	ba := &blockAddrs{}
-	ba.addrs = ba.addrsPrealloc[:0]
-	return ba
+// canAppendToBlockAddrPool returns true if a points to the pool and the last item in a is the last item in the pool.
+//
+// In this case it is safe appending an item to the pool and then updating the a, so it refers to the extended slice.
+//
+// True is also returned if a is nil, since in this case it is safe appending an item to the pool and pointing a
+// to the last item in the pool.
+func canAppendToBlockAddrPool(pool, a []tmpBlockAddr) bool {
+	if a == nil {
+		return true
+	}
+	if len(a) > len(pool) {
+		// a doesn't belong to pool
+		return false
+	}
+	return getBlockAddrsEnd(pool) == getBlockAddrsEnd(a)
+}
+
+func getBlockAddrsEnd(a []tmpBlockAddr) uintptr {
+	return uintptr(unsafe.Pointer(unsafe.SliceData(a))) + uintptr(len(a))*unsafe.Sizeof(tmpBlockAddr{})
+}
+
+func (tbfwLocal *tmpBlocksFileWrapperShard) newBlockAddrs() int {
+	addrssPool := tbfwLocal.addrssPool
+	if cap(addrssPool) > len(addrssPool) {
+		addrssPool = addrssPool[:len(addrssPool)+1]
+	} else {
+		addrssPool = append(addrssPool, blockAddrs{})
+	}
+	tbfwLocal.addrssPool = addrssPool
+	idx := len(addrssPool) - 1
+	return idx
 }
 
 func newTmpBlocksFileWrapper(sns []*storageNode) *tmpBlocksFileWrapper {
 	n := len(sns)
-	tbfs := make([]*tmpBlocksFile, n)
-	for i := range tbfs {
-		tbfs[i] = getTmpBlocksFile()
-	}
-	ms := make([]map[string]*blockAddrs, n)
-	for i := range ms {
-		ms[i] = make(map[string]*blockAddrs)
-	}
+	shards := make([]tmpBlocksFileWrapperShardWithPadding, n)
 	return &tmpBlocksFileWrapper{
-		tbfs:                tbfs,
-		ms:                  ms,
-		orderedMetricNamess: make([][]string, n),
+		shards: shards,
 	}
 }
 
 func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock, workerID uint) error {
+	tbfwLocal := &tbfw.shards[workerID]
+	tbfwLocal.initIfNeeded()
+
 	bb := tmpBufPool.Get()
 	bb.B = storage.MarshalBlock(bb.B[:0], &mb.Block)
-	addr, err := tbfw.tbfs[workerID].WriteBlockData(bb.B, workerID)
+
+	addr, err := tbfwLocal.tbf.WriteBlockData(bb.B, workerID)
 	tmpBufPool.Put(bb)
 	if err != nil {
 		return err
 	}
-	metricName := bytesutil.InternBytes(mb.MetricName)
-	m := tbfw.ms[workerID]
-	addrs := m[metricName]
-	if addrs == nil {
-		addrs = newBlockAddrs()
+
+	m := tbfwLocal.m
+	metricName := mb.MetricName
+	addrsIdx := tbfwLocal.prevAddrsIdx
+	if tbfwLocal.prevMetricName == nil || string(metricName) != string(tbfwLocal.prevMetricName) {
+		idx, ok := m[string(metricName)]
+		if !ok {
+			idx = tbfwLocal.newBlockAddrs()
+		}
+		addrsIdx = idx
+		tbfwLocal.prevMetricName = append(tbfwLocal.prevMetricName[:0], metricName...)
+		tbfwLocal.prevAddrsIdx = addrsIdx
 	}
-	addrs.addrs = append(addrs.addrs, addr)
+	addrs := &tbfwLocal.addrssPool[addrsIdx]
+
+	addrsPool := tbfwLocal.addrsPool
+	if uintptr(cap(addrsPool)) >= maxFastAllocBlockSize/unsafe.Sizeof(tmpBlockAddr{}) && len(addrsPool) == cap(addrsPool) {
+		// Allocate a new addrsPool in order to avoid slow allocation of an object
+		// bigger than maxFastAllocBlockSize bytes at append() below.
+		addrsPool = make([]tmpBlockAddr, 0, maxFastAllocBlockSize/unsafe.Sizeof(tmpBlockAddr{}))
+		tbfwLocal.addrsPool = addrsPool
+	}
+	if canAppendToBlockAddrPool(addrsPool, addrs.addrs) {
+		// It is safe appending addr to addrsPool, since there are no other items added there yet.
+		addrsPool = append(addrsPool, addr)
+		tbfwLocal.addrsPool = addrsPool
+		addrs.addrs = addrsPool[len(addrsPool)-len(addrs.addrs)-1 : len(addrsPool) : len(addrsPool)]
+	} else {
+		// It is unsafe appending addr to addrsPool, since there are other items added there.
+		// So just append it to addrs.addrs.
+		addrs.addrs = append(addrs.addrs, addr)
+	}
+
 	if len(addrs.addrs) == 1 {
-		// An optimization for big number of time series with long names: store only a single copy of metricNameStr
-		// in both tbfw.orderedMetricNamess and tbfw.ms.
-		orderedMetricNames := tbfw.orderedMetricNamess[workerID]
-		orderedMetricNames = append(orderedMetricNames, metricName)
-		m[metricName] = addrs
-		tbfw.orderedMetricNamess[workerID] = orderedMetricNames
+		metricNamesBuf := tbfwLocal.metricNamesBuf
+		if cap(metricNamesBuf) >= maxFastAllocBlockSize && len(metricNamesBuf)+len(metricName) > cap(metricNamesBuf) {
+			// Allocate a new metricNamesBuf in order to avoid slow allocation of byte slice
+			// bigger than maxFastAllocBlockSize bytes at append() below.
+			metricNamesBuf = make([]byte, 0, maxFastAllocBlockSize)
+		}
+		metricNamesBufLen := len(metricNamesBuf)
+		metricNamesBuf = append(metricNamesBuf, metricName...)
+		metricNameStr := bytesutil.ToUnsafeString(metricNamesBuf[metricNamesBufLen:])
+
+		orderedMetricNames := tbfwLocal.orderedMetricNames
+		orderedMetricNames = append(orderedMetricNames, metricNameStr)
+		m[metricNameStr] = addrsIdx
+
+		tbfwLocal.orderedMetricNames = orderedMetricNames
+		tbfwLocal.metricNamesBuf = metricNamesBuf
 	}
+
 	return nil
 }
 
-func (tbfw *tmpBlocksFileWrapper) Finalize() ([]string, map[string]*blockAddrs, uint64, error) {
+func (tbfw *tmpBlocksFileWrapper) Finalize() ([]string, []blockAddrs, map[string]int, uint64, error) {
+	shards := tbfw.shards
+
 	var bytesTotal uint64
-	for i, tbf := range tbfw.tbfs {
-		if err := tbf.Finalize(); err != nil {
-			closeTmpBlockFiles(tbfw.tbfs)
-			return nil, nil, 0, fmt.Errorf("cannot finalize temporary blocks file with %d series: %w", len(tbfw.ms[i]), err)
+	for i := range shards {
+		shard := &shards[i]
+		shard.initIfNeeded()
+		if err := shard.tbf.Finalize(); err != nil {
+			tbfw.closeTmpBlockFiles()
+			return nil, nil, nil, 0, fmt.Errorf("cannot finalize temporary blocks file with %d series: %w", len(shard.m), err)
 		}
-		bytesTotal += tbf.Len()
+		bytesTotal += shard.tbf.Len()
 	}
-	orderedMetricNames := tbfw.orderedMetricNamess[0]
-	addrsByMetricName := tbfw.ms[0]
-	for i, m := range tbfw.ms[1:] {
-		for _, metricName := range tbfw.orderedMetricNamess[i+1] {
-			dstAddrs, ok := addrsByMetricName[metricName]
+
+	// merge data collected from all the shards
+	tbfwFirst := &shards[0]
+	orderedMetricNames := tbfwFirst.orderedMetricNames
+	addrsByMetricName := tbfwFirst.m
+	for i := 1; i < len(shards); i++ {
+		tbfwLocal := &shards[i]
+
+		m := tbfwLocal.m
+		addrssPool := tbfwLocal.addrssPool
+		for _, metricName := range tbfwLocal.orderedMetricNames {
+			dstAddrsIdx, ok := addrsByMetricName[metricName]
 			if !ok {
 				orderedMetricNames = append(orderedMetricNames, metricName)
-				dstAddrs = newBlockAddrs()
-				addrsByMetricName[metricName] = dstAddrs
+				dstAddrsIdx = tbfwFirst.newBlockAddrs()
+				addrsByMetricName[metricName] = dstAddrsIdx
 			}
-			dstAddrs.addrs = append(dstAddrs.addrs, m[metricName].addrs...)
+			dstAddrs := &tbfwFirst.addrssPool[dstAddrsIdx]
+			dstAddrs.addrs = append(dstAddrs.addrs, addrssPool[m[metricName]].addrs...)
 		}
 	}
-	return orderedMetricNames, addrsByMetricName, bytesTotal, nil
+
+	return orderedMetricNames, tbfwFirst.addrssPool, addrsByMetricName, bytesTotal, nil
+}
+
+func (tbfw *tmpBlocksFileWrapper) closeTmpBlockFiles() {
+	tbfs := tbfw.getTmpBlockFiles()
+	closeTmpBlockFiles(tbfs)
+}
+
+func (tbfw *tmpBlocksFileWrapper) getTmpBlockFiles() []*tmpBlocksFile {
+	shards := tbfw.shards
+
+	tbfs := make([]*tmpBlocksFile, len(shards))
+	for i := range shards {
+		shard := &shards[i]
+		shard.initIfNeeded()
+		tbfs[i] = shard.tbf
+	}
+	return tbfs
 }
 
 var metricNamePool = &sync.Pool{
@@ -1472,7 +1611,7 @@ func SearchMetricNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *sto
 		err         error
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) interface{} {
 		sn.searchMetricNamesRequests.Inc()
 		metricNames, err := sn.processSearchMetricNames(qt, requestData, deadline)
 		if err != nil {
@@ -1510,6 +1649,16 @@ func SearchMetricNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *sto
 	return metricNames, isPartial, nil
 }
 
+// limitExceededErr error generated by vmselect
+// on checking complexity limits during processing responses
+// from storage nodes.
+type limitExceededErr struct {
+	err error
+}
+
+// Error satisfies error interface
+func (e limitExceededErr) Error() string { return e.err.Error() }
+
 // ProcessSearchQuery performs sq until the given deadline.
 //
 // Results.RunParallel or Results.Cancel must be called on the returned Results.
@@ -1534,9 +1683,11 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 		blocksRead.Add(workerID, 1)
 		n := samples.Add(workerID, uint64(mb.Block.RowsCount()))
 		if *maxSamplesPerQuery > 0 && n > maxSamplesPerWorker && samples.GetTotal() > uint64(*maxSamplesPerQuery) {
-			return fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: "+
-				"to increase the -search.maxSamplesPerQuery; to reduce time range for the query; "+
-				"to use more specific label filters in order to select lower number of series", *maxSamplesPerQuery)
+			return &limitExceededErr{
+				err: fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: "+
+					"increase the -search.maxSamplesPerQuery; reduce time range for the query; "+
+					"use more specific label filters in order to select fewer series", *maxSamplesPerQuery),
+			}
 		}
 		if err := tbfw.RegisterAndWriteBlock(mb, workerID); err != nil {
 			return fmt.Errorf("cannot write MetricBlock to temporary blocks file: %w", err)
@@ -1545,24 +1696,24 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 	}
 	isPartial, err := processBlocks(qt, sns, denyPartialResponse, sq, processBlock, deadline)
 	if err != nil {
-		closeTmpBlockFiles(tbfw.tbfs)
+		tbfw.closeTmpBlockFiles()
 		return nil, false, fmt.Errorf("error occured during search: %w", err)
 	}
-	orderedMetricNames, addrsByMetricName, bytesTotal, err := tbfw.Finalize()
+	orderedMetricNames, addrssPool, m, bytesTotal, err := tbfw.Finalize()
 	if err != nil {
 		return nil, false, fmt.Errorf("cannot finalize temporary blocks files: %w", err)
 	}
-	qt.Printf("fetch unique series=%d, blocks=%d, samples=%d, bytes=%d", len(addrsByMetricName), blocksRead.GetTotal(), samples.GetTotal(), bytesTotal)
+	qt.Printf("fetch unique series=%d, blocks=%d, samples=%d, bytes=%d", len(m), blocksRead.GetTotal(), samples.GetTotal(), bytesTotal)
 
 	var rss Results
 	rss.tr = tr
 	rss.deadline = deadline
-	rss.tbfs = tbfw.tbfs
+	rss.tbfs = tbfw.getTmpBlockFiles()
 	pts := make([]packedTimeseries, len(orderedMetricNames))
 	for i, metricName := range orderedMetricNames {
 		pts[i] = packedTimeseries{
 			metricName: metricName,
-			addrs:      addrsByMetricName[metricName].addrs,
+			addrs:      addrssPool[m[metricName]].addrs,
 		}
 	}
 	rss.packedTimeseries = pts
@@ -1582,7 +1733,7 @@ func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialRespon
 
 	// Make sure that processBlock is no longer called after the exit from processBlocks() function.
 	// Use per-worker WaitGroup instead of a shared WaitGroup in order to avoid inter-CPU contention,
-	// which may siginificantly slow down the rate of processBlock calls on multi-CPU systems.
+	// which may significantly slow down the rate of processBlock calls on multi-CPU systems.
 	type wgStruct struct {
 		// mu prevents from calling processBlock when stop is set to true
 		mu sync.Mutex
@@ -1654,8 +1805,9 @@ type storageNodesRequest struct {
 }
 
 type rpcResult struct {
-	data interface{}
-	qt   *querytracer.Tracer
+	data  interface{}
+	qt    *querytracer.Tracer
+	group *storageNodesGroup
 }
 
 func startStorageNodesRequest(qt *querytracer.Tracer, sns []*storageNode, denyPartialResponse bool,
@@ -1668,8 +1820,9 @@ func startStorageNodesRequest(qt *querytracer.Tracer, sns []*storageNode, denyPa
 		go func(workerID uint, sn *storageNode) {
 			data := f(qtChild, workerID, sn)
 			resultsCh <- rpcResult{
-				data: data,
-				qt:   qtChild,
+				data:  data,
+				qt:    qtChild,
+				group: sn.group,
 			}
 		}(uint(idx), sn)
 	}
@@ -1713,13 +1866,19 @@ func (snr *storageNodesRequest) collectAllResults(f func(result interface{}) err
 }
 
 func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Counter, f func(result interface{}) error) (bool, error) {
-	var errsPartial []error
-	resultsCollected := 0
 	sns := snr.sns
-	for i := 0; i < len(sns); i++ {
+	if len(sns) == 0 {
+		return false, nil
+	}
+	groupsCount := sns[0].group.groupsCount
+	resultsCollectedPerGroup := make(map[*storageNodesGroup]int, groupsCount)
+	errsPartialPerGroup := make(map[*storageNodesGroup][]error)
+	groupsPartial := make(map[*storageNodesGroup]struct{})
+	for range sns {
 		// There is no need in timer here, since all the goroutines executing the f function
 		// passed to startStorageNodesRequest must be finished until the deadline.
 		result := <-snr.resultsCh
+		group := result.group
 		if err := f(result.data); err != nil {
 			snr.finishQueryTracer(result.qt, fmt.Sprintf("error: %s", err))
 			var er *errRemote
@@ -1730,53 +1889,148 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 				snr.finishQueryTracers("cancel request because of error in other vmstorage nodes")
 				return false, err
 			}
-			errsPartial = append(errsPartial, err)
-			if snr.denyPartialResponse && len(errsPartial) >= *replicationFactor {
+			var limitErr *limitExceededErr
+			if errors.As(err, &limitErr) {
+				// Immediately return the error, since complexity limits are already exceeded,
+				// and we don't need to process the rest of results.
+				snr.finishQueryTracers("cancel request because query complexity limit was exceeded")
+				return false, err
+			}
+
+			errsPartialPerGroup[group] = append(errsPartialPerGroup[group], err)
+			if snr.denyPartialResponse && len(errsPartialPerGroup[group]) >= group.replicationFactor {
+				groupsPartial[group] = struct{}{}
+				if len(groupsPartial) < *globalReplicationFactor {
+					// Ignore this error, since the number of groups with partial results is smaller than the globalReplicationFactor.
+					continue
+				}
+
 				// Return the error to the caller if partial responses are denied
-				// and the number of partial responses reach -replicationFactor,
+				// and the number of partial responses for the given group reach its replicationFactor,
 				// since this means that the response is partial.
-				snr.finishQueryTracers("cancel request because partial responses are denied and some vmstorage nodes failed to return response")
+				snr.finishQueryTracers(fmt.Sprintf("cancel request because partial responses are denied and replicationFactor=%d vmstorage nodes at group %q failed to return response",
+					group.replicationFactor, group.name))
+
+				// Returns 503 status code for partial response, so the caller could retry it if needed.
+				err = &httpserver.ErrorWithStatusCode{
+					Err:        err,
+					StatusCode: http.StatusServiceUnavailable,
+				}
 				return false, err
 			}
 			continue
 		}
 		snr.finishQueryTracer(result.qt, "")
-		resultsCollected++
-		if resultsCollected > len(sns)-*replicationFactor {
-			// There is no need in waiting for the remaining results,
-			// because the collected results contain all the data according to the given -replicationFactor.
-			// This should speed up responses when a part of vmstorage nodes are slow and/or temporarily unavailable.
-			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711
-			//
-			// It is expected that cap(snr.resultsCh) == len(sns), otherwise goroutine leak is possible.
-			snr.finishQueryTracers(fmt.Sprintf("cancel request because %d out of %d nodes already returned response according to -replicationFactor=%d",
-				resultsCollected, len(sns), *replicationFactor))
-			return false, nil
+		resultsCollectedPerGroup[group]++
+		if *skipSlowReplicas && len(resultsCollectedPerGroup) == groupsCount {
+			canSkipSlowReplicas := true
+			for g, n := range resultsCollectedPerGroup {
+				if n <= g.nodesCount-g.replicationFactor {
+					canSkipSlowReplicas = false
+					break
+				}
+			}
+			if canSkipSlowReplicas {
+				// There is no need in waiting for the remaining results,
+				// because the collected results contain all the data according to the given per-group replicationFactor.
+				// This should speed up responses when a part of vmstorage nodes are slow and/or temporarily unavailable.
+				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711
+				snr.finishQueryTracers("cancel request because -search.skipSlowReplicas is set and every group returned the needed number of responses according to replicationFactor")
+				return false, nil
+			}
 		}
 	}
-	if len(errsPartial) < *replicationFactor {
-		// Assume that the result is full if the the number of failing vmstorage nodes
-		// is smaller than the -replicationFactor.
+
+	// Verify whether the full result can be returned
+	failedGroups := 0
+	for g, errsPartial := range errsPartialPerGroup {
+		if len(errsPartial) >= g.replicationFactor {
+			failedGroups++
+		}
+	}
+	if failedGroups < *globalReplicationFactor {
+		// Assume that the result is full if the the number of failed groups is smaller than the globalReplicationFactor.
 		return false, nil
 	}
-	if len(errsPartial) == len(sns) {
-		// All the vmstorage nodes returned error.
-		// Return only the first error, since it has no sense in returning all errors.
-		return false, errsPartial[0]
+
+	// Verify whether at least a single node per each group successfully returned result in order to be able returning partial result.
+	missingGroups := 0
+	var firstErr error
+	for g, errsPartial := range errsPartialPerGroup {
+		if len(errsPartial) == g.nodesCount {
+			missingGroups++
+			if firstErr == nil {
+				// Return only the first error, since it has no sense in returning all errors.
+				firstErr = errsPartial[0]
+			}
+		}
+		if len(errsPartial) > 0 {
+			partialErrorsLogger.Warnf("%d out of %d vmstorage nodes at group %q were unavailable during the query; a sample error: %s", len(errsPartial), len(sns), g.name, errsPartial[0])
+		}
 	}
+	if missingGroups >= *globalReplicationFactor {
+		// Too many groups contain all the non-working vmstorage nodes.
+		// Returns 503 status code, so the caller could retry it if needed.
+		err := &httpserver.ErrorWithStatusCode{
+			Err:        firstErr,
+			StatusCode: http.StatusServiceUnavailable,
+		}
+		return false, err
+	}
+
 	// Return partial results.
-	// This allows gracefully degrade vmselect in the case
+	// This allows continuing returning responses in the case
 	// if a part of vmstorage nodes are temporarily unavailable.
 	partialResultsCounter.Inc()
 	// Do not return the error, since it may spam logs on busy vmselect
 	// serving high amounts of requests.
-	partialErrorsLogger.Warnf("%d out of %d vmstorage nodes were unavailable during the query; a sample error: %s", len(errsPartial), len(sns), errsPartial[0])
 	return true, nil
 }
 
 var partialErrorsLogger = logger.WithThrottler("partialErrors", 10*time.Second)
 
+type storageNodesGroup struct {
+	// group name
+	name string
+
+	// replicationFactor for the given group
+	replicationFactor int
+
+	// the number of nodes in the group
+	nodesCount int
+
+	// groupsCount is the number of groups in the list the given group belongs to
+	groupsCount int
+}
+
+func initStorageNodeGroups(addrs []string) map[string]*storageNodesGroup {
+	m := make(map[string]*storageNodesGroup)
+	for _, addr := range addrs {
+		groupName, _ := netutil.ParseGroupAddr(addr)
+		g, ok := m[groupName]
+		if !ok {
+			g = &storageNodesGroup{
+				name:              groupName,
+				replicationFactor: replicationFactor.Get(groupName),
+			}
+			m[groupName] = g
+		}
+		g.nodesCount++
+	}
+
+	groupsCount := len(m)
+	for _, g := range m {
+		g.groupsCount = groupsCount
+	}
+
+	return m
+}
+
 type storageNode struct {
+	// The group this storageNode belongs to.
+	group *storageNodesGroup
+
+	// Connection pool for the given storageNode.
 	connPool *netutil.ConnPool
 
 	// The number of concurrent queries to storageNode.
@@ -1991,10 +2245,7 @@ func (sn *storageNode) processSearchMetricNames(qt *querytracer.Tracer, requestD
 func (sn *storageNode) processSearchQuery(qt *querytracer.Tracer, requestData []byte, processBlock func(mb *storage.MetricBlock, workerID uint) error,
 	workerID uint, deadline searchutils.Deadline) error {
 	f := func(bc *handshake.BufferedConn) error {
-		if err := sn.processSearchQueryOnConn(bc, requestData, processBlock, workerID); err != nil {
-			return err
-		}
-		return nil
+		return sn.processSearchQueryOnConn(bc, requestData, processBlock, workerID)
 	}
 	return sn.execOnConnWithPossibleRetry(qt, "search_v7", f, deadline)
 }
@@ -2008,8 +2259,12 @@ func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcN
 	}
 	var er *errRemote
 	var ne net.Error
-	if errors.As(err, &er) || errors.As(err, &ne) && ne.Timeout() {
-		// There is no sense in repeating the query on errors induced by vmstorage (errRemote) or on network timeout errors.
+	if errors.As(err, &er) || errors.As(err, &ne) && ne.Timeout() || deadline.Exceeded() {
+		// There is no sense in repeating the query on the following errors:
+		//
+		//   - induced by vmstorage (errRemote)
+		//   - network timeout errors
+		//   - request deadline exceeded errors
 		return err
 	}
 	// Repeat the query in the hope the error was temporary.
@@ -2676,10 +2931,10 @@ type storageNodesBucket struct {
 	sns []*storageNode
 }
 
-var storageNodes atomic.Value
+var storageNodes atomic.Pointer[storageNodesBucket]
 
 func getStorageNodesBucket() *storageNodesBucket {
-	return storageNodes.Load().(*storageNodesBucket)
+	return storageNodes.Load()
 }
 
 func setStorageNodesBucket(snb *storageNodesBucket) {
@@ -2709,50 +2964,77 @@ func initStorageNodes(addrs []string) *storageNodesBucket {
 	if len(addrs) == 0 {
 		logger.Panicf("BUG: addrs must be non-empty")
 	}
+
+	groupsMap := initStorageNodeGroups(addrs)
+
+	var snsLock sync.Mutex
 	sns := make([]*storageNode, 0, len(addrs))
+	var wg sync.WaitGroup
 	ms := metrics.NewSet()
+	// initialize connections to storage nodes in parallel in order speed up the initialization
+	// for big number of storage nodes.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4364
 	for _, addr := range addrs {
-		if _, _, err := net.SplitHostPort(addr); err != nil {
-			// Automatically add missing port.
-			addr += ":8401"
-		}
-		sn := &storageNode{
-			// There is no need in requests compression, since they are usually very small.
-			connPool: netutil.NewConnPool(ms, "vmselect", addr, handshake.VMSelectClient, 0, *vmstorageDialTimeout),
+		var groupName string
+		groupName, addr = netutil.ParseGroupAddr(addr)
+		group := groupsMap[groupName]
 
-			concurrentQueries: ms.NewCounter(fmt.Sprintf(`vm_concurrent_queries{name="vmselect", addr=%q}`, addr)),
-
-			registerMetricNamesRequests: ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			registerMetricNamesErrors:   ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			deleteSeriesRequests:        ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			deleteSeriesErrors:          ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelNamesRequests:          ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelNamesErrors:            ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelValuesRequests:         ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelValuesErrors:           ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tagValueSuffixesRequests:    ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tagValueSuffixesErrors:      ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tsdbStatusRequests:          ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tsdbStatusErrors:            ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			seriesCountRequests:         ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			seriesCountErrors:           ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchMetricNamesRequests:   ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchMetricNamesErrors:     ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchRequests:              ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchErrors:                ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tenantsRequests:             ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="tenants", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tenantsErrors:               ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tenants", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-
-			metricBlocksRead: ms.NewCounter(fmt.Sprintf(`vm_metric_blocks_read_total{name="vmselect", addr=%q}`, addr)),
-			metricRowsRead:   ms.NewCounter(fmt.Sprintf(`vm_metric_rows_read_total{name="vmselect", addr=%q}`, addr)),
-		}
-		sns = append(sns, sn)
+		wg.Add(1)
+		go func(addr string) {
+			defer wg.Done()
+			sn := newStorageNode(ms, group, addr)
+			snsLock.Lock()
+			sns = append(sns, sn)
+			snsLock.Unlock()
+		}(addr)
 	}
+	wg.Wait()
 	metrics.RegisterSet(ms)
 	return &storageNodesBucket{
 		sns: sns,
 		ms:  ms,
 	}
+}
+
+func newStorageNode(ms *metrics.Set, group *storageNodesGroup, addr string) *storageNode {
+	if _, _, err := net.SplitHostPort(addr); err != nil {
+		// Automatically add missing port.
+		addr += ":8401"
+	}
+	// There is no need in requests compression, since vmselect requests are usually very small.
+	connPool := netutil.NewConnPool(ms, "vmselect", addr, handshake.VMSelectClient, 0, *vmstorageDialTimeout, *vmstorageUserTimeout)
+
+	sn := &storageNode{
+		group:    group,
+		connPool: connPool,
+
+		concurrentQueries: ms.NewCounter(fmt.Sprintf(`vm_concurrent_queries{name="vmselect", addr=%q}`, addr)),
+
+		registerMetricNamesRequests: ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		registerMetricNamesErrors:   ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		deleteSeriesRequests:        ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		deleteSeriesErrors:          ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		labelNamesRequests:          ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		labelNamesErrors:            ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		labelValuesRequests:         ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		labelValuesErrors:           ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		tagValueSuffixesRequests:    ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		tagValueSuffixesErrors:      ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		tsdbStatusRequests:          ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		tsdbStatusErrors:            ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		seriesCountRequests:         ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		seriesCountErrors:           ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		searchMetricNamesRequests:   ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		searchMetricNamesErrors:     ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		searchRequests:              ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		searchErrors:                ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		tenantsRequests:             ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="tenants", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		tenantsErrors:               ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tenants", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+
+		metricBlocksRead: ms.NewCounter(fmt.Sprintf(`vm_metric_blocks_read_total{name="vmselect", addr=%q}`, addr)),
+		metricRowsRead:   ms.NewCounter(fmt.Sprintf(`vm_metric_rows_read_total{name="vmselect", addr=%q}`, addr)),
+	}
+	return sn
 }
 
 func mustStopStorageNodes(snb *storageNodesBucket) {
@@ -2818,3 +3100,8 @@ func (pnc *perNodeCounter) GetTotal() uint64 {
 	}
 	return total
 }
+
+// Go uses fast allocations for block sizes up to 32Kb.
+//
+// See https://github.com/golang/go/blob/704401ffa06c60e059c9e6e4048045b4ff42530a/src/runtime/malloc.go#L11
+const maxFastAllocBlockSize = 32 * 1024

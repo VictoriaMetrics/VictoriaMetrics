@@ -1425,9 +1425,6 @@ func getTestExpectedRawBlocks(rowsOriginal []rawRow, tsids []TSID, tr TimeRange)
 
 func newTestPart(rows []rawRow) *part {
 	mp := newTestInmemoryPart(rows)
-	p, err := mp.NewPart()
-	if err != nil {
-		panic(fmt.Errorf("cannot create new part: %w", err))
-	}
+	p := mp.NewPart()
 	return p
 }

@@ -4,11 +4,11 @@
 
 1. To build the snapshot in DigitalOcean account you will need API Token and [packer](https://learn.hashicorp.com/tutorials/packer/get-started-install-cli).
 2. API Token can be generated on [https://cloud.digitalocean.com/account/api/tokens](https://cloud.digitalocean.com/account/api/tokens) or use already generated from OnePassword.
-3. Choose prefered version of VictoriaMetrics on [Github releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page.
+3. Choose prefered version of VictoriaMetrics on [Github releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page.
 4. Set variables `DIGITALOCEAN_API_TOKEN` with `VM_VERSION` for `packer` environment and run make from example below:
 
 ```console
-make release-victoria-metrics-digitalocean-oneclick-droplet DIGITALOCEAN_API_TOKEN="dop_v23_2e46f4759ceeeba0d0248" VM_VERSION="1.88.0"
+make release-victoria-metrics-digitalocean-oneclick-droplet DIGITALOCEAN_API_TOKEN="dop_v23_2e46f4759ceeeba0d0248" VM_VERSION="1.94.0"
 ```
 
 

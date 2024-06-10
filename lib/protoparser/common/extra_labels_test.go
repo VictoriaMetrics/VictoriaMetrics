@@ -62,6 +62,9 @@ func TestGetPushgatewayLabelsSuccess(t *testing.T) {
 	f("/foo/metrics/job@base64/Zm9v", `{job="foo"}`)
 	f("/foo/metrics/job/x/a/foo/aaa/bar", `{a="foo",aaa="bar",job="x"}`)
 	f("/foo/metrics/job/x/a@base64/Zm9v", `{a="foo",job="x"}`)
+	f("/metrics/job/test/region@base64/YXotc291dGhlYXN0LTEtZjAxL3d6eS1hei1zb3V0aGVhc3QtMQ", `{job="test",region="az-southeast-1-f01/wzy-az-southeast-1"}`)
+	f("/metrics/job/test/empty@base64/=", `{job="test"}`)
+	f("/metrics/job/test/test@base64/PT0vPT0", `{job="test",test="==/=="}`)
 }
 
 func TestGetPushgatewayLabelsFailure(t *testing.T) {

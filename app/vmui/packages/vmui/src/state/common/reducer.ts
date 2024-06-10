@@ -3,6 +3,7 @@ import { getQueryStringValue } from "../../utils/query-string";
 import { getFromStorage, saveToStorage } from "../../utils/storage";
 import { Theme } from "../../types";
 import { isDarkTheme } from "../../utils/theme";
+import { removeTrailingSlash } from "../../utils/url";
 
 export interface AppState {
   serverUrl: string;
@@ -20,7 +21,7 @@ export type Action =
 const tenantId = getQueryStringValue("g0.tenantID", "") as string;
 
 export const initialState: AppState = {
-  serverUrl: getDefaultServer(tenantId),
+  serverUrl: removeTrailingSlash(getDefaultServer(tenantId)),
   tenantId,
   theme: (getFromStorage("THEME") || Theme.system) as Theme,
   isDarkTheme: null
@@ -31,7 +32,7 @@ export function reducer(state: AppState, action: Action): AppState {
     case "SET_SERVER":
       return {
         ...state,
-        serverUrl: action.payload
+        serverUrl: removeTrailingSlash(action.payload)
       };
     case "SET_TENANT_ID":
       return {

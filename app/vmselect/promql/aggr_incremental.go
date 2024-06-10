@@ -3,9 +3,9 @@ package promql
 import (
 	"math"
 	"strings"
-	"sync"
+	"unsafe"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/metricsql"
 )
 
@@ -63,31 +63,43 @@ var incrementalAggrFuncCallbacksMap = map[string]*incrementalAggrFuncCallbacks{
 	},
 }
 
+type incrementalAggrContextMap struct {
+	m map[string]*incrementalAggrContext
+
+	// The padding prevents false sharing on widespread platforms with
+	// 128 mod (cache line size) = 0 .
+	_ [128 - unsafe.Sizeof(map[string]*incrementalAggrContext{})%128]byte
+}
+
 type incrementalAggrFuncContext struct {
 	ae *metricsql.AggrFuncExpr
 
-	m sync.Map
+	byWorkerID []incrementalAggrContextMap
 
 	callbacks *incrementalAggrFuncCallbacks
 }
 
+func (iafc *incrementalAggrFuncContext) resetState() {
+	byWorkerID := iafc.byWorkerID
+	for i := range byWorkerID {
+		byWorkerID[i].m = make(map[string]*incrementalAggrContext, len(byWorkerID[i].m))
+	}
+}
+
 func newIncrementalAggrFuncContext(ae *metricsql.AggrFuncExpr, callbacks *incrementalAggrFuncCallbacks) *incrementalAggrFuncContext {
 	return &incrementalAggrFuncContext{
-		ae:        ae,
-		callbacks: callbacks,
+		ae:         ae,
+		byWorkerID: make([]incrementalAggrContextMap, netstorage.MaxWorkers()),
+		callbacks:  callbacks,
 	}
 }
 
 func (iafc *incrementalAggrFuncContext) updateTimeseries(tsOrig *timeseries, workerID uint) {
-	v, ok := iafc.m.Load(workerID)
-	if !ok {
-		// It is safe creating and storing m in iafc.m without locking,
-		// since it is guaranteed that only a single goroutine can execute
-		// code for the given workerID at a time.
-		v = make(map[string]*incrementalAggrContext, 1)
-		iafc.m.Store(workerID, v)
+	v := &iafc.byWorkerID[workerID]
+	if v.m == nil {
+		v.m = make(map[string]*incrementalAggrContext, 1)
 	}
-	m := v.(map[string]*incrementalAggrContext)
+	m := v.m
 
 	ts := tsOrig
 	keepOriginal := iafc.callbacks.keepOriginal
@@ -99,8 +111,8 @@ func (iafc *incrementalAggrFuncContext) updateTimeseries(tsOrig *timeseries, wor
 	removeGroupTags(&ts.MetricName, &iafc.ae.Modifier)
 	bb := bbPool.Get()
 	bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
-	k := bytesutil.InternBytes(bb.B)
-	iac := m[k]
+	k := bb.B
+	iac := m[string(k)]
 	if iac == nil {
 		if iafc.ae.Limit > 0 && len(m) >= iafc.ae.Limit {
 			// Skip this time series, since the limit on the number of output time series has been already reached.
@@ -119,7 +131,7 @@ func (iafc *incrementalAggrFuncContext) updateTimeseries(tsOrig *timeseries, wor
 			ts:     tsAggr,
 			values: make([]float64, len(ts.Values)),
 		}
-		m[k] = iac
+		m[string(k)] = iac
 	}
 	bbPool.Put(bb)
 	iafc.callbacks.updateAggrFunc(iac, ts.Values)
@@ -128,9 +140,9 @@ func (iafc *incrementalAggrFuncContext) updateTimeseries(tsOrig *timeseries, wor
 func (iafc *incrementalAggrFuncContext) finalizeTimeseries() []*timeseries {
 	mGlobal := make(map[string]*incrementalAggrContext)
 	mergeAggrFunc := iafc.callbacks.mergeAggrFunc
-	iafc.m.Range(func(k, v interface{}) bool {
-		m := v.(map[string]*incrementalAggrContext)
-		for k, iac := range m {
+	byWorkerID := iafc.byWorkerID
+	for i := range byWorkerID {
+		for k, iac := range byWorkerID[i].m {
 			iacGlobal := mGlobal[k]
 			if iacGlobal == nil {
 				if iafc.ae.Limit > 0 && len(mGlobal) >= iafc.ae.Limit {
@@ -142,14 +154,15 @@ func (iafc *incrementalAggrFuncContext) finalizeTimeseries() []*timeseries {
 			}
 			mergeAggrFunc(iacGlobal, iac)
 		}
-		return true
-	})
+	}
 	tss := make([]*timeseries, 0, len(mGlobal))
 	finalizeAggrFunc := iafc.callbacks.finalizeAggrFunc
 	for _, iac := range mGlobal {
 		finalizeAggrFunc(iac)
 		tss = append(tss, iac.ts)
 	}
+	// reset iafc state, so it could be re-used
+	iafc.resetState()
 	return tss
 }
 

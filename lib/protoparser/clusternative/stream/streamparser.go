@@ -116,10 +116,7 @@ func sendAck(bc *handshake.BufferedConn, status byte) error {
 	if _, err := bc.Write(b.B); err != nil {
 		return err
 	}
-	if err := bc.Flush(); err != nil {
-		return err
-	}
-	return nil
+	return bc.Flush()
 }
 
 var auxBufPool bytesutil.ByteBufferPool

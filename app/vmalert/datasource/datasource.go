@@ -1,9 +1,12 @@
 package datasource
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 	"net/url"
+	"sort"
+	"strconv"
 	"time"
 )
 
@@ -13,11 +16,22 @@ type Querier interface {
 	// It returns list of Metric in response, the http.Request used for sending query
 	// and error if any. Returned http.Request can't be reused and its body is already read.
 	// Query should stop once ctx is cancelled.
-	Query(ctx context.Context, query string, ts time.Time) ([]Metric, *http.Request, error)
+	Query(ctx context.Context, query string, ts time.Time) (Result, *http.Request, error)
 	// QueryRange executes range request with the given query on the given time range.
 	// It returns list of Metric in response and error if any.
 	// QueryRange should stop once ctx is cancelled.
-	QueryRange(ctx context.Context, query string, from, to time.Time) ([]Metric, error)
+	QueryRange(ctx context.Context, query string, from, to time.Time) (Result, error)
+}
+
+// Result represents expected response from the datasource
+type Result struct {
+	// Data contains list of received Metric
+	Data []Metric
+	// SeriesFetched contains amount of time series processed by datasource
+	// during query evaluation.
+	// If nil, then this feature is not supported by the datasource.
+	// SeriesFetched is supported by VictoriaMetrics since v1.90.
+	SeriesFetched *int
 }
 
 // QuerierBuilder builds Querier with given params.
@@ -96,4 +110,70 @@ func (m *Metric) Label(key string) string {
 type Label struct {
 	Name  string
 	Value string
+}
+
+// Labels is collection of Label
+type Labels []Label
+
+func (ls Labels) Len() int           { return len(ls) }
+func (ls Labels) Swap(i, j int)      { ls[i], ls[j] = ls[j], ls[i] }
+func (ls Labels) Less(i, j int) bool { return ls[i].Name < ls[j].Name }
+
+func (ls Labels) String() string {
+	var b bytes.Buffer
+
+	b.WriteByte('{')
+	for i, l := range ls {
+		if i > 0 {
+			b.WriteByte(',')
+			b.WriteByte(' ')
+		}
+		b.WriteString(l.Name)
+		b.WriteByte('=')
+		b.WriteString(strconv.Quote(l.Value))
+	}
+	b.WriteByte('}')
+	return b.String()
+}
+
+// LabelCompare return negative if a is less than b, return 0 if they are the same
+// eg.
+// a=[]Label{{Name: "a", Value: "1"}},b=[]Label{{Name: "b", Value: "1"}}, return -1
+// a=[]Label{{Name: "a", Value: "2"}},b=[]Label{{Name: "a", Value: "1"}}, return 1
+// a=[]Label{{Name: "a", Value: "1"}},b=[]Label{{Name: "a", Value: "1"}}, return 0
+func LabelCompare(a, b Labels) int {
+	l := len(a)
+	if len(b) < l {
+		l = len(b)
+	}
+
+	for i := 0; i < l; i++ {
+		if a[i].Name != b[i].Name {
+			if a[i].Name < b[i].Name {
+				return -1
+			}
+			return 1
+		}
+		if a[i].Value != b[i].Value {
+			if a[i].Value < b[i].Value {
+				return -1
+			}
+			return 1
+		}
+	}
+	// if all labels so far were in common, the set with fewer labels comes first.
+	return len(a) - len(b)
+}
+
+// ConvertToLabels convert map to Labels
+func ConvertToLabels(m map[string]string) (labelset Labels) {
+	for k, v := range m {
+		labelset = append(labelset, Label{
+			Name:  k,
+			Value: v,
+		})
+	}
+	// sort label
+	sort.Slice(labelset, func(i, j int) bool { return labelset[i].Name < labelset[j].Name })
+	return
 }

@@ -8,13 +8,20 @@
   }
 
   &-section {
-    margin-bottom: $padding-medium;
+    position: relative;
+    margin-bottom: $padding-global;
+    padding-bottom: $padding-global;
+    border-bottom: $border-divider;
 
     &__title {
       font-weight: bold;
-      padding: $padding-small 0;
       margin-bottom: $padding-global;
-      border-bottom: $border-divider;
+    }
+
+    &__read-more {
+      position: absolute;
+      top: -8px;
+      right: 0;
     }
 
     &-list {
@@ -40,6 +47,7 @@
           align-items: center;
           gap: 4px;
 
+          svg,
           code {
             display: inline-block;
             padding: 2px $padding-small 0;
@@ -51,6 +59,12 @@
             background-repeat: repeat-x;
             border: $border-divider;
             border-radius: 4px;
+          }
+
+          svg {
+            width: 24px;
+            padding: 4px;
+            color: $color-primary;
           }
         }
 

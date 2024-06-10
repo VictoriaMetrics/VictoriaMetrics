@@ -17,7 +17,7 @@ import (
 // SDCheckInterval defines interval for targets refresh.
 var SDCheckInterval = flag.Duration("promscrape.digitaloceanSDCheckInterval", time.Minute, "Interval for checking for changes in digital ocean. "+
 	"This works only if digitalocean_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://docs.victoriametrics.com/sd_configs.html#digitalocean_sd_configs for details")
+	"See https://docs.victoriametrics.com/sd_configs/#digitalocean_sd_configs for details")
 
 // SDConfig represents service discovery config for digital ocean.
 //
@@ -110,7 +110,7 @@ func (r *listDropletResponse) nextURLPath() (string, error) {
 	}
 	u, err := url.Parse(r.Links.Pages.Next)
 	if err != nil {
-		return "", fmt.Errorf("cannot parse digital ocean next url: %s, err: %s", r.Links.Pages.Next, err)
+		return "", fmt.Errorf("cannot parse digital ocean next url: %s: %w", r.Links.Pages.Next, err)
 	}
 	return u.RequestURI(), nil
 }
@@ -155,5 +155,9 @@ func addDropletLabels(droplets []droplet, defaultPort int) []*promutils.Labels {
 
 // MustStop stops further usage for sdc.
 func (sdc *SDConfig) MustStop() {
-	configMap.Delete(sdc)
+	v := configMap.Delete(sdc)
+	if v != nil {
+		cfg := v.(*apiConfig)
+		cfg.client.Stop()
+	}
 }

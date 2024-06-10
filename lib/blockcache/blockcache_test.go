@@ -83,20 +83,22 @@ func TestCache(t *testing.T) {
 	if n := c.Misses(); n != 2 {
 		t.Fatalf("unexpected number of misses; got %d; want %d", n, 2)
 	}
-	// Store the missed entry to the cache. It shouldn't be stored because of the previous cache miss
-	c.PutBlock(k, &b)
-	if n := c.SizeBytes(); n != 0 {
-		t.Fatalf("unexpected SizeBytes(); got %d; want %d", n, 0)
-	}
-	// Verify that the entry wasn't stored to the cache.
-	if b1 := c.GetBlock(k); b1 != nil {
-		t.Fatalf("unexpected non-nil block obtained after removing all the blocks for the part; got %v", b1)
-	}
-	if n := c.Requests(); n != 4 {
-		t.Fatalf("unexpected number of requests; got %d; want %d", n, 4)
-	}
-	if n := c.Misses(); n != 3 {
-		t.Fatalf("unexpected number of misses; got %d; want %d", n, 3)
+	for i := 0; i < *missesBeforeCaching; i++ {
+		// Store the missed entry to the cache. It shouldn't be stored because of the previous cache miss
+		c.PutBlock(k, &b)
+		if n := c.SizeBytes(); n != 0 {
+			t.Fatalf("unexpected SizeBytes(); got %d; want %d", n, 0)
+		}
+		// Verify that the entry wasn't stored to the cache.
+		if b1 := c.GetBlock(k); b1 != nil {
+			t.Fatalf("unexpected non-nil block obtained after removing all the blocks for the part; got %v", b1)
+		}
+		if n := c.Requests(); n != uint64(4+i) {
+			t.Fatalf("unexpected number of requests; got %d; want %d", n, 4+i)
+		}
+		if n := c.Misses(); n != uint64(3+i) {
+			t.Fatalf("unexpected number of misses; got %d; want %d", n, 3+i)
+		}
 	}
 	// Store the entry again. Now it must be stored because of the second cache miss.
 	c.PutBlock(k, &b)
@@ -106,11 +108,11 @@ func TestCache(t *testing.T) {
 	if b1 := c.GetBlock(k); b1 != &b {
 		t.Fatalf("unexpected block obtained; got %v; want %v", b1, &b)
 	}
-	if n := c.Requests(); n != 5 {
-		t.Fatalf("unexpected number of requests; got %d; want %d", n, 5)
+	if n := c.Requests(); n != uint64(4+*missesBeforeCaching) {
+		t.Fatalf("unexpected number of requests; got %d; want %d", n, 4+*missesBeforeCaching)
 	}
-	if n := c.Misses(); n != 3 {
-		t.Fatalf("unexpected number of misses; got %d; want %d", n, 3)
+	if n := c.Misses(); n != uint64(2+*missesBeforeCaching) {
+		t.Fatalf("unexpected number of misses; got %d; want %d", n, 2+*missesBeforeCaching)
 	}
 
 	// Manually clean the cache. The entry shouldn't be deleted because it was recently accessed.
@@ -121,7 +123,7 @@ func TestCache(t *testing.T) {
 	}
 }
 
-func TestCacheConcurrentAccess(t *testing.T) {
+func TestCacheConcurrentAccess(_ *testing.T) {
 	const sizeMaxBytes = 16 * 1024 * 1024
 	getMaxSize := func() int {
 		return sizeMaxBytes

@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "./static/css/main.7e9644cd.css",
+    "main.js": "./static/js/main.bfdd2931.js",
+    "static/js/685.bebe1265.chunk.js": "./static/js/685.bebe1265.chunk.js",
+    "static/media/MetricsQL.md": "./static/media/MetricsQL.cb83d071da309a358bc0.md",
+    "index.html": "./index.html"
+  },
+  "entrypoints": [
+    "static/css/main.7e9644cd.css",
+    "static/js/main.bfdd2931.js"
+  ]
+}

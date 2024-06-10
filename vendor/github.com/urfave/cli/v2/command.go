@@ -20,6 +20,8 @@ type Command struct {
 	UsageText string
 	// A longer explanation of how the command works
 	Description string
+	// Whether this command supports arguments
+	Args bool
 	// A short description of the arguments of this command
 	ArgsUsage string
 	// The category the command is part of
@@ -130,14 +132,12 @@ func (c *Command) setup(ctx *Context) {
 	}
 	sort.Sort(c.categories.(*commandCategories))
 
-	var newCmds []*Command
 	for _, scmd := range c.Subcommands {
 		if scmd.HelpName == "" {
 			scmd.HelpName = fmt.Sprintf("%s %s", c.HelpName, scmd.Name)
 		}
-		newCmds = append(newCmds, scmd)
+		scmd.separator = c.separator
 	}
-	c.Subcommands = newCmds
 
 	if c.BashComplete == nil {
 		c.BashComplete = DefaultCompleteWithFlags(c)
@@ -148,6 +148,9 @@ func (c *Command) Run(cCtx *Context, arguments ...string) (err error) {
 
 	if !c.isRoot {
 		c.setup(cCtx)
+		if err := checkDuplicatedCmds(c); err != nil {
+			return err
+		}
 	}
 
 	a := args(arguments)
@@ -402,4 +405,17 @@ func hasCommand(commands []*Command, command *Command) bool {
 	}
 
 	return false
+}
+
+func checkDuplicatedCmds(parent *Command) error {
+	seen := make(map[string]struct{})
+	for _, c := range parent.Subcommands {
+		for _, name := range c.Names() {
+			if _, exists := seen[name]; exists {
+				return fmt.Errorf("parent command [%s] has duplicated subcommand name or alias: %s", parent.Name, name)
+			}
+			seen[name] = struct{}{}
+		}
+	}
+	return nil
 }

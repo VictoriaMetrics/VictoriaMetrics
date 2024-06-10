@@ -1,6 +1,7 @@
 {% import (
 	"net/url"
-	"time"
+	"strconv"
+	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/htmlcomponents"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
@@ -26,7 +27,7 @@
 		{% if filter.showOriginalLabels %}originalLabels={%s= ts.sw.Config.OriginalLabels.String() %},{% space %}{% endif %}
 		scrapes_total={%d ts.scrapesTotal %},{% space %}
 		scrapes_failed={%d ts.scrapesFailed %},{% space %}
-		last_scrape={%d int(ts.getDurationFromLastScrape().Milliseconds()) %}ms ago,{% space %}
+		last_scrape={%s ts.getDurationFromLastScrape() %},{% space %}
 		scrape_duration={%d int(ts.scrapeDuration) %}ms,{% space %}
 		samples_scraped={%d ts.samplesScraped %},{% space %}
 		error={% if ts.err != nil %}{%s= ts.err.Error() %}{% endif %}
@@ -180,7 +181,7 @@
     <div class="row mt-4">
         <div class="col-12">
             {% for i, jts := range tsr.jobTargetsStatuses %}
-                {%= scrapeJobTargets(i, jts) %}
+                {%= scrapeJobTargets(i, jts, tsr.hasOriginalLabels) %}
             {% endfor %}
             {% for i, jobName := range tsr.emptyJobs %}
                 {% code
@@ -189,13 +190,13 @@
                         jobName: jobName,
                     }
                 %}
-                {%= scrapeJobTargets(num, jts) %}
+                {%= scrapeJobTargets(num, jts, tsr.hasOriginalLabels) %}
             {% endfor %}
         </div>
    </div>
 {% endfunc %}
 
-{% func scrapeJobTargets(num int, jts *jobTargetsStatuses) %}
+{% func scrapeJobTargets(num int, jts *jobTargetsStatuses, hasOriginalLabels bool) %}
     <div class="row mb-4">
         <div class="col-12">
             <h4>
@@ -209,7 +210,9 @@
                             <th scope="col">Endpoint</th>
                             <th scope="col">State</th>
                             <th scope="col" title="target labels">Labels</th>
-                            <th scope="col" title="debug relabeling">Debug relabeling</th>
+                            {% if hasOriginalLabels %}
+                              <th scope="col" title="debug relabeling">Debug relabeling</th>
+                            {% endif %}
                             <th scope="col" title="total scrapes">Scrapes</th>
                             <th scope="col" title="total scrape errors">Errors</th>
                             <th scope="col" title="the time of the last scrape">Last Scrape</th>
@@ -222,16 +225,19 @@
                     {% for _, ts := range jts.targetsStatus %}
                     {% code
                         endpoint := ts.sw.Config.ScrapeURL
+                        originalLabels := ts.sw.Config.OriginalLabels
+
                         // The target is uniquely identified by a pointer to its original labels.
-                        targetID := getLabelsID(ts.sw.Config.OriginalLabels)
-                        lastScrapeDuration := ts.getDurationFromLastScrape()
+                        targetID := getLabelsID(originalLabels)
                     %}
                         <tr {% if !ts.up %}{%space%}class="alert alert-danger" role="alert" {% endif %}>
                             <td class="endpoint">
-                                <a href="{%s endpoint %}" target="_blank">{%s endpoint %}</a> (
-                                <a href="target_response?id={%s targetID %}" target="_blank"
-                                  title="click to fetch target response on behalf of the scraper">response</a>
-                                )
+                              <a href="{%s endpoint %}" target="_blank">{%s endpoint %}</a>
+                                {% if hasOriginalLabels %}
+                                  {% space %}
+                                  (<a href="target_response?id={%s targetID %}" target="_blank"
+                                    title="click to fetch target response on behalf of the scraper">response</a>)
+                                {% endif %}
                             </td>
                             <td>
                                 {% if ts.up %}
@@ -241,26 +247,29 @@
                                 {% endif %}
                             </td>
                             <td class="labels">
-                                <div title="click to show original labels"
-                                  onclick="document.getElementById('original-labels-{%s targetID %}').style.display='block'">
-                                    {%= formatLabels(ts.sw.Config.Labels) %}
-                                </div>
+                              <div
+                                {% if hasOriginalLabels %}
+                                  {% space %}title="click to show original labels"
+                                    onclick="document.getElementById('original-labels-{%s targetID %}').style.display='block'"
+                                {% endif %}
+                              >
+                                {%= formatLabels(ts.sw.Config.Labels) %}
+                              </div>
+                              {% if hasOriginalLabels %}
                                 <div style="display:none" id="original-labels-{%s targetID %}">
-                                    {%= formatLabels(ts.sw.Config.OriginalLabels) %}
+                                  {%= formatLabels(originalLabels) %}
                                 </div>
+                              {% endif %}
                             </td>
-                            <td>
+                            {% if hasOriginalLabels %}
+                              <td>
                                 <a href="target-relabel-debug?id={%s targetID %}" target="_blank">target</a>{% space %}
                                 <a href="metric-relabel-debug?id={%s targetID %}" target="_blank">metrics</a>
-                            </td>
+                              </td>
+                            {% endif %}
                             <td>{%d ts.scrapesTotal %}</td>
                             <td>{%d ts.scrapesFailed %}</td>
-                            <td>
-                                {% if lastScrapeDuration < 365*24*time.Hour %}
-                                    {%d int(lastScrapeDuration.Milliseconds()) %}ms ago
-                                {% else %}
-                                    none
-                                {% endif %}
+                            <td>{%s ts.getDurationFromLastScrape() %}
                             <td>{%d int(ts.scrapeDuration) %}ms</td>
                             <td>{%d ts.samplesScraped %}</td>
                             <td>{% if ts.err != nil %}{%s ts.err.Error() %}{% endif %}</td>
@@ -274,6 +283,21 @@
 {% endfunc %}
 
 {% func discoveredTargets(tsr *targetsStatusResult) %}
+    {% if !tsr.hasOriginalLabels %}
+        <div class="alert alert-warning" role="alert">
+            Discovered targets are unavailable when <b>-promscrape.dropOriginalLabels</b> command-line flag is set
+        </div>
+        {% return %}
+    {% endif %}
+
+    {% if n := droppedTargetsMap.getTotalTargets(); n > *maxDroppedTargets %}
+        <div class="alert alert-warning" role="alert">
+            Dropped targets' list below is incomplete, because the number of dropped targets exceeds <b>-promscrape.maxDroppedTargets={%d *maxDroppedTargets %}</b>.<br/>
+            If you want to see the full list of dropped targets, then increase <b>-promscrape.maxDroppedTargets</b> command-line flag value to at least{% space %}<b>{%d n %}</b>.<br/>
+            Note that this may increase memory usage.
+        </div>
+    {% endif %}
+
     {% code tljs := tsr.getTargetLabelsByJob() %}
     <div class="row mt-4">
         <div class="col-12">
@@ -317,7 +341,20 @@
                         {% elseif t.labels.Len() > 0 %}
                             <span class="badge bg-danger">DOWN</span>
                         {% else %}
-                            <span class="badge bg-warning">DROPPED</span>
+                            <span class="badge bg-warning">DROPPED ({%s string(t.dropReason) %})</span>
+                            {% if len(t.clusterMemberNums) > 0 %}
+                                <br/>
+                                <span title="The target exists at vmagent instances with the given -promscrape.cluster.memberNum values">
+                                exists at{% space %}
+                                {% for i, memberNum := range t.clusterMemberNums %}
+                                    {% if *clusterMemberURLTemplate == "" %}
+                                        shard-{%d memberNum %}
+                                    {% else %}
+                                        <a href="{%s strings.ReplaceAll(*clusterMemberURLTemplate, "%d", strconv.Itoa(memberNum)) %}" target="_blank">shard-{%d memberNum %}</a>
+                                    {% endif %}
+                                    {% if i+1 < len(t.clusterMemberNums) %},{% space %}{% endif %}
+                                {% endfor %}
+                            {% endif %}
                         {% endif %}
                     </td>
                     <td class="labels">

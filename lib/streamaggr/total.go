@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
@@ -12,74 +13,114 @@ import (
 type totalAggrState struct {
 	m sync.Map
 
-	ignoreInputDeadline uint64
-	intervalSecs        uint64
+	suffix string
+
+	// Whether to reset the output value on every flushState call.
+	resetTotalOnFlush bool
+
+	// Whether to take into account the first sample in new time series when calculating the output value.
+	keepFirstSample bool
+
+	// Time series state is dropped if no new samples are received during stalenessSecs.
+	//
+	// Aslo, the first sample per each new series is ignored during stalenessSecs even if keepFirstSample is set.
+	// see ignoreFirstSampleDeadline for more details.
+	stalenessSecs uint64
+
+	// The first sample per each new series is ignored until this unix timestamp deadline in seconds even if keepFirstSample is set.
+	// This allows avoiding an initial spike of the output values at startup when new time series
+	// cannot be distinguished from already existing series. This is tracked with ignoreFirstSampleDeadline.
+	ignoreFirstSampleDeadline uint64
 }
 
 type totalStateValue struct {
 	mu             sync.Mutex
-	lastValues     map[string]*lastValueState
+	lastValues     map[string]totalLastValueState
 	total          float64
 	deleteDeadline uint64
 	deleted        bool
 }
 
-type lastValueState struct {
+type totalLastValueState struct {
 	value          float64
+	timestamp      int64
 	deleteDeadline uint64
 }
 
-func newTotalAggrState(interval time.Duration) *totalAggrState {
-	currentTime := fasttime.UnixTimestamp()
-	intervalSecs := uint64(interval.Seconds() + 1)
+func newTotalAggrState(stalenessInterval time.Duration, resetTotalOnFlush, keepFirstSample bool) *totalAggrState {
+	stalenessSecs := roundDurationToSecs(stalenessInterval)
+	ignoreFirstSampleDeadline := fasttime.UnixTimestamp() + stalenessSecs
+	suffix := "total"
+	if resetTotalOnFlush {
+		suffix = "increase"
+	}
+	if !keepFirstSample {
+		suffix += "_prometheus"
+	}
 	return &totalAggrState{
-		ignoreInputDeadline: currentTime + intervalSecs,
-		intervalSecs:        intervalSecs,
+		suffix:                    suffix,
+		resetTotalOnFlush:         resetTotalOnFlush,
+		keepFirstSample:           keepFirstSample,
+		stalenessSecs:             stalenessSecs,
+		ignoreFirstSampleDeadline: ignoreFirstSampleDeadline,
 	}
 }
 
-func (as *totalAggrState) pushSample(inputKey, outputKey string, value float64) {
+func (as *totalAggrState) pushSamples(samples []pushSample) {
 	currentTime := fasttime.UnixTimestamp()
-	deleteDeadline := currentTime + as.intervalSecs + (as.intervalSecs >> 1)
+	deleteDeadline := currentTime + as.stalenessSecs
+	keepFirstSample := as.keepFirstSample && currentTime > as.ignoreFirstSampleDeadline
+	for i := range samples {
+		s := &samples[i]
+		inputKey, outputKey := getInputOutputKey(s.key)
 
-again:
-	v, ok := as.m.Load(outputKey)
-	if !ok {
-		// The entry is missing in the map. Try creating it.
-		v = &totalStateValue{
-			lastValues: make(map[string]*lastValueState),
-		}
-		vNew, loaded := as.m.LoadOrStore(outputKey, v)
-		if loaded {
-			// Use the entry created by a concurrent goroutine.
-			v = vNew
-		}
-	}
-	sv := v.(*totalStateValue)
-	sv.mu.Lock()
-	deleted := sv.deleted
-	if !deleted {
-		lv, ok := sv.lastValues[inputKey]
+	again:
+		v, ok := as.m.Load(outputKey)
 		if !ok {
-			lv = &lastValueState{}
+			// The entry is missing in the map. Try creating it.
+			v = &totalStateValue{
+				lastValues: make(map[string]totalLastValueState),
+			}
+			outputKey = bytesutil.InternString(outputKey)
+			vNew, loaded := as.m.LoadOrStore(outputKey, v)
+			if loaded {
+				// Use the entry created by a concurrent goroutine.
+				v = vNew
+			}
+		}
+		sv := v.(*totalStateValue)
+		sv.mu.Lock()
+		deleted := sv.deleted
+		if !deleted {
+			lv, ok := sv.lastValues[inputKey]
+			if ok || keepFirstSample {
+				if s.timestamp < lv.timestamp {
+					// Skip out of order sample
+					sv.mu.Unlock()
+					continue
+				}
+
+				if s.value >= lv.value {
+					sv.total += s.value - lv.value
+				} else {
+					// counter reset
+					sv.total += s.value
+				}
+			}
+			lv.value = s.value
+			lv.timestamp = s.timestamp
+			lv.deleteDeadline = deleteDeadline
+
+			inputKey = bytesutil.InternString(inputKey)
 			sv.lastValues[inputKey] = lv
+			sv.deleteDeadline = deleteDeadline
 		}
-		d := value
-		if ok && lv.value <= value {
-			d = value - lv.value
+		sv.mu.Unlock()
+		if deleted {
+			// The entry has been deleted by the concurrent call to flushState
+			// Try obtaining and updating the entry again.
+			goto again
 		}
-		if ok || currentTime > as.ignoreInputDeadline {
-			sv.total += d
-		}
-		lv.value = value
-		lv.deleteDeadline = deleteDeadline
-		sv.deleteDeadline = deleteDeadline
-	}
-	sv.mu.Unlock()
-	if deleted {
-		// The entry has been deleted by the concurrent call to appendSeriesForFlush
-		// Try obtaining and updating the entry again.
-		goto again
 	}
 }
 
@@ -111,7 +152,7 @@ func (as *totalAggrState) removeOldEntries(currentTime uint64) {
 	})
 }
 
-func (as *totalAggrState) appendSeriesForFlush(ctx *flushCtx) {
+func (as *totalAggrState) flushState(ctx *flushCtx, resetState bool) {
 	currentTime := fasttime.UnixTimestamp()
 	currentTimeMsec := int64(currentTime) * 1000
 
@@ -122,15 +163,19 @@ func (as *totalAggrState) appendSeriesForFlush(ctx *flushCtx) {
 		sv := v.(*totalStateValue)
 		sv.mu.Lock()
 		total := sv.total
-		if math.Abs(sv.total) >= (1 << 53) {
-			// It is time to reset the entry, since it starts losing float64 precision
-			sv.total = 0
+		if resetState {
+			if as.resetTotalOnFlush {
+				sv.total = 0
+			} else if math.Abs(sv.total) >= (1 << 53) {
+				// It is time to reset the entry, since it starts losing float64 precision
+				sv.total = 0
+			}
 		}
 		deleted := sv.deleted
 		sv.mu.Unlock()
 		if !deleted {
 			key := k.(string)
-			ctx.appendSeries(key, "total", currentTimeMsec, total)
+			ctx.appendSeries(key, as.suffix, currentTimeMsec, total)
 		}
 		return true
 	})

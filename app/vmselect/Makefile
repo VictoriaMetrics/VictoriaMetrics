@@ -40,6 +40,9 @@ vmselect-freebsd-amd64-prod:
 vmselect-openbsd-amd64-prod:
 	APP_NAME=vmselect $(MAKE) app-via-docker-openbsd-amd64
 
+vmselect-windows-amd64-prod:
+	APP_NAME=vmselect $(MAKE) app-via-docker-windows-amd64
+
 vmselect-prod-race:
 	APP_NAME=vmselect RACE=-race $(MAKE) app-via-docker
 
@@ -85,6 +88,9 @@ vmselect-linux-ppc64le:
 vmselect-linux-s390x:
 	APP_NAME=vmselect CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-local-goos-goarch
 
+vmselect-linux-loong64:
+	APP_NAME=vmselect CGO_ENABLED=0 GOOS=linux GOARCH=loong64 $(MAKE) app-local-goos-goarch
+
 vmselect-linux-386:
 	APP_NAME=vmselect CGO_ENABLED=0 GOOS=linux GOARCH=386 $(MAKE) app-local-goos-goarch
 
@@ -93,6 +99,9 @@ vmselect-freebsd-amd64:
 
 vmselect-openbsd-amd64:
 	APP_NAME=vmselect CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmselect-windows-amd64:
+	GOARCH=amd64 APP_NAME=vmselect $(MAKE) app-local-windows-goarch
 
 vmselect-pure:
 	APP_NAME=vmselect $(MAKE) app-local-pure

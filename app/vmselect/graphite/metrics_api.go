@@ -10,10 +10,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
@@ -47,7 +48,7 @@ func MetricsFindHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 	if len(delimiter) > 1 {
 		return fmt.Errorf("`delimiter` query arg must contain only a single char")
 	}
-	if searchutils.GetBool(r, "automatic_variants") {
+	if httputils.GetBool(r, "automatic_variants") {
 		// See https://github.com/graphite-project/graphite-web/blob/bb9feb0e6815faa73f538af6ed35adea0fb273fd/webapp/graphite/metrics/views.py#L152
 		query = addAutomaticVariants(query, delimiter)
 	}
@@ -58,19 +59,19 @@ func MetricsFindHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 			query += "*"
 		}
 	}
-	leavesOnly := searchutils.GetBool(r, "leavesOnly")
-	wildcards := searchutils.GetBool(r, "wildcards")
+	leavesOnly := httputils.GetBool(r, "leavesOnly")
+	wildcards := httputils.GetBool(r, "wildcards")
 	label := r.FormValue("label")
 	if label == "__name__" {
 		label = ""
 	}
 	jsonp := r.FormValue("jsonp")
-	from, err := searchutils.GetTime(r, "from", 0)
+	from, err := httputils.GetTime(r, "from", 0)
 	if err != nil {
 		return err
 	}
 	ct := startTime.UnixNano() / 1e6
-	until, err := searchutils.GetTime(r, "until", ct)
+	until, err := httputils.GetTime(r, "until", ct)
 	if err != nil {
 		return err
 	}
@@ -78,7 +79,7 @@ func MetricsFindHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 		MinTimestamp: from,
 		MaxTimestamp: until,
 	}
-	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
+	denyPartialResponse := httputils.GetDenyPartialResponse(r)
 	paths, isPartial, err := metricsFind(at, denyPartialResponse, tr, label, "", query, delimiter[0], false, deadline)
 	if err != nil {
 		return err
@@ -86,7 +87,7 @@ func MetricsFindHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 	if leavesOnly {
 		paths = filterLeaves(paths, delimiter)
 	}
-	paths = deduplicatePaths(paths, delimiter)
+	paths = deduplicatePaths(paths)
 	sortPaths(paths, delimiter)
 	contentType := getContentType(jsonp)
 	w.Header().Set("Content-Type", contentType)
@@ -100,7 +101,7 @@ func MetricsFindHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 	return nil
 }
 
-func deduplicatePaths(paths []string, delimiter string) []string {
+func deduplicatePaths(paths []string) []string {
 	if len(paths) == 0 {
 		return nil
 	}
@@ -126,8 +127,8 @@ func MetricsExpandHandler(startTime time.Time, at *auth.Token, w http.ResponseWr
 	if len(queries) == 0 {
 		return fmt.Errorf("missing `query` arg")
 	}
-	groupByExpr := searchutils.GetBool(r, "groupByExpr")
-	leavesOnly := searchutils.GetBool(r, "leavesOnly")
+	groupByExpr := httputils.GetBool(r, "groupByExpr")
+	leavesOnly := httputils.GetBool(r, "leavesOnly")
 	label := r.FormValue("label")
 	if label == "__name__" {
 		label = ""
@@ -140,12 +141,12 @@ func MetricsExpandHandler(startTime time.Time, at *auth.Token, w http.ResponseWr
 		return fmt.Errorf("`delimiter` query arg must contain only a single char")
 	}
 	jsonp := r.FormValue("jsonp")
-	from, err := searchutils.GetTime(r, "from", 0)
+	from, err := httputils.GetTime(r, "from", 0)
 	if err != nil {
 		return err
 	}
 	ct := startTime.UnixNano() / 1e6
-	until, err := searchutils.GetTime(r, "until", ct)
+	until, err := httputils.GetTime(r, "until", ct)
 	if err != nil {
 		return err
 	}
@@ -155,7 +156,7 @@ func MetricsExpandHandler(startTime time.Time, at *auth.Token, w http.ResponseWr
 	}
 	m := make(map[string][]string, len(queries))
 	isPartialResponse := false
-	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
+	denyPartialResponse := httputils.GetDenyPartialResponse(r)
 	for _, query := range queries {
 		paths, isPartial, err := metricsFind(at, denyPartialResponse, tr, label, "", query, delimiter[0], true, deadline)
 		if err != nil {
@@ -208,7 +209,7 @@ func MetricsExpandHandler(startTime time.Time, at *auth.Token, w http.ResponseWr
 func MetricsIndexHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
 	jsonp := r.FormValue("jsonp")
-	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
+	denyPartialResponse := httputils.GetDenyPartialResponse(r)
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, 0, nil, 0)
 	metricNames, isPartial, err := netstorage.LabelValues(nil, denyPartialResponse, "__name__", sq, 0, deadline)
 	if err != nil {

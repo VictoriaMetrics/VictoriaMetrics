@@ -91,7 +91,7 @@ type HTTPIngressPath struct {
 // getTargetLabels returns labels for ig.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ingress
-func (ig *Ingress) getTargetLabels(gw *groupWatcher) []*promutils.Labels {
+func (ig *Ingress) getTargetLabels(_ *groupWatcher) []*promutils.Labels {
 	var ms []*promutils.Labels
 	for _, r := range ig.Spec.Rules {
 		paths := getIngressRulePaths(r.HTTP.Paths)

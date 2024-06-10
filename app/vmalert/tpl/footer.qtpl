@@ -10,35 +10,7 @@
         </main>
         <script src="{%s prefix %}static/js/jquery-3.6.0.min.js" type="text/javascript"></script>
         <script src="{%s prefix %}static/js/bootstrap.bundle.min.js" type="text/javascript"></script>
-        <script type="text/javascript">
-            function expandAll() {
-               $('.collapse').addClass('show');
-            }
-            function collapseAll() {
-               $('.collapse').removeClass('show');
-            }
-
-            $(document).ready(function() {
-              // prevent collapse logic on link click
-              $(".group-heading a").click(function(e) {
-                e.stopPropagation();
-              });
-
-              $(".group-heading").click(function(e) {
-                 let target = $(this).attr('data-bs-target');
-                 let el = $("#"+target);
-                  new bootstrap.Collapse(el, {
-                    toggle: true
-                  });
-              });
-
-              var hash = window.location.hash.substr(1);
-              let group = $("#"+hash);
-              if (group.length > 0) {
-                group.click();
-              }
-            });
-        </script>
+        <script src="{%s prefix %}static/js/custom.js" type="text/javascript"></script>
     </body>
 </html>
 {% endfunc %}

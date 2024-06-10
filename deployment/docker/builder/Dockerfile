@@ -3,7 +3,12 @@ FROM $go_builder_image
 STOPSIGNAL SIGINT
 RUN apk add git gcc musl-dev make wget --no-cache && \
     mkdir /opt/cross-builder && \
-    wget https://musl.cc/aarch64-linux-musl-cross.tgz -O /opt/cross-builder/aarch64-musl.tgz --no-verbose && \
     cd /opt/cross-builder && \
-    tar zxf aarch64-musl.tgz -C ./  && \
-    rm /opt/cross-builder/aarch64-musl.tgz
+    for arch in aarch64 x86_64; do \
+        wget \
+            https://musl.cc/${arch}-linux-musl-cross.tgz \
+            -O /opt/cross-builder/${arch}-musl.tgz \
+            --no-verbose && \
+        tar zxf ${arch}-musl.tgz -C ./  && \
+        rm /opt/cross-builder/${arch}-musl.tgz; \
+    done

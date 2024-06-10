@@ -42,6 +42,11 @@ func (c *Counter) Add(n int) {
 	atomic.AddUint64(&c.n, uint64(n))
 }
 
+// AddInt64 adds n to c.
+func (c *Counter) AddInt64(n int64) {
+	atomic.AddUint64(&c.n, uint64(n))
+}
+
 // Get returns the current value for c.
 func (c *Counter) Get() uint64 {
 	return atomic.LoadUint64(&c.n)
@@ -56,6 +61,10 @@ func (c *Counter) Set(n uint64) {
 func (c *Counter) marshalTo(prefix string, w io.Writer) {
 	v := c.Get()
 	fmt.Fprintf(w, "%s %d\n", prefix, v)
+}
+
+func (c *Counter) metricType() string {
+	return "counter"
 }
 
 // GetOrCreateCounter returns registered counter with the given name

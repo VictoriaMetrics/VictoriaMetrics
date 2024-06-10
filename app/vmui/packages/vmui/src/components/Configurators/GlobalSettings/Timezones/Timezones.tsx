@@ -1,27 +1,60 @@
 import React, { FC, useMemo, useRef, useState } from "preact/compat";
-import { getTimezoneList, getUTCByTimezone } from "../../../../utils/time";
+import { getBrowserTimezone, getTimezoneList, getUTCByTimezone } from "../../../../utils/time";
 import { ArrowDropDownIcon } from "../../../Main/Icons";
 import classNames from "classnames";
 import Popper from "../../../Main/Popper/Popper";
 import Accordion from "../../../Main/Accordion/Accordion";
-import dayjs from "dayjs";
 import TextField from "../../../Main/TextField/TextField";
 import { Timezone } from "../../../../types";
 import "./style.scss";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
+import useBoolean from "../../../../hooks/useBoolean";
+import WarningTimezone from "./WarningTimezone";
 
 interface TimezonesProps {
-  timezoneState: string
-  onChange: (val: string) => void
+  timezoneState: string;
+  defaultTimezone?: string;
+  onChange: (val: string) => void;
 }
 
-const Timezones: FC<TimezonesProps> = ({ timezoneState, onChange }) => {
+interface PinnedTimezone extends Timezone {
+  title: string;
+  isInvalid?: boolean;
+}
+
+const browserTimezone = getBrowserTimezone();
+
+const Timezones: FC<TimezonesProps> = ({ timezoneState, defaultTimezone, onChange }) => {
   const { isMobile } = useDeviceDetect();
   const timezones = getTimezoneList();
 
-  const [openList, setOpenList] = useState(false);
   const [search, setSearch] = useState("");
   const targetRef = useRef<HTMLDivElement>(null);
+
+  const {
+    value: openList,
+    toggle: toggleOpenList,
+    setFalse: handleCloseList,
+  } = useBoolean(false);
+
+  const pinnedTimezones = useMemo(() => [
+    {
+      title: `Default time (${defaultTimezone})`,
+      region: defaultTimezone,
+      utc: defaultTimezone ? getUTCByTimezone(defaultTimezone) : "UTC"
+    },
+    {
+      title: browserTimezone.title,
+      region: browserTimezone.region,
+      utc: getUTCByTimezone(browserTimezone.region),
+      isInvalid: !browserTimezone.isValid
+    },
+    {
+      title: "UTC (Coordinated Universal Time)",
+      region: "UTC",
+      utc: "UTC"
+    },
+  ].filter(t => t.region) as PinnedTimezone[], [defaultTimezone]);
 
   const searchTimezones = useMemo(() => {
     if (!search) return timezones;
@@ -34,23 +67,10 @@ const Timezones: FC<TimezonesProps> = ({ timezoneState, onChange }) => {
 
   const timezonesGroups = useMemo(() => Object.keys(searchTimezones), [searchTimezones]);
 
-  const localTimezone = useMemo(() => ({
-    region: dayjs.tz.guess(),
-    utc: getUTCByTimezone(dayjs.tz.guess())
-  }), []);
-
   const activeTimezone = useMemo(() => ({
     region: timezoneState,
     utc: getUTCByTimezone(timezoneState)
   }), [timezoneState]);
-
-  const toggleOpenList = () => {
-    setOpenList(prev => !prev);
-  };
-
-  const handleCloseList = () => {
-    setOpenList(false);
-  };
 
   const handleChangeSearch = (val: string) => {
     setSearch(val);
@@ -110,13 +130,16 @@ const Timezones: FC<TimezonesProps> = ({ timezoneState, onChange }) => {
                 onChange={handleChangeSearch}
               />
             </div>
-            <div
-              className="vm-timezones-item vm-timezones-list-group-options__item"
-              onClick={createHandlerSetTimezone(localTimezone)}
-            >
-              <div className="vm-timezones-item__title">Browser Time ({localTimezone.region})</div>
-              <div className="vm-timezones-item__utc">{localTimezone.utc}</div>
-            </div>
+            {pinnedTimezones.map((t, i) => t && (
+              <div
+                key={`${i}_${t.region}`}
+                className="vm-timezones-item vm-timezones-list-group-options__item"
+                onClick={createHandlerSetTimezone(t)}
+              >
+                <div className="vm-timezones-item__title">{t.title}{t.isInvalid && <WarningTimezone/>}</div>
+                <div className="vm-timezones-item__utc">{t.utc}</div>
+              </div>
+            ))}
           </div>
           {timezonesGroups.map(t => (
             <div

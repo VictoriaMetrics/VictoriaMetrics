@@ -79,6 +79,8 @@ func (f *filter) Add(h uint64) bool {
 		w := atomic.LoadUint64(&bits[i])
 		for (w & mask) == 0 {
 			wNew := w | mask
+			// The wNew != w most of the time, so there is no need in using atomic.LoadUint64
+			// in front of atomic.CompareAndSwapUint64 in order to try avoiding slow inter-CPU synchronization.
 			if atomic.CompareAndSwapUint64(&bits[i], w, wNew) {
 				isNew = true
 				break

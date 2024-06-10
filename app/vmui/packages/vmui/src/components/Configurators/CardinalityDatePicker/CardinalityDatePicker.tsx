@@ -1,5 +1,4 @@
-import React, { FC, useMemo, useRef } from "preact/compat";
-import { useCardinalityState, useCardinalityDispatch } from "../../../state/cardinality/CardinalityStateContext";
+import React, { FC, useEffect, useMemo, useRef } from "preact/compat";
 import dayjs from "dayjs";
 import Button from "../../Main/Button/Button";
 import { ArrowDownIcon, CalendarIcon } from "../../Main/Icons";
@@ -8,20 +7,28 @@ import { getAppModeEnable } from "../../../utils/app-mode";
 import { DATE_FORMAT } from "../../../constants/date";
 import DatePicker from "../../Main/DatePicker/DatePicker";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import { useSearchParams } from "react-router-dom";
+import useSearchParamsFromObject from "../../../hooks/useSearchParamsFromObject";
 
 const CardinalityDatePicker: FC = () => {
   const { isMobile } = useDeviceDetect();
   const appModeEnable = getAppModeEnable();
   const buttonRef = useRef<HTMLDivElement>(null);
 
-  const { date } = useCardinalityState();
-  const cardinalityDispatch = useCardinalityDispatch();
+  const [searchParams] = useSearchParams();
+  const { setSearchParamsFromKeys } = useSearchParamsFromObject();
+
+  const date = searchParams.get("date") || dayjs().tz().format(DATE_FORMAT);
 
   const dateFormatted = useMemo(() => dayjs.tz(date).format(DATE_FORMAT), [date]);
 
   const handleChangeDate = (val: string) => {
-    cardinalityDispatch({ type: "SET_DATE", payload: val });
+    setSearchParamsFromKeys({ date: val });
   };
+
+  useEffect(() => {
+    handleChangeDate(date);
+  }, []);
 
   return (
     <div>

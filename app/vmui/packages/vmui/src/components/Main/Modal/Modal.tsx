@@ -1,4 +1,4 @@
-import React, { FC, useEffect } from "preact/compat";
+import React, { FC, useCallback, useEffect } from "preact/compat";
 import ReactDOM from "react-dom";
 import { CloseIcon } from "../Icons";
 import Button from "../Button/Button";
@@ -7,6 +7,7 @@ import "./style.scss";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import classNames from "classnames";
 import { useLocation, useNavigate } from "react-router-dom";
+import useEventListener from "../../../hooks/useEventListener";
 
 interface ModalProps {
   title?: string
@@ -21,47 +22,41 @@ const Modal: FC<ModalProps> = ({
   children,
   onClose,
   className,
-  isOpen= true
+  isOpen = true
 }) => {
   const { isMobile } = useDeviceDetect();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleKeyUp = (e: KeyboardEvent) => {
+  const handleKeyUp = useCallback((e: KeyboardEvent) => {
+    if (!isOpen) return;
     if (e.key === "Escape") onClose();
-  };
+  }, [isOpen]);
 
   const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
   };
 
-  const handlePopstate = () => {
+  const handlePopstate = useCallback(() => {
     if (isOpen) {
       navigate(location, { replace: true });
       onClose();
     }
-  };
-
-  useEffect(() => {
-    window.addEventListener("popstate", handlePopstate);
-
-    return () => {
-      window.removeEventListener("popstate", handlePopstate);
-    };
-  }, [isOpen, location]);
+  }, [isOpen, location, onClose]);
 
   const handleDisplayModal = () => {
     if (!isOpen) return;
     document.body.style.overflow = "hidden";
-    window.addEventListener("keyup", handleKeyUp);
 
     return () => {
       document.body.style.overflow = "auto";
-      window.removeEventListener("keyup", handleKeyUp);
     };
   };
 
   useEffect(handleDisplayModal, [isOpen]);
+
+  useEventListener("popstate", handlePopstate);
+  useEventListener("keyup", handleKeyUp);
 
   return ReactDOM.createPortal((
     <div
@@ -87,14 +82,17 @@ const Modal: FC<ModalProps> = ({
               variant="text"
               size="small"
               onClick={onClose}
+              ariaLabel="close"
             >
               <CloseIcon/>
             </Button>
           </div>
         </div>
+        {/* tabIndex to fix Ctrl-A */}
         <div
           className="vm-modal-content-body"
           onMouseDown={handleMouseDown}
+          tabIndex={0}
         >
           {children}
         </div>

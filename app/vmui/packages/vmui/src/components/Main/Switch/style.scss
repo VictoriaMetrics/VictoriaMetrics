@@ -7,6 +7,7 @@ $switch-handle-size: $switch-height - ($switch-padding * 2);
 $switch-border-radius: $switch-handle-size + ($switch-padding * 2);
 
 .vm-switch {
+  font-size: $font-size-small;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -73,8 +74,12 @@ $switch-border-radius: $switch-handle-size + ($switch-padding * 2);
   &__label {
     white-space: nowrap;
     font-size: inherit;
-    color: inherit;
     margin-left: $padding-small;
     transition: color 200ms ease;
+    color: $color-text-secondary;
+  }
+
+  &_active &__label {
+    color: $color-text;
   }
 }

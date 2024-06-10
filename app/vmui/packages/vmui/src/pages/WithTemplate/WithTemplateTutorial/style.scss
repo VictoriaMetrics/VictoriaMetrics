@@ -1,0 +1,22 @@
+@use "src/styles/variables" as *;
+
+.vm-with-template-tutorial {
+  display: grid;
+  gap: $padding-large;
+
+  &__title {
+    font-size: $font-size-medium;
+    font-weight: bold;
+  }
+
+  &-section {
+    display: grid;
+    gap: $padding-global;
+
+    &__text {
+      font-size: $font-size;
+      line-height: 130%;
+      max-width: 720px;
+    }
+  }
+}

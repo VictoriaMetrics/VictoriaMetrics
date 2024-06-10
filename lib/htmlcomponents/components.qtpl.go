@@ -22,106 +22,106 @@ var (
 //line lib/htmlcomponents/components.qtpl:4
 func StreamCommonHeader(qw422016 *qt422016.Writer) {
 //line lib/htmlcomponents/components.qtpl:4
-	qw422016.N().S(`<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><link href="static/css/bootstrap.min.css" rel="stylesheet" />`)
-//line lib/htmlcomponents/components.qtpl:8
+	qw422016.N().S(`<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><link href="static/css/bootstrap.min.css" rel="stylesheet" /><link rel="icon" href="favicon.ico"/>`)
+//line lib/htmlcomponents/components.qtpl:9
 }
 
-//line lib/htmlcomponents/components.qtpl:8
+//line lib/htmlcomponents/components.qtpl:9
 func WriteCommonHeader(qq422016 qtio422016.Writer) {
-//line lib/htmlcomponents/components.qtpl:8
+//line lib/htmlcomponents/components.qtpl:9
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line lib/htmlcomponents/components.qtpl:8
+//line lib/htmlcomponents/components.qtpl:9
 	StreamCommonHeader(qw422016)
-//line lib/htmlcomponents/components.qtpl:8
+//line lib/htmlcomponents/components.qtpl:9
 	qt422016.ReleaseWriter(qw422016)
-//line lib/htmlcomponents/components.qtpl:8
+//line lib/htmlcomponents/components.qtpl:9
 }
 
-//line lib/htmlcomponents/components.qtpl:8
+//line lib/htmlcomponents/components.qtpl:9
 func CommonHeader() string {
-//line lib/htmlcomponents/components.qtpl:8
+//line lib/htmlcomponents/components.qtpl:9
 	qb422016 := qt422016.AcquireByteBuffer()
-//line lib/htmlcomponents/components.qtpl:8
+//line lib/htmlcomponents/components.qtpl:9
 	WriteCommonHeader(qb422016)
-//line lib/htmlcomponents/components.qtpl:8
+//line lib/htmlcomponents/components.qtpl:9
 	qs422016 := string(qb422016.B)
-//line lib/htmlcomponents/components.qtpl:8
+//line lib/htmlcomponents/components.qtpl:9
 	qt422016.ReleaseByteBuffer(qb422016)
-//line lib/htmlcomponents/components.qtpl:8
+//line lib/htmlcomponents/components.qtpl:9
 	return qs422016
-//line lib/htmlcomponents/components.qtpl:8
+//line lib/htmlcomponents/components.qtpl:9
 }
 
 // Navbar writes navigation bar for /targets-like pages
 
-//line lib/htmlcomponents/components.qtpl:11
+//line lib/htmlcomponents/components.qtpl:12
 func StreamNavbar(qw422016 *qt422016.Writer) {
-//line lib/htmlcomponents/components.qtpl:11
-	qw422016.N().S(`<div class="navbar navbar-dark bg-dark box-shadow"><div class="d-flex justify-content-between"><a href="/" class="navbar-brand d-flex align-items-center ms-3" title="The High Performance Open Source Time Series Database &amp; Monitoring Solution "><svg xmlns="http://www.w3.org/2000/svg" id="VM_logo" viewBox="0 0 464.61 533.89" width="20" height="20" class="me-1"><defs><style>.cls-1{fill:#fff;}</style></defs><path class="cls-1" d="M459.86,467.77c9,7.67,24.12,13.49,39.3,13.69v0h1.68v0c15.18-.2,30.31-6,39.3-13.69,47.43-40.45,184.65-166.24,184.65-166.24,36.84-34.27-65.64-68.28-223.95-68.47h-1.68c-158.31.19-260.79,34.2-224,68.47C275.21,301.53,412.43,427.32,459.86,467.77Z" transform="translate(-267.7 -233.05)"/><path class="cls-1" d="M540.1,535.88c-9,7.67-24.12,13.5-39.3,13.7h-1.6c-15.18-.2-30.31-6-39.3-13.7-32.81-28-148.56-132.93-192.16-172.7v60.74c0,6.67,2.55,15.52,7.09,19.68,29.64,27.18,143.94,131.8,185.07,166.88,9,7.67,24.12,13.49,39.3,13.69v0h1.6v0c15.18-.2,30.31-6,39.3-13.69,41.13-35.08,155.43-139.7,185.07-166.88,4.54-4.16,7.09-13,7.09-19.68V363.18C688.66,403,572.91,507.9,540.1,535.88Z" transform="translate(-267.7 -233.05)"/><path class="cls-1" d="M540.1,678.64c-9,7.67-24.12,13.49-39.3,13.69v0h-1.6v0c-15.18-.2-30.31-6-39.3-13.69-32.81-28-148.56-132.94-192.16-172.7v60.73c0,6.67,2.55,15.53,7.09,19.69,29.64,27.17,143.94,131.8,185.07,166.87,9,7.67,24.12,13.5,39.3,13.7h1.6c15.18-.2,30.31-6,39.3-13.7,41.13-35.07,155.43-139.7,185.07-166.87,4.54-4.16,7.09-13,7.09-19.69V505.94C688.66,545.7,572.91,650.66,540.1,678.64Z" transform="translate(-267.7 -233.05)"/></svg><strong>VictoriaMetrics</strong></a></div></div>`)
-//line lib/htmlcomponents/components.qtpl:20
+//line lib/htmlcomponents/components.qtpl:12
+	qw422016.N().S(`<div class="navbar navbar-dark bg-dark box-shadow"><div class="d-flex justify-content-between"><a href="." class="navbar-brand d-flex align-items-center ms-3" title="The High Performance Open Source Time Series Database &amp; Monitoring Solution "><svg xmlns="http://www.w3.org/2000/svg" id="VM_logo" viewBox="0 0 464.61 533.89" width="20" height="20" class="me-1"><defs><style>.cls-1{fill:#fff;}</style></defs><path class="cls-1" d="M459.86,467.77c9,7.67,24.12,13.49,39.3,13.69v0h1.68v0c15.18-.2,30.31-6,39.3-13.69,47.43-40.45,184.65-166.24,184.65-166.24,36.84-34.27-65.64-68.28-223.95-68.47h-1.68c-158.31.19-260.79,34.2-224,68.47C275.21,301.53,412.43,427.32,459.86,467.77Z" transform="translate(-267.7 -233.05)"/><path class="cls-1" d="M540.1,535.88c-9,7.67-24.12,13.5-39.3,13.7h-1.6c-15.18-.2-30.31-6-39.3-13.7-32.81-28-148.56-132.93-192.16-172.7v60.74c0,6.67,2.55,15.52,7.09,19.68,29.64,27.18,143.94,131.8,185.07,166.88,9,7.67,24.12,13.49,39.3,13.69v0h1.6v0c15.18-.2,30.31-6,39.3-13.69,41.13-35.08,155.43-139.7,185.07-166.88,4.54-4.16,7.09-13,7.09-19.68V363.18C688.66,403,572.91,507.9,540.1,535.88Z" transform="translate(-267.7 -233.05)"/><path class="cls-1" d="M540.1,678.64c-9,7.67-24.12,13.49-39.3,13.69v0h-1.6v0c-15.18-.2-30.31-6-39.3-13.69-32.81-28-148.56-132.94-192.16-172.7v60.73c0,6.67,2.55,15.53,7.09,19.69,29.64,27.17,143.94,131.8,185.07,166.87,9,7.67,24.12,13.5,39.3,13.7h1.6c15.18-.2,30.31-6,39.3-13.7,41.13-35.07,155.43-139.7,185.07-166.87,4.54-4.16,7.09-13,7.09-19.69V505.94C688.66,545.7,572.91,650.66,540.1,678.64Z" transform="translate(-267.7 -233.05)"/></svg><strong>VictoriaMetrics</strong></a></div></div>`)
+//line lib/htmlcomponents/components.qtpl:21
 }
 
-//line lib/htmlcomponents/components.qtpl:20
+//line lib/htmlcomponents/components.qtpl:21
 func WriteNavbar(qq422016 qtio422016.Writer) {
-//line lib/htmlcomponents/components.qtpl:20
+//line lib/htmlcomponents/components.qtpl:21
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line lib/htmlcomponents/components.qtpl:20
+//line lib/htmlcomponents/components.qtpl:21
 	StreamNavbar(qw422016)
-//line lib/htmlcomponents/components.qtpl:20
+//line lib/htmlcomponents/components.qtpl:21
 	qt422016.ReleaseWriter(qw422016)
-//line lib/htmlcomponents/components.qtpl:20
+//line lib/htmlcomponents/components.qtpl:21
 }
 
-//line lib/htmlcomponents/components.qtpl:20
+//line lib/htmlcomponents/components.qtpl:21
 func Navbar() string {
-//line lib/htmlcomponents/components.qtpl:20
+//line lib/htmlcomponents/components.qtpl:21
 	qb422016 := qt422016.AcquireByteBuffer()
-//line lib/htmlcomponents/components.qtpl:20
+//line lib/htmlcomponents/components.qtpl:21
 	WriteNavbar(qb422016)
-//line lib/htmlcomponents/components.qtpl:20
+//line lib/htmlcomponents/components.qtpl:21
 	qs422016 := string(qb422016.B)
-//line lib/htmlcomponents/components.qtpl:20
+//line lib/htmlcomponents/components.qtpl:21
 	qt422016.ReleaseByteBuffer(qb422016)
-//line lib/htmlcomponents/components.qtpl:20
+//line lib/htmlcomponents/components.qtpl:21
 	return qs422016
-//line lib/htmlcomponents/components.qtpl:20
+//line lib/htmlcomponents/components.qtpl:21
 }
 
 // ErrorNotification writes the given err as error notification
 
-//line lib/htmlcomponents/components.qtpl:23
+//line lib/htmlcomponents/components.qtpl:24
 func StreamErrorNotification(qw422016 *qt422016.Writer, err error) {
-//line lib/htmlcomponents/components.qtpl:23
+//line lib/htmlcomponents/components.qtpl:24
 	qw422016.N().S(`<div class="alert alert-danger d-flex align-items-center" role="alert"><svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Danger:"><use xlink:href="#exclamation-triangle-fill"/></svg><div>`)
-//line lib/htmlcomponents/components.qtpl:28
+//line lib/htmlcomponents/components.qtpl:29
 	qw422016.E().S(err.Error())
-//line lib/htmlcomponents/components.qtpl:28
+//line lib/htmlcomponents/components.qtpl:29
 	qw422016.N().S(`</div></div>`)
-//line lib/htmlcomponents/components.qtpl:31
+//line lib/htmlcomponents/components.qtpl:32
 }
 
-//line lib/htmlcomponents/components.qtpl:31
+//line lib/htmlcomponents/components.qtpl:32
 func WriteErrorNotification(qq422016 qtio422016.Writer, err error) {
-//line lib/htmlcomponents/components.qtpl:31
+//line lib/htmlcomponents/components.qtpl:32
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line lib/htmlcomponents/components.qtpl:31
+//line lib/htmlcomponents/components.qtpl:32
 	StreamErrorNotification(qw422016, err)
-//line lib/htmlcomponents/components.qtpl:31
+//line lib/htmlcomponents/components.qtpl:32
 	qt422016.ReleaseWriter(qw422016)
-//line lib/htmlcomponents/components.qtpl:31
+//line lib/htmlcomponents/components.qtpl:32
 }
 
-//line lib/htmlcomponents/components.qtpl:31
+//line lib/htmlcomponents/components.qtpl:32
 func ErrorNotification(err error) string {
-//line lib/htmlcomponents/components.qtpl:31
+//line lib/htmlcomponents/components.qtpl:32
 	qb422016 := qt422016.AcquireByteBuffer()
-//line lib/htmlcomponents/components.qtpl:31
+//line lib/htmlcomponents/components.qtpl:32
 	WriteErrorNotification(qb422016, err)
-//line lib/htmlcomponents/components.qtpl:31
+//line lib/htmlcomponents/components.qtpl:32
 	qs422016 := string(qb422016.B)
-//line lib/htmlcomponents/components.qtpl:31
+//line lib/htmlcomponents/components.qtpl:32
 	qt422016.ReleaseByteBuffer(qb422016)
-//line lib/htmlcomponents/components.qtpl:31
+//line lib/htmlcomponents/components.qtpl:32
 	return qs422016
-//line lib/htmlcomponents/components.qtpl:31
+//line lib/htmlcomponents/components.qtpl:32
 }

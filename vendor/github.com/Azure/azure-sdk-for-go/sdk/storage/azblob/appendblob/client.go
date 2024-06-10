@@ -8,23 +8,24 @@ package appendblob
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/base"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/exported"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/generated"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/shared"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/sas"
 )
 
 // ClientOptions contains the optional parameters when creating a Client.
-type ClientOptions struct {
-	azcore.ClientOptions
-}
+type ClientOptions base.ClientOptions
 
 // Client represents a client to an Azure Storage append blob;
 type Client base.CompositeClient[generated.BlobClient, generated.AppendBlobClient]
@@ -34,14 +35,17 @@ type Client base.CompositeClient[generated.BlobClient, generated.AppendBlobClien
 //   - cred - an Azure AD credential, typically obtained via the azidentity module
 //   - options - client options; pass nil to accept the default values
 func NewClient(blobURL string, cred azcore.TokenCredential, options *ClientOptions) (*Client, error) {
-	authPolicy := runtime.NewBearerTokenPolicy(cred, []string{shared.TokenScope}, nil)
+	audience := base.GetAudience((*base.ClientOptions)(options))
 	conOptions := shared.GetClientOptions(options)
-	conOptions.PerRetryPolicies = append(conOptions.PerRetryPolicies, authPolicy)
-	pl := runtime.NewPipeline(exported.ModuleName,
-		exported.ModuleVersion, runtime.PipelineOptions{},
-		&conOptions.ClientOptions)
+	authPolicy := shared.NewStorageChallengePolicy(cred, audience, conOptions.InsecureAllowCredentialWithHTTP)
+	plOpts := runtime.PipelineOptions{PerRetry: []policy.Policy{authPolicy}}
 
-	return (*Client)(base.NewAppendBlobClient(blobURL, pl, nil)), nil
+	azClient, err := azcore.NewClient(exported.ModuleName, exported.ModuleVersion, plOpts, &conOptions.ClientOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	return (*Client)(base.NewAppendBlobClient(blobURL, azClient, nil)), nil
 }
 
 // NewClientWithNoCredential creates an instance of Client with the specified values.
@@ -50,12 +54,13 @@ func NewClient(blobURL string, cred azcore.TokenCredential, options *ClientOptio
 //   - options - client options; pass nil to accept the default values
 func NewClientWithNoCredential(blobURL string, options *ClientOptions) (*Client, error) {
 	conOptions := shared.GetClientOptions(options)
-	pl := runtime.NewPipeline(exported.ModuleName,
-		exported.ModuleVersion,
-		runtime.PipelineOptions{},
-		&conOptions.ClientOptions)
 
-	return (*Client)(base.NewAppendBlobClient(blobURL, pl, nil)), nil
+	azClient, err := azcore.NewClient(exported.ModuleName, exported.ModuleVersion, runtime.PipelineOptions{}, &conOptions.ClientOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	return (*Client)(base.NewAppendBlobClient(blobURL, azClient, nil)), nil
 }
 
 // NewClientWithSharedKeyCredential creates an instance of Client with the specified values.
@@ -65,13 +70,14 @@ func NewClientWithNoCredential(blobURL string, options *ClientOptions) (*Client,
 func NewClientWithSharedKeyCredential(blobURL string, cred *blob.SharedKeyCredential, options *ClientOptions) (*Client, error) {
 	authPolicy := exported.NewSharedKeyCredPolicy(cred)
 	conOptions := shared.GetClientOptions(options)
-	conOptions.PerRetryPolicies = append(conOptions.PerRetryPolicies, authPolicy)
-	pl := runtime.NewPipeline(exported.ModuleName,
-		exported.ModuleVersion,
-		runtime.PipelineOptions{},
-		&conOptions.ClientOptions)
+	plOpts := runtime.PipelineOptions{PerRetry: []policy.Policy{authPolicy}}
 
-	return (*Client)(base.NewAppendBlobClient(blobURL, pl, cred)), nil
+	azClient, err := azcore.NewClient(exported.ModuleName, exported.ModuleVersion, plOpts, &conOptions.ClientOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	return (*Client)(base.NewAppendBlobClient(blobURL, azClient, cred)), nil
 }
 
 // NewClientFromConnectionString creates an instance of Client with the specified values.
@@ -131,7 +137,7 @@ func (ab *Client) WithSnapshot(snapshot string) (*Client, error) {
 	}
 	p.Snapshot = snapshot
 
-	return (*Client)(base.NewAppendBlobClient(p.String(), ab.generated().Pipeline(), ab.sharedKey())), nil
+	return (*Client)(base.NewAppendBlobClient(p.String(), ab.generated().InternalClient(), ab.sharedKey())), nil
 }
 
 // WithVersionID creates a new AppendBlobURL object identical to the source but with the specified version id.
@@ -143,7 +149,7 @@ func (ab *Client) WithVersionID(versionID string) (*Client, error) {
 	}
 	p.VersionID = versionID
 
-	return (*Client)(base.NewAppendBlobClient(p.String(), ab.generated().Pipeline(), ab.sharedKey())), nil
+	return (*Client)(base.NewAppendBlobClient(p.String(), ab.generated().InternalClient(), ab.sharedKey())), nil
 }
 
 // Create creates a 0-size append blob. Call AppendBlock to append data to an append blob.
@@ -255,14 +261,10 @@ func (ab *Client) SetLegalHold(ctx context.Context, legalHold bool, options *blo
 	return ab.BlobClient().SetLegalHold(ctx, legalHold, options)
 }
 
-// SetTier operation sets the tier on a blob. The operation is allowed on a page
-// blob in a premium storage account and on a block blob in a blob storage account (locally
-// redundant storage only). A premium page blob's tier determines the allowed size, IOPS, and
-// bandwidth of the blob. A block blob's tier determines Hot/Cool/Archive storage type. This operation
-// does not update the blob's ETag.
-// For detailed information about block blob level tiering see https://docs.microsoft.com/en-us/azure/storage/blobs/storage-blob-storage-tiers.
+// SetTier
+// Deprecated: SetTier only works for page blob in premium storage account and block blob in blob storage account.
 func (ab *Client) SetTier(ctx context.Context, tier blob.AccessTier, o *blob.SetTierOptions) (blob.SetTierResponse, error) {
-	return ab.BlobClient().SetTier(ctx, tier, o)
+	return blob.SetTierResponse{}, errors.New("operation will not work on this blob type. SetTier only works for page blob in premium storage account and block blob in blob storage account")
 }
 
 // SetExpiry operation sets an expiry time on an existing blob. This operation is only allowed on Hierarchical Namespace enabled accounts.
@@ -280,6 +282,12 @@ func (ab *Client) SetExpiry(ctx context.Context, expiryType ExpiryType, o *SetEx
 // For more information, see https://docs.microsoft.com/rest/api/storageservices/get-blob-properties.
 func (ab *Client) GetProperties(ctx context.Context, o *blob.GetPropertiesOptions) (blob.GetPropertiesResponse, error) {
 	return ab.BlobClient().GetProperties(ctx, o)
+}
+
+// GetAccountInfo provides account level information
+// For more information, see https://learn.microsoft.com/en-us/rest/api/storageservices/get-account-information?tabs=shared-access-signatures.
+func (ab *Client) GetAccountInfo(ctx context.Context, o *blob.GetAccountInfoOptions) (blob.GetAccountInfoResponse, error) {
+	return ab.BlobClient().GetAccountInfo(ctx, o)
 }
 
 // SetHTTPHeaders changes a blob's HTTP headers.
@@ -326,10 +334,16 @@ func (ab *Client) GetTags(ctx context.Context, o *blob.GetTagsOptions) (blob.Get
 	return ab.BlobClient().GetTags(ctx, o)
 }
 
-// CopyFromURL synchronously copies the data at the source URL to a block blob, with sizes up to 256 MB.
-// For more information, see https://docs.microsoft.com/en-us/rest/api/storageservices/copy-blob-from-url.
+// CopyFromURL
+// Deprecated: CopyFromURL works only with block blob
 func (ab *Client) CopyFromURL(ctx context.Context, copySource string, o *blob.CopyFromURLOptions) (blob.CopyFromURLResponse, error) {
-	return ab.BlobClient().CopyFromURL(ctx, copySource, o)
+	return blob.CopyFromURLResponse{}, errors.New("operation will not work on this blob type. CopyFromURL works only with block blob")
+}
+
+// GetSASURL is a convenience method for generating a SAS token for the currently pointed at append blob.
+// It can only be used if the credential supplied during creation was a SharedKeyCredential.
+func (ab *Client) GetSASURL(permissions sas.BlobPermissions, expiry time.Time, o *blob.GetSASURLOptions) (string, error) {
+	return ab.BlobClient().GetSASURL(permissions, expiry, o)
 }
 
 // Concurrent Download Functions -----------------------------------------------------------------------------------------

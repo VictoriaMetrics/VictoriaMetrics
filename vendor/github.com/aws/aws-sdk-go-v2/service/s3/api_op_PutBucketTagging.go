@@ -4,73 +4,65 @@ package s3
 
 import (
 	"context"
+	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	internalChecksum "github.com/aws/aws-sdk-go-v2/service/internal/checksum"
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/ptr"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Sets the tags for a bucket. Use tags to organize your Amazon Web Services bill
-// to reflect your own cost structure. To do this, sign up to get your Amazon Web
-// Services account bill with tag key values included. Then, to see the cost of
-// combined resources, organize your billing information according to resources
-// with the same tag key values. For example, you can tag several resources with a
-// specific application name, and then organize your billing information to see the
-// total cost of that application across several services. For more information,
-// see Cost Allocation and Tagging
-// (https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/cost-alloc-tags.html)
-// and Using Cost Allocation in Amazon S3 Bucket Tags
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/CostAllocTagging.html). When
-// this operation sets the tags for a bucket, it will overwrite any current tags
-// the bucket already has. You cannot use this operation to add tags to an existing
-// list of tags. To use this operation, you must have permissions to perform the
+// This operation is not supported by directory buckets.
+//
+// Sets the tags for a bucket.
+//
+// Use tags to organize your Amazon Web Services bill to reflect your own cost
+// structure. To do this, sign up to get your Amazon Web Services account bill with
+// tag key values included. Then, to see the cost of combined resources, organize
+// your billing information according to resources with the same tag key values.
+// For example, you can tag several resources with a specific application name, and
+// then organize your billing information to see the total cost of that application
+// across several services. For more information, see [Cost Allocation and Tagging]and [Using Cost Allocation in Amazon S3 Bucket Tags].
+//
+// When this operation sets the tags for a bucket, it will overwrite any current
+// tags the bucket already has. You cannot use this operation to add tags to an
+// existing list of tags.
+//
+// To use this operation, you must have permissions to perform the
 // s3:PutBucketTagging action. The bucket owner has this permission by default and
 // can grant this permission to others. For more information about permissions, see
-// Permissions Related to Bucket Subresource Operations
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
-// and Managing Access Permissions to Your Amazon S3 Resources
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html).
-// PutBucketTagging has the following special errors:
+// [Permissions Related to Bucket Subresource Operations]and [Managing Access Permissions to Your Amazon S3 Resources].
 //
-// * Error code:
-// InvalidTagError
+// PutBucketTagging has the following special errors. For more Amazon S3 errors
+// see, [Error Responses].
 //
-// * Description: The tag provided was not a valid tag. This error
-// can occur if the tag did not pass input validation. For information about tag
-// restrictions, see User-Defined Tag Restrictions
-// (https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/allocation-tag-restrictions.html)
-// and Amazon Web Services-Generated Cost Allocation Tag Restrictions
-// (https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/aws-tag-restrictions.html).
+//   - InvalidTag - The tag provided was not a valid tag. This error can occur if
+//     the tag did not pass input validation. For more information, see [Using Cost Allocation in Amazon S3 Bucket Tags].
 //
-// *
-// Error code: MalformedXMLError
+//   - MalformedXML - The XML provided does not match the schema.
 //
-// * Description: The XML provided does not match
-// the schema.
+//   - OperationAborted - A conflicting conditional action is currently in progress
+//     against this resource. Please try again.
 //
-// * Error code: OperationAbortedError
+//   - InternalError - The service was unable to apply the provided tag to the
+//     bucket.
 //
-// * Description: A conflicting
-// conditional action is currently in progress against this resource. Please try
-// again.
+// The following operations are related to PutBucketTagging :
 //
-// * Error code: InternalError
+// [GetBucketTagging]
 //
-// * Description: The service was unable to
-// apply the provided tag to the bucket.
+// [DeleteBucketTagging]
 //
-// The following operations are related to
-// PutBucketTagging:
-//
-// * GetBucketTagging
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketTagging.html)
-//
-// *
-// DeleteBucketTagging
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketTagging.html)
+// [Error Responses]: https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html
+// [GetBucketTagging]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketTagging.html
+// [Cost Allocation and Tagging]: https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/cost-alloc-tags.html
+// [Permissions Related to Bucket Subresource Operations]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources
+// [DeleteBucketTagging]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketTagging.html
+// [Using Cost Allocation in Amazon S3 Bucket Tags]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/CostAllocTagging.html
+// [Managing Access Permissions to Your Amazon S3 Resources]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html
 func (c *Client) PutBucketTagging(ctx context.Context, params *PutBucketTaggingInput, optFns ...func(*Options)) (*PutBucketTaggingOutput, error) {
 	if params == nil {
 		params = &PutBucketTaggingInput{}
@@ -98,31 +90,40 @@ type PutBucketTaggingInput struct {
 	// This member is required.
 	Tagging *types.Tagging
 
-	// Indicates the algorithm used to create the checksum for the object when using
-	// the SDK. This header will not provide any additional functionality if not using
-	// the SDK. When sending this header, there must be a corresponding x-amz-checksum
-	// or x-amz-trailer header sent. Otherwise, Amazon S3 fails the request with the
-	// HTTP status code 400 Bad Request. For more information, see Checking object
-	// integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
-	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
-	// ignores any provided ChecksumAlgorithm parameter.
+	// Indicates the algorithm used to create the checksum for the object when you use
+	// the SDK. This header will not provide any additional functionality if you don't
+	// use the SDK. When you send this header, there must be a corresponding
+	// x-amz-checksum or x-amz-trailer header sent. Otherwise, Amazon S3 fails the
+	// request with the HTTP status code 400 Bad Request . For more information, see [Checking object integrity]
+	// in the Amazon S3 User Guide.
+	//
+	// If you provide an individual checksum, Amazon S3 ignores any provided
+	// ChecksumAlgorithm parameter.
+	//
+	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumAlgorithm types.ChecksumAlgorithm
 
-	// The base64-encoded 128-bit MD5 digest of the data. You must use this header as a
-	// message integrity check to verify that the request body was not corrupted in
-	// transit. For more information, see RFC 1864
-	// (http://www.ietf.org/rfc/rfc1864.txt). For requests made using the Amazon Web
-	// Services Command Line Interface (CLI) or Amazon Web Services SDKs, this field is
-	// calculated automatically.
+	// The base64-encoded 128-bit MD5 digest of the data. You must use this header as
+	// a message integrity check to verify that the request body was not corrupted in
+	// transit. For more information, see [RFC 1864].
+	//
+	// For requests made using the Amazon Web Services Command Line Interface (CLI) or
+	// Amazon Web Services SDKs, this field is calculated automatically.
+	//
+	// [RFC 1864]: http://www.ietf.org/rfc/rfc1864.txt
 	ContentMD5 *string
 
-	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request fails with the HTTP status code 403 Forbidden
-	// (access denied).
+	// The account ID of the expected bucket owner. If the account ID that you provide
+	// does not match the actual owner of the bucket, the request fails with the HTTP
+	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
+}
+
+func (in *PutBucketTaggingInput) bindEndpointParams(p *EndpointParameters) {
+	p.Bucket = in.Bucket
+	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
 
 type PutBucketTaggingOutput struct {
@@ -133,6 +134,9 @@ type PutBucketTaggingOutput struct {
 }
 
 func (c *Client) addOperationPutBucketTaggingMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsRestxml_serializeOpPutBucketTagging{}, middleware.After)
 	if err != nil {
 		return err
@@ -141,34 +145,38 @@ func (c *Client) addOperationPutBucketTaggingMiddlewares(stack *middleware.Stack
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "PutBucketTagging"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
-		return err
-	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -177,7 +185,10 @@ func (c *Client) addOperationPutBucketTaggingMiddlewares(stack *middleware.Stack
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
-	if err = swapWithCustomHTTPSignerMiddleware(stack, options); err != nil {
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
 	if err = addOpPutBucketTaggingValidationMiddleware(stack); err != nil {
@@ -187,6 +198,9 @@ func (c *Client) addOperationPutBucketTaggingMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addPutBucketTaggingInputChecksumMiddlewares(stack, options); err != nil {
@@ -207,14 +221,29 @@ func (c *Client) addOperationPutBucketTaggingMiddlewares(stack *middleware.Stack
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = s3cust.AddExpressDefaultChecksumMiddleware(stack); err != nil {
+		return err
+	}
 	return nil
+}
+
+func (v *PutBucketTaggingInput) bucket() (string, bool) {
+	if v.Bucket == nil {
+		return "", false
+	}
+	return *v.Bucket, true
 }
 
 func newServiceMetadataMiddleware_opPutBucketTagging(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "s3",
 		OperationName: "PutBucketTagging",
 	}
 }

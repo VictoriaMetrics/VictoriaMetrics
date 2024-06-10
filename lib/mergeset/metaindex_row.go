@@ -41,12 +41,12 @@ func (mr *metaindexRow) Marshal(dst []byte) []byte {
 
 func (mr *metaindexRow) Unmarshal(src []byte) ([]byte, error) {
 	// Unmarshal firstItem
-	tail, fi, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal firstItem: %w", err)
+	fi, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal firstItem")
 	}
+	src = src[nSize:]
 	mr.firstItem = append(mr.firstItem[:0], fi...)
-	src = tail
 
 	// Unmarshal blockHeadersCount
 	if len(src) < 4 {
@@ -72,8 +72,11 @@ func (mr *metaindexRow) Unmarshal(src []byte) ([]byte, error) {
 	if mr.blockHeadersCount <= 0 {
 		return src, fmt.Errorf("blockHeadersCount must be bigger than 0; got %d", mr.blockHeadersCount)
 	}
-	if mr.indexBlockSize > 2*maxIndexBlockSize {
-		return src, fmt.Errorf("too big indexBlockSize: %d; cannot exceed %d", mr.indexBlockSize, 2*maxIndexBlockSize)
+	if mr.indexBlockSize > 4*maxIndexBlockSize {
+		// The index block size can exceed maxIndexBlockSize by up to 4x,
+		// since it can contain commonPrefix and firstItem at blockHeader
+		// with the maximum length of maxIndexBlockSize per each field.
+		return src, fmt.Errorf("too big indexBlockSize: %d; cannot exceed %d", mr.indexBlockSize, 4*maxIndexBlockSize)
 	}
 
 	return src, nil

@@ -3,20 +3,31 @@ import { MutableRef } from "preact/hooks";
 export interface TSDBStatus {
   totalSeries: number;
   totalLabelValuePairs: number;
+  totalSeriesByAll: number,
+  totalSeriesPrev: number,
   seriesCountByMetricName: TopHeapEntry[];
   seriesCountByLabelName: TopHeapEntry[];
   seriesCountByFocusLabelValue: TopHeapEntry[];
   seriesCountByLabelValuePair: TopHeapEntry[];
   labelValueCountByLabelName: TopHeapEntry[];
+  headStats?: object;
 }
 
 export interface TopHeapEntry {
   name:  string;
-  count: number;
+  value: number;
+  diff: number;
+  valuePrev: number;
+}
+
+interface QueryUpdaterArgs {
+  query: string;
+  focusLabel: string;
+  match: string;
 }
 
 export type QueryUpdater = {
-  [key: string]: (focusLabel: string | null, query: string) => string,
+  [key: string]: (args: QueryUpdaterArgs) => string,
 }
 
 export interface Tabs {
@@ -33,12 +44,4 @@ export interface Containers<T> {
   seriesCountByFocusLabelValue: MutableRef<T>;
   seriesCountByLabelValuePair: MutableRef<T>;
   labelValueCountByLabelName: MutableRef<T>;
-}
-
-export interface DefaultActiveTab {
-  seriesCountByMetricName: number;
-  seriesCountByLabelName: number;
-  seriesCountByFocusLabelValue: number;
-  seriesCountByLabelValuePair: number;
-  labelValueCountByLabelName: number;
 }

@@ -7,7 +7,7 @@ import (
 )
 
 func TestInternStringSerial(t *testing.T) {
-	if err := testInternString(t); err != nil {
+	if err := testInternString(); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 }
@@ -17,7 +17,7 @@ func TestInternStringConcurrent(t *testing.T) {
 	resultCh := make(chan error, concurrency)
 	for i := 0; i < concurrency; i++ {
 		go func() {
-			resultCh <- testInternString(t)
+			resultCh <- testInternString()
 		}()
 	}
 	timer := time.NewTimer(5 * time.Second)
@@ -33,7 +33,7 @@ func TestInternStringConcurrent(t *testing.T) {
 	}
 }
 
-func testInternString(t *testing.T) error {
+func testInternString() error {
 	for i := 0; i < 1000; i++ {
 		s := fmt.Sprintf("foo_%d", i)
 		s1 := InternString(s)

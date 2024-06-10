@@ -3,6 +3,7 @@ package customizations
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
@@ -76,15 +77,21 @@ func (s *SignHTTPRequestMiddleware) ID() string {
 	return "Signing"
 }
 
-// HandleFinalize will take the provided input and sign the request using the SigV4 authentication scheme
+// HandleFinalize will take the provided input and handle signing for either
+// SigV4 or SigV4A as called for.
 func (s *SignHTTPRequestMiddleware) HandleFinalize(ctx context.Context, in middleware.FinalizeInput, next middleware.FinalizeHandler) (
 	out middleware.FinalizeOutput, metadata middleware.Metadata, err error,
 ) {
-	// fetch signer type from context
-	signerVersion := GetSignerVersion(ctx)
+	sv := GetSignerVersion(ctx)
 
-	switch signerVersion {
-	case v4a.Version:
+	if strings.EqualFold(sv, v4.Version) {
+		mw := v4.NewSignHTTPRequestMiddleware(v4.SignHTTPRequestMiddlewareOptions{
+			CredentialsProvider: s.credentialsProvider,
+			Signer:              s.v4Signer,
+			LogSigning:          s.logSigning,
+		})
+		return mw.HandleFinalize(ctx, in, next)
+	} else if strings.EqualFold(sv, v4a.Version) {
 		v4aCredentialProvider, ok := s.credentialsProvider.(v4a.CredentialsProvider)
 		if !ok {
 			return out, metadata, fmt.Errorf("invalid credential-provider provided for sigV4a Signer")
@@ -96,15 +103,9 @@ func (s *SignHTTPRequestMiddleware) HandleFinalize(ctx context.Context, in middl
 			LogSigning:  s.logSigning,
 		})
 		return mw.HandleFinalize(ctx, in, next)
-
-	default:
-		mw := v4.NewSignHTTPRequestMiddleware(v4.SignHTTPRequestMiddlewareOptions{
-			CredentialsProvider: s.credentialsProvider,
-			Signer:              s.v4Signer,
-			LogSigning:          s.logSigning,
-		})
-		return mw.HandleFinalize(ctx, in, next)
 	}
+
+	return next.HandleFinalize(ctx, in)
 }
 
 // RegisterSigningMiddleware registers the wrapper signing middleware to the stack. If a signing middleware is already
@@ -124,6 +125,7 @@ func RegisterSigningMiddleware(stack *middleware.Stack, signingMiddleware *SignH
 // PresignHTTPRequestMiddlewareOptions is the options for the PresignHTTPRequestMiddleware middleware.
 type PresignHTTPRequestMiddlewareOptions struct {
 	CredentialsProvider aws.CredentialsProvider
+	ExpressCredentials  S3ExpressCredentialsProvider
 	V4Presigner         v4.HTTPPresigner
 	V4aPresigner        v4a.HTTPPresigner
 	LogSigning          bool
@@ -139,6 +141,9 @@ type PresignHTTPRequestMiddleware struct {
 	// cred provider and signer for sigv4
 	credentialsProvider aws.CredentialsProvider
 
+	// s3Express credentials
+	expressCredentials S3ExpressCredentialsProvider
+
 	// sigV4 signer
 	v4Signer v4.HTTPPresigner
 
@@ -153,6 +158,7 @@ type PresignHTTPRequestMiddleware struct {
 func NewPresignHTTPRequestMiddleware(options PresignHTTPRequestMiddlewareOptions) *PresignHTTPRequestMiddleware {
 	return &PresignHTTPRequestMiddleware{
 		credentialsProvider: options.CredentialsProvider,
+		expressCredentials:  options.ExpressCredentials,
 		v4Signer:            options.V4Presigner,
 		v4aSigner:           options.V4aPresigner,
 		logSigning:          options.LogSigning,
@@ -175,26 +181,34 @@ func (p *PresignHTTPRequestMiddleware) HandleFinalize(
 	signerVersion := GetSignerVersion(ctx)
 
 	switch signerVersion {
-	case v4a.Version:
-		v4aCredentialProvider, ok := p.credentialsProvider.(v4a.CredentialsProvider)
-		if !ok {
-			return out, metadata, fmt.Errorf("invalid credential-provider provided for sigV4a Signer")
-		}
-
+	case "aws.auth#sigv4a":
 		mw := v4a.NewPresignHTTPRequestMiddleware(v4a.PresignHTTPRequestMiddlewareOptions{
-			CredentialsProvider: v4aCredentialProvider,
-			Presigner:           p.v4aSigner,
-			LogSigning:          p.logSigning,
+			CredentialsProvider: &v4a.SymmetricCredentialAdaptor{
+				SymmetricProvider: p.credentialsProvider,
+			},
+			Presigner:  p.v4aSigner,
+			LogSigning: p.logSigning,
 		})
 		return mw.HandleFinalize(ctx, in, next)
-
-	default:
+	case "aws.auth#sigv4":
 		mw := v4.NewPresignHTTPRequestMiddleware(v4.PresignHTTPRequestMiddlewareOptions{
 			CredentialsProvider: p.credentialsProvider,
 			Presigner:           p.v4Signer,
 			LogSigning:          p.logSigning,
 		})
 		return mw.HandleFinalize(ctx, in, next)
+	case s3ExpressSignerVersion:
+		mw := v4.NewPresignHTTPRequestMiddleware(v4.PresignHTTPRequestMiddlewareOptions{
+			CredentialsProvider: &s3ExpressCredentialsAdapter{
+				provider: p.expressCredentials,
+				bucket:   GetBucket(ctx),
+			},
+			Presigner:  &s3ExpressPresignerAdapter{v4: p.v4Signer},
+			LogSigning: p.logSigning,
+		})
+		return mw.HandleFinalize(ctx, in, next)
+	default:
+		return out, metadata, fmt.Errorf("unsupported signer type \"%s\"", signerVersion)
 	}
 }
 

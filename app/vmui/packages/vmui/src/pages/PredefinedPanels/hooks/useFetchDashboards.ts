@@ -15,7 +15,6 @@ export const useFetchDashboards = (): {
   error?: ErrorTypes | string,
   dashboardsSettings: DashboardSettings[],
 } => {
-
   const appModeEnable = getAppModeEnable();
   const { serverUrl } = useAppState();
   const dispatch = useDashboardsDispatch();
@@ -24,14 +23,18 @@ export const useFetchDashboards = (): {
   const [dashboardsSettings, setDashboards] = useState<DashboardSettings[]>([]);
 
   const fetchLocalDashboards = async () => {
-    const filenames = window.__VMUI_PREDEFINED_DASHBOARDS__;
-    if (!filenames?.length) return [];
-    const dashboards = await Promise.all(filenames.map(async f => importModule(f)));
-    setDashboards((prevDash) => [...dashboards, ...prevDash]);
+    try {
+      const filenames = window.__VMUI_PREDEFINED_DASHBOARDS__;
+      if (!filenames?.length) return [];
+      const dashboards = await Promise.all(filenames.map(async f => importModule(f)));
+      setDashboards((prevDash) => [...dashboards, ...prevDash]);
+    } catch (e) {
+      if (e instanceof Error) setError(`${e.name}: ${e.message}`);
+    }
   };
 
   const fetchRemoteDashboards = async () => {
-    if (!serverUrl) return;
+    if (!serverUrl || process.env.REACT_APP_TYPE) return;
     setError("");
     setIsLoading(true);
 
@@ -43,6 +46,8 @@ export const useFetchDashboards = (): {
         const { dashboardsSettings } = resp;
         if (dashboardsSettings && dashboardsSettings.length > 0) {
           setDashboards((prevDash) => [...prevDash, ...dashboardsSettings]);
+        } else {
+          await fetchLocalDashboards();
         }
         setIsLoading(false);
       } else {

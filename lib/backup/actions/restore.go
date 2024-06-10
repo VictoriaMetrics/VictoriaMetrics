@@ -8,11 +8,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/backupnames"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 // Restore restores data according to the provided settings.
@@ -21,7 +22,6 @@ import (
 // It works improperly on mutable files.
 type Restore struct {
 	// Concurrency is the number of concurrent workers to run during restore.
-	// Concurrency=1 is used by default.
 	Concurrency int
 
 	// Src is the source containing backed up data.
@@ -44,13 +44,8 @@ func (r *Restore) Run() error {
 	startTime := time.Now()
 
 	// Make sure VictoriaMetrics doesn't run during the restore process.
-	if err := fs.MkdirAllIfNotExist(r.Dst.Dir); err != nil {
-		return fmt.Errorf("cannot create dir %q: %w", r.Dst.Dir, err)
-	}
-	flockF, err := fs.CreateFlockFile(r.Dst.Dir)
-	if err != nil {
-		return fmt.Errorf("cannot create lock file in %q; make sure VictoriaMetrics doesn't use the dir; error: %w", r.Dst.Dir, err)
-	}
+	fs.MustMkdirIfNotExist(r.Dst.Dir)
+	flockF := fs.MustCreateFlockFile(r.Dst.Dir)
 	defer fs.MustClose(flockF)
 
 	if err := createRestoreLock(r.Dst.Dir); err != nil {
@@ -61,13 +56,13 @@ func (r *Restore) Run() error {
 	dst := r.Dst
 
 	if !r.SkipBackupCompleteCheck {
-		ok, err := src.HasFile(fscommon.BackupCompleteFilename)
+		ok, err := src.HasFile(backupnames.BackupCompleteFilename)
 		if err != nil {
 			return err
 		}
 		if !ok {
 			return fmt.Errorf("cannot find %s file in %s; this means either incomplete backup or old backup; "+
-				"pass -skipBackupCompleteCheck command-line flag if you still need restoring from this backup", fscommon.BackupCompleteFilename, src)
+				"pass -skipBackupCompleteCheck command-line flag if you still need restoring from this backup", backupnames.BackupCompleteFilename, src)
 		}
 	}
 
@@ -159,7 +154,7 @@ func (r *Restore) Run() error {
 			perPath[p.Path] = parts
 		}
 		logger.Infof("downloading %d parts from %s to %s", len(partsToCopy), src, dst)
-		bytesDownloaded := uint64(0)
+		var bytesDownloaded atomic.Uint64
 		err = runParallelPerPath(concurrency, perPath, func(parts []common.Part) error {
 			// Sort partsToCopy in order to properly grow file size during downloading
 			// and to properly resume downloading of incomplete files on the next Restore.Run call.
@@ -183,8 +178,9 @@ func (r *Restore) Run() error {
 			}
 			return nil
 		}, func(elapsed time.Duration) {
-			n := atomic.LoadUint64(&bytesDownloaded)
-			logger.Infof("downloaded %d out of %d bytes from %s to %s in %s", n, downloadSize, src, dst, elapsed)
+			n := bytesDownloaded.Load()
+			prc := 100 * float64(n) / float64(downloadSize)
+			logger.Infof("downloaded %d out of %d bytes (%.2f%%) from %s to %s in %s", n, downloadSize, prc, src, dst, elapsed)
 		})
 		if err != nil {
 			return err
@@ -199,17 +195,20 @@ func (r *Restore) Run() error {
 
 type statWriter struct {
 	w            io.Writer
-	bytesWritten *uint64
+	bytesWritten *atomic.Uint64
 }
 
 func (sw *statWriter) Write(p []byte) (int, error) {
 	n, err := sw.w.Write(p)
-	atomic.AddUint64(sw.bytesWritten, uint64(n))
+	sw.bytesWritten.Add(uint64(n))
+	bytesDownloadedTotal.Add(n)
 	return n, err
 }
 
+var bytesDownloadedTotal = metrics.NewCounter(`vm_backups_downloaded_bytes_total`)
+
 func createRestoreLock(dstDir string) error {
-	lockF := path.Join(dstDir, "restore-in-progress")
+	lockF := path.Join(dstDir, backupnames.RestoreInProgressFilename)
 	f, err := os.Create(lockF)
 	if err != nil {
 		return fmt.Errorf("cannot create restore lock file %q: %w", lockF, err)
@@ -218,7 +217,7 @@ func createRestoreLock(dstDir string) error {
 }
 
 func removeRestoreLock(dstDir string) error {
-	lockF := path.Join(dstDir, "restore-in-progress")
+	lockF := path.Join(dstDir, backupnames.RestoreInProgressFilename)
 	if err := os.Remove(lockF); err != nil {
 		return fmt.Errorf("cannote remove restore lock file %q: %w", lockF, err)
 	}

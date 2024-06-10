@@ -2,7 +2,6 @@ package bytesutil
 
 import (
 	"math/bits"
-	"reflect"
 	"unsafe"
 )
 
@@ -65,28 +64,12 @@ func roundToNearestPow2(n int) int {
 //
 // The returned string is valid only until b is reachable and unmodified.
 func ToUnsafeString(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
+	return unsafe.String(unsafe.SliceData(b), len(b))
 }
 
 // ToUnsafeBytes converts s to a byte slice without memory allocations.
 //
 // The returned byte slice is valid only until s is reachable and unmodified.
-func ToUnsafeBytes(s string) (b []byte) {
-	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
-	slh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	slh.Data = sh.Data
-	slh.Len = sh.Len
-	slh.Cap = sh.Len
-	return b
-}
-
-// LimitStringLen limits the length of s to maxLen.
-//
-// If len(s) > maxLen, then the function concatenates s prefix with s suffix.
-func LimitStringLen(s string, maxLen int) string {
-	if maxLen <= 4 || len(s) <= maxLen {
-		return s
-	}
-	n := maxLen/2 - 1
-	return s[:n] + ".." + s[len(s)-n:]
+func ToUnsafeBytes(s string) []byte {
+	return unsafe.Slice(unsafe.StringData(s), len(s))
 }

@@ -1,28 +1,31 @@
 ---
 sort: 8
+weight: 8
+menu:
+  docs:
+    parent: 'victoriametrics'
+    weight: 8
+title: vmctl
+aliases:
+  - /vmctl.html
 ---
-
 # vmctl
 
-VictoriaMetrics command-line tool
-
-vmctl provides various useful actions with VictoriaMetrics components.
-
-Features:
+VictoriaMetrics command-line tool (vmctl) provides the following list of actions:
 - migrate data from [Prometheus](#migrating-data-from-prometheus) to VictoriaMetrics using snapshot API
 - migrate data from [Thanos](#migrating-data-from-thanos) to VictoriaMetrics
 - migrate data from [Cortex](#migrating-data-from-cortex) to VictoriaMetrics
 - migrate data from [Mimir](#migrating-data-from-mimir) to VictoriaMetrics
 - migrate data from [InfluxDB](#migrating-data-from-influxdb-1x) to VictoriaMetrics
 - migrate data from [OpenTSDB](#migrating-data-from-opentsdb) to VictoriaMetrics
+- migrate data from [Promscale](#migrating-data-from-promscale)
 - migrate data between [VictoriaMetrics](#migrating-data-from-victoriametrics) single or cluster version.
 - migrate data by [Prometheus remote read protocol](#migrating-data-by-remote-read-protocol) to VictoriaMetrics
 - [verify](#verifying-exported-blocks-from-victoriametrics) exported blocks from VictoriaMetrics single or cluster version.
 
-To see the full list of supported modes
-run the following command:
+To see the full list of supported actions run the following command:
 
-```console
+```sh
 $ ./vmctl --help
 NAME:
    vmctl - VictoriaMetrics command-line tool
@@ -39,10 +42,10 @@ COMMANDS:
    verify-block  Verifies correctness of data blocks exported via VictoriaMetrics Native format. See https://docs.victoriametrics.com/#how-to-export-data-in-native-format
 ```
 
-Each mode has its own unique set of flags specific (e.g. prefixed with `influx` for influx mode)
-to the data source and common list of flags for destination (prefixed with `vm` for VictoriaMetrics):
+Each command has its own unique set of flags specific (e.g. prefixed with `influx-` for [influx](https://docs.victoriametrics.com/vmctl/#migrating-data-from-influxdb-1x))
+to the data source and common list of flags for destination (prefixed with `vm-` for VictoriaMetrics):
 
-```
+```sh
 $ ./vmctl influx --help
 OPTIONS:
    --influx-addr value              InfluxDB server addr (default: "http://localhost:8086")
@@ -56,12 +59,11 @@ Please note, that vmctl performs initial readiness check for the given address b
    --vm-password value    VictoriaMetrics password for basic auth [$VM_PASSWORD]
 ```
 
-When doing a migration user needs to specify flags for source (where and how to fetch data) and for
-destination (where to migrate data). Every mode has additional details and nuances, please see
+When doing a migration user needs to specify flags for **source** (where and how to fetch data) and for
+**destination** (where to migrate data). Every command has additional details and nuances, please see
 them below in corresponding sections.
 
-For the destination flags see the full description by running the following command:
-
+For the **destination** flags see the full description by running the following command:
 ```
 $ ./vmctl influx --help | grep vm-
 ```
@@ -89,35 +91,35 @@ See `./vmctl opentsdb --help` for details and full list of flags.
 
 OpenTSDB migration works like so:
 
-1. Find metrics based on selected filters (or the default filter set `['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z']`)
+1. Find metrics based on selected filters (or the default filter set `['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z']`):
 
-- e.g. `curl -Ss "http://opentsdb:4242/api/suggest?type=metrics&q=sys"`
+   `curl -Ss "http://opentsdb:4242/api/suggest?type=metrics&q=sys"`
 
-2. Find series associated with each returned metric
+1. Find series associated with each returned metric:
 
-- e.g. `curl -Ss "http://opentsdb:4242/api/search/lookup?m=system.load5&limit=1000000"`
+   `curl -Ss "http://opentsdb:4242/api/search/lookup?m=system.load5&limit=1000000"`
 
-Here `results` return field should not be empty. Otherwise it means that meta tables are absent and needs to be turned on previously.
+   Here `results` return field should not be empty. Otherwise, it means that meta tables are absent and needs to be turned on previously.
 
-3. Download data for each series in chunks defined in the CLI switches
+1. Download data for each series in chunks defined in the CLI switches:
 
-- e.g. `-retention=sum-1m-avg:1h:90d` means
-  - `curl -Ss "http://opentsdb:4242/api/query?start=1h-ago&end=now&m=sum:1m-avg-none:system.load5\{host=host1\}"`
-  - `curl -Ss "http://opentsdb:4242/api/query?start=2h-ago&end=1h-ago&m=sum:1m-avg-none:system.load5\{host=host1\}"`
-  - `curl -Ss "http://opentsdb:4242/api/query?start=3h-ago&end=2h-ago&m=sum:1m-avg-none:system.load5\{host=host1\}"`
-  - ...
-  - `curl -Ss "http://opentsdb:4242/api/query?start=2160h-ago&end=2159h-ago&m=sum:1m-avg-none:system.load5\{host=host1\}"`
+   `-retention=sum-1m-avg:1h:90d` means:
+   - `curl -Ss "http://opentsdb:4242/api/query?start=1h-ago&end=now&m=sum:1m-avg-none:system.load5\{host=host1\}"`
+   - `curl -Ss "http://opentsdb:4242/api/query?start=2h-ago&end=1h-ago&m=sum:1m-avg-none:system.load5\{host=host1\}"`
+   - `curl -Ss "http://opentsdb:4242/api/query?start=3h-ago&end=2h-ago&m=sum:1m-avg-none:system.load5\{host=host1\}"`
+   - ...
+   - `curl -Ss "http://opentsdb:4242/api/query?start=2160h-ago&end=2159h-ago&m=sum:1m-avg-none:system.load5\{host=host1\}"`
 
 This means that we must stream data from OpenTSDB to VictoriaMetrics in chunks. This is where concurrency for OpenTSDB comes in. We can query multiple chunks at once, but we shouldn't perform too many chunks at a time to avoid overloading the OpenTSDB cluster.
 
-```
+```sh
 $ ./vmctl opentsdb --otsdb-addr http://opentsdb:4242/ --otsdb-retentions sum-1m-avg:1h:1d --otsdb-filters system --otsdb-normalize --vm-addr http://victoria:8428/
 OpenTSDB import mode
 2021/04/09 11:52:50 Will collect data starting at TS 1617990770
 2021/04/09 11:52:50 Loading all metrics from OpenTSDB for filters:  [system]
 Found 9 metrics to import. Continue? [Y/n]
 2021/04/09 11:52:51 Starting work on system.load1
-23 / 402200 [>____________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________] 0.01% 2 p/s
+23 / 402200 [>____________________________________________________________________________________________] 0.01% 2 p/s
 ```
 Where `:8428` is Prometheus port of VictoriaMetrics.
 
@@ -135,7 +137,7 @@ Starting with a relatively simple retention string (`sum-1m-avg:1h:30d`), let's 
 There are two essential parts of a retention string:
 
 1. [aggregation](#aggregation)
-2. [windows/time ranges](#windows)
+1. [windows/time ranges](#windows)
 
 #### Aggregation
 
@@ -150,7 +152,7 @@ Retention strings essentially define the two levels of aggregation for our colle
 
 First-order aggregation addresses how to aggregate any un-mentioned tags.
 
-This is, conceptually, directly opposite to how PromQL deals with tags. In OpenTSDB, if a tag isn't explicitly mentioned, all values assocaited with that tag will be aggregated.
+This is, conceptually, directly opposite to how PromQL deals with tags. In OpenTSDB, if a tag isn't explicitly mentioned, all values associated with that tag will be aggregated.
 
 It is recommended to use `sum` for the first aggregation because it is relatively quick and should not cause any changes to the incoming data (because we collect each individual series).
 
@@ -158,16 +160,16 @@ It is recommended to use `sum` for the first aggregation because it is relativel
 
 Second-order aggregation (`1m-avg` in our example) defines any windowing that should occur before returning the data
 
-It is recommended to match the stat collection interval so we again avoid transforming incoming data.
+It is recommended to match the stat collection interval, so we again avoid transforming incoming data.
 
-We do not allow for defining the "null value" portion of the rollup window (e.g. in the aggreagtion, `1m-avg-none`, the user cannot change `none`), as the goal of this tool is to avoid modifying incoming data.
+We do not allow for defining the "null value" portion of the rollup window (e.g. in the aggregation, `1m-avg-none`, the user cannot change `none`), as the goal of this tool is to avoid modifying incoming data.
 
 #### Windows
 
 There are two important windows we define in a retention string:
 
 1. the "chunk" range of each query
-2. The time range we will be querying on with that "chunk"
+1. The time range we will be querying on with that "chunk"
 
 From our example, our windows are `1h:30d`.
 
@@ -177,9 +179,9 @@ The window `1h` means that each individual query to OpenTSDB should only span 1 
 
 It is important to ensure this window somewhat matches the row size in HBase to help improve query times.
 
-For example, if the query is hitting a rollup table with a 4 hour row size, we should set a chunk size of a multiple of 4 hours (e.g. `4h`, `8h`, etc.) to avoid requesting data across row boundaries. Landing on row boundaries allows for more consistent request times to HBase.
+For example, if the query is hitting a rollup table with a 4-hour row size, we should set a chunk size of a multiple of 4 hours (e.g. `4h`, `8h`, etc.) to avoid requesting data across row boundaries. Landing on row boundaries allows for more consistent request times to HBase.
 
-The default table created in HBase for OpenTSDB has a 1 hour row size, so if you aren't sure on a correct row size to use, `1h` is a reasonable choice.
+The default table created in HBase for OpenTSDB has a 1-hour row size, so if you aren't sure on a correct row size to use, `1h` is a reasonable choice.
 
 ##### Time range
 
@@ -189,7 +191,7 @@ The time range `30d` simply means we are asking for the last 30 days of data. Th
 
 The resultant queries that will be created, based on our example retention string of `sum-1m-avg:1h:30d` look like this:
 
-```
+```sh
 http://opentsdb:4242/api/query?start=1h-ago&end=now&m=sum:1m-avg-none:<series>
 http://opentsdb:4242/api/query?start=2h-ago&end=1h-ago&m=sum:1m-avg-none:<series>
 http://opentsdb:4242/api/query?start=3h-ago&end=2h-ago&m=sum:1m-avg-none:<series>
@@ -199,9 +201,17 @@ http://opentsdb:4242/api/query?start=721h-ago&end=720h-ago&m=sum:1m-avg-none:<se
 
 Chunking the data like this means each individual query returns faster, so we can start populating data into VictoriaMetrics quicker.
 
+### Configuration
+
+Run the following command to get all configuration options:
+
+```sh
+./vmctl opentsdb --help
+```
+
 ### Restarting OpenTSDB migrations
 
-One important note for OpenTSDB migration: Queries/HBase scans can "get stuck" within OpenTSDB itself. This can cause instability and performance issues within an OpenTSDB cluster, so stopping the migrator to deal with it may be necessary. Because of this, we provide the timstamp we started collecting data from at thebeginning of the run. You can stop and restart the importer using this "hard timestamp" to ensure you collect data from the same time range over multiple runs.
+One important note for OpenTSDB migration: Queries/HBase scans can "get stuck" within OpenTSDB itself. This can cause instability and performance issues within an OpenTSDB cluster, so stopping the migrator to deal with it may be necessary. Because of this, we provide the timestamp we started collecting data from at the beginning of the run. You can stop and restart the importer using this "hard timestamp" to ensure you collect data from the same time range over multiple runs.
 
 ## Migrating data from InfluxDB (1.x)
 
@@ -224,7 +234,7 @@ VM importer then accumulates received samples in batches and sends import reques
 The importing process example for local installation of InfluxDB(`http://localhost:8086`)
 and single-node VictoriaMetrics(`http://localhost:8428`):
 
-```
+```sh
 ./vmctl influx --influx-database benchmark
 InfluxDB import mode
 2020/01/18 20:47:11 Exploring scheme for database "benchmark"
@@ -232,7 +242,7 @@ InfluxDB import mode
 2020/01/18 20:47:11 found 10 fields
 2020/01/18 20:47:11 fetching series: command: "show series "; database: "benchmark"; retention: "autogen"
 Found 40000 timeseries to import. Continue? [Y/n] y
-40000 / 40000 [-----------------------------------------------------------------------------------------------------------------------------------------------] 100.00% 21 p/s
+40000 / 40000 [----------------------------------------------------------------------------------------] 100.00% 21 p/s
 2020/01/18 21:19:00 Import finished!
 2020/01/18 21:19:00 VictoriaMetrics importer stats:
   idle duration: 13m51.461434876s;
@@ -272,7 +282,11 @@ foo_field2{tag1="value1", tag2="value2"} 40
 
 ### Configuration
 
-The configuration flags should contain self-explanatory descriptions.
+Run the following command to get all configuration options:
+```sh
+./vmctl influx --help
+```
+
 
 ### Filtering
 
@@ -281,7 +295,7 @@ The first step of application is to select all available timeseries
 for given database and retention. User may specify additional filtering
 condition via `--influx-filter-series` flag. For example:
 
-```
+```sh
 ./vmctl influx --influx-database benchmark \
   --influx-filter-series "on benchmark from cpu where hostname='host_1703'"
 InfluxDB import mode
@@ -309,6 +323,46 @@ Please see more about time filtering [here](https://docs.influxdata.com/influxdb
 
 Migrating data from InfluxDB v2.x is not supported yet ([#32](https://github.com/VictoriaMetrics/vmctl/issues/32)).
 You may find useful a 3rd party solution for this - <https://github.com/jonppe/influx_to_victoriametrics>.
+
+## Migrating data from Promscale
+
+[Promscale](https://github.com/timescale/promscale) supports [Prometheus Remote Read API](https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/).
+To migrate historical data from Promscale to VictoriaMetrics we recommend using `vmctl`
+in [remote-read](https://docs.victoriametrics.com/vmctl/#migrating-data-by-remote-read-protocol) mode.
+
+See the example of migration command below:
+```sh
+./vmctl remote-read --remote-read-src-addr=http://<promscale>:9201/read \
+                    --remote-read-step-interval=day \
+                    --remote-read-use-stream=false \ # promscale doesn't support streaming
+                    --vm-addr=http://<victoriametrics>:8428 \
+                    --remote-read-filter-time-start=2023-08-21T00:00:00Z \
+                    --remote-read-disable-path-append=true # promscale has custom remote read API HTTP path
+Selected time range "2023-08-21 00:00:00 +0000 UTC" - "2023-08-21 14:11:41.561979 +0000 UTC" will be split into 1 ranges according to "day" step. Continue? [Y/n] y
+VM worker 0:↙ 82831 samples/s                                                                                                                                                                        
+VM worker 1:↙ 54378 samples/s                                                                                                                                                                        
+VM worker 2:↙ 121616 samples/s                                                                                                                                                                       
+VM worker 3:↙ 59164 samples/s                                                                                                                                                                        
+VM worker 4:↙ 59220 samples/s                                                                                                                                                                        
+VM worker 5:↙ 102072 samples/s                                                                                                                                                                       
+Processing ranges: 1 / 1 [████████████████████████████████████████████████████████████████████████████████████] 100.00%
+2023/08/21 16:11:55 Import finished!
+2023/08/21 16:11:55 VictoriaMetrics importer stats:
+  idle duration: 0s;
+  time spent while importing: 14.047045459s;
+  total samples: 262111;
+  samples/s: 18659.51;
+  total bytes: 5.3 MB;
+  bytes/s: 376.4 kB;
+  import requests: 6;
+  import requests retries: 0;
+2023/08/21 16:11:55 Total time: 14.063458792s
+```
+
+Here we specify the full path to Promscale's Remote Read API via `--remote-read-src-addr`, and disable auto-path 
+appending via `--remote-read-disable-path-append` cmd-line flags. This is necessary, as Promscale has a different to 
+Prometheus API path. Promscale doesn't support stream mode for Remote Read API,
+so we disable it via `--remote-read-use-stream=false`. 
 
 ## Migrating data from Prometheus
 
@@ -338,7 +392,7 @@ The data processed in chunks and then sent to VM.
 The importing process example for local installation of Prometheus
 and single-node VictoriaMetrics(`http://localhost:8428`):
 
-```
+```sh
 ./vmctl prometheus --prom-snapshot=/path/to/snapshot \
   --vm-concurrency=1 \
   --vm-batch-size=200000 \
@@ -373,19 +427,23 @@ So no data changes will be applied.
 
 ### Configuration
 
-The configuration flags should contain self-explanatory descriptions.
+Run the following command to get all configuration options:
+```sh
+./vmctl prometheus --help
+```
+
 
 ### Filtering
 
 The filtering consists of three parts: by timeseries and time.
 
 Filtering by time may be configured via flags `--prom-filter-time-start` and `--prom-filter-time-end`
-in in RFC3339 format. This filter applied twice: to drop blocks out of range and to filter timeseries in blocks with
+in RFC3339 format. This filter applied twice: to drop blocks out of range and to filter timeseries in blocks with
 overlapping time range.
 
 Example of applying time filter:
 
-```
+```sh
 ./vmctl prometheus --prom-snapshot=/path/to/snapshot \
   --prom-filter-time-start=2020-02-07T00:07:01Z \
   --prom-filter-time-end=2020-02-11T00:07:01Z
@@ -407,11 +465,11 @@ since this is heavy operation and will be done during import process.
 Filtering by timeseries is configured with following flags:
 
 - `--prom-filter-label` - the label name, e.g. `__name__` or `instance`;
-- `--prom-filter-label-value` - the regular expression to filter the label value. By default matches all `.*`
+- `--prom-filter-label-value` - the regular expression to filter the label value. By default, matches all `.*`
 
 For example:
 
-```
+```sh
 ./vmctl prometheus --prom-snapshot=/path/to/snapshot \
   --prom-filter-label="__name__" \
   --prom-filter-label-value="promhttp.*" \
@@ -426,7 +484,7 @@ Prometheus snapshot stats:
   samples: 1657698;
   series: 3930.
 Found 2 blocks to import. Continue? [Y/n] y
-14 / 14 [------------------------------------------------------------------------------------------------------------------------------------------------------] 100.00% ? p/s
+14 / 14 [-----------------------------------------------------------------------------------------------] 100.00% ? p/s
 2020/02/23 15:51:07 Import finished!
 2020/02/23 15:51:07 VictoriaMetrics importer stats:
   idle duration: 0s;
@@ -442,28 +500,34 @@ Found 2 blocks to import. Continue? [Y/n] y
 
 ## Migrating data by remote read protocol
 
-`vmctl` supports the `remote-read` mode for migrating data from databases which support 
-[Prometheus remote read API](https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/)
+`vmctl` provides the `remote-read` mode for migrating data from remote databases supporting 
+[Prometheus remote read API](https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/).
+Remote read API has two implementations of remote read API: default (`SAMPLES`) and 
+[streamed](https://prometheus.io/blog/2019/10/10/remote-read-meets-streaming/) (`STREAMED_XOR_CHUNKS`).
+Streamed version is more efficient but has lower adoption (e.g. [Promscale](#migrating-data-from-promscale)
+doesn't support it).
 
-See `./vmctl remote-read --help` for details and full list of flags.
+See `./vmctl remote-read --help` for details and the full list of flags.
 
 To start the migration process configure the following flags:
+
 1. `--remote-read-src-addr` - data source address to read from;
-2. `--vm-addr` - VictoriaMetrics address to write to. For single-node VM is usually equal to `--httpListenAddr`, 
-and for cluster version is equal to `--httpListenAddr` flag of vminsert component (for example `http://<vminsert>:8480/insert/<accountID>/prometheus`);
-3. `--remote-read-filter-time-start` - the time filter in RFC3339 format to select time series with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z';
-4. `--remote-read-filter-time-end` - the time filter in RFC3339 format to select time series with timestamp equal or smaller than provided value. E.g. '2020-01-01T20:07:00Z'. Current time is used when omitted.;
-5. `--remote-read-step-interval` - split export data into chunks. Valid values are `month, day, hour, minute`;
+1. `--vm-addr` - VictoriaMetrics address to write to. For single-node VM is usually equal to `--httpListenAddr`, 
+   and for cluster version is equal to `--httpListenAddr` flag of vminsert component (for example `http://<vminsert>:8480/insert/<accountID>/prometheus`);
+1. `--remote-read-filter-time-start` - the time filter in RFC3339 format to select time series with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z';
+1. `--remote-read-filter-time-end` - the time filter in RFC3339 format to select time series with timestamp equal or smaller than provided value. E.g. '2020-01-01T20:07:00Z'. Current time is used when omitted.;
+1. `--remote-read-step-interval` - split export data into chunks. Valid values are `month, day, hour, minute`;
+1. `--remote-read-use-stream` - defines whether to use `SAMPLES` or `STREAMED_XOR_CHUNKS` mode. By default, is uses `SAMPLES` mode.
 
 The importing process example for local installation of Prometheus
 and single-node VictoriaMetrics(`http://localhost:8428`):
 
-```
+```sh
 ./vmctl remote-read \
---remote-read-src-addr=http://127.0.0.1:9091 \
+--remote-read-src-addr=http://<prometheus>:9091 \
 --remote-read-filter-time-start=2021-10-18T00:00:00Z \
 --remote-read-step-interval=hour \
---vm-addr=http://127.0.0.1:8428 \
+--vm-addr=http://<victoria-metrics>:8428 \
 --vm-concurrency=6
 
 Split defined times into 8798 ranges to import. Continue? [Y/n]
@@ -473,7 +537,7 @@ VM worker 2:↘ 151606 samples/s
 VM worker 3:↘ 130765 samples/s
 VM worker 4:↘ 131904 samples/s
 VM worker 5:↘ 132693 samples/s
-Processing ranges: 8798 / 8798 [█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+Processing ranges: 8798 / 8798 [██████████████████████████████████████████████████████████████████████████████] 100.00%
 2022/10/19 16:45:37 Import finished!
 2022/10/19 16:45:37 VictoriaMetrics importer stats:
   idle duration: 6m57.793987511s;
@@ -486,6 +550,10 @@ Processing ranges: 8798 / 8798 [████████████████
   import requests retries: 0;
 2022/10/19 16:45:37 Total time: 1m19.406283424s
 ```
+
+Migrating big volumes of data may result in remote read client reaching the timeout.
+Consider increasing the value of `--remote-read-http-timeout` (default `5m`) command-line flag when seeing
+timeouts or `context canceled` errors.
 
 ### Filtering
 
@@ -511,20 +579,20 @@ and that you have a separate Thanos Store installation.
 1. For now, keep your Thanos Sidecar and Thanos-related Prometheus configuration, but add this to also stream
     metrics to VictoriaMetrics:
 
-    ```
+    ```yaml
     remote_write:
     - url: http://victoria-metrics:8428/api/v1/write
     ```
 
-2. Make sure VM is running, of course. Now check the logs to make sure that Prometheus is sending and VM is receiving.
+1. Make sure VM is running, of course. Now check the logs to make sure that Prometheus is sending and VM is receiving.
     In Prometheus, make sure there are no errors. On the VM side, you should see messages like this:
 
-    ```
+    ```sh
     2020-04-27T18:38:46.474Z info VictoriaMetrics/lib/storage/partition.go:207 creating a partition "2020_04" with smallPartsPath="/victoria-metrics-data/data/small/2020_04", bigPartsPath="/victoria-metrics-data/data/big/2020_04"
     2020-04-27T18:38:46.506Z info VictoriaMetrics/lib/storage/partition.go:222 partition "2020_04" has been created
     ```
 
-3. Now just wait. Within two hours, Prometheus should finish its current data file and hand it off to Thanos Store for long term
+1. Now just wait. Within two hours, Prometheus should finish its current data file and hand it off to Thanos Store for long term
     storage.
 
 ### Historical data
@@ -536,6 +604,7 @@ then import it into VM using `vmctl` in `prometheus` mode.
     1. Run the `minio/mc` Docker container.
     1. `mc config host add minio http://minio:9000 accessKey secretKey`, substituting appropriate values for the last 3 items.
     1. `mc cp -r minio/prometheus thanos-data`
+
 1. Import using `vmctl`.
     1. Follow the [instructions](#how-to-build) to compile `vmctl` on your machine.
     1. Use [prometheus](#migrating-data-from-prometheus) mode to import data:
@@ -553,13 +622,13 @@ service (or anything that exposes gRPC StoreAPI e.g. Querier) via Prometheus rem
 If you want to migrate data, you should run [thanos-remote-read](https://github.com/G-Research/thanos-remote-read) proxy
 and define the Thanos store address `./thanos-remote-read -store 127.0.0.1:19194`. 
 It is important to know that `store` flag is Thanos Store API gRPC endpoint. 
-Also, it is important to know that thanos-remote-read proxy  doesn't support `STREAMED_XOR_CHUNKS` mode.
+Also, it is important to know that thanos-remote-read proxy doesn't support stream mode.
 When you run thanos-remote-read proxy, it exposes port to serve HTTP on `10080 by default`.
 
 The importing process example for local installation of Thanos
 and single-node VictoriaMetrics(`http://localhost:8428`):
 
-```
+```sh
 ./vmctl remote-read \
 --remote-read-src-addr=http://127.0.0.1:10080 \
 --remote-read-filter-time-start=2021-10-18T00:00:00Z \
@@ -569,14 +638,14 @@ and single-node VictoriaMetrics(`http://localhost:8428`):
 ```
 
 On the [thanos-remote-read](https://github.com/G-Research/thanos-remote-read) proxy side you will see logs like:
-```
+```sh
 ts=2022-10-19T15:05:04.193916Z caller=main.go:278 level=info traceID=00000000000000000000000000000000 msg="thanos request" request="min_time:1666180800000 max_time:1666184399999 matchers:<type:RE value:\".*\" > aggregates:RAW "
 ts=2022-10-19T15:05:04.468852Z caller=main.go:278 level=info traceID=00000000000000000000000000000000 msg="thanos request" request="min_time:1666184400000 max_time:1666187999999 matchers:<type:RE value:\".*\" > aggregates:RAW "
 ts=2022-10-19T15:05:04.553914Z caller=main.go:278 level=info traceID=00000000000000000000000000000000 msg="thanos request" request="min_time:1666188000000 max_time:1666191364863 matchers:<type:RE value:\".*\" > aggregates:RAW "
 ```
 
 And when process will finish you will see:
-```
+```sh
 Split defined times into 8799 ranges to import. Continue? [Y/n]
 VM worker 0:↓ 98183 samples/s
 VM worker 1:↓ 114640 samples/s
@@ -584,7 +653,7 @@ VM worker 2:↓ 131710 samples/s
 VM worker 3:↓ 114256 samples/s
 VM worker 4:↓ 105671 samples/s
 VM worker 5:↓ 124000 samples/s
-Processing ranges: 8799 / 8799 [█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+Processing ranges: 8799 / 8799 [██████████████████████████████████████████████████████████████████████████████] 100.00%
 2022/10/19 18:05:07 Import finished!
 2022/10/19 18:05:07 VictoriaMetrics importer stats:
   idle duration: 52m13.987637229s;
@@ -616,24 +685,23 @@ api:
 If you defined some prometheus prefix, you should use it when you define flag `--remote-read-src-addr=http://127.0.0.1:9009/{prometheus_http_prefix}`.
 By default, Cortex uses the `prometheus` path prefix, so you should define the flag `--remote-read-src-addr=http://127.0.0.1:9009/prometheus`.
 
-It is important to know that Cortex doesn't support the `STREAMED_XOR_CHUNKS` mode.
+It is important to know that Cortex doesn't support the stream mode.
 When you run Cortex, it exposes a port to serve HTTP on `9009 by default`.
 
 The importing process example for the local installation of Cortex
 and single-node VictoriaMetrics(`http://localhost:8428`):
 
-```
+```sh
 ./vmctl remote-read \ 
 --remote-read-src-addr=http://127.0.0.1:9009/prometheus \
 --remote-read-filter-time-start=2021-10-18T00:00:00Z \
 --remote-read-step-interval=hour \
---remote-read-src-check-alive=false \
 --vm-addr=http://127.0.0.1:8428 \
 --vm-concurrency=6 
 ```
 And when the process finishes, you will see the following:
 
-```
+```sh
 Split defined times into 8842 ranges to import. Continue? [Y/n]
 VM worker 0:↗ 3863 samples/s
 VM worker 1:↗ 2686 samples/s
@@ -641,7 +709,7 @@ VM worker 2:↗ 2620 samples/s
 VM worker 3:↗ 2705 samples/s
 VM worker 4:↗ 2643 samples/s
 VM worker 5:↗ 2593 samples/s
-Processing ranges: 8842 / 8842 [█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+Processing ranges: 8842 / 8842 [█████████████████████████████████████████████████████████████████████████████] 100.00%
 2022/10/21 12:09:49 Import finished!
 2022/10/21 12:09:49 VictoriaMetrics importer stats:
   idle duration: 0s;
@@ -659,26 +727,24 @@ requires an Authentication header like `X-Scope-OrgID`. You can define it via th
 
 ## Migrating data from Mimir
 
-Mimir has similar implemintation as Cortex and also support of the Prometheus remote read protocol. That means
-`vmctl` in mode `remote-read` may also be used for Mimir historical data migration.
-These instructions may vary based on the details of your Mimir configuration.
+Mimir has similar implementation as Cortex and supports Prometheus remote read API. That means historical data
+from Mimir can be migrated via `vmctl` in mode `remote-read` mode.
+The instructions for data migration via vmctl vary based on the details of your Mimir configuration.
 Please read carefully and verify as you go.
 
 ### Remote read protocol
 
-If you want to migrate data, you should check your Mimir configuration in the section
-```yaml
-api:
-  prometheus_http_prefix:
-```
+By default, Mimir uses the `prometheus` path prefix so specifying the source
+should be as simple as `--remote-read-src-addr=http://<mimir>:9009/prometheus`.
+But if prefix was overriden via `prometheus_http_prefix`, then source address should be updated
+to `--remote-read-src-addr=http://<mimir>:9009/{prometheus_http_prefix}`.
 
-If you defined some prometheus prefix, you should use it when you define flag `--remote-read-src-addr=http://127.0.0.1:9009/{prometheus_http_prefix}`.
-By default, Mimir uses the `prometheus` path prefix, so you should define the flag `--remote-read-src-addr=http://127.0.0.1:9009/prometheus`.
+Mimir supports [streamed remote read API](https://prometheus.io/blog/2019/10/10/remote-read-meets-streaming/),
+so it is recommended setting `--remote-read-use-stream=true` flag for better performance and resource usage.
 
-Mimir supports both remote read mode, so you can use `STREAMED_XOR_CHUNKS` mode and `SAMPLES` mode.
 When you run Mimir, it exposes a port to serve HTTP on `8080 by default`.
 
-Next example of the local installation was in multi-tenant mode (3 instances of mimir) with nginx as load balancer.
+Next example of the local installation was in multi-tenant mode (3 instances of Mimir) with nginx as load balancer.
 Load balancer expose single port `:9090`.
 
 As you can see in the example we call `:9009` instead of `:8080` because of proxy.
@@ -688,19 +754,17 @@ and single-node VictoriaMetrics(`http://localhost:8428`):
 
 ```
 ./vmctl remote-read 
---remote-read-src-addr=http://127.0.0.1:9009/prometheus \
+--remote-read-src-addr=http://<mimir>:9009/prometheus \
 --remote-read-filter-time-start=2021-10-18T00:00:00Z \
 --remote-read-step-interval=hour \
---remote-read-src-check-alive=false \
 --remote-read-headers=X-Scope-OrgID:demo \
 --remote-read-use-stream=true \
---vm-addr=http://127.0.0.1:8428 \
---vm-concurrency=6
+--vm-addr=http://<victoria-metrics>:8428 \
 ```
 
 And when the process finishes, you will see the following:
 
-```
+```sh
 Split defined times into 8847 ranges to import. Continue? [Y/n]
 VM worker 0:→ 12176 samples/s
 VM worker 1:→ 11918 samples/s
@@ -708,7 +772,7 @@ VM worker 2:→ 11261 samples/s
 VM worker 3:→ 12861 samples/s
 VM worker 4:→ 11096 samples/s
 VM worker 5:→ 11575 samples/s
-Processing ranges: 8847 / 8847 [█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+Processing ranges: 8847 / 8847 [█████████████████████████████████████████████████████████████████████████████] 100.00%
 2022/10/21 17:22:23 Import finished!
 2022/10/21 17:22:23 VictoriaMetrics importer stats:
   idle duration: 0s;
@@ -727,197 +791,206 @@ requires an Authentication header like `X-Scope-OrgID`. You can define it via th
 
 ## Migrating data from VictoriaMetrics
 
-### Native protocol
+The simplest way to migrate data between VM instances is [to copy data between instances](https://docs.victoriametrics.com/single-server-victoriametrics/#data-migration).
 
-The [native binary protocol](https://docs.victoriametrics.com/#how-to-export-data-in-native-format)
-was introduced in [1.42.0 release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.42.0)
-and provides the most efficient way to migrate data between VM instances: single to single, cluster to cluster,
-single to cluster and vice versa. Please note that both instances (source and destination) should be of v1.42.0
-or higher.
+vmctl uses [native binary protocol](https://docs.victoriametrics.com/#how-to-export-data-in-native-format)
+(available since [1.42.0 release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.42.0))
+to migrate data between VM instances: single to single, cluster to cluster, single to cluster and vice versa.
 
 See `./vmctl vm-native --help` for details and full list of flags.
 
-In this mode `vmctl` acts as a proxy between two VM instances, where time series filtering is done by "source" (`src`)
-and processing is done by "destination" (`dst`). Because of that, `vmctl` doesn't actually know how much data will be
-processed and can't show the progress bar. It will show the current processing speed and total number of processed bytes:
+Migration in `vm-native` mode takes two steps:
+1. Explore the list of the metrics to migrate via `api/v1/label/__name__/values` API;
+1. Migrate explored metrics one-by-one with specified `--vm-concurrency`.
 
-```
-./vmctl vm-native --vm-native-src-addr=http://localhost:8528  \
-  --vm-native-dst-addr=http://localhost:8428 \
-  --vm-native-filter-match='{job="vmagent"}' \
-  --vm-native-filter-time-start='2020-01-01T20:07:00Z'
+```sh
+./vmctl vm-native \
+    --vm-native-src-addr=http://127.0.0.1:8481/select/0/prometheus \ # migrate from
+    --vm-native-dst-addr=http://localhost:8428 \                     # migrate to
+    --vm-native-filter-time-start='2022-11-20T00:00:00Z' \           # starting from
+    --vm-native-filter-match='{__name__!~"vm_.*"}'                   # filter out metrics matching the selector
 VictoriaMetrics Native import mode
-Initing export pipe from "http://localhost:8528" with filters:
-        filter: match[]={job="vmagent"}
-Initing import process to "http://localhost:8428":
-Total: 336.75 KiB ↖ Speed: 454.46 KiB p/s
-2020/10/13 17:04:59 Total time: 952.143376ms
+
+2023/03/02 09:22:02 Initing import process from "http://127.0.0.1:8481/select/0/prometheus/api/v1/export/native" 
+                    to "http://localhost:8428/api/v1/import/native" with filter 
+        filter: match[]={__name__!~"vm_.*"}
+        start: 2022-11-20T00:00:00Z
+2023/03/02 09:22:02 Exploring metrics...
+Found 9 metrics to import. Continue? [Y/n] 
+2023/03/02 09:22:04 Requests to make: 9
+Requests to make: 9 / 9 [█████████████████████████████████████████████████████████████████████████████] 100.00%
+2023/03/02 09:22:06 Import finished!
+2023/03/02 09:22:06 VictoriaMetrics importer stats:
+  time spent while importing: 3.632638875s;
+  total bytes: 7.8 MB;
+  bytes/s: 2.1 MB;
+  requests: 9;
+  requests retries: 0;
+2023/03/02 09:22:06 Total time: 3.633127625s
 ```
+
+_To disable explore phase and switch to the old way of data migration via single connection use 
+`--vm-native-disable-per-metric-migration` cmd-line flag. Please note, in this mode vmctl won't be able to retry failed requests._
 
 Importing tips:
 
+1. vmctl acts as a proxy between `src` and `dst`. It doesn't use much of CPU or RAM, but network connection
+   between `src`=>vmctl=>`dst` should be as fast as possible for improving the migration speed.
 1. Migrating big volumes of data may result in reaching the safety limits on `src` side.
-Please verify that `-search.maxExportDuration` and `-search.maxExportSeries` were set with
-proper values for `src`. If hitting the limits, follow the recommendations [here](https://docs.victoriametrics.com/#how-to-export-data-in-native-format).
-2. Migrating all the metrics from one VM to another may collide with existing application metrics
-(prefixed with `vm_`) at destination and lead to confusion when using
-[official Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards).
-To avoid such situation try to filter out VM process metrics via `--vm-native-filter-match` flag.
-3. Migration is a backfilling process, so it is recommended to read
-[Backfilling tips](https://github.com/VictoriaMetrics/VictoriaMetrics#backfilling) section.
-4. `vmctl` doesn't provide relabeling or other types of labels management in this mode.
-Instead, use [relabeling in VictoriaMetrics](https://github.com/VictoriaMetrics/vmctl/issues/4#issuecomment-683424375).
-5. When importing in or from cluster version remember to use correct [URL format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
-and specify `accountID` param.
-6. When migrating large volumes of data it might be useful to use `--vm-native-step-interval` flag to split single process into smaller steps.
+   Please verify that `-search.maxExportDuration` and `-search.maxExportSeries` were set with
+   proper values for `src`. If hitting the limits, follow the recommendations 
+   [here](https://docs.victoriametrics.com/#how-to-export-data-in-native-format).
+   If hitting `the number of matching timeseries exceeds...` error, adjust filters to match less time series or 
+   update `-search.maxSeries` command-line flag on vmselect/vmsingle;
+1. Using smaller intervals via `--vm-native-step-interval` cmd-line flag can reduce the number of matched series per-request
+   for sources with [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
+   See more about [step interval here](#using-time-based-chunking-of-migration).
+1. Migrating all the metrics from one VM to another may collide with existing application metrics
+   (prefixed with `vm_`) at destination and lead to confusion when using
+   [official Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards).
+   To avoid such situation try to filter out VM process metrics via `--vm-native-filter-match='{__name__!~"vm_.*"}'` flag.
+1. Migrating data with overlapping time range or via unstable network can produce duplicates series at destination.
+   To avoid duplicates set `-dedup.minScrapeInterval=1ms` for `vmselect`/`vmstorage` at the destination.
+   This will instruct `vmselect`/`vmstorage` to ignore duplicates with identical timestamps. Ignore this recommendation
+   if you already have `-dedup.minScrapeInterval` set to 1ms or higher values at destination.
+1. When migrating data from one VM cluster to another, consider using [cluster-to-cluster mode](#cluster-to-cluster-migration-mode).
+   Or manually specify addresses according to [URL format](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format):
+   ```sh
+   # Migrating from cluster specific tenantID to single
+   --vm-native-src-addr=http://<src-vmselect>:8481/select/0/prometheus
+   --vm-native-dst-addr=http://<dst-vmsingle>:8428
+    
+   # Migrating from single to cluster specific tenantID
+   --vm-native-src-addr=http://<src-vmsingle>:8428
+   --vm-native-dst-addr=http://<dst-vminsert>:8480/insert/0/prometheus
+    
+   # Migrating single to single
+   --vm-native-src-addr=http://<src-vmsingle>:8428
+   --vm-native-dst-addr=http://<dst-vmsingle>:8428
+    
+   # Migrating cluster to cluster for specific tenant ID
+   --vm-native-src-addr=http://<src-vmselect>:8481/select/0/prometheus
+   --vm-native-dst-addr=http://<dst-vminsert>:8480/insert/0/prometheus
+   ```
+1. Migrating data from VM cluster which had replication (`-replicationFactor` > 1) enabled won't produce the same amount
+   of data copies for the destination database, and will result only in creating duplicates. To remove duplicates,
+   destination database need to be configured with `-dedup.minScrapeInterval=1ms`. To restore the replication factor
+   the destination `vminsert` component need to be configured with the according `-replicationFactor` value. 
+   See more about replication [here](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety).
+1. Migration speed can be adjusted via `--vm-concurrency` cmd-line flag, which controls the number of concurrent 
+   workers busy with processing. Please note, that each worker can load up to a single vCPU core on VictoriaMetrics. 
+   So try to set it according to allocated CPU resources of your VictoriaMetrics destination installation.
+1. Migration is a backfilling process, so it is recommended to read
+   [Backfilling tips](https://github.com/VictoriaMetrics/VictoriaMetrics#backfilling) section.
+1. `vmctl` doesn't provide relabeling or other types of labels management.
+   Instead, use [relabeling in VictoriaMetrics](https://github.com/VictoriaMetrics/vmctl/issues/4#issuecomment-683424375).
+1. `vmctl` supports `--vm-native-src-headers` and `--vm-native-dst-headers` to define headers sent with each request
+   to the corresponding source address.
+1. `vmctl` supports `--vm-native-disable-http-keep-alive` to allow `vmctl` to use non-persistent HTTP connections to avoid
+   error `use of closed network connection` when running a heavy export requests.
 
-#### Using time-based chunking of migration
 
-It is possible split migration process into set of smaller batches based on time. This is especially useful when migrating large volumes of data as this adds indication of progress and ability to restore process from certain point in case of failure.
+### Using time-based chunking of migration
 
-To use this you need to specify `--vm-native-step-interval` flag. Supported values are: `month`, `day`, `hour`.
-Note that in order to use this it is required `--vm-native-filter-time-start` to be set to calculate time ranges for export process.
+It is possible to split the migration process into steps based on time via `--vm-native-step-interval` cmd-line flag.
+Supported values are: `month`, `week`, `day`, `hour`, `minute`. For example, when migrating 1 year of data with
+`--vm-native-step-interval=month` vmctl will execute it in 12 separate requests from the beginning of the interval
+to its end. To reverse the order set `--vm-native-filter-time-reverse` and migration will start from the newest to the 
+oldest data. `--vm-native-filter-time-start` is required to be set when using `--vm-native-step-interval`.
 
-Every range is being processed independently, which means that:
-- after range processing is finished all data within range is migrated
-- if process fails on one of stages it is guaranteed that data of prior stages is already written, so it is possible to restart process starting from failed range
-
-It is recommended using the `month` step when migrating the data over multiple months, since the migration with `day` and `hour` steps may take longer time to complete
-because of additional overhead.
+It is recommended using default `month` step when migrating the data over the long time intervals. If you hit complexity
+limits on `--vm-native-src-addr` and can't or don't want to change them, try lowering the step interval to `week`, `day` or `hour`.
 
 Usage example:
-```console
-./vmctl vm-native 
-    --vm-native-filter-time-start 2022-06-17T00:07:00Z \
-    --vm-native-filter-time-end 2022-10-03T00:07:00Z \
-    --vm-native-src-addr http://localhost:8428 \
-    --vm-native-dst-addr http://localhost:8528 \
-    --vm-native-step-interval=month
+```sh
+./vmctl vm-native \
+    --vm-native-src-addr=http://127.0.0.1:8481/select/0/prometheus \ 
+    --vm-native-dst-addr=http://localhost:8428 \
+    --vm-native-filter-time-start='2022-11-20T00:00:00Z' \
+    --vm-native-step-interval=month \
+    --vm-native-filter-match='{__name__!~"vm_.*"}'    
 VictoriaMetrics Native import mode
-2022/08/30 19:48:24 Processing range 1/5: 2022-06-17T00:07:00Z - 2022-06-30T23:59:59Z 
-2022/08/30 19:48:24 Initing export pipe from "http://localhost:8428" with filters: 
-        filter: match[]={__name__!=""}
-        start: 2022-06-17T00:07:00Z
-        end: 2022-06-30T23:59:59Z
-Initing import process to "http://localhost:8428":
-2022/08/30 19:48:24 Import finished!
-Total: 16 B ↗ Speed: 28.89 KiB p/s 
-2022/08/30 19:48:24 Processing range 2/5: 2022-07-01T00:00:00Z - 2022-07-31T23:59:59Z 
-2022/08/30 19:48:24 Initing export pipe from "http://localhost:8428" with filters: 
-        filter: match[]={__name__!=""}
-        start: 2022-07-01T00:00:00Z
-        end: 2022-07-31T23:59:59Z
-Initing import process to "http://localhost:8428":
-2022/08/30 19:48:24 Import finished!
-Total: 16 B ↗ Speed: 164.35 KiB p/s 
-2022/08/30 19:48:24 Processing range 3/5: 2022-08-01T00:00:00Z - 2022-08-31T23:59:59Z 
-2022/08/30 19:48:24 Initing export pipe from "http://localhost:8428" with filters: 
-        filter: match[]={__name__!=""}
-        start: 2022-08-01T00:00:00Z
-        end: 2022-08-31T23:59:59Z
-Initing import process to "http://localhost:8428":
-2022/08/30 19:48:24 Import finished!
-Total: 16 B ↗ Speed: 191.42 KiB p/s 
-2022/08/30 19:48:24 Processing range 4/5: 2022-09-01T00:00:00Z - 2022-09-30T23:59:59Z 
-2022/08/30 19:48:24 Initing export pipe from "http://localhost:8428" with filters: 
-        filter: match[]={__name__!=""}
-        start: 2022-09-01T00:00:00Z
-        end: 2022-09-30T23:59:59Z
-Initing import process to "http://localhost:8428":
-2022/08/30 19:48:24 Import finished!
-Total: 16 B ↗ Speed: 141.04 KiB p/s 
-2022/08/30 19:48:24 Processing range 5/5: 2022-10-01T00:00:00Z - 2022-10-03T00:07:00Z 
-2022/08/30 19:48:24 Initing export pipe from "http://localhost:8428" with filters: 
-        filter: match[]={__name__!=""}
-        start: 2022-10-01T00:00:00Z
-        end: 2022-10-03T00:07:00Z
-Initing import process to "http://localhost:8428":
-2022/08/30 19:48:24 Import finished!
-Total: 16 B ↗ Speed: 186.32 KiB p/s 
-2022/08/30 19:48:24 Total time: 12.680582ms
+
+2023/03/02 09:18:05 Initing import process from "http://127.0.0.1:8481/select/0/prometheus/api/v1/export/native" to "http://localhost:8428/api/v1/import/native" with filter 
+        filter: match[]={__name__!~"vm_.*"}
+        start: 2022-11-20T00:00:00Z
+2023/03/02 09:18:05 Exploring metrics...
+Found 9 metrics to import. Continue? [Y/n] 
+2023/03/02 09:18:07 Selected time range will be split into 5 ranges according to "month" step. Requests to make: 45.
+Requests to make: 45 / 45 [██████████████████████████████████████████████████████████████████████████████████] 100.00%
+2023/03/02 09:18:12 Import finished!
+2023/03/02 09:18:12 VictoriaMetrics importer stats:
+  time spent while importing: 7.111870667s;
+  total bytes: 7.7 MB;
+  bytes/s: 1.1 MB;
+  requests: 45;
+  requests retries: 0;
+2023/03/02 09:18:12 Total time: 7.112405875s
 ```
 
-#### Cluster-to-cluster migration mode
+### Cluster-to-cluster migration mode
 
 Using cluster-to-cluster migration mode helps to migrate all tenants data in a single `vmctl` run.
 
-Cluster-to-cluster uses `/admin/tenants` endpoint (available starting from [v1.84.0](https://docs.victoriametrics.com/CHANGELOG.html#v1840)) to discover list of tenants from source cluster.
+Cluster-to-cluster uses `/admin/tenants` endpoint (available starting from [v1.84.0](https://docs.victoriametrics.com/changelog/#v1840)) to discover list of tenants from source cluster.
 
 To use this mode you need to set `--vm-intercluster` flag to `true`, `--vm-native-src-addr` flag to 'http://vmselect:8481/' and `--vm-native-dst-addr` value to http://vminsert:8480/:
 
-```console
-./bin/vmctl vm-native --vm-intercluster=true --vm-native-src-addr=http://localhost:8481/ --vm-native-dst-addr=http://172.17.0.3:8480/
+```sh
+  ./vmctl vm-native --vm-native-src-addr=http://127.0.0.1:8481/ \
+  --vm-native-dst-addr=http://127.0.0.1:8480/ \
+  --vm-native-filter-match='{__name__="vm_app_uptime_seconds"}' \
+  --vm-native-filter-time-start='2023-02-01T00:00:00Z' \
+  --vm-native-step-interval=day \  
+  --vm-intercluster
+  
 VictoriaMetrics Native import mode
-2022/12/05 21:20:06 Discovered tenants: [123:1 12812919:1 1289198:1 1289:1283 12:1 1:0 1:1 1:1231231 1:1271727 1:12819 1:281 812891298:1]
-2022/12/05 21:20:06 Initing export pipe from "http://localhost:8481/select/123:1/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/123:1/prometheus/api/v1/import/native":
-Total: 61.13 MiB ↖ Speed: 2.05 MiB p/s 
-Total: 61.13 MiB ↗ Speed: 2.30 MiB p/s 
-2022/12/05 21:20:33 Initing export pipe from "http://localhost:8481/select/12812919:1/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/12812919:1/prometheus/api/v1/import/native":
-Total: 43.14 MiB ↘ Speed: 1.86 MiB p/s  
-Total: 43.14 MiB ↙ Speed: 2.36 MiB p/s 
-2022/12/05 21:20:51 Initing export pipe from "http://localhost:8481/select/1289198:1/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1289198:1/prometheus/api/v1/import/native":
-Total: 16.64 MiB ↗ Speed: 2.66 MiB p/s 
-Total: 16.64 MiB ↘ Speed: 2.19 MiB p/s 
-2022/12/05 21:20:59 Initing export pipe from "http://localhost:8481/select/1289:1283/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1289:1283/prometheus/api/v1/import/native":
-Total: 43.33 MiB ↙ Speed: 1.94 MiB p/s 
-Total: 43.33 MiB ↖ Speed: 2.35 MiB p/s 
-2022/12/05 21:21:18 Initing export pipe from "http://localhost:8481/select/12:1/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/12:1/prometheus/api/v1/import/native":
-Total: 63.78 MiB ↙ Speed: 1.96 MiB p/s 
-Total: 63.78 MiB ↖ Speed: 2.28 MiB p/s 
-2022/12/05 21:21:46 Initing export pipe from "http://localhost:8481/select/1:0/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1:0/prometheus/api/v1/import/native":
-2022/12/05 21:21:46 Import finished!
-Total: 330 B ↗ Speed: 3.53 MiB p/s 
-2022/12/05 21:21:46 Initing export pipe from "http://localhost:8481/select/1:1/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1:1/prometheus/api/v1/import/native":
-Total: 63.81 MiB ↙ Speed: 1.96 MiB p/s 
-Total: 63.81 MiB ↖ Speed: 2.28 MiB p/s 
-2022/12/05 21:22:14 Initing export pipe from "http://localhost:8481/select/1:1231231/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1:1231231/prometheus/api/v1/import/native":
-Total: 63.84 MiB ↙ Speed: 1.93 MiB p/s 
-Total: 63.84 MiB ↖ Speed: 2.29 MiB p/s 
-2022/12/05 21:22:42 Initing export pipe from "http://localhost:8481/select/1:1271727/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1:1271727/prometheus/api/v1/import/native":
-Total: 54.37 MiB ↘ Speed: 1.90 MiB p/s 
-Total: 54.37 MiB ↙ Speed: 2.37 MiB p/s 
-2022/12/05 21:23:05 Initing export pipe from "http://localhost:8481/select/1:12819/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1:12819/prometheus/api/v1/import/native":
-Total: 17.01 MiB ↙ Speed: 1.75 MiB p/s 
-Total: 17.01 MiB ↖ Speed: 2.15 MiB p/s 
-2022/12/05 21:23:13 Initing export pipe from "http://localhost:8481/select/1:281/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1:281/prometheus/api/v1/import/native":
-Total: 63.89 MiB ↘ Speed: 1.90 MiB p/s 
-Total: 63.89 MiB ↙ Speed: 2.29 MiB p/s 
-2022/12/05 21:23:42 Initing export pipe from "http://localhost:8481/select/812891298:1/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/812891298:1/prometheus/api/v1/import/native":
-Total: 63.84 MiB ↖ Speed: 1.99 MiB p/s 
-Total: 63.84 MiB ↗ Speed: 2.26 MiB p/s 
-2022/12/05 21:24:10 Total time: 4m4.1466565s
+2023/02/28 10:41:42 Discovering tenants...
+2023/02/28 10:41:42 The following tenants were discovered: [0:0 1:0 2:0 3:0 4:0]
+2023/02/28 10:41:42 Initing import process from "http://127.0.0.1:8481/select/0:0/prometheus/api/v1/export/native" to "http://127.0.0.1:8480/insert/0:0/prometheus/api/v1/import/native" with filter 
+        filter: match[]={__name__="vm_app_uptime_seconds"}
+        start: 2023-02-01T00:00:00Z for tenant 0:0 
+2023/02/28 10:41:42 Exploring metrics...
+2023/02/28 10:41:42 Found 1 metrics to import 
+2023/02/28 10:41:42 Selected time range will be split into 28 ranges according to "day" step. 
+Requests to make for tenant 0:0: 28 / 28 [████████████████████████████████████████████████████████████████████] 100.00%
+
+2023/02/28 10:41:45 Initing import process from "http://127.0.0.1:8481/select/1:0/prometheus/api/v1/export/native" to "http://127.0.0.1:8480/insert/1:0/prometheus/api/v1/import/native" with filter 
+        filter: match[]={__name__="vm_app_uptime_seconds"}
+        start: 2023-02-01T00:00:00Z for tenant 1:0 
+2023/02/28 10:41:45 Exploring metrics...
+2023/02/28 10:41:45 Found 1 metrics to import 
+2023/02/28 10:41:45 Selected time range will be split into 28 ranges according to "day" step. Requests to make: 28 
+Requests to make for tenant 1:0: 28 / 28 [████████████████████████████████████████████████████████████████████] 100.00%
+
+...
+
+2023/02/28 10:42:49 Import finished!
+2023/02/28 10:42:49 VictoriaMetrics importer stats:
+  time spent while importing: 1m6.714210417s;
+  total bytes: 39.7 MB;
+  bytes/s: 594.4 kB;
+  requests: 140;
+  requests retries: 0;
+2023/02/28 10:42:49 Total time: 1m7.147971417s
 ```
+
+### Configuration
+Run the following command to get all configuration options:
+```sh
+./vmctl vm-native --help
+```
+
+## Tuning
 
 ## Verifying exported blocks from VictoriaMetrics
 
-In this mode, `vmctl` allows verifying correctness and integrity of data exported via [native format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-export-data-in-native-format) from VictoriaMetrics.
+In this mode, `vmctl` allows verifying correctness and integrity of data exported via 
+[native format](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-export-data-in-native-format)
+from VictoriaMetrics.
 You can verify exported data at disk before uploading it by `vmctl verify-block` command:
 
-```console
+```sh
 # export blocks from VictoriaMetrics
 curl localhost:8428/api/v1/export/native -g -d 'match[]={__name__!=""}' -o exported_data_block
 # verify block content
@@ -947,13 +1020,9 @@ to number of free CPU cores.
 
 ### VictoriaMetrics importer
 
-The flag `--vm-concurrency` controls the number of concurrent workers that process the input from InfluxDB query results.
+The flag `--vm-concurrency` controls the number of concurrent workers that process the import requests to **destination**.
 Please note that each import request can load up to a single vCPU core on VictoriaMetrics. So try to set it according
-to allocated CPU resources of your VictoriMetrics installation.
-
-The flag `--vm-batch-size` controls max amount of samples collected before sending the import request.
-For example, if  `--influx-chunk-size=500` and `--vm-batch-size=2000` then importer will process not more
-than 4 chunks before sending the request.
+to allocated CPU resources of your VictoriaMetrics installation.
 
 ### Importer stats
 
@@ -976,6 +1045,7 @@ a sign of network issues or VM being overloaded. See the logs during import for 
 By default `vmctl` waits confirmation from user before starting the import. If this is unwanted
 behavior and no user interaction required - pass `-s` flag to enable "silence" mode:
 
+See below the example of `vm-native` migration process:
 ```
     -s Whether to run in silent mode. If set to true no confirmation prompts will appear. (default: false)
 ```
@@ -993,7 +1063,7 @@ according to [information theory](https://en.wikipedia.org/wiki/Information_theo
 `vmctl` provides the following flags for improving data compression:
 
 - `--vm-round-digits` flag for rounding processed values to the given number of decimal digits after the point.
-  For example, `--vm-round-digits=2` would round `1.2345` to `1.23`. By default the rounding is disabled.
+  For example, `--vm-round-digits=2` would round `1.2345` to `1.23`. By default, the rounding is disabled.
 
 - `--vm-significant-figures` flag for limiting the number of significant figures in processed values. It takes no effect if set
   to 0 (by default), but set `--vm-significant-figures=5` and `102.342305` will be rounded to `102.34`.
@@ -1003,7 +1073,7 @@ results such as `average`, `rate`, etc.
 
 ### Adding extra labels
 
- `vmctl` allows to add extra labels to all imported series. It can be achived with flag `--vm-extra-label label=value`.
+ `vmctl` allows to add extra labels to all imported series. It can be achieved with flag `--vm-extra-label label=value`.
  If multiple labels needs to be added, set flag for each label, for example, `--vm-extra-label label1=value1 --vm-extra-label label2=value2`.
  If timeseries already have label, that must be added with `--vm-extra-label` flag, flag has priority and will override label value from timeseries.
 
@@ -1012,23 +1082,23 @@ results such as `average`, `rate`, etc.
 Limiting the rate of data transfer could help to reduce pressure on disk or on destination database.
 The rate limit may be set in bytes-per-second via `--vm-rate-limit` flag.
 
-Please note, you can also use [vmagent](https://docs.victoriametrics.com/vmagent.html)
+Please note, you can also use [vmagent](https://docs.victoriametrics.com/vmagent/)
 as a proxy between `vmctl` and destination with `-remoteWrite.rateLimit` flag enabled.
 
 ## How to build
 
-It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) - `vmctl` is located in `vmutils-*` archives there.
+It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) - `vmctl` is located in `vmutils-*` archives there.
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.
-2. Run `make vmctl` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
+1. Run `make vmctl` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmctl` binary and puts it into the `bin` folder.
 
 ### Production build
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make vmctl-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+1. Run `make vmctl-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmctl-prod` binary and puts it into the `bin` folder.
 
 ### Building docker images
@@ -1040,7 +1110,7 @@ The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmctl`.
 The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
 by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```console
+```sh
 ROOT_IMAGE=scratch make package-vmctl
 ```
 
@@ -1050,12 +1120,12 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 #### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.
-2. Run `make vmctl-linux-arm` or `make vmctl-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.22.
+1. Run `make vmctl-linux-arm` or `make vmctl-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmctl-linux-arm` or `vmctl-linux-arm64` binary respectively and puts it into the `bin` folder.
 
 #### Production ARM build
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make vmctl-linux-arm-prod` or `make vmctl-linux-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
+1. Run `make vmctl-linux-arm-prod` or `make vmctl-linux-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmctl-linux-arm-prod` or `vmctl-linux-arm64-prod` binary respectively and puts it into the `bin` folder.
