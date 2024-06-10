@@ -19,7 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 )
 
-var reloadAuthKey = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
+var reloadAuthKey = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings.")
 
 var (
 	apiLinks = [][2]string{
