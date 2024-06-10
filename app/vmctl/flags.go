@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	globalSilent  = "s"
-	globalVerbose = "verbose"
+	globalSilent             = "s"
+	globalVerbose            = "verbose"
+	globalDisableProgressBar = "disable-progress-bar"
 )
 
 var (
@@ -25,6 +26,11 @@ var (
 			Name:  globalVerbose,
 			Value: false,
 			Usage: "Whether to enable verbosity in logs output.",
+		},
+		&cli.BoolFlag{
+			Name:  globalDisableProgressBar,
+			Value: false,
+			Usage: "Whether to disable progress bar during the import.",
 		},
 	}
 )
@@ -122,7 +128,7 @@ var (
 		},
 		&cli.BoolFlag{
 			Name:  vmDisableProgressBar,
-			Usage: "Whether to disable progress bar per each worker during the import.",
+			Usage: "Whether to disable progress bar per each worker during the import. This flag is deprecated. Use global flag instead.",
 		},
 		&cli.StringFlag{
 			Name:  vmCertFile,
