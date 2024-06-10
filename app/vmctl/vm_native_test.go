@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"log"
 	"net/http"
 	"os"
@@ -36,6 +37,12 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 			log.Fatalf("cannot remove %q: %s", storagePath, err)
 		}
 	}()
+
+	barpool.Disable(true)
+	defer func() {
+		barpool.Disable(false)
+	}()
+	defer func() { isSilent = false }()
 
 	type fields struct {
 		filter       native.Filter
@@ -218,6 +225,7 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 				HTTPClient:  &http.Client{Transport: &http.Transport{DisableKeepAlives: false}},
 			}
 
+			isSilent = tt.args.silent
 			p := &vmNativeProcessor{
 				filter:       tt.fields.filter,
 				dst:          tt.fields.dst,
@@ -227,7 +235,6 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 				rateLimit:    tt.fields.rateLimit,
 				interCluster: tt.fields.interCluster,
 				cc:           tt.fields.cc,
-				isSilent:     tt.args.silent,
 				isNative:     true,
 			}
 

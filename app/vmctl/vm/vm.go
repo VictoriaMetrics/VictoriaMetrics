@@ -16,7 +16,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
-	"github.com/cheggaaa/pb/v3"
 )
 
 // Config contains list of params to configure
@@ -55,8 +54,6 @@ type Config struct {
 	// RateLimit defines a data transfer speed in bytes per second.
 	// Is applied to each worker (see Concurrency) independently.
 	RateLimit int64
-	// Whether to disable progress bar per VM worker
-	DisableProgressBar bool
 }
 
 // Importer performs insertion of timeseries
@@ -159,12 +156,10 @@ func NewImporter(ctx context.Context, cfg Config) (*Importer, error) {
 
 	im.wg.Add(int(cfg.Concurrency))
 	for i := 0; i < int(cfg.Concurrency); i++ {
-		var bar *pb.ProgressBar
-		if !cfg.DisableProgressBar {
-			pbPrefix := fmt.Sprintf(`{{ green "VM worker %d:" }}`, i)
-			bar = barpool.AddWithTemplate(pbPrefix+pbTpl, 0)
-		}
-		go func(bar *pb.ProgressBar) {
+		pbPrefix := fmt.Sprintf(`{{ green "VM worker %d:" }}`, i)
+		bar := barpool.AddWithTemplate(pbPrefix+pbTpl, 0)
+
+		go func(bar barpool.Bar) {
 			defer im.wg.Done()
 			im.startWorker(ctx, bar, cfg.BatchSize, cfg.SignificantFigures, cfg.RoundDigits)
 		}(bar)
@@ -217,7 +212,7 @@ func (im *Importer) Close() {
 	})
 }
 
-func (im *Importer) startWorker(ctx context.Context, bar *pb.ProgressBar, batchSize, significantFigures, roundDigits int) {
+func (im *Importer) startWorker(ctx context.Context, bar barpool.Bar, batchSize, significantFigures, roundDigits int) {
 	var batch []*TimeSeries
 	var dataPoints int
 	var waitForBatch time.Time
@@ -252,9 +247,7 @@ func (im *Importer) startWorker(ctx context.Context, bar *pb.ProgressBar, batchS
 			batch = append(batch, ts)
 			dataPoints += len(ts.Values)
 
-			if bar != nil {
-				bar.Add(len(ts.Values))
-			}
+			bar.Add(len(ts.Values))
 
 			if dataPoints < batchSize {
 				continue

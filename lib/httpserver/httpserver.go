@@ -396,6 +396,18 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4128
 		fmt.Fprintf(w, "User-agent: *\nDisallow: /\n")
 		return
+	case "/config", "/-/reload":
+		// only some components (vmagent, vmalert, etc.) support these handlers
+		// these components are responsible for CheckAuthFlag call
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6329
+		w = &responseWriterWithAbort{
+			ResponseWriter: w,
+		}
+		if !rh(w, r) {
+			Errorf(w, r, "unsupported path requested: %q", r.URL.Path)
+			unsupportedRequestErrors.Inc()
+		}
+		return
 	default:
 		if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {
 			pprofRequests.Inc()

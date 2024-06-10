@@ -5,11 +5,12 @@ import (
 	"log"
 	"sync"
 
+	"github.com/prometheus/prometheus/tsdb"
+	"github.com/prometheus/prometheus/tsdb/chunkenc"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	"github.com/prometheus/prometheus/tsdb"
-	"github.com/prometheus/prometheus/tsdb/chunkenc"
 )
 
 type prometheusProcessor struct {
@@ -24,9 +25,12 @@ type prometheusProcessor struct {
 	// and defines number of concurrently
 	// running snapshot block readers
 	cc int
+
+	// isVerbose enables verbose output
+	isVerbose bool
 }
 
-func (pp *prometheusProcessor) run(silent, verbose bool) error {
+func (pp *prometheusProcessor) run() error {
 	blocks, err := pp.cl.Explore()
 	if err != nil {
 		return fmt.Errorf("explore failed: %s", err)
@@ -35,12 +39,11 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 		return fmt.Errorf("found no blocks to import")
 	}
 	question := fmt.Sprintf("Found %d blocks to import. Continue?", len(blocks))
-	if !silent && !prompt(question) {
+	if !prompt(question) {
 		return nil
 	}
 
 	bar := barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing blocks"), len(blocks))
-
 	if err := barpool.Start(); err != nil {
 		return err
 	}
@@ -72,7 +75,7 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 			return fmt.Errorf("prometheus error: %s", promErr)
 		case vmErr := <-pp.im.Errors():
 			close(blockReadersCh)
-			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
+			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, pp.isVerbose))
 		case blockReadersCh <- br:
 		}
 	}
@@ -85,7 +88,7 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 	// drain import errors channel
 	for vmErr := range pp.im.Errors() {
 		if vmErr.Err != nil {
-			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
+			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, pp.isVerbose))
 		}
 	}
 	for err := range errCh {

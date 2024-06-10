@@ -9,8 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cheggaaa/pb/v3"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
@@ -33,7 +31,6 @@ type vmNativeProcessor struct {
 	rateLimit    int64
 	interCluster bool
 	cc           int
-	isSilent     bool
 	isNative     bool
 
 	disablePerMetricRequests bool
@@ -82,13 +79,13 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 			return fmt.Errorf("failed to get tenants: %w", err)
 		}
 		question := fmt.Sprintf("The following tenants were discovered: %s.\n Continue?", tenants)
-		if !p.isSilent && !prompt(question) {
+		if !prompt(question) {
 			return nil
 		}
 	}
 
 	for _, tenantID := range tenants {
-		err := p.runBackfilling(ctx, tenantID, ranges, p.isSilent)
+		err := p.runBackfilling(ctx, tenantID, ranges)
 		if err != nil {
 			return fmt.Errorf("migration failed: %s", err)
 		}
@@ -100,7 +97,7 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 	return nil
 }
 
-func (p *vmNativeProcessor) do(ctx context.Context, f native.Filter, srcURL, dstURL string, bar *pb.ProgressBar) error {
+func (p *vmNativeProcessor) do(ctx context.Context, f native.Filter, srcURL, dstURL string, bar barpool.Bar) error {
 
 	retryableFunc := func() error { return p.runSingle(ctx, f, srcURL, dstURL, bar) }
 	attempts, err := p.backoff.Retry(ctx, retryableFunc)
@@ -114,15 +111,18 @@ func (p *vmNativeProcessor) do(ctx context.Context, f native.Filter, srcURL, dst
 	return nil
 }
 
-func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcURL, dstURL string, bar *pb.ProgressBar) error {
+func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcURL, dstURL string, bar barpool.Bar) error {
 	reader, err := p.src.ExportPipe(ctx, srcURL, f)
 	if err != nil {
 		return fmt.Errorf("failed to init export pipe: %w", err)
 	}
 
-	if p.disablePerMetricRequests && bar != nil {
-		fmt.Printf("Continue import process with filter %s:\n", f.String())
-		reader = bar.NewProxyReader(reader)
+	if p.disablePerMetricRequests {
+		pr := bar.NewProxyReader(reader)
+		if pr != nil {
+			reader = bar.NewProxyReader(reader)
+			fmt.Printf("Continue import process with filter %s:\n", f.String())
+		}
 	}
 
 	pr, pw := io.Pipe()
@@ -155,7 +155,7 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 	return <-importCh
 }
 
-func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string, ranges [][]time.Time, silent bool) error {
+func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string, ranges [][]time.Time) error {
 	exportAddr := nativeExportAddr
 	importAddr := nativeImportAddr
 	if p.isNative {
@@ -194,7 +194,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 		"": ranges,
 	}
 	if !p.disablePerMetricRequests {
-		metrics, err = p.explore(ctx, p.src, tenantID, ranges, silent)
+		metrics, err = p.explore(ctx, p.src, tenantID, ranges)
 		if err != nil {
 			return fmt.Errorf("failed to explore metric names: %s", err)
 		}
@@ -216,26 +216,24 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 		// do not prompt for intercluster because there could be many tenants,
 		// and we don't want to interrupt the process when moving to the next tenant.
 		question := foundSeriesMsg + ". Continue?"
-		if !silent && !prompt(question) {
+		if !prompt(question) {
 			return nil
 		}
 	} else {
 		log.Print(foundSeriesMsg)
 	}
 
-	var bar *pb.ProgressBar
 	barPrefix := "Requests to make"
 	if p.interCluster {
 		barPrefix = fmt.Sprintf("Requests to make for tenant %s", tenantID)
 	}
-	if !silent {
-		bar = barpool.NewSingleProgress(fmt.Sprintf(nativeWithBackoffTpl, barPrefix), requestsToMake)
-		if p.disablePerMetricRequests {
-			bar = barpool.NewSingleProgress(nativeSingleProcessTpl, 0)
-		}
-		bar.Start()
-		defer bar.Finish()
+
+	bar := barpool.NewSingleProgress(fmt.Sprintf(nativeWithBackoffTpl, barPrefix), requestsToMake)
+	if p.disablePerMetricRequests {
+		bar = barpool.NewSingleProgress(nativeSingleProcessTpl, 0)
 	}
+	bar.Start()
+	defer bar.Finish()
 
 	filterCh := make(chan native.Filter)
 	errCh := make(chan error, p.cc)
@@ -251,9 +249,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 						errCh <- err
 						return
 					}
-					if bar != nil {
-						bar.Increment()
-					}
+					bar.Increment()
 				} else {
 					if err := p.runSingle(ctx, f, srcURL, dstURL, bar); err != nil {
 						errCh <- err
@@ -298,15 +294,12 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	return nil
 }
 
-func (p *vmNativeProcessor) explore(ctx context.Context, src *native.Client, tenantID string, ranges [][]time.Time, silent bool) (map[string][][]time.Time, error) {
+func (p *vmNativeProcessor) explore(ctx context.Context, src *native.Client, tenantID string, ranges [][]time.Time) (map[string][][]time.Time, error) {
 	log.Printf("Exploring metrics...")
 
-	var bar *pb.ProgressBar
-	if !silent {
-		bar = barpool.NewSingleProgress(fmt.Sprintf(nativeWithBackoffTpl, "Explore requests to make"), len(ranges))
-		bar.Start()
-		defer bar.Finish()
-	}
+	bar := barpool.NewSingleProgress(fmt.Sprintf(nativeWithBackoffTpl, "Explore requests to make"), len(ranges))
+	bar.Start()
+	defer bar.Finish()
 
 	metrics := make(map[string][][]time.Time)
 	for _, r := range ranges {
@@ -317,9 +310,7 @@ func (p *vmNativeProcessor) explore(ctx context.Context, src *native.Client, ten
 		for i := range ms {
 			metrics[ms[i]] = append(metrics[ms[i]], r)
 		}
-		if bar != nil {
-			bar.Increment()
-		}
+		bar.Increment()
 	}
 	return metrics, nil
 }
