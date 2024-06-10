@@ -1,4 +1,3 @@
-version: "3.5"
 services:
   # Grafana instance configured with VictoriaLogs as datasource
   grafana:
