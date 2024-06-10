@@ -4,25 +4,184 @@ import (
 	"testing"
 )
 
+func TestParsePipeRenameSuccess(t *testing.T) {
+	f := func(pipeStr string) {
+		t.Helper()
+		expectParsePipeSuccess(t, pipeStr)
+	}
+
+	f(`rename foo as bar`)
+	f(`rename foo as bar, a as b`)
+}
+
+func TestParsePipeRenameFailure(t *testing.T) {
+	f := func(pipeStr string) {
+		t.Helper()
+		expectParsePipeFailure(t, pipeStr)
+	}
+
+	f(`rename`)
+	f(`rename x`)
+	f(`rename x as`)
+	f(`rename x y z`)
+}
+
+func TestPipeRename(t *testing.T) {
+	f := func(pipeStr string, rows, rowsExpected [][]Field) {
+		t.Helper()
+		expectPipeResults(t, pipeStr, rows, rowsExpected)
+	}
+
+	// single row, rename from existing field
+	f("rename a as b", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"b", `test`},
+		},
+	})
+
+	// single row, rename from existing field to multiple fields
+	f("rename a as b, a as c, _msg as d", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+		},
+	}, [][]Field{
+		{
+			{"b", `test`},
+			{"c", ``},
+			{"d", `{"foo":"bar"}`},
+		},
+	})
+
+	// single row, rename from non-exsiting field
+	f("rename x as b", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+			{"b", ``},
+		},
+	})
+
+	// rename to existing field
+	f("rename _msg as a", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+		},
+	}, [][]Field{
+		{
+			{"a", `{"foo":"bar"}`},
+		},
+	})
+
+	// rename to itself
+	f("rename a as a", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+		},
+	})
+
+	// swap rename
+	f("rename a as b, _msg as a, b as _msg", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `test`},
+			{"a", `{"foo":"bar"}`},
+		},
+	})
+
+	// rename to the same field multiple times
+	f("rename a as b, _msg as b", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+		},
+	}, [][]Field{
+		{
+			{"b", `{"foo":"bar"}`},
+		},
+	})
+
+	// chain rename (shouldn't work - otherwise swap rename will break)
+	f("rename a as b, b as c", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"c", `test`},
+		},
+	})
+
+	// Multiple rows
+	f("rename a as b", [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"a", `test`},
+		},
+		{
+			{"a", `foobar`},
+		},
+		{
+			{"b", `baz`},
+			{"c", "d"},
+			{"e", "afdf"},
+		},
+		{
+			{"c", "dss"},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `{"foo":"bar"}`},
+			{"b", `test`},
+		},
+		{
+			{"b", `foobar`},
+		},
+		{
+			{"b", ``},
+			{"c", "d"},
+			{"e", "afdf"},
+		},
+		{
+			{"c", "dss"},
+			{"b", ""},
+		},
+	})
+}
+
 func TestPipeRenameUpdateNeededFields(t *testing.T) {
 	f := func(s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
 		t.Helper()
-
-		nfs := newTestFieldsSet(neededFields)
-		unfs := newTestFieldsSet(unneededFields)
-
-		lex := newLexer(s)
-		p, err := parsePipeRename(lex)
-		if err != nil {
-			t.Fatalf("cannot parse %s: %s", s, err)
-		}
-		p.updateNeededFields(nfs, unfs)
-
-		assertNeededFields(t, nfs, unfs, neededFieldsExpected, unneededFieldsExpected)
+		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
 	}
 
 	// all the needed fields
 	f("rename s1 d1, s2 d2", "*", "", "*", "d1,d2")
+	f("rename a a", "*", "", "*", "")
 
 	// all the needed fields, unneeded fields do not intersect with src and dst
 	f("rename s1 d1, s2 d2", "*", "f1,f2", "*", "d1,d2,f1,f2")

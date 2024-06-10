@@ -20,7 +20,11 @@ type filterExactPrefix struct {
 }
 
 func (fep *filterExactPrefix) String() string {
-	return fmt.Sprintf("%sexact(%s*)", quoteFieldNameIfNeeded(fep.fieldName), quoteTokenIfNeeded(fep.prefix))
+	return fmt.Sprintf("%s=%s*", quoteFieldNameIfNeeded(fep.fieldName), quoteTokenIfNeeded(fep.prefix))
+}
+
+func (fep *filterExactPrefix) updateNeededFields(neededFields fieldsSet) {
+	neededFields.add(fep.fieldName)
 }
 
 func (fep *filterExactPrefix) getTokens() []string {
@@ -32,7 +36,11 @@ func (fep *filterExactPrefix) initTokens() {
 	fep.tokens = getTokensSkipLast(fep.prefix)
 }
 
-func (fep *filterExactPrefix) apply(bs *blockSearch, bm *bitmap) {
+func (fep *filterExactPrefix) applyToBlockResult(br *blockResult, bm *bitmap) {
+	applyToBlockResultGeneric(br, bm, fep.fieldName, fep.prefix, matchExactPrefix)
+}
+
+func (fep *filterExactPrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fep.fieldName
 	prefix := fep.prefix
 
@@ -91,7 +99,7 @@ func matchTimestampISO8601ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *b
 
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toTimestampISO8601StringExt(bs, bb, v)
+		s := toTimestampISO8601String(bs, bb, v)
 		return matchExactPrefix(s, prefix)
 	})
 	bbPool.Put(bb)
@@ -108,7 +116,7 @@ func matchIPv4ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefi
 
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toIPv4StringExt(bs, bb, v)
+		s := toIPv4String(bs, bb, v)
 		return matchExactPrefix(s, prefix)
 	})
 	bbPool.Put(bb)
@@ -126,7 +134,7 @@ func matchFloat64ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, pr
 
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
-		s := toFloat64StringExt(bs, bb, v)
+		s := toFloat64String(bs, bb, v)
 		return matchExactPrefix(s, prefix)
 	})
 	bbPool.Put(bb)
@@ -134,10 +142,12 @@ func matchFloat64ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, pr
 
 func matchValuesDictByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string) {
 	bb := bbPool.Get()
-	for i, v := range ch.valuesDict.values {
+	for _, v := range ch.valuesDict.values {
+		c := byte(0)
 		if matchExactPrefix(v, prefix) {
-			bb.B = append(bb.B, byte(i))
+			c = 1
 		}
+		bb.B = append(bb.B, c)
 	}
 	matchEncodedValuesDict(bs, ch, bm, bb.B)
 	bbPool.Put(bb)

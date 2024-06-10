@@ -1,22 +1,20 @@
 package logstorage
 
 import (
-	"slices"
 	"strconv"
 	"unsafe"
 )
 
 type statsSumLen struct {
-	fields       []string
-	containsStar bool
+	fields []string
 }
 
 func (ss *statsSumLen) String() string {
-	return "sum_len(" + fieldNamesString(ss.fields) + ")"
+	return "sum_len(" + statsFuncFieldsToString(ss.fields) + ")"
 }
 
-func (ss *statsSumLen) neededFields() []string {
-	return ss.fields
+func (ss *statsSumLen) updateNeededFields(neededFields fieldsSet) {
+	updateNeededFieldsForStatsFunc(neededFields, ss.fields)
 }
 
 func (ss *statsSumLen) newStatsProcessor() (statsProcessor, int) {
@@ -34,14 +32,15 @@ type statsSumLenProcessor struct {
 }
 
 func (ssp *statsSumLenProcessor) updateStatsForAllRows(br *blockResult) int {
-	if ssp.ss.containsStar {
+	fields := ssp.ss.fields
+	if len(fields) == 0 {
 		// Sum all the columns
 		for _, c := range br.getColumns() {
 			ssp.sumLen += c.sumLenValues(br)
 		}
 	} else {
 		// Sum the requested columns
-		for _, field := range ssp.ss.fields {
+		for _, field := range fields {
 			c := br.getColumnByName(field)
 			ssp.sumLen += c.sumLenValues(br)
 		}
@@ -50,7 +49,8 @@ func (ssp *statsSumLenProcessor) updateStatsForAllRows(br *blockResult) int {
 }
 
 func (ssp *statsSumLenProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
-	if ssp.ss.containsStar {
+	fields := ssp.ss.fields
+	if len(fields) == 0 {
 		// Sum all the fields for the given row
 		for _, c := range br.getColumns() {
 			v := c.getValueAtRow(br, rowIdx)
@@ -58,7 +58,7 @@ func (ssp *statsSumLenProcessor) updateStatsForRow(br *blockResult, rowIdx int) 
 		}
 	} else {
 		// Sum only the given fields for the given row
-		for _, field := range ssp.ss.fields {
+		for _, field := range fields {
 			c := br.getColumnByName(field)
 			v := c.getValueAtRow(br, rowIdx)
 			ssp.sumLen += uint64(len(v))
@@ -77,13 +77,12 @@ func (ssp *statsSumLenProcessor) finalizeStats() string {
 }
 
 func parseStatsSumLen(lex *lexer) (*statsSumLen, error) {
-	fields, err := parseFieldNamesForStatsFunc(lex, "sum_len")
+	fields, err := parseStatsFuncFields(lex, "sum_len")
 	if err != nil {
 		return nil, err
 	}
 	ss := &statsSumLen{
-		fields:       fields,
-		containsStar: slices.Contains(fields, "*"),
+		fields: fields,
 	}
 	return ss, nil
 }

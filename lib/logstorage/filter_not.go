@@ -16,12 +16,26 @@ func (fn *filterNot) String() string {
 	return "!" + s
 }
 
-func (fn *filterNot) apply(bs *blockSearch, bm *bitmap) {
+func (fn *filterNot) updateNeededFields(neededFields fieldsSet) {
+	fn.f.updateNeededFields(neededFields)
+}
+
+func (fn *filterNot) applyToBlockResult(br *blockResult, bm *bitmap) {
 	// Minimize the number of rows to check by the filter by applying it
 	// only to the rows, which match the bm, e.g. they may change the bm result.
 	bmTmp := getBitmap(bm.bitsLen)
 	bmTmp.copyFrom(bm)
-	fn.f.apply(bs, bmTmp)
+	fn.f.applyToBlockResult(br, bmTmp)
+	bm.andNot(bmTmp)
+	putBitmap(bmTmp)
+}
+
+func (fn *filterNot) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
+	// Minimize the number of rows to check by the filter by applying it
+	// only to the rows, which match the bm, e.g. they may change the bm result.
+	bmTmp := getBitmap(bm.bitsLen)
+	bmTmp.copyFrom(bm)
+	fn.f.applyToBlockSearch(bs, bmTmp)
 	bm.andNot(bmTmp)
 	putBitmap(bmTmp)
 }

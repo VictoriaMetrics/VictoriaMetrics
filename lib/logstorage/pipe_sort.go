@@ -11,7 +11,6 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
@@ -57,6 +56,10 @@ func (ps *pipeSort) String() string {
 }
 
 func (ps *pipeSort) updateNeededFields(neededFields, unneededFields fieldsSet) {
+	if neededFields.isEmpty() {
+		return
+	}
+
 	if len(ps.byFields) == 0 {
 		neededFields.add("*")
 		unneededFields.reset()
@@ -68,21 +71,36 @@ func (ps *pipeSort) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	}
 }
 
-func (ps *pipeSort) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {
-	if ps.limit > 0 {
-		return newPipeTopkProcessor(ps, workersCount, stopCh, cancel, ppBase)
-	}
-	return newPipeSortProcessor(ps, workersCount, stopCh, cancel, ppBase)
+func (ps *pipeSort) optimize() {
+	// nothing to do
 }
 
-func newPipeSortProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {
+func (ps *pipeSort) hasFilterInWithQuery() bool {
+	return false
+}
+
+func (ps *pipeSort) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+	return ps, nil
+}
+
+func (ps *pipeSort) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
+	if ps.limit > 0 {
+		return newPipeTopkProcessor(ps, workersCount, stopCh, cancel, ppNext)
+	}
+	return newPipeSortProcessor(ps, workersCount, stopCh, cancel, ppNext)
+}
+
+func newPipeSortProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	maxStateSize := int64(float64(memory.Allowed()) * 0.2)
 
 	shards := make([]pipeSortProcessorShard, workersCount)
 	for i := range shards {
-		shard := &shards[i]
-		shard.ps = ps
-		shard.stateSizeBudget = stateSizeBudgetChunk
+		shards[i] = pipeSortProcessorShard{
+			pipeSortProcessorShardNopad: pipeSortProcessorShardNopad{
+				ps:              ps,
+				stateSizeBudget: stateSizeBudgetChunk,
+			},
+		}
 		maxStateSize -= stateSizeBudgetChunk
 	}
 
@@ -90,7 +108,7 @@ func newPipeSortProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}
 		ps:     ps,
 		stopCh: stopCh,
 		cancel: cancel,
-		ppBase: ppBase,
+		ppNext: ppNext,
 
 		shards: shards,
 
@@ -105,7 +123,7 @@ type pipeSortProcessor struct {
 	ps     *pipeSort
 	stopCh <-chan struct{}
 	cancel func()
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 
 	shards []pipeSortProcessorShard
 
@@ -202,12 +220,14 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 
 		columnValues := shard.columnValues[:0]
 		for _, c := range cs {
-			columnValues = append(columnValues, c.getValues(br))
+			values := c.getValues(br)
+			columnValues = append(columnValues, values)
 		}
 		shard.columnValues = columnValues
 
 		// Generate byColumns
-		var rc resultColumn
+		valuesEncoded := make([]string, len(br.timestamps))
+		shard.stateSizeBudget -= len(valuesEncoded) * int(unsafe.Sizeof(valuesEncoded[0]))
 
 		bb := bbPool.Get()
 		for rowIdx := range br.timestamps {
@@ -219,7 +239,12 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 				bb.B = marshalJSONKeyValue(bb.B, cs[i].name, v)
 				bb.B = append(bb.B, ',')
 			}
-			rc.addValue(bytesutil.ToUnsafeString(bb.B))
+			if rowIdx > 0 && valuesEncoded[rowIdx-1] == string(bb.B) {
+				valuesEncoded[rowIdx] = valuesEncoded[rowIdx-1]
+			} else {
+				valuesEncoded[rowIdx] = string(bb.B)
+				shard.stateSizeBudget -= len(bb.B)
+			}
 		}
 		bbPool.Put(bb)
 
@@ -232,13 +257,13 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 			{
 				c: &blockResultColumn{
 					valueType:     valueTypeString,
-					encodedValues: rc.values,
+					valuesEncoded: valuesEncoded,
 				},
 				i64Values: i64Values,
 				f64Values: f64Values,
 			},
 		}
-		shard.stateSizeBudget -= len(rc.buf) + int(unsafe.Sizeof(byColumns[0])+unsafe.Sizeof(*byColumns[0].c))
+		shard.stateSizeBudget -= int(unsafe.Sizeof(byColumns[0]) + unsafe.Sizeof(*byColumns[0].c))
 
 		// Append br to shard.blocks.
 		shard.blocks = append(shard.blocks, sortBlock{
@@ -260,8 +285,8 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 				continue
 			}
 			if c.isConst {
-				bc.i64Values = shard.createInt64Values(c.encodedValues)
-				bc.f64Values = shard.createFloat64Values(c.encodedValues)
+				bc.i64Values = shard.createInt64Values(c.valuesEncoded)
+				bc.f64Values = shard.createFloat64Values(c.valuesEncoded)
 				continue
 			}
 
@@ -476,8 +501,14 @@ type pipeSortWriteContext struct {
 	rcs []resultColumn
 	br  blockResult
 
+	// rowsWritten is the total number of rows passed to writeNextRow.
 	rowsWritten uint64
-	valuesLen   int
+
+	// rowsCount is the number of rows in the current block
+	rowsCount int
+
+	// valuesLen is the length of all the values in the current block
+	valuesLen int
 }
 
 func (wctx *pipeSortWriteContext) writeNextRow(shard *pipeSortProcessorShard) {
@@ -507,19 +538,15 @@ func (wctx *pipeSortWriteContext) writeNextRow(shard *pipeSortProcessorShard) {
 		}
 	}
 	if !areEqualColumns {
-		// send the current block to bbBase and construct a block with new set of columns
+		// send the current block to ppNext and construct a block with new set of columns
 		wctx.flush()
 
 		rcs = wctx.rcs[:0]
 		for _, bf := range byFields {
-			rcs = append(rcs, resultColumn{
-				name: bf.name,
-			})
+			rcs = appendResultColumnWithName(rcs, bf.name)
 		}
 		for _, c := range b.otherColumns {
-			rcs = append(rcs, resultColumn{
-				name: c.name,
-			})
+			rcs = appendResultColumnWithName(rcs, c.name)
 		}
 		wctx.rcs = rcs
 	}
@@ -538,6 +565,7 @@ func (wctx *pipeSortWriteContext) writeNextRow(shard *pipeSortProcessorShard) {
 		wctx.valuesLen += len(v)
 	}
 
+	wctx.rowsCount++
 	if wctx.valuesLen >= 1_000_000 {
 		wctx.flush()
 	}
@@ -549,16 +577,13 @@ func (wctx *pipeSortWriteContext) flush() {
 
 	wctx.valuesLen = 0
 
-	if len(rcs) == 0 {
-		return
-	}
-
-	// Flush rcs to ppBase
-	br.setResultColumns(rcs)
-	wctx.psp.ppBase.writeBlock(0, br)
+	// Flush rcs to ppNext
+	br.setResultColumns(rcs, wctx.rowsCount)
+	wctx.rowsCount = 0
+	wctx.psp.ppNext.writeBlock(0, br)
 	br.reset()
 	for i := range rcs {
-		rcs[i].resetKeepName()
+		rcs[i].resetValues()
 	}
 }
 
@@ -610,8 +635,8 @@ func sortBlockLess(shardA *pipeSortProcessorShard, rowIdxA int, shardB *pipeSort
 
 		if cA.c.isConst && cB.c.isConst {
 			// Fast path - compare const values
-			ccA := cA.c.encodedValues[0]
-			ccB := cB.c.encodedValues[0]
+			ccA := cA.c.valuesEncoded[0]
+			ccB := cB.c.valuesEncoded[0]
 			if ccA == ccB {
 				continue
 			}
@@ -689,8 +714,10 @@ func parsePipeSort(lex *lexer) (*pipeSort, error) {
 	lex.nextToken()
 
 	var ps pipeSort
-	if lex.isKeyword("by") {
-		lex.nextToken()
+	if lex.isKeyword("by", "(") {
+		if lex.isKeyword("by") {
+			lex.nextToken()
+		}
 		bfs, err := parseBySortFields(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'by' clause: %w", err)
@@ -698,9 +725,12 @@ func parsePipeSort(lex *lexer) (*pipeSort, error) {
 		ps.byFields = bfs
 	}
 
-	if lex.isKeyword("desc") {
+	switch {
+	case lex.isKeyword("desc"):
 		lex.nextToken()
 		ps.isDesc = true
+	case lex.isKeyword("asc"):
+		lex.nextToken()
 	}
 
 	for {
@@ -770,9 +800,12 @@ func parseBySortFields(lex *lexer) ([]*bySortField, error) {
 		bf := &bySortField{
 			name: fieldName,
 		}
-		if lex.isKeyword("desc") {
+		switch {
+		case lex.isKeyword("desc"):
 			lex.nextToken()
 			bf.isDesc = true
+		case lex.isKeyword("asc"):
+			lex.nextToken()
 		}
 		bfs = append(bfs, bf)
 		switch {

@@ -1,30 +1,27 @@
 package logstorage
 
 import (
-	"slices"
 	"unsafe"
 )
 
 type statsMedian struct {
-	fields       []string
-	containsStar bool
+	fields []string
 }
 
 func (sm *statsMedian) String() string {
-	return "median(" + fieldNamesString(sm.fields) + ")"
+	return "median(" + statsFuncFieldsToString(sm.fields) + ")"
 }
 
-func (sm *statsMedian) neededFields() []string {
-	return sm.fields
+func (sm *statsMedian) updateNeededFields(neededFields fieldsSet) {
+	updateNeededFieldsForStatsFunc(neededFields, sm.fields)
 }
 
 func (sm *statsMedian) newStatsProcessor() (statsProcessor, int) {
 	smp := &statsMedianProcessor{
 		sqp: &statsQuantileProcessor{
 			sq: &statsQuantile{
-				fields:       sm.fields,
-				containsStar: sm.containsStar,
-				phi:          0.5,
+				fields: sm.fields,
+				phi:    0.5,
 			},
 		},
 	}
@@ -53,13 +50,12 @@ func (smp *statsMedianProcessor) finalizeStats() string {
 }
 
 func parseStatsMedian(lex *lexer) (*statsMedian, error) {
-	fields, err := parseFieldNamesForStatsFunc(lex, "median")
+	fields, err := parseStatsFuncFields(lex, "median")
 	if err != nil {
 		return nil, err
 	}
 	sm := &statsMedian{
-		fields:       fields,
-		containsStar: slices.Contains(fields, "*"),
+		fields: fields,
 	}
 	return sm, nil
 }

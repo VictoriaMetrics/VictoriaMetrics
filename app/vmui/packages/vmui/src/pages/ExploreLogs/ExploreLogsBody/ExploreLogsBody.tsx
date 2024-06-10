@@ -13,7 +13,8 @@ import useSearchParamsFromObject from "../../../hooks/useSearchParamsFromObject"
 import TableSettings from "../../../components/Table/TableSettings/TableSettings";
 import useBoolean from "../../../hooks/useBoolean";
 import TableLogs from "./TableLogs";
-import GroupLogs from "./GroupLogs";
+import GroupLogs from "../GroupLogs/GroupLogs";
+import { DATE_TIME_FORMAT } from "../../../constants/date";
 import { marked } from "marked";
 
 export interface ExploreLogBodyProps {
@@ -44,15 +45,15 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded, markdownParsin
   const { value: tableCompact, toggle: toggleTableCompact } = useBoolean(false);
 
   const logs = useMemo(() => data.map((item) => ({
-    _markdown: marked(item._msg.replace(/```/g, "\n```\n")) as string,
-    time: dayjs(item._time).tz().format("MMM DD, YYYY \nHH:mm:ss.SSS"),
-    data: JSON.stringify(item, null, 2),
     ...item,
+    _vmui_time: item._time ? dayjs(item._time).tz().format(`${DATE_TIME_FORMAT}.SSS`) : "",
+    _vmui_data: JSON.stringify(item, null, 2),
+    _vmui_markdown: marked(item._msg.replace(/```/g, "\n```\n")) as string,
   })) as Logs[], [data, timezone]);
 
   const columns = useMemo(() => {
     if (!logs?.length) return [];
-    const hideColumns = ["data", "_time", "_markdown"];
+    const hideColumns = ["_vmui_data", "_vmui_time", "_vmui_markdown"];
     const keys = new Set<string>();
     for (const item of logs) {
       for (const key in item) {

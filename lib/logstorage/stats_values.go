@@ -2,27 +2,25 @@ package logstorage
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 	"unsafe"
 )
 
 type statsValues struct {
-	fields       []string
-	containsStar bool
-	limit        uint64
+	fields []string
+	limit  uint64
 }
 
 func (sv *statsValues) String() string {
-	s := "values(" + fieldNamesString(sv.fields) + ")"
+	s := "values(" + statsFuncFieldsToString(sv.fields) + ")"
 	if sv.limit > 0 {
 		s += fmt.Sprintf(" limit %d", sv.limit)
 	}
 	return s
 }
 
-func (sv *statsValues) neededFields() []string {
-	return sv.fields
+func (sv *statsValues) updateNeededFields(neededFields fieldsSet) {
+	updateNeededFieldsForStatsFunc(neededFields, sv.fields)
 }
 
 func (sv *statsValues) newStatsProcessor() (statsProcessor, int) {
@@ -45,12 +43,13 @@ func (svp *statsValuesProcessor) updateStatsForAllRows(br *blockResult) int {
 	}
 
 	stateSizeIncrease := 0
-	if svp.sv.containsStar {
+	fields := svp.sv.fields
+	if len(fields) == 0 {
 		for _, c := range br.getColumns() {
 			stateSizeIncrease += svp.updateStatsForAllRowsColumn(c, br)
 		}
 	} else {
-		for _, field := range svp.sv.fields {
+		for _, field := range fields {
 			c := br.getColumnByName(field)
 			stateSizeIncrease += svp.updateStatsForAllRowsColumn(c, br)
 		}
@@ -61,7 +60,7 @@ func (svp *statsValuesProcessor) updateStatsForAllRows(br *blockResult) int {
 func (svp *statsValuesProcessor) updateStatsForAllRowsColumn(c *blockResultColumn, br *blockResult) int {
 	stateSizeIncrease := 0
 	if c.isConst {
-		v := strings.Clone(c.encodedValues[0])
+		v := strings.Clone(c.valuesEncoded[0])
 		stateSizeIncrease += len(v)
 
 		values := svp.values
@@ -81,7 +80,7 @@ func (svp *statsValuesProcessor) updateStatsForAllRowsColumn(c *blockResultColum
 		}
 
 		values := svp.values
-		for _, encodedValue := range c.encodedValues {
+		for _, encodedValue := range c.getValuesEncoded(br) {
 			idx := encodedValue[0]
 			values = append(values, dictValues[idx])
 		}
@@ -112,12 +111,13 @@ func (svp *statsValuesProcessor) updateStatsForRow(br *blockResult, rowIdx int) 
 	}
 
 	stateSizeIncrease := 0
-	if svp.sv.containsStar {
+	fields := svp.sv.fields
+	if len(fields) == 0 {
 		for _, c := range br.getColumns() {
 			stateSizeIncrease += svp.updateStatsForRowColumn(c, br, rowIdx)
 		}
 	} else {
-		for _, field := range svp.sv.fields {
+		for _, field := range fields {
 			c := br.getColumnByName(field)
 			stateSizeIncrease += svp.updateStatsForRowColumn(c, br, rowIdx)
 		}
@@ -128,7 +128,7 @@ func (svp *statsValuesProcessor) updateStatsForRow(br *blockResult, rowIdx int) 
 func (svp *statsValuesProcessor) updateStatsForRowColumn(c *blockResultColumn, br *blockResult, rowIdx int) int {
 	stateSizeIncrease := 0
 	if c.isConst {
-		v := strings.Clone(c.encodedValues[0])
+		v := strings.Clone(c.valuesEncoded[0])
 		stateSizeIncrease += len(v)
 
 		svp.values = append(svp.values, v)
@@ -138,7 +138,8 @@ func (svp *statsValuesProcessor) updateStatsForRowColumn(c *blockResultColumn, b
 	}
 	if c.valueType == valueTypeDict {
 		// collect unique non-zero c.dictValues
-		dictIdx := c.encodedValues[rowIdx][0]
+		valuesEncoded := c.getValuesEncoded(br)
+		dictIdx := valuesEncoded[rowIdx][0]
 		v := strings.Clone(c.dictValues[dictIdx])
 		stateSizeIncrease += len(v)
 
@@ -187,13 +188,12 @@ func (svp *statsValuesProcessor) limitReached() bool {
 }
 
 func parseStatsValues(lex *lexer) (*statsValues, error) {
-	fields, err := parseFieldNamesForStatsFunc(lex, "values")
+	fields, err := parseStatsFuncFields(lex, "values")
 	if err != nil {
 		return nil, err
 	}
 	sv := &statsValues{
-		fields:       fields,
-		containsStar: slices.Contains(fields, "*"),
+		fields: fields,
 	}
 	if lex.isKeyword("limit") {
 		lex.nextToken()

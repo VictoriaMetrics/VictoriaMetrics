@@ -1,23 +1,23 @@
 package logstorage
 
 import (
-	"math"
+	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 	"unsafe"
 )
 
 type statsAvg struct {
-	fields       []string
-	containsStar bool
+	fields []string
 }
 
 func (sa *statsAvg) String() string {
-	return "avg(" + fieldNamesString(sa.fields) + ")"
+	return "avg(" + statsFuncFieldsToString(sa.fields) + ")"
 }
 
-func (sa *statsAvg) neededFields() []string {
-	return sa.fields
+func (sa *statsAvg) updateNeededFields(neededFields fieldsSet) {
+	updateNeededFieldsForStatsFunc(neededFields, sa.fields)
 }
 
 func (sa *statsAvg) newStatsProcessor() (statsProcessor, int) {
@@ -35,7 +35,8 @@ type statsAvgProcessor struct {
 }
 
 func (sap *statsAvgProcessor) updateStatsForAllRows(br *blockResult) int {
-	if sap.sa.containsStar {
+	fields := sap.sa.fields
+	if len(fields) == 0 {
 		// Scan all the columns
 		for _, c := range br.getColumns() {
 			f, count := c.sumValues(br)
@@ -44,7 +45,7 @@ func (sap *statsAvgProcessor) updateStatsForAllRows(br *blockResult) int {
 		}
 	} else {
 		// Scan the requested columns
-		for _, field := range sap.sa.fields {
+		for _, field := range fields {
 			c := br.getColumnByName(field)
 			f, count := c.sumValues(br)
 			sap.sum += f
@@ -55,21 +56,22 @@ func (sap *statsAvgProcessor) updateStatsForAllRows(br *blockResult) int {
 }
 
 func (sap *statsAvgProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
-	if sap.sa.containsStar {
+	fields := sap.sa.fields
+	if len(fields) == 0 {
 		// Scan all the fields for the given row
 		for _, c := range br.getColumns() {
-			f := c.getFloatValueAtRow(rowIdx)
-			if !math.IsNaN(f) {
+			f, ok := c.getFloatValueAtRow(br, rowIdx)
+			if ok {
 				sap.sum += f
 				sap.count++
 			}
 		}
 	} else {
 		// Scan only the given fields for the given row
-		for _, field := range sap.sa.fields {
+		for _, field := range fields {
 			c := br.getColumnByName(field)
-			f := c.getFloatValueAtRow(rowIdx)
-			if !math.IsNaN(f) {
+			f, ok := c.getFloatValueAtRow(br, rowIdx)
+			if ok {
 				sap.sum += f
 				sap.count++
 			}
@@ -90,13 +92,49 @@ func (sap *statsAvgProcessor) finalizeStats() string {
 }
 
 func parseStatsAvg(lex *lexer) (*statsAvg, error) {
-	fields, err := parseFieldNamesForStatsFunc(lex, "avg")
+	fields, err := parseStatsFuncFields(lex, "avg")
 	if err != nil {
 		return nil, err
 	}
 	sa := &statsAvg{
-		fields:       fields,
-		containsStar: slices.Contains(fields, "*"),
+		fields: fields,
 	}
 	return sa, nil
+}
+
+func parseStatsFuncFields(lex *lexer, funcName string) ([]string, error) {
+	if !lex.isKeyword(funcName) {
+		return nil, fmt.Errorf("unexpected func; got %q; want %q", lex.token, funcName)
+	}
+	lex.nextToken()
+	fields, err := parseFieldNamesInParens(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse %q args: %w", funcName, err)
+	}
+	if len(fields) == 0 || slices.Contains(fields, "*") {
+		fields = nil
+	}
+	return fields, nil
+}
+
+func statsFuncFieldsToString(fields []string) string {
+	if len(fields) == 0 {
+		return "*"
+	}
+	return fieldsToString(fields)
+}
+
+func fieldsToString(fields []string) string {
+	a := make([]string, len(fields))
+	for i, f := range fields {
+		a[i] = quoteTokenIfNeeded(f)
+	}
+	return strings.Join(a, ", ")
+}
+
+func updateNeededFieldsForStatsFunc(neededFields fieldsSet, fields []string) {
+	if len(fields) == 0 {
+		neededFields.add("*")
+	}
+	neededFields.addFields(fields)
 }

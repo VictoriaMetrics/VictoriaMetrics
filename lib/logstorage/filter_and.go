@@ -13,8 +13,13 @@ import (
 type filterAnd struct {
 	filters []filter
 
-	msgTokensOnce sync.Once
-	msgTokens     []string
+	byFieldTokensOnce sync.Once
+	byFieldTokens     []fieldTokens
+}
+
+type fieldTokens struct {
+	field  string
+	tokens []string
 }
 
 func (fa *filterAnd) String() string {
@@ -22,8 +27,7 @@ func (fa *filterAnd) String() string {
 	a := make([]string, len(filters))
 	for i, f := range filters {
 		s := f.String()
-		switch f.(type) {
-		case *filterOr:
+		if _, ok := f.(*filterOr); ok {
 			s = "(" + s + ")"
 		}
 		a[i] = s
@@ -31,16 +35,15 @@ func (fa *filterAnd) String() string {
 	return strings.Join(a, " ")
 }
 
-func (fa *filterAnd) apply(bs *blockSearch, bm *bitmap) {
-	if !fa.matchMessageBloomFilter(bs) {
-		// Fast path - fa doesn't match _msg bloom filter.
-		bm.resetBits()
-		return
-	}
-
-	// Slow path - verify every filter separately.
+func (fa *filterAnd) updateNeededFields(neededFields fieldsSet) {
 	for _, f := range fa.filters {
-		f.apply(bs, bm)
+		f.updateNeededFields(neededFields)
+	}
+}
+
+func (fa *filterAnd) applyToBlockResult(br *blockResult, bm *bitmap) {
+	for _, f := range fa.filters {
+		f.applyToBlockResult(br, bm)
 		if bm.isZero() {
 			// Shortcut - there is no need in applying the remaining filters,
 			// since the result will be zero anyway.
@@ -49,60 +52,130 @@ func (fa *filterAnd) apply(bs *blockSearch, bm *bitmap) {
 	}
 }
 
-func (fa *filterAnd) matchMessageBloomFilter(bs *blockSearch) bool {
-	tokens := fa.getMessageTokens()
-	if len(tokens) == 0 {
+func (fa *filterAnd) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
+	if !fa.matchBloomFilters(bs) {
+		// Fast path - fa doesn't match bloom filters.
+		bm.resetBits()
+		return
+	}
+
+	// Slow path - verify every filter separately.
+	for _, f := range fa.filters {
+		f.applyToBlockSearch(bs, bm)
+		if bm.isZero() {
+			// Shortcut - there is no need in applying the remaining filters,
+			// since the result will be zero anyway.
+			return
+		}
+	}
+}
+
+func (fa *filterAnd) matchBloomFilters(bs *blockSearch) bool {
+	byFieldTokens := fa.getByFieldTokens()
+	if len(byFieldTokens) == 0 {
 		return true
 	}
 
-	v := bs.csh.getConstColumnValue("_msg")
-	if v != "" {
-		return matchStringByAllTokens(v, tokens)
+	for _, fieldTokens := range byFieldTokens {
+		fieldName := fieldTokens.field
+		tokens := fieldTokens.tokens
+
+		v := bs.csh.getConstColumnValue(fieldName)
+		if v != "" {
+			if !matchStringByAllTokens(v, tokens) {
+				return false
+			}
+			continue
+		}
+
+		ch := bs.csh.getColumnHeader(fieldName)
+		if ch == nil {
+			return false
+		}
+
+		if ch.valueType == valueTypeDict {
+			if !matchDictValuesByAllTokens(ch.valuesDict.values, tokens) {
+				return false
+			}
+			continue
+		}
+		if !matchBloomFilterAllTokens(bs, ch, tokens) {
+			return false
+		}
 	}
 
-	ch := bs.csh.getColumnHeader("_msg")
-	if ch == nil {
-		return false
-	}
-
-	if ch.valueType == valueTypeDict {
-		return matchDictValuesByAllTokens(ch.valuesDict.values, tokens)
-	}
-	return matchBloomFilterAllTokens(bs, ch, tokens)
+	return true
 }
 
-func (fa *filterAnd) getMessageTokens() []string {
-	fa.msgTokensOnce.Do(fa.initMsgTokens)
-	return fa.msgTokens
+func (fa *filterAnd) getByFieldTokens() []fieldTokens {
+	fa.byFieldTokensOnce.Do(fa.initByFieldTokens)
+	return fa.byFieldTokens
 }
 
-func (fa *filterAnd) initMsgTokens() {
-	var a []string
+func (fa *filterAnd) initByFieldTokens() {
+	m := make(map[string]map[string]struct{})
+	var fieldNames []string
+
+	mergeFieldTokens := func(fieldName string, tokens []string) {
+		if len(tokens) == 0 {
+			return
+		}
+
+		fieldName = getCanonicalColumnName(fieldName)
+		mTokens, ok := m[fieldName]
+		if !ok {
+			fieldNames = append(fieldNames, fieldName)
+			mTokens = make(map[string]struct{})
+			m[fieldName] = mTokens
+		}
+		for _, token := range tokens {
+			mTokens[token] = struct{}{}
+		}
+	}
+
 	for _, f := range fa.filters {
 		switch t := f.(type) {
-		case *filterPhrase:
-			if isMsgFieldName(t.fieldName) {
-				a = append(a, t.getTokens()...)
-			}
-		case *filterSequence:
-			if isMsgFieldName(t.fieldName) {
-				a = append(a, t.getTokens()...)
-			}
 		case *filterExact:
-			if isMsgFieldName(t.fieldName) {
-				a = append(a, t.getTokens()...)
-			}
+			tokens := t.getTokens()
+			mergeFieldTokens(t.fieldName, tokens)
 		case *filterExactPrefix:
-			if isMsgFieldName(t.fieldName) {
-				a = append(a, t.getTokens()...)
-			}
+			tokens := t.getTokens()
+			mergeFieldTokens(t.fieldName, tokens)
+		case *filterPhrase:
+			tokens := t.getTokens()
+			mergeFieldTokens(t.fieldName, tokens)
 		case *filterPrefix:
-			if isMsgFieldName(t.fieldName) {
-				a = append(a, t.getTokens()...)
+			tokens := t.getTokens()
+			mergeFieldTokens(t.fieldName, tokens)
+		case *filterRegexp:
+			tokens := t.getTokens()
+			mergeFieldTokens(t.fieldName, tokens)
+		case *filterSequence:
+			tokens := t.getTokens()
+			mergeFieldTokens(t.fieldName, tokens)
+		case *filterOr:
+			bfts := t.getByFieldTokens()
+			for _, bft := range bfts {
+				mergeFieldTokens(bft.field, bft.tokens)
 			}
 		}
 	}
-	fa.msgTokens = a
+
+	var byFieldTokens []fieldTokens
+	for _, fieldName := range fieldNames {
+		mTokens := m[fieldName]
+		tokens := make([]string, 0, len(mTokens))
+		for token := range mTokens {
+			tokens = append(tokens, token)
+		}
+
+		byFieldTokens = append(byFieldTokens, fieldTokens{
+			field:  fieldName,
+			tokens: tokens,
+		})
+	}
+
+	fa.byFieldTokens = byFieldTokens
 }
 
 func matchStringByAllTokens(v string, tokens []string) bool {

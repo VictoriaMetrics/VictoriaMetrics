@@ -27,30 +27,32 @@ var (
 
 	start         = newTimeFlag("start", "-1d", "Generated logs start from this time; see https://docs.victoriametrics.com/#timestamp-formats")
 	end           = newTimeFlag("end", "0s", "Generated logs end at this time; see https://docs.victoriametrics.com/#timestamp-formats")
-	activeStreams = flag.Int("activeStreams", 100, "The number of active log streams to generate; see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields")
+	activeStreams = flag.Int("activeStreams", 100, "The number of active log streams to generate; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields")
 	totalStreams  = flag.Int("totalStreams", 0, "The number of total log streams; if -totalStreams > -activeStreams, then some active streams are substituted with new streams "+
 		"during data generation")
 	logsPerStream     = flag.Int64("logsPerStream", 1_000, "The number of log entries to generate per each log stream. Log entries are evenly distributed between -start and -end")
 	constFieldsPerLog = flag.Int("constFieldsPerLog", 3, "The number of fields with constaint values to generate per each log entry; "+
-		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model")
+		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
 	varFieldsPerLog = flag.Int("varFieldsPerLog", 1, "The number of fields with variable values to generate per each log entry; "+
-		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model")
+		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
 	dictFieldsPerLog = flag.Int("dictFieldsPerLog", 2, "The number of fields with up to 8 different values to generate per each log entry; "+
-		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model")
+		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
 	u8FieldsPerLog = flag.Int("u8FieldsPerLog", 1, "The number of fields with uint8 values to generate per each log entry; "+
-		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model")
+		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
 	u16FieldsPerLog = flag.Int("u16FieldsPerLog", 1, "The number of fields with uint16 values to generate per each log entry; "+
-		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model")
+		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
 	u32FieldsPerLog = flag.Int("u32FieldsPerLog", 1, "The number of fields with uint32 values to generate per each log entry; "+
-		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model")
+		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
 	u64FieldsPerLog = flag.Int("u64FieldsPerLog", 1, "The number of fields with uint64 values to generate per each log entry; "+
-		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model")
+		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
 	floatFieldsPerLog = flag.Int("floatFieldsPerLog", 1, "The number of fields with float64 values to generate per each log entry; "+
-		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model")
+		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
 	ipFieldsPerLog = flag.Int("ipFieldsPerLog", 1, "The number of fields with IPv4 values to generate per each log entry; "+
-		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model")
+		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
 	timestampFieldsPerLog = flag.Int("timestampFieldsPerLog", 1, "The number of fields with ISO8601 timestamps per each log entry; "+
-		"see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model")
+		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
+	jsonFieldsPerLog = flag.Int("jsonFieldsPerLog", 1, "The number of JSON fields to generate per each log entry; "+
+		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
 
 	statInterval = flag.Duration("statInterval", 10*time.Second, "The interval between publishing the stats")
 )
@@ -262,6 +264,9 @@ func generateLogsAtTimestamp(bw *bufio.Writer, workerID int, ts int64, firstStre
 		for j := 0; j < *timestampFieldsPerLog; j++ {
 			timestamp := toISO8601(int64(rand.Uint64()))
 			fmt.Fprintf(bw, `,"timestamp_%d":"%s"`, j, timestamp)
+		}
+		for j := 0; j < *jsonFieldsPerLog; j++ {
+			fmt.Fprintf(bw, `,"json_%d":"{\"foo\":\"bar_%d\",\"baz\":{\"a\":[\"x\",\"y\"]},\"f3\":NaN,\"f4\":%d}"`, j, rand.Intn(10), rand.Intn(100))
 		}
 		fmt.Fprintf(bw, "}\n")
 

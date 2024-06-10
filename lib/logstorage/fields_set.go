@@ -28,6 +28,10 @@ func (fs fieldsSet) clone() fieldsSet {
 	return fsNew
 }
 
+func (fs fieldsSet) isEmpty() bool {
+	return len(fs) == 0
+}
+
 func (fs fieldsSet) getAll() []string {
 	a := make([]string, 0, len(fs))
 	for f := range fs {
@@ -37,18 +41,27 @@ func (fs fieldsSet) getAll() []string {
 	return a
 }
 
+func (fs fieldsSet) addFields(fields []string) {
+	for _, f := range fields {
+		fs.add(f)
+	}
+}
+
+func (fs fieldsSet) removeFields(fields []string) {
+	for _, f := range fields {
+		fs.remove(f)
+	}
+}
+
 func (fs fieldsSet) contains(field string) bool {
+	if field == "" {
+		field = "_msg"
+	}
 	_, ok := fs[field]
 	if !ok {
 		_, ok = fs["*"]
 	}
 	return ok
-}
-
-func (fs fieldsSet) removeAll(fields []string) {
-	for _, f := range fields {
-		fs.remove(f)
-	}
 }
 
 func (fs fieldsSet) remove(field string) {
@@ -57,13 +70,10 @@ func (fs fieldsSet) remove(field string) {
 		return
 	}
 	if !fs.contains("*") {
+		if field == "" {
+			field = "_msg"
+		}
 		delete(fs, field)
-	}
-}
-
-func (fs fieldsSet) addAll(fields []string) {
-	for _, f := range fields {
-		fs.add(f)
 	}
 }
 
@@ -75,6 +85,9 @@ func (fs fieldsSet) add(field string) {
 		fs.reset()
 		fs["*"] = struct{}{}
 		return
+	}
+	if field == "" {
+		field = "_msg"
 	}
 	fs[field] = struct{}{}
 }

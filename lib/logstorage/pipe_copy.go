@@ -32,42 +32,46 @@ func (pc *pipeCopy) String() string {
 }
 
 func (pc *pipeCopy) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	neededSrcFields := make([]bool, len(pc.srcFields))
-	for i, dstField := range pc.dstFields {
-		if neededFields.contains(dstField) && !unneededFields.contains(dstField) {
-			neededSrcFields[i] = true
-		}
-	}
-	if neededFields.contains("*") {
-		// update only unneeded fields
-		unneededFields.addAll(pc.dstFields)
-		for i, srcField := range pc.srcFields {
-			if neededSrcFields[i] {
+	for i := len(pc.srcFields) - 1; i >= 0; i-- {
+		srcField := pc.srcFields[i]
+		dstField := pc.dstFields[i]
+
+		if neededFields.contains("*") {
+			if !unneededFields.contains(dstField) {
+				unneededFields.add(dstField)
 				unneededFields.remove(srcField)
 			}
-		}
-	} else {
-		// update only needed fields and reset unneeded fields
-		neededFields.removeAll(pc.dstFields)
-		for i, srcField := range pc.srcFields {
-			if neededSrcFields[i] {
+		} else {
+			if neededFields.contains(dstField) {
+				neededFields.remove(dstField)
 				neededFields.add(srcField)
 			}
 		}
-		unneededFields.reset()
 	}
 }
 
-func (pc *pipeCopy) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
+func (pc *pipeCopy) optimize() {
+	// Nothing to do
+}
+
+func (pc *pipeCopy) hasFilterInWithQuery() bool {
+	return false
+}
+
+func (pc *pipeCopy) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+	return pc, nil
+}
+
+func (pc *pipeCopy) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeCopyProcessor{
 		pc:     pc,
-		ppBase: ppBase,
+		ppNext: ppNext,
 	}
 }
 
 type pipeCopyProcessor struct {
 	pc     *pipeCopy
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 }
 
 func (pcp *pipeCopyProcessor) writeBlock(workerID uint, br *blockResult) {
@@ -76,7 +80,7 @@ func (pcp *pipeCopyProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	br.copyColumns(pcp.pc.srcFields, pcp.pc.dstFields)
-	pcp.ppBase.writeBlock(workerID, br)
+	pcp.ppNext.writeBlock(workerID, br)
 }
 
 func (pcp *pipeCopyProcessor) flush() error {

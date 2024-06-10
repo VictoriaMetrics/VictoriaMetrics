@@ -12,7 +12,13 @@ import (
 
 const barTpl = `{{ blue "%s:" }} {{ counters . }} {{ bar . "[" "█" (cycle . "█") "▒" "]" }} {{ percent . }}`
 
+// isSilent should be inited in main
+var isSilent bool
+
 func prompt(question string) bool {
+	if isSilent {
+		return true
+	}
 	isTerminal := terminal.IsTerminal(int(os.Stdout.Fd()))
 	if !isTerminal {
 		return true

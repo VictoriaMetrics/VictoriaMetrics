@@ -9,26 +9,39 @@ import (
 //
 // See https://docs.victoriametrics.com/victorialogs/logsql/#offset-pipe
 type pipeOffset struct {
-	n uint64
+	offset uint64
 }
 
 func (po *pipeOffset) String() string {
-	return fmt.Sprintf("offset %d", po.n)
+	return fmt.Sprintf("offset %d", po.offset)
 }
 
 func (po *pipeOffset) updateNeededFields(_, _ fieldsSet) {
+	// nothing to do
 }
 
-func (po *pipeOffset) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
+func (po *pipeOffset) optimize() {
+	// nothing to do
+}
+
+func (po *pipeOffset) hasFilterInWithQuery() bool {
+	return false
+}
+
+func (po *pipeOffset) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+	return po, nil
+}
+
+func (po *pipeOffset) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeOffsetProcessor{
 		po:     po,
-		ppBase: ppBase,
+		ppNext: ppNext,
 	}
 }
 
 type pipeOffsetProcessor struct {
 	po     *pipeOffset
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 
 	rowsProcessed atomic.Uint64
 }
@@ -39,19 +52,19 @@ func (pop *pipeOffsetProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	rowsProcessed := pop.rowsProcessed.Add(uint64(len(br.timestamps)))
-	if rowsProcessed <= pop.po.n {
+	if rowsProcessed <= pop.po.offset {
 		return
 	}
 
 	rowsProcessed -= uint64(len(br.timestamps))
-	if rowsProcessed >= pop.po.n {
-		pop.ppBase.writeBlock(workerID, br)
+	if rowsProcessed >= pop.po.offset {
+		pop.ppNext.writeBlock(workerID, br)
 		return
 	}
 
-	rowsSkip := pop.po.n - rowsProcessed
+	rowsSkip := pop.po.offset - rowsProcessed
 	br.skipRows(int(rowsSkip))
-	pop.ppBase.writeBlock(workerID, br)
+	pop.ppNext.writeBlock(workerID, br)
 }
 
 func (pop *pipeOffsetProcessor) flush() error {
@@ -70,7 +83,7 @@ func parsePipeOffset(lex *lexer) (*pipeOffset, error) {
 	}
 	lex.nextToken()
 	po := &pipeOffset{
-		n: n,
+		offset: n,
 	}
 	return po, nil
 }

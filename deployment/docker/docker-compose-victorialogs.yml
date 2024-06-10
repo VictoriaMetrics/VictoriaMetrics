@@ -1,4 +1,3 @@
-version: "3.5"
 services:
   # Grafana instance configured with VictoriaLogs as datasource
   grafana:
@@ -43,7 +42,7 @@ services:
 #  storing logs and serving read queries.
   victorialogs:
     container_name: victorialogs
-    image: docker.io/victoriametrics/victoria-logs:v0.6.0-victorialogs
+    image: docker.io/victoriametrics/victoria-logs:v0.18.0-victorialogs
     command:
       - "--storageDataPath=/vlogs"
       - "--httpListenAddr=:9428"

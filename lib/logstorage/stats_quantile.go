@@ -8,21 +8,29 @@ import (
 	"unsafe"
 
 	"github.com/valyala/fastrand"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 type statsQuantile struct {
-	fields       []string
-	containsStar bool
+	fields []string
 
-	phi float64
+	phi    float64
+	phiStr string
 }
 
 func (sq *statsQuantile) String() string {
-	return fmt.Sprintf("quantile(%g, %s)", sq.phi, fieldNamesString(sq.fields))
+	s := "quantile(" + sq.phiStr
+	if len(sq.fields) > 0 {
+		s += ", " + fieldNamesString(sq.fields)
+	}
+	s += ")"
+	return s
 }
 
-func (sq *statsQuantile) neededFields() []string {
-	return sq.fields
+func (sq *statsQuantile) updateNeededFields(neededFields fieldsSet) {
+	updateNeededFieldsForStatsFunc(neededFields, sq.fields)
 }
 
 func (sq *statsQuantile) newStatsProcessor() (statsProcessor, int) {
@@ -39,27 +47,17 @@ type statsQuantileProcessor struct {
 }
 
 func (sqp *statsQuantileProcessor) updateStatsForAllRows(br *blockResult) int {
-	h := &sqp.h
 	stateSizeIncrease := 0
 
-	if sqp.sq.containsStar {
+	fields := sqp.sq.fields
+	if len(fields) == 0 {
 		for _, c := range br.getColumns() {
-			for _, v := range c.getValues(br) {
-				f, ok := tryParseFloat64(v)
-				if ok {
-					stateSizeIncrease += h.update(f)
-				}
-			}
+			stateSizeIncrease += sqp.updateStateForColumn(br, c)
 		}
 	} else {
-		for _, field := range sqp.sq.fields {
+		for _, field := range fields {
 			c := br.getColumnByName(field)
-			for _, v := range c.getValues(br) {
-				f, ok := tryParseFloat64(v)
-				if ok {
-					stateSizeIncrease += h.update(f)
-				}
-			}
+			stateSizeIncrease += sqp.updateStateForColumn(br, c)
 		}
 	}
 
@@ -70,21 +68,101 @@ func (sqp *statsQuantileProcessor) updateStatsForRow(br *blockResult, rowIdx int
 	h := &sqp.h
 	stateSizeIncrease := 0
 
-	if sqp.sq.containsStar {
+	fields := sqp.sq.fields
+	if len(fields) == 0 {
 		for _, c := range br.getColumns() {
-			f := c.getFloatValueAtRow(rowIdx)
-			if !math.IsNaN(f) {
+			f, ok := c.getFloatValueAtRow(br, rowIdx)
+			if ok {
 				stateSizeIncrease += h.update(f)
 			}
 		}
 	} else {
-		for _, field := range sqp.sq.fields {
+		for _, field := range fields {
 			c := br.getColumnByName(field)
-			f := c.getFloatValueAtRow(rowIdx)
-			if !math.IsNaN(f) {
+			f, ok := c.getFloatValueAtRow(br, rowIdx)
+			if ok {
 				stateSizeIncrease += h.update(f)
 			}
 		}
+	}
+
+	return stateSizeIncrease
+}
+
+func (sqp *statsQuantileProcessor) updateStateForColumn(br *blockResult, c *blockResultColumn) int {
+	h := &sqp.h
+	stateSizeIncrease := 0
+
+	if c.isConst {
+		f, ok := tryParseFloat64(c.valuesEncoded[0])
+		if ok {
+			for range br.timestamps {
+				stateSizeIncrease += h.update(f)
+			}
+		}
+		return stateSizeIncrease
+	}
+	if c.isTime {
+		return 0
+	}
+
+	switch c.valueType {
+	case valueTypeString:
+		for _, v := range c.getValues(br) {
+			f, ok := tryParseFloat64(v)
+			if ok {
+				stateSizeIncrease += h.update(f)
+			}
+		}
+	case valueTypeDict:
+		dictValues := c.dictValues
+		a := encoding.GetFloat64s(len(dictValues))
+		for i, v := range dictValues {
+			f, ok := tryParseFloat64(v)
+			if !ok {
+				f = nan
+			}
+			a.A[i] = f
+		}
+		for _, v := range c.getValuesEncoded(br) {
+			idx := v[0]
+			f := a.A[idx]
+			if !math.IsNaN(f) {
+				h.update(f)
+			}
+		}
+		encoding.PutFloat64s(a)
+	case valueTypeUint8:
+		for _, v := range c.getValuesEncoded(br) {
+			n := unmarshalUint8(v)
+			h.update(float64(n))
+		}
+	case valueTypeUint16:
+		for _, v := range c.getValuesEncoded(br) {
+			n := unmarshalUint16(v)
+			h.update(float64(n))
+		}
+	case valueTypeUint32:
+		for _, v := range c.getValuesEncoded(br) {
+			n := unmarshalUint32(v)
+			h.update(float64(n))
+		}
+	case valueTypeUint64:
+		for _, v := range c.getValuesEncoded(br) {
+			n := unmarshalUint64(v)
+			h.update(float64(n))
+		}
+	case valueTypeFloat64:
+		for _, v := range c.getValuesEncoded(br) {
+			f := unmarshalFloat64(v)
+			if !math.IsNaN(f) {
+				h.update(f)
+			}
+		}
+	case valueTypeIPv4:
+	case valueTypeTimestampISO8601:
+	default:
+		logger.Panicf("BUG: unexpected valueType=%d", c.valueType)
 	}
 
 	return stateSizeIncrease
@@ -110,30 +188,31 @@ func parseStatsQuantile(lex *lexer) (*statsQuantile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse 'quantile' args: %w", err)
 	}
-	if len(fields) < 2 {
-		return nil, fmt.Errorf("'quantile' must have at least two args: phi and field name")
+	if len(fields) < 1 {
+		return nil, fmt.Errorf("'quantile' must have at least phi arg")
 	}
 
 	// Parse phi
-	phi, ok := tryParseFloat64(fields[0])
+	phiStr := fields[0]
+	phi, ok := tryParseFloat64(phiStr)
 	if !ok {
-		return nil, fmt.Errorf("phi arg in 'quantile' must be floating point number; got %q", fields[0])
+		return nil, fmt.Errorf("phi arg in 'quantile' must be floating point number; got %q", phiStr)
 	}
 	if phi < 0 || phi > 1 {
-		return nil, fmt.Errorf("phi arg in 'quantile' must be in the range [0..1]; got %q", fields[0])
+		return nil, fmt.Errorf("phi arg in 'quantile' must be in the range [0..1]; got %q", phiStr)
 	}
 
 	// Parse fields
 	fields = fields[1:]
 	if slices.Contains(fields, "*") {
-		fields = []string{"*"}
+		fields = nil
 	}
 
 	sq := &statsQuantile{
-		fields:       fields,
-		containsStar: slices.Contains(fields, "*"),
+		fields: fields,
 
-		phi: phi,
+		phi:    phi,
+		phiStr: phiStr,
 	}
 	return sq, nil
 }

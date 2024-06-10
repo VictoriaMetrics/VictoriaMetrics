@@ -88,9 +88,11 @@ const Modal: FC<ModalProps> = ({
             </Button>
           </div>
         </div>
+        {/* tabIndex to fix Ctrl-A */}
         <div
           className="vm-modal-content-body"
           onMouseDown={handleMouseDown}
+          tabIndex={0}
         >
           {children}
         </div>

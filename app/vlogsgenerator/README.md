@@ -50,7 +50,8 @@ Below is an example output:
   "u64_0": "4810489083243239145",
   "float_0": "1.868",
   "ip_0": "250.34.75.125",
-  "timestamp_0": "1799-03-16T01:34:18.311Z"
+  "timestamp_0": "1799-03-16T01:34:18.311Z",
+  "json_0": "{\"foo\":\"bar_3\",\"baz\":{\"a\":[\"x\",\"y\"]},\"f3\":NaN,\"f4\":32}"
 }
 {
   "_time": "2024-05-08T14:34:00.854Z",
@@ -70,7 +71,8 @@ Below is an example output:
   "u64_0": "6593354256620219850",
   "float_0": "1.085",
   "ip_0": "253.151.88.158",
-  "timestamp_0": "2042-10-05T16:42:57.082Z"
+  "timestamp_0": "2042-10-05T16:42:57.082Z",
+  "json_0": "{\"foo\":\"bar_5\",\"baz\":{\"a\":[\"x\",\"y\"]},\"f3\":NaN,\"f4\":27}"
 }
 ```
 
@@ -92,13 +94,13 @@ These flags can be inspected by running `vlogsgenerator -help`. Below are the mo
 
 * `-start` - starting timestamp for generating logs. Logs are evenly generated on the [`-start` ... `-end`] interval.
 * `-end` - ending timestamp for generating logs. Logs are evenly generated on the [`-start` ... `-end`] interval.
-* `-activeStreams` - the number of active [log streams](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields) to generate.
+* `-activeStreams` - the number of active [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) to generate.
 * `-logsPerStream` - the number of log entries to generate per each log stream. Log entries are evenly distributed on the [`-start` ... `-end`] interval.
 
 The total number of generated logs can be calculated as `-activeStreams` * `-logsPerStream`.
 
 For example, the following command generates `1_000_000` log entries on the time range `[2024-01-01 - 2024-02-01]` across `100`
-[log streams](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields), where every logs stream contains `10_000` log entries,
+[log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields), where every logs stream contains `10_000` log entries,
 and writes them to `http://localhost:9428/insert/jsonline`:
 
 ```
@@ -111,7 +113,7 @@ bin/vlogsgenerator \
 
 ### Churn rate
 
-It is possible to generate churn rate for active [log streams](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields)
+It is possible to generate churn rate for active [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
 by specifying `-totalStreams` command-line flag bigger than `-activeStreams`. For example, the following command generates
 logs for `1000` total streams, while the number of active streams equals to `100`. This means that at every time there are logs for `100` streams,
 but these streams change over the given [`-start` ... `-end`] time range, so the total number of streams on the given time range becomes `1000`:

@@ -13,14 +13,17 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
-func newPipeTopkProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}, cancel func(), ppBase pipeProcessor) pipeProcessor {
+func newPipeTopkProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	maxStateSize := int64(float64(memory.Allowed()) * 0.2)
 
 	shards := make([]pipeTopkProcessorShard, workersCount)
 	for i := range shards {
-		shard := &shards[i]
-		shard.ps = ps
-		shard.stateSizeBudget = stateSizeBudgetChunk
+		shards[i] = pipeTopkProcessorShard{
+			pipeTopkProcessorShardNopad: pipeTopkProcessorShardNopad{
+				ps:              ps,
+				stateSizeBudget: stateSizeBudgetChunk,
+			},
+		}
 		maxStateSize -= stateSizeBudgetChunk
 	}
 
@@ -28,7 +31,7 @@ func newPipeTopkProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}
 		ps:     ps,
 		stopCh: stopCh,
 		cancel: cancel,
-		ppBase: ppBase,
+		ppNext: ppNext,
 
 		shards: shards,
 
@@ -43,7 +46,7 @@ type pipeTopkProcessor struct {
 	ps     *pipeSort
 	stopCh <-chan struct{}
 	cancel func()
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 
 	shards []pipeTopkProcessorShard
 
@@ -72,10 +75,11 @@ type pipeTopkProcessorShardNopad struct {
 	tmpRow pipeTopkRow
 
 	// these are aux fields for determining whether the next row must be stored in rows.
-	byColumnValues    [][]string
-	otherColumnValues []pipeTopkOtherColumn
-	byColumns         []string
-	otherColumns      []Field
+	byColumnValues  [][]string
+	csOther         []*blockResultColumn
+	byColumns       []string
+	byColumnsIsTime []bool
+	otherColumns    []Field
 
 	// stateSizeBudget is the remaining budget for the whole state size for the shard.
 	// The per-shard budget is provided in chunks from the parent pipeTopkProcessor.
@@ -83,13 +87,10 @@ type pipeTopkProcessorShardNopad struct {
 }
 
 type pipeTopkRow struct {
-	byColumns    []string
-	otherColumns []Field
-}
-
-type pipeTopkOtherColumn struct {
-	name   string
-	values []string
+	byColumns       []string
+	byColumnsIsTime []bool
+	otherColumns    []Field
+	timestamp       int64
 }
 
 func (r *pipeTopkRow) clone() *pipeTopkRow {
@@ -97,6 +98,8 @@ func (r *pipeTopkRow) clone() *pipeTopkRow {
 	for i := range byColumnsCopy {
 		byColumnsCopy[i] = strings.Clone(r.byColumns[i])
 	}
+
+	byColumnsIsTime := append([]bool{}, r.byColumnsIsTime...)
 
 	otherColumnsCopy := make([]Field, len(r.otherColumns))
 	for i := range otherColumnsCopy {
@@ -107,8 +110,10 @@ func (r *pipeTopkRow) clone() *pipeTopkRow {
 	}
 
 	return &pipeTopkRow{
-		byColumns:    byColumnsCopy,
-		otherColumns: otherColumnsCopy,
+		byColumns:       byColumnsCopy,
+		byColumnsIsTime: byColumnsIsTime,
+		otherColumns:    otherColumnsCopy,
+		timestamp:       r.timestamp,
 	}
 }
 
@@ -119,6 +124,8 @@ func (r *pipeTopkRow) sizeBytes() int {
 		n += len(v)
 	}
 	n += len(r.byColumns) * int(unsafe.Sizeof(r.byColumns[0]))
+
+	n += len(r.byColumnsIsTime) * int(unsafe.Sizeof(r.byColumnsIsTime[0]))
 
 	for _, f := range r.otherColumns {
 		n += len(f.Name) + len(f.Value)
@@ -167,14 +174,15 @@ func (shard *pipeTopkProcessorShard) writeBlock(br *blockResult) {
 
 		byColumnValues := shard.byColumnValues[:0]
 		for _, c := range cs {
-			byColumnValues = append(byColumnValues, c.getValues(br))
+			values := c.getValues(br)
+			byColumnValues = append(byColumnValues, values)
 		}
 		shard.byColumnValues = byColumnValues
 
 		byColumns := shard.byColumns[:0]
-		otherColumns := shard.otherColumns[:0]
+		byColumnsIsTime := shard.byColumnsIsTime[:0]
 		bb := bbPool.Get()
-		for rowIdx := range br.timestamps {
+		for rowIdx, timestamp := range br.timestamps {
 			byColumns = byColumns[:0]
 			bb.B = bb.B[:0]
 			for i, values := range byColumnValues {
@@ -183,31 +191,33 @@ func (shard *pipeTopkProcessorShard) writeBlock(br *blockResult) {
 				bb.B = append(bb.B, ',')
 			}
 			byColumns = append(byColumns, bytesutil.ToUnsafeString(bb.B))
+			byColumnsIsTime = append(byColumnsIsTime, false)
 
-			otherColumns = otherColumns[:0]
-			for i, values := range byColumnValues {
-				otherColumns = append(otherColumns, Field{
-					Name:  cs[i].name,
-					Value: values[rowIdx],
-				})
-			}
-
-			shard.addRow(byColumns, otherColumns)
+			shard.addRow(br, byColumns, byColumnsIsTime, cs, rowIdx, timestamp)
 		}
 		bbPool.Put(bb)
 		shard.byColumns = byColumns
-		shard.otherColumns = otherColumns
+		shard.byColumnsIsTime = byColumnsIsTime
 	} else {
 		// Sort by byFields
 
 		byColumnValues := shard.byColumnValues[:0]
+		byColumnsIsTime := shard.byColumnsIsTime[:0]
 		for _, bf := range byFields {
 			c := br.getColumnByName(bf.name)
-			byColumnValues = append(byColumnValues, c.getValues(br))
+
+			byColumnsIsTime = append(byColumnsIsTime, c.isTime)
+
+			var values []string
+			if !c.isTime {
+				values = c.getValues(br)
+			}
+			byColumnValues = append(byColumnValues, values)
 		}
 		shard.byColumnValues = byColumnValues
+		shard.byColumnsIsTime = byColumnsIsTime
 
-		otherColumnValues := shard.otherColumnValues[:0]
+		csOther := shard.csOther[:0]
 		for _, c := range cs {
 			isByField := false
 			for _, bf := range byFields {
@@ -217,53 +227,63 @@ func (shard *pipeTopkProcessorShard) writeBlock(br *blockResult) {
 				}
 			}
 			if !isByField {
-				otherColumnValues = append(otherColumnValues, pipeTopkOtherColumn{
-					name:   c.name,
-					values: c.getValues(br),
-				})
+				csOther = append(csOther, c)
 			}
 		}
-		shard.otherColumnValues = otherColumnValues
+		shard.csOther = csOther
 
 		// add rows to shard
 		byColumns := shard.byColumns[:0]
-		otherColumns := shard.otherColumns[:0]
-		for rowIdx := range br.timestamps {
+		for rowIdx, timestamp := range br.timestamps {
 			byColumns = byColumns[:0]
-			for _, values := range byColumnValues {
-				byColumns = append(byColumns, values[rowIdx])
+
+			for i, values := range byColumnValues {
+				v := ""
+				if !byColumnsIsTime[i] {
+					v = values[rowIdx]
+				}
+				byColumns = append(byColumns, v)
 			}
 
-			otherColumns = otherColumns[:0]
-			for _, ocv := range otherColumnValues {
-				otherColumns = append(otherColumns, Field{
-					Name:  ocv.name,
-					Value: ocv.values[rowIdx],
-				})
-			}
-
-			shard.addRow(byColumns, otherColumns)
+			shard.addRow(br, byColumns, byColumnsIsTime, csOther, rowIdx, timestamp)
 		}
 		shard.byColumns = byColumns
-		shard.otherColumns = otherColumns
 	}
 }
 
-func (shard *pipeTopkProcessorShard) addRow(byColumns []string, otherColumns []Field) {
+func (shard *pipeTopkProcessorShard) addRow(br *blockResult, byColumns []string, byColumnsIsTime []bool, csOther []*blockResultColumn, rowIdx int, timestamp int64) {
 	r := &shard.tmpRow
 	r.byColumns = byColumns
-	r.otherColumns = otherColumns
+	r.byColumnsIsTime = byColumnsIsTime
+	r.timestamp = timestamp
 
 	rows := shard.rows
-	if len(rows) > 0 && !topkLess(shard.ps, r, rows[0]) {
+	maxRows := shard.ps.offset + shard.ps.limit
+	if uint64(len(rows)) >= maxRows && !topkLess(shard.ps, r, rows[0]) {
 		// Fast path - nothing to add.
 		return
 	}
 
 	// Slow path - add r to shard.rows.
+
+	// Populate r.otherColumns
+	otherColumns := shard.otherColumns[:0]
+	for _, c := range csOther {
+		v := c.getValueAtRow(br, rowIdx)
+		otherColumns = append(otherColumns, Field{
+			Name:  c.name,
+			Value: v,
+		})
+	}
+	shard.otherColumns = otherColumns
+	r.otherColumns = otherColumns
+
+	// Clone r, so it doesn't refer the original data.
 	r = r.clone()
 	shard.stateSizeBudget -= r.sizeBytes()
-	if uint64(len(rows)) < shard.ps.limit {
+
+	// Push r to shard.rows.
+	if uint64(len(rows)) < maxRows {
 		heap.Push(shard, r)
 		shard.stateSizeBudget -= int(unsafe.Sizeof(r))
 	} else {
@@ -405,8 +425,14 @@ type pipeTopkWriteContext struct {
 	rcs []resultColumn
 	br  blockResult
 
+	// rowsWritten is the total number of rows passed to writeNextRow.
 	rowsWritten uint64
-	valuesLen   int
+
+	// rowsCount is the number of rows in the current block
+	rowsCount int
+
+	// valuesLen is the total length of values in the current block
+	valuesLen int
 }
 
 func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bool {
@@ -438,26 +464,26 @@ func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bo
 		}
 	}
 	if !areEqualColumns {
-		// send the current block to bbBase and construct a block with new set of columns
+		// send the current block to ppNext and construct a block with new set of columns
 		wctx.flush()
 
 		rcs = wctx.rcs[:0]
 		for _, bf := range byFields {
-			rcs = append(rcs, resultColumn{
-				name: bf.name,
-			})
+			rcs = appendResultColumnWithName(rcs, bf.name)
 		}
 		for _, c := range r.otherColumns {
-			rcs = append(rcs, resultColumn{
-				name: c.Name,
-			})
+			rcs = appendResultColumnWithName(rcs, c.Name)
 		}
 		wctx.rcs = rcs
 	}
 
 	byColumns := r.byColumns
+	byColumnsIsTime := r.byColumnsIsTime
 	for i := range byFields {
 		v := byColumns[i]
+		if byColumnsIsTime[i] {
+			v = string(marshalTimestampRFC3339NanoString(nil, r.timestamp))
+		}
 		rcs[i].addValue(v)
 		wctx.valuesLen += len(v)
 	}
@@ -468,6 +494,7 @@ func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bo
 		wctx.valuesLen += len(v)
 	}
 
+	wctx.rowsCount++
 	if wctx.valuesLen >= 1_000_000 {
 		wctx.flush()
 	}
@@ -481,16 +508,13 @@ func (wctx *pipeTopkWriteContext) flush() {
 
 	wctx.valuesLen = 0
 
-	if len(rcs) == 0 {
-		return
-	}
-
-	// Flush rcs to ppBase
-	br.setResultColumns(rcs)
-	wctx.ptp.ppBase.writeBlock(0, br)
+	// Flush rcs to ppNext
+	br.setResultColumns(rcs, wctx.rowsCount)
+	wctx.rowsCount = 0
+	wctx.ptp.ppNext.writeBlock(0, br)
 	br.reset()
 	for i := range rcs {
-		rcs[i].resetKeepName()
+		rcs[i].resetValues()
 	}
 }
 
@@ -529,25 +553,79 @@ func topkLess(ps *pipeSort, a, b *pipeTopkRow) bool {
 	byFields := ps.byFields
 
 	csA := a.byColumns
-	csB := b.byColumns
+	isTimeA := a.byColumnsIsTime
 
-	for k := range csA {
+	csB := b.byColumns
+	isTimeB := b.byColumnsIsTime
+
+	for i := range csA {
 		isDesc := ps.isDesc
-		if len(byFields) > 0 && byFields[k].isDesc {
+		if len(byFields) > 0 && byFields[i].isDesc {
 			isDesc = !isDesc
 		}
 
-		vA := csA[k]
-		vB := csB[k]
+		if isTimeA[i] && isTimeB[i] {
+			// Fast path - compare timestamps
+			if a.timestamp == b.timestamp {
+				continue
+			}
+			if isDesc {
+				return b.timestamp < a.timestamp
+			}
+			return a.timestamp < b.timestamp
+		}
+
+		vA := csA[i]
+		vB := csB[i]
+
+		var bb *bytesutil.ByteBuffer
+
+		if isTimeA[i] || isTimeB[i] {
+			bb = bbPool.Get()
+		}
+		if isTimeA[i] {
+			bb.B = marshalTimestampRFC3339NanoString(bb.B[:0], a.timestamp)
+			vA = bytesutil.ToUnsafeString(bb.B)
+		} else if isTimeB[i] {
+			bb.B = marshalTimestampRFC3339NanoString(bb.B[:0], a.timestamp)
+			vB = bytesutil.ToUnsafeString(bb.B)
+		}
 
 		if vA == vB {
+			if bb != nil {
+				bbPool.Put(bb)
+			}
 			continue
 		}
 
 		if isDesc {
-			return stringsutil.LessNatural(vB, vA)
+			vA, vB = vB, vA
 		}
-		return stringsutil.LessNatural(vA, vB)
+		ok := lessString(vA, vB)
+		if bb != nil {
+			bbPool.Put(bb)
+		}
+		return ok
 	}
 	return false
+}
+
+func lessString(a, b string) bool {
+	if a == b {
+		return false
+	}
+
+	nA, okA := tryParseUint64(a)
+	nB, okB := tryParseUint64(b)
+	if okA && okB {
+		return nA < nB
+	}
+
+	fA, okA := tryParseNumber(a)
+	fB, okB := tryParseNumber(b)
+	if okA && okB {
+		return fA < fB
+	}
+
+	return stringsutil.LessNatural(a, b)
 }

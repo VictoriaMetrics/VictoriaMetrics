@@ -11,21 +11,20 @@ import (
 )
 
 type statsUniqValues struct {
-	fields       []string
-	containsStar bool
-	limit        uint64
+	fields []string
+	limit  uint64
 }
 
 func (su *statsUniqValues) String() string {
-	s := "uniq_values(" + fieldNamesString(su.fields) + ")"
+	s := "uniq_values(" + statsFuncFieldsToString(su.fields) + ")"
 	if su.limit > 0 {
 		s += fmt.Sprintf(" limit %d", su.limit)
 	}
 	return s
 }
 
-func (su *statsUniqValues) neededFields() []string {
-	return su.fields
+func (su *statsUniqValues) updateNeededFields(neededFields fieldsSet) {
+	updateNeededFieldsForStatsFunc(neededFields, su.fields)
 }
 
 func (su *statsUniqValues) newStatsProcessor() (statsProcessor, int) {
@@ -50,12 +49,13 @@ func (sup *statsUniqValuesProcessor) updateStatsForAllRows(br *blockResult) int 
 	}
 
 	stateSizeIncrease := 0
-	if sup.su.containsStar {
+	fields := sup.su.fields
+	if len(fields) == 0 {
 		for _, c := range br.getColumns() {
 			stateSizeIncrease += sup.updateStatsForAllRowsColumn(c, br)
 		}
 	} else {
-		for _, field := range sup.su.fields {
+		for _, field := range fields {
 			c := br.getColumnByName(field)
 			stateSizeIncrease += sup.updateStatsForAllRowsColumn(c, br)
 		}
@@ -64,20 +64,15 @@ func (sup *statsUniqValuesProcessor) updateStatsForAllRows(br *blockResult) int 
 }
 
 func (sup *statsUniqValuesProcessor) updateStatsForAllRowsColumn(c *blockResultColumn, br *blockResult) int {
-	m := sup.m
 	stateSizeIncrease := 0
 	if c.isConst {
 		// collect unique const values
-		v := c.encodedValues[0]
+		v := c.valuesEncoded[0]
 		if v == "" {
 			// skip empty values
 			return stateSizeIncrease
 		}
-		if _, ok := m[v]; !ok {
-			vCopy := strings.Clone(v)
-			m[vCopy] = struct{}{}
-			stateSizeIncrease += len(vCopy) + int(unsafe.Sizeof(vCopy))
-		}
+		stateSizeIncrease += sup.updateState(v)
 		return stateSizeIncrease
 	}
 	if c.valueType == valueTypeDict {
@@ -87,11 +82,7 @@ func (sup *statsUniqValuesProcessor) updateStatsForAllRowsColumn(c *blockResultC
 				// skip empty values
 				continue
 			}
-			if _, ok := m[v]; !ok {
-				vCopy := strings.Clone(v)
-				m[vCopy] = struct{}{}
-				stateSizeIncrease += len(vCopy) + int(unsafe.Sizeof(vCopy))
-			}
+			stateSizeIncrease += sup.updateState(v)
 		}
 		return stateSizeIncrease
 	}
@@ -107,11 +98,7 @@ func (sup *statsUniqValuesProcessor) updateStatsForAllRowsColumn(c *blockResultC
 			// This value has been already counted.
 			continue
 		}
-		if _, ok := m[v]; !ok {
-			vCopy := strings.Clone(v)
-			m[vCopy] = struct{}{}
-			stateSizeIncrease += len(vCopy) + int(unsafe.Sizeof(vCopy))
-		}
+		stateSizeIncrease += sup.updateState(v)
 	}
 	return stateSizeIncrease
 }
@@ -123,12 +110,13 @@ func (sup *statsUniqValuesProcessor) updateStatsForRow(br *blockResult, rowIdx i
 	}
 
 	stateSizeIncrease := 0
-	if sup.su.containsStar {
+	fields := sup.su.fields
+	if len(fields) == 0 {
 		for _, c := range br.getColumns() {
 			stateSizeIncrease += sup.updateStatsForRowColumn(c, br, rowIdx)
 		}
 	} else {
-		for _, field := range sup.su.fields {
+		for _, field := range fields {
 			c := br.getColumnByName(field)
 			stateSizeIncrease += sup.updateStatsForRowColumn(c, br, rowIdx)
 		}
@@ -137,35 +125,27 @@ func (sup *statsUniqValuesProcessor) updateStatsForRow(br *blockResult, rowIdx i
 }
 
 func (sup *statsUniqValuesProcessor) updateStatsForRowColumn(c *blockResultColumn, br *blockResult, rowIdx int) int {
-	m := sup.m
 	stateSizeIncrease := 0
 	if c.isConst {
 		// collect unique const values
-		v := c.encodedValues[0]
+		v := c.valuesEncoded[0]
 		if v == "" {
 			// skip empty values
 			return stateSizeIncrease
 		}
-		if _, ok := m[v]; !ok {
-			vCopy := strings.Clone(v)
-			m[vCopy] = struct{}{}
-			stateSizeIncrease += len(vCopy) + int(unsafe.Sizeof(vCopy))
-		}
+		stateSizeIncrease += sup.updateState(v)
 		return stateSizeIncrease
 	}
 	if c.valueType == valueTypeDict {
 		// collect unique non-zero c.dictValues
-		dictIdx := c.encodedValues[rowIdx][0]
+		valuesEncoded := c.getValuesEncoded(br)
+		dictIdx := valuesEncoded[rowIdx][0]
 		v := c.dictValues[dictIdx]
 		if v == "" {
 			// skip empty values
 			return stateSizeIncrease
 		}
-		if _, ok := m[v]; !ok {
-			vCopy := strings.Clone(v)
-			m[vCopy] = struct{}{}
-			stateSizeIncrease += len(vCopy) + int(unsafe.Sizeof(vCopy))
-		}
+		stateSizeIncrease += sup.updateState(v)
 		return stateSizeIncrease
 	}
 
@@ -175,11 +155,7 @@ func (sup *statsUniqValuesProcessor) updateStatsForRowColumn(c *blockResultColum
 		// skip empty values
 		return stateSizeIncrease
 	}
-	if _, ok := m[v]; !ok {
-		vCopy := strings.Clone(v)
-		m[vCopy] = struct{}{}
-		stateSizeIncrease += len(vCopy) + int(unsafe.Sizeof(vCopy))
-	}
+	stateSizeIncrease += sup.updateState(v)
 	return stateSizeIncrease
 }
 
@@ -189,10 +165,9 @@ func (sup *statsUniqValuesProcessor) mergeState(sfp statsProcessor) {
 	}
 
 	src := sfp.(*statsUniqValuesProcessor)
-	m := sup.m
 	for k := range src.m {
-		if _, ok := m[k]; !ok {
-			m[k] = struct{}{}
+		if _, ok := sup.m[k]; !ok {
+			sup.m[k] = struct{}{}
 		}
 	}
 }
@@ -206,12 +181,35 @@ func (sup *statsUniqValuesProcessor) finalizeStats() string {
 	for k := range sup.m {
 		items = append(items, k)
 	}
+	sortStrings(items)
 
 	if limit := sup.su.limit; limit > 0 && uint64(len(items)) > limit {
 		items = items[:limit]
 	}
 
 	return marshalJSONArray(items)
+}
+
+func sortStrings(a []string) {
+	slices.SortFunc(a, func(x, y string) int {
+		if x == y {
+			return 0
+		}
+		if lessString(x, y) {
+			return -1
+		}
+		return 1
+	})
+}
+
+func (sup *statsUniqValuesProcessor) updateState(v string) int {
+	stateSizeIncrease := 0
+	if _, ok := sup.m[v]; !ok {
+		vCopy := strings.Clone(v)
+		sup.m[vCopy] = struct{}{}
+		stateSizeIncrease += len(vCopy) + int(unsafe.Sizeof(vCopy))
+	}
+	return stateSizeIncrease
 }
 
 func (sup *statsUniqValuesProcessor) limitReached() bool {
@@ -241,13 +239,12 @@ func marshalJSONArray(items []string) string {
 }
 
 func parseStatsUniqValues(lex *lexer) (*statsUniqValues, error) {
-	fields, err := parseFieldNamesForStatsFunc(lex, "uniq_values")
+	fields, err := parseStatsFuncFields(lex, "uniq_values")
 	if err != nil {
 		return nil, err
 	}
 	su := &statsUniqValues{
-		fields:       fields,
-		containsStar: slices.Contains(fields, "*"),
+		fields: fields,
 	}
 	if lex.isKeyword("limit") {
 		lex.nextToken()

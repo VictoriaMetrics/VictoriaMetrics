@@ -2,6 +2,8 @@ package logstorage
 
 import (
 	"sync"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // filterStream is the filter for `_stream:{...}`
@@ -20,11 +22,11 @@ type filterStream struct {
 }
 
 func (fs *filterStream) String() string {
-	s := fs.f.String()
-	if s == "{}" {
-		return ""
-	}
-	return "_stream:" + s
+	return "_stream:" + fs.f.String()
+}
+
+func (fs *filterStream) updateNeededFields(neededFields fieldsSet) {
+	neededFields.add("_stream")
 }
 
 func (fs *filterStream) getStreamIDs() map[streamID]struct{} {
@@ -41,7 +43,66 @@ func (fs *filterStream) initStreamIDs() {
 	fs.streamIDs = m
 }
 
-func (fs *filterStream) apply(bs *blockSearch, bm *bitmap) {
+func (fs *filterStream) applyToBlockResult(br *blockResult, bm *bitmap) {
+	if fs.f.isEmpty() {
+		return
+	}
+
+	c := br.getColumnByName("_stream")
+	if c.isConst {
+		v := c.valuesEncoded[0]
+		if !fs.f.matchStreamName(v) {
+			bm.resetBits()
+		}
+		return
+	}
+	if c.isTime {
+		bm.resetBits()
+		return
+	}
+
+	switch c.valueType {
+	case valueTypeString:
+		values := c.getValues(br)
+		bm.forEachSetBit(func(idx int) bool {
+			v := values[idx]
+			return fs.f.matchStreamName(v)
+		})
+	case valueTypeDict:
+		bb := bbPool.Get()
+		for _, v := range c.dictValues {
+			c := byte(0)
+			if fs.f.matchStreamName(v) {
+				c = 1
+			}
+			bb.B = append(bb.B, c)
+		}
+		valuesEncoded := c.getValuesEncoded(br)
+		bm.forEachSetBit(func(idx int) bool {
+			n := valuesEncoded[idx][0]
+			return bb.B[n] == 1
+		})
+		bbPool.Put(bb)
+	case valueTypeUint8:
+		bm.resetBits()
+	case valueTypeUint16:
+		bm.resetBits()
+	case valueTypeUint32:
+		bm.resetBits()
+	case valueTypeUint64:
+		bm.resetBits()
+	case valueTypeFloat64:
+		bm.resetBits()
+	case valueTypeIPv4:
+		bm.resetBits()
+	case valueTypeTimestampISO8601:
+		bm.resetBits()
+	default:
+		logger.Panicf("FATAL: unknown valueType=%d", c.valueType)
+	}
+}
+
+func (fs *filterStream) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	if fs.f.isEmpty() {
 		return
 	}

@@ -32,46 +32,50 @@ func (pr *pipeRename) String() string {
 }
 
 func (pr *pipeRename) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	neededSrcFields := make([]bool, len(pr.srcFields))
-	for i, dstField := range pr.dstFields {
-		if neededFields.contains(dstField) && !unneededFields.contains(dstField) {
-			neededSrcFields[i] = true
-		}
-	}
-	if neededFields.contains("*") {
-		// update only unneeded fields
-		unneededFields.addAll(pr.dstFields)
-		for i, srcField := range pr.srcFields {
-			if neededSrcFields[i] {
-				unneededFields.remove(srcField)
-			} else {
+	for i := len(pr.srcFields) - 1; i >= 0; i-- {
+		srcField := pr.srcFields[i]
+		dstField := pr.dstFields[i]
+
+		if neededFields.contains("*") {
+			if unneededFields.contains(dstField) {
 				unneededFields.add(srcField)
+			} else {
+				unneededFields.add(dstField)
+				unneededFields.remove(srcField)
 			}
-		}
-	} else {
-		// update only needed fields and reset unneeded fields
-		neededFields.removeAll(pr.dstFields)
-		for i, srcField := range pr.srcFields {
-			if neededSrcFields[i] {
+		} else {
+			if neededFields.contains(dstField) {
+				neededFields.remove(dstField)
 				neededFields.add(srcField)
 			} else {
 				neededFields.remove(srcField)
 			}
 		}
-		unneededFields.reset()
 	}
 }
 
-func (pr *pipeRename) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppBase pipeProcessor) pipeProcessor {
+func (pr *pipeRename) optimize() {
+	// nothing to do
+}
+
+func (pr *pipeRename) hasFilterInWithQuery() bool {
+	return false
+}
+
+func (pr *pipeRename) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+	return pr, nil
+}
+
+func (pr *pipeRename) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeRenameProcessor{
 		pr:     pr,
-		ppBase: ppBase,
+		ppNext: ppNext,
 	}
 }
 
 type pipeRenameProcessor struct {
 	pr     *pipeRename
-	ppBase pipeProcessor
+	ppNext pipeProcessor
 }
 
 func (prp *pipeRenameProcessor) writeBlock(workerID uint, br *blockResult) {
@@ -80,7 +84,7 @@ func (prp *pipeRenameProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	br.renameColumns(prp.pr.srcFields, prp.pr.dstFields)
-	prp.ppBase.writeBlock(workerID, br)
+	prp.ppNext.writeBlock(workerID, br)
 }
 
 func (prp *pipeRenameProcessor) flush() error {
