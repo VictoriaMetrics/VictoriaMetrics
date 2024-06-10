@@ -1206,6 +1206,8 @@ See the docs at https://docs.victoriametrics.com/vmauth/ .
      Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
+  -idleConnTimeout duration
+    Defines a duration for idle (keep-alive connections) to exist. Consider setting this value less than "-http.idleConnTimeout". It must prevent possible "write: broken pipe" and "read: connection reset by peer" errors. (default 50s)
   -internStringCacheExpireDuration duration
      The expiry duration for caches for interned strings. See https://en.wikipedia.org/wiki/String_interning . See also -internStringMaxLen and -internStringDisableCache (default 6m0s)
   -internStringDisableCache
