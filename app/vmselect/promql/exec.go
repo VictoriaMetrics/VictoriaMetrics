@@ -73,10 +73,11 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 	if *disableImplicitConversion || *logImplicitConversion {
 		complete := isSubQueryComplete(e, false)
 		if !complete && *disableImplicitConversion {
-			return nil, fmt.Errorf("query contains subquery that requires implicit conversion and is rejected according to `-search.disableImplicitConversion=true` setting. See https://docs.victoriametrics.com/metricsql/#subqueries for details")
+			// we don't add query=%q to err message as it will be added by the caller
+			return nil, fmt.Errorf("query requires implicit conversion and is rejected according to `-search.disableImplicitConversion=true` setting. See https://docs.victoriametrics.com/metricsql/#implicit-query-conversions for details")
 		}
 		if !complete && *logImplicitConversion {
-			logger.Warnf("query=%q contains subquery that requires implicit conversion, see https://docs.victoriametrics.com/metricsql/#subqueries for details", e.AppendString(nil))
+			logger.Warnf("query=%q requires implicit conversion, see https://docs.victoriametrics.com/metricsql/#implicit-query-conversions for details", e.AppendString(nil))
 		}
 	}
 
@@ -452,6 +453,11 @@ func isSubQueryComplete(e metricsql.Expr, isSubExpr bool) bool {
 			return false
 		}
 		for _, arg := range exp.Args {
+			if re, ok := arg.(*metricsql.RollupExpr); ok {
+				if re.Window != nil {
+					return false
+				}
+			}
 			if !isSubQueryComplete(arg, false) {
 				return false
 			}

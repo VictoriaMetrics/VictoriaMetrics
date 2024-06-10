@@ -9450,7 +9450,6 @@ func TestIsSubQueryCompleteTrue(t *testing.T) {
 	f("absent(http_total)")
 	f("rate(http_total[1m])")
 	f("avg_over_time(up[1m])")
-	f("sum(http_total[1m])")
 	f("sum(rate(http_total))")
 	f("sum(sum(http_total))")
 	f(`sum(sum_over_time(http_total[1m] )) by (instance)`)
@@ -9507,6 +9506,8 @@ func TestIsSubQueryCompleteFalse(t *testing.T) {
 		}
 	}
 
+	f("sum(up[5m])")
+	f("avg(foo[5m])")
 	f("rate(sum(http_total))")
 	f("rate(rate(http_total))")
 	f("sum(rate(sum(http_total)))")
