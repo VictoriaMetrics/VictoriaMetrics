@@ -9,6 +9,8 @@ menu:
     title: Quick Start
 aliases:
 - /VictoriaLogs/QuickStart.html
+- /victorialogs/quick-start.html
+- /victorialogs/quick-start/
 ---
 
 # VictoriaLogs Quick Start
