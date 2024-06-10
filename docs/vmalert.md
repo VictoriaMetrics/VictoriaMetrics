@@ -1263,7 +1263,7 @@ The shortlist of configuration flags is the following:
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -reloadAuthKey value
-     Auth key for /-/reload http endpoint. It must be passed as authKey=...
+     Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings.
      Flag value can be read from the given file when using -reloadAuthKey=file:///abs/path/to/file or -reloadAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -reloadAuthKey=http://host/path or -reloadAuthKey=https://host/path
   -remoteRead.basicAuth.password string
      Optional basic auth password for -remoteRead.url
