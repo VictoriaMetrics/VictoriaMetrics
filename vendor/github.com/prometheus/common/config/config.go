@@ -60,9 +60,9 @@ func (s Secret) MarshalJSON() ([]byte, error) {
 	return json.Marshal(secretToken)
 }
 
-type Header map[string][]Secret
+type ProxyHeader map[string][]Secret
 
-func (h *Header) HTTPHeader() http.Header {
+func (h *ProxyHeader) HTTPHeader() http.Header {
 	if h == nil || *h == nil {
 		return nil
 	}

@@ -120,7 +120,7 @@ VictoriaMetrics ecosystem contains the following components additionally to [sin
 - [vmalert](https://docs.victoriametrics.com/vmalert/) - a service for processing Prometheus-compatible alerting and recording rules.
 - [vmalert-tool](https://docs.victoriametrics.com/vmalert-tool/) -  a tool for validating alerting and recording rules.
 - [vmauth](https://docs.victoriametrics.com/vmauth/) - authorization proxy and load balancer optimized for VictoriaMetrics products.
-- [vmgateway](https://docs.victoriametrics.com/vmgateway/) - authorization proxy with per-[tenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy) rate limiting cababilities.
+- [vmgateway](https://docs.victoriametrics.com/vmgateway/) - authorization proxy with per-[tenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy) rate limiting capabilities.
 - [vmctl](https://docs.victoriametrics.com/vmctl/) - a tool for migrating and copying data between different storage systems for metrics.
 - [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmrestore](https://docs.victoriametrics.com/vmrestore/) and [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/) -
   tools for creating backups and restoring from backups for VictoriaMetrics data.

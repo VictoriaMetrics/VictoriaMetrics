@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -42,6 +43,7 @@ func (as *histogramBucketAggrState) pushSamples(samples []pushSample) {
 		if !ok {
 			// The entry is missing in the map. Try creating it.
 			v = &histogramBucketStateValue{}
+			outputKey = bytesutil.InternString(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if loaded {
 				// Use the entry created by a concurrent goroutine.

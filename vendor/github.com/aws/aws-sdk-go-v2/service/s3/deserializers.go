@@ -25,7 +25,16 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
+	"time"
 )
+
+func deserializeS3Expires(v string) (*time.Time, error) {
+	t, err := smithytime.ParseHTTPDate(v)
+	if err != nil {
+		return nil, nil
+	}
+	return &t, nil
+}
 
 type awsRestxml_deserializeOpAbortMultipartUpload struct {
 }
@@ -5504,12 +5513,17 @@ func awsRestxml_deserializeOpHttpBindingsGetObjectOutput(v *GetObjectOutput, res
 	}
 
 	if headerValues := response.Header.Values("Expires"); len(headerValues) != 0 {
-		headerValues[0] = strings.TrimSpace(headerValues[0])
-		t, err := smithytime.ParseHTTPDate(headerValues[0])
+		deserOverride, err := deserializeS3Expires(headerValues[0])
 		if err != nil {
 			return err
 		}
-		v.Expires = ptr.Time(t)
+		v.Expires = deserOverride
+
+	}
+
+	if headerValues := response.Header.Values("Expires"); len(headerValues) != 0 {
+		headerValues[0] = strings.TrimSpace(headerValues[0])
+		v.ExpiresString = ptr.String(headerValues[0])
 	}
 
 	if headerValues := response.Header.Values("Last-Modified"); len(headerValues) != 0 {
@@ -7128,12 +7142,17 @@ func awsRestxml_deserializeOpHttpBindingsHeadObjectOutput(v *HeadObjectOutput, r
 	}
 
 	if headerValues := response.Header.Values("Expires"); len(headerValues) != 0 {
-		headerValues[0] = strings.TrimSpace(headerValues[0])
-		t, err := smithytime.ParseHTTPDate(headerValues[0])
+		deserOverride, err := deserializeS3Expires(headerValues[0])
 		if err != nil {
 			return err
 		}
-		v.Expires = ptr.Time(t)
+		v.Expires = deserOverride
+
+	}
+
+	if headerValues := response.Header.Values("Expires"); len(headerValues) != 0 {
+		headerValues[0] = strings.TrimSpace(headerValues[0])
+		v.ExpiresString = ptr.String(headerValues[0])
 	}
 
 	if headerValues := response.Header.Values("Last-Modified"); len(headerValues) != 0 {

@@ -175,7 +175,8 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample) {
 	for _, sample := range samples {
 		s, ok := m[sample.key]
 		if !ok {
-			m[sample.key] = dedupAggrSample{
+			key := bytesutil.InternString(sample.key)
+			m[key] = dedupAggrSample{
 				value:     sample.value,
 				timestamp: sample.timestamp,
 			}
@@ -183,7 +184,8 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample) {
 		}
 		// Update the existing value according to logic described at https://docs.victoriametrics.com/#deduplication
 		if sample.timestamp > s.timestamp || (sample.timestamp == s.timestamp && sample.value > s.value) {
-			m[sample.key] = dedupAggrSample{
+			key := bytesutil.InternString(sample.key)
+			m[key] = dedupAggrSample{
 				value:     sample.value,
 				timestamp: sample.timestamp,
 			}
