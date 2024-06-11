@@ -25,6 +25,7 @@ The following options are available:
 - [To run Docker image](#docker)
 - [To run in Kubernetes with Helm charts](#kubernetes-with-helm-charts)
 
+> **Note**: Starting from [v1.13.0](/anomaly-detection/changelog/#v1130) there is a mode to keep anomaly detection models on host filesystem after `fit` stage (instead of keeping them in-memory by default); This may lead to **noticeable reduction of RAM used** on bigger setups. See instructions [here](/anomaly-detection/faq/#resource-consumption-of-vmanomaly).
 
 ### Docker
 
@@ -83,7 +84,7 @@ scheduler:
 
 models:
   prophet_model:
-    class: "model.prophet.ProphetModel"
+    class: "prophet"  # or "model.prophet.ProphetModel" until v1.13.0
     args:
       interval_width: 0.98
 
