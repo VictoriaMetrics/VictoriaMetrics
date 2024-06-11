@@ -326,8 +326,8 @@ func ProcessQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 		}
 
 		q.AddPipeLimit(uint64(limit))
-		q.Optimize()
 	}
+	q.Optimize()
 
 	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
 		if len(columns) == 0 || len(columns[0].Values) == 0 {

@@ -114,6 +114,11 @@ type blockSearch struct {
 
 	// a is used for storing unmarshaled data in csh
 	a arena
+
+	// prevStreamID and prevStream are used for speeding up fetching _stream columns
+	// across sequential blocks belonging to the same stream.
+	prevStreamID streamID
+	prevStream   []byte
 }
 
 func (bs *blockSearch) reset() {
