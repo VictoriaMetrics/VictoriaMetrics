@@ -9,6 +9,22 @@ import (
 	"time"
 )
 
+type resolver interface {
+	LookupSRV(ctx context.Context, service, proto, name string) (cname string, addrs []*net.SRV, err error)
+	LookupIPAddr(ctx context.Context, host string) ([]net.IPAddr, error)
+	LookupMX(ctx context.Context, name string) ([]*net.MX, error)
+}
+
+// Resolver is default DNS resolver.
+var Resolver resolver
+
+func init() {
+	Resolver = &net.Resolver{
+		PreferGo:     true,
+		StrictErrors: true,
+	}
+}
+
 // IsTrivialNetworkError returns true if the err can be ignored during logging.
 func IsTrivialNetworkError(err error) bool {
 	// Suppress trivial network errors, which could occur at remote side.
@@ -41,12 +57,6 @@ func DialMaybeSRV(ctx context.Context, network, addr string) (net.Conn, error) {
 		addr = fmt.Sprintf("%s:%d", addrs[n].Target, addrs[n].Port)
 	}
 	return Dialer.DialContext(ctx, network, addr)
-}
-
-// Resolver is default DNS resolver.
-var Resolver = &net.Resolver{
-	PreferGo:     true,
-	StrictErrors: true,
 }
 
 // Dialer is default network dialer.
