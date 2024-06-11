@@ -175,8 +175,12 @@ func (ctx *InsertCtx) GetStorageNodeIdx(at *auth.Token, labels []prompb.Label) i
 	buf = encoding.MarshalUint32(buf, at.ProjectID)
 	for i := range labels {
 		label := &labels[i]
-		buf = marshalStringFast(buf, label.Name)
-		buf = marshalStringFast(buf, label.Value)
+		// excluding le and vmrange labels from node idx calculation to put all histogram metrics to the same node
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6424
+		if label.Name != "le" && label.Name != "vmrange" {
+			buf = marshalStringFast(buf, label.Name)
+			buf = marshalStringFast(buf, label.Value)
+		}
 	}
 	h := xxhash.Sum64(buf)
 	ctx.labelsBuf = buf
