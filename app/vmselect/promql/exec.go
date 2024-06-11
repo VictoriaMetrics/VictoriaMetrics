@@ -431,8 +431,13 @@ func isSubQueryComplete(e metricsql.Expr, isSubExpr bool) bool {
 			return false
 		}
 		fe := e.(*metricsql.FuncExpr)
+		isRollupFn := getRollupFunc(fe.Name) != nil
 		for _, arg := range exp.Args {
-			if getRollupFunc(fe.Name) != nil {
+			_, isRollupExpr := arg.(*metricsql.RollupExpr)
+			if (isRollupExpr && !isRollupFn) || (!isRollupExpr && isRollupFn) {
+				return false
+			}
+			if isRollupFn {
 				isSubExpr = true
 			}
 			if !isSubQueryComplete(arg, isSubExpr) {
@@ -441,7 +446,7 @@ func isSubQueryComplete(e metricsql.Expr, isSubExpr bool) bool {
 		}
 	case *metricsql.RollupExpr:
 		if _, ok := exp.Expr.(*metricsql.MetricExpr); ok {
-			return true
+			return exp.Step == nil
 		}
 		// exp.Step is optional in subqueries
 		if exp.Window == nil {

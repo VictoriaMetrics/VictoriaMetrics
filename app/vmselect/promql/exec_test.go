@@ -9445,37 +9445,39 @@ func TestIsSubQueryCompleteTrue(t *testing.T) {
 		}
 	}
 
-	f("rate(http_total)")
+	f("http_total[5m]")
 	f("sum(http_total)")
+	f("sum(foo, bar)")
 	f("absent(http_total)")
 	f("rate(http_total[1m])")
 	f("avg_over_time(up[1m])")
-	f("sum(rate(http_total))")
+	f("sum(rate(http_total[1m]))")
 	f("sum(sum(http_total))")
 	f(`sum(sum_over_time(http_total[1m] )) by (instance)`)
 	f("sum(up{cluster='a'}[1m] or up{cluster='b'}[1m])")
 	f("(avg_over_time(alarm_test1[1m]) - avg_over_time(alarm_test1[1m] offset 5m)) > 0.1")
 	f("http_total[1m] offset 1m")
+	f("sum(http_total offset 1m)")
 
 	// subquery
-	f("rate(http_total)[5m:1m]")
+	f("rate(http_total[5m])[5m:1m]")
 	f("rate(sum(http_total)[5m:1m])")
-	f("rate(rate(http_total)[5m:1m])")
+	f("rate(rate(http_total[5m])[5m:1m])")
 	f("sum(rate(http_total[1m]))")
 	f("sum(rate(sum(http_total)[5m:1m]))")
-	f("rate(sum(rate(http_total))[5m:1m])")
+	f("rate(sum(rate(http_total[5m]))[5m:1m])")
 	f("rate(sum(sum(http_total))[5m:1m])")
-	f("rate(sum(rate(http_total))[5m:1m])")
+	f("rate(sum(rate(http_total[5m]))[5m:1m])")
 	f("rate(sum(sum(http_total))[5m:1m])")
 	f("avg_over_time(rate(http_total[5m])[5m:1m])")
 	f("delta(avg_over_time(up[1m])[5m:1m]) > 0.1")
 	f("avg_over_time(avg by (site) (metric)[2m:1m])")
 
 	f("sum(http_total)[5m:1m] offset 1m")
-	f("round(sum(sum_over_time(http_total[1m])) by (instance)) [5m:1m] offset 1m")
+	f("round(sum(sum_over_time(http_total[1m])) by (instance))[5m:1m] offset 1m")
 
 	f("rate(sum(http_total)[5m:1m]) - rate(sum(http_total)[5m:1m])")
-	f("avg_over_time((rate(http_total)-rate(http_total))[5m:1m])")
+	f("avg_over_time((rate(http_total[5m])-rate(http_total[5m]))[5m:1m])")
 
 	f("sum_over_time((up{cluster='a'} or up{cluster='b'})[5m:1m])")
 	f("sum_over_time((up{cluster='a'} or up{cluster='b'})[5m:1m])")
@@ -9505,15 +9507,28 @@ func TestIsSubQueryCompleteFalse(t *testing.T) {
 			t.Fatalf("expect to detect incomplete subquery: %s", e.AppendString(nil))
 		}
 	}
+	f("rate(http_total)[5m:1m]")
 
+	f("up[:5m]")
+	f("sum(up[:5m])")
+	f("absent(foo[5m])")
 	f("sum(up[5m])")
 	f("avg(foo[5m])")
+	f("sort(foo[5m])")
+
 	f("rate(sum(http_total))")
 	f("rate(rate(http_total))")
 	f("sum(rate(sum(http_total)))")
 	f("rate(sum(rate(http_total)))")
 	f("rate(sum(sum(http_total)))")
 	f("avg_over_time(rate(http_total[5m]))")
+
+	f("rate(http_total)[5m:1m]")
+	f("rate(rate(http_total)[5m:1m])")
+	f("rate(sum(rate(http_total))[5m:1m])")
+	f("rate(sum(rate(http_total))[5m:1m])")
+	f("count_over_time(http_total)")
+	f("avg_over_time((rate(http_total)-rate(http_total))[5m:1m])")
 
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3974
 	f("sum(http_total) offset 1m")
