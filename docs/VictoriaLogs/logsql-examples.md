@@ -456,3 +456,13 @@ _time:4w _time:week_range[Mon, Fri] _time:day_range[08:00, 18:00)
 
 It uses implicit [`AND` logical filtere](https://docs.victoriametrics.com/victorialogs/logsql/#logical-filter) for joining multiple filters
 on [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
+
+## How to find logs with the given phrase containing whitespace?
+
+Use [`phrase filter`](https://docs.victoriametrics.com/victorialogs/logsql/#phrase-filter). For example, the following [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/)
+returns logs with the `cannot open file` phrase over the last 5 minutes:
+
+
+```logsql
+_time:5m "cannot open file"
+```

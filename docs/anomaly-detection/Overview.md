@@ -88,10 +88,6 @@ Currently, vmanomaly ships with a set of built-in models:
    See [statsmodels.org documentation](https://www.statsmodels.org/dev/examples/notebooks/generated/stl_decomposition.html)
    for LOESS STD.
 
-1. [**ARIMA**](/anomaly-detection/components/models.html#arima)
-
-   Commonly used forecasting model. See [statsmodels.org documentation](https://www.statsmodels.org/stable/generated/statsmodels.tsa.arima.model.ARIMA.html) for ARIMA.
-
 1. [**Rolling Quantile**](/anomaly-detection/components/models.html#rolling-quantile)
 
    A simple moving window of quantiles. Easy to use, easy to understand, but not as powerful as
