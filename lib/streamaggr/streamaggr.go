@@ -747,7 +747,7 @@ func (a *aggregator) dedupFlush(dedupInterval time.Duration) {
 
 	startTime := time.Now()
 
-	a.da.flush(a.pushSamples, true)
+	a.da.flush(a.pushSamples)
 
 	d := time.Since(startTime)
 	a.dedupFlushDuration.Update(d.Seconds())

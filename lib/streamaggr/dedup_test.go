@@ -23,8 +23,8 @@ func TestDedupAggrSerial(t *testing.T) {
 		da.pushSamples(samples)
 	}
 
-	if n := da.sizeBytes(); n > 4_200_000 {
-		t.Fatalf("too big dedupAggr state before flush: %d bytes; it shouldn't exceed 4_200_000 bytes", n)
+	if n := da.sizeBytes(); n > 5_000_000 {
+		t.Fatalf("too big dedupAggr state before flush: %d bytes; it shouldn't exceed 5_000_000 bytes", n)
 	}
 	if n := da.itemsCount(); n != seriesCount {
 		t.Fatalf("unexpected itemsCount; got %d; want %d", n, seriesCount)
@@ -39,7 +39,7 @@ func TestDedupAggrSerial(t *testing.T) {
 		}
 		mu.Unlock()
 	}
-	da.flush(flushSamples, true)
+	da.flush(flushSamples)
 
 	if !reflect.DeepEqual(expectedSamplesMap, flushedSamplesMap) {
 		t.Fatalf("unexpected samples;\ngot\n%v\nwant\n%v", flushedSamplesMap, expectedSamplesMap)

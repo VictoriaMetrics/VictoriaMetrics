@@ -239,17 +239,19 @@ func (p *syslogParser) parseRFC5424SDLine(s string) (string, bool) {
 func (p *syslogParser) parseRFC3164(s string) {
 	// See https://datatracker.ietf.org/doc/html/rfc3164
 
+	p.addField("format", "rfc3164")
+
 	// Parse timestamp
 	n := len(time.Stamp)
 	if len(s) < n {
+		p.addField("message", s)
 		return
 	}
-
-	p.addField("format", "rfc3164")
 
 	t, err := time.Parse(time.Stamp, s[:n])
 	if err != nil {
 		// TODO: fall back to parsing ISO8601 timestamp?
+		p.addField("message", s)
 		return
 	}
 	s = s[n:]
@@ -267,6 +269,9 @@ func (p *syslogParser) parseRFC3164(s string) {
 
 	if len(s) == 0 || s[0] != ' ' {
 		// Missing space after the time field
+		if len(s) > 0 {
+			p.addField("message", s)
+		}
 		return
 	}
 	s = s[1:]

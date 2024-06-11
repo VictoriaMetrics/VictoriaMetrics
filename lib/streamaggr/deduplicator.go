@@ -166,7 +166,7 @@ func (d *Deduplicator) flush(pushFunc PushFunc, dedupInterval time.Duration) {
 		ctx.labels = labels
 		ctx.samples = samples
 		putDeduplicatorFlushCtx(ctx)
-	}, true)
+	})
 
 	duration := time.Since(startTime)
 	d.dedupFlushDuration.Update(duration.Seconds())

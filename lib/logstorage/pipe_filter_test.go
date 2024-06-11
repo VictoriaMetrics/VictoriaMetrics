@@ -75,7 +75,7 @@ func TestPipeFilter(t *testing.T) {
 	})
 
 	// multiple rows
-	f("filter x:foo y:bar", [][]Field{
+	f("where x:foo y:bar", [][]Field{
 		{
 			{"a", "f1"},
 			{"x", "foo"},

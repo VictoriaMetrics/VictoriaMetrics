@@ -25,6 +25,10 @@
       justify-content: normal;
     }
 
+    &-contols {
+      flex-grow: 1;
+    }
+
     &__execute {
       display: grid;
     }

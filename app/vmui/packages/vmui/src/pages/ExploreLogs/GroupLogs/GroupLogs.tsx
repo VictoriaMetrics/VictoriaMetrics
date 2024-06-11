@@ -11,9 +11,10 @@ import GroupLogsItem from "./GroupLogsItem";
 interface TableLogsProps {
   logs: Logs[];
   columns: string[];
+  markdownParsing: boolean;
 }
 
-const GroupLogs: FC<TableLogsProps> = ({ logs }) => {
+const GroupLogs: FC<TableLogsProps> = ({ logs, markdownParsing }) => {
   const copyToClipboard = useCopyToClipboard();
 
   const [copied, setCopied] = useState<string | null>(null);
@@ -77,6 +78,7 @@ const GroupLogs: FC<TableLogsProps> = ({ logs }) => {
                 <GroupLogsItem
                   key={`${value._msg}${value._time}`}
                   log={value}
+                  markdownParsing={markdownParsing}
                 />
               ))}
             </div>
