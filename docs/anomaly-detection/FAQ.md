@@ -76,7 +76,7 @@ Starting from [v1.7.2](/anomaly-detection/changelog/#v172) you can produce (and 
 ```yaml
 schedulers:
   scheduler_alias:
-    class: "scheduler.backtesting.BacktestingScheduler"
+    class: 'backtesting' # or "scheduler.backtesting.BacktestingScheduler" until v1.13.0
     # define historical period to backtest on
     # should be bigger than at least (fit_window + fit_every) time range
     from_iso: '2024-01-01T00:00:00Z'
@@ -116,6 +116,37 @@ Configuration above will produce N intervals of full length (`fit_window`=14d + 
 ## Resource consumption of vmanomaly
 `vmanomaly` itself is a lightweight service, resource usage is primarily dependent on [scheduling](/anomaly-detection/components/scheduler.html) (how often and on what data to fit/infer your models), [# and size of timeseries returned by your queries](/anomaly-detection/components/reader.html#vm-reader), and the complexity of the employed [models](anomaly-detection/components/models.html). Its resource usage is directly related to these factors, making it adaptable to various operational scales.
 
+> **Note**: Starting from [v1.13.0](/anomaly-detection/changelog/#v1130), there is a mode to save anomaly detection models on host filesystem after `fit` stage (instead of keeping them in-memory by default). **Resource-intensive setups** (many models, many metrics, bigger [`fit_window` arg](/anomaly-detection/components/scheduler/#periodic-scheduler-config-example)) and/or 3rd-party models that store fit data (like [ProphetModel](/anomaly-detection/components/models/index.html#prophet) or [HoltWinters](/anomaly-detection/components/models/index.html#holt-winters)) will have RAM consumption greatly reduced at a cost of slightly slower `infer` stage. To enable it, you need to set environment variable `VMANOMALY_MODEL_DUMPS_DIR` to desired location. [Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/README.md) are being updated accordingly ([`StatefulSet`](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) for persistent storage starting from chart version `1.3.0`).
+
+Here's an example of how to set it up in docker-compose using volumes:
+```yaml
+services:
+  # ...
+  vmanomaly:
+    container_name: vmanomaly
+    image: victoriametrics/vmanomaly:latest
+    # ...
+    ports:
+      - "8490:8490"
+    restart: always
+    volumes:
+      - ./vmanomaly_config.yml:/config.yaml
+      - ./vmanomaly_license:/license
+      # map the host directory to the container directory
+      - vmanomaly_model_dump_dir:/vmanomaly/tmp/models
+    environment:
+      # set the environment variable for the model dump directory
+      - VMANOMALY_MODEL_DUMPS_DIR=/vmanomaly/tmp/models/
+    platform: "linux/amd64"
+    command:
+      - "/config.yaml"
+      - "--license-file=/license"
+
+volumes:
+  # ...
+  vmanomaly_model_dump_dir: {}
+```
+
 ## Scaling vmanomaly
 > **Note:** As of latest release we don't support cluster or auto-scaled version yet (though, it's in our roadmap for - better backends, more parallelization, etc.), so proposed workarounds should be addressed manually.
 
@@ -128,6 +159,7 @@ Configuration above will produce N intervals of full length (`fit_window`=14d + 
 - or **schedulers** (in case you want the same models to be trained under several schedules) - see `schedulers` arg [model section](/anomaly-detection/components/models/#schedulers) and `scheduler` [component itself](/anomaly-detection/components/scheduler/)
 
 
+Here's an example of how to split on `extra_filters` param
 ```yaml
 # config file #1, for 1st vmanomaly instance
 # ...

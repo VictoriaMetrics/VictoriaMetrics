@@ -36,7 +36,7 @@ Future updates will introduce additional readers, expanding the range of data so
     <tbody>
         <tr>
             <td><code>class</code></td>
-            <td><code>"reader.vm.VmReader"</code></td>
+            <td><code>"reader.vm.VmReader" (or "vm" starting from <a href="https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130">v1.13.0</a>)</code></td>
             <td>Name of the class needed to enable reading from VictoriaMetrics or Prometheus. VmReader is the default option, if not specified.</td>
         </tr>
         <tr>
@@ -57,7 +57,7 @@ Future updates will introduce additional readers, expanding the range of data so
         <tr>
             <td><code>sampling_period</code></td>
             <td><code>"1h"</code></td>
-            <td>Frequency of the points returned. Will be converted to <code>"/query_range?step=%s"</code> param (in seconds). **Required** since <a href="https://docs.victoriametrics.com/anomaly-detection/changelog/#v190">1.9.0</a>.</td>
+            <td>Frequency of the points returned. Will be converted to <code>"/query_range?step=%s"</code> param (in seconds). <b>Required</b> since <a href="https://docs.victoriametrics.com/anomaly-detection/changelog/#v190">v1.9.0</a>.</td>
         </tr>
         <tr>
             <td><code>query_range_path</code></td>
@@ -106,7 +106,7 @@ Config file example:
 
 ```yaml
 reader:
-  class: "reader.vm.VmReader"
+  class: "vm"  # or "reader.vm.VmReader" until v1.13.0
   datasource_url: "http://localhost:8428/"
   tenant_id: "0:0"
   queries:
