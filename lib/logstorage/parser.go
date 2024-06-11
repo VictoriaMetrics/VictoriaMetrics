@@ -514,6 +514,14 @@ func (q *Query) getNeededColumns() ([]string, []string) {
 // ParseQuery parses s.
 func ParseQuery(s string) (*Query, error) {
 	lex := newLexer(s)
+
+	// Verify the first token doesn't match pipe names.
+	firstToken := strings.ToLower(lex.rawToken)
+	if _, ok := pipeNames[firstToken]; ok {
+		return nil, fmt.Errorf("the query [%s] cannot start with pipe - it must start with madatory filter; see https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax; "+
+			"if the filter isn't missing, then please put the first word of the filter into quotes: %q", s, firstToken)
+	}
+
 	q, err := parseQuery(lex)
 	if err != nil {
 		return nil, err
@@ -1840,6 +1848,9 @@ func isNumberPrefix(s string) bool {
 func needQuoteToken(s string) bool {
 	sLower := strings.ToLower(s)
 	if _, ok := reservedKeywords[sLower]; ok {
+		return true
+	}
+	if _, ok := pipeNames[sLower]; ok {
 		return true
 	}
 	for _, r := range s {
