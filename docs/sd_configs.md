@@ -1692,6 +1692,14 @@ scrape_configs:
   #
   # scrape_timeout: <duration>
 
+  # max_scrape_size is an optional parameter, which defines a maximum size of scraped data for a job.
+  # By default, value of  -promscrape.maxScrapeSize command-line flag is used.
+  # Example values:
+  # - "10MiB" - 10 * 1024 * 1024 bytes
+  # - "100MB" - 100 * 1000 * 1000 bytes
+  #
+  # max_scrape_size: <size>
+
   # metrics_path is the path to fetch metrics from targets.
   # By default, metrics are fetched from "/metrics" path.
   #

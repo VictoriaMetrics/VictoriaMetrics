@@ -486,6 +486,9 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
   scrape_duration_seconds > 1.5
   ```
 
+* `scrape_response_size_bytes` - size in bytes of response for the given target. This allows to monitor amount of data scraped and to set valid
+  `max_scrape_size` for a target
+
 * `scrape_timeout_seconds` - the configured timeout for the current scrape target (aka `scrape_timeout`).
   This allows detecting targets with scrape durations close to the configured scrape timeout.
   For example, the following [MetricsQL query](https://docs.victoriametrics.com/metricsql/) returns targets (identified by `instance` label),

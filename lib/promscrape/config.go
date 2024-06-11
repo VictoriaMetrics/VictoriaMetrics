@@ -16,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
@@ -76,6 +77,8 @@ var (
 	clusterName = flag.String("promscrape.cluster.name", "", "Optional name of the cluster. If multiple vmagent clusters scrape the same targets, "+
 		"then each cluster must have unique name in order to properly de-duplicate samples received from these clusters. "+
 		"See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more info")
+	maxScrapeSize = flagutil.NewBytes("promscrape.maxScrapeSize", 16*1024*1024, "The maximum size of scrape response in bytes to process from Prometheus targets. "+
+		"Bigger responses are rejected")
 )
 
 var clusterMemberID int
@@ -269,6 +272,7 @@ type ScrapeConfig struct {
 	JobName        string              `yaml:"job_name"`
 	ScrapeInterval *promutils.Duration `yaml:"scrape_interval,omitempty"`
 	ScrapeTimeout  *promutils.Duration `yaml:"scrape_timeout,omitempty"`
+	MaxScrapeSize  string              `yaml:"max_scrape_size,omitempty"`
 	MetricsPath    string              `yaml:"metrics_path,omitempty"`
 	HonorLabels    bool                `yaml:"honor_labels,omitempty"`
 
@@ -845,6 +849,14 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1281#issuecomment-840538907
 		scrapeTimeout = scrapeInterval
 	}
+	var err error
+	mss := maxScrapeSize.N
+	if len(sc.MaxScrapeSize) > 0 {
+		mss, err = flagutil.ParseBytes(sc.MaxScrapeSize)
+		if err != nil {
+			return nil, fmt.Errorf("unexpected `max_scrape_size` value %q for `job_name` %q`: %w", sc.MaxScrapeSize, jobName, err)
+		}
+	}
 	honorLabels := sc.HonorLabels
 	honorTimestamps := sc.HonorTimestamps
 	denyRedirects := false
@@ -897,6 +909,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		scrapeIntervalString: scrapeInterval.String(),
 		scrapeTimeout:        scrapeTimeout,
 		scrapeTimeoutString:  scrapeTimeout.String(),
+		maxScrapeSize:        mss,
 		jobName:              jobName,
 		metricsPath:          metricsPath,
 		scheme:               scheme,
@@ -927,6 +940,7 @@ type scrapeWorkConfig struct {
 	scrapeIntervalString string
 	scrapeTimeout        time.Duration
 	scrapeTimeoutString  string
+	maxScrapeSize        int64
 	jobName              string
 	metricsPath          string
 	scheme               string
@@ -1201,6 +1215,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		ScrapeURL:            scrapeURL,
 		ScrapeInterval:       scrapeInterval,
 		ScrapeTimeout:        scrapeTimeout,
+		MaxScrapeSize:        swc.maxScrapeSize,
 		HonorLabels:          swc.honorLabels,
 		HonorTimestamps:      swc.honorTimestamps,
 		DenyRedirects:        swc.denyRedirects,
