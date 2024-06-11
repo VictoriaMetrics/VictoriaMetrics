@@ -16,4 +16,4 @@ issues:
 
 linters-settings:
   errcheck:
-    exclude: ./errcheck_excludes.txt
+    exclude-functions: ./errcheck_excludes.txt
