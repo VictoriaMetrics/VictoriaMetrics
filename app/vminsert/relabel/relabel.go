@@ -58,42 +58,39 @@ func Init() {
 			tickerCh = ticker.C
 			defer ticker.Stop()
 		}
+		var noChangesLogFn func()
 		for {
 			select {
 			case <-sighupCh:
 				configReloads.Inc()
 				logger.Infof("received SIGHUP; reloading -relabelConfig=%q...", *relabelConfig)
-				pcsNew, err := loadRelabelConfig()
-				if err != nil {
-					configReloadErrors.Inc()
-					configSuccess.Set(0)
-					logger.Errorf("cannot load the updated relabelConfig: %s; preserving the previous config", err)
-					continue
-				}
-				if pcsNew.String() == pcs.String() {
+				noChangesLogFn = func() {
 					logger.Infof("nothing changed in %q", relabelConfig)
-					continue
 				}
-				pcs = pcsNew
-				pcsGlobal.Store(pcsNew)
 			case <-tickerCh:
-				pcsNew, err := loadRelabelConfig()
-				if err != nil {
-					configReloadErrors.Inc()
-					configSuccess.Set(0)
-					logger.Errorf("cannot load the updated relabelConfig: %s; preserving the previous config", err)
-					continue
-				}
-				if pcsNew.String() == pcs.String() {
-					continue
-				}
-				pcs = pcsNew
-				pcsGlobal.Store(pcsNew)
-
+				// silently skip logging for the unchanged config files
+				noChangesLogFn = func() {}
 			case <-globalStopChan:
-				logger.Infof("stopping relabel")
+				logger.Infof("stopping relabel config reloader")
 				return
 			}
+			pcsNew, err := loadRelabelConfig()
+			if err != nil {
+				configReloadErrors.Inc()
+				configSuccess.Set(0)
+				logger.Errorf("cannot load the updated relabelConfig: %s; preserving the previous config", err)
+				continue
+			}
+			if pcsNew.String() == pcs.String() {
+				// set success to 1 since previous reload could have been unsuccessful
+				// do not update configTimestamp as config version remains old.
+				configSuccess.Set(1)
+				noChangesLogFn()
+				continue
+			}
+			pcs = pcsNew
+			pcsGlobal.Store(pcsNew)
+
 			configSuccess.Set(1)
 			configTimestamp.Set(fasttime.UnixTimestamp())
 			logger.Infof("successfully reloaded -relabelConfig=%q", *relabelConfig)
@@ -101,6 +98,7 @@ func Init() {
 	}()
 }
 
+// Stop stops relabel config reloader watchers
 func Stop() {
 	if len(*relabelConfig) == 0 {
 		return
