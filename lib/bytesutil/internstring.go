@@ -26,6 +26,7 @@ type internStringMap struct {
 
 	readonly atomic.Pointer[map[string]internStringMapEntry]
 
+	cleanupInterval uint64
 	nextCleanupTime atomic.Uint64
 }
 
@@ -35,13 +36,14 @@ type internStringMapEntry struct {
 }
 
 func newInternStringMap() *internStringMap {
-	ism := &internStringMap{
+	m := &internStringMap{
 		mutable: make(map[string]string),
 	}
 	readonly := make(map[string]internStringMapEntry)
-	ism.readonly.Store(&readonly)
-	ism.nextCleanupTime.Store(fasttime.UnixTimestamp() + 61)
-	return ism
+	m.readonly.Store(&readonly)
+	m.cleanupInterval = uint64(cacheExpireDuration.Seconds() / 3)
+	m.nextCleanupTime.Store(fasttime.UnixTimestamp() + m.cleanupInterval)
+	return m
 }
 
 func (m *internStringMap) getReadonly() map[string]internStringMapEntry {
@@ -49,12 +51,12 @@ func (m *internStringMap) getReadonly() map[string]internStringMapEntry {
 }
 
 func (m *internStringMap) intern(s string) string {
-	if *disableCache || len(s) > *internStringMaxLen {
+	if isSkipCache(s) {
 		return strings.Clone(s)
 	}
 	currentTime := fasttime.UnixTimestamp()
 	if currentTime >= m.nextCleanupTime.Load() {
-		m.nextCleanupTime.Store(currentTime + 61)
+		m.nextCleanupTime.Store(currentTime + m.cleanupInterval)
 		m.cleanup()
 	}
 
@@ -65,11 +67,11 @@ func (m *internStringMap) intern(s string) string {
 		return e.s
 	}
 
-	// Slower path - search for the string in mutable map
+	// Slower path - search for the string in mutable map under the lock.
 	m.mu.Lock()
 	sInterned, ok := m.mutable[s]
 	if !ok {
-		// Verify whether the s has been already registered by concurrent goroutines in m.readonly
+		// Verify whether s has been already registered by concurrent goroutines in m.readonly
 		readonly = m.getReadonly()
 		e, ok = readonly[s]
 		if !ok {
