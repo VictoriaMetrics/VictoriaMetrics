@@ -26,11 +26,11 @@ This section describes `Models` component of VictoriaMetrics Anomaly Detection (
 ```yaml
 models:
   model_univariate_1:
-    class: 'model.zscore.ZscoreModel'
+    class: 'zscore' # or 'model.zscore.ZscoreModel' until v1.13.0
     z_threshold: 2.5
     queries: ['query_alias2']  # referencing queries defined in `reader` section
   model_multivariate_1:
-    class: 'model.isolation_forest.IsolationForestMultivariateModel'
+    class: 'isolation_forest_multivariate'  # or model.isolation_forest.IsolationForestMultivariateModel until v1.13.0
     contamination: 'auto'
     args:
       n_estimators: 100
@@ -44,7 +44,7 @@ Old-style configs (< [1.10.0](/anomaly-detection/changelog#v1100))
 
 ```yaml
 model:
-    class: "model.zscore.ZscoreModel"
+    class: "zscore"  # or 'model.zscore.ZscoreModel' until v1.13.0
     z_threshold: 3.0
     # no explicit `queries` arg is provided
 # ...
@@ -318,8 +318,8 @@ Tuning hyperparameters of a model can be tricky and often requires in-depth know
 # ...
 models:
   your_desired_alias_for_a_model:
-    class: 'model.auto.AutoTunedModel'  # or 'auto' starting from v1.13.0
-    tuned_class_name: 'model.zscore.ZscoreModel'  # or 'zscore' starting from v1.13.0
+    class: 'auto'  # or 'model.auto.AutoTunedModel' until v1.13.0
+    tuned_class_name: 'zscore'  # or 'model.zscore.ZscoreModel' until v1.13.0
     optimization_params:
       anomaly_percentage: 0.004  # required. i.e. we expect <= 0.4% of anomalies to be present in training data
       seed: 42  # fix reproducibility & determinism
@@ -358,7 +358,7 @@ Depending on chosen `seasonality` parameter FB Prophet can return additional met
 ```yaml
 models:
   your_desired_alias_for_a_model:
-    class: 'model.prophet.ProphetModel'  # or 'prophet' starting from v1.13.0
+    class: 'prophet'  # or 'model.prophet.ProphetModel' until v1.13.0
     provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper', 'trend']
     seasonalities:
       - name: 'hourly'
@@ -387,7 +387,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output)
 ```yaml
 models:
   your_desired_alias_for_a_model:
-    class: "model.zscore.ZscoreModel"  # or 'zscore' starting from v1.13.0
+    class: "zscore"  # or 'model.zscore.ZscoreModel' until v1.13.0
     z_threshold: 3.5
 ```
 
@@ -424,7 +424,7 @@ Used to compute "seasonal_periods" param for the model (e.g. '1D' or '1W').
 ```yaml
 models:
   your_desired_alias_for_a_model:
-    class: "model.holtwinters.HoltWinters"  # or 'holtwinters' starting from v1.13.0
+    class: "holtwinters"  # or 'model.holtwinters.HoltWinters' until v1.13.0
     seasonality: '1d'
     frequency: '1h'
     # Inner model args (key-value pairs) accepted by statsmodels.tsa.holtwinters.ExponentialSmoothing
@@ -450,7 +450,7 @@ The MAD model is a robust method for anomaly detection that is *less sensitive* 
 ```yaml
 models:
   your_desired_alias_for_a_model:
-    class: "model.mad.MADModel"  # or 'mad' starting from v1.13.0
+    class: "mad"  # or 'model.mad.MADModel' until v1.13.0
     threshold: 2.5
 ```
 
@@ -470,7 +470,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 ```yaml
 models:
   your_desired_alias_for_a_model:
-    class: "model.rolling_quantile.RollingQuantileModel" # or 'rolling_quantile' starting from v1.13.0
+    class: "rolling_quantile" # or 'model.rolling_quantile.RollingQuantileModel' until v1.13.0
     quantile: 0.9
     window_steps: 96
 ```
@@ -493,7 +493,7 @@ Here we use Seasonal Decompose implementation from `statsmodels` [library](https
 ```yaml
 models:
   your_desired_alias_for_a_model:
-    class: "model.std.StdModel"  # or 'std' starting from v1.13.0
+    class: "std"  # or 'model.std.StdModel' starting from v1.13.0
     period: 2
 ```
 
@@ -537,7 +537,7 @@ Here we use Isolation Forest implementation from `scikit-learn` [library](https:
 models:
   your_desired_alias_for_a_model:
     # To use univariate model, substitute class argument with "model.isolation_forest.IsolationForestModel".
-    class: "model.isolation_forest.IsolationForestMultivariateModel" # or 'isolation_forest_multivariate' starting from v1.13.0
+    class: "isolation_forest_multivariate" # or 'model.isolation_forest.IsolationForestMultivariateModel' until v1.13.0
     contamination: "0.01"
     provide_series: ['anomaly_score']
     seasonal_features: ['dow', 'hod']
@@ -672,7 +672,7 @@ schedulers:
 models:
   custom_model:
     # note: every custom model should implement this exact path, specified in `class` field
-    class: "model.model.CustomModel"  # or 'custom' starting from v1.13.0
+    class: "custom"  # or 'model.model.CustomModel' until v1.13.0
     # custom model params are defined here
     percentage: 0.9
 

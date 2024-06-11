@@ -20,12 +20,12 @@ Is specified in `scheduler` section of a config for VictoriaMetrics Anomaly Dete
 ```yaml
 schedulers:
   scheduler_periodic_1m:
-    # class: "scheduler.periodic.PeriodicScheduler" (or class: "periodic" starting from v1.13.0 with alias support)
+    # class: "periodic" # or class: "scheduler.periodic.PeriodicScheduler" until v1.13.0 with class alias support)
     infer_every: "1m"
     fit_every: "2m"
     fit_window: "3h"
   scheduler_periodic_5m:
-    # class: "scheduler.periodic.PeriodicScheduler" (or class: "periodic" starting from v1.13.0 with alias support)
+    # class: "periodic" # or class: "scheduler.periodic.PeriodicScheduler" until v1.13.0 with class alias support)
     infer_every: "5m"
     fit_every: "10m"
     fit_window: "3h"
@@ -36,7 +36,7 @@ Old-style configs (< [1.11.0](/anomaly-detection/changelog#v1110))
 
 ```yaml
 scheduler:
-  # class: "scheduler.periodic.PeriodicScheduler" (or class: "periodic" starting from v1.13.0 with alias support)
+  # class: "periodic" # or class: "scheduler.periodic.PeriodicScheduler" until v1.13.0 with class alias support)
   infer_every: "1m"
   fit_every: "2m"
   fit_window: "3h"
@@ -143,8 +143,8 @@ Examples: `"50s"`, `"4m"`, `"3h"`, `"2d"`, `"1w"`.
 ```yaml
 schedulers:
   periodic_scheduler_alias:
-    class: "scheduler.periodic.PeriodicScheduler"
-    # (or class: "periodic" starting from v1.13.0 with class alias support)
+    class: "periodic"
+    # (or class: "scheduler.periodic.PeriodicScheduler" until v1.13.0 with class alias support)
     fit_window: "14d" 
     infer_every: "1m" 
     fit_every: "1h" 
@@ -250,8 +250,8 @@ If a time zone is omitted, a timezone-naive datetime is used.
 ```yaml
 schedulers:
   oneoff_scheduler_alias:
-    class: "scheduler.oneoff.OneoffScheduler"
-    # (or class: "oneoff" starting from v1.13.0 with class alias support)
+    class: "oneoff"
+    # (or class: "scheduler.oneoff.OneoffScheduler" until v1.13.0 with class alias support)
     fit_start_iso: "2022-04-01T00:00:00Z"
     fit_end_iso: "2022-04-10T00:00:00Z"
     infer_start_iso: "2022-04-11T00:00:00Z"
@@ -263,8 +263,8 @@ schedulers:
 ```yaml
 schedulers:
   oneoff_scheduler_alias:
-    class: "scheduler.oneoff.OneoffScheduler"
-    # (or class: "oneoff" starting from v1.13.0 with class alias support)
+    class: "oneoff"
+    # (or class: "scheduler.oneoff.OneoffScheduler" until v1.13.0 with class alias support)
     fit_start_s: 1648771200
     fit_end_s: 1649548800
     infer_start_s: 1649635200
@@ -283,7 +283,25 @@ ISO format supported time zone offset formats are:
 
 If a time zone is omitted, a timezone-naive datetime is used.
 
-> **Note:** `n_jobs` arg, introduced in [v1.13.0](/anomaly-detection/CHANGELOG/#v1130) allows *proportionally faster (yet more resource-intensive)* evaluations of a config on historical data. Default value is 1, that implies *sequential* execution
+### Parallelization
+<table>
+    <thead>
+        <tr>
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Example</th>
+            <th>Description</th>  
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>n_jobs</code></td>
+            <td>int</td>
+            <td><code>1</code></td>
+            <td>Allows <i>proportionally faster (yet more resource-intensive)</i> evaluations of a config on historical data. Default value is 1, that implies <i>sequential</i> execution. Introduced in <a href="https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130">v1.13.0</a></td>
+        </tr>
+    </tbody>
+</table>
 
 ### Defining overall timeframe
 
@@ -386,22 +404,24 @@ In `BacktestingScheduler`, the inference window is *implicitly* defined as a per
 ```yaml
 schedulers:
   backtesting_scheduler_alias:
-    class: "scheduler.backtesting.BacktestingScheduler"
-    # (or class: "backtesting" starting from v1.13.0 with class alias support)
+    class: "backtesting"
+    # (or class: "scheduler.backtesting.BacktestingScheduler" until v1.13.0 with class alias support)
     from_iso: '2021-01-01T00:00:00Z'
     to_iso: '2021-01-14T00:00:00Z'
     fit_window: 'P14D'
     fit_every: 'PT1H'
+    n_jobs: 1  # default = 1 (sequential), set it up to # of CPUs for parallel execution
 ```
 
 ### UNIX time format scheduler config example                 
 ```yaml
 schedulers:
   backtesting_scheduler_alias:
-    class: "scheduler.backtesting.BacktestingScheduler"
-    # (or class: "backtesting" starting from v1.13.0 with class alias support)
+    class: "backtesting"
+    # (or class: "scheduler.backtesting.BacktestingScheduler" until v1.13.0 with class alias support)
     from_s: 167253120
     to_s: 167443200
     fit_window: '14d'
     fit_every: '1h'
+    n_jobs: 1  # default = 1 (sequential), set it up to # of CPUs for parallel execution
 ```

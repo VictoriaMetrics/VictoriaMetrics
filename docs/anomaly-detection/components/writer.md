@@ -103,7 +103,7 @@ Config example:
 
 ```yaml
 writer:
-  class: "writer.vm.VmWriter"  # or simply 'vm' starting from v1.13.0
+  class: "vm"  # or "writer.vm.VmWriter" until v1.13.0
   datasource_url: "http://localhost:8428/"
   tenant_id: "0:0"
   metric_format:

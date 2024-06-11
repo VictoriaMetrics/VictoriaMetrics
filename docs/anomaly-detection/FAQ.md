@@ -76,7 +76,7 @@ Starting from [v1.7.2](/anomaly-detection/changelog/#v172) you can produce (and 
 ```yaml
 schedulers:
   scheduler_alias:
-    class: "scheduler.backtesting.BacktestingScheduler"  # or 'backtesting' starting from v1.13.0
+    class: 'backtesting' # or "scheduler.backtesting.BacktestingScheduler" until v1.13.0
     # define historical period to backtest on
     # should be bigger than at least (fit_window + fit_every) time range
     from_iso: '2024-01-01T00:00:00Z'

@@ -106,7 +106,7 @@ Config file example:
 
 ```yaml
 reader:
-  class: "reader.vm.VmReader"  # or simply 'vm' starting from v1.13.0
+  class: "vm"  # or "reader.vm.VmReader" until v1.13.0
   datasource_url: "http://localhost:8428/"
   tenant_id: "0:0"
   queries:

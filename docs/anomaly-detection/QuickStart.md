@@ -84,7 +84,7 @@ scheduler:
 
 models:
   prophet_model:
-    class: "model.prophet.ProphetModel"  # or 'prophet' starting from v1.13.0
+    class: "prophet"  # or "model.prophet.ProphetModel" until v1.13.0
     args:
       interval_width: 0.98
 
