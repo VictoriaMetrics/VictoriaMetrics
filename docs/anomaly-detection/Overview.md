@@ -167,7 +167,7 @@ schedulers:
 
 models:
   prophet:  # or use a model alias of your choice here
-    class: "model.prophet.ProphetModel"
+    class: "prophet"  # or "model.prophet.ProphetModel" until v1.13.0
     args:
       interval_width: 0.98
 
