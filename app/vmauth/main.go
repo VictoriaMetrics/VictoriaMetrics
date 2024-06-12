@@ -156,6 +156,7 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	defer ui.requestsDuration.UpdateDuration(startTime)
 
 	ui.requests.Inc()
+	ui.requestBytes.AddInt64(r.ContentLength)
 
 	// Limit the concurrency of requests to backends
 	concurrencyLimitOnce.Do(concurrencyLimitInit)

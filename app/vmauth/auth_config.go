@@ -87,6 +87,7 @@ type UserInfo struct {
 	rt http.RoundTripper
 
 	requests         *metrics.Counter
+	requestBytes     *metrics.Counter
 	backendErrors    *metrics.Counter
 	requestsDuration *metrics.Summary
 }
@@ -743,6 +744,7 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 			return nil, fmt.Errorf("cannot parse metric_labels for unauthorized_user: %w", err)
 		}
 		ui.requests = ac.ms.NewCounter(`vmauth_unauthorized_user_requests_total` + metricLabels)
+		ui.requestBytes = ac.ms.NewCounter(`vmauth_unauthorized_user_requests_bytes_total` + metricLabels)
 		ui.backendErrors = ac.ms.NewCounter(`vmauth_unauthorized_user_request_backend_errors_total` + metricLabels)
 		ui.requestsDuration = ac.ms.NewSummary(`vmauth_unauthorized_user_request_duration_seconds` + metricLabels)
 		ui.concurrencyLimitCh = make(chan struct{}, ui.getMaxConcurrentRequests())
@@ -790,6 +792,7 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 			return nil, fmt.Errorf("cannot parse metric_labels: %w", err)
 		}
 		ui.requests = ac.ms.GetOrCreateCounter(`vmauth_user_requests_total` + metricLabels)
+		ui.requestBytes = ac.ms.GetOrCreateCounter(`vmauth_user_requests_bytes_total` + metricLabels)
 		ui.backendErrors = ac.ms.GetOrCreateCounter(`vmauth_user_request_backend_errors_total` + metricLabels)
 		ui.requestsDuration = ac.ms.GetOrCreateSummary(`vmauth_user_request_duration_seconds` + metricLabels)
 		mcr := ui.getMaxConcurrentRequests()
