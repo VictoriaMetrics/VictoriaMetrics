@@ -177,9 +177,9 @@ models:
 reader:
   # ...
   queries:
-    query_values_the_lower_the_better: metricql_expression1
-    query_values_the_higher_the_better: metricql_expression2
-    query_values_both_direction_matters: metricql_expression3
+    query_values_the_lower_the_better: metricsql_expression1
+    query_values_the_higher_the_better: metricsql_expression2
+    query_values_both_direction_matters: metricsql_expression3
 # other components like writer, schedule, monitoring
 ```
 
