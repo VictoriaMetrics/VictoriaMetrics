@@ -445,6 +445,8 @@ Run `vmbackup -help` in order to see all the available options:
      VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup. Example: http://victoriametrics:8428/snapshot/create . There is no need in setting -snapshotName if -snapshot.createURL is set
   -snapshot.deleteURL string
      VictoriaMetrics delete snapshot url. Optional. Will be generated from -snapshot.createURL if not provided. All created snapshots will be automatically deleted. Example: http://victoriametrics:8428/snapshot/delete
+  -snapshot.authKey string
+     Optional authKey to be passed as 'X-AuthKey' HTTP headder for the connections to -snapshotCreateURL and -snapshot.deleteURL. Flag value can be read from the given file when using -snapshot.authKey=file:///abs/path/to/file or -snapshot.authKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -snapshot.authKey=http://host/path or -snapshot.authKey=https://host/path
   -snapshot.tlsCAFile string
      Optional path to TLS CA file to use for verifying connections to -snapshotCreateURL. By default, system CA is used
   -snapshot.tlsCertFile string

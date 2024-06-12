@@ -8,7 +8,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -19,6 +21,7 @@ var (
 	tlsKeyFile            = flag.String("snapshot.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -snapshotCreateURL")
 	tlsCAFile             = flag.String("snapshot.tlsCAFile", "", `Optional path to TLS CA file to use for verifying connections to -snapshotCreateURL. By default, system CA is used`)
 	tlsServerName         = flag.String("snapshot.tlsServerName", "", `Optional TLS server name to use for connections to -snapshotCreateURL. By default, the server name from -snapshotCreateURL is used`)
+	snapshotAuthKey       = flagutil.NewPassword("snapshot.authKey", `Optional authKey to be passed as 'X-AuthKey' HTTP headder for the connections to -snapshotCreateURL`)
 )
 
 type snapshot struct {
@@ -42,7 +45,12 @@ func Create(createSnapshotURL string) (string, error) {
 	}
 	hc := &http.Client{Transport: tr}
 
-	resp, err := hc.Get(u.String())
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return "", err
+	}
+	addAuthHeaders(req)
+	resp, err := hc.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -86,10 +94,13 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 		return err
 	}
 	hc := &http.Client{Transport: tr}
-	resp, err := hc.PostForm(u.String(), formData)
+	req, err := http.NewRequest("POST", u.String(), strings.NewReader(formData.Encode()))
 	if err != nil {
 		return err
 	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	addAuthHeaders(req)
+	resp, err := hc.Do(req)
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
@@ -112,4 +123,13 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 		return errors.New(snap.Msg)
 	}
 	return fmt.Errorf("Unkown status: %v", snap.Status)
+}
+
+// addBasicAuthHeader adds X-AuthKey (for snapshot authkey) header to request
+// if snapshot.authKey flag is set.
+func addAuthHeaders(req *http.Request) {
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5973
+	if snapshotAuthKey.Get() != "" {
+		req.Header.Set("X-AuthKey", snapshotAuthKey.Get())
+	}
 }
