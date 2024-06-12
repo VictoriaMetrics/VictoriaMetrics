@@ -51,13 +51,13 @@ func Create(createSnapshotURL string) (string, error) {
 		return "", err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", u.Redacted(), resp.StatusCode, http.StatusOK, body)
+		return "", fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", httputils.RedactedURL(u), resp.StatusCode, http.StatusOK, body)
 	}
 
 	snap := snapshot{}
 	err = json.Unmarshal(body, &snap)
 	if err != nil {
-		return "", fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", u.Redacted(), err, body)
+		return "", fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", httputils.RedactedURL(u), err, body)
 	}
 
 	if snap.Status == "ok" {
@@ -95,13 +95,13 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 		return err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", u.Redacted(), resp.StatusCode, http.StatusOK, body)
+		return fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", httputils.RedactedURL(u), resp.StatusCode, http.StatusOK, body)
 	}
 
 	snap := snapshot{}
 	err = json.Unmarshal(body, &snap)
 	if err != nil {
-		return fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", u.Redacted(), err, body)
+		return fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", httputils.RedactedURL(u), err, body)
 	}
 
 	if snap.Status == "ok" {
