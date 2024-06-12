@@ -431,7 +431,7 @@ func CheckAuthFlag(w http.ResponseWriter, r *http.Request, flagValue string, fla
 	if flagValue == "" {
 		return CheckBasicAuth(w, r)
 	}
-	if subtle.ConstantTimeCompare([]byte(r.FormValue("authKey")), []byte(flagValue)) != 1 {
+	if !ConstantTimeEqual([]byte(r.FormValue("authKey")), []byte(flagValue)) {
 		authKeyRequestErrors.Inc()
 		http.Error(w, fmt.Sprintf("The provided authKey doesn't match -%s", flagName), http.StatusUnauthorized)
 		return false
@@ -448,7 +448,7 @@ func CheckBasicAuth(w http.ResponseWriter, r *http.Request) bool {
 	}
 	username, password, ok := r.BasicAuth()
 	if ok {
-		if subtle.ConstantTimeCompare([]byte(username), []byte(*httpAuthUsername)) == 1 && subtle.ConstantTimeCompare([]byte(password), []byte(httpAuthPassword.Get())) == 1 {
+		if ConstantTimeEqual([]byte(username), []byte(*httpAuthUsername)) && ConstantTimeEqual([]byte(password), []byte(httpAuthPassword.Get())) {
 			return true
 		}
 		authBasicRequestErrors.Inc()
@@ -700,4 +700,13 @@ func LogError(req *http.Request, errStr string) {
 	uri := GetRequestURI(req)
 	remoteAddr := GetQuotedRemoteAddr(req)
 	logger.Errorf("uri: %s, remote address: %q: %s", uri, remoteAddr, errStr)
+}
+
+// ConstantTimeEqual compares two slices of byte in constant-time.
+//
+// It returns true if they are equal, else it returns false.
+func ConstantTimeEqual(a, b []byte) bool {
+	eq := subtle.ConstantTimeEq(int32(len(a)), int32(len(b)))
+	eq &= subtle.ConstantTimeCompare(a, b)
+	return eq == 1
 }
