@@ -154,7 +154,6 @@ func (as *rateAggrState) flushState(ctx *flushCtx, flushTimestamp int64, idx int
 			state.lastValues[idx] = rateLastValueState{}
 			sv.state[k1] = state
 		}
-
 		sv.mu.Unlock()
 
 		if as.suffix == "rate_avg" && totalItems > 0 {
