@@ -214,19 +214,6 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 		logger.Panicf("FATAL: incomplete vmrestore run; run vmrestore again or remove lock file %q", restoreLockF)
 	}
 
-	nodeIDFileF := filepath.Join(path, nodeIDFilename)
-	if fs.IsPathExist(nodeIDFileF) {
-		r, err := os.Open(nodeIDFileF)
-		nodeID, err := io.ReadAll(r)
-		if err != nil {
-			logger.Panicf("FATAL: cannot read nodeID from %q: %s", nodeIDFileF, err)
-		}
-		s.nodeID = encoding.UnmarshalUint64(nodeID)
-	} else {
-		nodeID := rand.Uint64()
-		s.nodeID = nodeID
-	}
-
 	// Pre-create snapshots directory if it is missing.
 	snapshotsPath := filepath.Join(path, snapshotsDirname)
 	fs.MustMkdirIfNotExist(snapshotsPath)
@@ -262,6 +249,18 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 	isEmptyDB := !fs.IsPathExist(filepath.Join(path, indexdbDirname))
 	fs.MustMkdirIfNotExist(metadataDir)
 	s.minTimestampForCompositeIndex = mustGetMinTimestampForCompositeIndex(metadataDir, isEmptyDB)
+	nodeIDFileF := filepath.Join(metadataDir, nodeIDFilename)
+	if fs.IsPathExist(nodeIDFileF) {
+		r, err := os.Open(nodeIDFileF)
+		nodeID, err := io.ReadAll(r)
+		if err != nil {
+			logger.Panicf("FATAL: cannot read nodeID from %q: %s", nodeIDFileF, err)
+		}
+		s.nodeID = encoding.UnmarshalUint64(nodeID)
+	} else {
+		nodeID := rand.Uint64()
+		s.nodeID = nodeID
+	}
 
 	// Load indexdb
 	idbPath := filepath.Join(path, indexdbDirname)
@@ -1053,7 +1052,7 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 }
 
 func (s *Storage) mustSaveNodeID() {
-	path := filepath.Join(s.path, nodeIDFilename)
+	path := filepath.Join(s.path, metadataDirname, nodeIDFilename)
 	dst := make([]byte, 0)
 	dst = encoding.MarshalUint64(dst, s.nodeID)
 
