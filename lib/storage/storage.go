@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -14,6 +15,9 @@ import (
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"github.com/VictoriaMetrics/fastcache"
+	"github.com/VictoriaMetrics/metricsql"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/backupnames"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
@@ -29,8 +33,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
-	"github.com/VictoriaMetrics/fastcache"
-	"github.com/VictoriaMetrics/metricsql"
 )
 
 const (
@@ -63,6 +65,9 @@ type Storage struct {
 	path           string
 	cachePath      string
 	retentionMsecs int64
+
+	// Used to uniquely identify storage node
+	nodeID uint64
 
 	// lock file for exclusive access to the storage on the given path.
 	flockF *os.File
@@ -207,6 +212,19 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 	restoreLockF := filepath.Join(path, backupnames.RestoreInProgressFilename)
 	if fs.IsPathExist(restoreLockF) {
 		logger.Panicf("FATAL: incomplete vmrestore run; run vmrestore again or remove lock file %q", restoreLockF)
+	}
+
+	nodeIDFileF := filepath.Join(path, nodeIDFilename)
+	if fs.IsPathExist(nodeIDFileF) {
+		r, err := os.Open(nodeIDFileF)
+		nodeID, err := io.ReadAll(r)
+		if err != nil {
+			logger.Panicf("FATAL: cannot read nodeID from %q: %s", nodeIDFileF, err)
+		}
+		s.nodeID = encoding.UnmarshalUint64(nodeID)
+	} else {
+		nodeID := rand.Uint64()
+		s.nodeID = nodeID
 	}
 
 	// Pre-create snapshots directory if it is missing.
@@ -897,6 +915,8 @@ func (s *Storage) MustClose() {
 	nextDayMetricIDs := s.nextDayMetricIDs.Load()
 	s.mustSaveNextDayMetricIDs(nextDayMetricIDs)
 
+	s.mustSaveNodeID()
+
 	// Release lock file.
 	fs.MustClose(s.flockF)
 	s.flockF = nil
@@ -1030,6 +1050,16 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 	hm.m = m
 	hm.byTenant = byTenant
 	return hm
+}
+
+func (s *Storage) mustSaveNodeID() {
+	path := filepath.Join(s.path, nodeIDFilename)
+	dst := make([]byte, 0)
+	dst = encoding.MarshalUint64(dst, s.nodeID)
+
+	if err := os.WriteFile(path, dst, 0644); err != nil {
+		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(dst), path, err)
+	}
 }
 
 func (s *Storage) mustSaveNextDayMetricIDs(e *byDateMetricIDEntry) {

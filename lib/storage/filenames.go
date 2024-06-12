@@ -10,6 +10,8 @@ const (
 
 	appliedRetentionFilename    = "appliedRetention.txt"
 	resetCacheOnStartupFilename = "reset_cache_on_startup"
+
+	nodeIDFilename = "node_id.bin"
 )
 
 const (
