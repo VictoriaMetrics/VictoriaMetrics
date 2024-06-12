@@ -1173,6 +1173,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	}
 
 	blocksRead := 0
+	blockSamples := 0
 	tbf := getTmpBlocksFile()
 	var buf []byte
 	var metricNamePrev []byte
@@ -1214,6 +1215,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			return nil, fmt.Errorf("timeout exceeded while fetching data block #%d from storage: %s", blocksRead, deadline.String())
 		}
 		br := sr.MetricBlockRef.BlockRef
+		blockSamples += br.RowsCount()
 		buf = br.Marshal(buf[:0])
 		addr, err := tbf.WriteBlockRefData(buf)
 		if err != nil {
@@ -1287,7 +1289,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 		putStorageSearch(sr)
 		return nil, fmt.Errorf("cannot finalize temporary file: %w", err)
 	}
-	qt.Printf("fetch unique series=%d, blocks=%d, bytes=%d", len(m), blocksRead, tbf.Len())
+	qt.Printf("fetch unique series=%d, blocks=%d, samples=%d, bytes=%d", len(m), blocksRead, blockSamples, tbf.Len())
 
 	var rss Results
 	rss.tr = tr
