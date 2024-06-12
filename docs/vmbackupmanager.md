@@ -415,7 +415,7 @@ command-line flags with their descriptions.
 
 The shortlist of configuration flags is the following:
 
-```
+```text
 vmbackupmanager performs regular backups according to the provided configs.
 
 subcommands:

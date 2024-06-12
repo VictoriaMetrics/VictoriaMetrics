@@ -153,9 +153,17 @@ export const useFetchQuery = ({
       setTraces(tempTraces);
       setIsHistogram(prev => totalLength ? isHistogramResult : prev);
     } catch (e) {
-      if (e instanceof Error && e.name !== "AbortError") {
-        setError(`${e.name}: ${e.message}`);
+      const error = e as Error;
+      if (error.name === "AbortError") {
+        // Aborts are expected, don't show an error for them.
+        return;
       }
+      const helperText = "Please check your serverURL settings and confirm server availability.";
+      let text = `Error executing query: ${error.message}. ${helperText}`;
+      if (error.message === "Unexpected end of JSON input") {
+        text += "\nAdditionally, this error can occur if the server response is too large to process. Apply more specific filters to reduce the data volume.";
+      }
+      setError(text);
     }
     setIsLoading(false);
   };
