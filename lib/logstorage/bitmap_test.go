@@ -6,6 +6,8 @@ import (
 
 func TestBitmap(t *testing.T) {
 	for i := 0; i < 100; i++ {
+		bitsLen := i
+
 		bm := getBitmap(i)
 		if bm.bitsLen != i {
 			t.Fatalf("unexpected bits length: %d; want %d", bm.bitsLen, i)
@@ -41,6 +43,9 @@ func TestBitmap(t *testing.T) {
 			}
 			nextIdx++
 		})
+		if nextIdx != bitsLen {
+			t.Fatalf("unexpected number of bits set; got %d; want %d", nextIdx, bitsLen)
+		}
 
 		if !bm.areAllBitsSet() {
 			t.Fatalf("all bits must be set for bitmap with %d bits", i)
@@ -71,6 +76,9 @@ func TestBitmap(t *testing.T) {
 			}
 			nextIdx += 2
 		})
+		if nextIdx < bitsLen {
+			t.Fatalf("unexpected number of bits visited; got %d; want %d", nextIdx, bitsLen)
+		}
 
 		// Clear all the bits
 		bm.forEachSetBit(func(_ int) bool {

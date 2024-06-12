@@ -287,10 +287,22 @@ func (lf *labelFilter) match(labels []prompbmarshal.Label) bool {
 	return false
 }
 
+func (lf *labelFilter) equalNameValue(labels []prompbmarshal.Label) bool {
+	for _, label := range labels {
+		if label.Name == "__name__" {
+			return label.Value == lf.value
+		}
+	}
+	return false
+}
+
 func (lf *labelFilter) equalValue(labels []prompbmarshal.Label) bool {
+	if lf.label == "" {
+		return lf.equalNameValue(labels)
+	}
 	labelNameMatches := 0
 	for _, label := range labels {
-		if toCanonicalLabelName(label.Name) != lf.label {
+		if label.Name != lf.label {
 			continue
 		}
 		labelNameMatches++

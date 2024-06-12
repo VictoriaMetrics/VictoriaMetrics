@@ -3,6 +3,7 @@ import dayjs, { UnitTypeShort } from "dayjs";
 import { getQueryStringValue } from "./query-string";
 import { DATE_ISO_FORMAT } from "../constants/date";
 import timezones from "../constants/timezones";
+import { AppType } from "../types/appType";
 
 const MAX_ITEMS_PER_CHART = window.innerWidth / 4;
 const MAX_ITEMS_PER_HISTOGRAM = window.innerWidth / 40;
@@ -34,7 +35,7 @@ export const humanizeSeconds = (num: number): string => {
   return getDurationFromMilliseconds(dayjs.duration(num, "seconds").asMilliseconds());
 };
 
-export const roundStep = (step: number) => {
+export const roundStep = (step: number): string => {
   let result = roundToMilliseconds(step);
   const integerStep = Math.round(step);
 
@@ -87,7 +88,7 @@ export const getSecondsFromDuration = (dur: string) => {
   return dayjs.duration(durObject).asSeconds();
 };
 
-export const getStepFromDuration = (dur: number, histogram?: boolean) => {
+export const getStepFromDuration = (dur: number, histogram?: boolean): string => {
   const size = histogram ? MAX_ITEMS_PER_HISTOGRAM : MAX_ITEMS_PER_CHART;
   return roundStep(dur / size);
 };
@@ -159,10 +160,11 @@ export const dateFromSeconds = (epochTimeInSeconds: number): Date => {
 const getYesterday = () => dayjs().tz().subtract(1, "day").endOf("day").toDate();
 const getToday = () => dayjs().tz().endOf("day").toDate();
 
+const isLogsApp = process.env.REACT_APP_TYPE === AppType.logs;
 export const relativeTimeOptions: RelativeTimeOption[] = [
-  { title: "Last 5 minutes", duration: "5m" },
+  { title: "Last 5 minutes", duration: "5m", isDefault: isLogsApp },
   { title: "Last 15 minutes", duration: "15m" },
-  { title: "Last 30 minutes", duration: "30m", isDefault: true },
+  { title: "Last 30 minutes", duration: "30m", isDefault: !isLogsApp },
   { title: "Last 1 hour", duration: "1h" },
   { title: "Last 3 hours", duration: "3h" },
   { title: "Last 6 hours", duration: "6h" },

@@ -60,7 +60,7 @@ func TestPipeSort(t *testing.T) {
 	})
 
 	// Sort by a single field
-	f("sort by (a)", [][]Field{
+	f("sort by (a asc) asc", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `2`},

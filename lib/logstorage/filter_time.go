@@ -27,10 +27,7 @@ func (ft *filterTime) updateNeededFields(neededFields fieldsSet) {
 }
 
 func (ft *filterTime) applyToBlockResult(br *blockResult, bm *bitmap) {
-	minTimestamp := ft.minTimestamp
-	maxTimestamp := ft.maxTimestamp
-
-	if minTimestamp > maxTimestamp {
+	if ft.minTimestamp > ft.maxTimestamp {
 		bm.resetBits()
 		return
 	}

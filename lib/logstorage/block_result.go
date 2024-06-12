@@ -3,6 +3,8 @@ package logstorage
 import (
 	"math"
 	"slices"
+	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -484,6 +486,18 @@ func (br *blockResult) addTimeColumn() {
 }
 
 func (br *blockResult) addStreamColumn(bs *blockSearch) bool {
+	if !bs.prevStreamID.equal(&bs.bsw.bh.streamID) {
+		return br.addStreamColumnSlow(bs)
+	}
+
+	if len(bs.prevStream) == 0 {
+		return false
+	}
+	br.addConstColumn("_stream", bytesutil.ToUnsafeString(bs.prevStream))
+	return true
+}
+
+func (br *blockResult) addStreamColumnSlow(bs *blockSearch) bool {
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
 
@@ -494,6 +508,8 @@ func (br *blockResult) addStreamColumn(bs *blockSearch) bool {
 		// was recently registered and its tags aren't visible to search yet.
 		// The stream tags must become visible in a few seconds.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6042
+		bs.prevStreamID = *streamID
+		bs.prevStream = bs.prevStream[:0]
 		return false
 	}
 
@@ -504,6 +520,9 @@ func (br *blockResult) addStreamColumn(bs *blockSearch) bool {
 
 	s := bytesutil.ToUnsafeString(bb.B)
 	br.addConstColumn("_stream", s)
+
+	bs.prevStreamID = *streamID
+	bs.prevStream = append(bs.prevStream[:0], s...)
 	return true
 }
 
@@ -1226,7 +1245,7 @@ func (br *blockResult) getBucketedValue(s string, bf *byStatsField) string {
 
 		buf := br.a.b
 		bufLen := len(buf)
-		buf = marshalDuration(buf, nsecs)
+		buf = marshalDurationString(buf, nsecs)
 		br.a.b = buf
 		return bytesutil.ToUnsafeString(buf[bufLen:])
 	}
@@ -1914,6 +1933,50 @@ func getCanonicalColumnName(columnName string) string {
 		return "_msg"
 	}
 	return columnName
+}
+
+func tryParseNumber(s string) (float64, bool) {
+	if len(s) == 0 {
+		return 0, false
+	}
+	f, ok := tryParseFloat64(s)
+	if ok {
+		return f, true
+	}
+	nsecs, ok := tryParseDuration(s)
+	if ok {
+		return float64(nsecs), true
+	}
+	bytes, ok := tryParseBytes(s)
+	if ok {
+		return float64(bytes), true
+	}
+	if isLikelyNumber(s) {
+		f, err := strconv.ParseFloat(s, 64)
+		if err == nil {
+			return f, true
+		}
+		n, err := strconv.ParseInt(s, 0, 64)
+		if err == nil {
+			return float64(n), true
+		}
+	}
+	return 0, false
+}
+
+func isLikelyNumber(s string) bool {
+	if !isNumberPrefix(s) {
+		return false
+	}
+	if strings.Count(s, ".") > 1 {
+		// This is likely IP address
+		return false
+	}
+	if strings.IndexByte(s, ':') >= 0 || strings.Count(s, "-") > 2 {
+		// This is likely a timestamp
+		return false
+	}
+	return true
 }
 
 var nan = math.NaN()

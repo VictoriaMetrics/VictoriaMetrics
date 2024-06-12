@@ -74,11 +74,6 @@ func (lex *lexer) isQuotedToken() bool {
 	return lex.token != lex.rawToken
 }
 
-func (lex *lexer) isNumber() bool {
-	s := lex.rawToken + lex.s
-	return isNumberPrefix(s)
-}
-
 func (lex *lexer) isPrevToken(tokens ...string) bool {
 	for _, token := range tokens {
 		if token == lex.prevToken {
@@ -243,8 +238,8 @@ func (q *Query) String() string {
 func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 	{
 		// add 'stats by (_time:step offset off, fields) count() hits'
-		stepStr := string(marshalDuration(nil, step))
-		offsetStr := string(marshalDuration(nil, off))
+		stepStr := string(marshalDurationString(nil, step))
+		offsetStr := string(marshalDurationString(nil, off))
 		byFieldsStr := "_time:" + stepStr + " offset " + offsetStr
 		for _, f := range fields {
 			byFieldsStr += ", " + quoteTokenIfNeeded(f)
@@ -277,6 +272,38 @@ func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 		}
 		q.pipes = append(q.pipes, ps)
 	}
+}
+
+// Clone returns a copy of q.
+func (q *Query) Clone() *Query {
+	qStr := q.String()
+	qCopy, err := ParseQuery(qStr)
+	if err != nil {
+		logger.Panicf("BUG: cannot parse %q: %s", qStr, err)
+	}
+	return qCopy
+}
+
+// CanReturnLastNResults returns true if time range filter at q can be adjusted for returning the last N results.
+func (q *Query) CanReturnLastNResults() bool {
+	for _, p := range q.pipes {
+		switch p.(type) {
+		case *pipeFieldNames,
+			*pipeFieldValues,
+			*pipeLimit,
+			*pipeOffset,
+			*pipeSort,
+			*pipeStats,
+			*pipeUniq:
+			return false
+		}
+	}
+	return true
+}
+
+// GetFilterTimeRange returns filter time range for the given q.
+func (q *Query) GetFilterTimeRange() (int64, int64) {
+	return getFilterTimeRange(q.f)
 }
 
 // AddTimeFilter adds global filter _time:[start ... end] to q.
@@ -487,6 +514,14 @@ func (q *Query) getNeededColumns() ([]string, []string) {
 // ParseQuery parses s.
 func ParseQuery(s string) (*Query, error) {
 	lex := newLexer(s)
+
+	// Verify the first token doesn't match pipe names.
+	firstToken := strings.ToLower(lex.rawToken)
+	if _, ok := pipeNames[firstToken]; ok {
+		return nil, fmt.Errorf("the query [%s] cannot start with pipe - it must start with madatory filter; see https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax; "+
+			"if the filter isn't missing, then please put the first word of the filter into quotes: %q", s, firstToken)
+	}
+
 	q, err := parseQuery(lex)
 	if err != nil {
 		return nil, err
@@ -644,7 +679,7 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 }
 
 func getCompoundPhrase(lex *lexer, allowColon bool) (string, error) {
-	stopTokens := []string{"*", ",", "(", ")", "[", "]", "|", ""}
+	stopTokens := []string{"*", ",", "(", ")", "[", "]", "|", "!", ""}
 	if lex.isKeyword(stopTokens...) {
 		return "", fmt.Errorf("compound phrase cannot start with '%s'", lex.token)
 	}
@@ -661,7 +696,7 @@ func getCompoundPhrase(lex *lexer, allowColon bool) (string, error) {
 
 func getCompoundSuffix(lex *lexer, allowColon bool) string {
 	s := ""
-	stopTokens := []string{"*", ",", "(", ")", "[", "]", "|", ""}
+	stopTokens := []string{"*", ",", "(", ")", "[", "]", "|", "!", ""}
 	if !allowColon {
 		stopTokens = append(stopTokens, ":")
 	}
@@ -673,7 +708,7 @@ func getCompoundSuffix(lex *lexer, allowColon bool) string {
 }
 
 func getCompoundToken(lex *lexer) (string, error) {
-	stopTokens := []string{",", "(", ")", "[", "]", "|", ""}
+	stopTokens := []string{",", "(", ")", "[", "]", "|", "!", ""}
 	if lex.isKeyword(stopTokens...) {
 		return "", fmt.Errorf("compound token cannot start with '%s'", lex.token)
 	}
@@ -737,7 +772,7 @@ func parseFilterForPhrase(lex *lexer, phrase, fieldName string) (filter, error) 
 	}
 	switch fieldName {
 	case "_time":
-		return parseFilterTimeWithOffset(lex)
+		return parseFilterTimeGeneric(lex)
 	case "_stream":
 		return parseFilterStream(lex)
 	default:
@@ -1098,18 +1133,15 @@ func parseFilterGT(lex *lexer, fieldName string) (filter, error) {
 		op = ">="
 	}
 
-	if !lex.isNumber() {
-		lexState := lex.backupState()
-		fr := tryParseFilterGTString(lex, fieldName, op, includeMinValue)
-		if fr != nil {
-			return fr, nil
-		}
-		lex.restoreState(lexState)
-	}
-
-	minValue, fStr, err := parseFloat64(lex)
+	lexState := lex.backupState()
+	minValue, fStr, err := parseNumber(lex)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse number after '%s': %w", op, err)
+		lex.restoreState(lexState)
+		fr := tryParseFilterGTString(lex, fieldName, op, includeMinValue)
+		if fr == nil {
+			return nil, fmt.Errorf("cannot parse [%s] as number: %w", fStr, err)
+		}
+		return fr, nil
 	}
 
 	if !includeMinValue {
@@ -1136,16 +1168,17 @@ func parseFilterLT(lex *lexer, fieldName string) (filter, error) {
 		op = "<="
 	}
 
-	if !lex.isNumber() {
-		lexState := lex.backupState()
-		fr := tryParseFilterLTString(lex, fieldName, op, includeMaxValue)
-		if fr != nil {
-			return fr, nil
-		}
+	lexState := lex.backupState()
+	maxValue, fStr, err := parseNumber(lex)
+	if err != nil {
 		lex.restoreState(lexState)
+		fr := tryParseFilterLTString(lex, fieldName, op, includeMaxValue)
+		if fr == nil {
+			return nil, fmt.Errorf("cannot parse [%s] as number: %w", fStr, err)
+		}
+		return fr, nil
 	}
 
-	maxValue, fStr, err := parseFloat64(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse number after '%s': %w", op, err)
 	}
@@ -1218,7 +1251,7 @@ func parseFilterRange(lex *lexer, fieldName string) (filter, error) {
 	if !lex.mustNextToken() {
 		return nil, fmt.Errorf("missing args for %s()", funcName)
 	}
-	minValue, minValueStr, err := parseFloat64(lex)
+	minValue, minValueStr, err := parseNumber(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse minValue in %s(): %w", funcName, err)
 	}
@@ -1232,7 +1265,7 @@ func parseFilterRange(lex *lexer, fieldName string) (filter, error) {
 	}
 
 	// Parse maxValue
-	maxValue, maxValueStr, err := parseFloat64(lex)
+	maxValue, maxValueStr, err := parseNumber(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse maxValue in %s(): %w", funcName, err)
 	}
@@ -1272,23 +1305,18 @@ func parseFilterRange(lex *lexer, fieldName string) (filter, error) {
 	return fr, nil
 }
 
-func parseFloat64(lex *lexer) (float64, string, error) {
+func parseNumber(lex *lexer) (float64, string, error) {
 	s, err := getCompoundToken(lex)
 	if err != nil {
 		return 0, "", fmt.Errorf("cannot parse float64 from %q: %w", s, err)
 	}
-	f, err := strconv.ParseFloat(s, 64)
-	if err == nil {
+
+	f := parseMathNumber(s)
+	if !math.IsNaN(f) || strings.EqualFold(s, "nan") {
 		return f, s, nil
 	}
 
-	// Try parsing s as integer.
-	// This handles 0x..., 0b... and 0... prefixes, alongside '_' delimiters.
-	n, err := parseInt(s)
-	if err == nil {
-		return float64(n), s, nil
-	}
-	return 0, "", fmt.Errorf("cannot parse %q as float64: %w", s, err)
+	return 0, "", fmt.Errorf("cannot parse %q as float64", s)
 }
 
 func parseFuncArg(lex *lexer, fieldName string, callback func(args string) (filter, error)) (filter, error) {
@@ -1355,7 +1383,228 @@ func startsWithYear(s string) bool {
 	return c == '-' || c == '+' || c == 'Z' || c == 'z'
 }
 
-func parseFilterTimeWithOffset(lex *lexer) (*filterTime, error) {
+func parseFilterTimeGeneric(lex *lexer) (filter, error) {
+	switch {
+	case lex.isKeyword("day_range"):
+		return parseFilterDayRange(lex)
+	case lex.isKeyword("week_range"):
+		return parseFilterWeekRange(lex)
+	default:
+		return parseFilterTimeRange(lex)
+	}
+}
+
+func parseFilterDayRange(lex *lexer) (*filterDayRange, error) {
+	if !lex.isKeyword("day_range") {
+		return nil, fmt.Errorf("unexpected token %q; want 'day_range'", lex.token)
+	}
+	lex.nextToken()
+
+	startBrace := "["
+	switch {
+	case lex.isKeyword("["):
+		lex.nextToken()
+	case lex.isKeyword("("):
+		lex.nextToken()
+		startBrace = "("
+	default:
+		return nil, fmt.Errorf("missing '[' or '(' at day_range filter")
+	}
+
+	start, startStr, err := getDayRangeArg(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read `start` arg at day_range filter: %w", err)
+	}
+
+	if !lex.isKeyword(",") {
+		return nil, fmt.Errorf("unexpected token %q; want ','", lex.token)
+	}
+	lex.nextToken()
+
+	end, endStr, err := getDayRangeArg(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read `end` arg at day_range filter: %w", err)
+	}
+
+	endBrace := "]"
+	switch {
+	case lex.isKeyword("]"):
+		lex.nextToken()
+	case lex.isKeyword(")"):
+		lex.nextToken()
+		endBrace = ")"
+	default:
+		return nil, fmt.Errorf("missing ']' or ')' after day_range filter")
+	}
+
+	offset := int64(0)
+	offsetStr := ""
+	if lex.isKeyword("offset") {
+		lex.nextToken()
+		s, err := getCompoundToken(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse offset in day_range filter: %w", err)
+		}
+		d, ok := tryParseDuration(s)
+		if !ok {
+			return nil, fmt.Errorf("cannot parse offset %q for day_range filter", s)
+		}
+		offset = int64(d)
+		offsetStr = " offset " + s
+	}
+
+	if startBrace == "(" {
+		start++
+	}
+	if endBrace == ")" {
+		end--
+	}
+
+	fr := &filterDayRange{
+		start:  start,
+		end:    end,
+		offset: offset,
+
+		stringRepr: fmt.Sprintf("%s%s, %s%s%s", startBrace, startStr, endStr, endBrace, offsetStr),
+	}
+	return fr, nil
+}
+
+func parseFilterWeekRange(lex *lexer) (*filterWeekRange, error) {
+	if !lex.isKeyword("week_range") {
+		return nil, fmt.Errorf("unexpected token %q; want 'week_range'", lex.token)
+	}
+	lex.nextToken()
+
+	startBrace := "["
+	switch {
+	case lex.isKeyword("["):
+		lex.nextToken()
+	case lex.isKeyword("("):
+		lex.nextToken()
+		startBrace = "("
+	default:
+		return nil, fmt.Errorf("missing '[' or '(' at week_range filter")
+	}
+
+	startDay, startStr, err := getWeekRangeArg(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read `start` arg at week_range filter: %w", err)
+	}
+
+	if !lex.isKeyword(",") {
+		return nil, fmt.Errorf("unexpected token %q; want ','", lex.token)
+	}
+	lex.nextToken()
+
+	endDay, endStr, err := getWeekRangeArg(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read `end` arg at week_range filter: %w", err)
+	}
+
+	endBrace := "]"
+	switch {
+	case lex.isKeyword("]"):
+		lex.nextToken()
+	case lex.isKeyword(")"):
+		lex.nextToken()
+		endBrace = ")"
+	default:
+		return nil, fmt.Errorf("missing ']' or ')' after week_range filter")
+	}
+
+	offset := int64(0)
+	offsetStr := ""
+	if lex.isKeyword("offset") {
+		lex.nextToken()
+		s, err := getCompoundToken(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse offset in week_range filter: %w", err)
+		}
+		d, ok := tryParseDuration(s)
+		if !ok {
+			return nil, fmt.Errorf("cannot parse offset %q for week_range filter", s)
+		}
+		offset = int64(d)
+		offsetStr = " offset " + s
+	}
+
+	if startBrace == "(" {
+		startDay++
+	}
+	if endBrace == ")" {
+		endDay--
+	}
+
+	fr := &filterWeekRange{
+		startDay: startDay,
+		endDay:   endDay,
+		offset:   offset,
+
+		stringRepr: fmt.Sprintf("%s%s, %s%s%s", startBrace, startStr, endStr, endBrace, offsetStr),
+	}
+	return fr, nil
+}
+
+func getDayRangeArg(lex *lexer) (int64, string, error) {
+	argStr, err := getCompoundToken(lex)
+	if err != nil {
+		return 0, "", err
+	}
+	n := strings.IndexByte(argStr, ':')
+	if n < 0 {
+		return 0, "", fmt.Errorf("invalid format for day_range arg; want 'hh:mm'; got %q", argStr)
+	}
+	hoursStr := argStr[:n]
+	minutesStr := argStr[n+1:]
+
+	hours, ok := tryParseUint64(hoursStr)
+	if !ok {
+		return 0, "", fmt.Errorf("cannot parse hh from %q; expected format: 'hh:mm'", hoursStr)
+	}
+	minutes, ok := tryParseUint64(minutesStr)
+	if !ok {
+		return 0, "", fmt.Errorf("cannot parse mm from %q; expected format: 'hh:mm'", minutesStr)
+	}
+
+	offset := int64(hours*nsecsPerHour + minutes*nsecsPerMinute)
+	if offset < 0 {
+		offset = 0
+	}
+	if offset >= nsecPerDay {
+		offset = nsecPerDay - 1
+	}
+	return offset, argStr, nil
+}
+
+func getWeekRangeArg(lex *lexer) (time.Weekday, string, error) {
+	argStr, err := getCompoundToken(lex)
+	if err != nil {
+		return 0, "", err
+	}
+
+	var day time.Weekday
+	switch strings.ToLower(argStr) {
+	case "sun", "sunday":
+		day = time.Sunday
+	case "mon", "monday":
+		day = time.Monday
+	case "tue", "tuesday":
+		day = time.Tuesday
+	case "wed", "wednesday":
+		day = time.Wednesday
+	case "thu", "thursday":
+		day = time.Thursday
+	case "fri", "friday":
+		day = time.Friday
+	case "sat", "saturday":
+		day = time.Saturday
+	}
+
+	return day, argStr, nil
+}
+
+func parseFilterTimeRange(lex *lexer) (*filterTime, error) {
 	ft, err := parseFilterTime(lex)
 	if err != nil {
 		return nil, err
@@ -1394,12 +1643,12 @@ func parseFilterTime(lex *lexer) (*filterTime, error) {
 		sLower := strings.ToLower(s)
 		if sLower == "now" || startsWithYear(s) {
 			// Parse '_time:YYYY-MM-DD', which transforms to '_time:[YYYY-MM-DD, YYYY-MM-DD+1)'
-			t, err := promutils.ParseTimeAt(s, float64(lex.currentTimestamp)/1e9)
+			nsecs, err := promutils.ParseTimeAt(s, lex.currentTimestamp)
 			if err != nil {
 				return nil, fmt.Errorf("cannot parse _time filter: %w", err)
 			}
 			// Round to milliseconds
-			startTime := int64(math.Round(t*1e3)) * 1e6
+			startTime := nsecs
 			endTime := getMatchingEndTime(startTime, s)
 			ft := &filterTime{
 				minTimestamp: startTime,
@@ -1549,12 +1798,11 @@ func parseTime(lex *lexer) (int64, string, error) {
 	if err != nil {
 		return 0, "", err
 	}
-	t, err := promutils.ParseTimeAt(s, float64(lex.currentTimestamp)/1e9)
+	nsecs, err := promutils.ParseTimeAt(s, lex.currentTimestamp)
 	if err != nil {
 		return 0, "", err
 	}
-	// round to milliseconds
-	return int64(math.Round(t*1e3)) * 1e6, s, nil
+	return nsecs, s, nil
 }
 
 func quoteStringTokenIfNeeded(s string) string {
@@ -1585,12 +1833,24 @@ func isNumberPrefix(s string) bool {
 			return false
 		}
 	}
+	if len(s) >= 3 && strings.EqualFold(s, "inf") {
+		return true
+	}
+	if s[0] == '.' {
+		s = s[1:]
+		if len(s) == 0 {
+			return false
+		}
+	}
 	return s[0] >= '0' && s[0] <= '9'
 }
 
 func needQuoteToken(s string) bool {
 	sLower := strings.ToLower(s)
 	if _, ok := reservedKeywords[sLower]; ok {
+		return true
+	}
+	if _, ok := pipeNames[sLower]; ok {
 		return true
 	}
 	for _, r := range s {
@@ -1680,28 +1940,6 @@ func parseUint(s string) (uint64, error) {
 		}
 	}
 	return uint64(nn), nil
-}
-
-func parseInt(s string) (int64, error) {
-	switch {
-	case strings.EqualFold(s, "inf"), strings.EqualFold(s, "+inf"):
-		return math.MaxInt64, nil
-	case strings.EqualFold(s, "-inf"):
-		return math.MinInt64, nil
-	}
-
-	n, err := strconv.ParseInt(s, 0, 64)
-	if err == nil {
-		return n, nil
-	}
-	nn, ok := tryParseBytes(s)
-	if !ok {
-		nn, ok = tryParseDuration(s)
-		if !ok {
-			return 0, fmt.Errorf("cannot parse %q as integer: %w", s, err)
-		}
-	}
-	return nn, nil
 }
 
 func nextafter(f, xInf float64) float64 {

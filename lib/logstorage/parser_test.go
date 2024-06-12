@@ -33,6 +33,77 @@ func TestLexer(t *testing.T) {
 		[]string{"_stream", ":", "{", "foo", "=", "bar", ",", "a", "=~", "baz", ",", "b", "!=", "cd", ",", "d,}a", "!~", "abc", "}"})
 }
 
+func TestParseDayRange(t *testing.T) {
+	f := func(s string, startExpected, endExpected, offsetExpected int64) {
+		t.Helper()
+		q, err := ParseQuery("_time:day_range" + s)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		fr, ok := q.f.(*filterDayRange)
+		if !ok {
+			t.Fatalf("unexpected filter; got %T; want *filterDayRange; filter: %s", q.f, q.f)
+		}
+		if fr.stringRepr != s {
+			t.Fatalf("unexpected string representation for filterDayRange; got %q; want %q", fr.stringRepr, s)
+		}
+		if fr.start != startExpected {
+			t.Fatalf("unexpected start; got %d; want %d", fr.start, startExpected)
+		}
+		if fr.end != endExpected {
+			t.Fatalf("unexpected end; got %d; want %d", fr.end, endExpected)
+		}
+		if fr.offset != offsetExpected {
+			t.Fatalf("unexpected offset; got %d; want %d", fr.offset, offsetExpected)
+		}
+	}
+
+	f("[00:00, 24:00]", 0, nsecsPerDay-1, 0)
+	f("[10:20, 125:00]", 10*nsecsPerHour+20*nsecsPerMinute, nsecsPerDay-1, 0)
+	f("(00:00, 24:00)", 1, nsecsPerDay-2, 0)
+	f("[08:00, 18:00)", 8*nsecsPerHour, 18*nsecsPerHour-1, 0)
+	f("[08:00, 18:00) offset 2h", 8*nsecsPerHour, 18*nsecsPerHour-1, 2*nsecsPerHour)
+	f("[08:00, 18:00) offset -2h", 8*nsecsPerHour, 18*nsecsPerHour-1, -2*nsecsPerHour)
+}
+
+func TestParseWeekRange(t *testing.T) {
+	f := func(s string, startDayExpected, endDayExpected time.Weekday, offsetExpected int64) {
+		t.Helper()
+		q, err := ParseQuery("_time:week_range" + s)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		fr, ok := q.f.(*filterWeekRange)
+		if !ok {
+			t.Fatalf("unexpected filter; got %T; want *filterWeekRange; filter: %s", q.f, q.f)
+		}
+		if fr.stringRepr != s {
+			t.Fatalf("unexpected string representation for filterWeekRange; got %q; want %q", fr.stringRepr, s)
+		}
+		if fr.startDay != startDayExpected {
+			t.Fatalf("unexpected start; got %s; want %s", fr.startDay, startDayExpected)
+		}
+		if fr.endDay != endDayExpected {
+			t.Fatalf("unexpected end; got %s; want %s", fr.endDay, endDayExpected)
+		}
+		if fr.offset != offsetExpected {
+			t.Fatalf("unexpected offset; got %d; want %d", fr.offset, offsetExpected)
+		}
+	}
+
+	f("[Sun, Sat]", time.Sunday, time.Saturday, 0)
+	f("(Sun, Sat]", time.Monday, time.Saturday, 0)
+	f("(Sun, Sat)", time.Monday, time.Friday, 0)
+	f("[Sun, Sat)", time.Sunday, time.Friday, 0)
+
+	f(`[Mon, Tue]`, time.Monday, time.Tuesday, 0)
+	f(`[Wed, Thu]`, time.Wednesday, time.Thursday, 0)
+	f(`[Fri, Sat]`, time.Friday, time.Saturday, 0)
+
+	f(`[Mon, Fri] offset 2h`, time.Monday, time.Friday, 2*nsecsPerHour)
+	f(`[Mon, Fri] offset -2h`, time.Monday, time.Friday, -2*nsecsPerHour)
+}
+
 func TestParseTimeDuration(t *testing.T) {
 	f := func(s string, durationExpected time.Duration) {
 		t.Helper()
@@ -356,7 +427,7 @@ func TestParseFilterStringRange(t *testing.T) {
 	f(">foo", ``, "foo\x00", maxStringRangeValue)
 	f("x:>=foo", `x`, "foo", maxStringRangeValue)
 	f("x:<foo", `x`, ``, `foo`)
-	f(`<="123"`, ``, ``, "123\x00")
+	f(`<="123.456.789"`, ``, ``, "123.456.789\x00")
 }
 
 func TestParseFilterRegexp(t *testing.T) {
@@ -496,7 +567,7 @@ func TestParseRangeFilter(t *testing.T) {
 		}
 		fr, ok := q.f.(*filterRange)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *filterIPv4Range; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterRange; filter: %s", q.f, q.f)
 		}
 		if fr.fieldName != fieldNameExpected {
 			t.Fatalf("unexpected fieldName; got %q; want %q", fr.fieldName, fieldNameExpected)
@@ -535,6 +606,12 @@ func TestParseRangeFilter(t *testing.T) {
 	f(`foo: < -10.43`, `foo`, -inf, nextafter(-10.43, -inf))
 	f(`foo:<=10.43ms`, `foo`, -inf, 10_430_000)
 	f(`foo: <= 10.43`, `foo`, -inf, 10.43)
+
+	f(`foo:<=1.2.3.4`, `foo`, -inf, 16909060)
+	f(`foo:<='1.2.3.4'`, `foo`, -inf, 16909060)
+	f(`foo:>=0xffffffff`, `foo`, (1<<32)-1, inf)
+	f(`foo:>=1_234e3`, `foo`, 1234000, inf)
+	f(`foo:>=1_234e-3`, `foo`, 1.234, inf)
 }
 
 func TestParseQuerySuccess(t *testing.T) {
@@ -599,6 +676,8 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`foo or bar baz or xyz`, `foo or bar baz or xyz`)
 	f(`(foo or bar) (baz or xyz)`, `(foo or bar) (baz or xyz)`)
 	f(`(foo OR bar) AND baz`, `(foo or bar) baz`)
+	f(`'stats' foo`, `"stats" foo`)
+	f(`"filter" bar copy fields avg baz`, `"filter" bar "copy" "fields" "avg" baz`)
 
 	// parens
 	f(`foo:(bar baz or not :xxx)`, `foo:bar foo:baz or !foo:xxx`)
@@ -659,6 +738,20 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`_time:1h "offSet"`, `_time:1h "offSet"`) // "offset" is a search word, since it is quoted
 	f(`_time:1h (Offset)`, `_time:1h "Offset"`) // "offset" is a search word, since it is in parens
 	f(`_time:1h "and"`, `_time:1h "and"`)       // "and" is a search word, since it is quoted
+
+	// dayRange filters
+	f(`_time:day_range[08:00, 20:30)`, `_time:day_range[08:00, 20:30)`)
+	f(`_time:day_range(08:00, 20:30)`, `_time:day_range(08:00, 20:30)`)
+	f(`_time:day_range(08:00, 20:30]`, `_time:day_range(08:00, 20:30]`)
+	f(`_time:day_range[08:00, 20:30]`, `_time:day_range[08:00, 20:30]`)
+	f(`_time:day_range[08:00, 20:30] offset 2.5h`, `_time:day_range[08:00, 20:30] offset 2.5h`)
+	f(`_time:day_range[08:00, 20:30] offset -2.5h`, `_time:day_range[08:00, 20:30] offset -2.5h`)
+
+	// weekRange filters
+	f(`_time:week_range[Mon, Fri]`, `_time:week_range[Mon, Fri]`)
+	f(`_time:week_range(Monday, Friday] offset 2.5h`, `_time:week_range(Monday, Friday] offset 2.5h`)
+	f(`_time:week_range[monday, friday) offset -2.5h`, `_time:week_range[monday, friday) offset -2.5h`)
+	f(`_time:week_range(mon, fri]`, `_time:week_range(mon, fri]`)
 
 	// reserved keywords
 	f("and", `"and"`)
@@ -811,10 +904,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`string_range(foo, bar)`, `string_range(foo, bar)`)
 	f(`foo:string_range("foo, bar", baz)`, `foo:string_range("foo, bar", baz)`)
 	f(`foo:>bar`, `foo:>bar`)
-	f(`foo:>"1234"`, `foo:>"1234"`)
+	f(`foo:>"1234"`, `foo:>1234`)
 	f(`>="abc"`, `>=abc`)
 	f(`foo:<bar`, `foo:<bar`)
-	f(`foo:<"-12.34"`, `foo:<"-12.34"`)
+	f(`foo:<"-12.34"`, `foo:<-12.34`)
 	f(`<="abc < de"`, `<="abc < de"`)
 
 	// reserved field names
@@ -835,8 +928,8 @@ func TestParseQuerySuccess(t *testing.T) {
 	f("foo-bar+baz*", `"foo-bar+baz"*`)
 	f("foo- bar", `foo- bar`)
 	f("foo -bar", `foo -bar`)
-	f("foo!bar", `"foo!bar"`)
-	f("foo:aa!bb:cc", `foo:"aa!bb:cc"`)
+	f("foo!bar", `foo !bar`)
+	f("foo:aa!bb:cc", `foo:aa !bb:cc`)
 	f(`foo:bar:baz`, `foo:"bar:baz"`)
 	f(`foo:(bar baz:xxx)`, `foo:bar foo:"baz:xxx"`)
 	f(`foo:(_time:abc or not z)`, `foo:"_time:abc" or !foo:z`)
@@ -1031,7 +1124,7 @@ func TestParseQuerySuccess(t *testing.T) {
 	   sum(duration) if (host:in('foo.com', 'bar.com') and path:/foobar) as bar`,
 		`* | stats by (_time:1d offset -2h, f2) count(*) if (is_admin:true or "foo bar"*) as foo, sum(duration) if (host:in(foo.com,bar.com) path:"/foobar") as bar`)
 	f(`* | stats count(x) if (error ip:in(_time:1d | fields ip)) rows`, `* | stats count(x) if (error ip:in(_time:1d | fields ip)) as rows`)
-	f(`* | stats count() if () rows`, `* | stats count(*) if () as rows`)
+	f(`* | stats count() if () rows`, `* | stats count(*) if (*) as rows`)
 
 	// sort pipe
 	f(`* | sort`, `* | sort`)
@@ -1123,6 +1216,11 @@ func TestParseQueryFailure(t *testing.T) {
 	f("not (abc")
 	f("!")
 
+	// pipe names without quoutes
+	f(`filter foo:bar`)
+	f(`stats count()`)
+	f(`count()`)
+
 	// invalid parens
 	f("(")
 	f("foo (bar ")
@@ -1179,6 +1277,24 @@ func TestParseQueryFailure(t *testing.T) {
 	f("_time:234foo")
 	f("_time:5m offset")
 	f("_time:10m offset foobar")
+
+	// invalid day_range filters
+	f("_time:day_range")
+	f("_time:day_range[")
+	f("_time:day_range[foo")
+	f("_time:day_range[00:00,")
+	f("_time:day_range[00:00,bar")
+	f("_time:day_range[00:00,08:00")
+	f("_time:day_range[00:00,08:00] offset")
+
+	// invalid week_range filters
+	f("_time:week_range")
+	f("_time:week_range[")
+	f("_time:week_range[foo")
+	f("_time:week_range[Mon,")
+	f("_time:week_range[Mon,bar")
+	f("_time:week_range[Mon,Fri")
+	f("_time:week_range[Mon,Fri] offset")
 
 	// long query with error
 	f(`very long query with error aaa ffdfd fdfdfd fdfd:( ffdfdfdfdfd`)
@@ -1831,4 +1947,74 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | unpack_logfmt if (q:w p:a) from x fields(a,b) | count() r1`, `p,q`, ``)
 	f(`* | unroll (a, b) | count() r1`, `a,b`, ``)
 	f(`* | unroll if (q:w p:a) (a, b) | count() r1`, `a,b,p,q`, ``)
+}
+
+func TestQueryClone(t *testing.T) {
+	f := func(qStr string) {
+		t.Helper()
+
+		q, err := ParseQuery(qStr)
+		if err != nil {
+			t.Fatalf("cannot parse [%s]: %s", qStr, err)
+		}
+		qCopy := q.Clone()
+		qCopyStr := qCopy.String()
+		if qStr != qCopyStr {
+			t.Fatalf("unexpected cloned query\ngot\n%s\nwant\n%s", qCopyStr, qStr)
+		}
+	}
+
+	f("*")
+	f("error")
+	f("_time:5m error | fields foo, bar")
+	f("ip:in(foo | fields user_ip) bar | stats by (x:1h, y) count(*) if (user_id:in(q:w | fields abc)) as ccc")
+}
+
+func TestQueryGetFilterTimeRange(t *testing.T) {
+	f := func(qStr string, startExpected, endExpected int64) {
+		t.Helper()
+
+		q, err := ParseQuery(qStr)
+		if err != nil {
+			t.Fatalf("cannot parse [%s]: %s", qStr, err)
+		}
+		start, end := q.GetFilterTimeRange()
+		if start != startExpected || end != endExpected {
+			t.Fatalf("unexpected filter time range; got [%d, %d]; want [%d, %d]", start, end, startExpected, endExpected)
+		}
+	}
+
+	f("*", -9223372036854775808, 9223372036854775807)
+	f("_time:2024-05-31T10:20:30.456789123Z", 1717150830456789123, 1717150830456789123)
+	f("_time:2024-05-31", 1717113600000000000, 1717199999999999999)
+	f("_time:2024-05-31 _time:day_range[08:00, 16:00]", 1717113600000000000, 1717199999999999999)
+}
+
+func TestQueryCanReturnLastNResults(t *testing.T) {
+	f := func(qStr string, resultExpected bool) {
+		t.Helper()
+
+		q, err := ParseQuery(qStr)
+		if err != nil {
+			t.Fatalf("cannot parse [%s]: %s", qStr, err)
+		}
+		result := q.CanReturnLastNResults()
+		if result != resultExpected {
+			t.Fatalf("unexpected result for CanRetrurnLastNResults(%q); got %v; want %v", qStr, result, resultExpected)
+		}
+	}
+
+	f("*", true)
+	f("error", true)
+	f("error | fields foo | filter foo:bar", true)
+	f("error | extract '<foo>bar<baz>'", true)
+	f("* | rm x", true)
+	f("* | stats count() rows", false)
+	f("* | sort by (x)", false)
+	f("* | limit 10", false)
+	f("* | offset 10", false)
+	f("* | uniq (x)", false)
+	f("* | field_names", false)
+	f("* | field_values x", false)
+
 }

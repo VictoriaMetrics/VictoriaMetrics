@@ -161,6 +161,18 @@ var mathBinaryOps = map[string]mathBinaryOp{
 		priority: 3,
 		f:        mathFuncMinus,
 	},
+	"&": {
+		priority: 4,
+		f:        mathFuncAnd,
+	},
+	"xor": {
+		priority: 5,
+		f:        mathFuncXor,
+	},
+	"|": {
+		priority: 6,
+		f:        mathFuncOr,
+	},
 	"default": {
 		priority: 10,
 		f:        mathFuncDefault,
@@ -294,11 +306,7 @@ func (shard *pipeMathProcessorShard) executeExpr(me *mathExpr, br *blockResult) 
 		var f float64
 		for i, v := range values {
 			if i == 0 || v != values[i-1] {
-				var ok bool
-				f, ok = tryParseFloat64(v)
-				if !ok {
-					f = nan
-				}
+				f = parseMathNumber(v)
 			}
 			r[i] = f
 		}
@@ -348,8 +356,8 @@ func (pmp *pipeMathProcessor) flush() error {
 }
 
 func parsePipeMath(lex *lexer) (*pipeMath, error) {
-	if !lex.isKeyword("math") {
-		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "math")
+	if !lex.isKeyword("math", "eval") {
+		return nil, fmt.Errorf("unexpected token: %q; want 'math' or 'eval'", lex.token)
 	}
 	lex.nextToken()
 
@@ -489,13 +497,17 @@ func parseMathExprOperand(lex *lexer) (*mathExpr, error) {
 		return parseMathExprMin(lex)
 	case lex.isKeyword("round"):
 		return parseMathExprRound(lex)
+	case lex.isKeyword("ceil"):
+		return parseMathExprCeil(lex)
+	case lex.isKeyword("floor"):
+		return parseMathExprFloor(lex)
 	case lex.isKeyword("-"):
 		return parseMathExprUnaryMinus(lex)
 	case lex.isKeyword("+"):
 		// just skip unary plus
 		lex.nextToken()
 		return parseMathExprOperand(lex)
-	case lex.isNumber():
+	case isNumberPrefix(lex.token):
 		return parseMathExprConstNumber(lex)
 	default:
 		return parseMathExprFieldName(lex)
@@ -564,6 +576,28 @@ func parseMathExprRound(lex *lexer) (*mathExpr, error) {
 	}
 	if len(me.args) != 1 && len(me.args) != 2 {
 		return nil, fmt.Errorf("'round' function needs 1 or 2 args; got %d args: [%s]", len(me.args), me)
+	}
+	return me, nil
+}
+
+func parseMathExprCeil(lex *lexer) (*mathExpr, error) {
+	me, err := parseMathExprGenericFunc(lex, "ceil", mathFuncCeil)
+	if err != nil {
+		return nil, err
+	}
+	if len(me.args) != 1 {
+		return nil, fmt.Errorf("'ceil' function needs one arg; got %d args: [%s]", len(me.args), me)
+	}
+	return me, nil
+}
+
+func parseMathExprFloor(lex *lexer) (*mathExpr, error) {
+	me, err := parseMathExprGenericFunc(lex, "floor", mathFuncFloor)
+	if err != nil {
+		return nil, err
+	}
+	if len(me.args) != 1 {
+		return nil, fmt.Errorf("'floor' function needs one arg; got %d args: [%s]", len(me.args), me)
 	}
 	return me, nil
 }
@@ -637,15 +671,15 @@ func parseMathExprUnaryMinus(lex *lexer) (*mathExpr, error) {
 }
 
 func parseMathExprConstNumber(lex *lexer) (*mathExpr, error) {
-	if !lex.isNumber() {
+	if !isNumberPrefix(lex.token) {
 		return nil, fmt.Errorf("cannot parse number from %q", lex.token)
 	}
 	numStr, err := getCompoundMathToken(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse number: %w", err)
 	}
-	f, ok := tryParseNumber(numStr)
-	if !ok {
+	f := parseMathNumber(numStr)
+	if math.IsNaN(f) {
 		return nil, fmt.Errorf("cannot parse number from %q", numStr)
 	}
 	me := &mathExpr{
@@ -669,7 +703,7 @@ func parseMathExprFieldName(lex *lexer) (*mathExpr, error) {
 }
 
 func getCompoundMathToken(lex *lexer) (string, error) {
-	stopTokens := []string{"=", "+", "-", "*", "/", "%", "^", ",", ")", "|", ""}
+	stopTokens := []string{"=", "+", "-", "*", "/", "%", "^", ",", ")", "|", "!", ""}
 	if lex.isKeyword(stopTokens...) {
 		return "", fmt.Errorf("compound token cannot start with '%s'", lex.token)
 	}
@@ -686,6 +720,42 @@ func getCompoundMathToken(lex *lexer) (string, error) {
 		return s, nil
 	}
 	return rawS + suffix, nil
+}
+
+func mathFuncAnd(result []float64, args [][]float64) {
+	a := args[0]
+	b := args[1]
+	for i := range result {
+		if math.IsNaN(a[i]) || math.IsNaN(b[i]) {
+			result[i] = nan
+		} else {
+			result[i] = float64(uint64(a[i]) & uint64(b[i]))
+		}
+	}
+}
+
+func mathFuncOr(result []float64, args [][]float64) {
+	a := args[0]
+	b := args[1]
+	for i := range result {
+		if math.IsNaN(a[i]) || math.IsNaN(b[i]) {
+			result[i] = nan
+		} else {
+			result[i] = float64(uint64(a[i]) | uint64(b[i]))
+		}
+	}
+}
+
+func mathFuncXor(result []float64, args [][]float64) {
+	a := args[0]
+	b := args[1]
+	for i := range result {
+		if math.IsNaN(a[i]) || math.IsNaN(b[i]) {
+			result[i] = nan
+		} else {
+			result[i] = float64(uint64(a[i]) ^ uint64(b[i]))
+		}
+	}
 }
 
 func mathFuncPlus(result []float64, args [][]float64) {
@@ -800,6 +870,20 @@ func mathFuncMin(result []float64, args [][]float64) {
 	}
 }
 
+func mathFuncCeil(result []float64, args [][]float64) {
+	arg := args[0]
+	for i := range result {
+		result[i] = math.Ceil(arg[i])
+	}
+}
+
+func mathFuncFloor(result []float64, args [][]float64) {
+	arg := args[0]
+	for i := range result {
+		result[i] = math.Floor(arg[i])
+	}
+}
+
 func mathFuncRound(result []float64, args [][]float64) {
 	arg := args[0]
 	if len(args) == 1 {
@@ -828,4 +912,20 @@ func round(f, nearest float64) float64 {
 	f -= math.Mod(f, nearest)
 	f, _ = math.Modf(f * p10)
 	return f / p10
+}
+
+func parseMathNumber(s string) float64 {
+	f, ok := tryParseNumber(s)
+	if ok {
+		return f
+	}
+	nsecs, ok := tryParseTimestampRFC3339Nano(s)
+	if ok {
+		return float64(nsecs)
+	}
+	ipNum, ok := tryParseIPv4(s)
+	if ok {
+		return float64(ipNum)
+	}
+	return nan
 }

@@ -969,7 +969,7 @@ func TestParseStreamFieldsSuccess(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		result := marshalFieldsToJSON(nil, labels)
+		result := MarshalFieldsToJSON(nil, labels)
 		if string(result) != resultExpected {
 			t.Fatalf("unexpected result\ngot\n%s\nwant\n%s", result, resultExpected)
 		}

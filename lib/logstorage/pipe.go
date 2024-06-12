@@ -106,6 +106,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'delete' pipe: %w", err)
 		}
 		return pd, nil
+	case lex.isKeyword("drop_empty_fields"):
+		pd, err := parsePipeDropEmptyFields(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'drop_empty_fields' pipe: %w", err)
+		}
+		return pd, nil
 	case lex.isKeyword("extract"):
 		pe, err := parsePipeExtract(lex)
 		if err != nil {
@@ -136,7 +142,7 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'fields' pipe: %w", err)
 		}
 		return pf, nil
-	case lex.isKeyword("filter"):
+	case lex.isKeyword("filter", "where"):
 		pf, err := parsePipeFilter(lex, true)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'filter' pipe: %w", err)
@@ -154,7 +160,7 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'limit' pipe: %w", err)
 		}
 		return pl, nil
-	case lex.isKeyword("math"):
+	case lex.isKeyword("math", "eval"):
 		pm, err := parsePipeMath(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'math' pipe: %w", err)
@@ -170,6 +176,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 		pp, err := parsePackJSON(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'pack_json' pipe: %w", err)
+		}
+		return pp, nil
+	case lex.isKeyword("pack_logfmt"):
+		pp, err := parsePackLogfmt(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'pack_logfmt' pipe: %w", err)
 		}
 		return pp, nil
 	case lex.isKeyword("rename", "mv"):
@@ -220,6 +232,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'unpack_logfmt' pipe: %w", err)
 		}
 		return pu, nil
+	case lex.isKeyword("unpack_syslog"):
+		pu, err := parsePipeUnpackSyslog(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'unpack_syslog' pipe: %w", err)
+		}
+		return pu, nil
 	case lex.isKeyword("unroll"):
 		pu, err := parsePipeUnroll(lex)
 		if err != nil {
@@ -246,3 +264,44 @@ func parsePipe(lex *lexer) (pipe, error) {
 		return nil, fmt.Errorf("unexpected pipe %q", lex.token)
 	}
 }
+
+var pipeNames = func() map[string]struct{} {
+	a := []string{
+		"copy", "cp",
+		"delete", "del", "rm", "drop",
+		"drop_empty_fields",
+		"extract",
+		"extract_regexp",
+		"field_names",
+		"field_values",
+		"fields", "keep",
+		"filter", "where",
+		"format",
+		"limit", "head",
+		"math", "eval",
+		"offset", "skip",
+		"pack_json",
+		"pack_logmft",
+		"rename", "mv",
+		"replace",
+		"replace_regexp",
+		"sort",
+		"stats",
+		"uniq",
+		"unpack_json",
+		"unpack_logfmt",
+		"unpack_syslog",
+		"unroll",
+	}
+
+	m := make(map[string]struct{}, len(a))
+	for _, s := range a {
+		m[s] = struct{}{}
+	}
+
+	// add stats names here, since they can be used without the initial `stats` keyword
+	for _, s := range statsNames {
+		m[s] = struct{}{}
+	}
+	return m
+}()

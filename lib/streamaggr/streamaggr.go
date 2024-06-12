@@ -389,13 +389,20 @@ type aggregator struct {
 
 	flushDuration      *metrics.Histogram
 	dedupFlushDuration *metrics.Histogram
+	samplesLag         *metrics.Histogram
 
 	flushTimeouts      *metrics.Counter
 	dedupFlushTimeouts *metrics.Counter
+	ignoredOldSamples  *metrics.Counter
+	ignoredNanSamples  *metrics.Counter
 }
 
 type aggrState interface {
+	// pushSamples must push samples to the aggrState.
+	//
+	// samples[].key must be cloned by aggrState, since it may change after returning from pushSamples.
 	pushSamples(samples []pushSample)
+
 	flushState(ctx *flushCtx, resetState bool)
 }
 
@@ -610,9 +617,12 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 
 		flushDuration:      ms.GetOrCreateHistogram(`vm_streamaggr_flush_duration_seconds`),
 		dedupFlushDuration: ms.GetOrCreateHistogram(`vm_streamaggr_dedup_flush_duration_seconds`),
+		samplesLag:         ms.GetOrCreateHistogram(`vm_streamaggr_samples_lag_seconds`),
 
 		flushTimeouts:      ms.GetOrCreateCounter(`vm_streamaggr_flush_timeouts_total`),
 		dedupFlushTimeouts: ms.GetOrCreateCounter(`vm_streamaggr_dedup_flush_timeouts_total`),
+		ignoredNanSamples:  ms.GetOrCreateCounter(`vm_streamaggr_ignored_samples_total{reason="nan"}`),
+		ignoredOldSamples:  ms.GetOrCreateCounter(`vm_streamaggr_ignored_samples_total{reason="too_old"}`),
 	}
 	if dedupInterval > 0 {
 		a.da = newDedupAggr()
@@ -737,7 +747,7 @@ func (a *aggregator) dedupFlush(dedupInterval time.Duration) {
 
 	startTime := time.Now()
 
-	a.da.flush(a.pushSamples, true)
+	a.da.flush(a.pushSamples)
 
 	d := time.Since(startTime)
 	a.dedupFlushDuration.Update(d.Seconds())
@@ -798,6 +808,7 @@ func (a *aggregator) MustStop() {
 
 // Push pushes tss to a.
 func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
+	now := time.Now().UnixMilli()
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 
@@ -810,6 +821,8 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	dropLabels := a.dropInputLabels
 	ignoreOldSamples := a.ignoreOldSamples
 	minTimestamp := a.minTimestamp.Load()
+	var totalLag int64
+	var totalSamples int
 	for idx, ts := range tss {
 		if !a.match.Match(ts.Labels) {
 			continue
@@ -836,23 +849,33 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 			outputLabels.Labels = append(outputLabels.Labels, labels.Labels...)
 		}
 
-		buf = compressLabels(buf[:0], inputLabels.Labels, outputLabels.Labels)
-		key := bytesutil.InternBytes(buf)
+		bufLen := len(buf)
+		buf = compressLabels(buf, inputLabels.Labels, outputLabels.Labels)
+		// key remains valid only by the end of this function and can't be reused after
+		// do not intern key because number of unique keys could be too high
+		key := bytesutil.ToUnsafeString(buf[bufLen:])
 		for _, sample := range ts.Samples {
 			if math.IsNaN(sample.Value) {
+				a.ignoredNanSamples.Inc()
 				// Skip NaN values
 				continue
 			}
 			if ignoreOldSamples && sample.Timestamp < minTimestamp {
+				a.ignoredOldSamples.Inc()
 				// Skip old samples outside the current aggregation interval
 				continue
 			}
+			totalLag += now - sample.Timestamp
+			totalSamples++
 			samples = append(samples, pushSample{
 				key:       key,
 				value:     sample.Value,
 				timestamp: sample.Timestamp,
 			})
 		}
+	}
+	if totalSamples > 0 {
+		a.samplesLag.Update(float64(totalLag/int64(totalSamples)) / 1000)
 	}
 	ctx.samples = samples
 	ctx.buf = buf
@@ -926,6 +949,8 @@ func (ctx *pushCtx) reset() {
 }
 
 type pushSample struct {
+	// key identifies a sample that belongs to unique series
+	// key value can't be re-used
 	key       string
 	value     float64
 	timestamp int64

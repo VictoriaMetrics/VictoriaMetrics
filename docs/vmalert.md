@@ -470,7 +470,7 @@ tags at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert/tags).
 from object storage:
 
 - `./bin/vmalert -rule=s3://bucket/dir/alert.rules` would read rules from the given path at S3 bucket
-- `./bin/vmalert -rule=gs://bucket/bir/alert.rules` would read rules from the given path at GCS bucket
+- `./bin/vmalert -rule=gs://bucket/dir/alert.rules` would read rules from the given path at GCS bucket
 
 S3 and GCS paths support only matching by prefix, e.g. `s3://bucket/dir/rule_` matches
 all files with prefix `rule_` in the folder `dir`.
@@ -890,7 +890,7 @@ Sensitive info is stripped from the `curl` examples - see [security](#security) 
 vmalert can detect if alert's expression doesn't match any time series in runtime 
 starting from [v1.91](https://docs.victoriametrics.com/changelog/#v1910). This problem usually happens
 when alerting expression selects time series which aren't present in the datasource (i.e. wrong `job` label)
-or there is a typo in the series selector (i.e. `env=rpod`). Such alerting rules will be marked with special icon in 
+or there is a typo in the series selector (i.e. `env=prod`). Such alerting rules will be marked with special icon in 
 vmalerts UI and exposed via `vmalert_alerting_rules_last_evaluation_series_fetched` metric. The metric value will
 show how many time series were matched before the filtering by rule's expression. If metric value is `-1`, then
 this feature is not supported by the datasource (old versions of VictoriaMetrics). The following expression can be
@@ -1002,7 +1002,7 @@ The shortlist of configuration flags is the following:
   -datasource.bearerTokenFile string
      Optional path to bearer token file to use for -datasource.url.
   -datasource.disableKeepAlive
-     Whether to disable long-lived connections to the datasource. If true, disables HTTP keep-alives and will only use the connection to the server for a single HTTP request.
+     Whether to disable long-lived connections to the datasource. If true, disables HTTP keep-alive and will only use the connection to the server for a single HTTP request.
   -datasource.disableStepParam
      Whether to disable adding 'step' param to the issued instant queries. This might be useful when using vmalert with datasources that do not support 'step' param for instant queries, like Google Managed Prometheus. It is not recommended to enable this flag if you use vmalert with VictoriaMetrics.
   -datasource.headers string
@@ -1116,9 +1116,9 @@ The shortlist of configuration flags is the following:
   -internStringMaxLen int
      The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -license string
-     Lisense key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed via file specified by -licenseFile command-line flag
+     License key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed via file specified by -licenseFile command-line flag
   -license.forceOffline
-     Whether to enable offline verification for VictoriaMetrics Enterprise license key, which has been passed either via -license or via -licenseFile command-line flag. The issued license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification. This flag is avilable only in Enterprise binaries
+     Whether to enable offline verification for VictoriaMetrics Enterprise license key, which has been passed either via -license or via -licenseFile command-line flag. The issued license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification. This flag is available only in Enterprise binaries
   -licenseFile string
      Path to file with license key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed inline via -license command-line flag
   -loggerDisableTimestamps
@@ -1263,7 +1263,7 @@ The shortlist of configuration flags is the following:
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -reloadAuthKey value
-     Auth key for /-/reload http endpoint. It must be passed as authKey=...
+     Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings.
      Flag value can be read from the given file when using -reloadAuthKey=file:///abs/path/to/file or -reloadAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -reloadAuthKey=http://host/path or -reloadAuthKey=https://host/path
   -remoteRead.basicAuth.password string
      Optional basic auth password for -remoteRead.url

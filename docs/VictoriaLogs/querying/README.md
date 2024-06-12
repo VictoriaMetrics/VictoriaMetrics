@@ -58,12 +58,14 @@ By default the `/select/logsql/query` returns all the log entries matching the g
 
 - By closing the response stream at any time. VictoriaLogs stops query execution and frees all the resources occupied by the request as soon as it detects closed client connection.
   So it is safe running [`*` query](https://docs.victoriametrics.com/victorialogs/logsql/#any-value-filter), which selects all the logs, even if trillions of logs are stored in VictoriaLogs.
-- By specifying the maximum number of log entries, which can be returned in the response via `limit` query arg. For example, the following request returns
-  up to 10 matching log entries:
+- By specifying the maximum number of log entries, which can be returned in the response via `limit` query arg. For example, the following command returns
+  up to 10 most recently added log entries with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word)
+  in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
   ```sh
   curl http://localhost:9428/select/logsql/query -d 'query=error' -d 'limit=10'
   ```
-- By adding [`limit` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe) to the query. For example:
+- By adding [`limit` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe) to the query. For example, the following command returns up to 10 **random** log entries
+  with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
   ```sh
   curl http://localhost:9428/select/logsql/query -d 'query=error | limit 10'
   ```
@@ -87,11 +89,14 @@ This allows post-processing the returned lines at the client side with the usual
 without worrying about resource usage at VictoriaLogs side. See [these docs](#command-line) for more details.
 
 The returned lines aren't sorted by default, since sorting disables the ability to send matching log entries to response stream as soon as they are found.
-Query results can be sorted either at VictoriaLogs side via [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe)
-or at client side with the usual `sort` command according to [these docs](#command-line).
+Query results can be sorted in the following ways:
+
+- By passing `limit=N` query arg to `/select/logsql/query`. The up to `N` most recent matching log entries are returned in the response.
+- By adding [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe) to the query.
+- By using Unix `sort` command at client side according to [these docs](#command-line).
 
 By default the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) is queried.
-If you need querying other tenant, then specify it via `AccounID` and `ProjectID` http request headers. For example, the following query searches
+If you need querying other tenant, then specify it via `AccountID` and `ProjectID` http request headers. For example, the following query searches
 for log messages at `(AccountID=12, ProjectID=34)` tenant:
 
 ```sh

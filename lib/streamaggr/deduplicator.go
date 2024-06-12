@@ -94,8 +94,9 @@ func (d *Deduplicator) Push(tss []prompbmarshal.TimeSeries) {
 		}
 		labels.Sort()
 
-		buf = lc.Compress(buf[:0], labels.Labels)
-		key := bytesutil.InternBytes(buf)
+		bufLen := len(buf)
+		buf = lc.Compress(buf, labels.Labels)
+		key := bytesutil.ToUnsafeString(buf[bufLen:])
 		for _, s := range ts.Samples {
 			pss = append(pss, pushSample{
 				key:       key,
@@ -165,7 +166,7 @@ func (d *Deduplicator) flush(pushFunc PushFunc, dedupInterval time.Duration) {
 		ctx.labels = labels
 		ctx.samples = samples
 		putDeduplicatorFlushCtx(ctx)
-	}, true)
+	})
 
 	duration := time.Since(startTime)
 	d.dedupFlushDuration.Update(duration.Seconds())

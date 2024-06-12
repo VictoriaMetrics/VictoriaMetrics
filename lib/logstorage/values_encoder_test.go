@@ -378,11 +378,11 @@ func TestTryParseDuration_Failure(t *testing.T) {
 	f("2s 3ms")
 }
 
-func TestMarshalDuration(t *testing.T) {
+func TestMarshalDurationString(t *testing.T) {
 	f := func(nsecs int64, resultExpected string) {
 		t.Helper()
 
-		result := marshalDuration(nil, nsecs)
+		result := marshalDurationString(nil, nsecs)
 		if string(result) != resultExpected {
 			t.Fatalf("unexpected result; got %q; want %q", result, resultExpected)
 		}

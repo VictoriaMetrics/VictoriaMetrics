@@ -64,7 +64,28 @@ func (f *Field) marshalToJSON(dst []byte) []byte {
 	return dst
 }
 
-func marshalFieldsToJSON(dst []byte, fields []Field) []byte {
+func (f *Field) marshalToLogfmt(dst []byte) []byte {
+	dst = append(dst, f.Name...)
+	dst = append(dst, '=')
+	if needLogfmtQuoting(f.Value) {
+		dst = strconv.AppendQuote(dst, f.Value)
+	} else {
+		dst = append(dst, f.Value...)
+	}
+	return dst
+}
+
+func needLogfmtQuoting(s string) bool {
+	for _, c := range s {
+		if !isTokenRune(c) {
+			return true
+		}
+	}
+	return false
+}
+
+// MarshalFieldsToJSON appends JSON-marshaled fields to dst and returns the result.
+func MarshalFieldsToJSON(dst []byte, fields []Field) []byte {
 	dst = append(dst, '{')
 	if len(fields) > 0 {
 		dst = fields[0].marshalToJSON(dst)
@@ -75,6 +96,20 @@ func marshalFieldsToJSON(dst []byte, fields []Field) []byte {
 		}
 	}
 	dst = append(dst, '}')
+	return dst
+}
+
+// MarshalFieldsToLogfmt appends logfmt-marshaled fields to dst and returns the result.
+func MarshalFieldsToLogfmt(dst []byte, fields []Field) []byte {
+	if len(fields) == 0 {
+		return dst
+	}
+	dst = fields[0].marshalToLogfmt(dst)
+	fields = fields[1:]
+	for i := range fields {
+		dst = append(dst, ' ')
+		dst = fields[i].marshalToLogfmt(dst)
+	}
 	return dst
 }
 
