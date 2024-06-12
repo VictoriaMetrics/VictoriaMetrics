@@ -804,7 +804,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 
 		QueryStats: qs,
 	}
-	result, err := promql.Exec(qt, ec, query, true)
+	result, err := promql.Exec(qt, ec, query, true, r)
 	if err != nil {
 		return fmt.Errorf("error when executing query=%q for (time=%d, step=%d): %w", query, start, step, err)
 	}
@@ -912,7 +912,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 
 		QueryStats: qs,
 	}
-	result, err := promql.Exec(qt, ec, query, false)
+	result, err := promql.Exec(qt, ec, query, false, r)
 	if err != nil {
 		return err
 	}

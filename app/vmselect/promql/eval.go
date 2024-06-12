@@ -3,7 +3,9 @@ package promql
 import (
 	"flag"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"math"
+	"net/http"
 	"regexp"
 	"sort"
 	"strings"
@@ -45,6 +47,7 @@ var (
 		"so there is no need in spending additional CPU time on its handling. Staleness markers may exist only in data obtained from Prometheus scrape targets")
 	minWindowForInstantRollupOptimization = flagutil.NewDuration("search.minWindowForInstantRollupOptimization", "3h", "Enable cache-based optimization for repeated queries "+
 		"to /api/v1/query (aka instant queries), which contain rollup functions with lookbehind window exceeding the given value")
+	logHttpHeaders = flagutil.NewArrayString("search.logHttpHeaders", "Optional add request headers log to HTTP requests made by vmselect; usage: -search.logHttpHeaders=X-Webauth-User1,...,X-Webauth-UserN")
 )
 
 // The minimum number of points per timeseries for enabling time rounding.
@@ -259,14 +262,14 @@ func getTimestamps(start, end, step int64, maxPointsPerSeries int) []int64 {
 	return timestamps
 }
 
-func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
+func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr, r *http.Request) ([]*timeseries, error) {
 	if qt.Enabled() {
 		query := string(e.AppendString(nil))
 		query = stringsutil.LimitStringLen(query, 300)
 		mayCache := ec.mayCache()
 		qt = qt.NewChild("eval: query=%s, timeRange=%s, step=%d, mayCache=%v", query, ec.timeRangeString(), ec.Step, mayCache)
 	}
-	rv, err := evalExprInternal(qt, ec, e)
+	rv, err := evalExprInternal(qt, ec, e, r)
 	if err != nil {
 		return nil, err
 	}
@@ -282,19 +285,19 @@ func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*time
 	return rv, nil
 }
 
-func evalExprInternal(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
+func evalExprInternal(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr, r *http.Request) ([]*timeseries, error) {
 	if me, ok := e.(*metricsql.MetricExpr); ok {
 		re := &metricsql.RollupExpr{
 			Expr: me,
 		}
-		rv, err := evalRollupFunc(qt, ec, "default_rollup", rollupDefault, e, re, nil)
+		rv, err := evalRollupFunc(qt, ec, "default_rollup", rollupDefault, e, re, nil, r)
 		if err != nil {
 			return nil, fmt.Errorf(`cannot evaluate %q: %w`, me.AppendString(nil), err)
 		}
 		return rv, nil
 	}
 	if re, ok := e.(*metricsql.RollupExpr); ok {
-		rv, err := evalRollupFunc(qt, ec, "default_rollup", rollupDefault, e, re, nil)
+		rv, err := evalRollupFunc(qt, ec, "default_rollup", rollupDefault, e, re, nil, r)
 		if err != nil {
 			return nil, fmt.Errorf(`cannot evaluate %q: %w`, re.AppendString(nil), err)
 		}
@@ -304,11 +307,11 @@ func evalExprInternal(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) 
 		nrf := getRollupFunc(fe.Name)
 		if nrf == nil {
 			qtChild := qt.NewChild("transform %s()", fe.Name)
-			rv, err := evalTransformFunc(qtChild, ec, fe)
+			rv, err := evalTransformFunc(qtChild, ec, fe, r)
 			qtChild.Donef("series=%d", len(rv))
 			return rv, err
 		}
-		args, re, err := evalRollupFuncArgs(qt, ec, fe)
+		args, re, err := evalRollupFuncArgs(qt, ec, fe, r)
 		if err != nil {
 			return nil, err
 		}
@@ -316,7 +319,7 @@ func evalExprInternal(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) 
 		if err != nil {
 			return nil, fmt.Errorf("cannot evaluate args for %q: %w", fe.AppendString(nil), err)
 		}
-		rv, err := evalRollupFunc(qt, ec, fe.Name, rf, e, re, nil)
+		rv, err := evalRollupFunc(qt, ec, fe.Name, rf, e, re, nil, r)
 		if err != nil {
 			return nil, fmt.Errorf(`cannot evaluate %q: %w`, fe.AppendString(nil), err)
 		}
@@ -324,13 +327,13 @@ func evalExprInternal(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) 
 	}
 	if ae, ok := e.(*metricsql.AggrFuncExpr); ok {
 		qtChild := qt.NewChild("aggregate %s()", ae.Name)
-		rv, err := evalAggrFunc(qtChild, ec, ae)
+		rv, err := evalAggrFunc(qtChild, ec, ae, r)
 		qtChild.Donef("series=%d", len(rv))
 		return rv, err
 	}
 	if be, ok := e.(*metricsql.BinaryOpExpr); ok {
 		qtChild := qt.NewChild("binary op %q", be.Op)
-		rv, err := evalBinaryOp(qtChild, ec, be)
+		rv, err := evalBinaryOp(qtChild, ec, be, r)
 		qtChild.Donef("series=%d", len(rv))
 		return rv, err
 	}
@@ -351,7 +354,7 @@ func evalExprInternal(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) 
 	return nil, fmt.Errorf("unexpected expression %q", e.AppendString(nil))
 }
 
-func evalTransformFunc(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.FuncExpr) ([]*timeseries, error) {
+func evalTransformFunc(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.FuncExpr, r *http.Request) ([]*timeseries, error) {
 	tf := getTransformFunc(fe.Name)
 	if tf == nil {
 		return nil, &UserReadableError{
@@ -362,9 +365,9 @@ func evalTransformFunc(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.Fun
 	var err error
 	switch fe.Name {
 	case "", "union":
-		args, err = evalExprsInParallel(qt, ec, fe.Args)
+		args, err = evalExprsInParallel(qt, ec, fe.Args, r)
 	default:
-		args, err = evalExprsSequentially(qt, ec, fe.Args)
+		args, err = evalExprsSequentially(qt, ec, fe.Args, r)
 	}
 	if err != nil {
 		return nil, err
@@ -383,13 +386,13 @@ func evalTransformFunc(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.Fun
 	return rv, nil
 }
 
-func evalAggrFunc(qt *querytracer.Tracer, ec *EvalConfig, ae *metricsql.AggrFuncExpr) ([]*timeseries, error) {
+func evalAggrFunc(qt *querytracer.Tracer, ec *EvalConfig, ae *metricsql.AggrFuncExpr, r *http.Request) ([]*timeseries, error) {
 	if callbacks := getIncrementalAggrFuncCallbacks(ae.Name); callbacks != nil {
 		fe, nrf := tryGetArgRollupFuncWithMetricExpr(ae)
 		if fe != nil {
 			// There is an optimized path for calculating metricsql.AggrFuncExpr over rollupFunc over metricsql.MetricExpr.
 			// The optimized path saves RAM for aggregates over big number of time series.
-			args, re, err := evalRollupFuncArgs(qt, ec, fe)
+			args, re, err := evalRollupFuncArgs(qt, ec, fe, r)
 			if err != nil {
 				return nil, err
 			}
@@ -398,10 +401,10 @@ func evalAggrFunc(qt *querytracer.Tracer, ec *EvalConfig, ae *metricsql.AggrFunc
 				return nil, fmt.Errorf("cannot evaluate args for aggregate func %q: %w", ae.AppendString(nil), err)
 			}
 			iafc := newIncrementalAggrFuncContext(ae, callbacks)
-			return evalRollupFunc(qt, ec, fe.Name, rf, ae, re, iafc)
+			return evalRollupFunc(qt, ec, fe.Name, rf, ae, re, iafc, r)
 		}
 	}
-	args, err := evalExprsInParallel(qt, ec, ae.Args)
+	args, err := evalExprsInParallel(qt, ec, ae.Args, r)
 	if err != nil {
 		return nil, err
 	}
@@ -425,7 +428,7 @@ func evalAggrFunc(qt *querytracer.Tracer, ec *EvalConfig, ae *metricsql.AggrFunc
 	return rv, nil
 }
 
-func evalBinaryOp(qt *querytracer.Tracer, ec *EvalConfig, be *metricsql.BinaryOpExpr) ([]*timeseries, error) {
+func evalBinaryOp(qt *querytracer.Tracer, ec *EvalConfig, be *metricsql.BinaryOpExpr, r *http.Request) ([]*timeseries, error) {
 	bf := getBinaryOpFunc(be.Op)
 	if bf == nil {
 		return nil, fmt.Errorf(`unknown binary op %q`, be.Op)
@@ -438,9 +441,9 @@ func evalBinaryOp(qt *querytracer.Tracer, ec *EvalConfig, be *metricsql.BinaryOp
 		// lower number of time series for `and` and `if` operator.
 		// This should produce more specific label filters for the left side of the query.
 		// This, in turn, should reduce the time to select series for the left side of the query.
-		tssRight, tssLeft, err = execBinaryOpArgs(qt, ec, be.Right, be.Left, be)
+		tssRight, tssLeft, err = execBinaryOpArgs(qt, ec, be.Right, be.Left, be, r)
 	default:
-		tssLeft, tssRight, err = execBinaryOpArgs(qt, ec, be.Left, be.Right, be)
+		tssLeft, tssRight, err = execBinaryOpArgs(qt, ec, be.Left, be.Right, be, r)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("cannot execute %q: %w", be.AppendString(nil), err)
@@ -476,7 +479,7 @@ func isAggrFuncWithoutGrouping(e metricsql.Expr) bool {
 	return len(afe.Modifier.Args) == 0
 }
 
-func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSecond metricsql.Expr, be *metricsql.BinaryOpExpr) ([]*timeseries, []*timeseries, error) {
+func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSecond metricsql.Expr, be *metricsql.BinaryOpExpr, r *http.Request) ([]*timeseries, []*timeseries, error) {
 	if !canPushdownCommonFilters(be) {
 		// Execute exprFirst and exprSecond in parallel, since it is impossible to pushdown common filters
 		// from exprFirst to exprSecond.
@@ -491,7 +494,7 @@ func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSec
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			tssFirst, errFirst = evalExpr(qtFirst, ec, exprFirst)
+			tssFirst, errFirst = evalExpr(qtFirst, ec, exprFirst, r)
 			qtFirst.Done()
 		}()
 
@@ -501,7 +504,7 @@ func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSec
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			tssSecond, errSecond = evalExpr(qtSecond, ec, exprSecond)
+			tssSecond, errSecond = evalExpr(qtSecond, ec, exprSecond, r)
 			qtSecond.Done()
 		}()
 
@@ -538,7 +541,7 @@ func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSec
 	//
 	// - Queries, which get additional labels from `info` metrics.
 	//   See https://www.robustperception.io/exposing-the-software-version-to-prometheus
-	tssFirst, err := evalExpr(qt, ec, exprFirst)
+	tssFirst, err := evalExpr(qt, ec, exprFirst, r)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -551,7 +554,7 @@ func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSec
 	lfs := getCommonLabelFilters(tssFirst)
 	lfs = metricsql.TrimFiltersByGroupModifier(lfs, be)
 	exprSecond = metricsql.PushdownBinaryOpFilters(exprSecond, lfs)
-	tssSecond, err := evalExpr(qt, ec, exprSecond)
+	tssSecond, err := evalExpr(qt, ec, exprSecond, r)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -700,10 +703,10 @@ func tryGetArgRollupFuncWithMetricExpr(ae *metricsql.AggrFuncExpr) (*metricsql.F
 	return nil, nil
 }
 
-func evalExprsSequentially(qt *querytracer.Tracer, ec *EvalConfig, es []metricsql.Expr) ([][]*timeseries, error) {
+func evalExprsSequentially(qt *querytracer.Tracer, ec *EvalConfig, es []metricsql.Expr, r *http.Request) ([][]*timeseries, error) {
 	var rvs [][]*timeseries
 	for _, e := range es {
-		rv, err := evalExpr(qt, ec, e)
+		rv, err := evalExpr(qt, ec, e, r)
 		if err != nil {
 			return nil, err
 		}
@@ -712,9 +715,9 @@ func evalExprsSequentially(qt *querytracer.Tracer, ec *EvalConfig, es []metricsq
 	return rvs, nil
 }
 
-func evalExprsInParallel(qt *querytracer.Tracer, ec *EvalConfig, es []metricsql.Expr) ([][]*timeseries, error) {
+func evalExprsInParallel(qt *querytracer.Tracer, ec *EvalConfig, es []metricsql.Expr, r *http.Request) ([][]*timeseries, error) {
 	if len(es) < 2 {
-		return evalExprsSequentially(qt, ec, es)
+		return evalExprsSequentially(qt, ec, es, r)
 	}
 	rvs := make([][]*timeseries, len(es))
 	errs := make([]error, len(es))
@@ -728,7 +731,7 @@ func evalExprsInParallel(qt *querytracer.Tracer, ec *EvalConfig, es []metricsql.
 				qtChild.Done()
 				wg.Done()
 			}()
-			rv, err := evalExpr(qtChild, ec, e)
+			rv, err := evalExpr(qtChild, ec, e, r)
 			rvs[i] = rv
 			errs[i] = err
 		}(e, i)
@@ -742,7 +745,7 @@ func evalExprsInParallel(qt *querytracer.Tracer, ec *EvalConfig, es []metricsql.
 	return rvs, nil
 }
 
-func evalRollupFuncArgs(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.FuncExpr) ([]interface{}, *metricsql.RollupExpr, error) {
+func evalRollupFuncArgs(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.FuncExpr, r *http.Request) ([]interface{}, *metricsql.RollupExpr, error) {
 	var re *metricsql.RollupExpr
 	rollupArgIdx := metricsql.GetRollupArgIdx(fe)
 	if len(fe.Args) <= rollupArgIdx {
@@ -755,7 +758,7 @@ func evalRollupFuncArgs(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.Fu
 			args[i] = re
 			continue
 		}
-		ts, err := evalExpr(qt, ec, arg)
+		ts, err := evalExpr(qt, ec, arg, r)
 		if err != nil {
 			return nil, nil, fmt.Errorf("cannot evaluate arg #%d for %q: %w", i+1, fe.AppendString(nil), err)
 		}
@@ -796,11 +799,11 @@ func getRollupExprArg(arg metricsql.Expr) *metricsql.RollupExpr {
 // - rollupFunc(m) if iafc is nil
 // - aggrFunc(rollupFunc(m)) if iafc isn't nil
 func evalRollupFunc(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc, expr metricsql.Expr,
-	re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext) ([]*timeseries, error) {
+	re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext, r *http.Request) ([]*timeseries, error) {
 	if re.At == nil {
-		return evalRollupFuncWithoutAt(qt, ec, funcName, rf, expr, re, iafc)
+		return evalRollupFuncWithoutAt(qt, ec, funcName, rf, expr, re, iafc, r)
 	}
-	tssAt, err := evalExpr(qt, ec, re.At)
+	tssAt, err := evalExpr(qt, ec, re.At, r)
 	if err != nil {
 		return nil, &UserReadableError{
 			Err: fmt.Errorf("cannot evaluate `@` modifier: %w", err),
@@ -815,7 +818,7 @@ func evalRollupFunc(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf 
 	ecNew := copyEvalConfig(ec)
 	ecNew.Start = atTimestamp
 	ecNew.End = atTimestamp
-	tss, err := evalRollupFuncWithoutAt(qt, ecNew, funcName, rf, expr, re, iafc)
+	tss, err := evalRollupFuncWithoutAt(qt, ecNew, funcName, rf, expr, re, iafc, r)
 	if err != nil {
 		return nil, err
 	}
@@ -834,7 +837,7 @@ func evalRollupFunc(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf 
 }
 
 func evalRollupFuncWithoutAt(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
-	expr metricsql.Expr, re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext) ([]*timeseries, error) {
+	expr metricsql.Expr, re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext, r *http.Request) ([]*timeseries, error) {
 	funcName = strings.ToLower(funcName)
 	ecNew := ec
 	var offset int64
@@ -861,12 +864,12 @@ func evalRollupFuncWithoutAt(qt *querytracer.Tracer, ec *EvalConfig, funcName st
 	var rvs []*timeseries
 	var err error
 	if me, ok := re.Expr.(*metricsql.MetricExpr); ok {
-		rvs, err = evalRollupFuncWithMetricExpr(qt, ecNew, funcName, rf, expr, me, iafc, re.Window)
+		rvs, err = evalRollupFuncWithMetricExpr(qt, ecNew, funcName, rf, expr, me, iafc, re.Window, r)
 	} else {
 		if iafc != nil {
 			logger.Panicf("BUG: iafc must be nil for rollup %q over subquery %q", funcName, re.AppendString(nil))
 		}
-		rvs, err = evalRollupFuncWithSubquery(qt, ecNew, funcName, rf, expr, re)
+		rvs, err = evalRollupFuncWithSubquery(qt, ecNew, funcName, rf, expr, re, r)
 	}
 	if err != nil {
 		return nil, &UserReadableError{
@@ -911,7 +914,7 @@ func aggregateAbsentOverTime(ec *EvalConfig, expr metricsql.Expr, tss []*timeser
 	return rvs
 }
 
-func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc, expr metricsql.Expr, re *metricsql.RollupExpr) ([]*timeseries, error) {
+func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc, expr metricsql.Expr, re *metricsql.RollupExpr, r *http.Request) ([]*timeseries, error) {
 	// TODO: determine whether to use rollupResultCacheV here.
 	qt = qt.NewChild("subquery")
 	defer qt.Done()
@@ -937,7 +940,7 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 	}
 	// unconditionally align start and end args to step for subquery as Prometheus does.
 	ecSQ.Start, ecSQ.End = alignStartEnd(ecSQ.Start, ecSQ.End, ecSQ.Step)
-	tssSQ, err := evalExpr(qt, ecSQ, re.Expr)
+	tssSQ, err := evalExpr(qt, ecSQ, re.Expr, r)
 	if err != nil {
 		return nil, err
 	}
@@ -1060,7 +1063,7 @@ func removeNanValues(dstValues []float64, dstTimestamps []int64, values []float6
 
 // evalInstantRollup evaluates instant rollup where ec.Start == ec.End.
 func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
-	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, window int64) ([]*timeseries, error) {
+	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, window int64, r *http.Request) ([]*timeseries, error) {
 	if ec.Start != ec.End {
 		logger.Panicf("BUG: evalInstantRollup cannot be called on non-empty time range; got %s", ec.timeRangeString())
 	}
@@ -1075,7 +1078,7 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 		ecCopy.Start = timestamp
 		ecCopy.End = timestamp
 		pointsPerSeries := int64(1)
-		return evalRollupFuncNoCache(qt, ecCopy, funcName, rf, expr, me, iafc, window, pointsPerSeries)
+		return evalRollupFuncNoCache(qt, ecCopy, funcName, rf, expr, me, iafc, window, pointsPerSeries, r)
 	}
 	tooBigOffset := func(offset int64) bool {
 		maxOffset := window / 2
@@ -1165,7 +1168,7 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 			Left:            &feSum,
 			Right:           &feCount,
 		}
-		return evalExpr(qt, ec, be)
+		return evalExpr(qt, ec, be, r)
 	case "rate":
 		if iafc != nil {
 			if strings.ToLower(iafc.ae.Name) != "sum" {
@@ -1192,7 +1195,7 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 					N: float64(d) / 1000,
 				},
 			}
-			return evalExpr(qt, ec, be)
+			return evalExpr(qt, ec, be, r)
 		}
 		qt.Printf("optimized calculation for instant rollup rate(m[d]) as (increase(m[d]) / d)")
 		fe := expr.(*metricsql.FuncExpr)
@@ -1211,7 +1214,7 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 				N: float64(d) / 1000,
 			},
 		}
-		return evalExpr(qt, ec, be)
+		return evalExpr(qt, ec, be, r)
 	case "max_over_time":
 		if iafc != nil {
 			if strings.ToLower(iafc.ae.Name) != "max" {
@@ -1589,7 +1592,7 @@ var (
 )
 
 func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
-	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, windowExpr *metricsql.DurationExpr) ([]*timeseries, error) {
+	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, windowExpr *metricsql.DurationExpr, r *http.Request) ([]*timeseries, error) {
 	window, err := windowExpr.NonNegativeDuration(ec.Step)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse lookbehind window in square brackets at %s: %w", expr.AppendString(nil), err)
@@ -1599,7 +1602,7 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	}
 
 	if ec.Start == ec.End {
-		rvs, err := evalInstantRollup(qt, ec, funcName, rf, expr, me, iafc, window)
+		rvs, err := evalInstantRollup(qt, ec, funcName, rf, expr, me, iafc, window, r)
 		if err != nil {
 			err = &UserReadableError{
 				Err: err,
@@ -1610,7 +1613,7 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	}
 	pointsPerSeries := 1 + (ec.End-ec.Start)/ec.Step
 	evalWithConfig := func(ec *EvalConfig) ([]*timeseries, error) {
-		tss, err := evalRollupFuncNoCache(qt, ec, funcName, rf, expr, me, iafc, window, pointsPerSeries)
+		tss, err := evalRollupFuncNoCache(qt, ec, funcName, rf, expr, me, iafc, window, pointsPerSeries, r)
 		if err != nil {
 			err = &UserReadableError{
 				Err: err,
@@ -1669,7 +1672,7 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 //
 // pointsPerSeries is used only for estimating the needed memory for query processing
 func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
-	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, window, pointsPerSeries int64) ([]*timeseries, error) {
+	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, window, pointsPerSeries int64, r *http.Request) ([]*timeseries, error) {
 	if qt.Enabled() {
 		qt = qt.NewChild("rollup %s: timeRange=%s, step=%d, window=%d", expr.AppendString(nil), ec.timeRangeString(), ec.Step, window)
 		defer qt.Done()
@@ -1733,10 +1736,19 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	if maxMemory := int64(logQueryMemoryUsage.N); maxMemory > 0 && rollupMemorySize > maxMemory {
 		memoryIntensiveQueries.Inc()
 		requestURI := ec.GetRequestURI()
-		logger.Warnf("remoteAddr=%s, requestURI=%s: the %s requires %d bytes of memory for processing; "+
-			"logging this query, since it exceeds the -search.logQueryMemoryUsage=%d; "+
-			"the query selects %d time series and generates %d points across all the time series; try reducing the number of selected time series",
-			ec.QuotedRemoteAddr, requestURI, expr.AppendString(nil), rollupMemorySize, maxMemory, timeseriesLen*len(rcs), rollupPoints)
+		headerMsg := GetLogHttpHeaderMsg(r)
+		if len(headerMsg) > 0 {
+			logger.Warnf("header: %s, remoteAddr=%s, requestURI=%s: the %s requires %d bytes of memory for processing; "+
+				"logging this query, since it exceeds the -search.logQueryMemoryUsage=%d; "+
+				"the query selects %d time series and generates %d points across all the time series; try reducing the number of selected time series",
+				headerMsg, ec.QuotedRemoteAddr, requestURI, expr.AppendString(nil), rollupMemorySize, maxMemory, timeseriesLen*len(rcs), rollupPoints)
+		} else {
+			logger.Warnf("remoteAddr=%s, requestURI=%s: the %s requires %d bytes of memory for processing; "+
+				"logging this query, since it exceeds the -search.logQueryMemoryUsage=%d; "+
+				"the query selects %d time series and generates %d points across all the time series; try reducing the number of selected time series",
+				ec.QuotedRemoteAddr, requestURI, expr.AppendString(nil), rollupMemorySize, maxMemory, timeseriesLen*len(rcs), rollupPoints)
+		}
+
 	}
 	if maxMemory := int64(maxMemoryPerQuery.N); maxMemory > 0 && rollupMemorySize > maxMemory {
 		rss.Cancel()
@@ -1999,4 +2011,26 @@ func dropStaleNaNs(funcName string, values []float64, timestamps []int64) ([]flo
 		dstTimestamps = append(dstTimestamps, timestamps[i])
 	}
 	return dstValues, dstTimestamps
+}
+
+func GetLogHttpHeaderMsg(r *http.Request) (headerMsg string) {
+	if len(*logHttpHeaders) == 0 {
+		return
+	}
+
+	for _, header := range *logHttpHeaders {
+		val := r.Header.Get(header)
+		if len(val) > 0 {
+			headerMsg += fmt.Sprintf("%s=%s ", header, val)
+		}
+	}
+
+	if len(headerMsg) > 0 {
+		// Remove trailing space
+		headerMsg = headerMsg[:len(headerMsg)-1]
+	} else {
+		logger.Warnf("-search.logHttpHeaders: no headers found in %q", httpserver.GetRequestURI(r))
+	}
+
+	return
 }

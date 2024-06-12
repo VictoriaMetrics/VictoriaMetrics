@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"net/http"
 	"sort"
 	"strings"
 	"sync"
@@ -47,7 +48,7 @@ func (ure *UserReadableError) Error() string {
 }
 
 // Exec executes q for the given ec.
-func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result, error) {
+func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly bool, r *http.Request) ([]netstorage.Result, error) {
 	if querystats.Enabled() {
 		startTime := time.Now()
 		defer func() {
@@ -64,7 +65,7 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 	}
 
 	qid := activeQueriesV.Add(ec, q)
-	rv, err := evalExpr(qt, ec, e)
+	rv, err := evalExpr(qt, ec, e, r)
 	activeQueriesV.Remove(qid)
 	if err != nil {
 		return nil, err

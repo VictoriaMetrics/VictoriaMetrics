@@ -2,6 +2,7 @@ package promql
 
 import (
 	"math"
+	"net/http"
 	"testing"
 	"time"
 
@@ -67,8 +68,9 @@ func TestExecSuccess(t *testing.T) {
 			Deadline:           searchutils.NewDeadline(time.Now(), time.Minute, ""),
 			RoundDigits:        100,
 		}
+		r := &http.Request{Header: http.Header{}}
 		for i := 0; i < 5; i++ {
-			result, err := Exec(nil, ec, q, false)
+			result, err := Exec(nil, ec, q, false, r)
 			if err != nil {
 				t.Fatalf(`unexpected error when executing %q: %s`, q, err)
 			}
@@ -9111,15 +9113,16 @@ func TestExecError(t *testing.T) {
 			Deadline:           searchutils.NewDeadline(time.Now(), time.Minute, ""),
 			RoundDigits:        100,
 		}
+		r := &http.Request{Header: http.Header{}}
 		for i := 0; i < 4; i++ {
-			rv, err := Exec(nil, ec, q, false)
+			rv, err := Exec(nil, ec, q, false, r)
 			if err == nil {
 				t.Fatalf(`expecting non-nil error on %q`, q)
 			}
 			if rv != nil {
 				t.Fatalf(`expecting nil rv`)
 			}
-			rv, err = Exec(nil, ec, q, true)
+			rv, err = Exec(nil, ec, q, true, r)
 			if err == nil {
 				t.Fatalf(`expecting non-nil error on %q`, q)
 			}

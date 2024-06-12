@@ -3110,6 +3110,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Whether to fix lookback interval to 'step' query arg value. If set to true, the query model becomes closer to InfluxDB data model. If set to true, then -search.maxLookback and -search.maxStalenessInterval are ignored
   -search.treatDotsAsIsInRegexps
      Whether to treat dots as is in regexp label filters used in queries. For example, foo{bar=~"a.b.c"} will be automatically converted to foo{bar=~"a\\.b\\.c"}, i.e. all the dots in regexp filters will be automatically escaped in order to match only dot char instead of matching any char. Dots in ".+", ".*" and ".{n}" regexps aren't escaped. This option is DEPRECATED in favor of {__graphite__="a.*.c"} syntax for selecting metrics matching the given Graphite metrics filter
+  -search.logHttpHeaders
+    Optional add request headers log to HTTP requests made by vmselect; usage: -search.logHttpHeaders=X-Webauth-User1,...,X-Webauth-UserN 
   -selfScrapeInstance string
      Value for 'instance' label, which is added to self-scraped metrics (default "self")
   -selfScrapeInterval duration
