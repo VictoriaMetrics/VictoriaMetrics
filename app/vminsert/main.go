@@ -187,6 +187,8 @@ func main() {
 	netstorage.MustStop()
 	logger.Infof("successfully stopped netstorage in %.3f seconds", time.Since(startTime).Seconds())
 
+	relabel.Stop()
+
 	fs.MustStopDirRemover()
 
 	logger.Infof("the vminsert has been stopped")
@@ -383,6 +385,10 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		datadogMetadataRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{}`)
+		return true
+	case "/-/reload":
+		procutil.SelfSIGHUP()
+		w.WriteHeader(http.StatusNoContent)
 		return true
 	default:
 		// This is not our link

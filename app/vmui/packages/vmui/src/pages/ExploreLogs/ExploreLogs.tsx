@@ -26,6 +26,7 @@ const ExploreLogs: FC = () => {
   const { logs, isLoading, error, fetchLogs } = useFetchLogs(serverUrl, query, limit);
   const [queryError, setQueryError] = useState<ErrorTypes | string>("");
   const [loaded, isLoaded] = useState(false);
+  const [markdownParsing, setMarkdownParsing] = useState(getFromStorage("LOGS_MARKDOWN") === "true");
 
   const handleRunQuery = () => {
     if (!query) {
@@ -51,6 +52,11 @@ const ExploreLogs: FC = () => {
     saveToStorage("LOGS_LIMIT", `${limit}`);
   };
 
+  const handleChangeMarkdownParsing = (val: boolean) => {
+    saveToStorage("LOGS_MARKDOWN", `${val}`);
+    setMarkdownParsing(val);
+  };
+
   useEffect(() => {
     if (query) handleRunQuery();
   }, [period]);
@@ -65,15 +71,18 @@ const ExploreLogs: FC = () => {
         query={query}
         error={queryError}
         limit={limit}
+        markdownParsing={markdownParsing}
         onChange={setQuery}
         onChangeLimit={handleChangeLimit}
         onRun={handleRunQuery}
+        onChangeMarkdownParsing={handleChangeMarkdownParsing}
       />
       {isLoading && <Spinner />}
       {error && <Alert variant="error">{error}</Alert>}
       <ExploreLogsBody
         data={logs}
         loaded={loaded}
+        markdownParsing={markdownParsing}
       />
     </div>
   );

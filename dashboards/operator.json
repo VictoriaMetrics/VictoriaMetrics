@@ -785,7 +785,7 @@
               "refId": "A"
             }
           ],
-          "title": "Wokring queue depth",
+          "title": "Working queue depth",
           "type": "timeseries"
         },
         {

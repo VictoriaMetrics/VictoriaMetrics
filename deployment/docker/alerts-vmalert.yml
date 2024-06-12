@@ -40,7 +40,7 @@ groups:
             Check vmalert's logs for detailed error message."
 
       - alert: RecordingRulesNoData
-        expr: sum(vmalert_recording_rules_last_evaluation_samples) without(recording, id) < 1
+        expr: sum(vmalert_recording_rules_last_evaluation_samples) without(id) < 1
         for: 30m
         labels:
           severity: info

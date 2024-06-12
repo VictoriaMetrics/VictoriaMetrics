@@ -37,13 +37,15 @@ var (
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
 	maxIdleConnsPerBackend = flag.Int("maxIdleConnsPerBackend", 100, "The maximum number of idle connections vmauth can open per each backend host. "+
 		"See also -maxConcurrentRequests")
+	idleConnTimeout = flag.Duration("idleConnTimeout", 50*time.Second, `Defines a duration for idle (keep-alive connections) to exist.
+    Consider setting this value less than "-http.idleConnTimeout". It must prevent possible "write: broken pipe" and "read: connection reset by peer" errors.`)
 	responseTimeout       = flag.Duration("responseTimeout", 5*time.Minute, "The timeout for receiving a response from backend")
 	maxConcurrentRequests = flag.Int("maxConcurrentRequests", 1000, "The maximum number of concurrent requests vmauth can process. Other requests are rejected with "+
 		"'429 Too Many Requests' http status code. See also -maxConcurrentPerUserRequests and -maxIdleConnsPerBackend command-line options")
 	maxConcurrentPerUserRequests = flag.Int("maxConcurrentPerUserRequests", 300, "The maximum number of concurrent requests vmauth can process per each configured user. "+
 		"Other requests are rejected with '429 Too Many Requests' http status code. See also -maxConcurrentRequests command-line option and max_concurrent_requests option "+
 		"in per-user config")
-	reloadAuthKey        = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
+	reloadAuthKey        = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings.")
 	logInvalidAuthTokens = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
 		`Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
 	failTimeout               = flag.Duration("failTimeout", 3*time.Second, "Sets a delay period for load balancing to skip a malfunctioning backend")
@@ -200,27 +202,25 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		up, hc = ui.DefaultURL, ui.HeadersConf
 		isDefault = true
 	}
-	maxAttempts := up.getBackendsCount()
-	if maxAttempts > 1 {
-		if r.ContentLength <= int64(maxRequestBodySizeToRetry.IntN()) {
-			bufReader := bufPool.Get()
-			if bufReader == nil {
-				bufReader = &readTrackingBody{}
-			}
-			br := bufReader.(*readTrackingBody)
-			if r.ContentLength > 0 {
-				br.buf = bytesutil.ResizeNoCopyMayOverallocate(br.buf, int(r.ContentLength))[:0]
-			} else {
-				br.buf = bytesutil.ResizeNoCopyMayOverallocate(br.buf, 1024)[:0]
-			}
-			br.r = r.Body
-			r.Body = br
-			defer func() {
-				_ = br.Reset()
-				bufPool.Put(br)
-			}()
+	if r.ContentLength <= int64(maxRequestBodySizeToRetry.IntN()) {
+		bufReader := bufPool.Get()
+		if bufReader == nil {
+			bufReader = &readTrackingBody{}
 		}
+		br := bufReader.(*readTrackingBody)
+		if r.ContentLength > 0 {
+			br.buf = bytesutil.ResizeNoCopyMayOverallocate(br.buf, int(r.ContentLength))[:0]
+		} else {
+			br.buf = bytesutil.ResizeNoCopyMayOverallocate(br.buf, 1024)[:0]
+		}
+		br.r = r.Body
+		r.Body = br
+		defer func() {
+			_ = br.Reset()
+			bufPool.Put(br)
+		}()
 	}
+	maxAttempts := up.getBackendsCount()
 	for i := 0; i < maxAttempts; i++ {
 		bu := up.getBackendURL()
 		targetURL := bu.url
@@ -260,8 +260,10 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		req.Host = targetURL.Host
 	}
 	updateHeadersByConfig(req.Header, hc.RequestHeaders)
-	res, err := ui.rt.RoundTrip(req)
+	var trivialRetries int
 	rtb, rtbOK := req.Body.(*readTrackingBody)
+again:
+	res, err := ui.rt.RoundTrip(req)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			// Do not retry canceled or timed out requests
@@ -283,6 +285,12 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 			httpserver.Errorf(w, r, "%s", err)
 			ui.backendErrors.Inc()
 			return true
+		}
+		// one time retry trivial network errors, such as proxy idle timeout misconfiguration
+		// or socket close by OS
+		if (netutil.IsTrivialNetworkError(err) || errors.Is(err, io.EOF)) && trivialRetries < 1 {
+			trivialRetries++
+			goto again
 		}
 		// Retry the request if its body wasn't read yet. This usually means that the backend isn't reachable.
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
@@ -451,6 +459,7 @@ func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, i
 	tr.ResponseHeaderTimeout = *responseTimeout
 	// Automatic compression must be disabled in order to fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/535
 	tr.DisableCompression = true
+	tr.IdleConnTimeout = *idleConnTimeout
 	tr.MaxIdleConnsPerHost = *maxIdleConnsPerBackend
 	if tr.MaxIdleConns != 0 && tr.MaxIdleConns < tr.MaxIdleConnsPerHost {
 		tr.MaxIdleConns = tr.MaxIdleConnsPerHost

@@ -1,4 +1,3 @@
-version: "3.5"
 services:
   #  Metrics collector.
   #  It scrapes targets defined in --promscrape.config

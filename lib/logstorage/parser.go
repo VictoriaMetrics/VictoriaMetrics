@@ -514,6 +514,14 @@ func (q *Query) getNeededColumns() ([]string, []string) {
 // ParseQuery parses s.
 func ParseQuery(s string) (*Query, error) {
 	lex := newLexer(s)
+
+	// Verify the first token doesn't match pipe names.
+	firstToken := strings.ToLower(lex.rawToken)
+	if _, ok := pipeNames[firstToken]; ok {
+		return nil, fmt.Errorf("the query [%s] cannot start with pipe - it must start with madatory filter; see https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax; "+
+			"if the filter isn't missing, then please put the first word of the filter into quotes: %q", s, firstToken)
+	}
+
 	q, err := parseQuery(lex)
 	if err != nil {
 		return nil, err
@@ -671,7 +679,7 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 }
 
 func getCompoundPhrase(lex *lexer, allowColon bool) (string, error) {
-	stopTokens := []string{"*", ",", "(", ")", "[", "]", "|", ""}
+	stopTokens := []string{"*", ",", "(", ")", "[", "]", "|", "!", ""}
 	if lex.isKeyword(stopTokens...) {
 		return "", fmt.Errorf("compound phrase cannot start with '%s'", lex.token)
 	}
@@ -688,7 +696,7 @@ func getCompoundPhrase(lex *lexer, allowColon bool) (string, error) {
 
 func getCompoundSuffix(lex *lexer, allowColon bool) string {
 	s := ""
-	stopTokens := []string{"*", ",", "(", ")", "[", "]", "|", ""}
+	stopTokens := []string{"*", ",", "(", ")", "[", "]", "|", "!", ""}
 	if !allowColon {
 		stopTokens = append(stopTokens, ":")
 	}
@@ -700,7 +708,7 @@ func getCompoundSuffix(lex *lexer, allowColon bool) string {
 }
 
 func getCompoundToken(lex *lexer) (string, error) {
-	stopTokens := []string{",", "(", ")", "[", "]", "|", ""}
+	stopTokens := []string{",", "(", ")", "[", "]", "|", "!", ""}
 	if lex.isKeyword(stopTokens...) {
 		return "", fmt.Errorf("compound token cannot start with '%s'", lex.token)
 	}
@@ -1840,6 +1848,9 @@ func isNumberPrefix(s string) bool {
 func needQuoteToken(s string) bool {
 	sLower := strings.ToLower(s)
 	if _, ok := reservedKeywords[sLower]; ok {
+		return true
+	}
+	if _, ok := pipeNames[sLower]; ok {
 		return true
 	}
 	for _, r := range s {

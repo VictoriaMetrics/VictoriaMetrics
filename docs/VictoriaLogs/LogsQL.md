@@ -1608,6 +1608,12 @@ if the number of log messages with the `error` [word](#word) for them over the l
 _time:1h error | stats by (host) count() logs_count | filter logs_count:> 1_000
 ```
 
+It is allowed to use `where` prefix instead of `filter` prefix for convenience. For example, the following query is equivalent to the previous one:
+
+```logsql
+_time:1h error | stats by (host) count() logs_count | where logs_count:> 1_000
+```
+
 It is allowed to omit `filter` prefix if the used filters do not clash with [pipe names](#pipes).
 So the following query is equivalent to the previous one:
 
@@ -1735,6 +1741,8 @@ It has the following format:
 Where `exprX` is one of the supported math expressions mentioned below, while `resultNameX` is the name of the field to store the calculated result to.
 The `as` keyword is optional. The result name can be omitted. In this case the result is stored to a field with the name equal to string represenation
 of the corresponding math expression.
+
+`exprX` may reference `resultNameY` calculated before the given `exprX`.
 
 For example, the following query divides `duration_msecs` field value by 1000, then rounds it to integer and stores the result in the `duration_secs` field:
 

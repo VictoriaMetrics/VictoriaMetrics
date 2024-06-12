@@ -676,6 +676,8 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`foo or bar baz or xyz`, `foo or bar baz or xyz`)
 	f(`(foo or bar) (baz or xyz)`, `(foo or bar) (baz or xyz)`)
 	f(`(foo OR bar) AND baz`, `(foo or bar) baz`)
+	f(`'stats' foo`, `"stats" foo`)
+	f(`"filter" bar copy fields avg baz`, `"filter" bar "copy" "fields" "avg" baz`)
 
 	// parens
 	f(`foo:(bar baz or not :xxx)`, `foo:bar foo:baz or !foo:xxx`)
@@ -926,8 +928,8 @@ func TestParseQuerySuccess(t *testing.T) {
 	f("foo-bar+baz*", `"foo-bar+baz"*`)
 	f("foo- bar", `foo- bar`)
 	f("foo -bar", `foo -bar`)
-	f("foo!bar", `"foo!bar"`)
-	f("foo:aa!bb:cc", `foo:"aa!bb:cc"`)
+	f("foo!bar", `foo !bar`)
+	f("foo:aa!bb:cc", `foo:aa !bb:cc`)
 	f(`foo:bar:baz`, `foo:"bar:baz"`)
 	f(`foo:(bar baz:xxx)`, `foo:bar foo:"baz:xxx"`)
 	f(`foo:(_time:abc or not z)`, `foo:"_time:abc" or !foo:z`)
@@ -1213,6 +1215,11 @@ func TestParseQueryFailure(t *testing.T) {
 	f("NOT")
 	f("not (abc")
 	f("!")
+
+	// pipe names without quoutes
+	f(`filter foo:bar`)
+	f(`stats count()`)
+	f(`count()`)
 
 	// invalid parens
 	f("(")

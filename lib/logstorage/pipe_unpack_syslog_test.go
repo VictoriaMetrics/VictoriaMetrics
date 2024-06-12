@@ -169,6 +169,8 @@ func TestPipeUnpackSyslog(t *testing.T) {
 	}, [][]Field{
 		{
 			{"x", `foobar`},
+			{"format", "rfc3164"},
+			{"message", "foobar"},
 		},
 	})
 

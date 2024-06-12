@@ -44,10 +44,13 @@ func TestSyslogParser(t *testing.T) {
 	// Incomplete RFC 3164
 	f("", `{}`)
 	f("Jun  3 12:08:33", `{"format":"rfc3164","timestamp":"2024-06-03T12:08:33.000Z"}`)
+	f("Foo  3 12:08:33", `{"format":"rfc3164","message":"Foo  3 12:08:33"}`)
+	f("Foo  3 12:08:33bar", `{"format":"rfc3164","message":"Foo  3 12:08:33bar"}`)
 	f("Jun  3 12:08:33 abcd", `{"format":"rfc3164","timestamp":"2024-06-03T12:08:33.000Z","hostname":"abcd"}`)
 	f("Jun  3 12:08:33 abcd sudo", `{"format":"rfc3164","timestamp":"2024-06-03T12:08:33.000Z","hostname":"abcd","app_name":"sudo"}`)
 	f("Jun  3 12:08:33 abcd sudo[123]", `{"format":"rfc3164","timestamp":"2024-06-03T12:08:33.000Z","hostname":"abcd","app_name":"sudo","proc_id":"123"}`)
 	f("Jun  3 12:08:33 abcd sudo foobar", `{"format":"rfc3164","timestamp":"2024-06-03T12:08:33.000Z","hostname":"abcd","app_name":"sudo","message":"foobar"}`)
+	f(`foo bar baz`, `{"format":"rfc3164","message":"foo bar baz"}`)
 
 	// Incomplete RFC 5424
 	f(`<165>1 2023-06-03T17:42:32.123456789Z mymachine.example.com appname 12345 ID47 [foo@123]`,
