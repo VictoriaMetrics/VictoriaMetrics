@@ -138,8 +138,15 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			timerpool.Put(t)
 			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 			requestURI := httpserver.GetRequestURI(r)
-			logger.Infof("client has cancelled the request after %.3f seconds: remoteAddr=%s, requestURI: %q",
-				time.Since(startTime).Seconds(), remoteAddr, requestURI)
+			headerMsg := promql.GetLogHttpHeaderMsg(r)
+			if len(headerMsg) > 0 {
+				logger.Infof("header: %s, client has cancelled the request after %.3f seconds: remoteAddr=%s, requestURI: %q",
+					headerMsg, time.Since(startTime).Seconds(), remoteAddr, requestURI)
+			} else {
+				logger.Infof("client has cancelled the request after %.3f seconds: remoteAddr=%s, requestURI: %q",
+					time.Since(startTime).Seconds(), remoteAddr, requestURI)
+			}
+
 			return true
 		case <-t.C:
 			timerpool.Put(t)
