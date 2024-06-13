@@ -41,6 +41,8 @@ Before sending a pull request to [VictoriaMetrics repository](https://github.com
   and mention benchmark results before and after the change in the description to the pull request.
 - If the change implements some specifications or uses some external APIs, then please provide permanent links to these specs and APIs
   directly in the relevant source code, in order to simplify further maintenance of the code.
+- If the change modifies the existing logic, make sure it doesn't break existing user setups after the upgrade.
+- Please investigate git commit history for the code you change in order to make sure your change doesn't break historical conventions in the modified code.
 
 Further checks are optional for external contributions:
 
