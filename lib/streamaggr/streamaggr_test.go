@@ -518,8 +518,8 @@ foo:1m_total 0
 `, `
 foo 123
 bar{baz="qwe"} 4.34
-`, `bar:1m_total{baz="qwe"} 0
-foo:1m_total 0
+`, `bar:1m_total_prometheus{baz="qwe"} 0
+foo:1m_total_prometheus 0
 `, "11")
 
 	// total output for repeated series
@@ -554,10 +554,10 @@ foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
-`, `bar:1m_total{baz="qwe"} 5.02
-bar:1m_total{baz="qwer"} 1
-foo:1m_total 0
-foo:1m_total{baz="qwe"} 15
+`, `bar:1m_total_prometheus{baz="qwe"} 5.02
+bar:1m_total_prometheus{baz="qwer"} 1
+foo:1m_total_prometheus 0
+foo:1m_total_prometheus{baz="qwe"} 15
 `, "11111111")
 
 	// total output for repeated series with group by __name__
@@ -592,8 +592,8 @@ foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
-`, `bar:1m_total 6.02
-foo:1m_total 15
+`, `bar:1m_total_prometheus 6.02
+foo:1m_total_prometheus 15
 `, "11111111")
 
 	// increase output for non-repeated series
@@ -614,8 +614,8 @@ foo:1m_increase 0
 `, `
 foo 123
 bar{baz="qwe"} 4.34
-`, `bar:1m_increase{baz="qwe"} 0
-foo:1m_increase 0
+`, `bar:1m_increase_prometheus{baz="qwe"} 0
+foo:1m_increase_prometheus 0
 `, "11")
 
 	// increase output for repeated series
@@ -650,10 +650,10 @@ foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
-`, `bar:1m_increase{baz="qwe"} 5.02
-bar:1m_increase{baz="qwer"} 1
-foo:1m_increase 0
-foo:1m_increase{baz="qwe"} 15
+`, `bar:1m_increase_prometheus{baz="qwe"} 5.02
+bar:1m_increase_prometheus{baz="qwer"} 1
+foo:1m_increase_prometheus 0
+foo:1m_increase_prometheus{baz="qwe"} 15
 `, "11111111")
 
 	// multiple aggregate configs
@@ -828,7 +828,7 @@ cpu_usage:1m_without_cpu_quantiles{quantile="1"} 90
 `, `
 foo{abc="123"} 4
 bar 5
-foo{abc="123"} 8.5
+foo{abc="123"} 8.5 10
 foo{abc="456",de="fg"} 8
 `, `bar-1m-without-abc-count-samples{new_label="must_keep_metric_name"} 1
 bar-1m-without-abc-count-series{new_label="must_keep_metric_name"} 1
@@ -836,6 +836,20 @@ bar-1m-without-abc-sum-samples{new_label="must_keep_metric_name"} 5
 foo-1m-without-abc-count-samples{new_label="must_keep_metric_name"} 2
 foo-1m-without-abc-count-series{new_label="must_keep_metric_name"} 1
 foo-1m-without-abc-sum-samples{new_label="must_keep_metric_name"} 12.5
+`, "1111")
+
+	// test rate_sum and rate_avg
+	f(`     
+- interval: 1m
+  by: [cde]
+  outputs: [rate_sum, rate_avg]
+`, `
+foo{abc="123", cde="1"} 4
+foo{abc="123", cde="1"} 8.5 10
+foo{abc="456", cde="1"} 8
+foo{abc="456", cde="1"} 10 10
+`, `foo:1m_by_cde_rate_avg{cde="1"} 0.325
+foo:1m_by_cde_rate_sum{cde="1"} 0.65
 `, "1111")
 
 	// keep_metric_names
@@ -979,6 +993,7 @@ func mustParsePromMetrics(s string) []prompbmarshal.TimeSeries {
 	}
 	rows.UnmarshalWithErrLogger(s, errLogger)
 	var tss []prompbmarshal.TimeSeries
+	now := time.Now().UnixMilli()
 	samples := make([]prompbmarshal.Sample, 0, len(rows.Rows))
 	for _, row := range rows.Rows {
 		labels := make([]prompbmarshal.Label, 0, len(row.Tags)+1)
@@ -994,7 +1009,7 @@ func mustParsePromMetrics(s string) []prompbmarshal.TimeSeries {
 		}
 		samples = append(samples, prompbmarshal.Sample{
 			Value:     row.Value,
-			Timestamp: row.Timestamp,
+			Timestamp: now + row.Timestamp,
 		})
 		ts := prompbmarshal.TimeSeries{
 			Labels:  labels,

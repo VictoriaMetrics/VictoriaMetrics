@@ -14,7 +14,7 @@ import { useTimeState } from "../../state/time/TimeStateContext";
 import { getFromStorage, saveToStorage } from "../../utils/storage";
 
 const storageLimit = Number(getFromStorage("LOGS_LIMIT"));
-const defaultLimit = isNaN(storageLimit) ? 1000 : storageLimit;
+const defaultLimit = isNaN(storageLimit) ? 50 : storageLimit;
 
 const ExploreLogs: FC = () => {
   const { serverUrl } = useAppState();
@@ -22,10 +22,11 @@ const ExploreLogs: FC = () => {
   const { setSearchParamsFromKeys } = useSearchParamsFromObject();
 
   const [limit, setLimit] = useStateSearchParams(defaultLimit, "limit");
-  const [query, setQuery] = useStateSearchParams("", "query");
+  const [query, setQuery] = useStateSearchParams("*", "query");
   const { logs, isLoading, error, fetchLogs } = useFetchLogs(serverUrl, query, limit);
   const [queryError, setQueryError] = useState<ErrorTypes | string>("");
   const [loaded, isLoaded] = useState(false);
+  const [markdownParsing, setMarkdownParsing] = useState(getFromStorage("LOGS_MARKDOWN") === "true");
 
   const handleRunQuery = () => {
     if (!query) {
@@ -51,6 +52,11 @@ const ExploreLogs: FC = () => {
     saveToStorage("LOGS_LIMIT", `${limit}`);
   };
 
+  const handleChangeMarkdownParsing = (val: boolean) => {
+    saveToStorage("LOGS_MARKDOWN", `${val}`);
+    setMarkdownParsing(val);
+  };
+
   useEffect(() => {
     if (query) handleRunQuery();
   }, [period]);
@@ -65,15 +71,18 @@ const ExploreLogs: FC = () => {
         query={query}
         error={queryError}
         limit={limit}
+        markdownParsing={markdownParsing}
         onChange={setQuery}
         onChangeLimit={handleChangeLimit}
         onRun={handleRunQuery}
+        onChangeMarkdownParsing={handleChangeMarkdownParsing}
       />
       {isLoading && <Spinner />}
       {error && <Alert variant="error">{error}</Alert>}
       <ExploreLogsBody
         data={logs}
         loaded={loaded}
+        markdownParsing={markdownParsing}
       />
     </div>
   );

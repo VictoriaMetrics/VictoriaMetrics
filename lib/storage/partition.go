@@ -28,14 +28,10 @@ import (
 // This time shouldn't exceed a few days.
 const maxBigPartSize = 1e12
 
-// The maximum number of inmemory parts per partition.
+// The maximum expected number of inmemory parts per partition.
 //
-// This limit allows reducing querying CPU usage under high ingestion rate.
-// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5212
-//
-// This number may be reached when the insertion pace outreaches merger pace.
-// If this number is reached, then the data ingestion is paused until background
-// mergers reduce the number of parts below this number.
+// The actual number of inmemory parts may exceed this value if in-memory mergers
+// cannot keep up with the rate of creating new in-memory parts.
 const maxInmemoryParts = 60
 
 // Default number of parts to merge at once.
@@ -62,7 +58,7 @@ var dataFlushInterval = 5 * time.Second
 //
 // This function must be called before initializing the storage.
 func SetDataFlushInterval(d time.Duration) {
-	if d > pendingRowsFlushInterval {
+	if d >= time.Second {
 		dataFlushInterval = d
 		mergeset.SetDataFlushInterval(d)
 	}
@@ -1275,10 +1271,6 @@ func (pt *partition) getMaxSmallPartSize() uint64 {
 	// Small parts are cached in the OS page cache,
 	// so limit their size by the remaining free RAM.
 	mem := memory.Remaining()
-	// It is expected no more than defaultPartsToMerge/2 parts exist
-	// in the OS page cache before they are merged into bigger part.
-	// Half of the remaining RAM must be left for lib/mergeset parts,
-	// so the maxItems is calculated using the below code:
 	n := uint64(mem) / defaultPartsToMerge
 	if n < 10e6 {
 		n = 10e6

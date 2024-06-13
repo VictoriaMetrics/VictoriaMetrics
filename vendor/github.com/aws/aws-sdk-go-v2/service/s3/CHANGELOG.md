@@ -1,3 +1,32 @@
+# v1.55.0 (2024-06-05)
+
+* **Feature**: Added new params copySource and key to copyObject API for supporting S3 Access Grants plugin. These changes will not change any of the existing S3 API functionality.
+* **Bug Fix**: Add S3-specific smithy protocol tests.
+
+# v1.54.4 (2024-06-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.54.3 (2024-05-23)
+
+* **Bug Fix**: Prevent parsing failures for nonstandard `Expires` values in responses. If the SDK cannot parse the value set in the response header for this field it will now be returned as `nil`. A new field, `ExpiresString`, has been added that will retain the unparsed value from the response (regardless of whether it came back in a format recognized by the SDK).
+
+# v1.54.2 (2024-05-16)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.54.1 (2024-05-15)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.54.0 (2024-05-14)
+
+* **Feature**: Updated a few x-id in the http uri traits
+
+# v1.53.2 (2024-05-08)
+
+* **Bug Fix**: GoDoc improvement
+
 # v1.53.1 (2024-03-29)
 
 * **Dependency Update**: Updated to the latest SDK module versions

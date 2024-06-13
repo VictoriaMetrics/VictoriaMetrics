@@ -18,14 +18,14 @@ type influxProcessor struct {
 	separator   string
 	skipDbLabel bool
 	promMode    bool
-	isSilent    bool
 	isVerbose   bool
 }
 
-func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator string, skipDbLabel, promMode, silent, verbose bool) *influxProcessor {
+func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator string, skipDbLabel, promMode, verbose bool) *influxProcessor {
 	if cc < 1 {
 		cc = 1
 	}
+
 	return &influxProcessor{
 		ic:          ic,
 		im:          im,
@@ -33,7 +33,6 @@ func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator st
 		separator:   separator,
 		skipDbLabel: skipDbLabel,
 		promMode:    promMode,
-		isSilent:    silent,
 		isVerbose:   verbose,
 	}
 }
@@ -48,7 +47,7 @@ func (ip *influxProcessor) run() error {
 	}
 
 	question := fmt.Sprintf("Found %d timeseries to import. Continue?", len(series))
-	if !ip.isSilent && !prompt(question) {
+	if !prompt(question) {
 		return nil
 	}
 

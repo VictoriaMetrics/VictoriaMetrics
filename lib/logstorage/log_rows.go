@@ -26,7 +26,7 @@ type LogRows struct {
 	// timestamps holds stimestamps for rows added to LogRows
 	timestamps []int64
 
-	// rows holds fields for rows atted to LogRows.
+	// rows holds fields for rows added to LogRows.
 	rows [][]Field
 
 	// sf is a helper for sorting fields in every added row

@@ -16,8 +16,29 @@ aliases:
 
 ## Next release
 
+<a name="v0.45.0"></a>
+
+## [v0.45.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.45.0) - 10 Jun 2024
+
+- [operator](#./README.md): expose only command-line flags related to the operator. Remove all transitive dependency flags. See this [issue](https://github.com/VictoriaMetrics/operator/issues/963) for details.
+- [vmalertmanager](./api.md#vmalertmanager): ignores content of `cr.spec.configSecret` if it's name clashes with secret used by operator for storing alertmanager config. See this [issue](https://github.com/VictoriaMetrics/operator/issues/954) for details.
+- [operator](./README.md): remove finalizer for child objects with non-empty `DeletetionTimestamp`.  See this [issue](https://github.com/VictoriaMetrics/operator/issues/953) for details.
+- [operator](./README.md): skip storageClass check if there is no PVC size change. See this [issue](https://github.com/VictoriaMetrics/operator/issues/957) for details.
+- [vmauth](./api.md#vmauth): fix url when default http port is changed in targetRef. See this [issue](https://github.com/VictoriaMetrics/operator/issues/960) for details.
+- [vmauth](./api.html#vmauth): fix deployment when custom reloader is used. See [this pull request](https://github.com/VictoriaMetrics/operator/pull/964).
+- [prometheus-converter](./README.md): removed dependence on getting the list of API resources for all API groups in the cluster (including those that are not used by the operator). Now API resources are requested only for the required groups (monitoring.coreos.com/*).
+- [alertmanagerconfig-converter](./README.md): fix alertmanagerconfig converting with receiver `opsgenie_configs`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/968).
+
+## [v0.44.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.44.0) - 9 May 2024
+
+- [vmagent](./api.md#vmagent): adds new fields into `streamAggrConfig`: `dedup_interval`, `ignore_old_samples`, `keep_metric_names`, `no_align_flush_to_interval`. It's only possible to use it with v1.100+ version of `vmagent`. See this [issue](https://github.com/VictoriaMetrics/operator/issues/936) for details.
+- [operator](./README.md): use `Patch` for `finalizers` set/unset operations. It must fix possible issues with `CRD` objects mutations. See this [issue](https://github.com/VictoriaMetrics/operator/issues/946) for details.
+- [operator](./README.md): adds `spec.pause` field to `VMAgent`, `VMAlert`, `VMAuth`, `VMCluster`, `VMAlertmanager` and `VMSingle`. It allows to suspend object reconcile by operator. See this [issue](https://github.com/VictoriaMetrics/operator/issues/943) for details. Thanks @just1900
 - [vmagent](./api.md#vmagent): set `status.selector` field. It allows correctly use `VPA` with `vmagent`. See this [issue](https://github.com/VictoriaMetrics/operator/issues/693) for details.
 - [prometheus-converter](./README.md): fixes bug with prometheus-operator ScrapeConfig converter. Only copy `spec` field for it. See this [issue](https://github.com/VictoriaMetrics/operator/issues/942) for details.
+- [vmscrapeconfig](./resources/vmscrapeconfig.md): `authorization` section in sd configs works properly with empty `type` field (default value for this field is `Bearer`). 
+- [prometheus-converter](./README.md): fixes owner reference type on VMScrapeConfig objects
+- [vmauth&vmuser](./api.md#vmauth): sync config fields from [upstream](https://docs.victoriametrics.com/vmauth/), e.g., src_query_args, discover_backend_ips.
 
 <a name="v0.43.5"></a>
 

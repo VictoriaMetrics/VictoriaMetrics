@@ -97,6 +97,7 @@ VictoriaMetrics has the following prominent features:
   * [Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
   * [InfluxDB line protocol](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) over HTTP, TCP and UDP.
   * [Graphite plaintext protocol](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon).
+  * [Statsd plaintext protocol](#how-to-send-data-from-statsd-compatible-clients)
   * [OpenTSDB put message](#sending-data-via-telnet-put-protocol).
   * [HTTP OpenTSDB /api/put requests](#sending-opentsdb-data-via-http-apiput-requests).
   * [JSON line format](#how-to-import-data-in-json-line-format).
@@ -127,12 +128,12 @@ VictoriaMetrics ecosystem contains the following components additionally to [sin
 - [vmalert](https://docs.victoriametrics.com/vmalert/) - a service for processing Prometheus-compatible alerting and recording rules.
 - [vmalert-tool](https://docs.victoriametrics.com/vmalert-tool/) -  a tool for validating alerting and recording rules.
 - [vmauth](https://docs.victoriametrics.com/vmauth/) - authorization proxy and load balancer optimized for VictoriaMetrics products.
-- [vmgateway](https://docs.victoriametrics.com/vmgateway/) - authorization proxy with per-[tenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy) rate limiting cababilities.
+- [vmgateway](https://docs.victoriametrics.com/vmgateway/) - authorization proxy with per-[tenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy) rate limiting capabilities.
 - [vmctl](https://docs.victoriametrics.com/vmctl/) - a tool for migrating and copying data between different storage systems for metrics.
 - [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmrestore](https://docs.victoriametrics.com/vmrestore/) and [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/) -
   tools for creating backups and restoring from backups for VictoriaMetrics data.
 - `vminsert`, `vmselect` and `vmstorage` - components of [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/).
-- [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) - user-friendly cost-efficient database for logs.
+- [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) - user-friendly cost-efficient database for logs.
 
 ## Operation
 
@@ -712,6 +713,79 @@ The `/api/v1/export` endpoint should return the following response:
 {"metric":{"__name__":"measurement_field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1695902762311]}
 ```
 
+## How to send data from StatsD-compatible clients
+
+VictoriaMetrics supports extended StatsD protocol. Currently, it supports `tags` and `value packing` 
+extensions provided by [dogstatsd](https://docs.datadoghq.com/developers/dogstatsd/datagram_shell). 
+During parsing, metric's `<TYPE>` is added as a special label `__statsd_metric_type__`. 
+
+It is strongly advisable to configure streaming aggregation for each metric type. This process serves two primary 
+objectives: 
+* transformation of the StatsD data model into the VictoriaMetrics data model. VictoriaMetrics requires a consistent 
+interval between data points. 
+* minimizing of the disk space utilization and overall resource consumption during data ingestion.
+
+VictoriaMetrics supports the following metric [types](https://docs.datadoghq.com/metrics/types):
+
+* `c` Counter type.
+* `g`  Gauge type.
+* `ms` Timer type.
+* `m` Meters type.
+* `h` Histogram type.
+* `s` Set type with only numeric values.
+* `d` Distribution type.
+
+_The `Not Assigned` type is not supported due to the ambiguity surrounding its aggregation method. 
+The correct aggregation method cannot be determined for the undefined metric._
+
+Enable Statsd receiver in VictoriaMetrics by setting `-statsdListenAddr` command line flag and configure [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/). 
+For instance, the following command will enable StatsD receiver in VictoriaMetrics on TCP and UDP port `8125`:
+
+```console
+/path/to/victoria-metrics-prod -statsdListenAddr=:8125 -streamAggr.config=statsd_aggr.yaml
+```
+
+Example of stream aggregation config:
+
+```yaml
+# statsd_aggr.yaml
+# `last` output will keep the last sample on `interval`
+# for each series that match `{__statsd_metric_type__="g"}` selector
+- match: '{__statsd_metric_type__="g"}'
+  outputs: [last]
+  interval: 1m
+```
+
+Example for writing data with StatsD plaintext protocol to local VictoriaMetrics using `nc`:
+
+```console
+echo "foo.bar:123|g|#tag1:baz" | nc -N localhost 8125
+```
+
+_An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go._
+
+Explicit setting of timestamps is not supported for StatsD protocol. Timestamp is set to the current time when 
+VictoriaMetrics or vmagent receives it.
+
+Once ingested, the data can be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
+
+```console
+curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"foo.*"}'
+```
+
+_Please note, with stream aggregation enabled data will become available only after specified aggregation interval._
+
+The `/api/v1/export` endpoint should return the following response:
+
+```json
+{"metric":{"__name__":"foo.bar:1m_last","__statsd_metric_type__":"g","tag1":"baz"},"values":[123],"timestamps":[1715843939000]}
+```
+
+Some examples of compatible statsd clients:
+- [statsd-instrument](https://github.com/Shopify/statsd-instrument)
+- [dogstatsd-ruby](https://github.com/DataDog/dogstatsd-ruby)
+- [go-statsd-client](https://github.com/cactus/go-statsd-client)
+
 ## How to send data from Graphite-compatible agents such as [StatsD](https://github.com/etsy/statsd)
 
 Enable Graphite receiver in VictoriaMetrics by setting `-graphiteListenAddr` command line flag. For instance,
@@ -1125,13 +1199,13 @@ ROOT_IMAGE=scratch make package-victoria-metrics
 
 VictoriaMetrics can be built with Podman in either rootful or rootless mode.
 
-When building via rootlful Podman, simply add `DOCKER=podman` to the relevant `make` commandline.  To build
+When building via rootful Podman, simply add `DOCKER=podman` to the relevant `make` commandline.  To build
 via rootless Podman, add `DOCKER=podman DOCKER_RUN="podman run --userns=keep-id"` to the `make`
 commandline.
 
 For example: `make victoria-metrics-pure DOCKER=podman DOCKER_RUN="podman run --userns=keep-id"`
 
-Note that `production` builds are not supported via Podman becuase Podman does not support `buildx`.
+Note that `production` builds are not supported via Podman because Podman does not support `buildx`.
 
 ## Start with docker-compose
 
@@ -1367,6 +1441,7 @@ Additionally, VictoriaMetrics can accept metrics via the following popular data 
 * DataDog `submit metrics` API. See [these docs](#how-to-send-data-from-datadog-agent) for details.
 * InfluxDB line protocol. See [these docs](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for details.
 * Graphite plaintext protocol. See [these docs](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) for details.
+* Statsd plaintext protocol. See [these docs](#how-to-send-data-from-statsd-compatible-clients) for details.
 * OpenTelemetry http API. See [these docs](#sending-data-via-opentelemetry) for details.
 * OpenTSDB telnet put protocol. See [these docs](#sending-data-via-telnet-put-protocol) for details.
 * OpenTSDB http `/api/put` protocol. See [these docs](#sending-opentsdb-data-via-http-apiput-requests) for details.
@@ -2093,7 +2168,7 @@ General security recommendations:
 
 - All the VictoriaMetrics components must run in protected private networks without direct access from untrusted networks such as Internet.
   The exception is [vmauth](https://docs.victoriametrics.com/vmauth/) and [vmgateway](https://docs.victoriametrics.com/vmgateway/),
-  which are indended for serving public requests and performing authorization with [TLS termination](https://en.wikipedia.org/wiki/TLS_termination_proxy).
+  which are intended for serving public requests and performing authorization with [TLS termination](https://en.wikipedia.org/wiki/TLS_termination_proxy).
 - All the requests from untrusted networks to VictoriaMetrics components must go through auth proxy such as [vmauth](https://docs.victoriametrics.com/vmauth/)
   or [vmgateway](https://docs.victoriametrics.com/vmgateway/). The proxy must be set up with proper authentication and authorization.
 - Prefer using lists of allowed API endpoints, while disallowing access to other endpoints when configuring [vmauth](https://docs.victoriametrics.com/vmauth/)
@@ -2135,13 +2210,16 @@ All the VictoriaMetrics [Enterprise](https://docs.victoriametrics.com/enterprise
 via [Let's Encrypt service](https://letsencrypt.org/). The following command-line flags must be set in order to enable automatic issuing of TLS certificates:
 
 - `-httpListenAddr` must be set for listening TCP port `443`. For example, `-httpListenAddr=:443`. This port must be accessible by the [Let's Encrypt service](https://letsencrypt.org/).
-- `-tls` must be set in order to accept HTTPS requests at `-httpListenAddr`.
+- `-tls` must be set in order to accept HTTPS requests at `-httpListenAddr`. Note that `-tlcCertFile` and `-tlsKeyFile` aren't needed when automatic TLS certificate issuing is enabled.
 - `-tlsAutocertHosts` must be set to comma-separated list of hosts, which can be reached via `-httpListenAddr`. TLS certificates are automatically issued for these hosts.
 - `-tlsAutocertEmail` must be set to contact email for the issued TLS certificates.
 - `-tlsAutocertCacheDir` may be set to the directory path for persisting the issued TLS certificates between VictoriaMetrics restarts. If this flag isn't set,
   then TLS certificates are re-issued on every restart.
 
 This functionality can be evaluated for free according to [these docs](https://docs.victoriametrics.com/enterprise/).
+
+See also [security recommendations](#security).
+
 
 ## Tuning
 
@@ -2337,7 +2415,7 @@ and [cardinality explorer docs](#cardinality-explorer).
 
 * If you run VictoriaMetrics on a host with 16 or more CPU cores, then it may be needed to tune the `-search.maxWorkersPerQuery` command-line flag
   in order to improve query performance. If VictoriaMetrics serves big number of concurrent `select` queries, then try reducing the value for this flag.
-  If VcitoriaMetrics serves heavy queries, which select `>10K` of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) and/or process `>100M`
+  If VictoriaMetrics serves heavy queries, which select `>10K` of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) and/or process `>100M`
   of [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) per query, then try setting the value for this flag to the number of available CPU cores.
 
 * VictoriaMetrics buffers incoming data in memory for up to a few seconds before flushing it to persistent storage.
@@ -2383,7 +2461,7 @@ and [cardinality explorer docs](#cardinality-explorer).
 * New time series can be logged if `-logNewSeries` command-line flag is passed to VictoriaMetrics.
 
 * VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag
-  and drops superflouos labels. This prevents from ingesting metrics with too many labels.
+  and drops superfluous labels. This prevents from ingesting metrics with too many labels.
   It is recommended [monitoring](#monitoring) `vm_metrics_with_dropped_labels_total`
   metric in order to determine whether `-maxLabelsPerTimeseries` must be adjusted for your workload.
 
@@ -2445,7 +2523,7 @@ It is also possible removing [rollup result cache](#rollup-result-cache) on star
 
 ## Rollup result cache
 
-VictoriaMetrics caches query responses by default. This allows increasing performance for repated queries
+VictoriaMetrics caches query responses by default. This allows increasing performance for repeated queries
 to [`/api/v1/query`](https://docs.victoriametrics.com/keyconcepts/#instant-query) and [`/api/v1/query_range`](https://docs.victoriametrics.com/keyconcepts/#range-query)
 with the increasing `time`, `start` and `end` query args.
 
@@ -2695,7 +2773,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -cacheExpireDuration duration
      Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
   -configAuthKey value
-     Authorization key for accessing /config page. It must be passed via authKey query arg
+     Authorization key for accessing /config page. It must be passed via authKey query arg. It overrides httpAuth.* settings.
      Flag value can be read from the given file when using -configAuthKey=file:///abs/path/to/file or -configAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -configAuthKey=http://host/path or -configAuthKey=https://host/path
   -csvTrimTimestamp duration
      Trim timestamps when importing csv data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
@@ -2814,9 +2892,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -internStringMaxLen int
      The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -license string
-     Lisense key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed via file specified by -licenseFile command-line flag
+     License key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed via file specified by -licenseFile command-line flag
   -license.forceOffline
-     Whether to enable offline verification for VictoriaMetrics Enterprise license key, which has been passed either via -license or via -licenseFile command-line flag. The issued license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification. This flag is avilable only in Enterprise binaries
+     Whether to enable offline verification for VictoriaMetrics Enterprise license key, which has been passed either via -license or via -licenseFile command-line flag. The issued license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification. This flag is available only in Enterprise binaries
   -licenseFile string
      Path to file with license key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed inline via -license command-line flag
   -logNewSeries
@@ -2845,7 +2923,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The maximum size in bytes of a single Prometheus remote_write API request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
   -maxLabelValueLen int
-     The maximum length of label values in the accepted time series. Longer label values are truncated. In this case the vm_too_long_label_values_total metric at /metrics page is incremented (default 16384)
+     The maximum length of label values in the accepted time series. Longer label values are truncated. In this case the vm_too_long_label_values_total metric at /metrics page is incremented (default 1024)
   -maxLabelsPerTimeseries int
      The maximum number of labels accepted per time series. Superfluous labels are dropped. In this case the vm_metrics_with_dropped_labels_total metric at /metrics page is incremented (default 30)
   -memory.allowedBytes size
@@ -2960,7 +3038,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.kumaSDCheckInterval duration
      Interval for checking for changes in kuma service discovery. This works only if kuma_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#kuma_sd_configs for details (default 30s)
   -promscrape.maxDroppedTargets int
-     The maximum number of droppedTargets to show at /api/v1/targets page. Increase this value if your setup drops more scrape targets during relabeling and you need investigating labels for all the dropped targets. Note that the increased number of tracked dropped targets may result in increased memory usage (default 1000)
+     The maximum number of droppedTargets to show at /api/v1/targets page. Increase this value if your setup drops more scrape targets during relabeling and you need investigating labels for all the dropped targets. Note that the increased number of tracked dropped targets may result in increased memory usage (default 10000)
   -promscrape.maxResponseHeadersSize size
      The maximum size of http response headers from Prometheus scrape targets
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 4096)
@@ -3009,7 +3087,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -relabelConfig string
      Optional path to a file with relabeling rules, which are applied to all the ingested metrics. The path can point either to local file or to http url. See https://docs.victoriametrics.com/#relabeling for details. The config is reloaded on SIGHUP signal
   -reloadAuthKey value
-     Auth key for /-/reload http endpoint. It must be passed as authKey=...
+     Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings.
      Flag value can be read from the given file when using -reloadAuthKey=file:///abs/path/to/file or -reloadAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -reloadAuthKey=http://host/path or -reloadAuthKey=https://host/path
   -retentionFilter array
      Retention filter in the format 'filter:retention'. For example, '{env="dev"}:3d' configures the retention for time series with env="dev" label to 3 days. See https://docs.victoriametrics.com/#retention-filters for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
@@ -3031,7 +3109,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.graphiteStorageStep duration
      The interval between datapoints stored in the database. It is used at Graphite Render API handler for normalizing the interval between datapoints in case it isn't normalized. It can be overridden by sending 'storage_step' query arg to /render API or by sending the desired interval via 'Storage-Step' http header during querying /render API (default 10s)
   -search.ignoreExtraFiltersAtLabelsAPI
-     Whether to ignore match[], extra_filters[] and extra_label query args at /api/v1/labels and /api/v1/label/.../values . This may be useful for decreasing load on VictoriaMetrics when extra filters match too many time series. The downside is that suprflouos labels or series could be returned, which do not match the extra filters. See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration
+     Whether to ignore match[], extra_filters[] and extra_label query args at /api/v1/labels and /api/v1/label/.../values . This may be useful for decreasing load on VictoriaMetrics when extra filters match too many time series. The downside is that superfluous labels or series could be returned, which do not match the extra filters. See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration
   -search.latencyOffset duration
      The time when data points become visible in query results after the collection. It can be overridden on per-query basis via latency_offset arg. Too small value can result in incomplete last points for query results (default 30s)
   -search.logQueryMemoryUsage size
@@ -3139,6 +3217,12 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 0)
   -sortLabels
      Whether to sort labels for incoming samples before writing them to storage. This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. Enabled sorting for labels can slow down ingestion performance a bit
+  -statsd.disableAggregationEnforcement
+    	Whether to disable streaming aggregation requirement check. It's recommended to run statsdServer with pre-configured streaming aggregation to decrease load at database.
+  -statsdListenAddr string
+    	TCP and UDP address to listen for Statsd plaintext data. Usually :8125 must be set. Doesn't work if empty. See also -statsdListenAddr.useProxyProtocol
+  -statsdListenAddr.useProxyProtocol
+    	Whether to use proxy protocol for connections accepted at -statsdListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
   -storage.cacheSizeIndexDBDataBlocks size
      Overrides max size for indexdb/dataBlocks cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)

@@ -27,6 +27,8 @@ import (
 )
 
 var supportedOutputs = []string{
+	"rate_sum",
+	"rate_avg",
 	"total",
 	"total_prometheus",
 	"increase",
@@ -44,6 +46,19 @@ var supportedOutputs = []string{
 	"histogram_bucket",
 	"quantiles(phi1, ..., phiN)",
 }
+
+var (
+	// lc contains information about all compressed labels for streaming aggregation
+	lc promutils.LabelsCompressor
+
+	_ = metrics.NewGauge(`vm_streamaggr_labels_compressor_size_bytes`, func() float64 {
+		return float64(lc.SizeBytes())
+	})
+
+	_ = metrics.NewGauge(`vm_streamaggr_labels_compressor_items_count`, func() float64 {
+		return float64(lc.ItemsCount())
+	})
+)
 
 // LoadFromFile loads Aggregators from the given path and uses the given pushFunc for pushing the aggregated data.
 //
@@ -151,6 +166,8 @@ type Config struct {
 	//
 	// The following names are allowed:
 	//
+	// - rate_sum - calculates sum of rate for input counters
+	// - rate_avg - calculates average of rate for input counters
 	// - total - aggregates input counters
 	// - total_prometheus - aggregates input counters, ignoring the first sample in new time series
 	// - increase - calculates the increase over input series
@@ -269,27 +286,23 @@ func newAggregatorsFromData(data []byte, pushFunc PushFunc, opts *Options) (*Agg
 		return float64(n)
 	})
 
-	_ = ms.NewGauge(`vm_streamaggr_labels_compressor_size_bytes`, func() float64 {
-		n := uint64(0)
-		for _, aggr := range as {
-			n += aggr.lc.SizeBytes()
-		}
-		return float64(n)
-	})
-	_ = ms.NewGauge(`vm_streamaggr_labels_compressor_items_count`, func() float64 {
-		n := uint64(0)
-		for _, aggr := range as {
-			n += aggr.lc.ItemsCount()
-		}
-		return float64(n)
-	})
-
 	metrics.RegisterSet(ms)
 	return &Aggregators{
 		as:         as,
 		configData: configData,
 		ms:         ms,
 	}, nil
+}
+
+// IsEnabled returns true if Aggregators has at least one configured aggregator
+func (a *Aggregators) IsEnabled() bool {
+	if a == nil {
+		return false
+	}
+	if len(a.as) == 0 {
+		return false
+	}
+	return true
 }
 
 // MustStop stops a.
@@ -361,9 +374,6 @@ type aggregator struct {
 	// aggrStates contains aggregate states for the given outputs
 	aggrStates []aggrState
 
-	// lc is used for compressing series keys before passing them to dedupAggr and aggrState
-	lc promutils.LabelsCompressor
-
 	// minTimestamp is used for ignoring old samples when ignoreOldSamples is set
 	minTimestamp atomic.Int64
 
@@ -379,13 +389,20 @@ type aggregator struct {
 
 	flushDuration      *metrics.Histogram
 	dedupFlushDuration *metrics.Histogram
+	samplesLag         *metrics.Histogram
 
 	flushTimeouts      *metrics.Counter
 	dedupFlushTimeouts *metrics.Counter
+	ignoredOldSamples  *metrics.Counter
+	ignoredNanSamples  *metrics.Counter
 }
 
 type aggrState interface {
+	// pushSamples must push samples to the aggrState.
+	//
+	// samples[].key must be cloned by aggrState, since it may change after returning from pushSamples.
 	pushSamples(samples []pushSample)
+
 	flushState(ctx *flushCtx, resetState bool)
 }
 
@@ -535,6 +552,10 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 			aggrStates[i] = newTotalAggrState(stalenessInterval, true, true)
 		case "increase_prometheus":
 			aggrStates[i] = newTotalAggrState(stalenessInterval, true, false)
+		case "rate_sum":
+			aggrStates[i] = newRateAggrState(stalenessInterval, "rate_sum")
+		case "rate_avg":
+			aggrStates[i] = newRateAggrState(stalenessInterval, "rate_avg")
 		case "count_series":
 			aggrStates[i] = newCountSeriesAggrState()
 		case "count_samples":
@@ -596,9 +617,12 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 
 		flushDuration:      ms.GetOrCreateHistogram(`vm_streamaggr_flush_duration_seconds`),
 		dedupFlushDuration: ms.GetOrCreateHistogram(`vm_streamaggr_dedup_flush_duration_seconds`),
+		samplesLag:         ms.GetOrCreateHistogram(`vm_streamaggr_samples_lag_seconds`),
 
 		flushTimeouts:      ms.GetOrCreateCounter(`vm_streamaggr_flush_timeouts_total`),
 		dedupFlushTimeouts: ms.GetOrCreateCounter(`vm_streamaggr_dedup_flush_timeouts_total`),
+		ignoredNanSamples:  ms.GetOrCreateCounter(`vm_streamaggr_ignored_samples_total{reason="nan"}`),
+		ignoredOldSamples:  ms.GetOrCreateCounter(`vm_streamaggr_ignored_samples_total{reason="too_old"}`),
 	}
 	if dedupInterval > 0 {
 		a.da = newDedupAggr()
@@ -723,7 +747,7 @@ func (a *aggregator) dedupFlush(dedupInterval time.Duration) {
 
 	startTime := time.Now()
 
-	a.da.flush(a.pushSamples, true)
+	a.da.flush(a.pushSamples)
 
 	d := time.Since(startTime)
 	a.dedupFlushDuration.Update(d.Seconds())
@@ -784,6 +808,7 @@ func (a *aggregator) MustStop() {
 
 // Push pushes tss to a.
 func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
+	now := time.Now().UnixMilli()
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 
@@ -796,6 +821,8 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	dropLabels := a.dropInputLabels
 	ignoreOldSamples := a.ignoreOldSamples
 	minTimestamp := a.minTimestamp.Load()
+	var totalLag int64
+	var totalSamples int
 	for idx, ts := range tss {
 		if !a.match.Match(ts.Labels) {
 			continue
@@ -822,23 +849,33 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 			outputLabels.Labels = append(outputLabels.Labels, labels.Labels...)
 		}
 
-		buf = compressLabels(buf[:0], &a.lc, inputLabels.Labels, outputLabels.Labels)
-		key := bytesutil.InternBytes(buf)
+		bufLen := len(buf)
+		buf = compressLabels(buf, inputLabels.Labels, outputLabels.Labels)
+		// key remains valid only by the end of this function and can't be reused after
+		// do not intern key because number of unique keys could be too high
+		key := bytesutil.ToUnsafeString(buf[bufLen:])
 		for _, sample := range ts.Samples {
 			if math.IsNaN(sample.Value) {
+				a.ignoredNanSamples.Inc()
 				// Skip NaN values
 				continue
 			}
 			if ignoreOldSamples && sample.Timestamp < minTimestamp {
+				a.ignoredOldSamples.Inc()
 				// Skip old samples outside the current aggregation interval
 				continue
 			}
+			totalLag += now - sample.Timestamp
+			totalSamples++
 			samples = append(samples, pushSample{
 				key:       key,
 				value:     sample.Value,
 				timestamp: sample.Timestamp,
 			})
 		}
+	}
+	if totalSamples > 0 {
+		a.samplesLag.Update(float64(totalLag/int64(totalSamples)) / 1000)
 	}
 	ctx.samples = samples
 	ctx.buf = buf
@@ -850,7 +887,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	}
 }
 
-func compressLabels(dst []byte, lc *promutils.LabelsCompressor, inputLabels, outputLabels []prompbmarshal.Label) []byte {
+func compressLabels(dst []byte, inputLabels, outputLabels []prompbmarshal.Label) []byte {
 	bb := bbPool.Get()
 	bb.B = lc.Compress(bb.B, inputLabels)
 	dst = encoding.MarshalVarUint64(dst, uint64(len(bb.B)))
@@ -860,28 +897,30 @@ func compressLabels(dst []byte, lc *promutils.LabelsCompressor, inputLabels, out
 	return dst
 }
 
-func decompressLabels(dst []prompbmarshal.Label, lc *promutils.LabelsCompressor, key string) []prompbmarshal.Label {
+func decompressLabels(dst []prompbmarshal.Label, key string) []prompbmarshal.Label {
 	return lc.Decompress(dst, bytesutil.ToUnsafeBytes(key))
 }
 
 func getOutputKey(key string) string {
 	src := bytesutil.ToUnsafeBytes(key)
-	tail, inputKeyLen, err := encoding.UnmarshalVarUint64(src)
-	if err != nil {
-		logger.Panicf("BUG: cannot unmarshal inputKeyLen: %s", err)
+	inputKeyLen, nSize := encoding.UnmarshalVarUint64(src)
+	if nSize <= 0 {
+		logger.Panicf("BUG: cannot unmarshal inputKeyLen from uvarint")
 	}
-	outputKey := tail[inputKeyLen:]
+	src = src[nSize:]
+	outputKey := src[inputKeyLen:]
 	return bytesutil.ToUnsafeString(outputKey)
 }
 
 func getInputOutputKey(key string) (string, string) {
 	src := bytesutil.ToUnsafeBytes(key)
-	tail, inputKeyLen, err := encoding.UnmarshalVarUint64(src)
-	if err != nil {
-		logger.Panicf("BUG: cannot unmarshal inputKeyLen: %s", err)
+	inputKeyLen, nSize := encoding.UnmarshalVarUint64(src)
+	if nSize <= 0 {
+		logger.Panicf("BUG: cannot unmarshal inputKeyLen from uvarint")
 	}
-	inputKey := tail[:inputKeyLen]
-	outputKey := tail[inputKeyLen:]
+	src = src[nSize:]
+	inputKey := src[:inputKeyLen]
+	outputKey := src[inputKeyLen:]
 	return bytesutil.ToUnsafeString(inputKey), bytesutil.ToUnsafeString(outputKey)
 }
 
@@ -910,6 +949,8 @@ func (ctx *pushCtx) reset() {
 }
 
 type pushSample struct {
+	// key identifies a sample that belongs to unique series
+	// key value can't be re-used
 	key       string
 	value     float64
 	timestamp int64
@@ -1035,7 +1076,7 @@ func (ctx *flushCtx) flushSeries() {
 func (ctx *flushCtx) appendSeries(key, suffix string, timestamp int64, value float64) {
 	labelsLen := len(ctx.labels)
 	samplesLen := len(ctx.samples)
-	ctx.labels = decompressLabels(ctx.labels, &ctx.a.lc, key)
+	ctx.labels = decompressLabels(ctx.labels, key)
 	if !ctx.a.keepMetricNames {
 		ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.a.suffix, suffix)
 	}
@@ -1058,7 +1099,7 @@ func (ctx *flushCtx) appendSeries(key, suffix string, timestamp int64, value flo
 func (ctx *flushCtx) appendSeriesWithExtraLabel(key, suffix string, timestamp int64, value float64, extraName, extraValue string) {
 	labelsLen := len(ctx.labels)
 	samplesLen := len(ctx.samples)
-	ctx.labels = decompressLabels(ctx.labels, &ctx.a.lc, key)
+	ctx.labels = decompressLabels(ctx.labels, key)
 	if !ctx.a.keepMetricNames {
 		ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.a.suffix, suffix)
 	}

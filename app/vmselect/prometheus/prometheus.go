@@ -61,7 +61,7 @@ var (
 		"See also -search.maxResponseSeries")
 	ignoreExtraFiltersAtLabelsAPI = flag.Bool("search.ignoreExtraFiltersAtLabelsAPI", false, "Whether to ignore match[], extra_filters[] and extra_label query args at "+
 		"/api/v1/labels and /api/v1/label/.../values . This may be useful for decreasing load on VictoriaMetrics when extra filters "+
-		"match too many time series. The downside is that suprflouos labels or series could be returned, which do not match the extra filters. "+
+		"match too many time series. The downside is that superfluous labels or series could be returned, which do not match the extra filters. "+
 		"See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration")
 )
 

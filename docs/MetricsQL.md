@@ -107,7 +107,7 @@ The list of MetricsQL features on top of PromQL:
 * Trailing commas on all the lists are allowed - label filters, function args and with expressions.
   For instance, the following queries are valid: `m{foo="bar",}`, `f(a, b,)`, `WITH (x=y,) x`.
   This simplifies maintenance of multi-line queries.
-* Metric names and label names may contain any unicode letter. For example `температура{город="Київ"}` is a value MetricsQL expression.
+* Metric names and label names may contain any unicode letter. For example `температура{город="Київ"}` is a valid MetricsQL expression.
 * Metric names and labels names may contain escaped chars. For example, `foo\-bar{baz\=aa="b"}` is valid expression.
   It returns time series with name `foo-bar` containing label `baz=aa` with value `b`.
   Additionally, the following escape sequences are supported:
@@ -328,6 +328,7 @@ See also [increases_over_time](#increases_over_time).
 
 `default_rollup(series_selector[d])` is a [rollup function](#rollup-functions), which returns the last [raw sample](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
 value on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
+Compared to [last_over_time](#last_over_time) it accounts for [staleness markers](https://docs.victoriametrics.com/vmagent/#prometheus-staleness-markers) to detect stale series.
 
 If the lookbehind window is skipped in square brackets, then it is automatically calculated as `max(step, scrape_interval)`, where `step` is the query arg value
 passed to [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query) or [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query),

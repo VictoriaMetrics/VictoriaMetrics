@@ -16,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
@@ -736,10 +737,7 @@ func (mi *rollupResultCacheMetainfo) Unmarshal(src []byte) error {
 	}
 	entriesLen := int(encoding.UnmarshalUint32(src))
 	src = src[4:]
-	if n := entriesLen - cap(mi.entries); n > 0 {
-		mi.entries = append(mi.entries[:cap(mi.entries)], make([]rollupResultCacheMetainfoEntry, n)...)
-	}
-	mi.entries = mi.entries[:entriesLen]
+	mi.entries = slicesutil.SetLength(mi.entries, entriesLen)
 	for i := 0; i < entriesLen; i++ {
 		tail, err := mi.entries[i].Unmarshal(src)
 		if err != nil {

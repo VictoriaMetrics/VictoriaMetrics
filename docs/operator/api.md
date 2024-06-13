@@ -136,11 +136,13 @@ This Document documents the types introduced by the VictoriaMetrics to be consum
 * [VMUserList](#vmuserlist)
 * [VMUserSpec](#vmuserspec)
 * [EmbeddedIngress](#embeddedingress)
+* [URLMapCommon](#urlmapcommon)
+* [UnauthorizedAccessConfigURLMap](#unauthorizedaccessconfigurlmap)
+* [UserConfigOption](#userconfigoption)
 * [VMAuth](#vmauth)
 * [VMAuthList](#vmauthlist)
 * [VMAuthSpec](#vmauthspec)
 * [VMAuthStatus](#vmauthstatus)
-* [VMAuthUnauthorizedPath](#vmauthunauthorizedpath)
 * [TargetEndpoint](#targetendpoint)
 * [VMStaticScrape](#vmstaticscrape)
 * [VMStaticScrapeList](#vmstaticscrapelist)
@@ -218,7 +220,7 @@ VMAlertmanagerSpec is a specification of the desired behavior of the VMAlertmana
 | volumeMounts | VolumeMounts allows configuration of additional VolumeMounts on the output StatefulSet definition. VolumeMounts specified will be appended to other VolumeMounts in the alertmanager container, that are generated as a result of StorageSpec objects. | [][v1.VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#volumemount-v1-core) | false |
 | externalURL | ExternalURL the VMAlertmanager instances will be available under. This is necessary to generate correct URLs. This is necessary if VMAlertmanager is not served from root of a DNS name. | string | false |
 | routePrefix | RoutePrefix VMAlertmanager registers HTTP handlers for. This is useful, if using ExternalURL and a proxy is rewriting HTTP routes of a request, and the actual ExternalURL is still true, but the server serves requests under a different route prefix. For example for use with `kubectl proxy`. | string | false |
-| paused | Paused If set to true all actions on the underlaying managed objects are not goint to be performed, except for delete actions. | bool | false |
+| paused | Paused If set to true all actions on the underlying managed objects are not going to be performed, except for delete actions. | bool | false |
 | nodeSelector | NodeSelector Define which Nodes the Pods are scheduled on. | map[string]string | false |
 | resources | Resources container resource request and limits, https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ | [v1.ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#resourcerequirements-v1-core) | false |
 | affinity | Affinity If specified, the pod&#39;s scheduling constraints. | *[v1.Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#affinity-v1-core) | false |
@@ -399,7 +401,7 @@ OpsGenieConfig configures notifications via OpsGenie. See https://prometheus.io/
 | tags | Comma separated list of tags attached to the notifications. | string | false |
 | note | Additional alert note. | string | false |
 | priority | Priority level of alert. Possible values are P1, P2, P3, P4, and P5. | string | false |
-| details | A set of arbitrary key/value pairs that provide further detail about the incident. | map[string]string | false |
+| details | A set of arbitrary key/value pairs that provide further detail about the incident. | ReceiverConfigDetails | false |
 | responders | List of responders responsible for notifications. | [][OpsGenieConfigResponder](#opsgenieconfigresponder) | false |
 | entity | Optional field that can be used to specify which domain alert is related to. | string | false |
 | actions | Comma separated list of actions that will be available for the alert. | string | false |
@@ -440,7 +442,7 @@ PagerDutyConfig configures notifications via PagerDuty. See https://prometheus.i
 | class | The class/type of the event. | string | false |
 | group | A cluster or grouping of sources. | string | false |
 | component | The part or component of the affected system that is broken. | string | false |
-| details | Arbitrary key/value pairs that provide further detail about the incident. | PagerDutyDetails | false |
+| details | Arbitrary key/value pairs that provide further detail about the incident. | ReceiverConfigDetails | false |
 | http_config | HTTP client configuration. | *[HTTPConfig](#httpconfig) | false |
 
 [Back to TOC](#table-of-contents)
@@ -641,7 +643,7 @@ TimeInterval defines intervals of time
 | times | Times defines time range for mute | [][TimeRange](#timerange) | false |
 | weekdays | Weekdays defines list of days of the week, where the week begins on Sunday and ends on Saturday. | []string | false |
 | days_of_month | DayOfMonth defines list of numerical days in the month. Days begin at 1. Negative values are also accepted. for example, [&#39;1:5&#39;, &#39;-3:-1&#39;] | []string | false |
-| months | Months  defines list of calendar months identified by a case-insentive name (e.g. ‘January’) or numeric 1. For example, [&#39;1:3&#39;, &#39;may:august&#39;, &#39;december&#39;] | []string | false |
+| months | Months  defines list of calendar months identified by a case-insensitive name (e.g. ‘January’) or numeric 1. For example, [&#39;1:3&#39;, &#39;may:august&#39;, &#39;december&#39;] | []string | false |
 | years | Years defines numerical list of years, ranges are accepted. For example, [&#39;2020:2022&#39;, &#39;2030&#39;] | []string | false |
 | location | Location in golang time location form, e.g. UTC | string | false |
 
@@ -925,6 +927,7 @@ VMAgentSpec defines the desired state of VMAgent
 | useStrictSecurity | UseStrictSecurity enables strict security mode for component it restricts disk writes access uses non-root user out of the box drops not needed security permissions | *bool | false |
 | ingestOnlyMode | IngestOnlyMode switches vmagent into unmanaged mode it disables any config generation for scraping Currently it prevents vmagent from managing tls and auth options for remote write | bool | false |
 | license | License allows to configure license key to be used for enterprise features. Using license key is supported starting from VictoriaMetrics v1.94.0. See: https://docs.victoriametrics.com/enterprise.html | *[License](#license) | false |
+| paused | Paused If set to true all actions on the underlying managed objects are not going to be performed, except for delete actions. | bool | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -940,8 +943,8 @@ VMAgentStatus defines the observed state of VMAgent
 | updatedReplicas | UpdatedReplicas Total number of non-terminated pods targeted by this VMAgent cluster that have the desired version spec. | int32 | false |
 | availableReplicas | AvailableReplicas Total number of available pods (ready for at least minReadySeconds) targeted by this VMAlert cluster. | int32 | false |
 | unavailableReplicas | UnavailableReplicas Total number of unavailable pods targeted by this VMAgent cluster. | int32 | false |
-| updateStatus | UpdateStatus defines a status for update rollout, effective only for statefuleMode | UpdateStatus | false |
-| reason | Reason defines fail reason for update process, effective only for statefuleMode | string | false |
+| updateStatus | UpdateStatus defines a status for update rollout, effective only for statefulMode | UpdateStatus | false |
+| reason | Reason defines fail reason for update process, effective only for statefulMode | string | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -1132,11 +1135,16 @@ StreamAggrRule defines the rule in stream aggregation config
 | ----- | ----------- | ------ | -------- |
 | match | Match is a label selector (or list of label selectors) for filtering time series for the given selector.\n\nIf the match isn&#39;t set, then all the input time series are processed. | StringOrArray | false |
 | interval | Interval is the interval between aggregations. | string | true |
-| staleness_interval | StalenessInterval defines an interval after which the series state will be reset if no samples have been sent during it. | string | false |
+| no_align_flush_to_interval | NoAlignFlushToInterval disables aligning of flushes to multiples of Interval. By default flushes are aligned to Interval. | *bool | false |
 | flush_on_shutdown | FlushOnShutdown defines whether to flush the aggregation state on process termination or config reload. Is `false` by default. It is not recommended changing this setting, unless unfinished aggregations states are preferred to missing data points. | bool | false |
+| dedup_interval | DedupInterval is an optional interval for deduplication. | string | false |
+| staleness_interval | Staleness interval is interval after which the series state will be reset if no samples have been sent during it. The parameter is only relevant for outputs: total, total_prometheus, increase, increase_prometheus and histogram_bucket. | string | false |
 | outputs | Outputs is a list of output aggregate functions to produce.\n\nThe following names are allowed:\n\n- total - aggregates input counters - increase - counts the increase over input counters - count_series - counts the input series - count_samples - counts the input samples - sum_samples - sums the input samples - last - the last biggest sample value - min - the minimum sample value - max - the maximum sample value - avg - the average value across all the samples - stddev - standard deviation across all the samples - stdvar - standard variance across all the samples - histogram_bucket - creates VictoriaMetrics histogram for input samples - quantiles(phi1, ..., phiN) - quantiles&#39; estimation for phi in the range [0..1]\n\nThe output time series will have the following names:\n\n  input_name:aggr_&lt;interval&gt;_&lt;output&gt; | []string | true |
+| keep_metric_names | KeepMetricNames instructs to leave metric names as is for the output time series without adding any suffix. | *bool | false |
+| ignore_old_samples | IgnoreOldSamples instructs to ignore samples with old timestamps outside the current aggregation interval. | *bool | false |
 | by | By is an optional list of labels for grouping input series.\n\nSee also Without.\n\nIf neither By nor Without are set, then the Outputs are calculated individually per each input time series. | []string | false |
 | without | Without is an optional list of labels, which must be excluded when grouping input series.\n\nSee also By.\n\nIf neither By nor Without are set, then the Outputs are calculated individually per each input time series. | []string | false |
+| drop_input_labels | DropInputLabels is an optional list with labels, which must be dropped before further processing of input samples.\n\nLabels are dropped before de-duplication and aggregation. | *[]string | false |
 | input_relabel_configs | InputRelabelConfigs is an optional relabeling rules, which are applied on the input before aggregation. | [][RelabelConfig](#relabelconfig) | false |
 | output_relabel_configs | OutputRelabelConfigs is an optional relabeling rules, which are applied on the aggregated output before being sent to remote storage. | [][RelabelConfig](#relabelconfig) | false |
 
@@ -1297,6 +1305,7 @@ VMAlertSpec defines the desired state of VMAlert
 | readinessGates | ReadinessGates defines pod readiness gates | []v1.PodReadinessGate | false |
 | useStrictSecurity | UseStrictSecurity enables strict security mode for component it restricts disk writes access uses non-root user out of the box drops not needed security permissions | *bool | false |
 | license | License allows to configure license key to be used for enterprise features. Using license key is supported starting from VictoriaMetrics v1.94.0. See: https://docs.victoriametrics.com/enterprise.html | *[License](#license) | false |
+| paused | Paused If set to true all actions on the underlying managed objects are not going to be performed, except for delete actions. | bool | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -1310,8 +1319,8 @@ VMAlertStatus defines the observed state of VMAlert
 | updatedReplicas | UpdatedReplicas Total number of non-terminated pods targeted by this VMAlert cluster that have the desired version spec. | int32 | false |
 | availableReplicas | AvailableReplicas Total number of available pods (ready for at least minReadySeconds) targeted by this VMAlert cluster. | int32 | false |
 | unavailableReplicas | UnavailableReplicas Total number of unavailable pods targeted by this VMAlert cluster. | int32 | false |
-| updateStatus | UpdateStatus defines a status for update rollout, effective only for statefuleMode | UpdateStatus | false |
-| reason | Reason defines fail reason for update process, effective only for statefuleMode | string | false |
+| updateStatus | UpdateStatus defines a status for update rollout, effective only for statefulMode | UpdateStatus | false |
+| reason | Reason defines fail reason for update process, effective only for statefulMode | string | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -1391,6 +1400,7 @@ VMSingleSpec defines the desired state of VMSingle
 | readinessGates | ReadinessGates defines pod readiness gates | []v1.PodReadinessGate | false |
 | streamAggrConfig | StreamAggrConfig defines stream aggregation configuration for VMSingle | *[StreamAggrConfig](#streamaggrconfig) | false |
 | useStrictSecurity | UseStrictSecurity enables strict security mode for component it restricts disk writes access uses non-root user out of the box drops not needed security permissions | *bool | false |
+| paused | Paused If set to true all actions on the underlying managed objects are not going to be performed, except for delete actions. | bool | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -1546,7 +1556,7 @@ Endpoint defines a scrapeable endpoint serving Prometheus metrics.
 | metricRelabelConfigs | MetricRelabelConfigs to apply to samples before ingestion. | []*[RelabelConfig](#relabelconfig) | false |
 | relabelConfigs | RelabelConfigs to apply to samples before scraping. More info: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config | []*[RelabelConfig](#relabelconfig) | false |
 | proxyURL | ProxyURL eg http://proxyserver:2195 Directs scrapes to proxy through this endpoint. | *string | false |
-| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parametrs | *[VMScrapeParams](#vmscrapeparams) | false |
+| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parameters | *[VMScrapeParams](#vmscrapeparams) | false |
 | attach_metadata | AttachMetadata configures metadata attaching from service discovery | [AttachMetadata](#attachmetadata) | false |
 
 [Back to TOC](#table-of-contents)
@@ -1738,7 +1748,7 @@ PodMetricsEndpoint defines a scrapeable endpoint of a Kubernetes Pod serving Pro
 | tlsConfig | TLSConfig configuration to use when scraping the endpoint | *[TLSConfig](#tlsconfig) | false |
 | oauth2 | OAuth2 defines auth configuration | *[OAuth2](#oauth2) | false |
 | authorization | Authorization with http header Authorization | *[Authorization](#authorization) | false |
-| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parametrs | *[VMScrapeParams](#vmscrapeparams) | false |
+| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parameters | *[VMScrapeParams](#vmscrapeparams) | false |
 | attach_metadata | AttachMetadata configures metadata attaching from service discovery | [AttachMetadata](#attachmetadata) | false |
 | filterRunning | FilterRunning applies filter with pod status == running it prevents from scrapping metrics at failed or succeed state pods. enabled by default | *bool | false |
 
@@ -1877,6 +1887,7 @@ VMClusterSpec defines the desired state of VMCluster
 | vmselect |  | *[VMSelect](#vmselect) | false |
 | vminsert |  | *[VMInsert](#vminsert) | false |
 | vmstorage |  | *[VMStorage](#vmstorage) | false |
+| paused | Paused If set to true all actions on the underlying managed objects are not going to be performed, except for delete actions. | bool | false |
 | useStrictSecurity | UseStrictSecurity enables strict security mode for component it restricts disk writes access uses non-root user out of the box drops not needed security permissions | *bool | false |
 
 [Back to TOC](#table-of-contents)
@@ -1993,7 +2004,7 @@ VMClusterStatus defines the observed state of VMCluster
 | dnsConfig | Specifies the DNS parameters of a pod. Parameters specified here will be merged to the generated DNS configuration based on DNSPolicy. | *v1.PodDNSConfig | false |
 | topologySpreadConstraints | TopologySpreadConstraints embedded kubernetes pod configuration option, controls how pods are spread across your cluster among failure-domains such as regions, zones, nodes, and other user-defined topology domains https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/ | [][v1.TopologySpreadConstraint](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/) | false |
 | cacheMountPath | CacheMountPath allows to add cache persistent for VMSelect, will use \&#34;/cache\&#34; as default if not specified. | string | false |
-| persistentVolume | Storage - add persistent volume for cacheMounthPath its useful for persistent cache use storage instead of persistentVolume. | *[StorageSpec](#storagespec) | false |
+| persistentVolume | Storage - add persistent volume for cacheMountPath its useful for persistent cache use storage instead of persistentVolume. | *[StorageSpec](#storagespec) | false |
 | storage | StorageSpec - add persistent volume claim for cacheMountPath its needed for persistent cache | *[StorageSpec](#storagespec) | false |
 | extraEnvs | ExtraEnvs that will be added to VMSelect pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#envvar-v1-core) | false |
 | extraArgs |  | map[string]string | false |
@@ -2123,7 +2134,7 @@ VMNodeScrapeSpec defines specification for VMNodeScrape.
 | selector | Selector to select kubernetes Nodes. | [metav1.LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#labelselector-v1-meta) | false |
 | sampleLimit | SampleLimit defines per-scrape limit on number of scraped samples that will be accepted. | uint64 | false |
 | seriesLimit | SeriesLimit defines per-scrape limit on number of unique time series a single target can expose during all the scrapes on the time window of 24h. | uint64 | false |
-| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parametrs | *[VMScrapeParams](#vmscrapeparams) | false |
+| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parameters | *[VMScrapeParams](#vmscrapeparams) | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -2160,12 +2171,8 @@ TargetRef describes target for user traffic forwarding. one of target types can 
 | static | Static - user defined url for traffic forward, for instance http://vmsingle:8429 | *[StaticRef](#staticref) | false |
 | paths | Paths - matched path to route. | []string | false |
 | hosts |  | []string | false |
-| target_path_suffix | QueryParams []string `json:\&#34;queryParams,omitempty\&#34;` TargetPathSuffix allows to add some suffix to the target path It allows to hide tenant configuration from user with crd as ref. it also may contain any url encoded params. | string | false |
-| headers | Headers represent additional http headers, that vmauth uses in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.68.0 version of vmauth | []string | false |
-| response_headers | ResponseHeaders represent additional http headers, that vmauth adds for request response in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.93.0 version of vmauth | []string | false |
-| retry_status_codes | RetryStatusCodes defines http status codes in numeric format for request retries Can be defined per target or at VMUser.spec level e.g. [429,503] | []int | false |
-| load_balancing_policy | LoadBalancingPolicy defines load balancing policy to use for backend urls. Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth.html#load-balancing for more details (default \&#34;least_loaded\&#34;) | *string | false |
-| drop_src_path_prefix_parts | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend. See https://docs.victoriametrics.com/vmauth.html#dropping-request-path-prefix for more details. | *int | false |
+| URLMapCommon |  | [URLMapCommon](#urlmapcommon) | false |
+| target_path_suffix | TargetPathSuffix allows to add some suffix to the target path It allows to hide tenant configuration from user with crd as ref. it also may contain any url encoded params. | string | false |
 | targetRefBasicAuth | TargetRefBasicAuth allow an target endpoint to authenticate over basic authentication | *[TargetRefBasicAuth](#targetrefbasicauth) | false |
 
 [Back to TOC](#table-of-contents)
@@ -2230,14 +2237,15 @@ VMUserSpec defines the desired state of VMUser
 | bearerToken | BearerToken Authorization header value for accessing protected endpoint. | *string | false |
 | targetRefs | TargetRefs - reference to endpoints, which user may access. | [][TargetRef](#targetref) | true |
 | default_url | DefaultURLs backend url for non-matching paths filter usually used for default backend with error message | []string | false |
+| tlsConfig |  | *[TLSConfig](#tlsconfig) | false |
 | ip_filters | IPFilters defines per target src ip filters supported only with enterprise version of vmauth https://docs.victoriametrics.com/vmauth.html#ip-filters | [VMUserIPFilters](#vmuseripfilters) | false |
+| discover_backend_ips | DiscoverBackendIPs instructs discovering URLPrefix backend IPs via DNS. | *bool | false |
 | headers | Headers represent additional http headers, that vmauth uses in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.68.0 version of vmauth | []string | false |
 | response_headers | ResponseHeaders represent additional http headers, that vmauth adds for request response in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.93.0 version of vmauth | []string | false |
 | retry_status_codes | RetryStatusCodes defines http status codes in numeric format for request retries e.g. [429,503] | []int | false |
 | max_concurrent_requests | MaxConcurrentRequests defines max concurrent requests per user 300 is default value for vmauth | *int | false |
 | load_balancing_policy | LoadBalancingPolicy defines load balancing policy to use for backend urls. Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth.html#load-balancing for more details (default \&#34;least_loaded\&#34;) | *string | false |
 | drop_src_path_prefix_parts | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend. See https://docs.victoriametrics.com/vmauth.html#dropping-request-path-prefix for more details. | *int | false |
-| tls_insecure_skip_verify | TLSInsecureSkipVerify - whether to skip TLS verification when connecting to backend over HTTPS. See https://docs.victoriametrics.com/vmauth.html#backend-tls-setup | bool | false |
 | metric_labels | MetricLabels - additional labels for metrics exported by vmauth for given user. | map[string]string | false |
 | disable_secret_creation | DisableSecretCreation skips related secret creation for vmuser | bool | false |
 
@@ -2258,6 +2266,55 @@ EmbeddedIngress describes ingress configuration options.
 | extraRules | ExtraRules - additional rules for ingress, must be checked for correctness by user. | [][v12.IngressRule](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#ingressrule-v1-networking-k8s-io) | false |
 | extraTls | ExtraTLS - additional TLS configuration for ingress must be checked for correctness by user. | [][v12.IngressTLS](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#ingresstls-v1-networking-k8s-io) | false |
 | host | Host defines ingress host parameter for default rule It will be used, only if TlsHosts is empty | string | false |
+
+[Back to TOC](#table-of-contents)
+
+## URLMapCommon
+
+URLMapCommon contains common fields for unauthorized user and user in vmuser
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| src_query_args | SrcQueryArgs is an optional list of query args, which must match request URL query args. | []string | false |
+| src_headers | SrcHeaders is an optional list of headers, which must match request headers. | []string | false |
+| discover_backend_ips | DiscoverBackendIPs instructs discovering URLPrefix backend IPs via DNS. | *bool | false |
+| headers | RequestHeaders represent additional http headers, that vmauth uses in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.68.0 version of vmauth | []string | false |
+| response_headers | ResponseHeaders represent additional http headers, that vmauth adds for request response in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.93.0 version of vmauth | []string | false |
+| retry_status_codes | RetryStatusCodes defines http status codes in numeric format for request retries Can be defined per target or at VMUser.spec level e.g. [429,503] | []int | false |
+| load_balancing_policy | LoadBalancingPolicy defines load balancing policy to use for backend urls. Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth.html#load-balancing for more details (default \&#34;least_loaded\&#34;) | *string | false |
+| drop_src_path_prefix_parts | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend. See https://docs.victoriametrics.com/vmauth.html#dropping-request-path-prefix for more details. | *int | false |
+
+[Back to TOC](#table-of-contents)
+
+## UnauthorizedAccessConfigURLMap
+
+
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| src_paths | SrcPaths is an optional list of regular expressions, which must match the request path. | []string | false |
+| src_hosts | SrcHosts is an optional list of regular expressions, which must match the request hostname. | []string | false |
+| url_prefix | UrlPrefix contains backend url prefixes for the proxied request url. | []string | false |
+| URLMapCommon |  | [URLMapCommon](#urlmapcommon) | false |
+
+[Back to TOC](#table-of-contents)
+
+## UserConfigOption
+
+
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| default_url | DefaultURLs backend url for non-matching paths filter usually used for default backend with error message | []string | false |
+| tlsConfig |  | *[TLSConfig](#tlsconfig) | false |
+| ip_filters | IPFilters defines per target src ip filters supported only with enterprise version of vmauth https://docs.victoriametrics.com/vmauth.html#ip-filters | [VMUserIPFilters](#vmuseripfilters) | false |
+| discover_backend_ips | DiscoverBackendIPs instructs discovering URLPrefix backend IPs via DNS. | *bool | false |
+| headers | Headers represent additional http headers, that vmauth uses in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.68.0 version of vmauth | []string | false |
+| response_headers | ResponseHeaders represent additional http headers, that vmauth adds for request response in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.93.0 version of vmauth | []string | false |
+| retry_status_codes | RetryStatusCodes defines http status codes in numeric format for request retries e.g. [429,503] | []int | false |
+| max_concurrent_requests | MaxConcurrentRequests defines max concurrent requests per user 300 is default value for vmauth | *int | false |
+| load_balancing_policy | LoadBalancingPolicy defines load balancing policy to use for backend urls. Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth.html#load-balancing for more details (default \&#34;least_loaded\&#34;) | *string | false |
+| drop_src_path_prefix_parts | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend. See https://docs.victoriametrics.com/vmauth.html#dropping-request-path-prefix for more details. | *int | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -2334,10 +2391,21 @@ VMAuthSpec defines the desired state of VMAuth
 | nodeSelector | NodeSelector Define which Nodes the Pods are scheduled on. | map[string]string | false |
 | terminationGracePeriodSeconds | TerminationGracePeriodSeconds period for container graceful termination | *int64 | false |
 | readinessGates | ReadinessGates defines pod readiness gates | []v1.PodReadinessGate | false |
-| unauthorizedAccessConfig | UnauthorizedAccessConfig configures access for un authorized users | [][VMAuthUnauthorizedPath](#vmauthunauthorizedpath) | false |
+| unauthorizedAccessConfig | UnauthorizedAccessConfig configures access for un authorized users | [][UnauthorizedAccessConfigURLMap](#unauthorizedaccessconfigurlmap) | false |
+| default_url | DefaultURLs backend url for non-matching paths filter usually used for default backend with error message | []string | false |
+| tlsConfig |  | *[TLSConfig](#tlsconfig) | false |
+| ip_filters | IPFilters defines per target src ip filters supported only with enterprise version of vmauth https://docs.victoriametrics.com/vmauth.html#ip-filters | [VMUserIPFilters](#vmuseripfilters) | false |
+| discover_backend_ips | DiscoverBackendIPs instructs discovering URLPrefix backend IPs via DNS. | *bool | false |
+| headers | Headers represent additional http headers, that vmauth uses in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.68.0 version of vmauth | []string | false |
+| response_headers | ResponseHeaders represent additional http headers, that vmauth adds for request response in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.93.0 version of vmauth | []string | false |
+| retry_status_codes | RetryStatusCodes defines http status codes in numeric format for request retries e.g. [429,503] | []int | false |
+| max_concurrent_requests | MaxConcurrentRequests defines max concurrent requests per user 300 is default value for vmauth | *int | false |
+| load_balancing_policy | LoadBalancingPolicy defines load balancing policy to use for backend urls. Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth.html#load-balancing for more details (default \&#34;least_loaded\&#34;) | *string | false |
+| drop_src_path_prefix_parts | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend. See https://docs.victoriametrics.com/vmauth.html#dropping-request-path-prefix for more details. | *int | false |
 | useStrictSecurity | UseStrictSecurity enables strict security mode for component it restricts disk writes access uses non-root user out of the box drops not needed security permissions | *bool | false |
 | license | License allows to configure license key to be used for enterprise features. Using license key is supported starting from VictoriaMetrics v1.94.0. See: https://docs.victoriametrics.com/enterprise.html | *[License](#license) | false |
 | configSecret | ConfigSecret is the name of a Kubernetes Secret in the same namespace as the VMAuth object, which contains auth configuration for vmauth, configuration must be inside secret key: config.yaml. It must be created and managed manually. If it&#39;s defined, configuration for vmauth becomes unmanaged and operator&#39;ll not create any related secrets/config-reloaders | string | false |
+| paused | Paused If set to true all actions on the underlying managed objects are not going to be performed, except for delete actions. | bool | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -2347,26 +2415,8 @@ VMAuthStatus defines the observed state of VMAuth
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| updateStatus | UpdateStatus defines a status for update rollout, effective only for statefuleMode | UpdateStatus | false |
-| reason | Reason defines fail reason for update process, effective only for statefuleMode | string | false |
-
-[Back to TOC](#table-of-contents)
-
-## VMAuthUnauthorizedPath
-
-VMAuthUnauthorizedPath defines url_map for unauthorized access
-
-| Field | Description | Scheme | Required |
-| ----- | ----------- | ------ | -------- |
-| src_paths | Paths src request paths | []string | false |
-| url_prefix | URLs defines url_prefix for dst routing | []string | false |
-| ip_filters | IPFilters defines filter for src ip address enterprise only | [VMUserIPFilters](#vmuseripfilters) | false |
-| src_hosts | SrcHosts is the list of regular expressions, which match the request hostname. | []string | false |
-| headers | Headers represent additional http headers, that vmauth uses in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.68.0 version of vmauth | []string | false |
-| response_headers | ResponseHeaders represent additional http headers, that vmauth adds for request response in form of [\&#34;header_key: header_value\&#34;] multiple values for header key: [\&#34;header_key: value1,value2\&#34;] it&#39;s available since 1.93.0 version of vmauth | []string | false |
-| retry_status_codes | RetryStatusCodes defines http status codes in numeric format for request retries e.g. [429,503] | []int | false |
-| load_balancing_policy | LoadBalancingPolicy defines load balancing policy to use for backend urls. Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth.html#load-balancing for more details (default \&#34;least_loaded\&#34;) | *string | false |
-| drop_src_path_prefix_parts | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend. See https://docs.victoriametrics.com/vmauth.html#dropping-request-path-prefix for more details. | *int | false |
+| updateStatus | UpdateStatus defines a status for update rollout, effective only for statefulMode | UpdateStatus | false |
+| reason | Reason defines fail reason for update process, effective only for statefulMode | string | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -2399,7 +2449,7 @@ TargetEndpoint defines single static target endpoint.
 | proxyURL | ProxyURL eg http://proxyserver:2195 Directs scrapes to proxy through this endpoint. | *string | false |
 | honorLabels | HonorLabels chooses the metric&#39;s labels on collisions with target labels. | bool | false |
 | honorTimestamps | HonorTimestamps controls whether vmagent respects the timestamps present in scraped data. | *bool | false |
-| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parametrs | *[VMScrapeParams](#vmscrapeparams) | false |
+| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parameters | *[VMScrapeParams](#vmscrapeparams) | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -2498,7 +2548,7 @@ VMProbeSpec contains specification parameters for a Probe.
 | authorization | Authorization with http header Authorization | *[Authorization](#authorization) | false |
 | tlsConfig | TLSConfig configuration to use when scraping the endpoint | *[TLSConfig](#tlsconfig) | false |
 | proxyURL | ProxyURL eg http://proxyserver:2195 Directs scrapes to proxy through this endpoint. | *string | false |
-| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parametrs | *[VMScrapeParams](#vmscrapeparams) | false |
+| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parameters | *[VMScrapeParams](#vmscrapeparams) | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -2802,7 +2852,7 @@ VMScrapeConfigSpec defines the desired state of VMScrapeConfig
 | honorLabels | HonorLabels chooses the metric&#39;s labels on collisions with target labels. | bool | false |
 | params | Optional HTTP URL parameters | map[string][]string | false |
 | scheme | Configures the protocol scheme used for requests. If empty, use HTTP by default. | *string | false |
-| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parametrs | *[VMScrapeParams](#vmscrapeparams) | false |
+| vm_scrape_params | VMScrapeParams defines VictoriaMetrics specific scrape parameters | *[VMScrapeParams](#vmscrapeparams) | false |
 | follow_redirects | FollowRedirects controls redirects for scraping. | *bool | false |
 | proxyURL | ProxyURL eg http://proxyserver:2195 Directs scrapes to proxy through this endpoint. | *string | false |
 | basicAuth | BasicAuth information to use on every scrape request. | *[BasicAuth](#basicauth) | false |

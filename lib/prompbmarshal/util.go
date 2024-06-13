@@ -2,16 +2,15 @@ package prompbmarshal
 
 import (
 	"fmt"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // MarshalProtobuf marshals wr to dst and returns the result.
 func (wr *WriteRequest) MarshalProtobuf(dst []byte) []byte {
 	size := wr.Size()
 	dstLen := len(dst)
-	if n := size - (cap(dst) - dstLen); n > 0 {
-		dst = append(dst[:cap(dst)], make([]byte, n)...)
-	}
-	dst = dst[:dstLen+size]
+	dst = slicesutil.SetLength(dst, dstLen+size)
 	n, err := wr.MarshalToSizedBuffer(dst[dstLen:])
 	if err != nil {
 		panic(fmt.Errorf("BUG: unexpected error when marshaling WriteRequest: %w", err))

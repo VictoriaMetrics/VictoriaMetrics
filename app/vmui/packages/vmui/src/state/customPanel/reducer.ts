@@ -19,12 +19,16 @@ export type CustomPanelAction =
   | { type: "TOGGLE_QUERY_TRACING" }
   | { type: "TOGGLE_TABLE_COMPACT" }
 
-const queryTab = getQueryStringValue("g0.tab", 0) as string;
-const displayType = displayTypeTabs.find(t => t.prometheusCode === +queryTab || t.value === queryTab);
+export const getInitialDisplayType = () => {
+  const queryTab = getQueryStringValue("g0.tab", 0) as string;
+  const displayType = displayTypeTabs.find(t => t.prometheusCode === +queryTab || t.value === queryTab);
+  return displayType?.value || DisplayType.chart;
+};
+
 const limitsStorage = getFromStorage("SERIES_LIMITS") as string;
 
 export const initialCustomPanelState: CustomPanelState = {
-  displayType: (displayType?.value || DisplayType.chart),
+  displayType: getInitialDisplayType(),
   nocache: false,
   isTracingEnabled: false,
   seriesLimits: limitsStorage ? JSON.parse(limitsStorage) : DEFAULT_MAX_SERIES,

@@ -1,3 +1,23 @@
+# v1.20.10 (2024-06-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.20.9 (2024-05-23)
+
+* No change notes available for this release.
+
+# v1.20.8 (2024-05-16)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.20.7 (2024-05-15)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.20.6 (2024-05-08)
+
+* **Bug Fix**: GoDoc improvement
+
 # v1.20.5 (2024-04-05)
 
 * No change notes available for this release.

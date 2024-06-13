@@ -64,9 +64,9 @@ func (cs computeProvider) Token(ctx context.Context) (*auth.Token, error) {
 		v.Set("scopes", strings.Join(cs.scopes, ","))
 		tokenURI.RawQuery = v.Encode()
 	}
-	tokenJSON, err := metadata.Get(tokenURI.String())
+	tokenJSON, err := metadata.GetWithContext(ctx, tokenURI.String())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("credentials: cannot fetch token: %w", err)
 	}
 	var res metadataTokenResp
 	if err := json.NewDecoder(strings.NewReader(tokenJSON)).Decode(&res); err != nil {

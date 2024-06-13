@@ -1562,30 +1562,34 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		"testMetric",
 	}
 	sort.Strings(labelNames)
+
+	newMN := func(name string, day, metric int) MetricName {
+		var mn MetricName
+		mn.MetricGroup = []byte(name)
+		mn.AddTag(
+			"constant",
+			"const",
+		)
+		mn.AddTag(
+			"day",
+			fmt.Sprintf("%v", day),
+		)
+		mn.AddTag(
+			"UniqueId",
+			fmt.Sprintf("%v", metric),
+		)
+		mn.AddTag(
+			"some_unique_id",
+			fmt.Sprintf("%v", day),
+		)
+		mn.sortTags()
+		return mn
+	}
 	for day := 0; day < days; day++ {
 		date := baseDate - uint64(day)
 		var metricIDs uint64set.Set
 		for metric := 0; metric < metricsPerDay; metric++ {
-			var mn MetricName
-			mn.MetricGroup = []byte("testMetric")
-			mn.AddTag(
-				"constant",
-				"const",
-			)
-			mn.AddTag(
-				"day",
-				fmt.Sprintf("%v", day),
-			)
-			mn.AddTag(
-				"UniqueId",
-				fmt.Sprintf("%v", metric),
-			)
-			mn.AddTag(
-				"some_unique_id",
-				fmt.Sprintf("%v", day),
-			)
-			mn.sortTags()
-
+			mn := newMN("testMetric", day, metric)
 			metricNameBuf = mn.Marshal(metricNameBuf[:0])
 			var genTSID generationTSID
 			if !is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
@@ -1625,6 +1629,29 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		t.Fatalf("unexpected metricIDs found;\ngot\n%d\nwant\n%d", metricIDs.AppendTo(nil), allMetricIDs.AppendTo(nil))
 	}
 	db.putIndexSearch(is2)
+
+	// add a metric that will be deleted shortly
+	is3 := db.getIndexSearch(noDeadline)
+	day := days
+	date := baseDate - uint64(day)
+	mn := newMN("deletedMetric", day, 999)
+	mn.AddTag(
+		"labelToDelete",
+		fmt.Sprintf("%v", day),
+	)
+	mn.sortTags()
+	metricNameBuf = mn.Marshal(metricNameBuf[:0])
+	var genTSID generationTSID
+	if !is3.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
+		generateTSID(&genTSID.TSID, &mn)
+		createAllIndexesForMetricName(is3, &mn, &genTSID.TSID, date)
+	}
+	// delete the added metric. It is expected it won't be returned during searches
+	deletedSet := &uint64set.Set{}
+	deletedSet.Add(genTSID.TSID.MetricID)
+	s.setDeletedMetricIDs(deletedSet)
+	db.putIndexSearch(is3)
+	s.DebugFlush()
 
 	// Check SearchLabelNamesWithFiltersOnTimeRange with the specified time range.
 	tr := TimeRange{

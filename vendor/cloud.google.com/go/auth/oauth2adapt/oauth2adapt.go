@@ -49,6 +49,7 @@ func (tp *tokenProviderAdapter) Token(context.Context) (*auth.Token, error) {
 	}
 	return &auth.Token{
 		Value:  tok.AccessToken,
+		Type:   tok.Type(),
 		Expiry: tok.Expiry,
 	}, nil
 }
@@ -77,6 +78,7 @@ func (ts *tokenSourceAdapter) Token() (*oauth2.Token, error) {
 	}
 	return &oauth2.Token{
 		AccessToken: tok.Value,
+		TokenType:   tok.Type,
 		Expiry:      tok.Expiry,
 	}, nil
 }

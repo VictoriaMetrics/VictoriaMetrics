@@ -88,10 +88,6 @@ Currently, vmanomaly ships with a set of built-in models:
    See [statsmodels.org documentation](https://www.statsmodels.org/dev/examples/notebooks/generated/stl_decomposition.html)
    for LOESS STD.
 
-1. [**ARIMA**](/anomaly-detection/components/models.html#arima)
-
-   Commonly used forecasting model. See [statsmodels.org documentation](https://www.statsmodels.org/stable/generated/statsmodels.tsa.arima.model.ARIMA.html) for ARIMA.
-
 1. [**Rolling Quantile**](/anomaly-detection/components/models.html#rolling-quantile)
 
    A simple moving window of quantiles. Easy to use, easy to understand, but not as powerful as
@@ -167,7 +163,7 @@ schedulers:
 
 models:
   prophet:  # or use a model alias of your choice here
-    class: "model.prophet.ProphetModel"
+    class: "prophet"  # or "model.prophet.ProphetModel" until v1.13.0
     args:
       interval_width: 0.98
 
@@ -228,7 +224,7 @@ docker pull victoriametrics/vmanomaly:latest
 
 > Note: `us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial` is deprecated since [v1.6.0](/anomaly-detection/CHANGELOG.html#v160). Use [DockerHub repo](https://hub.docker.com/r/victoriametrics/vmanomaly/tags) instead
 
-You can put a tag on it for your convinience:
+You can put a tag on it for your convenience:
 
 ```sh
 docker image tag victoriametrics/vmanomaly:latest vmanomaly

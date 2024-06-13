@@ -71,6 +71,11 @@ func CheckStreamAggrConfig() error {
 	return nil
 }
 
+// HasStreamAggrConfigured checks if streamAggr config provided
+func HasStreamAggrConfigured() bool {
+	return *streamAggrConfig != ""
+}
+
 // InitStreamAggr must be called after flag.Parse and before using the common package.
 //
 // MustStopStreamAggr must be called when stream aggr is no longer needed.
@@ -237,7 +242,7 @@ func (ctx *streamAggrCtx) push(mrs []storage.MetricRow, matchIdxs []byte) []byte
 	tss = tss[tssLen:]
 
 	sas := sasGlobal.Load()
-	if sas != nil {
+	if sas.IsEnabled() {
 		matchIdxs = sas.Push(tss, matchIdxs)
 	} else if deduplicator != nil {
 		matchIdxs = bytesutil.ResizeNoCopyMayOverallocate(matchIdxs, len(tss))

@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 var (
@@ -64,8 +65,7 @@ func (bb *ByteBuffer) ReadFrom(r io.Reader) (int64, error) {
 	offset := bLen
 	for {
 		if free := len(b) - offset; free < offset {
-			n := len(b)
-			b = append(b, make([]byte, n)...)
+			b = slicesutil.SetLength(b, 2*len(b))
 		}
 		n, err := r.Read(b[offset:])
 		offset += n

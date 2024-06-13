@@ -19,7 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 )
 
-var reloadAuthKey = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
+var reloadAuthKey = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings.")
 
 var (
 	apiLinks = [][2]string{
@@ -176,7 +176,6 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 
 	default:
-		httpserver.Errorf(w, r, "unsupported path requested: %q ", r.URL.Path)
 		return false
 	}
 }

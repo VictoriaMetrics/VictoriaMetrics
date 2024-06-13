@@ -20,7 +20,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logjson"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
@@ -210,7 +209,7 @@ func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
 		return false, fmt.Errorf(`missing log message after the "create" or "index" command`)
 	}
 	line = sc.Bytes()
-	p := logjson.GetParser()
+	p := logstorage.GetJSONParser()
 	if err := p.ParseLogMessage(line); err != nil {
 		return false, fmt.Errorf("cannot parse json-encoded log entry: %w", err)
 	}
@@ -224,7 +223,7 @@ func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
 	}
 	p.RenameField(msgField, "_msg")
 	processLogMessage(ts, p.Fields)
-	logjson.PutParser(p)
+	logstorage.PutJSONParser(p)
 
 	return true, nil
 }

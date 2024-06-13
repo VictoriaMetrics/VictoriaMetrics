@@ -11,8 +11,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
@@ -20,7 +23,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -36,7 +38,7 @@ var (
 	proxyURL    = flagutil.NewArrayString("remoteWrite.proxyURL", "Optional proxy URL for writing data to the corresponding -remoteWrite.url. "+
 		"Supported proxies: http, https, socks5. Example: -remoteWrite.proxyURL=socks5://proxy:1234")
 
-	tlsHandshakeTimeout   = flagutil.NewArrayDuration("remoteWrite.tlsHandshakeTimeout", 20*time.Second, "The timeout for estabilishing tls connections to the corresponding -remoteWrite.url")
+	tlsHandshakeTimeout   = flagutil.NewArrayDuration("remoteWrite.tlsHandshakeTimeout", 20*time.Second, "The timeout for establishing tls connections to the corresponding -remoteWrite.url")
 	tlsInsecureSkipVerify = flagutil.NewArrayBool("remoteWrite.tlsInsecureSkipVerify", "Whether to skip tls verification when connecting to the corresponding -remoteWrite.url")
 	tlsCertFile           = flagutil.NewArrayString("remoteWrite.tlsCertFile", "Optional path to client-side TLS certificate file to use when connecting "+
 		"to the corresponding -remoteWrite.url")
@@ -118,7 +120,7 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		logger.Fatalf("cannot initialize AWS Config for -remoteWrite.url=%q: %s", remoteWriteURL, err)
 	}
 	tr := &http.Transport{
-		DialContext:         statDial,
+		DialContext:         httputils.GetStatDialFunc("vmagent_remotewrite"),
 		TLSHandshakeTimeout: tlsHandshakeTimeout.GetOptionalArg(argIdx),
 		MaxConnsPerHost:     2 * concurrency,
 		MaxIdleConnsPerHost: 2 * concurrency,
@@ -297,6 +299,11 @@ func (c *client) runWorker() {
 		block, ok = c.fq.MustReadBlock(block[:0])
 		if !ok {
 			return
+		}
+		if len(block) == 0 {
+			// skip empty data blocks from sending
+			// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6241
+			continue
 		}
 		go func() {
 			startTime := time.Now()

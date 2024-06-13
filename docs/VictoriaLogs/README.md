@@ -10,35 +10,35 @@ aliases:
 VictoriaLogs is [open source](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/victoria-logs) user-friendly database for logs
 from [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/).
 
-VictoriaLogs provides the following key features:
+VictoriaLogs provides the following features:
 
-- VictoriaLogs can accept logs from popular log collectors. See [these docs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
+- VictoriaLogs can accept logs from popular log collectors. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
 - VictoriaLogs is much easier to set up and operate compared to Elasticsearch and Grafana Loki.
-  See [these docs](https://docs.victoriametrics.com/VictoriaLogs/QuickStart.html).
+  See [these docs](https://docs.victoriametrics.com/victorialogs/quickstart/).
 - VictoriaLogs provides easy yet powerful query language with full-text search capabilities across
-  all the [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) -
-  see [LogsQL docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html).
+  all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) -
+  see [LogsQL docs](https://docs.victoriametrics.com/victorialogs/logsql/).
 - VictoriaLogs can be seamlessly combined with good old Unix tools for log analysis such as `grep`, `less`, `sort`, `jq`, etc.
-  See [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line) for details.
+  See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line) for details.
 - VictoriaLogs capacity and performance scales linearly with the available resources (CPU, RAM, disk IO, disk space).
   It runs smoothly on both Raspberry PI and a server with hundreds of CPU cores and terabytes of RAM.
 - VictoriaLogs can handle up to 30x bigger data volumes than Elasticsearch and Grafana Loki when running on the same hardware.
   See [these docs](#benchmarks).
-- VictoriaLogs supports fast full-text search over high-cardinality [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
+- VictoriaLogs supports fast full-text search over high-cardinality [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
   such as `trace_id`, `user_id` and `ip`.
 - VictoriaLogs supports multitenancy - see [these docs](#multitenancy).
 - VictoriaLogs supports out-of-order logs' ingestion aka backfilling.
-- VictoriaLogs provides a simple web UI for querying logs - see [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#web-ui).
+- VictoriaLogs provides a simple web UI for querying logs - see [these docs](https://docs.victoriametrics.com/victorialogs/querying/#web-ui).
 
 VictoriaLogs is at the Preview stage now. It is ready for evaluation in production and verifying the claims given above.
 It isn't recommended to migrate from existing logging solutions to VictoriaLogs Preview in general cases yet.
-See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
+See the [Roadmap](https://docs.victoriametrics.com/victorialogs/roadmap/) for details.
 
-If you have questions about VictoriaLogs, then read [this FAQ](https://docs.victoriametrics.com/VictoriaLogs/FAQ.html).
+If you have questions about VictoriaLogs, then read [this FAQ](https://docs.victoriametrics.com/victorialogs/faq/).
 Also feel free asking any questions at [VictoriaMetrics community Slack chat](https://victoriametrics.slack.com/), 
 you can join it via [Slack Inviter](https://slack.victoriametrics.com/).
 
-See [Quick start docs](https://docs.victoriametrics.com/VictoriaLogs/QuickStart.html) for start working with VictoriaLogs.
+See [Quick start docs](https://docs.victoriametrics.com/victorialogs/quickstart/) for start working with VictoriaLogs.
 
 ## Monitoring
 
@@ -51,11 +51,11 @@ VictoriaLogs emits its own logs to stdout. It is recommended to investigate thes
 
 ## Upgrading
 
-It is safe upgrading VictoriaLogs to new versions unless [release notes](https://docs.victoriametrics.com/VictoriaLogs/CHANGELOG.html) say otherwise.
-It is safe to skip multiple versions during the upgrade unless [release notes](https://docs.victoriametrics.com/VictoriaLogs/CHANGELOG.html) say otherwise.
+It is safe upgrading VictoriaLogs to new versions unless [release notes](https://docs.victoriametrics.com/victorialogs/changelog/) say otherwise.
+It is safe to skip multiple versions during the upgrade unless [release notes](https://docs.victoriametrics.com/victorialogs/changelog/) say otherwise.
 It is recommended to perform regular upgrades to the latest version, since it may contain important bug fixes, performance optimizations or new features.
 
-It is also safe to downgrade to older versions unless [release notes](https://docs.victoriametrics.com/VictoriaLogs/CHANGELOG.html) say otherwise.
+It is also safe to downgrade to older versions unless [release notes](https://docs.victoriametrics.com/victorialogs/changelog/) say otherwise.
 
 The following steps must be performed during the upgrade / downgrade procedure:
 
@@ -77,10 +77,10 @@ For example, the following command starts VictoriaLogs with the retention of 8 w
 /path/to/victoria-logs -retentionPeriod=8w
 ```
 
-VictoriaLogs stores the [ingested](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/) logs in per-day partition directories.
+VictoriaLogs stores the [ingested](https://docs.victoriametrics.com/victorialogs/data-ingestion/) logs in per-day partition directories.
 It automatically drops partition directories outside the configured retention.
 
-VictoriaLogs automatically drops logs at [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/) stage
+VictoriaLogs automatically drops logs at [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/) stage
 if they have timestamps outside the configured retention. A sample of dropped logs is logged with `WARN` message in order to simplify troubleshooting.
 The `vl_rows_dropped_total` [metric](#monitoring) is incremented each time an ingested log entry is dropped because of timestamp outside the retention.
 It is recommended to set up the following alerting rule at [vmalert](https://docs.victoriametrics.com/vmalert/) in order to be notified
@@ -115,8 +115,8 @@ VictoriaLogs automatically creates the `-storageDataPath` directory on the first
 ## Multitenancy
 
 VictoriaLogs supports multitenancy. A tenant is identified by `(AccountID, ProjectID)` pair, where `AccountID` and `ProjectID` are arbitrary 32-bit unsigned integers.
-The `AccountID` and `ProjectID` fields can be set during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/)
-and [querying](https://docs.victoriametrics.com/VictoriaLogs/querying/) via `AccountID` and `ProjectID` request headers.
+The `AccountID` and `ProjectID` fields can be set during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
+and [querying](https://docs.victoriametrics.com/victorialogs/querying/) via `AccountID` and `ProjectID` request headers.
 
 If `AccountID` and/or `ProjectID` request headers aren't set, then the default `0` value is used.
 
@@ -127,9 +127,9 @@ VictoriaLogs doesn't perform per-tenant authorization. Use [vmauth](https://docs
 ## Benchmarks
 
 Here is a [benchmark suite](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/logs-benchmark) for comparing data ingestion performance
-and resource usage between VictoriaLogs and Elasticsearch.
+and resource usage between VictoriaLogs and Elasticsearch or Loki.
 
-It is recommended [setting up VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/QuickStart.html) in production alongside the existing
+It is recommended [setting up VictoriaLogs](https://docs.victoriametrics.com/victorialogs/quickstart/) in production alongside the existing
 log management systems and comparing resource usage + query performance between VictoriaLogs and your system such as Elasticsearch or Grafana Loki.
 
 Please share benchmark results and ideas on how to improve benchmarks / VictoriaLogs
@@ -154,7 +154,7 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
   -fs.disableMmap
     	Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -futureRetention value
-    	Log entries with timestamps bigger than now+futureRetention are rejected during data ingestion; see https://docs.victoriametrics.com/VictoriaLogs/#retention
+    	Log entries with timestamps bigger than now+futureRetention are rejected during data ingestion; see https://docs.victoriametrics.com/victorialogs/#retention
     	The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 2d)
   -gogc int
     	GOGC to use. See https://tip.golang.org/doc/gc-guide (default 100)
@@ -201,9 +201,9 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
   -internStringMaxLen int
     	The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -logIngestedRows
-    	Whether to log all the ingested log entries; this can be useful for debugging of data ingestion; see https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/ ; see also -logNewStreams
+    	Whether to log all the ingested log entries; this can be useful for debugging of data ingestion; see https://docs.victoriametrics.com/victorialogs/data-ingestion/ ; see also -logNewStreams
   -logNewStreams
-    	Whether to log creation of new streams; this can be useful for debugging of high cardinality issues with log streams; see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields ; see also -logIngestedRows
+    	Whether to log creation of new streams; this can be useful for debugging of high cardinality issues with log streams; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields ; see also -logIngestedRows
   -loggerDisableTimestamps
     	Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
@@ -244,7 +244,7 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
     	Supports an array of values separated by comma or specified via multiple flags.
   -retentionPeriod value
-    	Log entries with timestamps older than now-retentionPeriod are automatically deleted; log entries with timestamps outside the retention are also rejected during data ingestion; the minimum supported retention is 1d (one day); see https://docs.victoriametrics.com/VictoriaLogs/#retention
+    	Log entries with timestamps older than now-retentionPeriod are automatically deleted; log entries with timestamps outside the retention are also rejected during data ingestion; the minimum supported retention is 1d (one day); see https://docs.victoriametrics.com/victorialogs/#retention
     	The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 7d)
   -search.maxConcurrentRequests int
     	The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration (default 6)
@@ -252,11 +252,8 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	The maximum duration for query execution (default 30s)
   -search.maxQueueDuration duration
     	The maximum time the search request waits for execution when -search.maxConcurrentRequests limit is reached; see also -search.maxQueryDuration (default 10s)
-  -select.maxSortBufferSize size
-    	Query results from /select/logsql/query are automatically sorted by _time if their summary size doesn't exceed this value; otherwise, query results are streamed in the response without sorting; too big value for this flag may result in high memory usage since the sorting is performed in memory
-    	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 1048576)
   -storageDataPath string
-    	Path to directory with the VictoriaLogs data; see https://docs.victoriametrics.com/VictoriaLogs/#storage (default "victoria-logs-data")
+    	Path to directory with the VictoriaLogs data; see https://docs.victoriametrics.com/victorialogs/#storage (default "victoria-logs-data")
   -storage.minFreeDiskSpaceBytes size
     	The minimum free disk space at -storageDataPath after which the storage stops accepting new data
     	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 10000000)

@@ -1528,7 +1528,6 @@ func (r *Reader) LabelValues(ctx context.Context, name string, matchers ...*labe
 			values = append(values, k)
 		}
 		return values, nil
-
 	}
 	e, ok := r.postings[name]
 	if !ok {
@@ -1829,7 +1828,7 @@ func NewStringListIter(s []string) StringIter {
 	return &stringListIter{l: s}
 }
 
-// symbolsIter implements StringIter.
+// stringListIter implements StringIter.
 type stringListIter struct {
 	l   []string
 	cur string
