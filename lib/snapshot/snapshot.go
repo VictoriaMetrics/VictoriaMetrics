@@ -101,6 +101,9 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	addAuthHeaders(req)
 	resp, err := hc.Do(req)
+	if err != nil {
+		return err
+	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
