@@ -449,8 +449,6 @@ Run `vmbackup -help` in order to see all the available options:
   -snapshot.basicAuthPassword string
      Optional basic auth password to use for connections to -snapshotCreateURL.
      Flag value can be read from the given file when using -snapshot.basicAuthPassword=file:///abs/path/to/file or -snapshot.basicAuthPassword=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -snapshot.basicAuthPassword=http://host/path or -snapshot.basicAuthPassword=https://host/path
-  -snapshot.authKey string
-     Optional authKey to be passed as 'X-AuthKey' HTTP headder for the connections to -snapshotCreateURL and -snapshot.deleteURL. Flag value can be read from the given file when using -snapshot.authKey=file:///abs/path/to/file or -snapshot.authKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -snapshot.authKey=http://host/path or -snapshot.authKey=https://host/path
   -snapshot.tlsCAFile string
      Optional path to TLS CA file to use for verifying connections to -snapshotCreateURL. By default, system CA is used
   -snapshot.tlsCertFile string

@@ -24,7 +24,6 @@ var (
 	tlsServerName         = flag.String("snapshot.tlsServerName", "", `Optional TLS server name to use for connections to -snapshotCreateURL. By default, the server name from -snapshotCreateURL is used`)
 	basicAuthUser         = flagutil.NewPassword("snapshot.basicAuthUsername", `Optional basic auth username to use for connections to -snapshotCreateURL`)
 	basicAuthPassword     = flagutil.NewPassword("snapshot.basicAuthPassword", `Optional basic auth password to use for connections to -snapshotCreateURL`)
-	snapshotAuthKey       = flagutil.NewPassword("snapshot.authKey", `Optional authKey to be passed as 'X-AuthKey' HTTP headder for the connections to -snapshotCreateURL`)
 )
 
 type snapshot struct {
@@ -62,13 +61,13 @@ func Create(createSnapshotURL string) (string, error) {
 		return "", err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", httputils.RedactedURL(u), resp.StatusCode, http.StatusOK, body)
+		return "", fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", u.Redacted(), resp.StatusCode, http.StatusOK, body)
 	}
 
 	snap := snapshot{}
 	err = json.Unmarshal(body, &snap)
 	if err != nil {
-		return "", fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", httputils.RedactedURL(u), err, body)
+		return "", fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", u.Redacted(), err, body)
 	}
 
 	if snap.Status == "ok" {
@@ -112,13 +111,13 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 		return err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", httputils.RedactedURL(u), resp.StatusCode, http.StatusOK, body)
+		return fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", u.Redacted(), resp.StatusCode, http.StatusOK, body)
 	}
 
 	snap := snapshot{}
 	err = json.Unmarshal(body, &snap)
 	if err != nil {
-		return fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", httputils.RedactedURL(u), err, body)
+		return fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", u.Redacted(), err, body)
 	}
 
 	if snap.Status == "ok" {
@@ -131,16 +130,12 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 	return fmt.Errorf("Unknown status: %v", snap.Status)
 }
 
-// addBasicAuthHeader adds basic auth  and X-AuthKey (for snapshot authkey) header to request
-// if their corresponding flags snapshot.basicAuthUsername, snapshot.basicAuthPassword and snapshot.authKey flags are set.
+// addBasicAuthHeader adds basic auth header to request
+// if their corresponding flags snapshot.basicAuthUsername and snapshot.basicAuthPassword flags are set.
 func addAuthHeaders(req *http.Request) {
 	if basicAuthUser.Get() != "" {
 		auth := basicAuthUser.Get() + ":" + basicAuthPassword.Get()
 		authHeader := base64.StdEncoding.EncodeToString([]byte(auth))
 		req.Header.Set("Authorization", "Basic "+authHeader)
-	}
-	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5973
-	if snapshotAuthKey.Get() != "" {
-		req.Header.Set("X-AuthKey", snapshotAuthKey.Get())
 	}
 }
