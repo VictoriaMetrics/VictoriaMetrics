@@ -1739,7 +1739,7 @@ It has the following format:
 ```
 
 Where `exprX` is one of the supported math expressions mentioned below, while `resultNameX` is the name of the field to store the calculated result to.
-The `as` keyword is optional. The result name can be omitted. In this case the result is stored to a field with the name equal to string representation
+The `as` keyword is optional. The result name can be omitted. In this case the result is stored to a field with the name equal to string represenation
 of the corresponding math expression.
 
 `exprX` may reference `resultNameY` calculated before the given `exprX`.
@@ -1788,7 +1788,7 @@ the following query rounds the `request_duration` [field](https://docs.victoriam
 _time:5m | math round(request_duration, 1e9) as request_duration_nsecs | format '<duration:request_duration_nsecs>' as request_duration
 ```
 
-The `eval` keyword can be used instead of `math` for convenance. For example, the following query calculates `duration_msecs` field
+The `eval` keyword can be used instead of `math` for convenience. For example, the following query calculates `duration_msecs` field
 by multiplying `duration_secs` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) to `1000`:
 
 ```logsql
@@ -2544,7 +2544,7 @@ See also:
 
 #### Conditional unpack_syslog
 
-If the [`unpack_syslog` pipe](#unpack_syslog-pipe) mustn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
+If the [`unpack_syslog` pipe](#unpack_syslog-pipe) musn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
 then add `if (<filters>)` after `unpack_syslog`.
 The `<filters>` can contain arbitrary [filters](#filters). For example, the following query unpacks syslog message fields from `foo` field
 only if `hostname` field in the current log entry isn't set or empty:
