@@ -4,7 +4,6 @@ repos:
     hooks:
       - id: cspell
         args:
-          - --config=cspell/cspell.json
           - --no-progress
           - --no-summary
         # The lines below make pre-commit ignore the exit code while still

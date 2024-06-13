@@ -7,7 +7,7 @@
     {
       "addWords": true,
       "name": "custom-dict",
-      "path": "custom-dict.txt"
+      "path": "cspell/custom-dict.txt"
     }
   ],
   "dictionaries": [
@@ -39,7 +39,6 @@
   ],
   "enabled": true,
   "files": ["**/*.{example,md}"],
-  "globRoot": "../",
   "ignorePaths": [
     ".dockerignore",
     ".github",
