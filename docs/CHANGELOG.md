@@ -12,6 +12,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 ## v1.93.x long-time support release (LTS)
 * 
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix path for system links printed on default vmalert's UI page when `-http.pathPrefix` is set.
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/): properly configure authentication when `-configFilePath` cmd-line flag is specified.
 
 ## [v1.93.15](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.15)
 
