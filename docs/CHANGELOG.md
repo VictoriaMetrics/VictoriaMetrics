@@ -42,7 +42,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): add `--disable-progress-bar` global command-line flag. It can be used for disabling dynamic progress bar for all migration modes. `--vm-disable-progress-bar`  command-line flag is deprecated and will be removed in the future releases. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6367).
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): prevent [rate_sum](https://docs.victoriametrics.com/stream-aggregation/#rate_sum) and [rate_avg](https://docs.victoriametrics.com/stream-aggregation/#rate_avg) producing `NaN` results for stale time series. Before, when series matched for aggregation became stale or weren't updated during aggregation interval, the `rate_sum` or `rate_avg` could produce data point with `NaN` value. During visualization, such aggregation results would be displayed as gaps in time series.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix path for system links printed on default vmalert's UI page when `-http.pathPrefix` is set.
-* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/): properly utilize credsFilePath flag value
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/): properly configure authentication when `-configFilePath` cmd-line flag is specified.
 
 ## [v1.102.0-rc1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0-rc1)
 
