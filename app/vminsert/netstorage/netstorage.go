@@ -45,6 +45,9 @@ var (
 		"On the other side, disabled re-routing minimizes the number of active time series in the cluster "+
 		"during rolling restarts and during spikes in series churn rate. "+
 		"See also -disableRerouting")
+	usePersistentStorageNodeID = flag.Bool("vmstorageUsePersistentID", false, "Whether to use persistent storage node ID for -storageNode instances. "+
+		"If set to false uses storage node address in order to generate an ID. "+
+		"Using persistent node ID is useful if vmstorage node address changes over time, e.g. due to dynamic IP addresses or DNS names. ")
 )
 
 var errStorageReadOnly = errors.New("storage node is read only")
@@ -608,7 +611,14 @@ func initStorageNodes(addrs []string, hashSeed uint64) *storageNodesBucket {
 			}
 			return 0
 		})
-		nodeIDs = append(nodeIDs, sn.getID())
+		var nodeID uint64
+		if *usePersistentStorageNodeID {
+			nodeID = sn.getID()
+		} else {
+			nodeID = xxhash.Sum64String(addr)
+		}
+
+		nodeIDs = append(nodeIDs, nodeID)
 		sns = append(sns, sn)
 	}
 	nodesHash := newConsistentHash(nodeIDs, hashSeed)
