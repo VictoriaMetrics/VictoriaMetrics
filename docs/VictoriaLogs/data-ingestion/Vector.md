@@ -8,6 +8,8 @@ menu:
     weight: 5
 aliases:
   - /VictoriaLogs/data-ingestion/Vector.html
+  - /victorialogs/data-ingestion/Vector.html
+  - /victorialogs/data-ingestion/vector.html
 ---
 # Vector setup
 
