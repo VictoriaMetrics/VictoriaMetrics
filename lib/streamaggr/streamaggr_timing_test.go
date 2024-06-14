@@ -47,7 +47,7 @@ func BenchmarkAggregatorsFlushSerial(b *testing.B) {
 	}
 	pushFunc := func(_ []prompbmarshal.TimeSeries) {}
 	a := newBenchAggregators(outputs, pushFunc)
-	defer a.MustStop()
+	defer a.MustStop(nil)
 	_ = a.Push(benchSeries, nil)
 
 	b.ResetTimer()
@@ -63,7 +63,7 @@ func BenchmarkAggregatorsFlushSerial(b *testing.B) {
 func benchmarkAggregatorsPush(b *testing.B, output string) {
 	pushFunc := func(_ []prompbmarshal.TimeSeries) {}
 	a := newBenchAggregators([]string{output}, pushFunc)
-	defer a.MustStop()
+	defer a.MustStop(nil)
 
 	const loops = 100
 
@@ -92,8 +92,10 @@ func newBenchAggregators(outputs []string, pushFunc PushFunc) *Aggregators {
   outputs: [%s]
 `, strings.Join(outputsQuoted, ","))
 
-	a, err := newAggregatorsFromData([]byte(config), pushFunc, Options{})
-	if err != nil {
+	a := &Aggregators{
+		pushFunc: pushFunc,
+	}
+	if err := a.loadAggregatorsFromData([]byte(config)); err != nil {
 		panic(fmt.Errorf("unexpected error when initializing aggregators: %s", err))
 	}
 	return a
