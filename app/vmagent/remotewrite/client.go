@@ -7,11 +7,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -23,6 +22,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -456,10 +456,9 @@ again:
 
 	// Unexpected status code returned
 	retriesCount++
-	retryDuration *= 2
-	if retryDuration > maxRetryDuration {
-		retryDuration = maxRetryDuration
-	}
+	retryDuration = calculateRetryDuration(parseRetryAfterHeader(resp.Header.Get("Retry-After")), retryDuration, maxRetryDuration)
+
+	// Handle response
 	body, err := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if err != nil {
@@ -481,3 +480,46 @@ again:
 }
 
 var remoteWriteRejectedLogger = logger.WithThrottler("remoteWriteRejected", 5*time.Second)
+
+// calculateRetryAfterDuration calculate the retry duration.
+// 1. Calculate next retry duration by backoff policy (x2) and max retry duration limit.
+// 2. use max(Retry-After duration, next retry duration).
+//
+// Also see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6097
+func calculateRetryDuration(retryAfterDuration, retryDuration, maxRetryDuration time.Duration) time.Duration {
+	// default backoff retry policy
+	retryDuration *= 2
+	if retryDuration > maxRetryDuration {
+		retryDuration = maxRetryDuration
+	}
+
+	if retryDuration > retryAfterDuration {
+		// Stick with the default policy when `retryAfter` is shorter.
+		return retryDuration
+	}
+
+	// Follow retryAfter
+	return timeutil.AddJitterToDuration(retryAfterDuration)
+}
+
+// parseRetryAfterHeader parse Retry-After value retrieved from HTTP response header.
+// `retryAfterString` should be in either HTTP-date or a number of seconds.
+// It will return time.Duration(0) if `retryAfterString` does not follow RFC 7231.
+func parseRetryAfterHeader(retryAfterString string) time.Duration {
+	var retryAfterDuration time.Duration
+
+	if retryAfterString == "" {
+		return retryAfterDuration
+	}
+
+	// Retry-After could be in "Mon, 02 Jan 2006 15:04:05 GMT" format.
+	if parsedTime, err := time.Parse(http.TimeFormat, retryAfterString); err == nil {
+		return time.Duration(time.Until(parsedTime).Seconds()) * time.Second
+	}
+	// Retry-After could be in seconds.
+	if seconds, err := strconv.Atoi(retryAfterString); err == nil {
+		return time.Duration(seconds) * time.Second
+	}
+
+	return 0
+}
