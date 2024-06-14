@@ -15,20 +15,24 @@ func TestVMSelectHandshake(t *testing.T) {
 	testHandshake(t, VMSelectClient, VMSelectServer)
 }
 
-func testHandshake(t *testing.T, clientFunc, serverFunc Func) {
+func testHandshake(t *testing.T, clientFunc ClientFunc, serverFunc ServerFunc) {
 	t.Helper()
 
 	c, s := net.Pipe()
 	ch := make(chan error, 1)
 	go func() {
-		bcs, err := serverFunc(s, 3)
+		bcs, err := serverFunc(s, 3, 1)
 		if err != nil {
 			ch <- fmt.Errorf("error on outer handshake: %w", err)
 			return
 		}
-		bcc, err := clientFunc(bcs, 3)
+		bcc, id, err := clientFunc(bcs, 3)
 		if err != nil {
 			ch <- fmt.Errorf("error on inner handshake: %w", err)
+			return
+		}
+		if id != 1 {
+			ch <- fmt.Errorf("unexpected id; got %d; want 1", id)
 			return
 		}
 		if bcc == nil {
@@ -38,11 +42,15 @@ func testHandshake(t *testing.T, clientFunc, serverFunc Func) {
 		ch <- nil
 	}()
 
-	bcc, err := clientFunc(c, 0)
+	bcc, id, err := clientFunc(c, 0)
 	if err != nil {
 		t.Fatalf("error on outer handshake: %s", err)
 	}
-	bcs, err := serverFunc(bcc, 0)
+	if id != 1 {
+		t.Fatalf("unexpected id; got %d; want 2", id)
+	}
+
+	bcs, err := serverFunc(bcc, 0, 1)
 	if err != nil {
 		t.Fatalf("error on inner handshake: %s", err)
 	}

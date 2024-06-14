@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -2107,6 +2108,9 @@ type storageNode struct {
 
 	// The number of list tenants errors to storageNode.
 	tenantsErrors *metrics.Counter
+
+	// id is the unique identifier for the storageNode.
+	id uint64
 }
 
 func (sn *storageNode) registerMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadline searchutils.Deadline) error {
@@ -2954,6 +2958,31 @@ func getStorageNodes() []*storageNode {
 	return snb.sns
 }
 
+var (
+	nodeID     uint64
+	nodeIDOnce sync.Once
+)
+
+// GetNodeID returns unique identifier for underlying storage nodes.
+func GetNodeID() uint64 {
+	nodeIDOnce.Do(func() {
+		snb := getStorageNodesBucket()
+		snIDs := make([]uint64, 0, len(snb.sns))
+		for _, sn := range snb.sns {
+			snIDs = append(snIDs, sn.id)
+		}
+		slices.Sort(snIDs)
+		idsM := make([]byte, 0)
+		for _, id := range snIDs {
+			idsM = encoding.MarshalUint64(idsM, id)
+		}
+
+		nodeID = xxhash.Sum64(idsM)
+	})
+
+	return nodeID
+}
+
 // Init initializes storage nodes' connections to the given addrs.
 //
 // MustStop must be called when the initialized connections are no longer needed.
@@ -3015,6 +3044,7 @@ func newStorageNode(ms *metrics.Set, group *storageNodesGroup, addr string) *sto
 	sn := &storageNode{
 		group:    group,
 		connPool: connPool,
+		id:       connPool.GetTargetNodeID(),
 
 		concurrentQueries: ms.NewCounter(fmt.Sprintf(`vm_concurrent_queries{name="vmselect", addr=%q}`, addr)),
 

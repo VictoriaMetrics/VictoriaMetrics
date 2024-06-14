@@ -3,12 +3,14 @@ package netutil
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
+
+	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 // ConnPool is a connection pool with ZSTD-compressed connections.
@@ -23,8 +25,9 @@ type ConnPool struct {
 	concurrentDialsCh chan struct{}
 
 	name             string
-	handshakeFunc    handshake.Func
+	handshakeFunc    handshake.ClientFunc
 	compressionLevel int
+	nodeID           atomic.Uint64
 
 	conns []connWithTimestamp
 
@@ -49,7 +52,7 @@ type connWithTimestamp struct {
 // The compression is disabled if compressionLevel <= 0.
 //
 // Call ConnPool.MustStop when the returned ConnPool is no longer needed.
-func NewConnPool(ms *metrics.Set, name, addr string, handshakeFunc handshake.Func, compressionLevel int, dialTimeout, userTimeout time.Duration) *ConnPool {
+func NewConnPool(ms *metrics.Set, name, addr string, handshakeFunc handshake.ClientFunc, compressionLevel int, dialTimeout, userTimeout time.Duration) *ConnPool {
 	cp := &ConnPool{
 		d:                 NewTCPDialer(ms, name, addr, dialTimeout, userTimeout),
 		concurrentDialsCh: make(chan struct{}, 8),
@@ -163,7 +166,8 @@ func (cp *ConnPool) dialAndHandshake() (*handshake.BufferedConn, error) {
 	if err != nil {
 		return nil, err
 	}
-	bc, err := cp.handshakeFunc(c, cp.compressionLevel)
+	bc, id, err := cp.handshakeFunc(c, cp.compressionLevel)
+	cp.nodeID.CompareAndSwap(0, id)
 	if err != nil {
 		// Do not put handshake error to cp.lastDialError, because handshake
 		// is perfomed on an already established connection.
@@ -247,6 +251,16 @@ func (cp *ConnPool) checkAvailability(force bool) {
 			cp.Put(bc)
 		}
 	}
+}
+
+// GetTargetNodeID returns the nodeID of the target server.
+func (cp *ConnPool) GetTargetNodeID() uint64 {
+	// Ensure that nodeID is initialized.
+	if cp.nodeID.Load() == 0 {
+		cp.checkAvailability(true)
+	}
+
+	return cp.nodeID.Load()
 }
 
 func init() {

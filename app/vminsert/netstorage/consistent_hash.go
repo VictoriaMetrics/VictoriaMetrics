@@ -1,9 +1,5 @@
 package netstorage
 
-import (
-	"github.com/cespare/xxhash/v2"
-)
-
 // See the following docs:
 // - https://www.eecs.umich.edu/techreports/cse/96/CSE-TR-316-96.pdf
 // - https://github.com/dgryski/go-rendezvous
@@ -13,14 +9,10 @@ type consistentHash struct {
 	nodeHashes []uint64
 }
 
-func newConsistentHash(nodes []string, hashSeed uint64) *consistentHash {
-	nodeHashes := make([]uint64, len(nodes))
-	for i, node := range nodes {
-		nodeHashes[i] = xxhash.Sum64([]byte(node))
-	}
+func newConsistentHash(ids []uint64, hashSeed uint64) *consistentHash {
 	return &consistentHash{
 		hashSeed:   hashSeed,
-		nodeHashes: nodeHashes,
+		nodeHashes: ids,
 	}
 }
 
