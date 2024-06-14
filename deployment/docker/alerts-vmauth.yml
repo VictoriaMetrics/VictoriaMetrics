@@ -1,0 +1,24 @@
+# File contains default list of alerts for vmauth service.
+# The alerts below are just recommendations and may require some updates
+# and threshold calibration according to every specific setup.
+groups:
+  - name: vmauth
+    interval: 30s
+    rules:
+      - alert: concurrentRequestsLimitReached
+        expr: sum(rate(vmauth_concurrent_requests_limit_reached_total)) by (instance) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "vmauth reached total concurrent requests limit: {{ $labels.instance }}"
+          description: "vmauth reached maximum concurrent requests. Possible solutions: increase limit with flag: -maxConcurrentRequests, deploy additional vmauth replicas, check requests latency at backend service."
+      - alert: userConcurrentRequestsLimitReached
+        expr: sum(rate(vmauth_user_concurrent_requests_limit_reached_total)) by (username) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "vmauth reached concurrent requests limit for username {{ $labels.username }}"
+          description: "user reached concurrent requests limit. Possible solutions: increase limit with flag: -maxConcurrentPerUserRequests, deploy additional vmauth replicas, check requests latency at backend service."
+
