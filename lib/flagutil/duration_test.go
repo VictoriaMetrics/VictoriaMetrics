@@ -32,6 +32,7 @@ func TestDurationSetFailure(t *testing.T) {
 
 	// Duration in minutes is confused with duration in months
 	f("1m")
+	f("999y")
 }
 
 func TestDurationSetSuccess(t *testing.T) {
