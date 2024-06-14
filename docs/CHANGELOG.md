@@ -10,6 +10,8 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 * [How to build vmctl](https://docs.victoriametrics.com/vmctl.html#how-to-build)
 
 ## v1.93.x long-time support release (LTS)
+* 
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix path for system links printed on default vmalert's UI page when `-http.pathPrefix` is set.
 
 ## [v1.93.15](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.15)
 
