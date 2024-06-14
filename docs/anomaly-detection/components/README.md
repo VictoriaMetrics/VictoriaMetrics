@@ -21,9 +21,11 @@ This chapter describes different components, that correspond to respective secti
 - [Writer section](writer.html) - Required
 - [Monitoring section](monitoring.html) -  Optional
 
-> **Note**: starting from [v1.7.0](/anomaly-detection/CHANGELOG.html#v172), once the service starts, automated config validation is performed. Please see container logs for errors that need to be fixed to create fully valid config, visiting sections above for examples and documentation.
+> **Note**: starting from [v1.7.0](/anomaly-detection/CHANGELOG#v172), once the service starts, automated config validation is performed. Please see container logs for errors that need to be fixed to create fully valid config, visiting sections above for examples and documentation.
 
-> **Note**: starting from [v1.13.0](/anomaly-detection/CHANGELOG.html#v1130), components' class can be referenced by a short alias instead of a full class path - i.e. `model.zscore.ZscoreModel` becomes `zscore`, `reader.vm.VmReader` becomes `vm`, `scheduler.periodic.PeriodicScheduler` becomes `periodic`, etc. Please see according sections for the details.
+> **Note**: starting from [v1.13.0](/anomaly-detection/CHANGELOG#v1130), components' class can be referenced by a short alias instead of a full class path - i.e. `model.zscore.ZscoreModel` becomes `zscore`, `reader.vm.VmReader` becomes `vm`, `scheduler.periodic.PeriodicScheduler` becomes `periodic`, etc. Please see according sections for the details.
+
+> **Note:** Starting from [v1.13.0](/anomaly-detection/CHANGELOG#v1130) `preset` modes are available for `vmanomaly`. Please find the guide [here](/anomaly-detection/presets/).
 
 Below, you will find an example illustrating how the components of `vmanomaly` interact with each other and with a single-node VictoriaMetrics setup.
 

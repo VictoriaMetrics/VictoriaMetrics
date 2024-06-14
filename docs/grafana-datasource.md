@@ -110,33 +110,22 @@ datasources:
 
 Please find the example of provisioning Grafana instance with VictoriaMetrics datasource below:
 
-1. Create folder `./provisioning/datasource` with datasource example file:
-
-1. Download the latest release:
-
-   ``` bash
-   ver=$(curl -s https://api.github.com/repos/VictoriaMetrics/grafana-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-   curl -L https://github.com/VictoriaMetrics/grafana-datasource/releases/download/$ver/victoriametrics-datasource-$ver.tar.gz -o plugin.tar.gz
-   tar -xf plugin.tar.gz -C ./
-   rm plugin.tar.gz
-   ```
+1. Create a file at `./provisioning/datasources/vm.yml` with datasource example file.
 
 1. Define Grafana installation via docker-compose:
 
    ```yaml
      version: '3.0'
      services:
-        grafana:
-           container_name: 'grafana-datasource'
-           build:
-              context: ./.config
-              args:
-                 grafana_version: ${GRAFANA_VERSION:-9.1.2}
-           ports:
-              - 3000:3000/tcp
-           volumes:
-              - ./victoriametrics-datasource:/var/lib/grafana/plugins/grafana-datasource
-              - ./provisioning:/etc/grafana/provisioning
+       grafana:
+         image: grafana/grafana:11.0.0
+         environment:
+         - GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/grafana-datasource/releases/download/v0.8.2/victoriametrics-datasource-v0.8.2.zip;victoriametrics-datasource
+         - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=victoriametrics-datasource
+         ports:
+         - 3000:3000/tcp
+         volumes:
+         - ./provisioning:/etc/grafana/provisioning
    ```
 
 1. Run docker-compose file:
@@ -155,6 +144,21 @@ When Grafana starts successfully datasources should be present on the datasource
 
 Example with Grafana [helm chart](https://github.com/grafana/helm-charts/blob/main/charts/grafana/README.md):
 
+Option 1. Using Grafana provisioning:
+
+``` yaml
+env:
+  GF_INSTALL_PLUGINS: "https://github.com/VictoriaMetrics/grafana-datasource/releases/download/v0.8.2/victoriametrics-datasource-v0.8.2.zip;victoriametrics-datasource"
+```
+
+Option 2. Using Grafana plugins section in `values.yaml`:
+
+``` yaml
+plugins:
+  - https://github.com/VictoriaMetrics/grafana-datasource/releases/download/v0.8.2/victoriametrics-datasource-v0.8.2zip;victoriametrics-datasource
+```
+
+Option 3. Using init container:
 ``` yaml
 extraInitContainers:
   - name: "load-vm-ds-plugin"
@@ -193,7 +197,7 @@ sidecar:
 
 See more about chart settings [here](https://github.com/grafana/helm-charts/blob/541d97051de87a309362e02d08741ffc868cfcd6/charts/grafana/values.yaml)
 
-Another option would be to build custom Grafana image with plugin based on same installation instructions.
+Option 4 would be to build custom Grafana image with plugin based on same installation instructions.
 
 #### Grafana operator
 

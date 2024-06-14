@@ -1,0 +1,41 @@
+# an example of what config subset user should input to make node_exporter preset fully functional
+# commented fields are optional for the user, as they are already defined in the preset: 
+# ./presets/node_exporter/vmanomaly_config.yml
+preset: "node-exporter"
+
+# schedulers:  # section is already defined
+# models:  # section is already defined
+
+reader:
+  # queries:  # already defined
+  # sampling_period: # already defined
+
+  datasource_url: "http://victoriametrics:8428/" # your datasource url
+  # tenant_id: '0:0'  # specify for cluster version
+  # add any other field - https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader
+
+writer:
+  # metric_format:  # already defined
+  #   __name__: "node_exporter_$VAR"
+  #   for: "$QUERY_KEY"
+  # but you can override it or add other labels
+
+  datasource_url: "http://victoriametrics:8428/" # your datasource url
+  # tenant_id: '0:0'  # specify for cluster version
+  
+  # add any other field - https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer
+
+# monitoring:
+#   # pull section is already defined
+#   # pull:
+#   #   addr: "0.0.0.0"
+#   #   port: 8080
+
+#   push:  # most of the fields are already defined
+#     # extra_labels:  # some labels are already defined, but you can add more
+#     #   job: "vmanomaly"
+#     #   config: "node_exporter"
+#     url: "http://victoriametrics:8428/"  # your datasource url to push self-monitoring metrics
+#     # tenant_id: '0:0'  # specify for cluster version
+
+#   # add any other field - https://docs.victoriametrics.com/anomaly-detection/components/monitoring

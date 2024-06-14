@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 var (
@@ -20,14 +21,11 @@ var (
 )
 
 type internStringMap struct {
-	mu           sync.Mutex
+	mutableLock  sync.Mutex
 	mutable      map[string]string
 	mutableReads uint64
 
 	readonly atomic.Pointer[map[string]internStringMapEntry]
-
-	cleanupInterval uint64
-	nextCleanupTime atomic.Uint64
 }
 
 type internStringMapEntry struct {
@@ -41,8 +39,15 @@ func newInternStringMap() *internStringMap {
 	}
 	readonly := make(map[string]internStringMapEntry)
 	m.readonly.Store(&readonly)
-	m.cleanupInterval = uint64(cacheExpireDuration.Seconds() / 3)
-	m.nextCleanupTime.Store(fasttime.UnixTimestamp() + m.cleanupInterval)
+
+	go func() {
+		cleanupInterval := timeutil.AddJitterToDuration(*cacheExpireDuration) / 2
+		ticker := time.NewTicker(cleanupInterval)
+		for range ticker.C {
+			m.cleanup()
+		}
+	}()
+
 	return m
 }
 
@@ -54,21 +59,16 @@ func (m *internStringMap) intern(s string) string {
 	if isSkipCache(s) {
 		return strings.Clone(s)
 	}
-	currentTime := fasttime.UnixTimestamp()
-	if currentTime >= m.nextCleanupTime.Load() {
-		m.nextCleanupTime.Store(currentTime + m.cleanupInterval)
-		m.cleanup()
-	}
 
 	readonly := m.getReadonly()
 	e, ok := readonly[s]
 	if ok {
-		// Fast path - the string has been found in readonly map
+		// Fast path - the string has been found in readonly map.
 		return e.s
 	}
 
 	// Slower path - search for the string in mutable map under the lock.
-	m.mu.Lock()
+	m.mutableLock.Lock()
 	sInterned, ok := m.mutable[s]
 	if !ok {
 		// Verify whether s has been already registered by concurrent goroutines in m.readonly
@@ -88,7 +88,7 @@ func (m *internStringMap) intern(s string) string {
 		m.migrateMutableToReadonlyLocked()
 		m.mutableReads = 0
 	}
-	m.mu.Unlock()
+	m.mutableLock.Unlock()
 
 	return sInterned
 }
@@ -111,9 +111,6 @@ func (m *internStringMap) migrateMutableToReadonlyLocked() {
 }
 
 func (m *internStringMap) cleanup() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	readonly := m.getReadonly()
 	currentTime := fasttime.UnixTimestamp()
 	needCleanup := false

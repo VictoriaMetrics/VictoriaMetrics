@@ -852,6 +852,18 @@ foo{abc="456", cde="1"} 10 10
 foo:1m_by_cde_rate_sum{cde="1"} 0.65
 `, "1111")
 
+	// rate with duplicated events
+	f(`     
+- interval: 1m
+  by: [cde]
+  outputs: [rate_sum, rate_avg]
+`, `
+foo{abc="123", cde="1"} 4  10
+foo{abc="123", cde="1"} 4  10
+`, `foo:1m_by_cde_rate_avg{cde="1"} 0
+foo:1m_by_cde_rate_sum{cde="1"} 0
+`, "11")
+
 	// keep_metric_names
 	f(`
 - interval: 1m
