@@ -152,6 +152,7 @@ On the (global) graph **'Percentage of Anomalies'**, you can see a spike 8.75% o
 <img alt="global" src="presets_global_percentage.webp" width="800px"/>
 
 At this timestamp on the **'Number of Anomalous Indicators by Node'** graph we can identify the node that had the most anomalies: `10.142.0.27`
+
 <img alt="by_node" src="presets_anomalies_by_node.webp" width="800px"/>
 
 Now you can select anomalous node to drill down further (local):
