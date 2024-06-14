@@ -19,12 +19,11 @@ func TestAggregatorsFailure(t *testing.T) {
 		pushFunc := func(_ []prompbmarshal.TimeSeries) {
 			panic(fmt.Errorf("pushFunc shouldn't be called"))
 		}
-		a, err := LoadFromData([]byte(config), pushFunc, Options{})
-		if err == nil {
-			t.Fatalf("expecting non-nil error")
+		a := &Aggregators{
+			pushFunc: pushFunc,
 		}
-		if a != nil {
-			t.Fatalf("expecting nil a")
+		if err := a.loadAggregatorsFromData([]byte(config)); err == nil {
+			t.Fatalf("expecting non-nil error")
 		}
 	}
 
@@ -157,12 +156,17 @@ func TestAggregatorsEqual(t *testing.T) {
 		t.Helper()
 
 		pushFunc := func(_ []prompbmarshal.TimeSeries) {}
-		aa, err := LoadFromData([]byte(a), pushFunc, Options{})
-		if err != nil {
+		aa := &Aggregators{
+			pushFunc: pushFunc,
+		}
+		if err := aa.loadAggregatorsFromData([]byte(a)); err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
-		ab, err := LoadFromData([]byte(b), pushFunc, Options{})
-		if err != nil {
+
+		ab := &Aggregators{
+			pushFunc: pushFunc,
+		}
+		if err := ab.loadAggregatorsFromData([]byte(b)); err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
 		result := aa.Equal(ab)
@@ -220,12 +224,14 @@ func TestAggregatorsSuccess(t *testing.T) {
 			tssOutput = appendClonedTimeseries(tssOutput, tss)
 			tssOutputLock.Unlock()
 		}
-		opts := Options{
-			FlushOnShutdown:        true,
-			NoAlignFlushToInterval: true,
+		a := &Aggregators{
+			opts: Options{
+				FlushOnShutdown:        true,
+				NoAlignFlushToInterval: true,
+			},
+			pushFunc: pushFunc,
 		}
-		a, err := LoadFromData([]byte(config), pushFunc, opts)
-		if err != nil {
+		if err := a.loadAggregatorsFromData([]byte(config)); err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
 
@@ -233,7 +239,7 @@ func TestAggregatorsSuccess(t *testing.T) {
 		offsetMsecs := time.Now().UnixMilli()
 		tssInput := prompbmarshal.MustParsePromMetrics(inputMetrics, offsetMsecs)
 		matchIdxs := a.Push(tssInput, nil)
-		a.MustStop()
+		a.MustStop(nil)
 
 		// Verify matchIdxs equals to matchIdxsExpected
 		matchIdxsStr := ""
@@ -917,12 +923,14 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 			}
 			tssOutputLock.Unlock()
 		}
-		opts := Options{
-			DedupInterval:   30 * time.Second,
-			FlushOnShutdown: true,
+		a := &Aggregators{
+			opts: Options{
+				DedupInterval:   30 * time.Second,
+				FlushOnShutdown: true,
+			},
+			pushFunc: pushFunc,
 		}
-		a, err := LoadFromData([]byte(config), pushFunc, opts)
-		if err != nil {
+		if err := a.loadAggregatorsFromData([]byte(config)); err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
 
@@ -930,7 +938,7 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 		offsetMsecs := time.Now().UnixMilli()
 		tssInput := prompbmarshal.MustParsePromMetrics(inputMetrics, offsetMsecs)
 		matchIdxs := a.Push(tssInput, nil)
-		a.MustStop()
+		a.MustStop(nil)
 
 		// Verify matchIdxs equals to matchIdxsExpected
 		matchIdxsStr := ""
