@@ -9433,14 +9433,14 @@ func testAddLabels(t *testing.T, mn *storage.MetricName, labels ...string) {
 	}
 }
 
-func TestIsSubQueryCompleteTrue(t *testing.T) {
+func TestNoImplicitConversionRequiredTrue(t *testing.T) {
 	f := func(q string) {
 		t.Helper()
 		e, err := metricsql.Parse(q)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !isSubQueryComplete(e, false) {
+		if !noImplicitConversionRequired(e, false) {
 			t.Fatalf("query should be complete: %s", e.AppendString(nil))
 		}
 	}
@@ -9496,14 +9496,14 @@ WITH (
 max_over_time(cpuIdle[1h:])`)
 }
 
-func TestIsSubQueryCompleteFalse(t *testing.T) {
+func TestNoImplicitConversionRequiredFalse(t *testing.T) {
 	f := func(q string) {
 		t.Helper()
 		e, err := metricsql.Parse(q)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if isSubQueryComplete(e, false) {
+		if noImplicitConversionRequired(e, false) {
 			t.Fatalf("expect to detect incomplete subquery: %s", e.AppendString(nil))
 		}
 	}

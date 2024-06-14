@@ -71,12 +71,12 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 	}
 
 	if *disableImplicitConversion || *logImplicitConversion {
-		complete := isSubQueryComplete(e, false)
-		if !complete && *disableImplicitConversion {
+		noConversion := noImplicitConversionRequired(e, false)
+		if !noConversion && *disableImplicitConversion {
 			// we don't add query=%q to err message as it will be added by the caller
 			return nil, fmt.Errorf("query requires implicit conversion and is rejected according to `-search.disableImplicitConversion=true` setting. See https://docs.victoriametrics.com/metricsql/#implicit-query-conversions for details")
 		}
-		if !complete && *logImplicitConversion {
+		if !noConversion && *logImplicitConversion {
 			logger.Warnf("query=%q requires implicit conversion, see https://docs.victoriametrics.com/metricsql/#implicit-query-conversions for details", e.AppendString(nil))
 		}
 	}
@@ -423,8 +423,8 @@ func (pc *parseCache) Put(q string, pcv *parseCacheValue) {
 	pc.mu.Unlock()
 }
 
-// isSubQueryComplete checks if expr contains incomplete subquery
-func isSubQueryComplete(e metricsql.Expr, isSubExpr bool) bool {
+// noImplicitConversionRequired checks if expr requires implicit conversion
+func noImplicitConversionRequired(e metricsql.Expr, isSubExpr bool) bool {
 	switch exp := e.(type) {
 	case *metricsql.FuncExpr:
 		if isSubExpr {
@@ -440,7 +440,7 @@ func isSubQueryComplete(e metricsql.Expr, isSubExpr bool) bool {
 			if isRollupFn {
 				isSubExpr = true
 			}
-			if !isSubQueryComplete(arg, isSubExpr) {
+			if !noImplicitConversionRequired(arg, isSubExpr) {
 				return false
 			}
 		}
@@ -452,7 +452,7 @@ func isSubQueryComplete(e metricsql.Expr, isSubExpr bool) bool {
 		if exp.Window == nil {
 			return false
 		}
-		return isSubQueryComplete(exp.Expr, false)
+		return noImplicitConversionRequired(exp.Expr, false)
 	case *metricsql.AggrFuncExpr:
 		if isSubExpr {
 			return false
@@ -463,7 +463,7 @@ func isSubQueryComplete(e metricsql.Expr, isSubExpr bool) bool {
 					return false
 				}
 			}
-			if !isSubQueryComplete(arg, false) {
+			if !noImplicitConversionRequired(arg, false) {
 				return false
 			}
 		}
@@ -471,10 +471,10 @@ func isSubQueryComplete(e metricsql.Expr, isSubExpr bool) bool {
 		if isSubExpr {
 			return false
 		}
-		if !isSubQueryComplete(exp.Left, false) {
+		if !noImplicitConversionRequired(exp.Left, false) {
 			return false
 		}
-		if !isSubQueryComplete(exp.Right, false) {
+		if !noImplicitConversionRequired(exp.Right, false) {
 			return false
 		}
 	case *metricsql.MetricExpr:
