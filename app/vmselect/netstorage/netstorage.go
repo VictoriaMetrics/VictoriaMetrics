@@ -116,6 +116,13 @@ type timeseriesWork struct {
 	err      error
 
 	rowsProcessed int
+
+	querySamplesQuota *querySamplesQuota
+}
+
+type querySamplesQuota struct {
+	mu           sync.Mutex
+	samplesQuota int
 }
 
 func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
@@ -132,6 +139,19 @@ func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
 		return fmt.Errorf("error during time series unpacking: %w", err)
 	}
 	tsw.rowsProcessed = len(r.Timestamps)
+
+	tsw.querySamplesQuota.mu.Lock()
+	tsw.querySamplesQuota.samplesQuota -= tsw.rowsProcessed
+	if tsw.querySamplesQuota.samplesQuota < 0 {
+		tsw.mustStop.Store(true)
+		tsw.querySamplesQuota.mu.Unlock()
+		return &limitExceededErr{
+			err: fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: increase the -search.maxSamplesPerQuery; "+
+				"reduce time range for the query; use more specific label filters in order to select fewer series", *maxSamplesPerQuery),
+		}
+	}
+	tsw.querySamplesQuota.mu.Unlock()
+
 	if len(r.Timestamps) > 0 {
 		if err := tsw.f(r, workerID); err != nil {
 			tsw.mustStop.Store(true)
@@ -267,11 +287,16 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	}
 
 	var mustStop atomic.Bool
+	limit := *maxSamplesPerQuery
+	sampleQuota := &querySamplesQuota{
+		samplesQuota: limit,
+	}
 	initTimeseriesWork := func(tsw *timeseriesWork, pts *packedTimeseries) {
 		tsw.rss = rss
 		tsw.pts = pts
 		tsw.f = f
 		tsw.mustStop = &mustStop
+		tsw.querySamplesQuota = sampleQuota
 	}
 	maxWorkers := MaxWorkers()
 	if maxWorkers == 1 || tswsLen == 1 {
@@ -1678,17 +1703,9 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 	tbfw := newTmpBlocksFileWrapper(sns)
 	blocksRead := newPerNodeCounter(sns)
 	samples := newPerNodeCounter(sns)
-	maxSamplesPerWorker := uint64(*maxSamplesPerQuery) / uint64(len(sns))
 	processBlock := func(mb *storage.MetricBlock, workerID uint) error {
 		blocksRead.Add(workerID, 1)
-		n := samples.Add(workerID, uint64(mb.Block.RowsCount()))
-		if *maxSamplesPerQuery > 0 && n > maxSamplesPerWorker && samples.GetTotal() > uint64(*maxSamplesPerQuery) {
-			return &limitExceededErr{
-				err: fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: "+
-					"increase the -search.maxSamplesPerQuery; reduce time range for the query; "+
-					"use more specific label filters in order to select fewer series", *maxSamplesPerQuery),
-			}
-		}
+		samples.Add(workerID, uint64(mb.Block.RowsCount()))
 		if err := tbfw.RegisterAndWriteBlock(mb, workerID); err != nil {
 			return fmt.Errorf("cannot write MetricBlock to temporary blocks file: %w", err)
 		}
