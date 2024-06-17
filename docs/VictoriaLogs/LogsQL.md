@@ -2550,6 +2550,13 @@ The following query is equivalent to the previous one:
 _time:5m | unpack_syslog
 ```
 
+By default timestamps in [RFC3164 format](https://datatracker.ietf.org/doc/html/rfc3164) are converted to local timezone. It is possible to change the timezone
+offset via `offset` option. For example, the following query adds 5 hours and 30 minutes to unpacked `rfc3164` timestamps:
+
+```logsql
+_time:5m | unpack_syslog offset 5h30m
+```
+
 If it is needed to preserve the original non-empty field values, then add `keep_original_fields` to the end of `unpack_syslog ...`:
 
 ```logsql

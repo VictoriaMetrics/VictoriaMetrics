@@ -71,6 +71,23 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 	return cp, nil
 }
 
+// GetCommonParamsForSyslog returns common params needed for parsing syslog messages and storing them to the given tenantID.
+func GetCommonParamsForSyslog(tenantID logstorage.TenantID) *CommonParams {
+	// See https://docs.victoriametrics.com/victorialogs/logsql/#unpack_syslog-pipe
+	cp := &CommonParams{
+		TenantID:  tenantID,
+		TimeField: "timestamp",
+		MsgField:  "message",
+		StreamFields: []string{
+			"hostname",
+			"app_name",
+			"proc_id",
+		},
+	}
+
+	return cp
+}
+
 // GetProcessLogMessageFunc returns a function, which adds parsed log messages to lr.
 func (cp *CommonParams) GetProcessLogMessageFunc(lr *logstorage.LogRows) func(timestamp int64, fields []logstorage.Field) {
 	return func(timestamp int64, fields []logstorage.Field) {

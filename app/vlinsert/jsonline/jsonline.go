@@ -19,13 +19,13 @@ import (
 )
 
 // RequestHandler processes jsonline insert requests
-func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
+func RequestHandler(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 	w.Header().Add("Content-Type", "application/json")
 
 	if r.Method != "POST" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		return true
+		return
 	}
 
 	requestsTotal.Inc()
@@ -33,11 +33,11 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	cp, err := insertutils.GetCommonParams(r)
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
-		return true
+		return
 	}
 	if err := vlstorage.CanWriteData(); err != nil {
 		httpserver.Errorf(w, r, "%s", err)
-		return true
+		return
 	}
 	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
 	processLogMessage := cp.GetProcessLogMessageFunc(lr)
@@ -46,8 +46,8 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	if r.Header.Get("Content-Encoding") == "gzip" {
 		zr, err := common.GetGzipReader(reader)
 		if err != nil {
-			logger.Errorf("cannot read gzipped _bulk request: %s", err)
-			return true
+			logger.Errorf("cannot read gzipped jsonline request: %s", err)
+			return
 		}
 		defer common.PutGzipReader(zr)
 		reader = zr
@@ -68,6 +68,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		ok, err := readLine(sc, cp.TimeField, cp.MsgField, processLogMessage)
 		wcr.DecConcurrency()
 		if err != nil {
+			errorsTotal.Inc()
 			logger.Errorf("cannot read line #%d in /jsonline request: %s", n, err)
 			break
 		}
@@ -81,12 +82,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	vlstorage.MustAddRows(lr)
 	logstorage.PutLogRows(lr)
 
-	// update jsonlineRequestDuration only for successfully parsed requests.
-	// There is no need in updating jsonlineRequestDuration for request errors,
+	// update requestDuration only for successfully parsed requests.
+	// There is no need in updating requestDuration for request errors,
 	// since their timings are usually much smaller than the timing for successful request parsing.
-	jsonlineRequestDuration.UpdateDuration(startTime)
-
-	return true
+	requestDuration.UpdateDuration(startTime)
 }
 
 func readLine(sc *bufio.Scanner, timeField, msgField string, processLogMessage func(timestamp int64, fields []logstorage.Field)) (bool, error) {
@@ -108,53 +107,24 @@ func readLine(sc *bufio.Scanner, timeField, msgField string, processLogMessage f
 	if err := p.ParseLogMessage(line); err != nil {
 		return false, fmt.Errorf("cannot parse json-encoded log entry: %w", err)
 	}
-	ts, err := extractTimestampFromFields(timeField, p.Fields)
+	ts, err := insertutils.ExtractTimestampISO8601FromFields(timeField, p.Fields)
 	if err != nil {
-		return false, fmt.Errorf("cannot parse timestamp: %w", err)
+		return false, fmt.Errorf("cannot get timestamp: %w", err)
 	}
-	if ts == 0 {
-		ts = time.Now().UnixNano()
-	}
-	p.RenameField(msgField, "_msg")
+	logstorage.RenameField(p.Fields, msgField, "_msg")
 	processLogMessage(ts, p.Fields)
 	logstorage.PutJSONParser(p)
 
 	return true, nil
 }
 
-func extractTimestampFromFields(timeField string, fields []logstorage.Field) (int64, error) {
-	for i := range fields {
-		f := &fields[i]
-		if f.Name != timeField {
-			continue
-		}
-		timestamp, err := parseISO8601Timestamp(f.Value)
-		if err != nil {
-			return 0, err
-		}
-		f.Value = ""
-		return timestamp, nil
-	}
-	return 0, nil
-}
-
-func parseISO8601Timestamp(s string) (int64, error) {
-	if s == "0" || s == "" {
-		// Special case for returning the current timestamp.
-		// It must be automatically converted to the current timestamp by the caller.
-		return 0, nil
-	}
-	t, err := time.Parse(time.RFC3339, s)
-	if err != nil {
-		return 0, fmt.Errorf("cannot parse timestamp %q: %w", s, err)
-	}
-	return t.UnixNano(), nil
-}
-
 var lineBufferPool bytesutil.ByteBufferPool
 
 var (
-	requestsTotal           = metrics.NewCounter(`vl_http_requests_total{path="/insert/jsonline"}`)
-	rowsIngestedTotal       = metrics.NewCounter(`vl_rows_ingested_total{type="jsonline"}`)
-	jsonlineRequestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/jsonline"}`)
+	rowsIngestedTotal = metrics.NewCounter(`vl_rows_ingested_total{type="jsonline"}`)
+
+	requestsTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/jsonline"}`)
+	errorsTotal   = metrics.NewCounter(`vl_http_errors_total{path="/insert/jsonline"}`)
+
+	requestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/jsonline"}`)
 )
