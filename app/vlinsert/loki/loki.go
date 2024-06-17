@@ -46,7 +46,7 @@ func getCommonParams(r *http.Request) (*insertutils.CommonParams, error) {
 	if cp.TenantID.AccountID == 0 && cp.TenantID.ProjectID == 0 {
 		org := r.Header.Get("X-Scope-OrgID")
 		if org != "" {
-			tenantID, err := logstorage.GetTenantIDFromString(org)
+			tenantID, err := logstorage.ParseTenantID(org)
 			if err != nil {
 				return nil, err
 			}
