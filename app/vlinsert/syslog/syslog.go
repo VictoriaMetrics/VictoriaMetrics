@@ -485,7 +485,7 @@ func processLine(line []byte, currentYear int, timezone *time.Location, lmp inse
 	p := logstorage.GetSyslogParser(currentYear, timezone)
 	lineStr := bytesutil.ToUnsafeString(line)
 	p.Parse(lineStr)
-	ts, err := insertutils.ExtractTimestampISO8601FromFields("timestamp", p.Fields)
+	ts, err := insertutils.ExtractTimestampRFC3339NanoFromFields("timestamp", p.Fields)
 	if err != nil {
 		return fmt.Errorf("cannot get timestamp from syslog line %q: %w", line, err)
 	}
