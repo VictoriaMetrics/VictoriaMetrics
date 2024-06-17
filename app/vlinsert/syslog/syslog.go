@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -25,6 +26,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -277,6 +279,18 @@ func serveTCP(ln net.Listener) {
 
 // processStream parses a stream of syslog messages from r and ingests them into vlstorage.
 func processStream(r io.Reader, cp *insertutils.CommonParams) error {
+	if err := vlstorage.CanWriteData(); err != nil {
+		return err
+	}
+
+	lmp := cp.NewLogMessageProcessor()
+	err := processStreamInternal(r, lmp)
+	lmp.MustClose()
+
+	return err
+}
+
+func processStreamInternal(r io.Reader, lmp insertutils.LogMessageProcessor) error {
 	switch *compressMethod {
 	case "", "none":
 	case "gzip":
@@ -295,7 +309,7 @@ func processStream(r io.Reader, cp *insertutils.CommonParams) error {
 		logger.Panicf("BUG: compressLevel=%q; supported values: none, gzip, deflate", *compressMethod)
 	}
 
-	err := processUncompressedStream(r, cp)
+	err := processUncompressedStream(r, lmp)
 
 	switch *compressMethod {
 	case "gzip":
@@ -309,75 +323,153 @@ func processStream(r io.Reader, cp *insertutils.CommonParams) error {
 	return err
 }
 
-func processUncompressedStream(r io.Reader, cp *insertutils.CommonParams) error {
-	if err := vlstorage.CanWriteData(); err != nil {
-		return err
-	}
-	lr := logstorage.GetLogRows(cp.StreamFields, nil)
-	processLogMessage := cp.GetProcessLogMessageFunc(lr)
-
+func processUncompressedStream(r io.Reader, lmp insertutils.LogMessageProcessor) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 
-	lb := lineBufferPool.Get()
-	defer lineBufferPool.Put(lb)
-
-	lb.B = bytesutil.ResizeNoCopyNoOverallocate(lb.B, insertutils.MaxLineSizeBytes.IntN())
-	sc := bufio.NewScanner(wcr)
-	sc.Buffer(lb.B, len(lb.B))
+	slr := getSyslogLineReader(wcr)
+	defer putSyslogLineReader(slr)
 
 	n := 0
 	for {
-		currentYear := int(globalCurrentYear.Load())
-		ok, err := readLine(sc, currentYear, globalTimezone, processLogMessage)
+		ok := slr.nextLine()
 		wcr.DecConcurrency()
+		if !ok {
+			break
+		}
+
+		currentYear := int(globalCurrentYear.Load())
+		err := processLine(slr.line, currentYear, globalTimezone, lmp)
 		if err != nil {
 			errorsTotal.Inc()
 			return fmt.Errorf("cannot read line #%d: %s", n, err)
 		}
-		if !ok {
-			break
-		}
 		n++
 		rowsIngestedTotal.Inc()
 	}
-
-	vlstorage.MustAddRows(lr)
-	logstorage.PutLogRows(lr)
-
-	return nil
+	return slr.Error()
 }
 
-func readLine(sc *bufio.Scanner, currentYear int, timezone *time.Location, processLogMessage func(timestamp int64, fields []logstorage.Field)) (bool, error) {
-	var line []byte
-	for len(line) == 0 {
-		if !sc.Scan() {
-			if err := sc.Err(); err != nil {
-				if errors.Is(err, bufio.ErrTooLong) {
-					return false, fmt.Errorf(`line size exceeds -insert.maxLineSizeBytes=%d`, insertutils.MaxLineSizeBytes.IntN())
-				}
-				return false, err
-			}
-			return false, nil
-		}
-		line = sc.Bytes()
+type syslogLineReader struct {
+	line []byte
+
+	br  *bufio.Reader
+	err error
+}
+
+func (slr *syslogLineReader) reset(r io.Reader) {
+	slr.line = slr.line[:0]
+	slr.br.Reset(r)
+	slr.err = nil
+}
+
+// Error returns the last error occurred in slr.
+func (slr *syslogLineReader) Error() error {
+	if slr.err == nil || slr.err == io.EOF {
+		return nil
+	}
+	return slr.err
+}
+
+// nextLine reads the next syslog line from slr and stores it at slr.line.
+//
+// false is returned if the next line cannot be read. Error() must be called in this case
+// in order to verify whether there is an error or just slr stream has been finished.
+func (slr *syslogLineReader) nextLine() bool {
+	if slr.err != nil {
+		return false
 	}
 
+	prefix, err := slr.br.ReadSlice(' ')
+	if err != nil {
+		if err != io.EOF {
+			slr.err = fmt.Errorf("cannot read message frame prefix: %w", err)
+			return false
+		}
+		if len(prefix) == 0 {
+			slr.err = err
+			return false
+		}
+	}
+	// skip empty lines
+	for len(prefix) > 0 && prefix[0] == '\n' {
+		prefix = prefix[1:]
+	}
+
+	if prefix[0] >= '0' && prefix[0] <= '9' {
+		// This is octet-counting method. See https://www.ietf.org/archive/id/draft-gerhards-syslog-plain-tcp-07.html#msgxfer
+		msgLenStr := bytesutil.ToUnsafeString(prefix[:len(prefix)-1])
+		msgLen, err := strconv.ParseUint(msgLenStr, 10, 64)
+		if err != nil {
+			slr.err = fmt.Errorf("cannot parse message length from %q: %w", msgLenStr, err)
+			return false
+		}
+		if maxMsgLen := insertutils.MaxLineSizeBytes.IntN(); msgLen > uint64(maxMsgLen) {
+			slr.err = fmt.Errorf("cannot read message longer than %d bytes; msgLen=%d", maxMsgLen, msgLen)
+			return false
+		}
+		slr.line = slicesutil.SetLength(slr.line, int(msgLen))
+		if _, err := io.ReadFull(slr.br, slr.line); err != nil {
+			slr.err = fmt.Errorf("cannot read message with size %d bytes: %w", msgLen, err)
+			return false
+		}
+		return true
+	}
+
+	// This is octet-stuffing method. See https://www.ietf.org/archive/id/draft-gerhards-syslog-plain-tcp-07.html#octet-stuffing-legacy
+	slr.line = append(slr.line[:0], prefix...)
+	for {
+		line, err := slr.br.ReadSlice('\n')
+		if err == nil {
+			slr.line = append(slr.line, line[:len(line)-1]...)
+			return true
+		}
+		if err == io.EOF {
+			slr.line = append(slr.line, line...)
+			return true
+		}
+		if err == bufio.ErrBufferFull {
+			slr.line = append(slr.line, line...)
+			continue
+		}
+		slr.err = fmt.Errorf("cannot read message in octet-stuffing method: %w", err)
+		return false
+	}
+}
+
+func getSyslogLineReader(r io.Reader) *syslogLineReader {
+	v := syslogLineReaderPool.Get()
+	if v == nil {
+		br := bufio.NewReaderSize(r, 64*1024)
+		return &syslogLineReader{
+			br: br,
+		}
+	}
+	slr := v.(*syslogLineReader)
+	slr.reset(r)
+	return slr
+}
+
+func putSyslogLineReader(slr *syslogLineReader) {
+	syslogLineReaderPool.Put(slr)
+}
+
+var syslogLineReaderPool sync.Pool
+
+func processLine(line []byte, currentYear int, timezone *time.Location, lmp insertutils.LogMessageProcessor) error {
 	p := logstorage.GetSyslogParser(currentYear, timezone)
 	lineStr := bytesutil.ToUnsafeString(line)
 	p.Parse(lineStr)
 	ts, err := insertutils.ExtractTimestampISO8601FromFields("timestamp", p.Fields)
 	if err != nil {
-		return false, fmt.Errorf("cannot get timestamp from syslog line %q: %w", line, err)
+		return fmt.Errorf("cannot get timestamp from syslog line %q: %w", line, err)
 	}
 	logstorage.RenameField(p.Fields, "message", "_msg")
-	processLogMessage(ts, p.Fields)
+	lmp.AddRow(ts, p.Fields)
 	logstorage.PutSyslogParser(p)
 
-	return true, nil
+	return nil
 }
-
-var lineBufferPool bytesutil.ByteBufferPool
 
 var (
 	rowsIngestedTotal = metrics.NewCounter(`vl_rows_ingested_total{type="syslog"}`)
