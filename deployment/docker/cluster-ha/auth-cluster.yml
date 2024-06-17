@@ -1,0 +1,6 @@
+# balance load among vmselects
+# see https://docs.victoriametrics.com/vmauth/#load-balancing
+unauthorized_user:
+  url_prefix:
+    - http://vmselect-1:8481
+    - http://vmselect-2:8481
