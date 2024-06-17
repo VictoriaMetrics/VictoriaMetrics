@@ -7,10 +7,12 @@ import Button from "../../../components/Main/Button/Button";
 import QueryEditor from "../../../components/Configurators/QueryEditor/QueryEditor";
 import TextField from "../../../components/Main/TextField/TextField";
 import Switch from "../../../components/Main/Switch/Switch";
+import { useTimeDispatch } from "../../../state/time/TimeStateContext";
 
 export interface ExploreLogHeaderProps {
   query: string;
   limit: number;
+  relativeTime: string | undefined;
   error?: string;
   markdownParsing: boolean;
   onChange: (val: string) => void;
@@ -22,6 +24,7 @@ export interface ExploreLogHeaderProps {
 const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
   query,
   limit,
+  relativeTime,
   error,
   markdownParsing,
   onChange,
@@ -33,6 +36,15 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
 
   const [errorLimit, setErrorLimit] = useState("");
   const [limitInput, setLimitInput] = useState(limit);
+
+  const dispatch = useTimeDispatch();
+  const onExecuteQueryClick = () => {
+    if (relativeTime && relativeTime != "none") {
+      dispatch({ type: "RUN_QUERY_TO_NOW" });
+    } else {
+      onRun();
+    }
+  };
 
   const handleChangeLimit = (val: string) => {
     const number = +val;
@@ -109,7 +121,7 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
         <div className="vm-explore-logs-header-bottom__execute">
           <Button
             startIcon={<PlayIcon/>}
-            onClick={onRun}
+            onClick={onExecuteQueryClick}
             fullWidth
           >
             Execute Query

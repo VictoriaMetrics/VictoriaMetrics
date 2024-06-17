@@ -71,6 +71,7 @@ const ExploreLogs: FC = () => {
         query={query}
         error={queryError}
         limit={limit}
+        relativeTime={relativeTime}
         markdownParsing={markdownParsing}
         onChange={setQuery}
         onChangeLimit={handleChangeLimit}
