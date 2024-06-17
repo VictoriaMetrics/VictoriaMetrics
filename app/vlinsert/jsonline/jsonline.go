@@ -112,7 +112,7 @@ func readLine(sc *bufio.Scanner, timeField, msgField string, lmp insertutils.Log
 	if err := p.ParseLogMessage(line); err != nil {
 		return false, fmt.Errorf("cannot parse json-encoded log entry: %w", err)
 	}
-	ts, err := insertutils.ExtractTimestampISO8601FromFields(timeField, p.Fields)
+	ts, err := insertutils.ExtractTimestampRFC3339NanoFromFields(timeField, p.Fields)
 	if err != nil {
 		return false, fmt.Errorf("cannot get timestamp: %w", err)
 	}
