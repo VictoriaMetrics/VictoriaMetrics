@@ -71,16 +71,16 @@ const TooltipBarHitsChart: FC<Props> = ({ focusDataIdx, uPlotInst }) => {
       ref={tooltipRef}
       style={tooltipPosition}
     >
-      <div className="vm-chart-tooltip-header">
-        <div className="vm-chart-tooltip-header__title">
-          {tooltipData.timestamp}
-        </div>
-      </div>
       <div className="vm-chart-tooltip-data">
         Count of records:
         <p className="vm-chart-tooltip-data__value">
           <b>{tooltipData.value}</b>
         </p>
+      </div>
+      <div className="vm-chart-tooltip-header">
+        <div className="vm-chart-tooltip-header__title">
+          {tooltipData.timestamp}
+        </div>
       </div>
     </div>
   );

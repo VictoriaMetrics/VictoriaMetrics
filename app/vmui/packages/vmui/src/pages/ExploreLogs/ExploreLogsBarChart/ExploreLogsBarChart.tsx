@@ -31,7 +31,18 @@ const ExploreLogsBarChart: FC<Props> = ({ logHits, error, loaded }) => {
     return [xAxis, yAxis] as AlignedData;
   }, [logHits]);
 
-  const noData = data.some(d => d.length === 0);
+  const noDataMessage: string = useMemo(() => {
+    const noData = data.every(d => d.length === 0);
+    const noTimestamps = data[0].length === 0;
+    const noValues = data[1].length === 0;
+    if (noData) {
+      return "No logs volume available\nNo volume information available for the current queries and time range.";
+    } else if (noTimestamps) {
+      return "No timestamp information available for the current queries and time range.";
+    } else if (noValues) {
+      return "No value information available for the current queries and time range.";
+    } return "";
+  }, [data]);
 
   const setPeriod = ({ from, to }: {from: Date, to: Date}) => {
     timeDispatch({ type: "SET_PERIOD", payload: { from, to } });
@@ -45,16 +56,13 @@ const ExploreLogsBarChart: FC<Props> = ({ logHits, error, loaded }) => {
         "vm-block_mobile": isMobile,
       })}
     >
-      {!error && loaded && noData && (
+      {!error && loaded && noDataMessage && (
         <div className="vm-explore-logs-chart__empty">
-          <Alert variant="info">
-            <p>No logs volume available</p>
-            <p>No volume information available for the current queries and time range.</p>
-          </Alert>
+          <Alert variant="info">{noDataMessage}</Alert>
         </div>
       )}
 
-      {error && loaded && noData && (
+      {error && loaded && noDataMessage && (
         <div className="vm-explore-logs-chart__empty">
           <Alert variant="error">{error}</Alert>
         </div>

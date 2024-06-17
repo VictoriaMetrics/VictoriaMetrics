@@ -18,14 +18,14 @@ export const useFetchLogHits = (server: string, query: string) => {
   const options = useMemo(() => {
     const start = dayjs(period.start * 1000);
     const end = dayjs(period.end * 1000);
-    const totalSeconds = end.diff(start, "seconds");
-    const step = Math.ceil(totalSeconds / LOGS_BARS_VIEW);
+    const totalSeconds = end.diff(start, "milliseconds");
+    const step = Math.ceil(totalSeconds / LOGS_BARS_VIEW) || 1;
 
     return {
       method: "POST",
       body: new URLSearchParams({
         query: query.trim(),
-        step: `${step}s`,
+        step: `${step}ms`,
         start: start.toISOString(),
         end: end.toISOString(),
       })
