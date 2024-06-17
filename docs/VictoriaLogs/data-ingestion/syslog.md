@@ -31,6 +31,11 @@ The following command starts VictoriaLogs, which accepts logs in Syslog format a
 ./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.listenAddr.udp=:514
 ```
 
+VictoriaLogs can accept logs from the following syslog collectors:
+
+- [Rsyslog](https://www.rsyslog.com/). See [these docs](#rsyslog).
+- [Syslog-ng](https://www.syslog-ng.com/). See [these docs](#syslog-ng).
+
 Multiple logs in Syslog format can be ingested via a single TCP connection or via a single UDP packet - just put every log on a separate line
 and delimit them with `\n` char.
 
@@ -97,3 +102,25 @@ For example, the following command starts VictoriaLogs, which writes syslog mess
 ```sh
 ./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.tenantID=12:34
 ```
+
+## Rsyslog
+
+1. Run VictoriaLogs with `-syslog.listenAddr.tcp=:29514` command-line flag.
+1. Put the following line to [rsyslog](https://www.rsyslog.com/) config (this config is usually located at `/etc/rsyslog.conf`):
+   ```
+   *.* @@victoria-logs-server:29514
+   ```
+   Where `victoria-logs-server` is the hostname where VictoriaLogs runs. See [these docs](https://www.rsyslog.com/sending-messages-to-a-remote-syslog-server/)
+   for more details.
+
+## Syslog-ng
+
+1. Run VictoriaLogs with `-syslog.listenAddr.tcp=:29514` command-line flag.
+1. Put the following line to [syslog-ng](https://www.syslog-ng.com/) config:
+   ```
+   destination d_remote {
+    tcp("victoria-logs-server" port(29514));
+   };
+   ```
+   Where `victoria-logs-server` is the hostname where VictoriaLogs runs.
+   See [these docs](https://www.syslog-ng.com/technical-documents/doc/syslog-ng-open-source-edition/3.19/administration-guide/29#TOPIC-1094570) for details.

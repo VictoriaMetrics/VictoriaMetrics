@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -43,11 +44,9 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
-	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
-	processLogMessage := cp.GetProcessLogMessageFunc(lr)
-	n, err := parseProtobufRequest(data, processLogMessage)
-	vlstorage.MustAddRows(lr)
-	logstorage.PutLogRows(lr)
+	lmp := cp.NewLogMessageProcessor()
+	n, err := parseProtobufRequest(data, lmp)
+	lmp.MustClose()
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse Loki protobuf request: %s", err)
 		return
@@ -67,7 +66,7 @@ var (
 	requestProtobufDuration   = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="protobuf"}`)
 )
 
-func parseProtobufRequest(data []byte, processLogMessage func(timestamp int64, fields []logstorage.Field)) (int, error) {
+func parseProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, error) {
 	bb := bytesBufPool.Get()
 	defer bytesBufPool.Put(bb)
 
@@ -110,7 +109,7 @@ func parseProtobufRequest(data []byte, processLogMessage func(timestamp int64, f
 			if ts == 0 {
 				ts = currentTimestamp
 			}
-			processLogMessage(ts, fields)
+			lmp.AddRow(ts, fields)
 		}
 		rowsIngested += len(stream.Entries)
 	}
