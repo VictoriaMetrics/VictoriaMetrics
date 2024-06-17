@@ -141,7 +141,7 @@ func (fe *filterExact) applyToBlockResult(br *blockResult, bm *bitmap) {
 			return ip == ipNeeded
 		})
 	case valueTypeTimestampISO8601:
-		timestampNeeded, ok := tryParseTimestampISO8601(value)
+		timestampNeeded, ok := TryParseTimestampISO8601(value)
 		if !ok {
 			bm.resetBits()
 			return
@@ -213,7 +213,7 @@ func (fe *filterExact) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 }
 
 func matchTimestampISO8601ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value string, tokens []string) {
-	n, ok := tryParseTimestampISO8601(value)
+	n, ok := TryParseTimestampISO8601(value)
 	if !ok || n < int64(ch.minValue) || n > int64(ch.maxValue) {
 		bm.resetBits()
 		return
