@@ -26,5 +26,5 @@ func TestLogfmtParser(t *testing.T) {
 	f(`foo bar`, `{"foo":"","bar":""}`)
 	f(`foo bar=baz`, `{"foo":"","bar":"baz"}`)
 	f(`foo=bar baz="x y" a=b`, `{"foo":"bar","baz":"x y","a":"b"}`)
-	f(`  foo=bar  baz=x =z qwe`, `{"foo":"bar","baz":"x","":"z","qwe":""}`)
+	f(`  foo=bar  baz=x =z qwe`, `{"foo":"bar","baz":"x","_msg":"z","qwe":""}`)
 }

@@ -78,21 +78,6 @@ func (p *JSONParser) ParseLogMessage(msg []byte) error {
 	return nil
 }
 
-// RenameField renames field with the oldName to newName in p.Fields
-func (p *JSONParser) RenameField(oldName, newName string) {
-	if oldName == "" {
-		return
-	}
-	fields := p.Fields
-	for i := range fields {
-		f := &fields[i]
-		if f.Name == oldName {
-			f.Name = newName
-			return
-		}
-	}
-}
-
 func appendLogFields(dst []Field, dstBuf, prefixBuf []byte, v *fastjson.Value) ([]Field, []byte, []byte) {
 	o := v.GetObject()
 	o.Visit(func(k []byte, v *fastjson.Value) {

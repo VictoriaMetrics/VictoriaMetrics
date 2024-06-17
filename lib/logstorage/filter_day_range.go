@@ -102,7 +102,7 @@ func (fr *filterDayRange) applyToBlockResult(br *blockResult, bm *bitmap) {
 }
 
 func (fr *filterDayRange) matchTimestampString(v string) bool {
-	timestamp, ok := tryParseTimestampRFC3339Nano(v)
+	timestamp, ok := TryParseTimestampRFC3339Nano(v)
 	if !ok {
 		return false
 	}

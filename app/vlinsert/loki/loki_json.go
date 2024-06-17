@@ -20,15 +20,15 @@ import (
 
 var parserPool fastjson.ParserPool
 
-func handleJSON(r *http.Request, w http.ResponseWriter) bool {
+func handleJSON(r *http.Request, w http.ResponseWriter) {
 	startTime := time.Now()
-	lokiRequestsJSONTotal.Inc()
+	requestsJSONTotal.Inc()
 	reader := r.Body
 	if r.Header.Get("Content-Encoding") == "gzip" {
 		zr, err := common.GetGzipReader(reader)
 		if err != nil {
 			httpserver.Errorf(w, r, "cannot initialize gzip reader: %s", err)
-			return true
+			return
 		}
 		defer common.PutGzipReader(zr)
 		reader = zr
@@ -39,17 +39,17 @@ func handleJSON(r *http.Request, w http.ResponseWriter) bool {
 	writeconcurrencylimiter.PutReader(wcr)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot read request body: %s", err)
-		return true
+		return
 	}
 
 	cp, err := getCommonParams(r)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse common params from request: %s", err)
-		return true
+		return
 	}
 	if err := vlstorage.CanWriteData(); err != nil {
 		httpserver.Errorf(w, r, "%s", err)
-		return true
+		return
 	}
 	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
 	processLogMessage := cp.GetProcessLogMessageFunc(lr)
@@ -58,23 +58,21 @@ func handleJSON(r *http.Request, w http.ResponseWriter) bool {
 	logstorage.PutLogRows(lr)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse Loki json request: %s", err)
-		return true
+		return
 	}
 
 	rowsIngestedJSONTotal.Add(n)
 
-	// update lokiRequestJSONDuration only for successfully parsed requests
-	// There is no need in updating lokiRequestJSONDuration for request errors,
+	// update requestJSONDuration only for successfully parsed requests
+	// There is no need in updating requestJSONDuration for request errors,
 	// since their timings are usually much smaller than the timing for successful request parsing.
-	lokiRequestJSONDuration.UpdateDuration(startTime)
-
-	return true
+	requestJSONDuration.UpdateDuration(startTime)
 }
 
 var (
-	lokiRequestsJSONTotal   = metrics.NewCounter(`vl_http_requests_total{path="/insert/loki/api/v1/push",format="json"}`)
-	rowsIngestedJSONTotal   = metrics.NewCounter(`vl_rows_ingested_total{type="loki",format="json"}`)
-	lokiRequestJSONDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="json"}`)
+	requestsJSONTotal     = metrics.NewCounter(`vl_http_requests_total{path="/insert/loki/api/v1/push",format="json"}`)
+	rowsIngestedJSONTotal = metrics.NewCounter(`vl_rows_ingested_total{type="loki",format="json"}`)
+	requestJSONDuration   = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="json"}`)
 )
 
 func parseJSONRequest(data []byte, processLogMessage func(timestamp int64, fields []logstorage.Field)) (int, error) {

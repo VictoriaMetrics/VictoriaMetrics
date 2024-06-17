@@ -1,11 +1,11 @@
 ---
-weight: 5
+weight: 20
 title: Vector setup
 disableToc: true
 menu:
   docs:
     parent: "victorialogs-data-ingestion"
-    weight: 5
+    weight: 20
 aliases:
   - /VictoriaLogs/data-ingestion/Vector.html
   - /victorialogs/data-ingestion/Vector.html

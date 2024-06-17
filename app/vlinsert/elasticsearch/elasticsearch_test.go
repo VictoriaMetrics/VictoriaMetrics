@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"fmt"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
@@ -45,13 +44,7 @@ func TestReadBulkRequestSuccess(t *testing.T) {
 		var result string
 		processLogMessage := func(timestamp int64, fields []logstorage.Field) {
 			timestamps = append(timestamps, timestamp)
-
-			a := make([]string, len(fields))
-			for i, f := range fields {
-				a[i] = fmt.Sprintf("%q:%q", f.Name, f.Value)
-			}
-			s := "{" + strings.Join(a, ",") + "}\n"
-			result += s
+			result += string(logstorage.MarshalFieldsToJSON(nil, fields)) + "\n"
 		}
 
 		// Read the request without compression

@@ -3,14 +3,13 @@ package jsonline
 import (
 	"bufio"
 	"bytes"
-	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"reflect"
-	"strings"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 )
 
-func TestReadBulkRequestSuccess(t *testing.T) {
+func TestReadLine_Success(t *testing.T) {
 	f := func(data, timeField, msgField string, rowsExpected int, timestampsExpected []int64, resultExpected string) {
 		t.Helper()
 
@@ -18,16 +17,9 @@ func TestReadBulkRequestSuccess(t *testing.T) {
 		var result string
 		processLogMessage := func(timestamp int64, fields []logstorage.Field) {
 			timestamps = append(timestamps, timestamp)
-
-			a := make([]string, len(fields))
-			for i, f := range fields {
-				a[i] = fmt.Sprintf("%q:%q", f.Name, f.Value)
-			}
-			s := "{" + strings.Join(a, ",") + "}\n"
-			result += s
+			result += string(logstorage.MarshalFieldsToJSON(nil, fields)) + "\n"
 		}
 
-		// Read the request without compression
 		r := bytes.NewBufferString(data)
 		sc := bufio.NewScanner(r)
 		rows := 0
@@ -53,7 +45,6 @@ func TestReadBulkRequestSuccess(t *testing.T) {
 		}
 	}
 
-	// Verify non-empty data
 	data := `{"@timestamp":"2023-06-06T04:48:11.735Z","log":{"offset":71770,"file":{"path":"/var/log/auth.log"}},"message":"foobar"}
 {"@timestamp":"2023-06-06T04:48:12.735Z","message":"baz"}
 {"message":"xyz","@timestamp":"2023-06-06T04:48:13.735Z","x":"y"}

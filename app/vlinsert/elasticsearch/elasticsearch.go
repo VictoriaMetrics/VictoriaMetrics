@@ -221,7 +221,7 @@ func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
 	if ts == 0 {
 		ts = time.Now().UnixNano()
 	}
-	p.RenameField(msgField, "_msg")
+	logstorage.RenameField(p.Fields, msgField, "_msg")
 	processLogMessage(ts, p.Fields)
 	logstorage.PutJSONParser(p)
 
@@ -272,9 +272,9 @@ func parseElasticsearchTimestamp(s string) (int64, error) {
 		}
 		return t.UnixNano(), nil
 	}
-	t, err := time.Parse(time.RFC3339, s)
-	if err != nil {
-		return 0, fmt.Errorf("cannot parse timestamp %q: %w", s, err)
+	nsecs, ok := logstorage.TryParseTimestampRFC3339Nano(s)
+	if !ok {
+		return 0, fmt.Errorf("cannot parse timestamp %q", s)
 	}
-	return t.UnixNano(), nil
+	return nsecs, nil
 }
