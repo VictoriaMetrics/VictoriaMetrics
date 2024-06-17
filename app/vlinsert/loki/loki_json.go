@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -51,11 +52,9 @@ func handleJSON(r *http.Request, w http.ResponseWriter) {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
-	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
-	processLogMessage := cp.GetProcessLogMessageFunc(lr)
-	n, err := parseJSONRequest(data, processLogMessage)
-	vlstorage.MustAddRows(lr)
-	logstorage.PutLogRows(lr)
+	lmp := cp.NewLogMessageProcessor()
+	n, err := parseJSONRequest(data, lmp)
+	lmp.MustClose()
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse Loki json request: %s", err)
 		return
@@ -75,7 +74,7 @@ var (
 	requestJSONDuration   = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="json"}`)
 )
 
-func parseJSONRequest(data []byte, processLogMessage func(timestamp int64, fields []logstorage.Field)) (int, error) {
+func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, error) {
 	p := parserPool.Get()
 	defer parserPool.Put(p)
 	v, err := p.ParseBytes(data)
@@ -168,7 +167,7 @@ func parseJSONRequest(data []byte, processLogMessage func(timestamp int64, field
 				Name:  "_msg",
 				Value: bytesutil.ToUnsafeString(msg),
 			})
-			processLogMessage(ts, fields)
+			lmp.AddRow(ts, fields)
 		}
 		rowsIngested += len(lines)
 	}

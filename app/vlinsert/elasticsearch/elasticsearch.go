@@ -97,12 +97,10 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
-		processLogMessage := cp.GetProcessLogMessageFunc(lr)
+		lmp := cp.NewLogMessageProcessor()
 		isGzip := r.Header.Get("Content-Encoding") == "gzip"
-		n, err := readBulkRequest(r.Body, isGzip, cp.TimeField, cp.MsgField, processLogMessage)
-		vlstorage.MustAddRows(lr)
-		logstorage.PutLogRows(lr)
+		n, err := readBulkRequest(r.Body, isGzip, cp.TimeField, cp.MsgField, lmp)
+		lmp.MustClose()
 		if err != nil {
 			logger.Warnf("cannot decode log message #%d in /_bulk request: %s, stream fields: %s", n, err, cp.StreamFields)
 			return true
@@ -131,9 +129,7 @@ var (
 	bulkRequestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/elasticsearch/_bulk"}`)
 )
 
-func readBulkRequest(r io.Reader, isGzip bool, timeField, msgField string,
-	processLogMessage func(timestamp int64, fields []logstorage.Field),
-) (int, error) {
+func readBulkRequest(r io.Reader, isGzip bool, timeField, msgField string, lmp insertutils.LogMessageProcessor) (int, error) {
 	// See https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
 
 	if isGzip {
@@ -158,7 +154,7 @@ func readBulkRequest(r io.Reader, isGzip bool, timeField, msgField string,
 	n := 0
 	nCheckpoint := 0
 	for {
-		ok, err := readBulkLine(sc, timeField, msgField, processLogMessage)
+		ok, err := readBulkLine(sc, timeField, msgField, lmp)
 		wcr.DecConcurrency()
 		if err != nil || !ok {
 			rowsIngestedTotal.Add(n - nCheckpoint)
@@ -174,9 +170,7 @@ func readBulkRequest(r io.Reader, isGzip bool, timeField, msgField string,
 
 var lineBufferPool bytesutil.ByteBufferPool
 
-func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
-	processLogMessage func(timestamp int64, fields []logstorage.Field),
-) (bool, error) {
+func readBulkLine(sc *bufio.Scanner, timeField, msgField string, lmp insertutils.LogMessageProcessor) (bool, error) {
 	var line []byte
 
 	// Read the command, must be "create" or "index"
@@ -222,7 +216,7 @@ func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
 		ts = time.Now().UnixNano()
 	}
 	logstorage.RenameField(p.Fields, msgField, "_msg")
-	processLogMessage(ts, p.Fields)
+	lmp.AddRow(ts, p.Fields)
 	logstorage.PutJSONParser(p)
 
 	return true, nil
