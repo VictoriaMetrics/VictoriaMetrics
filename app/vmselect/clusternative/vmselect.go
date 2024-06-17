@@ -31,7 +31,9 @@ var (
 
 // NewVMSelectServer starts new server at the given addr, which serves vmselect requests from netstorage.
 func NewVMSelectServer(addr string) (*vmselectapi.Server, error) {
-	api := &vmstorageAPI{}
+	api := &vmstorageAPI{
+		nodeID: netstorage.GetNodeID(),
+	}
 	limits := vmselectapi.Limits{
 		MaxLabelNames:                 *maxTagKeys,
 		MaxLabelValues:                *maxTagValues,
@@ -45,7 +47,9 @@ func NewVMSelectServer(addr string) (*vmselectapi.Server, error) {
 }
 
 // vmstorageAPI impelements vmselectapi.API
-type vmstorageAPI struct{}
+type vmstorageAPI struct {
+	nodeID uint64
+}
 
 func (api *vmstorageAPI) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (vmselectapi.BlockIterator, error) {
 	denyPartialResponse := httputils.GetDenyPartialResponse(nil)
@@ -110,6 +114,10 @@ func (api *vmstorageAPI) DeleteSeries(qt *querytracer.Tracer, sq *storage.Search
 func (api *vmstorageAPI) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadline uint64) error {
 	dl := searchutils.DeadlineFromTimestamp(deadline)
 	return netstorage.RegisterMetricNames(qt, mrs, dl)
+}
+
+func (api *vmstorageAPI) GetID() uint64 {
+	return api.nodeID
 }
 
 // blockIterator implements vmselectapi.BlockIterator

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -14,6 +15,9 @@ import (
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"github.com/VictoriaMetrics/fastcache"
+	"github.com/VictoriaMetrics/metricsql"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/backupnames"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
@@ -29,8 +33,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
-	"github.com/VictoriaMetrics/fastcache"
-	"github.com/VictoriaMetrics/metricsql"
 )
 
 const (
@@ -63,6 +65,9 @@ type Storage struct {
 	path           string
 	cachePath      string
 	retentionMsecs int64
+
+	// Used to uniquely identify storage node
+	nodeID uint64
 
 	// lock file for exclusive access to the storage on the given path.
 	flockF *os.File
@@ -244,6 +249,22 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 	isEmptyDB := !fs.IsPathExist(filepath.Join(path, indexdbDirname))
 	fs.MustMkdirIfNotExist(metadataDir)
 	s.minTimestampForCompositeIndex = mustGetMinTimestampForCompositeIndex(metadataDir, isEmptyDB)
+	nodeIDPath := filepath.Join(metadataDir, nodeIDFilename)
+	if fs.IsPathExist(nodeIDPath) {
+		r, err := os.Open(nodeIDPath)
+		if err != nil {
+			logger.Panicf("FATAL: cannot open nodeID file %q: %s", nodeIDPath, err)
+		}
+
+		nodeID, err := io.ReadAll(r)
+		if err != nil {
+			logger.Panicf("FATAL: cannot read nodeID from %q: %s", nodeIDPath, err)
+		}
+		s.nodeID = encoding.UnmarshalUint64(nodeID)
+	} else {
+		nodeID := rand.Uint64()
+		s.nodeID = nodeID
+	}
 
 	// Load indexdb
 	idbPath := filepath.Join(path, indexdbDirname)
@@ -897,6 +918,8 @@ func (s *Storage) MustClose() {
 	nextDayMetricIDs := s.nextDayMetricIDs.Load()
 	s.mustSaveNextDayMetricIDs(nextDayMetricIDs)
 
+	s.mustSaveNodeID()
+
 	// Release lock file.
 	fs.MustClose(s.flockF)
 	s.flockF = nil
@@ -1030,6 +1053,16 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 	hm.m = m
 	hm.byTenant = byTenant
 	return hm
+}
+
+func (s *Storage) mustSaveNodeID() {
+	path := filepath.Join(s.path, metadataDirname, nodeIDFilename)
+	dst := make([]byte, 0)
+	dst = encoding.MarshalUint64(dst, s.nodeID)
+
+	if err := os.WriteFile(path, dst, 0644); err != nil {
+		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(dst), path, err)
+	}
 }
 
 func (s *Storage) mustSaveNextDayMetricIDs(e *byDateMetricIDEntry) {
@@ -1607,6 +1640,11 @@ func (s *Storage) SearchTenants(qt *querytracer.Tracer, tr TimeRange, deadline u
 // GetTSDBStatus returns TSDB status data for /api/v1/status/tsdb
 func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
 	return s.idb().GetTSDBStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
+}
+
+// GetID returns a unique identifier for the storage node.
+func (s *Storage) GetID() uint64 {
+	return s.nodeID
 }
 
 // MetricRow is a metric to insert into storage.

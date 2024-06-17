@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
@@ -12,7 +14,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/clusternative/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -25,7 +26,7 @@ var (
 func InsertHandler(c net.Conn) error {
 	// There is no need in response compression, since
 	// lower-level vminsert sends only small packets to upper-level vminsert.
-	bc, err := handshake.VMInsertServer(c, 0)
+	bc, err := handshake.VMInsertServer(c, 0, netstorage.GetNodeID())
 	if err != nil {
 		if errors.Is(err, handshake.ErrIgnoreHealthcheck) {
 			return nil

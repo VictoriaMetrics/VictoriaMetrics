@@ -6,9 +6,13 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consts"
@@ -21,8 +25,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/cespare/xxhash/v2"
 )
 
 var (
@@ -43,6 +45,9 @@ var (
 		"On the other side, disabled re-routing minimizes the number of active time series in the cluster "+
 		"during rolling restarts and during spikes in series churn rate. "+
 		"See also -disableRerouting")
+	usePersistentStorageNodeID = flag.Bool("vmstorageUsePersistentID", false, "Whether to use persistent storage node ID for -storageNode instances. "+
+		"If set to false uses storage node address in order to generate an ID. "+
+		"Using persistent node ID is useful if vmstorage node address changes over time, e.g. due to dynamic IP addresses or DNS names. ")
 )
 
 var errStorageReadOnly = errors.New("storage node is read only")
@@ -398,13 +403,23 @@ func (sn *storageNode) dial() (*handshake.BufferedConn, error) {
 	if *disableRPCCompression {
 		compressionLevel = 0
 	}
-	bc, err := handshake.VMInsertClient(c, compressionLevel)
+	bc, id, err := handshake.VMInsertClient(c, compressionLevel)
+	sn.id.CompareAndSwap(0, id)
 	if err != nil {
 		_ = c.Close()
 		sn.handshakeErrors.Inc()
 		return nil, fmt.Errorf("handshake error: %w", err)
 	}
 	return bc, nil
+}
+
+func (sn *storageNode) getID() uint64 {
+	// Ensure that the id is populated
+	if sn.id.Load() == 0 {
+		sn.checkHealth()
+	}
+
+	return sn.id.Load()
 }
 
 // storageNode is a client sending data to vmstorage node.
@@ -473,6 +488,9 @@ type storageNode struct {
 	// The total duration spent for sending data to vmstorage node.
 	// This metric is useful for determining the saturation of vminsert->vmstorage link.
 	sendDurationSeconds *metrics.FloatCounter
+
+	// id is a unique identifier for the storage node.
+	id atomic.Uint64
 }
 
 type storageNodesBucket struct {
@@ -515,14 +533,39 @@ func MustStop() {
 	mustStopStorageNodes(snb)
 }
 
+var (
+	nodeID     uint64
+	nodeIDOnce sync.Once
+)
+
+// GetNodeID returns unique identifier for underlying storage nodes.
+func GetNodeID() uint64 {
+	nodeIDOnce.Do(func() {
+		snb := getStorageNodesBucket()
+		snIDs := make([]uint64, 0, len(snb.sns))
+		for _, sn := range snb.sns {
+			snIDs = append(snIDs, sn.getID())
+		}
+		slices.Sort(snIDs)
+		idsM := make([]byte, 0)
+		for _, id := range snIDs {
+			idsM = encoding.MarshalUint64(idsM, id)
+		}
+
+		nodeID = xxhash.Sum64(idsM)
+	})
+
+	return nodeID
+}
+
 func initStorageNodes(addrs []string, hashSeed uint64) *storageNodesBucket {
 	if len(addrs) == 0 {
 		logger.Panicf("BUG: addrs must be non-empty")
 	}
 	ms := metrics.NewSet()
-	nodesHash := newConsistentHash(addrs, hashSeed)
 	sns := make([]*storageNode, 0, len(addrs))
 	stopCh := make(chan struct{})
+	nodeIDs := make([]uint64, 0, len(addrs))
 	for _, addr := range addrs {
 		if _, _, err := net.SplitHostPort(addr); err != nil {
 			// Automatically add missing port.
@@ -568,8 +611,17 @@ func initStorageNodes(addrs []string, hashSeed uint64) *storageNodesBucket {
 			}
 			return 0
 		})
+		var nodeID uint64
+		if *usePersistentStorageNodeID {
+			nodeID = sn.getID()
+		} else {
+			nodeID = xxhash.Sum64String(addr)
+		}
+
+		nodeIDs = append(nodeIDs, nodeID)
 		sns = append(sns, sn)
 	}
+	nodesHash := newConsistentHash(nodeIDs, hashSeed)
 
 	maxBufSizePerStorageNode = memory.Allowed() / 8 / len(sns)
 	if maxBufSizePerStorageNode > consts.MaxInsertPacketSizeForVMInsert {

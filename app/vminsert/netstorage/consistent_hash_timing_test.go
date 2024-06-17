@@ -4,16 +4,19 @@ import (
 	"math/rand"
 	"sync/atomic"
 	"testing"
+
+	"github.com/cespare/xxhash/v2"
 )
 
 func BenchmarkConsistentHash(b *testing.B) {
-	nodes := []string{
-		"node1",
-		"node2",
-		"node3",
-		"node4",
+	nodes := []uint64{
+		xxhash.Sum64String("node1"),
+		xxhash.Sum64String("node2"),
+		xxhash.Sum64String("node3"),
+		xxhash.Sum64String("node4"),
 	}
 	rh := newConsistentHash(nodes, 0)
+
 	b.ReportAllocs()
 	b.SetBytes(int64(len(benchKeys)))
 	b.RunParallel(func(pb *testing.PB) {

@@ -195,6 +195,10 @@ func (api *vmstorageAPI) setupTfss(qt *querytracer.Tracer, sq *storage.SearchQue
 	return tfss, nil
 }
 
+func (api *vmstorageAPI) GetID() uint64 {
+	return api.s.GetID()
+}
+
 // blockIterator implements vmselectapi.BlockIterator
 type blockIterator struct {
 	sr storage.Search

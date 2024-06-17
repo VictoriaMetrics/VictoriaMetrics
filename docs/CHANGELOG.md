@@ -31,12 +31,14 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 ## tip
 
 **Update note 1: the `--vm-disable-progress-bar` command-line flag at `vmctl` was deprecated. Use `--disable-progress-bar` instead.**
+**Update note 2: release contains breaking change to inter-cluster communication. The `vmstorage` nodes with version lower than `tip` won't be able to communicate with `vmselect` and `vminsert` nodes with version lower than `tip`. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5438) issue for the details.**
 
 * FEATURE: [alerts-vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-vmagent.yml): add new alerting rules `StreamAggrFlushTimeout` and `StreamAggrDedupFlushTimeout` to notify about issues during stream aggregation.
 * FEATURE: [dashboards/vmagent](https://grafana.com/grafana/dashboards/12683): add row `Streaming aggregation` with panels related to [streaming aggregation](https://docs.victoriametrics.com/stream-aggregation/) process.
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): add `idleConnTimeout` flag set to 50s by default. It should reduce the probability of `broken pipe` or `connection reset by peer` errors in vmauth logs.
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): add auto request retry for trivial network errors, such as `broken pipe` and `connection reset` for requests to the configured backends.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): increase default value of `-promscrape.maxDroppedTargets` command-line flag to 10_000 from 1000. This makes it easier to track down large number of dropped targets.
+* FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): use a persistendt `vmstorage` node ID for consistent hashing at data write path. This allows to keep the same data distribution after `vmstorage` changes its IP address. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5438).
 
 * BUGFIX: all VictoriaMetrics components: prioritize `-configAuthKey` and `-reloadAuthKey` over `-httpAuth.*` settings. This change aligns behavior of mentioned flags with other auth flags like `-metricsAuthKey`, `-flagsAuthKey`, `-pprofAuthKey`. Check [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6329).
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): add `--disable-progress-bar` global command-line flag. It can be used for disabling dynamic progress bar for all migration modes. `--vm-disable-progress-bar`  command-line flag is deprecated and will be removed in the future releases. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6367).

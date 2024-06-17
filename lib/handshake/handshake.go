@@ -6,6 +6,9 @@ import (
 	"io"
 	"net"
 	"time"
+	"unsafe"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
 
 const (
@@ -15,17 +18,22 @@ const (
 	successResponse = "ok"
 )
 
-// Func must perform handshake on the given c using the given compressionLevel.
+// ClientFunc must perform handshake on the given c using the given compressionLevel.
 //
 // It must return BufferedConn wrapper for c on successful handshake.
-type Func func(c net.Conn, compressionLevel int) (*BufferedConn, error)
+type ClientFunc func(c net.Conn, compressionLevel int) (*BufferedConn, uint64, error)
+
+// ServerFunc must perform handshake on the given c using the given compressionLevel and id.
+//
+// It must return BufferedConn wrapper for c on successful handshake.
+type ServerFunc func(c net.Conn, compressionLevel int, id uint64) (*BufferedConn, error)
 
 // VMInsertClient performs client-side handshake for vminsert protocol.
 //
 // compressionLevel is the level used for compression of the data sent
 // to the server.
 // compressionLevel <= 0 means 'no compression'
-func VMInsertClient(c net.Conn, compressionLevel int) (*BufferedConn, error) {
+func VMInsertClient(c net.Conn, compressionLevel int) (*BufferedConn, uint64, error) {
 	return genericClient(c, vminsertHello, compressionLevel)
 }
 
@@ -34,8 +42,8 @@ func VMInsertClient(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 // compressionLevel is the level used for compression of the data sent
 // to the client.
 // compressionLevel <= 0 means 'no compression'
-func VMInsertServer(c net.Conn, compressionLevel int) (*BufferedConn, error) {
-	return genericServer(c, vminsertHello, compressionLevel)
+func VMInsertServer(c net.Conn, compressionLevel int, id uint64) (*BufferedConn, error) {
+	return genericServer(c, vminsertHello, compressionLevel, id)
 }
 
 // VMSelectClient performs client-side handshake for vmselect protocol.
@@ -43,7 +51,7 @@ func VMInsertServer(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 // compressionLevel is the level used for compression of the data sent
 // to the server.
 // compressionLevel <= 0 means 'no compression'
-func VMSelectClient(c net.Conn, compressionLevel int) (*BufferedConn, error) {
+func VMSelectClient(c net.Conn, compressionLevel int) (*BufferedConn, uint64, error) {
 	return genericClient(c, vmselectHello, compressionLevel)
 }
 
@@ -52,8 +60,8 @@ func VMSelectClient(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 // compressionLevel is the level used for compression of the data sent
 // to the client.
 // compressionLevel <= 0 means 'no compression'
-func VMSelectServer(c net.Conn, compressionLevel int) (*BufferedConn, error) {
-	return genericServer(c, vmselectHello, compressionLevel)
+func VMSelectServer(c net.Conn, compressionLevel int, id uint64) (*BufferedConn, error) {
+	return genericServer(c, vmselectHello, compressionLevel, id)
 }
 
 // ErrIgnoreHealthcheck means the TCP healthckeck, which must be ignored.
@@ -61,7 +69,7 @@ func VMSelectServer(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 // The TCP healthcheck is performed by opening and then immediately closing the connection.
 var ErrIgnoreHealthcheck = fmt.Errorf("TCP healthcheck - ignore it")
 
-func genericServer(c net.Conn, msg string, compressionLevel int) (*BufferedConn, error) {
+func genericServer(c net.Conn, msg string, compressionLevel int, id uint64) (*BufferedConn, error) {
 	if err := readMessage(c, msg); err != nil {
 		if errors.Is(err, io.EOF) {
 			// This is TCP healthcheck, which must be ignored in order to prevent from logs pollution.
@@ -86,32 +94,46 @@ func genericServer(c net.Conn, msg string, compressionLevel int) (*BufferedConn,
 	if err := readMessage(c, successResponse); err != nil {
 		return nil, fmt.Errorf("cannot read success response on isCompressed: %w", err)
 	}
+	if err := writeNodeID(c, id); err != nil {
+		return nil, fmt.Errorf("cannot write nodeID: %w", err)
+	}
+	if err := readMessage(c, successResponse); err != nil {
+		return nil, fmt.Errorf("cannot read success response on nodeID: %w", err)
+	}
 	bc := newBufferedConn(c, compressionLevel, isRemoteCompressed)
 	return bc, nil
 }
 
-func genericClient(c net.Conn, msg string, compressionLevel int) (*BufferedConn, error) {
+func genericClient(c net.Conn, msg string, compressionLevel int) (*BufferedConn, uint64, error) {
 	if err := writeMessage(c, msg); err != nil {
-		return nil, fmt.Errorf("cannot write hello: %w", err)
+		return nil, 0, fmt.Errorf("cannot write hello: %w", err)
 	}
 	if err := readMessage(c, successResponse); err != nil {
-		return nil, fmt.Errorf("cannot read success response after sending hello: %w", err)
+		return nil, 0, fmt.Errorf("cannot read success response after sending hello: %w", err)
 	}
 	if err := writeIsCompressed(c, compressionLevel > 0); err != nil {
-		return nil, fmt.Errorf("cannot write isCompressed flag: %w", err)
+		return nil, 0, fmt.Errorf("cannot write isCompressed flag: %w", err)
 	}
 	if err := readMessage(c, successResponse); err != nil {
-		return nil, fmt.Errorf("cannot read success response on isCompressed: %w", err)
+		return nil, 0, fmt.Errorf("cannot read success response on isCompressed: %w", err)
 	}
 	isRemoteCompressed, err := readIsCompressed(c)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read isCompressed flag: %w", err)
+		return nil, 0, fmt.Errorf("cannot read isCompressed flag: %w", err)
 	}
 	if err := writeMessage(c, successResponse); err != nil {
-		return nil, fmt.Errorf("cannot write success response on isCompressed: %w", err)
+		return nil, 0, fmt.Errorf("cannot write success response on isCompressed: %w", err)
 	}
+	nodeID, err := readNodeID(c)
+	if err != nil {
+		return nil, 0, fmt.Errorf("cannot read nodeID: %w", err)
+	}
+	if err := writeMessage(c, successResponse); err != nil {
+		return nil, 0, fmt.Errorf("cannot write success response on nodeID: %w", err)
+	}
+
 	bc := newBufferedConn(c, compressionLevel, isRemoteCompressed)
-	return bc, nil
+	return bc, nodeID, nil
 }
 
 func writeIsCompressed(c net.Conn, isCompressed bool) error {
@@ -162,6 +184,19 @@ func readMessage(c net.Conn, msg string) error {
 		return fmt.Errorf("unexpected message obtained; got %q; want %q", buf, msg)
 	}
 	return nil
+}
+
+func readNodeID(c net.Conn) (uint64, error) {
+	buf, err := readData(c, int(unsafe.Sizeof(uint64(0))))
+	if err != nil {
+		return 0, err
+	}
+	return encoding.UnmarshalUint64(buf), nil
+}
+
+func writeNodeID(c net.Conn, id uint64) error {
+	buf := encoding.MarshalUint64(nil, id)
+	return writeMessage(c, string(buf[:]))
 }
 
 func readData(c net.Conn, dataLen int) ([]byte, error) {

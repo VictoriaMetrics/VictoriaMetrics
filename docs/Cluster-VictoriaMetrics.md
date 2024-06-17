@@ -1297,6 +1297,8 @@ Below is the output for `/path/to/vminsert -help`:
      Show VictoriaMetrics version
   -vmstorageDialTimeout duration
      Timeout for establishing RPC connections from vminsert to vmstorage. See also -vmstorageUserTimeout (default 3s)
+  -vmstorageUsePersistentID
+     Whether to use persistent storage node ID for -storageNode instances. If set to false uses storage node address in order to generate an ID. Using persistent node ID is useful if vmstorage node address changes over time, e.g. due to dynamic IP addresses or DNS names. 
   -vmstorageUserTimeout duration
      Network timeout for RPC connections from vminsert to vmstorage (Linux only). Lower values speed up re-rerouting recovery when some of vmstorage nodes become unavailable because of networking issues. Read more about TCP_USER_TIMEOUT at https://blog.cloudflare.com/when-tcp-sockets-refuse-to-die/ . See also -vmstorageDialTimeout (default 3s)
 ```

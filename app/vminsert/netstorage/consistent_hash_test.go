@@ -4,16 +4,18 @@ import (
 	"math"
 	"math/rand"
 	"testing"
+
+	"github.com/cespare/xxhash/v2"
 )
 
 func TestConsistentHash(t *testing.T) {
 	r := rand.New(rand.NewSource(1))
 
-	nodes := []string{
-		"node1",
-		"node2",
-		"node3",
-		"node4",
+	nodes := []uint64{
+		xxhash.Sum64String("node1"),
+		xxhash.Sum64String("node2"),
+		xxhash.Sum64String("node3"),
+		xxhash.Sum64String("node4"),
 	}
 	rh := newConsistentHash(nodes, 0)
 
