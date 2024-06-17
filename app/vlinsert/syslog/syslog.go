@@ -32,20 +32,27 @@ import (
 )
 
 var (
-	syslogTenantID = flag.String("syslog.tenantID", "0:0", "TenantID for logs ingested via Syslog protocol. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
 	syslogTimezone = flag.String("syslog.timezone", "Local", "Timezone to use when parsing timestamps in RFC3164 syslog messages. Timezone must be a valid IANA Time Zone. "+
 		"For example: America/New_York, Europe/Berlin, Etc/GMT+3 . See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
 
-	listenAddrTCP = flag.String("syslog.listenAddr.tcp", "", "Optional TCP address to listen to for Syslog messages. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
-	listenAddrUDP = flag.String("syslog.listenAddr.udp", "", "Optional UDP address to listen to for Syslog messages. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
+	syslogTenantIDTCP = flagutil.NewArrayString("syslog.tenantID.tcp", "TenantID for logs ingested via the corresponding -syslog.listenAddr.tcp. "+
+		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
+	syslogTenantIDUDP = flagutil.NewArrayString("syslog.tenantID.udp", "TenantID for logs ingested via the corresponding -syslog.listenAddr.udp. "+
+		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
 
-	tlsEnable = flag.Bool("syslog.tls", false, "Whether to use TLS for receiving syslog messages at -syslog.listenAddr.tcp. -syslog.tlsCertFile and -syslog.tlsKeyFile must be set "+
-		"if -syslog.tls is set. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
-	tlsCertFile = flag.String("syslog.tlsCertFile", "", "Path to file with TLS certificate for -syslog.listenAddr.tcp if -syslog.tls is set. "+
+	listenAddrTCP = flagutil.NewArrayString("syslog.listenAddr.tcp", "Comma-separated list of TCP addresses to listen to for Syslog messages. "+
+		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
+	listenAddrUDP = flagutil.NewArrayString("syslog.listenAddr.udp", "Comma-separated list of UDP address to listen to for Syslog messages. "+
+		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
+
+	tlsEnable = flagutil.NewArrayBool("syslog.tls", "Whether to enable TLS for receiving syslog messages at the corresponding -syslog.listenAddr.tcp. "+
+		"The corresponding -syslog.tlsCertFile and -syslog.tlsKeyFile must be set if -syslog.tls is set. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
+	tlsCertFile = flagutil.NewArrayString("syslog.tlsCertFile", "Path to file with TLS certificate for the corresponding -syslog.listenAddr.tcp if the corresponding -syslog.tls is set. "+
 		"Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated. "+
 		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
-	tlsKeyFile = flag.String("syslog.tlsKeyFile", "", "Path to file with TLS key for  -syslog.listenAddr.tcp if -syslog.tls is set. "+
-		"The provided key file is automatically re-read every second, so it can be dynamically updated")
+	tlsKeyFile = flagutil.NewArrayString("syslog.tlsKeyFile", "Path to file with TLS key for the corresponding -syslog.listenAddr.tcp if the corresponding -syslog.tls is set. "+
+		"The provided key file is automatically re-read every second, so it can be dynamically updated. "+
+		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
 	tlsCipherSuites = flagutil.NewArrayString("syslog.tlsCipherSuites", "Optional list of TLS cipher suites for -syslog.listenAddr.tcp if -syslog.tls is set. "+
 		"See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants . "+
 		"See also https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
@@ -53,7 +60,9 @@ var (
 		"Supported values: TLS10, TLS11, TLS12, TLS13. "+
 		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
 
-	compressMethod = flag.String("syslog.compressMethod", "", "Compression method for syslog messages received at -syslog.listenAddr.tcp and -syslog.listenAddr.udp. "+
+	compressMethodTCP = flagutil.NewArrayString("syslog.compressMethod.tcp", "Compression method for syslog messages received at the corresponding -syslog.listenAddr.tcp. "+
+		"Supported values: none, gzip, deflate. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
+	compressMethodUDP = flagutil.NewArrayString("syslog.compressMethod.udp", "Compression method for syslog messages received at the corresponding -syslog.listenAddr.udp. "+
 		"Supported values: none, gzip, deflate. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
 )
 
@@ -68,32 +77,20 @@ func MustInit() {
 	}
 	workersStopCh = make(chan struct{})
 
-	tenantID, err := logstorage.GetTenantIDFromString(*syslogTenantID)
-	if err != nil {
-		logger.Fatalf("cannot parse -syslog.tenantID=%q: %s", *syslogTenantID, err)
-	}
-	globalTenantID = tenantID
-
-	switch *compressMethod {
-	case "", "none", "gzip", "deflate":
-	default:
-		logger.Fatalf("unexpected -syslog.compressLevel=%q; supported values: none, gzip, deflate", *compressMethod)
-	}
-
-	if *listenAddrTCP != "" {
+	for argIdx, addr := range *listenAddrTCP {
 		workersWG.Add(1)
-		go func() {
-			runTCPListener(*listenAddrTCP)
+		go func(addr string, argIdx int) {
+			runTCPListener(addr, argIdx)
 			workersWG.Done()
-		}()
+		}(addr, argIdx)
 	}
 
-	if *listenAddrUDP != "" {
+	for argIdx, addr := range *listenAddrUDP {
 		workersWG.Add(1)
-		go func() {
-			runUDPListener(*listenAddrUDP)
+		go func(addr string, argIdx int) {
+			runUDPListener(addr, argIdx)
 			workersWG.Done()
-		}()
+		}(addr, argIdx)
 	}
 
 	currentYear := time.Now().Year()
@@ -126,7 +123,6 @@ func MustInit() {
 }
 
 var (
-	globalTenantID    logstorage.TenantID
 	globalCurrentYear atomic.Int64
 	globalTimezone    *time.Location
 )
@@ -143,15 +139,24 @@ func MustStop() {
 	workersStopCh = nil
 }
 
-func runUDPListener(addr string) {
+func runUDPListener(addr string, argIdx int) {
 	ln, err := net.ListenPacket(netutil.GetUDPNetwork(), addr)
 	if err != nil {
 		logger.Fatalf("cannot start UDP syslog server at %q: %s", addr, err)
 	}
 
+	tenantIDStr := syslogTenantIDUDP.GetOptionalArg(argIdx)
+	tenantID, err := logstorage.ParseTenantID(tenantIDStr)
+	if err != nil {
+		logger.Fatalf("cannot parse -syslog.tenantID.udp=%q for -syslog.listenAddr.udp=%q: %s", tenantIDStr, addr, err)
+	}
+
+	compressMethod := compressMethodUDP.GetOptionalArg(argIdx)
+	checkCompressMethod(compressMethod, addr, "udp")
+
 	doneCh := make(chan struct{})
 	go func() {
-		serveUDP(ln)
+		serveUDP(ln, tenantID, compressMethod)
 		close(doneCh)
 	}()
 
@@ -162,13 +167,15 @@ func runUDPListener(addr string) {
 	<-doneCh
 }
 
-func runTCPListener(addr string) {
+func runTCPListener(addr string, argIdx int) {
 	var tlsConfig *tls.Config
-	if *tlsEnable {
-		tc, err := netutil.GetServerTLSConfig(*tlsCertFile, *tlsKeyFile, *tlsMinVersion, *tlsCipherSuites)
+	if tlsEnable.GetOptionalArg(argIdx) {
+		certFile := tlsCertFile.GetOptionalArg(argIdx)
+		keyFile := tlsKeyFile.GetOptionalArg(argIdx)
+		tc, err := netutil.GetServerTLSConfig(certFile, keyFile, *tlsMinVersion, *tlsCipherSuites)
 		if err != nil {
 			logger.Fatalf("cannot load TLS cert from -syslog.tlsCertFile=%q, -syslog.tlsKeyFile=%q, -syslog.tlsMinVersion=%q, -syslog.tlsCipherSuites=%q: %s",
-				*tlsCertFile, *tlsKeyFile, *tlsMinVersion, *tlsCipherSuites, err)
+				certFile, keyFile, *tlsMinVersion, *tlsCipherSuites, err)
 		}
 		tlsConfig = tc
 	}
@@ -177,9 +184,18 @@ func runTCPListener(addr string) {
 		logger.Fatalf("syslog: cannot start TCP listener at %s: %s", addr, err)
 	}
 
+	tenantIDStr := syslogTenantIDTCP.GetOptionalArg(argIdx)
+	tenantID, err := logstorage.ParseTenantID(tenantIDStr)
+	if err != nil {
+		logger.Fatalf("cannot parse -syslog.tenantID.tcp=%q for -syslog.listenAddr.tcp=%q: %s", tenantIDStr, addr, err)
+	}
+
+	compressMethod := compressMethodTCP.GetOptionalArg(argIdx)
+	checkCompressMethod(compressMethod, addr, "tcp")
+
 	doneCh := make(chan struct{})
 	go func() {
-		serveTCP(ln)
+		serveTCP(ln, tenantID, compressMethod)
 		close(doneCh)
 	}()
 
@@ -190,7 +206,16 @@ func runTCPListener(addr string) {
 	<-doneCh
 }
 
-func serveUDP(ln net.PacketConn) {
+func checkCompressMethod(compressMethod, addr, protocol string) {
+	switch compressMethod {
+	case "", "none", "gzip", "deflate":
+		return
+	default:
+		logger.Fatalf("unsupported -syslog.compressMethod.%s=%q for -syslog.listenAddr.%s=%q; supported values: 'none', 'gzip', 'deflate'", protocol, compressMethod, protocol, addr)
+	}
+}
+
+func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod string) {
 	gomaxprocs := cgroup.AvailableCPUs()
 	var wg sync.WaitGroup
 	localAddr := ln.LocalAddr()
@@ -198,7 +223,7 @@ func serveUDP(ln net.PacketConn) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			cp := insertutils.GetCommonParamsForSyslog(globalTenantID)
+			cp := insertutils.GetCommonParamsForSyslog(tenantID)
 			var bb bytesutil.ByteBuffer
 			bb.B = bytesutil.ResizeNoCopyNoOverallocate(bb.B, 64*1024)
 			for {
@@ -223,7 +248,7 @@ func serveUDP(ln net.PacketConn) {
 				}
 				bb.B = bb.B[:n]
 				udpRequestsTotal.Inc()
-				if err := processStream(bb.NewReader(), cp); err != nil {
+				if err := processStream(bb.NewReader(), compressMethod, cp); err != nil {
 					logger.Errorf("syslog: cannot process UDP data from %s at %s: %s", remoteAddr, localAddr, err)
 				}
 			}
@@ -232,7 +257,7 @@ func serveUDP(ln net.PacketConn) {
 	wg.Wait()
 }
 
-func serveTCP(ln net.Listener) {
+func serveTCP(ln net.Listener, tenantID logstorage.TenantID, compressMethod string) {
 	var cm ingestserver.ConnsMap
 	cm.Init("syslog")
 
@@ -262,8 +287,8 @@ func serveTCP(ln net.Listener) {
 
 		wg.Add(1)
 		go func() {
-			cp := insertutils.GetCommonParamsForSyslog(globalTenantID)
-			if err := processStream(c, cp); err != nil {
+			cp := insertutils.GetCommonParamsForSyslog(tenantID)
+			if err := processStream(c, compressMethod, cp); err != nil {
 				logger.Errorf("syslog: cannot process TCP data at %q: %s", addr, err)
 			}
 
@@ -278,20 +303,20 @@ func serveTCP(ln net.Listener) {
 }
 
 // processStream parses a stream of syslog messages from r and ingests them into vlstorage.
-func processStream(r io.Reader, cp *insertutils.CommonParams) error {
+func processStream(r io.Reader, compressMethod string, cp *insertutils.CommonParams) error {
 	if err := vlstorage.CanWriteData(); err != nil {
 		return err
 	}
 
 	lmp := cp.NewLogMessageProcessor()
-	err := processStreamInternal(r, lmp)
+	err := processStreamInternal(r, compressMethod, lmp)
 	lmp.MustClose()
 
 	return err
 }
 
-func processStreamInternal(r io.Reader, lmp insertutils.LogMessageProcessor) error {
-	switch *compressMethod {
+func processStreamInternal(r io.Reader, compressMethod string, lmp insertutils.LogMessageProcessor) error {
+	switch compressMethod {
 	case "", "none":
 	case "gzip":
 		zr, err := common.GetGzipReader(r)
@@ -306,12 +331,12 @@ func processStreamInternal(r io.Reader, lmp insertutils.LogMessageProcessor) err
 		}
 		r = zr
 	default:
-		logger.Panicf("BUG: compressLevel=%q; supported values: none, gzip, deflate", *compressMethod)
+		logger.Panicf("BUG: unsupported compressMethod=%q; supported values: none, gzip, deflate", compressMethod)
 	}
 
 	err := processUncompressedStream(r, lmp)
 
-	switch *compressMethod {
+	switch compressMethod {
 	case "gzip":
 		zr := r.(*gzip.Reader)
 		common.PutGzipReader(zr)

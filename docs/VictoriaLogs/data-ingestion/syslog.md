@@ -80,8 +80,8 @@ starts VictoriaLogs, which accepts TLS-encrypted syslog messages at TCP port 514
 ## Compression
 
 By default VictoriaLogs accepts uncompressed log messages in Syslog format at `-syslog.listenAddr.tcp` and `-syslog.listenAddr.udp` addresses.
-It is possible configuring VictoriaLogs to accept compressed log messages via `-syslog.compressMethod` command-line flag. The following
-compression methods are supported:
+It is possible configuring VictoriaLogs to accept compressed log messages via `-syslog.compressMethod.tcp` and `-syslog.compressMethod.udp` command-line flags.
+The following compression methods are supported:
 
 - `none` - no compression
 - `gzip` - [gzip compression](https://en.wikipedia.org/wiki/Gzip)
@@ -90,17 +90,31 @@ compression methods are supported:
 For example, the following command starts VictoriaLogs, which accepts gzip-compressed syslog messages at TCP port 514:
 
 ```sh
-./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.compressMethod=gzip
+./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.compressMethod.tcp=gzip
 ```
 
 ## Multitenancy
 
 By default, the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy).
-If you need storing logs in other tenant, then specify the needed tenant via `-syslog.tenantID` command-line flag.
+If you need storing logs in other tenant, then specify the needed tenant via `-syslog.tenantID.tcp` or `-syslog.tenantID.udp` command-line flags
+depending on whether TCP or UDP ports are listened for syslog messages.
 For example, the following command starts VictoriaLogs, which writes syslog messages received at TCP port 514, to `(AccountID=12, ProjectID=34)` tenant:
 
 ```sh
-./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.tenantID=12:34
+./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.tenantID.tcp=12:34
+```
+
+## Multiple configs
+
+VictoriaLogs can accept syslog messages via multiple TCP and UDP ports with individual configurations for [compression](#compression), [security](#security)
+and [multitenancy](#multitenancy). Specify multiple command-line flags for this. For example, the following command starts VictoriaLogs,
+which accepts gzip-compressed syslog messages via TCP port 514 at localhost interface and stores them to [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) `123:0`,
+plus it accepts TLS-encrypted syslog messages via TCP port 6514 and stores them to [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) `567:0`:
+
+```sh
+./victoria-logs \
+  -syslog.listenAddr.tcp=localhost:514 -syslog.tenantID.tcp=123:0 -syslog.compressMethod.tcp=gzip -syslog.tls=false -syslog.tlsKeyFile='' -syslog.tlsCertFile='' \
+  -syslog.listenAddr.tcp=:6514 -syslog.tenantID.tcp=567:0 -syslog.compressMethod.tcp=none -syslog.tls=true -syslog.tlsKeyFile=/path/to/tls/key -syslog.tlsCertFile=/path/to/tls/cert
 ```
 
 ## Rsyslog
