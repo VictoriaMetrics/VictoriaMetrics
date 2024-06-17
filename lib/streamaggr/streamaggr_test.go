@@ -251,6 +251,32 @@ func TestAggregatorsSuccess(t *testing.T) {
 		}
 	}
 
+	// rate with duplicated events
+	f(`     
+- interval: 1m
+  by: [cde]
+  outputs: [rate_sum, rate_avg]
+`, `
+foo{abc="123", cde="1"} 0  10
+foo{abc="123", cde="1"} 0  10
+`, `foo:1m_by_cde_rate_avg{cde="1"} 0
+foo:1m_by_cde_rate_sum{cde="1"} 0
+`, "11")
+
+	// rate with duplicated events
+	f(`     
+- interval: 1m
+  by: [cde]
+  outputs: [rate_sum, rate_avg]
+`, `
+foo{abc="123", cde="1"} -4  10
+foo{abc="123", cde="1"} -2  20
+`, `foo:1m_by_cde_rate_avg{cde="1"} 0
+foo:1m_by_cde_rate_sum{cde="1"} 0
+`, "11")
+
+	return
+
 	// Empty config
 	f(``, ``, ``, "")
 	f(``, `foo{bar="baz"} 1`, ``, "0")
