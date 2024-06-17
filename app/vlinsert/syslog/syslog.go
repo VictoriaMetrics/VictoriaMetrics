@@ -329,7 +329,7 @@ func processUncompressedStream(r io.Reader, cp *insertutils.CommonParams) error 
 	n := 0
 	for {
 		currentYear := int(globalCurrentYear.Load())
-		ok, err := readLine(sc, currentYear, processLogMessage)
+		ok, err := readLine(sc, currentYear, globalTimezone, processLogMessage)
 		wcr.DecConcurrency()
 		if err != nil {
 			errorsTotal.Inc()
@@ -348,7 +348,7 @@ func processUncompressedStream(r io.Reader, cp *insertutils.CommonParams) error 
 	return nil
 }
 
-func readLine(sc *bufio.Scanner, currentYear int, processLogMessage func(timestamp int64, fields []logstorage.Field)) (bool, error) {
+func readLine(sc *bufio.Scanner, currentYear int, timezone *time.Location, processLogMessage func(timestamp int64, fields []logstorage.Field)) (bool, error) {
 	var line []byte
 	for len(line) == 0 {
 		if !sc.Scan() {
@@ -363,7 +363,7 @@ func readLine(sc *bufio.Scanner, currentYear int, processLogMessage func(timesta
 		line = sc.Bytes()
 	}
 
-	p := logstorage.GetSyslogParser(currentYear, globalTimezone)
+	p := logstorage.GetSyslogParser(currentYear, timezone)
 	lineStr := bytesutil.ToUnsafeString(line)
 	p.Parse(lineStr)
 	ts, err := insertutils.ExtractTimestampISO8601FromFields("timestamp", p.Fields)

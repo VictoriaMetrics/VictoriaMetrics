@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 )
@@ -12,6 +13,9 @@ import (
 func TestReadLine_Success(t *testing.T) {
 	f := func(data string, currentYear, rowsExpected int, timestampsExpected []int64, resultExpected string) {
 		t.Helper()
+
+		MustInit()
+		defer MustStop()
 
 		var timestamps []int64
 		var result string
@@ -23,8 +27,9 @@ func TestReadLine_Success(t *testing.T) {
 		r := bytes.NewBufferString(data)
 		sc := bufio.NewScanner(r)
 		rows := 0
+		timezone := time.UTC
 		for {
-			ok, err := readLine(sc, currentYear, processLogMessage)
+			ok, err := readLine(sc, currentYear, timezone, processLogMessage)
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
 			}
