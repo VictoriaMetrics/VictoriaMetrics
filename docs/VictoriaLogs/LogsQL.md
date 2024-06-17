@@ -1265,6 +1265,7 @@ LogsQL supports the following pipes:
 - [`replace_regexp`](#replace_regexp-pipe) updates [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with regular expressions.
 - [`sort`](#sort-pipe) sorts logs by the given [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`stats`](#stats-pipe) calculates various stats over the selected logs.
+- [`top`](#top-pipe) returns top `N` field sets with the maximum number of matching logs.
 - [`uniq`](#uniq-pipe) returns unique log entires.
 - [`unpack_json`](#unpack_json-pipe) unpacks JSON messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`unpack_logfmt`](#unpack_logfmt-pipe) unpacks [logfmt](https://brandur.org/logfmt) messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
@@ -1573,6 +1574,7 @@ If the limit is reached, then the set of returned values is random. Also the num
 See also:
 
 - [`field_names` pipe](#field_names-pipe)
+- [`top` pipe](#top-pipe)
 - [`uniq` pipe](#uniq-pipe)
 
 ### fields pipe
@@ -2139,6 +2141,8 @@ See also:
 - [stats pipe functions](#stats-pipe-functions)
 - [`math` pipe](#math-pipe)
 - [`sort` pipe](#sort-pipe)
+- [`uniq` pipe](#uniq-pipe)
+- [`top` pipe](#top-pipe)
 
 
 #### Stats by fields
@@ -2256,9 +2260,41 @@ _time:5m | stats
   count() total
 ```
 
+### top pipe
+
+`| top N by (field1, ..., fieldN)` [pipe](#pipes) returns top `N` sets for `(field1, ..., fieldN)` [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+with the maximum number of matching log entries.
+
+For example, the following query returns top 7 [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+with the maximum number of log entries over the last 5 minutes:
+
+```logsql
+_time:5m | top 7 by (_stream)
+```
+
+The `N` is optional. If it is skipped, then top 10 entries are returned. For example, the following query returns top 10 values
+for `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) seen in logs for the last 5 minutes:
+
+```logsql
+_time:5m | top by (ip)
+```
+
+The `by (...)` part in the `top` [pipe](#pipes) is optional. If it is skipped, then all the log fields are taken into account
+when determining top field sets. This is useful when the field sets are already limited by other pipes such as [`fields` pipe](#fields-pipe).
+For example, the following query is equivalent to the previous one:
+
+```logsql
+_time:5m | fields ip | top
+```
+
+See also:
+
+- [`uniq` pipe](#uniq-pipe)
+- [`stats` pipe](#stats-pipe)
+
 ### uniq pipe
 
-`| uniq ...` pipe returns unique results over the selected logs. For example, the following LogsQL query
+`| uniq ...` [pipe](#pipes) returns unique results over the selected logs. For example, the following LogsQL query
 returns unique values for `ip` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
 
@@ -2300,6 +2336,8 @@ _time:5m | uniq (host, path) limit 100
 See also:
 
 - [`uniq_values` stats function](#uniq_values-stats)
+- [`top` pipe](#top-pipe)
+- [`stats` pipe](#stats-pipe)
 
 ### unpack_json pipe
 
@@ -2510,6 +2548,13 @@ The following query is equivalent to the previous one:
 
 ```logsql
 _time:5m | unpack_syslog
+```
+
+By default timestamps in [RFC3164 format](https://datatracker.ietf.org/doc/html/rfc3164) are converted to local timezone. It is possible to change the timezone
+offset via `offset` option. For example, the following query adds 5 hours and 30 minutes to unpacked `rfc3164` timestamps:
+
+```logsql
+_time:5m | unpack_syslog offset 5h30m
 ```
 
 If it is needed to preserve the original non-empty field values, then add `keep_original_fields` to the end of `unpack_syslog ...`:
