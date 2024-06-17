@@ -9441,7 +9441,7 @@ func TestNoImplicitConversionRequiredTrue(t *testing.T) {
 			t.Fatal(err)
 		}
 		if !noImplicitConversionRequired(e, false) {
-			t.Fatalf("query should be complete: %s", e.AppendString(nil))
+			t.Fatalf("query should require no implicit conversion: %s", e.AppendString(nil))
 		}
 	}
 
@@ -9504,7 +9504,7 @@ func TestNoImplicitConversionRequiredFalse(t *testing.T) {
 			t.Fatal(err)
 		}
 		if noImplicitConversionRequired(e, false) {
-			t.Fatalf("expect to detect incomplete subquery: %s", e.AppendString(nil))
+			t.Fatalf("query should have require implicit conversion: %s", e.AppendString(nil))
 		}
 	}
 	f("rate(http_total)[5m:1m]")
