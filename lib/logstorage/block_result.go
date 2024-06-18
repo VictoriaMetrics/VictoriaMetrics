@@ -1166,7 +1166,7 @@ func (br *blockResult) getBucketedValue(s string, bf *byStatsField) string {
 		return bytesutil.ToUnsafeString(buf[bufLen:])
 	}
 
-	if timestamp, ok := tryParseTimestampISO8601(s); ok {
+	if timestamp, ok := TryParseTimestampISO8601(s); ok {
 		bucketSizeInt := int64(bf.bucketSize)
 		if bucketSizeInt <= 0 {
 			bucketSizeInt = 1
@@ -1190,7 +1190,7 @@ func (br *blockResult) getBucketedValue(s string, bf *byStatsField) string {
 		return bytesutil.ToUnsafeString(buf[bufLen:])
 	}
 
-	if timestamp, ok := tryParseTimestampRFC3339Nano(s); ok {
+	if timestamp, ok := TryParseTimestampRFC3339Nano(s); ok {
 		bucketSizeInt := int64(bf.bucketSize)
 		if bucketSizeInt <= 0 {
 			bucketSizeInt = 1

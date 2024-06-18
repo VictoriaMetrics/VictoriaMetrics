@@ -32,7 +32,6 @@ The following functionality is planned in the future versions of VictoriaLogs:
 - Support for [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/) from popular log collectors and formats:
   - OpenTelemetry for logs
   - Fluentd
-  - Syslog
   - Journald (systemd)
 - Add missing functionality to [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/):
   - [Stream context](https://docs.victoriametrics.com/victorialogs/logsql/#stream-context).

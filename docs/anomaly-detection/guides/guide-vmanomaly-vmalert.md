@@ -30,6 +30,8 @@ aliases:
 
 > **Note: Configurations used throughout this guide can be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-integration/)**
 
+> **Note:** Starting from [v1.13.0](/anomaly-detection/CHANGELOG#v1130) `node-exporter` observability preset is available for `vmanomaly`. Please find the guide [here](/anomaly-detection/presets/#node-exporter).
+
 ## 1. What is vmanomaly?
 
 *VictoriaMetrics Anomaly Detection* ([vmanomaly](/anomaly-detection/Overview.html)) is a service that continuously scans time series stored in VictoriaMetrics and detects unexpected changes within data patterns in real-time. It does so by utilizing user-configurable machine learning models.
@@ -526,3 +528,5 @@ Key takeaways include:
 4. **Alert Configuration**: We've shown how to set up and customize alerting rules in `vmalert` based on produced anomaly scores, enabling proactive monitoring and timely response to potential issues.
 
 As you continue to use VictoriaMetrics Anomaly Detection and `vmalert`, remember that the effectiveness of anomaly detection largely depends on the appropriateness of the model chosen, the accuracy of configurations and the data patterns observed. This guide serves as a starting point, and we encourage you to experiment with different configurations and models to best suit your specific data needs and use cases. In case you need a helping hand - [contact us](https://victoriametrics.com/contact-us/).
+
+> **Note:** Starting from [v1.13.0](/anomaly-detection/CHANGELOG#v1130) `node-exporter` observability preset is available for `vmanomaly`. Please find the guide [here](/anomaly-detection/presets/#node-exporter).

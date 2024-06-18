@@ -19,6 +19,7 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
 ## v1.13.0
 Released: 2024-06-11
+- FEATURE: Introduced `preset` [mode to run vmanomaly service](/anomaly-detection/presets) with minimal user input and on widely-known metrics, like those produced by [`node_exporter`](/anomaly-detection/presets#node-exporter).
 - FEATURE: Introduced `min_dev_from_expected` [model common arg](/anomaly-detection/components/models/#minimal-deviation-from-expected), aimed at **reducing [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive)** in scenarios where deviations between the real value `y` and the expected value `yhat` are **relatively** high and may cause models to generate high [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). However, these deviations are not significant enough in **absolute values** to be considered anomalies based on domain knowledge.
 - FEATURE: Introduced `detection_direction` [model common arg](/anomaly-detection/components/models/#detection-direction), enabling domain-driven anomaly detection strategies. Configure models to identify anomalies occurring *above, below, or in both directions* relative to the expected values.
 - FEATURE: add `n_jobs` arg to [`BacktestingScheduler`](/anomaly-detection/components/scheduler/#backtesting-scheduler) to allow *proportionally faster (yet more resource-intensive)* evaluations of a config on historical data. Default value is 1, that implies *sequential* execution.
