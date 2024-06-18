@@ -139,24 +139,24 @@ func verifyTestGroup(group testGroup) error {
 	}
 	for _, at := range group.AlertRuleTests {
 		if at.Alertname == "" {
-			return fmt.Errorf("\n%s    missing required filed \"alertname\"", testGroupName)
+			return fmt.Errorf("\n%s    missing required field \"alertname\"", testGroupName)
 		}
 		if !disableAlertgroupLabel && at.GroupName == "" {
-			return fmt.Errorf("\n%s    missing required filed \"groupname\" when flag \"disableAlertgroupLabel\" is false", testGroupName)
+			return fmt.Errorf("\n%s    missing required field \"groupname\" when flag \"disableAlertgroupLabel\" is false", testGroupName)
 		}
 		if disableAlertgroupLabel && at.GroupName != "" {
-			return fmt.Errorf("\n%s    shouldn't set filed \"groupname\" when flag \"disableAlertgroupLabel\" is true", testGroupName)
+			return fmt.Errorf("\n%s    shouldn't set field \"groupname\" when flag \"disableAlertgroupLabel\" is true", testGroupName)
 		}
 		if at.EvalTime == nil {
-			return fmt.Errorf("\n%s    missing required filed \"eval_time\"", testGroupName)
+			return fmt.Errorf("\n%s    missing required field \"eval_time\"", testGroupName)
 		}
 	}
 	for _, et := range group.MetricsqlExprTests {
 		if et.Expr == "" {
-			return fmt.Errorf("\n%s    missing required filed \"expr\"", testGroupName)
+			return fmt.Errorf("\n%s    missing required field \"expr\"", testGroupName)
 		}
 		if et.EvalTime == nil {
-			return fmt.Errorf("\n%s    missing required filed \"eval_time\"", testGroupName)
+			return fmt.Errorf("\n%s    missing required field \"eval_time\"", testGroupName)
 		}
 	}
 	return nil
