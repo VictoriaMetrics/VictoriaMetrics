@@ -71,28 +71,79 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 	return cp, nil
 }
 
-// GetProcessLogMessageFunc returns a function, which adds parsed log messages to lr.
-func (cp *CommonParams) GetProcessLogMessageFunc(lr *logstorage.LogRows) func(timestamp int64, fields []logstorage.Field) {
-	return func(timestamp int64, fields []logstorage.Field) {
-		if len(fields) > *MaxFieldsPerLine {
-			rf := logstorage.RowFormatter(fields)
-			logger.Warnf("dropping log line with %d fields; it exceeds -insert.maxFieldsPerLine=%d; %s", len(fields), *MaxFieldsPerLine, rf)
-			rowsDroppedTotalTooManyFields.Inc()
-			return
-		}
+// GetCommonParamsForSyslog returns common params needed for parsing syslog messages and storing them to the given tenantID.
+func GetCommonParamsForSyslog(tenantID logstorage.TenantID) *CommonParams {
+	// See https://docs.victoriametrics.com/victorialogs/logsql/#unpack_syslog-pipe
+	cp := &CommonParams{
+		TenantID:  tenantID,
+		TimeField: "timestamp",
+		MsgField:  "message",
+		StreamFields: []string{
+			"hostname",
+			"app_name",
+			"proc_id",
+		},
+	}
 
-		lr.MustAdd(cp.TenantID, timestamp, fields)
-		if cp.Debug {
-			s := lr.GetRowString(0)
-			lr.ResetKeepSettings()
-			logger.Infof("remoteAddr=%s; requestURI=%s; ignoring log entry because of `debug` query arg: %s", cp.DebugRemoteAddr, cp.DebugRequestURI, s)
-			rowsDroppedTotalDebug.Inc()
-			return
-		}
-		if lr.NeedFlush() {
-			vlstorage.MustAddRows(lr)
-			lr.ResetKeepSettings()
-		}
+	return cp
+}
+
+// LogMessageProcessor is an interface for log message processors.
+type LogMessageProcessor interface {
+	// AddRow must add row to the LogMessageProcessor with the given timestamp and the given fields.
+	//
+	// The LogMessageProcessor implementation cannot hold references to fields, since the caller can re-use them.
+	AddRow(timestamp int64, fields []logstorage.Field)
+
+	// MustClose() must flush all the remaining fields and free up resources occupied by LogMessageProcessor.
+	MustClose()
+}
+
+type logMessageProcessor struct {
+	cp *CommonParams
+	lr *logstorage.LogRows
+}
+
+// AddRow adds new log message to lmp with the given timestamp and fields.
+func (lmp *logMessageProcessor) AddRow(timestamp int64, fields []logstorage.Field) {
+	if len(fields) > *MaxFieldsPerLine {
+		rf := logstorage.RowFormatter(fields)
+		logger.Warnf("dropping log line with %d fields; it exceeds -insert.maxFieldsPerLine=%d; %s", len(fields), *MaxFieldsPerLine, rf)
+		rowsDroppedTotalTooManyFields.Inc()
+		return
+	}
+
+	lmp.lr.MustAdd(lmp.cp.TenantID, timestamp, fields)
+	if lmp.cp.Debug {
+		s := lmp.lr.GetRowString(0)
+		lmp.lr.ResetKeepSettings()
+		logger.Infof("remoteAddr=%s; requestURI=%s; ignoring log entry because of `debug` query arg: %s", lmp.cp.DebugRemoteAddr, lmp.cp.DebugRequestURI, s)
+		rowsDroppedTotalDebug.Inc()
+		return
+	}
+	if lmp.lr.NeedFlush() {
+		lmp.flush()
+	}
+}
+
+func (lmp *logMessageProcessor) flush() {
+	vlstorage.MustAddRows(lmp.lr)
+	lmp.lr.ResetKeepSettings()
+}
+
+// MustClose flushes the remaining data to the underlying storage and closes lmp.
+func (lmp *logMessageProcessor) MustClose() {
+	lmp.flush()
+	logstorage.PutLogRows(lmp.lr)
+	lmp.lr = nil
+}
+
+// NewLogMessageProcessor returns new LogMessageProcessor for the given cp.
+func (cp *CommonParams) NewLogMessageProcessor() LogMessageProcessor {
+	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
+	return &logMessageProcessor{
+		cp: cp,
+		lr: lr,
 	}
 }
 

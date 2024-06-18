@@ -1,9 +1,9 @@
 package logstorage
 
 import (
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // filterWeekRange filters by week range.
@@ -104,7 +104,7 @@ func (fr *filterWeekRange) applyToBlockResult(br *blockResult, bm *bitmap) {
 }
 
 func (fr *filterWeekRange) matchTimestampString(v string) bool {
-	timestamp, ok := tryParseTimestampRFC3339Nano(v)
+	timestamp, ok := TryParseTimestampRFC3339Nano(v)
 	if !ok {
 		return false
 	}

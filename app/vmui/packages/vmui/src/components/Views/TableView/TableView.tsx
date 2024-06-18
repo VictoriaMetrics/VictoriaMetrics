@@ -36,6 +36,7 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
   const getCopyValue = (metric: { [p: string]: string }) => {
     const { __name__, ...fields } = metric;
     if (!__name__ && !Object.keys(fields).length) return "";
+    if (!__name__) return `${JSON.stringify(fields)}`;
     return `${__name__} ${JSON.stringify(fields)}`;
   };
 

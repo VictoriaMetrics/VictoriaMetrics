@@ -214,6 +214,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'stats' pipe: %w", err)
 		}
 		return ps, nil
+	case lex.isKeyword("top"):
+		pt, err := parsePipeTop(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'top' pipe: %w", err)
+		}
+		return pt, nil
 	case lex.isKeyword("uniq"):
 		pu, err := parsePipeUniq(lex)
 		if err != nil {
@@ -287,6 +293,7 @@ var pipeNames = func() map[string]struct{} {
 		"replace_regexp",
 		"sort",
 		"stats",
+		"top",
 		"uniq",
 		"unpack_json",
 		"unpack_logfmt",

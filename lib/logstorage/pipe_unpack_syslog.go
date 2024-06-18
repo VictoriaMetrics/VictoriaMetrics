@@ -13,6 +13,10 @@ type pipeUnpackSyslog struct {
 	// fromField is the field to unpack syslog fields from
 	fromField string
 
+	// the timezone to use when parsing rfc3164 timestamps
+	offsetStr      string
+	offsetTimezone *time.Location
+
 	// resultPrefix is prefix to add to unpacked field names
 	resultPrefix string
 
@@ -29,6 +33,9 @@ func (pu *pipeUnpackSyslog) String() string {
 	}
 	if !isMsgFieldName(pu.fromField) {
 		s += " from " + quoteTokenIfNeeded(pu.fromField)
+	}
+	if pu.offsetStr != "" {
+		s += " offset " + pu.offsetStr
 	}
 	if pu.resultPrefix != "" {
 		s += " result_prefix " + quoteTokenIfNeeded(pu.resultPrefix)
@@ -64,14 +71,14 @@ func (pu *pipeUnpackSyslog) initFilterInValues(cache map[string][]string, getFie
 func (pu *pipeUnpackSyslog) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	unpackSyslog := func(uctx *fieldsUnpackerContext, s string) {
 		year := currentYear.Load()
-		p := getSyslogParser(int(year))
+		p := GetSyslogParser(int(year), pu.offsetTimezone)
 
-		p.parse(s)
-		for _, f := range p.fields {
+		p.Parse(s)
+		for _, f := range p.Fields {
 			uctx.addField(f.Name, f.Value)
 		}
 
-		putSyslogParser(p)
+		PutSyslogParser(p)
 	}
 
 	return newPipeUnpackProcessor(workersCount, unpackSyslog, ppNext, pu.fromField, pu.resultPrefix, pu.keepOriginalFields, false, pu.iff)
@@ -119,6 +126,23 @@ func parsePipeUnpackSyslog(lex *lexer) (*pipeUnpackSyslog, error) {
 		fromField = f
 	}
 
+	offsetStr := ""
+	offsetTimezone := time.Local
+	if lex.isKeyword("offset") {
+		lex.nextToken()
+		s, err := getCompoundToken(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read 'offset': %w", err)
+		}
+		offsetStr = s
+		nsecs, ok := tryParseDuration(offsetStr)
+		if !ok {
+			return nil, fmt.Errorf("cannot parse 'offset' from %q", offsetStr)
+		}
+		secs := nsecs / nsecsPerSecond
+		offsetTimezone = time.FixedZone("custom", int(secs))
+	}
+
 	resultPrefix := ""
 	if lex.isKeyword("result_prefix") {
 		lex.nextToken()
@@ -137,6 +161,8 @@ func parsePipeUnpackSyslog(lex *lexer) (*pipeUnpackSyslog, error) {
 
 	pu := &pipeUnpackSyslog{
 		fromField:          fromField,
+		offsetStr:          offsetStr,
+		offsetTimezone:     offsetTimezone,
 		resultPrefix:       resultPrefix,
 		keepOriginalFields: keepOriginalFields,
 		iff:                iff,

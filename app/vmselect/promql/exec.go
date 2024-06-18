@@ -71,12 +71,13 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 	}
 
 	if *disableImplicitConversion || *logImplicitConversion {
-		complete := isSubQueryComplete(e, false)
-		if !complete && *disableImplicitConversion {
-			return nil, fmt.Errorf("query contains subquery that requires implicit conversion and is rejected according to `-search.disableImplicitConversion=true` setting. See https://docs.victoriametrics.com/metricsql/#subqueries for details")
+		noConversion := noImplicitConversionRequired(e, false)
+		if !noConversion && *disableImplicitConversion {
+			// we don't add query=%q to err message as it will be added by the caller
+			return nil, fmt.Errorf("query requires implicit conversion and is rejected according to `-search.disableImplicitConversion=true` setting. See https://docs.victoriametrics.com/metricsql/#implicit-query-conversions for details")
 		}
-		if !complete && *logImplicitConversion {
-			logger.Warnf("query=%q contains subquery that requires implicit conversion, see https://docs.victoriametrics.com/metricsql/#subqueries for details", e.AppendString(nil))
+		if !noConversion && *logImplicitConversion {
+			logger.Warnf("query=%q requires implicit conversion, see https://docs.victoriametrics.com/metricsql/#implicit-query-conversions for details", e.AppendString(nil))
 		}
 	}
 
@@ -422,37 +423,47 @@ func (pc *parseCache) Put(q string, pcv *parseCacheValue) {
 	pc.mu.Unlock()
 }
 
-// isSubQueryComplete checks if expr contains incomplete subquery
-func isSubQueryComplete(e metricsql.Expr, isSubExpr bool) bool {
+// noImplicitConversionRequired checks if expr requires implicit conversion
+func noImplicitConversionRequired(e metricsql.Expr, isSubExpr bool) bool {
 	switch exp := e.(type) {
 	case *metricsql.FuncExpr:
 		if isSubExpr {
 			return false
 		}
 		fe := e.(*metricsql.FuncExpr)
+		isRollupFn := getRollupFunc(fe.Name) != nil
 		for _, arg := range exp.Args {
-			if getRollupFunc(fe.Name) != nil {
+			_, isRollupExpr := arg.(*metricsql.RollupExpr)
+			if (isRollupExpr && !isRollupFn) || (!isRollupExpr && isRollupFn) {
+				return false
+			}
+			if isRollupFn {
 				isSubExpr = true
 			}
-			if !isSubQueryComplete(arg, isSubExpr) {
+			if !noImplicitConversionRequired(arg, isSubExpr) {
 				return false
 			}
 		}
 	case *metricsql.RollupExpr:
 		if _, ok := exp.Expr.(*metricsql.MetricExpr); ok {
-			return true
+			return exp.Step == nil
 		}
 		// exp.Step is optional in subqueries
 		if exp.Window == nil {
 			return false
 		}
-		return isSubQueryComplete(exp.Expr, false)
+		return noImplicitConversionRequired(exp.Expr, false)
 	case *metricsql.AggrFuncExpr:
 		if isSubExpr {
 			return false
 		}
 		for _, arg := range exp.Args {
-			if !isSubQueryComplete(arg, false) {
+			if re, ok := arg.(*metricsql.RollupExpr); ok {
+				if re.Window != nil {
+					return false
+				}
+			}
+			if !noImplicitConversionRequired(arg, false) {
 				return false
 			}
 		}
@@ -460,10 +471,10 @@ func isSubQueryComplete(e metricsql.Expr, isSubExpr bool) bool {
 		if isSubExpr {
 			return false
 		}
-		if !isSubQueryComplete(exp.Left, false) {
+		if !noImplicitConversionRequired(exp.Left, false) {
 			return false
 		}
-		if !isSubQueryComplete(exp.Right, false) {
+		if !noImplicitConversionRequired(exp.Right, false) {
 			return false
 		}
 	case *metricsql.MetricExpr:

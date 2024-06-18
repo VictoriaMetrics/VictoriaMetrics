@@ -91,6 +91,13 @@ type timeseriesWork struct {
 	err      error
 
 	rowsProcessed int
+
+	querySamplesQuota *querySamplesQuota
+}
+
+type querySamplesQuota struct {
+	mu           sync.Mutex
+	samplesQuota int
 }
 
 func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
@@ -107,6 +114,17 @@ func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
 		return fmt.Errorf("error during time series unpacking: %w", err)
 	}
 	tsw.rowsProcessed = len(r.Timestamps)
+
+	tsw.querySamplesQuota.mu.Lock()
+	tsw.querySamplesQuota.samplesQuota -= tsw.rowsProcessed
+	if tsw.querySamplesQuota.samplesQuota < 0 {
+		tsw.mustStop.Store(true)
+		tsw.querySamplesQuota.mu.Unlock()
+		return fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: increase the -search.maxSamplesPerQuery; "+
+			"reduce time range for the query; use more specific label filters in order to select fewer series", *maxSamplesPerQuery)
+	}
+	tsw.querySamplesQuota.mu.Unlock()
+
 	if len(r.Timestamps) > 0 {
 		if err := tsw.f(r, workerID); err != nil {
 			tsw.mustStop.Store(true)
@@ -242,11 +260,16 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	}
 
 	var mustStop atomic.Bool
+	limit := *maxSamplesPerQuery
+	sampleQuota := &querySamplesQuota{
+		samplesQuota: limit,
+	}
 	initTimeseriesWork := func(tsw *timeseriesWork, pts *packedTimeseries) {
 		tsw.rss = rss
 		tsw.pts = pts
 		tsw.f = f
 		tsw.mustStop = &mustStop
+		tsw.querySamplesQuota = sampleQuota
 	}
 	maxWorkers := MaxWorkers()
 	if maxWorkers == 1 || tswsLen == 1 {
@@ -1150,7 +1173,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	}
 
 	blocksRead := 0
-	samples := 0
+	blockSamples := 0
 	tbf := getTmpBlocksFile()
 	var buf []byte
 	var metricNamePrev []byte
@@ -1192,14 +1215,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			return nil, fmt.Errorf("timeout exceeded while fetching data block #%d from storage: %s", blocksRead, deadline.String())
 		}
 		br := sr.MetricBlockRef.BlockRef
-		samples += br.RowsCount()
-		if *maxSamplesPerQuery > 0 && samples > *maxSamplesPerQuery {
-			putTmpBlocksFile(tbf)
-			putStorageSearch(sr)
-			return nil, fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: increase the -search.maxSamplesPerQuery; "+
-				"reduce time range for the query; use more specific label filters in order to select fewer series", *maxSamplesPerQuery)
-		}
-
+		blockSamples += br.RowsCount()
 		buf = br.Marshal(buf[:0])
 		addr, err := tbf.WriteBlockRefData(buf)
 		if err != nil {
@@ -1273,7 +1289,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 		putStorageSearch(sr)
 		return nil, fmt.Errorf("cannot finalize temporary file: %w", err)
 	}
-	qt.Printf("fetch unique series=%d, blocks=%d, samples=%d, bytes=%d", len(m), blocksRead, samples, tbf.Len())
+	qt.Printf("fetch unique series=%d, blocks=%d, samples=%d, bytes=%d", len(m), blocksRead, blockSamples, tbf.Len())
 
 	var rss Results
 	rss.tr = tr

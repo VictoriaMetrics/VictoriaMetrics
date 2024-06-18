@@ -24,6 +24,7 @@ func TestDurationSetFailure(t *testing.T) {
 	f("12345")
 
 	// Too big duration
+	f("999y")
 	f("100000000000y")
 
 	// Negative duration
@@ -59,6 +60,7 @@ func TestDurationSetSuccess(t *testing.T) {
 	f("2.3W", 2.3*7*24*3600*1000)
 	f("1w", 7*24*3600*1000)
 	f("0.25y", 0.25*365*24*3600*1000)
+	f("100y", 100*365*24*3600*1000)
 }
 
 func TestDurationDuration(t *testing.T) {

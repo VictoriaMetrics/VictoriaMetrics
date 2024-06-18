@@ -1316,7 +1316,7 @@ func parseNumber(lex *lexer) (float64, string, error) {
 		return f, s, nil
 	}
 
-	return 0, "", fmt.Errorf("cannot parse %q as float64", s)
+	return 0, s, fmt.Errorf("cannot parse %q as float64", s)
 }
 
 func parseFuncArg(lex *lexer, fieldName string, callback func(args string) (filter, error)) (filter, error) {

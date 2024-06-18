@@ -8,6 +8,8 @@ menu:
     weight: 1
 aliases:
   - /VictoriaLogs/data-ingestion/Filebeat.html
+  - /victorialogs/data-ingestion/Filebeat.html
+  - /victorialogs/data-ingestion/filebeat.html
 ---
 
 # Filebeat setup

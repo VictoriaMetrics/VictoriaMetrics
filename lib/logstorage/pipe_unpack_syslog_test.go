@@ -11,16 +11,22 @@ func TestParsePipeUnpackSyslogSuccess(t *testing.T) {
 	}
 
 	f(`unpack_syslog`)
+	f(`unpack_syslog offset 6h30m`)
+	f(`unpack_syslog offset -6h30m`)
 	f(`unpack_syslog keep_original_fields`)
+	f(`unpack_syslog offset -6h30m keep_original_fields`)
 	f(`unpack_syslog if (a:x)`)
 	f(`unpack_syslog if (a:x) keep_original_fields`)
+	f(`unpack_syslog if (a:x) offset 2h keep_original_fields`)
 	f(`unpack_syslog from x`)
 	f(`unpack_syslog from x keep_original_fields`)
 	f(`unpack_syslog if (a:x) from x`)
 	f(`unpack_syslog from x result_prefix abc`)
+	f(`unpack_syslog from x offset 2h30m result_prefix abc`)
 	f(`unpack_syslog if (a:x) from x result_prefix abc`)
 	f(`unpack_syslog result_prefix abc`)
 	f(`unpack_syslog if (a:x) result_prefix abc`)
+	f(`unpack_syslog if (a:x) offset -1h result_prefix abc`)
 }
 
 func TestParsePipeUnpackSyslogFailure(t *testing.T) {
@@ -31,6 +37,7 @@ func TestParsePipeUnpackSyslogFailure(t *testing.T) {
 
 	f(`unpack_syslog foo`)
 	f(`unpack_syslog if`)
+	f(`unpack_syslog offset`)
 	f(`unpack_syslog if (x:y) foobar`)
 	f(`unpack_syslog from`)
 	f(`unpack_syslog from x y`)
@@ -99,6 +106,27 @@ func TestPipeUnpackSyslog(t *testing.T) {
 
 	// unpack from other field
 	f("unpack_syslog from x", [][]Field{
+		{
+			{"x", `<165>1 2023-06-03T17:42:32.123456789Z mymachine.example.com appname 12345 ID47 - This is a test message with structured data`},
+		},
+	}, [][]Field{
+		{
+			{"x", `<165>1 2023-06-03T17:42:32.123456789Z mymachine.example.com appname 12345 ID47 - This is a test message with structured data`},
+			{"priority", "165"},
+			{"facility", "20"},
+			{"severity", "5"},
+			{"format", "rfc5424"},
+			{"timestamp", "2023-06-03T17:42:32.123456789Z"},
+			{"hostname", "mymachine.example.com"},
+			{"app_name", "appname"},
+			{"proc_id", "12345"},
+			{"msg_id", "ID47"},
+			{"message", "This is a test message with structured data"},
+		},
+	})
+
+	// offset should be ignored when parsing non-rfc3164 messages
+	f("unpack_syslog from x offset 2h30m", [][]Field{
 		{
 			{"x", `<165>1 2023-06-03T17:42:32.123456789Z mymachine.example.com appname 12345 ID47 - This is a test message with structured data`},
 		},

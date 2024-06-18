@@ -30,9 +30,9 @@ var (
 		{fmt.Sprintf("api/v1/alert?%s=<int>&%s=<int>", paramGroupID, paramAlertID), "get alert status by group and alert ID"},
 	}
 	systemLinks = [][2]string{
-		{"/flags", "command-line flags"},
-		{"/metrics", "list of application metrics"},
-		{"/-/reload", "reload configuration"},
+		{"flags", "command-line flags"},
+		{"metrics", "list of application metrics"},
+		{"-/reload", "reload configuration"},
 	}
 	navItems = []tpl.NavItem{
 		{Name: "vmalert", Url: "."},

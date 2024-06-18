@@ -919,7 +919,7 @@ func parseMathNumber(s string) float64 {
 	if ok {
 		return f
 	}
-	nsecs, ok := tryParseTimestampRFC3339Nano(s)
+	nsecs, ok := TryParseTimestampRFC3339Nano(s)
 	if ok {
 		return float64(nsecs)
 	}

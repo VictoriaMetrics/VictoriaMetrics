@@ -18,7 +18,7 @@ menu:
 
 This approach represents a paradigm shift from traditional [static threshold-based alerting rules](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#rule-based-alerting), focused on *raw metric values*, to *static* rules based on [`anomaly_scores`](/anomaly-detection/faq/#what-is-anomaly-score). These scores offer a consistent, default threshold that remains stable over time, being adjusted for trends, seasonality, data scale, thus, reducing the engineering effort required for maintenance. Anomaly scores are produced by [machine learning models](/anomaly-detection/components/models), which are regularly retrained on varying time frames, ensuring alerts remain current and responsive to evolving data patterns.
 
-additionally, **preset mode** minimizes user input needed to run the service. You can configure `vmanomaly` by specifying only the preset name and data sources in the [`reader`](/anomaly-detection/components/reader/) and [`writer`](/anomaly-detection/components/writer/) sections of the configuration file. All other parameters are already preconfigured.
+Additionally, **preset mode** minimizes user input needed to run the service. You can configure `vmanomaly` by specifying only the preset name and data sources in the [`reader`](/anomaly-detection/components/reader/) and [`writer`](/anomaly-detection/components/writer/) sections of the configuration file. All other parameters are already preconfigured.
 
 
 Available presets:
@@ -148,17 +148,22 @@ The produced anomaly scores will have a label `for` containing the name of corre
 Here's how attached [Grafana dashboard](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-node-exporter-preset/dashboard.json) can be used to drill down anomalies:
 
 On the (global) graph **'Percentage of Anomalies'**, you can see a spike 8.75% of anomalies at the timestamp '2024-06-03 10:35:00'. The (global) graph **'Anomalies per Indicator'** shows the indicators that were anomalous at the corresponding time.
+
 <img alt="global" src="presets_global_percentage.webp" width="800px"/>
 
 At this timestamp on the **'Number of Anomalous Indicators by Node'** graph we can identify the node that had the most anomalies: `10.142.0.27`
+
 <img alt="by_node" src="presets_anomalies_by_node.webp" width="800px"/>
 
 Now you can select anomalous node to drill down further (local):
+
 <img alt="anomalous_node_selection" src="presets_anomalous_node_selection.webp" width="800px"/>
 
 For this node from the timestamp `2024-06-03 10:35:00` CPU time spent handling software interrupts started to grow.
 (`cpu_seconds_total{mode="softirq"}`)
+
 <img alt="irq" src="presets_cpu_seconds_softirq.webp" width="800px"/>
 
 At the same time `cpu_seconds_total` for `steal` mode started to grow as well.
+
 <img alt="steal" src="presets_cpu_seconds_steal.webp" width="800px"/>

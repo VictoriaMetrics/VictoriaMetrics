@@ -154,21 +154,21 @@ Config with a split example:
 ```yaml
 models:
   model_above_expected:
-    class: 'zscore'
+    class: 'zscore' # or 'model.zscore.ZscoreModel' until v1.13.0
     z_threshold: 3.0
     # track only cases when y > yhat, otherwise anomaly_score would be explicitly set to 0
     detection_direction: 'above_expected'
     # for this query we do not need to track lower values, thus, set anomaly detection tracking for y > yhat (above_expected)
     queries: ['query_values_the_lower_the_better']
   model_below_expected:
-    class: 'zscore'
+    class: 'zscore' # or 'model.zscore.ZscoreModel' until v1.13.0
     z_threshold: 3.0
     # track only cases when y < yhat, otherwise anomaly_score would be explicitly set to 0
     detection_direction: 'below_expected'
     # for this query we do not need to track higher values, thus, set anomaly detection tracking for y < yhat (above_expected)
     queries: ['query_values_the_higher_the_better']
   model_bidirectional_default:
-    class: 'zscore'
+    class: 'zscore' # or 'model.zscore.ZscoreModel' until v1.13.0
     z_threshold: 3.0
     # track in both direction, same backward-compatible behavior in case this arg is missing
     detection_direction: 'both'
@@ -177,10 +177,10 @@ models:
 reader:
   # ...
   queries:
-    query_values_the_lower_the_better: metricql_expression1
-    query_values_the_higher_the_better: metricql_expression2
-    query_values_both_direction_matters: metricql_expression3
-# other components like writer, schedule, monitoring
+    query_values_the_lower_the_better: metricql_expression1  # i.e. error rate
+    query_values_the_higher_the_better: metricql_expression2  # i.e. customer satisfaction rate
+    query_values_both_direction_matters: metricql_expression3  # i.e. no domain expertise to choose only 1 direction
+# other components like writer, schedulers, monitoring
 ```
 
 ### Minimal deviation from expected
@@ -199,6 +199,29 @@ Visualizations below demonstrate this concept; the green zone defined as the `[y
 
 <img src="/anomaly-detection/components/schema_min_dev_from_expected=5.0.webp" width="800px" alt="min_dev_from_expected-big"/>
 
+Example config of how to use this param based on query results:
+
+```yaml
+# other components like writer, schedulers, monitoring ...
+reader:
+  # ...
+  queries:
+    # the usage of min_dev should reduce false positives here
+    need_to_include_min_dev: small_abs_values_metricsql_expression
+    # min_dev is not really needed here
+    normal_behavior: no_need_to_exclude_small_deviations_metricsql_expression
+models:
+  zscore_with_min_dev:
+    class: 'zscore' # or 'model.zscore.ZscoreModel' until v1.13.0
+    z_threshold: 3
+    min_dev_from_expected: 5.0
+    queries: ['need_to_include_min_dev']  # use such models on queries where domain experience confirm usefulness
+  zscore_wo_min_dev:
+    class: 'zscore' # or 'model.zscore.ZscoreModel' until v1.13.0
+    z_threshold: 3
+    # if not set, equals to setting min_dev_from_expected == 0
+    queries: ['normal_behavior']  # use the default where it's not needed
+```  
 
 ## Model types
 

@@ -11,7 +11,8 @@ import (
 func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 	switch path {
 	case "/api/v1/push":
-		return handleInsert(r, w)
+		handleInsert(r, w)
+		return true
 	case "/ready":
 		// See https://grafana.com/docs/loki/latest/api/#identify-ready-loki-instance
 		w.WriteHeader(http.StatusOK)
@@ -23,14 +24,14 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 }
 
 // See https://grafana.com/docs/loki/latest/api/#push-log-entries-to-loki
-func handleInsert(r *http.Request, w http.ResponseWriter) bool {
+func handleInsert(r *http.Request, w http.ResponseWriter) {
 	contentType := r.Header.Get("Content-Type")
 	switch contentType {
 	case "application/json":
-		return handleJSON(r, w)
+		handleJSON(r, w)
 	default:
 		// Protobuf request body should be handled by default according to https://grafana.com/docs/loki/latest/api/#push-log-entries-to-loki
-		return handleProtobuf(r, w)
+		handleProtobuf(r, w)
 	}
 }
 
@@ -45,7 +46,7 @@ func getCommonParams(r *http.Request) (*insertutils.CommonParams, error) {
 	if cp.TenantID.AccountID == 0 && cp.TenantID.ProjectID == 0 {
 		org := r.Header.Get("X-Scope-OrgID")
 		if org != "" {
-			tenantID, err := logstorage.GetTenantIDFromString(org)
+			tenantID, err := logstorage.ParseTenantID(org)
 			if err != nil {
 				return nil, err
 			}

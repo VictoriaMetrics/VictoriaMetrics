@@ -8,7 +8,7 @@ import (
 
 	"github.com/golang/snappy"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 )
 
 func BenchmarkParseProtobufRequest(b *testing.B) {
@@ -24,12 +24,13 @@ func BenchmarkParseProtobufRequest(b *testing.B) {
 }
 
 func benchmarkParseProtobufRequest(b *testing.B, streams, rows, labels int) {
+	blp := &insertutils.BenchmarkLogMessageProcessor{}
 	b.ReportAllocs()
 	b.SetBytes(int64(streams * rows))
 	b.RunParallel(func(pb *testing.PB) {
 		body := getProtobufBody(streams, rows, labels)
 		for pb.Next() {
-			_, err := parseProtobufRequest(body, func(_ int64, _ []logstorage.Field) {})
+			_, err := parseProtobufRequest(body, blp)
 			if err != nil {
 				panic(fmt.Errorf("unexpected error: %w", err))
 			}

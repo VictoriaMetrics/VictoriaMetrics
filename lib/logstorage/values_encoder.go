@@ -262,7 +262,7 @@ func tryTimestampISO8601Encoding(dstBuf []byte, dstValues, srcValues []string) (
 	a := u64s.A
 	var minValue, maxValue int64
 	for i, v := range srcValues {
-		n, ok := tryParseTimestampISO8601(v)
+		n, ok := TryParseTimestampISO8601(v)
 		if !ok {
 			return dstBuf, dstValues, valueTypeUnknown, 0, 0
 		}
@@ -283,10 +283,10 @@ func tryTimestampISO8601Encoding(dstBuf []byte, dstValues, srcValues []string) (
 	return dstBuf, dstValues, valueTypeTimestampISO8601, uint64(minValue), uint64(maxValue)
 }
 
-// tryParseTimestampRFC3339Nano parses 'YYYY-MM-DDThh:mm:ss' with optional nanoseconds part and 'Z' tail and returns unix timestamp in nanoseconds.
+// TryParseTimestampRFC3339Nano parses 'YYYY-MM-DDThh:mm:ss' with optional nanoseconds part and 'Z' tail and returns unix timestamp in nanoseconds.
 //
 // The returned timestamp can be negative if s is smaller than 1970 year.
-func tryParseTimestampRFC3339Nano(s string) (int64, bool) {
+func TryParseTimestampRFC3339Nano(s string) (int64, bool) {
 	// Do not parse timestamps with timezone other than Z, since they cannot be converted back
 	// to the same string representation in general case.
 	// This may break search.
@@ -330,10 +330,10 @@ func tryParseTimestampRFC3339Nano(s string) (int64, bool) {
 	return nsecs, true
 }
 
-// tryParseTimestampISO8601 parses 'YYYY-MM-DDThh:mm:ss.mssZ' and returns unix timestamp in nanoseconds.
+// TryParseTimestampISO8601 parses 'YYYY-MM-DDThh:mm:ss.mssZ' and returns unix timestamp in nanoseconds.
 //
 // The returned timestamp can be negative if s is smaller than 1970 year.
-func tryParseTimestampISO8601(s string) (int64, bool) {
+func TryParseTimestampISO8601(s string) (int64, bool) {
 	// Do not parse timestamps with timezone, since they cannot be converted back
 	// to the same string representation in general case.
 	// This may break search.

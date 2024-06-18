@@ -151,7 +151,7 @@ func TestTryParseIPv4_Failure(t *testing.T) {
 func TestTryParseTimestampRFC3339NanoString_Success(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
-		nsecs, ok := tryParseTimestampRFC3339Nano(s)
+		nsecs, ok := TryParseTimestampRFC3339Nano(s)
 		if !ok {
 			t.Fatalf("cannot parse timestamp %q", s)
 		}
@@ -185,7 +185,7 @@ func TestTryParseTimestampRFC3339NanoString_Success(t *testing.T) {
 func TestTryParseTimestampRFC3339Nano_Failure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
-		_, ok := tryParseTimestampRFC3339Nano(s)
+		_, ok := TryParseTimestampRFC3339Nano(s)
 		if ok {
 			t.Fatalf("expecting faulure when parsing %q", s)
 		}
@@ -240,7 +240,7 @@ func TestTryParseTimestampRFC3339Nano_Failure(t *testing.T) {
 func TestTryParseTimestampISO8601String_Success(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
-		nsecs, ok := tryParseTimestampISO8601(s)
+		nsecs, ok := TryParseTimestampISO8601(s)
 		if !ok {
 			t.Fatalf("cannot parse timestamp %q", s)
 		}
@@ -263,7 +263,7 @@ func TestTryParseTimestampISO8601String_Success(t *testing.T) {
 func TestTryParseTimestampISO8601_Failure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
-		_, ok := tryParseTimestampISO8601(s)
+		_, ok := TryParseTimestampISO8601(s)
 		if ok {
 			t.Fatalf("expecting faulure when parsing %q", s)
 		}

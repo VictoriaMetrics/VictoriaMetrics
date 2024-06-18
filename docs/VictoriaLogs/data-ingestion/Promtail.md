@@ -8,6 +8,8 @@ menu:
     weight: 4
 aliases:
   - /VictoriaLogs/data-ingestion/Promtail.html
+  - /victorialogs/data-ingestion/Promtail.html
+  - /victorialogs/data-ingestion/promtail.html
 ---
 # Promtail setup
 

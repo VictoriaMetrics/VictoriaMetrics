@@ -248,7 +248,8 @@ See the full source code of the example [here](/guides/getting-started-with-open
 
 ### Test metrics ingestion
 
-For metrics from our WEB server to be shipped to VictoriaMetrics we need make it available for ingestion.
+In order to push metrics of our WEB server to VictoriaMetrics it is necessary to ensure that VictoriaMetrics ingestion
+endpoint is available locally.
 In previous steps we already deployed a single-server VictoriaMetrics, so let's make it available locally:
 ```sh
 # port-forward victoriametrics to ingest metrics

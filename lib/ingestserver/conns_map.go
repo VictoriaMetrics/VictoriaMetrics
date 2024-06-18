@@ -44,6 +44,8 @@ func (cm *ConnsMap) Delete(c net.Conn) {
 }
 
 // CloseAll gradually closes all the cm conns with during the given shutdownDuration.
+//
+// If shutdownDuration <= 0, then all the connections are closed simultaneously.
 func (cm *ConnsMap) CloseAll(shutdownDuration time.Duration) {
 	cm.mu.Lock()
 	conns := make([]net.Conn, 0, len(cm.m))
@@ -70,8 +72,8 @@ func (cm *ConnsMap) CloseAll(shutdownDuration time.Duration) {
 		return
 	}
 
-	// Sort vminsert conns in order to make the order of closing connections deterministic across vmstorage nodes.
-	// This should reduce resource usage spikes at vmstorage nodes during rolling restarts.
+	// Sort conns in order to make the order of closing connections deterministic across clients.
+	// This should reduce resource usage spikes at clients during rolling restarts.
 	sort.Slice(conns, func(i, j int) bool {
 		return conns[i].RemoteAddr().String() < conns[j].RemoteAddr().String()
 	})

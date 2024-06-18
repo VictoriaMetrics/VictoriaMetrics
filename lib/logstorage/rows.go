@@ -58,7 +58,11 @@ func (f *Field) unmarshal(a *arena, src []byte) ([]byte, error) {
 }
 
 func (f *Field) marshalToJSON(dst []byte) []byte {
-	dst = strconv.AppendQuote(dst, f.Name)
+	name := f.Name
+	if name == "" {
+		name = "_msg"
+	}
+	dst = strconv.AppendQuote(dst, name)
 	dst = append(dst, ':')
 	dst = strconv.AppendQuote(dst, f.Value)
 	return dst
@@ -82,6 +86,20 @@ func needLogfmtQuoting(s string) bool {
 		}
 	}
 	return false
+}
+
+// RenameField renames field with the oldName to newName in Fields
+func RenameField(fields []Field, oldName, newName string) {
+	if oldName == "" {
+		return
+	}
+	for i := range fields {
+		f := &fields[i]
+		if f.Name == oldName {
+			f.Name = newName
+			return
+		}
+	}
 }
 
 // MarshalFieldsToJSON appends JSON-marshaled fields to dst and returns the result.

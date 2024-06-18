@@ -76,11 +76,13 @@ func (d *Duration) Set(value string) error {
 	if err != nil {
 		return err
 	}
+	if msecs/msecsPer31Days > maxMonths {
+		return fmt.Errorf("duration must be smaller than %d months; got approx %d months", maxMonths, msecs/msecsPer31Days)
+	}
 	d.msecs = msecs
 	d.valueString = value
 	return nil
 }
 
 const maxMonths = 12 * 100
-
 const msecsPer31Days = 31 * 24 * 3600 * 1000
