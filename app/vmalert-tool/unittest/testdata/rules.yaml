@@ -38,5 +38,5 @@ groups:
       - record: t3
         expr: t1
 
-  - name: nullgroup
+  - name: emptyGroup
     rules: []
