@@ -300,12 +300,10 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 				continue
 			}
 			errs := g.ExecOnce(context.Background(), func() []notifier.Notifier { return nil }, rw, ts)
-			if errs != nil {
-				for err := range errs {
-					if err != nil {
-						checkErrs = append(checkErrs, fmt.Errorf("\nfailed to exec group: %q, time: %s, err: %w", g.Name,
-							ts, err))
-					}
+			for err := range errs {
+				if err != nil {
+					checkErrs = append(checkErrs, fmt.Errorf("\nfailed to exec group: %q, time: %s, err: %w", g.Name,
+						ts, err))
 				}
 			}
 			// flush series after each group evaluation
