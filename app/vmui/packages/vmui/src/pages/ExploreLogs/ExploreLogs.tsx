@@ -12,9 +12,12 @@ import { ErrorTypes } from "../../types";
 import { useState } from "react";
 import { useTimeState } from "../../state/time/TimeStateContext";
 import { getFromStorage, saveToStorage } from "../../utils/storage";
+import ExploreLogsBarChart from "./ExploreLogsBarChart/ExploreLogsBarChart";
+import { useFetchLogHits } from "./hooks/useFetchLogHits";
+import { LOGS_ENTRIES_LIMIT } from "../../constants/logs";
 
 const storageLimit = Number(getFromStorage("LOGS_LIMIT"));
-const defaultLimit = isNaN(storageLimit) ? 50 : storageLimit;
+const defaultLimit = isNaN(storageLimit) ? LOGS_ENTRIES_LIMIT : storageLimit;
 
 const ExploreLogs: FC = () => {
   const { serverUrl } = useAppState();
@@ -24,6 +27,7 @@ const ExploreLogs: FC = () => {
   const [limit, setLimit] = useStateSearchParams(defaultLimit, "limit");
   const [query, setQuery] = useStateSearchParams("*", "query");
   const { logs, isLoading, error, fetchLogs } = useFetchLogs(serverUrl, query, limit);
+  const { fetchLogHits, ...dataLogHits } = useFetchLogHits(serverUrl, query);
   const [queryError, setQueryError] = useState<ErrorTypes | string>("");
   const [loaded, isLoaded] = useState(false);
   const [markdownParsing, setMarkdownParsing] = useState(getFromStorage("LOGS_MARKDOWN") === "true");
@@ -37,6 +41,7 @@ const ExploreLogs: FC = () => {
     fetchLogs().then(() => {
       isLoaded(true);
     });
+    fetchLogHits();
 
     setSearchParamsFromKeys( {
       query,
@@ -79,6 +84,11 @@ const ExploreLogs: FC = () => {
       />
       {isLoading && <Spinner />}
       {error && <Alert variant="error">{error}</Alert>}
+      <ExploreLogsBarChart
+        query={query}
+        loaded={loaded}
+        {...dataLogHits}
+      />
       <ExploreLogsBody
         data={logs}
         loaded={loaded}
