@@ -142,10 +142,10 @@ func verifyTestGroup(group testGroup) error {
 			return fmt.Errorf("\n%s    missing required filed \"alertname\"", testGroupName)
 		}
 		if !disableAlertgroupLabel && at.GroupName == "" {
-			return fmt.Errorf("\n%s    missing required filed \"groupname\" when flag \"disableAlertGroupLabel\" is false", testGroupName)
+			return fmt.Errorf("\n%s    missing required filed \"groupname\" when flag \"disableAlertgroupLabel\" is false", testGroupName)
 		}
 		if disableAlertgroupLabel && at.GroupName != "" {
-			return fmt.Errorf("\n%s    shouldn't set filed \"groupname\" when flag \"disableAlertGroupLabel\" is true", testGroupName)
+			return fmt.Errorf("\n%s    shouldn't set filed \"groupname\" when flag \"disableAlertgroupLabel\" is true", testGroupName)
 		}
 		if at.EvalTime == nil {
 			return fmt.Errorf("\n%s    missing required filed \"eval_time\"", testGroupName)
@@ -317,10 +317,12 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 	for ts := testStartTime; ts.Before(maxEvalTime) || ts.Equal(maxEvalTime); ts = ts.Add(evalInterval) {
 		for _, g := range groups {
 			errs := g.ExecOnce(context.Background(), func() []notifier.Notifier { return nil }, rw, ts)
-			for err := range errs {
-				if err != nil {
-					checkErrs = append(checkErrs, fmt.Errorf("\nfailed to exec group: %q, time: %s, err: %w", g.Name,
-						ts, err))
+			if errs != nil {
+				for err := range errs {
+					if err != nil {
+						checkErrs = append(checkErrs, fmt.Errorf("\nfailed to exec group: %q, time: %s, err: %w", g.Name,
+							ts, err))
+					}
 				}
 			}
 			// flush series after each group evaluation
@@ -374,7 +376,7 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 						if expAlert.ExpLabels == nil {
 							expAlert.ExpLabels = make(map[string]string)
 						}
-						// alertGroupNameLabel is added as additional labels when `disableAlertGroupLabel` is false
+						// alertGroupNameLabel is added as additional labels when `disableAlertgroupLabel` is false
 						if !disableAlertgroupLabel {
 							expAlert.ExpLabels["alertgroup"] = groupname
 						}

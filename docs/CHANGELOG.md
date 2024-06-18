@@ -50,6 +50,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): add validation for the max value specified for `-retentionPeriod`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6330) for details.
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): calculate the exact number of [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) during query processing, the limit is specified via command-line flag `-search.maxSamplesPerQuery`. Previously, samples could have been over-counted and lead to false-positive errors of `maxSamplesPerQuery`limit exceeded. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5851).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): **copy row** button in Table view produces unexpected result. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6421) and [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6495).
+* BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/vmalert-tool/): exit normally when no rule is defined under rule group. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6500).
 
 ## [v1.102.0-rc1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0-rc1)
 
