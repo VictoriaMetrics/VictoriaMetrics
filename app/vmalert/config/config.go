@@ -234,7 +234,7 @@ func ParseSilent(pathPatterns []string, validateTplFn ValidateTplFn, validateExp
 	cLogger.Suppress(true)
 	defer cLogger.Suppress(false)
 
-	files, err := readFromFS(pathPatterns)
+	files, err := ReadFromFS(pathPatterns)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read from the config: %w", err)
 	}
@@ -243,7 +243,7 @@ func ParseSilent(pathPatterns []string, validateTplFn ValidateTplFn, validateExp
 
 // Parse parses rule configs from given file patterns
 func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
-	files, err := readFromFS(pathPatterns)
+	files, err := ReadFromFS(pathPatterns)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read from the config: %w", err)
 	}

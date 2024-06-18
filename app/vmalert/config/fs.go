@@ -32,14 +32,14 @@ var (
 	fsRegistry   = make(map[string]FS)
 )
 
-// readFromFS parses the given path list and inits FS for each item.
-// Once initialed, readFromFS will try to read and return files from each FS.
-// readFromFS returns an error if at least one FS failed to init.
+// ReadFromFS parses the given path list and inits FS for each item.
+// Once initialed, ReadFromFS will try to read and return files from each FS.
+// ReadFromFS returns an error if at least one FS failed to init.
 // The function can be called multiple times but each unique path
 // will be initialed only once.
 //
 // It is allowed to mix different FS types in path list.
-func readFromFS(paths []string) (map[string][]byte, error) {
+func ReadFromFS(paths []string) (map[string][]byte, error) {
 	var err error
 	result := make(map[string][]byte)
 	for _, path := range paths {
