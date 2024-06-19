@@ -322,6 +322,7 @@ func TestStorageRunQuery(t *testing.T) {
 		resultExpected := []ValueWithHits{
 			{"_msg", 1155},
 			{"_stream", 1155},
+			{"_stream_id", 1155},
 			{"_time", 1155},
 			{"instance", 1155},
 			{"job", 1155},
@@ -343,6 +344,7 @@ func TestStorageRunQuery(t *testing.T) {
 		resultExpected := []ValueWithHits{
 			{"_msg", 385},
 			{"_stream", 385},
+			{"_stream_id", 385},
 			{"_time", 385},
 			{"instance", 385},
 			{"job", 385},
