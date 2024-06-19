@@ -60,6 +60,11 @@ func (c *DebugClient) Close() error {
 	return nil
 }
 
+// CloseAndReport closes the client and reports dropped rows
+func (c *DebugClient) CloseAndReport() (error, int64) {
+	return c.Close(), 0
+}
+
 func (c *DebugClient) send(data []byte) error {
 	b := snappy.Encode(nil, data)
 	r := bytes.NewReader(b)
