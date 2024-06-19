@@ -384,7 +384,7 @@ func TestFilterExactPrefix(t *testing.T) {
 			fieldName: "foo",
 			prefix:    "12",
 		}
-		testFilterMatchForColumns(t, columns, fep, "foo", []int{0, 1, 5})
+		testFilterMatchForColumns(t, columns, fep, "foo", []int{0, 1, 5, 9})
 
 		fep = &filterExactPrefix{
 			fieldName: "foo",
@@ -495,7 +495,7 @@ func TestFilterExactPrefix(t *testing.T) {
 			fieldName: "foo",
 			prefix:    "127.0.",
 		}
-		testFilterMatchForColumns(t, columns, fep, "foo", []int{2, 4, 5, 7})
+		testFilterMatchForColumns(t, columns, fep, "foo", []int{2, 4, 5, 6, 7})
 
 		fep = &filterExactPrefix{
 			fieldName: "foo",
