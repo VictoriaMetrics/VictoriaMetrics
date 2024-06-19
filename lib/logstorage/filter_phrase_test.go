@@ -5,6 +5,8 @@ import (
 )
 
 func TestMatchPhrase(t *testing.T) {
+	t.Parallel()
+
 	f := func(s, phrase string, resultExpected bool) {
 		t.Helper()
 		result := matchPhrase(s, phrase)
@@ -44,6 +46,8 @@ func TestMatchPhrase(t *testing.T) {
 }
 
 func TestFilterPhrase(t *testing.T) {
+	t.Parallel()
+
 	t.Run("single-row", func(t *testing.T) {
 		columns := []column{
 			{

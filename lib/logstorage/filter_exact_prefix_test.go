@@ -5,6 +5,8 @@ import (
 )
 
 func TestFilterExactPrefix(t *testing.T) {
+	t.Parallel()
+
 	t.Run("single-row", func(t *testing.T) {
 		columns := []column{
 			{

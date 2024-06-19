@@ -5,6 +5,8 @@ import (
 )
 
 func TestMatchPrefix(t *testing.T) {
+	t.Parallel()
+
 	f := func(s, prefix string, resultExpected bool) {
 		t.Helper()
 		result := matchPrefix(s, prefix)
@@ -44,6 +46,8 @@ func TestMatchPrefix(t *testing.T) {
 }
 
 func TestFilterPrefix(t *testing.T) {
+	t.Parallel()
+
 	t.Run("single-row", func(t *testing.T) {
 		columns := []column{
 			{

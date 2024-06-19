@@ -5,6 +5,8 @@ import (
 )
 
 func TestMatchSequence(t *testing.T) {
+	t.Parallel()
+
 	f := func(s string, phrases []string, resultExpected bool) {
 		t.Helper()
 		result := matchSequence(s, phrases)
@@ -28,6 +30,8 @@ func TestMatchSequence(t *testing.T) {
 }
 
 func TestFilterSequence(t *testing.T) {
+	t.Parallel()
+
 	t.Run("single-row", func(t *testing.T) {
 		columns := []column{
 			{

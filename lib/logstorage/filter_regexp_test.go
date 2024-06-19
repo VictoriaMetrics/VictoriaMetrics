@@ -8,6 +8,8 @@ import (
 )
 
 func TestFilterRegexp(t *testing.T) {
+	t.Parallel()
+
 	t.Run("const-column", func(t *testing.T) {
 		columns := []column{
 			{
@@ -371,6 +373,8 @@ func TestFilterRegexp(t *testing.T) {
 }
 
 func TestSkipFirstLastToken(t *testing.T) {
+	t.Parallel()
+
 	f := func(s, resultExpected string) {
 		t.Helper()
 

@@ -6,6 +6,8 @@ import (
 )
 
 func TestFilterWeekRange(t *testing.T) {
+	t.Parallel()
+
 	sunday := time.Date(2024, 6, 9, 1, 0, 0, 0, time.UTC).UnixNano()
 	timestamps := []int64{
 		sunday,

@@ -5,6 +5,8 @@ import (
 )
 
 func TestMatchIPv4Range(t *testing.T) {
+	t.Parallel()
+
 	f := func(s string, minValue, maxValue uint32, resultExpected bool) {
 		t.Helper()
 		result := matchIPv4Range(s, minValue, maxValue)
@@ -28,6 +30,8 @@ func TestMatchIPv4Range(t *testing.T) {
 }
 
 func TestFilterIPv4Range(t *testing.T) {
+	t.Parallel()
+
 	t.Run("const-column", func(t *testing.T) {
 		columns := []column{
 			{

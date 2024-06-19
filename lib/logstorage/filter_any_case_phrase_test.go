@@ -5,6 +5,8 @@ import (
 )
 
 func TestMatchAnyCasePhrase(t *testing.T) {
+	t.Parallel()
+
 	f := func(s, phraseLowercase string, resultExpected bool) {
 		t.Helper()
 		result := matchAnyCasePhrase(s, phraseLowercase)
@@ -39,6 +41,8 @@ func TestMatchAnyCasePhrase(t *testing.T) {
 }
 
 func TestFilterAnyCasePhrase(t *testing.T) {
+	t.Parallel()
+
 	t.Run("single-row", func(t *testing.T) {
 		columns := []column{
 			{

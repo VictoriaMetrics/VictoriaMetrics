@@ -9,6 +9,8 @@ import (
 )
 
 func TestFilterStreamID(t *testing.T) {
+	t.Parallel()
+
 	// match
 	ft := &filterStreamID{
 		streamIDStr: "0000007b000001c8302bc96e02e54e5524b3a68ec271e55e",

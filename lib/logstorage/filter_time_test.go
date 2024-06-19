@@ -9,6 +9,8 @@ import (
 )
 
 func TestFilterTime(t *testing.T) {
+	t.Parallel()
+
 	timestamps := []int64{
 		1,
 		9,

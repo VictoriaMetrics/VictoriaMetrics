@@ -5,6 +5,8 @@ import (
 )
 
 func TestMatchStringRange(t *testing.T) {
+	t.Parallel()
+	 
 	f := func(s, minValue, maxValue string, resultExpected bool) {
 		t.Helper()
 		result := matchStringRange(s, minValue, maxValue)
@@ -22,6 +24,8 @@ func TestMatchStringRange(t *testing.T) {
 }
 
 func TestFilterStringRange(t *testing.T) {
+	t.Parallel()
+
 	t.Run("const-column", func(t *testing.T) {
 		columns := []column{
 			{

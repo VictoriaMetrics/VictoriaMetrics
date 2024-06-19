@@ -5,6 +5,8 @@ import (
 )
 
 func TestMatchAnyCasePrefix(t *testing.T) {
+	t.Parallel()
+
 	f := func(s, prefixLowercase string, resultExpected bool) {
 		t.Helper()
 		result := matchAnyCasePrefix(s, prefixLowercase)
@@ -39,6 +41,8 @@ func TestMatchAnyCasePrefix(t *testing.T) {
 }
 
 func TestFilterAnyCasePrefix(t *testing.T) {
+	t.Parallel()
+
 	t.Run("single-row", func(t *testing.T) {
 		columns := []column{
 			{

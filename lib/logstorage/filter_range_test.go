@@ -5,6 +5,8 @@ import (
 )
 
 func TestFilterRange(t *testing.T) {
+	t.Parallel()
+
 	t.Run("const-column", func(t *testing.T) {
 		columns := []column{
 			{
