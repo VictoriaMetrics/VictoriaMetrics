@@ -41,14 +41,18 @@ type FS struct {
 	Dir string
 
 	client *container.Client
+	env    envLookuper
 }
 
 // Init initializes fs.
 //
 // The returned fs must be stopped when no long needed with MustStop call.
 func (fs *FS) Init() error {
-	if fs.client != nil {
+	switch {
+	case fs.client != nil:
 		logger.Panicf("BUG: fs.Init has been already called")
+	case fs.env == nil:
+		fs.env = envLookuperFunc(envtemplate.LookupEnv)
 	}
 
 	for strings.HasPrefix(fs.Dir, "/") {
@@ -60,16 +64,18 @@ func (fs *FS) Init() error {
 
 	var sc *service.Client
 	var err error
-	if cs, ok := envtemplate.LookupEnv(envStorageAccCs); ok {
+	if cs, ok := fs.env.LookupEnv(envStorageAccCs); ok {
+		logger.Infof("Creating AZBlob service client from connection string")
 		sc, err = service.NewClientFromConnectionString(cs, nil)
 		if err != nil {
 			return fmt.Errorf("failed to create AZBlob service client from connection string: %w", err)
 		}
 	}
 
-	accountName, ok1 := envtemplate.LookupEnv(envStorageAcctName)
-	accountKey, ok2 := envtemplate.LookupEnv(envStorageAccKey)
+	accountName, ok1 := fs.env.LookupEnv(envStorageAcctName)
+	accountKey, ok2 := fs.env.LookupEnv(envStorageAccKey)
 	if ok1 && ok2 {
+		logger.Infof("Creating AZBlob service client from account name and key")
 		creds, err := azblob.NewSharedKeyCredential(accountName, accountKey)
 		if err != nil {
 			return fmt.Errorf("failed to create AZBlob credentials from account name and key: %w", err)
@@ -242,7 +248,6 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 
 	ctx := context.Background()
 	_, err := bc.UploadStream(ctx, r, &blockblob.UploadStreamOptions{})
-
 	if err != nil {
 		return fmt.Errorf("cannot upload data to %q at %s (remote path %q): %w", p.Path, fs, bc.URL(), err)
 	}
@@ -341,7 +346,6 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 	_, err := bc.UploadBuffer(ctx, data, &blockblob.UploadBufferOptions{
 		Concurrency: 1,
 	})
-
 	if err != nil {
 		return fmt.Errorf("cannot upload %d bytes to %q at %s (remote path %q): %w", len(data), filePath, fs, bc.URL(), err)
 	}
@@ -382,4 +386,18 @@ func (fs *FS) ReadFile(filePath string) ([]byte, error) {
 	}
 
 	return b, nil
+}
+
+// envLookuper is an interface for looking up environment variables. It is
+// needed to allow unit tests to provide alternate values since the envtemplate
+// package uses a singleton to read all environment variables into memory at
+// init time.
+type envLookuper interface {
+	LookupEnv(name string) (string, bool)
+}
+
+type envLookuperFunc func(name string) (string, bool)
+
+func (f envLookuperFunc) LookupEnv(name string) (string, bool) {
+	return f(name)
 }
