@@ -570,13 +570,12 @@ func TestFilterRange(t *testing.T) {
 			},
 		}
 
-		// range filter always mismatches ipv4
 		fr := &filterRange{
 			fieldName: "foo",
 			minValue:  -100,
 			maxValue:  100,
 		}
-		testFilterMatchForColumns(t, columns, fr, "foo", nil)
+		testFilterMatchForColumns(t, columns, fr, "foo", []int{1})
 	})
 
 	t.Run("timestamp-iso8601", func(t *testing.T) {

@@ -176,7 +176,7 @@ func TestFilterLenRange(t *testing.T) {
 			minLen:    2,
 			maxLen:    2,
 		}
-		testFilterMatchForColumns(t, columns, fr, "foo", []int{2, 3, 6})
+		testFilterMatchForColumns(t, columns, fr, "foo", []int{1, 2, 5})
 
 		// mismatch
 		fr = &filterLenRange{
@@ -220,7 +220,7 @@ func TestFilterLenRange(t *testing.T) {
 			minLen:    2,
 			maxLen:    2,
 		}
-		testFilterMatchForColumns(t, columns, fr, "foo", []int{2, 3, 6})
+		testFilterMatchForColumns(t, columns, fr, "foo", []int{1, 2, 5})
 
 		// mismatch
 		fr = &filterLenRange{
@@ -264,7 +264,7 @@ func TestFilterLenRange(t *testing.T) {
 			minLen:    2,
 			maxLen:    2,
 		}
-		testFilterMatchForColumns(t, columns, fr, "foo", []int{2, 3, 6})
+		testFilterMatchForColumns(t, columns, fr, "foo", []int{1, 2, 5})
 
 		// mismatch
 		fr = &filterLenRange{
@@ -308,7 +308,7 @@ func TestFilterLenRange(t *testing.T) {
 			minLen:    2,
 			maxLen:    2,
 		}
-		testFilterMatchForColumns(t, columns, fr, "foo", []int{2, 3, 6})
+		testFilterMatchForColumns(t, columns, fr, "foo", []int{1, 2, 5})
 
 		// mismatch
 		fr = &filterLenRange{
