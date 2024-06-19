@@ -1,0 +1,22 @@
+@use "src/styles/variables" as *;
+
+.vm-bar-hits-chart {
+  height: 100%;
+  width: 100%;
+
+  &_panning {
+    pointer-events: none;
+  }
+
+  &-tooltip {
+    opacity: 0;
+    pointer-events: none;
+    width: 240px;
+    gap: $padding-small;
+
+    &_visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+}
