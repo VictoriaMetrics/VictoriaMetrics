@@ -77,6 +77,46 @@ func Test_FSInit(t *testing.T) {
 			},
 			ExpectedLogs: []string{`Creating AZBlob service client from account name and key`},
 		},
+		"allows overriding domain name with account name and key": {
+			Dir:         "foo",
+			ExpectedDir: "foo/",
+			Env: map[string]string{
+				envStorageAcctName: "test",
+				envStorageAccKey:   "dGVhcG90Cg==",
+				envStorageDomain:   "foo.bar",
+			},
+			ExpectedLogs: []string{
+				`Creating AZBlob service client from account name and key`,
+				`Overriding default Azure blob domain with "foo.bar"`,
+			},
+		},
+		"can't specify both connection string and shared key": {
+			Dir:         "foo",
+			ExpectedDir: "foo/",
+			Env: map[string]string{
+				envStorageAccCs:    "teapot",
+				envStorageAcctName: "test",
+				envStorageAccKey:   "dGVhcG90Cg==",
+			},
+			ExpectedErr: `only one of connection string, account name and key, or default credential can be specified`,
+		},
+		"just use default is an err": {
+			Dir:         "foo",
+			ExpectedDir: "foo/",
+			Env: map[string]string{
+				envStorageDefault: "true",
+			},
+			ExpectedErr: "failed to detect any credentials",
+		},
+		"uses default credential": {
+			Dir:         "foo",
+			ExpectedDir: "foo/",
+			Env: map[string]string{
+				envStorageDefault:  "true",
+				envStorageAcctName: "test",
+			},
+			ExpectedLogs: []string{`Creating AZBlob service client from default credential`},
+		},
 	}
 
 	for name, test := range cases {

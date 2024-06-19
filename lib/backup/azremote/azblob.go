@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blockblob"
@@ -27,6 +28,8 @@ const (
 	envStorageAcctName           = "AZURE_STORAGE_ACCOUNT_NAME"
 	envStorageAccKey             = "AZURE_STORAGE_ACCOUNT_KEY"
 	envStorageAccCs              = "AZURE_STORAGE_ACCOUNT_CONNECTION_STRING"
+	envStorageDomain             = "AZURE_STORAGE_DOMAIN"
+	envStorageDefault            = "AZURE_USE_DEFAULT_CREDENTIAL"
 	storageErrorCodeBlobNotFound = "BlobNotFound"
 )
 
@@ -62,34 +65,64 @@ func (fs *FS) Init() error {
 		fs.Dir += "/"
 	}
 
+	domain := "blob.core.windows.net"
+	if storageDomain, ok := fs.env.LookupEnv(envStorageDomain); ok {
+		logger.Infof("Overriding default Azure blob domain with %q", storageDomain)
+		domain = storageDomain
+	}
+
+	connString, hasConnString := fs.env.LookupEnv(envStorageAccCs)
+	accountName, hasAccountName := fs.env.LookupEnv(envStorageAcctName)
+	accountKey, hasAccountKey := fs.env.LookupEnv(envStorageAccKey)
+	useDefault, _ := fs.env.LookupEnv(envStorageDefault)
+
 	var sc *service.Client
 	var err error
-	if cs, ok := fs.env.LookupEnv(envStorageAccCs); ok {
+
+	// not used if connection string is set
+	serviceURL := fmt.Sprintf("https://%s.%s/", accountName, domain)
+
+	switch {
+	// can't specify any combination of more than one credential
+	case moreThanOne(hasConnString, (hasAccountName && hasAccountKey), (useDefault == "true" && hasAccountName)):
+		return fmt.Errorf("only one of connection string, account name and key, or default credential can be specified")
+	case hasConnString:
 		logger.Infof("Creating AZBlob service client from connection string")
-		sc, err = service.NewClientFromConnectionString(cs, nil)
+		sc, err = service.NewClientFromConnectionString(connString, nil)
 		if err != nil {
 			return fmt.Errorf("failed to create AZBlob service client from connection string: %w", err)
 		}
-	}
-
-	accountName, ok1 := fs.env.LookupEnv(envStorageAcctName)
-	accountKey, ok2 := fs.env.LookupEnv(envStorageAccKey)
-	if ok1 && ok2 {
+	case hasAccountName && hasAccountKey:
 		logger.Infof("Creating AZBlob service client from account name and key")
 		creds, err := azblob.NewSharedKeyCredential(accountName, accountKey)
 		if err != nil {
 			return fmt.Errorf("failed to create AZBlob credentials from account name and key: %w", err)
 		}
-		serviceURL := fmt.Sprintf("https://%s.blob.core.windows.net/", accountName)
 
 		sc, err = service.NewClientWithSharedKeyCredential(serviceURL, creds, nil)
 		if err != nil {
 			return fmt.Errorf("failed to create AZBlob service client from account name and key: %w", err)
 		}
-	}
+	case useDefault == "true" && hasAccountName:
+		logger.Infof("Creating AZBlob service client from default credential")
+		creds, err := azidentity.NewDefaultAzureCredential(nil)
+		if err != nil {
+			return fmt.Errorf("failed to create AZBlob credentials from default: %w", err)
+		}
 
-	if sc == nil {
-		return fmt.Errorf(`failed to detect any credentials type for AZBlob. Ensure there is connection string set at %q, or shared key at %q and %q`, envStorageAccCs, envStorageAcctName, envStorageAccKey)
+		sc, err = service.NewClient(serviceURL, creds, nil)
+		if err != nil {
+			return fmt.Errorf("failed to create AZBlob service client from default: %w", err)
+		}
+	default:
+		return fmt.Errorf(
+			`failed to detect any credentials type for AZBlob. Ensure there is connection string set at %q, shared key at %q and %q, or account name at %q and set %q to "true"`,
+			envStorageAccCs,
+			envStorageAcctName,
+			envStorageAccKey,
+			envStorageAcctName,
+			envStorageDefault,
+		)
 	}
 
 	containerClient := sc.NewContainerClient(fs.Container)
@@ -400,4 +433,15 @@ type envLookuperFunc func(name string) (string, bool)
 
 func (f envLookuperFunc) LookupEnv(name string) (string, bool) {
 	return f(name)
+}
+
+func moreThanOne(vals ...bool) bool {
+	var n int
+
+	for _, v := range vals {
+		if v {
+			n++
+		}
+	}
+	return n > 1
 }
