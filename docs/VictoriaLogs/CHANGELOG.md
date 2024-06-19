@@ -19,6 +19,22 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add a bar chart displaying the number of log entries over a time range. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6404).
+
+## [v0.20.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.20.2-victorialogs)
+
+Released at 2024-06-18
+
+* BUGFIX: properly parse timestamps with nanosecond precision for logs ingested via [jsonline format](https://docs.victoriametrics.com/victorialogs/data-ingestion/#json-stream-api). The bug has been introduced in [v0.20.0 release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.20.0-victorialogs).
+
+## [v0.20.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.20.1-victorialogs)
+
+Released at 2024-06-18
+
+* FEATURE: allow configuring multiple receivers with distinct configs for syslog messages. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#multiple-configs).
+
+* BUGFIX: properly read syslog messages over TCP and TLS connections according to [RFC5425](https://datatracker.ietf.org/doc/html/rfc5425) when [data ingestion for syslog protocol](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/) is enabled.
+
 ## [v0.20.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.20.0-victorialogs)
 
 Released at 2024-06-17

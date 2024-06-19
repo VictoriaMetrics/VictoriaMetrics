@@ -31,6 +31,11 @@ The following command starts VictoriaLogs, which accepts logs in Syslog format a
 ./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.listenAddr.udp=:514
 ```
 
+VictoriaLogs can accept logs from the following syslog collectors:
+
+- [Rsyslog](https://www.rsyslog.com/). See [these docs](#rsyslog).
+- [Syslog-ng](https://www.syslog-ng.com/). See [these docs](#syslog-ng).
+
 Multiple logs in Syslog format can be ingested via a single TCP connection or via a single UDP packet - just put every log on a separate line
 and delimit them with `\n` char.
 
@@ -75,8 +80,8 @@ starts VictoriaLogs, which accepts TLS-encrypted syslog messages at TCP port 514
 ## Compression
 
 By default VictoriaLogs accepts uncompressed log messages in Syslog format at `-syslog.listenAddr.tcp` and `-syslog.listenAddr.udp` addresses.
-It is possible configuring VictoriaLogs to accept compressed log messages via `-syslog.compressMethod` command-line flag. The following
-compression methods are supported:
+It is possible configuring VictoriaLogs to accept compressed log messages via `-syslog.compressMethod.tcp` and `-syslog.compressMethod.udp` command-line flags.
+The following compression methods are supported:
 
 - `none` - no compression
 - `gzip` - [gzip compression](https://en.wikipedia.org/wiki/Gzip)
@@ -85,15 +90,51 @@ compression methods are supported:
 For example, the following command starts VictoriaLogs, which accepts gzip-compressed syslog messages at TCP port 514:
 
 ```sh
-./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.compressMethod=gzip
+./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.compressMethod.tcp=gzip
 ```
 
 ## Multitenancy
 
 By default, the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy).
-If you need storing logs in other tenant, then specify the needed tenant via `-syslog.tenantID` command-line flag.
+If you need storing logs in other tenant, then specify the needed tenant via `-syslog.tenantID.tcp` or `-syslog.tenantID.udp` command-line flags
+depending on whether TCP or UDP ports are listened for syslog messages.
 For example, the following command starts VictoriaLogs, which writes syslog messages received at TCP port 514, to `(AccountID=12, ProjectID=34)` tenant:
 
 ```sh
-./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.tenantID=12:34
+./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.tenantID.tcp=12:34
 ```
+
+## Multiple configs
+
+VictoriaLogs can accept syslog messages via multiple TCP and UDP ports with individual configurations for [compression](#compression), [security](#security)
+and [multitenancy](#multitenancy). Specify multiple command-line flags for this. For example, the following command starts VictoriaLogs,
+which accepts gzip-compressed syslog messages via TCP port 514 at localhost interface and stores them to [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) `123:0`,
+plus it accepts TLS-encrypted syslog messages via TCP port 6514 and stores them to [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) `567:0`:
+
+```sh
+./victoria-logs \
+  -syslog.listenAddr.tcp=localhost:514 -syslog.tenantID.tcp=123:0 -syslog.compressMethod.tcp=gzip -syslog.tls=false -syslog.tlsKeyFile='' -syslog.tlsCertFile='' \
+  -syslog.listenAddr.tcp=:6514 -syslog.tenantID.tcp=567:0 -syslog.compressMethod.tcp=none -syslog.tls=true -syslog.tlsKeyFile=/path/to/tls/key -syslog.tlsCertFile=/path/to/tls/cert
+```
+
+## Rsyslog
+
+1. Run VictoriaLogs with `-syslog.listenAddr.tcp=:29514` command-line flag.
+1. Put the following line to [rsyslog](https://www.rsyslog.com/) config (this config is usually located at `/etc/rsyslog.conf`):
+   ```
+   *.* @@victoria-logs-server:29514
+   ```
+   Where `victoria-logs-server` is the hostname where VictoriaLogs runs. See [these docs](https://www.rsyslog.com/sending-messages-to-a-remote-syslog-server/)
+   for more details.
+
+## Syslog-ng
+
+1. Run VictoriaLogs with `-syslog.listenAddr.tcp=:29514` command-line flag.
+1. Put the following line to [syslog-ng](https://www.syslog-ng.com/) config:
+   ```
+   destination d_remote {
+    tcp("victoria-logs-server" port(29514));
+   };
+   ```
+   Where `victoria-logs-server` is the hostname where VictoriaLogs runs.
+   See [these docs](https://www.syslog-ng.com/technical-documents/doc/syslog-ng-open-source-edition/3.19/administration-guide/29#TOPIC-1094570) for details.

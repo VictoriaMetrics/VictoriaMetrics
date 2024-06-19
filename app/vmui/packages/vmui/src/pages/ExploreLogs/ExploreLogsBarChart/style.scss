@@ -1,0 +1,21 @@
+@use "src/styles/variables" as *;
+
+.vm-explore-logs-chart {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  padding: 0 0 0 $padding-small !important;
+  width: calc(100vw - ($padding-medium * 2));
+
+  @media (max-width: 768px) {
+    width: calc(100vw);
+  }
+
+  &__empty {
+    position: absolute;
+    transform: translateY(-25px);
+    z-index: 2;
+  }
+}
