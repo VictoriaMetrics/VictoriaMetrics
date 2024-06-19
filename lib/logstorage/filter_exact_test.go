@@ -9,7 +9,7 @@ func TestFilterExact(t *testing.T) {
 
 	t.Run("single-row", func(t *testing.T) {
 		t.Parallel()
-		 
+
 		columns := []column{
 			{
 				name: "foo",

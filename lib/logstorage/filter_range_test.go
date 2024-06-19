@@ -9,7 +9,7 @@ func TestFilterRange(t *testing.T) {
 
 	t.Run("const-column", func(t *testing.T) {
 		t.Parallel()
-		 
+
 		columns := []column{
 			{
 				name: "foo",
