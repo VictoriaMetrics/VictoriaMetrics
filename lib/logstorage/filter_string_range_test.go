@@ -45,11 +45,18 @@ func TestFilterStringRange(t *testing.T) {
 		fr = &filterStringRange{
 			fieldName: "foo",
 			minValue:  "127.0.0.1",
-			maxValue:  "127.0.0.1",
+			maxValue:  "127.0.0.2",
 		}
 		testFilterMatchForColumns(t, columns, fr, "foo", []int{0, 1, 2})
 
 		// mismatch
+		fr = &filterStringRange{
+			fieldName: "foo",
+			minValue:  "127.0.0.1",
+			maxValue:  "127.0.0.1",
+		}
+		testFilterMatchForColumns(t, columns, fr, "foo", nil)
+
 		fr = &filterStringRange{
 			fieldName: "foo",
 			minValue:  "",
@@ -100,9 +107,9 @@ func TestFilterStringRange(t *testing.T) {
 		fr = &filterStringRange{
 			fieldName: "foo",
 			minValue:  "127",
-			maxValue:  "127.0.0.1",
+			maxValue:  "127.0.0.2",
 		}
-		testFilterMatchForColumns(t, columns, fr, "foo", []int{1, 7})
+		testFilterMatchForColumns(t, columns, fr, "foo", []int{1, 6, 7})
 
 		// mismatch
 		fr = &filterStringRange{
@@ -135,8 +142,8 @@ func TestFilterStringRange(t *testing.T) {
 					"A FOO",
 					"a 10",
 					"127.0.0.1",
-					"20",
-					"15.5",
+					"200",
+					"155.5",
 					"-5",
 					"a fooBaR",
 					"a 127.0.0.1 dfff",
@@ -194,9 +201,9 @@ func TestFilterStringRange(t *testing.T) {
 		fr := &filterStringRange{
 			fieldName: "foo",
 			minValue:  "33",
-			maxValue:  "5",
+			maxValue:  "500",
 		}
-		testFilterMatchForColumns(t, columns, fr, "foo", []int{9, 10})
+		testFilterMatchForColumns(t, columns, fr, "foo", []int{0})
 
 		// mismatch
 		fr = &filterStringRange{
@@ -245,9 +252,9 @@ func TestFilterStringRange(t *testing.T) {
 		fr := &filterStringRange{
 			fieldName: "foo",
 			minValue:  "33",
-			maxValue:  "5",
+			maxValue:  "555",
 		}
-		testFilterMatchForColumns(t, columns, fr, "foo", []int{9, 10})
+		testFilterMatchForColumns(t, columns, fr, "foo", []int{0})
 
 		// mismatch
 		fr = &filterStringRange{
@@ -296,9 +303,9 @@ func TestFilterStringRange(t *testing.T) {
 		fr := &filterStringRange{
 			fieldName: "foo",
 			minValue:  "33",
-			maxValue:  "5",
+			maxValue:  "555",
 		}
-		testFilterMatchForColumns(t, columns, fr, "foo", []int{9, 10})
+		testFilterMatchForColumns(t, columns, fr, "foo", []int{0})
 
 		// mismatch
 		fr = &filterStringRange{
@@ -347,9 +354,9 @@ func TestFilterStringRange(t *testing.T) {
 		fr := &filterStringRange{
 			fieldName: "foo",
 			minValue:  "33",
-			maxValue:  "5",
+			maxValue:  "5555",
 		}
-		testFilterMatchForColumns(t, columns, fr, "foo", []int{9, 10})
+		testFilterMatchForColumns(t, columns, fr, "foo", []int{0})
 
 		// mismatch
 		fr = &filterStringRange{
@@ -398,15 +405,8 @@ func TestFilterStringRange(t *testing.T) {
 		fr := &filterStringRange{
 			fieldName: "foo",
 			minValue:  "33",
-			maxValue:  "5",
+			maxValue:  "555",
 		}
-		testFilterMatchForColumns(t, columns, fr, "foo", []int{9, 10})
-		fr = &filterStringRange{
-			fieldName: "foo",
-			minValue:  "-0",
-			maxValue:  "-1",
-		}
-		testFilterMatchForColumns(t, columns, fr, "foo", []int{6})
 
 		// mismatch
 		fr = &filterStringRange{

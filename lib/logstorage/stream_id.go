@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"encoding/hex"
 	"fmt"
 )
 
@@ -23,6 +24,15 @@ type streamID struct {
 // reset resets sid for subsequent re-use
 func (sid *streamID) reset() {
 	*sid = streamID{}
+}
+
+// marshalString returns _stream_id value for the given sid.
+func (sid *streamID) marshalString(dst []byte) []byte {
+	bb := bbPool.Get()
+	bb.B = sid.marshal(bb.B)
+	dst = hex.AppendEncode(dst, bb.B)
+	bbPool.Put(bb)
+	return dst
 }
 
 // String returns human-readable representation for sid.

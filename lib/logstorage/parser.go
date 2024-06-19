@@ -773,6 +773,8 @@ func parseFilterForPhrase(lex *lexer, phrase, fieldName string) (filter, error) 
 	switch fieldName {
 	case "_time":
 		return parseFilterTimeGeneric(lex)
+	case "_stream_id":
+		return parseFilterStreamID(lex)
 	case "_stream":
 		return parseFilterStream(lex)
 	default:
@@ -1780,6 +1782,17 @@ func stripTimezoneSuffix(s string) string {
 		return s
 	}
 	return s[:len(s)-len(tz)]
+}
+
+func parseFilterStreamID(lex *lexer) (*filterStreamID, error) {
+	s, err := getCompoundToken(lex)
+	if err != nil {
+		return nil, err
+	}
+	fs := &filterStreamID{
+		streamIDStr: s,
+	}
+	return fs, nil
 }
 
 func parseFilterStream(lex *lexer) (*filterStream, error) {
