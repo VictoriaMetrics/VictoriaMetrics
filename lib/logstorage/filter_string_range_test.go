@@ -6,7 +6,7 @@ import (
 
 func TestMatchStringRange(t *testing.T) {
 	t.Parallel()
-	 
+
 	f := func(s, minValue, maxValue string, resultExpected bool) {
 		t.Helper()
 		result := matchStringRange(s, minValue, maxValue)

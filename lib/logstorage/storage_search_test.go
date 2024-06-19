@@ -14,7 +14,9 @@ import (
 )
 
 func TestStorageRunQuery(t *testing.T) {
-	const path = "TestStorageRunQuery"
+	t.Parallel()
+
+	path := t.Name()
 
 	const tenantsCount = 11
 	const streamsPerTenant = 3
@@ -637,7 +639,9 @@ func mustParseQuery(query string) *Query {
 }
 
 func TestStorageSearch(t *testing.T) {
-	const path = "TestStorageSearch"
+	t.Parallel()
+
+	path := t.Name()
 
 	const tenantsCount = 11
 	const streamsPerTenant = 3
@@ -964,6 +968,8 @@ func TestStorageSearch(t *testing.T) {
 }
 
 func TestParseStreamFieldsSuccess(t *testing.T) {
+	t.Parallel()
+
 	f := func(s, resultExpected string) {
 		t.Helper()
 
