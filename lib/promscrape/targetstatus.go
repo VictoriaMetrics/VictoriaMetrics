@@ -178,7 +178,7 @@ func (tsm *targetStatusMap) Unregister(sw *scrapeWork) {
 	tsm.mu.Unlock()
 }
 
-func (tsm *targetStatusMap) Update(sw *scrapeWork, up bool, scrapeTime, scrapeDuration int64, samplesScraped int, err error) {
+func (tsm *targetStatusMap) Update(sw *scrapeWork, up bool, scrapeTime, scrapeDuration int64, scrapeResponseSize float64, samplesScraped int, err error) {
 	jobName := sw.Config.jobNameOriginal
 
 	tsm.mu.Lock()
@@ -197,6 +197,7 @@ func (tsm *targetStatusMap) Update(sw *scrapeWork, up bool, scrapeTime, scrapeDu
 	ts.scrapeTime = scrapeTime
 	ts.scrapeDuration = scrapeDuration
 	ts.samplesScraped = samplesScraped
+	ts.scrapeResponseSize = scrapeResponseSize
 	ts.scrapesTotal++
 	if !up {
 		ts.scrapesFailed++
@@ -295,14 +296,15 @@ func writeLabelsJSON(w io.Writer, labels *promutils.Labels) {
 }
 
 type targetStatus struct {
-	sw             *scrapeWork
-	up             bool
-	scrapeTime     int64
-	scrapeDuration int64
-	samplesScraped int
-	scrapesTotal   int
-	scrapesFailed  int
-	err            error
+	sw                 *scrapeWork
+	up                 bool
+	scrapeTime         int64
+	scrapeDuration     int64
+	scrapeResponseSize float64
+	samplesScraped     int
+	scrapesTotal       int
+	scrapesFailed      int
+	err                error
 }
 
 func (ts *targetStatus) getDurationFromLastScrape() string {
@@ -311,6 +313,13 @@ func (ts *targetStatus) getDurationFromLastScrape() string {
 	}
 	d := time.Since(time.Unix(ts.scrapeTime/1000, (ts.scrapeTime%1000)*1e6))
 	return fmt.Sprintf("%.3fs ago", d.Seconds())
+}
+
+func (ts *targetStatus) getSizeFromLastScrape() string {
+	if ts.scrapeResponseSize <= 0 {
+		return "never scraped"
+	}
+	return fmt.Sprintf("%.3f kb", float64(ts.scrapeResponseSize)/1024)
 }
 
 type droppedTargets struct {
