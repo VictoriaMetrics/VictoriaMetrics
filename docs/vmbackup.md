@@ -206,7 +206,10 @@ Obtaining credentials from env variables.
 - For AWS S3 compatible storages set env variable `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. 
   Also you can set env variable `AWS_SHARED_CREDENTIALS_FILE` with path to credentials file.
 - For GCE cloud storage set env variable `GOOGLE_APPLICATION_CREDENTIALS` with path to credentials file.
-- For Azure storage either set env variables `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`, or `AZURE_STORAGE_ACCOUNT_CONNECTION_STRING`.
+- For Azure storage use one of these env variables:
+   - `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`: Use a specific account name and key (either primary or secondary).
+   - `AZURE_STORAGE_ACCOUNT_CONNECTION_STRING`: Use a connection string (must be either SAS Token or Account/Key)
+   - `AZURE_USE_DEFAULT_CREDENTIAL` and `AZURE_STORAGE_ACCOUNT_NAME`: Use the `DefaultAzureCredential` to allow the azure library to search multiple options (for example, managed identity related variables).
 
 Please, note that `vmbackup` will use credentials provided by cloud providers metadata service [when applicable](https://docs.victoriametrics.com/vmbackup/#using-cloud-providers-metadata-service).
 
