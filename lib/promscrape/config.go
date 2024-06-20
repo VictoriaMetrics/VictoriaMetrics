@@ -298,10 +298,10 @@ type ScrapeConfig struct {
 	JobName         string              `yaml:"job_name"`
 	ScrapeInterval  *promutils.Duration `yaml:"scrape_interval,omitempty"`
 	ScrapeTimeout   *promutils.Duration `yaml:"scrape_timeout,omitempty"`
-	MaxScrapeSize   string              `yaml:"max_scrape_size,omitempty"`
+	ScrapeProtocols []ScrapeProtocol    `yaml:"scrape_protocols,omitempty"`
 	MetricsPath     string              `yaml:"metrics_path,omitempty"`
 	HonorLabels     bool                `yaml:"honor_labels,omitempty"`
-	ScrapeProtocols []ScrapeProtocol    `yaml:"scrape_protocols,omitempty"`
+	MaxScrapeSize   string              `yaml:"max_scrape_size,omitempty"`
 
 	// HonorTimestamps is set to false by default contrary to Prometheus, which sets it to true by default,
 	// because of the issue with gaps on graphs when scraping cadvisor or similar targets, which export invalid timestamps.
@@ -954,8 +954,8 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		scrapeIntervalString: scrapeInterval.String(),
 		scrapeTimeout:        scrapeTimeout,
 		scrapeTimeoutString:  scrapeTimeout.String(),
-		maxScrapeSize:        mss,
 		scrapeProtocols:      scrapeProtocols,
+		maxScrapeSize:        mss,
 		jobName:              jobName,
 		metricsPath:          metricsPath,
 		scheme:               scheme,
@@ -986,8 +986,8 @@ type scrapeWorkConfig struct {
 	scrapeIntervalString string
 	scrapeTimeout        time.Duration
 	scrapeTimeoutString  string
-	maxScrapeSize        int64
 	scrapeProtocols      []ScrapeProtocol
+	maxScrapeSize        int64
 	jobName              string
 	metricsPath          string
 	scheme               string

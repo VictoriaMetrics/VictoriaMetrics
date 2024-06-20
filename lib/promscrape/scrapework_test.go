@@ -204,6 +204,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		}, `
 		prometheus_target_scrape_pool_exceeded_label_limits_total 0 123
 		up 1 123
+		scrape_response_size_bytes 177 123
 		scrape_samples_scraped 1 123
 		scrape_duration_seconds 0 123
 		scrape_samples_post_metric_relabeling 1 123

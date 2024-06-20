@@ -52,11 +52,11 @@ type ScrapeWork struct {
 	// Timeout for scraping the ScrapeURL.
 	ScrapeTimeout time.Duration
 
-	// MaxScrapeSize sets max amount of data, that can be scraped by a job
-	MaxScrapeSize int64
-
 	// Protocols to support exposition formats.
 	ScrapeProtocols []ScrapeProtocol
+
+	// MaxScrapeSize sets max amount of data, that can be scraped by a job
+	MaxScrapeSize int64
 
 	// How to deal with conflicting labels.
 	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
