@@ -37,3 +37,6 @@ groups:
     rules:
       - record: t3
         expr: t1
+
+  - name: emptyGroup
+    rules: []

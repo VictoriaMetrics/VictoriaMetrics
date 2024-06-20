@@ -34,3 +34,11 @@ export interface Logs {
   _time: string;
   [key: string]: string;
 }
+
+export interface LogHits {
+  timestamps: string[];
+  values: number[];
+  fields: {
+    [key: string]: string;
+  };
+}

@@ -2,7 +2,11 @@ package logstorage
 
 import (
 	"reflect"
+	"sort"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
@@ -155,8 +159,10 @@ func testFilterMatchForColumns(t *testing.T, columns []column, f filter, neededC
 	t.Helper()
 
 	// Create the test storage
-	const storagePath = "testFilterMatchForColumns"
-	cfg := &StorageConfig{}
+	storagePath := t.Name()
+	cfg := &StorageConfig{
+		Retention: time.Duration(100 * 365 * nsecsPerDay),
+	}
 	s := MustOpenStorage(storagePath, cfg)
 
 	// Generate rows
@@ -187,34 +193,58 @@ func testFilterMatchForColumns(t *testing.T, columns []column, f filter, neededC
 	fs.MustRemoveAll(storagePath)
 }
 
-func testFilterMatchForStorage(t *testing.T, s *Storage, tenantID TenantID, f filter, neededColumnName string, expectedResults []string, expectedTimestamps []int64) {
+func testFilterMatchForStorage(t *testing.T, s *Storage, tenantID TenantID, f filter, neededColumnName string, expectedValues []string, expectedTimestamps []int64) {
 	t.Helper()
 
 	so := &genericSearchOptions{
 		tenantIDs:         []TenantID{tenantID},
 		filter:            f,
-		neededColumnNames: []string{neededColumnName},
+		neededColumnNames: []string{neededColumnName, "_time"},
 	}
-	workersCount := 3
+
+	type result struct {
+		value     string
+		timestamp int64
+	}
+	var resultsMu sync.Mutex
+	var results []result
+
+	const workersCount = 3
 	s.search(workersCount, so, nil, func(_ uint, br *blockResult) {
 		// Verify columns
 		cs := br.getColumns()
-		if len(cs) != 1 {
-			t.Fatalf("unexpected number of columns in blockResult; got %d; want 1", len(cs))
+		if len(cs) != 2 {
+			t.Fatalf("unexpected number of columns in blockResult; got %d; want 2", len(cs))
 		}
-		results := cs[0].getValues(br)
-		if !reflect.DeepEqual(results, expectedResults) {
-			t.Fatalf("unexpected results matched;\ngot\n%q\nwant\n%q", results, expectedResults)
+		values := cs[0].getValues(br)
+		resultsMu.Lock()
+		for i, v := range values {
+			results = append(results, result{
+				value:     strings.Clone(v),
+				timestamp: br.timestamps[i],
+			})
 		}
-
-		// Verify timestamps
-		if br.timestamps == nil {
-			br.timestamps = []int64{}
-		}
-		if !reflect.DeepEqual(br.timestamps, expectedTimestamps) {
-			t.Fatalf("unexpected timestamps;\ngot\n%d\nwant\n%d", br.timestamps, expectedTimestamps)
-		}
+		resultsMu.Unlock()
 	})
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].timestamp < results[j].timestamp
+	})
+
+	timestamps := make([]int64, len(results))
+	values := make([]string, len(results))
+
+	for i, r := range results {
+		timestamps[i] = r.timestamp
+		values[i] = r.value
+	}
+
+	if !reflect.DeepEqual(timestamps, expectedTimestamps) {
+		t.Fatalf("unexpected timestamps;\ngot\n%d\nwant\n%d", timestamps, expectedTimestamps)
+	}
+	if !reflect.DeepEqual(values, expectedValues) {
+		t.Fatalf("unexpected values;\ngot\n%q\nwant\n%q", values, expectedValues)
+	}
 }
 
 func generateRowsFromColumns(s *Storage, tenantID TenantID, columns []column) {

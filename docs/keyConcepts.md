@@ -488,7 +488,7 @@ The API consists of two main handlers for serving [instant queries](#instant-que
 Instant query executes the `query` expression at the given `time`:
 
 ```
-GET | POST /api/v1/query?query=...&time=...&step=...
+GET | POST /api/v1/query?query=...&time=...&step=...&timeout=...
 ```
 
 Params:
@@ -497,10 +497,13 @@ Params:
 * `time` - optional, [timestamp](https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats)
   in second precision to evaluate the `query` at. If omitted, `time` is set to `now()` (current timestamp).
   The `time` param can be specified in [multiple allowed formats](https://docs.victoriametrics.com/#timestamp-formats).
-* `step` - optional, the maximum [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
-  for searching for raw samples in the past when executing the `query` (used when a sample is missing at the specified instant).
-  For example, the request `/api/v1/query?query=up&step=1m` will look for the last written raw sample for the metric `up`
-  in the interval between `now()` and `now()-1m`. If omitted, `step` is set to `5m` (5 minutes).
+* `step` - optional [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
+  for searching for raw samples in the past when executing the `query` (used when a sample is missing at the specified `time`).
+  For example, the request `/api/v1/query?query=up&step=1m` looks for the last written raw sample for the metric `up`
+  in the interval between `now()` and `now()-1m`. If omitted, `step` is set to `5m` (5 minutes) by default.
+* `timeout` - optional query timeout. For example, `timeout=5s`. Query is canceled when the timeout is reached.
+  By default the timeout is set to the value of `-search.maxQueryDuration` command-line flag passed to single-node VictoriaMetrics
+  or to `vmselect` component of VictoriaMetrics cluster.
 
 The result of Instant query is a list of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
 matching the filter in `query` expression. Each returned series contains exactly one `(timestamp, value)` entry,
@@ -579,7 +582,7 @@ the following scenarios:
 Range query executes the `query` expression at the given [`start`...`end`] time range with the given `step`:
 
 ```
-GET | POST /api/v1/query_range?query=...&start=...&end=...&step=...
+GET | POST /api/v1/query_range?query=...&start=...&end=...&step=...&timeout=...
 ```
 
 Params:
@@ -593,6 +596,9 @@ Params:
   between data points, which must be returned from the range query.
   The `query` is executed at `start`, `start+step`, `start+2*step`, ..., `end` timestamps.
   If the `step` isn't set, then it default to `5m` (5 minutes).
+* `timeout` - optional query timeout. For example, `timeout=5s`. Query is canceled when the timeout is reached.
+  By default the timeout is set to the value of `-search.maxQueryDuration` command-line flag passed to single-node VictoriaMetrics
+  or to `vmselect` component in VictoriaMetrics cluster.
 
 The result of Range query is a list of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
 matching the filter in `query` expression. Each returned series contains `(timestamp, value)` results for the `query` executed

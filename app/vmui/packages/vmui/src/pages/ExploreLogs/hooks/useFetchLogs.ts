@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "preact/compat";
+import { useCallback, useMemo, useRef, useState } from "preact/compat";
 import { getLogsUrl } from "../../../api/logs";
 import { ErrorTypes } from "../../../types";
 import { Logs } from "../../../api/types";
@@ -10,6 +10,7 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
   const [logs, setLogs] = useState<Logs[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ErrorTypes | string>();
+  const abortControllerRef = useRef(new AbortController());
 
   const url = useMemo(() => getLogsUrl(server), [server]);
 
@@ -35,11 +36,14 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
   };
 
   const fetchLogs = useCallback(async () => {
+    abortControllerRef.current.abort();
+    abortControllerRef.current = new AbortController();
+    const { signal } = abortControllerRef.current;
     const limit = Number(options.body.get("limit"));
     setIsLoading(true);
     setError(undefined);
     try {
-      const response = await fetch(url, options);
+      const response = await fetch(url, { ...options, signal });
       const text = await response.text();
 
       if (!response.ok || !response.body) {
@@ -53,10 +57,10 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
       const data = lines.map(parseLineToJSON).filter(line => line) as Logs[];
       setLogs(data);
     } catch (e) {
-      console.error(e);
-      setLogs([]);
-      if (e instanceof Error) {
-        setError(`${e.name}: ${e.message}`);
+      if (e instanceof Error && e.name !== "AbortError") {
+        setError(String(e));
+        console.error(e);
+        setLogs([]);
       }
     }
     setIsLoading(false);

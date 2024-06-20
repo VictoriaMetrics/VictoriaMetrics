@@ -9,6 +9,7 @@ import router, { routerOptions } from "../../router";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import ControlsLogsLayout from "./ControlsLogsLayout";
 import useFetchDefaultTimezone from "../../hooks/useFetchDefaultTimezone";
+import { footerLinksToLogs } from "../../constants/footerLinks";
 
 const LogsLayout: FC = () => {
   const appModeEnable = getAppModeEnable();
@@ -36,7 +37,7 @@ const LogsLayout: FC = () => {
     >
       <Outlet/>
     </div>
-    {!appModeEnable && <Footer/>}
+    {!appModeEnable && <Footer links={footerLinksToLogs}/>}
   </section>;
 };
 

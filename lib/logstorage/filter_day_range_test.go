@@ -5,6 +5,8 @@ import (
 )
 
 func TestFilterDayRange(t *testing.T) {
+	t.Parallel()
+
 	timestamps := []int64{
 		1,
 		9,
@@ -35,7 +37,7 @@ func TestFilterDayRange(t *testing.T) {
 	ft = &filterDayRange{
 		start:  1,
 		end:    1,
-		offset: 9,
+		offset: 8,
 	}
 	testFilterMatchForTimestamps(t, timestamps, ft, []int{1})
 
@@ -44,7 +46,7 @@ func TestFilterDayRange(t *testing.T) {
 		end:    10,
 		offset: -9,
 	}
-	testFilterMatchForTimestamps(t, timestamps, ft, []int{1})
+	testFilterMatchForTimestamps(t, timestamps, ft, []int{0})
 
 	ft = &filterDayRange{
 		start: 2,

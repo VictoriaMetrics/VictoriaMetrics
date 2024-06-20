@@ -427,7 +427,7 @@ See also:
 
 ### Stream filter
 
-VictoriaLogs provides an optimized way to select log entries, which belong to particular [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
+VictoriaLogs provides an optimized way to select logs, which belong to particular [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 This can be done via `_stream:{...}` filter. The `{...}` may contain arbitrary
 [Prometheus-compatible label selector](https://docs.victoriametrics.com/keyconcepts/#filtering)
 over fields associated with [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
@@ -456,8 +456,33 @@ Performance tips:
 
 See also:
 
+- [`_stream_id` filter](#_stream_id-filter)
 - [Time filter](#time-filter)
 - [Exact filter](#exact-filter)
+
+### _stream_id filter
+
+Every [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) in VictoriaMetrics is uniquely identified by `_stream_id` field.
+The `_stream_id:...` filter allows quickly selecting all the logs belonging to the particular stream.
+
+For example, the following query selects all the logs, which belong to the [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+with `_stream_id` equal to `0000007b000001c850d9950ea6196b1a4812081265faa1c7`:
+
+```logsql
+_stream_id:0000007b000001c850d9950ea6196b1a4812081265faa1c7
+```
+
+If the log stream contains too many logs, then it is good idea limiting the number of returned logs with [time filter](#time-filter). For example, the following
+query selects logs for the given stream for the last hour:
+
+```logsql
+_time:1h _stream_id:0000007b000001c850d9950ea6196b1a4812081265faa1c7
+```
+
+See also:
+
+- [stream filter](#stream-filter)
+
 
 ### Word filter
 

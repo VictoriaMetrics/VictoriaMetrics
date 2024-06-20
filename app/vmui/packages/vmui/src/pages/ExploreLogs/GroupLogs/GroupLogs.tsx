@@ -7,6 +7,8 @@ import { groupByMultipleKeys } from "../../../utils/array";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
 import GroupLogsItem from "./GroupLogsItem";
+import { useAppState } from "../../../state/common/StateContext";
+import classNames from "classnames";
 
 interface TableLogsProps {
   logs: Logs[];
@@ -15,6 +17,7 @@ interface TableLogsProps {
 }
 
 const GroupLogs: FC<TableLogsProps> = ({ logs, markdownParsing }) => {
+  const { isDarkTheme } = useAppState();
   const copyToClipboard = useCopyToClipboard();
 
   const [copied, setCopied] = useState<string | null>(null);
@@ -32,7 +35,7 @@ const GroupLogs: FC<TableLogsProps> = ({ logs, markdownParsing }) => {
 
   const handleClickByPair = (pair: string) => async (e: MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    const isCopied = await copyToClipboard(`${pair}`);
+    const isCopied = await copyToClipboard(`${pair.replace(/=/, ": ")}`);
     if (isCopied) {
       setCopied(pair);
     }
@@ -63,7 +66,10 @@ const GroupLogs: FC<TableLogsProps> = ({ logs, markdownParsing }) => {
                     placement={"top-center"}
                   >
                     <div
-                      className="vm-group-logs-section-keys__pair"
+                      className={classNames({
+                        "vm-group-logs-section-keys__pair": true,
+                        "vm-group-logs-section-keys__pair_dark": isDarkTheme
+                      })}
                       onClick={handleClickByPair(pair)}
                     >
                       {pair}

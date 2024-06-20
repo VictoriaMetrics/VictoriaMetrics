@@ -31,7 +31,7 @@ export const getAxes = (series: Series[], unit?: string): Axis[] => Array.from(n
     values: (u: uPlot, ticks: number[]) => formatTicks(u, ticks, unit)
   };
   if (!a) return { space: 80, values: timeValues, stroke, font };
-  if (!(Number(a) % 2)) return { ...axis, side: 1 };
+  if (!(Number(a) % 2) && a !== "y") return { ...axis, side: 1 };
   return axis;
 });
 

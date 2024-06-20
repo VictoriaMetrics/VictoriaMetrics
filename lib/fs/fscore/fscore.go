@@ -7,8 +7,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
-	"unicode"
 )
 
 // ReadPasswordFromFileOrHTTP reads password for the give path.
@@ -19,8 +17,7 @@ func ReadPasswordFromFileOrHTTP(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	pass := strings.TrimRightFunc(string(data), unicode.IsSpace)
-	return pass, nil
+	return string(data), nil
 }
 
 // ReadFileOrHTTP reads path either from local filesystem or from http if path starts with http or https.

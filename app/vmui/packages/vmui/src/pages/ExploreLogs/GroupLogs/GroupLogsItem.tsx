@@ -1,10 +1,10 @@
-import React, { FC, useEffect, useState } from "preact/compat";
+import React, { FC, useEffect, useMemo, useState } from "preact/compat";
 import { Logs } from "../../../api/types";
 import "./style.scss";
 import useBoolean from "../../../hooks/useBoolean";
 import Button from "../../../components/Main/Button/Button";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
-import { ArrowDropDownIcon, CopyIcon } from "../../../components/Main/Icons";
+import { ArrowDownIcon, CopyIcon } from "../../../components/Main/Icons";
 import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
 import classNames from "classnames";
 
@@ -22,6 +22,16 @@ const GroupLogsItem: FC<Props> = ({ log, markdownParsing }) => {
   const excludeKeys = ["_stream", "_msg", "_time", "_vmui_time", "_vmui_data", "_vmui_markdown"];
   const fields = Object.entries(log).filter(([key]) => !excludeKeys.includes(key));
   const hasFields = fields.length > 0;
+
+  const displayMessage = useMemo(() => {
+    if (log._msg) return log._msg;
+    if (!hasFields) return;
+    const dataObject = fields.reduce<{[key: string]: string}>((obj, [key, value]) => {
+      obj[key] = value;
+      return obj;
+    }, {});
+    return JSON.stringify(dataObject);
+  }, [log, fields, hasFields]);
 
   const copyToClipboard = useCopyToClipboard();
   const [copied, setCopied] = useState<number | null>(null);
@@ -56,7 +66,7 @@ const GroupLogsItem: FC<Props> = ({ log, markdownParsing }) => {
               "vm-group-logs-row-content__arrow_open": isOpenFields,
             })}
           >
-            <ArrowDropDownIcon/>
+            <ArrowDownIcon/>
           </div>
         )}
         <div
@@ -70,11 +80,12 @@ const GroupLogsItem: FC<Props> = ({ log, markdownParsing }) => {
         <div
           className={classNames({
             "vm-group-logs-row-content__msg": true,
-            "vm-group-logs-row-content__msg_missing": !log._msg
+            "vm-group-logs-row-content__msg_empty-msg": !log._msg,
+            "vm-group-logs-row-content__msg_missing": !displayMessage
           })}
           dangerouslySetInnerHTML={markdownParsing && log._vmui_markdown ? { __html: log._vmui_markdown } : undefined}
         >
-          {log._msg || "message missing"}
+          {displayMessage || "-"}
         </div>
       </div>
       {hasFields && isOpenFields && (
@@ -94,7 +105,7 @@ const GroupLogsItem: FC<Props> = ({ log, markdownParsing }) => {
                           color="gray"
                           size="small"
                           startIcon={<CopyIcon/>}
-                          onClick={createCopyHandler(`${key}: ${value}`, i)}
+                          onClick={createCopyHandler(`${key}: "${value}"`, i)}
                           ariaLabel="copy to clipboard"
                         />
                       </Tooltip>

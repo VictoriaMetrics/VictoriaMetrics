@@ -1,8 +1,17 @@
 import React, { FC, memo } from "preact/compat";
-import { CodeIcon, IssueIcon, LogoShortIcon, WikiIcon } from "../../components/Main/Icons";
+import { LogoShortIcon } from "../../components/Main/Icons";
 import "./style.scss";
+import { footerLinksByDefault } from "../../constants/footerLinks";
 
-const Footer: FC = memo(() => {
+interface Props {
+  links?: {
+    href: string;
+    Icon: FC;
+    title: string;
+  }[]
+}
+
+const Footer: FC<Props> = memo(({ links = footerLinksByDefault }) => {
   const copyrightYears = `2019-${new Date().getFullYear()}`;
 
   return <footer className="vm-footer">
@@ -15,33 +24,18 @@ const Footer: FC = memo(() => {
       <LogoShortIcon/>
       victoriametrics.com
     </a>
-    <a
-      className="vm-link vm-footer__link"
-      target="_blank"
-      href="https://docs.victoriametrics.com/MetricsQL.html"
-      rel="help noreferrer"
-    >
-      <CodeIcon/>
-      MetricsQL
-    </a>
-    <a
-      className="vm-link vm-footer__link"
-      target="_blank"
-      href="https://docs.victoriametrics.com/#vmui"
-      rel="help noreferrer"
-    >
-      <WikiIcon/>
-      Documentation
-    </a>
-    <a
-      className="vm-link vm-footer__link"
-      target="_blank"
-      href="https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new/choose"
-      rel="noreferrer"
-    >
-      <IssueIcon/>
-      Create an issue
-    </a>
+    {links.map(({ href, Icon, title }) => (
+      <a
+        className="vm-link vm-footer__link"
+        target="_blank"
+        href={href}
+        rel="help noreferrer"
+        key={`${href}-${title}`}
+      >
+        <Icon/>
+        {title}
+      </a>
+    ))}
     <div className="vm-footer__copyright">
       &copy; {copyrightYears} VictoriaMetrics
     </div>

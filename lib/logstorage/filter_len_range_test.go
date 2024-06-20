@@ -5,6 +5,8 @@ import (
 )
 
 func TestMatchLenRange(t *testing.T) {
+	t.Parallel()
+
 	f := func(s string, minLen, maxLen uint64, resultExpected bool) {
 		t.Helper()
 		result := matchLenRange(s, minLen, maxLen)
@@ -31,7 +33,11 @@ func TestMatchLenRange(t *testing.T) {
 }
 
 func TestFilterLenRange(t *testing.T) {
+	t.Parallel()
+
 	t.Run("const-column", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -75,6 +81,8 @@ func TestFilterLenRange(t *testing.T) {
 	})
 
 	t.Run("dict", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -115,6 +123,8 @@ func TestFilterLenRange(t *testing.T) {
 	})
 
 	t.Run("strings", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -151,6 +161,8 @@ func TestFilterLenRange(t *testing.T) {
 	})
 
 	t.Run("uint8", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -176,7 +188,7 @@ func TestFilterLenRange(t *testing.T) {
 			minLen:    2,
 			maxLen:    2,
 		}
-		testFilterMatchForColumns(t, columns, fr, "foo", []int{2, 3, 6})
+		testFilterMatchForColumns(t, columns, fr, "foo", []int{1, 2, 5})
 
 		// mismatch
 		fr = &filterLenRange{
@@ -195,6 +207,8 @@ func TestFilterLenRange(t *testing.T) {
 	})
 
 	t.Run("uint16", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -220,7 +234,7 @@ func TestFilterLenRange(t *testing.T) {
 			minLen:    2,
 			maxLen:    2,
 		}
-		testFilterMatchForColumns(t, columns, fr, "foo", []int{2, 3, 6})
+		testFilterMatchForColumns(t, columns, fr, "foo", []int{1, 2, 5})
 
 		// mismatch
 		fr = &filterLenRange{
@@ -239,6 +253,8 @@ func TestFilterLenRange(t *testing.T) {
 	})
 
 	t.Run("uint32", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -264,7 +280,7 @@ func TestFilterLenRange(t *testing.T) {
 			minLen:    2,
 			maxLen:    2,
 		}
-		testFilterMatchForColumns(t, columns, fr, "foo", []int{2, 3, 6})
+		testFilterMatchForColumns(t, columns, fr, "foo", []int{1, 2, 5})
 
 		// mismatch
 		fr = &filterLenRange{
@@ -283,6 +299,8 @@ func TestFilterLenRange(t *testing.T) {
 	})
 
 	t.Run("uint64", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -308,7 +326,7 @@ func TestFilterLenRange(t *testing.T) {
 			minLen:    2,
 			maxLen:    2,
 		}
-		testFilterMatchForColumns(t, columns, fr, "foo", []int{2, 3, 6})
+		testFilterMatchForColumns(t, columns, fr, "foo", []int{1, 2, 5})
 
 		// mismatch
 		fr = &filterLenRange{
@@ -327,6 +345,8 @@ func TestFilterLenRange(t *testing.T) {
 	})
 
 	t.Run("float64", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -364,6 +384,8 @@ func TestFilterLenRange(t *testing.T) {
 	})
 
 	t.Run("ipv4", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -402,6 +424,8 @@ func TestFilterLenRange(t *testing.T) {
 	})
 
 	t.Run("timestamp-iso8601", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "_msg",

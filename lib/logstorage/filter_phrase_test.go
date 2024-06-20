@@ -5,6 +5,8 @@ import (
 )
 
 func TestMatchPhrase(t *testing.T) {
+	t.Parallel()
+
 	f := func(s, phrase string, resultExpected bool) {
 		t.Helper()
 		result := matchPhrase(s, phrase)
@@ -44,7 +46,11 @@ func TestMatchPhrase(t *testing.T) {
 }
 
 func TestFilterPhrase(t *testing.T) {
+	t.Parallel()
+
 	t.Run("single-row", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -118,6 +124,8 @@ func TestFilterPhrase(t *testing.T) {
 	})
 
 	t.Run("const-column", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "other-column",
@@ -227,6 +235,8 @@ func TestFilterPhrase(t *testing.T) {
 	})
 
 	t.Run("dict", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -282,6 +292,8 @@ func TestFilterPhrase(t *testing.T) {
 	})
 
 	t.Run("strings", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -352,6 +364,8 @@ func TestFilterPhrase(t *testing.T) {
 	})
 
 	t.Run("uint8", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -417,6 +431,8 @@ func TestFilterPhrase(t *testing.T) {
 	})
 
 	t.Run("uint16", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -481,6 +497,8 @@ func TestFilterPhrase(t *testing.T) {
 	})
 
 	t.Run("uint32", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -545,6 +563,8 @@ func TestFilterPhrase(t *testing.T) {
 	})
 
 	t.Run("uint64", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -608,6 +628,8 @@ func TestFilterPhrase(t *testing.T) {
 	})
 
 	t.Run("float64", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -713,6 +735,8 @@ func TestFilterPhrase(t *testing.T) {
 	})
 
 	t.Run("ipv4", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -809,6 +833,8 @@ func TestFilterPhrase(t *testing.T) {
 	})
 
 	t.Run("timestamp-iso8601", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "_msg",

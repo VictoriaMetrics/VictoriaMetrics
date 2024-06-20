@@ -3526,14 +3526,14 @@
           "type": "prometheus",
           "uid": "$ds"
         },
-        "definition": "label_values(vmalert_iteration_duration_seconds{job=~\"$job\", instance=~\"$instance\"}, group)",
+        "definition": "label_values(vmalert_iteration_total{job=~\"$job\", instance=~\"$instance\"}, group)",
         "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "group",
         "options": [],
         "query": {
-          "query": "label_values(vmalert_iteration_duration_seconds{job=~\"$job\", instance=~\"$instance\"}, group)",
+          "query": "label_values(vmalert_iteration_total{job=~\"$job\", instance=~\"$instance\"}, group)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,

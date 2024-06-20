@@ -5,6 +5,8 @@ import (
 )
 
 func TestFilterAnd(t *testing.T) {
+	t.Parallel()
+
 	columns := []column{
 		{
 			name: "foo",
