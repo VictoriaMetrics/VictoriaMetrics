@@ -35,6 +35,18 @@ func (sid *streamID) marshalString(dst []byte) []byte {
 	return dst
 }
 
+func (sid *streamID) tryUnmarshalFromString(s string) bool {
+	data, err := hex.DecodeString(s)
+	if err != nil {
+		return false
+	}
+	tail, err := sid.unmarshal(data)
+	if err != nil || len(tail) > 0 {
+		return false
+	}
+	return true
+}
+
 // String returns human-readable representation for sid.
 func (sid *streamID) String() string {
 	return fmt.Sprintf("(tenant_id=%s, id=%s)", &sid.tenantID, &sid.id)

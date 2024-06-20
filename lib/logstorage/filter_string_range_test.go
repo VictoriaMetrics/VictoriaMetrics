@@ -427,6 +427,7 @@ func TestFilterStringRange(t *testing.T) {
 			minValue:  "33",
 			maxValue:  "555",
 		}
+		testFilterMatchForColumns(t, columns, fr, "foo", []int{0})
 
 		// mismatch
 		fr = &filterStringRange{
