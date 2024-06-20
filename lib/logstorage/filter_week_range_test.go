@@ -6,12 +6,15 @@ import (
 )
 
 func TestFilterWeekRange(t *testing.T) {
+	t.Parallel()
+
+	sunday := time.Date(2024, 6, 9, 1, 0, 0, 0, time.UTC).UnixNano()
 	timestamps := []int64{
-		0,
-		1 * nsecsPerDay,
-		2 * nsecsPerDay,
-		4 * nsecsPerDay,
-		6 * nsecsPerDay,
+		sunday,
+		sunday + 1*nsecsPerDay,
+		sunday + 2*nsecsPerDay,
+		sunday + 4*nsecsPerDay,
+		sunday + 6*nsecsPerDay,
 	}
 
 	// match
@@ -36,16 +39,16 @@ func TestFilterWeekRange(t *testing.T) {
 	ft = &filterWeekRange{
 		startDay: time.Monday,
 		endDay:   time.Monday,
-		offset:   2 * nsecsPerDay,
+		offset:   3 * nsecsPerDay,
 	}
-	testFilterMatchForTimestamps(t, timestamps, ft, []int{2})
+	testFilterMatchForTimestamps(t, timestamps, ft, []int{3})
 
 	ft = &filterWeekRange{
 		startDay: time.Monday,
 		endDay:   time.Monday,
 		offset:   -2 * nsecsPerDay,
 	}
-	testFilterMatchForTimestamps(t, timestamps, ft, []int{1})
+	testFilterMatchForTimestamps(t, timestamps, ft, []int{4})
 
 	ft = &filterWeekRange{
 		startDay: time.Sunday,
@@ -68,9 +71,9 @@ func TestFilterWeekRange(t *testing.T) {
 	testFilterMatchForTimestamps(t, timestamps, ft, nil)
 
 	ft = &filterWeekRange{
-		startDay: time.Saturday,
-		endDay:   time.Saturday,
-		offset:   -2 * nsecsPerHour,
+		startDay: time.Friday,
+		endDay:   time.Friday,
+		offset:   -1 * nsecsPerHour,
 	}
 	testFilterMatchForTimestamps(t, timestamps, ft, nil)
 }

@@ -3,11 +3,14 @@ package logstorage
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func TestFilterTime(t *testing.T) {
+	t.Parallel()
+
 	timestamps := []int64{
 		1,
 		9,
@@ -89,8 +92,10 @@ func testFilterMatchForTimestamps(t *testing.T, timestamps []int64, f filter, ex
 	t.Helper()
 
 	// Create the test storage
-	const storagePath = "testFilterMatchForTimestamps"
-	cfg := &StorageConfig{}
+	storagePath := t.Name()
+	cfg := &StorageConfig{
+		Retention: 100 * 365 * time.Duration(nsecsPerDay),
+	}
 	s := MustOpenStorage(storagePath, cfg)
 
 	// Generate rows
