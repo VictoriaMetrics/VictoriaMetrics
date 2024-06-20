@@ -29,6 +29,7 @@ func InsertHandler(req *http.Request) error {
 	})
 }
 
+// core function, vmagent will call this function to insert data
 func insertRows(timeseries []prompb.TimeSeries, extraLabels []prompbmarshal.Label) error {
 	ctx := common.GetInsertCtx()
 	defer common.PutInsertCtx(ctx)
