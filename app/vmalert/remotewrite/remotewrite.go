@@ -10,4 +10,6 @@ type RWClient interface {
 	Push(s prompbmarshal.TimeSeries) error
 	// Close stops the client. Client can't be reused after Close call.
 	Close() error
+	// CloseAndReport stops the client and reports dropped rows
+	CloseAndReport() (int64, error)
 }
