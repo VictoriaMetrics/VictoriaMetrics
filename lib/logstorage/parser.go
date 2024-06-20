@@ -3,6 +3,7 @@ package logstorage
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -232,6 +233,51 @@ func (q *Query) String() string {
 	}
 
 	return s
+}
+
+func (q *Query) getSortedStreamIDs() []streamID {
+	switch t := q.f.(type) {
+	case *filterAnd:
+		for _, f := range t.filters {
+			streamIDs, ok := getSortedStreamIDsFromFilterOr(f)
+			if ok {
+				return streamIDs
+			}
+		}
+		return nil
+	default:
+		streamIDs, _ := getSortedStreamIDsFromFilterOr(q.f)
+		return streamIDs
+	}
+}
+
+func getSortedStreamIDsFromFilterOr(f filter) ([]streamID, bool) {
+	switch t := f.(type) {
+	case *filterOr:
+		var streamIDs []streamID
+		for _, f := range t.filters {
+			fs, ok := f.(*filterStreamID)
+			if !ok {
+				return nil, false
+			}
+			var sid streamID
+			if sid.tryUnmarshalFromString(fs.streamIDStr) {
+				streamIDs = append(streamIDs, sid)
+			}
+		}
+		sort.Slice(streamIDs, func(i, j int) bool {
+			return streamIDs[i].less(&streamIDs[j])
+		})
+		return streamIDs, len(streamIDs) > 0
+	case *filterStreamID:
+		var sid streamID
+		if !sid.tryUnmarshalFromString(t.streamIDStr) {
+			return nil, true
+		}
+		return []streamID{sid}, true
+	default:
+		return nil, false
+	}
 }
 
 // AddCountByTimePipe adds '| stats by (_time:step offset off, field1, ..., fieldN) count() hits' to the end of q.
@@ -773,6 +819,8 @@ func parseFilterForPhrase(lex *lexer, phrase, fieldName string) (filter, error) 
 	switch fieldName {
 	case "_time":
 		return parseFilterTimeGeneric(lex)
+	case "_stream_id":
+		return parseFilterStreamID(lex)
 	case "_stream":
 		return parseFilterStream(lex)
 	default:
@@ -1316,7 +1364,7 @@ func parseNumber(lex *lexer) (float64, string, error) {
 		return f, s, nil
 	}
 
-	return 0, "", fmt.Errorf("cannot parse %q as float64", s)
+	return 0, s, fmt.Errorf("cannot parse %q as float64", s)
 }
 
 func parseFuncArg(lex *lexer, fieldName string, callback func(args string) (filter, error)) (filter, error) {
@@ -1780,6 +1828,17 @@ func stripTimezoneSuffix(s string) string {
 		return s
 	}
 	return s[:len(s)-len(tz)]
+}
+
+func parseFilterStreamID(lex *lexer) (*filterStreamID, error) {
+	s, err := getCompoundToken(lex)
+	if err != nil {
+		return nil, err
+	}
+	fs := &filterStreamID{
+		streamIDStr: s,
+	}
+	return fs, nil
 }
 
 func parseFilterStream(lex *lexer) (*filterStream, error) {

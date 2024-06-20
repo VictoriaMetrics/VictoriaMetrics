@@ -4,23 +4,18 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
-	"reflect"
-	"strings"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 )
 
-func TestReadBulkRequestFailure(t *testing.T) {
+func TestReadBulkRequest_Failure(t *testing.T) {
 	f := func(data string) {
 		t.Helper()
 
-		processLogMessage := func(timestamp int64, fields []logstorage.Field) {
-			t.Fatalf("unexpected call to processLogMessage with timestamp=%d, fields=%s", timestamp, fields)
-		}
-
+		tlp := &insertutils.TestLogMessageProcessor{}
 		r := bytes.NewBufferString(data)
-		rows, err := readBulkRequest(r, false, "_time", "_msg", processLogMessage)
+		rows, err := readBulkRequest(r, false, "_time", "_msg", tlp)
 		if err == nil {
 			t.Fatalf("expecting non-empty error")
 		}
@@ -37,58 +32,38 @@ func TestReadBulkRequestFailure(t *testing.T) {
 foobar`)
 }
 
-func TestReadBulkRequestSuccess(t *testing.T) {
+func TestReadBulkRequest_Success(t *testing.T) {
 	f := func(data, timeField, msgField string, rowsExpected int, timestampsExpected []int64, resultExpected string) {
 		t.Helper()
 
-		var timestamps []int64
-		var result string
-		processLogMessage := func(timestamp int64, fields []logstorage.Field) {
-			timestamps = append(timestamps, timestamp)
-
-			a := make([]string, len(fields))
-			for i, f := range fields {
-				a[i] = fmt.Sprintf("%q:%q", f.Name, f.Value)
-			}
-			s := "{" + strings.Join(a, ",") + "}\n"
-			result += s
-		}
+		tlp := &insertutils.TestLogMessageProcessor{}
 
 		// Read the request without compression
 		r := bytes.NewBufferString(data)
-		rows, err := readBulkRequest(r, false, timeField, msgField, processLogMessage)
+		rows, err := readBulkRequest(r, false, timeField, msgField, tlp)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		if rows != rowsExpected {
 			t.Fatalf("unexpected rows read; got %d; want %d", rows, rowsExpected)
 		}
-
-		if !reflect.DeepEqual(timestamps, timestampsExpected) {
-			t.Fatalf("unexpected timestamps;\ngot\n%d\nwant\n%d", timestamps, timestampsExpected)
-		}
-		if result != resultExpected {
-			t.Fatalf("unexpected result;\ngot\n%s\nwant\n%s", result, resultExpected)
+		if err := tlp.Verify(rowsExpected, timestampsExpected, resultExpected); err != nil {
+			t.Fatal(err)
 		}
 
 		// Read the request with compression
-		timestamps = nil
-		result = ""
+		tlp = &insertutils.TestLogMessageProcessor{}
 		compressedData := compressData(data)
 		r = bytes.NewBufferString(compressedData)
-		rows, err = readBulkRequest(r, true, timeField, msgField, processLogMessage)
+		rows, err = readBulkRequest(r, true, timeField, msgField, tlp)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		if rows != rowsExpected {
 			t.Fatalf("unexpected rows read; got %d; want %d", rows, rowsExpected)
 		}
-
-		if !reflect.DeepEqual(timestamps, timestampsExpected) {
-			t.Fatalf("unexpected timestamps;\ngot\n%d\nwant\n%d", timestamps, timestampsExpected)
-		}
-		if result != resultExpected {
-			t.Fatalf("unexpected result;\ngot\n%s\nwant\n%s", result, resultExpected)
+		if err := tlp.Verify(rowsExpected, timestampsExpected, resultExpected); err != nil {
+			t.Fatalf("verification failure after compression: %s", err)
 		}
 	}
 
@@ -111,8 +86,7 @@ func TestReadBulkRequestSuccess(t *testing.T) {
 	timestampsExpected := []int64{1686026891735000000, 1686026892735000000, 1686026893735000000}
 	resultExpected := `{"@timestamp":"","log.offset":"71770","log.file.path":"/var/log/auth.log","_msg":"foobar"}
 {"@timestamp":"","_msg":"baz"}
-{"_msg":"xyz","@timestamp":"","x":"y"}
-`
+{"_msg":"xyz","@timestamp":"","x":"y"}`
 	f(data, timeField, msgField, rowsExpected, timestampsExpected, resultExpected)
 }
 

@@ -26,8 +26,9 @@ It will perform the following actions:
 See how to run vmalert-tool for unit test below:
 
 ```
-# Run vmalert-tool with one or multiple test files via --files cmd-line flag
-./vmalert-tool unittest --files test1.yaml --files test2.yaml
+# Run vmalert-tool with one or multiple test files via `--files` cmd-line flag
+# Supports file path with hierarchical patterns and regexpes, and http url.
+./vmalert-tool unittest --files /path/to/file --files http://<some-server-addr>/path/to/test.yaml
 ```
 
 vmalert-tool unittest is compatible with [Prometheus config format for tests](https://prometheus.io/docs/prometheus/latest/configuration/unit_testing_rules/#test-file-format)

@@ -22,7 +22,7 @@ services:
         condition: service_healthy
 
   victorialogs:
-    image: docker.io/victoriametrics/victoria-logs:v0.19.0-victorialogs
+    image: docker.io/victoriametrics/victoria-logs:v0.21.0-victorialogs
     volumes:
       - victorialogs-vector-docker-vl:/vlogs
     ports:

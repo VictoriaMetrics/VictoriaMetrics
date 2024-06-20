@@ -15,7 +15,7 @@ import (
 //
 // It falls back to sending data via file when readers don't catch up with writers.
 type FastQueue struct {
-	// my protects the state of FastQueue.
+	// mu protects the state of FastQueue.
 	mu sync.Mutex
 
 	// cond is used for notifying blocked readers when new data has been added
