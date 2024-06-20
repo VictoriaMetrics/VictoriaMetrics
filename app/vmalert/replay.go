@@ -69,8 +69,8 @@ func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw remotewri
 		total += ng.Replay(tFrom, tTo, rw, *replayMaxDatapoints, *replayRuleRetryAttempts, *replayRulesDelay, *disableProgressBar)
 	}
 	logger.Infof("replay evaluation finished, generated %d samples", total)
-	if rw != nil {
-		return rw.Close()
+	if err := rw.Close(); err != nil {
+		return err
 	}
 	droppedRows := remotewrite.GetDroppedRows()
 	if droppedRows > 0 {
