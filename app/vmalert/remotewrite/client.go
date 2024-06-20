@@ -148,6 +148,11 @@ func (c *Client) Close() error {
 	return nil
 }
 
+// CloseAndReport closes the client and report dropped rows
+func (c *Client) CloseAndReport() (int64, error) {
+	return int64(droppedRows.Get()), c.Close()
+}
+
 func (c *Client) run(ctx context.Context) {
 	ticker := time.NewTicker(c.flushInterval)
 	wr := &prompbmarshal.WriteRequest{}
