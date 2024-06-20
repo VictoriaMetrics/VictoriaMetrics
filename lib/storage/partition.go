@@ -519,6 +519,7 @@ func (rrs *rawRowsShard) addRows(rows []rawRow) ([]rawRow, []rawRow) {
 	// 4. if rrs.rows size is 0, update the flush deadline since it is the first time to add rows
 	// 5. copy rows to the tail of rrs.rows. why use copy nor the append function?
 	// 6. if rrs.rows is full, return the tail rows and the rows to flush
+	return nil, nil
 }
 
 func newRawRows() []rawRow {
