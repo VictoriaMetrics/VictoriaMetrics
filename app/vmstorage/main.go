@@ -147,6 +147,7 @@ var resetResponseCacheIfNeeded func(mrs []storage.MetricRow)
 // AddRows adds mrs to the storage.
 //
 // The caller should limit the number of concurrent calls to AddRows() in order to limit memory usage.
+// TODO: why vminsert call this function directly? since vmstorage is a process, not a package
 func AddRows(mrs []storage.MetricRow) error {
 	if Storage.IsReadOnly() {
 		return errReadOnly

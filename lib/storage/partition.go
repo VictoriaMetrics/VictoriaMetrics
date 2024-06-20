@@ -449,36 +449,24 @@ func (rrss *rawRowsShards) init() {
 }
 
 func (rrss *rawRowsShards) addRows(pt *partition, rows []rawRow) {
-	shards := rrss.shards
-	shardsLen := uint32(len(shards))
-	for len(rows) > 0 {
-		n := rrss.shardIdx.Add(1)
-		idx := n % shardsLen
-		tailRows, rowsToFlush := shards[idx].addRows(rows)
-		rrss.addRowsToFlush(pt, rowsToFlush)
-		rows = tailRows
-	}
+	// TODO: implement addRows
+	// hint:
+	// 1. use rrss.shardIdx.Add(1) to get the next shard index
+	// 2. use rrss.shards[idx] to get the shard
+	// 3. use shard.addRows to add rows to the shard
+	// 4. use rrss.addRowsToFlush to add rows to flush
+	// remember to update the tailRows since the rows may not be fully added to the shard in a iteration
 }
 
 func (rrss *rawRowsShards) addRowsToFlush(pt *partition, rowsToFlush []rawRow) {
-	if len(rowsToFlush) == 0 {
-		return
-	}
-
-	var rowssToMerge [][]rawRow
-
-	rrss.rowssToFlushLock.Lock()
-	if len(rrss.rowssToFlush) == 0 {
-		rrss.updateFlushDeadline()
-	}
-	rrss.rowssToFlush = append(rrss.rowssToFlush, rowsToFlush)
-	if len(rrss.rowssToFlush) >= defaultPartsToMerge {
-		rowssToMerge = rrss.rowssToFlush
-		rrss.rowssToFlush = nil
-	}
-	rrss.rowssToFlushLock.Unlock()
-
-	pt.flushRowssToInmemoryParts(rowssToMerge)
+	// TODO: implement addRowsToFlush
+	// hint:
+	// 1. use pt.flushRowssToInmemoryParts to flush rowsToFlush
+	// 2. use rrss.rowssToFlushLock to protect rrss.rowssToFlush
+	// 3. use rrss.rowssToFlush to store rowsToFlush
+	// 4. update the flush deadline if rrss.rowssToFlush is empty
+	// 5. if the length of rrss.rowssToFlush is greater than or equal to defaultPartsToMerge, merge the rowss
+	// 6. call pt.flushRowssToInmemoryParts to flush the rowss
 }
 
 func (rrss *rawRowsShards) Len() int {
@@ -523,29 +511,14 @@ func (rrs *rawRowsShard) Len() int {
 }
 
 func (rrs *rawRowsShard) addRows(rows []rawRow) ([]rawRow, []rawRow) {
-	var rowsToFlush []rawRow
-
-	rrs.mu.Lock()
-	if cap(rrs.rows) == 0 {
-		rrs.rows = newRawRows()
-	}
-	if len(rrs.rows) == 0 {
-		rrs.updateFlushDeadline()
-	}
-	n := copy(rrs.rows[len(rrs.rows):cap(rrs.rows)], rows)
-	rrs.rows = rrs.rows[:len(rrs.rows)+n]
-	rows = rows[n:]
-	if len(rows) > 0 {
-		rowsToFlush = rrs.rows
-		rrs.rows = newRawRows()
-		rrs.updateFlushDeadline()
-		n = copy(rrs.rows[:cap(rrs.rows)], rows)
-		rrs.rows = rrs.rows[:n]
-		rows = rows[n:]
-	}
-	rrs.mu.Unlock()
-
-	return rows, rowsToFlush
+	// TODO: implement addRows
+	// hint:
+	// 1. use rrs.mu to protect rrs.rows
+	// 2. add rows to rrs.rows
+	// 3. if rrs.rows cap is 0,call newRawRows to allocate memory
+	// 4. if rrs.rows size is 0, update the flush deadline since it is the first time to add rows
+	// 5. copy rows to the tail of rrs.rows. why use copy nor the append function?
+	// 6. if rrs.rows is full, return the tail rows and the rows to flush
 }
 
 func newRawRows() []rawRow {
