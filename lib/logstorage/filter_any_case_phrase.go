@@ -21,8 +21,14 @@ type filterAnyCasePhrase struct {
 	phraseLowercaseOnce sync.Once
 	phraseLowercase     string
 
+	phraseUppercaseOnce sync.Once
+	phraseUppercase     string
+
 	tokensOnce sync.Once
 	tokens     []string
+
+	tokensUppercaseOnce sync.Once
+	tokensUppercase     []string
 }
 
 func (fp *filterAnyCasePhrase) String() string {
@@ -42,6 +48,20 @@ func (fp *filterAnyCasePhrase) initTokens() {
 	fp.tokens = tokenizeStrings(nil, []string{fp.phrase})
 }
 
+func (fp *filterAnyCasePhrase) getTokensUppercase() []string {
+	fp.tokensUppercaseOnce.Do(fp.initTokensUppercase)
+	return fp.tokensUppercase
+}
+
+func (fp *filterAnyCasePhrase) initTokensUppercase() {
+	tokens := fp.getTokens()
+	tokensUppercase := make([]string, len(tokens))
+	for i, token := range tokens {
+		tokensUppercase[i] = strings.ToUpper(token)
+	}
+	fp.tokensUppercase = tokensUppercase
+}
+
 func (fp *filterAnyCasePhrase) getPhraseLowercase() string {
 	fp.phraseLowercaseOnce.Do(fp.initPhraseLowercase)
 	return fp.phraseLowercase
@@ -49,6 +69,15 @@ func (fp *filterAnyCasePhrase) getPhraseLowercase() string {
 
 func (fp *filterAnyCasePhrase) initPhraseLowercase() {
 	fp.phraseLowercase = strings.ToLower(fp.phrase)
+}
+
+func (fp *filterAnyCasePhrase) getPhraseUppercase() string {
+	fp.phraseUppercaseOnce.Do(fp.initPhraseUppercase)
+	return fp.phraseUppercase
+}
+
+func (fp *filterAnyCasePhrase) initPhraseUppercase() {
+	fp.phraseUppercase = strings.ToUpper(fp.phrase)
 }
 
 func (fp *filterAnyCasePhrase) applyToBlockResult(br *blockResult, bm *bitmap) {
@@ -100,8 +129,9 @@ func (fp *filterAnyCasePhrase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	case valueTypeIPv4:
 		matchIPv4ByPhrase(bs, ch, bm, phraseLowercase, tokens)
 	case valueTypeTimestampISO8601:
-		phraseUppercase := strings.ToUpper(fp.phrase)
-		matchTimestampISO8601ByPhrase(bs, ch, bm, phraseUppercase, tokens)
+		phraseUppercase := fp.getPhraseUppercase()
+		tokensUppercase := fp.getTokensUppercase()
+		matchTimestampISO8601ByPhrase(bs, ch, bm, phraseUppercase, tokensUppercase)
 	default:
 		logger.Panicf("FATAL: %s: unknown valueType=%d", bs.partPath(), ch.valueType)
 	}
