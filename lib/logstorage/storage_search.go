@@ -18,6 +18,10 @@ type genericSearchOptions struct {
 	// tenantIDs must contain the list of tenantIDs for the search.
 	tenantIDs []TenantID
 
+	// streamIDs is an optional sorted list of streamIDs for the search.
+	// If it is empty, then the search is performed by tenantIDs
+	streamIDs []streamID
+
 	// filter is the filter to use for the search
 	filter filter
 
@@ -101,9 +105,11 @@ func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 }
 
 func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlockResultFunc func(workerID uint, br *blockResult)) error {
+	streamIDs := q.getSortedStreamIDs()
 	neededColumnNames, unneededColumnNames := q.getNeededColumns()
 	so := &genericSearchOptions{
 		tenantIDs:           tenantIDs,
+		streamIDs:           streamIDs,
 		filter:              q.f,
 		neededColumnNames:   neededColumnNames,
 		unneededColumnNames: unneededColumnNames,
@@ -653,6 +659,12 @@ func (pt *partition) search(minTimestamp, maxTimestamp int64, sf *StreamFilter, 
 	var streamIDs []streamID
 	if sf != nil {
 		streamIDs = pt.idb.searchStreamIDs(tenantIDs, sf)
+		if len(so.streamIDs) > 0 {
+			streamIDs = intersectStreamIDs(streamIDs, so.streamIDs)
+		}
+		tenantIDs = nil
+	} else if len(so.streamIDs) > 0 {
+		streamIDs = getStreamIDsForTenantIDs(so.streamIDs, tenantIDs)
 		tenantIDs = nil
 	}
 	if hasStreamFilters(f) {
@@ -669,6 +681,36 @@ func (pt *partition) search(minTimestamp, maxTimestamp int64, sf *StreamFilter, 
 		needAllColumns:      so.needAllColumns,
 	}
 	return pt.ddb.search(soInternal, workCh, stopCh)
+}
+
+func intersectStreamIDs(a, b []streamID) []streamID {
+	m := make(map[streamID]struct{}, len(b))
+	for _, streamID := range b {
+		m[streamID] = struct{}{}
+	}
+
+	result := make([]streamID, 0, len(a))
+	for _, streamID := range a {
+		if _, ok := m[streamID]; ok {
+			result = append(result, streamID)
+		}
+	}
+	return result
+}
+
+func getStreamIDsForTenantIDs(streamIDs []streamID, tenantIDs []TenantID) []streamID {
+	m := make(map[TenantID]struct{}, len(tenantIDs))
+	for _, tenantID := range tenantIDs {
+		m[tenantID] = struct{}{}
+	}
+
+	result := make([]streamID, 0, len(streamIDs))
+	for _, streamID := range streamIDs {
+		if _, ok := m[streamID.tenantID]; ok {
+			result = append(result, streamID)
+		}
+	}
+	return result
 }
 
 func hasStreamFilters(f filter) bool {
