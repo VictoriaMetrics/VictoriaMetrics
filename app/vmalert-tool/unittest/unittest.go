@@ -304,6 +304,7 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 				if err != nil {
 					checkErrs = append(checkErrs, fmt.Errorf("\nfailed to exec group: %q, time: %s, err: %w", g.Name,
 						ts, err))
+					return
 				}
 			}
 			// flush series after each group evaluation
