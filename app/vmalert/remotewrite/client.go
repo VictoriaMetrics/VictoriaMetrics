@@ -148,11 +148,6 @@ func (c *Client) Close() error {
 	return nil
 }
 
-// CloseAndReport closes the client and report dropped rows
-func (c *Client) CloseAndReport() (int64, error) {
-	return int64(droppedRows.Get()), c.Close()
-}
-
 func (c *Client) run(ctx context.Context) {
 	ticker := time.NewTicker(c.flushInterval)
 	wr := &prompbmarshal.WriteRequest{}
@@ -216,6 +211,9 @@ var (
 		return float64(*concurrency)
 	})
 )
+
+// GetDroppedRows returns value of droppedRows metric
+func GetDroppedRows() int64 { return int64(droppedRows.Get()) }
 
 // flush is a blocking function that marshals WriteRequest and sends
 // it to remote-write endpoint. Flush performs limited amount of retries
