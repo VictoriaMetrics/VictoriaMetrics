@@ -11,5 +11,5 @@ type RWClient interface {
 	// Close stops the client. Client can't be reused after Close call.
 	Close() error
 	// CloseAndReport stops the client and reports dropped rows
-	CloseAndReport() (error, int64)
+	CloseAndReport() (int64, error)
 }

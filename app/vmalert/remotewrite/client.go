@@ -149,8 +149,8 @@ func (c *Client) Close() error {
 }
 
 // CloseAndReport closes the client and report dropped rows
-func (c *Client) CloseAndReport() (error, int64) {
-	return c.Close(), int64(droppedRows.Get())
+func (c *Client) CloseAndReport() (int64, error) {
+	return int64(droppedRows.Get()), c.Close()
 }
 
 func (c *Client) run(ctx context.Context) {

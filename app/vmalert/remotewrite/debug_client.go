@@ -61,8 +61,8 @@ func (c *DebugClient) Close() error {
 }
 
 // CloseAndReport closes the client and reports dropped rows
-func (c *DebugClient) CloseAndReport() (error, int64) {
-	return c.Close(), 0
+func (c *DebugClient) CloseAndReport() (int64, error) {
+	return 0, c.Close()
 }
 
 func (c *DebugClient) send(data []byte) error {
