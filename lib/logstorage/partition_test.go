@@ -10,7 +10,9 @@ import (
 )
 
 func TestPartitionLifecycle(t *testing.T) {
-	const path = "TestPartitionLifecycle"
+	t.Parallel()
+
+	path := t.Name()
 	var ddbStats DatadbStats
 
 	s := newTestStorage()
@@ -50,7 +52,9 @@ func TestPartitionLifecycle(t *testing.T) {
 }
 
 func TestPartitionMustAddRowsSerial(t *testing.T) {
-	const path = "TestPartitionMustAddRowsSerial"
+	t.Parallel()
+
+	path := t.Name()
 	var ddbStats DatadbStats
 
 	s := newTestStorage()
@@ -132,7 +136,9 @@ func TestPartitionMustAddRowsSerial(t *testing.T) {
 }
 
 func TestPartitionMustAddRowsConcurrent(t *testing.T) {
-	const path = "TestPartitionMustAddRowsConcurrent"
+	t.Parallel()
+
+	path := t.Name()
 	s := newTestStorage()
 
 	mustCreatePartition(path)

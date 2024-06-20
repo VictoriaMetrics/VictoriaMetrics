@@ -5,7 +5,11 @@ import (
 )
 
 func TestFilterRange(t *testing.T) {
+	t.Parallel()
+
 	t.Run("const-column", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -77,6 +81,8 @@ func TestFilterRange(t *testing.T) {
 	})
 
 	t.Run("dict", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -146,6 +152,8 @@ func TestFilterRange(t *testing.T) {
 	})
 
 	t.Run("strings", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -210,6 +218,8 @@ func TestFilterRange(t *testing.T) {
 	})
 
 	t.Run("uint8", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -276,6 +286,8 @@ func TestFilterRange(t *testing.T) {
 	})
 
 	t.Run("uint16", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -341,6 +353,8 @@ func TestFilterRange(t *testing.T) {
 	})
 
 	t.Run("uint32", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -406,6 +420,8 @@ func TestFilterRange(t *testing.T) {
 	})
 
 	t.Run("uint64", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -478,6 +494,8 @@ func TestFilterRange(t *testing.T) {
 	})
 
 	t.Run("float64", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -550,6 +568,8 @@ func TestFilterRange(t *testing.T) {
 	})
 
 	t.Run("ipv4", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "foo",
@@ -570,16 +590,17 @@ func TestFilterRange(t *testing.T) {
 			},
 		}
 
-		// range filter always mismatches ipv4
 		fr := &filterRange{
 			fieldName: "foo",
 			minValue:  -100,
 			maxValue:  100,
 		}
-		testFilterMatchForColumns(t, columns, fr, "foo", nil)
+		testFilterMatchForColumns(t, columns, fr, "foo", []int{1})
 	})
 
 	t.Run("timestamp-iso8601", func(t *testing.T) {
+		t.Parallel()
+
 		columns := []column{
 			{
 				name: "_msg",
