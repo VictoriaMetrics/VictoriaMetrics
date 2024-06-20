@@ -162,9 +162,9 @@ func (c *client) ReadData(dst *bytesutil.ByteBuffer) error {
 	}
 	if int64(len(dst.B)) >= c.maxScrapeSize {
 		maxScrapeSizeExceeded.Inc()
-		return fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize=%d or max_scrape_size in a scrape config; "+
-			"either reduce the response size for the target or increase -promscrape.maxScrapeSize command-line flag "+
-			"or max_scrape_size scrape config value", c.scrapeURL, maxScrapeSize.N)
+		return fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize=%d or max_scrape_size in a scrape config. "+
+			"Possible solutions are: reduce the response size for the target, increase -promscrape.maxScrapeSize command-line flag, "+
+			"increase max_scrape_size value in scrape config", c.scrapeURL, maxScrapeSize.N)
 	}
 	return nil
 }

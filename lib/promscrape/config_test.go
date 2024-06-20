@@ -1027,7 +1027,7 @@ scrape_configs:
 	f(`
 scrape_configs:
 - job_name: foo
-  max_scrape_size: 16MiB
+  max_scrape_size: 8MiB
   metric_relabel_configs:
   - source_labels: [foo]
     target_label: abc
@@ -1038,7 +1038,7 @@ scrape_configs:
 			ScrapeURL:      "http://foo.bar:1234/metrics",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  16 * 1024 * 1024,
+			MaxScrapeSize:  8 * 1024 * 1024,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "foo.bar:1234",
 				"job":      "foo",
