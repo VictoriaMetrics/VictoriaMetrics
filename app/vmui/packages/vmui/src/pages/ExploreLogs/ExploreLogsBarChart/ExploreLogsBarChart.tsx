@@ -4,22 +4,23 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import classNames from "classnames";
 import { LogHits } from "../../../api/types";
 import dayjs from "dayjs";
-import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateContext";
+import { useTimeDispatch } from "../../../state/time/TimeStateContext";
 import { AlignedData } from "uplot";
 import BarHitsChart from "../../../components/Chart/BarHitsChart/BarHitsChart";
 import Alert from "../../../components/Main/Alert/Alert";
+import { TimeParams } from "../../../types";
 
 interface Props {
   query: string;
   logHits: LogHits[];
+  period: TimeParams;
   error?: string;
   isLoading: boolean;
   loaded: boolean;
 }
 
-const ExploreLogsBarChart: FC<Props> = ({ logHits, error, loaded }) => {
+const ExploreLogsBarChart: FC<Props> = ({ logHits, period, error, loaded }) => {
   const { isMobile } = useDeviceDetect();
-  const { period } = useTimeState();
   const timeDispatch = useTimeDispatch();
 
   const data = useMemo(() => {
