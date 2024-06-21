@@ -53,6 +53,9 @@ type ScrapeWork struct {
 	// Timeout for scraping the ScrapeURL.
 	ScrapeTimeout time.Duration
 
+	// MaxScrapeSize sets max amount of data, that can be scraped by a job
+	MaxScrapeSize int64
+
 	// How to deal with conflicting labels.
 	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
 	HonorLabels bool
@@ -500,6 +503,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	am := &autoMetrics{
 		up:                        up,
 		scrapeDurationSeconds:     scrapeDurationSeconds,
+		scrapeResponseSize:        float64(len(bodyString)),
 		samplesScraped:            samplesScraped,
 		samplesPostRelabeling:     samplesPostRelabeling,
 		seriesAdded:               seriesAdded,
@@ -519,7 +523,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		sw.storeLastScrape(body)
 	}
 	sw.finalizeLastScrape()
-	tsmGlobal.Update(sw, up == 1, realTimestamp, int64(scrapeDurationSeconds*1000), samplesScraped, err)
+	tsmGlobal.Update(sw, up == 1, realTimestamp, int64(scrapeDurationSeconds*1000), float64(len(bodyString)), samplesScraped, err)
 	return err
 }
 
@@ -580,6 +584,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	am := &autoMetrics{
 		up:                        up,
 		scrapeDurationSeconds:     scrapeDurationSeconds,
+		scrapeResponseSize:        float64(len(bodyString)),
 		samplesScraped:            samplesScraped,
 		samplesPostRelabeling:     samplesPostRelabeling,
 		seriesAdded:               seriesAdded,
@@ -598,7 +603,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		sw.storeLastScrape(body.B)
 	}
 	sw.finalizeLastScrape()
-	tsmGlobal.Update(sw, up == 1, realTimestamp, int64(scrapeDurationSeconds*1000), samplesScraped, err)
+	tsmGlobal.Update(sw, up == 1, realTimestamp, int64(scrapeDurationSeconds*1000), float64(len(bodyString)), samplesScraped, err)
 	// Do not track active series in streaming mode, since this may need too big amounts of memory
 	// when the target exports too big number of metrics.
 	return err
@@ -812,6 +817,7 @@ func (sw *scrapeWork) getLabelsHash(labels []prompbmarshal.Label) uint64 {
 type autoMetrics struct {
 	up                        int
 	scrapeDurationSeconds     float64
+	scrapeResponseSize        float64
 	samplesScraped            int
 	samplesPostRelabeling     int
 	seriesAdded               int
@@ -824,7 +830,7 @@ func isAutoMetric(s string) bool {
 		"scrape_samples_post_metric_relabeling", "scrape_series_added",
 		"scrape_timeout_seconds", "scrape_samples_limit",
 		"scrape_series_limit_samples_dropped", "scrape_series_limit",
-		"scrape_series_current":
+		"scrape_series_current", "scrape_response_size_bytes":
 		return true
 	}
 	return false
@@ -833,6 +839,7 @@ func isAutoMetric(s string) bool {
 func (sw *scrapeWork) addAutoMetrics(am *autoMetrics, wc *writeRequestCtx, timestamp int64) {
 	sw.addAutoTimeseries(wc, "up", float64(am.up), timestamp)
 	sw.addAutoTimeseries(wc, "scrape_duration_seconds", am.scrapeDurationSeconds, timestamp)
+	sw.addAutoTimeseries(wc, "scrape_response_size_bytes", am.scrapeResponseSize, timestamp)
 	sw.addAutoTimeseries(wc, "scrape_samples_scraped", float64(am.samplesScraped), timestamp)
 	sw.addAutoTimeseries(wc, "scrape_samples_post_metric_relabeling", float64(am.samplesPostRelabeling), timestamp)
 	sw.addAutoTimeseries(wc, "scrape_series_added", float64(am.seriesAdded), timestamp)

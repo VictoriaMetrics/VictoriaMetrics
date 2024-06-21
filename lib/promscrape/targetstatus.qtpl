@@ -29,6 +29,7 @@
 		scrapes_failed={%d ts.scrapesFailed %},{% space %}
 		last_scrape={%s ts.getDurationFromLastScrape() %},{% space %}
 		scrape_duration={%d int(ts.scrapeDuration) %}ms,{% space %}
+                scrape_response_size={%s ts.getSizeFromLastScrape() %},{% space %}
 		samples_scraped={%d ts.samplesScraped %},{% space %}
 		error={% if ts.err != nil %}{%s= ts.err.Error() %}{% endif %}
 		{% newline %}
@@ -217,6 +218,7 @@
                             <th scope="col" title="total scrape errors">Errors</th>
                             <th scope="col" title="the time of the last scrape">Last Scrape</th>
                             <th scope="col" title="the duration of the last scrape">Duration</th>
+                            <th scope="col" title="the size of the last scrape">Last Scrape Size</th>
                             <th scope="col" title="the number of metrics scraped during the last scrape">Samples</th>
                             <th scope="col" title="error from the last scrape (if any)">Last error</th>
                         </tr>
@@ -269,8 +271,9 @@
                             {% endif %}
                             <td>{%d ts.scrapesTotal %}</td>
                             <td>{%d ts.scrapesFailed %}</td>
-                            <td>{%s ts.getDurationFromLastScrape() %}
+                            <td>{%s ts.getDurationFromLastScrape() %}</td>
                             <td>{%d int(ts.scrapeDuration) %}ms</td>
+                            <td>{%s ts.getSizeFromLastScrape() %}</td>
                             <td>{%d ts.samplesScraped %}</td>
                             <td>{% if ts.err != nil %}{%s ts.err.Error() %}{% endif %}</td>
                         </tr>

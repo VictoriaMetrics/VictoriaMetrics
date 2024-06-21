@@ -8,6 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
@@ -161,7 +162,7 @@ func TestReplay(t *testing.T) {
 			*replayFrom = tc.from
 			*replayTo = tc.to
 			*replayMaxDatapoints = tc.maxDP
-			if err := replay(tc.cfg, tc.qb, nil); err != nil {
+			if err := replay(tc.cfg, tc.qb, &remotewrite.DebugClient{}); err != nil {
 				t.Fatalf("replay failed: %s", err)
 			}
 			if len(tc.qb.registry) > 0 {

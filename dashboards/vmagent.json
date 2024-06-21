@@ -2511,7 +2511,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows top 5 job by the number of new series registered by vmagent over the 5min range. These jobs generate the most of the churn rate.",
+          "description": "Shows top 10 jobs by the number of new series registered by vmagent over the 5min range. These jobs generate the most of the churn rate.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2600,14 +2600,14 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "topk_max(5, sum(sum_over_time(scrape_series_added[5m])) by (job)) > 0",
+              "expr": "topk_max(10, sum(sum_over_time(scrape_series_added[5m])) by (job)) > 0",
               "interval": "",
               "legendFormat": "{{ job }}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Top 5 jobs by unique samples",
+          "title": "Top 10 jobs by unique samples",
           "type": "timeseries"
         },
         {
@@ -2615,7 +2615,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows top 5 instances by the number of new series registered by vmagent over the 5min range. These instances generate the most of the churn rate.",
+          "description": "Shows top 10 instances by the number of new series registered by vmagent over the 5min range. These instances generate the most of the churn rate.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2711,7 +2711,7 @@
               "refId": "A"
             }
           ],
-          "title": "Top 5 instances by unique samples",
+          "title": "Top 10 instances by unique samples",
           "type": "timeseries"
         },
         {

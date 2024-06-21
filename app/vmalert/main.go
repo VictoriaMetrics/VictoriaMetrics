@@ -153,6 +153,7 @@ func main() {
 		if err := replay(groupsCfg, q, rw); err != nil {
 			logger.Fatalf("replay failed: %s", err)
 		}
+		logger.Infof("replay succeed!")
 		return
 	}
 
