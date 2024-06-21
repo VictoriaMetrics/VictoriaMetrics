@@ -34,22 +34,24 @@ Before sending a pull request to [VictoriaMetrics repository](https://github.com
 - Commit messages contain concise yet clear descriptions. Include links to related GitHub issues in commit messages, if such issues exist.
 - All the commits are signed and include `Signed-off-by` line. Use `git commit -s` to include `Signed-off-by` your commits.
   See [this doc](https://git-scm.com/book/en/v2/Git-Tools-Signing-Your-Work) about how to sign git commits.
-- Tests are passing locally. Use `make test` to run all tests locally.
-- Linting is passing locally. Use `make check-all` to run all linters locally.
-- If the change fixes some bug, it would be great to cover it by [tests](https://pkg.go.dev/testing) (if it isn't covered yet by existsing tests).
+- All the lint checks are passing locally via `make check-all` command run from the VictoriaMetrics repository root.
+- All the tests are passing locally via `make test-full` command run from the VictoriaMetrics repository root.
+- If the change fixes some bug, it would be great to cover it by [tests](https://pkg.go.dev/testing) if it isn't covered yet by existsing tests.
 - If the change improves performance or reduces resource usage, then it would be great to add [benchmarks](https://pkg.go.dev/testing#hdr-Benchmarks)
   and mention benchmark results before and after the change in the description to the pull request.
-- If the change implements some specifics or uses some APIs, then please provide permanent links to these specs and APIs directly in the relevant source code,
-  in order to simplify further maintenance of the code.
+- If the change implements some specifications or uses some external APIs, then please provide permanent links to these specs and APIs
+  directly in the relevant source code, in order to simplify further maintenance of the code.
+- If the change modifies the existing logic, make sure it doesn't break existing user setups after the upgrade.
+- Please investigate git commit history for the code you change in order to make sure your change doesn't break historical conventions in the modified code.
 
-Further checks are optional for External Contributions:
+Further checks are optional for external contributions:
 
-- The change is described in **clear user-readable** form at [docs/CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md),
+- The change must be described in **clear user-readable** form at [docs/CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md),
   since it is read by **VictoriaMetrics users** who may not know implementation details of VictoriaMetrics products. The change description must **clearly** answer the following questions:
   - What does this change do?
   - Why this change is needed?
 
-  The change description must link to related GitHub issues and the related docs, if any.
+  The change description must link to the related GitHub issues and the related docs, if any.
 
   Tips for writing a good changelog message:
 
@@ -58,9 +60,9 @@ Further checks are optional for External Contributions:
   - Provide a link to the related GitHub issue or pull request.
   - Provide a link to the relevant documentation if the change modifies user-visible behaviour of VictoriaMetrics producs.
 
-- After your pull request is merged, please add a message to the issue with instructions for how to test the fix or try the feature you added before the new release.
+- After your pull request is merged, please add a message to the issue with instructions for how to test the change you added before the new release.
   [Here is an example](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4048#issuecomment-1546453726).
-- Do not close the original issue before the change is released. Please note, in some cases Github can automatically closes the issue once PR is merged. Re-open the issue in such case.
+- Do not close the original issue before the change is released. In some cases Github can automatically close the issue once PR is merged. Re-open the issue in such case.
 - If the change introduces a new feature, this feature must be documented in **user-readable** form at the appropriate parts of [VictoriaMetrics docs](https://docs.victoriametrics.com/).
   The docs' sources are located in the [`docs` folder](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs).
 
@@ -90,7 +92,7 @@ Due to `KISS`, [cluster version of VictoriaMetrics](https://docs.victoriametrics
 
 - Fragile gossip protocols. See [failed attempt in Thanos](https://github.com/improbable-eng/thanos/blob/030bc345c12c446962225221795f4973848caab5/docs/proposals/completed/201809_gossip-removal.md).
 - Hard-to-understand-and-implement-properly [Paxos protocols](https://www.quora.com/In-distributed-systems-what-is-a-simple-explanation-of-the-Paxos-algorithm).
-- Complex replication schemes, which may go nuts in unforeseen edge cases. See [replication docs](#replication-and-data-safety) for details.
+- Complex replication schemes, which may go nuts in unforeseen edge cases. See [replication docs](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety) for details.
 - Automatic data reshuffling between storage nodes, which may hurt cluster performance and availability.
 - Automatic cluster resizing, which may cost you a lot of money if improperly configured.
 - Automatic discovering and addition of new nodes in the cluster, which may mix data between dev and prod clusters :)

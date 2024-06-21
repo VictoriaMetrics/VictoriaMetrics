@@ -676,6 +676,8 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`foo or bar baz or xyz`, `foo or bar baz or xyz`)
 	f(`(foo or bar) (baz or xyz)`, `(foo or bar) (baz or xyz)`)
 	f(`(foo OR bar) AND baz`, `(foo or bar) baz`)
+	f(`'stats' foo`, `"stats" foo`)
+	f(`"filter" bar copy fields avg baz`, `"filter" bar "copy" "fields" "avg" baz`)
 
 	// parens
 	f(`foo:(bar baz or not :xxx)`, `foo:bar foo:baz or !foo:xxx`)
@@ -693,6 +695,10 @@ func TestParseQuerySuccess(t *testing.T) {
 
 	// empty filter
 	f(`"" or foo:"" and not bar:""`, `"" or foo:"" !bar:""`)
+
+	// _stream_id filter
+	f(`_stream_id:foo`, `_stream_id:foo`)
+	f(`_stream_id:foo-bar/b:az`, `_stream_id:"foo-bar/b:az"`)
 
 	// _stream filters
 	f(`_stream:{}`, `_stream:{}`)
@@ -1214,6 +1220,11 @@ func TestParseQueryFailure(t *testing.T) {
 	f("not (abc")
 	f("!")
 
+	// pipe names without quoutes
+	f(`filter foo:bar`)
+	f(`stats count()`)
+	f(`count()`)
+
 	// invalid parens
 	f("(")
 	f("foo (bar ")
@@ -1230,6 +1241,9 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`"foo`)
 	f(`'foo`)
 	f("`foo")
+
+	// invalid _stream_id filters
+	f("_stream_id:(foo)")
 
 	// invalid _stream filters
 	f("_stream:")

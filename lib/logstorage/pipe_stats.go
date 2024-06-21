@@ -702,6 +702,24 @@ func parseStatsFunc(lex *lexer) (statsFunc, error) {
 	}
 }
 
+var statsNames = []string{
+	"avg",
+	"count",
+	"count_empty",
+	"count_uniq",
+	"max",
+	"median",
+	"min",
+	"quantile",
+	"row_any",
+	"row_max",
+	"row_min",
+	"sum",
+	"sum_len",
+	"uniq_values",
+	"values",
+}
+
 var zeroByStatsField = &byStatsField{}
 
 // byStatsField represents 'by (...)' part of the pipeStats.

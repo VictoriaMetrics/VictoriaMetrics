@@ -99,9 +99,14 @@ func (fs *FS) Init() error {
 		config.WithDefaultRegion("us-east-1"),
 	}
 
-	if len(fs.CredsFilePath) > 0 {
+	if len(fs.ConfigFilePath) > 0 {
 		configOpts = append(configOpts, config.WithSharedConfigFiles([]string{
 			fs.ConfigFilePath,
+		}))
+	}
+
+	if len(fs.CredsFilePath) > 0 {
+		configOpts = append(configOpts, config.WithSharedCredentialsFiles([]string{
 			fs.CredsFilePath,
 		}))
 	}

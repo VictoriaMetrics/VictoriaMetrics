@@ -7,14 +7,17 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/elasticsearch"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/jsonline"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/loki"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/syslog"
 )
 
 // Init initializes vlinsert
 func Init() {
+	syslog.MustInit()
 }
 
 // Stop stops vlinsert
 func Stop() {
+	syslog.MustStop()
 }
 
 // RequestHandler handles insert requests for VictoriaLogs
@@ -28,7 +31,8 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path = strings.ReplaceAll(path, "//", "/")
 
 	if path == "/jsonline" {
-		return jsonline.RequestHandler(w, r)
+		jsonline.RequestHandler(w, r)
+		return true
 	}
 	switch {
 	case strings.HasPrefix(path, "/elasticsearch/"):

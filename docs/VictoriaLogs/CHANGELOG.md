@@ -19,10 +19,46 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v0.21.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.21.0-victorialogs)
+
+Released at 2024-06-20
+
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add a bar chart displaying the number of log entries over a time range. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6404).
+* FEATURE: expose `_stream_id` field, which uniquely identifies [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields). This field can be used for quick obtaining of all the logs belonging to a particular stream via [`_stream_id` filter](https://docs.victoriametrics.com/victorialogs/logsql/#_stream_id-filter).
+
+## [v0.20.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.20.2-victorialogs)
+
+Released at 2024-06-18
+
+* BUGFIX: properly parse timestamps with nanosecond precision for logs ingested via [jsonline format](https://docs.victoriametrics.com/victorialogs/data-ingestion/#json-stream-api). The bug has been introduced in [v0.20.0 release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.20.0-victorialogs).
+
+## [v0.20.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.20.1-victorialogs)
+
+Released at 2024-06-18
+
+* FEATURE: allow configuring multiple receivers with distinct configs for syslog messages. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#multiple-configs).
+
+* BUGFIX: properly read syslog messages over TCP and TLS connections according to [RFC5425](https://datatracker.ietf.org/doc/html/rfc5425) when [data ingestion for syslog protocol](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/) is enabled.
+
+## [v0.20.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.20.0-victorialogs)
+
+Released at 2024-06-17
+
+* FEATURE: add ability to accept logs in [Syslog format](https://en.wikipedia.org/wiki/Syslog). See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/).
+* FEATURE: add abitlity to specify timezone offset when parsing [rfc3164](https://datatracker.ietf.org/doc/html/rfc3164) syslog messages with [`unpack_syslog` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_syslog-pipe).
+* FEATURE: add [`top` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe) for returning top N sets of the given fields with the maximum number of matching log entries.
+
+## [v0.19.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.19.0-victorialogs)
+
+Released at 2024-06-11
+
+* FEATURE: do not allow starting the [filter](https://docs.victoriametrics.com/victorialogs/logsql/#filters) with [pipe names](https://docs.victoriametrics.com/victorialogs/logsql/#pipes) and [stats function names](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe-functions). This prevents from unexpected results returned by incorrect queries, which miss mandatory [filter](https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax).
 * FEATURE: treat unexpected syslog message as [RFC3164](https://datatracker.ietf.org/doc/html/rfc3164) containing only the `message` field when using [`unpack_syslog` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_syslog-pipe).
 * FEATURE: allow using `where` prefix instead of `filter` prefix in [`filter` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#filter-pipe).
 * FEATURE: disallow unescaped `!` char in [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) queries, since it permits writing incorrect query, which may look like correct one. For example, `foo!:bar` instead of `foo:!bar`.
 * FEATURE: [web UI](https://docs.victoriametrics.com/VictoriaLogs/querying/#web-ui): add markdown support to the `Group` view. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6292).
+
+* BUGFIX: return back the improved performance for queries with `*` filters (aka `SELECT *`). This has been broken in [v0.16.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.16.0-victorialogs).
 
 ## [v0.18.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.18.0-victorialogs)
 
@@ -277,7 +313,7 @@ Released at 2023-10-03
 
 Released at 2023-07-20
 
-* FEATURE: add support for data ingestion via Promtail (aka default log shipper for Grafana Loki). See [these](https://docs.victoriametrics.com/victorialogs/data-ingestion/Promtail.html) and [these](https://docs.victoriametrics.com/victorialogs/data-ingestion/#loki-json-api) docs.
+* FEATURE: add support for data ingestion via Promtail (aka default log shipper for Grafana Loki). See [these](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/) and [these](https://docs.victoriametrics.com/victorialogs/data-ingestion/#loki-json-api) docs.
 
 ## [v0.2.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.2.0-victorialogs)
 

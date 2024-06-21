@@ -100,7 +100,7 @@ func (fp *filterPhrase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 }
 
 func matchTimestampISO8601ByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []string) {
-	_, ok := tryParseTimestampISO8601(phrase)
+	_, ok := TryParseTimestampISO8601(phrase)
 	if ok {
 		// Fast path - the phrase contains complete timestamp, so we can use exact search
 		matchTimestampISO8601ByExactValue(bs, ch, bm, phrase, tokens)

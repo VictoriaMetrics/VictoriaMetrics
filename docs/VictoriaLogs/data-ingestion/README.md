@@ -16,11 +16,12 @@ aliases:
 
 [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) can accept logs from the following log collectors:
 
-- Filebeat. See [how to setup Filebeat for sending logs to VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/Filebeat.html).
-- Fluentbit. See [how to setup Fluentbit for sending logs to VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/Fluentbit.html).
-- Logstash. See [how to setup Logstash for sending logs to VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/Logstash.html).
-- Vector. See [how to setup Vector for sending logs to VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/Vector.html).
-- Promtail (aka Grafana Loki). See [how to setup Promtail for sending logs to VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/Promtail.html).
+- Syslog - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/).
+- Filebeat - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/filebeat/).
+- Fluentbit - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/fluentbit/).
+- Logstash - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/logstash/).
+- Vector - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/vector/).
+- Promtail (aka Grafana Loki) - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/).
 
 The ingested logs can be queried according to [these docs](https://docs.victoriametrics.com/victorialogs/querying/).
 
@@ -256,10 +257,10 @@ VictoriaLogs exposes various [metrics](https://docs.victoriametrics.com/victoria
 
 Here is the list of log collectors and their ingestion formats supported by VictoriaLogs:
 
-| How to setup the collector                                                               | Format: Elasticsearch                                                                     | Format: JSON Stream                                            | Format: Loki                                                                        |
-|------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------|---------------------------------------------------------------|-------------------------------------------------------------------------------------|
-| [Filebeat](https://docs.victoriametrics.com/victorialogs/data-ingestion/Filebeat.html)   | [Yes](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html)    | No                                                            | No                                                                                  |
-| [Fluentbit](https://docs.victoriametrics.com/victorialogs/data-ingestion/Fluentbit.html) | No                                                                                         | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/http) | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/loki)                       |
-| [Logstash](https://docs.victoriametrics.com/victorialogs/data-ingestion/Logstash.html)   | [Yes](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html) | No                                                            | No                                                                                  |
-| [Vector](https://docs.victoriametrics.com/victorialogs/data-ingestion/Vector.html)       | [Yes](https://vector.dev/docs/reference/configuration/sinks/elasticsearch/)                | [Yes](https://vector.dev/docs/reference/configuration/sinks/http/)                                                            | [Yes](https://vector.dev/docs/reference/configuration/sinks/loki/)                  |
-| [Promtail](https://docs.victoriametrics.com/victorialogs/data-ingestion/Promtail.html)   | No                                                                                         | No                                                            | [Yes](https://grafana.com/docs/loki/latest/clients/promtail/configuration/#clients) |
+| How to setup the collector | Format: Elasticsearch | Format: JSON Stream | Format: Loki | Format: syslog |
+|----------------------------|-----------------------|---------------------|--------------|----------------|
+| [Filebeat](https://docs.victoriametrics.com/victorialogs/data-ingestion/filebeat/) | [Yes](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html) | No | No | No |
+| [Fluentbit](https://docs.victoriametrics.com/victorialogs/data-ingestion/fluentbit/) | No | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/http) | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/loki) | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/syslog) |
+| [Logstash](https://docs.victoriametrics.com/victorialogs/data-ingestion/logstash/)   | [Yes](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html) | No | No | [Yes](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-syslog.html) |
+| [Vector](https://docs.victoriametrics.com/victorialogs/data-ingestion/vector/) | [Yes](https://vector.dev/docs/reference/configuration/sinks/elasticsearch/) | [Yes](https://vector.dev/docs/reference/configuration/sinks/http/) | [Yes](https://vector.dev/docs/reference/configuration/sinks/loki/) | No |
+| [Promtail](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/)   | No | No | [Yes](https://grafana.com/docs/loki/latest/clients/promtail/configuration/#clients) | No |

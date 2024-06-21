@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 var (
@@ -20,13 +21,11 @@ var (
 )
 
 type internStringMap struct {
-	mu           sync.Mutex
+	mutableLock  sync.Mutex
 	mutable      map[string]string
 	mutableReads uint64
 
 	readonly atomic.Pointer[map[string]internStringMapEntry]
-
-	nextCleanupTime atomic.Uint64
 }
 
 type internStringMapEntry struct {
@@ -35,13 +34,21 @@ type internStringMapEntry struct {
 }
 
 func newInternStringMap() *internStringMap {
-	ism := &internStringMap{
+	m := &internStringMap{
 		mutable: make(map[string]string),
 	}
 	readonly := make(map[string]internStringMapEntry)
-	ism.readonly.Store(&readonly)
-	ism.nextCleanupTime.Store(fasttime.UnixTimestamp() + 61)
-	return ism
+	m.readonly.Store(&readonly)
+
+	go func() {
+		cleanupInterval := timeutil.AddJitterToDuration(*cacheExpireDuration) / 2
+		ticker := time.NewTicker(cleanupInterval)
+		for range ticker.C {
+			m.cleanup()
+		}
+	}()
+
+	return m
 }
 
 func (m *internStringMap) getReadonly() map[string]internStringMapEntry {
@@ -49,27 +56,22 @@ func (m *internStringMap) getReadonly() map[string]internStringMapEntry {
 }
 
 func (m *internStringMap) intern(s string) string {
-	if *disableCache || len(s) > *internStringMaxLen {
+	if isSkipCache(s) {
 		return strings.Clone(s)
-	}
-	currentTime := fasttime.UnixTimestamp()
-	if currentTime >= m.nextCleanupTime.Load() {
-		m.nextCleanupTime.Store(currentTime + 61)
-		m.cleanup()
 	}
 
 	readonly := m.getReadonly()
 	e, ok := readonly[s]
 	if ok {
-		// Fast path - the string has been found in readonly map
+		// Fast path - the string has been found in readonly map.
 		return e.s
 	}
 
-	// Slower path - search for the string in mutable map
-	m.mu.Lock()
+	// Slower path - search for the string in mutable map under the lock.
+	m.mutableLock.Lock()
 	sInterned, ok := m.mutable[s]
 	if !ok {
-		// Verify whether the s has been already registered by concurrent goroutines in m.readonly
+		// Verify whether s has been already registered by concurrent goroutines in m.readonly
 		readonly = m.getReadonly()
 		e, ok = readonly[s]
 		if !ok {
@@ -86,7 +88,7 @@ func (m *internStringMap) intern(s string) string {
 		m.migrateMutableToReadonlyLocked()
 		m.mutableReads = 0
 	}
-	m.mu.Unlock()
+	m.mutableLock.Unlock()
 
 	return sInterned
 }
@@ -109,9 +111,6 @@ func (m *internStringMap) migrateMutableToReadonlyLocked() {
 }
 
 func (m *internStringMap) cleanup() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	readonly := m.getReadonly()
 	currentTime := fasttime.UnixTimestamp()
 	needCleanup := false

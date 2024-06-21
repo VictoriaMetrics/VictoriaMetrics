@@ -427,7 +427,7 @@ See also:
 
 ### Stream filter
 
-VictoriaLogs provides an optimized way to select log entries, which belong to particular [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
+VictoriaLogs provides an optimized way to select logs, which belong to particular [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 This can be done via `_stream:{...}` filter. The `{...}` may contain arbitrary
 [Prometheus-compatible label selector](https://docs.victoriametrics.com/keyconcepts/#filtering)
 over fields associated with [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
@@ -456,8 +456,33 @@ Performance tips:
 
 See also:
 
+- [`_stream_id` filter](#_stream_id-filter)
 - [Time filter](#time-filter)
 - [Exact filter](#exact-filter)
+
+### _stream_id filter
+
+Every [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) in VictoriaMetrics is uniquely identified by `_stream_id` field.
+The `_stream_id:...` filter allows quickly selecting all the logs belonging to the particular stream.
+
+For example, the following query selects all the logs, which belong to the [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+with `_stream_id` equal to `0000007b000001c850d9950ea6196b1a4812081265faa1c7`:
+
+```logsql
+_stream_id:0000007b000001c850d9950ea6196b1a4812081265faa1c7
+```
+
+If the log stream contains too many logs, then it is good idea limiting the number of returned logs with [time filter](#time-filter). For example, the following
+query selects logs for the given stream for the last hour:
+
+```logsql
+_time:1h _stream_id:0000007b000001c850d9950ea6196b1a4812081265faa1c7
+```
+
+See also:
+
+- [stream filter](#stream-filter)
+
 
 ### Word filter
 
@@ -1265,6 +1290,7 @@ LogsQL supports the following pipes:
 - [`replace_regexp`](#replace_regexp-pipe) updates [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with regular expressions.
 - [`sort`](#sort-pipe) sorts logs by the given [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`stats`](#stats-pipe) calculates various stats over the selected logs.
+- [`top`](#top-pipe) returns top `N` field sets with the maximum number of matching logs.
 - [`uniq`](#uniq-pipe) returns unique log entires.
 - [`unpack_json`](#unpack_json-pipe) unpacks JSON messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`unpack_logfmt`](#unpack_logfmt-pipe) unpacks [logfmt](https://brandur.org/logfmt) messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
@@ -1573,6 +1599,7 @@ If the limit is reached, then the set of returned values is random. Also the num
 See also:
 
 - [`field_names` pipe](#field_names-pipe)
+- [`top` pipe](#top-pipe)
 - [`uniq` pipe](#uniq-pipe)
 
 ### fields pipe
@@ -1788,7 +1815,7 @@ the following query rounds the `request_duration` [field](https://docs.victoriam
 _time:5m | math round(request_duration, 1e9) as request_duration_nsecs | format '<duration:request_duration_nsecs>' as request_duration
 ```
 
-The `eval` keyword can be used instead of `math` for convenince. For example, the following query calculates `duration_msecs` field
+The `eval` keyword can be used instead of `math` for convenience. For example, the following query calculates `duration_msecs` field
 by multiplying `duration_secs` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) to `1000`:
 
 ```logsql
@@ -2139,6 +2166,8 @@ See also:
 - [stats pipe functions](#stats-pipe-functions)
 - [`math` pipe](#math-pipe)
 - [`sort` pipe](#sort-pipe)
+- [`uniq` pipe](#uniq-pipe)
+- [`top` pipe](#top-pipe)
 
 
 #### Stats by fields
@@ -2256,9 +2285,41 @@ _time:5m | stats
   count() total
 ```
 
+### top pipe
+
+`| top N by (field1, ..., fieldN)` [pipe](#pipes) returns top `N` sets for `(field1, ..., fieldN)` [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+with the maximum number of matching log entries.
+
+For example, the following query returns top 7 [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+with the maximum number of log entries over the last 5 minutes:
+
+```logsql
+_time:5m | top 7 by (_stream)
+```
+
+The `N` is optional. If it is skipped, then top 10 entries are returned. For example, the following query returns top 10 values
+for `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) seen in logs for the last 5 minutes:
+
+```logsql
+_time:5m | top by (ip)
+```
+
+The `by (...)` part in the `top` [pipe](#pipes) is optional. If it is skipped, then all the log fields are taken into account
+when determining top field sets. This is useful when the field sets are already limited by other pipes such as [`fields` pipe](#fields-pipe).
+For example, the following query is equivalent to the previous one:
+
+```logsql
+_time:5m | fields ip | top
+```
+
+See also:
+
+- [`uniq` pipe](#uniq-pipe)
+- [`stats` pipe](#stats-pipe)
+
 ### uniq pipe
 
-`| uniq ...` pipe returns unique results over the selected logs. For example, the following LogsQL query
+`| uniq ...` [pipe](#pipes) returns unique results over the selected logs. For example, the following LogsQL query
 returns unique values for `ip` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
 
@@ -2300,6 +2361,8 @@ _time:5m | uniq (host, path) limit 100
 See also:
 
 - [`uniq_values` stats function](#uniq_values-stats)
+- [`top` pipe](#top-pipe)
+- [`stats` pipe](#stats-pipe)
 
 ### unpack_json pipe
 
@@ -2510,6 +2573,13 @@ The following query is equivalent to the previous one:
 
 ```logsql
 _time:5m | unpack_syslog
+```
+
+By default timestamps in [RFC3164 format](https://datatracker.ietf.org/doc/html/rfc3164) are converted to local timezone. It is possible to change the timezone
+offset via `offset` option. For example, the following query adds 5 hours and 30 minutes to unpacked `rfc3164` timestamps:
+
+```logsql
+_time:5m | unpack_syslog offset 5h30m
 ```
 
 If it is needed to preserve the original non-empty field values, then add `keep_original_fields` to the end of `unpack_syslog ...`:

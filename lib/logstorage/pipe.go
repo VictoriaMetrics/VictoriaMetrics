@@ -214,6 +214,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'stats' pipe: %w", err)
 		}
 		return ps, nil
+	case lex.isKeyword("top"):
+		pt, err := parsePipeTop(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'top' pipe: %w", err)
+		}
+		return pt, nil
 	case lex.isKeyword("uniq"):
 		pu, err := parsePipeUniq(lex)
 		if err != nil {
@@ -264,3 +270,45 @@ func parsePipe(lex *lexer) (pipe, error) {
 		return nil, fmt.Errorf("unexpected pipe %q", lex.token)
 	}
 }
+
+var pipeNames = func() map[string]struct{} {
+	a := []string{
+		"copy", "cp",
+		"delete", "del", "rm", "drop",
+		"drop_empty_fields",
+		"extract",
+		"extract_regexp",
+		"field_names",
+		"field_values",
+		"fields", "keep",
+		"filter", "where",
+		"format",
+		"limit", "head",
+		"math", "eval",
+		"offset", "skip",
+		"pack_json",
+		"pack_logmft",
+		"rename", "mv",
+		"replace",
+		"replace_regexp",
+		"sort",
+		"stats",
+		"top",
+		"uniq",
+		"unpack_json",
+		"unpack_logfmt",
+		"unpack_syslog",
+		"unroll",
+	}
+
+	m := make(map[string]struct{}, len(a))
+	for _, s := range a {
+		m[s] = struct{}{}
+	}
+
+	// add stats names here, since they can be used without the initial `stats` keyword
+	for _, s := range statsNames {
+		m[s] = struct{}{}
+	}
+	return m
+}()

@@ -22,8 +22,14 @@ type filterAnyCasePrefix struct {
 	prefixLowercaseOnce sync.Once
 	prefixLowercase     string
 
+	prefixUppercaseOnce sync.Once
+	prefixUppercase     string
+
 	tokensOnce sync.Once
 	tokens     []string
+
+	tokensUppercaseOnce sync.Once
+	tokensUppercase     []string
 }
 
 func (fp *filterAnyCasePrefix) String() string {
@@ -46,6 +52,20 @@ func (fp *filterAnyCasePrefix) initTokens() {
 	fp.tokens = getTokensSkipLast(fp.prefix)
 }
 
+func (fp *filterAnyCasePrefix) getTokensUppercase() []string {
+	fp.tokensUppercaseOnce.Do(fp.initTokensUppercase)
+	return fp.tokensUppercase
+}
+
+func (fp *filterAnyCasePrefix) initTokensUppercase() {
+	tokens := fp.getTokens()
+	tokensUppercase := make([]string, len(tokens))
+	for i, token := range tokens {
+		tokensUppercase[i] = strings.ToUpper(token)
+	}
+	fp.tokensUppercase = tokensUppercase
+}
+
 func (fp *filterAnyCasePrefix) getPrefixLowercase() string {
 	fp.prefixLowercaseOnce.Do(fp.initPrefixLowercase)
 	return fp.prefixLowercase
@@ -53,6 +73,15 @@ func (fp *filterAnyCasePrefix) getPrefixLowercase() string {
 
 func (fp *filterAnyCasePrefix) initPrefixLowercase() {
 	fp.prefixLowercase = strings.ToLower(fp.prefix)
+}
+
+func (fp *filterAnyCasePrefix) getPrefixUppercase() string {
+	fp.prefixUppercaseOnce.Do(fp.initPrefixUppercase)
+	return fp.prefixUppercase
+}
+
+func (fp *filterAnyCasePrefix) initPrefixUppercase() {
+	fp.prefixUppercase = strings.ToUpper(fp.prefix)
 }
 
 func (fp *filterAnyCasePrefix) applyToBlockResult(br *blockResult, bm *bitmap) {
@@ -101,8 +130,9 @@ func (fp *filterAnyCasePrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	case valueTypeIPv4:
 		matchIPv4ByPrefix(bs, ch, bm, prefixLowercase, tokens)
 	case valueTypeTimestampISO8601:
-		prefixUppercase := strings.ToUpper(fp.prefix)
-		matchTimestampISO8601ByPrefix(bs, ch, bm, prefixUppercase, tokens)
+		prefixUppercase := fp.getPrefixUppercase()
+		tokensUppercase := fp.getTokensUppercase()
+		matchTimestampISO8601ByPrefix(bs, ch, bm, prefixUppercase, tokensUppercase)
 	default:
 		logger.Panicf("FATAL: %s: unknown valueType=%d", bs.partPath(), ch.valueType)
 	}

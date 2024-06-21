@@ -89,7 +89,7 @@ See also:
 Use [`NOT` logical filter](https://docs.victoriametrics.com/victorialogs/logsql/#logical-filter). For example, the following query returns all the logs
 without the `INFO` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) in the [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 
-```logsq
+```logsql
 !INFO
 ```
 
@@ -286,6 +286,12 @@ This query uses the following [LogsQL](https://docs.victoriametrics.com/victoria
 - [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe) for sorting the stats by `logs` field in descending order.
 - [`limit` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe) for limiting the number of returned results to 10.
 
+This query can be simplified into the following one, which uses [`top` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe):
+
+```logsql
+_time:5m | top 10 by (_stream)
+```
+
 See also:
 
 - [How to filter out data after stats calculation?](#how-to-filter-out-data-after-stats-calculation)
@@ -339,7 +345,7 @@ _time:5m | stats by (_stream) count() rows | filter rows:>1000
 Use [`stats` by time bucket](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-time-buckets). For example, the following query
 returns per-hour number of logs with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) for the last day:
 
-```logsq
+```logsql
 _time:1d error | stats by (_time:1h) count() rows | sort by (_time)
 ```
 
@@ -454,5 +460,15 @@ For example, the following query selects logs from Monday to Friday in working h
 _time:4w _time:week_range[Mon, Fri] _time:day_range[08:00, 18:00)
 ```
 
-It uses implicit [`AND` logical filtere](https://docs.victoriametrics.com/victorialogs/logsql/#logical-filter) for joining multiple filters
+It uses implicit [`AND` logical filter](https://docs.victoriametrics.com/victorialogs/logsql/#logical-filter) for joining multiple filters
 on [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
+
+## How to find logs with the given phrase containing whitespace?
+
+Use [`phrase filter`](https://docs.victoriametrics.com/victorialogs/logsql/#phrase-filter). For example, the following [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/)
+returns logs with the `cannot open file` phrase over the last 5 minutes:
+
+
+```logsql
+_time:5m "cannot open file"
+```

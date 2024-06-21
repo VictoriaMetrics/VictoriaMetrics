@@ -77,6 +77,7 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 	dataExpected := `
 		up 0 123
 		scrape_samples_scraped 0 123
+		scrape_response_size_bytes 0 123
 		scrape_duration_seconds 0 123
 		scrape_samples_post_metric_relabeling 0 123
 		scrape_series_added 0 123
@@ -181,6 +182,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 	}, `
 		up 1 123
 		scrape_samples_scraped 0 123
+		scrape_response_size_bytes 0 123
 		scrape_duration_seconds 0 123
 		scrape_samples_post_metric_relabeling 0 123
 		scrape_series_added 0 123
@@ -196,6 +198,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		abc -2 123
 		up 1 123
 		scrape_samples_scraped 2 123
+		scrape_response_size_bytes 51 123
 		scrape_duration_seconds 0 123
 		scrape_samples_post_metric_relabeling 2 123
 		scrape_series_added 2 123
@@ -215,6 +218,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		abc{foo="x"} -2 123
 		up{foo="x"} 1 123
 		scrape_samples_scraped{foo="x"} 2 123
+		scrape_response_size_bytes{foo="x"} 36 123
 		scrape_duration_seconds{foo="x"} 0 123
 		scrape_samples_post_metric_relabeling{foo="x"} 2 123
 		scrape_series_added{foo="x"} 2 123
@@ -234,6 +238,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		bar{exported_job="aa",job="override",x="1",a="b",y="2"} -3e4 123
 		up{job="override"} 1 123
 		scrape_samples_scraped{job="override"} 2 123
+		scrape_response_size_bytes{job="override"} 80 123
 		scrape_duration_seconds{job="override"} 0 123
 		scrape_samples_post_metric_relabeling{job="override"} 2 123
 		scrape_series_added{job="override"} 2 123
@@ -255,6 +260,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		test_with_instance{instance="some_instance",job="some_job",label="val2"} 1555 123
 		up{instance="foobar",job="xxx"} 1 123
 		scrape_samples_scraped{instance="foobar",job="xxx"} 2 123
+		scrape_response_size_bytes{instance="foobar",job="xxx"} 158 123
 		scrape_duration_seconds{instance="foobar",job="xxx"} 0 123
 		scrape_samples_post_metric_relabeling{instance="foobar",job="xxx"} 2 123
 		scrape_series_added{instance="foobar",job="xxx"} 2 123
@@ -275,6 +281,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		test_with_instance{exported_instance="some_instance",exported_job="some_job",instance="foobar",job="xxx",label="val2"} 1555 123
 		up{instance="foobar",job="xxx"} 1 123
 		scrape_samples_scraped{instance="foobar",job="xxx"} 2 123
+		scrape_response_size_bytes{instance="foobar",job="xxx"} 158 123
 		scrape_duration_seconds{instance="foobar",job="xxx"} 0 123
 		scrape_samples_post_metric_relabeling{instance="foobar",job="xxx"} 2 123
 		scrape_series_added{instance="foobar",job="xxx"} 2 123
@@ -294,6 +301,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		bar{job="aa",a="b"} -3e4 123
 		up{job="override"} 1 123
 		scrape_samples_scraped{job="override"} 2 123
+		scrape_response_size_bytes{job="override"} 68 123
 		scrape_duration_seconds{job="override"} 0 123
 		scrape_samples_post_metric_relabeling{job="override"} 2 123
 		scrape_series_added{job="override"} 2 123
@@ -322,6 +330,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		bar{a="b",job="xx",instance="foo.com/xx"} -3e4 123
 		up{job="xx"} 1 123
 		scrape_samples_scraped{job="xx"} 2 123
+		scrape_response_size_bytes{job="xx"} 49 123
 		scrape_duration_seconds{job="xx"} 0 123
 		scrape_samples_post_metric_relabeling{job="xx"} 2 123
 		scrape_series_added{job="xx"} 2 123
@@ -352,6 +361,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		foo{bar="baz",job="xx",instance="foo.com"} 34.44 123
 		up{job="xx",instance="foo.com"} 1 123
 		scrape_samples_scraped{job="xx",instance="foo.com"} 4 123
+		scrape_response_size_bytes{job="xx",instance="foo.com"} 106 123
 		scrape_duration_seconds{job="xx",instance="foo.com"} 0 123
 		scrape_samples_post_metric_relabeling{job="xx",instance="foo.com"} 1 123
 		scrape_series_added{job="xx",instance="foo.com"} 4 123
@@ -371,6 +381,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		exported_scrape_series_added 3.435 123
 		up 1 123
 		scrape_duration_seconds 0 123
+		scrape_response_size_bytes 76 123
 		scrape_samples_scraped 3 123
 		scrape_samples_post_metric_relabeling 3 123
 		scrape_timeout_seconds 42 123
@@ -389,6 +400,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		scrape_series_added 3.435 123
 		up 1 123
 		scrape_samples_scraped 3 123
+		scrape_response_size_bytes 76 123
 		scrape_duration_seconds 0 123
 		scrape_samples_post_metric_relabeling 3 123
 		scrape_series_added 3 123
@@ -406,6 +418,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		bar{a="b",c="d"} -3e4 123
 		up 1 123
 		scrape_samples_limit 2 123
+		scrape_response_size_bytes 49 123
 		scrape_samples_scraped 2 123
 		scrape_duration_seconds 0 123
 		scrape_samples_post_metric_relabeling 2 123
@@ -424,6 +437,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 	}, `
 		up 0 123
 		scrape_samples_scraped 2 123
+		scrape_response_size_bytes 0 123
 		scrape_duration_seconds 0 123
 		scrape_samples_post_metric_relabeling 2 123
 		scrape_samples_limit 1 123
@@ -445,6 +459,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		bar{a="b",c="d"} -3e4 123
 		up 1 123
 		scrape_samples_scraped 2 123
+		scrape_response_size_bytes 49 123
 		scrape_duration_seconds 0 123
 		scrape_samples_post_metric_relabeling 2 123
 		scrape_series_added 2 123
@@ -464,6 +479,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		foo{bar="baz"} 34.44 123
 		up 1 123
 		scrape_samples_scraped 2 123
+		scrape_response_size_bytes 49 123
 		scrape_duration_seconds 0 123
 		scrape_samples_post_metric_relabeling 2 123
 		scrape_series_added 2 123

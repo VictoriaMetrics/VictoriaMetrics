@@ -1,0 +1,74 @@
+groups:
+- name: VMAnomaly
+  rules:
+  - alert: PageFaults
+    expr: min(anomaly_score{preset="node-exporter", for="page_faults"}) without (model_alias, scheduler_alias)>=1.0
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: Abnormal Page Faults (instance {{ $labels.instance }}).
+
+  - alert: ReceiveBytes
+    expr: min(anomaly_score{preset="node-exporter", for="receive_bytes"}) without (model_alias, scheduler_alias)>=1.0
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: Abnormal amount of Received Bytes (instance {{ $labels.instance }}, device {{$labels.device}}).
+
+  - alert: TransmitBytes
+    expr: min(anomaly_score{preset="node-exporter", for="transmit_bytes"}) without (model_alias, scheduler_alias)>=1.0
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary:  Abnormal amount of Transmit bytes (instance {{ $labels.instance }}, device {{$labels.device}}).
+
+  - alert: ReadLatency
+    expr: min(anomaly_score{preset="node-exporter", for="read_latency"}) without (model_alias, scheduler_alias)>=1.0
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary:  Abnormal Read latency (instance {{ $labels.instance }}, device {{$labels.device}}).
+
+  - alert: WriteLatency
+    expr: min(anomaly_score{preset="node-exporter", for="write_latency"}) without (model_alias, scheduler_alias)>=1.0
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary:  Abnormal Write latency (instance {{ $labels.instance }}, device {{$labels.device}}).
+
+  - alert: CpuSecondsTotal
+    expr: min(anomaly_score{preset="node-exporter", for="cpu_seconds_total"}) without (model_alias, scheduler_alias)>=1.0
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary:  Abnormal amount of Node CPU seconds (instance {{ $labels.instance }}).
+
+  - alert: ContextSwitch
+    expr: min(anomaly_score{preset="node-exporter", for="context_switch"}) without (model_alias, scheduler_alias)>=1.0
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary:  Abnormal amount of Context Switches (instance {{ $labels.instance }}).
+
+  - alert: HostNetworkReceiveErrors
+    expr: min(anomaly_score{preset="node-exporter", for="host_network_receive_errors"}) without (model_alias, scheduler_alias)>=1.0
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary:  Abnormal amount of Host Network Receive Errors (instance {{ $labels.instance }}, device {{$labels.device}}).
+
+  - alert: HostNetworkTransmitErrors
+    expr: min(anomaly_score{preset="node-exporter", for="host_network_transmit_errors"}) without (model_alias, scheduler_alias)>=1.0
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary:  Abnormal amount of Host Network Transmit Errors (instance {{ $labels.instance }}, device {{$labels.device}}).

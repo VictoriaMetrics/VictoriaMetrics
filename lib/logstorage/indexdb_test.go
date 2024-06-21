@@ -9,7 +9,9 @@ import (
 )
 
 func TestStorageSearchStreamIDs(t *testing.T) {
-	const path = "TestStorageSearchStreamIDs"
+	t.Parallel()
+
+	path := t.Name()
 	const partitionName = "foobar"
 	s := newTestStorage()
 	mustCreateIndexdb(path)
