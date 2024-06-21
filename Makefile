@@ -17,6 +17,7 @@ GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TA
 .PHONY: $(MAKECMDGOALS)
 
 include app/*/Makefile
+include cspell/Makefile
 include docs/Makefile
 include deployment/*/Makefile
 include dashboards/Makefile
@@ -192,6 +193,13 @@ vmutils-crossbuild: \
 	vmutils-freebsd-amd64 \
 	vmutils-openbsd-amd64 \
 	vmutils-windows-amd64
+
+pre-commit:
+	pre-commit run --all-files
+
+pre-commit-update:
+	pre-commit autoupdate
+	$(MAKE) cspell-update
 
 publish-release:
 	rm -rf bin/*
