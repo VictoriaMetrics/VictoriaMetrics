@@ -449,17 +449,27 @@ func (rrss *rawRowsShards) init() {
 }
 
 func (rrss *rawRowsShards) addRows(pt *partition, rows []rawRow) {
-	// TODO: implement addRows
+	// implement addRows
 	// hint:
 	// 1. use rrss.shardIdx.Add(1) to get the next shard index
 	// 2. use rrss.shards[idx] to get the shard
 	// 3. use shard.addRows to add rows to the shard
 	// 4. use rrss.addRowsToFlush to add rows to flush
 	// remember to update the tailRows since the rows may not be fully added to the shard in a iteration
+	size := uint32(len(rrss.shards))
+	for len(rows) > 0 {
+		idx := rrss.shardIdx.Add(1)
+		idx = idx % size
+		tailRows, flush := rrss.shards[idx].addRows(rows)
+		if len(flush) > 0 {
+			rrss.addRowsToFlush(pt, flush)
+		}
+		rows = tailRows
+	}
 }
 
 func (rrss *rawRowsShards) addRowsToFlush(pt *partition, rowsToFlush []rawRow) {
-	// TODO: implement addRowsToFlush
+	// implement addRowsToFlush
 	// hint:
 	// 1. use pt.flushRowssToInmemoryParts to flush rowsToFlush
 	// 2. use rrss.rowssToFlushLock to protect rrss.rowssToFlush
@@ -467,6 +477,18 @@ func (rrss *rawRowsShards) addRowsToFlush(pt *partition, rowsToFlush []rawRow) {
 	// 4. update the flush deadline if rrss.rowssToFlush is empty
 	// 5. if the length of rrss.rowssToFlush is greater than or equal to defaultPartsToMerge, merge the rowss
 	// 6. call pt.flushRowssToInmemoryParts to flush the rowss
+	rrss.rowssToFlushLock.Lock()
+	defer rrss.rowssToFlushLock.Unlock()
+	if len(rrss.rowssToFlush) == 0 {
+		rrss.updateFlushDeadline()
+	}
+	rrss.rowssToFlush = append(rrss.rowssToFlush, rowsToFlush)
+	var rowsMerge [][]rawRow
+	if len(rrss.rowssToFlush) >= defaultPartsToMerge {
+		rowsMerge = rrss.rowssToFlush
+		rrss.rowssToFlush = nil
+	}
+	pt.flushRowssToInmemoryParts(rowsMerge)
 }
 
 func (rrss *rawRowsShards) Len() int {
