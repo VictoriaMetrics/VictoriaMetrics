@@ -510,8 +510,9 @@ func (rrs *rawRowsShard) Len() int {
 	return n
 }
 
+// add rows to rrs
 func (rrs *rawRowsShard) addRows(rows []rawRow) ([]rawRow, []rawRow) {
-	// TODO: implement addRows
+	// implement addRows
 	// hint:
 	// 1. use rrs.mu to protect rrs.rows
 	// 2. add rows to rrs.rows
@@ -519,7 +520,24 @@ func (rrs *rawRowsShard) addRows(rows []rawRow) ([]rawRow, []rawRow) {
 	// 4. if rrs.rows size is 0, update the flush deadline since it is the first time to add rows
 	// 5. copy rows to the tail of rrs.rows. why use copy nor the append function?
 	// 6. if rrs.rows is full, return the tail rows and the rows to flush
-	return nil, nil
+	rrs.mu.Lock()
+	defer rrs.mu.Unlock()
+	if cap(rrs.rows) == 0 {
+		rrs.rows = newRawRows()
+	}
+	if len(rrs.rows) == 0 {
+		rrs.updateFlushDeadline()
+	}
+	n := len(rrs.rows)
+	size := copy(rrs.rows[n:], rows)
+	if size == len(rows) {
+		return []rawRow{}, []rawRow{}
+	} else {
+		flush := rrs.rows
+		rrs.rows = newRawRows()
+		rrs.updateFlushDeadline()
+		return rows[size:], flush
+	}
 }
 
 func newRawRows() []rawRow {
