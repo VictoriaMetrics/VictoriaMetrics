@@ -529,15 +529,18 @@ func (rrs *rawRowsShard) addRows(rows []rawRow) ([]rawRow, []rawRow) {
 		rrs.updateFlushDeadline()
 	}
 	n := len(rrs.rows)
-	size := copy(rrs.rows[n:], rows)
-	if size == len(rows) {
-		return []rawRow{}, []rawRow{}
-	} else {
-		flush := rrs.rows
+	// rrs.rows=append(rrs.rows,rows...)
+	size := copy(rrs.rows[n:cap(rrs.rows)], rows)
+	rrs.rows = rows[:size+len(rrs.rows)]
+	rows = rows[size:]
+	var flush []rawRow
+	if len(rows) > 0 {
+		// need to flush
+		flush = rrs.rows
 		rrs.rows = newRawRows()
 		rrs.updateFlushDeadline()
-		return rows[size:], flush
 	}
+	return rows, flush
 }
 
 func newRawRows() []rawRow {
