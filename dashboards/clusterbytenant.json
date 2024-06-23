@@ -1,38 +1,4 @@
 {
-  "__inputs": [],
-  "__elements": {},
-  "__requires": [
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "10.4.0"
-    },
-    {
-      "type": "panel",
-      "id": "piechart",
-      "name": "Pie chart",
-      "version": ""
-    },
-    {
-      "type": "datasource",
-      "id": "prometheus",
-      "name": "Prometheus",
-      "version": "1.0.0"
-    },
-    {
-      "type": "panel",
-      "id": "table",
-      "name": "Table",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "timeseries",
-      "name": "Time series",
-      "version": ""
-    }
-  ],
   "annotations": {
     "list": [
       {
@@ -60,7 +26,6 @@
   "fiscalYearStartMonth": 0,
   "gnetId": 16399,
   "graphTooltip": 1,
-  "id": null,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -1062,7 +1027,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "topk_last(5, sum(increase(vm_tenant_timeseries_created_total{accountID=~\"$account\"}[24h])) by(accountID), \"accountID=other\") ",
+          "expr": "topk_last(5, sum(vm_tenant_used_tenant_bytes{accountID=~\"$account\"}) by(accountID), \"accountID=other\") ",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -1860,7 +1825,7 @@
         "current": {
           "selected": false,
           "text": "cluster-monitoring",
-          "value": "cluster-monitoring"
+          "value": "PE8D8DB4BEE4E4B22"
         },
         "hide": 0,
         "includeAll": false,
@@ -1876,7 +1841,11 @@
       },
       {
         "allValue": ".*",
-        "current": {},
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
         "datasource": {
           "type": "prometheus",
           "uid": "$ds"
@@ -1902,7 +1871,11 @@
       },
       {
         "allValue": ".*",
-        "current": {},
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
         "datasource": {
           "type": "prometheus",
           "uid": "$ds"
@@ -1947,6 +1920,6 @@
   "timezone": "",
   "title": "VictoriaMetrics Cluster Per Tenant Statistic",
   "uid": "IZFqd3lMz",
-  "version": 1,
+  "version": 6,
   "weekStart": ""
 }
