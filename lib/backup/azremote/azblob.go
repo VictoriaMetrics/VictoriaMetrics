@@ -58,12 +58,7 @@ func (fs *FS) Init() error {
 		fs.env = envtemplate.LookupEnv
 	}
 
-	for strings.HasPrefix(fs.Dir, "/") {
-		fs.Dir = fs.Dir[1:]
-	}
-	if !strings.HasSuffix(fs.Dir, "/") {
-		fs.Dir += "/"
-	}
+	fs.Dir = cleanDirectory(fs.Dir)
 
 	domain := "blob.core.windows.net"
 	if storageDomain, ok := fs.env(envStorageDomain); ok {
@@ -436,4 +431,18 @@ func moreThanOne(vals ...bool) bool {
 		}
 	}
 	return n > 1
+}
+
+// cleanDirectory ensures that the directory is properly formatted for Azure
+// Blob Storage. It removes any leading slashes and ensures that the directory
+// ends with a trailing slash.
+func cleanDirectory(dir string) string {
+	for strings.HasPrefix(dir, "/") {
+		dir = dir[1:]
+	}
+	if !strings.HasSuffix(dir, "/") {
+		dir += "/"
+	}
+
+	return dir
 }
