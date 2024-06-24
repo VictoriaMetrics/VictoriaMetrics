@@ -2328,16 +2328,28 @@ func (dmc *dateMetricIDCache) SizeBytes() uint64 {
 }
 
 func (dmc *dateMetricIDCache) Has(generation, date, metricID uint64) bool {
+	if byDate := dmc.byDate.Load(); byDate.get(generation, date).Has(metricID) {
+		// Fast path. The majority of calls must go here.
+		return true
+	}
+	// Slow path. Acquire the lock and search the immutable map again and then
+	// also search the mutable map.
+	return dmc.hasSlow(generation, date, metricID)
+}
+
+func (dmc *dateMetricIDCache) hasSlow(generation, date, metricID uint64) bool {
+	dmc.mu.Lock()
+	defer dmc.mu.Unlock()
+
+	// First, check immutable map again because the entry may have been moved to
+	// the immutable map by the time the caller acquires the lock.
 	byDate := dmc.byDate.Load()
 	v := byDate.get(generation, date)
 	if v.Has(metricID) {
-		// Fast path.
-		// The majority of calls must go here.
 		return true
 	}
 
-	// Slow path. Check mutable map.
-	dmc.mu.Lock()
+	// Then check immutable map.
 	vMutable := dmc.byDateMutable.get(generation, date)
 	ok := vMutable.Has(metricID)
 	if ok {
@@ -2348,8 +2360,6 @@ func (dmc *dateMetricIDCache) Has(generation, date, metricID uint64) bool {
 			dmc.slowHits = 0
 		}
 	}
-	dmc.mu.Unlock()
-
 	return ok
 }
 
