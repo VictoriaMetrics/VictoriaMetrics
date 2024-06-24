@@ -29,6 +29,10 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+## [v1.102.0-rc2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0-rc2)
+
+Released at 2024-06-24
+
 **Update note 1: the `--vm-disable-progress-bar` command-line flag at `vmctl` was deprecated. Use `--disable-progress-bar` instead.**
 
 **Update note 2: `*.passwordFile` and similar flags are no longer trimming trailing whitespaces at the end of content. Make sure to update the templating of password files or HTTP endpoints to not include trailing whitespaces before the upgrade. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6503) PR for the details.**
