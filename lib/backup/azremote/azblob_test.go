@@ -128,7 +128,7 @@ func Test_FSInit(t *testing.T) {
 
 			fs := &FS{Dir: test.Dir}
 			if test.Env != nil && !test.IgnoreFakeEnv {
-				fs.env = test.Env
+				fs.env = test.Env.LookupEnv
 			}
 
 			err := fs.Init()

@@ -55,7 +55,7 @@ func (fs *FS) Init() error {
 	case fs.client != nil:
 		logger.Panicf("BUG: fs.Init has been already called")
 	case fs.env == nil:
-		fs.env = envLookuperFunc(envtemplate.LookupEnv)
+		fs.env = envtemplate.LookupEnv
 	}
 
 	for strings.HasPrefix(fs.Dir, "/") {
@@ -66,15 +66,15 @@ func (fs *FS) Init() error {
 	}
 
 	domain := "blob.core.windows.net"
-	if storageDomain, ok := fs.env.LookupEnv(envStorageDomain); ok {
+	if storageDomain, ok := fs.env(envStorageDomain); ok {
 		logger.Infof("Overriding default Azure blob domain with %q", storageDomain)
 		domain = storageDomain
 	}
 
-	connString, hasConnString := fs.env.LookupEnv(envStorageAccCs)
-	accountName, hasAccountName := fs.env.LookupEnv(envStorageAcctName)
-	accountKey, hasAccountKey := fs.env.LookupEnv(envStorageAccKey)
-	useDefault, _ := fs.env.LookupEnv(envStorageDefault)
+	connString, hasConnString := fs.env(envStorageAccCs)
+	accountName, hasAccountName := fs.env(envStorageAcctName)
+	accountKey, hasAccountKey := fs.env(envStorageAccKey)
+	useDefault, _ := fs.env(envStorageDefault)
 
 	var sc *service.Client
 	var err error
@@ -421,19 +421,11 @@ func (fs *FS) ReadFile(filePath string) ([]byte, error) {
 	return b, nil
 }
 
-// envLookuper is an interface for looking up environment variables. It is
+// envLookuper is for looking up environment variables. It is
 // needed to allow unit tests to provide alternate values since the envtemplate
 // package uses a singleton to read all environment variables into memory at
 // init time.
-type envLookuper interface {
-	LookupEnv(name string) (string, bool)
-}
-
-type envLookuperFunc func(name string) (string, bool)
-
-func (f envLookuperFunc) LookupEnv(name string) (string, bool) {
-	return f(name)
-}
+type envLookuper func(name string) (string, bool)
 
 func moreThanOne(vals ...bool) bool {
 	var n int
