@@ -234,6 +234,43 @@ func (q *Query) String() string {
 	return s
 }
 
+func (q *Query) getStreamIDs() []streamID {
+	switch t := q.f.(type) {
+	case *filterAnd:
+		for _, f := range t.filters {
+			streamIDs, ok := getStreamIDsFromFilterOr(f)
+			if ok {
+				return streamIDs
+			}
+		}
+		return nil
+	default:
+		streamIDs, _ := getStreamIDsFromFilterOr(q.f)
+		return streamIDs
+	}
+}
+
+func getStreamIDsFromFilterOr(f filter) ([]streamID, bool) {
+	switch t := f.(type) {
+	case *filterOr:
+		streamIDsFilters := 0
+		var streamIDs []streamID
+		for _, f := range t.filters {
+			fs, ok := f.(*filterStreamID)
+			if !ok {
+				return nil, false
+			}
+			streamIDsFilters++
+			streamIDs = append(streamIDs, fs.streamIDs...)
+		}
+		return streamIDs, streamIDsFilters > 0
+	case *filterStreamID:
+		return t.streamIDs, true
+	default:
+		return nil, false
+	}
+}
+
 // AddCountByTimePipe adds '| stats by (_time:step offset off, field1, ..., fieldN) count() hits' to the end of q.
 func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 	{
@@ -514,6 +551,14 @@ func (q *Query) getNeededColumns() ([]string, []string) {
 // ParseQuery parses s.
 func ParseQuery(s string) (*Query, error) {
 	lex := newLexer(s)
+
+	// Verify the first token doesn't match pipe names.
+	firstToken := strings.ToLower(lex.rawToken)
+	if _, ok := pipeNames[firstToken]; ok {
+		return nil, fmt.Errorf("the query [%s] cannot start with pipe - it must start with madatory filter; see https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax; "+
+			"if the filter isn't missing, then please put the first word of the filter into quotes: %q", s, firstToken)
+	}
+
 	q, err := parseQuery(lex)
 	if err != nil {
 		return nil, err
@@ -765,6 +810,8 @@ func parseFilterForPhrase(lex *lexer, phrase, fieldName string) (filter, error) 
 	switch fieldName {
 	case "_time":
 		return parseFilterTimeGeneric(lex)
+	case "_stream_id":
+		return parseFilterStreamID(lex)
 	case "_stream":
 		return parseFilterStream(lex)
 	default:
@@ -1308,7 +1355,7 @@ func parseNumber(lex *lexer) (float64, string, error) {
 		return f, s, nil
 	}
 
-	return 0, "", fmt.Errorf("cannot parse %q as float64", s)
+	return 0, s, fmt.Errorf("cannot parse %q as float64", s)
 }
 
 func parseFuncArg(lex *lexer, fieldName string, callback func(args string) (filter, error)) (filter, error) {
@@ -1774,6 +1821,89 @@ func stripTimezoneSuffix(s string) string {
 	return s[:len(s)-len(tz)]
 }
 
+func parseFilterStreamID(lex *lexer) (filter, error) {
+	if lex.isKeyword("in") {
+		return parseFilterStreamIDIn(lex)
+	}
+
+	sid, err := parseStreamID(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse _stream_id: %w", err)
+	}
+	fs := &filterStreamID{
+		streamIDs: []streamID{sid},
+	}
+	return fs, nil
+}
+
+func parseFilterStreamIDIn(lex *lexer) (filter, error) {
+	if !lex.isKeyword("in") {
+		return nil, fmt.Errorf("unexpected token %q; expecting 'in'", lex.token)
+	}
+
+	// Try parsing in(arg1, ..., argN) at first
+	lexState := lex.backupState()
+	fs, err := parseFuncArgs(lex, "", func(args []string) (filter, error) {
+		streamIDs := make([]streamID, len(args))
+		for i, arg := range args {
+			if !streamIDs[i].tryUnmarshalFromString(arg) {
+				return nil, fmt.Errorf("cannot unmarshal _stream_id from %q", arg)
+			}
+		}
+		fs := &filterStreamID{
+			streamIDs: streamIDs,
+		}
+		return fs, nil
+	})
+	if err == nil {
+		return fs, nil
+	}
+
+	// Try parsing in(query)
+	lex.restoreState(lexState)
+	lex.nextToken()
+	if !lex.isKeyword("(") {
+		return nil, fmt.Errorf("missing '(' after 'in'")
+	}
+	lex.nextToken()
+
+	q, err := parseQuery(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse query inside 'in(...)': %w", err)
+	}
+
+	if !lex.isKeyword(")") {
+		return nil, fmt.Errorf("missing ')' after 'in(%s)'", q)
+	}
+	lex.nextToken()
+
+	qFieldName, err := getFieldNameFromPipes(q.pipes)
+	if err != nil {
+		return nil, fmt.Errorf("cannot determine field name for values in 'in(%s)': %w", q, err)
+	}
+
+	fs = &filterStreamID{
+		needExecuteQuery: true,
+		q:                q,
+		qFieldName:       qFieldName,
+	}
+	return fs, nil
+}
+
+func parseStreamID(lex *lexer) (streamID, error) {
+	var sid streamID
+
+	s, err := getCompoundToken(lex)
+	if err != nil {
+		return sid, err
+	}
+
+	if !sid.tryUnmarshalFromString(s) {
+		return sid, fmt.Errorf("cannot unmarshal _stream_id from %q", s)
+	}
+	return sid, nil
+}
+
 func parseFilterStream(lex *lexer) (*filterStream, error) {
 	sf, err := parseStreamFilter(lex)
 	if err != nil {
@@ -1840,6 +1970,9 @@ func isNumberPrefix(s string) bool {
 func needQuoteToken(s string) bool {
 	sLower := strings.ToLower(s)
 	if _, ok := reservedKeywords[sLower]; ok {
+		return true
+	}
+	if _, ok := pipeNames[sLower]; ok {
 		return true
 	}
 	for _, r := range s {

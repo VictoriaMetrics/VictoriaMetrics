@@ -401,7 +401,7 @@ OpsGenieConfig configures notifications via OpsGenie. See https://prometheus.io/
 | tags | Comma separated list of tags attached to the notifications. | string | false |
 | note | Additional alert note. | string | false |
 | priority | Priority level of alert. Possible values are P1, P2, P3, P4, and P5. | string | false |
-| details | A set of arbitrary key/value pairs that provide further detail about the incident. | map[string]string | false |
+| details | A set of arbitrary key/value pairs that provide further detail about the incident. | ReceiverConfigDetails | false |
 | responders | List of responders responsible for notifications. | [][OpsGenieConfigResponder](#opsgenieconfigresponder) | false |
 | entity | Optional field that can be used to specify which domain alert is related to. | string | false |
 | actions | Comma separated list of actions that will be available for the alert. | string | false |
@@ -442,7 +442,7 @@ PagerDutyConfig configures notifications via PagerDuty. See https://prometheus.i
 | class | The class/type of the event. | string | false |
 | group | A cluster or grouping of sources. | string | false |
 | component | The part or component of the affected system that is broken. | string | false |
-| details | Arbitrary key/value pairs that provide further detail about the incident. | PagerDutyDetails | false |
+| details | Arbitrary key/value pairs that provide further detail about the incident. | ReceiverConfigDetails | false |
 | http_config | HTTP client configuration. | *[HTTPConfig](#httpconfig) | false |
 
 [Back to TOC](#table-of-contents)
@@ -954,7 +954,7 @@ ServiceSpec defines additional service for CRD with user-defined params. by defa
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| useAsDefault | UseAsDefault applies changes from given service definition to the main object Service Changing from headless service to clusterIP or loadbalancer may break cross-component communication | bool | false |
+| useAsDefault | UseAsDefault applies changes from given service definition to the main object Service Changing from headless service to clusterIP or load balancer may break cross-component communication | bool | false |
 | metadata | EmbeddedObjectMetadata defines objectMeta for additional service. | [EmbeddedObjectMetadata](#embeddedobjectmetadata) | false |
 | spec | ServiceSpec describes the attributes that a user creates on a service. More info: https://kubernetes.io/docs/concepts/services-networking/service/ | v1.ServiceSpec | true |
 

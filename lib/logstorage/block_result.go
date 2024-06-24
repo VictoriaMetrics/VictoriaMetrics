@@ -263,10 +263,15 @@ func (br *blockResult) initAllColumns(bs *blockSearch, bm *bitmap) {
 		br.addTimeColumn()
 	}
 
+	if !slices.Contains(unneededColumnNames, "_stream_id") {
+		// Add _stream_id column
+		br.addStreamIDColumn(bs)
+	}
+
 	if !slices.Contains(unneededColumnNames, "_stream") {
 		// Add _stream column
 		if !br.addStreamColumn(bs) {
-			// Skip the current block, since the associated stream tags are missing.
+			// Skip the current block, since the associated stream tags are missing
 			br.reset()
 			return
 		}
@@ -315,6 +320,8 @@ func (br *blockResult) initAllColumns(bs *blockSearch, bm *bitmap) {
 func (br *blockResult) initRequestedColumns(bs *blockSearch, bm *bitmap) {
 	for _, columnName := range bs.bsw.so.neededColumnNames {
 		switch columnName {
+		case "_stream_id":
+			br.addStreamIDColumn(bs)
 		case "_stream":
 			if !br.addStreamColumn(bs) {
 				// Skip the current block, since the associated stream tags are missing.
@@ -485,7 +492,26 @@ func (br *blockResult) addTimeColumn() {
 	br.csInitialized = false
 }
 
+func (br *blockResult) addStreamIDColumn(bs *blockSearch) {
+	bb := bbPool.Get()
+	bb.B = bs.bsw.bh.streamID.marshalString(bb.B)
+	br.addConstColumn("_stream_id", bytesutil.ToUnsafeString(bb.B))
+	bbPool.Put(bb)
+}
+
 func (br *blockResult) addStreamColumn(bs *blockSearch) bool {
+	if !bs.prevStreamID.equal(&bs.bsw.bh.streamID) {
+		return br.addStreamColumnSlow(bs)
+	}
+
+	if len(bs.prevStream) == 0 {
+		return false
+	}
+	br.addConstColumn("_stream", bytesutil.ToUnsafeString(bs.prevStream))
+	return true
+}
+
+func (br *blockResult) addStreamColumnSlow(bs *blockSearch) bool {
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
 
@@ -496,6 +522,8 @@ func (br *blockResult) addStreamColumn(bs *blockSearch) bool {
 		// was recently registered and its tags aren't visible to search yet.
 		// The stream tags must become visible in a few seconds.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6042
+		bs.prevStreamID = *streamID
+		bs.prevStream = bs.prevStream[:0]
 		return false
 	}
 
@@ -506,6 +534,9 @@ func (br *blockResult) addStreamColumn(bs *blockSearch) bool {
 
 	s := bytesutil.ToUnsafeString(bb.B)
 	br.addConstColumn("_stream", s)
+
+	bs.prevStreamID = *streamID
+	bs.prevStream = append(bs.prevStream[:0], s...)
 	return true
 }
 
@@ -1149,7 +1180,7 @@ func (br *blockResult) getBucketedValue(s string, bf *byStatsField) string {
 		return bytesutil.ToUnsafeString(buf[bufLen:])
 	}
 
-	if timestamp, ok := tryParseTimestampISO8601(s); ok {
+	if timestamp, ok := TryParseTimestampISO8601(s); ok {
 		bucketSizeInt := int64(bf.bucketSize)
 		if bucketSizeInt <= 0 {
 			bucketSizeInt = 1
@@ -1173,7 +1204,7 @@ func (br *blockResult) getBucketedValue(s string, bf *byStatsField) string {
 		return bytesutil.ToUnsafeString(buf[bufLen:])
 	}
 
-	if timestamp, ok := tryParseTimestampRFC3339Nano(s); ok {
+	if timestamp, ok := TryParseTimestampRFC3339Nano(s); ok {
 		bucketSizeInt := int64(bf.bucketSize)
 		if bucketSizeInt <= 0 {
 			bucketSizeInt = 1

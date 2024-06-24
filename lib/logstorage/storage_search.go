@@ -18,6 +18,10 @@ type genericSearchOptions struct {
 	// tenantIDs must contain the list of tenantIDs for the search.
 	tenantIDs []TenantID
 
+	// streamIDs is an optional sorted list of streamIDs for the search.
+	// If it is empty, then the search is performed by tenantIDs
+	streamIDs []streamID
+
 	// filter is the filter to use for the search
 	filter filter
 
@@ -101,9 +105,15 @@ func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 }
 
 func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlockResultFunc func(workerID uint, br *blockResult)) error {
+	streamIDs := q.getStreamIDs()
+	sort.Slice(streamIDs, func(i, j int) bool {
+		return streamIDs[i].less(&streamIDs[j])
+	})
+
 	neededColumnNames, unneededColumnNames := q.getNeededColumns()
 	so := &genericSearchOptions{
 		tenantIDs:           tenantIDs,
+		streamIDs:           streamIDs,
 		filter:              q.f,
 		neededColumnNames:   neededColumnNames,
 		unneededColumnNames: unneededColumnNames,
@@ -421,8 +431,14 @@ func hasFilterInWithQueryForFilter(f filter) bool {
 		return false
 	}
 	visitFunc := func(f filter) bool {
-		fi, ok := f.(*filterIn)
-		return ok && fi.needExecuteQuery
+		switch t := f.(type) {
+		case *filterIn:
+			return t.needExecuteQuery
+		case *filterStreamID:
+			return t.needExecuteQuery
+		default:
+			return false
+		}
 	}
 	return visitFilter(f, visitFunc)
 }
@@ -459,31 +475,69 @@ func initFilterInValuesForFilter(cache map[string][]string, f filter, getFieldVa
 	}
 
 	visitFunc := func(f filter) bool {
-		fi, ok := f.(*filterIn)
-		return ok && fi.needExecuteQuery
+		switch t := f.(type) {
+		case *filterIn:
+			return t.needExecuteQuery
+		case *filterStreamID:
+			return t.needExecuteQuery
+		default:
+			return false
+		}
 	}
 	copyFunc := func(f filter) (filter, error) {
-		fi := f.(*filterIn)
-
-		qStr := fi.q.String()
-		values, ok := cache[qStr]
-		if !ok {
-			vs, err := getFieldValuesFunc(fi.q, fi.qFieldName)
+		switch t := f.(type) {
+		case *filterIn:
+			values, err := getValuesForQuery(t.q, t.qFieldName, cache, getFieldValuesFunc)
 			if err != nil {
-				return nil, fmt.Errorf("cannot obtain unique values for %s: %w", fi, err)
+				return nil, fmt.Errorf("cannot obtain unique values for %s: %w", t, err)
 			}
-			cache[qStr] = vs
-			values = vs
-		}
 
-		fiNew := &filterIn{
-			fieldName: fi.fieldName,
-			q:         fi.q,
-			values:    values,
+			fiNew := &filterIn{
+				fieldName: t.fieldName,
+				q:         t.q,
+				values:    values,
+			}
+			return fiNew, nil
+		case *filterStreamID:
+			values, err := getValuesForQuery(t.q, t.qFieldName, cache, getFieldValuesFunc)
+			if err != nil {
+				return nil, fmt.Errorf("cannot obtain unique values for %s: %w", t, err)
+			}
+
+			// convert values to streamID list
+			streamIDs := make([]streamID, 0, len(values))
+			for _, v := range values {
+				var sid streamID
+				if sid.tryUnmarshalFromString(v) {
+					streamIDs = append(streamIDs, sid)
+				}
+			}
+
+			fsNew := &filterStreamID{
+				streamIDs: streamIDs,
+				q:         t.q,
+			}
+			return fsNew, nil
+		default:
+			return f, nil
 		}
-		return fiNew, nil
 	}
 	return copyFilter(f, visitFunc, copyFunc)
+}
+
+func getValuesForQuery(q *Query, qFieldName string, cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) ([]string, error) {
+	qStr := q.String()
+	values, ok := cache[qStr]
+	if ok {
+		return values, nil
+	}
+
+	vs, err := getFieldValuesFunc(q, qFieldName)
+	if err != nil {
+		return nil, err
+	}
+	cache[qStr] = vs
+	return vs, nil
 }
 
 func initFilterInValuesForPipes(cache map[string][]string, pipes []pipe, getFieldValuesFunc getFieldValuesFunc) ([]pipe, error) {
@@ -653,6 +707,12 @@ func (pt *partition) search(minTimestamp, maxTimestamp int64, sf *StreamFilter, 
 	var streamIDs []streamID
 	if sf != nil {
 		streamIDs = pt.idb.searchStreamIDs(tenantIDs, sf)
+		if len(so.streamIDs) > 0 {
+			streamIDs = intersectStreamIDs(streamIDs, so.streamIDs)
+		}
+		tenantIDs = nil
+	} else if len(so.streamIDs) > 0 {
+		streamIDs = getStreamIDsForTenantIDs(so.streamIDs, tenantIDs)
 		tenantIDs = nil
 	}
 	if hasStreamFilters(f) {
@@ -669,6 +729,36 @@ func (pt *partition) search(minTimestamp, maxTimestamp int64, sf *StreamFilter, 
 		needAllColumns:      so.needAllColumns,
 	}
 	return pt.ddb.search(soInternal, workCh, stopCh)
+}
+
+func intersectStreamIDs(a, b []streamID) []streamID {
+	m := make(map[streamID]struct{}, len(b))
+	for _, streamID := range b {
+		m[streamID] = struct{}{}
+	}
+
+	result := make([]streamID, 0, len(a))
+	for _, streamID := range a {
+		if _, ok := m[streamID]; ok {
+			result = append(result, streamID)
+		}
+	}
+	return result
+}
+
+func getStreamIDsForTenantIDs(streamIDs []streamID, tenantIDs []TenantID) []streamID {
+	m := make(map[TenantID]struct{}, len(tenantIDs))
+	for _, tenantID := range tenantIDs {
+		m[tenantID] = struct{}{}
+	}
+
+	result := make([]streamID, 0, len(streamIDs))
+	for _, streamID := range streamIDs {
+		if _, ok := m[streamID.tenantID]; ok {
+			result = append(result, streamID)
+		}
+	}
+	return result
 }
 
 func hasStreamFilters(f filter) bool {

@@ -26,8 +26,14 @@ func main() {
 				UsageText: "More info in https://docs.victoriametrics.com/vmalert-tool.html#Unit-testing-for-rules",
 				Flags: []cli.Flag{
 					&cli.StringSliceFlag{
-						Name:     "files",
-						Usage:    "files to run unittest with. Supports an array of values separated by comma or specified via multiple flags.",
+						Name: "files",
+						Usage: `File path or http url with test files. Supports an array of values separated by comma or specified via multiple flags.
+						Supports hierarchical patterns and regexpes.
+Examples:
+ -files="/path/to/file". Path to a single test file.
+ -files="http://<some-server-addr>/path/to/test.yaml". HTTP URL to a test file.
+ -files="dir/**/*.yaml". Includes all the .yaml files in "dir" subfolders recursively.
+ `,
 						Required: true,
 					},
 					&cli.BoolFlag{

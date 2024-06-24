@@ -486,6 +486,14 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
   scrape_duration_seconds > 1.5
   ```
 
+* `scrape_response_size_bytes` - response size in bytes for the given target. This allows to monitor amount of data scraped
+  and to adjust `max_scrape_size` for scraped targets. For example, the following [MetricsQL query](https://docs.victoriametrics.com/metricsql/)
+  returns targets with scrape response > 10MiB:
+
+  ```metricsql
+  max_scrape_size > 10MiB
+  ```
+
 * `scrape_timeout_seconds` - the configured timeout for the current scrape target (aka `scrape_timeout`).
   This allows detecting targets with scrape durations close to the configured scrape timeout.
   For example, the following [MetricsQL query](https://docs.victoriametrics.com/metricsql/) returns targets (identified by `instance` label),
@@ -1955,7 +1963,7 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
   -promscrape.kumaSDCheckInterval duration
      Interval for checking for changes in kuma service discovery. This works only if kuma_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#kuma_sd_configs for details (default 30s)
   -promscrape.maxDroppedTargets int
-     The maximum number of droppedTargets to show at /api/v1/targets page. Increase this value if your setup drops more scrape targets during relabeling and you need investigating labels for all the dropped targets. Note that the increased number of tracked dropped targets may result in increased memory usage (default 1000)
+     The maximum number of droppedTargets to show at /api/v1/targets page. Increase this value if your setup drops more scrape targets during relabeling and you need investigating labels for all the dropped targets. Note that the increased number of tracked dropped targets may result in increased memory usage (default 10000)
   -promscrape.maxResponseHeadersSize size
      The maximum size of http response headers from Prometheus scrape targets
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 4096)

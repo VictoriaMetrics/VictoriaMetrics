@@ -48,7 +48,7 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, loaded, markdownParsin
     ...item,
     _vmui_time: item._time ? dayjs(item._time).tz().format(`${DATE_TIME_FORMAT}.SSS`) : "",
     _vmui_data: JSON.stringify(item, null, 2),
-    _vmui_markdown: marked(item._msg.replace(/```/g, "\n```\n")) as string,
+    _vmui_markdown: item._msg ? marked(item._msg.replace(/```/g, "\n```\n")) as string : ""
   })) as Logs[], [data, timezone]);
 
   const columns = useMemo(() => {

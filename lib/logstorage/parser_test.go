@@ -676,6 +676,8 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`foo or bar baz or xyz`, `foo or bar baz or xyz`)
 	f(`(foo or bar) (baz or xyz)`, `(foo or bar) (baz or xyz)`)
 	f(`(foo OR bar) AND baz`, `(foo or bar) baz`)
+	f(`'stats' foo`, `"stats" foo`)
+	f(`"filter" bar copy fields avg baz`, `"filter" bar "copy" "fields" "avg" baz`)
 
 	// parens
 	f(`foo:(bar baz or not :xxx)`, `foo:bar foo:baz or !foo:xxx`)
@@ -693,6 +695,15 @@ func TestParseQuerySuccess(t *testing.T) {
 
 	// empty filter
 	f(`"" or foo:"" and not bar:""`, `"" or foo:"" !bar:""`)
+
+	// _stream_id filter
+	f(`_stream_id:0000007b000001c8302bc96e02e54e5524b3a68ec271e55e`, `_stream_id:0000007b000001c8302bc96e02e54e5524b3a68ec271e55e`)
+	f(`_stream_id:"0000007b000001c8302bc96e02e54e5524b3a68ec271e55e"`, `_stream_id:0000007b000001c8302bc96e02e54e5524b3a68ec271e55e`)
+	f(`_stream_id:in()`, `_stream_id:in()`)
+	f(`_stream_id:in(0000007b000001c8302bc96e02e54e5524b3a68ec271e55e)`, `_stream_id:0000007b000001c8302bc96e02e54e5524b3a68ec271e55e`)
+	f(`_stream_id:in(0000007b000001c8302bc96e02e54e5524b3a68ec271e55e, "0000007b000001c850d9950ea6196b1a4812081265faa1c7")`,
+		`_stream_id:in(0000007b000001c8302bc96e02e54e5524b3a68ec271e55e,0000007b000001c850d9950ea6196b1a4812081265faa1c7)`)
+	f(`_stream_id:in(_time:5m | fields _stream_id)`, `_stream_id:in(_time:5m | fields _stream_id)`)
 
 	// _stream filters
 	f(`_stream:{}`, `_stream:{}`)
@@ -1214,6 +1225,11 @@ func TestParseQueryFailure(t *testing.T) {
 	f("not (abc")
 	f("!")
 
+	// pipe names without quoutes
+	f(`filter foo:bar`)
+	f(`stats count()`)
+	f(`count()`)
+
 	// invalid parens
 	f("(")
 	f("foo (bar ")
@@ -1230,6 +1246,13 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`"foo`)
 	f(`'foo`)
 	f("`foo")
+
+	// invalid _stream_id filters
+	f("_stream_id:foo")
+	f("_stream_id:()")
+	f("_stream_id:in(foo)")
+	f("_stream_id:in(foo | bar)")
+	f("_stream_id:in(* | stats by (x) count() y)")
 
 	// invalid _stream filters
 	f("_stream:")

@@ -196,7 +196,7 @@ func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f func(samples []pushSample
 		das.m = make(map[string]*dedupAggrSample, len(m))
 		das.sizeBytes.Store(0)
 		das.itemsCount.Store(0)
-		das.samplesBuf = das.samplesBuf[:0]
+		das.samplesBuf = make([]dedupAggrSample, 0, len(das.samplesBuf))
 	}
 
 	das.mu.Unlock()
