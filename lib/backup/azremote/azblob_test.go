@@ -8,33 +8,45 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-func Test_FSInit(t *testing.T) {
+func Test_cleanDirectory(t *testing.T) {
 	cases := map[string]struct {
-		IgnoreFakeEnv bool
-		Env           testEnv
-		Dir           string
-		ExpectedDir   string
-		ExpectedErr   string
-		ExpectedLogs  []string
+		Dir         string
+		ExpectedDir string
 	}{
 		"dir / prefix is removed": {
 			Dir:         "/foo/",
 			ExpectedDir: "foo/",
-			ExpectedErr: "failed to detect any credentials",
 		},
 		"multiple dir prefix / is removed": {
 			Dir:         "//foo/",
 			ExpectedDir: "foo/",
-			ExpectedErr: "failed to detect any credentials",
 		},
 		"suffix is added": {
 			Dir:         "foo",
 			ExpectedDir: "foo/",
-			ExpectedErr: "failed to detect any credentials",
 		},
+	}
+
+	for name, test := range cases {
+		t.Run(name, func(t *testing.T) {
+			dir := cleanDirectory(test.Dir)
+
+			if dir != test.ExpectedDir {
+				t.Errorf("expected dir %q, got %q", test.ExpectedDir, dir)
+			}
+		})
+	}
+}
+
+func Test_FSInit(t *testing.T) {
+	cases := map[string]struct {
+		IgnoreFakeEnv bool
+		Env           testEnv
+		ExpectedDir   string
+		ExpectedErr   string
+		ExpectedLogs  []string
+	}{
 		"connection string err bubbles": {
-			Dir:         "foo",
-			ExpectedDir: "foo/",
 			Env: map[string]string{
 				envStorageAccCs: "teapot",
 			},
@@ -42,16 +54,12 @@ func Test_FSInit(t *testing.T) {
 			ExpectedErr:  `connection string is either blank or malformed`,
 		},
 		"connection string env var is used": {
-			Dir:         "foo",
-			ExpectedDir: "foo/",
 			Env: map[string]string{
 				envStorageAccCs: "BlobEndpoint=https://test.blob.core.windows.net/;SharedAccessSignature=",
 			},
 			ExpectedLogs: []string{`Creating AZBlob service client from connection string`},
 		},
 		"base envtemplate package is used and connection string err bubbles": {
-			Dir:           "foo",
-			ExpectedDir:   "foo/",
 			IgnoreFakeEnv: true,
 			Env: map[string]string{
 				envStorageAccCs: "BlobEndpoint=https://test.blob.core.windows.net/;SharedAccessSignature=",
@@ -59,8 +67,6 @@ func Test_FSInit(t *testing.T) {
 			ExpectedErr: "failed to detect any credentials",
 		},
 		"shared key credential err bubbles": {
-			Dir:         "foo",
-			ExpectedDir: "foo/",
 			Env: map[string]string{
 				envStorageAcctName: "test",
 				envStorageAccKey:   "teapot",
@@ -69,8 +75,6 @@ func Test_FSInit(t *testing.T) {
 			ExpectedErr:  `illegal base64 data at input`,
 		},
 		"uses shared key credential": {
-			Dir:         "foo",
-			ExpectedDir: "foo/",
 			Env: map[string]string{
 				envStorageAcctName: "test",
 				envStorageAccKey:   "dGVhcG90Cg==",
@@ -78,8 +82,6 @@ func Test_FSInit(t *testing.T) {
 			ExpectedLogs: []string{`Creating AZBlob service client from account name and key`},
 		},
 		"allows overriding domain name with account name and key": {
-			Dir:         "foo",
-			ExpectedDir: "foo/",
 			Env: map[string]string{
 				envStorageAcctName: "test",
 				envStorageAccKey:   "dGVhcG90Cg==",
@@ -91,8 +93,6 @@ func Test_FSInit(t *testing.T) {
 			},
 		},
 		"can't specify both connection string and shared key": {
-			Dir:         "foo",
-			ExpectedDir: "foo/",
 			Env: map[string]string{
 				envStorageAccCs:    "teapot",
 				envStorageAcctName: "test",
@@ -101,16 +101,12 @@ func Test_FSInit(t *testing.T) {
 			ExpectedErr: `only one of connection string, account name and key, or default credential can be specified`,
 		},
 		"just use default is an err": {
-			Dir:         "foo",
-			ExpectedDir: "foo/",
 			Env: map[string]string{
 				envStorageDefault: "true",
 			},
 			ExpectedErr: "failed to detect any credentials",
 		},
 		"uses default credential": {
-			Dir:         "foo",
-			ExpectedDir: "foo/",
 			Env: map[string]string{
 				envStorageDefault:  "true",
 				envStorageAcctName: "test",
@@ -126,17 +122,13 @@ func Test_FSInit(t *testing.T) {
 			logger.SetOutputForTests(tlog)
 			t.Cleanup(logger.ResetOutputForTest)
 
-			fs := &FS{Dir: test.Dir}
+			fs := &FS{Dir: "foo"}
 			if test.Env != nil && !test.IgnoreFakeEnv {
 				fs.env = test.Env.LookupEnv
 			}
 
 			err := fs.Init()
 			checkErr(t, err, test.ExpectedErr)
-
-			if fs.Dir != test.ExpectedDir {
-				t.Errorf("expected dir %q, got %q", test.ExpectedDir, fs.Dir)
-			}
 
 			tlog.MustContain(t, test.ExpectedLogs...)
 		})
