@@ -1,11 +1,11 @@
 ---
-sort: 6
-weight: 6
+sort: 7
+weight: 7
 title: Notifications in Managed VictoriaMetrics
 menu:
   docs:
     parent: "managed"
-    weight: 6
+    weight: 7
 aliases:
 - /managed-victoriametrics/setup-notifications.html
 ---

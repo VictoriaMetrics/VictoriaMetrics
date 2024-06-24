@@ -1,11 +1,11 @@
 ---
-sort: 4
-weight: 4
+sort: 5
+weight: 5
 title: Alerting with vmalert and Managed VictoriaMetrics
 menu:
   docs:
     parent: "managed"
-    weight: 4
+    weight: 5
 aliases:
 - /managed-victoriametrics/alerting-vmalert-managed-victoria-metrics.html
 ---
