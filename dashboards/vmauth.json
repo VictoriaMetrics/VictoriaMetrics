@@ -37,7 +37,7 @@
       "title": "vmauth docs",
       "tooltip": "vmauth docs",
       "type": "link",
-      "url": "https://docs.victoriametrics.com/vmagent.html"
+      "url": "https://docs.victoriametrics.com/vmauth.html"
     },
     {
       "asDropdown": false,
@@ -155,7 +155,7 @@
             "uid": "$ds"
           },
           "exemplar": false,
-          "expr": "count(vmalert_config_last_reload_successful{job=~\"$job\", instance=~\"$instance\"} < 1 ) or 0",
+          "expr": "count(vmauth_config_last_reload_successful{job=~\"$job\", instance=~\"$instance\"} < 1 ) or 0",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -604,7 +604,7 @@
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_unauthorized_user_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
-          "hide": true,
+          "hide": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "B"
@@ -706,7 +706,7 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "max(\nmax_over_time(vmauth_user_concurrent_requests_current{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[5m])\n/ \nvmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}\n) by(username) > 0\n",
+          "expr": "max(\nmax_over_time(vmauth_user_concurrent_requests_current{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])\n/ \nvmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}\n) by(username) > 0\n",
           "hide": false,
           "interval": "5m",
           "legendFormat": "__auto",
