@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.2](https://github.com/googleapis/google-cloud-go/compare/auth/v0.5.1...auth/v0.5.2) (2024-06-24)
+
+
+### Bug Fixes
+
+* **auth:** Fetch initial token when CachedTokenProviderOptions.DisableAutoRefresh is true ([#10415](https://github.com/googleapis/google-cloud-go/issues/10415)) ([3266763](https://github.com/googleapis/google-cloud-go/commit/32667635ca2efad05cd8c087c004ca07d7406913)), refs [#10414](https://github.com/googleapis/google-cloud-go/issues/10414)
+
 ## [0.5.1](https://github.com/googleapis/google-cloud-go/compare/auth/v0.5.0...auth/v0.5.1) (2024-05-31)
 
 

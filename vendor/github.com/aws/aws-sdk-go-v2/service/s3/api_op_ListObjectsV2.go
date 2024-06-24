@@ -374,6 +374,12 @@ func (c *Client) addOperationListObjectsV2Middlewares(stack *middleware.Stack, o
 	if err = addTimeOffsetBuild(stack, c); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
+		return err
+	}
 	if err = addOpListObjectsV2ValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -409,20 +415,6 @@ func (c *Client) addOperationListObjectsV2Middlewares(stack *middleware.Stack, o
 	}
 	return nil
 }
-
-func (v *ListObjectsV2Input) bucket() (string, bool) {
-	if v.Bucket == nil {
-		return "", false
-	}
-	return *v.Bucket, true
-}
-
-// ListObjectsV2APIClient is a client that implements the ListObjectsV2 operation.
-type ListObjectsV2APIClient interface {
-	ListObjectsV2(context.Context, *ListObjectsV2Input, ...func(*Options)) (*ListObjectsV2Output, error)
-}
-
-var _ ListObjectsV2APIClient = (*Client)(nil)
 
 // ListObjectsV2PaginatorOptions is the paginator options for ListObjectsV2
 type ListObjectsV2PaginatorOptions struct {
@@ -489,6 +481,9 @@ func (p *ListObjectsV2Paginator) NextPage(ctx context.Context, optFns ...func(*O
 	}
 	params.MaxKeys = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.ListObjectsV2(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -510,6 +505,20 @@ func (p *ListObjectsV2Paginator) NextPage(ctx context.Context, optFns ...func(*O
 
 	return result, nil
 }
+
+func (v *ListObjectsV2Input) bucket() (string, bool) {
+	if v.Bucket == nil {
+		return "", false
+	}
+	return *v.Bucket, true
+}
+
+// ListObjectsV2APIClient is a client that implements the ListObjectsV2 operation.
+type ListObjectsV2APIClient interface {
+	ListObjectsV2(context.Context, *ListObjectsV2Input, ...func(*Options)) (*ListObjectsV2Output, error)
+}
+
+var _ ListObjectsV2APIClient = (*Client)(nil)
 
 func newServiceMetadataMiddleware_opListObjectsV2(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{

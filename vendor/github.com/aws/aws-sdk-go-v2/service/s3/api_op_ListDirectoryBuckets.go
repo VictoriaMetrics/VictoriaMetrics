@@ -147,6 +147,12 @@ func (c *Client) addOperationListDirectoryBucketsMiddlewares(stack *middleware.S
 	if err = addTimeOffsetBuild(stack, c); err != nil {
 		return err
 	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListDirectoryBuckets(options.Region), middleware.Before); err != nil {
 		return err
 	}
@@ -179,14 +185,6 @@ func (c *Client) addOperationListDirectoryBucketsMiddlewares(stack *middleware.S
 	}
 	return nil
 }
-
-// ListDirectoryBucketsAPIClient is a client that implements the
-// ListDirectoryBuckets operation.
-type ListDirectoryBucketsAPIClient interface {
-	ListDirectoryBuckets(context.Context, *ListDirectoryBucketsInput, ...func(*Options)) (*ListDirectoryBucketsOutput, error)
-}
-
-var _ ListDirectoryBucketsAPIClient = (*Client)(nil)
 
 // ListDirectoryBucketsPaginatorOptions is the paginator options for
 // ListDirectoryBuckets
@@ -254,6 +252,9 @@ func (p *ListDirectoryBucketsPaginator) NextPage(ctx context.Context, optFns ...
 	}
 	params.MaxDirectoryBuckets = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.ListDirectoryBuckets(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -272,6 +273,14 @@ func (p *ListDirectoryBucketsPaginator) NextPage(ctx context.Context, optFns ...
 
 	return result, nil
 }
+
+// ListDirectoryBucketsAPIClient is a client that implements the
+// ListDirectoryBuckets operation.
+type ListDirectoryBucketsAPIClient interface {
+	ListDirectoryBuckets(context.Context, *ListDirectoryBucketsInput, ...func(*Options)) (*ListDirectoryBucketsOutput, error)
+}
+
+var _ ListDirectoryBucketsAPIClient = (*Client)(nil)
 
 func newServiceMetadataMiddleware_opListDirectoryBuckets(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{

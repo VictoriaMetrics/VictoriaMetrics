@@ -8,7 +8,7 @@ ROOT_IMAGE_SCRATCH ?= scratch
 SKIP_SCRATCH_BUILD ?= false
 CERTS_IMAGE := alpine:3.20.0
 
-GO_BUILDER_IMAGE := golang:1.21.11-alpine
+GO_BUILDER_IMAGE := golang:1.23rc1-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
 DOCKER ?= docker

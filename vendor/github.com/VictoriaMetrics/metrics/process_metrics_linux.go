@@ -80,7 +80,7 @@ func writeProcessMetrics(w io.Writer) {
 	WriteCounterUint64(w, "process_major_pagefaults_total", uint64(p.Majflt))
 	WriteCounterUint64(w, "process_minor_pagefaults_total", uint64(p.Minflt))
 	WriteGaugeUint64(w, "process_num_threads", uint64(p.NumThreads))
-	WriteGaugeUint64(w, "process_resident_memory_bytes", uint64(p.Rss)*4096)
+	WriteGaugeUint64(w, "process_resident_memory_bytes", uint64(p.Rss)*uint64(os.Getpagesize()))
 	WriteGaugeUint64(w, "process_start_time_seconds", uint64(startTimeSeconds))
 	WriteGaugeUint64(w, "process_virtual_memory_bytes", uint64(p.Vsize))
 	writeProcessMemMetrics(w)
