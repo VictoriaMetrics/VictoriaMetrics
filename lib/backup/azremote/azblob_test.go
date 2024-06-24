@@ -66,6 +66,12 @@ func Test_FSInit(t *testing.T) {
 			},
 			ExpectedErr: "failed to detect any credentials",
 		},
+		"only storage account name is an err": {
+			Env: map[string]string{
+				envStorageAcctName: "test",
+			},
+			ExpectedErr: "failed to detect any credentials",
+		},
 		"shared key credential err bubbles": {
 			Env: map[string]string{
 				envStorageAcctName: "test",
