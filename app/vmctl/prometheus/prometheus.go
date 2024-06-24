@@ -54,7 +54,7 @@ func (f filter) inRange(min, max int64) bool {
 // NewClient creates and validates new Client
 // with given Config
 func NewClient(cfg Config) (*Client, error) {
-	db, err := tsdb.OpenDBReadOnly(cfg.Snapshot, nil)
+	db, err := tsdb.OpenDBReadOnly(cfg.Snapshot, "", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open snapshot %q: %s", cfg.Snapshot, err)
 	}
