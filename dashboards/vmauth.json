@@ -591,7 +591,7 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "sum(rollup_rate(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval], \"min\")) by(username)",
+          "expr": "sum(rate(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by(username)",
           "hide": false,
           "legendFormat": "__auto",
           "range": true,
@@ -818,6 +818,7 @@
         "type": "prometheus",
         "uid": "${ds}"
       },
+      "description": " The number of concurrent connections processed by vmauth reached one of limits. Possible solutions:\n- increase global limit with flag -maxConcurrentRequests\n- increase limit with flag: -maxConcurrentPerUserRequests for all users or with config option `max_concurrent_requests` per user.\n- deploy additional vmauth replicas\n- check requests latency at backend service and allocate resources to it if needed",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -922,9 +923,9 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vmauth_concurrent_requests_limit_reached_total[30m])) > 0",
+          "expr": "sum(rate(vmauth_concurrent_requests_limit_reached_total[$__rate_interval])) > 0",
           "hide": false,
-          "legendFormat": "global",
+          "legendFormat": "global at {{ $instance }}",
           "range": true,
           "refId": "C"
         }
@@ -1036,9 +1037,9 @@
             "uid": "${ds}"
           },
           "editorMode": "code",
-          "expr": "max(vmauth_unauthorized_user_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=~\"(0.99|0.5)\"}) by (quantile, username) > 0",
+          "expr": "max(vmauth_unauthorized_user_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=~\"(0.99|0.5)\"}) by (quantile) > 0",
           "hide": false,
-          "legendFormat": "user: {{username}} q: {{ quantile}}",
+          "legendFormat": "user: unauthorized q: {{ quantile}}",
           "range": true,
           "refId": "B"
         }
@@ -1106,8 +1107,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1212,8 +1212,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1321,8 +1320,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1478,8 +1476,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1614,8 +1611,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1720,8 +1716,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1829,8 +1824,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1954,8 +1948,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2059,8 +2052,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2150,8 +2142,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2303,8 +2294,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               }
@@ -2364,9 +2354,9 @@
     "list": [
       {
         "current": {
-          "selected": true,
-          "text": "c7",
-          "value": "Dry0wZn4z"
+          "selected": false,
+          "text": "c15",
+          "value": "C3TC2Z7Vz"
         },
         "hide": 0,
         "includeAll": false,
@@ -2382,7 +2372,7 @@
       },
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": [
             "All"
           ],
@@ -2415,10 +2405,10 @@
         "current": {
           "selected": false,
           "text": [
-            "10.208.108.174"
+            "All"
           ],
           "value": [
-            "10.208.108.174"
+            "$__all"
           ]
         },
         "datasource": {
@@ -2443,7 +2433,7 @@
       },
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": [
             "All"
           ],
@@ -2492,6 +2482,6 @@
   "timezone": "",
   "title": "VictoriaMetrics - vmauth",
   "uid": "nbuo5Mr4k",
-  "version": 9,
+  "version": 12,
   "weekStart": ""
 }
