@@ -31,7 +31,6 @@ const ExploreLogs: FC = () => {
   const { logs, isLoading, error, fetchLogs } = useFetchLogs(serverUrl, query, limit);
   const { fetchLogHits, ...dataLogHits } = useFetchLogHits(serverUrl, query);
   const [queryError, setQueryError] = useState<ErrorTypes | string>("");
-  const [loaded, isLoaded] = useState(false);
   const [markdownParsing, setMarkdownParsing] = useState(getFromStorage("LOGS_MARKDOWN") === "true");
 
   const getPeriod = useCallback(() => {
@@ -51,9 +50,7 @@ const ExploreLogs: FC = () => {
     setPeriod(newPeriod);
     fetchLogs(newPeriod).then(() => {
       fetchLogHits(newPeriod);
-    }).catch(e => e).finally(() => {
-      isLoaded(true);
-    });
+    }).catch(e => e);
 
     setSearchParamsFromKeys( {
       query,
@@ -99,14 +96,12 @@ const ExploreLogs: FC = () => {
       {!error && (
         <ExploreLogsBarChart
           query={query}
-          loaded={loaded}
           period={period}
           {...dataLogHits}
         />
       )}
       <ExploreLogsBody
         data={logs}
-        loaded={loaded}
         markdownParsing={markdownParsing}
       />
     </div>

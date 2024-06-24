@@ -16,10 +16,9 @@ interface Props {
   period: TimeParams;
   error?: string;
   isLoading: boolean;
-  loaded: boolean;
 }
 
-const ExploreLogsBarChart: FC<Props> = ({ logHits, period, error, loaded }) => {
+const ExploreLogsBarChart: FC<Props> = ({ logHits, period, error }) => {
   const { isMobile } = useDeviceDetect();
   const timeDispatch = useTimeDispatch();
 
@@ -57,13 +56,13 @@ const ExploreLogsBarChart: FC<Props> = ({ logHits, period, error, loaded }) => {
         "vm-block_mobile": isMobile,
       })}
     >
-      {!error && loaded && noDataMessage && (
+      {!error && noDataMessage && (
         <div className="vm-explore-logs-chart__empty">
           <Alert variant="info">{noDataMessage}</Alert>
         </div>
       )}
 
-      {error && loaded && noDataMessage && (
+      {error && noDataMessage && (
         <div className="vm-explore-logs-chart__empty">
           <Alert variant="error">{error}</Alert>
         </div>
