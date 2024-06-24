@@ -108,6 +108,7 @@ func (as *rateAggrState) pushSamples(samples []pushSample) {
 func (as *rateAggrState) flushState(ctx *flushCtx, _ bool) {
 	currentTime := fasttime.UnixTimestamp()
 	currentTimeMsec := int64(currentTime) * 1000
+	var staleOutputSamples, staleInputSamples int
 
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
@@ -120,6 +121,7 @@ func (as *rateAggrState) flushState(ctx *flushCtx, _ bool) {
 			// Mark the current entry as deleted
 			sv.deleted = deleted
 			sv.mu.Unlock()
+			staleOutputSamples++
 			m.Delete(k)
 			return true
 		}
@@ -130,6 +132,7 @@ func (as *rateAggrState) flushState(ctx *flushCtx, _ bool) {
 		for k1, v1 := range lvs {
 			if currentTime > v1.deleteDeadline {
 				delete(lvs, k1)
+				staleInputSamples++
 				continue
 			}
 			rateInterval := v1.timestamp - v1.prevTimestamp
@@ -153,4 +156,6 @@ func (as *rateAggrState) flushState(ctx *flushCtx, _ bool) {
 		ctx.appendSeries(key, as.suffix, currentTimeMsec, rate)
 		return true
 	})
+	ctx.a.staleOutputSamples[as.suffix].Add(staleOutputSamples)
+	ctx.a.staleInputSamples[as.suffix].Add(staleInputSamples)
 }

@@ -57,11 +57,12 @@ func CheckStreamAggrConfig() error {
 		return nil
 	}
 	pushNoop := func(_ []prompbmarshal.TimeSeries) {}
-	opts := &streamaggr.Options{
+	opts := streamaggr.Options{
 		DedupInterval:        *streamAggrDedupInterval,
 		DropInputLabels:      *streamAggrDropInputLabels,
 		IgnoreOldSamples:     *streamAggrIgnoreOldSamples,
 		IgnoreFirstIntervals: *streamAggrIgnoreFirstIntervals,
+		Alias:                "global",
 	}
 	sas, err := streamaggr.LoadFromFile(*streamAggrConfig, pushNoop, opts)
 	if err != nil {
@@ -81,21 +82,23 @@ func HasStreamAggrConfigured() bool {
 // MustStopStreamAggr must be called when stream aggr is no longer needed.
 func InitStreamAggr() {
 	saCfgReloaderStopCh = make(chan struct{})
+	rwctx := "global"
 
 	if *streamAggrConfig == "" {
 		if *streamAggrDedupInterval > 0 {
-			deduplicator = streamaggr.NewDeduplicator(pushAggregateSeries, *streamAggrDedupInterval, *streamAggrDropInputLabels)
+			deduplicator = streamaggr.NewDeduplicator(pushAggregateSeries, *streamAggrDedupInterval, *streamAggrDropInputLabels, rwctx)
 		}
 		return
 	}
 
 	sighupCh := procutil.NewSighupChan()
 
-	opts := &streamaggr.Options{
+	opts := streamaggr.Options{
 		DedupInterval:        *streamAggrDedupInterval,
 		DropInputLabels:      *streamAggrDropInputLabels,
 		IgnoreOldSamples:     *streamAggrIgnoreOldSamples,
 		IgnoreFirstIntervals: *streamAggrIgnoreFirstIntervals,
+		Alias:                rwctx,
 	}
 	sas, err := streamaggr.LoadFromFile(*streamAggrConfig, pushAggregateSeries, opts)
 	if err != nil {
@@ -125,11 +128,12 @@ func reloadStreamAggrConfig() {
 	logger.Infof("reloading -streamAggr.config=%q", *streamAggrConfig)
 	saCfgReloads.Inc()
 
-	opts := &streamaggr.Options{
+	opts := streamaggr.Options{
 		DedupInterval:        *streamAggrDedupInterval,
 		DropInputLabels:      *streamAggrDropInputLabels,
 		IgnoreOldSamples:     *streamAggrIgnoreOldSamples,
 		IgnoreFirstIntervals: *streamAggrIgnoreFirstIntervals,
+		Alias:                "global",
 	}
 	sasNew, err := streamaggr.LoadFromFile(*streamAggrConfig, pushAggregateSeries, opts)
 	if err != nil {

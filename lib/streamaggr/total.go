@@ -124,8 +124,9 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *totalAggrState) removeOldEntries(currentTime uint64) {
+func (as *totalAggrState) removeOldEntries(ctx *flushCtx, currentTime uint64) {
 	m := &as.m
+	var staleInputSamples, staleOutputSamples int
 	m.Range(func(k, v interface{}) bool {
 		sv := v.(*totalStateValue)
 
@@ -134,12 +135,14 @@ func (as *totalAggrState) removeOldEntries(currentTime uint64) {
 		if deleted {
 			// Mark the current entry as deleted
 			sv.deleted = deleted
+			staleOutputSamples++
 		} else {
 			// Delete outdated entries in sv.lastValues
 			m := sv.lastValues
 			for k1, v1 := range m {
 				if currentTime > v1.deleteDeadline {
 					delete(m, k1)
+					staleInputSamples++
 				}
 			}
 		}
@@ -150,13 +153,15 @@ func (as *totalAggrState) removeOldEntries(currentTime uint64) {
 		}
 		return true
 	})
+	ctx.a.staleInputSamples[as.suffix].Add(staleInputSamples)
+	ctx.a.staleOutputSamples[as.suffix].Add(staleOutputSamples)
 }
 
 func (as *totalAggrState) flushState(ctx *flushCtx, resetState bool) {
 	currentTime := fasttime.UnixTimestamp()
 	currentTimeMsec := int64(currentTime) * 1000
 
-	as.removeOldEntries(currentTime)
+	as.removeOldEntries(ctx, currentTime)
 
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
