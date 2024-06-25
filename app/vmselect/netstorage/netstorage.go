@@ -1681,6 +1681,11 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 	maxSamplesPerWorker := uint64(*maxSamplesPerQuery) / uint64(len(sns))
 	processBlock := func(mb *storage.MetricBlock, workerID uint) error {
 		blocksRead.Add(workerID, 1)
+
+		// Take into account all the samples in the block when checking for *maxSamplesPerQuery limit,
+		// since CPU time is spent on unpacking all the samples in the block, even if only a few samples
+		// are left then because of the given time range.
+		// This allows effectively limiting CPU resources used per query.
 		n := samples.Add(workerID, uint64(mb.Block.RowsCount()))
 		if *maxSamplesPerQuery > 0 && n > maxSamplesPerWorker && samples.GetTotal() > uint64(*maxSamplesPerQuery) {
 			return &limitExceededErr{
@@ -1689,6 +1694,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 					"use more specific label filters in order to select fewer series", *maxSamplesPerQuery),
 			}
 		}
+
 		if err := tbfw.RegisterAndWriteBlock(mb, workerID); err != nil {
 			return fmt.Errorf("cannot write MetricBlock to temporary blocks file: %w", err)
 		}
