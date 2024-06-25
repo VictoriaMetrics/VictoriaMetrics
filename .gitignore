@@ -23,4 +23,3 @@ Gemfile.lock
 _site
 *.tmp
 /docs/.jekyll-metadata
-node_modules
