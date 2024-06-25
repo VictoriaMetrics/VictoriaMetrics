@@ -80,29 +80,30 @@ func (fs *FS) Init() error {
 	switch {
 	// can't specify any combination of more than one credential
 	case moreThanOne(hasConnString, (hasAccountName && hasAccountKey), (useDefault == "true" && hasAccountName)):
-		return fmt.Errorf("only one of connection string, account name and key, or default credential can be specified")
+		logger.Errorf("only one of connection string, account name and key, or default credential can be specified")
+		return errNoCredentials
 	case hasConnString:
 		logger.Infof("Creating AZBlob service client from connection string")
 		sc, err = service.NewClientFromConnectionString(connString, nil)
 		if err != nil {
-			return fmt.Errorf("failed to create AZBlob service client from connection string: %w", err)
+			return errors.Join(errAzureSDKError, err)
 		}
 	case hasAccountName && hasAccountKey:
 		logger.Infof("Creating AZBlob service client from account name and key")
 		creds, err := azblob.NewSharedKeyCredential(accountName, accountKey)
 		if err != nil {
-			return fmt.Errorf("failed to create AZBlob credentials from account name and key: %w", err)
+			return errors.Join(errAzureSDKError, err)
 		}
 
 		sc, err = service.NewClientWithSharedKeyCredential(serviceURL, creds, nil)
 		if err != nil {
-			return fmt.Errorf("failed to create AZBlob service client from account name and key: %w", err)
+			return errors.Join(errAzureSDKError, err)
 		}
 	case useDefault == "true" && hasAccountName:
 		logger.Infof("Creating AZBlob service client from default credential")
 		creds, err := azidentity.NewDefaultAzureCredential(nil)
 		if err != nil {
-			return fmt.Errorf("failed to create AZBlob credentials from default: %w", err)
+			return errors.Join(errAzureSDKError, err)
 		}
 
 		sc, err = service.NewClient(serviceURL, creds, nil)
@@ -110,7 +111,7 @@ func (fs *FS) Init() error {
 			return fmt.Errorf("failed to create AZBlob service client from default: %w", err)
 		}
 	default:
-		return fmt.Errorf(
+		logger.Errorf(
 			`failed to detect any credentials type for AZBlob. Ensure there is connection string set at %q, shared key at %q and %q, or account name at %q and set %q to "true"`,
 			envStorageAccCs,
 			envStorageAcctName,
@@ -118,6 +119,8 @@ func (fs *FS) Init() error {
 			envStorageAcctName,
 			envStorageDefault,
 		)
+
+		return errNoCredentials
 	}
 
 	containerClient := sc.NewContainerClient(fs.Container)
