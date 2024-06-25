@@ -264,6 +264,7 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 	} else {
 		nodeID := rand.Uint64()
 		s.nodeID = nodeID
+		s.mustSaveNodeID()
 	}
 
 	// Load indexdb
