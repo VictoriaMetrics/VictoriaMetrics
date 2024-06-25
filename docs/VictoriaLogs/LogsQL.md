@@ -2571,8 +2571,8 @@ The following fields are unpacked:
 
 The `<PRI>` part is optional. If it is missing, then `priority`, `facility` and `severity` fields aren't set.
 
-The `[STRUCTURED-DATA]` is parsed into fields with the `SD-ID` name and `param1="value1" ... paramN="valueN"` value
-according to [the specification](https://datatracker.ietf.org/doc/html/rfc5424#section-6.3). The value then can be parsed to separate fields with [`unpack_logfmt` pipe](#unpack_logfmt-pipe).
+The `[STRUCTURED-DATA]` is parsed into fields with the `SD-ID.param1`, `SD-ID.param2`, ..., `SD-ID.paramN` names and the corresponding values
+according to [the specification](https://datatracker.ietf.org/doc/html/rfc5424#section-6.3).
 
 For example, the following query unpacks [syslog](https://en.wikipedia.org/wiki/Syslog) message from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 across logs for the last 5 minutes:
