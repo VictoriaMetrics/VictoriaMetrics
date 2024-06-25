@@ -16,6 +16,7 @@ services:
       - ./../../dashboards/vm/victoriametrics-cluster.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/vm/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
       - ./../../dashboards/vm/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
+      - ./../../dashboards/vm/vmauth.json:/var/lib/grafana/dashboards/vmauth.json
       - ./vm-datasource/download.sh:/download.sh
     environment:
       - "GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=victoriametrics-datasource"
