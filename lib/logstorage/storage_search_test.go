@@ -724,7 +724,7 @@ func TestStorageSearch(t *testing.T) {
 		}
 	}
 
-	t.Run("missing-tenant-smaller-than-existing", func(t *testing.T) {
+	t.Run("missing-tenant-smaller-than-existing", func(_ *testing.T) {
 		tenantID := TenantID{
 			AccountID: 0,
 			ProjectID: 0,
@@ -742,7 +742,7 @@ func TestStorageSearch(t *testing.T) {
 		}
 		s.search(workersCount, so, nil, processBlock)
 	})
-	t.Run("missing-tenant-bigger-than-existing", func(t *testing.T) {
+	t.Run("missing-tenant-bigger-than-existing", func(_ *testing.T) {
 		tenantID := TenantID{
 			AccountID: tenantsCount + 1,
 			ProjectID: 0,
@@ -760,7 +760,7 @@ func TestStorageSearch(t *testing.T) {
 		}
 		s.search(workersCount, so, nil, processBlock)
 	})
-	t.Run("missing-tenant-middle", func(t *testing.T) {
+	t.Run("missing-tenant-middle", func(_ *testing.T) {
 		tenantID := TenantID{
 			AccountID: 1,
 			ProjectID: 0,
@@ -824,7 +824,7 @@ func TestStorageSearch(t *testing.T) {
 			t.Fatalf("unexpected number of matching rows; got %d; want %d", n, expectedRowsCount)
 		}
 	})
-	t.Run("stream-filter-mismatch", func(t *testing.T) {
+	t.Run("stream-filter-mismatch", func(_ *testing.T) {
 		sf := mustNewTestStreamFilter(`{job="foobar",instance=~"host-.+:2345"}`)
 		minTimestamp := baseTimestamp
 		maxTimestamp := baseTimestamp + rowsPerBlock*1e9 + blocksPerStream
@@ -950,7 +950,7 @@ func TestStorageSearch(t *testing.T) {
 			t.Fatalf("unexpected number of rows; got %d; want %d", n, expectedRowsCount)
 		}
 	})
-	t.Run("matching-stream-id-missing-time-range", func(t *testing.T) {
+	t.Run("matching-stream-id-missing-time-range", func(_ *testing.T) {
 		sf := mustNewTestStreamFilter(`{job="foobar",instance="host-1:234"}`)
 		tenantID := TenantID{
 			AccountID: 1,
