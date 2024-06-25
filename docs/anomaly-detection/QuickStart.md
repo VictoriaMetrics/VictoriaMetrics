@@ -77,10 +77,11 @@ Here is an example of config file that will run [Facebook Prophet](https://faceb
 
 
 ```yaml
-scheduler:
-  infer_every: "1m"
-  fit_every: "2h"
-  fit_window: "14d"
+schedulers:
+  2w_1m:
+    infer_every: '1m'
+    fit_every: '2h'
+    fit_window: '14d'
 
 models:
   prophet_model:
