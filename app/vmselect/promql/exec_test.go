@@ -9488,6 +9488,17 @@ func TestNoImplicitConversionRequiredTrue(t *testing.T) {
 	f("max_over_time(rate(my_counter_total[5m])[1h:1m])[5m:1m]")
 	f("max_over_time(rate(my_counter_total[5m])[1h:])[5m:]")
 
+	// this query will fail the test because it contains subquery
+	// f(`aggr_over_time(("rate", "increase"), foo[1h])`)
+
+	// metricsql rollup functions
+	f(`predict_linear(foo{}[1h], 86400)`)
+	f(`quantile_over_time(0.99, foo[1h])`)
+	f(`quantiles_over_time("phi", 0.5, 0.99, foo[1h])`)
+	f(`count_ne_over_time(foo[1h], 1)`)
+	f(`count_values_over_time("label", foo[1h])`)
+	f(`holt_winters(foo[1h], 0, 1)`)
+
 	f(`
 WITH (
     cpuSeconds = node_cpu_seconds_total{instance=~"$node:$port",job=~"$job"},

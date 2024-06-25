@@ -432,10 +432,11 @@ func noImplicitConversionRequired(e metricsql.Expr, isSubExpr bool) bool {
 		}
 		fe := e.(*metricsql.FuncExpr)
 		isRollupFn := getRollupFunc(fe.Name) != nil
+		var hasAtLeastOneRollupExpr bool
 		for _, arg := range exp.Args {
 			_, isRollupExpr := arg.(*metricsql.RollupExpr)
-			if (isRollupExpr && !isRollupFn) || (!isRollupExpr && isRollupFn) {
-				return false
+			if !hasAtLeastOneRollupExpr && isRollupExpr {
+				hasAtLeastOneRollupExpr = true
 			}
 			if isRollupFn {
 				isSubExpr = true
@@ -443,6 +444,9 @@ func noImplicitConversionRequired(e metricsql.Expr, isSubExpr bool) bool {
 			if !noImplicitConversionRequired(arg, isSubExpr) {
 				return false
 			}
+		}
+		if (isRollupFn && !hasAtLeastOneRollupExpr) || (!isRollupFn && hasAtLeastOneRollupExpr) {
+			return false
 		}
 	case *metricsql.RollupExpr:
 		if _, ok := exp.Expr.(*metricsql.MetricExpr); ok {
