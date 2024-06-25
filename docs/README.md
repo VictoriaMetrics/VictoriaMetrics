@@ -777,6 +777,14 @@ Example for writing data with Graphite plaintext protocol to local VictoriaMetri
 echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N localhost 2003
 ```
 
+VictoriaMetrics supports sanitizing metric names and labels of data ingested via Graphite using `-graphite.sanitizeMetricName`.
+It makes ingested metrics Prometheus-compatible.
+With `-graphite.sanitizeMetricName` enabled VictoriaMetrics converts:
+- `/`,`@`,`*` to `_`
+- drops `\`
+- removes redundant dots, e.g: `metric..name` => `metric.name`
+- replaced characters, that are not matched by expression `^a-zA-Z0-9:._` to `_`
+
 VictoriaMetrics sets the current time if the timestamp is omitted.
 An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
