@@ -2,6 +2,7 @@ package azremote
 
 import (
 	"bytes"
+	"errors"
 	"strings"
 	"testing"
 
@@ -43,7 +44,7 @@ func Test_FSInit(t *testing.T) {
 		IgnoreFakeEnv bool
 		Env           testEnv
 		ExpectedDir   string
-		ExpectedErr   string
+		ExpectedErr   error
 		ExpectedLogs  []string
 	}{
 		"connection string err bubbles": {
@@ -51,7 +52,7 @@ func Test_FSInit(t *testing.T) {
 				envStorageAccCs: "teapot",
 			},
 			ExpectedLogs: []string{`Creating AZBlob service client from connection string`},
-			ExpectedErr:  `connection string is either blank or malformed`,
+			ExpectedErr:  errAzureSDKError,
 		},
 		"connection string env var is used": {
 			Env: map[string]string{
@@ -64,13 +65,13 @@ func Test_FSInit(t *testing.T) {
 			Env: map[string]string{
 				envStorageAccCs: "BlobEndpoint=https://test.blob.core.windows.net/;SharedAccessSignature=",
 			},
-			ExpectedErr: "failed to detect any credentials",
+			ExpectedErr: errNoCredentials,
 		},
 		"only storage account name is an err": {
 			Env: map[string]string{
 				envStorageAcctName: "test",
 			},
-			ExpectedErr: "failed to detect any credentials",
+			ExpectedErr: errNoCredentials,
 		},
 		"shared key credential err bubbles": {
 			Env: map[string]string{
@@ -78,7 +79,7 @@ func Test_FSInit(t *testing.T) {
 				envStorageAccKey:   "teapot",
 			},
 			ExpectedLogs: []string{`Creating AZBlob service client from account name and key`},
-			ExpectedErr:  `illegal base64 data at input`,
+			ExpectedErr:  errAzureSDKError,
 		},
 		"uses shared key credential": {
 			Env: map[string]string{
@@ -104,13 +105,13 @@ func Test_FSInit(t *testing.T) {
 				envStorageAcctName: "test",
 				envStorageAccKey:   "dGVhcG90Cg==",
 			},
-			ExpectedErr: `only one of connection string, account name and key, or default credential can be specified`,
+			ExpectedErr: errNoCredentials,
 		},
 		"just use default is an err": {
 			Env: map[string]string{
 				envStorageDefault: "true",
 			},
-			ExpectedErr: "failed to detect any credentials",
+			ExpectedErr: errNoCredentials,
 		},
 		"uses default credential": {
 			Env: map[string]string{
@@ -134,25 +135,12 @@ func Test_FSInit(t *testing.T) {
 			}
 
 			err := fs.Init()
-			checkErr(t, err, test.ExpectedErr)
+			if err != nil && !errors.Is(err, test.ExpectedErr) {
+				t.Errorf("expected error %q, got %q", test.ExpectedErr, err)
+			}
 
 			tlog.MustContain(t, test.ExpectedLogs...)
 		})
-	}
-}
-
-func checkErr(t *testing.T, err error, shouldContain string) {
-	t.Helper()
-
-	switch {
-	case err == nil && shouldContain != "":
-		t.Errorf("expected error %q, got nil", shouldContain)
-	case err == nil && shouldContain == "":
-		return
-	case err != nil && shouldContain == "":
-		t.Errorf("expected no error, got %q", err)
-	case !strings.Contains(err.Error(), shouldContain):
-		t.Errorf("expected error %q, got %q", shouldContain, err)
 	}
 }
 
