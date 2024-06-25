@@ -157,7 +157,7 @@ func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
 	return nil
 }
 
-func TestDateMetricIDCacheIsConsistent(t *testing.T) {
+func TestDateMetricIDCacheIsConsistent(_ *testing.T) {
 	const (
 		generation  = 1
 		date        = 1
@@ -165,7 +165,6 @@ func TestDateMetricIDCacheIsConsistent(t *testing.T) {
 		numMetrics  = 100000
 	)
 	dmc := newDateMetricIDCache()
-	errs := make(chan error, concurrency)
 	var wg sync.WaitGroup
 	for i := range concurrency {
 		wg.Add(1)
@@ -174,19 +173,12 @@ func TestDateMetricIDCacheIsConsistent(t *testing.T) {
 			for id := uint64(i * numMetrics); id < uint64((i+1)*numMetrics); id++ {
 				dmc.Set(generation, date, id)
 				if !dmc.Has(generation, date, id) {
-					errs <- fmt.Errorf("dmc.Has(metricID=%d): unexpected cache miss after adding the entry to cache", id)
-					return
+					panic(fmt.Errorf("dmc.Has(metricID=%d): unexpected cache miss after adding the entry to cache", id))
 				}
 			}
 		}()
 	}
 	wg.Wait()
-
-	select {
-	case firstErr := <-errs:
-		t.Fatal(firstErr)
-	default:
-	}
 }
 
 func TestUpdateCurrHourMetricIDs(t *testing.T) {
