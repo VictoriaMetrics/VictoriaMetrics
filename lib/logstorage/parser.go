@@ -3,7 +3,6 @@ package logstorage
 import (
 	"fmt"
 	"math"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -235,46 +234,38 @@ func (q *Query) String() string {
 	return s
 }
 
-func (q *Query) getSortedStreamIDs() []streamID {
+func (q *Query) getStreamIDs() []streamID {
 	switch t := q.f.(type) {
 	case *filterAnd:
 		for _, f := range t.filters {
-			streamIDs, ok := getSortedStreamIDsFromFilterOr(f)
+			streamIDs, ok := getStreamIDsFromFilterOr(f)
 			if ok {
 				return streamIDs
 			}
 		}
 		return nil
 	default:
-		streamIDs, _ := getSortedStreamIDsFromFilterOr(q.f)
+		streamIDs, _ := getStreamIDsFromFilterOr(q.f)
 		return streamIDs
 	}
 }
 
-func getSortedStreamIDsFromFilterOr(f filter) ([]streamID, bool) {
+func getStreamIDsFromFilterOr(f filter) ([]streamID, bool) {
 	switch t := f.(type) {
 	case *filterOr:
+		streamIDsFilters := 0
 		var streamIDs []streamID
 		for _, f := range t.filters {
 			fs, ok := f.(*filterStreamID)
 			if !ok {
 				return nil, false
 			}
-			var sid streamID
-			if sid.tryUnmarshalFromString(fs.streamIDStr) {
-				streamIDs = append(streamIDs, sid)
-			}
+			streamIDsFilters++
+			streamIDs = append(streamIDs, fs.streamIDs...)
 		}
-		sort.Slice(streamIDs, func(i, j int) bool {
-			return streamIDs[i].less(&streamIDs[j])
-		})
-		return streamIDs, len(streamIDs) > 0
+		return streamIDs, streamIDsFilters > 0
 	case *filterStreamID:
-		var sid streamID
-		if !sid.tryUnmarshalFromString(t.streamIDStr) {
-			return nil, true
-		}
-		return []streamID{sid}, true
+		return t.streamIDs, true
 	default:
 		return nil, false
 	}
@@ -1830,15 +1821,87 @@ func stripTimezoneSuffix(s string) string {
 	return s[:len(s)-len(tz)]
 }
 
-func parseFilterStreamID(lex *lexer) (*filterStreamID, error) {
-	s, err := getCompoundToken(lex)
+func parseFilterStreamID(lex *lexer) (filter, error) {
+	if lex.isKeyword("in") {
+		return parseFilterStreamIDIn(lex)
+	}
+
+	sid, err := parseStreamID(lex)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot parse _stream_id: %w", err)
 	}
 	fs := &filterStreamID{
-		streamIDStr: s,
+		streamIDs: []streamID{sid},
 	}
 	return fs, nil
+}
+
+func parseFilterStreamIDIn(lex *lexer) (filter, error) {
+	if !lex.isKeyword("in") {
+		return nil, fmt.Errorf("unexpected token %q; expecting 'in'", lex.token)
+	}
+
+	// Try parsing in(arg1, ..., argN) at first
+	lexState := lex.backupState()
+	fs, err := parseFuncArgs(lex, "", func(args []string) (filter, error) {
+		streamIDs := make([]streamID, len(args))
+		for i, arg := range args {
+			if !streamIDs[i].tryUnmarshalFromString(arg) {
+				return nil, fmt.Errorf("cannot unmarshal _stream_id from %q", arg)
+			}
+		}
+		fs := &filterStreamID{
+			streamIDs: streamIDs,
+		}
+		return fs, nil
+	})
+	if err == nil {
+		return fs, nil
+	}
+
+	// Try parsing in(query)
+	lex.restoreState(lexState)
+	lex.nextToken()
+	if !lex.isKeyword("(") {
+		return nil, fmt.Errorf("missing '(' after 'in'")
+	}
+	lex.nextToken()
+
+	q, err := parseQuery(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse query inside 'in(...)': %w", err)
+	}
+
+	if !lex.isKeyword(")") {
+		return nil, fmt.Errorf("missing ')' after 'in(%s)'", q)
+	}
+	lex.nextToken()
+
+	qFieldName, err := getFieldNameFromPipes(q.pipes)
+	if err != nil {
+		return nil, fmt.Errorf("cannot determine field name for values in 'in(%s)': %w", q, err)
+	}
+
+	fs = &filterStreamID{
+		needExecuteQuery: true,
+		q:                q,
+		qFieldName:       qFieldName,
+	}
+	return fs, nil
+}
+
+func parseStreamID(lex *lexer) (streamID, error) {
+	var sid streamID
+
+	s, err := getCompoundToken(lex)
+	if err != nil {
+		return sid, err
+	}
+
+	if !sid.tryUnmarshalFromString(s) {
+		return sid, fmt.Errorf("cannot unmarshal _stream_id from %q", s)
+	}
+	return sid, nil
 }
 
 func parseFilterStream(lex *lexer) (*filterStream, error) {

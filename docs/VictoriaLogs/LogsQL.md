@@ -479,6 +479,20 @@ query selects logs for the given stream for the last hour:
 _time:1h _stream_id:0000007b000001c850d9950ea6196b1a4812081265faa1c7
 ```
 
+The `_stream_id` filter supports specifying multiple `_stream_id` values via `_stream_id:in(...)` syntax. For example:
+
+```logsql
+_stream_id:in(0000007b000001c850d9950ea6196b1a4812081265faa1c7, 1230007b456701c850d9950ea6196b1a4812081265fff2a9)
+```
+
+It is also possible specifying subquery inside `in(...)`, which selects the needed `_stream_id` values. For example, the following query returns
+logs for [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) containing `error` [word](#word)
+in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) during the last 5 minutes:
+
+```logsql
+_stream_id:in(_time:5m error | fields _stream_id)
+```
+
 See also:
 
 - [stream filter](#stream-filter)
@@ -2557,8 +2571,8 @@ The following fields are unpacked:
 
 The `<PRI>` part is optional. If it is missing, then `priority`, `facility` and `severity` fields aren't set.
 
-The `[STRUCTURED-DATA]` is parsed into fields with the `SD-ID` name and `param1="value1" ... paramN="valueN"` value
-according to [the specification](https://datatracker.ietf.org/doc/html/rfc5424#section-6.3). The value then can be parsed to separate fields with [`unpack_logfmt` pipe](#unpack_logfmt-pipe).
+The `[STRUCTURED-DATA]` is parsed into fields with the `SD-ID.param1`, `SD-ID.param2`, ..., `SD-ID.paramN` names and the corresponding values
+according to [the specification](https://datatracker.ietf.org/doc/html/rfc5424#section-6.3).
 
 For example, the following query unpacks [syslog](https://en.wikipedia.org/wiki/Syslog) message from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 across logs for the last 5 minutes:

@@ -17,7 +17,7 @@ If you like VictoriaMetrics and want to contribute, then it would be great:
 - Joining VictoriaMetrics community Slack ([Slack inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/))
   and helping other community members there.
 - Filing issues, feature requests and questions [at VictoriaMetrics GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
-- Improving [VictoriaMetrics docs](https://docs.victoriametrics.com/). The docs' sources are located [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs).
+- Improving [VictoriaMetrics docs](https://docs.victoriametrics.com/). See how to update docs [here](https://docs.victoriametrics.com/#documentation).
 - Spreading the word about VictoriaMetrics via various channels:
   - conference talks
   - blogposts, articles and [case studies](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CaseStudies.md)

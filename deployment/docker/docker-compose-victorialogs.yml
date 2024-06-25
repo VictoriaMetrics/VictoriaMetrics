@@ -8,8 +8,6 @@ services:
       - "victorialogs"
     ports:
       - 3000:3000
-    entrypoint: [ "/bin/bash", "-c" ]
-    command: [ "chmod +x /download.sh && /download.sh && /run.sh" ]
     volumes:
       - grafanadata:/var/lib/grafana
       - ./provisioning/datasources/victorialogs-datasource:/etc/grafana/provisioning/datasources
@@ -17,8 +15,8 @@ services:
       - ./provisioning/plugins/:/var/lib/grafana/plugins
       - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/victorialogs.json:/var/lib/grafana/dashboards/vl.json
-      - ./victorialogs/download.sh:/download.sh
     environment:
+      - "GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.2.2/victorialogs-datasource-v0.2.2.zip;victorialogs-datasource"
       - "GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=victorialogs-datasource"
     networks:
       - vm_net
@@ -42,7 +40,7 @@ services:
 #  storing logs and serving read queries.
   victorialogs:
     container_name: victorialogs
-    image: docker.io/victoriametrics/victoria-logs:v0.21.0-victorialogs
+    image: docker.io/victoriametrics/victoria-logs:v0.23.0-victorialogs
     command:
       - "--storageDataPath=/vlogs"
       - "--httpListenAddr=:9428"

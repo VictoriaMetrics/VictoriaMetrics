@@ -26,14 +26,16 @@ Managed VictoriaMetrics allows users to run Enterprise version of VictoriaMetric
 DevOps tasks such as proper configuration, monitoring, logs collection, access protection, software updates, 
 backups, etc. [Try it right now](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_overview)
 
-We run Managed VictoriaMetrics instances in our environment on AWS and provide easy-to-use endpoints 
+We run Managed VictoriaMetrics deployments in our environment on AWS and provide easy-to-use endpoints 
 for data ingestion and querying. The VictoriaMetrics team takes care of optimal configuration and software 
 maintenance.
 
 Managed VictoriaMetrics comes with the following features:
 
 * It can be used as a Managed Prometheus - just configure Prometheus or vmagent to write data to Managed VictoriaMetrics and then use the provided endpoint as a Prometheus datasource in Grafana;
-* Every Managed VictoriaMetrics instance runs in an isolated environment, so instances cannot interfere with each other;
-* Managed VictoriaMetrics instance can be scaled up or scaled down in a few clicks;
+* Built-in [Alerting & Recording](https://docs.victoriametrics.com/managed-victoriametrics/alertmanager-setup-for-deployment/#configure-alerting-rules) rules execution;
+* Hosted [Alertmanager](https://docs.victoriametrics.com/managed-victoriametrics/alertmanager-setup-for-deployment/) for sending notifications;
+* Every Managed VictoriaMetrics deployment runs in an isolated environment, so deployments cannot interfere with each other;
+* Managed VictoriaMetrics deployment can be scaled up or scaled down in a few clicks;
 * Automated backups;
 * Pay only for the actually used resources - compute, storage, traffic.

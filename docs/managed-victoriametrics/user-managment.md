@@ -1,11 +1,11 @@
 ---
-sort: 5
-weight: 5
+sort: 6
+weight: 6
 title: User Management in Managed VictoriaMetrics
 menu:
   docs:
     parent: "managed"
-    weight: 5
+    weight: 6
 aliases:
 - /managed-victoriametrics/user-management.html
 ---

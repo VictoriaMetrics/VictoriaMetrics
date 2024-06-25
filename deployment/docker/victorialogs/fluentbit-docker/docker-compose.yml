@@ -11,7 +11,7 @@ services:
       - "5140:5140"
 
   victorialogs:
-    image: docker.io/victoriametrics/victoria-logs:v0.21.0-victorialogs
+    image: docker.io/victoriametrics/victoria-logs:v0.23.0-victorialogs
     volumes:
       - victorialogs-fluentbit-vl:/vlogs
     ports:

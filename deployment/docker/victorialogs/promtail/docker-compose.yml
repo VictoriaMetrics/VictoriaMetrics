@@ -12,7 +12,7 @@ services:
       - "5140:5140"
 
   vlogs:
-    image: docker.io/victoriametrics/victoria-logs:v0.21.0-victorialogs
+    image: docker.io/victoriametrics/victoria-logs:v0.23.0-victorialogs
     volumes:
       - victorialogs-promtail-docker:/vlogs
     ports:

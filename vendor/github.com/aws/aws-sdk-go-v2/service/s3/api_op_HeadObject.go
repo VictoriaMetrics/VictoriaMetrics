@@ -663,6 +663,15 @@ func (c *Client) addOperationHeadObjectMiddlewares(stack *middleware.Stack, opti
 	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
+		return err
+	}
 	if err = addOpHeadObjectValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -698,20 +707,6 @@ func (c *Client) addOperationHeadObjectMiddlewares(stack *middleware.Stack, opti
 	}
 	return nil
 }
-
-func (v *HeadObjectInput) bucket() (string, bool) {
-	if v.Bucket == nil {
-		return "", false
-	}
-	return *v.Bucket, true
-}
-
-// HeadObjectAPIClient is a client that implements the HeadObject operation.
-type HeadObjectAPIClient interface {
-	HeadObject(context.Context, *HeadObjectInput, ...func(*Options)) (*HeadObjectOutput, error)
-}
-
-var _ HeadObjectAPIClient = (*Client)(nil)
 
 // ObjectExistsWaiterOptions are waiter options for ObjectExistsWaiter
 type ObjectExistsWaiterOptions struct {
@@ -827,7 +822,13 @@ func (w *ObjectExistsWaiter) WaitForOutput(ctx context.Context, params *HeadObje
 		}
 
 		out, err := w.client.HeadObject(ctx, params, func(o *Options) {
+			baseOpts := []func(*Options){
+				addIsWaiterUserAgent,
+			}
 			o.APIOptions = append(o.APIOptions, apiOptions...)
+			for _, opt := range baseOpts {
+				opt(o)
+			}
 			for _, opt := range options.ClientOptions {
 				opt(o)
 			}
@@ -994,7 +995,13 @@ func (w *ObjectNotExistsWaiter) WaitForOutput(ctx context.Context, params *HeadO
 		}
 
 		out, err := w.client.HeadObject(ctx, params, func(o *Options) {
+			baseOpts := []func(*Options){
+				addIsWaiterUserAgent,
+			}
 			o.APIOptions = append(o.APIOptions, apiOptions...)
+			for _, opt := range baseOpts {
+				opt(o)
+			}
 			for _, opt := range options.ClientOptions {
 				opt(o)
 			}
@@ -1041,6 +1048,20 @@ func objectNotExistsStateRetryable(ctx context.Context, input *HeadObjectInput, 
 
 	return true, nil
 }
+
+func (v *HeadObjectInput) bucket() (string, bool) {
+	if v.Bucket == nil {
+		return "", false
+	}
+	return *v.Bucket, true
+}
+
+// HeadObjectAPIClient is a client that implements the HeadObject operation.
+type HeadObjectAPIClient interface {
+	HeadObject(context.Context, *HeadObjectInput, ...func(*Options)) (*HeadObjectOutput, error)
+}
+
+var _ HeadObjectAPIClient = (*Client)(nil)
 
 func newServiceMetadataMiddleware_opHeadObject(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{

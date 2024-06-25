@@ -1,13 +1,11 @@
 services:
   grafana:
     container_name: grafana
-    image: grafana/grafana:10.3.1
+    image: grafana/grafana:10.4.2
     depends_on:
       - "vmauth"
     ports:
       - 3000:3000
-    entrypoint: ["/bin/bash", "-c"]
-    command: ["chmod +x /download.sh && /download.sh && /run.sh"]
     volumes:
       - grafanadata:/var/lib/grafana
       - ./provisioning/datasources/victoriametrics-datasource:/etc/grafana/provisioning/datasources
@@ -16,7 +14,8 @@ services:
       - ./../../dashboards/vm/victoriametrics-cluster.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/vm/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
       - ./../../dashboards/vm/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
-      - ./vm-datasource/download.sh:/download.sh
+      - ./../../dashboards/vm/vmauth.json:/var/lib/grafana/dashboards/vmauth.json
     environment:
+      - "GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/grafana-datasource/releases/download/v0.8.2/victoriametrics-datasource-v0.8.2.zip;victoriametrics-datasource"
       - "GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=victoriametrics-datasource"
     restart: always

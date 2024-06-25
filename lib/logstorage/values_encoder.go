@@ -262,7 +262,7 @@ func tryTimestampISO8601Encoding(dstBuf []byte, dstValues, srcValues []string) (
 	a := u64s.A
 	var minValue, maxValue int64
 	for i, v := range srcValues {
-		n, ok := TryParseTimestampISO8601(v)
+		n, ok := tryParseTimestampISO8601(v)
 		if !ok {
 			return dstBuf, dstValues, valueTypeUnknown, 0, 0
 		}
@@ -283,14 +283,10 @@ func tryTimestampISO8601Encoding(dstBuf []byte, dstValues, srcValues []string) (
 	return dstBuf, dstValues, valueTypeTimestampISO8601, uint64(minValue), uint64(maxValue)
 }
 
-// TryParseTimestampRFC3339Nano parses 'YYYY-MM-DDThh:mm:ss' with optional nanoseconds part and 'Z' tail and returns unix timestamp in nanoseconds.
+// TryParseTimestampRFC3339Nano parses 'YYYY-MM-DDThh:mm:ss' with optional nanoseconds part and timezone offset and returns unix timestamp in nanoseconds.
 //
 // The returned timestamp can be negative if s is smaller than 1970 year.
 func TryParseTimestampRFC3339Nano(s string) (int64, bool) {
-	// Do not parse timestamps with timezone other than Z, since they cannot be converted back
-	// to the same string representation in general case.
-	// This may break search.
-
 	if len(s) < len("2006-01-02T15:04:05Z") {
 		return 0, false
 	}
@@ -302,12 +298,33 @@ func TryParseTimestampRFC3339Nano(s string) (int64, bool) {
 	s = tail
 	nsecs := secs * 1e9
 
-	// Parse optional fractional part of seconds.
-	n := strings.IndexByte(s, 'Z')
-	if n < 0 || n != len(s)-1 {
+	// Parse timezone offset
+	n := strings.IndexAny(s, "Z+-")
+	if n < 0 {
 		return 0, false
 	}
+	offsetStr := s[n+1:]
+	if s[n] != 'Z' {
+		isMinus := s[n] == '-'
+		if len(offsetStr) == 0 {
+			return 0, false
+		}
+		offsetNsecs, ok := tryParseTimezoneOffset(offsetStr)
+		if !ok {
+			return 0, false
+		}
+		if isMinus {
+			offsetNsecs = -offsetNsecs
+		}
+		nsecs -= offsetNsecs
+	} else {
+		if len(offsetStr) != 0 {
+			return 0, false
+		}
+	}
 	s = s[:n]
+
+	// Parse optional fractional part of seconds.
 	if len(s) == 0 {
 		return nsecs, true
 	}
@@ -330,10 +347,28 @@ func TryParseTimestampRFC3339Nano(s string) (int64, bool) {
 	return nsecs, true
 }
 
-// TryParseTimestampISO8601 parses 'YYYY-MM-DDThh:mm:ss.mssZ' and returns unix timestamp in nanoseconds.
+func tryParseTimezoneOffset(offsetStr string) (int64, bool) {
+	n := strings.IndexByte(offsetStr, ':')
+	if n < 0 {
+		return 0, false
+	}
+	hourStr := offsetStr[:n]
+	minuteStr := offsetStr[n+1:]
+	hours, ok := tryParseUint64(hourStr)
+	if !ok || hours > 24 {
+		return 0, false
+	}
+	minutes, ok := tryParseUint64(minuteStr)
+	if !ok || minutes > 60 {
+		return 0, false
+	}
+	return int64(hours)*nsecsPerHour + int64(minutes)*nsecsPerMinute, true
+}
+
+// tryParseTimestampISO8601 parses 'YYYY-MM-DDThh:mm:ss.mssZ' and returns unix timestamp in nanoseconds.
 //
 // The returned timestamp can be negative if s is smaller than 1970 year.
-func TryParseTimestampISO8601(s string) (int64, bool) {
+func tryParseTimestampISO8601(s string) (int64, bool) {
 	// Do not parse timestamps with timezone, since they cannot be converted back
 	// to the same string representation in general case.
 	// This may break search.
