@@ -1192,6 +1192,11 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			return nil, fmt.Errorf("timeout exceeded while fetching data block #%d from storage: %s", blocksRead, deadline.String())
 		}
 		br := sr.MetricBlockRef.BlockRef
+
+		// Take into account all the samples in the block when checking for *maxSamplesPerQuery limit,
+		// since CPU time is spent on unpacking all the samples in the block, even if only a few samples
+		// are left then because of the given time range.
+		// This allows effectively limiting CPU resources used per query.
 		samples += br.RowsCount()
 		if *maxSamplesPerQuery > 0 && samples > *maxSamplesPerQuery {
 			putTmpBlocksFile(tbf)
