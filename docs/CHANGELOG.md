@@ -29,6 +29,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): allow overriding `Host` header with a target host before sending to a downstream. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6453)
+
 ## [v1.102.0-rc2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0-rc2)
 
 Released at 2024-06-24
