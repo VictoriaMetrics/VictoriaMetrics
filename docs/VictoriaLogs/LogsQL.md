@@ -1829,7 +1829,7 @@ the following query rounds the `request_duration` [field](https://docs.victoriam
 _time:5m | math round(request_duration, 1e9) as request_duration_nsecs | format '<duration:request_duration_nsecs>' as request_duration
 ```
 
-The `eval` keyword can be used instead of `math` for convenince. For example, the following query calculates `duration_msecs` field
+The `eval` keyword can be used instead of `math` for convenience. For example, the following query calculates `duration_msecs` field
 by multiplying `duration_secs` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) to `1000`:
 
 ```logsql
