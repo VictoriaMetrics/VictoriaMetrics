@@ -77,6 +77,8 @@ For example, the following command starts VictoriaLogs with the retention of 8 w
 /path/to/victoria-logs -retentionPeriod=8w
 ```
 
+See also [retention by disk space usage](#retention-by-disk-space-usage).
+
 VictoriaLogs stores the [ingested](https://docs.victoriametrics.com/victorialogs/data-ingestion/) logs in per-day partition directories.
 It automatically drops partition directories outside the configured retention.
 
@@ -100,6 +102,23 @@ For example, the following command starts VictoriaLogs, which accepts logs with 
 ```sh
 /path/to/victoria-logs -futureRetention=1y
 ```
+
+## Retention by disk space usage
+
+VictoriaLogs can be configured to automatically drop older per-day partitions if the total size of partitions at [`-storageDataPath` directory](#storage)
+becomes bigger than the given threshold at `-retention.maxDiskSpaceUsageBytes` command-line flag. For example, the following command starts VictoriaLogs,
+which drops old per-day partitions if the total [storage](#storage) size becomes bigger than `100GiB`:
+
+```sh
+/path/to/victoria-logs -retention.maxDiskSpaceUsageBytes=100GiB
+```
+
+VictoriaLogs keeps at least two last days of data in order to guarantee that the logs for the last day can be returned in queries.
+This means that the total disk space usage may exceed the `-retention.maxDiskSpaceUsageBytes` if the size of the last two days of data
+exceeds the `-retention.maxDiskSpaceUsageBytes`.
+
+See also [retention](#retention).
+
 
 ## Storage
 
@@ -263,8 +282,11 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -retention.maxDiskSpaceUsageBytes size
+    	The maximum disk space usage at -storageDataPath before older per-day partitions are automatically dropped; see https://docs.victoriametrics.com/victorialogs/#retention-by-disk-space-usage ; see also -retentionPeriod
+    	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -retentionPeriod value
-    	Log entries with timestamps older than now-retentionPeriod are automatically deleted; log entries with timestamps outside the retention are also rejected during data ingestion; the minimum supported retention is 1d (one day); see https://docs.victoriametrics.com/victorialogs/#retention
+    	Log entries with timestamps older than now-retentionPeriod are automatically deleted; log entries with timestamps outside the retention are also rejected during data ingestion; the minimum supported retention is 1d (one day); see https://docs.victoriametrics.com/victorialogs/#retention ; see also -retention.maxDiskSpaceUsageBytes
     	The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 7d)
   -search.maxConcurrentRequests int
     	The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration (default 16)
@@ -276,7 +298,7 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	The minimum free disk space at -storageDataPath after which the storage stops accepting new data
     	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 10000000)
   -storageDataPath string
-    	Path to directory with the VictoriaLogs data; see https://docs.victoriametrics.com/victorialogs/#storage (default "victoria-logs-data")
+    	Path to directory where to store VictoriaLogs data; see https://docs.victoriametrics.com/victorialogs/#storage (default "victoria-logs-data")
   -syslog.compressMethod.tcp array
     	Compression method for syslog messages received at the corresponding -syslog.listenAddr.tcp. Supported values: none, gzip, deflate. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/
     	Supports an array of values separated by comma or specified via multiple flags.
