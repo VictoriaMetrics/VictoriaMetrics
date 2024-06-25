@@ -1,8 +1,6 @@
-version: '3'
-
 services:
   vector:
-    image: docker.io/timberio/vector:0.30.0-distroless-static
+    image: docker.io/timberio/vector:0.38.0-distroless-static
     restart: on-failure
     volumes:
       - type: bind
@@ -11,7 +9,7 @@ services:
       - type: bind
         source: /var/lib/docker
         target: /var/lib/docker
-      - ./vector.toml:/etc/vector/vector.toml:ro
+      - ./vector.yaml:/etc/vector/vector.yaml:ro
     user: root
     ports:
       - '8686:8686'
@@ -31,7 +29,7 @@ services:
       - -storageDataPath=/vlogs
       - -loggerFormat=json
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:9428/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9428/health"]
       interval: 1s
       timeout: 1s
       retries: 10
@@ -48,7 +46,7 @@ services:
       - victorialogs-vector-docker-vm:/vmsingle
       - ./scrape.yml:/promscrape.yml
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8428/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8428/health"]
       interval: 1s
       timeout: 1s
       retries: 10
