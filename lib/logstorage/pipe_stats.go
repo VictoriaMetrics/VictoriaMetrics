@@ -599,7 +599,7 @@ func parsePipeStats(lex *lexer, needStatsKeyword bool) (*pipeStats, error) {
 			return &ps, nil
 		}
 		if !lex.isKeyword(",") {
-			return nil, fmt.Errorf("unexpected token %q after [%s]; want ',', '|' or ')'", sf, lex.token)
+			return nil, fmt.Errorf("unexpected token %q after [%s]; want ',', '|' or ')'", lex.token, sf)
 		}
 		lex.nextToken()
 	}
