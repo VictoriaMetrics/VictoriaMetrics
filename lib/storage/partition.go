@@ -553,7 +553,7 @@ func (rrs *rawRowsShard) addRows(rows []rawRow) ([]rawRow, []rawRow) {
 	n := len(rrs.rows)
 	// rrs.rows=append(rrs.rows,rows...)
 	size := copy(rrs.rows[n:cap(rrs.rows)], rows)
-	rrs.rows = rows[:size+len(rrs.rows)]
+	rrs.rows = rrs.rows[:len(rrs.rows)+size]
 	rows = rows[size:]
 	var flush []rawRow
 	if len(rows) > 0 {
