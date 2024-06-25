@@ -419,6 +419,14 @@ func (sn *storageNode) getID() uint64 {
 		sn.checkHealth()
 	}
 
+	// If the id is still not populated after checkHealth than storage node is not reachable
+	// build a unique id based on the address
+	if sn.id.Load() == 0 {
+		id := xxhash.Sum64String(sn.dialer.Addr())
+		sn.id.CompareAndSwap(0, id)
+		return id
+	}
+
 	return sn.id.Load()
 }
 
