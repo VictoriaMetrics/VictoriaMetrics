@@ -151,8 +151,8 @@ make docker-cluster-vm-datasource-down # shutdown cluster
 ## Alerts
 
 See below a list of recommended alerting rules for various VictoriaMetrics components for running in production. 
-Some of the alerting rules thresholds are just recommendations and could require an adjustment. The list
-of alerting rules is the following:
+Some alerting rules thresholds are just recommendations and could require an adjustment. 
+The list of alerting rules is the following:
 * [alerts-health.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-health.yml):
   alerting rules related to all VictoriaMetrics components for tracking their "health" state; 
 * [alerts.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml):
@@ -163,6 +163,8 @@ of alerting rules is the following:
   alerting rules related to [vmagent](https://docs.victoriametrics.com/vmagent/) component;
 * [alerts-vmalert.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-vmalert.yml):
   alerting rules related to [vmalert](https://docs.victoriametrics.com/vmalert/) component;
+* [alerts-vmauth.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-vmauth.yml):
+  alerting rules related to [vmauth](https://docs.victoriametrics.com/vmauth/) component;
 
 Please, also see [how to monitor](https://docs.victoriametrics.com/single-server-victoriametrics/#monitoring) 
 VictoriaMetrics installations.

@@ -2706,7 +2706,33 @@ If you like VictoriaMetrics and want to contribute, then please [read these docs
 
 Report bugs and propose new features [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
 
-## Images in documentation
+## Documentation
+
+VictoriaMetrics documentation is available at [https://docs.victoriametrics.com/](https://docs.victoriametrics.com/).
+It is built from `*.md` files located in [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs) folder
+and gets automatically updated once changes are merged to [master](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master) branch.
+To update the documentation follow the steps below:
+- [Fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/about-forks) 
+VictoriaMetrics repo and apply changes to the docs:
+  - To update [the main page](https://docs.victoriametrics.com/) modify [this file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md).
+  - To update other pages, apply changes to the corresponding file in [docs folder](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs).
+- If your changes contain an image then see [images in documentation](https://docs.victoriametrics.com/#images-in-documentation).
+- Once changes are made, execute the command below to finalize and sync the changes:
+```sh
+make docs-sync
+```
+- Create [a pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request)
+with proposed changes and wait for it to be merged.
+
+Requirements for changes to docs:
+- Keep backward compatibility of existing links. Avoid changing anchors or deleting pages as they could have been
+used or posted in other docs, GitHub issues, stackoverlow answers, etc. 
+- Keep docs simple. Try using as simple wording as possible.
+- Keep docs consistent. When modifying existing docs, verify that other places referencing to this doc are still relevant.
+- Prefer improving the existing docs instead of adding new ones.
+- Use absolute links.
+
+### Images in documentation
 
 Please, keep image size and number of images per single page low. Keep the docs page as lightweight as possible.
 
