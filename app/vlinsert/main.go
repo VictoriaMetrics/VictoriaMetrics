@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/datadog"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/elasticsearch"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/jsonline"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/loki"
@@ -23,6 +24,14 @@ func Stop() {
 // RequestHandler handles insert requests for VictoriaLogs
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
+
+	// agents, which do not support custom path prefix
+	switch {
+	case strings.HasPrefix(path, "/api/v2/logs"):
+		if r.Header.Get("dd-protocol") != "" {
+			return datadog.RequestHandler(path, w, r)
+		}
+	}
 	if !strings.HasPrefix(path, "/insert/") {
 		// Skip requests, which do not start with /insert/, since these aren't our requests.
 		return false
@@ -41,6 +50,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case strings.HasPrefix(path, "/loki/"):
 		path = strings.TrimPrefix(path, "/loki")
 		return loki.RequestHandler(path, w, r)
+	case strings.HasPrefix(path, "/datadog/"):
+		path = strings.TrimPrefix(path, "/datadog")
+		return datadog.RequestHandler(path, w, r)
 	default:
 		return false
 	}
