@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"gopkg.in/yaml.v2"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/yaml"
 )
 
 func TestLabels(t *testing.T) {
@@ -34,7 +34,7 @@ func TestLabels(t *testing.T) {
 		t.Fatalf("unexpected marshaled value;\ngot\n%s\nwant\n%q", s, sExpected)
 	}
 	x1 := GetLabels()
-	if err := yaml.Unmarshal(s, &x1); err != nil {
+	if err := yaml.Unmarshal(s, &x1, false); err != nil {
 		t.Fatalf("unexpected error in yaml.Unmarshal: %s", err)
 	}
 	x1.InternStrings()
@@ -70,7 +70,7 @@ func TestLabelsUnmarshalYAMLFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		var x Labels
-		if err := yaml.Unmarshal([]byte(s), &x); err == nil {
+		if err := yaml.Unmarshal([]byte(s), &x, false); err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
 	}

@@ -22,8 +22,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/yaml"
 	"github.com/VictoriaMetrics/metrics"
-	"gopkg.in/yaml.v2"
 )
 
 var supportedOutputs = []string{
@@ -245,7 +245,7 @@ type Aggregators struct {
 
 func newAggregatorsFromData(data []byte, pushFunc PushFunc, opts *Options) (*Aggregators, error) {
 	var cfgs []*Config
-	if err := yaml.UnmarshalStrict(data, &cfgs); err != nil {
+	if err := yaml.Unmarshal(data, &cfgs, true); err != nil {
 		return nil, fmt.Errorf("cannot parse stream aggregation config: %w", err)
 	}
 

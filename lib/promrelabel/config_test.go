@@ -4,14 +4,14 @@ import (
 	"reflect"
 	"testing"
 
-	"gopkg.in/yaml.v2"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/yaml"
 )
 
 func TestMultiLineRegexUnmarshalMarshal(t *testing.T) {
 	f := func(data, resultExpected string) {
 		t.Helper()
 		var mlr MultiLineRegex
-		if err := yaml.UnmarshalStrict([]byte(data), &mlr); err != nil {
+		if err := yaml.Unmarshal([]byte(data), &mlr, true); err != nil {
 			t.Fatalf("cannot unmarshal %q: %s", data, err)
 		}
 		result, err := yaml.Marshal(&mlr)
@@ -35,7 +35,7 @@ func TestRelabelConfigMarshalUnmarshal(t *testing.T) {
 	f := func(data, resultExpected string) {
 		t.Helper()
 		var rcs []RelabelConfig
-		if err := yaml.UnmarshalStrict([]byte(data), &rcs); err != nil {
+		if err := yaml.Unmarshal([]byte(data), &rcs, true); err != nil {
 			t.Fatalf("cannot unmarshal %q: %s", data, err)
 		}
 		result, err := yaml.Marshal(&rcs)
@@ -56,7 +56,7 @@ func TestRelabelConfigMarshalUnmarshal(t *testing.T) {
   - 'fo.+'
   - '.*ba[r-z]a'
 `, "- regex: fo.+|.*ba[r-z]a\n")
-	f(`- regex: foo|bar`, "- regex:\n  - foo\n  - bar\n")
+	f(`- regex: foo|bar`, "- regex:\n    - foo\n    - bar\n")
 	f(`- regex: True`, `- regex: "true"`+"\n")
 	f(`- regex: true`, `- regex: "true"`+"\n")
 	f(`- regex: 123`, `- regex: "123"`+"\n")
@@ -68,7 +68,7 @@ func TestRelabelConfigMarshalUnmarshal(t *testing.T) {
   - False
   - null
   - nan
-`, "- regex:\n  - \"-1.23\"\n  - \"false\"\n  - \"null\"\n  - nan\n")
+`, "- regex:\n    - \"-1.23\"\n    - \"false\"\n    - \"null\"\n    - nan\n")
 	f(`
 - action: graphite
   match: 'foo.*.*.aaa'

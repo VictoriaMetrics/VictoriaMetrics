@@ -3,14 +3,14 @@ package proxy
 import (
 	"testing"
 
-	"gopkg.in/yaml.v2"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/yaml"
 )
 
 func TestURLParseSuccess(t *testing.T) {
 	f := func(src string) {
 		t.Helper()
 		var u URL
-		if err := yaml.Unmarshal([]byte(src), &u); err != nil {
+		if err := yaml.Unmarshal([]byte(src), &u, false); err != nil {
 			t.Fatalf("unexpected error for url: %s: %s", src, err)
 		}
 	}
@@ -24,7 +24,7 @@ func TestParseFail(t *testing.T) {
 	f := func(src string) {
 		t.Helper()
 		var u URL
-		if err := yaml.Unmarshal([]byte(src), &u); err == nil {
+		if err := yaml.Unmarshal([]byte(src), &u, false); err == nil {
 			t.Fatalf("want error for url: %s", src)
 		}
 	}

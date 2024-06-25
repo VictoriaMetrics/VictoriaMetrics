@@ -6,9 +6,8 @@ import (
 	"net/url"
 	"testing"
 
-	"gopkg.in/yaml.v2"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/yaml"
 )
 
 func TestParseAuthConfigFailure(t *testing.T) {
@@ -812,7 +811,7 @@ func intp(n int) *int {
 
 func mustNewRegex(s string) *Regex {
 	var re Regex
-	if err := yaml.Unmarshal([]byte(s), &re); err != nil {
+	if err := yaml.Unmarshal([]byte(s), &re, false); err != nil {
 		logger.Panicf("cannot unmarshal regex %q: %s", s, err)
 	}
 	return &re
@@ -820,7 +819,7 @@ func mustNewRegex(s string) *Regex {
 
 func mustNewQueryArg(s string) *QueryArg {
 	var qa QueryArg
-	if err := yaml.Unmarshal([]byte(s), &qa); err != nil {
+	if err := yaml.Unmarshal([]byte(s), &qa, false); err != nil {
 		logger.Panicf("cannot unmarshal query arg filter %q: %s", s, err)
 	}
 	return &qa
@@ -828,7 +827,7 @@ func mustNewQueryArg(s string) *QueryArg {
 
 func mustNewHeader(s string) *Header {
 	var h Header
-	if err := yaml.Unmarshal([]byte(s), &h); err != nil {
+	if err := yaml.Unmarshal([]byte(s), &h, false); err != nil {
 		logger.Panicf("cannot unmarshal header filter %q: %s", s, err)
 	}
 	return &h

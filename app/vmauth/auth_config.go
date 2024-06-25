@@ -19,7 +19,6 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
-	"gopkg.in/yaml.v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -28,6 +27,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/yaml"
 )
 
 var (
@@ -212,7 +212,7 @@ func (qa *QueryArg) UnmarshalYAML(f func(interface{}) error) error {
 	}
 
 	var re Regex
-	if err := yaml.Unmarshal([]byte(expr), &re); err != nil {
+	if err := yaml.Unmarshal([]byte(expr), &re, false); err != nil {
 		return fmt.Errorf("cannot unmarshal regex for %q query arg: %w", qa.Name, err)
 	}
 	qa.Value = &re
@@ -714,7 +714,7 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 	ac := &AuthConfig{
 		ms: metrics.NewSet(),
 	}
-	if err = yaml.UnmarshalStrict(data, ac); err != nil {
+	if err := yaml.Unmarshal(data, ac, true); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal AuthConfig data: %w", err)
 	}
 

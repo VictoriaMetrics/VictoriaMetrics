@@ -41,9 +41,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/yandexcloud"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/yaml"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
-	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -121,12 +121,10 @@ func (cfg *Config) unmarshal(data []byte, isStrict bool) error {
 	if err != nil {
 		return fmt.Errorf("cannot expand environment variables: %w", err)
 	}
-	if isStrict {
-		if err = yaml.UnmarshalStrict(data, cfg); err != nil {
+	if err = yaml.Unmarshal(data, cfg, isStrict); err != nil {
+		if isStrict {
 			err = fmt.Errorf("%w; pass -promscrape.config.strictParse=false command-line flag for ignoring unknown fields in yaml config", err)
 		}
-	} else {
-		err = yaml.Unmarshal(data, cfg)
 	}
 	return err
 }
@@ -425,7 +423,7 @@ func loadStaticConfigs(path string) ([]StaticConfig, error) {
 		return nil, fmt.Errorf("cannot expand environment vars in %q: %w", path, err)
 	}
 	var stcs []StaticConfig
-	if err := yaml.UnmarshalStrict(data, &stcs); err != nil {
+	if err := yaml.Unmarshal(data, &stcs, true); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal `static_configs` from %q: %w", path, err)
 	}
 	return stcs, nil
@@ -470,16 +468,13 @@ func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string, isStrict 
 				continue
 			}
 			var scs []*ScrapeConfig
-			if isStrict {
-				if err = yaml.UnmarshalStrict(data, &scs); err != nil {
+			if err := yaml.Unmarshal(data, &scs, isStrict); err != nil {
+				if isStrict {
 					return nil, fmt.Errorf("cannot unmarshal data from `scrape_config_files` %s: %w; "+
 						"pass -promscrape.config.strictParse=false command-line flag for ignoring invalid scrape_config_files", path, err)
 				}
-			} else {
-				if err = yaml.Unmarshal(data, &scs); err != nil {
-					logger.Errorf("skipping %q at `scrape_config_files` because of failure to parse it: %s", path, err)
-					continue
-				}
+				logger.Errorf("skipping %q at `scrape_config_files` because of failure to parse it: %s", path, err)
+				continue
 			}
 			scrapeConfigs = append(scrapeConfigs, scs...)
 		}

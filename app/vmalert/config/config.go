@@ -8,12 +8,11 @@ import (
 	"sort"
 	"strings"
 
-	"gopkg.in/yaml.v2"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/log"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/yaml"
 )
 
 // Group contains list of Rules grouped into
@@ -303,7 +302,7 @@ func parseConfig(data []byte) ([]Group, error) {
 		// Catches all undefined fields and must be empty after parsing.
 		XXX map[string]interface{} `yaml:",inline"`
 	}{}
-	err = yaml.Unmarshal(data, &g)
+	err = yaml.Unmarshal(data, &g, false)
 	if err != nil {
 		return nil, err
 	}

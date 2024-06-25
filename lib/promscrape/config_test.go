@@ -70,43 +70,43 @@ global:
 `)
 	f(`
 scrape_config_files:
-- foo
-- bar
+  - foo
+  - bar
 `)
 	f(`
 scrape_configs:
-- job_name: foo
-  scrape_timeout: 1.5s
-  static_configs:
-  - targets:
-    - foo
-    - bar
-    labels:
-      foo: bar
+  - job_name: foo
+    scrape_timeout: 1.5s
+    static_configs:
+      - targets:
+          - foo
+          - bar
+        labels:
+          foo: bar
 `)
 	f(`
 scrape_configs:
-- job_name: foo
-  honor_labels: true
-  honor_timestamps: true
-  scheme: https
-  params:
-    foo:
-    - x
-  authorization:
-    type: foobar
-  headers:
-  - 'TenantID: fooBar'
-  - 'X: y:z'
-  relabel_configs:
-  - source_labels: [abc]
-  static_configs:
-  - targets:
-    - foo
-  scrape_align_interval: 1h30m0s
-  proxy_bearer_token_file: file.txt
-  proxy_headers:
-  - 'My-Auth-Header: top-secret'
+  - job_name: foo
+    honor_labels: true
+    honor_timestamps: true
+    scheme: https
+    params:
+      foo:
+        - x
+    authorization:
+      type: foobar
+    headers:
+      - 'TenantID: fooBar'
+      - 'X: y:z'
+    relabel_configs:
+      - source_labels: [abc]
+    static_configs:
+      - targets:
+          - foo
+    scrape_align_interval: 1h30m0s
+    proxy_bearer_token_file: file.txt
+    proxy_headers:
+      - 'My-Auth-Header: top-secret'
 `)
 }
 
