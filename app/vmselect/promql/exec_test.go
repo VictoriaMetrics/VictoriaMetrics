@@ -9491,7 +9491,7 @@ func TestNoImplicitConversionRequiredTrue(t *testing.T) {
 	// this query will fail the test because it contains subquery
 	// f(`aggr_over_time(("rate", "increase"), foo[1h])`)
 
-	// metricsql rollup functions
+	// rollup functions with extra params
 	f(`predict_linear(foo{}[1h], 86400)`)
 	f(`quantile_over_time(0.99, foo[1h])`)
 	f(`quantiles_over_time("phi", 0.5, 0.99, foo[1h])`)

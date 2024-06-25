@@ -31,6 +31,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 * FEATURE: [dashboards](https://grafana.com/orgs/victoriametrics): add [Grafana dashboard](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/vmauth.json) and [alerting rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-vmauth.yml) for [vmauth](https://docs.victoriametrics.com/vmauth/) dashboard. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4313) for details.
 
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/): properly validate rollup functions which could contain not only rollup expressions when `-search.disableImplicitConversion` or `-search.logImplicitConversion` are enabled. For example, `predict_linear(up[5m], 86400)` or `quantile_over_time(0.99, foo[1h])` will now succeed the validation if these flags are set.
+
 ## [v1.102.0-rc2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0-rc2)
 
 Released at 2024-06-24
