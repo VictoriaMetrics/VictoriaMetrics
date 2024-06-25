@@ -50,6 +50,9 @@ from the received Syslog lines:
 - `format` - this field is set to either `rfc3164` or `rfc5424` depending on the format of the parsed syslog line
 - `msg_id` - `MSGID` field from log line in `RFC5424` format.
 
+The `[STRUCTURED-DATA]` is parsed into fields with the `SD-ID.param1`, `SD-ID.param2`, ..., `SD-ID.paramN` names and the corresponding values
+according to [the specification](https://datatracker.ietf.org/doc/html/rfc5424#section-6.3).
+
 By default local timezone is used when parsing timestamps in `rfc3164` lines. This can be changed to any desired timezone via `-syslog.timezone` command-line flag.
 See [the list of supported timezone identifiers](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). For example, the following command starts VictoriaLogs,
 which parses syslog timestamps in `rfc3164` using `Europe/Berlin` timezone:
