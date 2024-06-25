@@ -1,5 +1,39 @@
 
 {
+  "__inputs": [],
+  "__elements": {},
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "10.4.2"
+    },
+    {
+      "type": "datasource",
+      "id": "victoriametrics-datasource",
+      "name": "VictoriaMetrics",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    }
+  ],
   "annotations": {
     "list": [
       {
@@ -26,7 +60,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 80,
+  "id": null,
   "links": [
     {
       "asDropdown": false,
@@ -38,7 +72,7 @@
       "title": "vmauth docs",
       "tooltip": "vmauth docs",
       "type": "link",
-      "url": "https://docs.victoriametrics.com/vmagent.html"
+      "url": "https://docs.victoriametrics.com/vmauth.html"
     },
     {
       "asDropdown": false,
@@ -79,314 +113,6 @@
       "panels": [],
       "title": "Stats",
       "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "victoriametrics-datasource",
-        "uid": "$ds"
-      },
-      "description": "Shows if the last configuration update was successful. \"Not Ok\" means there was an unsuccessful attempt to update the configuration due to some error. Check the log for details.",
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [
-            {
-              "options": {
-                "0": {
-                  "color": "green",
-                  "index": 0,
-                  "text": "Ok"
-                }
-              },
-              "type": "value"
-            },
-            {
-              "options": {
-                "from": 1,
-                "result": {
-                  "color": "red",
-                  "index": 1,
-                  "text": "Not Ok"
-                },
-                "to": 999999
-              },
-              "type": "range"
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 5,
-        "x": 0,
-        "y": 1
-      },
-      "id": 30,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "last"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "text": {},
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "10.4.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-datasource",
-            "uid": "$ds"
-          },
-          "exemplar": false,
-          "expr": "count(vmalert_config_last_reload_successful{job=~\"$job\", instance=~\"$instance\"} < 1 ) or 0",
-          "interval": "",
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ],
-      "title": "Config update",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "victoriametrics-datasource",
-        "uid": "${ds}"
-      },
-      "description": "Shows the rate of requests.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 19,
-        "x": 5,
-        "y": 1
-      },
-      "id": 4,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "10.4.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-datasource",
-            "uid": "${ds}"
-          },
-          "editorMode": "code",
-          "expr": "(sum(rate(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) or 0) + (sum(rate(vmauth_unauthorized_user_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) or 0)",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Authorized requests rate",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "victoriametrics-datasource",
-        "uid": "$ds"
-      },
-      "description": "Shows the total number of users defined at configuration file.",
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 5,
-        "x": 0,
-        "y": 4
-      },
-      "id": 31,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "last"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "text": {},
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "10.4.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-datasource",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "count(vmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\"})",
-          "interval": "",
-          "legendFormat": "",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Users count",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "victoriametrics-datasource",
-        "uid": "${ds}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": false,
-            "inspect": false,
-            "minWidth": 50
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Time"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Value"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "Count"
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 5,
-        "x": 0,
-        "y": 8
-      },
-      "id": 6,
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "frameIndex": 0,
-        "showHeader": true
-      },
-      "pluginVersion": "10.4.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-datasource",
-            "uid": "${ds}"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by (job, short_version)",
-          "format": "table",
-          "instant": true,
-          "range": false,
-          "refId": "A"
-        }
-      ],
-      "title": "Version",
-      "type": "table"
     },
     {
       "datasource": {
@@ -447,15 +173,15 @@
               }
             ]
           },
-          "unit": "ms"
+          "unit": "s"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 5,
-        "w": 8,
-        "x": 5,
-        "y": 8
+        "h": 4,
+        "w": 11,
+        "x": 0,
+        "y": 1
       },
       "id": 32,
       "options": {
@@ -495,12 +221,387 @@
       "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "victoriametrics-datasource",
+        "uid": "$ds"
+      },
+      "description": "Shows if the last configuration update was successful. \"Not Ok\" means there was an unsuccessful attempt to update the configuration due to some error. Check the log for details.",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "green",
+                  "index": 0,
+                  "text": "Ok"
+                }
+              },
+              "type": "value"
+            },
+            {
+              "options": {
+                "from": 1,
+                "result": {
+                  "color": "red",
+                  "index": 1,
+                  "text": "Not Ok"
+                },
+                "to": 999999
+              },
+              "type": "range"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 6,
+        "x": 11,
+        "y": 1
+      },
+      "id": 30,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {},
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-datasource",
+            "uid": "$ds"
+          },
+          "exemplar": false,
+          "expr": "count(vmauth_config_last_reload_successful{job=~\"$job\", instance=~\"$instance\"} < 1 ) or 0",
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "Config update",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+      },
+      "description": "Shows the rate of requests.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 7,
+        "x": 17,
+        "y": 1
+      },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "(sum(rate(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) or 0) + (sum(rate(vmauth_unauthorized_user_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) or 0)",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Requests rate",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-datasource",
+        "uid": "$ds"
+      },
+      "description": "Shows the total number of users defined at configuration file.",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 6,
+        "x": 11,
+        "y": 4
+      },
+      "id": 31,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {},
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "count(vmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\"})",
+          "interval": "",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Users count",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+      },
+      "description": "Shows the rate of request errors.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 7,
+        "x": 17,
+        "y": 4
+      },
+      "id": 36,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "sum(rate(vmauth_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Errors rate",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": false,
+            "inspect": false,
+            "minWidth": 50
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Time"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Count"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 11,
+        "x": 0,
+        "y": 5
+      },
+      "id": 6,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 0,
+        "showHeader": true
+      },
+      "pluginVersion": "10.4.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by (job, short_version)",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Version",
+      "type": "table"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 13
+        "y": 9
       },
       "id": 13,
       "panels": [],
@@ -510,7 +611,7 @@
     {
       "datasource": {
         "type": "victoriametrics-datasource",
-        "uid": "${ds}"
+        "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
       },
       "fieldConfig": {
         "defaults": {
@@ -570,7 +671,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 14
+        "y": 10
       },
       "id": 11,
       "options": {
@@ -589,10 +690,10 @@
         {
           "datasource": {
             "type": "victoriametrics-datasource",
-            "uid": "${ds}"
+            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
           },
           "editorMode": "code",
-          "expr": "sum(rollup_rate(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval], \"min\")) by(username)",
+          "expr": "sum(rate(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by(username)",
           "hide": false,
           "legendFormat": "__auto",
           "range": true,
@@ -601,11 +702,11 @@
         {
           "datasource": {
             "type": "victoriametrics-datasource",
-            "uid": "${ds}"
+            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_unauthorized_user_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
-          "hide": true,
+          "hide": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "B"
@@ -617,9 +718,9 @@
     {
       "datasource": {
         "type": "victoriametrics-datasource",
-        "uid": "${ds}"
+        "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
       },
-      "description": " Display percent utilization of  per concurrent requests capacity.",
+      "description": "Shows percent utilization of  per concurrent requests capacity.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -680,7 +781,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 14
+        "y": 10
       },
       "id": 14,
       "options": {
@@ -704,10 +805,10 @@
         {
           "datasource": {
             "type": "victoriametrics-datasource",
-            "uid": "${ds}"
+            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
           },
           "editorMode": "code",
-          "expr": "max(\nmax_over_time(vmauth_user_concurrent_requests_current{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[5m])\n/ \nvmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}\n) by(username) > 0\n",
+          "expr": "max(\nmax_over_time(vmauth_user_concurrent_requests_current{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])\n/ \nvmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}\n) by(username) > 0\n",
           "hide": false,
           "interval": "5m",
           "legendFormat": "__auto",
@@ -721,9 +822,9 @@
     {
       "datasource": {
         "type": "victoriametrics-datasource",
-        "uid": "${ds}"
+        "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
       },
-      "description": " Defines a reason of rejecting http requests.",
+      "description": "Shows the rate of rejected requests by a reason.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -782,7 +883,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 23
+        "y": 19
       },
       "id": 16,
       "options": {
@@ -801,7 +902,7 @@
         {
           "datasource": {
             "type": "victoriametrics-datasource",
-            "uid": "${ds}"
+            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (reason)",
@@ -811,14 +912,15 @@
           "refId": "A"
         }
       ],
-      "title": "Requests reject reason",
+      "title": "Requests rejected rate",
       "type": "timeseries"
     },
     {
       "datasource": {
         "type": "victoriametrics-datasource",
-        "uid": "${ds}"
+        "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
       },
+      "description": " The number of concurrent connections processed by vmauth reached one of limits. Possible solutions:\n- increase global limit with flag -maxConcurrentRequests\n- increase limit with flag: -maxConcurrentPerUserRequests for all users or with config option `max_concurrent_requests` per user.\n- deploy additional vmauth replicas\n- check requests latency at backend service and allocate resources to it if needed",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -877,7 +979,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 23
+        "y": 19
       },
       "id": 10,
       "options": {
@@ -896,7 +998,7 @@
         {
           "datasource": {
             "type": "victoriametrics-datasource",
-            "uid": "${ds}"
+            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_user_concurrent_requests_limit_reached_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by(username)  > 0",
@@ -908,7 +1010,7 @@
         {
           "datasource": {
             "type": "victoriametrics-datasource",
-            "uid": "${ds}"
+            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_unauthorized_user_concurrent_requests_limit_reached_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
@@ -920,12 +1022,12 @@
         {
           "datasource": {
             "type": "victoriametrics-datasource",
-            "uid": "${ds}"
+            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vmauth_concurrent_requests_limit_reached_total[30m])) > 0",
+          "expr": "sum(rate(vmauth_concurrent_requests_limit_reached_total[$__rate_interval])) > 0",
           "hide": false,
-          "legendFormat": "global",
+          "legendFormat": "global at {{ $instance }}",
           "range": true,
           "refId": "C"
         }
@@ -936,9 +1038,9 @@
     {
       "datasource": {
         "type": "victoriametrics-datasource",
-        "uid": "${ds}"
+        "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
       },
-      "description": " Defines duration in seconds of users request by quantile.",
+      "description": "Shows duration in seconds of user requests by quantile.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -998,7 +1100,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 32
+        "y": 28
       },
       "id": 19,
       "options": {
@@ -1022,7 +1124,7 @@
         {
           "datasource": {
             "type": "victoriametrics-datasource",
-            "uid": "${ds}"
+            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
           },
           "editorMode": "code",
           "expr": "max(vmauth_user_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", username=~\"$user\", quantile=~\"(0.99|0.5)\"}) by (quantile, username) > 0",
@@ -1034,12 +1136,12 @@
         {
           "datasource": {
             "type": "victoriametrics-datasource",
-            "uid": "${ds}"
+            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
           },
           "editorMode": "code",
-          "expr": "max(vmauth_unauthorized_user_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=~\"(0.99|0.5)\"}) by (quantile, username) > 0",
+          "expr": "max(vmauth_unauthorized_user_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=~\"(0.99|0.5)\"}) by (quantile) > 0",
           "hide": false,
-          "legendFormat": "user: {{username}} q: {{ quantile}}",
+          "legendFormat": "user: unauthorized q: {{ quantile}}",
           "range": true,
           "refId": "B"
         }
@@ -1053,7 +1155,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 41
+        "y": 37
       },
       "id": 22,
       "panels": [
@@ -1124,7 +1226,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 16
+            "y": 11
           },
           "id": 25,
           "options": {
@@ -1230,7 +1332,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 16
+            "y": 11
           },
           "id": 26,
           "options": {
@@ -1339,7 +1441,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 24
+            "y": 19
           },
           "id": 27,
           "options": {
@@ -1512,7 +1614,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 24
+            "y": 19
           },
           "id": 28,
           "options": {
@@ -1632,7 +1734,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 32
+            "y": 27
           },
           "id": 23,
           "options": {
@@ -1738,7 +1840,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 32
+            "y": 27
           },
           "id": 24,
           "options": {
@@ -1863,7 +1965,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 40
+            "y": 35
           },
           "id": 20,
           "options": {
@@ -1972,7 +2074,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 40
+            "y": 35
           },
           "id": 21,
           "options": {
@@ -2077,7 +2179,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 48
+            "y": 43
           },
           "id": 29,
           "options": {
@@ -2125,7 +2227,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 42
+        "y": 38
       },
       "id": 35,
       "panels": [
@@ -2192,7 +2294,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 43
+            "y": 39
           },
           "id": 34,
           "options": {
@@ -2213,7 +2315,7 @@
               }
             ]
           },
-          "pluginVersion": "10.4.0",
+          "pluginVersion": "10.4.2",
           "targets": [
             {
               "datasource": {
@@ -2259,7 +2361,7 @@
         {
           "datasource": {
             "type": "victoriametrics-datasource",
-            "uid": "${ds}"
+            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
           },
           "description": "Shows number of generated  error and warning messages in  logs. Non-zero value may be a sign of connectivity or missconfiguration errors.",
           "fieldConfig": {
@@ -2316,7 +2418,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 43
+            "y": 39
           },
           "id": 8,
           "options": {
@@ -2340,7 +2442,7 @@
             {
               "datasource": {
                 "type": "victoriametrics-datasource",
-                "uid": "${ds}"
+                "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
               },
               "editorMode": "code",
               "expr": "sum(increase(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (level)",
@@ -2365,9 +2467,9 @@
     "list": [
       {
         "current": {
-          "selected": true,
-          "text": "c7",
-          "value": "Dry0wZn4z"
+          "selected": false,
+          "text": "VictoriaMetrics - cluster",
+          "value": "PAF93674D0B4E9963"
         },
         "hide": 0,
         "includeAll": false,
@@ -2382,18 +2484,10 @@
         "type": "datasource"
       },
       {
-        "current": {
-          "selected": true,
-          "text": [
-            "All"
-          ],
-          "value": [
-            "$__all"
-          ]
-        },
+        "current": {},
         "datasource": {
           "type": "victoriametrics-datasource",
-          "uid": "${ds}"
+          "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
         },
         "definition": "label_values(vm_app_version{version=~\"^vmauth.*\"}, job)",
         "hide": 0,
@@ -2413,18 +2507,10 @@
       },
       {
         "allValue": ".*",
-        "current": {
-          "selected": false,
-          "text": [
-            "10.208.108.174"
-          ],
-          "value": [
-            "10.208.108.174"
-          ]
-        },
+        "current": {},
         "datasource": {
           "type": "victoriametrics-datasource",
-          "uid": "${ds}"
+          "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
         },
         "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
         "hide": 0,
@@ -2443,18 +2529,10 @@
         "type": "query"
       },
       {
-        "current": {
-          "selected": true,
-          "text": [
-            "All"
-          ],
-          "value": [
-            "$__all"
-          ]
-        },
+        "current": {},
         "datasource": {
           "type": "victoriametrics-datasource",
-          "uid": "${ds}"
+          "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
         },
         "definition": "label_values(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\"}, username)",
         "hide": 0,
@@ -2493,6 +2571,6 @@
   "timezone": "",
   "title": "VictoriaMetrics - vmauth (VM)",
   "uid": "nbuo5Mr4k_vm",
-  "version": 9,
+  "version": 1,
   "weekStart": ""
 }
