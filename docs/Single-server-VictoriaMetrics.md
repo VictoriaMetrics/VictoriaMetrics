@@ -1635,6 +1635,25 @@ Set HTTP request header `Content-Encoding: gzip` when sending gzip-compressed da
 VictoriaMetrics stores the ingested OpenTelemetry [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) as is without any transformations.
 Pass `-opentelemetry.usePrometheusNaming` command-line flag to VictoriaMetrics for automatic conversion of metric names and labels into Prometheus-compatible format.
 
+Using the following exporter configuration in the opentelemetry collector will allow you to send metrics into VictoriaMetrics:
+
+```yaml
+exporters:
+  otlphttp/victoriametrics:
+    compression: gzip
+    encoding: proto
+    endpoint: http://<collector/vmagent>.<namespace>.svc.cluster.local:<port>/opentelemetry
+```
+Remember to add the exporter to the desired service pipeline in order to activate the exporter.
+```yaml
+service:
+  pipelines:
+    metrics:
+      exporters:
+        - otlphttp/victoriametrics
+      receivers:
+        - otlp
+```
 See [How to use OpenTelemetry metrics with VictoriaMetrics](https://docs.victoriametrics.com/guides/getting-started-with-opentelemetry/).
 
 ## JSON line format
