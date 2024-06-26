@@ -1,5 +1,5 @@
 name: victoriametrics
-base: core18
+base: core22
 adopt-info: build
 icon: logo.png
 summary: VictoriaMetrics is fast, cost-effective and scalable time-series database.
@@ -52,25 +52,29 @@ parts:
   build:
     plugin: go
     go-channel: 1.22/stable
-    go-importpath: github.com/VictoriaMetrics/VictoriaMetrics
     source: .
     source-type: local
     build-packages: [build-essential, make]
     override-build: |
-      make app-local APP_NAME=victoria-metrics
+      if [ "$SNAP_ARCH" = "arm64" ]; then
+        export CC=/opt/cross-builder/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc;
+      elif [ "$SNAP_ARCH" = "amd64" ]; then
+        export CC=/opt/cross-builder/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc;
+      fi
+      make app-local
       mkdir -p $SNAPCRAFT_PART_INSTALL/bin
-      cp -p $SNAPCRAFT_PART_BUILD/bin/victoria-metrics $SNAPCRAFT_PART_INSTALL/bin/
-      cp -p $SNAPCRAFT_PART_SRC/snap/local/victoriametrics-wrapper $SNAPCRAFT_PART_INSTALL/bin/
+      cp -p $SNAPCRAFT_PART_BUILD/bin/$APP_NAME $SNAPCRAFT_PART_INSTALL/bin/
+      cp -p $SNAPCRAFT_PART_SRC/snap/local/app_wrapper $SNAPCRAFT_PART_INSTALL/bin/
     override-pull: |
       snapcraftctl set-version "$PKG_TAG"
       snapcraftctl pull
 apps:
   victoriametrics:
-    command: bin/victoriametrics-wrapper
+    command: bin/app_wrapper
     daemon: simple
     restart-condition: always
     restart-delay: 10s
-    plugs: [network,network-bind]
+    plugs: [network, network-bind]
 
 plugs:
   network:
@@ -82,5 +86,4 @@ layout:
   /etc/victoriametrics-scrape-config.yaml:
     bind-file: $SNAP_DATA/etc/victoriametrics-scrape-config.yaml
 architectures:
-  - build-on: ['amd64']
-    run-on: ['amd64']
+  - build-on: [amd64, arm64]
