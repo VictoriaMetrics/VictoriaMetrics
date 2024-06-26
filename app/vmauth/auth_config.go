@@ -83,6 +83,7 @@ type UserInfo struct {
 
 	concurrencyLimitCh      chan struct{}
 	concurrencyLimitReached *metrics.Counter
+	overrideHostHeader      bool
 
 	rt http.RoundTripper
 
@@ -147,6 +148,15 @@ func (h *Header) UnmarshalYAML(f func(interface{}) error) error {
 // MarshalYAML marshals h to yaml.
 func (h *Header) MarshalYAML() (interface{}, error) {
 	return h.sOriginal, nil
+}
+
+func overrideHostHeader(headers []*Header) bool {
+	for _, h := range headers {
+		if h.Name == "Host" && h.Value == "" {
+			return true
+		}
+	}
+	return false
 }
 
 // URLMap is a mapping from source paths to target urls.
@@ -738,6 +748,7 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		if err := ui.initURLs(); err != nil {
 			return nil, err
 		}
+		ui.overrideHostHeader = overrideHostHeader(ui.HeadersConf.RequestHeaders)
 
 		metricLabels, err := ui.getMetricLabels()
 		if err != nil {
@@ -802,6 +813,7 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		_ = ac.ms.GetOrCreateGauge(`vmauth_user_concurrent_requests_current`+metricLabels, func() float64 {
 			return float64(len(ui.concurrencyLimitCh))
 		})
+		ui.overrideHostHeader = overrideHostHeader(ui.HeadersConf.RequestHeaders)
 
 		rt, err := newRoundTripper(ui.TLSCAFile, ui.TLSCertFile, ui.TLSKeyFile, ui.TLSServerName, ui.TLSInsecureSkipVerify)
 		if err != nil {
