@@ -1,5 +1,4 @@
-import React, { FC, useEffect, useState } from "preact/compat";
-import { StateUpdater } from "preact/hooks";
+import React, { Dispatch, FC, SetStateAction, useEffect, useState } from "preact/compat";
 import QueryEditor from "../../../components/Configurators/QueryEditor/QueryEditor";
 import AdditionalSettings from "../../../components/Configurators/AdditionalSettings/AdditionalSettings";
 import usePrevious from "../../../hooks/usePrevious";
@@ -28,8 +27,8 @@ import AnomalyConfig from "../../../components/ExploreAnomaly/AnomalyConfig";
 
 export interface QueryConfiguratorProps {
   queryErrors: string[];
-  setQueryErrors: StateUpdater<string[]>;
-  setHideError: StateUpdater<boolean>;
+  setQueryErrors: Dispatch<SetStateAction<string[]>>;
+  setHideError: Dispatch<SetStateAction<boolean>>;
   stats: QueryStats[];
   onHideQuery?: (queries: number[]) => void
   onRunQuery: () => void;
