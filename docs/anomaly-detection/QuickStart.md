@@ -75,7 +75,12 @@ services:
   # ...
   vmanomaly:
     image: victoriametrics/vmanomaly:latest
-    user: "1000:1000"
+    volumes:
+        $YOUR_LICENSE_FILE_PATH:/license
+        $YOUR_CONFIG_FILE_PATH:/config.yml
+    command:
+      - "/config.yml"
+      - "--license-file=/license"
     # ...
 ```
 
@@ -85,7 +90,7 @@ For a complete docker-compose example please refer to [our alerting guide](/anom
 
 See also:
 
-- Verify licence online and offline. See the details [here](/anomaly-detection/overview/#licensing).
+- Verify the license online OR offline. See the details [here](/anomaly-detection/overview/#licensing).
 - [How to configure `vmanomaly`](#how-to-configure-vmanomaly)
 
 ### Kubernetes with Helm charts
