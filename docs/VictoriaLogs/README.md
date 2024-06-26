@@ -105,7 +105,7 @@ For example, the following command starts VictoriaLogs, which accepts logs with 
 
 ## Retention by disk space usage
 
-VictoriaLogs can be configured to automatically drop older per-day partitions if the total size of partitions at [`-storageDataPath` directory](#storage)
+VictoriaLogs can be configured to automatically drop older per-day partitions if the total size of data at [`-storageDataPath` directory](#storage)
 becomes bigger than the given threshold at `-retention.maxDiskSpaceUsageBytes` command-line flag. For example, the following command starts VictoriaLogs,
 which drops old per-day partitions if the total [storage](#storage) size becomes bigger than `100GiB`:
 
@@ -113,12 +113,21 @@ which drops old per-day partitions if the total [storage](#storage) size becomes
 /path/to/victoria-logs -retention.maxDiskSpaceUsageBytes=100GiB
 ```
 
+VictoriaLogs usually compresses logs by 10x or more times. This means that VictoriaLogs can store more than a terabyte of uncompressed
+logs when it runs with `-retention.maxDiskSpaceUsageBytes=100GiB`.
+
 VictoriaLogs keeps at least two last days of data in order to guarantee that the logs for the last day can be returned in queries.
 This means that the total disk space usage may exceed the `-retention.maxDiskSpaceUsageBytes` if the size of the last two days of data
 exceeds the `-retention.maxDiskSpaceUsageBytes`.
 
-See also [retention](#retention).
+The [`-retentionPeriod`](#retention) is applied independently to the `-retention.maxDiskSpaceUsageBytes`. This means that
+VictoriaLogs automatically drops logs older than 7 days by default if only `-retention.maxDiskSpaceUsageBytes` command-line flag is set.
+Set the `-retentionPeriod` to some big value (e.g. `100y` - 100 years) if logs shouldn't be dropped because of some small `-retentionPeriod`.
+For example:
 
+```sh
+/path/to/victoria-logs -retention.maxDiskSpaceUsageBytes=10TiB -retention=100y
+```
 
 ## Storage
 

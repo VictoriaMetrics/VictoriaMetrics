@@ -1,22 +1,17 @@
-import React, { FC, useEffect, useState } from "preact/compat";
+import React, { FC, useRef } from "preact/compat";
 import ServerConfigurator from "./ServerConfigurator/ServerConfigurator";
-import { useAppDispatch, useAppState } from "../../../state/common/StateContext";
 import { ArrowDownIcon, SettingsIcon } from "../../Main/Icons";
 import Button from "../../Main/Button/Button";
 import Modal from "../../Main/Modal/Modal";
 import "./style.scss";
 import Tooltip from "../../Main/Tooltip/Tooltip";
 import LimitsConfigurator from "./LimitsConfigurator/LimitsConfigurator";
-import { Theme } from "../../../types";
-import { useCustomPanelDispatch, useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import { getAppModeEnable } from "../../../utils/app-mode";
 import classNames from "classnames";
 import Timezones from "./Timezones/Timezones";
-import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateContext";
 import ThemeControl from "../ThemeControl/ThemeControl";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import useBoolean from "../../../hooks/useBoolean";
-import { getTenantIdFromUrl } from "../../../utils/tenants";
 import { AppType } from "../../../types/appType";
 
 const title = "Settings";
@@ -24,27 +19,18 @@ const title = "Settings";
 const { REACT_APP_TYPE } = process.env;
 const isLogsApp = REACT_APP_TYPE === AppType.logs;
 
+export interface ChildComponentHandle {
+  handleApply: () => void;
+}
+
 const GlobalSettings: FC = () => {
   const { isMobile } = useDeviceDetect();
 
   const appModeEnable = getAppModeEnable();
-  const { serverUrl: stateServerUrl, theme } = useAppState();
-  const { timezone: stateTimezone, defaultTimezone } = useTimeState();
-  const { seriesLimits } = useCustomPanelState();
 
-  const dispatch = useAppDispatch();
-  const timeDispatch = useTimeDispatch();
-  const customPanelDispatch = useCustomPanelDispatch();
-
-  const [serverUrl, setServerUrl] = useState(stateServerUrl);
-  const [limits, setLimits] = useState(seriesLimits);
-  const [timezone, setTimezone] = useState(stateTimezone);
-
-  const setDefaultsValues = () => {
-    setServerUrl(stateServerUrl);
-    setLimits(seriesLimits);
-    setTimezone(stateTimezone);
-  };
+  const serverSettingRef = useRef<ChildComponentHandle>(null);
+  const limitsSettingRef = useRef<ChildComponentHandle>(null);
+  const timezoneSettingRef = useRef<ChildComponentHandle>(null);
 
   const {
     value: open,
@@ -52,68 +38,35 @@ const GlobalSettings: FC = () => {
     setFalse: handleClose,
   } = useBoolean(false);
 
-  const handleCloseAndReset = () => {
-    handleClose();
-    setDefaultsValues();
-  };
-
-  const handleChangeTheme = (value: Theme) => {
-    dispatch({ type: "SET_THEME", payload: value });
-  };
-
-  const handlerApply = () => {
-    const tenantIdFromUrl = getTenantIdFromUrl(serverUrl);
-    if (tenantIdFromUrl !== "") {
-      dispatch({ type: "SET_TENANT_ID", payload: tenantIdFromUrl });
-    }
-    dispatch({ type: "SET_SERVER", payload: serverUrl });
-    timeDispatch({ type: "SET_TIMEZONE", payload: timezone });
-    customPanelDispatch({ type: "SET_SERIES_LIMITS", payload: limits });
+  const handleApply = () => {
+    serverSettingRef.current && serverSettingRef.current.handleApply();
+    limitsSettingRef.current && limitsSettingRef.current.handleApply();
+    timezoneSettingRef.current && timezoneSettingRef.current.handleApply();
     handleClose();
   };
-
-  useEffect(() => {
-    // the tenant selector can change the serverUrl
-    if (stateServerUrl === serverUrl) return;
-    setServerUrl(stateServerUrl);
-  }, [stateServerUrl]);
-
-  useEffect(() => {
-    setTimezone(stateTimezone);
-  }, [stateTimezone]);
 
   const controls = [
     {
       show: !appModeEnable && !isLogsApp,
       component: <ServerConfigurator
-        stateServerUrl={stateServerUrl}
-        serverUrl={serverUrl}
-        onChange={setServerUrl}
-        onEnter={handlerApply}
+        ref={serverSettingRef}
+        onClose={handleClose}
       />
     },
     {
       show: !isLogsApp,
       component: <LimitsConfigurator
-        limits={limits}
-        onChange={setLimits}
-        onEnter={handlerApply}
+        ref={limitsSettingRef}
+        onClose={handleClose}
       />
     },
     {
       show: true,
-      component: <Timezones
-        timezoneState={timezone}
-        defaultTimezone={defaultTimezone}
-        onChange={setTimezone}
-      />
+      component: <Timezones ref={timezoneSettingRef}/>
     },
     {
       show: !appModeEnable,
-      component: <ThemeControl
-        theme={theme}
-        onChange={handleChangeTheme}
-      />
+      component: <ThemeControl/>
     }
   ].filter(control => control.show);
 
@@ -146,7 +99,7 @@ const GlobalSettings: FC = () => {
     {open && (
       <Modal
         title={title}
-        onClose={handleCloseAndReset}
+        onClose={handleClose}
       >
         <div
           className={classNames({
@@ -166,14 +119,14 @@ const GlobalSettings: FC = () => {
             <Button
               color="error"
               variant="outlined"
-              onClick={handleCloseAndReset}
+              onClick={handleClose}
             >
               Cancel
             </Button>
             <Button
               color="primary"
               variant="contained"
-              onClick={handlerApply}
+              onClick={handleApply}
             >
               Apply
             </Button>
