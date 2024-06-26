@@ -200,10 +200,12 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		up, hc = ui.DefaultURL, ui.HeadersConf
 		isDefault = true
 	}
-	r.Body = getReadTrackingBody(r.Body, int(r.ContentLength))
-	defer func() {
-		putReadTrackingBody(r.Body.(*readTrackingBody))
-	}()
+	if r.ContentLength <= int64(maxRequestBodySizeToRetry.IntN()) {
+		r.Body = getReadTrackingBody(r.Body, int(r.ContentLength))
+		defer func() {
+			putReadTrackingBody(r.Body.(*readTrackingBody))
+		}()
+	}
 	maxAttempts := up.getBackendsCount()
 	for i := 0; i < maxAttempts; i++ {
 		bu := up.getBackendURL()
