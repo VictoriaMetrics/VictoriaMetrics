@@ -56,11 +56,6 @@ parts:
     source-type: local
     build-packages: [build-essential, make]
     override-build: |
-      if [ "$SNAP_ARCH" = "arm64" ]; then
-        export CC=/opt/cross-builder/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc;
-      elif [ "$SNAP_ARCH" = "amd64" ]; then
-        export CC=/opt/cross-builder/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc;
-      fi
       make app-local
       mkdir -p $SNAPCRAFT_PART_INSTALL/bin
       cp -p $SNAPCRAFT_PART_BUILD/bin/$APP_NAME $SNAPCRAFT_PART_INSTALL/bin/
