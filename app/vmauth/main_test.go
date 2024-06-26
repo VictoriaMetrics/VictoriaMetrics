@@ -92,7 +92,7 @@ func TestRetryReadSuccessAfterPartialRead(t *testing.T) {
 			r:   io.NopCloser(bytes.NewBufferString(s)),
 			buf: make([]byte, 0, len(s)),
 		}
-		// 读取全部数据
+
 		var data []byte
 		var err error
 		halfSize := len(s) / 2
@@ -131,7 +131,8 @@ func TestRetryReadSuccessAfterPartialRead(t *testing.T) {
 		if string(data) != s {
 			t.Fatalf("unexpected data read; got\n%s\nwant\n%s", data, s)
 		}
-		// cannot retry because the request data is over maxRequestBodySizeToRetry
+		// cannotRetry return false
+		// because the request data is not over maxRequestBodySizeToRetry limit
 		if !rtb.canRetry() {
 			t.Fatalf("canRetry() must return true")
 		}
@@ -153,6 +154,7 @@ func TestRetryReadSuccessAfterPartialReadAndCannotRetryAgain(t *testing.T) {
 			r:   io.NopCloser(bytes.NewBufferString(s)),
 			buf: make([]byte, 0, len(s)),
 		}
+
 		var data []byte
 		var err error
 		halfSize := len(s) / 2
@@ -191,7 +193,8 @@ func TestRetryReadSuccessAfterPartialReadAndCannotRetryAgain(t *testing.T) {
 			t.Fatalf("unexpected data read; got\n%s\nwant\n%s", data, s)
 		}
 
-		// cannot retry because the request data is over maxRequestBodySizeToRetry
+		// cannotRetry returns true
+		// because the request data is over maxRequestBodySizeToRetry limit
 		if rtb.canRetry() {
 			t.Fatalf("canRetry() must return false")
 		}
