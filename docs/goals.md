@@ -8,7 +8,9 @@ menu:
     weight: 500
 ---
 
-# Goals
+# VictoriaMetrics goals
+
+## Goals
 
 1. The main goal - **to help users and [clients](https://docs.victoriametrics.com/enterprise/) resolving issues with VictoriaMetrics components,
    so they could use these components in the most efficient way**.
@@ -23,7 +25,7 @@ menu:
 1. Improving the readability and maintainability of the code base by removing unnecessary abstractions and simplifying the code whenever possible.
 1. Improving development velocity by optimizing CI/CD tasks, so they take less time.
 
-# Non-goals
+## Non-goals
 
 1. Convincing people to use VictoriaMetrics components when there are better suited solutions exist for their tasks,
    since users will become angry at VictoriaMetrics after they discover better solutions.
@@ -41,8 +43,7 @@ menu:
 1. Slowing down CI/CD pipelines with non-essential tasks, since this results in development velocity slowdown.
 1. Slowing down development velocity by introducing non-essential requirements.
 
-
-# VictoriaMetrics proverbs
+## VictoriaMetrics proverbs
 
 - **Small usability bugfix is better than non-trivial feature.** Usability bugfix makes happy existing users.
   Non-trivial feature may make happy some new users, while it may make upset a big share of existing users
