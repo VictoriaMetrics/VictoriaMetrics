@@ -19,7 +19,7 @@ menu:
    to ask these questions at our [support channels](https://docs.victoriametrics.com/#community-and-contributions).
 1. Simplifying usage of VictoriaMetrics components without breaking backwards compatibility, so users could regularly
    upgrade to [the latest available release](https://docs.victoriametrics.com/CHANGELOG.html) and remain happy.
-1. Improving **the essential functionality** of VictoriaMetrics components.
+1. Improving **the essential functionality** of VictoriaMetrics components, which is used by most users.
 1. Improving the readability and maintainability of the code base by removing unnecessary abstractions and simplifying the code whenever possible.
 1. Improving development velocity by optimizing CI/CD tasks, so they take less time.
 
@@ -40,3 +40,20 @@ menu:
    Other pull requests must be closed as `won't merge`, with the link to this page.
 1. Slowing down CI/CD pipelines with non-essential tasks, since this results in development velocity slowdown.
 1. Slowing down development velocity by introducing non-essential requirements.
+
+
+# VictoriaMetrics proverbs
+
+- **Small usability bugfix is better than non-trivial feature.** Usability bugfix makes happy existing users.
+  Non-trivial feature may make happy some new users, while it may make upset a big share of existing users
+  if the feature breaks some essential functionaly of VictoriaMetrics components or makes it less efficient.
+
+- **Good docs are better than new shiny feature.** Good docs help users discovering new functionality and dealing
+  with VictoriaMetrics components in the most efficient way. Nobody uses new shiny feature if it isn't documented properly.
+
+- **Happy users are more important than the momentary revenue.** Happy users spread the word about VictoriaMetrics,
+  so more people convert to VictoriaMetrics users. Happy users are eager to become happy [customers](https://docs.victoriametrics.com/enterprise/).
+  This increases long-term revenue.
+
+- **Simple solution is better than smart solution.** Simple solution is easier to setup, operate, debug and troubleshoot than the smart solution.
+  This saves users' time, costs and nerve cells.
