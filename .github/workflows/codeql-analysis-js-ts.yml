@@ -1,22 +1,27 @@
-name: "CodeQL - JS"
+name: 'CodeQL JS/TS'
 
 on:
   push:
-    branches: [master, cluster]
+    branches:
+      - cluster
+      - master
     paths:
-      - "**.js"
+      - '**.js'
+      - '**.ts'
+      - '**.tsx'
   pull_request:
-    # The branches below must be a subset of the branches above
-    branches: [master, cluster]
+    branches:
+      - cluster
+      - master
     paths:
-      - "**.js"
-  schedule:
-    - cron: "30 18 * * 2"
+      - '**.js'
+      - '**.ts'
+      - '**.tsx'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-  
+
 jobs:
   analyze:
     name: Analyze
@@ -26,11 +31,6 @@ jobs:
       contents: read
       security-events: write
 
-    strategy:
-      fail-fast: false
-      matrix:
-        language: ["javascript"]
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -38,9 +38,9 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
-          languages: ${{ matrix.language }}
+          languages: javascript-typescript
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
-          category: "javascript"
+          category: 'language:js/ts'
