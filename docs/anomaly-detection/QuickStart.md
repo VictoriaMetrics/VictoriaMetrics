@@ -57,9 +57,40 @@ docker run -it -v $YOUR_LICENSE_FILE_PATH:/license \
                --license-file=/license
 ```
 
+In case you found `PermissionError: [Errno 13] Permission denied:` in `vmanomaly` logs, set user/user group to 1000 in the run command above / in a docker-compose file:
+
+```sh
+export YOUR_LICENSE_FILE_PATH=path/to/license/file
+export YOUR_CONFIG_FILE_PATH=path/to/config/file
+docker run -it --user 1000:1000 \
+               -v $YOUR_LICENSE_FILE_PATH:/license \
+               -v $YOUR_CONFIG_FILE_PATH:/config.yml \
+               vmanomaly /config.yml \
+               --license-file=/license
+```
+
+```yaml
+# docker-compose file
+services:
+  # ...
+  vmanomaly:
+    image: victoriametrics/vmanomaly:latest
+    volumes:
+        $YOUR_LICENSE_FILE_PATH:/license
+        $YOUR_CONFIG_FILE_PATH:/config.yml
+    command:
+      - "/config.yml"
+      - "--license-file=/license"
+    # ...
+```
+
+For a complete docker-compose example please refer to [our alerting guide](/anomaly-detection/guides/guide-vmanomaly-vmalert/), chapter [docker-compose](/anomaly-detection/guides/guide-vmanomaly-vmalert/#docker-compose)
+
+
+
 See also:
 
-- You can verify licence online and offline. See the details [here](/anomaly-detection/overview/#licensing).
+- Verify the license online OR offline. See the details [here](/anomaly-detection/overview/#licensing).
 - [How to configure `vmanomaly`](#how-to-configure-vmanomaly)
 
 ### Kubernetes with Helm charts
@@ -77,18 +108,23 @@ Here is an example of config file that will run [Facebook Prophet](https://faceb
 
 
 ```yaml
-scheduler:
-  infer_every: "1m"
-  fit_every: "2h"
-  fit_window: "14d"
+schedulers:
+  2h_1m:
+    # https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler
+    class: 'periodic'
+    infer_every: '1m'
+    fit_every: '2h'
+    fit_window: '2w'
 
 models:
+  # https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet
   prophet_model:
     class: "prophet"  # or "model.prophet.ProphetModel" until v1.13.0
     args:
       interval_width: 0.98
 
 reader:
+  # https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader
   datasource_url: "http://victoriametrics:8428/" # [YOUR_DATASOURCE_URL]
   sampling_period: "1m"
   queries: 
@@ -96,6 +132,7 @@ reader:
     cache: "sum(rate(vm_cache_entries))"
 
 writer:
+  # https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer
   datasource_url:  "http://victoriametrics:8428/" # [YOUR_DATASOURCE_URL]
 ```
 

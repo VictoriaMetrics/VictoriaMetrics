@@ -29,6 +29,7 @@ If you like VictoriaMetrics and want to contribute, then it would be great:
 
 Before sending a pull request to [VictoriaMetrics repository](https://github.com/VictoriaMetrics/VictoriaMetrics/) please make sure it **conforms all** the following checks:
 
+- The pull request conforms [VictoriaMetrics goals](https://docs.victoriametrics.com/goals/).
 - The pull request conforms [`KISS` principle](https://en.wikipedia.org/wiki/KISS_principle). See [these docs](#kiss-principle) for more details.
 - The pull request contains clear description of the change, with links to the related GitHub issues and [docs](https://docs.victoriametrics.com/), if needed.
 - Commit messages contain concise yet clear descriptions. Include links to related GitHub issues in commit messages, if such issues exist.

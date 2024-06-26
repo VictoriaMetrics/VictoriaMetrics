@@ -1,12 +1,10 @@
 import { useCallback, useMemo, useRef, useState } from "preact/compat";
 import { getLogsUrl } from "../../../api/logs";
-import { ErrorTypes } from "../../../types";
+import { ErrorTypes, TimeParams } from "../../../types";
 import { Logs } from "../../../api/types";
-import { useTimeState } from "../../../state/time/TimeStateContext";
 import dayjs from "dayjs";
 
 export const useFetchLogs = (server: string, query: string, limit: number) => {
-  const { period } = useTimeState();
   const [logs, setLogs] = useState<Logs[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ErrorTypes | string>();
@@ -14,7 +12,8 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
 
   const url = useMemo(() => getLogsUrl(server), [server]);
 
-  const options = useMemo(() => ({
+  const getOptions = (query: string, period: TimeParams, limit: number, signal: AbortSignal) => ({
+    signal,
     method: "POST",
     headers: {
       "Accept": "application/stream+json",
@@ -25,7 +24,7 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
       start: dayjs(period.start * 1000).tz().toISOString(),
       end: dayjs(period.end * 1000).tz().toISOString()
     })
-  }), [query, limit, period]);
+  });
 
   const parseLineToJSON = (line: string): Logs | null => {
     try {
@@ -35,22 +34,24 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
     }
   };
 
-  const fetchLogs = useCallback(async () => {
+  const fetchLogs = useCallback(async (period: TimeParams) => {
     abortControllerRef.current.abort();
     abortControllerRef.current = new AbortController();
     const { signal } = abortControllerRef.current;
-    const limit = Number(options.body.get("limit"));
+
     setIsLoading(true);
     setError(undefined);
+
     try {
-      const response = await fetch(url, { ...options, signal });
+      const options = getOptions(query, period, limit, signal);
+      const response = await fetch(url, options);
       const text = await response.text();
 
       if (!response.ok || !response.body) {
         setError(text);
         setLogs([]);
         setIsLoading(false);
-        return;
+        return Promise.reject(new Error(text));
       }
 
       const lines = text.split("\n").filter(line => line).slice(0, limit);
@@ -62,9 +63,12 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
         console.error(e);
         setLogs([]);
       }
+      return Promise.reject(e);
+    } finally {
+      setIsLoading(false);
     }
     setIsLoading(false);
-  }, [url, options]);
+  }, [url, query, limit]);
 
   return {
     logs,

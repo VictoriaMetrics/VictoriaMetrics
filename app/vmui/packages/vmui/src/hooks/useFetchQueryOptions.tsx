@@ -1,5 +1,4 @@
-import React, { useEffect, useState, useRef } from "preact/compat";
-import { StateUpdater } from "preact/hooks";
+import React, { useEffect, useState, useRef, Dispatch, SetStateAction } from "preact/compat";
 import { useAppState } from "../state/common/StateContext";
 import { AutocompleteOptions } from "../components/Main/Autocomplete/Autocomplete";
 import { LabelIcon, MetricIcon, ValueIcon } from "../components/Main/Icons";
@@ -21,7 +20,7 @@ enum TypeData {
 type FetchDataArgs = {
   value: string;
   urlSuffix: string;
-  setter: StateUpdater<AutocompleteOptions[]>;
+  setter: Dispatch<SetStateAction<AutocompleteOptions[]>>
   type: TypeData;
   params?: URLSearchParams;
 }

@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"testing/quick"
 	"time"
@@ -154,6 +155,30 @@ func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
 		return fmt.Errorf("c.EntriesCount must return 0 after reset; returned %d", n)
 	}
 	return nil
+}
+
+func TestDateMetricIDCacheIsConsistent(_ *testing.T) {
+	const (
+		generation  = 1
+		date        = 1
+		concurrency = 2
+		numMetrics  = 100000
+	)
+	dmc := newDateMetricIDCache()
+	var wg sync.WaitGroup
+	for i := range concurrency {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for id := uint64(i * numMetrics); id < uint64((i+1)*numMetrics); id++ {
+				dmc.Set(generation, date, id)
+				if !dmc.Has(generation, date, id) {
+					panic(fmt.Errorf("dmc.Has(metricID=%d): unexpected cache miss after adding the entry to cache", id))
+				}
+			}
+		}()
+	}
+	wg.Wait()
 }
 
 func TestUpdateCurrHourMetricIDs(t *testing.T) {

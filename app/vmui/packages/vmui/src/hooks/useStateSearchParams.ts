@@ -1,8 +1,7 @@
-import { useState, useEffect } from "preact/compat";
-import { StateUpdater } from "preact/hooks";
+import { Dispatch, useState, useEffect, SetStateAction } from "preact/compat";
 import { useSearchParams } from "react-router-dom";
 
-const useStateSearchParams = <T>(defaultState: T, key: string): [T, StateUpdater<T>] => {
+const useStateSearchParams = <T>(defaultState: T, key: string): [T, Dispatch<SetStateAction<T>>] => {
   const [searchParams] = useSearchParams();
   const currentValue = searchParams.get(key) ? searchParams.get(key) as unknown as T : defaultState;
   const [state, setState] = useState<T>(currentValue);

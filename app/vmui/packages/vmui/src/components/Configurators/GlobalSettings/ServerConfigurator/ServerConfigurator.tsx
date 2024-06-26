@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from "preact/compat";
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "preact/compat";
 import { ErrorTypes } from "../../../../types";
 import TextField from "../../../Main/TextField/TextField";
 import { isValidHttpUrl } from "../../../../utils/url";
@@ -7,12 +7,12 @@ import { StorageIcon } from "../../../Main/Icons";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
 import { getFromStorage, removeFromStorage, saveToStorage } from "../../../../utils/storage";
 import useBoolean from "../../../../hooks/useBoolean";
+import { ChildComponentHandle } from "../GlobalSettings";
+import { useAppDispatch, useAppState } from "../../../../state/common/StateContext";
+import { getTenantIdFromUrl } from "../../../../utils/tenants";
 
-export interface ServerConfiguratorProps {
-  serverUrl: string
-  stateServerUrl: string
-  onChange: (url: string) => void
-  onEnter: () => void
+interface ServerConfiguratorProps {
+  onClose: () => void;
 }
 
 const tooltipSave = {
@@ -20,23 +20,32 @@ const tooltipSave = {
   disable: "Disable to stop saving the server URL to local storage, reverting to the default URL on page refresh."
 };
 
-const ServerConfigurator: FC<ServerConfiguratorProps> = ({
-  serverUrl,
-  stateServerUrl,
-  onChange ,
-  onEnter
-}) => {
+const ServerConfigurator = forwardRef<ChildComponentHandle, ServerConfiguratorProps>(({ onClose }, ref) => {
+  const { serverUrl: stateServerUrl } = useAppState();
+  const dispatch = useAppDispatch();
+
   const {
     value: enabledStorage,
     toggle: handleToggleStorage,
   } = useBoolean(!!getFromStorage("SERVER_URL"));
+
+  const [serverUrl, setServerUrl] = useState(stateServerUrl);
   const [error, setError] = useState("");
 
-  const onChangeServer = (val: string) => {
+  const handleChange = (val: string) => {
     const value = val || "";
-    onChange(value);
+    setServerUrl(value);
     setError("");
   };
+
+  const handleApply = useCallback(() => {
+    const tenantIdFromUrl = getTenantIdFromUrl(serverUrl);
+    if (tenantIdFromUrl !== "") {
+      dispatch({ type: "SET_TENANT_ID", payload: tenantIdFromUrl });
+    }
+    dispatch({ type: "SET_SERVER", payload: serverUrl });
+    onClose();
+  }, [serverUrl]);
 
   useEffect(() => {
     if (!stateServerUrl) setError(ErrorTypes.emptyServer);
@@ -57,6 +66,14 @@ const ServerConfigurator: FC<ServerConfiguratorProps> = ({
     }
   }, [serverUrl]);
 
+  useEffect(() => {
+    // the tenant selector can change the serverUrl
+    if (stateServerUrl === serverUrl) return;
+    setServerUrl(stateServerUrl);
+  }, [stateServerUrl]);
+
+  useImperativeHandle(ref, () => ({ handleApply }), [handleApply]);
+
   return (
     <div>
       <div className="vm-server-configurator__title">
@@ -67,8 +84,8 @@ const ServerConfigurator: FC<ServerConfiguratorProps> = ({
           autofocus
           value={serverUrl}
           error={error}
-          onChange={onChangeServer}
-          onEnter={onEnter}
+          onChange={handleChange}
+          onEnter={handleApply}
           inputmode="url"
         />
         <Tooltip title={enabledStorage ? tooltipSave.disable : tooltipSave.enable}>
@@ -83,6 +100,6 @@ const ServerConfigurator: FC<ServerConfiguratorProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default ServerConfigurator;
