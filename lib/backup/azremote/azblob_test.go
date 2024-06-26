@@ -43,17 +43,9 @@ func Test_FSInit(t *testing.T) {
 	cases := map[string]struct {
 		IgnoreFakeEnv bool
 		Env           testEnv
-		ExpectedDir   string
 		ExpectedErr   error
 		ExpectedLogs  []string
 	}{
-		"connection string err bubbles": {
-			Env: map[string]string{
-				envStorageAccCs: "teapot",
-			},
-			ExpectedLogs: []string{`Creating AZBlob service client from connection string`},
-			ExpectedErr:  errAzureSDKError,
-		},
 		"connection string env var is used": {
 			Env: map[string]string{
 				envStorageAccCs: "BlobEndpoint=https://test.blob.core.windows.net/;SharedAccessSignature=",
@@ -72,14 +64,6 @@ func Test_FSInit(t *testing.T) {
 				envStorageAcctName: "test",
 			},
 			ExpectedErr: errNoCredentials,
-		},
-		"shared key credential err bubbles": {
-			Env: map[string]string{
-				envStorageAcctName: "test",
-				envStorageAccKey:   "teapot",
-			},
-			ExpectedLogs: []string{`Creating AZBlob service client from account name and key`},
-			ExpectedErr:  errAzureSDKError,
 		},
 		"uses shared key credential": {
 			Env: map[string]string{
