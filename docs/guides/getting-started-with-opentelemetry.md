@@ -55,23 +55,37 @@ helm repo update
 
 # add values
 cat << EOF > values.yaml
+mode: deployment
+image:
+  repository: "otel/opentelemetry-collector-contrib"
 presets:
   clusterMetrics:
     enabled: true
 config:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
   exporters:
-   prometheusremotewrite:
-     endpoint: "http://victoria-metrics-victoria-metrics-single-server.default.svc.cluster.local:8428/api/v1/write" 
+   otlphttp/victoriametrics:
+     compression: gzip
+     encoding: proto
+     endpoint: http://victoria-metrics-victoria-metrics-single-server.default.svc.cluster.local:8428/opentelemetry
+     tls:
+        insecure: true
   service:
-      pipelines:
-        metrics:
-          receivers: [otlp]
-          processors: []
-          exporters: [prometheusremotewrite] 
+    pipelines:
+      metrics:
+        receivers: [otlp]
+        processors: []
+        exporters: [otlphttp/victoriametrics]
 EOF
 
 # install helm chart
-helm upgrade -i otl-collector open-telemetry/opentelemetry-collector --set mode=deployment -f values.yaml
+helm upgrade -i otl-collector open-telemetry/opentelemetry-collector -f values.yaml
 
 # check if pod is healthy
 kubectl get pod
@@ -79,13 +93,78 @@ NAME                                                     READY   STATUS    RESTA
 otl-collector-opentelemetry-collector-7467bbb559-2pq2n   1/1     Running   0          23m
 
 # forward port to local machine to verify metrics are ingested
-kubectl port-forward victoria-metrics-victoria-metrics-single-server-0 8428
+kubectl port-forward service/victoria-metrics-victoria-metrics-single-server 8428
 
 # check metric `k8s_container_ready` via browser http://localhost:8428/vmui/#/?g0.expr=k8s_container_ready
+
+# forward port to local machine to setup opentelemetry-collector locally
+kubectl port-forward otl-collector-opentelemetry-collector 4318
+
 ```
 
 The full version of possible configuration options could be found in [OpenTelemetry docs](https://opentelemetry.io/docs/collector/configuration/).
 
+## Sending to VictoriaMetrics via OpenTelemetry
+Metrics could be sent to VictoriaMetrics via OpenTelemetry instrumentation libraries. You can use any compatible OpenTelemetry instrumentation [clients](https://opentelemetry.io/docs/languages/).
+In our example, we'll create a WEB server in [Golang](https://go.dev/) and instrument it with metrics.
+
+### Building the Go application instrumented with metrics
+Copy the go file from [here](/guides/getting-started-with-opentelemetry-app.go-collector.example). This will give you a basic implementation of a dice roll WEB server with the urls for opentelemetry-collector pointing to localhost:4318. 
+In the same directory run the following command to create the `go.mod` file:
+```sh
+go mod init vm/otel
+```
+
+For demo purposes, we'll add the following dependencies to `go.mod` file:
+```go
+
+require (
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.52.0
+	go.opentelemetry.io/otel v1.27.0
+	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.27.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.27.0
+	go.opentelemetry.io/otel/metric v1.27.0
+	go.opentelemetry.io/otel/sdk v1.27.0
+	go.opentelemetry.io/otel/sdk/metric v1.27.0
+)
+
+require (
+	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+	github.com/felixge/httpsnoop v1.0.4 // indirect
+	github.com/go-logr/logr v1.4.1 // indirectdice.rolls
+	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.27.0 // indirect
+	go.opentelemetry.io/otel/trace v1.27.0 // indirect
+	go.opentelemetry.io/proto/otlp v1.2.0 // indirect
+	golang.org/x/net v0.25.0 // indirect
+	golang.org/x/sys v0.20.0 // indirect
+	golang.org/x/text v0.15.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240520151616-dc85e6b867a5 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240515191416-fc5f0ca64291 // indirect
+	google.golang.org/grpc v1.64.0 // indirect
+	google.golang.org/protobuf v1.34.1 // indirect
+)
+```
+
+Once you have these in your `go.mod` file, you can run the following command to download the dependencies:
+```sh
+go mod tidy
+```
+
+Now you can run the application:
+```sh
+go run .
+```
+
+### Test metrics ingestion
+By default, the application will be available at `localhost:8080`. You can start sending requests to /rolldice endpoint to generate metrics. The following command will send 20 requests to the /rolldice endpoint:
+```sh
+for i in `seq 1 20`; do curl http://localhost:8080/rolldice; done
+```
+
+After a few seconds you should start to see metrics sent over to the vmui interface by visiting `http://localhost:8428/vmui/#/?g0.expr=dice.rolls` in your browser or by querying the metric `dice.rolls` in the vmui interface.
+<img src="/guides/vmui-dice-roll.webp">
 ## Direct metrics push
 
 Metrics could be ingested into VictoriaMetrics directly with HTTP requests. You can use any compatible OpenTelemetry 
