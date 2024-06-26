@@ -2433,7 +2433,8 @@ and [cardinality explorer docs](#cardinality-explorer).
 * If VictoriaMetrics doesn't work because of certain parts are corrupted due to disk errors,
   then just remove directories with broken parts. It is safe removing subdirectories under `<-storageDataPath>/data/{big,small}/YYYY_MM` directories
   when VictoriaMetrics isn't running. This recovers VictoriaMetrics at the cost of data loss stored in the deleted broken parts.
-  In the future, `vmrecover` tool will be created for automatic recovering from such errors.
+  The names of broken parts should be present in the error message. If you see that error message is truncated and doesn't contain all the information
+  try increasing `-loggerMaxArgLen` cmd-line flag to higher values to avoid error messages truncation.
 
 * If you see gaps on the graphs, try resetting the cache by sending request to `/internal/resetRollupResultCache`.
   If this removes gaps on the graphs, then it is likely data with timestamps older than `-search.cacheTimestampOffset`
