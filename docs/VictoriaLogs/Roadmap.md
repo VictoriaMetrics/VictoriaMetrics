@@ -33,11 +33,9 @@ The following functionality is planned in the future versions of VictoriaLogs:
   - OpenTelemetry for logs
   - Fluentd
   - Journald (systemd)
+  - Datadog protocol for logs
 - Add missing functionality to [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/):
   - [Stream context](https://docs.victoriametrics.com/victorialogs/logsql/#stream-context).
-- Web UI with the following abilities:
-  - Explore the ingested logs ([partially done](https://docs.victoriametrics.com/victorialogs/querying/#web-ui)).
-  - Build graphs over time for the ingested logs via [hits HTTP API](https://docs.victoriametrics.com/victorialogs/querying/#querying-hits-stats).
 - Integration with Grafana ([partially done](https://github.com/VictoriaMetrics/victorialogs-datasource)).
 - Ability to make instant snapshots and backups in the way [similar to VictoriaMetrics](https://docs.victoriametrics.com/#how-to-work-with-snapshots).
 - Cluster version of VictoriaLogs.
