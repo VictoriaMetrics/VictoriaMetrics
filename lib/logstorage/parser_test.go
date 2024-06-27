@@ -2075,5 +2075,5 @@ func TestQueryCanLiveTail(t *testing.T) {
 	f("* | unpack_json", true)
 	f("* | unpack_logfmt", true)
 	f("* | unpack_syslog", true)
-	f("* | unroll by (a)", false)
+	f("* | unroll by (a)", true)
 }
