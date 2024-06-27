@@ -132,7 +132,7 @@ VictoriaLogs provides `/select/logsql/tail?query=<query>` HTTP endpoint, which r
 e.g. it works in the way similar to `tail -f` unix command. For example, the following command returns live tailing logs with the `error` word:
 
 ```sh
-curl http://localhost:9428/select/logsql/tail -d 'query=error'
+curl -N http://localhost:9428/select/logsql/tail -d 'query=error'
 ```
 
 The `<query>` must conform the following restrictions:
@@ -143,16 +143,18 @@ The `<query>` must conform the following restrictions:
   [`uniq`](https://docs.victoriametrics.com/victorialogs/logsql/#uniq-pipe), [`top`](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe),
   [`unroll`](https://docs.victoriametrics.com/victorialogs/logsql/#unroll-pipe), etc. pipes.
 
-- It must return [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) and [`_stream_id`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
-  fields, e.g. these fields must be left when using [`fields`](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe),
-  [`delete`](https://docs.victoriametrics.com/victorialogs/logsql/#delete-pipe) or [`rename`](https://docs.victoriametrics.com/victorialogs/logsql/#rename-pipe) pipes.
+- It must return [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) field. For example, this fields must be mentioned
+  in [`fields`](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe) pipe if this pipe is used.
+
+- It is recommended to return [`_stream_id`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) field for more accurate live tailing
+  across multiple streams.
 
 By default the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) is queried.
 If you need querying other tenant, then specify it via `AccountID` and `ProjectID` http request headers. For example, the following query performs live tailing
 for `(AccountID=12, ProjectID=34)` tenant:
 
 ```sh
-curl http://localhost:9428/select/logsql/tail -H 'AccountID: 12' -H 'ProjectID: 34' -d 'query=error'
+curl -N http://localhost:9428/select/logsql/tail -H 'AccountID: 12' -H 'ProjectID: 34' -d 'query=error'
 ```
 
 The number of currently executed live tailing requests to `/select/logsql/tail` can be [monitored](https://docs.victoriametrics.com/victorialogs/#monitoring)

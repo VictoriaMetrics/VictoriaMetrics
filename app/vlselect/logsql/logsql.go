@@ -16,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
@@ -346,6 +347,10 @@ func ProcessLiveTailRequest(ctx context.Context, w http.ResponseWriter, r *http.
 
 	end := time.Now().UnixNano()
 	doneCh := ctxWithCancel.Done()
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		logger.Panicf("BUG: it is expected that http.ResponseWriter (%T) supports http.Flusher interface", w)
+	}
 	for {
 		start := end - tailOffsetNsecs
 		end = time.Now().UnixNano()
@@ -361,7 +366,10 @@ func ProcessLiveTailRequest(ctx context.Context, w http.ResponseWriter, r *http.
 			httpserver.Errorf(w, r, "cannot get tail results for query [%q]: %s", q, err)
 			return
 		}
-		WriteJSONRows(w, resultRows)
+		if len(resultRows) > 0 {
+			WriteJSONRows(w, resultRows)
+			flusher.Flush()
+		}
 
 		select {
 		case <-doneCh:
@@ -418,25 +426,16 @@ func (tp *tailProcessor) writeBlock(_ uint, timestamps []int64, columns []logsto
 		return
 	}
 
-	// Make sure columns contain _time and _stream_id fields.
-	// These fields are needed for proper tail work.
+	// Make sure columns contain _time field, since it is needed for proper tail work.
 	hasTime := false
-	hasStreamID := false
 	for _, c := range columns {
 		if c.Name == "_time" {
 			hasTime = true
-		}
-		if c.Name == "_stream_id" {
-			hasStreamID = true
+			break
 		}
 	}
 	if !hasTime {
 		tp.err = fmt.Errorf("missing _time field")
-		tp.cancel()
-		return
-	}
-	if !hasStreamID {
-		tp.err = fmt.Errorf("missing _stream_id field")
 		tp.cancel()
 		return
 	}
@@ -458,6 +457,7 @@ func (tp *tailProcessor) writeBlock(_ uint, timestamps []int64, columns []logsto
 				streamID = value
 			}
 		}
+
 		tp.perStreamRows[streamID] = append(tp.perStreamRows[streamID], logRow{
 			timestamp: timestamp,
 			fields:    fields,
@@ -477,15 +477,14 @@ func (tp *tailProcessor) getTailRows() ([][]logstorage.Field, error) {
 		lastTimestamp, ok := tp.lastTimestamps[streamID]
 		if ok {
 			// Skip already written rows
-			for i := range rows {
-				if rows[i].timestamp > lastTimestamp {
-					rows = rows[i:]
-					break
-				}
+			for len(rows) > 0 && rows[0].timestamp <= lastTimestamp {
+				rows = rows[1:]
 			}
 		}
-		resultRows = append(resultRows, rows...)
-		tp.lastTimestamps[streamID] = rows[len(rows)-1].timestamp
+		if len(rows) > 0 {
+			resultRows = append(resultRows, rows...)
+			tp.lastTimestamps[streamID] = rows[len(rows)-1].timestamp
+		}
 	}
 	clear(tp.perStreamRows)
 
