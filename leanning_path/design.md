@@ -27,6 +27,28 @@ VictoriaMetrics(简称vm)的内部设计文档过于稀少，为了方便日后�
 raw_row.go#marshalToInmemoryPart
 ```
 
+uint64的压缩手段，跟leveldb的实现方式一样，每个byte的最高位用来表示这个整数的开头的第一个byte。
+所以一个byte的有效存储为7个bit，对于uint64这样8个byte的整数，最多需要5个byte来存储。
+```go
+// MarshalVarUint64 appends marshaled u to dst and returns the result.
+func MarshalVarUint64(dst []byte, u uint64) []byte {
+if u < (1 << 7) {
+return append(dst, byte(u))
+}
+if u < (1 << (2 * 7)) {
+return append(dst, byte(u|0x80), byte(u>>7))
+}
+if u < (1 << (3 * 7)) {
+return append(dst, byte(u|0x80), byte((u>>7)|0x80), byte(u>>(2*7)))
+}
+
+// Slow path for big integers.
+var tmp [1]uint64
+tmp[0] = u
+return MarshalVarUint64s(dst, tmp[:])
+}
+```
+
 
 ### 2.4 vminsert
 
