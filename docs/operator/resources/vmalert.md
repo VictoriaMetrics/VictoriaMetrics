@@ -63,7 +63,7 @@ Following rules are applied:
 
 - If `ruleNamespaceSelector` and `ruleSelector` both undefined, then by default select nothing. With option set - `spec.selectAllByDefault: true`, select all vmrules.
 - If `ruleNamespaceSelector` defined, `ruleSelector` undefined, then all vmrules are matching at namespaces for given `ruleNamespaceSelector`.
-- If `ruleNamespaceSelector` undefined, `ruleSelector` defined, then all vmrules at `VMAgent`'s namespaces are matching for given `ruleSelector`.
+- If `ruleNamespaceSelector` undefined, `ruleSelector` defined, then all vmrules at `VMAlert`'s namespaces are matching for given `ruleSelector`.
 - If `ruleNamespaceSelector` and `ruleSelector` both defined, then only vmrules at namespaces matched `ruleNamespaceSelector` for given `ruleSelector` are matching.
 
 Here's a more visual and more detailed view:
