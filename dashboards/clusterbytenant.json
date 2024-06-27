@@ -1,4 +1,38 @@
 {
+  "__inputs": [],
+  "__elements": {},
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "10.4.0"
+    },
+    {
+      "type": "panel",
+      "id": "piechart",
+      "name": "Pie chart",
+      "version": ""
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    }
+  ],
   "annotations": {
     "list": [
       {
@@ -26,6 +60,7 @@
   "fiscalYearStartMonth": 0,
   "gnetId": 16399,
   "graphTooltip": 1,
+  "id": null,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -1825,7 +1860,7 @@
         "current": {
           "selected": false,
           "text": "cluster-monitoring",
-          "value": "PE8D8DB4BEE4E4B22"
+          "value": "cluster-monitoring"
         },
         "hide": 0,
         "includeAll": false,
@@ -1841,11 +1876,7 @@
       },
       {
         "allValue": ".*",
-        "current": {
-          "selected": false,
-          "text": "All",
-          "value": "$__all"
-        },
+        "current": {},
         "datasource": {
           "type": "prometheus",
           "uid": "$ds"
@@ -1871,11 +1902,7 @@
       },
       {
         "allValue": ".*",
-        "current": {
-          "selected": false,
-          "text": "All",
-          "value": "$__all"
-        },
+        "current": {},
         "datasource": {
           "type": "prometheus",
           "uid": "$ds"
@@ -1920,6 +1947,6 @@
   "timezone": "",
   "title": "VictoriaMetrics Cluster Per Tenant Statistic",
   "uid": "IZFqd3lMz",
-  "version": 6,
+  "version": 1,
   "weekStart": ""
 }
