@@ -43,6 +43,10 @@ func (pe *pipeExtractRegexp) String() string {
 	return s
 }
 
+func (pe *pipeExtractRegexp) canLiveTail() bool {
+	return true
+}
+
 func (pe *pipeExtractRegexp) optimize() {
 	pe.iff.optimizeFilterIn()
 }

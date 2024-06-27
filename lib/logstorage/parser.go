@@ -234,6 +234,16 @@ func (q *Query) String() string {
 	return s
 }
 
+// CanLiveTail returns true if q can be used in live tailing
+func (q *Query) CanLiveTail() bool {
+	for _, p := range q.pipes {
+		if !p.canLiveTail() {
+			return false
+		}
+	}
+	return true
+}
+
 func (q *Query) getStreamIDs() []streamID {
 	switch t := q.f.(type) {
 	case *filterAnd:

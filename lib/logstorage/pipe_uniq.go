@@ -40,6 +40,10 @@ func (pu *pipeUniq) String() string {
 	return s
 }
 
+func (pu *pipeUniq) canLiveTail() bool {
+	return false
+}
+
 func (pu *pipeUniq) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	neededFields.reset()
 	unneededFields.reset()

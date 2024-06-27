@@ -61,6 +61,13 @@ which parses syslog timestamps in `rfc3164` using `Europe/Berlin` timezone:
 ./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.timezone='Europe/Berlin'
 ```
 
+The ingested logs can be queried via [logs querying API](https://docs.victoriametrics.com/victorialogs/querying/#http-api). For example, the following command
+returns ingested logs for the last 5 minutes by using [time filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter):
+
+```sh
+curl http://localhost:9428/select/logsql/query -d 'query=_time:5m'
+```
+
 See also:
 
 - [Security](#security)

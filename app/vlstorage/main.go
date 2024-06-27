@@ -145,6 +145,13 @@ func GetStreams(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstor
 	return strg.GetStreams(ctx, tenantIDs, q, limit)
 }
 
+// GetStreamIDs executes q and returns streamIDs seen in query results.
+//
+// If limit > 0, then up to limit unique streamIDs are returned.
+func GetStreamIDs(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, limit uint64) ([]logstorage.ValueWithHits, error) {
+	return strg.GetStreamIDs(ctx, tenantIDs, q, limit)
+}
+
 func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {
 	var ss logstorage.StorageStats
 	strg.UpdateStats(&ss)

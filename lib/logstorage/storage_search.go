@@ -357,6 +357,13 @@ func (s *Storage) GetStreams(ctx context.Context, tenantIDs []TenantID, q *Query
 	return s.GetFieldValues(ctx, tenantIDs, q, "_stream", limit)
 }
 
+// GetStreamIDs returns stream_id field values from q results for the given tenantIDs.
+//
+// If limit > 0, then up to limit unique streams are returned.
+func (s *Storage) GetStreamIDs(ctx context.Context, tenantIDs []TenantID, q *Query, limit uint64) ([]ValueWithHits, error) {
+	return s.GetFieldValues(ctx, tenantIDs, q, "_stream_id", limit)
+}
+
 func (s *Storage) runValuesWithHitsQuery(ctx context.Context, tenantIDs []TenantID, q *Query) ([]ValueWithHits, error) {
 	var results []ValueWithHits
 	var resultsLock sync.Mutex
