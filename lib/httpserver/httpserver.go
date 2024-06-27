@@ -568,6 +568,21 @@ func (rwa *responseWriterWithAbort) WriteHeader(statusCode int) {
 	rwa.sentHeaders = true
 }
 
+// Flush implements net/http.Flusher interface
+func (rwa *responseWriterWithAbort) Flush() {
+	if rwa.aborted {
+		return
+	}
+	if !rwa.sentHeaders {
+		rwa.sentHeaders = true
+	}
+	flusher, ok := rwa.ResponseWriter.(http.Flusher)
+	if !ok {
+		logger.Panicf("BUG: it is expected http.ResponseWriter (%T) supports http.Flusher interface", rwa.ResponseWriter)
+	}
+	flusher.Flush()
+}
+
 // abort aborts the client connection associated with rwa.
 //
 // The last http chunk in the response stream is intentionally written incorrectly,
@@ -618,6 +633,7 @@ func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...inter
 			break
 		}
 	}
+
 	if rwa, ok := w.(*responseWriterWithAbort); ok && rwa.sentHeaders {
 		// HTTP status code has been already sent to client, so it cannot be sent again.
 		// Just write errStr to the response and abort the client connection, so the client could notice the error.
