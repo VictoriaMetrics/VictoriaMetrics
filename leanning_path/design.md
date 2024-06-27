@@ -49,6 +49,17 @@ return MarshalVarUint64s(dst, tmp[:])
 }
 ```
 
+- 压缩
+
+压缩的逻辑稍显复杂，但是核心有几个点
+
+- 相同的指标（TSID）放在同一个block里面(block header)会维护这个信息
+- block内根据timestamp进行排序
+- values值和timestamp分别存储在两个array里面，这样方便对相邻的值进行压缩
+- 有一个思路是相邻的值的差异不会太大（指标数据的特点），一般是上下浮动。因此可以考虑计算相邻两值的diff值进行存储
+- 我们只存储diff值，diff值考虑用变长整形来存储（eg. varUnit64），可以大大减少存储空间
+- block header本质上也是个索引，保存了每个block的最早的timestamp和最晚的timestamp方便进行检索
+
 
 ### 2.4 vminsert
 
