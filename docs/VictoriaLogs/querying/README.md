@@ -136,19 +136,27 @@ e.g. it works in the way similar to `tail -f` unix command. For example, the fol
 curl -N http://localhost:9428/select/logsql/tail -d 'query=error'
 ```
 
-The `<query>` must conform the following restrictions:
+The `-N` command-line flag is essential to pass to `curl` during live tailing, since otherwise curl may delay displaying matching logs
+because of internal response bufferring.
 
-- It cannot contain [pipes](https://docs.victoriametrics.com/victorialogs/logsql/#pipes), which modify the number of returned results
-  or the order of the returned results, such as [`stats`](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe),
-  [`limit`](https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe), [`sort`](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe),
-  [`uniq`](https://docs.victoriametrics.com/victorialogs/logsql/#uniq-pipe), [`top`](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe),
-  [`unroll`](https://docs.victoriametrics.com/victorialogs/logsql/#unroll-pipe), etc. pipes.
+The `<query>` must conform the following rules:
+
+- It cannot contain the following [pipes](https://docs.victoriametrics.com/victorialogs/logsql/#pipes):
+  - pipes, which calculate stats over the logs - [`stats`](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe),
+    [`uniq`](https://docs.victoriametrics.com/victorialogs/logsql/#uniq-pipe), [`top`](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe)
+  - pipes, which change the order of logs - [`sort`](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe)
+  - pipes, which limit or ignore some logs - [`limit`](https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe),
+    [`offset`](https://docs.victoriametrics.com/victorialogs/logsql/#offset-pipe).
 
 - It must return [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) field. For example, this fields must be mentioned
   in [`fields`](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe) pipe if this pipe is used.
 
 - It is recommended to return [`_stream_id`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) field for more accurate live tailing
   across multiple streams.
+
+**Performance tip**: live tailing works the best if it matches newly ingested logs at relatively slow rate (e.g. up to 1K matching logs per second),
+e.g. it is optimized for the case when real humans inspect the output of live tailing in the real time. If live tailing returns logs at too high rate,
+then it is recommended adding more specific [filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters) to the `<query>`, so it matches less logs.
 
 By default the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) is queried.
 If you need querying other tenant, then specify it via `AccountID` and `ProjectID` http request headers. For example, the following query performs live tailing
