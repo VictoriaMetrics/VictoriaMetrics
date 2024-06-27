@@ -14,6 +14,8 @@ DOCKER_RUN ?= $(DOCKER) run
 DOCKER_BUILD ?= $(DOCKER) build
 DOCKER_COMPOSE ?= $(DOCKER) compose
 DOCKER_IMAGE_LS ?= $(DOCKER) image ls --format '{{.Repository}}:{{.Tag}}'
+GO_GC_FLAGS ?=
+GO_BUILD_CLASSIFIER ?=
 
 package-base:
 	($(DOCKER_IMAGE_LS) | grep -q '$(BASE_IMAGE)$$') \
@@ -42,6 +44,7 @@ app-via-docker: package-builder
 		$(BUILDER_IMAGE) \
 		go build $(RACE) -trimpath -buildvcs=false \
 			-ldflags "-extldflags '-static' $(GO_BUILDINFO)" \
+			-gcflags "$(GO_GC_FLAGS)" \
 			-tags 'netgo osusergo nethttpomithttp2 musl' \
 			-o bin/$(APP_NAME)/$(APP_NAME)$(APP_SUFFIX)-prod $(PKG_PREFIX)/app/$(APP_NAME)
 
