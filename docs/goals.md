@@ -21,7 +21,7 @@ menu:
    to ask these questions at our [support channels](https://docs.victoriametrics.com/#community-and-contributions).
 1. Simplifying usage of VictoriaMetrics components without breaking backwards compatibility, so users could regularly
    upgrade to [the latest available release](https://docs.victoriametrics.com/CHANGELOG.html) and remain happy.
-1. Improving **the essential functionality** of VictoriaMetrics components, which is used by most users.
+1. Improving usability for the existing functionality of VictoriaMetrics components.
 1. Improving the readability and maintainability of the code base by removing unnecessary abstractions and simplifying the code whenever possible.
 1. Improving development velocity by optimizing CI/CD tasks, so they take less time.
 
@@ -45,7 +45,7 @@ menu:
 
 ## VictoriaMetrics proverbs
 
-- **Small usability bugfix is better than non-trivial feature.** Usability bugfix makes happy existing users.
+- **Small usability fix is better than non-trivial feature.** Usability fix makes happy existing users.
   Non-trivial feature may make happy some new users, while it may make upset a big share of existing users
   if the feature breaks some essential functionaly of VictoriaMetrics components or makes it less efficient.
 
