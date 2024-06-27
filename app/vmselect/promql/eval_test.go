@@ -1,6 +1,8 @@
 package promql
 
 import (
+	"flag"
+	"net/http"
 	"reflect"
 	"testing"
 
@@ -169,4 +171,19 @@ func TestGetSumInstantValues(t *testing.T) {
 		100,
 		[]*timeseries{ts("foo", 100, 1)},
 	)
+}
+
+func TestGetLogHttpHeaderMsg(t *testing.T) {
+	f := func(r *http.Request, expected string) {
+		t.Helper()
+		if s := GetLogHttpHeaderMsg(r); s != expected {
+			t.Fatalf("unexpected log message for http header; got\n%s\nwant\n%s", s, expected)
+		}
+	}
+
+	f(&http.Request{Header: http.Header{}}, "")
+
+	// set search.logHttpHeaders flag
+	flag.Set("search.logHttpHeaders", "Authorization")
+	f(&http.Request{Header: http.Header{"Authorization": []string{"foo"}}}, "Authorization=foo")
 }

@@ -138,8 +138,15 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			timerpool.Put(t)
 			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 			requestURI := httpserver.GetRequestURI(r)
-			logger.Infof("client has cancelled the request after %.3f seconds: remoteAddr=%s, requestURI: %q",
-				time.Since(startTime).Seconds(), remoteAddr, requestURI)
+			headerMsg := promql.GetLogHttpHeaderMsg(r)
+			if len(headerMsg) > 0 {
+				logger.Infof("header: %s, client has cancelled the request after %.3f seconds: remoteAddr=%s, requestURI: %q",
+					headerMsg, time.Since(startTime).Seconds(), remoteAddr, requestURI)
+			} else {
+				logger.Infof("client has cancelled the request after %.3f seconds: remoteAddr=%s, requestURI: %q",
+					time.Since(startTime).Seconds(), remoteAddr, requestURI)
+			}
+
 			return true
 		case <-t.C:
 			timerpool.Put(t)
@@ -164,8 +171,15 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			if d >= *logSlowQueryDuration {
 				remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 				requestURI := httpserver.GetRequestURI(r)
-				logger.Warnf("slow query according to -search.logSlowQueryDuration=%s: remoteAddr=%s, duration=%.3f seconds; requestURI: %q",
-					*logSlowQueryDuration, remoteAddr, d.Seconds(), requestURI)
+				headerMsg := promql.GetLogHttpHeaderMsg(r)
+				if len(headerMsg) > 0 {
+					logger.Warnf("header: %s, slow query according to -search.logSlowQueryDuration=%s: remoteAddr=%s, duration=%.3f seconds; requestURI: %q",
+						headerMsg, *logSlowQueryDuration, remoteAddr, d.Seconds(), requestURI)
+				} else {
+					logger.Warnf("slow query according to -search.logSlowQueryDuration=%s: remoteAddr=%s, duration=%.3f seconds; requestURI: %q",
+						*logSlowQueryDuration, remoteAddr, d.Seconds(), requestURI)
+				}
+
 				slowQueries.Inc()
 			}
 		}()
@@ -576,7 +590,13 @@ func isGraphiteTagsPath(path string) bool {
 }
 
 func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
-	logger.WarnfSkipframes(1, "error in %q: %s", httpserver.GetRequestURI(r), err)
+	headerMsg := promql.GetLogHttpHeaderMsg(r)
+
+	if len(headerMsg) > 0 {
+		logger.WarnfSkipframes(1, "header: %s, error in %q: %s", headerMsg, httpserver.GetRequestURI(r), err)
+	} else {
+		logger.WarnfSkipframes(1, "error in %q: %s", httpserver.GetRequestURI(r), err)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	statusCode := http.StatusUnprocessableEntity
