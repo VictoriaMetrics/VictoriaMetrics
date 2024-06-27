@@ -33,7 +33,7 @@ func (pu *pipeUnroll) String() string {
 }
 
 func (pu *pipeUnroll) canLiveTail() bool {
-	return false
+	return true
 }
 
 func (pu *pipeUnroll) optimize() {
