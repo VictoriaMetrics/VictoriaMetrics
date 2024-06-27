@@ -542,11 +542,11 @@ func (rtb *readTrackingBody) readFromStream(p []byte) (int, error) {
 		return 0, fmt.Errorf("cannot read data after closing the reader")
 	}
 	n, err := rtb.r.Read(p)
-	if rtb.offset+n > maxRequestBodySizeToRetry.IntN() {
-		rtb.cannotRetry = true
-	}
 	if rtb.cannotRetry {
 		return n, err
+	}
+	if rtb.offset+n > maxRequestBodySizeToRetry.IntN() {
+		rtb.cannotRetry = true
 	}
 	if n > 0 {
 		rtb.offset += n
