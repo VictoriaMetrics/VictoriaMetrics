@@ -1,8 +1,6 @@
-version: '3'
-
 services:
-  vector:
-    image: docker.io/timberio/vector:0.30.0-distroless-static
+  telegraf:
+    image: bitnami/telegraf:1.31.0
     restart: on-failure
     volumes:
       - type: bind
@@ -11,10 +9,8 @@ services:
       - type: bind
         source: /var/lib/docker
         target: /var/lib/docker
-      - ./vector.toml:/etc/vector/vector.toml:ro
-    user: root
-    ports:
-      - '8686:8686'
+      - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    command: --config /etc/telegraf/telegraf.conf
     depends_on:
       victorialogs:
         condition: service_healthy
@@ -22,7 +18,7 @@ services:
         condition: service_healthy
 
   victorialogs:
-    image: docker.io/victoriametrics/victoria-logs:v0.23.0-victorialogs
+    image: docker.io/victoriametrics/victoria-logs:v0.20.2-victorialogs
     volumes:
       - victorialogs-vector-docker-vl:/vlogs
     ports:
@@ -30,8 +26,9 @@ services:
     command:
       - -storageDataPath=/vlogs
       - -loggerFormat=json
+      - -syslog.listenAddr.tcp=0.0.0.0:8094
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:9428/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9428/health"]
       interval: 1s
       timeout: 1s
       retries: 10
@@ -48,7 +45,7 @@ services:
       - victorialogs-vector-docker-vm:/vmsingle
       - ./scrape.yml:/promscrape.yml
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8428/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8428/health"]
       interval: 1s
       timeout: 1s
       retries: 10

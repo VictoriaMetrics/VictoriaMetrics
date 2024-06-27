@@ -1,8 +1,6 @@
-version: "3"
-
 services:
   fluentbit:
-    image: cr.fluentbit.io/fluent/fluent-bit:3.0.2
+    image: cr.fluentbit.io/fluent/fluent-bit:3.0.7
     volumes:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - ./fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf

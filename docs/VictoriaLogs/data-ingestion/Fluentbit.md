@@ -14,6 +14,51 @@ aliases:
 
 # Fluentbit setup
 
+VictoriaLogs supports given below Fluentbit outputs:
+- [Elasticsearch](#elasticsearch)
+- [Loki](#loki)
+- [HTTP JSON](#http)
+
+## Elasticsearch
+
+Specify [elasticsearch output](https://docs.fluentbit.io/manual/pipeline/outputs/elasticsearch) section in the `fluentbit.conf`
+for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
+
+```conf
+[Output]
+    Name es
+    Match *
+    host victorialogs
+    port 9428
+    compress gzip
+    path /insert/elasticsearch
+    header AccountID 0
+    header ProjectID 0
+    header VL-Stream-Fields path
+    header VL-Msg-Field log
+    header VL-Time-Field @timestamp
+```
+
+## Loki
+
+Specify [loki output](https://docs.fluentbit.io/manual/pipeline/outputs/loki) section in the `fluentbit.conf`
+for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
+
+```conf
+[OUTPUT]
+    name       loki
+    match      *
+    host       victorialogs
+    uri        /insert/loki/api/v1/push
+    port       9428
+    label_keys $path,$log,$time
+    header     VL-Msg-Field log
+    header     VL-Time-Field time
+    header     VL-Stream-Fields path
+```
+
+## HTTP
+
 Specify [http output](https://docs.fluentbit.io/manual/pipeline/outputs/http) section in the `fluentbit.conf`
 for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
 

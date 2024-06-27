@@ -35,20 +35,34 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 		return nil, err
 	}
 
-	// Extract time field name from _time_field query arg
+	// Extract time field name from _time_field query arg or header
 	var timeField = "_time"
 	if tf := r.FormValue("_time_field"); tf != "" {
 		timeField = tf
+	} else if tf = r.Header.Get("VL-Time-Field"); tf != "" {
+		timeField = tf
 	}
 
-	// Extract message field name from _msg_field query arg
+	// Extract message field name from _msg_field query arg or header
 	var msgField = ""
 	if msgf := r.FormValue("_msg_field"); msgf != "" {
+		msgField = msgf
+	} else if msgf = r.Header.Get("VL-Msg-Field"); msgf != "" {
 		msgField = msgf
 	}
 
 	streamFields := httputils.GetArray(r, "_stream_fields")
+	if len(streamFields) == 0 {
+		if sf := r.Header.Values("VL-Stream-Fields"); len(sf) > 0 {
+			streamFields = sf
+		}
+	}
 	ignoreFields := httputils.GetArray(r, "ignore_fields")
+	if len(ignoreFields) == 0 {
+		if f := r.Header.Values("VL-Ignore-Fields"); len(f) > 0 {
+			ignoreFields = f
+		}
+	}
 
 	debug := httputils.GetBool(r, "debug")
 	debugRequestURI := ""
@@ -68,6 +82,7 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 		DebugRequestURI: debugRequestURI,
 		DebugRemoteAddr: debugRemoteAddr,
 	}
+
 	return cp, nil
 }
 
