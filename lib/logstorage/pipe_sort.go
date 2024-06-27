@@ -55,6 +55,10 @@ func (ps *pipeSort) String() string {
 	return s
 }
 
+func (ps *pipeSort) canLiveTail() bool {
+	return false
+}
+
 func (ps *pipeSort) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	if neededFields.isEmpty() {
 		return

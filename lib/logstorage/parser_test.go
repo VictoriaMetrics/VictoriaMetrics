@@ -2034,3 +2034,46 @@ func TestQueryCanReturnLastNResults(t *testing.T) {
 	f("* | field_values x", false)
 
 }
+
+func TestQueryCanLiveTail(t *testing.T) {
+	f := func(qStr string, resultExpected bool) {
+		t.Helper()
+
+		q, err := ParseQuery(qStr)
+		if err != nil {
+			t.Fatalf("cannot parse [%s]: %s", qStr, err)
+		}
+		result := q.CanLiveTail()
+		if result != resultExpected {
+			t.Fatalf("unexpected result for CanLiveTail(%q); got %v; want %v", qStr, result, resultExpected)
+		}
+	}
+
+	f("foo", true)
+	f("* | copy a b", true)
+	f("* | rm a, b", true)
+	f("* | drop_empty_fields", true)
+	f("* | extract 'foo<bar>baz'", true)
+	f("* | extract_regexp 'foo(?P<bar>baz)'", true)
+	f("* | field_names a", false)
+	f("* | fields a, b", true)
+	f("* | field_values a", false)
+	f("* | filter foo", true)
+	f("* | format 'a<b>c'", true)
+	f("* | limit 10", false)
+	f("* | math a/b as c", true)
+	f("* | offset 10", false)
+	f("* | pack_json", true)
+	f("* | pack_logfmt", true)
+	f("* | rename a b", true)
+	f("* | replace ('foo', 'bar')", true)
+	f("* | replace_regexp ('foo', 'bar')", true)
+	f("* | sort by (a)", false)
+	f("* | stats count() rows", false)
+	f("* | top 10 by (x)", false)
+	f("* | uniq by (a)", false)
+	f("* | unpack_json", true)
+	f("* | unpack_logfmt", true)
+	f("* | unpack_syslog", true)
+	f("* | unroll by (a)", false)
+}

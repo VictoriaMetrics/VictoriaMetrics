@@ -15,9 +15,9 @@ VictoriaLogs provides the following features:
 - VictoriaLogs can accept logs from popular log collectors. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
 - VictoriaLogs is much easier to set up and operate compared to Elasticsearch and Grafana Loki.
   See [these docs](https://docs.victoriametrics.com/victorialogs/quickstart/).
-- VictoriaLogs provides easy yet powerful query language with full-text search capabilities across
-  all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) -
-  see [LogsQL docs](https://docs.victoriametrics.com/victorialogs/logsql/).
+- VictoriaLogs provides easy yet powerful query language with full-text search across
+  all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+  See [LogsQL docs](https://docs.victoriametrics.com/victorialogs/logsql/).
 - VictoriaLogs can be seamlessly combined with good old Unix tools for log analysis such as `grep`, `less`, `sort`, `jq`, etc.
   See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line) for details.
 - VictoriaLogs capacity and performance scales linearly with the available resources (CPU, RAM, disk IO, disk space).
@@ -28,7 +28,8 @@ VictoriaLogs provides the following features:
   such as `trace_id`, `user_id` and `ip`.
 - VictoriaLogs supports multitenancy - see [these docs](#multitenancy).
 - VictoriaLogs supports out-of-order logs' ingestion aka backfilling.
-- VictoriaLogs provides a simple web UI for querying logs - see [these docs](https://docs.victoriametrics.com/victorialogs/querying/#web-ui).
+- VictoriaLogs supports live tailing for newly ingested logs. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing).
+- VictoriaLogs provides web UI for querying logs - see [these docs](https://docs.victoriametrics.com/victorialogs/querying/#web-ui).
 
 VictoriaLogs is at the Preview stage now. It is ready for evaluation in production and verifying the claims given above.
 It isn't recommended to migrate from existing logging solutions to VictoriaLogs Preview in general cases yet.
@@ -300,7 +301,7 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
   -search.maxConcurrentRequests int
     	The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration (default 16)
   -search.maxQueryDuration duration
-    	The maximum duration for query execution (default 30s)
+    	The maximum duration for query execution. It can be overridden on a per-query basis via 'timeout' query arg (default 30s)
   -search.maxQueueDuration duration
     	The maximum time the search request waits for execution when -search.maxConcurrentRequests limit is reached; see also -search.maxQueryDuration (default 10s)
   -storage.minFreeDiskSpaceBytes size

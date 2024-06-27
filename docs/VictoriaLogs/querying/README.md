@@ -25,11 +25,13 @@ via the following ways:
 
 VictoriaLogs provides the following HTTP endpoints:
 
-- [`/select/logsql/query`](#querying-logs) for querying logs
-- [`/select/logsql/hits`](#querying-hits-stats) for querying log hits stats over the given time range
-- [`/select/logsql/streams`](#querying-streams) for querying [log streams](#https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
-- [`/select/logsql/stream_field_names`](#querying-stream-field-names) for querying [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) field names
-- [`/select/logsql/stream_field_values`](#querying-stream-field-values) for querying [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) field values
+- [`/select/logsql/query`](#querying-logs) for querying logs.
+- [`/select/logsql/tail`](#live-tailing) for live tailing of query results.
+- [`/select/logsql/hits`](#querying-hits-stats) for querying log hits stats over the given time range.
+- [`/select/logsql/stream_ids`](#querying-stream_ids) for querying `_stream_id` values of [log streams](#https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
+- [`/select/logsql/streams`](#querying-streams) for querying [log streams](#https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
+- [`/select/logsql/stream_field_names`](#querying-stream-field-names) for querying [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) field names.
+- [`/select/logsql/stream_field_values`](#querying-stream-field-values) for querying [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) field values.
 - [`/select/logsql/field_names`](#querying-field-names) for querying [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) names.
 - [`/select/logsql/field_values`](#querying-field-values) for querying [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values.
 
@@ -95,6 +97,14 @@ Query results can be sorted in the following ways:
 - By adding [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe) to the query.
 - By using Unix `sort` command at client side according to [these docs](#command-line).
 
+The maximum query execution time is limited by `-search.maxQueryDuration` command-line flag value. This limit can be overridden to smaller values
+on a per-query basis by passing the needed timeout via `timeout` query arg. For example, the following command limits query execution time
+to 4.2 seconds:
+
+```sh
+curl http://localhost:9428/select/logsql/query -d 'query=error' -d 'timeout=4.2s'
+```
+
 By default the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) is queried.
 If you need querying other tenant, then specify it via `AccountID` and `ProjectID` http request headers. For example, the following query searches
 for log messages at `(AccountID=12, ProjectID=34)` tenant:
@@ -116,9 +126,46 @@ See also:
 - [Querying field values](#querying-field-values)
 
 
+### Live tailing
+
+VictoriaLogs provides `/select/logsql/tail?query=<query>` HTTP endpoint, which returns live tailing results for the given [`<query>`](https://docs.victoriametrics.com/victorialogs/logsql/),
+e.g. it works in the way similar to `tail -f` unix command. For example, the following command returns live tailing logs with the `error` word:
+
+```sh
+curl http://localhost:9428/select/logsql/tail -d 'query=error'
+```
+
+The `<query>` must conform the following restrictions:
+
+- It cannot contain [pipes](https://docs.victoriametrics.com/victorialogs/logsql/#pipes), which modify the number of returned results
+  or the order of the returned results, such as [`stats`](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe),
+  [`limit`](https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe), [`sort`](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe),
+  [`uniq`](https://docs.victoriametrics.com/victorialogs/logsql/#uniq-pipe), [`top`](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe),
+  [`unroll`](https://docs.victoriametrics.com/victorialogs/logsql/#unroll-pipe), etc. pipes.
+
+- It must return [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) and [`_stream_id`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+  fields, e.g. these fields must be left when using [`fields`](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe),
+  [`delete`](https://docs.victoriametrics.com/victorialogs/logsql/#delete-pipe) or [`rename`](https://docs.victoriametrics.com/victorialogs/logsql/#rename-pipe) pipes.
+
+By default the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) is queried.
+If you need querying other tenant, then specify it via `AccountID` and `ProjectID` http request headers. For example, the following query performs live tailing
+for `(AccountID=12, ProjectID=34)` tenant:
+
+```sh
+curl http://localhost:9428/select/logsql/tail -H 'AccountID: 12' -H 'ProjectID: 34' -d 'query=error'
+```
+
+The number of currently executed live tailing requests to `/select/logsql/tail` can be [monitored](https://docs.victoriametrics.com/victorialogs/#monitoring)
+with `vl_live_tailing_requests` metric.
+
+See also:
+
+- [Querying logs](#querying-logs)
+- [Querying streams](#querying-streams)
+
 ### Querying hits stats
 
-VictoriaMetrics provides `/select/logsql/hits?query=<query>&start=<start>&end=<end>&step=<step>` HTTP endpoint, which returns the number
+VictoriaLogs provides `/select/logsql/hits?query=<query>&start=<start>&end=<end>&step=<step>` HTTP endpoint, which returns the number
 of matching log entries for the given [`<query>`](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]`
 time range grouped by `<step>` buckets. The returned results are sorted by time.
 
@@ -213,17 +260,83 @@ The grouped fields are put inside `"fields"` object:
 }
 ```
 
+By default the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) is queried.
+If you need querying other tenant, then specify it via `AccountID` and `ProjectID` http request headers. For example, the following query returns hits stats
+for `(AccountID=12, ProjectID=34)` tenant:
+
+```sh
+curl http://localhost:9428/select/logsql/hits -H 'AccountID: 12' -H 'ProjectID: 34' -d 'query=error'
+```
+
 See also:
 
 - [Querying logs](#querying-logs)
 - [Querying streams](#querying-streams)
 - [HTTP API](#http-api)
 
+### Querying stream_ids
+
+VictoriaLogs provides `/select/logsql/stream_ids?query=<query>&start=<start>&end=<end>` HTTP endpoint, which returns `_stream_id` values
+for the [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) from results
+of the given [`<query>`](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
+The response also contains the number of log results per every `_stream_id`.
+
+The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
+If `<start>` is missing, then it equals to the minimum timestamp across logs stored in VictoriaLogs.
+If `<end>` is missing, then it equals to the maximum timestamp across logs stored in VictoriaLogs.
+
+For example, the following command returns `_stream_id` values across logs with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word)
+for the last 5 minutes:
+
+```sh
+curl http://localhost:9428/select/logsql/stream_ids -d 'query=error' -d 'start=5m'
+```
+
+Below is an example JSON output returned from this endpoint:
+
+```json
+{
+  "values": [
+    {
+      "value": "0000000000000000106955b1744a71b78bd3a88c755751e8",
+      "hits": 442953
+    },
+    {
+      "value": "0000000000000000b80988e6012df3520a8e20cd5353c52b",
+      "hits": 59349
+    },
+    {
+      "value": "0000000000000000f8d02151e40a6cbbb1edb2050ea910ba",
+      "hits": 59277
+    }
+  ]
+}
+```
+
+The `/select/logsql/stream_ids` endpoint supports optional `limit=N` query arg, which allows limiting the number of returned `_stream_id` values to `N`.
+The endpoint returns arbitrary subset of `_stream_id` values if their number exceeds `N`, so `limit=N` cannot be used for pagination over big number of `_stream_id` values.
+When the `limit` is reached, `hits` are zeroed, since they cannot be calculated reliably.
+
+By default the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) is queried.
+If you need querying other tenant, then specify it via `AccountID` and `ProjectID` http request headers. For example, the following query returns `_stream_id` stats
+for `(AccountID=12, ProjectID=34)` tenant:
+
+```sh
+curl http://localhost:9428/select/logsql/stream_ids -H 'AccountID: 12' -H 'ProjectID: 34' -d 'query=_time:5m'
+```
+
+See also:
+
+- [Querying streams](#querying-streams)
+- [Querying logs](#querying-logs)
+- [Querying hits stats](#querying-hits-stats)
+- [HTTP API](#http-api)
+
 ### Querying streams
 
 VictoriaLogs provides `/select/logsql/streams?query=<query>&start=<start>&end=<end>` HTTP endpoint, which returns [streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
 from results of the given [`<query>`](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
-The response also contains the number of log results per every `stream`.
+The response also contains the number of log results per every `_stream`.
 
 The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
 If `<start>` is missing, then it equals to the minimum timestamp across logs stored in VictoriaLogs.
@@ -258,10 +371,20 @@ Below is an example JSON output returned from this endpoint:
 ```
 
 The `/select/logsql/streams` endpoint supports optional `limit=N` query arg, which allows limiting the number of returned streams to `N`.
-The endpoint returns arbitrary subset of values if their number exceeds `N`, so `limit=N` cannot be used for pagination over big number of streams.
+The endpoint returns arbitrary subset of streams if their number exceeds `N`, so `limit=N` cannot be used for pagination over big number of streams.
+When the `limit` is reached, `hits` are zeroed, since they cannot be calculated reliably.
+
+By default the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) is queried.
+If you need querying other tenant, then specify it via `AccountID` and `ProjectID` http request headers. For example, the following query returns stream stats
+for `(AccountID=12, ProjectID=34)` tenant:
+
+```sh
+curl http://localhost:9428/select/logsql/streams -H 'AccountID: 12' -H 'ProjectID: 34' -d 'query=_time:5m'
+```
 
 See also:
 
+- [Querying stream_ids](#querying-stream_ids)
 - [Querying logs](#querying-logs)
 - [Querying hits stats](#querying-hits-stats)
 - [HTTP API](#http-api)
@@ -303,6 +426,14 @@ Below is an example JSON output returned from this endpoint:
     }
   ]
 }
+```
+
+By default the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) is queried.
+If you need querying other tenant, then specify it via `AccountID` and `ProjectID` http request headers. For example, the following query returns stream field names stats
+for `(AccountID=12, ProjectID=34)` tenant:
+
+```sh
+curl http://localhost:9428/select/logsql/stream_field_names -H 'AccountID: 12' -H 'ProjectID: 34' -d 'query=_time:5m'
 ```
 
 See also:
@@ -349,6 +480,15 @@ Below is an example JSON output returned from this endpoint:
 
 The `/select/logsql/stream_field_names` endpoint supports optional `limit=N` query arg, which allows limiting the number of returned values to `N`.
 The endpoint returns arbitrary subset of values if their number exceeds `N`, so `limit=N` cannot be used for pagination over big number of field values.
+When the `limit` is reached, `hits` are zeroed, since they cannot be calculated reliably.
+
+By default the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) is queried.
+If you need querying other tenant, then specify it via `AccountID` and `ProjectID` http request headers. For example, the following query returns stream field values stats
+for `(AccountID=12, ProjectID=34)` tenant:
+
+```sh
+curl http://localhost:9428/select/logsql/stream_field_values -H 'AccountID: 12' -H 'ProjectID: 34' -d 'query=_time:5m'
+```
 
 See also:
 
@@ -393,6 +533,14 @@ Below is an example JSON output returned from this endpoint:
     }
   ]
 }
+```
+
+By default the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) is queried.
+If you need querying other tenant, then specify it via `AccountID` and `ProjectID` http request headers. For example, the following query returns field names stats
+for `(AccountID=12, ProjectID=34)` tenant:
+
+```sh
+curl http://localhost:9428/select/logsql/field_names -H 'AccountID: 12' -H 'ProjectID: 34' -d 'query=_time:5m'
 ```
 
 See also:
@@ -445,6 +593,14 @@ The `/select/logsql/field_names` endpoint supports optional `limit=N` query arg,
 The endpoint returns arbitrary subset of values if their number exceeds `N`, so `limit=N` cannot be used for pagination over big number of field values.
 When the `limit` is reached, `hits` are zeroed, since they cannot be calculated reliably.
 
+By default the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) is queried.
+If you need querying other tenant, then specify it via `AccountID` and `ProjectID` http request headers. For example, the following query returns field values stats
+for `(AccountID=12, ProjectID=34)` tenant:
+
+```sh
+curl http://localhost:9428/select/logsql/field_values -H 'AccountID: 12' -H 'ProjectID: 34' -d 'query=_time:5m'
+```
+
 See also:
 
 - [Querying stream field values](#querying-stream-field-values)
@@ -455,19 +611,16 @@ See also:
 
 ## Web UI
 
-VictoriaLogs provides a simple Web UI for logs [querying](https://docs.victoriametrics.com/victorialogs/logsql/) and exploration
-at `http://localhost:9428/select/vmui`. The UI allows exploring query results:
-
-<img src="vmui.webp" />
+VictoriaLogs provides Web UI for logs [querying](https://docs.victoriametrics.com/victorialogs/logsql/) and exploration
+at `http://localhost:9428/select/vmui`.
 
 There are three modes of displaying query results:
 
-- `Group` - results are displayed as a table with rows grouped by stream and fields for filtering.
+- `Group` - results are displayed as a table with rows grouped by [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 - `Table` - displays query results as a table.
-- `JSON` - displays raw JSON response from [HTTP API](#http-api).
+- `JSON` - displays raw JSON response from [`/select/logsql/query` HTTP API](#querying-logs).
 
-This is the first version that has minimal functionality and may contain bugs.
-It is recommended trying [command line interface](#command-line), which has no known bugs :)
+See also [command line interface](#command-line).
 
 ## Command-line
 

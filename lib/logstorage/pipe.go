@@ -8,6 +8,11 @@ type pipe interface {
 	// String returns string representation of the pipe.
 	String() string
 
+	// canLiveTail must return true if the given pipe can be used in live tailing
+	//
+	// See https://docs.victoriametrics.com/victorialogs/querying/#live-tailing
+	canLiveTail() bool
+
 	// updateNeededFields must update neededFields and unneededFields with fields it needs and not needs at the input.
 	updateNeededFields(neededFields, unneededFields fieldsSet)
 

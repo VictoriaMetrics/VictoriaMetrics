@@ -43,6 +43,10 @@ func (pf *pipeFormat) String() string {
 	return s
 }
 
+func (pf *pipeFormat) canLiveTail() bool {
+	return true
+}
+
 func (pf *pipeFormat) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	if neededFields.isEmpty() {
 		if pf.iff != nil {
