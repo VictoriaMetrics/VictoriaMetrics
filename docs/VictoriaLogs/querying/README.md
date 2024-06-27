@@ -118,6 +118,7 @@ with `vl_http_requests_total{path="/select/logsql/query"}` metric.
 
 See also:
 
+- [Live tailing](#live-tailing)
 - [Querying hits stats](#querying-hits-stats)
 - [Querying streams](#querying-streams)
 - [Querying stream field names](#querying-stream-field-names)
