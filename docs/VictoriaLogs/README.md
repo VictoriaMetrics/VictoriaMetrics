@@ -29,6 +29,7 @@ VictoriaLogs provides the following features:
 - VictoriaLogs supports multitenancy - see [these docs](#multitenancy).
 - VictoriaLogs supports out-of-order logs' ingestion aka backfilling.
 - VictoriaLogs supports live tailing for newly ingested logs. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing).
+- VictoriaLogs supports selecting surrounding logs in front and after the selected logs. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe).
 - VictoriaLogs provides web UI for querying logs - see [these docs](https://docs.victoriametrics.com/victorialogs/querying/#web-ui).
 
 VictoriaLogs is at the Preview stage now. It is ready for evaluation in production and verifying the claims given above.
