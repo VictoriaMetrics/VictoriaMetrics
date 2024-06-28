@@ -209,7 +209,8 @@ Below is an example JSON output returned from this endpoint:
         410339,
         450311,
         899506
-      ]
+      ],
+      "total": 1760176
     }
   ]
 }
@@ -249,7 +250,8 @@ The grouped fields are put inside `"fields"` object:
         25,
         20,
         15
-      ]
+      ],
+      "total": 60
     },
     {
       "fields": {
@@ -264,11 +266,16 @@ The grouped fields are put inside `"fields"` object:
         25625,
         35043,
         25230
-      ]
+      ],
+      "total": 85898
     }
   ]
 }
 ```
+
+Optional `fields_limit=N` query arg can be passed to `/select/logsql/hits` for limiting the number of unique `"fields"` groups to return to `N`.
+If more than `N` unique `"fields"` groups is found, then top `N` `"fields"` groups with the maximum number of `"total"` hits are returned.
+The remaining hits are returned in `"fields": {}` group.
 
 By default the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) is queried.
 If you need querying other tenant, then specify it via `AccountID` and `ProjectID` http request headers. For example, the following query returns hits stats
