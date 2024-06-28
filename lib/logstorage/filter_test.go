@@ -196,11 +196,7 @@ func testFilterMatchForColumns(t *testing.T, columns []column, f filter, neededC
 func testFilterMatchForStorage(t *testing.T, s *Storage, tenantID TenantID, f filter, neededColumnName string, expectedValues []string, expectedTimestamps []int64) {
 	t.Helper()
 
-	so := &genericSearchOptions{
-		tenantIDs:         []TenantID{tenantID},
-		filter:            f,
-		neededColumnNames: []string{neededColumnName, "_time"},
-	}
+	so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{neededColumnName, "_time"})
 
 	type result struct {
 		value     string

@@ -350,7 +350,26 @@ func (q *Query) CanReturnLastNResults() bool {
 
 // GetFilterTimeRange returns filter time range for the given q.
 func (q *Query) GetFilterTimeRange() (int64, int64) {
-	return getFilterTimeRange(q.f)
+	switch t := q.f.(type) {
+	case *filterAnd:
+		minTimestamp := int64(math.MinInt64)
+		maxTimestamp := int64(math.MaxInt64)
+		for _, filter := range t.filters {
+			ft, ok := filter.(*filterTime)
+			if ok {
+				if ft.minTimestamp > minTimestamp {
+					minTimestamp = ft.minTimestamp
+				}
+				if ft.maxTimestamp < maxTimestamp {
+					maxTimestamp = ft.maxTimestamp
+				}
+			}
+		}
+		return minTimestamp, maxTimestamp
+	case *filterTime:
+		return t.minTimestamp, t.maxTimestamp
+	}
+	return math.MinInt64, math.MaxInt64
 }
 
 // AddTimeFilter adds global filter _time:[start ... end] to q.

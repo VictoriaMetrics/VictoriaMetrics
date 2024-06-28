@@ -34,8 +34,6 @@ The following functionality is planned in the future versions of VictoriaLogs:
   - Fluentd
   - Journald (systemd)
   - Datadog protocol for logs
-- Add missing functionality to [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/):
-  - [Stream context](https://docs.victoriametrics.com/victorialogs/logsql/#stream-context).
 - Integration with Grafana ([partially done](https://github.com/VictoriaMetrics/victorialogs-datasource)).
 - Ability to make instant snapshots and backups in the way [similar to VictoriaMetrics](https://docs.victoriametrics.com/#how-to-work-with-snapshots).
 - Cluster version of VictoriaLogs.

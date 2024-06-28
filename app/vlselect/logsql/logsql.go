@@ -450,7 +450,7 @@ type logRow struct {
 }
 
 func sortLogRows(rows []logRow) {
-	sort.Slice(rows, func(i, j int) bool {
+	sort.SliceStable(rows, func(i, j int) bool {
 		return rows[i].timestamp < rows[j].timestamp
 	})
 }
