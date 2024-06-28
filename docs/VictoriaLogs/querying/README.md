@@ -148,8 +148,7 @@ The `<query>` must conform the following rules:
   - pipes, which limit or ignore some logs - [`limit`](https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe),
     [`offset`](https://docs.victoriametrics.com/victorialogs/logsql/#offset-pipe).
 
-- It must return [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) field. For example, this fields must be mentioned
-  in [`fields`](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe) pipe if this pipe is used.
+- It must select [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) field.
 
 - It is recommended to return [`_stream_id`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) field for more accurate live tailing
   across multiple streams.
