@@ -405,6 +405,7 @@ func (slr *syslogLineReader) nextLine() bool {
 		return false
 	}
 
+again:
 	prefix, err := slr.br.ReadSlice(' ')
 	if err != nil {
 		if err != io.EOF {
@@ -419,6 +420,10 @@ func (slr *syslogLineReader) nextLine() bool {
 	// skip empty lines
 	for len(prefix) > 0 && prefix[0] == '\n' {
 		prefix = prefix[1:]
+	}
+	if len(prefix) == 0 {
+		// An empty prefix or a prefix with empty lines - try reading yet another prefix.
+		goto again
 	}
 
 	if prefix[0] >= '0' && prefix[0] <= '9' {
