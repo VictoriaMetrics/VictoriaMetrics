@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -59,6 +60,16 @@ func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	// Obtain field entries
 	fields := r.Form["field"]
 
+	// Obtain limit on the number of top fields entries.
+	fieldsLimit, err := httputils.GetInt(r, "fields_limit")
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+	if fieldsLimit < 0 {
+		fieldsLimit = 0
+	}
+
 	// Prepare the query
 	q.AddCountByTimePipe(int64(step), int64(offset), fields)
 	q.Optimize()
@@ -78,6 +89,10 @@ func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		for i := range timestamps {
 			timestampStr := strings.Clone(timestampValues[i])
 			hitsStr := strings.Clone(hitsValues[i])
+			hits, err := strconv.ParseUint(hitsStr, 10, 64)
+			if err != nil {
+				logger.Panicf("BUG: cannot parse hitsStr=%q: %s", hitsStr, err)
+			}
 
 			bb.Reset()
 			WriteFieldsForHits(bb, columns, i)
@@ -90,7 +105,8 @@ func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Requ
 				m[k] = hs
 			}
 			hs.timestamps = append(hs.timestamps, timestampStr)
-			hs.values = append(hs.values, hitsStr)
+			hs.hits = append(hs.hits, hits)
+			hs.hitsTotal += hits
 			mLock.Unlock()
 		}
 		blockResultPool.Put(bb)
@@ -102,14 +118,59 @@ func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	m = getTopHitsSeries(m, fieldsLimit)
+
 	// Write response
 	w.Header().Set("Content-Type", "application/json")
 	WriteHitsSeries(w, m)
 }
 
+func getTopHitsSeries(m map[string]*hitsSeries, fieldsLimit int) map[string]*hitsSeries {
+	if fieldsLimit <= 0 || fieldsLimit >= len(m) {
+		return m
+	}
+
+	type fieldsHits struct {
+		fieldsStr string
+		hs        *hitsSeries
+	}
+	a := make([]fieldsHits, 0, len(m))
+	for fieldsStr, hs := range m {
+		a = append(a, fieldsHits{
+			fieldsStr: fieldsStr,
+			hs:        hs,
+		})
+	}
+	sort.Slice(a, func(i, j int) bool {
+		return a[i].hs.hitsTotal > a[j].hs.hitsTotal
+	})
+
+	hitsOther := make(map[string]uint64)
+	for _, x := range a[fieldsLimit:] {
+		for i, timestampStr := range x.hs.timestamps {
+			hitsOther[timestampStr] += x.hs.hits[i]
+		}
+	}
+	var hsOther hitsSeries
+	for timestampStr, hits := range hitsOther {
+		hsOther.timestamps = append(hsOther.timestamps, timestampStr)
+		hsOther.hits = append(hsOther.hits, hits)
+		hsOther.hitsTotal += hits
+	}
+
+	mNew := make(map[string]*hitsSeries, fieldsLimit+1)
+	for _, x := range a[:fieldsLimit] {
+		mNew[x.fieldsStr] = x.hs
+	}
+	mNew["{}"] = &hsOther
+
+	return mNew
+}
+
 type hitsSeries struct {
+	hitsTotal  uint64
 	timestamps []string
-	values     []string
+	hits       []uint64
 }
 
 func (hs *hitsSeries) sort() {
@@ -122,7 +183,7 @@ func (hs *hitsSeries) Len() int {
 
 func (hs *hitsSeries) Swap(i, j int) {
 	hs.timestamps[i], hs.timestamps[j] = hs.timestamps[j], hs.timestamps[i]
-	hs.values[i], hs.values[j] = hs.values[j], hs.values[i]
+	hs.hits[i], hs.hits[j] = hs.hits[j], hs.hits[i]
 }
 
 func (hs *hitsSeries) Less(i, j int) bool {
