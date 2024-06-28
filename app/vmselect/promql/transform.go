@@ -1061,7 +1061,7 @@ func fixBrokenBuckets(i int, xss []leTimeseries) {
 			break
 		}
 	}
-	// Substitute upper bucket values lower bucket values if the upper values are NaN
+	// Substitute upper bucket values with lower bucket values if the upper values are NaN
 	// or are bigger than the lower bucket values.
 	vNext := xss[0].ts.Values[0]
 	for j := 1; j < len(xss); j++ {
