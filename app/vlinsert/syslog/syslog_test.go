@@ -30,10 +30,19 @@ func TestSyslogLineReader_Success(t *testing.T) {
 	}
 
 	f("", nil)
+	f("\n", nil)
+	f("\n\n\n", nil)
+
 	f("foobar", []string{"foobar"})
+	f("foobar\n", []string{"foobar\n"})
+	f("\n\nfoo\n\nbar\n\n", []string{"foo\n\nbar\n\n"})
+
+	f(`Jun  3 12:08:33 abcd systemd: Starting Update the local ESM caches...`, []string{"Jun  3 12:08:33 abcd systemd: Starting Update the local ESM caches..."})
 
 	f(`Jun  3 12:08:33 abcd systemd: Starting Update the local ESM caches...
+
 48 <165>Jun  4 12:08:33 abcd systemd[345]: abc defg<123>1 2023-06-03T17:42:12.345Z mymachine.example.com appname 12345 ID47 [exampleSDID@32473 iut="3" eventSource="Application 123 = ] 56" eventID="11211"] This is a test message with structured data.
+
 `, []string{
 		"Jun  3 12:08:33 abcd systemd: Starting Update the local ESM caches...",
 		"<165>Jun  4 12:08:33 abcd systemd[345]: abc defg",
