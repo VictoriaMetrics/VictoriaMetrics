@@ -41,3 +41,4 @@ The following functionality is planned in the future versions of VictoriaLogs:
 - Cluster version of VictoriaLogs.
 - Ability to store data to object storage (such as S3, GCS, Minio).
 - Alerting on LogsQL queries.
+- Data migration tool from Grafana Loki to VictoriaLogs (similar to [vmctl](https://docs.victoriametrics.com/vmctl/)).
