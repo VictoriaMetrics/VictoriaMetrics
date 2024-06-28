@@ -2311,7 +2311,7 @@ For example, the following query returns up to 10 additional logs after every lo
 _time:5m panic | stream_context after 10
 ```
 
-The following query returns up to 5 additional logs in front of eevery log message with the `stacktrace` [word](#word) across all the logs for the last 5 minutes:
+The following query returns up to 5 additional logs in front of every log message with the `stacktrace` [word](#word) across all the logs for the last 5 minutes:
 
 ```logsql
 _time:5m stacktrace | stream_context before 5
