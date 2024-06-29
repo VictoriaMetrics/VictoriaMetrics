@@ -1655,10 +1655,20 @@ func rollupSum(rfa *rollupFuncArg) float64 {
 		// with irregular data points.
 		return nan
 	}
-	var sum float64
-	for _, v := range values {
-		sum += v
+	if len(values) == 1 {
+		return values[0]
 	}
+	var sum float64
+	var preValue = rfa.values[0]
+	var preTimestamp = rfa.timestamps[0]
+	for idx, ts := range rfa.timestamps {
+		if ts != preTimestamp {
+			sum += preValue
+			preTimestamp = ts
+		}
+		preValue = values[idx]
+	}
+	sum += preValue
 	return sum
 }
 
