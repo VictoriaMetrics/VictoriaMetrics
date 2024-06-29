@@ -153,11 +153,6 @@ func (fa *filterAnd) initByFieldTokens() {
 		case *filterSequence:
 			tokens := t.getTokens()
 			mergeFieldTokens(t.fieldName, tokens)
-		case *filterOr:
-			bfts := t.getByFieldTokens()
-			for _, bft := range bfts {
-				mergeFieldTokens(bft.field, bft.tokens)
-			}
 		}
 	}
 
