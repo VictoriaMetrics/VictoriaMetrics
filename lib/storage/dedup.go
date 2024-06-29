@@ -78,45 +78,8 @@ func deduplicateSamplesDuringMerge(srcTimestamps, srcValues []int64, dedupInterv
 		// Fast path - nothing to deduplicate
 		return srcTimestamps, srcValues
 	}
-	tsNext := srcTimestamps[0] + dedupInterval - 1
-	tsNext -= tsNext % dedupInterval
-	dstTimestamps := srcTimestamps[:0]
-	dstValues := srcValues[:0]
-	for i, ts := range srcTimestamps[1:] {
-		if ts <= tsNext {
-			continue
-		}
-		// Choose the maximum value with the timestamp equal to tsPrev.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3333
-		j := i
-		tsPrev := srcTimestamps[j]
-		vPrev := srcValues[j]
-		for j > 0 && srcTimestamps[j-1] == tsPrev {
-			j--
-			if srcValues[j] > vPrev {
-				vPrev = srcValues[j]
-			}
-		}
-		dstTimestamps = append(dstTimestamps, tsPrev)
-		dstValues = append(dstValues, vPrev)
-		tsNext += dedupInterval
-		if tsNext < ts {
-			tsNext = ts + dedupInterval - 1
-			tsNext -= tsNext % dedupInterval
-		}
-	}
-	j := len(srcTimestamps) - 1
-	tsPrev := srcTimestamps[j]
-	vPrev := srcValues[j]
-	for j > 0 && srcTimestamps[j-1] == tsPrev {
-		j--
-		if srcValues[j] > vPrev {
-			vPrev = srcValues[j]
-		}
-	}
-	dstTimestamps = append(dstTimestamps, tsPrev)
-	dstValues = append(dstValues, vPrev)
-	return dstTimestamps, dstValues
+	// TODO: implement deduplicate samples
+	return nil, nil
 }
 
 func needsDedup(timestamps []int64, dedupInterval int64) bool {
