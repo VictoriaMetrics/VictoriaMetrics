@@ -14,12 +14,7 @@ aliases:
 
 # VictoriaLogs roadmap
 
-The [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) Preview is ready for evaluation in production.
-It is recommended running it alongside the existing solutions such as Elasticsearch and Grafana Loki
-and comparing their resource usage and usability.
-It isn't recommended migrating from existing solutions to VictoriaLogs Preview yet.
-
-The following functionality is available in VictoriaLogs Preview:
+The following functionality is available in [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
 
 - [Data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
 - [Querying](https://docs.victoriametrics.com/victorialogs/querying/).
