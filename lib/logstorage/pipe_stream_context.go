@@ -325,12 +325,8 @@ func (pcp *pipeStreamContextProcessor) flush() error {
 		if needStop(pcp.stopCh) {
 			return nil
 		}
-		resultRows, err := getStreamContextRows(streamRows, rows, pcp.pc.linesBefore, pcp.pc.linesAfter)
-		if err != nil {
+		if err := wctx.writeStreamContextRows(streamID, streamRows, rows, pcp.pc.linesBefore, pcp.pc.linesAfter); err != nil {
 			return fmt.Errorf("cannot obtain context rows for _stream_id=%q: %w", streamID, err)
-		}
-		for _, rowFields := range resultRows {
-			wctx.writeRow(rowFields)
 		}
 	}
 
@@ -339,37 +335,55 @@ func (pcp *pipeStreamContextProcessor) flush() error {
 	return nil
 }
 
-func getStreamContextRows(streamRows, rows []streamContextRow, linesBefore, linesAfter int) ([][]Field, error) {
+func (wctx *pipeStreamContextWriteContext) writeStreamContextRows(streamID string, streamRows, rows []streamContextRow, linesBefore, linesAfter int) error {
 	sortStreamContextRows(streamRows)
 	sortStreamContextRows(rows)
 
-	var resultRows [][]Field
 	idxNext := 0
-	for _, r := range rows {
-		idx := getStreamContextRowIdx(streamRows, r.timestamp)
+	for i := range rows {
+		r := &rows[i]
+		idx := getStreamContextRowIdx(streamRows, r)
 		if idx < 0 {
 			// This error may happen when streamRows became out of sync with rows.
 			// For example, when some streamRows were deleted after obtaining rows.
-			return nil, fmt.Errorf("missing row for timestamp=%d; len(streamRows)=%d, len(rows)=%d", r.timestamp, len(streamRows), len(rows))
+			return fmt.Errorf("missing row for timestamp=%d; len(streamRows)=%d, len(rows)=%d; re-execute the query", r.timestamp, len(streamRows), len(rows))
 		}
 
 		idxStart := idx - linesBefore
 		if idxStart < idxNext {
 			idxStart = idxNext
+		} else if idxNext > 0 && idxStart > idxNext {
+			// Write delimiter row between multiple contexts in the same stream.
+			// This simplifies investigation of the returned logs.
+			fields := []Field{
+				{
+					Name:  "_time",
+					Value: string(marshalTimestampRFC3339NanoString(nil, r.timestamp+1)),
+				},
+				{
+					Name:  "_stream_id",
+					Value: streamID,
+				},
+				{
+					Name:  "_msg",
+					Value: "---",
+				},
+			}
+			wctx.writeRow(fields)
 		}
 		for idxStart < idx {
-			resultRows = append(resultRows, streamRows[idxStart].fields)
+			wctx.writeRow(streamRows[idxStart].fields)
 			idxStart++
 		}
 
 		if idx >= idxNext {
-			resultRows = append(resultRows, streamRows[idx].fields)
+			wctx.writeRow(streamRows[idx].fields)
 			idxNext = idx + 1
 		}
 
 		idxEnd := idx + 1 + linesAfter
 		for idxNext < idxEnd && idxNext < len(streamRows) {
-			resultRows = append(resultRows, streamRows[idxNext].fields)
+			wctx.writeRow(streamRows[idxNext].fields)
 			idxNext++
 		}
 
@@ -378,18 +392,24 @@ func getStreamContextRows(streamRows, rows []streamContextRow, linesBefore, line
 		}
 	}
 
-	return resultRows, nil
+	return nil
 }
 
-func getStreamContextRowIdx(rows []streamContextRow, timestamp int64) int {
+func getStreamContextRowIdx(rows []streamContextRow, r *streamContextRow) int {
 	n := sort.Search(len(rows), func(i int) bool {
-		return rows[i].timestamp >= timestamp
+		return rows[i].timestamp >= r.timestamp
 	})
 	if n == len(rows) {
 		return -1
 	}
-	if rows[n].timestamp != timestamp {
+	if rows[n].timestamp != r.timestamp {
 		return -1
+	}
+	for rows[n].timestamp == r.timestamp && !equalFields(rows[n].fields, r.fields) {
+		n++
+		if n >= len(rows) {
+			return -1
+		}
 	}
 	return n
 }
