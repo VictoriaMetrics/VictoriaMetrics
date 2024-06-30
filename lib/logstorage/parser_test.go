@@ -2070,6 +2070,7 @@ func TestQueryCanLiveTail(t *testing.T) {
 	f("* | replace_regexp ('foo', 'bar')", true)
 	f("* | sort by (a)", false)
 	f("* | stats count() rows", false)
+	f("* | stream_context after 10", false)
 	f("* | top 10 by (x)", false)
 	f("* | uniq by (a)", false)
 	f("* | unpack_json", true)
