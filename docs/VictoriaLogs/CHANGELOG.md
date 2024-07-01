@@ -64,7 +64,7 @@ Released at 2024-06-27
 * FEATURE: add `/select/logsql/stream_ids` HTTP endpoint, which can be used for returning [`_stream_id` values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) with the number of hits for the given [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/). See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#querying-stream_ids) for details.
 * FEATURE: add `-retention.maxDiskSpaceUsageBytes` command-line flag, which allows limiting disk space usage for [VictoriaLogs data](https://docs.victoriametrics.com/victorialogs/#storage) by automatic dropping the oldest per-day partitions if the storage disk space usage becomes bigger than the `-retention.maxDiskSpaceUsageBytes`. See [these docs](https://docs.victoriametrics.com/victorialogs/#retention-by-disk-space-usage).
 
-* BUGFIX: properly take into account query timeout specified via `-search.maxQueryDuration` command-line flag and/or via `timeout` query arg. Previously these timeouts could be ingored during query execution.
+* BUGFIX: properly take into account query timeout specified via `-search.maxQueryDuration` command-line flag and/or via `timeout` query arg. Previously these timeouts could be ignored during query execution.
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix the update of the relative time range when `Execute Query` is clicked. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6345).
 
 ## [v0.23.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.23.0-victorialogs)
@@ -108,7 +108,7 @@ Released at 2024-06-18
 Released at 2024-06-17
 
 * FEATURE: add ability to accept logs in [Syslog format](https://en.wikipedia.org/wiki/Syslog). See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/).
-* FEATURE: add abitlity to specify timezone offset when parsing [rfc3164](https://datatracker.ietf.org/doc/html/rfc3164) syslog messages with [`unpack_syslog` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_syslog-pipe).
+* FEATURE: add ability to specify timezone offset when parsing [rfc3164](https://datatracker.ietf.org/doc/html/rfc3164) syslog messages with [`unpack_syslog` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_syslog-pipe).
 * FEATURE: add [`top` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe) for returning top N sets of the given fields with the maximum number of matching log entries.
 
 ## [v0.19.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.19.0-victorialogs)

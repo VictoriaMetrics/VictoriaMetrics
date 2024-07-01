@@ -47,7 +47,7 @@ menu:
 
 - **Small usability fix is better than non-trivial feature.** Usability fix makes happy existing users.
   Non-trivial feature may make happy some new users, while it may make upset a big share of existing users
-  if the feature breaks some essential functionaly of VictoriaMetrics components or makes it less efficient.
+  if the feature breaks some essential functionality of VictoriaMetrics components or makes it less efficient.
 
 - **Good docs are better than new shiny feature.** Good docs help users discovering new functionality and dealing
   with VictoriaMetrics components in the most efficient way. Nobody uses new shiny feature if it isn't documented properly.
