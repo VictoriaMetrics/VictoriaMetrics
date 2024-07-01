@@ -2115,6 +2115,14 @@ and then returns the next 20 sorted logs for the last 5 minutes:
 _time:1h | sort by (request_duration desc) offset 10 limit 20
 ```
 
+It is possible returning a rank (sort order number) for every sorted log by adding `rank as <fieldName>` to the end of `| sort ...` pipe.
+For example, the following query stores rank for sorted by [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) logs
+into `position` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
+
+```logsql
+_time:5m | sort by (_time) rank as position
+```
+
 Note that sorting of big number of logs can be slow and can consume a lot of additional memory.
 It is recommended limiting the number of logs before sorting with the following approaches:
 
@@ -2304,7 +2312,10 @@ _time:5m | stats
 
 ### stream_context pipe
 
-`| stream_context ...` [pipe](#pipes) allows selecting surrounding logs for the matching logs in [logs stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
+`| stream_context ...` [pipe](#pipes) allows selecting surrounding logs for the matching logs in [logs stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+in the way similar to `grep -A` / `grep -B`. The returned log chunks are delimited with `---` [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+for easier investigation.
+
 For example, the following query returns up to 10 additional logs after every log message with the `panic` [word](#word) across all the logs for the last 5 minutes:
 
 ```logsql

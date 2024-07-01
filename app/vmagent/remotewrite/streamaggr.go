@@ -125,28 +125,35 @@ func reloadStreamAggrConfig(idx int, pushFunc streamaggr.PushFunc) {
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_success_timestamp_seconds{path=%q}`, path)).Set(fasttime.UnixTimestamp())
 }
 
-func getStreamAggrOpts(idx int) (string, *streamaggr.Options) {
+func getStreamAggrOpts(idx int) (string, streamaggr.Options) {
 	if idx < 0 {
-		return *streamAggrGlobalConfig, &streamaggr.Options{
+		return *streamAggrGlobalConfig, streamaggr.Options{
 			DedupInterval:        streamAggrGlobalDedupInterval.Duration(),
 			DropInputLabels:      *streamAggrGlobalDropInputLabels,
 			IgnoreOldSamples:     *streamAggrGlobalIgnoreOldSamples,
 			IgnoreFirstIntervals: *streamAggrGlobalIgnoreFirstIntervals,
+			Alias:                "global",
 		}
+	}
+	url := fmt.Sprintf("%d:secret-url", idx+1)
+	if *showRemoteWriteURL {
+		url = fmt.Sprintf("%d:%s", idx+1, remoteWriteURLs.GetOptionalArg(idx))
 	}
 	opts := streamaggr.Options{
 		DedupInterval:        streamAggrDedupInterval.GetOptionalArg(idx),
 		DropInputLabels:      *streamAggrDropInputLabels,
 		IgnoreOldSamples:     streamAggrIgnoreOldSamples.GetOptionalArg(idx),
 		IgnoreFirstIntervals: *streamAggrIgnoreFirstIntervals,
+		Alias:                url,
 	}
+
 	if len(*streamAggrConfig) == 0 {
-		return "", &opts
+		return "", opts
 	}
-	return streamAggrConfig.GetOptionalArg(idx), &opts
+	return streamAggrConfig.GetOptionalArg(idx), opts
 }
 
-func newStreamAggrConfigWithOpts(pushFunc streamaggr.PushFunc, path string, opts *streamaggr.Options) (*streamaggr.Aggregators, error) {
+func newStreamAggrConfigWithOpts(pushFunc streamaggr.PushFunc, path string, opts streamaggr.Options) (*streamaggr.Aggregators, error) {
 	if len(path) == 0 {
 		// Skip empty stream aggregation config.
 		return nil, nil

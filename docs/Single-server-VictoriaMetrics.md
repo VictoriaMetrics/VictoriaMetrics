@@ -26,8 +26,7 @@ VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and t
 See [case studies for VictoriaMetrics](https://docs.victoriametrics.com/casestudies/).
 
 VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest),
-[Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), [Snap packages](https://snapcraft.io/victoriametrics)
-and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). 
+[Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). 
 
 Documentation for the cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/cluster-victoriametrics/).
 
@@ -150,7 +149,6 @@ VictoriaMetrics can also be installed via these installation methods:
 * [Ansible role for installing cluster VictoriaMetrics (by VictoriaMetrics)](https://github.com/VictoriaMetrics/ansible-playbooks).
 * [Ansible role for installing cluster VictoriaMetrics (by community)](https://github.com/Slapper/ansible-victoriametrics-cluster-role).
 * [Ansible role for installing single-node VictoriaMetrics (by community)](https://github.com/dreamteam-gg/ansible-victoriametrics-role).
-* [Snap package for VictoriaMetrics](https://snapcraft.io/victoriametrics).
 
 ### How to start VictoriaMetrics
 
@@ -193,24 +191,7 @@ Additionally, all the VictoriaMetrics components allow setting flag values via e
 
 ### Configuration with snap package
 
-Snap package for VictoriaMetrics is available [here](https://snapcraft.io/victoriametrics).
-
-Command-line flags for Snap package can be set with following command:
-
-```sh
-echo 'FLAGS="-selfScrapeInterval=10s -search.logSlowQueryDuration=20s"' > $SNAP_DATA/var/snap/victoriametrics/current/extra_flags
-snap restart victoriametrics
-```
-
-Do not change value for `-storageDataPath` flag, because snap package has limited access to host filesystem.
-
-Changing scrape configuration is possible with text editor:
-
-```sh
-vi $SNAP_DATA/var/snap/victoriametrics/current/etc/victoriametrics-scrape-config.yaml
-```
-
-After changes were made, trigger config re-read with the command `curl 127.0.0.1:8428/-/reload`.
+Snap packages for VictoriaMetrics are supported by community and are available at [https://snapcraft.io/victoriametrics](https://snapcraft.io/victoriametrics).
 
 ### Running as Windows service
 
@@ -1216,7 +1197,7 @@ More details may be found [here](https://github.com/VictoriaMetrics/VictoriaMetr
 ## Setting up service
 
 Read [instructions](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/43) on how to set up VictoriaMetrics
-as a service for your OS. A [snap package](https://snapcraft.io/victoriametrics) is available for Ubuntu.
+as a service for your OS.
 
 ## How to work with snapshots
 

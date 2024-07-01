@@ -29,7 +29,7 @@ foo{instance="x",job="aaa",pod="sdfd-dfdfdfs",node="aosijjewrerfd",namespace="as
 baz_aaa_aaa_fdd{instance="x",job="aaa",pod="sdfd-dfdfdfs",node="aosijjewrerfd",namespace="asdff",container="ohohffd"} -2.3
 `)
 
-	d := NewDeduplicator(pushFunc, time.Hour, []string{"node", "instance"})
+	d := NewDeduplicator(pushFunc, time.Hour, []string{"node", "instance"}, "global")
 	for i := 0; i < 10; i++ {
 		d.Push(tss)
 	}

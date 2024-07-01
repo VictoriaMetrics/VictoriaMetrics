@@ -79,12 +79,12 @@ func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 			rowsDroppedByRelabel:   metrics.GetOrCreateCounter(`bar`),
 		}
 		if dedupInterval > 0 {
-			rwctx.deduplicator = streamaggr.NewDeduplicator(nil, dedupInterval, nil)
+			rwctx.deduplicator = streamaggr.NewDeduplicator(nil, dedupInterval, nil, "global")
 		}
 
 		if len(streamAggrConfig) > 0 {
 			f := createFile(t, []byte(streamAggrConfig))
-			sas, err := streamaggr.LoadFromFile(f.Name(), nil, nil)
+			sas, err := streamaggr.LoadFromFile(f.Name(), nil, streamaggr.Options{})
 			if err != nil {
 				t.Fatalf("cannot load streamaggr configs: %s", err)
 			}

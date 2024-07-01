@@ -973,7 +973,7 @@ specified individually per each `-remoteWrite.url`:
   # without is an optional list of labels, which must be removed from the output aggregation.
   # See https://docs.victoriametrics.com/stream-aggregation/#aggregating-by-labels
   #
-  without: [instance]
+  # without: [instance]
 
   # by is an optional list of labels, which must be preserved in the output aggregation.
   # See https://docs.victoriametrics.com/stream-aggregation/#aggregating-by-labels

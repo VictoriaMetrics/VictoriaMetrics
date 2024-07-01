@@ -79,6 +79,15 @@ func (f *Field) marshalToLogfmt(dst []byte) []byte {
 	return dst
 }
 
+func getFieldValue(fields []Field, name string) string {
+	for _, f := range fields {
+		if f.Name == name {
+			return f.Value
+		}
+	}
+	return ""
+}
+
 func needLogfmtQuoting(s string) bool {
 	for _, c := range s {
 		if !isTokenRune(c) {

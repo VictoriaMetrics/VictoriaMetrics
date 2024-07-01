@@ -11,9 +11,11 @@ func TestParsePipeSortSuccess(t *testing.T) {
 	}
 
 	f(`sort`)
+	f(`sort rank as foo`)
 	f(`sort by (x)`)
 	f(`sort by (x) limit 10`)
 	f(`sort by (x) offset 20 limit 10`)
+	f(`sort by (x) offset 20 limit 10 rank as bar`)
 	f(`sort by (x desc, y) desc`)
 }
 
@@ -24,6 +26,7 @@ func TestParsePipeSortFailure(t *testing.T) {
 	}
 
 	f(`sort a`)
+	f(`sort rank`)
 	f(`sort by`)
 	f(`sort by(x) foo`)
 	f(`sort by(x) limit`)
@@ -56,6 +59,29 @@ func TestPipeSort(t *testing.T) {
 		{
 			{"_msg", `def`},
 			{"a", `1`},
+		},
+	})
+
+	// Sort by all fields with rank
+	f("sort rank x", [][]Field{
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+		},
+		{
+			{"_msg", `abc`},
+			{"a", `2`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `2`},
+			{"x", "1"},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+			{"x", "2"},
 		},
 	})
 
@@ -205,6 +231,35 @@ func TestPipeSort(t *testing.T) {
 		},
 	})
 
+	// Sort by multiple fields with offset and rank
+	f("sort by (a, b) offset 1 rank x", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+		},
+		{
+			{"a", `2`},
+			{"b", `54`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `2`},
+			{"b", `3`},
+			{"x", "2"},
+		},
+		{
+			{"a", `2`},
+			{"b", `54`},
+			{"x", "3"},
+		},
+	})
+
 	// Sort by multiple fields with offset and limit
 	f("sort by (a, b) offset 1 limit 1", [][]Field{
 		{
@@ -225,6 +280,30 @@ func TestPipeSort(t *testing.T) {
 			{"_msg", `abc`},
 			{"a", `2`},
 			{"b", `3`},
+		},
+	})
+
+	// Sort by multiple fields with offset, limit and rank
+	f("sort by (a, b) offset 1 limit 1 rank x", [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"_msg", `def`},
+			{"a", `1`},
+		},
+		{
+			{"a", `2`},
+			{"b", `54`},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `abc`},
+			{"a", `2`},
+			{"b", `3`},
+			{"x", "2"},
 		},
 	})
 
@@ -259,17 +338,27 @@ func TestPipeSortUpdateNeededFields(t *testing.T) {
 	}
 
 	// all the needed fields
+	f("sort", "*", "", "*", "")
+	f("sort rank x", "*", "", "*", "")
 	f("sort by(s1,s2)", "*", "", "*", "")
+	f("sort by(s1,s2) rank as x", "*", "", "*", "x")
+	f("sort by(x,s2) rank as x", "*", "", "*", "")
 
 	// all the needed fields, unneeded fields do not intersect with src
 	f("sort by(s1,s2)", "*", "f1,f2", "*", "f1,f2")
+	f("sort by(s1,s2) rank as x", "*", "f1,f2", "*", "f1,f2,x")
+	f("sort by(x,s2) rank as x", "*", "f1,f2", "*", "f1,f2")
 
 	// all the needed fields, unneeded fields intersect with src
 	f("sort by(s1,s2)", "*", "s1,f1,f2", "*", "f1,f2")
+	f("sort by(s1,s2) rank as x", "*", "s1,f1,f2", "*", "f1,f2,x")
+	f("sort by(x,s2) rank as x", "*", "s1,f1,f2", "*", "f1,f2,s1")
 
 	// needed fields do not intersect with src
 	f("sort by(s1,s2)", "f1,f2", "", "s1,s2,f1,f2", "")
+	f("sort by(s1,s2) rank as x", "f1,f2", "", "s1,s2,f1,f2", "")
 
 	// needed fields intersect with src
 	f("sort by(s1,s2)", "s1,f1,f2", "", "s1,s2,f1,f2", "")
+	f("sort by(s1,s2) rank as x", "s1,f1,f2,x", "", "s1,s2,f1,f2", "")
 }
