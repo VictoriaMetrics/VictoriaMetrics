@@ -16,6 +16,6 @@ cspell-run-command:
 		cspell -c "$(CMD)"
 
 cspell-update: cspell-build
-	CMD="cd /victoriametrics/cspell && npm update && rm -rf ./node_modules" $(MAKE) cspell-run-command
+	@CMD="cd /victoriametrics/cspell && npm update && rm -rf ./node_modules" $(MAKE) cspell-run-command
 	
 spellcheck: cspell-check
