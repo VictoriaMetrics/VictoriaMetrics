@@ -2265,9 +2265,11 @@ func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcN
 	}
 	var er *errRemote
 	var ne net.Error
-	if errors.As(err, &er) || errors.As(err, &ne) && ne.Timeout() || deadline.Exceeded() {
+	var le *limitExceededErr
+	if errors.As(err, &le) || errors.As(err, &er) || errors.As(err, &ne) && ne.Timeout() || deadline.Exceeded() {
 		// There is no sense in repeating the query on the following errors:
 		//
+		//   - exceeded complexity limits (limitExceededErr)
 		//   - induced by vmstorage (errRemote)
 		//   - network timeout errors
 		//   - request deadline exceeded errors
