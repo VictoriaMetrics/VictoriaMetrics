@@ -5,20 +5,18 @@ on:
     branches:
       - cluster
       - master
-    paths-ignore:
-      - '**.md'
-      - 'dashboards/**'
-      - 'deployment/**.yml'
-      - 'docs/**'
+    paths:
+      - '**.go'
+      - '**/Dockerfile*' # The trailing * is for app/vmui/Dockerfile-*.
+      - '**/Makefile'
   pull_request:
     branches:
       - cluster
       - master
-    paths-ignore:
-      - '**.md'
-      - 'dashboards/**'
-      - 'deployment/**.yml'
-      - 'docs/**'
+    paths:
+      - '**.go'
+      - '**/Dockerfile*' # The trailing * is for app/vmui/Dockerfile-*.
+      - '**/Makefile'
 
 permissions:
   contents: read
