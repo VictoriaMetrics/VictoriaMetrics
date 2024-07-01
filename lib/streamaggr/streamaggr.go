@@ -277,7 +277,7 @@ func newAggregatorsFromData(data []byte, pushFunc PushFunc, opts Options) (*Aggr
 		logger.Panicf("BUG: cannot marshal the provided configs: %s", err)
 	}
 
-	metricLabels := fmt.Sprintf("alias=%q", opts.Alias)
+	metricLabels := fmt.Sprintf("url=%q", opts.Alias)
 	_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_dedup_state_size_bytes{%s}`, metricLabels), func() float64 {
 		n := uint64(0)
 		for _, aggr := range as {
