@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blockblob"
@@ -27,7 +28,20 @@ const (
 	envStorageAcctName           = "AZURE_STORAGE_ACCOUNT_NAME"
 	envStorageAccKey             = "AZURE_STORAGE_ACCOUNT_KEY"
 	envStorageAccCs              = "AZURE_STORAGE_ACCOUNT_CONNECTION_STRING"
+	envStorageDomain             = "AZURE_STORAGE_DOMAIN"
+	envStorageDefault            = "AZURE_USE_DEFAULT_CREDENTIAL"
 	storageErrorCodeBlobNotFound = "BlobNotFound"
+)
+
+var (
+	errNoCredentials = fmt.Errorf(
+		`failed to detect any credentials type for AZBlob. Ensure there is connection string set at %q, shared key at %q and %q, or account name at %q and set %q to "true"`,
+		envStorageAccCs,
+		envStorageAcctName,
+		envStorageAccKey,
+		envStorageAcctName,
+		envStorageDefault,
+	)
 )
 
 // FS represents filesystem for backups in Azure Blob Storage.
@@ -41,49 +55,74 @@ type FS struct {
 	Dir string
 
 	client *container.Client
+	env    envLookuper
 }
 
 // Init initializes fs.
 //
 // The returned fs must be stopped when no long needed with MustStop call.
 func (fs *FS) Init() error {
-	if fs.client != nil {
+	switch {
+	case fs.client != nil:
 		logger.Panicf("BUG: fs.Init has been already called")
+	case fs.env == nil:
+		fs.env = envtemplate.LookupEnv
 	}
 
-	for strings.HasPrefix(fs.Dir, "/") {
-		fs.Dir = fs.Dir[1:]
+	fs.Dir = cleanDirectory(fs.Dir)
+
+	domain := "blob.core.windows.net"
+	if storageDomain, ok := fs.env(envStorageDomain); ok {
+		logger.Infof("Overriding default Azure blob domain with %q", storageDomain)
+		domain = storageDomain
 	}
-	if !strings.HasSuffix(fs.Dir, "/") {
-		fs.Dir += "/"
-	}
+
+	connString, hasConnString := fs.env(envStorageAccCs)
+	accountName, hasAccountName := fs.env(envStorageAcctName)
+	accountKey, hasAccountKey := fs.env(envStorageAccKey)
+	useDefault, _ := fs.env(envStorageDefault)
 
 	var sc *service.Client
 	var err error
-	if cs, ok := envtemplate.LookupEnv(envStorageAccCs); ok {
-		sc, err = service.NewClientFromConnectionString(cs, nil)
-		if err != nil {
-			return fmt.Errorf("failed to create AZBlob service client from connection string: %w", err)
-		}
-	}
 
-	accountName, ok1 := envtemplate.LookupEnv(envStorageAcctName)
-	accountKey, ok2 := envtemplate.LookupEnv(envStorageAccKey)
-	if ok1 && ok2 {
+	// not used if connection string is set
+	serviceURL := fmt.Sprintf("https://%s.%s/", accountName, domain)
+
+	switch {
+	// can't specify any combination of more than one credential
+	case moreThanOne(hasConnString, (hasAccountName && hasAccountKey), (useDefault == "true" && hasAccountName)):
+		logger.Errorf("only one of connection string, account name and key, or default credential can be specified")
+		return errNoCredentials
+	case hasConnString:
+		logger.Infof("Creating AZBlob service client from connection string")
+		sc, err = service.NewClientFromConnectionString(connString, nil)
+		if err != nil {
+			return fmt.Errorf("failed to create AZBlob service client: %w", err)
+		}
+	case hasAccountName && hasAccountKey:
+		logger.Infof("Creating AZBlob service client from account name and key")
 		creds, err := azblob.NewSharedKeyCredential(accountName, accountKey)
 		if err != nil {
-			return fmt.Errorf("failed to create AZBlob credentials from account name and key: %w", err)
+			return fmt.Errorf("failed to create AZBlob service client: %w", err)
 		}
-		serviceURL := fmt.Sprintf("https://%s.blob.core.windows.net/", accountName)
 
 		sc, err = service.NewClientWithSharedKeyCredential(serviceURL, creds, nil)
 		if err != nil {
-			return fmt.Errorf("failed to create AZBlob service client from account name and key: %w", err)
+			return fmt.Errorf("failed to create AZBlob service client: %w", err)
 		}
-	}
+	case useDefault == "true" && hasAccountName:
+		logger.Infof("Creating AZBlob service client from default credential")
+		creds, err := azidentity.NewDefaultAzureCredential(nil)
+		if err != nil {
+			return fmt.Errorf("failed to create AZBlob service client: %w", err)
+		}
 
-	if sc == nil {
-		return fmt.Errorf(`failed to detect any credentials type for AZBlob. Ensure there is connection string set at %q, or shared key at %q and %q`, envStorageAccCs, envStorageAcctName, envStorageAccKey)
+		sc, err = service.NewClient(serviceURL, creds, nil)
+		if err != nil {
+			return fmt.Errorf("failed to create AZBlob service client: %w", err)
+		}
+	default:
+		return errNoCredentials
 	}
 
 	containerClient := sc.NewContainerClient(fs.Container)
@@ -242,7 +281,6 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 
 	ctx := context.Background()
 	_, err := bc.UploadStream(ctx, r, &blockblob.UploadStreamOptions{})
-
 	if err != nil {
 		return fmt.Errorf("cannot upload data to %q at %s (remote path %q): %w", p.Path, fs, bc.URL(), err)
 	}
@@ -341,7 +379,6 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 	_, err := bc.UploadBuffer(ctx, data, &blockblob.UploadBufferOptions{
 		Concurrency: 1,
 	})
-
 	if err != nil {
 		return fmt.Errorf("cannot upload %d bytes to %q at %s (remote path %q): %w", len(data), filePath, fs, bc.URL(), err)
 	}
@@ -382,4 +419,35 @@ func (fs *FS) ReadFile(filePath string) ([]byte, error) {
 	}
 
 	return b, nil
+}
+
+// envLookuper is for looking up environment variables. It is
+// needed to allow unit tests to provide alternate values since the envtemplate
+// package uses a singleton to read all environment variables into memory at
+// init time.
+type envLookuper func(name string) (string, bool)
+
+func moreThanOne(vals ...bool) bool {
+	var n int
+
+	for _, v := range vals {
+		if v {
+			n++
+		}
+	}
+	return n > 1
+}
+
+// cleanDirectory ensures that the directory is properly formatted for Azure
+// Blob Storage. It removes any leading slashes and ensures that the directory
+// ends with a trailing slash.
+func cleanDirectory(dir string) string {
+	for strings.HasPrefix(dir, "/") {
+		dir = dir[1:]
+	}
+	if !strings.HasSuffix(dir, "/") {
+		dir += "/"
+	}
+
+	return dir
 }

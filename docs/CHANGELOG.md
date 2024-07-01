@@ -19,6 +19,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 * [How to build vmalert](https://docs.victoriametrics.com/vmalert/#how-to-build-from-sources)
 * [How to build vmauth](https://docs.victoriametrics.com/vmauth/#how-to-build-from-sources)
 * [How to build vmctl](https://docs.victoriametrics.com/vmctl/#how-to-build)
+* [How to build vmbackup](https://docs.victoriametrics.com/vmbackup/index.html#how-to-build-from-sources)
 
 Metrics of the latest version of VictoriaMetrics cluster are available for viewing at our
 [sandbox](https://play-grafana.victoriametrics.com/d/oS7Bi_0Wz_vm/victoriametrics-cluster-vm).
@@ -29,6 +30,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup/index.html): add support of using Azure Managed Identity and default credentials lookup when performing backups. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5984) for the details.
+FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup/index.html): allow overriding Azure storage domain when performing backups. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5984) for the details.
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): allow overriding `Host` header with a target host before sending to a downstream. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6453)
 * FEATURE: [dashboards](https://grafana.com/orgs/victoriametrics): add [Grafana dashboard](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/vmauth.json) and [alerting rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-vmauth.yml) for [vmauth](https://docs.victoriametrics.com/vmauth/) dashboard. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4313) for details.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): added `yandexcloud_sd` AWS API IMDSv2 support.
