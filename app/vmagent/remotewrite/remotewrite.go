@@ -41,7 +41,7 @@ var urlPrefixIgnoreFn = func(key string) bool {
 }
 
 var (
-	remoteWriteURLs = flagutil.NewDictValue("remoteWrite.url", "", '/', "Remote storage URL to write data to. It must support either VictoriaMetrics remote write protocol "+
+	remoteWriteURLs = flagutil.NewDictString("remoteWrite.url", "", '/', "Remote storage URL to write data to. It must support either VictoriaMetrics remote write protocol "+
 		"or Prometheus remote_write protocol. Example url: http://<victoriametrics-host>:8428/api/v1/write . "+
 		"Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. "+
 		"The data can be sharded among the configured remote storage systems if -remoteWrite.shardByURL flag is set", urlPrefixIgnoreFn)
@@ -50,15 +50,15 @@ var (
 		"according to https://docs.victoriametrics.com/#how-to-import-time-series-data ."+
 		"See https://docs.victoriametrics.com/vmagent/#multitenancy for details")
 
-	shardByURL = flagutil.NewDictValue("remoteWrite.shardByURL", false, '/', "Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url . "+
+	shardByURL = flagutil.NewDictBool("remoteWrite.shardByURL", false, '/', "Whether to shard outgoing series across all the remote storage systems enumerated via -remoteWrite.url . "+
 		"By default the data is replicated across all the -remoteWrite.url . See https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages . "+
 		"See also -remoteWrite.shardByURLReplicas")
-	shardByURLReplicas = flagutil.NewDictValue("remoteWrite.shardByURLReplicas", 1, '/', "How many copies of data to make among remote storage systems enumerated via -remoteWrite.url "+
+	shardByURLReplicas = flagutil.NewDictInt("remoteWrite.shardByURLReplicas", 1, '/', "How many copies of data to make among remote storage systems enumerated via -remoteWrite.url "+
 		"when -remoteWrite.shardByURL is set. See https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages")
-	shardByURLLabels = flagutil.NewDictValue("remoteWrite.shardByURL.labels", "", '/', "Optional list of labels, which must be used for sharding outgoing samples "+
+	shardByURLLabels = flagutil.NewDictString("remoteWrite.shardByURL.labels", "", '/', "Optional list of labels, which must be used for sharding outgoing samples "+
 		"among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain "+
 		"even distribution of series over the specified -remoteWrite.url systems. See also -remoteWrite.shardByURL.ignoreLabels")
-	shardByURLIgnoreLabels = flagutil.NewDictValue("remoteWrite.shardByURL.ignoreLabels", "", '/', "Optional list of labels, which must be ignored when sharding outgoing samples "+
+	shardByURLIgnoreLabels = flagutil.NewDictString("remoteWrite.shardByURL.ignoreLabels", "", '/', "Optional list of labels, which must be ignored when sharding outgoing samples "+
 		"among remote storage systems if -remoteWrite.shardByURL command-line flag is set. By default all the labels are used for sharding in order to gain "+
 		"even distribution of series over the specified -remoteWrite.url systems. See also -remoteWrite.shardByURL.labels")
 
@@ -71,14 +71,14 @@ var (
 		"Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage")
 	showRemoteWriteURL = flag.Bool("remoteWrite.showURL", false, "Whether to show -remoteWrite.url in the exported metrics. "+
 		"It is hidden by default, since it can contain sensitive info such as auth key")
-	maxPendingBytesPerURL = flagutil.NewDictValue("remoteWrite.maxDiskUsagePerURL", int64(0), '/', "The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath "+
+	maxPendingBytesPerURL = flagutil.NewDictBytes("remoteWrite.maxDiskUsagePerURL", int64(0), '/', "The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath "+
 		"for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. "+
 		"Buffered data is stored in ~500MB chunks. It is recommended to set the value for this flag to a multiple of the block size 500MB. "+
 		"Disk usage is unlimited if the value is set to 0")
-	significantFigures = flagutil.NewDictValue("remoteWrite.significantFigures", 0, '/', "The number of significant figures to leave in metric values before writing them "+
+	significantFigures = flagutil.NewDictInt("remoteWrite.significantFigures", 0, '/', "The number of significant figures to leave in metric values before writing them "+
 		"to remote storage. See https://en.wikipedia.org/wiki/Significant_figures . Zero value saves all the significant figures. "+
 		"This option may be used for improving data compression for the stored metrics. See also -remoteWrite.roundDigits")
-	roundDigits = flagutil.NewDictValue("remoteWrite.roundDigits", 100, '/', "Round metric values to this number of decimal digits after the point before "+
+	roundDigits = flagutil.NewDictInt("remoteWrite.roundDigits", 100, '/', "Round metric values to this number of decimal digits after the point before "+
 		"writing them to remote storage. "+
 		"Examples: -remoteWrite.roundDigits=2 would round 1.236 to 1.24, while -remoteWrite.roundDigits=-1 would round 126.78 to 130. "+
 		"By default, digits rounding is disabled. Set it to 100 for disabling it for a particular remote storage. "+
@@ -94,10 +94,10 @@ var (
 	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmagent can receive per second. Data ingestion is paused when the limit is exceeded. "+
 		"By default there are no limits on samples ingestion rate. See also -remoteWrite.rateLimit")
 
-	disableOnDiskQueue = flagutil.NewDictValue("remoteWrite.disableOnDiskQueue", false, '/', "Whether to disable storing pending data to -remoteWrite.tmpDataPath "+
+	disableOnDiskQueue = flagutil.NewDictBool("remoteWrite.disableOnDiskQueue", false, '/', "Whether to disable storing pending data to -remoteWrite.tmpDataPath "+
 		"when the configured remote storage systems cannot keep up with the data ingestion rate. See https://docs.victoriametrics.com/vmagent#disabling-on-disk-persistence ."+
 		"See also -remoteWrite.dropSamplesOnOverload")
-	dropSamplesOnOverload = flagutil.NewDictValue("remoteWrite.dropSamplesOnOverload", false, '/', "Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples "+
+	dropSamplesOnOverload = flagutil.NewDictBool("remoteWrite.dropSamplesOnOverload", false, '/', "Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples "+
 		"cannot be pushed into the configured remote storage systems in a timely manner. See https://docs.victoriametrics.com/vmagent#disabling-on-disk-persistence")
 )
 

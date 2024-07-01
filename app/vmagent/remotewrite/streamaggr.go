@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"slices"
 	"sync/atomic"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -39,24 +38,24 @@ var (
 		"before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels")
 
 	// Per URL config
-	streamAggrConfig = flagutil.NewDictValue("remoteWrite.streamAggr.config", "", '/', "Optional path to file with stream aggregation config. "+
+	streamAggrConfig = flagutil.NewDictString("remoteWrite.streamAggr.config", "", '/', "Optional path to file with stream aggregation config. "+
 		"See https://docs.victoriametrics.com/stream-aggregation/ . "+
 		"See also -remoteWrite.streamAggr.keepInput, -remoteWrite.streamAggr.dropInput and -remoteWrite.streamAggr.dedupInterval")
-	streamAggrDropInput = flagutil.NewDictValue("remoteWrite.streamAggr.dropInput", false, '/', "Whether to drop all the input samples after the aggregation "+
+	streamAggrDropInput = flagutil.NewDictBool("remoteWrite.streamAggr.dropInput", false, '/', "Whether to drop all the input samples after the aggregation "+
 		"with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples "+
 		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation/")
-	streamAggrKeepInput = flagutil.NewDictValue("remoteWrite.streamAggr.keepInput", false, '/', "Whether to keep all the input samples after the aggregation "+
+	streamAggrKeepInput = flagutil.NewDictBool("remoteWrite.streamAggr.keepInput", false, '/', "Whether to keep all the input samples after the aggregation "+
 		"with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples "+
 		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.dropInput and https://docs.victoriametrics.com/stream-aggregation/")
-	streamAggrDedupInterval = flagutil.NewDictValue("remoteWrite.streamAggr.dedupInterval", time.Duration(0), '/', "Input samples are de-duplicated with this interval before optional aggregation "+
+	streamAggrDedupInterval = flagutil.NewDictDuration("remoteWrite.streamAggr.dedupInterval", 0, '/', "Input samples are de-duplicated with this interval before optional aggregation "+
 		"with -remoteWrite.streamAggr.config . See also -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation/#deduplication")
-	streamAggrIgnoreOldSamples = flagutil.NewDictValue("remoteWrite.streamAggr.ignoreOldSamples", false, '/', "Whether to ignore input samples with old timestamps outside the current "+
+	streamAggrIgnoreOldSamples = flagutil.NewDictBool("remoteWrite.streamAggr.ignoreOldSamples", false, '/', "Whether to ignore input samples with old timestamps outside the current "+
 		"aggregation interval for the corresponding -remoteWrite.streamAggr.config . "+
 		"See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples")
-	streamAggrIgnoreFirstIntervals = flagutil.NewDictValue("remoteWrite.streamAggr.ignoreFirstIntervals", 0, '/', "Number of aggregation intervals to skip after the start. Increase this value if "+
+	streamAggrIgnoreFirstIntervals = flagutil.NewDictInt("remoteWrite.streamAggr.ignoreFirstIntervals", 0, '/', "Number of aggregation intervals to skip after the start. Increase this value if "+
 		"you observe incorrect aggregation results after vmagent restarts. It could be caused by receiving unordered delayed data from clients pushing data into the vmagent. "+
 		"See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start")
-	streamAggrDropInputLabels = flagutil.NewDictValue("remoteWrite.streamAggr.dropInputLabels", "", '/', "An optional list of labels to drop from samples "+
+	streamAggrDropInputLabels = flagutil.NewDictString("remoteWrite.streamAggr.dropInputLabels", "", '/', "An optional list of labels to drop from samples "+
 		"before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels")
 )
 

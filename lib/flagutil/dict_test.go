@@ -58,7 +58,7 @@ func TestDictFlagSetSuccess(t *testing.T) {
 		t.Helper()
 		name := fmt.Sprintf("dict-flag-set-success-%d", idx)
 		idx++
-		df := NewDictValue(name, 0, ':', "test")
+		df := newDictValue[intDictValue](name, 0, ':', "test")
 		if err := df.Set(s); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -80,7 +80,7 @@ func TestDictFlagFailure(t *testing.T) {
 		t.Helper()
 		name := fmt.Sprintf("dict-flag-failure-%d", idx)
 		idx++
-		df := NewDictValue(name, []int{}, ':', "test")
+		df := newDictValue[intDictValue](name, 0, ':', "test")
 		if err := df.Set(s); err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -100,7 +100,7 @@ func TestDictIntGet(t *testing.T) {
 		t.Helper()
 		name := fmt.Sprintf("dict-int-get-%d", idx)
 		idx++
-		df := NewDictValue(name, defaultValue, ':', "test")
+		df := newDictValue[intDictValue](name, defaultValue, ':', "test")
 		if err := df.Set(s); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -122,7 +122,7 @@ func TestDictStringGet(t *testing.T) {
 		t.Helper()
 		name := fmt.Sprintf("dict-string-get-%d", idx)
 		idx++
-		df := NewDictValue(name, defaultValue, ':', "test")
+		df := newDictValue[strDictValue](name, defaultValue, ':', "test")
 		if err := df.Set(s); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -144,7 +144,7 @@ func TestDictBoolGet(t *testing.T) {
 		t.Helper()
 		name := fmt.Sprintf("dict-bool-get-%d", idx)
 		idx++
-		df := NewDictValue(name, defaultValue, ':', "test")
+		df := newDictValue[boolDictValue](name, defaultValue, ':', "test")
 		if err := df.Set(s); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}

@@ -24,7 +24,7 @@ var (
 		"to all the metrics before sending them to -remoteWrite.url. See also -remoteWrite.urlRelabelConfig. "+
 		"The path can point either to local file or to http url. "+
 		"See https://docs.victoriametrics.com/vmagent/#relabeling")
-	relabelConfigPaths = flagutil.NewDictValue("remoteWrite.urlRelabelConfig", "", '/', "Optional path to relabel configs for the corresponding -remoteWrite.url. "+
+	relabelConfigPaths = flagutil.NewDictString("remoteWrite.urlRelabelConfig", "", '/', "Optional path to relabel configs for the corresponding -remoteWrite.url. "+
 		"See also -remoteWrite.relabelConfig. The path can point either to local file or to http url. "+
 		"See https://docs.victoriametrics.com/vmagent/#relabeling")
 

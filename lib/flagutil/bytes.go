@@ -29,6 +29,11 @@ type Bytes struct {
 	valueString string
 }
 
+// Get int64 value from bytes
+func (b *Bytes) Get() int64 {
+	return b.N
+}
+
 // IntN returns the stored value capped by int type.
 func (b *Bytes) IntN() int {
 	if b.N > math.MaxInt {

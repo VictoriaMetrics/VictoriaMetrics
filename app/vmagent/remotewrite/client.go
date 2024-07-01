@@ -26,58 +26,58 @@ import (
 )
 
 var (
-	forcePromProto = flagutil.NewDictValue("remoteWrite.forcePromProto", false, '/', "Whether to force Prometheus remote write protocol for sending data "+
+	forcePromProto = flagutil.NewDictBool("remoteWrite.forcePromProto", false, '/', "Whether to force Prometheus remote write protocol for sending data "+
 		"to the corresponding -remoteWrite.url . See https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol")
-	forceVMProto = flagutil.NewDictValue("remoteWrite.forceVMProto", false, '/', "Whether to force VictoriaMetrics remote write protocol for sending data "+
+	forceVMProto = flagutil.NewDictBool("remoteWrite.forceVMProto", false, '/', "Whether to force VictoriaMetrics remote write protocol for sending data "+
 		"to the corresponding -remoteWrite.url . See https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol")
 
-	rateLimit = flagutil.NewDictValue("remoteWrite.rateLimit", 0, '/', "Optional rate limit in bytes per second for data sent to the corresponding -remoteWrite.url. "+
+	rateLimit = flagutil.NewDictInt("remoteWrite.rateLimit", 0, '/', "Optional rate limit in bytes per second for data sent to the corresponding -remoteWrite.url. "+
 		"By default, the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data "+
 		"is sent after temporary unavailability of the remote storage. See also -maxIngestionRate")
-	sendTimeout = flagutil.NewDictValue("remoteWrite.sendTimeout", time.Minute, '/', "Timeout for sending a single block of data to the corresponding -remoteWrite.url")
-	proxyURL    = flagutil.NewDictValue("remoteWrite.proxyURL", "", '/', "Optional proxy URL for writing data to the corresponding -remoteWrite.url. "+
+	sendTimeout = flagutil.NewDictDuration("remoteWrite.sendTimeout", time.Minute, '/', "Timeout for sending a single block of data to the corresponding -remoteWrite.url")
+	proxyURL    = flagutil.NewDictString("remoteWrite.proxyURL", "", '/', "Optional proxy URL for writing data to the corresponding -remoteWrite.url. "+
 		"Supported proxies: http, https, socks5. Example: -remoteWrite.proxyURL=socks5://proxy:1234")
 
-	tlsHandshakeTimeout   = flagutil.NewDictValue("remoteWrite.tlsHandshakeTimeout", 20*time.Second, '/', "The timeout for establishing tls connections to the corresponding -remoteWrite.url")
-	tlsInsecureSkipVerify = flagutil.NewDictValue("remoteWrite.tlsInsecureSkipVerify", false, '/', "Whether to skip tls verification when connecting to the corresponding -remoteWrite.url")
-	tlsCertFile           = flagutil.NewDictValue("remoteWrite.tlsCertFile", "", '/', "Optional path to client-side TLS certificate file to use when connecting "+
+	tlsHandshakeTimeout   = flagutil.NewDictDuration("remoteWrite.tlsHandshakeTimeout", 20*time.Second, '/', "The timeout for establishing tls connections to the corresponding -remoteWrite.url")
+	tlsInsecureSkipVerify = flagutil.NewDictBool("remoteWrite.tlsInsecureSkipVerify", false, '/', "Whether to skip tls verification when connecting to the corresponding -remoteWrite.url")
+	tlsCertFile           = flagutil.NewDictString("remoteWrite.tlsCertFile", "", '/', "Optional path to client-side TLS certificate file to use when connecting "+
 		"to the corresponding -remoteWrite.url")
-	tlsKeyFile = flagutil.NewDictValue("remoteWrite.tlsKeyFile", "", '/', "Optional path to client-side TLS certificate key to use when connecting to the corresponding -remoteWrite.url")
-	tlsCAFile  = flagutil.NewDictValue("remoteWrite.tlsCAFile", "", '/', "Optional path to TLS CA file to use for verifying connections to the corresponding -remoteWrite.url. "+
+	tlsKeyFile = flagutil.NewDictString("remoteWrite.tlsKeyFile", "", '/', "Optional path to client-side TLS certificate key to use when connecting to the corresponding -remoteWrite.url")
+	tlsCAFile  = flagutil.NewDictString("remoteWrite.tlsCAFile", "", '/', "Optional path to TLS CA file to use for verifying connections to the corresponding -remoteWrite.url. "+
 		"By default, system CA is used")
-	tlsServerName = flagutil.NewDictValue("remoteWrite.tlsServerName", "", '/', "Optional TLS server name to use for connections to the corresponding -remoteWrite.url. "+
+	tlsServerName = flagutil.NewDictString("remoteWrite.tlsServerName", "", '/', "Optional TLS server name to use for connections to the corresponding -remoteWrite.url. "+
 		"By default, the server name from -remoteWrite.url is used")
 
-	headers = flagutil.NewDictValue("remoteWrite.headers", "", '/', "Optional HTTP headers to send with each request to the corresponding -remoteWrite.url. "+
+	headers = flagutil.NewDictString("remoteWrite.headers", "", '/', "Optional HTTP headers to send with each request to the corresponding -remoteWrite.url. "+
 		"For example, -remoteWrite.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -remoteWrite.url. "+
 		"Multiple headers must be delimited by '^^': -remoteWrite.headers='header1:value1^^header2:value2'")
 
-	basicAuthUsername     = flagutil.NewDictValue("remoteWrite.basicAuth.username", "", '/', "Optional basic auth username to use for the corresponding -remoteWrite.url")
-	basicAuthPassword     = flagutil.NewDictValue("remoteWrite.basicAuth.password", "", '/', "Optional basic auth password to use for the corresponding -remoteWrite.url")
-	basicAuthPasswordFile = flagutil.NewDictValue("remoteWrite.basicAuth.passwordFile", "", '/', "Optional path to basic auth password to use for the corresponding -remoteWrite.url. "+
+	basicAuthUsername     = flagutil.NewDictString("remoteWrite.basicAuth.username", "", '/', "Optional basic auth username to use for the corresponding -remoteWrite.url")
+	basicAuthPassword     = flagutil.NewDictString("remoteWrite.basicAuth.password", "", '/', "Optional basic auth password to use for the corresponding -remoteWrite.url")
+	basicAuthPasswordFile = flagutil.NewDictString("remoteWrite.basicAuth.passwordFile", "", '/', "Optional path to basic auth password to use for the corresponding -remoteWrite.url. "+
 		"The file is re-read every second")
-	bearerToken     = flagutil.NewDictValue("remoteWrite.bearerToken", "", '/', "Optional bearer auth token to use for the corresponding -remoteWrite.url")
-	bearerTokenFile = flagutil.NewDictValue("remoteWrite.bearerTokenFile", "", '/', "Optional path to bearer token file to use for the corresponding -remoteWrite.url. "+
+	bearerToken     = flagutil.NewDictString("remoteWrite.bearerToken", "", '/', "Optional bearer auth token to use for the corresponding -remoteWrite.url")
+	bearerTokenFile = flagutil.NewDictString("remoteWrite.bearerTokenFile", "", '/', "Optional path to bearer token file to use for the corresponding -remoteWrite.url. "+
 		"The token is re-read from the file every second")
 
-	oauth2ClientID         = flagutil.NewDictValue("remoteWrite.oauth2.clientID", "", '/', "Optional OAuth2 clientID to use for the corresponding -remoteWrite.url")
-	oauth2ClientSecret     = flagutil.NewDictValue("remoteWrite.oauth2.clientSecret", "", '/', "Optional OAuth2 clientSecret to use for the corresponding -remoteWrite.url")
-	oauth2ClientSecretFile = flagutil.NewDictValue("remoteWrite.oauth2.clientSecretFile", "", '/', "Optional OAuth2 clientSecretFile to use for the corresponding -remoteWrite.url")
-	oauth2EndpointParams   = flagutil.NewDictValue("remoteWrite.oauth2.endpointParams", "", '/', "Optional OAuth2 endpoint parameters to use for the corresponding -remoteWrite.url . "+
+	oauth2ClientID         = flagutil.NewDictString("remoteWrite.oauth2.clientID", "", '/', "Optional OAuth2 clientID to use for the corresponding -remoteWrite.url")
+	oauth2ClientSecret     = flagutil.NewDictString("remoteWrite.oauth2.clientSecret", "", '/', "Optional OAuth2 clientSecret to use for the corresponding -remoteWrite.url")
+	oauth2ClientSecretFile = flagutil.NewDictString("remoteWrite.oauth2.clientSecretFile", "", '/', "Optional OAuth2 clientSecretFile to use for the corresponding -remoteWrite.url")
+	oauth2EndpointParams   = flagutil.NewDictString("remoteWrite.oauth2.endpointParams", "", '/', "Optional OAuth2 endpoint parameters to use for the corresponding -remoteWrite.url . "+
 		`The endpoint parameters must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}`)
-	oauth2TokenURL = flagutil.NewDictValue("remoteWrite.oauth2.tokenUrl", "", '/', "Optional OAuth2 tokenURL to use for the corresponding -remoteWrite.url")
-	oauth2Scopes   = flagutil.NewDictValue("remoteWrite.oauth2.scopes", "", '/', "Optional OAuth2 scopes to use for the corresponding -remoteWrite.url. Scopes must be delimited by ';'")
+	oauth2TokenURL = flagutil.NewDictString("remoteWrite.oauth2.tokenUrl", "", '/', "Optional OAuth2 tokenURL to use for the corresponding -remoteWrite.url")
+	oauth2Scopes   = flagutil.NewDictString("remoteWrite.oauth2.scopes", "", '/', "Optional OAuth2 scopes to use for the corresponding -remoteWrite.url. Scopes must be delimited by ';'")
 
-	awsUseSigv4 = flagutil.NewDictValue("remoteWrite.aws.useSigv4", false, '/', "Enables SigV4 request signing for the corresponding -remoteWrite.url. "+
+	awsUseSigv4 = flagutil.NewDictBool("remoteWrite.aws.useSigv4", false, '/', "Enables SigV4 request signing for the corresponding -remoteWrite.url. "+
 		"It is expected that other -remoteWrite.aws.* command-line flags are set if sigv4 request signing is enabled")
-	awsEC2Endpoint = flagutil.NewDictValue("remoteWrite.aws.ec2Endpoint", "", '/', "Optional AWS EC2 API endpoint to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set")
-	awsSTSEndpoint = flagutil.NewDictValue("remoteWrite.aws.stsEndpoint", "", '/', "Optional AWS STS API endpoint to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set")
-	awsRegion      = flagutil.NewDictValue("remoteWrite.aws.region", "", '/', "Optional AWS region to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set")
-	awsRoleARN     = flagutil.NewDictValue("remoteWrite.aws.roleARN", "", '/', "Optional AWS roleARN to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set")
-	awsAccessKey   = flagutil.NewDictValue("remoteWrite.aws.accessKey", "", '/', "Optional AWS AccessKey to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set")
-	awsService     = flagutil.NewDictValue("remoteWrite.aws.service", "", '/', "Optional AWS Service to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. "+
+	awsEC2Endpoint = flagutil.NewDictString("remoteWrite.aws.ec2Endpoint", "", '/', "Optional AWS EC2 API endpoint to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set")
+	awsSTSEndpoint = flagutil.NewDictString("remoteWrite.aws.stsEndpoint", "", '/', "Optional AWS STS API endpoint to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set")
+	awsRegion      = flagutil.NewDictString("remoteWrite.aws.region", "", '/', "Optional AWS region to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set")
+	awsRoleARN     = flagutil.NewDictString("remoteWrite.aws.roleARN", "", '/', "Optional AWS roleARN to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set")
+	awsAccessKey   = flagutil.NewDictString("remoteWrite.aws.accessKey", "", '/', "Optional AWS AccessKey to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set")
+	awsService     = flagutil.NewDictString("remoteWrite.aws.service", "", '/', "Optional AWS Service to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. "+
 		"Defaults to \"aps\"")
-	awsSecretKey = flagutil.NewDictValue("remoteWrite.aws.secretKey", "", '/', "Optional AWS SecretKey to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set")
+	awsSecretKey = flagutil.NewDictString("remoteWrite.aws.secretKey", "", '/', "Optional AWS SecretKey to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set")
 )
 
 type client struct {
