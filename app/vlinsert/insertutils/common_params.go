@@ -2,6 +2,8 @@ package insertutils
 
 import (
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/VictoriaMetrics/metrics"
 
@@ -10,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 // CommonParams contains common HTTP parameters used by log ingestion APIs.
@@ -100,12 +103,46 @@ type LogMessageProcessor interface {
 }
 
 type logMessageProcessor struct {
+	mu            sync.Mutex
+	wg            sync.WaitGroup
+	stopCh        chan struct{}
+	lastFlushTime time.Time
+
 	cp *CommonParams
 	lr *logstorage.LogRows
 }
 
+func (lmp *logMessageProcessor) initPeriodicFlush() {
+	lmp.lastFlushTime = time.Now()
+
+	lmp.wg.Add(1)
+	go func() {
+		defer lmp.wg.Done()
+
+		d := timeutil.AddJitterToDuration(time.Second)
+		ticker := time.NewTicker(d)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-lmp.stopCh:
+				return
+			case <-ticker.C:
+				lmp.mu.Lock()
+				if time.Since(lmp.lastFlushTime) >= d {
+					lmp.flushLocked()
+				}
+				lmp.mu.Unlock()
+			}
+		}
+	}()
+}
+
 // AddRow adds new log message to lmp with the given timestamp and fields.
 func (lmp *logMessageProcessor) AddRow(timestamp int64, fields []logstorage.Field) {
+	lmp.mu.Lock()
+	defer lmp.mu.Unlock()
+
 	if len(fields) > *MaxFieldsPerLine {
 		rf := logstorage.RowFormatter(fields)
 		logger.Warnf("dropping log line with %d fields; it exceeds -insert.maxFieldsPerLine=%d; %s", len(fields), *MaxFieldsPerLine, rf)
@@ -122,29 +159,41 @@ func (lmp *logMessageProcessor) AddRow(timestamp int64, fields []logstorage.Fiel
 		return
 	}
 	if lmp.lr.NeedFlush() {
-		lmp.flush()
+		lmp.flushLocked()
 	}
 }
 
-func (lmp *logMessageProcessor) flush() {
+// flushLocked must be called under locked lmp.mu.
+func (lmp *logMessageProcessor) flushLocked() {
+	lmp.lastFlushTime = time.Now()
 	vlstorage.MustAddRows(lmp.lr)
 	lmp.lr.ResetKeepSettings()
 }
 
 // MustClose flushes the remaining data to the underlying storage and closes lmp.
 func (lmp *logMessageProcessor) MustClose() {
-	lmp.flush()
+	close(lmp.stopCh)
+	lmp.wg.Wait()
+
+	lmp.flushLocked()
 	logstorage.PutLogRows(lmp.lr)
 	lmp.lr = nil
 }
 
 // NewLogMessageProcessor returns new LogMessageProcessor for the given cp.
+//
+// MustClose() must be called on the returned LogMessageProcessor when it is no longer needed.
 func (cp *CommonParams) NewLogMessageProcessor() LogMessageProcessor {
 	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
-	return &logMessageProcessor{
+	lmp := &logMessageProcessor{
 		cp: cp,
 		lr: lr,
+
+		stopCh: make(chan struct{}),
 	}
+	lmp.initPeriodicFlush()
+
+	return lmp
 }
 
 var rowsDroppedTotalDebug = metrics.NewCounter(`vl_rows_dropped_total{reason="debug"}`)
