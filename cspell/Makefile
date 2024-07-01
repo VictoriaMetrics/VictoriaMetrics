@@ -19,3 +19,8 @@ cspell-update: cspell-build
 	@CMD="cd /victoriametrics/cspell && npm update && rm -rf ./node_modules" $(MAKE) cspell-run-command
 	
 spellcheck: cspell-check
+
+spellcheck-install:
+	$(MAKE) cspell-build
+	@echo
+	@echo "'make spellcheck' command is ready."
