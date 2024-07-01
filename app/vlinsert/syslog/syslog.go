@@ -46,24 +46,29 @@ var (
 		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
 
 	tlsEnable = flagutil.NewArrayBool("syslog.tls", "Whether to enable TLS for receiving syslog messages at the corresponding -syslog.listenAddr.tcp. "+
-		"The corresponding -syslog.tlsCertFile and -syslog.tlsKeyFile must be set if -syslog.tls is set. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
+		"The corresponding -syslog.tlsCertFile and -syslog.tlsKeyFile must be set if -syslog.tls is set. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#security")
 	tlsCertFile = flagutil.NewArrayString("syslog.tlsCertFile", "Path to file with TLS certificate for the corresponding -syslog.listenAddr.tcp if the corresponding -syslog.tls is set. "+
 		"Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated. "+
-		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
+		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#security")
 	tlsKeyFile = flagutil.NewArrayString("syslog.tlsKeyFile", "Path to file with TLS key for the corresponding -syslog.listenAddr.tcp if the corresponding -syslog.tls is set. "+
 		"The provided key file is automatically re-read every second, so it can be dynamically updated. "+
-		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
+		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#security")
 	tlsCipherSuites = flagutil.NewArrayString("syslog.tlsCipherSuites", "Optional list of TLS cipher suites for -syslog.listenAddr.tcp if -syslog.tls is set. "+
 		"See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants . "+
-		"See also https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
+		"See also https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#security")
 	tlsMinVersion = flag.String("syslog.tlsMinVersion", "TLS13", "The minimum TLS version to use for -syslog.listenAddr.tcp if -syslog.tls is set. "+
 		"Supported values: TLS10, TLS11, TLS12, TLS13. "+
-		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
+		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#security")
 
 	compressMethodTCP = flagutil.NewArrayString("syslog.compressMethod.tcp", "Compression method for syslog messages received at the corresponding -syslog.listenAddr.tcp. "+
-		"Supported values: none, gzip, deflate. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
+		"Supported values: none, gzip, deflate. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#compression")
 	compressMethodUDP = flagutil.NewArrayString("syslog.compressMethod.udp", "Compression method for syslog messages received at the corresponding -syslog.listenAddr.udp. "+
-		"Supported values: none, gzip, deflate. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
+		"Supported values: none, gzip, deflate. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#compression")
+
+	useLocalTimestampTCP = flagutil.NewArrayBool("syslog.useLocalTimestamp.tcp", "Whether to use local timestamp instead of the original timestamp for the ingested syslog messages "+
+		"at the corresponding -syslog.listenAddr.tcp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#log-timestamps")
+	useLocalTimestampUDP = flagutil.NewArrayBool("syslog.useLocalTimestamp.udp", "Whether to use local timestamp instead of the original timestamp for the ingested syslog messages "+
+		"at the corresponding -syslog.listenAddr.udp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#log-timestamps")
 )
 
 // MustInit initializes syslog parser at the given -syslog.listenAddr.tcp and -syslog.listenAddr.udp ports
@@ -154,17 +159,21 @@ func runUDPListener(addr string, argIdx int) {
 	compressMethod := compressMethodUDP.GetOptionalArg(argIdx)
 	checkCompressMethod(compressMethod, addr, "udp")
 
+	useLocalTimestamp := useLocalTimestampUDP.GetOptionalArg(argIdx)
+
 	doneCh := make(chan struct{})
 	go func() {
-		serveUDP(ln, tenantID, compressMethod)
+		serveUDP(ln, tenantID, compressMethod, useLocalTimestamp)
 		close(doneCh)
 	}()
 
+	logger.Infof("started accepting syslog messages at -syslog.listenAddr.udp=%q", addr)
 	<-workersStopCh
 	if err := ln.Close(); err != nil {
 		logger.Fatalf("syslog: cannot close UDP listener at %s: %s", addr, err)
 	}
 	<-doneCh
+	logger.Infof("finished accepting syslog messages at -syslog.listenAddr.udp=%q", addr)
 }
 
 func runTCPListener(addr string, argIdx int) {
@@ -193,17 +202,21 @@ func runTCPListener(addr string, argIdx int) {
 	compressMethod := compressMethodTCP.GetOptionalArg(argIdx)
 	checkCompressMethod(compressMethod, addr, "tcp")
 
+	useLocalTimestamp := useLocalTimestampTCP.GetOptionalArg(argIdx)
+
 	doneCh := make(chan struct{})
 	go func() {
-		serveTCP(ln, tenantID, compressMethod)
+		serveTCP(ln, tenantID, compressMethod, useLocalTimestamp)
 		close(doneCh)
 	}()
 
+	logger.Infof("started accepting syslog messages at -syslog.listenAddr.tcp=%q", addr)
 	<-workersStopCh
 	if err := ln.Close(); err != nil {
 		logger.Fatalf("syslog: cannot close TCP listener at %s: %s", addr, err)
 	}
 	<-doneCh
+	logger.Infof("finished accepting syslog messages at -syslog.listenAddr.tcp=%q", addr)
 }
 
 func checkCompressMethod(compressMethod, addr, protocol string) {
@@ -215,7 +228,7 @@ func checkCompressMethod(compressMethod, addr, protocol string) {
 	}
 }
 
-func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod string) {
+func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod string, useLocalTimestamp bool) {
 	gomaxprocs := cgroup.AvailableCPUs()
 	var wg sync.WaitGroup
 	localAddr := ln.LocalAddr()
@@ -248,7 +261,7 @@ func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod st
 				}
 				bb.B = bb.B[:n]
 				udpRequestsTotal.Inc()
-				if err := processStream(bb.NewReader(), compressMethod, cp); err != nil {
+				if err := processStream(bb.NewReader(), compressMethod, useLocalTimestamp, cp); err != nil {
 					logger.Errorf("syslog: cannot process UDP data from %s at %s: %s", remoteAddr, localAddr, err)
 				}
 			}
@@ -257,7 +270,7 @@ func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod st
 	wg.Wait()
 }
 
-func serveTCP(ln net.Listener, tenantID logstorage.TenantID, compressMethod string) {
+func serveTCP(ln net.Listener, tenantID logstorage.TenantID, compressMethod string, useLocalTimestamp bool) {
 	var cm ingestserver.ConnsMap
 	cm.Init("syslog")
 
@@ -288,7 +301,7 @@ func serveTCP(ln net.Listener, tenantID logstorage.TenantID, compressMethod stri
 		wg.Add(1)
 		go func() {
 			cp := insertutils.GetCommonParamsForSyslog(tenantID)
-			if err := processStream(c, compressMethod, cp); err != nil {
+			if err := processStream(c, compressMethod, useLocalTimestamp, cp); err != nil {
 				logger.Errorf("syslog: cannot process TCP data at %q: %s", addr, err)
 			}
 
@@ -303,19 +316,19 @@ func serveTCP(ln net.Listener, tenantID logstorage.TenantID, compressMethod stri
 }
 
 // processStream parses a stream of syslog messages from r and ingests them into vlstorage.
-func processStream(r io.Reader, compressMethod string, cp *insertutils.CommonParams) error {
+func processStream(r io.Reader, compressMethod string, useLocalTimestamp bool, cp *insertutils.CommonParams) error {
 	if err := vlstorage.CanWriteData(); err != nil {
 		return err
 	}
 
 	lmp := cp.NewLogMessageProcessor()
-	err := processStreamInternal(r, compressMethod, lmp)
+	err := processStreamInternal(r, compressMethod, useLocalTimestamp, lmp)
 	lmp.MustClose()
 
 	return err
 }
 
-func processStreamInternal(r io.Reader, compressMethod string, lmp insertutils.LogMessageProcessor) error {
+func processStreamInternal(r io.Reader, compressMethod string, useLocalTimestamp bool, lmp insertutils.LogMessageProcessor) error {
 	switch compressMethod {
 	case "", "none":
 	case "gzip":
@@ -334,7 +347,7 @@ func processStreamInternal(r io.Reader, compressMethod string, lmp insertutils.L
 		logger.Panicf("BUG: unsupported compressMethod=%q; supported values: none, gzip, deflate", compressMethod)
 	}
 
-	err := processUncompressedStream(r, lmp)
+	err := processUncompressedStream(r, useLocalTimestamp, lmp)
 
 	switch compressMethod {
 	case "gzip":
@@ -348,7 +361,7 @@ func processStreamInternal(r io.Reader, compressMethod string, lmp insertutils.L
 	return err
 }
 
-func processUncompressedStream(r io.Reader, lmp insertutils.LogMessageProcessor) error {
+func processUncompressedStream(r io.Reader, useLocalTimestamp bool, lmp insertutils.LogMessageProcessor) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 
@@ -364,7 +377,7 @@ func processUncompressedStream(r io.Reader, lmp insertutils.LogMessageProcessor)
 		}
 
 		currentYear := int(globalCurrentYear.Load())
-		err := processLine(slr.line, currentYear, globalTimezone, lmp)
+		err := processLine(slr.line, currentYear, globalTimezone, useLocalTimestamp, lmp)
 		if err != nil {
 			errorsTotal.Inc()
 			return fmt.Errorf("cannot read line #%d: %s", n, err)
@@ -486,13 +499,20 @@ func putSyslogLineReader(slr *syslogLineReader) {
 
 var syslogLineReaderPool sync.Pool
 
-func processLine(line []byte, currentYear int, timezone *time.Location, lmp insertutils.LogMessageProcessor) error {
+func processLine(line []byte, currentYear int, timezone *time.Location, useLocalTimestamp bool, lmp insertutils.LogMessageProcessor) error {
 	p := logstorage.GetSyslogParser(currentYear, timezone)
 	lineStr := bytesutil.ToUnsafeString(line)
 	p.Parse(lineStr)
-	ts, err := insertutils.ExtractTimestampRFC3339NanoFromFields("timestamp", p.Fields)
-	if err != nil {
-		return fmt.Errorf("cannot get timestamp from syslog line %q: %w", line, err)
+
+	var ts int64
+	if useLocalTimestamp {
+		ts = time.Now().UnixNano()
+	} else {
+		nsecs, err := insertutils.ExtractTimestampRFC3339NanoFromFields("timestamp", p.Fields)
+		if err != nil {
+			return fmt.Errorf("cannot get timestamp from syslog line %q: %w", line, err)
+		}
+		ts = nsecs
 	}
 	logstorage.RenameField(p.Fields, "message", "_msg")
 	lmp.AddRow(ts, p.Fields)
