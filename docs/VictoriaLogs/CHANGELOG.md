@@ -19,6 +19,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* BUGFIX: return the proper surrounding logs for [`stream_context` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe) when additional [pipes](https://docs.victoriametrics.com/victorialogs/logsql/#pipes) are put after the `stream_context` pipe. This has been broken in [v0.26.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.26.0-victorialogs).
+
 ## [v0.26.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.26.0-victorialogs)
 
 Released at 2024-07-01
