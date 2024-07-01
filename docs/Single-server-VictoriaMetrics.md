@@ -189,6 +189,10 @@ Additionally, all the VictoriaMetrics components allow setting flag values via e
 * For repeating flags an alternative syntax can be used by joining the different values into one using `,` char as separator (for example `-storageNode <nodeA> -storageNode <nodeB>` will translate to `storageNode=<nodeA>,<nodeB>`).
 * Environment var prefix can be set via `-envflag.prefix` flag. For instance, if `-envflag.prefix=VM_`, then env vars must be prepended with `VM_`.
 
+### Configuration with snap package
+
+Snap packages for VictoriaMetrics are supported by community and are available at [https://snapcraft.io/victoriametrics](https://snapcraft.io/victoriametrics).
+
 ### Running as Windows service
 
 In order to run VictoriaMetrics as a Windows service it is required to create a service configuration for [WinSW](https://github.com/winsw/winsw)

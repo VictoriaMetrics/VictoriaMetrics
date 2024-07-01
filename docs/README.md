@@ -18,7 +18,7 @@ VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and t
 See [case studies for VictoriaMetrics](https://docs.victoriametrics.com/casestudies/).
 
 VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest),
-[Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics).
+[Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). 
 
 Documentation for the cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/cluster-victoriametrics/).
 
@@ -180,6 +180,10 @@ Additionally, all the VictoriaMetrics components allow setting flag values via e
 * Each `.` char in flag name must be substituted with `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`).
 * For repeating flags an alternative syntax can be used by joining the different values into one using `,` char as separator (for example `-storageNode <nodeA> -storageNode <nodeB>` will translate to `storageNode=<nodeA>,<nodeB>`).
 * Environment var prefix can be set via `-envflag.prefix` flag. For instance, if `-envflag.prefix=VM_`, then env vars must be prepended with `VM_`.
+
+### Configuration with snap package
+
+Snap packages for VictoriaMetrics are supported by community and are available at [https://snapcraft.io/victoriametrics](https://snapcraft.io/victoriametrics).
 
 ### Running as Windows service
 
