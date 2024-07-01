@@ -20,7 +20,7 @@ func TestAggregatorsFailure(t *testing.T) {
 		pushFunc := func(_ []prompbmarshal.TimeSeries) {
 			panic(fmt.Errorf("pushFunc shouldn't be called"))
 		}
-		a, err := newAggregatorsFromData([]byte(config), pushFunc, nil)
+		a, err := newAggregatorsFromData([]byte(config), pushFunc, Options{})
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -158,11 +158,11 @@ func TestAggregatorsEqual(t *testing.T) {
 		t.Helper()
 
 		pushFunc := func(_ []prompbmarshal.TimeSeries) {}
-		aa, err := newAggregatorsFromData([]byte(a), pushFunc, nil)
+		aa, err := newAggregatorsFromData([]byte(a), pushFunc, Options{})
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
-		ab, err := newAggregatorsFromData([]byte(b), pushFunc, nil)
+		ab, err := newAggregatorsFromData([]byte(b), pushFunc, Options{})
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
@@ -221,7 +221,7 @@ func TestAggregatorsSuccess(t *testing.T) {
 			tssOutput = appendClonedTimeseries(tssOutput, tss)
 			tssOutputLock.Unlock()
 		}
-		opts := &Options{
+		opts := Options{
 			FlushOnShutdown:        true,
 			NoAlignFlushToInterval: true,
 		}
@@ -917,7 +917,7 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 			}
 			tssOutputLock.Unlock()
 		}
-		opts := &Options{
+		opts := Options{
 			DedupInterval:   30 * time.Second,
 			FlushOnShutdown: true,
 		}
