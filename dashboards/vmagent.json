@@ -4574,7 +4574,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -4590,7 +4591,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 14
+            "y": 6
           },
           "id": 131,
           "options": {
@@ -4678,7 +4679,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -4694,7 +4696,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 22
+            "y": 14
           },
           "id": 130,
           "options": {
@@ -4795,7 +4797,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -4811,7 +4814,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 22
+            "y": 14
           },
           "id": 77,
           "options": {
@@ -4886,7 +4889,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "The 99th percentile of avg flush duration for the aggregated data. \n\nSmaller is better.\n\nAggregation can produce incorrect results ff flush duration exceeds configured deduplication interval. See \"Flush Timeouts\" panel.",
+          "description": "Shows the number of matched samples by the aggregation rule. \n\nThe more samples is matched, the more work this aggregation rule does. The matching rule is specified via `match` param.\n\nSee more details in [stream aggregation config](https://docs.victoriametrics.com/stream-aggregation/#stream-aggregation-config). ",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4938,8 +4941,7 @@
                     "value": 80
                   }
                 ]
-              },
-              "unit": "s"
+              }
             },
             "overrides": []
           },
@@ -4947,15 +4949,21 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 39
+            "y": 7
           },
-          "id": 137,
+          "id": 146,
           "options": {
             "legend": {
-              "calcs": [],
-              "displayMode": "list",
+              "calcs": [
+                "min",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
               "placement": "bottom",
-              "showLegend": true
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
             },
             "tooltip": {
               "mode": "single",
@@ -4969,14 +4977,14 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.99, rate(vm_streamaggr_dedup_flush_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
+              "expr": "rate(vm_streamaggr_matched_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
               "instant": false,
-              "legendFormat": "{{outputs}} {{group}}({{alias}}): {{instance}} ({{job}})",
+              "legendFormat": "{{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Dedup flush duration (0.99)",
+          "title": "Matched samples ($instance)",
           "type": "timeseries"
         },
         {
@@ -4984,7 +4992,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Amount of ignored samples during aggregation. \nStream aggregation will drop samples with NaN values, or samples with too old timestamps. See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples ",
+          "description": "The rate of ignored samples during aggregation. \nStream aggregation will drop samples with NaN values, or samples with too old timestamps. See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples ",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5044,7 +5052,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 39
+            "y": 7
           },
           "id": 143,
           "options": {
@@ -5066,14 +5074,117 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "increase(vm_streamaggr_ignored_samples_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]) > 0",
+              "expr": "rate(vm_streamaggr_ignored_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
               "instant": false,
-              "legendFormat": "{{outputs}} {{group}}({{alias}}) - {{reason}}: {{instance}} ({{job}})",
+              "legendFormat": "{{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Ignored samples",
+          "title": "Ignored samples ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows the number of produced samples by the aggregation rule. \n\nNumber of produced samples depend on params like `by`, `without`, `interval`, etc.\n\nSee more details in [stream aggregation config](https://docs.victoriametrics.com/stream-aggregation/#stream-aggregation-config). ",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "axisSoftMin": 0,
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 15
+          },
+          "id": 147,
+          "options": {
+            "legend": {
+              "calcs": [
+                "min",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "rate(vm_streamaggr_flushed_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
+              "instant": false,
+              "legendFormat": "{{url}} ({{job}}): match={{match}}; output={{output}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Produced samples ($instance)",
           "type": "timeseries"
         },
         {
@@ -5141,8 +5252,8 @@
           "gridPos": {
             "h": 8,
             "w": 12,
-            "x": 0,
-            "y": 47
+            "x": 12,
+            "y": 15
           },
           "id": 139,
           "options": {
@@ -5164,9 +5275,9 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "increase(vm_streamaggr_flush_timeouts_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]) > 0",
+              "expr": "increase(vm_streamaggr_flush_timeouts_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])",
               "instant": false,
-              "legendFormat": "{{outputs}} {{group}}({{alias}}) - aggregate: {{instance}} ({{job}})",
+              "legendFormat": "aggregation: {{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
               "range": true,
               "refId": "A"
             },
@@ -5176,15 +5287,15 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "increase(vm_streamaggr_dedup_flush_timeouts_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]) > 0",
+              "expr": "increase(vm_streamaggr_dedup_flush_timeouts_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{outputs}} {{group}}({{alias}}) - dedup: {{instance}} ({{job}})",
+              "legendFormat": "deduplication: {{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
               "range": true,
               "refId": "B"
             }
           ],
-          "title": "Flush timeouts",
+          "title": "Flush timeouts ($instance)",
           "type": "timeseries"
         },
         {
@@ -5192,7 +5303,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the lag between average samples timestamp and aggregation interval.\n\nLower is better.\n\nToo high lag or lag exceeding the interval might be a sign of data delay before aggregation or resource insufficiency on aggregator. Samples with high lag may affect accuracy of aggregation.\n\nSee https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples",
+          "description": "Shows the max lag between samples timestamps within one batch passed to the aggregation input.\n\nLower is better.\n\nToo high lag or lag exceeding the interval might be a sign that data was delayed before aggregation or resource insufficiency on aggregator. Samples with high lag may affect accuracy of aggregation.\n\nSee https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5253,8 +5364,8 @@
           "gridPos": {
             "h": 8,
             "w": 12,
-            "x": 12,
-            "y": 47
+            "x": 0,
+            "y": 23
           },
           "id": 142,
           "options": {
@@ -5276,14 +5387,14 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.99, rate(vm_streamaggr_samples_lag_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
+              "expr": "histogram_quantile(0.99, rate(vm_streamaggr_samples_lag_seconds_bucket{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]))",
               "instant": false,
-              "legendFormat": "{{outputs}} {{group}}({{alias}}) - {{instance}} ({{job}})",
+              "legendFormat": "{{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Aggregated samples lag",
+          "title": "Samples lag 0.99 quantile ($instance)",
           "type": "timeseries"
         },
         {
@@ -5291,7 +5402,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the size of Label Compressor in bytes.\n\nLabels compressor encodes label-value pairs during aggregation to optimise memory usage. It is expected for its size to grow with time and to reset on vmagent restarts.\n\nRapid spikes in Label compressor size might be a sign of significant changes in labels of received samples.",
+          "description": "The 99th percentile of avg flush duration for the aggregated data. \n\nSmaller is better.\n\nAggregation can produce incorrect results ff flush duration exceeds configured deduplication interval. See \"Flush Timeouts\" panel.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5344,17 +5455,17 @@
                   }
                 ]
               },
-              "unit": "decbytes"
+              "unit": "s"
             },
             "overrides": []
           },
           "gridPos": {
             "h": 8,
             "w": 12,
-            "x": 0,
-            "y": 55
+            "x": 12,
+            "y": 23
           },
-          "id": 140,
+          "id": 137,
           "options": {
             "legend": {
               "calcs": [],
@@ -5374,14 +5485,111 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "vm_streamaggr_labels_compressor_size_bytes{job=~\"$job\",instance=~\"$instance\"} > 0",
+              "expr": "histogram_quantile(0.99, rate(vm_streamaggr_dedup_flush_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]))",
               "instant": false,
-              "legendFormat": "{{instance}} ({{job}})",
+              "legendFormat": "{{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Labels compressor bytes",
+          "title": "Dedup flush duration 0.99 quantile ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows the eviction rate of time series because of staleness.\n\nThere are two stages where series can be marked as stale.\n1. Input. Aggregator keeps in memory each received unique time series. The time series becomes stale and gets removed if no samples were received during [staleness interval](https://docs.victoriametrics.com/stream-aggregation/#staleness) for this series. \n\n2. Output. The output key is a resulting time series produced by aggregating many input series. The time series becomes stale and gets removed if no samples were received during [staleness interval](https://docs.victoriametrics.com/stream-aggregation/#staleness) for any of input series for this aggregation.\n\nIncrease in `input` keys shows that series previously matched by the aggregation rule now became stale.\n\nIncrease in `output` keys shows that series previously produced by the aggregation rule now became stale.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "axisSoftMin": 0,
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 31
+          },
+          "id": 144,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "increase(vm_streamaggr_stale_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
+              "instant": false,
+              "legendFormat": "{{url}} ({{job}}): match={{match}}; key={{key}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Staleness rate ($instance)",
           "type": "timeseries"
         },
         {
@@ -5443,13 +5651,30 @@
                 ]
               }
             },
-            "overrides": []
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "/bytes.*/"
+                },
+                "properties": [
+                  {
+                    "id": "custom.axisPlacement",
+                    "value": "right"
+                  },
+                  {
+                    "id": "unit",
+                    "value": "bytes"
+                  }
+                ]
+              }
+            ]
           },
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 55
+            "y": 31
           },
           "id": 141,
           "options": {
@@ -5471,219 +5696,28 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "vm_streamaggr_labels_compressor_items_count{job=~\"$job\",instance=~\"$instance\"} > 0",
-              "instant": false,
-              "legendFormat": "{{instance}} ({{job}})",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Labels compressor items count",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "description": "Amount of discarded stale aggregation states",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "axisSoftMin": 0,
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 63
-          },
-          "id": 144,
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "expr": "increase(vm_streamaggr_stale_samples_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]) > 0",
-              "instant": false,
-              "legendFormat": "{{output}} {{group}}({{alias}}) - {{key}}: {{instance}} ({{job}})",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Stale keys",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "description": "Amount of samples, that were matched and flushed",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "axisSoftMin": 0,
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 63
-          },
-          "id": 145,
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "expr": "increase(vm_streamaggr_flushed_samples_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]) > 0",
-              "instant": false,
-              "legendFormat": "flushed - {{output}} {{group}}({{alias}}): {{instance}} ({{job}})",
-              "range": true,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "expr": "increase(vm_streamaggr_matched_samples_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]) > 0",
+              "expr": "max(vm_streamaggr_labels_compressor_items_count{job=~\"$job\",instance=~\"$instance\"}) by(job, instance)",
               "hide": false,
               "instant": false,
-              "legendFormat": "matched - {{outputs}} {{group}}({{alias}}): {{instance}} ({{job}})",
+              "legendFormat": "items: {{instance}} ({{job}})",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(vm_streamaggr_labels_compressor_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "bytes: {{instance}} ({{job}})",
               "range": true,
               "refId": "B"
             }
           ],
-          "title": "Aggregated samples",
+          "title": "Labels compressor ($instance)",
           "type": "timeseries"
         }
       ],
@@ -5755,7 +5789,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -5771,7 +5806,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 16
+            "y": 8
           },
           "id": 60,
           "options": {
@@ -5859,7 +5894,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -5875,7 +5911,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 16
+            "y": 8
           },
           "id": 66,
           "options": {
@@ -5963,7 +5999,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -5979,7 +6016,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 24
+            "y": 16
           },
           "id": 61,
           "options": {
@@ -6067,7 +6104,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -6083,7 +6121,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 24
+            "y": 16
           },
           "id": 65,
           "options": {
@@ -6133,6 +6171,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -6146,6 +6185,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -6168,7 +6208,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "transparent"
+                    "color": "transparent",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -6184,7 +6225,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 32
+            "y": 24
           },
           "id": 88,
           "options": {
@@ -6230,6 +6271,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -6282,7 +6324,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 32
+            "y": 24
           },
           "id": 84,
           "options": {
@@ -6332,6 +6374,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -6345,6 +6388,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -6367,7 +6411,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "transparent"
+                    "color": "transparent",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -6383,7 +6428,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 40
+            "y": 32
           },
           "id": 90,
           "options": {
