@@ -104,10 +104,10 @@ func TestPipeStreamContextUpdateNeededFields(t *testing.T) {
 	}
 
 	// all the needed fields
-	f("stream_context before 10", "*", "", "*", "")
+	f("stream_context after 4 before 10", "*", "", "*", "")
 
 	// plus unneeded fields
-	f("stream_context after 4", "*", "f1,f2", "*", "f1,f2")
+	f("stream_context before 10 after 4", "*", "f1,f2", "*", "f1,f2")
 	f("stream_context after 4", "*", "_time,f1,_stream_id", "*", "f1")
 
 	// needed fields
