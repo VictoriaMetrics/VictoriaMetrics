@@ -615,7 +615,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts Options
 		matchExpr = matchExpr[:maxLabelValueLen-3] + "..."
 	}
 
-	metricLabels := fmt.Sprintf(`match=%q, group=%q, alias=%q, position="%d"`, matchExpr, group, opts.Alias, opts.aggrID)
+	metricLabels := fmt.Sprintf(`match=%q, group=%q, url=%q, position="%d"`, matchExpr, group, opts.Alias, opts.aggrID)
 
 	// initialize the aggregator
 	a := &aggregator{

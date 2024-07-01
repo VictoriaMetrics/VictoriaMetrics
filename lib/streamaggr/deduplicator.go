@@ -47,7 +47,7 @@ func NewDeduplicator(pushFunc PushFunc, dedupInterval time.Duration, dropLabels 
 
 	ms := d.ms
 
-	metricLabels := fmt.Sprintf(`alias=%q`, alias)
+	metricLabels := fmt.Sprintf(`url=%q`, alias)
 	_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_dedup_state_size_bytes{%s}`, metricLabels), func() float64 {
 		return float64(d.da.sizeBytes())
 	})
