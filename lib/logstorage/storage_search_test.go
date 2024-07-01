@@ -707,7 +707,7 @@ func TestStorageRunQuery(t *testing.T) {
 			| stream_context before 1000
 			| stats count() rows`, [][]Field{
 			{
-				{"rows", "858"},
+				{"rows", "825"},
 			},
 		})
 	})
@@ -716,7 +716,7 @@ func TestStorageRunQuery(t *testing.T) {
 			| stream_context after 1000
 			| stats count() rows`, [][]Field{
 			{
-				{"rows", "462"},
+				{"rows", "495"},
 			},
 		})
 	})

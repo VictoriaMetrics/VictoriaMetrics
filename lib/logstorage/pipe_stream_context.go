@@ -365,6 +365,10 @@ func (wctx *pipeStreamContextWriteContext) writeStreamContextRows(streamID strin
 					Value: streamID,
 				},
 				{
+					Name:  "_stream",
+					Value: getFieldValue(r.fields, "_stream"),
+				},
+				{
 					Name:  "_msg",
 					Value: "---",
 				},
@@ -402,20 +406,30 @@ func getStreamContextRowIdx(rows []streamContextRow, r *streamContextRow) int {
 	if n == len(rows) {
 		return -1
 	}
-	if rows[n].timestamp != r.timestamp {
-		return -1
+
+	equalFields := func(fields []Field) bool {
+		for _, f := range r.fields {
+			if f.Value != getFieldValue(fields, f.Name) {
+				return false
+			}
+		}
+		return true
 	}
-	for rows[n].timestamp == r.timestamp && !equalFields(rows[n].fields, r.fields) {
+
+	for rows[n].timestamp == r.timestamp && !equalFields(rows[n].fields) {
 		n++
 		if n >= len(rows) {
 			return -1
 		}
 	}
+	if rows[n].timestamp != r.timestamp {
+		return -1
+	}
 	return n
 }
 
 func sortStreamContextRows(rows []streamContextRow) {
-	sort.SliceStable(rows, func(i, j int) bool {
+	sort.Slice(rows, func(i, j int) bool {
 		return rows[i].timestamp < rows[j].timestamp
 	})
 }

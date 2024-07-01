@@ -79,20 +79,13 @@ func (f *Field) marshalToLogfmt(dst []byte) []byte {
 	return dst
 }
 
-func equalFields(a, b []Field) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, x := range a {
-		y := b[i]
-		if x.Name != y.Name {
-			return false
-		}
-		if x.Value != y.Value {
-			return false
+func getFieldValue(fields []Field, name string) string {
+	for _, f := range fields {
+		if f.Name == name {
+			return f.Value
 		}
 	}
-	return true
+	return ""
 }
 
 func needLogfmtQuoting(s string) bool {
