@@ -418,6 +418,38 @@ in configured `-remoteRead.url`, weren't updated in the last `1h` (controlled by
 or received state doesn't match current `vmalert` rules configuration. `vmalert` marks successfully restored rules
 with `restored` label in [web UI](#web).
 
+### Link to alert source
+
+Alerting notifications sent by vmalert always contain a `source` link. By default, the link format
+is the following `http://<vmalert-addr>/vmalert/alert?group_id=<group_id>&alert_id=<alert_id>`. On click, it opens
+vmalert [web UI](https://docs.victoriametrics.com/vmalert/#web) to show the alert status and its fields.
+
+It is possible to override the link format. For example, to make the link to [vmui](https://docs.victoriametrics.com/single-server-victoriametrics/#vmui)
+specify the following cmd-line flags:
+```
+./bin/vmalert \
+    -external.url=http://<vmui-addr> \  # the hostname and port for datasource vmui 
+    -external.alert.source='vmui/#/?g0.expr={{.Expr|queryEscape}}' # the path built using alert expr
+```
+
+Now, all `source` links will lead to `http://<vmui-addr>/vmui/#/?g0.expr=$expr`, where $expr is an alerting rule
+expression.
+
+The `-external.alert.source` cmd-line flag supports [templating](https://docs.victoriametrics.com/vmalert/#templating)
+and allows using labels and extra data related to the alert. For example, see the following link to Grafana:
+```
+./bin/vmalert \
+    -external.url=http://<grafana-addr> \  # the hostname and port for Grafana 
+    -external.alert.source='explore?left={"datasource":"VictoriaMetrics","queries":[{"expr":{{ .Expr|jsonEscape|queryEscape }},"refId":"A"}],"range":{"from":"{{ .ActiveAt.UnixMilli }}","to":"now"}}'
+```
+
+In this example, `-external.alert.source` will lead to Grafana's Explore page with `expr` field equal to alert expression,
+and time range will be selected starting from `"from":"{{ .ActiveAt.UnixMilli }}"` when alert became active.
+
+In addition to `source` link, some extra links could be added to alert's [annotations](https://docs.victoriametrics.com/vmalert/#alerting-rules)
+field. See [how we use them](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/839596c00df123c639d1244b28ee8137dfc9609c/deployment/docker/alerts-cluster.yml#L43) 
+to link alerting rule and the corresponding panel on Grafana dashboard.
+
 ### Multitenancy
 
 There are the following approaches exist for alerting and recording rules across
@@ -1064,7 +1096,7 @@ The shortlist of configuration flags is the following:
   -evaluationInterval duration
      How often to evaluate the rules (default 1m0s)
   -external.alert.source string
-     External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service. Supports templating - see https://docs.victoriametrics.com/vmalert/#templating . For example, link to Grafana: -external.alert.source='explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{$expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"now-1h","to":"now"}}'. Link to VMUI: -external.alert.source='vmui/#/?g0.expr={{.Expr|queryEscape}}'. If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.
+     External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service. Supports templating - see https://docs.victoriametrics.com/vmalert/#templating . For example, link to Grafana: -external.alert.source='explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{.Expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"now-1h","to":"now"}}'. Link to VMUI: -external.alert.source='vmui/#/?g0.expr={{.Expr|queryEscape}}'. If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.
   -external.label array
      Optional label in the form 'Name=value' to add to all generated recording rules and alerts. Pass multiple -label flags in order to add multiple label sets.
      Supports an array of values separated by comma or specified via multiple flags.
