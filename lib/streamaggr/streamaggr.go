@@ -130,9 +130,9 @@ type Options struct {
 	// This option can be overridden individually per each aggregation via ignore_old_samples option.
 	IgnoreOldSamples bool
 
-	// IgnoreFirstIntervals sets amount of aggregation intervals to ignore on start.
+	// IgnoreFirstIntervals sets the number of aggregation intervals to be ignored on start.
 	//
-	// By default, no intervals will be ignored.
+	// By default, zero intervals are ignored.
 	//
 	// This option can be overridden individually per each aggregation via ignore_first_intervals option.
 	IgnoreFirstIntervals int
@@ -715,15 +715,16 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 
 		if alignFlushToInterval && skipIncompleteFlush {
 			a.flush(nil, interval, true)
+			ignoreFirstIntervals--
 		}
 
 		for tickerWait(t) {
-			pf := pushFunc
 			if ignoreFirstIntervals > 0 {
-				pf = nil
+				a.flush(nil, interval, true)
 				ignoreFirstIntervals--
+			} else {
+				a.flush(pushFunc, interval, true)
 			}
-			a.flush(pf, interval, true)
 
 			if alignFlushToInterval {
 				select {
@@ -744,17 +745,17 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 
 			ct := time.Now()
 			if ct.After(flushDeadline) {
-				pf := pushFunc
-				if ignoreFirstIntervals > 0 {
-					pf = nil
-					ignoreFirstIntervals--
-				}
 				// It is time to flush the aggregated state
 				if alignFlushToInterval && skipIncompleteFlush && !isSkippedFirstFlush {
-					pf = nil
+					a.flush(nil, interval, true)
+					ignoreFirstIntervals--
 					isSkippedFirstFlush = true
+				} else if ignoreFirstIntervals > 0 {
+					a.flush(nil, interval, true)
+					ignoreFirstIntervals--
+				} else {
+					a.flush(pushFunc, interval, true)
 				}
-				a.flush(pf, interval, true)
 				for ct.After(flushDeadline) {
 					flushDeadline = flushDeadline.Add(interval)
 				}
@@ -769,7 +770,7 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 		}
 	}
 
-	if !skipIncompleteFlush && ignoreFirstIntervals == 0 {
+	if !skipIncompleteFlush && ignoreFirstIntervals <= 0 {
 		a.dedupFlush(dedupInterval)
 		a.flush(pushFunc, interval, true)
 	}

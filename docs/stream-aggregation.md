@@ -22,6 +22,8 @@ after applying all the configured [relabeling stages](https://docs.victoriametri
 _By default, stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples).
 It expects that the ingested samples have timestamps close to the current time. See [how to ignore old samples](#ignoring-old-samples)._
 
+## Configuration
+
 Stream aggregation can be configured via the following command-line flags:
 
 - `-streamAggr.config` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
@@ -128,25 +130,30 @@ outside the current [aggregation interval](#stream-aggregation-config) must be i
 
 ## Ignore aggregation intervals on start
 
-Stream aggregation may yield inaccurate results if it processes incomplete data. This issue can arise when data is 
-received from clients that maintain a queue of unsent data, such as Prometheus or vmagent. If the queue isn't fully 
-cleared within the aggregation `interval`, only a portion of the time series may be processed, leading to distorted 
-calculations. To mitigate this, consider the following options:
+Streaming aggregation results may be incorrect for some time after the restart of [vmagent](https://docs.victoriametrics.com/vmagent/)
+or [single-node VictoriaMetrics](https://docs.victoriametrics.com/) until all the buffered [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
+are sent from remote sources to the `vmagent` or single-node VictoriaMetrics via [supported data ingestion protocols](https://docs.victoriametrics.com/vmagent/#how-to-push-data-to-vmagent).
+In this case it may be a good idea to drop the aggregated data during the first `N` [aggrgation intervals](#stream-aggregation-config)
+just after the restart of `vmagent` or single-node VictoriaMetrics. This can be done via the following options:
 
-- Set `-streamAggr.ignoreFirstIntervals=<intervalsCount>` command-line flag to [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
-  or to [vmagent](https://docs.victoriametrics.com/vmagent/) to skip first `<intervalsCount>` [aggregation intervals](#stream-aggregation-config)
-  from persisting to the storage. At [vmagent](https://docs.victoriametrics.com/vmagent/)
-  `-remoteWrite.streamAggr.ignoreFirstIntervals=<intervalsCount>` flag can be specified individually per each `-remoteWrite.url`.
-  It is expected that all incomplete or queued data will be processed during specified `<intervalsCount>` 
-  and all subsequent aggregation intervals will produce correct data.
+- The `-streamAggr.ignoreFirstIntervals=N` command-line flag at `vmagent` and single-node VictoriaMetrics. This flag instructs skipping the first `N`
+  [aggregation intervals](#stream-aggregation-config) just after the restart accross all the [configured stream aggregation configs](#configuration).
 
-- Set `ignore_first_intervals: <intervalsCount>` option individually per [aggregation config](#stream-aggregation-config).
-  This enables ignoring first `<intervalsCount>` aggregation intervals for that particular aggregation config.
+  The `-remoteWrite.streamAggr.ignoreFirstIntervals=N` command-line flag can be specified individually per each `-remoteWrite.url` at [vmagent](https://docs.victoriametrics.com/vmagent/).
+
+- The `ignore_first_intervals: N` option at the particular [aggregation config](#stream-aggregation-config).
+
+See also:
+
+- [Flush time alignment](#flush-time-alignment)
+- [Ignoring old samples](#ignoring-old-samples)
 
 ## Flush time alignment
 
 By default, the time for aggregated data flush is aligned by the `interval` option specified in [aggregate config](#stream-aggregation-config).
+
 For example:
+
 - if `interval: 1m` is set, then the aggregated data is flushed to the storage at the end of every minute
 - if `interval: 1h` is set, then the aggregated data is flushed to the storage at the end of every hour
 
@@ -156,6 +163,11 @@ In this case aggregated data flushes will be aligned to the `vmagent` start time
 The aggregated data on the first and the last interval is dropped during `vmagent` start, restart or [config reload](#configuration-update),
 since the first and the last aggregation intervals are incomplete, so they usually contain incomplete confusing data.
 If you need preserving the aggregated data on these intervals, then set `flush_on_shutdown: true` option in the [aggregate config](#stream-aggregation-config).
+
+See also:
+
+- [Ignore aggregation intervals on start](#ignore-aggregation-intervals-on-start)
+- [Ignoring old samples](#ignoring-old-samples)
 
 ## Use cases
 
@@ -994,15 +1006,15 @@ specified individually per each `-remoteWrite.url`:
 
   # ignore_old_samples instructs ignoring input samples with old timestamps outside the current aggregation interval.
   # See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples
-  # See also -remoteWrite.streamAggr.ignoreOldSamples or -streamAggr.ignoreOldSamples command-line flag.
+  # See also -remoteWrite.streamAggr.ignoreOldSamples and -streamAggr.ignoreOldSamples command-line flag.
   #
   # ignore_old_samples: false
 
-  # ignore_first_intervals instructs ignoring first N aggregation intervals after process start.
+  # ignore_first_intervals instructs ignoring the first N aggregation intervals after process start.
   # See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start
-  # See also -remoteWrite.streamAggr.ignoreFirstIntervals or -streamAggr.ignoreFirstIntervals command-line flag.
+  # See also -remoteWrite.streamAggr.ignoreFirstIntervals and -streamAggr.ignoreFirstIntervals command-line flags.
   #
-  # ignore_first_intervals: false
+  # ignore_first_intervals: N
 
   # drop_input_labels instructs dropping the given labels from input samples.
   # The labels' dropping is performed before input_relabel_configs are applied.
