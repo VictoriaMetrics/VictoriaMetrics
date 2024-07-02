@@ -52,6 +52,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix input cursor position reset in modal settings. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6530).
 * BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): fix `vm_backup_last_run_failed` metric not being properly initialized during startup. Previously, it could imply an error even if the backup have been completed successfully. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6550) for the details.
 
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/): properly validate rollup functions which could contain not only rollup expressions when `-search.disableImplicitConversion` or `-search.logImplicitConversion` are enabled. For example, `predict_linear(up[5m], 86400)` or `quantile_over_time(0.99, foo[1h])` will now succeed the validation if these flags are set.
+
 ## [v1.102.0-rc2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0-rc2)
 
 Released at 2024-06-24
