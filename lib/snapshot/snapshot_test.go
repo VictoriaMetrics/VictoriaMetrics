@@ -104,3 +104,25 @@ func TestDeleteSnapshotFailed(t *testing.T) {
 		t.Fatalf("Snapshot should have failed, got: %v", err)
 	}
 }
+
+func TestAdditionAuthKeyHeader(t *testing.T) {
+	expectedAuthKeyHeader := "foobar"
+
+	origSnapshotAuthKey := snapshotAuthKey.Get()
+	// reset the flag after tests
+	defer func() {
+		if err := snapshotAuthKey.Set(origSnapshotAuthKey); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+	}()
+	if err := snapshotAuthKey.Set("foobar"); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	req := httptest.NewRequest("GET", "http://foobar.com", nil)
+	addAuthHeaders(req)
+	authHeader := req.Header.Get("X-AuthKey")
+	if authHeader != expectedAuthKeyHeader {
+		t.Fatalf("invalid authkey header. got %q, but want %q", authHeader, expectedAuthKeyHeader)
+	}
+}

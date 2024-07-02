@@ -443,6 +443,13 @@ func CheckAuthFlag(w http.ResponseWriter, r *http.Request, flagValue string, fla
 		return CheckBasicAuth(w, r)
 	}
 	if r.FormValue("authKey") != flagValue {
+		// Check and allow the request if the header 'X-AuthKey' matches the flagValue
+		// Currently, this is only applicable for snapshotAuthKey. Below condition can be modified later to remove
+		// the check for flagName if 'X-AuthKey' header is to be allowed for other authKeys related flags (for instance reloadAuthKey)
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5973
+		if flagName == "snapshotAuthKey" && r.Header.Get("X-AuthKey") == flagValue {
+			return true
+		}
 		authKeyRequestErrors.Inc()
 		http.Error(w, fmt.Sprintf("The provided authKey doesn't match -%s", flagName), http.StatusUnauthorized)
 		return false
