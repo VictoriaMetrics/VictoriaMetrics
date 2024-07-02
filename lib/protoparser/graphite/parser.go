@@ -13,7 +13,8 @@ import (
 )
 
 var (
-	sanitizeMetricName = flag.Bool("graphite.sanitizeMetricName", false, "Sanitize metric names for the ingested Graphite data")
+	sanitizeMetricName = flag.Bool("graphite.sanitizeMetricName", false, "Sanitize metric names for the ingested Graphite data. "+
+		"See https://docs.victoriametrics.com/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd")
 )
 
 // graphite text line protocol may use white space or tab as separator
