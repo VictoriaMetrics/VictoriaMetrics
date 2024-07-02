@@ -74,6 +74,7 @@ type PutBucketOwnershipControlsInput struct {
 }
 
 func (in *PutBucketOwnershipControlsInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }

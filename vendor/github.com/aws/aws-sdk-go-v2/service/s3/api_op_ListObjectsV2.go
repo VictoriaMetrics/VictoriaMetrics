@@ -154,7 +154,7 @@ type ListObjectsV2Input struct {
 
 	// Encoding type used by Amazon S3 to encode object keys in the response. If using
 	// url , non-ASCII characters used in an object's key name will be URL encoded. For
-	// example, the object test_file(3).png will appear as test_file%283%29.png.
+	// example, the object test_file(3).png will appear as test_file%283%29.png .
 	EncodingType types.EncodingType
 
 	// The account ID of the expected bucket owner. If the account ID that you provide
@@ -204,6 +204,7 @@ type ListObjectsV2Input struct {
 }
 
 func (in *ListObjectsV2Input) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.Prefix = in.Prefix
 

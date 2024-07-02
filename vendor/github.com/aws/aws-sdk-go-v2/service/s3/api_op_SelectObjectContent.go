@@ -205,6 +205,7 @@ type SelectObjectContentInput struct {
 }
 
 func (in *SelectObjectContentInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 
 }
