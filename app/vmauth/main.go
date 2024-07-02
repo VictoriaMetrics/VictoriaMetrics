@@ -59,6 +59,7 @@ var (
 		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
 	backendTLSServerName = flag.String("backend.TLSServerName", "", "Optional TLS ServerName, which must be sent to HTTPS backend. "+
 		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
+	slowQuerySeconds = flag.Float64("slowQuerySeconds", 20, "Log slow queries taking more than this duration. ")
 )
 
 func main() {
@@ -153,7 +154,27 @@ func getUserInfoByAuthTokens(ats []string) *UserInfo {
 
 func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	startTime := time.Now()
-	defer ui.requestsDuration.UpdateDuration(startTime)
+	defer func() {
+		seconds := time.Since(startTime).Seconds()
+		ui.requestsDuration.Update(seconds)
+		if seconds > *slowQuerySeconds {
+			if strings.HasSuffix(r.URL.Path, "/query") || strings.HasSuffix(r.URL.Path, "/query_range") {
+				query := r.FormValue("query")
+				if len(query) > 0 {
+					// userName(duration), url(trunc 1024), query
+					if len(query) > 1024 {
+						query = query[:1024]
+					}
+					reqParams, _ := url.QueryUnescape(r.URL.RawQuery)
+					logger.Warnf("slowReq(promQL): %s (%f), url params: %s, promql: %s", ui.Name, seconds, reqParams, query)
+				}
+			} else {
+				// userName(duration), url(trunc 1024)
+				reqUrl, _ := url.QueryUnescape(r.URL.String())
+				logger.Warnf("slowReq: %s(%f), url: %s", ui.Name, seconds, reqUrl)
+			}
+		}
+	}()
 
 	ui.requests.Inc()
 
