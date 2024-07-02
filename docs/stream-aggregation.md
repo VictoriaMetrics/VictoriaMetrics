@@ -1080,6 +1080,22 @@ These issues can be fixed in the following ways:
 - By specifying the `staleness_interval` option at [stream aggregation config](#stream-aggregation-config), so it covers the expected
   delays in data ingestion pipelines. By default, the `staleness_interval` equals to `2 x interval`.
 
+### Partial data aggregation
+
+Otherwise, if you see issues such as
+
+- unexpected spikes for [total](#total) and [increase](#increase) outputs, or
+- heatmaps for bucket metrics displayed as being all over the map, including impossible negative values,
+
+it might be that your vmagent is calculating totals for counters and buckets based on partial data, causing the values to jump higher and lower depending on which samples get aggregated. This easily happens if you use clustered VictoriaMetrics in kubernetes with multiple vmagent pods behind a load balancer which distributes incoming requests randomly across pods.
+
+Possible solutions include:
+
+- using a single vmagent pod for your cluster (simplest);
+- using multiple layers of vmagent so that all the metrics from one cluster or job (or other subdivision meaningful for your aggregations) go to the same vmagent pod before being load balanced;
+- altering your load balancer so that the result is the same as above;
+- switching from a remote-writing model to a scraping model where all vmagent pods scrape all targets to get a full copy of the data to be aggregated.
+
 ### High resource usage
 
 The following solutions can help reducing memory usage and CPU usage durting streaming aggregation:
