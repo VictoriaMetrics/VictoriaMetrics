@@ -377,10 +377,8 @@ func Stop() {
 	configReloaderWG.Wait()
 
 	sasGlobal.Load().MustStop()
-	if deduplicatorGlobal != nil {
-		deduplicatorGlobal.MustStop()
-		deduplicatorGlobal = nil
-	}
+	deduplicatorGlobal.MustStop()
+	deduplicatorGlobal = nil
 
 	for _, rwctx := range rwctxs {
 		rwctx.MustStop()
@@ -495,12 +493,7 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnF
 		sortLabelsIfNeeded(tssBlock)
 		tssBlock = limitSeriesCardinality(tssBlock)
 		if sas.IsEnabled() {
-			matchIdxs := matchIdxsPool.Get()
-			matchIdxs.B = sas.Push(tssBlock, matchIdxs.B)
-			if !*streamAggrGlobalKeepInput {
-				tssBlock = dropAggregatedSeries(tssBlock, matchIdxs.B, *streamAggrGlobalDropInput)
-			}
-			matchIdxsPool.Put(matchIdxs)
+			tssBlock = sas.Push(tssBlock)
 		} else if deduplicatorGlobal != nil {
 			deduplicatorGlobal.Push(tssBlock)
 			tssBlock = tssBlock[:0]
@@ -745,8 +738,6 @@ type remoteWriteCtx struct {
 	sas          atomic.Pointer[streamaggr.Aggregators]
 	deduplicator *streamaggr.Deduplicator
 
-	streamAggrKeepInput   bool
-	streamAggrDropInput   bool
 	disableOnDiskQueue    bool
 	dropSamplesOnOverload bool
 
@@ -835,8 +826,6 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 			logger.Fatalf("cannot initialize stream aggregators from -remoteWrite.streamAggr.config=%q: %s", sasFile, err)
 		}
 		rwctx.sas.Store(sas)
-		rwctx.streamAggrKeepInput = streamAggrKeepInput.GetOptionalArg(argIdx)
-		rwctx.streamAggrDropInput = streamAggrDropInput.GetOptionalArg(argIdx)
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, sasFile)).Set(1)
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_success_timestamp_seconds{path=%q}`, sasFile)).Set(fasttime.UnixTimestamp())
 	} else if sasOpts.DedupInterval > 0 {
@@ -852,10 +841,8 @@ func (rwctx *remoteWriteCtx) MustStop() {
 	sas := rwctx.sas.Swap(nil)
 	sas.MustStop()
 
-	if rwctx.deduplicator != nil {
-		rwctx.deduplicator.MustStop()
-		rwctx.deduplicator = nil
-	}
+	rwctx.deduplicator.MustStop()
+	rwctx.deduplicator = nil
 
 	for _, ps := range rwctx.pss {
 		ps.MustStop()
@@ -902,18 +889,13 @@ func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries, forceDropSa
 	// Apply stream aggregation or deduplication if they are configured
 	sas := rwctx.sas.Load()
 	if sas.IsEnabled() {
-		matchIdxs := matchIdxsPool.Get()
-		matchIdxs.B = sas.Push(tss, matchIdxs.B)
-		if !rwctx.streamAggrKeepInput {
-			if rctx == nil {
-				rctx = getRelabelCtx()
-				// Make a copy of tss before dropping aggregated series
-				v = tssPool.Get().(*[]prompbmarshal.TimeSeries)
-				tss = append(*v, tss...)
-			}
-			tss = dropAggregatedSeries(tss, matchIdxs.B, rwctx.streamAggrDropInput)
+		if sas.ExpectModifications() && rctx == nil {
+			rctx = getRelabelCtx()
+			// Make a copy of tss before dropping aggregated series
+			v = tssPool.Get().(*[]prompbmarshal.TimeSeries)
+			tss = append(*v, tss...)
 		}
-		matchIdxsPool.Put(matchIdxs)
+		tss = sas.Push(tss)
 	} else if rwctx.deduplicator != nil {
 		rwctx.deduplicator.Push(tss)
 		tss = tss[:0]
@@ -938,23 +920,6 @@ func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries, forceDropSa
 	}
 
 	return ok
-}
-
-var matchIdxsPool bytesutil.ByteBufferPool
-
-func dropAggregatedSeries(src []prompbmarshal.TimeSeries, matchIdxs []byte, dropInput bool) []prompbmarshal.TimeSeries {
-	dst := src[:0]
-	if !dropInput {
-		for i, match := range matchIdxs {
-			if match == 1 {
-				continue
-			}
-			dst = append(dst, src[i])
-		}
-	}
-	tail := src[len(dst):]
-	clear(tail)
-	return dst
 }
 
 func (rwctx *remoteWriteCtx) pushInternalTrackDropped(tss []prompbmarshal.TimeSeries) {

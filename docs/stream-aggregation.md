@@ -42,7 +42,8 @@ This behaviour can be changed via the following command-line flags:
 
 - `-streamAggr.keepInput` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) 
   and [vmagent](https://docs.victoriametrics.com/vmagent/). At [vmagent](https://docs.victoriametrics.com/vmagent/)
-  `-remoteWrite.streamAggr.keepInput` flag can be specified individually per each `-remoteWrite.url`.
+  `-remoteWrite.streamAggr.keepInput` flag can be specified individually per each `-remoteWrite.url` and `keep_input` parameter can be defined
+  for each aggregator separately.
   If one of these flags is set, then all the input samples are written to the storage alongside the aggregated samples.
 - `-streamAggr.dropInput` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) 
   and [vmagent](https://docs.victoriametrics.com/vmagent/). At [vmagent](https://docs.victoriametrics.com/vmagent/)

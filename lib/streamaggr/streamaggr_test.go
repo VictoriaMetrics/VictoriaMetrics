@@ -3,7 +3,6 @@ package streamaggr
 import (
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -210,7 +209,7 @@ func TestAggregatorsEqual(t *testing.T) {
 }
 
 func TestAggregatorsSuccess(t *testing.T) {
-	f := func(config, inputMetrics, outputMetricsExpected, matchIdxsStrExpected string) {
+	f := func(config, inputMetrics, outputMetricsExpected string, matchedIdxsExpected int) {
 		t.Helper()
 
 		// Initialize Aggregators
@@ -232,16 +231,18 @@ func TestAggregatorsSuccess(t *testing.T) {
 
 		// Push the inputMetrics to Aggregators
 		tssInput := mustParsePromMetrics(inputMetrics)
-		matchIdxs := a.Push(tssInput, nil)
+		var matchedIdxs int
+		_ = a.PushWithCallback(tssInput, func(idxs []byte) {
+			for _, idx := range idxs {
+				if idx == 1 {
+					matchedIdxs++
+				}
+			}
+		})
 		a.MustStop()
 
-		// Verify matchIdxs equals to matchIdxsExpected
-		matchIdxsStr := ""
-		for _, v := range matchIdxs {
-			matchIdxsStr += strconv.Itoa(int(v))
-		}
-		if matchIdxsStr != matchIdxsStrExpected {
-			t.Fatalf("unexpected matchIdxs;\ngot\n%s\nwant\n%s", matchIdxsStr, matchIdxsStrExpected)
+		if matchedIdxs != matchedIdxsExpected {
+			t.Fatalf("unexpected matchIdxs;\ngot\n%d\nwant\n%d", matchedIdxs, matchedIdxsExpected)
 		}
 
 		// Verify the tssOutput contains the expected metrics
@@ -252,9 +253,9 @@ func TestAggregatorsSuccess(t *testing.T) {
 	}
 
 	// Empty config
-	f(``, ``, ``, "")
-	f(``, `foo{bar="baz"} 1`, ``, "0")
-	f(``, "foo 1\nbaz 2", ``, "00")
+	f(``, ``, ``, 0)
+	f(``, `foo{bar="baz"} 1`, ``, 0)
+	f(``, "foo 1\nbaz 2", ``, 0)
 
 	// Empty by list - aggregate only by time
 	f(`
@@ -278,7 +279,7 @@ foo:1m_last{abc="123"} 8.5
 foo:1m_last{abc="456",de="fg"} 8
 foo:1m_sum_samples{abc="123"} 12.5
 foo:1m_sum_samples{abc="456",de="fg"} 8
-`, "11111")
+`, 5)
 
 	// Special case: __name__ in `by` list - this is the same as empty `by` list
 	f(`
@@ -296,7 +297,7 @@ bar:1m_sum_samples 5
 foo:1m_count_samples 3
 foo:1m_count_series 2
 foo:1m_sum_samples 20.5
-`, "1111")
+`, 4)
 
 	// Non-empty `by` list with non-existing labels
 	f(`
@@ -314,7 +315,7 @@ bar:1m_by_bar_foo_sum_samples 5
 foo:1m_by_bar_foo_count_samples 3
 foo:1m_by_bar_foo_count_series 2
 foo:1m_by_bar_foo_sum_samples 20.5
-`, "1111")
+`, 4)
 
 	// Non-empty `by` list with existing label
 	f(`
@@ -335,7 +336,7 @@ foo:1m_by_abc_count_series{abc="123"} 1
 foo:1m_by_abc_count_series{abc="456"} 1
 foo:1m_by_abc_sum_samples{abc="123"} 12.5
 foo:1m_by_abc_sum_samples{abc="456"} 8
-`, "1111")
+`, 4)
 
 	// Non-empty `by` list with duplicate existing label
 	f(`
@@ -356,7 +357,7 @@ foo:1m_by_abc_count_series{abc="123"} 1
 foo:1m_by_abc_count_series{abc="456"} 1
 foo:1m_by_abc_sum_samples{abc="123"} 12.5
 foo:1m_by_abc_sum_samples{abc="456"} 8
-`, "1111")
+`, 4)
 
 	// Non-empty `without` list with non-existing labels
 	f(`
@@ -377,7 +378,7 @@ foo:1m_without_foo_count_series{abc="123"} 1
 foo:1m_without_foo_count_series{abc="456",de="fg"} 1
 foo:1m_without_foo_sum_samples{abc="123"} 12.5
 foo:1m_without_foo_sum_samples{abc="456",de="fg"} 8
-`, "1111")
+`, 4)
 
 	// Non-empty `without` list with existing labels
 	f(`
@@ -398,7 +399,7 @@ foo:1m_without_abc_count_series 1
 foo:1m_without_abc_count_series{de="fg"} 1
 foo:1m_without_abc_sum_samples 12.5
 foo:1m_without_abc_sum_samples{de="fg"} 8
-`, "1111")
+`, 4)
 
 	// Special case: __name__ in `without` list
 	f(`
@@ -419,7 +420,7 @@ foo{abc="456",de="fg"} 8
 :1m_sum_samples 5
 :1m_sum_samples{abc="123"} 12.5
 :1m_sum_samples{abc="456",de="fg"} 8
-`, "1111")
+`, 4)
 
 	// drop some input metrics
 	f(`
@@ -437,7 +438,7 @@ foo{abc="456",de="fg"} 8
 `, `bar:1m_without_abc_count_samples 1
 bar:1m_without_abc_count_series 1
 bar:1m_without_abc_sum_samples 5
-`, "1111")
+`, 4)
 
 	// rename output metrics
 	f(`
@@ -464,7 +465,7 @@ bar-1m-without-abc-sum-samples 5
 foo-1m-without-abc-count-samples 2
 foo-1m-without-abc-count-series 1
 foo-1m-without-abc-sum-samples 12.5
-`, "1111")
+`, 4)
 
 	// match doesn't match anything
 	f(`
@@ -477,7 +478,7 @@ foo{abc="123"} 4
 bar 5
 foo{abc="123"} 8.5
 foo{abc="456",de="fg"} 8
-`, ``, "0000")
+`, ``, 0)
 
 	// match matches foo series with non-empty abc label
 	f(`
@@ -498,7 +499,7 @@ foo:1m_by_abc_count_series{abc="123"} 1
 foo:1m_by_abc_count_series{abc="456"} 1
 foo:1m_by_abc_sum_samples{abc="123"} 12.5
 foo:1m_by_abc_sum_samples{abc="456"} 8
-`, "1011")
+`, 3)
 
 	// total output for non-repeated series
 	f(`
@@ -509,7 +510,7 @@ foo 123
 bar{baz="qwe"} 4.34
 `, `bar:1m_total{baz="qwe"} 0
 foo:1m_total 0
-`, "11")
+`, 2)
 
 	// total_prometheus output for non-repeated series
 	f(`
@@ -520,7 +521,7 @@ foo 123
 bar{baz="qwe"} 4.34
 `, `bar:1m_total_prometheus{baz="qwe"} 0
 foo:1m_total_prometheus 0
-`, "11")
+`, 2)
 
 	// total output for repeated series
 	f(`
@@ -539,7 +540,7 @@ foo{baz="qwe"} 10
 bar:1m_total{baz="qwer"} 1
 foo:1m_total 0
 foo:1m_total{baz="qwe"} 15
-`, "11111111")
+`, 8)
 
 	// total_prometheus output for repeated series
 	f(`
@@ -558,7 +559,7 @@ foo{baz="qwe"} 10
 bar:1m_total_prometheus{baz="qwer"} 1
 foo:1m_total_prometheus 0
 foo:1m_total_prometheus{baz="qwe"} 15
-`, "11111111")
+`, 8)
 
 	// total output for repeated series with group by __name__
 	f(`
@@ -576,7 +577,7 @@ bar{baz="qwer"} 344
 foo{baz="qwe"} 10
 `, `bar:1m_total 6.02
 foo:1m_total 15
-`, "11111111")
+`, 8)
 
 	// total_prometheus output for repeated series with group by __name__
 	f(`
@@ -594,7 +595,7 @@ bar{baz="qwer"} 344
 foo{baz="qwe"} 10
 `, `bar:1m_total_prometheus 6.02
 foo:1m_total_prometheus 15
-`, "11111111")
+`, 8)
 
 	// increase output for non-repeated series
 	f(`
@@ -605,7 +606,7 @@ foo 123
 bar{baz="qwe"} 4.34
 `, `bar:1m_increase{baz="qwe"} 0
 foo:1m_increase 0
-`, "11")
+`, 2)
 
 	// increase_prometheus output for non-repeated series
 	f(`
@@ -616,7 +617,7 @@ foo 123
 bar{baz="qwe"} 4.34
 `, `bar:1m_increase_prometheus{baz="qwe"} 0
 foo:1m_increase_prometheus 0
-`, "11")
+`, 2)
 
 	// increase output for repeated series
 	f(`
@@ -635,7 +636,7 @@ foo{baz="qwe"} 10
 bar:1m_increase{baz="qwer"} 1
 foo:1m_increase 0
 foo:1m_increase{baz="qwe"} 15
-`, "11111111")
+`, 8)
 
 	// increase_prometheus output for repeated series
 	f(`
@@ -654,12 +655,13 @@ foo{baz="qwe"} 10
 bar:1m_increase_prometheus{baz="qwer"} 1
 foo:1m_increase_prometheus 0
 foo:1m_increase_prometheus{baz="qwe"} 15
-`, "11111111")
+`, 8)
 
 	// multiple aggregate configs
 	f(`
 - interval: 1m
   outputs: [count_series, sum_samples]
+  keep_input: true
 - interval: 5m
   by: [bar]
   outputs: [sum_samples]
@@ -673,7 +675,7 @@ foo:1m_sum_samples 4.3
 foo:1m_sum_samples{bar="baz"} 2
 foo:5m_by_bar_sum_samples 4.3
 foo:5m_by_bar_sum_samples{bar="baz"} 2
-`, "111")
+`, 3)
 
 	// min and max outputs
 	f(`
@@ -690,7 +692,7 @@ foo:1m_max{abc="123"} 8.5
 foo:1m_max{abc="456",de="fg"} 8
 foo:1m_min{abc="123"} 4
 foo:1m_min{abc="456",de="fg"} 8
-`, "1111")
+`, 4)
 
 	// avg output
 	f(`
@@ -704,7 +706,7 @@ foo{abc="456",de="fg"} 8
 `, `bar:1m_avg 5
 foo:1m_avg{abc="123"} 6.25
 foo:1m_avg{abc="456",de="fg"} 8
-`, "1111")
+`, 4)
 
 	// stddev output
 	f(`
@@ -718,7 +720,7 @@ foo{abc="456",de="fg"} 8
 `, `bar:1m_stddev 0
 foo:1m_stddev{abc="123"} 2.25
 foo:1m_stddev{abc="456",de="fg"} 0
-`, "1111")
+`, 4)
 
 	// stdvar output
 	f(`
@@ -732,7 +734,7 @@ foo{abc="456",de="fg"} 8
 `, `bar:1m_stdvar 0
 foo:1m_stdvar{abc="123"} 5.0625
 foo:1m_stdvar{abc="456",de="fg"} 0
-`, "1111")
+`, 4)
 
 	// histogram_bucket output
 	f(`
@@ -750,7 +752,7 @@ cpu_usage{cpu="2"} 90
 cpu_usage:1m_histogram_bucket{cpu="1",vmrange="1.292e+01...1.468e+01"} 3
 cpu_usage:1m_histogram_bucket{cpu="1",vmrange="2.448e+01...2.783e+01"} 1
 cpu_usage:1m_histogram_bucket{cpu="2",vmrange="8.799e+01...1.000e+02"} 1
-`, "1111111")
+`, 7)
 
 	// histogram_bucket output without cpu
 	f(`
@@ -769,7 +771,7 @@ cpu_usage{cpu="2"} 90
 cpu_usage:1m_without_cpu_histogram_bucket{vmrange="1.292e+01...1.468e+01"} 3
 cpu_usage:1m_without_cpu_histogram_bucket{vmrange="2.448e+01...2.783e+01"} 1
 cpu_usage:1m_without_cpu_histogram_bucket{vmrange="8.799e+01...1.000e+02"} 1
-`, "1111111")
+`, 7)
 
 	// quantiles output
 	f(`
@@ -789,7 +791,7 @@ cpu_usage:1m_quantiles{cpu="1",quantile="1"} 25
 cpu_usage:1m_quantiles{cpu="2",quantile="0"} 90
 cpu_usage:1m_quantiles{cpu="2",quantile="0.5"} 90
 cpu_usage:1m_quantiles{cpu="2",quantile="1"} 90
-`, "1111111")
+`, 7)
 
 	// quantiles output without cpu
 	f(`
@@ -807,7 +809,7 @@ cpu_usage{cpu="2"} 90
 `, `cpu_usage:1m_without_cpu_quantiles{quantile="0"} 12
 cpu_usage:1m_without_cpu_quantiles{quantile="0.5"} 13.3
 cpu_usage:1m_without_cpu_quantiles{quantile="1"} 90
-`, "1111111")
+`, 7)
 
 	// append additional label
 	f(`
@@ -836,7 +838,7 @@ bar-1m-without-abc-sum-samples{new_label="must_keep_metric_name"} 5
 foo-1m-without-abc-count-samples{new_label="must_keep_metric_name"} 2
 foo-1m-without-abc-count-series{new_label="must_keep_metric_name"} 1
 foo-1m-without-abc-sum-samples{new_label="must_keep_metric_name"} 12.5
-`, "1111")
+`, 4)
 
 	// test rate_sum and rate_avg
 	f(`     
@@ -850,7 +852,7 @@ foo{abc="456", cde="1"} 8
 foo{abc="456", cde="1"} 10 10
 `, `foo:1m_by_cde_rate_avg{cde="1"} 0.325
 foo:1m_by_cde_rate_sum{cde="1"} 0.65
-`, "1111")
+`, 4)
 
 	// rate with duplicated events
 	f(`     
@@ -862,7 +864,7 @@ foo{abc="123", cde="1"} 4  10
 foo{abc="123", cde="1"} 4  10
 `, `foo:1m_by_cde_rate_avg{cde="1"} 0
 foo:1m_by_cde_rate_sum{cde="1"} 0
-`, "11")
+`, 2)
 
 	// keep_metric_names
 	f(`
@@ -878,7 +880,7 @@ foo{abc="456",de="fg"} 8
 `, `bar 2
 foo{abc="123"} 2
 foo{abc="456",de="fg"} 1
-`, "11111")
+`, 5)
 
 	// drop_input_labels
 	f(`
@@ -895,11 +897,11 @@ foo{abc="456",de="fg"} 8
 `, `bar 2
 foo 2
 foo{de="fg"} 1
-`, "11111")
+`, 5)
 }
 
 func TestAggregatorsWithDedupInterval(t *testing.T) {
-	f := func(config, inputMetrics, outputMetricsExpected, matchIdxsStrExpected string) {
+	f := func(config, inputMetrics, outputMetricsExpected string, matchedIdxsExpected int) {
 		t.Helper()
 
 		// Initialize Aggregators
@@ -928,16 +930,18 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 
 		// Push the inputMetrics to Aggregators
 		tssInput := mustParsePromMetrics(inputMetrics)
-		matchIdxs := a.Push(tssInput, nil)
+		var matchedIdxs int
+		_ = a.PushWithCallback(tssInput, func(idxs []byte) {
+			for _, idx := range idxs {
+				if idx == 1 {
+					matchedIdxs++
+				}
+			}
+		})
 		a.MustStop()
 
-		// Verify matchIdxs equals to matchIdxsExpected
-		matchIdxsStr := ""
-		for _, v := range matchIdxs {
-			matchIdxsStr += strconv.Itoa(int(v))
-		}
-		if matchIdxsStr != matchIdxsStrExpected {
-			t.Fatalf("unexpected matchIdxs;\ngot\n%s\nwant\n%s", matchIdxsStr, matchIdxsStrExpected)
+		if matchedIdxs != matchedIdxsExpected {
+			t.Fatalf("unexpected matchIdxs;\ngot\n%d\nwant\n%d", matchedIdxs, matchedIdxsExpected)
 		}
 
 		// Verify the tssOutput contains the expected metrics
@@ -960,7 +964,7 @@ foo 123
 bar 567
 `, `bar:1m_sum_samples 567
 foo:1m_sum_samples 123
-`, "11")
+`, 2)
 
 	f(`
 - interval: 1m
@@ -978,7 +982,7 @@ foo{baz="qwe"} 10
 bar:1m_sum_samples{baz="qwer"} 344
 foo:1m_sum_samples 123
 foo:1m_sum_samples{baz="qwe"} 10
-`, "11111111")
+`, 8)
 }
 
 func timeSeriessToString(tss []prompbmarshal.TimeSeries) string {
