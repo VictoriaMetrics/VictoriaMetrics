@@ -1044,7 +1044,7 @@ func fixBrokenBuckets(i int, xss []leTimeseries) {
 	// Buckets are already sorted by le, so their values must be in ascending order,
 	// since the next bucket includes all the previous buckets.
 	// If the next bucket has lower value than the current bucket,
-	// then the current bucket must be substituted with the next bucket value.
+	// then the next bucket must be substituted with the current bucket value.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2819
 	if len(xss) < 2 {
 		return
