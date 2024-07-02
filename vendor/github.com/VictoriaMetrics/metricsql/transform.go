@@ -105,6 +105,8 @@ var transformFuncs = map[string]bool{
 	"sort_by_label_desc":         true,
 	"sort_by_label_numeric":      true,
 	"sort_by_label_numeric_desc": true,
+	"sort_by_label_natural":      true,
+	"sort_by_label_natural_desc": true,
 	"sort_desc":                  true,
 	"sqrt":                       true,
 	"start":                      true,

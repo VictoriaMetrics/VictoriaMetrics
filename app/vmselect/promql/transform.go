@@ -119,8 +119,10 @@ var transformFuncs = map[string]transformFunc{
 	"sort":                       newTransformFuncSort(false),
 	"sort_by_label":              newTransformFuncSortByLabel(false),
 	"sort_by_label_desc":         newTransformFuncSortByLabel(true),
-	"sort_by_label_numeric":      newTransformFuncNumericSort(false),
-	"sort_by_label_numeric_desc": newTransformFuncNumericSort(true),
+	"sort_by_label_numeric":      newTransformFuncNumericSort(false, false),
+	"sort_by_label_numeric_desc": newTransformFuncNumericSort(true, false),
+	"sort_by_label_natural":      newTransformFuncNumericSort(false, true),
+	"sort_by_label_natural_desc": newTransformFuncNumericSort(true, true),
 	"sort_desc":                  newTransformFuncSort(true),
 	"sqrt":                       newTransformFuncOneArg(transformSqrt),
 	"start":                      newTransformFuncZeroArgs(transformStart),
@@ -2360,7 +2362,7 @@ func newTransformFuncSortByLabel(isDesc bool) transformFunc {
 	}
 }
 
-func newTransformFuncNumericSort(isDesc bool) transformFunc {
+func newTransformFuncNumericSort(isDesc bool, isNatural bool) transformFunc {
 	return func(tfa *transformFuncArg) ([]*timeseries, error) {
 		args := tfa.args
 		if len(args) < 2 {
@@ -2385,9 +2387,9 @@ func newTransformFuncNumericSort(isDesc bool) transformFunc {
 				aStr := bytesutil.ToUnsafeString(a)
 				bStr := bytesutil.ToUnsafeString(b)
 				if isDesc {
-					return numericLess(bStr, aStr)
+					return numericLess(bStr, aStr, isNatural)
 				}
-				return numericLess(aStr, bStr)
+				return numericLess(aStr, bStr, isNatural)
 			}
 			return false
 		})
@@ -2395,7 +2397,7 @@ func newTransformFuncNumericSort(isDesc bool) transformFunc {
 	}
 }
 
-func numericLess(a, b string) bool {
+func numericLess(a, b string, isNatural bool) bool {
 	for {
 		if len(b) == 0 {
 			return false
@@ -2403,8 +2405,8 @@ func numericLess(a, b string) bool {
 		if len(a) == 0 {
 			return true
 		}
-		aPrefix := getNumPrefix(a)
-		bPrefix := getNumPrefix(b)
+		aPrefix := getNumPrefix(a, isNatural)
+		bPrefix := getNumPrefix(b, isNatural)
 		a = a[len(aPrefix):]
 		b = b[len(bPrefix):]
 		if len(aPrefix) > 0 || len(bPrefix) > 0 {
@@ -2430,9 +2432,9 @@ func numericLess(a, b string) bool {
 	}
 }
 
-func getNumPrefix(s string) string {
+func getNumPrefix(s string, isNatural bool) string {
 	i := 0
-	if len(s) > 0 {
+	if len(s) > 0 && !isNatural {
 		switch s[0] {
 		case '-', '+':
 			i++
@@ -2442,7 +2444,7 @@ func getNumPrefix(s string) string {
 	hasDot := false
 	for i < len(s) {
 		if !isDecimalChar(s[i]) {
-			if !hasDot && s[i] == '.' {
+			if !isNatural && !hasDot && s[i] == '.' {
 				hasDot = true
 				i++
 				continue
