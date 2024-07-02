@@ -231,15 +231,23 @@ func Init() {
 	// Start config reloader.
 	configReloaderWG.Add(1)
 	go func() {
+		var streamAggrConfigReloaderCh <-chan time.Time
+		if *streamAggrConfigCheckInterval > 0 {
+			ticker := time.NewTicker(*streamAggrConfigCheckInterval)
+			streamAggrConfigReloaderCh = ticker.C
+			defer ticker.Stop()
+		}
 		defer configReloaderWG.Done()
 		for {
 			select {
 			case <-sighupCh:
+				reloadRelabelConfigs()
+				reloadStreamAggrConfigs()
+			case <-streamAggrConfigReloaderCh:
+				reloadStreamAggrConfigs()
 			case <-configReloaderStopCh:
 				return
 			}
-			reloadRelabelConfigs()
-			reloadStreamAggrConfigs()
 		}
 	}()
 }
@@ -376,11 +384,9 @@ func Stop() {
 	close(configReloaderStopCh)
 	configReloaderWG.Wait()
 
-	sasGlobal.Load().MustStop()
-	if deduplicatorGlobal != nil {
-		deduplicatorGlobal.MustStop()
-		deduplicatorGlobal = nil
-	}
+	sasGlobal.Load().MustStop(nil)
+	deduplicatorGlobal.MustStop()
+	deduplicatorGlobal = nil
 
 	for _, rwctx := range rwctxs {
 		rwctx.MustStop()
@@ -850,7 +856,7 @@ func (rwctx *remoteWriteCtx) MustStop() {
 	// sas and deduplicator must be stopped before rwctx is closed
 	// because sas can write pending series to rwctx.pss if there are any
 	sas := rwctx.sas.Swap(nil)
-	sas.MustStop()
+	sas.MustStop(nil)
 
 	if rwctx.deduplicator != nil {
 		rwctx.deduplicator.MustStop()
