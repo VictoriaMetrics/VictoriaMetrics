@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // uniqueSamplesAggrState calculates output=unique_samples, e.g. the number of unique sample values.
@@ -13,16 +12,17 @@ type uniqueSamplesAggrState struct {
 }
 
 type uniqueSamplesStateValue struct {
-	mu      sync.Mutex
-	m       map[float64]struct{}
-	deleted bool
+	mu             sync.Mutex
+	state          [aggrStateSize]map[float64]struct{}
+	deleted        bool
+	deleteDeadline int64
 }
 
 func newUniqueSamplesAggrState() *uniqueSamplesAggrState {
 	return &uniqueSamplesAggrState{}
 }
 
-func (as *uniqueSamplesAggrState) pushSamples(samples []pushSample) {
+func (as *uniqueSamplesAggrState) pushSamples(samples []pushSample, deleteDeadline int64, idx int) {
 	for i := range samples {
 		s := &samples[i]
 		outputKey := getOutputKey(s.key)
@@ -31,27 +31,26 @@ func (as *uniqueSamplesAggrState) pushSamples(samples []pushSample) {
 		v, ok := as.m.Load(outputKey)
 		if !ok {
 			// The entry is missing in the map. Try creating it.
-			v = &uniqueSamplesStateValue{
-				m: map[float64]struct{}{
-					s.value: {},
-				},
+			usv := &uniqueSamplesStateValue{}
+			for iu := range usv.state {
+				usv.state[iu] = make(map[float64]struct{})
 			}
+			v = usv
 			outputKey = bytesutil.InternString(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
-			if !loaded {
-				// The new entry has been successfully created.
-				continue
+			if loaded {
+				// Update the entry created by a concurrent goroutine.
+				v = vNew
 			}
-			// Use the entry created by a concurrent goroutine.
-			v = vNew
 		}
 		sv := v.(*uniqueSamplesStateValue)
 		sv.mu.Lock()
 		deleted := sv.deleted
 		if !deleted {
-			if _, ok := sv.m[s.value]; !ok {
-				sv.m[s.value] = struct{}{}
+			if _, ok := sv.state[idx][s.value]; !ok {
+				sv.state[idx][s.value] = struct{}{}
 			}
+			sv.deleteDeadline = deleteDeadline
 		}
 		sv.mu.Unlock()
 		if deleted {
@@ -62,26 +61,28 @@ func (as *uniqueSamplesAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *uniqueSamplesAggrState) flushState(ctx *flushCtx, resetState bool) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
+func (as *uniqueSamplesAggrState) flushState(ctx *flushCtx, flushTimestamp int64, idx int) {
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
-		if resetState {
-			// Atomically delete the entry from the map, so new entry is created for the next flush.
-			m.Delete(k)
-		}
-
 		sv := v.(*uniqueSamplesStateValue)
 		sv.mu.Lock()
-		n := len(sv.m)
-		if resetState {
-			// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-			sv.deleted = true
-		}
-		sv.mu.Unlock()
 
-		key := k.(string)
-		ctx.appendSeries(key, "unique_samples", currentTimeMsec, float64(n))
+		// check for stale entries
+		deleted := flushTimestamp > sv.deleteDeadline
+		if deleted {
+			// Mark the current entry as deleted
+			sv.deleted = deleted
+			sv.mu.Unlock()
+			m.Delete(k)
+			return true
+		}
+		state := len(sv.state[idx])
+		sv.state[idx] = make(map[float64]struct{})
+		sv.mu.Unlock()
+		if state > 0 {
+			key := k.(string)
+			ctx.appendSeries(key, "unique_series", flushTimestamp, float64(state))
+		}
 		return true
 	})
 }

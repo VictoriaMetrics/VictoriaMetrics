@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // stdvarAggrState calculates output=stdvar, e.g. the average value over input samples.
@@ -13,18 +12,23 @@ type stdvarAggrState struct {
 }
 
 type stdvarStateValue struct {
-	mu      sync.Mutex
-	count   float64
-	avg     float64
-	q       float64
-	deleted bool
+	mu             sync.Mutex
+	state          [aggrStateSize]stdvarState
+	deleted        bool
+	deleteDeadline int64
+}
+
+type stdvarState struct {
+	count float64
+	avg   float64
+	q     float64
 }
 
 func newStdvarAggrState() *stdvarAggrState {
 	return &stdvarAggrState{}
 }
 
-func (as *stdvarAggrState) pushSamples(samples []pushSample) {
+func (as *stdvarAggrState) pushSamples(samples []pushSample, deleteDeadline int64, idx int) {
 	for i := range samples {
 		s := &samples[i]
 		outputKey := getOutputKey(s.key)
@@ -46,10 +50,12 @@ func (as *stdvarAggrState) pushSamples(samples []pushSample) {
 		deleted := sv.deleted
 		if !deleted {
 			// See `Rapid calculation methods` at https://en.wikipedia.org/wiki/Standard_deviation
-			sv.count++
-			avg := sv.avg + (s.value-sv.avg)/sv.count
-			sv.q += (s.value - sv.avg) * (s.value - avg)
-			sv.avg = avg
+			state := &sv.state[idx]
+			state.count++
+			avg := state.avg + (s.value-state.avg)/state.count
+			state.q += (s.value - state.avg) * (s.value - avg)
+			state.avg = avg
+			sv.deleteDeadline = deleteDeadline
 		}
 		sv.mu.Unlock()
 		if deleted {
@@ -60,26 +66,28 @@ func (as *stdvarAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *stdvarAggrState) flushState(ctx *flushCtx, resetState bool) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
+func (as *stdvarAggrState) flushState(ctx *flushCtx, flushTimestamp int64, idx int) {
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
-		if resetState {
-			// Atomically delete the entry from the map, so new entry is created for the next flush.
-			m.Delete(k)
-		}
-
 		sv := v.(*stdvarStateValue)
 		sv.mu.Lock()
-		stdvar := sv.q / sv.count
-		if resetState {
-			// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-			sv.deleted = true
-		}
-		sv.mu.Unlock()
 
-		key := k.(string)
-		ctx.appendSeries(key, "stdvar", currentTimeMsec, stdvar)
+		// check for stale entries
+		deleted := flushTimestamp > sv.deleteDeadline
+		if deleted {
+			// Mark the current entry as deleted
+			sv.deleted = deleted
+			sv.mu.Unlock()
+			m.Delete(k)
+			return true
+		}
+		state := sv.state[idx]
+		sv.state[idx] = stdvarState{}
+		sv.mu.Unlock()
+		if state.count > 0 {
+			key := k.(string)
+			ctx.appendSeries(key, "stdvar", flushTimestamp, state.q/state.count)
+		}
 		return true
 	})
 }

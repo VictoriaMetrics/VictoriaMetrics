@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestDedupAggrSerial(t *testing.T) {
@@ -20,7 +21,7 @@ func TestDedupAggrSerial(t *testing.T) {
 			sample.value = float64(i + j)
 			expectedSamplesMap[sample.key] = *sample
 		}
-		da.pushSamples(samples)
+		da.pushSamples(samples, 0)
 	}
 
 	if n := da.sizeBytes(); n > 5_000_000 {
@@ -32,14 +33,16 @@ func TestDedupAggrSerial(t *testing.T) {
 
 	flushedSamplesMap := make(map[string]pushSample)
 	var mu sync.Mutex
-	flushSamples := func(samples []pushSample) {
+	flushSamples := func(samples []pushSample, _ int64, _ int) {
 		mu.Lock()
 		for _, sample := range samples {
 			flushedSamplesMap[sample.key] = sample
 		}
 		mu.Unlock()
 	}
-	da.flush(flushSamples)
+
+	flushTimestamp := time.Now().UnixMilli()
+	da.flush(flushSamples, flushTimestamp, 0, 0)
 
 	if !reflect.DeepEqual(expectedSamplesMap, flushedSamplesMap) {
 		t.Fatalf("unexpected samples;\ngot\n%v\nwant\n%v", flushedSamplesMap, expectedSamplesMap)
@@ -70,7 +73,7 @@ func TestDedupAggrConcurrent(_ *testing.T) {
 					sample.key = fmt.Sprintf("key_%d", j)
 					sample.value = float64(i + j)
 				}
-				da.pushSamples(samples)
+				da.pushSamples(samples, 0)
 			}
 		}()
 	}

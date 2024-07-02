@@ -2,53 +2,52 @@ package streamaggr
 
 import (
 	"sync"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // rateAggrState calculates output=rate, e.g. the counter per-second change.
 type rateAggrState struct {
-	m sync.Map
-
+	m      sync.Map
 	suffix string
-
-	// Time series state is dropped if no new samples are received during stalenessSecs.
-	stalenessSecs uint64
 }
 
 type rateStateValue struct {
 	mu             sync.Mutex
-	lastValues     map[string]rateLastValueState
-	deleteDeadline uint64
+	state          map[string]rateState
 	deleted        bool
+	deleteDeadline int64
+}
+
+type rateState struct {
+	lastValues [aggrStateSize]rateLastValueState
+	// prevTimestamp stores timestamp of the last registered value
+	// in the previous aggregation interval
+	prevTimestamp int64
+
+	// prevValue stores last registered value
+	// in the previous aggregation interval
+	prevValue      float64
+	deleteDeadline int64
 }
 
 type rateLastValueState struct {
-	value          float64
-	timestamp      int64
-	deleteDeadline uint64
+	firstValue float64
+	value      float64
+	timestamp  int64
 
 	// total stores cumulative difference between registered values
 	// in the aggregation interval
 	total float64
-	// prevTimestamp stores timestamp of the last registered value
-	// in the previous aggregation interval
-	prevTimestamp int64
 }
 
-func newRateAggrState(stalenessInterval time.Duration, suffix string) *rateAggrState {
-	stalenessSecs := roundDurationToSecs(stalenessInterval)
+func newRateAggrState(suffix string) *rateAggrState {
 	return &rateAggrState{
-		suffix:        suffix,
-		stalenessSecs: stalenessSecs,
+		suffix: suffix,
 	}
 }
 
-func (as *rateAggrState) pushSamples(samples []pushSample) {
-	currentTime := fasttime.UnixTimestamp()
-	deleteDeadline := currentTime + as.stalenessSecs
+func (as *rateAggrState) pushSamples(samples []pushSample, deleteDeadline int64, idx int) {
 	for i := range samples {
 		s := &samples[i]
 		inputKey, outputKey := getInputOutputKey(s.key)
@@ -57,9 +56,10 @@ func (as *rateAggrState) pushSamples(samples []pushSample) {
 		v, ok := as.m.Load(outputKey)
 		if !ok {
 			// The entry is missing in the map. Try creating it.
-			v = &rateStateValue{
-				lastValues: make(map[string]rateLastValueState),
+			rsv := &rateStateValue{
+				state: make(map[string]rateState),
 			}
+			v = rsv
 			outputKey = bytesutil.InternString(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if loaded {
@@ -71,15 +71,17 @@ func (as *rateAggrState) pushSamples(samples []pushSample) {
 		sv.mu.Lock()
 		deleted := sv.deleted
 		if !deleted {
-			lv, ok := sv.lastValues[inputKey]
-			if ok {
+			state, ok := sv.state[inputKey]
+			lv := state.lastValues[idx]
+			if ok && lv.timestamp > 0 {
 				if s.timestamp < lv.timestamp {
 					// Skip out of order sample
 					sv.mu.Unlock()
 					continue
 				}
-				if lv.prevTimestamp == 0 {
-					lv.prevTimestamp = lv.timestamp
+				if state.prevTimestamp == 0 {
+					state.prevTimestamp = lv.timestamp
+					state.prevValue = lv.value
 				}
 				if s.value >= lv.value {
 					lv.total += s.value - lv.value
@@ -87,13 +89,15 @@ func (as *rateAggrState) pushSamples(samples []pushSample) {
 					// counter reset
 					lv.total += s.value
 				}
+			} else if state.prevTimestamp > 0 {
+				lv.firstValue = s.value
 			}
 			lv.value = s.value
 			lv.timestamp = s.timestamp
-			lv.deleteDeadline = deleteDeadline
-
+			state.lastValues[idx] = lv
+			state.deleteDeadline = deleteDeadline
 			inputKey = bytesutil.InternString(inputKey)
-			sv.lastValues[inputKey] = lv
+			sv.state[inputKey] = state
 			sv.deleteDeadline = deleteDeadline
 		}
 		sv.mu.Unlock()
@@ -105,18 +109,15 @@ func (as *rateAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *rateAggrState) flushState(ctx *flushCtx, _ bool) {
-	currentTime := fasttime.UnixTimestamp()
-	currentTimeMsec := int64(currentTime) * 1000
+func (as *rateAggrState) flushState(ctx *flushCtx, flushTimestamp int64, idx int) {
 	var staleOutputSamples, staleInputSamples int
-
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
 		sv := v.(*rateStateValue)
 		sv.mu.Lock()
 
 		// check for stale entries
-		deleted := currentTime > sv.deleteDeadline
+		deleted := flushTimestamp > sv.deleteDeadline
 		if deleted {
 			// Mark the current entry as deleted
 			sv.deleted = deleted
@@ -126,26 +127,36 @@ func (as *rateAggrState) flushState(ctx *flushCtx, _ bool) {
 			return true
 		}
 
-		// Delete outdated entries in sv.lastValues
+		// Delete outdated entries in state
 		var rate float64
-		lvs := sv.lastValues
-		for k1, v1 := range lvs {
-			if currentTime > v1.deleteDeadline {
-				delete(lvs, k1)
+		totalItems := len(sv.state)
+		for k1, state := range sv.state {
+			if flushTimestamp > state.deleteDeadline {
+				delete(sv.state, k1)
 				staleInputSamples++
 				continue
 			}
-			rateInterval := v1.timestamp - v1.prevTimestamp
-			if v1.prevTimestamp > 0 && rateInterval > 0 {
+			v1 := state.lastValues[idx]
+			rateInterval := v1.timestamp - state.prevTimestamp
+			if rateInterval > 0 && state.prevTimestamp > 0 {
+				if v1.firstValue >= state.prevValue {
+					v1.total += v1.firstValue - state.prevValue
+				} else {
+					v1.total += v1.firstValue
+				}
+
 				// calculate rate only if value was seen at least twice with different timestamps
-				rate += v1.total * 1000 / float64(rateInterval)
-				v1.prevTimestamp = v1.timestamp
-				v1.total = 0
-				lvs[k1] = v1
+				rate += (v1.total) * 1000 / float64(rateInterval)
+				state.prevTimestamp = v1.timestamp
+				state.prevValue = v1.value
+			} else {
+				totalItems--
 			}
+			totalItems -= staleInputSamples
+			state.lastValues[idx] = rateLastValueState{}
+			sv.state[k1] = state
 		}
-		// capture m length after deleted items were removed
-		totalItems := len(lvs)
+
 		sv.mu.Unlock()
 
 		if as.suffix == "rate_avg" && totalItems > 0 {
@@ -153,7 +164,7 @@ func (as *rateAggrState) flushState(ctx *flushCtx, _ bool) {
 		}
 
 		key := k.(string)
-		ctx.appendSeries(key, as.suffix, currentTimeMsec, rate)
+		ctx.appendSeries(key, as.suffix, flushTimestamp, rate)
 		return true
 	})
 	ctx.a.staleOutputSamples[as.suffix].Add(staleOutputSamples)

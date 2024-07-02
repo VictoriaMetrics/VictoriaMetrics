@@ -1,39 +1,30 @@
 package streamaggr
 
 import (
-	"math"
 	"sync"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 // histogramBucketAggrState calculates output=histogram_bucket, e.g. VictoriaMetrics histogram over input samples.
 type histogramBucketAggrState struct {
 	m sync.Map
-
-	stalenessSecs uint64
 }
 
 type histogramBucketStateValue struct {
 	mu             sync.Mutex
-	h              metrics.Histogram
-	deleteDeadline uint64
+	state          [aggrStateSize]metrics.Histogram
+	total          metrics.Histogram
 	deleted        bool
+	deleteDeadline int64
 }
 
-func newHistogramBucketAggrState(stalenessInterval time.Duration) *histogramBucketAggrState {
-	stalenessSecs := roundDurationToSecs(stalenessInterval)
-	return &histogramBucketAggrState{
-		stalenessSecs: stalenessSecs,
-	}
+func newHistogramBucketAggrState() *histogramBucketAggrState {
+	return &histogramBucketAggrState{}
 }
 
-func (as *histogramBucketAggrState) pushSamples(samples []pushSample) {
-	currentTime := fasttime.UnixTimestamp()
-	deleteDeadline := currentTime + as.stalenessSecs
+func (as *histogramBucketAggrState) pushSamples(samples []pushSample, deleteDeadline int64, idx int) {
 	for i := range samples {
 		s := &samples[i]
 		outputKey := getOutputKey(s.key)
@@ -54,7 +45,7 @@ func (as *histogramBucketAggrState) pushSamples(samples []pushSample) {
 		sv.mu.Lock()
 		deleted := sv.deleted
 		if !deleted {
-			sv.h.Update(s.value)
+			sv.state[idx].Update(s.value)
 			sv.deleteDeadline = deleteDeadline
 		}
 		sv.mu.Unlock()
@@ -66,54 +57,32 @@ func (as *histogramBucketAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *histogramBucketAggrState) removeOldEntries(ctx *flushCtx, currentTime uint64) {
+func (as *histogramBucketAggrState) flushState(ctx *flushCtx, flushTimestamp int64, idx int) {
 	m := &as.m
 	var staleOutputSamples int
 	m.Range(func(k, v interface{}) bool {
 		sv := v.(*histogramBucketStateValue)
-
 		sv.mu.Lock()
-		deleted := currentTime > sv.deleteDeadline
+
+		// check for stale entries
+		deleted := flushTimestamp > sv.deleteDeadline
 		if deleted {
 			// Mark the current entry as deleted
 			sv.deleted = deleted
 			staleOutputSamples++
-		}
-		sv.mu.Unlock()
-
-		if deleted {
+			sv.mu.Unlock()
 			m.Delete(k)
+			return true
 		}
+		sv.total.Merge(&sv.state[idx])
+		total := &sv.total
+		sv.state[idx] = metrics.Histogram{}
+		sv.mu.Unlock()
+		key := k.(string)
+		total.VisitNonZeroBuckets(func(vmrange string, count uint64) {
+			ctx.appendSeriesWithExtraLabel(key, "histogram_bucket", flushTimestamp, float64(count), "vmrange", vmrange)
+		})
 		return true
 	})
 	ctx.a.staleOutputSamples["histogram_bucket"].Add(staleOutputSamples)
-}
-
-func (as *histogramBucketAggrState) flushState(ctx *flushCtx, _ bool) {
-	currentTime := fasttime.UnixTimestamp()
-	currentTimeMsec := int64(currentTime) * 1000
-
-	as.removeOldEntries(ctx, currentTime)
-
-	m := &as.m
-	m.Range(func(k, v interface{}) bool {
-		sv := v.(*histogramBucketStateValue)
-		sv.mu.Lock()
-		if !sv.deleted {
-			key := k.(string)
-			sv.h.VisitNonZeroBuckets(func(vmrange string, count uint64) {
-				ctx.appendSeriesWithExtraLabel(key, "histogram_bucket", currentTimeMsec, float64(count), "vmrange", vmrange)
-			})
-		}
-		sv.mu.Unlock()
-		return true
-	})
-}
-
-func roundDurationToSecs(d time.Duration) uint64 {
-	if d < 0 {
-		return 0
-	}
-	secs := d.Seconds()
-	return uint64(math.Ceil(secs))
 }
