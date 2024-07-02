@@ -12,8 +12,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/clusternative"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/graphite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/multitenant"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
@@ -35,7 +38,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -161,6 +163,7 @@ func main() {
 	if len(*cacheDataPath) > 0 {
 		promql.StopRollupResultCache()
 	}
+	multitenant.Stop()
 	logger.Infof("successfully stopped netstorage in %.3f seconds", time.Since(startTime).Seconds())
 
 	fs.MustStopDirRemover()
@@ -271,7 +274,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		httpserver.Errorf(w, r, "cannot parse path %q: %s", path, err)
 		return true
 	}
-	at, err := auth.NewToken(p.AuthToken)
+	at, err := auth.NewTokenPossibleMultitenant(p.AuthToken)
 	if err != nil {
 		httpserver.Errorf(w, r, "auth error: %s", err)
 		return true
@@ -654,7 +657,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 	}
 	switch p.Suffix {
 	case "prometheus/api/v1/status/active_queries":
-		at, err := auth.NewToken(p.AuthToken)
+		at, err := auth.NewTokenPossibleMultitenant(p.AuthToken)
 		if err != nil {
 			return false
 		}
@@ -663,7 +666,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		promql.ActiveQueriesHandler(at, w, r)
 		return true
 	case "prometheus/api/v1/status/top_queries":
-		at, err := auth.NewToken(p.AuthToken)
+		at, err := auth.NewTokenPossibleMultitenant(p.AuthToken)
 		if err != nil {
 			return false
 		}
