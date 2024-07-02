@@ -777,6 +777,13 @@ Example for writing data with Graphite plaintext protocol to local VictoriaMetri
 echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N localhost 2003
 ```
 
+To sanitize ingested metric names and labels according to Prometheus naming convention enable
+`-graphite.sanitizeMetricName` cmd-line flag. When enabled, VictoriaMetrics will apply the following modifications:
+- replace `/`,`@`,`*` with `_`;
+- drop `\`;
+- remove redundant dots, e.g: `metric..name` => `metric.name`;
+- replace characters not matching the expression `^a-zA-Z0-9:._` with `_`.
+
 VictoriaMetrics sets the current time if the timestamp is omitted.
 An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
@@ -2839,6 +2846,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Flag value can be read from the given file when using -forceMergeAuthKey=file:///abs/path/to/file or -forceMergeAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -forceMergeAuthKey=http://host/path or -forceMergeAuthKey=https://host/path
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
+  -graphite.sanitizeMetricName
+     Sanitize metric names for the ingested Graphite data. See https://docs.victoriametrics.com/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd
   -graphiteListenAddr string
      TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty. See also -graphiteListenAddr.useProxyProtocol
   -graphiteListenAddr.useProxyProtocol
