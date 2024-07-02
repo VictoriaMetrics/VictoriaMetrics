@@ -105,6 +105,7 @@ VictoriaMetrics has the following prominent features:
   * [DataDog agent or DogStatsD](#how-to-send-data-from-datadog-agent).
   * [NewRelic infrastructure agent](#how-to-send-data-from-newrelic-agent).
   * [OpenTelemetry metrics format](#sending-data-via-opentelemetry).
+  * [Zabbix Connector streaming format](#how-to-send-data-from-zabbix-connector).
 * It supports powerful [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/), which can be used as a [statsd](https://github.com/statsd/statsd) alternative.
 * It supports metrics [relabeling](#relabeling).
 * It can deal with [high cardinality issues](https://docs.victoriametrics.com/faq/#what-is-high-cardinality) and
@@ -982,6 +983,61 @@ curl http://localhost:8428/api/v1/export -d 'match={eventType="SystemSample"}'
 {"metric":{"__name__":"cpuIdlePercent","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[74.9433392092],"timestamps":[1697407970000]}
 {"metric":{"__name__":"loadAverageFifteenMinute","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[3.58203125],"timestamps":[1697407970000]}
 {"metric":{"__name__":"cpuPercent","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[25.056660790748],"timestamps":[1697407970000]}
+```
+
+## How to send data from Zabbix Connector
+
+VictoriaMetrics accepts data from [Zabbix Connector streaming protocol](https://www.zabbix.com/documentation/current/en/manual/config/export/streaming#protocol)
+at `/zabbixconnector/api/v1/history` HTTP path.
+
+You must specify `http://<victoriametrics-addr>:8428/zabbixconnector/api/v1/history` in the "URL" parameter when creating a new connector in the [Zabbix WEB interface](https://www.zabbix.com/documentation/current/en/manual/config/export/streaming). Starting from version 7.0, the "Type of information" parameter must be set to "numeric (unsigned)" and "numeric (float)".
+
+Extra labels may be added to all the written time series by passing `extra_label=name=value` query args.
+For example, `/zabbixconnector/api/v1/history?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
+
+### Zabbix Connector data mapping
+
+VictoriaMetrics maps [Zabbix Connector streaming protocol](https://www.zabbix.com/documentation/current/en/manual/config/export/streaming#protocol)
+to [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) in the following way:
+
+* Discards all item values ​​that do not match the types "numeric (unsigned)" and "numeric (float)".
+* JSON path `$.host.host` converts to label value `host`.
+* JSON path `$.host.name` converts to label value `hostname`.
+* JSON path `$.name` converts to label value `__name__`.
+* JSON path `$.value` is used as the metric value.
+* JSON path `$.clock` and `$.ns` is used as timestamp for the ingested [raw sample](https://docs.victoriametrics.com/keyconcepts/#raw-samples).\
+timestamp is calculated using the formula: `$.clock`*1e3 + `$.ns`/1e6 (See [Zabbix item structure](https://www.zabbix.com/documentation/current/en/manual/appendix/protocols/real_time_export#item-values) for details)
+* If the command line flag `-zabbixconnector.addGroups=<value>` is specified, the elements of the `$.grops` group array will be converted to the label name prefixed with `group_` with the value `<value>`.
+* The tag object array `$.item_tags` will be configured as follows:
+  * The `tag` element will be used as the tag name, prefixed with `tag_`. The "value" element will be used as the value of the label.
+  * If the command line flag `-zabbixconnector.addEmptyTags=<value>` is specified, then tags with empty values ​​will not be ignored. `<value>` will be used as the tag value. By default, tags with empty values ​​are ignored.
+  * If the command line flag `-zabbixconnector.mergeDuplateTags=<value>` is specified, then the values ​​of duplicate tags will be merged into one using the `<value>` delimiter.
+
+For example, let's import the following Zabbix Connector request to VictoriaMetrics:
+
+```json
+{"host":{"host":"ZabbixServer","name":"ZabbixServer"},"groups":["servers"],"item_tags":[{"tag":"foo","value":""}],"itemid":44457,"name":"item_1","clock":1673454303,"ns":800155804,"value":0,"type":3}
+{"host":{"host":"ZabbixServer","name":"ZabbixServer"},"groups":["servers"],"item_tags":[{"tag":"foo","value":"test"}, {"tag":"foo","value":""}],"itemid":44458,"name":"item_2","clock":1673454303,"ns":832290669,"value":1,"type":3}
+{"host":{"host":"ZabbixServer","name":"ZabbixServer"},"groups":["servers"],"item_tags":[{"tag":"bar","value":"test"}],"itemid":44458,"name":"item_3","clock":1673454303,"ns":867770366,"value":123,"type":3}
+```
+
+Save this NDJSON into `data.ndjson` file and then use the following command in order to import it into VictoriaMetrics:
+
+```sh
+curl -X POST -H 'Content-Type: application/x-ndjson' --data-binary @data.ndjson http://localhost:8428/zabbixconnector/api/v1/history
+```
+Let's assume vmagent is running with command line flags:
+* `-zabbixconnector.addGroups=exists`
+* `-zabbixconnector.addEmptyTags=exists`
+* `-zabbixconnector.mergeDuplateTags=,`
+
+Let's fetch the ingested data via [data export API](#how-to-export-data-in-json-line-format):
+
+```sh
+curl http://localhost:8428/api/v1/export -d 'match={host="Zabbix server"}'
+{"metric":{"__name__":"item_1","host":"ZabbixServer","hostname":"ZabbixServer","group_servers":"exists","tag_foo":"exists"},"values":[0],"timestamps":[1673454303800]}
+{"metric":{"__name__":"item_2","host":"ZabbixServer","hostname":"ZabbixServer","group_servers":"exists","tag_foo":"test,exists"},"values":[1],"timestamps":[1673454303832]}
+{"metric":{"__name__":"item_3","host":"ZabbixServer","hostname":"ZabbixServer","group_servers":"exists","tag_bar":"test"},"values":[123],"timestamps":[1673454303867]}
 ```
 
 ## Prometheus querying API usage
