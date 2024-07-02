@@ -110,6 +110,7 @@ type GetObjectAclInput struct {
 }
 
 func (in *GetObjectAclInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.Key = in.Key
 

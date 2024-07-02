@@ -107,6 +107,7 @@ type PutObjectLegalHoldInput struct {
 }
 
 func (in *PutObjectLegalHoldInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 
 }

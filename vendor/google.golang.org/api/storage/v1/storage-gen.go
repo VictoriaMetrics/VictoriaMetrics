@@ -1682,6 +1682,9 @@ func (s *Folders) MarshalJSON() ([]byte, error) {
 // GoogleLongrunningListOperationsResponse: The response message for
 // storage.buckets.operations.list.
 type GoogleLongrunningListOperationsResponse struct {
+	// Kind: The kind of item this is. For lists of operations, this is always
+	// storage#operations.
+	Kind string `json:"kind,omitempty"`
 	// NextPageToken: The continuation token, used to page through large result
 	// sets. Provide this value in a subsequent request to return the next page of
 	// results.
@@ -1692,15 +1695,15 @@ type GoogleLongrunningListOperationsResponse struct {
 
 	// ServerResponse contains the HTTP response code and headers from the server.
 	googleapi.ServerResponse `json:"-"`
-	// ForceSendFields is a list of field names (e.g. "NextPageToken") to
-	// unconditionally include in API requests. By default, fields with empty or
-	// default values are omitted from API requests. See
+	// ForceSendFields is a list of field names (e.g. "Kind") to unconditionally
+	// include in API requests. By default, fields with empty or default values are
+	// omitted from API requests. See
 	// https://pkg.go.dev/google.golang.org/api#hdr-ForceSendFields for more
 	// details.
 	ForceSendFields []string `json:"-"`
-	// NullFields is a list of field names (e.g. "NextPageToken") to include in API
-	// requests with the JSON null value. By default, fields with empty values are
-	// omitted from API requests. See
+	// NullFields is a list of field names (e.g. "Kind") to include in API requests
+	// with the JSON null value. By default, fields with empty values are omitted
+	// from API requests. See
 	// https://pkg.go.dev/google.golang.org/api#hdr-NullFields for more details.
 	NullFields []string `json:"-"`
 }
@@ -1719,6 +1722,9 @@ type GoogleLongrunningOperation struct {
 	Done bool `json:"done,omitempty"`
 	// Error: The error result of the operation in case of failure or cancellation.
 	Error *GoogleRpcStatus `json:"error,omitempty"`
+	// Kind: The kind of item this is. For operations, this is always
+	// storage#operation.
+	Kind string `json:"kind,omitempty"`
 	// Metadata: Service-specific metadata associated with the operation. It
 	// typically contains progress information and common metadata such as create
 	// time. Some services might not provide such metadata. Any method that returns
@@ -1736,6 +1742,8 @@ type GoogleLongrunningOperation struct {
 	// method name. For example, if the original method name is "TakeSnapshot()",
 	// the inferred response type is "TakeSnapshotResponse".
 	Response googleapi.RawMessage `json:"response,omitempty"`
+	// SelfLink: The link to this long running operation.
+	SelfLink string `json:"selfLink,omitempty"`
 
 	// ServerResponse contains the HTTP response code and headers from the server.
 	googleapi.ServerResponse `json:"-"`
