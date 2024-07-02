@@ -50,7 +50,7 @@ var (
 		`Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
 	failTimeout               = flag.Duration("failTimeout", 3*time.Second, "Sets a delay period for load balancing to skip a malfunctioning backend")
 	maxRequestBodySizeToRetry = flagutil.NewBytes("maxRequestBodySizeToRetry", 16*1024, "The maximum request body size, which can be cached and re-tried at other backends. "+
-		"Bigger values may require more memory")
+		"Bigger values may require more memory. Negative or zero values disable request body caching and retries.")
 	backendTLSInsecureSkipVerify = flag.Bool("backend.tlsInsecureSkipVerify", false, "Whether to skip TLS verification when connecting to backends over HTTPS. "+
 		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
 	backendTLSCAFile = flag.String("backend.TLSCAFile", "", "Optional path to TLS root CA file, which is used for TLS verification when connecting to backends over HTTPS. "+
@@ -200,11 +200,11 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		up, hc = ui.DefaultURL, ui.HeadersConf
 		isDefault = true
 	}
-	if r.ContentLength <= int64(maxRequestBodySizeToRetry.IntN()) {
-		r.Body = getReadTrackingBody(r.Body, int(r.ContentLength))
-		defer func() {
-			putReadTrackingBody(r.Body.(*readTrackingBody))
-		}()
+	// caching makes sense only for positive non zero size
+	if maxRequestBodySizeToRetry.IntN() > 0 {
+		rtb := getReadTrackingBody(r.Body, int(r.ContentLength))
+		defer putReadTrackingBody(rtb)
+		r.Body = rtb
 	}
 	maxAttempts := up.getBackendsCount()
 	for i := 0; i < maxAttempts; i++ {
@@ -590,20 +590,20 @@ var readTrackingBodyPool sync.Pool
 
 func getReadTrackingBody(origin io.ReadCloser, b int) *readTrackingBody {
 	bufSize := 1024
-	if b > 0 {
+	if b > 0 && b < maxRequestBodySizeToRetry.IntN() {
 		bufSize = b
 	}
 	v := readTrackingBodyPool.Get()
 	if v == nil {
-		rtb := &readTrackingBody{
-			r:   origin,
+		v = &readTrackingBody{
 			buf: make([]byte, 0, bufSize),
 		}
-		return rtb
 	}
 	rtb := v.(*readTrackingBody)
 	rtb.r = origin
-	rtb.buf = bytesutil.ResizeNoCopyMayOverallocate(rtb.buf, b)[:0]
+	if bufSize > cap(rtb.buf) {
+		rtb.buf = make([]byte, 0, bufSize)
+	}
 
 	return rtb
 }
@@ -613,6 +613,7 @@ func putReadTrackingBody(rtb *readTrackingBody) {
 		_ = rtb.r.Close()
 	}
 	rtb.r = nil
+	rtb.buf = rtb.buf[:0]
 	rtb.offset = 0
 	rtb.cannotRetry = false
 	rtb.bufComplete = false
