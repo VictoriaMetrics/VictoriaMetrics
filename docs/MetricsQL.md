@@ -2230,7 +2230,8 @@ Any [rollup function](#rollup-functions) for something other than [series select
 Nested rollup functions can be implicit thanks to the [implicit query conversions](#implicit-query-conversions).
 For example, `delta(sum(m))` is implicitly converted to `delta(sum(default_rollup(m))[1i:1i])`, so it becomes a subquery,
 since it contains [default_rollup](#default_rollup) nested into [delta](#delta).
-This behavior can be disabled or logged via cmd-line flags `-search.disableImplicitConversion` and `-search.logImplicitConversion` since v1.101.0.
+This behavior can be disabled or logged via `-search.disableImplicitConversion` and `-search.logImplicitConversion` command-line flags
+starting from [`v1.101.0` release](https://docs.victoriametrics.com/changelog/).
 
 VictoriaMetrics performs subqueries in the following way:
 
@@ -2263,5 +2264,6 @@ VictoriaMetrics performs the following implicit conversions for incoming queries
   For example, `avg_over_time(rate(http_requests_total[5m])[1h])` is automatically converted to `avg_over_time(rate(http_requests_total[5m])[1h:1i])`.
 * If something other than [series selector](https://docs.victoriametrics.com/keyconcepts/#filtering)
   is passed to [rollup function](#rollup-functions), then a [subquery](#subqueries) with `1i` lookbehind window and `1i` step is automatically formed.
-  For example, `rate(sum(up))` is automatically converted to `rate((sum(default_rollup(up)))[1i:1i])`. 
-  This behavior can be disabled or logged via cmd-line flags `-search.disableImplicitConversion` and `-search.logImplicitConversion` since v1.101.0.
+  For example, `rate(sum(up))` is automatically converted to `rate((sum(default_rollup(up)))[1i:1i])`.
+  This behavior can be disabled or logged via `-search.disableImplicitConversion` and `-search.logImplicitConversion` command-line flags
+  starting from [`v1.101.0` release](https://docs.victoriametrics.com/changelog/).
