@@ -10,13 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v2"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/yaml"
 )
 
 // Config contains list of supported configuration settings
@@ -111,7 +110,7 @@ func parseConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("error reading config file: %w", err)
 	}
 	var cfg *Config
-	err = yaml.Unmarshal(data, &cfg)
+	err = yaml.Unmarshal(data, &cfg, false)
 	if err != nil {
 		return nil, err
 	}

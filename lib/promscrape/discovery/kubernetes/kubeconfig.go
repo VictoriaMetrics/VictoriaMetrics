@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"gopkg.in/yaml.v2"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/yaml"
 )
 
 // apiConfig contains config for API server
@@ -160,7 +159,7 @@ func newKubeConfig(kubeConfigFile string) (*kubeConfig, error) {
 		return nil, fmt.Errorf("cannot read %q: %w", kubeConfigFile, err)
 	}
 	var cfg Config
-	if err = yaml.Unmarshal(data, &cfg); err != nil {
+	if err = yaml.Unmarshal(data, &cfg, false); err != nil {
 		return nil, fmt.Errorf("cannot parse %q: %w", kubeConfigFile, err)
 	}
 	kc, err := cfg.buildKubeConfig()

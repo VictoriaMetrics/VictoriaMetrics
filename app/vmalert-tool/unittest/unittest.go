@@ -12,8 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v2"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	vmalertconfig "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
@@ -32,6 +30,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/yaml"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -91,7 +90,7 @@ func UnitTest(files []string, disableGroupLabel bool) bool {
 func ruleUnitTest(filename string, content []byte) []error {
 	fmt.Println("\nUnit Testing: ", filename)
 	var unitTestInp unitTestFile
-	if err := yaml.UnmarshalStrict(content, &unitTestInp); err != nil {
+	if err := yaml.Unmarshal(content, &unitTestInp, true); err != nil {
 		return []error{fmt.Errorf("failed to unmarshal file: %w", err)}
 	}
 

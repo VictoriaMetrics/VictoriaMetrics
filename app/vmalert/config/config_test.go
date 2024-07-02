@@ -9,11 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"gopkg.in/yaml.v2"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/yaml"
 )
 
 func TestMain(m *testing.M) {
@@ -493,7 +492,7 @@ func TestGroupChecksum(t *testing.T) {
 	f := func(t *testing.T, data, newData string) {
 		t.Helper()
 		var g Group
-		if err := yaml.Unmarshal([]byte(data), &g); err != nil {
+		if err := yaml.Unmarshal([]byte(data), &g, false); err != nil {
 			t.Fatalf("failed to unmarshal: %s", err)
 		}
 		if g.Checksum == "" {
@@ -501,7 +500,7 @@ func TestGroupChecksum(t *testing.T) {
 		}
 
 		var ng Group
-		if err := yaml.Unmarshal([]byte(newData), &ng); err != nil {
+		if err := yaml.Unmarshal([]byte(newData), &ng, false); err != nil {
 			t.Fatalf("failed to unmarshal: %s", err)
 		}
 		if g.Checksum == ng.Checksum {
@@ -675,7 +674,7 @@ func TestGroupParams(t *testing.T) {
 	f := func(t *testing.T, data string, expParams url.Values) {
 		t.Helper()
 		var g Group
-		if err := yaml.Unmarshal([]byte(data), &g); err != nil {
+		if err := yaml.Unmarshal([]byte(data), &g, false); err != nil {
 			t.Fatalf("failed to unmarshal: %s", err)
 		}
 		got, exp := g.Params.Encode(), expParams.Encode()

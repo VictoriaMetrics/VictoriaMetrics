@@ -10,8 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"gopkg.in/yaml.v2"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
@@ -20,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/yaml"
 )
 
 func init() {
@@ -207,7 +206,7 @@ func TestGroupStart(t *testing.T) {
 `
 	)
 	var groups []config.Group
-	err := yaml.Unmarshal([]byte(rules), &groups)
+	err := yaml.Unmarshal([]byte(rules), &groups, false)
 	if err != nil {
 		t.Fatalf("failed to parse rules: %s", err)
 	}
@@ -560,7 +559,7 @@ func TestCloseWithEvalInterruption(t *testing.T) {
 `
 	)
 	var groups []config.Group
-	err := yaml.Unmarshal([]byte(rules), &groups)
+	err := yaml.Unmarshal([]byte(rules), &groups, false)
 	if err != nil {
 		t.Fatalf("failed to parse rules: %s", err)
 	}
