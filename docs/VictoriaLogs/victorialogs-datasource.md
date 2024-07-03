@@ -241,7 +241,7 @@ allow_loading_unsigned_plugins = victorialogs-datasource
 
 In the project directory, you can run:
 
-```
+```sh
 # install dependencies
 yarn install
 
