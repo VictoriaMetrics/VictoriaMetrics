@@ -11,7 +11,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 )
 
 func TestAggregatorsFailure(t *testing.T) {
@@ -20,7 +19,7 @@ func TestAggregatorsFailure(t *testing.T) {
 		pushFunc := func(_ []prompbmarshal.TimeSeries) {
 			panic(fmt.Errorf("pushFunc shouldn't be called"))
 		}
-		a, err := newAggregatorsFromData([]byte(config), pushFunc, Options{})
+		a, err := LoadFromData([]byte(config), pushFunc, Options{})
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -158,11 +157,11 @@ func TestAggregatorsEqual(t *testing.T) {
 		t.Helper()
 
 		pushFunc := func(_ []prompbmarshal.TimeSeries) {}
-		aa, err := newAggregatorsFromData([]byte(a), pushFunc, Options{})
+		aa, err := LoadFromData([]byte(a), pushFunc, Options{})
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
-		ab, err := newAggregatorsFromData([]byte(b), pushFunc, Options{})
+		ab, err := LoadFromData([]byte(b), pushFunc, Options{})
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
@@ -225,13 +224,14 @@ func TestAggregatorsSuccess(t *testing.T) {
 			FlushOnShutdown:        true,
 			NoAlignFlushToInterval: true,
 		}
-		a, err := newAggregatorsFromData([]byte(config), pushFunc, opts)
+		a, err := LoadFromData([]byte(config), pushFunc, opts)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
 
 		// Push the inputMetrics to Aggregators
-		tssInput := mustParsePromMetrics(inputMetrics)
+		offsetMsecs := time.Now().UnixMilli()
+		tssInput := prompbmarshal.MustParsePromMetrics(inputMetrics, offsetMsecs)
 		matchIdxs := a.Push(tssInput, nil)
 		a.MustStop()
 
@@ -839,7 +839,7 @@ foo-1m-without-abc-sum-samples{new_label="must_keep_metric_name"} 12.5
 `, "1111")
 
 	// test rate_sum and rate_avg
-	f(`     
+	f(`
 - interval: 1m
   by: [cde]
   outputs: [rate_sum, rate_avg]
@@ -853,7 +853,7 @@ foo:1m_by_cde_rate_sum{cde="1"} 0.65
 `, "1111")
 
 	// rate with duplicated events
-	f(`     
+	f(`
 - interval: 1m
   by: [cde]
   outputs: [rate_sum, rate_avg]
@@ -921,13 +921,14 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 			DedupInterval:   30 * time.Second,
 			FlushOnShutdown: true,
 		}
-		a, err := newAggregatorsFromData([]byte(config), pushFunc, opts)
+		a, err := LoadFromData([]byte(config), pushFunc, opts)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
 
 		// Push the inputMetrics to Aggregators
-		tssInput := mustParsePromMetrics(inputMetrics)
+		offsetMsecs := time.Now().UnixMilli()
+		tssInput := prompbmarshal.MustParsePromMetrics(inputMetrics, offsetMsecs)
 		matchIdxs := a.Push(tssInput, nil)
 		a.MustStop()
 
@@ -996,40 +997,6 @@ func timeSeriesToString(ts prompbmarshal.TimeSeries) string {
 		panic(fmt.Errorf("unexpected number of samples for %s: %d; want 1", labelsString, len(ts.Samples)))
 	}
 	return fmt.Sprintf("%s %v\n", labelsString, ts.Samples[0].Value)
-}
-
-func mustParsePromMetrics(s string) []prompbmarshal.TimeSeries {
-	var rows prometheus.Rows
-	errLogger := func(s string) {
-		panic(fmt.Errorf("unexpected error when parsing Prometheus metrics: %s", s))
-	}
-	rows.UnmarshalWithErrLogger(s, errLogger)
-	var tss []prompbmarshal.TimeSeries
-	now := time.Now().UnixMilli()
-	samples := make([]prompbmarshal.Sample, 0, len(rows.Rows))
-	for _, row := range rows.Rows {
-		labels := make([]prompbmarshal.Label, 0, len(row.Tags)+1)
-		labels = append(labels, prompbmarshal.Label{
-			Name:  "__name__",
-			Value: row.Metric,
-		})
-		for _, tag := range row.Tags {
-			labels = append(labels, prompbmarshal.Label{
-				Name:  tag.Key,
-				Value: tag.Value,
-			})
-		}
-		samples = append(samples, prompbmarshal.Sample{
-			Value:     row.Value,
-			Timestamp: now + row.Timestamp,
-		})
-		ts := prompbmarshal.TimeSeries{
-			Labels:  labels,
-			Samples: samples[len(samples)-1:],
-		}
-		tss = append(tss, ts)
-	}
-	return tss
 }
 
 func appendClonedTimeseries(dst, src []prompbmarshal.TimeSeries) []prompbmarshal.TimeSeries {

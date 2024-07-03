@@ -92,7 +92,7 @@ func newBenchAggregators(outputs []string, pushFunc PushFunc) *Aggregators {
   outputs: [%s]
 `, strings.Join(outputsQuoted, ","))
 
-	a, err := newAggregatorsFromData([]byte(config), pushFunc, Options{})
+	a, err := LoadFromData([]byte(config), pushFunc, Options{})
 	if err != nil {
 		panic(fmt.Errorf("unexpected error when initializing aggregators: %s", err))
 	}
@@ -107,7 +107,8 @@ func newBenchSeries(seriesCount int) []prompbmarshal.TimeSeries {
 		a = append(a, s)
 	}
 	metrics := strings.Join(a, "\n")
-	return mustParsePromMetrics(metrics)
+	offsetMsecs := time.Now().UnixMilli()
+	return prompbmarshal.MustParsePromMetrics(metrics, offsetMsecs)
 }
 
 const seriesCount = 10_000

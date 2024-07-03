@@ -78,7 +78,7 @@ func LoadFromFile(path string, pushFunc PushFunc, opts Options) (*Aggregators, e
 		return nil, fmt.Errorf("cannot expand environment variables in %q: %w", path, err)
 	}
 
-	as, err := newAggregatorsFromData(data, pushFunc, opts)
+	as, err := LoadFromData(data, pushFunc, opts)
 	if err != nil {
 		return nil, fmt.Errorf("cannot initialize aggregators from %q: %w; see https://docs.victoriametrics.com/stream-aggregation/#stream-aggregation-config", path, err)
 	}
@@ -252,7 +252,8 @@ type Aggregators struct {
 	ms *metrics.Set
 }
 
-func newAggregatorsFromData(data []byte, pushFunc PushFunc, opts Options) (*Aggregators, error) {
+// LoadFromData loads aggregators from data.
+func LoadFromData(data []byte, pushFunc PushFunc, opts Options) (*Aggregators, error) {
 	var cfgs []*Config
 	if err := yaml.UnmarshalStrict(data, &cfgs); err != nil {
 		return nil, fmt.Errorf("cannot parse stream aggregation config: %w", err)
