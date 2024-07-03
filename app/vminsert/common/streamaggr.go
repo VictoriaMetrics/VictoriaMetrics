@@ -72,11 +72,6 @@ func CheckStreamAggrConfig() error {
 	return nil
 }
 
-// HasStreamAggrConfigured checks if streamAggr config provided
-func HasStreamAggrConfigured() bool {
-	return *streamAggrConfig != ""
-}
-
 // InitStreamAggr must be called after flag.Parse and before using the common package.
 //
 // MustStopStreamAggr must be called when stream aggr is no longer needed.
