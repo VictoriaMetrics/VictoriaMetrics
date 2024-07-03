@@ -1,12 +1,15 @@
 ---
 sort: 38
 weight: 38
-title: Grafana datasource
+title: VictoriaMetrics datasource for Grafana
 menu:
   docs:
     parent: victoriametrics
     weight: 38
 aliases:
+- /victoriametrics-datasource.html
+# old doc name before it was renamed
+- /grafana-datasource/
 - /grafana-datasource.html
 ---
 
