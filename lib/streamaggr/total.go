@@ -19,12 +19,6 @@ type totalAggrState struct {
 	// Whether to take into account the first sample in new time series when calculating the output value.
 	keepFirstSample bool
 
-	// Time series state is dropped if no new samples are received during stalenessSecs.
-	//
-	// Aslo, the first sample per each new series is ignored during stalenessSecs even if keepFirstSample is set.
-	// see ignoreFirstSampleDeadline for more details.
-	stalenessSecs uint64
-
 	// The first sample per each new series is ignored until this unix timestamp deadline in seconds even if keepFirstSample is set.
 	// This allows avoiding an initial spike of the output values at startup when new time series
 	// cannot be distinguished from already existing series. This is tracked with ignoreFirstSampleDeadline.
@@ -33,33 +27,36 @@ type totalAggrState struct {
 
 type totalStateValue struct {
 	mu             sync.Mutex
-	lastValues     map[string]totalLastValueState
-	total          float64
-	deleteDeadline uint64
+	shared         totalState
+	state          [aggrStateSize]float64
+	deleteDeadline int64
 	deleted        bool
+}
+
+type totalState struct {
+	total      float64
+	lastValues map[string]totalLastValueState
 }
 
 type totalLastValueState struct {
 	value          float64
 	timestamp      int64
-	deleteDeadline uint64
+	deleteDeadline int64
 }
 
-func newTotalAggrState(stalenessInterval, ignoreFirstSampleInterval time.Duration, resetTotalOnFlush, keepFirstSample bool) *totalAggrState {
-	stalenessSecs := roundDurationToSecs(stalenessInterval)
-	ignoreFirstSampleDeadline := fasttime.UnixTimestamp() + roundDurationToSecs(ignoreFirstSampleInterval)
+func newTotalAggrState(ignoreFirstSampleInterval time.Duration, resetTotalOnFlush, keepFirstSample bool) *totalAggrState {
+	ignoreFirstSampleDeadline := time.Now().Add(ignoreFirstSampleInterval)
 
 	return &totalAggrState{
 		resetTotalOnFlush:         resetTotalOnFlush,
 		keepFirstSample:           keepFirstSample,
-		stalenessSecs:             stalenessSecs,
-		ignoreFirstSampleDeadline: ignoreFirstSampleDeadline,
+		ignoreFirstSampleDeadline: uint64(ignoreFirstSampleDeadline.Unix()),
 	}
 }
 
-func (as *totalAggrState) pushSamples(samples []pushSample) {
+func (as *totalAggrState) pushSamples(samples []pushSample, deleteDeadline int64, idx int) {
+	var deleted bool
 	currentTime := fasttime.UnixTimestamp()
-	deleteDeadline := currentTime + as.stalenessSecs
 	keepFirstSample := as.keepFirstSample && currentTime >= as.ignoreFirstSampleDeadline
 	for i := range samples {
 		s := &samples[i]
@@ -70,7 +67,9 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 		if !ok {
 			// The entry is missing in the map. Try creating it.
 			v = &totalStateValue{
-				lastValues: make(map[string]totalLastValueState),
+				shared: totalState{
+					lastValues: make(map[string]totalLastValueState),
+				},
 			}
 			outputKey = bytesutil.InternString(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
@@ -81,9 +80,9 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 		}
 		sv := v.(*totalStateValue)
 		sv.mu.Lock()
-		deleted := sv.deleted
+		deleted = sv.deleted
 		if !deleted {
-			lv, ok := sv.lastValues[inputKey]
+			lv, ok := sv.shared.lastValues[inputKey]
 			if ok || keepFirstSample {
 				if s.timestamp < lv.timestamp {
 					// Skip out of order sample
@@ -92,10 +91,10 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 				}
 
 				if s.value >= lv.value {
-					sv.total += s.value - lv.value
+					sv.state[idx] += s.value - lv.value
 				} else {
 					// counter reset
-					sv.total += s.value
+					sv.state[idx] += s.value
 				}
 			}
 			lv.value = s.value
@@ -103,7 +102,7 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 			lv.deleteDeadline = deleteDeadline
 
 			inputKey = bytesutil.InternString(inputKey)
-			sv.lastValues[inputKey] = lv
+			sv.shared.lastValues[inputKey] = lv
 			sv.deleteDeadline = deleteDeadline
 		}
 		sv.mu.Unlock()
@@ -113,36 +112,6 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 			goto again
 		}
 	}
-}
-
-func (as *totalAggrState) flushState(ctx *flushCtx) {
-	currentTime := fasttime.UnixTimestamp()
-
-	suffix := as.getSuffix()
-
-	as.removeOldEntries(currentTime)
-
-	m := &as.m
-	m.Range(func(k, v any) bool {
-		sv := v.(*totalStateValue)
-
-		sv.mu.Lock()
-		total := sv.total
-		if as.resetTotalOnFlush {
-			sv.total = 0
-		} else if math.Abs(sv.total) >= (1 << 53) {
-			// It is time to reset the entry, since it starts losing float64 precision
-			sv.total = 0
-		}
-		deleted := sv.deleted
-		sv.mu.Unlock()
-
-		if !deleted {
-			key := k.(string)
-			ctx.appendSeries(key, suffix, total)
-		}
-		return true
-	})
 }
 
 func (as *totalAggrState) getSuffix() string {
@@ -159,28 +128,41 @@ func (as *totalAggrState) getSuffix() string {
 	return "total_prometheus"
 }
 
-func (as *totalAggrState) removeOldEntries(currentTime uint64) {
+func (as *totalAggrState) flushState(ctx *flushCtx) {
+	var total float64
 	m := &as.m
-	m.Range(func(k, v any) bool {
+	suffix := as.getSuffix()
+	m.Range(func(k, v interface{}) bool {
 		sv := v.(*totalStateValue)
 
 		sv.mu.Lock()
-		if currentTime > sv.deleteDeadline {
+		// check for stale entries
+		deleted := ctx.flushTimestamp > sv.deleteDeadline
+		if deleted {
 			// Mark the current entry as deleted
-			sv.deleted = true
+			sv.deleted = deleted
 			sv.mu.Unlock()
 			m.Delete(k)
 			return true
 		}
-
-		// Delete outdated entries in sv.lastValues
-		lvs := sv.lastValues
-		for k1, lv := range lvs {
-			if currentTime > lv.deleteDeadline {
-				delete(lvs, k1)
+		total = sv.shared.total + sv.state[ctx.idx]
+		for k1, v1 := range sv.shared.lastValues {
+			if ctx.flushTimestamp > v1.deleteDeadline {
+				delete(sv.shared.lastValues, k1)
+			}
+		}
+		sv.state[ctx.idx] = 0
+		if !as.resetTotalOnFlush {
+			if math.Abs(total) >= (1 << 53) {
+				// It is time to reset the entry, since it starts losing float64 precision
+				sv.shared.total = 0
+			} else {
+				sv.shared.total = total
 			}
 		}
 		sv.mu.Unlock()
+		key := k.(string)
+		ctx.appendSeries(key, suffix, total)
 		return true
 	})
 }
