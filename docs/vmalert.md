@@ -1378,7 +1378,7 @@ The shortlist of configuration flags is the following:
   -replay.timeFrom string
      The time filter in RFC3339 format to select time series with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'
   -replay.timeTo string
-     The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'
+     The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'. Default is current time.
   -rule array
      Path to the files or http url with alerting and/or recording rules.
      Supports hierarchical patterns and regexpes.
