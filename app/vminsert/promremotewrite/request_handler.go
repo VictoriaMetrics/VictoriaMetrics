@@ -1,7 +1,10 @@
 package promremotewrite
 
 import (
+	"fmt"
+	"math"
 	"net/http"
+	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
@@ -45,7 +48,11 @@ func insertRows(timeseries []prompb.TimeSeries, extraLabels []prompbmarshal.Labe
 		rowsTotal += len(ts.Samples)
 		ctx.Labels = ctx.Labels[:0]
 		srcLabels := ts.Labels
+		var nameIndex int
 		for _, srcLabel := range srcLabels {
+			if srcLabel.Name == "__name__" {
+				nameIndex = len(ctx.Labels)
+			}
 			ctx.AddLabel(srcLabel.Name, srcLabel.Value)
 		}
 		for j := range extraLabels {
@@ -68,6 +75,95 @@ func insertRows(timeseries []prompb.TimeSeries, extraLabels []prompbmarshal.Labe
 			metricNameRaw, err = ctx.WriteDataPointExt(metricNameRaw, ctx.Labels, r.Timestamp, r.Value)
 			if err != nil {
 				return err
+			}
+		}
+		histograms := ts.Histograms
+		for i := range histograms {
+			r := &histograms[i]
+			count := float64(r.Count)
+			if count == 0 {
+				count = r.CountFloat
+			}
+			metricPrefix := ctx.Labels[nameIndex].Value
+			ctx.Labels[nameIndex].Value = metricPrefix + "_count"
+			_, err = ctx.WriteDataPointExt(nil, ctx.Labels, r.Timestamp, count)
+			if err != nil {
+				return err
+			}
+			ctx.Labels[nameIndex].Value = metricPrefix + "_sum"
+			_, err = ctx.WriteDataPointExt(nil, ctx.Labels, r.Timestamp, r.Sum)
+			if err != nil {
+				return err
+			}
+			ctx.Labels[nameIndex].Value = metricPrefix + "_bucket"
+			if len(r.PositiveSpans) == 0 && len(r.NegativeSpans) == 0 {
+				leIndex := len(ctx.Labels)
+				ctx.AddLabel("le", "0")
+				for _, b := range r.Buckets {
+					cumulativeCount := float64(b.CumulativeCount)
+					if cumulativeCount == 0 {
+						cumulativeCount = b.CumulativeCountFloat
+					}
+					ctx.Labels[leIndex].Value = strconv.FormatFloat(b.UpperBound, 'g', 3, 64)
+					if _, err = ctx.WriteDataPointExt(nil, ctx.Labels, r.Timestamp, cumulativeCount); err != nil {
+						return err
+					}
+				}
+			} else {
+				ratio := math.Pow(2, -float64(r.Schema))
+				base := math.Pow(2, ratio)
+				var bucketIdx float64 = 1
+				var idx int
+				var lowerBound float64 = 1
+				var value float64
+
+				vmRangeIndex := len(ctx.Labels)
+				ctx.AddLabel("vmrange", "...")
+
+				if r.ZeroCount > 0 {
+					ctx.Labels[vmRangeIndex].Value = fmt.Sprintf("%0.3e...%0.3e", lowerBound, base)
+					if _, err = ctx.WriteDataPointExt(nil, ctx.Labels, r.Timestamp, float64(r.ZeroCount)); err != nil {
+						return err
+					}
+				}
+
+				for s := range r.PositiveSpans {
+					span := r.PositiveSpans[s]
+					bucketIdx += float64(span.Offset)
+					deltas := r.PositiveDeltas
+					upperBound := math.Pow(2, bucketIdx*ratio)
+					for l := 0; l < int(span.Length); l++ {
+						value += float64(deltas[idx])
+						idx++
+						lowerBound = upperBound
+						upperBound *= base
+						ctx.Labels[vmRangeIndex].Value = fmt.Sprintf("%0.3e...%0.3e", lowerBound, upperBound)
+						if _, err = ctx.WriteDataPointExt(nil, ctx.Labels, r.Timestamp, value); err != nil {
+							return err
+						}
+					}
+				}
+
+				value = 0
+				idx = 0
+				bucketIdx = 1
+
+				for s := range r.NegativeSpans {
+					span := r.NegativeSpans[s]
+					bucketIdx += float64(span.Offset)
+					deltas := r.NegativeDeltas
+					lowerBound = math.Pow(2, -bucketIdx*ratio)
+					for l := 0; l < int(span.Length); l++ {
+						value += float64(deltas[idx])
+						idx++
+						upperBound := lowerBound
+						lowerBound /= ratio
+						ctx.Labels[vmRangeIndex].Value = fmt.Sprintf("%0.3e...%0.3e", lowerBound, upperBound)
+						if _, err = ctx.WriteDataPointExt(nil, ctx.Labels, r.Timestamp, value); err != nil {
+							return err
+						}
+					}
+				}
 			}
 		}
 	}
