@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // sumSamplesAggrState calculates output=sum_samples, e.g. the sum over input samples.
@@ -13,16 +12,22 @@ type sumSamplesAggrState struct {
 }
 
 type sumSamplesStateValue struct {
-	mu      sync.Mutex
-	sum     float64
-	deleted bool
+	mu             sync.Mutex
+	state          [aggrStateSize]sumState
+	deleted        bool
+	deleteDeadline int64
+}
+
+type sumState struct {
+	sum    float64
+	exists bool
 }
 
 func newSumSamplesAggrState() *sumSamplesAggrState {
 	return &sumSamplesAggrState{}
 }
 
-func (as *sumSamplesAggrState) pushSamples(samples []pushSample) {
+func (as *sumSamplesAggrState) pushSamples(samples []pushSample, deleteDeadline int64, idx int) {
 	for i := range samples {
 		s := &samples[i]
 		outputKey := getOutputKey(s.key)
@@ -31,23 +36,21 @@ func (as *sumSamplesAggrState) pushSamples(samples []pushSample) {
 		v, ok := as.m.Load(outputKey)
 		if !ok {
 			// The entry is missing in the map. Try creating it.
-			v = &sumSamplesStateValue{
-				sum: s.value,
-			}
+			v = &sumSamplesStateValue{}
 			outputKey = bytesutil.InternString(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
-			if !loaded {
-				// The new entry has been successfully created.
-				continue
+			if loaded {
+				// Update the entry created by a concurrent goroutine.
+				v = vNew
 			}
-			// Use the entry created by a concurrent goroutine.
-			v = vNew
 		}
 		sv := v.(*sumSamplesStateValue)
 		sv.mu.Lock()
 		deleted := sv.deleted
 		if !deleted {
-			sv.sum += s.value
+			sv.state[idx].sum += s.value
+			sv.state[idx].exists = true
+			sv.deleteDeadline = deleteDeadline
 		}
 		sv.mu.Unlock()
 		if deleted {
@@ -58,26 +61,28 @@ func (as *sumSamplesAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *sumSamplesAggrState) flushState(ctx *flushCtx, resetState bool) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
+func (as *sumSamplesAggrState) flushState(ctx *flushCtx, flushTimestamp int64, idx int) {
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
-		if resetState {
-			// Atomically delete the entry from the map, so new entry is created for the next flush.
-			m.Delete(k)
-		}
-
 		sv := v.(*sumSamplesStateValue)
 		sv.mu.Lock()
-		sum := sv.sum
-		if resetState {
-			// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-			sv.deleted = true
-		}
-		sv.mu.Unlock()
 
-		key := k.(string)
-		ctx.appendSeries(key, "sum_samples", currentTimeMsec, sum)
+		// check for stale entries
+		deleted := flushTimestamp > sv.deleteDeadline
+		if deleted {
+			// Mark the current entry as deleted
+			sv.deleted = deleted
+			sv.mu.Unlock()
+			m.Delete(k)
+			return true
+		}
+		state := sv.state[idx]
+		sv.state[idx] = sumState{}
+		sv.mu.Unlock()
+		if state.exists {
+			key := k.(string)
+			ctx.appendSeries(key, "sum_samples", flushTimestamp, state.sum)
+		}
 		return true
 	})
 }

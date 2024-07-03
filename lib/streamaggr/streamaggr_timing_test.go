@@ -55,7 +55,7 @@ func BenchmarkAggregatorsFlushSerial(b *testing.B) {
 	b.SetBytes(int64(len(benchSeries) * len(outputs)))
 	for i := 0; i < b.N; i++ {
 		for _, aggr := range a.as {
-			aggr.flush(pushFunc, time.Hour, false)
+			aggr.flush(pushFunc, time.Hour, time.Now().UnixMilli(), 0)
 		}
 	}
 }
