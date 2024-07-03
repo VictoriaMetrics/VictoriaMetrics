@@ -29,7 +29,6 @@ var (
 	streamParse = flag.Bool("promscrape.streamParse", false, "Whether to enable stream parsing for metrics obtained from scrape targets. This may be useful "+
 		"for reducing memory usage when millions of metrics are exposed per each scrape target. "+
 		"It is possible to set 'stream_parse: true' individually per each 'scrape_config' section in '-promscrape.config' for fine-grained control")
-	scrapeExemplars = flag.Bool("promscrape.scrapeExemplars", false, "Whether to enable scraping of exemplars from scrape targets.")
 )
 
 type client struct {
@@ -109,12 +108,6 @@ func (c *client) ReadData(dst *bytesutil.ByteBuffer) error {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/608 for details.
 	// Do not bloat the `Accept` header with OpenMetrics shit, since it looks like dead standard now.
 	req.Header.Set("Accept", "text/plain;version=0.0.4;q=1,*/*;q=0.1")
-	// We set to support exemplars to be compatible with Prometheus Exposition format which uses
-	// Open Metrics Specification
-	// See https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#openmetrics-text-format
-	if *scrapeExemplars {
-		req.Header.Set("Accept", "application/openmetrics-text")
-	}
 	// Set X-Prometheus-Scrape-Timeout-Seconds like Prometheus does, since it is used by some exporters such as PushProx.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1179#issuecomment-813117162
 	req.Header.Set("X-Prometheus-Scrape-Timeout-Seconds", c.scrapeTimeoutSecondsStr)
