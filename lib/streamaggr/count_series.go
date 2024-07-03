@@ -13,16 +13,17 @@ type countSeriesAggrState struct {
 }
 
 type countSeriesStateValue struct {
-	mu      sync.Mutex
-	m       map[uint64]struct{}
-	deleted bool
+	mu             sync.Mutex
+	state          [aggrStateSize]map[uint64]struct{}
+	deleted        bool
+	deleteDeadline int64
 }
 
 func newCountSeriesAggrState() *countSeriesAggrState {
 	return &countSeriesAggrState{}
 }
 
-func (as *countSeriesAggrState) pushSamples(samples []pushSample) {
+func (as *countSeriesAggrState) pushSamples(samples []pushSample, deleteDeadline int64, idx int) {
 	for i := range samples {
 		s := &samples[i]
 		inputKey, outputKey := getInputOutputKey(s.key)
@@ -35,27 +36,26 @@ func (as *countSeriesAggrState) pushSamples(samples []pushSample) {
 		v, ok := as.m.Load(outputKey)
 		if !ok {
 			// The entry is missing in the map. Try creating it.
-			v = &countSeriesStateValue{
-				m: map[uint64]struct{}{
-					h: {},
-				},
+			csv := &countSeriesStateValue{}
+			for ic := range csv.state {
+				csv.state[ic] = make(map[uint64]struct{})
 			}
+			v = csv
 			outputKey = bytesutil.InternString(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
-			if !loaded {
-				// The entry has been added to the map.
-				continue
+			if loaded {
+				// Update the entry created by a concurrent goroutine.
+				v = vNew
 			}
-			// Update the entry created by a concurrent goroutine.
-			v = vNew
 		}
 		sv := v.(*countSeriesStateValue)
 		sv.mu.Lock()
 		deleted := sv.deleted
 		if !deleted {
-			if _, ok := sv.m[h]; !ok {
-				sv.m[h] = struct{}{}
+			if _, ok := sv.state[idx][h]; !ok {
+				sv.state[idx][h] = struct{}{}
 			}
+			sv.deleteDeadline = deleteDeadline
 		}
 		sv.mu.Unlock()
 		if deleted {
@@ -69,18 +69,25 @@ func (as *countSeriesAggrState) pushSamples(samples []pushSample) {
 func (as *countSeriesAggrState) flushState(ctx *flushCtx) {
 	m := &as.m
 	m.Range(func(k, v any) bool {
-		// Atomically delete the entry from the map, so new entry is created for the next flush.
-		m.Delete(k)
-
 		sv := v.(*countSeriesStateValue)
 		sv.mu.Lock()
-		n := len(sv.m)
-		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-		sv.deleted = true
-		sv.mu.Unlock()
 
-		key := k.(string)
-		ctx.appendSeries(key, "count_series", float64(n))
+		// check for stale entries
+		deleted := ctx.flushTimestamp > sv.deleteDeadline
+		if deleted {
+			// Mark the current entry as deleted
+			sv.deleted = deleted
+			sv.mu.Unlock()
+			m.Delete(k)
+			return true
+		}
+		state := len(sv.state[ctx.idx])
+		sv.state[ctx.idx] = make(map[uint64]struct{})
+		sv.mu.Unlock()
+		if state > 0 {
+			key := k.(string)
+			ctx.appendSeries(key, "count_series", float64(state))
+		}
 		return true
 	})
 }

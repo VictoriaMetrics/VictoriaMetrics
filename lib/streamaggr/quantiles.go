@@ -10,15 +10,15 @@ import (
 
 // quantilesAggrState calculates output=quantiles, e.g. the given quantiles over the input samples.
 type quantilesAggrState struct {
-	m sync.Map
-
+	m    sync.Map
 	phis []float64
 }
 
 type quantilesStateValue struct {
-	mu      sync.Mutex
-	h       *histogram.Fast
-	deleted bool
+	mu             sync.Mutex
+	state          [aggrStateSize]*histogram.Fast
+	deleted        bool
+	deleteDeadline int64
 }
 
 func newQuantilesAggrState(phis []float64) *quantilesAggrState {
@@ -27,7 +27,7 @@ func newQuantilesAggrState(phis []float64) *quantilesAggrState {
 	}
 }
 
-func (as *quantilesAggrState) pushSamples(samples []pushSample) {
+func (as *quantilesAggrState) pushSamples(samples []pushSample, deleteDeadline int64, idx int) {
 	for i := range samples {
 		s := &samples[i]
 		outputKey := getOutputKey(s.key)
@@ -36,15 +36,11 @@ func (as *quantilesAggrState) pushSamples(samples []pushSample) {
 		v, ok := as.m.Load(outputKey)
 		if !ok {
 			// The entry is missing in the map. Try creating it.
-			h := histogram.GetFast()
-			v = &quantilesStateValue{
-				h: h,
-			}
+			v = &quantilesStateValue{}
 			outputKey = bytesutil.InternString(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if loaded {
 				// Use the entry created by a concurrent goroutine.
-				histogram.PutFast(h)
 				v = vNew
 			}
 		}
@@ -52,7 +48,11 @@ func (as *quantilesAggrState) pushSamples(samples []pushSample) {
 		sv.mu.Lock()
 		deleted := sv.deleted
 		if !deleted {
-			sv.h.Update(s.value)
+			if sv.state[idx] == nil {
+				sv.state[idx] = histogram.GetFast()
+			}
+			sv.state[idx].Update(s.value)
+			sv.deleteDeadline = deleteDeadline
 		}
 		sv.mu.Unlock()
 		if deleted {
@@ -69,22 +69,33 @@ func (as *quantilesAggrState) flushState(ctx *flushCtx) {
 	var quantiles []float64
 	var b []byte
 	m.Range(func(k, v any) bool {
-		// Atomically delete the entry from the map, so new entry is created for the next flush.
-		m.Delete(k)
-
 		sv := v.(*quantilesStateValue)
 		sv.mu.Lock()
-		quantiles = sv.h.Quantiles(quantiles[:0], phis)
-		histogram.PutFast(sv.h)
-		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-		sv.deleted = true
-		sv.mu.Unlock()
 
-		key := k.(string)
-		for i, quantile := range quantiles {
-			b = strconv.AppendFloat(b[:0], phis[i], 'g', -1, 64)
-			phiStr := bytesutil.InternBytes(b)
-			ctx.appendSeriesWithExtraLabel(key, "quantiles", quantile, "quantile", phiStr)
+		// check for stale entries
+		deleted := ctx.flushTimestamp > sv.deleteDeadline
+		if deleted {
+			// Mark the current entry as deleted
+			sv.deleted = deleted
+			sv.mu.Unlock()
+			m.Delete(k)
+			return true
+		}
+		state := sv.state[ctx.idx]
+		quantiles = quantiles[:0]
+		if state != nil {
+			quantiles = state.Quantiles(quantiles[:0], phis)
+			histogram.PutFast(state)
+			state.Reset()
+		}
+		sv.mu.Unlock()
+		if len(quantiles) > 0 {
+			key := k.(string)
+			for i, quantile := range quantiles {
+				b = strconv.AppendFloat(b[:0], phis[i], 'g', -1, 64)
+				phiStr := bytesutil.InternBytes(b)
+				ctx.appendSeriesWithExtraLabel(key, "quantiles", quantile, "quantile", phiStr)
+			}
 		}
 		return true
 	})
