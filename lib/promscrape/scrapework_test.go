@@ -775,36 +775,7 @@ func parsePromRow(data string) *parser.Row {
 }
 
 func parseData(data string) []prompbmarshal.TimeSeries {
-	var rows parser.Rows
-	errLogger := func(s string) {
-		panic(fmt.Errorf("unexpected error when unmarshaling Prometheus rows: %s", s))
-	}
-	rows.UnmarshalWithErrLogger(data, errLogger)
-	var tss []prompbmarshal.TimeSeries
-	for _, r := range rows.Rows {
-		labels := []prompbmarshal.Label{
-			{
-				Name:  "__name__",
-				Value: r.Metric,
-			},
-		}
-		for _, tag := range r.Tags {
-			labels = append(labels, prompbmarshal.Label{
-				Name:  tag.Key,
-				Value: tag.Value,
-			})
-		}
-		var ts prompbmarshal.TimeSeries
-		ts.Labels = labels
-		ts.Samples = []prompbmarshal.Sample{
-			{
-				Value:     r.Value,
-				Timestamp: r.Timestamp,
-			},
-		}
-		tss = append(tss, ts)
-	}
-	return tss
+	return prompbmarshal.MustParsePromMetrics(data, 0)
 }
 
 func expectEqualTimeseries(tss, tssExpected []prompbmarshal.TimeSeries) error {
