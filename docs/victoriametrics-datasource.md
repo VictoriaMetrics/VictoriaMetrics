@@ -285,7 +285,7 @@ allow_loading_unsigned_plugins = victoriametrics-datasource
 
 In the project directory, you can run:
 
-```
+```sh
 # install dependencies
 yarn install
 
