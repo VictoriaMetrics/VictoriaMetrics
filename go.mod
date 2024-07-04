@@ -29,7 +29,7 @@ require (
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/valyala/gozstd v1.21.1
 	github.com/valyala/histogram v1.2.0
-	github.com/valyala/quicktemplate v1.7.0
+	github.com/valyala/quicktemplate v1.8.0
 	golang.org/x/oauth2 v0.21.0
 	golang.org/x/sys v0.21.0
 	google.golang.org/api v0.187.0
