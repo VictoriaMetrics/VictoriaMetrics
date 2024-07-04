@@ -42,7 +42,7 @@ and delimit them with `\n` char.
 VictoriaLogs automatically extracts the following [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 from the received Syslog lines:
 
-- [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) - log timestamp
+- [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) - log timestamp. See also [log timestamps](#log-timestamps)
 - [`_msg`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) - the `MESSAGE` field from the supported syslog formats above
 - `hostname`, `app_name` and `proc_id` - [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) for unique identification
   over every log stream
@@ -70,21 +70,42 @@ curl http://localhost:9428/select/logsql/query -d 'query=_time:5m'
 
 See also:
 
+- [Log timestamps](#log-timestamps)
 - [Security](#security)
 - [Compression](#compression)
 - [Multitenancy](#multitenancy)
 - [Data ingestion troubleshooting](https://docs.victoriametrics.com/victorialogs/data-ingestion/#troubleshooting).
 - [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
 
+## Log timestamps
+
+By default VictoriaLogs uses the timestamp from the parsed Syslog message as [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
+Sometimes the ingested Syslog messages may contain incorrect timestamps (for example, timestamps with incorrect timezone). In this case VictoriaLogs can be configured
+for using the log ingestion timestamp as [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field). This can be done by specifying
+`-syslog.useLocalTimestamp.tcp` command-line flag for the corresponding `-syslog.listenAddr.tcp` address:
+
+```sh
+./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.useLocalTimestamp.tcp
+```
+
+In this case the original timestamp from the Syslog message is stored in `timestamp` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+
+The `-syslog.useLocalTimestamp.udp` command-line flag can be used for instructing VictoriaLogs to use local timestamps for the ingested logs
+via the corresponding `-syslog.listenAddr.udp` address:
+
+```sh
+./victoria-logs -syslog.listenAddr.udp=:514 -syslog.useLocalTimestamp.udp
+```
+
 ## Security
 
 By default VictoriaLogs accepts plaintext data at `-syslog.listenAddr.tcp` address. Run VictoriaLogs with `-syslog.tls` command-line flag
 in order to accept TLS-encrypted logs at `-syslog.listenAddr.tcp` address. The `-syslog.tlsCertFile` and `-syslog.tlsKeyFile` command-line flags
 must be set to paths to TLS certificate file and TLS key file if `-syslog.tls` is set. For example, the following command
-starts VictoriaLogs, which accepts TLS-encrypted syslog messages at TCP port 514:
+starts VictoriaLogs, which accepts TLS-encrypted syslog messages at TCP port 6514:
 
 ```sh
-./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.tls -syslog.tlsCertFile=/path/to/tls/cert -syslog.tlsKeyFile=/path/to/tls/key
+./victoria-logs -syslog.listenAddr.tcp=:6514 -syslog.tls -syslog.tlsCertFile=/path/to/tls/cert -syslog.tlsKeyFile=/path/to/tls/key
 ```
 
 ## Compression
@@ -116,7 +137,7 @@ For example, the following command starts VictoriaLogs, which writes syslog mess
 
 ## Multiple configs
 
-VictoriaLogs can accept syslog messages via multiple TCP and UDP ports with individual configurations for [compression](#compression), [security](#security)
+VictoriaLogs can accept syslog messages via multiple TCP and UDP ports with individual configurations for [log timestamps](#log-timestamps), [compression](#compression), [security](#security)
 and [multitenancy](#multitenancy). Specify multiple command-line flags for this. For example, the following command starts VictoriaLogs,
 which accepts gzip-compressed syslog messages via TCP port 514 at localhost interface and stores them to [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) `123:0`,
 plus it accepts TLS-encrypted syslog messages via TCP port 6514 and stores them to [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) `567:0`:

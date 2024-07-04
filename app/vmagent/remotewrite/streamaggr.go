@@ -36,25 +36,27 @@ var (
 		"before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels")
 
 	// Per URL config
-	streamAggrConfig = flagutil.NewArrayString("remoteWrite.streamAggr.config", "Optional path to file with stream aggregation config. "+
+	streamAggrConfig = flagutil.NewArrayString("remoteWrite.streamAggr.config", "Optional path to file with stream aggregation config for the corresponding -remoteWrite.url. "+
 		"See https://docs.victoriametrics.com/stream-aggregation/ . "+
 		"See also -remoteWrite.streamAggr.keepInput, -remoteWrite.streamAggr.dropInput and -remoteWrite.streamAggr.dedupInterval")
 	streamAggrDropInput = flagutil.NewArrayBool("remoteWrite.streamAggr.dropInput", "Whether to drop all the input samples after the aggregation "+
-		"with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples "+
+		"with -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. By default, only aggregates samples are dropped, while the remaining samples "+
 		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation/")
 	streamAggrKeepInput = flagutil.NewArrayBool("remoteWrite.streamAggr.keepInput", "Whether to keep all the input samples after the aggregation "+
-		"with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples "+
+		"with -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. By default, only aggregates samples are dropped, while the remaining samples "+
 		"are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.dropInput and https://docs.victoriametrics.com/stream-aggregation/")
 	streamAggrDedupInterval = flagutil.NewArrayDuration("remoteWrite.streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval before optional aggregation "+
-		"with -remoteWrite.streamAggr.config . See also -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation/#deduplication")
+		"with -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. See also -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation/#deduplication")
 	streamAggrIgnoreOldSamples = flagutil.NewArrayBool("remoteWrite.streamAggr.ignoreOldSamples", "Whether to ignore input samples with old timestamps outside the current "+
-		"aggregation interval for the corresponding -remoteWrite.streamAggr.config . "+
+		"aggregation interval for the corresponding -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. "+
 		"See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples")
-	streamAggrIgnoreFirstIntervals = flag.Int("remoteWrite.streamAggr.ignoreFirstIntervals", 0, "Number of aggregation intervals to skip after the start. Increase this value if "+
-		"you observe incorrect aggregation results after vmagent restarts. It could be caused by receiving unordered delayed data from clients pushing data into the vmagent. "+
+	streamAggrIgnoreFirstIntervals = flag.Int("remoteWrite.streamAggr.ignoreFirstIntervals", 0, "Number of aggregation intervals to skip after the start "+
+		"for the corresponding -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. Increase this value if "+
+		"you observe incorrect aggregation results after vmagent restarts. It could be caused by receiving bufferred delayed data from clients pushing data into the vmagent. "+
 		"See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start")
 	streamAggrDropInputLabels = flagutil.NewArrayString("remoteWrite.streamAggr.dropInputLabels", "An optional list of labels to drop from samples "+
-		"before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels")
+		"before stream de-duplication and aggregation with -remoteWrite.streamAggr.config and -remoteWrite.streamAggr.dedupInterval at the corresponding -remoteWrite.url. "+
+		"See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels")
 )
 
 // CheckStreamAggrConfigs checks -remoteWrite.streamAggr.config and -streamAggr.config.
@@ -74,11 +76,6 @@ func CheckStreamAggrConfigs() error {
 		}
 	}
 	return nil
-}
-
-// HasAnyStreamAggrConfigured checks if any streaming aggregation config provided
-func HasAnyStreamAggrConfigured() bool {
-	return len(*streamAggrConfig) > 0 || *streamAggrGlobalConfig != ""
 }
 
 func reloadStreamAggrConfigs() {
@@ -125,28 +122,35 @@ func reloadStreamAggrConfig(idx int, pushFunc streamaggr.PushFunc) {
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_success_timestamp_seconds{path=%q}`, path)).Set(fasttime.UnixTimestamp())
 }
 
-func getStreamAggrOpts(idx int) (string, *streamaggr.Options) {
+func getStreamAggrOpts(idx int) (string, streamaggr.Options) {
 	if idx < 0 {
-		return *streamAggrGlobalConfig, &streamaggr.Options{
+		return *streamAggrGlobalConfig, streamaggr.Options{
 			DedupInterval:        streamAggrGlobalDedupInterval.Duration(),
 			DropInputLabels:      *streamAggrGlobalDropInputLabels,
 			IgnoreOldSamples:     *streamAggrGlobalIgnoreOldSamples,
 			IgnoreFirstIntervals: *streamAggrGlobalIgnoreFirstIntervals,
+			Alias:                "global",
 		}
+	}
+	url := fmt.Sprintf("%d:secret-url", idx+1)
+	if *showRemoteWriteURL {
+		url = fmt.Sprintf("%d:%s", idx+1, remoteWriteURLs.GetOptionalArg(idx))
 	}
 	opts := streamaggr.Options{
 		DedupInterval:        streamAggrDedupInterval.GetOptionalArg(idx),
 		DropInputLabels:      *streamAggrDropInputLabels,
 		IgnoreOldSamples:     streamAggrIgnoreOldSamples.GetOptionalArg(idx),
 		IgnoreFirstIntervals: *streamAggrIgnoreFirstIntervals,
+		Alias:                url,
 	}
+
 	if len(*streamAggrConfig) == 0 {
-		return "", &opts
+		return "", opts
 	}
-	return streamAggrConfig.GetOptionalArg(idx), &opts
+	return streamAggrConfig.GetOptionalArg(idx), opts
 }
 
-func newStreamAggrConfigWithOpts(pushFunc streamaggr.PushFunc, path string, opts *streamaggr.Options) (*streamaggr.Aggregators, error) {
+func newStreamAggrConfigWithOpts(pushFunc streamaggr.PushFunc, path string, opts streamaggr.Options) (*streamaggr.Aggregators, error) {
 	if len(path) == 0 {
 		// Skip empty stream aggregation config.
 		return nil, nil

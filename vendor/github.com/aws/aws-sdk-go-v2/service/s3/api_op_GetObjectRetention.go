@@ -88,6 +88,7 @@ type GetObjectRetentionInput struct {
 }
 
 func (in *GetObjectRetentionInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 
 }

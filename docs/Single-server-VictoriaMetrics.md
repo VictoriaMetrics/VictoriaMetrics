@@ -26,8 +26,7 @@ VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and t
 See [case studies for VictoriaMetrics](https://docs.victoriametrics.com/casestudies/).
 
 VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest),
-[Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), [Snap packages](https://snapcraft.io/victoriametrics)
-and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). 
+[Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). 
 
 Documentation for the cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/cluster-victoriametrics/).
 
@@ -97,7 +96,6 @@ VictoriaMetrics has the following prominent features:
   * [Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
   * [InfluxDB line protocol](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) over HTTP, TCP and UDP.
   * [Graphite plaintext protocol](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon).
-  * [Statsd plaintext protocol](#how-to-send-data-from-statsd-compatible-clients)
   * [OpenTSDB put message](#sending-data-via-telnet-put-protocol).
   * [HTTP OpenTSDB /api/put requests](#sending-opentsdb-data-via-http-apiput-requests).
   * [JSON line format](#how-to-import-data-in-json-line-format).
@@ -150,7 +148,6 @@ VictoriaMetrics can also be installed via these installation methods:
 * [Ansible role for installing cluster VictoriaMetrics (by VictoriaMetrics)](https://github.com/VictoriaMetrics/ansible-playbooks).
 * [Ansible role for installing cluster VictoriaMetrics (by community)](https://github.com/Slapper/ansible-victoriametrics-cluster-role).
 * [Ansible role for installing single-node VictoriaMetrics (by community)](https://github.com/dreamteam-gg/ansible-victoriametrics-role).
-* [Snap package for VictoriaMetrics](https://snapcraft.io/victoriametrics).
 
 ### How to start VictoriaMetrics
 
@@ -193,24 +190,7 @@ Additionally, all the VictoriaMetrics components allow setting flag values via e
 
 ### Configuration with snap package
 
-Snap package for VictoriaMetrics is available [here](https://snapcraft.io/victoriametrics).
-
-Command-line flags for Snap package can be set with following command:
-
-```sh
-echo 'FLAGS="-selfScrapeInterval=10s -search.logSlowQueryDuration=20s"' > $SNAP_DATA/var/snap/victoriametrics/current/extra_flags
-snap restart victoriametrics
-```
-
-Do not change value for `-storageDataPath` flag, because snap package has limited access to host filesystem.
-
-Changing scrape configuration is possible with text editor:
-
-```sh
-vi $SNAP_DATA/var/snap/victoriametrics/current/etc/victoriametrics-scrape-config.yaml
-```
-
-After changes were made, trigger config re-read with the command `curl 127.0.0.1:8428/-/reload`.
+Snap packages for VictoriaMetrics are supported by community and are available at [https://snapcraft.io/victoriametrics](https://snapcraft.io/victoriametrics).
 
 ### Running as Windows service
 
@@ -713,79 +693,6 @@ The `/api/v1/export` endpoint should return the following response:
 {"metric":{"__name__":"measurement_field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1695902762311]}
 ```
 
-## How to send data from StatsD-compatible clients
-
-VictoriaMetrics supports extended StatsD protocol. Currently, it supports `tags` and `value packing` 
-extensions provided by [dogstatsd](https://docs.datadoghq.com/developers/dogstatsd/datagram_shell). 
-During parsing, metric's `<TYPE>` is added as a special label `__statsd_metric_type__`. 
-
-It is strongly advisable to configure streaming aggregation for each metric type. This process serves two primary 
-objectives: 
-* transformation of the StatsD data model into the VictoriaMetrics data model. VictoriaMetrics requires a consistent 
-interval between data points. 
-* minimizing of the disk space utilization and overall resource consumption during data ingestion.
-
-VictoriaMetrics supports the following metric [types](https://docs.datadoghq.com/metrics/types):
-
-* `c` Counter type.
-* `g`  Gauge type.
-* `ms` Timer type.
-* `m` Meters type.
-* `h` Histogram type.
-* `s` Set type with only numeric values.
-* `d` Distribution type.
-
-_The `Not Assigned` type is not supported due to the ambiguity surrounding its aggregation method. 
-The correct aggregation method cannot be determined for the undefined metric._
-
-Enable Statsd receiver in VictoriaMetrics by setting `-statsdListenAddr` command line flag and configure [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/). 
-For instance, the following command will enable StatsD receiver in VictoriaMetrics on TCP and UDP port `8125`:
-
-```console
-/path/to/victoria-metrics-prod -statsdListenAddr=:8125 -streamAggr.config=statsd_aggr.yaml
-```
-
-Example of stream aggregation config:
-
-```yaml
-# statsd_aggr.yaml
-# `last` output will keep the last sample on `interval`
-# for each series that match `{__statsd_metric_type__="g"}` selector
-- match: '{__statsd_metric_type__="g"}'
-  outputs: [last]
-  interval: 1m
-```
-
-Example for writing data with StatsD plaintext protocol to local VictoriaMetrics using `nc`:
-
-```console
-echo "foo.bar:123|g|#tag1:baz" | nc -N localhost 8125
-```
-
-_An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go._
-
-Explicit setting of timestamps is not supported for StatsD protocol. Timestamp is set to the current time when 
-VictoriaMetrics or vmagent receives it.
-
-Once ingested, the data can be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
-
-```console
-curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"foo.*"}'
-```
-
-_Please note, with stream aggregation enabled data will become available only after specified aggregation interval._
-
-The `/api/v1/export` endpoint should return the following response:
-
-```json
-{"metric":{"__name__":"foo.bar:1m_last","__statsd_metric_type__":"g","tag1":"baz"},"values":[123],"timestamps":[1715843939000]}
-```
-
-Some examples of compatible statsd clients:
-- [statsd-instrument](https://github.com/Shopify/statsd-instrument)
-- [dogstatsd-ruby](https://github.com/DataDog/dogstatsd-ruby)
-- [go-statsd-client](https://github.com/cactus/go-statsd-client)
-
 ## How to send data from Graphite-compatible agents such as [StatsD](https://github.com/etsy/statsd)
 
 Enable Graphite receiver in VictoriaMetrics by setting `-graphiteListenAddr` command line flag. For instance,
@@ -803,6 +710,13 @@ Example for writing data with Graphite plaintext protocol to local VictoriaMetri
 ```sh
 echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N localhost 2003
 ```
+
+To sanitize ingested metric names and labels according to Prometheus naming convention enable
+`-graphite.sanitizeMetricName` cmd-line flag. When enabled, VictoriaMetrics will apply the following modifications:
+- replace `/`,`@`,`*` with `_`;
+- drop `\`;
+- remove redundant dots, e.g: `metric..name` => `metric.name`;
+- replace characters not matching the expression `^a-zA-Z0-9:._` with `_`.
 
 VictoriaMetrics sets the current time if the timestamp is omitted.
 An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
@@ -1216,7 +1130,7 @@ More details may be found [here](https://github.com/VictoriaMetrics/VictoriaMetr
 ## Setting up service
 
 Read [instructions](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/43) on how to set up VictoriaMetrics
-as a service for your OS. A [snap package](https://snapcraft.io/victoriametrics) is available for Ubuntu.
+as a service for your OS.
 
 ## How to work with snapshots
 
@@ -1441,7 +1355,6 @@ Additionally, VictoriaMetrics can accept metrics via the following popular data 
 * DataDog `submit metrics` API. See [these docs](#how-to-send-data-from-datadog-agent) for details.
 * InfluxDB line protocol. See [these docs](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for details.
 * Graphite plaintext protocol. See [these docs](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) for details.
-* Statsd plaintext protocol. See [these docs](#how-to-send-data-from-statsd-compatible-clients) for details.
 * OpenTelemetry http API. See [these docs](#sending-data-via-opentelemetry) for details.
 * OpenTSDB telnet put protocol. See [these docs](#sending-data-via-telnet-put-protocol) for details.
 * OpenTSDB http `/api/put` protocol. See [these docs](#sending-opentsdb-data-via-http-apiput-requests) for details.
@@ -2866,6 +2779,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Flag value can be read from the given file when using -forceMergeAuthKey=file:///abs/path/to/file or -forceMergeAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -forceMergeAuthKey=http://host/path or -forceMergeAuthKey=https://host/path
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
+  -graphite.sanitizeMetricName
+     Sanitize metric names for the ingested Graphite data. See https://docs.victoriametrics.com/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd
   -graphiteListenAddr string
      TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty. See also -graphiteListenAddr.useProxyProtocol
   -graphiteListenAddr.useProxyProtocol
@@ -3267,12 +3182,6 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 0)
   -sortLabels
      Whether to sort labels for incoming samples before writing them to storage. This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. Enabled sorting for labels can slow down ingestion performance a bit
-  -statsd.disableAggregationEnforcement
-    	Whether to disable streaming aggregation requirement check. It's recommended to run statsdServer with pre-configured streaming aggregation to decrease load at database.
-  -statsdListenAddr string
-    	TCP and UDP address to listen for Statsd plaintext data. Usually :8125 must be set. Doesn't work if empty. See also -statsdListenAddr.useProxyProtocol
-  -statsdListenAddr.useProxyProtocol
-    	Whether to use proxy protocol for connections accepted at -statsdListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
   -storage.cacheSizeIndexDBDataBlocks size
      Overrides max size for indexdb/dataBlocks cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)

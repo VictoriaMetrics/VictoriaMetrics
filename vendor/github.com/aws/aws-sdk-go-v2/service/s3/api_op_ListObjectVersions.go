@@ -123,6 +123,7 @@ type ListObjectVersionsInput struct {
 }
 
 func (in *ListObjectVersionsInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.Prefix = in.Prefix
 

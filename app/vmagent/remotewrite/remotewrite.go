@@ -211,7 +211,7 @@ func Init() {
 		}
 		sasGlobal.Store(sas)
 	} else if sasOpts.DedupInterval > 0 {
-		deduplicatorGlobal = streamaggr.NewDeduplicator(pushToRemoteStoragesDropFailed, sasOpts.DedupInterval, sasOpts.DropInputLabels)
+		deduplicatorGlobal = streamaggr.NewDeduplicator(pushToRemoteStoragesDropFailed, sasOpts.DedupInterval, sasOpts.DropInputLabels, sasOpts.Alias)
 	}
 
 	if len(*remoteWriteURLs) > 0 {
@@ -840,7 +840,7 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, sasFile)).Set(1)
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_success_timestamp_seconds{path=%q}`, sasFile)).Set(fasttime.UnixTimestamp())
 	} else if sasOpts.DedupInterval > 0 {
-		rwctx.deduplicator = streamaggr.NewDeduplicator(rwctx.pushInternalTrackDropped, sasOpts.DedupInterval, sasOpts.DropInputLabels)
+		rwctx.deduplicator = streamaggr.NewDeduplicator(rwctx.pushInternalTrackDropped, sasOpts.DedupInterval, sasOpts.DropInputLabels, sasOpts.Alias)
 	}
 
 	return rwctx
@@ -848,7 +848,7 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 
 func (rwctx *remoteWriteCtx) MustStop() {
 	// sas and deduplicator must be stopped before rwctx is closed
-	// because sas can write pending series to rwctx.pss if there are any
+	// because they can write pending series to rwctx.pss if there are any
 	sas := rwctx.sas.Swap(nil)
 	sas.MustStop()
 
@@ -875,12 +875,20 @@ func (rwctx *remoteWriteCtx) MustStop() {
 
 // TryPush sends tss series to the configured remote write endpoint
 //
-// TryPush can be called concurrently for multiple remoteWriteCtx,
-// so it shouldn't modify tss entries.
+// TryPush doesn't modify tss, so tss can be passed concurrently to TryPush across distinct rwctx instances.
 func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries, forceDropSamplesOnFailure bool) bool {
-	// Apply relabeling
 	var rctx *relabelCtx
 	var v *[]prompbmarshal.TimeSeries
+	defer func() {
+		if rctx == nil {
+			return
+		}
+		*v = prompbmarshal.ResetTimeSeries(tss)
+		tssPool.Put(v)
+		putRelabelCtx(rctx)
+	}()
+
+	// Apply relabeling
 	rcs := allRelabelConfigs.Load()
 	pcs := rcs.perURL[rwctx.idx]
 	if pcs.Len() > 0 {
@@ -916,28 +924,21 @@ func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries, forceDropSa
 		matchIdxsPool.Put(matchIdxs)
 	} else if rwctx.deduplicator != nil {
 		rwctx.deduplicator.Push(tss)
-		tss = tss[:0]
+		return true
 	}
 
-	// Try pushing the data to remote storage
-	ok := rwctx.tryPushInternal(tss)
-
-	// Return back relabeling contexts to the pool
-	if rctx != nil {
-		*v = prompbmarshal.ResetTimeSeries(tss)
-		tssPool.Put(v)
-		putRelabelCtx(rctx)
+	// Try pushing tss to remote storage
+	if rwctx.tryPushInternal(tss) {
+		return true
 	}
 
-	if !ok {
-		rwctx.pushFailures.Inc()
-		if forceDropSamplesOnFailure || rwctx.dropSamplesOnOverload {
-			rwctx.rowsDroppedOnPushFailure.Add(len(tss))
-			return true
-		}
+	// Couldn't push tss to remote storage
+	rwctx.pushFailures.Inc()
+	if forceDropSamplesOnFailure || rwctx.dropSamplesOnOverload {
+		rwctx.rowsDroppedOnPushFailure.Add(len(tss))
+		return true
 	}
-
-	return ok
+	return false
 }
 
 var matchIdxsPool bytesutil.ByteBufferPool
@@ -974,6 +975,15 @@ func (rwctx *remoteWriteCtx) pushInternalTrackDropped(tss []prompbmarshal.TimeSe
 func (rwctx *remoteWriteCtx) tryPushInternal(tss []prompbmarshal.TimeSeries) bool {
 	var rctx *relabelCtx
 	var v *[]prompbmarshal.TimeSeries
+	defer func() {
+		if rctx == nil {
+			return
+		}
+		*v = prompbmarshal.ResetTimeSeries(tss)
+		tssPool.Put(v)
+		putRelabelCtx(rctx)
+	}()
+
 	if len(labelsGlobal) > 0 {
 		// Make a copy of tss before adding extra labels in order to prevent
 		// from affecting time series for other remoteWrite.url configs.
@@ -986,15 +996,7 @@ func (rwctx *remoteWriteCtx) tryPushInternal(tss []prompbmarshal.TimeSeries) boo
 	pss := rwctx.pss
 	idx := rwctx.pssNextIdx.Add(1) % uint64(len(pss))
 
-	ok := pss[idx].TryPush(tss)
-
-	if rctx != nil {
-		*v = prompbmarshal.ResetTimeSeries(tss)
-		tssPool.Put(v)
-		putRelabelCtx(rctx)
-	}
-
-	return ok
+	return pss[idx].TryPush(tss)
 }
 
 var tssPool = &sync.Pool{

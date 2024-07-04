@@ -76,6 +76,7 @@ type GetBucketInventoryConfigurationInput struct {
 }
 
 func (in *GetBucketInventoryConfigurationInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }

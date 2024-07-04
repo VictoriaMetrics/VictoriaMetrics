@@ -37,9 +37,10 @@ var (
 
 // computeTokenProvider creates a [cloud.google.com/go/auth.TokenProvider] that
 // uses the metadata service to retrieve tokens.
-func computeTokenProvider(earlyExpiry time.Duration, scope ...string) auth.TokenProvider {
-	return auth.NewCachedTokenProvider(computeProvider{scopes: scope}, &auth.CachedTokenProviderOptions{
-		ExpireEarly: earlyExpiry,
+func computeTokenProvider(opts *DetectOptions) auth.TokenProvider {
+	return auth.NewCachedTokenProvider(computeProvider{scopes: opts.Scopes}, &auth.CachedTokenProviderOptions{
+		ExpireEarly:         opts.EarlyTokenRefresh,
+		DisableAsyncRefresh: opts.DisableAsyncRefresh,
 	})
 }
 

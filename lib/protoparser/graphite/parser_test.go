@@ -19,6 +19,8 @@ func TestUnmarshalMetricAndTagsFailure(t *testing.T) {
 }
 
 func TestUnmarshalMetricAndTagsSuccess(t *testing.T) {
+	sanitizeFlagValue := *sanitizeMetricName
+	*sanitizeMetricName = true
 	f := func(s string, rExpected *Row) {
 		t.Helper()
 		var r Row
@@ -31,10 +33,10 @@ func TestUnmarshalMetricAndTagsSuccess(t *testing.T) {
 		}
 	}
 	f(" ", &Row{
-		Metric: " ",
+		Metric: "_",
 	})
 	f("foo ;bar=baz", &Row{
-		Metric: "foo ",
+		Metric: "foo_",
 		Tags: []Tag{
 			{
 				Key:   "bar",
@@ -43,7 +45,7 @@ func TestUnmarshalMetricAndTagsSuccess(t *testing.T) {
 		},
 	})
 	f("f oo;bar=baz", &Row{
-		Metric: "f oo",
+		Metric: "f_oo",
 		Tags: []Tag{
 			{
 				Key:   "bar",
@@ -56,7 +58,7 @@ func TestUnmarshalMetricAndTagsSuccess(t *testing.T) {
 		Tags: []Tag{
 			{
 				Key:   "bar",
-				Value: "baz   ",
+				Value: "baz___",
 			},
 		},
 	})
@@ -65,7 +67,7 @@ func TestUnmarshalMetricAndTagsSuccess(t *testing.T) {
 		Tags: []Tag{
 			{
 				Key:   "bar",
-				Value: " baz",
+				Value: "_baz",
 			},
 		},
 	})
@@ -74,7 +76,7 @@ func TestUnmarshalMetricAndTagsSuccess(t *testing.T) {
 		Tags: []Tag{
 			{
 				Key:   "bar",
-				Value: "b az",
+				Value: "b_az",
 			},
 		},
 	})
@@ -82,7 +84,7 @@ func TestUnmarshalMetricAndTagsSuccess(t *testing.T) {
 		Metric: "foo",
 		Tags: []Tag{
 			{
-				Key:   "b ar",
+				Key:   "b_ar",
 				Value: "baz",
 			},
 		},
@@ -103,9 +105,25 @@ func TestUnmarshalMetricAndTagsSuccess(t *testing.T) {
 			},
 		},
 	})
+	f("foo..bar;bar=123;baz=aa=bb", &Row{
+		Metric: "foo.bar",
+		Tags: []Tag{
+			{
+				Key:   "bar",
+				Value: "123",
+			},
+			{
+				Key:   "baz",
+				Value: "aa=bb",
+			},
+		},
+	})
+	*sanitizeMetricName = sanitizeFlagValue
 }
 
 func TestRowsUnmarshalFailure(t *testing.T) {
+	sanitizeFlagValue := *sanitizeMetricName
+	*sanitizeMetricName = true
 	f := func(s string) {
 		t.Helper()
 		var rows Rows
@@ -129,9 +147,12 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 
 	// invalid timestamp
 	f("aa 123 bar")
+	*sanitizeMetricName = sanitizeFlagValue
 }
 
 func TestRowsUnmarshalSuccess(t *testing.T) {
+	sanitizeFlagValue := *sanitizeMetricName
+	*sanitizeMetricName = true
 	f := func(s string, rowsExpected *Rows) {
 		t.Helper()
 		var rows Rows
@@ -184,17 +205,17 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3102
 	f("s a;ta g1=aaa1;tag2=bb b2;tag3 1 23", &Rows{
 		Rows: []Row{{
-			Metric:    "s a",
+			Metric:    "s_a",
 			Value:     1,
 			Timestamp: 23,
 			Tags: []Tag{
 				{
-					Key:   "ta g1",
+					Key:   "ta_g1",
 					Value: "aaa1",
 				},
 				{
 					Key:   "tag2",
-					Value: "bb b2",
+					Value: "bb_b2",
 				},
 			},
 		}},
@@ -379,4 +400,5 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			Timestamp: 1789,
 		}},
 	})
+	*sanitizeMetricName = sanitizeFlagValue
 }
