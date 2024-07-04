@@ -919,8 +919,6 @@ func (s *Storage) MustClose() {
 	nextDayMetricIDs := s.nextDayMetricIDs.Load()
 	s.mustSaveNextDayMetricIDs(nextDayMetricIDs)
 
-	s.mustSaveNodeID()
-
 	// Release lock file.
 	fs.MustClose(s.flockF)
 	s.flockF = nil
