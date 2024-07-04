@@ -3,9 +3,10 @@ package logstorage
 import (
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
 	"unsafe"
+
+	"github.com/valyala/quicktemplate"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
@@ -228,10 +229,10 @@ func marshalJSONArray(items []string) string {
 	b := make([]byte, 0, bufSize)
 
 	b = append(b, '[')
-	b = strconv.AppendQuote(b, items[0])
+	b = quicktemplate.AppendJSONString(b, items[0], true)
 	for _, item := range items[1:] {
 		b = append(b, ',')
-		b = strconv.AppendQuote(b, item)
+		b = quicktemplate.AppendJSONString(b, item, true)
 	}
 	b = append(b, ']')
 
