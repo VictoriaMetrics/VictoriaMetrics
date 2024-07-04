@@ -78,11 +78,6 @@ func CheckStreamAggrConfigs() error {
 	return nil
 }
 
-// HasAnyStreamAggrConfigured checks if any streaming aggregation config provided
-func HasAnyStreamAggrConfigured() bool {
-	return len(*streamAggrConfig) > 0 || *streamAggrGlobalConfig != ""
-}
-
 func reloadStreamAggrConfigs() {
 	reloadStreamAggrConfig(-1, pushToRemoteStoragesDropFailed)
 	for idx, rwctx := range rwctxs {
