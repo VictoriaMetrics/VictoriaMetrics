@@ -30,9 +30,10 @@
     "makefile",
     "misc",
     "npm",
+    "people-names",
     "python",
-    "rust",
     "ru_RU",
+    "rust",
     "software-terms",
     "uk_UA",
     "win32"
@@ -79,8 +80,9 @@
     "/home/node/node_modules/@cspell/dict-fullstack/cspell-ext.json",
     "/home/node/node_modules/@cspell/dict-golang/cspell-ext.json",
     "/home/node/node_modules/@cspell/dict-k8s/cspell-ext.json",
-    "/home/node/node_modules/@cspell/dict-software-terms/cspell-ext.json",
+    "/home/node/node_modules/@cspell/dict-people-names/cspell-ext.json",
     "/home/node/node_modules/@cspell/dict-ru_ru/cspell-ext.json",
+    "/home/node/node_modules/@cspell/dict-software-terms/cspell-ext.json",
     "/home/node/node_modules/@cspell/dict-uk-ua/cspell-ext.json",
     "/home/node/node_modules/@cspell/dict-win32/cspell-ext.json"
   ],
