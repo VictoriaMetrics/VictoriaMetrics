@@ -1,5 +1,4 @@
 Aecio
-Alexey
 ampl
 Amz
 apiextensionsv
@@ -13,20 +12,14 @@ crds
 eeks
 Folz
 giv
-Hayashi
 jimmidyson
-Junya
 keyсoncepts
 metav
 MHI
-Milovidov
 nn
 otlpmetric
 otlpmetrichttp
-Pires
-Saarbrücken
 sgn
-Ulstein
 xzf
 ошиб
 vcpu
