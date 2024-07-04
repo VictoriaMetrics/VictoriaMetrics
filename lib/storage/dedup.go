@@ -103,9 +103,8 @@ func needsDedup(timestamps []int64, dedupInterval int64) bool {
 	if len(timestamps) < 2 || dedupInterval <= 0 {
 		return false
 	}
-	tsNext := timestamps[0] + dedupInterval
-	tsNext -= tsNext % dedupInterval
-	for _, ts := range timestamps[1:] {
+	tsNext := timestamps[0] - timestamps[0]%dedupInterval
+	for _, ts := range timestamps {
 		if ts < tsNext {
 			return true
 		}
