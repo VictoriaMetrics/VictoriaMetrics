@@ -646,7 +646,15 @@ logger = logging.getLogger(__name__)
 
 
 class CustomModel(Model):
-
+  """
+  Custom model implementation.
+  
+  by default, each `Model` will be created as a univariate one
+  uncomment line below for it to be of multivariate type
+  `is_multivariate = True`
+  
+  """
+  
   def __init__(self, percentage: float = 0.95, **kwargs):
     super().__init__(**kwargs)
     self.percentage = percentage
