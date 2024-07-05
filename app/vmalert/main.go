@@ -132,7 +132,7 @@ func main() {
 		validateTplFn = notifier.ValidateTemplates
 	}
 
-	if *replayFrom != "" || *replayTo != "" {
+	if *replayFrom != "" {
 		rw, err := remotewrite.Init(context.Background())
 		if err != nil {
 			logger.Fatalf("failed to init remoteWrite: %s", err)
