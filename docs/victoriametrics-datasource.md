@@ -1,7 +1,7 @@
 ---
 sort: 38
 weight: 38
-source: https://github.com/VictoriaMetrics/victoriametrics-datasource/blob/main/README.md
+editLink: https://github.com/VictoriaMetrics/victoriametrics-datasource/blob/main/README.md
 title: VictoriaMetrics datasource for Grafana
 menu:
   docs:
@@ -179,9 +179,9 @@ extraInitContainers:
        set -ex
        mkdir -p /var/lib/grafana/plugins/
        ver=$(curl -s https://api.github.com/repos/VictoriaMetrics/victoriametrics-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-       curl -L https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/$ver/victoriametrics-datasource-$ver.tar.gz -o /var/lib/grafana/plugins/plugin.tar.gz
-       tar -xf /var/lib/grafana/plugins/plugin.tar.gz -C /var/lib/grafana/plugins/
-       rm /var/lib/grafana/plugins/plugin.tar.gz
+       curl -L https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/$ver/victoriametrics-datasource-$ver.tar.gz -o /var/lib/grafana/plugins/vm-plugin.tar.gz
+       tar -xf /var/lib/grafana/plugins/vm-plugin.tar.gz -C /var/lib/grafana/plugins/
+       rm /var/lib/grafana/plugins/vm-plugin.tar.gz
     volumeMounts:
       # For grafana-operator users, change `name: storage` to `name: grafana-data`
       - name: storage
@@ -230,18 +230,18 @@ spec:
               command: [ "/bin/sh" ]
               workingDir: "/var/lib/grafana"
               securityContext:
-                runAsUser: 10001
+                runAsUser: 472
                 runAsNonRoot: true
-                runAsGroup: 10001
+                runAsGroup: 472
               args:
                 - "-c"
                 - |
                   set -ex
                   mkdir -p /var/lib/grafana/plugins/
                   ver=$(curl -s https://api.github.com/repos/VictoriaMetrics/victoriametrics-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-                  curl -L https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/$ver/victoriametrics-datasource-$ver.tar.gz -o /var/lib/grafana/plugins/plugin.tar.gz
-                  tar -xf /var/lib/grafana/plugins/plugin.tar.gz -C /var/lib/grafana/plugins/
-                  rm /var/lib/grafana/plugins/plugin.tar.gz
+                  curl -L https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/$ver/victoriametrics-datasource-$ver.tar.gz -o /var/lib/grafana/plugins/vm-plugin.tar.gz
+                  tar -xf /var/lib/grafana/plugins/vm-plugin.tar.gz -C /var/lib/grafana/plugins/
+                  rm /var/lib/grafana/plugins/vm-plugin.tar.gz
               volumeMounts:
                 - name: grafana-data
                   mountPath: /var/lib/grafana
@@ -259,9 +259,9 @@ This example uses init container to download and install plugin.
 
    ``` bash
    ver=$(curl -s https://api.github.com/repos/VictoriaMetrics/victoriametrics-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-   curl -L https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/$ver/victoriametrics-datasource-$ver.tar.gz -o /var/lib/grafana/plugins/plugin.tar.gz
-   tar -xf /var/lib/grafana/plugins/plugin.tar.gz -C /var/lib/grafana/plugins/
-   rm /var/lib/grafana/plugins/plugin.tar.gz
+   curl -L https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/$ver/victoriametrics-datasource-$ver.tar.gz -o /var/lib/grafana/plugins/vm-plugin.tar.gz
+   tar -xf /var/lib/grafana/plugins/vm-plugin.tar.gz -C /var/lib/grafana/plugins/
+   rm /var/lib/grafana/plugins/vm-plugin.tar.gz
    ```
 
 1. Restart Grafana
