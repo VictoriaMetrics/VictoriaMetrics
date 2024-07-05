@@ -34,7 +34,7 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
   }, [value, caretPosition]);
 
   const exprLastPart = useMemo(() => {
-    const regexpSplit = /or|and|unless|default|ifnot|if|group_left|group_right}|\+|\|-|\*|\/|\^/i;
+    const regexpSplit = /\s(or|and|unless|default|ifnot|if|group_left|group_right)\s|}|\+|\|-|\*|\/|\^/i;
     const parts = values.beforeCursor.split(regexpSplit);
     return parts[parts.length - 1];
   }, [values]);
@@ -192,6 +192,7 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
 
   return (
     <>
+      {metric}
       <Autocomplete
         loading={loading}
         disabledFullScreen
