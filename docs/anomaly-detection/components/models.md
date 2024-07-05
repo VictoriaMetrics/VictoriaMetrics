@@ -640,7 +640,7 @@ import pandas as pd
 import scipy.stats as st
 import logging
 
-from model.model import Modela
+from model.model import Model
 # from model.model import RollingModel  # inherit from it for your model to be of rolling type
 logger = logging.getLogger(__name__)
 
