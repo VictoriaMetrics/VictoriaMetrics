@@ -16,8 +16,8 @@ aliases:
 
 # VictoriaMetrics datasource for Grafana
 
-The [VictoriaMetrics](http://docs.victoriametrics.com/) datasource plugin allows you to query and visualize
-data from VictoriaMetrics in Grafana.
+The [VictoriaMetrics datasource plugin](https://github.com/VictoriaMetrics/victoriametrics-datasource) 
+allows to query and visualize data from VictoriaMetrics in Grafana. 
 
 * [Motivation](#motivation)
 * [Installation](#installation)
