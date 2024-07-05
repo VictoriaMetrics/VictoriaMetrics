@@ -705,8 +705,8 @@ To run vmalert in `replay` mode:
 ./bin/vmalert -rule=path/to/your.rules \        # path to files with rules you usually use with vmalert
     -datasource.url=http://localhost:8428 \     # Prometheus HTTP API compatible datasource
     -remoteWrite.url=http://localhost:8428 \    # remote write compatible storage to persist results
-    -replay.timeFrom=2021-05-11T07:21:43Z \     # time from begin replay
-    -replay.timeTo=2021-05-29T18:40:43Z         # time to finish replay
+    -replay.timeFrom=2021-05-11T07:21:43Z \     # to start replay from
+    -replay.timeTo=2021-05-29T18:40:43Z         # to finish replay by, is optional
 ```
 
 The output of the command will look like the following:
@@ -738,12 +738,12 @@ max range per request:  8h20m0s
 ```
 
 In `replay` mode all groups are executed sequentially one-by-one. Rules within the group are
-executed sequentially as well (`concurrency` setting is ignored). Vmalert sends rule's expression
+executed sequentially as well (`concurrency` setting is ignored). vmalert sends rule's expression
 to [/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query) endpoint
 of the configured `-datasource.url`. Returned data is then processed according to the rule type and
 backfilled to `-remoteWrite.url` via [remote Write protocol](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations).
-Vmalert respects `evaluationInterval` value set by flag or per-group during the replay.
-Vmalert automatically disables caching on VictoriaMetrics side by sending `nocache=1` param. It allows
+vmalert respects `evaluationInterval` value set by flag or per-group during the replay.
+vmalert automatically disables caching on VictoriaMetrics side by sending `nocache=1` param. It allows
 to prevent cache pollution and unwanted time range boundaries adjustment during backfilling.
 
 #### Recording rules
@@ -1376,9 +1376,9 @@ The shortlist of configuration flags is the following:
   -replay.rulesDelay duration
      Delay between rules evaluation within the group. Could be important if there are chained rules inside the group and processing need to wait for previous rule results to be persisted by remote storage before evaluating the next rule.Keep it equal or bigger than -remoteWrite.flushInterval. (default 1s)
   -replay.timeFrom string
-     The time filter in RFC3339 format to select time series with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'
+     The time filter in RFC3339 format to start the replay from. E.g. '2020-01-01T20:07:00Z'
   -replay.timeTo string
-     The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'. Default is current time.
+     The time filter in RFC3339 format to finish the replay by. E.g. '2020-01-01T20:07:00Z'. By default, is set to the current time.
   -rule array
      Path to the files or http url with alerting and/or recording rules.
      Supports hierarchical patterns and regexpes.
