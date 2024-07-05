@@ -629,7 +629,7 @@ In the `CustomModel` class, the following methods are required: - `__init__`, `f
 * `fit` method should contain the model training process. Please be aware that for `RollingModel` defining `fit` method is not needed, as the whole fit/infer process should be defined completely in `infer` method.
 * `infer` should return Pandas.DataFrame object with model's inferences.
 * `serialize` method that saves the model on disk.
-* `deserialize` load the saved model from disc.
+* `deserialize` load the saved model from disk.
 
 For the sake of simplicity, the model in this example will return one of two values of `anomaly_score` - 0 or 1 depending on input parameter `percentage`.
 
