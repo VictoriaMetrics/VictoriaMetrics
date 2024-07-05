@@ -313,7 +313,7 @@ type ScrapeConfig struct {
 	NomadSDConfigs        []nomad.SDConfig        `yaml:"nomad_sd_configs,omitempty"`
 	OpenStackSDConfigs    []openstack.SDConfig    `yaml:"openstack_sd_configs,omitempty"`
 	StaticConfigs         []StaticConfig          `yaml:"static_configs,omitempty"`
-	VultrConfigs          []vultr.SDConfig        `yaml:"vultr_configs,omitempty"`
+	VultrSDConfigs        []vultr.SDConfig        `yaml:"vultr_configs,omitempty"`
 	YandexCloudSDConfigs  []yandexcloud.SDConfig  `yaml:"yandexcloud_sd_configs,omitempty"`
 
 	// These options are supported only by lib/promscrape.
@@ -394,8 +394,11 @@ func (sc *ScrapeConfig) mustStop() {
 	for i := range sc.OpenStackSDConfigs {
 		sc.OpenStackSDConfigs[i].MustStop()
 	}
-	for i := range sc.VultrConfigs {
-		sc.VultrConfigs[i].MustStop()
+	for i := range sc.VultrSDConfigs {
+		sc.VultrSDConfigs[i].MustStop()
+	}
+	for i := range sc.YandexCloudSDConfigs {
+		sc.YandexCloudSDConfigs[i].MustStop()
 	}
 }
 
@@ -757,8 +760,8 @@ func (cfg *Config) getOpenStackSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 // getVultrSDScrapeWork returns `vultr_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getVultrSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
-		for i := range sc.VultrConfigs {
-			visitor(&sc.VultrConfigs[i])
+		for i := range sc.VultrSDConfigs {
+			visitor(&sc.VultrSDConfigs[i])
 		}
 	}
 	return cfg.getScrapeWorkGeneric(visitConfigs, "vultr_sd_config", prev)
