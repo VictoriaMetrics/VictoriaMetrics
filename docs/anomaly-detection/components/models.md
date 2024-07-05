@@ -617,7 +617,7 @@ Here in this guide, we will
 > **Note**: By default, each custom model is created as [**univariate**](#univariate-models) / [**non-rolling**](#non-rolling-models) model. If you want to override this behavior, define models inherited from `RollingModel` (to get a rolling model), or having `is_multivariate` class arg set to `True` (please refer to the code example below).
 
 We'll create `custom_model.py` file with `CustomModel` class that will inherit from `vmanomaly`'s `Model` base class.
-In the `CustomModel` class there should be three required methods - `__init__`, `fit`, `infer`, `serialize` and `deserialize`:
+In the `CustomModel` class there should be following required methods - `__init__`, `fit`, `infer`, `serialize` and `deserialize`:
 * `__init__` method should initiate parameters for the model.
 
   **Note**: if your model relies on configs that have `arg` [key-value pair argument](./models.md#section-overview), do not forget to use Python's `**kwargs` in method's signature and to explicitly call
@@ -628,8 +628,8 @@ In the `CustomModel` class there should be three required methods - `__init__`, 
   to initialize the base class each model derives from
 * `fit` method should contain the model training process. Please be aware that for `RollingModel` defining `fit` method is not needed, as the whole fit/infer process should be defined completely in `infer` method.
 * `infer` should return Pandas.DataFrame object with model's inferences.
-* `serialize` method that saves the model.
-* `deserialize` load the saved model.
+* `serialize` method that saves the model on disk.
+* `deserialize` load the saved model from disc.
 
 For the sake of simplicity, the model in this example will return one of two values of `anomaly_score` - 0 or 1 depending on input parameter `percentage`.
 
@@ -639,8 +639,13 @@ import numpy as np
 import pandas as pd
 import scipy.stats as st
 import logging
+from pickle import dumps
 
-from model.model import Model
+from model.model import (
+  PICKLE_PROTOCOL,
+  Model,
+  deserialize_basic
+)
 # from model.model import RollingModel  # inherit from it for your model to be of rolling type
 logger = logging.getLogger(__name__)
 
@@ -648,12 +653,10 @@ logger = logging.getLogger(__name__)
 class CustomModel(Model):
   """
   Custom model implementation.
-  
-  by default, each `Model` will be created as a univariate one
-  uncomment line below for it to be of multivariate type
-  `is_multivariate = True`
-  
   """
+  # by default, each `Model` will be created as a univariate one
+  # uncomment line below for it to be of multivariate type
+  #`is_multivariate = True`
   
   def __init__(self, percentage: float = 0.95, **kwargs):
     super().__init__(**kwargs)
@@ -680,12 +683,12 @@ class CustomModel(Model):
 
     return df_pred
 
-  def serialize(self) -> None:
-    pass
-  
-  @staticmethod
-  def deserialize(model: str | bytes) -> 'CustomModel':
-    pass 
+    def serialize(self) -> None:
+      return dumps(self, protocol=PICKLE_PROTOCOL)
+
+    @staticmethod
+    def deserialize(model: str | bytes) -> 'CustomModel':
+      return deserialize_basic(model)
 ```
 
 
