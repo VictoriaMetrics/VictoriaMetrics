@@ -283,7 +283,7 @@ func (sn *storageNode) checkHealth() {
 		}
 		return
 	}
-	logger.Infof("successfully dialed -storageNode=%q", sn.dialer.Addr())
+	logger.Infof("successfully dialed -storageNode=%q (node ID: %d)", sn.dialer.Addr(), sn.id.Load())
 	sn.lastDialErr = nil
 	sn.bc = bc
 	sn.isBroken.Store(false)
@@ -419,7 +419,7 @@ func (sn *storageNode) getID() uint64 {
 		sn.checkHealth()
 	}
 
-	// If the id is still not populated after checkHealth than storage node is not reachable
+	// If the id is still not populated after checkHealth then storage node is not reachable
 	// build a unique id based on the address
 	if sn.id.Load() == 0 {
 		id := xxhash.Sum64String(sn.dialer.Addr())
