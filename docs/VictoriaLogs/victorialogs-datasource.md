@@ -1,7 +1,7 @@
 ---
 weight: 9
 title: VictoriaLogs datasource for Grafana
-source: https://github.com/VictoriaMetrics/victorialogs-datasource/blob/main/README.md
+editLink: https://github.com/VictoriaMetrics/victorialogs-datasource/blob/main/README.md
 menu:
   docs:
     parent: victorialogs
