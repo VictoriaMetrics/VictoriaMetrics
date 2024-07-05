@@ -1,7 +1,7 @@
 ---
 sort: 38
 weight: 38
-source: https://github.com/VictoriaMetrics/victoriametrics-datasource/blob/main/README.md
+editLink: https://github.com/VictoriaMetrics/victoriametrics-datasource/blob/main/README.md
 title: VictoriaMetrics datasource for Grafana
 menu:
   docs:
