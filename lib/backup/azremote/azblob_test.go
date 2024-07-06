@@ -89,7 +89,7 @@ func Test_FSInit(t *testing.T) {
 				envStorageAcctName: "test",
 				envStorageAccKey:   "dGVhcG90Cg==",
 			},
-			ExpectedErr: errNoCredentials,
+			ExpectedErr: errInvalidCredentials,
 		},
 		"just use default is an err": {
 			Env: map[string]string{

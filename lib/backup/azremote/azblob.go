@@ -42,6 +42,14 @@ var (
 		envStorageAcctName,
 		envStorageDefault,
 	)
+
+	errInvalidCredentials = fmt.Errorf("failed to process credentials, only one of %s, %s and %s, or %s and %s can be specified",
+		envStorageAccCs,
+		envStorageAcctName,
+		envStorageAccKey,
+		envStorageAcctName,
+		envStorageDefault,
+	)
 )
 
 // FS represents filesystem for backups in Azure Blob Storage.
@@ -91,8 +99,7 @@ func (fs *FS) Init() error {
 	switch {
 	// can't specify any combination of more than one credential
 	case moreThanOne(hasConnString, (hasAccountName && hasAccountKey), (useDefault == "true" && hasAccountName)):
-		logger.Errorf("only one of connection string, account name and key, or default credential can be specified")
-		return errNoCredentials
+		return errInvalidCredentials
 	case hasConnString:
 		logger.Infof("Creating AZBlob service client from connection string")
 		sc, err = service.NewClientFromConnectionString(connString, nil)
