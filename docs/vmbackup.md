@@ -210,6 +210,7 @@ Obtaining credentials from env variables.
    - `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`: Use a specific account name and key (either primary or secondary).
    - `AZURE_STORAGE_ACCOUNT_CONNECTION_STRING`: Use a connection string (must be either SAS Token or Account/Key)
    - `AZURE_USE_DEFAULT_CREDENTIAL` and `AZURE_STORAGE_ACCOUNT_NAME`: Use the `DefaultAzureCredential` to allow the azure library to search multiple options (for example, managed identity related variables).
+   - `AZURE_STORAGE_DOMAIN`: Optionally override the default blob domain for the Azure storage service.
 
 Please, note that `vmbackup` will use credentials provided by cloud providers metadata service [when applicable](https://docs.victoriametrics.com/vmbackup/#using-cloud-providers-metadata-service).
 
