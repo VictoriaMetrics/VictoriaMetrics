@@ -9,7 +9,7 @@ CERTS_IMAGE := alpine:3.20.0
 GO_BUILDER_IMAGE := golang:1.22.3-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
-DOCKER ?= podman
+DOCKER ?= docker
 DOCKER_RUN ?= $(DOCKER) run
 DOCKER_BUILD ?= $(DOCKER) build
 DOCKER_COMPOSE ?= $(DOCKER) compose
@@ -83,9 +83,9 @@ publish-via-docker:
 		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE) \
 		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE) \
 		-f app/$(APP_NAME)/multiarch/Dockerfile \
+		-o type=image \
+		--load \
 		bin/$(APP_NAME)
-	$(DOCKER) push $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)
-	$(DOCKER) push $(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE)
 
 run-via-docker: package-via-docker
 	$(DOCKER_RUN) -it --rm \
