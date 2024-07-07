@@ -3,6 +3,7 @@ package prometheus
 import (
 	"flag"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/config"
 	"github.com/VictoriaMetrics/metricsql"
 	"math"
 	"net"
@@ -809,6 +810,9 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 	if len(query) > maxQueryLen.IntN() {
 		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxQueryLen.N)
 	}
+	if config.IsQueryBlocked(query) {
+		return config.ErrBlockedQuery
+	}
 	etfs, err := searchutils.GetExtraTagFilters(r)
 	if err != nil {
 		return err
@@ -979,6 +983,9 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	// Validate input args.
 	if len(query) > maxQueryLen.IntN() {
 		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxQueryLen.N)
+	}
+	if config.IsQueryBlocked(query) {
+		return config.ErrBlockedQuery
 	}
 	if start > end {
 		end = start + defaultStep
