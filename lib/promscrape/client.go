@@ -18,8 +18,6 @@ import (
 )
 
 var (
-	maxScrapeSize = flagutil.NewBytes("promscrape.maxScrapeSize", 16*1024*1024, "The maximum size of scrape response in bytes to process from Prometheus targets. "+
-		"Bigger responses are rejected")
 	maxResponseHeadersSize = flagutil.NewBytes("promscrape.maxResponseHeadersSize", 4096, "The maximum size of http response headers from Prometheus scrape targets")
 	disableCompression     = flag.Bool("promscrape.disableCompression", false, "Whether to disable sending 'Accept-Encoding: gzip' request headers to all the scrape targets. "+
 		"This may reduce CPU usage on scrape targets at the cost of higher network bandwidth utilization. "+
@@ -31,7 +29,6 @@ var (
 	streamParse = flag.Bool("promscrape.streamParse", false, "Whether to enable stream parsing for metrics obtained from scrape targets. This may be useful "+
 		"for reducing memory usage when millions of metrics are exposed per each scrape target. "+
 		"It is possible to set 'stream_parse: true' individually per each 'scrape_config' section in '-promscrape.config' for fine-grained control")
-	scrapeExemplars = flag.Bool("promscrape.scrapeExemplars", false, "Whether to enable scraping of exemplars from scrape targets.")
 )
 
 type client struct {
@@ -41,6 +38,7 @@ type client struct {
 	scrapeTimeoutSecondsStr string
 	setHeaders              func(req *http.Request) error
 	setProxyHeaders         func(req *http.Request) error
+	maxScrapeSize           int64
 }
 
 func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
@@ -91,6 +89,7 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 		scrapeTimeoutSecondsStr: fmt.Sprintf("%.3f", sw.ScrapeTimeout.Seconds()),
 		setHeaders:              setHeaders,
 		setProxyHeaders:         setProxyHeaders,
+		maxScrapeSize:           sw.MaxScrapeSize,
 	}
 	return c, nil
 }
@@ -109,12 +108,6 @@ func (c *client) ReadData(dst *bytesutil.ByteBuffer) error {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/608 for details.
 	// Do not bloat the `Accept` header with OpenMetrics shit, since it looks like dead standard now.
 	req.Header.Set("Accept", "text/plain;version=0.0.4;q=1,*/*;q=0.1")
-	// We set to support exemplars to be compatible with Prometheus Exposition format which uses
-	// Open Metrics Specification
-	// See https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#openmetrics-text-format
-	if *scrapeExemplars {
-		req.Header.Set("Accept", "application/openmetrics-text")
-	}
 	// Set X-Prometheus-Scrape-Timeout-Seconds like Prometheus does, since it is used by some exporters such as PushProx.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1179#issuecomment-813117162
 	req.Header.Set("X-Prometheus-Scrape-Timeout-Seconds", c.scrapeTimeoutSecondsStr)
@@ -149,7 +142,7 @@ func (c *client) ReadData(dst *bytesutil.ByteBuffer) error {
 	// Read the data from resp.Body
 	r := &io.LimitedReader{
 		R: resp.Body,
-		N: maxScrapeSize.N,
+		N: c.maxScrapeSize,
 	}
 	_, err = dst.ReadFrom(r)
 	_ = resp.Body.Close()
@@ -160,10 +153,11 @@ func (c *client) ReadData(dst *bytesutil.ByteBuffer) error {
 		}
 		return fmt.Errorf("cannot read data from %s: %w", c.scrapeURL, err)
 	}
-	if int64(len(dst.B)) >= maxScrapeSize.N {
+	if int64(len(dst.B)) >= c.maxScrapeSize {
 		maxScrapeSizeExceeded.Inc()
-		return fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize=%d; "+
-			"either reduce the response size for the target or increase -promscrape.maxScrapeSize command-line flag value", c.scrapeURL, maxScrapeSize.N)
+		return fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize=%d or max_scrape_size in a scrape config. "+
+			"Possible solutions are: reduce the response size for the target, increase -promscrape.maxScrapeSize command-line flag, "+
+			"increase max_scrape_size value in scrape config", c.scrapeURL, maxScrapeSize.N)
 	}
 	return nil
 }

@@ -2,7 +2,8 @@ package logstorage
 
 import (
 	"fmt"
-	"strconv"
+
+	"github.com/valyala/quicktemplate"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -58,13 +59,60 @@ func (f *Field) unmarshal(a *arena, src []byte) ([]byte, error) {
 }
 
 func (f *Field) marshalToJSON(dst []byte) []byte {
-	dst = strconv.AppendQuote(dst, f.Name)
+	name := f.Name
+	if name == "" {
+		name = "_msg"
+	}
+	dst = quicktemplate.AppendJSONString(dst, name, true)
 	dst = append(dst, ':')
-	dst = strconv.AppendQuote(dst, f.Value)
+	dst = quicktemplate.AppendJSONString(dst, f.Value, true)
 	return dst
 }
 
-// MarshalFieldsToJSON appends JSON-marshaled fields to dt and returns the result.
+func (f *Field) marshalToLogfmt(dst []byte) []byte {
+	dst = append(dst, f.Name...)
+	dst = append(dst, '=')
+	if needLogfmtQuoting(f.Value) {
+		dst = quicktemplate.AppendJSONString(dst, f.Value, true)
+	} else {
+		dst = append(dst, f.Value...)
+	}
+	return dst
+}
+
+func getFieldValue(fields []Field, name string) string {
+	for _, f := range fields {
+		if f.Name == name {
+			return f.Value
+		}
+	}
+	return ""
+}
+
+func needLogfmtQuoting(s string) bool {
+	for _, c := range s {
+		if !isTokenRune(c) {
+			return true
+		}
+	}
+	return false
+}
+
+// RenameField renames field with the oldName to newName in Fields
+func RenameField(fields []Field, oldName, newName string) {
+	if oldName == "" {
+		return
+	}
+	for i := range fields {
+		f := &fields[i]
+		if f.Name == oldName {
+			f.Name = newName
+			return
+		}
+	}
+}
+
+// MarshalFieldsToJSON appends JSON-marshaled fields to dst and returns the result.
 func MarshalFieldsToJSON(dst []byte, fields []Field) []byte {
 	dst = append(dst, '{')
 	if len(fields) > 0 {
@@ -76,6 +124,20 @@ func MarshalFieldsToJSON(dst []byte, fields []Field) []byte {
 		}
 	}
 	dst = append(dst, '}')
+	return dst
+}
+
+// MarshalFieldsToLogfmt appends logfmt-marshaled fields to dst and returns the result.
+func MarshalFieldsToLogfmt(dst []byte, fields []Field) []byte {
+	if len(fields) == 0 {
+		return dst
+	}
+	dst = fields[0].marshalToLogfmt(dst)
+	fields = fields[1:]
+	for i := range fields {
+		dst = append(dst, ' ')
+		dst = fields[i].marshalToLogfmt(dst)
+	}
 	return dst
 }
 

@@ -36,7 +36,8 @@ _time:5m | sort by (_time desc) | limit 10
 
 See also:
 
-- [How to count the number of matching logs](#how-to-count-the-number-of-matching-logs)
+- [How to count the number of matching logs?](#how-to-count-the-number-of-matching-logs)
+- [How to return last N logs for the given query?](#how-to-return-last-n-logs-for-the-given-query)
 
 ## How to select logs with the given word in log message?
 
@@ -88,7 +89,7 @@ See also:
 Use [`NOT` logical filter](https://docs.victoriametrics.com/victorialogs/logsql/#logical-filter). For example, the following query returns all the logs
 without the `INFO` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) in the [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 
-```logsq
+```logsql
 !INFO
 ```
 
@@ -285,6 +286,12 @@ This query uses the following [LogsQL](https://docs.victoriametrics.com/victoria
 - [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe) for sorting the stats by `logs` field in descending order.
 - [`limit` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe) for limiting the number of returned results to 10.
 
+This query can be simplified into the following one, which uses [`top` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe):
+
+```logsql
+_time:5m | top 10 by (_stream)
+```
+
 See also:
 
 - [How to filter out data after stats calculation?](#how-to-filter-out-data-after-stats-calculation)
@@ -338,13 +345,35 @@ _time:5m | stats by (_stream) count() rows | filter rows:>1000
 Use [`stats` by time bucket](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-time-buckets). For example, the following query
 returns per-hour number of logs with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) for the last day:
 
-```logsq
+```logsql
 _time:1d error | stats by (_time:1h) count() rows | sort by (_time)
 ```
 
 This query uses [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe) in order to sort per-hour stats
 by [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
 
+## How to calculate the number of logs per IPv4 subnetwork?
+
+Use [`stats` by IPv4 bucket](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-ipv4-buckets). For example, the following
+query returns top 10 `/24` subnetworks with the biggest number of logs for the last 5 minutes:
+
+```logsql
+_time:5m | stats by (ip:/24) count() rows | sort by (rows desc) limit 10
+```
+
+This query uses [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe) in order to sort per-subnetwork stats
+by descending number of rows and limiting the result to top 10 rows.
+
+The query assumes the original logs have `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with the IPv4 address.
+If the IPv4 address is located inside [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) or any other text field,
+then it can be extracted with the [`extract`](https://docs.victoriametrics.com/victorialogs/logsql/#extract-pipe)
+or [`extract_regexp`](https://docs.victoriametrics.com/victorialogs/logsql/#extract_regexp-pipe) pipes. For example, the following query
+extracts IPv4 address from [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) and then returns top 10
+`/16` subnetworks with the biggest number of logs for the last 5 minutes:
+
+```logsql
+_time:5m | extract_regexp "(?P<ip>([0-9]+[.]){3}[0-9]+)" | stats by (ip:/16) count() rows | sort by (rows desc) limit 10
+```
 
 ## How to calculate the number of logs per every value of the given field?
 
@@ -397,4 +426,59 @@ can be passed to it in order to return up to `N` latest log entries. For example
 
 ```sh
 curl http://localhost:9428/select/logsql/query -d 'query=error' -d 'limit=10'
+```
+
+See also:
+
+- [How to select recently ingested logs?](#how-to-select-recently-ingested-logs)
+- [How to return last N logs for the given query?](#how-to-return-last-n-logs-for-the-given-query)
+
+
+## How to calculate the share of error logs to the total number of logs?
+
+Use the following query:
+
+```logsql
+_time:5m | stats count() logs, count() if (error) errors | math errors / logs
+```
+
+This query uses the following [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) features:
+
+- [`_time` filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter) for selecting logs on the given time range (last 5 minutes in the query above).
+- [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) with [additional filtering](https://docs.victoriametrics.com/victorialogs/logsql/#stats-with-additional-filters)
+  for calculating the total number of logs and the number of logs with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) on the selected time range.
+- [`math` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#math-pipe) for calculating the share of logs with `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word)
+  comparing to the total number of logs.
+
+
+## How to select logs for working hours and weekdays?
+
+Use [`day_range`](https://docs.victoriametrics.com/victorialogs/logsql/#day-range-filter) and [`week_range`](https://docs.victoriametrics.com/victorialogs/logsql/#week-range-filter) filters.
+For example, the following query selects logs from Monday to Friday in working hours `[08:00 - 18:00]` over the last 4 weeks:
+
+```logsql
+_time:4w _time:week_range[Mon, Fri] _time:day_range[08:00, 18:00)
+```
+
+It uses implicit [`AND` logical filter](https://docs.victoriametrics.com/victorialogs/logsql/#logical-filter) for joining multiple filters
+on [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
+
+## How to find logs with the given phrase containing whitespace?
+
+Use [`phrase filter`](https://docs.victoriametrics.com/victorialogs/logsql/#phrase-filter). For example, the following [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/)
+returns logs with the `cannot open file` phrase over the last 5 minutes:
+
+
+```logsql
+_time:5m "cannot open file"
+```
+
+## How to select all the logs for a particular stacktrace or panic?
+
+Use [`stream_context` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe) for selecting surrounding logs for the given log.
+For example, the following query selects up to 10 logs in front of every log message containing the `stacktrace` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word),
+plus up to 100 logs after the given log message:
+
+```logsql
+_time:5m stacktrace | stream_context before 10 after 100
 ```

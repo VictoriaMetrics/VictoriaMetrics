@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "preact/compat";
-import { StateUpdater } from "preact/hooks";
+import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useState } from "preact/compat";
 import { getQueryRangeUrl, getQueryUrl } from "../api/query-range";
 import { useAppState } from "../state/common/StateContext";
 import { InstantMetricResult, MetricBase, MetricResult, QueryStats } from "../api/types";
@@ -12,7 +11,7 @@ import { useTimeState } from "../state/time/TimeStateContext";
 import { useCustomPanelState } from "../state/customPanel/CustomPanelStateContext";
 import { isHistogramData } from "../utils/metric";
 import { useGraphState } from "../state/graph/GraphStateContext";
-import { getSecondsFromDuration, getStepFromDuration } from "../utils/time";
+import { getStepFromDuration } from "../utils/time";
 import { AppType } from "../types/appType";
 
 interface FetchQueryParams {
@@ -31,7 +30,7 @@ interface FetchQueryReturn {
   liveData?: InstantMetricResult[],
   error?: ErrorTypes | string,
   queryErrors: (ErrorTypes | string)[],
-  setQueryErrors: StateUpdater<string[]>,
+  setQueryErrors: Dispatch<SetStateAction<string[]>>,
   queryStats: QueryStats[],
   warning?: string,
   traces?: Trace[],
@@ -183,7 +182,7 @@ export const useFetchQuery = ({
       setQueryErrors(expr.map(() => ErrorTypes.validQuery));
     } else if (isValidHttpUrl(serverUrl)) {
       const updatedPeriod = { ...period };
-      updatedPeriod.step = isAnomalyUI ? `${getSecondsFromDuration(customStep)*1000}ms` : customStep;
+      updatedPeriod.step = customStep;
       return expr.map(q => displayChart
         ? getQueryRangeUrl(serverUrl, q, updatedPeriod, nocache, isTracingEnabled)
         : getQueryUrl(serverUrl, q, updatedPeriod, nocache, isTracingEnabled));

@@ -1,5 +1,5 @@
-import React, { FC, useState } from "preact/compat";
-import { DisplayType, ErrorTypes, SeriesLimits } from "../../../../types";
+import React, { forwardRef, useCallback, useImperativeHandle, useState } from "preact/compat";
+import { DisplayType, ErrorTypes } from "../../../../types";
 import TextField from "../../../Main/TextField/TextField";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
 import { InfoIcon, RestartIcon } from "../../../Main/Icons";
@@ -8,11 +8,11 @@ import { DEFAULT_MAX_SERIES } from "../../../../constants/graph";
 import "./style.scss";
 import classNames from "classnames";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
+import { ChildComponentHandle } from "../GlobalSettings";
+import { useCustomPanelDispatch, useCustomPanelState } from "../../../../state/customPanel/CustomPanelStateContext";
 
-export interface ServerConfiguratorProps {
-  limits: SeriesLimits
-  onChange: (limits: SeriesLimits) => void
-  onEnter: () => void
+interface ServerConfiguratorProps {
+  onClose: () => void
 }
 
 const fields: {label: string, type: DisplayType}[] = [
@@ -21,31 +21,38 @@ const fields: {label: string, type: DisplayType}[] = [
   { label: "Table", type: DisplayType.table }
 ];
 
-const LimitsConfigurator: FC<ServerConfiguratorProps> = ({ limits, onChange , onEnter }) => {
+const LimitsConfigurator = forwardRef<ChildComponentHandle, ServerConfiguratorProps>(({ onClose }, ref) => {
   const { isMobile } = useDeviceDetect();
 
+  const { seriesLimits } = useCustomPanelState();
+  const customPanelDispatch = useCustomPanelDispatch();
+
+  const [limits, setLimits] = useState(seriesLimits);
   const [error, setError] = useState({
     table: "",
     chart: "",
     code: ""
   });
 
-  const handleChange = (val: string, type: DisplayType) => {
+  const handleReset = () => {
+    setLimits(DEFAULT_MAX_SERIES);
+  };
+
+  const createChangeHandler = (type: DisplayType) =>  (val: string) => {
     const value = val || "";
     setError(prev => ({ ...prev, [type]: +value < 0 ? ErrorTypes.positiveNumber : "" }));
-    onChange({
+    setLimits({
       ...limits,
       [type]: !value ? Infinity : value
     });
   };
 
-  const handleReset = () => {
-    onChange(DEFAULT_MAX_SERIES);
-  };
+  const handleApply = useCallback(() => {
+    customPanelDispatch({ type: "SET_SERIES_LIMITS", payload: limits });
+    onClose();
+  }, [limits]);
 
-  const createChangeHandler = (type: DisplayType) =>  (val: string) => {
-    handleChange(val, type);
-  };
+  useImperativeHandle(ref, () => ({ handleApply }), [handleApply]);
 
   return (
     <div className="vm-limits-configurator">
@@ -84,7 +91,7 @@ const LimitsConfigurator: FC<ServerConfiguratorProps> = ({ limits, onChange , on
               value={limits[f.type]}
               error={error[f.type]}
               onChange={createChangeHandler(f.type)}
-              onEnter={onEnter}
+              onEnter={handleApply}
               type="number"
             />
           </div>
@@ -92,6 +99,6 @@ const LimitsConfigurator: FC<ServerConfiguratorProps> = ({ limits, onChange , on
       </div>
     </div>
   );
-};
+});
 
 export default LimitsConfigurator;

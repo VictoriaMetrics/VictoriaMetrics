@@ -408,6 +408,7 @@ type GetObjectInput struct {
 }
 
 func (in *GetObjectInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.Key = in.Key
 
@@ -505,7 +506,15 @@ type GetObjectOutput struct {
 	Expiration *string
 
 	// The date and time at which the object is no longer cacheable.
+	//
+	// Deprecated: This field is handled inconsistently across AWS SDKs. Prefer using
+	// the ExpiresString field which contains the unparsed value from the service
+	// response.
 	Expires *time.Time
+
+	// The unparsed value of the Expires field from the service response. Prefer use
+	// of this value over the normal Expires response field where possible.
+	ExpiresString *string
 
 	// Date and time when the object was last modified.
 	//
@@ -683,6 +692,15 @@ func (c *Client) addOperationGetObjectMiddlewares(stack *middleware.Stack, optio
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpGetObjectValidationMiddleware(stack); err != nil {

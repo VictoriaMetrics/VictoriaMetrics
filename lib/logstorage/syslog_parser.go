@@ -10,50 +10,87 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
-func getSyslogParser(currentYear int) *syslogParser {
+// GetSyslogParser returns syslog parser from the pool.
+//
+// currentYear must contain the current year. It is used for properly setting timestamp
+// field for rfc3164 format, which doesn't contain year.
+//
+// the timezone is used for rfc3164 format for setting the desired timezone.
+//
+// Return back the parser to the pool by calling PutSyslogParser when it is no longer needed.
+func GetSyslogParser(currentYear int, timezone *time.Location) *SyslogParser {
 	v := syslogParserPool.Get()
 	if v == nil {
-		v = &syslogParser{}
+		v = &SyslogParser{}
 	}
-	p := v.(*syslogParser)
+	p := v.(*SyslogParser)
 	p.currentYear = currentYear
+	p.timezone = timezone
 	return p
 }
 
-func putSyslogParser(p *syslogParser) {
+// PutSyslogParser returns back syslog parser to the pool.
+//
+// p cannot be used after returning to the pool.
+func PutSyslogParser(p *SyslogParser) {
 	p.reset()
 	syslogParserPool.Put(p)
 }
 
 var syslogParserPool sync.Pool
 
-type syslogParser struct {
+// SyslogParser is parser for syslog messages.
+//
+// It understands the following syslog formats:
+//
+// - https://datatracker.ietf.org/doc/html/rfc5424
+// - https://datatracker.ietf.org/doc/html/rfc3164
+//
+// It extracts the following list of syslog message fields into Fields -
+// https://docs.victoriametrics.com/victorialogs/logsql/#unpack_syslog-pipe
+type SyslogParser struct {
+	// Fields contains parsed fields after Parse call.
+	Fields []Field
+
+	// buf contains temporary data used in Fields.
+	buf []byte
+
+	// sdParser is used for structured data parsing in rfc5424.
+	// See https://datatracker.ietf.org/doc/html/rfc5424#section-6.3
+	sdParser logfmtParser
+
+	// currentYear is used as the current year for rfc3164 messages.
 	currentYear int
 
-	buf    []byte
-	fields []Field
+	// timezeon is used as the current timezeon for rfc3164 messages.
+	timezone *time.Location
 }
 
-func (p *syslogParser) reset() {
+func (p *SyslogParser) reset() {
 	p.currentYear = 0
+	p.timezone = nil
 	p.resetFields()
 }
 
-func (p *syslogParser) resetFields() {
-	p.buf = p.buf[:0]
+func (p *SyslogParser) resetFields() {
+	clear(p.Fields)
+	p.Fields = p.Fields[:0]
 
-	clear(p.fields)
-	p.fields = p.fields[:0]
+	p.buf = p.buf[:0]
+	p.sdParser.reset()
 }
 
-func (p *syslogParser) addField(name, value string) {
-	p.fields = append(p.fields, Field{
+func (p *SyslogParser) addField(name, value string) {
+	p.Fields = append(p.Fields, Field{
 		Name:  name,
 		Value: value,
 	})
 }
 
-func (p *syslogParser) parse(s string) {
+// Parse parses syslog message from s into p.Fields.
+//
+// p.Fields is valid until s is modified or p state is changed.
+func (p *SyslogParser) Parse(s string) {
 	p.resetFields()
 
 	if len(s) == 0 {
@@ -96,7 +133,7 @@ func (p *syslogParser) parse(s string) {
 	p.parseNoHeader(s)
 }
 
-func (p *syslogParser) parseNoHeader(s string) {
+func (p *SyslogParser) parseNoHeader(s string) {
 	if len(s) == 0 {
 		return
 	}
@@ -107,8 +144,10 @@ func (p *syslogParser) parseNoHeader(s string) {
 	}
 }
 
-func (p *syslogParser) parseRFC5424(s string) {
+func (p *SyslogParser) parseRFC5424(s string) {
 	// See https://datatracker.ietf.org/doc/html/rfc5424
+
+	p.addField("format", "rfc5424")
 
 	if len(s) == 0 {
 		return
@@ -170,7 +209,7 @@ func (p *syslogParser) parseRFC5424(s string) {
 	p.addField("message", s)
 }
 
-func (p *syslogParser) parseRFC5424SD(s string) (string, bool) {
+func (p *SyslogParser) parseRFC5424SD(s string) (string, bool) {
 	if strings.HasPrefix(s, "- ") {
 		return s[2:], true
 	}
@@ -188,7 +227,7 @@ func (p *syslogParser) parseRFC5424SD(s string) (string, bool) {
 	}
 }
 
-func (p *syslogParser) parseRFC5424SDLine(s string) (string, bool) {
+func (p *SyslogParser) parseRFC5424SDLine(s string) (string, bool) {
 	if len(s) == 0 || s[0] != '[' {
 		return s, false
 	}
@@ -229,31 +268,52 @@ func (p *syslogParser) parseRFC5424SDLine(s string) (string, bool) {
 	}
 
 	sdValue := strings.TrimSpace(s[:i])
-	p.addField(sdID, sdValue)
+
+	p.sdParser.parse(sdValue)
+	if len(p.sdParser.fields) == 0 {
+		// Special case when structured data doesn't contain any fields
+		p.addField(sdID, "")
+	} else {
+		for _, f := range p.sdParser.fields {
+			bufLen := len(p.buf)
+			p.buf = append(p.buf, sdID...)
+			p.buf = append(p.buf, '.')
+			p.buf = append(p.buf, f.Name...)
+
+			fieldName := bytesutil.ToUnsafeString(p.buf[bufLen:])
+			p.addField(fieldName, f.Value)
+		}
+	}
+
 	s = s[i+1:]
 	return s, true
 }
 
-func (p *syslogParser) parseRFC3164(s string) {
+func (p *SyslogParser) parseRFC3164(s string) {
 	// See https://datatracker.ietf.org/doc/html/rfc3164
+
+	p.addField("format", "rfc3164")
 
 	// Parse timestamp
 	n := len(time.Stamp)
 	if len(s) < n {
+		p.addField("message", s)
 		return
 	}
+
 	t, err := time.Parse(time.Stamp, s[:n])
 	if err != nil {
 		// TODO: fall back to parsing ISO8601 timestamp?
+		p.addField("message", s)
 		return
 	}
 	s = s[n:]
 
 	t = t.UTC()
-	t = time.Date(p.currentYear, t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
+	t = time.Date(p.currentYear, t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), p.timezone)
 	if uint64(t.Unix())-24*3600 > fasttime.UnixTimestamp() {
 		// Adjust time to the previous year
-		t = time.Date(t.Year()-1, t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
+		t = time.Date(t.Year()-1, t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), p.timezone)
 	}
 
 	bufLen := len(p.buf)
@@ -262,6 +322,9 @@ func (p *syslogParser) parseRFC3164(s string) {
 
 	if len(s) == 0 || s[0] != ' ' {
 		// Missing space after the time field
+		if len(s) > 0 {
+			p.addField("message", s)
+		}
 		return
 	}
 	s = s[1:]

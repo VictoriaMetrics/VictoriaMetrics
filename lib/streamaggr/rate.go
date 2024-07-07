@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
@@ -59,6 +60,7 @@ func (as *rateAggrState) pushSamples(samples []pushSample) {
 			v = &rateStateValue{
 				lastValues: make(map[string]rateLastValueState),
 			}
+			outputKey = bytesutil.InternString(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if loaded {
 				// Use the entry created by a concurrent goroutine.
@@ -89,6 +91,8 @@ func (as *rateAggrState) pushSamples(samples []pushSample) {
 			lv.value = s.value
 			lv.timestamp = s.timestamp
 			lv.deleteDeadline = deleteDeadline
+
+			inputKey = bytesutil.InternString(inputKey)
 			sv.lastValues[inputKey] = lv
 			sv.deleteDeadline = deleteDeadline
 		}
@@ -101,10 +105,10 @@ func (as *rateAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *rateAggrState) flushState(ctx *flushCtx, resetState bool) {
-	_ = resetState // it isn't used here
+func (as *rateAggrState) flushState(ctx *flushCtx, _ bool) {
 	currentTime := fasttime.UnixTimestamp()
 	currentTimeMsec := int64(currentTime) * 1000
+	var staleOutputSamples, staleInputSamples int
 
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
@@ -117,31 +121,41 @@ func (as *rateAggrState) flushState(ctx *flushCtx, resetState bool) {
 			// Mark the current entry as deleted
 			sv.deleted = deleted
 			sv.mu.Unlock()
+			staleOutputSamples++
 			m.Delete(k)
 			return true
 		}
 
 		// Delete outdated entries in sv.lastValues
 		var rate float64
-		m := sv.lastValues
-		for k1, v1 := range m {
+		lvs := sv.lastValues
+		for k1, v1 := range lvs {
 			if currentTime > v1.deleteDeadline {
-				delete(m, k1)
-			} else if v1.prevTimestamp > 0 {
-				rate += v1.total * 1000 / float64(v1.timestamp-v1.prevTimestamp)
+				delete(lvs, k1)
+				staleInputSamples++
+				continue
+			}
+			rateInterval := v1.timestamp - v1.prevTimestamp
+			if v1.prevTimestamp > 0 && rateInterval > 0 {
+				// calculate rate only if value was seen at least twice with different timestamps
+				rate += v1.total * 1000 / float64(rateInterval)
 				v1.prevTimestamp = v1.timestamp
 				v1.total = 0
-				m[k1] = v1
+				lvs[k1] = v1
 			}
 		}
-		if as.suffix == "rate_avg" {
-			// note: capture m length after deleted items were removed
-			rate /= float64(len(m))
-		}
+		// capture m length after deleted items were removed
+		totalItems := len(lvs)
 		sv.mu.Unlock()
+
+		if as.suffix == "rate_avg" && totalItems > 0 {
+			rate /= float64(totalItems)
+		}
 
 		key := k.(string)
 		ctx.appendSeries(key, as.suffix, currentTimeMsec, rate)
 		return true
 	})
+	ctx.a.staleOutputSamples[as.suffix].Add(staleOutputSamples)
+	ctx.a.staleInputSamples[as.suffix].Add(staleInputSamples)
 }

@@ -267,4 +267,3 @@ kustomize build config/deployments/webhook/
 ### Useful links
 
 - [k8s admission webhooks](https://banzaicloud.com/blog/k8s-admission-webhooks/)
-- [olm webhooks](https://docs.openshift.com/container-platform/4.5/operators/user/olm-webhooks.html)

@@ -86,8 +86,7 @@ import (
 // Response and special errors When the request is an HTTP 1.1 request, the
 // response is chunk encoded. When the request is not an HTTP 1.1 request, the
 // response would not contain the Content-Length . You always need to read the
-// entire response body to check if the copy succeeds. to keep the connection alive
-// while we copy the data.
+// entire response body to check if the copy succeeds.
 //
 //   - If the copy is successful, you receive a response with information about
 //     the copied object.
@@ -735,7 +734,10 @@ type CopyObjectInput struct {
 }
 
 func (in *CopyObjectInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
+	p.CopySource = in.CopySource
+	p.Key = in.Key
 	p.DisableS3ExpressSessionAuth = ptr.Bool(true)
 }
 
@@ -868,6 +870,15 @@ func (c *Client) addOperationCopyObjectMiddlewares(stack *middleware.Stack, opti
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpCopyObjectValidationMiddleware(stack); err != nil {

@@ -33,7 +33,7 @@ type ClientCertProvider = func(*tls.CertificateRequestInfo) (*tls.Certificate, e
 
 // Options used to configure a [net/http.Client] from [NewClient].
 type Options struct {
-	// DisableTelemetry disables default telemetry (OpenCensus). An example
+	// DisableTelemetry disables default telemetry (OpenTelemetry). An example
 	// reason to do so would be to bind custom telemetry that overrides the
 	// defaults.
 	DisableTelemetry bool
@@ -116,6 +116,13 @@ func (o *Options) resolveDetectOptions() *detect.DetectOptions {
 	if len(do.Scopes) == 0 && do.Audience == "" && io != nil {
 		do.Audience = o.InternalOptions.DefaultAudience
 	}
+	if o.ClientCertProvider != nil {
+		tlsConfig := &tls.Config{
+			GetClientCertificate: o.ClientCertProvider,
+		}
+		do.Client = transport.DefaultHTTPClientWithTLS(tlsConfig)
+		do.TokenURL = detect.GoogleMTLSTokenURL
+	}
 	return do
 }
 
@@ -195,6 +202,8 @@ func NewClient(opts *Options) (*http.Client, error) {
 	if baseRoundTripper == nil {
 		baseRoundTripper = defaultBaseTransport(clientCertProvider, dialTLSContext)
 	}
+	// Ensure the token exchange transport uses the same ClientCertProvider as the API transport.
+	opts.ClientCertProvider = clientCertProvider
 	trans, err := newTransport(baseRoundTripper, opts)
 	if err != nil {
 		return nil, err

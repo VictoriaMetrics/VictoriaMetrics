@@ -3,7 +3,9 @@ package relabel
 import (
 	"flag"
 	"fmt"
+	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -22,6 +24,9 @@ var (
 	usePromCompatibleNaming = flag.Bool("usePromCompatibleNaming", false, "Whether to replace characters unsupported by Prometheus with underscores "+
 		"in the ingested metric names and label names. For example, foo.bar{a.b='c'} is transformed into foo_bar{a_b='c'} during data ingestion if this flag is set. "+
 		"See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels")
+
+	relabelConfigCheckInterval = flag.Duration("relabelConfigCheckInterval", 0, "Interval for checking for changes in '-relabelConfig' file. "+
+		"By default the checking is disabled. Send SIGHUP signal in order to force config check for changes")
 )
 
 // Init must be called after flag.Parse and before using the relabel package.
@@ -42,24 +47,71 @@ func Init() {
 	if len(*relabelConfig) == 0 {
 		return
 	}
+
+	globalStopChan = make(chan struct{})
+	relabelWG.Add(1)
 	go func() {
-		for range sighupCh {
-			configReloads.Inc()
-			logger.Infof("received SIGHUP; reloading -relabelConfig=%q...", *relabelConfig)
-			pcs, err := loadRelabelConfig()
+		defer relabelWG.Done()
+		var tickerCh <-chan time.Time
+		if *relabelConfigCheckInterval > 0 {
+			ticker := time.NewTicker(*relabelConfigCheckInterval)
+			tickerCh = ticker.C
+			defer ticker.Stop()
+		}
+		var noChangesLogFn func()
+		for {
+			select {
+			case <-sighupCh:
+				configReloads.Inc()
+				logger.Infof("received SIGHUP; reloading -relabelConfig=%q...", *relabelConfig)
+				noChangesLogFn = func() {
+					logger.Infof("nothing changed in %q", relabelConfig)
+				}
+			case <-tickerCh:
+				// silently skip logging for the unchanged config files
+				noChangesLogFn = func() {}
+			case <-globalStopChan:
+				logger.Infof("stopping relabel config reloader")
+				return
+			}
+			pcsNew, err := loadRelabelConfig()
 			if err != nil {
 				configReloadErrors.Inc()
 				configSuccess.Set(0)
 				logger.Errorf("cannot load the updated relabelConfig: %s; preserving the previous config", err)
 				continue
 			}
-			pcsGlobal.Store(pcs)
+			if pcsNew.String() == pcs.String() {
+				// set success to 1 since previous reload could have been unsuccessful
+				// do not update configTimestamp as config version remains old.
+				configSuccess.Set(1)
+				noChangesLogFn()
+				continue
+			}
+			pcs = pcsNew
+			pcsGlobal.Store(pcsNew)
+
 			configSuccess.Set(1)
 			configTimestamp.Set(fasttime.UnixTimestamp())
 			logger.Infof("successfully reloaded -relabelConfig=%q", *relabelConfig)
 		}
 	}()
 }
+
+// Stop stops relabel config reloader watchers
+func Stop() {
+	if len(*relabelConfig) == 0 {
+		return
+	}
+
+	close(globalStopChan)
+	relabelWG.Wait()
+}
+
+var (
+	globalStopChan chan struct{}
+	relabelWG      sync.WaitGroup
+)
 
 var (
 	configReloads      = metrics.NewCounter(`vm_relabel_config_reloads_total`)

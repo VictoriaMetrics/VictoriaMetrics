@@ -396,6 +396,18 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4128
 		fmt.Fprintf(w, "User-agent: *\nDisallow: /\n")
 		return
+	case "/config", "/-/reload":
+		// only some components (vmagent, vmalert, etc.) support these handlers
+		// these components are responsible for CheckAuthFlag call
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6329
+		w = &responseWriterWithAbort{
+			ResponseWriter: w,
+		}
+		if !rh(w, r) {
+			Errorf(w, r, "unsupported path requested: %q", r.URL.Path)
+			unsupportedRequestErrors.Inc()
+		}
+		return
 	default:
 		if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {
 			pprofRequests.Inc()
@@ -556,6 +568,21 @@ func (rwa *responseWriterWithAbort) WriteHeader(statusCode int) {
 	rwa.sentHeaders = true
 }
 
+// Flush implements net/http.Flusher interface
+func (rwa *responseWriterWithAbort) Flush() {
+	if rwa.aborted {
+		return
+	}
+	if !rwa.sentHeaders {
+		rwa.sentHeaders = true
+	}
+	flusher, ok := rwa.ResponseWriter.(http.Flusher)
+	if !ok {
+		logger.Panicf("BUG: it is expected http.ResponseWriter (%T) supports http.Flusher interface", rwa.ResponseWriter)
+	}
+	flusher.Flush()
+}
+
 // abort aborts the client connection associated with rwa.
 //
 // The last http chunk in the response stream is intentionally written incorrectly,
@@ -606,6 +633,7 @@ func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...inter
 			break
 		}
 	}
+
 	if rwa, ok := w.(*responseWriterWithAbort); ok && rwa.sentHeaders {
 		// HTTP status code has been already sent to client, so it cannot be sent again.
 		// Just write errStr to the response and abort the client connection, so the client could notice the error.

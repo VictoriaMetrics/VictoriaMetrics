@@ -749,6 +749,7 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		if err := ui.initURLs(); err != nil {
 			return nil, err
 		}
+		ui.overrideHostHeader = overrideHostHeader(ui.HeadersConf.RequestHeaders)
 
 		metricLabels, err := ui.getMetricLabels()
 		if err != nil {

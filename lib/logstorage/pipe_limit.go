@@ -16,6 +16,10 @@ func (pl *pipeLimit) String() string {
 	return fmt.Sprintf("limit %d", pl.limit)
 }
 
+func (pl *pipeLimit) canLiveTail() bool {
+	return false
+}
+
 func (pl *pipeLimit) updateNeededFields(_, _ fieldsSet) {
 	// nothing to do
 }
@@ -58,21 +62,25 @@ func (plp *pipeLimitProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	rowsProcessed := plp.rowsProcessed.Add(uint64(len(br.timestamps)))
-	if rowsProcessed <= plp.pl.limit {
+	limit := plp.pl.limit
+	if rowsProcessed <= limit {
 		// Fast path - write all the rows to ppNext.
 		plp.ppNext.writeBlock(workerID, br)
+		if rowsProcessed == limit {
+			plp.cancel()
+		}
 		return
 	}
 
 	// Slow path - overflow. Write the remaining rows if needed.
 	rowsProcessed -= uint64(len(br.timestamps))
-	if rowsProcessed >= plp.pl.limit {
+	if rowsProcessed >= limit {
 		// Nothing to write. There is no need in cancel() call, since it has been called by another goroutine.
 		return
 	}
 
 	// Write remaining rows.
-	keepRows := plp.pl.limit - rowsProcessed
+	keepRows := limit - rowsProcessed
 	br.truncateRows(int(keepRows))
 	plp.ppNext.writeBlock(workerID, br)
 

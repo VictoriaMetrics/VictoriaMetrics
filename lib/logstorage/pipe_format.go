@@ -2,8 +2,10 @@ package logstorage
 
 import (
 	"fmt"
-	"strconv"
+	"math"
 	"unsafe"
+
+	"github.com/valyala/quicktemplate"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
@@ -40,6 +42,10 @@ func (pf *pipeFormat) String() string {
 		s += " skip_empty_results"
 	}
 	return s
+}
+
+func (pf *pipeFormat) canLiveTail() bool {
+	return true
 }
 
 func (pf *pipeFormat) updateNeededFields(neededFields, unneededFields fieldsSet) {
@@ -185,9 +191,31 @@ func (shard *pipeFormatProcessorShard) formatRow(pf *pipeFormat, br *blockResult
 		if step.field != "" {
 			c := br.getColumnByName(step.field)
 			v := c.getValueAtRow(br, rowIdx)
-			if step.fieldOpt == "q" {
-				b = strconv.AppendQuote(b, v)
-			} else {
+			switch step.fieldOpt {
+			case "q":
+				b = quicktemplate.AppendJSONString(b, v, true)
+			case "time":
+				nsecs, ok := tryParseInt64(v)
+				if !ok {
+					b = append(b, v...)
+					continue
+				}
+				b = marshalTimestampRFC3339NanoString(b, nsecs)
+			case "duration":
+				nsecs, ok := tryParseInt64(v)
+				if !ok {
+					b = append(b, v...)
+					continue
+				}
+				b = marshalDurationString(b, nsecs)
+			case "ipv4":
+				ipNum, ok := tryParseUint64(v)
+				if !ok || ipNum > math.MaxUint32 {
+					b = append(b, v...)
+					continue
+				}
+				b = marshalIPv4String(b, uint32(ipNum))
+			default:
 				b = append(b, v...)
 			}
 		}

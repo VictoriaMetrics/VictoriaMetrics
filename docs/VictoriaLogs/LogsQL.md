@@ -220,7 +220,8 @@ _time:5m
 ```
 
 Tip: try [`*` filter](https://docs.victoriametrics.com/victorialogs/logsql/#any-value-filter), which selects all the logs stored in VictoriaLogs.
-Do not worry - this doesn't crash VictoriaLogs, even if it contains trillions of logs. In the worst case it will return 
+Do not worry - this doesn't crash VictoriaLogs, even if the query selects trillions of logs. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line)
+if you are curious why.
 
 Additionally to filters, LogQL query may contain arbitrary mix of optional actions for processing the selected logs. These actions are delimited by `|` and are known as [`pipes`](#pipes).
 For example, the following query uses [`stats` pipe](#stats-pipe) for returning the number of [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
@@ -254,6 +255,8 @@ If doubt, it is recommended quoting field names and filter args.
 The list of LogsQL filters:
 
 - [Time filter](#time-filter) - matches logs with [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) in the given time range
+- [Day range filter](#day-range-filter) - matches logs with [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) in the given per-day time range
+- [Week range filter](#week-range-filter) - matches logs with [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) in the given per-week day range
 - [Stream filter](#stream-filter) - matches logs, which belong to the given [streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
 - [Word filter](#word-filter) - matches logs with the given [word](#word)
 - [Phrase filter](#phrase-filter) - matches logs with the given phrase
@@ -330,12 +333,102 @@ Performance tips:
 
 See also:
 
+- [Day range filter](#day-range-filter)
+- [Week range filter](#week-range-filter)
 - [Stream filter](#stream-filter)
 - [Word filter](#word-filter)
 
+### Day range filter
+
+`_time:day_range[start, end]` filter allows returning logs on the particular `start ... end` time per every day, where `start` and `end` have the format `hh:mm`.
+For example, the following query matches logs between `08:00` and `18:00` UTC every day:
+
+```logsql
+_time:day_range[08:00, 18:00)
+```
+
+This query includes `08:00`, while `18:00` is excluded, e.g. the last matching time is `17:59:59.999999999`.
+Replace `[` with `(` in order to exclude the starting time. Replace `)` with `]` in order to include the ending time.
+For example, the following query matches logs between `08:00` and `18:00`, excluding `08:00:00.000000000` and including `18:00`:
+
+```logsql
+_time:day_range(08:00, 18:00]
+```
+
+If the time range must be applied to other than UTC time zone, then add `offset <duration>`, where `<duration>` can have [any supported duration value](#duration-values).
+For example, the following query selects logs between `08:00` and `18:00` at `+0200` time zone:
+
+```logsql
+_time:day_range[08:00, 18:00) offset 2h
+```
+
+Performance tip: it is recommended specifying regular [time filter](#time-filter) additionally to `day_range` filter. For example, the following query selects logs
+between `08:00` and `20:00` every day for the last week:
+
+```logsql
+_time:1w _time:day_range[08:00, 18:00)
+```
+
+See also:
+
+- [Week range filter](#week-range-filter)
+- [Time filter](#time-filter)
+
+### Week range filter
+
+`_time:week_range[start, end]` filter allows returning logs on the particular `start ... end` days per every day, where `start` and `end` can have the following values:
+
+- `Sun` or `Sunday`
+- `Mon` or `Monday`
+- `Tue` or `Tuesday`
+- `Wed` or `Wednesday`
+- `Thu` or `Thusday`
+- `Fri` or `Friday`
+- `Sat` or `Saturday`
+
+For example, the following query matches logs between Monday and Friday UTC every day:
+
+```logsql
+_time:week_range[Mon, Fri]
+```
+
+This query includes Monday and Friday.
+Replace `[` with `(` in order to exclude the starting day. Replace `]` with `)` in order to exclude the ending day.
+For example, the following query matches logs between Sunday and Saturday, excluding Sunday and Saturday (e.g. it is equivalent to the previous query):
+
+```logsql
+_time:week_range(Sun, Sat)
+```
+
+If the day range must be applied to other than UTC time zone, then add `offset <duration>`, where `<duration>` can have [any supported duration value](#duration-values).
+For example, the following query selects logs between Monday and Friday at `+0200` time zone:
+
+```logsql
+_time:week_range[Mon, Fri] offset 2h
+```
+
+The `week_range` filter can be combined with [`day_range` filter](#day-range-filter) using [logical filters](#logical-filter). For example, the following query
+selects logs between `08:00` and `18:00` every day of the week excluding Sunday and Saturday:
+
+```logsql
+_time:week_range[Mon, Fri] _time:day_range[08:00, 18:00)
+```
+
+Performance tip: it is recommended specifying regular [time filter](#time-filter) additionally to `week_range` filter. For example, the following query selects logs
+between Monday and Friday per every week for the last 4 weeks:
+
+```logsql
+_time:4w _time:week_range[Mon, Fri]
+```
+
+See also:
+
+- [Day range filter](#day-range-filter)
+- [Time filter](#time-filter)
+
 ### Stream filter
 
-VictoriaLogs provides an optimized way to select log entries, which belong to particular [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
+VictoriaLogs provides an optimized way to select logs, which belong to particular [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 This can be done via `_stream:{...}` filter. The `{...}` may contain arbitrary
 [Prometheus-compatible label selector](https://docs.victoriametrics.com/keyconcepts/#filtering)
 over fields associated with [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
@@ -364,8 +457,47 @@ Performance tips:
 
 See also:
 
+- [`_stream_id` filter](#_stream_id-filter)
 - [Time filter](#time-filter)
 - [Exact filter](#exact-filter)
+
+### _stream_id filter
+
+Every [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) in VictoriaMetrics is uniquely identified by `_stream_id` field.
+The `_stream_id:...` filter allows quickly selecting all the logs belonging to the particular stream.
+
+For example, the following query selects all the logs, which belong to the [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+with `_stream_id` equal to `0000007b000001c850d9950ea6196b1a4812081265faa1c7`:
+
+```logsql
+_stream_id:0000007b000001c850d9950ea6196b1a4812081265faa1c7
+```
+
+If the log stream contains too many logs, then it is good idea limiting the number of returned logs with [time filter](#time-filter). For example, the following
+query selects logs for the given stream for the last hour:
+
+```logsql
+_time:1h _stream_id:0000007b000001c850d9950ea6196b1a4812081265faa1c7
+```
+
+The `_stream_id` filter supports specifying multiple `_stream_id` values via `_stream_id:in(...)` syntax. For example:
+
+```logsql
+_stream_id:in(0000007b000001c850d9950ea6196b1a4812081265faa1c7, 1230007b456701c850d9950ea6196b1a4812081265fff2a9)
+```
+
+It is also possible specifying subquery inside `in(...)`, which selects the needed `_stream_id` values. For example, the following query returns
+logs for [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) containing `error` [word](#word)
+in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) during the last 5 minutes:
+
+```logsql
+_stream_id:in(_time:5m error | fields _stream_id)
+```
+
+See also:
+
+- [stream filter](#stream-filter)
+
 
 ### Word filter
 
@@ -584,13 +716,13 @@ See also:
 ### Range comparison filter
 
 LogsQL supports `field:>X`, `field:>=X`, `field:<X` and `field:<=X` filters, where `field` is the name of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-and `X` is either [numeric value](#numeric-values) or a string. For example, the following query returns logs containing numeric values for the `response_size` field bigger than `10*1024`:
+and `X` is [numeric value](#numeric-values), IPv4 address or a string. For example, the following query returns logs containing numeric values for the `response_size` field bigger than `10*1024`:
 
 ```logsql
 response_size:>10KiB
 ```
 
-The following query returns logs with `user` field containing string values smaller than 'John`:
+The following query returns logs with `user` field containing string values smaller than `John`:
 
 ```logsql
 username:<"John"
@@ -1167,11 +1299,15 @@ LogsQL supports the following pipes:
 - [`math`](#math-pipe) performs mathematical calculations over [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`offset`](#offset-pipe) skips the given number of selected logs.
 - [`pack_json`](#pack_json-pipe) packs [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into JSON object.
+- [`pack_logfmt`](#pack_logfmt-pipe) packs [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into [logfmt](https://brandur.org/logfmt) message.
 - [`rename`](#rename-pipe) renames [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`replace`](#replace-pipe) replaces substrings in the specified [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`replace_regexp`](#replace_regexp-pipe) updates [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with regular expressions.
 - [`sort`](#sort-pipe) sorts logs by the given [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`stats`](#stats-pipe) calculates various stats over the selected logs.
+- [`stream_context`](#stream_context-pipe) allows selecting surrounding logs in front and after the matching logs
+  per each [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
+- [`top`](#top-pipe) returns top `N` field sets with the maximum number of matching logs.
 - [`uniq`](#uniq-pipe) returns unique log entires.
 - [`unpack_json`](#unpack_json-pipe) unpacks JSON messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`unpack_logfmt`](#unpack_logfmt-pipe) unpacks [logfmt](https://brandur.org/logfmt) messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
@@ -1480,6 +1616,7 @@ If the limit is reached, then the set of returned values is random. Also the num
 See also:
 
 - [`field_names` pipe](#field_names-pipe)
+- [`top` pipe](#top-pipe)
 - [`uniq` pipe](#uniq-pipe)
 
 ### fields pipe
@@ -1513,6 +1650,12 @@ if the number of log messages with the `error` [word](#word) for them over the l
 
 ```logsql
 _time:1h error | stats by (host) count() logs_count | filter logs_count:> 1_000
+```
+
+It is allowed to use `where` prefix instead of `filter` prefix for convenience. For example, the following query is equivalent to the previous one:
+
+```logsql
+_time:1h error | stats by (host) count() logs_count | where logs_count:> 1_000
 ```
 
 It is allowed to omit `filter` prefix if the used filters do not clash with [pipe names](#pipes).
@@ -1553,6 +1696,18 @@ and stores it into `my_json` output field:
 ```logsql
 _time:5m | format '{"_msg":<q:_msg>,"stacktrace":<q:stacktrace>}' as my_json
 ```
+
+Numeric fields can be transformed into the following string representation at `format` pipe:
+
+- [RFC3339 time](https://www.rfc-editor.org/rfc/rfc3339) - by adding `time:` in front of the corresponding field name
+  containing [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time) in nanoseconds.
+  For example, `format "time=<time:timestamp_nsecs>"`. The timestamp can be converted into nanoseconds with the [`math` pipe](#math-pipe).
+
+- Human-readable duration - by adding `duration:` in front of the corresponding numeric field name containing duration in nanoseconds.
+  For example, `format "duration=<duration:duration_nsecs>"`. The duration can be converted into nanoseconds with the [`math` pipe](#math-pipe).
+
+- IPv4 - by adding `ipv4:` in front of the corresponding field name containing `uint32` representation of the IPv4 address.
+  For example, `format "ip=<ipv4:ip_num>"`.
 
 Add `keep_original_fields` to the end of `format ... as result_field` when the original non-empty value of the `result_field` must be preserved
 instead of overwriting it with the `format` results. For example, the following query adds formatted result to `foo` field only if it was missing or empty:
@@ -1631,6 +1786,8 @@ Where `exprX` is one of the supported math expressions mentioned below, while `r
 The `as` keyword is optional. The result name can be omitted. In this case the result is stored to a field with the name equal to string represenation
 of the corresponding math expression.
 
+`exprX` may reference `resultNameY` calculated before the given `exprX`.
+
 For example, the following query divides `duration_msecs` field value by 1000, then rounds it to integer and stores the result in the `duration_secs` field:
 
 ```logsql
@@ -1645,9 +1802,14 @@ The following mathematical operations are supported by `math` pipe:
 - `arg1 / arg2` - divides `arg1` by `arg2`
 - `arg1 % arg2` - returns the remainder of the division of `arg1` by `arg2`
 - `arg1 ^ arg2` - returns the power of `arg1` by `arg2`
+- `arg1 & arg2` - returns bitwise `and` for `arg1` and `arg2`. It is expected that `arg1` and `arg2` are in the range `[0 .. 2^53-1]`
+- `arg1 | arg2` - returns bitwise `or` for `arg1` and `arg2`. It is expected that `arg1` and `arg2` are in the range `[0 .. 2^53-1]`
+- `arg1 xor arg2` - returns bitwise `xor` for `arg1` and `arg2`. It is expected that `arg1` and `arg2` are in the range `[0 .. 2^53-1]`
 - `arg1 default arg2` - returns `arg2` if `arg1` is non-[numeric](#numeric-values) or equals to `NaN`
 - `abs(arg)` - returns an absolute value for the given `arg`
-- `exp(arg)` - powers [`e`](https://en.wikipedia.org/wiki/E_(mathematical_constant)) by `arg`.
+- `ceil(arg)` - returns the least integer value greater than or equal to `arg`
+- `exp(arg)` - powers [`e`](https://en.wikipedia.org/wiki/E_(mathematical_constant)) by `arg`
+- `floor(arg)` - returns the greatest integer values less than or equal to `arg`
 - `ln(arg)` - returns [natural logarithm](https://en.wikipedia.org/wiki/Natural_logarithm) for the given `arg`
 - `max(arg1, ..., argN)` - returns the maximum value among the given `arg1`, ..., `argN`
 - `min(arg1, ..., argN)` - returns the minimum value among the given `arg1`, ..., `argN`
@@ -1657,14 +1819,31 @@ The following mathematical operations are supported by `math` pipe:
 Every `argX` argument in every mathematical operation can contain one of the following values:
 
 - The name of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). For example, `errors_total / requests_total`.
-  If the log field contains value, which cannot be parsed into [supported numeric value](#numeric-values), then it is replaced with `NaN`.
-- Any [supported numeric value](#numeric-values). For example, `response_size_bytes / 1MiB`.
-- Another mathematical expression. Optionally, it may be put inside `(...)`. For example, `(a + b) * c`.
+  The log field is parsed into numeric value if it contains [supported numeric value](#numeric-values). The log field is parsed into [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time)
+  in nanoseconds if it contains [rfc3339 time](https://www.rfc-editor.org/rfc/rfc3339). The log field is parsed into `uint32` number if it contains IPv4 address.
+  The log field is parsed into `NaN` in other cases.
+- Any [supported numeric value](#numeric-values), [rfc3339 time](https://www.rfc-editor.org/rfc/rfc3339) or IPv4 address. For example, `1MiB`, `"2024-05-15T10:20:30.934324Z"` or `"12.34.56.78"`.
+- Another mathematical expression, which can be put inside `(...)`. For example, `(a + b) * c`.
+
+The parsed time, duration and IPv4 address can be converted back to string representation after math transformations with the help of [`format` pipe](#format-pipe). For example,
+the following query rounds the `request_duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) to seconds before converting it back to string representation:
+
+```logsql
+_time:5m | math round(request_duration, 1e9) as request_duration_nsecs | format '<duration:request_duration_nsecs>' as request_duration
+```
+
+The `eval` keyword can be used instead of `math` for convenience. For example, the following query calculates `duration_msecs` field
+by multiplying `duration_secs` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) to `1000`:
+
+```logsql
+_time:5m | eval (duration_secs * 1000) as duration_msecs
+```
 
 See also:
 
 - [`stats` pipe](#stats-pipe)
 - [`extract` pipe](#extract-pipe)
+- [`format` pipe](#format-pipe)
 
 
 ### offset pipe
@@ -1689,7 +1868,7 @@ See also:
 ### pack_json pipe
 
 `| pack_json as field_name` [pipe](#pipe) packs all [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into JSON object
-and stores its as a string in the given `field_name`.
+and stores it as a string in the given `field_name`.
 
 For example, the following query packs all the fields into JSON object and stores it into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 for logs over the last 5 minutes:
@@ -1721,8 +1900,47 @@ _time:5m | pack_json as foo | fields foo
 
 See also:
 
+- [`pack_logfmt` pipe](#pack_logfmt-pipe)
 - [`unpack_json` pipe](#unpack_json-pipe)
 
+
+### pack_logfmt pipe
+
+`| pack_logfmt as field_name` [pipe](#pipe) packs all [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into [logfmt](https://brandur.org/logfmt) message
+and stores it as a string in the given `field_name`.
+
+For example, the following query packs all the fields into [logfmt](https://brandur.org/logfmt) message and stores it
+into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) for logs over the last 5 minutes:
+
+```logsql
+_time:5m | pack_logfmt as _msg
+```
+
+The `as _msg` part can be omitted if packed message is stored into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+The following query is equivalent to the previous one:
+
+```logsql
+_time:5m | pack_logfmt
+```
+
+If only a subset of labels must be packed into [logfmt](https://brandur.org/logfmt), then it must be listed inside `fields (...)` after `pack_logfmt`.
+For example, the following query builds [logfmt](https://brandur.org/logfmt) message with `foo` and `bar` fields only and stores the result in `baz` field:
+
+```logsql
+_time:5m | pack_logfmt fields (foo, bar) as baz
+```
+
+The `pack_logfmt` doesn't modify or delete other labels. If you do not need them, then add [`| fields ...`](#fields-pipe) after the `pack_logfmt` pipe. For example, the following query
+leaves only the `foo` label with the original log fields packed into [logfmt](https://brandur.org/logfmt):
+
+```logsql
+_time:5m | pack_logfmt as foo | fields foo
+```
+
+See also:
+
+- [`pack_json` pipe](#pack_json-pipe)
+- [`unpack_logfmt` pipe](#unpack_logfmt-pipe)
 
 ### rename pipe
 
@@ -1897,6 +2115,14 @@ and then returns the next 20 sorted logs for the last 5 minutes:
 _time:1h | sort by (request_duration desc) offset 10 limit 20
 ```
 
+It is possible returning a rank (sort order number) for every sorted log by adding `rank as <fieldName>` to the end of `| sort ...` pipe.
+For example, the following query stores rank for sorted by [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) logs
+into `position` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
+
+```logsql
+_time:5m | sort by (_time) rank as position
+```
+
 Note that sorting of big number of logs can be slow and can consume a lot of additional memory.
 It is recommended limiting the number of logs before sorting with the following approaches:
 
@@ -1965,6 +2191,8 @@ See also:
 - [stats pipe functions](#stats-pipe-functions)
 - [`math` pipe](#math-pipe)
 - [`sort` pipe](#sort-pipe)
+- [`uniq` pipe](#uniq-pipe)
+- [`top` pipe](#top-pipe)
 
 
 #### Stats by fields
@@ -2082,9 +2310,68 @@ _time:5m | stats
   count() total
 ```
 
+### stream_context pipe
+
+`| stream_context ...` [pipe](#pipes) allows selecting surrounding logs for the matching logs in [logs stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+in the way similar to `grep -A` / `grep -B`. The returned log chunks are delimited with `---` [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+for easier investigation.
+
+For example, the following query returns up to 10 additional logs after every log message with the `panic` [word](#word) across all the logs for the last 5 minutes:
+
+```logsql
+_time:5m panic | stream_context after 10
+```
+
+The following query returns up to 5 additional logs in front of every log message with the `stacktrace` [word](#word) across all the logs for the last 5 minutes:
+
+```logsql
+_time:5m stacktrace | stream_context before 5
+```
+
+The following query returns up to 2 logs in frount of the log message with the `error` [word](#word) and up to 5 logs after this log message
+across all the logs for the last 5 minutes:
+
+```logsql
+_time:5m error | stream_context before 2 after 5
+```
+
+The `| stream_context` [pipe](#pipes) must go first just after the [filters](#filters).
+
+### top pipe
+
+`| top N by (field1, ..., fieldN)` [pipe](#pipes) returns top `N` sets for `(field1, ..., fieldN)` [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+with the maximum number of matching log entries.
+
+For example, the following query returns top 7 [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+with the maximum number of log entries over the last 5 minutes:
+
+```logsql
+_time:5m | top 7 by (_stream)
+```
+
+The `N` is optional. If it is skipped, then top 10 entries are returned. For example, the following query returns top 10 values
+for `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) seen in logs for the last 5 minutes:
+
+```logsql
+_time:5m | top by (ip)
+```
+
+The `by (...)` part in the `top` [pipe](#pipes) is optional. If it is skipped, then all the log fields are taken into account
+when determining top field sets. This is useful when the field sets are already limited by other pipes such as [`fields` pipe](#fields-pipe).
+For example, the following query is equivalent to the previous one:
+
+```logsql
+_time:5m | fields ip | top
+```
+
+See also:
+
+- [`uniq` pipe](#uniq-pipe)
+- [`stats` pipe](#stats-pipe)
+
 ### uniq pipe
 
-`| uniq ...` pipe returns unique results over the selected logs. For example, the following LogsQL query
+`| uniq ...` [pipe](#pipes) returns unique results over the selected logs. For example, the following LogsQL query
 returns unique values for `ip` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
 
@@ -2126,6 +2413,8 @@ _time:5m | uniq (host, path) limit 100
 See also:
 
 - [`uniq_values` stats function](#uniq_values-stats)
+- [`top` pipe](#top-pipe)
+- [`stats` pipe](#stats-pipe)
 
 ### unpack_json pipe
 
@@ -2140,7 +2429,7 @@ For example, the following query unpacks JSON fields from the [`_msg` field](htt
 _time:5m | unpack_json from _msg
 ```
 
-The `from _json` part can be omitted when JSON fields are unpacked from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+The `from _msg` part can be omitted when JSON fields are unpacked from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
 The following query is equivalent to the previous one:
 
 ```logsql
@@ -2200,6 +2489,7 @@ See also:
 - [`extract` pipe](#extract-pipe)
 - [`unroll` pipe](#unroll-pipe)
 - [`pack_json` pipe](#pack_json-pipe)
+- [`pack_logfmt` pipe](#pack_logfmt-pipe)
 
 #### Conditional unpack_json
 
@@ -2224,7 +2514,7 @@ across logs for the last 5 minutes:
 _time:5m | unpack_logfmt from _msg
 ```
 
-The `from _json` part can be omitted when [logfmt](https://brandur.org/logfmt) fields are unpacked from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+The `from _msg` part can be omitted when [logfmt](https://brandur.org/logfmt) fields are unpacked from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
 The following query is equivalent to the previous one:
 
 ```logsql
@@ -2300,14 +2590,15 @@ _time:5m | unpack_logfmt if (ip:"") from foo
 `| unpack_syslog from field_name` [pipe](#pipes) unpacks [syslog](https://en.wikipedia.org/wiki/Syslog) message
 from the given [`field_name`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). It understands the following Syslog formats:
 
-- [RFC3164](https://datatracker.ietf.org/doc/html/rfc3164) aka `<PRI>MMM DD hh:mm:ss HOSTNAME TAG: MESSAGE`
-- [RFC5424](https://datatracker.ietf.org/doc/html/rfc5424) aka `<PRI>VERSION TIMESTAMP HOSTNAME APP-NAME PROCID MSGID [STRUCTURED-DATA] MESSAGE`
+- [RFC3164](https://datatracker.ietf.org/doc/html/rfc3164) aka `<PRI>MMM DD hh:mm:ss HOSTNAME APP-NAME[PROCID]: MESSAGE`
+- [RFC5424](https://datatracker.ietf.org/doc/html/rfc5424) aka `<PRI>1 TIMESTAMP HOSTNAME APP-NAME PROCID MSGID [STRUCTURED-DATA] MESSAGE`
 
 The following fields are unpacked:
 
 - `priority` - it is obtained from `PRI`.
 - `facility` - it is calculated as `PRI / 8`.
 - `severity` - it is calculated as `PRI % 8`.
+- `format` - either `rfc3164` or `rfc5424` depending on which Syslog format is unpacked.
 - `timestamp` - timestamp in [ISO8601 format](https://en.wikipedia.org/wiki/ISO_8601). The `MMM DD hh:mm:ss` timestamp in [RFC3164](https://datatracker.ietf.org/doc/html/rfc3164)
   is automatically converted into [ISO8601 format](https://en.wikipedia.org/wiki/ISO_8601) by assuming that the timestamp belongs to the last 12 months.
 - `hostname`
@@ -2316,8 +2607,10 @@ The following fields are unpacked:
 - `msg_id`
 - `message`
 
-The `[STRUCTURED-DATA]` is parsed into fields with the `SD-ID` name and `param1="value1" ... paramN="valueN"` value
-according to [the specification](https://datatracker.ietf.org/doc/html/rfc5424#section-6.3). The value then can be parsed to separate fields with [`unpack_logfmt` pipe](#unpack_logfmt-pipe).
+The `<PRI>` part is optional. If it is missing, then `priority`, `facility` and `severity` fields aren't set.
+
+The `[STRUCTURED-DATA]` is parsed into fields with the `SD-ID.param1`, `SD-ID.param2`, ..., `SD-ID.paramN` names and the corresponding values
+according to [the specification](https://datatracker.ietf.org/doc/html/rfc5424#section-6.3).
 
 For example, the following query unpacks [syslog](https://en.wikipedia.org/wiki/Syslog) message from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 across logs for the last 5 minutes:
@@ -2326,12 +2619,19 @@ across logs for the last 5 minutes:
 _time:5m | unpack_syslog from _msg
 ```
 
-The `from _json` part can be omitted when [syslog](https://en.wikipedia.org/wiki/Syslog) message is unpacked
+The `from _msg` part can be omitted when [syslog](https://en.wikipedia.org/wiki/Syslog) message is unpacked
 from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
 The following query is equivalent to the previous one:
 
 ```logsql
 _time:5m | unpack_syslog
+```
+
+By default timestamps in [RFC3164 format](https://datatracker.ietf.org/doc/html/rfc3164) are converted to local timezone. It is possible to change the timezone
+offset via `offset` option. For example, the following query adds 5 hours and 30 minutes to unpacked `rfc3164` timestamps:
+
+```logsql
+_time:5m | unpack_syslog offset 5h30m
 ```
 
 If it is needed to preserve the original non-empty field values, then add `keep_original_fields` to the end of `unpack_syslog ...`:
@@ -2779,10 +3079,7 @@ See also:
 
 ## Stream context
 
-LogsQL will support the ability to select the given number of surrounding log lines for the selected log lines
-on a [per-stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) basis.
-
-See the [Roadmap](https://docs.victoriametrics.com/victorialogs/roadmap/) for details.
+See [`stream_context` pipe](#stream_context-pipe).
 
 ## Transformations
 

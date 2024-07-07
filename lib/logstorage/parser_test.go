@@ -33,6 +33,77 @@ func TestLexer(t *testing.T) {
 		[]string{"_stream", ":", "{", "foo", "=", "bar", ",", "a", "=~", "baz", ",", "b", "!=", "cd", ",", "d,}a", "!~", "abc", "}"})
 }
 
+func TestParseDayRange(t *testing.T) {
+	f := func(s string, startExpected, endExpected, offsetExpected int64) {
+		t.Helper()
+		q, err := ParseQuery("_time:day_range" + s)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		fr, ok := q.f.(*filterDayRange)
+		if !ok {
+			t.Fatalf("unexpected filter; got %T; want *filterDayRange; filter: %s", q.f, q.f)
+		}
+		if fr.stringRepr != s {
+			t.Fatalf("unexpected string representation for filterDayRange; got %q; want %q", fr.stringRepr, s)
+		}
+		if fr.start != startExpected {
+			t.Fatalf("unexpected start; got %d; want %d", fr.start, startExpected)
+		}
+		if fr.end != endExpected {
+			t.Fatalf("unexpected end; got %d; want %d", fr.end, endExpected)
+		}
+		if fr.offset != offsetExpected {
+			t.Fatalf("unexpected offset; got %d; want %d", fr.offset, offsetExpected)
+		}
+	}
+
+	f("[00:00, 24:00]", 0, nsecsPerDay-1, 0)
+	f("[10:20, 125:00]", 10*nsecsPerHour+20*nsecsPerMinute, nsecsPerDay-1, 0)
+	f("(00:00, 24:00)", 1, nsecsPerDay-2, 0)
+	f("[08:00, 18:00)", 8*nsecsPerHour, 18*nsecsPerHour-1, 0)
+	f("[08:00, 18:00) offset 2h", 8*nsecsPerHour, 18*nsecsPerHour-1, 2*nsecsPerHour)
+	f("[08:00, 18:00) offset -2h", 8*nsecsPerHour, 18*nsecsPerHour-1, -2*nsecsPerHour)
+}
+
+func TestParseWeekRange(t *testing.T) {
+	f := func(s string, startDayExpected, endDayExpected time.Weekday, offsetExpected int64) {
+		t.Helper()
+		q, err := ParseQuery("_time:week_range" + s)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		fr, ok := q.f.(*filterWeekRange)
+		if !ok {
+			t.Fatalf("unexpected filter; got %T; want *filterWeekRange; filter: %s", q.f, q.f)
+		}
+		if fr.stringRepr != s {
+			t.Fatalf("unexpected string representation for filterWeekRange; got %q; want %q", fr.stringRepr, s)
+		}
+		if fr.startDay != startDayExpected {
+			t.Fatalf("unexpected start; got %s; want %s", fr.startDay, startDayExpected)
+		}
+		if fr.endDay != endDayExpected {
+			t.Fatalf("unexpected end; got %s; want %s", fr.endDay, endDayExpected)
+		}
+		if fr.offset != offsetExpected {
+			t.Fatalf("unexpected offset; got %d; want %d", fr.offset, offsetExpected)
+		}
+	}
+
+	f("[Sun, Sat]", time.Sunday, time.Saturday, 0)
+	f("(Sun, Sat]", time.Monday, time.Saturday, 0)
+	f("(Sun, Sat)", time.Monday, time.Friday, 0)
+	f("[Sun, Sat)", time.Sunday, time.Friday, 0)
+
+	f(`[Mon, Tue]`, time.Monday, time.Tuesday, 0)
+	f(`[Wed, Thu]`, time.Wednesday, time.Thursday, 0)
+	f(`[Fri, Sat]`, time.Friday, time.Saturday, 0)
+
+	f(`[Mon, Fri] offset 2h`, time.Monday, time.Friday, 2*nsecsPerHour)
+	f(`[Mon, Fri] offset -2h`, time.Monday, time.Friday, -2*nsecsPerHour)
+}
+
 func TestParseTimeDuration(t *testing.T) {
 	f := func(s string, durationExpected time.Duration) {
 		t.Helper()
@@ -356,7 +427,7 @@ func TestParseFilterStringRange(t *testing.T) {
 	f(">foo", ``, "foo\x00", maxStringRangeValue)
 	f("x:>=foo", `x`, "foo", maxStringRangeValue)
 	f("x:<foo", `x`, ``, `foo`)
-	f(`<="123"`, ``, ``, "123\x00")
+	f(`<="123.456.789"`, ``, ``, "123.456.789\x00")
 }
 
 func TestParseFilterRegexp(t *testing.T) {
@@ -496,7 +567,7 @@ func TestParseRangeFilter(t *testing.T) {
 		}
 		fr, ok := q.f.(*filterRange)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *filterIPv4Range; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterRange; filter: %s", q.f, q.f)
 		}
 		if fr.fieldName != fieldNameExpected {
 			t.Fatalf("unexpected fieldName; got %q; want %q", fr.fieldName, fieldNameExpected)
@@ -535,6 +606,12 @@ func TestParseRangeFilter(t *testing.T) {
 	f(`foo: < -10.43`, `foo`, -inf, nextafter(-10.43, -inf))
 	f(`foo:<=10.43ms`, `foo`, -inf, 10_430_000)
 	f(`foo: <= 10.43`, `foo`, -inf, 10.43)
+
+	f(`foo:<=1.2.3.4`, `foo`, -inf, 16909060)
+	f(`foo:<='1.2.3.4'`, `foo`, -inf, 16909060)
+	f(`foo:>=0xffffffff`, `foo`, (1<<32)-1, inf)
+	f(`foo:>=1_234e3`, `foo`, 1234000, inf)
+	f(`foo:>=1_234e-3`, `foo`, 1.234, inf)
 }
 
 func TestParseQuerySuccess(t *testing.T) {
@@ -599,6 +676,8 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`foo or bar baz or xyz`, `foo or bar baz or xyz`)
 	f(`(foo or bar) (baz or xyz)`, `(foo or bar) (baz or xyz)`)
 	f(`(foo OR bar) AND baz`, `(foo or bar) baz`)
+	f(`'stats' foo`, `"stats" foo`)
+	f(`"filter" bar copy fields avg baz`, `"filter" bar "copy" "fields" "avg" baz`)
 
 	// parens
 	f(`foo:(bar baz or not :xxx)`, `foo:bar foo:baz or !foo:xxx`)
@@ -616,6 +695,15 @@ func TestParseQuerySuccess(t *testing.T) {
 
 	// empty filter
 	f(`"" or foo:"" and not bar:""`, `"" or foo:"" !bar:""`)
+
+	// _stream_id filter
+	f(`_stream_id:0000007b000001c8302bc96e02e54e5524b3a68ec271e55e`, `_stream_id:0000007b000001c8302bc96e02e54e5524b3a68ec271e55e`)
+	f(`_stream_id:"0000007b000001c8302bc96e02e54e5524b3a68ec271e55e"`, `_stream_id:0000007b000001c8302bc96e02e54e5524b3a68ec271e55e`)
+	f(`_stream_id:in()`, `_stream_id:in()`)
+	f(`_stream_id:in(0000007b000001c8302bc96e02e54e5524b3a68ec271e55e)`, `_stream_id:0000007b000001c8302bc96e02e54e5524b3a68ec271e55e`)
+	f(`_stream_id:in(0000007b000001c8302bc96e02e54e5524b3a68ec271e55e, "0000007b000001c850d9950ea6196b1a4812081265faa1c7")`,
+		`_stream_id:in(0000007b000001c8302bc96e02e54e5524b3a68ec271e55e,0000007b000001c850d9950ea6196b1a4812081265faa1c7)`)
+	f(`_stream_id:in(_time:5m | fields _stream_id)`, `_stream_id:in(_time:5m | fields _stream_id)`)
 
 	// _stream filters
 	f(`_stream:{}`, `_stream:{}`)
@@ -659,6 +747,20 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`_time:1h "offSet"`, `_time:1h "offSet"`) // "offset" is a search word, since it is quoted
 	f(`_time:1h (Offset)`, `_time:1h "Offset"`) // "offset" is a search word, since it is in parens
 	f(`_time:1h "and"`, `_time:1h "and"`)       // "and" is a search word, since it is quoted
+
+	// dayRange filters
+	f(`_time:day_range[08:00, 20:30)`, `_time:day_range[08:00, 20:30)`)
+	f(`_time:day_range(08:00, 20:30)`, `_time:day_range(08:00, 20:30)`)
+	f(`_time:day_range(08:00, 20:30]`, `_time:day_range(08:00, 20:30]`)
+	f(`_time:day_range[08:00, 20:30]`, `_time:day_range[08:00, 20:30]`)
+	f(`_time:day_range[08:00, 20:30] offset 2.5h`, `_time:day_range[08:00, 20:30] offset 2.5h`)
+	f(`_time:day_range[08:00, 20:30] offset -2.5h`, `_time:day_range[08:00, 20:30] offset -2.5h`)
+
+	// weekRange filters
+	f(`_time:week_range[Mon, Fri]`, `_time:week_range[Mon, Fri]`)
+	f(`_time:week_range(Monday, Friday] offset 2.5h`, `_time:week_range(Monday, Friday] offset 2.5h`)
+	f(`_time:week_range[monday, friday) offset -2.5h`, `_time:week_range[monday, friday) offset -2.5h`)
+	f(`_time:week_range(mon, fri]`, `_time:week_range(mon, fri]`)
 
 	// reserved keywords
 	f("and", `"and"`)
@@ -811,10 +913,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`string_range(foo, bar)`, `string_range(foo, bar)`)
 	f(`foo:string_range("foo, bar", baz)`, `foo:string_range("foo, bar", baz)`)
 	f(`foo:>bar`, `foo:>bar`)
-	f(`foo:>"1234"`, `foo:>"1234"`)
+	f(`foo:>"1234"`, `foo:>1234`)
 	f(`>="abc"`, `>=abc`)
 	f(`foo:<bar`, `foo:<bar`)
-	f(`foo:<"-12.34"`, `foo:<"-12.34"`)
+	f(`foo:<"-12.34"`, `foo:<-12.34`)
 	f(`<="abc < de"`, `<="abc < de"`)
 
 	// reserved field names
@@ -835,8 +937,8 @@ func TestParseQuerySuccess(t *testing.T) {
 	f("foo-bar+baz*", `"foo-bar+baz"*`)
 	f("foo- bar", `foo- bar`)
 	f("foo -bar", `foo -bar`)
-	f("foo!bar", `"foo!bar"`)
-	f("foo:aa!bb:cc", `foo:"aa!bb:cc"`)
+	f("foo!bar", `foo !bar`)
+	f("foo:aa!bb:cc", `foo:aa !bb:cc`)
 	f(`foo:bar:baz`, `foo:"bar:baz"`)
 	f(`foo:(bar baz:xxx)`, `foo:bar foo:"baz:xxx"`)
 	f(`foo:(_time:abc or not z)`, `foo:"_time:abc" or !foo:z`)
@@ -1123,6 +1225,11 @@ func TestParseQueryFailure(t *testing.T) {
 	f("not (abc")
 	f("!")
 
+	// pipe names without quoutes
+	f(`filter foo:bar`)
+	f(`stats count()`)
+	f(`count()`)
+
 	// invalid parens
 	f("(")
 	f("foo (bar ")
@@ -1139,6 +1246,13 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`"foo`)
 	f(`'foo`)
 	f("`foo")
+
+	// invalid _stream_id filters
+	f("_stream_id:foo")
+	f("_stream_id:()")
+	f("_stream_id:in(foo)")
+	f("_stream_id:in(foo | bar)")
+	f("_stream_id:in(* | stats by (x) count() y)")
 
 	// invalid _stream filters
 	f("_stream:")
@@ -1179,6 +1293,24 @@ func TestParseQueryFailure(t *testing.T) {
 	f("_time:234foo")
 	f("_time:5m offset")
 	f("_time:10m offset foobar")
+
+	// invalid day_range filters
+	f("_time:day_range")
+	f("_time:day_range[")
+	f("_time:day_range[foo")
+	f("_time:day_range[00:00,")
+	f("_time:day_range[00:00,bar")
+	f("_time:day_range[00:00,08:00")
+	f("_time:day_range[00:00,08:00] offset")
+
+	// invalid week_range filters
+	f("_time:week_range")
+	f("_time:week_range[")
+	f("_time:week_range[foo")
+	f("_time:week_range[Mon,")
+	f("_time:week_range[Mon,bar")
+	f("_time:week_range[Mon,Fri")
+	f("_time:week_range[Mon,Fri] offset")
 
 	// long query with error
 	f(`very long query with error aaa ffdfd fdfdfd fdfd:( ffdfdfdfdfd`)
@@ -1871,6 +2003,7 @@ func TestQueryGetFilterTimeRange(t *testing.T) {
 	f("*", -9223372036854775808, 9223372036854775807)
 	f("_time:2024-05-31T10:20:30.456789123Z", 1717150830456789123, 1717150830456789123)
 	f("_time:2024-05-31", 1717113600000000000, 1717199999999999999)
+	f("_time:2024-05-31 _time:day_range[08:00, 16:00]", 1717113600000000000, 1717199999999999999)
 }
 
 func TestQueryCanReturnLastNResults(t *testing.T) {
@@ -1900,4 +2033,48 @@ func TestQueryCanReturnLastNResults(t *testing.T) {
 	f("* | field_names", false)
 	f("* | field_values x", false)
 
+}
+
+func TestQueryCanLiveTail(t *testing.T) {
+	f := func(qStr string, resultExpected bool) {
+		t.Helper()
+
+		q, err := ParseQuery(qStr)
+		if err != nil {
+			t.Fatalf("cannot parse [%s]: %s", qStr, err)
+		}
+		result := q.CanLiveTail()
+		if result != resultExpected {
+			t.Fatalf("unexpected result for CanLiveTail(%q); got %v; want %v", qStr, result, resultExpected)
+		}
+	}
+
+	f("foo", true)
+	f("* | copy a b", true)
+	f("* | rm a, b", true)
+	f("* | drop_empty_fields", true)
+	f("* | extract 'foo<bar>baz'", true)
+	f("* | extract_regexp 'foo(?P<bar>baz)'", true)
+	f("* | field_names a", false)
+	f("* | fields a, b", true)
+	f("* | field_values a", false)
+	f("* | filter foo", true)
+	f("* | format 'a<b>c'", true)
+	f("* | limit 10", false)
+	f("* | math a/b as c", true)
+	f("* | offset 10", false)
+	f("* | pack_json", true)
+	f("* | pack_logfmt", true)
+	f("* | rename a b", true)
+	f("* | replace ('foo', 'bar')", true)
+	f("* | replace_regexp ('foo', 'bar')", true)
+	f("* | sort by (a)", false)
+	f("* | stats count() rows", false)
+	f("* | stream_context after 10", false)
+	f("* | top 10 by (x)", false)
+	f("* | uniq by (a)", false)
+	f("* | unpack_json", true)
+	f("* | unpack_logfmt", true)
+	f("* | unpack_syslog", true)
+	f("* | unroll by (a)", true)
 }

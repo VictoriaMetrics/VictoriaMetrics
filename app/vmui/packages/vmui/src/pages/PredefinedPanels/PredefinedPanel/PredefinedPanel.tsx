@@ -89,7 +89,7 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
         <>
           <div>
             <span>Description:</span>
-            <div dangerouslySetInnerHTML={{ __html: marked.parse(description) }}/>
+            <div dangerouslySetInnerHTML={{ __html: marked(description) as string }}/>
           </div>
           <hr/>
         </>

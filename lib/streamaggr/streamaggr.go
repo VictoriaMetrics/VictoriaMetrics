@@ -47,6 +47,9 @@ var supportedOutputs = []string{
 	"quantiles(phi1, ..., phiN)",
 }
 
+// maxLabelValueLen is maximum match expression label value length in stream aggregation metrics
+const maxLabelValueLen = 64
+
 var (
 	// lc contains information about all compressed labels for streaming aggregation
 	lc promutils.LabelsCompressor
@@ -65,7 +68,7 @@ var (
 // opts can contain additional options. If opts is nil, then default options are used.
 //
 // The returned Aggregators must be stopped with MustStop() when no longer needed.
-func LoadFromFile(path string, pushFunc PushFunc, opts *Options) (*Aggregators, error) {
+func LoadFromFile(path string, pushFunc PushFunc, opts Options) (*Aggregators, error) {
 	data, err := fscore.ReadFileOrHTTP(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot load aggregators: %w", err)
@@ -75,7 +78,7 @@ func LoadFromFile(path string, pushFunc PushFunc, opts *Options) (*Aggregators, 
 		return nil, fmt.Errorf("cannot expand environment variables in %q: %w", path, err)
 	}
 
-	as, err := newAggregatorsFromData(data, pushFunc, opts)
+	as, err := LoadFromData(data, pushFunc, opts)
 	if err != nil {
 		return nil, fmt.Errorf("cannot initialize aggregators from %q: %w; see https://docs.victoriametrics.com/stream-aggregation/#stream-aggregation-config", path, err)
 	}
@@ -127,12 +130,18 @@ type Options struct {
 	// This option can be overridden individually per each aggregation via ignore_old_samples option.
 	IgnoreOldSamples bool
 
-	// IgnoreFirstIntervals sets amount of aggregation intervals to ignore on start.
+	// IgnoreFirstIntervals sets the number of aggregation intervals to be ignored on start.
 	//
-	// By default, no intervals will be ignored.
+	// By default, zero intervals are ignored.
 	//
 	// This option can be overridden individually per each aggregation via ignore_first_intervals option.
 	IgnoreFirstIntervals int
+
+	// Alias is name or url of remote write context
+	Alias string
+
+	// aggrID is aggregators id number starting from 1, which is used in metrics labels
+	aggrID int
 }
 
 // Config is a configuration for a single stream aggregation.
@@ -243,7 +252,8 @@ type Aggregators struct {
 	ms *metrics.Set
 }
 
-func newAggregatorsFromData(data []byte, pushFunc PushFunc, opts *Options) (*Aggregators, error) {
+// LoadFromData loads aggregators from data.
+func LoadFromData(data []byte, pushFunc PushFunc, opts Options) (*Aggregators, error) {
 	var cfgs []*Config
 	if err := yaml.UnmarshalStrict(data, &cfgs); err != nil {
 		return nil, fmt.Errorf("cannot parse stream aggregation config: %w", err)
@@ -252,6 +262,7 @@ func newAggregatorsFromData(data []byte, pushFunc PushFunc, opts *Options) (*Agg
 	ms := metrics.NewSet()
 	as := make([]*aggregator, len(cfgs))
 	for i, cfg := range cfgs {
+		opts.aggrID = i + 1
 		a, err := newAggregator(cfg, pushFunc, ms, opts)
 		if err != nil {
 			// Stop already initialized aggregators before returning the error.
@@ -267,7 +278,8 @@ func newAggregatorsFromData(data []byte, pushFunc PushFunc, opts *Options) (*Agg
 		logger.Panicf("BUG: cannot marshal the provided configs: %s", err)
 	}
 
-	_ = ms.NewGauge(`vm_streamaggr_dedup_state_size_bytes`, func() float64 {
+	metricLabels := fmt.Sprintf("url=%q", opts.Alias)
+	_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_dedup_state_size_bytes{%s}`, metricLabels), func() float64 {
 		n := uint64(0)
 		for _, aggr := range as {
 			if aggr.da != nil {
@@ -276,7 +288,7 @@ func newAggregatorsFromData(data []byte, pushFunc PushFunc, opts *Options) (*Agg
 		}
 		return float64(n)
 	})
-	_ = ms.NewGauge(`vm_streamaggr_dedup_state_items_count`, func() float64 {
+	_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_dedup_state_items_count{%s}`, metricLabels), func() float64 {
 		n := uint64(0)
 		for _, aggr := range as {
 			if aggr.da != nil {
@@ -389,13 +401,24 @@ type aggregator struct {
 
 	flushDuration      *metrics.Histogram
 	dedupFlushDuration *metrics.Histogram
+	samplesLag         *metrics.Histogram
 
 	flushTimeouts      *metrics.Counter
 	dedupFlushTimeouts *metrics.Counter
+	ignoredOldSamples  *metrics.Counter
+	ignoredNanSamples  *metrics.Counter
+	matchedSamples     *metrics.Counter
+	staleInputSamples  map[string]*metrics.Counter
+	staleOutputSamples map[string]*metrics.Counter
+	flushedSamples     map[string]*metrics.Counter
 }
 
 type aggrState interface {
+	// pushSamples must push samples to the aggrState.
+	//
+	// samples[].key must be cloned by aggrState, since it may change after returning from pushSamples.
 	pushSamples(samples []pushSample)
+
 	flushState(ctx *flushCtx, resetState bool)
 }
 
@@ -407,11 +430,7 @@ type PushFunc func(tss []prompbmarshal.TimeSeries)
 // opts can contain additional options. If opts is nil, then default options are used.
 //
 // The returned aggregator must be stopped when no longer needed by calling MustStop().
-func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Options) (*aggregator, error) {
-	if opts == nil {
-		opts = &Options{}
-	}
-
+func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts Options) (*aggregator, error) {
 	// check cfg.Interval
 	if cfg.Interval == "" {
 		return nil, fmt.Errorf("missing `interval` option")
@@ -579,13 +598,25 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 
 	// initialize suffix to add to metric names after aggregation
 	suffix := ":" + cfg.Interval
+	group := "none"
 	if labels := removeUnderscoreName(by); len(labels) > 0 {
+		group = fmt.Sprintf("by: %s", strings.Join(labels, ","))
 		suffix += fmt.Sprintf("_by_%s", strings.Join(labels, "_"))
 	}
 	if labels := removeUnderscoreName(without); len(labels) > 0 {
+		group = fmt.Sprintf("without: %s", strings.Join(labels, ","))
 		suffix += fmt.Sprintf("_without_%s", strings.Join(labels, "_"))
 	}
 	suffix += "_"
+
+	outputs := strings.Join(cfg.Outputs, ",")
+
+	matchExpr := cfg.Match.String()
+	if len(matchExpr) > maxLabelValueLen {
+		matchExpr = matchExpr[:maxLabelValueLen-3] + "..."
+	}
+
+	metricLabels := fmt.Sprintf(`match=%q, group=%q, url=%q, position="%d"`, matchExpr, group, opts.Alias, opts.aggrID)
 
 	// initialize the aggregator
 	a := &aggregator{
@@ -608,11 +639,27 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 
 		stopCh: make(chan struct{}),
 
-		flushDuration:      ms.GetOrCreateHistogram(`vm_streamaggr_flush_duration_seconds`),
-		dedupFlushDuration: ms.GetOrCreateHistogram(`vm_streamaggr_dedup_flush_duration_seconds`),
+		flushDuration:      ms.GetOrCreateHistogram(fmt.Sprintf(`vm_streamaggr_flush_duration_seconds{outputs=%q, %s}`, outputs, metricLabels)),
+		dedupFlushDuration: ms.GetOrCreateHistogram(fmt.Sprintf(`vm_streamaggr_dedup_flush_duration_seconds{outputs=%q, %s}`, outputs, metricLabels)),
+		samplesLag:         ms.GetOrCreateHistogram(fmt.Sprintf(`vm_streamaggr_samples_lag_seconds{outputs=%q, %s}`, outputs, metricLabels)),
 
-		flushTimeouts:      ms.GetOrCreateCounter(`vm_streamaggr_flush_timeouts_total`),
-		dedupFlushTimeouts: ms.GetOrCreateCounter(`vm_streamaggr_dedup_flush_timeouts_total`),
+		matchedSamples:     ms.GetOrCreateCounter(fmt.Sprintf(`vm_streamaggr_matched_samples_total{outputs=%q, %s}`, outputs, metricLabels)),
+		flushTimeouts:      ms.GetOrCreateCounter(fmt.Sprintf(`vm_streamaggr_flush_timeouts_total{outputs=%q, %s}`, outputs, metricLabels)),
+		dedupFlushTimeouts: ms.GetOrCreateCounter(fmt.Sprintf(`vm_streamaggr_dedup_flush_timeouts_total{outputs=%q, %s}`, outputs, metricLabels)),
+		ignoredNanSamples:  ms.GetOrCreateCounter(fmt.Sprintf(`vm_streamaggr_ignored_samples_total{reason="nan", outputs=%q, %s}`, outputs, metricLabels)),
+		ignoredOldSamples:  ms.GetOrCreateCounter(fmt.Sprintf(`vm_streamaggr_ignored_samples_total{reason="too_old", outputs=%q, %s}`, outputs, metricLabels)),
+		staleInputSamples:  make(map[string]*metrics.Counter, len(cfg.Outputs)),
+		staleOutputSamples: make(map[string]*metrics.Counter, len(cfg.Outputs)),
+		flushedSamples:     make(map[string]*metrics.Counter, len(cfg.Outputs)),
+	}
+	for _, output := range cfg.Outputs {
+		// Removing output args for metric label value in outputs like quantile(arg1, arg2)
+		if ri := strings.IndexRune(output, '('); ri >= 0 {
+			output = output[:ri]
+		}
+		a.staleInputSamples[output] = ms.GetOrCreateCounter(fmt.Sprintf(`vm_streamaggr_stale_samples_total{key="input", output=%q, %s}`, output, metricLabels))
+		a.staleOutputSamples[output] = ms.GetOrCreateCounter(fmt.Sprintf(`vm_streamaggr_stale_samples_total{key="output", output=%q, %s}`, output, metricLabels))
+		a.flushedSamples[output] = ms.GetOrCreateCounter(fmt.Sprintf(`vm_streamaggr_flushed_samples_total{output=%q, %s}`, output, metricLabels))
 	}
 	if dedupInterval > 0 {
 		a.da = newDedupAggr()
@@ -669,15 +716,16 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 
 		if alignFlushToInterval && skipIncompleteFlush {
 			a.flush(nil, interval, true)
+			ignoreFirstIntervals--
 		}
 
 		for tickerWait(t) {
-			pf := pushFunc
 			if ignoreFirstIntervals > 0 {
-				pf = nil
+				a.flush(nil, interval, true)
 				ignoreFirstIntervals--
+			} else {
+				a.flush(pushFunc, interval, true)
 			}
-			a.flush(pf, interval, true)
 
 			if alignFlushToInterval {
 				select {
@@ -698,17 +746,17 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 
 			ct := time.Now()
 			if ct.After(flushDeadline) {
-				pf := pushFunc
-				if ignoreFirstIntervals > 0 {
-					pf = nil
-					ignoreFirstIntervals--
-				}
 				// It is time to flush the aggregated state
 				if alignFlushToInterval && skipIncompleteFlush && !isSkippedFirstFlush {
-					pf = nil
+					a.flush(nil, interval, true)
+					ignoreFirstIntervals--
 					isSkippedFirstFlush = true
+				} else if ignoreFirstIntervals > 0 {
+					a.flush(nil, interval, true)
+					ignoreFirstIntervals--
+				} else {
+					a.flush(pushFunc, interval, true)
 				}
-				a.flush(pf, interval, true)
 				for ct.After(flushDeadline) {
 					flushDeadline = flushDeadline.Add(interval)
 				}
@@ -723,7 +771,7 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 		}
 	}
 
-	if !skipIncompleteFlush && ignoreFirstIntervals == 0 {
+	if !skipIncompleteFlush && ignoreFirstIntervals <= 0 {
 		a.dedupFlush(dedupInterval)
 		a.flush(pushFunc, interval, true)
 	}
@@ -737,7 +785,7 @@ func (a *aggregator) dedupFlush(dedupInterval time.Duration) {
 
 	startTime := time.Now()
 
-	a.da.flush(a.pushSamples, true)
+	a.da.flush(a.pushSamples)
 
 	d := time.Since(startTime)
 	a.dedupFlushDuration.Update(d.Seconds())
@@ -798,6 +846,7 @@ func (a *aggregator) MustStop() {
 
 // Push pushes tss to a.
 func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
+	now := time.Now().UnixMilli()
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 
@@ -810,6 +859,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	dropLabels := a.dropInputLabels
 	ignoreOldSamples := a.ignoreOldSamples
 	minTimestamp := a.minTimestamp.Load()
+	var maxLag int64
 	for idx, ts := range tss {
 		if !a.match.Match(ts.Labels) {
 			continue
@@ -836,16 +886,24 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 			outputLabels.Labels = append(outputLabels.Labels, labels.Labels...)
 		}
 
-		buf = compressLabels(buf[:0], inputLabels.Labels, outputLabels.Labels)
-		key := bytesutil.InternBytes(buf)
+		bufLen := len(buf)
+		buf = compressLabels(buf, inputLabels.Labels, outputLabels.Labels)
+		// key remains valid only by the end of this function and can't be reused after
+		// do not intern key because number of unique keys could be too high
+		key := bytesutil.ToUnsafeString(buf[bufLen:])
 		for _, sample := range ts.Samples {
 			if math.IsNaN(sample.Value) {
+				a.ignoredNanSamples.Inc()
 				// Skip NaN values
 				continue
 			}
 			if ignoreOldSamples && sample.Timestamp < minTimestamp {
+				a.ignoredOldSamples.Inc()
 				// Skip old samples outside the current aggregation interval
 				continue
+			}
+			if maxLag < now-sample.Timestamp {
+				maxLag = now - sample.Timestamp
 			}
 			samples = append(samples, pushSample{
 				key:       key,
@@ -853,6 +911,10 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 				timestamp: sample.Timestamp,
 			})
 		}
+	}
+	if len(samples) > 0 {
+		a.matchedSamples.Add(len(samples))
+		a.samplesLag.Update(float64(maxLag) / 1_000)
 	}
 	ctx.samples = samples
 	ctx.buf = buf
@@ -926,6 +988,8 @@ func (ctx *pushCtx) reset() {
 }
 
 type pushSample struct {
+	// key identifies a sample that belongs to unique series
+	// key value can't be re-used
 	key       string
 	value     float64
 	timestamp int64
@@ -1063,6 +1127,7 @@ func (ctx *flushCtx) appendSeries(key, suffix string, timestamp int64, value flo
 		Labels:  ctx.labels[labelsLen:],
 		Samples: ctx.samples[samplesLen:],
 	})
+	ctx.a.flushedSamples[suffix].Add(len(ctx.tss))
 
 	// Limit the maximum length of ctx.tss in order to limit memory usage.
 	if len(ctx.tss) >= 10_000 {
@@ -1090,6 +1155,7 @@ func (ctx *flushCtx) appendSeriesWithExtraLabel(key, suffix string, timestamp in
 		Labels:  ctx.labels[labelsLen:],
 		Samples: ctx.samples[samplesLen:],
 	})
+	ctx.a.flushedSamples[suffix].Add(len(ctx.tss))
 }
 
 func addMetricSuffix(labels []prompbmarshal.Label, offset int, firstSuffix, lastSuffix string) []prompbmarshal.Label {

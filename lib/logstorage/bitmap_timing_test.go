@@ -4,6 +4,35 @@ import (
 	"testing"
 )
 
+func BenchmarkBitmapIsSetBit(b *testing.B) {
+	const bitsLen = 64 * 1024
+
+	b.Run("no-zero-bits", func(b *testing.B) {
+		bm := getBitmap(bitsLen)
+		bm.setBits()
+		benchmarkBitmapIsSetBit(b, bm)
+		putBitmap(bm)
+	})
+	b.Run("half-zero-bits", func(b *testing.B) {
+		bm := getBitmap(bitsLen)
+		bm.setBits()
+		bm.forEachSetBit(func(idx int) bool {
+			return idx%2 == 0
+		})
+		benchmarkBitmapIsSetBit(b, bm)
+		putBitmap(bm)
+	})
+	b.Run("one-set-bit", func(b *testing.B) {
+		bm := getBitmap(bitsLen)
+		bm.setBits()
+		bm.forEachSetBit(func(idx int) bool {
+			return idx == bitsLen/2
+		})
+		benchmarkBitmapIsSetBit(b, bm)
+		putBitmap(bm)
+	})
+}
+
 func BenchmarkBitmapForEachSetBitReadonly(b *testing.B) {
 	const bitsLen = 64 * 1024
 
@@ -86,19 +115,33 @@ func BenchmarkBitmapForEachSetBit(b *testing.B) {
 	})
 }
 
+func benchmarkBitmapIsSetBit(b *testing.B, bm *bitmap) {
+	bitsLen := bm.bitsLen
+	b.SetBytes(int64(bitsLen))
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		n := 0
+		for pb.Next() {
+			for i := 0; i < bitsLen; i++ {
+				if bm.isSetBit(i) {
+					n++
+				}
+			}
+		}
+		GlobalSink.Add(uint64(n))
+	})
+}
+
 func benchmarkBitmapForEachSetBitReadonly(b *testing.B, bm *bitmap) {
 	b.SetBytes(int64(bm.bitsLen))
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
-		bmLocal := getBitmap(bm.bitsLen)
 		n := 0
 		for pb.Next() {
-			bmLocal.copyFrom(bm)
-			bmLocal.forEachSetBitReadonly(func(_ int) {
+			bm.forEachSetBitReadonly(func(_ int) {
 				n++
 			})
 		}
-		putBitmap(bmLocal)
 		GlobalSink.Add(uint64(n))
 	})
 }

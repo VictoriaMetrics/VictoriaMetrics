@@ -35,6 +35,8 @@ In addition to that, setting up alerting rules manually has been proven to be te
 error-prone, while anomaly detection can be easier to set up, and use the same model for different
 metrics.
 
+`vmanomaly` can be used as a helper to set up your own alerting. You can rely on the spikes you see in anomaly scores to form the metric queries for alerting rules.
+
 > **Note: `vmanomaly` is a part of [enterprise package](https://docs.victoriametrics.com/enterprise/). You need to get a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.**
 
 ## How?
@@ -87,10 +89,6 @@ Currently, vmanomaly ships with a set of built-in models:
    easier debugging. Uses LOESS (locally estimated scatterplot smoothing).
    See [statsmodels.org documentation](https://www.statsmodels.org/dev/examples/notebooks/generated/stl_decomposition.html)
    for LOESS STD.
-
-1. [**ARIMA**](/anomaly-detection/components/models.html#arima)
-
-   Commonly used forecasting model. See [statsmodels.org documentation](https://www.statsmodels.org/stable/generated/statsmodels.tsa.arima.model.ARIMA.html) for ARIMA.
 
 1. [**Rolling Quantile**](/anomaly-detection/components/models.html#rolling-quantile)
 
@@ -167,7 +165,7 @@ schedulers:
 
 models:
   prophet:  # or use a model alias of your choice here
-    class: "model.prophet.ProphetModel"
+    class: "prophet"  # or "model.prophet.ProphetModel" until v1.13.0
     args:
       interval_width: 0.98
 

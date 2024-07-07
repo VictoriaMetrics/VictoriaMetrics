@@ -8,6 +8,8 @@ menu:
     weight: 2
 aliases:
   - /VictoriaLogs/data-ingestion/Fluentbit.html
+  - /victorialogs/data-ingestion/fluentbit.html
+  - /victorialogs/data-ingestion/Fluentbit.html
 ---
 
 # Fluentbit setup

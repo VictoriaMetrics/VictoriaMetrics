@@ -1,6 +1,7 @@
 package promrelabel
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 
@@ -143,7 +144,13 @@ func (ie *IfExpression) String() string {
 	if len(ie.ies) == 1 {
 		return ie.ies[0].String()
 	}
-	return fmt.Sprintf("%s", ie.ies)
+	var buf bytes.Buffer
+	buf.WriteString(ie.ies[0].String())
+	for _, e := range ie.ies[1:] {
+		buf.WriteString(",")
+		buf.WriteString(e.String())
+	}
+	return buf.String()
 }
 
 type ifExpression struct {
@@ -287,10 +294,22 @@ func (lf *labelFilter) match(labels []prompbmarshal.Label) bool {
 	return false
 }
 
+func (lf *labelFilter) equalNameValue(labels []prompbmarshal.Label) bool {
+	for _, label := range labels {
+		if label.Name == "__name__" {
+			return label.Value == lf.value
+		}
+	}
+	return false
+}
+
 func (lf *labelFilter) equalValue(labels []prompbmarshal.Label) bool {
+	if lf.label == "" {
+		return lf.equalNameValue(labels)
+	}
 	labelNameMatches := 0
 	for _, label := range labels {
-		if toCanonicalLabelName(label.Name) != lf.label {
+		if label.Name != lf.label {
 			continue
 		}
 		labelNameMatches++

@@ -123,6 +123,7 @@ type ListObjectVersionsInput struct {
 }
 
 func (in *ListObjectVersionsInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.Prefix = in.Prefix
 
@@ -257,6 +258,15 @@ func (c *Client) addOperationListObjectVersionsMiddlewares(stack *middleware.Sta
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpListObjectVersionsValidationMiddleware(stack); err != nil {

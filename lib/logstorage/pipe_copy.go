@@ -31,6 +31,10 @@ func (pc *pipeCopy) String() string {
 	return "copy " + strings.Join(a, ", ")
 }
 
+func (pc *pipeCopy) canLiveTail() bool {
+	return true
+}
+
 func (pc *pipeCopy) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	for i := len(pc.srcFields) - 1; i >= 0; i-- {
 		srcField := pc.srcFields[i]

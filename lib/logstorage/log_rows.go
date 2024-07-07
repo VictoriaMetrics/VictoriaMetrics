@@ -60,20 +60,8 @@ type RowFormatter []Field
 
 // String returns user-readable representation for rf
 func (rf *RowFormatter) String() string {
-	b := append([]byte{}, '{')
-
-	fields := *rf
-	if len(fields) > 0 {
-		b = append(b, fields[0].String()...)
-		fields = fields[1:]
-		for _, field := range fields {
-			b = append(b, ',')
-			b = append(b, field.String()...)
-		}
-	}
-
-	b = append(b, '}')
-	return string(b)
+	result := MarshalFieldsToJSON(nil, *rf)
+	return string(result)
 }
 
 // Reset resets lr with all its settings.

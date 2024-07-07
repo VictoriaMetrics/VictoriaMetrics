@@ -19,9 +19,9 @@ aliases:
 
 - To use *vmanomaly*, part of the enterprise package, a license key is required. Obtain your key [here](https://victoriametrics.com/products/enterprise/trial/) for this tutorial or for enterprise use.
 - In the tutorial, we'll be using the following VictoriaMetrics components:
-  -  [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics/) (v1.100.1)
-  -  [vmalert](https://docs.victoriametrics.com/vmalert/) (v1.100.1)
-  -  [vmagent](https://docs.victoriametrics.com/vmagent/) (v1.100.1)
+  -  [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics/) (v1.101.0)
+  -  [vmalert](https://docs.victoriametrics.com/vmalert/) (v1.101.0)
+  -  [vmagent](https://docs.victoriametrics.com/vmagent/) (v1.101.0)
 - [Grafana](https://grafana.com/) (v.10.2.1)
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/)
 - [Node exporter](https://github.com/prometheus/node_exporter#node-exporter) (v1.7.0) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) (v0.27.0)
@@ -29,6 +29,8 @@ aliases:
 <img src="guide-vmanomaly-vmalert_overview.webp" alt="vmanomaly typical setup diagram">
 
 > **Note: Configurations used throughout this guide can be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-integration/)**
+
+> **Note:** Starting from [v1.13.0](/anomaly-detection/CHANGELOG#v1130) `node-exporter` observability preset is available for `vmanomaly`. Please find the guide [here](/anomaly-detection/presets/#node-exporter).
 
 ## 1. What is vmanomaly?
 
@@ -151,14 +153,14 @@ Below is an illustrative example of a `vmanomaly_config.yml` configuration file.
 ``` yaml
 schedulers:
   periodic:
-    # class: "scheduler.periodic.PeriodicScheduler"
+    # class: 'periodic'  # or "scheduler.periodic.PeriodicScheduler" until v1.13.0
     infer_every: "1m"
     fit_every: "2m"
     fit_window: "3h"
 
 models:
   prophet:
-    class: "model.prophet.ProphetModel"
+    class: "prophet"  # or "model.prophet.ProphetModel" until v1.13.0
     args:
       interval_width: 0.98
 
@@ -328,7 +330,7 @@ Let's wrap it all up together into the `docker-compose.yml` file.
 services:
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:v1.100.1
+    image: victoriametrics/vmagent:v1.101.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -345,7 +347,7 @@ services:
 
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.100.1
+    image: victoriametrics/victoria-metrics:v1.101.0
     ports:
       - 8428:8428
     volumes:
@@ -378,7 +380,7 @@ services:
 
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.100.1
+    image: victoriametrics/vmalert:v1.101.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -526,3 +528,5 @@ Key takeaways include:
 4. **Alert Configuration**: We've shown how to set up and customize alerting rules in `vmalert` based on produced anomaly scores, enabling proactive monitoring and timely response to potential issues.
 
 As you continue to use VictoriaMetrics Anomaly Detection and `vmalert`, remember that the effectiveness of anomaly detection largely depends on the appropriateness of the model chosen, the accuracy of configurations and the data patterns observed. This guide serves as a starting point, and we encourage you to experiment with different configurations and models to best suit your specific data needs and use cases. In case you need a helping hand - [contact us](https://victoriametrics.com/contact-us/).
+
+> **Note:** Starting from [v1.13.0](/anomaly-detection/CHANGELOG#v1130) `node-exporter` observability preset is available for `vmanomaly`. Please find the guide [here](/anomaly-detection/presets/#node-exporter).

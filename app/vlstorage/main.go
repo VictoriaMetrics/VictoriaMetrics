@@ -20,10 +20,12 @@ import (
 var (
 	retentionPeriod = flagutil.NewDuration("retentionPeriod", "7d", "Log entries with timestamps older than now-retentionPeriod are automatically deleted; "+
 		"log entries with timestamps outside the retention are also rejected during data ingestion; the minimum supported retention is 1d (one day); "+
-		"see https://docs.victoriametrics.com/victorialogs/#retention")
+		"see https://docs.victoriametrics.com/victorialogs/#retention ; see also -retention.maxDiskSpaceUsageBytes")
+	maxDiskSpaceUsageBytes = flagutil.NewBytes("retention.maxDiskSpaceUsageBytes", 0, "The maximum disk space usage at -storageDataPath before older per-day "+
+		"partitions are automatically dropped; see https://docs.victoriametrics.com/victorialogs/#retention-by-disk-space-usage ; see also -retentionPeriod")
 	futureRetention = flagutil.NewDuration("futureRetention", "2d", "Log entries with timestamps bigger than now+futureRetention are rejected during data ingestion; "+
 		"see https://docs.victoriametrics.com/victorialogs/#retention")
-	storageDataPath = flag.String("storageDataPath", "victoria-logs-data", "Path to directory with the VictoriaLogs data; "+
+	storageDataPath = flag.String("storageDataPath", "victoria-logs-data", "Path to directory where to store VictoriaLogs data; "+
 		"see https://docs.victoriametrics.com/victorialogs/#storage")
 	inmemoryDataFlushInterval = flag.Duration("inmemoryDataFlushInterval", 5*time.Second, "The interval for guaranteed saving of in-memory data to disk. "+
 		"The saved data survives unclean shutdowns such as OOM crash, hardware reset, SIGKILL, etc. "+
@@ -49,12 +51,13 @@ func Init() {
 		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s", retentionPeriod)
 	}
 	cfg := &logstorage.StorageConfig{
-		Retention:             retentionPeriod.Duration(),
-		FlushInterval:         *inmemoryDataFlushInterval,
-		FutureRetention:       futureRetention.Duration(),
-		LogNewStreams:         *logNewStreams,
-		LogIngestedRows:       *logIngestedRows,
-		MinFreeDiskSpaceBytes: minFreeDiskSpaceBytes.N,
+		Retention:              retentionPeriod.Duration(),
+		MaxDiskSpaceUsageBytes: maxDiskSpaceUsageBytes.N,
+		FlushInterval:          *inmemoryDataFlushInterval,
+		FutureRetention:        futureRetention.Duration(),
+		LogNewStreams:          *logNewStreams,
+		LogIngestedRows:        *logIngestedRows,
+		MinFreeDiskSpaceBytes:  minFreeDiskSpaceBytes.N,
 	}
 	logger.Infof("opening storage at -storageDataPath=%s", *storageDataPath)
 	startTime := time.Now()
@@ -140,6 +143,13 @@ func GetStreamFieldValues(ctx context.Context, tenantIDs []logstorage.TenantID, 
 // If limit > 0, then up to limit unique streams are returned.
 func GetStreams(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, limit uint64) ([]logstorage.ValueWithHits, error) {
 	return strg.GetStreams(ctx, tenantIDs, q, limit)
+}
+
+// GetStreamIDs executes q and returns streamIDs seen in query results.
+//
+// If limit > 0, then up to limit unique streamIDs are returned.
+func GetStreamIDs(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, limit uint64) ([]logstorage.ValueWithHits, error) {
+	return strg.GetStreamIDs(ctx, tenantIDs, q, limit)
 }
 
 func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {

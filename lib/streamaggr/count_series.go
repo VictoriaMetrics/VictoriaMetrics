@@ -41,6 +41,7 @@ func (as *countSeriesAggrState) pushSamples(samples []pushSample) {
 					h: {},
 				},
 			}
+			outputKey = bytesutil.InternString(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if !loaded {
 				// The entry has been added to the map.

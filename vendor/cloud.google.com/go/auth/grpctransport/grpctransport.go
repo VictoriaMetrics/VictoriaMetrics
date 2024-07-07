@@ -16,6 +16,7 @@ package grpctransport
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/http"
@@ -45,9 +46,14 @@ var (
 	timeoutDialerOption grpc.DialOption
 )
 
+// ClientCertProvider is a function that returns a TLS client certificate to be
+// used when opening TLS connections. It follows the same semantics as
+// [crypto/tls.Config.GetClientCertificate].
+type ClientCertProvider = func(*tls.CertificateRequestInfo) (*tls.Certificate, error)
+
 // Options used to configure a [GRPCClientConnPool] from [Dial].
 type Options struct {
-	// DisableTelemetry disables default telemetry (OpenCensus). An example
+	// DisableTelemetry disables default telemetry (OpenTelemetry). An example
 	// reason to do so would be to bind custom telemetry that overrides the
 	// defaults.
 	DisableTelemetry bool
@@ -69,6 +75,10 @@ type Options struct {
 	// Credentials used to add Authorization metadata to all requests. If set
 	// DetectOpts are ignored.
 	Credentials *auth.Credentials
+	// ClientCertProvider is a function that returns a TLS client certificate to
+	// be used when opening TLS connections. It follows the same semantics as
+	// crypto/tls.Config.GetClientCertificate.
+	ClientCertProvider ClientCertProvider
 	// DetectOpts configures settings for detect Application Default
 	// Credentials.
 	DetectOpts *credentials.DetectOptions
@@ -77,6 +87,9 @@ type Options struct {
 	// configured for the client, which will be compared to the universe domain
 	// that is separately configured for the credentials.
 	UniverseDomain string
+	// APIKey specifies an API key to be used as the basis for authentication.
+	// If set DetectOpts are ignored.
+	APIKey string
 
 	// InternalOptions are NOT meant to be set directly by consumers of this
 	// package, they should only be set by generated client code.
@@ -99,7 +112,8 @@ func (o *Options) validate() error {
 	if o.InternalOptions != nil && o.InternalOptions.SkipValidation {
 		return nil
 	}
-	hasCreds := o.Credentials != nil ||
+	hasCreds := o.APIKey != "" ||
+		o.Credentials != nil ||
 		(o.DetectOpts != nil && len(o.DetectOpts.CredentialsJSON) > 0) ||
 		(o.DetectOpts != nil && o.DetectOpts.CredentialsFile != "")
 	if o.DisableAuthentication && hasCreds {
@@ -124,6 +138,13 @@ func (o *Options) resolveDetectOptions() *credentials.DetectOptions {
 	}
 	if len(do.Scopes) == 0 && do.Audience == "" && io != nil {
 		do.Audience = o.InternalOptions.DefaultAudience
+	}
+	if o.ClientCertProvider != nil {
+		tlsConfig := &tls.Config{
+			GetClientCertificate: o.ClientCertProvider,
+		}
+		do.Client = transport.DefaultHTTPClientWithTLS(tlsConfig)
+		do.TokenURL = credentials.GoogleMTLSTokenURL
 	}
 	return do
 }
@@ -189,9 +210,10 @@ func Dial(ctx context.Context, secure bool, opts *Options) (GRPCClientConnPool, 
 // return a GRPCClientConnPool if pool == 1 or else a pool of of them if >1
 func dial(ctx context.Context, secure bool, opts *Options) (*grpc.ClientConn, error) {
 	tOpts := &transport.Options{
-		Endpoint:       opts.Endpoint,
-		Client:         opts.client(),
-		UniverseDomain: opts.UniverseDomain,
+		Endpoint:           opts.Endpoint,
+		ClientCertProvider: opts.ClientCertProvider,
+		Client:             opts.client(),
+		UniverseDomain:     opts.UniverseDomain,
 	}
 	if io := opts.InternalOptions; io != nil {
 		tOpts.DefaultEndpointTemplate = io.DefaultEndpointTemplate
@@ -213,8 +235,21 @@ func dial(ctx context.Context, secure bool, opts *Options) (*grpc.ClientConn, er
 		grpc.WithTransportCredentials(transportCreds),
 	}
 
-	// Authentication can only be sent when communicating over a secure connection.
-	if !opts.DisableAuthentication {
+	// Ensure the token exchange HTTP transport uses the same ClientCertProvider as the GRPC API transport.
+	opts.ClientCertProvider, err = transport.GetClientCertificateProvider(tOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	if opts.APIKey != "" {
+		grpcOpts = append(grpcOpts,
+			grpc.WithPerRPCCredentials(&grpcKeyProvider{
+				apiKey:   opts.APIKey,
+				metadata: opts.Metadata,
+				secure:   secure,
+			}),
+		)
+	} else if !opts.DisableAuthentication {
 		metadata := opts.Metadata
 
 		var creds *auth.Credentials
@@ -257,6 +292,26 @@ func dial(ctx context.Context, secure bool, opts *Options) (*grpc.ClientConn, er
 	grpcOpts = append(grpcOpts, opts.GRPCDialOpts...)
 
 	return grpc.DialContext(ctx, endpoint, grpcOpts...)
+}
+
+// grpcKeyProvider satisfies https://pkg.go.dev/google.golang.org/grpc/credentials#PerRPCCredentials.
+type grpcKeyProvider struct {
+	apiKey   string
+	metadata map[string]string
+	secure   bool
+}
+
+func (g *grpcKeyProvider) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
+	metadata := make(map[string]string, len(g.metadata)+1)
+	metadata["X-goog-api-key"] = g.apiKey
+	for k, v := range g.metadata {
+		metadata[k] = v
+	}
+	return metadata, nil
+}
+
+func (g *grpcKeyProvider) RequireTransportSecurity() bool {
+	return g.secure
 }
 
 // grpcCredentialsProvider satisfies https://pkg.go.dev/google.golang.org/grpc/credentials#PerRPCCredentials.

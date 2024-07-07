@@ -3,6 +3,8 @@ package logstorage
 import (
 	"math"
 	"slices"
+	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -261,10 +263,15 @@ func (br *blockResult) initAllColumns(bs *blockSearch, bm *bitmap) {
 		br.addTimeColumn()
 	}
 
+	if !slices.Contains(unneededColumnNames, "_stream_id") {
+		// Add _stream_id column
+		br.addStreamIDColumn(bs)
+	}
+
 	if !slices.Contains(unneededColumnNames, "_stream") {
 		// Add _stream column
 		if !br.addStreamColumn(bs) {
-			// Skip the current block, since the associated stream tags are missing.
+			// Skip the current block, since the associated stream tags are missing
 			br.reset()
 			return
 		}
@@ -313,6 +320,8 @@ func (br *blockResult) initAllColumns(bs *blockSearch, bm *bitmap) {
 func (br *blockResult) initRequestedColumns(bs *blockSearch, bm *bitmap) {
 	for _, columnName := range bs.bsw.so.neededColumnNames {
 		switch columnName {
+		case "_stream_id":
+			br.addStreamIDColumn(bs)
 		case "_stream":
 			if !br.addStreamColumn(bs) {
 				// Skip the current block, since the associated stream tags are missing.
@@ -483,7 +492,26 @@ func (br *blockResult) addTimeColumn() {
 	br.csInitialized = false
 }
 
+func (br *blockResult) addStreamIDColumn(bs *blockSearch) {
+	bb := bbPool.Get()
+	bb.B = bs.bsw.bh.streamID.marshalString(bb.B)
+	br.addConstColumn("_stream_id", bytesutil.ToUnsafeString(bb.B))
+	bbPool.Put(bb)
+}
+
 func (br *blockResult) addStreamColumn(bs *blockSearch) bool {
+	if !bs.prevStreamID.equal(&bs.bsw.bh.streamID) {
+		return br.addStreamColumnSlow(bs)
+	}
+
+	if len(bs.prevStream) == 0 {
+		return false
+	}
+	br.addConstColumn("_stream", bytesutil.ToUnsafeString(bs.prevStream))
+	return true
+}
+
+func (br *blockResult) addStreamColumnSlow(bs *blockSearch) bool {
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
 
@@ -494,6 +522,8 @@ func (br *blockResult) addStreamColumn(bs *blockSearch) bool {
 		// was recently registered and its tags aren't visible to search yet.
 		// The stream tags must become visible in a few seconds.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6042
+		bs.prevStreamID = *streamID
+		bs.prevStream = bs.prevStream[:0]
 		return false
 	}
 
@@ -504,6 +534,9 @@ func (br *blockResult) addStreamColumn(bs *blockSearch) bool {
 
 	s := bytesutil.ToUnsafeString(bb.B)
 	br.addConstColumn("_stream", s)
+
+	bs.prevStreamID = *streamID
+	bs.prevStream = append(bs.prevStream[:0], s...)
 	return true
 }
 
@@ -1147,31 +1180,9 @@ func (br *blockResult) getBucketedValue(s string, bf *byStatsField) string {
 		return bytesutil.ToUnsafeString(buf[bufLen:])
 	}
 
-	if timestamp, ok := tryParseTimestampISO8601(s); ok {
-		bucketSizeInt := int64(bf.bucketSize)
-		if bucketSizeInt <= 0 {
-			bucketSizeInt = 1
-		}
-		bucketOffset := int64(bf.bucketOffset)
-
-		timestamp -= bucketOffset
-		if bf.bucketSizeStr == "month" {
-			timestamp = truncateTimestampToMonth(timestamp)
-		} else if bf.bucketSizeStr == "year" {
-			timestamp = truncateTimestampToYear(timestamp)
-		} else {
-			timestamp -= timestamp % bucketSizeInt
-		}
-		timestamp += bucketOffset
-
-		buf := br.a.b
-		bufLen := len(buf)
-		buf = marshalTimestampISO8601String(buf, timestamp)
-		br.a.b = buf
-		return bytesutil.ToUnsafeString(buf[bufLen:])
-	}
-
-	if timestamp, ok := tryParseTimestampRFC3339Nano(s); ok {
+	// There is no need in calling tryParseTimestampISO8601 here, since TryParseTimestampRFC3339Nano
+	// should successfully parse ISO8601 timestamps.
+	if timestamp, ok := TryParseTimestampRFC3339Nano(s); ok {
 		bucketSizeInt := int64(bf.bucketSize)
 		if bucketSizeInt <= 0 {
 			bucketSizeInt = 1
@@ -1914,6 +1925,50 @@ func getCanonicalColumnName(columnName string) string {
 		return "_msg"
 	}
 	return columnName
+}
+
+func tryParseNumber(s string) (float64, bool) {
+	if len(s) == 0 {
+		return 0, false
+	}
+	f, ok := tryParseFloat64(s)
+	if ok {
+		return f, true
+	}
+	nsecs, ok := tryParseDuration(s)
+	if ok {
+		return float64(nsecs), true
+	}
+	bytes, ok := tryParseBytes(s)
+	if ok {
+		return float64(bytes), true
+	}
+	if isLikelyNumber(s) {
+		f, err := strconv.ParseFloat(s, 64)
+		if err == nil {
+			return f, true
+		}
+		n, err := strconv.ParseInt(s, 0, 64)
+		if err == nil {
+			return float64(n), true
+		}
+	}
+	return 0, false
+}
+
+func isLikelyNumber(s string) bool {
+	if !isNumberPrefix(s) {
+		return false
+	}
+	if strings.Count(s, ".") > 1 {
+		// This is likely IP address
+		return false
+	}
+	if strings.IndexByte(s, ':') >= 0 || strings.Count(s, "-") > 2 {
+		// This is likely a timestamp
+		return false
+	}
+	return true
 }
 
 var nan = math.NaN()

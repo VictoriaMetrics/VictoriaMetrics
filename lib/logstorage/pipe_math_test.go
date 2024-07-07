@@ -50,7 +50,34 @@ func TestPipeMath(t *testing.T) {
 		expectPipeResults(t, pipeStr, rows, rowsExpected)
 	}
 
-	f("math b+1 as a, a*2 as b, b-10.5+c as c", [][]Field{
+	f(`math
+		'2024-05-30T01:02:03Z' + 10e9 as time,
+		10m5s + 10e9 as duration,
+		'123.45.67.89' + 1000 as ip,
+		time - time % time_step as time_rounded,
+		duration - duration % duration_step as duration_rounded,
+		(ip & ip_mask | 0x1234) xor 5678 as subnet
+	`, [][]Field{
+		{
+			{"time_step", "30m"},
+			{"duration_step", "30s"},
+			{"ip_mask", "0xffffff00"},
+		},
+	}, [][]Field{
+		{
+			{"time_step", "30m"},
+			{"duration_step", "30s"},
+			{"ip_mask", "0xffffff00"},
+			{"time", "1717030933000000000"},
+			{"duration", "615000000000"},
+			{"ip", "2066564929"},
+			{"time_rounded", "1717030800000000000"},
+			{"duration_rounded", "600000000000"},
+			{"subnet", "2066563354"},
+		},
+	})
+
+	f("eval b+1 as a, a*2 as b, b-10.5+c as c", [][]Field{
 		{
 			{"a", "v1"},
 			{"b", "2"},
@@ -108,7 +135,7 @@ func TestPipeMath(t *testing.T) {
 		},
 	})
 
-	f("math round(exp(a), 0.01), round(ln(a), 0.01)", [][]Field{
+	f("math round(exp(a), 0.01), round(ln(a), 0.01), ceil(exp(a)), floor(exp(a))", [][]Field{
 		{
 			{"a", "v1"},
 		},
@@ -129,26 +156,36 @@ func TestPipeMath(t *testing.T) {
 			{"a", "v1"},
 			{"round(exp(a), 0.01)", "NaN"},
 			{"round(ln(a), 0.01)", "NaN"},
+			{"ceil(exp(a))", "NaN"},
+			{"floor(exp(a))", "NaN"},
 		},
 		{
 			{"a", "0"},
 			{"round(exp(a), 0.01)", "1"},
 			{"round(ln(a), 0.01)", "NaN"},
+			{"ceil(exp(a))", "1"},
+			{"floor(exp(a))", "1"},
 		},
 		{
 			{"a", "1"},
 			{"round(exp(a), 0.01)", "2.72"},
 			{"round(ln(a), 0.01)", "0"},
+			{"ceil(exp(a))", "3"},
+			{"floor(exp(a))", "2"},
 		},
 		{
 			{"a", "2"},
 			{"round(exp(a), 0.01)", "7.39"},
 			{"round(ln(a), 0.01)", "0.69"},
+			{"ceil(exp(a))", "8"},
+			{"floor(exp(a))", "7"},
 		},
 		{
 			{"a", "3"},
 			{"round(exp(a), 0.01)", "20.09"},
 			{"round(ln(a), 0.01)", "1.1"},
+			{"ceil(exp(a))", "21"},
+			{"floor(exp(a))", "20"},
 		},
 	})
 

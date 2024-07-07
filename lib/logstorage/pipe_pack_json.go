@@ -3,9 +3,6 @@ package logstorage
 import (
 	"fmt"
 	"slices"
-	"unsafe"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 // pipePackJSON processes '| pack_json ...' pipe.
@@ -28,24 +25,12 @@ func (pp *pipePackJSON) String() string {
 	return s
 }
 
+func (pp *pipePackJSON) canLiveTail() bool {
+	return true
+}
+
 func (pp *pipePackJSON) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	if neededFields.contains("*") {
-		if !unneededFields.contains(pp.resultField) {
-			if len(pp.fields) > 0 {
-				unneededFields.removeFields(pp.fields)
-			} else {
-				unneededFields.reset()
-			}
-		}
-	} else {
-		if neededFields.contains(pp.resultField) {
-			if len(pp.fields) > 0 {
-				neededFields.addFields(pp.fields)
-			} else {
-				neededFields.add("*")
-			}
-		}
-	}
+	updateNeededFieldsForPipePack(neededFields, unneededFields, pp.resultField, pp.fields)
 }
 
 func (pp *pipePackJSON) optimize() {
@@ -61,85 +46,7 @@ func (pp *pipePackJSON) initFilterInValues(_ map[string][]string, _ getFieldValu
 }
 
 func (pp *pipePackJSON) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
-	return &pipePackJSONProcessor{
-		pp:     pp,
-		ppNext: ppNext,
-
-		shards: make([]pipePackJSONProcessorShard, workersCount),
-	}
-}
-
-type pipePackJSONProcessor struct {
-	pp     *pipePackJSON
-	ppNext pipeProcessor
-
-	shards []pipePackJSONProcessorShard
-}
-
-type pipePackJSONProcessorShard struct {
-	pipePackJSONProcessorShardNopad
-
-	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipePackJSONProcessorShardNopad{})%128]byte
-}
-
-type pipePackJSONProcessorShardNopad struct {
-	rc resultColumn
-
-	buf    []byte
-	fields []Field
-
-	cs []*blockResultColumn
-}
-
-func (ppp *pipePackJSONProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
-		return
-	}
-
-	shard := &ppp.shards[workerID]
-
-	shard.rc.name = ppp.pp.resultField
-
-	cs := shard.cs[:0]
-	if len(ppp.pp.fields) == 0 {
-		csAll := br.getColumns()
-		cs = append(cs, csAll...)
-	} else {
-		for _, f := range ppp.pp.fields {
-			c := br.getColumnByName(f)
-			cs = append(cs, c)
-		}
-	}
-	shard.cs = cs
-
-	buf := shard.buf[:0]
-	fields := shard.fields
-	for rowIdx := range br.timestamps {
-		fields = fields[:0]
-		for _, c := range cs {
-			v := c.getValueAtRow(br, rowIdx)
-			fields = append(fields, Field{
-				Name:  c.name,
-				Value: v,
-			})
-		}
-
-		bufLen := len(buf)
-		buf = MarshalFieldsToJSON(buf, fields)
-		v := bytesutil.ToUnsafeString(buf[bufLen:])
-		shard.rc.addValue(v)
-	}
-	shard.fields = fields
-
-	br.addResultColumn(&shard.rc)
-	ppp.ppNext.writeBlock(workerID, br)
-
-	shard.rc.reset()
-}
-
-func (ppp *pipePackJSONProcessor) flush() error {
-	return nil
+	return newPipePackProcessor(workersCount, ppNext, pp.resultField, pp.fields, MarshalFieldsToJSON)
 }
 
 func parsePackJSON(lex *lexer) (*pipePackJSON, error) {

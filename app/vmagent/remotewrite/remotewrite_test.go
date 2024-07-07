@@ -3,14 +3,12 @@ package remotewrite
 import (
 	"fmt"
 	"math"
-	"os"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -79,19 +77,19 @@ func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 			rowsDroppedByRelabel:   metrics.GetOrCreateCounter(`bar`),
 		}
 		if dedupInterval > 0 {
-			rwctx.deduplicator = streamaggr.NewDeduplicator(nil, dedupInterval, nil)
+			rwctx.deduplicator = streamaggr.NewDeduplicator(nil, dedupInterval, nil, "global")
 		}
 
 		if len(streamAggrConfig) > 0 {
-			f := createFile(t, []byte(streamAggrConfig))
-			sas, err := streamaggr.LoadFromFile(f.Name(), nil, nil)
+			sas, err := streamaggr.LoadFromData([]byte(streamAggrConfig), nil, streamaggr.Options{})
 			if err != nil {
 				t.Fatalf("cannot load streamaggr configs: %s", err)
 			}
 			rwctx.sas.Store(sas)
 		}
 
-		inputTss := mustParsePromMetrics(input)
+		offsetMsecs := time.Now().UnixMilli()
+		inputTss := prompbmarshal.MustParsePromMetrics(input, offsetMsecs)
 		expectedTss := make([]prompbmarshal.TimeSeries, len(inputTss))
 
 		// copy inputTss to make sure it is not mutated during TryPush call
@@ -164,52 +162,4 @@ metric{env="test"} 20
 metric{env="dev"} 15
 metric{env="bar"} 25
 `)
-}
-
-func mustParsePromMetrics(s string) []prompbmarshal.TimeSeries {
-	var rows prometheus.Rows
-	errLogger := func(s string) {
-		panic(fmt.Errorf("unexpected error when parsing Prometheus metrics: %s", s))
-	}
-	rows.UnmarshalWithErrLogger(s, errLogger)
-	var tss []prompbmarshal.TimeSeries
-	samples := make([]prompbmarshal.Sample, 0, len(rows.Rows))
-	for _, row := range rows.Rows {
-		labels := make([]prompbmarshal.Label, 0, len(row.Tags)+1)
-		labels = append(labels, prompbmarshal.Label{
-			Name:  "__name__",
-			Value: row.Metric,
-		})
-		for _, tag := range row.Tags {
-			labels = append(labels, prompbmarshal.Label{
-				Name:  tag.Key,
-				Value: tag.Value,
-			})
-		}
-		samples = append(samples, prompbmarshal.Sample{
-			Value:     row.Value,
-			Timestamp: row.Timestamp,
-		})
-		ts := prompbmarshal.TimeSeries{
-			Labels:  labels,
-			Samples: samples[len(samples)-1:],
-		}
-		tss = append(tss, ts)
-	}
-	return tss
-}
-
-func createFile(t *testing.T, data []byte) *os.File {
-	t.Helper()
-	f, err := os.CreateTemp("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(f.Name(), data, 0644); err != nil {
-		t.Fatal(err)
-	}
-	if err := f.Sync(); err != nil {
-		t.Fatal(err)
-	}
-	return f
 }

@@ -27,10 +27,7 @@ func (ft *filterTime) updateNeededFields(neededFields fieldsSet) {
 }
 
 func (ft *filterTime) applyToBlockResult(br *blockResult, bm *bitmap) {
-	minTimestamp := ft.minTimestamp
-	maxTimestamp := ft.maxTimestamp
-
-	if minTimestamp > maxTimestamp {
+	if ft.minTimestamp > ft.maxTimestamp {
 		bm.resetBits()
 		return
 	}
@@ -99,7 +96,7 @@ func (ft *filterTime) applyToBlockResult(br *blockResult, bm *bitmap) {
 }
 
 func (ft *filterTime) matchTimestampString(v string) bool {
-	timestamp, ok := tryParseTimestampRFC3339Nano(v)
+	timestamp, ok := TryParseTimestampRFC3339Nano(v)
 	if !ok {
 		return false
 	}

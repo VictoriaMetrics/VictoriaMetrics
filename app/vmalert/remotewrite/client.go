@@ -212,6 +212,9 @@ var (
 	})
 )
 
+// GetDroppedRows returns value of droppedRows metric
+func GetDroppedRows() int64 { return int64(droppedRows.Get()) }
+
 // flush is a blocking function that marshals WriteRequest and sends
 // it to remote-write endpoint. Flush performs limited amount of retries
 // if request fails.
