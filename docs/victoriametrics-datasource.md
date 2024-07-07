@@ -159,7 +159,7 @@ Option 2. Using Grafana plugins section in `values.yaml`:
 
 ``` yaml
 plugins:
-  - https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.8.2/victoriametrics-datasource-v0.8.2zip;victoriametrics-datasource
+  - https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.8.2/victoriametrics-datasource-v0.8.2.zip;victoriametrics-datasource
 ```
 
 Option 3. Using init container:
