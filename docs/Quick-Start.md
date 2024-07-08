@@ -141,7 +141,7 @@ If you want to deploy VictoriaMetrics single as a Windows Service review the [ru
 
 6. Adjust the command line flags in the `ExecStart` line to fit your needs.
 
-The list of command line flags for VMSingle can be found [here](https://docs.victoriametrics.com/single-server-victoriametrics/#list-of-command-line-flags)
+The list of command line flags for VictoriaMetrics can be found [here](https://docs.victoriametrics.com/single-server-victoriametrics/#list-of-command-line-flags)
 
 7. Start and enable the service by running
 
@@ -181,13 +181,13 @@ Replace victoriametrics-archive with the path to the archive you downloaded in s
 
 `sudo useradd -s /usr/sbin/nologin victoriametrics`
 
-##### VMStorage
+##### vmstorage
 
 1. Create a folder for storing VictoriaMetrics data
 
 `mkdir -p /var/lib/vmstorage && chown -R victoriametrics:victoriametrics /var/lib/vmstorage`
 
-2. Create a Linux Service for VMStorage service by running 
+2. Create a Linux Service for `vmstorage` service by running 
 
 ```bash
 cat <<END >/etc/systemd/system/vmstorage.service
@@ -213,9 +213,9 @@ END
 
 3. Adjust the command line flags in the ExecStart line to fit your needs.
 
-The list of command line flags for VMStorage can be found [here](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags-for-vmstorage)
+The list of command line flags for `vmstorage` can be found [here](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags-for-vmstorage)
 
-4. Start and Enable VMStorage
+4. Start and Enable `vmstorage`
 
 `sudo systemctl daemon-reload && systemctl enable --now vmstorage`
 
@@ -223,16 +223,16 @@ The list of command line flags for VMStorage can be found [here](https://docs.vi
 
 `sudo systemctl status vmstorage`
 
-6. After VMStorage is running confirm the service healthy by going to
+6. After `vmstorage` is running confirm the service healthy by going to
 
 
 `http://<ip_or_hostname>:8482/-/healthy`
 
 It should say "VictoriaMetrics is Healthy"
 
-##### VMInsert
+##### vminsert
 
-1. Create a Linux Service for VMInsert by running
+1. Create a Linux Service for `vminsert` by running
 
 ```bash
 cat << END >/etc/systemd/system/vminsert.service
@@ -258,27 +258,27 @@ END
 
 2. Adjust the command line flags in the ExecStart line to fit your needs.
 
-The list of command line flags for VMInsert can be found [here](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags-for-vminsert).
+The list of command line flags for `vminsert` can be found [here](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags-for-vminsert).
 
-3. Start and enable VMInsert
+3. Start and enable `vminsert`
 
 `sudo systemctl daemon-reload && sudo systemctl enable --now vminsert.service`
 
-4. Make sure VMInsert is working
+4. Make sure `vminsert` is running
 
 `sudo systemctl status vminsert.service`
 
-5. After VMInsert is started you can confirm that is healthy by going to
+5. After `vminsert` is started you can confirm that is healthy by going to
 
 `http://<ip_or_hostname>:8480/-/healthy`
 
 It should say "VictoriaMetrics is Healthy"
 
-##### VMSelect
+##### vmselect
 
 1. Create a folder to store query cache data `sudo mkdir -p /var/lib/vmselect-cache && sudo chown -R victoriametrics:victoriametrics /var/lib/vmselect-cache`
 
-2. Add a Linux Service for VMSelect by running
+2. Add a Linux Service for `vmselect` by running
 
 ```bash
 cat << END >/etc/systemd/system/vmselect.service
@@ -305,17 +305,17 @@ END
 
 3. Adjust the command line flags in the ExecStart line to fit your needs.
 
-The list of command line flags for VMSelect can be found [here](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags-for-vmselect)
+The list of command line flags for `vmselect` can be found [here](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags-for-vmselect)
 
-4. Start and enable VMSelect
+4. Start and enable `vmselect`
 
 `sudo systemctl daemon-reload && sudo systemctl enable --now vmselect.service`
 
-5. Make sure VMSelect is working
+5. Make sure the `vmselect` service is running
 
 `sudo systemctl status vmselect.service`
 
-6. After VMSelect is running you can verify it is working by going to VMUI located at
+6. After `vmselect` is running you can verify it is working by going to VMUI located at
 
 `http://<ip_or_hostname>:8481/select/vmui/vmui/`
 
