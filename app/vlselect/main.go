@@ -1,6 +1,7 @@
 package vlselect
 
 import (
+	"context"
 	"embed"
 	"flag"
 	"fmt"
@@ -13,7 +14,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -23,7 +23,7 @@ var (
 		"See also -search.maxQueueDuration")
 	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the search request waits for execution when -search.maxConcurrentRequests "+
 		"limit is reached; see also -search.maxQueryDuration")
-	maxQueryDuration = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution")
+	maxQueryDuration = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution. It can be overridden on a per-query basis via 'timeout' query arg")
 )
 
 func getDefaultMaxConcurrentRequests() int {
@@ -98,47 +98,83 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
-	// Limit the number of concurrent queries, which can consume big amounts of CPU.
+	// Limit the number of concurrent queries, which can consume big amounts of CPU time.
 	startTime := time.Now()
 	ctx := r.Context()
-	stopCh := ctx.Done()
+	d := getMaxQueryDuration(r)
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, d)
+	defer cancel()
+
+	stopCh := ctxWithTimeout.Done()
 	select {
 	case concurrencyLimitCh <- struct{}{}:
 		defer func() { <-concurrencyLimitCh }()
 	default:
 		// Sleep for a while until giving up. This should resolve short bursts in requests.
 		concurrencyLimitReached.Inc()
-		d := getMaxQueryDuration(r)
-		if d > *maxQueueDuration {
-			d = *maxQueueDuration
-		}
-		t := timerpool.Get(d)
 		select {
 		case concurrencyLimitCh <- struct{}{}:
-			timerpool.Put(t)
 			defer func() { <-concurrencyLimitCh }()
 		case <-stopCh:
-			timerpool.Put(t)
-			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
-			requestURI := httpserver.GetRequestURI(r)
-			logger.Infof("client has cancelled the request after %.3f seconds: remoteAddr=%s, requestURI: %q",
-				time.Since(startTime).Seconds(), remoteAddr, requestURI)
-			return true
-		case <-t.C:
-			timerpool.Put(t)
-			concurrencyLimitTimeout.Inc()
-			err := &httpserver.ErrorWithStatusCode{
-				Err: fmt.Errorf("couldn't start executing the request in %.3f seconds, since -search.maxConcurrentRequests=%d concurrent requests "+
-					"are executed. Possible solutions: to reduce query load; to add more compute resources to the server; "+
-					"to increase -search.maxQueueDuration=%s; to increase -search.maxQueryDuration; to increase -search.maxConcurrentRequests",
-					d.Seconds(), *maxConcurrentRequests, maxQueueDuration),
-				StatusCode: http.StatusServiceUnavailable,
+			switch ctxWithTimeout.Err() {
+			case context.Canceled:
+				remoteAddr := httpserver.GetQuotedRemoteAddr(r)
+				requestURI := httpserver.GetRequestURI(r)
+				logger.Infof("client has canceled the pending request after %.3f seconds: remoteAddr=%s, requestURI: %q",
+					time.Since(startTime).Seconds(), remoteAddr, requestURI)
+			case context.DeadlineExceeded:
+				concurrencyLimitTimeout.Inc()
+				err := &httpserver.ErrorWithStatusCode{
+					Err: fmt.Errorf("couldn't start executing the request in %.3f seconds, since -search.maxConcurrentRequests=%d concurrent requests "+
+						"are executed. Possible solutions: to reduce query load; to add more compute resources to the server; "+
+						"to increase -search.maxQueueDuration=%s; to increase -search.maxQueryDuration=%s; to increase -search.maxConcurrentRequests; "+
+						"to pass bigger value to 'timeout' query arg",
+						d.Seconds(), *maxConcurrentRequests, maxQueueDuration, maxQueryDuration),
+					StatusCode: http.StatusServiceUnavailable,
+				}
+				httpserver.Errorf(w, r, "%s", err)
 			}
-			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 	}
 
+	if path == "/select/logsql/tail" {
+		logsqlTailRequests.Inc()
+		// Process live tailing request without timeout (e.g. use ctx instead of ctxWithTimeout),
+		// since it is OK to run live tailing requests for very long time.
+		logsql.ProcessLiveTailRequest(ctx, w, r)
+		return true
+	}
+
+	ok := processSelectRequest(ctxWithTimeout, w, r, path)
+	if !ok {
+		return false
+	}
+
+	err := ctxWithTimeout.Err()
+	switch err {
+	case nil:
+		// nothing to do
+	case context.Canceled:
+		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
+		requestURI := httpserver.GetRequestURI(r)
+		logger.Infof("client has canceled the request after %.3f seconds: remoteAddr=%s, requestURI: %q",
+			time.Since(startTime).Seconds(), remoteAddr, requestURI)
+	case context.DeadlineExceeded:
+		err = &httpserver.ErrorWithStatusCode{
+			Err: fmt.Errorf("the request couldn't be executed in %.3f seconds; possible solutions: "+
+				"to increase -search.maxQueryDuration=%s; to pass bigger value to 'timeout' query arg", d.Seconds(), maxQueryDuration),
+			StatusCode: http.StatusServiceUnavailable,
+		}
+		httpserver.Errorf(w, r, "%s", err)
+	default:
+		httpserver.Errorf(w, r, "unexpected error: %s", err)
+	}
+
+	return true
+}
+
+func processSelectRequest(ctx context.Context, w http.ResponseWriter, r *http.Request, path string) bool {
 	httpserver.EnableCORS(w, r)
 	switch path {
 	case "/select/logsql/field_names":
@@ -164,6 +200,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/select/logsql/stream_field_values":
 		logsqlStreamFieldValuesRequests.Inc()
 		logsql.ProcessStreamFieldValuesRequest(ctx, w, r)
+		return true
+	case "/select/logsql/stream_ids":
+		logsqlStreamIDsRequests.Inc()
+		logsql.ProcessStreamIDsRequest(ctx, w, r)
 		return true
 	case "/select/logsql/streams":
 		logsqlStreamsRequests.Inc()
@@ -194,5 +234,7 @@ var (
 	logsqlQueryRequests             = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/query"}`)
 	logsqlStreamFieldNamesRequests  = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_field_names"}`)
 	logsqlStreamFieldValuesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_field_values"}`)
+	logsqlStreamIDsRequests         = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_ids"}`)
 	logsqlStreamsRequests           = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/streams"}`)
+	logsqlTailRequests              = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/tail"}`)
 )

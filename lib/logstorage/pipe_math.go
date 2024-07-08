@@ -66,6 +66,10 @@ func (pm *pipeMath) String() string {
 	return s
 }
 
+func (pm *pipeMath) canLiveTail() bool {
+	return true
+}
+
 func (me *mathEntry) String() string {
 	s := me.expr.String()
 	if isMathBinaryOp(me.expr.op) {

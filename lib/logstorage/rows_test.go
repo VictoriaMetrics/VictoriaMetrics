@@ -5,6 +5,70 @@ import (
 	"testing"
 )
 
+func TestMarshalFieldsToJSON(t *testing.T) {
+	f := func(fields []Field, resultExpected string) {
+		t.Helper()
+
+		result := MarshalFieldsToJSON(nil, fields)
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result\ngot\n%q\nwant\n%q", result, resultExpected)
+		}
+	}
+
+	f(nil, "{}")
+	f([]Field{}, "{}")
+
+	f([]Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+	}, `{"foo":"bar"}`)
+
+	f([]Field{
+		{
+			Name:  "foo\nbar",
+			Value: "  \u001b[32m ",
+		},
+		{
+			Name:  "  \u001b[11m ",
+			Value: "АБв",
+		},
+	}, `{"foo\nbar":"  \u001b[32m ","  \u001b[11m ":"АБв"}`)
+}
+
+func TestMarshalFieldsToLogfmt(t *testing.T) {
+	f := func(fields []Field, resultExpected string) {
+		t.Helper()
+
+		result := MarshalFieldsToLogfmt(nil, fields)
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result\ngot\n%q\nwant\n%q", result, resultExpected)
+		}
+	}
+
+	f(nil, "")
+	f([]Field{}, "")
+
+	f([]Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+	}, `foo=bar`)
+
+	f([]Field{
+		{
+			Name:  "foo",
+			Value: "  \u001b[32m ",
+		},
+		{
+			Name:  "bar",
+			Value: "АБв",
+		},
+	}, `foo="  \u001b[32m " bar=АБв`)
+}
+
 func TestGetRowsSizeBytes(t *testing.T) {
 	f := func(rows [][]Field, uncompressedSizeBytesExpected int) {
 		t.Helper()

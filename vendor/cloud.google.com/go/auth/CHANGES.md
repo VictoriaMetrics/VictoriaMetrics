@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.6.1](https://github.com/googleapis/google-cloud-go/compare/auth/v0.6.0...auth/v0.6.1) (2024-07-01)
+
+
+### Bug Fixes
+
+* **auth:** Support gRPC API keys ([#10460](https://github.com/googleapis/google-cloud-go/issues/10460)) ([daa6646](https://github.com/googleapis/google-cloud-go/commit/daa6646d2af5d7fb5b30489f4934c7db89868c7c))
+* **auth:** Update http and grpc transports to support token exchange over mTLS ([#10397](https://github.com/googleapis/google-cloud-go/issues/10397)) ([c6dfdcf](https://github.com/googleapis/google-cloud-go/commit/c6dfdcf893c3f971eba15026c12db0a960ae81f2))
+
+## [0.6.0](https://github.com/googleapis/google-cloud-go/compare/auth/v0.5.2...auth/v0.6.0) (2024-06-25)
+
+
+### Features
+
+* **auth:** Add non-blocking token refresh for compute MDS ([#10263](https://github.com/googleapis/google-cloud-go/issues/10263)) ([9ac350d](https://github.com/googleapis/google-cloud-go/commit/9ac350da11a49b8e2174d3fc5b1a5070fec78b4e))
+
+
+### Bug Fixes
+
+* **auth:** Return error if envvar detected file returns an error ([#10431](https://github.com/googleapis/google-cloud-go/issues/10431)) ([e52b9a7](https://github.com/googleapis/google-cloud-go/commit/e52b9a7c45468827f5d220ab00965191faeb9d05))
+
+## [0.5.2](https://github.com/googleapis/google-cloud-go/compare/auth/v0.5.1...auth/v0.5.2) (2024-06-24)
+
+
+### Bug Fixes
+
+* **auth:** Fetch initial token when CachedTokenProviderOptions.DisableAutoRefresh is true ([#10415](https://github.com/googleapis/google-cloud-go/issues/10415)) ([3266763](https://github.com/googleapis/google-cloud-go/commit/32667635ca2efad05cd8c087c004ca07d7406913)), refs [#10414](https://github.com/googleapis/google-cloud-go/issues/10414)
+
 ## [0.5.1](https://github.com/googleapis/google-cloud-go/compare/auth/v0.5.0...auth/v0.5.1) (2024-05-31)
 
 

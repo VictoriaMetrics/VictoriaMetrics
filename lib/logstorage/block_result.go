@@ -1180,30 +1180,8 @@ func (br *blockResult) getBucketedValue(s string, bf *byStatsField) string {
 		return bytesutil.ToUnsafeString(buf[bufLen:])
 	}
 
-	if timestamp, ok := TryParseTimestampISO8601(s); ok {
-		bucketSizeInt := int64(bf.bucketSize)
-		if bucketSizeInt <= 0 {
-			bucketSizeInt = 1
-		}
-		bucketOffset := int64(bf.bucketOffset)
-
-		timestamp -= bucketOffset
-		if bf.bucketSizeStr == "month" {
-			timestamp = truncateTimestampToMonth(timestamp)
-		} else if bf.bucketSizeStr == "year" {
-			timestamp = truncateTimestampToYear(timestamp)
-		} else {
-			timestamp -= timestamp % bucketSizeInt
-		}
-		timestamp += bucketOffset
-
-		buf := br.a.b
-		bufLen := len(buf)
-		buf = marshalTimestampISO8601String(buf, timestamp)
-		br.a.b = buf
-		return bytesutil.ToUnsafeString(buf[bufLen:])
-	}
-
+	// There is no need in calling tryParseTimestampISO8601 here, since TryParseTimestampRFC3339Nano
+	// should successfully parse ISO8601 timestamps.
 	if timestamp, ok := TryParseTimestampRFC3339Nano(s); ok {
 		bucketSizeInt := int64(bf.bucketSize)
 		if bucketSizeInt <= 0 {

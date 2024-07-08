@@ -203,8 +203,8 @@ In the "Type and version" section it is recommended to set the type to "Promethe
 
 This allows Grafana to use a more efficient API to get label values.
 
-You can also use VictoriaMetrics [Grafana datasource](https://github.com/VictoriaMetrics/grafana-datasource) plugin.
-See installation instructions [here](https://github.com/VictoriaMetrics/grafana-datasource#installation).
+You can also use VictoriaMetrics [Grafana datasource](https://github.com/VictoriaMetrics/victoriametrics-datasource) plugin.
+See installation instructions [here](https://docs.victoriametrics.com/victoriametrics-datasource/#installation).
 
 Enable `Forward OAuth identity` flag.<br>
 <img src="grafana-vmgateway-openid-configuration/grafana-ds.webp" >

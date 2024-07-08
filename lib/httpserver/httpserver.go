@@ -2,7 +2,6 @@ package httpserver
 
 import (
 	"context"
-	"crypto/subtle"
 	"crypto/tls"
 	_ "embed"
 	"errors"
@@ -443,7 +442,7 @@ func CheckAuthFlag(w http.ResponseWriter, r *http.Request, flagValue string, fla
 	if flagValue == "" {
 		return CheckBasicAuth(w, r)
 	}
-	if !constantTimeEqual(r.FormValue("authKey"), flagValue) {
+	if r.FormValue("authKey") != flagValue {
 		authKeyRequestErrors.Inc()
 		http.Error(w, fmt.Sprintf("The provided authKey doesn't match -%s", flagName), http.StatusUnauthorized)
 		return false
@@ -460,7 +459,7 @@ func CheckBasicAuth(w http.ResponseWriter, r *http.Request) bool {
 	}
 	username, password, ok := r.BasicAuth()
 	if ok {
-		if constantTimeEqual(username, *httpAuthUsername) && constantTimeEqual(password, httpAuthPassword.Get()) {
+		if username == *httpAuthUsername && password == httpAuthPassword.Get() {
 			return true
 		}
 		authBasicRequestErrors.Inc()
@@ -569,6 +568,21 @@ func (rwa *responseWriterWithAbort) WriteHeader(statusCode int) {
 	rwa.sentHeaders = true
 }
 
+// Flush implements net/http.Flusher interface
+func (rwa *responseWriterWithAbort) Flush() {
+	if rwa.aborted {
+		return
+	}
+	if !rwa.sentHeaders {
+		rwa.sentHeaders = true
+	}
+	flusher, ok := rwa.ResponseWriter.(http.Flusher)
+	if !ok {
+		logger.Panicf("BUG: it is expected http.ResponseWriter (%T) supports http.Flusher interface", rwa.ResponseWriter)
+	}
+	flusher.Flush()
+}
+
 // abort aborts the client connection associated with rwa.
 //
 // The last http chunk in the response stream is intentionally written incorrectly,
@@ -619,6 +633,7 @@ func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...inter
 			break
 		}
 	}
+
 	if rwa, ok := w.(*responseWriterWithAbort); ok && rwa.sentHeaders {
 		// HTTP status code has been already sent to client, so it cannot be sent again.
 		// Just write errStr to the response and abort the client connection, so the client could notice the error.
@@ -712,17 +727,4 @@ func LogError(req *http.Request, errStr string) {
 	uri := GetRequestURI(req)
 	remoteAddr := GetQuotedRemoteAddr(req)
 	logger.Errorf("uri: %s, remote address: %q: %s", uri, remoteAddr, errStr)
-}
-
-// constantTimeEqual compares two strings in constant-time.
-//
-// It returns true if they are equal, else it returns false.
-func constantTimeEqual(s1, s2 string) bool {
-	a := []byte(s1)
-	b := []byte(s2)
-	// check length explicitly because ConstantTimeCompare doesn't spend time on comparing length
-	if subtle.ConstantTimeEq(int32(len(a)), int32(len(b))) == 0 {
-		return false
-	}
-	return subtle.ConstantTimeCompare(a, b) == 1
 }

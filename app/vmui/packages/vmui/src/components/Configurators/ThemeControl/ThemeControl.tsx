@@ -5,18 +5,17 @@ import Toggle from "../../Main/Toggle/Toggle";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import classNames from "classnames";
 import { FC } from "preact/compat";
-
-interface ThemeControlProps {
-  theme: Theme;
-  onChange: (val: Theme) => void
-}
+import { useAppDispatch, useAppState } from "../../../state/common/StateContext";
 
 const options = Object.values(Theme).map(value => ({ title: value, value }));
-const ThemeControl: FC<ThemeControlProps> = ({ theme, onChange }) => {
+const ThemeControl: FC = () => {
   const { isMobile } = useDeviceDetect();
+  const dispatch = useAppDispatch();
+
+  const { theme } = useAppState();
 
   const handleClickItem = (value: string) => {
-    onChange(value as Theme);
+    dispatch({ type: "SET_THEME", payload: value as Theme });
   };
 
   return (

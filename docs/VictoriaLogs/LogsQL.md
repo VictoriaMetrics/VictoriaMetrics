@@ -220,7 +220,8 @@ _time:5m
 ```
 
 Tip: try [`*` filter](https://docs.victoriametrics.com/victorialogs/logsql/#any-value-filter), which selects all the logs stored in VictoriaLogs.
-Do not worry - this doesn't crash VictoriaLogs, even if it contains trillions of logs. In the worst case it will return 
+Do not worry - this doesn't crash VictoriaLogs, even if the query selects trillions of logs. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line)
+if you are curious why.
 
 Additionally to filters, LogQL query may contain arbitrary mix of optional actions for processing the selected logs. These actions are delimited by `|` and are known as [`pipes`](#pipes).
 For example, the following query uses [`stats` pipe](#stats-pipe) for returning the number of [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
@@ -477,6 +478,20 @@ query selects logs for the given stream for the last hour:
 
 ```logsql
 _time:1h _stream_id:0000007b000001c850d9950ea6196b1a4812081265faa1c7
+```
+
+The `_stream_id` filter supports specifying multiple `_stream_id` values via `_stream_id:in(...)` syntax. For example:
+
+```logsql
+_stream_id:in(0000007b000001c850d9950ea6196b1a4812081265faa1c7, 1230007b456701c850d9950ea6196b1a4812081265fff2a9)
+```
+
+It is also possible specifying subquery inside `in(...)`, which selects the needed `_stream_id` values. For example, the following query returns
+logs for [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) containing `error` [word](#word)
+in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) during the last 5 minutes:
+
+```logsql
+_stream_id:in(_time:5m error | fields _stream_id)
 ```
 
 See also:
@@ -1290,6 +1305,8 @@ LogsQL supports the following pipes:
 - [`replace_regexp`](#replace_regexp-pipe) updates [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with regular expressions.
 - [`sort`](#sort-pipe) sorts logs by the given [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`stats`](#stats-pipe) calculates various stats over the selected logs.
+- [`stream_context`](#stream_context-pipe) allows selecting surrounding logs in front and after the matching logs
+  per each [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 - [`top`](#top-pipe) returns top `N` field sets with the maximum number of matching logs.
 - [`uniq`](#uniq-pipe) returns unique log entires.
 - [`unpack_json`](#unpack_json-pipe) unpacks JSON messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
@@ -1815,7 +1832,7 @@ the following query rounds the `request_duration` [field](https://docs.victoriam
 _time:5m | math round(request_duration, 1e9) as request_duration_nsecs | format '<duration:request_duration_nsecs>' as request_duration
 ```
 
-The `eval` keyword can be used instead of `math` for convenince. For example, the following query calculates `duration_msecs` field
+The `eval` keyword can be used instead of `math` for convenience. For example, the following query calculates `duration_msecs` field
 by multiplying `duration_secs` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) to `1000`:
 
 ```logsql
@@ -2098,6 +2115,14 @@ and then returns the next 20 sorted logs for the last 5 minutes:
 _time:1h | sort by (request_duration desc) offset 10 limit 20
 ```
 
+It is possible returning a rank (sort order number) for every sorted log by adding `rank as <fieldName>` to the end of `| sort ...` pipe.
+For example, the following query stores rank for sorted by [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) logs
+into `position` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
+
+```logsql
+_time:5m | sort by (_time) rank as position
+```
+
 Note that sorting of big number of logs can be slow and can consume a lot of additional memory.
 It is recommended limiting the number of logs before sorting with the following approaches:
 
@@ -2284,6 +2309,33 @@ _time:5m | stats
   count() if (PUT) puts,
   count() total
 ```
+
+### stream_context pipe
+
+`| stream_context ...` [pipe](#pipes) allows selecting surrounding logs for the matching logs in [logs stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+in the way similar to `grep -A` / `grep -B`. The returned log chunks are delimited with `---` [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+for easier investigation.
+
+For example, the following query returns up to 10 additional logs after every log message with the `panic` [word](#word) across all the logs for the last 5 minutes:
+
+```logsql
+_time:5m panic | stream_context after 10
+```
+
+The following query returns up to 5 additional logs in front of every log message with the `stacktrace` [word](#word) across all the logs for the last 5 minutes:
+
+```logsql
+_time:5m stacktrace | stream_context before 5
+```
+
+The following query returns up to 2 logs in frount of the log message with the `error` [word](#word) and up to 5 logs after this log message
+across all the logs for the last 5 minutes:
+
+```logsql
+_time:5m error | stream_context before 2 after 5
+```
+
+The `| stream_context` [pipe](#pipes) must go first just after the [filters](#filters).
 
 ### top pipe
 
@@ -2557,8 +2609,8 @@ The following fields are unpacked:
 
 The `<PRI>` part is optional. If it is missing, then `priority`, `facility` and `severity` fields aren't set.
 
-The `[STRUCTURED-DATA]` is parsed into fields with the `SD-ID` name and `param1="value1" ... paramN="valueN"` value
-according to [the specification](https://datatracker.ietf.org/doc/html/rfc5424#section-6.3). The value then can be parsed to separate fields with [`unpack_logfmt` pipe](#unpack_logfmt-pipe).
+The `[STRUCTURED-DATA]` is parsed into fields with the `SD-ID.param1`, `SD-ID.param2`, ..., `SD-ID.paramN` names and the corresponding values
+according to [the specification](https://datatracker.ietf.org/doc/html/rfc5424#section-6.3).
 
 For example, the following query unpacks [syslog](https://en.wikipedia.org/wiki/Syslog) message from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 across logs for the last 5 minutes:
@@ -3027,10 +3079,7 @@ See also:
 
 ## Stream context
 
-LogsQL will support the ability to select the given number of surrounding log lines for the selected log lines
-on a [per-stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) basis.
-
-See the [Roadmap](https://docs.victoriametrics.com/victorialogs/roadmap/) for details.
+See [`stream_context` pipe](#stream_context-pipe).
 
 ## Transformations
 

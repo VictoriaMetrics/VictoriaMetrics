@@ -244,6 +244,7 @@ type ListMultipartUploadsInput struct {
 }
 
 func (in *ListMultipartUploadsInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.Prefix = in.Prefix
 
@@ -389,6 +390,15 @@ func (c *Client) addOperationListMultipartUploadsMiddlewares(stack *middleware.S
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpListMultipartUploadsValidationMiddleware(stack); err != nil {

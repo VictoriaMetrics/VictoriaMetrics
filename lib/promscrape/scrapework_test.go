@@ -724,11 +724,6 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 			HonorLabels: true,
 		},
 		`metric{a="e",foo="bar"} 0 123`)
-	f(`metric{foo="bar"} 0 123 # {trace_id="12345"} 52 456`,
-		&ScrapeWork{
-			HonorLabels: true,
-		},
-		`metric{foo="bar"} 0 123 # {trace_id="12345"} 52 456`)
 }
 
 func TestSendStaleSeries(t *testing.T) {
@@ -780,54 +775,7 @@ func parsePromRow(data string) *parser.Row {
 }
 
 func parseData(data string) []prompbmarshal.TimeSeries {
-	var rows parser.Rows
-	errLogger := func(s string) {
-		panic(fmt.Errorf("unexpected error when unmarshaling Prometheus rows: %s", s))
-	}
-	rows.UnmarshalWithErrLogger(data, errLogger)
-	var tss []prompbmarshal.TimeSeries
-	var exemplars []prompbmarshal.Exemplar
-
-	for _, r := range rows.Rows {
-		labels := []prompbmarshal.Label{
-			{
-				Name:  "__name__",
-				Value: r.Metric,
-			},
-		}
-		for _, tag := range r.Tags {
-			labels = append(labels, prompbmarshal.Label{
-				Name:  tag.Key,
-				Value: tag.Value,
-			})
-		}
-		exemplarLabels := []prompbmarshal.Label{}
-		if len(r.Exemplar.Tags) > 0 {
-			for _, tag := range r.Exemplar.Tags {
-				exemplarLabels = append(exemplarLabels, prompbmarshal.Label{
-					Name:  tag.Key,
-					Value: tag.Value,
-				})
-			}
-			exemplars = append(exemplars, prompbmarshal.Exemplar{
-				Labels:    exemplarLabels,
-				Value:     r.Exemplar.Value,
-				Timestamp: r.Exemplar.Timestamp,
-			})
-		}
-
-		var ts prompbmarshal.TimeSeries
-		ts.Labels = labels
-		ts.Samples = []prompbmarshal.Sample{
-			{
-				Value:     r.Value,
-				Timestamp: r.Timestamp,
-			},
-		}
-		ts.Exemplars = exemplars
-		tss = append(tss, ts)
-	}
-	return tss
+	return prompbmarshal.MustParsePromMetrics(data, 0)
 }
 
 func expectEqualTimeseries(tss, tssExpected []prompbmarshal.TimeSeries) error {
@@ -889,19 +837,6 @@ func timeseriesToString(ts *prompbmarshal.TimeSeries) string {
 	}
 	s := ts.Samples[0]
 	fmt.Fprintf(&sb, "%g %d", s.Value, s.Timestamp)
-	// Add Exemplars to the end of string
-	for j, exemplar := range ts.Exemplars {
-		for i, label := range exemplar.Labels {
-			fmt.Fprintf(&sb, "%s=%q", label.Name, label.Value)
-			if i+1 < len(ts.Labels) {
-				fmt.Fprintf(&sb, ",")
-			}
-		}
-		fmt.Fprintf(&sb, "%g %d", exemplar.Value, exemplar.Timestamp)
-		if j+1 < len(ts.Exemplars) {
-			fmt.Fprintf(&sb, ",")
-		}
-	}
 	return sb.String()
 }
 

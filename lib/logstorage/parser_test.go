@@ -697,8 +697,13 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`"" or foo:"" and not bar:""`, `"" or foo:"" !bar:""`)
 
 	// _stream_id filter
-	f(`_stream_id:foo`, `_stream_id:foo`)
-	f(`_stream_id:foo-bar/b:az`, `_stream_id:"foo-bar/b:az"`)
+	f(`_stream_id:0000007b000001c8302bc96e02e54e5524b3a68ec271e55e`, `_stream_id:0000007b000001c8302bc96e02e54e5524b3a68ec271e55e`)
+	f(`_stream_id:"0000007b000001c8302bc96e02e54e5524b3a68ec271e55e"`, `_stream_id:0000007b000001c8302bc96e02e54e5524b3a68ec271e55e`)
+	f(`_stream_id:in()`, `_stream_id:in()`)
+	f(`_stream_id:in(0000007b000001c8302bc96e02e54e5524b3a68ec271e55e)`, `_stream_id:0000007b000001c8302bc96e02e54e5524b3a68ec271e55e`)
+	f(`_stream_id:in(0000007b000001c8302bc96e02e54e5524b3a68ec271e55e, "0000007b000001c850d9950ea6196b1a4812081265faa1c7")`,
+		`_stream_id:in(0000007b000001c8302bc96e02e54e5524b3a68ec271e55e,0000007b000001c850d9950ea6196b1a4812081265faa1c7)`)
+	f(`_stream_id:in(_time:5m | fields _stream_id)`, `_stream_id:in(_time:5m | fields _stream_id)`)
 
 	// _stream filters
 	f(`_stream:{}`, `_stream:{}`)
@@ -1243,7 +1248,11 @@ func TestParseQueryFailure(t *testing.T) {
 	f("`foo")
 
 	// invalid _stream_id filters
-	f("_stream_id:(foo)")
+	f("_stream_id:foo")
+	f("_stream_id:()")
+	f("_stream_id:in(foo)")
+	f("_stream_id:in(foo | bar)")
+	f("_stream_id:in(* | stats by (x) count() y)")
 
 	// invalid _stream filters
 	f("_stream:")
@@ -2024,4 +2033,48 @@ func TestQueryCanReturnLastNResults(t *testing.T) {
 	f("* | field_names", false)
 	f("* | field_values x", false)
 
+}
+
+func TestQueryCanLiveTail(t *testing.T) {
+	f := func(qStr string, resultExpected bool) {
+		t.Helper()
+
+		q, err := ParseQuery(qStr)
+		if err != nil {
+			t.Fatalf("cannot parse [%s]: %s", qStr, err)
+		}
+		result := q.CanLiveTail()
+		if result != resultExpected {
+			t.Fatalf("unexpected result for CanLiveTail(%q); got %v; want %v", qStr, result, resultExpected)
+		}
+	}
+
+	f("foo", true)
+	f("* | copy a b", true)
+	f("* | rm a, b", true)
+	f("* | drop_empty_fields", true)
+	f("* | extract 'foo<bar>baz'", true)
+	f("* | extract_regexp 'foo(?P<bar>baz)'", true)
+	f("* | field_names a", false)
+	f("* | fields a, b", true)
+	f("* | field_values a", false)
+	f("* | filter foo", true)
+	f("* | format 'a<b>c'", true)
+	f("* | limit 10", false)
+	f("* | math a/b as c", true)
+	f("* | offset 10", false)
+	f("* | pack_json", true)
+	f("* | pack_logfmt", true)
+	f("* | rename a b", true)
+	f("* | replace ('foo', 'bar')", true)
+	f("* | replace_regexp ('foo', 'bar')", true)
+	f("* | sort by (a)", false)
+	f("* | stats count() rows", false)
+	f("* | stream_context after 10", false)
+	f("* | top 10 by (x)", false)
+	f("* | uniq by (a)", false)
+	f("* | unpack_json", true)
+	f("* | unpack_logfmt", true)
+	f("* | unpack_syslog", true)
+	f("* | unroll by (a)", true)
 }

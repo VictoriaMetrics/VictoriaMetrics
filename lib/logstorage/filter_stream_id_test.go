@@ -12,19 +12,37 @@ func TestFilterStreamID(t *testing.T) {
 	t.Parallel()
 
 	// match
+	var sid1 streamID
+	if !sid1.tryUnmarshalFromString("0000007b000001c8302bc96e02e54e5524b3a68ec271e55e") {
+		t.Fatalf("cannot unmarshal _stream_id")
+	}
 	ft := &filterStreamID{
-		streamIDStr: "0000007b000001c8302bc96e02e54e5524b3a68ec271e55e",
+		streamIDs: []streamID{sid1},
 	}
 	testFilterMatchForStreamID(t, ft, []int{0, 3, 6, 9})
 
+	var sid2 streamID
+	if !sid2.tryUnmarshalFromString("0000007b000001c850d9950ea6196b1a4812081265faa1c7") {
+		t.Fatalf("cannot unmarshal _stream_id")
+	}
 	ft = &filterStreamID{
-		streamIDStr: "0000007b000001c850d9950ea6196b1a4812081265faa1c7",
+		streamIDs: []streamID{sid2},
 	}
 	testFilterMatchForStreamID(t, ft, []int{1, 4, 7})
 
+	ft = &filterStreamID{
+		streamIDs: []streamID{sid1, sid2},
+	}
+	testFilterMatchForStreamID(t, ft, []int{0, 1, 3, 4, 6, 7, 9})
+
 	// mismatch
 	ft = &filterStreamID{
-		streamIDStr: "abc",
+		streamIDs: nil,
+	}
+	testFilterMatchForStreamID(t, ft, nil)
+
+	ft = &filterStreamID{
+		streamIDs: []streamID{{}},
 	}
 	testFilterMatchForStreamID(t, ft, nil)
 }

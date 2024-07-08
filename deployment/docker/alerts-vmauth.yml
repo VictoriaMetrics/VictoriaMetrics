@@ -1,0 +1,27 @@
+# File contains default list of alerts for vmauth service.
+# The alerts below are just recommendations and may require some updates
+# and threshold calibration according to every specific setup.
+groups:
+  - name: vmauth
+    interval: 30s
+    rules:
+      - alert: ConcurrentRequestsLimitReached
+        expr: sum(increase(vmauth_concurrent_requests_limit_reached_total[1m])) by (instance) > 0
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "vmauth ({{ $labels.instance }}) reached concurrent requests limit"
+          description: "Possible solutions: increase the limit with flag: -maxConcurrentRequests, 
+          deploy additional vmauth replicas, check requests latency at backend service. 
+          See more details at https://docs.victoriametrics.com/vmauth/#concurrency-limiting"
+      - alert: UserConcurrentRequestsLimitReached
+        expr: sum(increase(vmauth_user_concurrent_requests_limit_reached_total[1m])) by (username) > 0
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "vmauth has reached concurrent requests limit for username {{ $labels.username }}"
+          description: "Possible solutions: increase limit with flag: -maxConcurrentPerUserRequests, 
+          deploy additional vmauth replicas, check requests latency at backend service."
+

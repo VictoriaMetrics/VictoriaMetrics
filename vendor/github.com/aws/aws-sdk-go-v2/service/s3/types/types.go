@@ -1850,10 +1850,10 @@ type Grantee struct {
 type IndexDocument struct {
 
 	// A suffix that is appended to a request that is for a directory on the website
-	// endpoint (for example,if the suffix is index.html and you make a request to
-	// samplebucket/images/ the data that is returned will be for the object with the
-	// key name images/index.html) The suffix must not be empty and must not include a
-	// slash character.
+	// endpoint. (For example, if the suffix is index.html and you make a request to
+	// samplebucket/images/ , the data that is returned will be for the object with the
+	// key name images/index.html .) The suffix must not be empty and must not include
+	// a slash character.
 	//
 	// Replacement must be made for object keys containing special characters (such as
 	// carriage returns) when using XML requests. For more information, see [XML related object key constraints].
@@ -2547,9 +2547,9 @@ type MultipartUpload struct {
 // the object's lifetime.
 type NoncurrentVersionExpiration struct {
 
-	// Specifies how many newer noncurrent versions must exist before Amazon S3 can
-	// perform the associated action on a given version. If there are this many more
-	// recent noncurrent versions, Amazon S3 will take the associated action. For more
+	// Specifies how many noncurrent versions Amazon S3 will retain. You can specify
+	// up to 100 noncurrent versions to retain. Amazon S3 will permanently delete any
+	// additional noncurrent versions beyond the specified number to retain. For more
 	// information about noncurrent versions, see [Lifecycle configuration elements]in the Amazon S3 User Guide.
 	//
 	// [Lifecycle configuration elements]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/intro-lifecycle-rules.html
@@ -2575,10 +2575,11 @@ type NoncurrentVersionExpiration struct {
 // specific period in the object's lifetime.
 type NoncurrentVersionTransition struct {
 
-	// Specifies how many newer noncurrent versions must exist before Amazon S3 can
-	// perform the associated action on a given version. If there are this many more
-	// recent noncurrent versions, Amazon S3 will take the associated action. For more
-	// information about noncurrent versions, see [Lifecycle configuration elements]in the Amazon S3 User Guide.
+	// Specifies how many noncurrent versions Amazon S3 will retain in the same
+	// storage class before transitioning objects. You can specify up to 100 noncurrent
+	// versions to retain. Amazon S3 will transition any additional noncurrent versions
+	// beyond the specified number to retain. For more information about noncurrent
+	// versions, see [Lifecycle configuration elements]in the Amazon S3 User Guide.
 	//
 	// [Lifecycle configuration elements]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/intro-lifecycle-rules.html
 	NewerNoncurrentVersions *int32

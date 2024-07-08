@@ -110,6 +110,7 @@ type DeleteBucketPolicyInput struct {
 }
 
 func (in *DeleteBucketPolicyInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
@@ -177,6 +178,15 @@ func (c *Client) addOperationDeleteBucketPolicyMiddlewares(stack *middleware.Sta
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpDeleteBucketPolicyValidationMiddleware(stack); err != nil {

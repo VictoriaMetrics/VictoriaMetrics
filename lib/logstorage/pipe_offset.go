@@ -16,6 +16,10 @@ func (po *pipeOffset) String() string {
 	return fmt.Sprintf("offset %d", po.offset)
 }
 
+func (po *pipeOffset) canLiveTail() bool {
+	return false
+}
+
 func (po *pipeOffset) updateNeededFields(_, _ fieldsSet) {
 	// nothing to do
 }

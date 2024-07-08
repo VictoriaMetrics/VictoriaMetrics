@@ -19,12 +19,12 @@ func ExtractTimestampRFC3339NanoFromFields(timeField string, fields []logstorage
 		if f.Name != timeField {
 			continue
 		}
+		if f.Value == "" || f.Value == "0" {
+			return time.Now().UnixNano(), nil
+		}
 		nsecs, ok := logstorage.TryParseTimestampRFC3339Nano(f.Value)
 		if !ok {
-			if f.Value == "0" || f.Value == "" {
-				return time.Now().UnixNano(), nil
-			}
-			return time.Now().UnixNano(), fmt.Errorf("cannot unmarshal iso8601 timestamp from %s=%q", timeField, f.Value)
+			return 0, fmt.Errorf("cannot unmarshal rfc3339 timestamp from %s=%q", timeField, f.Value)
 		}
 		f.Value = ""
 		return nsecs, nil

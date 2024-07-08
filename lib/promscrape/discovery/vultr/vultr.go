@@ -13,16 +13,13 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
-const (
-	separator = ","
-)
-
-// SDCheckInterval defines interval for docker targets refresh.
+// SDCheckInterval defines interval for Vultr targets refresh.
 var SDCheckInterval = flag.Duration("promscrape.vultrSDCheckInterval", 30*time.Second, "Interval for checking for changes in Vultr. "+
 	"This works only if vultr_sd_configs is configured in '-promscrape.config' file. "+
 	"See https://docs.victoriametrics.com/sd_configs.html#vultr_sd_configs for details")
 
 // SDConfig represents service discovery config for Vultr.
+//
 // See: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#vultr_sd_config
 // Additional query params are supported, while Prometheus only supports `Port` and HTTP auth.
 type SDConfig struct {
@@ -62,7 +59,7 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
 
 // MustStop stops further usage for sdc.
 func (sdc *SDConfig) MustStop() {
-	configMap.Delete(sdc)
+	_ = configMap.Delete(sdc)
 }
 
 // getInstanceLabels returns labels for vultr instances obtained from the given cfg
@@ -72,34 +69,36 @@ func getInstanceLabels(instances []Instance, port int) []*promutils.Labels {
 	for _, instance := range instances {
 		m := promutils.NewLabels(18)
 		m.Add("__address__", discoveryutils.JoinHostPort(instance.MainIP, port))
-		m.Add("__meta_vultr_instance_id", instance.ID)
-		m.Add("__meta_vultr_instance_label", instance.Label)
-		m.Add("__meta_vultr_instance_os", instance.Os)
-		m.Add("__meta_vultr_instance_os_id", strconv.Itoa(instance.OsID))
-		m.Add("__meta_vultr_instance_region", instance.Region)
-		m.Add("__meta_vultr_instance_plan", instance.Plan)
-		m.Add("__meta_vultr_instance_main_ip", instance.MainIP)
-		m.Add("__meta_vultr_instance_internal_ip", instance.InternalIP)
-		m.Add("__meta_vultr_instance_main_ipv6", instance.V6MainIP)
-		m.Add("__meta_vultr_instance_hostname", instance.Hostname)
-		m.Add("__meta_vultr_instance_server_status", instance.ServerStatus)
-		m.Add("__meta_vultr_instance_vcpu_count", strconv.Itoa(instance.VCPUCount))
-		m.Add("__meta_vultr_instance_ram_mb", strconv.Itoa(instance.RAM))
 		m.Add("__meta_vultr_instance_allowed_bandwidth_gb", strconv.Itoa(instance.AllowedBandwidth))
 		m.Add("__meta_vultr_instance_disk_gb", strconv.Itoa(instance.Disk))
+		m.Add("__meta_vultr_instance_hostname", instance.Hostname)
+		m.Add("__meta_vultr_instance_id", instance.ID)
+		m.Add("__meta_vultr_instance_internal_ip", instance.InternalIP)
+		m.Add("__meta_vultr_instance_label", instance.Label)
+		m.Add("__meta_vultr_instance_main_ip", instance.MainIP)
+		m.Add("__meta_vultr_instance_main_ipv6", instance.V6MainIP)
+		m.Add("__meta_vultr_instance_os", instance.OS)
+		m.Add("__meta_vultr_instance_os_id", strconv.Itoa(instance.OSID))
+		m.Add("__meta_vultr_instance_plan", instance.Plan)
+		m.Add("__meta_vultr_instance_region", instance.Region)
+		m.Add("__meta_vultr_instance_ram_mb", strconv.Itoa(instance.RAM))
+		m.Add("__meta_vultr_instance_server_status", instance.ServerStatus)
+		m.Add("__meta_vultr_instance_vcpu_count", strconv.Itoa(instance.VCPUCount))
 
-		// We surround the separated list with the separator as well. This way regular expressions
-		// in relabeling rules don't have to consider feature positions.
 		if len(instance.Features) > 0 {
-			features := separator + strings.Join(instance.Features, separator) + separator
-			m.Add("__meta_vultr_instance_features", features)
+			m.Add("__meta_vultr_instance_features", joinStrings(instance.Features))
 		}
 
 		if len(instance.Tags) > 0 {
-			tags := separator + strings.Join(instance.Tags, separator) + separator
-			m.Add("__meta_vultr_instance_tags", tags)
+			m.Add("__meta_vultr_instance_tags", joinStrings(instance.Tags))
 		}
+
 		ms = append(ms, m)
 	}
+
 	return ms
+}
+
+func joinStrings(a []string) string {
+	return "," + strings.Join(a, ",") + ","
 }

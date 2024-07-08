@@ -25,6 +25,10 @@ func (pp *pipePackLogfmt) String() string {
 	return s
 }
 
+func (pp *pipePackLogfmt) canLiveTail() bool {
+	return true
+}
+
 func (pp *pipePackLogfmt) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	updateNeededFieldsForPipePack(neededFields, unneededFields, pp.resultField, pp.fields)
 }

@@ -76,6 +76,7 @@ type GetBucketReplicationInput struct {
 }
 
 func (in *GetBucketReplicationInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
@@ -148,6 +149,15 @@ func (c *Client) addOperationGetBucketReplicationMiddlewares(stack *middleware.S
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpGetBucketReplicationValidationMiddleware(stack); err != nil {

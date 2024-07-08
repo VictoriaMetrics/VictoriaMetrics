@@ -16,6 +16,10 @@ func (pl *pipeLimit) String() string {
 	return fmt.Sprintf("limit %d", pl.limit)
 }
 
+func (pl *pipeLimit) canLiveTail() bool {
+	return false
+}
+
 func (pl *pipeLimit) updateNeededFields(_, _ fieldsSet) {
 	// nothing to do
 }

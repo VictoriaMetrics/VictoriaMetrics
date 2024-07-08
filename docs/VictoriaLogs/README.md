@@ -15,9 +15,9 @@ VictoriaLogs provides the following features:
 - VictoriaLogs can accept logs from popular log collectors. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
 - VictoriaLogs is much easier to set up and operate compared to Elasticsearch and Grafana Loki.
   See [these docs](https://docs.victoriametrics.com/victorialogs/quickstart/).
-- VictoriaLogs provides easy yet powerful query language with full-text search capabilities across
-  all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) -
-  see [LogsQL docs](https://docs.victoriametrics.com/victorialogs/logsql/).
+- VictoriaLogs provides easy yet powerful query language with full-text search across
+  all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+  See [LogsQL docs](https://docs.victoriametrics.com/victorialogs/logsql/).
 - VictoriaLogs can be seamlessly combined with good old Unix tools for log analysis such as `grep`, `less`, `sort`, `jq`, etc.
   See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line) for details.
 - VictoriaLogs capacity and performance scales linearly with the available resources (CPU, RAM, disk IO, disk space).
@@ -28,11 +28,9 @@ VictoriaLogs provides the following features:
   such as `trace_id`, `user_id` and `ip`.
 - VictoriaLogs supports multitenancy - see [these docs](#multitenancy).
 - VictoriaLogs supports out-of-order logs' ingestion aka backfilling.
-- VictoriaLogs provides a simple web UI for querying logs - see [these docs](https://docs.victoriametrics.com/victorialogs/querying/#web-ui).
-
-VictoriaLogs is at the Preview stage now. It is ready for evaluation in production and verifying the claims given above.
-It isn't recommended to migrate from existing logging solutions to VictoriaLogs Preview in general cases yet.
-See the [Roadmap](https://docs.victoriametrics.com/victorialogs/roadmap/) for details.
+- VictoriaLogs supports live tailing for newly ingested logs. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing).
+- VictoriaLogs supports selecting surrounding logs in front and after the selected logs. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe).
+- VictoriaLogs provides web UI for querying logs - see [these docs](https://docs.victoriametrics.com/victorialogs/querying/#web-ui).
 
 If you have questions about VictoriaLogs, then read [this FAQ](https://docs.victoriametrics.com/victorialogs/faq/).
 Also feel free asking any questions at [VictoriaMetrics community Slack chat](https://victoriametrics.slack.com/), 
@@ -77,6 +75,8 @@ For example, the following command starts VictoriaLogs with the retention of 8 w
 /path/to/victoria-logs -retentionPeriod=8w
 ```
 
+See also [retention by disk space usage](#retention-by-disk-space-usage).
+
 VictoriaLogs stores the [ingested](https://docs.victoriametrics.com/victorialogs/data-ingestion/) logs in per-day partition directories.
 It automatically drops partition directories outside the configured retention.
 
@@ -99,6 +99,32 @@ For example, the following command starts VictoriaLogs, which accepts logs with 
 
 ```sh
 /path/to/victoria-logs -futureRetention=1y
+```
+
+## Retention by disk space usage
+
+VictoriaLogs can be configured to automatically drop older per-day partitions if the total size of data at [`-storageDataPath` directory](#storage)
+becomes bigger than the given threshold at `-retention.maxDiskSpaceUsageBytes` command-line flag. For example, the following command starts VictoriaLogs,
+which drops old per-day partitions if the total [storage](#storage) size becomes bigger than `100GiB`:
+
+```sh
+/path/to/victoria-logs -retention.maxDiskSpaceUsageBytes=100GiB
+```
+
+VictoriaLogs usually compresses logs by 10x or more times. This means that VictoriaLogs can store more than a terabyte of uncompressed
+logs when it runs with `-retention.maxDiskSpaceUsageBytes=100GiB`.
+
+VictoriaLogs keeps at least two last days of data in order to guarantee that the logs for the last day can be returned in queries.
+This means that the total disk space usage may exceed the `-retention.maxDiskSpaceUsageBytes` if the size of the last two days of data
+exceeds the `-retention.maxDiskSpaceUsageBytes`.
+
+The [`-retentionPeriod`](#retention) is applied independently to the `-retention.maxDiskSpaceUsageBytes`. This means that
+VictoriaLogs automatically drops logs older than 7 days by default if only `-retention.maxDiskSpaceUsageBytes` command-line flag is set.
+Set the `-retentionPeriod` to some big value (e.g. `100y` - 100 years) if logs shouldn't be dropped because of some small `-retentionPeriod`.
+For example:
+
+```sh
+/path/to/victoria-logs -retention.maxDiskSpaceUsageBytes=10TiB -retention=100y
 ```
 
 ## Storage
@@ -263,26 +289,29 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -retention.maxDiskSpaceUsageBytes size
+    	The maximum disk space usage at -storageDataPath before older per-day partitions are automatically dropped; see https://docs.victoriametrics.com/victorialogs/#retention-by-disk-space-usage ; see also -retentionPeriod
+    	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -retentionPeriod value
-    	Log entries with timestamps older than now-retentionPeriod are automatically deleted; log entries with timestamps outside the retention are also rejected during data ingestion; the minimum supported retention is 1d (one day); see https://docs.victoriametrics.com/victorialogs/#retention
+    	Log entries with timestamps older than now-retentionPeriod are automatically deleted; log entries with timestamps outside the retention are also rejected during data ingestion; the minimum supported retention is 1d (one day); see https://docs.victoriametrics.com/victorialogs/#retention ; see also -retention.maxDiskSpaceUsageBytes
     	The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 7d)
   -search.maxConcurrentRequests int
     	The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration (default 16)
   -search.maxQueryDuration duration
-    	The maximum duration for query execution (default 30s)
+    	The maximum duration for query execution. It can be overridden on a per-query basis via 'timeout' query arg (default 30s)
   -search.maxQueueDuration duration
     	The maximum time the search request waits for execution when -search.maxConcurrentRequests limit is reached; see also -search.maxQueryDuration (default 10s)
   -storage.minFreeDiskSpaceBytes size
     	The minimum free disk space at -storageDataPath after which the storage stops accepting new data
     	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 10000000)
   -storageDataPath string
-    	Path to directory with the VictoriaLogs data; see https://docs.victoriametrics.com/victorialogs/#storage (default "victoria-logs-data")
+    	Path to directory where to store VictoriaLogs data; see https://docs.victoriametrics.com/victorialogs/#storage (default "victoria-logs-data")
   -syslog.compressMethod.tcp array
-    	Compression method for syslog messages received at the corresponding -syslog.listenAddr.tcp. Supported values: none, gzip, deflate. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/
+    	Compression method for syslog messages received at the corresponding -syslog.listenAddr.tcp. Supported values: none, gzip, deflate. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#compression
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -syslog.compressMethod.udp array
-    	Compression method for syslog messages received at the corresponding -syslog.listenAddr.udp. Supported values: none, gzip, deflate. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/
+    	Compression method for syslog messages received at the corresponding -syslog.listenAddr.udp. Supported values: none, gzip, deflate. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#compression
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -syslog.listenAddr.tcp array
@@ -304,23 +333,31 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
   -syslog.timezone string
     	Timezone to use when parsing timestamps in RFC3164 syslog messages. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 . See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/ (default "Local")
   -syslog.tls array
-    	Whether to enable TLS for receiving syslog messages at the corresponding -syslog.listenAddr.tcp. The corresponding -syslog.tlsCertFile and -syslog.tlsKeyFile must be set if -syslog.tls is set. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/
+    	Whether to enable TLS for receiving syslog messages at the corresponding -syslog.listenAddr.tcp. The corresponding -syslog.tlsCertFile and -syslog.tlsKeyFile must be set if -syslog.tls is set. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#security
     	Supports array of values separated by comma or specified via multiple flags.
     	Empty values are set to false.
   -syslog.tlsCertFile array
-    	Path to file with TLS certificate for the corresponding -syslog.listenAddr.tcp if the corresponding -syslog.tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/
+    	Path to file with TLS certificate for the corresponding -syslog.listenAddr.tcp if the corresponding -syslog.tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#security
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -syslog.tlsCipherSuites array
-    	Optional list of TLS cipher suites for -syslog.listenAddr.tcp if -syslog.tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants . See also https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/
+    	Optional list of TLS cipher suites for -syslog.listenAddr.tcp if -syslog.tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants . See also https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#security
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -syslog.tlsKeyFile array
-    	Path to file with TLS key for the corresponding -syslog.listenAddr.tcp if the corresponding -syslog.tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/
+    	Path to file with TLS key for the corresponding -syslog.listenAddr.tcp if the corresponding -syslog.tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#security
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -syslog.tlsMinVersion string
-    	The minimum TLS version to use for -syslog.listenAddr.tcp if -syslog.tls is set. Supported values: TLS10, TLS11, TLS12, TLS13. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/ (default "TLS13")
+    	The minimum TLS version to use for -syslog.listenAddr.tcp if -syslog.tls is set. Supported values: TLS10, TLS11, TLS12, TLS13. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#security (default "TLS13")
+  -syslog.useLocalTimestamp.tcp array
+    	Whether to use local timestamp instead of the original timestamp for the ingested syslog messages at the corresponding -syslog.listenAddr.tcp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#log-timestamps
+    	Supports array of values separated by comma or specified via multiple flags.
+    	Empty values are set to false.
+  -syslog.useLocalTimestamp.udp array
+    	Whether to use local timestamp instead of the original timestamp for the ingested syslog messages at the corresponding -syslog.listenAddr.udp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#log-timestamps
+    	Supports array of values separated by comma or specified via multiple flags.
+    	Empty values are set to false.
   -tls array
     	Whether to enable TLS for incoming HTTP requests at the given -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
     	Supports array of values separated by comma or specified via multiple flags.

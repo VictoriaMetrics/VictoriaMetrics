@@ -647,6 +647,15 @@ unauthorized_user:
   - "X-Forwarded-For:"
 ```
 
+it's also possible to update `Host` header to a backend's host name
+
+```yaml
+unauthorized_user:
+  url_prefix: "http://backend:1234/"
+  headers:
+  - "Host:"    # Update host header to a backend's host
+```
+
 `vmauth` also supports the ability to set and remove HTTP response headers before returning the response from the backend to client.
 This is done via `response_headers` option. For example, the following [`-auth.config`](#auth-config) sets `Foo: bar` response header
 and removes `Server` response header before returning the response to client:
@@ -1020,6 +1029,8 @@ See also [security recommendations](#security).
 
 `vmauth` exports various metrics in Prometheus exposition format at `http://vmauth-host:8427/metrics` page. It is recommended setting up regular scraping of this page
 either via [vmagent](https://docs.victoriametrics.com/vmagent/) or via Prometheus-compatible scraper, so the exported metrics could be analyzed later.
+Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/21394) and [alerting rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-vmauth.yml)
+for `vmauth` monitoring.
 
 If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMetrics components, then pass `-metrics.exposeMetadata`
 command-line to them, so they add `TYPE` and `HELP` comments per each exposed metric at `/metrics` page.
@@ -1249,7 +1260,7 @@ See the docs at https://docs.victoriametrics.com/vmauth/ .
   -maxIdleConnsPerBackend int
      The maximum number of idle connections vmauth can open per each backend host. See also -maxConcurrentRequests (default 100)
   -maxRequestBodySizeToRetry size
-     The maximum request body size, which can be cached and re-tried at other backends. Bigger values may require more memory
+     The maximum request body size, which can be cached and re-tried at other backends. Bigger values may require more memory. Negative or zero values disable request body caching and retries.
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 16384)
   -memory.allowedBytes size
      Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage

@@ -45,6 +45,10 @@ func (pt *pipeTop) String() string {
 	return s
 }
 
+func (pt *pipeTop) canLiveTail() bool {
+	return false
+}
+
 func (pt *pipeTop) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	neededFields.reset()
 	unneededFields.reset()

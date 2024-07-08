@@ -1,29 +1,25 @@
 name: main
+
 on:
   push:
     branches:
-      - master
       - cluster
-    paths-ignore:
-      - "docs/**"
-      - "**.md"
-      - "dashboards/**"
-      - "deployment/**.yml"
+      - master
+    paths:
+      - '**.go'
   pull_request:
     branches:
-      - master
       - cluster
-    paths-ignore:
-      - "docs/**"
-      - "**.md"
-      - "dashboards/**"
-      - "deployment/**.yml"
+      - master
+    paths:
+      - '**.go'
+
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
 
 jobs:
   lint:
@@ -37,16 +33,16 @@ jobs:
         id: go
         uses: actions/setup-go@v5
         with:
-          go-version: stable
           cache: false
+          go-version: stable
 
       - name: Cache Go artifacts
         uses: actions/cache@v4
         with:
           path: |
             ~/.cache/go-build
-            ~/go/pkg/mod
             ~/go/bin
+            ~/go/pkg/mod
           key: go-artifacts-${{ runner.os }}-check-all-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
           restore-keys: go-artifacts-${{ runner.os }}-check-all-
 
@@ -55,41 +51,18 @@ jobs:
           make check-all
           git diff --exit-code
 
-  build:
-    needs: lint
-    name: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Code checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Go
-        id: go
-        uses: actions/setup-go@v5
-        with:
-          go-version: stable
-          cache: false
-
-      - name: Cache Go artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-            ~/go/bin
-          key: go-artifacts-${{ runner.os }}-crossbuild-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
-          restore-keys: go-artifacts-${{ runner.os }}-crossbuild-
-
-      - name: Build
-        run: make crossbuild
-
   test:
+    name: test
     needs: lint
+    runs-on: ubuntu-latest
+
     strategy:
       matrix:
-        scenario: ["test-full", "test-pure", "test-full-386"]
-    name: test
-    runs-on: ubuntu-latest
+        scenario:
+          - 'test-full'
+          - 'test-full-386'
+          - 'test-pure'
+
     steps:
       - name: Code checkout
         uses: actions/checkout@v4
@@ -98,20 +71,20 @@ jobs:
         id: go
         uses: actions/setup-go@v5
         with:
-          go-version: stable
           cache: false
+          go-version: stable
 
       - name: Cache Go artifacts
         uses: actions/cache@v4
         with:
           path: |
             ~/.cache/go-build
-            ~/go/pkg/mod
             ~/go/bin
+            ~/go/pkg/mod
           key: go-artifacts-${{ runner.os }}-${{ matrix.scenario }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
           restore-keys: go-artifacts-${{ runner.os }}-${{ matrix.scenario }}-
 
-      - name: run tests
+      - name: Run tests
         run: make ${{ matrix.scenario}}
 
       - name: Publish coverage

@@ -127,3 +127,10 @@ On top of this, VictoriaLogs employs additional optimizations for achieving high
   by skipping blocks for unneeded streams when [stream filter](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter) is used.
 - It maintains sparse index for [log timestamps](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field),
   which allow improving query performance when [time filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter) is used.
+
+## How to export logs from VictoriaLogs?
+
+Just send the query with the needed [filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters)
+to [`/select/logsql/query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs) - VictoriaLogs will return
+the requested logs as a [stream of JSON lines](https://jsonlines.org/). It is recommended specifying [time filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter)
+for limiting the amounts of exported logs.

@@ -630,6 +630,7 @@ type CreateMultipartUploadInput struct {
 }
 
 func (in *CreateMultipartUploadInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.Key = in.Key
 
@@ -781,6 +782,15 @@ func (c *Client) addOperationCreateMultipartUploadMiddlewares(stack *middleware.
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpCreateMultipartUploadValidationMiddleware(stack); err != nil {

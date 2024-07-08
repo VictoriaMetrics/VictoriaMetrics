@@ -30,10 +30,19 @@ func TestSyslogLineReader_Success(t *testing.T) {
 	}
 
 	f("", nil)
+	f("\n", nil)
+	f("\n\n\n", nil)
+
 	f("foobar", []string{"foobar"})
+	f("foobar\n", []string{"foobar\n"})
+	f("\n\nfoo\n\nbar\n\n", []string{"foo\n\nbar\n\n"})
+
+	f(`Jun  3 12:08:33 abcd systemd: Starting Update the local ESM caches...`, []string{"Jun  3 12:08:33 abcd systemd: Starting Update the local ESM caches..."})
 
 	f(`Jun  3 12:08:33 abcd systemd: Starting Update the local ESM caches...
+
 48 <165>Jun  4 12:08:33 abcd systemd[345]: abc defg<123>1 2023-06-03T17:42:12.345Z mymachine.example.com appname 12345 ID47 [exampleSDID@32473 iut="3" eventSource="Application 123 = ] 56" eventID="11211"] This is a test message with structured data.
+
 `, []string{
 		"Jun  3 12:08:33 abcd systemd: Starting Update the local ESM caches...",
 		"<165>Jun  4 12:08:33 abcd systemd[345]: abc defg",
@@ -77,7 +86,7 @@ func TestProcessStreamInternal_Success(t *testing.T) {
 
 		tlp := &insertutils.TestLogMessageProcessor{}
 		r := bytes.NewBufferString(data)
-		if err := processStreamInternal(r, "", tlp); err != nil {
+		if err := processStreamInternal(r, "", false, tlp); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		if err := tlp.Verify(rowsExpected, timestampsExpected, resultExpected); err != nil {
@@ -94,7 +103,7 @@ func TestProcessStreamInternal_Success(t *testing.T) {
 	timestampsExpected := []int64{1685794113000000000, 1685880513000000000, 1685814132345000000}
 	resultExpected := `{"format":"rfc3164","timestamp":"","hostname":"abcd","app_name":"systemd","_msg":"Starting Update the local ESM caches..."}
 {"priority":"165","facility":"20","severity":"5","format":"rfc3164","timestamp":"","hostname":"abcd","app_name":"systemd","proc_id":"345","_msg":"abc defg"}
-{"priority":"123","facility":"15","severity":"3","format":"rfc5424","timestamp":"","hostname":"mymachine.example.com","app_name":"appname","proc_id":"12345","msg_id":"ID47","exampleSDID@32473":"iut=\"3\" eventSource=\"Application 123 = ] 56\" eventID=\"11211\"","_msg":"This is a test message with structured data."}`
+{"priority":"123","facility":"15","severity":"3","format":"rfc5424","timestamp":"","hostname":"mymachine.example.com","app_name":"appname","proc_id":"12345","msg_id":"ID47","exampleSDID@32473.iut":"3","exampleSDID@32473.eventSource":"Application 123 = ] 56","exampleSDID@32473.eventID":"11211","_msg":"This is a test message with structured data."}`
 	f(data, currentYear, rowsExpected, timestampsExpected, resultExpected)
 }
 
@@ -107,7 +116,7 @@ func TestProcessStreamInternal_Failure(t *testing.T) {
 
 		tlp := &insertutils.TestLogMessageProcessor{}
 		r := bytes.NewBufferString(data)
-		if err := processStreamInternal(r, "", tlp); err == nil {
+		if err := processStreamInternal(r, "", false, tlp); err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
 	}

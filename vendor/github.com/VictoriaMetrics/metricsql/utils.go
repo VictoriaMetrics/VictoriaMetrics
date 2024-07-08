@@ -19,7 +19,7 @@ func ExpandWithExprs(q string) (string, error) {
 // VisitAll recursively calls f for all the Expr children in e.
 //
 // It visits leaf children at first and then visits parent nodes.
-// It is safe modifying e in f.
+// It is safe modifying expr in f.
 func VisitAll(e Expr, f func(expr Expr)) {
 	switch expr := e.(type) {
 	case *BinaryOpExpr:
@@ -38,8 +38,71 @@ func VisitAll(e Expr, f func(expr Expr)) {
 		VisitAll(&expr.Modifier, f)
 	case *RollupExpr:
 		VisitAll(expr.Expr, f)
+		if expr.Window != nil {
+			VisitAll(expr.Window, f)
+		}
+		if expr.Step != nil {
+			VisitAll(expr.Step, f)
+		}
+		if expr.Offset != nil {
+			VisitAll(expr.Offset, f)
+		}
+		if expr.At != nil {
+			VisitAll(expr.At, f)
+		}
 	}
 	f(e)
+}
+
+// IsLikelyInvalid returns true if e contains tricky implicit conversion, which is invalid most of the time.
+//
+// Examples of invalid expressions:
+//
+//	rate(sum(foo))
+//	rate(abs(foo))
+//	rate(foo + bar)
+//	rate(foo > 10)
+//
+// These expressions are implicitly converted into another expressions, which returns unexpected results most of the time:
+//
+//	rate(default_rollup(sum(foo))[1i:1i])
+//	rate(default_rollup(abs(foo))[1i:1i])
+//	rate(default_rollup(foo + bar)[1i:1i])
+//	rate(default_rollup(foo > 10)[1i:1i])
+//
+// See https://docs.victoriametrics.com/metricsql/#implicit-query-conversions
+//
+// Note that rate(foo) is valid expression, since it returns the expected results most of the time, e.g. rate(foo[1i]).
+func IsLikelyInvalid(e Expr) bool {
+	hasImplicitConversion := false
+	VisitAll(e, func(expr Expr) {
+		if hasImplicitConversion {
+			return
+		}
+		fe, ok := expr.(*FuncExpr)
+		if !ok {
+			return
+		}
+		idx := GetRollupArgIdx(fe)
+		if idx < 0 {
+			return
+		}
+		arg := fe.Args[idx]
+		re, ok := arg.(*RollupExpr)
+		if !ok {
+			if _, ok = arg.(*MetricExpr); !ok {
+				hasImplicitConversion = true
+			}
+			return
+		}
+		if _, ok := re.Expr.(*MetricExpr); ok {
+			return
+		}
+		if re.Window == nil {
+			hasImplicitConversion = true
+		}
+	})
+	return hasImplicitConversion
 }
 
 // IsSupportedFunction returns true if funcName contains supported MetricsQL function
@@ -63,15 +126,12 @@ func checkSupportedFunctions(e Expr) error {
 		if err != nil {
 			return
 		}
-		switch t := expr.(type) {
-		case *FuncExpr:
-			if !IsRollupFunc(t.Name) && !IsTransformFunc(t.Name) {
-				err = fmt.Errorf("unsupported function %q", t.Name)
-			}
-		case *AggrFuncExpr:
-			if !IsAggrFunc(t.Name) {
-				err = fmt.Errorf("unsupported aggregate function %q", t.Name)
-			}
+		fe, ok := expr.(*FuncExpr)
+		if !ok {
+			return
+		}
+		if !IsRollupFunc(fe.Name) && !IsTransformFunc(fe.Name) {
+			err = fmt.Errorf("unsupported function %q", fe.Name)
 		}
 	})
 	return err

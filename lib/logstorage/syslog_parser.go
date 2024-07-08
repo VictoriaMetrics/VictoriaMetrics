@@ -52,10 +52,18 @@ type SyslogParser struct {
 	// Fields contains parsed fields after Parse call.
 	Fields []Field
 
+	// buf contains temporary data used in Fields.
 	buf []byte
 
+	// sdParser is used for structured data parsing in rfc5424.
+	// See https://datatracker.ietf.org/doc/html/rfc5424#section-6.3
+	sdParser logfmtParser
+
+	// currentYear is used as the current year for rfc3164 messages.
 	currentYear int
-	timezone    *time.Location
+
+	// timezeon is used as the current timezeon for rfc3164 messages.
+	timezone *time.Location
 }
 
 func (p *SyslogParser) reset() {
@@ -69,6 +77,7 @@ func (p *SyslogParser) resetFields() {
 	p.Fields = p.Fields[:0]
 
 	p.buf = p.buf[:0]
+	p.sdParser.reset()
 }
 
 func (p *SyslogParser) addField(name, value string) {
@@ -259,7 +268,23 @@ func (p *SyslogParser) parseRFC5424SDLine(s string) (string, bool) {
 	}
 
 	sdValue := strings.TrimSpace(s[:i])
-	p.addField(sdID, sdValue)
+
+	p.sdParser.parse(sdValue)
+	if len(p.sdParser.fields) == 0 {
+		// Special case when structured data doesn't contain any fields
+		p.addField(sdID, "")
+	} else {
+		for _, f := range p.sdParser.fields {
+			bufLen := len(p.buf)
+			p.buf = append(p.buf, sdID...)
+			p.buf = append(p.buf, '.')
+			p.buf = append(p.buf, f.Name...)
+
+			fieldName := bytesutil.ToUnsafeString(p.buf[bufLen:])
+			p.addField(fieldName, f.Value)
+		}
+	}
+
 	s = s[i+1:]
 	return s, true
 }

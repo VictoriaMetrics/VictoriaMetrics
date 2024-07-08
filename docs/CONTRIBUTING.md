@@ -17,7 +17,7 @@ If you like VictoriaMetrics and want to contribute, then it would be great:
 - Joining VictoriaMetrics community Slack ([Slack inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/))
   and helping other community members there.
 - Filing issues, feature requests and questions [at VictoriaMetrics GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
-- Improving [VictoriaMetrics docs](https://docs.victoriametrics.com/). The docs' sources are located [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs).
+- Improving [VictoriaMetrics docs](https://docs.victoriametrics.com/). See how to update docs [here](https://docs.victoriametrics.com/#documentation).
 - Spreading the word about VictoriaMetrics via various channels:
   - conference talks
   - blogposts, articles and [case studies](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CaseStudies.md)
@@ -29,6 +29,7 @@ If you like VictoriaMetrics and want to contribute, then it would be great:
 
 Before sending a pull request to [VictoriaMetrics repository](https://github.com/VictoriaMetrics/VictoriaMetrics/) please make sure it **conforms all** the following checks:
 
+- The pull request conforms [VictoriaMetrics goals](https://docs.victoriametrics.com/goals/).
 - The pull request conforms [`KISS` principle](https://en.wikipedia.org/wiki/KISS_principle). See [these docs](#kiss-principle) for more details.
 - The pull request contains clear description of the change, with links to the related GitHub issues and [docs](https://docs.victoriametrics.com/), if needed.
 - Commit messages contain concise yet clear descriptions. Include links to related GitHub issues in commit messages, if such issues exist.

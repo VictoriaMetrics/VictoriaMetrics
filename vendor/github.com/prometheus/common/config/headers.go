@@ -17,6 +17,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -50,15 +51,20 @@ var reservedHeaders = map[string]struct{}{
 
 // Headers represents the configuration for HTTP headers.
 type Headers struct {
-	Headers map[string]Header `yaml:",inline" json:",inline"`
+	Headers map[string]Header `yaml:",inline"`
 	dir     string
 }
 
-// Headers represents the configuration for HTTP headers.
+// Header represents the configuration for a single HTTP header.
 type Header struct {
 	Values  []string `yaml:"values,omitempty" json:"values,omitempty"`
 	Secrets []Secret `yaml:"secrets,omitempty" json:"secrets,omitempty"`
 	Files   []string `yaml:"files,omitempty" json:"files,omitempty"`
+}
+
+func (h Headers) MarshalJSON() ([]byte, error) {
+	// Inline the Headers map when serializing JSON because json encoder doesn't support "inline" directive.
+	return json.Marshal(h.Headers)
 }
 
 // SetDirectory records the directory to make headers file relative to the

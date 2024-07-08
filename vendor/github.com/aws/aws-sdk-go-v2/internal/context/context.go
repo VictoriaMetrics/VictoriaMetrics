@@ -2,12 +2,14 @@ package context
 
 import (
 	"context"
+	"time"
 
 	"github.com/aws/smithy-go/middleware"
 )
 
 type s3BackendKey struct{}
 type checksumInputAlgorithmKey struct{}
+type clockSkew struct{}
 
 const (
 	// S3BackendS3Express identifies the S3Express backend
@@ -36,4 +38,15 @@ func SetChecksumInputAlgorithm(ctx context.Context, value string) context.Contex
 func GetChecksumInputAlgorithm(ctx context.Context) string {
 	v, _ := middleware.GetStackValue(ctx, checksumInputAlgorithmKey{}).(string)
 	return v
+}
+
+// SetAttemptSkewContext sets the clock skew value on the context
+func SetAttemptSkewContext(ctx context.Context, v time.Duration) context.Context {
+	return middleware.WithStackValue(ctx, clockSkew{}, v)
+}
+
+// GetAttemptSkewContext gets the clock skew value from the context
+func GetAttemptSkewContext(ctx context.Context) time.Duration {
+	x, _ := middleware.GetStackValue(ctx, clockSkew{}).(time.Duration)
+	return x
 }

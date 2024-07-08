@@ -41,6 +41,10 @@ func (pe *pipeExtract) String() string {
 	return s
 }
 
+func (pe *pipeExtract) canLiveTail() bool {
+	return true
+}
+
 func (pe *pipeExtract) optimize() {
 	pe.iff.optimizeFilterIn()
 }

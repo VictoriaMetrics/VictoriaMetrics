@@ -149,37 +149,41 @@ func TestTryParseIPv4_Failure(t *testing.T) {
 }
 
 func TestTryParseTimestampRFC3339NanoString_Success(t *testing.T) {
-	f := func(s string) {
+	f := func(s, timestampExpected string) {
 		t.Helper()
 		nsecs, ok := TryParseTimestampRFC3339Nano(s)
 		if !ok {
 			t.Fatalf("cannot parse timestamp %q", s)
 		}
-		data := marshalTimestampRFC3339NanoString(nil, nsecs)
-		if string(data) != s {
-			t.Fatalf("unexpected timestamp; got %q; want %q", data, s)
+		timestamp := marshalTimestampRFC3339NanoString(nil, nsecs)
+		if string(timestamp) != timestampExpected {
+			t.Fatalf("unexpected timestamp; got %q; want %q", timestamp, timestampExpected)
 		}
 	}
 
 	// No fractional seconds
-	f("2023-01-15T23:45:51Z")
+	f("2023-01-15T23:45:51Z", "2023-01-15T23:45:51Z")
 
 	// Different number of fractional seconds
-	f("2023-01-15T23:45:51.1Z")
-	f("2023-01-15T23:45:51.12Z")
-	f("2023-01-15T23:45:51.123Z")
-	f("2023-01-15T23:45:51.1234Z")
-	f("2023-01-15T23:45:51.12345Z")
-	f("2023-01-15T23:45:51.123456Z")
-	f("2023-01-15T23:45:51.1234567Z")
-	f("2023-01-15T23:45:51.12345678Z")
-	f("2023-01-15T23:45:51.123456789Z")
+	f("2023-01-15T23:45:51.1Z", "2023-01-15T23:45:51.1Z")
+	f("2023-01-15T23:45:51.12Z", "2023-01-15T23:45:51.12Z")
+	f("2023-01-15T23:45:51.123Z", "2023-01-15T23:45:51.123Z")
+	f("2023-01-15T23:45:51.1234Z", "2023-01-15T23:45:51.1234Z")
+	f("2023-01-15T23:45:51.12345Z", "2023-01-15T23:45:51.12345Z")
+	f("2023-01-15T23:45:51.123456Z", "2023-01-15T23:45:51.123456Z")
+	f("2023-01-15T23:45:51.1234567Z", "2023-01-15T23:45:51.1234567Z")
+	f("2023-01-15T23:45:51.12345678Z", "2023-01-15T23:45:51.12345678Z")
+	f("2023-01-15T23:45:51.123456789Z", "2023-01-15T23:45:51.123456789Z")
 
 	// The minimum possible timestamp
-	f("1677-09-21T00:12:44Z")
+	f("1677-09-21T00:12:44Z", "1677-09-21T00:12:44Z")
 
 	// The maximum possible timestamp
-	f("2262-04-11T23:47:15.999999999Z")
+	f("2262-04-11T23:47:15.999999999Z", "2262-04-11T23:47:15.999999999Z")
+
+	// timestamp with timezone
+	f("2023-01-16T00:45:51+01:00", "2023-01-15T23:45:51Z")
+	f("2023-01-16T00:45:51.123-01:00", "2023-01-16T01:45:51.123Z")
 }
 
 func TestTryParseTimestampRFC3339Nano_Failure(t *testing.T) {
@@ -201,10 +205,6 @@ func TestTryParseTimestampRFC3339Nano_Failure(t *testing.T) {
 
 	// missing fractional part after dot
 	f("2023-01-15T22:15:51.Z")
-
-	// timestamp with timezone
-	f("2023-01-16T00:45:51+01:00")
-	f("2023-01-16T00:45:51.123+01:00")
 
 	// too small year
 	f("1676-09-21T00:12:43Z")
@@ -240,7 +240,7 @@ func TestTryParseTimestampRFC3339Nano_Failure(t *testing.T) {
 func TestTryParseTimestampISO8601String_Success(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
-		nsecs, ok := TryParseTimestampISO8601(s)
+		nsecs, ok := tryParseTimestampISO8601(s)
 		if !ok {
 			t.Fatalf("cannot parse timestamp %q", s)
 		}
@@ -263,7 +263,7 @@ func TestTryParseTimestampISO8601String_Success(t *testing.T) {
 func TestTryParseTimestampISO8601_Failure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
-		_, ok := TryParseTimestampISO8601(s)
+		_, ok := tryParseTimestampISO8601(s)
 		if ok {
 			t.Fatalf("expecting faulure when parsing %q", s)
 		}

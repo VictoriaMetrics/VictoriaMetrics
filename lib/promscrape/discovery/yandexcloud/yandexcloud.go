@@ -38,6 +38,11 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
 	}
 }
 
+// MustStop stops further usage for sdc.
+func (sdc *SDConfig) MustStop() {
+	_ = configMap.Delete(sdc)
+}
+
 func (cfg *apiConfig) getInstances(folderID string) ([]instance, error) {
 	instancesURL := cfg.serviceEndpoints["compute"] + "/compute/v1/instances"
 	instancesURL += "?folderId=" + url.QueryEscape(folderID)

@@ -1,6 +1,6 @@
 import { GraphSize, SeriesItemStatsFormatted } from "../types";
 
-export const MAX_QUERY_FIELDS = 4;
+export const MAX_QUERY_FIELDS = 10;
 export const MAX_QUERIES_HISTORY = 25;
 export const DEFAULT_MAX_SERIES = {
   table: 100,

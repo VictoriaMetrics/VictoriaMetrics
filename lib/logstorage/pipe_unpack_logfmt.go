@@ -50,6 +50,10 @@ func (pu *pipeUnpackLogfmt) String() string {
 	return s
 }
 
+func (pu *pipeUnpackLogfmt) canLiveTail() bool {
+	return true
+}
+
 func (pu *pipeUnpackLogfmt) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	updateNeededFieldsForUnpackPipe(pu.fromField, pu.fields, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff, neededFields, unneededFields)
 }

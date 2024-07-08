@@ -101,8 +101,7 @@ replay-vmalert: vmalert
 		-remoteWrite.url=http://localhost:8428 \
 		-external.label=cluster=east-1 \
 		-external.label=replica=a \
-		-replay.timeFrom=2021-05-11T07:21:43Z \
-		-replay.timeTo=2021-05-29T18:40:43Z
+		-replay.timeFrom=2024-06-01T00:00:00Z
 
 vmalert-linux-amd64:
 	APP_NAME=vmalert CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(MAKE) app-local-goos-goarch

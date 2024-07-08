@@ -28,6 +28,10 @@ func (pf *pipeFieldNames) String() string {
 	return s
 }
 
+func (pf *pipeFieldNames) canLiveTail() bool {
+	return false
+}
+
 func (pf *pipeFieldNames) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	neededFields.add("*")
 	unneededFields.reset()

@@ -245,7 +245,7 @@ func (fi *filterIn) initTimestampISO8601Values() {
 	m := make(map[string]struct{}, len(values))
 	buf := make([]byte, 0, len(values)*8)
 	for _, v := range values {
-		n, ok := TryParseTimestampISO8601(v)
+		n, ok := tryParseTimestampISO8601(v)
 		if !ok {
 			continue
 		}

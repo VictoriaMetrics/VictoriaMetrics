@@ -176,7 +176,7 @@ func GetHTTPTransportConfig(opts *Options) (cert.Provider, func(context.Context,
 }
 
 func getTransportConfig(opts *Options) (*transportConfig, error) {
-	clientCertSource, err := getClientCertificateSource(opts)
+	clientCertSource, err := GetClientCertificateProvider(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -210,13 +210,13 @@ func getTransportConfig(opts *Options) (*transportConfig, error) {
 	}, nil
 }
 
-// getClientCertificateSource returns a default client certificate source, if
+// GetClientCertificateProvider returns a default client certificate source, if
 // not provided by the user.
 //
 // A nil default source can be returned if the source does not exist. Any exceptions
 // encountered while initializing the default source will be reported as client
 // error (ex. corrupt metadata file).
-func getClientCertificateSource(opts *Options) (cert.Provider, error) {
+func GetClientCertificateProvider(opts *Options) (cert.Provider, error) {
 	if !isClientCertificateEnabled(opts) {
 		return nil, nil
 	} else if opts.ClientCertProvider != nil {

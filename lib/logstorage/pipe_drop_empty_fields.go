@@ -17,6 +17,10 @@ func (pd *pipeDropEmptyFields) String() string {
 	return "drop_empty_fields"
 }
 
+func (pd *pipeDropEmptyFields) canLiveTail() bool {
+	return true
+}
+
 func (pd *pipeDropEmptyFields) optimize() {
 	// nothing to do
 }

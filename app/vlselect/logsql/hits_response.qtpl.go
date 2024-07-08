@@ -149,7 +149,7 @@ func streamhitsSeriesLine(qw422016 *qt422016.Writer, m map[string]*hitsSeries, k
 	hs := m[k]
 	hs.sort()
 	timestamps := hs.timestamps
-	values := hs.values
+	hits := hs.hits
 
 //line app/vlselect/logsql/hits_response.qtpl:48
 	qw422016.N().S(`"fields":`)
@@ -174,46 +174,50 @@ func streamhitsSeriesLine(qw422016 *qt422016.Writer, m map[string]*hitsSeries, k
 //line app/vlselect/logsql/hits_response.qtpl:56
 	qw422016.N().S(`],"values":[`)
 //line app/vlselect/logsql/hits_response.qtpl:59
-	if len(values) > 0 {
+	if len(hits) > 0 {
 //line app/vlselect/logsql/hits_response.qtpl:60
-		qw422016.N().S(values[0])
+		qw422016.N().DUL(hits[0])
 //line app/vlselect/logsql/hits_response.qtpl:61
-		for _, v := range values[1:] {
+		for _, v := range hits[1:] {
 //line app/vlselect/logsql/hits_response.qtpl:61
 			qw422016.N().S(`,`)
 //line app/vlselect/logsql/hits_response.qtpl:62
-			qw422016.N().S(v)
+			qw422016.N().DUL(v)
 //line app/vlselect/logsql/hits_response.qtpl:63
 		}
 //line app/vlselect/logsql/hits_response.qtpl:64
 	}
 //line app/vlselect/logsql/hits_response.qtpl:64
-	qw422016.N().S(`]}`)
-//line app/vlselect/logsql/hits_response.qtpl:67
+	qw422016.N().S(`],"total":`)
+//line app/vlselect/logsql/hits_response.qtpl:66
+	qw422016.N().DUL(hs.hitsTotal)
+//line app/vlselect/logsql/hits_response.qtpl:66
+	qw422016.N().S(`}`)
+//line app/vlselect/logsql/hits_response.qtpl:68
 }
 
-//line app/vlselect/logsql/hits_response.qtpl:67
+//line app/vlselect/logsql/hits_response.qtpl:68
 func writehitsSeriesLine(qq422016 qtio422016.Writer, m map[string]*hitsSeries, k string) {
-//line app/vlselect/logsql/hits_response.qtpl:67
+//line app/vlselect/logsql/hits_response.qtpl:68
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vlselect/logsql/hits_response.qtpl:67
+//line app/vlselect/logsql/hits_response.qtpl:68
 	streamhitsSeriesLine(qw422016, m, k)
-//line app/vlselect/logsql/hits_response.qtpl:67
+//line app/vlselect/logsql/hits_response.qtpl:68
 	qt422016.ReleaseWriter(qw422016)
-//line app/vlselect/logsql/hits_response.qtpl:67
+//line app/vlselect/logsql/hits_response.qtpl:68
 }
 
-//line app/vlselect/logsql/hits_response.qtpl:67
+//line app/vlselect/logsql/hits_response.qtpl:68
 func hitsSeriesLine(m map[string]*hitsSeries, k string) string {
-//line app/vlselect/logsql/hits_response.qtpl:67
+//line app/vlselect/logsql/hits_response.qtpl:68
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vlselect/logsql/hits_response.qtpl:67
+//line app/vlselect/logsql/hits_response.qtpl:68
 	writehitsSeriesLine(qb422016, m, k)
-//line app/vlselect/logsql/hits_response.qtpl:67
+//line app/vlselect/logsql/hits_response.qtpl:68
 	qs422016 := string(qb422016.B)
-//line app/vlselect/logsql/hits_response.qtpl:67
+//line app/vlselect/logsql/hits_response.qtpl:68
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vlselect/logsql/hits_response.qtpl:67
+//line app/vlselect/logsql/hits_response.qtpl:68
 	return qs422016
-//line app/vlselect/logsql/hits_response.qtpl:67
+//line app/vlselect/logsql/hits_response.qtpl:68
 }

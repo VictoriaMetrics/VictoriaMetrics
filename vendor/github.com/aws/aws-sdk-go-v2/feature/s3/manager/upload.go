@@ -311,6 +311,7 @@ func (u Uploader) Upload(ctx context.Context, input *s3.PutObjectInput, opts ...
 	clientOptions = append(clientOptions, func(o *s3.Options) {
 		o.APIOptions = append(o.APIOptions,
 			middleware.AddSDKAgentKey(middleware.FeatureMetadata, userAgentKey),
+			addFeatureUserAgent, // yes, there are two of these
 			func(s *smithymiddleware.Stack) error {
 				return s.Finalize.Insert(&setS3ExpressDefaultChecksum{}, "ResolveEndpointV2", smithymiddleware.After)
 			},
@@ -852,4 +853,32 @@ func (*setS3ExpressDefaultChecksum) HandleFinalize(
 	}
 
 	return next.HandleFinalize(ctx, in)
+}
+
+func addFeatureUserAgent(stack *smithymiddleware.Stack) error {
+	ua, err := getOrAddRequestUserAgent(stack)
+	if err != nil {
+		return err
+	}
+
+	ua.AddUserAgentFeature(middleware.UserAgentFeatureS3Transfer)
+	return nil
+}
+
+func getOrAddRequestUserAgent(stack *smithymiddleware.Stack) (*middleware.RequestUserAgent, error) {
+	id := (*middleware.RequestUserAgent)(nil).ID()
+	mw, ok := stack.Build.Get(id)
+	if !ok {
+		mw = middleware.NewRequestUserAgent()
+		if err := stack.Build.Add(mw, smithymiddleware.After); err != nil {
+			return nil, err
+		}
+	}
+
+	ua, ok := mw.(*middleware.RequestUserAgent)
+	if !ok {
+		return nil, fmt.Errorf("%T for %s middleware did not match expected type", mw, id)
+	}
+
+	return ua, nil
 }

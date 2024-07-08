@@ -15,9 +15,10 @@ import (
 
 var (
 	replayFrom = flag.String("replay.timeFrom", "",
-		"The time filter in RFC3339 format to select time series with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'")
+		"The time filter in RFC3339 format to start the replay from. E.g. '2020-01-01T20:07:00Z'")
 	replayTo = flag.String("replay.timeTo", "",
-		"The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'")
+		"The time filter in RFC3339 format to finish the replay by. E.g. '2020-01-01T20:07:00Z'. "+
+			"By default, is set to the current time.")
 	replayRulesDelay = flag.Duration("replay.rulesDelay", time.Second,
 		"Delay between rules evaluation within the group. Could be important if there are chained rules inside the group "+
 			"and processing need to wait for previous rule results to be persisted by remote storage before evaluating the next rule."+
@@ -36,14 +37,20 @@ func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw remotewri
 	}
 	tFrom, err := time.Parse(time.RFC3339, *replayFrom)
 	if err != nil {
-		return fmt.Errorf("failed to parse %q: %w", *replayFrom, err)
+		return fmt.Errorf("failed to parse replay.timeFrom=%q: %w", *replayFrom, err)
 	}
-	tTo, err := time.Parse(time.RFC3339, *replayTo)
-	if err != nil {
-		return fmt.Errorf("failed to parse %q: %w", *replayTo, err)
+
+	// use tFrom location for default value, otherwise filters could have different locations
+	tTo := time.Now().In(tFrom.Location())
+	if *replayTo != "" {
+		tTo, err = time.Parse(time.RFC3339, *replayTo)
+		if err != nil {
+			return fmt.Errorf("failed to parse replay.timeTo=%q: %w", *replayTo, err)
+		}
 	}
+
 	if !tTo.After(tFrom) {
-		return fmt.Errorf("replay.timeTo must be bigger than replay.timeFrom")
+		return fmt.Errorf("replay.timeTo=%v must be bigger than replay.timeFrom=%v", tTo, tFrom)
 	}
 	labels := make(map[string]string)
 	for _, s := range *externalLabels {

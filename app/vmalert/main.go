@@ -72,7 +72,7 @@ absolute path to all .tpl files in root.
 	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager `+
 		`for cases where you want to build a custom link to Grafana, Prometheus or any other service. `+
 		`Supports templating - see https://docs.victoriametrics.com/vmalert/#templating . `+
-		`For example, link to Grafana: -external.alert.source='explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{$expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"now-1h","to":"now"}}'. `+
+		`For example, link to Grafana: -external.alert.source='explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{.Expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"now-1h","to":"now"}}'. `+
 		`Link to VMUI: -external.alert.source='vmui/#/?g0.expr={{.Expr|queryEscape}}'. `+
 		`If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.`)
 	externalLabels = flagutil.NewArrayString("external.label", "Optional label in the form 'Name=value' to add to all generated recording rules and alerts. "+
@@ -132,7 +132,7 @@ func main() {
 		validateTplFn = notifier.ValidateTemplates
 	}
 
-	if *replayFrom != "" || *replayTo != "" {
+	if *replayFrom != "" {
 		rw, err := remotewrite.Init(context.Background())
 		if err != nil {
 			logger.Fatalf("failed to init remoteWrite: %s", err)

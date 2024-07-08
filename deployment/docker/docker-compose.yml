@@ -84,8 +84,7 @@ services:
       - "--rule=/etc/alerts/*.yml"
       # display source of alerts in grafana
       - "--external.url=http://127.0.0.1:3000" #grafana outside container
-      # when copypaste the line be aware of '$$' for escaping in '$expr'
-      - '--external.alert.source=explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{$$expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"now-1h","to":"now"}}'
+      - '--external.alert.source=explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{.Expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"{{ .ActiveAt.UnixMilli }}","to":"now"}}'
     networks:
       - vm_net
     restart: always

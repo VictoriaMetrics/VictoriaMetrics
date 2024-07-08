@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"sync"
 	"time"
 
@@ -36,6 +37,10 @@ type apiConfig struct {
 	// credsLock protects the refresh of creds
 	credsLock sync.Mutex
 	creds     *apiCredentials
+
+	// metadataCredsLock protects the refresh of metadataCreds
+	metadataCredsLock sync.Mutex
+	metadataCreds     *apiCredentials
 }
 
 func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
@@ -119,12 +124,53 @@ func getCreds(cfg *apiConfig) (*apiCredentials, error) {
 	}, nil
 }
 
+// getMetadataCreds gets Yandex Cloud IAM metadata token
+func getMetadataCreds(cfg *apiConfig) (*apiCredentials, error) {
+	cfg.metadataCredsLock.Lock()
+	defer cfg.metadataCredsLock.Unlock()
+
+	if cfg.metadataCreds != nil && time.Until(cfg.metadataCreds.Expiration) > 10*time.Second {
+		// Credentials aren't expired yet.
+		return cfg.metadataCreds, nil
+	}
+
+	endpoint := "http://169.254.169.254/latest/api/token"
+	req, err := http.NewRequest(http.MethodPut, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create metadata token request: %w", err)
+	}
+	ttl := 1800
+	expiration := time.Now().Add(time.Duration(ttl) * time.Second)
+	req.Header.Add("X-aws-ec2-metadata-token-ttl-seconds", strconv.Itoa(ttl))
+	resp, err := cfg.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("cannot perform metadata token request: %w", err)
+	}
+	data, err := readResponseBody(resp, endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read metadata creds from %s: %w", endpoint, err)
+	}
+	return &apiCredentials{
+		Token:      string(data),
+		Expiration: expiration,
+	}, nil
+}
+
 // getInstanceCreds gets Yandex Cloud IAM token using instance Service Account
 //
 // See https://cloud.yandex.com/en-ru/docs/compute/operations/vm-connect/auth-inside-vm
 func getInstanceCreds(cfg *apiConfig) (*apiCredentials, error) {
+	metadataCreds, err := getMetadataCreds(cfg)
+	if err != nil {
+		return nil, err
+	}
 	endpoint := "http://169.254.169.254/latest/meta-data/iam/security-credentials/default"
-	resp, err := cfg.client.Get(endpoint)
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create instance creds request: %w", err)
+	}
+	req.Header.Add("X-aws-ec2-metadata-token", metadataCreds.Token)
+	resp, err := cfg.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read instance creds from %s: %w", endpoint, err)
 	}
@@ -132,6 +178,7 @@ func getInstanceCreds(cfg *apiConfig) (*apiCredentials, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	var ac apiCredentials
 	if err := json.Unmarshal(data, &ac); err != nil {
 		return nil, fmt.Errorf("cannot parse auth credentials response from %s: %w", endpoint, err)

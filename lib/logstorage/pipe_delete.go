@@ -22,6 +22,10 @@ func (pd *pipeDelete) String() string {
 	return "delete " + fieldNamesString(pd.fields)
 }
 
+func (pd *pipeDelete) canLiveTail() bool {
+	return true
+}
+
 func (pd *pipeDelete) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	if neededFields.contains("*") {
 		unneededFields.addFields(pd.fields)

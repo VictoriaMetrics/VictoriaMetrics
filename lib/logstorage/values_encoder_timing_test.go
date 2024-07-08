@@ -47,7 +47,7 @@ func BenchmarkTryParseTimestampISO8601(b *testing.B) {
 		nSum := int64(0)
 		for pb.Next() {
 			for _, s := range a {
-				n, ok := TryParseTimestampISO8601(s)
+				n, ok := tryParseTimestampISO8601(s)
 				if !ok {
 					panic(fmt.Errorf("cannot parse timestamp %q", s))
 				}

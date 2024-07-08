@@ -57,33 +57,12 @@ func (rs *Rows) UnmarshalWithErrLogger(s string, errLogger func(s string)) {
 	rs.Rows, rs.tagsPool = unmarshalRows(rs.Rows[:0], s, rs.tagsPool[:0], noEscapes, errLogger)
 }
 
-const tagsPrefix = '{'
-const exemplarPreifx = '{'
-
-// Exemplar Item
-type Exemplar struct {
-	// Tags: a list of labels that uniquely identifies exemplar
-	Tags []Tag
-	// Value: the value of the exemplar
-	Value float64
-	// Timestamp: the time when exemplar was recorded
-	Timestamp int64
-}
-
-// Reset - resets the Exemplar object to defaults
-func (e *Exemplar) Reset() {
-	e.Tags = nil
-	e.Value = 0
-	e.Timestamp = 0
-}
-
 // Row is a single Prometheus row.
 type Row struct {
 	Metric    string
 	Tags      []Tag
 	Value     float64
 	Timestamp int64
-	Exemplar  Exemplar
 }
 
 func (r *Row) reset() {
@@ -91,7 +70,6 @@ func (r *Row) reset() {
 	r.Tags = nil
 	r.Value = 0
 	r.Timestamp = 0
-	r.Exemplar = Exemplar{}
 }
 
 func skipTrailingComment(s string) string {
@@ -132,140 +110,69 @@ func nextWhitespace(s string) int {
 	return n1
 }
 
-func parseStringToTags(s string, tagsPool []Tag, noEscapes bool) (string, []Tag, error) {
-	n := strings.IndexByte(s, tagsPrefix)
-	c := strings.IndexByte(s, '#')
-	if c != -1 && c < n {
-		return s, tagsPool, nil
-	}
+func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error) {
+	r.reset()
 	s = skipLeadingWhitespace(s)
+	n := strings.IndexByte(s, '{')
 	if n >= 0 {
 		// Tags found. Parse them.
+		r.Metric = skipTrailingWhitespace(s[:n])
 		s = s[n+1:]
+		tagsStart := len(tagsPool)
 		var err error
 		s, tagsPool, err = unmarshalTags(tagsPool, s, noEscapes)
 		if err != nil {
-			return s, tagsPool, fmt.Errorf("cannot unmarshal tags: %w", err)
+			return tagsPool, fmt.Errorf("cannot unmarshal tags: %w", err)
 		}
 		if len(s) > 0 && s[0] == ' ' {
 			// Fast path - skip whitespace.
 			s = s[1:]
 		}
-	}
-	return s, tagsPool, nil
-}
-
-var tvtPool = sync.Pool{New: func() interface{} {
-	return &tagsValueTimestamp{}
-}}
-
-func getTVT() *tagsValueTimestamp {
-	return tvtPool.Get().(*tagsValueTimestamp)
-}
-func putTVT(tvt *tagsValueTimestamp) {
-	tvt.reset()
-	tvtPool.Put(tvt)
-}
-
-type tagsValueTimestamp struct {
-	Prefix    string
-	Value     float64
-	Timestamp int64
-	Comments  string
-}
-
-func (tvt *tagsValueTimestamp) reset() {
-	tvt.Prefix = ""
-	tvt.Value = 0
-	tvt.Timestamp = 0
-	tvt.Comments = ""
-}
-func parseTagsValueTimestamp(s string, tagsPool []Tag, noEscapes bool) ([]Tag, *tagsValueTimestamp, error) {
-	tvt := getTVT()
-	n := 0
-	// Prefix is everything up to a tag start or a space
-	t := strings.IndexByte(s, tagsPrefix)
-	// If there is no tag start process rest of string
-	mustParseTags := false
-	if t != -1 {
-		// Check to see if there is a space before tag
-		n = nextWhitespace(s)
-		// If there is a space
-		if n > 0 {
-			if n < t {
-				tvt.Prefix = s[:n]
-				s = skipLeadingWhitespace(s[n:])
-				// Cover the use case where there is whitespace between the prefix and the tag
-				if len(s) > 0 && s[0] == '{' {
-					mustParseTags = true
-				}
-				// Most likely this has an exemplar
-			} else {
-				tvt.Prefix = s[:t]
-				s = s[t:]
-				mustParseTags = true
-			}
-		}
-		if mustParseTags {
-			var err error
-			s, tagsPool, err = parseStringToTags(s, tagsPool, noEscapes)
-			if err != nil {
-				return tagsPool, tvt, err
-			}
-		}
+		tags := tagsPool[tagsStart:]
+		r.Tags = tags[:len(tags):len(tags)]
 	} else {
-		// Tag doesn't exist
+		// Tags weren't found. Search for value after whitespace
 		n = nextWhitespace(s)
-		if n != -1 {
-			tvt.Prefix = s[:n]
-			s = s[n:]
-		} else {
-			tvt.Prefix = s
-			return tagsPool, tvt, fmt.Errorf("missing value")
+		if n < 0 {
+			return tagsPool, fmt.Errorf("missing value")
 		}
+		r.Metric = s[:n]
+		s = s[n+1:]
+	}
+	if len(r.Metric) == 0 {
+		return tagsPool, fmt.Errorf("metric cannot be empty")
 	}
 	s = skipLeadingWhitespace(s)
-	// save and remove the comments
-	n = strings.IndexByte(s, '#')
-	if n >= 0 {
-		tvt.Comments = s[n:]
-		if len(tvt.Comments) > 1 {
-			tvt.Comments = s[n+1:]
-		} else {
-			tvt.Comments = ""
-		}
-		s = skipTrailingComment(s)
-		s = skipLeadingWhitespace(s)
-		s = skipTrailingWhitespace(s)
+	s = skipTrailingComment(s)
+	if len(s) == 0 {
+		return tagsPool, fmt.Errorf("value cannot be empty")
 	}
 	n = nextWhitespace(s)
 	if n < 0 {
 		// There is no timestamp.
 		v, err := fastfloat.Parse(s)
 		if err != nil {
-			return tagsPool, tvt, fmt.Errorf("cannot parse value %q: %w", s, err)
+			return tagsPool, fmt.Errorf("cannot parse value %q: %w", s, err)
 		}
-		tvt.Value = v
-		return tagsPool, tvt, nil
+		r.Value = v
+		return tagsPool, nil
 	}
-	// There is a timestamp
-	s = skipLeadingWhitespace(s)
+	// There is a timestamp.
 	v, err := fastfloat.Parse(s[:n])
 	if err != nil {
-		return tagsPool, tvt, fmt.Errorf("cannot parse value %q: %w", s[:n], err)
+		return tagsPool, fmt.Errorf("cannot parse value %q: %w", s[:n], err)
 	}
-	tvt.Value = v
-	s = s[n:]
-	// There are some whitespaces after timestamp
-	s = skipLeadingWhitespace(s)
+	r.Value = v
+	s = skipLeadingWhitespace(s[n+1:])
 	if len(s) == 0 {
 		// There is no timestamp - just a whitespace after the value.
-		return tagsPool, tvt, nil
+		return tagsPool, nil
 	}
+	// There are some whitespaces after timestamp
 	s = skipTrailingWhitespace(s)
 	ts, err := fastfloat.Parse(s)
 	if err != nil {
-		return tagsPool, tvt, fmt.Errorf("cannot parse timestamp %q: %w", s, err)
+		return tagsPool, fmt.Errorf("cannot parse timestamp %q: %w", s, err)
 	}
 	if ts >= -1<<31 && ts < 1<<31 {
 		// This looks like OpenMetrics timestamp in Unix seconds.
@@ -274,68 +181,7 @@ func parseTagsValueTimestamp(s string, tagsPool []Tag, noEscapes bool) ([]Tag, *
 		// See https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md#timestamps
 		ts *= 1000
 	}
-	tvt.Timestamp = int64(ts)
-	return tagsPool, tvt, nil
-}
-
-// Returns possible comments that could be exemplars
-func (r *Row) unmarshalMetric(s string, tagsPool []Tag, noEscapes bool) (string, []Tag, error) {
-	tagsStart := len(tagsPool)
-	var err error
-	var tvt *tagsValueTimestamp
-	tagsPool, tvt, err = parseTagsValueTimestamp(s, tagsPool, noEscapes)
-	defer putTVT(tvt)
-	if err != nil {
-		return "", tagsPool, err
-	}
-	r.Metric = tvt.Prefix
-	tags := tagsPool[tagsStart:]
-	if len(tags) > 0 {
-		r.Tags = tags
-	}
-	r.Value = tvt.Value
-	r.Timestamp = tvt.Timestamp
-	return tvt.Comments, tagsPool, nil
-
-}
-func (e *Exemplar) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error) {
-	// We can use the Comment parsed out to further parse the Exemplar
-	s = skipLeadingWhitespace(s)
-	// If we are a comment immediately followed by whitespace or a labelset
-	// then we are an exemplar
-	if len(s) != 0 && s[0] == exemplarPreifx {
-		var err error
-		var tvt *tagsValueTimestamp
-		tagsStart := len(tagsPool)
-		tagsPool, tvt, err = parseTagsValueTimestamp(s, tagsPool, noEscapes)
-		defer putTVT(tvt)
-		if err != nil {
-			return tagsPool, err
-		}
-		tags := tagsPool[tagsStart:]
-		if len(tags) > 0 {
-			e.Tags = tags
-		}
-		e.Value = tvt.Value
-		e.Timestamp = tvt.Timestamp
-		return tagsPool, nil
-	}
-	return tagsPool, nil
-
-}
-func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error) {
-	r.reset()
-	// Parse for labels, the value and the timestamp
-	// Anything before labels is saved in Prefix we can use this
-	// for the metric name
-	comments, tagsPool, err := r.unmarshalMetric(s, tagsPool, noEscapes)
-	if err != nil {
-		return nil, err
-	}
-	tagsPool, err = r.Exemplar.unmarshal(comments, tagsPool, noEscapes)
-	if err != nil {
-		return nil, err
-	}
+	r.Timestamp = int64(ts)
 	return tagsPool, nil
 }
 

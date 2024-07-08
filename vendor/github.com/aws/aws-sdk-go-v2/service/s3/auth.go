@@ -12,12 +12,12 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-func bindAuthParamsRegion(params *AuthResolverParameters, _ interface{}, options Options) {
+func bindAuthParamsRegion(_ interface{}, params *AuthResolverParameters, _ interface{}, options Options) {
 	params.Region = options.Region
 }
 
-func bindAuthEndpointParams(params *AuthResolverParameters, input interface{}, options Options) {
-	params.endpointParams = bindEndpointParams(input, options)
+func bindAuthEndpointParams(ctx context.Context, params *AuthResolverParameters, input interface{}, options Options) {
+	params.endpointParams = bindEndpointParams(ctx, input, options)
 }
 
 type setLegacyContextSigningOptionsMiddleware struct {
@@ -98,13 +98,13 @@ type AuthResolverParameters struct {
 	Region string
 }
 
-func bindAuthResolverParams(operation string, input interface{}, options Options) *AuthResolverParameters {
+func bindAuthResolverParams(ctx context.Context, operation string, input interface{}, options Options) *AuthResolverParameters {
 	params := &AuthResolverParameters{
 		Operation: operation,
 	}
 
-	bindAuthEndpointParams(params, input, options)
-	bindAuthParamsRegion(params, input, options)
+	bindAuthEndpointParams(ctx, params, input, options)
+	bindAuthParamsRegion(ctx, params, input, options)
 
 	return params
 }
@@ -179,7 +179,7 @@ func (*resolveAuthSchemeMiddleware) ID() string {
 func (m *resolveAuthSchemeMiddleware) HandleFinalize(ctx context.Context, in middleware.FinalizeInput, next middleware.FinalizeHandler) (
 	out middleware.FinalizeOutput, metadata middleware.Metadata, err error,
 ) {
-	params := bindAuthResolverParams(m.operation, getOperationInput(ctx), m.options)
+	params := bindAuthResolverParams(ctx, m.operation, getOperationInput(ctx), m.options)
 	options, err := m.options.AuthSchemeResolver.ResolveAuthSchemes(ctx, params)
 	if err != nil {
 		return out, metadata, fmt.Errorf("resolve auth scheme: %w", err)

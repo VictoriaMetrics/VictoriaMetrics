@@ -62,7 +62,8 @@ type Options3LO struct {
 	// Optional.
 	Client *http.Client
 	// EarlyTokenExpiry is the time before the token expires that it should be
-	// refreshed. If not set the default value is 10 seconds. Optional.
+	// refreshed. If not set the default value is 3 minutes and 45 seconds.
+	// Optional.
 	EarlyTokenExpiry time.Duration
 
 	// AuthHandlerOpts provides a set of options for doing a

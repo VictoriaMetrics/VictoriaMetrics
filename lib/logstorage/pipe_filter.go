@@ -17,6 +17,10 @@ func (pf *pipeFilter) String() string {
 	return "filter " + pf.f.String()
 }
 
+func (pf *pipeFilter) canLiveTail() bool {
+	return true
+}
+
 func (pf *pipeFilter) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	if neededFields.contains("*") {
 		fs := newFieldsSet()

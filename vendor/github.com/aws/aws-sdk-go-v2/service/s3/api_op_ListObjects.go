@@ -137,6 +137,7 @@ type ListObjectsInput struct {
 }
 
 func (in *ListObjectsInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.Prefix = in.Prefix
 
@@ -173,7 +174,7 @@ type ListObjectsOutput struct {
 
 	// Encoding type used by Amazon S3 to encode object keys in the response. If using
 	// url , non-ASCII characters used in an object's key name will be URL encoded. For
-	// example, the object test_file(3).png will appear as test_file%283%29.png.
+	// example, the object test_file(3).png will appear as test_file%283%29.png .
 	EncodingType types.EncodingType
 
 	// A flag that indicates whether Amazon S3 returned all of the results that
@@ -272,6 +273,15 @@ func (c *Client) addOperationListObjectsMiddlewares(stack *middleware.Stack, opt
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpListObjectsValidationMiddleware(stack); err != nil {

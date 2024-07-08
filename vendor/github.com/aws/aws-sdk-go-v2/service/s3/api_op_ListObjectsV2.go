@@ -154,7 +154,7 @@ type ListObjectsV2Input struct {
 
 	// Encoding type used by Amazon S3 to encode object keys in the response. If using
 	// url , non-ASCII characters used in an object's key name will be URL encoded. For
-	// example, the object test_file(3).png will appear as test_file%283%29.png.
+	// example, the object test_file(3).png will appear as test_file%283%29.png .
 	EncodingType types.EncodingType
 
 	// The account ID of the expected bucket owner. If the account ID that you provide
@@ -204,6 +204,7 @@ type ListObjectsV2Input struct {
 }
 
 func (in *ListObjectsV2Input) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.Prefix = in.Prefix
 
@@ -371,6 +372,15 @@ func (c *Client) addOperationListObjectsV2Middlewares(stack *middleware.Stack, o
 	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
+		return err
+	}
 	if err = addOpListObjectsV2ValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -406,20 +416,6 @@ func (c *Client) addOperationListObjectsV2Middlewares(stack *middleware.Stack, o
 	}
 	return nil
 }
-
-func (v *ListObjectsV2Input) bucket() (string, bool) {
-	if v.Bucket == nil {
-		return "", false
-	}
-	return *v.Bucket, true
-}
-
-// ListObjectsV2APIClient is a client that implements the ListObjectsV2 operation.
-type ListObjectsV2APIClient interface {
-	ListObjectsV2(context.Context, *ListObjectsV2Input, ...func(*Options)) (*ListObjectsV2Output, error)
-}
-
-var _ ListObjectsV2APIClient = (*Client)(nil)
 
 // ListObjectsV2PaginatorOptions is the paginator options for ListObjectsV2
 type ListObjectsV2PaginatorOptions struct {
@@ -486,6 +482,9 @@ func (p *ListObjectsV2Paginator) NextPage(ctx context.Context, optFns ...func(*O
 	}
 	params.MaxKeys = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.ListObjectsV2(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -507,6 +506,20 @@ func (p *ListObjectsV2Paginator) NextPage(ctx context.Context, optFns ...func(*O
 
 	return result, nil
 }
+
+func (v *ListObjectsV2Input) bucket() (string, bool) {
+	if v.Bucket == nil {
+		return "", false
+	}
+	return *v.Bucket, true
+}
+
+// ListObjectsV2APIClient is a client that implements the ListObjectsV2 operation.
+type ListObjectsV2APIClient interface {
+	ListObjectsV2(context.Context, *ListObjectsV2Input, ...func(*Options)) (*ListObjectsV2Output, error)
+}
+
+var _ ListObjectsV2APIClient = (*Client)(nil)
 
 func newServiceMetadataMiddleware_opListObjectsV2(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{
