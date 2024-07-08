@@ -6,12 +6,14 @@ on:
       - cluster
       - master
     paths:
+      - '.github/workflows/main.yml'
       - '**.go'
   pull_request:
     branches:
       - cluster
       - master
     paths:
+      - '.github/workflows/main.yml'
       - '**.go'
 
 permissions:
@@ -46,10 +48,20 @@ jobs:
           key: go-artifacts-${{ runner.os }}-check-all-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
           restore-keys: go-artifacts-${{ runner.os }}-check-all-
 
-      - name: Run check-all
-        run: |
-          make check-all
-          git diff --exit-code
+      - name: Run fmt
+        run: make fmt
+
+      - name: Run vet
+        run: make vet
+
+      - name: Run golangci-lint
+        run: make golangci-lint
+
+      - name: Run govulncheck
+        run: make govulncheck
+
+      - name: Check diff
+        run: git diff --exit-code
 
   test:
     name: test
