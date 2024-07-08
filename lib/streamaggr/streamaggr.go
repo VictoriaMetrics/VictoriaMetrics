@@ -420,6 +420,8 @@ type aggrState interface {
 	pushSamples(samples []pushSample)
 
 	flushState(ctx *flushCtx, resetState bool)
+
+	getSuffix() string
 }
 
 // PushFunc is called by Aggregators when it needs to push its state to metrics storage
@@ -817,7 +819,7 @@ func (a *aggregator) flush(pushFunc PushFunc, interval time.Duration, resetState
 
 			ctx := getFlushCtx(a, pushFunc)
 			as.flushState(ctx, resetState)
-			ctx.flushSeries()
+			ctx.flushSeries(as.getSuffix())
 			ctx.resetSeries()
 			putFlushCtx(ctx)
 		}(as)
@@ -1074,7 +1076,7 @@ func (ctx *flushCtx) resetSeries() {
 	ctx.samples = ctx.samples[:0]
 }
 
-func (ctx *flushCtx) flushSeries() {
+func (ctx *flushCtx) flushSeries(aggrStateSuffix string) {
 	tss := ctx.tss
 	if len(tss) == 0 {
 		// nothing to flush
@@ -1086,6 +1088,7 @@ func (ctx *flushCtx) flushSeries() {
 		// Fast path - push the output metrics.
 		if ctx.pushFunc != nil {
 			ctx.pushFunc(tss)
+			ctx.a.flushedSamples[aggrStateSuffix].Add(len(tss))
 		}
 		return
 	}
@@ -1107,6 +1110,7 @@ func (ctx *flushCtx) flushSeries() {
 	}
 	if ctx.pushFunc != nil {
 		ctx.pushFunc(dst)
+		ctx.a.flushedSamples[aggrStateSuffix].Add(len(dst))
 	}
 	auxLabels.Labels = dstLabels
 	promutils.PutLabels(auxLabels)
@@ -1127,11 +1131,10 @@ func (ctx *flushCtx) appendSeries(key, suffix string, timestamp int64, value flo
 		Labels:  ctx.labels[labelsLen:],
 		Samples: ctx.samples[samplesLen:],
 	})
-	ctx.a.flushedSamples[suffix].Add(len(ctx.tss))
 
 	// Limit the maximum length of ctx.tss in order to limit memory usage.
 	if len(ctx.tss) >= 10_000 {
-		ctx.flushSeries()
+		ctx.flushSeries(suffix)
 		ctx.resetSeries()
 	}
 }

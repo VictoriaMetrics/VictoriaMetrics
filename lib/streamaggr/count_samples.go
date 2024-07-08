@@ -81,3 +81,7 @@ func (as *countSamplesAggrState) flushState(ctx *flushCtx, resetState bool) {
 		return true
 	})
 }
+
+func (as *countSamplesAggrState) getSuffix() string {
+	return "count_samples"
+}

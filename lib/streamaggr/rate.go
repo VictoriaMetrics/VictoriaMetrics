@@ -159,3 +159,7 @@ func (as *rateAggrState) flushState(ctx *flushCtx, _ bool) {
 	ctx.a.staleOutputSamples[as.suffix].Add(staleOutputSamples)
 	ctx.a.staleInputSamples[as.suffix].Add(staleInputSamples)
 }
+
+func (as *rateAggrState) getSuffix() string {
+	return as.suffix
+}

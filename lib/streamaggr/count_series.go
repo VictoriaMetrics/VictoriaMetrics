@@ -90,3 +90,7 @@ func (as *countSeriesAggrState) flushState(ctx *flushCtx, resetState bool) {
 		return true
 	})
 }
+
+func (as *countSeriesAggrState) getSuffix() string {
+	return "count_series"
+}

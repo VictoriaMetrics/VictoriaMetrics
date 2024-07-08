@@ -83,3 +83,7 @@ func (as *maxAggrState) flushState(ctx *flushCtx, resetState bool) {
 		return true
 	})
 }
+
+func (as *maxAggrState) getSuffix() string {
+	return "max"
+}

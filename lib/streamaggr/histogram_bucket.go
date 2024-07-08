@@ -117,3 +117,7 @@ func roundDurationToSecs(d time.Duration) uint64 {
 	secs := d.Seconds()
 	return uint64(math.Ceil(secs))
 }
+
+func (as *histogramBucketAggrState) getSuffix() string {
+	return "histogram_bucket"
+}

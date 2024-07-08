@@ -82,3 +82,7 @@ func (as *minAggrState) flushState(ctx *flushCtx, resetState bool) {
 		return true
 	})
 }
+
+func (as *minAggrState) getSuffix() string {
+	return "min"
+}

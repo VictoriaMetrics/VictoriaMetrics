@@ -83,3 +83,7 @@ func (as *stdvarAggrState) flushState(ctx *flushCtx, resetState bool) {
 		return true
 	})
 }
+
+func (as *stdvarAggrState) getSuffix() string {
+	return "stdvar"
+}
