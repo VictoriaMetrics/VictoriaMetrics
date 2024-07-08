@@ -85,7 +85,7 @@ See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/
 
 1. Download the correct archive from [github](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
 
-For Open source it will look like
+For open source it will look like
 
   ```victoria-metrics-<os>-<architecture>-v<version>.tar.gz```
 
@@ -137,11 +137,11 @@ WantedBy=multi-user.target
 END
 ```
 
-If you want to deploy VictoriaMetrics single as a Windows Service review the [running as a windows service docs]({{< ref "/single-server-victoriametrics/#running-as-windows-service" >}})
+If you want to deploy VictoriaMetrics single as a Windows Service review the [running as a windows service docs](https://docs.victoriametrics.com/single-server-victoriametrics/#running-as-windows-service)
 
 6. Adjust the command line flags in the `ExecStart` line to fit your needs.
 
-The list of command line flags for VMSingle can be found [here]({{< ref "single-server-victoriametrics/#list-of-command-line-flags" >}})
+The list of command line flags for VMSingle can be found [here](https://docs.victoriametrics.com/single-server-victoriametrics/#list-of-command-line-flags)
 
 7. Start and enable the service by running
 
@@ -160,7 +160,7 @@ On all nodes you will need to do the following
 
 1. Download the archive that matches your operating system and processor architecture from [github releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
 
-For Open source it will look like
+For open source it will look like
 
   `victoria-metrics-<os>-<architecture>-v<version>-cluster.tar.gz`
 
@@ -168,7 +168,8 @@ For Enterprise versions of VictoriaMetrics the ar will look like
 
   `victoria-metrics-<os>-<architecture>-v<version>-enterprise-cluster.tar.gz`
 
-In order for VictoriaMetrics Enterprise to start the, the -license flag must be set equal to a valid VictoriaMetrics key or the -licenseFile flag needs to point to a file containing your VictoriaMetrics license.
+In order for VictoriaMetrics Enterprise to start the, the -license flag must be set equal to a valid VictoriaMetrics key or the -licenseFile flag needs to point to a file containing your VictoriaMetrics license. Please, see more information about license configuration [here](https://docs.victoriametrics.com/enterprise/#binary-releases).
+
 
 2. Extract the archive to /usr/local/bin by running
 
@@ -212,7 +213,7 @@ END
 
 3. Adjust the command line flags in the ExecStart line to fit your needs.
 
-The list of command line flags for VMStorage can be found [here]({{< ref "cluster-victoriametrics/#list-of-command-line-flags-for-vmstorage" >}})
+The list of command line flags for VMStorage can be found [here](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags-for-vmstorage)
 
 4. Start and Enable VMStorage
 
@@ -257,7 +258,7 @@ END
 
 2. Adjust the command line flags in the ExecStart line to fit your needs.
 
-The list of command line flags for VMInsert can be found [here]({{< ref "cluster-victoriametrics/#list-of-command-line-flags-for-vminsert" >}}).
+The list of command line flags for VMInsert can be found [here](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags-for-vminsert).
 
 3. Start and enable VMInsert
 
@@ -304,7 +305,7 @@ END
 
 3. Adjust the command line flags in the ExecStart line to fit your needs.
 
-The list of command line flags for VMSelect can be found [here]({{< ref "cluster-victoriametrics/#list-of-command-line-flags-for-vmselect" >}})
+The list of command line flags for VMSelect can be found [here](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags-for-vmselect)
 
 4. Start and enable VMSelect
 
