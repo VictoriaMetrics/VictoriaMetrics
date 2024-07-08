@@ -93,7 +93,7 @@ For Enterprise it will look like
 
   `victoria-metrics-<os>-<architecture>-v<version>-enterprise.tar.gz`
 
-In order for VictoriaMetrics Enterprise to start the, the -license flag must be set equal to a valid VictoriaMetrics key or the -licenseFile flag needs to point to a file containing your VictoriaMetrics license.
+In order for VictoriaMetrics Enterprise to start the, the -license flag must be set equal to a valid VictoriaMetrics key or the -licenseFile flag needs to point to a file containing your VictoriaMetrics license. Please, see more information about license configuration [here](https://docs.victoriametrics.com/enterprise/#binary-releases).
 
 2. Extract the archive to /usr/local/bin by running
 
