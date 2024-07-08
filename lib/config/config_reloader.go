@@ -35,9 +35,11 @@ var (
 	configTimestamp    = metrics.NewCounter(`vm_runtime_config_last_reload_success_timestamp_seconds`)
 )
 
+var Noop context.CancelFunc = func() {}
+
 func LoadConfig(runtimeConfigLoader func(data []byte) error) (context.CancelFunc, error) {
 	if len(*configPath) == 0 {
-		logger.Fatalf("missing required `-config` command-line flag")
+		return Noop, nil
 	}
 
 	configLoader = runtimeConfigLoader
