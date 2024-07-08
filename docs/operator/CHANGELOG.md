@@ -13,6 +13,10 @@ aliases:
 ---
 # CHANGELOG
 
+## [v0.46.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.46.3) - 5 Jul 2024
+
+- [operator](./README.md): fixes `config-reloader` image tag name after 0.46.0 release. See this [issue](https://github.com/VictoriaMetrics/operator/issues/1017) for details.
+- [prometheus-converter](./README.md): fixes panic at `PodMonitor` convertion with configured `tlsConfig`. See this [issue](https://github.com/VictoriaMetrics/operator/issues/1025) for details.
 - [api](./api.md): return back `targetPort` for `VMPodScrape` definition. See this [issue](https://github.com/VictoriaMetrics/operator/issues/1015) for details.
 
 ## [v0.46.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.46.0) - 3 Jul 2024
