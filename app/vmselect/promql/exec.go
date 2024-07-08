@@ -3,6 +3,7 @@ package promql
 import (
 	"flag"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/config"
 	"math"
 	"sort"
 	"strings"
@@ -312,6 +313,10 @@ func parsePromQLWithCache(q string) (metricsql.Expr, error) {
 }
 
 func escapeDotsInRegexpLabelFilters(e metricsql.Expr) metricsql.Expr {
+	labelNames := config.VMSelectTreatDotsAsIsLabels.Load()
+	if labelNames == nil || len(*labelNames) == 0 {
+		return e
+	}
 	metricsql.VisitAll(e, func(expr metricsql.Expr) {
 		me, ok := expr.(*metricsql.MetricExpr)
 		if !ok {
@@ -320,7 +325,7 @@ func escapeDotsInRegexpLabelFilters(e metricsql.Expr) metricsql.Expr {
 		for _, lfs := range me.LabelFilterss {
 			for i := range lfs {
 				f := &lfs[i]
-				if f.IsRegexp {
+				if f.IsRegexp && labelNames.Contains(f.Label) {
 					f.Value = escapeDots(f.Value)
 				}
 			}
