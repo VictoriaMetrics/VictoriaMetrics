@@ -14,15 +14,24 @@ import (
 )
 
 var (
-	VMSelectConfigVar = atomic.Pointer[VMSelectConfig]{}
+	VMSelectConfigVar           = atomic.Pointer[VMSelectConfig]{}
+	VMSelectTreatDotsAsIsLabels = atomic.Pointer[Labels]{}
 
 	EqualBlockedTotal    = metrics.NewCounter(`vmselect_equal_query_blocked_total`)
 	ContainsBlockedTotal = metrics.NewCounter(`vmselect_contains_query_blocked_total`)
 )
 var ErrBlockedQuery = errors.New("query is blocked! contact administator for more information")
 
+type Labels map[string]struct{}
+
+func (l Labels) Contains(label string) bool {
+	_, ok := l[label]
+	return ok
+}
+
 type VMSelectConfig struct {
-	BlockedQueries *BlockedQueries `yaml:"blockedQueries,omitempty"`
+	BlockedQueries      *BlockedQueries `yaml:"blockedQueries,omitempty"`
+	TreatDotsAsIsLabels []string        `yaml:"treatDotsAsIsLabels,omitempty"`
 }
 
 type BlockedQueries struct {
@@ -38,6 +47,17 @@ func InitVMSelectConfig() (context.CancelFunc, error) {
 		if err := yaml.Unmarshal(data, &c); err != nil {
 			return fmt.Errorf("cannot unmarshal vmselect config: %w", err)
 		}
+
+		// 设置 VMSelectTreatDotsAsIsLabels
+		if len(c.TreatDotsAsIsLabels) > 0 {
+			treatDotsAsIsLabelsMaps := make(Labels, len(c.TreatDotsAsIsLabels))
+			for _, labelName := range c.TreatDotsAsIsLabels {
+				treatDotsAsIsLabelsMaps[labelName] = struct{}{}
+			}
+			VMSelectTreatDotsAsIsLabels.Store(&treatDotsAsIsLabelsMaps)
+		}
+
+		// 设置 VMSelectConfigVar
 		VMSelectConfigVar.Store(&c)
 		return nil
 	})
