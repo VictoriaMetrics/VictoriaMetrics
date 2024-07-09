@@ -645,7 +645,7 @@ func initStorageNodes(addrs []string, hashSeed uint64) *storageNodesBucket {
 		}(sn, idx)
 	}
 
-	// Watch for node become healthy and add it to consistent hash.
+	// Watch for node become healthy and rebuild snb.
 	for _, sn := range brokenNodes {
 		wg.Add(1)
 		go func(sn *storageNode) {
