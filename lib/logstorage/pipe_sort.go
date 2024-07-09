@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"math"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"unsafe"
+
+	"github.com/valyala/quicktemplate"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -892,8 +893,8 @@ func tryParseInt64(s string) (int64, bool) {
 }
 
 func marshalJSONKeyValue(dst []byte, k, v string) []byte {
-	dst = strconv.AppendQuote(dst, k)
+	dst = quicktemplate.AppendJSONString(dst, k, true)
 	dst = append(dst, ':')
-	dst = strconv.AppendQuote(dst, v)
+	dst = quicktemplate.AppendJSONString(dst, v, true)
 	return dst
 }

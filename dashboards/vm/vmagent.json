@@ -4978,7 +4978,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "rate(vm_streamaggr_matched_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
+              "expr": "sum(rate(vm_streamaggr_matched_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])) without (instance, pod) > 0",
               "instant": false,
               "legendFormat": "{{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
               "range": true,
@@ -5075,7 +5075,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "rate(vm_streamaggr_ignored_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
+              "expr": "sum(rate(vm_streamaggr_ignored_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0) without (instance, pod)",
               "instant": false,
               "legendFormat": "{{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
               "range": true,
@@ -5178,7 +5178,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "rate(vm_streamaggr_flushed_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
+              "expr": "sum(rate(vm_streamaggr_flushed_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])) without (instance, pod) > 0",
               "instant": false,
               "legendFormat": "{{url}} ({{job}}): match={{match}}; output={{output}}",
               "range": true,
@@ -5276,7 +5276,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "increase(vm_streamaggr_flush_timeouts_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])",
+              "expr": "increase(vm_streamaggr_flush_timeouts_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
               "instant": false,
               "legendFormat": "aggregation: {{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
               "range": true,
@@ -5288,7 +5288,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "increase(vm_streamaggr_dedup_flush_timeouts_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])",
+              "expr": "increase(vm_streamaggr_dedup_flush_timeouts_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
               "hide": false,
               "instant": false,
               "legendFormat": "deduplication: {{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
@@ -5388,7 +5388,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.99, rate(vm_streamaggr_samples_lag_seconds_bucket{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]))",
+              "expr": "histogram_quantile(0.99, sum(rate(vm_streamaggr_samples_lag_seconds_bucket{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])) without (instance, pod))",
               "instant": false,
               "legendFormat": "{{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
               "range": true,

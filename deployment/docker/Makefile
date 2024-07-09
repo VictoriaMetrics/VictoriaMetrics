@@ -168,7 +168,7 @@ package-via-docker-pure:
 
 package-via-docker-amd64:
 	EXTRA_DOCKER_ENVS='CC=/opt/cross-builder/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc' \
-	CO_ENABLED=1 GOARCH=amd64 $(MAKE) package-via-docker-goarch
+	CGO_ENABLED=1 GOARCH=amd64 $(MAKE) package-via-docker-goarch
 
 package-via-docker-arm64:
 	EXTRA_DOCKER_ENVS='CC=/opt/cross-builder/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc' \

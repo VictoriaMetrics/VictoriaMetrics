@@ -19,6 +19,12 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v0.27.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.27.1-victorialogs)
+
+Released at 2024-07-05
+
+* BUGFIX: properly JSON-encode strings with special chars in [HTTP querying API](https://docs.victoriametrics.com/victorialogs/querying/#http-api) responses. This fixes the `error decode response: invalid character 'x' in string escape code` error in [VictoriaLogs datasource for Grafana](https://github.com/VictoriaMetrics/victorialogs-datasource/). See [this issue](https://github.com/VictoriaMetrics/victorialogs-datasource/issues/24). The issue has been introduced in the release [v0.9.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.9.0-victorialogs).
+
 ## [v0.27.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.27.0-victorialogs)
 
 Released at 2024-07-02

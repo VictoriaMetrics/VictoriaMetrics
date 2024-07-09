@@ -577,8 +577,8 @@ github.com/valyala/gozstd
 # github.com/valyala/histogram v1.2.0
 ## explicit; go 1.12
 github.com/valyala/histogram
-# github.com/valyala/quicktemplate v1.7.0
-## explicit; go 1.11
+# github.com/valyala/quicktemplate v1.8.0
+## explicit; go 1.17
 github.com/valyala/quicktemplate
 # github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1
 ## explicit; go 1.15

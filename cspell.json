@@ -39,30 +39,7 @@
     "win32"
   ],
   "enabled": true,
-  "files": ["**/*.{example,md}"],
-  "ignorePaths": [
-    ".dockerignore",
-    ".github",
-    ".gitignore",
-    "*.excalidraw",
-    "*.yml",
-    "app/**",
-    "CODE_OF_CONDUCT_RU.md",
-    "cspell.json",
-    "cspell/**",
-    "dashboards/**",
-    "deployment/**",
-    "docs/Gemfile",
-    "docs/googlec3812dcf278679ec.html",
-    "go.mod",
-    "go.sum",
-    "lib/**",
-    "Makefile",
-    "package/**",
-    "ports/**",
-    "snap/**",
-    "vendor/**"
-  ],
+  "files": ["docs/**/*.{example,md}"],
   "ignoreRegExpList": [
     // Github usernames
     "/@[a-zA-Z0-9-_]+/i",

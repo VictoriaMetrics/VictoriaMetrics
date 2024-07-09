@@ -137,7 +137,7 @@ In this case it may be a good idea to drop the aggregated data during the first 
 just after the restart of `vmagent` or single-node VictoriaMetrics. This can be done via the following options:
 
 - The `-streamAggr.ignoreFirstIntervals=N` command-line flag at `vmagent` and single-node VictoriaMetrics. This flag instructs skipping the first `N`
-  [aggregation intervals](#stream-aggregation-config) just after the restart accross all the [configured stream aggregation configs](#configuration).
+  [aggregation intervals](#stream-aggregation-config) just after the restart across all the [configured stream aggregation configs](#configuration).
 
   The `-remoteWrite.streamAggr.ignoreFirstIntervals=N` command-line flag can be specified individually per each `-remoteWrite.url` at [vmagent](https://docs.victoriametrics.com/vmagent/).
 
@@ -710,7 +710,7 @@ See also [quantiles](#quantiles), [min](#min), [max](#max) and [avg](#avg).
 
 `last` returns the last input [sample value](https://docs.victoriametrics.com/keyconcepts/#raw-samples) over the given `interval`.
 
-The results of `last` is roughly equal to the the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `last` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
 
 ```metricsql
 last_over_time(some_metric[interval])
@@ -804,7 +804,7 @@ See also [count_samples](#count_samples) and [count_series](#count_series).
 `total` generates output [counter](https://docs.victoriametrics.com/keyconcepts/#counter) by summing the input counters over the given `interval`.
 `total` makes sense only for aggregating [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
 
-The results of `total` is roughly equal to the the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `total` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
 
 ```metricsql
 sum(running_sum(increase_pure(some_counter)))
@@ -841,7 +841,7 @@ See also [total_prometheus](#total_prometheus), [increase](#increase) and [incre
 `total_prometheus` generates output [counter](https://docs.victoriametrics.com/keyconcepts/#counter) by summing the input counters over the given `interval`.
 `total_prometheus` makes sense only for aggregating [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
 
-The results of `total_prometheus` is roughly equal to the the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `total_prometheus` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
 
 ```metricsql
 sum(running_sum(increase_prometheus(some_counter)))

@@ -348,9 +348,10 @@ scrape_configs:
     target_label: vm_account_id
 ```
 
-`vmagent` can accept data via the same multitenant endpoints as `vminsert` at [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/)
+`vmagent` can accept data via the same multitenant endpoints (`/insert/<accountID>/<suffix>`) as `vminsert` at [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/)
 does according to [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format) if `-enableMultitenantHandlers` command-line flag is set.
-In this case it automatically converts tenant identifiers to `vm_account_id` and `vm_project_id` labels before applying [relabeling](#relabeling) specified via `-remoteWrite.relabelConfig`
+In this case, vmagent automatically converts tenant identifiers from the URL to `vm_account_id` and `vm_project_id` labels.
+These tenant labels are added before applying [relabeling](#relabeling) specified via `-remoteWrite.relabelConfig`
 and `-remoteWrite.urlRelabelConfig` command-line flags. Metrics with `vm_account_id` and `vm_project_id` labels can be routed to the corresponding tenants
 when specifying `-remoteWrite.url` to [multitenant url at VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels).
 
