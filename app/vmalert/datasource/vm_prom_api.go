@@ -119,7 +119,7 @@ func (pi *promInstant) Unmarshal(b []byte) error {
 type promRange struct {
 	Result []struct {
 		Labels map[string]string `json:"metric"`
-		TVs    [][2]interface{}  `json:"values"`
+		TVs    [][2]any          `json:"values"`
 	} `json:"result"`
 }
 
@@ -147,7 +147,7 @@ func (r promRange) metrics() ([]Metric, error) {
 	return result, nil
 }
 
-type promScalar [2]interface{}
+type promScalar [2]any
 
 func (r promScalar) metrics() ([]Metric, error) {
 	var m Metric

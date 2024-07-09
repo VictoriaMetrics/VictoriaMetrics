@@ -331,7 +331,7 @@ type ScrapeConfig struct {
 }
 
 func (sc *ScrapeConfig) mustStart(baseDir string) {
-	swosFunc := func(metaLabels *promutils.Labels) interface{} {
+	swosFunc := func(metaLabels *promutils.Labels) any {
 		target := metaLabels.Get("__address__")
 		sw, err := sc.swc.getScrapeWork(target, nil, metaLabels)
 		if err != nil {

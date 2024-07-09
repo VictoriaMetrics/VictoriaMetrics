@@ -98,7 +98,7 @@ func (u *URL) getAuthHeader(ac *promauth.Config) (string, error) {
 }
 
 // MarshalYAML implements yaml.Marshaler interface.
-func (u *URL) MarshalYAML() (interface{}, error) {
+func (u *URL) MarshalYAML() (any, error) {
 	if u.URL == nil {
 		return nil, nil
 	}
@@ -106,7 +106,7 @@ func (u *URL) MarshalYAML() (interface{}, error) {
 }
 
 // UnmarshalYAML implements yaml.Unmarshaler interface.
-func (u *URL) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (u *URL) UnmarshalYAML(unmarshal func(any) error) error {
 	var s string
 	if err := unmarshal(&s); err != nil {
 		return err

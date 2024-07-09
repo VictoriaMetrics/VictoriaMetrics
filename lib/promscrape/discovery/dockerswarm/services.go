@@ -35,8 +35,8 @@ type containerSpec struct {
 }
 
 type serviceSpecMode struct {
-	Global     interface{}
-	Replicated interface{}
+	Global     any
+	Replicated any
 }
 
 type serviceUpdateStatus struct {

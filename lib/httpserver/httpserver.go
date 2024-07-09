@@ -186,7 +186,7 @@ func whetherToCloseConn(r *http.Request) bool {
 	return ok && fasttime.UnixTimestamp() > *deadline
 }
 
-var connDeadlineTimeKey = interface{}("connDeadlineSecs")
+var connDeadlineTimeKey = any("connDeadlineSecs")
 
 // Stop stops the http server on the given addrs, which has been started via Serve func.
 func Stop(addrs []string) error {
@@ -617,7 +617,7 @@ func (rwa *responseWriterWithAbort) abort() {
 }
 
 // Errorf writes formatted error message to w and to logger.
-func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...interface{}) {
+func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...any) {
 	errStr := fmt.Sprintf(format, args...)
 	remoteAddr := GetQuotedRemoteAddr(r)
 	requestURI := GetRequestURI(r)

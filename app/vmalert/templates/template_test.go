@@ -52,10 +52,10 @@ func TestTemplateFuncs(t *testing.T) {
 		t.Fatalf("unexpected mismatch")
 	}
 
-	formatting := func(funcName string, p interface{}, resultExpected string) {
+	formatting := func(funcName string, p any, resultExpected string) {
 		t.Helper()
 		v := funcs[funcName]
-		fLocal := v.(func(s interface{}) (string, error))
+		fLocal := v.(func(s any) (string, error))
 		result, err := fLocal(p)
 		if err != nil {
 			t.Fatalf("unexpected error for %s(%f): %s", funcName, p, err)
@@ -92,7 +92,7 @@ func TestTemplateFuncs(t *testing.T) {
 	formatting("humanizeTimestamp", 1679055557, "2023-03-17 12:19:17 +0000 UTC")
 }
 
-func mkTemplate(current, replacement interface{}) textTemplate {
+func mkTemplate(current, replacement any) textTemplate {
 	tmpl := textTemplate{}
 	if current != nil {
 		switch val := current.(type) {

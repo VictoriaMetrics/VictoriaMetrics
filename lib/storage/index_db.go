@@ -1459,11 +1459,11 @@ func (th *topHeap) Swap(i, j int) {
 	a[j], a[i] = a[i], a[j]
 }
 
-func (th *topHeap) Push(_ interface{}) {
+func (th *topHeap) Push(_ any) {
 	panic(fmt.Errorf("BUG: Push shouldn't be called"))
 }
 
-func (th *topHeap) Pop() interface{} {
+func (th *topHeap) Pop() any {
 	panic(fmt.Errorf("BUG: Pop shouldn't be called"))
 }
 
