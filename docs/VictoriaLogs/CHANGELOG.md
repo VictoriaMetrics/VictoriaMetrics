@@ -20,7 +20,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 ## tip
 
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): show a spinner on top of bar chart until user's request is finished. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6558).
-* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): use compact representation of JSON lines at `JSON` tab if only a single [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) is queried.
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): use compact representation of JSON lines at `JSON` tab if only a single [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) is queried. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6559).
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): properly show the number of matching logs on the selected time range at bar chart for queries with arbitrary [pipes](https://docs.victoriametrics.com/victorialogs/logsql/#pipes), including [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) and [`top` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe).
 
 ## [v0.27.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.27.1-victorialogs)
