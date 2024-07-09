@@ -73,7 +73,7 @@ func (da *dedupAggr) itemsCount() uint64 {
 	return n
 }
 
-func (da *dedupAggr) pushSamples(samples []pushSample, dedupIdx int) {
+func (da *dedupAggr) pushSamples(samples []pushSample, _ int64, dedupIdx int) {
 	pss := getPerShardSamples()
 	shards := pss.shards
 	for _, sample := range samples {

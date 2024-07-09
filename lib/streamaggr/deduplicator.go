@@ -118,7 +118,7 @@ func (d *Deduplicator) Push(tss []prompbmarshal.TimeSeries) {
 	}
 
 	for idx, ps := range pss {
-		d.da.pushSamples(ps, idx)
+		d.da.pushSamples(ps, 0, idx)
 	}
 
 	ctx.pss = pss
