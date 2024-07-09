@@ -1812,7 +1812,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 	var genTSID generationTSID
 
-	// Return only the first error, since it has no sense in returning all errors.
+	// Log only the first error, since it has no sense in logging all errors.
 	var firstWarn error
 
 	j := 0
@@ -1982,12 +1982,12 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 	if err := s.prefillNextIndexDB(rows, dstMrs); err != nil {
 		if firstWarn == nil {
-			firstWarn = fmt.Errorf("warn occurred while prefilling next indexdb: %w", err)
+			firstWarn = fmt.Errorf("cannot prefill next indexdb: %w", err)
 		}
 	}
 	if err := s.updatePerDateData(rows, dstMrs); err != nil {
 		if firstWarn == nil {
-			firstWarn = fmt.Errorf("warn occurred while prefilling next day index: %w", err)
+			firstWarn = fmt.Errorf("cannot not update per-day index: %w", err)
 		}
 	}
 
