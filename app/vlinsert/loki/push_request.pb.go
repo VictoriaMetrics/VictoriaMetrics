@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	math_bits "math/bits"
-	"reflect"
 	"strings"
 	"time"
 
@@ -79,175 +78,6 @@ func (m *EntryAdapter) GetLine() string {
 	return ""
 }
 
-func (this *PushRequest) Equal(that interface{}) bool {
-	if that == nil {
-		return this == nil
-	}
-
-	that1, ok := that.(*PushRequest)
-	if !ok {
-		that2, ok := that.(PushRequest)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		return this == nil
-	} else if this == nil {
-		return false
-	}
-	if len(this.Streams) != len(that1.Streams) {
-		return false
-	}
-	for i := range this.Streams {
-		if !this.Streams[i].Equal(that1.Streams[i]) {
-			return false
-		}
-	}
-	return true
-}
-func (this *PushResponse) Equal(that interface{}) bool {
-	if that == nil {
-		return this == nil
-	}
-
-	that1, ok := that.(*PushResponse)
-	if !ok {
-		that2, ok := that.(PushResponse)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		return this == nil
-	} else if this == nil {
-		return false
-	}
-	return true
-}
-func (this *StreamAdapter) Equal(that interface{}) bool {
-	if that == nil {
-		return this == nil
-	}
-
-	that1, ok := that.(*StreamAdapter)
-	if !ok {
-		that2, ok := that.(StreamAdapter)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		return this == nil
-	} else if this == nil {
-		return false
-	}
-	if this.Labels != that1.Labels {
-		return false
-	}
-	if len(this.Entries) != len(that1.Entries) {
-		return false
-	}
-	for i := range this.Entries {
-		if !this.Entries[i].Equal(&that1.Entries[i]) {
-			return false
-		}
-	}
-	if this.Hash != that1.Hash {
-		return false
-	}
-	return true
-}
-func (this *EntryAdapter) Equal(that interface{}) bool {
-	if that == nil {
-		return this == nil
-	}
-
-	that1, ok := that.(*EntryAdapter)
-	if !ok {
-		that2, ok := that.(EntryAdapter)
-		if ok {
-			that1 = &that2
-		} else {
-			return false
-		}
-	}
-	if that1 == nil {
-		return this == nil
-	} else if this == nil {
-		return false
-	}
-	if !this.Timestamp.Equal(that1.Timestamp) {
-		return false
-	}
-	if this.Line != that1.Line {
-		return false
-	}
-	return true
-}
-func (this *PushRequest) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 5)
-	s = append(s, "&push.PushRequest{")
-	s = append(s, "Streams: "+fmt.Sprintf("%#v", this.Streams)+",\n")
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func (this *PushResponse) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 4)
-	s = append(s, "&push.PushResponse{")
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func (this *StreamAdapter) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 7)
-	s = append(s, "&push.StreamAdapter{")
-	s = append(s, "Labels: "+fmt.Sprintf("%#v", this.Labels)+",\n")
-	if this.Entries != nil {
-		vs := make([]*EntryAdapter, len(this.Entries))
-		for i := range vs {
-			vs[i] = &this.Entries[i]
-		}
-		s = append(s, "Entries: "+fmt.Sprintf("%#v", vs)+",\n")
-	}
-	s = append(s, "Hash: "+fmt.Sprintf("%#v", this.Hash)+",\n")
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func (this *EntryAdapter) GoString() string {
-	if this == nil {
-		return "nil"
-	}
-	s := make([]string, 0, 6)
-	s = append(s, "&push.EntryAdapter{")
-	s = append(s, "Timestamp: "+fmt.Sprintf("%#v", this.Timestamp)+",\n")
-	s = append(s, "Line: "+fmt.Sprintf("%#v", this.Line)+",\n")
-	s = append(s, "}")
-	return strings.Join(s, "")
-}
-func valueToGoStringPush(v interface{}, typ string) string {
-	rv := reflect.ValueOf(v)
-	if rv.IsNil() {
-		return "nil"
-	}
-	pv := reflect.Indirect(rv).Interface()
-	return fmt.Sprintf("func(v %v) *%v { return &v } ( %#v )", typ, typ, pv)
-}
-
 func (m *PushRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -256,11 +86,6 @@ func (m *PushRequest) Marshal() (dAtA []byte, err error) {
 		return nil, err
 	}
 	return dAtA[:n], nil
-}
-
-func (m *PushRequest) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
 func (m *PushRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
@@ -295,11 +120,6 @@ func (m *PushResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *PushResponse) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
 func (m *PushResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
@@ -316,11 +136,6 @@ func (m *StreamAdapter) Marshal() (dAtA []byte, err error) {
 		return nil, err
 	}
 	return dAtA[:n], nil
-}
-
-func (m *StreamAdapter) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
 func (m *StreamAdapter) MarshalToSizedBuffer(dAtA []byte) (int, error) {
@@ -365,11 +180,6 @@ func (m *EntryAdapter) Marshal() (dAtA []byte, err error) {
 		return nil, err
 	}
 	return dAtA[:n], nil
-}
-
-func (m *EntryAdapter) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
 func (m *EntryAdapter) MarshalToSizedBuffer(dAtA []byte) (int, error) {
@@ -482,51 +292,6 @@ func (this *PushRequest) String() string {
 		`}`,
 	}, "")
 	return s
-}
-func (this *PushResponse) String() string {
-	if this == nil {
-		return "nil"
-	}
-	s := strings.Join([]string{`&PushResponse{`,
-		`}`,
-	}, "")
-	return s
-}
-func (this *StreamAdapter) String() string {
-	if this == nil {
-		return "nil"
-	}
-	repeatedStringForEntries := "[]EntryAdapter{"
-	for _, f := range this.Entries {
-		repeatedStringForEntries += strings.Replace(strings.Replace(f.String(), "EntryAdapter", "EntryAdapter", 1), `&`, ``, 1) + ","
-	}
-	repeatedStringForEntries += "}"
-	s := strings.Join([]string{`&StreamAdapter{`,
-		`Labels:` + fmt.Sprintf("%v", this.Labels) + `,`,
-		`Entries:` + repeatedStringForEntries + `,`,
-		`Hash:` + fmt.Sprintf("%v", this.Hash) + `,`,
-		`}`,
-	}, "")
-	return s
-}
-func (this *EntryAdapter) String() string {
-	if this == nil {
-		return "nil"
-	}
-	s := strings.Join([]string{`&EntryAdapter{`,
-		`Timestamp:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Timestamp), "Timestamp", "types.Timestamp", 1), `&`, ``, 1) + `,`,
-		`Line:` + fmt.Sprintf("%v", this.Line) + `,`,
-		`}`,
-	}, "")
-	return s
-}
-func valueToStringPush(v interface{}) string {
-	rv := reflect.ValueOf(v)
-	if rv.IsNil() {
-		return "nil"
-	}
-	pv := reflect.Indirect(rv).Interface()
-	return fmt.Sprintf("*%v", pv)
 }
 func (m *PushRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
