@@ -9,6 +9,7 @@ import { AlignedData } from "uplot";
 import BarHitsChart from "../../../components/Chart/BarHitsChart/BarHitsChart";
 import Alert from "../../../components/Main/Alert/Alert";
 import { TimeParams } from "../../../types";
+import Spinner from "../../../components/Main/Spinner/Spinner";
 
 interface Props {
   query: string;
@@ -18,7 +19,7 @@ interface Props {
   isLoading: boolean;
 }
 
-const ExploreLogsBarChart: FC<Props> = ({ logHits, period, error }) => {
+const ExploreLogsBarChart: FC<Props> = ({ logHits, period, error, isLoading }) => {
   const { isMobile } = useDeviceDetect();
   const timeDispatch = useTimeDispatch();
 
@@ -56,6 +57,7 @@ const ExploreLogsBarChart: FC<Props> = ({ logHits, period, error }) => {
         "vm-block_mobile": isMobile,
       })}
     >
+      {isLoading && <Spinner containerStyles={{ position: "absolute" }}/>}
       {!error && noDataMessage && (
         <div className="vm-explore-logs-chart__empty">
           <Alert variant="info">{noDataMessage}</Alert>
