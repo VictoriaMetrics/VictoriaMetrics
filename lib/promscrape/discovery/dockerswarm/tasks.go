@@ -17,27 +17,37 @@ type task struct {
 	ServiceID           string
 	NodeID              string
 	DesiredState        string
-	NetworksAttachments []struct {
-		Addresses []string
-		Network   struct {
-			ID string
-		}
-	}
-	Status struct {
-		State           string
-		ContainerStatus struct {
-			ContainerID string
-		}
-		PortStatus struct {
-			Ports []portConfig
-		}
-	}
-	Spec struct {
-		ContainerSpec struct {
-			Labels map[string]string
-		}
-	}
-	Slot int
+	NetworksAttachments []networkAttachment
+	Status              taskStatus
+	Spec                taskSpec
+	Slot                int
+}
+
+type networkAttachment struct {
+	Addresses []string
+	Network   network
+}
+
+type taskStatus struct {
+	State           string
+	ContainerStatus containerStatus
+	PortStatus      portStatus
+}
+
+type containerStatus struct {
+	ContainerID string
+}
+
+type portStatus struct {
+	Ports []portConfig
+}
+
+type taskSpec struct {
+	ContainerSpec taskContainerSpec
+}
+
+type taskContainerSpec struct {
+	Labels map[string]string
 }
 
 func getTasksLabels(cfg *apiConfig) ([]*promutils.Labels, error) {

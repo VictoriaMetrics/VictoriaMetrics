@@ -936,9 +936,12 @@ func (uw *urlWatcher) maybeUpdateDependedScrapeWorksLocked() {
 // Bookmark is a bookmark message from Kubernetes Watch API.
 // See https://kubernetes.io/docs/reference/using-api/api-concepts/#watch-bookmarks
 type Bookmark struct {
-	Metadata struct {
-		ResourceVersion string
-	}
+	Metadata BookmarkMetadata
+}
+
+// BookmarkMetadata is metadata for Bookmark
+type BookmarkMetadata struct {
+	ResourceVersion string
 }
 
 func parseBookmark(data []byte) (*Bookmark, error) {
