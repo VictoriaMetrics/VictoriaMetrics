@@ -679,7 +679,7 @@ func initStorageNodes(addrs []string, hashSeed uint64) *storageNodesBucket {
 						sns:    oldSnb.sns,
 					}
 
-					newNodeIDs := append(snb.nodesHash.nodeHashes, sn.getID())
+					newNodeIDs := append(oldSnb.nodesHash.nodeHashes, sn.getID())
 					snbNew.nodesHash = newConsistentHash(newNodeIDs, hashSeed)
 
 					if !storageNodes.CompareAndSwap(oldSnb, &snbNew) {
