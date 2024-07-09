@@ -742,7 +742,7 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 
 		dedupTime := ct.Truncate(tickInterval)
 		if a.ignoreOldSamples {
-			dedupIdx, flushIdx = a.getFlushIndices(dedupInterval, interval, dedupTime, flushDeadline)
+			dedupIdx, flushIdx = getAggrIdxs(dedupInterval, interval, dedupTime, flushDeadline)
 		}
 		pf := pushFunc
 
@@ -789,28 +789,24 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 	if !skipIncompleteFlush && ignoreFirstIntervals <= 0 {
 		dedupTime := time.Now().Truncate(tickInterval).Add(tickInterval)
 		if a.ignoreOldSamples {
-			dedupIdx, flushIdx = a.getFlushIndices(dedupInterval, interval, dedupTime, flushDeadline)
+			dedupIdx, flushIdx = getAggrIdxs(dedupInterval, interval, dedupTime, flushDeadline)
 		}
 		a.dedupFlush(dedupInterval, flushDeadline.UnixMilli(), dedupIdx, flushIdx)
 		a.flush(pushFunc, interval, flushDeadline.UnixMilli(), flushIdx)
 	}
 }
 
-func (a *aggregator) getFlushIndices(dedupInterval, interval time.Duration, dedupTime, flushTime time.Time) (int, int) {
-	flushTimestamp := flushTime.UnixMilli()
-	flushIntervals := int(flushTimestamp / int64(interval/time.Millisecond))
-	var dedupIndex, flushIndex int
+func getAggrIdxs(dedupInterval, interval time.Duration, dedupTime, flushTime time.Time) (int, int) {
+	flushIdx := getStateIdx(interval.Milliseconds(), flushTime.Add(-interval).UnixMilli())
+	dedupIdx := flushIdx
 	if dedupInterval > 0 {
-		dedupTimestamp := dedupTime.UnixMilli()
-		dedupIntervals := int(dedupTimestamp / int64(dedupInterval/time.Millisecond))
-		intervalsRatio := int(interval / dedupInterval)
-		dedupIndex = dedupIntervals % aggrStateSize
-		flushIndex = flushIntervals % (aggrStateSize / intervalsRatio)
-	} else {
-		flushIndex = flushIntervals % aggrStateSize
-		dedupIndex = flushIndex
+		dedupIdx = getStateIdx(dedupInterval.Milliseconds(), dedupTime.Add(-dedupInterval).UnixMilli())
 	}
-	return dedupIndex, flushIndex
+	return dedupIdx, flushIdx
+}
+
+func getStateIdx(interval int64, ts int64) int {
+	return int(ts/interval) % aggrStateSize
 }
 
 func (a *aggregator) dedupFlush(dedupInterval time.Duration, deleteDeadline int64, dedupIdx, flushIdx int) {
@@ -933,13 +929,11 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 			a.flushAfter.Update(float64(currentTimestamp - sample.Timestamp))
 			a.muFlushAfter.Unlock()
 			if math.IsNaN(sample.Value) {
-				a.ignoredNanSamples.Inc()
 				// Skip NaN values
 				a.ignoredNanSamples.Inc()
 				continue
 			}
 			if ignoreOldSamples && sample.Timestamp < minTimestamp {
-				a.ignoredOldSamples.Inc()
 				// Skip old samples outside the current aggregation interval
 				a.ignoredOldSamples.Inc()
 				continue
@@ -948,7 +942,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 				maxLag = now - sample.Timestamp
 			}
 			if ignoreOldSamples {
-				flushIdx = int((sample.Timestamp)/a.tickInterval+1) % aggrStateSize
+				flushIdx = getStateIdx(a.tickInterval, sample.Timestamp)
 			}
 			samples[flushIdx] = append(samples[flushIdx], pushSample{
 				key:       key,
@@ -957,20 +951,20 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 			})
 		}
 	}
-	if len(samples) > 0 {
-		a.matchedSamples.Add(len(samples))
-		a.samplesLag.Update(float64(maxLag) / 1_000)
-	}
+
 	ctx.samples = samples
 	ctx.buf = buf
 
+	pushSamples := a.pushSamples
 	if a.da != nil {
-		for idx, s := range samples {
-			a.da.pushSamples(s, idx)
-		}
-	} else {
-		for idx, s := range samples {
-			a.pushSamples(s, deleteDeadlineMilli, idx)
+		pushSamples = a.da.pushSamples
+	}
+
+	for idx, s := range samples {
+		if len(s) > 0 {
+			a.samplesLag.Update(float64(maxLag) / 1_000)
+			a.matchedSamples.Add(len(s))
+			pushSamples(s, deleteDeadlineMilli, idx)
 		}
 	}
 }

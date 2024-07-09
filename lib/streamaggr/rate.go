@@ -129,7 +129,7 @@ func (as *rateAggrState) flushState(ctx *flushCtx, flushTimestamp int64, idx int
 
 		// Delete outdated entries in state
 		var rate float64
-		totalItems := len(sv.state)
+		var totalItems int
 		for k1, state := range sv.state {
 			if flushTimestamp > state.deleteDeadline {
 				delete(sv.state, k1)
@@ -149,10 +149,8 @@ func (as *rateAggrState) flushState(ctx *flushCtx, flushTimestamp int64, idx int
 				rate += (v1.total) * 1000 / float64(rateInterval)
 				state.prevTimestamp = v1.timestamp
 				state.prevValue = v1.value
-			} else {
-				totalItems--
+				totalItems++
 			}
-			totalItems -= staleInputSamples
 			state.lastValues[idx] = rateLastValueState{}
 			sv.state[k1] = state
 		}
