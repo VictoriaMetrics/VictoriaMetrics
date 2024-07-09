@@ -31,7 +31,7 @@ func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStre
 }
 
 var bsmPool = &sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return &blockStreamMerger{}
 	},
 }

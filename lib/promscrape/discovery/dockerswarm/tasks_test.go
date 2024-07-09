@@ -228,7 +228,7 @@ func TestAddTasksLabels(t *testing.T) {
 					},
 				},
 				Mode: serviceSpecMode{
-					Replicated: map[string]interface{}{},
+					Replicated: map[string]any{},
 				},
 			},
 			Endpoint: serviceEndpoint{

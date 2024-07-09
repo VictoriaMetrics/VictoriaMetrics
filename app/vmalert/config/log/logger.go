@@ -29,7 +29,7 @@ func (l *Logger) isDisabled() bool {
 }
 
 // Errorf logs error message.
-func (l *Logger) Errorf(format string, args ...interface{}) {
+func (l *Logger) Errorf(format string, args ...any) {
 	if l.isDisabled() {
 		return
 	}
@@ -37,7 +37,7 @@ func (l *Logger) Errorf(format string, args ...interface{}) {
 }
 
 // Warnf logs warning message.
-func (l *Logger) Warnf(format string, args ...interface{}) {
+func (l *Logger) Warnf(format string, args ...any) {
 	if l.isDisabled() {
 		return
 	}
@@ -45,7 +45,7 @@ func (l *Logger) Warnf(format string, args ...interface{}) {
 }
 
 // Infof logs info message.
-func (l *Logger) Infof(format string, args ...interface{}) {
+func (l *Logger) Infof(format string, args ...any) {
 	if l.isDisabled() {
 		return
 	}
@@ -54,6 +54,6 @@ func (l *Logger) Infof(format string, args ...interface{}) {
 
 // Panicf logs panic message and panics.
 // Panicf can't be suppressed
-func (l *Logger) Panicf(format string, args ...interface{}) {
+func (l *Logger) Panicf(format string, args ...any) {
 	logger.Panicf(format, args...)
 }

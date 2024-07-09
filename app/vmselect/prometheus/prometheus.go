@@ -475,7 +475,7 @@ func (xb *exportBlock) reset() {
 }
 
 var exportBlockPool = &sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return &exportBlock{}
 	},
 }
@@ -1341,7 +1341,7 @@ func (sw *scalableWriter) maybeFlushBuffer(bb *bytesutil.ByteBuffer) error {
 }
 
 func (sw *scalableWriter) flush() error {
-	sw.m.Range(func(_, v interface{}) bool {
+	sw.m.Range(func(_, v any) bool {
 		bb := v.(*bytesutil.ByteBuffer)
 		_, err := sw.bw.Write(bb.B)
 		return err == nil
