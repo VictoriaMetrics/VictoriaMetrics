@@ -70,9 +70,10 @@ func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		fieldsLimit = 0
 	}
 
-	// Prepare the query
-	q.AddCountByTimePipe(int64(step), int64(offset), fields)
+	// Prepare the query for hits count.
 	q.Optimize()
+	q.DropAllPipes()
+	q.AddCountByTimePipe(int64(step), int64(offset), fields)
 
 	var mLock sync.Mutex
 	m := make(map[string]*hitsSeries)
