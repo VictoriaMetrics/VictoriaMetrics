@@ -39,7 +39,7 @@
     "win32"
   ],
   "enabled": true,
-  "files": ["docs/**/*.{example,md}"],
+  "files": ["docs/**/*.md"],
   "ignoreRegExpList": [
     // Github usernames
     "/@[a-zA-Z0-9-_]+/i",
