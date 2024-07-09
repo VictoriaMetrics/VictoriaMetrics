@@ -671,20 +671,14 @@ func initStorageNodes(addrs []string, hashSeed uint64) *storageNodesBucket {
 
 				if sn.isReady() {
 				again:
-					oldSnb := getStorageNodesBucket()
-					snbNew := storageNodesBucket{
-						ms:     oldSnb.ms,
-						wg:     oldSnb.wg,
-						stopCh: oldSnb.stopCh,
-						sns:    oldSnb.sns,
-					}
-
-					newNodeIDs := append(oldSnb.nodesHash.nodeHashes, sn.getID())
-					snbNew.nodesHash = newConsistentHash(newNodeIDs, hashSeed)
-
-					if !storageNodes.CompareAndSwap(oldSnb, &snbNew) {
+					currentSnb := getStorageNodesBucket()
+					newSnb := initStorageNodes(addrs, hashSeed)
+					if !storageNodes.CompareAndSwap(currentSnb, newSnb) {
+						mustStopStorageNodes(newSnb)
 						goto again
 					}
+
+					mustStopStorageNodes(currentSnb)
 					break
 				}
 			}
