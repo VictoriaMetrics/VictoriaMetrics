@@ -35,7 +35,8 @@ const (
 
 var (
 	errNoCredentials = fmt.Errorf(
-		`failed to detect any credentials type for AZBlob. Ensure there is connection string set at %q, shared key at %q and %q, or account name at %q and set %q to "true"`,
+		`failed to detect credentials for AZBlob. 
+Ensure that one of the options is set: connection string at %q; shared key at %q and %q; account name at %q and set %q to "true"`,
 		envStorageAccCs,
 		envStorageAcctName,
 		envStorageAccKey,
@@ -43,7 +44,7 @@ var (
 		envStorageDefault,
 	)
 
-	errInvalidCredentials = fmt.Errorf("failed to process credentials, only one of %s, %s and %s, or %s and %s can be specified",
+	errInvalidCredentials = fmt.Errorf("failed to process credentials: only one of %s, %s and %s, or %s and %s can be specified",
 		envStorageAccCs,
 		envStorageAcctName,
 		envStorageAccKey,
@@ -79,19 +80,28 @@ func (fs *FS) Init() error {
 
 	fs.Dir = cleanDirectory(fs.Dir)
 
-	domain := "blob.core.windows.net"
-	if storageDomain, ok := fs.env(envStorageDomain); ok {
-		logger.Infof("Overriding default Azure blob domain with %q", storageDomain)
-		domain = storageDomain
+	sc, err := fs.newClient()
+	if err != nil {
+		return fmt.Errorf("failed to create AZBlob service client: %w", err)
 	}
 
+	containerClient := sc.NewContainerClient(fs.Container)
+	fs.client = containerClient
+
+	return nil
+}
+
+func (fs *FS) newClient() (*service.Client, error) {
 	connString, hasConnString := fs.env(envStorageAccCs)
 	accountName, hasAccountName := fs.env(envStorageAcctName)
 	accountKey, hasAccountKey := fs.env(envStorageAccKey)
 	useDefault, _ := fs.env(envStorageDefault)
 
-	var sc *service.Client
-	var err error
+	domain := "blob.core.windows.net"
+	if storageDomain, ok := fs.env(envStorageDomain); ok {
+		logger.Infof("Overriding default Azure blob domain with %q", storageDomain)
+		domain = storageDomain
+	}
 
 	// not used if connection string is set
 	serviceURL := fmt.Sprintf("https://%s.%s/", accountName, domain)
@@ -99,43 +109,27 @@ func (fs *FS) Init() error {
 	switch {
 	// can't specify any combination of more than one credential
 	case moreThanOne(hasConnString, (hasAccountName && hasAccountKey), (useDefault == "true" && hasAccountName)):
-		return errInvalidCredentials
+		return nil, errInvalidCredentials
 	case hasConnString:
 		logger.Infof("Creating AZBlob service client from connection string")
-		sc, err = service.NewClientFromConnectionString(connString, nil)
-		if err != nil {
-			return fmt.Errorf("failed to create AZBlob service client: %w", err)
-		}
+		return service.NewClientFromConnectionString(connString, nil)
 	case hasAccountName && hasAccountKey:
 		logger.Infof("Creating AZBlob service client from account name and key")
 		creds, err := azblob.NewSharedKeyCredential(accountName, accountKey)
 		if err != nil {
-			return fmt.Errorf("failed to create AZBlob service client: %w", err)
+			return nil, fmt.Errorf("failed to create Shared Key credentials: %w", err)
 		}
-
-		sc, err = service.NewClientWithSharedKeyCredential(serviceURL, creds, nil)
-		if err != nil {
-			return fmt.Errorf("failed to create AZBlob service client: %w", err)
-		}
+		return service.NewClientWithSharedKeyCredential(serviceURL, creds, nil)
 	case useDefault == "true" && hasAccountName:
 		logger.Infof("Creating AZBlob service client from default credential")
 		creds, err := azidentity.NewDefaultAzureCredential(nil)
 		if err != nil {
-			return fmt.Errorf("failed to create AZBlob service client: %w", err)
+			return nil, fmt.Errorf("failed to create default Azure credentials: %w", err)
 		}
-
-		sc, err = service.NewClient(serviceURL, creds, nil)
-		if err != nil {
-			return fmt.Errorf("failed to create AZBlob service client: %w", err)
-		}
+		return service.NewClient(serviceURL, creds, nil)
 	default:
-		return errNoCredentials
+		return nil, errNoCredentials
 	}
-
-	containerClient := sc.NewContainerClient(fs.Container)
-	fs.client = containerClient
-
-	return nil
 }
 
 // MustStop stops fs.
