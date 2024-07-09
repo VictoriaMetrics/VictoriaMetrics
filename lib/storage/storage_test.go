@@ -1460,18 +1460,27 @@ func TestStorageSeriesAreNotCreatedOnStaleMarkers(t *testing.T) {
 	}
 }
 
-func TestStorageRowsNotAdded(t *testing.T) {
+// testRemoveAll removes all storage data produced by a test if the test hasn't
+// failed. For this to work, the storage must use t.Name() as the base dir in
+// its data path.
+//
+// In case of failure, the data is kept for further debugging.
+func testRemoveAll(t *testing.T) {
 	defer func() {
 		if !t.Failed() {
 			fs.MustRemoveAll(t.Name())
 		}
 	}()
+}
+
+func TestStorageRowsNotAdded(t *testing.T) {
+	defer testRemoveAll(t)
 
 	type options struct {
 		name      string
 		retention time.Duration
 		mrs       []MetricRow
-		tr        *TimeRange
+		tr        TimeRange
 	}
 	f := func(opts *options) {
 		t.Helper()
@@ -1484,8 +1493,9 @@ func TestStorageRowsNotAdded(t *testing.T) {
 		s.DebugFlush()
 		s.UpdateMetrics(&gotMetrics)
 
-		if got, want := testCountAllMetricNames(s, *opts.tr), 0; got != want {
-			t.Fatalf("unexpected metric name count: got %d, want %d", got, want)
+		got := testCountAllMetricNames(s, opts.tr)
+		if got != 0 {
+			t.Fatalf("unexpected metric name count: got %d, want 0", got)
 		}
 	}
 
@@ -1504,7 +1514,7 @@ func TestStorageRowsNotAdded(t *testing.T) {
 		name:      "NegativeTimestamps",
 		retention: retentionMax,
 		mrs:       testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp),
-		tr:        &TimeRange{minTimestamp, maxTimestamp},
+		tr:        TimeRange{minTimestamp, maxTimestamp},
 	})
 
 	retention = 48 * time.Hour
@@ -1514,7 +1524,7 @@ func TestStorageRowsNotAdded(t *testing.T) {
 		name:      "TooSmallTimestamps",
 		retention: retention,
 		mrs:       testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp),
-		tr:        &TimeRange{minTimestamp, maxTimestamp},
+		tr:        TimeRange{minTimestamp, maxTimestamp},
 	})
 
 	retention = 48 * time.Hour
@@ -1524,7 +1534,7 @@ func TestStorageRowsNotAdded(t *testing.T) {
 		name:      "TooBigTimestamps",
 		retention: retention,
 		mrs:       testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp),
-		tr:        &TimeRange{minTimestamp, maxTimestamp},
+		tr:        TimeRange{minTimestamp, maxTimestamp},
 	})
 
 	minTimestamp = time.Now().UnixMilli()
@@ -1536,7 +1546,7 @@ func TestStorageRowsNotAdded(t *testing.T) {
 	f(&options{
 		name: "NaN",
 		mrs:  mrs,
-		tr:   &TimeRange{minTimestamp, maxTimestamp},
+		tr:   TimeRange{minTimestamp, maxTimestamp},
 	})
 
 	minTimestamp = time.Now().UnixMilli()
@@ -1548,7 +1558,7 @@ func TestStorageRowsNotAdded(t *testing.T) {
 	f(&options{
 		name: "StaleNaN",
 		mrs:  mrs,
-		tr:   &TimeRange{minTimestamp, maxTimestamp},
+		tr:   TimeRange{minTimestamp, maxTimestamp},
 	})
 
 	minTimestamp = time.Now().UnixMilli()
@@ -1560,16 +1570,12 @@ func TestStorageRowsNotAdded(t *testing.T) {
 	f(&options{
 		name: "InvalidMetricNameRaw",
 		mrs:  mrs,
-		tr:   &TimeRange{minTimestamp, maxTimestamp},
+		tr:   TimeRange{minTimestamp, maxTimestamp},
 	})
 }
 
 func TestStorageRowsNotAdded_SeriesLimitExceeded(t *testing.T) {
-	defer func() {
-		if !t.Failed() {
-			fs.MustRemoveAll(t.Name())
-		}
-	}()
+	defer testRemoveAll(t)
 
 	f := func(name string, maxHourlySeries int, maxDailySeries int) {
 		t.Helper()
