@@ -21,7 +21,7 @@ func TestDedupAggrSerial(t *testing.T) {
 			sample.value = float64(i + j)
 			expectedSamplesMap[sample.key] = *sample
 		}
-		da.pushSamples(samples, 0)
+		da.pushSamples(samples, 0, 0)
 	}
 
 	if n := da.sizeBytes(); n > 5_000_000 {
@@ -73,7 +73,7 @@ func TestDedupAggrConcurrent(_ *testing.T) {
 					sample.key = fmt.Sprintf("key_%d", j)
 					sample.value = float64(i + j)
 				}
-				da.pushSamples(samples, 0)
+				da.pushSamples(samples, 0, 0)
 			}
 		}()
 	}

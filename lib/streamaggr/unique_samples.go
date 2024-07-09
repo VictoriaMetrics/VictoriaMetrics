@@ -79,10 +79,8 @@ func (as *uniqueSamplesAggrState) flushState(ctx *flushCtx) {
 		state := len(sv.state[ctx.idx])
 		sv.state[ctx.idx] = make(map[float64]struct{})
 		sv.mu.Unlock()
-		if state > 0 {
-			key := k.(string)
-			ctx.appendSeries(key, "unique_samples", float64(state))
-		}
+		key := k.(string)
+		ctx.appendSeries(key, "unique_samples", float64(state))
 		return true
 	})
 }
