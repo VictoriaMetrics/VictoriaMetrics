@@ -1341,6 +1341,7 @@ func aggregateSeriesListsGeneric(ec *evalConfig, fe *graphiteql.FuncExpr, funcNa
 // See https://graphite.readthedocs.io/en/latest/functions.html#graphite.render.functions.aggregateSeriesLists
 func transformAggregateSeriesLists(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc, error) {
 	args := fe.Args
+
 	if len(args) != 3 && len(args) != 4 {
 		return nil, fmt.Errorf("unexpected number of args; got %d; want 3 or 4", len(args))
 	}
@@ -4894,6 +4895,11 @@ func transformSortByName(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFun
 	if err != nil {
 		return nil, err
 	}
+	return nextSeriesSortedByName(nextSeries, fe, reverse, natural)
+}
+
+func nextSeriesSortedByName(nextSeries nextSeriesFunc, expr graphiteql.Expr, reverse, natural bool) (nextSeriesFunc, error) {
+
 	type seriesWithName struct {
 		s    *series
 		name string
@@ -4905,7 +4911,7 @@ func transformSortByName(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFun
 			s:    s,
 			name: name,
 		})
-		s.expr = fe
+		s.expr = expr
 		return s, nil
 	})
 	if _, err := drainAllSeries(f); err != nil {

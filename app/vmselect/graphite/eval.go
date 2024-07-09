@@ -151,7 +151,12 @@ func evalMetricExpr(ec *evalConfig, me *graphiteql.MetricExpr) (nextSeriesFunc, 
 	}}
 	tfss := joinTagFilterss(tfs, ec.etfs)
 	sq := storage.NewSearchQuery(ec.at.AccountID, ec.at.ProjectID, ec.startTime, ec.endTime, tfss, *maxGraphiteSeries)
-	return newNextSeriesForSearchQuery(ec, sq, me)
+	ss, err := newNextSeriesForSearchQuery(ec, sq, me)
+	if err != nil {
+		return nil, err
+	}
+
+	return nextSeriesSortedByName(ss, me, false, false)
 }
 
 func newNextSeriesForSearchQuery(ec *evalConfig, sq *storage.SearchQuery, expr graphiteql.Expr) (nextSeriesFunc, error) {
