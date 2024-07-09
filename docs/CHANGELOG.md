@@ -68,8 +68,6 @@ Released at 2024-06-24
 
 **Update note 2: `*.passwordFile` and similar flags are no longer trimming trailing whitespaces at the end of content. Make sure to update the templating of password files or HTTP endpoints to not include trailing whitespaces before the upgrade. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6503) PR for the details.**
 
-* FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup/index.html): [backup to azblob with managed identity](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5984) with [support azure default credential](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/????).
-* FEATURE: all VictoriaMetrics components: use constant-time comparison for comparing HTTP basic auth credentials and auth keys. This should prevent timing attacks when comparing these credentials. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6392) for details. Thanks to @wasim-nihal for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6423).
 * FEATURE: [alerts-vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-vmagent.yml): add new alerting rules `StreamAggrFlushTimeout` and `StreamAggrDedupFlushTimeout` to notify about issues during stream aggregation.
 * FEATURE: [dashboards/vmagent](https://grafana.com/grafana/dashboards/12683): add row `Streaming aggregation` with panels related to [streaming aggregation](https://docs.victoriametrics.com/stream-aggregation/) process.
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): add `idleConnTimeout` flag set to 50s by default. It should reduce the probability of `broken pipe` or `connection reset by peer` errors in vmauth logs.
