@@ -14,10 +14,12 @@ import (
 //
 // See https://docs.openstack.org/api-ref/identity/v3/#authentication-and-token-management
 type authResponse struct {
-	Token struct {
-		ExpiresAt time.Time     `json:"expires_at,omitempty"`
-		Catalog   []catalogItem `json:"catalog,omitempty"`
-	}
+	Token authToken
+}
+
+type authToken struct {
+	ExpiresAt time.Time     `json:"expires_at,omitempty"`
+	Catalog   []catalogItem `json:"catalog,omitempty"`
 }
 
 type catalogItem struct {
