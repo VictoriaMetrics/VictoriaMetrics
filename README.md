@@ -12,7 +12,7 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/logo_white.webp">
   <source media="(prefers-color-scheme: light)" srcset="docs/logo.webp">
-  <img alt="VictoriaMetrics Logo" src="docs/logo.webp">
+  <img width="300" alt="VictoriaMetrics Logo" src="docs/logo.webp">
 </picture>
 
 VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
