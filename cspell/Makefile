@@ -11,12 +11,14 @@ cspell-check:
 
 # Runs cspell container commands.
 cspell-run-command:
-	@docker run \
+	@cp cspell/cspell.json cspell.json
+	@-docker run \
 		--entrypoint /bin/sh \
 		--mount type=bind,src=".",dst=/victoriametrics \
 		--rm \
 		--tty \
 		cspell -c "$(CMD)"
+	@rm cspell.json
 
 # Updates cspell dictionaries and other NPM dependencies.
 cspell-update: cspell-build
