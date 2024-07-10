@@ -113,8 +113,14 @@ func TestGetServerTLSConfig(t *testing.T) {
 	f := func(tlsCertFile, tlsKeyFile string, expectedErr error) {
 		t.Helper()
 		_, err := GetServerTLSConfig(tlsCertFile, tlsKeyFile, "", []string{})
-		if !reflect.DeepEqual(err, expectedErr) {
-			t.Fatalf("expected err: %v, get error: %v", expectedErr, err)
+		if err == nil {
+			if expectedErr != nil {
+				t.Fatalf("expecte nil error, get: %v", expectedErr)
+			}
+		} else {
+			if err.Error() != expectedErr.Error() {
+				t.Fatalf("expected err: %v, get error: %v", err, expectedErr)
+			}
 		}
 	}
 
@@ -141,7 +147,7 @@ sWswtTQyQldPeQIkIz1p
 -----END CERTIFICATE-----`), os.ModePerm); err != nil {
 		t.Fatalf("failed to create cert file: %v", err)
 	}
-	
+
 	if err := os.WriteFile("test.key", []byte(`-----BEGIN PRIVATE KEY-----
 MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCgdbQ0yIk170LS
 fhPzrm6LuclwjxGSC31CmmF+BZUHJ19n33BrL++Rfrfz3kMr5JgfVgjeHWZ2PrLp
@@ -174,9 +180,9 @@ YwXfJbKUZnJlv9XplwR7Dw==
 	}
 
 	// check cert file not exist
-	f("/a", "/test.key", fmt.Errorf("cannot find TLS cert file: %q", "/a"))
+	f("/a", "./test.key", fmt.Errorf(`cannot load TLS cert from certFile="/a", keyFile="./test.key": open /a: no such file or directory`))
 	// check key file not exist
-	f("./test.crt", "/b", fmt.Errorf("cannot find TLS key file: %q", "/b"))
+	f("./test.crt", "/b", fmt.Errorf(`cannot load TLS cert from certFile="./test.crt", keyFile="/b": open /b: no such file or directory`))
 	// cert file and key file all exist
 	f("./test.crt", "./test.key", nil)
 }
