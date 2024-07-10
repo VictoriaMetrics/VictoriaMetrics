@@ -19,6 +19,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/) enterprise: properly configure authentication with S3 when `-s3.configFilePath` cmd-line flag is specified for reading rule configs.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): properly specify oauth2 `ClientSecret` when configuring authentication for `notifier.url`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6471) for details. Thanks to @yincongcyincong for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6478).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): **copy row** button in Table view produces unexpected result. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6421) and [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6495).
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly calculate [histogram_quantile](https://docs.victoriametrics.com/MetricsQL.html#histogram_quantile) over Prometheus buckets with inconsistent values. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4580#issuecomment-2186659102) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6547). Updates [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2819).
 
 ## [v1.93.15](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.15)
 
