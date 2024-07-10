@@ -53,9 +53,13 @@ jobs:
 
       - name: Run vet
         run: make vet
-
+      
+        # Use action instead of `make golangci-lint` to speed up the process
+        # as it caches data between builds.
       - name: Run golangci-lint
-        run: make golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.59
 
       - name: Run govulncheck
         run: make govulncheck
