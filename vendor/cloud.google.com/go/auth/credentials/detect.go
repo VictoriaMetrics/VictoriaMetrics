@@ -76,7 +76,7 @@ func DetectDefault(opts *DetectOptions) (*auth.Credentials, error) {
 	if err := opts.validate(); err != nil {
 		return nil, err
 	}
-	if opts.CredentialsJSON != nil {
+	if len(opts.CredentialsJSON) > 0 {
 		return readCredentialsFileJSON(opts.CredentialsJSON, opts)
 	}
 	if opts.CredentialsFile != "" {

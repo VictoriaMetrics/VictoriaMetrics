@@ -285,7 +285,7 @@ func fetchToken(ctx context.Context, o *Options3LO, v url.Values) (*Token, strin
 			v.Set("client_secret", o.ClientSecret)
 		}
 	}
-	req, err := http.NewRequest("POST", o.TokenURL, strings.NewReader(v.Encode()))
+	req, err := http.NewRequestWithContext(ctx, "POST", o.TokenURL, strings.NewReader(v.Encode()))
 	if err != nil {
 		return nil, refreshToken, err
 	}
@@ -295,25 +295,19 @@ func fetchToken(ctx context.Context, o *Options3LO, v url.Values) (*Token, strin
 	}
 
 	// Make request
-	r, err := o.client().Do(req.WithContext(ctx))
+	resp, body, err := internal.DoRequest(o.client(), req)
 	if err != nil {
 		return nil, refreshToken, err
 	}
-	body, err := internal.ReadAll(r.Body)
-	r.Body.Close()
-	if err != nil {
-		return nil, refreshToken, fmt.Errorf("auth: cannot fetch token: %w", err)
-	}
-
-	failureStatus := r.StatusCode < 200 || r.StatusCode > 299
+	failureStatus := resp.StatusCode < 200 || resp.StatusCode > 299
 	tokError := &Error{
-		Response: r,
+		Response: resp,
 		Body:     body,
 	}
 
 	var token *Token
 	// errors ignored because of default switch on content
-	content, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	content, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 	switch content {
 	case "application/x-www-form-urlencoded", "text/plain":
 		// some endpoints return a query string
