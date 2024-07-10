@@ -27,7 +27,7 @@ func TestCache(t *testing.T) {
 		t.Fatalf("unexpected SizeMaxBytes(); got %d; want %d", n, sizeMaxBytes)
 	}
 	offset := uint64(1234)
-	part := (interface{})("foobar")
+	part := (any)("foobar")
 	k := Key{
 		Offset: offset,
 		Part:   part,
@@ -145,7 +145,7 @@ func TestCacheConcurrentAccess(_ *testing.T) {
 
 func testCacheSetGet(c *Cache, worker int) {
 	for i := 0; i < 1000; i++ {
-		part := (interface{})(i)
+		part := (any)(i)
 		b := testBlock{}
 		k := Key{
 			Offset: uint64(worker*1000 + i),

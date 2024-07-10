@@ -45,7 +45,7 @@ type cWriter struct {
 	err error
 }
 
-func (cw *cWriter) printf(format string, args ...interface{}) {
+func (cw *cWriter) printf(format string, args ...any) {
 	if cw.err != nil {
 		return
 	}

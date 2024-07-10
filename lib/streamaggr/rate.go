@@ -111,7 +111,7 @@ func (as *rateAggrState) flushState(ctx *flushCtx, _ bool) {
 	var staleOutputSamples, staleInputSamples int
 
 	m := &as.m
-	m.Range(func(k, v interface{}) bool {
+	m.Range(func(k, v any) bool {
 		sv := v.(*rateStateValue)
 		sv.mu.Lock()
 

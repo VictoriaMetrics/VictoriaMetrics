@@ -49,7 +49,7 @@ type Tracer struct {
 // If enabled isn't set, then all function calls to the returned object will be no-op.
 //
 // Done or Donef must be called when the tracer should be finished.
-func New(enabled bool, format string, args ...interface{}) *Tracer {
+func New(enabled bool, format string, args ...any) *Tracer {
 	if *denyQueryTracing || !enabled {
 		return nil
 	}
@@ -73,7 +73,7 @@ func (t *Tracer) Enabled() bool {
 // NewChild cannot be called from concurrent goroutines.
 // Create children tracers from a single goroutine and then pass them
 // to concurrent goroutines.
-func (t *Tracer) NewChild(format string, args ...interface{}) *Tracer {
+func (t *Tracer) NewChild(format string, args ...any) *Tracer {
 	if t == nil {
 		return nil
 	}
@@ -107,7 +107,7 @@ func (t *Tracer) Done() {
 //
 // Donef cannot be called multiple times.
 // Other Tracer functions cannot be called after Donef call.
-func (t *Tracer) Donef(format string, args ...interface{}) {
+func (t *Tracer) Donef(format string, args ...any) {
 	if t == nil {
 		return
 	}
@@ -122,7 +122,7 @@ func (t *Tracer) Donef(format string, args ...interface{}) {
 // Printf adds new fmt.Sprintf(format, args...) message to t.
 //
 // Printf cannot be called from concurrent goroutines.
-func (t *Tracer) Printf(format string, args ...interface{}) {
+func (t *Tracer) Printf(format string, args ...any) {
 	if t == nil {
 		return
 	}

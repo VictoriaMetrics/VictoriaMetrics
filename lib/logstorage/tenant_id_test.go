@@ -129,8 +129,7 @@ func TestParseTenantID(t *testing.T) {
 
 		got, err := ParseTenantID(tenant)
 		if err != nil {
-			t.Errorf("unexpected error: %s", err)
-			return
+			t.Fatalf("unexpected error: %s", err)
 		}
 
 		if got.String() != expected.String() {

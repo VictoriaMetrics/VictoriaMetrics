@@ -197,7 +197,7 @@ func (uw *unmarshalWork) unmarshal() error {
 }
 
 var blockPool = &sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return &storage.Block{}
 	},
 }

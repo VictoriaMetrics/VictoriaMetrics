@@ -71,7 +71,7 @@ func (fsm *FastStringMatcher) Match(s string) bool {
 		// Perform a global cleanup for fsm.m by removing items, which weren't accessed during the last 5 minutes.
 		m := &fsm.m
 		deadline := ct - uint64(cacheExpireDuration.Seconds())
-		m.Range(func(k, v interface{}) bool {
+		m.Range(func(k, v any) bool {
 			e := v.(*fsmEntry)
 			if e.lastAccessTime.Load() < deadline {
 				m.Delete(k)

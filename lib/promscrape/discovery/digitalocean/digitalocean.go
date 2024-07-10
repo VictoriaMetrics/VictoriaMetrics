@@ -49,18 +49,22 @@ type droplet struct {
 	Name   string `json:"name"`
 	Status string `json:"status"`
 
-	Features []string `json:"features"`
-	Image    struct {
-		Name string `json:"name"`
-		Slug string `json:"slug"`
-	} `json:"image"`
-	SizeSlug string   `json:"size_slug"`
-	Networks networks `json:"networks"`
-	Region   struct {
-		Slug string `json:"slug"`
-	} `json:"region"`
-	Tags    []string `json:"tags"`
-	VpcUUID string   `json:"vpc_uuid"`
+	Features []string      `json:"features"`
+	Image    dropletImage  `json:"image"`
+	SizeSlug string        `json:"size_slug"`
+	Networks networks      `json:"networks"`
+	Region   dropletRegion `json:"region"`
+	Tags     []string      `json:"tags"`
+	VpcUUID  string        `json:"vpc_uuid"`
+}
+
+type dropletImage struct {
+	Name string `json:"name"`
+	Slug string `json:"slug"`
+}
+
+type dropletRegion struct {
+	Slug string `json:"slug"`
 }
 
 func (d *droplet) getIPByNet(netVersion, netType string) string {
@@ -98,10 +102,12 @@ type listDropletResponse struct {
 }
 
 type links struct {
-	Pages struct {
-		Last string `json:"last,omitempty"`
-		Next string `json:"next,omitempty"`
-	} `json:"pages,omitempty"`
+	Pages linksPages `json:"pages,omitempty"`
+}
+
+type linksPages struct {
+	Last string `json:"last,omitempty"`
+	Next string `json:"next,omitempty"`
 }
 
 func (r *listDropletResponse) nextURLPath() (string, error) {

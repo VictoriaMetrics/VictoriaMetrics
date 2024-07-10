@@ -2078,3 +2078,25 @@ func TestQueryCanLiveTail(t *testing.T) {
 	f("* | unpack_syslog", true)
 	f("* | unroll by (a)", true)
 }
+
+func TestQueryDropAllPipes(t *testing.T) {
+	f := func(qStr, resultExpected string) {
+		t.Helper()
+
+		q, err := ParseQuery(qStr)
+		if err != nil {
+			t.Fatalf("cannot parse [%s]: %s", qStr, err)
+		}
+		q.Optimize()
+		q.DropAllPipes()
+		result := q.String()
+		if result != resultExpected {
+			t.Fatalf("unexpected result\ngot\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+
+	f(`*`, `*`)
+	f(`foo | stats count()`, `foo`)
+	f(`foo or bar and baz | top 5 by (x)`, `foo or bar baz`)
+	f(`foo | filter bar:baz | stats by (x) min(y)`, `foo bar:baz`)
+}

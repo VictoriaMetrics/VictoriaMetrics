@@ -176,10 +176,10 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	}
 
 	initMessage := "Initing import process from %q to %q with filter %s"
-	initParams := []interface{}{srcURL, dstURL, p.filter.String()}
+	initParams := []any{srcURL, dstURL, p.filter.String()}
 	if p.interCluster {
 		initMessage = "Initing import process from %q to %q with filter %s for tenant %s"
-		initParams = []interface{}{srcURL, dstURL, p.filter.String(), tenantID}
+		initParams = []any{srcURL, dstURL, p.filter.String(), tenantID}
 	}
 
 	fmt.Println("") // extra line for better output formatting

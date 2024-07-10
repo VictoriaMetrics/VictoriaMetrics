@@ -316,7 +316,7 @@ func templateFuncs() textTpl.FuncMap {
 
 		// humanize converts given number to a human readable format
 		// by adding metric prefixes https://en.wikipedia.org/wiki/Metric_prefix
-		"humanize": func(i interface{}) (string, error) {
+		"humanize": func(i any) (string, error) {
 			v, err := toFloat64(i)
 			if err != nil {
 				return "", err
@@ -347,7 +347,7 @@ func templateFuncs() textTpl.FuncMap {
 		},
 
 		// humanize1024 converts given number to a human readable format with 1024 as base
-		"humanize1024": func(i interface{}) (string, error) {
+		"humanize1024": func(i any) (string, error) {
 			v, err := toFloat64(i)
 			if err != nil {
 				return "", err
@@ -359,7 +359,7 @@ func templateFuncs() textTpl.FuncMap {
 		},
 
 		// humanizeDuration converts given seconds to a human-readable duration
-		"humanizeDuration": func(i interface{}) (string, error) {
+		"humanizeDuration": func(i any) (string, error) {
 			v, err := toFloat64(i)
 			if err != nil {
 				return "", err
@@ -405,7 +405,7 @@ func templateFuncs() textTpl.FuncMap {
 		},
 
 		// humanizePercentage converts given ratio value to a fraction of 100
-		"humanizePercentage": func(i interface{}) (string, error) {
+		"humanizePercentage": func(i any) (string, error) {
 			v, err := toFloat64(i)
 			if err != nil {
 				return "", err
@@ -414,7 +414,7 @@ func templateFuncs() textTpl.FuncMap {
 		},
 
 		// humanizeTimestamp converts given timestamp to a human readable time equivalent
-		"humanizeTimestamp": func(i interface{}) (string, error) {
+		"humanizeTimestamp": func(i any) (string, error) {
 			v, err := toFloat64(i)
 			if err != nil {
 				return "", err
@@ -427,7 +427,7 @@ func templateFuncs() textTpl.FuncMap {
 		},
 
 		// toTime converts given timestamp to a time.Time.
-		"toTime": func(i interface{}) (time.Time, error) {
+		"toTime": func(i any) (time.Time, error) {
 			v, err := toFloat64(i)
 			if err != nil {
 				return time.Time{}, err
@@ -524,8 +524,8 @@ func templateFuncs() textTpl.FuncMap {
 
 		// Converts a list of objects to a map with keys arg0, arg1 etc.
 		// This is intended to allow multiple arguments to be passed to templates.
-		"args": func(args ...interface{}) map[string]interface{} {
-			result := make(map[string]interface{})
+		"args": func(args ...any) map[string]any {
+			result := make(map[string]any)
 			for i, a := range args {
 				result[fmt.Sprintf("arg%d", i)] = a
 			}
@@ -565,7 +565,7 @@ func (t Time) Time() time.Time {
 	return time.Unix(int64(t)/second, (int64(t)%second)*nanosPerTick)
 }
 
-func toFloat64(v interface{}) (float64, error) {
+func toFloat64(v any) (float64, error) {
 	switch i := v.(type) {
 	case float64:
 		return i, nil

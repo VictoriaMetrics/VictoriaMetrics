@@ -42,7 +42,7 @@ type apiConfig struct {
 }
 
 func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
-	v, err := configMap.Get(sdc, func() (interface{}, error) { return newAPIConfig(sdc, baseDir) })
+	v, err := configMap.Get(sdc, func() (any, error) { return newAPIConfig(sdc, baseDir) })
 	if err != nil {
 		return nil, err
 	}
@@ -264,18 +264,22 @@ type discoveryRequestNode struct {
 // discoveryResponse represent xDS-requests for Kuma Service Mesh
 // https://www.envoyproxy.io/docs/envoy/latest/api-v3/service/discovery/v3/discovery.proto#envoy-v3-api-msg-service-discovery-v3-discoveryresponse
 type discoveryResponse struct {
-	VersionInfo string `json:"version_info"`
-	Resources   []struct {
-		Mesh    string `json:"mesh"`
-		Service string `json:"service"`
-		Targets []struct {
-			Name        string            `json:"name"`
-			Scheme      string            `json:"scheme"`
-			Address     string            `json:"address"`
-			MetricsPath string            `json:"metrics_path"`
-			Labels      map[string]string `json:"labels"`
-		} `json:"targets"`
-		Labels map[string]string `json:"labels"`
-	} `json:"resources"`
-	Nonce string `json:"nonce"`
+	VersionInfo string     `json:"version_info"`
+	Resources   []resource `json:"resources"`
+	Nonce       string     `json:"nonce"`
+}
+
+type resource struct {
+	Mesh    string            `json:"mesh"`
+	Service string            `json:"service"`
+	Targets []target          `json:"targets"`
+	Labels  map[string]string `json:"labels"`
+}
+
+type target struct {
+	Name        string            `json:"name"`
+	Scheme      string            `json:"scheme"`
+	Address     string            `json:"address"`
+	MetricsPath string            `json:"metrics_path"`
+	Labels      map[string]string `json:"labels"`
 }

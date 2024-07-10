@@ -8,7 +8,7 @@ import (
 )
 
 var graphiteMatchesPool = &sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return &graphiteMatches{}
 	},
 }

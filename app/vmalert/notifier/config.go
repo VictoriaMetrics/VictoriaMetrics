@@ -51,7 +51,7 @@ type Config struct {
 	Checksum string
 
 	// Catches all undefined fields and must be empty after parsing.
-	XXX map[string]interface{} `yaml:",inline"`
+	XXX map[string]any `yaml:",inline"`
 
 	// This is set to the directory from where the config has been loaded.
 	baseDir string
@@ -73,7 +73,7 @@ type StaticConfig struct {
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
-func (cfg *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (cfg *Config) UnmarshalYAML(unmarshal func(any) error) error {
 	type config Config
 	if err := unmarshal((*config)(cfg)); err != nil {
 		return err

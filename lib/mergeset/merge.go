@@ -44,7 +44,7 @@ func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStre
 }
 
 var bsmPool = &sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return &blockStreamMerger{}
 	},
 }
@@ -238,14 +238,14 @@ func (bh *bsrHeap) Less(i, j int) bool {
 	return x[i].CurrItem() < x[j].CurrItem()
 }
 
-func (bh *bsrHeap) Pop() interface{} {
+func (bh *bsrHeap) Pop() any {
 	a := *bh
 	v := a[len(a)-1]
 	*bh = a[:len(a)-1]
 	return v
 }
 
-func (bh *bsrHeap) Push(x interface{}) {
+func (bh *bsrHeap) Push(x any) {
 	v := x.(*blockStreamReader)
 	*bh = append(*bh, v)
 }

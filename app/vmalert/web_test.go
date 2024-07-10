@@ -36,7 +36,7 @@ func TestHandler(t *testing.T) {
 	}}
 	rh := &requestHandler{m: m}
 
-	getResp := func(t *testing.T, url string, to interface{}, code int) {
+	getResp := func(t *testing.T, url string, to any, code int) {
 		t.Helper()
 		resp, err := http.Get(url)
 		if err != nil {
@@ -241,7 +241,7 @@ func TestEmptyResponse(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { rhWithNoGroups.handler(w, r) }))
 	defer ts.Close()
 
-	getResp := func(t *testing.T, url string, to interface{}, code int) {
+	getResp := func(t *testing.T, url string, to any, code int) {
 		t.Helper()
 		resp, err := http.Get(url)
 		if err != nil {

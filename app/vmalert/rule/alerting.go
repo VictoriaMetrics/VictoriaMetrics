@@ -183,7 +183,7 @@ func (ar *AlertingRule) GetAlert(id uint64) *notifier.Alert {
 	return ar.alerts[id]
 }
 
-func (ar *AlertingRule) logDebugf(at time.Time, a *notifier.Alert, format string, args ...interface{}) {
+func (ar *AlertingRule) logDebugf(at time.Time, a *notifier.Alert, format string, args ...any) {
 	if !ar.Debug {
 		return
 	}

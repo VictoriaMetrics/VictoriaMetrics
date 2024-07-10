@@ -183,7 +183,7 @@ func (ar apiRule) WebLink() string {
 		paramGroupID, ar.GroupID, paramRuleID, ar.ID)
 }
 
-func ruleToAPI(r interface{}) apiRule {
+func ruleToAPI(r any) apiRule {
 	if ar, ok := r.(*rule.AlertingRule); ok {
 		return alertingToAPI(ar)
 	}

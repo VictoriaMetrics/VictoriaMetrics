@@ -535,7 +535,7 @@ func (b *bucket32) forEach(f func(part []uint64) bool) bool {
 }
 
 var partBufPool = &sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		buf := make([]uint64, 0, bitsPerBucket)
 		return &buf
 	},
@@ -948,7 +948,7 @@ func (b *bucket16) appendTo(dst []uint64, hi uint32, hi16 uint16) []uint64 {
 }
 
 var smallPoolSorterPool = &sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return &smallPoolSorter{}
 	},
 }

@@ -12,31 +12,45 @@ import (
 
 // https://docs.docker.com/engine/api/v1.40/#tag/Service
 type service struct {
-	ID   string
-	Spec struct {
-		Labels       map[string]string
-		Name         string
-		TaskTemplate struct {
-			ContainerSpec struct {
-				Hostname string
-				Image    string
-			}
-		}
-		Mode struct {
-			Global     interface{}
-			Replicated interface{}
-		}
-	}
-	UpdateStatus struct {
-		State string
-	}
-	Endpoint struct {
-		Ports      []portConfig
-		VirtualIPs []struct {
-			NetworkID string
-			Addr      string
-		}
-	}
+	ID           string
+	Spec         serviceSpec
+	UpdateStatus serviceUpdateStatus
+	Endpoint     serviceEndpoint
+}
+
+type serviceSpec struct {
+	Labels       map[string]string
+	Name         string
+	TaskTemplate taskTemplate
+	Mode         serviceSpecMode
+}
+
+type taskTemplate struct {
+	ContainerSpec containerSpec
+}
+
+type containerSpec struct {
+	Hostname string
+	Image    string
+}
+
+type serviceSpecMode struct {
+	Global     any
+	Replicated any
+}
+
+type serviceUpdateStatus struct {
+	State string
+}
+
+type serviceEndpoint struct {
+	Ports      []portConfig
+	VirtualIPs []virtualIP
+}
+
+type virtualIP struct {
+	NetworkID string
+	Addr      string
 }
 
 type portConfig struct {

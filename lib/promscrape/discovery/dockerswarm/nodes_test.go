@@ -8,20 +8,21 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
-func Test_parseNodes(t *testing.T) {
-	type args struct {
-		data []byte
+func TestParseNodes(t *testing.T) {
+	f := func(data string, resultExpected []node) {
+		t.Helper()
+
+		result, err := parseNodes([]byte(data))
+		if err != nil {
+			t.Fatalf("parseNodes() error: %s", err)
+		}
+		if !reflect.DeepEqual(result, resultExpected) {
+			t.Fatalf("unexpected result;\ngot\n%v\nwant\n%v", result, resultExpected)
+		}
 	}
-	tests := []struct {
-		name    string
-		args    args
-		want    []node
-		wantErr bool
-	}{
-		{
-			name: "parse ok",
-			args: args{
-				data: []byte(`[
+
+	// parse ok
+	data := `[
   {
     "ID": "qauwmifceyvqs0sipvzu8oslu",
     "Version": {
@@ -51,131 +52,81 @@ func Test_parseNodes(t *testing.T) {
     }
   }
 ]
-`),
+`
+	resultExpected := []node{
+		{
+			ID: "qauwmifceyvqs0sipvzu8oslu",
+			Spec: nodeSpec{
+				Role:         "manager",
+				Availability: "active",
 			},
-			want: []node{
-				{
-					ID: "qauwmifceyvqs0sipvzu8oslu",
-					Spec: struct {
-						Labels       map[string]string
-						Role         string
-						Availability string
-					}{Role: "manager", Availability: "active"},
-					Status: struct {
-						State   string
-						Message string
-						Addr    string
-					}{State: "ready", Addr: "172.31.40.97"},
-					Description: struct {
-						Hostname string
-						Platform struct {
-							Architecture string
-							OS           string
-						}
-						Engine struct{ EngineVersion string }
-					}{
-						Hostname: "ip-172-31-40-97",
-						Platform: struct {
-							Architecture string
-							OS           string
-						}{
-							Architecture: "x86_64",
-							OS:           "linux",
-						},
-						Engine: struct{ EngineVersion string }{
-							EngineVersion: "19.03.11",
-						},
-					},
+			Status: nodeStatus{
+				State: "ready",
+				Addr:  "172.31.40.97",
+			},
+			Description: nodeDescription{
+				Hostname: "ip-172-31-40-97",
+				Platform: nodePlatform{
+					Architecture: "x86_64",
+					OS:           "linux",
+				},
+				Engine: nodeEngine{
+					EngineVersion: "19.03.11",
 				},
 			},
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseNodes(tt.args.data)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("parseNodes() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parseNodes() \ngot  %v, \nwant %v", got, tt.want)
-			}
-		})
-	}
+	f(data, resultExpected)
 }
 
-func Test_addNodeLabels(t *testing.T) {
-	type args struct {
-		nodes []node
-		port  int
+func TestAddNodeLabels(t *testing.T) {
+	f := func(nodes []node, port int, resultExpected []*promutils.Labels) {
+		t.Helper()
+
+		result := addNodeLabels(nodes, port)
+		discoveryutils.TestEqualLabelss(t, result, resultExpected)
 	}
-	tests := []struct {
-		name string
-		args args
-		want []*promutils.Labels
-	}{
+
+	// add labels to one node
+	nodes := []node{
 		{
-			name: "add labels to one node",
-			args: args{
-				nodes: []node{
-					{
-						ID: "qauwmifceyvqs0sipvzu8oslu",
-						Spec: struct {
-							Labels       map[string]string
-							Role         string
-							Availability string
-						}{Role: "manager", Availability: "active"},
-						Status: struct {
-							State   string
-							Message string
-							Addr    string
-						}{State: "ready", Addr: "172.31.40.97"},
-						Description: struct {
-							Hostname string
-							Platform struct {
-								Architecture string
-								OS           string
-							}
-							Engine struct{ EngineVersion string }
-						}{
-							Hostname: "ip-172-31-40-97",
-							Platform: struct {
-								Architecture string
-								OS           string
-							}{
-								Architecture: "x86_64",
-								OS:           "linux",
-							},
-							Engine: struct{ EngineVersion string }{
-								EngineVersion: "19.03.11",
-							},
-						},
-					},
-				},
-				port: 9100,
+			ID: "qauwmifceyvqs0sipvzu8oslu",
+			Spec: nodeSpec{
+				Role:         "manager",
+				Availability: "active",
 			},
-			want: []*promutils.Labels{
-				promutils.NewLabelsFromMap(map[string]string{
-					"__address__":                                   "172.31.40.97:9100",
-					"__meta_dockerswarm_node_address":               "172.31.40.97",
-					"__meta_dockerswarm_node_availability":          "active",
-					"__meta_dockerswarm_node_engine_version":        "19.03.11",
-					"__meta_dockerswarm_node_hostname":              "ip-172-31-40-97",
-					"__meta_dockerswarm_node_manager_address":       "",
-					"__meta_dockerswarm_node_manager_leader":        "false",
-					"__meta_dockerswarm_node_manager_reachability":  "",
-					"__meta_dockerswarm_node_id":                    "qauwmifceyvqs0sipvzu8oslu",
-					"__meta_dockerswarm_node_platform_architecture": "x86_64",
-					"__meta_dockerswarm_node_platform_os":           "linux",
-					"__meta_dockerswarm_node_role":                  "manager",
-					"__meta_dockerswarm_node_status":                "ready",
-				})},
+			Status: nodeStatus{
+				State: "ready",
+				Addr:  "172.31.40.97",
+			},
+			Description: nodeDescription{
+				Hostname: "ip-172-31-40-97",
+				Platform: nodePlatform{
+					Architecture: "x86_64",
+					OS:           "linux",
+				},
+				Engine: nodeEngine{
+					EngineVersion: "19.03.11",
+				},
+			},
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := addNodeLabels(tt.args.nodes, tt.args.port)
-			discoveryutils.TestEqualLabelss(t, got, tt.want)
-		})
+	labelssExpected := []*promutils.Labels{
+		promutils.NewLabelsFromMap(map[string]string{
+			"__address__":                                   "172.31.40.97:9100",
+			"__meta_dockerswarm_node_address":               "172.31.40.97",
+			"__meta_dockerswarm_node_availability":          "active",
+			"__meta_dockerswarm_node_engine_version":        "19.03.11",
+			"__meta_dockerswarm_node_hostname":              "ip-172-31-40-97",
+			"__meta_dockerswarm_node_manager_address":       "",
+			"__meta_dockerswarm_node_manager_leader":        "false",
+			"__meta_dockerswarm_node_manager_reachability":  "",
+			"__meta_dockerswarm_node_id":                    "qauwmifceyvqs0sipvzu8oslu",
+			"__meta_dockerswarm_node_platform_architecture": "x86_64",
+			"__meta_dockerswarm_node_platform_os":           "linux",
+			"__meta_dockerswarm_node_role":                  "manager",
+			"__meta_dockerswarm_node_status":                "ready",
+		}),
 	}
+	f(nodes, 9100, labelssExpected)
 }

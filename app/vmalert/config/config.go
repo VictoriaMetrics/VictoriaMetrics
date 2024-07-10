@@ -45,11 +45,11 @@ type Group struct {
 	// EvalAlignment will make the timestamp of group query requests be aligned with interval
 	EvalAlignment *bool `yaml:"eval_alignment,omitempty"`
 	// Catches all undefined fields and must be empty after parsing.
-	XXX map[string]interface{} `yaml:",inline"`
+	XXX map[string]any `yaml:",inline"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
-func (g *Group) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (g *Group) UnmarshalYAML(unmarshal func(any) error) error {
 	type group Group
 	if err := unmarshal((*group)(g)); err != nil {
 		return err
@@ -142,11 +142,11 @@ type Rule struct {
 	UpdateEntriesLimit *int `yaml:"update_entries_limit,omitempty"`
 
 	// Catches all undefined fields and must be empty after parsing.
-	XXX map[string]interface{} `yaml:",inline"`
+	XXX map[string]any `yaml:",inline"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
-func (r *Rule) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (r *Rule) UnmarshalYAML(unmarshal func(any) error) error {
 	type rule Rule
 	if err := unmarshal((*rule)(r)); err != nil {
 		return err
@@ -301,7 +301,7 @@ func parseConfig(data []byte) ([]Group, error) {
 	g := struct {
 		Groups []Group `yaml:"groups"`
 		// Catches all undefined fields and must be empty after parsing.
-		XXX map[string]interface{} `yaml:",inline"`
+		XXX map[string]any `yaml:",inline"`
 	}{}
 	err = yaml.Unmarshal(data, &g)
 	if err != nil {
@@ -310,7 +310,7 @@ func parseConfig(data []byte) ([]Group, error) {
 	return g.Groups, checkOverflow(g.XXX, "config")
 }
 
-func checkOverflow(m map[string]interface{}, ctx string) error {
+func checkOverflow(m map[string]any, ctx string) error {
 	if len(m) > 0 {
 		var keys []string
 		for k := range m {

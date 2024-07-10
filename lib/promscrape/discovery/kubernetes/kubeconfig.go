@@ -20,21 +20,27 @@ type apiConfig struct {
 // Config represent configuration file for kubernetes API server connection
 // https://github.com/kubernetes/client-go/blob/master/tools/clientcmd/api/v1/types.go#L28
 type Config struct {
-	Kind       string `yaml:"kind,omitempty"`
-	APIVersion string `yaml:"apiVersion,omitempty"`
-	Clusters   []struct {
-		Name    string   `yaml:"name"`
-		Cluster *Cluster `yaml:"cluster"`
-	} `yaml:"clusters"`
-	AuthInfos []struct {
-		Name     string    `yaml:"name"`
-		AuthInfo *AuthInfo `yaml:"user"`
-	} `yaml:"users"`
-	Contexts []struct {
-		Name    string   `yaml:"name"`
-		Context *Context `yaml:"context"`
-	} `yaml:"contexts"`
-	CurrentContext string `yaml:"current-context"`
+	Kind           string          `yaml:"kind,omitempty"`
+	APIVersion     string          `yaml:"apiVersion,omitempty"`
+	Clusters       []configCluster `yaml:"clusters"`
+	AuthInfos      []authInfo      `yaml:"users"`
+	Contexts       []configContext `yaml:"contexts"`
+	CurrentContext string          `yaml:"current-context"`
+}
+
+type configCluster struct {
+	Name    string   `yaml:"name"`
+	Cluster *Cluster `yaml:"cluster"`
+}
+
+type authInfo struct {
+	Name     string    `yaml:"name"`
+	AuthInfo *AuthInfo `yaml:"user"`
+}
+
+type configContext struct {
+	Name    string   `yaml:"name"`
+	Context *Context `yaml:"context"`
 }
 
 // Cluster contains information about how to communicate with a kubernetes cluster

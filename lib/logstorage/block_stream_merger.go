@@ -302,12 +302,12 @@ func (h *blockStreamReadersHeap) Swap(i, j int) {
 	x[i], x[j] = x[j], x[i]
 }
 
-func (h *blockStreamReadersHeap) Push(v interface{}) {
+func (h *blockStreamReadersHeap) Push(v any) {
 	bsr := v.(*blockStreamReader)
 	*h = append(*h, bsr)
 }
 
-func (h *blockStreamReadersHeap) Pop() interface{} {
+func (h *blockStreamReadersHeap) Pop() any {
 	x := *h
 	bsr := x[len(x)-1]
 	x[len(x)-1] = nil

@@ -14,10 +14,12 @@ import (
 //
 // See https://docs.openstack.org/api-ref/identity/v3/#authentication-and-token-management
 type authResponse struct {
-	Token struct {
-		ExpiresAt time.Time     `json:"expires_at,omitempty"`
-		Catalog   []catalogItem `json:"catalog,omitempty"`
-	}
+	Token authToken
+}
+
+type authToken struct {
+	ExpiresAt time.Time     `json:"expires_at,omitempty"`
+	Catalog   []catalogItem `json:"catalog,omitempty"`
 }
 
 type catalogItem struct {
@@ -88,8 +90,8 @@ func buildAuthRequestBody(sdc *SDConfig) ([]byte, error) {
 		ApplicationCredential *applicationCredentialReq `json:"application_credential,omitempty"`
 	}
 	type authReq struct {
-		Identity identityReq            `json:"identity"`
-		Scope    map[string]interface{} `json:"scope,omitempty"`
+		Identity identityReq    `json:"identity"`
+		Scope    map[string]any `json:"scope,omitempty"`
 	}
 	type request struct {
 		Auth authReq `json:"auth"`
@@ -231,7 +233,7 @@ func buildAuthRequestBody(sdc *SDConfig) ([]byte, error) {
 // buildScope adds scope information into auth request
 //
 // See https://docs.openstack.org/api-ref/identity/v3/#password-authentication-with-unscoped-authorization
-func buildScope(sdc *SDConfig) (map[string]interface{}, error) {
+func buildScope(sdc *SDConfig) (map[string]any, error) {
 	if len(sdc.ProjectName) == 0 && len(sdc.ProjectID) == 0 && len(sdc.DomainID) == 0 && len(sdc.DomainName) == 0 {
 		return nil, nil
 	}
@@ -242,24 +244,24 @@ func buildScope(sdc *SDConfig) (map[string]interface{}, error) {
 			return nil, fmt.Errorf("domain_id or domain_name must present")
 		}
 		if len(sdc.DomainID) > 0 {
-			return map[string]interface{}{
-				"project": map[string]interface{}{
+			return map[string]any{
+				"project": map[string]any{
 					"name":   &sdc.ProjectName,
-					"domain": map[string]interface{}{"id": &sdc.DomainID},
+					"domain": map[string]any{"id": &sdc.DomainID},
 				},
 			}, nil
 		}
 		if len(sdc.DomainName) > 0 {
-			return map[string]interface{}{
-				"project": map[string]interface{}{
+			return map[string]any{
+				"project": map[string]any{
 					"name":   &sdc.ProjectName,
-					"domain": map[string]interface{}{"name": &sdc.DomainName},
+					"domain": map[string]any{"name": &sdc.DomainName},
 				},
 			}, nil
 		}
 	} else if len(sdc.ProjectID) > 0 {
-		return map[string]interface{}{
-			"project": map[string]interface{}{
+		return map[string]any{
+			"project": map[string]any{
 				"id": &sdc.ProjectID,
 			},
 		}, nil
@@ -267,14 +269,14 @@ func buildScope(sdc *SDConfig) (map[string]interface{}, error) {
 		if len(sdc.DomainName) > 0 {
 			return nil, fmt.Errorf("both domain_id and domain_name present")
 		}
-		return map[string]interface{}{
-			"domain": map[string]interface{}{
+		return map[string]any{
+			"domain": map[string]any{
 				"id": &sdc.DomainID,
 			},
 		}, nil
 	} else if len(sdc.DomainName) > 0 {
-		return map[string]interface{}{
-			"domain": map[string]interface{}{
+		return map[string]any{
+			"domain": map[string]any{
 				"name": &sdc.DomainName,
 			},
 		}, nil

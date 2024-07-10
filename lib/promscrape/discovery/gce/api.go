@@ -25,7 +25,7 @@ type apiConfig struct {
 var configMap = discoveryutils.NewConfigMap()
 
 func getAPIConfig(sdc *SDConfig) (*apiConfig, error) {
-	v, err := configMap.Get(sdc, func() (interface{}, error) { return newAPIConfig(sdc) })
+	v, err := configMap.Get(sdc, func() (any, error) { return newAPIConfig(sdc) })
 	if err != nil {
 		return nil, err
 	}

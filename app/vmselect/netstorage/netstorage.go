@@ -734,11 +734,11 @@ func (sbh *sortBlocksHeap) Swap(i, j int) {
 	sbs[i], sbs[j] = sbs[j], sbs[i]
 }
 
-func (sbh *sortBlocksHeap) Push(x interface{}) {
+func (sbh *sortBlocksHeap) Push(x any) {
 	sbh.sbs = append(sbh.sbs, x.(*sortBlock))
 }
 
-func (sbh *sortBlocksHeap) Pop() interface{} {
+func (sbh *sortBlocksHeap) Pop() any {
 	sbs := sbh.sbs
 	v := sbs[len(sbs)-1]
 	sbs[len(sbs)-1] = nil
@@ -1084,7 +1084,7 @@ func (xw *exportWork) reset() {
 }
 
 var exportWorkPool = &sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return &exportWork{}
 	},
 }

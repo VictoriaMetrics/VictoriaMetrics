@@ -69,7 +69,7 @@ func (t *Type) ValidateExpr(expr string) error {
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
-func (t *Type) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (t *Type) UnmarshalYAML(unmarshal func(any) error) error {
 	var s string
 	if err := unmarshal(&s); err != nil {
 		return err
@@ -87,7 +87,7 @@ func (t *Type) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // MarshalYAML implements the yaml.Unmarshaler interface.
-func (t Type) MarshalYAML() (interface{}, error) {
+func (t Type) MarshalYAML() (any, error) {
 	return t.Name, nil
 }
 
@@ -98,7 +98,7 @@ type Header struct {
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
-func (h *Header) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (h *Header) UnmarshalYAML(unmarshal func(any) error) error {
 	var s string
 	if err := unmarshal(&s); err != nil {
 		return err

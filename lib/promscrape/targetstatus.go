@@ -414,7 +414,7 @@ func labelsHash(labels *promutils.Labels) uint64 {
 }
 
 var xxhashPool = &sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return xxhash.New()
 	},
 }

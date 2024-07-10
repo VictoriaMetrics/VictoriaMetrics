@@ -79,12 +79,14 @@ func parseProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor) (int
 	req := getPushRequest()
 	defer putPushRequest(req)
 
-	err = req.Unmarshal(bb.B)
+	err = req.UnmarshalProtobuf(bb.B)
 	if err != nil {
 		return 0, fmt.Errorf("cannot parse request body: %w", err)
 	}
 
-	var commonFields []logstorage.Field
+	fields := getFields()
+	defer putFields(fields)
+
 	rowsIngested := 0
 	streams := req.Streams
 	currentTimestamp := time.Now().UnixNano()
@@ -92,28 +94,58 @@ func parseProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor) (int
 		stream := &streams[i]
 		// st.Labels contains labels for the stream.
 		// Labels are same for all entries in the stream.
-		commonFields, err = parsePromLabels(commonFields[:0], stream.Labels)
+		fields.fields, err = parsePromLabels(fields.fields[:0], stream.Labels)
 		if err != nil {
 			return rowsIngested, fmt.Errorf("cannot parse stream labels %q: %w", stream.Labels, err)
 		}
-		fields := commonFields
+		commonFieldsLen := len(fields.fields)
 
 		entries := stream.Entries
 		for j := range entries {
-			entry := &entries[j]
-			fields = append(fields[:len(commonFields)], logstorage.Field{
+			e := &entries[j]
+			fields.fields = fields.fields[:commonFieldsLen]
+
+			for _, lp := range e.StructuredMetadata {
+				fields.fields = append(fields.fields, logstorage.Field{
+					Name:  lp.Name,
+					Value: lp.Value,
+				})
+			}
+
+			fields.fields = append(fields.fields, logstorage.Field{
 				Name:  "_msg",
-				Value: entry.Line,
+				Value: e.Line,
 			})
-			ts := entry.Timestamp.UnixNano()
+
+			ts := e.Timestamp.UnixNano()
 			if ts == 0 {
 				ts = currentTimestamp
 			}
-			lmp.AddRow(ts, fields)
+
+			lmp.AddRow(ts, fields.fields)
 		}
 		rowsIngested += len(stream.Entries)
 	}
 	return rowsIngested, nil
+}
+
+func getFields() *fields {
+	v := fieldsPool.Get()
+	if v == nil {
+		return &fields{}
+	}
+	return v.(*fields)
+}
+
+func putFields(f *fields) {
+	f.fields = f.fields[:0]
+	fieldsPool.Put(f)
+}
+
+var fieldsPool sync.Pool
+
+type fields struct {
+	fields []logstorage.Field
 }
 
 // parsePromLabels parses log fields in Prometheus text exposition format from s, appends them to dst and returns the result.
@@ -181,6 +213,6 @@ func getPushRequest() *PushRequest {
 }
 
 func putPushRequest(req *PushRequest) {
-	req.Reset()
+	req.reset()
 	pushReqsPool.Put(req)
 }

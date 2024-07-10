@@ -72,7 +72,7 @@ type apiConfig struct {
 type refreshTokenFunc func() (string, time.Duration, error)
 
 func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
-	v, err := configMap.Get(sdc, func() (interface{}, error) { return newAPIConfig(sdc, baseDir) })
+	v, err := configMap.Get(sdc, func() (any, error) { return newAPIConfig(sdc, baseDir) })
 	if err != nil {
 		return nil, err
 	}

@@ -34,13 +34,13 @@ func NewLabelsFromMap(m map[string]string) *Labels {
 }
 
 // MarshalYAML implements yaml.Marshaler interface.
-func (x *Labels) MarshalYAML() (interface{}, error) {
+func (x *Labels) MarshalYAML() (any, error) {
 	m := x.ToMap()
 	return m, nil
 }
 
 // UnmarshalYAML implements yaml.Unmarshaler interface.
-func (x *Labels) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (x *Labels) UnmarshalYAML(unmarshal func(any) error) error {
 	var m map[string]string
 	if err := unmarshal(&m); err != nil {
 		return err

@@ -7,45 +7,30 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
-func Test_parseAPIResponse(t *testing.T) {
-	type args struct {
-		data []byte
-		path string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    []httpGroupTarget
-		wantErr bool
-	}{
+func TestParseAPIResponse(t *testing.T) {
+	f := func(data, path string, resultExpected []httpGroupTarget) {
+		t.Helper()
 
-		{
-			name: "parse ok",
-			args: args{
-				path: "/ok",
-				data: []byte(`[
+		result, err := parseAPIResponse([]byte(data), path)
+		if err != nil {
+			t.Fatalf("parseAPIResponse() error: %s", err)
+		}
+		if !reflect.DeepEqual(result, resultExpected) {
+			t.Fatalf("unexpected result\ngot\n%v\nwant\n%v", result, resultExpected)
+		}
+	}
+
+	// parse ok
+	data := `[
                 {"targets": ["http://target-1:9100","http://target-2:9150"],
                 "labels": {"label-1":"value-1"} }
-                ]`),
-			},
-			want: []httpGroupTarget{
-				{
-					Labels:  promutils.NewLabelsFromMap(map[string]string{"label-1": "value-1"}),
-					Targets: []string{"http://target-1:9100", "http://target-2:9150"},
-				},
-			},
+                ]`
+	path := "/ok"
+	resultExpected := []httpGroupTarget{
+		{
+			Labels:  promutils.NewLabelsFromMap(map[string]string{"label-1": "value-1"}),
+			Targets: []string{"http://target-1:9100", "http://target-2:9150"},
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseAPIResponse(tt.args.data, tt.args.path)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("parseAPIResponse() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parseAPIResponse() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	f(data, path, resultExpected)
 }

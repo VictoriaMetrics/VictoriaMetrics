@@ -43,12 +43,12 @@ func NewSecret(s string) *Secret {
 // MarshalYAML implements yaml.Marshaler interface.
 //
 // It substitutes the secret with "<secret>" string.
-func (s *Secret) MarshalYAML() (interface{}, error) {
+func (s *Secret) MarshalYAML() (any, error) {
 	return "<secret>", nil
 }
 
 // UnmarshalYAML implements yaml.Unmarshaler interface.
-func (s *Secret) UnmarshalYAML(f func(interface{}) error) error {
+func (s *Secret) UnmarshalYAML(f func(any) error) error {
 	var secret string
 	if err := f(&secret); err != nil {
 		return fmt.Errorf("cannot parse secret: %w", err)

@@ -194,11 +194,11 @@ func (ptsh *partitionSearchHeap) Swap(i, j int) {
 	x[i], x[j] = x[j], x[i]
 }
 
-func (ptsh *partitionSearchHeap) Push(x interface{}) {
+func (ptsh *partitionSearchHeap) Push(x any) {
 	*ptsh = append(*ptsh, x.(*partitionSearch))
 }
 
-func (ptsh *partitionSearchHeap) Pop() interface{} {
+func (ptsh *partitionSearchHeap) Pop() any {
 	a := *ptsh
 	v := a[len(a)-1]
 	*ptsh = a[:len(a)-1]

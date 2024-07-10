@@ -28,7 +28,7 @@ func TestDuration(t *testing.T) {
 	if s := v.(string); s != sExpected {
 		t.Fatalf("unexpected value from MarshalYAML(); got %q; want %q", s, sExpected)
 	}
-	if err := d.UnmarshalYAML(func(v interface{}) error {
+	if err := d.UnmarshalYAML(func(v any) error {
 		sp := v.(*string)
 		s := "1w3d5h"
 		*sp = s

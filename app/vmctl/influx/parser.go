@@ -12,7 +12,7 @@ import (
 
 type queryValues struct {
 	name   string
-	values map[string][]interface{}
+	values map[string][]any
 }
 
 func parseResult(r influx.Result) ([]queryValues, error) {
@@ -21,7 +21,7 @@ func parseResult(r influx.Result) ([]queryValues, error) {
 	}
 	qValues := make([]queryValues, len(r.Series))
 	for i, row := range r.Series {
-		values := make(map[string][]interface{}, len(row.Values))
+		values := make(map[string][]any, len(row.Values))
 		for _, value := range row.Values {
 			for idx, v := range value {
 				key := row.Columns[idx]
@@ -36,7 +36,7 @@ func parseResult(r influx.Result) ([]queryValues, error) {
 	return qValues, nil
 }
 
-func toFloat64(v interface{}) (float64, error) {
+func toFloat64(v any) (float64, error) {
 	switch i := v.(type) {
 	case json.Number:
 		return i.Float64()

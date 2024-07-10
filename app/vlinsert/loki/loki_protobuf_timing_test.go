@@ -9,6 +9,7 @@ import (
 	"github.com/golang/snappy"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 func BenchmarkParseProtobufRequest(b *testing.B) {
@@ -38,29 +39,47 @@ func benchmarkParseProtobufRequest(b *testing.B, streams, rows, labels int) {
 	})
 }
 
-func getProtobufBody(streams, rows, labels int) []byte {
-	var pr PushRequest
-
-	for i := 0; i < streams; i++ {
-		var st Stream
-
-		st.Labels = `{`
-		for j := 0; j < labels; j++ {
-			st.Labels += `label_` + strconv.Itoa(j) + `="value_` + strconv.Itoa(j) + `"`
-			if j < labels-1 {
-				st.Labels += `,`
+func getProtobufBody(streamsCount, rowsCount, labelsCount int) []byte {
+	var b []byte
+	var entries []Entry
+	streams := make([]Stream, streamsCount)
+	for i := range streams {
+		b = b[:0]
+		b = append(b, '{')
+		for j := 0; j < labelsCount; j++ {
+			b = append(b, "label_"...)
+			b = strconv.AppendInt(b, int64(j), 10)
+			b = append(b, `="value_`...)
+			b = strconv.AppendInt(b, int64(j), 10)
+			b = append(b, '"')
+			if j < labelsCount-1 {
+				b = append(b, ',')
 			}
 		}
-		st.Labels += `}`
+		b = append(b, '}')
+		labels := string(b)
 
-		for j := 0; j < rows; j++ {
-			st.Entries = append(st.Entries, Entry{Timestamp: time.Now(), Line: "value_" + strconv.Itoa(j)})
+		var rowsBuf []byte
+		entriesLen := len(entries)
+		for j := 0; j < rowsCount; j++ {
+			rowsBufLen := len(rowsBuf)
+			rowsBuf = append(rowsBuf, "value_"...)
+			rowsBuf = strconv.AppendInt(rowsBuf, int64(j), 10)
+			entries = append(entries, Entry{
+				Timestamp: time.Now(),
+				Line:      bytesutil.ToUnsafeString(rowsBuf[rowsBufLen:]),
+			})
 		}
 
-		pr.Streams = append(pr.Streams, st)
+		st := &streams[i]
+		st.Labels = labels
+		st.Entries = entries[entriesLen:]
+	}
+	pr := PushRequest{
+		Streams: streams,
 	}
 
-	body, _ := pr.Marshal()
+	body := pr.MarshalProtobuf(nil)
 	encodedBody := snappy.Encode(nil, body)
 
 	return encodedBody

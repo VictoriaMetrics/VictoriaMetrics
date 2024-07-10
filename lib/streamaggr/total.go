@@ -127,7 +127,7 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 func (as *totalAggrState) removeOldEntries(ctx *flushCtx, currentTime uint64) {
 	m := &as.m
 	var staleInputSamples, staleOutputSamples int
-	m.Range(func(k, v interface{}) bool {
+	m.Range(func(k, v any) bool {
 		sv := v.(*totalStateValue)
 
 		sv.mu.Lock()
@@ -164,7 +164,7 @@ func (as *totalAggrState) flushState(ctx *flushCtx, resetState bool) {
 	as.removeOldEntries(ctx, currentTime)
 
 	m := &as.m
-	m.Range(func(k, v interface{}) bool {
+	m.Range(func(k, v any) bool {
 		sv := v.(*totalStateValue)
 		sv.mu.Lock()
 		total := sv.total

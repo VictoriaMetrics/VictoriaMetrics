@@ -475,7 +475,7 @@ func delayBeforeStart(ts time.Time, key uint64, interval time.Duration, offset *
 	return randSleep
 }
 
-func (g *Group) infof(format string, args ...interface{}) {
+func (g *Group) infof(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	logger.Infof("group %q %s; interval=%v; eval_offset=%v; concurrency=%d",
 		g.Name, msg, g.Interval, g.EvalOffset, g.Concurrency)

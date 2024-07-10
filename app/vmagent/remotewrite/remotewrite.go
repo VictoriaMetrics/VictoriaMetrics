@@ -1000,7 +1000,7 @@ func (rwctx *remoteWriteCtx) tryPushInternal(tss []prompbmarshal.TimeSeries) boo
 }
 
 var tssPool = &sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		a := []prompbmarshal.TimeSeries{}
 		return &a
 	},

@@ -82,7 +82,7 @@ func (fst *FastStringTransformer) Transform(s string) string {
 		// Perform a global cleanup for fst.m by removing items, which weren't accessed during the last 5 minutes.
 		m := &fst.m
 		deadline := ct - uint64(cacheExpireDuration.Seconds())
-		m.Range(func(k, v interface{}) bool {
+		m.Range(func(k, v any) bool {
 			e := v.(*fstEntry)
 			if e.lastAccessTime.Load() < deadline {
 				m.Delete(k)

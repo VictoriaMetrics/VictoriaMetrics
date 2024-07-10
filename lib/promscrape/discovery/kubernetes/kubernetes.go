@@ -70,12 +70,12 @@ type Selector struct {
 }
 
 // ScrapeWorkConstructorFunc must construct ScrapeWork object for the given metaLabels.
-type ScrapeWorkConstructorFunc func(metaLabels *promutils.Labels) interface{}
+type ScrapeWorkConstructorFunc func(metaLabels *promutils.Labels) any
 
 // GetScrapeWorkObjects returns ScrapeWork objects for the given sdc.
 //
 // This function must be called after MustStart call.
-func (sdc *SDConfig) GetScrapeWorkObjects() ([]interface{}, error) {
+func (sdc *SDConfig) GetScrapeWorkObjects() ([]any, error) {
 	if sdc.cfg == nil {
 		return nil, sdc.startErr
 	}

@@ -12,11 +12,13 @@ import (
 
 // See https://docs.openstack.org/api-ref/compute/#list-hypervisors-details
 type hypervisorDetail struct {
-	Hypervisors []hypervisor `json:"hypervisors"`
-	Links       []struct {
-		HREF string `json:"href"`
-		Rel  string `json:"rel,omitempty"`
-	} `json:"hypervisors_links,omitempty"`
+	Hypervisors []hypervisor     `json:"hypervisors"`
+	Links       []hypervisorLink `json:"hypervisors_links,omitempty"`
+}
+
+type hypervisorLink struct {
+	HREF string `json:"href"`
+	Rel  string `json:"rel,omitempty"`
 }
 
 type hypervisor struct {

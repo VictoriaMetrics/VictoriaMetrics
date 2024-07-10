@@ -253,7 +253,7 @@ func putHistogram(h *histogram.Fast) {
 }
 
 var histogramPool = &sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return histogram.NewFast()
 	},
 }

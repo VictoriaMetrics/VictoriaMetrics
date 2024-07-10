@@ -11,24 +11,32 @@ import (
 
 // See https://github.com/moby/moby/blob/314759dc2f4745925d8dec6d15acc7761c6e5c92/docs/api/v1.41.yaml#L4024
 type container struct {
-	ID     string
-	Names  []string
-	Labels map[string]string
-	Ports  []struct {
-		IP          string
-		PrivatePort int
-		PublicPort  int
-		Type        string
-	}
-	HostConfig struct {
-		NetworkMode string
-	}
-	NetworkSettings struct {
-		Networks map[string]struct {
-			IPAddress string
-			NetworkID string
-		}
-	}
+	ID              string
+	Names           []string
+	Labels          map[string]string
+	Ports           []containerPort
+	HostConfig      containerHostConfig
+	NetworkSettings containerNetworkSettings
+}
+
+type containerPort struct {
+	IP          string
+	PrivatePort int
+	PublicPort  int
+	Type        string
+}
+
+type containerHostConfig struct {
+	NetworkMode string
+}
+
+type containerNetworkSettings struct {
+	Networks map[string]containerNetwork
+}
+
+type containerNetwork struct {
+	IPAddress string
+	NetworkID string
 }
 
 func getContainersLabels(cfg *apiConfig) ([]*promutils.Labels, error) {

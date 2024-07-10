@@ -65,7 +65,7 @@ func (c *Cache) MustStop() {
 }
 
 // RemoveBlocksForPart removes all the blocks for the given part from the cache.
-func (c *Cache) RemoveBlocksForPart(p interface{}) {
+func (c *Cache) RemoveBlocksForPart(p any) {
 	for _, shard := range c.shards {
 		shard.RemoveBlocksForPart(p)
 	}
@@ -185,7 +185,7 @@ type cache struct {
 	mu sync.Mutex
 
 	// m contains cached blocks keyed by Key.Part and then by Key.Offset
-	m map[interface{}]map[uint64]*cacheEntry
+	m map[any]map[uint64]*cacheEntry
 
 	// perKeyMisses contains per-block cache misses.
 	//
@@ -199,7 +199,7 @@ type cache struct {
 // Key represents a key, which uniquely identifies the Block.
 type Key struct {
 	// Part must contain a pointer to part structure where the block belongs to.
-	Part interface{}
+	Part any
 
 	// Offset is the offset of the block in the part.
 	Offset uint64
@@ -233,12 +233,12 @@ type cacheEntry struct {
 func newCache(getMaxSizeBytes func() int) *cache {
 	var c cache
 	c.getMaxSizeBytes = getMaxSizeBytes
-	c.m = make(map[interface{}]map[uint64]*cacheEntry)
+	c.m = make(map[any]map[uint64]*cacheEntry)
 	c.perKeyMisses = make(map[Key]int)
 	return &c
 }
 
-func (c *cache) RemoveBlocksForPart(p interface{}) {
+func (c *cache) RemoveBlocksForPart(p any) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -398,13 +398,13 @@ func (lah *lastAccessHeap) Less(i, j int) bool {
 	h := *lah
 	return h[i].lastAccessTime < h[j].lastAccessTime
 }
-func (lah *lastAccessHeap) Push(x interface{}) {
+func (lah *lastAccessHeap) Push(x any) {
 	e := x.(*cacheEntry)
 	h := *lah
 	e.heapIdx = len(h)
 	*lah = append(h, e)
 }
-func (lah *lastAccessHeap) Pop() interface{} {
+func (lah *lastAccessHeap) Pop() any {
 	h := *lah
 	e := h[len(h)-1]
 
