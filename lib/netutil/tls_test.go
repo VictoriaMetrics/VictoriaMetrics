@@ -114,7 +114,7 @@ func TestGetServerTLSConfig(t *testing.T) {
 		t.Helper()
 		_, err := GetServerTLSConfig(tlsCertFile, tlsKeyFile, "", []string{})
 		if !reflect.DeepEqual(err, expectedErr) {
-			t.Fatalf("expected err %v, get error: %v", expectedErr, err)
+			t.Fatalf("expected err: %v, get error: %v", expectedErr, err)
 		}
 	}
 
@@ -141,7 +141,7 @@ sWswtTQyQldPeQIkIz1p
 -----END CERTIFICATE-----`), os.ModePerm); err != nil {
 		t.Fatalf("failed to create cert file: %v", err)
 	}
-
+	
 	if err := os.WriteFile("test.key", []byte(`-----BEGIN PRIVATE KEY-----
 MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCgdbQ0yIk170LS
 fhPzrm6LuclwjxGSC31CmmF+BZUHJ19n33BrL++Rfrfz3kMr5JgfVgjeHWZ2PrLp

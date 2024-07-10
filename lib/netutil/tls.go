@@ -3,12 +3,12 @@ package netutil
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 // GetServerTLSConfig returns TLS config for the server.
