@@ -85,7 +85,3 @@ func (as *uniqueSamplesAggrState) flushState(ctx *flushCtx, resetState bool) {
 		return true
 	})
 }
-
-func (as *uniqueSamplesAggrState) getSuffix() string {
-	return "unique_samples"
-}

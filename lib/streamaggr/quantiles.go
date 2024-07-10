@@ -95,7 +95,3 @@ func (as *quantilesAggrState) flushState(ctx *flushCtx, resetState bool) {
 		return true
 	})
 }
-
-func (as *quantilesAggrState) getSuffix() string {
-	return "quantiles"
-}

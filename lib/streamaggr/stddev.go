@@ -84,7 +84,3 @@ func (as *stddevAggrState) flushState(ctx *flushCtx, resetState bool) {
 		return true
 	})
 }
-
-func (as *stddevAggrState) getSuffix() string {
-	return "stddev"
-}

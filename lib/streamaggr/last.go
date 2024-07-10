@@ -86,7 +86,3 @@ func (as *lastAggrState) flushState(ctx *flushCtx, resetState bool) {
 		return true
 	})
 }
-
-func (as *lastAggrState) getSuffix() string {
-	return "last"
-}

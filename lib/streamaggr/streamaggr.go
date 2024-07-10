@@ -384,7 +384,7 @@ type aggregator struct {
 	da *dedupAggr
 
 	// aggrStates contains aggregate states for the given outputs
-	aggrStates []aggrState
+	aggrStates map[string]aggrState
 
 	// minTimestamp is used for ignoring old samples when ignoreOldSamples is set
 	minTimestamp atomic.Int64
@@ -420,8 +420,6 @@ type aggrState interface {
 	pushSamples(samples []pushSample)
 
 	flushState(ctx *flushCtx, resetState bool)
-
-	getSuffix() string
 }
 
 // PushFunc is called by Aggregators when it needs to push its state to metrics storage
@@ -507,7 +505,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts Options
 	}
 	if keepMetricNames {
 		if len(cfg.Outputs) != 1 {
-			return nil, fmt.Errorf("`ouputs` list must contain only a single entry if `keep_metric_names` is set; got %q", cfg.Outputs)
+			return nil, fmt.Errorf("`outputs` list must contain only a single entry if `keep_metric_names` is set; got %q", cfg.Outputs)
 		}
 		if cfg.Outputs[0] == "histogram_bucket" || strings.HasPrefix(cfg.Outputs[0], "quantiles(") && strings.Contains(cfg.Outputs[0], ",") {
 			return nil, fmt.Errorf("`keep_metric_names` cannot be applied to `outputs: %q`, since they can generate multiple time series", cfg.Outputs)
@@ -531,8 +529,8 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts Options
 		return nil, fmt.Errorf("`outputs` list must contain at least a single entry from the list %s; "+
 			"see https://docs.victoriametrics.com/stream-aggregation/", supportedOutputs)
 	}
-	aggrStates := make([]aggrState, len(cfg.Outputs))
-	for i, output := range cfg.Outputs {
+	aggrStates := make(map[string]aggrState, len(cfg.Outputs))
+	for _, output := range cfg.Outputs {
 		if strings.HasPrefix(output, "quantiles(") {
 			if !strings.HasSuffix(output, ")") {
 				return nil, fmt.Errorf("missing closing brace for `quantiles()` output")
@@ -554,44 +552,44 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts Options
 				}
 				phis[j] = phi
 			}
-			aggrStates[i] = newQuantilesAggrState(phis)
+			aggrStates["quantiles"] = newQuantilesAggrState(phis)
 			continue
 		}
 		switch output {
 		case "total":
-			aggrStates[i] = newTotalAggrState(stalenessInterval, false, true)
+			aggrStates[output] = newTotalAggrState(stalenessInterval, false, true)
 		case "total_prometheus":
-			aggrStates[i] = newTotalAggrState(stalenessInterval, false, false)
+			aggrStates[output] = newTotalAggrState(stalenessInterval, false, false)
 		case "increase":
-			aggrStates[i] = newTotalAggrState(stalenessInterval, true, true)
+			aggrStates[output] = newTotalAggrState(stalenessInterval, true, true)
 		case "increase_prometheus":
-			aggrStates[i] = newTotalAggrState(stalenessInterval, true, false)
+			aggrStates[output] = newTotalAggrState(stalenessInterval, true, false)
 		case "rate_sum":
-			aggrStates[i] = newRateAggrState(stalenessInterval, "rate_sum")
+			aggrStates[output] = newRateAggrState(stalenessInterval, "rate_sum")
 		case "rate_avg":
-			aggrStates[i] = newRateAggrState(stalenessInterval, "rate_avg")
+			aggrStates[output] = newRateAggrState(stalenessInterval, "rate_avg")
 		case "count_series":
-			aggrStates[i] = newCountSeriesAggrState()
+			aggrStates[output] = newCountSeriesAggrState()
 		case "count_samples":
-			aggrStates[i] = newCountSamplesAggrState()
+			aggrStates[output] = newCountSamplesAggrState()
 		case "unique_samples":
-			aggrStates[i] = newUniqueSamplesAggrState()
+			aggrStates[output] = newUniqueSamplesAggrState()
 		case "sum_samples":
-			aggrStates[i] = newSumSamplesAggrState()
+			aggrStates[output] = newSumSamplesAggrState()
 		case "last":
-			aggrStates[i] = newLastAggrState()
+			aggrStates[output] = newLastAggrState()
 		case "min":
-			aggrStates[i] = newMinAggrState()
+			aggrStates[output] = newMinAggrState()
 		case "max":
-			aggrStates[i] = newMaxAggrState()
+			aggrStates[output] = newMaxAggrState()
 		case "avg":
-			aggrStates[i] = newAvgAggrState()
+			aggrStates[output] = newAvgAggrState()
 		case "stddev":
-			aggrStates[i] = newStddevAggrState()
+			aggrStates[output] = newStddevAggrState()
 		case "stdvar":
-			aggrStates[i] = newStdvarAggrState()
+			aggrStates[output] = newStdvarAggrState()
 		case "histogram_bucket":
-			aggrStates[i] = newHistogramBucketAggrState(stalenessInterval)
+			aggrStates[output] = newHistogramBucketAggrState(stalenessInterval)
 		default:
 			return nil, fmt.Errorf("unsupported output=%q; supported values: %s; "+
 				"see https://docs.victoriametrics.com/stream-aggregation/", output, supportedOutputs)
@@ -808,7 +806,7 @@ func (a *aggregator) flush(pushFunc PushFunc, interval time.Duration, resetState
 	a.minTimestamp.Store(startTime.UnixMilli() - 5_000)
 
 	var wg sync.WaitGroup
-	for _, as := range a.aggrStates {
+	for output, as := range a.aggrStates {
 		flushConcurrencyCh <- struct{}{}
 		wg.Add(1)
 		go func(as aggrState) {
@@ -819,7 +817,7 @@ func (a *aggregator) flush(pushFunc PushFunc, interval time.Duration, resetState
 
 			ctx := getFlushCtx(a, pushFunc)
 			as.flushState(ctx, resetState)
-			ctx.flushSeries(as.getSuffix())
+			ctx.flushSeries(output)
 			ctx.resetSeries()
 			putFlushCtx(ctx)
 		}(as)

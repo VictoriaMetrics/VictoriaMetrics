@@ -185,7 +185,3 @@ func (as *totalAggrState) flushState(ctx *flushCtx, resetState bool) {
 		return true
 	})
 }
-
-func (as *totalAggrState) getSuffix() string {
-	return as.suffix
-}

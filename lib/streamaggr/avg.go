@@ -84,7 +84,3 @@ func (as *avgAggrState) flushState(ctx *flushCtx, resetState bool) {
 		return true
 	})
 }
-
-func (as *avgAggrState) getSuffix() string {
-	return "avg"
-}

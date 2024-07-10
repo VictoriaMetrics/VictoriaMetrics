@@ -81,7 +81,3 @@ func (as *sumSamplesAggrState) flushState(ctx *flushCtx, resetState bool) {
 		return true
 	})
 }
-
-func (as *sumSamplesAggrState) getSuffix() string {
-	return "sum_samples"
-}
