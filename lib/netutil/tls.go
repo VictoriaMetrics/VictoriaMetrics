@@ -3,6 +3,7 @@ package netutil
 import (
 	"crypto/tls"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"strconv"
 	"strings"
 	"sync"
@@ -12,6 +13,19 @@ import (
 
 // GetServerTLSConfig returns TLS config for the server.
 func GetServerTLSConfig(tlsCertFile, tlsKeyFile, tlsMinVersion string, tlsCipherSuites []string) (*tls.Config, error) {
+	if !fs.IsPathExist(tlsCertFile) {
+		return nil, fmt.Errorf("cannot find TLS cert file: %q", tlsCertFile)
+	}
+
+	if !fs.IsPathExist(tlsKeyFile) {
+		return nil, fmt.Errorf("cannot find TLS key file: %q", tlsKeyFile)
+	}
+
+	_, err := tls.LoadX509KeyPair(tlsCertFile, tlsKeyFile)
+	if err != nil {
+		return nil, fmt.Errorf("cannot load TLS cert from certFile=%q, keyFile=%q: %w", tlsCertFile, tlsKeyFile, err)
+	}
+
 	minVersion, err := ParseTLSVersion(tlsMinVersion)
 	if err != nil {
 		return nil, fmt.Errorf("cannnot use TLS min version from tlsMinVersion=%q. Supported TLS versions (TLS10, TLS11, TLS12, TLS13): %w", tlsMinVersion, err)
