@@ -1,155 +1,59 @@
 package azremote
 
 import (
-	"bytes"
-	"errors"
 	"strings"
 	"testing"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 func Test_cleanDirectory(t *testing.T) {
-	cases := map[string]struct {
-		Dir         string
-		ExpectedDir string
-	}{
-		"dir / prefix is removed": {
-			Dir:         "/foo/",
-			ExpectedDir: "foo/",
-		},
-		"multiple dir prefix / is removed": {
-			Dir:         "//foo/",
-			ExpectedDir: "foo/",
-		},
-		"suffix is added": {
-			Dir:         "foo",
-			ExpectedDir: "foo/",
-		},
+	f := func(dir, exp string) {
+		t.Helper()
+		got := cleanDirectory(dir)
+		if got != exp {
+			t.Errorf("expected dir %q, got %q", exp, got)
+		}
 	}
-
-	for name, test := range cases {
-		t.Run(name, func(t *testing.T) {
-			dir := cleanDirectory(test.Dir)
-
-			if dir != test.ExpectedDir {
-				t.Errorf("expected dir %q, got %q", test.ExpectedDir, dir)
-			}
-		})
-	}
+	f("/foo/", "foo/")
+	f("//foo/", "foo/")
+	f("foo", "foo/")
 }
 
 func Test_FSInit(t *testing.T) {
-	cases := map[string]struct {
-		IgnoreFakeEnv bool
-		Env           testEnv
-		ExpectedErr   error
-		ExpectedLogs  []string
-	}{
-		"connection string env var is used": {
-			Env: map[string]string{
-				envStorageAccCs: "BlobEndpoint=https://test.blob.core.windows.net/;SharedAccessSignature=",
-			},
-			ExpectedLogs: []string{`Creating AZBlob service client from connection string`},
-		},
-		"base envtemplate package is used and connection string err bubbles": {
-			IgnoreFakeEnv: true,
-			Env: map[string]string{
-				envStorageAccCs: "BlobEndpoint=https://test.blob.core.windows.net/;SharedAccessSignature=",
-			},
-			ExpectedErr: errNoCredentials,
-		},
-		"only storage account name is an err": {
-			Env: map[string]string{
-				envStorageAcctName: "test",
-			},
-			ExpectedErr: errNoCredentials,
-		},
-		"uses shared key credential": {
-			Env: map[string]string{
-				envStorageAcctName: "test",
-				envStorageAccKey:   "dGVhcG90Cg==",
-			},
-			ExpectedLogs: []string{`Creating AZBlob service client from account name and key`},
-		},
-		"allows overriding domain name with account name and key": {
-			Env: map[string]string{
-				envStorageAcctName: "test",
-				envStorageAccKey:   "dGVhcG90Cg==",
-				envStorageDomain:   "foo.bar",
-			},
-			ExpectedLogs: []string{
-				`Creating AZBlob service client from account name and key`,
-				`Overriding default Azure blob domain with "foo.bar"`,
-			},
-		},
-		"can't specify both connection string and shared key": {
-			Env: map[string]string{
-				envStorageAccCs:    "teapot",
-				envStorageAcctName: "test",
-				envStorageAccKey:   "dGVhcG90Cg==",
-			},
-			ExpectedErr: errInvalidCredentials,
-		},
-		"just use default is an err": {
-			Env: map[string]string{
-				envStorageDefault: "true",
-			},
-			ExpectedErr: errNoCredentials,
-		},
-		"uses default credential": {
-			Env: map[string]string{
-				envStorageDefault:  "true",
-				envStorageAcctName: "test",
-			},
-			ExpectedLogs: []string{`Creating AZBlob service client from default credential`},
-		},
-	}
+	f := func(expErr string, params ...string) {
+		t.Helper()
 
-	for name, test := range cases {
-		t.Run(name, func(t *testing.T) {
-			tlog := &testLogger{}
+		env := make(testEnv)
+		for i := 0; i < len(params); i += 2 {
+			env[params[i]] = params[i+1]
+		}
 
-			logger.SetOutputForTests(tlog)
-			t.Cleanup(logger.ResetOutputForTest)
-
-			fs := &FS{Dir: "foo"}
-			if test.Env != nil && !test.IgnoreFakeEnv {
-				fs.env = test.Env.LookupEnv
+		fs := &FS{Dir: "foo"}
+		fs.env = env.LookupEnv
+		err := fs.Init()
+		if err != nil {
+			if expErr == "" {
+				t.Fatalf("unexpected error %v", err)
 			}
-
-			err := fs.Init()
-			if err != nil && !errors.Is(err, test.ExpectedErr) {
-				t.Errorf("expected error %q, got %q", test.ExpectedErr, err)
+			if !strings.Contains(err.Error(), expErr) {
+				t.Fatalf("expected error: \n%q, \ngot: \n%v", expErr, err)
 			}
-
-			tlog.MustContain(t, test.ExpectedLogs...)
-		})
-	}
-}
-
-type testLogger struct {
-	buf *bytes.Buffer
-}
-
-func (l *testLogger) Write(p []byte) (n int, err error) {
-	if l.buf == nil {
-		l.buf = &bytes.Buffer{}
-	}
-
-	return l.buf.Write(p)
-}
-
-func (l *testLogger) MustContain(t *testing.T, vals ...string) {
-	t.Helper()
-
-	contents := l.buf.String()
-
-	for _, val := range vals {
-		if !strings.Contains(contents, val) {
-			t.Errorf("expected log to contain %q, got %q", val, l.buf.String())
+			return
+		}
+		if expErr != "" {
+			t.Fatalf("expected to have an error %q, instead got nil", expErr)
 		}
 	}
+
+	f("", envStorageAccCs, "BlobEndpoint=https://test.blob.core.windows.net/;SharedAccessSignature=")
+	f("", envStorageAcctName, "test", envStorageAccKey, "dGVhcG90Cg==")
+	f("", envStorageDefault, "true", envStorageAcctName, "test")
+	f("", envStorageAcctName, "test", envStorageAccKey, "dGVhcG90Cg==", envStorageDomain, "foo.bar")
+
+	f("failed to detect credentials for AZBlob")
+	f("failed to detect credentials for AZBlob", envStorageAcctName, "test")
+	f("failed to create Shared Key", envStorageAcctName, "", envStorageAccKey, "!")
+	f("connection string is either blank or malformed", envStorageAccCs, "")
+	f("failed to process credentials: only one of", envStorageAccCs, "teapot", envStorageAcctName, "test", envStorageAccKey, "dGVhcG90Cg==")
 }
 
 type testEnv map[string]string
