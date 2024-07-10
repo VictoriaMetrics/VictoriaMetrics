@@ -7057,6 +7057,9 @@ var awsPartition = partition{
 					Region: "af-south-1",
 				}: endpoint{},
 				endpointKey{
+					Region: "ap-east-1",
+				}: endpoint{},
+				endpointKey{
 					Region: "ap-northeast-1",
 				}: endpoint{},
 				endpointKey{
@@ -7085,6 +7088,9 @@ var awsPartition = partition{
 				}: endpoint{},
 				endpointKey{
 					Region: "ca-central-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "ca-west-1",
 				}: endpoint{},
 				endpointKey{
 					Region: "eu-central-1",
@@ -7202,6 +7208,9 @@ var awsPartition = partition{
 					Region: "af-south-1",
 				}: endpoint{},
 				endpointKey{
+					Region: "ap-east-1",
+				}: endpoint{},
+				endpointKey{
 					Region: "ap-northeast-1",
 				}: endpoint{},
 				endpointKey{
@@ -7230,6 +7239,9 @@ var awsPartition = partition{
 				}: endpoint{},
 				endpointKey{
 					Region: "ca-central-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "ca-west-1",
 				}: endpoint{},
 				endpointKey{
 					Region: "eu-central-1",
@@ -14906,6 +14918,18 @@ var awsPartition = partition{
 				},
 			},
 		},
+		"globalaccelerator": service{
+			Endpoints: serviceEndpoints{
+				endpointKey{
+					Region: "fips-us-west-2",
+				}: endpoint{
+					Hostname: "globalaccelerator-fips.us-west-2.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-west-2",
+					},
+				},
+			},
+		},
 		"glue": service{
 			Endpoints: serviceEndpoints{
 				endpointKey{
@@ -22534,6 +22558,14 @@ var awsPartition = partition{
 					},
 				},
 				endpointKey{
+					Region: "ca-west-1",
+				}: endpoint{
+					Hostname: "oidc.ca-west-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "ca-west-1",
+					},
+				},
+				endpointKey{
 					Region: "eu-central-1",
 				}: endpoint{
 					Hostname: "oidc.eu-central-1.amazonaws.com",
@@ -23176,91 +23208,490 @@ var awsPartition = partition{
 			Endpoints: serviceEndpoints{
 				endpointKey{
 					Region: "af-south-1",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "af-south-1",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.af-south-1.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "ap-east-1",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "ap-east-1",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.ap-east-1.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "ap-northeast-1",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "ap-northeast-1",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.ap-northeast-1.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "ap-northeast-2",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "ap-northeast-2",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.ap-northeast-2.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "ap-northeast-3",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "ap-northeast-3",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.ap-northeast-3.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "ap-south-1",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "ap-south-1",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.ap-south-1.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "ap-south-2",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "ap-south-2",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.ap-south-2.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "ap-southeast-1",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "ap-southeast-1",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.ap-southeast-1.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "ap-southeast-2",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "ap-southeast-2",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.ap-southeast-2.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "ap-southeast-3",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "ap-southeast-3",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.ap-southeast-3.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "ap-southeast-4",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "ap-southeast-4",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.ap-southeast-4.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "ca-central-1",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "ca-central-1",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.ca-central-1.api.aws",
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "ca-central-1",
+					Variant: fipsVariant,
+				}: endpoint{
+					Hostname:  "pi-fips.ca-central-1.amazonaws.com",
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "ca-central-1",
+					Variant: fipsVariant | dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi-fips.ca-central-1.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "ca-west-1",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "ca-west-1",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.ca-west-1.api.aws",
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "ca-west-1",
+					Variant: fipsVariant,
+				}: endpoint{
+					Hostname:  "pi-fips.ca-west-1.amazonaws.com",
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "ca-west-1",
+					Variant: fipsVariant | dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi-fips.ca-west-1.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "eu-central-1",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "eu-central-1",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.eu-central-1.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "eu-central-2",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "eu-central-2",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.eu-central-2.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "eu-north-1",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "eu-north-1",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.eu-north-1.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "eu-south-1",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "eu-south-1",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.eu-south-1.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "eu-south-2",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "eu-south-2",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.eu-south-2.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "eu-west-1",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "eu-west-1",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.eu-west-1.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "eu-west-2",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "eu-west-2",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.eu-west-2.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "eu-west-3",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "eu-west-3",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.eu-west-3.api.aws",
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region: "fips-ca-central-1",
+				}: endpoint{
+					Hostname: "pi-fips.ca-central-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "ca-central-1",
+					},
+					Deprecated: boxedTrue,
+				},
+				endpointKey{
+					Region: "fips-ca-west-1",
+				}: endpoint{
+					Hostname: "pi-fips.ca-west-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "ca-west-1",
+					},
+					Deprecated: boxedTrue,
+				},
+				endpointKey{
+					Region: "fips-us-east-1",
+				}: endpoint{
+					Hostname: "pi-fips.us-east-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-east-1",
+					},
+					Deprecated: boxedTrue,
+				},
+				endpointKey{
+					Region: "fips-us-east-2",
+				}: endpoint{
+					Hostname: "pi-fips.us-east-2.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-east-2",
+					},
+					Deprecated: boxedTrue,
+				},
+				endpointKey{
+					Region: "fips-us-west-1",
+				}: endpoint{
+					Hostname: "pi-fips.us-west-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-west-1",
+					},
+					Deprecated: boxedTrue,
+				},
+				endpointKey{
+					Region: "fips-us-west-2",
+				}: endpoint{
+					Hostname: "pi-fips.us-west-2.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-west-2",
+					},
+					Deprecated: boxedTrue,
+				},
 				endpointKey{
 					Region: "il-central-1",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "il-central-1",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.il-central-1.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "me-central-1",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "me-central-1",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.me-central-1.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "me-south-1",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "me-south-1",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.me-south-1.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "sa-east-1",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "sa-east-1",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.sa-east-1.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "us-east-1",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "us-east-1",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.us-east-1.api.aws",
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "us-east-1",
+					Variant: fipsVariant,
+				}: endpoint{
+					Hostname:  "pi-fips.us-east-1.amazonaws.com",
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "us-east-1",
+					Variant: fipsVariant | dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi-fips.us-east-1.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "us-east-2",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "us-east-2",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.us-east-2.api.aws",
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "us-east-2",
+					Variant: fipsVariant,
+				}: endpoint{
+					Hostname:  "pi-fips.us-east-2.amazonaws.com",
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "us-east-2",
+					Variant: fipsVariant | dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi-fips.us-east-2.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "us-west-1",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "us-west-1",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.us-west-1.api.aws",
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "us-west-1",
+					Variant: fipsVariant,
+				}: endpoint{
+					Hostname:  "pi-fips.us-west-1.amazonaws.com",
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "us-west-1",
+					Variant: fipsVariant | dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi-fips.us-west-1.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "us-west-2",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "us-west-2",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.us-west-2.api.aws",
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "us-west-2",
+					Variant: fipsVariant,
+				}: endpoint{
+					Hostname:  "pi-fips.us-west-2.amazonaws.com",
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "us-west-2",
+					Variant: fipsVariant | dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi-fips.us-west-2.api.aws",
+					Protocols: []string{"https"},
+				},
 			},
 		},
 		"pinpoint": service{
@@ -30411,6 +30842,9 @@ var awsPartition = partition{
 					Hostname: "sms-voice-fips.ca-central-1.amazonaws.com",
 				},
 				endpointKey{
+					Region: "ca-west-1",
+				}: endpoint{},
+				endpointKey{
 					Region: "eu-central-1",
 				}: endpoint{},
 				endpointKey{
@@ -33586,6 +34020,21 @@ var awsPartition = partition{
 				endpointKey{
 					Region: "us-west-1",
 				}: endpoint{},
+				endpointKey{
+					Region:  "us-west-1",
+					Variant: fipsVariant,
+				}: endpoint{
+					Hostname: "translate-fips.us-west-1.amazonaws.com",
+				},
+				endpointKey{
+					Region: "us-west-1-fips",
+				}: endpoint{
+					Hostname: "translate-fips.us-west-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-west-1",
+					},
+					Deprecated: boxedTrue,
+				},
 				endpointKey{
 					Region: "us-west-2",
 				}: endpoint{},
@@ -37451,10 +37900,28 @@ var awscnPartition = partition{
 			Endpoints: serviceEndpoints{
 				endpointKey{
 					Region: "cn-north-1",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "cn-north-1",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.cn-north-1.api.amazonwebservices.com.cn",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "cn-northwest-1",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "cn-northwest-1",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.cn-northwest-1.api.amazonwebservices.com.cn",
+					Protocols: []string{"https"},
+				},
 			},
 		},
 		"pipes": service{
@@ -42844,11 +43311,75 @@ var awsusgovPartition = partition{
 		"pi": service{
 			Endpoints: serviceEndpoints{
 				endpointKey{
+					Region: "fips-us-gov-east-1",
+				}: endpoint{
+					Hostname: "pi-fips.us-gov-east-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-gov-east-1",
+					},
+					Deprecated: boxedTrue,
+				},
+				endpointKey{
+					Region: "fips-us-gov-west-1",
+				}: endpoint{
+					Hostname: "pi-fips.us-gov-west-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-gov-west-1",
+					},
+					Deprecated: boxedTrue,
+				},
+				endpointKey{
 					Region: "us-gov-east-1",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "us-gov-east-1",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.us-gov-east-1.api.aws",
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "us-gov-east-1",
+					Variant: fipsVariant,
+				}: endpoint{
+					Hostname:  "pi-fips.us-gov-east-1.amazonaws.com",
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "us-gov-east-1",
+					Variant: fipsVariant | dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi-fips.us-gov-east-1.api.aws",
+					Protocols: []string{"https"},
+				},
 				endpointKey{
 					Region: "us-gov-west-1",
-				}: endpoint{},
+				}: endpoint{
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "us-gov-west-1",
+					Variant: dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi.us-gov-west-1.api.aws",
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "us-gov-west-1",
+					Variant: fipsVariant,
+				}: endpoint{
+					Hostname:  "pi-fips.us-gov-west-1.amazonaws.com",
+					Protocols: []string{"https"},
+				},
+				endpointKey{
+					Region:  "us-gov-west-1",
+					Variant: fipsVariant | dualStackVariant,
+				}: endpoint{
+					Hostname:  "pi-fips.us-gov-west-1.api.aws",
+					Protocols: []string{"https"},
+				},
 			},
 		},
 		"pinpoint": service{
@@ -46143,40 +46674,20 @@ var awsisoPartition = partition{
 		"redshift": service{
 			Endpoints: serviceEndpoints{
 				endpointKey{
-					Region: "fips-us-iso-east-1",
+					Region: "us-iso-east-1",
 				}: endpoint{
-					Hostname: "redshift-fips.us-iso-east-1.c2s.ic.gov",
+					Hostname: "redshift.us-iso-east-1.c2s.ic.gov",
 					CredentialScope: credentialScope{
 						Region: "us-iso-east-1",
 					},
-					Deprecated: boxedTrue,
-				},
-				endpointKey{
-					Region: "fips-us-iso-west-1",
-				}: endpoint{
-					Hostname: "redshift-fips.us-iso-west-1.c2s.ic.gov",
-					CredentialScope: credentialScope{
-						Region: "us-iso-west-1",
-					},
-					Deprecated: boxedTrue,
-				},
-				endpointKey{
-					Region: "us-iso-east-1",
-				}: endpoint{},
-				endpointKey{
-					Region:  "us-iso-east-1",
-					Variant: fipsVariant,
-				}: endpoint{
-					Hostname: "redshift-fips.us-iso-east-1.c2s.ic.gov",
 				},
 				endpointKey{
 					Region: "us-iso-west-1",
-				}: endpoint{},
-				endpointKey{
-					Region:  "us-iso-west-1",
-					Variant: fipsVariant,
 				}: endpoint{
-					Hostname: "redshift-fips.us-iso-west-1.c2s.ic.gov",
+					Hostname: "redshift.us-iso-west-1.c2s.ic.gov",
+					CredentialScope: credentialScope{
+						Region: "us-iso-west-1",
+					},
 				},
 			},
 		},
@@ -47152,22 +47663,12 @@ var awsisobPartition = partition{
 		"redshift": service{
 			Endpoints: serviceEndpoints{
 				endpointKey{
-					Region: "fips-us-isob-east-1",
+					Region: "us-isob-east-1",
 				}: endpoint{
-					Hostname: "redshift-fips.us-isob-east-1.sc2s.sgov.gov",
+					Hostname: "redshift.us-isob-east-1.sc2s.sgov.gov",
 					CredentialScope: credentialScope{
 						Region: "us-isob-east-1",
 					},
-					Deprecated: boxedTrue,
-				},
-				endpointKey{
-					Region: "us-isob-east-1",
-				}: endpoint{},
-				endpointKey{
-					Region:  "us-isob-east-1",
-					Variant: fipsVariant,
-				}: endpoint{
-					Hostname: "redshift-fips.us-isob-east-1.sc2s.sgov.gov",
 				},
 			},
 		},
