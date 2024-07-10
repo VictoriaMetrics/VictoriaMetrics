@@ -33,26 +33,6 @@ const (
 	storageErrorCodeBlobNotFound = "BlobNotFound"
 )
 
-var (
-	errNoCredentials = fmt.Errorf(
-		`failed to detect credentials for AZBlob. 
-Ensure that one of the options is set: connection string at %q; shared key at %q and %q; account name at %q and set %q to "true"`,
-		envStorageAccCs,
-		envStorageAcctName,
-		envStorageAccKey,
-		envStorageAcctName,
-		envStorageDefault,
-	)
-
-	errInvalidCredentials = fmt.Errorf("failed to process credentials: only one of %s, %s and %s, or %s and %s can be specified",
-		envStorageAccCs,
-		envStorageAcctName,
-		envStorageAccKey,
-		envStorageAcctName,
-		envStorageDefault,
-	)
-)
-
 // FS represents filesystem for backups in Azure Blob Storage.
 //
 // Init must be called before calling other FS methods.
@@ -109,7 +89,13 @@ func (fs *FS) newClient() (*service.Client, error) {
 	switch {
 	// can't specify any combination of more than one credential
 	case moreThanOne(hasConnString, (hasAccountName && hasAccountKey), (useDefault == "true" && hasAccountName)):
-		return nil, errInvalidCredentials
+		return nil, fmt.Errorf("failed to process credentials: only one of %s, %s and %s, or %s and %s can be specified",
+			envStorageAccCs,
+			envStorageAcctName,
+			envStorageAccKey,
+			envStorageAcctName,
+			envStorageDefault,
+		)
 	case hasConnString:
 		logger.Infof("Creating AZBlob service client from connection string")
 		return service.NewClientFromConnectionString(connString, nil)
@@ -128,7 +114,15 @@ func (fs *FS) newClient() (*service.Client, error) {
 		}
 		return service.NewClient(serviceURL, creds, nil)
 	default:
-		return nil, errNoCredentials
+		return nil, fmt.Errorf(
+			`failed to detect credentials for AZBlob. 
+Ensure that one of the options is set: connection string at %q; shared key at %q and %q; account name at %q and set %q to "true"`,
+			envStorageAccCs,
+			envStorageAcctName,
+			envStorageAccKey,
+			envStorageAcctName,
+			envStorageDefault,
+		)
 	}
 }
 
