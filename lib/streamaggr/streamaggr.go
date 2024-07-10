@@ -526,11 +526,14 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts Options
 
 	// initialize outputs list
 	if len(cfg.Outputs) == 0 {
-		return nil, fmt.Errorf("`outputs` list must contain at least a single entry from the list %s; "+
-			"see https://docs.victoriametrics.com/stream-aggregation/", supportedOutputs)
+		return nil, fmt.Errorf("`outputs` list must contain at least a single entry from the list %s;", supportedOutputs)
 	}
 	aggrStates := make(map[string]aggrState, len(cfg.Outputs))
 	for _, output := range cfg.Outputs {
+		// check for duplicated output
+		if _, ok := aggrStates[output]; ok {
+			return nil, fmt.Errorf("`outputs` list contains duplicated aggregation function: %s", output)
+		}
 		if strings.HasPrefix(output, "quantiles(") {
 			if !strings.HasSuffix(output, ")") {
 				return nil, fmt.Errorf("missing closing brace for `quantiles()` output")
@@ -551,6 +554,9 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts Options
 					return nil, fmt.Errorf("phi inside quantiles(%s) must be in the range [0..1]; got %v", argsStr, phi)
 				}
 				phis[j] = phi
+			}
+			if _, ok := aggrStates["quantiles"]; ok {
+				return nil, fmt.Errorf("`outputs` list contains duplicated `quantiles()` function, please combine multiple phi* like `quantiles(0.5, 0.9)`")
 			}
 			aggrStates["quantiles"] = newQuantilesAggrState(phis)
 			continue
@@ -591,8 +597,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts Options
 		case "histogram_bucket":
 			aggrStates[output] = newHistogramBucketAggrState(stalenessInterval)
 		default:
-			return nil, fmt.Errorf("unsupported output=%q; supported values: %s; "+
-				"see https://docs.victoriametrics.com/stream-aggregation/", output, supportedOutputs)
+			return nil, fmt.Errorf("unsupported output=%q; supported values: %s;", output, supportedOutputs)
 		}
 	}
 
