@@ -1045,7 +1045,7 @@ func fixBrokenBuckets(i int, xss []leTimeseries) {
 	// since the next bucket includes all the previous buckets.
 	// If the next bucket has lower value than the current bucket,
 	// then the next bucket must be substituted with the current bucket value.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2819
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4580#issuecomment-2186659102
 	if len(xss) < 2 {
 		return
 	}
