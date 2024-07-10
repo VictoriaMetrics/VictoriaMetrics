@@ -19,6 +19,7 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 * [How to build vmalert](https://docs.victoriametrics.com/vmalert/#how-to-build-from-sources)
 * [How to build vmauth](https://docs.victoriametrics.com/vmauth/#how-to-build-from-sources)
 * [How to build vmctl](https://docs.victoriametrics.com/vmctl/#how-to-build)
+* [How to build vmbackup](https://docs.victoriametrics.com/vmbackup/index.html#how-to-build-from-sources)
 
 Metrics of the latest version of VictoriaMetrics cluster are available for viewing at our
 [sandbox](https://play-grafana.victoriametrics.com/d/oS7Bi_0Wz_vm/victoriametrics-cluster-vm).
@@ -50,6 +51,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): do not retry RPC calls to vmstorage nodes if [complexity limits](https://docs.victoriametrics.com/#resource-usage-limits) were exceeded.
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): make `-replay.timeTo` optional in [replay mode](https://docs.victoriametrics.com/vmalert/#rules-backfilling). When omitted, the current timestamp will be used. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6492).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): show compacted result in the JSON tab for query results. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6559).  
+* FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup/index.html): add support of using Azure Managed Identity and default credentials lookup when performing backups. See configuration docs [here](https://docs.victoriametrics.com/vmbackup/#providing-credentials-via-env-variables). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5984) for the details. Thanks to @justinrush for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6518).
+* FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup/index.html): allow overriding Azure storage domain when performing backups. See configuration docs [here](https://docs.victoriametrics.com/vmbackup/#providing-credentials-via-env-variables). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5984) for the details. Thanks to @justinrush for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6518).
 
 * BUGFIX: [docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#docker-compose-environment-for-victoriametrics): fix incorrect link to vmui from [VictoriaMetrics plugin in Grafana](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#grafana).
 * BUGFIX: [docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#docker-compose-environment-for-victoriametrics): fix incorrect link to vmui from [VictoriaMetrics plugin in Grafana](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#grafana).
