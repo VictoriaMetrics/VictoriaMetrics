@@ -112,10 +112,12 @@ func alignStartEnd(start, end, step int64) (int64, int64) {
 
 // EvalConfig is the configuration required for query evaluation via Exec
 type EvalConfig struct {
-	AuthToken *auth.Token
-	Start     int64
-	End       int64
-	Step      int64
+	AuthToken  *auth.Token
+	AuthTokens []*auth.Token
+
+	Start int64
+	End   int64
+	Step  int64
 
 	// MaxSeries is the maximum number of time series, which can be scanned by the query.
 	// Zero means 'no limit'
@@ -511,67 +513,41 @@ func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*time
 		rv  []*timeseries
 		err error
 	)
-	if ec.AuthToken != nil {
-		rv, err = evalExprInternal(qt, ec, e)
+	if ec.AuthToken == nil {
+		qtT := qt.NewChild("eval: fetching tenants")
+		tr := storage.TimeRange{
+			MinTimestamp: ec.Start,
+			MaxTimestamp: ec.End,
+		}
+		tenants, err := multitenant.FetchTenants(qtT, tr, ec.Deadline)
 		if err != nil {
-			return nil, err
+			qtT.Done()
+			return nil, fmt.Errorf("cannot obtain tenants: %w", err)
 		}
-		if qt.Enabled() {
-			seriesCount := len(rv)
-			pointsPerSeries := 0
-			if len(rv) > 0 {
-				pointsPerSeries = len(rv[0].Timestamps)
-			}
-			pointsCount := seriesCount * pointsPerSeries
-			qt.Donef("series=%d, points=%d, pointsPerSeries=%d", seriesCount, pointsCount, pointsPerSeries)
-		}
+		qtT.Printf("found %d tenants", len(tenants))
 
-		return rv, nil
+		filters, ne := extractTenantFilters(e, nil)
+		filters = extractTenantFiltersEc(ec, filters)
+		tenantTokens := applyFiltersToTenants(tenants, filters)
+		e = ne
+		ec.AuthTokens = tenantTokens
+
+		qtT.Donef("%d tenants matched filters", len(tenantTokens))
 	}
 
-	tr := storage.TimeRange{
-		MinTimestamp: ec.Start,
-		MaxTimestamp: ec.End,
-	}
-	tenants, err := multitenant.FetchTenants(qt, tr, ec.Deadline)
+	rv, err = evalExprInternal(qt, ec, e)
 	if err != nil {
-		return nil, fmt.Errorf("cannot obtain tenants: %w", err)
+		return nil, err
 	}
-	qt.Printf("eval: found %d tenants", len(tenants))
-
-	filters, ne := extractTenantFilters(e, nil)
-	filters = extractTenantFiltersEc(ec, filters)
-	tenantTokens := applyFiltersToTenants(tenants, filters)
-
-	qt.Printf("eval: %d tenants matched filters", len(tenantTokens))
-
-	for _, token := range tenantTokens {
-		qtl := qt.NewChild("eval: tenant=%q", token.String())
-
-		ec.AuthToken = token
-		rvL, err := evalExprInternal(qtl, ec, ne)
-		if err != nil {
-			return nil, err
+	if qt.Enabled() {
+		seriesCount := len(rv)
+		pointsPerSeries := 0
+		if len(rv) > 0 {
+			pointsPerSeries = len(rv[0].Timestamps)
 		}
-		if qtl.Enabled() {
-			seriesCount := len(rvL)
-			pointsPerSeries := 0
-			if len(rvL) > 0 {
-				pointsPerSeries = len(rvL[0].Timestamps)
-			}
-			pointsCount := seriesCount * pointsPerSeries
-			qtl.Donef("series=%d, points=%d, pointsPerSeries=%d", seriesCount, pointsCount, pointsPerSeries)
-		}
-
-		for i := range rvL {
-			rvL[i].MetricName.AddTagBytes([]byte("vm_account_id"), strconv.AppendUint(nil, uint64(token.AccountID), 10))
-			rvL[i].MetricName.AddTagBytes([]byte("vm_project_id"), strconv.AppendUint(nil, uint64(token.ProjectID), 10))
-		}
-
-		rv = append(rv, rvL...)
+		pointsCount := seriesCount * pointsPerSeries
+		qt.Donef("series=%d, points=%d, pointsPerSeries=%d", seriesCount, pointsCount, pointsPerSeries)
 	}
-
-	qt.Donef("")
 
 	return rv, nil
 }
@@ -1241,7 +1217,7 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 		return nil, nil
 	}
 	sharedTimestamps := getTimestamps(ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries)
-	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps)
+	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps, ec.AuthTokens != nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1985,7 +1961,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	}
 	// Obtain rollup configs before fetching data from db, so type errors could be caught earlier.
 	sharedTimestamps := getTimestamps(ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries)
-	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps)
+	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps, ec.AuthTokens != nil)
 	if err != nil {
 		return nil, err
 	}
@@ -2002,7 +1978,18 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	} else {
 		minTimestamp -= ec.Step
 	}
-	sq := storage.NewSearchQuery(ec.AuthToken.AccountID, ec.AuthToken.ProjectID, minTimestamp, ec.End, tfss, ec.MaxSeries)
+	var sq *storage.SearchQuery
+
+	if ec.AuthTokens != nil {
+		tt := make([]storage.TenantToken, len(ec.AuthTokens))
+		for i, authToken := range ec.AuthTokens {
+			tt[i].AccountID = authToken.AccountID
+			tt[i].ProjectID = authToken.ProjectID
+		}
+		sq = storage.NewMultiTenantSearchQuery(tt, minTimestamp, ec.End, tfss, ec.MaxSeries)
+	} else {
+		sq = storage.NewSearchQuery(ec.AuthToken.AccountID, ec.AuthToken.ProjectID, minTimestamp, ec.End, tfss, ec.MaxSeries)
+	}
 	rss, isPartial, err := netstorage.ProcessSearchQuery(qt, ec.DenyPartialResponse, sq, ec.Deadline)
 	if err != nil {
 		return nil, err
@@ -2184,6 +2171,10 @@ func doRollupForTimeseries(funcName string, keepMetricNames bool, rc *rollupConf
 	}
 	if !keepMetricNames && !rollupFuncsKeepMetricName[funcName] {
 		tsDst.MetricName.ResetMetricGroup()
+	}
+	if rc.isMultiTenant {
+		tsDst.MetricName.AddTag("vm_account_id", strconv.FormatUint(uint64(tsDst.MetricName.AccountID), 10))
+		tsDst.MetricName.AddTag("vm_project_id", strconv.FormatUint(uint64(tsDst.MetricName.ProjectID), 10))
 	}
 	var samplesScanned uint64
 	tsDst.Values, samplesScanned = rc.Do(tsDst.Values[:0], valuesSrc, timestampsSrc)

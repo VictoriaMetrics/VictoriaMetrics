@@ -1735,7 +1735,18 @@ func ProcessBlocks(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage
 
 func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialResponse bool, sq *storage.SearchQuery,
 	processBlock func(mb *storage.MetricBlock, workerID uint) error, deadline searchutils.Deadline) (bool, error) {
-	requestData := sq.Marshal(nil)
+	var requestsData [][]byte
+	if sq.TenantTokens != nil {
+		requestsData = make([][]byte, len(sq.TenantTokens))
+		for i, tenantToken := range sq.TenantTokens {
+			sq.AccountID = tenantToken.AccountID
+			sq.ProjectID = tenantToken.ProjectID
+
+			requestsData[i] = sq.Marshal(nil)
+		}
+	} else {
+		requestsData = [][]byte{sq.Marshal(nil)}
+	}
 
 	// Make sure that processBlock is no longer called after the exit from processBlocks() function.
 	// Use per-worker WaitGroup instead of a shared WaitGroup in order to avoid inter-CPU contention,
@@ -1773,12 +1784,19 @@ func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialRespon
 
 	// Send the query to all the storage nodes in parallel.
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) any {
-		sn.searchRequests.Inc()
-		err := sn.processSearchQuery(qt, requestData, f, workerID, deadline)
-		if err != nil {
-			sn.searchErrors.Inc()
-			err = fmt.Errorf("cannot perform search on vmstorage %s: %w", sn.connPool.Addr(), err)
+		var err error
+		for i, rd := range requestsData {
+			qtChild := qt.NewChild("processing req for tenant %d", i)
+			sn.searchRequests.Inc()
+			err = sn.processSearchQuery(qtChild, rd, f, workerID, deadline)
+			qtChild.Done()
+			if err != nil {
+				sn.searchErrors.Inc()
+				err = fmt.Errorf("cannot perform search on vmstorage %s: %w", sn.connPool.Addr(), err)
+				return &err
+			}
 		}
+
 		return &err
 	})
 

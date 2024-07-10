@@ -274,8 +274,9 @@ func (s *Search) NextMetricBlock() bool {
 
 // SearchQuery is used for sending search queries from vmselect to vmstorage.
 type SearchQuery struct {
-	AccountID uint32
-	ProjectID uint32
+	AccountID    uint32
+	ProjectID    uint32
+	TenantTokens []TenantToken
 
 	// The time range for searching time series
 	MinTimestamp int64
@@ -312,6 +313,35 @@ func NewSearchQuery(accountID, projectID uint32, start, end int64, tagFilterss [
 		MaxTimestamp: end,
 		TagFilterss:  tagFilterss,
 		MaxMetrics:   maxMetrics,
+	}
+}
+
+// TenantToken represents a tenant (accountID, projectID) pair.
+type TenantToken struct {
+	AccountID uint32
+	ProjectID uint32
+}
+
+// String returns string representation of t.
+func (t TenantToken) String() string {
+	return fmt.Sprintf("accountID=%d, projectID=%d;", t.AccountID, t.ProjectID)
+}
+
+// NewMultiTenantSearchQuery creates new search query for the given args.
+func NewMultiTenantSearchQuery(t []TenantToken, start, end int64, tagFilterss [][]TagFilter, maxMetrics int) *SearchQuery {
+	if start < 0 {
+		// This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5553
+		start = 0
+	}
+	if maxMetrics <= 0 {
+		maxMetrics = 2e9
+	}
+	return &SearchQuery{
+		MinTimestamp: start,
+		MaxTimestamp: end,
+		TagFilterss:  tagFilterss,
+		MaxMetrics:   maxMetrics,
+		TenantTokens: t,
 	}
 }
 
@@ -412,7 +442,10 @@ func (sq *SearchQuery) String() string {
 	}
 	start := TimestampToHumanReadableFormat(sq.MinTimestamp)
 	end := TimestampToHumanReadableFormat(sq.MaxTimestamp)
-	return fmt.Sprintf("accountID=%d, projectID=%d, filters=%s, timeRange=[%s..%s]", sq.AccountID, sq.ProjectID, a, start, end)
+	if sq.TenantTokens == nil {
+		return fmt.Sprintf("accountID=%d, projectID=%d, filters=%s, timeRange=[%s..%s]", sq.AccountID, sq.ProjectID, a, start, end)
+	}
+	return fmt.Sprintf("tenants=%s, filters=%s, timeRange=[%s..%s]", sq.TenantTokens, a, start, end)
 }
 
 func tagFiltersToString(tfs []TagFilter) string {

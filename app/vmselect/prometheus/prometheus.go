@@ -639,6 +639,9 @@ const secsPerDay = 3600 * 24
 // It can accept `match[]` filters in order to narrow down the search.
 func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer tsdbStatusDuration.UpdateDuration(startTime)
+	if at == nil {
+		return fmt.Errorf("missiing tenant for the request; multi-tenant requests are not supported for /api/v1/status/tsdb")
+	}
 
 	cp, err := getCommonParams(r, startTime, false)
 	if err != nil {
