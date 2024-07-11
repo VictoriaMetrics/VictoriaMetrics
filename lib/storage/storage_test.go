@@ -1476,6 +1476,11 @@ func testRemoveAll(t *testing.T) {
 func TestStorageRowsNotAdded(t *testing.T) {
 	defer testRemoveAll(t)
 
+	const (
+		accountID = 1
+		projectID = 2
+	)
+
 	type options struct {
 		name      string
 		retention time.Duration
@@ -1493,7 +1498,7 @@ func TestStorageRowsNotAdded(t *testing.T) {
 		s.DebugFlush()
 		s.UpdateMetrics(&gotMetrics)
 
-		got := testCountAllMetricNames(s, opts.tr)
+		got := testCountAllMetricNamesForTenant(s, accountID, projectID, opts.tr)
 		if got != 0 {
 			t.Fatalf("unexpected metric name count: got %d, want 0", got)
 		}
@@ -1513,7 +1518,7 @@ func TestStorageRowsNotAdded(t *testing.T) {
 	f(&options{
 		name:      "NegativeTimestamps",
 		retention: retentionMax,
-		mrs:       testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp),
+		mrs:       testGenerateMetricRowsForTenant(accountID, projectID, rng, numRows, minTimestamp, maxTimestamp),
 		tr:        TimeRange{minTimestamp, maxTimestamp},
 	})
 
@@ -1523,7 +1528,7 @@ func TestStorageRowsNotAdded(t *testing.T) {
 	f(&options{
 		name:      "TooSmallTimestamps",
 		retention: retention,
-		mrs:       testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp),
+		mrs:       testGenerateMetricRowsForTenant(accountID, projectID, rng, numRows, minTimestamp, maxTimestamp),
 		tr:        TimeRange{minTimestamp, maxTimestamp},
 	})
 
@@ -1533,13 +1538,13 @@ func TestStorageRowsNotAdded(t *testing.T) {
 	f(&options{
 		name:      "TooBigTimestamps",
 		retention: retention,
-		mrs:       testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp),
+		mrs:       testGenerateMetricRowsForTenant(accountID, projectID, rng, numRows, minTimestamp, maxTimestamp),
 		tr:        TimeRange{minTimestamp, maxTimestamp},
 	})
 
 	minTimestamp = time.Now().UnixMilli()
 	maxTimestamp = minTimestamp + 1000
-	mrs = testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp)
+	mrs = testGenerateMetricRowsForTenant(accountID, projectID, rng, numRows, minTimestamp, maxTimestamp)
 	for i := range numRows {
 		mrs[i].Value = math.NaN()
 	}
@@ -1551,7 +1556,7 @@ func TestStorageRowsNotAdded(t *testing.T) {
 
 	minTimestamp = time.Now().UnixMilli()
 	maxTimestamp = minTimestamp + 1000
-	mrs = testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp)
+	mrs = testGenerateMetricRowsForTenant(accountID, projectID, rng, numRows, minTimestamp, maxTimestamp)
 	for i := range numRows {
 		mrs[i].Value = decimal.StaleNaN
 	}
@@ -1563,7 +1568,7 @@ func TestStorageRowsNotAdded(t *testing.T) {
 
 	minTimestamp = time.Now().UnixMilli()
 	maxTimestamp = minTimestamp + 1000
-	mrs = testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp)
+	mrs = testGenerateMetricRowsForTenant(accountID, projectID, rng, numRows, minTimestamp, maxTimestamp)
 	for i := range numRows {
 		mrs[i].MetricNameRaw = []byte("garbage")
 	}
@@ -1577,6 +1582,11 @@ func TestStorageRowsNotAdded(t *testing.T) {
 func TestStorageRowsNotAdded_SeriesLimitExceeded(t *testing.T) {
 	defer testRemoveAll(t)
 
+	const (
+		accountID = 1
+		projectID = 2
+	)
+
 	f := func(name string, maxHourlySeries int, maxDailySeries int) {
 		t.Helper()
 
@@ -1584,7 +1594,7 @@ func TestStorageRowsNotAdded_SeriesLimitExceeded(t *testing.T) {
 		numRows := uint64(1000)
 		minTimestamp := time.Now().UnixMilli()
 		maxTimestamp := minTimestamp + 1000
-		mrs := testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp)
+		mrs := testGenerateMetricRowsForTenant(accountID, projectID, rng, numRows, minTimestamp, maxTimestamp)
 
 		var gotMetrics Metrics
 		path := fmt.Sprintf("%s/%s", t.Name(), name)
@@ -1595,7 +1605,7 @@ func TestStorageRowsNotAdded_SeriesLimitExceeded(t *testing.T) {
 		s.UpdateMetrics(&gotMetrics)
 
 		want := numRows - (gotMetrics.HourlySeriesLimitRowsDropped + gotMetrics.DailySeriesLimitRowsDropped)
-		if got := testCountAllMetricNames(s, TimeRange{minTimestamp, maxTimestamp}); uint64(got) != want {
+		if got := testCountAllMetricNamesForTenant(s, accountID, projectID, TimeRange{minTimestamp, maxTimestamp}); uint64(got) != want {
 			t.Fatalf("unexpected metric name count: %d, want %d", got, want)
 		}
 	}
@@ -1611,8 +1621,8 @@ func TestStorageRowsNotAdded_SeriesLimitExceeded(t *testing.T) {
 
 // testCountAllMetricNames is a test helper function that counts the names of
 // all time series within the given time range.
-func testCountAllMetricNames(s *Storage, tr TimeRange) int {
-	tfsAll := NewTagFilters()
+func testCountAllMetricNamesForTenant(s *Storage, accountID, projectID uint32, tr TimeRange) int {
+	tfsAll := NewTagFilters(accountID, projectID)
 	if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 		panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
 	}
