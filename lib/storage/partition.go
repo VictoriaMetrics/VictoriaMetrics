@@ -846,6 +846,11 @@ func (pt *partition) HasTimestamp(timestamp int64) bool {
 	return timestamp >= pt.tr.MinTimestamp && timestamp <= pt.tr.MaxTimestamp
 }
 
+// TimeRangeInPartition returns true if the pt contains the given time range.
+func (pt *partition) TimeRangeInPartition(minTimestamp, MaxTimestamp int64) bool {
+	return minTimestamp >= pt.tr.MinTimestamp && MaxTimestamp <= pt.tr.MaxTimestamp
+}
+
 // GetParts appends parts snapshot to dst and returns it.
 //
 // The appended parts must be released with PutParts.
