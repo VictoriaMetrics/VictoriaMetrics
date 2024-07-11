@@ -14,8 +14,9 @@ The following `tip` changes can be tested by building VictoriaMetrics components
 * SECURITY: upgrade Go builder from Go1.22.4 to Go1.22.5. See the list of issues addressed in [Go1.22.5](https://github.com/golang/go/issues?q=milestone%3AGo1.22.5+label%3ACherryPickApproved).
 * SECURITY: upgrade base docker image (Alpine) from 3.20.0 to 3.20.1. See [alpine 3.20.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.1-released.html).
 
-* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix path for system links printed on default vmalert's UI page when `-http.pathPrefix` is set.
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/): properly configure authentication with S3 when `-configFilePath` cmd-line flag is specified.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix path for system links printed on default vmalert's UI page when `-http.pathPrefix` is set.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix incorrect redirection in WebUI of vmalert. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6603) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6620).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/) enterprise: properly configure authentication with S3 when `-s3.configFilePath` cmd-line flag is specified for reading rule configs.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): properly specify oauth2 `ClientSecret` when configuring authentication for `notifier.url`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6471) for details. Thanks to @yincongcyincong for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6478).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): **copy row** button in Table view produces unexpected result. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6421) and [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6495).
