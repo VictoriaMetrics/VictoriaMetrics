@@ -1783,7 +1783,7 @@ It has the following format:
 ```
 
 Where `exprX` is one of the supported math expressions mentioned below, while `resultNameX` is the name of the field to store the calculated result to.
-The `as` keyword is optional. The result name can be omitted. In this case the result is stored to a field with the name equal to string represenation
+The `as` keyword is optional. The result name can be omitted. In this case the result is stored to a field with the name equal to string representation
 of the corresponding math expression.
 
 `exprX` may reference `resultNameY` calculated before the given `exprX`.
@@ -2328,7 +2328,7 @@ The following query returns up to 5 additional logs in front of every log messag
 _time:5m stacktrace | stream_context before 5
 ```
 
-The following query returns up to 2 logs in frount of the log message with the `error` [word](#word) and up to 5 logs after this log message
+The following query returns up to 2 logs in front of the log message with the `error` [word](#word) and up to 5 logs after this log message
 across all the logs for the last 5 minutes:
 
 ```logsql
@@ -2666,7 +2666,7 @@ See also:
 
 #### Conditional unpack_syslog
 
-If the [`unpack_syslog` pipe](#unpack_syslog-pipe) musn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
+If the [`unpack_syslog` pipe](#unpack_syslog-pipe) mustn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
 then add `if (<filters>)` after `unpack_syslog`.
 The `<filters>` can contain arbitrary [filters](#filters). For example, the following query unpacks syslog message fields from `foo` field
 only if `hostname` field in the current log entry isn't set or empty:
