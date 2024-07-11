@@ -1,12 +1,16 @@
 package test
 
-import "github.com/golang/snappy"
+import (
+	"fmt"
+
+	"github.com/golang/snappy"
+)
 
 // Compress marshals and compresses wr.
-func Compress(wr WriteRequest) ([]byte, error) {
+func Compress(wr WriteRequest) []byte {
 	data, err := wr.Marshal()
 	if err != nil {
-		return nil, err
+		panic(fmt.Errorf("BUG: cannot compress WriteRequest: %s", err))
 	}
-	return snappy.Encode(nil, data), nil
+	return snappy.Encode(nil, data)
 }
