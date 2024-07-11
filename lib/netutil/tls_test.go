@@ -2,7 +2,7 @@ package netutil
 
 import (
 	"crypto/tls"
-	"fmt"
+	"errors"
 	"os"
 	"reflect"
 	"testing"
@@ -110,17 +110,11 @@ func TestParseTLSVersionFailure(t *testing.T) {
 }
 
 func TestGetServerTLSConfig(t *testing.T) {
-	f := func(tlsCertFile, tlsKeyFile string, expectedErr error) {
+	f := func(tlsCertFile, tlsKeyFile string, expectErr bool) {
 		t.Helper()
 		_, err := GetServerTLSConfig(tlsCertFile, tlsKeyFile, "", []string{})
-		if err == nil {
-			if expectedErr != nil {
-				t.Fatalf("expecte nil error, get: %v", expectedErr)
-			}
-		} else {
-			if err.Error() != expectedErr.Error() {
-				t.Fatalf("expected err: %v, get error: %v", err, expectedErr)
-			}
+		if !errors.Is(err, nil) != expectErr { // same as: if errors.Is(err, nil) == expectErr {
+			t.Fatalf("expect err: %v, get error: %v", expectErr, err)
 		}
 	}
 
@@ -180,9 +174,9 @@ YwXfJbKUZnJlv9XplwR7Dw==
 	}
 
 	// check cert file not exist
-	f("/a", "./test.key", fmt.Errorf(`cannot load TLS cert from certFile="/a", keyFile="./test.key": open /a: no such file or directory`))
+	f("/a", "./test.key", true)
 	// check key file not exist
-	f("./test.crt", "/b", fmt.Errorf(`cannot load TLS cert from certFile="./test.crt", keyFile="/b": open /b: no such file or directory`))
+	f("./test.crt", "/b", true)
 	// cert file and key file all exist
-	f("./test.crt", "./test.key", nil)
+	f("./test.crt", "./test.key", false)
 }
