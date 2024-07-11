@@ -217,9 +217,9 @@ type GenerateAccessTokenRequest struct {
 	NullFields []string `json:"-"`
 }
 
-func (s *GenerateAccessTokenRequest) MarshalJSON() ([]byte, error) {
+func (s GenerateAccessTokenRequest) MarshalJSON() ([]byte, error) {
 	type NoMethod GenerateAccessTokenRequest
-	return gensupport.MarshalJSON(NoMethod(*s), s.ForceSendFields, s.NullFields)
+	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
 }
 
 type GenerateAccessTokenResponse struct {
@@ -243,9 +243,9 @@ type GenerateAccessTokenResponse struct {
 	NullFields []string `json:"-"`
 }
 
-func (s *GenerateAccessTokenResponse) MarshalJSON() ([]byte, error) {
+func (s GenerateAccessTokenResponse) MarshalJSON() ([]byte, error) {
 	type NoMethod GenerateAccessTokenResponse
-	return gensupport.MarshalJSON(NoMethod(*s), s.ForceSendFields, s.NullFields)
+	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
 }
 
 type GenerateIdTokenRequest struct {
@@ -277,9 +277,9 @@ type GenerateIdTokenRequest struct {
 	NullFields []string `json:"-"`
 }
 
-func (s *GenerateIdTokenRequest) MarshalJSON() ([]byte, error) {
+func (s GenerateIdTokenRequest) MarshalJSON() ([]byte, error) {
 	type NoMethod GenerateIdTokenRequest
-	return gensupport.MarshalJSON(NoMethod(*s), s.ForceSendFields, s.NullFields)
+	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
 }
 
 type GenerateIdTokenResponse struct {
@@ -301,9 +301,9 @@ type GenerateIdTokenResponse struct {
 	NullFields []string `json:"-"`
 }
 
-func (s *GenerateIdTokenResponse) MarshalJSON() ([]byte, error) {
+func (s GenerateIdTokenResponse) MarshalJSON() ([]byte, error) {
 	type NoMethod GenerateIdTokenResponse
-	return gensupport.MarshalJSON(NoMethod(*s), s.ForceSendFields, s.NullFields)
+	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
 }
 
 type SignBlobRequest struct {
@@ -331,9 +331,9 @@ type SignBlobRequest struct {
 	NullFields []string `json:"-"`
 }
 
-func (s *SignBlobRequest) MarshalJSON() ([]byte, error) {
+func (s SignBlobRequest) MarshalJSON() ([]byte, error) {
 	type NoMethod SignBlobRequest
-	return gensupport.MarshalJSON(NoMethod(*s), s.ForceSendFields, s.NullFields)
+	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
 }
 
 type SignBlobResponse struct {
@@ -368,9 +368,9 @@ type SignBlobResponse struct {
 	NullFields []string `json:"-"`
 }
 
-func (s *SignBlobResponse) MarshalJSON() ([]byte, error) {
+func (s SignBlobResponse) MarshalJSON() ([]byte, error) {
 	type NoMethod SignBlobResponse
-	return gensupport.MarshalJSON(NoMethod(*s), s.ForceSendFields, s.NullFields)
+	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
 }
 
 type SignJwtRequest struct {
@@ -402,9 +402,9 @@ type SignJwtRequest struct {
 	NullFields []string `json:"-"`
 }
 
-func (s *SignJwtRequest) MarshalJSON() ([]byte, error) {
+func (s SignJwtRequest) MarshalJSON() ([]byte, error) {
 	type NoMethod SignJwtRequest
-	return gensupport.MarshalJSON(NoMethod(*s), s.ForceSendFields, s.NullFields)
+	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
 }
 
 type SignJwtResponse struct {
@@ -441,9 +441,9 @@ type SignJwtResponse struct {
 	NullFields []string `json:"-"`
 }
 
-func (s *SignJwtResponse) MarshalJSON() ([]byte, error) {
+func (s SignJwtResponse) MarshalJSON() ([]byte, error) {
 	type NoMethod SignJwtResponse
-	return gensupport.MarshalJSON(NoMethod(*s), s.ForceSendFields, s.NullFields)
+	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
 }
 
 type ProjectsServiceAccountsGenerateAccessTokenCall struct {

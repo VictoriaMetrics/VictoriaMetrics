@@ -127,7 +127,7 @@ func baseCreds(ctx context.Context, ds *DialSettings) (*google.Credentials, erro
 	if ds.Credentials != nil {
 		return ds.Credentials, nil
 	}
-	if ds.CredentialsJSON != nil {
+	if len(ds.CredentialsJSON) > 0 {
 		return credentialsFromJSON(ctx, ds.CredentialsJSON, ds)
 	}
 	if ds.CredentialsFile != "" {

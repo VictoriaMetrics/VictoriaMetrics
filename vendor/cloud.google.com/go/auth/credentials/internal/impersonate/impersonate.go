@@ -109,14 +109,9 @@ func (o *Options) Token(ctx context.Context) (*auth.Token, error) {
 	if err := setAuthHeader(ctx, o.Tp, req); err != nil {
 		return nil, err
 	}
-	resp, err := o.Client.Do(req)
+	resp, body, err := internal.DoRequest(o.Client, req)
 	if err != nil {
 		return nil, fmt.Errorf("credentials: unable to generate access token: %w", err)
-	}
-	defer resp.Body.Close()
-	body, err := internal.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("credentials: unable to read body: %w", err)
 	}
 	if c := resp.StatusCode; c < http.StatusOK || c >= http.StatusMultipleChoices {
 		return nil, fmt.Errorf("credentials: status code %d: %s", c, body)

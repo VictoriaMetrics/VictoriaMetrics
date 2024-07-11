@@ -1044,29 +1044,18 @@ func fixBrokenBuckets(i int, xss []leTimeseries) {
 	// Buckets are already sorted by le, so their values must be in ascending order,
 	// since the next bucket includes all the previous buckets.
 	// If the next bucket has lower value than the current bucket,
-	// then the current bucket must be substituted with the next bucket value.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2819
+	// then the next bucket must be substituted with the current bucket value.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4580#issuecomment-2186659102
 	if len(xss) < 2 {
 		return
 	}
-	// Fill NaN in upper buckets with the first non-NaN value found in lower buckets.
-	for j := len(xss) - 1; j >= 0; j-- {
+
+	// Substitute upper bucket values with lower bucket values if the upper values are NaN
+	// or are bigger than the lower bucket values.
+	vNext := xss[0].ts.Values[0]
+	for j := 1; j < len(xss); j++ {
 		v := xss[j].ts.Values[i]
-		if !math.IsNaN(v) {
-			j++
-			for j < len(xss) {
-				xss[j].ts.Values[i] = v
-				j++
-			}
-			break
-		}
-	}
-	// Substitute lower bucket values with upper values if the lower values are NaN
-	// or are bigger than the upper bucket values.
-	vNext := xss[len(xss)-1].ts.Values[i]
-	for j := len(xss) - 2; j >= 0; j-- {
-		v := xss[j].ts.Values[i]
-		if math.IsNaN(v) || v > vNext {
+		if math.IsNaN(v) || vNext > v {
 			xss[j].ts.Values[i] = vNext
 		} else {
 			vNext = v

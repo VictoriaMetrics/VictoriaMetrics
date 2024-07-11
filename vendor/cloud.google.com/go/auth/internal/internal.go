@@ -124,6 +124,21 @@ func GetProjectID(b []byte, override string) string {
 	return v.Project
 }
 
+// DoRequest executes the provided req with the client. It reads the response
+// body, closes it, and returns it.
+func DoRequest(client *http.Client, req *http.Request) (*http.Response, []byte, error) {
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Body.Close()
+	body, err := ReadAll(io.LimitReader(resp.Body, maxBodySize))
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, body, nil
+}
+
 // ReadAll consumes the whole reader and safely reads the content of its body
 // with some overflow protection.
 func ReadAll(r io.Reader) ([]byte, error) {
@@ -167,8 +182,7 @@ func (c *ComputeUniverseDomainProvider) GetProperty(ctx context.Context) (string
 // httpGetMetadataUniverseDomain is a package var for unit test substitution.
 var httpGetMetadataUniverseDomain = func(ctx context.Context) (string, error) {
 	client := metadata.NewClient(&http.Client{Timeout: time.Second})
-	// TODO(quartzmo): set ctx on request
-	return client.Get("universe/universe_domain")
+	return client.GetWithContext(ctx, "universe/universe_domain")
 }
 
 func getMetadataUniverseDomain(ctx context.Context) (string, error) {

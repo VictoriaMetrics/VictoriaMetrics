@@ -7,6 +7,7 @@ package otelgrpc // import "go.opentelemetry.io/contrib/instrumentation/google.g
 // https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/semantic_conventions/rpc.md
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"strconv"
@@ -136,7 +137,7 @@ func (w *clientStream) RecvMsg(m interface{}) error {
 
 	if err == nil && !w.desc.ServerStreams {
 		w.endSpan(nil)
-	} else if err == io.EOF {
+	} else if errors.Is(err, io.EOF) {
 		w.endSpan(nil)
 	} else if err != nil {
 		w.endSpan(err)
@@ -333,7 +334,7 @@ func UnaryServerInterceptor(opts ...Option) grpc.UnaryServerInterceptor {
 		elapsedTime := float64(time.Since(before)) / float64(time.Millisecond)
 
 		metricAttrs = append(metricAttrs, grpcStatusCodeAttr)
-		cfg.rpcDuration.Record(ctx, elapsedTime, metric.WithAttributes(metricAttrs...))
+		cfg.rpcDuration.Record(ctx, elapsedTime, metric.WithAttributeSet(attribute.NewSet(metricAttrs...)))
 
 		return resp, err
 	}

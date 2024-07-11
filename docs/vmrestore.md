@@ -49,47 +49,10 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
 
 ## Advanced usage
 
-* Obtaining credentials from a file.
+Please, see [vmbackup docs](https://docs.victoriametrics.com/vmbackup/#advanced-usage) for examples of authentication 
+with different storage types.
 
-  Add flag `-credsFilePath=/etc/credentials` with following content:
-
-    for s3 (aws, minio or other s3 compatible storages):
-
-     ```sh
-     [default]
-     aws_access_key_id=theaccesskey
-     aws_secret_access_key=thesecretaccesskeyvalue
-    ```
-
-    for gce cloud storage:
-
-    ```json
-    {
-           "type": "service_account",
-           "project_id": "project-id",
-           "private_key_id": "key-id",
-           "private_key": "-----BEGIN PRIVATE KEY-----\nprivate-key\n-----END PRIVATE KEY-----\n",
-           "client_email": "service-account-email",
-           "client_id": "client-id",
-           "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-           "token_uri": "https://accounts.google.com/o/oauth2/token",
-           "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-           "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/service-account-email"
-    }
-    ```
-
-* Usage with s3 custom url endpoint.  It is possible to use `vmrestore` with s3 api compatible storages, like  minio, cloudian and other.
-  You have to add custom url endpoint with a flag:
-
-```sh
-  # for minio:
-  -customS3Endpoint=http://localhost:9000
-
-  # for aws gov region
-  -customS3Endpoint=https://s3-fips.us-gov-west-1.amazonaws.com
-```
-
-* Run `vmrestore -help` in order to see all the available options:
+Run `vmrestore -help` in order to see all the available options:
 
 ```sh
   -concurrency int

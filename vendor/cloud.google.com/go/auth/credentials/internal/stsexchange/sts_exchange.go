@@ -93,15 +93,9 @@ func doRequest(ctx context.Context, opts *Options, data url.Values) (*TokenRespo
 	}
 	req.Header.Set("Content-Length", strconv.Itoa(len(encodedData)))
 
-	resp, err := opts.Client.Do(req)
+	resp, body, err := internal.DoRequest(opts.Client, req)
 	if err != nil {
 		return nil, fmt.Errorf("credentials: invalid response from Secure Token Server: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := internal.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
 	}
 	if c := resp.StatusCode; c < http.StatusOK || c > http.StatusMultipleChoices {
 		return nil, fmt.Errorf("credentials: status code %d: %s", c, body)

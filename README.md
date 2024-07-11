@@ -10,9 +10,9 @@
 [![codecov](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics/branch/master/graph/badge.svg)](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/logo_white.webp">
-  <source media="(prefers-color-scheme: light)" srcset="docs/logo.webp">
-  <img width="300" alt="VictoriaMetrics logo" src="docs/logo.webp">
+  <source srcset="docs/logo_white.webp" media="(prefers-color-scheme: dark)">
+  <source srcset="docs/logo.webp" media="(prefers-color-scheme: light)">
+  <img src="docs/logo.webp" width="300" alt="VictoriaMetrics logo">
 </picture>
 
 VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.

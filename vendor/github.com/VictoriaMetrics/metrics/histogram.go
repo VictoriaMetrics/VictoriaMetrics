@@ -130,7 +130,7 @@ func (h *Histogram) Merge(b *Histogram) {
 			h.decimalBuckets[i] = &b
 		}
 		for j := range db {
-			h.decimalBuckets[i][j] = db[j]
+			h.decimalBuckets[i][j] += db[j]
 		}
 	}
 }

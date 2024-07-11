@@ -151,7 +151,7 @@ func (c *config) handleRPC(ctx context.Context, rs stats.RPCStats, isServer bool
 	case *stats.InPayload:
 		if gctx != nil {
 			messageId = atomic.AddInt64(&gctx.messagesReceived, 1)
-			c.rpcRequestSize.Record(ctx, int64(rs.Length), metric.WithAttributes(metricAttrs...))
+			c.rpcRequestSize.Record(ctx, int64(rs.Length), metric.WithAttributeSet(attribute.NewSet(metricAttrs...)))
 		}
 
 		if c.ReceivedEvent {
@@ -167,7 +167,7 @@ func (c *config) handleRPC(ctx context.Context, rs stats.RPCStats, isServer bool
 	case *stats.OutPayload:
 		if gctx != nil {
 			messageId = atomic.AddInt64(&gctx.messagesSent, 1)
-			c.rpcResponseSize.Record(ctx, int64(rs.Length), metric.WithAttributes(metricAttrs...))
+			c.rpcResponseSize.Record(ctx, int64(rs.Length), metric.WithAttributeSet(attribute.NewSet(metricAttrs...)))
 		}
 
 		if c.SentEvent {
@@ -204,14 +204,17 @@ func (c *config) handleRPC(ctx context.Context, rs stats.RPCStats, isServer bool
 		span.End()
 
 		metricAttrs = append(metricAttrs, rpcStatusAttr)
+		// Allocate vararg slice once.
+		recordOpts := []metric.RecordOption{metric.WithAttributeSet(attribute.NewSet(metricAttrs...))}
 
 		// Use floating point division here for higher precision (instead of Millisecond method).
+		// Measure right before calling Record() to capture as much elapsed time as possible.
 		elapsedTime := float64(rs.EndTime.Sub(rs.BeginTime)) / float64(time.Millisecond)
 
-		c.rpcDuration.Record(ctx, elapsedTime, metric.WithAttributes(metricAttrs...))
+		c.rpcDuration.Record(ctx, elapsedTime, recordOpts...)
 		if gctx != nil {
-			c.rpcRequestsPerRPC.Record(ctx, atomic.LoadInt64(&gctx.messagesReceived), metric.WithAttributes(metricAttrs...))
-			c.rpcResponsesPerRPC.Record(ctx, atomic.LoadInt64(&gctx.messagesSent), metric.WithAttributes(metricAttrs...))
+			c.rpcRequestsPerRPC.Record(ctx, atomic.LoadInt64(&gctx.messagesReceived), recordOpts...)
+			c.rpcResponsesPerRPC.Record(ctx, atomic.LoadInt64(&gctx.messagesSent), recordOpts...)
 		}
 	default:
 		return

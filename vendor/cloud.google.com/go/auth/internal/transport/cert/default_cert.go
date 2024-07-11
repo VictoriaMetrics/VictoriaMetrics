@@ -50,11 +50,14 @@ var errSourceUnavailable = errors.New("certificate source is unavailable")
 // returned to indicate that a default certificate source is unavailable.
 func DefaultProvider() (Provider, error) {
 	defaultCert.once.Do(func() {
-		defaultCert.provider, defaultCert.err = NewEnterpriseCertificateProxyProvider("")
+		defaultCert.provider, defaultCert.err = NewWorkloadX509CertProvider("")
 		if errors.Is(defaultCert.err, errSourceUnavailable) {
-			defaultCert.provider, defaultCert.err = NewSecureConnectProvider("")
+			defaultCert.provider, defaultCert.err = NewEnterpriseCertificateProxyProvider("")
 			if errors.Is(defaultCert.err, errSourceUnavailable) {
-				defaultCert.provider, defaultCert.err = nil, nil
+				defaultCert.provider, defaultCert.err = NewSecureConnectProvider("")
+				if errors.Is(defaultCert.err, errSourceUnavailable) {
+					defaultCert.provider, defaultCert.err = nil, nil
+				}
 			}
 		}
 	})
