@@ -58,7 +58,10 @@ func getTag() (string, error) {
 	if _, ok := err.(*exec.ExitError); ok {
 		gitDiffStdOut, _ := execCommand("git diff-index -u HEAD").Output()
 		hashGenerator := sha1.New()
-		io.WriteString(hashGenerator, string(gitDiffStdOut))
+		_, err := io.WriteString(hashGenerator, string(gitDiffStdOut))
+		if err != nil {
+			return "", err
+		}
 		sha1Hex := fmt.Sprintf("%x", hashGenerator.Sum(nil)[0:4])
 		tag = strings.Join([]string{tag, "-dirty-", sha1Hex}, "")
 	}
