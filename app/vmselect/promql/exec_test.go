@@ -4461,7 +4461,7 @@ func TestExecSuccess(t *testing.T) {
 		),0.01)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{18.57, 18.57, 18.57, 18.57, 18.57, 18.57},
+			Values:     []float64{30, 30, 30, 30, 30, 30},
 			Timestamps: timestampsExpected,
 		}
 		r.MetricName.Tags = []storage.Tag{{

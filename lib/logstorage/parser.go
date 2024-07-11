@@ -281,6 +281,11 @@ func getStreamIDsFromFilterOr(f filter) ([]streamID, bool) {
 	}
 }
 
+// DropAllPipes drops all the pipes from q.
+func (q *Query) DropAllPipes() {
+	q.pipes = nil
+}
+
 // AddCountByTimePipe adds '| stats by (_time:step offset off, field1, ..., fieldN) count() hits' to the end of q.
 func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 	{

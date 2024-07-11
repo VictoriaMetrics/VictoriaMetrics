@@ -61,7 +61,7 @@ func TestSeries_Unmarshal(t *testing.T) {
 }
 
 func TestToFloat64(t *testing.T) {
-	f := func(in interface{}, want float64) {
+	f := func(in any, want float64) {
 		t.Helper()
 		got, err := toFloat64(in)
 		if err != nil {

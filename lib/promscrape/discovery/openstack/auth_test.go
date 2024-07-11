@@ -1,124 +1,104 @@
 package openstack
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
-func Test_buildAuthRequestBody1(t *testing.T) {
-	type args struct {
-		sdc *SDConfig
+func TestBuildAuthRequestBody_Failure(t *testing.T) {
+	f := func(sdc *SDConfig) {
+		t.Helper()
+
+		_, err := buildAuthRequestBody(sdc)
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
 	}
-	tests := []struct {
-		name    string
-		args    args
-		want    []byte
-		wantErr bool
-	}{
-		{
-			name: "empty config",
-			args: args{
-				sdc: &SDConfig{},
-			},
-			wantErr: true,
-		},
-		{
-			name: "username password auth with domain",
-			args: args{
-				sdc: &SDConfig{
-					Username:   "some-user",
-					Password:   promauth.NewSecret("some-password"),
-					DomainName: "some-domain",
-				},
-			},
-			want: []byte(`{"auth":{"identity":{"methods":["password"],"password":{"user":{"name":"some-user","password":"some-password","domain":{"name":"some-domain"}}}},"scope":{"domain":{"name":"some-domain"}}}}`),
-		},
-		{
-			name: "application credentials auth",
-			args: args{
-				sdc: &SDConfig{
-					ApplicationCredentialID:     "some-id",
-					ApplicationCredentialSecret: promauth.NewSecret("some-secret"),
-				},
-			},
-			want: []byte(`{"auth":{"identity":{"methods":["application_credential"],"application_credential":{"id":"some-id","secret":"some-secret"}}}}`),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := buildAuthRequestBody(tt.args.sdc)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("buildAuthRequestBody() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("buildAuthRequestBody() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
+
+	// empty config
+	f(&SDConfig{})
 }
 
-func Test_getComputeEndpointURL1(t *testing.T) {
-	type args struct {
-		catalog      []catalogItem
-		availability string
-		region       string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    string
-		wantErr bool
-	}{
-		{
-			name: "bad catalog data",
-			args: args{
-				catalog: []catalogItem{
-					{
-						Type:      "keystone",
-						Endpoints: []endpoint{},
-					},
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "good private url",
-			args: args{
-				availability: "private",
-				catalog: []catalogItem{
-					{
-						Type: "compute",
-						Endpoints: []endpoint{
-							{
-								Interface: "private",
-								Type:      "compute",
-								URL:       "https://compute.test.local:8083/v2.1",
-							},
-						},
-					},
-					{
-						Type:      "keystone",
-						Endpoints: []endpoint{},
-					},
-				},
-			},
-			want: "https://compute.test.local:8083/v2.1",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := getComputeEndpointURL(tt.args.catalog, tt.args.availability, tt.args.region)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("getComputeEndpointURL() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+func TestBuildAuthRequestBody_Success(t *testing.T) {
+	f := func(sdc *SDConfig, resultExpected string) {
+		t.Helper()
 
-			if !tt.wantErr && !reflect.DeepEqual(got.String(), tt.want) {
-				t.Errorf("getComputeEndpointURL() got = %v, want %v", got.String(), tt.want)
-			}
-		})
+		result, err := buildAuthRequestBody(sdc)
+		if err != nil {
+			t.Fatalf("buildAuthRequestBody() error: %s", err)
+		}
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result\ngot\n%s\nwant\n%s", result, resultExpected)
+		}
 	}
+
+	// username password auth with domain
+	f(&SDConfig{
+		Username:   "some-user",
+		Password:   promauth.NewSecret("some-password"),
+		DomainName: "some-domain",
+	}, `{"auth":{"identity":{"methods":["password"],"password":{"user":{"name":"some-user","password":"some-password","domain":{"name":"some-domain"}}}},"scope":{"domain":{"name":"some-domain"}}}}`)
+
+	// application credentials auth
+	f(&SDConfig{
+		ApplicationCredentialID:     "some-id",
+		ApplicationCredentialSecret: promauth.NewSecret("some-secret"),
+	}, `{"auth":{"identity":{"methods":["application_credential"],"application_credential":{"id":"some-id","secret":"some-secret"}}}}`)
+}
+
+func TestGetComputeEndpointURL_Failure(t *testing.T) {
+	f := func(catalog []catalogItem) {
+		t.Helper()
+
+		_, err := getComputeEndpointURL(catalog, "", "")
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
+	}
+
+	// bad catalog data
+	catalog := []catalogItem{
+		{
+			Type:      "keystone",
+			Endpoints: []endpoint{},
+		},
+	}
+	f(catalog)
+}
+
+func TestGetComputeEndpointURL_Success(t *testing.T) {
+	f := func(catalog []catalogItem, availability, region, resultExpected string) {
+		t.Helper()
+
+		resultURL, err := getComputeEndpointURL(catalog, availability, region)
+		if err != nil {
+			t.Fatalf("getComputeEndpointURL() error: %s", err)
+		}
+
+		if resultURL.String() != resultExpected {
+			t.Fatalf("unexpected result\ngot\n%s\nwant\n%s", resultURL, resultExpected)
+		}
+	}
+
+	// good private url
+	catalog := []catalogItem{
+		{
+			Type: "compute",
+			Endpoints: []endpoint{
+				{
+					Interface: "private",
+					Type:      "compute",
+					URL:       "https://compute.test.local:8083/v2.1",
+				},
+			},
+		},
+		{
+			Type:      "keystone",
+			Endpoints: []endpoint{},
+		},
+	}
+	availability := "private"
+	resultExpected := "https://compute.test.local:8083/v2.1"
+	f(catalog, availability, "", resultExpected)
 }

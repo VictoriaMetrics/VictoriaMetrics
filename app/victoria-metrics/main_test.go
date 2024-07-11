@@ -117,7 +117,7 @@ func (q *Query) metrics() ([]Metric, error) {
 type QueryInstant struct {
 	Result []struct {
 		Labels map[string]string `json:"metric"`
-		TV     [2]interface{}    `json:"value"`
+		TV     [2]any            `json:"value"`
 	} `json:"result"`
 }
 
@@ -140,7 +140,7 @@ func (q QueryInstant) metrics() ([]Metric, error) {
 type QueryRange struct {
 	Result []struct {
 		Metric map[string]string `json:"metric"`
-		Values [][]interface{}   `json:"values"`
+		Values [][]any           `json:"values"`
 	} `json:"result"`
 }
 
@@ -432,7 +432,7 @@ func httpReadMetrics(t *testing.T, address, query string) []Metric {
 	return rows
 }
 
-func httpReadStruct(t *testing.T, address, query string, dst interface{}) {
+func httpReadStruct(t *testing.T, address, query string, dst any) {
 	t.Helper()
 	s := newSuite(t)
 	resp, err := http.Get(address + query)
