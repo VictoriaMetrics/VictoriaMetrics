@@ -11,9 +11,9 @@ import (
 )
 
 const (
-	backoffRetries     = 10
-	backoffFactor      = 1.8
-	backoffMinDuration = time.Second * 2
+	backoffRetries     = 5
+	backoffFactor      = 3
+	backoffMinDuration = time.Second * 30
 )
 
 // retryableFunc describes call back which will repeat on errors
