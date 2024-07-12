@@ -20,23 +20,23 @@ You have two options to configure Cloud Alertmanager:
 
 1. From integrations section: Menu **"Integrations" `->` "Cloud Alertmanager" `->` "New configuration"**:
    ![Cloud Alertmanager](alertmanager-setup-for-deployment_integrations.webp)
-2. From deployment page: **"Deployment page" `->` Tab "Rules" `->` "Settings" `->` "Connect notifier" `/` "New notifier"**: 
+2. From deployment page: **"Deployment page" `->` "Rules" tab `->` "Settings" `->` "Connect notifier" `/` "New notifier"**: 
    ![Connect Notifier](alertmanager-setup-for-deployment_connect_notifier.webp)
 
 For creating a new configuration, you need to provide the following parameters:
 
-- Name of the configuration (it only affects the display in the user interface)
-- Configuration file in [specified format](#alertmanager-config-specification)
+- **Name of the configuration** (it only affects the display in the user interface)
+- **Configuration file** in [specified format](#alertmanager-config-specification)
 
 Before saving the configuration, you can validate it by clicking the "Test configuration" button.
 
-After creating the configuration, you can connect it to the deployment (or deployments).
-For this, you need go to on the "Deployment page" `->` Tab "Rules" `->` "Settings" `,
+After creating the configuration, you can connect it to one or multiple deployments.
+In order to do this you need to go to the "Deployment page" `->` "Rules" tab `->` "Settings" `,
 select the created notifier and confirm the action:
 
 ![Select Notifier](alertmanager-setup-for-deployment_select_notifier.webp)
 
-Alertmanager is now set up for your deployment.
+Alertmanager is now set up for your deployment, and you be able to get notifications from it.
 
 ### Alertmanager config specification
 
@@ -61,7 +61,7 @@ But with respect to the specification, there are the following limitations:
 
 ### Configuration example
 
-Here are example of Alertmanager configuration:
+Here is an example of Alertmanager configuration:
 
 ```yaml
 route:
@@ -125,7 +125,7 @@ receivers:
 
 ### Custom Alertmanager
 
-If for some reason Cloud Alertmanager is not suitable for you, you can use Victoria Metrics Cloud with any external Alertmanager hosted in your infrastructure.
+If for some reason Cloud Alertmanager is not suitable for you, you can use Managed VictoriaMetrics with any external Alertmanager hosted in your infrastructure.
 
 For that select Custom Alertmanager instead of Cloud Alertmanager when [creating the Alertmanager](#configure-alertmanager):
 
@@ -137,11 +137,11 @@ Limitations for the Custom Alertmanager:
 - You will not be able to use "Alerts" tab on the deployment page.
 
 You can test the connection to your custom Alertmanager by clicking the "Test connection" button.
-For testing is used `/api/v2/status` endpoint of the Alertmanager.
+`/api/v2/status` endpoint is used to verify that connection to Alertmanager is working.
 
 ## Configure alerting and recording rules
 
-Alerting and recording rules could be uploaded on **"Deployment page" `->` Tab "Rules" `->` "Settings"**:
+Alerting and recording rules could be uploaded on **"Deployment page" `->` "Rules" tab `->` "Settings"**:
 
 ![Upload rules](alertmanager-setup-for-deployment_upload_rules.webp)
 
@@ -152,9 +152,9 @@ or [Prometheus recording rules definition format](https://prometheus.io/docs/pro
 
 There are limitations for the rules files:
 
-1. All files may contain no more than 100 rules in total
-2. The maximum file size is 20mb
-3. The names of the groups in the files should be different
+1. All files may contain no more than 100 rules in total. If you need to upload more rules contact us via [support@victoriametrics.com](mailto:support@victoriametrics.com).
+2. The maximum file size is 20mb.
+3. The names of the groups in the files should be unique.
 
 You can also use API for uploading rules. Switch to **"Upload with API"** on the page and follow the instructions:
 
