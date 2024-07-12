@@ -13,7 +13,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 	remote_read_integration "github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/testdata/servers_integration_test"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
@@ -27,7 +26,82 @@ const (
 	retentionPeriod = "100y"
 )
 
-func Test_vmNativeProcessor_run(t *testing.T) {
+func TestVMNativeProcessorRun(t *testing.T) {
+	f := func(startStr, endStr string, numOfSeries, numOfSamples int, resultExpected []vm.TimeSeries) {
+		t.Helper()
+
+		src := remote_read_integration.NewRemoteWriteServer(t)
+		dst := remote_read_integration.NewRemoteWriteServer(t)
+
+		defer func() {
+			src.Close()
+			dst.Close()
+		}()
+
+		start, err := time.Parse(time.RFC3339, startStr)
+		if err != nil {
+			t.Fatalf("cannot parse start time: %s", err)
+		}
+
+		end, err := time.Parse(time.RFC3339, endStr)
+		if err != nil {
+			t.Fatalf("cannot parse end time: %s", err)
+		}
+
+		matchName := "__name__"
+		matchValue := ".*"
+		filter := native.Filter{
+			Match:     fmt.Sprintf("{%s=~%q}", matchName, matchValue),
+			TimeStart: startStr,
+			TimeEnd:   endStr,
+		}
+
+		rws := remote_read_integration.GenerateVNSeries(start.Unix(), end.Unix(), int64(numOfSeries), int64(numOfSamples))
+
+		src.Series(rws)
+		dst.ExpectedSeries(resultExpected)
+
+		if err := fillStorage(rws); err != nil {
+			t.Fatalf("cannot add series to storage: %s", err)
+		}
+
+		srcClient := &native.Client{
+			AuthCfg:     nil,
+			Addr:        src.URL(),
+			ExtraLabels: []string{},
+			HTTPClient:  &http.Client{Transport: &http.Transport{DisableKeepAlives: false}},
+		}
+		dstClient := &native.Client{
+			AuthCfg:     nil,
+			Addr:        dst.URL(),
+			ExtraLabels: []string{},
+			HTTPClient:  &http.Client{Transport: &http.Transport{DisableKeepAlives: false}},
+		}
+
+		isSilent = true
+		defer func() { isSilent = false }()
+
+		p := &vmNativeProcessor{
+			filter:   filter,
+			dst:      dstClient,
+			src:      srcClient,
+			backoff:  backoff.New(),
+			cc:       1,
+			isNative: true,
+		}
+
+		ctx := context.Background()
+		if err := p.run(ctx); err != nil {
+			t.Fatalf("run() error: %s", err)
+		}
+		deleted, err := deleteSeries(matchName, matchValue)
+		if err != nil {
+			t.Fatalf("cannot delete series: %s", err)
+		}
+		if deleted != numOfSeries {
+			t.Fatalf("unexpected number of deleted series; got %d; want %d", deleted, numOfSeries)
+		}
+	}
 
 	processFlags()
 	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
@@ -42,214 +116,78 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 	defer func() {
 		barpool.Disable(false)
 	}()
-	defer func() { isSilent = false }()
 
-	type fields struct {
-		filter       native.Filter
-		dst          *native.Client
-		src          *native.Client
-		backoff      *backoff.Backoff
-		s            *stats
-		rateLimit    int64
-		interCluster bool
-		cc           int
-		matchName    string
-		matchValue   string
-	}
-	type args struct {
-		ctx    context.Context
-		silent bool
-	}
-
-	tests := []struct {
-		name           string
-		fields         fields
-		args           args
-		vmSeries       func(start, end, numOfSeries, numOfSamples int64) []vm.TimeSeries
-		expectedSeries []vm.TimeSeries
-		start          string
-		end            string
-		numOfSamples   int64
-		numOfSeries    int64
-		chunk          string
-		wantErr        bool
-	}{
+	// step minute on minute time range
+	start := "2022-11-25T11:23:05+02:00"
+	end := "2022-11-27T11:24:05+02:00"
+	numOfSeries := 3
+	numOfSamples := 2
+	resultExpected := []vm.TimeSeries{
 		{
-			name:         "step minute on minute time range",
-			start:        "2022-11-25T11:23:05+02:00",
-			end:          "2022-11-27T11:24:05+02:00",
-			numOfSamples: 2,
-			numOfSeries:  3,
-			chunk:        stepper.StepMinute,
-			fields: fields{
-				filter:       native.Filter{},
-				backoff:      backoff.New(),
-				rateLimit:    0,
-				interCluster: false,
-				cc:           1,
-				matchName:    "__name__",
-				matchValue:   ".*",
-			},
-			args: args{
-				ctx:    context.Background(),
-				silent: true,
-			},
-			vmSeries: remote_read_integration.GenerateVNSeries,
-			expectedSeries: []vm.TimeSeries{
-				{
-					Name:       "vm_metric_1",
-					LabelPairs: []vm.LabelPair{{Name: "job", Value: "0"}},
-					Timestamps: []int64{1669368185000, 1669454615000},
-					Values:     []float64{0, 0},
-				},
-				{
-					Name:       "vm_metric_1",
-					LabelPairs: []vm.LabelPair{{Name: "job", Value: "1"}},
-					Timestamps: []int64{1669368185000, 1669454615000},
-					Values:     []float64{100, 100},
-				},
-				{
-					Name:       "vm_metric_1",
-					LabelPairs: []vm.LabelPair{{Name: "job", Value: "2"}},
-					Timestamps: []int64{1669368185000, 1669454615000},
-					Values:     []float64{200, 200},
-				},
-			},
-			wantErr: false,
+			Name:       "vm_metric_1",
+			LabelPairs: []vm.LabelPair{{Name: "job", Value: "0"}},
+			Timestamps: []int64{1669368185000, 1669454615000},
+			Values:     []float64{0, 0},
 		},
 		{
-			name:         "step month on month time range",
-			start:        "2022-09-26T11:23:05+02:00",
-			end:          "2022-11-26T11:24:05+02:00",
-			numOfSamples: 2,
-			numOfSeries:  3,
-			chunk:        stepper.StepMonth,
-			fields: fields{
-				filter:       native.Filter{},
-				backoff:      backoff.New(),
-				rateLimit:    0,
-				interCluster: false,
-				cc:           1,
-				matchName:    "__name__",
-				matchValue:   ".*",
-			},
-			args: args{
-				ctx:    context.Background(),
-				silent: true,
-			},
-			vmSeries: remote_read_integration.GenerateVNSeries,
-			expectedSeries: []vm.TimeSeries{
-				{
-					Name:       "vm_metric_1",
-					LabelPairs: []vm.LabelPair{{Name: "job", Value: "0"}},
-					Timestamps: []int64{1664184185000},
-					Values:     []float64{0},
-				},
-				{
-					Name:       "vm_metric_1",
-					LabelPairs: []vm.LabelPair{{Name: "job", Value: "0"}},
-					Timestamps: []int64{1666819415000},
-					Values:     []float64{0},
-				},
-				{
-					Name:       "vm_metric_1",
-					LabelPairs: []vm.LabelPair{{Name: "job", Value: "1"}},
-					Timestamps: []int64{1664184185000},
-					Values:     []float64{100},
-				},
-				{
-					Name:       "vm_metric_1",
-					LabelPairs: []vm.LabelPair{{Name: "job", Value: "1"}},
-					Timestamps: []int64{1666819415000},
-					Values:     []float64{100},
-				},
-				{
-					Name:       "vm_metric_1",
-					LabelPairs: []vm.LabelPair{{Name: "job", Value: "2"}},
-					Timestamps: []int64{1664184185000},
-					Values:     []float64{200},
-				},
-				{
-					Name:       "vm_metric_1",
-					LabelPairs: []vm.LabelPair{{Name: "job", Value: "2"}},
-					Timestamps: []int64{1666819415000},
-					Values:     []float64{200},
-				},
-			},
-			wantErr: false,
+			Name:       "vm_metric_1",
+			LabelPairs: []vm.LabelPair{{Name: "job", Value: "1"}},
+			Timestamps: []int64{1669368185000, 1669454615000},
+			Values:     []float64{100, 100},
+		},
+		{
+			Name:       "vm_metric_1",
+			LabelPairs: []vm.LabelPair{{Name: "job", Value: "2"}},
+			Timestamps: []int64{1669368185000, 1669454615000},
+			Values:     []float64{200, 200},
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			src := remote_read_integration.NewRemoteWriteServer(t)
-			dst := remote_read_integration.NewRemoteWriteServer(t)
+	f(start, end, numOfSeries, numOfSamples, resultExpected)
 
-			defer func() {
-				src.Close()
-				dst.Close()
-			}()
-
-			start, err := time.Parse(time.RFC3339, tt.start)
-			if err != nil {
-				t.Fatalf("Error parse start time: %s", err)
-			}
-
-			end, err := time.Parse(time.RFC3339, tt.end)
-			if err != nil {
-				t.Fatalf("Error parse end time: %s", err)
-			}
-
-			tt.fields.filter.Match = fmt.Sprintf("{%s=~%q}", tt.fields.matchName, tt.fields.matchValue)
-			tt.fields.filter.TimeStart = tt.start
-			tt.fields.filter.TimeEnd = tt.end
-
-			rws := tt.vmSeries(start.Unix(), end.Unix(), tt.numOfSeries, tt.numOfSamples)
-
-			src.Series(rws)
-			dst.ExpectedSeries(tt.expectedSeries)
-
-			if err := fillStorage(rws); err != nil {
-				t.Fatalf("error add series to storage: %s", err)
-			}
-
-			tt.fields.src = &native.Client{
-				AuthCfg:     nil,
-				Addr:        src.URL(),
-				ExtraLabels: []string{},
-				HTTPClient:  &http.Client{Transport: &http.Transport{DisableKeepAlives: false}},
-			}
-			tt.fields.dst = &native.Client{
-				AuthCfg:     nil,
-				Addr:        dst.URL(),
-				ExtraLabels: []string{},
-				HTTPClient:  &http.Client{Transport: &http.Transport{DisableKeepAlives: false}},
-			}
-
-			isSilent = tt.args.silent
-			p := &vmNativeProcessor{
-				filter:       tt.fields.filter,
-				dst:          tt.fields.dst,
-				src:          tt.fields.src,
-				backoff:      tt.fields.backoff,
-				s:            tt.fields.s,
-				rateLimit:    tt.fields.rateLimit,
-				interCluster: tt.fields.interCluster,
-				cc:           tt.fields.cc,
-				isNative:     true,
-			}
-
-			if err := p.run(tt.args.ctx); (err != nil) != tt.wantErr {
-				t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			deleted, err := deleteSeries(tt.fields.matchName, tt.fields.matchValue)
-			if err != nil {
-				t.Fatalf("error delete series: %s", err)
-			}
-			if int64(deleted) != tt.numOfSeries {
-				t.Fatalf("expected deleted series %d; got deleted series %d", tt.numOfSeries, deleted)
-			}
-		})
+	// step month on month time range
+	start = "2022-09-26T11:23:05+02:00"
+	end = "2022-11-26T11:24:05+02:00"
+	numOfSeries = 3
+	numOfSamples = 2
+	resultExpected = []vm.TimeSeries{
+		{
+			Name:       "vm_metric_1",
+			LabelPairs: []vm.LabelPair{{Name: "job", Value: "0"}},
+			Timestamps: []int64{1664184185000},
+			Values:     []float64{0},
+		},
+		{
+			Name:       "vm_metric_1",
+			LabelPairs: []vm.LabelPair{{Name: "job", Value: "0"}},
+			Timestamps: []int64{1666819415000},
+			Values:     []float64{0},
+		},
+		{
+			Name:       "vm_metric_1",
+			LabelPairs: []vm.LabelPair{{Name: "job", Value: "1"}},
+			Timestamps: []int64{1664184185000},
+			Values:     []float64{100},
+		},
+		{
+			Name:       "vm_metric_1",
+			LabelPairs: []vm.LabelPair{{Name: "job", Value: "1"}},
+			Timestamps: []int64{1666819415000},
+			Values:     []float64{100},
+		},
+		{
+			Name:       "vm_metric_1",
+			LabelPairs: []vm.LabelPair{{Name: "job", Value: "2"}},
+			Timestamps: []int64{1664184185000},
+			Values:     []float64{200},
+		},
+		{
+			Name:       "vm_metric_1",
+			LabelPairs: []vm.LabelPair{{Name: "job", Value: "2"}},
+			Timestamps: []int64{1666819415000},
+			Values:     []float64{200},
+		},
 	}
+	f(start, end, numOfSeries, numOfSamples, resultExpected)
 }
 
 func processFlags() {
@@ -311,95 +249,57 @@ func deleteSeries(name, value string) (int, error) {
 	return vmstorage.DeleteSeries(nil, []*storage.TagFilters{tfs})
 }
 
-func Test_buildMatchWithFilter(t *testing.T) {
-	tests := []struct {
-		name       string
-		filter     string
-		metricName string
-		want       string
-		wantErr    bool
-	}{
-		{
-			name:       "parsed metric with label",
-			filter:     `{__name__="http_request_count_total",cluster="kube1"}`,
-			metricName: "http_request_count_total",
-			want:       `{cluster="kube1",__name__="http_request_count_total"}`,
-			wantErr:    false,
-		},
-		{
-			name:       "metric name with label",
-			filter:     `http_request_count_total{cluster="kube1"}`,
-			metricName: "http_request_count_total",
-			want:       `{cluster="kube1",__name__="http_request_count_total"}`,
-			wantErr:    false,
-		},
-		{
-			name:       "parsed metric with regexp value",
-			filter:     `{__name__="http_request_count_total",cluster=~"kube.*"}`,
-			metricName: "http_request_count_total",
-			want:       `{cluster=~"kube.*",__name__="http_request_count_total"}`,
-			wantErr:    false,
-		},
-		{
-			name:       "only label with regexp",
-			filter:     `{cluster=~".*"}`,
-			metricName: "http_request_count_total",
-			want:       `{cluster=~".*",__name__="http_request_count_total"}`,
-			wantErr:    false,
-		},
-		{
-			name:       "many labels in filter with regexp",
-			filter:     `{cluster=~".*",job!=""}`,
-			metricName: "http_request_count_total",
-			want:       `{cluster=~".*",job!="",__name__="http_request_count_total"}`,
-			wantErr:    false,
-		},
-		{
-			name:       "match with error",
-			filter:     `{cluster~=".*"}`,
-			metricName: "http_request_count_total",
-			want:       ``,
-			wantErr:    true,
-		},
-		{
-			name:       "all names",
-			filter:     `{__name__!=""}`,
-			metricName: "http_request_count_total",
-			want:       `{__name__="http_request_count_total"}`,
-			wantErr:    false,
-		},
-		{
-			name:       "with many underscores labels",
-			filter:     `{__name__!="", __meta__!=""}`,
-			metricName: "http_request_count_total",
-			want:       `{__meta__!="",__name__="http_request_count_total"}`,
-			wantErr:    false,
-		},
-		{
-			name:       "metric name has regexp",
-			filter:     `{__name__=~".*"}`,
-			metricName: "http_request_count_total",
-			want:       `{__name__="http_request_count_total"}`,
-			wantErr:    false,
-		},
-		{
-			name:       "metric name has negative regexp",
-			filter:     `{__name__!~".*"}`,
-			metricName: "http_request_count_total",
-			want:       `{__name__="http_request_count_total"}`,
-			wantErr:    false,
-		},
+func TestBuildMatchWithFilter_Failure(t *testing.T) {
+	f := func(filter, metricName string) {
+		t.Helper()
+
+		_, err := buildMatchWithFilter(filter, metricName)
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := buildMatchWithFilter(tt.filter, tt.metricName)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("buildMatchWithFilter() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("buildMatchWithFilter() got = %v, want %v", got, tt.want)
-			}
-		})
+
+	// match with error
+	f(`{cluster~=".*"}`, "http_request_count_total")
+}
+
+func TestBuildMatchWithFilter_Success(t *testing.T) {
+	f := func(filter, metricName, resultExpected string) {
+		t.Helper()
+
+		result, err := buildMatchWithFilter(filter, metricName)
+		if err != nil {
+			t.Fatalf("buildMatchWithFilter() error: %s", err)
+		}
+		if result != resultExpected {
+			t.Fatalf("unexpected result\ngot\n%s\nwant\n%s", result, resultExpected)
+		}
 	}
+
+	// parsed metric with label
+	f(`{__name__="http_request_count_total",cluster="kube1"}`, "http_request_count_total", `{cluster="kube1",__name__="http_request_count_total"}`)
+
+	// metric name with label
+	f(`http_request_count_total{cluster="kube1"}`, "http_request_count_total", `{cluster="kube1",__name__="http_request_count_total"}`)
+
+	// parsed metric with regexp value
+	f(`{__name__="http_request_count_total",cluster=~"kube.*"}`, "http_request_count_total", `{cluster=~"kube.*",__name__="http_request_count_total"}`)
+
+	// only label with regexp
+	f(`{cluster=~".*"}`, "http_request_count_total", `{cluster=~".*",__name__="http_request_count_total"}`)
+
+	// many labels in filter with regexp
+	f(`{cluster=~".*",job!=""}`, "http_request_count_total", `{cluster=~".*",job!="",__name__="http_request_count_total"}`)
+
+	// all names
+	f(`{__name__!=""}`, "http_request_count_total", `{__name__="http_request_count_total"}`)
+
+	// with many underscores labels
+	f(`{__name__!="", __meta__!=""}`, "http_request_count_total", `{__meta__!="",__name__="http_request_count_total"}`)
+
+	// metric name has regexp
+	f(`{__name__=~".*"}`, "http_request_count_total", `{__name__="http_request_count_total"}`)
+
+	// metric name has negative regexp
+	f(`{__name__!~".*"}`, "http_request_count_total", `{__name__="http_request_count_total"}`)
 }
