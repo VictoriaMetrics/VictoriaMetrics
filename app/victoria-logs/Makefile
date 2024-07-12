@@ -81,6 +81,9 @@ victoria-logs-linux-ppc64le:
 victoria-logs-linux-s390x:
 	APP_NAME=victoria-logs CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-local-goos-goarch
 
+victoria-logs-linux-loong64:
+	APP_NAME=victoria-logs CGO_ENABLED=0 GOOS=linux GOARCH=loong64 $(MAKE) app-local-goos-goarch
+
 victoria-logs-linux-386:
 	APP_NAME=victoria-logs CGO_ENABLED=0 GOOS=linux GOARCH=386 $(MAKE) app-local-goos-goarch
 
