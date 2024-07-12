@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"math"
 	"time"
 
@@ -35,7 +34,6 @@ func New(retries int, factor float64, minDuration time.Duration) *Backoff {
 
 // Validate checks backoff object for correct values
 func (b *Backoff) Validate() error {
-	log.Printf("retries: %d, factor: %f, minDuration: %v", b.retries, b.factor, b.minDuration)
 	if b.retries <= 0 {
 		return fmt.Errorf("retries must be greater than 0")
 	}
