@@ -1,6 +1,10 @@
 package main
 
 import (
+	"archive/tar"
+	"archive/zip"
+	"bufio"
+	"compress/gzip"
 	"crypto/sha1"
 	"fmt"
 	"io"
@@ -11,6 +15,151 @@ import (
 	"strings"
 	"testing"
 )
+
+const tarGzExt = ".tar.gz"
+const unixExecSuffix = "-prod"
+const windowsExecSuffix = "-prod.exe"
+const zipExt = ".zip"
+
+func assertArchiveFile(t *testing.T, extension string, path string, expectedPrefixes []string) {
+	// Check if file exists
+	archiveFileInfo, err := getFileInfo(path)
+	if err != nil {
+		t.Fatalf("Could not get archive file information: %s", path)
+	} else if archiveFileInfo.Size() == 0 {
+		t.Fatalf("Archive file is empty: %s", path)
+	}
+
+	var archiveFiles []string
+	var binaryFileSuffix string
+	if extension == tarGzExt { // Unix-like stuff
+		binaryFileSuffix = unixExecSuffix
+
+		// Get file handler
+		tarGzFile, err := os.Open(path)
+		if err != nil {
+			t.Errorf("Failed to open file: %s", path)
+		}
+		defer tarGzFile.Close()
+
+		// Get gzip handler
+		gzipFile, err := gzip.NewReader(tarGzFile)
+		if err != nil {
+			t.Errorf("Failed to create gzip reader: %s", err)
+		}
+		defer gzipFile.Close()
+
+		// Get tar handler
+		tarFile := tar.NewReader(gzipFile)
+		for {
+			header, err := tarFile.Next()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				t.Fatalf("Failed to read tar header: %s", err)
+			}
+			if header.Size == 0 {
+				t.Fatalf("Archive file is empty: %s (%s)", header.Name, path)
+			}
+			archiveFiles = append(archiveFiles, header.Name)
+		}
+
+	} else if extension == zipExt { // Windows stuff
+		binaryFileSuffix = "-windows-amd64" + windowsExecSuffix
+
+		// Get file handler
+		zipFile, err := os.Open(path)
+		if err != nil {
+			t.Errorf("Failed to open file: %s", path)
+		}
+		defer zipFile.Close()
+
+		fileInfo, err := zipFile.Stat()
+		if err != nil {
+			t.Fatalf("Failed to get file info: %s", err)
+		}
+
+		// Get zip handler
+		zipReader, err := zip.NewReader(zipFile, fileInfo.Size())
+		if err != nil {
+			t.Fatalf("Failed to create zip reader: %s", err)
+		}
+
+		for _, file := range zipReader.File {
+			if file.CompressedSize64 == 0 {
+				t.Fatalf("Archive file is empty: %s (%s)", file.Name, path)
+			}
+			archiveFiles = append(archiveFiles, file.Name)
+		}
+
+	} else { // Unexpected stuff.
+		t.Fatalf("Unknown archive type: %s", extension)
+	}
+
+	var expectedFiles []string
+	for _, expectedFilePrefix := range expectedPrefixes {
+		expectedFiles = append(expectedFiles, strings.Join([]string{expectedFilePrefix, binaryFileSuffix}, ""))
+	}
+	if !compareSlices(archiveFiles, expectedFiles) {
+		t.Fatalf("Archive contents `%s` doesn't match the expected one: `%s`", archiveFiles, expectedFiles)
+	}
+}
+
+func assertChecksumsFile(t *testing.T, extension string, path string, expectedPrefixes []string) {
+	// Check if file exists
+	checksumsFileInfo, err := getFileInfo(path)
+	if err != nil {
+		t.Errorf("Could not get checksums file information: %s", path)
+	} else if checksumsFileInfo.Size() == 0 {
+		t.Errorf("Checksums file is empty: %s", path)
+	}
+
+	checksumsFile, err := os.Open(path)
+	if err != nil {
+		t.Fatalf("Failed to open file: %s", err)
+	}
+	defer checksumsFile.Close()
+
+	checksumsFiles := []string{}
+	scanner := bufio.NewScanner(checksumsFile)
+	for scanner.Scan() {
+		checksumsFiles = append(checksumsFiles, strings.Fields(scanner.Text())[1])
+	}
+	if err := scanner.Err(); err != nil {
+		t.Fatalf("Failed to  read file: %s", err)
+	}
+
+	var binaryFileSuffix string
+	if extension == tarGzExt { // Unix-like stuff
+		binaryFileSuffix = unixExecSuffix
+	} else if extension == zipExt { // Windows stuff
+		binaryFileSuffix = "-windows-amd64" + windowsExecSuffix
+	} else { // Unexpected stuff.
+		t.Fatalf("Unknown archive type: %s", extension)
+	}
+
+	archiveFileName := strings.ReplaceAll(filepath.Base(path), "_checksums.txt", extension)
+	expectedFiles := []string{archiveFileName}
+	for _, expectedFilePrefix := range expectedPrefixes {
+		expectedFiles = append(expectedFiles, strings.Join([]string{expectedFilePrefix, binaryFileSuffix}, ""))
+	}
+	if !compareSlices(checksumsFiles, expectedFiles) {
+		t.Fatalf("Archive contents `%s` doesn't match the expected one: `%s`", checksumsFiles, expectedFiles)
+	}
+}
+
+func compareSlices(slice1, slice2 []string) bool {
+	if len(slice1) != len(slice2) {
+		return false
+	}
+	for i := range slice1 {
+		if slice1[i] != slice2[i] {
+			return false
+		}
+	}
+	return true
+}
 
 func execCommand(command string) *exec.Cmd {
 	cmd := strings.Fields(command)
@@ -27,23 +176,14 @@ func getArchOsMap() map[string][]string {
 	}
 }
 
-func getFileInfo(filePath string) (fs.FileInfo, error) {
-	fileInfo, err := os.Stat(filePath)
-	if err != nil {
-		return fileInfo, err
+func getComponentFileMap() map[string][]string {
+	return map[string][]string{
+		"victoria-metrics": {"victoria-metrics"},
+		"vmutils":          {"vmagent", "vmalert", "vmalert-tool", "vmauth", "vmbackup", "vmrestore", "vmctl"},
 	}
-
-	return fileInfo, nil
 }
 
-func getParentDirectory(path string, directoriesUp int) string {
-	for i := 0; i < directoriesUp; i++ {
-		path = filepath.Dir(path)
-	}
-	return path
-}
-
-func getTag() (string, error) {
+func getGitTag() (string, error) {
 	stdOut, err := execCommand("git describe --long --all").Output()
 
 	if err != nil {
@@ -65,12 +205,26 @@ func getTag() (string, error) {
 		sha1Hex := fmt.Sprintf("%x", hashGenerator.Sum(nil)[0:4])
 		tag = strings.Join([]string{tag, "-dirty-", sha1Hex}, "")
 	}
-
 	return tag, nil
 }
 
-func testComponentAssets(t *testing.T, componentNames []string) {
-	tag, err := getTag()
+func getFileInfo(filePath string) (fs.FileInfo, error) {
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		return fileInfo, err
+	}
+	return fileInfo, nil
+}
+
+func getParentDirectory(path string, directoriesUp int) string {
+	for i := 0; i < directoriesUp; i++ {
+		path = filepath.Dir(path)
+	}
+	return path
+}
+
+func testReleaseAssets(t *testing.T, componentNames []string) {
+	gitTag, err := getGitTag()
 	if err != nil {
 		t.Fatalf("Unable to get a tag: %v", err)
 	}
@@ -84,37 +238,30 @@ func testComponentAssets(t *testing.T, componentNames []string) {
 
 	for _, componentName := range componentNames {
 		for osName, archNames := range getArchOsMap() {
+			var archiveFileExtension string
+			if osName == "windows" {
+				archiveFileExtension = zipExt
+			} else {
+				archiveFileExtension = tarGzExt
+			}
+
 			for _, archName := range archNames {
-				fileExtension := ".tar.gz"
-				if osName == "windows" {
-					fileExtension = ".zip"
-				}
-				fileNamePrefix := strings.Join([]string{componentName, osName, archName, tag}, "-")
+				fileNamePrefix := strings.Join([]string{componentName, osName, archName, gitTag}, "-")
 
 				// Check archive file.
-				archiveFileName := strings.Join([]string{fileNamePrefix, fileExtension}, "")
+				archiveFileName := strings.Join([]string{fileNamePrefix, archiveFileExtension}, "")
 				archiveFilePath := filepath.Join(binPath, archiveFileName)
-				archiveFileInfo, err := getFileInfo(archiveFilePath)
-				if err != nil {
-					t.Errorf("Could not get archive file information: %s", archiveFilePath)
-				} else if archiveFileInfo.Size() == 0 {
-					t.Errorf("Archive file is empty: %s", archiveFilePath)
-				}
+				assertArchiveFile(t, archiveFileExtension, archiveFilePath, getComponentFileMap()[componentName])
 
 				// Check checksums file.
 				checksumsFileName := strings.Join([]string{fileNamePrefix, "_checksums.txt"}, "")
 				checksumsFilePath := filepath.Join(binPath, checksumsFileName)
-				checksumsFileInfo, err := getFileInfo(checksumsFilePath)
-				if err != nil {
-					t.Errorf("Could not get checksums file information: %s", checksumsFilePath)
-				} else if checksumsFileInfo.Size() == 0 {
-					t.Errorf("Checksums file is empty: %s", checksumsFilePath)
-				}
+				assertChecksumsFile(t, archiveFileExtension, checksumsFilePath, getComponentFileMap()[componentName])
 			}
 		}
 	}
 }
 
 func TestVictoriaMetrics(t *testing.T) {
-	testComponentAssets(t, []string{"victoria-metrics", "vmutils"})
+	testReleaseAssets(t, []string{"victoria-metrics", "vmutils"})
 }
