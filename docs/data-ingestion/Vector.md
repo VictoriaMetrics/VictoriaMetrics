@@ -33,7 +33,8 @@ sinks:
 
 ## Basic Authentication
 
-This adds support for basic authentication by defining the auth strategy, user, and password fields
+This adds support for basic authentication by defining the auth strategy, user, and password fields:
+
 
 ```yaml
 sources:
@@ -56,7 +57,8 @@ sinks:
 
 ## Bearer / Token Authentication
 
-This adds support for bearer/token authentication by defining the auth strategy and token fields
+This adds support for bearer/token authentication by defining the auth strategy and token fields:
+
 
 ```yaml
 sources:
@@ -77,7 +79,9 @@ sinks:
 
 ## VictoriaMetrics and VictoriaLogs
 
-This combines the Bearer Authentication section with VictoriaLogs docs so you can send metrics and logs with 1 agent to multiple sources.
+This combines the Bearer Authentication section with the [VictoriaLogs docs for Vector](https://docs.victoriametrics.com/victorialogs/data-ingestion/vector/),
+so you can send metrics and logs with 1 agent to multiple sources:
+
 
 ```yaml
 sources:
@@ -101,7 +105,7 @@ sinks:
       - journald_source
     type: elasticsearch
     endpoints:
-      - "http://<victorialogs_url>/insert/elasticsearch/"
+      - "https://<victorialogs_url>/insert/elasticsearch/"
     mode: bulk
     api_version: "v8"
     healthcheck:

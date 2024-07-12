@@ -22,36 +22,49 @@ If want help Sending your data to Managed VictoriaMetrics check out [our blog](h
 
 1. Login to PVE as an administrator
 2. Go to DataCenter > MetricServer > Add > InfluxDB
-3. Set the parameters as follows
-  * Name: VictoriaMetrics (can be changed to any string)
-  * Server: the hostname or IP of your VictoriaMetrics Instance
-  * Port: This will vary depending on where you were you sending the data and your settings but here are the defaults for the various components
-    * 8428 for sending directly to VMInsert or VMSingle
-    * 8427 for VMAuth
-    * 8429 for VMAgent
-  * Protocol: use HTTPS if you have TLS/SSL configured otherwise use HTTPS
-  * Organization: leave empty since it doesn't get used
-  * Bucket: leave empty since it doesn't get used
-  * Token: Your Token From VMAuth or leave blank if you don't have authentication enabled
-  * If you need to ignore TLS/SSL errors check the advanced box and uncheck the verify certificate box
-4. Run `` in VMUI or in the explore view in Grafana to verify are being received by VictoriaMetrics
 
+![PVE Metric Navigation](pve-nav.webp)
+
+
+3. Set the parameters as follows:
+  - Name: VictoriaMetrics (can be changed to any string)
+  - Server: the hostname or IP of your VictoriaMetrics Instance
+  - Port: This will vary depending how you are sending data to VictoriaMetrics, but the defaults for all components are listed in the [data ingestion documentation](https://docs.victoriametrics.com/data-ingestion.html)
+  - Protocol: use HTTPS if you have TLS/SSL configured otherwise use HTTP
+  - Organization: leave empty since it doesn't get used
+  - Bucket: leave empty since it doesn't get used
+  - Token: your token from vmauth or leave blank if you don't have authentication enabled
+  - If you need to ignore TLS/SSL errors check the advanced box and uncheck the verify certificate box
+4. Click the `Create` button
+
+![PVE Metric Form](pve-form.webp)
+
+5. Run `system_uptime{object="nodes"}` in vmui or in the explore view in Grafana to verify metrics from PVE are being sent to VictoriaMetrics.
+You should see 1 time series per node in your PVE cluster.
 
 ## Proxmox Backup Server (PBS)
 1. Login to PBS as an administrator
 2. Go to Configuration > Metrics Server > Add > InfluxDB
-3.  Set the parameters as follows
-  * Name: Victoriametrics (can be set to any string)
-  * URL: http(s)://<ip_or_host>:<port>
-    * set the URL to https if you have TLS enabled and http if you do not
-    * Port: This will vary depending on where you were you sending the data and your settings but here are the defaults for the various components
-      * 8428 for sending directly to VMInsert or VMSingle
-      * 8427 for VMAuth
-      * 8429 for VMAgent
-  * Organization: leave empty since it doesn't get used
-  * Bucket: leave empty since it doesn't get used
-  * Token: Your Token From VMAuth or leave blank if you don't have authentication enabled
-4. Run `` in VMUI or in the explore view in Grafana to verify
+
+
+![PBS Metric Navigation](pbs-nav.webp)
+
+
+3.  Set the parameters as follows:
+  - Name: VictoriaMetrics (can be set to any string)
+  - URL: http(s)://<ip_or_host>:<port>
+    - set the URL to https if you have TLS enabled and http if you do not
+    - Port: This will vary depending how you are sending data to VictoriaMetrics, but the defaults for all components are listed in the [data ingestion documentation](https://docs.victoriametrics.com/data-ingestion.html)
+  - Organization: leave empty since it doesn't get used
+  - Bucket: leave empty since it doesn't get used
+  - Token: your token from vmauth or leave blank if you don't have authentication enabled
+4. Click the `Create` button
+
+
+![PBS Metric Form](pbs-form.webp)
+
+
+5. Run `cpustat_idle{object="host"}` in vmui or in the explore view in Grafana to verify metrics from PBS are being to VictoriaMetrics.
 
 
 # References
