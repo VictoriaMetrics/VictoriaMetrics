@@ -145,14 +145,6 @@ func main() {
 						return fmt.Errorf("failed to init VM configuration: %s", err)
 					}
 
-					backf := backoff.New(
-						c.Int(backoffRetries),
-						c.Float64(backoffFactor),
-						c.Duration(backoffMinDuration))
-
-					if err := backf.Validate(); err != nil {
-						return fmt.Errorf("failed to validate backoff params: %s", err)
-					}
 					importer, err = vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
@@ -212,14 +204,6 @@ func main() {
 						return fmt.Errorf("failed to init VM configuration: %s", err)
 					}
 
-					backf := backoff.New(
-						c.Int(backoffRetries),
-						c.Float64(backoffFactor),
-						c.Duration(backoffMinDuration))
-
-					if err := backf.Validate(); err != nil {
-						return fmt.Errorf("failed to validate backoff params: %s", err)
-					}
 					importer, err := vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
@@ -253,14 +237,6 @@ func main() {
 						return fmt.Errorf("failed to init VM configuration: %s", err)
 					}
 
-					backf := backoff.New(
-						c.Int(backoffRetries),
-						c.Float64(backoffFactor),
-						c.Duration(backoffMinDuration))
-
-					if err := backf.Validate(); err != nil {
-						return fmt.Errorf("failed to validate backoff params: %s", err)
-					}
 					importer, err = vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
