@@ -48,6 +48,12 @@ func TestAggregatorsFailure(t *testing.T) {
 - interval: 1m
 `)
 
+	// Bad interval
+	f(`
+- interval: 1foo
+  outputs: [total]
+`)
+
 	// Invalid output
 	f(`
 - interval: 1m
@@ -65,6 +71,13 @@ func TestAggregatorsFailure(t *testing.T) {
   interval: 10ms
 `)
 
+	// bad dedup_interval
+	f(`
+- interval: 1m
+  dedup_interval: 1foo
+  outputs: ["quantiles"]
+`)
+
 	// interval isn't multiple of dedup_interval
 	f(`
 - interval: 1m
@@ -76,6 +89,27 @@ func TestAggregatorsFailure(t *testing.T) {
 	f(`
 - interval: 1m
   dedup_interval: 1h
+  outputs: ["quantiles"]
+`)
+
+	// bad staleness_interval
+	f(`
+- interval: 1m
+  staleness_interval: 1foo
+  outputs: ["quantiles"]
+`)
+
+	// staleness_interval should be > interval
+	f(`
+- interval: 1m
+  staleness_interval: 30s
+  outputs: ["quantiles"]
+`)
+
+	// staleness_interval should be multiple of interval
+	f(`
+- interval: 1m
+  staleness_interval: 100s
   outputs: ["quantiles"]
 `)
 
@@ -872,6 +906,19 @@ foo{abc="123", cde="1"} 4  10
 `, `foo:1m_by_cde_rate_avg{cde="1"} 0
 foo:1m_by_cde_rate_sum{cde="1"} 0
 `, "11")
+
+	// unique_samples output
+	f(`
+- interval: 1m
+  outputs: [unique_samples]
+`, `
+foo 1  10
+foo 2  20
+foo 1  10
+foo 2  20
+foo 3  20
+`, `foo:1m_unique_samples 3
+`, "11111")
 
 	// keep_metric_names
 	f(`
