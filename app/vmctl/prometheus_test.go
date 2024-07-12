@@ -23,7 +23,7 @@ const (
 )
 
 // This test simulates close process if user abort it
-func Test_prometheusProcessor_run(t *testing.T) {
+func TestPrometheusProcessorRun(t *testing.T) {
 	t.Skip()
 
 	defer func() { isSilent = false }()
