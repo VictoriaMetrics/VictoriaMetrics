@@ -1,0 +1,67 @@
+{
+  "allowCompoundWords": true,
+  "caseSensitive": false,
+  "language": "en,ru,uk",
+  "minWordLength": 3,
+  "dictionaryDefinitions": [
+    {
+      "addWords": true,
+      "name": "custom-dict",
+      "path": "cspell/custom-dict.txt"
+    }
+  ],
+  "dictionaries": [
+    "aws",
+    "bash",
+    "companies",
+    "cpp",
+    "css",
+    "custom-dict",
+    "data-science",
+    "docker",
+    "dotnet",
+    "en_us",
+    "en-common-misspelling",
+    "fonts",
+    "fullstack",
+    "golang",
+    "html",
+    "k8s",
+    "makefile",
+    "misc",
+    "npm",
+    "people-names",
+    "python",
+    "ru_RU",
+    "rust",
+    "software-terms",
+    "uk_UA",
+    "win32"
+  ],
+  "enabled": true,
+  "files": ["docs/**/*.md"],
+  "ignoreRegExpList": [
+    // Github usernames
+    "/@[a-zA-Z0-9-_]+/i",
+    // Tokens
+    "/Authorization:\\sBearer\\s[a-zA-Z0-9-_=]+\\.[a-zA-Z0-9-_=]+\\.[a-zA-Z0-9-_=]+/",
+    "/(user|password|token):\\s\"?[a-zA-Z0-9-_<>=\\.]+\"?/",
+    // Victoria Metrics related names
+    "/vm[a-zA-Z0-9-_]+/i"
+  ],
+  "import": [
+    "/home/node/node_modules/@cspell/dict-aws/cspell-ext.json",
+    "/home/node/node_modules/@cspell/dict-companies/cspell-ext.json",
+    "/home/node/node_modules/@cspell/dict-data-science/cspell-ext.json",
+    "/home/node/node_modules/@cspell/dict-en_us/cspell-ext.json",
+    "/home/node/node_modules/@cspell/dict-fullstack/cspell-ext.json",
+    "/home/node/node_modules/@cspell/dict-golang/cspell-ext.json",
+    "/home/node/node_modules/@cspell/dict-k8s/cspell-ext.json",
+    "/home/node/node_modules/@cspell/dict-people-names/cspell-ext.json",
+    "/home/node/node_modules/@cspell/dict-ru_ru/cspell-ext.json",
+    "/home/node/node_modules/@cspell/dict-software-terms/cspell-ext.json",
+    "/home/node/node_modules/@cspell/dict-uk-ua/cspell-ext.json",
+    "/home/node/node_modules/@cspell/dict-win32/cspell-ext.json"
+  ],
+  "useGitignore": true
+}

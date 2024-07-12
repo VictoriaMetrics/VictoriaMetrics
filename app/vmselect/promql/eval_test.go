@@ -103,7 +103,7 @@ func TestGetSumInstantValues(t *testing.T) {
 
 		result := getSumInstantValues(nil, cached, start, end, timestamp)
 		if !reflect.DeepEqual(result, expectedResult) {
-			t.Errorf("unexpected result; got\n%v\nwant\n%v", result, expectedResult)
+			t.Fatalf("unexpected result; got\n%v\nwant\n%v", result, expectedResult)
 		}
 	}
 	ts := func(name string, timestamp int64, value float64) *timeseries {

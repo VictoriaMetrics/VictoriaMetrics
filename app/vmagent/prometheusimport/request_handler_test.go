@@ -26,11 +26,11 @@ func TestInsertHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/insert/0/api/v1/import/prometheus", bytes.NewBufferString(`{"foo":"bar"}
 go_memstats_alloc_bytes_total 1`))
 	if err := InsertHandler(nil, req); err != nil {
-		t.Errorf("unxepected error %s", err)
+		t.Fatalf("unxepected error %s", err)
 	}
 	expectedMsg := "cannot unmarshal Prometheus line"
 	if !strings.Contains(testOutput.String(), expectedMsg) {
-		t.Errorf("output %q should contain %q", testOutput.String(), expectedMsg)
+		t.Fatalf("output %q should contain %q", testOutput.String(), expectedMsg)
 	}
 }
 
