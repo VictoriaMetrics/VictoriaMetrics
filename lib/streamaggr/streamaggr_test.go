@@ -150,6 +150,15 @@ func TestAggregatorsFailure(t *testing.T) {
 - interval: 1m
   outputs: ["quantiles(1.5)"]
 `)
+	f(`
+- interval: 1m
+  outputs: [total, total]
+`)
+	// "quantiles(0.5)", "quantiles(0.9)" should be set as "quantiles(0.5, 0.9)"
+	f(`
+- interval: 1m
+  outputs: ["quantiles(0.5)", "quantiles(0.9)"]
+`)
 }
 
 func TestAggregatorsEqual(t *testing.T) {
