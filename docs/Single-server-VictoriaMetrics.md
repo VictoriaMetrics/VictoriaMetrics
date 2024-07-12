@@ -2684,6 +2684,9 @@ used or posted in other docs, GitHub issues, stackoverlow answers, etc.
 
 Please, keep image size and number of images per single page low. Keep the docs page as lightweight as possible.
 
+Image files must be placed in the same folder as the doc itself and they must have the same prefix as the doc filename.
+For example, all the images for `docs/foo/bar.md` should have filenames starting from `docs/foo/bar`.
+
 If the page needs to have many images, consider using WEB-optimized image format [webp](https://developers.google.com/speed/webp).
 When adding a new doc with many images use `webp` format right away. Or use a Makefile command below to
 convert already existing images at `docs` folder automatically to `web` format:
