@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -88,10 +89,10 @@ var (
 		"By default there are no limits on samples ingestion rate. See also -remoteWrite.rateLimit")
 
 	disableOnDiskQueue = flagutil.NewArrayBool("remoteWrite.disableOnDiskQueue", "Whether to disable storing pending data to -remoteWrite.tmpDataPath "+
-		"when the configured remote storage systems cannot keep up with the data ingestion rate. See https://docs.victoriametrics.com/vmagent#disabling-on-disk-persistence ."+
-		"See also -remoteWrite.dropSamplesOnOverload")
-	dropSamplesOnOverload = flagutil.NewArrayBool("remoteWrite.dropSamplesOnOverload", "Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples "+
-		"cannot be pushed into the configured remote storage systems in a timely manner. See https://docs.victoriametrics.com/vmagent#disabling-on-disk-persistence")
+		"when the remote storage system at the corresponding -remoteWrite.url cannot keep up with the data ingestion rate. "+
+		"See https://docs.victoriametrics.com/vmagent#disabling-on-disk-persistence . See also -remoteWrite.dropSamplesOnOverload")
+	dropSamplesOnOverload = flag.Bool("remoteWrite.dropSamplesOnOverload", false, "Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples "+
+		"cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/vmagent#disabling-on-disk-persistence")
 )
 
 var (
@@ -109,8 +110,11 @@ var (
 		StatusCode: http.StatusTooManyRequests,
 	}
 
-	// disableOnDiskQueueAll is set to true if all remoteWrite.urls were configured to disable persistent queue via disableOnDiskQueue
+	// disableOnDiskQueueAll is set to true if all -remoteWrite.url were configured to disable persistent queue via -remoteWrite.disableOnDiskQueue
 	disableOnDiskQueueAll bool
+
+	// dropSamplesOnFailureGlobal is set to true if -remoteWrite.dropSamplesOnOverload is set or if multiple -remoteWrite.disableOnDiskQueue options are set.
+	dropSamplesOnFailureGlobal bool
 )
 
 // MultitenancyEnabled returns true if -enableMultitenantHandlers is specified.
@@ -218,13 +222,14 @@ func Init() {
 		rwctxs = newRemoteWriteCtxs(nil, *remoteWriteURLs)
 	}
 
-	disableOnDiskQueueAll = true
-	for _, v := range *disableOnDiskQueue {
-		if !v {
-			disableOnDiskQueueAll = false
-			break
-		}
-	}
+	disableOnDiskQueues := []bool(*disableOnDiskQueue)
+	disableOnDiskQueueAll = !slices.Contains(disableOnDiskQueues, false)
+
+	// Samples must be dropped if multiple -remoteWrite.disableOnDiskQueue options are configured and at least a single is set to true.
+	// In this case it is impossible to prevent from sending many duplicates of samples passed to TryPush() to all the configured -remoteWrite.url
+	// if these samples couldn't be sent to the -remoteWrite.url with the disabled persistent queue. So it is better sending samples
+	// to the remaining -remoteWrite.url and dropping them on the blocked queue.
+	dropSamplesOnFailureGlobal = *dropSamplesOnOverload || len(disableOnDiskQueues) > 1 && slices.Contains(disableOnDiskQueues, true)
 
 	dropDanglingQueues()
 
@@ -397,6 +402,8 @@ func Stop() {
 
 // PushDropSamplesOnFailure pushes wr to the configured remote storage systems set via -remoteWrite.url
 //
+// PushDropSamplesOnFailure drops wr samples if they cannot be sent to -remoteWrite.url by any reason.
+//
 // PushDropSamplesOnFailure can modify wr contents.
 func PushDropSamplesOnFailure(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 	_ = tryPush(at, wr, true)
@@ -409,7 +416,7 @@ func PushDropSamplesOnFailure(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 //
 // The caller must return ErrQueueFullHTTPRetry to the client, which sends wr, if TryPush returns false.
 func TryPush(at *auth.Token, wr *prompbmarshal.WriteRequest) bool {
-	return tryPush(at, wr, false)
+	return tryPush(at, wr, dropSamplesOnFailureGlobal)
 }
 
 func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnFailure bool) bool {
@@ -433,16 +440,21 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnF
 	// if some of remote storage systems cannot keep up with the data ingestion rate.
 	// this shortcut is only applicable if all remote writes have disableOnDiskQueue = true
 	if disableOnDiskQueueAll {
+		skippedQueues := 0
 		for _, rwctx := range rwctxs {
 			if rwctx.fq.IsWriteBlocked() {
 				rwctx.pushFailures.Inc()
-				if forceDropSamplesOnFailure || rwctx.dropSamplesOnOverload {
-					// Just drop samples
-					rwctx.rowsDroppedOnPushFailure.Add(rowsCount)
-					continue
+				if !forceDropSamplesOnFailure {
+					return false
 				}
-				return false
+				rwctx.rowsDroppedOnPushFailure.Add(rowsCount)
+				skippedQueues++
 			}
+		}
+		if skippedQueues == len(rwctxs) {
+			// All the queues are skipped because they are blocked and dropSamplesOnFailure is set to true.
+			// Return true to the caller, so it doesn't re-send the samples again.
+			return true
 		}
 	}
 
@@ -745,10 +757,8 @@ type remoteWriteCtx struct {
 	sas          atomic.Pointer[streamaggr.Aggregators]
 	deduplicator *streamaggr.Deduplicator
 
-	streamAggrKeepInput   bool
-	streamAggrDropInput   bool
-	disableOnDiskQueue    bool
-	dropSamplesOnOverload bool
+	streamAggrKeepInput bool
+	streamAggrDropInput bool
 
 	pss        []*pendingSeries
 	pssNextIdx atomic.Uint64
@@ -773,6 +783,7 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 		logger.Warnf("rounding the -remoteWrite.maxDiskUsagePerURL=%d to the minimum supported value: %d", maxPendingBytes, persistentqueue.DefaultChunkFileSize)
 		maxPendingBytes = persistentqueue.DefaultChunkFileSize
 	}
+
 	isPQDisabled := disableOnDiskQueue.GetOptionalArg(argIdx)
 	fq := persistentqueue.MustOpenFastQueue(queuePath, sanitizedURL, maxInmemoryBlocks, maxPendingBytes, isPQDisabled)
 	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_data_bytes{path=%q, url=%q}`, queuePath, sanitizedURL), func() float64 {
@@ -816,9 +827,6 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 		fq:  fq,
 		c:   c,
 		pss: pss,
-
-		dropSamplesOnOverload: dropSamplesOnOverload.GetOptionalArg(argIdx),
-		disableOnDiskQueue:    isPQDisabled,
 
 		rowsPushedAfterRelabel: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rows_pushed_after_relabel_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
 		rowsDroppedByRelabel:   metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
@@ -934,8 +942,9 @@ func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries, forceDropSa
 
 	// Couldn't push tss to remote storage
 	rwctx.pushFailures.Inc()
-	if forceDropSamplesOnFailure || rwctx.dropSamplesOnOverload {
-		rwctx.rowsDroppedOnPushFailure.Add(len(tss))
+	if forceDropSamplesOnFailure {
+		rowsCount := getRowsCount(tss)
+		rwctx.rowsDroppedOnPushFailure.Add(rowsCount)
 		return true
 	}
 	return false
@@ -962,14 +971,12 @@ func (rwctx *remoteWriteCtx) pushInternalTrackDropped(tss []prompbmarshal.TimeSe
 	if rwctx.tryPushInternal(tss) {
 		return
 	}
-	if !rwctx.disableOnDiskQueue {
+	if !rwctx.fq.IsPersistentQueueDisabled() {
 		logger.Panicf("BUG: tryPushInternal must return true if -remoteWrite.disableOnDiskQueue isn't set")
 	}
 	rwctx.pushFailures.Inc()
-	if dropSamplesOnOverload.GetOptionalArg(rwctx.idx) {
-		rowsCount := getRowsCount(tss)
-		rwctx.rowsDroppedOnPushFailure.Add(rowsCount)
-	}
+	rowsCount := getRowsCount(tss)
+	rwctx.rowsDroppedOnPushFailure.Add(rowsCount)
 }
 
 func (rwctx *remoteWriteCtx) tryPushInternal(tss []prompbmarshal.TimeSeries) bool {
