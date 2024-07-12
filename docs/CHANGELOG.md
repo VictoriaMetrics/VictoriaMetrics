@@ -30,6 +30,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): add `--backoff-retries`, `--backoff-factor`, `--backoff-min-duration` global command-line flags. It can be used for configure backoff retries for all migration modes. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6622).
+
 ## [v1.102.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.1)
 
 Released at 2024-08-01

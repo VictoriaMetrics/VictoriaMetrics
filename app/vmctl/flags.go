@@ -728,6 +728,32 @@ var (
 	}
 )
 
+const (
+	backoffRetries     = "backoff-retries"
+	backoffFactor      = "backoff-factor"
+	backoffMinDuration = "backoff-min-duration"
+)
+
+var (
+	backoffFlags = []cli.Flag{
+		&cli.IntFlag{
+			Name:  backoffRetries,
+			Value: 10,
+			Usage: "How many retries to perform before giving up. Default is 10.",
+		},
+		&cli.Float64Flag{
+			Name:  backoffFactor,
+			Value: 1.8,
+			Usage: "Factor to multiply the base duration after each failed retry. Must be greater than 1.0",
+		},
+		&cli.DurationFlag{
+			Name:  backoffMinDuration,
+			Value: time.Second * 2,
+			Usage: "Minimum duration to wait before the first retry. Each subsequent retry will be multiplied by the factor.",
+		},
+	}
+)
+
 func mergeFlags(flags ...[]cli.Flag) []cli.Flag {
 	var result []cli.Flag
 	for _, f := range flags {

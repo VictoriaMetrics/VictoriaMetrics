@@ -4,16 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-)
-
-const (
-	backoffRetries     = 10
-	backoffFactor      = 1.8
-	backoffMinDuration = time.Second * 2
 )
 
 // retryableFunc describes call back which will repeat on errors
@@ -30,12 +25,27 @@ type Backoff struct {
 }
 
 // New initialize backoff object
-func New() *Backoff {
+func New(retries int, factor float64, minDuration time.Duration) *Backoff {
 	return &Backoff{
-		retries:     backoffRetries,
-		factor:      backoffFactor,
-		minDuration: backoffMinDuration,
+		retries:     retries,
+		factor:      factor,
+		minDuration: minDuration,
 	}
+}
+
+// Validate checks backoff object for correct values
+func (b *Backoff) Validate() error {
+	log.Printf("retries: %d, factor: %f, minDuration: %v", b.retries, b.factor, b.minDuration)
+	if b.retries <= 0 {
+		return fmt.Errorf("retries must be greater than 0")
+	}
+	if b.factor <= 1 {
+		return fmt.Errorf("factor must be greater than 1")
+	}
+	if b.minDuration <= 0 {
+		return fmt.Errorf("minDuration must be greater than 0")
+	}
+	return nil
 }
 
 // Retry process retries until all attempts are completed

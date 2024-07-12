@@ -53,7 +53,7 @@ func main() {
 			{
 				Name:   "opentsdb",
 				Usage:  "Migrate time series from OpenTSDB",
-				Flags:  mergeFlags(globalFlags, otsdbFlags, vmFlags),
+				Flags:  mergeFlags(globalFlags, backoffFlags, otsdbFlags, vmFlags),
 				Before: beforeFn,
 				Action: func(c *cli.Context) error {
 					fmt.Println("OpenTSDB import mode")
@@ -90,6 +90,7 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("failed to init VM configuration: %s", err)
 					}
+
 					importer, err := vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
@@ -143,6 +144,15 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("failed to init VM configuration: %s", err)
 					}
+
+					backf := backoff.New(
+						c.Int(backoffRetries),
+						c.Float64(backoffFactor),
+						c.Duration(backoffMinDuration))
+
+					if err := backf.Validate(); err != nil {
+						return fmt.Errorf("failed to validate backoff params: %s", err)
+					}
 					importer, err = vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
@@ -162,7 +172,7 @@ func main() {
 			{
 				Name:   "remote-read",
 				Usage:  "Migrate time series via Prometheus remote-read protocol",
-				Flags:  mergeFlags(globalFlags, remoteReadFlags, vmFlags),
+				Flags:  mergeFlags(globalFlags, backoffFlags, remoteReadFlags, vmFlags),
 				Before: beforeFn,
 				Action: func(c *cli.Context) error {
 					fmt.Println("Remote-read import mode")
@@ -201,6 +211,15 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("failed to init VM configuration: %s", err)
 					}
+
+					backf := backoff.New(
+						c.Int(backoffRetries),
+						c.Float64(backoffFactor),
+						c.Duration(backoffMinDuration))
+
+					if err := backf.Validate(); err != nil {
+						return fmt.Errorf("failed to validate backoff params: %s", err)
+					}
 					importer, err := vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
@@ -233,6 +252,15 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("failed to init VM configuration: %s", err)
 					}
+
+					backf := backoff.New(
+						c.Int(backoffRetries),
+						c.Float64(backoffFactor),
+						c.Duration(backoffMinDuration))
+
+					if err := backf.Validate(); err != nil {
+						return fmt.Errorf("failed to validate backoff params: %s", err)
+					}
 					importer, err = vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
@@ -263,13 +291,22 @@ func main() {
 			{
 				Name:   "vm-native",
 				Usage:  "Migrate time series between VictoriaMetrics installations via native binary format",
-				Flags:  mergeFlags(globalFlags, vmNativeFlags),
+				Flags:  mergeFlags(globalFlags, backoffFlags, vmNativeFlags),
 				Before: beforeFn,
 				Action: func(c *cli.Context) error {
 					fmt.Println("VictoriaMetrics Native import mode")
 
 					if c.String(vmNativeFilterMatch) == "" {
 						return fmt.Errorf("flag %q can't be empty", vmNativeFilterMatch)
+					}
+
+					backf := backoff.New(
+						c.Int(backoffRetries),
+						c.Float64(backoffFactor),
+						c.Duration(backoffMinDuration))
+
+					if err := backf.Validate(); err != nil {
+						return fmt.Errorf("failed to validate backoff params: %s", err)
 					}
 
 					disableKeepAlive := c.Bool(vmNativeDisableHTTPKeepAlive)
@@ -350,7 +387,7 @@ func main() {
 							ExtraLabels: dstExtraLabels,
 							HTTPClient:  dstHTTPClient,
 						},
-						backoff:                  backoff.New(),
+						backoff:                  backf,
 						cc:                       c.Int(vmConcurrency),
 						disablePerMetricRequests: c.Bool(vmNativeDisablePerMetricMigration),
 						isNative:                 !c.Bool(vmNativeDisableBinaryProtocol),
@@ -429,6 +466,15 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 		return vm.Config{}, fmt.Errorf("failed to create Transport: %s", err)
 	}
 
+	backf := backoff.New(
+		c.Int(backoffRetries),
+		c.Float64(backoffFactor),
+		c.Duration(backoffMinDuration))
+
+	if err := backf.Validate(); err != nil {
+		return vm.Config{}, fmt.Errorf("failed to validate backoff params: %s", err)
+	}
+
 	return vm.Config{
 		Addr:               addr,
 		Transport:          tr,
@@ -442,5 +488,6 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 		RoundDigits:        c.Int(vmRoundDigits),
 		ExtraLabels:        c.StringSlice(vmExtraLabel),
 		RateLimit:          c.Int64(vmRateLimit),
+		Backoff:            backf,
 	}, nil
 }
