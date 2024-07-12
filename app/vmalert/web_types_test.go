@@ -13,11 +13,11 @@ func TestUrlValuesToStrings(t *testing.T) {
 	res := urlValuesToStrings(mapQueryParams)
 
 	if len(res) != len(expectedRes) {
-		t.Errorf("Expected length %d, but got %d", len(expectedRes), len(res))
+		t.Fatalf("Expected length %d, but got %d", len(expectedRes), len(res))
 	}
 	for ind, val := range expectedRes {
 		if val != res[ind] {
-			t.Errorf("Expected %v; but got %v", val, res[ind])
+			t.Fatalf("Expected %v; but got %v", val, res[ind])
 		}
 	}
 }
