@@ -526,7 +526,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts Options
 
 	// initialize outputs list
 	if len(cfg.Outputs) == 0 {
-		return nil, fmt.Errorf("`outputs` list must contain at least a single entry from the list %s;", supportedOutputs)
+		return nil, fmt.Errorf("`outputs` list must contain at least a single entry from the list %s", supportedOutputs)
 	}
 	aggrStates := make(map[string]aggrState, len(cfg.Outputs))
 	for _, output := range cfg.Outputs {
