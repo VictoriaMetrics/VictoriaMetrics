@@ -338,7 +338,8 @@ The main reason for high churn rate is a metric label with frequently changed va
 * A `hash` or `uuid` label, which changes frequently.
 
 The solution against high churn rate is to identify and eliminate labels with frequently changed values.
-[Cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer) can help determining these labels.
+[Cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer) can help determining these labels. If labels can't be removed, try pre-aggregating data
+before it gets ingested into database with [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/).
 
 The official Grafana dashboards for VictoriaMetrics contain graphs for churn rate - see [these docs](https://docs.victoriametrics.com/#monitoring) for details.
 
