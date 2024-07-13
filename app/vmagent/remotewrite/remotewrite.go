@@ -218,9 +218,7 @@ func Init() {
 		deduplicatorGlobal = streamaggr.NewDeduplicator(pushToRemoteStoragesDropFailed, sasOpts.DedupInterval, sasOpts.DropInputLabels, sasOpts.Alias)
 	}
 
-	if len(*remoteWriteURLs) > 0 {
-		rwctxs = newRemoteWriteCtxs(nil, *remoteWriteURLs)
-	}
+	rwctxs = newRemoteWriteCtxs(nil, *remoteWriteURLs)
 
 	disableOnDiskQueues := []bool(*disableOnDiskQueue)
 	disableOnDiskQueueAll = !slices.Contains(disableOnDiskQueues, false)

@@ -101,7 +101,7 @@ Released at 2024-06-24
 
 Released at 2024-06-07
 
-**Update note 1: the `-remoteWrite.multitenantURL` command-line flag at `vmagent` was removed starting from this release. This flag was deprecated since [v1.96.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.96.0). Use `-enableMultitenantHandlers` instead, as it is easier to use and combine with [multitenant URL at vminsert](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy-via-labels). See these [docs for details](https://docs.victoriametrics.com/vmagent/#multitenancy).**
+**Update note 1: the `-remoteWrite.multitenantURL` command-line flag at `vmagent` was removed starting from this release. This flag was deprecated since [v1.96.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.96.0). Use `-enableMultitenantHandlers` instead, as it is easier to use and combine with [multitenant URL at vminsert](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels). See [these docs](https://docs.victoriametrics.com/vmagent/#multitenancy) for details.**
 
 **Update note 2: the `-streamAggr.dropInputLabels` command-line flag at `vmagent` was renamed to `-remoteWrite.streamAggr.dropInputLabels`. `-streamAggr.dropInputLabels` is now used for global streaming aggregation.**
 
@@ -155,7 +155,7 @@ Released at 2024-06-07
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix misleading error logs in vmalert's stdout when unsupported HTTP path is requested.
 * BUGFIX: retry files delete attempts on vXFS file system for `EEXIST` error type. See the [related issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6396). Thanks to @pludov for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6398).
 
-* DEPRECATION: [vmagent](https://docs.victoriametrics.com/vmagent/): removed deprecated `-remoteWrite.multitenantURL` flag from vmagent. This flag was deprecated since [v1.96.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.96.0). Use `-enableMultitenantHandlers` instead, as it is easier to use and combine with [multitenant URL at vminsert](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy-via-labels). See these [docs for details](https://docs.victoriametrics.com/vmagent/#multitenancy).
+* DEPRECATION: [vmagent](https://docs.victoriametrics.com/vmagent/): removed deprecated `-remoteWrite.multitenantURL` flag from vmagent. This flag was deprecated since [v1.96.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.96.0). Use `-enableMultitenantHandlers` instead, as it is easier to use and combine with [multitenant URL at vminsert](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels). See [these docs](https://docs.victoriametrics.com/vmagent/#multitenancy) for details.
 
 ## [v1.101.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.101.0)
 
