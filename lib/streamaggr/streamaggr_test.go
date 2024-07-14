@@ -891,21 +891,28 @@ foo{abc="123", cde="1"} 4
 foo{abc="123", cde="1"} 8.5 10
 foo{abc="456", cde="1"} 8
 foo{abc="456", cde="1"} 10 10
+foo 12 34
 `, `foo:1m_by_cde_rate_avg{cde="1"} 0.325
 foo:1m_by_cde_rate_sum{cde="1"} 0.65
-`, "1111")
+`, "11111")
 
-	// rate with duplicated events
+	// rate_sum and rate_avg with duplicated events
 	f(`
 - interval: 1m
-  by: [cde]
   outputs: [rate_sum, rate_avg]
 `, `
 foo{abc="123", cde="1"} 4  10
 foo{abc="123", cde="1"} 4  10
-`, `foo:1m_by_cde_rate_avg{cde="1"} 0
-foo:1m_by_cde_rate_sum{cde="1"} 0
-`, "11")
+`, ``, "11")
+
+	// rate_sum and rate_avg for a single sample
+	f(`
+- interval: 1m
+  outputs: [rate_sum, rate_avg]
+`, `
+foo 4  10
+bar 5  10
+`, ``, "11")
 
 	// unique_samples output
 	f(`

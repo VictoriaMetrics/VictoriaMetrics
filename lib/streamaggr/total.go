@@ -9,7 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
-// totalAggrState calculates output=total, e.g. the summary counter over input counters.
+// totalAggrState calculates output=total, total_prometheus, increase and increase_prometheus.
 type totalAggrState struct {
 	m sync.Map
 
@@ -124,39 +124,6 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *totalAggrState) removeOldEntries(ctx *flushCtx, currentTime uint64) {
-	m := &as.m
-	var staleInputSamples, staleOutputSamples int
-	m.Range(func(k, v any) bool {
-		sv := v.(*totalStateValue)
-
-		sv.mu.Lock()
-		deleted := currentTime > sv.deleteDeadline
-		if deleted {
-			// Mark the current entry as deleted
-			sv.deleted = deleted
-			staleOutputSamples++
-		} else {
-			// Delete outdated entries in sv.lastValues
-			m := sv.lastValues
-			for k1, v1 := range m {
-				if currentTime > v1.deleteDeadline {
-					delete(m, k1)
-					staleInputSamples++
-				}
-			}
-		}
-		sv.mu.Unlock()
-
-		if deleted {
-			m.Delete(k)
-		}
-		return true
-	})
-	ctx.a.staleInputSamples[as.suffix].Add(staleInputSamples)
-	ctx.a.staleOutputSamples[as.suffix].Add(staleOutputSamples)
-}
-
 func (as *totalAggrState) flushState(ctx *flushCtx, resetState bool) {
 	currentTime := fasttime.UnixTimestamp()
 	currentTimeMsec := int64(currentTime) * 1000
@@ -184,4 +151,35 @@ func (as *totalAggrState) flushState(ctx *flushCtx, resetState bool) {
 		}
 		return true
 	})
+}
+
+func (as *totalAggrState) removeOldEntries(ctx *flushCtx, currentTime uint64) {
+	m := &as.m
+	var staleInputSamples, staleOutputSamples int
+	m.Range(func(k, v any) bool {
+		sv := v.(*totalStateValue)
+
+		sv.mu.Lock()
+		if currentTime > sv.deleteDeadline {
+			// Mark the current entry as deleted
+			sv.deleted = true
+			staleOutputSamples++
+			sv.mu.Unlock()
+			m.Delete(k)
+			return true
+		}
+
+		// Delete outdated entries in sv.lastValues
+		lvs := sv.lastValues
+		for k1, lv := range lvs {
+			if currentTime > lv.deleteDeadline {
+				delete(lvs, k1)
+				staleInputSamples++
+			}
+		}
+		sv.mu.Unlock()
+		return true
+	})
+	ctx.a.staleInputSamples[as.suffix].Add(staleInputSamples)
+	ctx.a.staleOutputSamples[as.suffix].Add(staleOutputSamples)
 }
