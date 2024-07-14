@@ -27,24 +27,24 @@ import (
 )
 
 var supportedOutputs = []string{
-	"rate_sum",
-	"rate_avg",
-	"total",
-	"total_prometheus",
+	"avg",
+	"count_samples",
+	"count_series",
+	"histogram_bucket",
 	"increase",
 	"increase_prometheus",
-	"count_series",
-	"count_samples",
-	"unique_samples",
-	"sum_samples",
 	"last",
-	"min",
 	"max",
-	"avg",
+	"min",
+	"quantiles(phi1, ..., phiN)",
+	"rate_avg",
+	"rate_sum",
 	"stddev",
 	"stdvar",
-	"histogram_bucket",
-	"quantiles(phi1, ..., phiN)",
+	"sum_samples",
+	"total",
+	"total_prometheus",
+	"unique_samples",
 }
 
 // maxLabelValueLen is maximum match expression label value length in stream aggregation metrics
@@ -175,24 +175,24 @@ type Config struct {
 	//
 	// The following names are allowed:
 	//
-	// - rate_sum - calculates sum of rate for input counters
-	// - rate_avg - calculates average of rate for input counters
-	// - total - aggregates input counters
-	// - total_prometheus - aggregates input counters, ignoring the first sample in new time series
+	// - avg - the average value across all the samples
+	// - count_samples - counts the input samples
+	// - count_series - counts the number of unique input series
+	// - histogram_bucket - creates VictoriaMetrics histogram for input samples
 	// - increase - calculates the increase over input series
 	// - increase_prometheus - calculates the increase over input series, ignoring the first sample in new time series
-	// - count_series - counts the number of unique input series
-	// - count_samples - counts the input samples
-	// - unique_samples - counts the number of unique sample values
-	// - sum_samples - sums the input sample values
 	// - last - the last biggest sample value
-	// - min - the minimum sample value
 	// - max - the maximum sample value
-	// - avg - the average value across all the samples
+	// - min - the minimum sample value
+	// - quantiles(phi1, ..., phiN) - quantiles' estimation for phi in the range [0..1]
+	// - rate_avg - calculates average of rate for input counters
+	// - rate_sum - calculates sum of rate for input counters
 	// - stddev - standard deviation across all the samples
 	// - stdvar - standard variance across all the samples
-	// - histogram_bucket - creates VictoriaMetrics histogram for input samples
-	// - quantiles(phi1, ..., phiN) - quantiles' estimation for phi in the range [0..1]
+	// - sum_samples - sums the input sample values
+	// - total - aggregates input counters
+	// - total_prometheus - aggregates input counters, ignoring the first sample in new time series
+	// - unique_samples - counts the number of unique sample values
 	//
 	// The output time series will have the following names by default:
 	//
@@ -562,40 +562,40 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts Options
 			continue
 		}
 		switch output {
-		case "total":
-			aggrStates[output] = newTotalAggrState(stalenessInterval, false, true)
-		case "total_prometheus":
-			aggrStates[output] = newTotalAggrState(stalenessInterval, false, false)
+		case "avg":
+			aggrStates[output] = newAvgAggrState()
+		case "count_samples":
+			aggrStates[output] = newCountSamplesAggrState()
+		case "count_series":
+			aggrStates[output] = newCountSeriesAggrState()
+		case "histogram_bucket":
+			aggrStates[output] = newHistogramBucketAggrState(stalenessInterval)
 		case "increase":
 			aggrStates[output] = newTotalAggrState(stalenessInterval, true, true)
 		case "increase_prometheus":
 			aggrStates[output] = newTotalAggrState(stalenessInterval, true, false)
-		case "rate_sum":
-			aggrStates[output] = newRateAggrState(stalenessInterval, "rate_sum")
-		case "rate_avg":
-			aggrStates[output] = newRateAggrState(stalenessInterval, "rate_avg")
-		case "count_series":
-			aggrStates[output] = newCountSeriesAggrState()
-		case "count_samples":
-			aggrStates[output] = newCountSamplesAggrState()
-		case "unique_samples":
-			aggrStates[output] = newUniqueSamplesAggrState()
-		case "sum_samples":
-			aggrStates[output] = newSumSamplesAggrState()
 		case "last":
 			aggrStates[output] = newLastAggrState()
-		case "min":
-			aggrStates[output] = newMinAggrState()
 		case "max":
 			aggrStates[output] = newMaxAggrState()
-		case "avg":
-			aggrStates[output] = newAvgAggrState()
+		case "min":
+			aggrStates[output] = newMinAggrState()
+		case "rate_avg":
+			aggrStates[output] = newRateAggrState(stalenessInterval, true)
+		case "rate_sum":
+			aggrStates[output] = newRateAggrState(stalenessInterval, false)
 		case "stddev":
 			aggrStates[output] = newStddevAggrState()
 		case "stdvar":
 			aggrStates[output] = newStdvarAggrState()
-		case "histogram_bucket":
-			aggrStates[output] = newHistogramBucketAggrState(stalenessInterval)
+		case "sum_samples":
+			aggrStates[output] = newSumSamplesAggrState()
+		case "total":
+			aggrStates[output] = newTotalAggrState(stalenessInterval, false, true)
+		case "total_prometheus":
+			aggrStates[output] = newTotalAggrState(stalenessInterval, false, false)
+		case "unique_samples":
+			aggrStates[output] = newUniqueSamplesAggrState()
 		default:
 			return nil, fmt.Errorf("unsupported output=%q; supported values: %s;", output, supportedOutputs)
 		}
