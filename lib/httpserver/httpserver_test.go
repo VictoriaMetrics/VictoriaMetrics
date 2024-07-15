@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 )
 
 func TestGetQuotedRemoteAddr(t *testing.T) {
@@ -97,7 +99,11 @@ func TestAuthKeyMetrics(t *testing.T) {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded;param=value")
 		w := httptest.NewRecorder()
 
-		CheckAuthFlag(w, req, "rightKey", "metricsAuthkey")
+		p := &flagutil.Password{}
+		if err := p.Set("rightKey"); err != nil {
+			t.Fatalf("cannot set password: %s", err)
+		}
+		CheckAuthFlag(w, req, p)
 
 		res := w.Result()
 		defer res.Body.Close()
@@ -115,7 +121,11 @@ func TestAuthKeyMetrics(t *testing.T) {
 		req.SetBasicAuth(user, pass)
 
 		w := httptest.NewRecorder()
-		CheckAuthFlag(w, req, "", "metricsAuthkey")
+		p := &flagutil.Password{}
+		if err := p.Set(""); err != nil {
+			t.Fatalf("cannot set password: %s", err)
+		}
+		CheckAuthFlag(w, req, p)
 
 		res := w.Result()
 		_ = res.Body.Close()
