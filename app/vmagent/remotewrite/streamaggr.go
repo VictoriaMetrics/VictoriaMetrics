@@ -80,7 +80,7 @@ func CheckStreamAggrConfigs() error {
 
 func reloadStreamAggrConfigs() {
 	reloadStreamAggrConfig(-1, pushToRemoteStoragesDropFailed)
-	for idx, rwctx := range rwctxs {
+	for idx, rwctx := range rwctxsGlobal {
 		reloadStreamAggrConfig(idx, rwctx.pushInternalTrackDropped)
 	}
 }
@@ -102,7 +102,7 @@ func reloadStreamAggrConfig(idx int, pushFunc streamaggr.PushFunc) {
 	if idx < 0 {
 		sas = sasGlobal.Load()
 	} else {
-		sas = rwctxs[idx].sas.Load()
+		sas = rwctxsGlobal[idx].sas.Load()
 	}
 
 	if !sasNew.Equal(sas) {
@@ -110,7 +110,7 @@ func reloadStreamAggrConfig(idx int, pushFunc streamaggr.PushFunc) {
 		if idx < 0 {
 			sasOld = sasGlobal.Swap(sasNew)
 		} else {
-			sasOld = rwctxs[idx].sas.Swap(sasNew)
+			sasOld = rwctxsGlobal[idx].sas.Swap(sasNew)
 		}
 		sasOld.MustStop()
 		logger.Infof("successfully reloaded stream aggregation configs at %q", path)
