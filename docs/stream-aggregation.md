@@ -19,8 +19,8 @@ The aggregation is applied to all the metrics received via any [supported data i
 and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 after applying all the configured [relabeling stages](https://docs.victoriametrics.com/vmagent/#relabeling).
 
-_By default, stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples).
-It expects that the ingested samples have timestamps close to the current time. See [how to ignore old samples](#ignoring-old-samples)._
+**By default, stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples).
+It expects that the ingested samples have timestamps close to the current time. See [how to ignore old samples](#ignoring-old-samples).**
 
 ## Configuration
 
@@ -28,9 +28,9 @@ Stream aggregation can be configured via the following command-line flags:
 
 - `-streamAggr.config` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
   and at [vmagent](https://docs.victoriametrics.com/vmagent/).
-- `-remoteWrite.streamAggr.config` at [vmagent](https://docs.victoriametrics.com/vmagent/) only.
-  This flag can be specified individually per each `-remoteWrite.url` and aggregation will happen independently for each of them.
-  This allows writing different aggregates to different remote storage destinations.
+- `-remoteWrite.streamAggr.config` at [vmagent](https://docs.victoriametrics.com/vmagent/) only. This flag can be specified individually
+  per each `-remoteWrite.url`, so the aggregation happens independently per each remote storage destination.
+  This allows writing different aggregates to different remote storage systems.
 
 These flags must point to a file containing [stream aggregation config](#stream-aggregation-config).
 The file may contain `%{ENV_VAR}` placeholders which are substituted by the corresponding `ENV_VAR` environment variable values.
@@ -60,26 +60,24 @@ The processed data is then stored in local storage and **can't be forwarded furt
 [vmagent](https://docs.victoriametrics.com/vmagent/) supports relabeling, deduplication and stream aggregation for all 
 the received data, scraped or pushed. Then, the collected data will be forwarded to specified `-remoteWrite.url` destinations.
 The data processing order is the following:
-1. All the received data is [relabeled](https://docs.victoriametrics.com/vmagent/#relabeling) according to 
-   specified `-remoteWrite.relabelConfig`;
-1. All the received data is [deduplicated](https://docs.victoriametrics.com/stream-aggregation/#deduplication)
-   according to specified `-streamAggr.dedupInterval`;
-1. All the received data is aggregated according to specified `-streamAggr.config`;
-1. The resulting data from p1 and p2 is then replicated to each `-remoteWrite.url`;
-1. Data sent to each `-remoteWrite.url` can be additionally relabeled according to the 
-   corresponding `-remoteWrite.urlRelabelConfig` (set individually per URL);
-1. Data sent to each `-remoteWrite.url` can be additionally deduplicated according to the
-   corresponding `-remoteWrite.streamAggr.dedupInterval` (set individually per URL);
-1. Data sent to each `-remoteWrite.url` can be additionally aggregated according to the
-   corresponding `-remoteWrite.streamAggr.config` (set individually per URL). Please note, it is not recommended
-   to use `-streamAggr.config` and `-remoteWrite.streamAggr.config` together, unless you understand the complications.
 
-Typical scenarios for data routing with vmagent:
-1. **Aggregate incoming data and replicate to N destinations**. For this one should configure `-streamAggr.config`
-to aggregate the incoming data before replicating it to all the configured `-remoteWrite.url` destinations.
-2. **Individually aggregate incoming data for each destination**. For this on should configure `-remoteWrite.streamAggr.config`
-for each `-remoteWrite.url` destination. [Relabeling](https://docs.victoriametrics.com/vmagent/#relabeling) 
-via `-remoteWrite.urlRelabelConfig` can be used for routing only selected metrics to each `-remoteWrite.url` destination.
+1. all the received data is relabeled according to the specified [`-remoteWrite.relabelConfig`](https://docs.victoriametrics.com/vmagent/#relabeling) (if it is set)
+1. all the received data is deduplicated according to specified [`-streamAggr.dedupInterval`](https://docs.victoriametrics.com/stream-aggregation/#deduplication)
+   (if it is set to duration bigger than 0)
+1. all the received data is aggregated according to specified [`-streamAggr.config`](https://docs.victoriametrics.com/stream-aggregation/#configuration) (if it is set)
+1. the resulting data is then replicated to each `-remoteWrite.url`
+1. data sent to each `-remoteWrite.url` can be additionally relabeled according to the corresponding `-remoteWrite.urlRelabelConfig` (set individually per URL)
+1. data sent to each `-remoteWrite.url` can be additionally deduplicated according to the corresponding `-remoteWrite.streamAggr.dedupInterval` (set individually per URL)
+1. data sent to each `-remoteWrite.url` can be additionally aggregated according to the corresponding `-remoteWrite.streamAggr.config` (set individually per URL)
+   It isn't recommended using `-streamAggr.config` and `-remoteWrite.streamAggr.config` simultaneously, unless you understand the complications.
+
+Typical scenarios for data routing with `vmagent`:
+
+1. **Aggregate incoming data and replicate to N destinations**. Specify [`-streamAggr.config`](https://docs.victoriametrics.com/stream-aggregation/#configuration) command-line flag
+   to aggregate the incoming data before replicating it to all the configured `-remoteWrite.url` destinations.
+2. **Individually aggregate incoming data for each destination**. Specify [`-remoteWrite.streamAggr.config`](https://docs.victoriametrics.com/stream-aggregation/#configuration)
+   command-line flag for each `-remoteWrite.url` destination. [Relabeling](https://docs.victoriametrics.com/vmagent/#relabeling) via `-remoteWrite.urlRelabelConfig`
+   can be used for routing only the selected metrics to each `-remoteWrite.url` destination.
 
 ## Deduplication
 
