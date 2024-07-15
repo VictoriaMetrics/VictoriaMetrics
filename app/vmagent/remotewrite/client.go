@@ -15,8 +15,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
@@ -120,7 +120,7 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		logger.Fatalf("cannot initialize AWS Config for -remoteWrite.url=%q: %s", remoteWriteURL, err)
 	}
 	tr := &http.Transport{
-		DialContext:         httputils.GetStatDialFunc("vmagent_remotewrite"),
+		DialContext:         netutil.NewStatDialFunc("vmagent_remotewrite"),
 		TLSHandshakeTimeout: tlsHandshakeTimeout.GetOptionalArg(argIdx),
 		MaxConnsPerHost:     2 * concurrency,
 		MaxIdleConnsPerHost: 2 * concurrency,

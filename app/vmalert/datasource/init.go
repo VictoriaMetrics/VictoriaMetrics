@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
 
 var (
@@ -100,7 +101,7 @@ func Init(extraParams url.Values) (QuerierBuilder, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
-	tr.DialContext = httputils.GetStatDialFunc("vmalert_datasource")
+	tr.DialContext = netutil.NewStatDialFunc("vmalert_datasource")
 	tr.DisableKeepAlives = *disableKeepAlive
 	tr.MaxIdleConnsPerHost = *maxIdleConnections
 	if tr.MaxIdleConns != 0 && tr.MaxIdleConns < tr.MaxIdleConnsPerHost {
