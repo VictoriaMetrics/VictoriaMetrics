@@ -11,24 +11,24 @@ import (
 )
 
 var benchOutputs = []string{
-	"total",
-	"total_prometheus",
+	"avg",
+	"count_samples",
+	"count_series",
+	"histogram_bucket",
 	"increase",
 	"increase_prometheus",
-	"rate_sum",
-	"rate_avg",
-	"count_series",
-	"count_samples",
-	"unique_samples",
-	"sum_samples",
 	"last",
-	"min",
 	"max",
-	"avg",
+	"min",
+	"quantiles(0, 0.5, 1)",
+	"rate_avg",
+	"rate_sum",
 	"stddev",
 	"stdvar",
-	"histogram_bucket",
-	"quantiles(0, 0.5, 1)",
+	"sum_samples",
+	"total",
+	"total_prometheus",
+	"unique_samples",
 }
 
 func BenchmarkAggregatorsPush(b *testing.B) {
@@ -40,19 +40,14 @@ func BenchmarkAggregatorsPush(b *testing.B) {
 }
 
 func BenchmarkAggregatorsFlushSerial(b *testing.B) {
-	outputs := []string{
-		"total", "sum_samples", "count_samples", "min",
-		"max", "avg", "increase", "count_series",
-		"last", "stddev", "stdvar", "total_prometheus", "increase_prometheus",
-	}
 	pushFunc := func(_ []prompbmarshal.TimeSeries) {}
-	a := newBenchAggregators(outputs, pushFunc)
+	a := newBenchAggregators(benchOutputs, pushFunc)
 	defer a.MustStop()
 	_ = a.Push(benchSeries, nil)
 
 	b.ResetTimer()
 	b.ReportAllocs()
-	b.SetBytes(int64(len(benchSeries) * len(outputs)))
+	b.SetBytes(int64(len(benchSeries) * len(benchOutputs)))
 	for i := 0; i < b.N; i++ {
 		for _, aggr := range a.as {
 			aggr.flush(pushFunc, time.Hour, false)
