@@ -207,16 +207,7 @@ func Init() {
 	relabelConfigSuccess.Set(1)
 	relabelConfigTimestamp.Set(fasttime.UnixTimestamp())
 
-	sasFile, sasOpts := getStreamAggrOpts(-1)
-	if sasFile != "" {
-		sas, err := newStreamAggrConfig(-1, pushToRemoteStoragesDropFailed)
-		if err != nil {
-			logger.Fatalf("cannot initialize stream aggregators from -streamAggr.config=%q: %s", sasFile, err)
-		}
-		sasGlobal.Store(sas)
-	} else if sasOpts.DedupInterval > 0 {
-		deduplicatorGlobal = streamaggr.NewDeduplicator(pushToRemoteStoragesDropFailed, sasOpts.DedupInterval, sasOpts.DropInputLabels, sasOpts.Alias)
-	}
+	initStreamAggrConfigGlobal()
 
 	rwctxsGlobal = newRemoteWriteCtxs(nil, *remoteWriteURLs)
 
@@ -237,9 +228,9 @@ func Init() {
 		defer configReloaderWG.Done()
 		for {
 			select {
-			case <-sighupCh:
 			case <-configReloaderStopCh:
 				return
+			case <-sighupCh:
 			}
 			reloadRelabelConfigs()
 			reloadStreamAggrConfigs()
@@ -536,7 +527,7 @@ func getEligibleRemoteWriteCtxs(tss []prompbmarshal.TimeSeries, forceDropSamples
 	return rwctxs, true
 }
 
-func pushToRemoteStoragesDropFailed(tss []prompbmarshal.TimeSeries) {
+func pushToRemoteStoragesTrackDropped(tss []prompbmarshal.TimeSeries) {
 	rwctxs, _ := getEligibleRemoteWriteCtxs(tss, true)
 	if len(rwctxs) == 0 {
 		return
@@ -844,28 +835,13 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 		c:   c,
 		pss: pss,
 
-		rowsPushedAfterRelabel: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rows_pushed_after_relabel_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
-		rowsDroppedByRelabel:   metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
+		rowsPushedAfterRelabel: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rows_pushed_after_relabel_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
+		rowsDroppedByRelabel:   metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
 
-		pushFailures:             metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_push_failures_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
-		rowsDroppedOnPushFailure: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_samples_dropped_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
+		pushFailures:             metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_push_failures_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
+		rowsDroppedOnPushFailure: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_samples_dropped_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
 	}
-
-	// Initialize sas
-	sasFile, sasOpts := getStreamAggrOpts(argIdx)
-	if sasFile != "" {
-		sas, err := newStreamAggrConfig(argIdx, rwctx.pushInternalTrackDropped)
-		if err != nil {
-			logger.Fatalf("cannot initialize stream aggregators from -remoteWrite.streamAggr.config=%q: %s", sasFile, err)
-		}
-		rwctx.sas.Store(sas)
-		rwctx.streamAggrKeepInput = streamAggrKeepInput.GetOptionalArg(argIdx)
-		rwctx.streamAggrDropInput = streamAggrDropInput.GetOptionalArg(argIdx)
-		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, sasFile)).Set(1)
-		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_success_timestamp_seconds{path=%q}`, sasFile)).Set(fasttime.UnixTimestamp())
-	} else if sasOpts.DedupInterval > 0 {
-		rwctx.deduplicator = streamaggr.NewDeduplicator(rwctx.pushInternalTrackDropped, sasOpts.DedupInterval, sasOpts.DropInputLabels, sasOpts.Alias)
-	}
+	rwctx.initStreamAggrConfig()
 
 	return rwctx
 }

@@ -42,14 +42,17 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * FEATURE: [dashboards](https://grafana.com/orgs/victoriametrics): add [Grafana dashboard](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/vmauth.json) and [alerting rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-vmauth.yml) for [vmauth](https://docs.victoriametrics.com/vmauth/) dashboard. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4313) for details.
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): reduces CPU usage by reusing request body buffer. Allows to disable requests caching with `-maxRequestBodySizeToRetry=0`. See this [PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6533) for details.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): added `yandexcloud_sd` AWS API IMDSv2 support.
-* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): expose metrics related to [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/):
-  * `vm_streamaggr_matched_samples_total` - shows the number of samples matched by the aggregation rule;
-  * `vm_streamaggr_flushed_samples_total` - shows the number of samples produced by the aggregation rule;
-  * `vm_streamaggr_samples_lag_seconds` - shows the max lag between samples timestamps within one batch received by the aggregation;
-  * `vm_streamaggr_stale_samples_total` - shows the number of time series that became [stale](https://docs.victoriametrics.com/stream-aggregation/#staleness) during aggregation;
-  * metrics related to stream aggregation got additional labels `match` (matching param), `group` (`by` or `without` param), `url` (address of `remoteWrite.url` where aggregation is applied), `position` (the position of the aggregation rule in config file).
-  * These and other metrics were reflected on the [vmagent dashboard](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/vmagent.json) in `stream aggregation` section.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): add `-graphite.sanitizeMetricName` cmd-line flag for sanitizing metrics ingested via [Graphite protocol](https://docs.victoriametrics.com/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6077).
+* FEATURE: [streaming aggregation](https://docs.victoriametrics.com/stream-aggregation/): expose the following metrics at `/metrics` page of [vmagent](https://docs.victoriametrics.com/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/):
+  * `vm_streamaggr_matched_samples_total` - the number of input samples matched by the corresponding aggregation rule
+  * `vm_streamaggr_output_samples_total` - the number of output samples produced by the corresponding aggregation rule
+  * `vm_streamaggr_samples_lag_seconds` - [histogram](https://docs.victoriametrics.com/keyconcepts/#histogram) with the lag between the current time and the timestamp seen in the aggregated input samples
+* FEATURE: [steaming aggregation](https://docs.victoriametrics.com/stream-aggregation/): add new labels to `vl_streamaggr_*` metrics:
+  * `name` - the name of the streaming aggregation rule, which can be configured via `name` option - see [these docs](https://docs.victoriametrics.com/stream-aggregation/#stream-aggregation-config).
+  * `url` - `-remoteWrite.url` for the corresponding `-remoteWrite.streamAggr.config`
+  * `path` - path to the corresponding streaming aggregation config file
+  * `position` - the position of the aggregation rule in the corresponding streaming aggregation config file
+* FEATURE: [vmagent dashboard](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/vmagent.json): `stream aggregation` section: add graphs based on newly exposed streaming aggregation metrics.
 * FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): do not retry RPC calls to vmstorage nodes if [complexity limits](https://docs.victoriametrics.com/#resource-usage-limits) were exceeded.
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): make `-replay.timeTo` optional in [replay mode](https://docs.victoriametrics.com/vmalert/#rules-backfilling). When omitted, the current timestamp will be used. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6492).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): show compacted result in the JSON tab for query results. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6559).  

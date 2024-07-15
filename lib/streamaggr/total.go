@@ -13,8 +13,6 @@ import (
 type totalAggrState struct {
 	m sync.Map
 
-	suffix string
-
 	// Whether to reset the output value on every flushState call.
 	resetTotalOnFlush bool
 
@@ -50,15 +48,8 @@ type totalLastValueState struct {
 func newTotalAggrState(stalenessInterval time.Duration, resetTotalOnFlush, keepFirstSample bool) *totalAggrState {
 	stalenessSecs := roundDurationToSecs(stalenessInterval)
 	ignoreFirstSampleDeadline := fasttime.UnixTimestamp() + stalenessSecs
-	suffix := "total"
-	if resetTotalOnFlush {
-		suffix = "increase"
-	}
-	if !keepFirstSample {
-		suffix += "_prometheus"
-	}
+
 	return &totalAggrState{
-		suffix:                    suffix,
 		resetTotalOnFlush:         resetTotalOnFlush,
 		keepFirstSample:           keepFirstSample,
 		stalenessSecs:             stalenessSecs,
@@ -128,11 +119,14 @@ func (as *totalAggrState) flushState(ctx *flushCtx, resetState bool) {
 	currentTime := fasttime.UnixTimestamp()
 	currentTimeMsec := int64(currentTime) * 1000
 
-	as.removeOldEntries(ctx, currentTime)
+	suffix := as.getSuffix()
+
+	as.removeOldEntries(currentTime)
 
 	m := &as.m
 	m.Range(func(k, v any) bool {
 		sv := v.(*totalStateValue)
+
 		sv.mu.Lock()
 		total := sv.total
 		if resetState {
@@ -145,17 +139,31 @@ func (as *totalAggrState) flushState(ctx *flushCtx, resetState bool) {
 		}
 		deleted := sv.deleted
 		sv.mu.Unlock()
+
 		if !deleted {
 			key := k.(string)
-			ctx.appendSeries(key, as.suffix, currentTimeMsec, total)
+			ctx.appendSeries(key, suffix, currentTimeMsec, total)
 		}
 		return true
 	})
 }
 
-func (as *totalAggrState) removeOldEntries(ctx *flushCtx, currentTime uint64) {
+func (as *totalAggrState) getSuffix() string {
+	// Note: this function is at hot path, so it shouldn't allocate.
+	if as.resetTotalOnFlush {
+		if as.keepFirstSample {
+			return "increase"
+		}
+		return "increase_prometheus"
+	}
+	if as.keepFirstSample {
+		return "total"
+	}
+	return "total_prometheus"
+}
+
+func (as *totalAggrState) removeOldEntries(currentTime uint64) {
 	m := &as.m
-	var staleInputSamples, staleOutputSamples int
 	m.Range(func(k, v any) bool {
 		sv := v.(*totalStateValue)
 
@@ -163,7 +171,6 @@ func (as *totalAggrState) removeOldEntries(ctx *flushCtx, currentTime uint64) {
 		if currentTime > sv.deleteDeadline {
 			// Mark the current entry as deleted
 			sv.deleted = true
-			staleOutputSamples++
 			sv.mu.Unlock()
 			m.Delete(k)
 			return true
@@ -174,12 +181,9 @@ func (as *totalAggrState) removeOldEntries(ctx *flushCtx, currentTime uint64) {
 		for k1, lv := range lvs {
 			if currentTime > lv.deleteDeadline {
 				delete(lvs, k1)
-				staleInputSamples++
 			}
 		}
 		sv.mu.Unlock()
 		return true
 	})
-	ctx.a.staleInputSamples[as.suffix].Add(staleInputSamples)
-	ctx.a.staleOutputSamples[as.suffix].Add(staleOutputSamples)
 }
