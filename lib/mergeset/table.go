@@ -641,7 +641,7 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 	m.IndexBlocksCacheRequests = idxbCache.Requests()
 	m.IndexBlocksCacheMisses = idxbCache.Misses()
 
-	m.TooLongItemsDroppedTotal += tooLongItemsTotal.Load()
+	m.TooLongItemsDroppedTotal = tooLongItemsTotal.Load()
 }
 
 // AddItems adds the given items to the tb.
