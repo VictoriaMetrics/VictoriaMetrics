@@ -12,9 +12,9 @@ aliases:
 # Cluster version
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="logo_white.webp">
-  <source media="(prefers-color-scheme: light)" srcset="logo.webp">
-  <img width="300" alt="VictoriaMetrics logo" src="logo.webp">
+  <source srcset="logo_white.webp" media="(prefers-color-scheme: dark)">
+  <source srcset="logo.webp" media="(prefers-color-scheme: light)">
+  <img src="logo.webp" width="300" alt="VictoriaMetrics logo">
 </picture>
 
 VictoriaMetrics is a fast, cost-effective and scalable time series database. It can be used as a long-term remote storage for Prometheus.
@@ -1189,7 +1189,7 @@ Below is the output for `/path/to/vminsert -help`:
      The maximum size in bytes of a single Prometheus remote_write API request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
   -maxLabelValueLen int
-     The maximum length of label values in the accepted time series. Longer label values are truncated. In this case the vm_too_long_label_values_total metric at /metrics page is incremented (default 16384)
+     The maximum length of label values in the accepted time series. Longer label values are truncated. In this case the vm_too_long_label_values_total metric at /metrics page is incremented (default 4096)
   -maxLabelsPerTimeseries int
      The maximum number of labels accepted per time series. Superfluous labels are dropped. In this case the vm_metrics_with_dropped_labels_total metric at /metrics page is incremented (default 30)
   -memory.allowedBytes size

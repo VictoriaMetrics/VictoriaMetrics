@@ -108,7 +108,7 @@ Released at 2024-06-07
 
 **Update note 2: the `-streamAggr.dropInputLabels` command-line flag at `vmagent` was renamed to `-remoteWrite.streamAggr.dropInputLabels`. `-streamAggr.dropInputLabels` is now used for global streaming aggregation.**
 
-**Update note 3: the `-maxLabelValueLen` command-line flag default value was changed from 16kB to 1kB. It may lead to truncating of labels with enormous values.**
+**Update note 3: the `-maxLabelValueLen` command-line flag default value was changed from 16KiB to 4KiB. It may lead to truncating of labels with too long values.**
 
 * SECURITY: upgrade Go builder from Go1.22.2 to Go1.22.4. See the list of issues addressed in [Go1.22.3](https://github.com/golang/go/issues?q=milestone%3AGo1.22.3+label%3ACherryPickApproved) and [Go1.22.4](https://github.com/golang/go/issues?q=milestone%3AGo1.22.4+label%3ACherryPickApproved).
 * SECURITY: upgrade base docker image (Alpine) from 3.19.1 to 3.20.0. See [alpine 3.20.0 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.0-released.html).
@@ -1124,4 +1124,3 @@ See changes [here](https://docs.victoriametrics.com/changelog_2020/#v1420)
 ## Previous releases
 
 See [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
-
