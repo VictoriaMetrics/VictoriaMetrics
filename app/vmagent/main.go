@@ -114,7 +114,7 @@ func main() {
 			logger.Fatalf("error when checking relabel configs: %s", err)
 		}
 		if err := remotewrite.CheckStreamAggrConfigs(); err != nil {
-			logger.Fatalf("error when checking -remoteWrite.streamAggr.config: %s", err)
+			logger.Fatalf("error when checking -streamAggr.config and -remoteWrite.streamAggr.config: %s", err)
 		}
 		logger.Infof("all the configs are ok; exiting with 0 status code")
 		return

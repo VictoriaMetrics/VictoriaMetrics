@@ -1018,6 +1018,13 @@ At [vmagent](https://docs.victoriametrics.com/vmagent/) `-remoteWrite.streamAggr
 specified individually per each `-remoteWrite.url`:
 
 ```yaml
+  # name is an optional name of the given streaming aggregation config.
+  #
+  # If it is set, then it is used as `name` label in the exposed metrics
+  # for the given aggregation config at /metrics page.
+  # See https://docs.victoriametrics.com/vmagent/#monitoring and https://docs.victoriametrics.com/#monitoring
+- name: 'foobar'
+
   # match is an optional filter for incoming samples to aggregate.
   # It can contain arbitrary Prometheus series selector
   # according to https://docs.victoriametrics.com/keyconcepts/#filtering .
