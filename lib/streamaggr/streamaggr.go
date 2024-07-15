@@ -405,7 +405,7 @@ type aggregator struct {
 	flushTimeouts      *metrics.Counter
 	dedupFlushTimeouts *metrics.Counter
 	ignoredOldSamples  *metrics.Counter
-	IgnoredNaNSamples  *metrics.Counter
+	ignoredNaNSamples  *metrics.Counter
 	matchedSamples     *metrics.Counter
 }
 
@@ -606,7 +606,7 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 		matchedSamples:     ms.NewCounter(fmt.Sprintf(`vm_streamaggr_matched_samples_total{%s}`, metricLabels)),
 		flushTimeouts:      ms.NewCounter(fmt.Sprintf(`vm_streamaggr_flush_timeouts_total{%s}`, metricLabels)),
 		dedupFlushTimeouts: ms.NewCounter(fmt.Sprintf(`vm_streamaggr_dedup_flush_timeouts_total{%s}`, metricLabels)),
-		IgnoredNaNSamples:  ms.NewCounter(fmt.Sprintf(`vm_streamaggr_ignored_samples_total{reason="nan",%s}`, metricLabels)),
+		ignoredNaNSamples:  ms.NewCounter(fmt.Sprintf(`vm_streamaggr_ignored_samples_total{reason="nan",%s}`, metricLabels)),
 		ignoredOldSamples:  ms.NewCounter(fmt.Sprintf(`vm_streamaggr_ignored_samples_total{reason="too_old",%s}`, metricLabels)),
 	}
 
@@ -934,7 +934,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 		key := bytesutil.ToUnsafeString(buf[bufLen:])
 		for _, s := range ts.Samples {
 			if math.IsNaN(s.Value) {
-				a.IgnoredNaNSamples.Inc()
+				a.ignoredNaNSamples.Inc()
 				// Skip NaN values
 				continue
 			}
