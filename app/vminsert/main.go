@@ -67,7 +67,7 @@ var (
 	configAuthKey          = flagutil.NewPassword("configAuthKey", "Authorization key for accessing /config page. It must be passed via authKey query arg. It overrides httpAuth.* settings.")
 	reloadAuthKey          = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings.")
 	maxLabelsPerTimeseries = flag.Int("maxLabelsPerTimeseries", 30, "The maximum number of labels accepted per time series. Superfluous labels are dropped. In this case the vm_metrics_with_dropped_labels_total metric at /metrics page is incremented")
-	maxLabelValueLen       = flag.Int("maxLabelValueLen", 1024, "The maximum length of label values in the accepted time series. Longer label values are truncated. In this case the vm_too_long_label_values_total metric at /metrics page is incremented")
+	maxLabelValueLen       = flag.Int("maxLabelValueLen", 4*1024, "The maximum length of label values in the accepted time series. Longer label values are truncated. In this case the vm_too_long_label_values_total metric at /metrics page is incremented")
 )
 
 var (
