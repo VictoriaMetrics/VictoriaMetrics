@@ -323,7 +323,7 @@ func (a *Aggregators) MustStop() {
 		return
 	}
 
-	metrics.UnregisterSet(a.ms)
+	metrics.UnregisterSet(a.ms, true)
 	a.ms = nil
 
 	for _, aggr := range a.as {
