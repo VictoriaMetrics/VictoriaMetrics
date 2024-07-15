@@ -71,7 +71,7 @@ func NewDeduplicator(pushFunc PushFunc, dedupInterval time.Duration, dropLabels 
 
 // MustStop stops d.
 func (d *Deduplicator) MustStop() {
-	metrics.UnregisterSet(d.ms)
+	metrics.UnregisterSet(d.ms, true)
 	d.ms = nil
 
 	close(d.stopCh)

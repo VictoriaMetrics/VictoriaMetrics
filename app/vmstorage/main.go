@@ -240,7 +240,7 @@ func GetSeriesCount(deadline uint64) (uint64, error) {
 // Stop stops the vmstorage
 func Stop() {
 	// deregister storage metrics
-	metrics.UnregisterSet(storageMetrics)
+	metrics.UnregisterSet(storageMetrics, true)
 	storageMetrics = nil
 
 	logger.Infof("gracefully closing the storage at %s", *DataPath)
