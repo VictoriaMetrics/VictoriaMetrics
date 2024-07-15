@@ -68,6 +68,10 @@ var (
 		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
 	cacheSizeIndexDBTagFilters = flagutil.NewBytes("storage.cacheSizeIndexDBTagFilters", 0, "Overrides max size for indexdb/tagFiltersToMetricIDs cache. "+
 		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
+
+	disablePerDayIndexes = flag.Bool("disablePerDayIndexes", false, "Disable per-day indexs and use global index for all searches. "+
+		"This may improve performance for the use cases with fixed set of timeseries whose values are scattered across a "+
+		"big time range (for example, when loading years of historical data)")
 )
 
 // CheckTimeRange returns true if the given tr is denied for querying.
@@ -106,7 +110,7 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *DataPath, retentionPeriod)
 	startTime := time.Now()
 	WG = syncwg.WaitGroup{}
-	strg := storage.MustOpenStorage(*DataPath, retentionPeriod.Duration(), *maxHourlySeries, *maxDailySeries)
+	strg := storage.MustOpenStorage(*DataPath, retentionPeriod.Duration(), *maxHourlySeries, *maxDailySeries, *disablePerDayIndexes)
 	Storage = strg
 	initStaleSnapshotsRemover(strg)
 

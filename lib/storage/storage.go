@@ -78,6 +78,8 @@ type Storage struct {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401
 	idbNext atomic.Pointer[indexDB]
 
+	disablePerDayIndexes bool
+
 	tb *table
 
 	// Series cardinality limiters.
@@ -161,7 +163,7 @@ type Storage struct {
 }
 
 // MustOpenStorage opens storage on the given path with the given retentionMsecs.
-func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxDailySeries int) *Storage {
+func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxDailySeries int, disablePerDayIndexes bool) *Storage {
 	path, err := filepath.Abs(path)
 	if err != nil {
 		logger.Panicf("FATAL: cannot determine absolute path for %q: %s", path, err)
@@ -247,6 +249,8 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 
 	s.idbCurr.Store(idbCurr)
 	s.idbNext.Store(idbNext)
+
+	s.disablePerDayIndexes = disablePerDayIndexes
 
 	// Initialize nextRotationTimestamp
 	nowSecs := int64(fasttime.UnixTimestamp())
@@ -1670,6 +1674,13 @@ var metricRowsInsertCtxPool sync.Pool
 
 const maxMetricRowsPerBlock = 8000
 
+func (s *Storage) date(millis int64) uint64 {
+	if s.disablePerDayIndexes {
+		return 0
+	}
+	return uint64(millis) / msecPerDay
+}
+
 // RegisterMetricNames registers all the metric names from mrs in the indexdb, so they can be queried later.
 //
 // The the MetricRow.Timestamp is used for registering the metric name at the given day according to the timestamp.
@@ -1691,7 +1702,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 	var firstWarn error
 	for i := range mrs {
 		mr := &mrs[i]
-		date := uint64(mr.Timestamp) / msecPerDay
+		date := s.date(mr.Timestamp)
 		if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
 			// Fast path - mr.MetricNameRaw has been already registered in the current idb.
 			if !s.registerSeriesCardinality(genTSID.TSID.MetricID, mr.MetricNameRaw) {
@@ -1844,6 +1855,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		r.Timestamp = mr.Timestamp
 		r.Value = mr.Value
 		r.PrecisionBits = precisionBits
+		date := s.date(r.Timestamp)
 
 		// Search for TSID for the given mr.MetricNameRaw and store it at r.TSID.
 		if string(mr.MetricNameRaw) == string(prevMetricNameRaw) {
@@ -1869,8 +1881,6 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 			if genTSID.generation < generation {
 				// The found TSID is from the previous indexdb. Create it in the current indexdb.
-				date := uint64(r.Timestamp) / msecPerDay
-
 				if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 					if firstWarn == nil {
 						firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
@@ -1891,8 +1901,6 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 		// Slow path - the TSID for the given mr.MetricNameRaw is missing in the cache.
 		slowInsertsCount++
-
-		date := uint64(r.Timestamp) / msecPerDay
 
 		// Construct canonical metric name - it is used below.
 		if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
@@ -1975,7 +1983,10 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		storageAddRowsLogger.Warnf("warn occurred during rows addition: %s", firstWarn)
 	}
 
-	err := s.updatePerDateData(rows, dstMrs)
+	var err error
+	if !s.disablePerDayIndexes {
+		err = s.updatePerDateData(rows, dstMrs)
+	}
 	if err != nil {
 		err = fmt.Errorf("cannot update per-date data: %w", err)
 	} else {
@@ -2000,7 +2011,9 @@ var logNewSeries = false
 
 func createAllIndexesForMetricName(is *indexSearch, mn *MetricName, tsid *TSID, date uint64) {
 	is.createGlobalIndexes(tsid, mn)
-	is.createPerDayIndexes(date, tsid, mn)
+	if !is.db.s.disablePerDayIndexes {
+		is.createPerDayIndexes(date, tsid, mn)
+	}
 }
 
 func (s *Storage) putSeriesToCache(metricNameRaw []byte, genTSID *generationTSID, date uint64) {
@@ -2082,7 +2095,7 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 		}
 
 		// Check whether the given MetricID is already present in dateMetricIDCache.
-		date := uint64(r.Timestamp) / msecPerDay
+		date := s.date(r.Timestamp)
 		metricID := r.TSID.MetricID
 		if s.dateMetricIDCache.Has(generation, date, metricID) {
 			// Indexes are already pre-filled.
@@ -2121,6 +2134,10 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 }
 
 func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
+	if s.disablePerDayIndexes {
+		logger.Panicf("FATAL: per-day data must not be updated when -disablePerDayIndexes flag is set")
+	}
+
 	var date uint64
 	var hour uint64
 	var prevTimestamp int64

@@ -32,16 +32,19 @@ import (
 const (
 	// Prefix for MetricName->TSID entries.
 	//
-	// This index was substituted with nsPrefixDateMetricNameToTSID,
-	// since the MetricName->TSID index may require big amounts of memory for indexdb/dataBlocks cache
-	// when it grows big on the configured retention under high churn rate
-	// (e.g. when new time series are constantly registered).
+	// This index is used only when -disablePerDayIndexes flag is set.
+	//
+	// Otherwise, this index was substituted with nsPrefixDateMetricNameToTSID,
+	// since the MetricName->TSID index may require big amounts of memory for
+	// indexdb/dataBlocks cache when it grows big on the configured retention
+	// under high churn rate (e.g. when new time series are constantly
+	// registered).
 	//
 	// It is much more efficient from memory usage PoV to query per-day MetricName->TSID index
 	// (aka nsPrefixDateMetricNameToTSID) when the TSID must be obtained for the given MetricName
 	// during data ingestion under high churn rate and big retention.
 	//
-	// nsPrefixMetricNameToTSID = 0
+	nsPrefixMetricNameToTSID = 0
 
 	// Prefix for Tag->MetricID entries.
 	nsPrefixTagToMetricIDs = 1
@@ -134,7 +137,7 @@ func getTagFiltersCacheSize() int {
 // will be then used as indexDB.generation
 func mustOpenIndexDB(path string, s *Storage, isReadOnly *atomic.Bool) *indexDB {
 	if s == nil {
-		logger.Panicf("BUG: Storage must be nin-nil")
+		logger.Panicf("BUG: Storage must be non-nil")
 	}
 
 	name := filepath.Base(path)
@@ -509,6 +512,15 @@ func generateTSID(dst *TSID, mn *MetricName) {
 func (is *indexSearch) createGlobalIndexes(tsid *TSID, mn *MetricName) {
 	ii := getIndexItems()
 	defer putIndexItems(ii)
+
+	if is.db.s.disablePerDayIndexes {
+		// Create metricName -> TSID entry.
+		ii.B = marshalCommonPrefix(ii.B, nsPrefixMetricNameToTSID)
+		ii.B = mn.Marshal(ii.B)
+		ii.B = append(ii.B, kvSeparatorChar)
+		ii.B = tsid.Marshal(ii.B)
+		ii.Next()
+	}
 
 	// Create metricID -> metricName entry.
 	ii.B = marshalCommonPrefix(ii.B, nsPrefixMetricIDToMetricName)
@@ -1840,8 +1852,15 @@ func (is *indexSearch) getTSIDByMetricNameNoExtDB(dst *TSID, metricName []byte, 
 	dmis := is.db.s.getDeletedMetricIDs()
 	ts := &is.ts
 	kb := &is.kb
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateMetricNameToTSID)
-	kb.B = encoding.MarshalUint64(kb.B, date)
+
+	// TODO(rtm0): Also check that the -disablePerDayIndexes is set?
+	// (since nsPrefixMetricNameToTSID makes sense only in this case)
+	if date == 0 {
+		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixMetricNameToTSID)
+	} else {
+		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateMetricNameToTSID)
+		kb.B = encoding.MarshalUint64(kb.B, date)
+	}
 	kb.B = append(kb.B, metricName...)
 	kb.B = append(kb.B, kvSeparatorChar)
 	ts.Seek(kb.B)
@@ -2732,6 +2751,9 @@ const (
 )
 
 func (is *indexSearch) createPerDayIndexes(date uint64, tsid *TSID, mn *MetricName) {
+	if is.db.s.disablePerDayIndexes {
+		logger.Panicf("FATAL: per-day indexes must not be created when -disablePerDayIndexes flag is set")
+	}
 	ii := getIndexItems()
 	defer putIndexItems(ii)
 
@@ -2867,6 +2889,10 @@ func reverseBytes(dst, src []byte) []byte {
 }
 
 func (is *indexSearch) hasDateMetricIDNoExtDB(date, metricID uint64) bool {
+	if is.db.s.disablePerDayIndexes {
+		return is.hasMetricIDNoExtDB(metricID)
+	}
+
 	ts := &is.ts
 	kb := &is.kb
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
@@ -2884,6 +2910,20 @@ func (is *indexSearch) hasDateMetricIDNoExtDB(date, metricID uint64) bool {
 		logger.Panicf("FATAL: unexpected error when searching for (date=%s, metricID=%d) entry: %s", dateToString(date), metricID, err)
 	}
 	return false
+}
+
+func (is *indexSearch) hasMetricIDNoExtDB(metricID uint64) bool {
+	ts := &is.ts
+	kb := &is.kb
+	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID)
+	kb.B = encoding.MarshalUint64(kb.B, metricID)
+	if err := ts.FirstItemWithPrefix(kb.B); err != nil {
+		if err == io.EOF {
+			return false
+		}
+		logger.Panicf("FATAL: error when for metricID=%d; searchPrefix %q: %s", metricID, kb.B, err)
+	}
+	return true
 }
 
 func (is *indexSearch) getMetricIDsForDateTagFilter(qt *querytracer.Tracer, tf *tagFilter, date uint64, commonPrefix []byte,

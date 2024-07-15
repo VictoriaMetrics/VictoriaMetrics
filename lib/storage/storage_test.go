@@ -494,7 +494,7 @@ func TestNextRetentionDeadlineSeconds(t *testing.T) {
 func TestStorageOpenClose(t *testing.T) {
 	path := "TestStorageOpenClose"
 	for i := 0; i < 10; i++ {
-		s := MustOpenStorage(path, -1, 1e5, 1e6)
+		s := MustOpenStorage(path, -1, 1e5, 1e6, false)
 		s.MustClose()
 	}
 	if err := os.RemoveAll(path); err != nil {
@@ -505,14 +505,14 @@ func TestStorageOpenClose(t *testing.T) {
 func TestStorageRandTimestamps(t *testing.T) {
 	path := "TestStorageRandTimestamps"
 	retention := 10 * retention31Days
-	s := MustOpenStorage(path, retention, 0, 0)
+	s := MustOpenStorage(path, retention, 0, 0, false)
 	t.Run("serial", func(t *testing.T) {
 		for i := 0; i < 3; i++ {
 			if err := testStorageRandTimestamps(s); err != nil {
 				t.Fatalf("error on iteration %d: %s", i, err)
 			}
 			s.MustClose()
-			s = MustOpenStorage(path, retention, 0, 0)
+			s = MustOpenStorage(path, retention, 0, 0, false)
 		}
 	})
 	t.Run("concurrent", func(t *testing.T) {
@@ -589,7 +589,7 @@ func testStorageRandTimestamps(s *Storage) error {
 
 func TestStorageDeleteSeries(t *testing.T) {
 	path := "TestStorageDeleteSeries"
-	s := MustOpenStorage(path, 0, 0, 0)
+	s := MustOpenStorage(path, 0, 0, 0, false)
 
 	// Verify no label names exist
 	lns, err := s.SearchLabelNamesWithFiltersOnTimeRange(nil, nil, TimeRange{}, 1e5, 1e9, noDeadline)
@@ -609,7 +609,7 @@ func TestStorageDeleteSeries(t *testing.T) {
 			// Re-open the storage in order to check how deleted metricIDs
 			// are persisted.
 			s.MustClose()
-			s = MustOpenStorage(path, 0, 0, 0)
+			s = MustOpenStorage(path, 0, 0, 0, false)
 		}
 	})
 
@@ -804,7 +804,7 @@ func checkLabelNames(lns []string, lnsExpected map[string]bool) error {
 
 func TestStorageRegisterMetricNamesSerial(t *testing.T) {
 	path := "TestStorageRegisterMetricNamesSerial"
-	s := MustOpenStorage(path, 0, 0, 0)
+	s := MustOpenStorage(path, 0, 0, 0, false)
 	if err := testStorageRegisterMetricNames(s); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -816,7 +816,7 @@ func TestStorageRegisterMetricNamesSerial(t *testing.T) {
 
 func TestStorageRegisterMetricNamesConcurrent(t *testing.T) {
 	path := "TestStorageRegisterMetricNamesConcurrent"
-	s := MustOpenStorage(path, 0, 0, 0)
+	s := MustOpenStorage(path, 0, 0, 0, false)
 	ch := make(chan error, 3)
 	for i := 0; i < cap(ch); i++ {
 		go func() {
@@ -963,7 +963,7 @@ func TestStorageAddRowsSerial(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	path := "TestStorageAddRowsSerial"
 	retention := 10 * retention31Days
-	s := MustOpenStorage(path, retention, 1e5, 1e5)
+	s := MustOpenStorage(path, retention, 1e5, 1e5, false)
 	if err := testStorageAddRows(rng, s); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -976,7 +976,7 @@ func TestStorageAddRowsSerial(t *testing.T) {
 func TestStorageAddRowsConcurrent(t *testing.T) {
 	path := "TestStorageAddRowsConcurrent"
 	retention := 10 * retention31Days
-	s := MustOpenStorage(path, retention, 1e5, 1e5)
+	s := MustOpenStorage(path, retention, 1e5, 1e5, false)
 	ch := make(chan error, 3)
 	for i := 0; i < cap(ch); i++ {
 		go func(n int) {
@@ -1061,7 +1061,7 @@ func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 
 	// Try opening the storage from snapshot.
 	snapshotPath := filepath.Join(s.path, snapshotsDirname, snapshotName)
-	s1 := MustOpenStorage(snapshotPath, 0, 0, 0)
+	s1 := MustOpenStorage(snapshotPath, 0, 0, 0, false)
 
 	// Verify the snapshot contains rows
 	var m1 Metrics
@@ -1107,7 +1107,7 @@ func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 
 func TestStorageRotateIndexDB(t *testing.T) {
 	path := "TestStorageRotateIndexDB"
-	s := MustOpenStorage(path, 0, 0, 0)
+	s := MustOpenStorage(path, 0, 0, 0, false)
 
 	// Start indexDB rotater in a separate goroutine
 	stopCh := make(chan struct{})
@@ -1191,7 +1191,7 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	path := "TestStorageDeleteStaleSnapshots"
 	retention := 10 * retention31Days
-	s := MustOpenStorage(path, retention, 1e5, 1e5)
+	s := MustOpenStorage(path, retention, 1e5, 1e5, false)
 	const rowsPerAdd = 1e3
 	const addsCount = 10
 	maxTimestamp := timestampFromTime(time.Now())
@@ -1242,7 +1242,7 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 
 func TestStorageSeriesAreNotCreatedOnStaleMarkers(t *testing.T) {
 	path := "TestStorageSeriesAreNotCreatedOnStaleMarkers"
-	s := MustOpenStorage(path, -1, 1e5, 1e6)
+	s := MustOpenStorage(path, -1, 1e5, 1e6, false)
 
 	tr := TimeRange{MinTimestamp: 0, MaxTimestamp: 2e10}
 	tfsAll := NewTagFilters()
