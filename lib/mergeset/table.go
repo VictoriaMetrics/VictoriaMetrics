@@ -47,8 +47,7 @@ const maxPartSize = 400e9
 // The interval for flushing buffered data to parts, so it becomes visible to search.
 const pendingItemsFlushInterval = time.Second
 
-// The interval for guaranteed flush of recently ingested data from memory to on-disk parts,
-// so they survive process crash.
+// The interval for guaranteed flush of recently ingested data from memory to on-disk parts so they survive process crash.
 var dataFlushInterval = 5 * time.Second
 
 // SetDataFlushInterval sets the interval for guaranteed flush of recently ingested data from memory to disk.
@@ -57,9 +56,13 @@ var dataFlushInterval = 5 * time.Second
 //
 // This function must be called before initializing the indexdb.
 func SetDataFlushInterval(d time.Duration) {
-	if d >= time.Second {
-		dataFlushInterval = d
+	if d < pendingItemsFlushInterval {
+		// There is no sense in setting dataFlushInterval to values smaller than pendingItemsFlushInterval,
+		// since pending rows unconditionally remain in memory for up to pendingItemsFlushInterval.
+		d = pendingItemsFlushInterval
 	}
+
+	dataFlushInterval = d
 }
 
 // maxItemsPerCachedPart is the maximum items per created part by the merge,
