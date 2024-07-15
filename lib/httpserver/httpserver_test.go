@@ -167,3 +167,77 @@ func TestHandlerWrapper(t *testing.T) {
 		t.Fatalf("unexpected CSP header; got %q; want %q", got, cspHeader)
 	}
 }
+
+// Test CheckAuthFlag for snapshot authKey
+func TestSnapshotAuthKey(t *testing.T) {
+	origUsername := *httpAuthUsername
+	origPasswd := httpAuthPassword.Get()
+	defer func() {
+		if err := httpAuthPassword.Set(origPasswd); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		*httpAuthUsername = origUsername
+	}()
+
+	// test with snapshot authKey provided as query param
+	tstWithAuthKey := func(key string, expCode int) {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodPost, "/snapshot/create", strings.NewReader("authKey="+key))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded;param=value")
+		w := httptest.NewRecorder()
+
+		CheckAuthFlag(w, req, "rightKey", "snapshotAuthKey")
+
+		res := w.Result()
+		defer res.Body.Close()
+		if expCode != res.StatusCode {
+			t.Fatalf("Unexpected status code: %d, Expected code is: %d\n", res.StatusCode, expCode)
+		}
+	}
+
+	tstWithAuthKey("rightKey", 200)
+	tstWithAuthKey("wrongKey", 401)
+
+	// test with snapshot authKey provided as a header
+	tstWithAuthKeyHeader := func(key string, expCode int) {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodPost, "/snapshot/create", nil)
+		req.Header.Set("X-AuthKey", key)
+		w := httptest.NewRecorder()
+
+		CheckAuthFlag(w, req, "rightKey", "snapshotAuthKey")
+
+		res := w.Result()
+		defer res.Body.Close()
+		if expCode != res.StatusCode {
+			t.Fatalf("Unexpected status code: %d, Expected code is: %d\n", res.StatusCode, expCode)
+		}
+	}
+	tstWithAuthKeyHeader("rightKey", 200)
+	tstWithAuthKeyHeader("wrongKey", 401)
+
+	// Test without authKey -> should fallback to basic auth
+	tstWithoutAuthKey := func(user, pass string, expCode int) {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "/snapshot/create", nil)
+		req.SetBasicAuth(user, pass)
+
+		w := httptest.NewRecorder()
+		CheckAuthFlag(w, req, "", "snapshotAuthKey")
+
+		res := w.Result()
+		_ = res.Body.Close()
+		if expCode != res.StatusCode {
+			t.Fatalf("wanted status code: %d, got: %d\n", res.StatusCode, expCode)
+		}
+	}
+
+	*httpAuthUsername = "test"
+	if err := httpAuthPassword.Set("pass"); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	tstWithoutAuthKey("test", "pass", 200)
+	tstWithoutAuthKey("test", "wrong", 401)
+	tstWithoutAuthKey("wrong", "pass", 401)
+	tstWithoutAuthKey("wrong", "wrong", 401)
+}
