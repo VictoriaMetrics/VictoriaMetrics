@@ -354,11 +354,12 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 			// ips for the given host have been already discovered
 			continue
 		}
+
 		var resolvedAddrs []string
 		if strings.HasPrefix(host, "srv+") {
 			// The host has the format 'srv+realhost'. Strip 'srv+' prefix before performing the lookup.
-			host = strings.TrimPrefix(host, "srv+")
-			_, addrs, err := netutil.Resolver.LookupSRV(ctx, "", "", host)
+			srvHost := strings.TrimPrefix(host, "srv+")
+			_, addrs, err := netutil.Resolver.LookupSRV(ctx, "", "", srvHost)
 			if err != nil {
 				logger.Warnf("cannot discover backend SRV records for %s: %s; use it literally", bu, err)
 				resolvedAddrs = []string{host}
@@ -390,7 +391,6 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 	var busNew []*backendURL
 	for _, bu := range up.busOriginal {
 		host := bu.Hostname()
-		host = strings.TrimPrefix(host, "srv+")
 		port := bu.Port()
 		for _, addr := range hostToAddrs[host] {
 			buCopy := *bu
@@ -1017,8 +1017,6 @@ func (up *URLPrefix) sanitizeAndInitialize() error {
 		}
 	}
 	up.bus.Store(&bus)
-	up.nextDiscoveryDeadline.Store(0)
-	up.n.Store(0)
 
 	return nil
 }
