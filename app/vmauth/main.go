@@ -37,8 +37,8 @@ var (
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
 	maxIdleConnsPerBackend = flag.Int("maxIdleConnsPerBackend", 100, "The maximum number of idle connections vmauth can open per each backend host. "+
 		"See also -maxConcurrentRequests")
-	idleConnTimeout = flag.Duration("idleConnTimeout", 50*time.Second, `Defines a duration for idle (keep-alive connections) to exist.
-    Consider setting this value less than "-http.idleConnTimeout". It must prevent possible "write: broken pipe" and "read: connection reset by peer" errors.`)
+	idleConnTimeout = flag.Duration("idleConnTimeout", 50*time.Second, "The timeout for HTTP keep-alive connections to backend services. "+
+		"It is recommended setting this value to values smaller than -http.idleConnTimeout set at backend services")
 	responseTimeout       = flag.Duration("responseTimeout", 5*time.Minute, "The timeout for receiving a response from backend")
 	maxConcurrentRequests = flag.Int("maxConcurrentRequests", 1000, "The maximum number of concurrent requests vmauth can process. Other requests are rejected with "+
 		"'429 Too Many Requests' http status code. See also -maxConcurrentPerUserRequests and -maxIdleConnsPerBackend command-line options")
@@ -272,8 +272,7 @@ again:
 			ui.backendErrors.Inc()
 			return true
 		}
-		// one time retry trivial network errors, such as proxy idle timeout misconfiguration
-		// or socket close by OS
+		// one time retry trivial network errors, such as proxy idle timeout misconfiguration or socket close by OS
 		if (netutil.IsTrivialNetworkError(err) || errors.Is(err, io.EOF)) && trivialRetries < 1 {
 			trivialRetries++
 			goto again
