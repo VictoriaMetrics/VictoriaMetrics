@@ -1444,7 +1444,24 @@ by passing multiple `-kafka.consumer.topic` command-line flags to `vmagent`.
 
 `vmagent` consumes messages from Kafka brokers specified by `-kafka.consumer.topic.brokers` command-line flag.
 Multiple brokers can be specified per each `-kafka.consumer.topic` by passing a list of brokers delimited by `;`.
-For example, `-kafka.consumer.topic.brokers='host1:9092;host2:9092'`.
+For example:
+```sh
+./bin/vmagent
+      -kafka.consumer.topic='topic-a'
+      -kafka.consumer.topic.brokers='host1:9092;host2:9092'
+      -kafka.consumer.topic='topic-b'
+      -kafka.consumer.topic.brokers='host3:9092;host4:9092'
+```
+This command starts `vmagent` which reads messages from `topic-a` at `host1:9092` and `host2:9092` brokers and messages
+from `topic-b` at `host3:9092` and `host4:9092` brokers.
+Note that when using YAML configuration (for example, when using [Helm charts](https://github.com/VictoriaMetrics/helm-charts) or [Kubernetes operator](https://docs.victoriametrics.com/operator/))
+keys provided in `extraArgs` must be unique, so in order to achieve the same configuration as in the example above, the following configuration must be used:
+```yaml
+extraArgs:
+  "kafka.consumer.topic": "topic-a,topic-b"
+  "kafka.consumer.topic.brokers": "host1:9092;host2:9092,host3:9092;host4:9092"
+```
+Note that list of brokers for the same topic is separated by `;` and different groups of brokers are separated by `,`.
 
 The following command starts `vmagent`, which reads metrics in InfluxDB line protocol format from Kafka broker at `localhost:9092`
 from the topic `metrics-by-telegraf` and sends them to remote storage at `http://localhost:8428/api/v1/write`:
