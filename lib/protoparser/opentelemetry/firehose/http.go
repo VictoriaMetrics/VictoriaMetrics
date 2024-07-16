@@ -2,7 +2,6 @@ package firehose
 
 import (
 	"fmt"
-	"html"
 	"net/http"
 	"time"
 )
@@ -13,12 +12,11 @@ import (
 func WriteSuccessResponse(w http.ResponseWriter, r *http.Request) {
 	requestID := r.Header.Get("X-Amz-Firehose-Request-Id")
 	if requestID == "" {
-		// This isn't an AWS firehose request - just return an empty response in this case.
+		// This isn't a AWS firehose request - just return an empty response in this case.
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	requestID = html.EscapeString(requestID)
 	body := fmt.Sprintf(`{"requestId":%q,"timestamp":%d}`, requestID, time.Now().UnixMilli())
 
 	h := w.Header()
