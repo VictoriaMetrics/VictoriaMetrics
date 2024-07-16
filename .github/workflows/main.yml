@@ -59,7 +59,8 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.59
+          # The version must match "install-golangci-lint" Makefile target version.
+          version: v1.59.1
 
       - name: Run govulncheck
         run: make govulncheck

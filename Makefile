@@ -493,6 +493,7 @@ golangci-lint: install-golangci-lint
 	golangci-lint run
 
 install-golangci-lint:
+	# The version must match GitHub main.yml lint job "Run golangci-lint" step version.
 	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.59.1
 
 remove-golangci-lint:
