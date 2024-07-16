@@ -235,7 +235,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	req := sanitizeRequestHeaders(r)
 	req.URL = targetURL
 
-	if req.URL.Scheme == "https" || ui.overrideHostHeader {
+	if req.URL.Scheme == "https" || ui.useBackendHostHeader {
 		// Override req.Host only for https requests, since https server verifies hostnames during TLS handshake,
 		// so it expects the targetURL.Host in the request.
 		// There is no need in overriding the req.Host for http requests, since it is expected that backend server
