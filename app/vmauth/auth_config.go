@@ -129,7 +129,7 @@ type Header struct {
 }
 
 // UnmarshalYAML unmarshals h from f.
-func (h *Header) UnmarshalYAML(f func(interface{}) error) error {
+func (h *Header) UnmarshalYAML(f func(any) error) error {
 	var s string
 	if err := f(&s); err != nil {
 		return err
@@ -146,7 +146,7 @@ func (h *Header) UnmarshalYAML(f func(interface{}) error) error {
 }
 
 // MarshalYAML marshals h to yaml.
-func (h *Header) MarshalYAML() (interface{}, error) {
+func (h *Header) MarshalYAML() (any, error) {
 	return h.sOriginal, nil
 }
 
@@ -201,7 +201,7 @@ type QueryArg struct {
 }
 
 // UnmarshalYAML unmarshals qa from yaml.
-func (qa *QueryArg) UnmarshalYAML(f func(interface{}) error) error {
+func (qa *QueryArg) UnmarshalYAML(f func(any) error) error {
 	var s string
 	if err := f(&s); err != nil {
 		return err
@@ -230,7 +230,7 @@ func (qa *QueryArg) UnmarshalYAML(f func(interface{}) error) error {
 }
 
 // MarshalYAML marshals qa to yaml.
-func (qa *QueryArg) MarshalYAML() (interface{}, error) {
+func (qa *QueryArg) MarshalYAML() (any, error) {
 	return qa.sOriginal, nil
 }
 
@@ -263,7 +263,7 @@ type URLPrefix struct {
 	nextDiscoveryDeadline atomic.Uint64
 
 	// vOriginal contains the original yaml value for URLPrefix.
-	vOriginal interface{}
+	vOriginal any
 }
 
 func (up *URLPrefix) setLoadBalancingPolicy(loadBalancingPolicy string) error {
@@ -354,11 +354,12 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 			// ips for the given host have been already discovered
 			continue
 		}
+
 		var resolvedAddrs []string
 		if strings.HasPrefix(host, "srv+") {
 			// The host has the format 'srv+realhost'. Strip 'srv+' prefix before performing the lookup.
-			host = strings.TrimPrefix(host, "srv+")
-			_, addrs, err := netutil.Resolver.LookupSRV(ctx, "", "", host)
+			srvHost := strings.TrimPrefix(host, "srv+")
+			_, addrs, err := netutil.Resolver.LookupSRV(ctx, "", "", srvHost)
 			if err != nil {
 				logger.Warnf("cannot discover backend SRV records for %s: %s; use it literally", bu, err)
 				resolvedAddrs = []string{host}
@@ -390,7 +391,6 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 	var busNew []*backendURL
 	for _, bu := range up.busOriginal {
 		host := bu.Hostname()
-		host = strings.TrimPrefix(host, "srv+")
 		port := bu.Port()
 		for _, addr := range hostToAddrs[host] {
 			buCopy := *bu
@@ -497,8 +497,8 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 }
 
 // UnmarshalYAML unmarshals up from yaml.
-func (up *URLPrefix) UnmarshalYAML(f func(interface{}) error) error {
-	var v interface{}
+func (up *URLPrefix) UnmarshalYAML(f func(any) error) error {
+	var v any
 	if err := f(&v); err != nil {
 		return err
 	}
@@ -508,7 +508,7 @@ func (up *URLPrefix) UnmarshalYAML(f func(interface{}) error) error {
 	switch x := v.(type) {
 	case string:
 		urls = []string{x}
-	case []interface{}:
+	case []any:
 		if len(x) == 0 {
 			return fmt.Errorf("`url_prefix` must contain at least a single url")
 		}
@@ -538,7 +538,7 @@ func (up *URLPrefix) UnmarshalYAML(f func(interface{}) error) error {
 }
 
 // MarshalYAML marshals up to yaml.
-func (up *URLPrefix) MarshalYAML() (interface{}, error) {
+func (up *URLPrefix) MarshalYAML() (any, error) {
 	return up.vOriginal, nil
 }
 
@@ -562,7 +562,7 @@ func (r *Regex) match(s string) bool {
 }
 
 // UnmarshalYAML implements yaml.Unmarshaler
-func (r *Regex) UnmarshalYAML(f func(interface{}) error) error {
+func (r *Regex) UnmarshalYAML(f func(any) error) error {
 	var s string
 	if err := f(&s); err != nil {
 		return err
@@ -579,7 +579,7 @@ func (r *Regex) UnmarshalYAML(f func(interface{}) error) error {
 }
 
 // MarshalYAML implements yaml.Marshaler.
-func (r *Regex) MarshalYAML() (interface{}, error) {
+func (r *Regex) MarshalYAML() (any, error) {
 	return r.sOriginal, nil
 }
 
@@ -696,22 +696,15 @@ func loadAuthConfig() (bool, error) {
 	}
 	logger.Infof("loaded information about %d users from -auth.config=%q", len(m), *authConfigPath)
 
-	prevAc := authConfig.Load()
-	if prevAc != nil {
-		metrics.UnregisterSet(prevAc.ms)
+	acPrev := authConfig.Load()
+	if acPrev != nil {
+		metrics.UnregisterSet(acPrev.ms, true)
 	}
 	metrics.RegisterSet(ac.ms)
+
 	authConfig.Store(ac)
 	authConfigData.Store(&data)
 	authUsers.Store(&m)
-	if prevAc != nil {
-		// explicilty unregister metrics, since all summary type metrics
-		// are registered at global state of metrics package
-		// and must be removed from it to release memory.
-		// Metrics must be unregistered only after atomic.Value.Store calls above
-		// Otherwise it may lead to metric gaps, since UnregisterAllMetrics is slow operation
-		prevAc.ms.UnregisterAllMetrics()
-	}
 
 	return true, nil
 }
@@ -1024,8 +1017,6 @@ func (up *URLPrefix) sanitizeAndInitialize() error {
 		}
 	}
 	up.bus.Store(&bus)
-	up.nextDiscoveryDeadline.Store(0)
-	up.n.Store(0)
 
 	return nil
 }

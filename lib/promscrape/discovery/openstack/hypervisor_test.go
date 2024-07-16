@@ -8,27 +8,35 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
-func Test_parseHypervisorDetail(t *testing.T) {
-	type args struct {
-		data []byte
+func TestParseHypervisorDetail_Failure(t *testing.T) {
+	f := func(data string) {
+		t.Helper()
+
+		_, err := parseHypervisorDetail([]byte(data))
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
 	}
-	tests := []struct {
-		name    string
-		args    args
-		want    hypervisorDetail
-		wantErr bool
-	}{
-		{
-			name: "bad data",
-			args: args{
-				data: []byte(`{ff}`),
-			},
-			wantErr: true,
-		},
-		{
-			name: "1 hypervisor",
-			args: args{
-				data: []byte(`{
+
+	// bad data
+	f(`{ff}`)
+}
+
+func TestParseHypervisorDetail_Success(t *testing.T) {
+	f := func(data string, resultExpected *hypervisorDetail) {
+		t.Helper()
+
+		result, err := parseHypervisorDetail([]byte(data))
+		if err != nil {
+			t.Fatalf("parseHypervisorDetail() error: %s", err)
+		}
+		if !reflect.DeepEqual(result, resultExpected) {
+			t.Fatalf("unexpected result\ngot\n%#v\nwant\n%#v", result, resultExpected)
+		}
+	}
+
+	// 1 hypervisor
+	data := `{
     "hypervisors": [
         {
             "cpu_info": {
@@ -69,78 +77,51 @@ func Test_parseHypervisorDetail(t *testing.T) {
             "vcpus": 2,
             "vcpus_used": 0
         }
-    ]}`),
-			},
-			want: hypervisorDetail{
-				Hypervisors: []hypervisor{
-					{
-						HostIP:   "1.1.1.1",
-						ID:       2,
-						Hostname: "host1",
-						Status:   "enabled",
-						State:    "up",
-						Type:     "fake",
-					},
-				},
+    ]}`
+
+	resultExpected := &hypervisorDetail{
+		Hypervisors: []hypervisor{
+			{
+				HostIP:   "1.1.1.1",
+				ID:       2,
+				Hostname: "host1",
+				Status:   "enabled",
+				State:    "up",
+				Type:     "fake",
 			},
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseHypervisorDetail(tt.args.data)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("parseHypervisorDetail() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !tt.wantErr && !reflect.DeepEqual(*got, tt.want) {
-				t.Errorf("parseHypervisorDetail() got = %v, want %v", *got, tt.want)
-			}
-		})
-	}
+	f(data, resultExpected)
 }
 
-func Test_addHypervisorLabels(t *testing.T) {
-	type args struct {
-		hvs  []hypervisor
-		port int
+func TestAddHypervisorLabels(t *testing.T) {
+	f := func(hvs []hypervisor, labelssExpected []*promutils.Labels) {
+		t.Helper()
+
+		labelss := addHypervisorLabels(hvs, 9100)
+		discoveryutils.TestEqualLabelss(t, labelss, labelssExpected)
 	}
-	tests := []struct {
-		name string
-		args args
-		want []*promutils.Labels
-	}{
+
+	hvs := []hypervisor{
 		{
-			name: "",
-			args: args{
-				port: 9100,
-				hvs: []hypervisor{
-					{
-						Type:     "fake",
-						ID:       5,
-						State:    "enabled",
-						Status:   "up",
-						Hostname: "fakehost",
-						HostIP:   "1.2.2.2",
-					},
-				},
-			},
-			want: []*promutils.Labels{
-				promutils.NewLabelsFromMap(map[string]string{
-					"__address__":                          "1.2.2.2:9100",
-					"__meta_openstack_hypervisor_host_ip":  "1.2.2.2",
-					"__meta_openstack_hypervisor_hostname": "fakehost",
-					"__meta_openstack_hypervisor_id":       "5",
-					"__meta_openstack_hypervisor_state":    "enabled",
-					"__meta_openstack_hypervisor_status":   "up",
-					"__meta_openstack_hypervisor_type":     "fake",
-				}),
-			},
+			Type:     "fake",
+			ID:       5,
+			State:    "enabled",
+			Status:   "up",
+			Hostname: "fakehost",
+			HostIP:   "1.2.2.2",
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := addHypervisorLabels(tt.args.hvs, tt.args.port)
-			discoveryutils.TestEqualLabelss(t, got, tt.want)
-		})
+	labelssExpected := []*promutils.Labels{
+		promutils.NewLabelsFromMap(map[string]string{
+			"__address__":                          "1.2.2.2:9100",
+			"__meta_openstack_hypervisor_host_ip":  "1.2.2.2",
+			"__meta_openstack_hypervisor_hostname": "fakehost",
+			"__meta_openstack_hypervisor_id":       "5",
+			"__meta_openstack_hypervisor_state":    "enabled",
+			"__meta_openstack_hypervisor_status":   "up",
+			"__meta_openstack_hypervisor_type":     "fake",
+		}),
 	}
+	f(hvs, labelssExpected)
 }

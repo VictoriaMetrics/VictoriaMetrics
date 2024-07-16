@@ -164,9 +164,9 @@ func (w *QWriter) FPrec(f float64, prec int) {
 func (w *QWriter) Q(s string) {
 	bb, ok := w.w.(*ByteBuffer)
 	if ok {
-		bb.B = appendJSONString(bb.B, s, true)
+		bb.B = AppendJSONString(bb.B, s, true)
 	} else {
-		w.b = appendJSONString(w.b[:0], s, true)
+		w.b = AppendJSONString(w.b[:0], s, true)
 		w.Write(w.b)
 	}
 }
@@ -184,9 +184,9 @@ func (w *QWriter) QZ(z []byte) {
 func (w *QWriter) J(s string) {
 	bb, ok := w.w.(*ByteBuffer)
 	if ok {
-		bb.B = appendJSONString(bb.B, s, false)
+		bb.B = AppendJSONString(bb.B, s, false)
 	} else {
-		w.b = appendJSONString(w.b[:0], s, false)
+		w.b = AppendJSONString(w.b[:0], s, false)
 		w.Write(w.b)
 	}
 }

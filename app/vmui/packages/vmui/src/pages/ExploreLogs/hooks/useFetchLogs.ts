@@ -6,7 +6,7 @@ import dayjs from "dayjs";
 
 export const useFetchLogs = (server: string, query: string, limit: number) => {
   const [logs, setLogs] = useState<Logs[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState<{[key: number]: boolean;}>([]);
   const [error, setError] = useState<ErrorTypes | string>();
   const abortControllerRef = useRef(new AbortController());
 
@@ -39,7 +39,8 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
     abortControllerRef.current = new AbortController();
     const { signal } = abortControllerRef.current;
 
-    setIsLoading(true);
+    const id = Date.now();
+    setIsLoading(prev => ({ ...prev, [id]: true }));
     setError(undefined);
 
     try {
@@ -50,8 +51,8 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
       if (!response.ok || !response.body) {
         setError(text);
         setLogs([]);
-        setIsLoading(false);
-        return Promise.reject(new Error(text));
+        setIsLoading(prev => ({ ...prev, [id]: false }));
+        return;
       }
 
       const lines = text.split("\n").filter(line => line).slice(0, limit);
@@ -63,16 +64,13 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
         console.error(e);
         setLogs([]);
       }
-      return Promise.reject(e);
-    } finally {
-      setIsLoading(false);
     }
-    setIsLoading(false);
+    setIsLoading(prev => ({ ...prev, [id]: false }));
   }, [url, query, limit]);
 
   return {
     logs,
-    isLoading,
+    isLoading: Object.values(isLoading).some(s => s),
     error,
     fetchLogs,
   };

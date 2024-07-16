@@ -353,7 +353,10 @@ models:
   # ...
 ```
 
-**Note**: Autotune can't be made on your [custom model](#custom-model-guide). Also, it can't be applied to itself (like `tuned_class_name: 'model.auto.AutoTunedModel'`)
+> **Note**: There are some expected limitations of Autotune mode:
+> - It can't be made on your [custom model](#custom-model-guide).
+> - It can't be applied to itself (like `tuned_class_name: 'model.auto.AutoTunedModel'`)
+> - `AutoTunedModel` can't be used on [rolling models](/anomaly-detection/components/models/#rolling-models) like [`RollingQuantile`](/anomaly-detection/components/models/#rolling-quantile) in combination with [on-disk model storage mode](/anomaly-detection/faq/#resource-consumption-of-vmanomaly), as the rolling models exists only during `infer` calls and aren't persisted neither in RAM, nor on disk.
 
 
 ### [Prophet](https://facebook.github.io/prophet/)
@@ -617,7 +620,7 @@ Here in this guide, we will
 > **Note**: By default, each custom model is created as [**univariate**](#univariate-models) / [**non-rolling**](#non-rolling-models) model. If you want to override this behavior, define models inherited from `RollingModel` (to get a rolling model), or having `is_multivariate` class arg set to `True` (please refer to the code example below).
 
 We'll create `custom_model.py` file with `CustomModel` class that will inherit from `vmanomaly`'s `Model` base class.
-In the `CustomModel` class there should be three required methods - `__init__`, `fit` and `infer`:
+In the `CustomModel` class, the following methods are required: - `__init__`, `fit`, `infer`, `serialize` and `deserialize`:
 * `__init__` method should initiate parameters for the model.
 
   **Note**: if your model relies on configs that have `arg` [key-value pair argument](./models.md#section-overview), do not forget to use Python's `**kwargs` in method's signature and to explicitly call
@@ -628,6 +631,8 @@ In the `CustomModel` class there should be three required methods - `__init__`, 
   to initialize the base class each model derives from
 * `fit` method should contain the model training process. Please be aware that for `RollingModel` defining `fit` method is not needed, as the whole fit/infer process should be defined completely in `infer` method.
 * `infer` should return Pandas.DataFrame object with model's inferences.
+* `serialize` method that saves the model on disk.
+* `deserialize` load the saved model from disk.
 
 For the sake of simplicity, the model in this example will return one of two values of `anomaly_score` - 0 or 1 depending on input parameter `percentage`.
 
@@ -637,45 +642,56 @@ import numpy as np
 import pandas as pd
 import scipy.stats as st
 import logging
+from pickle import dumps
 
-from model.model import Model
+from model.model import (
+  PICKLE_PROTOCOL,
+  Model,
+  deserialize_basic
+)
 # from model.model import RollingModel  # inherit from it for your model to be of rolling type
 logger = logging.getLogger(__name__)
 
 
 class CustomModel(Model):
-    """
-    Custom model implementation.
-    """
+  """
+  Custom model implementation.
+  """
+  # by default, each `Model` will be created as a univariate one
+  # uncomment line below for it to be of multivariate type
+  #`is_multivariate = True`
+  
+  def __init__(self, percentage: float = 0.95, **kwargs):
+    super().__init__(**kwargs)
+    self.percentage = percentage
+    self._mean = np.nan
+    self._std = np.nan
 
-    # by default, each `Model` will be created as a univariate one
-    # uncomment line below for it to be of multivariate type
-    # is_multivariate = True
+  def fit(self, df: pd.DataFrame):
+    # Model fit process:
+    y = df['y']
+    self._mean = np.mean(y)
+    self._std = np.std(y)
+    if self._std == 0.0:
+      self._std = 1 / 65536
 
-    def __init__(self, percentage: float = 0.95, **kwargs):
-        super().__init__(**kwargs)
-        self.percentage = percentage
-        self._mean = np.nan
-        self._std = np.nan
+  def infer(self, df: pd.DataFrame) -> np.array:
+    # Inference process:
+    y = df['y']
+    zscores = (y - self._mean) / self._std
+    anomaly_score_cdf = st.norm.cdf(np.abs(zscores))
+    df_pred = df[['timestamp', 'y']].copy()
+    df_pred['anomaly_score'] = anomaly_score_cdf > self.percentage
+    df_pred['anomaly_score'] = df_pred['anomaly_score'].astype('int32', errors='ignore')
 
-    def fit(self, df: pd.DataFrame):
-        # Model fit process: 
-        y = df['y']
-        self._mean = np.mean(y)
-        self._std = np.std(y)
-        if self._std == 0.0:
-            self._std = 1 / 65536
+    return df_pred
 
-    def infer(self, df: pd.DataFrame) -> np.array:
-        # Inference process:
-        y = df['y']
-        zscores = (y - self._mean) / self._std
-        anomaly_score_cdf = st.norm.cdf(np.abs(zscores))
-        df_pred = df[['timestamp', 'y']].copy()
-        df_pred['anomaly_score'] = anomaly_score_cdf > self.percentage
-        df_pred['anomaly_score'] = df_pred['anomaly_score'].astype('int32', errors='ignore')
+    def serialize(self) -> None:
+      return dumps(self, protocol=PICKLE_PROTOCOL)
 
-        return df_pred
+    @staticmethod
+    def deserialize(model: str | bytes) -> 'CustomModel':
+      return deserialize_basic(model)
 ```
 
 
@@ -694,19 +710,19 @@ schedulers:
 
 models:
   custom_model:
-    # note: every custom model should implement this exact path, specified in `class` field
     class: "custom"  # or 'model.model.CustomModel' until v1.13.0
-    # custom model params are defined here
     percentage: 0.9
 
+
 reader:
-  datasource_url: "http://localhost:8428/"
+  datasource_url: "http://victoriametrics:8428/"
+  sampling_period: '1m'
   queries:
     ingestion_rate: 'sum(rate(vm_rows_inserted_total)) by (type)'
     churn_rate: 'sum(rate(vm_new_timeseries_created_total[5m]))'
 
 writer:
-  datasource_url: "http://localhost:8428/"
+  datasource_url: "http://victoriametrics:8428/"
   metric_format:
     __name__: "custom_$VAR"
     for: "$QUERY_KEY"
@@ -717,7 +733,7 @@ monitoring:
   pull:
     port: 8080
   push:
-    url: "http://localhost:8428/"
+    url: "http://victoriametrics:8428/"
     extra_labels:
       job: "vmanomaly-develop"
       config: "custom.yaml"
@@ -735,14 +751,15 @@ Now we can run the docker container putting as volumes both config and model fil
 
 > **Note**: place the model file to `/model/custom.py` path when copying
 
+./custom_model.py:/vmanomaly/model/custom.py
+
 ```sh
 docker run -it \
---net [YOUR_NETWORK] \
--v [YOUR_LICENSE_FILE_PATH]:/license.txt \
--v $(PWD)/custom_model.py:/vmanomaly/src/model/custom.py \
+-v $(PWD)/license:/license \
+-v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
 victoriametrics/vmanomaly:latest /config.yaml \
---license-file=/license.txt
+--license-file=/license
 ```
 
 Please find more detailed instructions (license, etc.) [here](/anomaly-detection/overview.html#run-vmanomaly-docker-container)

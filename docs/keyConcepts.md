@@ -349,7 +349,7 @@ This limit can be changed via `-maxLabelsPerTimeseries` command-line flag if nec
 Every label value can contain an arbitrary string value. The good practice is to use short and meaningful label values to
 describe the attribute of the metric, not to tell the story about it. For example, label-value pair
 `environment="prod"` is ok, but `log_message="long log message with a lot of details..."` is not ok. By default,
-VictoriaMetrics limits label's value size with 1kB. This limit can be changed via `-maxLabelValueLen` command-line flag.
+VictoriaMetrics limits label's value size with 4KiB. This limit can be changed via `-maxLabelValueLen` command-line flag.
 
 It is very important to keep under control the number of unique label values, since every unique label value
 leads to a new [time series](#time-series). Try to avoid using volatile label values such as session ID or query ID in order to

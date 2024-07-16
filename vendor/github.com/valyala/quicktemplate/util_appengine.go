@@ -1,3 +1,4 @@
+//go:build appengine || appenginevm
 // +build appengine appenginevm
 
 package quicktemplate

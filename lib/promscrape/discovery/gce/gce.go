@@ -32,8 +32,8 @@ type ZoneYAML struct {
 }
 
 // UnmarshalYAML implements yaml.Unmarshaler
-func (z *ZoneYAML) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var v interface{}
+func (z *ZoneYAML) UnmarshalYAML(unmarshal func(any) error) error {
+	var v any
 	if err := unmarshal(&v); err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func (z *ZoneYAML) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	switch t := v.(type) {
 	case string:
 		zones = []string{t}
-	case []interface{}:
+	case []any:
 		for _, vv := range t {
 			zone, ok := vv.(string)
 			if !ok {
@@ -57,7 +57,7 @@ func (z *ZoneYAML) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // MarshalYAML implements yaml.Marshaler
-func (z ZoneYAML) MarshalYAML() (interface{}, error) {
+func (z ZoneYAML) MarshalYAML() (any, error) {
 	return z.Zones, nil
 }
 

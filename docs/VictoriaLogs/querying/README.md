@@ -639,6 +639,10 @@ There are three modes of displaying query results:
 
 See also [command line interface](#command-line).
 
+## Visualization in Grafana 
+
+[VictoriaLogs Grafana Datasource](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/) allows you to query and visualize VictoriaLogs data in Grafana
+
 ## Command-line
 
 VictoriaLogs integrates well with `curl` and other command-line tools during querying because of the following features:

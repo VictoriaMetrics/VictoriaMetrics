@@ -16,10 +16,10 @@ func TestAlertManager_Addr(t *testing.T) {
 	const addr = "http://localhost"
 	am, err := NewAlertManager(addr, nil, promauth.HTTPClientConfig{}, nil, 0)
 	if err != nil {
-		t.Errorf("unexpected error: %s", err)
+		t.Fatalf("unexpected error: %s", err)
 	}
 	if am.Addr() != addr {
-		t.Errorf("expected to have %q; got %q", addr, am.Addr())
+		t.Fatalf("expected to have %q; got %q", addr, am.Addr())
 	}
 }
 
@@ -28,21 +28,20 @@ func TestAlertManager_Send(t *testing.T) {
 	const headerKey, headerValue = "TenantID", "foo"
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(_ http.ResponseWriter, _ *http.Request) {
-		t.Errorf("should not be called")
+		t.Fatalf("should not be called")
 	})
 	c := -1
 	mux.HandleFunc(alertManagerPath, func(w http.ResponseWriter, r *http.Request) {
 		user, pass, ok := r.BasicAuth()
 		if !ok {
-			t.Errorf("unauthorized request")
+			t.Fatalf("unauthorized request")
 		}
 		if user != baUser || pass != baPass {
-			t.Errorf("wrong creds %q:%q; expected %q:%q",
-				user, pass, baUser, baPass)
+			t.Fatalf("wrong creds %q:%q; expected %q:%q", user, pass, baUser, baPass)
 		}
 		c++
 		if r.Method != http.MethodPost {
-			t.Errorf("expected POST method got %s", r.Method)
+			t.Fatalf("expected POST method got %s", r.Method)
 		}
 		switch c {
 		case 0:
@@ -59,25 +58,23 @@ func TestAlertManager_Send(t *testing.T) {
 				GeneratorURL string            `json:"generatorURL"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&a); err != nil {
-				t.Errorf("can not unmarshal data into alert %s", err)
-				t.FailNow()
+				t.Fatalf("can not unmarshal data into alert %s", err)
 			}
 			if len(a) != 1 {
-				t.Errorf("expected 1 alert in array got %d", len(a))
+				t.Fatalf("expected 1 alert in array got %d", len(a))
 			}
 			if a[0].GeneratorURL != "0/0" {
-				t.Errorf("expected 0/0 as generatorURL got %s", a[0].GeneratorURL)
+				t.Fatalf("expected 0/0 as generatorURL got %s", a[0].GeneratorURL)
 			}
 			if a[0].StartsAt.IsZero() {
-				t.Errorf("expected non-zero start time")
+				t.Fatalf("expected non-zero start time")
 			}
 			if a[0].EndAt.IsZero() {
-				t.Errorf("expected non-zero end time")
+				t.Fatalf("expected non-zero end time")
 			}
 		case 3:
 			if r.Header.Get(headerKey) != headerValue {
-				t.Errorf("expected header %q to be set to %q; got %q instead",
-					headerKey, headerValue, r.Header.Get(headerKey))
+				t.Fatalf("expected header %q to be set to %q; got %q instead", headerKey, headerValue, r.Header.Get(headerKey))
 			}
 		}
 	})
@@ -94,13 +91,13 @@ func TestAlertManager_Send(t *testing.T) {
 		return strconv.FormatUint(alert.GroupID, 10) + "/" + strconv.FormatUint(alert.ID, 10)
 	}, aCfg, nil, 0)
 	if err != nil {
-		t.Errorf("unexpected error: %s", err)
+		t.Fatalf("unexpected error: %s", err)
 	}
 	if err := am.Send(context.Background(), []Alert{{}, {}}, nil); err == nil {
-		t.Error("expected connection error got nil")
+		t.Fatalf("expected connection error got nil")
 	}
 	if err := am.Send(context.Background(), []Alert{}, nil); err == nil {
-		t.Error("expected wrong http code error got nil")
+		t.Fatalf("expected wrong http code error got nil")
 	}
 	if err := am.Send(context.Background(), []Alert{{
 		GroupID:     0,
@@ -109,12 +106,12 @@ func TestAlertManager_Send(t *testing.T) {
 		End:         time.Now().UTC(),
 		Annotations: map[string]string{"a": "b", "c": "d", "e": "f"},
 	}}, nil); err != nil {
-		t.Errorf("unexpected error %s", err)
+		t.Fatalf("unexpected error %s", err)
 	}
 	if c != 2 {
-		t.Errorf("expected 2 calls(count from zero) to server got %d", c)
+		t.Fatalf("expected 2 calls(count from zero) to server got %d", c)
 	}
 	if err := am.Send(context.Background(), nil, map[string]string{headerKey: headerValue}); err != nil {
-		t.Errorf("unexpected error %s", err)
+		t.Fatalf("unexpected error %s", err)
 	}
 }

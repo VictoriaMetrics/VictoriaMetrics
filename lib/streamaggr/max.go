@@ -63,7 +63,7 @@ func (as *maxAggrState) pushSamples(samples []pushSample) {
 func (as *maxAggrState) flushState(ctx *flushCtx, resetState bool) {
 	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
 	m := &as.m
-	m.Range(func(k, v interface{}) bool {
+	m.Range(func(k, v any) bool {
 		if resetState {
 			// Atomically delete the entry from the map, so new entry is created for the next flush.
 			m.Delete(k)

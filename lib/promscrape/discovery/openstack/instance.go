@@ -14,28 +14,34 @@ import (
 // See https://docs.openstack.org/api-ref/compute/#list-servers
 type serversDetail struct {
 	Servers []server `json:"servers"`
-	Links   []struct {
-		HREF string `json:"href"`
-		Rel  string `json:"rel"`
-	} `json:"servers_links,omitempty"`
+	Links   []link   `json:"servers_links,omitempty"`
+}
+
+type link struct {
+	HREF string `json:"href"`
+	Rel  string `json:"rel"`
 }
 
 type server struct {
-	ID        string `json:"id"`
-	TenantID  string `json:"tenant_id"`
-	UserID    string `json:"user_id"`
-	Name      string `json:"name"`
-	HostID    string `json:"hostid"`
-	Status    string `json:"status"`
-	Addresses map[string][]struct {
-		Address string `json:"addr"`
-		Version int    `json:"version"`
-		Type    string `json:"OS-EXT-IPS:type"`
-	} `json:"addresses"`
-	Metadata map[string]string `json:"metadata,omitempty"`
-	Flavor   struct {
-		ID string `json:"id"`
-	} `json:"flavor"`
+	ID        string                     `json:"id"`
+	TenantID  string                     `json:"tenant_id"`
+	UserID    string                     `json:"user_id"`
+	Name      string                     `json:"name"`
+	HostID    string                     `json:"hostid"`
+	Status    string                     `json:"status"`
+	Addresses map[string][]serverAddress `json:"addresses"`
+	Metadata  map[string]string          `json:"metadata,omitempty"`
+	Flavor    serverFlavor               `json:"flavor"`
+}
+
+type serverAddress struct {
+	Address string `json:"addr"`
+	Version int    `json:"version"`
+	Type    string `json:"OS-EXT-IPS:type"`
+}
+
+type serverFlavor struct {
+	ID string `json:"id"`
 }
 
 func parseServersDetail(data []byte) (*serversDetail, error) {
