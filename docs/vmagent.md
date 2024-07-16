@@ -1446,14 +1446,15 @@ by passing multiple `-kafka.consumer.topic` command-line flags to `vmagent`.
 Multiple brokers can be specified per each `-kafka.consumer.topic` by passing a list of brokers delimited by `;`.
 For example:
 ```sh
-./bin/vmagent
-      -kafka.consumer.topic='topic-a'
-      -kafka.consumer.topic.brokers='host1:9092;host2:9092'
-      -kafka.consumer.topic='topic-b'
+./bin/vmagent 
+      -kafka.consumer.topic='topic-a' 
+      -kafka.consumer.topic.brokers='host1:9092;host2:9092' 
+      -kafka.consumer.topic='topic-b' 
       -kafka.consumer.topic.brokers='host3:9092;host4:9092'
 ```
-This command starts `vmagent` which reads messages from `topic-a` at `host1:9092` and `host2:9092` brokers and messages
+This command starts `vmagent` which reads messages from `topic-a` at `host1:9092` and `host2:9092` brokers and messages 
 from `topic-b` at `host3:9092` and `host4:9092` brokers.
+
 Note that when using YAML configuration (for example, when using [Helm charts](https://github.com/VictoriaMetrics/helm-charts) or [Kubernetes operator](https://docs.victoriametrics.com/operator/))
 keys provided in `extraArgs` must be unique, so in order to achieve the same configuration as in the example above, the following configuration must be used:
 ```yaml
