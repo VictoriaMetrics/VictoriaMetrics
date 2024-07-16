@@ -993,7 +993,7 @@ scrape_configs:
 scrape_configs:
 - job_name: foo
   scheme: https
-  max_scrape_size: 0
+  max_scrape_size: 1
   relabel_configs:
   - action: keep
     source_labels: [__address__]
@@ -1015,7 +1015,7 @@ scrape_configs:
 			ScrapeURL:      "http://foo.bar:1234/metrics",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  0,
+			MaxScrapeSize:  1,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "foo.bar:1234",
 				"job":      "3",
