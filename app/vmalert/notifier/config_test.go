@@ -5,10 +5,14 @@ import (
 	"testing"
 )
 
-func TestConfigParseGood(t *testing.T) {
+func TestParseConfig_Success(t *testing.T) {
 	f := func(path string) {
+		t.Helper()
+
 		_, err := parseConfig(path)
-		checkErr(t, err)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 	}
 	f("testdata/mixed.good.yaml")
 	f("testdata/consul.good.yaml")
@@ -16,14 +20,16 @@ func TestConfigParseGood(t *testing.T) {
 	f("testdata/static.good.yaml")
 }
 
-func TestConfigParseBad(t *testing.T) {
+func TestParseConfig_Failure(t *testing.T) {
 	f := func(path, expErr string) {
+		t.Helper()
+
 		_, err := parseConfig(path)
 		if err == nil {
 			t.Fatalf("expected to get non-nil err for config %q", path)
 		}
 		if !strings.Contains(err.Error(), expErr) {
-			t.Errorf("expected err to contain %q; got %q instead", expErr, err)
+			t.Fatalf("expected err to contain %q; got %q instead", expErr, err)
 		}
 	}
 

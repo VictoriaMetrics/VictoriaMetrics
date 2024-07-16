@@ -5,20 +5,22 @@ import (
 	"testing"
 )
 
-func Test_cleanDirectory(t *testing.T) {
+func TestCleanDirectory(t *testing.T) {
 	f := func(dir, exp string) {
 		t.Helper()
+
 		got := cleanDirectory(dir)
 		if got != exp {
-			t.Errorf("expected dir %q, got %q", exp, got)
+			t.Fatalf("expected dir %q, got %q", exp, got)
 		}
 	}
+
 	f("/foo/", "foo/")
 	f("//foo/", "foo/")
 	f("foo", "foo/")
 }
 
-func Test_FSInit(t *testing.T) {
+func TestFSInit(t *testing.T) {
 	f := func(expErr string, params ...string) {
 		t.Helper()
 

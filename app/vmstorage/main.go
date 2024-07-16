@@ -153,7 +153,7 @@ func main() {
 	startTime = time.Now()
 
 	// deregister storage metrics
-	metrics.UnregisterSet(storageMetrics)
+	metrics.UnregisterSet(storageMetrics, true)
 	storageMetrics = nil
 
 	stopStaleSnapshotsRemover()
@@ -191,7 +191,7 @@ func newRequestHandler(strg *storage.Storage) httpserver.RequestHandler {
 func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storage) bool {
 	path := r.URL.Path
 	if path == "/internal/force_merge" {
-		if !httpserver.CheckAuthFlag(w, r, forceMergeAuthKey.Get(), "forceMergeAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, forceMergeAuthKey) {
 			return true
 		}
 		// Run force merge in background
@@ -210,7 +210,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		return true
 	}
 	if path == "/internal/force_flush" {
-		if !httpserver.CheckAuthFlag(w, r, forceFlushAuthKey.Get(), "forceFlushAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, forceFlushAuthKey) {
 			return true
 		}
 		logger.Infof("flushing storage to make pending data available for reading")
@@ -220,7 +220,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 	if !strings.HasPrefix(path, "/snapshot") {
 		return false
 	}
-	if !httpserver.CheckAuthFlag(w, r, snapshotAuthKey.Get(), "snapshotAuthKey") {
+	if !httpserver.CheckAuthFlag(w, r, snapshotAuthKey) {
 		return true
 	}
 	path = path[len("/snapshot"):]
