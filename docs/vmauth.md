@@ -647,13 +647,13 @@ unauthorized_user:
   - "X-Forwarded-For:"
 ```
 
-it's also possible to update `Host` header to a backend's host name
+It is also possible to update `Host` request header to the backend host specified in `url_prefix` by setting an empty value for `Host` header:
 
 ```yaml
 unauthorized_user:
   url_prefix: "http://backend:1234/"
   headers:
-  - "Host:"    # Update host header to a backend's host
+  - "Host:"    # Update host header to backend:1234
 ```
 
 `vmauth` also supports the ability to set and remove HTTP response headers before returning the response from the backend to client.
