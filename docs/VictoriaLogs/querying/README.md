@@ -18,6 +18,7 @@ aliases:
 via the following ways:
 
 - [Web UI](#web-ui) - a web-based UI for querying logs
+- [Visualization in Grafana](#visualization-in-grafana)
 - [HTTP API](#http-api)
 - [Command-line interface](#command-line)
 
