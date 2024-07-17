@@ -24,15 +24,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-const (
-	envStorageAcctName           = "AZURE_STORAGE_ACCOUNT_NAME"
-	envStorageAccKey             = "AZURE_STORAGE_ACCOUNT_KEY"
-	envStorageAccCs              = "AZURE_STORAGE_ACCOUNT_CONNECTION_STRING"
-	envStorageDomain             = "AZURE_STORAGE_DOMAIN"
-	envStorageDefault            = "AZURE_USE_DEFAULT_CREDENTIAL"
-	storageErrorCodeBlobNotFound = "BlobNotFound"
-)
-
 // FS represents filesystem for backups in Azure Blob Storage.
 //
 // Init must be called before calling other FS methods.
@@ -44,18 +35,17 @@ type FS struct {
 	Dir string
 
 	client *container.Client
-	env    envLookuper
+
+	// envLoookupFunc is used for looking up environment variables in tests.
+	envLookupFunc func(name string) (string, bool)
 }
 
 // Init initializes fs.
 //
 // The returned fs must be stopped when no long needed with MustStop call.
 func (fs *FS) Init() error {
-	switch {
-	case fs.client != nil:
+	if fs.client != nil {
 		logger.Panicf("BUG: fs.Init has been already called")
-	case fs.env == nil:
-		fs.env = envtemplate.LookupEnv
 	}
 
 	fs.Dir = cleanDirectory(fs.Dir)
@@ -72,58 +62,68 @@ func (fs *FS) Init() error {
 }
 
 func (fs *FS) newClient() (*service.Client, error) {
-	connString, hasConnString := fs.env(envStorageAccCs)
-	accountName, hasAccountName := fs.env(envStorageAcctName)
-	accountKey, hasAccountKey := fs.env(envStorageAccKey)
-	useDefault, _ := fs.env(envStorageDefault)
-
-	domain := "blob.core.windows.net"
-	if storageDomain, ok := fs.env(envStorageDomain); ok {
-		logger.Infof("Overriding default Azure blob domain with %q", storageDomain)
-		domain = storageDomain
+	connString := fs.env("AZURE_STORAGE_ACCOUNT_CONNECTION_STRING")
+	if connString != "" {
+		logger.Infof("creating AZBlob service client from connection string defined at AZURE_STORAGE_ACCOUNT_CONNECTION_STRING")
+		return service.NewClientFromConnectionString(connString, nil)
 	}
 
-	// not used if connection string is set
-	serviceURL := fmt.Sprintf("https://%s.%s/", accountName, domain)
+	accountKey := fs.env("AZURE_STORAGE_ACCOUNT_KEY")
+	if accountKey != "" {
+		logger.Infof("creating AZBlob service client from account name and key")
 
-	switch {
-	// can't specify any combination of more than one credential
-	case moreThanOne(hasConnString, (hasAccountName && hasAccountKey), (useDefault == "true" && hasAccountName)):
-		return nil, fmt.Errorf("failed to process credentials: only one of %s, %s and %s, or %s and %s can be specified",
-			envStorageAccCs,
-			envStorageAcctName,
-			envStorageAccKey,
-			envStorageAcctName,
-			envStorageDefault,
-		)
-	case hasConnString:
-		logger.Infof("Creating AZBlob service client from connection string")
-		return service.NewClientFromConnectionString(connString, nil)
-	case hasAccountName && hasAccountKey:
-		logger.Infof("Creating AZBlob service client from account name and key")
+		accountName := fs.env("AZURE_STORAGE_ACCOUNT_NAME")
+		if accountName == "" {
+			return nil, fmt.Errorf("missing AZURE_STORAGE_ACCOUNT_NAME environment variable when AZURE_STORAGE_ACCOUNT_KEY is set; " +
+				"see https://docs.victoriametrics.com/vmbackup/#providing-credentials-via-env-variables")
+		}
 		creds, err := azblob.NewSharedKeyCredential(accountName, accountKey)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create Shared Key credentials: %w", err)
 		}
+		serviceURL := fs.getServiceURL(accountName)
 		return service.NewClientWithSharedKeyCredential(serviceURL, creds, nil)
-	case useDefault == "true" && hasAccountName:
-		logger.Infof("Creating AZBlob service client from default credential")
+	}
+
+	useDefault := fs.env("AZURE_USE_DEFAULT_CREDENTIAL")
+	if useDefault == "true" {
+		logger.Infof("creating AZBlob service client from default credentials")
 		creds, err := azidentity.NewDefaultAzureCredential(nil)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create default Azure credentials: %w", err)
 		}
+
+		accountName := fs.env("AZURE_STORAGE_ACCOUNT_NAME")
+		if accountName == "" {
+			return nil, fmt.Errorf("missing AZURE_STORAGE_ACCOUNT_NAME environment variable when AZURE_USE_DEFAULT_CREDENTIAL=true is set; " +
+				"see https://docs.victoriametrics.com/vmbackup/#providing-credentials-via-env-variables")
+		}
+
+		serviceURL := fs.getServiceURL(accountName)
 		return service.NewClient(serviceURL, creds, nil)
-	default:
-		return nil, fmt.Errorf(
-			`failed to detect credentials for AZBlob. 
-Ensure that one of the options is set: connection string at %q; shared key at %q and %q; account name at %q and set %q to "true"`,
-			envStorageAccCs,
-			envStorageAcctName,
-			envStorageAccKey,
-			envStorageAcctName,
-			envStorageDefault,
-		)
 	}
+
+	return nil, fmt.Errorf("failed to detect credentials for AZBlob; ensure that one of the options listed at " +
+		"https://docs.victoriametrics.com/vmbackup/#providing-credentials-via-env-variables is set")
+}
+
+func (fs *FS) env(name string) string {
+	if fs.envLookupFunc != nil {
+		v, _ := fs.envLookupFunc(name)
+		return v
+	}
+	v, _ := envtemplate.LookupEnv(name)
+	return v
+}
+
+func (fs *FS) getServiceURL(accountName string) string {
+	domain := "blob.core.windows.net"
+	storageDomain := fs.env("AZURE_STORAGE_DOMAIN")
+	if storageDomain != "" {
+		logger.Infof("overriding default Azure blob domain with AZURE_STORAGE_DOMAIN=%q", storageDomain)
+		domain = storageDomain
+	}
+	return fmt.Sprintf("https://%s.%s/", accountName, domain)
 }
 
 // MustStop stops fs.
@@ -390,7 +390,7 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 	_, err := bc.GetProperties(ctx, nil)
 	var azerr *azcore.ResponseError
 	if errors.As(err, &azerr) {
-		if azerr.ErrorCode == storageErrorCodeBlobNotFound {
+		if azerr.ErrorCode == "BlobNotFound" {
 			return false, nil
 		}
 		logger.Errorf("GetProperties(%q) returned %s", bc.URL(), err)
@@ -416,26 +416,9 @@ func (fs *FS) ReadFile(filePath string) ([]byte, error) {
 	return b, nil
 }
 
-// envLookuper is for looking up environment variables. It is
-// needed to allow unit tests to provide alternate values since the envtemplate
-// package uses a singleton to read all environment variables into memory at
-// init time.
-type envLookuper func(name string) (string, bool)
-
-func moreThanOne(vals ...bool) bool {
-	var n int
-
-	for _, v := range vals {
-		if v {
-			n++
-		}
-	}
-	return n > 1
-}
-
-// cleanDirectory ensures that the directory is properly formatted for Azure
-// Blob Storage. It removes any leading slashes and ensures that the directory
-// ends with a trailing slash.
+// cleanDirectory ensures that the directory is properly formatted for Azure Blob Storage.
+//
+// It removes any leading slashes and ensures that the directory ends with a trailing slash.
 func cleanDirectory(dir string) string {
 	for strings.HasPrefix(dir, "/") {
 		dir = dir[1:]
