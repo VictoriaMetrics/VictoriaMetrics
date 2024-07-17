@@ -1554,7 +1554,7 @@ The following meta labels are available on discovered targets during [relabeling
 
 * `__meta_vultr_instance_allowed_bandwidth_gb`: monthly bandwidth quota in GB.
 * `__meta_vultr_instance_disk_gb`: the size of the disk in GB.
-* `__meta_vultr_instance_features`: comma-separated list of features avabilable to instance, such as "auto_backups", "ipv6", "ddos_protection".
+* `__meta_vultr_instance_features`: comma-separated list of features available to instance, such as "auto_backups", "ipv6", "ddos_protection".
 * `__meta_vultr_instance_hostname`: hostname for this instance.
 * `__meta_vultr_instance_id`: unique ID for the VPS Instance.
 * `__meta_vultr_instance_internal_ip`: internal IP used by this instance, if set. Only relevant when a VPC is attached.

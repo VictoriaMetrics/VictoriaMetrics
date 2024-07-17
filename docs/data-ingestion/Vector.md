@@ -118,4 +118,4 @@ sinks:
 
 # References
 - [Vector documentation](https://vector.dev/docs/)
-- [VictoriaLogs documenation for using vector]({{< ref "/victorialogs/data-ingestion/vector" >}})
+- [VictoriaLogs documentation for using vector]({{< ref "/victorialogs/data-ingestion/vector" >}})
