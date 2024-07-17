@@ -83,7 +83,9 @@ type UserInfo struct {
 
 	concurrencyLimitCh      chan struct{}
 	concurrencyLimitReached *metrics.Counter
-	overrideHostHeader      bool
+
+	// Whether to use backend host header in requests to backend.
+	useBackendHostHeader bool
 
 	rt http.RoundTripper
 
@@ -150,7 +152,7 @@ func (h *Header) MarshalYAML() (any, error) {
 	return h.sOriginal, nil
 }
 
-func overrideHostHeader(headers []*Header) bool {
+func hasEmptyHostHeader(headers []*Header) bool {
 	for _, h := range headers {
 		if h.Name == "Host" && h.Value == "" {
 			return true
@@ -310,12 +312,18 @@ func (up *URLPrefix) getBackendsCount() int {
 
 // getBackendURL returns the backendURL depending on the load balance policy.
 //
+// It can return nil if there are no backend urls available at the moment.
+//
 // backendURL.put() must be called on the returned backendURL after the request is complete.
 func (up *URLPrefix) getBackendURL() *backendURL {
 	up.discoverBackendAddrsIfNeeded()
 
 	pbus := up.bus.Load()
 	bus := *pbus
+	if len(bus) == 0 {
+		return nil
+	}
+
 	if up.loadBalancingPolicy == "first_available" {
 		return getFirstAvailableBackendURL(bus)
 	}
@@ -741,7 +749,7 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		if err := ui.initURLs(); err != nil {
 			return nil, err
 		}
-		ui.overrideHostHeader = overrideHostHeader(ui.HeadersConf.RequestHeaders)
+		ui.useBackendHostHeader = hasEmptyHostHeader(ui.HeadersConf.RequestHeaders)
 
 		metricLabels, err := ui.getMetricLabels()
 		if err != nil {
@@ -806,7 +814,7 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		_ = ac.ms.GetOrCreateGauge(`vmauth_user_concurrent_requests_current`+metricLabels, func() float64 {
 			return float64(len(ui.concurrencyLimitCh))
 		})
-		ui.overrideHostHeader = overrideHostHeader(ui.HeadersConf.RequestHeaders)
+		ui.useBackendHostHeader = hasEmptyHostHeader(ui.HeadersConf.RequestHeaders)
 
 		rt, err := newRoundTripper(ui.TLSCAFile, ui.TLSCertFile, ui.TLSKeyFile, ui.TLSServerName, ui.TLSInsecureSkipVerify)
 		if err != nil {

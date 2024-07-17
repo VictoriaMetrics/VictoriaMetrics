@@ -6,14 +6,15 @@ import (
 	"testing"
 )
 
-func TestReadTrackingBodyRetrySuccess(t *testing.T) {
-	f := func(s string) {
+func TestReadTrackingBody_RetrySuccess(t *testing.T) {
+	f := func(s string, maxBodySize int) {
 		t.Helper()
-		rtb := &readTrackingBody{
-			r: io.NopCloser(bytes.NewBufferString(s)),
-		}
+
+		rtb := getReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
+		defer putReadTrackingBody(rtb)
+
 		if !rtb.canRetry() {
-			t.Fatalf("canRetry() must return true")
+			t.Fatalf("canRetry() must return true before reading anything")
 		}
 		for i := 0; i < 5; i++ {
 			data, err := io.ReadAll(rtb)
@@ -32,41 +33,99 @@ func TestReadTrackingBodyRetrySuccess(t *testing.T) {
 		}
 	}
 
-	f("")
-	f("foo")
-	f("foobar")
-	f(newTestString(maxRequestBodySizeToRetry.IntN()))
+	f("", 0)
+	f("", -1)
+	f("", 100)
+	f("foo", 100)
+	f("foobar", 100)
+	f(newTestString(1000), 1000)
 }
 
-func TestReadTrackingBodyRetryFailure(t *testing.T) {
-	f := func(s string) {
+func TestReadTrackingBody_RetrySuccessPartialRead(t *testing.T) {
+	f := func(s string, maxBodySize int) {
 		t.Helper()
-		rtb := &readTrackingBody{
-			r: io.NopCloser(bytes.NewBufferString(s)),
+
+		// Check the case with partial read
+		rtb := getReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
+		defer putReadTrackingBody(rtb)
+
+		for i := 0; i < len(s); i++ {
+			buf := make([]byte, i)
+			n, err := io.ReadFull(rtb, buf)
+			if err != nil {
+				t.Fatalf("unexpected error when reading %d bytes: %s", i, err)
+			}
+			if n != i {
+				t.Fatalf("unexpected number of bytes read; got %d; want %d", n, i)
+			}
+			if string(buf) != s[:i] {
+				t.Fatalf("unexpected data read with the length %d\ngot\n%s\nwant\n%s", i, buf, s[:i])
+			}
+			if err := rtb.Close(); err != nil {
+				t.Fatalf("unexpected error when closing reader after reading %d bytes", i)
+			}
+			if !rtb.canRetry() {
+				t.Fatalf("canRetry() must return true after closing the reader after reading %d bytes", i)
+			}
+		}
+
+		data, err := io.ReadAll(rtb)
+		if err != nil {
+			t.Fatalf("unexpected error when reading all the data: %s", err)
+		}
+		if string(data) != s {
+			t.Fatalf("unexpected data read\ngot\n%s\nwant\n%s", data, s)
+		}
+		if err := rtb.Close(); err != nil {
+			t.Fatalf("unexpected error when closing readTrackingBody: %s", err)
 		}
 		if !rtb.canRetry() {
-			t.Fatalf("canRetry() must return true")
+			t.Fatalf("canRetry() must return true after closing the reader after reading all the input")
+		}
+	}
+
+	f("", 0)
+	f("", -1)
+	f("", 100)
+	f("foo", 100)
+	f("foobar", 100)
+	f(newTestString(1000), 1000)
+}
+
+func TestReadTrackingBody_RetryFailureTooBigBody(t *testing.T) {
+	f := func(s string, maxBodySize int) {
+		t.Helper()
+
+		rtb := getReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
+		defer putReadTrackingBody(rtb)
+
+		if !rtb.canRetry() {
+			t.Fatalf("canRetry() must return true before reading anything")
 		}
 		buf := make([]byte, 1)
-		n, err := rtb.Read(buf)
+		n, err := io.ReadFull(rtb, buf)
 		if err != nil {
 			t.Fatalf("unexpected error when reading a single byte: %s", err)
 		}
 		if n != 1 {
 			t.Fatalf("unexpected number of bytes read; got %d; want 1", n)
 		}
+		if !rtb.canRetry() {
+			t.Fatalf("canRetry() must return true after reading one byte")
+		}
 		data, err := io.ReadAll(rtb)
 		if err != nil {
 			t.Fatalf("unexpected error when reading all the data: %s", err)
 		}
-		if string(buf)+string(data) != s {
-			t.Fatalf("unexpected data read\ngot\n%s\nwant\n%s", string(buf)+string(data), s)
+		dataRead := string(buf) + string(data)
+		if dataRead != s {
+			t.Fatalf("unexpected data read\ngot\n%s\nwant\n%s", dataRead, s)
 		}
 		if err := rtb.Close(); err != nil {
 			t.Fatalf("unexpected error when closing readTrackingBody: %s", err)
 		}
 		if rtb.canRetry() {
-			t.Fatalf("canRetry() must return false")
+			t.Fatalf("canRetry() must return false after closing the reader")
 		}
 
 		data, err = io.ReadAll(rtb)
@@ -78,132 +137,55 @@ func TestReadTrackingBodyRetryFailure(t *testing.T) {
 		}
 	}
 
-	f(newTestString(maxRequestBodySizeToRetry.IntN() + 1))
-	f(newTestString(2 * maxRequestBodySizeToRetry.IntN()))
+	const maxBodySize = 1000
+	f(newTestString(maxBodySize+1), maxBodySize)
+	f(newTestString(2*maxBodySize), maxBodySize)
 }
 
-// request body not over maxRequestBodySizeToRetry
-// 1. When writing data downstream, buf only caches part of the data because the downstream connection is disconnected.
-// 2. retry request: because buf caches some data, first read buf and then read stream when retrying
-// 3. retry request: the data has been read to buf in the second step. if the request fails, retry to read all buf later.
-func TestRetryReadSuccessAfterPartialRead(t *testing.T) {
-	f := func(s string) {
-		rtb := &readTrackingBody{
-			r:   io.NopCloser(bytes.NewBufferString(s)),
-			buf: make([]byte, 0, len(s)),
-		}
+func TestReadTrackingBody_RetryFailureZeroOrNegativeMaxBodySize(t *testing.T) {
+	f := func(s string, maxBodySize int) {
+		t.Helper()
 
-		var data []byte
-		var err error
-		halfSize := len(s) / 2
-		if halfSize == 0 {
-			halfSize = 100
-		}
-		buf := make([]byte, halfSize)
-		var n int
+		rtb := getReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
+		defer putReadTrackingBody(rtb)
 
-		// read part of the data
-		n, err = rtb.Read(buf[:])
-		data = append(data, buf[:n]...)
-		if err != nil && err != io.EOF {
-			t.Fatalf("unexpected error: %s", err)
+		if !rtb.canRetry() {
+			t.Fatalf("canRetry() must return true before reading anything")
 		}
-
-		// request failed when output stream is closed (eg: server connection reset)
-		// would close the reader
+		data, err := io.ReadAll(rtb)
+		if err != nil {
+			t.Fatalf("unexpected error when reading all the data: %s", err)
+		}
+		if string(data) != s {
+			t.Fatalf("unexpected data read\ngot\n%s\nwant\n%s", data, s)
+		}
 		if err := rtb.Close(); err != nil {
 			t.Fatalf("unexpected error when closing readTrackingBody: %s", err)
 		}
-		if !rtb.canRetry() {
-			t.Fatalf("canRetry() must return true")
-		}
 
-		// retry read (read buf + remaining data)
-		data = data[:0]
-		err = nil
-		for err == nil {
-			n, err = rtb.Read(buf[:])
-			data = append(data, buf[:n]...)
-		}
-		if err != io.EOF {
-			t.Fatalf("unexpected error: %s", err)
-		}
-		if string(data) != s {
-			t.Fatalf("unexpected data read; got\n%s\nwant\n%s", data, s)
-		}
-		// cannotRetry return false
-		// because the request data is not over maxRequestBodySizeToRetry limit
-		if !rtb.canRetry() {
-			t.Fatalf("canRetry() must return true")
-		}
-	}
-
-	f("")
-	f("foo")
-	f("foobar")
-	f(newTestString(maxRequestBodySizeToRetry.IntN()))
-}
-
-// request body over maxRequestBodySizeToRetry
-// 1. When writing data downstream, buf only caches part of the data because the downstream connection is disconnected.
-// 2. retry request: because buf caches some data, first read buf and then read stream when retrying
-// 3. retry request: the data has been read to buf in the second step. if the request fails, retry to read all buf later.
-func TestRetryReadSuccessAfterPartialReadAndCannotRetryAgain(t *testing.T) {
-	f := func(s string) {
-		rtb := &readTrackingBody{
-			r:   io.NopCloser(bytes.NewBufferString(s)),
-			buf: make([]byte, 0, len(s)),
-		}
-
-		var data []byte
-		var err error
-		halfSize := len(s) / 2
-		if halfSize == 0 {
-			halfSize = 100
-		}
-		buf := make([]byte, halfSize)
-		var n int
-
-		// read part of the data
-		n, err = rtb.Read(buf[:])
-		data = append(data, buf[:n]...)
-		if err != nil && err != io.EOF {
-			t.Fatalf("unexpected error: %s", err)
-		}
-
-		// request failed when output stream is closed (eg: server connection reset)
-		if err := rtb.Close(); err != nil {
-			t.Fatalf("unexpected error when closing readTrackingBody: %s", err)
-		}
-		if !rtb.canRetry() {
-			t.Fatalf("canRetry() must return true")
-		}
-
-		// retry read (read buf + remaining data)
-		data = data[:0]
-		err = nil
-		for err == nil {
-			n, err = rtb.Read(buf[:])
-			data = append(data, buf[:n]...)
-		}
-		if err != io.EOF {
-			t.Fatalf("unexpected error: %s", err)
-		}
-		if string(data) != s {
-			t.Fatalf("unexpected data read; got\n%s\nwant\n%s", data, s)
-		}
-
-		// cannotRetry returns true
-		// because the request data is over maxRequestBodySizeToRetry limit
 		if rtb.canRetry() {
-			t.Fatalf("canRetry() must return false")
+			t.Fatalf("canRetry() must return false after closing the reader")
+		}
+		data, err = io.ReadAll(rtb)
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
+		if len(data) != 0 {
+			t.Fatalf("unexpected non-empty data read: %q", data)
 		}
 	}
 
-	f(newTestString(maxRequestBodySizeToRetry.IntN() + 1))
-	f(newTestString(2 * maxRequestBodySizeToRetry.IntN()))
+	f("foobar", 0)
+	f(newTestString(1000), 0)
+
+	f("foobar", -1)
+	f(newTestString(1000), -1)
 }
 
 func newTestString(sLen int) string {
-	return string(make([]byte, sLen))
+	data := make([]byte, sLen)
+	for i := range data {
+		data[i] = byte(i)
+	}
+	return string(data)
 }

@@ -50,7 +50,7 @@ var (
 		`Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
 	failTimeout               = flag.Duration("failTimeout", 3*time.Second, "Sets a delay period for load balancing to skip a malfunctioning backend")
 	maxRequestBodySizeToRetry = flagutil.NewBytes("maxRequestBodySizeToRetry", 16*1024, "The maximum request body size, which can be cached and re-tried at other backends. "+
-		"Bigger values may require more memory. Negative or zero values disable request body caching and retries.")
+		"Bigger values may require more memory. Zero or negative value disables caching of request body. This may be useful when proxying data ingestion requests")
 	backendTLSInsecureSkipVerify = flag.Bool("backend.tlsInsecureSkipVerify", false, "Whether to skip TLS verification when connecting to backends over HTTPS. "+
 		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
 	backendTLSCAFile = flag.String("backend.TLSCAFile", "", "Optional path to TLS root CA file, which is used for TLS verification when connecting to backends over HTTPS. "+
@@ -200,15 +200,17 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		up, hc = ui.DefaultURL, ui.HeadersConf
 		isDefault = true
 	}
-	// caching makes sense only for positive non zero size
-	if maxRequestBodySizeToRetry.IntN() > 0 {
-		rtb := getReadTrackingBody(r.Body, int(r.ContentLength))
-		defer putReadTrackingBody(rtb)
-		r.Body = rtb
-	}
+
+	rtb := getReadTrackingBody(r.Body, maxRequestBodySizeToRetry.IntN())
+	defer putReadTrackingBody(rtb)
+	r.Body = rtb
+
 	maxAttempts := up.getBackendsCount()
 	for i := 0; i < maxAttempts; i++ {
 		bu := up.getBackendURL()
+		if bu == nil {
+			break
+		}
 		targetURL := bu.url
 		// Don't change path and add request_path query param for default route.
 		if isDefault {
@@ -238,7 +240,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	req := sanitizeRequestHeaders(r)
 	req.URL = targetURL
 
-	if req.URL.Scheme == "https" || ui.overrideHostHeader {
+	if req.URL.Scheme == "https" || ui.useBackendHostHeader {
 		// Override req.Host only for https requests, since https server verifies hostnames during TLS handshake,
 		// so it expects the targetURL.Host in the request.
 		// There is no need in overriding the req.Host for http requests, since it is expected that backend server
@@ -272,7 +274,7 @@ again:
 			ui.backendErrors.Inc()
 			return true
 		}
-		// one time retry trivial network errors, such as proxy idle timeout misconfiguration or socket close by OS
+		// Retry request on trivial network errors, such as proxy idle timeout misconfiguration or socket close by OS
 		if (netutil.IsTrivialNetworkError(err) || errors.Is(err, io.EOF)) && trivialRetries < 1 {
 			trivialRetries++
 			goto again
@@ -490,85 +492,110 @@ func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err err
 	httpserver.Errorf(w, r, "%s", err)
 }
 
+// readTrackingBody must be obtained via getReadTrackingBody()
 type readTrackingBody struct {
+	// maxBodySize is the maximum body size to cache in buf.
+	//
+	// Bigger bodies cannot be retried.
+	maxBodySize int
+
 	// r contains reader for initial data reading
 	r io.ReadCloser
 
-	// buf is a buffer for data read from r. Buf size is limited by maxRequestBodySizeToRetry.
-	// If more than maxRequestBodySizeToRetry is read from r, then cannotRetry is set to true.
+	// buf is a buffer for data read from r. Buf size is limited by maxBodySize.
+	// If more than maxBodySize is read from r, then cannotRetry is set to true.
 	buf []byte
 
-	// cannotRetry is set to true when more than maxRequestBodySizeToRetry are read from r.
+	// readBuf points to the cached data at buf, which must be read in the next call to Read().
+	readBuf []byte
+
+	// cannotRetry is set to true when more than maxBodySize bytes are read from r.
 	// In this case the read data cannot fit buf, so it cannot be re-read from buf.
 	cannotRetry bool
 
 	// bufComplete is set to true when buf contains complete request body read from r.
 	bufComplete bool
-
-	// offset is an offset at buf for the next data read if needReadBuf is set to true.
-	offset int
 }
 
-// Read implements io.Reader interface
-// tracks body reading requests
+func (rtb *readTrackingBody) reset() {
+	rtb.maxBodySize = 0
+	rtb.r = nil
+	rtb.buf = rtb.buf[:0]
+	rtb.readBuf = nil
+	rtb.cannotRetry = false
+	rtb.bufComplete = false
+}
+
+func getReadTrackingBody(r io.ReadCloser, maxBodySize int) *readTrackingBody {
+	v := readTrackingBodyPool.Get()
+	if v == nil {
+		v = &readTrackingBody{}
+	}
+	rtb := v.(*readTrackingBody)
+
+	if maxBodySize < 0 {
+		maxBodySize = 0
+	}
+	rtb.maxBodySize = maxBodySize
+	rtb.r = r
+	return rtb
+}
+
+func putReadTrackingBody(rtb *readTrackingBody) {
+	rtb.reset()
+	readTrackingBodyPool.Put(rtb)
+}
+
+var readTrackingBodyPool sync.Pool
+
+// Read implements io.Reader interface.
 func (rtb *readTrackingBody) Read(p []byte) (int, error) {
-	if rtb.offset < len(rtb.buf) {
-		if rtb.cannotRetry {
-			return 0, fmt.Errorf("cannot retry reading data from buf")
-		}
-		nb := copy(p, rtb.buf[rtb.offset:])
-		rtb.offset += nb
-		if rtb.bufComplete {
-			if rtb.offset == len(rtb.buf) {
-				return nb, io.EOF
-			}
-			return nb, nil
-		}
-		if nb < len(p) {
-			nr, err := rtb.readFromStream(p[nb:])
-			return nb + nr, err
-		}
-		return nb, nil
+	if len(rtb.readBuf) > 0 {
+		n := copy(p, rtb.readBuf)
+		rtb.readBuf = rtb.readBuf[n:]
+		return n, nil
 	}
-	if rtb.bufComplete {
-		return 0, io.EOF
-	}
-	return rtb.readFromStream(p)
-}
 
-func (rtb *readTrackingBody) readFromStream(p []byte) (int, error) {
 	if rtb.r == nil {
+		if rtb.bufComplete {
+			return 0, io.EOF
+		}
 		return 0, fmt.Errorf("cannot read data after closing the reader")
 	}
+
 	n, err := rtb.r.Read(p)
 	if rtb.cannotRetry {
 		return n, err
 	}
-	if rtb.offset+n > maxRequestBodySizeToRetry.IntN() {
-		rtb.cannotRetry = true
-	}
-	if n > 0 {
-		rtb.offset += n
-		rtb.buf = append(rtb.buf, p[:n]...)
-	}
-	if err != nil {
-		if err == io.EOF {
-			rtb.bufComplete = true
-			return n, err
-		}
+
+	if len(rtb.buf)+n > rtb.maxBodySize {
 		rtb.cannotRetry = true
 		return n, err
 	}
-	return n, nil
+	rtb.buf = append(rtb.buf, p[:n]...)
+	if err == io.EOF {
+		rtb.bufComplete = true
+	}
+	return n, err
 }
 
 func (rtb *readTrackingBody) canRetry() bool {
-	return !rtb.cannotRetry
+	if rtb.cannotRetry {
+		return false
+	}
+	if rtb.bufComplete {
+		return true
+	}
+	return rtb.r != nil
 }
 
 // Close implements io.Closer interface.
 func (rtb *readTrackingBody) Close() error {
-	rtb.offset = 0
+	if !rtb.cannotRetry {
+		rtb.readBuf = rtb.buf
+	} else {
+		rtb.readBuf = nil
+	}
 
 	// Close rtb.r only if the request body is completely read or if it is too big.
 	// http.Roundtrip performs body.Close call even without any Read calls,
@@ -583,39 +610,4 @@ func (rtb *readTrackingBody) Close() error {
 	}
 
 	return nil
-}
-
-var readTrackingBodyPool sync.Pool
-
-func getReadTrackingBody(origin io.ReadCloser, b int) *readTrackingBody {
-	bufSize := 1024
-	if b > 0 && b < maxRequestBodySizeToRetry.IntN() {
-		bufSize = b
-	}
-	v := readTrackingBodyPool.Get()
-	if v == nil {
-		v = &readTrackingBody{
-			buf: make([]byte, 0, bufSize),
-		}
-	}
-	rtb := v.(*readTrackingBody)
-	rtb.r = origin
-	if bufSize > cap(rtb.buf) {
-		rtb.buf = make([]byte, 0, bufSize)
-	}
-
-	return rtb
-}
-
-func putReadTrackingBody(rtb *readTrackingBody) {
-	if rtb.r != nil {
-		_ = rtb.r.Close()
-	}
-	rtb.r = nil
-	rtb.buf = rtb.buf[:0]
-	rtb.offset = 0
-	rtb.cannotRetry = false
-	rtb.bufComplete = false
-
-	readTrackingBodyPool.Put(rtb)
 }
