@@ -44,6 +44,7 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
 
 ## Troubleshooting
 
+* See [how to setup credentials via environment variables](https://docs.victoriametrics.com/vmbackup/#providing-credentials-via-env-variables).
 * If `vmrestore` eats all the network bandwidth, then set `-maxBytesPerSecond` to the desired value.
 * If `vmrestore` has been interrupted due to temporary error, then just restart it with the same args. It will resume the restore process.
 
