@@ -31,6 +31,11 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+
+## [v1.102.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0)
+
+Released at 2024-07-17
+
 **Update note 1: support for snap packages was removed due to lack of interest from community. See this [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6543) for details. Please read about supported package types [here](https://docs.victoriametrics.com/#install).**
 
 **Update note 2: [stream aggregation config](https://docs.victoriametrics.com/stream-aggregation/#stream-aggregation-config) now prevents setting multiple identical outputs. For example, `outputs: [total, total]` will fail the validation phase. In addition, `outputs: ["quantiles(0.5)", "quantiles(0.9)"]` will fail the validation as well - use `outputs: ["quantiles(0.5, 0.9)"]` instead.**
