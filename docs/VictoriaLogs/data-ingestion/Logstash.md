@@ -14,18 +14,19 @@ aliases:
 
 # Logstash setup
 
-Specify [`output.elasticsearch`](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html) section in the `logstash.conf` file
+Specify [`output.opensearch`](https://github.com/opensearch-project/logstash-output-opensearch) section in the `logstash.conf` file
 for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
 
 ```conf
 output {
-  elasticsearch {
+  opensearch {
     hosts => ["http://localhost:9428/insert/elasticsearch/"]
     parameters => {
         "_msg_field" => "message"
         "_time_field" => "@timestamp"
         "_stream_fields" => "host.name,process.name"
     }
+    manage_template => false
   }
 }
 ```
@@ -41,7 +42,7 @@ and inspecting VictoriaLogs logs then:
 
 ```conf
 output {
-  elasticsearch {
+  opensearch {
     hosts => ["http://localhost:9428/insert/elasticsearch/"]
     parameters => {
         "_msg_field" => "message"
@@ -49,6 +50,7 @@ output {
         "_stream_fields" => "host.name,process.name"
         "debug" => "1"
     }
+    manage_template => false
   }
 }
 ```
@@ -59,7 +61,7 @@ For example, the following config instructs VictoriaLogs to ignore `log.offset` 
 
 ```conf
 output {
-  elasticsearch {
+  opensearch {
     hosts => ["http://localhost:9428/insert/elasticsearch/"]
     parameters => {
         "_msg_field" => "message"
@@ -67,6 +69,7 @@ output {
         "_stream_fields" => "host.hostname,process.name"
         "ignore_fields" => "log.offset,event.original"
     }
+    manage_template => false
   }
 }
 ```
@@ -76,7 +79,7 @@ This usually allows saving network bandwidth and costs by up to 5 times:
 
 ```conf
 output {
-  elasticsearch {
+  opensearch {
     hosts => ["http://localhost:9428/insert/elasticsearch/"]
     parameters => {
         "_msg_field" => "message"
@@ -84,17 +87,18 @@ output {
         "_stream_fields" => "host.hostname,process.name"
     }
     http_compression => true
+    manage_template => false
   }
 }
 ```
 
 By default, the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy).
-If you need storing logs in other tenant, then specify the needed tenant via `custom_headers` at `output.elasticsearch` section.
+If you need storing logs in other tenant, then specify the needed tenant via `custom_headers` at `output.opensearch` section.
 For example, the following `logstash.conf` config instructs Logstash to store the data to `(AccountID=12, ProjectID=34)` tenant:
 
 ```conf
 output {
-  elasticsearch {
+  opensearch {
     hosts => ["http://localhost:9428/insert/elasticsearch/"]
     custom_headers => {
         "AccountID" => "1"
@@ -105,6 +109,7 @@ output {
         "_time_field" => "@timestamp"
         "_stream_fields" => "host.hostname,process.name"
     }
+    manage_template => false
   }
 }
 ```
@@ -113,5 +118,5 @@ See also:
 
 - [Data ingestion troubleshooting](https://docs.victoriametrics.com/victorialogs/data-ingestion/#troubleshooting).
 - [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
-- [Logstash `output.elasticsearch` docs](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html).
+- [Logstash `output.opensearch` docs](https://github.com/opensearch-project/logstash-output-opensearch).
 - [Docker-compose demo for Logstash integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/logstash).
