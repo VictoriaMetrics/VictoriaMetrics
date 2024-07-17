@@ -67,6 +67,7 @@ type GetObjectLockConfigurationInput struct {
 }
 
 func (in *GetObjectLockConfigurationInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 
 }
@@ -138,6 +139,15 @@ func (c *Client) addOperationGetObjectLockConfigurationMiddlewares(stack *middle
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpGetObjectLockConfigurationValidationMiddleware(stack); err != nil {

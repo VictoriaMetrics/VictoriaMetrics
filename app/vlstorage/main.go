@@ -64,7 +64,7 @@ func Init() {
 
 // Stop stops vlstorage.
 func Stop() {
-	metrics.UnregisterSet(storageMetrics)
+	metrics.UnregisterSet(storageMetrics, true)
 	storageMetrics = nil
 
 	strg.MustClose()
