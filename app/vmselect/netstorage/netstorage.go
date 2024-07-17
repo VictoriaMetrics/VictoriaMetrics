@@ -2825,8 +2825,7 @@ func mustStopStorageNodes(snb *storageNodesBucket) {
 	for _, sn := range snb.sns {
 		sn.connPool.MustStop()
 	}
-	metrics.UnregisterSet(snb.ms)
-	snb.ms.UnregisterAllMetrics()
+	metrics.UnregisterSet(snb.ms, true)
 }
 
 var (

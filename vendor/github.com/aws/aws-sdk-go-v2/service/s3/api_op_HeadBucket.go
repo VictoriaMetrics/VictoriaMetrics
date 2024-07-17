@@ -137,6 +137,7 @@ type HeadBucketInput struct {
 }
 
 func (in *HeadBucketInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 
 }
@@ -230,6 +231,15 @@ func (c *Client) addOperationHeadBucketMiddlewares(stack *middleware.Stack, opti
 	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
+		return err
+	}
 	if err = addOpHeadBucketValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -265,20 +275,6 @@ func (c *Client) addOperationHeadBucketMiddlewares(stack *middleware.Stack, opti
 	}
 	return nil
 }
-
-func (v *HeadBucketInput) bucket() (string, bool) {
-	if v.Bucket == nil {
-		return "", false
-	}
-	return *v.Bucket, true
-}
-
-// HeadBucketAPIClient is a client that implements the HeadBucket operation.
-type HeadBucketAPIClient interface {
-	HeadBucket(context.Context, *HeadBucketInput, ...func(*Options)) (*HeadBucketOutput, error)
-}
-
-var _ HeadBucketAPIClient = (*Client)(nil)
 
 // BucketExistsWaiterOptions are waiter options for BucketExistsWaiter
 type BucketExistsWaiterOptions struct {
@@ -394,7 +390,13 @@ func (w *BucketExistsWaiter) WaitForOutput(ctx context.Context, params *HeadBuck
 		}
 
 		out, err := w.client.HeadBucket(ctx, params, func(o *Options) {
+			baseOpts := []func(*Options){
+				addIsWaiterUserAgent,
+			}
 			o.APIOptions = append(o.APIOptions, apiOptions...)
+			for _, opt := range baseOpts {
+				opt(o)
+			}
 			for _, opt := range options.ClientOptions {
 				opt(o)
 			}
@@ -561,7 +563,13 @@ func (w *BucketNotExistsWaiter) WaitForOutput(ctx context.Context, params *HeadB
 		}
 
 		out, err := w.client.HeadBucket(ctx, params, func(o *Options) {
+			baseOpts := []func(*Options){
+				addIsWaiterUserAgent,
+			}
 			o.APIOptions = append(o.APIOptions, apiOptions...)
+			for _, opt := range baseOpts {
+				opt(o)
+			}
 			for _, opt := range options.ClientOptions {
 				opt(o)
 			}
@@ -608,6 +616,20 @@ func bucketNotExistsStateRetryable(ctx context.Context, input *HeadBucketInput, 
 
 	return true, nil
 }
+
+func (v *HeadBucketInput) bucket() (string, bool) {
+	if v.Bucket == nil {
+		return "", false
+	}
+	return *v.Bucket, true
+}
+
+// HeadBucketAPIClient is a client that implements the HeadBucket operation.
+type HeadBucketAPIClient interface {
+	HeadBucket(context.Context, *HeadBucketInput, ...func(*Options)) (*HeadBucketOutput, error)
+}
+
+var _ HeadBucketAPIClient = (*Client)(nil)
 
 func newServiceMetadataMiddleware_opHeadBucket(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{

@@ -1,3 +1,44 @@
+# v1.17.7 (2024-07-10.2)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.6 (2024-07-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.5 (2024-07-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.4 (2024-07-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.3 (2024-06-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.2 (2024-06-26)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.1 (2024-06-19)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.0 (2024-06-18)
+
+* **Feature**: Track usage of various AWS SDK features in user-agent string.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.25 (2024-06-17)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.24 (2024-06-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.16.23 (2024-06-05)
 
 * **Dependency Update**: Updated to the latest SDK module versions

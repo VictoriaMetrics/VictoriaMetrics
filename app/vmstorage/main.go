@@ -151,7 +151,7 @@ func main() {
 	startTime = time.Now()
 
 	// deregister storage metrics
-	metrics.UnregisterSet(storageMetrics)
+	metrics.UnregisterSet(storageMetrics, true)
 
 	stopStaleSnapshotsRemover()
 	vmselectSrv.MustStop()

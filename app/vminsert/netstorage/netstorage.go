@@ -586,8 +586,7 @@ func mustStopStorageNodes(snb *storageNodesBucket) {
 		sn.brCond.Broadcast()
 	}
 	snb.wg.Wait()
-	metrics.UnregisterSet(snb.ms)
-	snb.ms.UnregisterAllMetrics()
+	metrics.UnregisterSet(snb.ms, true)
 }
 
 // rerouteRowsToReadyStorageNodes reroutes src from not ready snSource to ready storage nodes.

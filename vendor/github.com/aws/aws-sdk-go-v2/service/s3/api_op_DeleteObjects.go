@@ -62,7 +62,7 @@ import (
 //     the s3:DeleteObject permission.
 //
 //   - s3:DeleteObjectVersion - To delete a specific version of an object from a
-//     versiong-enabled bucket, you must specify the s3:DeleteObjectVersion
+//     versioning-enabled bucket, you must specify the s3:DeleteObjectVersion
 //     permission.
 //
 //   - Directory bucket permissions - To grant access to this API operation on a
@@ -247,6 +247,7 @@ type DeleteObjectsInput struct {
 }
 
 func (in *DeleteObjectsInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 
 }
@@ -329,6 +330,15 @@ func (c *Client) addOperationDeleteObjectsMiddlewares(stack *middleware.Stack, o
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpDeleteObjectsValidationMiddleware(stack); err != nil {
