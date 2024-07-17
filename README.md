@@ -699,22 +699,20 @@ Example for writing data with Graphite plaintext protocol to local VictoriaMetri
 echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N localhost 2003
 ```
 
-To sanitize ingested metric names and labels according to Prometheus naming convention enable
-`-graphite.sanitizeMetricName` cmd-line flag. When enabled, VictoriaMetrics will apply the following modifications:
-- replace `/`,`@`,`*` with `_`;
-- drop `\`;
-- remove redundant dots, e.g: `metric..name` => `metric.name`;
-- replace characters not matching the expression `^a-zA-Z0-9:._` with `_`.
+The ingested metrics can be sanitized according to Prometheus naming convention by passing `-graphite.sanitizeMetricName` command-line flag
+to VictoriaMetrics. The following modifications are applied to the ingested samples when this flag is passed to VictoriaMetrics:
 
-VictoriaMetrics sets the current time if the timestamp is omitted.
+- remove redundant dots, e.g: `metric..name` => `metric.name`
+- replace characters not matching `a-zA-Z0-9:_.` chars with `_`
+
+VictoriaMetrics sets the current time to the ingested samples if the timestamp is omitted.
+
 An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
-
 
 ```sh
 curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
 ```
-
 
 The `/api/v1/export` endpoint should return the following response:
 
