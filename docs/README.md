@@ -2671,6 +2671,10 @@ Please, keep image size and number of images per single page low. Keep the docs 
 
 Image files must be placed in the same folder as the doc itself and they must have the same prefix as the doc filename.
 For example, all the images for `docs/foo/bar.md` should have filenames starting from `docs/foo/bar`.
+This simplifies lifetime management of the images:
+
+- when the corresponding doc is removed, then it is clear how to remove the associated images
+- when the corresponding doc is renamed, then it is clear how to rename the associated images.
 
 If the page needs to have many images, consider using WEB-optimized image format [webp](https://developers.google.com/speed/webp).
 When adding a new doc with many images use `webp` format right away. Or use a Makefile command below to
