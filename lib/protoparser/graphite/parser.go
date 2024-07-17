@@ -257,7 +257,7 @@ func stripLeadingWhitespace(s string) string {
 
 var sanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
 	// Apply rule to drop some chars to preserve backwards compatibility
-	s = repeatedDots.ReplaceAllString(s, ".")
+	s = repeatedDots.ReplaceAllLiteralString(s, ".")
 
 	// Replace any remaining illegal chars
 	return allowedChars.ReplaceAllLiteralString(s, "_")
