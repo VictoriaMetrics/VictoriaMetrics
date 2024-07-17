@@ -14,6 +14,10 @@ endif
 
 GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TAG)-$(BUILDINFO_TAG)'
 
+VICTORIA_LOGS_COMPONENTS = victoria-logs
+VICTORIA_METRICS_COMPONENTS = victoria-metrics
+VICTORIA_METRICS_UTILS_COMPONENTS = vmagent vmalert vmalert-tool vmauth vmbackup vmrestore vmctl
+
 .PHONY: $(MAKECMDGOALS)
 
 include app/*/Makefile
@@ -22,6 +26,73 @@ include docs/Makefile
 include deployment/*/Makefile
 include dashboards/Makefile
 include package/release/Makefile
+
+define RELEASE_GOOS_GOARCH
+	$(eval PKG_NAME := $(1))
+	$(eval PKG_COMPONENTS := $(2))
+
+	# Build
+	$(foreach pkg_component, $(PKG_COMPONENTS), $(MAKE) $(pkg_component)-$(GOOS)-$(GOARCH)-prod)
+
+	# Generate SBOM
+	mkdir -p "bin/$(PKG_NAME)-$(GOOS)-$(GOARCH)-$(PKG_TAG)_bom"
+	$(foreach pkg_component, $(PKG_COMPONENTS),
+		cyclonedx-gomod app -assert-licenses -json -licenses -packages \
+			-main app/$(pkg_component) \
+			-output bin/$(PKG_NAME)-$(GOOS)-$(GOARCH)-$(PKG_TAG)_bom/$(pkg_component)-$(GOOS)-$(GOARCH)-$(PKG_TAG)_bom.json)
+	
+	# Pack and compress
+	$(foreach pkg_component, $(PKG_COMPONENTS),
+		cd bin && tar --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -rf $(PKG_NAME)-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar \
+			$(pkg_component)-$(GOOS)-$(GOARCH)-prod)
+	cd bin && gzip $(PKG_NAME)-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar
+	cd bin && tar -czf $(PKG_NAME)-$(GOOS)-$(GOARCH)-$(PKG_TAG)_bom.tar.gz $(PKG_NAME)-$(GOOS)-$(GOARCH)-$(PKG_TAG)_bom
+
+	# Generate checksums
+	cd bin && \
+		sha256sum $(PKG_NAME)-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz > $(PKG_NAME)-$(GOOS)-$(GOARCH)-$(PKG_TAG)_checksums.txt && \
+		sha256sum $(PKG_NAME)-$(GOOS)-$(GOARCH)-$(PKG_TAG)_bom.tar.gz >> $(PKG_NAME)-$(GOOS)-$(GOARCH)-$(PKG_TAG)_checksums.txt
+	$(foreach pkg_component, $(PKG_COMPONENTS),
+		cd bin && sha256sum $(pkg_component)-$(GOOS)-$(GOARCH)-prod | sed s/-$(GOOS)-$(GOARCH)-prod/-prod/ >> \
+			$(PKG_NAME)-$(GOOS)-$(GOARCH)-$(PKG_TAG)_checksums.txt)
+
+	# Clean up
+	cd bin && rm -rf $(PKG_NAME)-$(GOOS)-$(GOARCH)-$(PKG_TAG)_bom
+	$(foreach pkg_component, $(PKG_COMPONENTS), cd bin && rm -f $(pkg_component)-$(GOOS)-$(GOARCH)-prod)
+endef
+
+define RELEASE_WINDOWS_GOARCH
+	$(eval PKG_NAME := $(1))
+	$(eval PKG_COMPONENTS := $(2))
+
+	# Build
+	$(foreach pkg_component, $(PKG_COMPONENTS), $(MAKE) $(pkg_component)-$(GOOS)-$(GOARCH)-prod)
+
+	# Generate SBOM
+	mkdir -p "bin/$(PKG_NAME)-$(GOOS)-$(GOARCH)-$(PKG_TAG)_bom"
+	$(foreach pkg_component, $(PKG_COMPONENTS),
+		cyclonedx-gomod app -assert-licenses -json -licenses -packages \
+			-main app/$(pkg_component) \
+			-output bin/$(PKG_NAME)-$(GOOS)-$(GOARCH)-$(PKG_TAG)_bom/$(pkg_component)-$(GOOS)-$(GOARCH)-$(PKG_TAG)_bom.json)
+	
+	# Pack and compress
+	$(foreach pkg_component, $(PKG_COMPONENTS),
+		cd bin && zip -u $(PKG_NAME)-$(GOOS)-$(GOARCH)-$(PKG_TAG).zip \
+			$(pkg_component)-$(GOOS)-$(GOARCH)-prod.exe)
+	cd bin && zip $(PKG_NAME)-$(GOOS)-$(GOARCH)-$(PKG_TAG)_bom.zip -r $(PKG_NAME)-$(GOOS)-$(GOARCH)-$(PKG_TAG)_bom
+
+	# Generate checksums
+	cd bin && \
+		sha256sum $(PKG_NAME)-$(GOOS)-$(GOARCH)-$(PKG_TAG).zip > $(PKG_NAME)-$(GOOS)-$(GOARCH)-$(PKG_TAG)_checksums.txt && \
+		sha256sum $(PKG_NAME)-$(GOOS)-$(GOARCH)-$(PKG_TAG)_bom.zip >> $(PKG_NAME)-$(GOOS)-$(GOARCH)-$(PKG_TAG)_checksums.txt
+	$(foreach pkg_component, $(PKG_COMPONENTS),
+		cd bin && sha256sum $(pkg_component)-$(GOOS)-$(GOARCH)-prod.exe >> $(PKG_NAME)-$(GOOS)-$(GOARCH)-$(PKG_TAG)_checksums.txt)
+
+	# Clean up
+	cd bin && rm -rf $(PKG_NAME)-$(GOOS)-$(GOARCH)-$(PKG_TAG)_bom
+	$(foreach pkg_component, $(PKG_COMPONENTS), cd bin && rm -f $(pkg_component)-$(GOOS)-$(GOARCH)-prod.exe)
+endef
+
 
 all: \
 	victoria-metrics-prod \
@@ -241,26 +312,13 @@ release-victoria-metrics-openbsd-amd64:
 	GOOS=openbsd GOARCH=amd64 $(MAKE) release-victoria-metrics-goos-goarch
 
 release-victoria-metrics-windows-amd64:
-	GOARCH=amd64 $(MAKE) release-victoria-metrics-windows-goarch
+	GOOS=windows GOARCH=amd64 $(MAKE) release-victoria-metrics-windows-goarch
 
-release-victoria-metrics-goos-goarch: victoria-metrics-$(GOOS)-$(GOARCH)-prod
-	cd bin && \
-		tar --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf victoria-metrics-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
-			victoria-metrics-$(GOOS)-$(GOARCH)-prod \
-		&& sha256sum victoria-metrics-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
-			victoria-metrics-$(GOOS)-$(GOARCH)-prod \
-			| sed s/-$(GOOS)-$(GOARCH)-prod/-prod/ > victoria-metrics-$(GOOS)-$(GOARCH)-$(PKG_TAG)_checksums.txt
-	cd bin && rm -rf victoria-metrics-$(GOOS)-$(GOARCH)-prod
+release-victoria-metrics-goos-goarch:
+	$(call RELEASE_GOOS_GOARCH,victoria-metrics,$(VICTORIA_METRICS_COMPONENTS))
 
-release-victoria-metrics-windows-goarch: victoria-metrics-windows-$(GOARCH)-prod
-	cd bin && \
-		zip victoria-metrics-windows-$(GOARCH)-$(PKG_TAG).zip \
-			victoria-metrics-windows-$(GOARCH)-prod.exe \
-		&& sha256sum victoria-metrics-windows-$(GOARCH)-$(PKG_TAG).zip \
-			victoria-metrics-windows-$(GOARCH)-prod.exe \
-			> victoria-metrics-windows-$(GOARCH)-$(PKG_TAG)_checksums.txt
-	cd bin && rm -rf \
-		victoria-metrics-windows-$(GOARCH)-prod.exe
+release-victoria-metrics-windows-goarch:
+	$(call RELEASE_WINDOWS_GOARCH,victoria-metrics,$(VICTORIA_METRICS_COMPONENTS))
 
 release-victoria-logs:
 	$(MAKE_PARALLEL) release-victoria-logs-linux-386 \
@@ -355,77 +413,13 @@ release-vmutils-openbsd-amd64:
 	GOOS=openbsd GOARCH=amd64 $(MAKE) release-vmutils-goos-goarch
 
 release-vmutils-windows-amd64:
-	GOARCH=amd64 $(MAKE) release-vmutils-windows-goarch
+	GOOS=windows GOARCH=amd64 $(MAKE) release-vmutils-windows-goarch
 
-release-vmutils-goos-goarch: \
-	vmagent-$(GOOS)-$(GOARCH)-prod \
-	vmalert-$(GOOS)-$(GOARCH)-prod \
-	vmalert-tool-$(GOOS)-$(GOARCH)-prod \
-	vmauth-$(GOOS)-$(GOARCH)-prod \
-	vmbackup-$(GOOS)-$(GOARCH)-prod \
-	vmrestore-$(GOOS)-$(GOARCH)-prod \
-	vmctl-$(GOOS)-$(GOARCH)-prod
-	cd bin && \
-		tar --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf vmutils-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
-			vmagent-$(GOOS)-$(GOARCH)-prod \
-			vmalert-$(GOOS)-$(GOARCH)-prod \
-			vmalert-tool-$(GOOS)-$(GOARCH)-prod \
-			vmauth-$(GOOS)-$(GOARCH)-prod \
-			vmbackup-$(GOOS)-$(GOARCH)-prod \
-			vmrestore-$(GOOS)-$(GOARCH)-prod \
-			vmctl-$(GOOS)-$(GOARCH)-prod \
-		&& sha256sum vmutils-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
-			vmagent-$(GOOS)-$(GOARCH)-prod \
-			vmalert-$(GOOS)-$(GOARCH)-prod \
-			vmalert-tool-$(GOOS)-$(GOARCH)-prod \
-			vmauth-$(GOOS)-$(GOARCH)-prod \
-			vmbackup-$(GOOS)-$(GOARCH)-prod \
-			vmrestore-$(GOOS)-$(GOARCH)-prod \
-			vmctl-$(GOOS)-$(GOARCH)-prod \
-			| sed s/-$(GOOS)-$(GOARCH)-prod/-prod/ > vmutils-$(GOOS)-$(GOARCH)-$(PKG_TAG)_checksums.txt
-	cd bin && rm -rf \
-		vmagent-$(GOOS)-$(GOARCH)-prod \
-		vmalert-$(GOOS)-$(GOARCH)-prod \
-		vmalert-tool-$(GOOS)-$(GOARCH)-prod \
-		vmauth-$(GOOS)-$(GOARCH)-prod \
-		vmbackup-$(GOOS)-$(GOARCH)-prod \
-		vmrestore-$(GOOS)-$(GOARCH)-prod \
-		vmctl-$(GOOS)-$(GOARCH)-prod
+release-vmutils-goos-goarch:
+	$(call RELEASE_GOOS_GOARCH, vmutils, $(VICTORIA_METRICS_UTILS_COMPONENTS))
 
-release-vmutils-windows-goarch: \
-	vmagent-windows-$(GOARCH)-prod \
-	vmalert-windows-$(GOARCH)-prod \
-	vmalert-tool-windows-$(GOARCH)-prod \
-	vmauth-windows-$(GOARCH)-prod \
-	vmbackup-windows-$(GOARCH)-prod \
-	vmrestore-windows-$(GOARCH)-prod \
-	vmctl-windows-$(GOARCH)-prod
-	cd bin && \
-		zip vmutils-windows-$(GOARCH)-$(PKG_TAG).zip \
-			vmagent-windows-$(GOARCH)-prod.exe \
-			vmalert-windows-$(GOARCH)-prod.exe \
-			vmalert-tool-windows-$(GOARCH)-prod.exe \
-			vmauth-windows-$(GOARCH)-prod.exe \
-			vmbackup-windows-$(GOARCH)-prod.exe \
-			vmrestore-windows-$(GOARCH)-prod.exe \
-			vmctl-windows-$(GOARCH)-prod.exe \
-		&& sha256sum vmutils-windows-$(GOARCH)-$(PKG_TAG).zip \
-			vmagent-windows-$(GOARCH)-prod.exe \
-			vmalert-windows-$(GOARCH)-prod.exe \
-			vmalert-tool-windows-$(GOARCH)-prod.exe \
-			vmauth-windows-$(GOARCH)-prod.exe \
-			vmbackup-windows-$(GOARCH)-prod.exe \
-			vmrestore-windows-$(GOARCH)-prod.exe \
-			vmctl-windows-$(GOARCH)-prod.exe \
-			> vmutils-windows-$(GOARCH)-$(PKG_TAG)_checksums.txt
-	cd bin && rm -rf \
-		vmagent-windows-$(GOARCH)-prod.exe \
-		vmalert-windows-$(GOARCH)-prod.exe \
-		vmalert-tool-windows-$(GOARCH)-prod.exe \
-		vmauth-windows-$(GOARCH)-prod.exe \
-		vmbackup-windows-$(GOARCH)-prod.exe \
-		vmrestore-windows-$(GOARCH)-prod.exe \
-		vmctl-windows-$(GOARCH)-prod.exe
+release-vmutils-windows-goarch:
+	$(call RELEASE_WINDOWS_GOARCH, vmutils, $(VICTORIA_METRICS_UTILS_COMPONENTS))
 
 pprof-cpu:
 	go tool pprof -trim_path=github.com/VictoriaMetrics/VictoriaMetrics@ $(PPROF_FILE)
@@ -513,6 +507,9 @@ install-wwhrd:
 
 check-licenses: install-wwhrd
 	wwhrd check -f .wwhrd.yml
+
+cyclonedx-gomod-install:
+	which cyclonedx-gomod || go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@latest
 
 copy-docs:
 # The 'printf' function is used instead of 'echo' or 'echo -e' to handle line breaks (e.g. '\n') in the same way on different operating systems (MacOS/Ubuntu Linux/Arch Linux) and their shells (bash/sh/zsh/fish).
