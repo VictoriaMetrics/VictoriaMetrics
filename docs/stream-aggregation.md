@@ -1016,6 +1016,7 @@ At [vmagent](https://docs.victoriametrics.com/vmagent/) `-remoteWrite.streamAggr
 specified individually per each `-remoteWrite.url`:
 
 ```yaml
+
   # name is an optional name of the given streaming aggregation config.
   #
   # If it is set, then it is used as `name` label in the exposed metrics
