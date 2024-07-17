@@ -342,6 +342,55 @@ func TestUserInfoGetBackendURL_SRV(t *testing.T) {
 	f(ui, `/test`, "http://non-exist-dns-addr/test")
 }
 
+func TestUserInfoGetBackendURL_SRVZeroBackends(t *testing.T) {
+	f := func(ui *UserInfo, requestURI string) {
+		t.Helper()
+
+		u, err := url.Parse(requestURI)
+		if err != nil {
+			t.Fatalf("cannot parse %q: %s", requestURI, err)
+		}
+		u = normalizeURL(u)
+		up, _ := ui.getURLPrefixAndHeaders(u, nil)
+		if up == nil {
+			t.Fatalf("cannot match available backend: %s", err)
+		}
+		bu := up.getBackendURL()
+		if bu != nil {
+			t.Fatalf("expecting nil backendURL; got %v", bu)
+		}
+	}
+
+	customResolver := &fakeResolver{
+		Resolver: &net.Resolver{},
+		lookupSRVResults: map[string][]*net.SRV{
+			"vmselect": {},
+		},
+	}
+	origResolver := netutil.Resolver
+	netutil.Resolver = customResolver
+	defer func() {
+		netutil.Resolver = origResolver
+	}()
+
+	allowed := true
+	ui := &UserInfo{
+		URLMaps: []URLMap{
+			{
+				SrcPaths:  getRegexs([]string{"/select/.+"}),
+				URLPrefix: mustParseURL("http://srv+vmselect"),
+			},
+		},
+		DiscoverBackendIPs: &allowed,
+		URLPrefix:          mustParseURL("http://non-exist-dns-addr"),
+	}
+	if err := ui.initURLs(); err != nil {
+		t.Fatalf("cannot initialize urls inside UserInfo: %s", err)
+	}
+
+	f(ui, `/select/0/prometheus/api/v1/query?query=up`)
+}
+
 func TestCreateTargetURLFailure(t *testing.T) {
 	f := func(ui *UserInfo, requestURI string) {
 		t.Helper()
