@@ -405,7 +405,7 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 			buCopy.Host = addr
 			if port != "" {
 				if n := strings.IndexByte(buCopy.Host, ':'); n >= 0 {
-					// Drop the discovered port and substitute it the the port specified in bu.
+					// Drop the discovered port and substitute it the port specified in bu.
 					buCopy.Host = buCopy.Host[:n]
 				}
 				buCopy.Host += ":" + port

@@ -9,7 +9,7 @@ import (
 	"github.com/valyala/histogram"
 )
 
-// quantilesAggrState calculates output=quantiles, e.g. the the given quantiles over the input samples.
+// quantilesAggrState calculates output=quantiles, e.g. the given quantiles over the input samples.
 type quantilesAggrState struct {
 	m sync.Map
 
