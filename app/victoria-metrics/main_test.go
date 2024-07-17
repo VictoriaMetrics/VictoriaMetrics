@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -117,7 +118,7 @@ func (q *Query) metrics() ([]Metric, error) {
 type QueryInstant struct {
 	Result []struct {
 		Labels map[string]string `json:"metric"`
-		TV     [2]interface{}    `json:"value"`
+		TV     [2]any            `json:"value"`
 	} `json:"result"`
 }
 
@@ -140,7 +141,7 @@ func (q QueryInstant) metrics() ([]Metric, error) {
 type QueryRange struct {
 	Result []struct {
 		Metric map[string]string `json:"metric"`
-		Values [][]interface{}   `json:"values"`
+		Values [][]any           `json:"values"`
 	} `json:"result"`
 }
 
@@ -249,24 +250,24 @@ func TestWriteRead(t *testing.T) {
 
 func testWrite(t *testing.T) {
 	t.Run("prometheus", func(t *testing.T) {
-		for _, test := range readIn("prometheus", t, insertionTime) {
+		for _, test := range readIn("prometheus", insertionTime) {
 			if test.Data == nil {
 				continue
 			}
-			s := newSuite(t)
 			r := testutil.WriteRequest{}
-			s.noError(json.Unmarshal([]byte(strings.Join(test.Data, "\n")), &r.Timeseries))
-			data, err := testutil.Compress(r)
-			s.greaterThan(len(r.Timeseries), 0)
-			if err != nil {
-				t.Errorf("error compressing %v %s", r, err)
-				t.Fail()
+			testData := strings.Join(test.Data, "\n")
+			if err := json.Unmarshal([]byte(testData), &r.Timeseries); err != nil {
+				panic(fmt.Errorf("BUG: cannot unmarshal TimeSeries: %s\ntest data\n%s", err, testData))
 			}
+			if n := len(r.Timeseries); n <= 0 {
+				panic(fmt.Errorf("BUG: expecting non-empty Timeseries in test data:\n%s", testData))
+			}
+			data := testutil.Compress(r)
 			httpWrite(t, testPromWriteHTTPPath, test.InsertQuery, bytes.NewBuffer(data))
 		}
 	})
 	t.Run("csv", func(t *testing.T) {
-		for _, test := range readIn("csv", t, insertionTime) {
+		for _, test := range readIn("csv", insertionTime) {
 			if test.Data == nil {
 				continue
 			}
@@ -275,7 +276,7 @@ func testWrite(t *testing.T) {
 	})
 
 	t.Run("influxdb", func(t *testing.T) {
-		for _, x := range readIn("influxdb", t, insertionTime) {
+		for _, x := range readIn("influxdb", insertionTime) {
 			test := x
 			t.Run(test.Name, func(t *testing.T) {
 				t.Parallel()
@@ -284,7 +285,7 @@ func testWrite(t *testing.T) {
 		}
 	})
 	t.Run("graphite", func(t *testing.T) {
-		for _, x := range readIn("graphite", t, insertionTime) {
+		for _, x := range readIn("graphite", insertionTime) {
 			test := x
 			t.Run(test.Name, func(t *testing.T) {
 				t.Parallel()
@@ -293,7 +294,7 @@ func testWrite(t *testing.T) {
 		}
 	})
 	t.Run("opentsdb", func(t *testing.T) {
-		for _, x := range readIn("opentsdb", t, insertionTime) {
+		for _, x := range readIn("opentsdb", insertionTime) {
 			test := x
 			t.Run(test.Name, func(t *testing.T) {
 				t.Parallel()
@@ -302,7 +303,7 @@ func testWrite(t *testing.T) {
 		}
 	})
 	t.Run("opentsdbhttp", func(t *testing.T) {
-		for _, x := range readIn("opentsdbhttp", t, insertionTime) {
+		for _, x := range readIn("opentsdbhttp", insertionTime) {
 			test := x
 			t.Run(test.Name, func(t *testing.T) {
 				t.Parallel()
@@ -316,7 +317,7 @@ func testWrite(t *testing.T) {
 func testRead(t *testing.T) {
 	for _, engine := range []string{"csv", "prometheus", "graphite", "opentsdb", "influxdb", "opentsdbhttp"} {
 		t.Run(engine, func(t *testing.T) {
-			for _, x := range readIn(engine, t, insertionTime) {
+			for _, x := range readIn(engine, insertionTime) {
 				test := x
 				t.Run(test.Name, func(t *testing.T) {
 					t.Parallel()
@@ -365,11 +366,10 @@ func testRead(t *testing.T) {
 	}
 }
 
-func readIn(readFor string, t *testing.T, insertTime time.Time) []test {
-	t.Helper()
-	s := newSuite(t)
+func readIn(readFor string, insertTime time.Time) []test {
+	testDir := filepath.Join(testFixturesDir, readFor)
 	var tt []test
-	s.noError(filepath.Walk(filepath.Join(testFixturesDir, readFor), func(path string, _ os.FileInfo, err error) error {
+	err := filepath.Walk(testDir, func(path string, _ os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -377,84 +377,129 @@ func readIn(readFor string, t *testing.T, insertTime time.Time) []test {
 			return nil
 		}
 		b, err := os.ReadFile(path)
-		s.noError(err)
+		if err != nil {
+			panic(fmt.Errorf("BUG: cannot read %s: %s", path, err))
+		}
 		item := test{}
-		s.noError(json.Unmarshal(b, &item))
+		if err := json.Unmarshal(b, &item); err != nil {
+			panic(fmt.Errorf("cannot parse %T from %s: %s; data:\n%s", &item, path, err, b))
+		}
 		for i := range item.Data {
 			item.Data[i] = testutil.PopulateTimeTplString(item.Data[i], insertTime)
 		}
 		tt = append(tt, item)
 		return nil
-	}))
+	})
+	if err != nil {
+		panic(fmt.Errorf("BUG: cannot read test data at %s: %w", testDir, err))
+	}
 	if len(tt) == 0 {
-		t.Fatalf("no test found in %s", filepath.Join(testFixturesDir, readFor))
+		panic(fmt.Errorf("BUG: no tests found in %s", testDir))
 	}
 	return tt
 }
 
 func httpWrite(t *testing.T, address, query string, r io.Reader) {
 	t.Helper()
-	s := newSuite(t)
-	resp, err := http.Post(address+query, "", r)
-	s.noError(err)
-	s.noError(resp.Body.Close())
-	s.equalInt(resp.StatusCode, 204)
+
+	requestURL := address + query
+	resp, err := http.Post(requestURL, "", r)
+	if err != nil {
+		t.Fatalf("cannot send request to %s: %s", requestURL, err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != 204 {
+		t.Fatalf("unexpected status code received from %s; got %d; want 204", requestURL, resp.StatusCode)
+	}
 }
 
-func tcpWrite(t *testing.T, address string, data string) {
+func tcpWrite(t *testing.T, address, data string) {
 	t.Helper()
-	s := newSuite(t)
+
 	conn, err := net.Dial("tcp", address)
-	s.noError(err)
+	if err != nil {
+		t.Fatalf("cannot dial %s: %s", address, err)
+	}
 	defer func() {
 		_ = conn.Close()
 	}()
 	n, err := conn.Write([]byte(data))
-	s.noError(err)
-	s.equalInt(n, len(data))
+	if err != nil {
+		t.Fatalf("cannot write %d bytes to %s: %s", len(data), address, err)
+	}
+	if n != len(data) {
+		panic(fmt.Errorf("BUG: conn.Write() returned unexpected number of written bytes to %s; got %d; want %d", address, n, len(data)))
+	}
 }
 
 func httpReadMetrics(t *testing.T, address, query string) []Metric {
 	t.Helper()
-	s := newSuite(t)
-	resp, err := http.Get(address + query)
-	s.noError(err)
+
+	requestURL := address + query
+	resp, err := http.Get(requestURL)
+	if err != nil {
+		t.Fatalf("cannot send request to %s: %s", requestURL, err)
+	}
 	defer func() {
 		_ = resp.Body.Close()
 	}()
-	s.equalInt(resp.StatusCode, 200)
+	if resp.StatusCode != 200 {
+		t.Fatalf("unexpected status code received from %s; got %d; want 200", requestURL, resp.StatusCode)
+	}
+
 	var rows []Metric
-	for dec := json.NewDecoder(resp.Body); dec.More(); {
+	dec := json.NewDecoder(resp.Body)
+	for {
 		var row Metric
-		s.noError(dec.Decode(&row))
+		err := dec.Decode(&row)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return rows
+			}
+			t.Fatalf("cannot decode %T from response received from %s: %s", &row, requestURL, err)
+		}
 		rows = append(rows, row)
 	}
-	return rows
 }
 
-func httpReadStruct(t *testing.T, address, query string, dst interface{}) {
+func httpReadStruct(t *testing.T, address, query string, dst any) {
 	t.Helper()
-	s := newSuite(t)
-	resp, err := http.Get(address + query)
-	s.noError(err)
+
+	requestURL := address + query
+	resp, err := http.Get(requestURL)
+	if err != nil {
+		t.Fatalf("cannot send request to %s: %s", requestURL, err)
+	}
 	defer func() {
 		_ = resp.Body.Close()
 	}()
-	s.equalInt(resp.StatusCode, 200)
-	s.noError(json.NewDecoder(resp.Body).Decode(dst))
+	if resp.StatusCode != 200 {
+		t.Fatalf("unexpected status code received from %s; got %d; want 200", requestURL, resp.StatusCode)
+	}
+	err = json.NewDecoder(resp.Body).Decode(dst)
+	if err != nil {
+		t.Fatalf("cannot decode %T from response received from %s: %s", dst, requestURL, err)
+	}
 }
 
 func httpReadData(t *testing.T, address, query string) []byte {
 	t.Helper()
-	s := newSuite(t)
-	resp, err := http.Get(address + query)
-	s.noError(err)
+
+	requestURL := address + query
+	resp, err := http.Get(requestURL)
+	if err != nil {
+		t.Fatalf("cannot send request to %s: %s", requestURL, err)
+	}
 	defer func() {
 		_ = resp.Body.Close()
 	}()
-	s.equalInt(resp.StatusCode, 200)
+	if resp.StatusCode != 200 {
+		t.Fatalf("unexpected status code received from %s; got %d; want 200", requestURL, resp.StatusCode)
+	}
 	data, err := io.ReadAll(resp.Body)
-	s.noError(err)
+	if err != nil {
+		t.Fatalf("cannot read response from %s: %s", requestURL, err)
+	}
 	return data
 }
 
@@ -501,34 +546,6 @@ func removeIfFoundSeries(r map[string]string, contains []map[string]string) []ma
 		}
 	}
 	return contains
-}
-
-type suite struct{ t *testing.T }
-
-func newSuite(t *testing.T) *suite { return &suite{t: t} }
-
-func (s *suite) noError(err error) {
-	s.t.Helper()
-	if err != nil {
-		s.t.Errorf("unexpected error %v", err)
-		s.t.FailNow()
-	}
-}
-
-func (s *suite) equalInt(a, b int) {
-	s.t.Helper()
-	if a != b {
-		s.t.Errorf("%d not equal %d", a, b)
-		s.t.FailNow()
-	}
-}
-
-func (s *suite) greaterThan(a, b int) {
-	s.t.Helper()
-	if a <= b {
-		s.t.Errorf("%d less or equal then %d", a, b)
-		s.t.FailNow()
-	}
 }
 
 func TestImportJSONLines(t *testing.T) {

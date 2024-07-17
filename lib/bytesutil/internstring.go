@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 var (
@@ -18,6 +19,119 @@ var (
 	cacheExpireDuration = flag.Duration("internStringCacheExpireDuration", 6*time.Minute, "The expiry duration for caches for interned strings. "+
 		"See https://en.wikipedia.org/wiki/String_interning . See also -internStringMaxLen and -internStringDisableCache")
 )
+
+type internStringMap struct {
+	mutableLock  sync.Mutex
+	mutable      map[string]string
+	mutableReads uint64
+
+	readonly atomic.Pointer[map[string]internStringMapEntry]
+}
+
+type internStringMapEntry struct {
+	deadline uint64
+	s        string
+}
+
+func newInternStringMap() *internStringMap {
+	m := &internStringMap{
+		mutable: make(map[string]string),
+	}
+	readonly := make(map[string]internStringMapEntry)
+	m.readonly.Store(&readonly)
+
+	go func() {
+		cleanupInterval := timeutil.AddJitterToDuration(*cacheExpireDuration) / 2
+		ticker := time.NewTicker(cleanupInterval)
+		for range ticker.C {
+			m.cleanup()
+		}
+	}()
+
+	return m
+}
+
+func (m *internStringMap) getReadonly() map[string]internStringMapEntry {
+	return *m.readonly.Load()
+}
+
+func (m *internStringMap) intern(s string) string {
+	if isSkipCache(s) {
+		return strings.Clone(s)
+	}
+
+	readonly := m.getReadonly()
+	e, ok := readonly[s]
+	if ok {
+		// Fast path - the string has been found in readonly map.
+		return e.s
+	}
+
+	// Slower path - search for the string in mutable map under the lock.
+	m.mutableLock.Lock()
+	sInterned, ok := m.mutable[s]
+	if !ok {
+		// Verify whether s has been already registered by concurrent goroutines in m.readonly
+		readonly = m.getReadonly()
+		e, ok = readonly[s]
+		if !ok {
+			// Slowest path - register the string in mutable map.
+			// Make a new copy for s in order to remove references from possible bigger string s refers to.
+			sInterned = strings.Clone(s)
+			m.mutable[sInterned] = sInterned
+		} else {
+			sInterned = e.s
+		}
+	}
+	m.mutableReads++
+	if m.mutableReads > uint64(len(readonly)) {
+		m.migrateMutableToReadonlyLocked()
+		m.mutableReads = 0
+	}
+	m.mutableLock.Unlock()
+
+	return sInterned
+}
+
+func (m *internStringMap) migrateMutableToReadonlyLocked() {
+	readonly := m.getReadonly()
+	readonlyCopy := make(map[string]internStringMapEntry, len(readonly)+len(m.mutable))
+	for k, e := range readonly {
+		readonlyCopy[k] = e
+	}
+	deadline := fasttime.UnixTimestamp() + uint64(cacheExpireDuration.Seconds()+0.5)
+	for k, s := range m.mutable {
+		readonlyCopy[k] = internStringMapEntry{
+			s:        s,
+			deadline: deadline,
+		}
+	}
+	m.mutable = make(map[string]string)
+	m.readonly.Store(&readonlyCopy)
+}
+
+func (m *internStringMap) cleanup() {
+	readonly := m.getReadonly()
+	currentTime := fasttime.UnixTimestamp()
+	needCleanup := false
+	for _, e := range readonly {
+		if e.deadline <= currentTime {
+			needCleanup = true
+			break
+		}
+	}
+	if !needCleanup {
+		return
+	}
+
+	readonlyCopy := make(map[string]internStringMapEntry, len(readonly))
+	for k, e := range readonly {
+		if e.deadline > currentTime {
+			readonlyCopy[k] = e
+		}
+	}
+	m.readonly.Store(&readonlyCopy)
+}
 
 func isSkipCache(s string) bool {
 	return *disableCache || len(s) > *internStringMaxLen
@@ -33,52 +147,7 @@ func InternBytes(b []byte) string {
 //
 // This may be needed for reducing the amounts of allocated memory.
 func InternString(s string) string {
-	if isSkipCache(s) {
-		// Make a new copy for s in order to remove references from possible bigger string s refers to.
-		// This also protects from cases when s points to unsafe string - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3227
-		return strings.Clone(s)
-	}
-
-	ct := fasttime.UnixTimestamp()
-	if v, ok := internStringsMap.Load(s); ok {
-		e := v.(*ismEntry)
-		if e.lastAccessTime.Load()+10 < ct {
-			// Reduce the frequency of e.lastAccessTime update to once per 10 seconds
-			// in order to improve the fast path speed on systems with many CPU cores.
-			e.lastAccessTime.Store(ct)
-		}
-		return e.s
-	}
-	// Make a new copy for s in order to remove references from possible bigger string s refers to.
-	sCopy := strings.Clone(s)
-	e := &ismEntry{
-		s: sCopy,
-	}
-	e.lastAccessTime.Store(ct)
-	internStringsMap.Store(sCopy, e)
-
-	if needCleanup(&internStringsMapLastCleanupTime, ct) {
-		// Perform a global cleanup for internStringsMap by removing items, which weren't accessed during the last 5 minutes.
-		m := &internStringsMap
-		deadline := ct - uint64(cacheExpireDuration.Seconds())
-		m.Range(func(k, v interface{}) bool {
-			e := v.(*ismEntry)
-			if e.lastAccessTime.Load() < deadline {
-				m.Delete(k)
-			}
-			return true
-		})
-	}
-
-	return sCopy
+	return ism.intern(s)
 }
 
-type ismEntry struct {
-	lastAccessTime atomic.Uint64
-	s              string
-}
-
-var (
-	internStringsMap                sync.Map
-	internStringsMapLastCleanupTime atomic.Uint64
-)
+var ism = newInternStringMap()

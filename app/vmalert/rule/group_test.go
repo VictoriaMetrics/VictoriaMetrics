@@ -37,158 +37,142 @@ func TestMain(m *testing.M) {
 }
 
 func TestUpdateWith(t *testing.T) {
-	testCases := []struct {
-		name         string
-		currentRules []config.Rule
-		newRules     []config.Rule
-	}{
-		{
-			"new rule",
-			nil,
-			[]config.Rule{{Alert: "bar"}},
-		},
-		{
-			"update alerting rule",
-			[]config.Rule{
-				{
-					Alert: "foo",
-					Expr:  "up > 0",
-					For:   promutils.NewDuration(time.Second),
-					Labels: map[string]string{
-						"bar": "baz",
-					},
-					Annotations: map[string]string{
-						"summary":     "{{ $value|humanize }}",
-						"description": "{{$labels}}",
-					},
-				},
-				{
-					Alert: "bar",
-					Expr:  "up > 0",
-					For:   promutils.NewDuration(time.Second),
-					Labels: map[string]string{
-						"bar": "baz",
-					},
-				},
-			},
-			[]config.Rule{
-				{
-					Alert: "foo",
-					Expr:  "up > 10",
-					For:   promutils.NewDuration(time.Second),
-					Labels: map[string]string{
-						"baz": "bar",
-					},
-					Annotations: map[string]string{
-						"summary": "none",
-					},
-				},
-				{
-					Alert:         "bar",
-					Expr:          "up > 0",
-					For:           promutils.NewDuration(2 * time.Second),
-					KeepFiringFor: promutils.NewDuration(time.Minute),
-					Labels: map[string]string{
-						"bar": "baz",
-					},
-				},
-			},
-		},
-		{
-			"update recording rule",
-			[]config.Rule{{
-				Record: "foo",
-				Expr:   "max(up)",
-				Labels: map[string]string{
-					"bar": "baz",
-				},
-			}},
-			[]config.Rule{{
-				Record: "foo",
-				Expr:   "min(up)",
-				Labels: map[string]string{
-					"baz": "bar",
-				},
-			}},
-		},
-		{
-			"empty rule",
-			[]config.Rule{{Alert: "foo"}, {Record: "bar"}},
-			nil,
-		},
-		{
-			"multiple rules",
-			[]config.Rule{
-				{Alert: "bar"},
-				{Alert: "baz"},
-				{Alert: "foo"},
-			},
-			[]config.Rule{
-				{Alert: "baz"},
-				{Record: "foo"},
-			},
-		},
-		{
-			"replace rule",
-			[]config.Rule{{Alert: "foo1"}},
-			[]config.Rule{{Alert: "foo2"}},
-		},
-		{
-			"replace multiple rules",
-			[]config.Rule{
-				{Alert: "foo1"},
-				{Record: "foo2"},
-				{Alert: "foo3"},
-			},
-			[]config.Rule{
-				{Alert: "foo3"},
-				{Alert: "foo4"},
-				{Record: "foo5"},
-			},
-		},
-	}
+	f := func(currentRules, newRules []config.Rule) {
+		t.Helper()
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			g := &Group{Name: "test"}
-			qb := &datasource.FakeQuerier{}
-			for _, r := range tc.currentRules {
-				r.ID = config.HashRule(r)
-				g.Rules = append(g.Rules, g.newRule(qb, r))
-			}
+		g := &Group{
+			Name: "test",
+		}
+		qb := &datasource.FakeQuerier{}
+		for _, r := range currentRules {
+			r.ID = config.HashRule(r)
+			g.Rules = append(g.Rules, g.newRule(qb, r))
+		}
 
-			ng := &Group{Name: "test"}
-			for _, r := range tc.newRules {
-				r.ID = config.HashRule(r)
-				ng.Rules = append(ng.Rules, ng.newRule(qb, r))
-			}
+		ng := &Group{
+			Name: "test",
+		}
+		for _, r := range newRules {
+			r.ID = config.HashRule(r)
+			ng.Rules = append(ng.Rules, ng.newRule(qb, r))
+		}
 
-			err := g.updateWith(ng)
-			if err != nil {
-				t.Fatal(err)
-			}
+		err := g.updateWith(ng)
+		if err != nil {
+			t.Fatalf("cannot update rule: %s", err)
+		}
 
-			if len(g.Rules) != len(tc.newRules) {
-				t.Fatalf("expected to have %d rules; got: %d",
-					len(g.Rules), len(tc.newRules))
-			}
-			sort.Slice(g.Rules, func(i, j int) bool {
-				return g.Rules[i].ID() < g.Rules[j].ID()
-			})
-			sort.Slice(ng.Rules, func(i, j int) bool {
-				return ng.Rules[i].ID() < ng.Rules[j].ID()
-			})
-			for i, r := range g.Rules {
-				got, want := r, ng.Rules[i]
-				if got.ID() != want.ID() {
-					t.Fatalf("expected to have rule %q; got %q", want, got)
-				}
-				if err := CompareRules(t, got, want); err != nil {
-					t.Fatalf("comparison error: %s", err)
-				}
-			}
+		if len(g.Rules) != len(newRules) {
+			t.Fatalf("expected to have %d rules; got: %d", len(g.Rules), len(newRules))
+		}
+		sort.Slice(g.Rules, func(i, j int) bool {
+			return g.Rules[i].ID() < g.Rules[j].ID()
 		})
+		sort.Slice(ng.Rules, func(i, j int) bool {
+			return ng.Rules[i].ID() < ng.Rules[j].ID()
+		})
+		for i, r := range g.Rules {
+			got, want := r, ng.Rules[i]
+			if got.ID() != want.ID() {
+				t.Fatalf("expected to have rule %q; got %q", want, got)
+			}
+			if err := CompareRules(t, got, want); err != nil {
+				t.Fatalf("comparison error: %s", err)
+			}
+		}
 	}
+
+	// new rule
+	f(nil, []config.Rule{
+		{Alert: "bar"},
+	})
+
+	// update alerting rule
+	f([]config.Rule{
+		{
+			Alert: "foo",
+			Expr:  "up > 0",
+			For:   promutils.NewDuration(time.Second),
+			Labels: map[string]string{
+				"bar": "baz",
+			},
+			Annotations: map[string]string{
+				"summary":     "{{ $value|humanize }}",
+				"description": "{{$labels}}",
+			},
+		},
+		{
+			Alert: "bar",
+			Expr:  "up > 0",
+			For:   promutils.NewDuration(time.Second),
+			Labels: map[string]string{
+				"bar": "baz",
+			},
+		},
+	}, []config.Rule{
+		{
+			Alert: "foo",
+			Expr:  "up > 10",
+			For:   promutils.NewDuration(time.Second),
+			Labels: map[string]string{
+				"baz": "bar",
+			},
+			Annotations: map[string]string{
+				"summary": "none",
+			},
+		},
+		{
+			Alert:         "bar",
+			Expr:          "up > 0",
+			For:           promutils.NewDuration(2 * time.Second),
+			KeepFiringFor: promutils.NewDuration(time.Minute),
+			Labels: map[string]string{
+				"bar": "baz",
+			},
+		},
+	})
+
+	// update recording rule
+	f([]config.Rule{{
+		Record: "foo",
+		Expr:   "max(up)",
+		Labels: map[string]string{
+			"bar": "baz",
+		},
+	}}, []config.Rule{{
+		Record: "foo",
+		Expr:   "min(up)",
+		Labels: map[string]string{
+			"baz": "bar",
+		},
+	}})
+
+	// empty rule
+	f([]config.Rule{{Alert: "foo"}, {Record: "bar"}}, nil)
+
+	// multiple rules
+	f([]config.Rule{
+		{Alert: "bar"},
+		{Alert: "baz"},
+		{Alert: "foo"},
+	}, []config.Rule{
+		{Alert: "baz"},
+		{Record: "foo"},
+	})
+
+	// replace rule
+	f([]config.Rule{{Alert: "foo1"}}, []config.Rule{{Alert: "foo2"}})
+
+	// replace multiple rules
+	f([]config.Rule{
+		{Alert: "foo1"},
+		{Record: "foo2"},
+		{Alert: "foo3"},
+	}, []config.Rule{
+		{Alert: "foo3"},
+		{Alert: "foo4"},
+		{Record: "foo5"},
+	})
 }
 
 func TestGroupStart(t *testing.T) {
@@ -312,30 +296,23 @@ func TestGroupStart(t *testing.T) {
 	<-finished
 }
 
-func TestResolveDuration(t *testing.T) {
-	testCases := []struct {
-		groupInterval time.Duration
-		maxDuration   time.Duration
-		resendDelay   time.Duration
-		expected      time.Duration
-	}{
-		{time.Minute, 0, 0, 4 * time.Minute},
-		{time.Minute, 0, 2 * time.Minute, 8 * time.Minute},
-		{time.Minute, 4 * time.Minute, 4 * time.Minute, 4 * time.Minute},
-		{2 * time.Minute, time.Minute, 2 * time.Minute, time.Minute},
-		{time.Minute, 2 * time.Minute, 1 * time.Minute, 2 * time.Minute},
-		{2 * time.Minute, 0, 1 * time.Minute, 8 * time.Minute},
-		{0, 0, 0, 0},
+func TestGetResolveDuration(t *testing.T) {
+	f := func(groupInterval, maxDuration, resendDelay, resultExpected time.Duration) {
+		t.Helper()
+
+		result := getResolveDuration(groupInterval, resendDelay, maxDuration)
+		if result != resultExpected {
+			t.Fatalf("unexpected result; got %s; want %s", result, resultExpected)
+		}
 	}
 
-	for _, tc := range testCases {
-		t.Run(fmt.Sprintf("%v-%v-%v", tc.groupInterval, tc.expected, tc.maxDuration), func(t *testing.T) {
-			got := getResolveDuration(tc.groupInterval, tc.resendDelay, tc.maxDuration)
-			if got != tc.expected {
-				t.Errorf("expected to have %v; got %v", tc.expected, got)
-			}
-		})
-	}
+	f(0, 0, 0, 0)
+	f(time.Minute, 0, 0, 4*time.Minute)
+	f(time.Minute, 0, 2*time.Minute, 8*time.Minute)
+	f(time.Minute, 4*time.Minute, 4*time.Minute, 4*time.Minute)
+	f(2*time.Minute, time.Minute, 2*time.Minute, time.Minute)
+	f(time.Minute, 2*time.Minute, 1*time.Minute, 2*time.Minute)
+	f(2*time.Minute, 0, 1*time.Minute, 8*time.Minute)
 }
 
 func TestGetStaleSeries(t *testing.T) {
@@ -345,6 +322,7 @@ func TestGetStaleSeries(t *testing.T) {
 	}
 	f := func(r Rule, labels, expLabels [][]prompbmarshal.Label) {
 		t.Helper()
+
 		var tss []prompbmarshal.TimeSeries
 		for _, l := range labels {
 			tss = append(tss, newTimeSeriesPB([]float64{1}, []int64{ts.Unix()}, l))
@@ -606,7 +584,7 @@ func TestGroupStartDelay(t *testing.T) {
 		delay := delayBeforeStart(at, key, g.Interval, g.EvalOffset)
 		gotStart := at.Add(delay)
 		if expTS != gotStart {
-			t.Errorf("expected to get %v; got %v instead", expTS, gotStart)
+			t.Fatalf("expected to get %v; got %v instead", expTS, gotStart)
 		}
 	}
 
@@ -647,157 +625,118 @@ func TestGroupStartDelay(t *testing.T) {
 }
 
 func TestGetPrometheusReqTimestamp(t *testing.T) {
+	f := func(g *Group, tsOrigin, tsExpected string) {
+		t.Helper()
+
+		originT, _ := time.Parse(time.RFC3339, tsOrigin)
+		expT, _ := time.Parse(time.RFC3339, tsExpected)
+		gotTS := g.adjustReqTimestamp(originT)
+		if !gotTS.Equal(expT) {
+			t.Fatalf("get wrong prometheus request timestamp: %s; want %s", gotTS, expT)
+		}
+	}
+
 	offset := 30 * time.Minute
 	evalDelay := 1 * time.Minute
 	disableAlign := false
-	testCases := []struct {
-		name            string
-		g               *Group
-		originTS, expTS string
-	}{
-		{
-			"with query align + default evalDelay",
-			&Group{
-				Interval: time.Hour,
-			},
-			"2023-08-28T11:11:00+00:00",
-			"2023-08-28T11:00:00+00:00",
-		},
-		{
-			"without query align + default evalDelay",
-			&Group{
-				Interval:      time.Hour,
-				evalAlignment: &disableAlign,
-			},
-			"2023-08-28T11:11:00+00:00",
-			"2023-08-28T11:10:30+00:00",
-		},
-		{
-			"with eval_offset, find previous offset point + default evalDelay",
-			&Group{
-				EvalOffset: &offset,
-				Interval:   time.Hour,
-			},
-			"2023-08-28T11:11:00+00:00",
-			"2023-08-28T10:30:00+00:00",
-		},
-		{
-			"with eval_offset + default evalDelay",
-			&Group{
-				EvalOffset: &offset,
-				Interval:   time.Hour,
-			},
-			"2023-08-28T11:41:00+00:00",
-			"2023-08-28T11:30:00+00:00",
-		},
-		{
-			"1h interval with eval_delay",
-			&Group{
-				EvalDelay: &evalDelay,
-				Interval:  time.Hour,
-			},
-			"2023-08-28T11:41:00+00:00",
-			"2023-08-28T11:00:00+00:00",
-		},
-		{
-			"1m interval with eval_delay",
-			&Group{
-				EvalDelay: &evalDelay,
-				Interval:  time.Minute,
-			},
-			"2023-08-28T11:41:13+00:00",
-			"2023-08-28T11:40:00+00:00",
-		},
-		{
-			"disable alignment with eval_delay",
-			&Group{
-				EvalDelay:     &evalDelay,
-				Interval:      time.Hour,
-				evalAlignment: &disableAlign,
-			},
-			"2023-08-28T11:41:00+00:00",
-			"2023-08-28T11:40:00+00:00",
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			originT, _ := time.Parse(time.RFC3339, tc.originTS)
-			expT, _ := time.Parse(time.RFC3339, tc.expTS)
-			gotTS := tc.g.adjustReqTimestamp(originT)
-			if !gotTS.Equal(expT) {
-				t.Fatalf("get wrong prometheus request timestamp, expect %s, got %s", expT, gotTS)
-			}
-		})
-	}
+
+	// with query align + default evalDelay
+	f(&Group{
+		Interval: time.Hour,
+	}, "2023-08-28T11:11:00+00:00", "2023-08-28T11:00:00+00:00")
+
+	// without query align + default evalDelay
+	f(&Group{
+		Interval:      time.Hour,
+		evalAlignment: &disableAlign,
+	}, "2023-08-28T11:11:00+00:00", "2023-08-28T11:10:30+00:00")
+
+	// with eval_offset, find previous offset point + default evalDelay
+	f(&Group{
+		EvalOffset: &offset,
+		Interval:   time.Hour,
+	}, "2023-08-28T11:11:00+00:00", "2023-08-28T10:30:00+00:00")
+
+	// with eval_offset + default evalDelay
+	f(&Group{
+		EvalOffset: &offset,
+		Interval:   time.Hour,
+	}, "2023-08-28T11:41:00+00:00", "2023-08-28T11:30:00+00:00")
+
+	// 1h interval with eval_delay
+	f(&Group{
+		EvalDelay: &evalDelay,
+		Interval:  time.Hour,
+	}, "2023-08-28T11:41:00+00:00", "2023-08-28T11:00:00+00:00")
+
+	// 1m interval with eval_delay
+	f(&Group{
+		EvalDelay: &evalDelay,
+		Interval:  time.Minute,
+	}, "2023-08-28T11:41:13+00:00", "2023-08-28T11:40:00+00:00")
+
+	// disable alignment with eval_delay
+	f(&Group{
+		EvalDelay:     &evalDelay,
+		Interval:      time.Hour,
+		evalAlignment: &disableAlign,
+	}, "2023-08-28T11:41:00+00:00", "2023-08-28T11:40:00+00:00")
 }
 
 func TestRangeIterator(t *testing.T) {
-	testCases := []struct {
-		ri     rangeIterator
-		result [][2]time.Time
-	}{
-		{
-			ri: rangeIterator{
-				start: parseTime(t, "2021-01-01T12:00:00.000Z"),
-				end:   parseTime(t, "2021-01-01T12:30:00.000Z"),
-				step:  5 * time.Minute,
-			},
-			result: [][2]time.Time{
-				{parseTime(t, "2021-01-01T12:00:00.000Z"), parseTime(t, "2021-01-01T12:05:00.000Z")},
-				{parseTime(t, "2021-01-01T12:05:00.000Z"), parseTime(t, "2021-01-01T12:10:00.000Z")},
-				{parseTime(t, "2021-01-01T12:10:00.000Z"), parseTime(t, "2021-01-01T12:15:00.000Z")},
-				{parseTime(t, "2021-01-01T12:15:00.000Z"), parseTime(t, "2021-01-01T12:20:00.000Z")},
-				{parseTime(t, "2021-01-01T12:20:00.000Z"), parseTime(t, "2021-01-01T12:25:00.000Z")},
-				{parseTime(t, "2021-01-01T12:25:00.000Z"), parseTime(t, "2021-01-01T12:30:00.000Z")},
-			},
-		},
-		{
-			ri: rangeIterator{
-				start: parseTime(t, "2021-01-01T12:00:00.000Z"),
-				end:   parseTime(t, "2021-01-01T12:30:00.000Z"),
-				step:  45 * time.Minute,
-			},
-			result: [][2]time.Time{
-				{parseTime(t, "2021-01-01T12:00:00.000Z"), parseTime(t, "2021-01-01T12:30:00.000Z")},
-				{parseTime(t, "2021-01-01T12:30:00.000Z"), parseTime(t, "2021-01-01T12:30:00.000Z")},
-			},
-		},
-		{
-			ri: rangeIterator{
-				start: parseTime(t, "2021-01-01T12:00:12.000Z"),
-				end:   parseTime(t, "2021-01-01T12:00:17.000Z"),
-				step:  time.Second,
-			},
-			result: [][2]time.Time{
-				{parseTime(t, "2021-01-01T12:00:12.000Z"), parseTime(t, "2021-01-01T12:00:13.000Z")},
-				{parseTime(t, "2021-01-01T12:00:13.000Z"), parseTime(t, "2021-01-01T12:00:14.000Z")},
-				{parseTime(t, "2021-01-01T12:00:14.000Z"), parseTime(t, "2021-01-01T12:00:15.000Z")},
-				{parseTime(t, "2021-01-01T12:00:15.000Z"), parseTime(t, "2021-01-01T12:00:16.000Z")},
-				{parseTime(t, "2021-01-01T12:00:16.000Z"), parseTime(t, "2021-01-01T12:00:17.000Z")},
-			},
-		},
+	f := func(ri rangeIterator, resultExpected [][2]time.Time) {
+		t.Helper()
+
+		var j int
+		for ri.next() {
+			if len(resultExpected) < j+1 {
+				t.Fatalf("unexpected result for iterator on step %d: %v - %v", j, ri.s, ri.e)
+			}
+			s, e := ri.s, ri.e
+			expS, expE := resultExpected[j][0], resultExpected[j][1]
+			if s != expS {
+				t.Fatalf("expected to get start=%v; got %v", expS, s)
+			}
+			if e != expE {
+				t.Fatalf("expected to get end=%v; got %v", expE, e)
+			}
+			j++
+		}
 	}
 
-	for i, tc := range testCases {
-		t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
-			var j int
-			for tc.ri.next() {
-				if len(tc.result) < j+1 {
-					t.Fatalf("unexpected result for iterator on step %d: %v - %v",
-						j, tc.ri.s, tc.ri.e)
-				}
-				s, e := tc.ri.s, tc.ri.e
-				expS, expE := tc.result[j][0], tc.result[j][1]
-				if s != expS {
-					t.Fatalf("expected to get start=%v; got %v", expS, s)
-				}
-				if e != expE {
-					t.Fatalf("expected to get end=%v; got %v", expE, e)
-				}
-				j++
-			}
-		})
-	}
+	f(rangeIterator{
+		start: parseTime(t, "2021-01-01T12:00:00.000Z"),
+		end:   parseTime(t, "2021-01-01T12:30:00.000Z"),
+		step:  5 * time.Minute,
+	}, [][2]time.Time{
+		{parseTime(t, "2021-01-01T12:00:00.000Z"), parseTime(t, "2021-01-01T12:05:00.000Z")},
+		{parseTime(t, "2021-01-01T12:05:00.000Z"), parseTime(t, "2021-01-01T12:10:00.000Z")},
+		{parseTime(t, "2021-01-01T12:10:00.000Z"), parseTime(t, "2021-01-01T12:15:00.000Z")},
+		{parseTime(t, "2021-01-01T12:15:00.000Z"), parseTime(t, "2021-01-01T12:20:00.000Z")},
+		{parseTime(t, "2021-01-01T12:20:00.000Z"), parseTime(t, "2021-01-01T12:25:00.000Z")},
+		{parseTime(t, "2021-01-01T12:25:00.000Z"), parseTime(t, "2021-01-01T12:30:00.000Z")},
+	})
+
+	f(rangeIterator{
+		start: parseTime(t, "2021-01-01T12:00:00.000Z"),
+		end:   parseTime(t, "2021-01-01T12:30:00.000Z"),
+		step:  45 * time.Minute,
+	}, [][2]time.Time{
+		{parseTime(t, "2021-01-01T12:00:00.000Z"), parseTime(t, "2021-01-01T12:30:00.000Z")},
+		{parseTime(t, "2021-01-01T12:30:00.000Z"), parseTime(t, "2021-01-01T12:30:00.000Z")},
+	})
+
+	f(rangeIterator{
+		start: parseTime(t, "2021-01-01T12:00:12.000Z"),
+		end:   parseTime(t, "2021-01-01T12:00:17.000Z"),
+		step:  time.Second,
+	}, [][2]time.Time{
+		{parseTime(t, "2021-01-01T12:00:12.000Z"), parseTime(t, "2021-01-01T12:00:13.000Z")},
+		{parseTime(t, "2021-01-01T12:00:13.000Z"), parseTime(t, "2021-01-01T12:00:14.000Z")},
+		{parseTime(t, "2021-01-01T12:00:14.000Z"), parseTime(t, "2021-01-01T12:00:15.000Z")},
+		{parseTime(t, "2021-01-01T12:00:15.000Z"), parseTime(t, "2021-01-01T12:00:16.000Z")},
+		{parseTime(t, "2021-01-01T12:00:16.000Z"), parseTime(t, "2021-01-01T12:00:17.000Z")},
+	})
 }
 
 func parseTime(t *testing.T, s string) time.Time {

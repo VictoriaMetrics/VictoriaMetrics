@@ -52,7 +52,7 @@ var (
 	maxExportSeries     = flag.Int("search.maxExportSeries", 10e6, "The maximum number of time series, which can be returned from /api/v1/export* APIs. This option allows limiting memory usage")
 	maxTSDBStatusSeries = flag.Int("search.maxTSDBStatusSeries", 10e6, "The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage")
 	maxSeriesLimit      = flag.Int("search.maxSeries", 30e3, "The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage")
-	maxLabelsAPISeries  = flag.Int("search.maxLabelsAPISeries", 1e6, "The maximum number of time series, which could be scanned when searching for the the matching time series "+
+	maxLabelsAPISeries  = flag.Int("search.maxLabelsAPISeries", 1e6, "The maximum number of time series, which could be scanned when searching for the matching time series "+
 		"at /api/v1/labels and /api/v1/label/.../values. This option allows limiting memory usage and CPU usage. See also -search.maxLabelsAPIDuration, "+
 		"-search.maxTagKeys, -search.maxTagValues and -search.ignoreExtraFiltersAtLabelsAPI")
 	maxPointsPerTimeseries = flag.Int("search.maxPointsPerTimeseries", 30e3, "The maximum points per a single timeseries returned from /api/v1/query_range. "+
@@ -461,7 +461,7 @@ func (xb *exportBlock) reset() {
 }
 
 var exportBlockPool = &sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return &exportBlock{}
 	},
 }
@@ -1238,7 +1238,7 @@ func (sw *scalableWriter) maybeFlushBuffer(bb *bytesutil.ByteBuffer) error {
 }
 
 func (sw *scalableWriter) flush() error {
-	sw.m.Range(func(_, v interface{}) bool {
+	sw.m.Range(func(_, v any) bool {
 		bb := v.(*bytesutil.ByteBuffer)
 		_, err := sw.bw.Write(bb.B)
 		return err == nil

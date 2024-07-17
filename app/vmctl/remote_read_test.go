@@ -6,14 +6,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/prometheus/prompb"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/testdata/servers_integration_test"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	"github.com/prometheus/prometheus/prompb"
 )
 
 func TestRemoteRead(t *testing.T) {
+	barpool.Disable(true)
+	defer func() {
+		barpool.Disable(false)
+	}()
+	defer func() { isSilent = false }()
 
 	var testCases = []struct {
 		name             string
@@ -31,7 +38,7 @@ func TestRemoteRead(t *testing.T) {
 		{
 			name:             "step minute on minute time range",
 			remoteReadConfig: remoteread.Config{Addr: "", LabelName: "__name__", LabelValue: ".*"},
-			vmCfg:            vm.Config{Addr: "", Concurrency: 1, DisableProgressBar: true},
+			vmCfg:            vm.Config{Addr: "", Concurrency: 1},
 			start:            "2022-11-26T11:23:05+02:00",
 			end:              "2022-11-26T11:24:05+02:00",
 			numOfSamples:     2,
@@ -62,7 +69,7 @@ func TestRemoteRead(t *testing.T) {
 		{
 			name:             "step month on month time range",
 			remoteReadConfig: remoteread.Config{Addr: "", LabelName: "__name__", LabelValue: ".*"},
-			vmCfg: vm.Config{Addr: "", Concurrency: 1, DisableProgressBar: true,
+			vmCfg: vm.Config{Addr: "", Concurrency: 1,
 				Transport: http.DefaultTransport.(*http.Transport)},
 			start:            "2022-09-26T11:23:05+02:00",
 			end:              "2022-11-26T11:24:05+02:00",
@@ -157,7 +164,6 @@ func TestRemoteRead(t *testing.T) {
 					chunk:     tt.chunk,
 				},
 				cc:        1,
-				isSilent:  true,
 				isVerbose: false,
 			}
 
@@ -170,6 +176,11 @@ func TestRemoteRead(t *testing.T) {
 }
 
 func TestSteamRemoteRead(t *testing.T) {
+	barpool.Disable(true)
+	defer func() {
+		barpool.Disable(false)
+	}()
+	defer func() { isSilent = false }()
 
 	var testCases = []struct {
 		name             string
@@ -187,7 +198,7 @@ func TestSteamRemoteRead(t *testing.T) {
 		{
 			name:             "step minute on minute time range",
 			remoteReadConfig: remoteread.Config{Addr: "", LabelName: "__name__", LabelValue: ".*", UseStream: true},
-			vmCfg:            vm.Config{Addr: "", Concurrency: 1, DisableProgressBar: true},
+			vmCfg:            vm.Config{Addr: "", Concurrency: 1},
 			start:            "2022-11-26T11:23:05+02:00",
 			end:              "2022-11-26T11:24:05+02:00",
 			numOfSamples:     2,
@@ -218,7 +229,7 @@ func TestSteamRemoteRead(t *testing.T) {
 		{
 			name:             "step month on month time range",
 			remoteReadConfig: remoteread.Config{Addr: "", LabelName: "__name__", LabelValue: ".*", UseStream: true},
-			vmCfg:            vm.Config{Addr: "", Concurrency: 1, DisableProgressBar: true},
+			vmCfg:            vm.Config{Addr: "", Concurrency: 1},
 			start:            "2022-09-26T11:23:05+02:00",
 			end:              "2022-11-26T11:24:05+02:00",
 			numOfSamples:     2,
@@ -312,7 +323,6 @@ func TestSteamRemoteRead(t *testing.T) {
 					chunk:     tt.chunk,
 				},
 				cc:        1,
-				isSilent:  true,
 				isVerbose: false,
 			}
 

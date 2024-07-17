@@ -45,7 +45,12 @@ type StorageConfig struct {
 	// Older data is automatically deleted.
 	Retention time.Duration
 
-	// FlushInterval is the interval for flushing the in-memory data to disk at the Storage
+	// MaxDiskSpaceUsageBytes is an optional maximum disk space logs can use.
+	//
+	// The oldest per-day partitions are automatically dropped if the total disk space usage exceeds this limit.
+	MaxDiskSpaceUsageBytes int64
+
+	// FlushInterval is the interval for flushing the in-memory data to disk at the Storage.
 	FlushInterval time.Duration
 
 	// FutureRetention is the allowed retention from the current time to future for the ingested data.
@@ -53,7 +58,8 @@ type StorageConfig struct {
 	// Log entries with timestamps bigger than now+FutureRetention are ignored.
 	FutureRetention time.Duration
 
-	// MinFreeDiskSpaceBytes is the minimum free disk space at storage path after which the storage stops accepting new data.
+	// MinFreeDiskSpaceBytes is the minimum free disk space at storage path after which the storage stops accepting new data
+	// and enters read-only mode.
 	MinFreeDiskSpaceBytes int64
 
 	// LogNewStreams indicates whether to log newly created log streams.
@@ -80,6 +86,11 @@ type Storage struct {
 	//
 	// older data is automatically deleted
 	retention time.Duration
+
+	// maxDiskSpaceUsageBytes is an optional maximum disk space logs can use.
+	//
+	// The oldest per-day partitions are automatically dropped if the total disk space usage exceeds this limit.
+	maxDiskSpaceUsageBytes int64
 
 	// flushInterval is the interval for flushing in-memory data to disk
 	flushInterval time.Duration
@@ -247,15 +258,16 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	filterStreamCache := workingsetcache.New(mem / 10)
 
 	s := &Storage{
-		path:                  path,
-		retention:             retention,
-		flushInterval:         flushInterval,
-		futureRetention:       futureRetention,
-		minFreeDiskSpaceBytes: minFreeDiskSpaceBytes,
-		logNewStreams:         cfg.LogNewStreams,
-		logIngestedRows:       cfg.LogIngestedRows,
-		flockF:                flockF,
-		stopCh:                make(chan struct{}),
+		path:                   path,
+		retention:              retention,
+		maxDiskSpaceUsageBytes: cfg.MaxDiskSpaceUsageBytes,
+		flushInterval:          flushInterval,
+		futureRetention:        futureRetention,
+		minFreeDiskSpaceBytes:  minFreeDiskSpaceBytes,
+		logNewStreams:          cfg.LogNewStreams,
+		logIngestedRows:        cfg.LogIngestedRows,
+		flockF:                 flockF,
+		stopCh:                 make(chan struct{}),
 
 		streamIDCache:     streamIDCache,
 		streamTagsCache:   streamTagsCache,
@@ -305,6 +317,7 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 
 	s.partitions = ptws
 	s.runRetentionWatcher()
+	s.runMaxDiskSpaceUsageWatcher()
 	return s
 }
 
@@ -314,6 +327,17 @@ func (s *Storage) runRetentionWatcher() {
 	s.wg.Add(1)
 	go func() {
 		s.watchRetention()
+		s.wg.Done()
+	}()
+}
+
+func (s *Storage) runMaxDiskSpaceUsageWatcher() {
+	if s.maxDiskSpaceUsageBytes <= 0 {
+		return
+	}
+	s.wg.Add(1)
+	go func() {
+		s.watchMaxDiskSpaceUsage()
 		s.wg.Done()
 	}()
 }
@@ -350,6 +374,62 @@ func (s *Storage) watchRetention() {
 			logger.Infof("the partition %s is scheduled to be deleted because it is outside the -retentionPeriod=%dd", ptw.pt.path, durationToDays(s.retention))
 			ptw.mustDrop.Store(true)
 			ptw.decRef()
+		}
+
+		select {
+		case <-s.stopCh:
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+func (s *Storage) watchMaxDiskSpaceUsage() {
+	d := timeutil.AddJitterToDuration(10 * time.Second)
+	ticker := time.NewTicker(d)
+	defer ticker.Stop()
+	for {
+		s.partitionsLock.Lock()
+		var n uint64
+		ptws := s.partitions
+		var ptwsToDelete []*partitionWrapper
+		for i := len(ptws) - 1; i >= 0; i-- {
+			ptw := ptws[i]
+			var ps PartitionStats
+			ptw.pt.updateStats(&ps)
+			n += ps.IndexdbSizeBytes + ps.CompressedSmallPartSize + ps.CompressedBigPartSize
+			if n <= uint64(s.maxDiskSpaceUsageBytes) {
+				continue
+			}
+			if i >= len(ptws)-2 {
+				// Keep the last two per-day partitions, so logs could be queried for one day time range.
+				continue
+			}
+
+			// ptws are sorted by time, so just drop all the partitions until i, including i.
+			i++
+			ptwsToDelete = ptws[:i]
+			s.partitions = ptws[i:]
+
+			// Remove reference to deleted partitions from s.ptwHot
+			for _, ptw := range ptwsToDelete {
+				if ptw == s.ptwHot {
+					s.ptwHot = nil
+					break
+				}
+			}
+
+			break
+		}
+		s.partitionsLock.Unlock()
+
+		for i, ptw := range ptwsToDelete {
+			logger.Infof("the partition %s is scheduled to be deleted because the total size of partitions exceeds -retention.maxDiskSpaceUsageBytes=%d",
+				ptw.pt.path, s.maxDiskSpaceUsageBytes)
+			ptw.mustDrop.Store(true)
+			ptw.decRef()
+
+			ptwsToDelete[i] = nil
 		}
 
 		select {

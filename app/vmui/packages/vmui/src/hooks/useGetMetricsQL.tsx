@@ -54,7 +54,7 @@ const useGetMetricsQL = () => {
 
   const processMarkdown = (text: string) => {
     const div = document.createElement("div");
-    div.innerHTML = marked(text);
+    div.innerHTML = marked(text) as string;
     const groups = div.querySelectorAll(`${CATEGORY_TAG}, ${FUNCTION_TAG}`);
     return processGroups(groups);
   };

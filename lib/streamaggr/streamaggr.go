@@ -27,24 +27,24 @@ import (
 )
 
 var supportedOutputs = []string{
-	"rate_sum",
-	"rate_avg",
-	"total",
-	"total_prometheus",
+	"avg",
+	"count_samples",
+	"count_series",
+	"histogram_bucket",
 	"increase",
 	"increase_prometheus",
-	"count_series",
-	"count_samples",
-	"unique_samples",
-	"sum_samples",
 	"last",
-	"min",
 	"max",
-	"avg",
+	"min",
+	"quantiles(phi1, ..., phiN)",
+	"rate_avg",
+	"rate_sum",
 	"stddev",
 	"stdvar",
-	"histogram_bucket",
-	"quantiles(phi1, ..., phiN)",
+	"sum_samples",
+	"total",
+	"total_prometheus",
+	"unique_samples",
 }
 
 var (
@@ -64,8 +64,10 @@ var (
 //
 // opts can contain additional options. If opts is nil, then default options are used.
 //
+// alias is used as url label in metrics exposed for the returned Aggregators.
+//
 // The returned Aggregators must be stopped with MustStop() when no longer needed.
-func LoadFromFile(path string, pushFunc PushFunc, opts *Options) (*Aggregators, error) {
+func LoadFromFile(path string, pushFunc PushFunc, opts *Options, alias string) (*Aggregators, error) {
 	data, err := fscore.ReadFileOrHTTP(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot load aggregators: %w", err)
@@ -75,7 +77,7 @@ func LoadFromFile(path string, pushFunc PushFunc, opts *Options) (*Aggregators, 
 		return nil, fmt.Errorf("cannot expand environment variables in %q: %w", path, err)
 	}
 
-	as, err := newAggregatorsFromData(data, pushFunc, opts)
+	as, err := loadFromData(data, path, pushFunc, opts, alias)
 	if err != nil {
 		return nil, fmt.Errorf("cannot initialize aggregators from %q: %w; see https://docs.victoriametrics.com/stream-aggregation/#stream-aggregation-config", path, err)
 	}
@@ -127,9 +129,9 @@ type Options struct {
 	// This option can be overridden individually per each aggregation via ignore_old_samples option.
 	IgnoreOldSamples bool
 
-	// IgnoreFirstIntervals sets amount of aggregation intervals to ignore on start.
+	// IgnoreFirstIntervals sets the number of aggregation intervals to be ignored on start.
 	//
-	// By default, no intervals will be ignored.
+	// By default, zero intervals are ignored.
 	//
 	// This option can be overridden individually per each aggregation via ignore_first_intervals option.
 	IgnoreFirstIntervals int
@@ -137,6 +139,11 @@ type Options struct {
 
 // Config is a configuration for a single stream aggregation.
 type Config struct {
+	// Name is an optional name of the Config.
+	//
+	// It is used as `name` label in the exposed metrics for the given Config.
+	Name string `yaml:"name,omitempty"`
+
 	// Match is a label selector for filtering time series for the given selector.
 	//
 	// If the match isn't set, then all the input time series are processed.
@@ -166,24 +173,24 @@ type Config struct {
 	//
 	// The following names are allowed:
 	//
-	// - rate_sum - calculates sum of rate for input counters
-	// - rate_avg - calculates average of rate for input counters
-	// - total - aggregates input counters
-	// - total_prometheus - aggregates input counters, ignoring the first sample in new time series
+	// - avg - the average value across all the samples
+	// - count_samples - counts the input samples
+	// - count_series - counts the number of unique input series
+	// - histogram_bucket - creates VictoriaMetrics histogram for input samples
 	// - increase - calculates the increase over input series
 	// - increase_prometheus - calculates the increase over input series, ignoring the first sample in new time series
-	// - count_series - counts the number of unique input series
-	// - count_samples - counts the input samples
-	// - unique_samples - counts the number of unique sample values
-	// - sum_samples - sums the input sample values
 	// - last - the last biggest sample value
-	// - min - the minimum sample value
 	// - max - the maximum sample value
-	// - avg - the average value across all the samples
+	// - min - the minimum sample value
+	// - quantiles(phi1, ..., phiN) - quantiles' estimation for phi in the range [0..1]
+	// - rate_avg - calculates average of rate for input counters
+	// - rate_sum - calculates sum of rate for input counters
 	// - stddev - standard deviation across all the samples
 	// - stdvar - standard variance across all the samples
-	// - histogram_bucket - creates VictoriaMetrics histogram for input samples
-	// - quantiles(phi1, ..., phiN) - quantiles' estimation for phi in the range [0..1]
+	// - sum_samples - sums the input sample values
+	// - total - aggregates input counters
+	// - total_prometheus - aggregates input counters, ignoring the first sample in new time series
+	// - unique_samples - counts the number of unique sample values
 	//
 	// The output time series will have the following names by default:
 	//
@@ -240,10 +247,26 @@ type Aggregators struct {
 	// It is used in Equal() for comparing Aggregators.
 	configData []byte
 
+	// filePath is the path to config file used for creating the Aggregators.
+	filePath string
+
+	// ms contains metrics associated with the Aggregators.
 	ms *metrics.Set
 }
 
-func newAggregatorsFromData(data []byte, pushFunc PushFunc, opts *Options) (*Aggregators, error) {
+// FilePath returns path to file with the configuration used for creating the given Aggregators.
+func (a *Aggregators) FilePath() string {
+	return a.filePath
+}
+
+// LoadFromData loads aggregators from data.
+//
+// opts can contain additional options. If opts is nil, then default options are used.
+func LoadFromData(data []byte, pushFunc PushFunc, opts *Options, alias string) (*Aggregators, error) {
+	return loadFromData(data, "inmemory", pushFunc, opts, alias)
+}
+
+func loadFromData(data []byte, filePath string, pushFunc PushFunc, opts *Options, alias string) (*Aggregators, error) {
 	var cfgs []*Config
 	if err := yaml.UnmarshalStrict(data, &cfgs); err != nil {
 		return nil, fmt.Errorf("cannot parse stream aggregation config: %w", err)
@@ -252,7 +275,7 @@ func newAggregatorsFromData(data []byte, pushFunc PushFunc, opts *Options) (*Agg
 	ms := metrics.NewSet()
 	as := make([]*aggregator, len(cfgs))
 	for i, cfg := range cfgs {
-		a, err := newAggregator(cfg, pushFunc, ms, opts)
+		a, err := newAggregator(cfg, filePath, pushFunc, ms, opts, alias, i+1)
 		if err != nil {
 			// Stop already initialized aggregators before returning the error.
 			for _, a := range as[:i] {
@@ -267,29 +290,11 @@ func newAggregatorsFromData(data []byte, pushFunc PushFunc, opts *Options) (*Agg
 		logger.Panicf("BUG: cannot marshal the provided configs: %s", err)
 	}
 
-	_ = ms.NewGauge(`vm_streamaggr_dedup_state_size_bytes`, func() float64 {
-		n := uint64(0)
-		for _, aggr := range as {
-			if aggr.da != nil {
-				n += aggr.da.sizeBytes()
-			}
-		}
-		return float64(n)
-	})
-	_ = ms.NewGauge(`vm_streamaggr_dedup_state_items_count`, func() float64 {
-		n := uint64(0)
-		for _, aggr := range as {
-			if aggr.da != nil {
-				n += aggr.da.itemsCount()
-			}
-		}
-		return float64(n)
-	})
-
 	metrics.RegisterSet(ms)
 	return &Aggregators{
 		as:         as,
 		configData: configData,
+		filePath:   filePath,
 		ms:         ms,
 	}, nil
 }
@@ -311,7 +316,7 @@ func (a *Aggregators) MustStop() {
 		return
 	}
 
-	metrics.UnregisterSet(a.ms)
+	metrics.UnregisterSet(a.ms, true)
 	a.ms = nil
 
 	for _, aggr := range a.as {
@@ -368,11 +373,17 @@ type aggregator struct {
 	without             []string
 	aggregateOnlyByTime bool
 
+	// interval is the interval between flushes
+	interval time.Duration
+
+	// dedupInterval is optional deduplication interval for incoming samples
+	dedupInterval time.Duration
+
 	// da is set to non-nil if input samples must be de-duplicated
 	da *dedupAggr
 
-	// aggrStates contains aggregate states for the given outputs
-	aggrStates []aggrState
+	// aggrOutputs contains aggregate states for the given outputs
+	aggrOutputs []aggrOutput
 
 	// minTimestamp is used for ignoring old samples when ignoreOldSamples is set
 	minTimestamp atomic.Int64
@@ -394,7 +405,14 @@ type aggregator struct {
 	flushTimeouts      *metrics.Counter
 	dedupFlushTimeouts *metrics.Counter
 	ignoredOldSamples  *metrics.Counter
-	ignoredNanSamples  *metrics.Counter
+	ignoredNaNSamples  *metrics.Counter
+	matchedSamples     *metrics.Counter
+}
+
+type aggrOutput struct {
+	as aggrState
+
+	outputSamples *metrics.Counter
 }
 
 type aggrState interface {
@@ -403,6 +421,13 @@ type aggrState interface {
 	// samples[].key must be cloned by aggrState, since it may change after returning from pushSamples.
 	pushSamples(samples []pushSample)
 
+	// flushState must flush aggrState data to ctx.
+	//
+	// if resetState is true, then aggrState must be reset after flushing the data to ctx,
+	// otherwise the aggrState data must be kept unchanged.
+	//
+	// The resetState is set to false only in the benchmark, which measures flushState() performance
+	// over the same aggrState.
 	flushState(ctx *flushCtx, resetState bool)
 }
 
@@ -414,11 +439,7 @@ type PushFunc func(tss []prompbmarshal.TimeSeries)
 // opts can contain additional options. If opts is nil, then default options are used.
 //
 // The returned aggregator must be stopped when no longer needed by calling MustStop().
-func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Options) (*aggregator, error) {
-	if opts == nil {
-		opts = &Options{}
-	}
-
+func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set, opts *Options, alias string, aggrID int) (*aggregator, error) {
 	// check cfg.Interval
 	if cfg.Interval == "" {
 		return nil, fmt.Errorf("missing `interval` option")
@@ -429,6 +450,10 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 	}
 	if interval < time.Second {
 		return nil, fmt.Errorf("aggregation interval cannot be smaller than 1s; got %s", interval)
+	}
+
+	if opts == nil {
+		opts = &Options{}
 	}
 
 	// check cfg.DedupInterval
@@ -479,7 +504,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 	by := sortAndRemoveDuplicates(cfg.By)
 	without := sortAndRemoveDuplicates(cfg.Without)
 	if len(by) > 0 && len(without) > 0 {
-		return nil, fmt.Errorf("`by: %s` and `without: %s` lists cannot be set simultaneously", by, without)
+		return nil, fmt.Errorf("`by: %s` and `without: %s` lists cannot be set simultaneously; see https://docs.victoriametrics.com/stream-aggregation/", by, without)
 	}
 	aggregateOnlyByTime := (len(by) == 0 && len(without) == 0)
 	if !aggregateOnlyByTime && len(without) == 0 {
@@ -493,10 +518,12 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 	}
 	if keepMetricNames {
 		if len(cfg.Outputs) != 1 {
-			return nil, fmt.Errorf("`ouputs` list must contain only a single entry if `keep_metric_names` is set; got %q", cfg.Outputs)
+			return nil, fmt.Errorf("`outputs` list must contain only a single entry if `keep_metric_names` is set; got %q; "+
+				"see https://docs.victoriametrics.com/stream-aggregation/#output-metric-names", cfg.Outputs)
 		}
 		if cfg.Outputs[0] == "histogram_bucket" || strings.HasPrefix(cfg.Outputs[0], "quantiles(") && strings.Contains(cfg.Outputs[0], ",") {
-			return nil, fmt.Errorf("`keep_metric_names` cannot be applied to `outputs: %q`, since they can generate multiple time series", cfg.Outputs)
+			return nil, fmt.Errorf("`keep_metric_names` cannot be applied to `outputs: %q`, since they can generate multiple time series; "+
+				"see https://docs.victoriametrics.com/stream-aggregation/#output-metric-names", cfg.Outputs)
 		}
 	}
 
@@ -512,75 +539,29 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 		ignoreFirstIntervals = *v
 	}
 
-	// initialize outputs list
+	// Initialize common metric labels
+	name := cfg.Name
+	if name == "" {
+		name = "none"
+	}
+	metricLabels := fmt.Sprintf(`name=%q,path=%q,url=%q,position="%d"`, name, path, alias, aggrID)
+
+	// initialize aggrOutputs
 	if len(cfg.Outputs) == 0 {
 		return nil, fmt.Errorf("`outputs` list must contain at least a single entry from the list %s; "+
 			"see https://docs.victoriametrics.com/stream-aggregation/", supportedOutputs)
 	}
-	aggrStates := make([]aggrState, len(cfg.Outputs))
+	aggrOutputs := make([]aggrOutput, len(cfg.Outputs))
+	outputsSeen := make(map[string]struct{}, len(cfg.Outputs))
 	for i, output := range cfg.Outputs {
-		if strings.HasPrefix(output, "quantiles(") {
-			if !strings.HasSuffix(output, ")") {
-				return nil, fmt.Errorf("missing closing brace for `quantiles()` output")
-			}
-			argsStr := output[len("quantiles(") : len(output)-1]
-			if len(argsStr) == 0 {
-				return nil, fmt.Errorf("`quantiles()` must contain at least one phi")
-			}
-			args := strings.Split(argsStr, ",")
-			phis := make([]float64, len(args))
-			for j, arg := range args {
-				arg = strings.TrimSpace(arg)
-				phi, err := strconv.ParseFloat(arg, 64)
-				if err != nil {
-					return nil, fmt.Errorf("cannot parse phi=%q for quantiles(%s): %w", arg, argsStr, err)
-				}
-				if phi < 0 || phi > 1 {
-					return nil, fmt.Errorf("phi inside quantiles(%s) must be in the range [0..1]; got %v", argsStr, phi)
-				}
-				phis[j] = phi
-			}
-			aggrStates[i] = newQuantilesAggrState(phis)
-			continue
+		as, err := newAggrState(output, outputsSeen, stalenessInterval)
+		if err != nil {
+			return nil, err
 		}
-		switch output {
-		case "total":
-			aggrStates[i] = newTotalAggrState(stalenessInterval, false, true)
-		case "total_prometheus":
-			aggrStates[i] = newTotalAggrState(stalenessInterval, false, false)
-		case "increase":
-			aggrStates[i] = newTotalAggrState(stalenessInterval, true, true)
-		case "increase_prometheus":
-			aggrStates[i] = newTotalAggrState(stalenessInterval, true, false)
-		case "rate_sum":
-			aggrStates[i] = newRateAggrState(stalenessInterval, "rate_sum")
-		case "rate_avg":
-			aggrStates[i] = newRateAggrState(stalenessInterval, "rate_avg")
-		case "count_series":
-			aggrStates[i] = newCountSeriesAggrState()
-		case "count_samples":
-			aggrStates[i] = newCountSamplesAggrState()
-		case "unique_samples":
-			aggrStates[i] = newUniqueSamplesAggrState()
-		case "sum_samples":
-			aggrStates[i] = newSumSamplesAggrState()
-		case "last":
-			aggrStates[i] = newLastAggrState()
-		case "min":
-			aggrStates[i] = newMinAggrState()
-		case "max":
-			aggrStates[i] = newMaxAggrState()
-		case "avg":
-			aggrStates[i] = newAvgAggrState()
-		case "stddev":
-			aggrStates[i] = newStddevAggrState()
-		case "stdvar":
-			aggrStates[i] = newStdvarAggrState()
-		case "histogram_bucket":
-			aggrStates[i] = newHistogramBucketAggrState(stalenessInterval)
-		default:
-			return nil, fmt.Errorf("unsupported output=%q; supported values: %s; "+
-				"see https://docs.victoriametrics.com/stream-aggregation/", output, supportedOutputs)
+		aggrOutputs[i] = aggrOutput{
+			as: as,
+
+			outputSamples: ms.NewCounter(fmt.Sprintf(`vm_streamaggr_output_samples_total{output=%q,%s}`, output, metricLabels)),
 		}
 	}
 
@@ -609,23 +590,37 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 		without:             without,
 		aggregateOnlyByTime: aggregateOnlyByTime,
 
-		aggrStates: aggrStates,
+		interval:      interval,
+		dedupInterval: dedupInterval,
+
+		aggrOutputs: aggrOutputs,
 
 		suffix: suffix,
 
 		stopCh: make(chan struct{}),
 
-		flushDuration:      ms.GetOrCreateHistogram(`vm_streamaggr_flush_duration_seconds`),
-		dedupFlushDuration: ms.GetOrCreateHistogram(`vm_streamaggr_dedup_flush_duration_seconds`),
-		samplesLag:         ms.GetOrCreateHistogram(`vm_streamaggr_samples_lag_seconds`),
+		flushDuration:      ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_flush_duration_seconds{%s}`, metricLabels)),
+		dedupFlushDuration: ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_dedup_flush_duration_seconds{%s}`, metricLabels)),
+		samplesLag:         ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_samples_lag_seconds{%s}`, metricLabels)),
 
-		flushTimeouts:      ms.GetOrCreateCounter(`vm_streamaggr_flush_timeouts_total`),
-		dedupFlushTimeouts: ms.GetOrCreateCounter(`vm_streamaggr_dedup_flush_timeouts_total`),
-		ignoredNanSamples:  ms.GetOrCreateCounter(`vm_streamaggr_ignored_samples_total{reason="nan"}`),
-		ignoredOldSamples:  ms.GetOrCreateCounter(`vm_streamaggr_ignored_samples_total{reason="too_old"}`),
+		matchedSamples:     ms.NewCounter(fmt.Sprintf(`vm_streamaggr_matched_samples_total{%s}`, metricLabels)),
+		flushTimeouts:      ms.NewCounter(fmt.Sprintf(`vm_streamaggr_flush_timeouts_total{%s}`, metricLabels)),
+		dedupFlushTimeouts: ms.NewCounter(fmt.Sprintf(`vm_streamaggr_dedup_flush_timeouts_total{%s}`, metricLabels)),
+		ignoredNaNSamples:  ms.NewCounter(fmt.Sprintf(`vm_streamaggr_ignored_samples_total{reason="nan",%s}`, metricLabels)),
+		ignoredOldSamples:  ms.NewCounter(fmt.Sprintf(`vm_streamaggr_ignored_samples_total{reason="too_old",%s}`, metricLabels)),
 	}
+
 	if dedupInterval > 0 {
 		a.da = newDedupAggr()
+
+		_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_dedup_state_size_bytes{%s}`, metricLabels), func() float64 {
+			n := a.da.sizeBytes()
+			return float64(n)
+		})
+		_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_dedup_state_items_count{%s}`, metricLabels), func() float64 {
+			n := a.da.itemsCount()
+			return float64(n)
+		})
 	}
 
 	alignFlushToInterval := !opts.NoAlignFlushToInterval
@@ -640,14 +635,89 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 
 	a.wg.Add(1)
 	go func() {
-		a.runFlusher(pushFunc, alignFlushToInterval, skipIncompleteFlush, interval, dedupInterval, ignoreFirstIntervals)
+		a.runFlusher(pushFunc, alignFlushToInterval, skipIncompleteFlush, ignoreFirstIntervals)
 		a.wg.Done()
 	}()
 
 	return a, nil
 }
 
-func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipIncompleteFlush bool, interval, dedupInterval time.Duration, ignoreFirstIntervals int) {
+func newAggrState(output string, outputsSeen map[string]struct{}, stalenessInterval time.Duration) (aggrState, error) {
+	// check for duplicated output
+	if _, ok := outputsSeen[output]; ok {
+		return nil, fmt.Errorf("`outputs` list contains duplicate aggregation function: %s", output)
+	}
+	outputsSeen[output] = struct{}{}
+
+	if strings.HasPrefix(output, "quantiles(") {
+		if !strings.HasSuffix(output, ")") {
+			return nil, fmt.Errorf("missing closing brace for `quantiles()` output")
+		}
+		argsStr := output[len("quantiles(") : len(output)-1]
+		if len(argsStr) == 0 {
+			return nil, fmt.Errorf("`quantiles()` must contain at least one phi")
+		}
+		args := strings.Split(argsStr, ",")
+		phis := make([]float64, len(args))
+		for i, arg := range args {
+			arg = strings.TrimSpace(arg)
+			phi, err := strconv.ParseFloat(arg, 64)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse phi=%q for quantiles(%s): %w", arg, argsStr, err)
+			}
+			if phi < 0 || phi > 1 {
+				return nil, fmt.Errorf("phi inside quantiles(%s) must be in the range [0..1]; got %v", argsStr, phi)
+			}
+			phis[i] = phi
+		}
+		if _, ok := outputsSeen["quantiles"]; ok {
+			return nil, fmt.Errorf("`outputs` list contains duplicated `quantiles()` function, please combine multiple phi* like `quantiles(0.5, 0.9)`")
+		}
+		outputsSeen["quantiles"] = struct{}{}
+		return newQuantilesAggrState(phis), nil
+	}
+
+	switch output {
+	case "avg":
+		return newAvgAggrState(), nil
+	case "count_samples":
+		return newCountSamplesAggrState(), nil
+	case "count_series":
+		return newCountSeriesAggrState(), nil
+	case "histogram_bucket":
+		return newHistogramBucketAggrState(stalenessInterval), nil
+	case "increase":
+		return newTotalAggrState(stalenessInterval, true, true), nil
+	case "increase_prometheus":
+		return newTotalAggrState(stalenessInterval, true, false), nil
+	case "last":
+		return newLastAggrState(), nil
+	case "max":
+		return newMaxAggrState(), nil
+	case "min":
+		return newMinAggrState(), nil
+	case "rate_avg":
+		return newRateAggrState(stalenessInterval, true), nil
+	case "rate_sum":
+		return newRateAggrState(stalenessInterval, false), nil
+	case "stddev":
+		return newStddevAggrState(), nil
+	case "stdvar":
+		return newStdvarAggrState(), nil
+	case "sum_samples":
+		return newSumSamplesAggrState(), nil
+	case "total":
+		return newTotalAggrState(stalenessInterval, false, true), nil
+	case "total_prometheus":
+		return newTotalAggrState(stalenessInterval, false, false), nil
+	case "unique_samples":
+		return newUniqueSamplesAggrState(), nil
+	default:
+		return nil, fmt.Errorf("unsupported output=%q; supported values: %s; see https://docs.victoriametrics.com/stream-aggregation/", output, supportedOutputs)
+	}
+}
+
+func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipIncompleteFlush bool, ignoreFirstIntervals int) {
 	alignedSleep := func(d time.Duration) {
 		if !alignFlushToInterval {
 			return
@@ -672,22 +742,23 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 		}
 	}
 
-	if dedupInterval <= 0 {
-		alignedSleep(interval)
-		t := time.NewTicker(interval)
+	if a.dedupInterval <= 0 {
+		alignedSleep(a.interval)
+		t := time.NewTicker(a.interval)
 		defer t.Stop()
 
 		if alignFlushToInterval && skipIncompleteFlush {
-			a.flush(nil, interval, true)
+			a.flush(nil)
+			ignoreFirstIntervals--
 		}
 
 		for tickerWait(t) {
-			pf := pushFunc
 			if ignoreFirstIntervals > 0 {
-				pf = nil
+				a.flush(nil)
 				ignoreFirstIntervals--
+			} else {
+				a.flush(pushFunc)
 			}
-			a.flush(pf, interval, true)
 
 			if alignFlushToInterval {
 				select {
@@ -697,30 +768,30 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 			}
 		}
 	} else {
-		alignedSleep(dedupInterval)
-		t := time.NewTicker(dedupInterval)
+		alignedSleep(a.dedupInterval)
+		t := time.NewTicker(a.dedupInterval)
 		defer t.Stop()
 
-		flushDeadline := time.Now().Add(interval)
+		flushDeadline := time.Now().Add(a.interval)
 		isSkippedFirstFlush := false
 		for tickerWait(t) {
-			a.dedupFlush(dedupInterval)
+			a.dedupFlush()
 
 			ct := time.Now()
 			if ct.After(flushDeadline) {
-				pf := pushFunc
-				if ignoreFirstIntervals > 0 {
-					pf = nil
-					ignoreFirstIntervals--
-				}
 				// It is time to flush the aggregated state
 				if alignFlushToInterval && skipIncompleteFlush && !isSkippedFirstFlush {
-					pf = nil
+					a.flush(nil)
+					ignoreFirstIntervals--
 					isSkippedFirstFlush = true
+				} else if ignoreFirstIntervals > 0 {
+					a.flush(nil)
+					ignoreFirstIntervals--
+				} else {
+					a.flush(pushFunc)
 				}
-				a.flush(pf, interval, true)
 				for ct.After(flushDeadline) {
-					flushDeadline = flushDeadline.Add(interval)
+					flushDeadline = flushDeadline.Add(a.interval)
 				}
 			}
 
@@ -733,33 +804,40 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 		}
 	}
 
-	if !skipIncompleteFlush && ignoreFirstIntervals == 0 {
-		a.dedupFlush(dedupInterval)
-		a.flush(pushFunc, interval, true)
+	if !skipIncompleteFlush && ignoreFirstIntervals <= 0 {
+		a.dedupFlush()
+		a.flush(pushFunc)
 	}
 }
 
-func (a *aggregator) dedupFlush(dedupInterval time.Duration) {
-	if dedupInterval <= 0 {
+func (a *aggregator) dedupFlush() {
+	if a.dedupInterval <= 0 {
 		// The de-duplication is disabled.
 		return
 	}
 
 	startTime := time.Now()
 
-	a.da.flush(a.pushSamples, true)
+	a.da.flush(a.pushSamples)
 
 	d := time.Since(startTime)
 	a.dedupFlushDuration.Update(d.Seconds())
-	if d > dedupInterval {
+	if d > a.dedupInterval {
 		a.dedupFlushTimeouts.Inc()
 		logger.Warnf("deduplication couldn't be finished in the configured dedup_interval=%s; it took %.03fs; "+
 			"possible solutions: increase dedup_interval; use match filter matching smaller number of series; "+
-			"reduce samples' ingestion rate to stream aggregation", dedupInterval, d.Seconds())
+			"reduce samples' ingestion rate to stream aggregation", a.dedupInterval, d.Seconds())
 	}
 }
 
-func (a *aggregator) flush(pushFunc PushFunc, interval time.Duration, resetState bool) {
+// flush flushes aggregator state to pushFunc.
+//
+// If pushFunc is nil, then the aggregator state is just reset.
+func (a *aggregator) flush(pushFunc PushFunc) {
+	a.flushInternal(pushFunc, true)
+}
+
+func (a *aggregator) flushInternal(pushFunc PushFunc, resetState bool) {
 	startTime := time.Now()
 
 	// Update minTimestamp before flushing samples to the storage,
@@ -768,31 +846,31 @@ func (a *aggregator) flush(pushFunc PushFunc, interval time.Duration, resetState
 	a.minTimestamp.Store(startTime.UnixMilli() - 5_000)
 
 	var wg sync.WaitGroup
-	for _, as := range a.aggrStates {
+	for i := range a.aggrOutputs {
+		ao := &a.aggrOutputs[i]
 		flushConcurrencyCh <- struct{}{}
 		wg.Add(1)
-		go func(as aggrState) {
+		go func(ao *aggrOutput) {
 			defer func() {
 				<-flushConcurrencyCh
 				wg.Done()
 			}()
 
-			ctx := getFlushCtx(a, pushFunc)
-			as.flushState(ctx, resetState)
+			ctx := getFlushCtx(a, ao, pushFunc)
+			ao.as.flushState(ctx, resetState)
 			ctx.flushSeries()
-			ctx.resetSeries()
 			putFlushCtx(ctx)
-		}(as)
+		}(ao)
 	}
 	wg.Wait()
 
 	d := time.Since(startTime)
 	a.flushDuration.Update(d.Seconds())
-	if d > interval {
+	if d > a.interval {
 		a.flushTimeouts.Inc()
 		logger.Warnf("stream aggregation couldn't be finished in the configured interval=%s; it took %.03fs; "+
 			"possible solutions: increase interval; use match filter matching smaller number of series; "+
-			"reduce samples' ingestion rate to stream aggregation", interval, d.Seconds())
+			"reduce samples' ingestion rate to stream aggregation", a.interval, d.Seconds())
 	}
 }
 
@@ -808,7 +886,6 @@ func (a *aggregator) MustStop() {
 
 // Push pushes tss to a.
 func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
-	now := time.Now().UnixMilli()
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 
@@ -821,8 +898,9 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	dropLabels := a.dropInputLabels
 	ignoreOldSamples := a.ignoreOldSamples
 	minTimestamp := a.minTimestamp.Load()
-	var totalLag int64
-	var totalSamples int
+
+	nowMsec := time.Now().UnixMilli()
+	var maxLagMsec int64
 	for idx, ts := range tss {
 		if !a.match.Match(ts.Labels) {
 			continue
@@ -854,28 +932,31 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 		// key remains valid only by the end of this function and can't be reused after
 		// do not intern key because number of unique keys could be too high
 		key := bytesutil.ToUnsafeString(buf[bufLen:])
-		for _, sample := range ts.Samples {
-			if math.IsNaN(sample.Value) {
-				a.ignoredNanSamples.Inc()
+		for _, s := range ts.Samples {
+			if math.IsNaN(s.Value) {
+				a.ignoredNaNSamples.Inc()
 				// Skip NaN values
 				continue
 			}
-			if ignoreOldSamples && sample.Timestamp < minTimestamp {
+			if ignoreOldSamples && s.Timestamp < minTimestamp {
 				a.ignoredOldSamples.Inc()
 				// Skip old samples outside the current aggregation interval
 				continue
 			}
-			totalLag += now - sample.Timestamp
-			totalSamples++
+			lagMsec := nowMsec - s.Timestamp
+			if lagMsec > maxLagMsec {
+				maxLagMsec = lagMsec
+			}
 			samples = append(samples, pushSample{
 				key:       key,
-				value:     sample.Value,
-				timestamp: sample.Timestamp,
+				value:     s.Value,
+				timestamp: s.Timestamp,
 			})
 		}
 	}
-	if totalSamples > 0 {
-		a.samplesLag.Update(float64(totalLag/int64(totalSamples)) / 1000)
+	if len(samples) > 0 {
+		a.matchedSamples.Add(len(samples))
+		a.samplesLag.Update(float64(maxLagMsec) / 1_000)
 	}
 	ctx.samples = samples
 	ctx.buf = buf
@@ -925,8 +1006,8 @@ func getInputOutputKey(key string) (string, string) {
 }
 
 func (a *aggregator) pushSamples(samples []pushSample) {
-	for _, as := range a.aggrStates {
-		as.pushSamples(samples)
+	for _, ao := range a.aggrOutputs {
+		ao.as.pushSamples(samples)
 	}
 }
 
@@ -992,13 +1073,14 @@ func getInputOutputLabels(dstInput, dstOutput, labels []prompbmarshal.Label, by,
 	return dstInput, dstOutput
 }
 
-func getFlushCtx(a *aggregator, pushFunc PushFunc) *flushCtx {
+func getFlushCtx(a *aggregator, ao *aggrOutput, pushFunc PushFunc) *flushCtx {
 	v := flushCtxPool.Get()
 	if v == nil {
 		v = &flushCtx{}
 	}
 	ctx := v.(*flushCtx)
 	ctx.a = a
+	ctx.ao = ao
 	ctx.pushFunc = pushFunc
 	return ctx
 }
@@ -1012,6 +1094,7 @@ var flushCtxPool sync.Pool
 
 type flushCtx struct {
 	a        *aggregator
+	ao       *aggrOutput
 	pushFunc PushFunc
 
 	tss     []prompbmarshal.TimeSeries
@@ -1021,6 +1104,7 @@ type flushCtx struct {
 
 func (ctx *flushCtx) reset() {
 	ctx.a = nil
+	ctx.ao = nil
 	ctx.pushFunc = nil
 	ctx.resetSeries()
 }
@@ -1036,6 +1120,8 @@ func (ctx *flushCtx) resetSeries() {
 }
 
 func (ctx *flushCtx) flushSeries() {
+	defer ctx.resetSeries()
+
 	tss := ctx.tss
 	if len(tss) == 0 {
 		// nothing to flush
@@ -1047,6 +1133,7 @@ func (ctx *flushCtx) flushSeries() {
 		// Fast path - push the output metrics.
 		if ctx.pushFunc != nil {
 			ctx.pushFunc(tss)
+			ctx.ao.outputSamples.Add(len(tss))
 		}
 		return
 	}
@@ -1068,6 +1155,7 @@ func (ctx *flushCtx) flushSeries() {
 	}
 	if ctx.pushFunc != nil {
 		ctx.pushFunc(dst)
+		ctx.ao.outputSamples.Add(len(dst))
 	}
 	auxLabels.Labels = dstLabels
 	promutils.PutLabels(auxLabels)
@@ -1092,7 +1180,6 @@ func (ctx *flushCtx) appendSeries(key, suffix string, timestamp int64, value flo
 	// Limit the maximum length of ctx.tss in order to limit memory usage.
 	if len(ctx.tss) >= 10_000 {
 		ctx.flushSeries()
-		ctx.resetSeries()
 	}
 }
 
@@ -1115,6 +1202,11 @@ func (ctx *flushCtx) appendSeriesWithExtraLabel(key, suffix string, timestamp in
 		Labels:  ctx.labels[labelsLen:],
 		Samples: ctx.samples[samplesLen:],
 	})
+
+	// Limit the maximum length of ctx.tss in order to limit memory usage.
+	if len(ctx.tss) >= 10_000 {
+		ctx.flushSeries()
+	}
 }
 
 func addMetricSuffix(labels []prompbmarshal.Label, offset int, firstSuffix, lastSuffix string) []prompbmarshal.Label {

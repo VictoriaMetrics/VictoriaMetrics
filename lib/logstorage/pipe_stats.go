@@ -95,6 +95,10 @@ func (ps *pipeStats) String() string {
 	return s
 }
 
+func (ps *pipeStats) canLiveTail() bool {
+	return false
+}
+
 func (ps *pipeStats) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	neededFieldsOrig := neededFields.clone()
 	neededFields.reset()
@@ -599,7 +603,7 @@ func parsePipeStats(lex *lexer, needStatsKeyword bool) (*pipeStats, error) {
 			return &ps, nil
 		}
 		if !lex.isKeyword(",") {
-			return nil, fmt.Errorf("unexpected token %q after [%s]; want ',', '|' or ')'", sf, lex.token)
+			return nil, fmt.Errorf("unexpected token %q after [%s]; want ',', '|' or ')'", lex.token, sf)
 		}
 		lex.nextToken()
 	}
@@ -700,6 +704,24 @@ func parseStatsFunc(lex *lexer) (statsFunc, error) {
 	default:
 		return nil, fmt.Errorf("unknown stats func %q", lex.token)
 	}
+}
+
+var statsNames = []string{
+	"avg",
+	"count",
+	"count_empty",
+	"count_uniq",
+	"max",
+	"median",
+	"min",
+	"quantile",
+	"row_any",
+	"row_max",
+	"row_min",
+	"sum",
+	"sum_len",
+	"uniq_values",
+	"values",
 }
 
 var zeroByStatsField = &byStatsField{}

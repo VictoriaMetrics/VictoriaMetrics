@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 )
 
 func TestGetQuotedRemoteAddr(t *testing.T) {
@@ -97,7 +99,11 @@ func TestAuthKeyMetrics(t *testing.T) {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded;param=value")
 		w := httptest.NewRecorder()
 
-		CheckAuthFlag(w, req, "rightKey", "metricsAuthkey")
+		p := &flagutil.Password{}
+		if err := p.Set("rightKey"); err != nil {
+			t.Fatalf("cannot set password: %s", err)
+		}
+		CheckAuthFlag(w, req, p)
 
 		res := w.Result()
 		defer res.Body.Close()
@@ -115,7 +121,11 @@ func TestAuthKeyMetrics(t *testing.T) {
 		req.SetBasicAuth(user, pass)
 
 		w := httptest.NewRecorder()
-		CheckAuthFlag(w, req, "", "metricsAuthkey")
+		p := &flagutil.Password{}
+		if err := p.Set(""); err != nil {
+			t.Fatalf("cannot set password: %s", err)
+		}
+		CheckAuthFlag(w, req, p)
 
 		res := w.Result()
 		_ = res.Body.Close()
@@ -135,9 +145,13 @@ func TestAuthKeyMetrics(t *testing.T) {
 }
 
 func TestHandlerWrapper(t *testing.T) {
-	*headerHSTS = "foo"
-	*headerFrameOptions = "bar"
-	*headerCSP = "baz"
+	const hstsHeader = "foo"
+	const frameOptionsHeader = "bar"
+	const cspHeader = "baz"
+
+	*headerHSTS = hstsHeader
+	*headerFrameOptions = frameOptionsHeader
+	*headerCSP = cspHeader
 	defer func() {
 		*headerHSTS = ""
 		*headerFrameOptions = ""
@@ -152,13 +166,14 @@ func TestHandlerWrapper(t *testing.T) {
 		return true
 	})
 
-	if w.Header().Get("Strict-Transport-Security") != "foo" {
-		t.Errorf("HSTS header not set")
+	h := w.Header()
+	if got := h.Get("Strict-Transport-Security"); got != hstsHeader {
+		t.Fatalf("unexpected HSTS header; got %q; want %q", got, hstsHeader)
 	}
-	if w.Header().Get("X-Frame-Options") != "bar" {
-		t.Errorf("X-Frame-Options header not set")
+	if got := h.Get("X-Frame-Options"); got != frameOptionsHeader {
+		t.Fatalf("unexpected X-Frame-Options header; got %q; want %q", got, frameOptionsHeader)
 	}
-	if w.Header().Get("Content-Security-Policy") != "baz" {
-		t.Errorf("CSP header not set")
+	if got := h.Get("Content-Security-Policy"); got != cspHeader {
+		t.Fatalf("unexpected CSP header; got %q; want %q", got, cspHeader)
 	}
 }

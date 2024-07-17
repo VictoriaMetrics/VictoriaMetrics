@@ -60,6 +60,7 @@ type DeleteBucketTaggingInput struct {
 }
 
 func (in *DeleteBucketTaggingInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
@@ -127,6 +128,15 @@ func (c *Client) addOperationDeleteBucketTaggingMiddlewares(stack *middleware.St
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpDeleteBucketTaggingValidationMiddleware(stack); err != nil {

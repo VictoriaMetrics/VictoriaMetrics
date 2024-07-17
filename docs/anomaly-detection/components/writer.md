@@ -31,7 +31,7 @@ Future updates will introduce additional export methods, offering users more fle
     <tbody>
         <tr>
             <td><code>class</code></td>
-            <td><code>"writer.vm.VmWriter"</code></td>
+            <td><code>"writer.vm.VmWriter" (or "vm" starting from <a href="https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130">v1.13.0</a>)</code></td>
             <td>Name of the class needed to enable writing to VictoriaMetrics or Prometheus. VmWriter is the default option, if not specified.</td>
         </tr>
         <tr>
@@ -103,7 +103,7 @@ Config example:
 
 ```yaml
 writer:
-  class: "writer.vm.VmWriter"
+  class: "vm"  # or "writer.vm.VmWriter" until v1.13.0
   datasource_url: "http://localhost:8428/"
   tenant_id: "0:0"
   metric_format:

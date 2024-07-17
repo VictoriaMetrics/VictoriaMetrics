@@ -1,19 +1,19 @@
-import { useCallback, useMemo, useState } from "preact/compat";
+import { useCallback, useMemo, useRef, useState } from "preact/compat";
 import { getLogsUrl } from "../../../api/logs";
-import { ErrorTypes } from "../../../types";
+import { ErrorTypes, TimeParams } from "../../../types";
 import { Logs } from "../../../api/types";
-import { useTimeState } from "../../../state/time/TimeStateContext";
 import dayjs from "dayjs";
 
 export const useFetchLogs = (server: string, query: string, limit: number) => {
-  const { period } = useTimeState();
   const [logs, setLogs] = useState<Logs[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState<{[key: number]: boolean;}>([]);
   const [error, setError] = useState<ErrorTypes | string>();
+  const abortControllerRef = useRef(new AbortController());
 
   const url = useMemo(() => getLogsUrl(server), [server]);
 
-  const options = useMemo(() => ({
+  const getOptions = (query: string, period: TimeParams, limit: number, signal: AbortSignal) => ({
+    signal,
     method: "POST",
     headers: {
       "Accept": "application/stream+json",
@@ -24,7 +24,7 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
       start: dayjs(period.start * 1000).tz().toISOString(),
       end: dayjs(period.end * 1000).tz().toISOString()
     })
-  }), [query, limit, period]);
+  });
 
   const parseLineToJSON = (line: string): Logs | null => {
     try {
@@ -34,18 +34,24 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
     }
   };
 
-  const fetchLogs = useCallback(async () => {
-    const limit = Number(options.body.get("limit"));
-    setIsLoading(true);
+  const fetchLogs = useCallback(async (period: TimeParams) => {
+    abortControllerRef.current.abort();
+    abortControllerRef.current = new AbortController();
+    const { signal } = abortControllerRef.current;
+
+    const id = Date.now();
+    setIsLoading(prev => ({ ...prev, [id]: true }));
     setError(undefined);
+
     try {
+      const options = getOptions(query, period, limit, signal);
       const response = await fetch(url, options);
       const text = await response.text();
 
       if (!response.ok || !response.body) {
         setError(text);
         setLogs([]);
-        setIsLoading(false);
+        setIsLoading(prev => ({ ...prev, [id]: false }));
         return;
       }
 
@@ -53,18 +59,18 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
       const data = lines.map(parseLineToJSON).filter(line => line) as Logs[];
       setLogs(data);
     } catch (e) {
-      console.error(e);
-      setLogs([]);
-      if (e instanceof Error) {
-        setError(`${e.name}: ${e.message}`);
+      if (e instanceof Error && e.name !== "AbortError") {
+        setError(String(e));
+        console.error(e);
+        setLogs([]);
       }
     }
-    setIsLoading(false);
-  }, [url, options]);
+    setIsLoading(prev => ({ ...prev, [id]: false }));
+  }, [url, query, limit]);
 
   return {
     logs,
-    isLoading,
+    isLoading: Object.values(isLoading).some(s => s),
     error,
     fetchLogs,
   };

@@ -3,7 +3,9 @@ package logstorage
 import (
 	"context"
 	"fmt"
+	"math"
 	"reflect"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -14,7 +16,9 @@ import (
 )
 
 func TestStorageRunQuery(t *testing.T) {
-	const path = "TestStorageRunQuery"
+	t.Parallel()
+
+	path := t.Name()
 
 	const tenantsCount = 11
 	const streamsPerTenant = 3
@@ -80,16 +84,16 @@ func TestStorageRunQuery(t *testing.T) {
 	}
 	s.debugFlush()
 
-	mustRunQuery := func(tenantIDs []TenantID, q *Query, writeBlock WriteBlockFunc) {
+	mustRunQuery := func(t *testing.T, tenantIDs []TenantID, q *Query, writeBlock WriteBlockFunc) {
 		t.Helper()
 		err := s.RunQuery(context.Background(), tenantIDs, q, writeBlock)
 		if err != nil {
-			t.Fatalf("unexpected error returned from the query %s: %s", q, err)
+			t.Fatalf("unexpected error returned from the query [%s]: %s", q, err)
 		}
 	}
 
 	// run tests on the storage data
-	t.Run("missing-tenant", func(_ *testing.T) {
+	t.Run("missing-tenant", func(t *testing.T) {
 		q := mustParseQuery(`"log message"`)
 		tenantID := TenantID{
 			AccountID: 0,
@@ -99,9 +103,9 @@ func TestStorageRunQuery(t *testing.T) {
 			panic(fmt.Errorf("unexpected match for %d rows", len(timestamps)))
 		}
 		tenantIDs := []TenantID{tenantID}
-		mustRunQuery(tenantIDs, q, writeBlock)
+		mustRunQuery(t, tenantIDs, q, writeBlock)
 	})
-	t.Run("missing-message-text", func(_ *testing.T) {
+	t.Run("missing-message-text", func(t *testing.T) {
 		q := mustParseQuery(`foobar`)
 		tenantID := TenantID{
 			AccountID: 1,
@@ -111,7 +115,7 @@ func TestStorageRunQuery(t *testing.T) {
 			panic(fmt.Errorf("unexpected match for %d rows", len(timestamps)))
 		}
 		tenantIDs := []TenantID{tenantID}
-		mustRunQuery(tenantIDs, q, writeBlock)
+		mustRunQuery(t, tenantIDs, q, writeBlock)
 	})
 	t.Run("matching-tenant-id", func(t *testing.T) {
 		q := mustParseQuery(`tenant.id:*`)
@@ -145,7 +149,7 @@ func TestStorageRunQuery(t *testing.T) {
 				rowsCountTotal.Add(uint32(len(timestamps)))
 			}
 			tenantIDs := []TenantID{tenantID}
-			mustRunQuery(tenantIDs, q, writeBlock)
+			mustRunQuery(t, tenantIDs, q, writeBlock)
 
 			expectedRowsCount := streamsPerTenant * blocksPerStream * rowsPerBlock
 			if n := rowsCountTotal.Load(); n != uint32(expectedRowsCount) {
@@ -159,7 +163,7 @@ func TestStorageRunQuery(t *testing.T) {
 		writeBlock := func(_ uint, timestamps []int64, _ []BlockColumn) {
 			rowsCountTotal.Add(uint32(len(timestamps)))
 		}
-		mustRunQuery(allTenantIDs, q, writeBlock)
+		mustRunQuery(t, allTenantIDs, q, writeBlock)
 
 		expectedRowsCount := tenantsCount * streamsPerTenant * blocksPerStream * rowsPerBlock
 		if n := rowsCountTotal.Load(); n != uint32(expectedRowsCount) {
@@ -172,19 +176,19 @@ func TestStorageRunQuery(t *testing.T) {
 		writeBlock := func(_ uint, timestamps []int64, _ []BlockColumn) {
 			rowsCountTotal.Add(uint32(len(timestamps)))
 		}
-		mustRunQuery(allTenantIDs, q, writeBlock)
+		mustRunQuery(t, allTenantIDs, q, writeBlock)
 
 		expectedRowsCount := tenantsCount * streamsPerTenant * blocksPerStream * rowsPerBlock
 		if n := rowsCountTotal.Load(); n != uint32(expectedRowsCount) {
 			t.Fatalf("unexpected number of matching rows; got %d; want %d", n, expectedRowsCount)
 		}
 	})
-	t.Run("stream-filter-mismatch", func(_ *testing.T) {
+	t.Run("stream-filter-mismatch", func(t *testing.T) {
 		q := mustParseQuery(`_stream:{job="foobar",instance=~"host-.+:2345"} log`)
 		writeBlock := func(_ uint, timestamps []int64, _ []BlockColumn) {
 			panic(fmt.Errorf("unexpected match for %d rows", len(timestamps)))
 		}
-		mustRunQuery(allTenantIDs, q, writeBlock)
+		mustRunQuery(t, allTenantIDs, q, writeBlock)
 	})
 	t.Run("matching-stream-id", func(t *testing.T) {
 		for i := 0; i < streamsPerTenant; i++ {
@@ -218,7 +222,7 @@ func TestStorageRunQuery(t *testing.T) {
 				rowsCountTotal.Add(uint32(len(timestamps)))
 			}
 			tenantIDs := []TenantID{tenantID}
-			mustRunQuery(tenantIDs, q, writeBlock)
+			mustRunQuery(t, tenantIDs, q, writeBlock)
 
 			expectedRowsCount := blocksPerStream * rowsPerBlock
 			if n := rowsCountTotal.Load(); n != uint32(expectedRowsCount) {
@@ -237,7 +241,7 @@ func TestStorageRunQuery(t *testing.T) {
 			rowsCountTotal.Add(uint32(len(timestamps)))
 		}
 		tenantIDs := []TenantID{tenantID}
-		mustRunQuery(tenantIDs, q, writeBlock)
+		mustRunQuery(t, tenantIDs, q, writeBlock)
 
 		expectedRowsCount := streamsPerTenant * blocksPerStream * 2
 		if n := rowsCountTotal.Load(); n != uint32(expectedRowsCount) {
@@ -257,7 +261,7 @@ func TestStorageRunQuery(t *testing.T) {
 			rowsCountTotal.Add(uint32(len(timestamps)))
 		}
 		tenantIDs := []TenantID{tenantID}
-		mustRunQuery(tenantIDs, q, writeBlock)
+		mustRunQuery(t, tenantIDs, q, writeBlock)
 
 		expectedRowsCount := streamsPerTenant * blocksPerStream
 		if n := rowsCountTotal.Load(); n != uint32(expectedRowsCount) {
@@ -277,14 +281,14 @@ func TestStorageRunQuery(t *testing.T) {
 			rowsCountTotal.Add(uint32(len(timestamps)))
 		}
 		tenantIDs := []TenantID{tenantID}
-		mustRunQuery(tenantIDs, q, writeBlock)
+		mustRunQuery(t, tenantIDs, q, writeBlock)
 
 		expectedRowsCount := blocksPerStream
 		if n := rowsCountTotal.Load(); n != uint32(expectedRowsCount) {
 			t.Fatalf("unexpected number of rows; got %d; want %d", n, expectedRowsCount)
 		}
 	})
-	t.Run("matching-stream-id-missing-time-range", func(_ *testing.T) {
+	t.Run("matching-stream-id-missing-time-range", func(t *testing.T) {
 		minTimestamp := baseTimestamp + (rowsPerBlock+1)*1e9
 		maxTimestamp := baseTimestamp + (rowsPerBlock+2)*1e9
 		q := mustParseQuery(fmt.Sprintf(`_stream:{job="foobar",instance="host-1:234"} _time:[%d, %d)`, minTimestamp/1e9, maxTimestamp/1e9))
@@ -296,9 +300,9 @@ func TestStorageRunQuery(t *testing.T) {
 			panic(fmt.Errorf("unexpected match for %d rows", len(timestamps)))
 		}
 		tenantIDs := []TenantID{tenantID}
-		mustRunQuery(tenantIDs, q, writeBlock)
+		mustRunQuery(t, tenantIDs, q, writeBlock)
 	})
-	t.Run("missing-time-range", func(_ *testing.T) {
+	t.Run("missing-time-range", func(t *testing.T) {
 		minTimestamp := baseTimestamp + (rowsPerBlock+1)*1e9
 		maxTimestamp := baseTimestamp + (rowsPerBlock+2)*1e9
 		q := mustParseQuery(fmt.Sprintf(`_time:[%d, %d)`, minTimestamp/1e9, maxTimestamp/1e9))
@@ -310,18 +314,19 @@ func TestStorageRunQuery(t *testing.T) {
 			panic(fmt.Errorf("unexpected match for %d rows", len(timestamps)))
 		}
 		tenantIDs := []TenantID{tenantID}
-		mustRunQuery(tenantIDs, q, writeBlock)
+		mustRunQuery(t, tenantIDs, q, writeBlock)
 	})
 	t.Run("field_names-all", func(t *testing.T) {
 		q := mustParseQuery("*")
-		names, err := s.GetFieldNames(context.Background(), allTenantIDs, q)
+		results, err := s.GetFieldNames(context.Background(), allTenantIDs, q)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 
-		resultExpected := []ValueWithHits{
+		resultsExpected := []ValueWithHits{
 			{"_msg", 1155},
 			{"_stream", 1155},
+			{"_stream_id", 1155},
 			{"_time", 1155},
 			{"instance", 1155},
 			{"job", 1155},
@@ -329,20 +334,21 @@ func TestStorageRunQuery(t *testing.T) {
 			{"stream-id", 1155},
 			{"tenant.id", 1155},
 		}
-		if !reflect.DeepEqual(names, resultExpected) {
-			t.Fatalf("unexpected result; got\n%v\nwant\n%v", names, resultExpected)
+		if !reflect.DeepEqual(results, resultsExpected) {
+			t.Fatalf("unexpected result; got\n%v\nwant\n%v", results, resultsExpected)
 		}
 	})
 	t.Run("field_names-some", func(t *testing.T) {
 		q := mustParseQuery(`_stream:{instance=~"host-1:.+"}`)
-		names, err := s.GetFieldNames(context.Background(), allTenantIDs, q)
+		results, err := s.GetFieldNames(context.Background(), allTenantIDs, q)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 
-		resultExpected := []ValueWithHits{
+		resultsExpected := []ValueWithHits{
 			{"_msg", 385},
 			{"_stream", 385},
+			{"_stream_id", 385},
 			{"_time", 385},
 			{"instance", 385},
 			{"job", 385},
@@ -350,85 +356,85 @@ func TestStorageRunQuery(t *testing.T) {
 			{"stream-id", 385},
 			{"tenant.id", 385},
 		}
-		if !reflect.DeepEqual(names, resultExpected) {
-			t.Fatalf("unexpected result; got\n%v\nwant\n%v", names, resultExpected)
+		if !reflect.DeepEqual(results, resultsExpected) {
+			t.Fatalf("unexpected result; got\n%v\nwant\n%v", results, resultsExpected)
 		}
 	})
 	t.Run("field_values-nolimit", func(t *testing.T) {
 		q := mustParseQuery("*")
-		values, err := s.GetFieldValues(context.Background(), allTenantIDs, q, "_stream", 0)
+		results, err := s.GetFieldValues(context.Background(), allTenantIDs, q, "_stream", 0)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 
-		resultExpected := []ValueWithHits{
+		resultsExpected := []ValueWithHits{
 			{`{instance="host-0:234",job="foobar"}`, 385},
 			{`{instance="host-1:234",job="foobar"}`, 385},
 			{`{instance="host-2:234",job="foobar"}`, 385},
 		}
-		if !reflect.DeepEqual(values, resultExpected) {
-			t.Fatalf("unexpected result; got\n%v\nwant\n%v", values, resultExpected)
+		if !reflect.DeepEqual(results, resultsExpected) {
+			t.Fatalf("unexpected result; got\n%v\nwant\n%v", results, resultsExpected)
 		}
 	})
 	t.Run("field_values-limit", func(t *testing.T) {
 		q := mustParseQuery("*")
-		values, err := s.GetFieldValues(context.Background(), allTenantIDs, q, "_stream", 3)
+		results, err := s.GetFieldValues(context.Background(), allTenantIDs, q, "_stream", 3)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 
-		resultExpected := []ValueWithHits{
+		resultsExpected := []ValueWithHits{
 			{`{instance="host-0:234",job="foobar"}`, 0},
 			{`{instance="host-1:234",job="foobar"}`, 0},
 			{`{instance="host-2:234",job="foobar"}`, 0},
 		}
-		if !reflect.DeepEqual(values, resultExpected) {
-			t.Fatalf("unexpected result; got\n%v\nwant\n%v", values, resultExpected)
+		if !reflect.DeepEqual(results, resultsExpected) {
+			t.Fatalf("unexpected result; got\n%v\nwant\n%v", results, resultsExpected)
 		}
 	})
 	t.Run("field_values-limit", func(t *testing.T) {
 		q := mustParseQuery("instance:='host-1:234'")
-		values, err := s.GetFieldValues(context.Background(), allTenantIDs, q, "_stream", 4)
+		results, err := s.GetFieldValues(context.Background(), allTenantIDs, q, "_stream", 4)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 
-		resultExpected := []ValueWithHits{
+		resultsExpected := []ValueWithHits{
 			{`{instance="host-1:234",job="foobar"}`, 385},
 		}
-		if !reflect.DeepEqual(values, resultExpected) {
-			t.Fatalf("unexpected result; got\n%v\nwant\n%v", values, resultExpected)
+		if !reflect.DeepEqual(results, resultsExpected) {
+			t.Fatalf("unexpected result; got\n%v\nwant\n%v", results, resultsExpected)
 		}
 	})
 	t.Run("stream_field_names", func(t *testing.T) {
 		q := mustParseQuery("*")
-		names, err := s.GetStreamFieldNames(context.Background(), allTenantIDs, q)
+		results, err := s.GetStreamFieldNames(context.Background(), allTenantIDs, q)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 
-		resultExpected := []ValueWithHits{
+		resultsExpected := []ValueWithHits{
 			{"instance", 1155},
 			{"job", 1155},
 		}
-		if !reflect.DeepEqual(names, resultExpected) {
-			t.Fatalf("unexpected result; got\n%v\nwant\n%v", names, resultExpected)
+		if !reflect.DeepEqual(results, resultsExpected) {
+			t.Fatalf("unexpected result; got\n%v\nwant\n%v", results, resultsExpected)
 		}
 	})
 	t.Run("stream_field_values-nolimit", func(t *testing.T) {
 		q := mustParseQuery("*")
-		values, err := s.GetStreamFieldValues(context.Background(), allTenantIDs, q, "instance", 0)
+		results, err := s.GetStreamFieldValues(context.Background(), allTenantIDs, q, "instance", 0)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 
-		resultExpected := []ValueWithHits{
+		resultsExpected := []ValueWithHits{
 			{`host-0:234`, 385},
 			{`host-1:234`, 385},
 			{`host-2:234`, 385},
 		}
-		if !reflect.DeepEqual(values, resultExpected) {
-			t.Fatalf("unexpected result; got\n%v\nwant\n%v", values, resultExpected)
+		if !reflect.DeepEqual(results, resultsExpected) {
+			t.Fatalf("unexpected result; got\n%v\nwant\n%v", results, resultsExpected)
 		}
 	})
 	t.Run("stream_field_values-limit", func(t *testing.T) {
@@ -438,29 +444,53 @@ func TestStorageRunQuery(t *testing.T) {
 			t.Fatalf("unexpected error: %s", err)
 		}
 
-		resultExpected := []ValueWithHits{
+		resultsExpected := []ValueWithHits{
 			{`host-0:234`, 385},
 			{`host-1:234`, 385},
 			{`host-2:234`, 385},
 		}
-		if !reflect.DeepEqual(values, resultExpected) {
-			t.Fatalf("unexpected result; got\n%v\nwant\n%v", values, resultExpected)
+		if !reflect.DeepEqual(values, resultsExpected) {
+			t.Fatalf("unexpected result; got\n%v\nwant\n%v", values, resultsExpected)
 		}
 	})
 	t.Run("streams", func(t *testing.T) {
 		q := mustParseQuery("*")
-		names, err := s.GetStreams(context.Background(), allTenantIDs, q, 0)
+		results, err := s.GetStreams(context.Background(), allTenantIDs, q, 0)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 
-		resultExpected := []ValueWithHits{
+		resultsExpected := []ValueWithHits{
 			{`{instance="host-0:234",job="foobar"}`, 385},
 			{`{instance="host-1:234",job="foobar"}`, 385},
 			{`{instance="host-2:234",job="foobar"}`, 385},
 		}
-		if !reflect.DeepEqual(names, resultExpected) {
-			t.Fatalf("unexpected result; got\n%v\nwant\n%v", names, resultExpected)
+		if !reflect.DeepEqual(results, resultsExpected) {
+			t.Fatalf("unexpected result; got\n%v\nwant\n%v", results, resultsExpected)
+		}
+	})
+	t.Run("stream_ids", func(t *testing.T) {
+		q := mustParseQuery("*")
+		results, err := s.GetStreamIDs(context.Background(), allTenantIDs, q, 0)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		// Verify the first 5 results with the smallest _stream_id value.
+		sort.Slice(results, func(i, j int) bool {
+			return results[i].Value < results[j].Value
+		})
+		results = results[:5]
+
+		resultsExpected := []ValueWithHits{
+			{"000000000000000140c1914be0226f8185f5b00551fb3b2d", 35},
+			{"000000000000000177edafcd46385c778b57476eb5b92233", 35},
+			{"0000000000000001f5b4cae620b5e85d6ef5f2107fe00274", 35},
+			{"000000010000000b40c1914be0226f8185f5b00551fb3b2d", 35},
+			{"000000010000000b77edafcd46385c778b57476eb5b92233", 35},
+		}
+		if !reflect.DeepEqual(results, resultsExpected) {
+			t.Fatalf("unexpected result; got\n%v\nwant\n%v", results, resultsExpected)
 		}
 	})
 
@@ -489,7 +519,7 @@ func TestStorageRunQuery(t *testing.T) {
 				resultRowsLock.Unlock()
 			}
 		}
-		mustRunQuery(allTenantIDs, q, writeBlock)
+		mustRunQuery(t, allTenantIDs, q, writeBlock)
 
 		assertRowsEqual(t, resultRows, rowsExpected)
 	}
@@ -498,6 +528,13 @@ func TestStorageRunQuery(t *testing.T) {
 		f(t, `* | stats count() rows`, [][]Field{
 			{
 				{"rows", "1155"},
+			},
+		})
+	})
+	t.Run("_stream_id-filter", func(t *testing.T) {
+		f(t, `_stream_id:in(tenant.id:2 | fields _stream_id) | stats count() rows`, [][]Field{
+			{
+				{"rows", "105"},
 			},
 		})
 	})
@@ -541,7 +578,7 @@ func TestStorageRunQuery(t *testing.T) {
 			},
 		})
 	})
-	t.Run("pipe-extract", func(*testing.T) {
+	t.Run("pipe-extract", func(t *testing.T) {
 		f(t, `* | extract "host-<host>:" from instance | uniq (host) with hits | sort by (host)`, [][]Field{
 			{
 				{"host", "0"},
@@ -557,7 +594,7 @@ func TestStorageRunQuery(t *testing.T) {
 			},
 		})
 	})
-	t.Run("pipe-extract-if-filter-with-subquery", func(*testing.T) {
+	t.Run("pipe-extract-if-filter-with-subquery", func(t *testing.T) {
 		f(t, `* | extract
 				if (tenant.id:in(tenant.id:(3 or 4) | fields tenant.id))
 				"host-<host>:" from instance
@@ -586,7 +623,7 @@ func TestStorageRunQuery(t *testing.T) {
 			},
 		})
 	})
-	t.Run("pipe-extract-if-filter-with-subquery-non-empty-host", func(*testing.T) {
+	t.Run("pipe-extract-if-filter-with-subquery-non-empty-host", func(t *testing.T) {
 		f(t, `* | extract
 				if (tenant.id:in(tenant.id:3 | fields tenant.id))
 				"host-<host>:" from instance
@@ -607,7 +644,7 @@ func TestStorageRunQuery(t *testing.T) {
 			},
 		})
 	})
-	t.Run("pipe-extract-if-filter-with-subquery-empty-host", func(*testing.T) {
+	t.Run("pipe-extract-if-filter-with-subquery-empty-host", func(t *testing.T) {
 		f(t, `* | extract
 				if (tenant.id:in(tenant.id:3 | fields tenant.id))
 				"host-<host>:" from instance
@@ -617,6 +654,78 @@ func TestStorageRunQuery(t *testing.T) {
 			{
 				{"host", ""},
 				{"hits", "1050"},
+			},
+		})
+	})
+	t.Run("stream_context-noop-1", func(t *testing.T) {
+		f(t, `"message 3 at block 1"
+			| stream_context before 0
+			| stats count() rows`, [][]Field{
+			{
+				{"rows", "33"},
+			},
+		})
+	})
+	t.Run("stream_context-noop-2", func(t *testing.T) {
+		f(t, `"message 3 at block 1"
+			| stream_context before 0 after 0
+			| stats count() rows`, [][]Field{
+			{
+				{"rows", "33"},
+			},
+		})
+	})
+	t.Run("stream_context-before-1", func(t *testing.T) {
+		f(t, `"message 3 at block 1"
+			| stream_context before 1
+			| stats count() rows`, [][]Field{
+			{
+				{"rows", "66"},
+			},
+		})
+	})
+	t.Run("stream_context-after-1", func(t *testing.T) {
+		f(t, `"message 3 at block 1"
+			| stream_context after 1
+			| stats count() rows`, [][]Field{
+			{
+				{"rows", "66"},
+			},
+		})
+	})
+	t.Run("stream_context-before-after-1", func(t *testing.T) {
+		f(t, `"message 3 at block 1"
+			| stream_context before 1 after 1
+			| stats count() rows`, [][]Field{
+			{
+				{"rows", "99"},
+			},
+		})
+	})
+	t.Run("stream_context-before-1000", func(t *testing.T) {
+		f(t, `"message 4"
+			| stream_context before 1000
+			| stats count() rows`, [][]Field{
+			{
+				{"rows", "825"},
+			},
+		})
+	})
+	t.Run("stream_context-after-1000", func(t *testing.T) {
+		f(t, `"message 4"
+			| stream_context after 1000
+			| stats count() rows`, [][]Field{
+			{
+				{"rows", "495"},
+			},
+		})
+	})
+	t.Run("stream_context-before-after-1000", func(t *testing.T) {
+		f(t, `"message 4"
+			| stream_context before 1000 after 1000
+			| stats count() rows`, [][]Field{
+			{
+				{"rows", "1155"},
 			},
 		})
 	})
@@ -635,7 +744,9 @@ func mustParseQuery(query string) *Query {
 }
 
 func TestStorageSearch(t *testing.T) {
-	const path = "TestStorageSearch"
+	t.Parallel()
+
+	path := t.Name()
 
 	const tenantsCount = 11
 	const streamsPerTenant = 3
@@ -719,11 +830,7 @@ func TestStorageSearch(t *testing.T) {
 		minTimestamp := baseTimestamp
 		maxTimestamp := baseTimestamp + rowsPerBlock*1e9 + blocksPerStream
 		f := getBaseFilter(minTimestamp, maxTimestamp, nil)
-		so := &genericSearchOptions{
-			tenantIDs:         []TenantID{tenantID},
-			filter:            f,
-			neededColumnNames: []string{"_msg"},
-		}
+		so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 		processBlock := func(_ uint, _ *blockResult) {
 			panic(fmt.Errorf("unexpected match"))
 		}
@@ -737,11 +844,7 @@ func TestStorageSearch(t *testing.T) {
 		minTimestamp := baseTimestamp
 		maxTimestamp := baseTimestamp + rowsPerBlock*1e9 + blocksPerStream
 		f := getBaseFilter(minTimestamp, maxTimestamp, nil)
-		so := &genericSearchOptions{
-			tenantIDs:         []TenantID{tenantID},
-			filter:            f,
-			neededColumnNames: []string{"_msg"},
-		}
+		so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 		processBlock := func(_ uint, _ *blockResult) {
 			panic(fmt.Errorf("unexpected match"))
 		}
@@ -755,11 +858,7 @@ func TestStorageSearch(t *testing.T) {
 		minTimestamp := baseTimestamp
 		maxTimestamp := baseTimestamp + rowsPerBlock*1e9 + blocksPerStream
 		f := getBaseFilter(minTimestamp, maxTimestamp, nil)
-		so := &genericSearchOptions{
-			tenantIDs:         []TenantID{tenantID},
-			filter:            f,
-			neededColumnNames: []string{"_msg"},
-		}
+		so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 		processBlock := func(_ uint, _ *blockResult) {
 			panic(fmt.Errorf("unexpected match"))
 		}
@@ -774,11 +873,7 @@ func TestStorageSearch(t *testing.T) {
 			minTimestamp := baseTimestamp
 			maxTimestamp := baseTimestamp + rowsPerBlock*1e9 + blocksPerStream
 			f := getBaseFilter(minTimestamp, maxTimestamp, nil)
-			so := &genericSearchOptions{
-				tenantIDs:         []TenantID{tenantID},
-				filter:            f,
-				neededColumnNames: []string{"_msg"},
-			}
+			so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 			var rowsCountTotal atomic.Uint32
 			processBlock := func(_ uint, br *blockResult) {
 				rowsCountTotal.Add(uint32(len(br.timestamps)))
@@ -795,11 +890,7 @@ func TestStorageSearch(t *testing.T) {
 		minTimestamp := baseTimestamp
 		maxTimestamp := baseTimestamp + rowsPerBlock*1e9 + blocksPerStream
 		f := getBaseFilter(minTimestamp, maxTimestamp, nil)
-		so := &genericSearchOptions{
-			tenantIDs:         allTenantIDs,
-			filter:            f,
-			neededColumnNames: []string{"_msg"},
-		}
+		so := newTestGenericSearchOptions(allTenantIDs, f, []string{"_msg"})
 		var rowsCountTotal atomic.Uint32
 		processBlock := func(_ uint, br *blockResult) {
 			rowsCountTotal.Add(uint32(len(br.timestamps)))
@@ -816,11 +907,7 @@ func TestStorageSearch(t *testing.T) {
 		minTimestamp := baseTimestamp
 		maxTimestamp := baseTimestamp + rowsPerBlock*1e9 + blocksPerStream
 		f := getBaseFilter(minTimestamp, maxTimestamp, sf)
-		so := &genericSearchOptions{
-			tenantIDs:         allTenantIDs,
-			filter:            f,
-			neededColumnNames: []string{"_msg"},
-		}
+		so := newTestGenericSearchOptions(allTenantIDs, f, []string{"_msg"})
 		processBlock := func(_ uint, _ *blockResult) {
 			panic(fmt.Errorf("unexpected match"))
 		}
@@ -836,11 +923,7 @@ func TestStorageSearch(t *testing.T) {
 			minTimestamp := baseTimestamp
 			maxTimestamp := baseTimestamp + rowsPerBlock*1e9 + blocksPerStream
 			f := getBaseFilter(minTimestamp, maxTimestamp, sf)
-			so := &genericSearchOptions{
-				tenantIDs:         []TenantID{tenantID},
-				filter:            f,
-				neededColumnNames: []string{"_msg"},
-			}
+			so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 			var rowsCountTotal atomic.Uint32
 			processBlock := func(_ uint, br *blockResult) {
 				rowsCountTotal.Add(uint32(len(br.timestamps)))
@@ -862,11 +945,7 @@ func TestStorageSearch(t *testing.T) {
 		minTimestamp := baseTimestamp
 		maxTimestamp := baseTimestamp + rowsPerBlock*1e9 + blocksPerStream
 		f := getBaseFilter(minTimestamp, maxTimestamp, sf)
-		so := &genericSearchOptions{
-			tenantIDs:         []TenantID{tenantID},
-			filter:            f,
-			neededColumnNames: []string{"_msg"},
-		}
+		so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 		var rowsCountTotal atomic.Uint32
 		processBlock := func(_ uint, br *blockResult) {
 			rowsCountTotal.Add(uint32(len(br.timestamps)))
@@ -896,11 +975,7 @@ func TestStorageSearch(t *testing.T) {
 				},
 			},
 		}
-		so := &genericSearchOptions{
-			tenantIDs:         []TenantID{tenantID},
-			filter:            f,
-			neededColumnNames: []string{"_msg"},
-		}
+		so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 		var rowsCountTotal atomic.Uint32
 		processBlock := func(_ uint, br *blockResult) {
 			rowsCountTotal.Add(uint32(len(br.timestamps)))
@@ -921,11 +996,7 @@ func TestStorageSearch(t *testing.T) {
 		minTimestamp := baseTimestamp + (rowsPerBlock-2)*1e9
 		maxTimestamp := baseTimestamp + (rowsPerBlock-1)*1e9 - 1
 		f := getBaseFilter(minTimestamp, maxTimestamp, sf)
-		so := &genericSearchOptions{
-			tenantIDs:         []TenantID{tenantID},
-			filter:            f,
-			neededColumnNames: []string{"_msg"},
-		}
+		so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 		var rowsCountTotal atomic.Uint32
 		processBlock := func(_ uint, br *blockResult) {
 			rowsCountTotal.Add(uint32(len(br.timestamps)))
@@ -946,11 +1017,7 @@ func TestStorageSearch(t *testing.T) {
 		minTimestamp := baseTimestamp + (rowsPerBlock+1)*1e9
 		maxTimestamp := baseTimestamp + (rowsPerBlock+2)*1e9
 		f := getBaseFilter(minTimestamp, maxTimestamp, sf)
-		so := &genericSearchOptions{
-			tenantIDs:         []TenantID{tenantID},
-			filter:            f,
-			neededColumnNames: []string{"_msg"},
-		}
+		so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 		processBlock := func(_ uint, _ *blockResult) {
 			panic(fmt.Errorf("unexpected match"))
 		}
@@ -962,6 +1029,8 @@ func TestStorageSearch(t *testing.T) {
 }
 
 func TestParseStreamFieldsSuccess(t *testing.T) {
+	t.Parallel()
+
 	f := func(s, resultExpected string) {
 		t.Helper()
 
@@ -979,4 +1048,14 @@ func TestParseStreamFieldsSuccess(t *testing.T) {
 	f(`{foo="bar"}`, `{"foo":"bar"}`)
 	f(`{a="b",c="d"}`, `{"a":"b","c":"d"}`)
 	f(`{a="a=,b\"c}",b="d"}`, `{"a":"a=,b\"c}","b":"d"}`)
+}
+
+func newTestGenericSearchOptions(tenantIDs []TenantID, f filter, neededColumns []string) *genericSearchOptions {
+	return &genericSearchOptions{
+		tenantIDs:         tenantIDs,
+		minTimestamp:      math.MinInt64,
+		maxTimestamp:      math.MaxInt64,
+		filter:            f,
+		neededColumnNames: neededColumns,
+	}
 }

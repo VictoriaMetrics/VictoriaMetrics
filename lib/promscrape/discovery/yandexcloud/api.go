@@ -39,7 +39,7 @@ type apiConfig struct {
 }
 
 func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
-	v, err := configMap.Get(sdc, func() (interface{}, error) { return newAPIConfig(sdc, baseDir) })
+	v, err := configMap.Get(sdc, func() (any, error) { return newAPIConfig(sdc, baseDir) })
 	if err != nil {
 		return nil, err
 	}
@@ -123,18 +123,85 @@ func getCreds(cfg *apiConfig) (*apiCredentials, error) {
 //
 // See https://cloud.yandex.com/en-ru/docs/compute/operations/vm-connect/auth-inside-vm
 func getInstanceCreds(cfg *apiConfig) (*apiCredentials, error) {
+	// Try obtaining GCE-like creds at first.
+	// See https://yandex.cloud/en-ru/docs/compute/operations/vm-connect/auth-inside-vm#auth-inside-vm
+	creds, err := getGCEInstanceCreds(cfg)
+	if err == nil {
+		return creds, nil
+	}
+	errGCE := err
+
+	// Fall back to the disabled IMDSv1 - see https://yandex.cloud/en/docs/security/standard/authentication#aws-token
+	//
+	// TODO: remove this when it is completely removed from Yandex Cloud.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5513
+	// and https://yandex.cloud/en/docs/security/standard/authentication#aws-token
+	creds, err = getEC2IMDBSv1Creds(cfg)
+	if err == nil {
+		return creds, nil
+	}
+
+	// Return errGCE, since it is likely the IMDBSv1 is disabled.
+	return nil, errGCE
+}
+
+// getGCEInstanceCreds gets Yandex Cloud IAM token using GCE API
+//
+// See https://yandex.cloud/en-ru/docs/compute/operations/vm-connect/auth-inside-vm#auth-inside-vm
+func getGCEInstanceCreds(cfg *apiConfig) (*apiCredentials, error) {
+	endpoint := "http://169.254.169.254/computeMetadata/v1/instance/service-accounts/default/token"
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		logger.Panicf("BUG: cannot create GCE token request for %s: %s", endpoint, err)
+	}
+	req.Header.Add("Metadata-Flavor", "Google")
+
+	resp, err := cfg.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain GCE token from %s: %w", endpoint, err)
+	}
+	data, err := readResponseBody(resp, endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read GCE token from %s: %w", endpoint, err)
+	}
+
+	var ac gceAPICredentials
+	if err := json.Unmarshal(data, &ac); err != nil {
+		return nil, fmt.Errorf("cannot unmarshal GCE token from %s: %w; data=%s", endpoint, err, data)
+	}
+	if ac.TokenType != "Bearer" {
+		return nil, fmt.Errorf("unsupported GCE token type received from %s: %q; supported: %q", endpoint, ac.TokenType, "Bearer")
+	}
+
+	expiration := time.Now().Add(time.Duration(ac.ExpiresIn) * time.Second)
+	return &apiCredentials{
+		Token:      ac.AccessToken,
+		Expiration: expiration,
+	}, nil
+}
+
+// See https://yandex.cloud/en-ru/docs/compute/operations/vm-connect/auth-inside-vm#auth-inside-vm
+type gceAPICredentials struct {
+	AccessToken string `json:"access_token"`
+	ExpiresIn   int    `json:"expires_in"`
+	TokenType   string `json:"token_type"`
+}
+
+// getEC2IMDBSv1Creds gets Yandex Cloud IAM token using Amazon EC2 IMDBSv1
+func getEC2IMDBSv1Creds(cfg *apiConfig) (*apiCredentials, error) {
 	endpoint := "http://169.254.169.254/latest/meta-data/iam/security-credentials/default"
 	resp, err := cfg.client.Get(endpoint)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read instance creds from %s: %w", endpoint, err)
+		return nil, fmt.Errorf("cannot read Amazon EC2 IMDBSv1 token from %s: %w", endpoint, err)
 	}
 	data, err := readResponseBody(resp, endpoint)
 	if err != nil {
 		return nil, err
 	}
+
 	var ac apiCredentials
 	if err := json.Unmarshal(data, &ac); err != nil {
-		return nil, fmt.Errorf("cannot parse auth credentials response from %s: %w", endpoint, err)
+		return nil, fmt.Errorf("cannot parse Amazon EC2 IMDBSv1 token from %s: %w; data=%s", endpoint, err, data)
 	}
 	return &ac, nil
 }
@@ -151,7 +218,7 @@ func getIAMToken(cfg *apiConfig) (*iamToken, error) {
 	body := bytes.NewBuffer(passport)
 	resp, err := cfg.client.Post(iamURL, "application/json", body)
 	if err != nil {
-		logger.Panicf("BUG: cannot create request to yandex cloud iam api %q: %s", iamURL, err)
+		return nil, fmt.Errorf("cannot send request to yandex cloud iam api %q: %s", iamURL, err)
 	}
 	data, err := readResponseBody(resp, iamURL)
 	if err != nil {
@@ -159,7 +226,7 @@ func getIAMToken(cfg *apiConfig) (*iamToken, error) {
 	}
 	var it iamToken
 	if err := json.Unmarshal(data, &it); err != nil {
-		return nil, fmt.Errorf("cannot parse iam token: %w; data: %s", err, data)
+		return nil, fmt.Errorf("cannot parse iam token from %s: %w; data: %s", iamURL, err, data)
 	}
 	return &it, nil
 }

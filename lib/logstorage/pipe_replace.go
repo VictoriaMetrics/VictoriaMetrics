@@ -37,6 +37,10 @@ func (pr *pipeReplace) String() string {
 	return s
 }
 
+func (pr *pipeReplace) canLiveTail() bool {
+	return true
+}
+
 func (pr *pipeReplace) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	updateNeededFieldsForUpdatePipe(neededFields, unneededFields, pr.field, pr.iff)
 }

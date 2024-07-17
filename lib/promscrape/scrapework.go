@@ -53,6 +53,9 @@ type ScrapeWork struct {
 	// Timeout for scraping the ScrapeURL.
 	ScrapeTimeout time.Duration
 
+	// MaxScrapeSize sets max amount of data, that can be scraped by a job
+	MaxScrapeSize int64
+
 	// How to deal with conflicting labels.
 	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
 	HonorLabels bool
@@ -497,9 +500,11 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	if sw.seriesLimitExceeded || !areIdenticalSeries {
 		samplesDropped = sw.applySeriesLimit(wc)
 	}
+	responseSize := len(bodyString)
 	am := &autoMetrics{
 		up:                        up,
 		scrapeDurationSeconds:     scrapeDurationSeconds,
+		scrapeResponseSize:        responseSize,
 		samplesScraped:            samplesScraped,
 		samplesPostRelabeling:     samplesPostRelabeling,
 		seriesAdded:               seriesAdded,
@@ -508,7 +513,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	sw.addAutoMetrics(am, wc, scrapeTimestamp)
 	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
 	sw.prevLabelsLen = len(wc.labels)
-	sw.prevBodyLen = len(bodyString)
+	sw.prevBodyLen = responseSize
 	wc.reset()
 	writeRequestCtxPool.Put(wc)
 	// body must be released only after wc is released, since wc refers to body.
@@ -519,7 +524,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		sw.storeLastScrape(body)
 	}
 	sw.finalizeLastScrape()
-	tsmGlobal.Update(sw, up == 1, realTimestamp, int64(scrapeDurationSeconds*1000), samplesScraped, err)
+	tsmGlobal.Update(sw, up == 1, realTimestamp, int64(scrapeDurationSeconds*1000), responseSize, samplesScraped, err)
 	return err
 }
 
@@ -577,9 +582,11 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		// This is a trade-off between performance and accuracy.
 		seriesAdded = sw.getSeriesAdded(lastScrape, bodyString)
 	}
+	responseSize := len(bodyString)
 	am := &autoMetrics{
 		up:                        up,
 		scrapeDurationSeconds:     scrapeDurationSeconds,
+		scrapeResponseSize:        responseSize,
 		samplesScraped:            samplesScraped,
 		samplesPostRelabeling:     samplesPostRelabeling,
 		seriesAdded:               seriesAdded,
@@ -588,7 +595,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	sw.addAutoMetrics(am, wc, scrapeTimestamp)
 	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
 	sw.prevLabelsLen = len(wc.labels)
-	sw.prevBodyLen = len(bodyString)
+	sw.prevBodyLen = responseSize
 	wc.reset()
 	writeRequestCtxPool.Put(wc)
 	if !areIdenticalSeries {
@@ -598,7 +605,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		sw.storeLastScrape(body.B)
 	}
 	sw.finalizeLastScrape()
-	tsmGlobal.Update(sw, up == 1, realTimestamp, int64(scrapeDurationSeconds*1000), samplesScraped, err)
+	tsmGlobal.Update(sw, up == 1, realTimestamp, int64(scrapeDurationSeconds*1000), responseSize, samplesScraped, err)
 	// Do not track active series in streaming mode, since this may need too big amounts of memory
 	// when the target exports too big number of metrics.
 	return err
@@ -670,7 +677,6 @@ type writeRequestCtx struct {
 	writeRequest prompbmarshal.WriteRequest
 	labels       []prompbmarshal.Label
 	samples      []prompbmarshal.Sample
-	exemplars    []prompbmarshal.Exemplar
 }
 
 func (wc *writeRequestCtx) reset() {
@@ -685,7 +691,6 @@ func (wc *writeRequestCtx) resetNoRows() {
 	wc.labels = wc.labels[:0]
 
 	wc.samples = wc.samples[:0]
-	wc.exemplars = wc.exemplars[:0]
 }
 
 var writeRequestCtxPool leveledWriteRequestCtxPool
@@ -812,6 +817,7 @@ func (sw *scrapeWork) getLabelsHash(labels []prompbmarshal.Label) uint64 {
 type autoMetrics struct {
 	up                        int
 	scrapeDurationSeconds     float64
+	scrapeResponseSize        int
 	samplesScraped            int
 	samplesPostRelabeling     int
 	seriesAdded               int
@@ -819,34 +825,47 @@ type autoMetrics struct {
 }
 
 func isAutoMetric(s string) bool {
-	switch s {
-	case "up", "scrape_duration_seconds", "scrape_samples_scraped",
-		"scrape_samples_post_metric_relabeling", "scrape_series_added",
-		"scrape_timeout_seconds", "scrape_samples_limit",
-		"scrape_series_limit_samples_dropped", "scrape_series_limit",
-		"scrape_series_current":
+	if s == "up" {
 		return true
 	}
-	return false
+	if !strings.HasPrefix(s, "scrape_") {
+		return false
+	}
+	switch s {
+	case "scrape_duration_seconds",
+		"scrape_response_size_bytes",
+		"scrape_samples_limit",
+		"scrape_samples_post_metric_relabeling",
+		"scrape_samples_scraped",
+		"scrape_series_added",
+		"scrape_series_current",
+		"scrape_series_limit",
+		"scrape_series_limit_samples_dropped",
+		"scrape_timeout_seconds":
+		return true
+	default:
+		return false
+	}
 }
 
 func (sw *scrapeWork) addAutoMetrics(am *autoMetrics, wc *writeRequestCtx, timestamp int64) {
-	sw.addAutoTimeseries(wc, "up", float64(am.up), timestamp)
 	sw.addAutoTimeseries(wc, "scrape_duration_seconds", am.scrapeDurationSeconds, timestamp)
-	sw.addAutoTimeseries(wc, "scrape_samples_scraped", float64(am.samplesScraped), timestamp)
-	sw.addAutoTimeseries(wc, "scrape_samples_post_metric_relabeling", float64(am.samplesPostRelabeling), timestamp)
-	sw.addAutoTimeseries(wc, "scrape_series_added", float64(am.seriesAdded), timestamp)
-	sw.addAutoTimeseries(wc, "scrape_timeout_seconds", sw.Config.ScrapeTimeout.Seconds(), timestamp)
+	sw.addAutoTimeseries(wc, "scrape_response_size_bytes", float64(am.scrapeResponseSize), timestamp)
 	if sampleLimit := sw.Config.SampleLimit; sampleLimit > 0 {
 		// Expose scrape_samples_limit metric if sample_limit config is set for the target.
 		// See https://github.com/VictoriaMetrics/operator/issues/497
 		sw.addAutoTimeseries(wc, "scrape_samples_limit", float64(sampleLimit), timestamp)
 	}
+	sw.addAutoTimeseries(wc, "scrape_samples_post_metric_relabeling", float64(am.samplesPostRelabeling), timestamp)
+	sw.addAutoTimeseries(wc, "scrape_samples_scraped", float64(am.samplesScraped), timestamp)
+	sw.addAutoTimeseries(wc, "scrape_series_added", float64(am.seriesAdded), timestamp)
 	if sl := sw.seriesLimiter; sl != nil {
+		sw.addAutoTimeseries(wc, "scrape_series_current", float64(sl.CurrentItems()), timestamp)
 		sw.addAutoTimeseries(wc, "scrape_series_limit_samples_dropped", float64(am.seriesLimitSamplesDropped), timestamp)
 		sw.addAutoTimeseries(wc, "scrape_series_limit", float64(sl.MaxItems()), timestamp)
-		sw.addAutoTimeseries(wc, "scrape_series_current", float64(sl.CurrentItems()), timestamp)
 	}
+	sw.addAutoTimeseries(wc, "scrape_timeout_seconds", sw.Config.ScrapeTimeout.Seconds(), timestamp)
+	sw.addAutoTimeseries(wc, "up", float64(am.up), timestamp)
 }
 
 // addAutoTimeseries adds automatically generated time series with the given name, value and timestamp.
@@ -904,27 +923,10 @@ func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, tim
 		Value:     r.Value,
 		Timestamp: sampleTimestamp,
 	})
-	// Add Exemplars to Timeseries
-	exemplarsLen := len(wc.exemplars)
-	exemplarTagsLen := len(r.Exemplar.Tags)
-	if exemplarTagsLen > 0 {
-		exemplarLabels := make([]prompbmarshal.Label, exemplarTagsLen)
-		for i, label := range r.Exemplar.Tags {
-			exemplarLabels[i].Name = label.Key
-			exemplarLabels[i].Value = label.Value
-		}
-		wc.exemplars = append(wc.exemplars, prompbmarshal.Exemplar{
-			Labels:    exemplarLabels,
-			Value:     r.Exemplar.Value,
-			Timestamp: r.Exemplar.Timestamp,
-		})
-
-	}
 	wr := &wc.writeRequest
 	wr.Timeseries = append(wr.Timeseries, prompbmarshal.TimeSeries{
-		Labels:    wc.labels[labelsLen:],
-		Samples:   wc.samples[len(wc.samples)-1:],
-		Exemplars: wc.exemplars[exemplarsLen:],
+		Labels:  wc.labels[labelsLen:],
+		Samples: wc.samples[len(wc.samples)-1:],
 	})
 }
 

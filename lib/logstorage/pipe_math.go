@@ -66,6 +66,10 @@ func (pm *pipeMath) String() string {
 	return s
 }
 
+func (pm *pipeMath) canLiveTail() bool {
+	return true
+}
+
 func (me *mathEntry) String() string {
 	s := me.expr.String()
 	if isMathBinaryOp(me.expr.op) {
@@ -703,7 +707,7 @@ func parseMathExprFieldName(lex *lexer) (*mathExpr, error) {
 }
 
 func getCompoundMathToken(lex *lexer) (string, error) {
-	stopTokens := []string{"=", "+", "-", "*", "/", "%", "^", ",", ")", "|", ""}
+	stopTokens := []string{"=", "+", "-", "*", "/", "%", "^", ",", ")", "|", "!", ""}
 	if lex.isKeyword(stopTokens...) {
 		return "", fmt.Errorf("compound token cannot start with '%s'", lex.token)
 	}
@@ -919,7 +923,7 @@ func parseMathNumber(s string) float64 {
 	if ok {
 		return f
 	}
-	nsecs, ok := tryParseTimestampRFC3339Nano(s)
+	nsecs, ok := TryParseTimestampRFC3339Nano(s)
 	if ok {
 		return float64(nsecs)
 	}

@@ -79,12 +79,17 @@ func GetTenantIDFromRequest(r *http.Request) (TenantID, error) {
 	return tenantID, nil
 }
 
-// GetTenantIDFromString returns tenantID from s.
-// String is expected in the form of accountID:projectID
-func GetTenantIDFromString(s string) (TenantID, error) {
+// ParseTenantID returns tenantID from s.
+//
+// s is expected in the form of accountID:projectID. If s is empty, then zero tenantID is returned.
+func ParseTenantID(s string) (TenantID, error) {
 	var tenantID TenantID
-	colon := strings.Index(s, ":")
-	if colon < 0 {
+	if s == "" {
+		return tenantID, nil
+	}
+
+	n := strings.Index(s, ":")
+	if n < 0 {
 		account, err := getUint32FromString(s)
 		if err != nil {
 			return tenantID, fmt.Errorf("cannot parse accountID from %q: %w", s, err)
@@ -94,13 +99,13 @@ func GetTenantIDFromString(s string) (TenantID, error) {
 		return tenantID, nil
 	}
 
-	account, err := getUint32FromString(s[:colon])
+	account, err := getUint32FromString(s[:n])
 	if err != nil {
 		return tenantID, fmt.Errorf("cannot parse accountID part from %q: %w", s, err)
 	}
 	tenantID.AccountID = account
 
-	project, err := getUint32FromString(s[colon+1:])
+	project, err := getUint32FromString(s[n+1:])
 	if err != nil {
 		return tenantID, fmt.Errorf("cannot parse projectID part from %q: %w", s, err)
 	}

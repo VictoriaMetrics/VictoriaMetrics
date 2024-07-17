@@ -18,6 +18,16 @@ type genericSearchOptions struct {
 	// tenantIDs must contain the list of tenantIDs for the search.
 	tenantIDs []TenantID
 
+	// streamIDs is an optional sorted list of streamIDs for the search.
+	// If it is empty, then the search is performed by tenantIDs
+	streamIDs []streamID
+
+	// minTimestamp is the minimum timestamp for the search
+	minTimestamp int64
+
+	// maxTimestamp is the maximum timestamp for the search
+	maxTimestamp int64
+
 	// filter is the filter to use for the search
 	filter filter
 
@@ -101,9 +111,19 @@ func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 }
 
 func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlockResultFunc func(workerID uint, br *blockResult)) error {
+	streamIDs := q.getStreamIDs()
+	sort.Slice(streamIDs, func(i, j int) bool {
+		return streamIDs[i].less(&streamIDs[j])
+	})
+
+	minTimestamp, maxTimestamp := q.GetFilterTimeRange()
+
 	neededColumnNames, unneededColumnNames := q.getNeededColumns()
 	so := &genericSearchOptions{
 		tenantIDs:           tenantIDs,
+		streamIDs:           streamIDs,
+		minTimestamp:        minTimestamp,
+		maxTimestamp:        maxTimestamp,
 		filter:              q.f,
 		neededColumnNames:   neededColumnNames,
 		unneededColumnNames: unneededColumnNames,
@@ -117,10 +137,21 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 	stopCh := ctx.Done()
 	cancels := make([]func(), len(q.pipes))
 	pps := make([]pipeProcessor, len(q.pipes))
+
+	var errPipe error
 	for i := len(q.pipes) - 1; i >= 0; i-- {
 		p := q.pipes[i]
 		ctxChild, cancel := context.WithCancel(ctx)
 		pp = p.newPipeProcessor(workersCount, stopCh, cancel, pp)
+
+		pcp, ok := pp.(*pipeStreamContextProcessor)
+		if ok {
+			pcp.init(ctx, s, minTimestamp, maxTimestamp)
+			if i > 0 {
+				errPipe = fmt.Errorf("[%s] pipe must go after [%s] filter; now it goes after the [%s] pipe", p, q.f, q.pipes[i-1])
+			}
+		}
+
 		stopCh = ctxChild.Done()
 		ctx = ctxChild
 
@@ -128,7 +159,9 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 		pps[i] = pp
 	}
 
-	s.search(workersCount, so, stopCh, pp.writeBlock)
+	if errPipe == nil {
+		s.search(workersCount, so, stopCh, pp.writeBlock)
+	}
 
 	var errFlush error
 	for i, pp := range pps {
@@ -141,6 +174,11 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 	if err := ppMain.flush(); err != nil && errFlush == nil {
 		errFlush = err
 	}
+
+	if errPipe != nil {
+		return errPipe
+	}
+
 	return errFlush
 }
 
@@ -347,6 +385,13 @@ func (s *Storage) GetStreams(ctx context.Context, tenantIDs []TenantID, q *Query
 	return s.GetFieldValues(ctx, tenantIDs, q, "_stream", limit)
 }
 
+// GetStreamIDs returns stream_id field values from q results for the given tenantIDs.
+//
+// If limit > 0, then up to limit unique streams are returned.
+func (s *Storage) GetStreamIDs(ctx context.Context, tenantIDs []TenantID, q *Query, limit uint64) ([]ValueWithHits, error) {
+	return s.GetFieldValues(ctx, tenantIDs, q, "_stream_id", limit)
+}
+
 func (s *Storage) runValuesWithHitsQuery(ctx context.Context, tenantIDs []TenantID, q *Query) ([]ValueWithHits, error) {
 	var results []ValueWithHits
 	var resultsLock sync.Mutex
@@ -421,8 +466,14 @@ func hasFilterInWithQueryForFilter(f filter) bool {
 		return false
 	}
 	visitFunc := func(f filter) bool {
-		fi, ok := f.(*filterIn)
-		return ok && fi.needExecuteQuery
+		switch t := f.(type) {
+		case *filterIn:
+			return t.needExecuteQuery
+		case *filterStreamID:
+			return t.needExecuteQuery
+		default:
+			return false
+		}
 	}
 	return visitFilter(f, visitFunc)
 }
@@ -459,31 +510,69 @@ func initFilterInValuesForFilter(cache map[string][]string, f filter, getFieldVa
 	}
 
 	visitFunc := func(f filter) bool {
-		fi, ok := f.(*filterIn)
-		return ok && fi.needExecuteQuery
+		switch t := f.(type) {
+		case *filterIn:
+			return t.needExecuteQuery
+		case *filterStreamID:
+			return t.needExecuteQuery
+		default:
+			return false
+		}
 	}
 	copyFunc := func(f filter) (filter, error) {
-		fi := f.(*filterIn)
-
-		qStr := fi.q.String()
-		values, ok := cache[qStr]
-		if !ok {
-			vs, err := getFieldValuesFunc(fi.q, fi.qFieldName)
+		switch t := f.(type) {
+		case *filterIn:
+			values, err := getValuesForQuery(t.q, t.qFieldName, cache, getFieldValuesFunc)
 			if err != nil {
-				return nil, fmt.Errorf("cannot obtain unique values for %s: %w", fi, err)
+				return nil, fmt.Errorf("cannot obtain unique values for %s: %w", t, err)
 			}
-			cache[qStr] = vs
-			values = vs
-		}
 
-		fiNew := &filterIn{
-			fieldName: fi.fieldName,
-			q:         fi.q,
-			values:    values,
+			fiNew := &filterIn{
+				fieldName: t.fieldName,
+				q:         t.q,
+				values:    values,
+			}
+			return fiNew, nil
+		case *filterStreamID:
+			values, err := getValuesForQuery(t.q, t.qFieldName, cache, getFieldValuesFunc)
+			if err != nil {
+				return nil, fmt.Errorf("cannot obtain unique values for %s: %w", t, err)
+			}
+
+			// convert values to streamID list
+			streamIDs := make([]streamID, 0, len(values))
+			for _, v := range values {
+				var sid streamID
+				if sid.tryUnmarshalFromString(v) {
+					streamIDs = append(streamIDs, sid)
+				}
+			}
+
+			fsNew := &filterStreamID{
+				streamIDs: streamIDs,
+				q:         t.q,
+			}
+			return fsNew, nil
+		default:
+			return f, nil
 		}
-		return fiNew, nil
 	}
 	return copyFilter(f, visitFunc, copyFunc)
+}
+
+func getValuesForQuery(q *Query, qFieldName string, cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) ([]string, error) {
+	qStr := q.String()
+	values, ok := cache[qStr]
+	if ok {
+		return values, nil
+	}
+
+	vs, err := getFieldValuesFunc(q, qFieldName)
+	if err != nil {
+		return nil, err
+	}
+	cache[qStr] = vs
+	return vs, nil
 }
 
 func initFilterInValuesForPipes(cache map[string][]string, pipes []pipe, getFieldValuesFunc getFieldValuesFunc) ([]pipe, error) {
@@ -581,19 +670,15 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 		}(uint(i))
 	}
 
-	// Obtain time range from so.filter
-	f := so.filter
-	minTimestamp, maxTimestamp := getFilterTimeRange(f)
-
 	// Select partitions according to the selected time range
 	s.partitionsLock.Lock()
 	ptws := s.partitions
-	minDay := minTimestamp / nsecPerDay
+	minDay := so.minTimestamp / nsecPerDay
 	n := sort.Search(len(ptws), func(i int) bool {
 		return ptws[i].day >= minDay
 	})
 	ptws = ptws[n:]
-	maxDay := maxTimestamp / nsecPerDay
+	maxDay := so.maxTimestamp / nsecPerDay
 	n = sort.Search(len(ptws), func(i int) bool {
 		return ptws[i].day > maxDay
 	})
@@ -604,8 +689,7 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 	s.partitionsLock.Unlock()
 
 	// Obtain common filterStream from f
-	var sf *StreamFilter
-	sf, f = getCommonStreamFilter(f)
+	sf, f := getCommonStreamFilter(so.filter)
 
 	// Schedule concurrent search across matching partitions.
 	psfs := make([]partitionSearchFinalizer, len(ptws))
@@ -614,7 +698,7 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 		partitionSearchConcurrencyLimitCh <- struct{}{}
 		wgSearchers.Add(1)
 		go func(idx int, pt *partition) {
-			psfs[idx] = pt.search(minTimestamp, maxTimestamp, sf, f, so, workCh, stopCh)
+			psfs[idx] = pt.search(sf, f, so, workCh, stopCh)
 			wgSearchers.Done()
 			<-partitionSearchConcurrencyLimitCh
 		}(i, ptw.pt)
@@ -643,7 +727,7 @@ var partitionSearchConcurrencyLimitCh = make(chan struct{}, cgroup.AvailableCPUs
 
 type partitionSearchFinalizer func()
 
-func (pt *partition) search(minTimestamp, maxTimestamp int64, sf *StreamFilter, f filter, so *genericSearchOptions, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}) partitionSearchFinalizer {
+func (pt *partition) search(sf *StreamFilter, f filter, so *genericSearchOptions, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}) partitionSearchFinalizer {
 	if needStop(stopCh) {
 		// Do not spend CPU time on search, since it is already stopped.
 		return func() {}
@@ -653,6 +737,12 @@ func (pt *partition) search(minTimestamp, maxTimestamp int64, sf *StreamFilter, 
 	var streamIDs []streamID
 	if sf != nil {
 		streamIDs = pt.idb.searchStreamIDs(tenantIDs, sf)
+		if len(so.streamIDs) > 0 {
+			streamIDs = intersectStreamIDs(streamIDs, so.streamIDs)
+		}
+		tenantIDs = nil
+	} else if len(so.streamIDs) > 0 {
+		streamIDs = getStreamIDsForTenantIDs(so.streamIDs, tenantIDs)
 		tenantIDs = nil
 	}
 	if hasStreamFilters(f) {
@@ -661,14 +751,44 @@ func (pt *partition) search(minTimestamp, maxTimestamp int64, sf *StreamFilter, 
 	soInternal := &searchOptions{
 		tenantIDs:           tenantIDs,
 		streamIDs:           streamIDs,
-		minTimestamp:        minTimestamp,
-		maxTimestamp:        maxTimestamp,
+		minTimestamp:        so.minTimestamp,
+		maxTimestamp:        so.maxTimestamp,
 		filter:              f,
 		neededColumnNames:   so.neededColumnNames,
 		unneededColumnNames: so.unneededColumnNames,
 		needAllColumns:      so.needAllColumns,
 	}
 	return pt.ddb.search(soInternal, workCh, stopCh)
+}
+
+func intersectStreamIDs(a, b []streamID) []streamID {
+	m := make(map[streamID]struct{}, len(b))
+	for _, streamID := range b {
+		m[streamID] = struct{}{}
+	}
+
+	result := make([]streamID, 0, len(a))
+	for _, streamID := range a {
+		if _, ok := m[streamID]; ok {
+			result = append(result, streamID)
+		}
+	}
+	return result
+}
+
+func getStreamIDsForTenantIDs(streamIDs []streamID, tenantIDs []TenantID) []streamID {
+	m := make(map[TenantID]struct{}, len(tenantIDs))
+	for _, tenantID := range tenantIDs {
+		m[tenantID] = struct{}{}
+	}
+
+	result := make([]streamID, 0, len(streamIDs))
+	for _, streamID := range streamIDs {
+		if _, ok := m[streamID.tenantID]; ok {
+			result = append(result, streamID)
+		}
+	}
+	return result
 }
 
 func hasStreamFilters(f filter) bool {
@@ -996,29 +1116,6 @@ func getCommonStreamFilter(f filter) (*StreamFilter, filter) {
 		return t.f, &filterNoop{}
 	}
 	return nil, f
-}
-
-func getFilterTimeRange(f filter) (int64, int64) {
-	switch t := f.(type) {
-	case *filterAnd:
-		minTimestamp := int64(math.MinInt64)
-		maxTimestamp := int64(math.MaxInt64)
-		for _, filter := range t.filters {
-			ft, ok := filter.(*filterTime)
-			if ok {
-				if ft.minTimestamp > minTimestamp {
-					minTimestamp = ft.minTimestamp
-				}
-				if ft.maxTimestamp < maxTimestamp {
-					maxTimestamp = ft.maxTimestamp
-				}
-			}
-		}
-		return minTimestamp, maxTimestamp
-	case *filterTime:
-		return t.minTimestamp, t.maxTimestamp
-	}
-	return math.MinInt64, math.MaxInt64
 }
 
 func forEachStreamField(streams []ValueWithHits, f func(f Field, hits uint64)) {

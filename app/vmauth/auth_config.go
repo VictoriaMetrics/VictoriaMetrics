@@ -84,6 +84,9 @@ type UserInfo struct {
 	concurrencyLimitCh      chan struct{}
 	concurrencyLimitReached *metrics.Counter
 
+	// Whether to use backend host header in requests to backend.
+	useBackendHostHeader bool
+
 	rt http.RoundTripper
 
 	requests         *metrics.Counter
@@ -128,7 +131,7 @@ type Header struct {
 }
 
 // UnmarshalYAML unmarshals h from f.
-func (h *Header) UnmarshalYAML(f func(interface{}) error) error {
+func (h *Header) UnmarshalYAML(f func(any) error) error {
 	var s string
 	if err := f(&s); err != nil {
 		return err
@@ -145,8 +148,17 @@ func (h *Header) UnmarshalYAML(f func(interface{}) error) error {
 }
 
 // MarshalYAML marshals h to yaml.
-func (h *Header) MarshalYAML() (interface{}, error) {
+func (h *Header) MarshalYAML() (any, error) {
 	return h.sOriginal, nil
+}
+
+func hasEmptyHostHeader(headers []*Header) bool {
+	for _, h := range headers {
+		if h.Name == "Host" && h.Value == "" {
+			return true
+		}
+	}
+	return false
 }
 
 // URLMap is a mapping from source paths to target urls.
@@ -191,7 +203,7 @@ type QueryArg struct {
 }
 
 // UnmarshalYAML unmarshals qa from yaml.
-func (qa *QueryArg) UnmarshalYAML(f func(interface{}) error) error {
+func (qa *QueryArg) UnmarshalYAML(f func(any) error) error {
 	var s string
 	if err := f(&s); err != nil {
 		return err
@@ -220,7 +232,7 @@ func (qa *QueryArg) UnmarshalYAML(f func(interface{}) error) error {
 }
 
 // MarshalYAML marshals qa to yaml.
-func (qa *QueryArg) MarshalYAML() (interface{}, error) {
+func (qa *QueryArg) MarshalYAML() (any, error) {
 	return qa.sOriginal, nil
 }
 
@@ -253,7 +265,7 @@ type URLPrefix struct {
 	nextDiscoveryDeadline atomic.Uint64
 
 	// vOriginal contains the original yaml value for URLPrefix.
-	vOriginal interface{}
+	vOriginal any
 }
 
 func (up *URLPrefix) setLoadBalancingPolicy(loadBalancingPolicy string) error {
@@ -300,12 +312,18 @@ func (up *URLPrefix) getBackendsCount() int {
 
 // getBackendURL returns the backendURL depending on the load balance policy.
 //
+// It can return nil if there are no backend urls available at the moment.
+//
 // backendURL.put() must be called on the returned backendURL after the request is complete.
 func (up *URLPrefix) getBackendURL() *backendURL {
 	up.discoverBackendAddrsIfNeeded()
 
 	pbus := up.bus.Load()
 	bus := *pbus
+	if len(bus) == 0 {
+		return nil
+	}
+
 	if up.loadBalancingPolicy == "first_available" {
 		return getFirstAvailableBackendURL(bus)
 	}
@@ -344,16 +362,17 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 			// ips for the given host have been already discovered
 			continue
 		}
+
 		var resolvedAddrs []string
 		if strings.HasPrefix(host, "srv+") {
 			// The host has the format 'srv+realhost'. Strip 'srv+' prefix before performing the lookup.
-			host = strings.TrimPrefix(host, "srv+")
-			_, addrs, err := netutil.Resolver.LookupSRV(ctx, "", "", host)
+			srvHost := strings.TrimPrefix(host, "srv+")
+			_, addrs, err := netutil.Resolver.LookupSRV(ctx, "", "", srvHost)
 			if err != nil {
 				logger.Warnf("cannot discover backend SRV records for %s: %s; use it literally", bu, err)
 				resolvedAddrs = []string{host}
 			} else {
-				resolvedAddrs := make([]string, len(addrs))
+				resolvedAddrs = make([]string, len(addrs))
 				for i, addr := range addrs {
 					resolvedAddrs[i] = fmt.Sprintf("%s:%d", addr.Target, addr.Port)
 				}
@@ -386,7 +405,7 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 			buCopy.Host = addr
 			if port != "" {
 				if n := strings.IndexByte(buCopy.Host, ':'); n >= 0 {
-					// Drop the discovered port and substitute it the the port specified in bu.
+					// Drop the discovered port and substitute it the port specified in bu.
 					buCopy.Host = buCopy.Host[:n]
 				}
 				buCopy.Host += ":" + port
@@ -486,8 +505,8 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 }
 
 // UnmarshalYAML unmarshals up from yaml.
-func (up *URLPrefix) UnmarshalYAML(f func(interface{}) error) error {
-	var v interface{}
+func (up *URLPrefix) UnmarshalYAML(f func(any) error) error {
+	var v any
 	if err := f(&v); err != nil {
 		return err
 	}
@@ -497,7 +516,7 @@ func (up *URLPrefix) UnmarshalYAML(f func(interface{}) error) error {
 	switch x := v.(type) {
 	case string:
 		urls = []string{x}
-	case []interface{}:
+	case []any:
 		if len(x) == 0 {
 			return fmt.Errorf("`url_prefix` must contain at least a single url")
 		}
@@ -527,7 +546,7 @@ func (up *URLPrefix) UnmarshalYAML(f func(interface{}) error) error {
 }
 
 // MarshalYAML marshals up to yaml.
-func (up *URLPrefix) MarshalYAML() (interface{}, error) {
+func (up *URLPrefix) MarshalYAML() (any, error) {
 	return up.vOriginal, nil
 }
 
@@ -551,7 +570,7 @@ func (r *Regex) match(s string) bool {
 }
 
 // UnmarshalYAML implements yaml.Unmarshaler
-func (r *Regex) UnmarshalYAML(f func(interface{}) error) error {
+func (r *Regex) UnmarshalYAML(f func(any) error) error {
 	var s string
 	if err := f(&s); err != nil {
 		return err
@@ -568,7 +587,7 @@ func (r *Regex) UnmarshalYAML(f func(interface{}) error) error {
 }
 
 // MarshalYAML implements yaml.Marshaler.
-func (r *Regex) MarshalYAML() (interface{}, error) {
+func (r *Regex) MarshalYAML() (any, error) {
 	return r.sOriginal, nil
 }
 
@@ -685,22 +704,15 @@ func loadAuthConfig() (bool, error) {
 	}
 	logger.Infof("loaded information about %d users from -auth.config=%q", len(m), *authConfigPath)
 
-	prevAc := authConfig.Load()
-	if prevAc != nil {
-		metrics.UnregisterSet(prevAc.ms)
+	acPrev := authConfig.Load()
+	if acPrev != nil {
+		metrics.UnregisterSet(acPrev.ms, true)
 	}
 	metrics.RegisterSet(ac.ms)
+
 	authConfig.Store(ac)
 	authConfigData.Store(&data)
 	authUsers.Store(&m)
-	if prevAc != nil {
-		// explicilty unregister metrics, since all summary type metrics
-		// are registered at global state of metrics package
-		// and must be removed from it to release memory.
-		// Metrics must be unregistered only after atomic.Value.Store calls above
-		// Otherwise it may lead to metric gaps, since UnregisterAllMetrics is slow operation
-		prevAc.ms.UnregisterAllMetrics()
-	}
 
 	return true, nil
 }
@@ -737,6 +749,7 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		if err := ui.initURLs(); err != nil {
 			return nil, err
 		}
+		ui.useBackendHostHeader = hasEmptyHostHeader(ui.HeadersConf.RequestHeaders)
 
 		metricLabels, err := ui.getMetricLabels()
 		if err != nil {
@@ -801,6 +814,7 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		_ = ac.ms.GetOrCreateGauge(`vmauth_user_concurrent_requests_current`+metricLabels, func() float64 {
 			return float64(len(ui.concurrencyLimitCh))
 		})
+		ui.useBackendHostHeader = hasEmptyHostHeader(ui.HeadersConf.RequestHeaders)
 
 		rt, err := newRoundTripper(ui.TLSCAFile, ui.TLSCertFile, ui.TLSKeyFile, ui.TLSServerName, ui.TLSInsecureSkipVerify)
 		if err != nil {

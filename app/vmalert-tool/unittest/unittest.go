@@ -9,10 +9,12 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v2"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	vmalertconfig "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
@@ -66,36 +68,38 @@ func UnitTest(files []string, disableGroupLabel bool) bool {
 	defer vminsert.Stop()
 	defer vmselect.Stop()
 	disableAlertgroupLabel = disableGroupLabel
-	return rulesUnitTest(files)
-}
 
-func rulesUnitTest(files []string) bool {
+	testfiles, err := config.ReadFromFS(files)
+	if err != nil {
+		fmt.Println("  FAILED")
+		fmt.Printf("\nfailed to read test files: \n%v", err)
+	}
 	var failed bool
-	for _, f := range files {
-		if err := ruleUnitTest(f); err != nil {
+	for fileName, file := range testfiles {
+		if err := ruleUnitTest(fileName, file); err != nil {
 			fmt.Println("  FAILED")
-			fmt.Printf("\nfailed to run unit test for file %q: \n%v", f, err)
+			fmt.Printf("\nfailed to run unit test for file %q: \n%v", file, err)
 			failed = true
 		} else {
 			fmt.Println("  SUCCESS")
 		}
 	}
+
 	return failed
 }
 
-func ruleUnitTest(filename string) []error {
+func ruleUnitTest(filename string, content []byte) []error {
 	fmt.Println("\nUnit Testing: ", filename)
-	b, err := os.ReadFile(filename)
-	if err != nil {
-		return []error{fmt.Errorf("failed to read file: %w", err)}
-	}
-
 	var unitTestInp unitTestFile
-	if err := yaml.UnmarshalStrict(b, &unitTestInp); err != nil {
+	if err := yaml.UnmarshalStrict(content, &unitTestInp); err != nil {
 		return []error{fmt.Errorf("failed to unmarshal file: %w", err)}
 	}
-	if err := resolveAndGlobFilepaths(filepath.Dir(filename), &unitTestInp); err != nil {
-		return []error{fmt.Errorf("failed to resolve path for `rule_files`: %w", err)}
+
+	// add file directory for rule files if needed
+	for i, rf := range unitTestInp.RuleFiles {
+		if rf != "" && !filepath.IsAbs(rf) && !strings.HasPrefix(rf, "http") {
+			unitTestInp.RuleFiles[i] = filepath.Join(filepath.Dir(filename), rf)
+		}
 	}
 
 	if unitTestInp.EvaluationInterval.Duration() == 0 {
@@ -139,24 +143,24 @@ func verifyTestGroup(group testGroup) error {
 	}
 	for _, at := range group.AlertRuleTests {
 		if at.Alertname == "" {
-			return fmt.Errorf("\n%s    missing required filed \"alertname\"", testGroupName)
+			return fmt.Errorf("\n%s    missing required field \"alertname\"", testGroupName)
 		}
 		if !disableAlertgroupLabel && at.GroupName == "" {
-			return fmt.Errorf("\n%s    missing required filed \"groupname\" when flag \"disableAlertGroupLabel\" is false", testGroupName)
+			return fmt.Errorf("\n%s    missing required field \"groupname\" when flag \"disableAlertgroupLabel\" is false", testGroupName)
 		}
 		if disableAlertgroupLabel && at.GroupName != "" {
-			return fmt.Errorf("\n%s    shouldn't set filed \"groupname\" when flag \"disableAlertGroupLabel\" is true", testGroupName)
+			return fmt.Errorf("\n%s    shouldn't set field \"groupname\" when flag \"disableAlertgroupLabel\" is true", testGroupName)
 		}
 		if at.EvalTime == nil {
-			return fmt.Errorf("\n%s    missing required filed \"eval_time\"", testGroupName)
+			return fmt.Errorf("\n%s    missing required field \"eval_time\"", testGroupName)
 		}
 	}
 	for _, et := range group.MetricsqlExprTests {
 		if et.Expr == "" {
-			return fmt.Errorf("\n%s    missing required filed \"expr\"", testGroupName)
+			return fmt.Errorf("\n%s    missing required field \"expr\"", testGroupName)
 		}
 		if et.EvalTime == nil {
-			return fmt.Errorf("\n%s    missing required filed \"eval_time\"", testGroupName)
+			return fmt.Errorf("\n%s    missing required field \"eval_time\"", testGroupName)
 		}
 	}
 	return nil
@@ -235,30 +239,6 @@ func tearDown() {
 	fs.MustRemoveAll(storagePath)
 }
 
-// resolveAndGlobFilepaths joins all relative paths in a configuration
-// with a given base directory and replaces all globs with matching files.
-func resolveAndGlobFilepaths(baseDir string, utf *unitTestFile) error {
-	for i, rf := range utf.RuleFiles {
-		if rf != "" && !filepath.IsAbs(rf) {
-			utf.RuleFiles[i] = filepath.Join(baseDir, rf)
-		}
-	}
-
-	var globbedFiles []string
-	for _, rf := range utf.RuleFiles {
-		m, err := filepath.Glob(rf)
-		if err != nil {
-			return err
-		}
-		if len(m) == 0 {
-			fmt.Fprintln(os.Stderr, "  WARNING: no file match pattern", rf)
-		}
-		globbedFiles = append(globbedFiles, m...)
-	}
-	utf.RuleFiles = globbedFiles
-	return nil
-}
-
 func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]int, testGroups []vmalertconfig.Group) (checkErrs []error) {
 	// set up vmstorage and http server for ingest and read queries
 	setUp()
@@ -316,11 +296,15 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 	maxEvalTime := testStartTime.Add(tg.maxEvalTime())
 	for ts := testStartTime; ts.Before(maxEvalTime) || ts.Equal(maxEvalTime); ts = ts.Add(evalInterval) {
 		for _, g := range groups {
+			if len(g.Rules) == 0 {
+				continue
+			}
 			errs := g.ExecOnce(context.Background(), func() []notifier.Notifier { return nil }, rw, ts)
 			for err := range errs {
 				if err != nil {
 					checkErrs = append(checkErrs, fmt.Errorf("\nfailed to exec group: %q, time: %s, err: %w", g.Name,
 						ts, err))
+					return
 				}
 			}
 			// flush series after each group evaluation
@@ -374,7 +358,7 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 						if expAlert.ExpLabels == nil {
 							expAlert.ExpLabels = make(map[string]string)
 						}
-						// alertGroupNameLabel is added as additional labels when `disableAlertGroupLabel` is false
+						// alertGroupNameLabel is added as additional labels when `disableAlertgroupLabel` is false
 						if !disableAlertgroupLabel {
 							expAlert.ExpLabels["alertgroup"] = groupname
 						}

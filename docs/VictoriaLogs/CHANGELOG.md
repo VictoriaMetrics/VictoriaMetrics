@@ -19,6 +19,118 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v0.28.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.28.0-victorialogs)
+
+Released at 2024-07-10
+
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): show a spinner on top of bar chart until user's request is finished. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6558).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): use compact representation of JSON lines at `JSON` tab if only a single [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) is queried. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6559).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): properly show the number of matching logs on the selected time range at bar chart for queries with arbitrary [pipes](https://docs.victoriametrics.com/victorialogs/logsql/#pipes), including [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) and [`top` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe).
+
+## [v0.27.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.27.1-victorialogs)
+
+Released at 2024-07-05
+
+* BUGFIX: properly JSON-encode strings with special chars in [HTTP querying API](https://docs.victoriametrics.com/victorialogs/querying/#http-api) responses. This fixes the `error decode response: invalid character 'x' in string escape code` error in [VictoriaLogs datasource for Grafana](https://github.com/VictoriaMetrics/victorialogs-datasource/). See [this issue](https://github.com/VictoriaMetrics/victorialogs-datasource/issues/24). The issue has been introduced in the release [v0.9.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.9.0-victorialogs).
+
+## [v0.27.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.27.0-victorialogs)
+
+Released at 2024-07-02
+
+* FEATURE: add `-syslog.useLocalTimestamp.tcp` and `-syslog.useLocalTimestamp.udp` command-line flags, which could be used for using the local timestamp as [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) for the logs ingested via the corresponding `-syslog.listenAddr.tcp` / `-syslog.listenAddr.udp`. By default the timestap from the syslog message is used as [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field). See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/).
+
+* BUGFIX: make slowly ingested logs visible for search as soon as they are ingested into VictoriaLogs. Previously slowly ingested logs could remain invisible for search for long time.
+
+## [v0.26.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.26.1-victorialogs)
+
+Released at 2024-07-01
+
+* BUGFIX: return the proper surrounding logs for [`stream_context` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe) when additional [pipes](https://docs.victoriametrics.com/victorialogs/logsql/#pipes) are put after the `stream_context` pipe. This has been broken in [v0.26.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.26.0-victorialogs).
+
+## [v0.26.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.26.0-victorialogs)
+
+Released at 2024-07-01
+
+* FEATURE: add ability to return log position (aka rank) after sorting logs with [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe). This can be done by adding `rank as <fieldName>` to the end of `| sort ...` pipe. For example, `_time:5m | sort by (_time) rank as position` instructs storing position of every sorted log line into `position` [field name](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+* FEATURE: add delimiter log with `---` message between log chunks returned by [`stream_context` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe). This should simplify investigation of the returned logs.
+* FEATURE: reduce memory usage when big number of context logs are requested from [`stream_context` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe).
+
+## [v0.25.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.25.0-victorialogs)
+
+Released at 2024-06-28
+
+* FEATURE: add ability to select surrounding logs in front and after the selected logs via [`stream_context` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe). This functionality may be useful for investigating stacktraces, panics or some correlated log messages. This functionality is similar to `grep -A` and `grep -B`.
+* FEATURE: add ability to return top `N` `"fields"` groups from  [`/select/logsql/hits` HTTP endpoint](https://docs.victoriametrics.com/victorialogs/querying/#querying-hits-stats), by specifying `fields_limit=N` query arg. This query arg is going to be used in [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6545).
+
+* BUGFIX: fix `runtime error: index out of range [0] with length 0` panic when empty lines are ingested via [Syslog format](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/) by Cisco controllers. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6548).
+
+## [v0.24.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.24.0-victorialogs)
+
+Released at 2024-06-27
+
+* FEATURE: add `/select/logsql/tail` HTTP endpoint, which can be used for live tailing of [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) results. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing) for details.
+* FEATURE: add `/select/logsql/stream_ids` HTTP endpoint, which can be used for returning [`_stream_id` values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) with the number of hits for the given [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/). See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#querying-stream_ids) for details.
+* FEATURE: add `-retention.maxDiskSpaceUsageBytes` command-line flag, which allows limiting disk space usage for [VictoriaLogs data](https://docs.victoriametrics.com/victorialogs/#storage) by automatic dropping the oldest per-day partitions if the storage disk space usage becomes bigger than the `-retention.maxDiskSpaceUsageBytes`. See [these docs](https://docs.victoriametrics.com/victorialogs/#retention-by-disk-space-usage).
+
+* BUGFIX: properly take into account query timeout specified via `-search.maxQueryDuration` command-line flag and/or via `timeout` query arg. Previously these timeouts could be ignored during query execution.
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix the update of the relative time range when `Execute Query` is clicked. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6345).
+
+## [v0.23.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.23.0-victorialogs)
+
+Released at 2024-06-25
+
+* FEATURE: [syslog data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/): parse [STRUCTURED-DATA](https://datatracker.ietf.org/doc/html/rfc5424#section-6.3) into `SD-ID.field1=value1`, `SD-ID.field2=value2`, ..., `SD-ID.fieldN=valueN` [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). Previously the `STRUCTURED-DATA` was parsed into a single log field with the `SD-ID` name and `field1=value1 field2=value2 ... fieldN=valueN` value. This could complicate querying of such data.
+
+* BUGFIX: properly parse timestamps with timezones during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/) and [querying](https://docs.victoriametrics.com/victorialogs/querying/). This has been broken in [v0.20.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.20.0-victorialogs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6508).
+
+## [v0.22.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.22.0-victorialogs)
+
+Released at 2024-06-24
+
+* FEATURE: allow specifying multiple `_stream_id` values in [`_stream_id` filter](https://docs.victoriametrics.com/victorialogs/logsql/#_stream_id-filter) via `_stream_id:in(id1, ..., idN)` syntax.
+* FEATURE: allow specifying subquery for searching for `_stream_id` values inside [`_stream_id` filter](https://docs.victoriametrics.com/victorialogs/logsql/#_stream_id-filter). For example, `_stream_id:in(_time:5m error | fields _stream_id)` returns logs for [logs streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) with the `error` word across logs for the last 5 minutes.
+
+## [v0.21.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.21.0-victorialogs)
+
+Released at 2024-06-20
+
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add a bar chart displaying the number of log entries over a time range. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6404).
+* FEATURE: expose `_stream_id` field, which uniquely identifies [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields). This field can be used for quick obtaining of all the logs belonging to a particular stream via [`_stream_id` filter](https://docs.victoriametrics.com/victorialogs/logsql/#_stream_id-filter).
+
+## [v0.20.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.20.2-victorialogs)
+
+Released at 2024-06-18
+
+* BUGFIX: properly parse timestamps with nanosecond precision for logs ingested via [jsonline format](https://docs.victoriametrics.com/victorialogs/data-ingestion/#json-stream-api). The bug has been introduced in [v0.20.0 release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.20.0-victorialogs).
+
+## [v0.20.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.20.1-victorialogs)
+
+Released at 2024-06-18
+
+* FEATURE: allow configuring multiple receivers with distinct configs for syslog messages. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#multiple-configs).
+
+* BUGFIX: properly read syslog messages over TCP and TLS connections according to [RFC5425](https://datatracker.ietf.org/doc/html/rfc5425) when [data ingestion for syslog protocol](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/) is enabled.
+
+## [v0.20.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.20.0-victorialogs)
+
+Released at 2024-06-17
+
+* FEATURE: add ability to accept logs in [Syslog format](https://en.wikipedia.org/wiki/Syslog). See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/).
+* FEATURE: add ability to specify timezone offset when parsing [rfc3164](https://datatracker.ietf.org/doc/html/rfc3164) syslog messages with [`unpack_syslog` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_syslog-pipe).
+* FEATURE: add [`top` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe) for returning top N sets of the given fields with the maximum number of matching log entries.
+
+## [v0.19.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.19.0-victorialogs)
+
+Released at 2024-06-11
+
+* FEATURE: do not allow starting the [filter](https://docs.victoriametrics.com/victorialogs/logsql/#filters) with [pipe names](https://docs.victoriametrics.com/victorialogs/logsql/#pipes) and [stats function names](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe-functions). This prevents from unexpected results returned by incorrect queries, which miss mandatory [filter](https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax).
+* FEATURE: treat unexpected syslog message as [RFC3164](https://datatracker.ietf.org/doc/html/rfc3164) containing only the `message` field when using [`unpack_syslog` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_syslog-pipe).
+* FEATURE: allow using `where` prefix instead of `filter` prefix in [`filter` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#filter-pipe).
+* FEATURE: disallow unescaped `!` char in [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) queries, since it permits writing incorrect query, which may look like correct one. For example, `foo!:bar` instead of `foo:!bar`.
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add markdown support to the `Group` view. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6292).
+
+* BUGFIX: return back the improved performance for queries with `*` filters (aka `SELECT *`). This has been broken in [v0.16.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.16.0-victorialogs).
+
 ## [v0.18.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.18.0-victorialogs)
 
 Released at 2024-06-06
@@ -272,7 +384,7 @@ Released at 2023-10-03
 
 Released at 2023-07-20
 
-* FEATURE: add support for data ingestion via Promtail (aka default log shipper for Grafana Loki). See [these](https://docs.victoriametrics.com/victorialogs/data-ingestion/Promtail.html) and [these](https://docs.victoriametrics.com/victorialogs/data-ingestion/#loki-json-api) docs.
+* FEATURE: add support for data ingestion via Promtail (aka default log shipper for Grafana Loki). See [these](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/) and [these](https://docs.victoriametrics.com/victorialogs/data-ingestion/#loki-json-api) docs.
 
 ## [v0.2.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.2.0-victorialogs)
 

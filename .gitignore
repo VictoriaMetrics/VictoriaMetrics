@@ -23,3 +23,5 @@ Gemfile.lock
 _site
 *.tmp
 /docs/.jekyll-metadata
+coverage.txt
+cspell.json

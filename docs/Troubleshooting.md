@@ -92,7 +92,7 @@ then please follow the following steps in order to quickly find the solution:
    from VictoriaMetrics community. If the linked resources have no enough information,
    then it is better posting the missing information in the web resource before providing links
    to this information in Slack chat. This will simplify searching for this information in the future
-   for VictoriaMetrics users via Google and ChatGPT :)
+   for VictoriaMetrics users via Google and [Perplexity](https://www.perplexity.ai/).
 
 1. Pro tip 3: if you are answering somebody's question about VictoriaMetrics components
    at GitHub issues / Slack chat / StackOverflow, then the best answer is a direct link to the information

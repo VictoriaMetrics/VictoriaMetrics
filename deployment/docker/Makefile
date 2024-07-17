@@ -2,11 +2,11 @@
 
 DOCKER_NAMESPACE ?= victoriametrics
 
-ROOT_IMAGE ?= alpine:3.20.0
+ROOT_IMAGE ?= alpine:3.20.1
 ROOT_IMAGE_SCRATCH ?= scratch
-CERTS_IMAGE := alpine:3.20.0
+CERTS_IMAGE := alpine:3.20.1
 
-GO_BUILDER_IMAGE := golang:1.22.4-alpine
+GO_BUILDER_IMAGE := golang:1.22.5-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
 DOCKER ?= docker
@@ -165,7 +165,7 @@ package-via-docker-pure:
 
 package-via-docker-amd64:
 	EXTRA_DOCKER_ENVS='CC=/opt/cross-builder/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc' \
-	CO_ENABLED=1 GOARCH=amd64 $(MAKE) package-via-docker-goarch
+	CGO_ENABLED=1 GOARCH=amd64 $(MAKE) package-via-docker-goarch
 
 package-via-docker-arm64:
 	EXTRA_DOCKER_ENVS='CC=/opt/cross-builder/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc' \

@@ -1,3 +1,37 @@
+# v1.22.3 (2024-07-10.2)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.2 (2024-07-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.1 (2024-06-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.22.0 (2024-06-26)
+
+* **Feature**: Support list-of-string endpoint parameter.
+
+# v1.21.1 (2024-06-19)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.21.0 (2024-06-18)
+
+* **Feature**: Track usage of various AWS SDK features in user-agent string.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.20.12 (2024-06-17)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.20.11 (2024-06-07)
+
+* **Bug Fix**: Add clock skew correction on all service clients
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.20.10 (2024-06-03)
 
 * **Dependency Update**: Updated to the latest SDK module versions
