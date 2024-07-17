@@ -153,9 +153,9 @@ func AddRows(mrs []storage.MetricRow) error {
 	}
 	resetResponseCacheIfNeeded(mrs)
 	WG.Add(1)
-	err := Storage.AddRows(mrs, uint8(*precisionBits))
+	Storage.AddRows(mrs, uint8(*precisionBits))
 	WG.Done()
-	return err
+	return nil
 }
 
 var errReadOnly = errors.New("the storage is in read-only mode; check -storage.minFreeDiskSpaceBytes command-line flag value")
