@@ -4,8 +4,11 @@ import { ErrorTypes, TimeParams } from "../../../types";
 import { LogHits } from "../../../api/types";
 import dayjs from "dayjs";
 import { LOGS_BARS_VIEW } from "../../../constants/logs";
+import { useSearchParams } from "react-router-dom";
 
 export const useFetchLogHits = (server: string, query: string) => {
+  const [searchParams] = useSearchParams();
+
   const [logHits, setLogHits] = useState<LogHits[]>([]);
   const [isLoading, setIsLoading] = useState<{[key: number]: boolean;}>([]);
   const [error, setError] = useState<ErrorTypes | string>();
@@ -22,6 +25,10 @@ export const useFetchLogHits = (server: string, query: string) => {
     return {
       signal,
       method: "POST",
+      headers: {
+        AccountID: searchParams.get("accountID") || "0",
+        ProjectID: searchParams.get("projectID") || "0",
+      },
       body: new URLSearchParams({
         query: query.trim(),
         step: `${step}ms`,
@@ -68,7 +75,7 @@ export const useFetchLogHits = (server: string, query: string) => {
       }
     }
     setIsLoading(prev => ({ ...prev, [id]: false }));
-  }, [url, query]);
+  }, [url, query, searchParams]);
 
   return {
     logHits,

@@ -3,8 +3,11 @@ import { getLogsUrl } from "../../../api/logs";
 import { ErrorTypes, TimeParams } from "../../../types";
 import { Logs } from "../../../api/types";
 import dayjs from "dayjs";
+import { useSearchParams } from "react-router-dom";
 
 export const useFetchLogs = (server: string, query: string, limit: number) => {
+  const [searchParams] = useSearchParams();
+
   const [logs, setLogs] = useState<Logs[]>([]);
   const [isLoading, setIsLoading] = useState<{[key: number]: boolean;}>([]);
   const [error, setError] = useState<ErrorTypes | string>();
@@ -16,7 +19,9 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
     signal,
     method: "POST",
     headers: {
-      "Accept": "application/stream+json",
+      Accept: "application/stream+json",
+      AccountID: searchParams.get("accountID") || "0",
+      ProjectID: searchParams.get("projectID") || "0",
     },
     body: new URLSearchParams({
       query: query.trim(),
@@ -66,7 +71,7 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
       }
     }
     setIsLoading(prev => ({ ...prev, [id]: false }));
-  }, [url, query, limit]);
+  }, [url, query, limit, searchParams]);
 
   return {
     logs,
