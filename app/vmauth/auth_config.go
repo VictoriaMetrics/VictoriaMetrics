@@ -312,12 +312,18 @@ func (up *URLPrefix) getBackendsCount() int {
 
 // getBackendURL returns the backendURL depending on the load balance policy.
 //
+// It can return nil if there are no backend urls available at the moment.
+//
 // backendURL.put() must be called on the returned backendURL after the request is complete.
 func (up *URLPrefix) getBackendURL() *backendURL {
 	up.discoverBackendAddrsIfNeeded()
 
 	pbus := up.bus.Load()
 	bus := *pbus
+	if len(bus) == 0 {
+		return nil
+	}
+
 	if up.loadBalancingPolicy == "first_available" {
 		return getFirstAvailableBackendURL(bus)
 	}

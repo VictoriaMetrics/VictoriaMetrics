@@ -208,6 +208,9 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	maxAttempts := up.getBackendsCount()
 	for i := 0; i < maxAttempts; i++ {
 		bu := up.getBackendURL()
+		if bu == nil {
+			break
+		}
 		targetURL := bu.url
 		// Don't change path and add request_path query param for default route.
 		if isDefault {
