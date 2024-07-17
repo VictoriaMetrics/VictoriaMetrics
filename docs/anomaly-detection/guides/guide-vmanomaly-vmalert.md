@@ -26,7 +26,7 @@ aliases:
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/)
 - [Node exporter](https://github.com/prometheus/node_exporter#node-exporter) (v1.7.0) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) (v0.27.0)
 
-<img src="guide-vmanomaly-vmalert_overview.webp" alt="vmanomaly typical setup diagram">
+<img src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_overview.webp" alt="vmanomaly typical setup diagram">
 
 > **Note: Configurations used throughout this guide can be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-integration/)**
 
@@ -108,7 +108,7 @@ In this context, the metric `node_cpu_seconds_total` provides a comprehensive br
 The `node_cpu_seconds_total` metric is classified as a [counter](https://docs.victoriametrics.com/keyconcepts/#counter) type. To analyze the duration each CPU core spends in these modes, it is necessary to compute the rate of change per second using the [rate function](https://docs.victoriametrics.com/metricsql/#rate): `rate(node_cpu_seconds_total)`. For a more refined and smoother aggregation of data by mode, we apply the sum function. The resulting query is formulated as follows: `sum(rate(node_cpu_seconds_total[5m])) by (mode, instance, job)`.
 
 Below is an illustrative example of how this query might be visualized in Grafana:
-<img alt="node_cpu_rate_graph" src="guide-vmanomaly-vmalert-query.webp">
+<img alt="node_cpu_rate_graph" src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert-query.webp">
 
 This query will yield a total of eight time series, each corresponding to a CPU mode. The number of series is unaffected by the number of CPU cores, due to the `by` aggregation applied. These series serve as the input for `vmanomaly`, where the service independently fits a separate instance of the configured model type to each of time series.
 
@@ -452,7 +452,7 @@ networks:
 
 Before running our docker-compose make sure that your directory contains all required files:
 
-<img src="guide-vmanomaly-vmalert_files.webp" alt="all files">
+<img src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_files.webp" alt="all files">
 
 This docker-compose file will pull docker images,  set up each service and run them all together with the command:
 
@@ -489,7 +489,7 @@ Each of these metrics will contain same labels our query `sum(rate(node_cpu_seco
 ### Anomaly scores for each metric with its according labels. 
 
 Query: `anomaly_score`
-<img alt="Anomaly score graph" src="guide-vmanomaly-vmalert_anomaly-score.webp">
+<img alt="Anomaly score graph" src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_anomaly-score.webp">
 
 <br>Check out if the anomaly score is high for datapoints you think are anomalies. If not, you can try other parameters in the config file or try other model type.
 
@@ -500,7 +500,7 @@ As you may notice a lot of data shows anomaly score greater than 1. It is expect
 
 Queries: `yhat_lower`, `yhat_upper` and `yhat`
 
-<img alt="yhat lower and yhat upper" src="guide-vmanomaly-vmalert-boundaries.webp">
+<img alt="yhat lower and yhat upper" src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert-boundaries.webp">
 
 Boundaries of 'normal' metric values according to model inference. 
 
@@ -508,10 +508,10 @@ Boundaries of 'normal' metric values according to model inference.
 
 On the page `http://localhost:8880/vmalert/groups` you can find our configured Alerting rule:
 
-<img alt="alert rule" src="guide-vmanomaly-vmalert_alert-rule.webp">
+<img alt="alert rule" src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_alert-rule.webp">
 
 According to the rule configured for vmalert we will see Alert when anomaly score exceed 1. You will see an alert on Alert tab. `http://localhost:8880/vmalert/alerts`:
-<img alt="alerts firing" src="guide-vmanomaly-vmalert_alerts-firing.webp">
+<img alt="alerts firing" src="guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_alerts-firing.webp">
 
 ## 10. Conclusion
 

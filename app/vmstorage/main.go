@@ -27,9 +27,9 @@ import (
 
 var (
 	retentionPeriod   = flagutil.NewDuration("retentionPeriod", "1", "Data with timestamps outside the retentionPeriod is automatically deleted. The minimum retentionPeriod is 24h or 1d. See also -retentionFilter")
-	snapshotAuthKey   = flagutil.NewPassword("snapshotAuthKey", "authKey, which must be passed in query string to /snapshot* pages")
-	forceMergeAuthKey = flagutil.NewPassword("forceMergeAuthKey", "authKey, which must be passed in query string to /internal/force_merge pages")
-	forceFlushAuthKey = flagutil.NewPassword("forceFlushAuthKey", "authKey, which must be passed in query string to /internal/force_flush pages")
+	snapshotAuthKey   = flagutil.NewPassword("snapshotAuthKey", "authKey, which must be passed in query string to /snapshot* pages. It overrides -httpAuth.*")
+	forceMergeAuthKey = flagutil.NewPassword("forceMergeAuthKey", "authKey, which must be passed in query string to /internal/force_merge pages. It overrides -httpAuth.*")
+	forceFlushAuthKey = flagutil.NewPassword("forceFlushAuthKey", "authKey, which must be passed in query string to /internal/force_flush pages. It overrides -httpAuth.*")
 	snapshotsMaxAge   = flagutil.NewDuration("snapshotsMaxAge", "0", "Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted")
 	_                 = flag.Duration("snapshotCreateTimeout", 0, "Deprecated: this flag does nothing")
 
@@ -240,7 +240,7 @@ func GetSeriesCount(deadline uint64) (uint64, error) {
 // Stop stops the vmstorage
 func Stop() {
 	// deregister storage metrics
-	metrics.UnregisterSet(storageMetrics)
+	metrics.UnregisterSet(storageMetrics, true)
 	storageMetrics = nil
 
 	logger.Infof("gracefully closing the storage at %s", *DataPath)
@@ -257,7 +257,7 @@ func Stop() {
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
 	if path == "/internal/force_merge" {
-		if !httpserver.CheckAuthFlag(w, r, forceMergeAuthKey.Get(), "forceMergeAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, forceMergeAuthKey) {
 			return true
 		}
 		// Run force merge in background
@@ -275,7 +275,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	if path == "/internal/force_flush" {
-		if !httpserver.CheckAuthFlag(w, r, forceFlushAuthKey.Get(), "forceFlushAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, forceFlushAuthKey) {
 			return true
 		}
 		logger.Infof("flushing storage to make pending data available for reading")
@@ -288,10 +288,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		prometheusCompatibleResponse = true
 		path = "/snapshot/create"
 	}
-	if !strings.HasPrefix(path, "/snapshot") {
+	if !strings.HasPrefix(path, "/snapshot/") {
 		return false
 	}
-	if !httpserver.CheckAuthFlag(w, r, snapshotAuthKey.Get(), "snapshotAuthKey") {
+	if !httpserver.CheckAuthFlag(w, r, snapshotAuthKey) {
 		return true
 	}
 	path = path[len("/snapshot"):]

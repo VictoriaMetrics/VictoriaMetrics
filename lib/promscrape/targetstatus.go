@@ -178,7 +178,7 @@ func (tsm *targetStatusMap) Unregister(sw *scrapeWork) {
 	tsm.mu.Unlock()
 }
 
-func (tsm *targetStatusMap) Update(sw *scrapeWork, up bool, scrapeTime, scrapeDuration int64, scrapeResponseSize float64, samplesScraped int, err error) {
+func (tsm *targetStatusMap) Update(sw *scrapeWork, up bool, scrapeTime, scrapeDuration int64, scrapeResponseSize, samplesScraped int, err error) {
 	jobName := sw.Config.jobNameOriginal
 
 	tsm.mu.Lock()
@@ -300,7 +300,7 @@ type targetStatus struct {
 	up                 bool
 	scrapeTime         int64
 	scrapeDuration     int64
-	scrapeResponseSize float64
+	scrapeResponseSize int
 	samplesScraped     int
 	scrapesTotal       int
 	scrapesFailed      int
@@ -319,7 +319,7 @@ func (ts *targetStatus) getSizeFromLastScrape() string {
 	if ts.scrapeResponseSize <= 0 {
 		return "never scraped"
 	}
-	return fmt.Sprintf("%.3f kb", float64(ts.scrapeResponseSize)/1024)
+	return fmt.Sprintf("%.3fKiB", float64(ts.scrapeResponseSize)/1024)
 }
 
 type droppedTargets struct {

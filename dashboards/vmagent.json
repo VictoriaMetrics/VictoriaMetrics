@@ -5177,7 +5177,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(vm_streamaggr_flushed_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])) without (instance, pod) > 0",
+              "expr": "sum(rate(vm_streamaggr_output_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])) without (instance, pod) > 0",
               "instant": false,
               "legendFormat": "{{url}} ({{job}}): match={{match}}; output={{output}}",
               "range": true,
@@ -5493,103 +5493,6 @@
             }
           ],
           "title": "Dedup flush duration 0.99 quantile ($instance)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "description": "Shows the eviction rate of time series because of staleness.\n\nThere are two stages where series can be marked as stale.\n1. Input. Aggregator keeps in memory each received unique time series. The time series becomes stale and gets removed if no samples were received during [staleness interval](https://docs.victoriametrics.com/stream-aggregation/#staleness) for this series. \n\n2. Output. The output key is a resulting time series produced by aggregating many input series. The time series becomes stale and gets removed if no samples were received during [staleness interval](https://docs.victoriametrics.com/stream-aggregation/#staleness) for any of input series for this aggregation.\n\nIncrease in `input` keys shows that series previously matched by the aggregation rule now became stale.\n\nIncrease in `output` keys shows that series previously produced by the aggregation rule now became stale.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "axisSoftMin": 0,
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 31
-          },
-          "id": 144,
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "expr": "increase(vm_streamaggr_stale_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
-              "instant": false,
-              "legendFormat": "{{url}} ({{job}}): match={{match}}; key={{key}}",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Staleness rate ($instance)",
           "type": "timeseries"
         },
         {

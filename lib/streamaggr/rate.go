@@ -8,11 +8,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
-// rateAggrState calculates output=rate, e.g. the counter per-second change.
+// rateAggrState calculates output=rate_avg and rate_sum, e.g. the average per-second increase rate for counter metrics.
 type rateAggrState struct {
 	m sync.Map
 
-	suffix string
+	// isAvg is set to true if rate_avg() must be calculated instead of rate_sum().
+	isAvg bool
 
 	// Time series state is dropped if no new samples are received during stalenessSecs.
 	stalenessSecs uint64
@@ -30,18 +31,17 @@ type rateLastValueState struct {
 	timestamp      int64
 	deleteDeadline uint64
 
-	// total stores cumulative difference between registered values
-	// in the aggregation interval
-	total float64
-	// prevTimestamp stores timestamp of the last registered value
-	// in the previous aggregation interval
+	// increase stores cumulative increase for the current time series on the current aggregation interval
+	increase float64
+
+	// prevTimestamp is the timestamp of the last registered sample in the previous aggregation interval
 	prevTimestamp int64
 }
 
-func newRateAggrState(stalenessInterval time.Duration, suffix string) *rateAggrState {
+func newRateAggrState(stalenessInterval time.Duration, isAvg bool) *rateAggrState {
 	stalenessSecs := roundDurationToSecs(stalenessInterval)
 	return &rateAggrState{
-		suffix:        suffix,
+		isAvg:         isAvg,
 		stalenessSecs: stalenessSecs,
 	}
 }
@@ -78,15 +78,15 @@ func (as *rateAggrState) pushSamples(samples []pushSample) {
 					sv.mu.Unlock()
 					continue
 				}
-				if lv.prevTimestamp == 0 {
-					lv.prevTimestamp = lv.timestamp
-				}
+
 				if s.value >= lv.value {
-					lv.total += s.value - lv.value
+					lv.increase += s.value - lv.value
 				} else {
 					// counter reset
-					lv.total += s.value
+					lv.increase += s.value
 				}
+			} else {
+				lv.prevTimestamp = s.timestamp
 			}
 			lv.value = s.value
 			lv.timestamp = s.timestamp
@@ -105,57 +105,82 @@ func (as *rateAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *rateAggrState) flushState(ctx *flushCtx, _ bool) {
+func (as *rateAggrState) flushState(ctx *flushCtx, resetState bool) {
 	currentTime := fasttime.UnixTimestamp()
 	currentTimeMsec := int64(currentTime) * 1000
-	var staleOutputSamples, staleInputSamples int
+
+	suffix := as.getSuffix()
+
+	as.removeOldEntries(currentTime)
 
 	m := &as.m
 	m.Range(func(k, v any) bool {
 		sv := v.(*rateStateValue)
-		sv.mu.Lock()
 
-		// check for stale entries
-		deleted := currentTime > sv.deleteDeadline
-		if deleted {
+		sv.mu.Lock()
+		lvs := sv.lastValues
+		sumRate := 0.0
+		countSeries := 0
+		for k1, lv := range lvs {
+			d := float64(lv.timestamp-lv.prevTimestamp) / 1000
+			if d > 0 {
+				sumRate += lv.increase / d
+				countSeries++
+			}
+			if resetState {
+				lv.prevTimestamp = lv.timestamp
+				lv.increase = 0
+				lvs[k1] = lv
+			}
+		}
+		deleted := sv.deleted
+		sv.mu.Unlock()
+
+		if countSeries == 0 || deleted {
+			// Nothing to update
+			return true
+		}
+
+		result := sumRate
+		if as.isAvg {
+			result /= float64(countSeries)
+		}
+
+		key := k.(string)
+		ctx.appendSeries(key, suffix, currentTimeMsec, result)
+		return true
+	})
+}
+
+func (as *rateAggrState) getSuffix() string {
+	if as.isAvg {
+		return "rate_avg"
+	}
+	return "rate_sum"
+}
+
+func (as *rateAggrState) removeOldEntries(currentTime uint64) {
+	m := &as.m
+	m.Range(func(k, v any) bool {
+		sv := v.(*rateStateValue)
+
+		sv.mu.Lock()
+		if currentTime > sv.deleteDeadline {
 			// Mark the current entry as deleted
-			sv.deleted = deleted
+			sv.deleted = true
 			sv.mu.Unlock()
-			staleOutputSamples++
 			m.Delete(k)
 			return true
 		}
 
 		// Delete outdated entries in sv.lastValues
-		var rate float64
 		lvs := sv.lastValues
-		for k1, v1 := range lvs {
-			if currentTime > v1.deleteDeadline {
+		for k1, lv := range lvs {
+			if currentTime > lv.deleteDeadline {
 				delete(lvs, k1)
-				staleInputSamples++
-				continue
-			}
-			rateInterval := v1.timestamp - v1.prevTimestamp
-			if v1.prevTimestamp > 0 && rateInterval > 0 {
-				// calculate rate only if value was seen at least twice with different timestamps
-				rate += v1.total * 1000 / float64(rateInterval)
-				v1.prevTimestamp = v1.timestamp
-				v1.total = 0
-				lvs[k1] = v1
 			}
 		}
-		// capture m length after deleted items were removed
-		totalItems := len(lvs)
 		sv.mu.Unlock()
-
-		if as.suffix == "rate_avg" && totalItems > 0 {
-			rate /= float64(totalItems)
-		}
-
-		key := k.(string)
-		ctx.appendSeries(key, as.suffix, currentTimeMsec, rate)
 		return true
 	})
-	ctx.a.staleOutputSamples[as.suffix].Add(staleOutputSamples)
-	ctx.a.staleInputSamples[as.suffix].Add(staleInputSamples)
 }

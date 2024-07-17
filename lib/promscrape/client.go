@@ -14,7 +14,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
 
 var (
@@ -70,7 +70,7 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 			IdleConnTimeout:        2 * sw.ScrapeInterval,
 			DisableCompression:     *disableCompression || sw.DisableCompression,
 			DisableKeepAlives:      *disableKeepAlive || sw.DisableKeepAlive,
-			DialContext:            httputils.GetStatDialFunc("vm_promscrape"),
+			DialContext:            netutil.NewStatDialFunc("vm_promscrape"),
 			MaxIdleConnsPerHost:    100,
 			MaxResponseHeaderBytes: int64(maxResponseHeadersSize.N),
 		}),
@@ -155,9 +155,9 @@ func (c *client) ReadData(dst *bytesutil.ByteBuffer) error {
 	}
 	if int64(len(dst.B)) >= c.maxScrapeSize {
 		maxScrapeSizeExceeded.Inc()
-		return fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize=%d or max_scrape_size in a scrape config. "+
+		return fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize or max_scrape_size in the scrape config (%d bytes). "+
 			"Possible solutions are: reduce the response size for the target, increase -promscrape.maxScrapeSize command-line flag, "+
-			"increase max_scrape_size value in scrape config", c.scrapeURL, maxScrapeSize.N)
+			"increase max_scrape_size value in scrape config for the given target", c.scrapeURL, maxScrapeSize.N)
 	}
 	return nil
 }
