@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -21,7 +22,7 @@ const unixExecSuffix = "-prod"
 const windowsExecSuffix = "-prod.exe"
 const zipExt = ".zip"
 
-func assertArchiveFile(t *testing.T, extension string, path string, expectedPrefixes []string) {
+func assertArchiveFile(t *testing.T, path string, expectedFiles []string) {
 	// Check if file exists
 	archiveFileInfo, err := getFileInfo(path)
 	if err != nil {
@@ -31,10 +32,7 @@ func assertArchiveFile(t *testing.T, extension string, path string, expectedPref
 	}
 
 	var archiveFiles []string
-	var binaryFileSuffix string
-	if extension == tarGzExt { // Unix-like stuff
-		binaryFileSuffix = unixExecSuffix
-
+	if strings.HasSuffix(path, tarGzExt) { // Unix-like stuff
 		// Get file handler
 		tarGzFile, err := os.Open(path)
 		if err != nil {
@@ -59,15 +57,15 @@ func assertArchiveFile(t *testing.T, extension string, path string, expectedPref
 			if err != nil {
 				t.Fatalf("Failed to read tar header: %s", err)
 			}
-			if header.Size == 0 {
-				t.Fatalf("Archive file is empty: %s (%s)", header.Name, path)
+			if header.FileInfo().IsDir() {
+				continue
+			} else if header.Size == 0 {
+				t.Fatalf("Archived file is empty: %s (%s)", header.Name, path)
 			}
 			archiveFiles = append(archiveFiles, header.Name)
 		}
 
-	} else if extension == zipExt { // Windows stuff
-		binaryFileSuffix = "-windows-amd64" + windowsExecSuffix
-
+	} else if strings.HasSuffix(path, zipExt) { // Windows stuff
 		// Get file handler
 		zipFile, err := os.Open(path)
 		if err != nil {
@@ -87,26 +85,24 @@ func assertArchiveFile(t *testing.T, extension string, path string, expectedPref
 		}
 
 		for _, file := range zipReader.File {
-			if file.CompressedSize64 == 0 {
-				t.Fatalf("Archive file is empty: %s (%s)", file.Name, path)
+			if file.FileInfo().IsDir() {
+				continue
+			} else if file.CompressedSize64 == 0 {
+				t.Fatalf("Archived file is empty: %s (%s)", file.Name, path)
 			}
 			archiveFiles = append(archiveFiles, file.Name)
 		}
 
 	} else { // Unexpected stuff.
-		t.Fatalf("Unknown archive type: %s", extension)
+		t.Fatalf("Unknown archive type: %s", path)
 	}
 
-	var expectedFiles []string
-	for _, expectedFilePrefix := range expectedPrefixes {
-		expectedFiles = append(expectedFiles, strings.Join([]string{expectedFilePrefix, binaryFileSuffix}, ""))
-	}
 	if !compareSlices(archiveFiles, expectedFiles) {
 		t.Fatalf("Archive contents `%s` doesn't match the expected one: `%s`", archiveFiles, expectedFiles)
 	}
 }
 
-func assertChecksumsFile(t *testing.T, extension string, path string, expectedPrefixes []string) {
+func assertChecksumsFile(t *testing.T, path string, expectedFiles []string) {
 	// Check if file exists
 	checksumsFileInfo, err := getFileInfo(path)
 	if err != nil {
@@ -130,20 +126,6 @@ func assertChecksumsFile(t *testing.T, extension string, path string, expectedPr
 		t.Fatalf("Failed to  read file: %s", err)
 	}
 
-	var binaryFileSuffix string
-	if extension == tarGzExt { // Unix-like stuff
-		binaryFileSuffix = unixExecSuffix
-	} else if extension == zipExt { // Windows stuff
-		binaryFileSuffix = "-windows-amd64" + windowsExecSuffix
-	} else { // Unexpected stuff.
-		t.Fatalf("Unknown archive type: %s", extension)
-	}
-
-	archiveFileName := strings.ReplaceAll(filepath.Base(path), "_checksums.txt", extension)
-	expectedFiles := []string{archiveFileName}
-	for _, expectedFilePrefix := range expectedPrefixes {
-		expectedFiles = append(expectedFiles, strings.Join([]string{expectedFilePrefix, binaryFileSuffix}, ""))
-	}
 	if !compareSlices(checksumsFiles, expectedFiles) {
 		t.Fatalf("Archive contents `%s` doesn't match the expected one: `%s`", checksumsFiles, expectedFiles)
 	}
@@ -153,6 +135,9 @@ func compareSlices(slice1, slice2 []string) bool {
 	if len(slice1) != len(slice2) {
 		return false
 	}
+
+	sort.Strings(slice1)
+	sort.Strings(slice2)
 	for i := range slice1 {
 		if slice1[i] != slice2[i] {
 			return false
@@ -239,24 +224,44 @@ func testReleaseAssets(t *testing.T, componentNames []string) {
 	for _, componentName := range componentNames {
 		for osName, archNames := range getArchOsMap() {
 			var archiveFileExtension string
+			var binaryFileSuffix string
 			if osName == "windows" {
 				archiveFileExtension = zipExt
+				binaryFileSuffix = "-windows-amd64" + windowsExecSuffix
 			} else {
 				archiveFileExtension = tarGzExt
+				binaryFileSuffix = unixExecSuffix
 			}
 
 			for _, archName := range archNames {
-				fileNamePrefix := strings.Join([]string{componentName, osName, archName, gitTag}, "-")
+				componentPrefix := strings.Join([]string{componentName, osName, archName, gitTag}, "-")
 
-				// Check archive file.
-				archiveFileName := strings.Join([]string{fileNamePrefix, archiveFileExtension}, "")
-				archiveFilePath := filepath.Join(binPath, archiveFileName)
-				assertArchiveFile(t, archiveFileExtension, archiveFilePath, getComponentFileMap()[componentName])
+				// Check binaries.
+				expectedBinaryFiles := []string{}
+				for _, componentFile := range getComponentFileMap()[componentName] {
+					expectedBinaryFiles = append(expectedBinaryFiles, strings.Join([]string{componentFile, binaryFileSuffix}, ""))
+				}
+				archiveFile := strings.Join([]string{componentPrefix, archiveFileExtension}, "")
+				assertArchiveFile(t, filepath.Join(binPath, archiveFile), expectedBinaryFiles)
 
-				// Check checksums file.
-				checksumsFileName := strings.Join([]string{fileNamePrefix, "_checksums.txt"}, "")
-				checksumsFilePath := filepath.Join(binPath, checksumsFileName)
-				assertChecksumsFile(t, archiveFileExtension, checksumsFilePath, getComponentFileMap()[componentName])
+				// Check checksums.
+				bomFile := strings.Join([]string{componentPrefix, "_bom", archiveFileExtension}, "")
+				expectedChecksumsFiles := []string{archiveFile, bomFile}
+				for _, componentFile := range getComponentFileMap()[componentName] {
+					expectedChecksumsFiles = append(expectedChecksumsFiles, strings.Join([]string{componentFile, binaryFileSuffix}, ""))
+				}
+				checksumsFile := strings.Join([]string{componentPrefix, "_checksums.txt"}, "")
+				assertChecksumsFile(t, filepath.Join(binPath, checksumsFile), expectedChecksumsFiles)
+
+				// Check SBOMs.
+				expectedSbomFiles := []string{}
+				for _, componentFile := range getComponentFileMap()[componentName] {
+					sbomFilePrefix := strings.Join([]string{componentFile, osName, archName, gitTag}, "-")
+					sbomDirectory := strings.Join([]string{componentPrefix, "_bom"}, "")
+					expectedSbomFiles = append(expectedSbomFiles, filepath.Join(sbomDirectory, strings.Join([]string{sbomFilePrefix, "_bom.json"}, "")))
+				}
+				sbomFile := strings.Join([]string{componentPrefix, "_bom", archiveFileExtension}, "")
+				assertArchiveFile(t, filepath.Join(binPath, sbomFile), expectedSbomFiles)
 			}
 		}
 	}
