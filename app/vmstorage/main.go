@@ -24,6 +24,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
@@ -236,7 +237,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 			snapshotsCreateErrorsTotal.Inc()
 			return true
 		}
-		fmt.Fprintf(w, `{"status":"ok","snapshot":%q}`, snapshotPath)
+		fmt.Fprintf(w, `{"status":"ok","snapshot":%s}`, stringsutil.JSONString(snapshotPath))
 		return true
 	case "/list":
 		snapshotsListTotal.Inc()
@@ -561,7 +562,8 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 func jsonResponseError(w http.ResponseWriter, err error) {
 	logger.Errorf("%s", err)
 	w.WriteHeader(http.StatusInternalServerError)
-	fmt.Fprintf(w, `{"status":"error","msg":%q}`, err)
+	errStr := err.Error()
+	fmt.Fprintf(w, `{"status":"error","msg":%s}`, stringsutil.JSONString(errStr))
 }
 
 func usage() {

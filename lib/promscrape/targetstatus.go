@@ -19,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 var maxDroppedTargets = flag.Int("promscrape.maxDroppedTargets", 10000, "The maximum number of droppedTargets to show at /api/v1/targets page. "+
@@ -261,21 +262,21 @@ func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer) {
 		writeLabelsJSON(w, ts.sw.Config.OriginalLabels)
 		fmt.Fprintf(w, `,"labels":`)
 		writeLabelsJSON(w, ts.sw.Config.Labels)
-		fmt.Fprintf(w, `,"scrapePool":%q`, ts.sw.Config.Job())
-		fmt.Fprintf(w, `,"scrapeUrl":%q`, ts.sw.Config.ScrapeURL)
+		fmt.Fprintf(w, `,"scrapePool":%s`, stringsutil.JSONString(ts.sw.Config.Job()))
+		fmt.Fprintf(w, `,"scrapeUrl":%s`, stringsutil.JSONString(ts.sw.Config.ScrapeURL))
 		errMsg := ""
 		if ts.err != nil {
 			errMsg = ts.err.Error()
 		}
-		fmt.Fprintf(w, `,"lastError":%q`, errMsg)
-		fmt.Fprintf(w, `,"lastScrape":%q`, time.Unix(ts.scrapeTime/1000, (ts.scrapeTime%1000)*1e6).Format(time.RFC3339Nano))
+		fmt.Fprintf(w, `,"lastError":%s`, stringsutil.JSONString(errMsg))
+		fmt.Fprintf(w, `,"lastScrape":"%s"`, time.Unix(ts.scrapeTime/1000, (ts.scrapeTime%1000)*1e6).Format(time.RFC3339Nano))
 		fmt.Fprintf(w, `,"lastScrapeDuration":%g`, (time.Millisecond * time.Duration(ts.scrapeDuration)).Seconds())
 		fmt.Fprintf(w, `,"lastSamplesScraped":%d`, ts.samplesScraped)
 		state := "up"
 		if !ts.up {
 			state = "down"
 		}
-		fmt.Fprintf(w, `,"health":%q}`, state)
+		fmt.Fprintf(w, `,"health":%s}`, stringsutil.JSONString(state))
 		if i+1 < len(tss) {
 			fmt.Fprintf(w, `,`)
 		}
@@ -287,7 +288,7 @@ func writeLabelsJSON(w io.Writer, labels *promutils.Labels) {
 	fmt.Fprintf(w, `{`)
 	labelsList := labels.GetLabels()
 	for i, label := range labelsList {
-		fmt.Fprintf(w, "%q:%q", label.Name, label.Value)
+		fmt.Fprintf(w, "%s:%s", stringsutil.JSONString(label.Name), stringsutil.JSONString(label.Value))
 		if i+1 < len(labelsList) {
 			fmt.Fprintf(w, `,`)
 		}

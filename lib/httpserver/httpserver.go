@@ -20,14 +20,16 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/klauspost/compress/gzhttp"
+	"github.com/valyala/fastrand"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/klauspost/compress/gzhttp"
-	"github.com/valyala/fastrand"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 var (
@@ -533,7 +535,7 @@ func GetQuotedRemoteAddr(r *http.Request) string {
 		remoteAddr += ", X-Forwarded-For: " + addr
 	}
 	// quote remoteAddr and X-Forwarded-For, since they may contain untrusted input
-	return strconv.Quote(remoteAddr)
+	return stringsutil.JSONString(remoteAddr)
 }
 
 type responseWriterWithAbort struct {
