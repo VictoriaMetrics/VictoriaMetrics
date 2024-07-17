@@ -42,6 +42,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 var (
@@ -343,7 +344,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		var bb bytesutil.ByteBuffer
 		promscrape.WriteConfigData(&bb)
-		fmt.Fprintf(w, `{"status":"success","data":{"yaml":%q}}`, bb.B)
+		fmt.Fprintf(w, `{"status":"success","data":{"yaml":%s}}`, stringsutil.JSONString(string(bb.B)))
 		return true
 	case "/prometheus/-/reload", "/-/reload":
 		if !httpserver.CheckAuthFlag(w, r, reloadAuthKey) {

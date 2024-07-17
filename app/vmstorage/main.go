@@ -21,6 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
@@ -308,9 +309,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		if prometheusCompatibleResponse {
-			fmt.Fprintf(w, `{"status":"success","data":{"name":%q}}`, snapshotPath)
+			fmt.Fprintf(w, `{"status":"success","data":{"name":%s}}`, stringsutil.JSONString(snapshotPath))
 		} else {
-			fmt.Fprintf(w, `{"status":"ok","snapshot":%q}`, snapshotPath)
+			fmt.Fprintf(w, `{"status":"ok","snapshot":%s}`, stringsutil.JSONString(snapshotPath))
 		}
 		return true
 	case "/list":
@@ -636,5 +637,6 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 func jsonResponseError(w http.ResponseWriter, err error) {
 	logger.Errorf("%s", err)
 	w.WriteHeader(http.StatusInternalServerError)
-	fmt.Fprintf(w, `{"status":"error","msg":%q}`, err)
+	errStr := err.Error()
+	fmt.Fprintf(w, `{"status":"error","msg":%s}`, stringsutil.JSONString(errStr))
 }

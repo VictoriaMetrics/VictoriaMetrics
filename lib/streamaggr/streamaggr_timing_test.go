@@ -2,12 +2,12 @@ package streamaggr
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 var benchOutputs = []string{
@@ -78,7 +78,7 @@ func benchmarkAggregatorsPush(b *testing.B, output string) {
 func newBenchAggregators(outputs []string, pushFunc PushFunc) *Aggregators {
 	outputsQuoted := make([]string, len(outputs))
 	for i := range outputs {
-		outputsQuoted[i] = strconv.Quote(outputs[i])
+		outputsQuoted[i] = stringsutil.JSONString(outputs[i])
 	}
 	config := fmt.Sprintf(`
 - match: http_requests_total
