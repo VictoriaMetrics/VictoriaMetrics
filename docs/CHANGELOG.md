@@ -332,6 +332,30 @@ Released at 2024-02-14
 * BUGFIX: [dashboards](https://grafana.com/orgs/victoriametrics): update `Storage full ETA` panels for Single-node and Cluster dashboards to prevent them from showing negative or blank results caused by increase of deduplicated samples. Deduplicated samples were part of the expression to provide a better estimate for disk usage, but due to sporadic nature of [deduplication](https://docs.victoriametrics.com/#deduplication) in VictoriaMetrics it rather produced skewed results. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5747).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/#vmalert): reduce memory usage for ENT version of vmalert for configurations with high number of groups with enabled multitenancy.
 
+## [v1.97.6](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.6)
+
+Released at 2024-07-17
+
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG.html#v1970) release**
+
+* SECURITY: upgrade Go builder from Go1.22.4 to Go1.22.5. See the list of issues addressed in [Go1.22.5](https://github.com/golang/go/issues?q=milestone%3AGo1.22.5+label%3ACherryPickApproved).
+* SECURITY: upgrade base docker image (Alpine) from 3.20.0 to 3.20.1. See [alpine 3.20.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.1-released.html).
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): fix panic when using multiple topics with the same name when [ingesting metrics from Kafka](https://docs.victoriametrics.com/vmagent/#kafka-integration). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6636) for the details.
+* BUGFIX: all VictoriaMetrics components: properly calculate `process_resident_memory_bytes` metric for OS with non-default value of memory page size. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6457) for details.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix path for system links printed on default vmalert's UI page when `-http.pathPrefix` is set.
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/): properly configure authentication with S3 when `-configFilePath` cmd-line flag is specified.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/) enterprise: properly configure authentication with S3 when `-s3.configFilePath` cmd-line flag is specified for reading rule configs.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): properly specify oauth2 `ClientSecret` when configuring authentication for `notifier.url`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6471) for details. Thanks to @yincongcyincong for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6478).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix incorrect redirection in WebUI of vmalert. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6603) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6620).
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): add validation for the max value specified for `-retentionPeriod`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6330) for details.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): **copy row** button in Table view produces unexpected result. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6421) and [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6495).
+* BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/vmalert-tool/): prevent hanging when processing groups without rules. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6500).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix input cursor position reset in modal settings. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6530).
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly calculate [histogram_quantile](https://docs.victoriametrics.com/MetricsQL.html#histogram_quantile) over Prometheus buckets with inconsistent values. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4580#issuecomment-2186659102) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6547). Updates [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2819).
+
 ## [v1.97.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.5)
 
 Released at 2024-06-07
