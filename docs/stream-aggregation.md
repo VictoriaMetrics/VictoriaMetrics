@@ -1031,7 +1031,7 @@ specified individually per each `-remoteWrite.url`:
   # match also can contain a list of series selectors. Then the incoming samples are aggregated
   # if they match at least a single series selector.
   #
-- match: 'http_request_duration_seconds_bucket{env=~"prod|staging"}'
+  match: 'http_request_duration_seconds_bucket{env=~"prod|staging"}'
 
   # interval is the interval for the aggregation.
   # The aggregated stats is sent to remote storage once per interval.
