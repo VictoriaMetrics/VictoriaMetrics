@@ -625,13 +625,13 @@ VictoriaMetrics performs the following transformations to the ingested InfluxDB 
 
 For example, the following InfluxDB line:
 
-```raw
+```influxtextmetric
 foo,tag1=value1,tag2=value2 field1=12,field2=40
 ```
 
 is converted into the following Prometheus data points:
 
-```raw
+```promtextmetric
 foo_field1{tag1="value1", tag2="value2"} 12
 foo_field2{tag1="value1", tag2="value2"} 40
 ```
