@@ -70,8 +70,6 @@ func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 		pss[0] = newPendingSeries(nil, true, 0, 100)
 		rwctx := &remoteWriteCtx{
 			idx:                    0,
-			streamAggrKeepInput:    keepInput,
-			streamAggrDropInput:    dropInput,
 			pss:                    pss,
 			rowsPushedAfterRelabel: metrics.GetOrCreateCounter(`foo`),
 			rowsDroppedByRelabel:   metrics.GetOrCreateCounter(`bar`),

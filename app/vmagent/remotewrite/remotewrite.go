@@ -488,12 +488,7 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnF
 		sortLabelsIfNeeded(tssBlock)
 		tssBlock = limitSeriesCardinality(tssBlock)
 		if sas.IsEnabled() {
-			matchIdxs := matchIdxsPool.Get()
-			matchIdxs.B = sas.Push(tssBlock, matchIdxs.B)
-			if !*streamAggrGlobalKeepInput {
-				tssBlock = dropAggregatedSeries(tssBlock, matchIdxs.B, *streamAggrGlobalDropInput)
-			}
-			matchIdxsPool.Put(matchIdxs)
+			tssBlock = sas.Push(tssBlock)
 		} else if deduplicatorGlobal != nil {
 			deduplicatorGlobal.Push(tssBlock)
 			tssBlock = tssBlock[:0]
@@ -764,9 +759,6 @@ type remoteWriteCtx struct {
 	sas          atomic.Pointer[streamaggr.Aggregators]
 	deduplicator *streamaggr.Deduplicator
 
-	streamAggrKeepInput bool
-	streamAggrDropInput bool
-
 	pss        []*pendingSeries
 	pssNextIdx atomic.Uint64
 
@@ -910,18 +902,13 @@ func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries, forceDropSa
 	// Apply stream aggregation or deduplication if they are configured
 	sas := rwctx.sas.Load()
 	if sas.IsEnabled() {
-		matchIdxs := matchIdxsPool.Get()
-		matchIdxs.B = sas.Push(tss, matchIdxs.B)
-		if !rwctx.streamAggrKeepInput {
-			if rctx == nil {
-				rctx = getRelabelCtx()
-				// Make a copy of tss before dropping aggregated series
-				v = tssPool.Get().(*[]prompbmarshal.TimeSeries)
-				tss = append(*v, tss...)
-			}
-			tss = dropAggregatedSeries(tss, matchIdxs.B, rwctx.streamAggrDropInput)
+		if sas.ExpectModifications() && rctx == nil {
+			rctx = getRelabelCtx()
+			// Make a copy of tss before dropping aggregated series
+			v = tssPool.Get().(*[]prompbmarshal.TimeSeries)
+			tss = append(*v, tss...)
 		}
-		matchIdxsPool.Put(matchIdxs)
+		tss = sas.Push(tss)
 	} else if rwctx.deduplicator != nil {
 		rwctx.deduplicator.Push(tss)
 		return true
@@ -940,23 +927,6 @@ func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries, forceDropSa
 		return true
 	}
 	return false
-}
-
-var matchIdxsPool bytesutil.ByteBufferPool
-
-func dropAggregatedSeries(src []prompbmarshal.TimeSeries, matchIdxs []byte, dropInput bool) []prompbmarshal.TimeSeries {
-	dst := src[:0]
-	if !dropInput {
-		for i, match := range matchIdxs {
-			if match == 1 {
-				continue
-			}
-			dst = append(dst, src[i])
-		}
-	}
-	tail := src[len(dst):]
-	clear(tail)
-	return dst
 }
 
 func (rwctx *remoteWriteCtx) pushInternalTrackDropped(tss []prompbmarshal.TimeSeries) {

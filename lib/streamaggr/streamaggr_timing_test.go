@@ -43,7 +43,7 @@ func BenchmarkAggregatorsFlushInternalSerial(b *testing.B) {
 	pushFunc := func(_ []prompbmarshal.TimeSeries) {}
 	a := newBenchAggregators(benchOutputs, pushFunc)
 	defer a.MustStop()
-	_ = a.Push(benchSeries, nil)
+	benchSeries = a.Push(benchSeries)
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -66,10 +66,9 @@ func benchmarkAggregatorsPush(b *testing.B, output string) {
 	b.ReportAllocs()
 	b.SetBytes(int64(len(benchSeries) * loops))
 	b.RunParallel(func(pb *testing.PB) {
-		var matchIdxs []byte
 		for pb.Next() {
 			for i := 0; i < loops; i++ {
-				matchIdxs = a.Push(benchSeries, matchIdxs)
+				benchSeries = a.Push(benchSeries)
 			}
 		}
 	})

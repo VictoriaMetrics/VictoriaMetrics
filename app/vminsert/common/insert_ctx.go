@@ -141,13 +141,7 @@ func (ctx *InsertCtx) ApplyRelabeling() {
 func (ctx *InsertCtx) FlushBufs() error {
 	sas := sasGlobal.Load()
 	if (sas.IsEnabled() || deduplicator != nil) && !ctx.skipStreamAggr {
-		matchIdxs := matchIdxsPool.Get()
-		matchIdxs.B = ctx.streamAggrCtx.push(ctx.mrs, matchIdxs.B)
-		if !*streamAggrKeepInput {
-			// Remove aggregated rows from ctx.mrs
-			ctx.dropAggregatedRows(matchIdxs.B)
-		}
-		matchIdxsPool.Put(matchIdxs)
+		ctx.streamAggrCtx.push(ctx)
 	}
 	// There is no need in limiting the number of concurrent calls to vmstorage.AddRows() here,
 	// since the number of concurrent FlushBufs() calls should be already limited via writeconcurrencylimiter
@@ -166,13 +160,11 @@ func (ctx *InsertCtx) FlushBufs() error {
 func (ctx *InsertCtx) dropAggregatedRows(matchIdxs []byte) {
 	dst := ctx.mrs[:0]
 	src := ctx.mrs
-	if !*streamAggrDropInput {
-		for idx, match := range matchIdxs {
-			if match == 1 {
-				continue
-			}
-			dst = append(dst, src[idx])
+	for i, match := range matchIdxs {
+		if match == 1 {
+			continue
 		}
+		dst = append(dst, src[i])
 	}
 	tail := src[len(dst):]
 	for i := range tail {
@@ -180,5 +172,3 @@ func (ctx *InsertCtx) dropAggregatedRows(matchIdxs []byte) {
 	}
 	ctx.mrs = dst
 }
-
-var matchIdxsPool bytesutil.ByteBufferPool
