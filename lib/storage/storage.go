@@ -561,8 +561,8 @@ func (m *Metrics) Reset() {
 
 // UpdateMetrics updates m with metrics from s.
 func (s *Storage) UpdateMetrics(m *Metrics) {
-	m.RowsReceivedTotal = s.rowsReceivedTotal.Load()
-	m.RowsAddedTotal = s.rowsAddedTotal.Load()
+	m.RowsReceivedTotal += s.rowsReceivedTotal.Load()
+	m.RowsAddedTotal += s.rowsAddedTotal.Load()
 	m.DedupsDuringMerge = dedupsDuringMerge.Load()
 	m.SnapshotsCount += uint64(s.mustGetSnapshotsCount())
 
