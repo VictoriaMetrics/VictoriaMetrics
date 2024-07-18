@@ -103,6 +103,7 @@ type PutBucketAccelerateConfigurationInput struct {
 }
 
 func (in *PutBucketAccelerateConfigurationInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }

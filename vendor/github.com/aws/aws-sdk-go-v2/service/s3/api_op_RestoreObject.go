@@ -248,6 +248,7 @@ type RestoreObjectInput struct {
 }
 
 func (in *RestoreObjectInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 
 }

@@ -117,13 +117,14 @@ type CreateSessionInput struct {
 }
 
 func (in *CreateSessionInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.DisableS3ExpressSessionAuth = ptr.Bool(true)
 }
 
 type CreateSessionOutput struct {
 
-	// The established temporary security credentials for the created session..
+	// The established temporary security credentials for the created session.
 	//
 	// This member is required.
 	Credentials *types.SessionCredentials

@@ -22,6 +22,12 @@ type genericSearchOptions struct {
 	// If it is empty, then the search is performed by tenantIDs
 	streamIDs []streamID
 
+	// minTimestamp is the minimum timestamp for the search
+	minTimestamp int64
+
+	// maxTimestamp is the maximum timestamp for the search
+	maxTimestamp int64
+
 	// filter is the filter to use for the search
 	filter filter
 
@@ -110,10 +116,14 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 		return streamIDs[i].less(&streamIDs[j])
 	})
 
+	minTimestamp, maxTimestamp := q.GetFilterTimeRange()
+
 	neededColumnNames, unneededColumnNames := q.getNeededColumns()
 	so := &genericSearchOptions{
 		tenantIDs:           tenantIDs,
 		streamIDs:           streamIDs,
+		minTimestamp:        minTimestamp,
+		maxTimestamp:        maxTimestamp,
 		filter:              q.f,
 		neededColumnNames:   neededColumnNames,
 		unneededColumnNames: unneededColumnNames,
@@ -127,10 +137,21 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 	stopCh := ctx.Done()
 	cancels := make([]func(), len(q.pipes))
 	pps := make([]pipeProcessor, len(q.pipes))
+
+	var errPipe error
 	for i := len(q.pipes) - 1; i >= 0; i-- {
 		p := q.pipes[i]
 		ctxChild, cancel := context.WithCancel(ctx)
 		pp = p.newPipeProcessor(workersCount, stopCh, cancel, pp)
+
+		pcp, ok := pp.(*pipeStreamContextProcessor)
+		if ok {
+			pcp.init(ctx, s, minTimestamp, maxTimestamp)
+			if i > 0 {
+				errPipe = fmt.Errorf("[%s] pipe must go after [%s] filter; now it goes after the [%s] pipe", p, q.f, q.pipes[i-1])
+			}
+		}
+
 		stopCh = ctxChild.Done()
 		ctx = ctxChild
 
@@ -138,7 +159,9 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 		pps[i] = pp
 	}
 
-	s.search(workersCount, so, stopCh, pp.writeBlock)
+	if errPipe == nil {
+		s.search(workersCount, so, stopCh, pp.writeBlock)
+	}
 
 	var errFlush error
 	for i, pp := range pps {
@@ -151,6 +174,11 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 	if err := ppMain.flush(); err != nil && errFlush == nil {
 		errFlush = err
 	}
+
+	if errPipe != nil {
+		return errPipe
+	}
+
 	return errFlush
 }
 
@@ -355,6 +383,13 @@ func (s *Storage) GetStreamFieldValues(ctx context.Context, tenantIDs []TenantID
 // If limit > 0, then up to limit unique streams are returned.
 func (s *Storage) GetStreams(ctx context.Context, tenantIDs []TenantID, q *Query, limit uint64) ([]ValueWithHits, error) {
 	return s.GetFieldValues(ctx, tenantIDs, q, "_stream", limit)
+}
+
+// GetStreamIDs returns stream_id field values from q results for the given tenantIDs.
+//
+// If limit > 0, then up to limit unique streams are returned.
+func (s *Storage) GetStreamIDs(ctx context.Context, tenantIDs []TenantID, q *Query, limit uint64) ([]ValueWithHits, error) {
+	return s.GetFieldValues(ctx, tenantIDs, q, "_stream_id", limit)
 }
 
 func (s *Storage) runValuesWithHitsQuery(ctx context.Context, tenantIDs []TenantID, q *Query) ([]ValueWithHits, error) {
@@ -635,19 +670,15 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 		}(uint(i))
 	}
 
-	// Obtain time range from so.filter
-	f := so.filter
-	minTimestamp, maxTimestamp := getFilterTimeRange(f)
-
 	// Select partitions according to the selected time range
 	s.partitionsLock.Lock()
 	ptws := s.partitions
-	minDay := minTimestamp / nsecPerDay
+	minDay := so.minTimestamp / nsecPerDay
 	n := sort.Search(len(ptws), func(i int) bool {
 		return ptws[i].day >= minDay
 	})
 	ptws = ptws[n:]
-	maxDay := maxTimestamp / nsecPerDay
+	maxDay := so.maxTimestamp / nsecPerDay
 	n = sort.Search(len(ptws), func(i int) bool {
 		return ptws[i].day > maxDay
 	})
@@ -658,8 +689,7 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 	s.partitionsLock.Unlock()
 
 	// Obtain common filterStream from f
-	var sf *StreamFilter
-	sf, f = getCommonStreamFilter(f)
+	sf, f := getCommonStreamFilter(so.filter)
 
 	// Schedule concurrent search across matching partitions.
 	psfs := make([]partitionSearchFinalizer, len(ptws))
@@ -668,7 +698,7 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 		partitionSearchConcurrencyLimitCh <- struct{}{}
 		wgSearchers.Add(1)
 		go func(idx int, pt *partition) {
-			psfs[idx] = pt.search(minTimestamp, maxTimestamp, sf, f, so, workCh, stopCh)
+			psfs[idx] = pt.search(sf, f, so, workCh, stopCh)
 			wgSearchers.Done()
 			<-partitionSearchConcurrencyLimitCh
 		}(i, ptw.pt)
@@ -697,7 +727,7 @@ var partitionSearchConcurrencyLimitCh = make(chan struct{}, cgroup.AvailableCPUs
 
 type partitionSearchFinalizer func()
 
-func (pt *partition) search(minTimestamp, maxTimestamp int64, sf *StreamFilter, f filter, so *genericSearchOptions, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}) partitionSearchFinalizer {
+func (pt *partition) search(sf *StreamFilter, f filter, so *genericSearchOptions, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}) partitionSearchFinalizer {
 	if needStop(stopCh) {
 		// Do not spend CPU time on search, since it is already stopped.
 		return func() {}
@@ -721,8 +751,8 @@ func (pt *partition) search(minTimestamp, maxTimestamp int64, sf *StreamFilter, 
 	soInternal := &searchOptions{
 		tenantIDs:           tenantIDs,
 		streamIDs:           streamIDs,
-		minTimestamp:        minTimestamp,
-		maxTimestamp:        maxTimestamp,
+		minTimestamp:        so.minTimestamp,
+		maxTimestamp:        so.maxTimestamp,
 		filter:              f,
 		neededColumnNames:   so.neededColumnNames,
 		unneededColumnNames: so.unneededColumnNames,
@@ -1086,29 +1116,6 @@ func getCommonStreamFilter(f filter) (*StreamFilter, filter) {
 		return t.f, &filterNoop{}
 	}
 	return nil, f
-}
-
-func getFilterTimeRange(f filter) (int64, int64) {
-	switch t := f.(type) {
-	case *filterAnd:
-		minTimestamp := int64(math.MinInt64)
-		maxTimestamp := int64(math.MaxInt64)
-		for _, filter := range t.filters {
-			ft, ok := filter.(*filterTime)
-			if ok {
-				if ft.minTimestamp > minTimestamp {
-					minTimestamp = ft.minTimestamp
-				}
-				if ft.maxTimestamp < maxTimestamp {
-					maxTimestamp = ft.maxTimestamp
-				}
-			}
-		}
-		return minTimestamp, maxTimestamp
-	case *filterTime:
-		return t.minTimestamp, t.maxTimestamp
-	}
-	return math.MinInt64, math.MaxInt64
 }
 
 func forEachStreamField(streams []ValueWithHits, f func(f Field, hits uint64)) {

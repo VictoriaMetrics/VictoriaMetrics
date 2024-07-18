@@ -8,6 +8,11 @@ type pipe interface {
 	// String returns string representation of the pipe.
 	String() string
 
+	// canLiveTail must return true if the given pipe can be used in live tailing
+	//
+	// See https://docs.victoriametrics.com/victorialogs/querying/#live-tailing
+	canLiveTail() bool
+
 	// updateNeededFields must update neededFields and unneededFields with fields it needs and not needs at the input.
 	updateNeededFields(neededFields, unneededFields fieldsSet)
 
@@ -214,6 +219,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'stats' pipe: %w", err)
 		}
 		return ps, nil
+	case lex.isKeyword("stream_context"):
+		pc, err := parsePipeStreamContext(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'stream_context' pipe: %w", err)
+		}
+		return pc, nil
 	case lex.isKeyword("top"):
 		pt, err := parsePipeTop(lex)
 		if err != nil {
@@ -293,6 +304,7 @@ var pipeNames = func() map[string]struct{} {
 		"replace_regexp",
 		"sort",
 		"stats",
+		"stream_context",
 		"top",
 		"uniq",
 		"unpack_json",

@@ -44,7 +44,7 @@
 		hs := m[k]
 		hs.sort()
 		timestamps := hs.timestamps
-		values := hs.values
+		hits := hs.hits
 	%}
 	"fields":{%s= k %},
 	"timestamps":[
@@ -56,13 +56,14 @@
 		{% endif %}
 	],
 	"values":[
-		{% if len(values) > 0 %}
-			{%s= values[0] %}
-			{% for _, v := range values[1:] %}
-				,{%s= v %}
+		{% if len(hits) > 0 %}
+			{%dul= hits[0] %}
+			{% for _, v := range hits[1:] %}
+				,{%dul= v %}
 			{% endfor %}
 		{% endif %}
-	]
+	],
+	"total":{%dul= hs.hitsTotal %}
 }
 {% endfunc %}
 

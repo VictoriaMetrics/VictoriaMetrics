@@ -132,6 +132,7 @@ type PutBucketLoggingInput struct {
 }
 
 func (in *PutBucketLoggingInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }

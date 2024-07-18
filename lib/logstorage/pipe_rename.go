@@ -31,6 +31,10 @@ func (pr *pipeRename) String() string {
 	return "rename " + strings.Join(a, ", ")
 }
 
+func (pr *pipeRename) canLiveTail() bool {
+	return true
+}
+
 func (pr *pipeRename) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	for i := len(pr.srcFields) - 1; i >= 0; i-- {
 		srcField := pr.srcFields[i]

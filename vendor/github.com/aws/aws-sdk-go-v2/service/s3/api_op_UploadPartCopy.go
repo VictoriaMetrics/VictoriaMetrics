@@ -66,7 +66,7 @@ import (
 //   - If the destination bucket is a general purpose bucket, you must have the
 //     s3:PutObject permission to write the object copy to the destination bucket.
 //
-// For information about permissions required to use the multipart upload API, see [Multipart Upload and Permissions]
+// For information about permissions required to use the multipart upload API, see [Multipart upload API and permissions]
 //
 //	in the Amazon S3 User Guide.
 //
@@ -76,7 +76,7 @@ import (
 //
 //	- If the source object that you want to copy is in a directory bucket, you
 //	must have the s3express:CreateSession permission in the Action element of a
-//	policy to read the object . By default, the session is in the ReadWrite mode.
+//	policy to read the object. By default, the session is in the ReadWrite mode.
 //	If you want to restrict the access, you can explicitly set the
 //	s3express:SessionMode condition key to ReadOnly on the copy source bucket.
 //
@@ -134,6 +134,7 @@ import (
 // [ListParts]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListParts.html
 // [UploadPart]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html
 // [Regional and Zonal endpoints]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
+// [Multipart upload API and permissions]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html#mpuAndPermissions
 // [CompleteMultipartUpload]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html
 // [CreateMultipartUpload]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html
 // [Multipart upload limits]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html
@@ -143,7 +144,6 @@ import (
 // [Example bucket policies for S3 Express One Zone]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-security-iam-example-bucket-policies.html
 // [Operations on Objects]: https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectOperations.html
 // [ListMultipartUploads]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListMultipartUploads.html
-// [Multipart Upload and Permissions]: https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html
 //
 // [CopyObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CopyObject.html
 func (c *Client) UploadPartCopy(ctx context.Context, params *UploadPartCopyInput, optFns ...func(*Options)) (*UploadPartCopyOutput, error) {
@@ -403,6 +403,7 @@ type UploadPartCopyInput struct {
 }
 
 func (in *UploadPartCopyInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.DisableS3ExpressSessionAuth = ptr.Bool(true)
 }

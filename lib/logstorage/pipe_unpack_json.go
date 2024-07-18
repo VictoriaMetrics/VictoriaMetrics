@@ -52,6 +52,10 @@ func (pu *pipeUnpackJSON) String() string {
 	return s
 }
 
+func (pu *pipeUnpackJSON) canLiveTail() bool {
+	return true
+}
+
 func (pu *pipeUnpackJSON) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	updateNeededFieldsForUnpackPipe(pu.fromField, pu.fields, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff, neededFields, unneededFields)
 }

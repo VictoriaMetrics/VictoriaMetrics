@@ -425,6 +425,9 @@ type pipeTopkWriteContext struct {
 	rcs []resultColumn
 	br  blockResult
 
+	// buf is a temporary buffer for non-flushed block.
+	buf []byte
+
 	// rowsWritten is the total number of rows passed to writeNextRow.
 	rowsWritten uint64
 
@@ -437,6 +440,11 @@ type pipeTopkWriteContext struct {
 
 func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bool {
 	ps := shard.ps
+	rankName := ps.rankName
+	rankFields := 0
+	if rankName != "" {
+		rankFields = 1
+	}
 
 	rowIdx := shard.rowNext
 	shard.rowNext++
@@ -454,10 +462,10 @@ func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bo
 	byFields := ps.byFields
 	rcs := wctx.rcs
 
-	areEqualColumns := len(rcs) == len(byFields)+len(r.otherColumns)
+	areEqualColumns := len(rcs) == rankFields+len(byFields)+len(r.otherColumns)
 	if areEqualColumns {
 		for i, c := range r.otherColumns {
-			if rcs[len(byFields)+i].name != c.Name {
+			if rcs[rankFields+len(byFields)+i].name != c.Name {
 				areEqualColumns = false
 				break
 			}
@@ -468,6 +476,9 @@ func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bo
 		wctx.flush()
 
 		rcs = wctx.rcs[:0]
+		if rankName != "" {
+			rcs = appendResultColumnWithName(rcs, rankName)
+		}
 		for _, bf := range byFields {
 			rcs = appendResultColumnWithName(rcs, bf.name)
 		}
@@ -477,6 +488,13 @@ func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bo
 		wctx.rcs = rcs
 	}
 
+	if rankName != "" {
+		bufLen := len(wctx.buf)
+		wctx.buf = marshalUint64String(wctx.buf, wctx.rowsWritten)
+		v := bytesutil.ToUnsafeString(wctx.buf[bufLen:])
+		rcs[0].addValue(v)
+	}
+
 	byColumns := r.byColumns
 	byColumnsIsTime := r.byColumnsIsTime
 	for i := range byFields {
@@ -484,13 +502,13 @@ func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bo
 		if byColumnsIsTime[i] {
 			v = string(marshalTimestampRFC3339NanoString(nil, r.timestamp))
 		}
-		rcs[i].addValue(v)
+		rcs[rankFields+i].addValue(v)
 		wctx.valuesLen += len(v)
 	}
 
 	for i, c := range r.otherColumns {
 		v := c.Value
-		rcs[len(byFields)+i].addValue(v)
+		rcs[rankFields+len(byFields)+i].addValue(v)
 		wctx.valuesLen += len(v)
 	}
 
@@ -516,6 +534,7 @@ func (wctx *pipeTopkWriteContext) flush() {
 	for i := range rcs {
 		rcs[i].resetValues()
 	}
+	wctx.buf = wctx.buf[:0]
 }
 
 type pipeTopkProcessorShardsHeap []*pipeTopkProcessorShard

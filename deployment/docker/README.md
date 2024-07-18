@@ -138,7 +138,7 @@ Grafana is provisioned by default with following entities:
 
 Remember to pick `VictoriaMetrics - cluster` datasource when viewing `VictoriaMetrics - cluster` dashboard.
 
-Optionally, environment with [VictoriaMetrics Grafana datasource](https://github.com/VictoriaMetrics/grafana-datasource)
+Optionally, environment with [VictoriaMetrics Grafana datasource](https://github.com/VictoriaMetrics/victoriametrics-datasource)
 can be started with the following commands:
 ```
 make docker-single-vm-datasource-up    # start single server

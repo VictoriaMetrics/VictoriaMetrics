@@ -1547,28 +1547,28 @@ scrape_configs:
 
 ```
 
-Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling/#how-to-modify-scrape-urls-in-targets) label set
 to `<FQDN>:<port>`, where FQDN is discovered instance address and `<port>` is the port from the `vultr_sd_configs` (default port is `80`).
 
-The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent/#relabeling):
 
-* `__meta_vultr_instance_id`: A unique ID for the VPS Instance.
-* `__meta_vultr_instance_label`: The user-supplied label for this instance.
-* `__meta_vultr_instance_os`: The [Operating System name](https://www.vultr.com/api/#operation/list-os).
-* `__meta_vultr_instance_os_id`: The [Operating System id](https://www.vultr.com/api/#operation/list-os) used by this instance.
-* `__meta_vultr_instance_region`: The [Region id](https://www.vultr.com/api/#operation/list-regions) where the Instance is located.
-* `__meta_vultr_instance_plan`: A unique ID for the Plan.
-* `__meta_vultr_instance_main_ip`: The main IPv4 address.
-* `__meta_vultr_instance_internal_ip`: The internal IP used by this instance, if set. Only relevant when a VPC is attached.
-* `__meta_vultr_instance_main_ipv6`: The main IPv6 network address.
-* `__meta_vultr_instance_hostname`: The hostname for this instance.
-* `__meta_vultr_instance_server_status`: The server health status, which could be `none`, `locked`, `installingbooting`, `ok`.
-* `__meta_vultr_instance_vcpu_count`: Number of vCPUs.
-* `__meta_vultr_instance_ram_mb`: The amount of RAM in MB.
-* `__meta_vultr_instance_allowed_bandwidth_gb`: Monthly bandwidth quota in GB.
-* `__meta_vultr_instance_disk_gb`: The size of the disk in GB.
-* `__meta_vultr_instance_features`: "auto_backups", "ipv6", "ddos_protection".
-* `__meta_vultr_instance_tags`: Tags to apply to the instance.
+* `__meta_vultr_instance_allowed_bandwidth_gb`: monthly bandwidth quota in GB.
+* `__meta_vultr_instance_disk_gb`: the size of the disk in GB.
+* `__meta_vultr_instance_features`: comma-separated list of features available to instance, such as "auto_backups", "ipv6", "ddos_protection".
+* `__meta_vultr_instance_hostname`: hostname for this instance.
+* `__meta_vultr_instance_id`: unique ID for the VPS Instance.
+* `__meta_vultr_instance_internal_ip`: internal IP used by this instance, if set. Only relevant when a VPC is attached.
+* `__meta_vultr_instance_label`: user-supplied label for this instance.
+* `__meta_vultr_instance_main_ip`: main IPv4 address.
+* `__meta_vultr_instance_main_ipv6`: main IPv6 network address.
+* `__meta_vultr_instance_os`: [operating System name](https://www.vultr.com/api/#operation/list-os).
+* `__meta_vultr_instance_os_id`: [operating System id](https://www.vultr.com/api/#operation/list-os) used by this instance.
+* `__meta_vultr_instance_plan`: unique ID for the Plan.
+* `__meta_vultr_instance_ram_mb`: the amount of RAM in MB.
+* `__meta_vultr_instance_region`: [region id](https://www.vultr.com/api/#operation/list-regions) where the Instance is located.
+* `__meta_vultr_instance_server_status`: server health status, which could be `none`, `locked`, `installingbooting`, `ok`.
+* `__meta_vultr_instance_tags`: comma-separated list of tags applied to the instance.
+* `__meta_vultr_instance_vcpu_count`: the number of vCPUs.
 
 The list of discovered Vultr targets is refreshed at the interval, which can be configured via `-promscrape.vultrSDCheckInterval` command-line flag, default: 30s.
 
@@ -1693,7 +1693,7 @@ scrape_configs:
   # scrape_timeout: <duration>
 
   # max_scrape_size is an optional parameter for limiting the response size in bytes from scraped targets.
-  # By default, uses limit from -promscrape.maxScrapeSize command-line flag.
+  # If max_scrape_size isn't set, then the limit from -promscrape.maxScrapeSize command-line flag is used instead.
   # Example values:
   # - "10MiB" - 10 * 1024 * 1024 bytes
   # - "100MB" - 100 * 1000 * 1000 bytes

@@ -472,3 +472,13 @@ returns logs with the `cannot open file` phrase over the last 5 minutes:
 ```logsql
 _time:5m "cannot open file"
 ```
+
+## How to select all the logs for a particular stacktrace or panic?
+
+Use [`stream_context` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe) for selecting surrounding logs for the given log.
+For example, the following query selects up to 10 logs in front of every log message containing the `stacktrace` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word),
+plus up to 100 logs after the given log message:
+
+```logsql
+_time:5m stacktrace | stream_context before 10 after 100
+```

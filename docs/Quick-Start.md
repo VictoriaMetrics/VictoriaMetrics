@@ -25,9 +25,9 @@ Single-server-VictoriaMetrics VictoriaMetrics is available as:
 
 * [Managed VictoriaMetrics at AWS](https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc)
 * [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/)
-* [Snap packages](https://snapcraft.io/victoriametrics)
 * [Helm Charts](https://github.com/VictoriaMetrics/helm-charts#list-of-charts)
 * [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
+* [Ansible Roles](https://github.com/VictoriaMetrics/ansible-playbooks)
 * [Source code](https://github.com/VictoriaMetrics/VictoriaMetrics).
   See [How to build from sources](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-build-from-sources)
 * [VictoriaMetrics on Linode](https://www.linode.com/marketplace/apps/victoriametrics/victoriametrics/)
@@ -41,7 +41,7 @@ and [Grafana setup](https://docs.victoriametrics.com/single-server-victoriametri
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/changelog/) and performing [regular upgrades](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics).
 
 
-### Starting VM-Single via Docker
+### Starting VictoriaMetrics Single Node via Docker {anchor="starting-vm-single-via-docker"}
 
 The following commands download the latest available
 [Docker image of VictoriaMetrics](https://hub.docker.com/r/victoriametrics/victoria-metrics)
@@ -61,7 +61,7 @@ and read [these docs](https://docs.victoriametrics.com/#operation).
 There is also [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/)
 - horizontally scalable installation, which scales to multiple nodes.
 
-### Starting VM-Cluster via Docker
+### Starting VictoriaMetrics Cluster via Docker {anchor="starting-vm-cluster-via-docker"}
 
 The following commands clone the latest available
 [VictoriaMetrics repository](https://github.com/VictoriaMetrics/VictoriaMetrics)
@@ -79,6 +79,258 @@ make docker-cluster-up
 See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#readme).
 
 * [Cluster setup](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-setup)
+
+
+### Starting VictoriaMetrics Single Node from a Binary {anchor="starting-vm-single-from-a-binary"}
+
+1. Download the correct binary for your OS and architecture from [GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/releases). 
+For Enterprise binaries see [this link](https://docs.victoriametrics.com/enterprise/#binary-releases).
+
+2. Extract the archive to /usr/local/bin by running:
+```sh
+sudo tar -xvf <victoriametrics-archive> -C /usr/local/bin
+```
+Replace `<victoriametrics-archive>` with the path to the archive you downloaded in step 1.
+
+3. Create a VictoriaMetrics user on the system:
+
+```sh
+sudo useradd -s /usr/sbin/nologin victoriametrics
+```
+
+4. Create a folder for storing VictoriaMetrics data:
+
+```sh
+mkdir -p /var/lib/victoria-metrics && chown -R victoriametrics:victoriametrics /var/lib/victoria-metrics
+```
+
+5. Create a Linux Service by running the following:
+
+```sh
+cat <<END >/etc/systemd/system/victoriametrics.service
+[Unit]
+Description=VictoriaMetrics service
+After=network.target
+
+[Service]
+Type=simple
+User=victoriametrics
+Group=victoriametrics
+ExecStart=/usr/local/bin/victoria-metrics-prod -storageDataPath=/var/lib/victoria-metrics -retentionPeriod=90d -selfScrapeInterval=10s
+SyslogIdentifier=victoriametrics
+Restart=always
+
+PrivateTmp=yes
+ProtectHome=yes
+NoNewPrivileges=yes
+
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target
+END
+```
+
+Extra [command-line flags](https://docs.victoriametrics.com/#list-of-command-line-flags) can be added to `ExecStart` line.
+
+If you want to deploy VictoriaMetrics Single Node as a Windows Service review the [running as a Windows service docs](https://docs.victoriametrics.com/single-server-victoriametrics/#running-as-windows-service).
+
+> Please note, `victoriametrics` service is listening on `:8428` for HTTP connections (see `-httpListenAddr` flag).
+
+6. Start and enable the service by running the following command:
+
+```sh 
+sudo systemctl daemon-reload && sudo systemctl enable --now victoriametrics.service
+```
+
+7. Check that service started successfully: 
+
+```sh
+sudo systemctl status victoriametrics.service
+```
+
+8. After VictoriaMetrics is in `Running` state, verify [vmui](https://docs.victoriametrics.com/#vmui) is working 
+by going to `http://<ip_or_hostname>:8428/vmui`.
+
+
+### Starting VictoriaMetrics Cluster from Binaries {anchor="starting-vm-cluster-from-binaries"}
+
+VictoriaMetrics cluster consists of [3 components](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview).
+It is recommended to run these components in the same private network (for [security reasons](https://docs.victoriametrics.com/#security)),
+but on the separate physical nodes for the best performance.
+
+On all nodes you will need to do the following:
+
+1. Download the correct binary for your OS and architecture with `-cluster` suffix from [GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+For Enterprise binaries see [this link](https://docs.victoriametrics.com/enterprise/#binary-releases).
+
+2. Extract the archive to /usr/local/bin by running:
+
+```sh
+sudo tar -xvf <victoriametrics-archive> -C /usr/local/bin
+```
+
+Replace `<victoriametrics-archive>` with the path to the archive you downloaded in step 1
+
+3. Create a user account for VictoriaMetrics:
+
+```sh
+sudo useradd -s /usr/sbin/nologin victoriametrics
+```
+
+See recommendations for installing each type of [cluster component](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview) below.
+
+##### Installing vmstorage
+
+1. Create a folder for storing `vmstorage` data:
+
+`mkdir -p /var/lib/vmstorage && chown -R victoriametrics:victoriametrics /var/lib/vmstorage`
+
+2. Create a Linux Service for `vmstorage` service by running the following command:
+
+```sh
+cat <<END >/etc/systemd/system/vmstorage.service
+[Unit]
+Description=VictoriaMetrics vmstorage service
+After=network.target
+
+[Service]
+Type=simple
+User=victoriametrics
+Group=victoriametrics
+Restart=always
+ExecStart=/usr/local/bin/vmstorage-prod -retentionPeriod=90d -storageDataPath=/var/lib/vmstorage
+
+PrivateTmp=yes
+NoNewPrivileges=yes
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target
+END
+```
+
+Extra [command-line flags](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags-for-vmstorage)
+for vmstorage can be added to `ExecStart` line.
+
+> Please note, `vmstorage` service is listening on `:8400` for vminsert connections (see `-vminsertAddr` flag),
+> on `:8401` for vmselect connections (see `--vmselectAddr` flag) and on `:8482` for HTTP connections (see `-httpListenAddr` flag).
+
+3. Start and Enable `vmstorage`:
+
+```sh
+sudo systemctl daemon-reload && systemctl enable --now vmstorage
+```
+
+4. Check that service started successfully:
+
+```sh
+sudo systemctl status vmstorage
+```
+
+5. After `vmstorage` is in `Running` state, confirm the service is healthy by visiting `http://<ip_or_hostname>:8482/-/healthy` link.
+It should say "VictoriaMetrics is Healthy".
+
+##### Installing vminsert
+
+1. Create a Linux Service for `vminsert` by running the following command:
+
+```sh
+cat << END >/etc/systemd/system/vminsert.service
+[Unit]
+Description=VictoriaMetrics vminsert service
+After=network.target
+
+[Service]
+Type=simple
+User=victoriametrics
+Group=victoriametrics
+Restart=always
+ExecStart=/usr/local/bin/vminsert-prod -storageNode=<list of vmstorages>
+
+PrivateTmp=yes
+NoNewPrivileges=yes
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target
+END
+```
+
+Replace `<list of vmstorages>` with addresses of previously configured `vmstorage` services. 
+To specify multiple addresses you can repeat the flag multiple times, or separate addresses with commas
+in one flag. See more details in `-storageNode` flag description [here](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags-for-vminsert).
+
+> Please note, `vminsert` service is listening on `:8480` for HTTP connections (see `-httpListenAddr` flag).
+
+2. Start and Enable `vminsert`:
+
+```sh
+sudo systemctl daemon-reload && sudo systemctl enable --now vminsert.service
+```
+
+3. Check that service started successfully:
+
+```sh
+sudo systemctl status vminsert.service
+```
+
+4. After `vminsert` is in `Running` state, confirm the service is healthy by visiting `http://<ip_or_hostname>:8480/-/healthy` link.
+It should say "VictoriaMetrics is Healthy"
+
+##### Installing vmselect
+
+1. Create a folder to store temporary cache:
+
+```sh
+sudo mkdir -p /var/lib/vmselect-cache && sudo chown -R victoriametrics:victoriametrics /var/lib/vmselect-cache
+```
+
+2. Add a Linux Service for `vmselect` by running
+
+```bash
+cat << END >/etc/systemd/system/vmselect.service
+[Unit]
+Description=VictoriaMetrics vmselect service
+After=network.target
+
+[Service]
+Type=simple
+User=victoriametrics
+Group=victoriametrics
+Restart=always
+ExecStart=/usr/local/bin/vmselect-prod -storageNode=<list of vmstorages> -cacheDataPath=/var/lib/vmselect-cache
+
+PrivateTmp=yes
+NoNewPrivileges=yes
+
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target
+END
+```
+
+Replace `<list of vmstorages>` with addresses of previously configured `vmstorage` services.
+To specify multiple addresses you can repeat the flag multiple times, or separate addresses with commas
+in one flag. See more details in `-storageNode` flag description [here](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags-for-vminsert).
+
+> Please note, `vmselect` service is listening on `:8481` for HTTP connections (see `-httpListenAddr` flag).
+
+3. Start and Enable `vmselect`:
+
+```sh
+sudo systemctl daemon-reload && sudo systemctl enable --now vmselect.service
+```
+
+4. Make sure the `vmselect` service is running:
+
+```sh
+sudo systemctl status vmselect.service
+```
+
+5. After `vmselect` is in `Running` state, confirm the service is healthy by visiting `http://<ip_or_hostname>:8481/select/0/vmui` link.
+It should open [vmui](https://docs.victoriametrics.com/#vmui) page.
 
 ## Write data
 

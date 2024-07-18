@@ -25,6 +25,10 @@ func (pp *pipePackJSON) String() string {
 	return s
 }
 
+func (pp *pipePackJSON) canLiveTail() bool {
+	return true
+}
+
 func (pp *pipePackJSON) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	updateNeededFieldsForPipePack(neededFields, unneededFields, pp.resultField, pp.fields)
 }

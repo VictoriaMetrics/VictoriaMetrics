@@ -1062,7 +1062,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "topk_last(5, sum(increase(vm_tenant_timeseries_created_total{accountID=~\"$account\"}[24h])) by(accountID), \"accountID=other\") ",
+          "expr": "topk_last(5, sum(vm_tenant_used_tenant_bytes{accountID=~\"$account\"}) by(accountID), \"accountID=other\") ",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"

@@ -122,6 +122,7 @@ type PutBucketTaggingInput struct {
 }
 
 func (in *PutBucketTaggingInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }

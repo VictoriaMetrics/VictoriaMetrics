@@ -4461,7 +4461,7 @@ func TestExecSuccess(t *testing.T) {
 		),0.01)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{18.57, 18.57, 18.57, 18.57, 18.57, 18.57},
+			Values:     []float64{30, 30, 30, 30, 30, 30},
 			Timestamps: timestampsExpected,
 		}
 		r.MetricName.Tags = []storage.Tag{{
@@ -9433,15 +9433,16 @@ func testAddLabels(t *testing.T, mn *storage.MetricName, labels ...string) {
 	}
 }
 
-func TestNoImplicitConversionRequiredTrue(t *testing.T) {
+func TestMetricsqlIsLikelyInvalid_False(t *testing.T) {
 	f := func(q string) {
 		t.Helper()
+
 		e, err := metricsql.Parse(q)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !noImplicitConversionRequired(e, false) {
-			t.Fatalf("query should require no implicit conversion: %s", e.AppendString(nil))
+		if metricsql.IsLikelyInvalid(e) {
+			t.Fatalf("unexpected result for metricsql.IsLikelyInvalid(%q); got true; want false", q)
 		}
 	}
 
@@ -9494,27 +9495,46 @@ WITH (
     cpuIdle = rate(cpuSeconds{mode='idle'}[5m])
 )
 max_over_time(cpuIdle[1h:])`)
-}
 
-func TestNoImplicitConversionRequiredFalse(t *testing.T) {
-	f := func(q string) {
-		t.Helper()
-		e, err := metricsql.Parse(q)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if noImplicitConversionRequired(e, false) {
-			t.Fatalf("query should have require implicit conversion: %s", e.AppendString(nil))
-		}
-	}
+	// These queries are mostly harmless, e.g. they return mostly correct results.
 	f("rate(http_total)[5m:1m]")
-
 	f("up[:5m]")
 	f("sum(up[:5m])")
 	f("absent(foo[5m])")
 	f("sum(up[5m])")
 	f("avg(foo[5m])")
 	f("sort(foo[5m])")
+
+	// These are valid subqueries with MetricsQL extention, which allows omitting lookbehind window for rollup functions
+	f("rate(rate(http_total)[5m:1m])")
+	f("rate(sum(rate(http_total))[5m:1m])")
+	f("rate(sum(rate(http_total))[5m:1m])")
+	f("avg_over_time((rate(http_total)-rate(http_total))[5m:1m])")
+
+	// These are valid MetricsQL queries, which return correct result most of the time
+	f("count_over_time(http_total)")
+
+	// The following queries are from https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3974
+	//
+	// They are mostly correct. It is better to teach metricsql parser converting them to proper ones
+	// instead of denying them.
+	f("sum(http_total) offset 1m")
+	f(`round(sum(sum_over_time(http_total[1m])) by (instance)) offset 1m`)
+
+}
+
+func TestMetricsqlIsLikelyInvalid_True(t *testing.T) {
+	f := func(q string) {
+		t.Helper()
+
+		e, err := metricsql.Parse(q)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !metricsql.IsLikelyInvalid(e) {
+			t.Fatalf("unexpected result for metricsql.IsLikelyInvalid(%q); got false; want true", q)
+		}
+	}
 
 	f("rate(sum(http_total))")
 	f("rate(rate(http_total))")
@@ -9523,21 +9543,10 @@ func TestNoImplicitConversionRequiredFalse(t *testing.T) {
 	f("rate(sum(sum(http_total)))")
 	f("avg_over_time(rate(http_total[5m]))")
 
-	f("rate(http_total)[5m:1m]")
-	f("rate(rate(http_total)[5m:1m])")
-	f("rate(sum(rate(http_total))[5m:1m])")
-	f("rate(sum(rate(http_total))[5m:1m])")
-	f("count_over_time(http_total)")
-	f("avg_over_time((rate(http_total)-rate(http_total))[5m:1m])")
-
-	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3974
-	f("sum(http_total) offset 1m")
-	f(`round(sum(sum_over_time(http_total[1m])) by (instance)) offset 1m`)
-
 	f("rate(sum(http_total)) - rate(sum(http_total))")
 	f("avg_over_time(rate(http_total)-rate(http_total))")
 
-	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3996
+	// These queries are from https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3996
 	f("sum_over_time(up{cluster='a'} or up{cluster='b'})")
 	f("sum_over_time(up{cluster='a'}[1m] or up{cluster='b'}[1m])")
 	f("sum(sum_over_time(up{cluster='a'}[1m] or up{cluster='b'}[1m])) by (instance)")

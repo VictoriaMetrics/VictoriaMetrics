@@ -1467,9 +1467,7 @@ func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 	timeMin := currentDayTimestamp - 24*3600*1000
 	timeMax := currentDayTimestamp + 24*3600*1000
 	mrs := testGenerateMetricRows(r, metricRowsN, timeMin, timeMax)
-	if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
-		t.Fatalf("unexpected error when adding mrs: %s", err)
-	}
+	s.AddRows(mrs, defaultPrecisionBits)
 	s.DebugFlush()
 
 	// verify the storage contains rows.
@@ -1521,9 +1519,7 @@ func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 	}
 
 	// Re-insert rows again and verify that all the entries belong to new generation
-	if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
-		t.Fatalf("unexpected error when adding mrs: %s", err)
-	}
+	s.AddRows(mrs, defaultPrecisionBits)
 	s.DebugFlush()
 
 	for _, mr := range mrs {

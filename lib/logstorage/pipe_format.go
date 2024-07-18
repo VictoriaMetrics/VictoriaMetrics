@@ -3,8 +3,9 @@ package logstorage
 import (
 	"fmt"
 	"math"
-	"strconv"
 	"unsafe"
+
+	"github.com/valyala/quicktemplate"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
@@ -41,6 +42,10 @@ func (pf *pipeFormat) String() string {
 		s += " skip_empty_results"
 	}
 	return s
+}
+
+func (pf *pipeFormat) canLiveTail() bool {
+	return true
 }
 
 func (pf *pipeFormat) updateNeededFields(neededFields, unneededFields fieldsSet) {
@@ -188,7 +193,7 @@ func (shard *pipeFormatProcessorShard) formatRow(pf *pipeFormat, br *blockResult
 			v := c.getValueAtRow(br, rowIdx)
 			switch step.fieldOpt {
 			case "q":
-				b = strconv.AppendQuote(b, v)
+				b = quicktemplate.AppendJSONString(b, v, true)
 			case "time":
 				nsecs, ok := tryParseInt64(v)
 				if !ok {

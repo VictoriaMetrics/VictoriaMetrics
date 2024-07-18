@@ -80,7 +80,7 @@ func Init() {
 
 // Stop stops vlstorage.
 func Stop() {
-	metrics.UnregisterSet(storageMetrics)
+	metrics.UnregisterSet(storageMetrics, true)
 	storageMetrics = nil
 
 	strg.MustClose()
@@ -143,6 +143,13 @@ func GetStreamFieldValues(ctx context.Context, tenantIDs []logstorage.TenantID, 
 // If limit > 0, then up to limit unique streams are returned.
 func GetStreams(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, limit uint64) ([]logstorage.ValueWithHits, error) {
 	return strg.GetStreams(ctx, tenantIDs, q, limit)
+}
+
+// GetStreamIDs executes q and returns streamIDs seen in query results.
+//
+// If limit > 0, then up to limit unique streamIDs are returned.
+func GetStreamIDs(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, limit uint64) ([]logstorage.ValueWithHits, error) {
+	return strg.GetStreamIDs(ctx, tenantIDs, q, limit)
 }
 
 func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {

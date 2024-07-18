@@ -32,6 +32,10 @@ func (pu *pipeUnroll) String() string {
 	return s
 }
 
+func (pu *pipeUnroll) canLiveTail() bool {
+	return true
+}
+
 func (pu *pipeUnroll) optimize() {
 	pu.iff.optimizeFilterIn()
 }

@@ -1,12 +1,20 @@
 package graphite
 
 import (
+	"flag"
 	"fmt"
+	"regexp"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson/fastfloat"
+)
+
+var (
+	sanitizeMetricName = flag.Bool("graphite.sanitizeMetricName", false, "Sanitize metric names for the ingested Graphite data. "+
+		"See https://docs.victoriametrics.com/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd")
 )
 
 // graphite text line protocol may use white space or tab as separator
@@ -73,6 +81,9 @@ func (r *Row) UnmarshalMetricAndTags(s string, tagsPool []Tag) ([]Tag, error) {
 		tags := tagsPool[tagsStart:]
 		r.Tags = tags[:len(tags):len(tags)]
 	}
+	if *sanitizeMetricName {
+		r.Metric = sanitizer.Transform(r.Metric)
+	}
 	if len(r.Metric) == 0 {
 		return tagsPool, fmt.Errorf("metric cannot be empty")
 	}
@@ -115,7 +126,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	}
 	v, err := fastfloat.Parse(valueStr)
 	if err != nil {
-		return tagsPool, fmt.Errorf("cannot unmarshal value from %q: %w; original line: %q", valueStr, err, sOrig)
+		return tagsPool, fmt.Errorf("cannot unmarshal metric value from %q: %w; original line: %q", valueStr, err, sOrig)
 	}
 	r.Value = v
 	return tagsPool, nil
@@ -212,6 +223,9 @@ func (t *Tag) unmarshal(s string) {
 		t.Key = s[:n]
 		t.Value = s[n+1:]
 	}
+	if *sanitizeMetricName {
+		t.Key = sanitizer.Transform(t.Key)
+	}
 }
 
 func stripTrailingWhitespace(s string) string {
@@ -240,3 +254,16 @@ func stripLeadingWhitespace(s string) string {
 	}
 	return ""
 }
+
+var sanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
+	// Apply rule to drop some chars to preserve backwards compatibility
+	s = repeatedDots.ReplaceAllLiteralString(s, ".")
+
+	// Replace any remaining illegal chars
+	return allowedChars.ReplaceAllLiteralString(s, "_")
+})
+
+var (
+	repeatedDots = regexp.MustCompile(`[.]+`)
+	allowedChars = regexp.MustCompile(`[^a-zA-Z0-9:_.]`)
+)

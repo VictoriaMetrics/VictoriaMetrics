@@ -2,7 +2,8 @@ package logstorage
 
 import (
 	"fmt"
-	"strconv"
+
+	"github.com/valyala/quicktemplate"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -62,9 +63,9 @@ func (f *Field) marshalToJSON(dst []byte) []byte {
 	if name == "" {
 		name = "_msg"
 	}
-	dst = strconv.AppendQuote(dst, name)
+	dst = quicktemplate.AppendJSONString(dst, name, true)
 	dst = append(dst, ':')
-	dst = strconv.AppendQuote(dst, f.Value)
+	dst = quicktemplate.AppendJSONString(dst, f.Value, true)
 	return dst
 }
 
@@ -72,11 +73,20 @@ func (f *Field) marshalToLogfmt(dst []byte) []byte {
 	dst = append(dst, f.Name...)
 	dst = append(dst, '=')
 	if needLogfmtQuoting(f.Value) {
-		dst = strconv.AppendQuote(dst, f.Value)
+		dst = quicktemplate.AppendJSONString(dst, f.Value, true)
 	} else {
 		dst = append(dst, f.Value...)
 	}
 	return dst
+}
+
+func getFieldValue(fields []Field, name string) string {
+	for _, f := range fields {
+		if f.Name == name {
+			return f.Value
+		}
+	}
+	return ""
 }
 
 func needLogfmtQuoting(s string) bool {

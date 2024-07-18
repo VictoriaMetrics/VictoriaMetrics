@@ -95,6 +95,10 @@ func (ps *pipeStats) String() string {
 	return s
 }
 
+func (ps *pipeStats) canLiveTail() bool {
+	return false
+}
+
 func (ps *pipeStats) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	neededFieldsOrig := neededFields.clone()
 	neededFields.reset()

@@ -12,10 +12,10 @@ func TestParseEndpointSliceListFail(t *testing.T) {
 		r := bytes.NewBufferString(data)
 		objectsByKey, _, err := parseEndpointSliceList(r)
 		if err == nil {
-			t.Errorf("unexpected result, test must fail! data: %s", data)
+			t.Fatalf("unexpected result, test must fail! data: %s", data)
 		}
 		if len(objectsByKey) != 0 {
-			t.Errorf("EndpointSliceList must be emptry, got: %v", objectsByKey)
+			t.Fatalf("EndpointSliceList must be emptry, got: %v", objectsByKey)
 		}
 	}
 
@@ -156,8 +156,7 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
 	r := bytes.NewBufferString(data)
 	objectsByKey, meta, err := parseEndpointSliceList(r)
 	if err != nil {
-		t.Errorf("cannot parse data for EndpointSliceList: %v", err)
-		return
+		t.Fatalf("cannot parse data for EndpointSliceList: %v", err)
 	}
 	expectedResourceVersion := "1177"
 	if meta.ResourceVersion != expectedResourceVersion {

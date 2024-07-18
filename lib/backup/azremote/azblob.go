@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blockblob"
@@ -23,13 +24,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-const (
-	envStorageAcctName           = "AZURE_STORAGE_ACCOUNT_NAME"
-	envStorageAccKey             = "AZURE_STORAGE_ACCOUNT_KEY"
-	envStorageAccCs              = "AZURE_STORAGE_ACCOUNT_CONNECTION_STRING"
-	storageErrorCodeBlobNotFound = "BlobNotFound"
-)
-
 // FS represents filesystem for backups in Azure Blob Storage.
 //
 // Init must be called before calling other FS methods.
@@ -41,6 +35,9 @@ type FS struct {
 	Dir string
 
 	client *container.Client
+
+	// envLoookupFunc is used for looking up environment variables in tests.
+	envLookupFunc func(name string) (string, bool)
 }
 
 // Init initializes fs.
@@ -51,45 +48,82 @@ func (fs *FS) Init() error {
 		logger.Panicf("BUG: fs.Init has been already called")
 	}
 
-	for strings.HasPrefix(fs.Dir, "/") {
-		fs.Dir = fs.Dir[1:]
-	}
-	if !strings.HasSuffix(fs.Dir, "/") {
-		fs.Dir += "/"
-	}
+	fs.Dir = cleanDirectory(fs.Dir)
 
-	var sc *service.Client
-	var err error
-	if cs, ok := envtemplate.LookupEnv(envStorageAccCs); ok {
-		sc, err = service.NewClientFromConnectionString(cs, nil)
-		if err != nil {
-			return fmt.Errorf("failed to create AZBlob service client from connection string: %w", err)
-		}
-	}
-
-	accountName, ok1 := envtemplate.LookupEnv(envStorageAcctName)
-	accountKey, ok2 := envtemplate.LookupEnv(envStorageAccKey)
-	if ok1 && ok2 {
-		creds, err := azblob.NewSharedKeyCredential(accountName, accountKey)
-		if err != nil {
-			return fmt.Errorf("failed to create AZBlob credentials from account name and key: %w", err)
-		}
-		serviceURL := fmt.Sprintf("https://%s.blob.core.windows.net/", accountName)
-
-		sc, err = service.NewClientWithSharedKeyCredential(serviceURL, creds, nil)
-		if err != nil {
-			return fmt.Errorf("failed to create AZBlob service client from account name and key: %w", err)
-		}
-	}
-
-	if sc == nil {
-		return fmt.Errorf(`failed to detect any credentials type for AZBlob. Ensure there is connection string set at %q, or shared key at %q and %q`, envStorageAccCs, envStorageAcctName, envStorageAccKey)
+	sc, err := fs.newClient()
+	if err != nil {
+		return fmt.Errorf("failed to create AZBlob service client: %w", err)
 	}
 
 	containerClient := sc.NewContainerClient(fs.Container)
 	fs.client = containerClient
 
 	return nil
+}
+
+func (fs *FS) newClient() (*service.Client, error) {
+	connString := fs.env("AZURE_STORAGE_ACCOUNT_CONNECTION_STRING")
+	if connString != "" {
+		logger.Infof("creating AZBlob service client from connection string defined at AZURE_STORAGE_ACCOUNT_CONNECTION_STRING")
+		return service.NewClientFromConnectionString(connString, nil)
+	}
+
+	accountKey := fs.env("AZURE_STORAGE_ACCOUNT_KEY")
+	if accountKey != "" {
+		logger.Infof("creating AZBlob service client from account name and key")
+
+		accountName := fs.env("AZURE_STORAGE_ACCOUNT_NAME")
+		if accountName == "" {
+			return nil, fmt.Errorf("missing AZURE_STORAGE_ACCOUNT_NAME environment variable when AZURE_STORAGE_ACCOUNT_KEY is set; " +
+				"see https://docs.victoriametrics.com/vmbackup/#providing-credentials-via-env-variables")
+		}
+		creds, err := azblob.NewSharedKeyCredential(accountName, accountKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create Shared Key credentials: %w", err)
+		}
+		serviceURL := fs.getServiceURL(accountName)
+		return service.NewClientWithSharedKeyCredential(serviceURL, creds, nil)
+	}
+
+	useDefault := fs.env("AZURE_USE_DEFAULT_CREDENTIAL")
+	if useDefault == "true" {
+		logger.Infof("creating AZBlob service client from default credentials")
+		creds, err := azidentity.NewDefaultAzureCredential(nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create default Azure credentials: %w", err)
+		}
+
+		accountName := fs.env("AZURE_STORAGE_ACCOUNT_NAME")
+		if accountName == "" {
+			return nil, fmt.Errorf("missing AZURE_STORAGE_ACCOUNT_NAME environment variable when AZURE_USE_DEFAULT_CREDENTIAL=true is set; " +
+				"see https://docs.victoriametrics.com/vmbackup/#providing-credentials-via-env-variables")
+		}
+
+		serviceURL := fs.getServiceURL(accountName)
+		return service.NewClient(serviceURL, creds, nil)
+	}
+
+	return nil, fmt.Errorf("failed to detect credentials for AZBlob; ensure that one of the options listed at " +
+		"https://docs.victoriametrics.com/vmbackup/#providing-credentials-via-env-variables is set")
+}
+
+func (fs *FS) env(name string) string {
+	if fs.envLookupFunc != nil {
+		v, _ := fs.envLookupFunc(name)
+		return v
+	}
+	v, _ := envtemplate.LookupEnv(name)
+	return v
+}
+
+func (fs *FS) getServiceURL(accountName string) string {
+	domain := "blob.core.windows.net"
+	storageDomain := fs.env("AZURE_STORAGE_DOMAIN")
+	if storageDomain != "" {
+		logger.Infof("overriding default Azure blob domain with AZURE_STORAGE_DOMAIN=%q", storageDomain)
+		domain = storageDomain
+	}
+	return fmt.Sprintf("https://%s.%s/", accountName, domain)
 }
 
 // MustStop stops fs.
@@ -242,7 +276,6 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 
 	ctx := context.Background()
 	_, err := bc.UploadStream(ctx, r, &blockblob.UploadStreamOptions{})
-
 	if err != nil {
 		return fmt.Errorf("cannot upload data to %q at %s (remote path %q): %w", p.Path, fs, bc.URL(), err)
 	}
@@ -341,7 +374,6 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 	_, err := bc.UploadBuffer(ctx, data, &blockblob.UploadBufferOptions{
 		Concurrency: 1,
 	})
-
 	if err != nil {
 		return fmt.Errorf("cannot upload %d bytes to %q at %s (remote path %q): %w", len(data), filePath, fs, bc.URL(), err)
 	}
@@ -358,7 +390,7 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 	_, err := bc.GetProperties(ctx, nil)
 	var azerr *azcore.ResponseError
 	if errors.As(err, &azerr) {
-		if azerr.ErrorCode == storageErrorCodeBlobNotFound {
+		if azerr.ErrorCode == "BlobNotFound" {
 			return false, nil
 		}
 		logger.Errorf("GetProperties(%q) returned %s", bc.URL(), err)
@@ -382,4 +414,18 @@ func (fs *FS) ReadFile(filePath string) ([]byte, error) {
 	}
 
 	return b, nil
+}
+
+// cleanDirectory ensures that the directory is properly formatted for Azure Blob Storage.
+//
+// It removes any leading slashes and ensures that the directory ends with a trailing slash.
+func cleanDirectory(dir string) string {
+	for strings.HasPrefix(dir, "/") {
+		dir = dir[1:]
+	}
+	if !strings.HasSuffix(dir, "/") {
+		dir += "/"
+	}
+
+	return dir
 }
