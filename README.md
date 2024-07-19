@@ -242,65 +242,111 @@ See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3781)
 
 ## Prometheus setup
 
-Add the following lines to Prometheus config file (it is usually located at `/etc/prometheus/prometheus.yml`) in order to send data to VictoriaMetrics:
+
+The following changes will need to be added to your Prometheus configuration and Prometheus will need to be restarted to enable forwarding data from Prometheus to VictoriaMetrics.
+The configuration location will vary based on your platform but we have listed the default locations below
+
+- Linux: `/etc/prometheus/prometheus.yml`
+- Docker and Podman: a volume mapped to `/etc/prometheus/prometheus.yml` ex. `sudo podman run -p 9090:9090 -v ./prometheus.yml:/etc/prometheus/prometheus.yml docker.io/prom/prometheus`
+- Helm: add snippets to the `values.yml` of the helm chart and upgrade helm
+- Windows and MacOS: Is determined by the `--config.file` flag in the Prometheus command
+
+Data will be stored in Prometheus for the time specified by `--storage.tsdb.retention.time` as well forwarded to VictoriaMetrics.
+If Prometheus is unable to send data to VictoriaMetrics the data collected during this time will be sent to VictoriaMetrics after connectivity to VictoriaMetrics has been restored.
+
+All examples below should work with Prometheus running in agent mode which configures Prometheus to only perform discovery, scraping, and remote writing data.
+For more details about agent mode please read the [Prometheus Blog](https://prometheus.io/blog/2021/11/16/agent/#prometheus-agent-mode).
+Agent mode can be enabled by adding the `--enable-feature=agent` in your Prometheus startup command.
+
+In Any of the examples below you can add `insert/<tenant_id>/` to the URL path if you are sending metrics to VictoriaMetrics Cluster.
+For example the remote write URL would change from
+
+```
+https://<victoriametrics-addr>/prometheus/api/v1/write
+```
+
+to
+
+```
+https://<victoriametrics-addr>/insert/<tenant_id>/prometheus/api/v1/write
+```
+
+
+### No Authentication
 
 
 ```yaml
 remote_write:
-  - url: http://<victoriametrics-addr>:8428/api/v1/write
+  - url: 'https://<victoriametrics-addr>/prometheus/api/v1/write'
 ```
 
 
-Substitute `<victoriametrics-addr>` with hostname or IP address of VictoriaMetrics.
-Then apply new config via the following command:
-
-
-```sh
-kill -HUP `pidof prometheus`
-```
-
-
-Prometheus writes incoming data to local storage and replicates it to remote storage in parallel.
-This means that data remains available in local storage for `--storage.tsdb.retention.time` duration
-even if remote storage is unavailable.
-
-If you plan sending data to VictoriaMetrics from multiple Prometheus instances, then add the following lines into `global` section
-of [Prometheus config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#configuration-file):
-
-```yaml
-global:
-  external_labels:
-    datacenter: dc-123
-```
-
-This instructs Prometheus to add `datacenter=dc-123` label to each sample before sending it to remote storage.
-The label name can be arbitrary - `datacenter` is just an example. The label value must be unique
-across Prometheus instances, so time series could be filtered and grouped by this label.
-
-For highly loaded Prometheus instances (200k+ samples per second) the following tuning may be applied:
+### Basic Authentication
 
 
 ```yaml
 remote_write:
-  - url: http://<victoriametrics-addr>:8428/api/v1/write
+  - url: 'https://<victoriametrics-addr>/prometheus/api/v1/write'
+    basic_auth:
+      username: '<username>'
+      password: '<password>'
+```
+
+### Bearer (Token) Authentication
+
+
+```yaml
+remote_write:
+  - url: 'https://<victoriametrics-addr>/prometheus/api/v1/write'
+    authorization:
+      type: 'Bearer'
+      credentials: '<token>'
+```
+
+### Self Signed TLS/SSL Certificate
+
+
+```yaml
+remote_write:
+  - url: 'https://<victoriametrics-addr>/prometheus/api/v1/write'
+    authorization:
+      type: 'Bearer'
+      credentials: '<token>'
+    tls_config:
+      insecure_skip_verify: true
+```
+
+### Tuning for Large instances
+
+For highly loaded Prometheus instances (200k+ samples per second) the following tuning may be added to the prometheus.yml:
+
+```yaml
+remote_write:
+  - url: https://<victoriametrics-addr>:<victoriametrics_port>/api/v1/write
     queue_config:
       max_samples_per_send: 10000
       capacity: 20000
       max_shards: 30
 ```
 
+### Adding Global Labels
 
-Using remote write increases memory usage for Prometheus by up to ~25%. If you are experiencing issues with
-too high memory consumption of Prometheus, then try to lower `max_samples_per_send` and `capacity` params. 
-Keep in mind that these two params are tightly connected.
-Read more about tuning remote write for Prometheus [here](https://prometheus.io/docs/practices/remote_write).
+If you are sending data from multiple Prometheus instances, it can be helpful to add a globally unique label like `region` or `datacenter` to each sample so it is easier filter metrics based on the location.
+The example below uses `datacenter`, but any string can be used and multiple labels can be added to each sample.
+It is best practice to use as few labels as possible to minimize cardinality and the amount of storage needed.
 
-It is recommended upgrading Prometheus to [v2.12.0](https://github.com/prometheus/prometheus/releases/latest) or newer,
-since previous versions may have issues with `remote_write`.
+```yaml
+global:
+  external_labels:
+    datacenter: dc-123
 
-Take a look also at [vmagent](https://docs.victoriametrics.com/vmagent/)
-and [vmalert](https://docs.victoriametrics.com/vmalert/),
-which can be used as faster and less resource-hungry alternative to Prometheus.
+```
+
+### Performance Impact
+Prometheus remote write can increase memory usage by up to 25%. This can be mitigated by changing the `max_smaples_send` and `capacity` parameters.
+For information about tuning remote write please review the [Prometheus docs on remote write tuning](https://prometheus.io/docs/practices/remote_write/)
+VictoriaMetrics offers [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmalert](https://docs.victoriametrics.com/vmalert/) which act as improved and more resource efficient versions of Prometheus scraping and rule evaluation.
+
 
 ## Grafana setup
 
