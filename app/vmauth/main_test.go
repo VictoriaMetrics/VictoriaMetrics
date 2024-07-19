@@ -46,10 +46,11 @@ func TestRequestHandler(t *testing.T) {
 		}
 
 		response := w.getResponse()
+		response = strings.ReplaceAll(response, "\r\n", "\n")
 		response = strings.TrimSpace(response)
 		responseExpected = strings.TrimSpace(responseExpected)
 		if response != responseExpected {
-			t.Fatalf("unexpected response\ngot\n%v\nwant\n%v", response, responseExpected)
+			t.Fatalf("unexpected response\ngot\n%s\nwant\n%s", response, responseExpected)
 		}
 	}
 
@@ -62,7 +63,8 @@ unauthorized_user:
 	backendHandler := func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "requested_url=http://%s%s", r.Host, r.URL)
 	}
-	responseExpected := `statusCode=200
+	responseExpected := `
+statusCode=200
 requested_url={BACKEND}/foo/abc/def?bar=baz&some_arg=some_value
 `
 	f(cfgStr, requestURL, backendHandler, responseExpected)
@@ -73,12 +75,13 @@ unauthorized_user:
   url_prefix: "{BACKEND}/foo?bar=baz"
   keep_original_host: true
 `
-	requestURL = "http://some-host.com/abc/def?some_arg=some_value"
+	requestURL = "http://some-host.com/abc/def"
 	backendHandler = func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "requested_url=http://%s%s", r.Host, r.URL)
 	}
-	responseExpected = `statusCode=200
-requested_url=http://some-host.com/foo/abc/def?bar=baz&some_arg=some_value
+	responseExpected = `
+statusCode=200
+requested_url=http://some-host.com/foo/abc/def?bar=baz
 `
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
@@ -89,15 +92,165 @@ unauthorized_user:
   headers:
   - "Host: other-host:12345"
 `
-	requestURL = "http://some-host.com/abc/def?some_arg=some_value"
+	requestURL = "http://some-host.com/abc/def"
 	backendHandler = func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "requested_url=http://%s%s", r.Host, r.URL)
 	}
-	responseExpected = `statusCode=200
-requested_url=http://other-host:12345/foo/abc/def?bar=baz&some_arg=some_value
+	responseExpected = `
+statusCode=200
+requested_url=http://other-host:12345/foo/abc/def?bar=baz
 `
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
+	// /-/reload handler failure
+	origAuthKey := reloadAuthKey.Get()
+	if err := reloadAuthKey.Set("secret"); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	cfgStr = `
+unauthorized_user:
+  url_prefix: "{BACKEND}/foo"
+`
+	requestURL = "http://some-host.com/-/reload"
+	backendHandler = func(_ http.ResponseWriter, _ *http.Request) {
+		panic(fmt.Errorf("backend handler shouldn't be called"))
+	}
+	responseExpected = `
+statusCode=401
+The provided authKey doesn't match -reloadAuthKey
+`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+	if err := reloadAuthKey.Set(origAuthKey); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	// missing authorization
+	cfgStr = `
+users:
+- username: foo
+  url_prefix: "{BACKEND}/bar"
+`
+	requestURL = "http://some-host.com/a/b"
+	backendHandler = func(_ http.ResponseWriter, _ *http.Request) {
+		panic(fmt.Errorf("backend handler shouldn't be called"))
+	}
+	responseExpected = `
+statusCode=401
+Www-Authenticate: Basic realm="Restricted"
+missing 'Authorization' request header
+`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// incorrect authorization
+	cfgStr = `
+users:
+- username: foo
+  password: secret
+  url_prefix: "{BACKEND}/bar"
+`
+	requestURL = "http://foo:invalid-secret@some-host.com/a/b"
+	backendHandler = func(_ http.ResponseWriter, _ *http.Request) {
+		panic(fmt.Errorf("backend handler shouldn't be called"))
+	}
+	responseExpected = `
+statusCode=401
+Unauthorized
+`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// correct authorization
+	cfgStr = `
+users:
+- username: foo
+  password: secret
+  url_prefix: "{BACKEND}/bar"
+`
+	requestURL = "http://foo:secret@some-host.com/a/b"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "requested_url=http://%s%s", r.Host, r.URL)
+	}
+	responseExpected = `
+statusCode=200
+requested_url={BACKEND}/bar/a/b
+`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// verify how path cleanup works
+	cfgStr = `
+unauthorized_user:
+  url_prefix: {BACKEND}/foo?bar=baz
+`
+	requestURL = "http://some-host.com/../../a//.///bar/"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "requested_url=http://%s%s", r.Host, r.URL)
+	}
+	responseExpected = `
+statusCode=200
+requested_url={BACKEND}/foo/a/bar/?bar=baz
+`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// verify how path cleanup works for url without path
+	cfgStr = `
+unauthorized_user:
+  url_prefix: {BACKEND}/foo?bar=baz
+`
+	requestURL = "http://some-host.com/"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "requested_url=http://%s%s", r.Host, r.URL)
+	}
+	responseExpected = `
+statusCode=200
+requested_url={BACKEND}/foo?bar=baz
+`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// verify how path cleanup works for url without path if url_prefix path ends with /
+	cfgStr = `
+unauthorized_user:
+  url_prefix: {BACKEND}/foo/?bar=baz
+`
+	requestURL = "http://some-host.com/"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "requested_url=http://%s%s", r.Host, r.URL)
+	}
+	responseExpected = `
+statusCode=200
+requested_url={BACKEND}/foo/?bar=baz
+`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+	// verify how path cleanup works for url without path and the url_prefix without path prefix
+	cfgStr = `
+unauthorized_user:
+  url_prefix: {BACKEND}/?bar=baz
+`
+	requestURL = "http://some-host.com/"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "requested_url=http://%s%s", r.Host, r.URL)
+	}
+	responseExpected = `
+statusCode=200
+requested_url={BACKEND}/?bar=baz
+`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// verify routing to default_url
+	cfgStr = `
+unauthorized_user:
+  url_map:
+  - src_paths: ["/foo/.+"]
+    url_prefix: {BACKEND}/x-foo/
+  default_url: {BACKEND}/404.html
+`
+	requestURL = "http://some-host.com/abc?de=fg"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "requested_url=http://%s%s", r.Host, r.URL)
+	}
+	responseExpected = `
+statusCode=200
+requested_url={BACKEND}/404.html?request_path=http%3A%2F%2Fsome-host.com%2Fabc%3Fde%3Dfg
+`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
 }
 
 type fakeResponseWriter struct {
@@ -127,12 +280,13 @@ func (w *fakeResponseWriter) WriteHeader(statusCode int) {
 		return
 	}
 	err := w.h.WriteSubset(&w.bb, map[string]bool{
-		"Content-Length": true,
-		"Content-Type":   true,
-		"Date":           true,
+		"Content-Length":         true,
+		"Content-Type":           true,
+		"Date":                   true,
+		"X-Content-Type-Options": true,
 	})
 	if err != nil {
-		panic(fmt.Errorf("BUG: cannot marshal headers: %s", err))
+		panic(fmt.Errorf("cannot marshal headers: %s", err))
 	}
 }
 

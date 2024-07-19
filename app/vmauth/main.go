@@ -118,7 +118,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 
 		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
-		http.Error(w, "missing `Authorization` request header", http.StatusUnauthorized)
+		http.Error(w, "missing 'Authorization' request header", http.StatusUnauthorized)
 		return true
 	}
 
