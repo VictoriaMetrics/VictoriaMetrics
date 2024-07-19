@@ -1314,7 +1314,7 @@ func TestStorageRowsNotAdded(t *testing.T) {
 
 		var gotMetrics Metrics
 		path := fmt.Sprintf("%s/%s", t.Name(), opts.name)
-		s := MustOpenStorage(path, opts.retention, 0, 0)
+		s := MustOpenStorage(path, opts.retention, 0, 0, false)
 		defer s.MustClose()
 		s.AddRows(opts.mrs, defaultPrecisionBits)
 		s.DebugFlush()
@@ -1415,7 +1415,7 @@ func TestStorageRowsNotAdded_SeriesLimitExceeded(t *testing.T) {
 
 		var gotMetrics Metrics
 		path := fmt.Sprintf("%s/%s", t.Name(), name)
-		s := MustOpenStorage(path, 0, maxHourlySeries, maxDailySeries)
+		s := MustOpenStorage(path, 0, maxHourlySeries, maxDailySeries, false)
 		defer s.MustClose()
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
