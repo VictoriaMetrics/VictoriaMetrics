@@ -236,18 +236,18 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 }
 
 func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int, ui *UserInfo) bool {
-	// This code has been copied from net/http/httputil/reverseproxy.go
 	req := sanitizeRequestHeaders(r)
-	req.URL = targetURL
 
-	if req.URL.Scheme == "https" || ui.useBackendHostHeader {
-		// Override req.Host only for https requests, since https server verifies hostnames during TLS handshake,
-		// so it expects the targetURL.Host in the request.
-		// There is no need in overriding the req.Host for http requests, since it is expected that backend server
-		// may properly process queries with the original req.Host.
-		req.Host = targetURL.Host
-	}
+	req.URL = targetURL
 	updateHeadersByConfig(req.Header, hc.RequestHeaders)
+	if hc.KeepOriginalHost == nil || !*hc.KeepOriginalHost {
+		if host := getHostHeader(hc.RequestHeaders); host != "" {
+			req.Host = host
+		} else {
+			req.Host = targetURL.Host
+		}
+	}
+
 	var trivialRetries int
 	rtb, rtbOK := req.Body.(*readTrackingBody)
 again:
@@ -338,12 +338,21 @@ func copyHeader(dst, src http.Header) {
 	}
 }
 
-func updateHeadersByConfig(headers http.Header, config []*Header) {
-	for _, h := range config {
+func getHostHeader(headers []*Header) string {
+	for _, h := range headers {
+		if h.Name == "Host" {
+			return h.Value
+		}
+	}
+	return ""
+}
+
+func updateHeadersByConfig(dst http.Header, src []*Header) {
+	for _, h := range src {
 		if h.Value == "" {
-			headers.Del(h.Name)
+			dst.Del(h.Name)
 		} else {
-			headers.Set(h.Name, h.Value)
+			dst.Set(h.Name, h.Value)
 		}
 	}
 }
@@ -537,8 +546,22 @@ func getReadTrackingBody(r io.ReadCloser, maxBodySize int) *readTrackingBody {
 		maxBodySize = 0
 	}
 	rtb.maxBodySize = maxBodySize
+
+	if r == nil {
+		// This is GET request without request body
+		r = (*zeroReader)(nil)
+	}
 	rtb.r = r
 	return rtb
+}
+
+type zeroReader struct{}
+
+func (r *zeroReader) Read(_ []byte) (int, error) {
+	return 0, io.EOF
+}
+func (r *zeroReader) Close() error {
+	return nil
 }
 
 func putReadTrackingBody(rtb *readTrackingBody) {
@@ -560,7 +583,7 @@ func (rtb *readTrackingBody) Read(p []byte) (int, error) {
 		if rtb.bufComplete {
 			return 0, io.EOF
 		}
-		return 0, fmt.Errorf("cannot read data after closing the reader")
+		return 0, fmt.Errorf("cannot read client request body after closing client reader")
 	}
 
 	n, err := rtb.r.Read(p)
