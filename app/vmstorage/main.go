@@ -69,8 +69,8 @@ var (
 	cacheSizeIndexDBTagFilters = flagutil.NewBytes("storage.cacheSizeIndexDBTagFilters", 0, "Overrides max size for indexdb/tagFiltersToMetricIDs cache. "+
 		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
 
-	disablePerDayIndexes = flag.Bool("disablePerDayIndexes", false, "Disable per-day indexs and use global index for all searches. "+
-		"This may improve performance for the use cases with fixed set of timeseries whose values are scattered across a "+
+	disablePerDayIndexes = flag.Bool("disablePerDayIndexes", false, "Disable per-day indexes and use global index for all searches. "+
+		"This may improve performance and decrease disk usage for the use cases with fixed set of timeseries scattered across a "+
 		"big time range (for example, when loading years of historical data)")
 )
 

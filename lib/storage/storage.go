@@ -1983,10 +1983,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		storageAddRowsLogger.Warnf("warn occurred during rows addition: %s", firstWarn)
 	}
 
-	var err error
-	if !s.disablePerDayIndexes {
-		err = s.updatePerDateData(rows, dstMrs)
-	}
+	err := s.updatePerDateData(rows, dstMrs)
 	if err != nil {
 		err = fmt.Errorf("cannot update per-date data: %w", err)
 	} else {
@@ -2011,9 +2008,7 @@ var logNewSeries = false
 
 func createAllIndexesForMetricName(is *indexSearch, mn *MetricName, tsid *TSID, date uint64) {
 	is.createGlobalIndexes(tsid, mn)
-	if !is.db.s.disablePerDayIndexes {
-		is.createPerDayIndexes(date, tsid, mn)
-	}
+	is.createPerDayIndexes(date, tsid, mn)
 }
 
 func (s *Storage) putSeriesToCache(metricNameRaw []byte, genTSID *generationTSID, date uint64) {
@@ -2135,7 +2130,7 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 
 func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 	if s.disablePerDayIndexes {
-		logger.Panicf("FATAL: per-day data must not be updated when -disablePerDayIndexes flag is set")
+		return nil
 	}
 
 	var date uint64

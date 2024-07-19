@@ -2752,7 +2752,7 @@ const (
 
 func (is *indexSearch) createPerDayIndexes(date uint64, tsid *TSID, mn *MetricName) {
 	if is.db.s.disablePerDayIndexes {
-		logger.Panicf("FATAL: per-day indexes must not be created when -disablePerDayIndexes flag is set")
+		return
 	}
 	ii := getIndexItems()
 	defer putIndexItems(ii)
@@ -2889,7 +2889,7 @@ func reverseBytes(dst, src []byte) []byte {
 }
 
 func (is *indexSearch) hasDateMetricIDNoExtDB(date, metricID uint64) bool {
-	if is.db.s.disablePerDayIndexes {
+	if date == 0 {
 		return is.hasMetricIDNoExtDB(metricID)
 	}
 
