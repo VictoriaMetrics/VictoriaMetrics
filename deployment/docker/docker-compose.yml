@@ -4,7 +4,7 @@ services:
   #  And forward them to --remoteWrite.url
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:v1.101.0
+    image: victoriametrics/vmagent:v1.102.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -22,7 +22,7 @@ services:
   # storing metrics and serve read requests.
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.101.0
+    image: victoriametrics/victoria-metrics:v1.102.0
     ports:
       - 8428:8428
       - 8089:8089
@@ -65,7 +65,7 @@ services:
   # vmalert executes alerting and recording rules
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.101.0
+    image: victoriametrics/vmalert:v1.102.0
     depends_on:
       - "victoriametrics"
       - "alertmanager"

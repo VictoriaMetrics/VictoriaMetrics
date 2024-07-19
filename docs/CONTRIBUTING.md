@@ -49,7 +49,8 @@ Further checks are optional for external contributions:
 
 - The change must be described in **clear user-readable** form at [docs/CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md),
   since it is read by **VictoriaMetrics users** who may not know implementation details of VictoriaMetrics products. The change description must **clearly** answer the following questions:
-  - What does this change do?
+
+  - What does this change do? There is no need to provide technical details for the change, since they may confuse VictoriaMetrics users, who do not know Go.
   - Why this change is needed?
 
   The change description must link to the related GitHub issues and the related docs, if any.

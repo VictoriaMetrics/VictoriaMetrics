@@ -19,7 +19,7 @@ func TestAggregatorsFailure(t *testing.T) {
 		pushFunc := func(_ []prompbmarshal.TimeSeries) {
 			panic(fmt.Errorf("pushFunc shouldn't be called"))
 		}
-		a, err := LoadFromData([]byte(config), pushFunc, Options{})
+		a, err := LoadFromData([]byte(config), pushFunc, nil, "some_alias")
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -200,11 +200,11 @@ func TestAggregatorsEqual(t *testing.T) {
 		t.Helper()
 
 		pushFunc := func(_ []prompbmarshal.TimeSeries) {}
-		aa, err := LoadFromData([]byte(a), pushFunc, Options{})
+		aa, err := LoadFromData([]byte(a), pushFunc, nil, "some_alias")
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
-		ab, err := LoadFromData([]byte(b), pushFunc, Options{})
+		ab, err := LoadFromData([]byte(b), pushFunc, nil, "some_alias")
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
@@ -263,11 +263,11 @@ func TestAggregatorsSuccess(t *testing.T) {
 			tssOutput = appendClonedTimeseries(tssOutput, tss)
 			tssOutputLock.Unlock()
 		}
-		opts := Options{
+		opts := &Options{
 			FlushOnShutdown:        true,
 			NoAlignFlushToInterval: true,
 		}
-		a, err := LoadFromData([]byte(config), pushFunc, opts)
+		a, err := LoadFromData([]byte(config), pushFunc, opts, "some_alias")
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
@@ -515,6 +515,7 @@ foo-1m-without-abc-sum-samples 12.5
   without: [abc]
   outputs: [count_samples, sum_samples, count_series]
   match: '{non_existing_label!=""}'
+  name: foobar
 `, `
 foo{abc="123"} 4
 bar 5
@@ -527,6 +528,7 @@ foo{abc="456",de="fg"} 8
 - interval: 1m
   by: [abc]
   outputs: [count_samples, sum_samples, count_series]
+  name: abcdef
   match:
   - foo{abc=~".+"}
   - '{non_existing_label!=""}'
@@ -891,21 +893,28 @@ foo{abc="123", cde="1"} 4
 foo{abc="123", cde="1"} 8.5 10
 foo{abc="456", cde="1"} 8
 foo{abc="456", cde="1"} 10 10
+foo 12 34
 `, `foo:1m_by_cde_rate_avg{cde="1"} 0.325
 foo:1m_by_cde_rate_sum{cde="1"} 0.65
-`, "1111")
+`, "11111")
 
-	// rate with duplicated events
+	// rate_sum and rate_avg with duplicated events
 	f(`
 - interval: 1m
-  by: [cde]
   outputs: [rate_sum, rate_avg]
 `, `
 foo{abc="123", cde="1"} 4  10
 foo{abc="123", cde="1"} 4  10
-`, `foo:1m_by_cde_rate_avg{cde="1"} 0
-foo:1m_by_cde_rate_sum{cde="1"} 0
-`, "11")
+`, ``, "11")
+
+	// rate_sum and rate_avg for a single sample
+	f(`
+- interval: 1m
+  outputs: [rate_sum, rate_avg]
+`, `
+foo 4  10
+bar 5  10
+`, ``, "11")
 
 	// unique_samples output
 	f(`
@@ -973,11 +982,11 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 			}
 			tssOutputLock.Unlock()
 		}
-		opts := Options{
+		opts := &Options{
 			DedupInterval:   30 * time.Second,
 			FlushOnShutdown: true,
 		}
-		a, err := LoadFromData([]byte(config), pushFunc, opts)
+		a, err := LoadFromData([]byte(config), pushFunc, opts, "some_alias")
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}

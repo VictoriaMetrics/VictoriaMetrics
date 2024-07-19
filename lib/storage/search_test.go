@@ -104,15 +104,11 @@ func TestSearch(t *testing.T) {
 
 		blockRowsCount++
 		if blockRowsCount == rowsPerBlock {
-			if err := st.AddRows(mrs[i-blockRowsCount+1:i+1], defaultPrecisionBits); err != nil {
-				t.Fatalf("cannot add rows %d-%d: %s", i-blockRowsCount+1, i+1, err)
-			}
+			st.AddRows(mrs[i-blockRowsCount+1:i+1], defaultPrecisionBits)
 			blockRowsCount = 0
 		}
 	}
-	if err := st.AddRows(mrs[rowsCount-blockRowsCount:], defaultPrecisionBits); err != nil {
-		t.Fatalf("cannot add rows %v-%v: %s", rowsCount-blockRowsCount, rowsCount, err)
-	}
+	st.AddRows(mrs[rowsCount-blockRowsCount:], defaultPrecisionBits)
 	endTimestamp := mrs[len(mrs)-1].Timestamp
 
 	// Re-open the storage in order to flush all the pending cached data.

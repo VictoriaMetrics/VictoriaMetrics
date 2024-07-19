@@ -24,7 +24,7 @@ type connMetrics struct {
 
 	closeErrors *metrics.Counter
 
-	conns *metrics.Counter
+	conns *metrics.Gauge
 }
 
 func (cm *connMetrics) init(ms *metrics.Set, group, name, addr string) {
@@ -40,7 +40,7 @@ func (cm *connMetrics) init(ms *metrics.Set, group, name, addr string) {
 
 	cm.closeErrors = ms.NewCounter(fmt.Sprintf(`%s_errors_total{name=%q, addr=%q, type="close"}`, group, name, addr))
 
-	cm.conns = ms.NewCounter(fmt.Sprintf(`%s_conns{name=%q, addr=%q}`, group, name, addr))
+	cm.conns = ms.NewGauge(fmt.Sprintf(`%s_conns{name=%q, addr=%q}`, group, name, addr), nil)
 }
 
 type statConn struct {

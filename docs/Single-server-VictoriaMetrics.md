@@ -13,7 +13,6 @@ aliases:
 
 [![Latest Release](https://img.shields.io/github/release/VictoriaMetrics/VictoriaMetrics.svg?style=flat-square)](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
 [![Docker Pulls](https://img.shields.io/docker/pulls/victoriametrics/victoria-metrics.svg?maxAge=604800)](https://hub.docker.com/r/victoriametrics/victoria-metrics)
-[![victoriametrics](https://snapcraft.io/victoriametrics/badge.svg)](https://snapcraft.io/victoriametrics)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 [![GitHub license](https://img.shields.io/github/license/VictoriaMetrics/VictoriaMetrics.svg)](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/LICENSE)
 [![Go Report](https://goreportcard.com/badge/github.com/VictoriaMetrics/VictoriaMetrics)](https://goreportcard.com/report/github.com/VictoriaMetrics/VictoriaMetrics)
@@ -191,10 +190,6 @@ Additionally, all the VictoriaMetrics components allow setting flag values via e
 * Each `.` char in flag name must be substituted with `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`).
 * For repeating flags an alternative syntax can be used by joining the different values into one using `,` char as separator (for example `-storageNode <nodeA> -storageNode <nodeB>` will translate to `storageNode=<nodeA>,<nodeB>`).
 * Environment var prefix can be set via `-envflag.prefix` flag. For instance, if `-envflag.prefix=VM_`, then env vars must be prepended with `VM_`.
-
-### Configuration with snap package
-
-Snap packages for VictoriaMetrics are supported by community and are available at [https://snapcraft.io/victoriametrics](https://snapcraft.io/victoriametrics).
 
 ### Running as Windows service
 
@@ -630,13 +625,13 @@ VictoriaMetrics performs the following transformations to the ingested InfluxDB 
 
 For example, the following InfluxDB line:
 
-```raw
+```influxtextmetric
 foo,tag1=value1,tag2=value2 field1=12,field2=40
 ```
 
 is converted into the following Prometheus data points:
 
-```raw
+```promtextmetric
 foo_field1{tag1="value1", tag2="value2"} 12
 foo_field2{tag1="value1", tag2="value2"} 40
 ```
@@ -715,22 +710,20 @@ Example for writing data with Graphite plaintext protocol to local VictoriaMetri
 echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N localhost 2003
 ```
 
-To sanitize ingested metric names and labels according to Prometheus naming convention enable
-`-graphite.sanitizeMetricName` cmd-line flag. When enabled, VictoriaMetrics will apply the following modifications:
-- replace `/`,`@`,`*` with `_`;
-- drop `\`;
-- remove redundant dots, e.g: `metric..name` => `metric.name`;
-- replace characters not matching the expression `^a-zA-Z0-9:._` with `_`.
+The ingested metrics can be sanitized according to Prometheus naming convention by passing `-graphite.sanitizeMetricName` command-line flag
+to VictoriaMetrics. The following modifications are applied to the ingested samples when this flag is passed to VictoriaMetrics:
 
-VictoriaMetrics sets the current time if the timestamp is omitted.
+- remove redundant dots, e.g: `metric..name` => `metric.name`
+- replace characters not matching `a-zA-Z0-9:_.` chars with `_`
+
+VictoriaMetrics sets the current time to the ingested samples if the timestamp is omitted.
+
 An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
-
 
 ```sh
 curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
 ```
-
 
 The `/api/v1/export` endpoint should return the following response:
 
@@ -2661,24 +2654,30 @@ It is built from `*.md` files located in [docs](https://github.com/VictoriaMetri
 and gets automatically updated once changes are merged to [master](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master) branch.
 To update the documentation follow the steps below:
 - [Fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/about-forks) 
-VictoriaMetrics repo and apply changes to the docs:
+  VictoriaMetrics repo and apply changes to the docs:
   - To update [the main page](https://docs.victoriametrics.com/) modify [this file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md).
   - To update other pages, apply changes to the corresponding file in [docs folder](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs).
 - If your changes contain an image then see [images in documentation](https://docs.victoriametrics.com/#images-in-documentation).
 - Once changes are made, execute the command below to finalize and sync the changes:
-```sh
-make docs-sync
-```
+
+  ```sh
+  make docs-sync
+  ```
+
 - Create [a pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request)
-with proposed changes and wait for it to be merged.
+  with proposed changes and wait for it to be merged.
 
 Requirements for changes to docs:
+
 - Keep backward compatibility of existing links. Avoid changing anchors or deleting pages as they could have been
-used or posted in other docs, GitHub issues, stackoverlow answers, etc. 
-- Keep docs simple. Try using as simple wording as possible.
+  used or posted in other docs, GitHub issues, stackoverlow answers, etc.
+- Keep docs clear, concise and simple. Try using as simple wording as possible, without loosing the clarity.
 - Keep docs consistent. When modifying existing docs, verify that other places referencing to this doc are still relevant.
 - Prefer improving the existing docs instead of adding new ones.
-- Use absolute links.
+- Use absolute links. This simplifies moving docs between different files.
+
+Priodically run `make spellcheck` - this command detects spelling errors at `docs/` folder. Please fix the found spelling errors
+and commit the fixes in a separate commit.
 
 ### Images in documentation
 
@@ -2686,6 +2685,10 @@ Please, keep image size and number of images per single page low. Keep the docs 
 
 Image files must be placed in the same folder as the doc itself and they must have the same prefix as the doc filename.
 For example, all the images for `docs/foo/bar.md` should have filenames starting from `docs/foo/bar`.
+This simplifies lifetime management of the images:
+
+- when the corresponding doc is removed, then it is clear how to remove the associated images
+- when the corresponding doc is renamed, then it is clear how to rename the associated images.
 
 If the page needs to have many images, consider using WEB-optimized image format [webp](https://developers.google.com/speed/webp).
 When adding a new doc with many images use `webp` format right away. Or use a Makefile command below to
@@ -2739,7 +2742,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -cacheExpireDuration duration
      Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
   -configAuthKey value
-     Authorization key for accessing /config page. It must be passed via authKey query arg. It overrides httpAuth.* settings.
+     Authorization key for accessing /config page. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -configAuthKey=file:///abs/path/to/file or -configAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -configAuthKey=http://host/path or -configAuthKey=https://host/path
   -csvTrimTimestamp duration
      Trim timestamps when importing csv data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
@@ -2776,7 +2779,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -finalMergeDelay duration
      Deprecated: this flag does nothing
   -flagsAuthKey value
-     Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
   -forceFlushAuthKey value
      authKey, which must be passed in query string to /internal/force_flush pages
@@ -2891,7 +2894,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The maximum size in bytes of a single Prometheus remote_write API request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
   -maxLabelValueLen int
-     The maximum length of label values in the accepted time series. Longer label values are truncated. In this case the vm_too_long_label_values_total metric at /metrics page is incremented (default 1024)
+     The maximum length of label values in the accepted time series. Longer label values are truncated. In this case the vm_too_long_label_values_total metric at /metrics page is incremented (default 4096)
   -maxLabelsPerTimeseries int
      The maximum number of labels accepted per time series. Superfluous labels are dropped. In this case the vm_metrics_with_dropped_labels_total metric at /metrics page is incremented (default 30)
   -memory.allowedBytes size
@@ -2902,7 +2905,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -metrics.exposeMetadata
      Whether to expose TYPE and HELP metadata at the /metrics page, which is exposed at -httpListenAddr . The metadata may be needed when the /metrics page is consumed by systems, which require this information. For example, Managed Prometheus in Google Cloud - https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type
   -metricsAuthKey value
-     Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
   -mtls array
      Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
@@ -2933,7 +2936,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -opentsdbhttpTrimTimestamp duration
      Trim timestamps for OpenTSDB HTTP data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -pprofAuthKey value
-     Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -pprofAuthKey=http://host/path or -pprofAuthKey=https://host/path
   -precisionBits int
      The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss (default 64)
@@ -3055,7 +3058,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -relabelConfig string
      Optional path to a file with relabeling rules, which are applied to all the ingested metrics. The path can point either to local file or to http url. See https://docs.victoriametrics.com/#relabeling for details. The config is reloaded on SIGHUP signal
   -reloadAuthKey value
-     Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings.
+     Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -reloadAuthKey=file:///abs/path/to/file or -reloadAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -reloadAuthKey=http://host/path or -reloadAuthKey=https://host/path
   -retentionFilter array
      Retention filter in the format 'filter:retention'. For example, '{env="dev"}:3d' configures the retention for time series with env="dev" label to 3 days. See https://docs.victoriametrics.com/#retention-filters for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
