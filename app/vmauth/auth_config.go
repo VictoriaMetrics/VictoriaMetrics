@@ -84,9 +84,6 @@ type UserInfo struct {
 	concurrencyLimitCh      chan struct{}
 	concurrencyLimitReached *metrics.Counter
 
-	// Whether to use backend host header in requests to backend.
-	useBackendHostHeader bool
-
 	rt http.RoundTripper
 
 	requests         *metrics.Counter
@@ -96,8 +93,9 @@ type UserInfo struct {
 
 // HeadersConf represents config for request and response headers.
 type HeadersConf struct {
-	RequestHeaders  []*Header `yaml:"headers,omitempty"`
-	ResponseHeaders []*Header `yaml:"response_headers,omitempty"`
+	RequestHeaders   []*Header `yaml:"headers,omitempty"`
+	ResponseHeaders  []*Header `yaml:"response_headers,omitempty"`
+	KeepOriginalHost *bool     `yaml:"keep_original_host,omitempty"`
 }
 
 func (ui *UserInfo) beginConcurrencyLimit() error {
@@ -150,15 +148,6 @@ func (h *Header) UnmarshalYAML(f func(any) error) error {
 // MarshalYAML marshals h to yaml.
 func (h *Header) MarshalYAML() (any, error) {
 	return h.sOriginal, nil
-}
-
-func hasEmptyHostHeader(headers []*Header) bool {
-	for _, h := range headers {
-		if h.Name == "Host" && h.Value == "" {
-			return true
-		}
-	}
-	return false
 }
 
 // URLMap is a mapping from source paths to target urls.
@@ -608,7 +597,7 @@ func initAuthConfig() {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
 	sighupCh := procutil.NewSighupChan()
 
-	_, err := loadAuthConfig()
+	_, err := reloadAuthConfig()
 	if err != nil {
 		logger.Fatalf("cannot load auth config: %s", err)
 	}
@@ -640,7 +629,7 @@ func authConfigReloader(sighupCh <-chan os.Signal) {
 
 	updateFn := func() {
 		configReloads.Inc()
-		updated, err := loadAuthConfig()
+		updated, err := reloadAuthConfig()
 		if err != nil {
 			logger.Errorf("failed to load auth config; using the last successfully loaded config; error: %s", err)
 			configSuccess.Set(0)
@@ -666,27 +655,45 @@ func authConfigReloader(sighupCh <-chan os.Signal) {
 	}
 }
 
-// authConfigData stores the yaml definition for this config.
-// authConfigData needs to be updated each time authConfig is updated.
-var authConfigData atomic.Pointer[[]byte]
-
 var (
-	authConfig   atomic.Pointer[AuthConfig]
-	authUsers    atomic.Pointer[map[string]*UserInfo]
+	// authConfigData stores the yaml definition for this config.
+	// authConfigData needs to be updated each time authConfig is updated.
+	authConfigData atomic.Pointer[[]byte]
+
+	// authConfig contains the currently loaded auth config
+	authConfig atomic.Pointer[AuthConfig]
+
+	// authUsers contains the currently loaded auth users
+	authUsers atomic.Pointer[map[string]*UserInfo]
+
 	authConfigWG sync.WaitGroup
 	stopCh       chan struct{}
 )
 
-// loadAuthConfig loads and applies the config from *authConfigPath.
+// reloadAuthConfig loads and applies the config from *authConfigPath.
 // It returns bool value to identify if new config was applied.
 // The config can be not applied if there is a parsing error
 // or if there are no changes to the current authConfig.
-func loadAuthConfig() (bool, error) {
+func reloadAuthConfig() (bool, error) {
 	data, err := fscore.ReadFileOrHTTP(*authConfigPath)
 	if err != nil {
 		return false, fmt.Errorf("failed to read -auth.config=%q: %w", *authConfigPath, err)
 	}
 
+	ok, err := reloadAuthConfigData(data)
+	if err != nil {
+		return false, fmt.Errorf("failed to pars -auth.config=%q: %w", *authConfigPath, err)
+	}
+	if !ok {
+		return false, nil
+	}
+
+	mp := authUsers.Load()
+	logger.Infof("loaded information about %d users from -auth.config=%q", len(*mp), *authConfigPath)
+	return true, nil
+}
+
+func reloadAuthConfigData(data []byte) (bool, error) {
 	oldData := authConfigData.Load()
 	if oldData != nil && bytes.Equal(data, *oldData) {
 		// there are no updates in the config - skip reloading.
@@ -695,14 +702,13 @@ func loadAuthConfig() (bool, error) {
 
 	ac, err := parseAuthConfig(data)
 	if err != nil {
-		return false, fmt.Errorf("failed to parse -auth.config=%q: %w", *authConfigPath, err)
+		return false, fmt.Errorf("failed to parse auth config: %w", err)
 	}
 
 	m, err := parseAuthConfigUsers(ac)
 	if err != nil {
-		return false, fmt.Errorf("failed to parse users from -auth.config=%q: %w", *authConfigPath, err)
+		return false, fmt.Errorf("failed to parse users from auth config: %w", err)
 	}
-	logger.Infof("loaded information about %d users from -auth.config=%q", len(m), *authConfigPath)
 
 	acPrev := authConfig.Load()
 	if acPrev != nil {
@@ -749,7 +755,6 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		if err := ui.initURLs(); err != nil {
 			return nil, err
 		}
-		ui.useBackendHostHeader = hasEmptyHostHeader(ui.HeadersConf.RequestHeaders)
 
 		metricLabels, err := ui.getMetricLabels()
 		if err != nil {
@@ -814,7 +819,6 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		_ = ac.ms.GetOrCreateGauge(`vmauth_user_concurrent_requests_current`+metricLabels, func() float64 {
 			return float64(len(ui.concurrencyLimitCh))
 		})
-		ui.useBackendHostHeader = hasEmptyHostHeader(ui.HeadersConf.RequestHeaders)
 
 		rt, err := newRoundTripper(ui.TLSCAFile, ui.TLSCertFile, ui.TLSKeyFile, ui.TLSServerName, ui.TLSInsecureSkipVerify)
 		if err != nil {

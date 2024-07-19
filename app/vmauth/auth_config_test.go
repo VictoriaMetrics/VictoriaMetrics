@@ -82,6 +82,14 @@ users:
   headers: foobar
 `)
 
+	// Invalid keep_original_host value
+	f(`
+users:
+- username: foo
+  url_prefix: http://foo.bar
+  keep_original_host: foobar
+`)
+
 	// empty url_prefix
 	f(`
 users:
@@ -458,6 +466,7 @@ users:
 	})
 
 	// with default url
+	keepOriginalHost := true
 	f(`
 users:
 - bearer_token: foo
@@ -469,6 +478,7 @@ users:
     headers:
     - "foo: bar"
     - "xxx: y"
+    keep_original_host: true
   default_url:
   - http://default1/select/0/prometheus
   - http://default2/select/0/prometheus
@@ -491,6 +501,7 @@ users:
 							mustNewHeader("'foo: bar'"),
 							mustNewHeader("'xxx: y'"),
 						},
+						KeepOriginalHost: &keepOriginalHost,
 					},
 				},
 			},
@@ -517,6 +528,7 @@ users:
 							mustNewHeader("'foo: bar'"),
 							mustNewHeader("'xxx: y'"),
 						},
+						KeepOriginalHost: &keepOriginalHost,
 					},
 				},
 			},
@@ -536,12 +548,17 @@ users:
   metric_labels:
     dc: eu
     team: dev
+  keep_original_host: true
 - username: foo-same
   password: bar
   url_prefix: https://bar/x
   metric_labels:
     backend_env: test
     team: accounting
+  headers:
+  - "foo: bar"
+  response_headers:
+  - "Abc: def"
 `, map[string]*UserInfo{
 		getHTTPAuthBasicToken("foo-same", "baz"): {
 			Username:  "foo-same",
@@ -551,6 +568,9 @@ users:
 				"dc":   "eu",
 				"team": "dev",
 			},
+			HeadersConf: HeadersConf{
+				KeepOriginalHost: &keepOriginalHost,
+			},
 		},
 		getHTTPAuthBasicToken("foo-same", "bar"): {
 			Username:  "foo-same",
@@ -559,6 +579,14 @@ users:
 			MetricLabels: map[string]string{
 				"backend_env": "test",
 				"team":        "accounting",
+			},
+			HeadersConf: HeadersConf{
+				RequestHeaders: []*Header{
+					mustNewHeader("'foo: bar'"),
+				},
+				ResponseHeaders: []*Header{
+					mustNewHeader("'Abc: def'"),
+				},
 			},
 		},
 	})

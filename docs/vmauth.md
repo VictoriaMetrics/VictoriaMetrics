@@ -647,15 +647,6 @@ unauthorized_user:
   - "X-Forwarded-For:"
 ```
 
-It is also possible to update `Host` request header to the backend host specified in `url_prefix` by setting an empty value for `Host` header:
-
-```yaml
-unauthorized_user:
-  url_prefix: "http://backend:1234/"
-  headers:
-  - "Host:"    # Update host header to backend:1234
-```
-
 `vmauth` also supports the ability to set and remove HTTP response headers before returning the response from the backend to client.
 This is done via `response_headers` option. For example, the following [`-auth.config`](#auth-config) sets `Foo: bar` response header
 and removes `Server` response header before returning the response to client:
@@ -666,6 +657,30 @@ unauthorized_user:
   response_headers:
   - "Foo: bar"
   - "Server:"
+```
+
+See also [`Host` header docs](#host-http-header).
+
+## Host HTTP header
+
+By default `vmauth` sets the `Host` HTTP header to the backend hostname when proxying requests to the corresponding backend.
+Sometimes it is needed to keep the original `Host` header from the client request sent to `vmauth`. For example, if backends use host-based routing.
+In this case set `keep_original_host: true`. For example, the following config instructs to use the original `Host` header from client requests
+when proxying requests to the `backend:1234`:
+
+```yaml
+unauthorized_user:
+  url_prefix: "http://backend:1234/"
+  keep_iriginal_host: true
+```
+
+It is also possible to set the `Host` header to arbitrary value when proxying the request to the configured backend, via [`headers` option](#modifying-http-headers):
+
+```yaml
+unauthorized_user:
+  url_prefix: "http://backend:1234/"
+  headers:
+  - "Host: foobar"
 ```
 
 ## Config reload

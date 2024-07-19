@@ -2,9 +2,139 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 )
+
+func TestRequestHandler(t *testing.T) {
+	f := func(cfgStr, requestURL string, backendHandler http.HandlerFunc, responseExpected string) {
+		t.Helper()
+
+		ts := httptest.NewServer(backendHandler)
+		defer ts.Close()
+
+		cfgStr = strings.ReplaceAll(cfgStr, "{BACKEND}", ts.URL)
+		responseExpected = strings.ReplaceAll(responseExpected, "{BACKEND}", ts.URL)
+
+		cfgOrigP := authConfigData.Load()
+		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
+			t.Fatalf("cannot load config data: %s", err)
+		}
+		defer func() {
+			cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
+			if cfgOrigP != nil {
+				cfgOrig = *cfgOrigP
+			}
+			_, err := reloadAuthConfigData(cfgOrig)
+			if err != nil {
+				t.Fatalf("cannot load the original config: %s", err)
+			}
+		}()
+
+		r, err := http.NewRequest(http.MethodGet, requestURL, nil)
+		if err != nil {
+			t.Fatalf("cannot initialize http request: %s", err)
+		}
+
+		w := &fakeResponseWriter{}
+		if !requestHandler(w, r) {
+			t.Fatalf("unexpected false is returned from requestHandler")
+		}
+
+		response := w.getResponse()
+		response = strings.TrimSpace(response)
+		responseExpected = strings.TrimSpace(responseExpected)
+		if response != responseExpected {
+			t.Fatalf("unexpected response\ngot\n%v\nwant\n%v", response, responseExpected)
+		}
+	}
+
+	// regular url_prefix
+	cfgStr := `
+unauthorized_user:
+  url_prefix: {BACKEND}/foo?bar=baz
+`
+	requestURL := "http://some-host.com/abc/def?some_arg=some_value"
+	backendHandler := func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "requested_url=http://%s%s", r.Host, r.URL)
+	}
+	responseExpected := `statusCode=200
+requested_url={BACKEND}/foo/abc/def?bar=baz&some_arg=some_value
+`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// keep_original_host
+	cfgStr = `
+unauthorized_user:
+  url_prefix: "{BACKEND}/foo?bar=baz"
+  keep_original_host: true
+`
+	requestURL = "http://some-host.com/abc/def?some_arg=some_value"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "requested_url=http://%s%s", r.Host, r.URL)
+	}
+	responseExpected = `statusCode=200
+requested_url=http://some-host.com/foo/abc/def?bar=baz&some_arg=some_value
+`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// override request host
+	cfgStr = `
+unauthorized_user:
+  url_prefix: "{BACKEND}/foo?bar=baz"
+  headers:
+  - "Host: other-host:12345"
+`
+	requestURL = "http://some-host.com/abc/def?some_arg=some_value"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "requested_url=http://%s%s", r.Host, r.URL)
+	}
+	responseExpected = `statusCode=200
+requested_url=http://other-host:12345/foo/abc/def?bar=baz&some_arg=some_value
+`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+}
+
+type fakeResponseWriter struct {
+	h http.Header
+
+	bb bytes.Buffer
+}
+
+func (w *fakeResponseWriter) getResponse() string {
+	return w.bb.String()
+}
+
+func (w *fakeResponseWriter) Header() http.Header {
+	if w.h == nil {
+		w.h = http.Header{}
+	}
+	return w.h
+}
+
+func (w *fakeResponseWriter) Write(p []byte) (int, error) {
+	return w.bb.Write(p)
+}
+
+func (w *fakeResponseWriter) WriteHeader(statusCode int) {
+	fmt.Fprintf(&w.bb, "statusCode=%d\n", statusCode)
+	if w.h == nil {
+		return
+	}
+	err := w.h.WriteSubset(&w.bb, map[string]bool{
+		"Content-Length": true,
+		"Content-Type":   true,
+		"Date":           true,
+	})
+	if err != nil {
+		panic(fmt.Errorf("BUG: cannot marshal headers: %s", err))
+	}
+}
 
 func TestReadTrackingBody_RetrySuccess(t *testing.T) {
 	f := func(s string, maxBodySize int) {

@@ -31,6 +31,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): fix `cannot read data after closing the reader` error when proxying HTTP requests without body (aka `GET` requests). The issue has been introduced in [v1.102.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0) in [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/7ee57974935a662896f2de40fdf613156630617d).
 
 ## [v1.102.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0)
 
