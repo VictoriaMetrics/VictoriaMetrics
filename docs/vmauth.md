@@ -129,7 +129,7 @@ unauthorized_user:
     - "/prometheus/api/v1/write"
     - "/influx/write"
     - "/api/v1/import"
-    - "/api/v1/import/.+"
+    - "/api/v1/import/.*"
     url_prefix:
     - "http://vmagent-1:8429/"
     - "http://vmagent-2:8429/"
@@ -150,13 +150,13 @@ and processes incoming requests via `vmselect` nodes according to [these docs](h
 unauthorized_user:
   url_map:
   - src_paths:
-    - "/insert/.+"
+    - "/insert/.*"
     url_prefix:
     - "http://vminsert-1:8480/"
     - "http://vminsert-2:8480/"
     - "http://vminsert-3:8480/"
   - src_paths:
-    - "/select/.+"
+    - "/select/.*"
     url_prefix:
     - "http://vmselect-1:8481/"
     - "http://vmselect-2:8481/"
@@ -327,7 +327,7 @@ unauthorized_user:
 
     # proxy all the requests, which start with `/vmagent/`, to vmagent backend
   - src_paths:
-    - "/vmagent/.+"
+    - "/vmagent/.*"
 
     # drop /vmagent/ path prefix from the original request before proxying it to url_prefix.
     drop_src_path_prefix_parts: 1
@@ -335,7 +335,7 @@ unauthorized_user:
 
     # proxy all the requests, which start with `/vmalert`, to vmalert backend
   - src_paths:
-    - "/vmalert/.+"
+    - "/vmalert/.*"
 
     # drop /vmalert/ path prefix from the original request before proxying it to url_prefix.
     drop_src_path_prefix_parts: 1
