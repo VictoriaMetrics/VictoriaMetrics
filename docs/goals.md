@@ -23,7 +23,7 @@ menu:
    upgrade to [the latest available release](https://docs.victoriametrics.com/CHANGELOG.html) and remain happy.
 1. Improving usability for the existing functionality of VictoriaMetrics components.
 1. Improving the readability and maintainability of the code base by removing unnecessary abstractions and simplifying the code whenever possible.
-1. Improving development velocity by optimizing and simplifying CI/CD tasks, so they take less time.
+1. Improving development velocity by optimizing and simplifying CI/CD tasks, so they take less time to execute and debug.
 
 ## Non-goals
 
