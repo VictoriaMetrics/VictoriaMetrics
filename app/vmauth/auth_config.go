@@ -1009,6 +1009,14 @@ func getAuthTokensFromRequest(r *http.Request) []string {
 		}
 	}
 
+	// Authorization via http://user:pass@hosname/path
+	if u := r.URL.User; u != nil && u.Username() != "" {
+		username := u.Username()
+		password, _ := u.Password()
+		at := getHTTPAuthBasicToken(username, password)
+		ats = append(ats, at)
+	}
+
 	return ats
 }
 
@@ -1034,10 +1042,6 @@ func (up *URLPrefix) sanitizeAndInitialize() error {
 }
 
 func sanitizeURLPrefix(urlPrefix *url.URL) (*url.URL, error) {
-	// Remove trailing '/' from urlPrefix
-	for strings.HasSuffix(urlPrefix.Path, "/") {
-		urlPrefix.Path = urlPrefix.Path[:len(urlPrefix.Path)-1]
-	}
 	// Validate urlPrefix
 	if urlPrefix.Scheme != "http" && urlPrefix.Scheme != "https" {
 		return nil, fmt.Errorf("unsupported scheme for `url_prefix: %q`: %q; must be `http` or `https`", urlPrefix, urlPrefix.Scheme)
