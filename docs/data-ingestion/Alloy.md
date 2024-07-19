@@ -16,9 +16,8 @@ aliases:
 ---
 
 Grafana Alloy supports sending data via the Prometheus Remote Write Protocol and Open Telemetry.
-Current this guide only explains 
 Collecting metrics and forwarding them to VictoriaMetrics using Prometheus scraping and remote write is more straight forward, but using Open Telemetry enables more complex processing operations to occur before sending data to VictoriaMetrics.
-The Alloy configuration can found in the following location depending on your platform
+The Alloy configuration file can found in the following location depending on your platform
 
 - Linux: `/etc/alloy/config.alloy`
 - Windows: `%ProgramFiles%\GrafanaLabs\Alloy\config.alloy`
@@ -27,9 +26,34 @@ The Alloy configuration can found in the following location depending on your pl
 After the configuration has been updated Alloy will need to be reloaded or restarted for the configuration change to be applied.
 
 - Linux: `sudo systemctl reload alloy.service`
-- Windows: `Restart-Service Alloy` This can also be done from the gui using task manager
+- Windows: `Restart-Service Alloy` This can also be done from the GUI using task manager
 - MacOS: `brew services restart alloy`
+- Helm chart: changing the `alloy.configMap` in the alloy [helm values](https://raw.githubusercontent.com/grafana/alloy/main/operations/helm/charts/alloy/values.yaml)
 
+In Any of the examples below you can add `insert/<tenant_id>/` to the URL path if you are sending metrics to vminsert.
+For Prometheus remote write this would change from
+
+```
+https://<victoriametrics_url>/prometheus/api/v1/write
+```
+
+to
+
+```
+https://<victoriametrics_url>/insert/<tenant_id>/prometheus/api/v1/write
+```
+
+For OpenTelemetry the endpoint would change from 
+
+```
+https://<victoriametrics_url>:<victoriametrics_port>/opentelemetry
+```
+
+to
+
+```
+https://<victoriametrics_url>:<victoriametrics_port>/insert/<tenant_id>/opentelemetry
+```
 
 ## Collect Node Exporter data locally and send it to VictoriaMetrics without authentication
 
@@ -44,7 +68,7 @@ prometheus.scrape "nodeexporter" {
 
 prometheus.remote_write "victoriametrics" {
   endpoint {
-    url = "https://<victoria_metrics_url>/prometheus/api/v1/write"
+    url = "https://<victoriametrics_url>/prometheus/api/v1/write"
   }
 }
 ```
@@ -87,7 +111,7 @@ prometheus.scrape "nodeexporter" {
 
 prometheus.remote_write "victoriametrics" {
   endpoint {
-    url = "https://<victoria_metrics_url>/prometheus/api/v1/write"
+    url = "https://<victoriametrics_url>/prometheus/api/v1/write"
     bearer_token  = "<token>"
   }
 }
@@ -117,7 +141,7 @@ prometheus.scrape "remote_exporter" {
 
 prometheus.remote_write "victoriametrics" {
   endpoint {
-    url = "https://<victoria_metrics_url>/prometheus/api/v1/write"
+    url = "https://<victoriametrics_url>/prometheus/api/v1/write"
     bearer_token  = "<token>"
   }
 }
@@ -127,16 +151,30 @@ prometheus.remote_write "victoriametrics" {
 ## Send Metrics to VictoriaMetrics via OpenTelemetry without Authentication 
 
 ```
-otelcol.exporter.otlphttp "victoriametrics" {
-  client {
-    endpoint = "https://<victoriametrics_url>:<victoriametrics_port>/opentelemetry"
-  }
+prometheus.exporter.unix "nodeexporter" {}
+
+prometheus.scrape "nodeexporter" {
+  targets = prometheus.exporter.unix.nodeexporter.targets
+  forward_to = [otelcol.receiver.prometheus.victoriametrics.receiver]
 }
 
+
+otelcol.receiver.prometheus "victoriametrics" {
+  output {
+    metrics = [otelcol.processor.batch.batch.input]
+  }
+}
 
 otelcol.processor.batch "batch" {
   output {
     metrics = [otelcol.exporter.otlphttp.victoriametrics.input]
+  }
+}
+
+
+otelcol.exporter.otlphttp "victoriametrics" {
+  client {
+    endpoint = "http://<victoriametrics_url>:<victoriametrics_port>/opentelemetry"
   }
 }
 ```
@@ -145,12 +183,15 @@ otelcol.processor.batch "batch" {
 
 ## Send Metrics to VictoriaMetrics via OpenTelemetry with Basic Authentication
 
+This is the same configuration without authentication but contains the `otelcol.auth.basic` block and references it in `otelcol.expoerter.otlphttp`
+
+
 ```
-otelcol.exporter.otlphttp "victoriametrics" {
-  client {
-    endpoint = "https://<victoriametrics_url>:<victoriametrics_port>/opentelemetry"
-    auth = otelcol.auth.basic.otel_auth.handler
-  }
+prometheus.exporter.unix "nodeexporter" {}
+
+prometheus.scrape "nodeexporter" {
+  targets = prometheus.exporter.unix.nodeexporter.targets
+  forward_to = [otelcol.receiver.prometheus.victoriametrics.receiver]
 }
 
 otelcol.auth.basic "otel_auth" {
@@ -158,25 +199,47 @@ otelcol.auth.basic "otel_auth" {
   password = "<password>"
 }
 
+otelcol.receiver.prometheus "victoriametrics" {
+  output {
+    metrics = [otelcol.processor.batch.batch.input]
+  }
+}
+
 otelcol.processor.batch "batch" {
   output {
     metrics = [otelcol.exporter.otlphttp.victoriametrics.input]
+  }
+}
+
+
+otelcol.exporter.otlphttp "victoriametrics" {
+  client {
+    endpoint = "https://<victoriametrics_url:<victoriametrics_port>/opentelemetry"
+    auth = otelcol.auth.basic.otel_auth.handler
   }
 }
 ```
 
 ## Send Metrics to VictoriaMetrics via OpenTelemetry with Bearer Authentication
 
+This is the same as the basic authentication configuration but swaps the `otelcol.auth.basic` for `otelcol.auth.bearer`
+
 ```
-otelcol.exporter.otlphttp "victoriametrics" {
-  client {
-    endpoint = "https://<victoriametrics_url>:<victoriametrics_port>/opentelemetry"
-    auth = otelcol.auth.basic.otel_auth.handler
-  }
+prometheus.exporter.unix "nodeexporter" {}
+
+prometheus.scrape "nodeexporter" {
+  targets = prometheus.exporter.unix.nodeexporter.targets
+  forward_to = [otelcol.receiver.prometheus.victoriametrics.receiver]
 }
 
 otelcol.auth.bearer "otel_auth" {
-  token = "<token>"
+  token = "<token>"  
+}
+
+otelcol.receiver.prometheus "victoriametrics" {
+  output {
+    metrics = [otelcol.processor.batch.batch.input]
+  }
 }
 
 otelcol.processor.batch "batch" {
@@ -185,9 +248,16 @@ otelcol.processor.batch "batch" {
   }
 }
 
+
+otelcol.exporter.otlphttp "victoriametrics" {
+  client {
+    endpoint = "https://<victoriametrics_url>:<victoriametrics_port>/opentelemetry"
+    auth = otelcol.auth.bearer.otel_auth.handler
+  }
+}
 ```
 
 ## References
 
-
+- [Grafana Alloy Helm Chart](https://github.com/grafana/alloy/tree/main/operations/helm)
 - [Grafana Alloy Documenation](https://grafana.com/docs/alloy/latest)
