@@ -245,6 +245,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	req := sanitizeRequestHeaders(r)
 
 	req.URL = targetURL
+	req.Header.Set("User-Agent", "vmauth")
 	updateHeadersByConfig(req.Header, hc.RequestHeaders)
 	if hc.KeepOriginalHost == nil || !*hc.KeepOriginalHost {
 		if host := getHostHeader(hc.RequestHeaders); host != "" {
