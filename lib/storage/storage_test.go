@@ -1449,3 +1449,147 @@ func testCountAllMetricNames(s *Storage, tr TimeRange) int {
 	}
 	return len(names)
 }
+
+func TestStorageRegisterMetricNames_variousMetricIDAndDateCombinations(t *testing.T) {
+	t.Skip()
+}
+
+func TestStorageRegisterMetricNames_perDayIndexesDisabled(t *testing.T) {
+	t.Skip()
+}
+
+func TestStorageRegisterMetricNames_metricsAreSearchedInIndex(t *testing.T) {
+	// TODO(rtm0): with enabled and disabled per day indexes
+	t.Skip()
+}
+
+func TestStorageAddRows_variousMetricIDAndDateCombinations(t *testing.T) {
+	t.Skip()
+}
+
+func TestStorageAddRows_perDayIndexesDisabled(t *testing.T) {
+	t.Skip()
+}
+
+func TestStorageAddRows_metricsAreSearchedInIndex(t *testing.T) {
+	// TODO(rtm0): with enabled and disabled per day indexes
+	t.Skip()
+}
+
+func TestStorageGetTSDBStatus(t *testing.T) {
+	defer testRemoveAll(t)
+
+	assertStatus := func(s *Storage, tr TimeRange, wantStatus *TSDBStatus) {
+		t.Helper()
+
+		date := uint64(tr.MinTimestamp) / msecPerDay
+		gotStatus, err := s.GetTSDBStatus(nil, nil, date, "", 10, 1e6, noDeadline)
+		if err != nil {
+			t.Fatalf("GetTSDBStatus(%v) failed unexpectedly", &tr)
+		}
+
+		if got, want := gotStatus.TotalSeries, wantStatus.TotalSeries; got != want {
+			t.Errorf("[%v] unexpected TSDBStatus.TotalSeries: got %d, want %d", &tr, got, want)
+		}
+	}
+
+	const days = 10
+	var mrs []MetricRow
+	var trs []TimeRange
+	rng := rand.New(rand.NewSource(1))
+	for day := range days {
+		min := time.Date(2024, 1, day+1, 0, 0, 0, 0, time.UTC).UnixMilli()
+		max := time.Date(2024, 1, day+1, 23, 59, 59, 999, time.UTC).UnixMilli()
+		trs = append(trs, TimeRange{min, max})
+		numRows := uint64(100 * (day + 1))
+		mrs = append(mrs, testGenerateMetricRows(rng, numRows, min, max)...)
+	}
+
+	path := t.Name() + "/AddRowsAndGetStatusWithPerDayIndexesEnabled"
+	disablePerDayIndexes := false
+	s := MustOpenStorage(path, 0, 0, 0, false)
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	for day, tr := range trs {
+		assertStatus(s, tr, &TSDBStatus{
+			TotalSeries: uint64(100 * (day + 1)),
+		})
+	}
+	s.MustClose()
+
+	path = t.Name() + "/AddRowsAndGetStatusWithPerDayIndexesDisabled"
+	disablePerDayIndexes = true
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	for _, tr := range trs {
+		assertStatus(s, tr, &TSDBStatus{
+			TotalSeries: 1000,
+		})
+	}
+	s.MustClose()
+
+	path = t.Name() + "/AddRowsWithPerDayIndexesEnabledGetStatusWithDisabled"
+	disablePerDayIndexes = false
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	s.MustClose()
+	disablePerDayIndexes = true
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	for _, tr := range trs {
+		assertStatus(s, tr, &TSDBStatus{
+			TotalSeries: 1000,
+		})
+	}
+	s.MustClose()
+
+	path = t.Name() + "/AddRowsWithPerDayIndexesDisabledGetStatusWithEnabled"
+	disablePerDayIndexes = true
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	s.MustClose()
+	disablePerDayIndexes = false
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	for _, tr := range trs {
+		assertStatus(s, tr, &TSDBStatus{
+			TotalSeries: 0,
+		})
+	}
+	// Verify that TSDB shows correct numbers after populating per-day indexes
+	// by registering metric names.
+	s.RegisterMetricNames(nil, mrs)
+	s.DebugFlush()
+	for day, tr := range trs {
+		assertStatus(s, tr, &TSDBStatus{
+			TotalSeries: uint64(100 * (day + 1)),
+		})
+	}
+	s.MustClose()
+}
+
+func TestStorageSearchMetricNames(t *testing.T) {
+	t.Skip()
+}
+
+func TestStorageDeleteSeries2(t *testing.T) {
+	// TODO(rtm0): Already exists, update existing test?
+	t.Skip()
+}
+
+func TestStorageSearchLabelNamesWithFiltersOnTimeRange(t *testing.T) {
+	t.Skip()
+}
+
+func TestStorageSearchLabelValuesWithFiltersOnTimeRange(t *testing.T) {
+	t.Skip()
+}
+
+func TestStorageSearchTagValueSuffixes(t *testing.T) {
+	t.Skip()
+}
+
+func TestStorageSearchGraphitePaths(t *testing.T) {
+	t.Skip()
+}

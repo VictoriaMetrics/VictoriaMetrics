@@ -1536,7 +1536,32 @@ func (s *Storage) GetSeriesCount(deadline uint64) (uint64, error) {
 }
 
 // GetTSDBStatus returns TSDB status data for /api/v1/status/tsdb
+//
+// If -disablePerDayIndexes flag is not set, the status is calculated for the
+// given date, i.e. the per-day indexes are used for calculation.
+//
+// Otherwise, the date is ignored and the status is calculated for the entire
+// retention period, i.e. global indexes are used for calculation.
+//
+// If the data is ingested with per-day indexes enabled and then the status is
+// queried with the per-day indexes disabled, the status will still contain the
+// correct numbers because at the ingestion time both indexes (per-day and
+// global) are populated.
+//
+// However, if the data is ingested with per-day indexes disabled and then the
+// status is queried with per-day indexes enabled the status will contain
+// incorrect numbers (zeroes, if no data ingestion has happened yet after
+// changing the flag value; OR numbers that are less than actual numbers
+// otherwise) because at the ingestion time nothing is written to the per-day
+// index and at the search time the query is performed on the per-day indexes.
+//
+// To fix that, the per-day indexes need to be populated.  One way to do that is
+// by re-registering metric names for each date the data has been previously
+// ingested for.
 func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
+	if s.disablePerDayIndexes {
+		date = 0
+	}
 	return s.idb().GetTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics, deadline)
 }
 
@@ -1719,6 +1744,18 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 				genTSID.generation = generation
 				s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
 				seriesRepopulated++
+			} else if !s.dateMetricIDCache.Has(generation, date, genTSID.TSID.MetricID) {
+				if !is.hasDateMetricIDNoExtDB(date, genTSID.TSID.MetricID) {
+					if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
+						if firstWarn == nil {
+							firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
+						}
+						continue
+					}
+					mn.sortTags()
+					is.createPerDayIndexes(date, &genTSID.TSID, mn)
+				}
+				s.dateMetricIDCache.Set(generation, date, genTSID.TSID.MetricID)
 			}
 			continue
 		}
