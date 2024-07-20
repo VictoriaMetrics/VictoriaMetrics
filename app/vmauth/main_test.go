@@ -40,12 +40,16 @@ func TestRequestHandler(t *testing.T) {
 		}()
 
 		r, err := http.NewRequest(http.MethodGet, requestURL, nil)
-		r.RequestURI = r.URL.RequestURI()
-		r.RemoteAddr = "42.2.3.84:6789"
-		r.Header.Set("X-Forwarded-For", "12.34.56.78")
 		if err != nil {
 			t.Fatalf("cannot initialize http request: %s", err)
 		}
+
+		r.RequestURI = r.URL.RequestURI()
+		r.RemoteAddr = "42.2.3.84:6789"
+		r.Header.Set("X-Forwarded-For", "12.34.56.78")
+		r.Header.Set("Connection", "Some-Header,Other-Header")
+		r.Header.Set("Some-Header", "foobar")
+		r.Header.Set("Pass-Header", "abc")
 
 		w := &fakeResponseWriter{}
 		if !requestHandler(w, r) {
@@ -67,12 +71,18 @@ unauthorized_user:
   url_prefix: {BACKEND}/foo?bar=baz`
 	requestURL := "http://some-host.com/abc/def?some_arg=some_value"
 	backendHandler := func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "requested_url=http://%s%s\nX-Forwarded-For=%s", r.Host, r.URL, r.Header.Get("X-Forwarded-For"))
+		var bb bytes.Buffer
+		if err := r.Header.Write(&bb); err != nil {
+			panic(fmt.Errorf("unexpected error when marshaling headers: %w", err))
+		}
+		fmt.Fprintf(w, "requested_url=http://%s%s\n%s", r.Host, r.URL, bb.String())
 	}
 	responseExpected := `
 statusCode=200
 requested_url={BACKEND}/foo/abc/def?bar=baz&some_arg=some_value
-X-Forwarded-For=12.34.56.78, 42.2.3.84`
+Pass-Header: abc
+User-Agent: vmauth
+X-Forwarded-For: 12.34.56.78, 42.2.3.84`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
 	// keep_original_host
@@ -87,6 +97,38 @@ unauthorized_user:
 	responseExpected = `
 statusCode=200
 requested_url=http://some-host.com/foo/abc/def?bar=baz`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// override user-agent header
+	cfgStr = `
+unauthorized_user:
+  url_prefix: "{BACKEND}/foo?bar=baz"
+  headers:
+  - "User-Agent: foobar"`
+	requestURL = "http://some-host.com/abc/def"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "requested_url=http://%s%s\nUser-Agent=%s", r.Host, r.URL, r.Header.Get("User-Agent"))
+	}
+	responseExpected = `
+statusCode=200
+requested_url={BACKEND}/foo/abc/def?bar=baz
+User-Agent=foobar`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// delete user-agent header
+	cfgStr = `
+unauthorized_user:
+  url_prefix: "{BACKEND}/foo?bar=baz"
+  headers:
+  - "User-Agent:"`
+	requestURL = "http://some-host.com/abc/def"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "requested_url=http://%s%s\nUser-Agent=%s", r.Host, r.URL, r.Header.Get("User-Agent"))
+	}
+	responseExpected = `
+statusCode=200
+requested_url={BACKEND}/foo/abc/def?bar=baz
+User-Agent=Go-http-client/1.1`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
 	// override request host with non-empty host
