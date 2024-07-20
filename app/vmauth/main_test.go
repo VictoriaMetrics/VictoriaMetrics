@@ -36,6 +36,8 @@ func TestRequestHandler(t *testing.T) {
 		}()
 
 		r, err := http.NewRequest(http.MethodGet, requestURL, nil)
+		r.RequestURI = r.URL.RequestURI()
+		r.RemoteAddr = "42.2.3.84:6789"
 		if err != nil {
 			t.Fatalf("cannot initialize http request: %s", err)
 		}
@@ -146,6 +148,24 @@ statusCode=401
 Unauthorized`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
+	// incorrect authorization with logging invalid auth tokens
+	origLogInvalidAuthTokens := *logInvalidAuthTokens
+	*logInvalidAuthTokens = true
+	cfgStr = `
+users:
+- username: foo
+  password: secret
+  url_prefix: "{BACKEND}/bar"`
+	requestURL = "http://foo:invalid-secret@some-host.com/a/b?c=d"
+	backendHandler = func(_ http.ResponseWriter, _ *http.Request) {
+		panic(fmt.Errorf("backend handler shouldn't be called"))
+	}
+	responseExpected = `
+statusCode=401
+remoteAddr: "42.2.3.84:6789"; requestURI: /a/b?c=d; cannot authorize request with auth tokens ["http_auth:Basic Zm9vOmludmFsaWQtc2VjcmV0"]`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+	*logInvalidAuthTokens = origLogInvalidAuthTokens
+
 	// correct authorization
 	cfgStr = `
 users:
@@ -243,6 +263,77 @@ unauthorized_user:
 	responseExpected = `
 statusCode=200
 requested_url={BACKEND}/default/abc?de=fg`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// missing default_url and default url_prefix for unauthorized user
+	cfgStr = `
+unauthorized_user:
+  url_map:
+  - src_paths: ["/foo/.+"]
+    url_prefix: {BACKEND}/x-foo/`
+	requestURL = "http://some-host.com/abc?de=fg"
+	backendHandler = func(_ http.ResponseWriter, _ *http.Request) {
+		panic(fmt.Errorf("backend handler shouldn't be called"))
+	}
+	responseExpected = `
+statusCode=400
+remoteAddr: "42.2.3.84:6789"; requestURI: /abc?de=fg; missing route for http://some-host.com/abc?de=fg`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// missing default_url and default url_prefix for unauthorized user when there are configs for authorized users
+	cfgStr = `
+users:
+- username: some-user
+  url_map:
+  - src_paths: ["/foo/.+"]
+    url_prefix: {BACKEND}/x-foo/
+unauthorized_user:
+  url_map:
+  - src_paths: ["/abc/.*"]
+    url_prefix: {BACKEND}/x-bar`
+	requestURL = "http://some-host.com/abc?de=fg"
+	backendHandler = func(_ http.ResponseWriter, _ *http.Request) {
+		panic(fmt.Errorf("backend handler shouldn't be called"))
+	}
+	responseExpected = `
+statusCode=401
+Www-Authenticate: Basic realm="Restricted"
+missing 'Authorization' request header`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// all the backend_urls are unavailable for unauthorized user
+	cfgStr = `
+unauthorized_user:
+  url_map:
+  - src_paths: ["/foo/.*"]
+    url_prefix:
+    - http://127.0.0.1:1/
+    - http://127.0.0.1:2/`
+	requestURL = "http://some-host.com/foo/?de=fg"
+	backendHandler = func(_ http.ResponseWriter, _ *http.Request) {
+		panic(fmt.Errorf("backend handler shouldn't be called"))
+	}
+	responseExpected = `
+statusCode=503
+remoteAddr: "42.2.3.84:6789"; requestURI: /foo/?de=fg; all the backends for the user "" are unavailable`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// all the backend_urls are unavailable for authorized user
+	cfgStr = `
+users:
+- username: some-user
+  url_map:
+  - src_paths: ["/foo/.*"]
+    url_prefix:
+    - http://127.0.0.1:1/
+    - http://127.0.0.1:2/`
+	requestURL = "http://some-user@some-host.com/foo/?de=fg"
+	backendHandler = func(_ http.ResponseWriter, _ *http.Request) {
+		panic(fmt.Errorf("backend handler shouldn't be called"))
+	}
+	responseExpected = `
+statusCode=503
+remoteAddr: "42.2.3.84:6789"; requestURI: /foo/?de=fg; all the backends for the user "some-user" are unavailable`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 }
 

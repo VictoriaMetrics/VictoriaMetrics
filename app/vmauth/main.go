@@ -117,8 +117,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 
-		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
-		http.Error(w, "missing 'Authorization' request header", http.StatusUnauthorized)
+		handleMissingAuthorizationError(w)
 		return true
 	}
 
@@ -189,12 +188,11 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 			// to a route that is not in the configuration for unauthorized user.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5236
 			if ui.BearerToken == "" && ui.Username == "" && len(*authUsers.Load()) > 0 {
-				w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
-				http.Error(w, "missing `Authorization` request header", http.StatusUnauthorized)
+				handleMissingAuthorizationError(w)
 				return
 			}
 			missingRouteRequests.Inc()
-			httpserver.Errorf(w, r, "missing route for %q", u.String())
+			httpserver.Errorf(w, r, "missing route for %s", u.String())
 			return
 		}
 		up, hc = ui.DefaultURL, ui.HeadersConf
@@ -490,6 +488,11 @@ vmauth authenticates and authorizes incoming requests and proxies them to Victor
 See the docs at https://docs.victoriametrics.com/vmauth/ .
 `
 	flagutil.Usage(s)
+}
+
+func handleMissingAuthorizationError(w http.ResponseWriter) {
+	w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+	http.Error(w, "missing 'Authorization' request header", http.StatusUnauthorized)
 }
 
 func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err error) {
