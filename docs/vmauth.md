@@ -78,8 +78,7 @@ For example, the following [`-auth.config`](#auth-config) instructs `vmauth` to 
   For example, the request to `http://vmauth:8427/app1/foo/bar?baz=qwe` is proxied to `http://app1-backend/foo/bar?baz=qwe`.
 - Requests starting with `/app2/` are proxied to `http://app2-backend/`, while the `/app2/` path prefix is dropped according to [`drop_src_path_prefix_parts`](#dropping-request-path-prefix).
   For example, the request to `http://vmauth:8427/app2/index.html` is proxied to `http://app2-backend/index.html`.
-- Other requests are proxied to `http://some-backend/404-page.html`, while the requested path is passed via `request_path` query arg.
-  For example, the request to `http://vmauth:8427/foo/bar?baz=qwe` is proxied to `http://some-backend/404-page.html?request_path=%2Ffoo%2Fbar%3Fbaz%3Dqwe`.
+- Other requests are proxied to `http://default-backed/`.
 
 ```yaml
 unauthorized_user:
@@ -92,7 +91,26 @@ unauthorized_user:
     - "/app2/.*"
     drop_src_path_prefix_parts: 1
     url_prefix: "http://app2-backend/"
-  default_url: http://some-backend/404-page.html
+  url_prefix: "http://default-backed/"
+```
+
+Sometimes it is needed to proxy all the requests, which do not match `url_map`, to a special `404` page, which could count invalid requests.
+Use `default_url` for this case. For example, the following [`-auth.config`](#auth-config) instructs `vmauth` sending all the requests,
+which do not match `url_map`, to the `http://some-backend/404-page.html` page. The requested path is passed via `request_path` query arg.
+For example, the request to `http://vmauth:8427/foo/bar?baz=qwe` is proxied to `http://some-backend/404-page.html?request_path=%2Ffoo%2Fbar%3Fbaz%3Dqwe`.
+
+```yaml
+unauthorized_user:
+  url_map:
+  - src_paths:
+    - "/app1/.*"
+    drop_src_path_prefix_parts: 1
+    url_prefix: "http://app1-backend/"
+  - src_paths:
+    - "/app2/.*"
+    drop_src_path_prefix_parts: 1
+    url_prefix: "http://app2-backend/"
+  default_url: "http://some-backend/404-page.html"
 ```
 
 See [routing docs](#routing) for details.
