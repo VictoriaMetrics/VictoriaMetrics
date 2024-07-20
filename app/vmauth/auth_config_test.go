@@ -418,7 +418,7 @@ users:
 				HeadersConf: HeadersConf{
 					RequestHeaders: []*Header{
 						mustNewHeader("'foo: bar'"),
-						mustNewHeader("'xxx: y'"),
+						mustNewHeader("'xxx:'"),
 					},
 				},
 			},
@@ -437,7 +437,7 @@ users:
     url_prefix: ["http://vminsert1/insert/0/prometheus","http://vminsert2/insert/0/prometheus"]
     headers:
     - "foo: bar"
-    - "xxx: y"
+    - "xxx:"
 `, map[string]*UserInfo{
 		getHTTPAuthBearerToken("foo"):    sharedUserInfo,
 		getHTTPAuthBasicToken("foo", ""): sharedUserInfo,
@@ -723,9 +723,9 @@ func TestGetLeastLoadedBackendURL(t *testing.T) {
 
 	fn := func(ns ...int) {
 		t.Helper()
-		bus := up.bus.Load()
-		pbus := *bus
-		for i, b := range pbus {
+		pbus := up.bus.Load()
+		bus := *pbus
+		for i, b := range bus {
 			got := int(b.concurrentRequests.Load())
 			exp := ns[i]
 			if got != exp {
@@ -735,39 +735,39 @@ func TestGetLeastLoadedBackendURL(t *testing.T) {
 	}
 
 	up.getBackendURL()
-	fn(0, 1, 0)
+	fn(1, 0, 0)
 	up.getBackendURL()
-	fn(0, 1, 1)
+	fn(1, 1, 0)
 	up.getBackendURL()
 	fn(1, 1, 1)
 
 	up.getBackendURL()
 	up.getBackendURL()
-	fn(1, 2, 2)
+	fn(2, 2, 1)
 
 	bus := up.bus.Load()
 	pbus := *bus
 	pbus[0].concurrentRequests.Add(2)
 	pbus[2].concurrentRequests.Add(5)
-	fn(3, 2, 7)
+	fn(4, 2, 6)
 
 	up.getBackendURL()
-	fn(3, 3, 7)
+	fn(4, 3, 6)
 
 	up.getBackendURL()
-	fn(3, 4, 7)
+	fn(4, 4, 6)
 
 	up.getBackendURL()
-	fn(4, 4, 7)
+	fn(4, 5, 6)
 
 	up.getBackendURL()
-	fn(5, 4, 7)
+	fn(5, 5, 6)
 
 	up.getBackendURL()
-	fn(5, 5, 7)
+	fn(6, 5, 6)
 
 	up.getBackendURL()
-	fn(6, 5, 7)
+	fn(6, 6, 6)
 
 	up.getBackendURL()
 	fn(6, 6, 7)

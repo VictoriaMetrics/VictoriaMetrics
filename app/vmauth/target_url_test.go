@@ -335,8 +335,8 @@ func TestUserInfoGetBackendURL_SRV(t *testing.T) {
 		t.Fatalf("cannot initialize urls inside UserInfo: %s", err)
 	}
 
-	f(ui, `/select/0/prometheus/api/v1/query?query=up`, "http://10.6.142.51:8481/select/0/prometheus/api/v1/query?query=up")
 	f(ui, `/select/0/prometheus/api/v1/query?query=up`, "http://10.6.142.50:8481/select/0/prometheus/api/v1/query?query=up")
+	f(ui, `/select/0/prometheus/api/v1/query?query=up`, "http://10.6.142.51:8481/select/0/prometheus/api/v1/query?query=up")
 	f(ui, `/insert/0/prometheus/api/v1/write`, "http://10.6.142.52:8480/insert/0/prometheus/api/v1/write")
 	// unsuccessful dns resolve
 	f(ui, `/test`, "http://non-exist-dns-addr/test")
