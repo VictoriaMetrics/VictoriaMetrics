@@ -45,7 +45,6 @@ const TableSettings: FC<TableSettingsProps> = ({
   };
 
   const toggleAllColumns = () => {
-    console.log(defaultColumns.length);
     if (defaultColumns.length == columns.length) {
       onChangeColumns([]);
     } else {
