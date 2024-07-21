@@ -1507,7 +1507,7 @@ func TestStorageGetTSDBStatus(t *testing.T) {
 
 	path := t.Name() + "/AddRowsAndGetStatusWithPerDayIndexesEnabled"
 	disablePerDayIndexes := false
-	s := MustOpenStorage(path, 0, 0, 0, false)
+	s := MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
 	s.AddRows(mrs, defaultPrecisionBits)
 	s.DebugFlush()
 	for day, tr := range trs {
@@ -1570,7 +1570,112 @@ func TestStorageGetTSDBStatus(t *testing.T) {
 }
 
 func TestStorageSearchMetricNames(t *testing.T) {
-	t.Skip()
+	defer testRemoveAll(t)
+
+	assertMetricNames := func(s *Storage, tr TimeRange, want []string) {
+		t.Helper()
+		tfsAll := NewTagFilters()
+		if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+			panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
+		}
+		got, err := s.SearchMetricNames(nil, []*TagFilters{tfsAll}, tr, 1e6, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchMetricNames(%v) failed unexpectedly", &tr)
+		}
+		for i, name := range got {
+			var mn MetricName
+			if err := mn.Unmarshal([]byte(name)); err != nil {
+				t.Fatalf("mn.Unmarshal(%q) failed unexpectedly", name)
+			}
+			got[i] = string(mn.MetricGroup)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("[%v] unexpected metric names: got %v, want %v", &tr, got, want)
+		}
+	}
+
+	const (
+		days = 4
+		rows = 10
+	)
+	var trs []TimeRange
+	var mrs []MetricRow
+	var want []string
+	rng := rand.New(rand.NewSource(1))
+	for day := 1; day <= 4; day++ {
+		tr := TimeRange{
+			MinTimestamp: time.Date(2024, 1, day, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2024, 1, day, 23, 59, 59, 999, time.UTC).UnixMilli(),
+		}
+		trs = append(trs, tr)
+		for row := 0; row < rows; row++ {
+			name := fmt.Sprintf("metric_%d", 10*day+row)
+			mn := &MetricName{
+				MetricGroup: []byte(name),
+			}
+			metricNameRaw := mn.marshalRaw(nil)
+			want = append(want, string(name))
+			mrs = append(mrs, MetricRow{
+				MetricNameRaw: metricNameRaw,
+				Timestamp:     rng.Int63n(tr.MaxTimestamp-tr.MinTimestamp) + tr.MinTimestamp,
+				Value:         rng.NormFloat64() * 1e6,
+			})
+
+		}
+	}
+
+	path := t.Name() + "/AddRowsAndSearcMetricNameshWithPerDayIndexesEnabled"
+	disablePerDayIndexes := false
+	s := MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	for day, tr := range trs {
+		assertMetricNames(s, tr, want[day*rows:(day+1)*rows])
+	}
+	s.MustClose()
+
+	path = t.Name() + "/AddRowsAndSearcMetricNameshWithPerDayIndexesDisabled"
+	disablePerDayIndexes = true
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	for _, tr := range trs {
+		assertMetricNames(s, tr, want)
+	}
+	s.MustClose()
+
+	path = t.Name() + "/AddRowsWithPerDayIndexesEnabledSearchMetricNamesWithDisabled"
+	disablePerDayIndexes = false
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	s.MustClose()
+	disablePerDayIndexes = true
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	for _, tr := range trs {
+		assertMetricNames(s, tr, want)
+	}
+	s.MustClose()
+
+	path = t.Name() + "/AddRowsWithPerDayIndexesDisabledSearchMetricNamesWithEnabled"
+	disablePerDayIndexes = true
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	s.MustClose()
+	disablePerDayIndexes = false
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	for _, tr := range trs {
+		assertMetricNames(s, tr, nil)
+	}
+	// Verify that TSDB shows correct numbers after populating per-day indexes
+	// by registering metric names.
+	s.RegisterMetricNames(nil, mrs)
+	s.DebugFlush()
+	for day, tr := range trs {
+		assertMetricNames(s, tr, want[day*rows:(day+1)*rows])
+	}
+	s.MustClose()
 }
 
 func TestStorageDeleteSeries2(t *testing.T) {

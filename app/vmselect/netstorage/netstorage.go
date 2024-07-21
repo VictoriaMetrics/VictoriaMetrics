@@ -1093,12 +1093,14 @@ var exportWorkPool = &sync.Pool{
 //
 // The returned metric names must be unmarshaled via storage.MetricName.UnmarshalString().
 func SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutils.Deadline) ([]string, error) {
+	// TODO(rtm0): How to handle global index search here?
 	qt = qt.NewChild("fetch metric names: %s", sq)
 	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting to search metric names: %s", deadline.String())
 	}
 
+	// TODO(rtm0): How to handle global index search here?
 	// Setup search.
 	tr := sq.GetTimeRange()
 	if err := vmstorage.CheckTimeRange(tr); err != nil {

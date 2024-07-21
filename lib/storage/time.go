@@ -33,6 +33,12 @@ type TimeRange struct {
 	MaxTimestamp int64
 }
 
+// Zero time range and zero date are used to force global index search.
+var (
+	globalIndexTimeRange = TimeRange{}
+	globalIndexDate      = uint64(0)
+)
+
 func (tr *TimeRange) String() string {
 	start := TimestampToHumanReadableFormat(tr.MinTimestamp)
 	end := TimestampToHumanReadableFormat(tr.MaxTimestamp)

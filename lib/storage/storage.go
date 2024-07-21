@@ -1126,11 +1126,44 @@ func nextRetentionDeadlineSeconds(atSecs, retentionSecs, offsetSecs int64) int64
 	return deadline
 }
 
-// SearchMetricNames returns marshaled metric names matching the given tfss on the given tr.
+// SearchMetricNames returns marshaled metric names matching the given tfss on
+// the given tr.
 //
-// The marshaled metric names must be unmarshaled via MetricName.UnmarshalString().
+// The marshaled metric names must be unmarshaled via
+// MetricName.UnmarshalString().
+//
+// If -disablePerDayIndexes flag is not set, the metric names are searched
+// within the given time range (as long as the time range is no more than 40
+// days), i.e. the per-day indexes are used for searching.
+//
+// If -disablePerDayIndexes is set or the time range is more than 40 days, the
+// time range is ignored and the metrics are searched within the entire
+// retention period, i.e. global indexes are used for calculation.
+//
+// If the data is ingested with per-day indexes enabled and then the metrics are
+// searched with per-day indexes disabled, the status will still contain the
+// correct numbers because at the ingestion time both indexes (per-day and
+// global) are populated.
+//
+// However, if the data is ingested with per-day indexes disabled and then the
+// metric names are searched with per-day indexes enabled the search result will
+// be incorrect: either 1) no metric names are found (if no data ingestion has
+// happened yet after changing the flag value) or 2) the set of found metrics
+// will be incomplete (if some data has been ingested after changing the flag
+// value). This is because at the time of initial ingestion nothing is written
+// to the per-day index and at the search time the query is performed on the
+// per-day indexes.
+//
+// To fix that, the per-day indexes need to be populated.  One way to do that is
+// by re-registering metric names for each date the data has been previously
+// ingested for.
 func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
-	qt = qt.NewChild("search for matching metric names: filters=%s, timeRange=%s", tfss, &tr)
+	if s.disablePerDayIndexes {
+		tr = globalIndexTimeRange
+		qt = qt.NewChild("search for matching metric names in global index: filters=%s", tfss)
+	} else {
+		qt = qt.NewChild("search for matching metric names in per-day index: filters=%s, timeRange=%s", tfss, &tr)
+	}
 	defer qt.Done()
 
 	metricIDs, err := s.idb().searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
