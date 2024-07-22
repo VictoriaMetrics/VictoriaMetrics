@@ -15,7 +15,18 @@ aliases:
 
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
-> **Important note: Users are strongly encouraged to upgrade to `vmanomaly` [v1.9.2](https://hub.docker.com/repository/docker/victoriametrics/vmanomaly/tags?page=1&ordering=name) or newer for optimal performance and accuracy. <br><br> This recommendation is crucial for configurations with a low `infer_every` parameter [in your scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#parameters-1), and in scenarios where data exhibits significant high-order seasonality patterns (such as hourly or daily cycles). Previous versions from v1.5.1 to v1.8.0 were identified to contain a critical issue impacting model training, where models were inadvertently trained on limited data subsets, leading to suboptimal fits, affecting the accuracy of anomaly detection. <br><br> Upgrading to v1.9.2 addresses this issue, ensuring proper model training and enhanced reliability. For users utilizing Helm charts, it is recommended to upgrade to version [1.0.0](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/CHANGELOG.md#100) or newer.**
+> **Important note: Users are strongly encouraged to upgrade to `vmanomaly` [v1.9.2](https://hub.docker.com/repository/docker/victoriametrics/vmanomaly/tags?page=1&ordering=name) or newer for optimal performance and accuracy. <br><br> This recommendation is crucial for configurations with a low `infer_every` parameter [in your scheduler](/anomaly-detection/components/scheduler/#parameters-1), and in scenarios where data exhibits significant high-order seasonality patterns (such as hourly or daily cycles). Previous versions from v1.5.1 to v1.8.0 were identified to contain a critical issue impacting model training, where models were inadvertently trained on limited data subsets, leading to suboptimal fits, affecting the accuracy of anomaly detection. <br><br> Upgrading to v1.9.2 addresses this issue, ensuring proper model training and enhanced reliability. For users utilizing Helm charts, it is recommended to upgrade to version [1.0.0](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/CHANGELOG.md#100) or newer.**
+
+## v1.13.3
+Released: 2024-07-17
+- FIX: now validation of `args` argument for [`HoltWinters`](/anomaly-detection/components/models#holt-winters) model works properly.
+
+## v1.13.2
+Released: 2024-07-15
+- IMPROVEMENT: update `node-exporter` [preset](/anomaly-detection/presets/#node-exporter) to reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/index.html#false-positive)
+- FIX: add `verify_tls` arg for [`push`](/anomaly-detection/components/monitoring/#push-config-parameters) monitoring section. Also, `verify_tls` is now correctly used in [VmWriter](/anomaly-detection/components/writer/#vm-writer).
+- FIX: now [`AutoTuned`](/anomaly-detection/components/models/#autotuned) model wrapper works correctly in [on-disk model storage mode](/anomaly-detection/faq/#resource-consumption-of-vmanomaly).
+- FIX: now [rolling models](/anomaly-detection/components/models/#rolling-models), like [`RollingQuantile`](/anomaly-detection/components/models/#rolling-quantile) are properly handled in [One-off scheduler](/anomaly-detection/components/scheduler/#oneoff-scheduler), when wrapped in [`AutoTuned`](/anomaly-detection/components/models/#autotuned)
 
 ## v1.13.0
 Released: 2024-06-11

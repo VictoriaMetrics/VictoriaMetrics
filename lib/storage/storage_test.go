@@ -2,12 +2,12 @@ package storage
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
-	"strings"
 	"sync"
 	"testing"
 	"testing/quick"
@@ -15,6 +15,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
@@ -570,12 +571,7 @@ func testStorageRandTimestamps(s *Storage) error {
 			}
 			mrs = append(mrs, mr)
 		}
-		if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
-			errStr := err.Error()
-			if !strings.Contains(errStr, "too big timestamp") && !strings.Contains(errStr, "too small timestamp") {
-				return fmt.Errorf("unexpected error when adding mrs: %w", err)
-			}
-		}
+		s.AddRows(mrs, defaultPrecisionBits)
 	}
 
 	// Verify the storage contains rows.
@@ -691,9 +687,7 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 			}
 			mrs = append(mrs, mr)
 		}
-		if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
-			return fmt.Errorf("unexpected error when adding mrs: %w", err)
-		}
+		s.AddRows(mrs, defaultPrecisionBits)
 	}
 	s.DebugFlush()
 
@@ -1031,9 +1025,7 @@ func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 	minTimestamp := maxTimestamp - s.retentionMsecs + 3600*1000
 	for i := 0; i < addsCount; i++ {
 		mrs := testGenerateMetricRows(rng, rowsPerAdd, minTimestamp, maxTimestamp)
-		if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
-			return fmt.Errorf("unexpected error when adding mrs: %w", err)
-		}
+		s.AddRows(mrs, defaultPrecisionBits)
 	}
 
 	// Verify the storage contains rows.
@@ -1172,9 +1164,7 @@ func testStorageAddMetrics(s *Storage, workerNum int) error {
 			Timestamp:     timestamp,
 			Value:         value,
 		}
-		if err := s.AddRows([]MetricRow{mr}, defaultPrecisionBits); err != nil {
-			return fmt.Errorf("unexpected error when adding mrs: %w", err)
-		}
+		s.AddRows([]MetricRow{mr}, defaultPrecisionBits)
 	}
 
 	// Verify the storage contains rows.
@@ -1198,9 +1188,7 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 	minTimestamp := maxTimestamp - s.retentionMsecs
 	for i := 0; i < addsCount; i++ {
 		mrs := testGenerateMetricRows(rng, rowsPerAdd, minTimestamp, maxTimestamp)
-		if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
-			t.Fatalf("unexpected error when adding mrs: %s", err)
-		}
+		s.AddRows(mrs, defaultPrecisionBits)
 	}
 	// Try creating a snapshot from the storage.
 	snapshotName, err := s.CreateSnapshot()
@@ -1268,9 +1256,7 @@ func TestStorageSeriesAreNotCreatedOnStaleMarkers(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	mrs := testGenerateMetricRows(rng, 20, tr.MinTimestamp, tr.MaxTimestamp)
 	// populate storage with some rows
-	if err := s.AddRows(mrs[:10], defaultPrecisionBits); err != nil {
-		t.Fatal("error when adding mrs: %w", err)
-	}
+	s.AddRows(mrs[:10], defaultPrecisionBits)
 	s.DebugFlush()
 
 	// verify ingested rows are searchable
@@ -1289,9 +1275,7 @@ func TestStorageSeriesAreNotCreatedOnStaleMarkers(t *testing.T) {
 	for i := 0; i < len(mrs); i = i + 2 {
 		mrs[i].Value = decimal.StaleNaN
 	}
-	if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
-		t.Fatal("error when adding mrs: %w", err)
-	}
+	s.AddRows(mrs, defaultPrecisionBits)
 	s.DebugFlush()
 
 	// verify that rows marked as stale aren't searchable
@@ -1301,4 +1285,167 @@ func TestStorageSeriesAreNotCreatedOnStaleMarkers(t *testing.T) {
 	if err := os.RemoveAll(path); err != nil {
 		t.Fatalf("cannot remove %q: %s", path, err)
 	}
+}
+
+// testRemoveAll removes all storage data produced by a test if the test hasn't
+// failed. For this to work, the storage must use t.Name() as the base dir in
+// its data path.
+//
+// In case of failure, the data is kept for further debugging.
+func testRemoveAll(t *testing.T) {
+	defer func() {
+		if !t.Failed() {
+			fs.MustRemoveAll(t.Name())
+		}
+	}()
+}
+
+func TestStorageRowsNotAdded(t *testing.T) {
+	defer testRemoveAll(t)
+
+	type options struct {
+		name      string
+		retention time.Duration
+		mrs       []MetricRow
+		tr        TimeRange
+	}
+	f := func(opts *options) {
+		t.Helper()
+
+		var gotMetrics Metrics
+		path := fmt.Sprintf("%s/%s", t.Name(), opts.name)
+		s := MustOpenStorage(path, opts.retention, 0, 0)
+		defer s.MustClose()
+		s.AddRows(opts.mrs, defaultPrecisionBits)
+		s.DebugFlush()
+		s.UpdateMetrics(&gotMetrics)
+
+		got := testCountAllMetricNames(s, opts.tr)
+		if got != 0 {
+			t.Fatalf("unexpected metric name count: got %d, want 0", got)
+		}
+	}
+
+	const numRows = 1000
+	var (
+		rng          = rand.New(rand.NewSource(1))
+		retention    time.Duration
+		minTimestamp int64
+		maxTimestamp int64
+		mrs          []MetricRow
+	)
+
+	minTimestamp = -1000
+	maxTimestamp = -1
+	f(&options{
+		name:      "NegativeTimestamps",
+		retention: retentionMax,
+		mrs:       testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp),
+		tr:        TimeRange{minTimestamp, maxTimestamp},
+	})
+
+	retention = 48 * time.Hour
+	minTimestamp = time.Now().Add(-retention - time.Hour).UnixMilli()
+	maxTimestamp = minTimestamp + 1000
+	f(&options{
+		name:      "TooSmallTimestamps",
+		retention: retention,
+		mrs:       testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp),
+		tr:        TimeRange{minTimestamp, maxTimestamp},
+	})
+
+	retention = 48 * time.Hour
+	minTimestamp = time.Now().Add(7 * 24 * time.Hour).UnixMilli()
+	maxTimestamp = minTimestamp + 1000
+	f(&options{
+		name:      "TooBigTimestamps",
+		retention: retention,
+		mrs:       testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp),
+		tr:        TimeRange{minTimestamp, maxTimestamp},
+	})
+
+	minTimestamp = time.Now().UnixMilli()
+	maxTimestamp = minTimestamp + 1000
+	mrs = testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp)
+	for i := range numRows {
+		mrs[i].Value = math.NaN()
+	}
+	f(&options{
+		name: "NaN",
+		mrs:  mrs,
+		tr:   TimeRange{minTimestamp, maxTimestamp},
+	})
+
+	minTimestamp = time.Now().UnixMilli()
+	maxTimestamp = minTimestamp + 1000
+	mrs = testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp)
+	for i := range numRows {
+		mrs[i].Value = decimal.StaleNaN
+	}
+	f(&options{
+		name: "StaleNaN",
+		mrs:  mrs,
+		tr:   TimeRange{minTimestamp, maxTimestamp},
+	})
+
+	minTimestamp = time.Now().UnixMilli()
+	maxTimestamp = minTimestamp + 1000
+	mrs = testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp)
+	for i := range numRows {
+		mrs[i].MetricNameRaw = []byte("garbage")
+	}
+	f(&options{
+		name: "InvalidMetricNameRaw",
+		mrs:  mrs,
+		tr:   TimeRange{minTimestamp, maxTimestamp},
+	})
+}
+
+func TestStorageRowsNotAdded_SeriesLimitExceeded(t *testing.T) {
+	defer testRemoveAll(t)
+
+	f := func(name string, maxHourlySeries int, maxDailySeries int) {
+		t.Helper()
+
+		rng := rand.New(rand.NewSource(1))
+		numRows := uint64(1000)
+		minTimestamp := time.Now().UnixMilli()
+		maxTimestamp := minTimestamp + 1000
+		mrs := testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp)
+
+		var gotMetrics Metrics
+		path := fmt.Sprintf("%s/%s", t.Name(), name)
+		s := MustOpenStorage(path, 0, maxHourlySeries, maxDailySeries)
+		defer s.MustClose()
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+		s.UpdateMetrics(&gotMetrics)
+
+		want := numRows - (gotMetrics.HourlySeriesLimitRowsDropped + gotMetrics.DailySeriesLimitRowsDropped)
+		if got := testCountAllMetricNames(s, TimeRange{minTimestamp, maxTimestamp}); uint64(got) != want {
+			t.Fatalf("unexpected metric name count: %d, want %d", got, want)
+		}
+	}
+
+	maxHourlySeries := 1
+	maxDailySeries := 0 // No limit
+	f("HourlyLimitExceeded", maxHourlySeries, maxDailySeries)
+
+	maxHourlySeries = 0 // No limit
+	maxDailySeries = 1
+	f("DailyLimitExceeded", maxHourlySeries, maxDailySeries)
+}
+
+// testCountAllMetricNames is a test helper function that counts the names of
+// all time series within the given time range.
+func testCountAllMetricNames(s *Storage, tr TimeRange) int {
+	tfsAll := NewTagFilters()
+	if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+		panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
+	}
+	names, err := s.SearchMetricNames(nil, []*TagFilters{tfsAll}, tr, 1e9, noDeadline)
+	if err != nil {
+		panic(fmt.Sprintf("SeachMetricNames() failed unexpectedly: %v", err))
+	}
+	return len(names)
 }

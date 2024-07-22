@@ -5,30 +5,27 @@ import (
 )
 
 func TestInRange(t *testing.T) {
-	testCases := []struct {
-		filterMin, filterMax int64
-		blockMin, blockMax   int64
-		expected             bool
-	}{
-		{0, 0, 1, 2, true},
-		{0, 3, 1, 2, true},
-		{0, 3, 4, 5, false},
-		{3, 0, 1, 2, false},
-		{3, 0, 2, 4, true},
-		{3, 10, 1, 2, false},
-		{3, 10, 1, 4, true},
-		{3, 10, 5, 9, true},
-		{3, 10, 9, 12, true},
-		{3, 10, 12, 15, false},
-	}
-	for _, tc := range testCases {
+	f := func(filterMin, filterMax, blockMin, blockMax int64, resultExpected bool) {
+		t.Helper()
+
 		f := filter{
-			min: tc.filterMin,
-			max: tc.filterMax,
+			min: filterMin,
+			max: filterMax,
 		}
-		got := f.inRange(tc.blockMin, tc.blockMax)
-		if got != tc.expected {
-			t.Fatalf("got %v; expected %v: %v", got, tc.expected, tc)
+		result := f.inRange(blockMin, blockMax)
+		if result != resultExpected {
+			t.Fatalf("unexpected result; got %v; want %v", result, resultExpected)
 		}
 	}
+
+	f(0, 0, 1, 2, true)
+	f(0, 3, 1, 2, true)
+	f(0, 3, 4, 5, false)
+	f(3, 0, 1, 2, false)
+	f(3, 0, 2, 4, true)
+	f(3, 10, 1, 2, false)
+	f(3, 10, 1, 4, true)
+	f(3, 10, 5, 9, true)
+	f(3, 10, 9, 12, true)
+	f(3, 10, 12, 15, false)
 }

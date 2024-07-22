@@ -35,6 +35,8 @@ type Deduplicator struct {
 // An optional dropLabels list may contain label names, which must be dropped before de-duplicating samples.
 // Common case is to drop `replica`-like labels from samples received from HA datasources.
 //
+// alias is url label used in metrics exposed by the returned Deduplicator.
+//
 // MustStop must be called on the returned deduplicator in order to free up occupied resources.
 func NewDeduplicator(pushFunc PushFunc, dedupInterval time.Duration, dropLabels []string, alias string) *Deduplicator {
 	d := &Deduplicator{
@@ -47,7 +49,8 @@ func NewDeduplicator(pushFunc PushFunc, dedupInterval time.Duration, dropLabels 
 
 	ms := d.ms
 
-	metricLabels := fmt.Sprintf(`url=%q`, alias)
+	metricLabels := fmt.Sprintf(`name="dedup",url=%q`, alias)
+
 	_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_dedup_state_size_bytes{%s}`, metricLabels), func() float64 {
 		return float64(d.da.sizeBytes())
 	})
@@ -55,8 +58,8 @@ func NewDeduplicator(pushFunc PushFunc, dedupInterval time.Duration, dropLabels 
 		return float64(d.da.itemsCount())
 	})
 
-	d.dedupFlushDuration = ms.GetOrCreateHistogram(fmt.Sprintf(`vm_streamaggr_dedup_flush_duration_seconds{%s}`, metricLabels))
-	d.dedupFlushTimeouts = ms.GetOrCreateCounter(fmt.Sprintf(`vm_streamaggr_dedup_flush_timeouts_total{%s}`, metricLabels))
+	d.dedupFlushDuration = ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_dedup_flush_duration_seconds{%s}`, metricLabels))
+	d.dedupFlushTimeouts = ms.NewCounter(fmt.Sprintf(`vm_streamaggr_dedup_flush_timeouts_total{%s}`, metricLabels))
 
 	metrics.RegisterSet(ms)
 
@@ -71,7 +74,7 @@ func NewDeduplicator(pushFunc PushFunc, dedupInterval time.Duration, dropLabels 
 
 // MustStop stops d.
 func (d *Deduplicator) MustStop() {
-	metrics.UnregisterSet(d.ms)
+	metrics.UnregisterSet(d.ms, true)
 	d.ms = nil
 
 	close(d.stopCh)

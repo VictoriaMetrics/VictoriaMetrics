@@ -9,11 +9,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
-// totalAggrState calculates output=total, e.g. the summary counter over input counters.
+// totalAggrState calculates output=total, total_prometheus, increase and increase_prometheus.
 type totalAggrState struct {
 	m sync.Map
-
-	suffix string
 
 	// Whether to reset the output value on every flushState call.
 	resetTotalOnFlush bool
@@ -50,15 +48,8 @@ type totalLastValueState struct {
 func newTotalAggrState(stalenessInterval time.Duration, resetTotalOnFlush, keepFirstSample bool) *totalAggrState {
 	stalenessSecs := roundDurationToSecs(stalenessInterval)
 	ignoreFirstSampleDeadline := fasttime.UnixTimestamp() + stalenessSecs
-	suffix := "total"
-	if resetTotalOnFlush {
-		suffix = "increase"
-	}
-	if !keepFirstSample {
-		suffix += "_prometheus"
-	}
+
 	return &totalAggrState{
-		suffix:                    suffix,
 		resetTotalOnFlush:         resetTotalOnFlush,
 		keepFirstSample:           keepFirstSample,
 		stalenessSecs:             stalenessSecs,
@@ -124,48 +115,18 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *totalAggrState) removeOldEntries(ctx *flushCtx, currentTime uint64) {
-	m := &as.m
-	var staleInputSamples, staleOutputSamples int
-	m.Range(func(k, v any) bool {
-		sv := v.(*totalStateValue)
-
-		sv.mu.Lock()
-		deleted := currentTime > sv.deleteDeadline
-		if deleted {
-			// Mark the current entry as deleted
-			sv.deleted = deleted
-			staleOutputSamples++
-		} else {
-			// Delete outdated entries in sv.lastValues
-			m := sv.lastValues
-			for k1, v1 := range m {
-				if currentTime > v1.deleteDeadline {
-					delete(m, k1)
-					staleInputSamples++
-				}
-			}
-		}
-		sv.mu.Unlock()
-
-		if deleted {
-			m.Delete(k)
-		}
-		return true
-	})
-	ctx.a.staleInputSamples[as.suffix].Add(staleInputSamples)
-	ctx.a.staleOutputSamples[as.suffix].Add(staleOutputSamples)
-}
-
 func (as *totalAggrState) flushState(ctx *flushCtx, resetState bool) {
 	currentTime := fasttime.UnixTimestamp()
 	currentTimeMsec := int64(currentTime) * 1000
 
-	as.removeOldEntries(ctx, currentTime)
+	suffix := as.getSuffix()
+
+	as.removeOldEntries(currentTime)
 
 	m := &as.m
 	m.Range(func(k, v any) bool {
 		sv := v.(*totalStateValue)
+
 		sv.mu.Lock()
 		total := sv.total
 		if resetState {
@@ -178,10 +139,51 @@ func (as *totalAggrState) flushState(ctx *flushCtx, resetState bool) {
 		}
 		deleted := sv.deleted
 		sv.mu.Unlock()
+
 		if !deleted {
 			key := k.(string)
-			ctx.appendSeries(key, as.suffix, currentTimeMsec, total)
+			ctx.appendSeries(key, suffix, currentTimeMsec, total)
 		}
+		return true
+	})
+}
+
+func (as *totalAggrState) getSuffix() string {
+	// Note: this function is at hot path, so it shouldn't allocate.
+	if as.resetTotalOnFlush {
+		if as.keepFirstSample {
+			return "increase"
+		}
+		return "increase_prometheus"
+	}
+	if as.keepFirstSample {
+		return "total"
+	}
+	return "total_prometheus"
+}
+
+func (as *totalAggrState) removeOldEntries(currentTime uint64) {
+	m := &as.m
+	m.Range(func(k, v any) bool {
+		sv := v.(*totalStateValue)
+
+		sv.mu.Lock()
+		if currentTime > sv.deleteDeadline {
+			// Mark the current entry as deleted
+			sv.deleted = true
+			sv.mu.Unlock()
+			m.Delete(k)
+			return true
+		}
+
+		// Delete outdated entries in sv.lastValues
+		lvs := sv.lastValues
+		for k1, lv := range lvs {
+			if currentTime > lv.deleteDeadline {
+				delete(lvs, k1)
+			}
+		}
+		sv.mu.Unlock()
 		return true
 	})
 }

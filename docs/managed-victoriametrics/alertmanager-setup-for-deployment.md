@@ -10,38 +10,58 @@ aliases:
   - /managed-victoriametrics/alertmanager-setup-for-deployment.html
 ---
 
-## Alerting stack configuration and Managed VictoriaMetrics
+# Alerting stack configuration and Managed VictoriaMetrics
 
 Managed VictoriaMetrics supports configuring alerting rules, powered by vmalert, and sending notifications with hosted Alertmanager.
 
 ## Configure Alertmanager
 
-Managed VictoriaMetrics supports Alertmanager with standard [configuration](https://prometheus.io/docs/alerting/latest/configuration/).
-Configuration menu is located under `Alertmanager` section of your deployment.
+You have two options to configure Cloud Alertmanager:
 
-<img src="alertmanager-setup-for-deployment_location.webp">
+1. From integrations section: Menu **"Integrations" `->` "Cloud Alertmanager" `->` "New configuration"**:
+   <img src="alertmanager-setup-for-deployment_integrations.webp">
+2. From deployment page: **"Deployment page" `->` "Rules" tab `->` "Settings" `->` "Connect notifier" `/` "New notifier"**: 
+   <img src="alertmanager-setup-for-deployment_connect_notifier.webp">
 
-Please check the configuration options and limitations:
+For creating a new configuration, you need to provide the following parameters:
 
-### Allowed receivers
+- **Name of the configuration** (it only affects the display in the user interface)
+- **Configuration file** in [specified format](#alertmanager-config-specification)
 
-* `discord_configs`
-* `pagerduty_configs`
-* `slack_configs`
-* `webhook_configs`
-* `opsgenie_configs`
-* `wechat_configs`
-* `pushover_configs`
-* `victorops_configs`
-* `telegram_configs`
-* `webex_configs`
-* `msteams_configs`
+Before saving the configuration, you can validate it by clicking the "Test configuration" button.
 
-### Limitation
+After creating the configuration, you can connect it to one or multiple deployments.
+In order to do this you need to go to the "Deployment page" `->` "Rules" tab `->` "Settings" `,
+select the created notifier and confirm the action:
 
-All configuration params with `_file` suffix are not allowed for security reasons.
+<img src="alertmanager-setup-for-deployment_select_notifier.webp">
+
+Alertmanager is now set up for your deployment, and you be able to get notifications from it.
+
+### Alertmanager config specification
+
+Managed VictoriaMetrics supports Alertmanager with standard [configuration specification](https://prometheus.io/docs/alerting/latest/configuration/).
+
+But with respect to the specification, there are the following limitations:
+
+1. Only allowed receivers:
+   * `discord_configs`
+   * `pagerduty_configs`
+   * `slack_configs`
+   * `webhook_configs`
+   * `opsgenie_configs`
+   * `wechat_configs`
+   * `pushover_configs`
+   * `victorops_configs`
+   * `telegram_configs`
+   * `webex_configs`
+   * `msteams_configs`
+2. All configuration params with `_file` suffix are not allowed for security reasons.
+3. The maximum file size is 20mb.
 
 ### Configuration example
+
+Here is an example of Alertmanager configuration:
 
 ```yaml
 route:
@@ -103,22 +123,56 @@ receivers:
     channel: dev-alerts
 ```
 
-## Configure alerting rules
+### Custom Alertmanager
 
-Alerting and recording rules could be configured via API calls.
+If for some reason Cloud Alertmanager is not suitable for you, you can use Managed VictoriaMetrics with any external Alertmanager hosted in your infrastructure.
 
-### Managed VictoriaMetrics rules API
+For that select Custom Alertmanager instead of Cloud Alertmanager when [creating the Alertmanager](#configure-alertmanager):
 
-Managed VictoriaMetrics has the following APIs for rules:
+<img src="alertmanager-setup-for-deployment_custom_am.webp">
 
-* POST: `/api/v1/deployments/{deploymentId}/rule-sets/files/{fileName}`
-* DELETE `/api/v1/deployments/{deploymentId}/rule-sets/files/{fileName}`
+Limitations for the Custom Alertmanager:
 
-For more details, please check [OpenAPI Reference](https://cloud.victoriametrics.com/api-docs)
+- Your custom Alertmanager should be available from the Internet via **HTTPS** with **Basic authentication** or **Bearer token authentication**.
+- You will not be able to use "Alerts" tab on the deployment page.
 
-### Rules creation with API
+You can test the connection to your custom Alertmanager by clicking the "Test connection" button.
+`/api/v2/status` endpoint is used to verify that connection to Alertmanager is working.
 
-Let's create two example rules for deployment in `testing-rules.yaml`
+## Configure alerting and recording rules
+
+Alerting and recording rules could be uploaded on **"Deployment page" `->` "Rules" tab `->` "Settings"**:
+
+<img src="alertmanager-setup-for-deployment_upload_rules.webp">
+
+You can click on the upload area or drag and drop the files with rules there.
+
+Files should be in the [Prometheus alerting rules definition format](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) 
+or [Prometheus recording rules definition format](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/).
+
+There are limitations for the rules files:
+
+1. All files may contain no more than 100 rules in total. If you need to upload more rules contact us via [support@victoriametrics.com](mailto:support@victoriametrics.com).
+2. The maximum file size is 20mb.
+3. The names of the groups in the files should be unique.
+
+You can also use API for uploading rules. Switch to **"Upload with API"** on the page and follow the instructions:
+
+- Choose the API key for uploading rules
+- After that you can copy the curl command for uploading rules and execute it in your terminal
+
+<img src="alertmanager-setup-for-deployment_upload_with_api.webp">
+
+You can use the following API endpoints for the automation with rules:
+
+* POST: `/api/v1/deployments/{deploymentId}/rule-sets/files/{fileName}` - create/update rules file
+* DELETE `/api/v1/deployments/{deploymentId}/rule-sets/files/{fileName}` - delete rules file
+
+For more details, please check [OpenAPI Reference](https://cloud.victoriametrics.com/api-docs).
+
+### Example of alerting rules
+
+Here is an example of alerting rules in the Prometheus alerting rules format:
 
 ```yaml
 groups:
@@ -140,12 +194,6 @@ groups:
           severity: critical
         annotations:
           summary: "rule must be always at firing state"
-```
-
-Upload rules to the Managed VictoriaMetrics using the following command:
-
-```sh
-curl https://cloud.victoriametrics.com/api/v1/deployments/<DEPLOYMENT_ID>/rule-sets/files/testing-rules -v -H 'X-VM-Cloud-Access: <CLOUD_API_TOKEN>' -XPOST --data-binary '@testing-rules.yaml'
 ```
 
 ## Troubleshooting

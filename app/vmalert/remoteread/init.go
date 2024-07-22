@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
 
 var (
@@ -70,7 +71,7 @@ func Init() (datasource.QuerierBuilder, error) {
 		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
 	tr.IdleConnTimeout = *idleConnectionTimeout
-	tr.DialContext = httputils.GetStatDialFunc("vmalert_remoteread")
+	tr.DialContext = netutil.NewStatDialFunc("vmalert_remoteread")
 
 	endpointParams, err := flagutil.ParseJSONMap(*oauth2EndpointParams)
 	if err != nil {

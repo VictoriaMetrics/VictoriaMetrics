@@ -78,8 +78,7 @@ For example, the following [`-auth.config`](#auth-config) instructs `vmauth` to 
   For example, the request to `http://vmauth:8427/app1/foo/bar?baz=qwe` is proxied to `http://app1-backend/foo/bar?baz=qwe`.
 - Requests starting with `/app2/` are proxied to `http://app2-backend/`, while the `/app2/` path prefix is dropped according to [`drop_src_path_prefix_parts`](#dropping-request-path-prefix).
   For example, the request to `http://vmauth:8427/app2/index.html` is proxied to `http://app2-backend/index.html`.
-- Other requests are proxied to `http://some-backend/404-page.html`, while the requested path is passed via `request_path` query arg.
-  For example, the request to `http://vmauth:8427/foo/bar?baz=qwe` is proxied to `http://some-backend/404-page.html?request_path=%2Ffoo%2Fbar%3Fbaz%3Dqwe`.
+- Other requests are proxied to `http://default-backed/`.
 
 ```yaml
 unauthorized_user:
@@ -92,7 +91,26 @@ unauthorized_user:
     - "/app2/.*"
     drop_src_path_prefix_parts: 1
     url_prefix: "http://app2-backend/"
-  default_url: http://some-backend/404-page.html
+  url_prefix: "http://default-backed/"
+```
+
+Sometimes it is needed to proxy all the requests, which do not match `url_map`, to a special `404` page, which could count invalid requests.
+Use `default_url` for this case. For example, the following [`-auth.config`](#auth-config) instructs `vmauth` sending all the requests,
+which do not match `url_map`, to the `http://some-backend/404-page.html` page. The requested path is passed via `request_path` query arg.
+For example, the request to `http://vmauth:8427/foo/bar?baz=qwe` is proxied to `http://some-backend/404-page.html?request_path=%2Ffoo%2Fbar%3Fbaz%3Dqwe`.
+
+```yaml
+unauthorized_user:
+  url_map:
+  - src_paths:
+    - "/app1/.*"
+    drop_src_path_prefix_parts: 1
+    url_prefix: "http://app1-backend/"
+  - src_paths:
+    - "/app2/.*"
+    drop_src_path_prefix_parts: 1
+    url_prefix: "http://app2-backend/"
+  default_url: "http://some-backend/404-page.html"
 ```
 
 See [routing docs](#routing) for details.
@@ -129,7 +147,7 @@ unauthorized_user:
     - "/prometheus/api/v1/write"
     - "/influx/write"
     - "/api/v1/import"
-    - "/api/v1/import/.+"
+    - "/api/v1/import/.*"
     url_prefix:
     - "http://vmagent-1:8429/"
     - "http://vmagent-2:8429/"
@@ -150,13 +168,13 @@ and processes incoming requests via `vmselect` nodes according to [these docs](h
 unauthorized_user:
   url_map:
   - src_paths:
-    - "/insert/.+"
+    - "/insert/.*"
     url_prefix:
     - "http://vminsert-1:8480/"
     - "http://vminsert-2:8480/"
     - "http://vminsert-3:8480/"
   - src_paths:
-    - "/select/.+"
+    - "/select/.*"
     url_prefix:
     - "http://vmselect-1:8481/"
     - "http://vmselect-2:8481/"
@@ -327,7 +345,7 @@ unauthorized_user:
 
     # proxy all the requests, which start with `/vmagent/`, to vmagent backend
   - src_paths:
-    - "/vmagent/.+"
+    - "/vmagent/.*"
 
     # drop /vmagent/ path prefix from the original request before proxying it to url_prefix.
     drop_src_path_prefix_parts: 1
@@ -335,7 +353,7 @@ unauthorized_user:
 
     # proxy all the requests, which start with `/vmalert`, to vmalert backend
   - src_paths:
-    - "/vmalert/.+"
+    - "/vmalert/.*"
 
     # drop /vmalert/ path prefix from the original request before proxying it to url_prefix.
     drop_src_path_prefix_parts: 1
@@ -647,15 +665,6 @@ unauthorized_user:
   - "X-Forwarded-For:"
 ```
 
-it's also possible to update `Host` header to a backend's host name
-
-```yaml
-unauthorized_user:
-  url_prefix: "http://backend:1234/"
-  headers:
-  - "Host:"    # Update host header to a backend's host
-```
-
 `vmauth` also supports the ability to set and remove HTTP response headers before returning the response from the backend to client.
 This is done via `response_headers` option. For example, the following [`-auth.config`](#auth-config) sets `Foo: bar` response header
 and removes `Server` response header before returning the response to client:
@@ -666,6 +675,30 @@ unauthorized_user:
   response_headers:
   - "Foo: bar"
   - "Server:"
+```
+
+See also [`Host` header docs](#host-http-header).
+
+## Host HTTP header
+
+By default `vmauth` sets the `Host` HTTP header to the backend hostname when proxying requests to the corresponding backend.
+Sometimes it is needed to keep the original `Host` header from the client request sent to `vmauth`. For example, if backends use host-based routing.
+In this case set `keep_original_host: true`. For example, the following config instructs to use the original `Host` header from client requests
+when proxying requests to the `backend:1234`:
+
+```yaml
+unauthorized_user:
+  url_prefix: "http://backend:1234/"
+  keep_iriginal_host: true
+```
+
+It is also possible to set the `Host` header to arbitrary value when proxying the request to the configured backend, via [`headers` option](#modifying-http-headers):
+
+```yaml
+unauthorized_user:
+  url_prefix: "http://backend:1234/"
+  headers:
+  - "Host: foobar"
 ```
 
 ## Config reload
@@ -1178,7 +1211,7 @@ See the docs at https://docs.victoriametrics.com/vmauth/ .
   -filestream.disableFadvise
      Whether to disable fadvise() syscall when reading large data files. The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. In some rare cases it is better to disable the syscall if it uses too much CPU
   -flagsAuthKey value
-     Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
@@ -1218,7 +1251,7 @@ See the docs at https://docs.victoriametrics.com/vmauth/ .
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -idleConnTimeout duration
-    Defines a duration for idle (keep-alive connections) to exist. Consider setting this value less than "-http.idleConnTimeout". It must prevent possible "write: broken pipe" and "read: connection reset by peer" errors. (default 50s)
+    The timeout for HTTP keep-alive connections to backend services. It is recommended setting this value to values smaller than -http.idleConnTimeout set at backend services (default 50s)
   -internStringCacheExpireDuration duration
      The expiry duration for caches for interned strings. See https://en.wikipedia.org/wiki/String_interning . See also -internStringMaxLen and -internStringDisableCache (default 6m0s)
   -internStringDisableCache
@@ -1260,7 +1293,7 @@ See the docs at https://docs.victoriametrics.com/vmauth/ .
   -maxIdleConnsPerBackend int
      The maximum number of idle connections vmauth can open per each backend host. See also -maxConcurrentRequests (default 100)
   -maxRequestBodySizeToRetry size
-     The maximum request body size, which can be cached and re-tried at other backends. Bigger values may require more memory. Negative or zero values disable request body caching and retries.
+     The maximum request body size, which can be cached and re-tried at other backends. Bigger values may require more memory. Zero or negative value disables caching of request body. This may be useful when proxying data ingestion requests
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 16384)
   -memory.allowedBytes size
      Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
@@ -1270,7 +1303,7 @@ See the docs at https://docs.victoriametrics.com/vmauth/ .
   -metrics.exposeMetadata
      Whether to expose TYPE and HELP metadata at the /metrics page, which is exposed at -httpListenAddr . The metadata may be needed when the /metrics page is consumed by systems, which require this information. For example, Managed Prometheus in Google Cloud - https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type
   -metricsAuthKey value
-     Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
   -mtls array
      Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
@@ -1281,7 +1314,7 @@ See the docs at https://docs.victoriametrics.com/vmauth/ .
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pprofAuthKey value
-     Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -pprofAuthKey=http://host/path or -pprofAuthKey=https://host/path
   -pushmetrics.disableCompression
      Whether to disable request body compression when pushing metrics to every -pushmetrics.url
@@ -1300,7 +1333,7 @@ See the docs at https://docs.victoriametrics.com/vmauth/ .
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -reloadAuthKey value
-     Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings.
+     Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -reloadAuthKey=file:///abs/path/to/file or -reloadAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -reloadAuthKey=http://host/path or -reloadAuthKey=https://host/path
   -responseTimeout duration
      The timeout for receiving a response from backend (default 5m0s)

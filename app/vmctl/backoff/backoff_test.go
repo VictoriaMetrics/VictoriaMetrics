@@ -7,103 +7,106 @@ import (
 	"time"
 )
 
-func TestRetry_Do(t *testing.T) {
+func TestBackoffRetry_Failure(t *testing.T) {
+	f := func(backoffFactor float64, backoffRetries int, cancelTimeout time.Duration, retryFunc func() error, resultExpected int) {
+		t.Helper()
+
+		r := &Backoff{
+			retries:     backoffRetries,
+			factor:      backoffFactor,
+			minDuration: time.Millisecond * 10,
+		}
+		ctx := context.Background()
+		if cancelTimeout != 0 {
+			newCtx, cancelFn := context.WithTimeout(context.Background(), cancelTimeout)
+			ctx = newCtx
+			defer cancelFn()
+		}
+
+		result, err := r.Retry(ctx, retryFunc)
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
+		if result != uint64(resultExpected) {
+			t.Fatalf("unexpected result: got %d; want %d", result, resultExpected)
+		}
+	}
+
+	// return bad request
+	retryFunc := func() error {
+		return ErrBadRequest
+	}
+	f(0, 0, 0, retryFunc, 0)
+
+	// empty retries values
+	retryFunc = func() error {
+		time.Sleep(time.Millisecond * 100)
+		return nil
+	}
+	f(0, 0, 0, retryFunc, 0)
+
+	// all retries failed test
+	backoffFactor := 0.1
+	backoffRetries := 5
+	cancelTimeout := time.Second * 0
+	retryFunc = func() error {
+		t := time.NewTicker(time.Millisecond * 5)
+		defer t.Stop()
+		for range t.C {
+			return fmt.Errorf("got some error")
+		}
+		return nil
+	}
+	resultExpected := 5
+	f(backoffFactor, backoffRetries, cancelTimeout, retryFunc, resultExpected)
+
+	// cancel context
+	backoffFactor = 1.7
+	backoffRetries = 5
+	cancelTimeout = time.Millisecond * 40
+	retryFunc = func() error {
+		return fmt.Errorf("got some error")
+	}
+	resultExpected = 3
+	f(backoffFactor, backoffRetries, cancelTimeout, retryFunc, resultExpected)
+}
+
+func TestBackoffRetry_Success(t *testing.T) {
+	f := func(retryFunc func() error, resultExpected int) {
+		t.Helper()
+
+		r := &Backoff{
+			retries:     5,
+			factor:      1.7,
+			minDuration: time.Millisecond * 10,
+		}
+		ctx := context.Background()
+
+		result, err := r.Retry(ctx, retryFunc)
+		if err != nil {
+			t.Fatalf("Retry() error: %s", err)
+		}
+		if result != uint64(resultExpected) {
+			t.Fatalf("unexpected result: got %d; want %d", result, resultExpected)
+		}
+	}
+
+	// only one retry test
 	counter := 0
-	tests := []struct {
-		name               string
-		backoffRetries     int
-		backoffFactor      float64
-		backoffMinDuration time.Duration
-		retryableFunc      retryableFunc
-		cancelTimeout      time.Duration
-		want               uint64
-		wantErr            bool
-	}{
-		{
-			name: "return bad request",
-			retryableFunc: func() error {
-				return ErrBadRequest
-			},
-			want:    0,
-			wantErr: true,
-		},
-		{
-			name: "empty retries values",
-			retryableFunc: func() error {
-				time.Sleep(time.Millisecond * 100)
-				return nil
-			},
-			want:    0,
-			wantErr: true,
-		},
-		{
-			name:               "only one retry test",
-			backoffRetries:     5,
-			backoffFactor:      1.7,
-			backoffMinDuration: time.Millisecond * 10,
-			retryableFunc: func() error {
-				t := time.NewTicker(time.Millisecond * 5)
-				defer t.Stop()
-				for range t.C {
-					counter++
-					if counter%2 == 0 {
-						return fmt.Errorf("got some error")
-					}
-					if counter%3 == 0 {
-						return nil
-					}
-				}
-				return nil
-			},
-			want:    1,
-			wantErr: false,
-		},
-		{
-			name:               "all retries failed test",
-			backoffRetries:     5,
-			backoffFactor:      0.1,
-			backoffMinDuration: time.Millisecond * 10,
-			retryableFunc: func() error {
-				t := time.NewTicker(time.Millisecond * 5)
-				defer t.Stop()
-				for range t.C {
-					return fmt.Errorf("got some error")
-				}
-				return nil
-			},
-			want:    5,
-			wantErr: true,
-		},
-		{
-			name:               "cancel context",
-			backoffRetries:     5,
-			backoffFactor:      1.7,
-			backoffMinDuration: time.Millisecond * 10,
-			retryableFunc: func() error {
+	retryFunc := func() error {
+		t := time.NewTicker(time.Millisecond * 5)
+		defer t.Stop()
+		for range t.C {
+			counter++
+			if counter%2 == 0 {
 				return fmt.Errorf("got some error")
-			},
-			cancelTimeout: time.Millisecond * 40,
-			want:          3,
-			wantErr:       true,
-		},
+			}
+			if counter%3 == 0 {
+				return nil
+			}
+		}
+		return nil
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := &Backoff{retries: tt.backoffRetries, factor: tt.backoffFactor, minDuration: tt.backoffMinDuration}
-			ctx := context.Background()
-			if tt.cancelTimeout != 0 {
-				newCtx, cancelFn := context.WithTimeout(context.Background(), tt.cancelTimeout)
-				ctx = newCtx
-				defer cancelFn()
-			}
-			got, err := r.Retry(ctx, tt.retryableFunc)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Retry() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("Retry() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	resultExpected := 1
+	f(retryFunc, resultExpected)
 }

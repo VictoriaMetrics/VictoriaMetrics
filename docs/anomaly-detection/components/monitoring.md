@@ -76,6 +76,11 @@ There are 2 models to monitor VictoriaMetrics Anomaly Detection behavior - [push
             <td>BasicAuth password</td>
         </tr>
         <tr>
+            <td><code>verify_tls</code></td>
+            <td><code>False</code></td>
+            <td>Allows disabling TLS verification of the remote certificate.</td>
+        </tr>
+        <tr>
             <td><code>timeout</code></td>
             <td><code>"5s"</code></td>
             <td>Stop waiting for a response after a given number of seconds.</td>
@@ -100,6 +105,7 @@ monitoring:
     tenant_id: "0:0" # For cluster version only
     user: "USERNAME"
     password: "PASSWORD"
+    verify_tls: False
     timeout: "5s"
     extra_labels:
       job: "vmanomaly-push"

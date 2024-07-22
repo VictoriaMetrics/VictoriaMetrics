@@ -220,9 +220,11 @@ See also [descent_over_time](#descent_over_time).
 over [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) on the given lookbehind window `d` per each time series returned
 from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
 
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
+
 This function is supported by PromQL.
 
-See also [median_over_time](#median_over_time).
+See also [median_over_time](#median_over_time), [min_over_time](#min_over_time) and [max_over_time](#max_over_time).
 
 #### changes
 
@@ -262,6 +264,8 @@ from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#f
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
+
 See also [count_over_time](#count_over_time), [share_eq_over_time](#share_eq_over_time) and [count_values_over_time](#count_values_over_time).
 
 #### count_gt_over_time
@@ -271,6 +275,8 @@ on the given lookbehind window `d`, which are bigger than `gt`. It is calculated
 from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
 
 See also [count_over_time](#count_over_time) and [share_gt_over_time](#share_gt_over_time).
 
@@ -282,6 +288,8 @@ from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#f
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
+
 See also [count_over_time](#count_over_time) and [share_le_over_time](#share_le_over_time).
 
 #### count_ne_over_time
@@ -292,7 +300,9 @@ from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#f
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-See also [count_over_time](#count_over_time).
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
+
+See also [count_over_time](#count_over_time) and [count_eq_over_time](#count_eq_over_time).
 
 #### count_over_time
 
@@ -312,6 +322,8 @@ with the same value over the given lookbehind window and stores the counts in a 
 The results are calculated independently per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
 
 See also [count_eq_over_time](#count_eq_over_time), [count_values](#count_values) and [distinct_over_time](#distinct_over_time) and [label_match](#label_match).
 
@@ -432,6 +444,8 @@ from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#f
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
+
 #### histogram_over_time
 
 `histogram_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which calculates
@@ -443,10 +457,14 @@ For example, the following query calculates median temperature by country over t
 
 `histogram_quantile(0.5, sum(histogram_over_time(temperature[24h])) by (vmrange,country))`.
 
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
+
 #### hoeffding_bound_lower
 
 `hoeffding_bound_lower(phi, series_selector[d])` is a [rollup function](#rollup-functions), which calculates
 lower [Hoeffding bound](https://en.wikipedia.org/wiki/Hoeffding%27s_inequality) for the given `phi` in the range `[0...1]`.
+
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
 
 See also [hoeffding_bound_upper](#hoeffding_bound_upper).
 
@@ -455,6 +473,8 @@ See also [hoeffding_bound_upper](#hoeffding_bound_upper).
 `hoeffding_bound_upper(phi, series_selector[d])` is a [rollup function](#rollup-functions), which calculates
 upper [Hoeffding bound](https://en.wikipedia.org/wiki/Hoeffding%27s_inequality) for the given `phi` in the range `[0...1]`.
 
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
+
 See also [hoeffding_bound_lower](#hoeffding_bound_lower).
 
 #### holt_winters
@@ -462,8 +482,9 @@ See also [hoeffding_bound_lower](#hoeffding_bound_lower).
 `holt_winters(series_selector[d], sf, tf)` is a [rollup function](#rollup-functions), which calculates Holt-Winters value
 (aka [double exponential smoothing](https://en.wikipedia.org/wiki/Exponential_smoothing#Double_exponential_smoothing)) for [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
 over the given lookbehind window `d` using the given smoothing factor `sf` and the given trend factor `tf`.
-Both `sf` and `tf` must be in the range `[0...1]`. It is expected that the [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering)
-returns time series of [gauge type](https://docs.victoriametrics.com/keyconcepts/#gauge).
+Both `sf` and `tf` must be in the range `[0...1]`.
+
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
 
 This function is supported by PromQL.
 
@@ -495,12 +516,13 @@ See also [deriv](#deriv).
 
 `increase(series_selector[d])` is a [rollup function](#rollup-functions), which calculates the increase over the given lookbehind window `d`
 per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
-It is expected that the `series_selector` returns time series of [counter type](https://docs.victoriametrics.com/keyconcepts/#counter).
 
 Unlike Prometheus, it takes into account the last sample before the given lookbehind window `d` when calculating the result.
 See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details.
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+This function is usually applied to [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
 
 This function is supported by PromQL.
 
@@ -510,11 +532,12 @@ See also [increase_pure](#increase_pure), [increase_prometheus](#increase_promet
 
 `increase_prometheus(series_selector[d])` is a [rollup function](#rollup-functions), which calculates the increase
 over the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
-It is expected that the `series_selector` returns time series of [counter type](https://docs.victoriametrics.com/keyconcepts/#counter).
 It doesn't take into account the last sample before the given lookbehind window `d` when calculating the result in the same way as Prometheus does.
 See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details.
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+This function is usually applied to [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
 
 See also [increase_pure](#increase_pure) and [increase](#increase).
 
@@ -523,6 +546,10 @@ See also [increase_pure](#increase_pure) and [increase](#increase).
 `increase_pure(series_selector[d])` is a [rollup function](#rollup-functions), which works the same as [increase](#increase) except
 of the following corner case - it assumes that [counters](https://docs.victoriametrics.com/keyconcepts/#counter) always start from 0,
 while [increase](#increase) ignores the first value in a series if it is too big.
+
+This function is usually applied to [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
+
+See also [increase](#increas) and [increase_prometheus](#increase_prometheus).
 
 #### increases_over_time
 
@@ -540,14 +567,17 @@ on the given lookbehind window `d` per each time series returned from the given 
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
+
 #### irate
 
 `irate(series_selector[d])` is a [rollup function](#rollup-functions), which calculates the "instant" per-second increase rate over
 the last two [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
 on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
-It is expected that the `series_selector` returns time series of [counter type](https://docs.victoriametrics.com/keyconcepts/#counter).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+This function is usually applied to [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
 
 This function is supported by PromQL.
 
@@ -587,6 +617,8 @@ See also [duration_over_time](#duration_over_time) and [lag](#lag).
 over [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) on the given lookbehind window `d` per each time series returned
 from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
 
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
+
 See also [mad](#mad), [range_mad](#range_mad) and [outlier_iqr_over_time](#outlier_iqr_over_time).
 
 #### max_over_time
@@ -594,15 +626,19 @@ See also [mad](#mad), [range_mad](#range_mad) and [outlier_iqr_over_time](#outli
 `max_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which calculates the maximum value over [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
 on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
 
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
+
 This function is supported by PromQL.
 
-See also [tmax_over_time](#tmax_over_time).
+See also [tmax_over_time](#tmax_over_time) and [min_over_time](#min_over_time).
 
 #### median_over_time
 
 `median_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which calculates median value over [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
 on the given lookbehind window `d` per each time series returned
 from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
+
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
 
 See also [avg_over_time](#avg_over_time).
 
@@ -611,9 +647,11 @@ See also [avg_over_time](#avg_over_time).
 `min_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which calculates the minimum value over [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
 on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
 
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
+
 This function is supported by PromQL.
 
-See also [tmin_over_time](#tmin_over_time).
+See also [tmin_over_time](#tmin_over_time) and [max_over_time](#max_over_time).
 
 #### mode_over_time
 
@@ -621,6 +659,8 @@ See also [tmin_over_time](#tmin_over_time).
 for [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) on the given lookbehind window `d`. It is calculated individually per each time series returned
 from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering). It is expected that [raw sample](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
 values are discrete.
+
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
 
 #### outlier_iqr_over_time
 
@@ -631,6 +671,8 @@ if its value is either smaller than the `q25-1.5*iqr` or bigger than `q75+1.5*iq
 
 The `outlier_iqr_over_time()` is useful for detecting anomalies in gauge values based on the previous history of values.
 For example, `outlier_iqr_over_time(memory_usage_bytes[1h])` triggers when `memory_usage_bytes` suddenly goes outside the usual value range for the last hour.
+
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
 
 See also [outliers_iqr](#outliers_iqr).
 
@@ -659,6 +701,8 @@ This function is supported by PromQL.
 on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
 The `phi` value must be in the range `[0...1]`.
 
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
+
 This function is supported by PromQL.
 
 See also [quantiles_over_time](#quantiles_over_time).
@@ -670,6 +714,8 @@ over [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) on
 from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
 The function returns individual series per each `phi*` with `{phiLabel="phi*"}` label. `phi*` values must be in the range `[0...1]`.
 
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
+
 See also [quantile_over_time](#quantile_over_time).
 
 #### range_over_time
@@ -680,11 +726,12 @@ E.g. it calculates `max_over_time(series_selector[d]) - min_over_time(series_sel
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
+
 #### rate
 
 `rate(series_selector[d])` is a [rollup function](#rollup-functions), which calculates the average per-second increase rate
 over the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
-It is expected that the `series_selector` returns time series of [counter type](https://docs.victoriametrics.com/keyconcepts/#counter).
 
 If the lookbehind window is skipped in square brackets, then it is automatically calculated as `max(step, scrape_interval)`, where `step` is the query arg value
 passed to [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query) or [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query),
@@ -703,6 +750,8 @@ See also [irate](#irate) and [rollup_rate](#rollup_rate).
 on the given lookbehind window `d`. The calculations are performed individually per each time series returned
 from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
 
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
+
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
 #### resets
@@ -710,9 +759,10 @@ Metric names are stripped from the resulting rollups. Add [keep_metric_names](#k
 `resets(series_selector[d])` is a [rollup function](#rollup-functions), which returns the number
 of [counter](https://docs.victoriametrics.com/keyconcepts/#counter) resets over the given lookbehind window `d`
 per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
-It is expected that the `series_selector` returns time series of [counter type](https://docs.victoriametrics.com/keyconcepts/#counter).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+This function is usually applied to [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
 
 This function is supported by PromQL.
 
@@ -725,6 +775,10 @@ These values are calculated individually per each time series returned from the 
 Optional 2nd argument `"min"`, `"max"` or `"avg"` can be passed to keep only one calculation result and without adding a label.
 See also [label_match](#label_match).
 
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
+
+See also [rollup_rate](#rollup_rate).
+
 #### rollup_candlestick
 
 `rollup_candlestick(series_selector[d])` is a [rollup function](#rollup-functions), which calculates `open`, `high`, `low` and `close` values (aka OHLC)
@@ -735,6 +789,8 @@ from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#f
 
 Optional 2nd argument `"open"`, `"high"` or `"low"` or `"close"` can be passed to keep only one calculation result and without adding a label.
 See also [label_match](#label_match).
+
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
 
 #### rollup_delta
 
@@ -762,6 +818,8 @@ See also [label_match](#label_match).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
+See also [rollup](#rollup) and [rollup_rate](#rollup_rate).
+
 #### rollup_increase
 
 `rollup_increase(series_selector[d])` is a [rollup function](#rollup-functions), which calculates increases for adjacent [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
@@ -774,12 +832,17 @@ See also [label_match](#label_match).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [rollup_delta](#rollup_delta).
 
+This function is usually applied to [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
+
+See also [rollup](#rollup) and [rollup_rate](#rollup_rate).
+
 #### rollup_rate
 
 `rollup_rate(series_selector[d])` is a [rollup function](#rollup-functions), which calculates per-second change rates
 for adjacent [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
 on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated per-second change rates
 and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
+The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
 
 See [this article](https://valyala.medium.com/why-irate-from-prometheus-doesnt-capture-spikes-45f9896d7832) in order to understand better
 when to use `rollup_rate()`.
@@ -787,9 +850,11 @@ when to use `rollup_rate()`.
 Optional 2nd argument `"min"`, `"max"` or `"avg"` can be passed to keep only one calculation result and without adding a label.
 See also [label_match](#label_match).
 
-The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
-
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+This function is usually applied to [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
+
+See also [rollup](#rollup) and [rollup_increase](#rollup_increase).
 
 #### rollup_scrape_interval
 
@@ -824,6 +889,8 @@ This function is useful for calculating SLI and SLO. Example: `share_gt_over_tim
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
+
 See also [share_le_over_time](#share_le_over_time) and [count_gt_over_time](#count_gt_over_time).
 
 #### share_le_over_time
@@ -838,6 +905,8 @@ the share of time series values for the last 24 hours when memory usage was belo
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
+
 See also [share_gt_over_time](#share_gt_over_time) and [count_le_over_time](#count_le_over_time).
 
 #### share_eq_over_time
@@ -848,6 +917,8 @@ on the given lookbehind window `d`, which are equal to `eq`. It is calculated in
 from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
 
 See also [count_eq_over_time](#count_eq_over_time).
 
@@ -866,6 +937,8 @@ on the given lookbehind window `d` per each time series returned from the given 
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
+
 This function is supported by PromQL.
 
 See also [stdvar_over_time](#stdvar_over_time).
@@ -876,6 +949,8 @@ See also [stdvar_over_time](#stdvar_over_time).
 on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
 
 This function is supported by PromQL.
 
@@ -888,6 +963,8 @@ values equal to `eq` on the given lookbehind window `d` per each time series ret
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
+
 See also [sum_over_time](#sum_over_time) and [count_eq_over_time](#count_eq_over_time).
 
 #### sum_gt_over_time
@@ -896,6 +973,8 @@ See also [sum_over_time](#sum_over_time) and [count_eq_over_time](#count_eq_over
 values bigger than `gt` on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
 
 See also [sum_over_time](#sum_over_time) and [count_gt_over_time](#count_gt_over_time).
 
@@ -906,6 +985,8 @@ values smaller or equal to `le` on the given lookbehind window `d` per each time
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
+
 See also [sum_over_time](#sum_over_time) and [count_le_over_time](#count_le_over_time).
 
 #### sum_over_time
@@ -915,6 +996,8 @@ on the given lookbehind window `d` per each time series returned from the given 
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
+
 This function is supported by PromQL.
 
 #### sum2_over_time
@@ -923,6 +1006,8 @@ This function is supported by PromQL.
 values on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
 
 #### timestamp
 
@@ -1000,6 +1085,8 @@ for [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) on 
 from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+This function is usually applied to [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
 
 See also [zscore](#zscore), [range_trim_zscore](#range_trim_zscore) and [outlier_iqr_over_time](#outlier_iqr_over_time).
 
@@ -2230,7 +2317,8 @@ Any [rollup function](#rollup-functions) for something other than [series select
 Nested rollup functions can be implicit thanks to the [implicit query conversions](#implicit-query-conversions).
 For example, `delta(sum(m))` is implicitly converted to `delta(sum(default_rollup(m))[1i:1i])`, so it becomes a subquery,
 since it contains [default_rollup](#default_rollup) nested into [delta](#delta).
-This behavior can be disabled or logged via cmd-line flags `-search.disableImplicitConversion` and `-search.logImplicitConversion` since v1.101.0.
+This behavior can be disabled or logged via `-search.disableImplicitConversion` and `-search.logImplicitConversion` command-line flags
+starting from [`v1.101.0` release](https://docs.victoriametrics.com/changelog/).
 
 VictoriaMetrics performs subqueries in the following way:
 
@@ -2263,5 +2351,6 @@ VictoriaMetrics performs the following implicit conversions for incoming queries
   For example, `avg_over_time(rate(http_requests_total[5m])[1h])` is automatically converted to `avg_over_time(rate(http_requests_total[5m])[1h:1i])`.
 * If something other than [series selector](https://docs.victoriametrics.com/keyconcepts/#filtering)
   is passed to [rollup function](#rollup-functions), then a [subquery](#subqueries) with `1i` lookbehind window and `1i` step is automatically formed.
-  For example, `rate(sum(up))` is automatically converted to `rate((sum(default_rollup(up)))[1i:1i])`. 
-  This behavior can be disabled or logged via cmd-line flags `-search.disableImplicitConversion` and `-search.logImplicitConversion` since v1.101.0.
+  For example, `rate(sum(up))` is automatically converted to `rate((sum(default_rollup(up)))[1i:1i])`.
+  This behavior can be disabled or logged via `-search.disableImplicitConversion` and `-search.logImplicitConversion` command-line flags
+  starting from [`v1.101.0` release](https://docs.victoriametrics.com/changelog/).

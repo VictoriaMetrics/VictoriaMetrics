@@ -183,6 +183,10 @@ func (s *Set) Has(x uint64) bool {
 	if s == nil {
 		return false
 	}
+	return s.hasSlow(x)
+}
+
+func (s *Set) hasSlow(x uint64) bool {
 	hi32 := uint32(x >> 32)
 	lo32 := uint32(x)
 	bs := s.buckets

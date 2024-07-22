@@ -221,7 +221,7 @@ func areEqualTracesSkipDuration(s1, s2 string) bool {
 }
 
 func zeroDurationsInTrace(s string) string {
-	return skipDurationRe.ReplaceAllString(s, " 0ms: ")
+	return skipDurationRe.ReplaceAllLiteralString(s, " 0ms: ")
 }
 
 var skipDurationRe = regexp.MustCompile(" [0-9.]+ms: ")
@@ -233,7 +233,7 @@ func areEqualJSONTracesSkipDuration(s1, s2 string) bool {
 }
 
 func zeroJSONDurationsInTrace(s string) string {
-	return skipJSONDurationRe.ReplaceAllString(s, `"duration_msec":0`)
+	return skipJSONDurationRe.ReplaceAllLiteralString(s, `"duration_msec":0`)
 }
 
 var skipJSONDurationRe = regexp.MustCompile(`"duration_msec":[0-9.]+`)

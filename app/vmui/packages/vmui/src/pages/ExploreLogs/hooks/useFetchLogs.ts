@@ -52,20 +52,23 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
         setError(text);
         setLogs([]);
         setIsLoading(prev => ({ ...prev, [id]: false }));
-        return;
+        return false;
       }
 
       const lines = text.split("\n").filter(line => line).slice(0, limit);
       const data = lines.map(parseLineToJSON).filter(line => line) as Logs[];
       setLogs(data);
+      setIsLoading(prev => ({ ...prev, [id]: false }));
+      return true;
     } catch (e) {
+      setIsLoading(prev => ({ ...prev, [id]: false }));
       if (e instanceof Error && e.name !== "AbortError") {
         setError(String(e));
         console.error(e);
         setLogs([]);
       }
+      return false;
     }
-    setIsLoading(prev => ({ ...prev, [id]: false }));
   }, [url, query, limit]);
 
   return {

@@ -18,14 +18,14 @@ func TestOutput(t *testing.T) {
 
 	mustMatch := func(exp string) {
 		t.Helper()
+
 		if exp == "" {
 			if testOutput.String() != "" {
-				t.Errorf("expected output to be empty; got %q", testOutput.String())
-				return
+				t.Fatalf("expected output to be empty; got %q", testOutput.String())
 			}
 		}
 		if !strings.Contains(testOutput.String(), exp) {
-			t.Errorf("output %q should contain %q", testOutput.String(), exp)
+			t.Fatalf("output %q should contain %q", testOutput.String(), exp)
 		}
 		fmt.Println(testOutput.String())
 		testOutput.Reset()

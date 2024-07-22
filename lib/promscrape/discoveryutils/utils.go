@@ -20,7 +20,7 @@ func SanitizeLabelName(name string) string {
 }
 
 var labelNamesSanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
-	return invalidLabelCharRE.ReplaceAllString(s, "_")
+	return invalidLabelCharRE.ReplaceAllLiteralString(s, "_")
 })
 
 var invalidLabelCharRE = regexp.MustCompile(`[^a-zA-Z0-9_]`)

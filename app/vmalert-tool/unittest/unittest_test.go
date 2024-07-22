@@ -14,34 +14,33 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestUnitRule(t *testing.T) {
-	testCases := []struct {
-		name              string
-		disableGroupLabel bool
-		files             []string
-		failed            bool
-	}{
-		{
-			name:   "run multi files",
-			files:  []string{"./testdata/test1.yaml", "./testdata/test2.yaml"},
-			failed: false,
-		},
-		{
-			name:              "disable group label",
-			disableGroupLabel: true,
-			files:             []string{"./testdata/disable-group-label.yaml"},
-			failed:            false,
-		},
-		{
-			name:   "failing test",
-			files:  []string{"./testdata/failed-test.yaml"},
-			failed: true,
-		},
-	}
-	for _, tc := range testCases {
-		fail := UnitTest(tc.files, tc.disableGroupLabel)
-		if fail != tc.failed {
-			t.Fatalf("failed to test %s, expect %t, got %t", tc.name, tc.failed, fail)
+func TestUnitTest_Failure(t *testing.T) {
+	f := func(files []string) {
+		t.Helper()
+
+		failed := UnitTest(files, false)
+		if !failed {
+			t.Fatalf("expecting failed test")
 		}
 	}
+
+	// failing test
+	f([]string{"./testdata/failed-test.yaml"})
+}
+
+func TestUnitTest_Success(t *testing.T) {
+	f := func(disableGroupLabel bool, files []string) {
+		t.Helper()
+
+		failed := UnitTest(files, disableGroupLabel)
+		if failed {
+			t.Fatalf("unexpected failed test")
+		}
+	}
+
+	// run multi files
+	f(false, []string{"./testdata/test1.yaml", "./testdata/test2.yaml"})
+
+	// disable group label
+	f(true, []string{"./testdata/disable-group-label.yaml"})
 }

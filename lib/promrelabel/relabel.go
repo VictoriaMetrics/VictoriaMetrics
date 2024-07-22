@@ -673,7 +673,7 @@ func SplitMetricNameToTokens(name string) []string {
 var nonAlphaNumChars = regexp.MustCompile(`[^a-zA-Z0-9]`)
 
 var labelNameSanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
-	return unsupportedLabelNameChars.ReplaceAllString(s, "_")
+	return unsupportedLabelNameChars.ReplaceAllLiteralString(s, "_")
 })
 
 var unsupportedLabelNameChars = regexp.MustCompile(`[^a-zA-Z0-9_]`)
@@ -686,7 +686,7 @@ func SanitizeMetricName(value string) string {
 }
 
 var metricNameSanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
-	return unsupportedMetricNameChars.ReplaceAllString(s, "_")
+	return unsupportedMetricNameChars.ReplaceAllLiteralString(s, "_")
 })
 
 var unsupportedMetricNameChars = regexp.MustCompile(`[^a-zA-Z0-9_:]`)

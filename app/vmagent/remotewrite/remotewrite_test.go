@@ -77,14 +77,16 @@ func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 			rowsDroppedByRelabel:   metrics.GetOrCreateCounter(`bar`),
 		}
 		if dedupInterval > 0 {
-			rwctx.deduplicator = streamaggr.NewDeduplicator(nil, dedupInterval, nil, "global")
+			rwctx.deduplicator = streamaggr.NewDeduplicator(nil, dedupInterval, nil, "dedup-global")
 		}
 
-		if len(streamAggrConfig) > 0 {
-			sas, err := streamaggr.LoadFromData([]byte(streamAggrConfig), nil, streamaggr.Options{})
+		if streamAggrConfig != "" {
+			pushNoop := func(_ []prompbmarshal.TimeSeries) {}
+			sas, err := streamaggr.LoadFromData([]byte(streamAggrConfig), pushNoop, nil, "global")
 			if err != nil {
 				t.Fatalf("cannot load streamaggr configs: %s", err)
 			}
+			defer sas.MustStop()
 			rwctx.sas.Store(sas)
 		}
 
@@ -94,7 +96,9 @@ func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 
 		// copy inputTss to make sure it is not mutated during TryPush call
 		copy(expectedTss, inputTss)
-		rwctx.TryPush(inputTss, false)
+		if !rwctx.TryPush(inputTss, false) {
+			t.Fatalf("cannot push samples to rwctx")
+		}
 
 		if !reflect.DeepEqual(expectedTss, inputTss) {
 			t.Fatalf("unexpected samples;\ngot\n%v\nwant\n%v", inputTss, expectedTss)

@@ -57,14 +57,13 @@ func CheckStreamAggrConfig() error {
 		return nil
 	}
 	pushNoop := func(_ []prompbmarshal.TimeSeries) {}
-	opts := streamaggr.Options{
+	opts := &streamaggr.Options{
 		DedupInterval:        *streamAggrDedupInterval,
 		DropInputLabels:      *streamAggrDropInputLabels,
 		IgnoreOldSamples:     *streamAggrIgnoreOldSamples,
 		IgnoreFirstIntervals: *streamAggrIgnoreFirstIntervals,
-		Alias:                "global",
 	}
-	sas, err := streamaggr.LoadFromFile(*streamAggrConfig, pushNoop, opts)
+	sas, err := streamaggr.LoadFromFile(*streamAggrConfig, pushNoop, opts, "global")
 	if err != nil {
 		return fmt.Errorf("error when loading -streamAggr.config=%q: %w", *streamAggrConfig, err)
 	}
@@ -77,25 +76,22 @@ func CheckStreamAggrConfig() error {
 // MustStopStreamAggr must be called when stream aggr is no longer needed.
 func InitStreamAggr() {
 	saCfgReloaderStopCh = make(chan struct{})
-	rwctx := "global"
-
 	if *streamAggrConfig == "" {
 		if *streamAggrDedupInterval > 0 {
-			deduplicator = streamaggr.NewDeduplicator(pushAggregateSeries, *streamAggrDedupInterval, *streamAggrDropInputLabels, rwctx)
+			deduplicator = streamaggr.NewDeduplicator(pushAggregateSeries, *streamAggrDedupInterval, *streamAggrDropInputLabels, "global")
 		}
 		return
 	}
 
 	sighupCh := procutil.NewSighupChan()
 
-	opts := streamaggr.Options{
+	opts := &streamaggr.Options{
 		DedupInterval:        *streamAggrDedupInterval,
 		DropInputLabels:      *streamAggrDropInputLabels,
 		IgnoreOldSamples:     *streamAggrIgnoreOldSamples,
 		IgnoreFirstIntervals: *streamAggrIgnoreFirstIntervals,
-		Alias:                rwctx,
 	}
-	sas, err := streamaggr.LoadFromFile(*streamAggrConfig, pushAggregateSeries, opts)
+	sas, err := streamaggr.LoadFromFile(*streamAggrConfig, pushAggregateSeries, opts, "global")
 	if err != nil {
 		logger.Fatalf("cannot load -streamAggr.config=%q: %s", *streamAggrConfig, err)
 	}
@@ -123,14 +119,13 @@ func reloadStreamAggrConfig() {
 	logger.Infof("reloading -streamAggr.config=%q", *streamAggrConfig)
 	saCfgReloads.Inc()
 
-	opts := streamaggr.Options{
+	opts := &streamaggr.Options{
 		DedupInterval:        *streamAggrDedupInterval,
 		DropInputLabels:      *streamAggrDropInputLabels,
 		IgnoreOldSamples:     *streamAggrIgnoreOldSamples,
 		IgnoreFirstIntervals: *streamAggrIgnoreFirstIntervals,
-		Alias:                "global",
 	}
-	sasNew, err := streamaggr.LoadFromFile(*streamAggrConfig, pushAggregateSeries, opts)
+	sasNew, err := streamaggr.LoadFromFile(*streamAggrConfig, pushAggregateSeries, opts, "global")
 	if err != nil {
 		saCfgSuccess.Set(0)
 		saCfgReloadErr.Inc()

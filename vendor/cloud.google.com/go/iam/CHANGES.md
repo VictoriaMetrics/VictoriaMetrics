@@ -1,6 +1,13 @@
 # Changes
 
 
+## [1.1.11](https://github.com/googleapis/google-cloud-go/compare/iam/v1.1.10...iam/v1.1.11) (2024-07-10)
+
+
+### Bug Fixes
+
+* **iam:** Bump google.golang.org/grpc@v1.64.1 ([8ecc4e9](https://github.com/googleapis/google-cloud-go/commit/8ecc4e9622e5bbe9b90384d5848ab816027226c5))
+
 ## [1.1.10](https://github.com/googleapis/google-cloud-go/compare/iam/v1.1.9...iam/v1.1.10) (2024-07-01)
 
 

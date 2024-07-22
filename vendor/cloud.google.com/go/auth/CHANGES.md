@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/googleapis/google-cloud-go/compare/auth/v0.7.0...auth/v0.7.1) (2024-07-10)
+
+
+### Bug Fixes
+
+* **auth:** Bump google.golang.org/grpc@v1.64.1 ([8ecc4e9](https://github.com/googleapis/google-cloud-go/commit/8ecc4e9622e5bbe9b90384d5848ab816027226c5))
+
 ## [0.7.0](https://github.com/googleapis/google-cloud-go/compare/auth/v0.6.1...auth/v0.7.0) (2024-07-09)
 
 

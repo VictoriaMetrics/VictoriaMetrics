@@ -1,5 +1,11 @@
 # Release History
 
+## 1.13.0 (2024-07-16)
+
+### Features Added
+
+- Added runtime.NewRequestFromRequest(), allowing for a policy.Request to be created from an existing *http.Request.
+
 ## 1.12.0 (2024-06-06)
 
 ### Features Added

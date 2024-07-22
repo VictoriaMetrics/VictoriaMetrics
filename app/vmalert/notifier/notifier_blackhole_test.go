@@ -17,12 +17,12 @@ func TestBlackHoleNotifier_Send(t *testing.T) {
 		End:         time.Now().UTC(),
 		Annotations: map[string]string{"a": "b", "c": "d", "e": "f"},
 	}}, nil); err != nil {
-		t.Errorf("unexpected error %s", err)
+		t.Fatalf("unexpected error %s", err)
 	}
 
 	alertCount := bh.metrics.alertsSent.Get()
 	if alertCount != 1 {
-		t.Errorf("expect value 1; instead got %d", alertCount)
+		t.Fatalf("expect value 1; instead got %d", alertCount)
 	}
 }
 
@@ -35,7 +35,7 @@ func TestBlackHoleNotifier_Close(t *testing.T) {
 		End:         time.Now().UTC(),
 		Annotations: map[string]string{"a": "b", "c": "d", "e": "f"},
 	}}, nil); err != nil {
-		t.Errorf("unexpected error %s", err)
+		t.Fatalf("unexpected error %s", err)
 	}
 
 	bh.Close()
@@ -44,7 +44,7 @@ func TestBlackHoleNotifier_Close(t *testing.T) {
 	alertMetricName := "vmalert_alerts_sent_total{addr=\"blackhole\"}"
 	for _, name := range defaultMetrics.ListMetricNames() {
 		if name == alertMetricName {
-			t.Errorf("Metric name should have unregistered.But still present")
+			t.Fatalf("Metric name should have unregistered.But still present")
 		}
 	}
 }

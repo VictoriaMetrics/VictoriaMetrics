@@ -46,6 +46,11 @@ type Password struct {
 	sourcePath string
 }
 
+// Name returns the name of p flag.
+func (p *Password) Name() string {
+	return p.flagname
+}
+
 // Get returns the current p value.
 //
 // It re-reads p value from the file:///path/to/file or http://host/path

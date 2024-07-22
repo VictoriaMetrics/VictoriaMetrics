@@ -32,7 +32,8 @@ type PushOptions struct {
 	// By default the compression is enabled.
 	DisableCompression bool
 
-	// Method is an optional of HTTP request method.
+	// Method is HTTP request method to use when pushing metrics to pushURL.
+	//
 	// By default the Method is GET.
 	Method string
 
@@ -301,7 +302,7 @@ func newPushContext(pushURL string, opts *PushOptions) (*pushContext, error) {
 	}
 
 	method := opts.Method
-	if len(method) == 0 {
+	if method == "" {
 		method = http.MethodGet
 	}
 

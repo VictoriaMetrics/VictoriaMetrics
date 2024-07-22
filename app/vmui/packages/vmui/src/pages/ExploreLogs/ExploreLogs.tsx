@@ -48,9 +48,9 @@ const ExploreLogs: FC = () => {
 
     const newPeriod = getPeriod();
     setPeriod(newPeriod);
-    fetchLogs(newPeriod);
-    fetchLogHits(newPeriod);
-
+    fetchLogs(newPeriod).then((isSuccess) => {
+      isSuccess && fetchLogHits(newPeriod);
+    }).catch(e => e);
     setSearchParamsFromKeys( {
       query,
       "g0.range_input": duration,
@@ -90,7 +90,7 @@ const ExploreLogs: FC = () => {
         onRun={handleRunQuery}
         onChangeMarkdownParsing={handleChangeMarkdownParsing}
       />
-      {isLoading && <Spinner />}
+      {isLoading && <Spinner message={"Loading logs..."}/>}
       {error && <Alert variant="error">{error}</Alert>}
       {!error && (
         <ExploreLogsBarChart

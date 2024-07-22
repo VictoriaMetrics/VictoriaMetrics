@@ -353,7 +353,10 @@ models:
   # ...
 ```
 
-**Note**: Autotune can't be made on your [custom model](#custom-model-guide). Also, it can't be applied to itself (like `tuned_class_name: 'model.auto.AutoTunedModel'`)
+> **Note**: There are some expected limitations of Autotune mode:
+> - It can't be made on your [custom model](#custom-model-guide).
+> - It can't be applied to itself (like `tuned_class_name: 'model.auto.AutoTunedModel'`)
+> - `AutoTunedModel` can't be used on [rolling models](/anomaly-detection/components/models/#rolling-models) like [`RollingQuantile`](/anomaly-detection/components/models/#rolling-quantile) in combination with [on-disk model storage mode](/anomaly-detection/faq/#resource-consumption-of-vmanomaly), as the rolling models exists only during `infer` calls and aren't persisted neither in RAM, nor on disk.
 
 
 ### [Prophet](https://facebook.github.io/prophet/)

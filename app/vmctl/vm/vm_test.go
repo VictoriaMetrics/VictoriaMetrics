@@ -2,68 +2,42 @@ package vm
 
 import "testing"
 
-func TestAddExtraLabelsToImportPath(t *testing.T) {
-	type args struct {
-		path        string
-		extraLabels []string
+func TestAddExtraLabelsToImportPath_Failure(t *testing.T) {
+	f := func(path string, extraLabels []string) {
+		t.Helper()
+
+		_, err := AddExtraLabelsToImportPath(path, extraLabels)
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
 	}
-	tests := []struct {
-		name    string
-		args    args
-		want    string
-		wantErr bool
-	}{
-		{
-			name: "ok w/o extra labels",
-			args: args{
-				path: "/api/v1/import",
-			},
-			want: "/api/v1/import",
-		},
-		{
-			name: "ok one extra label",
-			args: args{
-				path:        "/api/v1/import",
-				extraLabels: []string{"instance=host-1"},
-			},
-			want: "/api/v1/import?extra_label=instance=host-1",
-		},
-		{
-			name: "ok two extra labels",
-			args: args{
-				path:        "/api/v1/import",
-				extraLabels: []string{"instance=host-2", "job=vmagent"},
-			},
-			want: "/api/v1/import?extra_label=instance=host-2&extra_label=job=vmagent",
-		},
-		{
-			name: "ok two extra with exist param",
-			args: args{
-				path:        "/api/v1/import?timeout=50",
-				extraLabels: []string{"instance=host-2", "job=vmagent"},
-			},
-			want: "/api/v1/import?timeout=50&extra_label=instance=host-2&extra_label=job=vmagent",
-		},
-		{
-			name: "bad incorrect format for extra label",
-			args: args{
-				path:        "/api/v1/import",
-				extraLabels: []string{"label=value", "bad_label_wo_value"},
-			},
-			want:    "/api/v1/import",
-			wantErr: true,
-		},
+
+	// bad incorrect format for extra label
+	f("/api/v1/import", []string{"label=value", "bad_label_wo_value"})
+}
+
+func TestAddExtraLabelsToImportPath_Success(t *testing.T) {
+	f := func(path string, extraLabels []string, resultExpected string) {
+		t.Helper()
+
+		result, err := AddExtraLabelsToImportPath(path, extraLabels)
+		if err != nil {
+			t.Fatalf("AddExtraLabelsToImportPath() error: %s", err)
+		}
+		if result != resultExpected {
+			t.Fatalf("unexpected result; got %q; want %q", result, resultExpected)
+		}
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := AddExtraLabelsToImportPath(tt.args.path, tt.args.extraLabels)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("AddExtraLabelsToImportPath() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("AddExtraLabelsToImportPath() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
+
+	// ok w/o extra labels
+	f("/api/v1/import", nil, "/api/v1/import")
+
+	// ok one extra label
+	f("/api/v1/import", []string{"instance=host-1"}, "/api/v1/import?extra_label=instance=host-1")
+
+	// ok two extra labels
+	f("/api/v1/import", []string{"instance=host-2", "job=vmagent"}, "/api/v1/import?extra_label=instance=host-2&extra_label=job=vmagent")
+
+	// ok two extra with exist param
+	f("/api/v1/import?timeout=50", []string{"instance=host-2", "job=vmagent"}, "/api/v1/import?timeout=50&extra_label=instance=host-2&extra_label=job=vmagent")
 }

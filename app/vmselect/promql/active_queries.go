@@ -7,6 +7,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 // ActiveQueriesHandler returns response to /api/v1/status/active_queries
@@ -23,8 +25,8 @@ func ActiveQueriesHandler(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, `{"status":"ok","data":[`)
 	for i, aqe := range aqes {
 		d := now.Sub(aqe.startTime)
-		fmt.Fprintf(w, `{"duration":"%.3fs","id":"%016X","remote_addr":%s,"query":%q,"start":%d,"end":%d,"step":%d}`,
-			d.Seconds(), aqe.qid, aqe.quotedRemoteAddr, aqe.q, aqe.start, aqe.end, aqe.step)
+		fmt.Fprintf(w, `{"duration":"%.3fs","id":"%016X","remote_addr":%s,"query":%s,"start":%d,"end":%d,"step":%d}`,
+			d.Seconds(), aqe.qid, aqe.quotedRemoteAddr, stringsutil.JSONString(aqe.q), aqe.start, aqe.end, aqe.step)
 		if i+1 < len(aqes) {
 			fmt.Fprintf(w, `,`)
 		}

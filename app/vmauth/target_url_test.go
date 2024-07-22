@@ -86,6 +86,7 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 	f := func(ui *UserInfo, requestURI, expectedTarget, expectedRequestHeaders, expectedResponseHeaders string,
 		expectedRetryStatusCodes []int, expectedLoadBalancingPolicy string, expectedDropSrcPathPrefixParts int) {
 		t.Helper()
+
 		if err := ui.initURLs(); err != nil {
 			t.Fatalf("cannot initialize urls inside UserInfo: %s", err)
 		}
@@ -122,6 +123,7 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 			t.Fatalf("unexpected dropSrcPathPrefixParts; got %d; want %d", up.dropSrcPathPrefixParts, expectedDropSrcPathPrefixParts)
 		}
 	}
+
 	// Simple routing with `url_prefix`
 	f(&UserInfo{
 		URLPrefix: mustParseURL("http://foo.bar"),
@@ -260,7 +262,32 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 	f(ui, `/api/v1/query?query=up{env="prod"}`, `http://vmselect/1/prometheus/api/v1/query?query=up%7Benv%3D%22prod%22%7D`, "", "", nil, "least_loaded", 0)
 	f(ui, `/api/v1/query?query=up{foo="bar",env="dev",pod!=""}`, `http://vmselect/0/prometheus/api/v1/query?query=up%7Bfoo%3D%22bar%22%2Cenv%3D%22dev%22%2Cpod%21%3D%22%22%7D`, "", "", nil, "least_loaded", 0)
 	f(ui, `/api/v1/query?query=up{foo="bar"}`, `http://default-server/api/v1/query?query=up%7Bfoo%3D%22bar%22%7D`, "", "", nil, "least_loaded", 0)
+}
 
+func TestUserInfoGetBackendURL_SRV(t *testing.T) {
+	f := func(ui *UserInfo, requestURI, expectedTarget string) {
+		t.Helper()
+
+		u, err := url.Parse(requestURI)
+		if err != nil {
+			t.Fatalf("cannot parse %q: %s", requestURI, err)
+		}
+		u = normalizeURL(u)
+		up, _ := ui.getURLPrefixAndHeaders(u, nil)
+		if up == nil {
+			t.Fatalf("cannot match available backend: %s", err)
+		}
+		bu := up.getBackendURL()
+		target := mergeURLs(bu.url, u, up.dropSrcPathPrefixParts)
+		bu.put()
+
+		gotTarget := target.String()
+		if gotTarget != expectedTarget {
+			t.Fatalf("unexpected target\ngot:\n%q\nwant\n%q", gotTarget, expectedTarget)
+		}
+	}
+
+	// Discover backendURL with SRV hostnames
 	customResolver := &fakeResolver{
 		Resolver: &net.Resolver{},
 		lookupSRVResults: map[string][]*net.SRV{
@@ -283,11 +310,14 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 			},
 		},
 	}
+	origResolver := netutil.Resolver
 	netutil.Resolver = customResolver
+	defer func() {
+		netutil.Resolver = origResolver
+	}()
 
-	// Discover backendURL
 	allowed := true
-	ui = &UserInfo{
+	ui := &UserInfo{
 		URLMaps: []URLMap{
 			{
 				SrcPaths:  getRegexs([]string{"/select/.+"}),
@@ -301,12 +331,64 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 		DiscoverBackendIPs: &allowed,
 		URLPrefix:          mustParseURL("http://non-exist-dns-addr"),
 	}
-	f(ui, `/select/0/prometheus/api/v1/query?query=up`, "http://10.6.142.51:8481/select/0/prometheus/api/v1/query?query=up", "", "", nil, "least_loaded", 0)
-	// url_prefix counter will be reset, still go to 10.6.142.51
-	f(ui, `/select/0/prometheus/api/v1/query?query=up`, "http://10.6.142.51:8481/select/0/prometheus/api/v1/query?query=up", "", "", nil, "least_loaded", 0)
-	f(ui, `/insert/0/prometheus/api/v1/write`, "http://10.6.142.52:8480/insert/0/prometheus/api/v1/write", "", "", nil, "least_loaded", 0)
+	if err := ui.initURLs(); err != nil {
+		t.Fatalf("cannot initialize urls inside UserInfo: %s", err)
+	}
+
+	f(ui, `/select/0/prometheus/api/v1/query?query=up`, "http://10.6.142.50:8481/select/0/prometheus/api/v1/query?query=up")
+	f(ui, `/select/0/prometheus/api/v1/query?query=up`, "http://10.6.142.51:8481/select/0/prometheus/api/v1/query?query=up")
+	f(ui, `/insert/0/prometheus/api/v1/write`, "http://10.6.142.52:8480/insert/0/prometheus/api/v1/write")
 	// unsuccessful dns resolve
-	f(ui, `/test`, "http://non-exist-dns-addr/test", "", "", nil, "least_loaded", 0)
+	f(ui, `/test`, "http://non-exist-dns-addr/test")
+}
+
+func TestUserInfoGetBackendURL_SRVZeroBackends(t *testing.T) {
+	f := func(ui *UserInfo, requestURI string) {
+		t.Helper()
+
+		u, err := url.Parse(requestURI)
+		if err != nil {
+			t.Fatalf("cannot parse %q: %s", requestURI, err)
+		}
+		u = normalizeURL(u)
+		up, _ := ui.getURLPrefixAndHeaders(u, nil)
+		if up == nil {
+			t.Fatalf("cannot match available backend: %s", err)
+		}
+		bu := up.getBackendURL()
+		if bu != nil {
+			t.Fatalf("expecting nil backendURL; got %v", bu)
+		}
+	}
+
+	customResolver := &fakeResolver{
+		Resolver: &net.Resolver{},
+		lookupSRVResults: map[string][]*net.SRV{
+			"vmselect": {},
+		},
+	}
+	origResolver := netutil.Resolver
+	netutil.Resolver = customResolver
+	defer func() {
+		netutil.Resolver = origResolver
+	}()
+
+	allowed := true
+	ui := &UserInfo{
+		URLMaps: []URLMap{
+			{
+				SrcPaths:  getRegexs([]string{"/select/.+"}),
+				URLPrefix: mustParseURL("http://srv+vmselect"),
+			},
+		},
+		DiscoverBackendIPs: &allowed,
+		URLPrefix:          mustParseURL("http://non-exist-dns-addr"),
+	}
+	if err := ui.initURLs(); err != nil {
+		t.Fatalf("cannot initialize urls inside UserInfo: %s", err)
+	}
+
+	f(ui, `/select/0/prometheus/api/v1/query?query=up`)
 }
 
 func TestCreateTargetURLFailure(t *testing.T) {

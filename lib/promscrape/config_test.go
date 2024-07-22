@@ -3,7 +3,6 @@ package promscrape
 import (
 	"fmt"
 	"reflect"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/gce"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 func TestMergeLabels(t *testing.T) {
@@ -432,7 +432,7 @@ scrape_configs:
 
 // String returns human-readable representation for sw.
 func (sw *ScrapeWork) String() string {
-	return strconv.Quote(sw.key())
+	return stringsutil.JSONString(sw.key())
 }
 
 func TestGetFileSDScrapeWorkSuccess(t *testing.T) {
@@ -993,7 +993,7 @@ scrape_configs:
 scrape_configs:
 - job_name: foo
   scheme: https
-  max_scrape_size: 0
+  max_scrape_size: 1
   relabel_configs:
   - action: keep
     source_labels: [__address__]
@@ -1015,7 +1015,7 @@ scrape_configs:
 			ScrapeURL:      "http://foo.bar:1234/metrics",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  0,
+			MaxScrapeSize:  1,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "foo.bar:1234",
 				"job":      "3",

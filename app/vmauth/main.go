@@ -37,20 +37,20 @@ var (
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
 	maxIdleConnsPerBackend = flag.Int("maxIdleConnsPerBackend", 100, "The maximum number of idle connections vmauth can open per each backend host. "+
 		"See also -maxConcurrentRequests")
-	idleConnTimeout = flag.Duration("idleConnTimeout", 50*time.Second, `Defines a duration for idle (keep-alive connections) to exist.
-    Consider setting this value less than "-http.idleConnTimeout". It must prevent possible "write: broken pipe" and "read: connection reset by peer" errors.`)
+	idleConnTimeout = flag.Duration("idleConnTimeout", 50*time.Second, "The timeout for HTTP keep-alive connections to backend services. "+
+		"It is recommended setting this value to values smaller than -http.idleConnTimeout set at backend services")
 	responseTimeout       = flag.Duration("responseTimeout", 5*time.Minute, "The timeout for receiving a response from backend")
 	maxConcurrentRequests = flag.Int("maxConcurrentRequests", 1000, "The maximum number of concurrent requests vmauth can process. Other requests are rejected with "+
 		"'429 Too Many Requests' http status code. See also -maxConcurrentPerUserRequests and -maxIdleConnsPerBackend command-line options")
 	maxConcurrentPerUserRequests = flag.Int("maxConcurrentPerUserRequests", 300, "The maximum number of concurrent requests vmauth can process per each configured user. "+
 		"Other requests are rejected with '429 Too Many Requests' http status code. See also -maxConcurrentRequests command-line option and max_concurrent_requests option "+
 		"in per-user config")
-	reloadAuthKey        = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings.")
+	reloadAuthKey        = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*")
 	logInvalidAuthTokens = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
 		`Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
 	failTimeout               = flag.Duration("failTimeout", 3*time.Second, "Sets a delay period for load balancing to skip a malfunctioning backend")
 	maxRequestBodySizeToRetry = flagutil.NewBytes("maxRequestBodySizeToRetry", 16*1024, "The maximum request body size, which can be cached and re-tried at other backends. "+
-		"Bigger values may require more memory. Negative or zero values disable request body caching and retries.")
+		"Bigger values may require more memory. Zero or negative value disables caching of request body. This may be useful when proxying data ingestion requests")
 	backendTLSInsecureSkipVerify = flag.Bool("backend.tlsInsecureSkipVerify", false, "Whether to skip TLS verification when connecting to backends over HTTPS. "+
 		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
 	backendTLSCAFile = flag.String("backend.TLSCAFile", "", "Optional path to TLS root CA file, which is used for TLS verification when connecting to backends over HTTPS. "+
@@ -99,7 +99,7 @@ func main() {
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	switch r.URL.Path {
 	case "/-/reload":
-		if !httpserver.CheckAuthFlag(w, r, reloadAuthKey.Get(), "reloadAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, reloadAuthKey) {
 			return true
 		}
 		configReloadRequests.Inc()
@@ -117,8 +117,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 
-		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
-		http.Error(w, "missing `Authorization` request header", http.StatusUnauthorized)
+		handleMissingAuthorizationError(w)
 		return true
 	}
 
@@ -189,26 +188,27 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 			// to a route that is not in the configuration for unauthorized user.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5236
 			if ui.BearerToken == "" && ui.Username == "" && len(*authUsers.Load()) > 0 {
-				w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
-				http.Error(w, "missing `Authorization` request header", http.StatusUnauthorized)
+				handleMissingAuthorizationError(w)
 				return
 			}
 			missingRouteRequests.Inc()
-			httpserver.Errorf(w, r, "missing route for %q", u.String())
+			httpserver.Errorf(w, r, "missing route for %s", u.String())
 			return
 		}
 		up, hc = ui.DefaultURL, ui.HeadersConf
 		isDefault = true
 	}
-	// caching makes sense only for positive non zero size
-	if maxRequestBodySizeToRetry.IntN() > 0 {
-		rtb := getReadTrackingBody(r.Body, int(r.ContentLength))
-		defer putReadTrackingBody(rtb)
-		r.Body = rtb
-	}
+
+	rtb := getReadTrackingBody(r.Body, maxRequestBodySizeToRetry.IntN())
+	defer putReadTrackingBody(rtb)
+	r.Body = rtb
+
 	maxAttempts := up.getBackendsCount()
 	for i := 0; i < maxAttempts; i++ {
 		bu := up.getBackendURL()
+		if bu == nil {
+			break
+		}
 		targetURL := bu.url
 		// Don't change path and add request_path query param for default route.
 		if isDefault {
@@ -218,7 +218,15 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		} else { // Update path for regular routes.
 			targetURL = mergeURLs(targetURL, u, up.dropSrcPathPrefixParts)
 		}
-		ok := tryProcessingRequest(w, r, targetURL, hc, up.retryStatusCodes, ui)
+
+		wasLocalRetry := false
+	again:
+		ok, needLocalRetry := tryProcessingRequest(w, r, targetURL, hc, up.retryStatusCodes, ui)
+		if needLocalRetry && !wasLocalRetry {
+			wasLocalRetry = true
+			goto again
+		}
+
 		bu.put()
 		if ok {
 			return
@@ -226,29 +234,28 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		bu.setBroken()
 	}
 	err := &httpserver.ErrorWithStatusCode{
-		Err:        fmt.Errorf("all the backends for the user %q are unavailable", ui.name()),
+		Err:        fmt.Errorf("all the %d backends for the user %q are unavailable", up.getBackendsCount(), ui.name()),
 		StatusCode: http.StatusServiceUnavailable,
 	}
 	httpserver.Errorf(w, r, "%s", err)
 	ui.backendErrors.Inc()
 }
 
-func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int, ui *UserInfo) bool {
-	// This code has been copied from net/http/httputil/reverseproxy.go
+func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int, ui *UserInfo) (bool, bool) {
 	req := sanitizeRequestHeaders(r)
-	req.URL = targetURL
 
-	if req.URL.Scheme == "https" || ui.overrideHostHeader {
-		// Override req.Host only for https requests, since https server verifies hostnames during TLS handshake,
-		// so it expects the targetURL.Host in the request.
-		// There is no need in overriding the req.Host for http requests, since it is expected that backend server
-		// may properly process queries with the original req.Host.
-		req.Host = targetURL.Host
-	}
+	req.URL = targetURL
+	req.Header.Set("User-Agent", "vmauth")
 	updateHeadersByConfig(req.Header, hc.RequestHeaders)
-	var trivialRetries int
+	if hc.KeepOriginalHost == nil || !*hc.KeepOriginalHost {
+		if host := getHostHeader(hc.RequestHeaders); host != "" {
+			req.Host = host
+		} else {
+			req.Host = targetURL.Host
+		}
+	}
+
 	rtb, rtbOK := req.Body.(*readTrackingBody)
-again:
 	res, err := ui.rt.RoundTrip(req)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
@@ -260,7 +267,7 @@ again:
 				// Timed out request must be counted as errors, since this usually means that the backend is slow.
 				ui.backendErrors.Inc()
 			}
-			return true
+			return true, false
 		}
 		if !rtbOK || !rtb.canRetry() {
 			// Request body cannot be re-sent to another backend. Return the error to the client then.
@@ -270,20 +277,19 @@ again:
 			}
 			httpserver.Errorf(w, r, "%s", err)
 			ui.backendErrors.Inc()
-			return true
+			return true, false
 		}
-		// one time retry trivial network errors, such as proxy idle timeout misconfiguration
-		// or socket close by OS
-		if (netutil.IsTrivialNetworkError(err) || errors.Is(err, io.EOF)) && trivialRetries < 1 {
-			trivialRetries++
-			goto again
+		if netutil.IsTrivialNetworkError(err) {
+			// Retry request at the same backend on trivial network errors, such as proxy idle timeout misconfiguration or socket close by OS
+			return false, true
 		}
+
 		// Retry the request if its body wasn't read yet. This usually means that the backend isn't reachable.
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		// NOTE: do not use httpserver.GetRequestURI
 		// it explicitly reads request body, which may fail retries.
 		logger.Warnf("remoteAddr: %s; requestURI: %s; retrying the request to %s because of response error: %s", remoteAddr, req.URL, targetURL, err)
-		return false
+		return false, false
 	}
 	if slices.Contains(retryStatusCodes, res.StatusCode) {
 		_ = res.Body.Close()
@@ -297,7 +303,7 @@ again:
 			}
 			httpserver.Errorf(w, r, "%s", err)
 			ui.backendErrors.Inc()
-			return true
+			return true, false
 		}
 		// Retry requests at other backends if it matches retryStatusCodes.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4893
@@ -306,7 +312,7 @@ again:
 		// it explicitly reads request body, which may fail retries.
 		logger.Warnf("remoteAddr: %s; requestURI: %s; retrying the request to %s because response status code=%d belongs to retry_status_codes=%d",
 			remoteAddr, req.URL, targetURL, res.StatusCode, retryStatusCodes)
-		return false
+		return false, false
 	}
 	removeHopHeaders(res.Header)
 	copyHeader(w.Header(), res.Header)
@@ -322,9 +328,9 @@ again:
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		requestURI := httpserver.GetRequestURI(r)
 		logger.Warnf("remoteAddr: %s; requestURI: %s; error when proxying response body from %s: %s", remoteAddr, requestURI, targetURL, err)
-		return true
+		return true, false
 	}
-	return true
+	return true, false
 }
 
 var copyBufPool bytesutil.ByteBufferPool
@@ -337,12 +343,21 @@ func copyHeader(dst, src http.Header) {
 	}
 }
 
-func updateHeadersByConfig(headers http.Header, config []*Header) {
-	for _, h := range config {
+func getHostHeader(headers []*Header) string {
+	for _, h := range headers {
+		if h.Name == "Host" {
+			return h.Value
+		}
+	}
+	return ""
+}
+
+func updateHeadersByConfig(dst http.Header, src []*Header) {
+	for _, h := range src {
 		if h.Value == "" {
-			headers.Del(h.Name)
+			dst.Del(h.Name)
 		} else {
-			headers.Set(h.Name, h.Value)
+			dst.Set(h.Name, h.Value)
 		}
 	}
 }
@@ -450,7 +465,7 @@ func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, i
 	if tr.MaxIdleConns != 0 && tr.MaxIdleConns < tr.MaxIdleConnsPerHost {
 		tr.MaxIdleConns = tr.MaxIdleConnsPerHost
 	}
-	tr.DialContext = netutil.DialMaybeSRV
+	tr.DialContext = netutil.NewStatDialFunc("vmauth_backend")
 
 	rt := cfg.NewRoundTripper(tr)
 	return rt, nil
@@ -482,6 +497,11 @@ See the docs at https://docs.victoriametrics.com/vmauth/ .
 	flagutil.Usage(s)
 }
 
+func handleMissingAuthorizationError(w http.ResponseWriter) {
+	w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+	http.Error(w, "missing 'Authorization' request header", http.StatusUnauthorized)
+}
+
 func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err error) {
 	w.Header().Add("Retry-After", "10")
 	err = &httpserver.ErrorWithStatusCode{
@@ -491,85 +511,124 @@ func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err err
 	httpserver.Errorf(w, r, "%s", err)
 }
 
+// readTrackingBody must be obtained via getReadTrackingBody()
 type readTrackingBody struct {
+	// maxBodySize is the maximum body size to cache in buf.
+	//
+	// Bigger bodies cannot be retried.
+	maxBodySize int
+
 	// r contains reader for initial data reading
 	r io.ReadCloser
 
-	// buf is a buffer for data read from r. Buf size is limited by maxRequestBodySizeToRetry.
-	// If more than maxRequestBodySizeToRetry is read from r, then cannotRetry is set to true.
+	// buf is a buffer for data read from r. Buf size is limited by maxBodySize.
+	// If more than maxBodySize is read from r, then cannotRetry is set to true.
 	buf []byte
 
-	// cannotRetry is set to true when more than maxRequestBodySizeToRetry are read from r.
+	// readBuf points to the cached data at buf, which must be read in the next call to Read().
+	readBuf []byte
+
+	// cannotRetry is set to true when more than maxBodySize bytes are read from r.
 	// In this case the read data cannot fit buf, so it cannot be re-read from buf.
 	cannotRetry bool
 
 	// bufComplete is set to true when buf contains complete request body read from r.
 	bufComplete bool
-
-	// offset is an offset at buf for the next data read if needReadBuf is set to true.
-	offset int
 }
 
-// Read implements io.Reader interface
-// tracks body reading requests
+func (rtb *readTrackingBody) reset() {
+	rtb.maxBodySize = 0
+	rtb.r = nil
+	rtb.buf = rtb.buf[:0]
+	rtb.readBuf = nil
+	rtb.cannotRetry = false
+	rtb.bufComplete = false
+}
+
+func getReadTrackingBody(r io.ReadCloser, maxBodySize int) *readTrackingBody {
+	v := readTrackingBodyPool.Get()
+	if v == nil {
+		v = &readTrackingBody{}
+	}
+	rtb := v.(*readTrackingBody)
+
+	if maxBodySize < 0 {
+		maxBodySize = 0
+	}
+	rtb.maxBodySize = maxBodySize
+
+	if r == nil {
+		// This is GET request without request body
+		r = (*zeroReader)(nil)
+	}
+	rtb.r = r
+	return rtb
+}
+
+type zeroReader struct{}
+
+func (r *zeroReader) Read(_ []byte) (int, error) {
+	return 0, io.EOF
+}
+func (r *zeroReader) Close() error {
+	return nil
+}
+
+func putReadTrackingBody(rtb *readTrackingBody) {
+	rtb.reset()
+	readTrackingBodyPool.Put(rtb)
+}
+
+var readTrackingBodyPool sync.Pool
+
+// Read implements io.Reader interface.
 func (rtb *readTrackingBody) Read(p []byte) (int, error) {
-	if rtb.offset < len(rtb.buf) {
-		if rtb.cannotRetry {
-			return 0, fmt.Errorf("cannot retry reading data from buf")
-		}
-		nb := copy(p, rtb.buf[rtb.offset:])
-		rtb.offset += nb
-		if rtb.bufComplete {
-			if rtb.offset == len(rtb.buf) {
-				return nb, io.EOF
-			}
-			return nb, nil
-		}
-		if nb < len(p) {
-			nr, err := rtb.readFromStream(p[nb:])
-			return nb + nr, err
-		}
-		return nb, nil
+	if len(rtb.readBuf) > 0 {
+		n := copy(p, rtb.readBuf)
+		rtb.readBuf = rtb.readBuf[n:]
+		return n, nil
 	}
-	if rtb.bufComplete {
-		return 0, io.EOF
-	}
-	return rtb.readFromStream(p)
-}
 
-func (rtb *readTrackingBody) readFromStream(p []byte) (int, error) {
 	if rtb.r == nil {
-		return 0, fmt.Errorf("cannot read data after closing the reader")
+		if rtb.bufComplete {
+			return 0, io.EOF
+		}
+		return 0, fmt.Errorf("cannot read client request body after closing client reader")
 	}
+
 	n, err := rtb.r.Read(p)
 	if rtb.cannotRetry {
 		return n, err
 	}
-	if rtb.offset+n > maxRequestBodySizeToRetry.IntN() {
-		rtb.cannotRetry = true
-	}
-	if n > 0 {
-		rtb.offset += n
-		rtb.buf = append(rtb.buf, p[:n]...)
-	}
-	if err != nil {
-		if err == io.EOF {
-			rtb.bufComplete = true
-			return n, err
-		}
+
+	if len(rtb.buf)+n > rtb.maxBodySize {
 		rtb.cannotRetry = true
 		return n, err
 	}
-	return n, nil
+	rtb.buf = append(rtb.buf, p[:n]...)
+	if err == io.EOF {
+		rtb.bufComplete = true
+	}
+	return n, err
 }
 
 func (rtb *readTrackingBody) canRetry() bool {
-	return !rtb.cannotRetry
+	if rtb.cannotRetry {
+		return false
+	}
+	if rtb.bufComplete {
+		return true
+	}
+	return rtb.r != nil
 }
 
 // Close implements io.Closer interface.
 func (rtb *readTrackingBody) Close() error {
-	rtb.offset = 0
+	if !rtb.cannotRetry {
+		rtb.readBuf = rtb.buf
+	} else {
+		rtb.readBuf = nil
+	}
 
 	// Close rtb.r only if the request body is completely read or if it is too big.
 	// http.Roundtrip performs body.Close call even without any Read calls,
@@ -584,39 +643,4 @@ func (rtb *readTrackingBody) Close() error {
 	}
 
 	return nil
-}
-
-var readTrackingBodyPool sync.Pool
-
-func getReadTrackingBody(origin io.ReadCloser, b int) *readTrackingBody {
-	bufSize := 1024
-	if b > 0 && b < maxRequestBodySizeToRetry.IntN() {
-		bufSize = b
-	}
-	v := readTrackingBodyPool.Get()
-	if v == nil {
-		v = &readTrackingBody{
-			buf: make([]byte, 0, bufSize),
-		}
-	}
-	rtb := v.(*readTrackingBody)
-	rtb.r = origin
-	if bufSize > cap(rtb.buf) {
-		rtb.buf = make([]byte, 0, bufSize)
-	}
-
-	return rtb
-}
-
-func putReadTrackingBody(rtb *readTrackingBody) {
-	if rtb.r != nil {
-		_ = rtb.r.Close()
-	}
-	rtb.r = nil
-	rtb.buf = rtb.buf[:0]
-	rtb.offset = 0
-	rtb.cannotRetry = false
-	rtb.bufComplete = false
-
-	readTrackingBodyPool.Put(rtb)
 }

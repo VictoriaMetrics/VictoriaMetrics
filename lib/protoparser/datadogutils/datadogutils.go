@@ -44,9 +44,9 @@ func SanitizeName(name string) string {
 }
 
 var namesSanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
-	s = unsupportedDatadogChars.ReplaceAllString(s, "_")
-	s = multiUnderscores.ReplaceAllString(s, "_")
-	s = underscoresWithDots.ReplaceAllString(s, ".")
+	s = unsupportedDatadogChars.ReplaceAllLiteralString(s, "_")
+	s = multiUnderscores.ReplaceAllLiteralString(s, "_")
+	s = underscoresWithDots.ReplaceAllLiteralString(s, ".")
 	return s
 })
 

@@ -1,4 +1,4 @@
-package httputils
+package netutil
 
 import (
 	"testing"
@@ -7,6 +7,7 @@ import (
 func TestIsTCPv4Addr(t *testing.T) {
 	f := func(addr string, resultExpected bool) {
 		t.Helper()
+
 		result := isTCPv4Addr(addr)
 		if result != resultExpected {
 			t.Fatalf("unexpected result for isIPv4Addr(%q); got %v; want %v", addr, result, resultExpected)

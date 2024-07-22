@@ -16,535 +16,358 @@ func mustParseDatetime(t string) time.Time {
 	return result
 }
 
-func Test_splitDateRange(t *testing.T) {
-	type args struct {
-		start       string
-		end         string
-		granularity string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    []testTimeRange
-		wantErr bool
-	}{
-		{
-			name: "validates start is before end",
-			args: args{
-				start:       "2022-02-01T00:00:00Z",
-				end:         "2022-01-01T00:00:00Z",
-				granularity: StepMonth,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "validates granularity value",
-			args: args{
-				start:       "2022-01-01T00:00:00Z",
-				end:         "2022-02-01T00:00:00Z",
-				granularity: "non-existent-format",
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "month chunking",
-			args: args{
-				start:       "2022-01-03T11:11:11Z",
-				end:         "2022-03-03T12:12:12Z",
-				granularity: StepMonth,
-			},
-			want: []testTimeRange{
-				{
-					"2022-01-03T11:11:11Z",
-					"2022-01-31T23:59:59.999999999Z",
-				},
-				{
-					"2022-02-01T00:00:00Z",
-					"2022-02-28T23:59:59.999999999Z",
-				},
-				{
-					"2022-03-01T00:00:00Z",
-					"2022-03-03T12:12:12Z",
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "daily chunking",
-			args: args{
-				start:       "2022-01-03T11:11:11Z",
-				end:         "2022-01-05T12:12:12Z",
-				granularity: StepDay,
-			},
-			want: []testTimeRange{
-				{
-					"2022-01-03T11:11:11Z",
-					"2022-01-04T11:11:11Z",
-				},
-				{
-					"2022-01-04T11:11:11Z",
-					"2022-01-05T11:11:11Z",
-				},
-				{
-					"2022-01-05T11:11:11Z",
-					"2022-01-05T12:12:12Z",
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "hourly chunking",
-			args: args{
-				start:       "2022-01-03T11:11:11Z",
-				end:         "2022-01-03T14:14:14Z",
-				granularity: StepHour,
-			},
-			want: []testTimeRange{
-				{
-					"2022-01-03T11:11:11Z",
-					"2022-01-03T12:11:11Z",
-				},
-				{
-					"2022-01-03T12:11:11Z",
-					"2022-01-03T13:11:11Z",
-				},
-				{
-					"2022-01-03T13:11:11Z",
-					"2022-01-03T14:11:11Z",
-				},
-				{
-					"2022-01-03T14:11:11Z",
-					"2022-01-03T14:14:14Z",
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "month chunking with one day time range",
-			args: args{
-				start:       "2022-01-03T11:11:11Z",
-				end:         "2022-01-04T12:12:12Z",
-				granularity: StepMonth,
-			},
-			want: []testTimeRange{
-				{
-					"2022-01-03T11:11:11Z",
-					"2022-01-04T12:12:12Z",
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "month chunking with same day time range",
-			args: args{
-				start:       "2022-01-03T11:11:11Z",
-				end:         "2022-01-03T12:12:12Z",
-				granularity: StepMonth,
-			},
-			want: []testTimeRange{
-				{
-					"2022-01-03T11:11:11Z",
-					"2022-01-03T12:12:12Z",
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "month chunking with one month and two days range",
-			args: args{
-				start:       "2022-01-03T11:11:11Z",
-				end:         "2022-02-03T00:00:00Z",
-				granularity: StepMonth,
-			},
-			want: []testTimeRange{
-				{
-					"2022-01-03T11:11:11Z",
-					"2022-01-31T23:59:59.999999999Z",
-				},
-				{
-					"2022-02-01T00:00:00Z",
-					"2022-02-03T00:00:00Z",
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "week chunking with not full week",
-			args: args{
-				start:       "2023-07-30T00:00:00Z",
-				end:         "2023-08-05T23:59:59.999999999Z",
-				granularity: StepWeek,
-			},
-			want: []testTimeRange{
-				{
-					"2023-07-30T00:00:00Z",
-					"2023-08-05T23:59:59.999999999Z",
-				},
-			},
-		},
-		{
-			name: "week chunking with start of the week and end of the week",
-			args: args{
-				start:       "2023-07-30T00:00:00Z",
-				end:         "2023-08-06T00:00:00Z",
-				granularity: StepWeek,
-			},
-			want: []testTimeRange{
-				{
-					"2023-07-30T00:00:00Z",
-					"2023-08-06T00:00:00Z",
-				},
-			},
-		},
-		{
-			name: "week chunking with next one day week",
-			args: args{
-				start:       "2023-07-30T00:00:00Z",
-				end:         "2023-08-07T01:12:00Z",
-				granularity: StepWeek,
-			},
-			want: []testTimeRange{
-				{
-					"2023-07-30T00:00:00Z",
-					"2023-08-06T00:00:00Z",
-				},
-				{
-					"2023-08-06T00:00:00Z",
-					"2023-08-07T01:12:00Z",
-				},
-			},
-		},
-		{
-			name: "week chunking with month and not full week representation",
-			args: args{
-				start:       "2023-07-30T00:00:00Z",
-				end:         "2023-09-01T01:12:00Z",
-				granularity: StepWeek,
-			},
-			want: []testTimeRange{
-				{
-					"2023-07-30T00:00:00Z",
-					"2023-08-06T00:00:00Z",
-				},
-				{
-					"2023-08-06T00:00:00Z",
-					"2023-08-13T00:00:00Z",
-				},
-				{
-					"2023-08-13T00:00:00Z",
-					"2023-08-20T00:00:00Z",
-				},
-				{
-					"2023-08-20T00:00:00Z",
-					"2023-08-27T00:00:00Z",
-				},
-				{
-					"2023-08-27T00:00:00Z",
-					"2023-09-01T01:12:00Z",
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			start := mustParseDatetime(tt.args.start)
-			end := mustParseDatetime(tt.args.end)
+func TestSplitDateRange_Failure(t *testing.T) {
+	f := func(startStr, endStr, granularity string) {
+		t.Helper()
 
-			got, err := SplitDateRange(start, end, tt.args.granularity, false)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("splitDateRange() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+		start := mustParseDatetime(startStr)
+		end := mustParseDatetime(endStr)
 
-			var testExpectedResults [][]time.Time
-			if tt.want != nil {
-				testExpectedResults = make([][]time.Time, 0)
-				for _, dr := range tt.want {
-					testExpectedResults = append(testExpectedResults, []time.Time{
-						mustParseDatetime(dr[0]),
-						mustParseDatetime(dr[1]),
-					})
-				}
-			}
-
-			if !reflect.DeepEqual(got, testExpectedResults) {
-				t.Errorf("splitDateRange() got = %v, want %v", got, testExpectedResults)
-			}
-		})
+		_, err := SplitDateRange(start, end, granularity, false)
+		if err == nil {
+			t.Fatalf("expecting non-nil result")
+		}
 	}
+
+	// validates start is before end
+	f("2022-02-01T00:00:00Z", "2022-01-01T00:00:00Z", StepMonth)
+
+	// validates granularity value
+	f("2022-01-01T00:00:00Z", "2022-02-01T00:00:00Z", "non-existent-format")
 }
 
-func Test_splitDateRange_reverse(t *testing.T) {
-	type args struct {
-		start       string
-		end         string
-		granularity string
-		timeReverse bool
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    []testTimeRange
-		wantErr bool
-	}{
-		{
-			name: "validates start is before end",
-			args: args{
-				start:       "2022-02-01T00:00:00Z",
-				end:         "2022-01-01T00:00:00Z",
-				granularity: StepMonth,
-				timeReverse: true,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "validates granularity value",
-			args: args{
-				start:       "2022-01-01T00:00:00Z",
-				end:         "2022-02-01T00:00:00Z",
-				granularity: "non-existent-format",
-				timeReverse: true,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "month chunking",
-			args: args{
-				start:       "2022-01-03T11:11:11Z",
-				end:         "2022-03-03T12:12:12Z",
-				granularity: StepMonth,
-				timeReverse: true,
-			},
-			want: []testTimeRange{
-				{
-					"2022-03-01T00:00:00Z",
-					"2022-03-03T12:12:12Z",
-				},
-				{
-					"2022-02-01T00:00:00Z",
-					"2022-02-28T23:59:59.999999999Z",
-				},
-				{
-					"2022-01-03T11:11:11Z",
-					"2022-01-31T23:59:59.999999999Z",
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "daily chunking",
-			args: args{
-				start:       "2022-01-03T11:11:11Z",
-				end:         "2022-01-05T12:12:12Z",
-				granularity: StepDay,
-				timeReverse: true,
-			},
-			want: []testTimeRange{
-				{
-					"2022-01-05T11:11:11Z",
-					"2022-01-05T12:12:12Z",
-				},
-				{
-					"2022-01-04T11:11:11Z",
-					"2022-01-05T11:11:11Z",
-				},
-				{
-					"2022-01-03T11:11:11Z",
-					"2022-01-04T11:11:11Z",
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "hourly chunking",
-			args: args{
-				start:       "2022-01-03T11:11:11Z",
-				end:         "2022-01-03T14:14:14Z",
-				granularity: StepHour,
-				timeReverse: true,
-			},
-			want: []testTimeRange{
-				{
-					"2022-01-03T14:11:11Z",
-					"2022-01-03T14:14:14Z",
-				},
-				{
-					"2022-01-03T13:11:11Z",
-					"2022-01-03T14:11:11Z",
-				},
-				{
-					"2022-01-03T12:11:11Z",
-					"2022-01-03T13:11:11Z",
-				},
-				{
-					"2022-01-03T11:11:11Z",
-					"2022-01-03T12:11:11Z",
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "month chunking with one day time range",
-			args: args{
-				start:       "2022-01-03T11:11:11Z",
-				end:         "2022-01-04T12:12:12Z",
-				granularity: StepMonth,
-				timeReverse: true,
-			},
-			want: []testTimeRange{
-				{
-					"2022-01-03T11:11:11Z",
-					"2022-01-04T12:12:12Z",
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "month chunking with same day time range",
-			args: args{
-				start:       "2022-01-03T11:11:11Z",
-				end:         "2022-01-03T12:12:12Z",
-				granularity: StepMonth,
-				timeReverse: true,
-			},
-			want: []testTimeRange{
-				{
-					"2022-01-03T11:11:11Z",
-					"2022-01-03T12:12:12Z",
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "month chunking with one month and two days range",
-			args: args{
-				start:       "2022-01-03T11:11:11Z",
-				end:         "2022-02-03T00:00:00Z",
-				granularity: StepMonth,
-				timeReverse: true,
-			},
-			want: []testTimeRange{
-				{
-					"2022-02-01T00:00:00Z",
-					"2022-02-03T00:00:00Z",
-				},
-				{
-					"2022-01-03T11:11:11Z",
-					"2022-01-31T23:59:59.999999999Z",
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "week chunking with not full week",
-			args: args{
-				start:       "2023-07-30T00:00:00Z",
-				end:         "2023-08-05T23:59:59.999999999Z",
-				granularity: StepWeek,
-				timeReverse: true,
-			},
-			want: []testTimeRange{
-				{
-					"2023-07-30T00:00:00Z",
-					"2023-08-05T23:59:59.999999999Z",
-				},
-			},
-		},
-		{
-			name: "week chunking with start of the week and end of the week",
-			args: args{
-				start:       "2023-07-30T00:00:00Z",
-				end:         "2023-08-06T00:00:00Z",
-				granularity: StepWeek,
-				timeReverse: true,
-			},
-			want: []testTimeRange{
-				{
-					"2023-07-30T00:00:00Z",
-					"2023-08-06T00:00:00Z",
-				},
-			},
-		},
-		{
-			name: "week chunking with next one day week",
-			args: args{
-				start:       "2023-07-30T00:00:00Z",
-				end:         "2023-08-07T01:12:00Z",
-				granularity: StepWeek,
-				timeReverse: true,
-			},
-			want: []testTimeRange{
-				{
-					"2023-08-06T00:00:00Z",
-					"2023-08-07T01:12:00Z",
-				},
-				{
-					"2023-07-30T00:00:00Z",
-					"2023-08-06T00:00:00Z",
-				},
-			},
-		},
-		{
-			name: "week chunking with month and not full week representation",
-			args: args{
-				start:       "2023-07-30T00:00:00Z",
-				end:         "2023-09-01T01:12:00Z",
-				granularity: StepWeek,
-				timeReverse: true,
-			},
-			want: []testTimeRange{
-				{
-					"2023-08-27T00:00:00Z",
-					"2023-09-01T01:12:00Z",
-				},
-				{
-					"2023-08-20T00:00:00Z",
-					"2023-08-27T00:00:00Z",
-				},
-				{
-					"2023-08-13T00:00:00Z",
-					"2023-08-20T00:00:00Z",
-				},
-				{
-					"2023-08-06T00:00:00Z",
-					"2023-08-13T00:00:00Z",
-				},
-				{
-					"2023-07-30T00:00:00Z",
-					"2023-08-06T00:00:00Z",
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			start := mustParseDatetime(tt.args.start)
-			end := mustParseDatetime(tt.args.end)
+func TestSplitDateRange_Success(t *testing.T) {
+	f := func(startStr, endStr, granularity string, resultExpected []testTimeRange) {
+		t.Helper()
 
-			got, err := SplitDateRange(start, end, tt.args.granularity, tt.args.timeReverse)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("splitDateRange() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+		start := mustParseDatetime(startStr)
+		end := mustParseDatetime(endStr)
 
-			var testExpectedResults [][]time.Time
-			if tt.want != nil {
-				testExpectedResults = make([][]time.Time, 0)
-				for _, dr := range tt.want {
-					testExpectedResults = append(testExpectedResults, []time.Time{
-						mustParseDatetime(dr[0]),
-						mustParseDatetime(dr[1]),
-					})
-				}
-			}
+		result, err := SplitDateRange(start, end, granularity, false)
+		if err != nil {
+			t.Fatalf("SplitDateRange() error: %s", err)
+		}
 
-			if !reflect.DeepEqual(got, testExpectedResults) {
-				t.Errorf("splitDateRange() got = %v, want %v", got, testExpectedResults)
-			}
-		})
+		var testExpectedResults [][]time.Time
+		for _, dr := range resultExpected {
+			testExpectedResults = append(testExpectedResults, []time.Time{
+				mustParseDatetime(dr[0]),
+				mustParseDatetime(dr[1]),
+			})
+		}
+
+		if !reflect.DeepEqual(result, testExpectedResults) {
+			t.Fatalf("unexpected result\ngot\n%v\nwant\n%v", result, testExpectedResults)
+		}
 	}
+
+	// month chunking
+	f("2022-01-03T11:11:11Z", "2022-03-03T12:12:12Z", StepMonth, []testTimeRange{
+		{
+			"2022-01-03T11:11:11Z",
+			"2022-01-31T23:59:59.999999999Z",
+		},
+		{
+			"2022-02-01T00:00:00Z",
+			"2022-02-28T23:59:59.999999999Z",
+		},
+		{
+			"2022-03-01T00:00:00Z",
+			"2022-03-03T12:12:12Z",
+		},
+	})
+
+	// daily chunking
+	f("2022-01-03T11:11:11Z", "2022-01-05T12:12:12Z", StepDay, []testTimeRange{
+		{
+			"2022-01-03T11:11:11Z",
+			"2022-01-04T11:11:11Z",
+		},
+		{
+			"2022-01-04T11:11:11Z",
+			"2022-01-05T11:11:11Z",
+		},
+		{
+			"2022-01-05T11:11:11Z",
+			"2022-01-05T12:12:12Z",
+		},
+	})
+
+	// hourly chunking
+	f("2022-01-03T11:11:11Z", "2022-01-03T14:14:14Z", StepHour, []testTimeRange{
+		{
+			"2022-01-03T11:11:11Z",
+			"2022-01-03T12:11:11Z",
+		},
+		{
+			"2022-01-03T12:11:11Z",
+			"2022-01-03T13:11:11Z",
+		},
+		{
+			"2022-01-03T13:11:11Z",
+			"2022-01-03T14:11:11Z",
+		},
+		{
+			"2022-01-03T14:11:11Z",
+			"2022-01-03T14:14:14Z",
+		},
+	})
+
+	// month chunking with one day time range
+	f("2022-01-03T11:11:11Z", "2022-01-04T12:12:12Z", StepMonth, []testTimeRange{
+		{
+			"2022-01-03T11:11:11Z",
+			"2022-01-04T12:12:12Z",
+		},
+	})
+
+	// month chunking with same day time range
+	f("2022-01-03T11:11:11Z", "2022-01-03T12:12:12Z", StepMonth, []testTimeRange{
+		{
+			"2022-01-03T11:11:11Z",
+			"2022-01-03T12:12:12Z",
+		},
+	})
+
+	// month chunking with one month and two days range
+	f("2022-01-03T11:11:11Z", "2022-02-03T00:00:00Z", StepMonth, []testTimeRange{
+		{
+			"2022-01-03T11:11:11Z",
+			"2022-01-31T23:59:59.999999999Z",
+		},
+		{
+			"2022-02-01T00:00:00Z",
+			"2022-02-03T00:00:00Z",
+		},
+	})
+
+	// week chunking with not full week
+	f("2023-07-30T00:00:00Z", "2023-08-05T23:59:59.999999999Z", StepWeek, []testTimeRange{
+		{
+			"2023-07-30T00:00:00Z",
+			"2023-08-05T23:59:59.999999999Z",
+		},
+	})
+
+	// week chunking with start of the week and end of the week
+	f("2023-07-30T00:00:00Z", "2023-08-06T00:00:00Z", StepWeek, []testTimeRange{
+		{
+			"2023-07-30T00:00:00Z",
+			"2023-08-06T00:00:00Z",
+		},
+	})
+
+	// week chunking with next one day week
+	f("2023-07-30T00:00:00Z", "2023-08-07T01:12:00Z", StepWeek, []testTimeRange{
+		{
+			"2023-07-30T00:00:00Z",
+			"2023-08-06T00:00:00Z",
+		},
+		{
+			"2023-08-06T00:00:00Z",
+			"2023-08-07T01:12:00Z",
+		},
+	})
+
+	// week chunking with month and not full week representation
+	f("2023-07-30T00:00:00Z", "2023-09-01T01:12:00Z", StepWeek, []testTimeRange{
+		{
+			"2023-07-30T00:00:00Z",
+			"2023-08-06T00:00:00Z",
+		},
+		{
+			"2023-08-06T00:00:00Z",
+			"2023-08-13T00:00:00Z",
+		},
+		{
+			"2023-08-13T00:00:00Z",
+			"2023-08-20T00:00:00Z",
+		},
+		{
+			"2023-08-20T00:00:00Z",
+			"2023-08-27T00:00:00Z",
+		},
+		{
+			"2023-08-27T00:00:00Z",
+			"2023-09-01T01:12:00Z",
+		},
+	})
+}
+
+func TestSplitDateRange_Reverse_Failure(t *testing.T) {
+	f := func(startStr, endStr, granularity string) {
+		t.Helper()
+
+		start := mustParseDatetime(startStr)
+		end := mustParseDatetime(endStr)
+
+		_, err := SplitDateRange(start, end, granularity, true)
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
+	}
+
+	// validates start is before end
+	f("2022-02-01T00:00:00Z", "2022-01-01T00:00:00Z", StepMonth)
+
+	// validates granularity value
+	f("2022-01-01T00:00:00Z", "2022-02-01T00:00:00Z", "non-existent-format")
+}
+
+func TestSplitDateRange_Reverse_Success(t *testing.T) {
+	f := func(startStr, endStr, granularity string, resultExpected []testTimeRange) {
+		t.Helper()
+
+		start := mustParseDatetime(startStr)
+		end := mustParseDatetime(endStr)
+
+		result, err := SplitDateRange(start, end, granularity, true)
+		if err != nil {
+			t.Fatalf("SplitDateRange() error: %s", err)
+		}
+
+		var testExpectedResults [][]time.Time
+		for _, dr := range resultExpected {
+			testExpectedResults = append(testExpectedResults, []time.Time{
+				mustParseDatetime(dr[0]),
+				mustParseDatetime(dr[1]),
+			})
+		}
+
+		if !reflect.DeepEqual(result, testExpectedResults) {
+			t.Fatalf("unexpected result\ngot\n%v\nwant\n%v", result, testExpectedResults)
+		}
+	}
+
+	// month chunking
+	f("2022-01-03T11:11:11Z", "2022-03-03T12:12:12Z", StepMonth, []testTimeRange{
+		{
+			"2022-03-01T00:00:00Z",
+			"2022-03-03T12:12:12Z",
+		},
+		{
+			"2022-02-01T00:00:00Z",
+			"2022-02-28T23:59:59.999999999Z",
+		},
+		{
+			"2022-01-03T11:11:11Z",
+			"2022-01-31T23:59:59.999999999Z",
+		},
+	})
+
+	// daily chunking
+	f("2022-01-03T11:11:11Z", "2022-01-05T12:12:12Z", StepDay, []testTimeRange{
+		{
+			"2022-01-05T11:11:11Z",
+			"2022-01-05T12:12:12Z",
+		},
+		{
+			"2022-01-04T11:11:11Z",
+			"2022-01-05T11:11:11Z",
+		},
+		{
+			"2022-01-03T11:11:11Z",
+			"2022-01-04T11:11:11Z",
+		},
+	})
+
+	// hourly chunking
+	f("2022-01-03T11:11:11Z", "2022-01-03T14:14:14Z", StepHour, []testTimeRange{
+		{
+			"2022-01-03T14:11:11Z",
+			"2022-01-03T14:14:14Z",
+		},
+		{
+			"2022-01-03T13:11:11Z",
+			"2022-01-03T14:11:11Z",
+		},
+		{
+			"2022-01-03T12:11:11Z",
+			"2022-01-03T13:11:11Z",
+		},
+		{
+			"2022-01-03T11:11:11Z",
+			"2022-01-03T12:11:11Z",
+		},
+	})
+
+	// month chunking with one day time range
+	f("2022-01-03T11:11:11Z", "2022-01-04T12:12:12Z", StepMonth, []testTimeRange{
+		{
+			"2022-01-03T11:11:11Z",
+			"2022-01-04T12:12:12Z",
+		},
+	})
+
+	// month chunking with same day time range
+	f("2022-01-03T11:11:11Z", "2022-01-03T12:12:12Z", StepMonth, []testTimeRange{
+		{
+			"2022-01-03T11:11:11Z",
+			"2022-01-03T12:12:12Z",
+		},
+	})
+
+	// month chunking with one month and two days range
+	f("2022-01-03T11:11:11Z", "2022-02-03T00:00:00Z", StepMonth, []testTimeRange{
+		{
+			"2022-02-01T00:00:00Z",
+			"2022-02-03T00:00:00Z",
+		},
+		{
+			"2022-01-03T11:11:11Z",
+			"2022-01-31T23:59:59.999999999Z",
+		},
+	})
+
+	// week chunking with not full week
+	f("2023-07-30T00:00:00Z", "2023-08-05T23:59:59.999999999Z", StepWeek, []testTimeRange{
+		{
+			"2023-07-30T00:00:00Z",
+			"2023-08-05T23:59:59.999999999Z",
+		},
+	})
+
+	// week chunking with start of the week and end of the week
+	f("2023-07-30T00:00:00Z", "2023-08-06T00:00:00Z", StepWeek, []testTimeRange{
+		{
+			"2023-07-30T00:00:00Z",
+			"2023-08-06T00:00:00Z",
+		},
+	})
+
+	// week chunking with next one day week
+	f("2023-07-30T00:00:00Z", "2023-08-07T01:12:00Z", StepWeek, []testTimeRange{
+		{
+			"2023-08-06T00:00:00Z",
+			"2023-08-07T01:12:00Z",
+		},
+		{
+			"2023-07-30T00:00:00Z",
+			"2023-08-06T00:00:00Z",
+		},
+	})
+
+	// week chunking with month and not full week representation
+	f("2023-07-30T00:00:00Z", "2023-09-01T01:12:00Z", StepWeek, []testTimeRange{
+		{
+			"2023-08-27T00:00:00Z",
+			"2023-09-01T01:12:00Z",
+		},
+		{
+			"2023-08-20T00:00:00Z",
+			"2023-08-27T00:00:00Z",
+		},
+		{
+			"2023-08-13T00:00:00Z",
+			"2023-08-20T00:00:00Z",
+		},
+		{
+			"2023-08-06T00:00:00Z",
+			"2023-08-13T00:00:00Z",
+		},
+		{
+			"2023-07-30T00:00:00Z",
+			"2023-08-06T00:00:00Z",
+		},
+	})
 }
