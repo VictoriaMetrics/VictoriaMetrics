@@ -2489,6 +2489,83 @@ and vmstorage has enough free memory to accommodate new cache sizes.
 To override the default values see command-line flags with `-storage.cacheSize` prefix.
 See the full description of flags [here](#list-of-command-line-flags).
 
+## Index tuning
+
+By default, VictoriaMetrics uses the following indexes for data retrieval:
+`global` and `per-day`. Both store the same data, the only difference is that
+the per-day index adds the date to each record.
+
+If your use case involves
+[high cardinality](https://docs.victoriametrics.com/faq/#what-is-high-cardinality)
+with
+[high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate)
+over a long [retention period](https://docs.victoriametrics.com/#retention),
+then this default setting of having both indexes should be ideal for you.
+
+A prominent example is Kubernetes. Its resources export a lot of metrics. The
+resources are also created and deleted very often causing the metric label
+values to change. This, in turn, results in new time series. The per-day index
+speeds up data retrieval on longer retention periods as data ingested grows over
+time.
+
+But if your use case assumes low or no churn rate, then you might be benefiting
+from disabling the per-day indexe by setting the flag
+`-disablePerDayIndexes=true`. This will improve the time series ingestion rate
+and decrease the disk usage, since no time is spent to write to the per-day
+index and no disk space is used to store it.
+
+Example use cases:
+
+-   Historical weather data, such as
+	[ERA5](https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels).
+	It consists of millions time series whose hourly values span tens of years.
+	The time series	set never changes. If the per-day index is disabled, once
+	the first hour of data is ingested the entire time series set will be
+	written into the global index and subsequent portions of data will not
+	result in index update. But if the per-day index is enabled, the same set of
+	time-series will be written to the per-day index for every day of data.
+
+-   IoT: a huge set of sensors exports time series with the sensor ID used as a
+	metric label value. Since sensor additions or remotals happen infrequently,
+	the time series churn rate will be low. With the per-day index disabled, the
+	entire time series set will be registered in global index during the initial
+	data ingestion and the global index will receive small updates when a sensor
+	is added or removed.
+
+What to expect:
+
+-   The following search operations will ignore the time range provided with
+    the query. I.e. the returned results will correspond to the entire retention
+	period no matter which time range or date have been requested:
+
+	-  [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels)
+	-  [/api/v1/label/…/values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues)
+	-  [/api/v1/status/tsdb](https://docs.victoriametrics.com/url-examples/#apiv1statustsdb)
+	-  [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series)
+	-  TODO: /api/v1/query
+	-  TODO: /api/v1/query_range
+	-  TODO: /api/v1/admin/tsdb/delete_series
+
+-   [Query traces](https://docs.victoriametrics.com/?highlight=trace#query-tracing)
+	will indicate that the search is performed using the global index.
+
+-   If the data was previously ingested with the per-day index enabled and then
+	a search operation is performed with the per-day index disabled, the search
+	result will	still be correct, since both indexes (global and per-day)
+	were populated at the ingestion time.
+
+-   However, if the data was previously ingested with the per-day index disabled
+    and then the search is performed with the per-day index enabled, the search
+	result will be incorrect. It will either be empty or contain partial data
+	(depending on whether data ingestion happened or not after the flag was set
+	to false). This is because at the time of initial ingestion nothing was
+	written	to the per-day index and at the search time the query is performed
+	on the per-day index.
+
+	TODO(rtm0): To fix that, the per-day index needs to be populated. One way to
+	do that is by re-registering metric names for each date the data has been
+	previously ingested for.
+
 ## Data migration
 
 ### From VictoriaMetrics
