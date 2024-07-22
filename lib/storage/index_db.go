@@ -615,9 +615,9 @@ func (db *indexDB) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer
 func (is *indexSearch) searchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer, lns map[string]struct{}, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int) error {
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
 	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
-	if maxDate == 0 || minDate > maxDate || maxDate-minDate > maxDaysForPerDaySearch {
+	if tr == globalIndexTimeRange || minDate > maxDate || maxDate-minDate > maxDaysForPerDaySearch {
 		qtChild := qt.NewChild("search for label names in global index: filters=%s", tfss)
-		err := is.searchLabelNamesWithFiltersOnDate(qtChild, lns, tfss, 0, maxLabelNames, maxMetrics)
+		err := is.searchLabelNamesWithFiltersOnDate(qtChild, lns, tfss, globalIndexDate, maxLabelNames, maxMetrics)
 		qtChild.Done()
 		return err
 	}
@@ -1278,7 +1278,7 @@ func (is *indexSearch) getTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters,
 
 	loopsPaceLimiter := 0
 	nsPrefixExpected := byte(nsPrefixDateTagToMetricIDs)
-	if date == 0 {
+	if date == globalIndexDate {
 		nsPrefixExpected = nsPrefixTagToMetricIDs
 	}
 	kb.B = is.marshalCommonPrefixForDate(kb.B[:0], date)
@@ -1857,7 +1857,7 @@ func (is *indexSearch) getTSIDByMetricNameNoExtDB(dst *TSID, metricName []byte, 
 
 	// TODO(rtm0): Also check that the -disablePerDayIndexes is set?
 	// (since nsPrefixMetricNameToTSID makes sense only in this case)
-	if date == 0 {
+	if date == globalIndexDate {
 		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixMetricNameToTSID)
 	} else {
 		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateMetricNameToTSID)
@@ -2189,14 +2189,17 @@ func (is *indexSearch) searchMetricIDsWithFiltersOnDate(qt *querytracer.Tracer, 
 	if len(tfss) == 0 {
 		return nil, nil
 	}
-	tr := TimeRange{
-		MinTimestamp: int64(date) * msecPerDay,
-		MaxTimestamp: int64(date+1)*msecPerDay - 1,
+
+	var tr TimeRange
+	if date == globalIndexDate {
+		tr = globalIndexTimeRange
+	} else {
+		tr = TimeRange{
+			MinTimestamp: int64(date) * msecPerDay,
+			MaxTimestamp: int64(date+1)*msecPerDay - 1,
+		}
 	}
-	if date == 0 {
-		// Search for metricIDs on the whole time range.
-		tr.MaxTimestamp = timestampFromTime(time.Now())
-	}
+
 	metricIDs, err := is.searchMetricIDsInternal(qt, tfss, tr, maxMetrics)
 	if err != nil {
 		return nil, err
@@ -2915,7 +2918,7 @@ func reverseBytes(dst, src []byte) []byte {
 }
 
 func (is *indexSearch) hasDateMetricIDNoExtDB(date, metricID uint64) bool {
-	if date == 0 {
+	if date == globalIndexDate {
 		return is.hasMetricIDNoExtDB(metricID)
 	}
 

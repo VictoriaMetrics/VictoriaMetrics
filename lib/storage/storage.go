@@ -1559,7 +1559,7 @@ func (s *Storage) GetSeriesCount(deadline uint64) (uint64, error) {
 // retention period, i.e. global indexes are used for calculation.
 func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
 	if s.disablePerDayIndexes {
-		date = 0
+		date = globalIndexDate
 	}
 	return s.idb().GetTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics, deadline)
 }
