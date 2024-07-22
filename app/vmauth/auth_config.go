@@ -461,7 +461,7 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 	}
 
 	// Slow path - select other backend urls.
-	n := atomicCounter.Add(1)
+	n := atomicCounter.Add(1) - 1
 
 	for i := uint32(0); i < uint32(len(bus)); i++ {
 		idx := (n + i) % uint32(len(bus))

@@ -117,8 +117,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 
-		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
-		http.Error(w, "missing 'Authorization' request header", http.StatusUnauthorized)
+		handleMissingAuthorizationError(w)
 		return true
 	}
 
@@ -189,12 +188,11 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 			// to a route that is not in the configuration for unauthorized user.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5236
 			if ui.BearerToken == "" && ui.Username == "" && len(*authUsers.Load()) > 0 {
-				w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
-				http.Error(w, "missing `Authorization` request header", http.StatusUnauthorized)
+				handleMissingAuthorizationError(w)
 				return
 			}
 			missingRouteRequests.Inc()
-			httpserver.Errorf(w, r, "missing route for %q", u.String())
+			httpserver.Errorf(w, r, "missing route for %s", u.String())
 			return
 		}
 		up, hc = ui.DefaultURL, ui.HeadersConf
@@ -220,7 +218,15 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		} else { // Update path for regular routes.
 			targetURL = mergeURLs(targetURL, u, up.dropSrcPathPrefixParts)
 		}
-		ok := tryProcessingRequest(w, r, targetURL, hc, up.retryStatusCodes, ui)
+
+		wasLocalRetry := false
+	again:
+		ok, needLocalRetry := tryProcessingRequest(w, r, targetURL, hc, up.retryStatusCodes, ui)
+		if needLocalRetry && !wasLocalRetry {
+			wasLocalRetry = true
+			goto again
+		}
+
 		bu.put()
 		if ok {
 			return
@@ -228,17 +234,18 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		bu.setBroken()
 	}
 	err := &httpserver.ErrorWithStatusCode{
-		Err:        fmt.Errorf("all the backends for the user %q are unavailable", ui.name()),
+		Err:        fmt.Errorf("all the %d backends for the user %q are unavailable", up.getBackendsCount(), ui.name()),
 		StatusCode: http.StatusServiceUnavailable,
 	}
 	httpserver.Errorf(w, r, "%s", err)
 	ui.backendErrors.Inc()
 }
 
-func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int, ui *UserInfo) bool {
+func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int, ui *UserInfo) (bool, bool) {
 	req := sanitizeRequestHeaders(r)
 
 	req.URL = targetURL
+	req.Header.Set("User-Agent", "vmauth")
 	updateHeadersByConfig(req.Header, hc.RequestHeaders)
 	if hc.KeepOriginalHost == nil || !*hc.KeepOriginalHost {
 		if host := getHostHeader(hc.RequestHeaders); host != "" {
@@ -248,9 +255,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		}
 	}
 
-	var trivialRetries int
 	rtb, rtbOK := req.Body.(*readTrackingBody)
-again:
 	res, err := ui.rt.RoundTrip(req)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
@@ -262,7 +267,7 @@ again:
 				// Timed out request must be counted as errors, since this usually means that the backend is slow.
 				ui.backendErrors.Inc()
 			}
-			return true
+			return true, false
 		}
 		if !rtbOK || !rtb.canRetry() {
 			// Request body cannot be re-sent to another backend. Return the error to the client then.
@@ -272,19 +277,19 @@ again:
 			}
 			httpserver.Errorf(w, r, "%s", err)
 			ui.backendErrors.Inc()
-			return true
+			return true, false
 		}
-		// Retry request on trivial network errors, such as proxy idle timeout misconfiguration or socket close by OS
-		if (netutil.IsTrivialNetworkError(err) || errors.Is(err, io.EOF)) && trivialRetries < 1 {
-			trivialRetries++
-			goto again
+		if netutil.IsTrivialNetworkError(err) {
+			// Retry request at the same backend on trivial network errors, such as proxy idle timeout misconfiguration or socket close by OS
+			return false, true
 		}
+
 		// Retry the request if its body wasn't read yet. This usually means that the backend isn't reachable.
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		// NOTE: do not use httpserver.GetRequestURI
 		// it explicitly reads request body, which may fail retries.
 		logger.Warnf("remoteAddr: %s; requestURI: %s; retrying the request to %s because of response error: %s", remoteAddr, req.URL, targetURL, err)
-		return false
+		return false, false
 	}
 	if slices.Contains(retryStatusCodes, res.StatusCode) {
 		_ = res.Body.Close()
@@ -298,7 +303,7 @@ again:
 			}
 			httpserver.Errorf(w, r, "%s", err)
 			ui.backendErrors.Inc()
-			return true
+			return true, false
 		}
 		// Retry requests at other backends if it matches retryStatusCodes.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4893
@@ -307,7 +312,7 @@ again:
 		// it explicitly reads request body, which may fail retries.
 		logger.Warnf("remoteAddr: %s; requestURI: %s; retrying the request to %s because response status code=%d belongs to retry_status_codes=%d",
 			remoteAddr, req.URL, targetURL, res.StatusCode, retryStatusCodes)
-		return false
+		return false, false
 	}
 	removeHopHeaders(res.Header)
 	copyHeader(w.Header(), res.Header)
@@ -323,9 +328,9 @@ again:
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		requestURI := httpserver.GetRequestURI(r)
 		logger.Warnf("remoteAddr: %s; requestURI: %s; error when proxying response body from %s: %s", remoteAddr, requestURI, targetURL, err)
-		return true
+		return true, false
 	}
-	return true
+	return true, false
 }
 
 var copyBufPool bytesutil.ByteBufferPool
@@ -490,6 +495,11 @@ vmauth authenticates and authorizes incoming requests and proxies them to Victor
 See the docs at https://docs.victoriametrics.com/vmauth/ .
 `
 	flagutil.Usage(s)
+}
+
+func handleMissingAuthorizationError(w http.ResponseWriter) {
+	w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+	http.Error(w, "missing 'Authorization' request header", http.StatusUnauthorized)
 }
 
 func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err error) {
