@@ -1292,15 +1292,24 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters) (int,
 }
 
 // SearchLabelNamesWithFiltersOnTimeRange searches for label names matching the given tfss on tr.
+// TODO(rtm0): Rename to SearchLabelNames()?
 func (s *Storage) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64,
 ) ([]string, error) {
+	if s.disablePerDayIndexes {
+		tr = globalIndexTimeRange
+	}
 	return s.idb().SearchLabelNamesWithFiltersOnTimeRange(qt, tfss, tr, maxLabelNames, maxMetrics, deadline)
 }
 
 // SearchLabelValuesWithFiltersOnTimeRange searches for label values for the given labelName, filters and tr.
+// TODO(rtm0): Rename to SearchLabelValues()?
 func (s *Storage) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer, labelName string, tfss []*TagFilters,
 	tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64,
 ) ([]string, error) {
+	if s.disablePerDayIndexes {
+		tr = globalIndexTimeRange
+	}
+
 	idb := s.idb()
 
 	key := labelName
@@ -1310,7 +1319,13 @@ func (s *Storage) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer
 	if len(tfss) == 1 && len(tfss[0].tfs) == 1 && string(tfss[0].tfs[0].key) == key {
 		// tfss contains only a single filter on labelName. It is faster searching for label values
 		// without any filters and limits and then later applying the filter and the limit to the found label values.
-		qt.Printf("search for up to %d values for the label %q on the time range %s", maxMetrics, labelName, &tr)
+
+		if tr == globalIndexTimeRange {
+			qt.Printf("search for up to %d values for the label %q on the entire retention period", maxMetrics, labelName)
+		} else {
+			qt.Printf("search for up to %d values for the label %q on the time range %s", maxMetrics, labelName, &tr)
+		}
+
 		lvs, err := idb.SearchLabelValuesWithFiltersOnTimeRange(qt, labelName, nil, tr, maxMetrics, maxMetrics, deadline)
 		if err != nil {
 			return nil, err

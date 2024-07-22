@@ -578,7 +578,11 @@ var indexItemsPool sync.Pool
 
 // SearchLabelNamesWithFiltersOnTimeRange returns all the label names, which match the given tfss on the given tr.
 func (db *indexDB) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64) ([]string, error) {
-	qt = qt.NewChild("search for label names: filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", tfss, &tr, maxLabelNames, maxMetrics)
+	if tr == globalIndexTimeRange {
+		qt = qt.NewChild("search for label names in global index: filters=%s, maxLabelNames=%d, maxMetrics=%d", tfss, maxLabelNames, maxMetrics)
+	} else {
+		qt = qt.NewChild("search for label names in per-day index: filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", tfss, &tr, maxLabelNames, maxMetrics)
+	}
 	defer qt.Done()
 
 	lns := make(map[string]struct{})
@@ -624,10 +628,10 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tr
 	var mu sync.Mutex
 	wg := getWaitGroup()
 	var errGlobal error
-	qt = qt.NewChild("parallel search for label names: filters=%s, timeRange=%s", tfss, &tr)
+	qt = qt.NewChild("parallel search for label names in per-day index: filters=%s, timeRange=%s", tfss, &tr)
 	for date := minDate; date <= maxDate; date++ {
 		wg.Add(1)
-		qtChild := qt.NewChild("search for label names: filters=%s, date=%s", tfss, dateToString(date))
+		qtChild := qt.NewChild("search for label names on date: filters=%s, date=%s", tfss, dateToString(date))
 		go func(date uint64) {
 			defer func() {
 				qtChild.Done()
@@ -683,7 +687,7 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 	loopsPaceLimiter := 0
 	underscoreNameSeen := false
 	nsPrefixExpected := byte(nsPrefixDateTagToMetricIDs)
-	if date == 0 {
+	if date == globalIndexDate {
 		nsPrefixExpected = nsPrefixTagToMetricIDs
 	}
 
@@ -797,7 +801,11 @@ func (is *indexSearch) getLabelNamesForMetricIDs(qt *querytracer.Tracer, metricI
 // SearchLabelValuesWithFiltersOnTimeRange returns label values for the given labelName, tfss and tr.
 func (db *indexDB) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer, labelName string, tfss []*TagFilters, tr TimeRange,
 	maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
-	qt = qt.NewChild("search for label values: labelName=%q, filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
+	if tr == globalIndexTimeRange {
+		qt = qt.NewChild("search for label values in global index: labelName=%q, filters=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, maxLabelValues, maxMetrics)
+	} else {
+		qt = qt.NewChild("search for label values in per-day index: labelName=%q, filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
+	}
 	defer qt.Done()
 
 	lvs := make(map[string]struct{})
@@ -839,9 +847,9 @@ func (is *indexSearch) searchLabelValuesWithFiltersOnTimeRange(qt *querytracer.T
 	tr TimeRange, maxLabelValues, maxMetrics int) error {
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
 	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
-	if maxDate == 0 || minDate > maxDate || maxDate-minDate > maxDaysForPerDaySearch {
+	if tr == globalIndexTimeRange || minDate > maxDate || maxDate-minDate > maxDaysForPerDaySearch {
 		qtChild := qt.NewChild("search for label values in global index: labelName=%q, filters=%s", labelName, tfss)
-		err := is.searchLabelValuesWithFiltersOnDate(qtChild, lvs, labelName, tfss, 0, maxLabelValues, maxMetrics)
+		err := is.searchLabelValuesWithFiltersOnDate(qtChild, lvs, labelName, tfss, globalIndexDate, maxLabelValues, maxMetrics)
 		qtChild.Done()
 		return err
 	}
@@ -916,7 +924,7 @@ func (is *indexSearch) searchLabelValuesWithFiltersOnDate(qt *querytracer.Tracer
 	dmis := is.db.s.getDeletedMetricIDs()
 	loopsPaceLimiter := 0
 	nsPrefixExpected := byte(nsPrefixDateTagToMetricIDs)
-	if date == 0 {
+	if date == globalIndexDate {
 		nsPrefixExpected = nsPrefixTagToMetricIDs
 	}
 	kb.B = is.marshalCommonPrefixForDate(kb.B[:0], date)

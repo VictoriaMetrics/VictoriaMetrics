@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"sync"
 	"testing"
@@ -1505,7 +1506,7 @@ func TestStorageGetTSDBStatus(t *testing.T) {
 		mrs = append(mrs, testGenerateMetricRows(rng, numRows, min, max)...)
 	}
 
-	path := t.Name() + "/AddRowsAndGetStatusWithPerDayIndexesEnabled"
+	path := t.Name() + "/AddRowsAndSearchWithPerDayIndexesEnabled"
 	disablePerDayIndexes := false
 	s := MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
 	s.AddRows(mrs, defaultPrecisionBits)
@@ -1517,7 +1518,7 @@ func TestStorageGetTSDBStatus(t *testing.T) {
 	}
 	s.MustClose()
 
-	path = t.Name() + "/AddRowsAndGetStatusWithPerDayIndexesDisabled"
+	path = t.Name() + "/AddRowsAndSearchWithPerDayIndexesDisabled"
 	disablePerDayIndexes = true
 	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
 	s.AddRows(mrs, defaultPrecisionBits)
@@ -1529,7 +1530,7 @@ func TestStorageGetTSDBStatus(t *testing.T) {
 	}
 	s.MustClose()
 
-	path = t.Name() + "/AddRowsWithPerDayIndexesEnabledGetStatusWithDisabled"
+	path = t.Name() + "/AddRowsWithPerDayIndexesEnabledSearchWithDisabled"
 	disablePerDayIndexes = false
 	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
 	s.AddRows(mrs, defaultPrecisionBits)
@@ -1544,7 +1545,7 @@ func TestStorageGetTSDBStatus(t *testing.T) {
 	}
 	s.MustClose()
 
-	path = t.Name() + "/AddRowsWithPerDayIndexesDisabledGetStatusWithEnabled"
+	path = t.Name() + "/AddRowsWithPerDayIndexesDisabledSearchWithEnabled"
 	disablePerDayIndexes = true
 	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
 	s.AddRows(mrs, defaultPrecisionBits)
@@ -1624,7 +1625,7 @@ func TestStorageSearchMetricNames(t *testing.T) {
 		}
 	}
 
-	path := t.Name() + "/AddRowsAndSearcMetricNameshWithPerDayIndexesEnabled"
+	path := t.Name() + "/AddRowsAndSearchWithPerDayIndexesEnabled"
 	disablePerDayIndexes := false
 	s := MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
 	s.AddRows(mrs, defaultPrecisionBits)
@@ -1634,7 +1635,7 @@ func TestStorageSearchMetricNames(t *testing.T) {
 	}
 	s.MustClose()
 
-	path = t.Name() + "/AddRowsAndSearcMetricNameshWithPerDayIndexesDisabled"
+	path = t.Name() + "/AddRowsAndSearchWithPerDayIndexesDisabled"
 	disablePerDayIndexes = true
 	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
 	s.AddRows(mrs, defaultPrecisionBits)
@@ -1644,7 +1645,7 @@ func TestStorageSearchMetricNames(t *testing.T) {
 	}
 	s.MustClose()
 
-	path = t.Name() + "/AddRowsWithPerDayIndexesEnabledSearchMetricNamesWithDisabled"
+	path = t.Name() + "/AddRowsWithPerDayIndexesEnabledSearchWithDisabled"
 	disablePerDayIndexes = false
 	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
 	s.AddRows(mrs, defaultPrecisionBits)
@@ -1657,7 +1658,7 @@ func TestStorageSearchMetricNames(t *testing.T) {
 	}
 	s.MustClose()
 
-	path = t.Name() + "/AddRowsWithPerDayIndexesDisabledSearchMetricNamesWithEnabled"
+	path = t.Name() + "/AddRowsWithPerDayIndexesDisabledSearchWithEnabled"
 	disablePerDayIndexes = true
 	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
 	s.AddRows(mrs, defaultPrecisionBits)
@@ -1668,8 +1669,8 @@ func TestStorageSearchMetricNames(t *testing.T) {
 	for _, tr := range trs {
 		assertMetricNames(s, tr, nil)
 	}
-	// Verify that TSDB shows correct numbers after populating per-day indexes
-	// by registering metric names.
+	// Verify that search result contains correct metric names after populating
+	// per-day index by registering metric names.
 	s.RegisterMetricNames(nil, mrs)
 	s.DebugFlush()
 	for day, tr := range trs {
@@ -1678,17 +1679,211 @@ func TestStorageSearchMetricNames(t *testing.T) {
 	s.MustClose()
 }
 
-func TestStorageDeleteSeries2(t *testing.T) {
-	// TODO(rtm0): Already exists, update existing test?
-	t.Skip()
+func TestStorageSearchLabelNames(t *testing.T) {
+	defer testRemoveAll(t)
+
+	assertLabelNames := func(s *Storage, tr TimeRange, want []string) {
+		t.Helper()
+		got, err := s.SearchLabelNamesWithFiltersOnTimeRange(nil, []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchLabelNames(%v) failed unexpectedly", &tr)
+		}
+		slices.Sort(got)
+		slices.Sort(want)
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("[%v] unexpected label names: got %v, want %v", &tr, got, want)
+		}
+	}
+
+	const (
+		days = 4
+		rows = 10
+	)
+	var trs []TimeRange
+	var mrs []MetricRow
+	var want []string
+	rng := rand.New(rand.NewSource(1))
+	for day := 1; day <= 4; day++ {
+		tr := TimeRange{
+			MinTimestamp: time.Date(2024, 1, day, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2024, 1, day, 23, 59, 59, 999, time.UTC).UnixMilli(),
+		}
+		trs = append(trs, tr)
+		for row := 0; row < rows; row++ {
+			labelName := fmt.Sprintf("job_%d", 10*day+row)
+			mn := &MetricName{
+				MetricGroup: []byte("metric"),
+				Tags: []Tag{
+					{[]byte(labelName), []byte("webservice")},
+				},
+			}
+			metricNameRaw := mn.marshalRaw(nil)
+			want = append(want, labelName)
+			mrs = append(mrs, MetricRow{
+				MetricNameRaw: metricNameRaw,
+				Timestamp:     rng.Int63n(tr.MaxTimestamp-tr.MinTimestamp) + tr.MinTimestamp,
+				Value:         rng.NormFloat64() * 1e6,
+			})
+
+		}
+	}
+
+	path := t.Name() + "/AddRowsAndSearchWithPerDayIndexesEnabled"
+	disablePerDayIndexes := false
+	s := MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	for day, tr := range trs {
+		assertLabelNames(s, tr, append([]string{"__name__"}, want[day*rows:(day+1)*rows]...))
+	}
+	s.MustClose()
+
+	path = t.Name() + "/AddRowsAndSearchWithPerDayIndexesDisabled"
+	disablePerDayIndexes = true
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	for _, tr := range trs {
+		assertLabelNames(s, tr, append([]string{"__name__"}, want...))
+	}
+	s.MustClose()
+
+	path = t.Name() + "/AddRowsWithPerDayIndexesEnabledSearchWithDisabled"
+	disablePerDayIndexes = false
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	s.MustClose()
+	disablePerDayIndexes = true
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	for _, tr := range trs {
+		assertLabelNames(s, tr, append([]string{"__name__"}, want...))
+	}
+	s.MustClose()
+
+	path = t.Name() + "/AddRowsWithPerDayIndexesDisabledSearchWithEnabled"
+	disablePerDayIndexes = true
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	s.MustClose()
+	disablePerDayIndexes = false
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	for _, tr := range trs {
+		assertLabelNames(s, tr, []string{})
+	}
+	// Verify that search result contains correct label names after populating
+	// per-day index by registering metric names.
+	s.RegisterMetricNames(nil, mrs)
+	s.DebugFlush()
+	for day, tr := range trs {
+		assertLabelNames(s, tr, append([]string{"__name__"}, want[day*rows:(day+1)*rows]...))
+	}
+	s.MustClose()
 }
 
-func TestStorageSearchLabelNamesWithFiltersOnTimeRange(t *testing.T) {
-	t.Skip()
-}
+func TestStorageSearchLabelValues(t *testing.T) {
+	defer testRemoveAll(t)
 
-func TestStorageSearchLabelValuesWithFiltersOnTimeRange(t *testing.T) {
-	t.Skip()
+	assertLabelValues := func(s *Storage, labelName string, tr TimeRange, want []string) {
+		t.Helper()
+		got, err := s.SearchLabelValuesWithFiltersOnTimeRange(nil, labelName, []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchLabelValues(%v) failed unexpectedly", &tr)
+		}
+		slices.Sort(got)
+		slices.Sort(want)
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("[%v] unexpected label values: got %v, want %v", &tr, got, want)
+		}
+	}
+
+	const (
+		days = 4
+		rows = 10
+	)
+	var trs []TimeRange
+	var mrs []MetricRow
+	var want []string
+	rng := rand.New(rand.NewSource(1))
+	labelName := "job"
+	for day := 1; day <= 4; day++ {
+		tr := TimeRange{
+			MinTimestamp: time.Date(2024, 1, day, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2024, 1, day, 23, 59, 59, 999, time.UTC).UnixMilli(),
+		}
+		trs = append(trs, tr)
+		for row := 0; row < rows; row++ {
+			labelValue := fmt.Sprintf("webservice_%d", 10*day+row)
+			mn := &MetricName{
+				MetricGroup: []byte("metric"),
+				Tags: []Tag{
+					{[]byte(labelName), []byte(labelValue)},
+				},
+			}
+			metricNameRaw := mn.marshalRaw(nil)
+			want = append(want, labelValue)
+			mrs = append(mrs, MetricRow{
+				MetricNameRaw: metricNameRaw,
+				Timestamp:     rng.Int63n(tr.MaxTimestamp-tr.MinTimestamp) + tr.MinTimestamp,
+				Value:         rng.NormFloat64() * 1e6,
+			})
+
+		}
+	}
+
+	path := t.Name() + "/AddRowsAndSearchWithPerDayIndexesEnabled"
+	disablePerDayIndexes := false
+	s := MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	for day, tr := range trs {
+		assertLabelValues(s, labelName, tr, want[day*rows:(day+1)*rows])
+	}
+	s.MustClose()
+
+	path = t.Name() + "/AddRowsAndSearchWithPerDayIndexesDisabled"
+	disablePerDayIndexes = true
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	for _, tr := range trs {
+		assertLabelValues(s, labelName, tr, want)
+	}
+	s.MustClose()
+
+	path = t.Name() + "/AddRowsWithPerDayIndexesEnabledSearchWithDisabled"
+	disablePerDayIndexes = false
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	s.MustClose()
+	disablePerDayIndexes = true
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	for _, tr := range trs {
+		assertLabelValues(s, labelName, tr, want)
+	}
+	s.MustClose()
+
+	path = t.Name() + "/AddRowsWithPerDayIndexesDisabledSearchWithEnabled"
+	disablePerDayIndexes = true
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	s.MustClose()
+	disablePerDayIndexes = false
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	for _, tr := range trs {
+		assertLabelValues(s, labelName, tr, []string{})
+	}
+	// Verify that search result contains correct label values after populating
+	// per-day index by registering metric names.
+	s.RegisterMetricNames(nil, mrs)
+	s.DebugFlush()
+	for day, tr := range trs {
+		assertLabelValues(s, labelName, tr, want[day*rows:(day+1)*rows])
+	}
+	s.MustClose()
 }
 
 func TestStorageSearchTagValueSuffixes(t *testing.T) {
