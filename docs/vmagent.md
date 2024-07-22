@@ -1437,8 +1437,8 @@ These formats can be configured with `-kafka.consumer.topic.defaultFormat` or `-
 * `graphite` - [Graphite plaintext format](https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol).
 * `jsonline` - [JSON line format](https://docs.victoriametrics.com/#how-to-import-data-in-json-line-format).
 
-For Kafka messages in the `promremotewrite` format, `vmagent` will automatically detect whether they are using the Prometheus remote write protocol or 
-the VictoriaMetrics remote write protocol, and handle them accordingly.
+For Kafka messages in the `promremotewrite` format, `vmagent` will automatically detect whether they are using [the Prometheus remote write protocol](https://prometheus.io/docs/specs/remote_write_spec/#protocol) 
+or [the VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol), and handle them accordingly.
 
 Every Kafka message may contain multiple lines in `influx`, `prometheus`, `graphite` and `jsonline` format delimited by `\n`.
 
