@@ -235,7 +235,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	}
 	err := &httpserver.ErrorWithStatusCode{
 		Err:        fmt.Errorf("all the %d backends for the user %q are unavailable", up.getBackendsCount(), ui.name()),
-		StatusCode: http.StatusServiceUnavailable,
+		StatusCode: http.StatusBadGateway,
 	}
 	httpserver.Errorf(w, r, "%s", err)
 	ui.backendErrors.Inc()

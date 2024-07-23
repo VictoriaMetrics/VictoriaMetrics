@@ -378,7 +378,7 @@ unauthorized_user:
 		panic(fmt.Errorf("backend handler shouldn't be called"))
 	}
 	responseExpected = `
-statusCode=503
+statusCode=502
 remoteAddr: "42.2.3.84:6789, X-Forwarded-For: 12.34.56.78"; requestURI: /foo/?de=fg; all the 2 backends for the user "" are unavailable`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
@@ -396,7 +396,7 @@ users:
 		panic(fmt.Errorf("backend handler shouldn't be called"))
 	}
 	responseExpected = `
-statusCode=503
+statusCode=502
 remoteAddr: "42.2.3.84:6789, X-Forwarded-For: 12.34.56.78"; requestURI: /foo/?de=fg; all the 2 backends for the user "some-user" are unavailable`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
@@ -418,7 +418,7 @@ unauthorized_user:
 		panic(fmt.Errorf("backend handler shouldn't be called"))
 	}
 	responseExpected = `
-statusCode=503
+statusCode=502
 remoteAddr: "42.2.3.84:6789, X-Forwarded-For: 12.34.56.78"; requestURI: /def/?de=fg; all the 0 backends for the user "" are unavailable`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 	netutil.Resolver = origResolver
@@ -435,7 +435,7 @@ unauthorized_user:
 		w.WriteHeader(500)
 	}
 	responseExpected = `
-statusCode=503
+statusCode=502
 remoteAddr: "42.2.3.84:6789, X-Forwarded-For: 12.34.56.78"; requestURI: /foo/?de=fg; all the 2 backends for the user "" are unavailable`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 	if n := retries.Load(); n != 2 {
