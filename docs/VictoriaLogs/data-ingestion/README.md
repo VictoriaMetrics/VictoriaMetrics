@@ -1,19 +1,3 @@
----
-sort: 3
-title: Data ingestion
-weight: 3
-menu:
-  docs:
-    identifier: victorialogs-data-ingestion
-    parent: "victorialogs"
-    weight: 3
-aliases:
-  - /VictoriaLogs/data-ingestion/
-  - /VictoriaLogs/data-ingestion/index.html
----
-
-# Data ingestion
-
 [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) can accept logs from the following log collectors:
 
 - Syslog, Rsyslog and Syslog-ng - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/).

@@ -1,12 +1,3 @@
----
-sort: 28
-title: Managed VictoriaMetrics
-weight: 01
-disableToc: true
----
-
-# Managed VictoriaMetrics
-
 * [Overview of Managed VictoriaMetrics](/managed-victoriametrics/overview/)
 * [Quick Start](/managed-victoriametrics/quickstart/)
 
