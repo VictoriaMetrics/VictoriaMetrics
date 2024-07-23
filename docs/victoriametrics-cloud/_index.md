@@ -1,6 +1,6 @@
 ---
 sort: 28
-title: Managed VictoriaMetrics
+title: VictoriaMetrics Cloud
 weight: 01
 disableToc: true
 ---

@@ -1,15 +1,15 @@
 ---
 sort: 7
 weight: 7
-title: Notifications in Managed VictoriaMetrics
+title: Notifications in VictoriaMetrics Cloud
 menu:
   docs:
     parent: "managed"
     weight: 7
 aliases:
-- /managed-victoriametrics/setup-notifications.html
+- /victoriametrics-cloud/setup-notifications.html
 ---
-# Notifications in Managed VictoriaMetrics
+# Notifications in VictoriaMetrics Cloud
 
 The guide covers how to enable email and Slack notifications.
 

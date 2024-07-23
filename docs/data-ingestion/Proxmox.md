@@ -18,7 +18,7 @@ Since Proxmox Virtual Environment(PVE) and Proxmox Backup Server(PBS) support se
 Currently PVE and PBS only support using an Authorization Token for authentication and does not support basic auth or a username and password.
 
 ## Proxmox Virtual Environment (PVE)
-If want help Sending your data to Managed VictoriaMetrics check out [our blog](https://victoriametrics.com/blog/proxmox-monitoring-with-dbaas/).
+If want help Sending your data to VictoriaMetrics Cloud check out [our blog](https://victoriametrics.com/blog/proxmox-monitoring-with-dbaas/).
 
 1. Login to PVE as an administrator
 2. Go to DataCenter > MetricServer > Add > InfluxDB
@@ -67,4 +67,4 @@ You should see 1 time series per node in your PVE cluster.
 
 
 # References
-- [Blog Post for configuring Managed VictoriaMetrics and Proxmox VE](https://victoriametrics.com/blog/proxmox-monitoring-with-dbaas/)
+- [Blog Post for configuring VictoriaMetrics Cloud and Proxmox VE](https://victoriametrics.com/blog/proxmox-monitoring-with-dbaas/)

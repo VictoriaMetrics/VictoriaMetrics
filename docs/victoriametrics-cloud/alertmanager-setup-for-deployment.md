@@ -1,18 +1,18 @@
 ---
 sort: 4
 weight: 4
-title: Alertmanager and VMAlert configuration for Managed VictoriaMetrics deployment
+title: Alertmanager and VMAlert configuration for VictoriaMetrics Cloud deployment
 menu:
   docs:
     parent: "managed"
     weight: 4
 aliases:
-  - /managed-victoriametrics/alertmanager-setup-for-deployment.html
+  - /victoriametrics-cloud/alertmanager-setup-for-deployment.html
 ---
 
-# Alerting stack configuration and Managed VictoriaMetrics
+# Alerting stack configuration and VictoriaMetrics Cloud
 
-Managed VictoriaMetrics supports configuring alerting rules, powered by vmalert, and sending notifications with hosted Alertmanager.
+VictoriaMetrics Cloud supports configuring alerting rules, powered by vmalert, and sending notifications with hosted Alertmanager.
 
 ## Configure Alertmanager
 
@@ -40,7 +40,7 @@ Alertmanager is now set up for your deployment, and you be able to get notificat
 
 ### Alertmanager config specification
 
-Managed VictoriaMetrics supports Alertmanager with standard [configuration specification](https://prometheus.io/docs/alerting/latest/configuration/).
+VictoriaMetrics Cloud supports Alertmanager with standard [configuration specification](https://prometheus.io/docs/alerting/latest/configuration/).
 
 But with respect to the specification, there are the following limitations:
 
@@ -125,7 +125,7 @@ receivers:
 
 ### Custom Alertmanager
 
-If for some reason Cloud Alertmanager is not suitable for you, you can use Managed VictoriaMetrics with any external Alertmanager hosted in your infrastructure.
+If for some reason Cloud Alertmanager is not suitable for you, you can use VictoriaMetrics Cloud with any external Alertmanager hosted in your infrastructure.
 
 For that select Custom Alertmanager instead of Cloud Alertmanager when [creating the Alertmanager](#configure-alertmanager):
 

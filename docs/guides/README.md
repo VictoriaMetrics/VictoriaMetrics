@@ -6,6 +6,6 @@
 1. [Migrate from InfluxDB to VictoriaMetrics](migrate-from-influx.html)
 1. [Multi-regional setup with VictoriaMetrics: Dedicated regions for monitoring](multi-regional-setup-dedicated-regions.html)
 1. [How to delete or replace metrics in VictoriaMetrics](guide-delete-or-replace-metrics.html)
-1. [How to monitor kubernetes cluster using Managed VictoriaMetrics](/managed-victoriametrics/how-to-monitor-k8s.html)
+1. [How to monitor kubernetes cluster using VictoriaMetrics Cloud](/victoriametrics-cloud/how-to-monitor-k8s.html)
 1. [How to configure vmgateway for multi-tenant access using Grafana and OpenID Connect](grafana-vmgateway-openid-configuration.html)
 1. [How to setup vmanomaly together with vmalert](/anomaly-detection/guides/guide-vmanomaly-vmalert.html)

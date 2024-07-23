@@ -218,11 +218,11 @@ We provide commercial support for both versions. [Contact us](mailto:info@victor
 
 The following commercial versions of VictoriaMetrics are available:
 
-* [Managed VictoriaMetrics at AWS](https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc) (aka managed Prometheus).
+* [VictoriaMetrics Cloud at AWS](https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc) (aka managed Prometheus).
 
 The following commercial versions of VictoriaMetrics are planned:
 
-* Managed VictoriaMetrics at Google Cloud.
+* VictoriaMetrics Cloud at Google Cloud.
 * Cloud monitoring solution based on VictoriaMetrics.
 
 [Contact us](mailto:info@victoriametrics.com) for more information on our plans.

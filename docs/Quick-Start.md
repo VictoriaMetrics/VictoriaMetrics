@@ -23,7 +23,7 @@ VictoriaMetrics is distributed in two forms:
 
 Single-server-VictoriaMetrics VictoriaMetrics is available as:
 
-* [Managed VictoriaMetrics at AWS](https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc)
+* [VictoriaMetrics Cloud at AWS](https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc)
 * [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/)
 * [Helm Charts](https://github.com/VictoriaMetrics/helm-charts#list-of-charts)
 * [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)

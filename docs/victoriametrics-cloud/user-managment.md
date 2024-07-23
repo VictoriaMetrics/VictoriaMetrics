@@ -1,17 +1,17 @@
 ---
 sort: 6
 weight: 6
-title: User Management in Managed VictoriaMetrics
+title: User Management in VictoriaMetrics Cloud
 menu:
   docs:
     parent: "managed"
     weight: 6
 aliases:
-- /managed-victoriametrics/user-management.html
+- /victoriametrics-cloud/user-management.html
 ---
-# User Management in Managed VictoriaMetrics 
+# User Management in VictoriaMetrics Cloud 
 
-The user management system enables admins to control user access and onboard and offboard users to the Managed VictoriaMetrics. It organizes users according to their needs and role.
+The user management system enables admins to control user access and onboard and offboard users to the VictoriaMetrics Cloud. It organizes users according to their needs and role.
 
 The document covers the following topics
 1. [User Roles](#user-roles)
@@ -22,7 +22,7 @@ The document covers the following topics
 
 ## User roles
 
-Managed VictoriaMetrics provides different levels of user access. It defines what information users can access and edit in your account.
+VictoriaMetrics Cloud provides different levels of user access. It defines what information users can access and edit in your account.
 
 You assign the role to the user during the user creation procedure. You can change the role after the creation
 
@@ -88,7 +88,7 @@ You assign the role to the user during the user creation procedure. You can chan
 <table>
   <tr>
    <td class="highlight"><strong class="sr">Active</strong></td>
-   <td>The user can log in and use Managed VictoriaMetrics. The user role defines the access level.</td>
+   <td>The user can log in and use VictoriaMetrics Cloud. The user role defines the access level.</td>
   </tr>
   <tr>
    <td class="highlight"><strong class="s1">Pending Invitation</strong></td>
@@ -96,7 +96,7 @@ You assign the role to the user during the user creation procedure. You can chan
   </tr>
   <tr>
    <td class="highlight"><strong class="nn">Inactive</strong></td>
-   <td>The user is registered in the Managed VictoriaMetrics but has no access to perform any actions. Admin can activate or completely delete the user.</td>
+   <td>The user is registered in the VictoriaMetrics Cloud but has no access to perform any actions. Admin can activate or completely delete the user.</td>
   </tr>
 </table>
 
@@ -129,7 +129,7 @@ In the table, there is additional information about the users:
   </tr>
   <tr>
    <td>Auth method:</td>
-   <td>Auth options to login into the Managed VictoriaMetrics</td>
+   <td>Auth options to login into the VictoriaMetrics Cloud</td>
   </tr>
 </table>
 
