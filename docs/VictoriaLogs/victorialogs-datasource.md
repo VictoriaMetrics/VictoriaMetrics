@@ -310,4 +310,4 @@ For more information on the fields in `plugin.json`, please refer to the [Grafan
 ## License
 
 This project is licensed under
-the [AGPL-3.0-only](https://github.com/VictoriaMetrics/victorialogs-datasource/blob/main/LICENSE).
+the [Apache 2.0 license](https://github.com/VictoriaMetrics/victorialogs-datasource/blob/main/LICENSE).
