@@ -1,15 +1,3 @@
----
-# sort: 14
-title: VictoriaMetrics Anomaly Detection
-weight: 0
-aliases:
-- /anomaly-detection.html
-- /vmanomaly.html
-- /vmanomaly/
----
-
-# VictoriaMetrics Anomaly Detection
-
 In the dynamic and complex world of system monitoring, VictoriaMetrics Anomaly Detection, being a part of our [Enterprise offering](https://victoriametrics.com/products/enterprise/), stands as a pivotal tool for achieving advanced observability. It empowers SREs and DevOps teams by automating the intricate task of identifying abnormal behavior in time-series data. It goes beyond traditional threshold-based alerting, utilizing machine learning techniques to not only detect anomalies but also minimize false positives, thus reducing alert fatigue. By providing simplified alerting mechanisms atop of [unified anomaly scores](/anomaly-detection/components/models.html#vmanomaly-output), it enables teams to spot and address potential issues faster, ensuring system reliability and operational efficiency.
 
 ## Practical Guides and Installation

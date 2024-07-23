@@ -1,19 +1,3 @@
----
-sort: 4
-title: Querying
-weight: 4
-menu:
-  docs:
-    identifier: victorialogs-querying
-    parent: "victorialogs"
-    weight: 4
-aliases:
-  - /VictoriaLogs/querying/
-  - /VictoriaLogs/querying/index.html
----
-
-# Querying
-
 [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) can be queried with [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/)
 via the following ways:
 
