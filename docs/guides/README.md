@@ -1,15 +1,3 @@
----
-sort: 26
-weight: 01
-disableToc: true
-menu:
-  docs:
-    parent: "guides"
-    weight: 01
----
-
-# Guides
-
 1. [K8s monitoring via VM Single](k8s-monitoring-via-vm-single.html)
 1. [K8s monitoring via VM Cluster](k8s-monitoring-via-vm-cluster.html)
 1. [HA monitoring setup in K8s via VM Cluster](k8s-ha-monitoring-via-vm-cluster.html)
