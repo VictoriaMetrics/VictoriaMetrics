@@ -41,7 +41,7 @@ and [Grafana setup](https://docs.victoriametrics.com/single-server-victoriametri
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/changelog/) and performing [regular upgrades](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics).
 
 
-### Starting VM-Single via Docker
+### Starting VictoriaMetrics Single Node via Docker {anchor="starting-vm-single-via-docker"}
 
 The following commands download the latest available
 [Docker image of VictoriaMetrics](https://hub.docker.com/r/victoriametrics/victoria-metrics)
@@ -61,7 +61,7 @@ and read [these docs](https://docs.victoriametrics.com/#operation).
 There is also [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/)
 - horizontally scalable installation, which scales to multiple nodes.
 
-### Starting VM-Cluster via Docker
+### Starting VictoriaMetrics Cluster via Docker {anchor="starting-vm-cluster-via-docker"}
 
 The following commands clone the latest available
 [VictoriaMetrics repository](https://github.com/VictoriaMetrics/VictoriaMetrics)
@@ -81,7 +81,7 @@ See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/
 * [Cluster setup](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-setup)
 
 
-### Starting VM-Single from a Binary
+### Starting VictoriaMetrics Single Node from a Binary {anchor="starting-vm-single-from-a-binary"}
 
 1. Download the correct binary for your OS and architecture from [GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/releases). 
 For Enterprise binaries see [this link](https://docs.victoriametrics.com/enterprise/#binary-releases).
@@ -133,7 +133,7 @@ END
 
 Extra [command-line flags](https://docs.victoriametrics.com/#list-of-command-line-flags) can be added to `ExecStart` line.
 
-If you want to deploy VictoriaMetrics single as a Windows Service review the [running as a Windows service docs](https://docs.victoriametrics.com/single-server-victoriametrics/#running-as-windows-service).
+If you want to deploy VictoriaMetrics Single Node as a Windows Service review the [running as a Windows service docs](https://docs.victoriametrics.com/single-server-victoriametrics/#running-as-windows-service).
 
 > Please note, `victoriametrics` service is listening on `:8428` for HTTP connections (see `-httpListenAddr` flag).
 
@@ -153,7 +153,7 @@ sudo systemctl status victoriametrics.service
 by going to `http://<ip_or_hostname>:8428/vmui`.
 
 
-### Starting VM-Cluster from Binaries
+### Starting VictoriaMetrics Cluster from Binaries {anchor="starting-vm-cluster-from-binaries"}
 
 VictoriaMetrics cluster consists of [3 components](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview).
 It is recommended to run these components in the same private network (for [security reasons](https://docs.victoriametrics.com/#security)),

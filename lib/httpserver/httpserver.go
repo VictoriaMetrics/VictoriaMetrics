@@ -20,14 +20,16 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/klauspost/compress/gzhttp"
+	"github.com/valyala/fastrand"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/klauspost/compress/gzhttp"
-	"github.com/valyala/fastrand"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 var (
@@ -47,9 +49,9 @@ var (
 		"See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus")
 	httpAuthUsername = flag.String("httpAuth.username", "", "Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password")
 	httpAuthPassword = flagutil.NewPassword("httpAuth.password", "Password for HTTP server's Basic Auth. The authentication is disabled if -httpAuth.username is empty")
-	metricsAuthKey   = flagutil.NewPassword("metricsAuthKey", "Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings")
-	flagsAuthKey     = flagutil.NewPassword("flagsAuthKey", "Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings")
-	pprofAuthKey     = flagutil.NewPassword("pprofAuthKey", "Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings")
+	metricsAuthKey   = flagutil.NewPassword("metricsAuthKey", "Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*")
+	flagsAuthKey     = flagutil.NewPassword("flagsAuthKey", "Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*")
+	pprofAuthKey     = flagutil.NewPassword("pprofAuthKey", "Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It -httpAuth.*")
 
 	disableResponseCompression  = flag.Bool("http.disableResponseCompression", false, "Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth")
 	maxGracefulShutdownDuration = flag.Duration("http.maxGracefulShutdownDuration", 7*time.Second, `The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown`)
@@ -366,7 +368,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		return
 	case "/metrics":
 		metricsRequests.Inc()
-		if !CheckAuthFlag(w, r, metricsAuthKey.Get(), "metricsAuthKey") {
+		if !CheckAuthFlag(w, r, metricsAuthKey) {
 			return
 		}
 		startTime := time.Now()
@@ -375,7 +377,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		metricsHandlerDuration.UpdateDuration(startTime)
 		return
 	case "/flags":
-		if !CheckAuthFlag(w, r, flagsAuthKey.Get(), "flagsAuthKey") {
+		if !CheckAuthFlag(w, r, flagsAuthKey) {
 			return
 		}
 		h.Set("Content-Type", "text/plain; charset=utf-8")
@@ -396,29 +398,17 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4128
 		fmt.Fprintf(w, "User-agent: *\nDisallow: /\n")
 		return
-	case "/config", "/-/reload":
-		// only some components (vmagent, vmalert, etc.) support these handlers
-		// these components are responsible for CheckAuthFlag call
-		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6329
-		w = &responseWriterWithAbort{
-			ResponseWriter: w,
-		}
-		if !rh(w, r) {
-			Errorf(w, r, "unsupported path requested: %q", r.URL.Path)
-			unsupportedRequestErrors.Inc()
-		}
-		return
 	default:
 		if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {
 			pprofRequests.Inc()
-			if !CheckAuthFlag(w, r, pprofAuthKey.Get(), "pprofAuthKey") {
+			if !CheckAuthFlag(w, r, pprofAuthKey) {
 				return
 			}
 			pprofHandler(r.URL.Path[len("/debug/pprof/"):], w, r)
 			return
 		}
 
-		if !CheckBasicAuth(w, r) {
+		if !isProtectedByAuthFlag(r.URL.Path) && !CheckBasicAuth(w, r) {
 			return
 		}
 
@@ -435,16 +425,26 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 	}
 }
 
+func isProtectedByAuthFlag(path string) bool {
+	// These paths must explicitly call CheckAuthFlag().
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6329
+	return strings.HasSuffix(path, "/config") || strings.HasSuffix(path, "/reload") ||
+		strings.HasSuffix(path, "/resetRollupResultCache") || strings.HasSuffix(path, "/delSeries") || strings.HasSuffix(path, "/delete_series") ||
+		strings.HasSuffix(path, "/force_merge") || strings.HasSuffix(path, "/force_flush") || strings.HasSuffix(path, "/snapshot") ||
+		strings.HasPrefix(path, "/snapshot/")
+}
+
 // CheckAuthFlag checks whether the given authKey is set and valid
 //
 // Falls back to checkBasicAuth if authKey is not set
-func CheckAuthFlag(w http.ResponseWriter, r *http.Request, flagValue string, flagName string) bool {
-	if flagValue == "" {
+func CheckAuthFlag(w http.ResponseWriter, r *http.Request, expectedKey *flagutil.Password) bool {
+	expectedValue := expectedKey.Get()
+	if expectedValue == "" {
 		return CheckBasicAuth(w, r)
 	}
-	if r.FormValue("authKey") != flagValue {
+	if r.FormValue("authKey") != expectedValue {
 		authKeyRequestErrors.Inc()
-		http.Error(w, fmt.Sprintf("The provided authKey doesn't match -%s", flagName), http.StatusUnauthorized)
+		http.Error(w, fmt.Sprintf("The provided authKey doesn't match -%s", expectedKey.Name()), http.StatusUnauthorized)
 		return false
 	}
 	return true
@@ -535,7 +535,7 @@ func GetQuotedRemoteAddr(r *http.Request) string {
 		remoteAddr += ", X-Forwarded-For: " + addr
 	}
 	// quote remoteAddr and X-Forwarded-For, since they may contain untrusted input
-	return strconv.Quote(remoteAddr)
+	return stringsutil.JSONString(remoteAddr)
 }
 
 type responseWriterWithAbort struct {

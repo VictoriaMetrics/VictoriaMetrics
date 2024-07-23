@@ -74,10 +74,7 @@ func writeInputSeries(input []series, interval *promutils.Duration, startStamp t
 		r.Timeseries = append(r.Timeseries, testutil.TimeSeries{Labels: ls, Samples: samples})
 	}
 
-	data, err := testutil.Compress(r)
-	if err != nil {
-		return fmt.Errorf("failed to compress data: %v", err)
-	}
+	data := testutil.Compress(r)
 	// write input series to vm
 	httpWrite(dst, bytes.NewBuffer(data))
 	vmstorage.Storage.DebugFlush()

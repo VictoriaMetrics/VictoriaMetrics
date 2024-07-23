@@ -48,8 +48,7 @@ var rawRowsShardsPerPartition = cgroup.AvailableCPUs()
 // The interval for flushing buffered rows into parts, so they become visible to search.
 const pendingRowsFlushInterval = 2 * time.Second
 
-// The interval for guaranteed flush of recently ingested data from memory to on-disk parts,
-// so they survive process crash.
+// The interval for guaranteed flush of recently ingested data from memory to on-disk parts, so they survive process crash.
 var dataFlushInterval = 5 * time.Second
 
 // SetDataFlushInterval sets the interval for guaranteed flush of recently ingested data from memory to disk.
@@ -58,10 +57,14 @@ var dataFlushInterval = 5 * time.Second
 //
 // This function must be called before initializing the storage.
 func SetDataFlushInterval(d time.Duration) {
-	if d >= time.Second {
-		dataFlushInterval = d
-		mergeset.SetDataFlushInterval(d)
+	if d < pendingRowsFlushInterval {
+		// There is no sense in setting dataFlushInterval to values smaller than pendingRowsFlushInterval,
+		// since pending rows unconditionally remain in memory for up to pendingRowsFlushInterval.
+		d = pendingRowsFlushInterval
 	}
+
+	dataFlushInterval = d
+	mergeset.SetDataFlushInterval(d)
 }
 
 // The maximum number of rawRow items in rawRowsShard.

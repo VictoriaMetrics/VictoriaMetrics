@@ -34,8 +34,8 @@ scrape_configs:
 After you created the `scrape.yaml` file, download and unpack [single-node VictoriaMetrics](https://docs.victoriametrics.com/) to the same directory:
 
 ```
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.101.0/victoria-metrics-linux-amd64-v1.101.0.tar.gz
-tar xzf victoria-metrics-linux-amd64-v1.101.0.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.102.0/victoria-metrics-linux-amd64-v1.102.0.tar.gz
+tar xzf victoria-metrics-linux-amd64-v1.102.0.tar.gz
 ```
 
 Then start VictoriaMetrics and instruct it to scrape targets defined in `scrape.yaml` and save scraped metrics
@@ -150,8 +150,8 @@ Then start [single-node VictoriaMetrics](https://docs.victoriametrics.com/) acco
 
 ```yaml
 # Download and unpack single-node VictoriaMetrics
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.101.0/victoria-metrics-linux-amd64-v1.101.0.tar.gz
-tar xzf victoria-metrics-linux-amd64-v1.101.0.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.102.0/victoria-metrics-linux-amd64-v1.102.0.tar.gz
+tar xzf victoria-metrics-linux-amd64-v1.102.0.tar.gz
 
 # Run single-node VictoriaMetrics with the given scrape.yaml
 ./victoria-metrics-prod -promscrape.config=scrape.yaml

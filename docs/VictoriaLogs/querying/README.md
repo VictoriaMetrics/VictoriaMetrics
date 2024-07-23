@@ -18,6 +18,7 @@ aliases:
 via the following ways:
 
 - [Web UI](#web-ui) - a web-based UI for querying logs
+- [Visualization in Grafana](#visualization-in-grafana)
 - [HTTP API](#http-api)
 - [Command-line interface](#command-line)
 
@@ -638,6 +639,10 @@ There are three modes of displaying query results:
 - `JSON` - displays raw JSON response from [`/select/logsql/query` HTTP API](#querying-logs).
 
 See also [command line interface](#command-line).
+
+## Visualization in Grafana 
+
+[VictoriaLogs Grafana Datasource](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/) allows you to query and visualize VictoriaLogs data in Grafana
 
 ## Command-line
 

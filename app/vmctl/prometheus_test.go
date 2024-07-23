@@ -23,7 +23,7 @@ const (
 )
 
 // This test simulates close process if user abort it
-func Test_prometheusProcessor_run(t *testing.T) {
+func TestPrometheusProcessorRun(t *testing.T) {
 	t.Skip()
 
 	defer func() { isSilent = false }()
@@ -139,11 +139,11 @@ func Test_prometheusProcessor_run(t *testing.T) {
 
 				_, err = w.Write(input)
 				if err != nil {
-					t.Error(err)
+					t.Fatalf("cannot send 'Y' to importer: %s", err)
 				}
 				err = w.Close()
 				if err != nil {
-					t.Error(err)
+					t.Fatalf("cannot close writer: %s", err)
 				}
 
 				stdin := os.Stdin
@@ -151,7 +151,6 @@ func Test_prometheusProcessor_run(t *testing.T) {
 				defer func() {
 					os.Stdin = stdin
 					_ = r.Close()
-					_ = w.Close()
 				}()
 				os.Stdin = r
 			}
@@ -162,7 +161,7 @@ func Test_prometheusProcessor_run(t *testing.T) {
 			}
 
 			if err := pp.run(); (err != nil) != tt.wantErr {
-				t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("run() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

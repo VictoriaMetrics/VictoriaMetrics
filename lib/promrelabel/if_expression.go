@@ -1,7 +1,6 @@
 package promrelabel
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 
@@ -144,13 +143,13 @@ func (ie *IfExpression) String() string {
 	if len(ie.ies) == 1 {
 		return ie.ies[0].String()
 	}
-	var buf bytes.Buffer
-	buf.WriteString(ie.ies[0].String())
+
+	b := append([]byte{}, ie.ies[0].String()...)
 	for _, e := range ie.ies[1:] {
-		buf.WriteString(",")
-		buf.WriteString(e.String())
+		b = append(b, ',')
+		b = append(b, e.String()...)
 	}
-	return buf.String()
+	return string(b)
 }
 
 type ifExpression struct {

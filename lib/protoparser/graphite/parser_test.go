@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestUnmarshalMetricAndTagsFailure(t *testing.T) {
+func TestUnmarshalMetricAndTags_Failure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		var r Row
@@ -18,9 +18,7 @@ func TestUnmarshalMetricAndTagsFailure(t *testing.T) {
 	f(";foo=bar")
 }
 
-func TestUnmarshalMetricAndTagsSuccess(t *testing.T) {
-	sanitizeFlagValue := *sanitizeMetricName
-	*sanitizeMetricName = true
+func TestUnmarshalMetricAndTags_Success(t *testing.T) {
 	f := func(s string, rExpected *Row) {
 		t.Helper()
 		var r Row
@@ -33,10 +31,10 @@ func TestUnmarshalMetricAndTagsSuccess(t *testing.T) {
 		}
 	}
 	f(" ", &Row{
-		Metric: "_",
+		Metric: " ",
 	})
 	f("foo ;bar=baz", &Row{
-		Metric: "foo_",
+		Metric: "foo ",
 		Tags: []Tag{
 			{
 				Key:   "bar",
@@ -45,7 +43,7 @@ func TestUnmarshalMetricAndTagsSuccess(t *testing.T) {
 		},
 	})
 	f("f oo;bar=baz", &Row{
-		Metric: "f_oo",
+		Metric: "f oo",
 		Tags: []Tag{
 			{
 				Key:   "bar",
@@ -58,7 +56,7 @@ func TestUnmarshalMetricAndTagsSuccess(t *testing.T) {
 		Tags: []Tag{
 			{
 				Key:   "bar",
-				Value: "baz___",
+				Value: "baz   ",
 			},
 		},
 	})
@@ -67,7 +65,7 @@ func TestUnmarshalMetricAndTagsSuccess(t *testing.T) {
 		Tags: []Tag{
 			{
 				Key:   "bar",
-				Value: "_baz",
+				Value: " baz",
 			},
 		},
 	})
@@ -76,7 +74,7 @@ func TestUnmarshalMetricAndTagsSuccess(t *testing.T) {
 		Tags: []Tag{
 			{
 				Key:   "bar",
-				Value: "b_az",
+				Value: "b az",
 			},
 		},
 	})
@@ -84,7 +82,7 @@ func TestUnmarshalMetricAndTagsSuccess(t *testing.T) {
 		Metric: "foo",
 		Tags: []Tag{
 			{
-				Key:   "b_ar",
+				Key:   "b ar",
 				Value: "baz",
 			},
 		},
@@ -105,25 +103,9 @@ func TestUnmarshalMetricAndTagsSuccess(t *testing.T) {
 			},
 		},
 	})
-	f("foo..bar;bar=123;baz=aa=bb", &Row{
-		Metric: "foo.bar",
-		Tags: []Tag{
-			{
-				Key:   "bar",
-				Value: "123",
-			},
-			{
-				Key:   "baz",
-				Value: "aa=bb",
-			},
-		},
-	})
-	*sanitizeMetricName = sanitizeFlagValue
 }
 
-func TestRowsUnmarshalFailure(t *testing.T) {
-	sanitizeFlagValue := *sanitizeMetricName
-	*sanitizeMetricName = true
+func TestRowsUnmarshal_Failure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		var rows Rows
@@ -147,12 +129,51 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 
 	// invalid timestamp
 	f("aa 123 bar")
-	*sanitizeMetricName = sanitizeFlagValue
 }
 
-func TestRowsUnmarshalSuccess(t *testing.T) {
-	sanitizeFlagValue := *sanitizeMetricName
-	*sanitizeMetricName = true
+func TestRowsUnmarshal_SanitizeMetricNamesSuccess(t *testing.T) {
+	f := func(s string, rowsExpected *Rows) {
+		t.Helper()
+
+		sanitizeMetricNameOrig := *sanitizeMetricName
+		*sanitizeMetricName = true
+		defer func() {
+			*sanitizeMetricName = sanitizeMetricNameOrig
+		}()
+
+		var rows Rows
+		rows.Unmarshal(s)
+		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
+			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
+		}
+	}
+
+	// Only metric name.
+	f(`foo...b..a.r\a--baz 123`, &Rows{
+		Rows: []Row{{
+			Metric: `foo.b.a.r_a__baz`,
+			Value:  123,
+		}},
+	})
+
+	// Metric name with tags.
+	// Tag values shouldn't be sanitized.
+	f(`s a;ta g..1=a-b..c;tag2 123 456`, &Rows{
+		Rows: []Row{{
+			Metric:    `s_a`,
+			Value:     123,
+			Timestamp: 456,
+			Tags: []Tag{
+				{
+					Key:   "ta_g.1",
+					Value: "a-b..c",
+				},
+			},
+		}},
+	})
+}
+
+func TestRowsUnmarshal_Success(t *testing.T) {
 	f := func(s string, rowsExpected *Rows) {
 		t.Helper()
 		var rows Rows
@@ -205,17 +226,17 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3102
 	f("s a;ta g1=aaa1;tag2=bb b2;tag3 1 23", &Rows{
 		Rows: []Row{{
-			Metric:    "s_a",
+			Metric:    "s a",
 			Value:     1,
 			Timestamp: 23,
 			Tags: []Tag{
 				{
-					Key:   "ta_g1",
+					Key:   "ta g1",
 					Value: "aaa1",
 				},
 				{
 					Key:   "tag2",
-					Value: "bb_b2",
+					Value: "bb b2",
 				},
 			},
 		}},
@@ -400,5 +421,4 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			Timestamp: 1789,
 		}},
 	})
-	*sanitizeMetricName = sanitizeFlagValue
 }
