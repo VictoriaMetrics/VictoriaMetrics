@@ -119,7 +119,7 @@ const TableSettings: FC<TableSettingsProps> = ({
               <Checkbox
                 checked={defaultColumns.length == columns.length}
                 onChange={toggleAllColumns}
-                label="select all"
+                label="Check all"
                 disabled={tableCompact}
               />
             </div>
