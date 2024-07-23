@@ -1386,6 +1386,9 @@ func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, t
 
 // SearchGraphitePaths returns all the matching paths for the given graphite query on the given tr.
 func (s *Storage) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, query []byte, maxPaths int, deadline uint64) ([]string, error) {
+	if s.disablePerDayIndexes {
+		tr = globalIndexTimeRange
+	}
 	query = replaceAlternateRegexpsWithGraphiteWildcards(query)
 	return s.searchGraphitePaths(qt, tr, nil, query, maxPaths, deadline)
 }
