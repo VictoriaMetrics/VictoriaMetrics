@@ -9,6 +9,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/fastcache"
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/VictoriaMetrics/metricsql"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -21,9 +25,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
-	"github.com/VictoriaMetrics/fastcache"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/VictoriaMetrics/metricsql"
 )
 
 var (
@@ -229,6 +230,38 @@ func (rrc *rollupResultCache) DeleteInstantValues(qt *querytracer.Tracer, at *au
 }
 
 func (rrc *rollupResultCache) GetSeries(qt *querytracer.Tracer, ec *EvalConfig, expr metricsql.Expr, window int64) (tss []*timeseries, newStart int64) {
+	if ec.AuthToken != nil && ec.AuthTokens != nil {
+		logger.Panicf("BUG: both current token and multi-tenant tokens are set")
+	}
+
+	if ec.AuthTokens == nil {
+		return rrc.getSeriesInternal(qt, ec, expr, window)
+	}
+
+	var tssAll []*timeseries
+	for _, at := range ec.AuthTokens {
+		ec.AuthToken = at
+		qtL := qt.NewChild("rollup cache get series for accountID=%d, projectID=%d", at.AccountID, at.ProjectID)
+		tssL, newStartL := rrc.getSeriesInternal(qtL, ec, expr, window)
+		qtL.Done()
+		if len(tssL) == 0 {
+			newStart = ec.Start
+			continue
+		}
+		if newStart == 0 || newStartL < newStart {
+			newStart = newStartL
+		}
+
+		tssAll = append(tssAll, tssL...)
+	}
+	ec.AuthToken = nil
+	if newStart == 0 {
+		newStart = ec.Start
+	}
+	return tssAll, newStart
+}
+
+func (rrc *rollupResultCache) getSeriesInternal(qt *querytracer.Tracer, ec *EvalConfig, expr metricsql.Expr, window int64) (tss []*timeseries, newStart int64) {
 	if qt.Enabled() {
 		query := string(expr.AppendString(nil))
 		query = stringsutil.LimitStringLen(query, 300)
@@ -310,6 +343,35 @@ func (rrc *rollupResultCache) GetSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 var resultBufPool bytesutil.ByteBufferPool
 
 func (rrc *rollupResultCache) PutSeries(qt *querytracer.Tracer, ec *EvalConfig, expr metricsql.Expr, window int64, tss []*timeseries) {
+	if ec.AuthTokens == nil {
+		rrc.putSeriesInternal(qt, ec, expr, window, tss)
+		return
+	}
+
+	perTenantTss := make(map[auth.Token][]*timeseries)
+
+	for _, ts := range tss {
+		at := auth.Token{
+			AccountID: ts.MetricName.AccountID,
+			ProjectID: ts.MetricName.ProjectID,
+		}
+		perTenantTss[at] = append(perTenantTss[at], ts)
+	}
+
+	for _, at := range ec.AuthTokens {
+		ec.AuthToken = at
+		tss := perTenantTss[*at]
+		if len(tss) == 0 {
+			continue
+		}
+		qtL := qt.NewChild("rollup cache put series for accountID=%d, projectID=%d", at.AccountID, at.ProjectID)
+		rrc.putSeriesInternal(qt, ec, expr, window, tss)
+		qtL.Done()
+	}
+	ec.AuthToken = nil
+}
+
+func (rrc *rollupResultCache) putSeriesInternal(qt *querytracer.Tracer, ec *EvalConfig, expr metricsql.Expr, window int64, tss []*timeseries) {
 	if qt.Enabled() {
 		query := string(expr.AppendString(nil))
 		query = stringsutil.LimitStringLen(query, 300)

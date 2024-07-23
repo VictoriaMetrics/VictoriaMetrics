@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/VictoriaMetrics/metricsql"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metricsql"
 )
 
 func TestRollupResultCacheInitStop(t *testing.T) {
@@ -322,7 +323,160 @@ func TestRollupResultCache(t *testing.T) {
 		}
 		testTimeseriesEqual(t, tss, tssExpected)
 	})
+	t.Run("multi-tenant fetches cache from multiple tenants", func(t *testing.T) {
+		ResetRollupResultCache()
+		tss1 := []*timeseries{
+			{
+				MetricName: storage.MetricName{
+					AccountID: 0,
+					ProjectID: 0,
+				},
+				Timestamps: []int64{800, 1000, 1200},
+				Values:     []float64{0, 1, 2},
+			},
+		}
+		ec1 := copyEvalConfig(ec)
+		ec1.AuthToken = &auth.Token{
+			AccountID: 0,
+			ProjectID: 0,
+		}
+		tss2 := []*timeseries{
+			{
+				MetricName: storage.MetricName{
+					AccountID: 0,
+					ProjectID: 1,
+				},
+				Timestamps: []int64{800, 1000, 1200},
+				Values:     []float64{0, 1, 2},
+			},
+		}
+		ec2 := copyEvalConfig(ec)
+		ec2.AuthToken = &auth.Token{
+			AccountID: 0,
+			ProjectID: 1,
+		}
 
+		tss3 := []*timeseries{
+			{
+				MetricName: storage.MetricName{
+					AccountID: 1,
+					ProjectID: 1,
+				},
+				Timestamps: []int64{800, 1000, 1200},
+				Values:     []float64{0, 1, 2},
+			},
+		}
+		ec3 := copyEvalConfig(ec)
+		ec3.AuthToken = &auth.Token{
+			AccountID: 1,
+			ProjectID: 1,
+		}
+
+		rollupResultCacheV.PutSeries(nil, ec1, fe, window, tss1)
+		rollupResultCacheV.PutSeries(nil, ec2, fe, window, tss2)
+		rollupResultCacheV.PutSeries(nil, ec3, fe, window, tss3)
+		ecSearch := copyEvalConfig(ec)
+		ecSearch.AuthToken = nil
+		ecSearch.AuthTokens = []*auth.Token{ec1.AuthToken, ec2.AuthToken, ec3.AuthToken}
+		ecSearch.Start = 800
+		tss, newStart := rollupResultCacheV.GetSeries(nil, ecSearch, fe, window)
+		if newStart != 1400 {
+			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 1400)
+		}
+		tssExpected := append(tss1, tss2...)
+		tssExpected = append(tssExpected, tss3...)
+
+		testTimeseriesEqual(t, tss, tssExpected)
+	})
+	t.Run("multi-tenant cache can be retrieved", func(t *testing.T) {
+		ResetRollupResultCache()
+		tssGolden := []*timeseries{
+			{
+				MetricName: storage.MetricName{
+					AccountID: 0,
+					ProjectID: 0,
+				},
+				Timestamps: []int64{800, 1000, 1200},
+				Values:     []float64{0, 1, 2},
+			},
+			{
+				MetricName: storage.MetricName{
+					AccountID: 0,
+					ProjectID: 1,
+				},
+				Timestamps: []int64{800, 1000, 1200},
+				Values:     []float64{0, 1, 2},
+			},
+
+			{
+				MetricName: storage.MetricName{
+					AccountID: 1,
+					ProjectID: 1,
+				},
+				Timestamps: []int64{800, 1000, 1200},
+				Values:     []float64{0, 1, 2},
+			},
+		}
+		ecL := copyEvalConfig(ec)
+		ecL.AuthToken = nil
+		ecL.Start = 800
+		ecL.AuthTokens = []*auth.Token{
+			{
+				AccountID: 0,
+				ProjectID: 0,
+			},
+			{
+				AccountID: 0,
+				ProjectID: 1,
+			},
+			{
+				AccountID: 1,
+				ProjectID: 1,
+			},
+		}
+		rollupResultCacheV.PutSeries(nil, ecL, fe, window, tssGolden)
+
+		tss, newStart := rollupResultCacheV.GetSeries(nil, ecL, fe, window)
+		if newStart != 1400 {
+			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 1400)
+		}
+
+		testTimeseriesEqual(t, tss, tssGolden)
+	})
+	t.Run("multi-tenant cache forces reload for missing time range", func(t *testing.T) {
+		ResetRollupResultCache()
+		tssGolden := []*timeseries{
+			{
+				MetricName: storage.MetricName{
+					AccountID: 1,
+					ProjectID: 1,
+				},
+				Timestamps: []int64{800, 1000, 1200},
+				Values:     []float64{0, 1, 2},
+			},
+		}
+		ecL := copyEvalConfig(ec)
+		ecL.AuthToken = nil
+		ecL.Start = 800
+		ecL.AuthTokens = []*auth.Token{
+			{
+				AccountID: 0,
+				ProjectID: 0,
+			},
+			{
+				AccountID: 1,
+				ProjectID: 1,
+			},
+		}
+		rollupResultCacheV.PutSeries(nil, ecL, fe, window, tssGolden)
+
+		tss, newStart := rollupResultCacheV.GetSeries(nil, ecL, fe, window)
+		if newStart != 800 {
+			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 800)
+		}
+
+		testTimeseriesEqual(t, tss, tssGolden)
+	})
 }
 
 func TestMergeSeries(t *testing.T) {
