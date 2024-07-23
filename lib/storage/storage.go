@@ -1378,6 +1378,9 @@ func filterLabelValues(lvs []string, tf *tagFilter, key string) []string {
 func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, tagKey, tagValuePrefix string,
 	delimiter byte, maxTagValueSuffixes int, deadline uint64,
 ) ([]string, error) {
+	if s.disablePerDayIndexes {
+		tr = globalIndexTimeRange
+	}
 	return s.idb().SearchTagValueSuffixes(qt, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
 }
 

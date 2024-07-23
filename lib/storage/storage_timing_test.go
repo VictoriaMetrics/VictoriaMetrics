@@ -51,3 +51,10 @@ func benchmarkStorageAddRows(b *testing.B, rowsPerBatch int) {
 	})
 	b.StopTimer()
 }
+
+func BenchmarkStorageIndexTuning(b *testing.B) {
+	b.Skip()
+
+	// TODO(rtm0): Implement use cases from documentation (kubernetes, weather,
+	// iot), measure disk space, ingestion and retrieval rate.
+}

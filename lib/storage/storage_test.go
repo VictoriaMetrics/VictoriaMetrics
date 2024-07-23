@@ -1887,7 +1887,104 @@ func TestStorageSearchLabelValues(t *testing.T) {
 }
 
 func TestStorageSearchTagValueSuffixes(t *testing.T) {
-	t.Skip()
+	defer testRemoveAll(t)
+
+	const tagValuePrefix = "metric."
+
+	assertSearchResult := func(s *Storage, tr TimeRange, want []string) {
+		t.Helper()
+		got, err := s.SearchTagValueSuffixes(nil, tr, "", tagValuePrefix, '.', 1e6, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchTagValueSuffixes(%v) failed unexpectedly", &tr)
+		}
+		slices.Sort(got)
+		slices.Sort(want)
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("[%v] unexpected tag value suffixes: got %v, want %v", &tr, got, want)
+		}
+	}
+
+	const (
+		days = 4
+		rows = 10
+	)
+	var trs []TimeRange
+	var mrs []MetricRow
+	var want []string
+	rng := rand.New(rand.NewSource(1))
+	for day := 1; day <= 4; day++ {
+		tr := TimeRange{
+			MinTimestamp: time.Date(2024, 1, day, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2024, 1, day, 23, 59, 59, 999, time.UTC).UnixMilli(),
+		}
+		trs = append(trs, tr)
+		for row := 0; row < rows; row++ {
+			metricName := fmt.Sprintf("%sday%d.row%d", tagValuePrefix, day, row)
+			mn := &MetricName{
+				MetricGroup: []byte(metricName),
+			}
+			metricNameRaw := mn.marshalRaw(nil)
+			mrs = append(mrs, MetricRow{
+				MetricNameRaw: metricNameRaw,
+				Timestamp:     rng.Int63n(tr.MaxTimestamp-tr.MinTimestamp) + tr.MinTimestamp,
+				Value:         rng.NormFloat64() * 1e6,
+			})
+		}
+		want = append(want, fmt.Sprintf("day%d.", day))
+	}
+
+	path := t.Name() + "/AddRowsAndSearchWithPerDayIndexesEnabled"
+	disablePerDayIndexes := false
+	s := MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	for day, tr := range trs {
+		assertSearchResult(s, tr, want[day:day+1])
+	}
+	s.MustClose()
+
+	path = t.Name() + "/AddRowsAndSearchWithPerDayIndexesDisabled"
+	disablePerDayIndexes = true
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	for _, tr := range trs {
+		assertSearchResult(s, tr, want)
+	}
+	s.MustClose()
+
+	path = t.Name() + "/AddRowsWithPerDayIndexesEnabledSearchWithDisabled"
+	disablePerDayIndexes = false
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	s.MustClose()
+	disablePerDayIndexes = true
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	for _, tr := range trs {
+		assertSearchResult(s, tr, want)
+	}
+	s.MustClose()
+
+	path = t.Name() + "/AddRowsWithPerDayIndexesDisabledSearchWithEnabled"
+	disablePerDayIndexes = true
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	s.MustClose()
+	disablePerDayIndexes = false
+	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+	for _, tr := range trs {
+		assertSearchResult(s, tr, []string{})
+	}
+	// Verify that search result contains correct label values after populating
+	// per-day index by registering metric names.
+	s.RegisterMetricNames(nil, mrs)
+	s.DebugFlush()
+	for day, tr := range trs {
+		assertSearchResult(s, tr, want[day:day+1])
+	}
+	s.MustClose()
 }
 
 func TestStorageSearchGraphitePaths(t *testing.T) {
