@@ -32,6 +32,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 ## tip
 
 **Update note 1: [vmauth](https://docs.victoriametrics.com/vmauth/) HTTP response code has changed from 503 to 502 for a case when all upstream backends were not available. This was changed to align [vmauth](https://docs.victoriametrics.com/vmauth/) behaviour with other well-known reverse-proxies behaviour. **
+
 * FEATURE: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) `vmstorage`: Refactor the code located in the `MustAddRows` function that looks for the corresponding partition when data is inserted. The new code efficiently determines whether all data to be inserted belongs to the corresponding partition by obtaining the maximum and minimum timestamps of all data to be inserted, resulting in better performance and readability.
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): add `keep_original_host` option, which can be used for proxying the original `Host` header from client request to the backend. By default the backend host is used as `Host` header when proxying requests to the configured backends. See [these docs](https://docs.victoriametrics.com/vmauth/#host-http-header).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/) now returns HTTP 502 status code when all upstream backends are not available. Previously, it returned HTTP 503 status code. This change aligns vmauth behavior with other well-known reverse-proxies behavior.
