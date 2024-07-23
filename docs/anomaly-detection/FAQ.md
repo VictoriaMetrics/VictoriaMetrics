@@ -35,7 +35,7 @@ For most of the [univariate models](/anomaly-detection/components/models/#univar
 
 Please see example graph illustrating this logic below:
 
-<img alt="anomaly-score-calculation-example" src="vmanomaly-prophet-example.webp">
+![anomaly-score-calculation-example](vmanomaly-prophet-example.webp)
 
 
 ## How does vmanomaly work?

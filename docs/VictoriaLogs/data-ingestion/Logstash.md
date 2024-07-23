@@ -17,7 +17,7 @@ aliases:
 Specify [`output.elasticsearch`](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html) section in the `logstash.conf` file
 for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
 
-```conf
+```logstash
 output {
   elasticsearch {
     hosts => ["http://localhost:9428/insert/elasticsearch/"]
@@ -39,7 +39,7 @@ and uses the correct [stream fields](https://docs.victoriametrics.com/victorialo
 This can be done by specifying `debug` [parameter](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters)
 and inspecting VictoriaLogs logs then:
 
-```conf
+```logstash
 output {
   elasticsearch {
     hosts => ["http://localhost:9428/insert/elasticsearch/"]
@@ -57,7 +57,7 @@ If some [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#
 during data ingestion, then they can be put into `ignore_fields` [parameter](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters).
 For example, the following config instructs VictoriaLogs to ignore `log.offset` and `event.original` fields in the ingested logs:
 
-```conf
+```logstash
 output {
   elasticsearch {
     hosts => ["http://localhost:9428/insert/elasticsearch/"]
@@ -74,7 +74,7 @@ output {
 If the Logstash sends logs to VictoriaLogs in another datacenter, then it may be useful enabling data compression via `http_compression: true` option.
 This usually allows saving network bandwidth and costs by up to 5 times:
 
-```conf
+```logstash
 output {
   elasticsearch {
     hosts => ["http://localhost:9428/insert/elasticsearch/"]
@@ -92,7 +92,7 @@ By default, the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [te
 If you need storing logs in other tenant, then specify the needed tenant via `custom_headers` at `output.elasticsearch` section.
 For example, the following `logstash.conf` config instructs Logstash to store the data to `(AccountID=12, ProjectID=34)` tenant:
 
-```conf
+```logstash
 output {
   elasticsearch {
     hosts => ["http://localhost:9428/insert/elasticsearch/"]

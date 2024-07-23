@@ -31,7 +31,7 @@ To check that metrics are present in **VictoriaMetrics Cluster** run the followi
 _Warning: response can return many metrics, so be careful with series selector._
 
 
-```curl
+```sh
 curl -s 'http://vmselect:8481/select/0/prometheus/api/v1/series?match[]=process_cpu_cores_available' | jq
 ```
 
@@ -81,7 +81,7 @@ The expected output:
 When you're sure [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) is correct, send a POST request to [delete API](https://docs.victoriametrics.com/url-examples/#apiv1admintsdbdelete_series) with [`match[]=<time-series-selector>`](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) argument. For example:
 
 
-```curl
+```sh
 curl -s 'http://vmselect:8481/delete/0/prometheus/api/v1/admin/tsdb/delete_series?match[]=process_cpu_cores_available'
 ```
 
@@ -91,7 +91,7 @@ If operation was successful, the deleted series will stop being [queryable](http
 To trigger [forced merge](https://docs.victoriametrics.com/single-server-victoriametrics/#forced-merge) on VictoriaMetrics Cluster run the following command:
 
 
-```curl
+```sh
 curl -v -X POST http://vmstorage:8482/internal/force_merge
 ```
 
@@ -111,7 +111,7 @@ By default, VictoriaMetrics doesn't provide a mechanism for replacing or updatin
 For example, let's export metric for `node_memory_MemTotal_bytes` with labels `instance="node-exporter:9100"` and `job="hostname.com"`:
 
 
-```curl
+```sh
 curl -X POST -g http://vmselect:8481/select/0/prometheus/api/v1/export -d 'match[]=node_memory_MemTotal_bytes{instance="node-exporter:9100", job="hostname.com"}' > data.jsonl
 ```
 
@@ -119,7 +119,7 @@ curl -X POST -g http://vmselect:8481/select/0/prometheus/api/v1/export -d 'match
 To check that exported file contains time series we can use [cat](https://man7.org/linux/man-pages/man1/cat.1.html) and [jq](https://stedolan.github.io/jq/download/)
 
 
-```curl
+```sh
 cat data.jsonl | jq
 ```
 
@@ -196,14 +196,14 @@ Victoriametrics supports a lot of [ingestion protocols](https://docs.victoriamet
 The next command will import metrics from `data.jsonl` to VictoriaMetrics:
 
 
-```curl
+```sh
 curl -v -X POST http://vminsert:8480/insert/0/prometheus/api/v1/import -T data.jsonl
 ```
 
 ### Check imported metrics
 
 
-```curl
+```sh
 curl -X POST -g http://vmselect:8481/select/0/prometheus/api/v1/export -d match[]=node_memory_MemTotal_bytes
 ```
 

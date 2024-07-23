@@ -589,7 +589,7 @@ sum(sum_over_time(some_metric[interval])) / sum(count_over_time(some_metric[inte
 
 For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and  the regular query:
 
-<img alt="avg aggregation" src="stream-aggregation-check-avg.webp">
+![avg aggregation](stream-aggregation-check-avg.webp)
 
 See also:
 
@@ -669,7 +669,7 @@ then take a look at [increase_prometheus](#increase_prometheus).
 
 For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and the regular query:
 
-<img alt="increase aggregation" src="stream-aggregation-check-increase.webp">
+![increase aggregation](stream-aggregation-check-increase.webp)
 
 Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
 or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_interval](#staleness) option.
@@ -735,7 +735,7 @@ max(max_over_time(some_metric[interval]))
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="total aggregation" src="stream-aggregation-check-max.webp">
+![total aggregation](stream-aggregation-check-max.webp)
 
 See also:
 
@@ -756,7 +756,7 @@ min(min_over_time(some_metric[interval]))
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="min aggregation" src="stream-aggregation-check-min.webp">
+![min aggregation](stream-aggregation-check-min.webp)
 
 See also:
 
@@ -831,7 +831,7 @@ histogram_stdvar(sum(histogram_over_time(some_metric[interval])) by (vmrange))
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="stdvar aggregation" src="stream-aggregation-check-stdvar.webp">
+![stdvar aggregation](stream-aggregation-check-stdvar.webp)
 
 See also:
 
@@ -852,7 +852,7 @@ sum(sum_over_time(some_metric[interval]))
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="sum_samples aggregation" src="stream-aggregation-check-sum-samples.webp">
+![sum_samples aggregation](stream-aggregation-check-sum-samples.webp)
 
 See also:
 
@@ -876,7 +876,7 @@ then take a look at [total_prometheus](#total_prometheus).
 
 For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and the regular query:
 
-<img alt="total aggregation" src="stream-aggregation-check-total.webp">
+![total aggregation](stream-aggregation-check-total.webp)
 
 `total` is not affected by [counter resets](https://docs.victoriametrics.com/keyconcepts/#counter) -
 it continues to increase monotonically with respect to the previous value.
@@ -884,7 +884,7 @@ The counters are most often reset when the application is restarted.
 
 For example:
 
-<img alt="total aggregation counter reset" src="stream-aggregation-check-total-reset.webp">
+![total aggregation counter reset](stream-aggregation-check-total-reset.webp)
 
 The same behavior occurs when creating or deleting new series in an aggregation group -
 `total` output increases monotonically considering the values of the series set.

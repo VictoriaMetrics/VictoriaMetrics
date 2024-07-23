@@ -15,7 +15,7 @@ aliases:
 It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).***
 
-<img alt="vmgateway" src="vmgateway-overview.webp">
+![vmgateway](vmgateway-overview.webp)
 
 `vmgateway` is a proxy for the VictoriaMetrics Time Series Database (TSDB). It provides the following features:
 
@@ -30,7 +30,7 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 
 ## Access Control
 
-<img alt="vmgateway-ac" src="vmgateway-access-control.webp">
+![vmgateway-ac](vmgateway-access-control.webp)
 
 `vmgateway` supports jwt based authentication. With jwt payload can be configured to give access to specific tenants and labels as well as to read/write.
 
@@ -95,7 +95,7 @@ curl 'http://localhost:8431/api/v1/series/count' -H 'Authorization: Bearer incor
 
 ## Rate Limiter
 
-<img alt="vmgateway-rl" src="vmgateway-rate-limiting.webp">
+![vmgateway-rl](vmgateway-rate-limiting.webp)
 
 Limits incoming requests by given, pre-configured limits. It supports read and write limiting by tenant.
 

@@ -12,9 +12,9 @@ aliases:
 # Cluster version
 
 <picture>
-  <source srcset="logo_white.webp" media="(prefers-color-scheme: dark)">
-  <source srcset="logo.webp" media="(prefers-color-scheme: light)">
-  <img src="logo.webp" width="300" alt="VictoriaMetrics logo">
+  <source srcset="/logo_white.webp" media="(prefers-color-scheme: dark)">
+  <source srcset="/logo.webp" media="(prefers-color-scheme: light)">
+  <img src="/logo.webp" width="300" alt="VictoriaMetrics logo">
 </picture>
 
 VictoriaMetrics is a fast, cost-effective and scalable time series database. It can be used as a long-term remote storage for Prometheus.
@@ -61,7 +61,7 @@ Each service may scale independently and may run on the most suitable hardware.
 This is a [shared nothing architecture](https://en.wikipedia.org/wiki/Shared-nothing_architecture).
 It increases cluster availability, and simplifies cluster maintenance as well as cluster scaling.
 
-<img src="Cluster-VictoriaMetrics_cluster-scheme.webp">
+![Cluster Scheme](Cluster-VictoriaMetrics_cluster-scheme.webp)
 
 ## Multitenancy
 

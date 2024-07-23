@@ -45,7 +45,7 @@ Read Data:
 
 ## Using opentelemetry-collector with VictoriaMetrics
 
-<img src="/guides/getting-started-with-opentelemetry-collector.webp">
+![OTEL Collector](getting-started-with-opentelemetry-collector.webp)
 
 ### Deploy opentelemetry-collector and configure metrics forwarding
 
@@ -164,14 +164,14 @@ for i in `seq 1 20`; do curl http://localhost:8080/rolldice; done
 ```
 
 After a few seconds you should start to see metrics sent over to the vmui interface by visiting `http://localhost:8428/vmui/#/?g0.expr=dice.rolls` in your browser or by querying the metric `dice.rolls` in the vmui interface.
-<img src="/guides/vmui-dice-roll.webp">
+![Dice roll](vmui-dice-roll.webp)
 ## Direct metrics push
 
 Metrics could be ingested into VictoriaMetrics directly with HTTP requests. You can use any compatible OpenTelemetry 
 instrumentation [clients](https://opentelemetry.io/docs/languages/).
 In our example, we'll create a WEB server in [Golang](https://go.dev/) and instrument it with metrics.
 
-<img src="/guides/getting-started-with-opentelemetry-direct.webp">
+![OTEL direct](getting-started-with-opentelemetry-direct.webp)
 
 
 ### Building the Go application instrumented with metrics
@@ -350,7 +350,7 @@ curl http://localhost:8081/api/slow
 Open [vmui](https://docs.victoriametrics.com/#vmui) and query `http_requests_total` or `http_active_requests`
 with [metricsql](https://docs.victoriametrics.com/metricsql/).
 
-<img src= "/guides/getting-started-with-opentelemetry-vmui.webp">
+![OTEL VMUI](getting-started-with-opentelemetry-vmui.webp)
 
 ## Limitations
 

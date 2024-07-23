@@ -94,7 +94,8 @@ docker-compose -f docker-compose.yaml up
 
 After Grafana starts successfully, datasource should be available in the datasources tab
 
-<img src="provision_datasources.png" width="800" alt="Configuration">
+![Configuration](provision_datasources.png)
+{width="800"}
 
 ### Install in Kubernetes
 

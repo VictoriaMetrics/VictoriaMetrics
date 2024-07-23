@@ -105,7 +105,7 @@ You assign the role to the user during the user creation procedure. You can chan
 
 It shows all users with different roles, and you can apply provided actions with them.
 
-<img src="user_management_list.webp">
+![User Management list](user_management_list.webp)
 
 In the table, there is additional information about the users:
 
@@ -138,7 +138,7 @@ In the table, there is additional information about the users:
 Click on `Invite user` button 
 the user invitation button and fill out the form in the modal, which will appear after you click. All fields are mandatory.
 
-<img src="user_management_invite_user.webp" >
+![Invite user](user_management_invite_user.webp)
 
 After filling out the form, click on the `Invite` button. 
 The user will be saved, and an invitation email to the provided email address will be sent. As a confirmation, you will see the success message.
@@ -148,7 +148,7 @@ The user will be saved, and an invitation email to the provided email address wi
 The user will be at Pending Invitation status. After accepting the invitation user status changes to Active.
 
 
-<img src="user_management_invite_success.webp" >
+![Invite success](user_management_invite_success.webp)
 
 
 ## How to Update User
@@ -156,17 +156,17 @@ The user will be at Pending Invitation status. After accepting the invitation us
 To edit the user role and details, activate or deactivate a user, and click on
 
 
-<img src="user_management_update_user.webp" >
+![Update user](user_management_update_user.webp)
 
 or `user email` to edit the user.
 
 User editing form:
 
-<img src="user_management_user_update_form.webp" >
+![Update form](user_management_user_update_form.webp)
 
 To save changes, click the `Save changes` button. If changes are saved successfully, you will see a message at the top of the page.
 
-<img src="user_management_user_updated_success.webp" >
+![Updated success](user_management_user_updated_success.webp)
 
 ## How to Delete User
 
@@ -174,15 +174,15 @@ You can delete a user from your account. However, you will need to invite them a
 
 Click on `Delete` button to delete the user.
 
-<img src="user_management_user_delete.webp" >
+![User delete](user_management_user_delete.webp)
 
 To confirm the deletion of a user, you will need to re-enter their email address and press the **Delete** button
 
-<img src="user_management_delete_user_form.webp" >
+![User delete form](user_management_delete_user_form.webp)
 
 You will be redirected to the main page with a success or error message
 
-<img src="user_management_delete_success.webp" >
+![Delete success](user_management_delete_success.webp)
 
 ## How to resend invitation
 
@@ -190,12 +190,12 @@ If the invitation is expired, it is possible to resend email to the user
 
 Click `Resend invitation` button
 
-<img src="user_management_resend_invitation.webp" >
+![Resend invitation](user_management_resend_invitation.webp)
 
 Confirm resend invitation by clicking `Resend` button in the modal dialog
 
-<img src="user_management_confirm_resend_invitation.webp" >
+![Confirm resend invitation](user_management_confirm_resend_invitation.webp)
 
 If invitation successfully resented to the user success message will appear
 
-<img src="user_management_resend_success.webp" >
+![Resend success](user_management_resend_success.webp)
