@@ -1,4 +1,3 @@
-# Data Ingestion
 In This Folder you will find instructions for sending data to VictoriaMetrics from a variety of platforms.
 If your tool is not listed it is likely you can ingest your data into VictoriaMetrics using one of the protocols listed in our [Prominent features]({{< ref "/Single-server-VictoriaMetrics.md#prominent-features" >}}) section.
 
