@@ -23,7 +23,7 @@ menu:
    upgrade to [the latest available release](https://docs.victoriametrics.com/CHANGELOG.html) and remain happy.
 1. Improving usability for the existing functionality of VictoriaMetrics components.
 1. Improving the readability and maintainability of the code base by removing unnecessary abstractions and simplifying the code whenever possible.
-1. Improving development velocity by optimizing CI/CD tasks, so they take less time.
+1. Improving development velocity by optimizing and simplifying CI/CD tasks, so they take less time to execute and debug.
 
 ## Non-goals
 
@@ -40,8 +40,8 @@ menu:
    Other feature requests must be closed as `won't implement`, with the link to this page.
 1. Merging all the pull requests users submit. These pull requests should fit [the goals](#goals) of VictoriaMetrics.
    Other pull requests must be closed as `won't merge`, with the link to this page.
-1. Slowing down CI/CD pipelines with non-essential tasks, since this results in development velocity slowdown.
-1. Slowing down development velocity by introducing non-essential requirements.
+1. Slowing down and complicating CI/CD pipelines with non-essential tasks, since this results in development velocity slowdown.
+1. Introducing non-essential requrirements, since this slows down development velocity.
 
 ## VictoriaMetrics proverbs
 

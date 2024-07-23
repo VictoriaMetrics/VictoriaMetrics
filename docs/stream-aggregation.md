@@ -1016,6 +1016,7 @@ At [vmagent](https://docs.victoriametrics.com/vmagent/) `-remoteWrite.streamAggr
 specified individually per each `-remoteWrite.url`:
 
 ```yaml
+
   # name is an optional name of the given streaming aggregation config.
   #
   # If it is set, then it is used as `name` label in the exposed metrics
@@ -1031,7 +1032,7 @@ specified individually per each `-remoteWrite.url`:
   # match also can contain a list of series selectors. Then the incoming samples are aggregated
   # if they match at least a single series selector.
   #
-- match: 'http_request_duration_seconds_bucket{env=~"prod|staging"}'
+  match: 'http_request_duration_seconds_bucket{env=~"prod|staging"}'
 
   # interval is the interval for the aggregation.
   # The aggregated stats is sent to remote storage once per interval.
