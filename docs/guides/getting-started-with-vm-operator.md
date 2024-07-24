@@ -8,8 +8,6 @@ menu:
 aliases:
 - /guides/getting-started-with-vm-operator.html
 ---
-# Getting started with VM Operator
-
 **The guide covers:**
 
 * The setup of a [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator) via Helm in [Kubernetes](https://kubernetes.io/) with Helm charts.

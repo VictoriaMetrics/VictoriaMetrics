@@ -9,8 +9,6 @@ menu:
 aliases:
 - /managed-victoriametrics/setup-notifications.html
 ---
-# Notifications in Managed VictoriaMetrics
-
 The guide covers how to enable email and Slack notifications.
 
 Table of content:

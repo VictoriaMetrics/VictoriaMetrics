@@ -6,7 +6,6 @@ menu:
     parent: "guides"
     weight: 5
 ---
-
 VictoriaMetrics supports metrics ingestion with [OpenTelemetry metrics format](https://opentelemetry.io/docs/specs/otel/metrics/).
 This guide covers data ingestion via [opentelemetry-collector](https://opentelemetry.io/docs/collector/) and direct metrics push from application.
 

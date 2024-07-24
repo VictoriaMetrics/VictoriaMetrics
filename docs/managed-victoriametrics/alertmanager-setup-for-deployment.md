@@ -9,9 +9,6 @@ menu:
 aliases:
   - /managed-victoriametrics/alertmanager-setup-for-deployment.html
 ---
-
-# Alerting stack configuration and Managed VictoriaMetrics
-
 Managed VictoriaMetrics supports configuring alerting rules, powered by vmalert, and sending notifications with hosted Alertmanager.
 
 ## Configure Alertmanager

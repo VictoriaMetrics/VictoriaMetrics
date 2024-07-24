@@ -9,10 +9,6 @@ menu:
 aliases:
 - /victorialogs/victorialogs-datasource.html
 ---
-
-# VictoriaLogs datasource for Grafana
-
-
 The VictoriaLogs datasource plugin allows you to query and visualize
 [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) data in [Grafana](https://grafana.com).
 

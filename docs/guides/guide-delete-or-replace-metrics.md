@@ -8,8 +8,6 @@ menu:
 aliases:
 - /guides/guide-delete-or-replace-metrics.html
 ---
-# How to delete or replace metrics in VictoriaMetrics 
-
 Data deletion is an operation people expect a database to have. [VictoriaMetrics](https://victoriametrics.com) supports 
 [delete operation](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-delete-time-series) but to a limited extent. Due to implementation details, VictoriaMetrics remains an [append-only database](https://en.wikipedia.org/wiki/Append-only), which perfectly fits the case for storing time series data. But the drawback of such architecture is that it is extremely expensive to mutate the data. Hence, `delete` or `update` operations support is very limited. In this guide, we'll walk through the possible workarounds for deleting or changing already written data in VictoriaMetrics.
 

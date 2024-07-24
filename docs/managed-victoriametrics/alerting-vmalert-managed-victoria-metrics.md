@@ -9,8 +9,6 @@ menu:
 aliases:
 - /managed-victoriametrics/alerting-vmalert-managed-victoria-metrics.html
 ---
-# Alerting with vmalert and Managed VictoriaMetrics
-
 This guide explains the different ways in which you can use vmalert in conjunction with Managed VictoriaMetrics
 
 ![Metrics setup](alerting-vmalert-managed-victoria-metrics_setup.webp)

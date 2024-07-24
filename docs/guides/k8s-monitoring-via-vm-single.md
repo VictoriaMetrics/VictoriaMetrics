@@ -8,9 +8,6 @@ menu:
 aliases:
 - /guides/k8s-monitoring-via-vm-single.html
 ---
-# Kubernetes monitoring via VictoriaMetrics Single
-
-
 **This guide covers:**
 
 * The setup of a [VictoriaMetrics Single](https://docs.victoriametrics.com/single-server-victoriametrics/) in [Kubernetes](https://kubernetes.io/) via Helm charts

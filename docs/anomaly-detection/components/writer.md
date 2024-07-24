@@ -9,9 +9,6 @@ menu:
 aliases:
   - /anomaly-detection/components/writer.html
 ---
-
-# Writer
-
 For exporting data, VictoriaMetrics Anomaly Detection (`vmanomaly`) primarily employs the [VmWriter](#vm-writer), which writes produced anomaly scores **(preserving initial labelset and optionally applying additional ones)** back to VictoriaMetrics. This writer is tailored for smooth data export within the VictoriaMetrics ecosystem.
 
 Future updates will introduce additional export methods, offering users more flexibility in data handling and integration.

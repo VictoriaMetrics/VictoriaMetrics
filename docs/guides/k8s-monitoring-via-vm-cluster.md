@@ -8,9 +8,6 @@ menu:
 aliases:
 - /guides/k8s-monitoring-via-vm-cluster.html
 ---
-# Kubernetes monitoring with VictoriaMetrics Cluster
-
-
 **This guide covers:**
 
 * The setup of a [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) in [Kubernetes](https://kubernetes.io/) via Helm charts

@@ -9,9 +9,6 @@ menu:
 aliases:
   - /anomaly-detection/components/reader.html
 ---
-
-# Reader
-
 <!--
 There are 4 sources available to read data into VM Anomaly Detection from: VictoriaMetrics, (ND)JSON file, QueryRange, or CSV file. Depending on the data source, different parameters should be specified in the config file in the `reader` section.
 -->

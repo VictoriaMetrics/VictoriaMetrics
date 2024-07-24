@@ -8,9 +8,6 @@ menu:
 aliases:
 - /guides/k8s-ha-monitoring-via-vm-cluster.html
 ---
-# HA monitoring setup in Kubernetes via VictoriaMetrics Cluster
-
-
 **The guide covers:**
 
 * High availability monitoring via [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) in [Kubernetes](https://kubernetes.io/) with Helm charts

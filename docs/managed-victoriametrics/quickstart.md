@@ -9,8 +9,6 @@ menu:
 aliases:
 - /managed-victoriametrics/quickstart.html
 ---
-# Quick Start
-
 Managed VictoriaMetrics is a hosted monitoring platform, where users can run the VictoriaMetrics 
 that they know and love on AWS without the need to perform typical DevOps tasks such as proper configuration, 
 monitoring, logs collection, access protection, software updates, backups, etc.

@@ -11,10 +11,6 @@ aliases:
 - /anomaly-detection.html
 - /anomaly-detection/overview.html
 ---
-
-
-# Overview
-
 ## About
 
 **VictoriaMetrics Anomaly Detection** (or shortly, `vmanomaly`) is a service that continuously scans VictoriaMetrics time

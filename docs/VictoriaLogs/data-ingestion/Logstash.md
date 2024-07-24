@@ -11,9 +11,6 @@ aliases:
   - /victorialogs/data-ingestion/logstash.html
   - /victorialogs/data-ingestion/Logstash.html
 ---
-
-# Logstash setup
-
 Specify [`output.elasticsearch`](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html) section in the `logstash.conf` file
 for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
 

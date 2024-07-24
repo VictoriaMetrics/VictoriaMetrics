@@ -9,8 +9,6 @@ menu:
 aliases:
 - /managed-victoriametrics/user-management.html
 ---
-# User Management in Managed VictoriaMetrics 
-
 The user management system enables admins to control user access and onboard and offboard users to the Managed VictoriaMetrics. It organizes users according to their needs and role.
 
 The document covers the following topics

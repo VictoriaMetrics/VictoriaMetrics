@@ -8,7 +8,6 @@ menu:
     weight: 1
     title: Presets
 ---
-# Anomaly detection presets
 > Please check the [Quick Start Guide](./QuickStart.md) to install and run `vmanomaly`
 
 > Presets are available starting from [v1.13.0](./CHANGELOG.md#v1130)

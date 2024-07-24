@@ -9,9 +9,6 @@ menu:
 aliases:
   - /anomaly-detection/components/scheduler.html
 ---
-
-# Scheduler
-
 Scheduler defines how often to run and make inferences, as well as what timerange to use to train the model.
 Is specified in `scheduler` section of a config for VictoriaMetrics Anomaly Detection.
 

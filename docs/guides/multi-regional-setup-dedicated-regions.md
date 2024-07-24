@@ -8,8 +8,6 @@ menu:
 aliases:
 - /guides/multi-regional-setup-dedicated-regions.html
 ---
-# Multi-regional setup with VictoriaMetrics: Dedicated regions for monitoring
-
 ### Scenario
 
 Let's cover the case. You have multiple regions with workloads and want to collect metrics.

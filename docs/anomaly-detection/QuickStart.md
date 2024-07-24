@@ -10,9 +10,6 @@ menu:
 aliases:
 - /anomaly-detection/QuickStart.html
 ---
-
-# VictoriaMetrics Anomaly Detection Quick Start
-
 For service introduction visit [README](./README.md) page
 and [Overview](./Overview.md) of how `vmanomaly` works.
 

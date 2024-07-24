@@ -10,9 +10,6 @@ menu:
 aliases:
 - /anomaly-detection/FAQ.html
 ---
-
-# FAQ - VictoriaMetrics Anomaly Detection
-
 ## What is VictoriaMetrics Anomaly Detection (vmanomaly)?
 VictoriaMetrics Anomaly Detection, also known as `vmanomaly`, is a service for detecting unexpected changes in time series data. Utilizing machine learning models, it computes and pushes back an ["anomaly score"](./components/models.md#vmanomaly-output) for user-specified metrics. This hands-off approach to anomaly detection reduces the need for manual alert setup and can adapt to various metrics, improving your observability experience.
 
