@@ -39,7 +39,7 @@ Run a service using config file with one of the [available options](./QuickStart
 After you run `vmanomaly` with `preset` arg specified, available assets can be viewed, copied and downloaded at `http://localhost:8490/presets/` endpoint.
 
 ![preset-localhost](presets-localhost.webp)
-{width="800px"}
+
 
 ## Node-Exporter
 
@@ -210,25 +210,25 @@ Here's how attached [Grafana dashboard](https://github.com/VictoriaMetrics/Victo
 On the (global) graph **'Percentage of Anomalies'**, you can see a spike 8.75% of anomalies at the timestamp '2024-06-03 10:35:00'. The (global) graph **'Anomalies per Indicator'** shows the indicators that were anomalous at the corresponding time.
 
 ![global](presets_global_percentage.webp)
-{width="800px"}
+
 
 At this timestamp on the **'Number of Anomalous Indicators by Node'** graph we can identify the node that had the most anomalies: `10.142.0.27`
 
 ![by_node](presets_anomalies_by_node.webp)
-{width="800px"}
+
 
 Now you can select anomalous node to drill down further (local):
 
 ![anomalous_node_selection](presets_anomalous_node_selection.webp)
-{width="800px"}
+
 
 For this node from the timestamp `2024-06-03 10:35:00` CPU time spent handling software interrupts started to grow.
 (`cpu_seconds_total{mode="softirq"}`)
 
 ![irq](presets_cpu_seconds_softirq.webp)
-{width="800px"}
+
 
 At the same time `cpu_seconds_total` for `steal` mode started to grow as well.
 
 ![steal](presets_cpu_seconds_steal.webp)
-{width="800px"}
+

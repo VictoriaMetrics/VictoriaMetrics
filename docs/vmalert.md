@@ -585,7 +585,7 @@ Alertmanagers.
 ```
 
 ![vmalert ha](vmalert_ha.webp)
-{width="800px"}
+
 
 To avoid recording rules results and alerts state duplication in VictoriaMetrics server
 don't forget to configure [deduplication](./Single-Server-VictoriaMetrics.md#deduplication).
