@@ -28,7 +28,7 @@ If you aren't familiar with VictoriaLogs, then start with [key concepts docs](./
 Then follow these docs:
 - [How to run VictoriaLogs](./QuickStart.md).
 - [how to ingest data into VictoriaLogs](./data-ingestion/README.md).
-- [How to query VictoriaLogs](./querying/README.md
+- [How to query VictoriaLogs](./querying/README.md)
 
 The simplest LogsQL query is just a [word](#word), which must be found in the [log message](./keyConcepts.md#message-field).
 For example, the following query finds all the logs with `error` word:
