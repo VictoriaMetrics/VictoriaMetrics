@@ -12,9 +12,6 @@ aliases:
 - /victorialogs/quick-start.html
 - /victorialogs/quick-start/
 ---
-
-# VictoriaLogs Quick Start
-
 It is recommended to read [README](https://docs.victoriametrics.com/victorialogs/)
 and [Key Concepts](https://docs.victoriametrics.com/victorialogs/keyconcepts/)
 before you start working with VictoriaLogs.

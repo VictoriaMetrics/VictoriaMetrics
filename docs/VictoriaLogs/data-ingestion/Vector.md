@@ -11,9 +11,6 @@ aliases:
   - /victorialogs/data-ingestion/Vector.html
   - /victorialogs/data-ingestion/vector.html
 ---
-# Vector setup
-
-
 ## Elasticsearch sink 
 
 Specify [Elasticsearch sink type](https://vector.dev/docs/reference/configuration/sinks/elasticsearch/) in the `vector.toml`

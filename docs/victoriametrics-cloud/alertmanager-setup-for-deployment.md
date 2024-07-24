@@ -9,9 +9,6 @@ menu:
 aliases:
   - /victoriametrics-cloud/alertmanager-setup-for-deployment.html
 ---
-
-# Alerting stack configuration and VictoriaMetrics Cloud
-
 VictoriaMetrics Cloud supports configuring alerting rules, powered by vmalert, and sending notifications with hosted Alertmanager.
 
 ## Configure Alertmanager
@@ -19,9 +16,9 @@ VictoriaMetrics Cloud supports configuring alerting rules, powered by vmalert, a
 You have two options to configure Cloud Alertmanager:
 
 1. From integrations section: Menu **"Integrations" `->` "Cloud Alertmanager" `->` "New configuration"**:
-   <img src="alertmanager-setup-for-deployment_integrations.webp">
+   ![Setup for deployment integrations](alertmanager-setup-for-deployment_integrations.webp)
 2. From deployment page: **"Deployment page" `->` "Rules" tab `->` "Settings" `->` "Connect notifier" `/` "New notifier"**: 
-   <img src="alertmanager-setup-for-deployment_connect_notifier.webp">
+   ![Setup for deployment connect notifier](alertmanager-setup-for-deployment_connect_notifier.webp)
 
 For creating a new configuration, you need to provide the following parameters:
 
@@ -34,7 +31,7 @@ After creating the configuration, you can connect it to one or multiple deployme
 In order to do this you need to go to the "Deployment page" `->` "Rules" tab `->` "Settings" `,
 select the created notifier and confirm the action:
 
-<img src="alertmanager-setup-for-deployment_select_notifier.webp">
+![Select notifier](alertmanager-setup-for-deployment_select_notifier.webp)
 
 Alertmanager is now set up for your deployment, and you be able to get notifications from it.
 
@@ -129,7 +126,7 @@ If for some reason Cloud Alertmanager is not suitable for you, you can use Victo
 
 For that select Custom Alertmanager instead of Cloud Alertmanager when [creating the Alertmanager](#configure-alertmanager):
 
-<img src="alertmanager-setup-for-deployment_custom_am.webp">
+![Custom AlertManager](alertmanager-setup-for-deployment_custom_am.webp)
 
 Limitations for the Custom Alertmanager:
 
@@ -143,7 +140,7 @@ You can test the connection to your custom Alertmanager by clicking the "Test co
 
 Alerting and recording rules could be uploaded on **"Deployment page" `->` "Rules" tab `->` "Settings"**:
 
-<img src="alertmanager-setup-for-deployment_upload_rules.webp">
+![Upload rules](alertmanager-setup-for-deployment_upload_rules.webp)
 
 You can click on the upload area or drag and drop the files with rules there.
 
@@ -161,7 +158,7 @@ You can also use API for uploading rules. Switch to **"Upload with API"** on the
 - Choose the API key for uploading rules
 - After that you can copy the curl command for uploading rules and execute it in your terminal
 
-<img src="alertmanager-setup-for-deployment_upload_with_api.webp">
+![Upload with API](alertmanager-setup-for-deployment_upload_with_api.webp)
 
 You can use the following API endpoints for the automation with rules:
 
@@ -202,13 +199,13 @@ groups:
 
 The state of created rules is located in the `Rules` section of your deployment:
 
-<img src="alertmanager-setup-for-deployment_rules_state.webp">
+![Rules state](alertmanager-setup-for-deployment_rules_state.webp)
 
 ### Debug
 
 It's possible to debug the alerting stack with logs for vmalert and Alertmanager, which are accessible in the `Logs` section of the deployment.
 
-<img src="alertmanager-setup-for-deployment_troubleshoot_logs.webp">
+![Troubleshoot logs](alertmanager-setup-for-deployment_troubleshoot_logs.webp)
 
 ### Monitoring
 

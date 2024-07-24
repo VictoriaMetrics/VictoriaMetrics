@@ -9,9 +9,6 @@ menu:
 aliases:
 - /Quick-Start.html
 ---
-
-# Quick start
-
 ## How to install
 
 VictoriaMetrics is distributed in two forms:

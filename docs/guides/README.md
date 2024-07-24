@@ -8,4 +8,4 @@
 1. [How to delete or replace metrics in VictoriaMetrics](guide-delete-or-replace-metrics.html)
 1. [How to monitor kubernetes cluster using VictoriaMetrics Cloud](/victoriametrics-cloud/how-to-monitor-k8s.html)
 1. [How to configure vmgateway for multi-tenant access using Grafana and OpenID Connect](grafana-vmgateway-openid-configuration.html)
-1. [How to setup vmanomaly together with vmalert](/anomaly-detection/guides/guide-vmanomaly-vmalert.html)
+1. [How to setup vmanomaly together with vmalert](/anomaly-detection/guides/guide-vmanomaly-vmalert/README.md)

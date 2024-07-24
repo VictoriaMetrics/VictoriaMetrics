@@ -9,9 +9,6 @@ menu:
 aliases:
 - /enterprise.html
 ---
-
-# VictoriaMetrics Enterprise
-
 VictoriaMetrics components are provided in two kinds - [Community edition](https://victoriametrics.com/products/open-source/)
 and [Enterprise edition](https://victoriametrics.com/products/enterprise/).
 

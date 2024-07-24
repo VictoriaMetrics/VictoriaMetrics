@@ -9,11 +9,10 @@ menu:
 aliases:
 - /victoriametrics-cloud/alerting-vmalert-victoria-metrics-cloud.html
 ---
-# Alerting with vmalert and VictoriaMetrics Cloud
 
 This guide explains the different ways in which you can use vmalert in conjunction with VictoriaMetrics Cloud
 
-<img src="alerting-vmalert-victoria-metrics-cloud_setup.webp">
+![Metrics setup](alerting-vmalert-victoria-metrics-cloud_setup.webp)
 
 ## Preconditions 
 
@@ -55,14 +54,14 @@ For instructions on how to create tokens, please refer to this section of the [d
 
 #### Single-Node
 
-<img src="alerting-vmalert-victoria-metrics-cloud_token_created_single.webp">
-<img src="alerting-vmalert-victoria-metrics-cloud_copy_datasource_single.webp">
+![Token created single](alerting-vmalert-victoria-metrics-cloud_token_created_single.webp)
+![Copy datasource single](alerting-vmalert-victoria-metrics-cloud_copy_datasource_single.webp)
 
 #### Cluster
 
-<img src="alerting-vmalert-victoria-metrics-cloud_token_created_cluster.webp">
-<img src="alerting-vmalert-victoria-metrics-cloud_copy_reading_datasource_cluster.webp">
-<img src="alerting-vmalert-victoria-metrics-cloud_copy_writing_datasource_cluster.webp">
+![Token created cluster](alerting-vmalert-victoria-metrics-cloud_token_created_cluster.webp)
+![Reading datasource cluster](alerting-vmalert-victoria-metrics-cloud_copy_reading_datasource_cluster.webp)
+![Writing atasource cluster](alerting-vmalert-victoria-metrics-cloud_copy_writing_datasource_cluster.webp)
 
 ### vmalert configuration 
 
