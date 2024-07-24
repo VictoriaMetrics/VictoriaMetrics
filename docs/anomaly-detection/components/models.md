@@ -249,7 +249,6 @@ If during an inference, you got a series having **new labelset** (not present in
 
 **Examples:** [Prophet](#prophet), [Holt-Winters](#holt-winters)
 
-<p></p>
 ![vmanomaly-model-type-univariate](model-lifecycle-univariate.webp)
 
 
@@ -265,7 +264,6 @@ If during an inference, you got a **different amount of series** or some series 
 
 **Examples:** [IsolationForest](#isolation-forest-multivariate)
 
-<p></p>
 ![vmanomaly-model-type-multivariate](model-lifecycle-multivariate.webp)
 
 
@@ -283,7 +281,6 @@ Such models put **more pressure** on your reader's source, i.e. if your model sh
 
 **Examples:** [RollingQuantile](#rolling-quantile)
 
-<p></p>
 ![vmanomaly-model-type-rolling](model-type-rolling.webp)
 
 
@@ -301,9 +298,8 @@ Produced model instances are **stored in-memory** between consecutive re-fit cal
 
 **Examples:** [Prophet](#prophet)
 
-<p></p>
 ![vmanomaly-model-type-non-rolling](model-type-non-rolling.webp)
-{width="800px}
+
 
 ## Built-in Models 
 
