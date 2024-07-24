@@ -63,7 +63,7 @@ const GroupLogs: FC<TableLogsProps> = ({ logs, settingsRef }) => {
     return groupByMultipleKeys(logs, [groupBy]).map((item) => {
       const streamValue = item.values[0]?.[groupBy] || "";
       const pairs = /^{.+}$/.test(streamValue)
-        ? streamValue.slice(1, -1).match(/(?:[^\\,]+|\\,)+?(?=,|$)/g) || [streamValue]
+        ? streamValue.slice(1, -1).match(/(\\.|[^,])+/g) || [streamValue]
         : [streamValue];
       return {
         ...item,
