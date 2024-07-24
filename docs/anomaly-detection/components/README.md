@@ -16,13 +16,13 @@ Below, you will find an example illustrating how the components of `vmanomaly` i
 
 > **Note**: [Reader](./reader.md#vm-reader) and [Writer](./writer.md#vm-writer) also support [multitenancy](../../Cluster-VictoriaMetrics.md#multitenancy), so you can read/write from/to different locations - see `tenant_id` param description.
 
-![vmanomaly-components](vmanomaly-components.webp)
-{width="800px"}
+![vmanomaly-components](vmanomaly-components.webp){width="800px"}
 
 Here's a minimalistic full config example, demonstrating many-to-many configuration (actual for [latest version](../CHANGELOG.md)):
 
 ```yaml
-{{% ref "./scheduler.md" %}}
+# how and when to run the models is defined by schedulers
+# https://docs.victoriametrics.com/anomaly-detection/components/scheduler/
 schedulers:
   periodic_1d:  # alias
     class: 'periodic' # scheduler class
@@ -36,7 +36,7 @@ schedulers:
     fit_window: "7d"
 
 # what model types and with what hyperparams to run on your data
-# {{% ref "./models.md" %}}
+# https://docs.victoriametrics.com/anomaly-detection/components/models/
 models:
   zscore:  # alias
     class: 'zscore'  # model class
@@ -53,7 +53,7 @@ models:
       interval_width: 0.98
 
 # where to read data from
-# {{% ref "./reader.md" %}}
+# https://docs.victoriametrics.com/anomaly-detection/components/reader/
 reader:
   datasource_url: "http://victoriametrics:8428/"
   tenant_id: "0:0"
@@ -64,12 +64,12 @@ reader:
     host_network_receive_errors: 'rate(node_network_receive_errs_total[3m]) / rate(node_network_receive_packets_total[3m])'
 
 # where to write data to
-# {{% ref "./writer.md" %}}
+# https://docs.victoriametrics.com/anomaly-detection/components/writer/
 writer:
   datasource_url: "http://victoriametrics:8428/"
 
 # enable self-monitoring in pull and/or push mode
-# {{% ref "./monitoring.md" %}}
+# https://docs.victoriametrics.com/anomaly-detection/components/monitoring/
 monitoring:
   pull: # Enable /metrics endpoint.
     addr: "0.0.0.0"
