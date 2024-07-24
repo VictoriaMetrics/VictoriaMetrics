@@ -11,9 +11,6 @@ menu:
 aliases:
 - /VictoriaLogs/Roadmap.html
 ---
-
-# VictoriaLogs roadmap
-
 The following functionality is available in [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
 
 - [Data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).

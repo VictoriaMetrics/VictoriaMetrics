@@ -7,9 +7,6 @@ menu:
     parent: "victorialogs-data-ingestion"
     weight: 10
 ---
-
-# Syslog setup
-
 [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) can accept logs in [Syslog formats](https://en.wikipedia.org/wiki/Syslog) at the specified TCP and UDP addresses
 via `-syslog.listenAddr.tcp` and `-syslog.listenAddr.udp` command-line flags. The following syslog formats are supported:
 

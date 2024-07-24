@@ -9,9 +9,6 @@ menu:
 aliases:
 - /CHANGELOG_2023.html
 ---
-
-# CHANGELOG for the year 2023
-
 ## [v1.96.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.96.0)
 
 Released at 2023-12-13
