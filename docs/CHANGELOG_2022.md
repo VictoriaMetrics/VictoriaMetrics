@@ -9,9 +9,6 @@ menu:
 aliases:
 - /CHANGELOG_2022.html
 ---
-
-# CHANGELOG for the year 2022
-
 ## [v1.85.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.85.3)
 
 Released at 2022-12-20

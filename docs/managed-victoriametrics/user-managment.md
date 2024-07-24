@@ -29,7 +29,7 @@ You assign the role to the user during the user creation procedure. You can chan
 
 ### Roles definition
 
-<table>
+<table class="params">
   <tr>
    <td><strong>User Role</strong></td>
    <td><strong>Categories</strong></td>
@@ -85,7 +85,7 @@ You assign the role to the user during the user creation procedure. You can chan
 ### User statuses
 
 
-<table>
+<table class="params">
   <tr>
    <td class="highlight"><strong class="sr">Active</strong></td>
    <td>The user can log in and use Managed VictoriaMetrics. The user role defines the access level.</td>
@@ -110,7 +110,7 @@ It shows all users with different roles, and you can apply provided actions with
 In the table, there is additional information about the users:
 
 
-<table>
+<table class="params">
   <tr>
    <td>Email:</td>
    <td>Registration user email</td>

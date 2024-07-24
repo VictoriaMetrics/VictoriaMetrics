@@ -9,8 +9,6 @@ title: vmalert
 aliases:
   - /vmalert.html
 ---
-# vmalert
-
 `vmalert` executes a list of the given [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/)
 or [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/)
 rules against configured `-datasource.url` compatible with Prometheus HTTP API. For sending alerting notifications

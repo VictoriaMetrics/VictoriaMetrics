@@ -12,8 +12,6 @@ aliases:
   - /data-ingestion/proxmox.html
   - /data-ingestion/Proxmox.html
 ---
-
-# Proxmox Data Ingestion
 Since Proxmox Virtual Environment(PVE) and Proxmox Backup Server(PBS) support sending data using the InfluxDB We can use the InfluxDB write support built into VictoriaMetrics
 Currently PVE and PBS only support using an Authorization Token for authentication and does not support basic auth or a username and password.
 

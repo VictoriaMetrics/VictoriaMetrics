@@ -9,9 +9,6 @@ menu:
 aliases:
 - /Release-Guide.html
 ---
-
-# Release process guidance
-
 ## Pre-reqs
 
 1. Make sure you have enterprise remote configured

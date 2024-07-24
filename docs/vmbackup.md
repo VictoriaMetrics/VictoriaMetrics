@@ -9,8 +9,6 @@ title: vmbackup
 aliases:
   - /vmbackup.html
 ---
-# vmbackup
-
 `vmbackup` creates VictoriaMetrics data backups from [instant snapshots](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-work-with-snapshots).
 
 `vmbackup` supports incremental and full backups. Incremental backups are created automatically if the destination path already contains data from the previous backup.

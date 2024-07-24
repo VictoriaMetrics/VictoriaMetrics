@@ -10,9 +10,6 @@ aliases:
 - /keyConcepts.html
 - /keyсoncepts.html
 ---
-
-# Key concepts
-
 ## Data model
 
 ### What is a metric

@@ -9,9 +9,6 @@ menu:
 aliases:
 - /sd_configs.html
 ---
-
-# Prometheus service discovery
-
 # Supported service discovery configs
 
 [vmagent](https://docs.victoriametrics.com/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)

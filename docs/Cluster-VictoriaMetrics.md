@@ -9,8 +9,6 @@ title: Cluster version
 aliases:
   - /Cluster-VictoriaMetrics.html
 ---
-# Cluster version
-
 <picture>
   <source srcset="/logo_white.webp" media="(prefers-color-scheme: dark)">
   <source srcset="/logo.webp" media="(prefers-color-scheme: light)">

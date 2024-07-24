@@ -9,8 +9,6 @@ title: vmctl
 aliases:
   - /vmctl.html
 ---
-# vmctl
-
 VictoriaMetrics command-line tool (vmctl) provides the following list of actions:
 - migrate data from [Prometheus](#migrating-data-from-prometheus) to VictoriaMetrics using snapshot API
 - migrate data from [Thanos](#migrating-data-from-thanos) to VictoriaMetrics

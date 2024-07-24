@@ -9,9 +9,6 @@ menu:
 aliases:
   - /PerTenantStatistic.html
 ---
-
-# VictoriaMetrics Cluster Per Tenant Statistic
-
 ![cluster-per-tenant-stat](PerTenantStatistic-stats.webp)
 
 ***The per-tenant statistic is a part of [enterprise package](https://docs.victoriametrics.com/enterprise/). It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).

@@ -10,9 +10,6 @@ aliases:
 - /FAQ.html
 - /faq.html
 ---
-
-# FAQ
-
 ## What is the main purpose of VictoriaMetrics?
 
 To provide the best monitoring solution.
