@@ -166,6 +166,7 @@ type EvalConfig struct {
 func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	var ec EvalConfig
 	ec.AuthToken = src.AuthToken
+	ec.AuthTokens = src.AuthTokens
 	ec.Start = src.Start
 	ec.End = src.End
 	ec.Step = src.Step
