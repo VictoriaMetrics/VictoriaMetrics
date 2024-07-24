@@ -133,21 +133,21 @@ Introduced in [1.13.0](../CHANGELOG.md#1130), `detection_direction` arg can help
 Here's how default (backward-compatible) behavior looks like - anomalies will be tracked in `both` directions (`y > yhat` or `y < yhat`). This is useful when there is no domain expertise to filter the required direction.
 
 ![schema_detection_direction=both](schema_detection_direction=both.webp)
-{width="800px"}
+
 
 When set to `above_expected`, anomalies are tracked only when `y > yhat`.
 
 *Example metrics*: Error rate, response time, page load time, number of failed transactions - metrics where *lower values are better*, so **higher** values are typically tracked.
 
 ![schema_detection_direction=above_expected](schema_detection_direction=above_expected.webp)
-{width="800px"}
+
 
 When set to `below_expected`, anomalies are tracked only when `y < yhat`. 
 
 *Example metrics*: Service Level Agreement (SLA) compliance, conversion rate, Customer Satisfaction Score (CSAT) - metrics where *higher values are better*, so **lower** values are typically tracked.
 
 ![schema_detection_direction=below_expected](schema_detection_direction=below_expected.webp)
-{width="800px"}
+
 
 Config with a split example:
 
@@ -194,10 +194,10 @@ Introduced in [v1.13.0](../CHANGELOG.md#1130), the `min_dev_from_expected` argum
 Visualizations below demonstrate this concept; the green zone defined as the `[yhat - min_dev_from_expected, yhat + min_dev_from_expected]` range excludes actual data points (`y`) from generating anomaly scores if they fall within that range.
 
 ![min_dev_from_expected-default](schema_min_dev_from_expected=0.webp)
-{width="800px"}
+
 
 ![min_dev_from_expected-small](schema_min_dev_from_expected=1.0.webp)
-{width="800px"}
+
 
 ![min_dev_from_expected-big](schema_min_dev_from_expected=5.0.webp)
 {width="800px}
@@ -251,7 +251,7 @@ If during an inference, you got a series having **new labelset** (not present in
 
 <p></p>
 ![vmanomaly-model-type-univariate](model-lifecycle-univariate.webp)
-{width="800px"}
+
 
 ### Multivariate Models
 
@@ -267,7 +267,7 @@ If during an inference, you got a **different amount of series** or some series 
 
 <p></p>
 ![vmanomaly-model-type-multivariate](model-lifecycle-multivariate.webp)
-{width="800px"}
+
 
 ### Rolling Models
 
@@ -285,7 +285,7 @@ Such models put **more pressure** on your reader's source, i.e. if your model sh
 
 <p></p>
 ![vmanomaly-model-type-rolling](model-type-rolling.webp)
-{width="800px"}
+
 
 ### Non-Rolling Models
 
@@ -343,7 +343,7 @@ Tuning hyperparameters of a model can be tricky and often requires in-depth know
   - `timeout` (float) - How many seconds in total can be spent on each model to tune hyperparameters. The higher, the longer it takes, allowing to test more trials out of defined `n_trials`, but the better the results can be.
 
 ![vmanomaly-autotune-schema](autotune.webp)
-{width="800px"}
+
 
 ```yaml
 # ...

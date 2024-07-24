@@ -16,7 +16,7 @@ Below, you will find an example illustrating how the components of `vmanomaly` i
 
 > **Note**: [Reader](./reader.md#vm-reader) and [Writer](./writer.md#vm-writer) also support [multitenancy](../../Cluster-VictoriaMetrics.md#multitenancy), so you can read/write from/to different locations - see `tenant_id` param description.
 
-![vmanomaly-components](vmanomaly-components.webp){width="800px"}
+![vmanomaly-components](vmanomaly-components.webp)
 
 Here's a minimalistic full config example, demonstrating many-to-many configuration (actual for [latest version](../CHANGELOG.md)):
 
