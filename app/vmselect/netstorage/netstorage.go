@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -2958,29 +2957,10 @@ func getStorageNodes() []*storageNode {
 	return snb.sns
 }
 
-var (
-	nodeID     uint64
-	nodeIDOnce sync.Once
-)
-
-// GetNodeID returns unique identifier for underlying storage nodes.
+// GetNodeID returns unique identifier of vmselect
 func GetNodeID() uint64 {
-	nodeIDOnce.Do(func() {
-		snb := getStorageNodesBucket()
-		snIDs := make([]uint64, 0, len(snb.sns))
-		for _, sn := range snb.sns {
-			snIDs = append(snIDs, sn.id)
-		}
-		slices.Sort(snIDs)
-		idsM := make([]byte, 0)
-		for _, id := range snIDs {
-			idsM = encoding.MarshalUint64(idsM, id)
-		}
-
-		nodeID = xxhash.Sum64(idsM)
-	})
-
-	return nodeID
+	// Returns a 0 as persistent IDs are not intended to use with multi-level setup
+	return 0
 }
 
 // Init initializes storage nodes' connections to the given addrs.
