@@ -112,9 +112,9 @@ The `vm_account_id` and `vm_project_id` labels are extracted after applying the 
 set via `-relabelConfig` command-line flag, so these labels can be set at this stage.
 
 The `vm_account_id` and `vm_project_id` labels are also taken into account when ingesting data via non-http-based protocols
-such as [Graphite](./README.md#how-to-send-data-from-graphite-compatible-agents-such-as-statsd),
-[InfluxDB line protocol via TCP and UDP](./README.md#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) and
-[OpenTSDB telnet put protocol](./README.md#sending-data-via-telnet-put-protocol).
+such as [Graphite](./#how-to-send-data-from-graphite-compatible-agents-such-as-statsd),
+[InfluxDB line protocol via TCP and UDP](./#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) and
+[OpenTSDB telnet put protocol](./#sending-data-via-telnet-put-protocol).
 
 **Security considerations:** it is recommended restricting access to `multitenant` endpoints only to trusted sources,
 since untrusted source may break per-tenant data by writing unwanted samples to arbitrary tenants.
@@ -278,7 +278,7 @@ General security recommendations:
 - Prefer using lists of allowed [API endpoints](#url-format), while disallowing access to other endpoints when configuring auth proxy in front of `vminsert` and `vmselect`.
   This minimizes attack surface.
 
-See also [security recommendation for single-node VictoriaMetrics](./README.md#security)
+See also [security recommendation for single-node VictoriaMetrics](./#security)
 and [the general security page at VictoriaMetrics website](https://victoriametrics.com/security/).
 
 
@@ -344,7 +344,7 @@ See more details in the article [VictoriaMetrics Monitoring](https://victoriamet
 
 Note that these limits are set and applied individually per each `vmstorage` node in the cluster. So, if the cluster has `N` `vmstorage` nodes, then the cluster-level limits will be `N` times bigger than the per-`vmstorage` limits.
 
-See more details about cardinality limiter in [these docs](./README.md#cardinality-limiter).
+See more details about cardinality limiter in [these docs](./#cardinality-limiter).
 
 ## Troubleshooting
 
@@ -387,7 +387,7 @@ Check practical examples of VictoriaMetrics API [here](./url-examples.md).
     - `datadog/api/v2/series` - for ingesting data with [DataDog submit metrics API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics). See [these docs](./Single-Server-VictoriaMetrics.md#how-to-send-data-from-datadog-agent) for details.
     - `datadog/api/beta/sketches` - for ingesting data with [DataDog lambda extension](https://docs.datadoghq.com/serverless/libraries_integrations/extension/).
     - `influx/write` and `influx/api/v2/write` - for ingesting data with [InfluxDB line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/). TCP and UDP receiver is disabled by default. It is exposed on a distinct TCP address set via `-influxListenAddr` command-line flag. See [these docs](./Single-Server-VictoriaMetrics.md#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for details.
-    - `newrelic/infra/v2/metrics/events/bulk` - for accepting data from [NewRelic infrastructure agent](https://docs.newrelic.com/docs/infrastructure/install-infrastructure-agent). See [these docs](./README.md#how-to-send-data-from-newrelic-agent) for details.
+    - `newrelic/infra/v2/metrics/events/bulk` - for accepting data from [NewRelic infrastructure agent](https://docs.newrelic.com/docs/infrastructure/install-infrastructure-agent). See [these docs](./#how-to-send-data-from-newrelic-agent) for details.
     - `opentsdb/api/put` - for accepting [OpenTSDB HTTP /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.html). This handler is disabled by default. It is exposed on a distinct TCP address set via `-opentsdbHTTPListenAddr` command-line flag. See [these docs](./Single-Server-VictoriaMetrics.md#sending-opentsdb-data-via-http-apiput-requests) for details.
 
 - URLs for [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/): `http://<vmselect>:8481/select/<accountID>/prometheus/<suffix>`, where:
@@ -403,7 +403,7 @@ Check practical examples of VictoriaMetrics API [here](./url-examples.md).
     - `api/v1/export/native` - exports raw data in native binary format. It may be imported into another VictoriaMetrics via `api/v1/import/native` (see above).
     - `api/v1/export/csv` - exports data in CSV. It may be imported into another VictoriaMetrics via `api/v1/import/csv` (see above).
     - `api/v1/series/count` - returns the total number of series.
-    - `api/v1/status/tsdb` - for time series stats. See [these docs](./README.md#tsdb-stats) for details.
+    - `api/v1/status/tsdb` - for time series stats. See [these docs](./#tsdb-stats) for details.
     - `api/v1/status/active_queries` - for currently executed active queries. Note that every `vmselect` maintains an independent list of active queries,
       which is returned in the response.
     - `api/v1/status/top_queries` - for listing the most frequently executed queries and queries taking the most duration.
@@ -440,7 +440,7 @@ The `start` and `end` query args are optional. If they are missing, then all the
   This URL works only when `-vmalert.proxyURL` flag is set. See more about vmalert [here](#vmalert). 
 
 - `vmstorage` nodes provide the following HTTP endpoints on `8482` port:
-  - `/internal/force_merge` - initiate [forced compactions](./README.md#forced-merge) on the given `vmstorage` node.
+  - `/internal/force_merge` - initiate [forced compactions](./#forced-merge) on the given `vmstorage` node.
   - `/snapshot/create` - create [instant snapshot](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282),
     which can be used for backups in background. Snapshots are created in `<storageDataPath>/snapshots` folder, where `<storageDataPath>` is the corresponding
     command-line flag value.
@@ -620,7 +620,7 @@ The cluster works in the following way when some of `vmstorage` nodes are unavai
 `vmselect` doesn't serve partial responses for API handlers returning [raw datapoints](./keyConcepts.md#raw-samples),
 since users usually expect this data is always complete. The following handlers return raw samples:
 
-- [`/api/v1/export*` endpoints](./README.md#how-to-export-time-series)
+- [`/api/v1/export*` endpoints](./#how-to-export-time-series)
 - [`/api/v1/query`](./url-examples.md#apiv1query) when the `query` contains [series selector](./keyConcepts.md#filtering)
   ending with some duration in square brackets. For example, `/api/v1/query?query=up[1h]&time=2024-01-02T03:00:00Z`.
   This query returns [raw samples](./keyConcepts.md#raw-samples) for [time series](./keyConcepts.md#time-series)
@@ -633,7 +633,7 @@ Data replication can be used for increasing storage durability. See [these docs]
 
 VictoriaMetrics uses lower amounts of CPU, RAM and storage space on production workloads compared to competing solutions (Prometheus, Thanos, Cortex, TimescaleDB, InfluxDB, QuestDB, M3DB) according to [our case studies](./CaseStudies/README.md).
 
-Each node type - `vminsert`, `vmselect` and `vmstorage` - can run on the most suitable hardware. Cluster capacity scales linearly with the available resources. The needed amounts of CPU and RAM per each node type highly depends on the workload - the number of [active time series](./FAQ.md#what-is-an-active-time-series), [series churn rate](./FAQ.md#what-is-high-churn-rate), query types, query qps, etc. It is recommended setting up a test VictoriaMetrics cluster for your production workload and iteratively scaling per-node resources and the number of nodes per node type until the cluster becomes stable. It is recommended setting up [monitoring for the cluster](#monitoring). It helps to determine bottlenecks in cluster setup. It is also recommended following [the troubleshooting docs](./README.md#troubleshooting).
+Each node type - `vminsert`, `vmselect` and `vmstorage` - can run on the most suitable hardware. Cluster capacity scales linearly with the available resources. The needed amounts of CPU and RAM per each node type highly depends on the workload - the number of [active time series](./FAQ.md#what-is-an-active-time-series), [series churn rate](./FAQ.md#what-is-high-churn-rate), query types, query qps, etc. It is recommended setting up a test VictoriaMetrics cluster for your production workload and iteratively scaling per-node resources and the number of nodes per node type until the cluster becomes stable. It is recommended setting up [monitoring for the cluster](#monitoring). It helps to determine bottlenecks in cluster setup. It is also recommended following [the troubleshooting docs](./#troubleshooting).
 
 The needed storage space for the given retention (the retention is set via `-retentionPeriod` command-line flag at `vmstorage`) can be extrapolated from disk space usage in a test run. For example, if the storage space usage is 10GB after a day-long test run on a production workload, then it will need at least `10GB*100=1TB` of disk space for `-retentionPeriod=100d` (100-days retention period). Storage space usage can be monitored with [the official Grafana dashboard for VictoriaMetrics cluster](#monitoring).
 
@@ -685,7 +685,7 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   See also `-search.maxMemoryPerQuery` command-line flag at `vmselect`.
 - `-search.maxQueueDuration` at `vmselect` and `vmstorage` limits the maximum duration queries may wait for execution when `-search.maxConcurrentRequests`
   concurrent queries are executed.
-- `-search.ignoreExtraFiltersAtLabelsAPI` at `vmselect` enables ignoring of `match[]`, [`extra_filters[]` and `extra_label`](./README.md#prometheus-querying-api-enhancements)
+- `-search.ignoreExtraFiltersAtLabelsAPI` at `vmselect` enables ignoring of `match[]`, [`extra_filters[]` and `extra_label`](./#prometheus-querying-api-enhancements)
   query args at [/api/v1/labels](./url-examples.md#apiv1labels) and
   [/api/v1/label/.../values](./url-examples.md#apiv1labelvalues).
   This may be useful for reducing the load on `vmstorage` if the provided extra filters match too many time series.
@@ -880,7 +880,7 @@ HDD-based persistent disks should be enough for the majority of use cases. It is
 
 ## Deduplication
 
-Cluster version of VictoriaMetrics supports data deduplication in the same way as single-node version do. See [these docs](./README.md#deduplication) for details. The only difference is that the same `-dedup.minScrapeInterval` command-line flag value must be passed to both `vmselect` and `vmstorage` nodes because of the following aspects:
+Cluster version of VictoriaMetrics supports data deduplication in the same way as single-node version do. See [these docs](./#deduplication) for details. The only difference is that the same `-dedup.minScrapeInterval` command-line flag value must be passed to both `vmselect` and `vmstorage` nodes because of the following aspects:
 
 By default, `vminsert` tries to route all the samples for a single time series to a single `vmstorage` node. But samples for a single time series can be spread among multiple `vmstorage` nodes under certain conditions:
 * when adding/removing `vmstorage` nodes. Then new samples for a part of time series will be routed to another `vmstorage` nodes;
@@ -911,7 +911,7 @@ Restoring from backup:
 ## Retention filters
 
 [VictoriaMetrics enterprise](./enterprise.md) supports configuring multiple retentions for distinct sets of time series
-by passing `-retentionFilter` command-line flag to `vmstorage` nodes. See [these docs](./README.md#retention-filters) for details on this feature.
+by passing `-retentionFilter` command-line flag to `vmstorage` nodes. See [these docs](./#retention-filters) for details on this feature.
 
 Additionally, enterprise version of VictoriaMetrics cluster supports multiple retentions for distinct sets of [tenants](#multitenancy)
 by specifying filters on `vm_account_id` and/or `vm_project_id` pseudo-labels in `-retentionFilter` command-line flag.
@@ -932,7 +932,7 @@ For example, the following config sets retention to 5 days for time series with 
 -retentionFilter='{vm_account_id="5",env="dev"}:5d'
 ```
 
-See also [these docs](./README.md#retention-filters) for additional details on retention filters.
+See also [these docs](./#retention-filters) for additional details on retention filters.
 See also [downsampling](#downsampling).
 
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
@@ -941,7 +941,7 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 ## Downsampling
 
 Downsampling is available in [enterprise version of VictoriaMetrics](./enterprise.md).
-It is configured with `-downsampling.period` command-line flag according to [these docs](./README.md#downsampling).
+It is configured with `-downsampling.period` command-line flag according to [these docs](./#downsampling).
 
 It is possible to downsample series, which belong to a particular [tenant](#multitenancy) by using [filters](./keyConcepts.md#filtering)
 on `vm_account_id` or `vm_project_id` pseudo-labels in `-downsampling.period` command-line flag. For example, the following config leaves the last sample per each minute for samples
@@ -1064,7 +1064,7 @@ Below is the output for `/path/to/vminsert -help`:
   -datadog.sanitizeMetricName
      Sanitize metric names for the ingested DataDog data to comply with DataDog behaviour described at https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics (default true)
   -denyQueryTracing
-     Whether to disable the ability to trace queries. See {{% ref "./README.md#query-tracing" %}}
+     Whether to disable the ability to trace queries. See {{% ref "./#query-tracing" %}}
   -disableRerouting
      Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate. See also -disableReroutingOnUnavailable and -dropSamplesOnOverload (default true)
   -disableReroutingOnUnavailable
@@ -1074,7 +1074,7 @@ Below is the output for `/path/to/vminsert -help`:
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
-     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See {{% ref "./README.md#environment-variables" %}} for more details
+     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See {{% ref "./#environment-variables" %}} for more details
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
@@ -1087,7 +1087,7 @@ Below is the output for `/path/to/vminsert -help`:
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -graphite.sanitizeMetricName
-     Sanitize metric names for the ingested Graphite data. See {{% ref "./README.md#how-to-send-data-from-graphite-compatible-agents-such-as-statsd" %}}
+     Sanitize metric names for the ingested Graphite data. See {{% ref "./#how-to-send-data-from-graphite-compatible-agents-such-as-statsd" %}}
   -graphiteListenAddr string
      TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty. See also -graphiteListenAddr.useProxyProtocol
   -graphiteListenAddr.useProxyProtocol
@@ -1212,7 +1212,7 @@ Below is the output for `/path/to/vminsert -help`:
      The maximum size in bytes of a single NewRelic request to /newrelic/infra/v2/metrics/events/bulk
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -opentelemetry.usePrometheusNaming
-     Whether to convert metric names and labels into Prometheus-compatible format for the metrics ingested via OpenTelemetry protocol; see {{% ref "./README.md#sending-data-via-opentelemetry" %}}
+     Whether to convert metric names and labels into Prometheus-compatible format for the metrics ingested via OpenTelemetry protocol; see {{% ref "./#sending-data-via-opentelemetry" %}}
   -opentsdbHTTPListenAddr string
      TCP address to listen for OpenTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty. See also -opentsdbHTTPListenAddr.useProxyProtocol
   -opentsdbHTTPListenAddr.useProxyProtocol
@@ -1246,11 +1246,11 @@ Below is the output for `/path/to/vminsert -help`:
   -pushmetrics.interval duration
      Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
-     Optional URL to push metrics exposed at /metrics page. See {{% ref "./README.md#push-metrics" %}} . By default, metrics exposed at /metrics page aren't pushed to any remote storage
+     Optional URL to push metrics exposed at /metrics page. See {{% ref "./#push-metrics" %}} . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -relabelConfig string
-     Optional path to a file with relabeling rules, which are applied to all the ingested metrics. The path can point either to local file or to http url. See {{% ref "./README.md#relabeling" %}} for details. The config is reloaded on SIGHUP signal
+     Optional path to a file with relabeling rules, which are applied to all the ingested metrics. The path can point either to local file or to http url. See {{% ref "./#relabeling" %}} for details. The config is reloaded on SIGHUP signal
   -relabelConfigCheckInterval duration
      Interval for checking for changes in '-relabelConfig' file. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes
   -replicationFactor int
@@ -1355,20 +1355,20 @@ Below is the output for `/path/to/vmselect -help`:
   -clusternativeListenAddr string
      TCP address to listen for requests from other vmselect nodes in multi-level cluster setup. See {{% ref "./Cluster-VictoriaMetrics.md#multi-level-cluster-setup" %}}. Usually :8401 should be set to match default vmstorage port for vmselect. Disabled work if empty
   -dedup.minScrapeInterval duration
-     Leave only the last sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See {{% ref "./README.md#deduplication" %}} for details
+     Leave only the last sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See {{% ref "./#deduplication" %}} for details
   -deleteAuthKey value
      authKey for metrics' deletion via /prometheus/api/v1/admin/tsdb/delete_series and /graphite/tags/delSeries
      Flag value can be read from the given file when using -deleteAuthKey=file:///abs/path/to/file or -deleteAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -deleteAuthKey=http://host/path or -deleteAuthKey=https://host/path
   -denyQueryTracing
-     Whether to disable the ability to trace queries. See {{% ref "./README.md#query-tracing" %}}
+     Whether to disable the ability to trace queries. See {{% ref "./#query-tracing" %}}
   -downsampling.period array
-     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. When setting multiple downsampling periods, it is necessary for the periods to be multiples of each other. See {{% ref "./README.md#downsampling" %}} for details. This flag is available only in VictoriaMetrics enterprise. See {{% ref "./enterprise.md" %}}
+     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. When setting multiple downsampling periods, it is necessary for the periods to be multiples of each other. See {{% ref "./#downsampling" %}} for details. This flag is available only in VictoriaMetrics enterprise. See {{% ref "./enterprise.md" %}}
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
-     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See {{% ref "./README.md#environment-variables" %}} for more details
+     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See {{% ref "./#environment-variables" %}} for more details
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
@@ -1479,7 +1479,7 @@ Below is the output for `/path/to/vmselect -help`:
   -pushmetrics.interval duration
      Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
-     Optional URL to push metrics exposed at /metrics page. See {{% ref "./README.md#push-metrics" %}}. By default, metrics exposed at /metrics page aren't pushed to any remote storage
+     Optional URL to push metrics exposed at /metrics page. See {{% ref "./#push-metrics" %}}. By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -replicationFactor array
@@ -1490,7 +1490,7 @@ Below is the output for `/path/to/vmselect -help`:
   -search.denyPartialResponse
      Whether to deny partial responses if a part of -storageNode instances fail to perform queries; this trades availability over consistency; see also -search.maxQueryDuration
   -search.disableCache
-     Whether to disable response caching. This may be useful when ingesting historical data. See {{% ref "./README.md#backfilling" %}}. See also -search.resetRollupResultCacheOnStartup
+     Whether to disable response caching. This may be useful when ingesting historical data. See {{% ref "./#backfilling" %}}. See also -search.resetRollupResultCacheOnStartup
   -search.disableImplicitConversion
      Whether to return an error for queries that rely on implicit subquery conversions, see {{% ref "./MetricsQL.md#subqueries" %}} for details. See also -search.logImplicitConversion
   -search.graphiteMaxPointsPerSeries int
@@ -1517,11 +1517,11 @@ Below is the output for `/path/to/vmselect -help`:
   -search.maxFederateSeries int
      The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage (default 1000000)
   -search.maxGraphiteSeries int
-     The maximum number of time series, which can be scanned during queries to Graphite Render API. See {{% ref "./README.md#graphite-render-api-usage" %}} (default 300000)
+     The maximum number of time series, which can be scanned during queries to Graphite Render API. See {{% ref "./#graphite-render-api-usage" %}} (default 300000)
   -search.maxGraphiteTagKeys int
-     The maximum number of tag keys returned from Graphite API, which returns tags. See {{% ref "./README.md#graphite-tags-api-usage" %}} (default 100000)
+     The maximum number of tag keys returned from Graphite API, which returns tags. See {{% ref "./#graphite-tags-api-usage" %}} (default 100000)
   -search.maxGraphiteTagValues int
-     The maximum number of tag values returned from Graphite API, which returns tag values. See {{% ref "./README.md#graphite-tags-api-usage" %}} (default 100000)
+     The maximum number of tag values returned from Graphite API, which returns tag values. See {{% ref "./#graphite-tags-api-usage" %}} (default 100000)
   -search.maxLabelsAPIDuration duration
      The maximum duration for /api/v1/labels, /api/v1/label/.../values and /api/v1/series requests. See also -search.maxLabelsAPISeries and -search.ignoreExtraFiltersAtLabelsAPI (default 5s)
   -search.maxLabelsAPISeries int
@@ -1581,7 +1581,7 @@ Below is the output for `/path/to/vmselect -help`:
      Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call
      Flag value can be read from the given file when using -search.resetCacheAuthKey=file:///abs/path/to/file or -search.resetCacheAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -search.resetCacheAuthKey=http://host/path or -search.resetCacheAuthKey=https://host/path
   -search.resetRollupResultCacheOnStartup
-     Whether to reset rollup result cache on startup. See {{% ref "./README.md#rollup-result-cache" %}}. See also -search.disableCache
+     Whether to reset rollup result cache on startup. See {{% ref "./#rollup-result-cache" %}}. See also -search.disableCache
   -search.setLookbackToStep
      Whether to fix lookback interval to 'step' query arg value. If set to true, the query model becomes closer to InfluxDB data model. If set to true, then -search.maxLookback and -search.maxStalenessInterval are ignored
   -search.skipSlowReplicas
@@ -1668,19 +1668,19 @@ Below is the output for `/path/to/vmstorage -help`:
   -cluster.tlsKeyFile string
      Path to server-side TLS key file to use when accepting connections from vminsert and vmselect if -cluster.tls flag is set. See {{% ref "./Cluster-VictoriaMetrics.md#mtls-protection" %}}. This flag is available only in VictoriaMetrics enterprise. See {{% ref "./enterprise.md" %}}
   -dedup.minScrapeInterval duration
-     Leave only the last sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See {{% ref "./README.md#deduplication" %}} for details
+     Leave only the last sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See {{% ref "./#deduplication" %}} for details
   -denyQueriesOutsideRetention
      Whether to deny queries outside of the configured -retentionPeriod. When set, then /api/v1/query_range would return '503 Service Unavailable' error for queries with 'from' value outside -retentionPeriod. This may be useful when multiple data sources with distinct retentions are hidden behind query-tee
   -denyQueryTracing
-     Whether to disable the ability to trace queries. See {{% ref "./README.md#query-tracing" %}}
+     Whether to disable the ability to trace queries. See {{% ref "./#query-tracing" %}}
   -downsampling.period array
-     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. When setting multiple downsampling periods, it is necessary for the periods to be multiples of each other. See {{% ref "./README.md#downsampling" %}} for details. This flag is available only in VictoriaMetrics enterprise. See {{% ref "./enterprise.md" %}}
+     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. When setting multiple downsampling periods, it is necessary for the periods to be multiples of each other. See {{% ref "./#downsampling" %}} for details. This flag is available only in VictoriaMetrics enterprise. See {{% ref "./enterprise.md" %}}
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
-     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See {{% ref "./README.md#environment-variables" %}} for more details
+     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See {{% ref "./#environment-variables" %}} for more details
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
@@ -1807,11 +1807,11 @@ Below is the output for `/path/to/vmstorage -help`:
   -pushmetrics.interval duration
      Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
-     Optional URL to push metrics exposed at /metrics page. See {{% ref "./README.md#push-metrics" %}}. By default, metrics exposed at /metrics page aren't pushed to any remote storage
+     Optional URL to push metrics exposed at /metrics page. See {{% ref "./#push-metrics" %}}. By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -retentionFilter array
-     Retention filter in the format 'filter:retention'. For example, '{env="dev"}:3d' configures the retention for time series with env="dev" label to 3 days. See {{% ref "./README.md#retention-filters" %}} for details. This flag is available only in VictoriaMetrics enterprise. See {{% ref "./enterprise.md" %}}
+     Retention filter in the format 'filter:retention'. For example, '{env="dev"}:3d' configures the retention for time series with env="dev" label to 3 days. See {{% ref "./#retention-filters" %}} for details. This flag is available only in VictoriaMetrics enterprise. See {{% ref "./enterprise.md" %}}
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -retentionPeriod value
@@ -1856,9 +1856,9 @@ Below is the output for `/path/to/vmstorage -help`:
      Overrides max size for storage/tsid cache. See {{% ref "./Single-Server-VictoriaMetrics.md#cache-tuning" %}}
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -storage.maxDailySeries int
-     The maximum number of unique series can be added to the storage during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See {{% ref "./README.md#cardinality-limiter" %}}. See also -storage.maxHourlySeries
+     The maximum number of unique series can be added to the storage during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See {{% ref "./#cardinality-limiter" %}}. See also -storage.maxHourlySeries
   -storage.maxHourlySeries int
-     The maximum number of unique series can be added to the storage during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. See {{% ref "./README.md#cardinality-limiter" %}}. See also -storage.maxDailySeries
+     The maximum number of unique series can be added to the storage during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. See {{% ref "./#cardinality-limiter" %}}. See also -storage.maxDailySeries
   -storage.minFreeDiskSpaceBytes size
      The minimum free disk space at -storageDataPath after which the storage stops accepting new data
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 10000000)

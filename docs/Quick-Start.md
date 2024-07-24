@@ -12,10 +12,10 @@ aliases:
 ## How to install
 
 VictoriaMetrics is distributed in two forms:
-* [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) - all-in-one
+* [Single-server-VictoriaMetrics](./Single-Server-VictoriaMetrics.md) - all-in-one
   binary, which is very easy to use and maintain.
   Single-server-VictoriaMetrics perfectly scales vertically and easily handles millions of metrics/s;
-* [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) - set of components
+* [VictoriaMetrics Cluster](./Cluster-VictoriaMetrics.md) - set of components
   for building horizontally scalable clusters.
 
 Single-server-VictoriaMetrics VictoriaMetrics is available as:
@@ -26,16 +26,16 @@ Single-server-VictoriaMetrics VictoriaMetrics is available as:
 * [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
 * [Ansible Roles](https://github.com/VictoriaMetrics/ansible-playbooks)
 * [Source code](https://github.com/VictoriaMetrics/VictoriaMetrics).
-  See [How to build from sources](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-build-from-sources)
+  See [How to build from sources](./Single-Server-VictoriaMetrics.md#how-to-build-from-sources)
 * [VictoriaMetrics on Linode](https://www.linode.com/marketplace/apps/victoriametrics/victoriametrics/)
 * [VictoriaMetrics on DigitalOcean](https://marketplace.digitalocean.com/apps/victoriametrics-single)
 
 Just download VictoriaMetrics and follow
-[these instructions](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-start-victoriametrics).
-Then read [Prometheus setup](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-setup)
-and [Grafana setup](https://docs.victoriametrics.com/single-server-victoriametrics/#grafana-setup) docs.
+[these instructions](./Single-Server-VictoriaMetrics.md#how-to-start-victoriametrics).
+Then read [Prometheus setup](./Single-Server-VictoriaMetrics.md#prometheus-setup)
+and [Grafana setup](./Single-Server-VictoriaMetrics.md#grafana-setup) docs.
 
-VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/changelog/) and performing [regular upgrades](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics).
+VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](./CHANGELOG.md) and performing [regular upgrades](how-to-upgrade-victoriametrics).
 
 
 ### Starting VictoriaMetrics Single Node via Docker {anchor="starting-vm-single-via-docker"}
@@ -53,9 +53,9 @@ docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 842
 
 
 Open <a href="http://localhost:8428">http://localhost:8428</a> in web browser
-and read [these docs](https://docs.victoriametrics.com/#operation).
+and read [these docs](operation).
 
-There is also [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/)
+There is also [VictoriaMetrics cluster](./Cluster-VictoriaMetrics.md)
 - horizontally scalable installation, which scales to multiple nodes.
 
 ### Starting VictoriaMetrics Cluster via Docker {anchor="starting-vm-cluster-via-docker"}
@@ -75,13 +75,13 @@ make docker-cluster-up
 
 See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#readme).
 
-* [Cluster setup](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-setup)
+* [Cluster setup](./Cluster-VictoriaMetrics.md#cluster-setup)
 
 
 ### Starting VictoriaMetrics Single Node from a Binary {anchor="starting-vm-single-from-a-binary"}
 
 1. Download the correct binary for your OS and architecture from [GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/releases). 
-For Enterprise binaries see [this link](https://docs.victoriametrics.com/enterprise/#binary-releases).
+For Enterprise binaries see [this link](./enterprise.md#binary-releases).
 
 2. Extract the archive to /usr/local/bin by running:
 ```sh
@@ -128,9 +128,9 @@ WantedBy=multi-user.target
 END
 ```
 
-Extra [command-line flags](https://docs.victoriametrics.com/#list-of-command-line-flags) can be added to `ExecStart` line.
+Extra [command-line flags](list-of-command-line-flags) can be added to `ExecStart` line.
 
-If you want to deploy VictoriaMetrics Single Node as a Windows Service review the [running as a Windows service docs](https://docs.victoriametrics.com/single-server-victoriametrics/#running-as-windows-service).
+If you want to deploy VictoriaMetrics Single Node as a Windows Service review the [running as a Windows service docs](./Single-Server-VictoriaMetrics.md#running-as-windows-service).
 
 > Please note, `victoriametrics` service is listening on `:8428` for HTTP connections (see `-httpListenAddr` flag).
 
@@ -146,20 +146,20 @@ sudo systemctl daemon-reload && sudo systemctl enable --now victoriametrics.serv
 sudo systemctl status victoriametrics.service
 ```
 
-8. After VictoriaMetrics is in `Running` state, verify [vmui](https://docs.victoriametrics.com/#vmui) is working 
+8. After VictoriaMetrics is in `Running` state, verify [vmui](vmui) is working 
 by going to `http://<ip_or_hostname>:8428/vmui`.
 
 
 ### Starting VictoriaMetrics Cluster from Binaries {anchor="starting-vm-cluster-from-binaries"}
 
-VictoriaMetrics cluster consists of [3 components](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview).
-It is recommended to run these components in the same private network (for [security reasons](https://docs.victoriametrics.com/#security)),
+VictoriaMetrics cluster consists of [3 components](./Cluster-VictoriaMetrics.md#architecture-overview).
+It is recommended to run these components in the same private network (for [security reasons](security)),
 but on the separate physical nodes for the best performance.
 
 On all nodes you will need to do the following:
 
 1. Download the correct binary for your OS and architecture with `-cluster` suffix from [GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
-For Enterprise binaries see [this link](https://docs.victoriametrics.com/enterprise/#binary-releases).
+For Enterprise binaries see [this link](./enterprise.md#binary-releases).
 
 2. Extract the archive to /usr/local/bin by running:
 
@@ -175,7 +175,7 @@ Replace `<victoriametrics-archive>` with the path to the archive you downloaded 
 sudo useradd -s /usr/sbin/nologin victoriametrics
 ```
 
-See recommendations for installing each type of [cluster component](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview) below.
+See recommendations for installing each type of [cluster component](./Cluster-VictoriaMetrics.md#architecture-overview) below.
 
 ##### Installing vmstorage
 
@@ -207,7 +207,7 @@ WantedBy=multi-user.target
 END
 ```
 
-Extra [command-line flags](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags-for-vmstorage)
+Extra [command-line flags](./Cluster-VictoriaMetrics.md#list-of-command-line-flags-for-vmstorage)
 for vmstorage can be added to `ExecStart` line.
 
 > Please note, `vmstorage` service is listening on `:8400` for vminsert connections (see `-vminsertAddr` flag),
@@ -256,7 +256,7 @@ END
 
 Replace `<list of vmstorages>` with addresses of previously configured `vmstorage` services. 
 To specify multiple addresses you can repeat the flag multiple times, or separate addresses with commas
-in one flag. See more details in `-storageNode` flag description [here](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags-for-vminsert).
+in one flag. See more details in `-storageNode` flag description [here](./Cluster-VictoriaMetrics.md#list-of-command-line-flags-for-vminsert).
 
 > Please note, `vminsert` service is listening on `:8480` for HTTP connections (see `-httpListenAddr` flag).
 
@@ -310,7 +310,7 @@ END
 
 Replace `<list of vmstorages>` with addresses of previously configured `vmstorage` services.
 To specify multiple addresses you can repeat the flag multiple times, or separate addresses with commas
-in one flag. See more details in `-storageNode` flag description [here](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags-for-vminsert).
+in one flag. See more details in `-storageNode` flag description [here](./Cluster-VictoriaMetrics.md#list-of-command-line-flags-for-vminsert).
 
 > Please note, `vmselect` service is listening on `:8481` for HTTP connections (see `-httpListenAddr` flag).
 
@@ -327,53 +327,53 @@ sudo systemctl status vmselect.service
 ```
 
 5. After `vmselect` is in `Running` state, confirm the service is healthy by visiting `http://<ip_or_hostname>:8481/select/0/vmui` link.
-It should open [vmui](https://docs.victoriametrics.com/#vmui) page.
+It should open [vmui](vmui) page.
 
 ## Write data
 
 There are two main models in monitoring for data collection: 
-[push](https://docs.victoriametrics.com/keyconcepts/#push-model) 
-and [pull](https://docs.victoriametrics.com/keyconcepts/#pull-model). 
+[push](./keyConcepts.md#push-model) 
+and [pull](./keyConcepts.md#pull-model). 
 Both are used in modern monitoring and both are supported by VictoriaMetrics.
 
-See more details on [writing data here](https://docs.victoriametrics.com/keyconcepts/#write-data).
+See more details on [writing data here](./keyConcepts.md#write-data).
 
 
 ## Query data
 
 VictoriaMetrics provides an 
-[HTTP API](https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus-querying-api-usage)
+[HTTP API](./Single-Server-VictoriaMetrics.md#prometheus-querying-api-usage)
 for serving read queries. The API is used in various integrations such as
-[Grafana](https://docs.victoriametrics.com/single-server-victoriametrics/#grafana-setup).
+[Grafana](./Single-Server-VictoriaMetrics.md#grafana-setup).
 The same API is also used by
-[VMUI](https://docs.victoriametrics.com/single-server-victoriametrics/#vmui) - graphical User Interface
+[VMUI](./Single-Server-VictoriaMetrics.md#vmui) - graphical User Interface
 for querying and visualizing metrics.
 
-[MetricsQL](https://docs.victoriametrics.com/metricsql/) - is the query language for executing read queries
+[MetricsQL](./MetricsQL.md) - is the query language for executing read queries
 in VictoriaMetrics. MetricsQL is a [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics) 
 -like query language with a powerful set of functions and features for working specifically with time series data.
 
-See more details on [querying data here](https://docs.victoriametrics.com/keyconcepts/#query-data)
+See more details on [querying data here](./keyConcepts.md#query-data)
 
 
 ## Alerting
 
 It is not possible to physically trace all changes on graphs all the time, that is why alerting exists.
-In [vmalert](https://docs.victoriametrics.com/vmalert/) it is possible to create a set of conditions
+In [vmalert](./vmalert.md) it is possible to create a set of conditions
 based on PromQL and MetricsQL queries that will send a notification when such conditions are met.
 
 ## Data migration
 
 Migrating data from other TSDBs to VictoriaMetrics is as simple as importing data via any of
-[supported formats](https://docs.victoriametrics.com/keyconcepts/#push-model).
+[supported formats](./keyConcepts.md#push-model).
 
-The migration might get easier when using [vmctl](https://docs.victoriametrics.com/vmctl/) - VictoriaMetrics
+The migration might get easier when using [vmctl](./vmctl.md) - VictoriaMetrics
 command line tool. It supports the following databases for migration to VictoriaMetrics:
-* [Prometheus using snapshot API](https://docs.victoriametrics.com/vmctl/#migrating-data-from-prometheus);
-* [Thanos](https://docs.victoriametrics.com/vmctl/#migrating-data-from-thanos);
-* [InfluxDB](https://docs.victoriametrics.com/vmctl/#migrating-data-from-influxdb-1x);
-* [OpenTSDB](https://docs.victoriametrics.com/vmctl/#migrating-data-from-opentsdb);
-* [Migrate data between VictoriaMetrics single and cluster versions](https://docs.victoriametrics.com/vmctl/#migrating-data-from-victoriametrics).
+* [Prometheus using snapshot API](./vmctl.md#migrating-data-from-prometheus);
+* [Thanos](./vmctl.md#migrating-data-from-thanos);
+* [InfluxDB](./vmctl.md#migrating-data-from-influxdb-1x);
+* [OpenTSDB](./vmctl.md#migrating-data-from-opentsdb);
+* [Migrate data between VictoriaMetrics single and cluster versions](./vmctl.md#migrating-data-from-victoriametrics).
 
 ## Productionization
 
@@ -384,7 +384,7 @@ When going to production with VictoriaMetrics we recommend following the recomme
 Each VictoriaMetrics component emits its own metrics with various details regarding performance
 and health state. Docs for the components also contain a `Monitoring` section with an explanation
 of what and how should be monitored. For example,
-[Single-server-VictoriaMetrics Monitoring](https://docs.victoriametrics.com/cluster-victoriametrics/#monitoring).
+[Single-server-VictoriaMetrics Monitoring](./Cluster-VictoriaMetrics.md#monitoring).
 
 VictoriaMetric team prepared a list of [Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards)
 for the main components. Each dashboard contains a lot of useful information and tips. It is recommended
@@ -401,33 +401,33 @@ See more details in the article [VictoriaMetrics Monitoring](https://victoriamet
 
 ### Capacity planning
 
-See capacity planning sections in [docs](https://docs.victoriametrics.com) for
-[Single-server-VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/#capacity-planning)
-and [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#capacity-planning).
+See capacity planning sections in [docs](./README.md) for
+[Single-server-VictoriaMetrics](./Single-Server-VictoriaMetrics.md#capacity-planning)
+and [VictoriaMetrics Cluster](./Cluster-VictoriaMetrics.md#capacity-planning).
 
 Capacity planning isn't possible without [monitoring](#monitoring), so consider configuring it first.
 Understanding resource usage and performance of VictoriaMetrics also requires knowing the tech terms
-[active series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series),
-[churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate),
-[cardinality](https://docs.victoriametrics.com/faq/#what-is-high-cardinality),
-[slow inserts](https://docs.victoriametrics.com/faq/#what-is-a-slow-insert).
+[active series](./FAQ.md#what-is-an-active-time-series),
+[churn rate](./FAQ.md#what-is-high-churn-rate),
+[cardinality](./FAQ.md#what-is-high-cardinality),
+[slow inserts](./FAQ.md#what-is-a-slow-insert).
 All of them are present in [Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards).
 
 
 ### Data safety
 
-It is recommended to read [Replication and data safety](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety),
+It is recommended to read [Replication and data safety](./Cluster-VictoriaMetrics.md#replication-and-data-safety),
 [Why replication doesn’t save from disaster?](https://valyala.medium.com/speeding-up-backups-for-big-time-series-databases-533c1a927883)
-and [backups](https://docs.victoriametrics.com/single-server-victoriametrics/#backups).
+and [backups](./Single-Server-VictoriaMetrics.md#backups).
 
 
 ### Configuring limits
 
 To avoid excessive resource usage or performance degradation limits must be in place:
-* [Resource usage limits](https://docs.victoriametrics.com/faq/#how-to-set-a-memory-limit-for-victoriametrics-components);
-* [Cardinality limiter](https://docs.victoriametrics.com/single-server-victoriametrics/#cardinality-limiter).
+* [Resource usage limits](./FAQ.md#how-to-set-a-memory-limit-for-victoriametrics-components);
+* [Cardinality limiter](./Single-Server-VictoriaMetrics.md#cardinality-limiter).
 
 ### Security recommendations
 
-* [Security recommendations for single-node VictoriaMetrics](https://docs.victoriametrics.com/#security)
-* [Security recommendations for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/#security)
+* [Security recommendations for single-node VictoriaMetrics](security)
+* [Security recommendations for cluster version of VictoriaMetrics](./Cluster-VictoriaMetrics.md#security)
