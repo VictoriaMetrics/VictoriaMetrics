@@ -9,9 +9,6 @@ menu:
 aliases:
 - /Release-Guide.html
 ---
-
-# Release process guidance
-
 ## Pre-reqs
 
 1. Make sure you have enterprise remote configured
@@ -154,7 +151,7 @@ Once updated, run the following commands:
 
 1. Commit and push changes to `master`.
 1. Run "Release" action on Github:
-   <img src="Release-Guide_helm-release.webp" alt="release helm charts"> 
+   ![release helm charts](Release-Guide_helm-release.webp)
 1. Merge new PRs *"Automatic update CHANGELOGs and READMEs"* and *"Synchronize docs"* after pipelines are complete.
 
 ## Ansible Roles 

@@ -1,5 +1,3 @@
-# Cluster version
-
 <picture>
   <source srcset="docs/logo_white.webp" media="(prefers-color-scheme: dark)">
   <source srcset="docs/logo.webp" media="(prefers-color-scheme: light)">
@@ -50,7 +48,7 @@ Each service may scale independently and may run on the most suitable hardware.
 This is a [shared nothing architecture](https://en.wikipedia.org/wiki/Shared-nothing_architecture).
 It increases cluster availability, and simplifies cluster maintenance as well as cluster scaling.
 
-<img src="docs/Cluster-VictoriaMetrics_cluster-scheme.webp">
+![Cluster Scheme](docs/Cluster-VictoriaMetrics_cluster-scheme.webp)
 
 ## Multitenancy
 

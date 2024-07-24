@@ -9,8 +9,6 @@ title: vmrestore
 aliases:
   - /vmrestore.html
 ---
-# vmrestore
-
 `vmrestore` restores data from backups created by [vmbackup](https://docs.victoriametrics.com/vmbackup/).
 
 Restore process can be interrupted at any time. It is automatically resumed from the interruption point

@@ -12,7 +12,6 @@ aliases:
   - /data-ingestion/telegraf.html
   - /data-ingestion/Telegraf.html
 ---
-# Telegraf Setup
 You will need to add the following output section to a Telegraf configuration file and reload Telegraf to enable shipping data from Telegraf to VictoriaMetrics.
 All the options examples below can be combined to fit your use case
 

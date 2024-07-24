@@ -9,8 +9,6 @@ menu:
 aliases:
 - /managed-victoriametrics/how-to-monitor-k8s.html
 ---
-# Kubernetes Monitoring with Managed VictoriaMetrics
-
 Monitoring kubernetes cluster is necessary to build SLO/SLI, to analyze performance and cost-efficiency of your workloads. 
 
 To enable kubernetes cluster monitoring, we will be collecting metrics about cluster performance and utilization from kubernetes components like `kube-api-server`, `kube-controller-manager`, `kube-scheduler`, `kube-state-metrics`,  `etcd`, `core-dns`, `kubelet` and `kube-proxy`. We will also install some recording rules, alert rules and dashboards to provide visibility of cluster performance, as well as alerting for cluster metrics.
@@ -47,7 +45,7 @@ Install the Helm chart in a custom namespace
    ```
    
    You can find your access token on the "Access" tab of your deployment
-   <img src="kubernetes_monitoring.webp">
+   ![K8s Monitoring](kubernetes_monitoring.webp)
 1. Set up a Helm repository using the following commands:
 
    ```shell
@@ -129,7 +127,7 @@ Connect to grafana and create your datasource
    Choose VictoriaMetrics or Prometheus as datasource type. Make sure you made this datasource as default for dashboards to work.
    > You can find token and URL in your deployment, on Access tab
   
-   <img src="how-to-monitor-k8s_datasource.webp">
+   ![K8s datasource](how-to-monitor-k8s_datasource.webp)
 
 ## Test it
 

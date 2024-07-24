@@ -270,8 +270,9 @@ copy-docs:
 	fi
 	echo "---" >> ${DST}
 	cat ${SRC} >> ${DST}
-	sed -i='.tmp' 's/<img src=\"docs\//<img src=\"/' ${DST}
-	sed -i='.tmp' 's/<source srcset=\"docs\//<source srcset=\"/' ${DST}
+	sed -i='.tmp' 's/<img src=\"docs\//<img src=\"\//' ${DST}
+	sed -i='.tmp' 's/<source srcset=\"docs\//<source srcset=\"\//' ${DST}
+	sed -i='.tmp' 's/](docs\//](/' ${DST}
 	rm -rf docs/*.tmp
 
 # Copies docs for all components and adds the order/weight tag, title, menu position and alias with the backward compatible link for the old site.
