@@ -1,19 +1,19 @@
 ---
 sort: 1
 weight: 1
-title: VictoriaLogs Quick Start
+title: Quick Start
 menu:
   docs:
+    identifier: victorialogs-quick-start
     parent: "victorialogs"
     weight: 1
-    title: Quick Start
 aliases:
 - /VictoriaLogs/QuickStart.html
 - /victorialogs/quick-start.html
 - /victorialogs/quick-start/
 ---
-It is recommended to read [README](https://docs.victoriametrics.com/victorialogs/)
-and [Key Concepts](https://docs.victoriametrics.com/victorialogs/keyconcepts/)
+It is recommended to read [README](./README.md)
+and [Key Concepts](./keyConcepts.md)
 before you start working with VictoriaLogs.
 
 ## How to install and run VictoriaLogs
@@ -38,17 +38,17 @@ tar xzf victoria-logs-linux-amd64-v0.28.0-victorialogs.tar.gz
 ./victoria-logs-prod
 ```
 
-VictoriaLogs is ready for [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
-and [querying](https://docs.victoriametrics.com/victorialogs/querying/) at the TCP port `9428` now!
+VictoriaLogs is ready for [data ingestion](./data-ingestion/README.md)
+and [querying](./querying/README.md) at the TCP port `9428` now!
 It has no any external dependencies, so it may run in various environments without additional setup and configuration.
 VictoriaLogs automatically adapts to the available CPU and RAM resources. It also automatically setups and creates
-the needed indexes during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
+the needed indexes during [data ingestion](./data-ingestion/README.md).
 
 See also:
 
 - [How to configure VictoriaLogs](#how-to-configure-victorialogs)
-- [How to ingest logs into VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/)
+- [How to ingest logs into VictoriaLogs](./data-ingestion/README.md)
+- [How to query VictoriaLogs](./querying/README.md)
 
 
 ### Docker image
@@ -64,8 +64,8 @@ docker run --rm -it -p 9428:9428 -v ./victoria-logs-data:/victoria-logs-data \
 See also:
 
 - [How to configure VictoriaLogs](#how-to-configure-victorialogs)
-- [How to ingest logs into VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/)
+- [How to ingest logs into VictoriaLogs](./data-ingestion/README.md)
+- [How to query VictoriaLogs](./querying/README.md)
 
 ### Helm charts
 
@@ -95,17 +95,17 @@ Follow the following steps in order to build VictoriaLogs from source code:
   bin/victoria-logs
   ```
 
-VictoriaLogs is ready for [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
-and [querying](https://docs.victoriametrics.com/victorialogs/querying/) at the TCP port `9428` now!
+VictoriaLogs is ready for [data ingestion](./data-ingestion/README.md)
+and [querying](./querying/README.md) at the TCP port `9428` now!
 It has no any external dependencies, so it may run in various environments without additional setup and configuration.
 VictoriaLogs automatically adapts to the available CPU and RAM resources. It also automatically setups and creates
-the needed indexes during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
+the needed indexes during [data ingestion](./data-ingestion/README.md).
 
 See also:
 
 - [How to configure VictoriaLogs](#how-to-configure-victorialogs)
-- [How to ingest logs into VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/)
+- [How to ingest logs into VictoriaLogs](./data-ingestion/README.md)
+- [How to query VictoriaLogs](./querying/README.md)
 
 
 ## How to configure VictoriaLogs
@@ -121,19 +121,19 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
 ```
 
 VictoriaLogs stores the ingested data to the `victoria-logs-data` directory by default. The directory can be changed
-via `-storageDataPath` command-line flag. See [these docs](https://docs.victoriametrics.com/victorialogs/#storage) for details.
+via `-storageDataPath` command-line flag. See [these docs](./#storage) for details.
 
-By default VictoriaLogs stores [log entries](https://docs.victoriametrics.com/victorialogs/keyconcepts/) with timestamps
+By default VictoriaLogs stores [log entries](./keyConcepts.md) with timestamps
 in the time range `[now-7d, now]`, while dropping logs outside the given time range.
-E.g. it uses the retention of 7 days. Read [these docs](https://docs.victoriametrics.com/victorialogs/#retention) on how to control the retention
-for the [ingested](https://docs.victoriametrics.com/victorialogs/data-ingestion/) logs.
+E.g. it uses the retention of 7 days. Read [these docs](./#retention) on how to control the retention
+for the [ingested](./data-ingestion/README.md) logs.
 
-It is recommended setting up monitoring of VictoriaLogs according to [these docs](https://docs.victoriametrics.com/victorialogs/#monitoring).
+It is recommended setting up monitoring of VictoriaLogs according to [these docs](./#monitoring).
 
 See also:
 
-- [How to ingest logs into VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/)
+- [How to ingest logs into VictoriaLogs](./data-ingestion/README.md)
+- [How to query VictoriaLogs](./querying/README.md)
 
 ## Docker demos
 

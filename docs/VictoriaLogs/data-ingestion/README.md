@@ -1,13 +1,13 @@
-[VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) can accept logs from the following log collectors:
+[VictoriaLogs](../README.md) can accept logs from the following log collectors:
 
-- Syslog, Rsyslog and Syslog-ng - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/).
-- Filebeat - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/filebeat/).
-- Fluentbit - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/fluentbit/).
-- Logstash - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/logstash/).
-- Vector - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/vector/).
-- Promtail (aka Grafana Loki) - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/).
+- Syslog, Rsyslog and Syslog-ng - see [these docs](./syslog.md).
+- Filebeat - see [these docs](./Filebeat.md).
+- Fluentbit - see [these docs](./Fluentbit.md).
+- Logstash - see [these docs](./Logstash.md).
+- Vector - see [these docs](./Vector.md).
+- Promtail (aka Grafana Loki) - see [these docs](./Promtail.md).
 
-The ingested logs can be queried according to [these docs](https://docs.victoriametrics.com/victorialogs/querying/).
+The ingested logs can be queried according to [these docs](../querying/README.md).
 
 See also:
 
@@ -41,18 +41,18 @@ echo '{"create":{}}
 
 It is possible to push thousands of log lines in a single request to this API.
 
-If the [timestamp field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) is set to `"0"`,
+If the [timestamp field](../keyConcepts.md#time-field) is set to `"0"`,
 then the current timestamp at VictoriaLogs side is used per each ingested log line.
 Otherwise the timestamp field must be in the [ISO8601](https://en.wikipedia.org/wiki/ISO_8601) format. For example, `2023-06-20T15:32:10Z`.
 Optional fractional part of seconds can be specified after the dot - `2023-06-20T15:32:10.123Z`.
 Timezone can be specified instead of `Z` suffix - `2023-06-20T15:32:10+02:00`.
 
-See [these docs](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) for details on fields,
+See [these docs](../keyConcepts.md#data-model) for details on fields,
 which must be present in the ingested log messages.
 
 The API accepts various http parameters, which can change the data ingestion behavior - [these docs](#http-parameters) for details.
 
-The following command verifies that the data has been successfully ingested to VictoriaLogs by [querying](https://docs.victoriametrics.com/victorialogs/querying/) it:
+The following command verifies that the data has been successfully ingested to VictoriaLogs by [querying](../querying/README.md) it:
 
 ```sh
 curl http://localhost:9428/select/logsql/query -d 'query=host.name:host123'
@@ -64,8 +64,8 @@ The command should return the following response:
 {"_msg":"cannot open file","_stream":"{}","_time":"2023-06-21T04:24:24Z","host.name":"host123"}
 ```
 
-The response by default contains all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-See [how to query specific fields](https://docs.victoriametrics.com/victorialogs/logsql/#querying-specific-fields).
+The response by default contains all the [log fields](../keyConcepts.md#data-model).
+See [how to query specific fields](../LogsQL.md#querying-specific-fields).
 
 The duration of requests to `/insert/elasticsearch/_bulk` can be monitored with `vl_http_request_duration_seconds{path="/insert/elasticsearch/_bulk"}` metric.
 
@@ -73,7 +73,7 @@ See also:
 
 - [How to debug data ingestion](#troubleshooting).
 - [HTTP parameters, which can be passed to the API](#http-parameters).
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
+- [How to query VictoriaLogs](../querying/README.md).
 
 ### JSON stream API
 
@@ -91,18 +91,18 @@ echo '{ "log": { "level": "info", "message": "hello world" }, "date": "0", "stre
 
 It is possible to push unlimited number of log lines in a single request to this API.
 
-If the [timestamp field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) is set to `"0"`,
+If the [timestamp field](../keyConcepts.md#time-field) is set to `"0"`,
 then the current timestamp at VictoriaLogs side is used per each ingested log line.
 Otherwise the timestamp field must be in the [ISO8601](https://en.wikipedia.org/wiki/ISO_8601) format. For example, `2023-06-20T15:32:10Z`.
 Optional fractional part of seconds can be specified after the dot - `2023-06-20T15:32:10.123Z`.
 Timezone can be specified instead of `Z` suffix - `2023-06-20T15:32:10+02:00`.
 
-See [these docs](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) for details on fields,
+See [these docs](../keyConcepts.md#data-model) for details on fields,
 which must be present in the ingested log messages.
 
 The API accepts various http parameters, which can change the data ingestion behavior - [these docs](#http-parameters) for details.
 
-The following command verifies that the data has been successfully ingested into VictoriaLogs by [querying](https://docs.victoriametrics.com/victorialogs/querying/) it:
+The following command verifies that the data has been successfully ingested into VictoriaLogs by [querying](../querying/README.md) it:
 
 ```sh
 curl http://localhost:9428/select/logsql/query -d 'query=log.level:*'
@@ -116,8 +116,8 @@ The command should return the following response:
 {"_msg":"oh no!","_stream":"{stream=\"stream1\"}","_time":"2023-06-20T15:32:10.567Z","log.level":"error"}
 ```
 
-The response by default contains all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-See [how to query specific fields](https://docs.victoriametrics.com/victorialogs/logsql/#querying-specific-fields).
+The response by default contains all the [log fields](../keyConcepts.md#data-model).
+See [how to query specific fields](../LogsQL.md#querying-specific-fields).
 
 The duration of requests to `/insert/jsonline` can be monitored with `vl_http_request_duration_seconds{path="/insert/jsonline"}` metric.
 
@@ -125,7 +125,7 @@ See also:
 
 - [How to debug data ingestion](#troubleshooting).
 - [HTTP parameters, which can be passed to the API](#http-parameters).
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
+- [How to query VictoriaLogs](../querying/README.md).
 
 ### Loki JSON API
 
@@ -143,7 +143,7 @@ It is possible to push thousands of log streams and log lines in a single reques
 The API accepts various http parameters, which can change the data ingestion behavior - [these docs](#http-parameters) for details.
 There is no need in specifying `_msg_field` and `_time_field` query args, since VictoriaLogs automatically extracts log message and timestamp from the ingested Loki data.
 
-The following command verifies that the data has been successfully ingested into VictoriaLogs by [querying](https://docs.victoriametrics.com/victorialogs/querying/) it:
+The following command verifies that the data has been successfully ingested into VictoriaLogs by [querying](../querying/README.md) it:
 
 ```sh
 curl http://localhost:9428/select/logsql/query -d 'query=fizzbuzz'
@@ -155,8 +155,8 @@ The command should return the following response:
 {"_msg":"foo fizzbuzz bar","_stream":"{instance=\"host123\",job=\"app42\"}","_time":"2023-07-20T23:01:19.288676497Z"}
 ```
 
-The response by default contains all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-See [how to query specific fields](https://docs.victoriametrics.com/victorialogs/logsql/#querying-specific-fields).
+The response by default contains all the [log fields](../keyConcepts.md#data-model).
+See [how to query specific fields](../LogsQL.md#querying-specific-fields).
 
 The duration of requests to `/insert/loki/api/v1/push` can be monitored with `vl_http_request_duration_seconds{path="/insert/loki/api/v1/push"}` metric.
 
@@ -164,28 +164,28 @@ See also:
 
 - [How to debug data ingestion](#troubleshooting).
 - [HTTP parameters, which can be passed to the API](#http-parameters).
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
+- [How to query VictoriaLogs](../querying/README.md).
 
 ### HTTP parameters
 
 VictoriaLogs accepts the following parameters at [data ingestion HTTP APIs](#http-apis):
 
-- `_msg_field` - it must contain the name of the [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-  with the [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) generated by the log shipper.
+- `_msg_field` - it must contain the name of the [log field](../keyConcepts.md#data-model)
+  with the [log message](../keyConcepts.md#message-field) generated by the log shipper.
   This is usually the `message` field for Filebeat and Logstash.
   If the `_msg_field` parameter isn't set, then VictoriaLogs reads the log message from the `_msg` field.
 
-- `_time_field` - it must contain the name of the [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-  with the [log timestamp](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) generated by the log shipper.
+- `_time_field` - it must contain the name of the [log field](../keyConcepts.md#data-model)
+  with the [log timestamp](../keyConcepts.md#time-field) generated by the log shipper.
   This is usually the `@timestamp` field for Filebeat and Logstash.
   If the `_time_field` parameter isn't set, then VictoriaLogs reads the timestamp from the `_time` field.
   If this field doesn't exist, then the current timestamp is used.
 
-- `_stream_fields` - it should contain comma-separated list of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) names,
-  which uniquely identify every [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) collected the log shipper.
+- `_stream_fields` - it should contain comma-separated list of [log field](../keyConcepts.md#data-model) names,
+  which uniquely identify every [log stream](../keyConcepts.md#stream-fields) collected the log shipper.
   If the `_stream_fields` parameter isn't set, then all the ingested logs are written to default log stream - `{}`.
 
-- `ignore_fields` - this parameter may contain the list of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) names,
+- `ignore_fields` - this parameter may contain the list of [log field](../keyConcepts.md#data-model) names,
   which must be ignored during data ingestion.
 
 - `debug` - if this parameter is set to `1`, then the ingested logs aren't stored in VictoriaLogs. Instead,
@@ -196,7 +196,7 @@ See also [HTTP headers](#http-headers).
 ### HTTP headers
 
 VictoriaLogs accepts optional `AccountID` and `ProjectID` headers at [data ingestion HTTP APIs](#http-apis).
-These headers may contain the needed tenant to ingest data to. See [multitenancy docs](https://docs.victoriametrics.com/victorialogs/#multitenancy) for details.
+These headers may contain the needed tenant to ingest data to. See [multitenancy docs](../#multitenancy) for details.
 
 ## Troubleshooting
 
@@ -206,35 +206,35 @@ The following command can be used for verifying whether the data is successfully
 curl http://localhost:9428/select/logsql/query -d 'query=*' | head
 ```
 
-This command selects all the data ingested into VictoriaLogs via [HTTP query API](https://docs.victoriametrics.com/victorialogs/querying/#http-api)
-using [any value filter](https://docs.victoriametrics.com/victorialogs/logsql/#any-value-filter),
-while `head` cancels query execution after reading the first 10 log lines. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line)
+This command selects all the data ingested into VictoriaLogs via [HTTP query API](../querying/#http-api)
+using [any value filter](../LogsQL.md#any-value-filter),
+while `head` cancels query execution after reading the first 10 log lines. See [these docs](../querying/#command-line)
 for more details on how `head` integrates with VictoriaLogs.
 
-The response by default contains all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-See [how to query specific fields](https://docs.victoriametrics.com/victorialogs/logsql/#querying-specific-fields).
+The response by default contains all the [log fields](../keyConcepts.md#data-model).
+See [how to query specific fields](../LogsQL.md#querying-specific-fields).
 
 VictoriaLogs provides the following command-line flags, which can help debugging data ingestion issues:
 
 - `-logNewStreams` - if this flag is passed to VictoriaLogs, then it logs all the newly
-  registered [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
-  This may help debugging [high cardinality issues](https://docs.victoriametrics.com/victorialogs/keyconcepts/#high-cardinality).
+  registered [log streams](../keyConcepts.md#stream-fields).
+  This may help debugging [high cardinality issues](../keyConcepts.md#high-cardinality).
 - `-logIngestedRows` - if this flag is passed to VictoriaLogs, then it logs all the ingested
-  [log entries](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+  [log entries](../keyConcepts.md#data-model).
   See also `debug` [parameter](#http-parameters).
 
-VictoriaLogs exposes various [metrics](https://docs.victoriametrics.com/victorialogs/#monitoring), which may help debugging data ingestion issues:
+VictoriaLogs exposes various [metrics](../#monitoring), which may help debugging data ingestion issues:
 
-- `vl_rows_ingested_total` - the number of ingested [log entries](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+- `vl_rows_ingested_total` - the number of ingested [log entries](../keyConcepts.md#data-model)
   since the last VictoriaLogs restart. If this number increases over time, then logs are successfully ingested into VictoriaLogs.
   The ingested logs can be inspected in the following ways:
   - By passing `debug=1` parameter to every request to [data ingestion APIs](#http-apis). The ingested rows aren't stored in VictoriaLogs
     in this case. Instead, they are logged, so they can be investigated later.
-    The `vl_rows_dropped_total` [metric](https://docs.victoriametrics.com/victorialogs/#monitoring) is incremented for each logged row.
+    The `vl_rows_dropped_total` [metric](../#monitoring) is incremented for each logged row.
   - By passing `-logIngestedRows` command-line flag to VictoriaLogs. In this case it logs all the ingested data, so it can be investigated later.
-- `vl_streams_created_total` - the number of created [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+- `vl_streams_created_total` - the number of created [log streams](../keyConcepts.md#stream-fields)
   since the last VictoriaLogs restart. If this metric grows rapidly during extended periods of time, then this may lead
-  to [high cardinality issues](https://docs.victoriametrics.com/victorialogs/keyconcepts/#high-cardinality).
+  to [high cardinality issues](../keyConcepts.md#high-cardinality).
   The newly created log streams can be inspected in logs by passing `-logNewStreams` command-line flag to VictoriaLogs.
 
 ## Log collectors and data ingestion formats
@@ -243,10 +243,10 @@ Here is the list of log collectors and their ingestion formats supported by Vict
 
 | How to setup the collector | Format: Elasticsearch | Format: JSON Stream | Format: Loki | Format: syslog |
 |----------------------------|-----------------------|---------------------|--------------|----------------|
-| [Rsyslog](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/) | [Yes](https://www.rsyslog.com/doc/configuration/modules/omelasticsearch.html) | No | No | [Yes](https://www.rsyslog.com/doc/configuration/modules/omfwd.html) |
-| [Syslog-ng](https://docs.victoriametrics.com/victorialogs/data-ingestion/filebeat/) | Yes, [v1](https://www.syslog-ng.com/technical-documents/doc/syslog-ng-open-source-edition/3.16/administration-guide/28#TOPIC-956489), [v2](https://www.syslog-ng.com/technical-documents/doc/syslog-ng-open-source-edition/3.16/administration-guide/29#TOPIC-956494) | No | No | [Yes](https://www.syslog-ng.com/technical-documents/doc/syslog-ng-open-source-edition/3.16/administration-guide/44#TOPIC-956553) |
-| [Filebeat](https://docs.victoriametrics.com/victorialogs/data-ingestion/filebeat/) | [Yes](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html) | No | No | No |
-| [Fluentbit](https://docs.victoriametrics.com/victorialogs/data-ingestion/fluentbit/) | No | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/http) | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/loki) | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/syslog) |
-| [Logstash](https://docs.victoriametrics.com/victorialogs/data-ingestion/logstash/)   | [Yes](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html) | No | No | [Yes](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-syslog.html) |
-| [Vector](https://docs.victoriametrics.com/victorialogs/data-ingestion/vector/) | [Yes](https://vector.dev/docs/reference/configuration/sinks/elasticsearch/) | [Yes](https://vector.dev/docs/reference/configuration/sinks/http/) | [Yes](https://vector.dev/docs/reference/configuration/sinks/loki/) | No |
-| [Promtail](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/)   | No | No | [Yes](https://grafana.com/docs/loki/latest/clients/promtail/configuration/#clients) | No |
+| [Rsyslog](./syslog.md) | [Yes](https://www.rsyslog.com/doc/configuration/modules/omelasticsearch.html) | No | No | [Yes](https://www.rsyslog.com/doc/configuration/modules/omfwd.html) |
+| [Syslog-ng](./Filebeat.md) | Yes, [v1](https://www.syslog-ng.com/technical-documents/doc/syslog-ng-open-source-edition/3.16/administration-guide/28#TOPIC-956489), [v2](https://www.syslog-ng.com/technical-documents/doc/syslog-ng-open-source-edition/3.16/administration-guide/29#TOPIC-956494) | No | No | [Yes](https://www.syslog-ng.com/technical-documents/doc/syslog-ng-open-source-edition/3.16/administration-guide/44#TOPIC-956553) |
+| [Filebeat](./Filebeat.md) | [Yes](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html) | No | No | No |
+| [Fluentbit](./Fluentbit.md) | No | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/http) | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/loki) | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/syslog) |
+| [Logstash](./Logstash.md)   | [Yes](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html) | No | No | [Yes](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-syslog.html) |
+| [Vector](./Vector.md) | [Yes](https://vector.dev/docs/reference/configuration/sinks/elasticsearch/) | [Yes](https://vector.dev/docs/reference/configuration/sinks/http/) | [Yes](https://vector.dev/docs/reference/configuration/sinks/loki/) | No |
+| [Promtail](./promtail/)   | No | No | [Yes](https://grafana.com/docs/loki/latest/clients/promtail/configuration/#clients) | No |

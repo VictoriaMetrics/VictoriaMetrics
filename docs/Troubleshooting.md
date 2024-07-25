@@ -81,7 +81,7 @@ then please follow the following steps in order to quickly find the solution:
 1. Pro tip 1: if you see that [VictoriaMetrics docs](./Single-server-VictoriaMetrics.md) contain incomplete or incorrect information,
    then please create a pull request with the relevant changes. This will help VictoriaMetrics community.
 
-   All the docs published at `https://docs.victoriametrics.com` are located in the [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs)
+   All the docs published at `{{% ref "/" %}}` are located in the [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs)
    folder inside VictoriaMetrics repository.
 
 1. Pro tip 2: please provide links to existing docs / GitHub issues / StackOverflow questions

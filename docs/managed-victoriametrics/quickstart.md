@@ -199,7 +199,7 @@ On the opened screen, choose parameters of your new deployment:
 * `Region` – AWS region where deployment will run;
 * Desired `storage capacity` for storing metrics (you always can expand disk size later);
 * `Retention` period for stored metrics.
-* `Size` of your deployment [based on your needs](https://docs.victoriametrics.com/guides/understand-your-setup-size.html)
+* `Size` of your deployment [based on your needs](../guides/understand-your-setup-size.md)
 
 
   ![Create deployment form](create_deployment_form.webp)
@@ -263,11 +263,11 @@ To discover additional configuration options click on `Advanced Settings` button
 
 In that section, additional params can be set:
 
-* [`Deduplication`](https://docs.victoriametrics.com/cluster-victoriametrics/#deduplication) defines interval when deployment leaves a single raw sample with the biggest timestamp per each discrete interval;
+* [`Deduplication`](../Cluster-VictoriaMetrics.md#deduplication) defines interval when deployment leaves a single raw sample with the biggest timestamp per each discrete interval;
 * `Maintenance Window` when deployment should start an upgrade process if needed;
 * `Settings` allow to define different flags for the deployment:
 
-   1. [cluster components flags](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags).
-   2. [single version flags](https://docs.victoriametrics.com/single-server-victoriametrics/#list-of-command-line-flags).
+   1. [cluster components flags](../Cluster-VictoriaMetrics.md#list-of-command-line-flags).
+   2. [single version flags](../Single-server-VictoriaMetrics.md#list-of-command-line-flags).
 
 Please note, such an update requires a deployment restart and may result in a short downtime for single-node deployments.

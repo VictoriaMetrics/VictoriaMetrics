@@ -11,7 +11,7 @@ aliases:
 ---
 VictoriaMetrics is a fast and easy-to-use monitoring solution and time series database. 
 It integrates well with existing monitoring systems such as Grafana, Prometheus, Graphite, 
-InfluxDB, OpenTSDB and DataDog - see [these docs](https://docs.victoriametrics.com/#how-to-import-time-series-data) for details. 
+InfluxDB, OpenTSDB and DataDog - see [these docs](../#how-to-import-time-series-data) for details. 
 
 The most common use cases for VictoriaMetrics are:
 * Long-term remote storage for Prometheus;
@@ -30,8 +30,8 @@ maintenance.
 Managed VictoriaMetrics comes with the following features:
 
 * It can be used as a Managed Prometheus - just configure Prometheus or vmagent to write data to Managed VictoriaMetrics and then use the provided endpoint as a Prometheus datasource in Grafana;
-* Built-in [Alerting & Recording](https://docs.victoriametrics.com/managed-victoriametrics/alertmanager-setup-for-deployment/#configure-alerting-rules) rules execution;
-* Hosted [Alertmanager](https://docs.victoriametrics.com/managed-victoriametrics/alertmanager-setup-for-deployment/) for sending notifications;
+* Built-in [Alerting & Recording](./alertmanager-setup-for-deployment.md#configure-alerting-rules) rules execution;
+* Hosted [Alertmanager](./alertmanager-setup-for-deployment.md) for sending notifications;
 * Every Managed VictoriaMetrics deployment runs in an isolated environment, so deployments cannot interfere with each other;
 * Managed VictoriaMetrics deployment can be scaled up or scaled down in a few clicks;
 * Automated backups;

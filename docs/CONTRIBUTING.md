@@ -14,21 +14,21 @@ If you like VictoriaMetrics and want to contribute, then it would be great:
 - Joining VictoriaMetrics community Slack ([Slack inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/))
   and helping other community members there.
 - Filing issues, feature requests and questions [at VictoriaMetrics GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
-- Improving [VictoriaMetrics docs](https://docs.victoriametrics.com/). See how to update docs [here](https://docs.victoriametrics.com/#documentation).
+- Improving [VictoriaMetrics docs](./README.md). See how to update docs [here](./#documentation).
 - Spreading the word about VictoriaMetrics via various channels:
   - conference talks
-  - blogposts, articles and [case studies](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CaseStudies.md)
+  - blogposts, articles and [case studies](./CaseStudies.md)
   - comments at Hacker News, Twitter, LinkedIn, Reddit, Facebook, etc.
   - experience sharing with colleagues.
-- Convincing your management to sign [Enterprise contract](https://docs.victoriametrics.com/enterprise/) with VictoriaMetrics.
+- Convincing your management to sign [Enterprise contract](./enterprise.md) with VictoriaMetrics.
 
 ## Pull request checklist
 
 Before sending a pull request to [VictoriaMetrics repository](https://github.com/VictoriaMetrics/VictoriaMetrics/) please make sure it **conforms all** the following checks:
 
-- The pull request conforms [VictoriaMetrics goals](https://docs.victoriametrics.com/goals/).
+- The pull request conforms [VictoriaMetrics goals](./goals.md).
 - The pull request conforms [`KISS` principle](https://en.wikipedia.org/wiki/KISS_principle). See [these docs](#kiss-principle) for more details.
-- The pull request contains clear description of the change, with links to the related GitHub issues and [docs](https://docs.victoriametrics.com/), if needed.
+- The pull request contains clear description of the change, with links to the related GitHub issues and [docs](./README.md), if needed.
 - Commit messages contain concise yet clear descriptions. Include links to related GitHub issues in commit messages, if such issues exist.
 - All the commits are signed and include `Signed-off-by` line. Use `git commit -s` to include `Signed-off-by` your commits.
   See [this doc](https://git-scm.com/book/en/v2/Git-Tools-Signing-Your-Work) about how to sign git commits.
@@ -44,7 +44,7 @@ Before sending a pull request to [VictoriaMetrics repository](https://github.com
 
 Further checks are optional for external contributions:
 
-- The change must be described in **clear user-readable** form at [docs/CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md),
+- The change must be described in **clear user-readable** form at [docs/CHANGELOG.md](./CHANGELOG.md),
   since it is read by **VictoriaMetrics users** who may not know implementation details of VictoriaMetrics products. The change description must **clearly** answer the following questions:
 
   - What does this change do? There is no need to provide technical details for the change, since they may confuse VictoriaMetrics users, who do not know Go.
@@ -62,14 +62,14 @@ Further checks are optional for external contributions:
 - After your pull request is merged, please add a message to the issue with instructions for how to test the change you added before the new release.
   [Here is an example](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4048#issuecomment-1546453726).
 - Do not close the original issue before the change is released. In some cases Github can automatically close the issue once PR is merged. Re-open the issue in such case.
-- If the change introduces a new feature, this feature must be documented in **user-readable** form at the appropriate parts of [VictoriaMetrics docs](https://docs.victoriametrics.com/).
+- If the change introduces a new feature, this feature must be documented in **user-readable** form at the appropriate parts of [VictoriaMetrics docs](./README.md).
   The docs' sources are located in the [`docs` folder](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs).
 
 Examples of good changelog messages:
 
-* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): add support for [VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol) when [sending / receiving data to / from Kafka](https://docs.victoriametrics.com/vmagent/#kafka-integration). This protocol allows saving egress network bandwidth costs when sending data from `vmagent` to `Kafka` located in another datacenter or availability zone. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1225).
+* FEATURE: [vmagent](./vmagent.md): add support for [VictoriaMetrics remote write protocol](./vmagent.md#victoriametrics-remote-write-protocol) when [sending / receiving data to / from Kafka](./vmagent.md#kafka-integration). This protocol allows saving egress network bandwidth costs when sending data from `vmagent` to `Kafka` located in another datacenter or availability zone. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1225).
 
-* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): suppress `series after dedup` error message in logs when `-remoteWrite.streamAggr.dedupInterval` command-line flag is set at [vmagent](https://docs.victoriametrics.com/vmagent/) or when `-streamAggr.dedupInterval` command-line flag is set at [single-node VictoriaMetrics](https://docs.victoriametrics.com/).
+* BUGFIX: [stream aggregation](./stream-aggregation.md): suppress `series after dedup` error message in logs when `-remoteWrite.streamAggr.dedupInterval` command-line flag is set at [vmagent](./vmagent.md) or when `-streamAggr.dedupInterval` command-line flag is set at [single-node VictoriaMetrics](./README.md).
 
 ## KISS principle
 
@@ -78,7 +78,7 @@ We are open to third-party pull requests provided they follow [KISS design princ
 - Prefer simple code and architecture.
 - Avoid complex abstractions.
 - Avoid magic code and fancy algorithms.
-- Apply optimizations, which make the code harder to understand, only if [profiling](https://docs.victoriametrics.com/#profiling)
+- Apply optimizations, which make the code harder to understand, only if [profiling](./#profiling)
   shows significant improvements in performance and scalability or significant reduction in RAM usage.
   Profiling must be performed on [Go benchmarks](https://pkg.go.dev/testing#hdr-Benchmarks) and on production workload.
 - Avoid [big external dependencies](https://medium.com/@valyala/stripping-dependency-bloat-in-victoriametrics-docker-image-983fb5912b0d).
@@ -87,11 +87,11 @@ We are open to third-party pull requests provided they follow [KISS design princ
 
 Adhering `KISS` principle simplifies the resulting code and architecture, so it can be reviewed, understood and debugged by wider audience.
 
-Due to `KISS`, [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/) has no the following "features" popular in distributed computing world:
+Due to `KISS`, [cluster version of VictoriaMetrics](./Cluster-VictoriaMetrics.md) has no the following "features" popular in distributed computing world:
 
 - Fragile gossip protocols. See [failed attempt in Thanos](https://github.com/improbable-eng/thanos/blob/030bc345c12c446962225221795f4973848caab5/docs/proposals/completed/201809_gossip-removal.md).
 - Hard-to-understand-and-implement-properly [Paxos protocols](https://www.quora.com/In-distributed-systems-what-is-a-simple-explanation-of-the-Paxos-algorithm).
-- Complex replication schemes, which may go nuts in unforeseen edge cases. See [replication docs](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety) for details.
+- Complex replication schemes, which may go nuts in unforeseen edge cases. See [replication docs](./Cluster-VictoriaMetrics.md#replication-and-data-safety) for details.
 - Automatic data reshuffling between storage nodes, which may hurt cluster performance and availability.
 - Automatic cluster resizing, which may cost you a lot of money if improperly configured.
 - Automatic discovering and addition of new nodes in the cluster, which may mix data between dev and prod clusters :)

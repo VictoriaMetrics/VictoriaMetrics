@@ -11,7 +11,7 @@ aliases:
 ---
 # vmbackupmanager
 
-***vmbackupmanager is a part of [enterprise package](https://docs.victoriametrics.com/enterprise/).
+***vmbackupmanager is a part of [enterprise package](./enterprise.md).
 It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).***
 
@@ -23,10 +23,10 @@ which represent the backup intervals (hourly, daily, weekly and monthly)
 
 The required flags for running the service are as follows:
 
-* `-license` or `-licenseFile` . See [these docs](https://docs.victoriametrics.com/enterprise/#running-victoriametrics-enterprise).
+* `-license` or `-licenseFile` . See [these docs](./enterprise.md#running-victoriametrics-enterprise).
 * `-storageDataPath` - path to VictoriaMetrics or vmstorage data path to make backup from.
 * `-snapshot.createURL` - VictoriaMetrics creates snapshot URL which will automatically be created during backup. Example: <http://victoriametrics:8428/snapshot/create>
-* `-dst` - backup destination at [the supported storage types](https://docs.victoriametrics.com/vmbackup/#supported-storage-types).
+* `-dst` - backup destination at [the supported storage types](./vmbackup.md#supported-storage-types).
 * `-credsFilePath` - path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.
   See [https://cloud.google.com/iam/docs/creating-managing-service-account-keys](https://cloud.google.com/iam/docs/creating-managing-service-account-keys)
   and [https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html](https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html).
@@ -55,9 +55,9 @@ To get the full list of supported flags please run the following command:
 ```
 
 The service creates a **full** backup each run. This means that the system can be restored fully
-from any particular backup using [vmrestore](https://docs.victoriametrics.com/vmrestore/).
+from any particular backup using [vmrestore](./vmrestore.md).
 Backup manager uploads only the data that has been changed or created since the most recent backup
-([incremental backup](https://docs.victoriametrics.com/vmbackup/#incremental-backups)).
+([incremental backup](./vmbackup.md#incremental-backups)).
 This reduces the consumed network traffic and the time needed for performing the backup.
 See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for details.
 
@@ -123,13 +123,13 @@ The result on the GCS bucket
 
   ![latest folder](vmbackupmanager_latest_folder.webp)
 
-`vmbackupmanager` uses [smart backups](https://docs.victoriametrics.com/vmbackup/#smart-backups) technique in order
+`vmbackupmanager` uses [smart backups](./vmbackup.md#smart-backups) technique in order
 to accelerate backups and save both data transfer costs and data copying costs. This includes server-side copy of already existing
 objects. Typical object storage systems implement server-side copy by creating new names for already existing objects.
 This is very fast and efficient. Unfortunately there are systems such as [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/),
 which perform full object copy during server-side copying. This may be slow and expensive.
 
-Please, see [vmbackup docs](https://docs.victoriametrics.com/vmbackup/#advanced-usage) for more examples of authentication with different
+Please, see [vmbackup docs](./vmbackup.md#advanced-usage) for more examples of authentication with different
 storage types.
 
 ## Backup Retention Policy
@@ -143,7 +143,7 @@ Backup retention policy is controlled by:
 
 > *Note*: 0 value in every keepLast flag results into deletion of ALL backups for particular type (hourly, daily, weekly and monthly)
 
-> *Note*: retention policy does not enforce removing previous versions of objects in object storages such if versioning is enabled. See [these docs](https://docs.victoriametrics.com/vmbackup/#permanent-deletion-of-objects-in-s3-compatible-storages) for more details.
+> *Note*: retention policy does not enforce removing previous versions of objects in object storages such if versioning is enabled. See [these docs](./vmbackup.md#permanent-deletion-of-objects-in-s3-compatible-storages) for more details.
 
 Let’s assume we have a backup manager collecting daily backups for the past 10 days.
 
@@ -342,14 +342,14 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
 ### How to restore in Kubernetes
 
 1. Ensure there is an init container with `vmbackupmanager restore` in `vmstorage` or `vmsingle` pod.
-   For [VictoriaMetrics operator](https://docs.victoriametrics.com/operator/VictoriaMetrics-Operator.html) deployments it is required to add:
+   For [VictoriaMetrics operator](./operator/VictoriaMetrics-Operator.md) deployments it is required to add:
    ```yaml
    vmbackup:
      restore:
        onStart:
          enabled: "true"
    ```
-   See operator `VMStorage` schema [here](https://docs.victoriametrics.com/operator/api.html#vmstorage) and `VMSingle` [here](https://docs.victoriametrics.com/operator/api.html#vmsinglespec).
+   See operator `VMStorage` schema [here](./operator/api.md#vmstorage) and `VMSingle` [here](./operator/api.md#vmsinglespec).
 1. Enter container running `vmbackupmanager`
 1. Use `vmbackupmanager backup list` to get list of available backups:
   ```sh
@@ -369,11 +369,11 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
 
 #### Restore cluster into another cluster
 
-These steps are assuming that [VictoriaMetrics operator](https://docs.victoriametrics.com/operator/VictoriaMetrics-Operator.html) is used to manage `VMCluster`.
+These steps are assuming that [VictoriaMetrics operator](./operator/VictoriaMetrics-Operator.md) is used to manage `VMCluster`.
 Clusters here are referred to as `source` and `destination`.
 
 1. Create a new cluster with access to *source* cluster `vmbackupmanager` storage and same number of storage nodes.
-   Add the following section in order to enable restore on start (operator `VMStorage` schema can be found [here](https://docs.victoriametrics.com/operator/api.html#vmstorage):
+   Add the following section in order to enable restore on start (operator `VMStorage` schema can be found [here](./operator/api.md#vmstorage):
    ```yaml
    vmbackup:
      restore:
@@ -399,7 +399,7 @@ Clusters here are referred to as `source` and `destination`.
 ## Monitoring
 
 `vmbackupmanager` exports various metrics in Prometheus exposition format at `http://vmbackupmanager:8300/metrics` page. It is recommended setting up regular scraping of this page
-either via [vmagent](https://docs.victoriametrics.com/vmagent/) or via Prometheus, so the exported metrics could be analyzed later.
+either via [vmagent](./vmagent.md) or via Prometheus, so the exported metrics could be analyzed later.
 
 Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/17798) for `vmbackupmanager` overview.
 Graphs on this dashboard contain useful hints - hover the `i` icon in the top left corner of each graph in order to read it.
@@ -440,7 +440,7 @@ command-line flags:
   -customS3Endpoint string
      Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set
   -deleteAllObjectVersions
-     Whether to prune previous object versions when deleting an object. By default, when object storage has versioning enabled deleting the file removes only current version. This option forces removal of all previous versions. See: https://docs.victoriametrics.com/vmbackup/#permanent-deletion-of-objects-in-s3-compatible-storages
+     Whether to prune previous object versions when deleting an object. By default, when object storage has versioning enabled deleting the file removes only current version. This option forces removal of all previous versions. See: ./vmbackup.md#permanent-deletion-of-objects-in-s3-compatible-storages
   -disableDaily
      Disable daily run. Default false
   -disableHourly
@@ -454,11 +454,11 @@ command-line flags:
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
-     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
+     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See ./#environment-variables for more details
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See ./enterprise.md
   -filestream.disableFadvise
      Whether to disable fadvise() syscall when reading large data files. The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. In some rare cases it is better to disable the syscall if it uses too much CPU
   -flagsAuthKey value
@@ -544,11 +544,11 @@ command-line flags:
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
   -mtls array
-     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See ./enterprise.md
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -mtlsCAFile array
-     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See ./enterprise.md
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pprofAuthKey value
@@ -567,7 +567,7 @@ command-line flags:
   -pushmetrics.interval duration
      Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
-     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
+     Optional URL to push metrics exposed at /metrics page. See ./#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -runOnStart
@@ -590,11 +590,11 @@ command-line flags:
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -tlsAutocertCacheDir string
-     Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See ./enterprise.md
   -tlsAutocertEmail string
-     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir .This flag is available only in Enterprise binaries. See ./enterprise.md
   -tlsAutocertHosts array
-     Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
+     Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See ./enterprise.md
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsCertFile array

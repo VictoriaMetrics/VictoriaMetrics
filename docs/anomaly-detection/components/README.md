@@ -22,7 +22,7 @@ Here's a minimalistic full config example, demonstrating many-to-many configurat
 
 ```yaml
 # how and when to run the models is defined by schedulers
-# https://docs.victoriametrics.com/anomaly-detection/components/scheduler/
+# {{% ref "./scheduler.md" %}}
 schedulers:
   periodic_1d:  # alias
     class: 'periodic' # scheduler class
@@ -36,7 +36,7 @@ schedulers:
     fit_window: "7d"
 
 # what model types and with what hyperparams to run on your data
-# https://docs.victoriametrics.com/anomaly-detection/components/models/
+# {{% ref "./models.md" %}}
 models:
   zscore:  # alias
     class: 'zscore'  # model class
@@ -53,7 +53,7 @@ models:
       interval_width: 0.98
 
 # where to read data from
-# https://docs.victoriametrics.com/anomaly-detection/components/reader/
+# {{% ref "./reader.md" %}}
 reader:
   datasource_url: "http://victoriametrics:8428/"
   tenant_id: "0:0"
@@ -64,12 +64,12 @@ reader:
     host_network_receive_errors: 'rate(node_network_receive_errs_total[3m]) / rate(node_network_receive_packets_total[3m])'
 
 # where to write data to
-# https://docs.victoriametrics.com/anomaly-detection/components/writer/
+# {{% ref "./writer.md" %}}
 writer:
   datasource_url: "http://victoriametrics:8428/"
 
 # enable self-monitoring in pull and/or push mode
-# https://docs.victoriametrics.com/anomaly-detection/components/monitoring/
+# {{% ref "./monitoring.md" %}}
 monitoring:
   pull: # Enable /metrics endpoint.
     addr: "0.0.0.0"

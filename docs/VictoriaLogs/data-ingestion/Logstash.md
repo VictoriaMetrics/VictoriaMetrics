@@ -12,7 +12,7 @@ aliases:
   - /victorialogs/data-ingestion/Logstash.html
 ---
 Specify [`output.elasticsearch`](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html) section in the `logstash.conf` file
-for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
+for sending the collected logs to [VictoriaLogs](../README.md):
 
 ```logstash
 output {
@@ -29,11 +29,11 @@ output {
 
 Substitute `localhost:9428` address inside `hosts` with the real TCP address of VictoriaLogs.
 
-See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details on the `parameters` section.
+See [these docs](./#http-parameters) for details on the `parameters` section.
 
-It is recommended verifying whether the initial setup generates the needed [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-and uses the correct [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
-This can be done by specifying `debug` [parameter](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters)
+It is recommended verifying whether the initial setup generates the needed [log fields](../keyConcepts.md#data-model)
+and uses the correct [stream fields](../keyConcepts.md#stream-fields).
+This can be done by specifying `debug` [parameter](./#http-parameters)
 and inspecting VictoriaLogs logs then:
 
 ```logstash
@@ -50,8 +50,8 @@ output {
 }
 ```
 
-If some [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) must be skipped
-during data ingestion, then they can be put into `ignore_fields` [parameter](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters).
+If some [log fields](../keyConcepts.md#data-model) must be skipped
+during data ingestion, then they can be put into `ignore_fields` [parameter](./#http-parameters).
 For example, the following config instructs VictoriaLogs to ignore `log.offset` and `event.original` fields in the ingested logs:
 
 ```logstash
@@ -85,7 +85,7 @@ output {
 }
 ```
 
-By default, the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy).
+By default, the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](../#multitenancy).
 If you need storing logs in other tenant, then specify the needed tenant via `custom_headers` at `output.elasticsearch` section.
 For example, the following `logstash.conf` config instructs Logstash to store the data to `(AccountID=12, ProjectID=34)` tenant:
 
@@ -108,7 +108,7 @@ output {
 
 See also:
 
-- [Data ingestion troubleshooting](https://docs.victoriametrics.com/victorialogs/data-ingestion/#troubleshooting).
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
+- [Data ingestion troubleshooting](./#troubleshooting).
+- [How to query VictoriaLogs](../querying/README.md).
 - [Logstash `output.elasticsearch` docs](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html).
 - [Docker-compose demo for Logstash integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/logstash).

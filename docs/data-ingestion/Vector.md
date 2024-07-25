@@ -78,7 +78,7 @@ sinks:
 
 ## VictoriaMetrics and VictoriaLogs
 
-This combines the Bearer Authentication section with the [VictoriaLogs docs for Vector](https://docs.victoriametrics.com/victorialogs/data-ingestion/vector/),
+This combines the Bearer Authentication section with the [VictoriaLogs docs for Vector](../VictoriaLogs/data-ingestion/Vector.md),
 so you can send metrics and logs with 1 agent to multiple sources:
 
 

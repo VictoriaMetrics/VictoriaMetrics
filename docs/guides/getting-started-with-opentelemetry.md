@@ -346,8 +346,8 @@ curl http://localhost:8081/api/fast
 curl http://localhost:8081/api/slow
 ```
 
-Open [vmui](https://docs.victoriametrics.com/#vmui) and query `http_requests_total` or `http_active_requests`
-with [metricsql](https://docs.victoriametrics.com/metricsql/).
+Open [vmui](../#vmui) and query `http_requests_total` or `http_active_requests`
+with [metricsql](../MetricsQL.md).
 
 ![OTEL VMUI](getting-started-with-opentelemetry-vmui.webp)
 
