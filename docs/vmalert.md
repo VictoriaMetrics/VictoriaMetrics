@@ -667,7 +667,7 @@ Please note, [replay](#rules-backfilling) feature may be used for transforming h
 
 Flags `-remoteRead.url` and `-notifier.url` are omitted since we assume only recording rules are used.
 
-See also [stream aggregation](./stream-aggregation.md) and [downsampling](downsampling).
+See also [stream aggregation](./stream-aggregation.md) and [downsampling](./#downsampling).
 
 #### Multiple remote writes
 

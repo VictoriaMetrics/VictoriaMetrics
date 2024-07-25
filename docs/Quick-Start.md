@@ -35,7 +35,7 @@ Just download VictoriaMetrics and follow
 Then read [Prometheus setup](./Single-Server-VictoriaMetrics.md#prometheus-setup)
 and [Grafana setup](./Single-Server-VictoriaMetrics.md#grafana-setup) docs.
 
-VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](./CHANGELOG.md) and performing [regular upgrades](how-to-upgrade-victoriametrics).
+VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](./CHANGELOG.md) and performing [regular upgrades](./#how-to-upgrade-victoriametrics).
 
 
 ### Starting VictoriaMetrics Single Node via Docker {anchor="starting-vm-single-via-docker"}
@@ -53,7 +53,7 @@ docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 842
 
 
 Open <a href="http://localhost:8428">http://localhost:8428</a> in web browser
-and read [these docs](operation).
+and read [these docs](./#operation).
 
 There is also [VictoriaMetrics cluster](./Cluster-VictoriaMetrics.md)
 - horizontally scalable installation, which scales to multiple nodes.
@@ -128,7 +128,7 @@ WantedBy=multi-user.target
 END
 ```
 
-Extra [command-line flags](list-of-command-line-flags) can be added to `ExecStart` line.
+Extra [command-line flags](./#list-of-command-line-flags) can be added to `ExecStart` line.
 
 If you want to deploy VictoriaMetrics Single Node as a Windows Service review the [running as a Windows service docs](./Single-Server-VictoriaMetrics.md#running-as-windows-service).
 
@@ -146,14 +146,14 @@ sudo systemctl daemon-reload && sudo systemctl enable --now victoriametrics.serv
 sudo systemctl status victoriametrics.service
 ```
 
-8. After VictoriaMetrics is in `Running` state, verify [vmui](vmui) is working 
+8. After VictoriaMetrics is in `Running` state, verify [vmui](./#vmui) is working 
 by going to `http://<ip_or_hostname>:8428/vmui`.
 
 
 ### Starting VictoriaMetrics Cluster from Binaries {anchor="starting-vm-cluster-from-binaries"}
 
 VictoriaMetrics cluster consists of [3 components](./Cluster-VictoriaMetrics.md#architecture-overview).
-It is recommended to run these components in the same private network (for [security reasons](security)),
+It is recommended to run these components in the same private network (for [security reasons](./#security)),
 but on the separate physical nodes for the best performance.
 
 On all nodes you will need to do the following:
@@ -327,7 +327,7 @@ sudo systemctl status vmselect.service
 ```
 
 5. After `vmselect` is in `Running` state, confirm the service is healthy by visiting `http://<ip_or_hostname>:8481/select/0/vmui` link.
-It should open [vmui](vmui) page.
+It should open [vmui](./#vmui) page.
 
 ## Write data
 
@@ -429,5 +429,5 @@ To avoid excessive resource usage or performance degradation limits must be in p
 
 ### Security recommendations
 
-* [Security recommendations for single-node VictoriaMetrics](security)
+* [Security recommendations for single-node VictoriaMetrics](./#security)
 * [Security recommendations for cluster version of VictoriaMetrics](./Cluster-VictoriaMetrics.md#security)

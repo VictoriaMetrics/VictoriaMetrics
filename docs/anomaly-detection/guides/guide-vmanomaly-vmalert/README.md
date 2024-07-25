@@ -21,7 +21,7 @@
 
 All the service parameters are defined in a config file.
 
-> **Note**: Starting from [1.10.0](../../CHANGELOG.md#v1100), each `vmanomaly` configuration file can support more that one model type. To utilize *different models* on your data, it is no longer necessary to run multiple instances of the `vmanomaly` process. Please refer to [model](../..//components/models.md) config section for more details.
+> **Note**: Starting from [1.10.0](../../CHANGELOG.md#v1100), each `vmanomaly` configuration file can support more that one model type. To utilize *different models* on your data, it is no longer necessary to run multiple instances of the `vmanomaly` process. Please refer to [model](../../components/models.md) config section for more details.
 
 > **Note**: Starting from [1.11.0](../../CHANGELOG.md#v1110), each `vmanomaly` configuration file can support more that one model type, each attached to one (or more) schedulers. To utilize *different models* with *different schedulers* on your data, it is no longer necessary to run multiple instances of the `vmanomaly` process. Please refer to [model](../../components/models.md#schedulers) and [scheduler](../../components/scheduler.md) config sections for more details.
 

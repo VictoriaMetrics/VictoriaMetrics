@@ -9,6 +9,7 @@ menu:
     weight: 5
 aliases:
 - /anomaly-detection/CHANGELOG.html
+- /anomaly-detection/CHANGELOG/
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
