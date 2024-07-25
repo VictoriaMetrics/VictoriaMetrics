@@ -55,6 +55,7 @@ var rollupFuncs = map[string]bool{
 	"quantiles_over_time":     true,
 	"range_over_time":         true,
 	"rate":                    true,
+	"rate_over_delta":         true,
 	"rate_over_sum":           true,
 	"resets":                  true,
 	"rollup":                  true,

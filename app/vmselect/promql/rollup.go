@@ -72,6 +72,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"quantiles_over_time":     newRollupQuantiles,
 	"range_over_time":         newRollupFuncOneArg(rollupRange),
 	"rate":                    newRollupFuncOneArg(rollupDerivFast), // + rollupFuncsRemoveCounterResets
+	"rate_over_delta":         newRollupFuncOneArg(rollupRateOverDelta),
 	"rate_over_sum":           newRollupFuncOneArg(rollupRateOverSum),
 	"resets":                  newRollupFuncOneArg(rollupResets),
 	"rollup":                  newRollupFuncOneOrTwoArgs(rollupFake),
@@ -177,6 +178,7 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"present_over_time":       rollupPresent,
 	"range_over_time":         rollupRange,
 	"rate":                    rollupDerivFast,
+	"rate_over_delta":         rollupRateOverDelta,
 	"rate_over_sum":           rollupRateOverSum,
 	"resets":                  rollupResets,
 	"scrape_interval":         rollupScrapeInterval,
@@ -208,6 +210,7 @@ var rollupFuncsCanAdjustWindow = map[string]bool{
 	"irate":                  true,
 	"rate":                   true,
 	"rate_over_sum":          true,
+	"rate_over_delta":        true,
 	"rollup":                 true,
 	"rollup_candlestick":     true,
 	"rollup_deriv":           true,
@@ -1674,6 +1677,32 @@ func rollupRateOverSum(rfa *rollupFuncArg) float64 {
 		sum += v
 	}
 	return sum / (float64(rfa.window) / 1e3)
+}
+
+func rollupRateOverDelta(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+	timestamps := rfa.timestamps
+	if len(timestamps) == 0 {
+		return nan
+	}
+	sum := float64(0)
+	for _, v := range rfa.values {
+		sum += v
+	}
+	var duration float64
+	if math.IsNaN(rfa.prevValue) {
+		// prev is not exist
+		if len(timestamps) > 1 {
+			duration = float64(timestamps[len(timestamps)-1] - timestamps[0])
+			return (sum - rfa.values[0]) / (duration / 1e3)
+		}
+		return nan
+	}
+	duration = float64(rfa.timestamps[len(rfa.timestamps)-1] - rfa.prevTimestamp)
+	return sum / duration * 1e3
 }
 
 func rollupRange(rfa *rollupFuncArg) float64 {

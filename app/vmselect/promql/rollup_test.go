@@ -661,6 +661,7 @@ func TestRollupNewRollupFuncSuccess(t *testing.T) {
 	f("timestamp_with_name", 0.13)
 	f("mode_over_time", 34)
 	f("rate_over_sum", 4520)
+	f("rate_over_delta", 3536)
 }
 
 func TestRollupNewRollupFuncError(t *testing.T) {
@@ -1436,6 +1437,24 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 			t.Fatalf("expecting 35 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
 		valuesExpected := []float64{nan, 2775, 5262.5, 3862.5, 1800}
+		timestampsExpected := []int64{0, 40, 80, 120, 160}
+		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
+	})
+	t.Run("rate_over_delta", func(t *testing.T) {
+		rc := rollupConfig{
+			Func:               rollupRateOverDelta,
+			Start:              0,
+			End:                160,
+			Step:               40,
+			Window:             80,
+			MaxPointsPerSeries: 1e4,
+		}
+		rc.Timestamps = rc.getTimestamps()
+		values, samplesScanned := rc.Do(nil, testValues, testTimestamps)
+		if samplesScanned != 35 {
+			t.Fatalf("expecting 35 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
+		}
+		valuesExpected := []float64{nan, 3193.548387096774, 3973.3333333333335, 3678.5714285714284, 2880}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
