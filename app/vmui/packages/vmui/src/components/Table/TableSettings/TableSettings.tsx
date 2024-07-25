@@ -117,7 +117,7 @@ const TableSettings: FC<TableSettingsProps> = ({
               className="vm-table-settings-popper-list__item vm-table-settings-popper-list__check_all"
             >
               <Checkbox
-                checked={defaultColumns.length == columns.length}
+                checked={defaultColumns.length === columns.length}
                 onChange={toggleAllColumns}
                 label="Check all"
                 disabled={tableCompact}
