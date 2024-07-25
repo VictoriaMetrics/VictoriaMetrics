@@ -1451,32 +1451,6 @@ func testCountAllMetricNames(s *Storage, tr TimeRange) int {
 	return len(names)
 }
 
-func TestStorageRegisterMetricNames_variousMetricIDAndDateCombinations(t *testing.T) {
-	t.Skip()
-}
-
-func TestStorageRegisterMetricNames_perDayIndexesDisabled(t *testing.T) {
-	t.Skip()
-}
-
-func TestStorageRegisterMetricNames_metricsAreSearchedInIndex(t *testing.T) {
-	// TODO(rtm0): with enabled and disabled per day indexes
-	t.Skip()
-}
-
-func TestStorageAddRows_variousMetricIDAndDateCombinations(t *testing.T) {
-	t.Skip()
-}
-
-func TestStorageAddRows_perDayIndexesDisabled(t *testing.T) {
-	t.Skip()
-}
-
-func TestStorageAddRows_metricsAreSearchedInIndex(t *testing.T) {
-	// TODO(rtm0): with enabled and disabled per day indexes
-	t.Skip()
-}
-
 type testStorageSearchWithoutPerDayIndexOptions[T any] struct {
 	mrs                []MetricRow
 	assertSearchResult func(s *Storage, tr TimeRange, want T)
@@ -1817,4 +1791,30 @@ func TestStorageSearchTagValueSuffixesWithoutPerDayIndex(t *testing.T) {
 	}
 
 	testStorageSearchWithoutPerDayIndex(t, &opts)
+}
+
+func TestStorageRegisterMetricNames_variousMetricIDAndDateCombinations(t *testing.T) {
+	t.Skip()
+}
+
+func TestStorageRegisterMetricNames_perDayIndexesDisabled(t *testing.T) {
+	t.Skip()
+}
+
+func TestStorageRegisterMetricNames_metricsAreSearchedInIndex(t *testing.T) {
+	// TODO(rtm0): with enabled and disabled per day indexes
+	t.Skip()
+}
+
+func TestStorageAddRows_variousMetricIDAndDateCombinations(t *testing.T) {
+	t.Skip()
+}
+
+func TestStorageAddRows_perDayIndexesDisabled(t *testing.T) {
+	t.Skip()
+}
+
+func TestStorageAddRows_metricsAreSearchedInIndex(t *testing.T) {
+	// TODO(rtm0): with enabled and disabled per day indexes
+	t.Skip()
 }
