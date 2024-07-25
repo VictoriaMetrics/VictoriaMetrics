@@ -2,9 +2,10 @@
 sort: 38
 weight: 38
 editLink: https://github.com/VictoriaMetrics/victoriametrics-datasource/blob/main/README.md
-title: VictoriaMetrics datasource for Grafana
+title: Grafana datasource
 menu:
   docs:
+    identifier: victoriametrics-grafana-datasource
     parent: victoriametrics
     weight: 38
 aliases:
@@ -13,6 +14,9 @@ aliases:
 - /grafana-datasource/
 - /grafana-datasource.html
 ---
+
+
+
 The [VictoriaMetrics datasource plugin](https://github.com/VictoriaMetrics/victoriametrics-datasource) 
 allows to query and visualize data from VictoriaMetrics in Grafana. 
 
@@ -137,8 +141,7 @@ docker-compose -f docker-compose.yaml up
 
 When Grafana starts successfully datasources should be present on the datasources tab
 
-![Configuration](provision_datasources.webp)
-{width="800"}
+<img src="provision_datasources.webp" width="800" alt="Configuration">
 
 ### Install in Kubernetes
 
