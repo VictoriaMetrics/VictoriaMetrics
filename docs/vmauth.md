@@ -687,7 +687,7 @@ when proxying requests to the `backend:1234`:
 ```yaml
 unauthorized_user:
   url_prefix: "http://backend:1234/"
-  keep_iriginal_host: true
+  keep_original_host: true
 ```
 
 It is also possible to set the `Host` header to arbitrary value when proxying the request to the configured backend, via [`headers` option](#modifying-http-headers):
