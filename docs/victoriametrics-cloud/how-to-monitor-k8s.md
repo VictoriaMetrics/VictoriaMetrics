@@ -7,10 +7,8 @@ menu:
     parent: "cloud"
     weight: 3
 aliases:
-  - /victoriametrics-cloud/how-to-monitor-k8s.html
-  - /victoriametrics-cloud/how-to-monitor-k8s/
-  - /managed-victoriametrics/how-to-monitor-k8s.html
-  - /managed-victoriametrics/how-to-monitor-k8s/
+  - /victoriametrics-cloud/how-to-monitor-k8s/index.html
+  - /managed-victoriametrics/how-to-monitor-k8s/index.html
 ---
 Monitoring kubernetes cluster is necessary to build SLO/SLI, to analyze performance and cost-efficiency of your workloads. 
 
@@ -27,7 +25,7 @@ This chart will install `VMOperator`, `VMAgent`, `NodeExporter`, `kube-state-met
 
 ## Prerequisites
 
-- Active VictoriaMetrics Cloud instance. You can learn how to sign up for VictoriaMetrics Cloud [here](https://docs.victoriametrics.com/victoriametrics-cloud/quickstart.html#how-to-register). 
+- Active VictoriaMetrics Cloud instance. You can learn how to sign up for VictoriaMetrics Cloud [here](./quickstart.md#how-to-register).
 - Access to your kubernetes cluster
 - Helm binary. You can find installation [here](https://helm.sh/docs/intro/install/)
 

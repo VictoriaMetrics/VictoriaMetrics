@@ -7,10 +7,8 @@ menu:
     parent: "cloud"
     weight: 1
 aliases:
-  - /victoriametrics-cloud/overview.html
-  - /victoriametrics-cloud/overview/
-  - /managed-victoriametrics/overview.html
-  - /managed-victoriametrics/overview/
+  - /victoriametrics-cloud/overview/index.html
+  - /managed-victoriametrics/overview/index.html
 ---
 VictoriaMetrics is a fast and easy-to-use monitoring solution and time series database. 
 It integrates well with existing monitoring systems such as Grafana, Prometheus, Graphite, 
@@ -33,8 +31,8 @@ maintenance.
 VictoriaMetrics Cloud comes with the following features:
 
 * It can be used as a Managed Prometheus - just configure Prometheus or vmagent to write data to VictoriaMetrics Cloud and then use the provided endpoint as a Prometheus datasource in Grafana;
-* Built-in [Alerting & Recording](https://docs.victoriametrics.com/victoriametrics-cloud/alertmanager-setup-for-deployment/#configure-alerting-rules) rules execution;
-* Hosted [Alertmanager](https://docs.victoriametrics.com/victoriametrics-cloud/alertmanager-setup-for-deployment/) for sending notifications;
+* Built-in [Alerting & Recording](./alertmanager-setup-for-deployment.md#configure-alerting-rules) rules execution;
+* Hosted [Alertmanager](./alertmanager-setup-for-deployment.md) for sending notifications;
 * Every VictoriaMetrics Cloud deployment runs in an isolated environment, so deployments cannot interfere with each other;
 * VictoriaMetrics Cloud deployment can be scaled up or scaled down in a few clicks;
 * Automated backups;
