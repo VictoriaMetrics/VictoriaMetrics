@@ -109,6 +109,9 @@ github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/options
 github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/shared
 github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/version
 github.com/AzureAD/microsoft-authentication-library-for-go/apps/public
+# github.com/RackSec/srslog v0.0.0-20180709174129-a4725f04ec91
+## explicit
+github.com/RackSec/srslog
 # github.com/VictoriaMetrics/easyproto v0.1.4
 ## explicit; go 1.18
 github.com/VictoriaMetrics/easyproto
