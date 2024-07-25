@@ -739,7 +739,7 @@ var (
 		&cli.IntFlag{
 			Name:  backoffRetries,
 			Value: 10,
-			Usage: "How many retries to perform before giving up. Default is 10.",
+			Usage: "How many retries to perform before giving up.",
 		},
 		&cli.Float64Flag{
 			Name:  backoffFactor,
