@@ -9,7 +9,7 @@ menu:
 aliases:
 - /Articles.html
 ---
-See also [case studies](./CaseStudies.md).
+See also [case studies](https://docs.victoriametrics.com/casestudies/).
 
 ## Third-party articles and slides about VictoriaMetrics
 
