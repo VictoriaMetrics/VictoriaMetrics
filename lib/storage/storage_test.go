@@ -1477,108 +1477,31 @@ func TestStorageAddRows_metricsAreSearchedInIndex(t *testing.T) {
 	t.Skip()
 }
 
-func TestStorageGetTSDBStatus(t *testing.T) {
-	defer testRemoveAll(t)
-
-	assertStatus := func(s *Storage, tr TimeRange, wantStatus *TSDBStatus) {
-		t.Helper()
-
-		date := uint64(tr.MinTimestamp) / msecPerDay
-		gotStatus, err := s.GetTSDBStatus(nil, nil, date, "", 10, 1e6, noDeadline)
-		if err != nil {
-			t.Fatalf("GetTSDBStatus(%v) failed unexpectedly", &tr)
-		}
-
-		if got, want := gotStatus.TotalSeries, wantStatus.TotalSeries; got != want {
-			t.Errorf("[%v] unexpected TSDBStatus.TotalSeries: got %d, want %d", &tr, got, want)
-		}
-	}
-
-	const days = 10
-	var mrs []MetricRow
-	var trs []TimeRange
-	rng := rand.New(rand.NewSource(1))
-	for day := range days {
-		min := time.Date(2024, 1, day+1, 0, 0, 0, 0, time.UTC).UnixMilli()
-		max := time.Date(2024, 1, day+1, 23, 59, 59, 999, time.UTC).UnixMilli()
-		trs = append(trs, TimeRange{min, max})
-		numRows := uint64(100 * (day + 1))
-		mrs = append(mrs, testGenerateMetricRows(rng, numRows, min, max)...)
-	}
-
-	path := t.Name() + "/AddRowsAndSearchWithPerDayIndexesEnabled"
-	disablePerDayIndexes := false
-	s := MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
-	s.AddRows(mrs, defaultPrecisionBits)
-	s.DebugFlush()
-	for day, tr := range trs {
-		assertStatus(s, tr, &TSDBStatus{
-			TotalSeries: uint64(100 * (day + 1)),
-		})
-	}
-	s.MustClose()
-
-	path = t.Name() + "/AddRowsAndSearchWithPerDayIndexesDisabled"
-	disablePerDayIndexes = true
-	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
-	s.AddRows(mrs, defaultPrecisionBits)
-	s.DebugFlush()
-	for _, tr := range trs {
-		assertStatus(s, tr, &TSDBStatus{
-			TotalSeries: 1000,
-		})
-	}
-	s.MustClose()
-
-	path = t.Name() + "/AddRowsWithPerDayIndexesEnabledSearchWithDisabled"
-	disablePerDayIndexes = false
-	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
-	s.AddRows(mrs, defaultPrecisionBits)
-	s.DebugFlush()
-	s.MustClose()
-	disablePerDayIndexes = true
-	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
-	for _, tr := range trs {
-		assertStatus(s, tr, &TSDBStatus{
-			TotalSeries: 1000,
-		})
-	}
-	s.MustClose()
-
-	path = t.Name() + "/AddRowsWithPerDayIndexesDisabledSearchWithEnabled"
-	disablePerDayIndexes = true
-	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
-	s.AddRows(mrs, defaultPrecisionBits)
-	s.DebugFlush()
-	s.MustClose()
-	disablePerDayIndexes = false
-	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
-	for _, tr := range trs {
-		assertStatus(s, tr, &TSDBStatus{
-			TotalSeries: 0,
-		})
-	}
-	// Verify that TSDB shows correct numbers after populating per-day indexes
-	// by registering metric names.
-	s.RegisterMetricNames(nil, mrs)
-	s.DebugFlush()
-	for day, tr := range trs {
-		assertStatus(s, tr, &TSDBStatus{
-			TotalSeries: uint64(100 * (day + 1)),
-		})
-	}
-	s.MustClose()
-}
-
-type testStorageSearchOptions struct {
+type testStorageSearchWithoutPerDayIndexOptions[T any] struct {
 	mrs                []MetricRow
-	assertSearchResult func(s *Storage, tr TimeRange, want []string)
-	wantPerTimeRange   map[TimeRange][]string
-	wantAll            []string
+	assertSearchResult func(s *Storage, tr TimeRange, want T)
+	wantPerTimeRange   map[TimeRange]T
+	wantAll            T
+	wantEmpty          T
 }
 
-func testStorageSearch(t *testing.T, opts *testStorageSearchOptions) {
-	t.Helper()
+// testStorageSearchWithoutPerDayIndex tests how the search behaves when the
+// per-day index is disabled. The following cases are considered:
+//
+//  1. The data is inserted and the search is performed when the per-day index
+//     is enabled
+//  2. The data is inserted and the search is performed when the per-day index
+//     is disabled
+//  3. The data is inserted when the per-day index is enabled but the search is
+//     performed when the per-day index is disabled
+//  4. The data is inserted when the per-day index is disable but the search is
+//     performed when the per-day index is enabled. This case also shows that
+//     registering metric names recovers the per-day index
+//
+// This function generic and is expected to be called by functions that test a
+// particular search operation, such as GetTSDBStatus(), SearchMetricNames(),
+// etc. These test functions can be found below.
+func testStorageSearchWithoutPerDayIndex[T any](t *testing.T, opts *testStorageSearchWithoutPerDayIndexOptions[T]) {
 	defer testRemoveAll(t)
 
 	path := t.Name() + "/InsertAndSearchWithPerDayIndex"
@@ -1596,7 +1519,7 @@ func testStorageSearch(t *testing.T, opts *testStorageSearchOptions) {
 	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
 	s.AddRows(opts.mrs, defaultPrecisionBits)
 	s.DebugFlush()
-	for tr, _ := range opts.wantPerTimeRange {
+	for tr := range opts.wantPerTimeRange {
 		opts.assertSearchResult(s, tr, opts.wantAll)
 	}
 	s.MustClose()
@@ -1609,7 +1532,7 @@ func testStorageSearch(t *testing.T, opts *testStorageSearchOptions) {
 	s.MustClose()
 	disablePerDayIndexes = true
 	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
-	for tr, _ := range opts.wantPerTimeRange {
+	for tr := range opts.wantPerTimeRange {
 		opts.assertSearchResult(s, tr, opts.wantAll)
 	}
 	s.MustClose()
@@ -1622,8 +1545,8 @@ func testStorageSearch(t *testing.T, opts *testStorageSearchOptions) {
 	s.MustClose()
 	disablePerDayIndexes = false
 	s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
-	for tr, _ := range opts.wantPerTimeRange {
-		opts.assertSearchResult(s, tr, []string{})
+	for tr := range opts.wantPerTimeRange {
+		opts.assertSearchResult(s, tr, opts.wantEmpty)
 	}
 	// Verify that search result contains correct label values after populating
 	// per-day index by registering metric names.
@@ -1635,13 +1558,61 @@ func testStorageSearch(t *testing.T, opts *testStorageSearchOptions) {
 	s.MustClose()
 }
 
-func TestStorageSearchMetricNames(t *testing.T) {
+func TestStorageGetTSDBStatusWithoutPerDayIndex(t *testing.T) {
 	const (
 		days = 4
 		rows = 10
 	)
 	rng := rand.New(rand.NewSource(1))
-	opts := testStorageSearchOptions{
+	opts := testStorageSearchWithoutPerDayIndexOptions[*TSDBStatus]{
+		wantPerTimeRange: make(map[TimeRange]*TSDBStatus),
+		wantEmpty:        &TSDBStatus{},
+		wantAll:          &TSDBStatus{TotalSeries: days * rows},
+	}
+	for day := 1; day <= days; day++ {
+		tr := TimeRange{
+			MinTimestamp: time.Date(2024, 1, day, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2024, 1, day, 23, 59, 59, 999, time.UTC).UnixMilli(),
+		}
+		for row := 0; row < rows; row++ {
+			name := fmt.Sprintf("metric_%d", rows*day+row)
+			mn := &MetricName{
+				MetricGroup: []byte(name),
+			}
+			metricNameRaw := mn.marshalRaw(nil)
+			opts.mrs = append(opts.mrs, MetricRow{
+				MetricNameRaw: metricNameRaw,
+				Timestamp:     rng.Int63n(tr.MaxTimestamp-tr.MinTimestamp) + tr.MinTimestamp,
+				Value:         rng.NormFloat64() * 1e6,
+			})
+		}
+		opts.wantPerTimeRange[tr] = &TSDBStatus{TotalSeries: rows}
+	}
+
+	opts.assertSearchResult = func(s *Storage, tr TimeRange, wantStatus *TSDBStatus) {
+		t.Helper()
+
+		date := uint64(tr.MinTimestamp) / msecPerDay
+		gotStatus, err := s.GetTSDBStatus(nil, nil, date, "", 10, 1e6, noDeadline)
+		if err != nil {
+			t.Fatalf("GetTSDBStatus(%v) failed unexpectedly", &tr)
+		}
+
+		if got, want := gotStatus.TotalSeries, wantStatus.TotalSeries; got != want {
+			t.Errorf("[%v] unexpected TSDBStatus.TotalSeries: got %d, want %d", &tr, got, want)
+		}
+	}
+
+	testStorageSearchWithoutPerDayIndex(t, &opts)
+}
+
+func TestStorageSearchMetricNamesWithoutPerDayIndex(t *testing.T) {
+	const (
+		days = 4
+		rows = 10
+	)
+	rng := rand.New(rand.NewSource(1))
+	opts := testStorageSearchWithoutPerDayIndexOptions[[]string]{
 		wantPerTimeRange: make(map[TimeRange][]string),
 	}
 	for day := 1; day <= days; day++ {
@@ -1670,10 +1641,6 @@ func TestStorageSearchMetricNames(t *testing.T) {
 	opts.assertSearchResult = func(s *Storage, tr TimeRange, want []string) {
 		t.Helper()
 
-		if len(want) == 0 {
-			want = nil
-		}
-
 		tfsAll := NewTagFilters()
 		if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 			panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
@@ -1694,17 +1661,18 @@ func TestStorageSearchMetricNames(t *testing.T) {
 		}
 	}
 
-	testStorageSearch(t, &opts)
+	testStorageSearchWithoutPerDayIndex(t, &opts)
 }
 
-func TestStorageSearchLabelNames(t *testing.T) {
+func TestStorageSearchLabelNamesWithoutPerDayIndex(t *testing.T) {
 	const (
 		days = 4
 		rows = 10
 	)
 	rng := rand.New(rand.NewSource(1))
-	opts := testStorageSearchOptions{
+	opts := testStorageSearchWithoutPerDayIndexOptions[[]string]{
 		wantPerTimeRange: make(map[TimeRange][]string),
+		wantEmpty:        []string{},
 	}
 	for day := 1; day <= days; day++ {
 		tr := TimeRange{
@@ -1746,18 +1714,19 @@ func TestStorageSearchLabelNames(t *testing.T) {
 		}
 	}
 
-	testStorageSearch(t, &opts)
+	testStorageSearchWithoutPerDayIndex(t, &opts)
 }
 
-func TestStorageSearchLabelValues(t *testing.T) {
+func TestStorageSearchLabelValuesWithoutPerDayIndex(t *testing.T) {
 	const (
 		days      = 4
 		rows      = 10
 		labelName = "job"
 	)
 	rng := rand.New(rand.NewSource(1))
-	opts := testStorageSearchOptions{
+	opts := testStorageSearchWithoutPerDayIndexOptions[[]string]{
 		wantPerTimeRange: make(map[TimeRange][]string),
+		wantEmpty:        []string{},
 	}
 	for day := 1; day <= days; day++ {
 		tr := TimeRange{
@@ -1798,18 +1767,19 @@ func TestStorageSearchLabelValues(t *testing.T) {
 		}
 	}
 
-	testStorageSearch(t, &opts)
+	testStorageSearchWithoutPerDayIndex(t, &opts)
 }
 
-func TestStorageSearchTagValueSuffixes(t *testing.T) {
+func TestStorageSearchTagValueSuffixesWithoutPerDayIndex(t *testing.T) {
 	const (
 		days           = 4
 		rows           = 10
 		tagValuePrefix = "metric."
 	)
 	rng := rand.New(rand.NewSource(1))
-	opts := testStorageSearchOptions{
+	opts := testStorageSearchWithoutPerDayIndexOptions[[]string]{
 		wantPerTimeRange: make(map[TimeRange][]string),
+		wantEmpty:        []string{},
 	}
 	for day := 1; day <= days; day++ {
 		tr := TimeRange{
@@ -1846,5 +1816,5 @@ func TestStorageSearchTagValueSuffixes(t *testing.T) {
 		}
 	}
 
-	testStorageSearch(t, &opts)
+	testStorageSearchWithoutPerDayIndex(t, &opts)
 }
