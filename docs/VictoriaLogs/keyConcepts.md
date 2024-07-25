@@ -10,9 +10,6 @@ menu:
 aliases:
 - /VictoriaLogs/keyConcepts.html
 ---
-
-# VictoriaLogs key concepts
-
 ## Data model
 
 [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) works with both structured and unstructured logs.

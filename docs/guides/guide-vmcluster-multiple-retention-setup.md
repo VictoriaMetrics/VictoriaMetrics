@@ -8,8 +8,6 @@ menu:
 aliases:
 - /guides/guide-vmcluster-multiple-retention-setup.html
 ---
-# Multi Retention Setup within VictoriaMetrics Cluster
-
 **Objective**
 
 Setup Victoria Metrics Cluster with support of multiple retention periods within one installation.
@@ -34,7 +32,7 @@ The [-retentionPeriod](https://docs.victoriametrics.com/#retention) sets how lon
 
 The diagram below shows a proposed solution
 
-<img src="guide-vmcluster-multiple-retention-setup.webp">
+![Setup](guide-vmcluster-multiple-retention-setup.webp)
 
 **Implementation Details**
 

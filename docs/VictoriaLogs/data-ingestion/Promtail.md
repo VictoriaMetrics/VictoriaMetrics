@@ -11,8 +11,6 @@ aliases:
   - /victorialogs/data-ingestion/Promtail.html
   - /victorialogs/data-ingestion/promtail.html
 ---
-# Promtail setup
-
 [Promtail](https://grafana.com/docs/loki/latest/clients/promtail/) is a default log shipper for Grafana Loki.
 Promtail can be configured to send the collected logs to VictoriaLogs according to the following docs.
 

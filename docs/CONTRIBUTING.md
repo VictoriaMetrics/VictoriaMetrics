@@ -9,9 +9,6 @@ menu:
 aliases:
 - /CONTRIBUTING.html
 ---
-
-# Contributing to VictoriaMetrics
-
 If you like VictoriaMetrics and want to contribute, then it would be great:
 
 - Joining VictoriaMetrics community Slack ([Slack inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/))

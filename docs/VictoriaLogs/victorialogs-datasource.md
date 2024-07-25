@@ -1,16 +1,17 @@
 ---
 weight: 9
-title: VictoriaLogs datasource for Grafana
+title: Grafana datasource
 editLink: https://github.com/VictoriaMetrics/victorialogs-datasource/blob/main/README.md
 menu:
   docs:
+    identifier: victorialogs-grafana-datasource
     parent: victorialogs
     weight: 9
 aliases:
 - /victorialogs/victorialogs-datasource.html
 ---
 
-# VictoriaLogs datasource for Grafana
+
 
 
 The VictoriaLogs datasource plugin allows you to query and visualize
@@ -310,4 +311,4 @@ For more information on the fields in `plugin.json`, please refer to the [Grafan
 ## License
 
 This project is licensed under
-the [AGPL-3.0-only](https://github.com/VictoriaMetrics/victorialogs-datasource/blob/main/LICENSE).
+the [Apache 2.0 license](https://github.com/VictoriaMetrics/victorialogs-datasource/blob/main/LICENSE).

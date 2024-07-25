@@ -9,9 +9,6 @@ menu:
 aliases:
 - /managed-victoriametrics/overview.html
 ---
-
-# Overview of Managed VictoriaMetrics 
-
 VictoriaMetrics is a fast and easy-to-use monitoring solution and time series database. 
 It integrates well with existing monitoring systems such as Grafana, Prometheus, Graphite, 
 InfluxDB, OpenTSDB and DataDog - see [these docs](https://docs.victoriametrics.com/#how-to-import-time-series-data) for details. 

@@ -9,9 +9,6 @@ menu:
 aliases:
 - /scrape_config_examples.html
 ---
-
-# Scrape config examples
-
 - [Static configs](#static-configs)
 - [File-based target discovery](#file-based-target-discovery)
 - [HTTP-based target discovery](#http-based-target-discovery)

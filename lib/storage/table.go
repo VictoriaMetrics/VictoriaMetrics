@@ -267,7 +267,12 @@ func (tb *table) MustAddRows(rows []rawRow) {
 	if len(rows) == 0 {
 		return
 	}
-
+	// Get the maximum and minimum timestamps in the rows
+	maxTsInRows, minTsInRows := rows[0].Timestamp, rows[0].Timestamp
+	for i := range rows {
+		maxTsInRows = max(maxTsInRows, rows[i].Timestamp)
+		minTsInRows = min(minTsInRows, rows[i].Timestamp)
+	}
 	// Verify whether all the rows may be added to a single partition.
 	ptwsX := getPartitionWrappers()
 	defer putPartitionWrappers(ptwsX)
@@ -275,14 +280,7 @@ func (tb *table) MustAddRows(rows []rawRow) {
 	ptwsX.a = tb.GetPartitions(ptwsX.a[:0])
 	ptws := ptwsX.a
 	for i, ptw := range ptws {
-		singlePt := true
-		for j := range rows {
-			if !ptw.pt.HasTimestamp(rows[j].Timestamp) {
-				singlePt = false
-				break
-			}
-		}
-		if !singlePt {
+		if !ptw.pt.TimeRangeInPartition(minTsInRows, maxTsInRows) {
 			continue
 		}
 

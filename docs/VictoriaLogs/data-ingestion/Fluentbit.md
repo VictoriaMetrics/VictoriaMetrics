@@ -17,7 +17,7 @@ aliases:
 Specify [http output](https://docs.fluentbit.io/manual/pipeline/outputs/http) section in the `fluentbit.conf`
 for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
 
-```conf
+```fluentbit
 [Output]
      Name http
      Match *
@@ -37,7 +37,7 @@ and uses the correct [stream fields](https://docs.victoriametrics.com/victorialo
 This can be done by specifying `debug` [parameter](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) in the `uri`
 and inspecting VictoriaLogs logs then:
 
-```conf
+```fluentbit
 [Output]
      Name http
      Match *
@@ -52,7 +52,7 @@ If some [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#
 during data ingestion, then they can be put into `ignore_fields` [parameter](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters).
 For example, the following config instructs VictoriaLogs to ignore `log.offset` and `event.original` fields in the ingested logs:
 
-```conf
+```fluentbit
 [Output]
      Name http
      Match *
@@ -66,7 +66,7 @@ For example, the following config instructs VictoriaLogs to ignore `log.offset` 
 If the Fluentbit sends logs to VictoriaLogs in another datacenter, then it may be useful enabling data compression via `compress gzip` option.
 This usually allows saving network bandwidth and costs by up to 5 times:
 
-```conf
+```fluentbit
 [Output]
      Name http
      Match *
@@ -82,7 +82,7 @@ By default, the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [te
 If you need storing logs in other tenant, then specify the needed tenant via `header` options.
 For example, the following `fluentbit.conf` config instructs Fluentbit to store the data to `(AccountID=12, ProjectID=34)` tenant:
 
-```conf
+```fluentbit
 [Output]
      Name http
      Match *

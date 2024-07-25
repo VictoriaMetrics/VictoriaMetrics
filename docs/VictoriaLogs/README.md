@@ -1,12 +1,3 @@
----
-title: VictoriaLogs
-weight: 0
-aliases:
-- /VictoriaLogs/
-- /VictoriaLogs/index.html 
----
-# VictoriaLogs
-
 VictoriaLogs is [open source](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/victoria-logs) user-friendly database for logs
 from [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/).
 

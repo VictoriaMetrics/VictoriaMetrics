@@ -1,11 +1,3 @@
----
-sort: 0
-weight: 0
-title: VictoriaMetrics Operator
----
-
-# VictoriaMetrics Operator
-
 Operator serves to make running VictoriaMetrics applications on top of Kubernetes as easy as possible while preserving Kubernetes-native configuration options.
 
 VictoriaMetrics Operator (`vmoperator`) is the classic kubernetes-operator for VictoriaMetrics with many [great features](#features).

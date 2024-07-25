@@ -10,9 +10,6 @@ menu:
 aliases:
   - /url-examples.html
 ---
-
-# VictoriaMetrics API examples
-
 ### /api/v1/admin/tsdb/delete_series
 
 **Deletes time series from VictoriaMetrics**
@@ -75,8 +72,8 @@ The expected output should return [HTTP Status 204](https://datatracker.ietf.org
 
 Additional information:
 
-* [How to delete time series](https://docs.victoriametrics.com/#how-to-delete-time-series)
-* [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)
+* [How to delete time series](./#how-to-delete-time-series)
+* [URL format for VictoriaMetrics cluster](./Cluster-VictoriaMetrics.md#url-format)
 
 ### /api/v1/export
 
@@ -98,10 +95,10 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/export -d 'match[]=vm_htt
 
 Additional information:
 
-* [How to export time series](https://docs.victoriametrics.com/#how-to-export-time-series)
-* [How to import time series](https://docs.victoriametrics.com/#how-to-import-time-series-data)
-* [How to export data in JSON line format](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format)
-* [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)
+* [How to export time series](./#how-to-export-time-series)
+* [How to import time series](./#how-to-import-time-series-data)
+* [How to export data in JSON line format](./#how-to-export-data-in-json-line-format)
+* [URL format for VictoriaMetrics cluster](./Cluster-VictoriaMetrics.md#url-format)
 
 ### /api/v1/export/csv
 
@@ -123,9 +120,9 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/export/csv -d 'format=__n
 
 Additional information:
 
-* [How to export time series](https://docs.victoriametrics.com/#how-to-export-time-series)
-* [How to import time series](https://docs.victoriametrics.com/#how-to-import-time-series-data)
-* [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)
+* [How to export time series](./#how-to-export-time-series)
+* [How to import time series](./#how-to-import-time-series-data)
+* [URL format for VictoriaMetrics cluster](./Cluster-VictoriaMetrics.md#url-format)
 
 ### /api/v1/export/native
 
@@ -147,9 +144,9 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/export/native -d 'match[]
 
 More information:
 
-* [How to export time series](https://docs.victoriametrics.com/#how-to-export-time-series)
-* [How to import time series](https://docs.victoriametrics.com/#how-to-import-time-series-data)
-* [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)
+* [How to export time series](./#how-to-export-time-series)
+* [How to import time series](./#how-to-import-time-series-data)
+* [URL format for VictoriaMetrics cluster](./Cluster-VictoriaMetrics.md#url-format)
 
 ### /api/v1/import
 
@@ -171,9 +168,9 @@ curl -H 'Content-Type: application/json' --data-binary "@filename.json" -X POST 
 
 More information:
 
-* [How to import time series](https://docs.victoriametrics.com/#how-to-import-time-series-data)
-* [How to export time series](https://docs.victoriametrics.com/#how-to-export-time-series)
-* [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)
+* [How to import time series](./#how-to-import-time-series-data)
+* [How to export time series](./#how-to-export-time-series)
+* [URL format for VictoriaMetrics cluster](./Cluster-VictoriaMetrics.md#url-format)
 
 ### /api/v1/import/csv
 
@@ -195,9 +192,9 @@ curl -d "GOOG,1.23,4.56,NYSE" 'http://<vminsert>:8480/insert/0/prometheus/api/v1
 
 Additional information:
 
-* [How to import time series](https://docs.victoriametrics.com/#how-to-import-time-series-data)
-* [How to export time series](https://docs.victoriametrics.com/#how-to-export-time-series)
-* [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)
+* [How to import time series](./#how-to-import-time-series-data)
+* [How to export time series](./#how-to-export-time-series)
+* [URL format for VictoriaMetrics cluster](./Cluster-VictoriaMetrics.md#url-format)
 
 ### /api/v1/import/native
 
@@ -217,9 +214,9 @@ curl -X POST http://<vminsert>:8480/insert/0/prometheus/api/v1/import/native -T 
 
 Additional information:
 
-* [How to import time series](https://docs.victoriametrics.com/#how-to-import-time-series-data)
-* [How to export time series](https://docs.victoriametrics.com/#how-to-export-time-series)
-* [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)
+* [How to import time series](./#how-to-import-time-series-data)
+* [How to export time series](./#how-to-export-time-series)
+* [URL format for VictoriaMetrics cluster](./Cluster-VictoriaMetrics.md#url-format)
 
 ### /api/v1/import/prometheus
 
@@ -240,9 +237,9 @@ curl -d 'metric_name{foo="bar"} 123' -X POST http://<vminsert>:8480/insert/0/pro
 
 Additional information:
 
-* [How to import time series](https://docs.victoriametrics.com/#how-to-import-time-series-data)
-* [How to export time series](https://docs.victoriametrics.com/#how-to-export-time-series)
-* [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)
+* [How to import time series](./#how-to-import-time-series-data)
+* [How to export time series](./#how-to-export-time-series)
+* [URL format for VictoriaMetrics cluster](./Cluster-VictoriaMetrics.md#url-format)
 
 ### /api/v1/labels
 
@@ -262,13 +259,13 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/labels
 ```
 
 By default, VictoriaMetrics returns labels seen during the last day starting at 00:00 UTC because of performance reasons.
-An arbitrary time range can be set via [`start` and `end` query args](https://docs.victoriametrics.com/#timestamp-formats).
+An arbitrary time range can be set via [`start` and `end` query args](./#timestamp-formats).
 The specified `start..end` time range is rounded to UTC day granularity because of performance reasons.
 
 Additional information:
 * [Getting label names](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names)
-* [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
-* [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)
+* [Prometheus querying API usage](./#prometheus-querying-api-usage)
+* [URL format for VictoriaMetrics cluster](./Cluster-VictoriaMetrics.md#url-format)
 
 ### /api/v1/label/.../values
 
@@ -292,8 +289,8 @@ The specified `start..end` time range is rounded to UTC day granularity because 
 
 Additional information:
 * [Querying label values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
-* [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
-* [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)
+* [Prometheus querying API usage](./#prometheus-querying-api-usage)
+* [URL format for VictoriaMetrics cluster](./Cluster-VictoriaMetrics.md#url-format)
 
 ### /api/v1/query
 
@@ -314,10 +311,10 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/query -d 'query=vm_http_r
 
 
 Additional information:
-* [Instant queries](https://docs.victoriametrics.com/keyconcepts/#instant-query)
-* [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
-* [Query language](https://docs.victoriametrics.com/keyconcepts/#metricsql)
-* [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)
+* [Instant queries](./keyConcepts.md#instant-query)
+* [Prometheus querying API usage](./#prometheus-querying-api-usage)
+* [Query language](./keyConcepts.md#metricsql)
+* [URL format for VictoriaMetrics cluster](./Cluster-VictoriaMetrics.md#url-format)
 
 ### /api/v1/query_range
 
@@ -338,10 +335,10 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/query_range -d 'query=sum
 
 
 Additional information:
-* [Range queries](https://docs.victoriametrics.com/keyconcepts/#range-query)
-* [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
-* [Query language](https://docs.victoriametrics.com/keyconcepts/#metricsql)
-* [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)
+* [Range queries](./keyConcepts.md#range-query)
+* [Prometheus querying API usage](./#prometheus-querying-api-usage)
+* [Query language](./keyConcepts.md#metricsql)
+* [URL format for VictoriaMetrics cluster](./Cluster-VictoriaMetrics.md#url-format)
 
 ### /api/v1/series
 
@@ -366,8 +363,8 @@ The specified `start..end` time range is rounded to UTC day granularity because 
 
 Additional information:
 * [Finding series by label matchers](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers)
-* [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
-* [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)
+* [Prometheus querying API usage](./#prometheus-querying-api-usage)
+* [URL format for VictoriaMetrics cluster](./Cluster-VictoriaMetrics.md#url-format)
 VictoriaMetrics accepts `limit` query arg for `/api/v1/series` handlers for limiting the number of returned entries. For example, the query to `/api/v1/series?limit=5` returns a sample of up to 5 series, while ignoring the rest. If the provided `limit` value exceeds the corresponding `-search.maxSeries` command-line flag values, then limits specified in the command-line flags are used.
 
 ### /api/v1/status/tsdb
@@ -390,8 +387,8 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/status/tsdb
 
 Additional information:
 * [TSDB Stats](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats)
-* [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
-* [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)
+* [Prometheus querying API usage](./#prometheus-querying-api-usage)
+* [URL format for VictoriaMetrics cluster](./Cluster-VictoriaMetrics.md#url-format)
 
 ### /datadog
 
@@ -467,8 +464,8 @@ echo '
 
 Additional information:
 
-* [How to send data from DataDog agent](https://docs.victoriametrics.com/#how-to-send-data-from-datadog-agent)
-* [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)
+* [How to send data from DataDog agent](./#how-to-send-data-from-datadog-agent)
+* [URL format for VictoriaMetrics cluster](./Cluster-VictoriaMetrics.md#url-format)
 
 
 ### /datadog/api/v2/series
@@ -535,8 +532,8 @@ echo '
 
 Additional information:
 
-* [How to send data from DataDog agent](https://docs.victoriametrics.com/#how-to-send-data-from-datadog-agent)
-* [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)
+* [How to send data from DataDog agent](./#how-to-send-data-from-datadog-agent)
+* [URL format for VictoriaMetrics cluster](./Cluster-VictoriaMetrics.md#url-format)
 
 ### /federate
 
@@ -558,9 +555,9 @@ curl http://<vmselect>:8481/select/0/prometheus/federate -d 'match[]=vm_http_req
 
 Additional information:
 
-* [Federation](https://docs.victoriametrics.com/#federation)
+* [Federation](./#federation)
 * [Prometheus-compatible federation data](https://prometheus.io/docs/prometheus/latest/federation/#configuring-federation)
-* [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)
+* [URL format for VictoriaMetrics cluster](./Cluster-VictoriaMetrics.md#url-format)
 
 ### /graphite/metrics/find
 
@@ -583,9 +580,9 @@ curl http://<vmselect>:8481/select/0/graphite/metrics/find -d 'query=vm_http_req
 Additional information:
 
 * [Metrics find API in Graphite](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find)
-* [Graphite API in VictoriaMetrics](https://docs.victoriametrics.com/#graphite-api-usage)
-* [How to send Graphite data to VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
-* [URL Format](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)
+* [Graphite API in VictoriaMetrics](./#graphite-api-usage)
+* [How to send Graphite data to VictoriaMetrics](./Single-Server-VictoriaMetrics.md#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
+* [URL Format](./Cluster-VictoriaMetrics.md#url-format)
 
 ### /influx/write
 
@@ -607,12 +604,12 @@ curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST htt
 
 Additional information:
 
-* [How to send Influx data to VictoriaMetrics](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
-* [URL Format](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)
+* [How to send Influx data to VictoriaMetrics](./#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
+* [URL Format](./Cluster-VictoriaMetrics.md#url-format)
 
 ### /internal/resetRollupResultCache
 
-**Resets the response cache for previously served queries. It is recommended to invoke after [backfilling](https://docs.victoriametrics.com/#backfilling) procedure.**
+**Resets the response cache for previously served queries. It is recommended to invoke after [backfilling](./#backfilling) procedure.**
 
 Single-node VictoriaMetrics:
 
@@ -673,7 +670,7 @@ curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"m
 Additional information:
 
 * [OpenTSDB http put API](http://opentsdb.net/docs/build/html/api_http/put.html)
-* [How to send data OpenTSDB data to VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-opentsdb-compatible-agents)
+* [How to send data OpenTSDB data to VictoriaMetrics](./Single-Server-VictoriaMetrics.md#how-to-send-data-from-opentsdb-compatible-agents)
 
 #### How to send Graphite data to VictoriaMetrics
 
@@ -695,5 +692,5 @@ echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N http://<vminse
 
 Additional information:
 
-* [How to send Graphite data to VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
-* [Multitenancy in cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy)
+* [How to send Graphite data to VictoriaMetrics](./Single-Server-VictoriaMetrics.md#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
+* [Multitenancy in cluster version of VictoriaMetrics](./Cluster-VictoriaMetrics.md#multitenancy)

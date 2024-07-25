@@ -1,19 +1,3 @@
----
-sort: 4
-title: Querying
-weight: 4
-menu:
-  docs:
-    identifier: victorialogs-querying
-    parent: "victorialogs"
-    weight: 4
-aliases:
-  - /VictoriaLogs/querying/
-  - /VictoriaLogs/querying/index.html
----
-
-# Querying
-
 [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) can be queried with [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/)
 via the following ways:
 
@@ -222,14 +206,14 @@ The `<offset>` can contain values in [the format specified here](https://docs.vi
 For example, the following command returns per-day number of logs with `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word)
 over the last week in New York time zone (`-4h`):
 
-```logsql
+```sh
 curl http://localhost:9428/select/logsql/hits -d 'query=error' -d 'start=1w' -d 'step=1d' -d 'offset=-4h'
 ```
 
 Additionally, any number of `field=<field_name>` args can be passed to `/select/logsql/hits` for grouping hits buckets by the mentioned `<field_name>` fields.
 For example, the following query groups hits by `level` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) additionally to the provided `step`:
 
-```logsql
+```sh
 curl http://localhost:9428/select/logsql/hits -d 'query=*' -d 'start=3h' -d 'step=1h' -d 'field=level'
 ```
 
