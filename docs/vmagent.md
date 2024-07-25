@@ -54,10 +54,16 @@ additionally to [discovering Prometheus-compatible targets and scraping metrics 
 
 ## Quick Start
 
-Please download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) (
-`vmagent` is also available in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags)),
-unpack it and pass the following flags to the `vmagent` binary in order to start scraping Prometheus-compatible targets
-and sending the data to the Prometheus-compatible remote storage:
+If you use single-node VictoriaMetrics, then you can discover and scrape Prometheus-compatible targets directly from VictoriaMetrics
+without the need to use `vmagent` - see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
+
+`vmagent` can save network bandwidth usage costs under high load when [VictoriaMetrics remote write protocol is used](#victoriametrics-remote-write-protocol).
+
+See [troubleshooting docs](#troubleshooting) if you encounter common issues with `vmagent`.
+
+See [various use cases](#use-cases) for vmagent.
+
+For getting started you will only need the following command line options 
 
 * `-promscrape.config` with the path to [Prometheus config file](https://docs.victoriametrics.com/sd_configs/) (usually located at `/etc/prometheus/prometheus.yml`).
   The path can point either to local file or to http url. See [scrape config examples](https://docs.victoriametrics.com/scrape_config_examples/).
@@ -66,6 +72,102 @@ and sending the data to the Prometheus-compatible remote storage:
   In this case `vmagent` ignores unsupported sections. See [the list of unsupported sections](#unsupported-prometheus-config-sections).
 * `-remoteWrite.url` with Prometheus-compatible remote storage endpoint such as VictoriaMetrics, where to send the data to.
   The `-remoteWrite.url` may refer to [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) address. See [these docs](#srv-urls) for details.
+
+Pass `-help` to `vmagent` in order to see [the full list of supported command-line flags with their descriptions](#advanced-usage).
+
+### Linux Service
+
+1. Download the `vmutils` binary for your platform from [GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
+
+2. Extract vmutils to /usr/local/bin by running 
+
+```sh
+sudo tar -xvf <vmutils-archive> -C /usr/local/bin
+```
+
+Replace `<vmutils-archive>` with the archive you downloaded in step 1.
+
+3. create a VictoriaMetrics user
+
+```sh
+sudo useradd -s /usr/sbin/nologin victoriametrics
+```
+
+4. Create a folder for storing vmagent data
+
+```sh
+mkdir -p /var/lib/victoria-metrics/vmagent/remotewrite-data && chown -R victoriametrics:victoriametrics /var/lib/victoria-metrics/vmagent
+```
+
+5. Create a Linux Service by running the following command
+
+
+
+```sh
+cat <<END >/etc/systemd/system/vmagent.service
+[Unit]
+Description=VictoriaMetrics vmagent service
+After=network.target
+
+[Service]
+Type=simple
+User=victoriametrics
+Group=victoriametrics
+Restart=always
+ExecStart=/usr/local/bin/vmagent-prod -remoteWrite.tmpDataPath=/var/lib/victoria-metrics/vmagent/remotewrite-data -promscrape.config=/var/lib/victoria-metrics/vmagent/scrape.yml -remoteWrite.url=http://127.0.0.1:8428/api/v1/write
+PrivateTmp=yes
+NoNewPrivileges=yes
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target
+END
+```
+Extra [command-line flags](https://docs.victoriametrics.com/vmagent/#advanced-usage) can be added to the `ExecStart` line and the [data ingestion docs](https://docs.victoriametrics.com/data-ingestion/vmagent/) have details for connecting to Victoriametrics with encryption and authentication.
+
+
+6. Create a scrape config
+
+```sh
+cat <<END >/var/lib/victoria-metrics/vmagent/scrape.yml
+scrape_configs:
+- job_name: vmagent_quickstart
+  scrape_interval: 30s
+  scrape_timeout: 20s
+  static_configs:
+    - targets:
+        - 'http://localhost:8429'
+END
+```
+
+7. Start and enable the service 
+
+
+```sh
+sudo systemctl daemon-reload && sudo systemctl enable --now vmagent.service
+```
+
+
+8. Check that service is running
+
+```sh
+sudo systemctl status vmagent
+```
+
+9. After `vmagent` is in a running state verify that is working by going to `http://<ip_or_hostname>:8429/health` and it should say OK
+
+
+10. Check for data in VMUI
+
+To make sure recording rules are being evaluated and sending data to VictoriaMetrics go to `http://victoriametrics_ip_or_hostname>:8428/vmui` type `{job=vmagent_quickstart"}` in the query box  and click `Execute Query`.
+If you see data the vmagent is successfully evaluating recording rules and sending the data to VictoriaMetrics
+
+### CLI
+Please download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) (
+`vmagent` is also available in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags)),
+unpack it and pass the following flags to the `vmagent` binary in order to start scraping Prometheus-compatible targets
+and sending the data to the Prometheus-compatible remote storage:
+
 
 Example command for writing the data received via [supported push-based protocols](#how-to-push-data-to-vmagent)
 to [single-node VictoriaMetrics](https://docs.victoriametrics.com/) located at `victoria-metrics-host:8428`:
@@ -83,18 +185,41 @@ Example command for scraping Prometheus targets and writing the data to single-n
 /path/to/vmagent -promscrape.config=/path/to/prometheus.yml -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
 ```
 
+
+### Docker
+
+The container image for vmagent can be found on [docker hub](https://hub.docker.com/r/victoriametrics/vmagent/tags) and will also work with other OCI compatible runtimes like podman.
+
+To scrape data we need to create config file with that defines our scrape job.
+You can use an existing Promethues scrape config or you  add this sample one to `./vmgaent/scrape.yml`
+
+```sh
+cat<<END > ./vmagent/scrape.yml
+scrape_configs:
+- job_name: vmagent_quickstart
+  scrape_interval: 30s
+  scrape_timeout: 20s
+  static_configs:
+    - targets:
+        - 'http://localhost:8429'
+END
+```
+
+Now we can run the container
+
+```sh
+docker run -p 8429:8429 -v ./vmagent:/vmagent docker.io/victoriametrics/vmagent -remoteWrite.tmpDataPath=/vmagent -promscrape.config=/vmagent/scrape.yml -remoteWrite.url=http://victoria-metrics-host:8428/api/v1/write
+```
+
+If you don't see errors in the command line after 30 seconds check VMUI to confirm data is flowing from `vmagent` to victoriametrics by going to `http://victoria-metrics-host:8428/vmui`.
+Then type `{job="vmagent_quickstart"}` and press the `execute query` button and if everything is working you see some metrics.
+
+
+
 See [how to scrape Prometheus-compatible targets](#how-to-collect-metrics-in-prometheus-format) for more details.
 
-If you use single-node VictoriaMetrics, then you can discover and scrape Prometheus-compatible targets directly from VictoriaMetrics
-without the need to use `vmagent` - see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 
-`vmagent` can save network bandwidth usage costs under high load when [VictoriaMetrics remote write protocol is used](#victoriametrics-remote-write-protocol).
 
-See [troubleshooting docs](#troubleshooting) if you encounter common issues with `vmagent`.
-
-See [various use cases](#use-cases) for vmagent.
-
-Pass `-help` to `vmagent` in order to see [the full list of supported command-line flags with their descriptions](#advanced-usage).
 
 ## How to push data to vmagent
 
@@ -112,6 +237,8 @@ additionally to pull-based Prometheus-compatible targets' scraping:
 * Native data import protocol via `http://<vmagent>:8429/api/v1/import/native`. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-data-in-native-format).
 * Prometheus exposition format via `http://<vmagent>:8429/api/v1/import/prometheus`. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format) for details.
 * Arbitrary CSV data via `http://<vmagent>:8429/api/v1/import/csv`. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-csv-data).
+
+We also provide instructions for specific tools and platforms in our [data-ingestion documentation](https://docs.victoriametrics.com/data-ingestion)
 
 ## Configuration update
 
