@@ -159,7 +159,7 @@ sudo systemctl status vmagent
 
 10. Check for data in VMUI
 
-To make sure recording rules are being evaluated and sending data to VictoriaMetrics go to `http://victoriametrics_ip_or_hostname>:8428/vmui` type `{job=vmagent_quickstart"}` in the query box  and click `Execute Query`.
+To make sure scrape jobs are working and sending data to VictoriaMetrics go to `http://<victoriametrics_ip_or_hostname>:8428/vmui` type `{job=vmagent_quickstart"}` in the query box  and click `Execute Query`.
 If you see data the vmagent is successfully evaluating recording rules and sending the data to VictoriaMetrics
 
 ### CLI
