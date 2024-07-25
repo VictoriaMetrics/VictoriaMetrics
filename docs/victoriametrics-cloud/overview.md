@@ -4,11 +4,13 @@ weight: 1
 title: Overview of VictoriaMetrics Cloud 
 menu:
   docs:
-    parent: "managed"
+    parent: "cloud"
     weight: 1
 aliases:
-- /victoriametrics-cloud/overview.html
-- /managed-victoriametrics/overview.html
+  - /victoriametrics-cloud/overview.html
+  - /victoriametrics-cloud/overview/
+  - /managed-victoriametrics/overview.html
+  - /managed-victoriametrics/overview/
 ---
 VictoriaMetrics is a fast and easy-to-use monitoring solution and time series database. 
 It integrates well with existing monitoring systems such as Grafana, Prometheus, Graphite, 

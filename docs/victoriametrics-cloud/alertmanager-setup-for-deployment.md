@@ -4,11 +4,13 @@ weight: 4
 title: Alertmanager and VMAlert configuration for VictoriaMetrics Cloud deployment
 menu:
   docs:
-    parent: "managed"
+    parent: "cloud"
     weight: 4
 aliases:
   - /victoriametrics-cloud/alertmanager-setup-for-deployment.html
+  - /victoriametrics-cloud/alertmanager-setup-for-deployment/
   - /managed-victoriametrics/alertmanager-setup-for-deployment.html
+  - /managed-victoriametrics/alertmanager-setup-for-deployment/
 ---
 VictoriaMetrics Cloud supports configuring alerting rules, powered by vmalert, and sending notifications with hosted Alertmanager.
 
