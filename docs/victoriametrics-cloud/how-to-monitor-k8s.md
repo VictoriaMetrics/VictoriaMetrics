@@ -25,7 +25,7 @@ This chart will install `VMOperator`, `VMAgent`, `NodeExporter`, `kube-state-met
 
 ## Prerequisites
 
-- Active VictoriaMetrics Cloud instance. You can learn how to sign up for VictoriaMetrics Cloud [here](./quickstart.md#how-to-register).
+- Active VictoriaMetrics Cloud deployment. You can learn how to sign up for VictoriaMetrics Cloud [here](./quickstart.md#how-to-register).
 - Access to your kubernetes cluster
 - Helm binary. You can find installation [here](https://helm.sh/docs/intro/install/)
 

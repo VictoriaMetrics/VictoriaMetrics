@@ -9,6 +9,6 @@
 * [User Management](./user-managment.md)
 
 Learn more about VictoriaMetrics Cloud:
-* [VictoriaMetrics Cloud announcement](https://victoriametrics.com/blog/victoriametrics-cloud-announcement)
+* [VictoriaMetrics Cloud announcement](https://victoriametrics.com/blog/introduction-to-managed-monitoring/)
 * [Pricing comparison for Managed Prometheus](https://victoriametrics.com/blog/managed-prometheus-pricing/)
 * [Monitoring Proxmox VE via VictoriaMetrics Cloud and vmagent](https://victoriametrics.com/blog/proxmox-monitoring-with-dbaas/)
