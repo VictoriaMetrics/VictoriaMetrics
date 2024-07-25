@@ -8,6 +8,7 @@ menu:
     weight: 3
 aliases:
 - /victoriametrics-cloud/how-to-monitor-k8s.html
+- /managed-victoriametrics/how-to-monitor-k8s.html
 ---
 Monitoring kubernetes cluster is necessary to build SLO/SLI, to analyze performance and cost-efficiency of your workloads. 
 

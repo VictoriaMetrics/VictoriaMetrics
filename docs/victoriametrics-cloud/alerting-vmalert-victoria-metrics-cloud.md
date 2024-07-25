@@ -8,6 +8,7 @@ menu:
     weight: 5
 aliases:
 - /victoriametrics-cloud/alerting-vmalert-victoria-metrics-cloud.html
+- /managed-victoriametrics/alerting-vmalert-victoria-metrics-cloud.html
 ---
 
 This guide explains the different ways in which you can use vmalert in conjunction with VictoriaMetrics Cloud

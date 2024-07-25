@@ -8,6 +8,7 @@ menu:
     weight: 4
 aliases:
   - /victoriametrics-cloud/alertmanager-setup-for-deployment.html
+  - /managed-victoriametrics/alertmanager-setup-for-deployment.html
 ---
 VictoriaMetrics Cloud supports configuring alerting rules, powered by vmalert, and sending notifications with hosted Alertmanager.
 

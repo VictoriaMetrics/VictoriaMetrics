@@ -8,6 +8,7 @@ menu:
     weight: 7
 aliases:
 - /victoriametrics-cloud/setup-notifications.html
+- /managed-victoriametrics/setup-notifications.html
 ---
 The guide covers how to enable email and Slack notifications.
 

@@ -8,6 +8,7 @@ menu:
     weight: 2
 aliases:
 - /victoriametrics-cloud/quickstart.html
+- /managed-victoriametrics/quickstart.html
 ---
 VictoriaMetrics Cloud is a hosted monitoring platform, where users can run the VictoriaMetrics 
 that they know and love on AWS without the need to perform typical DevOps tasks such as proper configuration, 

@@ -8,6 +8,7 @@ menu:
     weight: 6
 aliases:
 - /victoriametrics-cloud/user-management.html
+- /managed-victoriametrics/user-management.html
 ---
 The user management system enables admins to control user access and onboard and offboard users to the VictoriaMetrics Cloud. It organizes users according to their needs and role.
 
