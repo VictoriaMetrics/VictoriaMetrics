@@ -20,6 +20,8 @@ type datasourceType string
 const (
 	datasourcePrometheus datasourceType = "prometheus"
 	datasourceGraphite   datasourceType = "graphite"
+
+	retries = 2
 )
 
 func toDatasourceType(s string) datasourceType {
@@ -135,36 +137,41 @@ func NewVMStorage(baseURL string, authCfg *promauth.Config, queryStep time.Durat
 
 // Query executes the given query and returns parsed response
 func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) (Result, *http.Request, error) {
-	req, err := s.newQueryRequest(ctx, query, ts)
-	if err != nil {
-		return Result{}, nil, err
-	}
-	resp, err := s.do(req)
-	if err != nil {
-		if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) && !netutil.IsTrivialNetworkError(err) {
-			// Return unexpected error to the caller.
+	var e error
+	for retry := 1; retry < retries; retry++ {
+		req, err := s.newQueryRequest(ctx, query, ts)
+		if err != nil {
 			return Result{}, nil, err
 		}
-		// Something in the middle between client and datasource might be closing
-		// the connection. So we do a one more attempt in hope request will succeed.
-		req, err = s.newQueryRequest(ctx, query, ts)
+		resp, err := s.do(req)
 		if err != nil {
-			return Result{}, nil, fmt.Errorf("second attempt: %w", err)
+			// Something in the middle between client and datasource might be closing
+			// the connection. So we do a one more attempt in hope request will succeed.
+			if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) && !netutil.IsTrivialNetworkError(err) {
+				// Return unexpected error to the caller.
+				return Result{}, nil, err
+			}
+			e = err
+			continue
 		}
-		resp, err = s.do(req)
+		// Process the received response.
+		parseFn := parsePrometheusResponse
+		if s.dataSourceType != datasourcePrometheus {
+			parseFn = parseGraphiteResponse
+		}
+		result, err := parseFn(req, resp)
+		_ = resp.Body.Close()
 		if err != nil {
-			return Result{}, nil, fmt.Errorf("second attempt: %w", err)
+			// Covering possible empty response
+			if !errors.Is(err, io.EOF) {
+				return Result{}, nil, err
+			}
+			e = err
+			continue
 		}
+		return result, req, err
 	}
-
-	// Process the received response.
-	parseFn := parsePrometheusResponse
-	if s.dataSourceType != datasourcePrometheus {
-		parseFn = parseGraphiteResponse
-	}
-	result, err := parseFn(req, resp)
-	_ = resp.Body.Close()
-	return result, req, err
+	return Result{}, nil, fmt.Errorf("failed after %d retries: %w", retries, e)
 }
 
 // QueryRange executes the given query on the given time range.
@@ -180,32 +187,38 @@ func (s *VMStorage) QueryRange(ctx context.Context, query string, start, end tim
 	if end.IsZero() {
 		return res, fmt.Errorf("end param is missing")
 	}
-	req, err := s.newQueryRangeRequest(ctx, query, start, end)
-	if err != nil {
-		return res, err
-	}
-	resp, err := s.do(req)
-	if err != nil {
-		if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) && !netutil.IsTrivialNetworkError(err) {
-			// Return unexpected error to the caller.
+	var e error
+	for retry := 1; retry < retries; retry++ {
+		req, err := s.newQueryRangeRequest(ctx, query, start, end)
+		if err != nil {
 			return res, err
 		}
-		// Something in the middle between client and datasource might be closing
-		// the connection. So we do a one more attempt in hope request will succeed.
-		req, err = s.newQueryRangeRequest(ctx, query, start, end)
+		resp, err := s.do(req)
 		if err != nil {
-			return res, fmt.Errorf("second attempt: %w", err)
+			// Something in the middle between client and datasource might be closing
+			// the connection. So we do a one more attempt in hope request will succeed.
+			if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) && !netutil.IsTrivialNetworkError(err) {
+				// Return unexpected error to the caller.
+				return res, err
+			}
+			e = err
+			continue
 		}
-		resp, err = s.do(req)
-		if err != nil {
-			return res, fmt.Errorf("second attempt: %w", err)
-		}
-	}
 
-	// Process the received response.
-	res, err = parsePrometheusResponse(req, resp)
-	_ = resp.Body.Close()
-	return res, err
+		// Process the received response.
+		res, err = parsePrometheusResponse(req, resp)
+		_ = resp.Body.Close()
+		if err != nil {
+			// Covering possible empty response
+			if !errors.Is(err, io.EOF) {
+				return Result{}, err
+			}
+			e = err
+			continue
+		}
+		return res, err
+	}
+	return Result{}, fmt.Errorf("failed after %d retries: %w", retries, e)
 }
 
 func (s *VMStorage) do(req *http.Request) (*http.Response, error) {
