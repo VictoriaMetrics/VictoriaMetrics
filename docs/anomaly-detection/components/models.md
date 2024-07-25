@@ -200,7 +200,6 @@ Visualizations below demonstrate this concept; the green zone defined as the `[y
 
 
 ![min_dev_from_expected-big](schema_min_dev_from_expected=5.0.webp)
-{width="800px}
 
 Example config of how to use this param based on query results:
 
