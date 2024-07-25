@@ -2641,7 +2641,9 @@ Report bugs and propose new features [here](https://github.com/VictoriaMetrics/V
 VictoriaMetrics documentation is available at [https://docs.victoriametrics.com/](https://docs.victoriametrics.com/).
 It is built from `*.md` files located in [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs) folder
 and gets automatically updated once changes are merged to [master](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master) branch.
+
 To update the documentation follow the steps below:
+
 - [Fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/about-forks) 
   VictoriaMetrics repo and apply changes to the docs:
   - To update [the main page](https://docs.victoriametrics.com/) modify [this file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md).
@@ -2653,10 +2655,13 @@ To update the documentation follow the steps below:
   make docs-sync
   ```
 
+- Verify the changes locally by running `make docs-debug`. This command starts locally available docs server at `http://localhost:1313`.
+  Press `Ctrl+C` in the console window were the `make docs-debug` command runs after verifying the changes in docs at `http://localhost:1313`.
+
 - Create [a pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request)
   with proposed changes and wait for it to be merged.
 
-Requirements for changes to docs:
+### Requirements for changes in docs
 
 - Keep backward compatibility of existing links. Avoid changing anchors or deleting pages as they could have been
   used or posted in other docs, GitHub issues, stackoverlow answers, etc.

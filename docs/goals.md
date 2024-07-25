@@ -9,15 +9,15 @@ menu:
 ---
 ## Goals
 
-1. The main goal - **to help users and [clients](./enterprise.md) resolving issues with VictoriaMetrics components,
+1. The main goal - **to help users and [clients](https://docs.victoriametrics.com/enterprise/) resolving issues with VictoriaMetrics components,
    so they could use these components in the most efficient way**.
 1. Fixing bugs in the essential functionality of VictoriaMetrics components. Small usability bugs are usually the most annoying,
    so they **must be fixed first**.
 1. Improving [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs) for VictoriaMetrics components,
    so users could find answers to their questions via Google or [Perplexity](https://www.perplexity.ai/) without the need
-   to ask these questions at our [support channels](./#community-and-contributions).
+   to ask these questions at our [support channels](https://docs.victoriametrics.com/#community-and-contributions).
 1. Simplifying usage of VictoriaMetrics components without breaking backwards compatibility, so users could regularly
-   upgrade to [the latest available release](./CHANGELOG.md) and remain happy.
+   upgrade to [the latest available release](https://docs.victoriametrics.com/CHANGELOG.html) and remain happy.
 1. Improving usability for the existing functionality of VictoriaMetrics components.
 1. Improving the readability and maintainability of the code base by removing unnecessary abstractions and simplifying the code whenever possible.
 1. Improving development velocity by optimizing and simplifying CI/CD tasks, so they take less time to execute and debug.
@@ -26,7 +26,7 @@ menu:
 
 1. Convincing people to use VictoriaMetrics components when there are better suited solutions exist for their tasks,
    since users will become angry at VictoriaMetrics after they discover better solutions.
-1. Breaking links to [VictoriaMetrics docs](./Single-server-VictoriaMetrics.md), since users will be unhappy seeing 404 page
+1. Breaking links to [VictoriaMetrics docs](https://docs.victoriametrics.com/), since users will be unhappy seeing 404 page
    or unexpected results after they click some old link somewhere on the Internet or in the internal knowledge base.
 1. Breaking backwards compatibility in new releases, since users will be unhappy when their working setup breaks after the upgrade.
 1. Adding non-trivial features, which require significant changes in the code and the architecture,
@@ -50,7 +50,7 @@ menu:
   with VictoriaMetrics components in the most efficient way. Nobody uses new shiny feature if it isn't documented properly.
 
 - **Happy users are more important than the momentary revenue.** Happy users spread the word about VictoriaMetrics,
-  so more people convert to VictoriaMetrics users. Happy users are eager to become happy [customers](./enterprise.md).
+  so more people convert to VictoriaMetrics users. Happy users are eager to become happy [customers](https://docs.victoriametrics.com/enterprise/).
   This increases long-term revenue.
 
 - **Simple solution is better than smart solution.** Simple solution is easier to setup, operate, debug and troubleshoot than the smart solution.

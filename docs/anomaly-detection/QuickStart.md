@@ -107,29 +107,29 @@ Here is an example of config file that will run [Facebook Prophet](https://faceb
 ```yaml
 schedulers:
   2h_1m:
-    # {{% ref "./components/scheduler.md#periodic-scheduler" %}}
+    # https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler
     class: 'periodic'
     infer_every: '1m'
     fit_every: '2h'
     fit_window: '2w'
 
 models:
-  # {{% ref "./components/models.md#prophet" %}}
+  # https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet
   prophet_model:
     class: "prophet"  # or "model.prophet.ProphetModel" until v1.13.0
     args:
       interval_width: 0.98
 
 reader:
-  # {{% ref "./components/reader.md#vm-reader" %}}
+  # https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader
   datasource_url: "http://victoriametrics:8428/" # [YOUR_DATASOURCE_URL]
   sampling_period: "1m"
   queries: 
-    # define your queries with MetricsQL - {{% ref "../../MetricsQL.md" %}}
+    # define your queries with MetricsQL - https://docs.victoriametrics.com/metricsql/
     cache: "sum(rate(vm_cache_entries))"
 
 writer:
-  # {{% ref "./components/writer.md#vm-writer" %}}
+  # https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer
   datasource_url:  "http://victoriametrics:8428/" # [YOUR_DATASOURCE_URL]
 ```
 

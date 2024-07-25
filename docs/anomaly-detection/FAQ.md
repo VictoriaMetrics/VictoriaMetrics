@@ -87,7 +87,7 @@ models:
     # ...
     schedulers: ['scheduler_alias']  # if omitted, all the defined schedulers will be attached
     queries: ['query_alias1']  # if omitted, all the defined queries will be attached
-    # {{% ref "./components/models.md#provide-series" %}}
+    # https://docs.victoriametrics.com/anomaly-detection/components/models/#provide-series
     provide_series: ['anomaly_score']  
   # ... other models
 
@@ -97,15 +97,15 @@ reader:
     query_alias1: 'some_metricsql_query'
   sampling_frequency: '1m'  # change to whatever you need in data granularity
   # other params if needed
-  # {{% ref "./components/reader.md#vm-reader" %}}
+  # https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader
 
 writer:
   datasource_url: 'some_url_to_write_produced_data_to'
   # other params if needed
-  # {{% ref "./components/writer.md#vm-writer" %}}
+  # https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer
 
 # optional monitoring section if needed
-# {{% ref "./components/monitoring.md" %}}
+# https://docs.victoriametrics.com/anomaly-detection/components/monitoring/
 ```
 
 Configuration above will produce N intervals of full length (`fit_window`=14d + `fit_every`=1h) until `to_iso` timestamp is reached to run N consecutive `fit` calls to train models; Then these models will be used to produce `M = [fit_every / sampling_frequency]` infer datapoints for `fit_every` range at the end of each such interval, imitating M consecutive calls of `infer_every` in `PeriodicScheduler` [config](./components/scheduler.md#periodic-scheduler). These datapoints then will be written back to VictoriaMetrics TSDB, defined in `writer` [section](./components/writer.md#vm-writer) for further visualization (i.e. in VMUI or Grafana)
