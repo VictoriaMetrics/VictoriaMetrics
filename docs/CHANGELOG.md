@@ -35,7 +35,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 * SECURITY: upgrade base docker image (Alpine) from 3.20.1 to 3.20.2. See [alpine 3.20.2 release notes](https://alpinelinux.org/posts/Alpine-3.20.2-released.html).
 
-* FEATURE: [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/) and [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): Refactor the code located in the `MustAddRows` function for better performance and readability.
+* FEATURE: [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/) and [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): Refactor the code located in the `MustAddRows` function of `vmstorage` to improve performance and readability.
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): add `keep_original_host` option, which can be used for proxying the original `Host` header from client request to the backend. By default the backend host is used as `Host` header when proxying requests to the configured backends. See [these docs](https://docs.victoriametrics.com/vmauth/#host-http-header).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/) now returns HTTP 502 status code when all upstream backends are not available. Previously, it returned HTTP 503 status code. This change aligns vmauth behavior with other well-known reverse-proxies behavior.
 
