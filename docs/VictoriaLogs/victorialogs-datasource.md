@@ -9,10 +9,6 @@ menu:
 aliases:
 - /victorialogs/victorialogs-datasource.html
 ---
-
-# VictoriaLogs datasource for Grafana
-
-
 The VictoriaLogs datasource plugin allows you to query and visualize
 [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) data in [Grafana](https://grafana.com).
 
@@ -94,7 +90,8 @@ docker-compose -f docker-compose.yaml up
 
 After Grafana starts successfully, datasource should be available in the datasources tab
 
-<img src="provision_datasources.png" width="800" alt="Configuration">
+![Configuration](provision_datasources.png)
+{width="800"}
 
 ### Install in Kubernetes
 

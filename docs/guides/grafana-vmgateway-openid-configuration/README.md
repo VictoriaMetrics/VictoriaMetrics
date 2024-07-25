@@ -1,15 +1,3 @@
----
-weight: 5
-title: How to configure vmgateway for multi-tenant access using Grafana and OpenID Connect
-menu:
-  docs:
-    parent: "guides"
-    weight: 5
-aliases:
-- /guides/grafana-vmgateway-openid-configuration.html
----
-# How to configure vmgateway for multi-tenant access using Grafana and OpenID Connect
-
 Using [Grafana](https://grafana.com/) with [vmgateway](https://docs.victoriametrics.com/vmgateway/) is a great way to provide [multi-tenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy) access to your metrics.
 vmgateway provides a way to authenticate users using [JWT tokens](https://en.wikipedia.org/wiki/JSON_Web_Token) issued by an external identity provider.
 Those tokens can include information about the user and the tenant they belong to, which can be used
@@ -48,21 +36,21 @@ See details about all supported options in the [vmgateway documentation](https:/
    Use `OpenID Connect` as `Client Type`.<br>
    Specify `grafana` as `Client ID`.<br>
    Click `Next`.<br>
-   <img src="grafana-vmgateway-openid-configuration/create-client-1.webp" >
+   ![Create client 1](create-client-1.webp)
 1. Enable `Client authentication`.<br>
    Enable `Authorization`.<br>
-   <img src="grafana-vmgateway-openid-configuration/create-client-2.webp" ><br>
+   ![Create client 2](create-client-2.webp)
    Click `Next`.<br>
 1. Add Grafana URL as `Root URL`. For example, `http://localhost:3000/`.<br>
-   <img src="grafana-vmgateway-openid-configuration/create-client-3.webp" ><br>
+   ![Create client 3](create-client-3.webp)
    Click `Save`.<br>
 1. Go to `Clients` -> `grafana` -> `Credentials`.<br>
-   <img src="grafana-vmgateway-openid-configuration/client-secret.webp" ><br>
+   ![Client secret](client-secret.webp)
    Copy the value of `Client secret`. It will be used later in Grafana configuration.<br>
 1. Go to `Clients` -> `grafana` -> `Client scopes`.<br>
    Click at `grafana-dedicated` -> `Add mapper` -> `By configuration` -> `User attribute`.<br>
-   <img src="grafana-vmgateway-openid-configuration/create-mapper-1.webp" ><br>
-   <img src="grafana-vmgateway-openid-configuration/create-mapper-2.webp" ><br>
+   ![Create mapper 1](create-mapper-1.webp)
+   ![Create mapper 2](create-mapper-2.webp)
    Configure the mapper as follows<br>
    - `Name` as `vm_access`.
    - `Token Claim Name` as `vm_access`.
@@ -70,7 +58,7 @@ See details about all supported options in the [vmgateway documentation](https:/
    - `Claim JSON Type` as `JSON`.
      Enable `Add to ID token` and `Add to access token`.<br>
    
-   <img src="grafana-vmgateway-openid-configuration/create-mapper-3.webp" ><br>
+   ![Create mapper 3](create-mapper-3.webp)
    Click `Save`.<br>
 1. Go to `Users` -> select user to configure claims -> `Attributes`.<br>
    Specify `vm_access` as `Key`.<br>
@@ -78,7 +66,7 @@ See details about all supported options in the [vmgateway documentation](https:/
    - for the first user we will specify `{"tenant_id" : {"account_id": 0, "project_id": 0 },"extra_labels":{ "team": "admin" }}` as `Value`.
    - for the second user we will specify `{"tenant_id" : {"account_id": 0, "project_id": 1 },"extra_labels":{ "team": "dev" }}` as `Value`.
    <br>
-   <img src="grafana-vmgateway-openid-configuration/user-attributes.webp" ><br>
+   ![User attributes](user-attributes.webp)
    Click `Save`.
 
 ## Configure grafana
@@ -199,7 +187,7 @@ URL should point to the vmgateway instance.
 
 In the "Type and version" section it is recommended to set the type to "Prometheus" and the version to at least "2.24.x":
 
-<img src="grafana-vmgateway-openid-configuration/grafana-datasource-prometheus.webp" alt="Grafana datasource" />
+![Prometheus datasource](grafana-datasource-prometheus.webp)
 
 This allows Grafana to use a more efficient API to get label values.
 
@@ -207,7 +195,7 @@ You can also use VictoriaMetrics [Grafana datasource](https://github.com/Victori
 See installation instructions [here](https://docs.victoriametrics.com/victoriametrics-datasource/#installation).
 
 Enable `Forward OAuth identity` flag.<br>
-<img src="grafana-vmgateway-openid-configuration/grafana-ds.webp" >
+![Oauth identity](grafana-ds.webp)
 
 Now you can use Grafana to query metrics from the specified tenant.
 Users with `vm_access` claim will be able to query metrics from the specified tenant.
@@ -330,22 +318,22 @@ vmagent will write data into VictoriaMetrics single-node and cluster(with tenant
 
 Grafana datasources configuration will be the following:
 
-<img src="grafana-vmgateway-openid-configuration/grafana-test-datasources.webp" >
+[Test datasources](grafana-vmgateway-openid-configuration/grafana-test-datasources.webp)
 
 Let's login as user with `team=dev` labels limitation set via claims.
 
 Using `vmgateway-cluster` results into `No data` response as proxied request will go to tenant `0:1`.
 Since vmagent is only configured to write to `0:0` `No data` is an expected response.
 
-<img src="grafana-vmgateway-openid-configuration/dev-cluster-nodata.webp" >
+[Dev cluster nodata](grafana-vmgateway-openid-configuration/dev-cluster-nodata.webp)
 
 Switching to `vmgateway-single` does have data. Note that it is limited to metrics with `team=dev` label.
 
-<img src="grafana-vmgateway-openid-configuration/dev-single-data.webp" >
+[Dev single data](grafana-vmgateway-openid-configuration/dev-single-data.webp)
 
 Now lets login as user with `team=admin`.
 
 Both cluster and single node datasources now return metrics for `team=admin`.
 
-<img src="grafana-vmgateway-openid-configuration/admin-cluster-data.webp" >
-<img src="grafana-vmgateway-openid-configuration/admin-single-data.webp" >
+[Admin cluster data](grafana-vmgateway-openid-configuration/admin-cluster-data.webp)
+[Admin single data](grafana-vmgateway-openid-configuration/admin-single-data.webp)
