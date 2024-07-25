@@ -9,13 +9,13 @@ menu:
 aliases:
 - /VictoriaLogs/LogsQL.html
 ---
-LogsQL is a simple yet powerful query language for [VictoriaLogs](./VictoriaLogs/README.md).
-See [examples](./VictoriaLogs/logsql-examples.md) and [tutorial](#logsql-tutorial)
+LogsQL is a simple yet powerful query language for [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/).
+See [examples](https://docs.victoriametrics.com/victorialogs/logsql-examples/) and [tutorial](#logsql-tutorial)
 in order to feel the language.
 
 LogsQL provides the following features:
 
-- Full-text search across [log fields](./VictoriaLogs/keyConcepts.md#data-model).
+- Full-text search across [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
   See [word filter](#word-filter), [phrase filter](#phrase-filter) and [prefix filter](#prefix-filter).
 - Ability to combine filters into arbitrary complex [logical filters](#logical-filter).
 - Ability to extract structured fields from unstructured logs at query time. See [these docs](#transformations).
@@ -23,21 +23,21 @@ LogsQL provides the following features:
 
 ## LogsQL tutorial
 
-If you aren't familiar with VictoriaLogs, then start with [key concepts docs](./VictoriaLogs/keyConcepts.md).
+If you aren't familiar with VictoriaLogs, then start with [key concepts docs](https://docs.victoriametrics.com/victorialogs/keyconcepts/).
 
 Then follow these docs:
-- [How to run VictoriaLogs](./VictoriaLogs/QuickStart.md).
-- [how to ingest data into VictoriaLogs](./VictoriaLogs/data-ingestion/README.md).
-- [How to query VictoriaLogs](./VictoriaLogs/querying/README.md
+- [How to run VictoriaLogs](https://docs.victoriametrics.com/victorialogs/quickstart/).
+- [how to ingest data into VictoriaLogs](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
 
-The simplest LogsQL query is just a [word](#word), which must be found in the [log message](./VictoriaLogs/keyConcepts.md#message-field).
+The simplest LogsQL query is just a [word](#word), which must be found in the [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
 For example, the following query finds all the logs with `error` word:
 
 ```logsql
 error
 ```
 
-See [how to send queries to VictoriaLogs](./VictoriaLogs/querying/README.md).
+See [how to send queries to VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
 
 If the queried [word](#word) clashes with LogsQL keywords, then just wrap it into quotes.
 For example, the following query finds all the log messages with `and` [word](#word):
@@ -59,7 +59,7 @@ finds log messages with the `error: cannot find file` phrase:
 "error: cannot find file"
 ```
 
-Queries above match logs with any [timestamp](./VictoriaLogs/keyConcepts.md#time-field),
+Queries above match logs with any [timestamp](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field),
 e.g. they may return logs from the previous year alongside recently ingested logs.
 
 Usually logs from the previous year aren't so interesting comparing to the recently ingested logs.
@@ -74,9 +74,9 @@ error AND _time:5m
 This query consists of two [filters](#filters) joined with `AND` [operator](#logical-filter):
 
 - The filter on the `error` [word](#word).
-- The filter on the [`_time` field](./VictoriaLogs/keyConcepts.md#time-field).
+- The filter on the [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
 
-The `AND` operator means that the [log entry](./VictoriaLogs/keyConcepts.md#data-model) must match both filters in order to be selected.
+The `AND` operator means that the [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) must match both filters in order to be selected.
 
 Typical LogsQL query consists of multiple [filters](#filters) joined with `AND` operator. It may be tiresome typing and then reading all these `AND` words.
 So LogsQL allows omitting `AND` words. For example, the following query is equivalent to the query above:
@@ -87,7 +87,7 @@ _time:5m error
 
 The query returns logs in arbitrary order because sorting of big amounts of logs may require non-trivial amounts of CPU and RAM.
 The number of logs with `error` word over the last 5 minutes isn't usually too big (e.g. less than a few millions), so it is OK to sort them with [`sort` pipe](#sort-pipe).
-The following query sorts the selected logs by [`_time`](./VictoriaLogs/keyConcepts.md#time-field) field:
+The following query sorts the selected logs by [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) field:
 
 ```logsql
 _time:5m error | sort by (_time)
@@ -100,10 +100,10 @@ with [`limit` pipe](#limit-pipe). The following query returns the last 10 logs w
 _time:5m error | sort by (_time) desc | limit 10
 ```
 
-By default VictoriaLogs returns all the [log fields](./VictoriaLogs/keyConcepts.md#data-model).
+By default VictoriaLogs returns all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 If you need only the given set of fields, then add [`fields` pipe](#fields-pipe) to the end of the query. For example, the following query returns only
-[`_time`](./VictoriaLogs/keyConcepts.md#time-field), [`_stream`](./VictoriaLogs/keyConcepts.md#stream-fields)
-and [`_msg`](./VictoriaLogs/keyConcepts.md#message-field) fields:
+[`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field), [`_stream`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+and [`_msg`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) fields:
 
 ```logsql
 error _time:5m | fields _time, _stream, _msg
@@ -117,8 +117,8 @@ _time:5m error NOT buggy_app
 ```
 
 This query uses `NOT` [operator](#logical-filter) for removing log lines from the buggy app. The `NOT` operator is used frequently, so it can be substituted with `!` char
-(the `!` char is used instead of `-` char as a shorthand for `NOT` operator because it nicely combines with [`=`](./VictoriaLogs/LogsQL.md#exact-filter)
-and [`~`](./VictoriaLogs/LogsQL.md#regexp-filter) filters like `!=` and `!~`).
+(the `!` char is used instead of `-` char as a shorthand for `NOT` operator because it nicely combines with [`=`](https://docs.victoriametrics.com/victorialogs/logsql/#exact-filter)
+and [`~`](https://docs.victoriametrics.com/victorialogs/logsql/#regexp-filter) filters like `!=` and `!~`).
 The following query is equivalent to the previous one:
 
 ```logsql
@@ -144,8 +144,8 @@ This query returns logs with `foobar` [word](#word), even if do not contain `err
 So it is recommended wrapping the needed query parts into explicit parentheses if you are unsure in priority rules.
 As an additional bonus, explicit parentheses make queries easier to read and maintain.
 
-Queries above assume that the `error` [word](#word) is stored in the [log message](./VictoriaLogs/keyConcepts.md#message-field).
-If this word is stored in other [field](./VictoriaLogs/keyConcepts.md#data-model) such as `log.level`, then add `log.level:` prefix
+Queries above assume that the `error` [word](#word) is stored in the [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+If this word is stored in other [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) such as `log.level`, then add `log.level:` prefix
 in front of the `error` word:
 
 ```logsql
@@ -172,8 +172,8 @@ _time:5m log.level:error !app:(buggy_app OR foobar)
 ```
 
 The `app` field uniquely identifies the application instance if a single instance runs per each unique `app`.
-In this case it is recommended associating the `app` field with [log stream fields](./VictoriaLogs/keyConcepts.md#stream-fields)
-during [data ingestion](./VictoriaLogs/data-ingestion/README.md). This usually improves both compression rate
+In this case it is recommended associating the `app` field with [log stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/). This usually improves both compression rate
 and query performance when querying the needed streams via [`_stream` filter](#stream-filter).
 If the `app` field is associated with the log stream, then the query above can be rewritten to more performant one:
 
@@ -181,8 +181,8 @@ If the `app` field is associated with the log stream, then the query above can b
 _time:5m log.level:error _stream:{app!~"buggy_app|foobar"}
 ```
 
-This query skips scanning for [log messages](./VictoriaLogs/keyConcepts.md#message-field) from `buggy_app` and `foobar` apps.
-It inpsects only `log.level` and [`_stream`](./VictoriaLogs/keyConcepts.md#stream-fields) labels.
+This query skips scanning for [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) from `buggy_app` and `foobar` apps.
+It inpsects only `log.level` and [`_stream`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) labels.
 This significantly reduces disk read IO and CPU time needed for performing the query.
 
 LogsQL also provides [functions for statistics calculation](#stats-pipe) over the selected logs. For example, the following query returns the number of logs
@@ -194,14 +194,14 @@ _time:5m error | stats count() logs_with_error
 
 Finally, it is recommended reading [performance tips](#performance-tips).
 
-Now you are familiar with LogsQL basics. See [LogsQL examples](./VictoriaLogs/logsql-examples.md) and [query syntax](#query-syntax)
+Now you are familiar with LogsQL basics. See [LogsQL examples](https://docs.victoriametrics.com/victorialogs/logsql-examples/) and [query syntax](#query-syntax)
 if you want to continue learning LogsQL.
 
 ### Key concepts
 
 #### Word
 
-LogsQL splits all the [log fields](./VictoriaLogs/keyConcepts.md#data-model) into words
+LogsQL splits all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into words
 delimited by non-word chars such as whitespace, parens, punctuation chars, etc. For example, the `foo: (bar,"тест")!` string
 is split into `foo`, `bar` and `тест` words. Words can contain arbitrary [utf-8](https://en.wikipedia.org/wiki/UTF-8) chars.
 These words are taken into account by full-text search filters such as
@@ -216,12 +216,12 @@ For example, the following query selects all the logs for the last 5 minutes by 
 _time:5m
 ```
 
-Tip: try [`*` filter](./VictoriaLogs/LogsQL.md#any-value-filter), which selects all the logs stored in VictoriaLogs.
-Do not worry - this doesn't crash VictoriaLogs, even if the query selects trillions of logs. See [these docs](./VictoriaLogs/querying/README.md#command-line)
+Tip: try [`*` filter](https://docs.victoriametrics.com/victorialogs/logsql/#any-value-filter), which selects all the logs stored in VictoriaLogs.
+Do not worry - this doesn't crash VictoriaLogs, even if the query selects trillions of logs. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line)
 if you are curious why.
 
 Additionally to filters, LogQL query may contain arbitrary mix of optional actions for processing the selected logs. These actions are delimited by `|` and are known as [`pipes`](#pipes).
-For example, the following query uses [`stats` pipe](#stats-pipe) for returning the number of [log messages](./VictoriaLogs/keyConcepts.md#message-field)
+For example, the following query uses [`stats` pipe](#stats-pipe) for returning the number of [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 with the `error` [word](#word) for the last 5 minutes:
 
 ```logsql
@@ -235,8 +235,8 @@ See [the list of supported pipes in LogsQL](#pipes).
 LogsQL supports various filters for searching for log messages (see below).
 They can be combined into arbitrary complex queries via [logical filters](#logical-filter).
 
-Filters are applied to [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field) by default.
-If the filter must be applied to other [log field](./VictoriaLogs/keyConcepts.md#data-model),
+Filters are applied to [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) by default.
+If the filter must be applied to other [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
 then its' name followed by the colon must be put in front of the filter. For example, if `error` [word filter](#word-filter) must be applied
 to the `log.level` field, then use `log.level:error` query.
 
@@ -251,38 +251,38 @@ If doubt, it is recommended quoting field names and filter args.
 
 The list of LogsQL filters:
 
-- [Time filter](#time-filter) - matches logs with [`_time` field](./VictoriaLogs/keyConcepts.md#time-field) in the given time range
-- [Day range filter](#day-range-filter) - matches logs with [`_time` field](./VictoriaLogs/keyConcepts.md#time-field) in the given per-day time range
-- [Week range filter](#week-range-filter) - matches logs with [`_time` field](./VictoriaLogs/keyConcepts.md#time-field) in the given per-week day range
-- [Stream filter](#stream-filter) - matches logs, which belong to the given [streams](./VictoriaLogs/keyConcepts.md#stream-fields)
+- [Time filter](#time-filter) - matches logs with [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) in the given time range
+- [Day range filter](#day-range-filter) - matches logs with [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) in the given per-day time range
+- [Week range filter](#week-range-filter) - matches logs with [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) in the given per-week day range
+- [Stream filter](#stream-filter) - matches logs, which belong to the given [streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
 - [Word filter](#word-filter) - matches logs with the given [word](#word)
 - [Phrase filter](#phrase-filter) - matches logs with the given phrase
 - [Prefix filter](#prefix-filter) - matches logs with the given word prefix or phrase prefix
 - [Substring filter](#substring-filter) - matches logs with the given substring
 - [Range comparison filter](#range-comparison-filter) - matches logs with field values in the provided range
-- [Empty value filter](#empty-value-filter) - matches logs without the given [log field](./VictoriaLogs/keyConcepts.md#data-model)
-- [Any value filter](#any-value-filter) - matches logs with the given non-empty [log field](./VictoriaLogs/keyConcepts.md#data-model)
+- [Empty value filter](#empty-value-filter) - matches logs without the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+- [Any value filter](#any-value-filter) - matches logs with the given non-empty [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 - [Exact filter](#exact-filter) - matches logs with the exact value
 - [Exact prefix filter](#exact-prefix-filter) - matches logs starting with the given prefix
 - [Multi-exact filter](#multi-exact-filter) - matches logs with one of the specified exact values
 - [Case-insensitive filter](#case-insensitive-filter) - matches logs with the given case-insensitive word, phrase or prefix
 - [Sequence filter](#sequence-filter) - matches logs with the given sequence of words or phrases
 - [Regexp filter](#regexp-filter) - matches logs for the given regexp
-- [Range filter](#range-filter) - matches logs with numeric [field values](./VictoriaLogs/keyConcepts.md#data-model) in the given range
-- [IPv4 range filter](#ipv4-range-filter) - matches logs with ip address [field values](./VictoriaLogs/keyConcepts.md#data-model) in the given range
-- [String range filter](#string-range-filter) - matches logs with [field values](./VictoriaLogs/keyConcepts.md#data-model) in the given string range
-- [Length range filter](#length-range-filter) - matches logs with [field values](./VictoriaLogs/keyConcepts.md#data-model) of the given length range
+- [Range filter](#range-filter) - matches logs with numeric [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) in the given range
+- [IPv4 range filter](#ipv4-range-filter) - matches logs with ip address [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) in the given range
+- [String range filter](#string-range-filter) - matches logs with [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) in the given string range
+- [Length range filter](#length-range-filter) - matches logs with [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) of the given length range
 - [Logical filter](#logical-filter) - allows combining other filters
 
 
 ### Time filter
 
-VictoriaLogs scans all the logs per each query if it doesn't contain the filter on [`_time` field](./VictoriaLogs/keyConcepts.md#time-field).
+VictoriaLogs scans all the logs per each query if it doesn't contain the filter on [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
 It uses various optimizations in order to accelerate full scan queries without the `_time` filter,
 but such queries can be slow if the storage contains large number of logs over long time range. The easiest way to optimize queries
-is to narrow down the search with the filter on [`_time` field](./VictoriaLogs/keyConcepts.md#time-field).
+is to narrow down the search with the filter on [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
 
-For example, the following query returns [log messages](./VictoriaLogs/keyConcepts.md#message-field)
+For example, the following query returns [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 ingested into VictoriaLogs during the last hour, which contain the `error` [word](#word):
 
 ```logsql
@@ -302,10 +302,10 @@ The following formats are supported for `_time` filter:
 - `_time:YYYY-MM-DDTHH:MM` - matches all the logs for the particular minute by UTC. For example, `_time:2023-04-25T22:45` matches logs on April 25, 2023 at 22:45 by UTC.
 - `_time:YYYY-MM-DDTHH:MM:SS` - matches all the logs for the particular second by UTC. For example, `_time:2023-04-25T22:45:59` matches logs on April 25, 2023 at 22:45:59 by UTC.
 - `_time:[min_time, max_time]` - matches logs on the time range `[min_time, max_time]`, including both `min_time` and `max_time`.
-    The `min_time` and `max_time` can contain any format specified [here](./README.md#timestamp-formats).
+    The `min_time` and `max_time` can contain any format specified [here](https://docs.victoriametrics.com/#timestamp-formats).
     For example, `_time:[2023-04-01, 2023-04-30]` matches logs for the whole April, 2023 by UTC, e.g. it is equivalent to `_time:2023-04`.
 - `_time:[min_time, max_time)` - matches logs on the time range `[min_time, max_time)`, not including `max_time`.
-    The `min_time` and `max_time` can contain any format specified [here](./README.md#timestamp-formats).
+    The `min_time` and `max_time` can contain any format specified [here](https://docs.victoriametrics.com/#timestamp-formats).
     For example, `_time:[2023-02-01, 2023-03-01)` matches logs for the whole February, 2023 by UTC, e.g. it is equivalent to `_time:2023-02`.
 
 It is possible to specify time zone offset for all the absolute time formats by appending `+hh:mm` or `-hh:mm` suffix.
@@ -425,11 +425,11 @@ See also:
 
 ### Stream filter
 
-VictoriaLogs provides an optimized way to select logs, which belong to particular [log streams](./VictoriaLogs/keyConcepts.md#stream-fields).
+VictoriaLogs provides an optimized way to select logs, which belong to particular [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 This can be done via `_stream:{...}` filter. The `{...}` may contain arbitrary
-[Prometheus-compatible label selector](./keyConcepts.md#filtering)
-over fields associated with [log streams](./VictoriaLogs/keyConcepts.md#stream-fields).
-For example, the following query selects [log entries](./VictoriaLogs/keyConcepts.md#data-model)
+[Prometheus-compatible label selector](https://docs.victoriametrics.com/keyconcepts/#filtering)
+over fields associated with [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
+For example, the following query selects [log entries](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 with `app` field equal to `nginx`:
 
 ```logsql
@@ -460,10 +460,10 @@ See also:
 
 ### _stream_id filter
 
-Every [log stream](./VictoriaLogs/keyConcepts.md#stream-fields) in VictoriaMetrics is uniquely identified by `_stream_id` field.
+Every [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) in VictoriaMetrics is uniquely identified by `_stream_id` field.
 The `_stream_id:...` filter allows quickly selecting all the logs belonging to the particular stream.
 
-For example, the following query selects all the logs, which belong to the [log stream](./VictoriaLogs/keyConcepts.md#stream-fields)
+For example, the following query selects all the logs, which belong to the [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
 with `_stream_id` equal to `0000007b000001c850d9950ea6196b1a4812081265faa1c7`:
 
 ```logsql
@@ -484,8 +484,8 @@ _stream_id:in(0000007b000001c850d9950ea6196b1a4812081265faa1c7, 1230007b456701c8
 ```
 
 It is also possible specifying subquery inside `in(...)`, which selects the needed `_stream_id` values. For example, the following query returns
-logs for [log streams](./VictoriaLogs/keyConcepts.md#stream-fields) containing `error` [word](#word)
-in the [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field) during the last 5 minutes:
+logs for [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) containing `error` [word](#word)
+in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) during the last 5 minutes:
 
 ```logsql
 _stream_id:in(_time:5m error | fields _stream_id)
@@ -499,13 +499,13 @@ See also:
 ### Word filter
 
 The simplest LogsQL query consists of a single [word](#word) to search in log messages. For example, the following query matches
-[log messages](./VictoriaLogs/keyConcepts.md#message-field) with `error` [word](#word) inside them:
+[log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with `error` [word](#word) inside them:
 
 ```logsql
 error
 ```
 
-This query matches the following [log messages](./VictoriaLogs/keyConcepts.md#message-field):
+This query matches the following [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 
 - `error`
 - `an error happened`
@@ -516,8 +516,8 @@ This query doesn't match the following log messages:
 - `ERROR`, since the filter is case-sensitive by default. Use `i(error)` for this case. See [these docs](#case-insensitive-filter) for details.
 - `multiple errors occurred`, since the `errors` word doesn't match `error` word. Use `error*` for this case. See [these docs](#prefix-filter) for details.
 
-By default the given [word](#word) is searched in the [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field).
-Specify the [field name](./VictoriaLogs/keyConcepts.md#data-model) in front of the word and put a colon after it
+By default the given [word](#word) is searched in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+Specify the [field name](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) in front of the word and put a colon after it
 if it must be searched in the given field. For example, the following query returns log entries containing the `error` [word](#word) in the `log.level` field:
 
 ```logsql
@@ -549,14 +549,14 @@ See also:
 
 Is you need to search for log messages with the specific phrase inside them, then just wrap the phrase in quotes.
 The phrase can contain any chars, including whitespace, punctuation, parens, etc. They are taken into account during the search.
-For example, the following query matches [log messages](./VictoriaLogs/keyConcepts.md#message-field)
+For example, the following query matches [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 with `ssh: login fail` phrase inside them:
 
 ```logsql
 "ssh: login fail"
 ```
 
-This query matches the following [log messages](./VictoriaLogs/keyConcepts.md#message-field):
+This query matches the following [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 
 - `ERROR: ssh: login fail for user "foobar"`
 - `ssh: login fail!`
@@ -579,8 +579,8 @@ logs with `"foo":"bar"` phrase:
 '"foo":"bar"'
 ```
 
-By default the given phrase is searched in the [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field).
-Specify the [field name](./VictoriaLogs/keyConcepts.md#data-model) in front of the phrase and put a colon after it
+By default the given phrase is searched in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+Specify the [field name](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) in front of the phrase and put a colon after it
 if it must be searched in the given field. For example, the following query returns log entries containing the `cannot open file` phrase in the `event.original` field:
 
 ```logsql
@@ -611,13 +611,13 @@ See also:
 ### Prefix filter
 
 If you need to search for log messages with [words](#word) / phrases containing some prefix, then just add `*` char to the end of the [word](#word) / phrase in the query.
-For example, the following query returns [log messages](./VictoriaLogs/keyConcepts.md#message-field), which contain [words](#word) with `err` prefix:
+For example, the following query returns [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field), which contain [words](#word) with `err` prefix:
 
 ```logsql
 err*
 ```
 
-This query matches the following [log messages](./VictoriaLogs/keyConcepts.md#message-field):
+This query matches the following [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 
 - `err: foobar`
 - `cannot open file: error occurred`
@@ -628,13 +628,13 @@ This query doesn't match the following log messages:
 - `fooerror`, since the `fooerror` [word](#word) doesn't start with `err`. Use `~"err"` for this case. See [these docs](#substring-filter) for details.
 
 Prefix filter can be applied to [phrases](#phrase-filter). For example, the following query matches
-[log messages](./VictoriaLogs/keyConcepts.md#message-field) containing phrases with `unexpected fail` prefix:
+[log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) containing phrases with `unexpected fail` prefix:
 
 ```logsql
 "unexpected fail"*
 ```
 
-This query matches the following [log messages](./VictoriaLogs/keyConcepts.md#message-field):
+This query matches the following [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 
 - `unexpected fail: IO error`
 - `error:unexpected failure`
@@ -653,8 +653,8 @@ logs with `"foo":"bar` prefix:
 '"foo":"bar'*
 ```
 
-By default the prefix filter is applied to the [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field).
-Specify the needed [field name](./VictoriaLogs/keyConcepts.md#data-model) in front of the prefix filter
+By default the prefix filter is applied to the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+Specify the needed [field name](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) in front of the prefix filter
 in order to apply it to the given field. For example, the following query matches `log.level` field containing any word with the `err` prefix:
 
 ```logsql
@@ -687,7 +687,7 @@ See also:
 ### Substring filter
 
 If it is needed to find logs with some substring, then `~"substring"` filter can be used. For example, the following query matches log entries,
-which contain `ampl` text in the [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field):
+which contain `ampl` text in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 
 ```logsql
 ~"ampl"
@@ -712,7 +712,7 @@ See also:
 
 ### Range comparison filter
 
-LogsQL supports `field:>X`, `field:>=X`, `field:<X` and `field:<=X` filters, where `field` is the name of [log field](./VictoriaLogs/keyConcepts.md#data-model)
+LogsQL supports `field:>X`, `field:>=X`, `field:<X` and `field:<=X` filters, where `field` is the name of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 and `X` is [numeric value](#numeric-values), IPv4 address or a string. For example, the following query returns logs containing numeric values for the `response_size` field bigger than `10*1024`:
 
 ```logsql
@@ -732,7 +732,7 @@ See also:
 
 ### Empty value filter
 
-Sometimes it is needed to find log entries without the given [log field](./VictoriaLogs/keyConcepts.md#data-model).
+Sometimes it is needed to find log entries without the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 This can be performed with `log_field:""` syntax. For example, the following query matches log entries without `host.hostname` field:
 
 ```logsql
@@ -748,7 +748,7 @@ See also:
 
 ### Any value filter
 
-Sometimes it is needed to find log entries containing any non-empty value for the given [log field](./VictoriaLogs/keyConcepts.md#data-model).
+Sometimes it is needed to find log entries containing any non-empty value for the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 This can be performed with `log_field:*` syntax. For example, the following query matches log entries with non-empty `host.hostname` field:
 
 ```logsql
@@ -764,9 +764,9 @@ See also:
 
 ### Exact filter
 
-The [word filter](#word-filter) and [phrase filter](#phrase-filter) return [log messages](./VictoriaLogs/keyConcepts.md#message-field),
+The [word filter](#word-filter) and [phrase filter](#phrase-filter) return [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
 which contain the given word or phrase inside them. The message may contain additional text other than the requested word or phrase. If you need searching for log messages
-or [log fields](./VictoriaLogs/keyConcepts.md#message-field) with the exact value, then use the `exact` filter.
+or [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) with the exact value, then use the `exact` filter.
 For example, the following query returns log messages with the exact value `fatal error: cannot find /foo/bar`:
 
 ```logsql
@@ -781,8 +781,8 @@ The query doesn't match the following log messages:
 - `FATAL ERROR: cannot find /foo/bar`, since the `exact` filter is case-sensitive. Use `i("fatal error: cannot find /foo/bar")` in this case.
   See [these docs](#case-insensitive-filter) for details.
 
-By default the `exact` filter is applied to the [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field).
-Specify the [field name](./VictoriaLogs/keyConcepts.md#data-model) in front of the `exact` filter and put a colon after it
+By default the `exact` filter is applied to the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+Specify the [field name](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) in front of the `exact` filter and put a colon after it
 if it must be searched in the given field. For example, the following query returns log entries with the exact `error` value at `log.level` field:
 
 ```logsql
@@ -821,7 +821,7 @@ For example, the following query matches log messages, which start from `Process
 ="Processing request"*
 ```
 
-This filter matches the following [log messages](./VictoriaLogs/keyConcepts.md#message-field):
+This filter matches the following [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 
 - `Processing request foobar`
 - `Processing requests from ...`
@@ -833,8 +833,8 @@ It doesn't match the following log messages:
 - `start: Processing request`, since the log message doesn't start with `Processing request`. Use `"Processing request"` query in this case.
   See [these docs](#phrase-filter) for details.
 
-By default the `exact` filter is applied to the [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field).
-Specify the [field name](./VictoriaLogs/keyConcepts.md#data-model) in front of the `exact` filter and put a colon after it
+By default the `exact` filter is applied to the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+Specify the [field name](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) in front of the `exact` filter and put a colon after it
 if it must be searched in the given field. For example, the following query returns log entries with `log.level` field, which starts with `err` prefix:
 
 ```logsql
@@ -884,7 +884,7 @@ It works very fast for long lists passed to `in()`.
 It is possible to pass arbitrary [query](#query-syntax) inside `in(...)` filter in order to match against the results of this query.
 The query inside `in(...)` must end with [`fields`](#fields-pipe) pipe containing a single field name, so VictoriaLogs could
 fetch results from this field. For example, the following query selects all the logs for the last 5 minutes for users,
-who visited pages with `admin` [word](#word) in the `path` [field](./VictoriaLogs/keyConcepts.md#data-model)
+who visited pages with `admin` [word](#word) in the `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 during the last day:
 
 ```logsql
@@ -910,7 +910,7 @@ log messages with `error` word in any case:
 i(error)
 ```
 
-The query matches the following [log messages](./VictoriaLogs/keyConcepts.md#message-field):
+The query matches the following [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 
 - `unknown error happened`
 - `ERROR: cannot read file`
@@ -922,8 +922,8 @@ The query doesn't match the following log messages:
 - `FooError`, since the `FooError` [word](#word) has superfluous prefix `Foo`. Use `~"(?i)error"` for this case. See [these docs](#regexp-filter) for details.
 - `too many Errors`, since the `Errors` [word](#word) has superfluous suffix `s`. Use `i(error*)` for this case.
 
-By default the `i()` filter is applied to the [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field).
-Specify the needed [field name](./VictoriaLogs/keyConcepts.md#data-model) in front of the filter
+By default the `i()` filter is applied to the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+Specify the needed [field name](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) in front of the filter
 in order to apply it to the given field. For example, the following query matches `log.level` field containing `error` [word](#word) in any case:
 
 ```logsql
@@ -955,7 +955,7 @@ See also:
 
 ### Sequence filter
 
-Sometimes it is needed to find [log messages](./VictoriaLogs/keyConcepts.md#message-field)
+Sometimes it is needed to find [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 with [words](#word) or phrases in a particular order. For example, if log messages with `error` word followed by `open file` phrase
 must be found, then the following LogsQL query can be used:
 
@@ -968,8 +968,8 @@ The query doesn't match the `cannot open file: error` message, since the `open f
 If you need matching log messages with both `error` word and `open file` phrase, then use `error AND "open file"` query. See [these docs](#logical-filter)
 for details.
 
-By default the `seq()` filter is applied to the [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field).
-Specify the needed [field name](./VictoriaLogs/keyConcepts.md#data-model) in front of the filter
+By default the `seq()` filter is applied to the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+Specify the needed [field name](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) in front of the filter
 in order to apply it to the given field. For example, the following query matches `event.original` field containing `(error, "open file")` sequence:
 
 ```logsql
@@ -1000,7 +1000,7 @@ For example, the following query returns all the log messages containing `err` o
 ~"err|warn"
 ```
 
-The query matches the following [log messages](./VictoriaLogs/keyConcepts.md#message-field), which contain either `err` or `warn` substrings:
+The query matches the following [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field), which contain either `err` or `warn` substrings:
 
 - `error: cannot read data`
 - `2 warnings have been raised`
@@ -1019,8 +1019,8 @@ logs matching `"foo":"(bar|baz)"` regexp:
 '"foo":"(bar|baz)"'
 ```
 
-By default the regexp filter is applied to the [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field).
-Specify the needed [field name](./VictoriaLogs/keyConcepts.md#data-model) in front of the filter
+By default the regexp filter is applied to the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+Specify the needed [field name](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) in front of the filter
 in order to apply it to the given field. For example, the following query matches `event.original` field containing either `err` or `warn` substrings:
 
 ```logsql
@@ -1075,15 +1075,15 @@ parentheses with square brackets. For example:
 
 The range boundaries can contain any [supported numeric values](#numeric-values).
 
-Note that the `range()` filter doesn't match [log fields](./VictoriaLogs/keyConcepts.md#data-model)
+Note that the `range()` filter doesn't match [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 with non-numeric values alongside numeric values. For example, `range(1, 10)` doesn't match `the request took 4.2 seconds`
-[log message](./VictoriaLogs/keyConcepts.md#message-field), since the `4.2` number is surrounded by other text.
+[log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field), since the `4.2` number is surrounded by other text.
 Extract the numeric value from the message with `parse(_msg, "the request took <request_duration> seconds")` [transformation](#transformations)
 and then apply the `range()` [filter pipe](#filter-pipe) to the extracted `request_duration` field.
 
 Performance tips:
 
-- It is better to query pure numeric [field](./VictoriaLogs/keyConcepts.md#data-model)
+- It is better to query pure numeric [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
   instead of extracting numeric field from text field via [transformations](#transformations) at query time.
 - See [other performance tips](#performance-tips).
 
@@ -1113,29 +1113,29 @@ user.ip:ipv4_range("127.0.0.0/8")
 ```
 
 If you need matching a single IPv4 address, then just put it inside `ipv4_range()`. For example, the following query matches `1.2.3.4` IP
-at `user.ip` [field](./VictoriaLogs/keyConcepts.md#data-model):
+at `user.ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
 
 ```logsql
 user.ip:ipv4_range("1.2.3.4")
 ```
 
 Note that the `ipv4_range()` doesn't match a string with IPv4 address if this string contains other text. For example, `ipv4_range("127.0.0.0/24")`
-doesn't match `request from 127.0.0.1: done` [log message](./VictoriaLogs/keyConcepts.md#message-field),
+doesn't match `request from 127.0.0.1: done` [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
 since the `127.0.0.1` ip is surrounded by other text. Extract the IP from the message with `parse(_msg, "request from <ip>: done")` [transformation](#transformations)
 and then apply the `ipv4_range()` [filter pipe](#filter-pipe) to the extracted `ip` field.
 
 Hints:
 
-- If you need searching for [log messages](./VictoriaLogs/keyConcepts.md#message-field) containing the given `X.Y.Z.Q` IPv4 address,
+- If you need searching for [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) containing the given `X.Y.Z.Q` IPv4 address,
   then `"X.Y.Z.Q"` query can be used. See [these docs](#phrase-filter) for details.
-- If you need searching for [log messages](./VictoriaLogs/keyConcepts.md#message-field) containing
+- If you need searching for [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) containing
   at least a single IPv4 address out of the given list, then `"ip1" OR "ip2" ... OR "ipN"` query can be used. See [these docs](#logical-filter) for details.
 - If you need finding log entries with `ip` field in multiple ranges, then use `ip:(ipv4_range(range1) OR ipv4_range(range2) ... OR ipv4_range(rangeN))` query.
   See [these docs](#logical-filter) for details.
 
 Performance tips:
 
-- It is better querying pure IPv4 [field](./VictoriaLogs/keyConcepts.md#data-model)
+- It is better querying pure IPv4 [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
   instead of extracting IPv4 from text field via [transformations](#transformations) at query time.
 - See [other performance tips](#performance-tips).
 
@@ -1171,7 +1171,7 @@ See also:
 ### Length range filter
 
 If you need to filter log message by its length, then `len_range()` filter can be used.
-For example, the following LogsQL query matches [log messages](./VictoriaLogs/keyConcepts.md#message-field)
+For example, the following LogsQL query matches [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 with lengths in the range `[5, 10]` chars:
 
 ```logsql
@@ -1188,7 +1188,7 @@ This query doesn't match the following log messages:
 - `foo`, since it is too short
 - `foo bar baz abc`, sinc it is too long
 
-It is possible to use `inf` as the upper bound. For example, the following query matches [log messages](./VictoriaLogs/keyConcepts.md#message-field)
+It is possible to use `inf` as the upper bound. For example, the following query matches [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 with the length bigger or equal to 5 chars:
 
 ```logsql
@@ -1201,8 +1201,8 @@ The range boundaries can be expressed in the following forms:
 - Binary form. Form example, `len_range(0b100110, 0b11111101)`
 - Integer form with `_` delimiters for better readability. For example, `len_range(1_000, 2_345_678)`.
 
-By default the `len_range()` is applied to the [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field).
-Put the [field name](./VictoriaLogs/keyConcepts.md#data-model) in front of the `len_range()` in order to apply
+By default the `len_range()` is applied to the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+Put the [field name](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) in front of the `len_range()` in order to apply
 the filter to the needed field. For example, the following query matches log entries with the `foo` field length in the range `[10, 20]` chars:
 
 ```logsql
@@ -1220,34 +1220,34 @@ See also:
 Simpler LogsQL [filters](#filters) can be combined into more complex filters with the following logical operations:
 
 - `q1 AND q2` - matches common log entries returned by both `q1` and `q2`. Arbitrary number of [filters](#filters) can be combined with `AND` operation.
-  For example, `error AND file AND app` matches [log messages](./VictoriaLogs/keyConcepts.md#message-field),
+  For example, `error AND file AND app` matches [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
   which simultaneously contain `error`, `file` and `app` [words](#word).
   The `AND` operation is frequently used in LogsQL queries, so it is allowed to skip the `AND` word.
   For example, `error file app` is equivalent to `error AND file AND app`.
 
 - `q1 OR q2` - merges log entries returned by both `q1` and `q2`. Arbitrary number of [filters](#filters) can be combined with `OR` operation.
-  For example, `error OR warning OR info` matches [log messages](./VictoriaLogs/keyConcepts.md#message-field),
+  For example, `error OR warning OR info` matches [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
   which contain at least one of `error`, `warning` or `info` [words](#word).
 
 - `NOT q` - returns all the log entries except of those which match `q`. For example, `NOT info` returns all the
-  [log messages](./VictoriaLogs/keyConcepts.md#message-field),
+  [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
   which do not contain `info` [word](#word). The `NOT` operation is frequently used in LogsQL queries, so it is allowed substituting `NOT` with `!` in queries.
   For example, `!info` is equivalent to `NOT info`.
 
 The `NOT` operation has the highest priority, `AND` has the middle priority and `OR` has the lowest priority.
 The priority order can be changed with parentheses. For example, `NOT info OR debug` is interpreted as `(NOT info) OR debug`,
-so it matches [log messages](./VictoriaLogs/keyConcepts.md#message-field),
+so it matches [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
 which do not contain `info` [word](#word), while it also matches messages with `debug` word (which may contain the `info` word).
 This is not what most users expect. In this case the query can be rewritten to `NOT (info OR debug)`,
 which correctly returns log messages without `info` and `debug` [words](#word).
 
 LogsQL supports arbitrary complex logical queries with arbitrary mix of `AND`, `OR` and `NOT` operations and parentheses.
 
-By default logical filters apply to the [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field)
-unless the inner filters explicitly specify the needed [log field](./VictoriaLogs/keyConcepts.md#data-model) via `field_name:filter` syntax.
+By default logical filters apply to the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+unless the inner filters explicitly specify the needed [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) via `field_name:filter` syntax.
 For example, `(error OR warn) AND host.hostname:host123` is interpreted as `(_msg:error OR _msg:warn) AND host.hostname:host123`.
 
-It is possible to specify a single [log field](./VictoriaLogs/keyConcepts.md#data-model) for multiple filters
+It is possible to specify a single [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) for multiple filters
 with the following syntax:
 
 ```logsql
@@ -1261,7 +1261,7 @@ Performance tips:
 - VictoriaLogs executes logical operations from the left to the right, so it is recommended moving the most specific
   and the fastest filters (such as [word filter](#word-filter) and [phrase filter](#phrase-filter)) to the left,
   while moving less specific and the slowest filters (such as [regexp filter](#regexp-filter) and [case-insensitive filter](#case-insensitive-filter))
-  to the right. For example, if you need to find [log messages](./VictoriaLogs/keyConcepts.md#message-field)
+  to the right. For example, if you need to find [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
   with the `error` word, which match some `/foo/(bar|baz)` regexp,
   it is better from performance PoV to use the query `error ~"/foo/(bar|baz)"` instead of `~"/foo/(bar|baz)" error`.
 
@@ -1273,7 +1273,7 @@ Performance tips:
 
 Additionally to [filters](#filters), LogsQL query may contain arbitrary mix of '|'-delimited actions known as `pipes`.
 For example, the following query uses [`stats`](#stats-pipe), [`sort`](#sort-pipe) and [`limit`](#limit-pipe) pipes
-for returning top 10 [log streams](./VictoriaLogs/keyConcepts.md#stream-fields)
+for returning top 10 [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
 with the biggest number of logs during the last 5 minutes:
 
 ```logsql
@@ -1282,38 +1282,38 @@ _time:5m | stats by (_stream) count() per_stream_logs | sort by (per_stream_logs
 
 LogsQL supports the following pipes:
 
-- [`copy`](#copy-pipe) copies [log fields](./VictoriaLogs/keyConcepts.md#data-model).
-- [`delete`](#delete-pipe) deletes [log fields](./VictoriaLogs/keyConcepts.md#data-model).
-- [`drop_empty_fields`](#drop_empty_fields-pipe) drops [log fields](./VictoriaLogs/keyConcepts.md#data-model) with empty values.
+- [`copy`](#copy-pipe) copies [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`delete`](#delete-pipe) deletes [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`drop_empty_fields`](#drop_empty_fields-pipe) drops [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with empty values.
 - [`extract`](#extract-pipe) extracts the specified text into the given log fields.
 - [`extract_regexp`](#extract_regexp-pipe) extracts the specified text into the given log fields via [RE2 regular expressions](https://github.com/google/re2/wiki/Syntax).
-- [`field_names`](#field_names-pipe) returns all the names of [log fields](./VictoriaLogs/keyConcepts.md#data-model).
-- [`field_values`](#field_values-pipe) returns all the values for the given [log field](./VictoriaLogs/keyConcepts.md#data-model).
-- [`fields`](#fields-pipe) selects the given set of [log fields](./VictoriaLogs/keyConcepts.md#data-model).
+- [`field_names`](#field_names-pipe) returns all the names of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`field_values`](#field_values-pipe) returns all the values for the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`fields`](#fields-pipe) selects the given set of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`filter`](#filter-pipe) applies additional [filters](#filters) to results.
-- [`format`](#format-pipe) formats output field from input [log fields](./VictoriaLogs/keyConcepts.md#data-model).
+- [`format`](#format-pipe) formats output field from input [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`limit`](#limit-pipe) limits the number selected logs.
-- [`math`](#math-pipe) performs mathematical calculations over [log fields](./VictoriaLogs/keyConcepts.md#data-model).
+- [`math`](#math-pipe) performs mathematical calculations over [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`offset`](#offset-pipe) skips the given number of selected logs.
-- [`pack_json`](#pack_json-pipe) packs [log fields](./VictoriaLogs/keyConcepts.md#data-model) into JSON object.
-- [`pack_logfmt`](#pack_logfmt-pipe) packs [log fields](./VictoriaLogs/keyConcepts.md#data-model) into [logfmt](https://brandur.org/logfmt) message.
-- [`rename`](#rename-pipe) renames [log fields](./VictoriaLogs/keyConcepts.md#data-model).
-- [`replace`](#replace-pipe) replaces substrings in the specified [log fields](./VictoriaLogs/keyConcepts.md#data-model).
-- [`replace_regexp`](#replace_regexp-pipe) updates [log fields](./VictoriaLogs/keyConcepts.md#data-model) with regular expressions.
-- [`sort`](#sort-pipe) sorts logs by the given [fields](./VictoriaLogs/keyConcepts.md#data-model).
+- [`pack_json`](#pack_json-pipe) packs [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into JSON object.
+- [`pack_logfmt`](#pack_logfmt-pipe) packs [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into [logfmt](https://brandur.org/logfmt) message.
+- [`rename`](#rename-pipe) renames [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`replace`](#replace-pipe) replaces substrings in the specified [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`replace_regexp`](#replace_regexp-pipe) updates [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with regular expressions.
+- [`sort`](#sort-pipe) sorts logs by the given [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`stats`](#stats-pipe) calculates various stats over the selected logs.
 - [`stream_context`](#stream_context-pipe) allows selecting surrounding logs in front and after the matching logs
-  per each [log stream](./VictoriaLogs/keyConcepts.md#stream-fields).
+  per each [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 - [`top`](#top-pipe) returns top `N` field sets with the maximum number of matching logs.
 - [`uniq`](#uniq-pipe) returns unique log entires.
-- [`unpack_json`](#unpack_json-pipe) unpacks JSON messages from [log fields](./VictoriaLogs/keyConcepts.md#data-model).
-- [`unpack_logfmt`](#unpack_logfmt-pipe) unpacks [logfmt](https://brandur.org/logfmt) messages from [log fields](./VictoriaLogs/keyConcepts.md#data-model).
-- [`unpack_syslog`](#unpack_syslog-pipe) unpacks [syslog](https://en.wikipedia.org/wiki/Syslog) messages from [log fields](./VictoriaLogs/keyConcepts.md#data-model).
-- [`unroll`](#unroll-pipe) unrolls JSON arrays from [log fields](./VictoriaLogs/keyConcepts.md#data-model).
+- [`unpack_json`](#unpack_json-pipe) unpacks JSON messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`unpack_logfmt`](#unpack_logfmt-pipe) unpacks [logfmt](https://brandur.org/logfmt) messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`unpack_syslog`](#unpack_syslog-pipe) unpacks [syslog](https://en.wikipedia.org/wiki/Syslog) messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`unroll`](#unroll-pipe) unrolls JSON arrays from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
 ### copy pipe
 
-If some [log fields](./VictoriaLogs/keyConcepts.md#data-model) must be copied, then `| copy src1 as dst1, ..., srcN as dstN` [pipe](#pipes) can be used.
+If some [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) must be copied, then `| copy src1 as dst1, ..., srcN as dstN` [pipe](#pipes) can be used.
 For example, the following query copies `host` field to `server` for logs over the last 5 minutes, so the output contains both `host` and `server` fields:
 
 ```logsql
@@ -1321,7 +1321,7 @@ _time:5m | copy host as server
 ```
 
 Multiple fields can be copied with a single `| copy ...` pipe. For example, the following query copies
-[`_time` field](./VictoriaLogs/keyConcepts.md#time-field) to `timestamp`, while [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field)
+[`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) to `timestamp`, while [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 is copied to `message`:
 
 ```logsql
@@ -1340,7 +1340,7 @@ See also:
 
 ### delete pipe
 
-If some [log fields](./VictoriaLogs/keyConcepts.md#data-model) must be deleted, then `| delete field1, ..., fieldN` [pipe](#pipes) can be used.
+If some [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) must be deleted, then `| delete field1, ..., fieldN` [pipe](#pipes) can be used.
 For example, the following query deletes `host` and `app` fields from the logs over the last 5 minutes:
 
 ```logsql
@@ -1356,7 +1356,7 @@ See also:
 
 ### drop_empty_fields pipe
 
-`| drop_empty_fields` pipe drops [fields](./VictoriaLogs/keyConcepts.md#data-model) with empty values. It also skips log entries with zero non-empty fields.
+`| drop_empty_fields` pipe drops [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with empty values. It also skips log entries with zero non-empty fields.
 
 For example, the following query drops possible empty `email` field generated by [`extract` pipe](#extract-pipe) if the `foo` field doesn't contain email:
 
@@ -1373,12 +1373,12 @@ See also:
 ### extract pipe
 
 `| extract "pattern" from field_name` [pipe](#pipes) allows extracting arbitrary text into output fields according to the [`pattern`](#format-for-extract-pipe-pattern) from the given
-[`field_name`](./VictoriaLogs/keyConcepts.md#data-model). Existing log fields remain unchanged after the `| extract ...` pipe.
+[`field_name`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). Existing log fields remain unchanged after the `| extract ...` pipe.
 
 `| extract ...` can be useful for extracting additional fields needed for further data processing with other pipes such as [`stats` pipe](#stats-pipe) or [`sort` pipe](#sort-pipe).
 
 For example, the following query selects logs with the `error` [word](#word) for the last day,
-extracts ip address from [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field) into `ip` field and then calculates top 10 ip addresses
+extracts ip address from [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) into `ip` field and then calculates top 10 ip addresses
 with the biggest number of logs:
 
 ```logsql
@@ -1388,7 +1388,7 @@ _time:1d error | extract "ip=<ip> " from _msg | stats by (ip) count() logs | sor
 It is expected that `_msg` field contains `ip=...` substring ending with space. For example, `error ip=1.2.3.4 from user_id=42`.
 If there is no such substring in the current `_msg` field, then the `ip` output field will be empty.
 
-If the `| extract ...` pipe is applied to [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field), then the `from _msg` part can be omitted.
+If the `| extract ...` pipe is applied to [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field), then the `from _msg` part can be omitted.
 For example, the following query is equivalent to the previous one:
 
 ```logsql
@@ -1452,7 +1452,7 @@ The empty string values can be dropped with [`drop_empty_fields` pipe](#drop_emp
 Matching finishes successfully when `textN+1` is found in the input text.
 If the `pattern` ends with `<fieldN>` and doesn't contain `textN+1`, then the `<fieldN>` matches the remaining input text.
 
-For example, if [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field) contains the following text:
+For example, if [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) contains the following text:
 
 ```
 1.2.3.4 GET /foo/bar?baz 404 "Mozilla  foo bar baz" some tail here
@@ -1498,8 +1498,8 @@ For example, the following `pattern` properly matches `a < b` text by extracting
 
 If some log entries must be skipped from [`extract` pipe](#extract-pipe), then add `if (<filters>)` filter after the `extract` word.
 The `<filters>` can contain arbitrary [filters](#filters). For example, the following query extracts `ip` field
-from [`_msg` field](./VictoriaLogs/keyConcepts.md#data-model) only
-if the input [log entry](./VictoriaLogs/keyConcepts.md#data-model) doesn't contain `ip` field or this field is empty:
+from [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) only
+if the input [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) doesn't contain `ip` field or this field is empty:
 
 ```logsql
 _time:5m | extract if (ip:"") "ip=<ip> "
@@ -1514,18 +1514,18 @@ _time:5m | extract "ip=<ip> " keep_original_fields
 
 ### extract_regexp pipe
 
-`| extract_regexp "pattern" from field_name` [pipe](#pipes) extracts substrings from the [`field_name` field](./VictoriaLogs/keyConcepts.md#data-model)
+`| extract_regexp "pattern" from field_name` [pipe](#pipes) extracts substrings from the [`field_name` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 according to the provided `pattern`, and stores them into field names according to the named fields inside the `pattern`.
 The `pattern` must contain [RE2 regular expression](https://github.com/google/re2/wiki/Syntax) with named fields (aka capturing groups) in the form `(?P<capture_field_name>...)`.
-Matching substrings are stored to the given `capture_field_name` [log fields](./VictoriaLogs/keyConcepts.md#data-model).
-For example, the following query extracts ipv4 addresses from [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field)
+Matching substrings are stored to the given `capture_field_name` [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+For example, the following query extracts ipv4 addresses from [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 and puts them into `ip` field for logs over the last 5 minutes:
 
 ```logsql
 _time:5m | extract_regexp "(?P<ip>([0-9]+[.]){3}[0-9]+)" from _msg
 ```
 
-The `from _msg` part can be omitted if the data extraction is performed from the [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field).
+The `from _msg` part can be omitted if the data extraction is performed from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
 So the following query is equivalent to the previous one:
 
 ```logsql
@@ -1560,8 +1560,8 @@ See also:
 
 If some log entries must be skipped from [`extract_regexp` pipe](#extract-pipe), then add `if (<filters>)` filter after the `extract` word.
 The `<filters>` can contain arbitrary [filters](#filters). For example, the following query extracts `ip`
-from [`_msg` field](./VictoriaLogs/keyConcepts.md#data-model) only
-if the input [log entry](./VictoriaLogs/keyConcepts.md#data-model) doesn't contain `ip` field or this field is empty:
+from [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) only
+if the input [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) doesn't contain `ip` field or this field is empty:
 
 ```logsql
 _time:5m | extract_regexp if (ip:"") "ip=(?P<ip>([0-9]+[.]){3}[0-9]+)"
@@ -1576,7 +1576,7 @@ _time:5m | extract_regexp "ip=(?P<ip>([0-9]+[.]){3}[0-9]+)" keep_original_fields
 
 ### field_names pipe
 
-`| field_names` [pipe](#pipes) returns all the names of [log fields](./VictoriaLogs/keyConcepts.md#data-model)
+`| field_names` [pipe](#pipes) returns all the names of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 with an estimated number of logs per each field name.
 For example, the following query returns all the field names with the number of matching logs over the last 5 minutes:
 
@@ -1593,7 +1593,7 @@ See also:
 
 ### field_values pipe
 
-`| field_values field_name` [pipe](#pipe) returns all the values for the given [`field_name` field](./VictoriaLogs/keyConcepts.md#data-model)
+`| field_values field_name` [pipe](#pipe) returns all the values for the given [`field_name` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 with the number of logs per each value.
 For example, the following query returns all the values with the number of matching logs for the field `level` over logs for the last 5 minutes:
 
@@ -1618,9 +1618,9 @@ See also:
 
 ### fields pipe
 
-By default all the [log fields](./VictoriaLogs/keyConcepts.md#data-model) are returned in the response.
+By default all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) are returned in the response.
 It is possible to select the given set of log fields with `| fields field1, ..., fieldN` [pipe](#pipes). For example, the following query selects only `host`
-and [`_msg`](./VictoriaLogs/keyConcepts.md#message-field) fields from logs for the last 5 minutes:
+and [`_msg`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) fields from logs for the last 5 minutes:
 
 ```logsql
 _time:5m | fields host, _msg
@@ -1642,7 +1642,7 @@ See also:
 
 The `| filter ...` [pipe](#pipes) allows filtering the selected logs entries with arbitrary [filters](#filters).
 
-For example, the following query returns `host` [field](./VictoriaLogs/keyConcepts.md#data-model) values
+For example, the following query returns `host` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values
 if the number of log messages with the `error` [word](#word) for them over the last hour exceeds `1_000`:
 
 ```logsql
@@ -1669,17 +1669,17 @@ See also:
 
 ### format pipe
 
-`| format "pattern" as result_field` [pipe](#pipe) combines [log fields](./VictoriaLogs/keyConcepts.md#data-model)
+`| format "pattern" as result_field` [pipe](#pipe) combines [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 according to the `pattern` and stores it to the `result_field`.
 
-For example, the following query stores `request from <ip>:<port>` text into [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field),
-by substituting `<ip>` and `<port>` with the corresponding [log field](./VictoriaLogs/keyConcepts.md#data-model) values:
+For example, the following query stores `request from <ip>:<port>` text into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
+by substituting `<ip>` and `<port>` with the corresponding [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values:
 
 ```logsql
 _time:5m | format "request from <ip>:<port>" as _msg
 ```
 
-If the result of the `format` pattern is stored into [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field),
+If the result of the `format` pattern is stored into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
 then `as _msg` part can be omitted. The following query is equivalent to the previous one:
 
 ```logsql
@@ -1687,7 +1687,7 @@ _time:5m | format "request from <ip>:<port>"
 ```
 
 If some field values must be put into double quotes before formatting, then add `q:` in front of the corresponding field name.
-For example, the following command generates properly encoded JSON object from `_msg` and `stacktrace` [log fields](./VictoriaLogs/keyConcepts.md#data-model)
+For example, the following command generates properly encoded JSON object from `_msg` and `stacktrace` [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 and stores it into `my_json` output field:
 
 ```logsql
@@ -1733,10 +1733,10 @@ See also:
 
 #### Conditional format
 
-If the [`format` pipe](#format-pipe) mustn't be applied to every [log entry](./VictoriaLogs/keyConcepts.md#data-model),
+If the [`format` pipe](#format-pipe) mustn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
 then add `if (<filters>)` just after the `format` word.
 The `<filters>` can contain arbitrary [filters](#filters). For example, the following query stores the formatted result to `message` field
-only if `ip` and `host` [fields](./VictoriaLogs/keyConcepts.md#data-model) aren't empty:
+only if `ip` and `host` [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) aren't empty:
 
 ```logsql
 _time:5m | format if (ip:* and host:*) "request from <ip>:<host>" as message
@@ -1769,7 +1769,7 @@ See also:
 
 ### math pipe
 
-`| math ...` [pipe](#pipes) performs mathematical calculations over [numeric values](#numeric-values) stored in [log fields](./VictoriaLogs/keyConcepts.md#data-model).
+`| math ...` [pipe](#pipes) performs mathematical calculations over [numeric values](#numeric-values) stored in [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 It has the following format:
 
 ```
@@ -1815,7 +1815,7 @@ The following mathematical operations are supported by `math` pipe:
 
 Every `argX` argument in every mathematical operation can contain one of the following values:
 
-- The name of [log field](./VictoriaLogs/keyConcepts.md#data-model). For example, `errors_total / requests_total`.
+- The name of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). For example, `errors_total / requests_total`.
   The log field is parsed into numeric value if it contains [supported numeric value](#numeric-values). The log field is parsed into [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time)
   in nanoseconds if it contains [rfc3339 time](https://www.rfc-editor.org/rfc/rfc3339). The log field is parsed into `uint32` number if it contains IPv4 address.
   The log field is parsed into `NaN` in other cases.
@@ -1823,14 +1823,14 @@ Every `argX` argument in every mathematical operation can contain one of the fol
 - Another mathematical expression, which can be put inside `(...)`. For example, `(a + b) * c`.
 
 The parsed time, duration and IPv4 address can be converted back to string representation after math transformations with the help of [`format` pipe](#format-pipe). For example,
-the following query rounds the `request_duration` [field](./VictoriaLogs/keyConcepts.md#data-model) to seconds before converting it back to string representation:
+the following query rounds the `request_duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) to seconds before converting it back to string representation:
 
 ```logsql
 _time:5m | math round(request_duration, 1e9) as request_duration_nsecs | format '<duration:request_duration_nsecs>' as request_duration
 ```
 
 The `eval` keyword can be used instead of `math` for convenience. For example, the following query calculates `duration_msecs` field
-by multiplying `duration_secs` [field](./VictoriaLogs/keyConcepts.md#data-model) to `1000`:
+by multiplying `duration_secs` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) to `1000`:
 
 ```logsql
 _time:5m | eval (duration_secs * 1000) as duration_msecs
@@ -1846,7 +1846,7 @@ See also:
 ### offset pipe
 
 If some selected logs must be skipped after [`sort`](#sort-pipe), then `| offset N` [pipe](#pipes) can be used, where `N` can contain any [supported integer numeric value](#numeric-values).
-For example, the following query skips the first 100 logs over the last 5 minutes after sorting them by [`_time`](./VictoriaLogs/keyConcepts.md#time-field):
+For example, the following query skips the first 100 logs over the last 5 minutes after sorting them by [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field):
 
 ```logsql
 _time:5m | sort by (_time) | offset 100
@@ -1864,17 +1864,17 @@ See also:
 
 ### pack_json pipe
 
-`| pack_json as field_name` [pipe](#pipe) packs all [log fields](./VictoriaLogs/keyConcepts.md#data-model) into JSON object
+`| pack_json as field_name` [pipe](#pipe) packs all [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into JSON object
 and stores it as a string in the given `field_name`.
 
-For example, the following query packs all the fields into JSON object and stores it into [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field)
+For example, the following query packs all the fields into JSON object and stores it into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 for logs over the last 5 minutes:
 
 ```logsql
 _time:5m | pack_json as _msg
 ```
 
-The `as _msg` part can be omitted if packed JSON object is stored into [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field).
+The `as _msg` part can be omitted if packed JSON object is stored into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
 The following query is equivalent to the previous one:
 
 ```logsql
@@ -1903,17 +1903,17 @@ See also:
 
 ### pack_logfmt pipe
 
-`| pack_logfmt as field_name` [pipe](#pipe) packs all [log fields](./VictoriaLogs/keyConcepts.md#data-model) into [logfmt](https://brandur.org/logfmt) message
+`| pack_logfmt as field_name` [pipe](#pipe) packs all [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into [logfmt](https://brandur.org/logfmt) message
 and stores it as a string in the given `field_name`.
 
 For example, the following query packs all the fields into [logfmt](https://brandur.org/logfmt) message and stores it
-into [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field) for logs over the last 5 minutes:
+into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) for logs over the last 5 minutes:
 
 ```logsql
 _time:5m | pack_logfmt as _msg
 ```
 
-The `as _msg` part can be omitted if packed message is stored into [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field).
+The `as _msg` part can be omitted if packed message is stored into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
 The following query is equivalent to the previous one:
 
 ```logsql
@@ -1941,7 +1941,7 @@ See also:
 
 ### rename pipe
 
-If some [log fields](./VictoriaLogs/keyConcepts.md#data-model) must be renamed, then `| rename src1 as dst1, ..., srcN as dstN` [pipe](#pipes) can be used.
+If some [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) must be renamed, then `| rename src1 as dst1, ..., srcN as dstN` [pipe](#pipes) can be used.
 For example, the following query renames `host` field to `server` for logs over the last 5 minutes, so the output contains `server` field instead of `host` field:
 
 ```logsql
@@ -1967,16 +1967,16 @@ See also:
 ### replace pipe
 
 `| replace ("old", "new") at field` [pipe](#pipes) replaces all the occurrences of the `old` substring with the `new` substring
-in the given [`field`](./VictoriaLogs/keyConcepts.md#data-model).
+in the given [`field`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
-For example, the following query replaces all the `secret-password` substrings with `***` in the [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field)
+For example, the following query replaces all the `secret-password` substrings with `***` in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 for logs over the last 5 minutes:
 
 ```logsql
 _time:5m | replace ("secret-password", "***") at _msg
 ```
 
-The `at _msg` part can be omitted if the replacement occurs in the [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field).
+The `at _msg` part can be omitted if the replacement occurs in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
 The following query is equivalent to the previous one:
 
 ```logsql
@@ -1984,7 +1984,7 @@ _time:5m | replace ("secret-password", "***")
 ```
 
 The number of replacements can be limited with `limit N` at the end of `replace`. For example, the following query replaces only the first `foo` substring with `bar`
-at the [log field](./VictoriaLogs/keyConcepts.md#data-model) `baz`:
+at the [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) `baz`:
 
 ```logsql
 _time:5m | replace ('foo', 'bar') at baz limit 1
@@ -2002,7 +2002,7 @@ See also:
 
 #### Conditional replace
 
-If the [`replace` pipe](#replace-pipe) mustn't be applied to every [log entry](./VictoriaLogs/keyConcepts.md#data-model),
+If the [`replace` pipe](#replace-pipe) mustn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
 then add `if (<filters>)` after `replace`.
 The `<filters>` can contain arbitrary [filters](#filters). For example, the following query replaces `secret` with `***` in the `password` field
 only if `user_type` field equals to `admin`:
@@ -2014,18 +2014,18 @@ _time:5m | replace if (user_type:=admin) replace ("secret", "***") at password
 ### replace_regexp pipe
 
 `| replace_regexp ("regexp", "replacement") at field` [pipe](#pipes) replaces all the substrings matching the given `regexp` with the given `replacement`
-in the given [`field`](./VictoriaLogs/keyConcepts.md#data-model).
+in the given [`field`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
 The `regexp` must contain regular expression with [RE2 syntax](https://github.com/google/re2/wiki/Syntax).
 The `replacement` may contain `$N` or `${N}` placeholders, which are substituted with the `N-th` capturing group in the `regexp`.
 
-For example, the following query replaces all the substrings starting with `host-` and ending with `-foo` with the contents between `host-` and `-foo` in the [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field) for logs over the last 5 minutes:
+For example, the following query replaces all the substrings starting with `host-` and ending with `-foo` with the contents between `host-` and `-foo` in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) for logs over the last 5 minutes:
 
 ```logsql
 _time:5m | replace_regexp ("host-(.+?)-foo", "$1") at _msg
 ```
 
-The `at _msg` part can be omitted if the replacement occurs in the [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field).
+The `at _msg` part can be omitted if the replacement occurs in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
 The following query is equivalent to the previous one:
 
 ```logsql
@@ -2033,7 +2033,7 @@ _time:5m | replace_regexp ("host-(.+?)-foo", "$1")
 ```
 
 The number of replacements can be limited with `limit N` at the end of `replace`. For example, the following query replaces only the first `password: ...` substring
-ending with whitespace with empty substring at the [log field](./VictoriaLogs/keyConcepts.md#data-model) `baz`:
+ending with whitespace with empty substring at the [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) `baz`:
 
 ```logsql
 _time:5m | replace_regexp ('password: [^ ]+', '') at baz limit 1
@@ -2054,7 +2054,7 @@ See also:
 
 #### Conditional replace_regexp
 
-If the [`replace_regexp` pipe](#replace-pipe) mustn't be applied to every [log entry](./VictoriaLogs/keyConcepts.md#data-model),
+If the [`replace_regexp` pipe](#replace-pipe) mustn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
 then add `if (<filters>)` after `replace_regexp`.
 The `<filters>` can contain arbitrary [filters](#filters). For example, the following query replaces `password: ...` substrings ending with whitespace
 with `***` in the `foo` field only if `user_type` field equals to `admin`:
@@ -2066,11 +2066,11 @@ _time:5m | replace_regexp if (user_type:=admin) replace ("password: [^ ]+", "") 
 ### sort pipe
 
 By default logs are selected in arbitrary order because of performance reasons. If logs must be sorted, then `| sort by (field1, ..., fieldN)` [pipe](#pipes) can be used.
-The returned logs are sorted by the given [fields](./VictoriaLogs/keyConcepts.md#data-model)
+The returned logs are sorted by the given [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 using [natural sorting](https://en.wikipedia.org/wiki/Natural_sort_order).
 
-For example, the following query returns logs for the last 5 minutes sorted by [`_stream`](./VictoriaLogs/keyConcepts.md#stream-fields)
-and then by [`_time`](./VictoriaLogs/keyConcepts.md#time-field):
+For example, the following query returns logs for the last 5 minutes sorted by [`_stream`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+and then by [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field):
 
 ```logsql
 _time:5m | sort by (_stream, _time)
@@ -2098,14 +2098,14 @@ Sorting of big number of logs can consume a lot of CPU time and memory. Sometime
 or the smallest values. This can be done by adding `limit N` to the end of `sort ...` pipe.
 Such a query consumes lower amounts of memory when sorting big number of logs, since it keeps in memory only `N` log entries.
 For example, the following query returns top 10 log entries with the biggest values
-for the `request_duration` [field](./VictoriaLogs/keyConcepts.md#data-model) during the last hour:
+for the `request_duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) during the last hour:
 
 ```logsql
 _time:1h | sort by (request_duration desc) limit 10
 ```
 
 If the first `N` sorted results must be skipped, then `offset N` can be added to `sort` pipe. For example,
-the following query skips the first 10 logs with the biggest `request_duration` [field](./VictoriaLogs/keyConcepts.md#data-model),
+the following query skips the first 10 logs with the biggest `request_duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
 and then returns the next 20 sorted logs for the last 5 minutes:
 
 ```logsql
@@ -2113,8 +2113,8 @@ _time:1h | sort by (request_duration desc) offset 10 limit 20
 ```
 
 It is possible returning a rank (sort order number) for every sorted log by adding `rank as <fieldName>` to the end of `| sort ...` pipe.
-For example, the following query stores rank for sorted by [`_time`](./VictoriaLogs/keyConcepts.md#time-field) logs
-into `position` [field](./VictoriaLogs/keyConcepts.md#data-model):
+For example, the following query stores rank for sorted by [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) logs
+into `position` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
 
 ```logsql
 _time:5m | sort by (_time) rank as position
@@ -2126,7 +2126,7 @@ It is recommended limiting the number of logs before sorting with the following 
 - Adding `limit N` to the end of `sort ...` pipe.
 - Reducing the selected time range with [time filter](#time-filter).
 - Using more specific [filters](#filters), so they select less logs.
-- Limiting the number of selected [fields](./VictoriaLogs/keyConcepts.md#data-model) via [`fields` pipe](#fields-pipe).
+- Limiting the number of selected [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) via [`fields` pipe](#fields-pipe).
 
 See also:
 
@@ -2158,7 +2158,7 @@ to store the result of the corresponding stats function. The `as` keyword is opt
 For example, the following query calculates the following stats for logs over the last 5 minutes:
 
 - the number of logs with the help of [`count` stats function](#count-stats);
-- the number of unique [log streams](./VictoriaLogs/keyConcepts.md#stream-fields) with the help of [`count_uniq` stats function](#count_uniq-stats):
+- the number of unique [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) with the help of [`count_uniq` stats function](#count_uniq-stats):
 
 ```logsql
 _time:5m | stats count() logs_total, count_uniq(_stream) streams_total
@@ -2203,7 +2203,7 @@ The following LogsQL syntax can be used for calculating independent stats per gr
   stats_funcN(...) as result_nameN
 ```
 
-This calculates `stats_func*` per each `(field1, ..., fieldM)` group of [log fields](./VictoriaLogs/keyConcepts.md#data-model).
+This calculates `stats_func*` per each `(field1, ..., fieldM)` group of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
 For example, the following query calculates the number of logs and unique ip addresses over the last 5 minutes,
 grouped by `(host, path)` fields:
@@ -2235,7 +2235,7 @@ The following syntax can be used for calculating stats grouped by time buckets:
   stats_funcN(...) as result_nameN
 ```
 
-This calculates `stats_func*` per each `step` of [`_time`](./VictoriaLogs/keyConcepts.md#time-field) field.
+This calculates `stats_func*` per each `step` of [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) field.
 The `step` can have any [duration value](#duration-values). For example, the following LogsQL query returns per-minute number of logs and unique ip addresses
 over the last 5 minutes:
 
@@ -2258,7 +2258,7 @@ Additionally, the following `step` values are supported:
 
 #### Stats by time buckets with timezone offset
 
-VictoriaLogs stores [`_time`](./VictoriaLogs/keyConcepts.md#time-field) values as [Unix time](https://en.wikipedia.org/wiki/Unix_time)
+VictoriaLogs stores [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) values as [Unix time](https://en.wikipedia.org/wiki/Unix_time)
 in nanoseconds. This time corresponds to [UTC](https://en.wikipedia.org/wiki/Coordinated_Universal_Time) time zone. Sometimes it is needed calculating stats
 grouped by days or weeks at non-UTC timezone. This is possible with the following syntax:
 
@@ -2276,7 +2276,7 @@ _time:1w | stats by (_time:1d offset 2h) count() logs_total
 
 Every log field inside `| stats by (...)` can be bucketed in the same way at `_time` field in [this example](#stats-by-time-buckets).
 Any [numeric value](#numeric-values) can be used as `step` value for the bucket. For example, the following query calculates
-the number of requests for the last hour, bucketed by 10KB of `request_size_bytes` [field](./VictoriaLogs/keyConcepts.md#data-model):
+the number of requests for the last hour, bucketed by 10KB of `request_size_bytes` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
 
 ```logsql
 _time:1h | stats by (request_size_bytes:10KB) count() requests
@@ -2284,9 +2284,9 @@ _time:1h | stats by (request_size_bytes:10KB) count() requests
 
 #### Stats by IPv4 buckets
 
-Stats can be bucketed by [log field](./VictoriaLogs/keyConcepts.md#data-model) containing [IPv4 addresses](https://en.wikipedia.org/wiki/IP_address)
+Stats can be bucketed by [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) containing [IPv4 addresses](https://en.wikipedia.org/wiki/IP_address)
 via the `ip_field_name:/network_mask` syntax inside `by(...)` clause. For example, the following query returns the number of log entries per `/24` subnetwork
-extracted from the `ip` [log field](./VictoriaLogs/keyConcepts.md#data-model) during the last 5 minutes:
+extracted from the `ip` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) during the last 5 minutes:
 
 ```logsql
 _time:5m | stats by (ip:/24) count() requests_per_subnet
@@ -2296,7 +2296,7 @@ _time:5m | stats by (ip:/24) count() requests_per_subnet
 
 Sometimes it is needed to calculate stats on different subsets of matching logs. This can be done by inserting `if (<any_filters>)` condition
 between [stats function](#stats-pipe-functions) and `result_name`, where `any_filter` can contain arbitrary [filters](#filters).
-For example, the following query calculates individually the number of [logs messages](./VictoriaLogs/keyConcepts.md#message-field)
+For example, the following query calculates individually the number of [logs messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 with `GET`, `POST` and `PUT` [words](#word), additionally to the total number of logs over the last 5 minutes:
 
 ```logsql
@@ -2309,8 +2309,8 @@ _time:5m | stats
 
 ### stream_context pipe
 
-`| stream_context ...` [pipe](#pipes) allows selecting surrounding logs for the matching logs in [logs stream](./VictoriaLogs/keyConcepts.md#stream-fields)
-in the way similar to `grep -A` / `grep -B`. The returned log chunks are delimited with `---` [log message](./VictoriaLogs/keyConcepts.md#message-field)
+`| stream_context ...` [pipe](#pipes) allows selecting surrounding logs for the matching logs in [logs stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+in the way similar to `grep -A` / `grep -B`. The returned log chunks are delimited with `---` [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 for easier investigation.
 
 For example, the following query returns up to 10 additional logs after every log message with the `panic` [word](#word) across all the logs for the last 5 minutes:
@@ -2336,10 +2336,10 @@ The `| stream_context` [pipe](#pipes) must go first just after the [filters](#fi
 
 ### top pipe
 
-`| top N by (field1, ..., fieldN)` [pipe](#pipes) returns top `N` sets for `(field1, ..., fieldN)` [log fields](./VictoriaLogs/keyConcepts.md#data-model)
+`| top N by (field1, ..., fieldN)` [pipe](#pipes) returns top `N` sets for `(field1, ..., fieldN)` [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 with the maximum number of matching log entries.
 
-For example, the following query returns top 7 [log streams](./VictoriaLogs/keyConcepts.md#stream-fields)
+For example, the following query returns top 7 [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
 with the maximum number of log entries over the last 5 minutes:
 
 ```logsql
@@ -2347,7 +2347,7 @@ _time:5m | top 7 by (_stream)
 ```
 
 The `N` is optional. If it is skipped, then top 10 entries are returned. For example, the following query returns top 10 values
-for `ip` [field](./VictoriaLogs/keyConcepts.md#data-model) seen in logs for the last 5 minutes:
+for `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) seen in logs for the last 5 minutes:
 
 ```logsql
 _time:5m | top by (ip)
@@ -2369,7 +2369,7 @@ See also:
 ### uniq pipe
 
 `| uniq ...` [pipe](#pipes) returns unique results over the selected logs. For example, the following LogsQL query
-returns unique values for `ip` [log field](./VictoriaLogs/keyConcepts.md#data-model)
+returns unique values for `ip` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
 
 ```logsql
@@ -2415,18 +2415,18 @@ See also:
 
 ### unpack_json pipe
 
-`| unpack_json from field_name` [pipe](#pipes) unpacks `{"k1":"v1", ..., "kN":"vN"}` JSON from the given input [`field_name`](./VictoriaLogs/keyConcepts.md#data-model)
+`| unpack_json from field_name` [pipe](#pipes) unpacks `{"k1":"v1", ..., "kN":"vN"}` JSON from the given input [`field_name`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 into `k1`, ... `kN` output field names with the corresponding `v1`, ..., `vN` values. It overrides existing fields with names from the `k1`, ..., `kN` list. Other fields remain untouched.
 
-Nested JSON is unpacked according to the rules defined [here](./VictoriaLogs/keyConcepts.md#data-model).
+Nested JSON is unpacked according to the rules defined [here](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
-For example, the following query unpacks JSON fields from the [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field) across logs for the last 5 minutes:
+For example, the following query unpacks JSON fields from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) across logs for the last 5 minutes:
 
 ```logsql
 _time:5m | unpack_json from _msg
 ```
 
-The `from _msg` part can be omitted when JSON fields are unpacked from the [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field).
+The `from _msg` part can be omitted when JSON fields are unpacked from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
 The following query is equivalent to the previous one:
 
 ```logsql
@@ -2434,7 +2434,7 @@ _time:5m | unpack_json
 ```
 
 If only some fields must be extracted from JSON, then they can be enumerated inside `fields (...)`. For example, the following query unpacks only `foo` and `bar`
-fields from JSON value stored in `my_json` [log field](./VictoriaLogs/keyConcepts.md#data-model):
+fields from JSON value stored in `my_json` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
 
 ```logsql
 _time:5m | unpack_json from my_json fields (foo, bar)
@@ -2455,7 +2455,7 @@ _time:5m | unpack_json fields (ip, host) skip_empty_results
 ```
 
 Performance tip: if you need extracting a single field from long JSON, it is faster to use [`extract` pipe](#extract-pipe). For example, the following query extracts `"ip"` field from JSON
-stored in [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field) at the maximum speed:
+stored in [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) at the maximum speed:
 
 ```
 _time:5m | extract '"ip":<ip>'
@@ -2472,7 +2472,7 @@ _time:5m | unpack_json from foo result_prefix "foo_"
 Performance tips:
 
 - It is better from performance and resource usage PoV ingesting parsed JSON logs into VictoriaLogs
-  according to the [supported data model](./VictoriaLogs/keyConcepts.md#data-model)
+  according to the [supported data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
   instead of ingesting unparsed JSON lines into VictoriaLogs and then parsing them at query time with [`unpack_json` pipe](#unpack_json-pipe).
 
 - It is recommended using more specific [log filters](#filters) in order to reduce the number of log entries, which are passed to `unpack_json`.
@@ -2490,7 +2490,7 @@ See also:
 
 #### Conditional unpack_json
 
-If the [`unpack_json` pipe](#unpack_json-pipe) mustn't be applied to every [log entry](./VictoriaLogs/keyConcepts.md#data-model),
+If the [`unpack_json` pipe](#unpack_json-pipe) mustn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
 then add `if (<filters>)` after `unpack_json`.
 The `<filters>` can contain arbitrary [filters](#filters). For example, the following query unpacks JSON fields from `foo` field only if `ip` field in the current log entry isn't set or empty:
 
@@ -2501,17 +2501,17 @@ _time:5m | unpack_json if (ip:"") from foo
 ### unpack_logfmt pipe
 
 `| unpack_logfmt from field_name` [pipe](#pipes) unpacks `k1=v1 ... kN=vN` [logfmt](https://brandur.org/logfmt) fields
-from the given [`field_name`](./VictoriaLogs/keyConcepts.md#data-model) into `k1`, ... `kN` field names
+from the given [`field_name`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into `k1`, ... `kN` field names
 with the corresponding `v1`, ..., `vN` values. It overrides existing fields with names from the `k1`, ..., `kN` list. Other fields remain untouched.
 
-For example, the following query unpacks [logfmt](https://brandur.org/logfmt) fields from the [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field)
+For example, the following query unpacks [logfmt](https://brandur.org/logfmt) fields from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 across logs for the last 5 minutes:
 
 ```logsql
 _time:5m | unpack_logfmt from _msg
 ```
 
-The `from _msg` part can be omitted when [logfmt](https://brandur.org/logfmt) fields are unpacked from the [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field).
+The `from _msg` part can be omitted when [logfmt](https://brandur.org/logfmt) fields are unpacked from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
 The following query is equivalent to the previous one:
 
 ```logsql
@@ -2541,7 +2541,7 @@ _time:5m | unpack_logfmt fields (ip, host) skip_empty_results
 
 Performance tip: if you need extracting a single field from long [logfmt](https://brandur.org/logfmt) line, it is faster to use [`extract` pipe](#extract-pipe).
 For example, the following query extracts `"ip"` field from [logfmt](https://brandur.org/logfmt) line stored
-in [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field):
+in [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 
 ```
 _time:5m | extract ' ip=<ip>'
@@ -2558,7 +2558,7 @@ _time:5m | unpack_logfmt from foo result_prefix "foo_"
 Performance tips:
 
 - It is better from performance and resource usage PoV ingesting parsed [logfmt](https://brandur.org/logfmt) logs into VictoriaLogs
-  according to the [supported data model](./VictoriaLogs/keyConcepts.md#data-model)
+  according to the [supported data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
   instead of ingesting unparsed logfmt lines into VictoriaLogs and then parsing them at query time with [`unpack_logfmt` pipe](#unpack_logfmt-pipe).
 
 - It is recommended using more specific [log filters](#filters) in order to reduce the number of log entries, which are passed to `unpack_logfmt`.
@@ -2573,7 +2573,7 @@ See also:
 
 #### Conditional unpack_logfmt
 
-If the [`unpack_logfmt` pipe](#unpack_logfmt-pipe) mustn't be applied to every [log entry](./VictoriaLogs/keyConcepts.md#data-model),
+If the [`unpack_logfmt` pipe](#unpack_logfmt-pipe) mustn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
 then add `if (<filters>)` after `unpack_logfmt`.
 The `<filters>` can contain arbitrary [filters](#filters). For example, the following query unpacks logfmt fields from `foo` field
 only if `ip` field in the current log entry isn't set or empty:
@@ -2585,7 +2585,7 @@ _time:5m | unpack_logfmt if (ip:"") from foo
 ### unpack_syslog pipe
 
 `| unpack_syslog from field_name` [pipe](#pipes) unpacks [syslog](https://en.wikipedia.org/wiki/Syslog) message
-from the given [`field_name`](./VictoriaLogs/keyConcepts.md#data-model). It understands the following Syslog formats:
+from the given [`field_name`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). It understands the following Syslog formats:
 
 - [RFC3164](https://datatracker.ietf.org/doc/html/rfc3164) aka `<PRI>MMM DD hh:mm:ss HOSTNAME APP-NAME[PROCID]: MESSAGE`
 - [RFC5424](https://datatracker.ietf.org/doc/html/rfc5424) aka `<PRI>1 TIMESTAMP HOSTNAME APP-NAME PROCID MSGID [STRUCTURED-DATA] MESSAGE`
@@ -2609,7 +2609,7 @@ The `<PRI>` part is optional. If it is missing, then `priority`, `facility` and 
 The `[STRUCTURED-DATA]` is parsed into fields with the `SD-ID.param1`, `SD-ID.param2`, ..., `SD-ID.paramN` names and the corresponding values
 according to [the specification](https://datatracker.ietf.org/doc/html/rfc5424#section-6.3).
 
-For example, the following query unpacks [syslog](https://en.wikipedia.org/wiki/Syslog) message from the [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field)
+For example, the following query unpacks [syslog](https://en.wikipedia.org/wiki/Syslog) message from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 across logs for the last 5 minutes:
 
 ```logsql
@@ -2617,7 +2617,7 @@ _time:5m | unpack_syslog from _msg
 ```
 
 The `from _msg` part can be omitted when [syslog](https://en.wikipedia.org/wiki/Syslog) message is unpacked
-from the [`_msg` field](./VictoriaLogs/keyConcepts.md#message-field).
+from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
 The following query is equivalent to the previous one:
 
 ```logsql
@@ -2648,7 +2648,7 @@ _time:5m | unpack_syslog from foo result_prefix "foo_"
 Performance tips:
 
 - It is better from performance and resource usage PoV ingesting parsed [syslog](https://en.wikipedia.org/wiki/Syslog) messages into VictoriaLogs
-  according to the [supported data model](./VictoriaLogs/keyConcepts.md#data-model)
+  according to the [supported data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
   instead of ingesting unparsed syslog lines into VictoriaLogs and then parsing them at query time with [`unpack_syslog` pipe](#unpack_syslog-pipe).
 
 - It is recommended using more specific [log filters](#filters) in order to reduce the number of log entries, which are passed to `unpack_syslog`.
@@ -2663,7 +2663,7 @@ See also:
 
 #### Conditional unpack_syslog
 
-If the [`unpack_syslog` pipe](#unpack_syslog-pipe) mustn't be applied to every [log entry](./VictoriaLogs/keyConcepts.md#data-model),
+If the [`unpack_syslog` pipe](#unpack_syslog-pipe) mustn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
 then add `if (<filters>)` after `unpack_syslog`.
 The `<filters>` can contain arbitrary [filters](#filters). For example, the following query unpacks syslog message fields from `foo` field
 only if `hostname` field in the current log entry isn't set or empty:
@@ -2675,9 +2675,9 @@ _time:5m | unpack_syslog if (hostname:"") from foo
 ### unroll pipe
 
 `| unroll by (field1, ..., fieldN)` [pipe](#pipes) can be used for unrolling JSON arrays from `field1`, `fieldN`
-[log fields](./VictoriaLogs/keyConcepts.md#data-model) into separate rows.
+[log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into separate rows.
 
-For example, the following query unrolls `timestamp` and `value` [log fields](./VictoriaLogs/keyConcepts.md#data-model) from logs for the last 5 minutes:
+For example, the following query unrolls `timestamp` and `value` [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) from logs for the last 5 minutes:
 
 ```logsql
 _time:5m | unroll (timestamp, value)
@@ -2692,7 +2692,7 @@ See also:
 
 #### Conditional unroll
 
-If the [`unroll` pipe](#unpack_logfmt-pipe) mustn't be applied to every [log entry](./VictoriaLogs/keyConcepts.md#data-model),
+If the [`unroll` pipe](#unpack_logfmt-pipe) mustn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
 then add `if (<filters>)` after `unroll`.
 The `<filters>` can contain arbitrary [filters](#filters). For example, the following query unrolls `value` field only if `value_type` field equals to `json_array`:
 
@@ -2704,29 +2704,29 @@ _time:5m | unroll if (value_type:="json_array") (value)
 
 LogsQL supports the following functions for [`stats` pipe](#stats-pipe):
 
-- [`avg`](#avg-stats) returns the average value over the given numeric [log fields](./VictoriaLogs/keyConcepts.md#data-model).
+- [`avg`](#avg-stats) returns the average value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`count`](#count-stats) returns the number of log entries.
-- [`count_empty`](#count_empty-stats) returns the number logs with empty [log fields](./VictoriaLogs/keyConcepts.md#data-model).
-- [`count_uniq`](#count_uniq-stats) returns the number of unique non-empty values for the given [log fields](./VictoriaLogs/keyConcepts.md#data-model).
-- [`max`](#max-stats) returns the maximum value over the given numeric [log fields](./VictoriaLogs/keyConcepts.md#data-model).
-- [`median`](#median-stats) returns the [median](https://en.wikipedia.org/wiki/Median) value over the given numeric [log fields](./VictoriaLogs/keyConcepts.md#data-model).
-- [`min`](#min-stats) returns the minumum value over the given numeric [log fields](./VictoriaLogs/keyConcepts.md#data-model).
-- [`quantile`](#quantile-stats) returns the given quantile for the given numeric [log fields](./VictoriaLogs/keyConcepts.md#data-model).
-- [`row_any`](#row_any-stats) returns a sample [log entry](./VictoriaLogs/keyConcepts.md#data-model) per each selected [stats group](#stats-by-fields).
-- [`row_max`](#row_max-stats) returns the [log entry](./VictoriaLogs/keyConcepts.md#data-model) with the minimum value at the given field.
-- [`row_min`](#row_min-stats) returns the [log entry](./VictoriaLogs/keyConcepts.md#data-model) with the maximum value at the given field.
-- [`sum`](#sum-stats) returns the sum for the given numeric [log fields](./VictoriaLogs/keyConcepts.md#data-model).
-- [`sum_len`](#sum_len-stats) returns the sum of lengths for the given [log fields](./VictoriaLogs/keyConcepts.md#data-model).
-- [`uniq_values`](#uniq_values-stats) returns unique non-empty values for the given [log fields](./VictoriaLogs/keyConcepts.md#data-model).
-- [`values`](#values-stats) returns all the values for the given [log fields](./VictoriaLogs/keyConcepts.md#data-model).
+- [`count_empty`](#count_empty-stats) returns the number logs with empty [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`count_uniq`](#count_uniq-stats) returns the number of unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`max`](#max-stats) returns the maximum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`median`](#median-stats) returns the [median](https://en.wikipedia.org/wiki/Median) value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`min`](#min-stats) returns the minumum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`quantile`](#quantile-stats) returns the given quantile for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`row_any`](#row_any-stats) returns a sample [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) per each selected [stats group](#stats-by-fields).
+- [`row_max`](#row_max-stats) returns the [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with the minimum value at the given field.
+- [`row_min`](#row_min-stats) returns the [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with the maximum value at the given field.
+- [`sum`](#sum-stats) returns the sum for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`sum_len`](#sum_len-stats) returns the sum of lengths for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`uniq_values`](#uniq_values-stats) returns unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`values`](#values-stats) returns all the values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
 ### avg stats
 
 `avg(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the average value across
-all the mentioned [log fields](./VictoriaLogs/keyConcepts.md#data-model).
+all the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 Non-numeric values are ignored.
 
-For example, the following query returns the average value for the `duration` [field](./VictoriaLogs/keyConcepts.md#data-model)
+For example, the following query returns the average value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
 
 ```logsql
@@ -2752,7 +2752,7 @@ For example, the following query returns the number of logs over the last 5 minu
 _time:5m | stats count() logs
 ```
 
-It is possible calculating the number of logs with non-empty values for some [log field](./VictoriaLogs/keyConcepts.md#data-model)
+It is possible calculating the number of logs with non-empty values for some [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 with the `count(fieldName)` syntax. For example, the following query returns the number of logs with non-empty `username` field over the last 5 minutes:
 
 ```logsql
@@ -2760,7 +2760,7 @@ _time:5m | stats count(username) logs_with_username
 ```
 
 If multiple fields are enumerated inside `count()`, then it counts the number of logs with at least a single non-empty field mentioned inside `count()`.
-For example, the following query returns the number of logs with non-empty `username` or `password` [fields](./VictoriaLogs/keyConcepts.md#data-model)
+For example, the following query returns the number of logs with non-empty `username` or `password` [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over the last 5 minutes:
 
 ```logsql
@@ -2778,7 +2778,7 @@ See also:
 
 `count_empty(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the number of logs with empty `(field1, ..., fieldN)` tuples.
 
-For example, the following query calculates the number of logs with empty `username` [field](./VictoriaLogs/keyConcepts.md#data-model)
+For example, the following query calculates the number of logs with empty `username` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 during the last 5 minutes:
 
 ```logsql
@@ -2794,14 +2794,14 @@ See also:
 
 `count_uniq(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the number of unique non-empty `(field1, ..., fieldN)` tuples.
 
-For example, the following query returns the number of unique non-empty values for `ip` [field](./VictoriaLogs/keyConcepts.md#data-model)
+For example, the following query returns the number of unique non-empty values for `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over the last 5 minutes:
 
 ```logsql
 _time:5m | stats count_uniq(ip) ips
 ```
 
-The following query returns the number of unique `(host, path)` pairs for the corresponding [fields](./VictoriaLogs/keyConcepts.md#data-model)
+The following query returns the number of unique `(host, path)` pairs for the corresponding [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over the last 5 minutes:
 
 ```logsql
@@ -2825,9 +2825,9 @@ See also:
 ### max stats
 
 `max(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) returns the maximum value across
-all the mentioned [log fields](./VictoriaLogs/keyConcepts.md#data-model).
+all the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
-For example, the following query returns the maximum value for the `duration` [field](./VictoriaLogs/keyConcepts.md#data-model)
+For example, the following query returns the maximum value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
 
 ```logsql
@@ -2846,9 +2846,9 @@ See also:
 ### median stats
 
 `median(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the [median](https://en.wikipedia.org/wiki/Median) value across
-the give numeric [log fields](./VictoriaLogs/keyConcepts.md#data-model).
+the give numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
-For example, the following query return median for the `duration` [field](./VictoriaLogs/keyConcepts.md#data-model)
+For example, the following query return median for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
 
 ```logsql
@@ -2863,9 +2863,9 @@ See also:
 ### min stats
 
 `min(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) returns the minimum value across
-all the mentioned [log fields](./VictoriaLogs/keyConcepts.md#data-model).
+all the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
-For example, the following query returns the minimum value for the `duration` [field](./VictoriaLogs/keyConcepts.md#data-model)
+For example, the following query returns the minimum value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
 
 ```logsql
@@ -2884,10 +2884,10 @@ See also:
 ### quantile stats
 
 `quantile(phi, field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates `phi` [percentile](https://en.wikipedia.org/wiki/Percentile) over numeric values
-for the given [log fields](./VictoriaLogs/keyConcepts.md#data-model). The `phi` must be in the range `0 ... 1`, where `0` means `0th` percentile,
+for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). The `phi` must be in the range `0 ... 1`, where `0` means `0th` percentile,
 while `1` means `100th` percentile.
 
-For example, the following query calculates `50th`, `90th` and `99th` percentiles for the `request_duration_seconds` [field](./VictoriaLogs/keyConcepts.md#data-model)
+For example, the following query calculates `50th`, `90th` and `99th` percentiles for the `request_duration_seconds` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
 
 ```logsql
@@ -2906,10 +2906,10 @@ See also:
 
 ### row_any stats
 
-`row_any()` [stats pipe function](#stats-pipe-functions) returns arbitrary [log entry](./VictoriaLogs/keyConcepts.md#data-model)
+`row_any()` [stats pipe function](#stats-pipe-functions) returns arbitrary [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 (aka sample) per each selected [stats group](#stats-by-fields). Log entry is returned as JSON-encoded dictionary with all the fields from the original log.
 
-For example, the following query returns a sample log entry per each [`_stream`](./VictoriaLogs/keyConcepts.md#stream-fields)
+For example, the following query returns a sample log entry per each [`_stream`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
 across logs for the last 5 minutes:
 
 ```logsql
@@ -2932,10 +2932,10 @@ See also:
 
 ### row_max stats
 
-`row_max(field)` [stats pipe function](#stats-pipe-functions) returns [log entry](./VictoriaLogs/keyConcepts.md#data-model)
+`row_max(field)` [stats pipe function](#stats-pipe-functions) returns [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 with the maximum value for the given `field`. Log entry is returned as JSON-encoded dictionary with all the fields from the original log.
 
-For example, the following query returns log entry with the maximum value for the `duration` [field](./VictoriaLogs/keyConcepts.md#data-model)
+For example, the following query returns log entry with the maximum value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 across logs for the last 5 minutes:
 
 ```logsql
@@ -2959,10 +2959,10 @@ See also:
 
 ### row_min stats
 
-`row_min(field)` [stats pipe function](#stats-pipe-functions) returns [log entry](./VictoriaLogs/keyConcepts.md#data-model)
+`row_min(field)` [stats pipe function](#stats-pipe-functions) returns [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 with the minimum value for the given `field`. Log entry is returned as JSON-encoded dictionary with all the fields from the original log.
 
-For example, the following query returns log entry with the minimum value for the `duration` [field](./VictoriaLogs/keyConcepts.md#data-model)
+For example, the following query returns log entry with the minimum value for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 across logs for the last 5 minutes:
 
 ```logsql
@@ -2987,9 +2987,9 @@ See also:
 ### sum stats
 
 `sum(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the sum of numeric values across
-all the mentioned [log fields](./VictoriaLogs/keyConcepts.md#data-model).
+all the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
-For example, the following query returns the sum of numeric values for the `duration` [field](./VictoriaLogs/keyConcepts.md#data-model)
+For example, the following query returns the sum of numeric values for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
 
 ```logsql
@@ -3006,9 +3006,9 @@ See also:
 ### sum_len stats
 
 `sum_len(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the sum of lengths of all the values
-for the given [log fields](./VictoriaLogs/keyConcepts.md#data-model).
+for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
-For example, the following query returns the sum of lengths of [`_msg` fields](./VictoriaLogs/keyConcepts.md#message-field)
+For example, the following query returns the sum of lengths of [`_msg` fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 across all the logs for the last 5 minutes:
 
 ```logsql
@@ -3022,10 +3022,10 @@ See also:
 ### uniq_values stats
 
 `uniq_values(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) returns the unique non-empty values across
-the mentioned [log fields](./VictoriaLogs/keyConcepts.md#data-model).
+the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 The returned values are encoded in sorted JSON array.
 
-For example, the following query returns unique non-empty values for the `ip` [field](./VictoriaLogs/keyConcepts.md#data-model)
+For example, the following query returns unique non-empty values for the `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
 
 ```logsql
@@ -3037,7 +3037,7 @@ The returned unique ip addresses can be unrolled into distinct log entries with 
 Every unique value is stored in memory during query execution. Big number of unique values may require a lot of memory. Sometimes it is enough to return
 only a subset of unique values. In this case add `limit N` after `uniq_values(...)` in order to limit the number of returned unique values to `N`,
 while limiting the maximum memory usage.
-For example, the following query returns up to `100` unique values for the `ip` [field](./VictoriaLogs/keyConcepts.md#data-model)
+For example, the following query returns up to `100` unique values for the `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over the logs for the last 5 minutes:
 
 ```logsql
@@ -3056,10 +3056,10 @@ See also:
 ### values stats
 
 `values(field1, ..., fieldN)` [stats pipe fuction](#stats-pipe-functions) returns all the values (including empty values)
-for the mentioned [log fields](./VictoriaLogs/keyConcepts.md#data-model).
+for the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 The returned values are encoded in JSON array.
 
-For example, the following query returns all the values for the `ip` [field](./VictoriaLogs/keyConcepts.md#data-model)
+For example, the following query returns all the values for the `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
 
 ```logsql
@@ -3082,32 +3082,32 @@ See [`stream_context` pipe](#stream_context-pipe).
 
 LogsQL supports the following transformations on the log entries selected with [filters](#filters):
 
-- Extracting arbitrary text from [log fields](./VictoriaLogs/keyConcepts.md#data-model) according to the provided pattern.
+- Extracting arbitrary text from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) according to the provided pattern.
   See [these docs](#extract-pipe) for details.
-- Unpacking JSON fields from [log fields](./VictoriaLogs/keyConcepts.md#data-model). See [these docs](#unpack_json-pipe).
-- Unpacking [logfmt](https://brandur.org/logfmt) fields from [log fields](./VictoriaLogs/keyConcepts.md#data-model). See [these docs](#unpack_logfmt-pipe).
-- Unpacking [Syslog](https://en.wikipedia.org/wiki/Syslog) messages from [log fields](./VictoriaLogs/keyConcepts.md#data-model). See [these docs](#unpack_syslog-pipe).
-- Creating a new field from existing [log fields](./VictoriaLogs/keyConcepts.md#data-model) according to the provided format. See [`format` pipe](#format-pipe).
-- Replacing substrings in the given [log field](./VictoriaLogs/keyConcepts.md#data-model).
+- Unpacking JSON fields from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). See [these docs](#unpack_json-pipe).
+- Unpacking [logfmt](https://brandur.org/logfmt) fields from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). See [these docs](#unpack_logfmt-pipe).
+- Unpacking [Syslog](https://en.wikipedia.org/wiki/Syslog) messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). See [these docs](#unpack_syslog-pipe).
+- Creating a new field from existing [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) according to the provided format. See [`format` pipe](#format-pipe).
+- Replacing substrings in the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
   See [`replace` pipe](#replace-pipe) and [`replace_regexp` pipe](#replace_regexp-pipe) docs.
-- Creating a new field according to math calculations over existing [log fields](./VictoriaLogs/keyConcepts.md#data-model). See [`math` pipe](#math-pipe).
+- Creating a new field according to math calculations over existing [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). See [`math` pipe](#math-pipe).
 
 It is also possible to perform various transformations on the [selected log entries](#filters) at client side
-with `jq`, `awk`, `cut`, etc. Unix commands according to [these docs](./VictoriaLogs/querying/README.md#command-line).
+with `jq`, `awk`, `cut`, etc. Unix commands according to [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line).
 
 ## Post-filters
 
 Post-filtering of query results can be performed at any step by using [`filter` pipe](#filter-pipe).
 
 It is also possible to perform post-filtering of the [selected log entries](#filters) at client side with `grep` and similar Unix commands
-according to [these docs](./VictoriaLogs/querying/README.md#command-line).
+according to [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line).
 
 ## Stats
 
 Stats over the selected logs can be calculated via [`stats` pipe](#stats-pipe).
 
 It is also possible to perform stats calculations on the [selected log entries](#filters) at client side with `sort`, `uniq`, etc. Unix commands
-according to [these docs](./VictoriaLogs/querying/README.md#command-line).
+according to [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line).
 
 ## Sorting
 
@@ -3117,7 +3117,7 @@ By default VictoriaLogs doesn't sort the returned results because of performance
 
 LogsQL provides the following [pipes](#pipes) for limiting the number of returned log entries:
 
-- [`fields`](#fields-pipe) and [`delete`](#delete-pipe) pipes allow limiting the set of [log fields](./VictoriaLogs/keyConcepts.md#data-model) to return.
+- [`fields`](#fields-pipe) and [`delete`](#delete-pipe) pipes allow limiting the set of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) to return.
 - [`limit` pipe](#limit-pipe) allows limiting the number of log entries to return.
 
 ## Querying specific fields
@@ -3183,7 +3183,7 @@ Internally duration values are converted into nanoseconds.
 
 - It is highly recommended specifying [time filter](#time-filter) in order to narrow down the search to specific time range.
 - It is highly recommended specifying [stream filter](#stream-filter) in order to narrow down the search
-  to specific [log streams](./VictoriaLogs/keyConcepts.md#stream-fields).
+  to specific [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 - Move faster filters such as [word filter](#word-filter) and [phrase filter](#phrase-filter) to the beginning of the query.
   This rule doesn't apply to [time filter](#time-filter) and [stream filter](#stream-filter), which can be put at any place of the query.
 - Move more specific filters, which match lower number of log entries, to the beginning of the query.
