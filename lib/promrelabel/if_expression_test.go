@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
-	"gopkg.in/yaml.v2"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/yaml"
 )
 
 func TestIfExpressionParseFailure(t *testing.T) {
@@ -84,7 +84,7 @@ func TestIfExpressionUnmarshalFailure(t *testing.T) {
 		t.Helper()
 
 		var ie IfExpression
-		err := yaml.UnmarshalStrict([]byte(s), &ie)
+		err := yaml.Unmarshal([]byte(s), &ie, true)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -113,7 +113,7 @@ func TestIfExpressionUnmarshalSuccess(t *testing.T) {
 		t.Helper()
 
 		var ie IfExpression
-		if err := yaml.UnmarshalStrict([]byte(s), &ie); err != nil {
+		if err := yaml.Unmarshal([]byte(s), &ie, true); err != nil {
 			t.Fatalf("unexpected error during unmarshal: %s", err)
 		}
 		b, err := yaml.Marshal(&ie)
@@ -166,7 +166,7 @@ func TestIfExpressionMatch(t *testing.T) {
 		t.Helper()
 
 		var ie IfExpression
-		if err := yaml.UnmarshalStrict([]byte(ifExpr), &ie); err != nil {
+		if err := yaml.Unmarshal([]byte(ifExpr), &ie, true); err != nil {
 			t.Fatalf("unexpected error during unmarshal: %s", err)
 		}
 		labels := promutils.MustNewLabelsFromString(metricWithLabels)
@@ -204,7 +204,7 @@ func TestIfExpressionMismatch(t *testing.T) {
 		t.Helper()
 
 		var ie IfExpression
-		if err := yaml.UnmarshalStrict([]byte(ifExpr), &ie); err != nil {
+		if err := yaml.Unmarshal([]byte(ifExpr), &ie, true); err != nil {
 			t.Fatalf("unexpected error during unmarshal: %s", err)
 		}
 		labels := promutils.MustNewLabelsFromString(metricWithLabels)

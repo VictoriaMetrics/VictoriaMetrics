@@ -3,7 +3,7 @@ package gce
 import (
 	"testing"
 
-	"gopkg.in/yaml.v2"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/yaml"
 )
 
 func TestMarshallingSDConfigWithZoneYAML(t *testing.T) {
@@ -14,13 +14,12 @@ func TestMarshallingSDConfigWithZoneYAML(t *testing.T) {
 		},
 	}
 
-	data, err := yaml.Marshal(sdConfig)
+	data, err := yaml.Marshal(&sdConfig)
 	if err != nil {
 		t.Fatalf("unexpected non-nil error")
 	}
-
 	strData := string(data)
-	expected := "project: test-project\nzone:\n- zone-a\n- zone-b\n"
+	expected := "project: test-project\nzone:\n  - zone-a\n  - zone-b\n"
 	if strData != expected {
 		t.Fatalf("unexpected marshal:\ngot \n%vwant\n%v", strData, expected)
 	}
