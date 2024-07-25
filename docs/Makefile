@@ -1,7 +1,3 @@
-ROOTDIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
-REPODIR := $(ROOTDIR)/..
-WORKDIR := $(REPODIR)/..
-
 # These commands must be run from the VictoriaMetrics repository root
 
 # Converts images at docs folder to webp format
@@ -20,19 +16,18 @@ docs-images-to-webp-by-extension:
 	find docs/ -type f ! -path 'docs/operator/*' ! -path 'docs/_site/*' -name '*.$(IMAGES_EXTENSION)' -print0 | xargs -0 rm -f
 
 docs-debug:
-	if [ ! -d $(WORKDIR)/vmdocs ]; then \
-		git clone git@github.com:VictoriaMetrics/vmdocs $(WORKDIR)/vmdocs; \
+	if [ ! -d vmdocs ]; then \
+		git clone --depth 1 git@github.com:VictoriaMetrics/vmdocs vmdocs; \
 	fi; \
-	cd $(WORKDIR)/vmdocs && \
+	cd vmdocs && \
 	git checkout main && \
 	git pull origin main && \
-	cd $(REPODIR) && \
+	cd .. && \
 	docker build \
-		-t vmdocs \
-		$(WORKDIR)/vmdocs && \
-	docker rm -f vmdocs || true && \
+		-t vmdocs-docker-package \
+		vmdocs && \
 	docker run \
-		-d \
-		--name vmdocs \
+		--rm \
+		--name vmdocs-docker-container \
 		-p 1313:1313 \
-		-v ./docs:/opt/docs/content vmdocs
+		-v ./docs:/opt/docs/content vmdocs-docker-package
