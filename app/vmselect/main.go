@@ -43,7 +43,8 @@ var (
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the given -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
-	cacheDataPath         = flag.String("cacheDataPath", "", "Path to directory for cache files. By default, the cache is not persisted.")
+	cacheDataPath = flag.String("cacheDataPath", "", "Path to directory for cache files. By default, the cache is not persisted. "+
+		"Please note that vmselect will create a `/tmp/searchResults` folder under cacheDataPath, which contains data from vmstorage nodes for search query. Ensure that `cacheDataPath/tmp/searchResults` will not be removed. Refer to issue #5770 for more details.")
 	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "The maximum number of concurrent search requests. "+
 		"It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. "+
 		"See also -search.maxQueueDuration and -search.maxMemoryPerQuery")
