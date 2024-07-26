@@ -14,6 +14,156 @@ or any other HTTP backends.
 
 ## Quick start
 
+
+### Linux Service
+1. Download the `vmutils` binary for your platform from [GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
+
+2. Extract vmutils to /usr/local/bin by running 
+
+```sh
+sudo tar -xvf <vmutils-archive> -C /usr/local/bin
+```
+
+Replace `<vmutils-archive>` with the archive you downloaded in step 1.
+
+3. create a VictoriaMetrics user
+
+```sh
+sudo useradd -s /usr/sbin/nologin victoriametrics
+```
+
+4. Create a folder for storing the vmauth config
+
+```sh
+mkdir -p /var/lib/victoria-metrics/vmauth && chown -R victoriametrics:victoriametrics /var/lib/victoria-metrics/vmauth
+```
+
+
+5. Create a Linux Service by running the following command replace
+
+```sh
+cat <<END >/etc/systemd/system/vmauth.service
+[Unit]
+Description=Description=VictoriaMetrics vmauth service
+After=network.target
+
+[Service]
+Type=simple
+User=victoriametrics
+Group=victoriametrics
+ExecStart=/usr/local/bin/vmauth-prod -auth.config=/var/lib/victoria-metrics/vmauth/auth.yaml
+SyslogIdentifier=vmauth
+Restart=always
+
+PrivateTmp=yes
+ProtectHome=yes
+NoNewPrivileges=yes
+
+ProtectSystem=full
+[Install]
+WantedBy=multi-user.target
+END
+```
+Extra [command-line flags](https://docs.victoriametrics.com/vmauth/#advanced-usage) can be added to the `ExecStart` line and the [data ingestion docs](https://docs.victoriametrics.com/data-ingestion/vmauth/) have details for connecting to Victoriametrics with encryption and authentication.
+
+6. Create a `vmauth` config
+
+Run the command below after changing `<victoriametrics_ip_or_hostname>` to the ip or hostname of your victoriametrics server.
+
+```sh
+cat <<END >/var/lib/victoria-metrics/vmauth/auth.yaml
+users:
+  - username: "victoria"
+    password: "metrics"
+    url_prefix: "http://<victoriametrics_ip_or_hostname>:8428"
+  - bearer_token: "victoria-metrics"
+    url_prefix: "http://<victoriametrics_ip_or_hostname>:8428"
+END
+```
+
+7. Start and enable the service 
+
+
+```sh
+sudo systemctl daemon-reload && sudo systemctl enable --now vmauth.service
+```
+
+
+8. Check that service is running
+
+```sh
+sudo systemctl status vmauth
+```
+
+9. Test Basic Authentication by running 
+
+Run the following command to make sure basic authentication is working.
+
+```sh
+curl --head -u 'victoria:metrics' http://<vmauth_ip_or_hostname>:8427/vmui/
+```
+
+If everything is working you will get `HTTP1.1 200 OK` in the first line of the output.
+
+10. Test Bearer Token
+
+Run the following command to test that bearer authentication is working
+
+```sh
+curl -H 'Authorization Bearer victoria-metrics' http://<vmauth_ip_or_hostname>:8427/vmui
+```
+
+If everything is working you will get `HTTP1.1 200 OK` in the first line of the output.
+
+
+### Docker
+
+The container image for vmauth can be found on [docker hub](https://hub.docker.com/r/victoriametrics/vmauth/tags) and will also work with other OCI compatible runtimes like podman.
+
+1. Create `vmauth` config
+
+
+Create a vmauth configuration by running the command below fater changing `victoriametrics_ip_or_hostname` to the ip or hostname of your victoriametrics instance.
+
+```sh
+mkdir -p ./vmauth && cat <<END >./vmauth/auth.yaml
+users:
+  - username: "victoria"
+    password: "metrics"
+    url_prefix: "http://<victoriametrics_ip_or_hostname>:8428"
+  - bearer_token: "victoria-metrics"
+    url_prefix: "http://<victoriametrics_ip_or_hostname>:8428"
+END
+```
+
+2. Run the container
+
+```sh
+docker run -p 8427:8427 -v ./vmauth:/vmauth docker.io/victoriametrics/vmauth -auth.config /vmauth/config.yaml
+```
+
+3. Test Basic Authentication by running 
+
+Run the following command to make sure basic authentication is working.
+
+```sh
+curl --head -u 'victoria:metrics' http://<vmauth_ip_or_hostname>:8427/vmui/
+```
+
+If everything is working you will get `HTTP1.1 200 OK` in the first line of the output.
+
+4. Test Bearer Token
+
+Run the following command to test that bearer authentication is working
+
+```sh
+curl -H 'Authorization Bearer victoria-metrics' http://<vmauth_ip_or_hostname>:8427/vmui
+```
+
+If everything is working you will get `HTTP1.1 200 OK` in the first line of the output.
+
+
+### CLI
 Just download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest), unpack it
 and pass the following flag to `vmauth` binary in order to start authorizing and proxying requests:
 

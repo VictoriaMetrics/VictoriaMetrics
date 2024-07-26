@@ -160,7 +160,8 @@ sudo systemctl status vmagent
 10. Check for data in VMUI
 
 To make sure scrape jobs are working and sending data to VictoriaMetrics go to `http://<victoriametrics_ip_or_hostname>:8428/vmui` type `{job=vmagent_quickstart"}` in the query box  and click `Execute Query`.
-If you see data the vmagent is successfully evaluating recording rules and sending the data to VictoriaMetrics
+If you see data the vmagent is successfully evaluating recording rules and sending the data to VictoriaMetrics.
+If you are not using VictoriaMetrics you can run the query `{job="vmagent_quickstart"}` in the explore page of Grafana or in Promethues UI.
 
 ### CLI
 Please download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) (
@@ -190,11 +191,15 @@ Example command for scraping Prometheus targets and writing the data to single-n
 
 The container image for vmagent can be found on [docker hub](https://hub.docker.com/r/victoriametrics/vmagent/tags) and will also work with other OCI compatible runtimes like podman.
 
+
+1. Create scrape configuration.
+
+
 To scrape data we need to create config file with that defines our scrape job.
 You can use an existing Promethues scrape config or you  add this sample one to `./vmgaent/scrape.yml`
 
 ```sh
-cat<<END > ./vmagent/scrape.yml
+mkdir -p ./vmagent && cat<<END > ./vmagent/scrape.yml
 scrape_configs:
 - job_name: vmagent_quickstart
   scrape_interval: 30s
@@ -205,14 +210,19 @@ scrape_configs:
 END
 ```
 
-Now we can run the container
+2. Run the Container
 
 ```sh
 docker run -p 8429:8429 -v ./vmagent:/vmagent docker.io/victoriametrics/vmagent -remoteWrite.tmpDataPath=/vmagent -promscrape.config=/vmagent/scrape.yml -remoteWrite.url=http://victoria-metrics-host:8428/api/v1/write
 ```
 
+
+3. Verify Scrape Job is working.
+
+
 If you don't see errors in the command line after 30 seconds check VMUI to confirm data is flowing from `vmagent` to victoriametrics by going to `http://victoria-metrics-host:8428/vmui`.
 Then type `{job="vmagent_quickstart"}` and press the `execute query` button and if everything is working you see some metrics.
+If you are not using VictoriaMetrics you can run the query `{job="vmagent_quickstart"}` in the explore page of Grafana or in Promethues UI.
 
 
 
