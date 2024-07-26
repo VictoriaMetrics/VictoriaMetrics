@@ -130,11 +130,10 @@ func initStreamAggrConfigGlobal() {
 		sasGlobal.Store(sas)
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, filePath)).Set(1)
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_success_timestamp_seconds{path=%q}`, filePath)).Set(fasttime.UnixTimestamp())
-	} else {
-		dedupInterval := streamAggrGlobalDedupInterval.Duration()
-		if dedupInterval > 0 {
-			deduplicatorGlobal = streamaggr.NewDeduplicator(pushToRemoteStoragesTrackDropped, dedupInterval, *streamAggrGlobalDropInputLabels, "dedup-global")
-		}
+	}
+	dedupInterval := streamAggrGlobalDedupInterval.Duration()
+	if dedupInterval > 0 {
+		deduplicatorGlobal = streamaggr.NewDeduplicator(pushToRemoteStoragesTrackDropped, dedupInterval, *streamAggrGlobalDropInputLabels, "dedup-global")
 	}
 }
 
@@ -152,12 +151,11 @@ func (rwctx *remoteWriteCtx) initStreamAggrConfig() {
 		rwctx.streamAggrDropInput = streamAggrDropInput.GetOptionalArg(idx)
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, filePath)).Set(1)
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_success_timestamp_seconds{path=%q}`, filePath)).Set(fasttime.UnixTimestamp())
-	} else {
-		dedupInterval := streamAggrDedupInterval.GetOptionalArg(idx)
-		if dedupInterval > 0 {
-			alias := fmt.Sprintf("dedup-%d", idx+1)
-			rwctx.deduplicator = streamaggr.NewDeduplicator(rwctx.pushInternalTrackDropped, dedupInterval, *streamAggrDropInputLabels, alias)
-		}
+	}
+	dedupInterval := streamAggrDedupInterval.GetOptionalArg(idx)
+	if dedupInterval > 0 {
+		alias := fmt.Sprintf("dedup-%d", idx+1)
+		rwctx.deduplicator = streamaggr.NewDeduplicator(rwctx.pushInternalTrackDropped, dedupInterval, *streamAggrDropInputLabels, alias)
 	}
 }
 
