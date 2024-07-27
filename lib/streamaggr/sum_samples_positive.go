@@ -7,7 +7,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
-// sumSamplesAggrState calculates output=sum_samples, e.g. the sum over input samples.
+// sumSamplesPositiveAggrState calculates output=sum_samples_positive, e.g. the sum over input samples with positive values.
 type sumSamplesPositiveAggrState struct {
 	m sync.Map
 }
@@ -78,6 +78,7 @@ func (as *sumSamplesPositiveAggrState) flushState(ctx *flushCtx, resetState bool
 
 		key := k.(string)
 		if sum > 0 {
+			// Output only positive sums
 			ctx.appendSeries(key, "sum_samples_positive", currentTimeMsec, sum)
 		}
 		return true
