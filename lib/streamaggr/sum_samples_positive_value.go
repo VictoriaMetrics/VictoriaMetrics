@@ -31,7 +31,7 @@ func (as *sumSamplesPositiveValueAggrState) pushSamples(samples []pushSample) {
 		v, ok := as.m.Load(outputKey)
 		if !ok {
 			// The entry is missing in the map. Try creating it.
-			v = &sumSamplesStateValue{
+			v = &sumSamplesPositiveValueStateValue{
 				sum: s.value,
 			}
 			outputKey = bytesutil.InternString(outputKey)
@@ -43,7 +43,7 @@ func (as *sumSamplesPositiveValueAggrState) pushSamples(samples []pushSample) {
 			// Use the entry created by a concurrent goroutine.
 			v = vNew
 		}
-		sv := v.(*sumSamplesStateValue)
+		sv := v.(*sumSamplesPositiveValueStateValue)
 		sv.mu.Lock()
 		deleted := sv.deleted
 		if !deleted {
@@ -67,7 +67,7 @@ func (as *sumSamplesPositiveValueAggrState) flushState(ctx *flushCtx, resetState
 			m.Delete(k)
 		}
 
-		sv := v.(*sumSamplesStateValue)
+		sv := v.(*sumSamplesPositiveValueStateValue)
 		sv.mu.Lock()
 		sum := sv.sum
 		if resetState {
