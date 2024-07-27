@@ -1867,6 +1867,15 @@ func testStorageVariousDataPatterns(t *testing.T, disablePerDayIndexes, register
 		s.DebugFlush()
 		strict := concurrency == 1
 		assertCounts(t, s, wantCounts, strict)
+
+		// Empty the tsidCache to test the case when tsid is retrived from the
+		// index.
+		s.resetAndSaveTSIDCache()
+		testDoConcurrently(s, op, concurrency, splitBatches, batches)
+		s.DebugFlush()
+		wantCounts.metrics.RowsAddedTotal *= 2
+		assertCounts(t, s, wantCounts, strict)
+
 		s.MustClose()
 	}
 
@@ -2177,14 +2186,4 @@ func testGenerateMetricRowBatches(opts *BatchOptions) ([][]MetricRow, *counts) {
 		}
 	}
 	return batches, &want
-}
-
-func TestStorageRegisterMetricNames_metricsAreSearchedInIndex(t *testing.T) {
-	// TODO(rtm0): with enabled and disabled per day indexes
-	t.Skip()
-}
-
-func TestStorageAddRows_metricsAreSearchedInIndex(t *testing.T) {
-	// TODO(rtm0): with enabled and disabled per day indexes
-	t.Skip()
 }
