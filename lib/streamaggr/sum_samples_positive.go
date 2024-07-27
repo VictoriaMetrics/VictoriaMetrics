@@ -18,7 +18,7 @@ type sumSamplesPositiveStateValue struct {
 	deleted bool
 }
 
-func newSumSamplesPositiveValueAggrState() *sumSamplesPositiveAggrState {
+func newSumSamplesPositiveAggrState() *sumSamplesPositiveAggrState {
 	return &sumSamplesPositiveAggrState{}
 }
 
