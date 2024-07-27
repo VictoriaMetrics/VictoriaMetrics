@@ -564,6 +564,8 @@ func newAggregator(cfg *Config, pushFunc PushFunc, ms *metrics.Set, opts *Option
 			aggrStates[i] = newUniqueSamplesAggrState()
 		case "sum_samples":
 			aggrStates[i] = newSumSamplesAggrState()
+		case "sum_samples_positive_value":
+			aggrStates[i] = newSumSamplesPositiveValueAggrState()
 		case "last":
 			aggrStates[i] = newLastAggrState()
 		case "min":
