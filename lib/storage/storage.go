@@ -40,6 +40,8 @@ const (
 
 // Storage represents TSDB storage.
 type Storage struct {
+	rowsAddedTotal atomic.Uint64
+
 	tooSmallTimestampRows atomic.Uint64
 	tooBigTimestampRows   atomic.Uint64
 
@@ -556,7 +558,7 @@ func (m *Metrics) Reset() {
 
 // UpdateMetrics updates m with metrics from s.
 func (s *Storage) UpdateMetrics(m *Metrics) {
-	m.RowsAddedTotal = rowsAddedTotal.Load()
+	m.RowsAddedTotal += s.rowsAddedTotal.Load()
 	m.DedupsDuringMerge = dedupsDuringMerge.Load()
 	m.SnapshotsCount += uint64(s.mustGetSnapshotsCount())
 
@@ -1655,8 +1657,6 @@ func (s *Storage) ForceMergePartitions(partitionNamePrefix string) error {
 	return s.tb.ForceMergePartitions(partitionNamePrefix)
 }
 
-var rowsAddedTotal atomic.Uint64
-
 // AddRows adds the given mrs to s.
 //
 // The caller should limit the number of concurrent AddRows calls to the number
@@ -1678,7 +1678,7 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) {
 			mrs = nil
 		}
 		s.add(ic.rrs, ic.tmpMrs, mrsBlock, precisionBits)
-		rowsAddedTotal.Add(uint64(len(mrsBlock)))
+		s.rowsAddedTotal.Add(uint64(len(mrsBlock)))
 	}
 	putMetricRowsInsertCtx(ic)
 }
@@ -1730,6 +1730,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 	mn := GetMetricName()
 	defer PutMetricName(mn)
 
+	var newSeriesCount uint64
 	var seriesRepopulated uint64
 
 	idb := s.idb()
@@ -1826,8 +1827,10 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 		createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
 		genTSID.generation = generation
 		s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
+		newSeriesCount++
 	}
 
+	s.newTimeseriesCreated.Add(newSeriesCount)
 	s.timeseriesRepopulated.Add(seriesRepopulated)
 
 	// There is no need in pre-filling idbNext here, since RegisterMetricNames() is rarely called.
