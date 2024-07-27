@@ -71,6 +71,10 @@ unauthorized_user:
   url_prefix: {BACKEND}/foo?bar=baz`
 	requestURL := "http://some-host.com/abc/def?some_arg=some_value"
 	backendHandler := func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Connection", "close")
+		h.Set("Foo", "bar")
+
 		var bb bytes.Buffer
 		if err := r.Header.Write(&bb); err != nil {
 			panic(fmt.Errorf("unexpected error when marshaling headers: %w", err))
@@ -79,6 +83,7 @@ unauthorized_user:
 	}
 	responseExpected := `
 statusCode=200
+Foo: bar
 requested_url={BACKEND}/foo/abc/def?bar=baz&some_arg=some_value
 Pass-Header: abc
 User-Agent: vmauth
