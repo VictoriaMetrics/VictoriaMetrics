@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.7.1](https://github.com/googleapis/google-cloud-go/compare/auth/v0.7.0...auth/v0.7.1) (2024-07-10)
+
+
+### Bug Fixes
+
+* **auth:** Bump google.golang.org/grpc@v1.64.1 ([8ecc4e9](https://github.com/googleapis/google-cloud-go/commit/8ecc4e9622e5bbe9b90384d5848ab816027226c5))
+
+## [0.7.0](https://github.com/googleapis/google-cloud-go/compare/auth/v0.6.1...auth/v0.7.0) (2024-07-09)
+
+
+### Features
+
+* **auth:** Add workload X509 cert provider as a default cert provider ([#10479](https://github.com/googleapis/google-cloud-go/issues/10479)) ([c51ee6c](https://github.com/googleapis/google-cloud-go/commit/c51ee6cf65ce05b4d501083e49d468c75ac1ea63))
+
+
+### Bug Fixes
+
+* **auth/oauth2adapt:** Bump google.golang.org/api@v0.187.0 ([8fa9e39](https://github.com/googleapis/google-cloud-go/commit/8fa9e398e512fd8533fd49060371e61b5725a85b))
+* **auth:** Bump google.golang.org/api@v0.187.0 ([8fa9e39](https://github.com/googleapis/google-cloud-go/commit/8fa9e398e512fd8533fd49060371e61b5725a85b))
+* **auth:** Check len of slices, not non-nil ([#10483](https://github.com/googleapis/google-cloud-go/issues/10483)) ([0a966a1](https://github.com/googleapis/google-cloud-go/commit/0a966a183e5f0e811977216d736d875b7233e942))
+
+## [0.6.1](https://github.com/googleapis/google-cloud-go/compare/auth/v0.6.0...auth/v0.6.1) (2024-07-01)
+
+
+### Bug Fixes
+
+* **auth:** Support gRPC API keys ([#10460](https://github.com/googleapis/google-cloud-go/issues/10460)) ([daa6646](https://github.com/googleapis/google-cloud-go/commit/daa6646d2af5d7fb5b30489f4934c7db89868c7c))
+* **auth:** Update http and grpc transports to support token exchange over mTLS ([#10397](https://github.com/googleapis/google-cloud-go/issues/10397)) ([c6dfdcf](https://github.com/googleapis/google-cloud-go/commit/c6dfdcf893c3f971eba15026c12db0a960ae81f2))
+
+## [0.6.0](https://github.com/googleapis/google-cloud-go/compare/auth/v0.5.2...auth/v0.6.0) (2024-06-25)
+
+
+### Features
+
+* **auth:** Add non-blocking token refresh for compute MDS ([#10263](https://github.com/googleapis/google-cloud-go/issues/10263)) ([9ac350d](https://github.com/googleapis/google-cloud-go/commit/9ac350da11a49b8e2174d3fc5b1a5070fec78b4e))
+
+
+### Bug Fixes
+
+* **auth:** Return error if envvar detected file returns an error ([#10431](https://github.com/googleapis/google-cloud-go/issues/10431)) ([e52b9a7](https://github.com/googleapis/google-cloud-go/commit/e52b9a7c45468827f5d220ab00965191faeb9d05))
+
 ## [0.5.2](https://github.com/googleapis/google-cloud-go/compare/auth/v0.5.1...auth/v0.5.2) (2024-06-24)
 
 

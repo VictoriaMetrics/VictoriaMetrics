@@ -25,26 +25,26 @@ func TestGetExternalURL(t *testing.T) {
 	invalidURL := "victoriametrics.com/path"
 	_, err := getExternalURL(invalidURL)
 	if err == nil {
-		t.Errorf("expected error, got nil")
+		t.Fatalf("expected error, got nil")
 	}
 
 	expURL := "https://victoriametrics.com/path"
 	u, err := getExternalURL(expURL)
 	if err != nil {
-		t.Errorf("unexpected error %s", err)
+		t.Fatalf("unexpected error %s", err)
 	}
 	if u.String() != expURL {
-		t.Errorf("unexpected url: want %q, got %s", expURL, u.String())
+		t.Fatalf("unexpected url: want %q, got %s", expURL, u.String())
 	}
 
 	h, _ := os.Hostname()
 	expURL = fmt.Sprintf("http://%s:8880", h)
 	u, err = getExternalURL("")
 	if err != nil {
-		t.Errorf("unexpected error %s", err)
+		t.Fatalf("unexpected error %s", err)
 	}
 	if u.String() != expURL {
-		t.Errorf("unexpected url: want %s, got %s", expURL, u.String())
+		t.Fatalf("unexpected url: want %s, got %s", expURL, u.String())
 	}
 }
 
@@ -53,22 +53,22 @@ func TestGetAlertURLGenerator(t *testing.T) {
 	u, _ := url.Parse("https://victoriametrics.com/path")
 	fn, err := getAlertURLGenerator(u, "", false)
 	if err != nil {
-		t.Errorf("unexpected error %s", err)
+		t.Fatalf("unexpected error %s", err)
 	}
 	exp := fmt.Sprintf("https://victoriametrics.com/path/vmalert/alert?%s=42&%s=2", paramGroupID, paramAlertID)
 	if exp != fn(testAlert) {
-		t.Errorf("unexpected url want %s, got %s", exp, fn(testAlert))
+		t.Fatalf("unexpected url want %s, got %s", exp, fn(testAlert))
 	}
 	_, err = getAlertURLGenerator(nil, "foo?{{invalid}}", true)
 	if err == nil {
-		t.Errorf("expected template validation error got nil")
+		t.Fatalf("expected template validation error got nil")
 	}
 	fn, err = getAlertURLGenerator(u, "foo?query={{$value}}&ds={{ $labels.tenant }}", true)
 	if err != nil {
-		t.Errorf("unexpected error %s", err)
+		t.Fatalf("unexpected error %s", err)
 	}
 	if exp := "https://victoriametrics.com/path/foo?query=4&ds=baz"; exp != fn(testAlert) {
-		t.Errorf("unexpected url want %s, got %s", exp, fn(testAlert))
+		t.Fatalf("unexpected url want %s, got %s", exp, fn(testAlert))
 	}
 }
 

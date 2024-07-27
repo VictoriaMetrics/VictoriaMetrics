@@ -9,9 +9,6 @@ menu:
 aliases:
 - /CHANGELOG_2021.html
 ---
-
-# CHANGELOG for the year 2021
-
 ## [v1.71.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.71.0)
 
 Released at 2021-12-20

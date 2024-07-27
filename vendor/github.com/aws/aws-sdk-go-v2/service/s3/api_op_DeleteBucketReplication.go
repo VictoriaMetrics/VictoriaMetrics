@@ -70,6 +70,7 @@ type DeleteBucketReplicationInput struct {
 }
 
 func (in *DeleteBucketReplicationInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }

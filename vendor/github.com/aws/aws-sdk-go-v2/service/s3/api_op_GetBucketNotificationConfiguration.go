@@ -88,6 +88,7 @@ type GetBucketNotificationConfigurationInput struct {
 }
 
 func (in *GetBucketNotificationConfigurationInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }

@@ -113,6 +113,7 @@ type GetObjectTaggingInput struct {
 }
 
 func (in *GetObjectTaggingInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 
 }

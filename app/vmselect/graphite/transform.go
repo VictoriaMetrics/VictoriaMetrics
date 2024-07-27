@@ -1968,10 +1968,10 @@ func (h *minSeriesHeap) Swap(i, j int) {
 	a := *h
 	a[i], a[j] = a[j], a[i]
 }
-func (h *minSeriesHeap) Push(x interface{}) {
+func (h *minSeriesHeap) Push(x any) {
 	*h = append(*h, x.(*seriesWithWeight))
 }
-func (h *minSeriesHeap) Pop() interface{} {
+func (h *minSeriesHeap) Pop() any {
 	a := *h
 	x := a[len(a)-1]
 	*h = a[:len(a)-1]
@@ -2499,10 +2499,10 @@ func (h *maxSeriesHeap) Swap(i, j int) {
 	a := *h
 	a[i], a[j] = a[j], a[i]
 }
-func (h *maxSeriesHeap) Push(x interface{}) {
+func (h *maxSeriesHeap) Push(x any) {
 	*h = append(*h, x.(*seriesWithWeight))
 }
-func (h *maxSeriesHeap) Pop() interface{} {
+func (h *maxSeriesHeap) Pop() any {
 	a := *h
 	x := a[len(a)-1]
 	*h = a[:len(a)-1]

@@ -52,7 +52,7 @@ func (ie *IfExpression) Parse(s string) error {
 
 // UnmarshalJSON unmarshals ie from JSON data.
 func (ie *IfExpression) UnmarshalJSON(data []byte) error {
-	var v interface{}
+	var v any
 	if err := json.Unmarshal(data, &v); err != nil {
 		return err
 	}
@@ -71,15 +71,15 @@ func (ie *IfExpression) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalYAML unmarshals ie from YAML passed to f.
-func (ie *IfExpression) UnmarshalYAML(f func(interface{}) error) error {
-	var v interface{}
+func (ie *IfExpression) UnmarshalYAML(f func(any) error) error {
+	var v any
 	if err := f(&v); err != nil {
 		return fmt.Errorf("cannot unmarshal `match` option: %w", err)
 	}
 	return ie.unmarshalFromInterface(v)
 }
 
-func (ie *IfExpression) unmarshalFromInterface(v interface{}) error {
+func (ie *IfExpression) unmarshalFromInterface(v any) error {
 	ies := ie.ies[:0]
 	switch t := v.(type) {
 	case string:
@@ -88,7 +88,7 @@ func (ie *IfExpression) unmarshalFromInterface(v interface{}) error {
 			return fmt.Errorf("unexpected `match` option: %w", err)
 		}
 		ies = append(ies, ieLocal)
-	case []interface{}:
+	case []any:
 		for _, x := range t {
 			s, ok := x.(string)
 			if !ok {
@@ -108,7 +108,7 @@ func (ie *IfExpression) unmarshalFromInterface(v interface{}) error {
 }
 
 // MarshalYAML marshals ie to YAML
-func (ie *IfExpression) MarshalYAML() (interface{}, error) {
+func (ie *IfExpression) MarshalYAML() (any, error) {
 	if ie == nil || len(ie.ies) == 0 {
 		return nil, nil
 	}
@@ -143,7 +143,13 @@ func (ie *IfExpression) String() string {
 	if len(ie.ies) == 1 {
 		return ie.ies[0].String()
 	}
-	return fmt.Sprintf("%s", ie.ies)
+
+	b := append([]byte{}, ie.ies[0].String()...)
+	for _, e := range ie.ies[1:] {
+		b = append(b, ',')
+		b = append(b, e.String()...)
+	}
+	return string(b)
 }
 
 type ifExpression struct {
@@ -191,7 +197,7 @@ func (ie *ifExpression) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalYAML unmarshals ie from YAML passed to f.
-func (ie *ifExpression) UnmarshalYAML(f func(interface{}) error) error {
+func (ie *ifExpression) UnmarshalYAML(f func(any) error) error {
 	var s string
 	if err := f(&s); err != nil {
 		return fmt.Errorf("cannot unmarshal `if` option: %w", err)
@@ -203,7 +209,7 @@ func (ie *ifExpression) UnmarshalYAML(f func(interface{}) error) error {
 }
 
 // MarshalYAML marshals ie to YAML.
-func (ie *ifExpression) MarshalYAML() (interface{}, error) {
+func (ie *ifExpression) MarshalYAML() (any, error) {
 	return ie.s, nil
 }
 

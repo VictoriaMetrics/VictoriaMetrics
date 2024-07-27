@@ -83,6 +83,7 @@ type ListBucketAnalyticsConfigurationsInput struct {
 }
 
 func (in *ListBucketAnalyticsConfigurationsInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }

@@ -1,16 +1,3 @@
----
-sort: 14
-weight: 14
-title: Custom resources
-menu:
-  docs:
-    identifier: operator-custom-resources
-    parent: "operator"
-    weight: 14
----
-
-#  Custom resource kinds
-
 This documentation section describes the design and interaction between the custom resource definitions (CRD) that the Victoria
 Metrics Operator introduces.
 
@@ -183,13 +170,13 @@ Operator supports following [Enterprise features for VictoriaMetrics components]
     - [Multiple retentions / Retention filters](./vmcluster.md#retention-filters)
     - [Advanced per-tenant statistic](./vmcluster.md#advanced-per-tenant-statistic)
     - [mTLS protection](./vmcluster.md#mtls-protection)
-    - [Backup automation](./vmcluster.md#backup-automation)
+    - [Backup atomation](./vmcluster.md#backup-atomation)
 - [VMRule Enterprise features](./vmrule.md#enterprise-features)
     - [Multitenancy](./vmrule.md#multitenancy)
 - [VMSingle Enterprise features](./vmsingle.md#enterprise-features)
     - [Downsampling](./vmsingle.md#downsampling)
     - [Retention filters](./vmsingle.md#retention-filters)
-    - [Backup automation](./vmsingle.md#backup-automation)
+    - [Backup atomation](./vmsingle.md#backup-atomation)
 - [VMUser Enterprise features](./vmuser.md#enterprise-features)
     - [IP Filters](./vmuser.md#ip-filters)
 

@@ -76,6 +76,7 @@ type GetBucketReplicationInput struct {
 }
 
 func (in *GetBucketReplicationInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }

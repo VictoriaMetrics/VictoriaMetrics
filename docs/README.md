@@ -1,25 +1,22 @@
----
-title: VictoriaMetrics
----
-# VictoriaMetrics
-
 [![Latest Release](https://img.shields.io/github/release/VictoriaMetrics/VictoriaMetrics.svg?style=flat-square)](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
 [![Docker Pulls](https://img.shields.io/docker/pulls/victoriametrics/victoria-metrics.svg?maxAge=604800)](https://hub.docker.com/r/victoriametrics/victoria-metrics)
-[![victoriametrics](https://snapcraft.io/victoriametrics/badge.svg)](https://snapcraft.io/victoriametrics)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 [![GitHub license](https://img.shields.io/github/license/VictoriaMetrics/VictoriaMetrics.svg)](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/LICENSE)
 [![Go Report](https://goreportcard.com/badge/github.com/VictoriaMetrics/VictoriaMetrics)](https://goreportcard.com/report/github.com/VictoriaMetrics/VictoriaMetrics)
 [![Build Status](https://github.com/VictoriaMetrics/VictoriaMetrics/workflows/main/badge.svg)](https://github.com/VictoriaMetrics/VictoriaMetrics/actions)
 [![codecov](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics/branch/master/graph/badge.svg)](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics)
 
-<img src="logo.webp" width="300" alt="VictoriaMetrics logo">
+<picture>
+  <source srcset="/logo_white.webp" media="(prefers-color-scheme: dark)">
+  <source srcset="/logo.webp" media="(prefers-color-scheme: light)">
+  <img src="/logo.webp" width="300" alt="VictoriaMetrics logo">
+</picture>
 
 VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
 See [case studies for VictoriaMetrics](https://docs.victoriametrics.com/casestudies/).
 
 VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest),
-[Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), [Snap packages](https://snapcraft.io/victoriametrics)
-and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). 
+[Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). 
 
 Documentation for the cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/cluster-victoriametrics/).
 
@@ -89,7 +86,6 @@ VictoriaMetrics has the following prominent features:
   * [Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
   * [InfluxDB line protocol](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) over HTTP, TCP and UDP.
   * [Graphite plaintext protocol](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon).
-  * [Statsd plaintext protocol](#how-to-send-data-from-statsd-compatible-clients)
   * [OpenTSDB put message](#sending-data-via-telnet-put-protocol).
   * [HTTP OpenTSDB /api/put requests](#sending-opentsdb-data-via-http-apiput-requests).
   * [JSON line format](#how-to-import-data-in-json-line-format).
@@ -142,7 +138,6 @@ VictoriaMetrics can also be installed via these installation methods:
 * [Ansible role for installing cluster VictoriaMetrics (by VictoriaMetrics)](https://github.com/VictoriaMetrics/ansible-playbooks).
 * [Ansible role for installing cluster VictoriaMetrics (by community)](https://github.com/Slapper/ansible-victoriametrics-cluster-role).
 * [Ansible role for installing single-node VictoriaMetrics (by community)](https://github.com/dreamteam-gg/ansible-victoriametrics-role).
-* [Snap package for VictoriaMetrics](https://snapcraft.io/victoriametrics).
 
 ### How to start VictoriaMetrics
 
@@ -182,27 +177,6 @@ Additionally, all the VictoriaMetrics components allow setting flag values via e
 * Each `.` char in flag name must be substituted with `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`).
 * For repeating flags an alternative syntax can be used by joining the different values into one using `,` char as separator (for example `-storageNode <nodeA> -storageNode <nodeB>` will translate to `storageNode=<nodeA>,<nodeB>`).
 * Environment var prefix can be set via `-envflag.prefix` flag. For instance, if `-envflag.prefix=VM_`, then env vars must be prepended with `VM_`.
-
-### Configuration with snap package
-
-Snap package for VictoriaMetrics is available [here](https://snapcraft.io/victoriametrics).
-
-Command-line flags for Snap package can be set with following command:
-
-```sh
-echo 'FLAGS="-selfScrapeInterval=10s -search.logSlowQueryDuration=20s"' > $SNAP_DATA/var/snap/victoriametrics/current/extra_flags
-snap restart victoriametrics
-```
-
-Do not change value for `-storageDataPath` flag, because snap package has limited access to host filesystem.
-
-Changing scrape configuration is possible with text editor:
-
-```sh
-vi $SNAP_DATA/var/snap/victoriametrics/current/etc/victoriametrics-scrape-config.yaml
-```
-
-After changes were made, trigger config re-read with the command `curl 127.0.0.1:8428/-/reload`.
 
 ### Running as Windows service
 
@@ -334,15 +308,15 @@ Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaM
 
 In the "Type and version" section it is recommended to set the type to "Prometheus" and the version to at least "2.24.x":
 
-<img src="grafana-datasource-prometheus.webp" alt="Grafana datasource" />
+![Datasource](grafana-datasource-prometheus.webp)
 
 This allows Grafana to use a more efficient API to get label values.
 
 Then build graphs and dashboards for the created datasource using [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/)
 or [MetricsQL](https://docs.victoriametrics.com/metricsql/).
 
-Alternatively, use VictoriaMetrics [datasource plugin](https://github.com/VictoriaMetrics/grafana-datasource) with support of extra features. 
-See more in [description](https://github.com/VictoriaMetrics/grafana-datasource#victoriametrics-data-source-for-grafana).
+Alternatively, use VictoriaMetrics [datasource plugin](https://github.com/VictoriaMetrics/victoriametrics-datasource) with support of extra features. 
+See more in [description](https://docs.victoriametrics.com/victoriametrics-datasource/).
 
 Creating a datasource may require [specific permissions](https://grafana.com/docs/grafana/latest/administration/data-source-management/).
 If you don't see an option to create a data source - try contacting system administrator.
@@ -524,7 +498,7 @@ via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit
 DataDog agent allows configuring destinations for metrics sending via ENV variable `DD_DD_URL` 
 or via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) in section `dd_url`.
 
-<img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM.webp">
+![DD to VM](Single-server-VictoriaMetrics-sending_DD_metrics_to_VM.webp)
 
 To configure DataDog agent via ENV variable add the following prefix:
 
@@ -551,7 +525,7 @@ pick [single-node or cluster URL](https://docs.victoriametrics.com/url-examples/
 DataDog allows configuring [Dual Shipping](https://docs.datadoghq.com/agent/guide/dual-shipping/) for metrics 
 sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `additional_endpoints`.
  
-<img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM_and_DD.webp">
+![DD to VM](Single-server-VictoriaMetrics-sending_DD_metrics_to_VM_and_DD.webp)
  
 Run DataDog using the following ENV variable with VictoriaMetrics as additional metrics receiver:
 
@@ -638,13 +612,13 @@ VictoriaMetrics performs the following transformations to the ingested InfluxDB 
 
 For example, the following InfluxDB line:
 
-```raw
+```influxtextmetric
 foo,tag1=value1,tag2=value2 field1=12,field2=40
 ```
 
 is converted into the following Prometheus data points:
 
-```raw
+```promtextmetric
 foo_field1{tag1="value1", tag2="value2"} 12
 foo_field2{tag1="value1", tag2="value2"} 40
 ```
@@ -705,79 +679,6 @@ The `/api/v1/export` endpoint should return the following response:
 {"metric":{"__name__":"measurement_field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1695902762311]}
 ```
 
-## How to send data from StatsD-compatible clients
-
-VictoriaMetrics supports extended StatsD protocol. Currently, it supports `tags` and `value packing` 
-extensions provided by [dogstatsd](https://docs.datadoghq.com/developers/dogstatsd/datagram_shell). 
-During parsing, metric's `<TYPE>` is added as a special label `__statsd_metric_type__`. 
-
-It is strongly advisable to configure streaming aggregation for each metric type. This process serves two primary 
-objectives: 
-* transformation of the StatsD data model into the VictoriaMetrics data model. VictoriaMetrics requires a consistent 
-interval between data points. 
-* minimizing of the disk space utilization and overall resource consumption during data ingestion.
-
-VictoriaMetrics supports the following metric [types](https://docs.datadoghq.com/metrics/types):
-
-* `c` Counter type.
-* `g`  Gauge type.
-* `ms` Timer type.
-* `m` Meters type.
-* `h` Histogram type.
-* `s` Set type with only numeric values.
-* `d` Distribution type.
-
-_The `Not Assigned` type is not supported due to the ambiguity surrounding its aggregation method. 
-The correct aggregation method cannot be determined for the undefined metric._
-
-Enable Statsd receiver in VictoriaMetrics by setting `-statsdListenAddr` command line flag and configure [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/). 
-For instance, the following command will enable StatsD receiver in VictoriaMetrics on TCP and UDP port `8125`:
-
-```console
-/path/to/victoria-metrics-prod -statsdListenAddr=:8125 -streamAggr.config=statsd_aggr.yaml
-```
-
-Example of stream aggregation config:
-
-```yaml
-# statsd_aggr.yaml
-# `last` output will keep the last sample on `interval`
-# for each series that match `{__statsd_metric_type__="g"}` selector
-- match: '{__statsd_metric_type__="g"}'
-  outputs: [last]
-  interval: 1m
-```
-
-Example for writing data with StatsD plaintext protocol to local VictoriaMetrics using `nc`:
-
-```console
-echo "foo.bar:123|g|#tag1:baz" | nc -N localhost 8125
-```
-
-_An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go._
-
-Explicit setting of timestamps is not supported for StatsD protocol. Timestamp is set to the current time when 
-VictoriaMetrics or vmagent receives it.
-
-Once ingested, the data can be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
-
-```console
-curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"foo.*"}'
-```
-
-_Please note, with stream aggregation enabled data will become available only after specified aggregation interval._
-
-The `/api/v1/export` endpoint should return the following response:
-
-```json
-{"metric":{"__name__":"foo.bar:1m_last","__statsd_metric_type__":"g","tag1":"baz"},"values":[123],"timestamps":[1715843939000]}
-```
-
-Some examples of compatible statsd clients:
-- [statsd-instrument](https://github.com/Shopify/statsd-instrument)
-- [dogstatsd-ruby](https://github.com/DataDog/dogstatsd-ruby)
-- [go-statsd-client](https://github.com/cactus/go-statsd-client)
-
 ## How to send data from Graphite-compatible agents such as [StatsD](https://github.com/etsy/statsd)
 
 Enable Graphite receiver in VictoriaMetrics by setting `-graphiteListenAddr` command line flag. For instance,
@@ -796,15 +697,20 @@ Example for writing data with Graphite plaintext protocol to local VictoriaMetri
 echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N localhost 2003
 ```
 
-VictoriaMetrics sets the current time if the timestamp is omitted.
+The ingested metrics can be sanitized according to Prometheus naming convention by passing `-graphite.sanitizeMetricName` command-line flag
+to VictoriaMetrics. The following modifications are applied to the ingested samples when this flag is passed to VictoriaMetrics:
+
+- remove redundant dots, e.g: `metric..name` => `metric.name`
+- replace characters not matching `a-zA-Z0-9:_.` chars with `_`
+
+VictoriaMetrics sets the current time to the ingested samples if the timestamp is omitted.
+
 An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
-
 
 ```sh
 curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
 ```
-
 
 The `/api/v1/export` endpoint should return the following response:
 
@@ -1208,7 +1114,7 @@ More details may be found [here](https://github.com/VictoriaMetrics/VictoriaMetr
 ## Setting up service
 
 Read [instructions](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/43) on how to set up VictoriaMetrics
-as a service for your OS. A [snap package](https://snapcraft.io/victoriametrics) is available for Ubuntu.
+as a service for your OS.
 
 ## How to work with snapshots
 
@@ -1433,7 +1339,6 @@ Additionally, VictoriaMetrics can accept metrics via the following popular data 
 * DataDog `submit metrics` API. See [these docs](#how-to-send-data-from-datadog-agent) for details.
 * InfluxDB line protocol. See [these docs](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for details.
 * Graphite plaintext protocol. See [these docs](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) for details.
-* Statsd plaintext protocol. See [these docs](#how-to-send-data-from-statsd-compatible-clients) for details.
 * OpenTelemetry http API. See [these docs](#sending-data-via-opentelemetry) for details.
 * OpenTSDB telnet put protocol. See [these docs](#sending-data-via-telnet-put-protocol) for details.
 * OpenTSDB http `/api/put` protocol. See [these docs](#sending-opentsdb-data-via-http-apiput-requests) for details.
@@ -2736,28 +2641,41 @@ It is built from `*.md` files located in [docs](https://github.com/VictoriaMetri
 and gets automatically updated once changes are merged to [master](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master) branch.
 To update the documentation follow the steps below:
 - [Fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/about-forks) 
-VictoriaMetrics repo and apply changes to the docs:
+  VictoriaMetrics repo and apply changes to the docs:
   - To update [the main page](https://docs.victoriametrics.com/) modify [this file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md).
   - To update other pages, apply changes to the corresponding file in [docs folder](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs).
 - If your changes contain an image then see [images in documentation](https://docs.victoriametrics.com/#images-in-documentation).
 - Once changes are made, execute the command below to finalize and sync the changes:
-```sh
-make docs-sync
-```
+
+  ```sh
+  make docs-sync
+  ```
+
 - Create [a pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request)
-with proposed changes and wait for it to be merged.
+  with proposed changes and wait for it to be merged.
 
 Requirements for changes to docs:
+
 - Keep backward compatibility of existing links. Avoid changing anchors or deleting pages as they could have been
-used or posted in other docs, GitHub issues, stackoverlow answers, etc. 
-- Keep docs simple. Try using as simple wording as possible.
+  used or posted in other docs, GitHub issues, stackoverlow answers, etc.
+- Keep docs clear, concise and simple. Try using as simple wording as possible, without loosing the clarity.
 - Keep docs consistent. When modifying existing docs, verify that other places referencing to this doc are still relevant.
 - Prefer improving the existing docs instead of adding new ones.
-- Use absolute links.
+- Use absolute links. This simplifies moving docs between different files.
+
+Priodically run `make spellcheck` - this command detects spelling errors at `docs/` folder. Please fix the found spelling errors
+and commit the fixes in a separate commit.
 
 ### Images in documentation
 
 Please, keep image size and number of images per single page low. Keep the docs page as lightweight as possible.
+
+Image files must be placed in the same folder as the doc itself and they must have the same prefix as the doc filename.
+For example, all the images for `docs/foo/bar.md` should have filenames starting from `docs/foo/bar`.
+This simplifies lifetime management of the images:
+
+- when the corresponding doc is removed, then it is clear how to remove the associated images
+- when the corresponding doc is renamed, then it is clear how to rename the associated images.
 
 If the page needs to have many images, consider using WEB-optimized image format [webp](https://developers.google.com/speed/webp).
 When adding a new doc with many images use `webp` format right away. Or use a Makefile command below to
@@ -2811,7 +2729,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -cacheExpireDuration duration
      Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
   -configAuthKey value
-     Authorization key for accessing /config page. It must be passed via authKey query arg. It overrides httpAuth.* settings.
+     Authorization key for accessing /config page. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -configAuthKey=file:///abs/path/to/file or -configAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -configAuthKey=http://host/path or -configAuthKey=https://host/path
   -csvTrimTimestamp duration
      Trim timestamps when importing csv data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
@@ -2848,7 +2766,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -finalMergeDelay duration
      Deprecated: this flag does nothing
   -flagsAuthKey value
-     Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
   -forceFlushAuthKey value
      authKey, which must be passed in query string to /internal/force_flush pages
@@ -2858,6 +2776,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Flag value can be read from the given file when using -forceMergeAuthKey=file:///abs/path/to/file or -forceMergeAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -forceMergeAuthKey=http://host/path or -forceMergeAuthKey=https://host/path
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
+  -graphite.sanitizeMetricName
+     Sanitize metric names for the ingested Graphite data. See https://docs.victoriametrics.com/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd
   -graphiteListenAddr string
      TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty. See also -graphiteListenAddr.useProxyProtocol
   -graphiteListenAddr.useProxyProtocol
@@ -2961,7 +2881,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The maximum size in bytes of a single Prometheus remote_write API request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
   -maxLabelValueLen int
-     The maximum length of label values in the accepted time series. Longer label values are truncated. In this case the vm_too_long_label_values_total metric at /metrics page is incremented (default 1024)
+     The maximum length of label values in the accepted time series. Longer label values are truncated. In this case the vm_too_long_label_values_total metric at /metrics page is incremented (default 4096)
   -maxLabelsPerTimeseries int
      The maximum number of labels accepted per time series. Superfluous labels are dropped. In this case the vm_metrics_with_dropped_labels_total metric at /metrics page is incremented (default 30)
   -memory.allowedBytes size
@@ -2972,7 +2892,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -metrics.exposeMetadata
      Whether to expose TYPE and HELP metadata at the /metrics page, which is exposed at -httpListenAddr . The metadata may be needed when the /metrics page is consumed by systems, which require this information. For example, Managed Prometheus in Google Cloud - https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type
   -metricsAuthKey value
-     Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
   -mtls array
      Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
@@ -3003,7 +2923,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -opentsdbhttpTrimTimestamp duration
      Trim timestamps for OpenTSDB HTTP data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -pprofAuthKey value
-     Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -pprofAuthKey=http://host/path or -pprofAuthKey=https://host/path
   -precisionBits int
      The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss (default 64)
@@ -3125,7 +3045,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -relabelConfig string
      Optional path to a file with relabeling rules, which are applied to all the ingested metrics. The path can point either to local file or to http url. See https://docs.victoriametrics.com/#relabeling for details. The config is reloaded on SIGHUP signal
   -reloadAuthKey value
-     Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings.
+     Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -reloadAuthKey=file:///abs/path/to/file or -reloadAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -reloadAuthKey=http://host/path or -reloadAuthKey=https://host/path
   -retentionFilter array
      Retention filter in the format 'filter:retention'. For example, '{env="dev"}:3d' configures the retention for time series with env="dev" label to 3 days. See https://docs.victoriametrics.com/#retention-filters for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
@@ -3176,7 +3096,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxLabelsAPIDuration duration
      The maximum duration for /api/v1/labels, /api/v1/label/.../values and /api/v1/series requests. See also -search.maxLabelsAPISeries and -search.ignoreExtraFiltersAtLabelsAPI (default 5s)
   -search.maxLabelsAPISeries int
-     The maximum number of time series, which could be scanned when searching for the the matching time series at /api/v1/labels and /api/v1/label/.../values. This option allows limiting memory usage and CPU usage. See also -search.maxLabelsAPIDuration, -search.maxTagKeys, -search.maxTagValues and -search.ignoreExtraFiltersAtLabelsAPI (default 1000000)
+     The maximum number of time series, which could be scanned when searching for the matching time series at /api/v1/labels and /api/v1/label/.../values. This option allows limiting memory usage and CPU usage. See also -search.maxLabelsAPIDuration, -search.maxTagKeys, -search.maxTagValues and -search.ignoreExtraFiltersAtLabelsAPI (default 1000000)
   -search.maxLookback duration
      Synonym to -search.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaning due to historical reasons
   -search.maxMemoryPerQuery size
@@ -3259,12 +3179,6 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 0)
   -sortLabels
      Whether to sort labels for incoming samples before writing them to storage. This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. Enabled sorting for labels can slow down ingestion performance a bit
-  -statsd.disableAggregationEnforcement
-    	Whether to disable streaming aggregation requirement check. It's recommended to run statsdServer with pre-configured streaming aggregation to decrease load at database.
-  -statsdListenAddr string
-    	TCP and UDP address to listen for Statsd plaintext data. Usually :8125 must be set. Doesn't work if empty. See also -statsdListenAddr.useProxyProtocol
-  -statsdListenAddr.useProxyProtocol
-    	Whether to use proxy protocol for connections accepted at -statsdListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
   -storage.cacheSizeIndexDBDataBlocks size
      Overrides max size for indexdb/dataBlocks cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)

@@ -1,3 +1,23 @@
+# v1.58.2 (2024-07-10.2)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.58.1 (2024-07-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.58.0 (2024-07-02)
+
+* **Feature**: Added response overrides to Head Object requests.
+
+# v1.57.1 (2024-06-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.57.0 (2024-06-26)
+
+* **Feature**: Support list-of-string endpoint parameter.
+
 # v1.56.1 (2024-06-19)
 
 * **Dependency Update**: Updated to the latest SDK module versions

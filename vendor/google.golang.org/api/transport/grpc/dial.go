@@ -231,6 +231,7 @@ func dialPoolNewAuth(ctx context.Context, secure bool, poolSize int, ds *interna
 		GRPCDialOpts:          ds.GRPCDialOpts,
 		PoolSize:              poolSize,
 		Credentials:           creds,
+		APIKey:                ds.APIKey,
 		DetectOpts: &credentials.DetectOptions{
 			Scopes:          ds.Scopes,
 			Audience:        aud,

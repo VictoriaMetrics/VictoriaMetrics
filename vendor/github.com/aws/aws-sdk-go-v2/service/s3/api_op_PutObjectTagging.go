@@ -153,6 +153,7 @@ type PutObjectTaggingInput struct {
 }
 
 func (in *PutObjectTaggingInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 
 }

@@ -307,7 +307,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+        "uid": "$ds"
       },
       "description": "Shows the rate of requests.",
       "fieldConfig": {
@@ -356,7 +356,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -436,7 +436,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+        "uid": "$ds"
       },
       "description": "Shows the rate of request errors.",
       "fieldConfig": {
@@ -485,7 +485,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -501,7 +501,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+        "uid": "$ds"
       },
       "fieldConfig": {
         "defaults": {
@@ -580,7 +580,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -610,7 +610,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+        "uid": "$ds"
       },
       "fieldConfig": {
         "defaults": {
@@ -689,7 +689,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by(username)",
@@ -701,7 +701,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_unauthorized_user_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
@@ -717,7 +717,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+        "uid": "$ds"
       },
       "description": "Shows percent utilization of  per concurrent requests capacity.",
       "fieldConfig": {
@@ -804,7 +804,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "max(\nmax_over_time(vmauth_user_concurrent_requests_current{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])\n/ \nvmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}\n) by(username) > 0\n",
@@ -821,7 +821,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+        "uid": "$ds"
       },
       "description": "Shows the rate of rejected requests by a reason.",
       "fieldConfig": {
@@ -901,7 +901,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (reason)",
@@ -917,7 +917,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+        "uid": "$ds"
       },
       "description": " The number of concurrent connections processed by vmauth reached one of limits. Possible solutions:\n- increase global limit with flag -maxConcurrentRequests\n- increase limit with flag: -maxConcurrentPerUserRequests for all users or with config option `max_concurrent_requests` per user.\n- deploy additional vmauth replicas\n- check requests latency at backend service and allocate resources to it if needed",
       "fieldConfig": {
@@ -997,7 +997,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_user_concurrent_requests_limit_reached_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by(username)  > 0",
@@ -1009,7 +1009,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_unauthorized_user_concurrent_requests_limit_reached_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
@@ -1021,7 +1021,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_concurrent_requests_limit_reached_total[$__rate_interval])) > 0",
@@ -1037,7 +1037,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+        "uid": "$ds"
       },
       "description": "Shows duration in seconds of user requests by quantile.",
       "fieldConfig": {
@@ -1123,7 +1123,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "max(vmauth_user_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", username=~\"$user\", quantile=~\"(0.99|0.5)\"}) by (quantile, username) > 0",
@@ -1135,7 +1135,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "max(vmauth_unauthorized_user_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=~\"(0.99|0.5)\"}) by (quantile) > 0",
@@ -2360,7 +2360,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+            "uid": "$ds"
           },
           "description": "Shows number of generated  error and warning messages in  logs. Non-zero value may be a sign of connectivity or missconfiguration errors.",
           "fieldConfig": {
@@ -2441,7 +2441,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+                "uid": "$ds"
               },
               "editorMode": "code",
               "expr": "sum(increase(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (level)",
@@ -2486,7 +2486,7 @@
         "current": {},
         "datasource": {
           "type": "prometheus",
-          "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+          "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{version=~\"^vmauth.*\"}, job)",
         "hide": 0,
@@ -2509,7 +2509,7 @@
         "current": {},
         "datasource": {
           "type": "prometheus",
-          "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+          "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
         "hide": 0,
@@ -2531,7 +2531,7 @@
         "current": {},
         "datasource": {
           "type": "prometheus",
-          "uid": "${DS_VICTORIAMETRICS_- CLUSTER}"
+          "uid": "$ds"
         },
         "definition": "label_values(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\"}, username)",
         "hide": 0,

@@ -13,15 +13,12 @@ aliases:
   - /anomaly-detection/components/models/custom_model.html
   - /anomaly-detection/components/models/models.html
 ---
-
-# Models
-
-This section describes `Models` component of VictoriaMetrics Anomaly Detection (or simply [`vmanomaly`](/anomaly-detection/overview/)) and the guide of how to define a respective section of a config to launch the service.
+This section describes `Models` component of VictoriaMetrics Anomaly Detection (or simply [`vmanomaly`](../Overview.md)) and the guide of how to define a respective section of a config to launch the service.
 - `vmanomaly` includes various [built-in models](#built-in-models).
 - you can also integrate your custom model - see [custom model](#custom-model-guide).
 
 
-> **Note: Starting from [v1.10.0](/anomaly-detection/changelog#v1100) model section in config supports multiple models via aliasing. <br>Also, `vmanomaly` expects model section to be named `models`. Using old (flat) format with `model` key is deprecated and will be removed in future versions. Having `model` and `models` sections simultaneously in a config will result in only `models` being used:**
+> **Note: Starting from [v1.10.0](../CHANGELOG.md#v1100) model section in config supports multiple models via aliasing. <br>Also, `vmanomaly` expects model section to be named `models`. Using old (flat) format with `model` key is deprecated and will be removed in future versions. Having `model` and `models` sections simultaneously in a config will result in only `models` being used:**
 
 ```yaml
 models:
@@ -40,7 +37,7 @@ models:
 # ...
 ```  
 
-Old-style configs (< [1.10.0](/anomaly-detection/changelog#v1100))
+Old-style configs (< [1.10.0](../CHANGELOG.md#v1100))
 
 ```yaml
 model:
@@ -65,11 +62,11 @@ models:
 
 ## Common args
 
-From [1.10.0](/anomaly-detection/changelog#1100), **common args**, supported by *every model (and model type)* were introduced.
+From [1.10.0](../CHANGELOG.md#1100), **common args**, supported by *every model (and model type)* were introduced.
 
 ### Queries
 
-Introduced in [1.10.0](/anomaly-detection/changelog#1100), as a part to support multi-model configs, `queries` arg is meant to define [queries from VmReader](/anomaly-detection/components/reader/?highlight=queries#config-parameters) particular model should be run on (meaning, all the series returned by each of these queries will be used in such model for fitting and inferencing).
+Introduced in [1.10.0](../CHANGELOG.md#1100), as a part to support multi-model configs, `queries` arg is meant to define [queries from VmReader](./reader.md#config-parameters) particular model should be run on (meaning, all the series returned by each of these queries will be used in such model for fitting and inferencing).
 
 `queries` arg is supported for all [the built-in](#built-in-models) (as well as for [custom](#custom-model-guide)) models.
 
@@ -94,7 +91,7 @@ models:
 
 ### Schedulers
 
-Introduced in [1.11.0](/anomaly-detection/changelog#1110), as a part to support multi-scheduler configs, `schedulers` arg is meant to define [schedulers](/anomaly-detection/components/scheduler) particular model should be attached to.
+Introduced in [1.11.0](../CHANGELOG.md#1110), as a part to support multi-scheduler configs, `schedulers` arg is meant to define [schedulers](./scheduler.md) particular model should be attached to.
 
 `schedulers` arg is supported for all [the built-in](#built-in-models) (as well as for [custom](#custom-model-guide)) models.
 
@@ -119,7 +116,7 @@ models:
 
 ### Provide series
 
-Introduced in [1.12.0](/anomaly-detection/changelog#1120), `provide_series` arg limit the [output generated](#vmanomaly-output) by `vmanomaly` for writing. I.e. if the model produces default output series `['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']` by specifying `provide_series` section as below, you limit the data being written to only `['anomaly_score']` for each metric received as a subject to anomaly detection.
+Introduced in [1.12.0](../CHANGELOG.md#1120), `provide_series` arg limit the [output generated](#vmanomaly-output) by `vmanomaly` for writing. I.e. if the model produces default output series `['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']` by specifying `provide_series` section as below, you limit the data being written to only `['anomaly_score']` for each metric received as a subject to anomaly detection.
 
 ```yaml
 models:
@@ -131,23 +128,26 @@ models:
 **Note** If `provide_series` is not specified in model config, the model will produce its default [model-dependent output](#vmanomaly-output). The output can't be less than `['anomaly_score']`. Even if `timestamp` column is omitted, it will be implicitly added to `provide_series` list, as it's required for metrics to be properly written.
 
 ### Detection direction
-Introduced in [1.13.0](/anomaly-detection/CHANGELOG/#1130), `detection_direction` arg can help in reducing the number of [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/index.html#false-positive) and increasing the accuracy, when domain knowledge suggest to identify anomalies occurring when actual values (`y`) are *above, below, or in both directions* relative to the expected values (`yhat`). Available choices are: `both`, `above_expected`, `below_expected`.
+Introduced in [1.13.0](../CHANGELOG.md#1130), `detection_direction` arg can help in reducing the number of [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/index.html#false-positive) and increasing the accuracy, when domain knowledge suggest to identify anomalies occurring when actual values (`y`) are *above, below, or in both directions* relative to the expected values (`yhat`). Available choices are: `both`, `above_expected`, `below_expected`.
 
 Here's how default (backward-compatible) behavior looks like - anomalies will be tracked in `both` directions (`y > yhat` or `y < yhat`). This is useful when there is no domain expertise to filter the required direction.
 
-<img src="/anomaly-detection/components/schema_detection_direction=both.webp" width="800px" alt="schema_detection_direction=both"/>
+![schema_detection_direction=both](schema_detection_direction=both.webp)
+
 
 When set to `above_expected`, anomalies are tracked only when `y > yhat`.
 
 *Example metrics*: Error rate, response time, page load time, number of failed transactions - metrics where *lower values are better*, so **higher** values are typically tracked.
 
-<img src="/anomaly-detection/components/schema_detection_direction=above_expected.webp" width="800px" alt="schema_detection_direction=above_expected"/>
+![schema_detection_direction=above_expected](schema_detection_direction=above_expected.webp)
+
 
 When set to `below_expected`, anomalies are tracked only when `y < yhat`. 
 
 *Example metrics*: Service Level Agreement (SLA) compliance, conversion rate, Customer Satisfaction Score (CSAT) - metrics where *higher values are better*, so **lower** values are typically tracked.
 
-<img src="/anomaly-detection/components/schema_detection_direction=below_expected.webp" width="800px" alt="schema_detection_direction=below_expected"/>
+![schema_detection_direction=below_expected](schema_detection_direction=below_expected.webp)
+
 
 Config with a split example:
 
@@ -185,7 +185,7 @@ reader:
 
 ### Minimal deviation from expected
 
-Introduced in [v1.13.0](/anomaly-detection/CHANGELOG/#1130), the `min_dev_from_expected` argument is designed to **reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive)** in scenarios where deviations between the actual value (`y`) and the expected value (`yhat`) are **relatively** high. Such deviations can cause models to generate high [anomaly scores](/anomaly-detection/faq/#what-is-anomaly-score). However, these deviations may not be significant enough in **absolute values** from a business perspective to be considered anomalies. This parameter ensures that anomaly scores for data points where `|y - yhat| < min_dev_from_expected` are explicitly set to 0. By default, if this parameter is not set, it behaves as `min_dev_from_expected=0` to maintain backward compatibility.
+Introduced in [v1.13.0](../CHANGELOG.md#1130), the `min_dev_from_expected` argument is designed to **reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive)** in scenarios where deviations between the actual value (`y`) and the expected value (`yhat`) are **relatively** high. Such deviations can cause models to generate high [anomaly scores](../FAQ.md#what-is-anomaly-score). However, these deviations may not be significant enough in **absolute values** from a business perspective to be considered anomalies. This parameter ensures that anomaly scores for data points where `|y - yhat| < min_dev_from_expected` are explicitly set to 0. By default, if this parameter is not set, it behaves as `min_dev_from_expected=0` to maintain backward compatibility.
 
 > **Note**: `min_dev_from_expected` must be >= 0. The higher the value of `min_dev_from_expected`, the fewer data points will be available for anomaly detection, and vice versa.
 
@@ -193,11 +193,13 @@ Introduced in [v1.13.0](/anomaly-detection/CHANGELOG/#1130), the `min_dev_from_e
 
 Visualizations below demonstrate this concept; the green zone defined as the `[yhat - min_dev_from_expected, yhat + min_dev_from_expected]` range excludes actual data points (`y`) from generating anomaly scores if they fall within that range.
 
-<img src="/anomaly-detection/components/schema_min_dev_from_expected=0.webp" width="800px" alt="min_dev_from_expected-default"/>
+![min_dev_from_expected-default](schema_min_dev_from_expected=0.webp)
 
-<img src="/anomaly-detection/components/schema_min_dev_from_expected=1.0.webp" width="800px" alt="min_dev_from_expected-small"/>
 
-<img src="/anomaly-detection/components/schema_min_dev_from_expected=5.0.webp" width="800px" alt="min_dev_from_expected-big"/>
+![min_dev_from_expected-small](schema_min_dev_from_expected=1.0.webp)
+
+
+![min_dev_from_expected-big](schema_min_dev_from_expected=5.0.webp)
 
 Example config of how to use this param based on query results:
 
@@ -238,7 +240,7 @@ Each of these models can also be
 
 For a univariate type, **one separate model** is fit/used for inference per **each time series**, defined in its [queries](#queries) arg.
 
-For example, if you have some **univariate** model, defined to use 3 [MetricQL queries](https://docs.victoriametrics.com/metricsql/), each returning 5 time series, there will be 3*5=15 models created in total. Each such model produce **individual [output](#vmanomaly-output)** for each of time series. 
+For example, if you have some **univariate** model, defined to use 3 [MetricQL queries](../../MetricsQL.md), each returning 5 time series, there will be 3*5=15 models created in total. Each such model produce **individual [output](#vmanomaly-output)** for each of time series. 
 
 If during an inference, you got a series having **new labelset** (not present in any of fitted models), the inference will be skipped until you get a model, trained particularly for such labelset during forthcoming re-fit step.
 
@@ -246,14 +248,14 @@ If during an inference, you got a series having **new labelset** (not present in
 
 **Examples:** [Prophet](#prophet), [Holt-Winters](#holt-winters)
 
-<p></p>
-<img alt="vmanomaly-model-type-univariate" src="/anomaly-detection/components/model-lifecycle-univariate.webp" width="800px"/>
+![vmanomaly-model-type-univariate](model-lifecycle-univariate.webp)
+
 
 ### Multivariate Models
 
 For a multivariate type, **one shared model** is fit/used for inference on **all time series** simultaneously, defined in its [queries](#queries) arg. 
 
-For example, if you have some **multivariate** model to use 3 [MetricQL queries](https://docs.victoriametrics.com/metricsql/), each returning 5 time series, there will be one shared model created in total. Once fit, this model will expect **exactly 15 time series with exact same labelsets as an input**. This model will produce **one shared [output](#vmanomaly-output)**.
+For example, if you have some **multivariate** model to use 3 [MetricQL queries](../../MetricsQL.md), each returning 5 time series, there will be one shared model created in total. Once fit, this model will expect **exactly 15 time series with exact same labelsets as an input**. This model will produce **one shared [output](#vmanomaly-output)**.
 
 If during an inference, you got a **different amount of series** or some series having a **new labelset** (not present in any of fitted models), the inference will be skipped until you get a model, trained particularly for such labelset during forthcoming re-fit step. 
 
@@ -261,8 +263,8 @@ If during an inference, you got a **different amount of series** or some series 
 
 **Examples:** [IsolationForest](#isolation-forest-multivariate)
 
-<p></p>
-<img alt="vmanomaly-model-type-multivariate" src="/anomaly-detection/components/model-lifecycle-multivariate.webp" width="800px"/>
+![vmanomaly-model-type-multivariate](model-lifecycle-multivariate.webp)
+
 
 ### Rolling Models
 
@@ -270,16 +272,16 @@ A rolling model is a model that, once trained, **cannot be (naturally) used to m
 
 An instance of rolling model is **simultaneously fit and used for inference** during its `infer` method call.
 
-As a result, such model instances are **not stored** between consecutive re-fit calls (defined by `fit_every` [arg](/anomaly-detection/components/scheduler/?highlight=fit_every#periodic-scheduler) in `PeriodicScheduler`), leading to **lower RAM** consumption.
+As a result, such model instances are **not stored** between consecutive re-fit calls (defined by `fit_every` [arg](./scheduler.md#periodic-scheduler) in `PeriodicScheduler`), leading to **lower RAM** consumption.
 
 Such models put **more pressure** on your reader's source, i.e. if your model should be fit on large amount of data (say, 14 days with 1-minute resolution) and at the same time you have **frequent inference** (say, once per minute) on new chunks of data - that's because such models require (fit + infer) window of data to be fit first to be used later in each inference call.
 
-> **Note**: Rolling models require `fit_every` to be set equal to `infer_every` in your [PeriodicScheduler](/anomaly-detection/components/scheduler/?highlight=fit_every#periodic-scheduler).
+> **Note**: Rolling models require `fit_every` to be set equal to `infer_every` in your [PeriodicScheduler](./scheduler.md#periodic-scheduler).
 
 **Examples:** [RollingQuantile](#rolling-quantile)
 
-<p></p>
-<img alt="vmanomaly-model-type-rolling" src="/anomaly-detection/components/model-type-rolling.webp" width="800px"/>
+![vmanomaly-model-type-rolling](model-type-rolling.webp)
+
 
 ### Non-Rolling Models
 
@@ -291,12 +293,12 @@ Such models put **less pressure** on your reader's source, i.e. if you fit on la
 
 > **Note**: However, it's still highly recommended, to keep your model up-to-date with tendencies found in your data as it evolves in time.
 
-Produced model instances are **stored in-memory** between consecutive re-fit calls (defined by `fit_every` [arg](/anomaly-detection/components/scheduler/?highlight=fit_every#periodic-scheduler) in `PeriodicScheduler`), leading to **higher RAM** consumption.
+Produced model instances are **stored in-memory** between consecutive re-fit calls (defined by `fit_every` [arg](./scheduler#periodic-scheduler) in `PeriodicScheduler`), leading to **higher RAM** consumption.
 
 **Examples:** [Prophet](#prophet)
 
-<p></p>
-<img alt="vmanomaly-model-type-non-rolling" src="/anomaly-detection/components/model-type-non-rolling.webp" width="800px"/>
+![vmanomaly-model-type-non-rolling](model-type-non-rolling.webp)
+
 
 ## Built-in Models 
 
@@ -322,12 +324,12 @@ VM Anomaly Detection (`vmanomaly` hereinafter) models support 2 groups of parame
 
 
 ### AutoTuned
-Tuning hyperparameters of a model can be tricky and often requires in-depth knowledge of Machine Learning. `AutoTunedModel` is designed specifically to take the cognitive load off the user - specify as little as `anomaly_percentage` param from `(0, 0.5)` interval and `tuned_model_class` (i.e. [`model.zscore.ZscoreModel`](/anomaly-detection/components/models/#z-score)) to get it working with best settings that match your data.
+Tuning hyperparameters of a model can be tricky and often requires in-depth knowledge of Machine Learning. `AutoTunedModel` is designed specifically to take the cognitive load off the user - specify as little as `anomaly_percentage` param from `(0, 0.5)` interval and `tuned_model_class` (i.e. [`model.zscore.ZscoreModel`](./models.md#z-score)) to get it working with best settings that match your data.
 
 *Parameters specific for vmanomaly*:
 
-* `class` (string) - model class name `"model.auto.AutoTunedModel"` (or `auto` starting from [v1.13.0](/anomaly-detection/CHANGELOG/#1130) with class alias support)
-* `tuned_class_name` (string) - Built-in model class to tune, i.e. `model.zscore.ZscoreModel` (or `zscore` starting from [v1.13.0](/anomaly-detection/CHANGELOG/#1130) with class alias support).
+* `class` (string) - model class name `"model.auto.AutoTunedModel"` (or `auto` starting from [v1.13.0](../CHANGELOG.md#1130) with class alias support)
+* `tuned_class_name` (string) - Built-in model class to tune, i.e. `model.zscore.ZscoreModel` (or `zscore` starting from [v1.13.0](../CHANGELOG.md#1130) with class alias support).
 * `optimization_params` (dict) - Optimization parameters for unsupervised model tuning. Control % of found anomalies, as well as a tradeoff between time spent and the accuracy. The more `timeout` and `n_trials` are, the better model configuration can be found for `tuned_class_name`, but the longer it takes and vice versa. Set `n_jobs` to `-1` to use all the CPUs available, it makes sense if only you have a big dataset to train on during `fit` calls, otherwise overhead isn't worth it.
   - `anomaly_percentage` (float) - expected percentage of anomalies that can be seen in training data, from (0, 0.5) interval.
   - `seed` (int) - Random seed for reproducibility and deterministic nature of underlying optimizations.
@@ -335,7 +337,8 @@ Tuning hyperparameters of a model can be tricky and often requires in-depth know
   - `n_trials` (int) - How many trials to sample from hyperparameter search space. The higher, the longer it takes but the better the results can be. Defaults to 128.
   - `timeout` (float) - How many seconds in total can be spent on each model to tune hyperparameters. The higher, the longer it takes, allowing to test more trials out of defined `n_trials`, but the better the results can be.
 
-<img alt="vmanomaly-autotune-schema" src="/anomaly-detection/components/autotune.webp" width="800px"/>
+![vmanomaly-autotune-schema](autotune.webp)
+
 
 ```yaml
 # ...
@@ -353,7 +356,10 @@ models:
   # ...
 ```
 
-**Note**: Autotune can't be made on your [custom model](#custom-model-guide). Also, it can't be applied to itself (like `tuned_class_name: 'model.auto.AutoTunedModel'`)
+> **Note**: There are some expected limitations of Autotune mode:
+> - It can't be made on your [custom model](#custom-model-guide).
+> - It can't be applied to itself (like `tuned_class_name: 'model.auto.AutoTunedModel'`)
+> - `AutoTunedModel` can't be used on [rolling models](./models.md#rolling-models) like [`RollingQuantile`](./models.md#rolling-quantile) in combination with [on-disk model storage mode](../FAQ.md#resource-consumption-of-vmanomaly), as the rolling models exists only during `infer` calls and aren't persisted neither in RAM, nor on disk.
 
 
 ### [Prophet](https://facebook.github.io/prophet/)
@@ -361,7 +367,7 @@ Here we utilize the Facebook Prophet implementation, as detailed in their [libra
 
 *Parameters specific for vmanomaly*:
 
-* `class` (string) - model class name `"model.prophet.ProphetModel"` (or `prophet` starting from [v1.13.0](/anomaly-detection/CHANGELOG/#1130) with class alias support)
+* `class` (string) - model class name `"model.prophet.ProphetModel"` (or `prophet` starting from [v1.13.0](../CHANGELOG.md#1130) with class alias support)
 * `seasonalities` (list[dict], optional) - Extra seasonalities to pass to Prophet. See [`add_seasonality()`](https://facebook.github.io/prophet/docs/seasonality,_holiday_effects,_and_regressors.html#modeling-holidays-and-special-events:~:text=modeling%20the%20cycle-,Specifying,-Custom%20Seasonalities) Prophet param.
 
 **Note**: Apart from standard `vmanomaly` output, Prophet model can provide [additional metrics](#additional-output-metrics-produced-by-fb-prophet).
@@ -401,7 +407,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output)
 ### [Z-score](https://en.wikipedia.org/wiki/Standard_score)
 *Parameters specific for vmanomaly*:
 
-* `class` (string) - model class name `"model.zscore.ZscoreModel"` (or `zscore` starting from [v1.13.0](/anomaly-detection/CHANGELOG/#1130) with class alias support)
+* `class` (string) - model class name `"model.zscore.ZscoreModel"` (or `zscore` starting from [v1.13.0](../CHANGELOG.md#1130) with class alias support)
 * `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculation boundaries and anomaly score. Defaults to `2.5`.
 
 *Config Example*
@@ -422,7 +428,7 @@ Here we use Holt-Winters Exponential Smoothing implementation from `statsmodels`
 
 *Parameters specific for vmanomaly*:
 
-* `class` (string) - model class name `"model.holtwinters.HoltWinters"` (or `holtwinters` starting from [v1.13.0](/anomaly-detection/CHANGELOG/#1130) with class alias support)
+* `class` (string) - model class name `"model.holtwinters.HoltWinters"` (or `holtwinters` starting from [v1.13.0](../CHANGELOG.md#1130) with class alias support)
 
 * `frequency` (string) - Must be set equal to sampling_period. Model needs to know expected data-points frequency (e.g. '10m'). If omitted, frequency is guessed during fitting as **the median of intervals between fitting data timestamps**. During inference, if incoming data doesn't have the same frequency, then it will be interpolated.  E.g. data comes at 15 seconds resolution, and our resample_freq is '1m'. Then fitting data will be downsampled to '1m' and internal model is trained at '1m' intervals. So, during inference, prediction data would be produced at '1m' intervals, but interpolated to "15s" to match with expected output, as output data must have the same timestamps. As accepted by pandas.Timedelta (e.g. '5m').
 
@@ -464,7 +470,7 @@ The MAD model is a robust method for anomaly detection that is *less sensitive* 
 
 *Parameters specific for vmanomaly*:
 
-* `class` (string) - model class name `"model.mad.MADModel"` (or `mad` starting from [v1.13.0](/anomaly-detection/CHANGELOG/#1130) with class alias support)
+* `class` (string) - model class name `"model.mad.MADModel"` (or `mad` starting from [v1.13.0](../CHANGELOG.md#1130) with class alias support)
 * `threshold` (float, optional) - The threshold multiplier for the MAD to determine anomalies. Defaults to `2.5`. Higher values will identify fewer points as anomalies.
 
 *Config Example*
@@ -484,7 +490,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 *Parameters specific for vmanomaly*:
 
-* `class` (string) - model class name `"model.rolling_quantile.RollingQuantileModel"` (or `rolling_quantile` starting from [v1.13.0](/anomaly-detection/CHANGELOG/#1130) with class alias support)
+* `class` (string) - model class name `"model.rolling_quantile.RollingQuantileModel"` (or `rolling_quantile` starting from [v1.13.0](../CHANGELOG.md#1130) with class alias support)
 * `quantile` (float) - quantile value, from 0.5 to 1.0. This constraint is implied by 2-sided confidence interval.
 * `window_steps` (integer) - size of the moving window. (see 'sampling_period')
 
@@ -505,7 +511,7 @@ Here we use Seasonal Decompose implementation from `statsmodels` [library](https
 
 *Parameters specific for vmanomaly*:
 
-* `class` (string) - model class name `"model.std.StdModel"` (or `std` starting from [v1.13.0](/anomaly-detection/CHANGELOG/#1130) with class alias support)
+* `class` (string) - model class name `"model.std.StdModel"` (or `std` starting from [v1.13.0](../CHANGELOG.md#1130) with class alias support)
 * `period` (integer) -  Number of datapoints in one season.
 * `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculating boundaries to define anomaly score. Defaults to `2.5`.
 
@@ -538,11 +544,11 @@ Here we use Isolation Forest implementation from `scikit-learn` [library](https:
 
 *Parameters specific for vmanomaly*:
 
-* `class` (string) - model class name `"model.isolation_forest.IsolationForestMultivariateModel"` (or `isolation_forest_multivariate` starting from [v1.13.0](/anomaly-detection/CHANGELOG/#1130) with class alias support)
+* `class` (string) - model class name `"model.isolation_forest.IsolationForestMultivariateModel"` (or `isolation_forest_multivariate` starting from [v1.13.0](../CHANGELOG.md#1130) with class alias support)
 
 * `contamination` (float or string, optional) - The amount of contamination of the data set, i.e. the proportion of outliers in the data set. Used when fitting to define the threshold on the scores of the samples. Default value - "auto". Should be either `"auto"` or be in the range (0.0, 0.5].
 
-* `seasonal_features` (list of string) - List of seasonality to encode through [cyclical encoding](https://towardsdatascience.com/cyclical-features-encoding-its-about-time-ce23581845ca), i.e. `dow` (day of week). **Introduced in [1.12.0](/anomaly-detection/CHANGELOG/#v1120)**. 
+* `seasonal_features` (list of string) - List of seasonality to encode through [cyclical encoding](https://towardsdatascience.com/cyclical-features-encoding-its-about-time-ce23581845ca), i.e. `dow` (day of week). **Introduced in [1.12.0](../CHANGELOG.md#v1120)**. 
   - Empty by default for backward compatibility.
   - Example: `seasonal_features: ['dow', 'hod']`.
   - Supported seasonalities:
@@ -598,12 +604,12 @@ The default metrics produced by `vmanomaly` include:
 
 ## vmanomaly monitoring metrics
 
-Each model exposes [several monitoring metrics](/anomaly-detection/components/monitoring/#models-behaviour-metrics) to its `health_path` endpoint:
+Each model exposes [several monitoring metrics](./monitoring.md#models-behaviour-metrics) to its `health_path` endpoint:
 
 
 ## Custom Model Guide
 
-Apart from `vmanomaly` [built-in models](/anomaly-detection/components/models/#built-in-models), users can create their own custom models for anomaly detection.
+Apart from `vmanomaly` [built-in models](./models.md#built-in-models), users can create their own custom models for anomaly detection.
 
 Here in this guide, we will
 - Make a file containing our custom model definition
@@ -617,7 +623,7 @@ Here in this guide, we will
 > **Note**: By default, each custom model is created as [**univariate**](#univariate-models) / [**non-rolling**](#non-rolling-models) model. If you want to override this behavior, define models inherited from `RollingModel` (to get a rolling model), or having `is_multivariate` class arg set to `True` (please refer to the code example below).
 
 We'll create `custom_model.py` file with `CustomModel` class that will inherit from `vmanomaly`'s `Model` base class.
-In the `CustomModel` class there should be three required methods - `__init__`, `fit` and `infer`:
+In the `CustomModel` class, the following methods are required: - `__init__`, `fit`, `infer`, `serialize` and `deserialize`:
 * `__init__` method should initiate parameters for the model.
 
   **Note**: if your model relies on configs that have `arg` [key-value pair argument](./models.md#section-overview), do not forget to use Python's `**kwargs` in method's signature and to explicitly call
@@ -628,6 +634,8 @@ In the `CustomModel` class there should be three required methods - `__init__`, 
   to initialize the base class each model derives from
 * `fit` method should contain the model training process. Please be aware that for `RollingModel` defining `fit` method is not needed, as the whole fit/infer process should be defined completely in `infer` method.
 * `infer` should return Pandas.DataFrame object with model's inferences.
+* `serialize` method that saves the model on disk.
+* `deserialize` load the saved model from disk.
 
 For the sake of simplicity, the model in this example will return one of two values of `anomaly_score` - 0 or 1 depending on input parameter `percentage`.
 
@@ -637,53 +645,64 @@ import numpy as np
 import pandas as pd
 import scipy.stats as st
 import logging
+from pickle import dumps
 
-from model.model import Model
+from model.model import (
+  PICKLE_PROTOCOL,
+  Model,
+  deserialize_basic
+)
 # from model.model import RollingModel  # inherit from it for your model to be of rolling type
 logger = logging.getLogger(__name__)
 
 
 class CustomModel(Model):
-    """
-    Custom model implementation.
-    """
+  """
+  Custom model implementation.
+  """
+  # by default, each `Model` will be created as a univariate one
+  # uncomment line below for it to be of multivariate type
+  #`is_multivariate = True`
+  
+  def __init__(self, percentage: float = 0.95, **kwargs):
+    super().__init__(**kwargs)
+    self.percentage = percentage
+    self._mean = np.nan
+    self._std = np.nan
 
-    # by default, each `Model` will be created as a univariate one
-    # uncomment line below for it to be of multivariate type
-    # is_multivariate = True
+  def fit(self, df: pd.DataFrame):
+    # Model fit process:
+    y = df['y']
+    self._mean = np.mean(y)
+    self._std = np.std(y)
+    if self._std == 0.0:
+      self._std = 1 / 65536
 
-    def __init__(self, percentage: float = 0.95, **kwargs):
-        super().__init__(**kwargs)
-        self.percentage = percentage
-        self._mean = np.nan
-        self._std = np.nan
+  def infer(self, df: pd.DataFrame) -> np.array:
+    # Inference process:
+    y = df['y']
+    zscores = (y - self._mean) / self._std
+    anomaly_score_cdf = st.norm.cdf(np.abs(zscores))
+    df_pred = df[['timestamp', 'y']].copy()
+    df_pred['anomaly_score'] = anomaly_score_cdf > self.percentage
+    df_pred['anomaly_score'] = df_pred['anomaly_score'].astype('int32', errors='ignore')
 
-    def fit(self, df: pd.DataFrame):
-        # Model fit process: 
-        y = df['y']
-        self._mean = np.mean(y)
-        self._std = np.std(y)
-        if self._std == 0.0:
-            self._std = 1 / 65536
+    return df_pred
 
-    def infer(self, df: pd.DataFrame) -> np.array:
-        # Inference process:
-        y = df['y']
-        zscores = (y - self._mean) / self._std
-        anomaly_score_cdf = st.norm.cdf(np.abs(zscores))
-        df_pred = df[['timestamp', 'y']].copy()
-        df_pred['anomaly_score'] = anomaly_score_cdf > self.percentage
-        df_pred['anomaly_score'] = df_pred['anomaly_score'].astype('int32', errors='ignore')
+    def serialize(self) -> None:
+      return dumps(self, protocol=PICKLE_PROTOCOL)
 
-        return df_pred
+    @staticmethod
+    def deserialize(model: str | bytes) -> 'CustomModel':
+      return deserialize_basic(model)
 ```
 
 
 ### 2. Configuration file
 
 Next, we need to create `config.yaml` file with `vmanomaly` configuration and model input parameters.
-In the config file's `models` section we need to set our model class to `model.custom.CustomModel` (or `custom` starting from [v1.13.0](/anomaly-detection/CHANGELOG/#1130) with class alias support) and define all parameters used in `__init__` method.
-You can find out more about configuration parameters in `vmanomaly` [config docs](/anomaly-detection/components/).
+In the config file's `models` section we need to set our model class to `model.custom.CustomModel` (or `custom` starting from [v1.13.0](../CHANGELOG.md#1130) with class alias support) and define all parameters used in `__init__` method.
+You can find out more about configuration parameters in `vmanomaly` [config docs](./README.md).
 
 ```yaml
 schedulers:
@@ -694,19 +713,19 @@ schedulers:
 
 models:
   custom_model:
-    # note: every custom model should implement this exact path, specified in `class` field
     class: "custom"  # or 'model.model.CustomModel' until v1.13.0
-    # custom model params are defined here
     percentage: 0.9
 
+
 reader:
-  datasource_url: "http://localhost:8428/"
+  datasource_url: "http://victoriametrics:8428/"
+  sampling_period: '1m'
   queries:
     ingestion_rate: 'sum(rate(vm_rows_inserted_total)) by (type)'
     churn_rate: 'sum(rate(vm_new_timeseries_created_total[5m]))'
 
 writer:
-  datasource_url: "http://localhost:8428/"
+  datasource_url: "http://victoriametrics:8428/"
   metric_format:
     __name__: "custom_$VAR"
     for: "$QUERY_KEY"
@@ -717,7 +736,7 @@ monitoring:
   pull:
     port: 8080
   push:
-    url: "http://localhost:8428/"
+    url: "http://victoriametrics:8428/"
     extra_labels:
       job: "vmanomaly-develop"
       config: "custom.yaml"
@@ -735,17 +754,18 @@ Now we can run the docker container putting as volumes both config and model fil
 
 > **Note**: place the model file to `/model/custom.py` path when copying
 
+./custom_model.py:/vmanomaly/model/custom.py
+
 ```sh
 docker run -it \
---net [YOUR_NETWORK] \
--v [YOUR_LICENSE_FILE_PATH]:/license.txt \
--v $(PWD)/custom_model.py:/vmanomaly/src/model/custom.py \
+-v $(PWD)/license:/license \
+-v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
 victoriametrics/vmanomaly:latest /config.yaml \
---license-file=/license.txt
+--license-file=/license
 ```
 
-Please find more detailed instructions (license, etc.) [here](/anomaly-detection/overview.html#run-vmanomaly-docker-container)
+Please find more detailed instructions (license, etc.) [here](../Overview.md#run-vmanomaly-docker-container)
 
 
 ### Output

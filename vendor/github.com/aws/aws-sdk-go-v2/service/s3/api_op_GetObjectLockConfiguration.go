@@ -67,6 +67,7 @@ type GetObjectLockConfigurationInput struct {
 }
 
 func (in *GetObjectLockConfigurationInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 
 }
