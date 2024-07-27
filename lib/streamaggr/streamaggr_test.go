@@ -896,6 +896,36 @@ foo{abc="456",de="fg"} 8
 foo 2
 foo{de="fg"} 1
 `, "11111")
+	// sum_sample_positive
+	f(`
+- interval: 1m
+  outputs: [sum_samples_positive]
+`, `
+foo{abc="123"} 4
+bar 5 100
+bar 34 10
+foo{abc="123"} 8.5
+foo{abc="456",de="fg"} 8
+`, `bar:1m_sum_samples_positive 39
+foo:1m_sum_samples_positive{abc="123"} 12.5
+foo:1m_sum_samples_positive{abc="456",de="fg"} 8
+`, "11111")
+	// sum_sample_positive with zero value
+	f(`
+- interval: 1m
+  outputs: [sum_samples_positive]
+`, `
+foo{abc="123"} 4
+bar 5 100
+bar 34 10
+foo{abc="123"} 8.5
+foo{abc="456",de="fg"} 8
+zero_metric{abc="123"} 0
+zero_metric{abc="456"} 0
+`, `bar:1m_sum_samples_positive 39
+foo:1m_sum_samples_positive{abc="123"} 12.5
+foo:1m_sum_samples_positive{abc="456",de="fg"} 8
+`, "1111111")
 }
 
 func TestAggregatorsWithDedupInterval(t *testing.T) {
