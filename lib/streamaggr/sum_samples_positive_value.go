@@ -8,21 +8,21 @@ import (
 )
 
 // sumSamplesAggrState calculates output=sum_samples, e.g. the sum over input samples.
-type sumSamplesPositiveValueAggrState struct {
+type sumSamplesPositiveAggrState struct {
 	m sync.Map
 }
 
-type sumSamplesPositiveValueStateValue struct {
+type sumSamplesPositiveStateValue struct {
 	mu      sync.Mutex
 	sum     float64
 	deleted bool
 }
 
-func newSumSamplesPositiveValueAggrState() *sumSamplesPositiveValueAggrState {
-	return &sumSamplesPositiveValueAggrState{}
+func newSumSamplesPositiveValueAggrState() *sumSamplesPositiveAggrState {
+	return &sumSamplesPositiveAggrState{}
 }
 
-func (as *sumSamplesPositiveValueAggrState) pushSamples(samples []pushSample) {
+func (as *sumSamplesPositiveAggrState) pushSamples(samples []pushSample) {
 	for i := range samples {
 		s := &samples[i]
 		outputKey := getOutputKey(s.key)
@@ -31,7 +31,7 @@ func (as *sumSamplesPositiveValueAggrState) pushSamples(samples []pushSample) {
 		v, ok := as.m.Load(outputKey)
 		if !ok {
 			// The entry is missing in the map. Try creating it.
-			v = &sumSamplesPositiveValueStateValue{
+			v = &sumSamplesPositiveStateValue{
 				sum: s.value,
 			}
 			outputKey = bytesutil.InternString(outputKey)
@@ -43,7 +43,7 @@ func (as *sumSamplesPositiveValueAggrState) pushSamples(samples []pushSample) {
 			// Use the entry created by a concurrent goroutine.
 			v = vNew
 		}
-		sv := v.(*sumSamplesPositiveValueStateValue)
+		sv := v.(*sumSamplesPositiveStateValue)
 		sv.mu.Lock()
 		deleted := sv.deleted
 		if !deleted {
@@ -58,7 +58,7 @@ func (as *sumSamplesPositiveValueAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *sumSamplesPositiveValueAggrState) flushState(ctx *flushCtx, resetState bool) {
+func (as *sumSamplesPositiveAggrState) flushState(ctx *flushCtx, resetState bool) {
 	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
 	m := &as.m
 	m.Range(func(k, v interface{}) bool {
@@ -67,7 +67,7 @@ func (as *sumSamplesPositiveValueAggrState) flushState(ctx *flushCtx, resetState
 			m.Delete(k)
 		}
 
-		sv := v.(*sumSamplesPositiveValueStateValue)
+		sv := v.(*sumSamplesPositiveStateValue)
 		sv.mu.Lock()
 		sum := sv.sum
 		if resetState {
@@ -78,7 +78,7 @@ func (as *sumSamplesPositiveValueAggrState) flushState(ctx *flushCtx, resetState
 
 		key := k.(string)
 		if sum > 0 {
-			ctx.appendSeries(key, "sum_samples", currentTimeMsec, sum)
+			ctx.appendSeries(key, "sum_samples_positive", currentTimeMsec, sum)
 		}
 		return true
 	})
