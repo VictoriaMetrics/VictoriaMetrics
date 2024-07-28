@@ -1852,7 +1852,6 @@ func testStorageVariousDataPatternsConcurrently(t *testing.T, registerOnly bool,
 
 func testStorageVariousDataPatterns(t *testing.T, disablePerDayIndexes, registerOnly bool, op func(s *Storage, mrs []MetricRow), concurrency int, splitBatches bool) {
 	f := func(t *testing.T, sameBatchMetricNames, sameRowMetricNames, sameBatchDates, sameRowDates bool) {
-		s := MustOpenStorage(t.Name(), 0, 0, 0, disablePerDayIndexes)
 		batches, wantCounts := testGenerateMetricRowBatches(&BatchOptions{
 			numBatches:           4,
 			numRowsPerBatch:      100,
@@ -1863,17 +1862,42 @@ func testStorageVariousDataPatterns(t *testing.T, disablePerDayIndexes, register
 			sameBatchDates:       sameBatchDates,
 			sameRowDates:         sameRowDates,
 		})
+		strict := concurrency == 1
+		rowsAddedTotal := wantCounts.metrics.RowsAddedTotal
+
+		s := MustOpenStorage(t.Name(), 0, 0, 0, disablePerDayIndexes)
+
 		testDoConcurrently(s, op, concurrency, splitBatches, batches)
 		s.DebugFlush()
-		strict := concurrency == 1
+		assertCounts(t, s, wantCounts, strict)
+
+		// Rotate indexDB to test the case when TSIDs from tsidCache have the
+		// generation that is older than the generation of the current indexDB.
+		s.mustRotateIndexDB(time.Now())
+
+		testDoConcurrently(s, op, concurrency, splitBatches, batches)
+		s.DebugFlush()
+		wantCounts.metrics.RowsAddedTotal += rowsAddedTotal
 		assertCounts(t, s, wantCounts, strict)
 
 		// Empty the tsidCache to test the case when tsid is retrived from the
-		// index.
+		// index that belongs to the current generation indexDB.
 		s.resetAndSaveTSIDCache()
+
 		testDoConcurrently(s, op, concurrency, splitBatches, batches)
 		s.DebugFlush()
-		wantCounts.metrics.RowsAddedTotal *= 2
+		wantCounts.metrics.RowsAddedTotal += rowsAddedTotal
+		assertCounts(t, s, wantCounts, strict)
+
+		// Empty the tsidCache and rotate indexDB to test the case when tsid is
+		// retrived from the index that belongs to the previous generation
+		// indexDB.
+		s.resetAndSaveTSIDCache()
+		s.mustRotateIndexDB(time.Now())
+
+		testDoConcurrently(s, op, concurrency, splitBatches, batches)
+		s.DebugFlush()
+		wantCounts.metrics.RowsAddedTotal += rowsAddedTotal
 		assertCounts(t, s, wantCounts, strict)
 
 		s.MustClose()
@@ -1882,102 +1906,118 @@ func testStorageVariousDataPatterns(t *testing.T, disablePerDayIndexes, register
 	t.Run("sameBatchMetrics/sameRowMetrics/sameBatchDates/sameRowDates", func(t *testing.T) {
 		// Batch1: metric 1971-01-01, metric 1971-01-01
 		// Batch2: metric 1971-01-01, metric 1971-01-01
+		t.Parallel()
 		f(t, true, true, true, true)
 	})
 
 	t.Run("sameBatchMetrics/sameRowMetrics/sameBatchDates/diffRowDates", func(t *testing.T) {
 		// Batch1: metric 1971-01-01, metric 1971-01-02
 		// Batch2: metric 1971-01-01, metric 1971-01-02
+		t.Parallel()
 		f(t, true, true, true, false)
 	})
 
 	t.Run("sameBatchMetrics/sameRowMetrics/diffBatchDates/sameRowDates", func(t *testing.T) {
 		// Batch1: metric 1971-01-01, metric 1971-01-01
 		// Batch2: metric 1971-01-02, metric 1971-01-02
+		t.Parallel()
 		f(t, true, true, false, true)
 	})
 
 	t.Run("sameBatchMetrics/sameRowMetrics/diffBatchDates/diffRowDates", func(t *testing.T) {
 		// Batch1: metric 1971-01-01, metric 1971-01-02
 		// Batch2: metric 1971-01-03, metric 1971-01-04
+		t.Parallel()
 		f(t, true, true, false, false)
 	})
 
 	t.Run("sameBatchMetrics/diffRowMetrics/sameBatchDates/sameRowDates", func(t *testing.T) {
 		// Batch1: metric_row0 1971-01-01, metric_row1 1971-01-01
 		// Batch2: metric_row0 1971-01-01, metric_row1 1971-01-01
+		t.Parallel()
 		f(t, true, false, true, true)
 	})
 
 	t.Run("sameBatchMetrics/diffRowMetrics/sameBatchDates/diffRowDates", func(t *testing.T) {
 		// Batch1: metric_row0 1971-01-01, metric_row1 1971-01-02
 		// Batch2: metric_row0 1971-01-01, metric_row1 1971-01-02
+		t.Parallel()
 		f(t, true, false, true, false)
 	})
 
 	t.Run("sameBatchMetrics/diffRowMetrics/diffBatchDates/sameRowDates", func(t *testing.T) {
 		// Batch1: metric_row0 1971-01-01, metric_row1 1971-01-01
 		// Batch2: metric_row0 1971-01-02, metric_row1 1971-01-02
+		t.Parallel()
 		f(t, true, false, false, true)
 	})
 
 	t.Run("sameBatchMetrics/diffRowMetrics/diffBatchDates/diffRowDates", func(t *testing.T) {
 		// Batch1: metric_row0 1971-01-01, metric_row1 1971-01-02
 		// Batch2: metric_row0 1971-01-03, metric_row1 1971-01-04
+		t.Parallel()
 		f(t, true, false, false, false)
 	})
 
 	t.Run("diffBatchMetrics/sameRowMetrics/sameBatchDates/sameRowDates", func(t *testing.T) {
 		// Batch1: metric_batch0 1971-01-01, metric_batch0 1971-01-01
 		// Batch2: metric_batch1 1971-01-01, metric_batch1 1971-01-01
+		t.Parallel()
 		f(t, false, true, true, true)
 	})
 
 	t.Run("diffBatchMetrics/sameRowMetrics/sameBatchDates/diffRowDates", func(t *testing.T) {
 		// Batch1: metric_batch0 1971-01-01, metric_batch0 1971-01-02
 		// Batch2: metric_batch1 1971-01-01, metric_batch1 1971-01-02
+		t.Parallel()
 		f(t, false, true, true, false)
 	})
 
 	t.Run("diffBatchMetrics/sameRowMetrics/diffBatchDates/sameRowDates", func(t *testing.T) {
 		// Batch1: metric_batch0 1971-01-01, metric_batch0 1971-01-01
 		// Batch2: metric_batch1 1971-01-02, metric_batch1 1971-01-02
+		t.Parallel()
 		f(t, false, true, false, true)
 	})
 
 	t.Run("diffBatchMetrics/sameRowMetrics/diffBatchDates/diffRowDates", func(t *testing.T) {
 		// Batch1: metric_batch0 1971-01-01, metric_batch0 1971-01-02
 		// Batch2: metric_batch1 1971-01-03, metric_batch1 1971-01-04
+		t.Parallel()
 		f(t, false, true, false, false)
 	})
 
 	t.Run("diffBatchMetrics/diffRowMetrics/sameBatchDates/sameRowDates", func(t *testing.T) {
 		// Batch1: metric_batch0_row0 1971-01-01, metric_batch0_row1 1971-01-01
 		// Batch2: metric_batch1_row0 1971-01-01, metric_batch1_row1 1971-01-01
+		t.Parallel()
 		f(t, false, false, true, true)
 	})
 
 	t.Run("diffBatchMetrics/diffRowMetrics/sameBatchDates/diffRowDates", func(t *testing.T) {
 		// Batch1: metric_batch0_row0 1971-01-01, metric_batch0_row1 1971-01-02
 		// Batch2: metric_batch1_row0 1971-01-01, metric_batch1_row1 1971-01-02
+		t.Parallel()
 		f(t, false, false, true, false)
 	})
 
 	t.Run("diffBatchMetrics/diffRowMetrics/diffBatchDates/sameRowDates", func(t *testing.T) {
 		// Batch1: metric_batch0_row0 1971-01-01, metric_batch0_row1 1971-01-01
 		// Batch2: metric_batch1_row0 1971-01-02, metric_batch1_row1 1971-01-02
+		t.Parallel()
 		f(t, false, false, false, true)
 	})
 
 	t.Run("diffBatchMetrics/diffRowMetrics/diffBatchDates/diffRowDates", func(t *testing.T) {
 		// Batch1: metric_batch0_row0 1971-01-01, metric_batch0_row1 1971-01-02
 		// Batch2: metric_batch1_row0 1971-01-03, metric_batch1_row1 1971-01-04
+		t.Parallel()
 		f(t, false, false, false, false)
 	})
 }
 
-// testDoConcurrently is a test helper function that performs some operation on
-// metric rows concurrently.
+// testDoConcurrently performs some storage operation on metric rows
+// concurrently.
 //
 // The function accepts metric rows organized in batches. The number of
 // goroutines is specified with concurrency arg. If splitBatches is false, then
