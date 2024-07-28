@@ -2641,26 +2641,37 @@ Report bugs and propose new features [here](https://github.com/VictoriaMetrics/V
 VictoriaMetrics documentation is available at [https://docs.victoriametrics.com/](https://docs.victoriametrics.com/).
 It is built from `*.md` files located in [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs) folder
 and gets automatically updated once changes are merged to [master](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master) branch.
+
 To update the documentation follow the steps below:
+
 - [Fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/about-forks) 
-VictoriaMetrics repo and apply changes to the docs:
+  VictoriaMetrics repo and apply changes to the docs:
   - To update [the main page](https://docs.victoriametrics.com/) modify [this file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md).
   - To update other pages, apply changes to the corresponding file in [docs folder](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs).
 - If your changes contain an image then see [images in documentation](https://docs.victoriametrics.com/#images-in-documentation).
 - Once changes are made, execute the command below to finalize and sync the changes:
-```sh
-make docs-sync
-```
-- Create [a pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request)
-with proposed changes and wait for it to be merged.
 
-Requirements for changes to docs:
+  ```sh
+  make docs-sync
+  ```
+
+- Verify the changes locally by running `make docs-debug`. This command starts locally available docs server at `http://localhost:1313`.
+  Press `Ctrl+C` in the console window were the `make docs-debug` command runs after verifying the changes in docs at `http://localhost:1313`.
+
+- Create [a pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request)
+  with proposed changes and wait for it to be merged.
+
+### Requirements for changes in docs
+
 - Keep backward compatibility of existing links. Avoid changing anchors or deleting pages as they could have been
-used or posted in other docs, GitHub issues, stackoverlow answers, etc. 
-- Keep docs simple. Try using as simple wording as possible.
+  used or posted in other docs, GitHub issues, stackoverlow answers, etc.
+- Keep docs clear, concise and simple. Try using as simple wording as possible, without loosing the clarity.
 - Keep docs consistent. When modifying existing docs, verify that other places referencing to this doc are still relevant.
 - Prefer improving the existing docs instead of adding new ones.
-- Use absolute links.
+- Use absolute links. This simplifies moving docs between different files.
+
+Priodically run `make spellcheck` - this command detects spelling errors at `docs/` folder. Please fix the found spelling errors
+and commit the fixes in a separate commit.
 
 ### Images in documentation
 

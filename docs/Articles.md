@@ -9,9 +9,6 @@ menu:
 aliases:
 - /Articles.html
 ---
-
-# Articles
-
 See also [case studies](https://docs.victoriametrics.com/casestudies/).
 
 ## Third-party articles and slides about VictoriaMetrics

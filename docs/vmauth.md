@@ -9,8 +9,6 @@ title: vmauth
 aliases:
   - /vmauth.html
 ---
-# vmauth
-
 `vmauth` is an HTTP proxy, which can [authorize](https://docs.victoriametrics.com/vmauth/#authorization), [route](https://docs.victoriametrics.com/vmauth/#routing)
 and [load balance](https://docs.victoriametrics.com/vmauth/#load-balancing) requests across [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) components
 or any other HTTP backends.
@@ -78,8 +76,7 @@ For example, the following [`-auth.config`](#auth-config) instructs `vmauth` to 
   For example, the request to `http://vmauth:8427/app1/foo/bar?baz=qwe` is proxied to `http://app1-backend/foo/bar?baz=qwe`.
 - Requests starting with `/app2/` are proxied to `http://app2-backend/`, while the `/app2/` path prefix is dropped according to [`drop_src_path_prefix_parts`](#dropping-request-path-prefix).
   For example, the request to `http://vmauth:8427/app2/index.html` is proxied to `http://app2-backend/index.html`.
-- Other requests are proxied to `http://some-backend/404-page.html`, while the requested path is passed via `request_path` query arg.
-  For example, the request to `http://vmauth:8427/foo/bar?baz=qwe` is proxied to `http://some-backend/404-page.html?request_path=%2Ffoo%2Fbar%3Fbaz%3Dqwe`.
+- Other requests are proxied to `http://default-backed/`.
 
 ```yaml
 unauthorized_user:
@@ -92,7 +89,26 @@ unauthorized_user:
     - "/app2/.*"
     drop_src_path_prefix_parts: 1
     url_prefix: "http://app2-backend/"
-  default_url: http://some-backend/404-page.html
+  url_prefix: "http://default-backed/"
+```
+
+Sometimes it is needed to proxy all the requests, which do not match `url_map`, to a special `404` page, which could count invalid requests.
+Use `default_url` for this case. For example, the following [`-auth.config`](#auth-config) instructs `vmauth` sending all the requests,
+which do not match `url_map`, to the `http://some-backend/404-page.html` page. The requested path is passed via `request_path` query arg.
+For example, the request to `http://vmauth:8427/foo/bar?baz=qwe` is proxied to `http://some-backend/404-page.html?request_path=%2Ffoo%2Fbar%3Fbaz%3Dqwe`.
+
+```yaml
+unauthorized_user:
+  url_map:
+  - src_paths:
+    - "/app1/.*"
+    drop_src_path_prefix_parts: 1
+    url_prefix: "http://app1-backend/"
+  - src_paths:
+    - "/app2/.*"
+    drop_src_path_prefix_parts: 1
+    url_prefix: "http://app2-backend/"
+  default_url: "http://some-backend/404-page.html"
 ```
 
 See [routing docs](#routing) for details.
@@ -129,7 +145,7 @@ unauthorized_user:
     - "/prometheus/api/v1/write"
     - "/influx/write"
     - "/api/v1/import"
-    - "/api/v1/import/.+"
+    - "/api/v1/import/.*"
     url_prefix:
     - "http://vmagent-1:8429/"
     - "http://vmagent-2:8429/"
@@ -150,13 +166,13 @@ and processes incoming requests via `vmselect` nodes according to [these docs](h
 unauthorized_user:
   url_map:
   - src_paths:
-    - "/insert/.+"
+    - "/insert/.*"
     url_prefix:
     - "http://vminsert-1:8480/"
     - "http://vminsert-2:8480/"
     - "http://vminsert-3:8480/"
   - src_paths:
-    - "/select/.+"
+    - "/select/.*"
     url_prefix:
     - "http://vmselect-1:8481/"
     - "http://vmselect-2:8481/"
@@ -327,7 +343,7 @@ unauthorized_user:
 
     # proxy all the requests, which start with `/vmagent/`, to vmagent backend
   - src_paths:
-    - "/vmagent/.+"
+    - "/vmagent/.*"
 
     # drop /vmagent/ path prefix from the original request before proxying it to url_prefix.
     drop_src_path_prefix_parts: 1
@@ -335,7 +351,7 @@ unauthorized_user:
 
     # proxy all the requests, which start with `/vmalert`, to vmalert backend
   - src_paths:
-    - "/vmalert/.+"
+    - "/vmalert/.*"
 
     # drop /vmalert/ path prefix from the original request before proxying it to url_prefix.
     drop_src_path_prefix_parts: 1
@@ -647,15 +663,6 @@ unauthorized_user:
   - "X-Forwarded-For:"
 ```
 
-It is also possible to update `Host` request header to the backend host specified in `url_prefix` by setting an empty value for `Host` header:
-
-```yaml
-unauthorized_user:
-  url_prefix: "http://backend:1234/"
-  headers:
-  - "Host:"    # Update host header to backend:1234
-```
-
 `vmauth` also supports the ability to set and remove HTTP response headers before returning the response from the backend to client.
 This is done via `response_headers` option. For example, the following [`-auth.config`](#auth-config) sets `Foo: bar` response header
 and removes `Server` response header before returning the response to client:
@@ -666,6 +673,30 @@ unauthorized_user:
   response_headers:
   - "Foo: bar"
   - "Server:"
+```
+
+See also [`Host` header docs](#host-http-header).
+
+## Host HTTP header
+
+By default `vmauth` sets the `Host` HTTP header to the backend hostname when proxying requests to the corresponding backend.
+Sometimes it is needed to keep the original `Host` header from the client request sent to `vmauth`. For example, if backends use host-based routing.
+In this case set `keep_original_host: true`. For example, the following config instructs to use the original `Host` header from client requests
+when proxying requests to the `backend:1234`:
+
+```yaml
+unauthorized_user:
+  url_prefix: "http://backend:1234/"
+  keep_original_host: true
+```
+
+It is also possible to set the `Host` header to arbitrary value when proxying the request to the configured backend, via [`headers` option](#modifying-http-headers):
+
+```yaml
+unauthorized_user:
+  url_prefix: "http://backend:1234/"
+  headers:
+  - "Host: foobar"
 ```
 
 ## Config reload

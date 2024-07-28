@@ -1,8 +1,3 @@
----
-title: VictoriaMetrics
----
-# VictoriaMetrics
-
 [![Latest Release](https://img.shields.io/github/release/VictoriaMetrics/VictoriaMetrics.svg?style=flat-square)](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
 [![Docker Pulls](https://img.shields.io/docker/pulls/victoriametrics/victoria-metrics.svg?maxAge=604800)](https://hub.docker.com/r/victoriametrics/victoria-metrics)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
@@ -12,9 +7,9 @@ title: VictoriaMetrics
 [![codecov](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics/branch/master/graph/badge.svg)](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics)
 
 <picture>
-  <source srcset="logo_white.webp" media="(prefers-color-scheme: dark)">
-  <source srcset="logo.webp" media="(prefers-color-scheme: light)">
-  <img src="logo.webp" width="300" alt="VictoriaMetrics logo">
+  <source srcset="/logo_white.webp" media="(prefers-color-scheme: dark)">
+  <source srcset="/logo.webp" media="(prefers-color-scheme: light)">
+  <img src="/logo.webp" width="300" alt="VictoriaMetrics logo">
 </picture>
 
 VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
@@ -313,7 +308,7 @@ Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaM
 
 In the "Type and version" section it is recommended to set the type to "Prometheus" and the version to at least "2.24.x":
 
-<img src="grafana-datasource-prometheus.webp" alt="Grafana datasource" />
+![Datasource](grafana-datasource-prometheus.webp)
 
 This allows Grafana to use a more efficient API to get label values.
 
@@ -503,7 +498,7 @@ via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit
 DataDog agent allows configuring destinations for metrics sending via ENV variable `DD_DD_URL` 
 or via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) in section `dd_url`.
 
-<img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM.webp">
+![DD to VM](Single-server-VictoriaMetrics-sending_DD_metrics_to_VM.webp)
 
 To configure DataDog agent via ENV variable add the following prefix:
 
@@ -530,7 +525,7 @@ pick [single-node or cluster URL](https://docs.victoriametrics.com/url-examples/
 DataDog allows configuring [Dual Shipping](https://docs.datadoghq.com/agent/guide/dual-shipping/) for metrics 
 sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `additional_endpoints`.
  
-<img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM_and_DD.webp">
+![DD to VM](Single-server-VictoriaMetrics-sending_DD_metrics_to_VM_and_DD.webp)
  
 Run DataDog using the following ENV variable with VictoriaMetrics as additional metrics receiver:
 
@@ -617,13 +612,13 @@ VictoriaMetrics performs the following transformations to the ingested InfluxDB 
 
 For example, the following InfluxDB line:
 
-```raw
+```influxtextmetric
 foo,tag1=value1,tag2=value2 field1=12,field2=40
 ```
 
 is converted into the following Prometheus data points:
 
-```raw
+```promtextmetric
 foo_field1{tag1="value1", tag2="value2"} 12
 foo_field2{tag1="value1", tag2="value2"} 40
 ```
@@ -2646,24 +2641,30 @@ It is built from `*.md` files located in [docs](https://github.com/VictoriaMetri
 and gets automatically updated once changes are merged to [master](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master) branch.
 To update the documentation follow the steps below:
 - [Fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/about-forks) 
-VictoriaMetrics repo and apply changes to the docs:
+  VictoriaMetrics repo and apply changes to the docs:
   - To update [the main page](https://docs.victoriametrics.com/) modify [this file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md).
   - To update other pages, apply changes to the corresponding file in [docs folder](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs).
 - If your changes contain an image then see [images in documentation](https://docs.victoriametrics.com/#images-in-documentation).
 - Once changes are made, execute the command below to finalize and sync the changes:
-```sh
-make docs-sync
-```
+
+  ```sh
+  make docs-sync
+  ```
+
 - Create [a pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request)
-with proposed changes and wait for it to be merged.
+  with proposed changes and wait for it to be merged.
 
 Requirements for changes to docs:
+
 - Keep backward compatibility of existing links. Avoid changing anchors or deleting pages as they could have been
-used or posted in other docs, GitHub issues, stackoverlow answers, etc. 
-- Keep docs simple. Try using as simple wording as possible.
+  used or posted in other docs, GitHub issues, stackoverlow answers, etc.
+- Keep docs clear, concise and simple. Try using as simple wording as possible, without loosing the clarity.
 - Keep docs consistent. When modifying existing docs, verify that other places referencing to this doc are still relevant.
 - Prefer improving the existing docs instead of adding new ones.
-- Use absolute links.
+- Use absolute links. This simplifies moving docs between different files.
+
+Priodically run `make spellcheck` - this command detects spelling errors at `docs/` folder. Please fix the found spelling errors
+and commit the fixes in a separate commit.
 
 ### Images in documentation
 
