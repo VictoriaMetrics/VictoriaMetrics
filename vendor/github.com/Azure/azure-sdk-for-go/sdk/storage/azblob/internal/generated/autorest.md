@@ -19,10 +19,10 @@ modelerfour:
   seal-single-value-enum-by-default: true
   lenient-model-deduplication: true
 export-clients: true
-use: "@autorest/go@4.0.0-preview.61"
+use: "@autorest/go@4.0.0-preview.65"
 ```
 
-### Updating service version to 2023-11-03
+### Updating service version to 2024-05-04
 ```yaml
 directive:
 - from: 
@@ -36,7 +36,7 @@ directive:
   transform: >-
     return $.
       replaceAll(`[]string{"2021-12-02"}`, `[]string{ServiceVersion}`).
-      replaceAll(`2021-12-02`, `2023-11-03`);
+      replaceAll(`2021-12-02`, `2024-05-04`);
 ```
 
 ### Undo breaking change with BlobName 
@@ -293,7 +293,7 @@ directive:
       replace(/SourceIfMatch\s+\*string/g, `SourceIfMatch *azcore.ETag`).
       replace(/SourceIfNoneMatch\s+\*string/g, `SourceIfNoneMatch *azcore.ETag`);
 
-- from: zz_response_types.go
+- from: zz_responses.go
   where: $
   transform: >-
     return $.

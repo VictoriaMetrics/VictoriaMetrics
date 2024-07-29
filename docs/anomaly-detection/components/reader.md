@@ -20,6 +20,61 @@ Future updates will introduce additional readers, expanding the range of data so
 
 ## VM reader
 
+> **Note**: Starting from [v1.13.0](/anomaly-detection/changelog/v1130) there is backward-compatible change of [`queries`](/anomaly-detection/components/reader?highlight=queries#vm-reader) arg of [VmReader](#vm-reader). New format allows to specify per-query parameters, like `step` to reduce amount of data read from VictoriaMetrics TSDB and to allow config flexibility. Please see [per-query parameters](#per-query-parameters) section for the details.
+
+Old format like
+
+```yaml
+# other config sections ...
+reader:
+  class: 'vm'
+  datasource_url: 'http://localhost:8428'  # source victoriametrics/prometheus
+  sampling_period: "10s"  # set it <= min(infer_every) in schedulers section
+  queries:
+    # old format {query_alias: query_expr}, prior to 1.13, will be converted to a new format automatically
+    vmb: 'avg(vm_blocks)'
+```
+
+will be converted to a new one with a warning raised in logs:
+
+```yaml
+# other config sections ...
+reader:
+  class: 'vm'
+  datasource_url: 'http://localhost:8428'  # source victoriametrics/prometheus
+  sampling_period: '10s'
+  queries:
+    # old format {query_alias: query_expr}, prior to 1.13, will be converted to a new format automatically
+    vmb:
+      expr: 'avg(vm_blocks)'  # initial MetricsQL expression
+      step: '10s'  # individual step for this query, will be filled with `sampling_period` from the root level
+      # new query-level arguments will be added in backward-compatible way in future releases
+```
+
+### Per-query parameters
+
+Starting from [v1.13.0](/anomaly-detection/changelog/v1130) there is change of [`queries`](/anomaly-detection/components/reader?highlight=queries#vm-reader) arg format. Now each query alias supports the next (sub)fields:
+
+- `expr` (string): MetricsQL/PromQL expression that defines an input for VmReader. As accepted by `/query_range?query=%s`. i.e. `avg(vm_blocks)`
+
+- `step` (string): query-level frequency of the points returned, i.e. `30s`. Will be converted to `/query_range?step=%s` param (in seconds). Useful to optimize total amount of data read from VictoriaMetrics, where different queries may have **different frequencies for different [machine learning models](/anomaly-detection/components/models)** to run on.
+
+    > **Note**: if not set explicitly (or if older config style prior to [v1.13.0](/anomaly-detection/changelog/v1130)) is used, then it is set to reader-level `sampling_period` arg.
+
+    > **Note**: having **different** individual `step` args for queries (i.e. `30s` for `q1` and `2m` for `q2`) is not yet supported for [multivariate model](/anomaly-detection/components/models/index.html#multivariate-models) if you want to run it on several queries simultaneously (i.e. setting [`queries`](/anomaly-detection/components/models/#queries) arg of a model to [`q1`, `q2`]).
+
+### Per-query config example
+```yaml
+reader:
+  class: 'vm'
+  sampling_period: '1m'
+  # other reader params ...
+  queries:
+    ingestion_rate:
+      expr: 'sum(rate(vm_rows_inserted_total[5m])) by (type) > 0'
+      step: '2m'  # overrides global `sampling_period` of 1m
+```
+
 ### Config parameters
 
 <table class="params">
@@ -51,12 +106,12 @@ Name of the class needed to enable reading from VictoriaMetrics or Prometheus. V
 `queries`
             </td>
             <td>
-
-`ingestion_rate: 'sum(rate(vm_rows_inserted_total[5m])) by (type) > 0'`
+                See [per-query config example](#per-query-config-example) above
             </td>
-            <td>
 
-PromQL/MetricsQL query to select data in format: `QUERY_ALIAS: "QUERY"`. As accepted by `/query_range?query=%s`.
+<td>
+
+See [per-query config section](#per-query-parameters) above
             </td>
         </tr>
         <tr>

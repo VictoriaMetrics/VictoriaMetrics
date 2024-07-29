@@ -1,5 +1,20 @@
 # Release History
 
+## 1.4.0 (2024-07-18)
+
+### Other Changes
+* GetProperties() was called twice in DownloadFile method. Enhanced to call it only once, reducing latency.
+* Updated `azcore` version to `1.13.0`
+
+## 1.4.0-beta.1 (2024-06-14)
+
+### Features Added
+* Updated service version to `2024-05-04`.
+
+### Other Changes
+* Updated `azidentity` version to `1.6.0`
+* Updated `azcore` version to `1.12.0`
+
 ## 1.3.2 (2024-04-09)
 
 ### Bugs Fixed

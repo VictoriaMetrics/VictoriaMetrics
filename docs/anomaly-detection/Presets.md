@@ -23,17 +23,14 @@ Additionally, **preset mode** minimizes user input needed to run the service. Yo
 Available presets:
 - [Node-Exporter](#node-exporter)
 
-Here is an example config file to enable [Node-Exporter](#node-exporter) preset:
+To enable preset mode, `preset` arg should be set to particular preset name:
 
 ```yaml
-preset: "node-exporter"
-reader:
-  datasource_url: "http://victoriametrics:8428/" # your datasource url
-  # tenant_id: '0:0'  # specify for cluster version
-writer:
-  datasource_url: "http://victoriametrics:8428/" # your datasource url
-  # tenant_id: '0:0'  # specify for cluster version
+preset: "chosen_preset_name"  # i.e. "node-exporter"
 ```
+
+Also, additional minimal set of arguments may be required from user to run the preset. See corresponding preset sections below for the details.
+
 Run a service using config file with one of the [available options](./QuickStart.md#how-to-install-and-run-vmanomaly).
 
 After you run `vmanomaly` with `preset` arg specified, available assets can be viewed, copied and downloaded at `http://localhost:8490/presets/` endpoint.
@@ -43,12 +40,23 @@ After you run `vmanomaly` with `preset` arg specified, available assets can be v
 
 ## Node-Exporter
 
-> **Note: Preset assets can be also found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-node-exporter-preset/)**
+The Node-Exporter preset simplifies the monitoring and anomaly detection of key system metrics collected by [`node_exporter`](https://github.com/prometheus/node_exporter). This preset reduces the need for manual configuration and detects anomalies in metrics such as CPU usage, network errors, and disk latency, ensuring timely identification of potential issues. Below are detailed instructions on enabling and using the Node-Exporter preset, along with a list of included assets like alerting rules and Grafana dashboard.
 
-For enabling Node-Exporter in config file use `preset` parameter:
+> **Note: Node-Exporter preset assets can be also found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-node-exporter-preset/)**
+
+For enabling Node-Exporter in config file set the `preset` arg accordingly. Also, include at least `datasource_url`-s (and `tenant_id` if using cluster version of VictoriaMetrics) in reader and writer sections, like that:
+
 ```yaml
 preset: "node-exporter"
+reader:
+  datasource_url: "http://victoriametrics:8428/" # source victoriametrics/prometheus
+  # tenant_id: '0:0'  # specify for cluster version
+writer:
+  datasource_url: "http://victoriametrics:8428/" # destination victoriametrics/prometheus
+  # tenant_id: '0:0'  # specify for cluster version
 ```
+
+Run a service using such config file with one of the [available options](./QuickStart.md#how-to-install-and-run-vmanomaly).
 
 ### Generated anomaly scores
 Machine learning models will be fit for each timeseries, returned by underlying [MetricsQL](../MetricsQL.md) queries.
