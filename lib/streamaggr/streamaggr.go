@@ -135,6 +135,11 @@ type Options struct {
 	//
 	// This option can be overridden individually per each aggregation via ignore_first_intervals option.
 	IgnoreFirstIntervals int
+
+	// KeepInput enables keeping all the input samples after the aggregation.
+	//
+	// By default, aggregates samples are dropped, while the remaining samples are written to the corresponding -remoteWrite.url.
+	KeepInput bool
 }
 
 // Config is a configuration for a single stream aggregation.
@@ -511,6 +516,9 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 		keepMetricNames = *v
 	}
 	if keepMetricNames {
+		if opts.KeepInput {
+			return nil, fmt.Errorf("cannot enable `-stream.keepInput` and `keep_metric_names` options together")
+		}
 		if len(cfg.Outputs) != 1 {
 			return nil, fmt.Errorf("`outputs` list must contain only a single entry if `keep_metric_names` is set; got %q; "+
 				"see https://docs.victoriametrics.com/stream-aggregation/#output-metric-names", cfg.Outputs)
