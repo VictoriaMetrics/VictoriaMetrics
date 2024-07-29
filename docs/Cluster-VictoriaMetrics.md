@@ -1313,7 +1313,7 @@ Below is the output for `/path/to/vmselect -help`:
   -blockcache.missesBeforeCaching int
      The number of cache misses before putting the block into cache. Higher values may reduce indexdb/dataBlocks cache size at the cost of higher CPU and disk read usage (default 2)
   -cacheDataPath string
-     Path to directory for cache files. By default, the cache is not persisted.
+     Path to directory for cache files. By default, the cache is not persisted. Please note that vmselect will create a `/tmp/searchResults` folder under cacheDataPath, which contains data from vmstorage nodes for search query. Ensure that `cacheDataPath/tmp/searchResults` will not be removed. Refer to issue #5770 for more details.
   -cacheExpireDuration duration
      Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
   -cluster.tls
