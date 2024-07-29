@@ -143,11 +143,11 @@ func (bsrh *blockStreamReaderHeap) Swap(i, j int) {
 	x[i], x[j] = x[j], x[i]
 }
 
-func (bsrh *blockStreamReaderHeap) Push(x interface{}) {
+func (bsrh *blockStreamReaderHeap) Push(x any) {
 	*bsrh = append(*bsrh, x.(*blockStreamReader))
 }
 
-func (bsrh *blockStreamReaderHeap) Pop() interface{} {
+func (bsrh *blockStreamReaderHeap) Pop() any {
 	a := *bsrh
 	v := a[len(a)-1]
 	*bsrh = a[:len(a)-1]

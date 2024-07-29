@@ -255,7 +255,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	if path == "/internal/resetRollupResultCache" {
-		if !httpserver.CheckAuthFlag(w, r, resetCacheAuthKey.Get(), "resetCacheAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, resetCacheAuthKey) {
 			return true
 		}
 		promql.ResetRollupResultCache()
@@ -493,7 +493,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		}
 		return true
 	case "graphite/tags/delSeries":
-		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey.Get(), "deleteAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey) {
 			return true
 		}
 		graphiteTagsDelSeriesRequests.Inc()
@@ -750,7 +750,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 func deleteHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, p *httpserver.Path, at *auth.Token) bool {
 	switch p.Suffix {
 	case "prometheus/api/v1/admin/tsdb/delete_series":
-		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey.Get(), "deleteAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey) {
 			return true
 		}
 		deleteRequests.Inc()

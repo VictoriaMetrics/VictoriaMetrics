@@ -82,9 +82,8 @@ func TestManagerUpdateConcurrent(t *testing.T) {
 	wg.Wait()
 }
 
-// TestManagerUpdate tests sequential configuration
-// updates.
-func TestManagerUpdate(t *testing.T) {
+// TestManagerUpdate tests sequential configuration updates.
+func TestManagerUpdate_Success(t *testing.T) {
 	const defaultEvalInterval = time.Second * 30
 	currentEvalInterval := *evaluationInterval
 	*evaluationInterval = defaultEvalInterval
@@ -120,145 +119,127 @@ func TestManagerUpdate(t *testing.T) {
 		}
 	)
 
-	testCases := []struct {
-		name       string
-		initPath   string
-		updatePath string
-		want       []*rule.Group
-	}{
-		{
-			name:       "update good rules",
-			initPath:   "config/testdata/rules/rules0-good.rules",
-			updatePath: "config/testdata/dir/rules1-good.rules",
-			want: []*rule.Group{
-				{
-					File:     "config/testdata/dir/rules1-good.rules",
-					Name:     "duplicatedGroupDiffFiles",
-					Type:     config.NewPrometheusType(),
-					Interval: defaultEvalInterval,
-					Rules: []rule.Rule{
-						&rule.AlertingRule{
-							Name:   "VMRows",
-							Expr:   "vm_rows > 0",
-							For:    5 * time.Minute,
-							Labels: map[string]string{"dc": "gcp", "label": "bar"},
-							Annotations: map[string]string{
-								"summary":     "{{ $value }}",
-								"description": "{{$labels}}",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name:       "update good rules from 1 to 2 groups",
-			initPath:   "config/testdata/dir/rules/rules1-good.rules",
-			updatePath: "config/testdata/rules/rules0-good.rules",
-			want: []*rule.Group{
-				{
-					File:     "config/testdata/rules/rules0-good.rules",
-					Name:     "groupGorSingleAlert",
-					Type:     config.NewPrometheusType(),
-					Interval: defaultEvalInterval,
-					Rules:    []rule.Rule{VMRows},
-				},
-				{
-					File:     "config/testdata/rules/rules0-good.rules",
-					Interval: defaultEvalInterval,
-					Type:     config.NewPrometheusType(),
-					Name:     "TestGroup",
-					Rules: []rule.Rule{
-						Conns,
-						ExampleAlertAlwaysFiring,
-					},
-				},
-			},
-		},
-		{
-			name:       "update with one bad rule file",
-			initPath:   "config/testdata/rules/rules0-good.rules",
-			updatePath: "config/testdata/dir/rules2-bad.rules",
-			want: []*rule.Group{
-				{
-					File:     "config/testdata/rules/rules0-good.rules",
-					Name:     "groupGorSingleAlert",
-					Type:     config.NewPrometheusType(),
-					Interval: defaultEvalInterval,
-					Rules:    []rule.Rule{VMRows},
-				},
-				{
-					File:     "config/testdata/rules/rules0-good.rules",
-					Interval: defaultEvalInterval,
-					Name:     "TestGroup",
-					Type:     config.NewPrometheusType(),
-					Rules: []rule.Rule{
-						Conns,
-						ExampleAlertAlwaysFiring,
-					},
-				},
-			},
-		},
-		{
-			name:       "update empty dir rules from 0 to 2 groups",
-			initPath:   "config/testdata/empty/*",
-			updatePath: "config/testdata/rules/rules0-good.rules",
-			want: []*rule.Group{
-				{
-					File:     "config/testdata/rules/rules0-good.rules",
-					Name:     "groupGorSingleAlert",
-					Type:     config.NewPrometheusType(),
-					Interval: defaultEvalInterval,
-					Rules:    []rule.Rule{VMRows},
-				},
-				{
-					File:     "config/testdata/rules/rules0-good.rules",
-					Interval: defaultEvalInterval,
-					Type:     config.NewPrometheusType(),
-					Name:     "TestGroup",
-					Rules: []rule.Rule{
-						Conns,
-						ExampleAlertAlwaysFiring,
-					},
-				},
-			},
-		},
+	f := func(initPath, updatePath string, groupsExpected []*rule.Group) {
+		t.Helper()
+
+		ctx, cancel := context.WithCancel(context.TODO())
+		m := &manager{
+			groups:         make(map[uint64]*rule.Group),
+			querierBuilder: &datasource.FakeQuerier{},
+			notifiers:      func() []notifier.Notifier { return []notifier.Notifier{&notifier.FakeNotifier{}} },
+		}
+
+		cfgInit := loadCfg(t, []string{initPath}, true, true)
+		if err := m.update(ctx, cfgInit, false); err != nil {
+			t.Fatalf("failed to complete initial rules update: %s", err)
+		}
+
+		cfgUpdate, err := config.Parse([]string{updatePath}, notifier.ValidateTemplates, true)
+		if err == nil { // update can fail and that's expected
+			_ = m.update(ctx, cfgUpdate, false)
+		}
+		if len(groupsExpected) != len(m.groups) {
+			t.Fatalf("unexpected number of groups; got %d; want %d", len(m.groups), len(groupsExpected))
+		}
+
+		for _, wantG := range groupsExpected {
+			gotG, ok := m.groups[wantG.ID()]
+			if !ok {
+				t.Fatalf("expected to have group %q", wantG.Name)
+			}
+			compareGroups(t, wantG, gotG)
+		}
+
+		cancel()
+		m.close()
 	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.TODO())
-			m := &manager{
-				groups:         make(map[uint64]*rule.Group),
-				querierBuilder: &datasource.FakeQuerier{},
-				notifiers:      func() []notifier.Notifier { return []notifier.Notifier{&notifier.FakeNotifier{}} },
-			}
 
-			cfgInit := loadCfg(t, []string{tc.initPath}, true, true)
-			if err := m.update(ctx, cfgInit, false); err != nil {
-				t.Fatalf("failed to complete initial rules update: %s", err)
-			}
+	// update good rules
+	f("config/testdata/rules/rules0-good.rules", "config/testdata/dir/rules1-good.rules", []*rule.Group{
+		{
+			File:     "config/testdata/dir/rules1-good.rules",
+			Name:     "duplicatedGroupDiffFiles",
+			Type:     config.NewPrometheusType(),
+			Interval: defaultEvalInterval,
+			Rules: []rule.Rule{
+				&rule.AlertingRule{
+					Name:   "VMRows",
+					Expr:   "vm_rows > 0",
+					For:    5 * time.Minute,
+					Labels: map[string]string{"dc": "gcp", "label": "bar"},
+					Annotations: map[string]string{
+						"summary":     "{{ $value }}",
+						"description": "{{$labels}}",
+					},
+				},
+			},
+		},
+	})
 
-			cfgUpdate, err := config.Parse([]string{tc.updatePath}, notifier.ValidateTemplates, true)
-			if err == nil { // update can fail and that's expected
-				_ = m.update(ctx, cfgUpdate, false)
-			}
-			if len(tc.want) != len(m.groups) {
-				t.Fatalf("\nwant number of groups: %d;\ngot: %d ", len(tc.want), len(m.groups))
-			}
+	// update good rules from 1 to 2 groups
+	f("config/testdata/dir/rules/rules1-good.rules", "config/testdata/rules/rules0-good.rules", []*rule.Group{
+		{
+			File:     "config/testdata/rules/rules0-good.rules",
+			Name:     "groupGorSingleAlert",
+			Type:     config.NewPrometheusType(),
+			Interval: defaultEvalInterval,
+			Rules:    []rule.Rule{VMRows},
+		},
+		{
+			File:     "config/testdata/rules/rules0-good.rules",
+			Interval: defaultEvalInterval,
+			Type:     config.NewPrometheusType(),
+			Name:     "TestGroup",
+			Rules: []rule.Rule{
+				Conns,
+				ExampleAlertAlwaysFiring,
+			},
+		},
+	})
 
-			for _, wantG := range tc.want {
-				gotG, ok := m.groups[wantG.ID()]
-				if !ok {
-					t.Fatalf("expected to have group %q", wantG.Name)
-				}
-				compareGroups(t, wantG, gotG)
-			}
+	// update with one bad rule file
+	f("config/testdata/rules/rules0-good.rules", "config/testdata/dir/rules2-bad.rules", []*rule.Group{
+		{
+			File:     "config/testdata/rules/rules0-good.rules",
+			Name:     "groupGorSingleAlert",
+			Type:     config.NewPrometheusType(),
+			Interval: defaultEvalInterval,
+			Rules:    []rule.Rule{VMRows},
+		},
+		{
+			File:     "config/testdata/rules/rules0-good.rules",
+			Interval: defaultEvalInterval,
+			Name:     "TestGroup",
+			Type:     config.NewPrometheusType(),
+			Rules: []rule.Rule{
+				Conns,
+				ExampleAlertAlwaysFiring,
+			},
+		},
+	})
 
-			cancel()
-			m.close()
-		})
-	}
+	// update empty dir rules from 0 to 2 groups
+	f("config/testdata/empty/*", "config/testdata/rules/rules0-good.rules", []*rule.Group{
+		{
+			File:     "config/testdata/rules/rules0-good.rules",
+			Name:     "groupGorSingleAlert",
+			Type:     config.NewPrometheusType(),
+			Interval: defaultEvalInterval,
+			Rules:    []rule.Rule{VMRows},
+		},
+		{
+			File:     "config/testdata/rules/rules0-good.rules",
+			Interval: defaultEvalInterval,
+			Type:     config.NewPrometheusType(),
+			Name:     "TestGroup",
+			Rules: []rule.Rule{
+				Conns,
+				ExampleAlertAlwaysFiring,
+			},
+		},
+	})
 }
+
 func compareGroups(t *testing.T, a, b *rule.Group) {
 	t.Helper()
 	if a.Name != b.Name {
@@ -285,82 +266,59 @@ func compareGroups(t *testing.T, a, b *rule.Group) {
 	}
 }
 
-func TestManagerUpdateNegative(t *testing.T) {
-	testCases := []struct {
-		notifiers []notifier.Notifier
-		rw        remotewrite.RWClient
-		cfg       config.Group
-		expErr    string
-	}{
-		{
-			nil,
-			nil,
-			config.Group{
-				Name: "Recording rule only",
-				Rules: []config.Rule{
-					{Record: "record", Expr: "max(up)"},
-				},
-			},
-			"contains recording rules",
-		},
-		{
-			nil,
-			nil,
-			config.Group{
-				Name: "Alerting rule only",
-				Rules: []config.Rule{
-					{Alert: "alert", Expr: "up > 0"},
-				},
-			},
-			"contains alerting rules",
-		},
-		{
-			[]notifier.Notifier{&notifier.FakeNotifier{}},
-			nil,
-			config.Group{
-				Name: "Recording and alerting rules",
-				Rules: []config.Rule{
-					{Alert: "alert1", Expr: "up > 0"},
-					{Alert: "alert2", Expr: "up > 0"},
-					{Record: "record", Expr: "max(up)"},
-				},
-			},
-			"contains recording rules",
-		},
-		{
-			nil,
-			&remotewrite.Client{},
-			config.Group{
-				Name: "Recording and alerting rules",
-				Rules: []config.Rule{
-					{Record: "record1", Expr: "max(up)"},
-					{Record: "record2", Expr: "max(up)"},
-					{Alert: "alert", Expr: "up > 0"},
-				},
-			},
-			"contains alerting rules",
-		},
+func TestManagerUpdate_Failure(t *testing.T) {
+	f := func(notifiers []notifier.Notifier, rw remotewrite.RWClient, cfg config.Group, errStrExpected string) {
+		t.Helper()
+
+		m := &manager{
+			groups:         make(map[uint64]*rule.Group),
+			querierBuilder: &datasource.FakeQuerier{},
+			rw:             rw,
+		}
+		if notifiers != nil {
+			m.notifiers = func() []notifier.Notifier { return notifiers }
+		}
+		err := m.update(context.Background(), []config.Group{cfg}, false)
+		if err == nil {
+			t.Fatalf("expected to get error; got nil")
+		}
+		errStr := err.Error()
+		if !strings.Contains(errStr, errStrExpected) {
+			t.Fatalf("missing %q in the error %q", errStrExpected, errStr)
+		}
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.cfg.Name, func(t *testing.T) {
-			m := &manager{
-				groups:         make(map[uint64]*rule.Group),
-				querierBuilder: &datasource.FakeQuerier{},
-				rw:             tc.rw,
-			}
-			if tc.notifiers != nil {
-				m.notifiers = func() []notifier.Notifier { return tc.notifiers }
-			}
-			err := m.update(context.Background(), []config.Group{tc.cfg}, false)
-			if err == nil {
-				t.Fatalf("expected to get error; got nil")
-			}
-			if !strings.Contains(err.Error(), tc.expErr) {
-				t.Fatalf("expected err to contain %q; got %q", tc.expErr, err)
-			}
-		})
-	}
+	f(nil, nil, config.Group{
+		Name: "Recording rule only",
+		Rules: []config.Rule{
+			{Record: "record", Expr: "max(up)"},
+		},
+	}, "contains recording rules")
+
+	f(nil, nil, config.Group{
+		Name: "Alerting rule only",
+		Rules: []config.Rule{
+			{Alert: "alert", Expr: "up > 0"},
+		},
+	}, "contains alerting rules")
+
+	f([]notifier.Notifier{&notifier.FakeNotifier{}}, nil, config.Group{
+		Name: "Recording and alerting rules",
+		Rules: []config.Rule{
+			{Alert: "alert1", Expr: "up > 0"},
+			{Alert: "alert2", Expr: "up > 0"},
+			{Record: "record", Expr: "max(up)"},
+		},
+	}, "contains recording rules")
+
+	f(nil, &remotewrite.Client{}, config.Group{
+		Name: "Recording and alerting rules",
+		Rules: []config.Rule{
+			{Record: "record1", Expr: "max(up)"},
+			{Record: "record2", Expr: "max(up)"},
+			{Alert: "alert", Expr: "up > 0"},
+		},
+	}, "contains alerting rules")
 }
 
 func loadCfg(t *testing.T, path []string, validateAnnotations, validateExpressions bool) []config.Group {

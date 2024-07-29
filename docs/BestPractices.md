@@ -9,9 +9,6 @@ menu:
 aliases:
 - /BestPractices.html
 ---
-
-# VictoriaMetrics best practices
-
 ## Install Recommendation
 
 It is recommended running the latest available release of VictoriaMetrics from [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest),

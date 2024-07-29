@@ -53,11 +53,11 @@ func CloneDetectOptions(oldDo *credentials.DetectOptions) *credentials.DetectOpt
 	}
 
 	// Smartly size this memory and copy below.
-	if oldDo.CredentialsJSON != nil {
+	if len(oldDo.CredentialsJSON) > 0 {
 		newDo.CredentialsJSON = make([]byte, len(oldDo.CredentialsJSON))
 		copy(newDo.CredentialsJSON, oldDo.CredentialsJSON)
 	}
-	if oldDo.Scopes != nil {
+	if len(oldDo.Scopes) > 0 {
 		newDo.Scopes = make([]string, len(oldDo.Scopes))
 		copy(newDo.Scopes, oldDo.Scopes)
 	}

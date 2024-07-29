@@ -43,11 +43,7 @@ func (st *StreamTags) Reset() {
 	st.buf = st.buf[:0]
 
 	tags := st.tags
-	for i := range tags {
-		t := &tags[i]
-		t.Name = nil
-		t.Value = nil
-	}
+	clear(tags)
 	st.tags = tags[:0]
 }
 

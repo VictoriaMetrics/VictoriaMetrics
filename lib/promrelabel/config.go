@@ -61,8 +61,8 @@ type MultiLineRegex struct {
 }
 
 // UnmarshalYAML unmarshals mlr from YAML passed to f.
-func (mlr *MultiLineRegex) UnmarshalYAML(f func(interface{}) error) error {
-	var v interface{}
+func (mlr *MultiLineRegex) UnmarshalYAML(f func(any) error) error {
+	var v any
 	if err := f(&v); err != nil {
 		return fmt.Errorf("cannot parse multiline regex: %w", err)
 	}
@@ -74,12 +74,12 @@ func (mlr *MultiLineRegex) UnmarshalYAML(f func(interface{}) error) error {
 	return nil
 }
 
-func stringValue(v interface{}) (string, error) {
+func stringValue(v any) (string, error) {
 	if v == nil {
 		return "null", nil
 	}
 	switch x := v.(type) {
-	case []interface{}:
+	case []any:
 		a := make([]string, len(x))
 		for i, xx := range x {
 			s, err := stringValue(xx)
@@ -106,7 +106,7 @@ func stringValue(v interface{}) (string, error) {
 }
 
 // MarshalYAML marshals mlr to YAML.
-func (mlr *MultiLineRegex) MarshalYAML() (interface{}, error) {
+func (mlr *MultiLineRegex) MarshalYAML() (any, error) {
 	if strings.ContainsAny(mlr.S, "([") {
 		// The mlr.S contains groups. Fall back to returning the regexp as is without splitting it into parts.
 		// This fixes https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2928 .

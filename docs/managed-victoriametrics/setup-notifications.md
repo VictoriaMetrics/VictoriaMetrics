@@ -9,8 +9,6 @@ menu:
 aliases:
 - /managed-victoriametrics/setup-notifications.html
 ---
-# Notifications in Managed VictoriaMetrics
-
 The guide covers how to enable email and Slack notifications.
 
 Table of content:
@@ -21,7 +19,7 @@ Table of content:
 When you enter the notification section, you will be able to fill in the channels in which you
 want to receive notifications
 
-<img src="notifications_view.webp" >
+![Notifications view](notifications_view.webp)
 
 ## Setup Slack notifications
 
@@ -29,22 +27,22 @@ want to receive notifications
    How to do this is indicated on the following link 
 <a href="https://api.slack.com/messaging/webhooks" target="_blank">https://api.slack.com/messaging/webhooks</a>
 
-   <img src="notifications_view.webp" >
+   ![Notifications view](notifications_view.webp)
 
 1. Specify Slack channels
 
    Enter one or more channels into input and press enter or choose it after each input.
 
-     <img src="notifications_setup_slack.webp" >
-     <img src="notifications_setup_slack_enter_channel.webp">
+     ![Slack setup](notifications_setup_slack.webp)
+     ![Slack enter channel](notifications_setup_slack_enter_channel.webp)
 
 ## Setup emails notifications
 
 You can specify one or multiple emails for notifications in the input field. By default, 
 email notifications are enabled for the account owner
 
-  <img src="notifications_setup_emails.webp" >
-  <img src="notifications_setup_emails_input.webp" >
+  ![Setup emails](notifications_setup_emails.webp)
+  ![Emails input](notifications_setup_emails_input.webp)
 
 
 ## Send test notification
@@ -55,18 +53,18 @@ If only Slack channels and webhook are specified correctly, you will receive the
 If only the emails are specified, you will receive notifications to those emails.
 When both notifications are specified, all notifications will be sent to Slack channels and emails.
 
-  <img src="notifications_save_and_test.webp" >
+  ![Save and test](notifications_save_and_test.webp)
 
 If the Save button is pressed, then entered channels will be only saved, and you get a success message.
 
 If the Save and Test button is pressed, then all entered information will be saved, 
 and test notifications will be sent to the entered channels
 
-  <img src="notifications_save_success.webp" >
+  ![Save success](notifications_save_success.webp)
 
 Examples of the test notification messages:
 
-  <img src="notifications_slack_test.webp" >
+  ![Slack test](notifications_slack_test.webp)
 
-  <img src="notifications_email_test.webp" >
+  ![Email test](notifications_email_test.webp)
 

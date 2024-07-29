@@ -9,9 +9,6 @@ menu:
 aliases:
 - /Troubleshooting.html
 ---
-
-# Troubleshooting
-
 This document contains troubleshooting guides for most common issues when working with VictoriaMetrics:
 
 - [General troubleshooting checklist](#general-troubleshooting-checklist)

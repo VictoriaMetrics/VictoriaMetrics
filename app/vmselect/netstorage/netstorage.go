@@ -760,11 +760,11 @@ func (sbh *sortBlocksHeap) Swap(i, j int) {
 	sbs[i], sbs[j] = sbs[j], sbs[i]
 }
 
-func (sbh *sortBlocksHeap) Push(x interface{}) {
+func (sbh *sortBlocksHeap) Push(x any) {
 	sbh.sbs = append(sbh.sbs, x.(*sortBlock))
 }
 
-func (sbh *sortBlocksHeap) Pop() interface{} {
+func (sbh *sortBlocksHeap) Pop() any {
 	sbs := sbh.sbs
 	v := sbs[len(sbs)-1]
 	sbs[len(sbs)-1] = nil
@@ -810,7 +810,7 @@ func RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadli
 	}
 
 	// Push mrs to storage nodes in parallel.
-	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) any {
 		sn.registerMetricNamesRequests.Inc()
 		err := sn.registerMetricNames(qt, mrsPerNode[workerID], deadline)
 		if err != nil {
@@ -820,7 +820,7 @@ func RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadli
 	})
 
 	// Collect results
-	err := snr.collectAllResults(func(result interface{}) error {
+	err := snr.collectAllResults(func(result any) error {
 		errP := result.(*error)
 		return *errP
 	})
@@ -842,7 +842,7 @@ func DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		err          error
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		sn.deleteSeriesRequests.Inc()
 		deletedCount, err := sn.deleteSeries(qt, requestData, deadline)
 		if err != nil {
@@ -856,7 +856,7 @@ func DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 
 	// Collect results
 	deletedTotal := 0
-	err := snr.collectAllResults(func(result interface{}) error {
+	err := snr.collectAllResults(func(result any) error {
 		nr := result.(*nodeResult)
 		if nr.err != nil {
 			return nr.err
@@ -884,7 +884,7 @@ func LabelNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 		err        error
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		sn.labelNamesRequests.Inc()
 		labelNames, err := sn.getLabelNames(qt, requestData, maxLabelNames, deadline)
 		if err != nil {
@@ -899,7 +899,7 @@ func LabelNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 
 	// Collect results
 	var labelNames []string
-	isPartial, err := snr.collectResults(partialLabelNamesResults, func(result interface{}) error {
+	isPartial, err := snr.collectResults(partialLabelNamesResults, func(result any) error {
 		nr := result.(*nodeResult)
 		if nr.err != nil {
 			return nr.err
@@ -987,7 +987,7 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 		err         error
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		sn.labelValuesRequests.Inc()
 		labelValues, err := sn.getLabelValues(qt, labelName, requestData, maxLabelValues, deadline)
 		if err != nil {
@@ -1002,7 +1002,7 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 
 	// Collect results
 	var labelValues []string
-	isPartial, err := snr.collectResults(partialLabelValuesResults, func(result interface{}) error {
+	isPartial, err := snr.collectResults(partialLabelValuesResults, func(result any) error {
 		nr := result.(*nodeResult)
 		if nr.err != nil {
 			return nr.err
@@ -1042,7 +1042,7 @@ func Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutils.
 	}
 	sns := getStorageNodes()
 	// Deny partial responses when obtaining the list of tenants, since partial tenants have little sense.
-	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		sn.tenantsRequests.Inc()
 		tenants, err := sn.getTenants(qt, tr, deadline)
 		if err != nil {
@@ -1057,7 +1057,7 @@ func Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutils.
 
 	// Collect results
 	var tenants []string
-	_, err := snr.collectResults(partialLabelValuesResults, func(result interface{}) error {
+	_, err := snr.collectResults(partialLabelValuesResults, func(result any) error {
 		nr := result.(*nodeResult)
 		if nr.err != nil {
 			return nr.err
@@ -1122,7 +1122,7 @@ func TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, denyP
 		err      error
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		sn.tagValueSuffixesRequests.Inc()
 		suffixes, err := sn.getTagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
 		if err != nil {
@@ -1138,7 +1138,7 @@ func TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, denyP
 
 	// Collect results
 	m := make(map[string]struct{})
-	isPartial, err := snr.collectResults(partialTagValueSuffixesResults, func(result interface{}) error {
+	isPartial, err := snr.collectResults(partialTagValueSuffixesResults, func(result any) error {
 		nr := result.(*nodeResult)
 		if nr.err != nil {
 			return nr.err
@@ -1187,7 +1187,7 @@ func TSDBStatus(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 		err    error
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		sn.tsdbStatusRequests.Inc()
 		status, err := sn.getTSDBStatus(qt, requestData, focusLabel, topN, deadline)
 		if err != nil {
@@ -1202,7 +1202,7 @@ func TSDBStatus(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 
 	// Collect results.
 	var statuses []*storage.TSDBStatus
-	isPartial, err := snr.collectResults(partialTSDBStatusResults, func(result interface{}) error {
+	isPartial, err := snr.collectResults(partialTSDBStatusResults, func(result any) error {
 		nr := result.(*nodeResult)
 		if nr.err != nil {
 			return nr.err
@@ -1293,7 +1293,7 @@ func SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, denyPartia
 		err error
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		sn.seriesCountRequests.Inc()
 		n, err := sn.getSeriesCount(qt, accountID, projectID, deadline)
 		if err != nil {
@@ -1308,7 +1308,7 @@ func SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, denyPartia
 
 	// Collect results
 	var n uint64
-	isPartial, err := snr.collectResults(partialSeriesCountResults, func(result interface{}) error {
+	isPartial, err := snr.collectResults(partialSeriesCountResults, func(result any) error {
 		nr := result.(*nodeResult)
 		if nr.err != nil {
 			return nr.err
@@ -1548,7 +1548,7 @@ func (tbfw *tmpBlocksFileWrapper) getTmpBlockFiles() []*tmpBlocksFile {
 }
 
 var metricNamePool = &sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return &storage.MetricName{}
 	},
 }
@@ -1611,7 +1611,7 @@ func SearchMetricNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *sto
 		err         error
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		sn.searchMetricNamesRequests.Inc()
 		metricNames, err := sn.processSearchMetricNames(qt, requestData, deadline)
 		if err != nil {
@@ -1626,7 +1626,7 @@ func SearchMetricNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *sto
 
 	// Collect results.
 	metricNamesMap := make(map[string]struct{})
-	isPartial, err := snr.collectResults(partialSearchMetricNamesResults, func(result interface{}) error {
+	isPartial, err := snr.collectResults(partialSearchMetricNamesResults, func(result any) error {
 		nr := result.(*nodeResult)
 		if nr.err != nil {
 			return nr.err
@@ -1772,7 +1772,7 @@ func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialRespon
 	}
 
 	// Send the query to all the storage nodes in parallel.
-	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) any {
 		sn.searchRequests.Inc()
 		err := sn.processSearchQuery(qt, requestData, f, workerID, deadline)
 		if err != nil {
@@ -1783,7 +1783,7 @@ func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialRespon
 	})
 
 	// Collect results.
-	isPartial, err := snr.collectResults(partialSearchResults, func(result interface{}) error {
+	isPartial, err := snr.collectResults(partialSearchResults, func(result any) error {
 		errP := result.(*error)
 		return *errP
 	})
@@ -1811,13 +1811,13 @@ type storageNodesRequest struct {
 }
 
 type rpcResult struct {
-	data  interface{}
+	data  any
 	qt    *querytracer.Tracer
 	group *storageNodesGroup
 }
 
 func startStorageNodesRequest(qt *querytracer.Tracer, sns []*storageNode, denyPartialResponse bool,
-	f func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{}) *storageNodesRequest {
+	f func(qt *querytracer.Tracer, workerID uint, sn *storageNode) any) *storageNodesRequest {
 	resultsCh := make(chan rpcResult, len(sns))
 	qts := make(map[*querytracer.Tracer]struct{}, len(sns))
 	for idx, sn := range sns {
@@ -1855,7 +1855,7 @@ func (snr *storageNodesRequest) finishQueryTracer(qt *querytracer.Tracer, msg st
 	delete(snr.qts, qt)
 }
 
-func (snr *storageNodesRequest) collectAllResults(f func(result interface{}) error) error {
+func (snr *storageNodesRequest) collectAllResults(f func(result any) error) error {
 	sns := snr.sns
 	for i := 0; i < len(sns); i++ {
 		result := <-snr.resultsCh
@@ -1871,7 +1871,7 @@ func (snr *storageNodesRequest) collectAllResults(f func(result interface{}) err
 	return nil
 }
 
-func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Counter, f func(result interface{}) error) (bool, error) {
+func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Counter, f func(result any) error) (bool, error) {
 	sns := snr.sns
 	if len(sns) == 0 {
 		return false, nil
@@ -3049,8 +3049,7 @@ func mustStopStorageNodes(snb *storageNodesBucket) {
 	for _, sn := range snb.sns {
 		sn.connPool.MustStop()
 	}
-	metrics.UnregisterSet(snb.ms)
-	snb.ms.UnregisterAllMetrics()
+	metrics.UnregisterSet(snb.ms, true)
 }
 
 var (

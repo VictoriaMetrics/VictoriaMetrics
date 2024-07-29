@@ -11,7 +11,7 @@ func TestGetInstanceLabels(t *testing.T) {
 	input := []Instance{
 		{
 			ID:               "fake-id-07f7-4b68-88ac-fake-id",
-			Os:               "Ubuntu 22.04 x64",
+			OS:               "Ubuntu 22.04 x64",
 			RAM:              1024,
 			Disk:             25,
 			MainIP:           "64.176.84.27",
@@ -25,12 +25,12 @@ func TestGetInstanceLabels(t *testing.T) {
 			InternalIP:       "",
 			Hostname:         "vultr-sd",
 			Tags:             []string{"mock tags"},
-			OsID:             1743,
+			OSID:             1743,
 			Features:         []string{"ipv6"},
 		},
 		{
 			ID:               "fake-id-07f7-4b68-88ac-fake-id",
-			Os:               "Ubuntu 22.04 x64",
+			OS:               "Ubuntu 22.04 x64",
 			RAM:              1024,
 			Disk:             25,
 			MainIP:           "64.176.84.27",
@@ -44,7 +44,7 @@ func TestGetInstanceLabels(t *testing.T) {
 			InternalIP:       "",
 			Hostname:         "vultr-sd",
 			Tags:             []string{"mock tags"},
-			OsID:             1743,
+			OSID:             1743,
 			Features:         []string{"ipv6"},
 		},
 	}

@@ -3,10 +3,11 @@
 DOCKER_REGISTRY ?= docker.17usoft.com
 DOCKER_NAMESPACE ?= lhhdz/victoriametrics
 
-ROOT_IMAGE ?= alpine:3.20.0
+ROOT_IMAGE ?= alpine:3.20.2
 ROOT_IMAGE_SCRATCH ?= scratch
 SKIP_SCRATCH_BUILD ?= true
 CERTS_IMAGE := alpine:3.20.0
+CERTS_IMAGE := alpine:3.20.2
 
 GO_BUILDER_IMAGE := golang:1.22.5-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1

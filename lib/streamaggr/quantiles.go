@@ -9,7 +9,7 @@ import (
 	"github.com/valyala/histogram"
 )
 
-// quantilesAggrState calculates output=quantiles, e.g. the the given quantiles over the input samples.
+// quantilesAggrState calculates output=quantiles, e.g. the given quantiles over the input samples.
 type quantilesAggrState struct {
 	m sync.Map
 
@@ -70,7 +70,7 @@ func (as *quantilesAggrState) flushState(ctx *flushCtx, resetState bool) {
 	phis := as.phis
 	var quantiles []float64
 	var b []byte
-	m.Range(func(k, v interface{}) bool {
+	m.Range(func(k, v any) bool {
 		if resetState {
 			// Atomically delete the entry from the map, so new entry is created for the next flush.
 			m.Delete(k)

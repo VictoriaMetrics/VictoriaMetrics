@@ -49,7 +49,7 @@ func newLogThrottler(throttle time.Duration) *LogThrottler {
 }
 
 // Errorf logs error message.
-func (lt *LogThrottler) Errorf(format string, args ...interface{}) {
+func (lt *LogThrottler) Errorf(format string, args ...any) {
 	select {
 	case lt.ch <- struct{}{}:
 		ErrorfSkipframes(1, format, args...)
@@ -58,7 +58,7 @@ func (lt *LogThrottler) Errorf(format string, args ...interface{}) {
 }
 
 // Warnf logs warn message.
-func (lt *LogThrottler) Warnf(format string, args ...interface{}) {
+func (lt *LogThrottler) Warnf(format string, args ...any) {
 	select {
 	case lt.ch <- struct{}{}:
 		WarnfSkipframes(1, format, args...)
