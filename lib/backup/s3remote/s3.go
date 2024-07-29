@@ -285,7 +285,7 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 
 	_, err := fs.uploader.Upload(context.Background(), input)
 	if err != nil {
-		return fmt.Errorf("cannot upoad data to %q at %s (remote path %q): %w", p.Path, fs, path, err)
+		return fmt.Errorf("cannot upload data to %q at %s (remote path %q): %w", p.Path, fs, path, err)
 	}
 	if uint64(sr.size) != p.Size {
 		return fmt.Errorf("wrong data size uploaded to %q at %s; got %d bytes; want %d bytes", p.Path, fs, sr.size, p.Size)
@@ -374,7 +374,7 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 	}
 	_, err := fs.uploader.Upload(context.Background(), input)
 	if err != nil {
-		return fmt.Errorf("cannot upoad data to %q at %s (remote path %q): %w", filePath, fs, path, err)
+		return fmt.Errorf("cannot upload data to %q at %s (remote path %q): %w", filePath, fs, path, err)
 	}
 	l := int64(len(data))
 	if sr.size != l {

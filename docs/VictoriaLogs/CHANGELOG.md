@@ -1,7 +1,7 @@
 ---
 sort: 7
 weight: 7
-title: VictoriaLogs changelog
+title: CHANGELOG
 menu:
   docs:
     identifier: "victorialogs-changelog"

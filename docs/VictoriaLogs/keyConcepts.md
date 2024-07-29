@@ -1,7 +1,7 @@
 ---
 sort: 2
 weight: 2
-title: VictoriaLogs key concepts
+title: Key concepts
 menu:
   docs:
     parent: "victorialogs"
