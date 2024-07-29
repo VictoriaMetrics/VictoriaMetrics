@@ -804,7 +804,6 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		if err := ui.initURLs(); err != nil {
 			return nil, err
 		}
-		ui.overrideHostHeader = overrideHostHeader(ui.HeadersConf.RequestHeaders)
 
 		metricLabels, err := ui.getMetricLabels()
 		if err != nil {
