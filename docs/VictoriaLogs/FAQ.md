@@ -1,7 +1,7 @@
 ---
 sort: 6
 weight: 6
-title: VictoriaLogs FAQ
+title: FAQ
 menu:
   docs:
     identifier: "victorialogs-faq"
