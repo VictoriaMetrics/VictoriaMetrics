@@ -1,7 +1,7 @@
 ---
 sort: 1
 weight: 1
-title: VictoriaLogs Quick Start
+title: Quick Start
 menu:
   docs:
     parent: "victorialogs"
