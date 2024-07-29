@@ -301,6 +301,7 @@ func parsePromQLWithCache(q string) (metricsql.Expr, error) {
 			}
 		}
 		pcv = &parseCacheValue{
+			e:   e,
 			err: err,
 		}
 		parseCacheV.Put(q, pcv)
