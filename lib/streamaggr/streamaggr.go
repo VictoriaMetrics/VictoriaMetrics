@@ -237,6 +237,9 @@ type Config struct {
 	// OutputRelabelConfigs is an optional relabeling rules, which are applied
 	// on the aggregated output before being sent to remote storage.
 	OutputRelabelConfigs []promrelabel.RelabelConfig `yaml:"output_relabel_configs,omitempty"`
+
+	// samples that have `value<=threshold` are ignored.
+	Threshold *float64 `yaml:"threshold,omitempty"`
 }
 
 // Aggregators aggregates metrics passed to Push and calls pushFunc for aggregated data.
@@ -407,6 +410,8 @@ type aggregator struct {
 	ignoredOldSamples  *metrics.Counter
 	ignoredNaNSamples  *metrics.Counter
 	matchedSamples     *metrics.Counter
+	// samples that have `value<=threshold` are ignored.
+	threshold *float64
 }
 
 type aggrOutput struct {
@@ -598,6 +603,8 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 		suffix: suffix,
 
 		stopCh: make(chan struct{}),
+
+		threshold: cfg.Threshold,
 
 		flushDuration:      ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_flush_duration_seconds{%s}`, metricLabels)),
 		dedupFlushDuration: ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_dedup_flush_duration_seconds{%s}`, metricLabels)),
@@ -936,6 +943,10 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 			if math.IsNaN(s.Value) {
 				a.ignoredNaNSamples.Inc()
 				// Skip NaN values
+				continue
+			}
+			if a.threshold != nil && !math.IsNaN(*a.threshold) && s.Value < *a.threshold {
+				// Skip value < threshold
 				continue
 			}
 			if ignoreOldSamples && s.Timestamp < minTimestamp {
