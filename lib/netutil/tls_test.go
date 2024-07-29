@@ -3,6 +3,7 @@ package netutil
 import (
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -118,7 +119,23 @@ func TestGetServerTLSConfig(t *testing.T) {
 		}
 	}
 
-	if err := os.WriteFile("test.crt", []byte(`-----BEGIN CERTIFICATE-----
+	mustCreateFile("test.crt", testCRT)
+	mustCreateFile("test.key", testPK)
+	defer func() {
+		_ = os.Remove("test.crt")
+		_ = os.Remove("test.key")
+	}()
+
+	// check cert file not exist
+	f("/a", "./test.key", true)
+	// check key file not exist
+	f("./test.crt", "/b", true)
+	// cert file and key file all exist
+	f("./test.crt", "./test.key", false)
+}
+
+const (
+	testCRT = `-----BEGIN CERTIFICATE-----
 MIIDazCCAlOgAwIBAgIUKm1UQfHNrw+b2T+ARui1PJexOpswDQYJKoZIhvcNAQEL
 BQAwRTELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoM
 GEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDAeFw0yNDA3MTAwMzQ1MzVaFw0yNzA3
@@ -138,11 +155,8 @@ Ovec9+1MW5x0RNiiwZqZ3/oRH3CS7c3iRNMq/AXGNWomE1QXT9ujXR+86KuTBS4h
 uQB6i6TyKuqzydD9nsqwuviOA7xrAthw6cqrAjgo8KBMJpFavsasnd/cZ+8YQqOW
 fTEsNj4PXjYkQP6z6FW/pbNeJLkjuSIwmcs1m5t2bV5oF2kpx+NyqGW0TcYaw3KY
 sWswtTQyQldPeQIkIz1p
------END CERTIFICATE-----`), os.ModePerm); err != nil {
-		t.Fatalf("failed to create cert file: %v", err)
-	}
-
-	if err := os.WriteFile("test.key", []byte(`-----BEGIN PRIVATE KEY-----
+-----END CERTIFICATE-----`
+	testPK = `-----BEGIN PRIVATE KEY-----
 MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCgdbQ0yIk170LS
 fhPzrm6LuclwjxGSC31CmmF+BZUHJ19n33BrL++Rfrfz3kMr5JgfVgjeHWZ2PrLp
 9M9Jf9eXbcpPcPbPKm3rh1VsdNHXo82BQ0+/pOimpWtA88A1F/XyWqC7b94531oa
@@ -169,14 +183,11 @@ Lam4n2aaYj/H+0rpAVUQvW6tJmNbjVfYqvA/hC8CgYB8gqUIhP4yz15P2936g8bS
 uhNX7Msd6fwLsq/5Hn1j+7oCQ3KfvxOnFUFRDIUQvpLsa38rfn1u06gSXkSoM/3m
 WN7PV6auY4J9vhiJcDHLYKWU6IiDPXa2K0EsGarWy1ncJQdpjZPT1Urft2pNF9gP
 YwXfJbKUZnJlv9XplwR7Dw==
------END PRIVATE KEY-----`), os.ModePerm); err != nil {
-		t.Fatalf("failed to create key file: %v", err)
-	}
+-----END PRIVATE KEY-----`
+)
 
-	// check cert file not exist
-	f("/a", "./test.key", true)
-	// check key file not exist
-	f("./test.crt", "/b", true)
-	// cert file and key file all exist
-	f("./test.crt", "./test.key", false)
+func mustCreateFile(path, contents string) {
+	if err := os.WriteFile(path, []byte(contents), 0600); err != nil {
+		panic(fmt.Errorf("cannot create file %q with %d bytes contents: %w", path, len(contents), err))
+	}
 }

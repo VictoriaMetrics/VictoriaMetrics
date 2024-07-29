@@ -38,7 +38,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly proxy requests to backend urls ending with `/` if the original request path equals to `/`. Previously the trailing `/` at the backend path was incorrectly removed. For example, if the request to `http://vmauth/` is configured to be proxied to `url_prefix=http://backend/foo/`, then it was proxied to `http://backend/foo`, while it should go to `http://backend/foo/`.
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): fix `cannot read data after closing the reader` error when proxying HTTP requests without body (aka `GET` requests). The issue has been introduced in [v1.102.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0) in [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/7ee57974935a662896f2de40fdf613156630617d).
-* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): incorrect paths to `tlsKeyFile` and `tlsCertFile` do not cause a startup error. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6608) for the details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): verify availability of files specified via `-tlsKeyFile` and `-tlsCertFile` cmd-line flags on the process start-up. Previosly, validation happened on the first accepted connection. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6608) for the details. Thanks to @yincongcyincong for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6621).
 
 ## [v1.102.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0)
 
