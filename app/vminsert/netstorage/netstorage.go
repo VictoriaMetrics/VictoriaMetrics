@@ -6,9 +6,13 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consts"
@@ -21,8 +25,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/cespare/xxhash/v2"
 )
 
 var (
@@ -43,6 +45,9 @@ var (
 		"On the other side, disabled re-routing minimizes the number of active time series in the cluster "+
 		"during rolling restarts and during spikes in series churn rate. "+
 		"See also -disableRerouting")
+	usePersistentStorageNodeID = flag.Bool("vmstorageUsePersistentID", false, "Whether to use persistent storage node ID for -storageNode instances. "+
+		"If set to false uses storage node address in order to generate an ID. "+
+		"Using persistent node ID is useful if vmstorage node address changes over time, e.g. due to dynamic IP addresses or DNS names. ")
 )
 
 var errStorageReadOnly = errors.New("storage node is read only")
@@ -278,7 +283,7 @@ func (sn *storageNode) checkHealth() {
 		}
 		return
 	}
-	logger.Infof("successfully dialed -storageNode=%q", sn.dialer.Addr())
+	logger.Infof("successfully dialed -storageNode=%q (node ID: %d)", sn.dialer.Addr(), sn.id.Load())
 	sn.lastDialErr = nil
 	sn.bc = bc
 	sn.isBroken.Store(false)
@@ -398,13 +403,22 @@ func (sn *storageNode) dial() (*handshake.BufferedConn, error) {
 	if *disableRPCCompression {
 		compressionLevel = 0
 	}
-	bc, err := handshake.VMInsertClient(c, compressionLevel)
+	bc, id, err := handshake.VMInsertClient(c, compressionLevel)
 	if err != nil {
 		_ = c.Close()
 		sn.handshakeErrors.Inc()
 		return nil, fmt.Errorf("handshake error: %w", err)
 	}
+	sn.id.CompareAndSwap(0, id)
 	return bc, nil
+}
+
+func (sn *storageNode) getID() uint64 {
+	// Ensure that the id is populated
+	if sn.id.Load() == 0 {
+		sn.checkHealth()
+	}
+	return sn.id.Load()
 }
 
 // storageNode is a client sending data to vmstorage node.
@@ -473,6 +487,9 @@ type storageNode struct {
 	// The total duration spent for sending data to vmstorage node.
 	// This metric is useful for determining the saturation of vminsert->vmstorage link.
 	sendDurationSeconds *metrics.FloatCounter
+
+	// id is a unique identifier for the storage node.
+	id atomic.Uint64
 }
 
 type storageNodesBucket struct {
@@ -515,14 +532,31 @@ func MustStop() {
 	mustStopStorageNodes(snb)
 }
 
+// GetNodeID returns unique identifier for underlying storage nodes.
+func GetNodeID() uint64 {
+	snb := getStorageNodesBucket()
+	snIDs := make([]uint64, 0, len(snb.sns))
+	for _, sn := range snb.sns {
+		snIDs = append(snIDs, sn.getID())
+	}
+	slices.Sort(snIDs)
+	idsM := make([]byte, 0)
+	for _, id := range snIDs {
+		idsM = encoding.MarshalUint64(idsM, id)
+	}
+
+	return xxhash.Sum64(idsM)
+}
+
 func initStorageNodes(addrs []string, hashSeed uint64) *storageNodesBucket {
 	if len(addrs) == 0 {
 		logger.Panicf("BUG: addrs must be non-empty")
 	}
 	ms := metrics.NewSet()
-	nodesHash := newConsistentHash(addrs, hashSeed)
 	sns := make([]*storageNode, 0, len(addrs))
+	brokenNodes := make([]*storageNode, 0)
 	stopCh := make(chan struct{})
+	nodeIDs := make([]uint64, 0, len(addrs))
 	for _, addr := range addrs {
 		if _, _, err := net.SplitHostPort(addr); err != nil {
 			// Automatically add missing port.
@@ -568,10 +602,22 @@ func initStorageNodes(addrs []string, hashSeed uint64) *storageNodesBucket {
 			}
 			return 0
 		})
+		var nodeID uint64
+		if *usePersistentStorageNodeID {
+			nodeID = sn.getID()
+			if nodeID == 0 {
+				brokenNodes = append(brokenNodes, sn)
+				continue
+			}
+		} else {
+			nodeID = xxhash.Sum64String(addr)
+		}
+		nodeIDs = append(nodeIDs, nodeID)
 		sns = append(sns, sn)
 	}
+	nodesHash := newConsistentHash(nodeIDs, hashSeed)
 
-	maxBufSizePerStorageNode = memory.Allowed() / 8 / len(sns)
+	maxBufSizePerStorageNode = memory.Allowed() / 8 / len(addrs)
 	if maxBufSizePerStorageNode > consts.MaxInsertPacketSizeForVMInsert {
 		maxBufSizePerStorageNode = consts.MaxInsertPacketSizeForVMInsert
 	}
@@ -586,12 +632,39 @@ func initStorageNodes(addrs []string, hashSeed uint64) *storageNodesBucket {
 		wg:        &wg,
 	}
 
-	for idx, sn := range sns {
+	// add broken nodes to the end of the list
+	// this is needed because consistent hash slots will be populated with IDs of available
+	// storage nodes (if there are any) and indexes of consistent hash must be linked to healthy storage nodes
+	snb.sns = append(snb.sns, brokenNodes...)
+
+	for idx, sn := range snb.sns {
 		wg.Add(1)
 		go func(sn *storageNode, idx int) {
 			sn.run(snb, idx)
 			wg.Done()
 		}(sn, idx)
+	}
+
+	// Watch for node become healthy and rebuild snb.
+	for _, sn := range brokenNodes {
+		wg.Add(1)
+		sn := sn
+		go watchStorageNodeHealthy(sn, func() {
+			defer wg.Done()
+			// rebuild snb in order to update consistent hash with an ID of the healthy storage node
+			for {
+				currentSnb := getStorageNodesBucket()
+				newSnb := initStorageNodes(addrs, hashSeed)
+				if !storageNodes.CompareAndSwap(currentSnb, newSnb) {
+					// snb has been changed, so we need to stop the newSnb and try again
+					mustStopStorageNodes(newSnb)
+					continue
+				}
+				// stop previous snb and exit
+				mustStopStorageNodes(currentSnb)
+				break
+			}
+		})
 	}
 
 	return snb
@@ -604,6 +677,34 @@ func mustStopStorageNodes(snb *storageNodesBucket) {
 	}
 	snb.wg.Wait()
 	metrics.UnregisterSet(snb.ms, true)
+}
+
+// watchStorageNodeHealthy watches for sn become healthy and calls cb once it is ready.
+func watchStorageNodeHealthy(sn *storageNode, cb func()) {
+	for {
+		sn.brLock.Lock()
+		for !sn.isReady() {
+			select {
+			case <-sn.stopCh:
+				sn.brLock.Unlock()
+				return
+			default:
+				sn.brCond.Wait()
+			}
+		}
+		sn.brLock.Unlock()
+
+		select {
+		case <-sn.stopCh:
+			return
+		default:
+		}
+
+		if sn.isReady() {
+			cb()
+			return
+		}
+	}
 }
 
 // rerouteRowsToReadyStorageNodes reroutes src from not ready snSource to ready storage nodes.

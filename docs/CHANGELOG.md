@@ -31,10 +31,13 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 **Update note 1: [vmauth](https://docs.victoriametrics.com/vmauth/) HTTP response code has changed from 503 to 502 for a case when all upstream backends were not available. This was changed to align [vmauth](https://docs.victoriametrics.com/vmauth/) behaviour with other well-known reverse-proxies behaviour. **
 
+**Update note 2: release contains breaking change to inter-cluster communication. The `vmstorage` nodes with version lower than `tip` won't be able to communicate with `vmselect` and `vminsert` nodes with version lower than `tip`. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5438) issue for the details.**
+
 * SECURITY: upgrade base docker image (Alpine) from 3.20.1 to 3.20.2. See [alpine 3.20.2 release notes](https://alpinelinux.org/posts/Alpine-3.20.2-released.html).
 
 * FEATURE: [vmauth](./vmauth.md): add `keep_original_host` option, which can be used for proxying the original `Host` header from client request to the backend. By default the backend host is used as `Host` header when proxying requests to the configured backends. See [these docs](./vmauth.md#host-http-header).
 * FEATURE: [vmauth](./vmauth.md) now returns HTTP 502 status code when all upstream backends are not available. Previously, it returned HTTP 503 status code. This change aligns vmauth behavior with other well-known reverse-proxies behavior.
+* FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): use a persistent `vmstorage` node ID for consistent hashing at data write path. This allows to keep the same data distribution after `vmstorage` changes its IP address. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5438).
 
 * BUGFIX: all VictoriaMetrics components: validate files specified via `-tlsKeyFile` and `-tlsCertFile` cmd-line flags on the process start-up. Previously, validation happened on the first connection accepted by HTTP server. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6608) for the details. Thanks to @yincongcyincong for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6621).
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly proxy requests to backend urls ending with `/` if the original request path equals to `/`. Previously the trailing `/` at the backend path was incorrectly removed. For example, if the request to `http://vmauth/` is configured to be proxied to `url_prefix=http://backend/foo/`, then it was proxied to `http://backend/foo`, while it should go to `http://backend/foo/`.

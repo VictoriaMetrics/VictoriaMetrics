@@ -2107,6 +2107,9 @@ type storageNode struct {
 
 	// The number of list tenants errors to storageNode.
 	tenantsErrors *metrics.Counter
+
+	// id is the unique identifier for the storageNode.
+	id uint64
 }
 
 func (sn *storageNode) registerMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadline searchutils.Deadline) error {
@@ -2954,6 +2957,12 @@ func getStorageNodes() []*storageNode {
 	return snb.sns
 }
 
+// GetNodeID returns unique identifier of vmselect
+func GetNodeID() uint64 {
+	// Returns a 0 as persistent IDs are not intended to use with multi-level setup
+	return 0
+}
+
 // Init initializes storage nodes' connections to the given addrs.
 //
 // MustStop must be called when the initialized connections are no longer needed.
@@ -3015,6 +3024,7 @@ func newStorageNode(ms *metrics.Set, group *storageNodesGroup, addr string) *sto
 	sn := &storageNode{
 		group:    group,
 		connPool: connPool,
+		id:       connPool.GetTargetNodeID(),
 
 		concurrentQueries: ms.NewCounter(fmt.Sprintf(`vm_concurrent_queries{name="vmselect", addr=%q}`, addr)),
 

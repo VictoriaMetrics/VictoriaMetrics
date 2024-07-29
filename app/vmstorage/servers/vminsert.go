@@ -101,7 +101,7 @@ func (s *VMInsertServer) run() {
 			// There is no need in response compression, since
 			// vmstorage sends only small packets to vminsert.
 			compressionLevel := 0
-			bc, err := handshake.VMInsertServer(c, compressionLevel)
+			bc, err := handshake.VMInsertServer(c, compressionLevel, s.storage.GetID())
 			if err != nil {
 				if s.isStopping() {
 					// c is stopped inside VMInsertServer.MustStop

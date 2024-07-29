@@ -38,6 +38,9 @@ type API interface {
 
 	// Tenants returns list of tenants in the storage on the given tr.
 	Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline uint64) ([]string, error)
+
+	// GetID returns the ID of the node.
+	GetID() uint64
 }
 
 // BlockIterator must iterate through series blocks found by VMSelect.InitSearch.

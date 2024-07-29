@@ -111,8 +111,8 @@ func main() {
 	blocksCount := tm.SmallBlocksCount + tm.BigBlocksCount
 	rowsCount := tm.SmallRowsCount + tm.BigRowsCount
 	sizeBytes := tm.SmallSizeBytes + tm.BigSizeBytes
-	logger.Infof("successfully opened storage %q in %.3f seconds; partsCount: %d; blocksCount: %d; rowsCount: %d; sizeBytes: %d",
-		*storageDataPath, time.Since(startTime).Seconds(), partsCount, blocksCount, rowsCount, sizeBytes)
+	logger.Infof("successfully opened storage %q (node ID: %d) in %.3f seconds; partsCount: %d; blocksCount: %d; rowsCount: %d; sizeBytes: %d",
+		*storageDataPath, strg.GetID(), time.Since(startTime).Seconds(), partsCount, blocksCount, rowsCount, sizeBytes)
 
 	// register storage metrics
 	storageMetrics := metrics.NewSet()

@@ -1,11 +1,18 @@
 package handshake
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net"
+	"sync"
 	"time"
+	"unsafe"
+
+	"github.com/valyala/fastjson"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
 
 const (
@@ -15,17 +22,22 @@ const (
 	successResponse = "ok"
 )
 
-// Func must perform handshake on the given c using the given compressionLevel.
+// ClientFunc must perform handshake on the given c using the given compressionLevel.
 //
 // It must return BufferedConn wrapper for c on successful handshake.
-type Func func(c net.Conn, compressionLevel int) (*BufferedConn, error)
+type ClientFunc func(c net.Conn, compressionLevel int) (*BufferedConn, uint64, error)
+
+// ServerFunc must perform handshake on the given c using the given compressionLevel and id.
+//
+// It must return BufferedConn wrapper for c on successful handshake.
+type ServerFunc func(c net.Conn, compressionLevel int, id uint64) (*BufferedConn, error)
 
 // VMInsertClient performs client-side handshake for vminsert protocol.
 //
 // compressionLevel is the level used for compression of the data sent
 // to the server.
 // compressionLevel <= 0 means 'no compression'
-func VMInsertClient(c net.Conn, compressionLevel int) (*BufferedConn, error) {
+func VMInsertClient(c net.Conn, compressionLevel int) (*BufferedConn, uint64, error) {
 	return genericClient(c, vminsertHello, compressionLevel)
 }
 
@@ -34,8 +46,8 @@ func VMInsertClient(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 // compressionLevel is the level used for compression of the data sent
 // to the client.
 // compressionLevel <= 0 means 'no compression'
-func VMInsertServer(c net.Conn, compressionLevel int) (*BufferedConn, error) {
-	return genericServer(c, vminsertHello, compressionLevel)
+func VMInsertServer(c net.Conn, compressionLevel int, id uint64) (*BufferedConn, error) {
+	return genericServer(c, vminsertHello, compressionLevel, id)
 }
 
 // VMSelectClient performs client-side handshake for vmselect protocol.
@@ -43,7 +55,7 @@ func VMInsertServer(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 // compressionLevel is the level used for compression of the data sent
 // to the server.
 // compressionLevel <= 0 means 'no compression'
-func VMSelectClient(c net.Conn, compressionLevel int) (*BufferedConn, error) {
+func VMSelectClient(c net.Conn, compressionLevel int) (*BufferedConn, uint64, error) {
 	return genericClient(c, vmselectHello, compressionLevel)
 }
 
@@ -52,8 +64,8 @@ func VMSelectClient(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 // compressionLevel is the level used for compression of the data sent
 // to the client.
 // compressionLevel <= 0 means 'no compression'
-func VMSelectServer(c net.Conn, compressionLevel int) (*BufferedConn, error) {
-	return genericServer(c, vmselectHello, compressionLevel)
+func VMSelectServer(c net.Conn, compressionLevel int, id uint64) (*BufferedConn, error) {
+	return genericServer(c, vmselectHello, compressionLevel, id)
 }
 
 // ErrIgnoreHealthcheck means the TCP healthckeck, which must be ignored.
@@ -61,7 +73,11 @@ func VMSelectServer(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 // The TCP healthcheck is performed by opening and then immediately closing the connection.
 var ErrIgnoreHealthcheck = fmt.Errorf("TCP healthcheck - ignore it")
 
-func genericServer(c net.Conn, msg string, compressionLevel int) (*BufferedConn, error) {
+type handshakeMetadata struct {
+	NodeID uint64 `json:"nodeId"`
+}
+
+func genericServer(c net.Conn, msg string, compressionLevel int, id uint64) (*BufferedConn, error) {
 	if err := readMessage(c, msg); err != nil {
 		if errors.Is(err, io.EOF) {
 			// This is TCP healthcheck, which must be ignored in order to prevent from logs pollution.
@@ -86,32 +102,40 @@ func genericServer(c net.Conn, msg string, compressionLevel int) (*BufferedConn,
 	if err := readMessage(c, successResponse); err != nil {
 		return nil, fmt.Errorf("cannot read success response on isCompressed: %w", err)
 	}
+	if err := writeMetadata(c, id); err != nil {
+		return nil, fmt.Errorf("cannot write metadata: %w", err)
+	}
 	bc := newBufferedConn(c, compressionLevel, isRemoteCompressed)
 	return bc, nil
 }
 
-func genericClient(c net.Conn, msg string, compressionLevel int) (*BufferedConn, error) {
+func genericClient(c net.Conn, msg string, compressionLevel int) (*BufferedConn, uint64, error) {
 	if err := writeMessage(c, msg); err != nil {
-		return nil, fmt.Errorf("cannot write hello: %w", err)
+		return nil, 0, fmt.Errorf("cannot write hello: %w", err)
 	}
 	if err := readMessage(c, successResponse); err != nil {
-		return nil, fmt.Errorf("cannot read success response after sending hello: %w", err)
+		return nil, 0, fmt.Errorf("cannot read success response after sending hello: %w", err)
 	}
 	if err := writeIsCompressed(c, compressionLevel > 0); err != nil {
-		return nil, fmt.Errorf("cannot write isCompressed flag: %w", err)
+		return nil, 0, fmt.Errorf("cannot write isCompressed flag: %w", err)
 	}
 	if err := readMessage(c, successResponse); err != nil {
-		return nil, fmt.Errorf("cannot read success response on isCompressed: %w", err)
+		return nil, 0, fmt.Errorf("cannot read success response on isCompressed: %w", err)
 	}
 	isRemoteCompressed, err := readIsCompressed(c)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read isCompressed flag: %w", err)
+		return nil, 0, fmt.Errorf("cannot read isCompressed flag: %w", err)
 	}
 	if err := writeMessage(c, successResponse); err != nil {
-		return nil, fmt.Errorf("cannot write success response on isCompressed: %w", err)
+		return nil, 0, fmt.Errorf("cannot write success response on isCompressed: %w", err)
 	}
+	metadata, err := readMetadata(c)
+	if err != nil {
+		return nil, 0, fmt.Errorf("cannot read nodeID: %w", err)
+	}
+
 	bc := newBufferedConn(c, compressionLevel, isRemoteCompressed)
-	return bc, nil
+	return bc, metadata.NodeID, nil
 }
 
 func writeIsCompressed(c net.Conn, isCompressed bool) error {
@@ -161,6 +185,80 @@ func readMessage(c net.Conn, msg string) error {
 	if string(buf) != msg {
 		return fmt.Errorf("unexpected message obtained; got %q; want %q", buf, msg)
 	}
+	return nil
+}
+
+var metadataParserPool fastjson.ParserPool
+
+func readMetadata(c net.Conn) (*handshakeMetadata, error) {
+	metaLenBuf, err := readData(c, int(unsafe.Sizeof(uint64(0))))
+	if err != nil {
+		return nil, fmt.Errorf("cannot read metadata length: %w", err)
+	}
+
+	metaLen := int(encoding.UnmarshalUint64(metaLenBuf))
+	if err := writeMessage(c, successResponse); err != nil {
+		return nil, fmt.Errorf("cannot write success response on metadata length: %w", err)
+	}
+	metaBuf, err := readData(c, metaLen)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read metadata: %w", err)
+	}
+	if err := writeMessage(c, successResponse); err != nil {
+		return nil, fmt.Errorf("cannot write success response on metadata: %w", err)
+	}
+	parser := metadataParserPool.Get()
+	defer metadataParserPool.Put(parser)
+	v, err := parser.ParseBytes(metaBuf)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse metadata: %w", err)
+	}
+
+	return &handshakeMetadata{
+		NodeID: v.GetUint64("nodeId"),
+	}, nil
+}
+
+var (
+	metadataCache sync.Map
+)
+
+func getMetadataBytes(id uint64) ([]byte, error) {
+	m, ok := metadataCache.Load(id)
+	if !ok {
+		metadata := handshakeMetadata{
+			NodeID: id,
+		}
+		var err error
+		m, err = json.Marshal(metadata)
+		if err != nil {
+			return nil, fmt.Errorf("cannot marshal metadata: %w", err)
+		}
+		metadataCache.Store(id, m)
+	}
+	metaV := m.([]byte)
+	return metaV, nil
+}
+
+func writeMetadata(c net.Conn, id uint64) error {
+	meta, err := getMetadataBytes(id)
+	if err != nil {
+		return fmt.Errorf("cannot obtain metadata bytes: %w", err)
+	}
+	metaLen := len(meta)
+	if err := writeMessage(c, string(encoding.MarshalUint64(nil, uint64(metaLen)))); err != nil {
+		return fmt.Errorf("cannot write metadata length: %w", err)
+	}
+	if err := readMessage(c, successResponse); err != nil {
+		return fmt.Errorf("cannot read success response on metadata length: %w", err)
+	}
+	if err := writeMessage(c, string(meta[:])); err != nil {
+		return fmt.Errorf("cannot write metadata: %w", err)
+	}
+	if err := readMessage(c, successResponse); err != nil {
+		return fmt.Errorf("cannot read success response on metadata: %w", err)
+	}
+
 	return nil
 }
 

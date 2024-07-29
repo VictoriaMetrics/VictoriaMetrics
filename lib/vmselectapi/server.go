@@ -10,6 +10,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -20,7 +22,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 // Server processes vmselect requests.
@@ -193,7 +194,7 @@ func (s *Server) run() {
 			if s.disableResponseCompression {
 				compressionLevel = 0
 			}
-			bc, err := handshake.VMSelectServer(c, compressionLevel)
+			bc, err := handshake.VMSelectServer(c, compressionLevel, s.api.GetID())
 			if err != nil {
 				if s.isStopping() {
 					// c is closed inside Server.MustStop
