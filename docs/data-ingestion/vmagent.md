@@ -31,7 +31,9 @@ https://<victoriametrics_url>/insert/<tenant_id>/prometheus/api/v1/write
 
 
 ## Sending data to VictoriaMetrics without authentication
-This requires setting the `-remote.url` flag in the command line arguments for vmagent
+
+
+This requires setting the `-remoteWrite.url` flag in the command line arguments for vmagent
 
 ```sh
 /path/to/vmagent -remoteWrite.url=https://<victoriametrics_url>:<victoriametrics_port>/api/v1/write
@@ -39,20 +41,11 @@ This requires setting the `-remote.url` flag in the command line arguments for v
 
 ## Sending data to VictoriaMetrics with basic authentication
 
+This requires setting the `-remoteWrite.basicAuth.username` and `-remoteWrite.basicAuth.password` command line flags
+
 ```sh
 /path/to/vmagent -remoteWrite.url=https://<victoriametrics_url>:<victoriametrics_port>/api/v1/write -remoteWrite.basicAuth.username=<username> -remoteWrite.basicAuth.password=<password>
 ```
-
-The basic authentication password can be placed in a file accessed via `-remoteWrite.passwordFile`.
-The file needs to be readable by the user `vmagent` is running as
-The password file should look like
-
-
-```
-<password>
-```
-
-and the vmagent command will look like 
 
 
 ## Sending data to VictoriaMetrics with bearer Authentication
