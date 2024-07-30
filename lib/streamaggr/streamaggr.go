@@ -617,7 +617,7 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 		dedupFlushTimeouts:           ms.NewCounter(fmt.Sprintf(`vm_streamaggr_dedup_flush_timeouts_total{%s}`, metricLabels)),
 		ignoredNaNSamples:            ms.NewCounter(fmt.Sprintf(`vm_streamaggr_ignored_samples_total{reason="nan",%s}`, metricLabels)),
 		ignoredOldSamples:            ms.NewCounter(fmt.Sprintf(`vm_streamaggr_ignored_samples_total{reason="too_old",%s}`, metricLabels)),
-		ignoredUnderThresholdSamples: ms.NewCounter(fmt.Sprintf(`vm_streamaggr_ignored_samples_total{reason="underThreshold",%s}`, metricLabels)),
+		ignoredUnderThresholdSamples: ms.NewCounter(fmt.Sprintf(`vm_streamaggr_ignored_samples_total{reason="underThresholdfa",%s}`, metricLabels)),
 	}
 
 	if dedupInterval > 0 {
