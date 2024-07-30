@@ -8,7 +8,7 @@ menu:
 aliases:
 - /guides/understand-your-setup-size.html
 ---
-The docs provide a simple and high-level overview of Ingestion Rate, Active Time Series, and Query per Second. These terms are a part of capacity planning ([Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics/#capacity-planning), [Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#capacity-planning)) and [Managed VictoriaMetrics](https://docs.victoriametrics.com/managed-victoriametrics/) pricing.
+The docs provide a simple and high-level overview of Ingestion Rate, Active Time Series, and Query per Second. These terms are a part of capacity planning ([Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics/#capacity-planning), [Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#capacity-planning)) and [VictoriaMetrics Cloud](https://docs.victoriametrics.com/victoriametrics-cloud/) pricing.
 
 ## Terminology
 
@@ -101,12 +101,12 @@ You have a Kubernetes environment that produces 5k time series per second with 1
 VictoriaMetrics requires additional disk space for the index. The lower Churn Rate means lower disk space usage for the index because of better compression.
 Usually, the index takes about 20% of the disk space for storing data. High cardinality setups may use >50% of datapoints storage size for index.
 
-You can significantly reduce the amount of disk usage by specifying [Downsampling](https://docs.victoriametrics.com/#downsampling) and [Retention Filters](https://docs.victoriametrics.com/#retention-filters) that are lower than the Retention Period. Both two settings are available in Managed VictoriaMetrics and Enterprise.
+You can significantly reduce the amount of disk usage by specifying [Downsampling](https://docs.victoriametrics.com/#downsampling) and [Retention Filters](https://docs.victoriametrics.com/#retention-filters) that are lower than the Retention Period. Both two settings are available in VictoriaMetrics Cloud and Enterprise.
 
 
 ## Align Terms with VictoriaMetrics setups
 
-### Managed VictoriaMetrics
+### VictoriaMetrics Cloud
 
 Every deployment (Single-Node or Cluster) contains the expected load in Ingestion Rate and Active Time Series. We assume that the Churn Rate is no more than 30%. You may need to choose a more extensive deployment if you have a higher Churn Rate.
 
