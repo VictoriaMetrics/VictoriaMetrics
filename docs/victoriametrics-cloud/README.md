@@ -1,12 +1,12 @@
-* [Overview of VictoriaMetrics Cloud](./overview.md)
-* [Quick Start](./quickstart.md)
+* [Overview of VictoriaMetrics Cloud](/victoriametrics-cloud/overview/)
+* [Quick Start](/victoriametrics-cloud/quickstart/)
 
 ## Guides
-* [Understand Your Setup Size](../guides/understand-your-setup-size.md)
-* [Alerting & recording rules with Alertmanager configuration for VictoriaMetrics Cloud deployment](./alertmanager-setup-for-deployment.md)
-* [Kubernetes Monitoring with VictoriaMetrics Cloud](./how-to-monitor-k8s.md)
-* [Setup Notifications](./setup-notifications.md)
-* [User Management](./user-managment.md)
+* [Understand Your Setup Size](/guides/understand-your-setup-size/)
+* [Alerting & recording rules with Alertmanager configuration for VictoriaMetrics Cloud deployment](/victoriametrics-cloud/alertmanager-setup-for-deployment/)
+* [Kubernetes Monitoring with VictoriaMetrics Cloud](/victoriametrics-cloud/how-to-monitor-k8s/)
+* [Setup Notifications](/victoriametrics-cloud/setup-notifications/)
+* [User Management](/victoriametrics-cloud/user-managment/)
 
 Learn more about VictoriaMetrics Cloud:
 * [VictoriaMetrics Cloud announcement](https://victoriametrics.com/blog/introduction-to-managed-monitoring/)
