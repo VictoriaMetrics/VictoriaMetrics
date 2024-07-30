@@ -1140,7 +1140,7 @@ func nextRetentionDeadlineSeconds(atSecs, retentionSecs, offsetSecs int64) int64
 //
 // If -disablePerDayIndexes is set or the time range is more than 40 days, the
 // time range is ignored and the metrics are searched within the entire
-// retention period, i.e. global indexes are used for calculation.
+// retention period, i.e. global indexes are used for searching.
 func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
 	if s.disablePerDayIndexes {
 		tr = globalIndexTimeRange
@@ -1293,7 +1293,17 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters) (int,
 	return deletedCount, nil
 }
 
-// SearchLabelNamesWithFiltersOnTimeRange searches for label names matching the given tfss on tr.
+// SearchLabelNamesWithFiltersOnTimeRange searches for label names matching the
+// given tfss on tr.
+//
+// If -disablePerDayIndexes flag is not set, the label names are searched
+// within the given time range (as long as the time range is no more than 40
+// days), i.e. the per-day indexes are used for searching.
+//
+// If -disablePerDayIndexes is set or the time range is more than 40 days, the
+// time range is ignored and the label names are searched within the entire
+// retention period, i.e. global indexes are used for searching.
+//
 // TODO(rtm0): Rename to SearchLabelNames()?
 func (s *Storage) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64,
 ) ([]string, error) {
@@ -1303,7 +1313,17 @@ func (s *Storage) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer,
 	return s.idb().SearchLabelNamesWithFiltersOnTimeRange(qt, tfss, tr, maxLabelNames, maxMetrics, deadline)
 }
 
-// SearchLabelValuesWithFiltersOnTimeRange searches for label values for the given labelName, filters and tr.
+// SearchLabelValuesWithFiltersOnTimeRange searches for label values for the
+// given labelName, filters and tr.
+//
+// If -disablePerDayIndexes flag is not set, the label values are searched
+// within the given time range (as long as the time range is no more than 40
+// days), i.e. the per-day indexes are used for searching.
+//
+// If -disablePerDayIndexes is set or the time range is more than 40 days, the
+// time range is ignored and the label values are searched within the entire
+// retention period, i.e. global indexes are used for searching.
+//
 // TODO(rtm0): Rename to SearchLabelValues()?
 func (s *Storage) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer, labelName string, tfss []*TagFilters,
 	tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64,
@@ -1372,11 +1392,23 @@ func filterLabelValues(lvs []string, tf *tagFilter, key string) []string {
 	return result
 }
 
-// SearchTagValueSuffixes returns all the tag value suffixes for the given tagKey and tagValuePrefix on the given tr.
+// SearchTagValueSuffixes returns all the tag value suffixes for the given
+// tagKey and tagValuePrefix on the given tr.
 //
-// This allows implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find or similar APIs.
+// This allows implementing
+// https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
+// or similar APIs.
 //
-// If more than maxTagValueSuffixes suffixes is found, then only the first maxTagValueSuffixes suffixes is returned.
+// If more than maxTagValueSuffixes suffixes is found, then only the first
+// maxTagValueSuffixes suffixes is returned.
+//
+// If -disablePerDayIndexes flag is not set, the tag value suffixes are searched
+// within the given time range (as long as the time range is no more than 40
+// days), i.e. the per-day indexes are used for searching.
+//
+// If -disablePerDayIndexes is set or the time range is more than 40 days, the
+// time range is ignored and the tag value suffixes are searched within the
+// entire retention period, i.e. global indexes are used for searching.
 func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, tagKey, tagValuePrefix string,
 	delimiter byte, maxTagValueSuffixes int, deadline uint64,
 ) ([]string, error) {
@@ -1386,7 +1418,16 @@ func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, t
 	return s.idb().SearchTagValueSuffixes(qt, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
 }
 
-// SearchGraphitePaths returns all the matching paths for the given graphite query on the given tr.
+// SearchGraphitePaths returns all the matching paths for the given graphite
+// query on the given tr.
+//
+// If -disablePerDayIndexes flag is not set, the graphite paths are searched
+// within the given time range (as long as the time range is no more than 40
+// days), i.e. the per-day indexes are used for searching.
+//
+// If -disablePerDayIndexes is set or the time range is more than 40 days, the
+// time range is ignored and the graphite paths are searched within the entire
+// retention period, i.e. global indexes are used for searching.
 func (s *Storage) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, query []byte, maxPaths int, deadline uint64) ([]string, error) {
 	if s.disablePerDayIndexes {
 		tr = globalIndexTimeRange
@@ -1713,7 +1754,7 @@ const maxMetricRowsPerBlock = 8000
 
 func (s *Storage) date(millis int64) uint64 {
 	if s.disablePerDayIndexes {
-		return 0
+		return globalIndexDate
 	}
 	return uint64(millis) / msecPerDay
 }

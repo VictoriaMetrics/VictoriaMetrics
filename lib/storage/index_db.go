@@ -856,10 +856,10 @@ func (is *indexSearch) searchLabelValuesWithFiltersOnTimeRange(qt *querytracer.T
 	var mu sync.Mutex
 	wg := getWaitGroup()
 	var errGlobal error
-	qt = qt.NewChild("parallel search for label values: labelName=%q, filters=%s, timeRange=%s", labelName, tfss, &tr)
+	qt = qt.NewChild("parallel search for label values in per-day index: labelName=%q, filters=%s, timeRange=%s", labelName, tfss, &tr)
 	for date := minDate; date <= maxDate; date++ {
 		wg.Add(1)
-		qtChild := qt.NewChild("search for label values: filters=%s, date=%s", tfss, dateToString(date))
+		qtChild := qt.NewChild("search for label values on date: filters=%s, date=%s", tfss, dateToString(date))
 		go func(date uint64) {
 			defer func() {
 				qtChild.Done()
@@ -1014,10 +1014,10 @@ func (is *indexSearch) getLabelValuesForMetricIDs(qt *querytracer.Tracer, lvs ma
 // If it returns maxTagValueSuffixes suffixes, then it is likely more than maxTagValueSuffixes suffixes is found.
 func (db *indexDB) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
 	if tr == globalIndexTimeRange {
-		qt = qt.NewChild("search tag value suffixes for the entire retention period: tagKey=%q, tagValuePrefix=%q, delimiter=%c, maxTagValueSuffixes=%d",
+		qt = qt.NewChild("search tag value suffixes in global index: tagKey=%q, tagValuePrefix=%q, delimiter=%c, maxTagValueSuffixes=%d",
 			tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	} else {
-		qt = qt.NewChild("search tag value suffixes for the time range: timeRange=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c, maxTagValueSuffixes=%d",
+		qt = qt.NewChild("search tag value suffixes in per-day index: timeRange=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c, maxTagValueSuffixes=%d",
 			&tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	}
 	defer qt.Done()

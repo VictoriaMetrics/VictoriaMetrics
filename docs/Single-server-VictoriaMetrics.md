@@ -2527,54 +2527,53 @@ index and no disk space is used to store it.
 Example use cases:
 
 -   Historical weather data, such as
-	[ERA5](https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels).
-	It consists of millions time series whose hourly values span tens of years.
-	The time series	set never changes. If the per-day index is disabled, once
-	the first hour of data is ingested the entire time series set will be
-	written into the global index and subsequent portions of data will not
-	result in index update. But if the per-day index is enabled, the same set of
-	time-series will be written to the per-day index for every day of data.
+    [ERA5](https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels).
+    It consists of millions time series whose hourly values span tens of years.
+    The time series	set never changes. If the per-day index is disabled, once
+    the first hour of data is ingested the entire time series set will be
+    written into the global index and subsequent portions of data will not
+    result in index update. But if the per-day index is enabled, the same set of
+    time-series will be written to the per-day index for every day of data.
 
 -   IoT: a huge set of sensors exports time series with the sensor ID used as a
-	metric label value. Since sensor additions or remotals happen infrequently,
-	the time series churn rate will be low. With the per-day index disabled, the
-	entire time series set will be registered in global index during the initial
-	data ingestion and the global index will receive small updates when a sensor
-	is added or removed.
+    metric label value. Since sensor additions or remotals happen infrequently,
+    the time series churn rate will be low. With the per-day index disabled, the
+    entire time series set will be registered in global index during the initial
+    data ingestion and the global index will receive small updates when a sensor
+    is added or removed.
 
 What to expect:
 
 -   The following search operations will ignore the time range provided with
     the query. I.e. the returned results will correspond to the entire retention
-	period no matter which time range or date have been requested:
+    period no matter which time range or date have been requested:
 
-	-  [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels)
-	-  [/api/v1/label/…/values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues)
-	-  [/api/v1/status/tsdb](https://docs.victoriametrics.com/url-examples/#apiv1statustsdb)
-	-  [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series)
-	-  TODO: /api/v1/query
-	-  TODO: /api/v1/query_range
-	-  TODO: /api/v1/admin/tsdb/delete_series
+    -   [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels)
+    -   [/api/v1/label/…/values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues)
+    -   [/api/v1/status/tsdb](https://docs.victoriametrics.com/url-examples/#apiv1statustsdb)
+    -   [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series)
+    -   TODO: /api/v1/query
+    -   TODO: /api/v1/query_range
 
 -   [Query traces](https://docs.victoriametrics.com/?highlight=trace#query-tracing)
-	will indicate that the search is performed using the global index.
+    will indicate that the search is performed using the global index.
 
 -   If the data was previously ingested with the per-day index enabled and then
-	a search operation is performed with the per-day index disabled, the search
-	result will	still be correct, since both indexes (global and per-day)
-	were populated at the ingestion time.
+    a search operation is performed with the per-day index disabled, the search
+    result will still be correct, since both indexes (global and per-day)
+    were populated at the ingestion time.
 
 -   However, if the data was previously ingested with the per-day index disabled
     and then the search is performed with the per-day index enabled, the search
-	result will be incorrect. It will either be empty or contain partial data
-	(depending on whether data ingestion happened or not after the flag was set
-	to false). This is because at the time of initial ingestion nothing was
-	written	to the per-day index and at the search time the query is performed
-	on the per-day index.
+    result will be incorrect. It will either be empty or contain partial data
+    (depending on whether data ingestion happened or not after the flag was set
+    to false). This is because at the time of initial ingestion nothing was
+    written	to the per-day index and at the search time the query is performed
+    on the per-day index.
 
-	TODO(rtm0): To fix that, the per-day index needs to be populated. One way to
-	do that is by re-registering metric names for each date the data has been
-	previously ingested for.
+    TODO(rtm0): To fix that, the per-day index needs to be populated. One way to
+    do that is by re-registering metric names for each date the data has been
+    previously ingested for.
 
 ## Data migration
 
