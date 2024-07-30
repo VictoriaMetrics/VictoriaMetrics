@@ -56,12 +56,11 @@ func benchmarkStorageAddRows(b *testing.B, rowsPerBatch int) {
 }
 
 func BenchmarkStorageInsertVariousDataPatterns(b *testing.B) {
-	defer vmfs.MustRemoveAll(b.Name())
-
 	const (
 		numBatches      = 100
 		numRowsPerBatch = 10000
 		concurrency     = 1
+		splitBatches    = true
 	)
 
 	highChurnRateData, _ := testGenerateMetricRowBatches(&BatchOptions{
@@ -92,26 +91,28 @@ func BenchmarkStorageInsertVariousDataPatterns(b *testing.B) {
 		)
 
 		path := b.Name()
-		s := MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
-		defer s.MustClose()
-
-		b.ResetTimer()
 		for range b.N {
-			splitBatches := true
+			s := MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
 			testDoConcurrently(s, func(s *Storage, mrs []MetricRow) {
 				s.AddRows(mrs, defaultPrecisionBits)
 			}, concurrency, splitBatches, batches)
-			rowsAddedTotal += numBatches * numRowsPerBatch
-		}
-		b.StopTimer()
+			s.DebugFlush()
+			if err := s.ForceMergePartitions(""); err != nil {
+				b.Fatalf("ForceMergePartitions() failed unexpectedly: %v", err)
+			}
 
-		s.DebugFlush()
-		if err := s.ForceMergePartitions(""); err != nil {
-			b.Fatalf("ForceMergePartitions() failed unexpectedly: %v", err)
+			// Reopen storage to ensure that index has been written to disk.
+			s.MustClose()
+			s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+
+			rowsAddedTotal = numBatches * numRowsPerBatch
+			dataSize = benchmarkDirSize(path + "/data")
+			indexSize = benchmarkDirSize(path + "/indexdb")
+
+			s.MustClose()
+			vmfs.MustRemoveAll(path)
 		}
 
-		dataSize = benchmarkDirSize(path + "/data")
-		indexSize = benchmarkDirSize(path + "/indexdb")
 		b.ReportMetric(float64(rowsAddedTotal)/float64(b.Elapsed().Seconds()), "rows/s")
 		b.ReportMetric(float64(dataSize)/(1024*1024), "data-MiB")
 		b.ReportMetric(float64(indexSize)/(1024*1024), "indexdb-MiB")
