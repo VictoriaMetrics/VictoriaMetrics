@@ -4,12 +4,13 @@ weight: 2
 title: Quick Start
 menu:
   docs:
-    parent: "managed"
+    parent: "cloud"
     weight: 2
 aliases:
-- /managed-victoriametrics/quickstart.html
+  - /victoriametrics-cloud/quickstart/index.html
+  - /managed-victoriametrics/quickstart/index.html
 ---
-Managed VictoriaMetrics is a hosted monitoring platform, where users can run the VictoriaMetrics 
+VictoriaMetrics Cloud is a hosted monitoring platform, where users can run the VictoriaMetrics 
 that they know and love on AWS without the need to perform typical DevOps tasks such as proper configuration, 
 monitoring, logs collection, access protection, software updates, backups, etc.
 
@@ -37,7 +38,7 @@ There are two different methods to create an account:
 1. Choose Google account you want to use for registration
 ![Signup Google choose account](quick_start_signup_choose_google_account.webp)
 
-1. You will be automatically redirected to the main page of the Managed VictoriaMetrics
+1. You will be automatically redirected to the main page of the VictoriaMetrics Cloud
 ![Signup success](quick_start_signup_success.webp)
 
 ### Create an account by filling in a registration form:
@@ -102,12 +103,12 @@ When you need to unify your AWS billing, you can start a subscription on AWS Mar
    
      ![Add payment method AWS click](how_to_add_payment_method_aws_click.webp)
    
-1. You will be redirected to the <a href="https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc" target="_blank">Managed VictoriaMetrics</a> product page.
+1. You will be redirected to the <a href="https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc" target="_blank">VictoriaMetrics Cloud</a> product page.
 1. Click on `View purchase option` button, and you will be redirected to an AWS login page or to a subscribe page on AWS Marketplace.
    
      ![AWS purchase click](quickstart_aws-purchase-click.webp)
    
-1. Go to the <a href="https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc">Managed VictoriaMetrics</a> product page and click `Continue to Subscribe` button:
+1. Go to the <a href="https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc">VictoriaMetrics Cloud</a> product page and click `Continue to Subscribe` button:
    
      ![Continue subscribe](quickstart_continue-subscribe.webp)
    
@@ -119,7 +120,7 @@ When you need to unify your AWS billing, you can start a subscription on AWS Mar
    
      ![Setup your account](quickstart_setup-your-account.webp)
    
-1. You'll be redirected back to Managed VictoriaMetrics <a href="https://cloud.victoriametrics.com/billing?utm_source=website&utm_campaign=docs_quickstart" target="_blank">billing page</a>:
+1. You'll be redirected back to VictoriaMetrics Cloud <a href="https://cloud.victoriametrics.com/billing?utm_source=website&utm_campaign=docs_quickstart" target="_blank">billing page</a>:
    
      ![Add payment method finish](how_to_add_payment_method_aws_finish.webp)
    
@@ -161,7 +162,7 @@ If you forgot your password, it can be restored in the following way:
      ![Restore password message](quick_start_restore_password_message.webp)
    
 
-1. Follow the instructions sent to your email in order to get access to your Managed VictoriaMetrics account:
+1. Follow the instructions sent to your email in order to get access to your VictoriaMetrics Cloud account:
    
      ![Restore password email](quick_start_restore_password_email.webp)
    
@@ -221,7 +222,7 @@ You'll also be notified via email once your deployment is ready to use:
 
 ## Start writing and reading data
 
-After transition from `PROVISIONING` to `RUNNING` state, Managed VictoriaMetrics deployment is fully operational 
+After transition from `PROVISIONING` to `RUNNING` state, VictoriaMetrics Cloud deployment is fully operational 
 and is ready to accept write and read requests. 
 
 Click on deployment name and navigate to the Access tab to get the access token:
