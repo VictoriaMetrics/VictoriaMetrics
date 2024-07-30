@@ -43,7 +43,7 @@
       "location": "me-central2"
     }
   ],
-  "etag": "\"39393931363036383932333134343736343437\"",
+  "etag": "\"323732353932323032353837333633313231\"",
   "icons": {
     "x16": "https://www.google.com/images/icons/product/cloud_storage-16.png",
     "x32": "https://www.google.com/images/icons/product/cloud_storage-32.png"
@@ -4085,7 +4085,7 @@
       }
     }
   },
-  "revision": "20240625",
+  "revision": "20240706",
   "rootUrl": "https://storage.googleapis.com/",
   "schemas": {
     "AnywhereCache": {
@@ -4346,6 +4346,49 @@
         "id": {
           "description": "The ID of the bucket. For buckets, the id and name properties are the same.",
           "type": "string"
+        },
+        "ipFilter": {
+          "description": "The bucket's IP filter configuration. Specifies the network sources that are allowed to access the operations on the bucket, as well as its underlying objects. Only enforced when the mode is set to 'Enabled'.",
+          "properties": {
+            "mode": {
+              "description": "The mode of the IP filter. Valid values are 'Enabled' and 'Disabled'.",
+              "type": "string"
+            },
+            "publicNetworkSource": {
+              "description": "The public network source of the bucket's IP filter.",
+              "properties": {
+                "allowedIpCidrRanges": {
+                  "description": "The list of public IPv4, IPv6 cidr ranges that are allowed to access the bucket.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "type": "object"
+            },
+            "vpcNetworkSources": {
+              "description": "The list of [VPC network](https://cloud.google.com/vpc/docs/vpc) sources of the bucket's IP filter.",
+              "items": {
+                "properties": {
+                  "allowedIpCidrRanges": {
+                    "description": "The list of IPv4, IPv6 cidr ranges subnetworks that are allowed to access the bucket.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "network": {
+                    "description": "Name of the network. Format: projects/{PROJECT_ID}/global/networks/{NETWORK_NAME}",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
         },
         "kind": {
           "default": "storage#bucket",

@@ -1,7 +1,7 @@
 ---
 sort: 8
 weight: 8
-title: VictoriaLogs roadmap
+title: Roadmap
 disableToc: true
 menu:
   docs:
@@ -11,9 +11,6 @@ menu:
 aliases:
 - /VictoriaLogs/Roadmap.html
 ---
-
-# VictoriaLogs roadmap
-
 The following functionality is available in [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
 
 - [Data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).

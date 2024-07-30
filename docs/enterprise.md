@@ -9,9 +9,6 @@ menu:
 aliases:
 - /enterprise.html
 ---
-
-# VictoriaMetrics Enterprise
-
 VictoriaMetrics components are provided in two kinds - [Community edition](https://victoriametrics.com/products/open-source/)
 and [Enterprise edition](https://victoriametrics.com/products/enterprise/).
 
@@ -31,7 +28,7 @@ The use of VictoriaMetrics Enterprise components is permitted in the following c
 - Production use if you have a valid enterprise contract or valid permit from VictoriaMetrics company.
   Please contact us via [this page](https://victoriametrics.com/products/enterprise/) if you are intereseted in such a contract.
 
-- [Managed VictoriaMetrics](https://docs.victoriametrics.com/managed-victoriametrics/) is built on top of VictoriaMetrics Enterprise.
+- [VictoriaMetrics Cloud](https://docs.victoriametrics.com/victoriametrics-cloud/) is built on top of VictoriaMetrics Enterprise.
 
 See [these docs](#running-victoriametrics-enterprise) for details on how to run VictoriaMetrics enterprise.
 

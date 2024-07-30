@@ -71,6 +71,10 @@ unauthorized_user:
   url_prefix: {BACKEND}/foo?bar=baz`
 	requestURL := "http://some-host.com/abc/def?some_arg=some_value"
 	backendHandler := func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Connection", "close")
+		h.Set("Foo", "bar")
+
 		var bb bytes.Buffer
 		if err := r.Header.Write(&bb); err != nil {
 			panic(fmt.Errorf("unexpected error when marshaling headers: %w", err))
@@ -79,6 +83,7 @@ unauthorized_user:
 	}
 	responseExpected := `
 statusCode=200
+Foo: bar
 requested_url={BACKEND}/foo/abc/def?bar=baz&some_arg=some_value
 Pass-Header: abc
 User-Agent: vmauth
@@ -378,7 +383,7 @@ unauthorized_user:
 		panic(fmt.Errorf("backend handler shouldn't be called"))
 	}
 	responseExpected = `
-statusCode=503
+statusCode=502
 remoteAddr: "42.2.3.84:6789, X-Forwarded-For: 12.34.56.78"; requestURI: /foo/?de=fg; all the 2 backends for the user "" are unavailable`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
@@ -396,7 +401,7 @@ users:
 		panic(fmt.Errorf("backend handler shouldn't be called"))
 	}
 	responseExpected = `
-statusCode=503
+statusCode=502
 remoteAddr: "42.2.3.84:6789, X-Forwarded-For: 12.34.56.78"; requestURI: /foo/?de=fg; all the 2 backends for the user "some-user" are unavailable`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
@@ -418,7 +423,7 @@ unauthorized_user:
 		panic(fmt.Errorf("backend handler shouldn't be called"))
 	}
 	responseExpected = `
-statusCode=503
+statusCode=502
 remoteAddr: "42.2.3.84:6789, X-Forwarded-For: 12.34.56.78"; requestURI: /def/?de=fg; all the 0 backends for the user "" are unavailable`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 	netutil.Resolver = origResolver
@@ -435,7 +440,7 @@ unauthorized_user:
 		w.WriteHeader(500)
 	}
 	responseExpected = `
-statusCode=503
+statusCode=502
 remoteAddr: "42.2.3.84:6789, X-Forwarded-For: 12.34.56.78"; requestURI: /foo/?de=fg; all the 2 backends for the user "" are unavailable`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 	if n := retries.Load(); n != 2 {

@@ -9,8 +9,6 @@ title: vmalert
 aliases:
   - /vmalert.html
 ---
-# vmalert
-
 `vmalert` executes a list of the given [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/)
 or [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/)
 rules against configured `-datasource.url` compatible with Prometheus HTTP API. For sending alerting notifications
@@ -541,7 +539,8 @@ rules execution, storing recording rules results and alerts state.
     -notifier.url=http://alertmanager:9093          # AlertManager addr to send alerts when they trigger
 ```
 
-<img alt="vmalert single" width="500" src="vmalert_single.webp">
+![vmalert single](vmalert_single.webp)
+{width="500"}
 
 #### Cluster VictoriaMetrics
 
@@ -561,7 +560,7 @@ Cluster mode could have multiple `vminsert` and `vmselect` components.
     -notifier.url=http://alertmanager:9093                      # AlertManager addr to send alerts when they trigger
 ```
 
-<img alt="vmalert cluster" src="vmalert_cluster.webp">
+![vmalert cluster](vmalert_cluster.webp)
 
 In case when you want to spread the load on these components - add balancers before them and configure
 `vmalert` with balancer addresses. Please, see more about VM's cluster architecture
@@ -585,7 +584,8 @@ Alertmanagers.
     -notifier.url=http://alertmanagerN:9093         # The same alert will be sent to all configured notifiers
 ```
 
-<img alt="vmalert ha" width="800px" src="vmalert_ha.webp">
+![vmalert ha](vmalert_ha.webp)
+
 
 To avoid recording rules results and alerts state duplication in VictoriaMetrics server
 don't forget to configure [deduplication](https://docs.victoriametrics.com/single-server-victoriametrics/#deduplication).
@@ -661,7 +661,7 @@ or reducing resolution) and push results to "cold" cluster.
     -remoteWrite.url=http://aggregated-cluster-vminsert:8480/insert/0/prometheus    # vminsert addr to persist recording rules results
 ```
 
-<img alt="vmalert multi cluster" src="vmalert_multicluster.webp">
+![vmalert multi cluster](vmalert_multicluster.webp)
 
 Please note, [replay](#rules-backfilling) feature may be used for transforming historical data.
 
@@ -675,7 +675,7 @@ For persisting recording or alerting rule results `vmalert` requires `-remoteWri
 But this flag supports only one destination. To persist rule results to multiple destinations
 we recommend using [vmagent](https://docs.victoriametrics.com/vmagent/) as fan-out proxy:
 
-<img alt="vmalert multiple remote write destinations" src="vmalert_multiple_rw.webp">
+![vmalert multiple remote write destinations](vmalert_multiple_rw.webp)
 
 In this topology, `vmalert` is configured to persist rule results to `vmagent`. And `vmagent`
 is configured to fan-out received data to two or more destinations.
@@ -848,12 +848,12 @@ Data delay is one of the most common issues with rules execution.
 vmalert executes configured rules within certain intervals at specifics timestamps. 
 It expects that the data is already present in configured `-datasource.url` at the moment of time when rule is executed:
 
-<img alt="vmalert expected evaluation" src="vmalert_ts_normal.gif">
+![vmalert expected evaluation](vmalert_ts_normal.gif)
 
 Usually, troubles start to appear when data in `-datasource.url` is delayed or absent. In such cases, evaluations
 may get empty response from the datasource and produce empty recording rules or reset alerts state:
 
-<img alt="vmalert evaluation when data is delayed" src="vmalert_ts_data_delay.gif">
+![vmalert evaluation when data is delayed](vmalert_ts_data_delay.gif)
 
 Try the following recommendations to reduce the chance of hitting the data delay issue:
 * Always configure group's `-evaluationInterval` to be bigger or at least equal to
@@ -893,7 +893,7 @@ state updates for each rule starting from [v1.86](https://docs.victoriametrics.c
 To check updates, click on `Details` link next to rule's name on `/vmalert/groups` page 
 and check the `Last updates` section:
 
-<img alt="vmalert state" src="vmalert_state.webp">
+![vmalert state](vmalert_state.webp)
 
 Rows in the section represent ordered rule evaluations and their results. The column `curl` contains an example of
 HTTP request sent by vmalert to the `-datasource.url` during evaluation. If specific state shows that there were
@@ -905,7 +905,7 @@ for more details.
 
 vmalert allows configuring more detailed logging for specific alerting rule starting from [v1.82](https://docs.victoriametrics.com/changelog/#v1820).
 Just set `debug: true` in rule's configuration and vmalert will start printing additional log messages:
-```terminal
+```shell-session
 2022-09-15T13:35:41.155Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:41+02:00: query returned 0 samples (elapsed: 5.896041ms)
 2022-09-15T13:35:56.149Z  DEBUG datasource request: executing POST request with params "denyPartialResponse=true&query=sum%28vm_tcplistener_conns%7Binstance%3D%22localhost%3A8429%22%7D%29+by%28instance%29+%3E+0&step=15s&time=1663248945"
 2022-09-15T13:35:56.178Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:56+02:00: query returned 1 samples (elapsed: 28.368208ms)

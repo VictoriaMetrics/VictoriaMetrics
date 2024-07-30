@@ -7,9 +7,6 @@ menu:
     parent: 'victoriametrics'
     weight: 500
 ---
-
-# VictoriaMetrics development goals
-
 ## Goals
 
 1. The main goal - **to help users and [clients](https://docs.victoriametrics.com/enterprise/) resolving issues with VictoriaMetrics components,

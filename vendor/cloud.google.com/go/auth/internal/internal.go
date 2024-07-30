@@ -181,8 +181,9 @@ func (c *ComputeUniverseDomainProvider) GetProperty(ctx context.Context) (string
 
 // httpGetMetadataUniverseDomain is a package var for unit test substitution.
 var httpGetMetadataUniverseDomain = func(ctx context.Context) (string, error) {
-	client := metadata.NewClient(&http.Client{Timeout: time.Second})
-	return client.GetWithContext(ctx, "universe/universe_domain")
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+	return metadata.GetWithContext(ctx, "universe/universe_domain")
 }
 
 func getMetadataUniverseDomain(ctx context.Context) (string, error) {

@@ -10,9 +10,6 @@ menu:
 aliases:
   - /url-examples.html
 ---
-
-# VictoriaMetrics API examples
-
 ### /api/v1/admin/tsdb/delete_series
 
 **Deletes time series from VictoriaMetrics**

@@ -9,8 +9,6 @@ title: vmagent
 aliases:
   - /vmagent.html
 ---
-# vmagent
-
 `vmagent` is a tiny agent which helps you collect metrics from various sources,
 [relabel and filter the collected metrics](#relabeling)
 and store them in [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics)
@@ -19,7 +17,7 @@ or via [VictoriaMetrics `remote_write` protocol](#victoriametrics-remote-write-p
 
 See [Quick Start](#quick-start) for details.
 
-<img alt="vmagent" src="vmagent.webp">
+![vmagent](vmagent.webp)
 
 ## Motivation
 
@@ -1437,6 +1435,9 @@ These formats can be configured with `-kafka.consumer.topic.defaultFormat` or `-
 * `graphite` - [Graphite plaintext format](https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol).
 * `jsonline` - [JSON line format](https://docs.victoriametrics.com/#how-to-import-data-in-json-line-format).
 
+For Kafka messages in the `promremotewrite` format, `vmagent` will automatically detect whether they are using [the Prometheus remote write protocol](https://prometheus.io/docs/specs/remote_write_spec/#protocol) 
+or [the VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol), and handle them accordingly.
+
 Every Kafka message may contain multiple lines in `influx`, `prometheus`, `graphite` and `jsonline` format delimited by `\n`.
 
 `vmagent` consumes messages from Kafka topics specified by `-kafka.consumer.topic` command-line flag. Multiple topics can be specified
@@ -1537,6 +1538,11 @@ These messages can be read later from Kafka by another `vmagent` - see [these do
 
 Additional Kafka options can be passed as query params to `-remoteWrite.url`. For instance, `kafka://localhost:9092/?topic=prom-rw&client.id=my-favorite-id`
 sets `client.id` Kafka option to `my-favorite-id`. The full list of Kafka options is available [here](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md).
+
+By default, `vmagent` sends compressed messages using Google's Snappy, as defined in [the Prometheus remote write protocol](https://prometheus.io/docs/specs/remote_write_spec/#protocol).
+To switch to [the VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol) and reduce network bandwidth,
+simply set the `-remoteWrite.forceVMProto=true` flag. It is also possible to adjust the compression level for the VictoriaMetrics remote write protocol using the `-remoteWrite.vmProtoCompressLevel` 
+command-line flag.
 
 #### Kafka broker authorization and authentication
 

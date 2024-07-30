@@ -9,8 +9,6 @@ title: VictoriaMetrics
 aliases:
   - /Single-server-VictoriaMetrics.html
 ---
-# VictoriaMetrics
-
 [![Latest Release](https://img.shields.io/github/release/VictoriaMetrics/VictoriaMetrics.svg?style=flat-square)](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
 [![Docker Pulls](https://img.shields.io/docker/pulls/victoriametrics/victoria-metrics.svg?maxAge=604800)](https://hub.docker.com/r/victoriametrics/victoria-metrics)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
@@ -20,9 +18,9 @@ aliases:
 [![codecov](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics/branch/master/graph/badge.svg)](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics)
 
 <picture>
-  <source srcset="logo_white.webp" media="(prefers-color-scheme: dark)">
-  <source srcset="logo.webp" media="(prefers-color-scheme: light)">
-  <img src="logo.webp" width="300" alt="VictoriaMetrics logo">
+  <source srcset="/logo_white.webp" media="(prefers-color-scheme: dark)">
+  <source srcset="/logo.webp" media="(prefers-color-scheme: light)">
+  <img src="/logo.webp" width="300" alt="VictoriaMetrics logo">
 </picture>
 
 VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
@@ -321,7 +319,7 @@ Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaM
 
 In the "Type and version" section it is recommended to set the type to "Prometheus" and the version to at least "2.24.x":
 
-<img src="grafana-datasource-prometheus.webp" alt="Grafana datasource" />
+![Grafana datasource](grafana-datasource-prometheus.webp)
 
 This allows Grafana to use a more efficient API to get label values.
 
@@ -511,7 +509,7 @@ via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit
 DataDog agent allows configuring destinations for metrics sending via ENV variable `DD_DD_URL` 
 or via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) in section `dd_url`.
 
-<img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM.webp">
+![DD to VM](Single-server-VictoriaMetrics-sending_DD_metrics_to_VM.webp)
 
 To configure DataDog agent via ENV variable add the following prefix:
 
@@ -538,7 +536,7 @@ pick [single-node or cluster URL](https://docs.victoriametrics.com/url-examples/
 DataDog allows configuring [Dual Shipping](https://docs.datadoghq.com/agent/guide/dual-shipping/) for metrics 
 sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `additional_endpoints`.
  
-<img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM_and_DD.webp">
+![DD to VM](Single-server-VictoriaMetrics-sending_DD_metrics_to_VM_and_DD.webp)
  
 Run DataDog using the following ENV variable with VictoriaMetrics as additional metrics receiver:
 
@@ -1021,6 +1019,18 @@ VictoriaMetrics supports [Graphite Render API](https://graphite.readthedocs.io/e
 at `/render` endpoint, which is used by [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/).
 When configuring Graphite datasource in Grafana, the `Storage-Step` http request header must be set to a step between Graphite data points
 stored in VictoriaMetrics. For example, `Storage-Step: 10s` would mean 10 seconds distance between Graphite datapoints stored in VictoriaMetrics.
+
+#### Known Incompatibilities with `graphite-web`
+
+- **Timestamp Shifting**: VictoriaMetrics does not support shifting response timestamps outside the request time range as `graphite-web` does. This limitation impacts chained functions with time modifiers, such as `timeShift(summarize)`. For more details, refer to this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2969).
+
+- **Non-deterministic series order**: due to the distributed nature of metrics processing, functions within the `seriesLists` family can produce non-deterministic results. To ensure consistent results, arguments for these functions must be wrapped with a sorting function. For instance, the function `divideSeriesLists(series_list_1, series_list_2)` should be modified to `divideSeriesLists(sortByName(series_list_1), sortByName(series_list_2))`.  See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5810) for details.
+
+  The affected functions include:
+  - `aggregateSeriesLists`
+  - `diffSeriesLists`
+  - `multiplySeriesLists`
+  - `divideSeriesLists`
 
 ### Graphite Metrics API usage
 
