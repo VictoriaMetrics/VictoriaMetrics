@@ -252,7 +252,7 @@ The configuration location will vary based on your platform but we have listed t
 - Windows and MacOS: Is determined by the `--config.file` flag in the Prometheus command
 
 Data will be stored in Prometheus for the time specified by `--storage.tsdb.retention.time` as well forwarded to VictoriaMetrics.
-If Prometheus is unable to send data to VictoriaMetrics the data collected during this time will be sent to VictoriaMetrics after connectivity to VictoriaMetrics has been restored.
+If Prometheus is unable to send data to VictoriaMetrics, the data collected during this time will be sent to VictoriaMetrics after connectivity to VictoriaMetrics has been restored.
 
 All examples below should work with Prometheus running in agent mode which configures Prometheus to only perform discovery, scraping, and remote writing data.
 For more details about agent mode please read the [Prometheus Blog](https://prometheus.io/blog/2021/11/16/agent/#prometheus-agent-mode).
@@ -268,7 +268,7 @@ https://<victoriametrics-addr>/prometheus/api/v1/write
 to
 
 ```
-https://<victoriametrics-addr>/insert/<tenant_id>/prometheus/api/v1/write
+https://<vminsert-addr>/insert/<tenant_id>/prometheus/api/v1/write
 ```
 
 

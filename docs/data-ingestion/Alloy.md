@@ -15,8 +15,8 @@ aliases:
 
 ---
 
-Grafana Alloy supports sending data via the Prometheus Remote Write Protocol and Open Telemetry.
-Collecting metrics and forwarding them to VictoriaMetrics using Prometheus scraping and remote write is more straight forward, but using Open Telemetry enables more complex processing operations to occur before sending data to VictoriaMetrics.
+Grafana Alloy supports sending data via the Prometheus Remote Write Protocol and OpenTelemetry Protocol (OTLP).
+Collecting metrics and forwarding them to VictoriaMetrics using Prometheus scraping and remote write is more straight forward, but using OpenTelemetry enables more complex processing operations to occur before sending data to VictoriaMetrics.
 The Alloy configuration file can found in the following location depending on your platform
 
 - Linux: `/etc/alloy/config.alloy`
@@ -34,25 +34,25 @@ In Any of the examples below you can add `insert/<tenant_id>/` to the URL path i
 For Prometheus remote write this would change from
 
 ```
-https://<victoriametrics_url>/prometheus/api/v1/write
+https://<victoriametrics-addr>/prometheus/api/v1/write
 ```
 
 to
 
 ```
-https://<victoriametrics_url>/insert/<tenant_id>/prometheus/api/v1/write
+https://<vminsert-addr>/insert/<tenant_id>/prometheus/api/v1/write
 ```
 
 For OpenTelemetry the endpoint would change from 
 
 ```
-https://<victoriametrics_url>:<victoriametrics_port>/opentelemetry
+https://<victoriametrics-addr>:<victoriametrics_port>/opentelemetry
 ```
 
 to
 
 ```
-https://<victoriametrics_url>:<victoriametrics_port>/insert/<tenant_id>/opentelemetry
+https://<vminsert-addr>:<victoriametrics_port>/insert/<tenant_id>/opentelemetry
 ```
 
 ## Collect Node Exporter data locally and send it to VictoriaMetrics without authentication
@@ -68,7 +68,7 @@ prometheus.scrape "nodeexporter" {
 
 prometheus.remote_write "victoriametrics" {
   endpoint {
-    url = "https://<victoriametrics_url>/prometheus/api/v1/write"
+    url = "https://<victoriametrics-addr>/prometheus/api/v1/write"
   }
 }
 ```
@@ -88,7 +88,7 @@ prometheus.scrape "nodeexporter" {
 
 prometheus.remote_write "victoriametrics" {
   endpoint {
-    url = "https://<victoriametrics_url>/prometheus/api/v1/write/api/v1/write"
+    url = "https://<victoriametrics-addr>/prometheus/api/v1/write/api/v1/write"
     basic_auth {
       username = "<victoriametrics_user>"
       password = "<victoriametrics_password>"
@@ -111,7 +111,7 @@ prometheus.scrape "nodeexporter" {
 
 prometheus.remote_write "victoriametrics" {
   endpoint {
-    url = "https://<victoriametrics_url>/prometheus/api/v1/write"
+    url = "https://<victoriametrics-addr>/prometheus/api/v1/write"
     bearer_token  = "<token>"
   }
 }
@@ -141,7 +141,7 @@ prometheus.scrape "remote_exporter" {
 
 prometheus.remote_write "victoriametrics" {
   endpoint {
-    url = "https://<victoriametrics_url>/prometheus/api/v1/write"
+    url = "https://<victoriametrics-addr>/prometheus/api/v1/write"
     bearer_token  = "<token>"
   }
 }
@@ -174,7 +174,7 @@ otelcol.processor.batch "batch" {
 
 otelcol.exporter.otlphttp "victoriametrics" {
   client {
-    endpoint = "http://<victoriametrics_url>:<victoriametrics_port>/opentelemetry"
+    endpoint = "http://<victoriametrics-addr>:<victoriametrics_port>/opentelemetry"
   }
 }
 ```
@@ -214,7 +214,7 @@ otelcol.processor.batch "batch" {
 
 otelcol.exporter.otlphttp "victoriametrics" {
   client {
-    endpoint = "https://<victoriametrics_url:<victoriametrics_port>/opentelemetry"
+    endpoint = "https://<victoriametrics-addr:<victoriametrics_port>/opentelemetry"
     auth = otelcol.auth.basic.otel_auth.handler
   }
 }
@@ -251,7 +251,7 @@ otelcol.processor.batch "batch" {
 
 otelcol.exporter.otlphttp "victoriametrics" {
   client {
-    endpoint = "https://<victoriametrics_url>:<victoriametrics_port>/opentelemetry"
+    endpoint = "https://<victoriametrics-addr>:<victoriametrics_port>/opentelemetry"
     auth = otelcol.auth.bearer.otel_auth.handler
   }
 }
