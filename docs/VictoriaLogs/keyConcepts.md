@@ -1,18 +1,16 @@
 ---
 sort: 2
 weight: 2
-title: VictoriaLogs key concepts
+title: Key concepts
 menu:
   docs:
-    parent: "victorialogs"
+    identifier: vl-key-concepts
+    parent: victorialogs
     weight: 2
     title: Key concepts
 aliases:
 - /VictoriaLogs/keyConcepts.html
 ---
-
-# VictoriaLogs key concepts
-
 ## Data model
 
 [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) works with both structured and unstructured logs.

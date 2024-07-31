@@ -105,16 +105,13 @@ func (as *rateAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *rateAggrState) flushState(ctx *flushCtx, _ bool) {
+func (as *rateAggrState) flushState(ctx *flushCtx, resetState bool) {
 	currentTime := fasttime.UnixTimestamp()
 	currentTimeMsec := int64(currentTime) * 1000
 
-	suffix := "rate_sum"
-	if as.isAvg {
-		suffix = "rate_avg"
-	}
+	suffix := as.getSuffix()
 
-	as.removeOldEntries(ctx, suffix, currentTime)
+	as.removeOldEntries(currentTime)
 
 	m := &as.m
 	m.Range(func(k, v any) bool {
@@ -130,13 +127,16 @@ func (as *rateAggrState) flushState(ctx *flushCtx, _ bool) {
 				sumRate += lv.increase / d
 				countSeries++
 			}
-			lv.prevTimestamp = lv.timestamp
-			lv.increase = 0
-			lvs[k1] = lv
+			if resetState {
+				lv.prevTimestamp = lv.timestamp
+				lv.increase = 0
+				lvs[k1] = lv
+			}
 		}
+		deleted := sv.deleted
 		sv.mu.Unlock()
 
-		if countSeries == 0 {
+		if countSeries == 0 || deleted {
 			// Nothing to update
 			return true
 		}
@@ -152,9 +152,15 @@ func (as *rateAggrState) flushState(ctx *flushCtx, _ bool) {
 	})
 }
 
-func (as *rateAggrState) removeOldEntries(ctx *flushCtx, suffix string, currentTime uint64) {
+func (as *rateAggrState) getSuffix() string {
+	if as.isAvg {
+		return "rate_avg"
+	}
+	return "rate_sum"
+}
+
+func (as *rateAggrState) removeOldEntries(currentTime uint64) {
 	m := &as.m
-	var staleOutputSamples, staleInputSamples int
 	m.Range(func(k, v any) bool {
 		sv := v.(*rateStateValue)
 
@@ -162,7 +168,6 @@ func (as *rateAggrState) removeOldEntries(ctx *flushCtx, suffix string, currentT
 		if currentTime > sv.deleteDeadline {
 			// Mark the current entry as deleted
 			sv.deleted = true
-			staleOutputSamples++
 			sv.mu.Unlock()
 			m.Delete(k)
 			return true
@@ -173,12 +178,9 @@ func (as *rateAggrState) removeOldEntries(ctx *flushCtx, suffix string, currentT
 		for k1, lv := range lvs {
 			if currentTime > lv.deleteDeadline {
 				delete(lvs, k1)
-				staleInputSamples++
 			}
 		}
 		sv.mu.Unlock()
 		return true
 	})
-	ctx.a.staleInputSamples[suffix].Add(staleInputSamples)
-	ctx.a.staleOutputSamples[suffix].Add(staleOutputSamples)
 }

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.2](https://github.com/googleapis/google-cloud-go/compare/auth/v0.7.1...auth/v0.7.2) (2024-07-22)
+
+
+### Bug Fixes
+
+* **auth:** Use default client for universe metadata lookup ([#10551](https://github.com/googleapis/google-cloud-go/issues/10551)) ([d9046fd](https://github.com/googleapis/google-cloud-go/commit/d9046fdd1435d1ce48f374806c1def4cb5ac6cd3)), refs [#10544](https://github.com/googleapis/google-cloud-go/issues/10544)
+
+## [0.7.1](https://github.com/googleapis/google-cloud-go/compare/auth/v0.7.0...auth/v0.7.1) (2024-07-10)
+
+
+### Bug Fixes
+
+* **auth:** Bump google.golang.org/grpc@v1.64.1 ([8ecc4e9](https://github.com/googleapis/google-cloud-go/commit/8ecc4e9622e5bbe9b90384d5848ab816027226c5))
+
 ## [0.7.0](https://github.com/googleapis/google-cloud-go/compare/auth/v0.6.1...auth/v0.7.0) (2024-07-09)
 
 

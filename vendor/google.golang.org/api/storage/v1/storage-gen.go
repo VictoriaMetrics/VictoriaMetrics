@@ -466,6 +466,10 @@ type Bucket struct {
 	// Id: The ID of the bucket. For buckets, the id and name properties are the
 	// same.
 	Id string `json:"id,omitempty"`
+	// IpFilter: The bucket's IP filter configuration. Specifies the network
+	// sources that are allowed to access the operations on the bucket, as well as
+	// its underlying objects. Only enforced when the mode is set to 'Enabled'.
+	IpFilter *BucketIpFilter `json:"ipFilter,omitempty"`
 	// Kind: The kind of item this is. For buckets, this is always storage#bucket.
 	Kind string `json:"kind,omitempty"`
 	// Labels: User-provided labels, in key/value pairs.
@@ -800,6 +804,84 @@ type BucketIamConfigurationUniformBucketLevelAccess struct {
 
 func (s BucketIamConfigurationUniformBucketLevelAccess) MarshalJSON() ([]byte, error) {
 	type NoMethod BucketIamConfigurationUniformBucketLevelAccess
+	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
+}
+
+// BucketIpFilter: The bucket's IP filter configuration. Specifies the network
+// sources that are allowed to access the operations on the bucket, as well as
+// its underlying objects. Only enforced when the mode is set to 'Enabled'.
+type BucketIpFilter struct {
+	// Mode: The mode of the IP filter. Valid values are 'Enabled' and 'Disabled'.
+	Mode string `json:"mode,omitempty"`
+	// PublicNetworkSource: The public network source of the bucket's IP filter.
+	PublicNetworkSource *BucketIpFilterPublicNetworkSource `json:"publicNetworkSource,omitempty"`
+	// VpcNetworkSources: The list of VPC network
+	// (https://cloud.google.com/vpc/docs/vpc) sources of the bucket's IP filter.
+	VpcNetworkSources []*BucketIpFilterVpcNetworkSources `json:"vpcNetworkSources,omitempty"`
+	// ForceSendFields is a list of field names (e.g. "Mode") to unconditionally
+	// include in API requests. By default, fields with empty or default values are
+	// omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-ForceSendFields for more
+	// details.
+	ForceSendFields []string `json:"-"`
+	// NullFields is a list of field names (e.g. "Mode") to include in API requests
+	// with the JSON null value. By default, fields with empty values are omitted
+	// from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-NullFields for more details.
+	NullFields []string `json:"-"`
+}
+
+func (s BucketIpFilter) MarshalJSON() ([]byte, error) {
+	type NoMethod BucketIpFilter
+	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
+}
+
+// BucketIpFilterPublicNetworkSource: The public network source of the bucket's
+// IP filter.
+type BucketIpFilterPublicNetworkSource struct {
+	// AllowedIpCidrRanges: The list of public IPv4, IPv6 cidr ranges that are
+	// allowed to access the bucket.
+	AllowedIpCidrRanges []string `json:"allowedIpCidrRanges,omitempty"`
+	// ForceSendFields is a list of field names (e.g. "AllowedIpCidrRanges") to
+	// unconditionally include in API requests. By default, fields with empty or
+	// default values are omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-ForceSendFields for more
+	// details.
+	ForceSendFields []string `json:"-"`
+	// NullFields is a list of field names (e.g. "AllowedIpCidrRanges") to include
+	// in API requests with the JSON null value. By default, fields with empty
+	// values are omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-NullFields for more details.
+	NullFields []string `json:"-"`
+}
+
+func (s BucketIpFilterPublicNetworkSource) MarshalJSON() ([]byte, error) {
+	type NoMethod BucketIpFilterPublicNetworkSource
+	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
+}
+
+type BucketIpFilterVpcNetworkSources struct {
+	// AllowedIpCidrRanges: The list of IPv4, IPv6 cidr ranges subnetworks that are
+	// allowed to access the bucket.
+	AllowedIpCidrRanges []string `json:"allowedIpCidrRanges,omitempty"`
+	// Network: Name of the network. Format:
+	// projects/{PROJECT_ID}/global/networks/{NETWORK_NAME}
+	Network string `json:"network,omitempty"`
+	// ForceSendFields is a list of field names (e.g. "AllowedIpCidrRanges") to
+	// unconditionally include in API requests. By default, fields with empty or
+	// default values are omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-ForceSendFields for more
+	// details.
+	ForceSendFields []string `json:"-"`
+	// NullFields is a list of field names (e.g. "AllowedIpCidrRanges") to include
+	// in API requests with the JSON null value. By default, fields with empty
+	// values are omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-NullFields for more details.
+	NullFields []string `json:"-"`
+}
+
+func (s BucketIpFilterVpcNetworkSources) MarshalJSON() ([]byte, error) {
+	type NoMethod BucketIpFilterVpcNetworkSources
 	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
 }
 

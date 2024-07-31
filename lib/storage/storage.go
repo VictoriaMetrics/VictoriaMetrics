@@ -1612,13 +1612,12 @@ var rowsAddedTotal atomic.Uint64
 //
 // The caller should limit the number of concurrent AddRows calls to the number
 // of available CPU cores in order to limit memory usage.
-func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
+func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) {
 	if len(mrs) == 0 {
-		return nil
+		return
 	}
 
 	// Add rows to the storage in blocks with limited size in order to reduce memory usage.
-	var firstErr error
 	ic := getMetricRowsInsertCtx()
 	maxBlockLen := len(ic.rrs)
 	for len(mrs) > 0 {
@@ -1629,17 +1628,10 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 		} else {
 			mrs = nil
 		}
-		if err := s.add(ic.rrs, ic.tmpMrs, mrsBlock, precisionBits); err != nil {
-			if firstErr == nil {
-				firstErr = err
-			}
-			continue
-		}
+		s.add(ic.rrs, ic.tmpMrs, mrsBlock, precisionBits)
 		rowsAddedTotal.Add(uint64(len(mrsBlock)))
 	}
 	putMetricRowsInsertCtx(ic)
-
-	return firstErr
 }
 
 type metricRowsInsertCtx struct {
@@ -1778,7 +1770,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 	}
 }
 
-func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, precisionBits uint8) error {
+func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, precisionBits uint8) {
 	idb := s.idb()
 	generation := idb.generation
 	is := idb.getIndexSearch(noDeadline)
@@ -1802,7 +1794,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 	var genTSID generationTSID
 
-	// Return only the first error, since it has no sense in returning all errors.
+	// Log only the first error, since it has no sense in logging all errors.
 	var firstWarn error
 
 	j := 0
@@ -1968,23 +1960,20 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 	if err := s.prefillNextIndexDB(rows, dstMrs); err != nil {
 		if firstWarn == nil {
-			firstWarn = err
+			firstWarn = fmt.Errorf("cannot prefill next indexdb: %w", err)
 		}
 	}
+	if err := s.updatePerDateData(rows, dstMrs); err != nil {
+		if firstWarn == nil {
+			firstWarn = fmt.Errorf("cannot not update per-day index: %w", err)
+		}
+	}
+
 	if firstWarn != nil {
 		storageAddRowsLogger.Warnf("warn occurred during rows addition: %s", firstWarn)
 	}
 
-	err := s.updatePerDateData(rows, dstMrs)
-	if err != nil {
-		err = fmt.Errorf("cannot update per-date data: %w", err)
-	} else {
-		s.tb.MustAddRows(rows)
-	}
-	if err != nil {
-		return fmt.Errorf("error occurred during rows addition: %w", err)
-	}
-	return nil
+	s.tb.MustAddRows(rows)
 }
 
 var storageAddRowsLogger = logger.WithThrottler("storageAddRows", 5*time.Second)

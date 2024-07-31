@@ -3,14 +3,12 @@ sort: 8
 weight: 8
 menu:
   docs:
-    parent: 'victoriametrics'
+    parent: victoriametrics
     weight: 8
 title: vmctl
 aliases:
   - /vmctl.html
 ---
-# vmctl
-
 VictoriaMetrics command-line tool (vmctl) provides the following list of actions:
 - migrate data from [Prometheus](#migrating-data-from-prometheus) to VictoriaMetrics using snapshot API
 - migrate data from [Thanos](#migrating-data-from-thanos) to VictoriaMetrics
@@ -976,12 +974,11 @@ Requests to make for tenant 1:0: 28 / 28 [████████████�
 ```
 
 ### Configuration
+
 Run the following command to get all configuration options:
 ```sh
 ./vmctl vm-native --help
 ```
-
-## Tuning
 
 ## Verifying exported blocks from VictoriaMetrics
 

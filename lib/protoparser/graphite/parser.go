@@ -81,11 +81,11 @@ func (r *Row) UnmarshalMetricAndTags(s string, tagsPool []Tag) ([]Tag, error) {
 		tags := tagsPool[tagsStart:]
 		r.Tags = tags[:len(tags):len(tags)]
 	}
-	if len(r.Metric) == 0 {
-		return tagsPool, fmt.Errorf("metric cannot be empty")
-	}
 	if *sanitizeMetricName {
 		r.Metric = sanitizer.Transform(r.Metric)
+	}
+	if len(r.Metric) == 0 {
+		return tagsPool, fmt.Errorf("metric cannot be empty")
 	}
 	return tagsPool, nil
 }
@@ -126,7 +126,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	}
 	v, err := fastfloat.Parse(valueStr)
 	if err != nil {
-		return tagsPool, fmt.Errorf("cannot unmarshal value from %q: %w; original line: %q", valueStr, err, sOrig)
+		return tagsPool, fmt.Errorf("cannot unmarshal metric value from %q: %w; original line: %q", valueStr, err, sOrig)
 	}
 	r.Value = v
 	return tagsPool, nil
@@ -213,9 +213,6 @@ func (t *Tag) reset() {
 
 func (t *Tag) unmarshal(s string) {
 	t.reset()
-	if *sanitizeMetricName {
-		s = sanitizer.Transform(s)
-	}
 	n := strings.IndexByte(s, '=')
 	if n < 0 {
 		// Empty tag value.
@@ -225,6 +222,9 @@ func (t *Tag) unmarshal(s string) {
 	} else {
 		t.Key = s[:n]
 		t.Value = s[n+1:]
+	}
+	if *sanitizeMetricName {
+		t.Key = sanitizer.Transform(t.Key)
 	}
 }
 
@@ -257,15 +257,13 @@ func stripLeadingWhitespace(s string) string {
 
 var sanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
 	// Apply rule to drop some chars to preserve backwards compatibility
-	s = dropChars.Replace(s)
+	s = repeatedDots.ReplaceAllLiteralString(s, ".")
+
 	// Replace any remaining illegal chars
 	return allowedChars.ReplaceAllLiteralString(s, "_")
 })
 
 var (
-	dropChars = strings.NewReplacer(
-		`\`, "",
-		"..", ".",
-	)
-	allowedChars = regexp.MustCompile(`[^a-zA-Z0-9:._=\p{L}]`)
+	repeatedDots = regexp.MustCompile(`[.]+`)
+	allowedChars = regexp.MustCompile(`[^a-zA-Z0-9:_.]`)
 )

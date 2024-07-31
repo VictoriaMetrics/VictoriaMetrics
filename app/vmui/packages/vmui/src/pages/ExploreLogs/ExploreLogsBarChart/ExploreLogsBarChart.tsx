@@ -57,7 +57,10 @@ const ExploreLogsBarChart: FC<Props> = ({ logHits, period, error, isLoading }) =
         "vm-block_mobile": isMobile,
       })}
     >
-      {isLoading && <Spinner containerStyles={{ position: "absolute" }}/>}
+      {isLoading && <Spinner
+        message={"Loading hits stats..."}
+        containerStyles={{ position: "absolute" }}
+      />}
       {!error && noDataMessage && (
         <div className="vm-explore-logs-chart__empty">
           <Alert variant="info">{noDataMessage}</Alert>

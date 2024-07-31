@@ -8,8 +8,6 @@ menu:
 aliases:
 - /guides/getting-started-with-vm-operator.html
 ---
-# Getting started with VM Operator
-
 **The guide covers:**
 
 * The setup of a [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator) via Helm in [Kubernetes](https://kubernetes.io/) with Helm charts.
@@ -215,7 +213,7 @@ Forwarding from [::1]:8429 -> 8429
 To check that `VMAgent` collects metrics from the k8s cluster open in the browser [http://127.0.0.1:8429/targets](http://127.0.0.1:8429/targets) .
 You will see something like this:
 
-<img src="getting-started-with-vm-operator_vmcluster.webp">
+![VMCluster](getting-started-with-vm-operator_vmcluster.webp)
 
 `VMAgent` connects to [kubernetes service discovery](https://kubernetes.io/docs/concepts/services-networking/service/) and gets targets which needs to be scraped. This service discovery is controlled by [VictoriaMetrics Operator](https://github.com/VictoriaMetrics/operator)
 
@@ -289,11 +287,11 @@ EOF
 
 To check that [VictoriaMetrics](https://victoriametrics.com) collecting metrics from the k8s cluster open in your browser [http://127.0.0.1:3000/dashboards](http://127.0.0.1:3000/dashboards) and choose the `VictoriaMetrics - cluster` dashboard. Use `admin` for login and the `password` that you previously got from kubectl.
 
-<img src="getting-started-with-vm-operator_vmcluster-grafana1.webp" alt="grafana dashboards">
+![Dashboards 1](getting-started-with-vm-operator_vmcluster-grafana1.webp)
 
 The expected output is:
 
-<img src="getting-started-with-vm-operator_vmcluster-grafana2.webp" alt="grafana dashboards">
+![Dashboards 2](getting-started-with-vm-operator_vmcluster-grafana2.webp)
 
 ## 6. Summary
 

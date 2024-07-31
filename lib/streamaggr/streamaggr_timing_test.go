@@ -2,12 +2,12 @@ package streamaggr
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 var benchOutputs = []string{
@@ -39,7 +39,7 @@ func BenchmarkAggregatorsPush(b *testing.B) {
 	}
 }
 
-func BenchmarkAggregatorsFlushSerial(b *testing.B) {
+func BenchmarkAggregatorsFlushInternalSerial(b *testing.B) {
 	pushFunc := func(_ []prompbmarshal.TimeSeries) {}
 	a := newBenchAggregators(benchOutputs, pushFunc)
 	defer a.MustStop()
@@ -50,7 +50,7 @@ func BenchmarkAggregatorsFlushSerial(b *testing.B) {
 	b.SetBytes(int64(len(benchSeries) * len(benchOutputs)))
 	for i := 0; i < b.N; i++ {
 		for _, aggr := range a.as {
-			aggr.flush(pushFunc, time.Hour, false)
+			aggr.flushInternal(pushFunc, false)
 		}
 	}
 }
@@ -78,7 +78,7 @@ func benchmarkAggregatorsPush(b *testing.B, output string) {
 func newBenchAggregators(outputs []string, pushFunc PushFunc) *Aggregators {
 	outputsQuoted := make([]string, len(outputs))
 	for i := range outputs {
-		outputsQuoted[i] = strconv.Quote(outputs[i])
+		outputsQuoted[i] = stringsutil.JSONString(outputs[i])
 	}
 	config := fmt.Sprintf(`
 - match: http_requests_total
@@ -87,7 +87,7 @@ func newBenchAggregators(outputs []string, pushFunc PushFunc) *Aggregators {
   outputs: [%s]
 `, strings.Join(outputsQuoted, ","))
 
-	a, err := LoadFromData([]byte(config), pushFunc, Options{})
+	a, err := LoadFromData([]byte(config), pushFunc, nil, "some_alias")
 	if err != nil {
 		panic(fmt.Errorf("unexpected error when initializing aggregators: %s", err))
 	}

@@ -1,17 +1,15 @@
 ---
 sort: 32
 weight: 32
-title: VictoriaMetrics best practices
+title: Best practices
 menu:
   docs:
+    identifier: vm-best-practices
     parent: 'victoriametrics'
     weight: 32
 aliases:
 - /BestPractices.html
 ---
-
-# VictoriaMetrics best practices
-
 ## Install Recommendation
 
 It is recommended running the latest available release of VictoriaMetrics from [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest),

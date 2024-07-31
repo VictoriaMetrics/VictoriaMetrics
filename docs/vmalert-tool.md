@@ -3,15 +3,12 @@ sort: 12
 weight: 12
 menu:
   docs:
-    parent: 'victoriametrics'
+    parent: victoriametrics
     weight: 12
 title: vmalert-tool
 aliases:
   - /vmalert-tool.html
 ---
-
-# vmalert-tool
-
 VMAlert command-line tool
 
 ## Unit testing for rules

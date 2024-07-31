@@ -12,19 +12,16 @@ aliases:
   - /data-ingestion/proxmox.html
   - /data-ingestion/Proxmox.html
 ---
-
-# Proxmox Data Ingestion
 Since Proxmox Virtual Environment(PVE) and Proxmox Backup Server(PBS) support sending data using the InfluxDB We can use the InfluxDB write support built into VictoriaMetrics
 Currently PVE and PBS only support using an Authorization Token for authentication and does not support basic auth or a username and password.
 
 ## Proxmox Virtual Environment (PVE)
-If want help Sending your data to Managed VictoriaMetrics check out [our blog](https://victoriametrics.com/blog/proxmox-monitoring-with-dbaas/).
+If want help Sending your data to VictoriaMetrics Cloud check out [our blog](https://victoriametrics.com/blog/proxmox-monitoring-with-dbaas/).
 
 1. Login to PVE as an administrator
 2. Go to DataCenter > MetricServer > Add > InfluxDB
 
 ![PVE Metric Navigation](pve-nav.webp)
-
 
 3. Set the parameters as follows:
   - Name: VictoriaMetrics (can be changed to any string)
@@ -68,4 +65,4 @@ You should see 1 time series per node in your PVE cluster.
 
 
 # References
-- [Blog Post for configuring Managed VictoriaMetrics and Proxmox VE](https://victoriametrics.com/blog/proxmox-monitoring-with-dbaas/)
+- [Blog Post for configuring VictoriaMetrics Cloud and Proxmox VE](https://victoriametrics.com/blog/proxmox-monitoring-with-dbaas/)

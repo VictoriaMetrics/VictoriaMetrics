@@ -10,9 +10,6 @@ aliases:
 - /FAQ.html
 - /faq.html
 ---
-
-# FAQ
-
 ## What is the main purpose of VictoriaMetrics?
 
 To provide the best monitoring solution.
@@ -218,11 +215,10 @@ We provide commercial support for both versions. [Contact us](mailto:info@victor
 
 The following commercial versions of VictoriaMetrics are available:
 
-* [Managed VictoriaMetrics at AWS](https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc) (aka managed Prometheus).
+* [VictoriaMetrics Cloud](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_vm_faq) – the most cost-efficient hosted monitoring platform, operated by VictoriaMetrics core team.
 
 The following commercial versions of VictoriaMetrics are planned:
 
-* Managed VictoriaMetrics at Google Cloud.
 * Cloud monitoring solution based on VictoriaMetrics.
 
 [Contact us](mailto:info@victoriametrics.com) for more information on our plans.

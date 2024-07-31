@@ -9,9 +9,6 @@ menu:
 aliases:
 - /stream-aggregation.html
 ---
-
-# Streaming aggregation
-
 [vmagent](https://docs.victoriametrics.com/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
 can aggregate incoming [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) in streaming mode by time and by labels before data is written to remote storage
 (or local storage for single-node VictoriaMetrics).
@@ -19,8 +16,8 @@ The aggregation is applied to all the metrics received via any [supported data i
 and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 after applying all the configured [relabeling stages](https://docs.victoriametrics.com/vmagent/#relabeling).
 
-_By default, stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples).
-It expects that the ingested samples have timestamps close to the current time. See [how to ignore old samples](#ignoring-old-samples)._
+**By default, stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples).
+It expects that the ingested samples have timestamps close to the current time. See [how to ignore old samples](#ignoring-old-samples).**
 
 ## Configuration
 
@@ -28,9 +25,9 @@ Stream aggregation can be configured via the following command-line flags:
 
 - `-streamAggr.config` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
   and at [vmagent](https://docs.victoriametrics.com/vmagent/).
-- `-remoteWrite.streamAggr.config` at [vmagent](https://docs.victoriametrics.com/vmagent/) only.
-  This flag can be specified individually per each `-remoteWrite.url` and aggregation will happen independently for each of them.
-  This allows writing different aggregates to different remote storage destinations.
+- `-remoteWrite.streamAggr.config` at [vmagent](https://docs.victoriametrics.com/vmagent/) only. This flag can be specified individually
+  per each `-remoteWrite.url`, so the aggregation happens independently per each remote storage destination.
+  This allows writing different aggregates to different remote storage systems.
 
 These flags must point to a file containing [stream aggregation config](#stream-aggregation-config).
 The file may contain `%{ENV_VAR}` placeholders which are substituted by the corresponding `ENV_VAR` environment variable values.
@@ -60,26 +57,24 @@ The processed data is then stored in local storage and **can't be forwarded furt
 [vmagent](https://docs.victoriametrics.com/vmagent/) supports relabeling, deduplication and stream aggregation for all 
 the received data, scraped or pushed. Then, the collected data will be forwarded to specified `-remoteWrite.url` destinations.
 The data processing order is the following:
-1. All the received data is [relabeled](https://docs.victoriametrics.com/vmagent/#relabeling) according to 
-   specified `-remoteWrite.relabelConfig`;
-1. All the received data is [deduplicated](https://docs.victoriametrics.com/stream-aggregation/#deduplication)
-   according to specified `-streamAggr.dedupInterval`;
-1. All the received data is aggregated according to specified `-streamAggr.config`;
-1. The resulting data from p1 and p2 is then replicated to each `-remoteWrite.url`;
-1. Data sent to each `-remoteWrite.url` can be additionally relabeled according to the 
-   corresponding `-remoteWrite.urlRelabelConfig` (set individually per URL);
-1. Data sent to each `-remoteWrite.url` can be additionally deduplicated according to the
-   corresponding `-remoteWrite.streamAggr.dedupInterval` (set individually per URL);
-1. Data sent to each `-remoteWrite.url` can be additionally aggregated according to the
-   corresponding `-remoteWrite.streamAggr.config` (set individually per URL). Please note, it is not recommended
-   to use `-streamAggr.config` and `-remoteWrite.streamAggr.config` together, unless you understand the complications.
 
-Typical scenarios for data routing with vmagent:
-1. **Aggregate incoming data and replicate to N destinations**. For this one should configure `-streamAggr.config`
-to aggregate the incoming data before replicating it to all the configured `-remoteWrite.url` destinations.
-2. **Individually aggregate incoming data for each destination**. For this on should configure `-remoteWrite.streamAggr.config`
-for each `-remoteWrite.url` destination. [Relabeling](https://docs.victoriametrics.com/vmagent/#relabeling) 
-via `-remoteWrite.urlRelabelConfig` can be used for routing only selected metrics to each `-remoteWrite.url` destination.
+1. all the received data is relabeled according to the specified [`-remoteWrite.relabelConfig`](https://docs.victoriametrics.com/vmagent/#relabeling) (if it is set)
+1. all the received data is deduplicated according to specified [`-streamAggr.dedupInterval`](https://docs.victoriametrics.com/stream-aggregation/#deduplication)
+   (if it is set to duration bigger than 0)
+1. all the received data is aggregated according to specified [`-streamAggr.config`](https://docs.victoriametrics.com/stream-aggregation/#configuration) (if it is set)
+1. the resulting data is then replicated to each `-remoteWrite.url`
+1. data sent to each `-remoteWrite.url` can be additionally relabeled according to the corresponding `-remoteWrite.urlRelabelConfig` (set individually per URL)
+1. data sent to each `-remoteWrite.url` can be additionally deduplicated according to the corresponding `-remoteWrite.streamAggr.dedupInterval` (set individually per URL)
+1. data sent to each `-remoteWrite.url` can be additionally aggregated according to the corresponding `-remoteWrite.streamAggr.config` (set individually per URL)
+   It isn't recommended using `-streamAggr.config` and `-remoteWrite.streamAggr.config` simultaneously, unless you understand the complications.
+
+Typical scenarios for data routing with `vmagent`:
+
+1. **Aggregate incoming data and replicate to N destinations**. Specify [`-streamAggr.config`](https://docs.victoriametrics.com/stream-aggregation/#configuration) command-line flag
+   to aggregate the incoming data before replicating it to all the configured `-remoteWrite.url` destinations.
+2. **Individually aggregate incoming data for each destination**. Specify [`-remoteWrite.streamAggr.config`](https://docs.victoriametrics.com/stream-aggregation/#configuration)
+   command-line flag for each `-remoteWrite.url` destination. [Relabeling](https://docs.victoriametrics.com/vmagent/#relabeling) via `-remoteWrite.urlRelabelConfig`
+   can be used for routing only the selected metrics to each `-remoteWrite.url` destination.
 
 ## Deduplication
 
@@ -591,7 +586,7 @@ sum(sum_over_time(some_metric[interval])) / sum(count_over_time(some_metric[inte
 
 For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and  the regular query:
 
-<img alt="avg aggregation" src="stream-aggregation-check-avg.webp">
+![avg aggregation](stream-aggregation-check-avg.webp)
 
 See also:
 
@@ -671,7 +666,7 @@ then take a look at [increase_prometheus](#increase_prometheus).
 
 For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and the regular query:
 
-<img alt="increase aggregation" src="stream-aggregation-check-increase.webp">
+![increase aggregation](stream-aggregation-check-increase.webp)
 
 Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
 or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_interval](#staleness) option.
@@ -737,7 +732,7 @@ max(max_over_time(some_metric[interval]))
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="total aggregation" src="stream-aggregation-check-max.webp">
+![total aggregation](stream-aggregation-check-max.webp)
 
 See also:
 
@@ -758,7 +753,7 @@ min(min_over_time(some_metric[interval]))
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="min aggregation" src="stream-aggregation-check-min.webp">
+![min aggregation](stream-aggregation-check-min.webp)
 
 See also:
 
@@ -833,7 +828,7 @@ histogram_stdvar(sum(histogram_over_time(some_metric[interval])) by (vmrange))
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="stdvar aggregation" src="stream-aggregation-check-stdvar.webp">
+![stdvar aggregation](stream-aggregation-check-stdvar.webp)
 
 See also:
 
@@ -854,7 +849,7 @@ sum(sum_over_time(some_metric[interval]))
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="sum_samples aggregation" src="stream-aggregation-check-sum-samples.webp">
+![sum_samples aggregation](stream-aggregation-check-sum-samples.webp)
 
 See also:
 
@@ -878,7 +873,7 @@ then take a look at [total_prometheus](#total_prometheus).
 
 For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and the regular query:
 
-<img alt="total aggregation" src="stream-aggregation-check-total.webp">
+![total aggregation](stream-aggregation-check-total.webp)
 
 `total` is not affected by [counter resets](https://docs.victoriametrics.com/keyconcepts/#counter) -
 it continues to increase monotonically with respect to the previous value.
@@ -886,7 +881,7 @@ The counters are most often reset when the application is restarted.
 
 For example:
 
-<img alt="total aggregation counter reset" src="stream-aggregation-check-total-reset.webp">
+![total aggregation counter reset](stream-aggregation-check-total-reset.webp)
 
 The same behavior occurs when creating or deleting new series in an aggregation group -
 `total` output increases monotonically considering the values of the series set.
@@ -1018,6 +1013,14 @@ At [vmagent](https://docs.victoriametrics.com/vmagent/) `-remoteWrite.streamAggr
 specified individually per each `-remoteWrite.url`:
 
 ```yaml
+
+  # name is an optional name of the given streaming aggregation config.
+  #
+  # If it is set, then it is used as `name` label in the exposed metrics
+  # for the given aggregation config at /metrics page.
+  # See https://docs.victoriametrics.com/vmagent/#monitoring and https://docs.victoriametrics.com/#monitoring
+- name: 'foobar'
+
   # match is an optional filter for incoming samples to aggregate.
   # It can contain arbitrary Prometheus series selector
   # according to https://docs.victoriametrics.com/keyconcepts/#filtering .
@@ -1026,7 +1029,7 @@ specified individually per each `-remoteWrite.url`:
   # match also can contain a list of series selectors. Then the incoming samples are aggregated
   # if they match at least a single series selector.
   #
-- match: 'http_request_duration_seconds_bucket{env=~"prod|staging"}'
+  match: 'http_request_duration_seconds_bucket{env=~"prod|staging"}'
 
   # interval is the interval for the aggregation.
   # The aggregated stats is sent to remote storage once per interval.

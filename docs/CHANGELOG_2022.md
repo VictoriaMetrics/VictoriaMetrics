@@ -1,17 +1,15 @@
 ---
-sort: 103
-weight: 103
-title: CHANGELOG for the year 2022
+sort: 4
+weight: 4
+title: Year 2022
 menu:
   docs:
-    parent: 'victoriametrics'
-    weight: 103
+    identifier: vm-changelog-2022
+    parent: vm-changelog
+    weight: 4
 aliases:
 - /CHANGELOG_2022.html
 ---
-
-# CHANGELOG for the year 2022
-
 ## [v1.85.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.85.3)
 
 Released at 2022-12-20

@@ -127,7 +127,7 @@ func StreamTargetsResponsePlain(qw422016 *qt422016.Writer, tsr *targetsStatusRes
 //line lib/promscrape/targetstatus.qtpl:29
 			qw422016.N().S(`last_scrape=`)
 //line lib/promscrape/targetstatus.qtpl:30
-			qw422016.E().S(ts.getDurationFromLastScrape())
+			qw422016.N().S(ts.getDurationFromLastScrape())
 //line lib/promscrape/targetstatus.qtpl:30
 			qw422016.N().S(`,`)
 //line lib/promscrape/targetstatus.qtpl:30
@@ -143,7 +143,7 @@ func StreamTargetsResponsePlain(qw422016 *qt422016.Writer, tsr *targetsStatusRes
 //line lib/promscrape/targetstatus.qtpl:31
 			qw422016.N().S(`scrape_response_size=`)
 //line lib/promscrape/targetstatus.qtpl:32
-			qw422016.E().S(ts.getSizeFromLastScrape())
+			qw422016.N().S(ts.getSizeFromLastScrape())
 //line lib/promscrape/targetstatus.qtpl:32
 			qw422016.N().S(`,`)
 //line lib/promscrape/targetstatus.qtpl:32

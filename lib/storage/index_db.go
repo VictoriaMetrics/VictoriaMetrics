@@ -656,7 +656,7 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 	if filter != nil && filter.Len() <= 100e3 {
 		// It is faster to obtain label names by metricIDs from the filter
 		// instead of scanning the inverted index for the matching filters.
-		// This would help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
+		// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
 		metricIDs := filter.AppendTo(nil)
 		qt.Printf("sort %d metricIDs", len(metricIDs))
 		is.getLabelNamesForMetricIDs(qt, metricIDs, lns, maxLabelNames)
@@ -749,13 +749,12 @@ func (is *indexSearch) getLabelNamesForMetricIDs(qt *querytracer.Tracer, metricI
 	}
 
 	dmis := is.db.s.getDeletedMetricIDs()
-	checkDeleted := dmis.Len() > 0
 
 	var mn MetricName
 	foundLabelNames := 0
 	var buf []byte
 	for _, metricID := range metricIDs {
-		if checkDeleted && dmis.Has(metricID) {
+		if dmis.Has(metricID) {
 			// skip deleted IDs from result
 			continue
 		}
@@ -882,7 +881,7 @@ func (is *indexSearch) searchLabelValuesWithFiltersOnDate(qt *querytracer.Tracer
 	if filter != nil && filter.Len() <= 100e3 {
 		// It is faster to obtain label values by metricIDs from the filter
 		// instead of scanning the inverted index for the matching filters.
-		// This would help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
+		// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
 		metricIDs := filter.AppendTo(nil)
 		qt.Printf("sort %d metricIDs", len(metricIDs))
 		is.getLabelValuesForMetricIDs(qt, lvs, labelName, metricIDs, maxLabelValues)
@@ -956,13 +955,12 @@ func (is *indexSearch) getLabelValuesForMetricIDs(qt *querytracer.Tracer, lvs ma
 	}
 
 	dmis := is.db.s.getDeletedMetricIDs()
-	checkDeleted := dmis.Len() > 0
 
 	var mn MetricName
 	foundLabelValues := 0
 	var buf []byte
 	for _, metricID := range metricIDs {
-		if checkDeleted && dmis.Has(metricID) {
+		if dmis.Has(metricID) {
 			// skip deleted IDs from result
 			continue
 		}
@@ -1858,12 +1856,9 @@ func (is *indexSearch) getTSIDByMetricNameNoExtDB(dst *TSID, metricName []byte, 
 		if len(tail) > 0 {
 			logger.Panicf("FATAL: unexpected non-empty tail left after unmarshaling TSID: %X", tail)
 		}
-		if dmis.Len() > 0 {
-			// Verify whether the dst is marked as deleted.
-			if dmis.Has(dst.MetricID) {
-				// The dst is deleted. Continue searching.
-				continue
-			}
+		if dmis.Has(dst.MetricID) {
+			// The dst is deleted. Continue searching.
+			continue
 		}
 		// Found valid dst.
 		return true

@@ -16,6 +16,11 @@ import (
 // See https://github.com/prometheus/procfs/blob/a4ac0826abceb44c40fc71daed2b301db498b93e/proc_stat.go#L40 .
 const userHZ = 100
 
+// Different environments may have different page size.
+//
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6457
+var pageSizeBytes = uint64(os.Getpagesize())
+
 // See http://man7.org/linux/man-pages/man5/proc.5.html
 type procStat struct {
 	State       byte
@@ -80,7 +85,7 @@ func writeProcessMetrics(w io.Writer) {
 	WriteCounterUint64(w, "process_major_pagefaults_total", uint64(p.Majflt))
 	WriteCounterUint64(w, "process_minor_pagefaults_total", uint64(p.Minflt))
 	WriteGaugeUint64(w, "process_num_threads", uint64(p.NumThreads))
-	WriteGaugeUint64(w, "process_resident_memory_bytes", uint64(p.Rss)*uint64(os.Getpagesize()))
+	WriteGaugeUint64(w, "process_resident_memory_bytes", uint64(p.Rss)*pageSizeBytes)
 	WriteGaugeUint64(w, "process_start_time_seconds", uint64(startTimeSeconds))
 	WriteGaugeUint64(w, "process_virtual_memory_bytes", uint64(p.Vsize))
 	writeProcessMemMetrics(w)

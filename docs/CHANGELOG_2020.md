@@ -1,17 +1,15 @@
 ---
-sort: 101
-weight: 101
-title: CHANGELOG for the year 2020
+sort: 6
+weight: 6
+title: Year 2020
 menu:
   docs:
-    parent: 'victoriametrics'
-    weight: 101
+    identifier: vm-changelog-2020
+    parent: vm-changelog
+    weight: 6
 aliases:
 - /CHANGELOG_2020.html
 ---
-
-# CHANGELOG for the year 2020
-
 ## [v1.51.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.51.0)
 
 Released at 2020-12-27
