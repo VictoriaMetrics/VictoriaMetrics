@@ -3,6 +3,7 @@ sort: 2
 weight: 2
 menu:
   docs:
+    identifier: vm-cluster-version
     parent: 'victoriametrics'
     weight: 2
 title: Cluster version

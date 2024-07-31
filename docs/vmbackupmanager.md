@@ -3,7 +3,7 @@ sort: 10
 weight: 10
 menu:
   docs:
-    parent: 'victoriametrics'
+    parent: victoriametrics
     weight: 10
 title: vmbackupmanager
 aliases:
