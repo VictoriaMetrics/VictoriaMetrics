@@ -78,7 +78,7 @@ var (
 		"then each cluster must have unique name in order to properly de-duplicate samples received from these clusters. "+
 		"See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets for more info")
 	maxScrapeSize = flagutil.NewBytes("promscrape.maxScrapeSize", 16*1024*1024, "The maximum size of scrape response in bytes to process from Prometheus targets. "+
-		"Bigger responses are rejected")
+		"Bigger responses are rejected. See also max_scrape_size option at https://docs.victoriametrics.com/sd_configs/#scrape_configs")
 )
 
 var clusterMemberID int
@@ -313,7 +313,7 @@ type ScrapeConfig struct {
 	NomadSDConfigs        []nomad.SDConfig        `yaml:"nomad_sd_configs,omitempty"`
 	OpenStackSDConfigs    []openstack.SDConfig    `yaml:"openstack_sd_configs,omitempty"`
 	StaticConfigs         []StaticConfig          `yaml:"static_configs,omitempty"`
-	VultrConfigs          []vultr.SDConfig        `yaml:"vultr_configs,omitempty"`
+	VultrSDConfigs        []vultr.SDConfig        `yaml:"vultr_configs,omitempty"`
 	YandexCloudSDConfigs  []yandexcloud.SDConfig  `yaml:"yandexcloud_sd_configs,omitempty"`
 
 	// These options are supported only by lib/promscrape.
@@ -331,7 +331,7 @@ type ScrapeConfig struct {
 }
 
 func (sc *ScrapeConfig) mustStart(baseDir string) {
-	swosFunc := func(metaLabels *promutils.Labels) interface{} {
+	swosFunc := func(metaLabels *promutils.Labels) any {
 		target := metaLabels.Get("__address__")
 		sw, err := sc.swc.getScrapeWork(target, nil, metaLabels)
 		if err != nil {
@@ -394,8 +394,11 @@ func (sc *ScrapeConfig) mustStop() {
 	for i := range sc.OpenStackSDConfigs {
 		sc.OpenStackSDConfigs[i].MustStop()
 	}
-	for i := range sc.VultrConfigs {
-		sc.VultrConfigs[i].MustStop()
+	for i := range sc.VultrSDConfigs {
+		sc.VultrSDConfigs[i].MustStop()
+	}
+	for i := range sc.YandexCloudSDConfigs {
+		sc.YandexCloudSDConfigs[i].MustStop()
 	}
 }
 
@@ -757,8 +760,8 @@ func (cfg *Config) getOpenStackSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 // getVultrSDScrapeWork returns `vultr_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getVultrSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
-		for i := range sc.VultrConfigs {
-			visitor(&sc.VultrConfigs[i])
+		for i := range sc.VultrSDConfigs {
+			visitor(&sc.VultrSDConfigs[i])
 		}
 	}
 	return cfg.getScrapeWorkGeneric(visitConfigs, "vultr_sd_config", prev)
@@ -849,12 +852,14 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1281#issuecomment-840538907
 		scrapeTimeout = scrapeInterval
 	}
-	var err error
 	mss := maxScrapeSize.N
-	if len(sc.MaxScrapeSize) > 0 {
-		mss, err = flagutil.ParseBytes(sc.MaxScrapeSize)
+	if sc.MaxScrapeSize != "" {
+		n, err := flagutil.ParseBytes(sc.MaxScrapeSize)
 		if err != nil {
-			return nil, fmt.Errorf("unexpected `max_scrape_size` value %q for `job_name` %q`: %w", sc.MaxScrapeSize, jobName, err)
+			return nil, fmt.Errorf("cannot parse `max_scrape_size` value %q for `job_name` %q`: %w", sc.MaxScrapeSize, jobName, err)
+		}
+		if n > 0 {
+			mss = n
 		}
 	}
 	honorLabels := sc.HonorLabels

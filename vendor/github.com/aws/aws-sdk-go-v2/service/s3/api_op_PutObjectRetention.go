@@ -114,6 +114,7 @@ type PutObjectRetentionInput struct {
 }
 
 func (in *PutObjectRetentionInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 
 }

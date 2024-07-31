@@ -3548,7 +3548,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3564,7 +3565,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 13
+            "y": 37
           },
           "id": 48,
           "options": {
@@ -3654,7 +3655,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3670,7 +3672,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 13
+            "y": 37
           },
           "id": 76,
           "options": {
@@ -3758,7 +3760,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3774,7 +3777,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 20
+            "y": 44
           },
           "id": 132,
           "options": {
@@ -3864,7 +3867,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3880,7 +3884,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 20
+            "y": 44
           },
           "id": 133,
           "options": {
@@ -3969,7 +3973,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3985,7 +3990,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 27
+            "y": 51
           },
           "id": 20,
           "options": {
@@ -4073,7 +4078,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -4089,7 +4095,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 27
+            "y": 51
           },
           "id": 126,
           "options": {
@@ -4176,7 +4182,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -4192,7 +4199,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 35
+            "y": 59
           },
           "id": 46,
           "options": {
@@ -4248,6 +4255,110 @@
                 "axisPlacement": "auto",
                 "barAlignment": 0,
                 "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 59
+          },
+          "id": 148,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "9.2.6",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(histogram_quantile(0.99, sum(rate(vm_promscrape_scrape_duration_seconds_bucket{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, vmrange))) by(job)",
+              "format": "time_series",
+              "interval": "",
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Scrape duration 0.99 quantile ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-datasource",
+            "uid": "$ds"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
                 "fillOpacity": 10,
                 "gradientMode": "none",
                 "hideFrom": {
@@ -4279,7 +4390,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -4295,7 +4407,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 35
+            "y": 67
           },
           "id": 31,
           "options": {
@@ -4575,8 +4687,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4680,8 +4791,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4798,8 +4908,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4934,8 +5043,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4978,7 +5086,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "rate(vm_streamaggr_matched_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
+              "expr": "sum(rate(vm_streamaggr_matched_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])) without (instance, pod) > 0",
               "instant": false,
               "legendFormat": "{{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
               "range": true,
@@ -5037,8 +5145,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5075,7 +5182,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "rate(vm_streamaggr_ignored_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
+              "expr": "sum(rate(vm_streamaggr_ignored_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0) without (instance, pod)",
               "instant": false,
               "legendFormat": "{{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
               "range": true,
@@ -5134,8 +5241,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5178,7 +5284,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "rate(vm_streamaggr_flushed_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
+              "expr": "sum(rate(vm_streamaggr_output_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])) without (instance, pod) > 0",
               "instant": false,
               "legendFormat": "{{url}} ({{job}}): match={{match}}; output={{output}}",
               "range": true,
@@ -5238,8 +5344,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5276,7 +5381,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "increase(vm_streamaggr_flush_timeouts_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])",
+              "expr": "increase(vm_streamaggr_flush_timeouts_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
               "instant": false,
               "legendFormat": "aggregation: {{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
               "range": true,
@@ -5288,7 +5393,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "increase(vm_streamaggr_dedup_flush_timeouts_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])",
+              "expr": "increase(vm_streamaggr_dedup_flush_timeouts_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
               "hide": false,
               "instant": false,
               "legendFormat": "deduplication: {{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
@@ -5349,8 +5454,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5388,7 +5492,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.99, rate(vm_streamaggr_samples_lag_seconds_bucket{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]))",
+              "expr": "histogram_quantile(0.99, sum(rate(vm_streamaggr_samples_lag_seconds_bucket{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])) without (instance, pod))",
               "instant": false,
               "legendFormat": "{{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
               "range": true,
@@ -5447,8 +5551,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5501,103 +5604,6 @@
             "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows the eviction rate of time series because of staleness.\n\nThere are two stages where series can be marked as stale.\n1. Input. Aggregator keeps in memory each received unique time series. The time series becomes stale and gets removed if no samples were received during [staleness interval](https://docs.victoriametrics.com/stream-aggregation/#staleness) for this series. \n\n2. Output. The output key is a resulting time series produced by aggregating many input series. The time series becomes stale and gets removed if no samples were received during [staleness interval](https://docs.victoriametrics.com/stream-aggregation/#staleness) for any of input series for this aggregation.\n\nIncrease in `input` keys shows that series previously matched by the aggregation rule now became stale.\n\nIncrease in `output` keys shows that series previously produced by the aggregation rule now became stale.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "axisSoftMin": 0,
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 31
-          },
-          "id": 144,
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "victoriametrics-datasource",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "expr": "increase(vm_streamaggr_stale_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
-              "instant": false,
-              "legendFormat": "{{url}} ({{job}}): match={{match}}; key={{key}}",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Staleness rate ($instance)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-datasource",
-            "uid": "$ds"
-          },
           "description": "Shows the size of Label Compressor in number of entries.\n\nLabels compressor encodes label-value pairs during aggregation to optimise memory usage. It is expected for its size to grow with time and to reset on vmagent restarts.\n\nRapid spikes in Label compressor size might be a sign of significant changes in labels of received samples.",
           "fieldConfig": {
             "defaults": {
@@ -5642,8 +5648,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5790,8 +5795,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5895,8 +5899,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6000,8 +6003,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6105,8 +6107,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6209,8 +6210,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "transparent",
-                    "value": null
+                    "color": "transparent"
                   },
                   {
                     "color": "red",
@@ -6412,8 +6412,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "transparent",
-                    "value": null
+                    "color": "transparent"
                   },
                   {
                     "color": "red",

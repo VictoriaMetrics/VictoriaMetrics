@@ -9,7 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/graphite"
 )
 
-func Test_streamContext_Read(t *testing.T) {
+func TestStreamContextRead(t *testing.T) {
 	f := func(s string, rowsExpected *graphite.Rows) {
 		t.Helper()
 		ctx := getStreamContext(strings.NewReader(s))

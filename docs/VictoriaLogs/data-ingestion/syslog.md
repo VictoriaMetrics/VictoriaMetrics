@@ -7,9 +7,6 @@ menu:
     parent: "victorialogs-data-ingestion"
     weight: 10
 ---
-
-# Syslog setup
-
 [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) can accept logs in [Syslog formats](https://en.wikipedia.org/wiki/Syslog) at the specified TCP and UDP addresses
 via `-syslog.listenAddr.tcp` and `-syslog.listenAddr.udp` command-line flags. The following syslog formats are supported:
 
@@ -46,7 +43,7 @@ from the received Syslog lines:
 - [`_msg`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) - the `MESSAGE` field from the supported syslog formats above
 - `hostname`, `app_name` and `proc_id` - [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) for unique identification
   over every log stream
-- `priority`, `factility` and `severity` - these fields are extracted from `<PRI>` field
+- `priority`, `facility` and `severity` - these fields are extracted from `<PRI>` field
 - `format` - this field is set to either `rfc3164` or `rfc5424` depending on the format of the parsed syslog line
 - `msg_id` - `MSGID` field from log line in `RFC5424` format.
 

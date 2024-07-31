@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 var (
@@ -74,13 +75,13 @@ func initQueryStats() {
 }
 
 func (qst *queryStatsTracker) writeJSONQueryStats(w io.Writer, topN int, maxLifetime time.Duration) {
-	fmt.Fprintf(w, `{"topN":"%d","maxLifetime":%q,`, topN, maxLifetime)
+	fmt.Fprintf(w, `{"topN":"%d","maxLifetime":"%s",`, topN, maxLifetime)
 	fmt.Fprintf(w, `"search.queryStats.lastQueriesCount":%d,`, *lastQueriesCount)
-	fmt.Fprintf(w, `"search.queryStats.minQueryDuration":%q,`, *minQueryDuration)
+	fmt.Fprintf(w, `"search.queryStats.minQueryDuration":"%s",`, *minQueryDuration)
 	fmt.Fprintf(w, `"topByCount":[`)
 	topByCount := qst.getTopByCount(topN, maxLifetime)
 	for i, r := range topByCount {
-		fmt.Fprintf(w, `{"query":%q,"timeRangeSeconds":%d,"count":%d}`, r.query, r.timeRangeSecs, r.count)
+		fmt.Fprintf(w, `{"query":%s,"timeRangeSeconds":%d,"count":%d}`, stringsutil.JSONString(r.query), r.timeRangeSecs, r.count)
 		if i+1 < len(topByCount) {
 			fmt.Fprintf(w, `,`)
 		}
@@ -88,7 +89,7 @@ func (qst *queryStatsTracker) writeJSONQueryStats(w io.Writer, topN int, maxLife
 	fmt.Fprintf(w, `],"topByAvgDuration":[`)
 	topByAvgDuration := qst.getTopByAvgDuration(topN, maxLifetime)
 	for i, r := range topByAvgDuration {
-		fmt.Fprintf(w, `{"query":%q,"timeRangeSeconds":%d,"avgDurationSeconds":%.3f,"count":%d}`, r.query, r.timeRangeSecs, r.duration.Seconds(), r.count)
+		fmt.Fprintf(w, `{"query":%s,"timeRangeSeconds":%d,"avgDurationSeconds":%.3f,"count":%d}`, stringsutil.JSONString(r.query), r.timeRangeSecs, r.duration.Seconds(), r.count)
 		if i+1 < len(topByAvgDuration) {
 			fmt.Fprintf(w, `,`)
 		}
@@ -96,7 +97,7 @@ func (qst *queryStatsTracker) writeJSONQueryStats(w io.Writer, topN int, maxLife
 	fmt.Fprintf(w, `],"topBySumDuration":[`)
 	topBySumDuration := qst.getTopBySumDuration(topN, maxLifetime)
 	for i, r := range topBySumDuration {
-		fmt.Fprintf(w, `{"query":%q,"timeRangeSeconds":%d,"sumDurationSeconds":%.3f,"count":%d}`, r.query, r.timeRangeSecs, r.duration.Seconds(), r.count)
+		fmt.Fprintf(w, `{"query":%s,"timeRangeSeconds":%d,"sumDurationSeconds":%.3f,"count":%d}`, stringsutil.JSONString(r.query), r.timeRangeSecs, r.duration.Seconds(), r.count)
 		if i+1 < len(topBySumDuration) {
 			fmt.Fprintf(w, `,`)
 		}

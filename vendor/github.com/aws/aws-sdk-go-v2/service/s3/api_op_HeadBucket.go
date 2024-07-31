@@ -137,6 +137,7 @@ type HeadBucketInput struct {
 }
 
 func (in *HeadBucketInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 
 }

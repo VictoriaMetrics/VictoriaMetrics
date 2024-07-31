@@ -27,9 +27,9 @@
 		{% if filter.showOriginalLabels %}originalLabels={%s= ts.sw.Config.OriginalLabels.String() %},{% space %}{% endif %}
 		scrapes_total={%d ts.scrapesTotal %},{% space %}
 		scrapes_failed={%d ts.scrapesFailed %},{% space %}
-		last_scrape={%s ts.getDurationFromLastScrape() %},{% space %}
+		last_scrape={%s= ts.getDurationFromLastScrape() %},{% space %}
 		scrape_duration={%d int(ts.scrapeDuration) %}ms,{% space %}
-                scrape_response_size={%s ts.getSizeFromLastScrape() %},{% space %}
+		scrape_response_size={%s= ts.getSizeFromLastScrape() %},{% space %}
 		samples_scraped={%d ts.samplesScraped %},{% space %}
 		error={% if ts.err != nil %}{%s= ts.err.Error() %}{% endif %}
 		{% newline %}

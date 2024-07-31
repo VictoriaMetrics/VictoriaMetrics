@@ -291,6 +291,7 @@ type PutObjectAclInput struct {
 }
 
 func (in *PutObjectAclInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.Key = in.Key
 

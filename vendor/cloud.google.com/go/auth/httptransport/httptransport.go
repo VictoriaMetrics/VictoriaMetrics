@@ -116,6 +116,13 @@ func (o *Options) resolveDetectOptions() *detect.DetectOptions {
 	if len(do.Scopes) == 0 && do.Audience == "" && io != nil {
 		do.Audience = o.InternalOptions.DefaultAudience
 	}
+	if o.ClientCertProvider != nil {
+		tlsConfig := &tls.Config{
+			GetClientCertificate: o.ClientCertProvider,
+		}
+		do.Client = transport.DefaultHTTPClientWithTLS(tlsConfig)
+		do.TokenURL = detect.GoogleMTLSTokenURL
+	}
 	return do
 }
 
@@ -195,6 +202,8 @@ func NewClient(opts *Options) (*http.Client, error) {
 	if baseRoundTripper == nil {
 		baseRoundTripper = defaultBaseTransport(clientCertProvider, dialTLSContext)
 	}
+	// Ensure the token exchange transport uses the same ClientCertProvider as the API transport.
+	opts.ClientCertProvider = clientCertProvider
 	trans, err := newTransport(baseRoundTripper, opts)
 	if err != nil {
 		return nil, err

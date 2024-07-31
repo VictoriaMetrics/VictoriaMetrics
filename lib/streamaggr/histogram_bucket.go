@@ -66,10 +66,9 @@ func (as *histogramBucketAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *histogramBucketAggrState) removeOldEntries(ctx *flushCtx, currentTime uint64) {
+func (as *histogramBucketAggrState) removeOldEntries(currentTime uint64) {
 	m := &as.m
-	var staleOutputSamples int
-	m.Range(func(k, v interface{}) bool {
+	m.Range(func(k, v any) bool {
 		sv := v.(*histogramBucketStateValue)
 
 		sv.mu.Lock()
@@ -77,7 +76,6 @@ func (as *histogramBucketAggrState) removeOldEntries(ctx *flushCtx, currentTime 
 		if deleted {
 			// Mark the current entry as deleted
 			sv.deleted = deleted
-			staleOutputSamples++
 		}
 		sv.mu.Unlock()
 
@@ -86,17 +84,16 @@ func (as *histogramBucketAggrState) removeOldEntries(ctx *flushCtx, currentTime 
 		}
 		return true
 	})
-	ctx.a.staleOutputSamples["histogram_bucket"].Add(staleOutputSamples)
 }
 
 func (as *histogramBucketAggrState) flushState(ctx *flushCtx, _ bool) {
 	currentTime := fasttime.UnixTimestamp()
 	currentTimeMsec := int64(currentTime) * 1000
 
-	as.removeOldEntries(ctx, currentTime)
+	as.removeOldEntries(currentTime)
 
 	m := &as.m
-	m.Range(func(k, v interface{}) bool {
+	m.Range(func(k, v any) bool {
 		sv := v.(*histogramBucketStateValue)
 		sv.mu.Lock()
 		if !sv.deleted {

@@ -10,32 +10,44 @@ import (
 
 // See https://docs.docker.com/engine/api/v1.40/#tag/Node
 type node struct {
-	ID   string
-	Spec struct {
-		Labels       map[string]string
-		Role         string
-		Availability string
-	}
-	Description struct {
-		Hostname string
-		Platform struct {
-			Architecture string
-			OS           string
-		}
-		Engine struct {
-			EngineVersion string
-		}
-	}
-	Status struct {
-		State   string
-		Message string
-		Addr    string
-	}
-	ManagerStatus struct {
-		Leader       bool
-		Reachability string
-		Addr         string
-	}
+	ID            string
+	Spec          nodeSpec
+	Description   nodeDescription
+	Status        nodeStatus
+	ManagerStatus nodeManagerStatus
+}
+
+type nodeSpec struct {
+	Labels       map[string]string
+	Role         string
+	Availability string
+}
+
+type nodeDescription struct {
+	Hostname string
+	Platform nodePlatform
+	Engine   nodeEngine
+}
+
+type nodePlatform struct {
+	Architecture string
+	OS           string
+}
+
+type nodeEngine struct {
+	EngineVersion string
+}
+
+type nodeStatus struct {
+	State   string
+	Message string
+	Addr    string
+}
+
+type nodeManagerStatus struct {
+	Leader       bool
+	Reachability string
+	Addr         string
 }
 
 func getNodesLabels(cfg *apiConfig) ([]*promutils.Labels, error) {

@@ -1,7 +1,7 @@
 ---
 sort: 6
 weight: 6
-title: VictoriaLogs FAQ
+title: FAQ
 menu:
   docs:
     identifier: "victorialogs-faq"
@@ -12,9 +12,6 @@ aliases:
 - /VictoriaLogs/FAQ.html
 - /VictoriaLogs/faq.html
 ---
-
-# VictoriaLogs FAQ
-
 ## What is the difference between VictoriaLogs and Elasticsearch (OpenSearch)?
 
 Both Elasticsearch and VictoriaLogs allow ingesting structured and unstructured logs
