@@ -1,23 +1,25 @@
 ---
 sort: 5
 weight: 5
-title: Alerting with vmalert and Managed VictoriaMetrics
+title: Alerting with vmalert and VictoriaMetrics Cloud
 menu:
   docs:
-    parent: "managed"
+    parent: "cloud"
     weight: 5
 aliases:
-- /managed-victoriametrics/alerting-vmalert-managed-victoria-metrics.html
+  - /victoriametrics-cloud/alerting-vmalert-victoria-metrics-cloud/index.html
+  - /managed-victoriametrics/alerting-vmalert-victoria-metrics-cloud/index.html
 ---
-This guide explains the different ways in which you can use vmalert in conjunction with Managed VictoriaMetrics
 
-![Metrics setup](alerting-vmalert-managed-victoria-metrics_setup.webp)
+This guide explains the different ways in which you can use vmalert in conjunction with VictoriaMetrics Cloud
+
+![Metrics setup](alerting-vmalert-victoria-metrics-cloud_setup.webp)
 
 ## Preconditions 
 
 * [vmalert](https://docs.victoriametrics.com/vmalert/) is installed. You can obtain it by building it from [source](https://docs.victoriametrics.com/vmalert/#quickstart), downloading it from the [GitHub releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest), or using the [docker image](https://hub.docker.com/r/victoriametrics/vmalert) for the container ecosystem (such as docker, k8s, etc.).
 * [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) is installed.
-* You have a [single or cluster](https://docs.victoriametrics.com/managed-victoriametrics/quickstart.html#creating-deployment) deployment in [Managed VictoriaMetrics](https://docs.victoriametrics.com/managed-victoriametrics/overview.html).
+* You have a [single or cluster](https://docs.victoriametrics.com/victoriametrics-cloud/quickstart.html#creating-deployment) deployment in [VictoriaMetrics Cloud](https://docs.victoriametrics.com/victoriametrics-cloud/overview.html).
 * If you are using helm, add the [VictoriaMetrics helm chart](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-alert#how-to-install) repository to your helm repositories. This step is optional.
 * If you are using [vmoperator](https://docs.victoriametrics.com/operator/quick-start.html#quick-start), make sure that it and its CRDs are installed. This step is also optional.
 
@@ -45,22 +47,22 @@ groups:
         description: "Job {{ $labels.job }}  instance: {{$labels.instance }} is not up for the last 1 minute"
 ```
 
-### Managed VictoriaMetrics access token and deployment endpoint
+### VictoriaMetrics Cloud access token and deployment endpoint
 
-To use vmalert with Managed VictoriaMetrics, you must create a read/write token, or use an existing one. The token must have write access to ingest recording rules, ALERTS and ALERTS_FOR_STATE metrics, and read access for rules evaluation.
+To use vmalert with VictoriaMetrics Cloud, you must create a read/write token, or use an existing one. The token must have write access to ingest recording rules, ALERTS and ALERTS_FOR_STATE metrics, and read access for rules evaluation.
 
-For instructions on how to create tokens, please refer to this section of the [documentation](https://docs.victoriametrics.com/managed-victoriametrics/quickstart.html#deployment-access).
+For instructions on how to create tokens, please refer to this section of the [documentation](https://docs.victoriametrics.com/victoriametrics-cloud/quickstart.html#deployment-access).
 
 #### Single-Node
 
-![Token created single](alerting-vmalert-managed-victoria-metrics_token_created_single.webp)
-![Copy datasource single](alerting-vmalert-managed-victoria-metrics_copy_datasource_single.webp)
+![Token created single](alerting-vmalert-victoria-metrics-cloud_token_created_single.webp)
+![Copy datasource single](alerting-vmalert-victoria-metrics-cloud_copy_datasource_single.webp)
 
 #### Cluster
 
-![Token created cluster](alerting-vmalert-managed-victoria-metrics_token_created_cluster.webp)
-![Reading datasource cluster](alerting-vmalert-managed-victoria-metrics_copy_reading_datasource_cluster.webp)
-![Writing atasource cluster](alerting-vmalert-managed-victoria-metrics_copy_writing_datasource_cluster.webp)
+![Token created cluster](alerting-vmalert-victoria-metrics-cloud_token_created_cluster.webp)
+![Reading datasource cluster](alerting-vmalert-victoria-metrics-cloud_copy_reading_datasource_cluster.webp)
+![Writing atasource cluster](alerting-vmalert-victoria-metrics-cloud_copy_writing_datasource_cluster.webp)
 
 ### vmalert configuration 
 

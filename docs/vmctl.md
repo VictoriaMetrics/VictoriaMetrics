@@ -974,12 +974,11 @@ Requests to make for tenant 1:0: 28 / 28 [████████████�
 ```
 
 ### Configuration
+
 Run the following command to get all configuration options:
 ```sh
 ./vmctl vm-native --help
 ```
-
-## Tuning
 
 ## Verifying exported blocks from VictoriaMetrics
 
