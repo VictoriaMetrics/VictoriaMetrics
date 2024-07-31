@@ -123,7 +123,7 @@ The container image for vmauth can be found on [docker hub](https://hub.docker.c
 1. Create `vmauth` config
 
 
-Create a vmauth configuration by running the command below fater changing `victoriametrics_ip_or_hostname` to the ip or hostname of your victoriametrics instance.
+Create a vmauth configuration by running the command below after changing `victoriametrics_ip_or_hostname` to the ip or hostname of your victoriametrics instance.
 
 ```sh
 mkdir -p ./vmauth && cat <<END >./vmauth/auth.yaml

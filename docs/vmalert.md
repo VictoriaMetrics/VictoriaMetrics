@@ -174,7 +174,8 @@ END
 2. Run the container
 
 
-Run the command below after replacing `<victoriametrics-ip-or-host>:8428` with your VictoriaMetrics or Prometheus remote write URL
+Run the command below after replacing `<victoriametrics-ip-or-host>:8428` with your VictoriaMetrics ip address or hostname.
+If you are `vmalert` with something other than VictoriaMetrics replace `http://<victoriametrics-ip-or-host>:8428` with your remotewrite endpoint
 
 
 ```sh
@@ -186,8 +187,8 @@ docker run -p 9093:9093 -v ./vmalert:/vmalert docker.io/victoriametrics/vmalert 
 
 To verify if `vmalert` is running run `curl http://localhost:9093/health` and you should get OK as the response.
 
-If you don't see errors in the command line after 30 seconds check VMUI to confirm recording rules are working and sending to VictoriaMetrics to `http://victoria-metrics-host:8428/vmui`.
-Then type `victoriametrics:max:active:series:1d` and press the `execute query` button and if everything is working you see some metrics.
+If you don't see errors in the command line after 30 seconds, check VMUI to confirm recording rules are working and sending to VictoriaMetrics  by going to `http://victoria-metrics-host:8428/vmui`.
+Then type `victoriametrics:max:active:series:1d` and press the `execute query` button and if everything is working you will see some metrics.
 If you are not using VictoriaMetrics you can run the query `victoriametrics:max:active:series:1d` in the explore page of Grafana or in Promethues UI.
 
 ### Build from Source
