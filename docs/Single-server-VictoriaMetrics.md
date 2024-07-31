@@ -3,9 +3,10 @@ sort: 1
 weight: 1
 menu:
   docs:
-    parent: 'victoriametrics'
+    identifier: vm-single-version
+    parent: victoriametrics
     weight: 1
-title: VictoriaMetrics
+title: Single version
 aliases:
   - /Single-server-VictoriaMetrics.html
 ---

@@ -3,7 +3,7 @@ sort: 8
 weight: 8
 menu:
   docs:
-    parent: 'victoriametrics'
+    parent: victoriametrics
     weight: 8
 title: vmctl
 aliases:

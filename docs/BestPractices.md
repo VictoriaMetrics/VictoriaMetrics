@@ -1,9 +1,10 @@
 ---
 sort: 32
 weight: 32
-title: VictoriaMetrics best practices
+title: Best practices
 menu:
   docs:
+    identifier: vm-best-practices
     parent: 'victoriametrics'
     weight: 32
 aliases:
