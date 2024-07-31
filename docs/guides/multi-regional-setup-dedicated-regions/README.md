@@ -1,20 +1,10 @@
----
-weight: 11
-title: "Multi-regional setup with VictoriaMetrics: Dedicated regions for monitoring"
-menu:
-  docs:
-    parent: "guides"
-    weight: 11
-aliases:
-- /guides/multi-regional-setup-dedicated-regions.html
----
 ### Scenario
 
 Let's cover the case. You have multiple regions with workloads and want to collect metrics.
 
 The monitoring setup is in the dedicated regions as shown below:
 
-![Multi-regional setup with VictoriaMetrics: Dedicated regions for monitoring](multi-regional-setup-dedicated-regions.webp)
+![Multi-regional setup with VictoriaMetrics: Dedicated regions for monitoring](setup.webp)
 
 Every workload region (Earth, Mars, Venus) has a vmagent that sends data to multiple regions with a monitoring setup. 
 The monitoring setup (Ground Control 1,2) contains VictoriaMetrics Time Series Database(TSDB) cluster or single.

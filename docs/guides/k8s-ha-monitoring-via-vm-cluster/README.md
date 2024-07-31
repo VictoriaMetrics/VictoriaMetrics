@@ -1,13 +1,3 @@
----
-weight: 9
-title: HA monitoring setup in Kubernetes via VictoriaMetrics Cluster
-menu:
-  docs:
-    parent: "guides"
-    weight: 9
-aliases:
-- /guides/k8s-ha-monitoring-via-vm-cluster.html
----
 **The guide covers:**
 
 * High availability monitoring via [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) in [Kubernetes](https://kubernetes.io/) with Helm charts
@@ -359,15 +349,15 @@ The expected result of the query `count(up{kubernetes_pod_name=~".*vmselect.*"})
 To test via Grafana, we need to install it first. [Install and connect Grafana to VictoriaMetrics](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster.html#4-install-and-connect-grafana-to-victoriametrics-with-helm), login into Grafana and open the metrics [Explore](http://127.0.0.1:3000/explore) page.
 
 
-![Explore](k8s-ha-monitoring-via-vm-cluster_explore.webp)
+![Explore](explore.webp)
 
 Choose `victoriametrics` from the list of datasources and enter `count(up{kubernetes_pod_name=~".*vmselect.*"})` to the **Metric browser** field as shown on the screenshot, then press **Run query** button:
 
-![Explore count up](k8s-ha-monitoring-via-vm-cluster_explore-count-up.webp)
+![Explore count up](explore-count-up.webp)
 
 The expected output is:
 
-![Explore count up graph](k8s-ha-monitoring-via-vm-cluster_explore-count-up-graph.webp)
+![Explore count up graph](explore-count-up-graph.webp)
 
 ## 5. High Availability
 
@@ -395,13 +385,13 @@ Return to Grafana Explore and press the  **Run query** button again.
 
 The expected output is:
 
-![Explore count up graph](k8s-ha-monitoring-via-vm-cluster_explore-count-up-graph.webp)
+![Explore count up graph](explore-count-up-graph.webp)
 
 As you can see, after we scaled down the `vmstorage` replicas number from three to two pods, metrics are still available and correct. The response is not partial as it was before scaling. Also we see that query `count(up{kubernetes_pod_name=~".*vmselect.*"})` returns the same value as before.
 
 To confirm that the number of `vmstorage` pods is equivalent to two, execute the following request in Grafana Explore:
 
-![Explore count up graph 2](k8s-ha-monitoring-via-vm-cluster_explore-count-up-graph2.webp)
+![Explore count up graph 2](explore-count-up-graph2.webp)
 
 
 ## 6. Final thoughts

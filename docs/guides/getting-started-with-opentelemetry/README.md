@@ -1,11 +1,3 @@
----
-weight: 5
-title: How to use OpenTelemetry metrics with VictoriaMetrics
-menu:
-  docs:
-    parent: "guides"
-    weight: 5
----
 VictoriaMetrics supports metrics ingestion with [OpenTelemetry metrics format](https://opentelemetry.io/docs/specs/otel/metrics/).
 This guide covers data ingestion via [opentelemetry-collector](https://opentelemetry.io/docs/collector/) and direct metrics push from application.
 
@@ -44,7 +36,7 @@ Read Data:
 
 ## Using opentelemetry-collector with VictoriaMetrics
 
-![OTEL Collector](getting-started-with-opentelemetry-collector.webp)
+![OTEL Collector](collector.webp)
 
 ### Deploy opentelemetry-collector and configure metrics forwarding
 
@@ -108,7 +100,7 @@ Metrics could be sent to VictoriaMetrics via OpenTelemetry instrumentation libra
 In our example, we'll create a WEB server in [Golang](https://go.dev/) and instrument it with metrics.
 
 ### Building the Go application instrumented with metrics
-Copy the go file from [here](/guides/getting-started-with-opentelemetry-app.go-collector.example). This will give you a basic implementation of a dice roll WEB server with the urls for opentelemetry-collector pointing to localhost:4318. 
+Copy the go file from [here](app.go-collector.example). This will give you a basic implementation of a dice roll WEB server with the urls for opentelemetry-collector pointing to localhost:4318. 
 In the same directory run the following command to create the `go.mod` file:
 ```sh
 go mod init vm/otel
@@ -170,12 +162,12 @@ Metrics could be ingested into VictoriaMetrics directly with HTTP requests. You 
 instrumentation [clients](https://opentelemetry.io/docs/languages/).
 In our example, we'll create a WEB server in [Golang](https://go.dev/) and instrument it with metrics.
 
-![OTEL direct](getting-started-with-opentelemetry-direct.webp)
+![OTEL direct](direct.webp)
 
 
 ### Building the Go application instrumented with metrics
 
-See the full source code of the example [here](/guides/getting-started-with-opentelemetry-app.go.example).
+See the full source code of the example [here](app.go.example).
 
 The list of OpenTelemetry dependencies for `go.mod` is the following:
 
@@ -322,7 +314,7 @@ func newMetricsController(ctx context.Context) (*controller.Controller, error) {
 
 This controller will collect and push collected metrics to VictoriaMetrics address with interval of `10s`.
 
-See the full source code of the example [here](/guides/getting-started-with-opentelemetry-app.go.example).
+See the full source code of the example [here](app.go.example).
 
 ### Test metrics ingestion
 
@@ -349,7 +341,7 @@ curl http://localhost:8081/api/slow
 Open [vmui](https://docs.victoriametrics.com/#vmui) and query `http_requests_total` or `http_active_requests`
 with [metricsql](https://docs.victoriametrics.com/metricsql/).
 
-![OTEL VMUI](getting-started-with-opentelemetry-vmui.webp)
+![OTEL VMUI](vmui.webp)
 
 ## Limitations
 
