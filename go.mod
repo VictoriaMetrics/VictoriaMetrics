@@ -133,3 +133,6 @@ require (
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8 // indirect
 )
+
+// just for dev before metricsql is merged into VictoriaMetrics
+replace github.com/VictoriaMetrics/metricsql => github.com/changshun-shi/metricsql v0.0.0-20240725044341-f9471f2c0be7

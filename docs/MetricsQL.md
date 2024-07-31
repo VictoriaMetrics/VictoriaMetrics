@@ -741,6 +741,16 @@ This function is supported by PromQL.
 
 See also [irate](#irate) and [rollup_rate](#rollup_rate).
 
+#### rate_over_delta
+
+`rate_over_sum(series_selector[d])` is a [rollup function](#rollup-functions), which calculates per-second rate over the delta [raw samples](./keyConcepts.md#raw-samples)
+on the given lookbehind window `d`. The calculations are performed individually per each time series returned
+from the given [series_selector](./keyConcepts.md#filtering).
+
+when a counter is reported as a delta, the function will be helpful.
+
+Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
 #### rate_over_sum
 
 `rate_over_sum(series_selector[d])` is a [rollup function](#rollup-functions), which calculates per-second rate over the sum of [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
