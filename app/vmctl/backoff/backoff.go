@@ -24,16 +24,20 @@ type Backoff struct {
 }
 
 // New initialize backoff object
-func New(retries int, factor float64, minDuration time.Duration) *Backoff {
-	return &Backoff{
+func New(retries int, factor float64, minDuration time.Duration) (*Backoff, error) {
+	b := &Backoff{
 		retries:     retries,
 		factor:      factor,
 		minDuration: minDuration,
 	}
+	if err := b.validate(); err != nil {
+		return nil, err
+	}
+	return b, nil
 }
 
-// Validate checks backoff object for correct values
-func (b *Backoff) Validate() error {
+// validate checks backoff object for correct values
+func (b *Backoff) validate() error {
 	if b.retries <= 0 {
 		return fmt.Errorf("retries must be greater than 0")
 	}

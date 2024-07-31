@@ -53,7 +53,7 @@ func main() {
 			{
 				Name:   "opentsdb",
 				Usage:  "Migrate time series from OpenTSDB",
-				Flags:  mergeFlags(globalFlags, backoffFlags, otsdbFlags, vmFlags),
+				Flags:  mergeFlags(globalFlags, otsdbFlags, vmFlags),
 				Before: beforeFn,
 				Action: func(c *cli.Context) error {
 					fmt.Println("OpenTSDB import mode")
@@ -164,7 +164,7 @@ func main() {
 			{
 				Name:   "remote-read",
 				Usage:  "Migrate time series via Prometheus remote-read protocol",
-				Flags:  mergeFlags(globalFlags, backoffFlags, remoteReadFlags, vmFlags),
+				Flags:  mergeFlags(globalFlags, remoteReadFlags, vmFlags),
 				Before: beforeFn,
 				Action: func(c *cli.Context) error {
 					fmt.Println("Remote-read import mode")
@@ -267,7 +267,7 @@ func main() {
 			{
 				Name:   "vm-native",
 				Usage:  "Migrate time series between VictoriaMetrics installations via native binary format",
-				Flags:  mergeFlags(globalFlags, backoffFlags, vmNativeFlags),
+				Flags:  mergeFlags(globalFlags, vmNativeFlags),
 				Before: beforeFn,
 				Action: func(c *cli.Context) error {
 					fmt.Println("VictoriaMetrics Native import mode")
@@ -276,12 +276,11 @@ func main() {
 						return fmt.Errorf("flag %q can't be empty", vmNativeFilterMatch)
 					}
 
-					backf := backoff.New(
-						c.Int(backoffRetries),
-						c.Float64(backoffFactor),
-						c.Duration(backoffMinDuration))
-
-					if err := backf.Validate(); err != nil {
+					backf, err := backoff.New(
+						c.Int(vmNativeBackoffRetries),
+						c.Float64(vmNativeBackoffFactor),
+						c.Duration(vmNativeBackoffMinDuration))
+					if err != nil {
 						return fmt.Errorf("failed to validate backoff params: %s", err)
 					}
 
@@ -442,12 +441,11 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 		return vm.Config{}, fmt.Errorf("failed to create Transport: %s", err)
 	}
 
-	backf := backoff.New(
-		c.Int(backoffRetries),
-		c.Float64(backoffFactor),
-		c.Duration(backoffMinDuration))
-
-	if err := backf.Validate(); err != nil {
+	backf, err := backoff.New(
+		c.Int(vmBackoffRetries),
+		c.Float64(vmBackoffFactor),
+		c.Duration(vmBackoffMinDuration))
+	if err != nil {
 		return vm.Config{}, fmt.Errorf("failed to validate backoff params: %s", err)
 	}
 

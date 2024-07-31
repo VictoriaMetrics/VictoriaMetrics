@@ -56,6 +56,10 @@ const (
 	vmRateLimit  = "vm-rate-limit"
 
 	vmInterCluster = "vm-intercluster"
+
+	vmBackoffRetries     = "vm-backoff-retries"
+	vmBackoffFactor      = "vm-backoff-factor"
+	vmBackoffMinDuration = "vm-backoff-min-duration"
 )
 
 var (
@@ -145,6 +149,21 @@ var (
 			Name:  vmInsecureSkipVerify,
 			Usage: "Whether to skip tls verification when connecting to '--vmAddr'",
 			Value: false,
+		},
+		&cli.IntFlag{
+			Name:  vmBackoffRetries,
+			Value: 10,
+			Usage: "How many retries to perform before giving up.",
+		},
+		&cli.Float64Flag{
+			Name:  vmBackoffFactor,
+			Value: 1.8,
+			Usage: "Factor to multiply the base duration after each failed retry. Must be greater than 1.0",
+		},
+		&cli.DurationFlag{
+			Name:  vmBackoffMinDuration,
+			Value: time.Second * 2,
+			Usage: "Minimum duration to wait before the first retry. Each subsequent retry will be multiplied by the factor.",
 		},
 	}
 )
@@ -430,6 +449,10 @@ const (
 	vmNativeDstCAFile             = "vm-native-dst-ca-file"
 	vmNativeDstServerName         = "vm-native-dst-server-name"
 	vmNativeDstInsecureSkipVerify = "vm-native-dst-insecure-skip-verify"
+
+	vmNativeBackoffRetries     = "vm-native-backoff-retries"
+	vmNativeBackoffFactor      = "vm-native-backoff-factor"
+	vmNativeBackoffMinDuration = "vm-native-backoff-min-duration"
 )
 
 var (
@@ -599,6 +622,21 @@ var (
 				"Non-binary export/import API is less efficient, but supports deduplication if it is configured on vm-native-src-addr side.",
 			Value: false,
 		},
+		&cli.IntFlag{
+			Name:  vmNativeBackoffRetries,
+			Value: 10,
+			Usage: "How many retries to perform before giving up.",
+		},
+		&cli.Float64Flag{
+			Name:  vmNativeBackoffFactor,
+			Value: 1.8,
+			Usage: "Factor to multiply the base duration after each failed retry. Must be greater than 1.0",
+		},
+		&cli.DurationFlag{
+			Name:  vmNativeBackoffMinDuration,
+			Value: time.Second * 2,
+			Usage: "Minimum duration to wait before the first retry. Each subsequent retry will be multiplied by the factor.",
+		},
 	}
 )
 
@@ -724,32 +762,6 @@ var (
 			Name:  remoteReadDisablePathAppend,
 			Usage: "Whether to disable automatic appending of the /api/v1/read suffix to --remote-read-src-addr",
 			Value: false,
-		},
-	}
-)
-
-const (
-	backoffRetries     = "backoff-retries"
-	backoffFactor      = "backoff-factor"
-	backoffMinDuration = "backoff-min-duration"
-)
-
-var (
-	backoffFlags = []cli.Flag{
-		&cli.IntFlag{
-			Name:  backoffRetries,
-			Value: 10,
-			Usage: "How many retries to perform before giving up.",
-		},
-		&cli.Float64Flag{
-			Name:  backoffFactor,
-			Value: 1.8,
-			Usage: "Factor to multiply the base duration after each failed retry. Must be greater than 1.0",
-		},
-		&cli.DurationFlag{
-			Name:  backoffMinDuration,
-			Value: time.Second * 2,
-			Usage: "Minimum duration to wait before the first retry. Each subsequent retry will be multiplied by the factor.",
 		},
 	}
 )

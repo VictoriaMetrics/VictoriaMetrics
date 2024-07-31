@@ -110,3 +110,32 @@ func TestBackoffRetry_Success(t *testing.T) {
 	resultExpected := 1
 	f(retryFunc, resultExpected)
 }
+
+func TestBackoff_New(t *testing.T) {
+	f := func(retries int, factor float64, minDuration time.Duration, errExpected string) {
+		t.Helper()
+
+		_, err := New(retries, factor, minDuration)
+		if err == nil {
+			if errExpected != "" {
+				t.Fatalf("expecting non-nil error")
+			}
+			return
+		}
+		if err.Error() != errExpected {
+			t.Fatalf("unexpected error: got %q; want %q", err.Error(), errExpected)
+		}
+	}
+
+	// empty retries
+	f(0, 1.1, time.Millisecond*10, "retries must be greater than 0")
+
+	// empty factor
+	f(1, 0, time.Millisecond*10, "factor must be greater than 1")
+
+	// empty minDuration
+	f(1, 1.1, 0, "minDuration must be greater than 0")
+
+	// no errors
+	f(1, 1.1, time.Millisecond*10, "")
+}
