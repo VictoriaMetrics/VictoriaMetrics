@@ -192,7 +192,6 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
 
   return (
     <>
-      {metric}
       <Autocomplete
         loading={loading}
         disabledFullScreen
