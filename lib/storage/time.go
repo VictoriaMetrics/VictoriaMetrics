@@ -40,6 +40,7 @@ var (
 )
 
 func (tr *TimeRange) String() string {
+	// TODO(rtm0): Add if for global time range
 	start := TimestampToHumanReadableFormat(tr.MinTimestamp)
 	end := TimestampToHumanReadableFormat(tr.MaxTimestamp)
 	return fmt.Sprintf("[%s..%s]", start, end)

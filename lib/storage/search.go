@@ -142,13 +142,15 @@ func (s *Search) reset() {
 //
 // Init returns the upper bound on the number of found time series.
 func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) int {
-	if storage.disablePerDayIndexes {
-		tr = globalIndexTimeRange
-		qt = qt.NewChild("init series search in global index: filters=%s", tfss)
-	} else {
-		qt = qt.NewChild("init series search in per-day index: filters=%s, timeRange=%s", tfss, &tr)
-	}
+	qt = qt.NewChild("init series search: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
+
+	indexTR := tr
+	dataTR := tr
+	if storage.disablePerDayIndex {
+		indexTR = globalIndexTimeRange
+	}
+
 	if s.needClosing {
 		logger.Panicf("BUG: missing MustClose call before the next call to Init")
 	}
@@ -163,7 +165,7 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	s.needClosing = true
 
 	var tsids []TSID
-	metricIDs, err := s.idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
+	metricIDs, err := s.idb.searchMetricIDs(qt, tfss, indexTR, maxMetrics, deadline)
 	if err == nil {
 		tsids, err = s.idb.getTSIDsFromMetricIDs(qt, metricIDs, deadline)
 		if err == nil {
@@ -173,7 +175,7 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	// It is ok to call Init on non-nil err.
 	// Init must be called before returning because it will fail
 	// on Search.MustClose otherwise.
-	s.ts.Init(storage.tb, tsids, tr)
+	s.ts.Init(storage.tb, tsids, dataTR)
 	qt.Printf("search for parts with data for %d series", len(tsids))
 	if err != nil {
 		s.err = err

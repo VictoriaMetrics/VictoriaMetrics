@@ -1857,6 +1857,8 @@ see [these docs](https://docs.victoriametrics.com/stream-aggregation/#deduplicat
 
 ## Storage
 
+TODO(rtm0): Mention index tuning here (next to indexdb description)
+
 VictoriaMetrics buffers the ingested data in memory for up to a second. Then the buffered data is written to in-memory `parts`,
 which can be searched during queries. The in-memory `parts` are periodically persisted to disk, so they could survive unclean shutdown
 such as out of memory crash, hardware power loss or `SIGKILL` signal. The interval for flushing the in-memory data to disk
@@ -2509,20 +2511,18 @@ If your use case involves
 [high cardinality](https://docs.victoriametrics.com/faq/#what-is-high-cardinality)
 with
 [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate)
-over a long [retention period](https://docs.victoriametrics.com/#retention),
-then this default setting of having both indexes should be ideal for you.
+then this default setting should be ideal for you.
 
 A prominent example is Kubernetes. Its resources export a lot of metrics. The
 resources are also created and deleted very often causing the metric label
 values to change. This, in turn, results in new time series. The per-day index
-speeds up data retrieval on longer retention periods as data ingested grows over
-time.
+speeds up data retrieval in this case.
 
 But if your use case assumes low or no churn rate, then you might be benefiting
-from disabling the per-day indexe by setting the flag
-`-disablePerDayIndexes=true`. This will improve the time series ingestion rate
-and decrease the disk usage, since no time is spent to write to the per-day
-index and no disk space is used to store it.
+from disabling the per-day index by setting the flag `-disablePerDayIndex`. This
+will improve the time series ingestion rate and decrease the disk space usage,
+since no time is spent to write to the per-day index and no disk space is used
+to store it.
 
 Example use cases:
 
@@ -2536,27 +2536,13 @@ Example use cases:
     time-series will be written to the per-day index for every day of data.
 
 -   IoT: a huge set of sensors exports time series with the sensor ID used as a
-    metric label value. Since sensor additions or remotals happen infrequently,
+    metric label value. Since sensor additions or removals happen infrequently,
     the time series churn rate will be low. With the per-day index disabled, the
     entire time series set will be registered in global index during the initial
     data ingestion and the global index will receive small updates when a sensor
     is added or removed.
 
 What to expect:
-
--   The following search operations will ignore the time range provided with
-    the query. I.e. the returned results will correspond to the entire retention
-    period no matter which time range or date have been requested:
-
-    -   [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels)
-    -   [/api/v1/label/…/values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues)
-    -   [/api/v1/status/tsdb](https://docs.victoriametrics.com/url-examples/#apiv1statustsdb)
-    -   [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series)
-    -   TODO: /api/v1/query
-    -   TODO: /api/v1/query_range
-
--   [Query traces](https://docs.victoriametrics.com/?highlight=trace#query-tracing)
-    will indicate that the search is performed using the global index.
 
 -   If the data was previously ingested with the per-day index enabled and then
     a search operation is performed with the per-day index disabled, the search
@@ -2570,10 +2556,6 @@ What to expect:
     to false). This is because at the time of initial ingestion nothing was
     written	to the per-day index and at the search time the query is performed
     on the per-day index.
-
-    TODO(rtm0): To fix that, the per-day index needs to be populated. One way to
-    do that is by re-registering metric names for each date the data has been
-    previously ingested for.
 
 ## Data migration
 

@@ -32,7 +32,7 @@ import (
 const (
 	// Prefix for MetricName->TSID entries.
 	//
-	// This index is used only when -disablePerDayIndexes flag is set.
+	// This index is used only when -disablePerDayIndex flag is set.
 	//
 	// Otherwise, this index was substituted with nsPrefixDateMetricNameToTSID,
 	// since the MetricName->TSID index may require big amounts of memory for
@@ -513,8 +513,11 @@ func (is *indexSearch) createGlobalIndexes(tsid *TSID, mn *MetricName) {
 	ii := getIndexItems()
 	defer putIndexItems(ii)
 
-	if is.db.s.disablePerDayIndexes {
+	if is.db.s.disablePerDayIndex {
 		// Create metricName -> TSID entry.
+		// This index is used for searching a TSID by metric name during data
+		// ingestion or metric name registration when -disablePerDayIndex flag
+		// is set.
 		ii.B = marshalCommonPrefix(ii.B, nsPrefixMetricNameToTSID)
 		ii.B = mn.Marshal(ii.B)
 		ii.B = append(ii.B, kvSeparatorChar)
@@ -576,13 +579,10 @@ func putIndexItems(ii *indexItems) {
 
 var indexItemsPool sync.Pool
 
-// SearchLabelNamesWithFiltersOnTimeRange returns all the label names, which match the given tfss on the given tr.
-func (db *indexDB) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64) ([]string, error) {
-	if tr == globalIndexTimeRange {
-		qt = qt.NewChild("search for label names in global index: filters=%s, maxLabelNames=%d, maxMetrics=%d", tfss, maxLabelNames, maxMetrics)
-	} else {
-		qt = qt.NewChild("search for label names in per-day index: filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", tfss, &tr, maxLabelNames, maxMetrics)
-	}
+// SearchLabelNames returns all the label names, which match the given tfss on
+// the given tr.
+func (db *indexDB) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64) ([]string, error) {
+	qt = qt.NewChild("search for label names: filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", tfss, &tr, maxLabelNames, maxMetrics)
 	defer qt.Done()
 
 	lns := make(map[string]struct{})
@@ -619,6 +619,7 @@ func (db *indexDB) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer
 func (is *indexSearch) searchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer, lns map[string]struct{}, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int) error {
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
 	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
+	// TODO(rtm0): Move to a separate func in storage.go
 	if tr == globalIndexTimeRange || minDate > maxDate || maxDate-minDate > maxDaysForPerDaySearch {
 		qtChild := qt.NewChild("search for label names in global index: filters=%s", tfss)
 		err := is.searchLabelNamesWithFiltersOnDate(qtChild, lns, tfss, globalIndexDate, maxLabelNames, maxMetrics)
@@ -798,8 +799,8 @@ func (is *indexSearch) getLabelNamesForMetricIDs(qt *querytracer.Tracer, metricI
 	qt.Printf("get %d distinct label names from %d metricIDs", foundLabelNames, len(metricIDs))
 }
 
-// SearchLabelValuesWithFiltersOnTimeRange returns label values for the given labelName, tfss and tr.
-func (db *indexDB) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer, labelName string, tfss []*TagFilters, tr TimeRange,
+// SearchLabelValues returns label values for the given labelName, tfss and tr.
+func (db *indexDB) SearchLabelValues(qt *querytracer.Tracer, labelName string, tfss []*TagFilters, tr TimeRange,
 	maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
 	if tr == globalIndexTimeRange {
 		qt = qt.NewChild("search for label values in global index: labelName=%q, filters=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, maxLabelValues, maxMetrics)
@@ -1868,7 +1869,7 @@ func (is *indexSearch) getTSIDByMetricNameNoExtDB(dst *TSID, metricName []byte, 
 	ts := &is.ts
 	kb := &is.kb
 
-	// TODO(rtm0): Also check that the -disablePerDayIndexes is set?
+	// TODO(rtm0): Also check that the -disablePerDayIndex is set?
 	// (since nsPrefixMetricNameToTSID makes sense only in this case)
 	if date == globalIndexDate {
 		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixMetricNameToTSID)
@@ -2299,6 +2300,7 @@ func (is *indexSearch) searchMetricIDsInternal(qt *querytracer.Tracer, tfss []*T
 	return metricIDs, nil
 }
 
+// TODO(rtm0): Split into two funcs (fast and slow)
 func (is *indexSearch) updateMetricIDsForTagFilters(qt *querytracer.Tracer, metricIDs *uint64set.Set, tfs *TagFilters, tr TimeRange, maxMetrics int) error {
 	prevMetricIDsLen := metricIDs.Len()
 	done := func(qt *querytracer.Tracer) {
@@ -2793,7 +2795,7 @@ const (
 )
 
 func (is *indexSearch) createPerDayIndexes(date uint64, tsid *TSID, mn *MetricName) {
-	if is.db.s.disablePerDayIndexes {
+	if is.db.s.disablePerDayIndex {
 		return
 	}
 	ii := getIndexItems()
