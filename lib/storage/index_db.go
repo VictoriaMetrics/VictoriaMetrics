@@ -1572,12 +1572,8 @@ func (db *indexDB) DeleteTSIDs(qt *querytracer.Tracer, tfss []*TagFilters) (int,
 	}
 
 	// Obtain metricIDs to delete.
-	tr := TimeRange{
-		MinTimestamp: 0,
-		MaxTimestamp: (1 << 63) - 1,
-	}
 	is := db.getIndexSearch(noDeadline)
-	metricIDs, err := is.searchMetricIDs(qt, tfss, tr, 2e9)
+	metricIDs, err := is.searchMetricIDs(qt, tfss, globalIndexTimeRange, 2e9)
 	db.putIndexSearch(is)
 	if err != nil {
 		return 0, err
@@ -2489,12 +2485,13 @@ var errFallbackToGlobalSearch = errors.New("fall back from per-day index search 
 
 func (is *indexSearch) tryUpdatingMetricIDsForDateRange(qt *querytracer.Tracer, metricIDs *uint64set.Set, tfs *TagFilters, tr TimeRange, maxMetrics int) error {
 	is.db.dateRangeSearchCalls.Add(1)
-	minDate := uint64(tr.MinTimestamp) / msecPerDay
-	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
-	if minDate > maxDate || maxDate-minDate > maxDaysForPerDaySearch {
-		// Too much dates must be covered. Give up, since it may be slow.
+
+	if tr == globalIndexTimeRange {
 		return errFallbackToGlobalSearch
 	}
+
+	minDate := uint64(tr.MinTimestamp) / msecPerDay
+	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
 	if minDate == maxDate {
 		// Fast path - query only a single date.
 		m, err := is.getMetricIDsForDateAndFilters(qt, minDate, tfs, maxMetrics)
