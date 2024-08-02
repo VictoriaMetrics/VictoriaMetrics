@@ -299,6 +299,10 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		addInfluxResponseHeaders(w)
 		influxutils.WriteDatabaseNames(w)
 		return true
+	case "influx/health":
+		influxHealthRequests.Inc()
+		influxutils.WriteHealthCheckResponse(w)
+		return true
 	case "opentelemetry/api/v1/push", "opentelemetry/v1/metrics":
 		opentelemetryPushRequests.Inc()
 		if err := opentelemetry.InsertHandler(at, r); err != nil {
@@ -423,7 +427,8 @@ var (
 	influxWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/influx/write", protocol="influx"}`)
 	influxWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/influx/write", protocol="influx"}`)
 
-	influxQueryRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/influx/query", protocol="influx"}`)
+	influxQueryRequests  = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/influx/query", protocol="influx"}`)
+	influxHealthRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/influx/health", protocol="influx"}`)
 
 	opentelemetryPushRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/opentelemetry/v1/metrics", protocol="opentelemetry"}`)
 	opentelemetryPushErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/opentelemetry/v1/metrics", protocol="opentelemetry"}`)
