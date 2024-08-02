@@ -13,15 +13,15 @@ In the rest of the documentation we will assume you have configured your push en
 ## Documented Collectors/Agents
 
 
-* [Telegraf](https://docs.victoriametrics.com/data-ingestion/telegraf/)
-* [Vector](https://docs.victoriametrics.com/data-ingestion/vector/)
-* [VMAgent](https://docs.victoriametrics.com/data-ingestion/vmagent)
-* [Grafana Alloy](https://docs.victoriametrics.com/data-ingestion/alloy/)
-* [Prometheus](https://docs.victoriametrics.com/data-ingestion/prometheus/)
+- [Telegraf](https://docs.victoriametrics.com/data-ingestion/telegraf/)
+- [Vector](https://docs.victoriametrics.com/data-ingestion/vector/)
+- [VMAgent](https://docs.victoriametrics.com/data-ingestion/vmagent)
+- [Grafana Alloy](https://docs.victoriametrics.com/data-ingestion/alloy/)
+- [Prometheus](https://docs.victoriametrics.com/data-ingestion/prometheus/)
 
 
 ## Supported Platforms
 
 
-* [Proxmox Virtual Environment and Proxmox Backup Server](https://docs.victoriametrics.com/data-ingestion/proxmox/)
+- [Proxmox Virtual Environment and Proxmox Backup Server](https://docs.victoriametrics.com/data-ingestion/proxmox/)
 

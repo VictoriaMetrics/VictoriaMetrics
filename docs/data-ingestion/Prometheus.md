@@ -12,8 +12,8 @@ aliases:
   - /data-ingestion/Prometheus.html
 ---
 
-VictoriaMetrics Supports ingesting data from Prometheus via the Prometheus remote write protocol.
-The documentation for pushing data from Prometheus to VictoriaMetrics is located here](https://docs.victoriametrics.com/#prometheus-setup) in order to maintain backward compatibility existing documentation.
+VictoriaMetrics supports ingesting data from Prometheus via the Prometheus remote write protocol.
+The documentation for pushing data from Prometheus to VictoriaMetrics is located here](https://docs.victoriametrics.com/#prometheus-setup)
 
 
 ## References

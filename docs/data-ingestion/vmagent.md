@@ -44,7 +44,9 @@ This requires setting the `-remoteWrite.url` flag in the command line arguments 
 This requires setting the `-remoteWrite.basicAuth.username` and `-remoteWrite.basicAuth.password` command line flags
 
 ```sh
-/path/to/vmagent -remoteWrite.url=https://<victoriametrics_url>:<victoriametrics_port>/api/v1/write -remoteWrite.basicAuth.username=<username> -remoteWrite.basicAuth.password=<password>
+/path/to/vmagent -remoteWrite.url=https://<victoriametrics_url>:<victoriametrics_port>/api/v1/write \
+-remoteWrite.basicAuth.username=<username> \
+-remoteWrite.basicAuth.password=<password>
 ```
 
 
@@ -54,17 +56,16 @@ This requires setting the `-remoteWrite.basicAuth.username` and `-remoteWrite.ba
 /path/to/vmagent -remoteWrite.url=https://<victoriametrics_url>:<victoriametrics_port>/api/v1/write -remoteWrite.bearerToken=<token>
 ```
 
-The token can be placed in a file accessed via `-remoteWrite.bearerTokenFile`.
-The file needs to be readable by the user `vmagent` is running as
-The token file should look like
+The token can be placed in a file and accessed via the `-remoteWrite.bearerTokenFile` command line argument.
+The file needs to be readable by the user `vmagent` is running as.
+The token file should only contain the token as seen below.
 
 
 ```
 <token>
-
 ```
 
-and the vmagent command will look like 
+The command will to run `vmagent` to run vmagent with a token file will be.
 
 ```sh
 /path/to/vmagent -remoteWrite.url=https://<victoriametrics_url>:<victoriametrics_port>/api/v1/write -remoteWrite.bearerTokenFile=/path/to/tokenfile
@@ -84,5 +85,5 @@ If you are using Self signed certificates you can either certificates issues usi
 
 
 ## References
-- [vmagent docs]()
-- [vmagent commandline flags]()
+- [vmagent docs](https://docs.victoriametrics.com/vmagent/)
+- [vmagent commandline flags](https://docs.victoriametrics.com/vmagent/#advanced-usage)
