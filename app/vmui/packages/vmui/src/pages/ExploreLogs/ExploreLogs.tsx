@@ -31,7 +31,6 @@ const ExploreLogs: FC = () => {
   const { logs, isLoading, error, fetchLogs } = useFetchLogs(serverUrl, query, limit);
   const { fetchLogHits, ...dataLogHits } = useFetchLogHits(serverUrl, query);
   const [queryError, setQueryError] = useState<ErrorTypes | string>("");
-  const [markdownParsing, setMarkdownParsing] = useState(getFromStorage("LOGS_MARKDOWN") === "true");
 
   const getPeriod = useCallback(() => {
     const relativeTimeOpts = relativeTimeOptions.find(d => d.id === relativeTime);
@@ -65,11 +64,6 @@ const ExploreLogs: FC = () => {
     saveToStorage("LOGS_LIMIT", `${limit}`);
   };
 
-  const handleChangeMarkdownParsing = (val: boolean) => {
-    saveToStorage("LOGS_MARKDOWN", `${val}`);
-    setMarkdownParsing(val);
-  };
-
   useEffect(() => {
     if (query) handleRunQuery();
   }, [periodState]);
@@ -84,11 +78,9 @@ const ExploreLogs: FC = () => {
         query={query}
         error={queryError}
         limit={limit}
-        markdownParsing={markdownParsing}
         onChange={setQuery}
         onChangeLimit={handleChangeLimit}
         onRun={handleRunQuery}
-        onChangeMarkdownParsing={handleChangeMarkdownParsing}
       />
       {isLoading && <Spinner message={"Loading logs..."}/>}
       {error && <Alert variant="error">{error}</Alert>}
@@ -100,10 +92,7 @@ const ExploreLogs: FC = () => {
           isLoading={isLoading ? false : dataLogHits.isLoading}
         />
       )}
-      <ExploreLogsBody
-        data={logs}
-        markdownParsing={markdownParsing}
-      />
+      <ExploreLogsBody data={logs}/>
     </div>
   );
 };
