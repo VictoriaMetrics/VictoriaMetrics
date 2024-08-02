@@ -15,10 +15,10 @@
     "endsAt":{%q= alert.End.Format(time.RFC3339Nano) %},
     {% endif %}
     "labels": {
-        {% code lbls := alert.toPromLabels(relabelCfg) %}
-        {% code ll := len(lbls) %}
-        {% for idx, l := range lbls %}
-            {%q= l.Name %}:{%q= l.Value %}{% if idx != ll-1 %}, {% endif %}
+        {% code a := len(alert.Labels) %}
+        {% for k, v := range alert.Labels %}
+            {% code a = a-1 %}
+            {%q= k %}:{%q= v %}{% if a > 0 %}, {% endif %}
         {% endfor %}
     },
     "annotations": {

@@ -10,7 +10,10 @@ import (
 	"testing"
 	"time"
 
+	"gopkg.in/yaml.v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
 func TestAlertManager_Addr(t *testing.T) {
@@ -80,8 +83,8 @@ func TestAlertManager_Send(t *testing.T) {
 				t.Fatalf("expected header %q to be set to %q; got %q instead", headerKey, headerValue, r.Header.Get(headerKey))
 			}
 		case 3:
-			if r.Header.Get(headerKey) != headerValue {
-				t.Fatalf("expected header %q to be set to %q; got %q instead", headerKey, headerValue, r.Header.Get(headerKey))
+			if r.Header.Get(headerKey) != "bar" {
+				t.Fatalf("expected header %q to be set to %q; got %q instead", headerKey, "bar", r.Header.Get(headerKey))
 			}
 		}
 	})
@@ -95,31 +98,55 @@ func TestAlertManager_Send(t *testing.T) {
 		},
 		Headers: []string{fmt.Sprintf("%s:%s", headerKey, headerValue)},
 	}
+	relabelCfgRaw := `
+- action: drop
+  if: '{tenant="0"}'
+  regex: ".*"
+`
+	var relabelCfg []promrelabel.RelabelConfig
+	_ = yaml.Unmarshal([]byte(relabelCfgRaw), &relabelCfg)
+	parsedConfigs, _ := promrelabel.ParseRelabelConfigs(relabelCfg)
 	am, err := NewAlertManager(srv.URL+alertManagerPath, func(alert Alert) string {
 		return strconv.FormatUint(alert.GroupID, 10) + "/" + strconv.FormatUint(alert.ID, 10)
-	}, aCfg, nil, 0)
+	}, aCfg, parsedConfigs, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := am.Send(context.Background(), []Alert{{}, {}}, nil); err == nil {
+
+	if err := am.Send(context.Background(), []Alert{{Labels: map[string]string{"a": "b"}}}, nil); err == nil {
 		t.Fatalf("expected connection error got nil")
 	}
-	if err := am.Send(context.Background(), []Alert{}, nil); err == nil {
+
+	if err := am.Send(context.Background(), []Alert{{Labels: map[string]string{"a": "b"}}}, nil); err == nil {
 		t.Fatalf("expected wrong http code error got nil")
 	}
+
 	if err := am.Send(context.Background(), []Alert{{
 		GroupID:     0,
 		Name:        "alert0",
 		Start:       time.Now().UTC(),
 		End:         time.Now().UTC(),
+		Labels:      map[string]string{"alertname": "alert0"},
 		Annotations: map[string]string{"a": "b", "c": "d", "e": "f"},
 	}}, map[string]string{headerKey: "bar"}); err != nil {
 		t.Fatalf("unexpected error %s", err)
 	}
-	if c != 2 {
-		t.Fatalf("expected 2 calls(count from zero) to server got %d", c)
-	}
-	if err := am.Send(context.Background(), nil, map[string]string{headerKey: headerValue}); err != nil {
+
+	// message will be dropped because of relabeling
+	if err := am.Send(context.Background(), []Alert{{
+		Name:   "alert1",
+		Labels: map[string]string{"rule": "test", "tenant": "0"},
+	}}, nil); err != nil {
 		t.Fatalf("unexpected error %s", err)
+	}
+
+	if err := am.Send(context.Background(), []Alert{{
+		Name:   "alert2",
+		Labels: map[string]string{"rule": "test", "tenant": "1"},
+	}}, map[string]string{headerKey: "bar"}); err != nil {
+		t.Fatalf("unexpected error %s", err)
+	}
+	if c != 3 {
+		t.Fatalf("expected 3 calls(count from zero) to server got %d", c)
 	}
 }

@@ -53,21 +53,21 @@ func streamamRequest(qw422016 *qt422016.Writer, alerts []Alert, generatorURL fun
 //line app/vmalert/notifier/alertmanager_request.qtpl:16
 		qw422016.N().S(`"labels": {`)
 //line app/vmalert/notifier/alertmanager_request.qtpl:18
-		lbls := alert.toPromLabels(relabelCfg)
+		a := len(alert.Labels)
 
 //line app/vmalert/notifier/alertmanager_request.qtpl:19
-		ll := len(lbls)
-
+		for k, v := range alert.Labels {
 //line app/vmalert/notifier/alertmanager_request.qtpl:20
-		for idx, l := range lbls {
+			a = a - 1
+
 //line app/vmalert/notifier/alertmanager_request.qtpl:21
-			qw422016.N().Q(l.Name)
+			qw422016.N().Q(k)
 //line app/vmalert/notifier/alertmanager_request.qtpl:21
 			qw422016.N().S(`:`)
 //line app/vmalert/notifier/alertmanager_request.qtpl:21
-			qw422016.N().Q(l.Value)
+			qw422016.N().Q(v)
 //line app/vmalert/notifier/alertmanager_request.qtpl:21
-			if idx != ll-1 {
+			if a > 0 {
 //line app/vmalert/notifier/alertmanager_request.qtpl:21
 				qw422016.N().S(`,`)
 //line app/vmalert/notifier/alertmanager_request.qtpl:21
