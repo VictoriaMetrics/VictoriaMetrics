@@ -629,10 +629,10 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tr
 	var mu sync.Mutex
 	wg := getWaitGroup()
 	var errGlobal error
-	qt = qt.NewChild("parallel search for label names in per-day index: filters=%s, timeRange=%s", tfss, &tr)
+	qt = qt.NewChild("parallel search for label names: filters=%s, timeRange=%s", tfss, &tr)
 	for date := minDate; date <= maxDate; date++ {
 		wg.Add(1)
-		qtChild := qt.NewChild("search for label names on date: filters=%s, date=%s", tfss, dateToString(date))
+		qtChild := qt.NewChild("search for label names: filters=%s, date=%s", tfss, dateToString(date))
 		go func(date uint64) {
 			defer func() {
 				qtChild.Done()
