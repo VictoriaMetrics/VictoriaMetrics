@@ -1468,6 +1468,92 @@ func testCountAllMetricIDs(s *Storage, tr TimeRange) int {
 	return len(ids)
 }
 
+func TestStorageDate(t *testing.T) {
+	defer testRemoveAll(t)
+
+	f := func(t *testing.T, disablePerDayIndex bool, millis int64, want uint64) {
+		t.Helper()
+		s := MustOpenStorage(t.Name(), 0, 0, 0, disablePerDayIndex)
+		defer s.MustClose()
+		if got := s.date(millis); got != want {
+			t.Errorf("unexpected date: got %d, want %d", got, want)
+		}
+	}
+
+	t.Run("ZeroMillis", func(t *testing.T) {
+		f(t, false, 0, 0)
+		f(t, true, 0, 0)
+	})
+
+	t.Run("PositiveMillis", func(t *testing.T) {
+		f(t, false, 10*msecPerDay, 10)
+		f(t, true, 10*msecPerDay, globalIndexDate)
+	})
+}
+
+func TestStorageAdjustTimeRange(t *testing.T) {
+	defer testRemoveAll(t)
+
+	f := func(t *testing.T, disablePerDayIndex bool, tr TimeRange, want TimeRange) {
+		t.Helper()
+
+		s := MustOpenStorage(t.Name(), 0, 0, 0, disablePerDayIndex)
+		defer s.MustClose()
+		if got := s.adjustTimeRange(tr); got != want {
+			t.Errorf("unexpected time range: got %v, want %v", &got, &want)
+		}
+	}
+
+	t.Run("ZeroTimeRange", func(t *testing.T) {
+		tr := TimeRange{}
+		want := globalIndexTimeRange
+		f(t, false, tr, want)
+		f(t, true, tr, want)
+	})
+
+	t.Run("MinDateGreaterThanMaxDate", func(t *testing.T) {
+		tr := TimeRange{10 * msecPerDay, 10 * msecPerDay}
+		want := globalIndexTimeRange
+		f(t, false, tr, want)
+		f(t, true, tr, want)
+	})
+
+	t.Run("MinTimestampGreaterMaxTimestamp", func(t *testing.T) {
+		tr := TimeRange{10*msecPerDay + 123, 10*msecPerDay + 100}
+		want := tr
+		f(t, false, tr, want)
+
+		want = globalIndexTimeRange
+		f(t, true, tr, want)
+	})
+
+	t.Run("MinTimestampEqualsToMaxTimestamp", func(t *testing.T) {
+		tr := TimeRange{10*msecPerDay + 123, 10*msecPerDay + 123}
+		want := tr
+		f(t, false, tr, want)
+
+		want = globalIndexTimeRange
+		f(t, true, tr, want)
+	})
+
+	t.Run("MinTimestampLessThanMaxTimestamp", func(t *testing.T) {
+		tr := TimeRange{10*msecPerDay + 100, 10*msecPerDay + 123}
+
+		want := tr
+		f(t, false, tr, want)
+
+		want = globalIndexTimeRange
+		f(t, true, tr, want)
+	})
+
+	t.Run("TimeRangeIsLongerThan40Days", func(t *testing.T) {
+		tr := TimeRange{10 * msecPerDay, 51*msecPerDay + 1}
+		want := globalIndexTimeRange
+		f(t, false, tr, want)
+		f(t, true, tr, want)
+	})
+}
+
 type testStorageSearchWithoutPerDayIndexOptions[T any] struct {
 	mrs                []MetricRow
 	assertSearchResult func(t *testing.T, s *Storage, tr TimeRange, want T)

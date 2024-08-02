@@ -617,15 +617,15 @@ func (db *indexDB) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 }
 
 func (is *indexSearch) searchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer, lns map[string]struct{}, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int) error {
-	minDate := uint64(tr.MinTimestamp) / msecPerDay
-	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
-	// TODO(rtm0): Move to a separate func in storage.go
-	if tr == globalIndexTimeRange || minDate > maxDate || maxDate-minDate > maxDaysForPerDaySearch {
+	if tr == globalIndexTimeRange {
 		qtChild := qt.NewChild("search for label names in global index: filters=%s", tfss)
 		err := is.searchLabelNamesWithFiltersOnDate(qtChild, lns, tfss, globalIndexDate, maxLabelNames, maxMetrics)
 		qtChild.Done()
 		return err
 	}
+
+	minDate := uint64(tr.MinTimestamp) / msecPerDay
+	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
 	var mu sync.Mutex
 	wg := getWaitGroup()
 	var errGlobal error
@@ -842,14 +842,15 @@ func (db *indexDB) SearchLabelValues(qt *querytracer.Tracer, labelName string, t
 
 func (is *indexSearch) searchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer, lvs map[string]struct{}, labelName string, tfss []*TagFilters,
 	tr TimeRange, maxLabelValues, maxMetrics int) error {
-	minDate := uint64(tr.MinTimestamp) / msecPerDay
-	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
-	if tr == globalIndexTimeRange || minDate > maxDate || maxDate-minDate > maxDaysForPerDaySearch {
+	if tr == globalIndexTimeRange {
 		qtChild := qt.NewChild("search for label values in global index: labelName=%q, filters=%s", labelName, tfss)
 		err := is.searchLabelValuesWithFiltersOnDate(qtChild, lvs, labelName, tfss, globalIndexDate, maxLabelValues, maxMetrics)
 		qtChild.Done()
 		return err
 	}
+
+	minDate := uint64(tr.MinTimestamp) / msecPerDay
+	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
 	var mu sync.Mutex
 	wg := getWaitGroup()
 	var errGlobal error
@@ -1050,11 +1051,12 @@ func (db *indexDB) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, 
 }
 
 func (is *indexSearch) searchTagValueSuffixesForTimeRange(tvss map[string]struct{}, tr TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int) error {
-	minDate := uint64(tr.MinTimestamp) / msecPerDay
-	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
-	if tr == globalIndexTimeRange || minDate > maxDate || maxDate-minDate > maxDaysForPerDaySearch {
+	if tr == globalIndexTimeRange {
 		return is.searchTagValueSuffixesAll(tvss, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	}
+
+	minDate := uint64(tr.MinTimestamp) / msecPerDay
+	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
 	// Query over multiple days in parallel.
 	wg := getWaitGroup()
 	var errGlobal error
@@ -2287,19 +2289,17 @@ func (is *indexSearch) searchMetricIDsInternal(qt *querytracer.Tracer, tfss []*T
 
 // TODO(rtm0): Split into two funcs (fast and slow)
 func (is *indexSearch) updateMetricIDsForTagFilters(qt *querytracer.Tracer, metricIDs *uint64set.Set, tfs *TagFilters, tr TimeRange, maxMetrics int) error {
-	if tr != globalIndexTimeRange {
-		err := is.tryUpdatingMetricIDsForDateRange(qt, metricIDs, tfs, tr, maxMetrics)
-		if err == nil {
-			// Fast path: found metricIDs by date range.
-			return nil
-		}
-		if !errors.Is(err, errFallbackToGlobalSearch) {
-			return err
-		}
-		qt.Printf("cannot find metric ids in per-day index; fall back to global index")
+	err := is.tryUpdatingMetricIDsForDateRange(qt, metricIDs, tfs, tr, maxMetrics)
+	if err == nil {
+		// Fast path: found metricIDs by date range.
+		return nil
+	}
+	if !errors.Is(err, errFallbackToGlobalSearch) {
+		return err
 	}
 
 	// Slow path - fall back to search in the global inverted index.
+	qt.Printf("cannot find metric ids in per-day index; fall back to global index")
 	is.db.globalSearchCalls.Add(1)
 	m, err := is.getMetricIDsForDateAndFilters(qt, globalIndexDate, tfs, maxMetrics)
 	if err != nil {
@@ -2486,8 +2486,6 @@ func (is *indexSearch) updateMetricIDsForOrSuffix(prefix []byte, metricIDs *uint
 }
 
 var errFallbackToGlobalSearch = errors.New("fall back from per-day index search to global index search")
-
-const maxDaysForPerDaySearch = 40
 
 func (is *indexSearch) tryUpdatingMetricIDsForDateRange(qt *querytracer.Tracer, metricIDs *uint64set.Set, tfs *TagFilters, tr TimeRange, maxMetrics int) error {
 	is.db.dateRangeSearchCalls.Add(1)

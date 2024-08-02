@@ -1142,10 +1142,7 @@ func nextRetentionDeadlineSeconds(atSecs, retentionSecs, offsetSecs int64) int64
 // time range is ignored and the metrics are searched within the entire
 // retention period, i.e. the global index are used for searching.
 func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
-	if s.disablePerDayIndex {
-		tr = globalIndexTimeRange
-	}
-
+	tr = s.adjustTimeRange(tr)
 	qt = qt.NewChild("search for matching metric names: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
 
@@ -1302,9 +1299,7 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters) (int,
 // time range is ignored and the label names are searched within the entire
 // retention period, i.e. the global index are used for searching.
 func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64) ([]string, error) {
-	if s.disablePerDayIndex {
-		tr = globalIndexTimeRange
-	}
+	tr = s.adjustTimeRange(tr)
 	return s.idb().SearchLabelNames(qt, tfss, tr, maxLabelNames, maxMetrics, deadline)
 }
 
@@ -1319,9 +1314,7 @@ func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, t
 // time range is ignored and the label values are searched within the entire
 // retention period, i.e. the global index are used for searching.
 func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
-	if s.disablePerDayIndex {
-		tr = globalIndexTimeRange
-	}
+	tr = s.adjustTimeRange(tr)
 
 	idb := s.idb()
 
@@ -1398,9 +1391,7 @@ func filterLabelValues(lvs []string, tf *tagFilter, key string) []string {
 func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, tagKey, tagValuePrefix string,
 	delimiter byte, maxTagValueSuffixes int, deadline uint64,
 ) ([]string, error) {
-	if s.disablePerDayIndex {
-		tr = globalIndexTimeRange
-	}
+	tr = s.adjustTimeRange(tr)
 	return s.idb().SearchTagValueSuffixes(qt, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
 }
 
@@ -1415,9 +1406,7 @@ func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, t
 // time range is ignored and the graphite paths are searched within the entire
 // retention period, i.e. global index are used for searching.
 func (s *Storage) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, query []byte, maxPaths int, deadline uint64) ([]string, error) {
-	if s.disablePerDayIndex {
-		tr = globalIndexTimeRange
-	}
+	tr = s.adjustTimeRange(tr)
 	query = replaceAlternateRegexpsWithGraphiteWildcards(query)
 	return s.searchGraphitePaths(qt, tr, nil, query, maxPaths, deadline)
 }
@@ -1743,6 +1732,29 @@ func (s *Storage) date(millis int64) uint64 {
 		return globalIndexDate
 	}
 	return uint64(millis) / msecPerDay
+}
+
+// It has been found empirically, that once the time range is bigger than 40
+// days searching using per-day index becomes slower than using global index.
+//
+// TODO(rtm0): Extract into a flag?
+const maxDaysForPerDaySearch = 40
+
+// adjustTimeRange decides whether to use the time range as is or use
+// globalIndexTimeRange based on the time range length and -disablePerDayIndex
+// flag.
+func (s *Storage) adjustTimeRange(tr TimeRange) TimeRange {
+	if s.disablePerDayIndex {
+		return globalIndexTimeRange
+	}
+
+	minDate := uint64(tr.MinTimestamp) / msecPerDay
+	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
+	if minDate > maxDate || maxDate-minDate > maxDaysForPerDaySearch {
+		return globalIndexTimeRange
+	}
+
+	return tr
 }
 
 // RegisterMetricNames registers all the metric names from mrs in the indexdb, so they can be queried later.
