@@ -38,8 +38,8 @@ Released at 2024-08-01
 
 * SECURITY: upgrade base docker image (Alpine) from 3.20.1 to 3.20.2. See [alpine 3.20.2 release notes](https://alpinelinux.org/posts/Alpine-3.20.2-released.html).
 
-* FEATURE: [vmauth](./vmauth.md): add `keep_original_host` option, which can be used for proxying the original `Host` header from client request to the backend. By default the backend host is used as `Host` header when proxying requests to the configured backends. See [these docs](./vmauth.md#host-http-header).
-* FEATURE: [vmauth](./vmauth.md) now returns HTTP 502 status code when all upstream backends are not available. Previously, it returned HTTP 503 status code. This change aligns vmauth behavior with other well-known reverse-proxies behavior.
+* FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): add `keep_original_host` option, which can be used for proxying the original `Host` header from client request to the backend. By default, the backend host is used as `Host` header when proxying requests to the configured backends. See [these docs](https://docs.victoriametrics.com/vmauth#host-http-header).
+* FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): now returns HTTP 502 status code when all upstream backends are not available. Previously, it returned HTTP 503 status code. This change aligns vmauth behavior with other well-known reverse-proxies behavior.
 * FEATURE: [vmagent dashboard](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/vmagent.json): add `Scrape duration 0.99 quantile` panel to show the 99th quantile of scrape duration in seconds. This should help identifying vmagent instances that experiences too high scraping durations.
 
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): Fixes panic if incorrect `metrisql` expression passed to the `prettify-query` API. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6736) for details.

@@ -43,6 +43,7 @@ Bumping the limits may significantly improve build speed.
 1. Make sure all the changes are documented in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md).
    Ideally, every change must be documented in the commit with the change. Alternatively, the change must be documented immediately
    after the commit, which adds the change.
+1. Run `make vmui-update` and `make vmui-logs-update` commands to re-build static files for `vmui`. See [commit example](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/9dde5b8ee3fdc9d4cd495c8118e04ff4ee32e650). 
 1. Make sure all the changes are synced between `master`, `cluster`, `enterprise-single-node` and `enterprise-cluster` branches.
    Changes in these branches must be synced immediately after they are committed in at least a single branch.
 1. Make sure that the release branches have no security issues.
@@ -69,7 +70,7 @@ Bumping the limits may significantly improve build speed.
       * linux/ppc64le
       * linux/386
       This step can be run manually with the command `make publish` from the needed git tag.
-1. Push the tags `v1.xx.y` and `v1.xx.y-cluster` created at step 8 to public GitHub repository at https://github.com/VictoriaMetrics/VictoriaMetrics.
+1. Push the tags `v1.xx.y` and `v1.xx.y-cluster` created at previous steps to public GitHub repository at https://github.com/VictoriaMetrics/VictoriaMetrics.
    Push the tags `v1.xx.y`, `v1.xx.y-cluster`, `v1.xx.y-enterprise` and `v1.xx.y-enterprise-cluster` to the corresponding
    branches in private repository.
    **Important note:** do not push enterprise tags to public GitHub repository - they must be pushed only to private repository.
