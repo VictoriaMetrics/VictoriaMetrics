@@ -70,7 +70,7 @@ Bumping the limits may significantly improve build speed.
       * linux/ppc64le
       * linux/386
       This step can be run manually with the command `make publish` from the needed git tag.
-1. Push the tags `v1.xx.y` and `v1.xx.y-cluster` created at step 8 to public GitHub repository at https://github.com/VictoriaMetrics/VictoriaMetrics.
+1. Push the tags `v1.xx.y` and `v1.xx.y-cluster` created at previous steps to public GitHub repository at https://github.com/VictoriaMetrics/VictoriaMetrics.
    Push the tags `v1.xx.y`, `v1.xx.y-cluster`, `v1.xx.y-enterprise` and `v1.xx.y-enterprise-cluster` to the corresponding
    branches in private repository.
    **Important note:** do not push enterprise tags to public GitHub repository - they must be pushed only to private repository.
