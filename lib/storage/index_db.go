@@ -1010,7 +1010,7 @@ func (is *indexSearch) getLabelValuesForMetricIDs(qt *querytracer.Tracer, lvs ma
 //
 // If it returns maxTagValueSuffixes suffixes, then it is likely more than maxTagValueSuffixes suffixes is found.
 func (db *indexDB) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
-	qt = qt.NewChild("search tag value suffixes: timeRange=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c, maxTagValueSuffixes=%d",
+	qt = qt.NewChild("search tag value suffixes for timeRange=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c, maxTagValueSuffixes=%d",
 		&tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	defer qt.Done()
 
@@ -2270,8 +2270,10 @@ func (is *indexSearch) searchMetricIDsInternal(qt *querytracer.Tracer, tfss []*T
 				logger.Panicf(`BUG: cannot add {__name__!=""} filter: %s`, err)
 			}
 		}
-
-		err := is.updateMetricIDsForTagFilters(qt, metricIDs, tfs, tr, maxMetrics+1)
+		qtChild := qt.NewChild("update metric ids: filters=%s, timeRange=%s", tfs, &tr)
+		prevMetricIDsLen := metricIDs.Len()
+		err := is.updateMetricIDsForTagFilters(qtChild, metricIDs, tfs, tr, maxMetrics+1)
+		qtChild.Donef("updated %d metric ids", metricIDs.Len()-prevMetricIDsLen)
 		if err != nil {
 			return nil, err
 		}
@@ -2285,12 +2287,6 @@ func (is *indexSearch) searchMetricIDsInternal(qt *querytracer.Tracer, tfss []*T
 
 // TODO(rtm0): Split into two funcs (fast and slow)
 func (is *indexSearch) updateMetricIDsForTagFilters(qt *querytracer.Tracer, metricIDs *uint64set.Set, tfs *TagFilters, tr TimeRange, maxMetrics int) error {
-	qt = qt.NewChild("update metric ids: filters=%s, timeRange=%s", tfs, &tr)
-	prevMetricIDsLen := metricIDs.Len()
-	defer func() {
-		qt.Donef("updated %d metric ids", metricIDs.Len()-prevMetricIDsLen)
-	}()
-
 	if tr != globalIndexTimeRange {
 		err := is.tryUpdatingMetricIDsForDateRange(qt, metricIDs, tfs, tr, maxMetrics)
 		if err == nil {
@@ -2308,10 +2304,8 @@ func (is *indexSearch) updateMetricIDsForTagFilters(qt *querytracer.Tracer, metr
 	m, err := is.getMetricIDsForDateAndFilters(qt, globalIndexDate, tfs, maxMetrics)
 	if err != nil {
 		if errors.Is(err, errFallbackToGlobalSearch) {
-			return fmt.Errorf("the number of matching timeseries exceeds %d; "+
-				"either narrow down the search or increase -search.max* "+
-				"command-line flag values at vmselect; see "+
-				"https://docs.victoriametrics.com/#resource-usage-limits", maxMetrics)
+			return fmt.Errorf("the number of matching timeseries exceeds %d; either narrow down the search "+
+				"or increase -search.max* command-line flag values at vmselect; see https://docs.victoriametrics.com/#resource-usage-limits", maxMetrics)
 		}
 		return err
 	}
@@ -2562,8 +2556,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(qt *querytracer.Tracer, dat
 
 	// Sort tfs by loopsCount needed for performing each filter.
 	// This stats is usually collected from the previous queries.
-	// This way we limit the amount of work below by applying fast filters at
-	// first.
+	// This way we limit the amount of work below by applying fast filters at first.
 	type tagFilterWithWeight struct {
 		tf               *tagFilter
 		loopsCount       int64

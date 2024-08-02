@@ -109,8 +109,11 @@ func TestSearch(t *testing.T) {
 		}
 	}
 	st.AddRows(mrs[rowsCount-blockRowsCount:], defaultPrecisionBits)
-	st.DebugFlush()
 	endTimestamp := mrs[len(mrs)-1].Timestamp
+
+	// Re-open the storage in order to flush all the pending cached data.
+	st.MustClose()
+	st = MustOpenStorage(path, 0, 0, 0, false)
 
 	// Run search.
 	tr := TimeRange{
