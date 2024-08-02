@@ -276,10 +276,10 @@ func main() {
 						return fmt.Errorf("flag %q can't be empty", vmNativeFilterMatch)
 					}
 
-					backf, err := backoff.New(
-						c.Int(vmNativeBackoffRetries),
-						c.Float64(vmNativeBackoffFactor),
-						c.Duration(vmNativeBackoffMinDuration))
+					bfRetries := c.Int(vmNativeBackoffRetries)
+					bfFactor := c.Float64(vmNativeBackoffFactor)
+					bfMinDuration := c.Duration(vmNativeBackoffMinDuration)
+					bf, err := backoff.New(bfRetries, bfFactor, bfMinDuration)
 					if err != nil {
 						return fmt.Errorf("failed to validate backoff params: %s", err)
 					}
@@ -362,7 +362,7 @@ func main() {
 							ExtraLabels: dstExtraLabels,
 							HTTPClient:  dstHTTPClient,
 						},
-						backoff:                  backf,
+						backoff:                  bf,
 						cc:                       c.Int(vmConcurrency),
 						disablePerMetricRequests: c.Bool(vmNativeDisablePerMetricMigration),
 						isNative:                 !c.Bool(vmNativeDisableBinaryProtocol),
@@ -441,10 +441,10 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 		return vm.Config{}, fmt.Errorf("failed to create Transport: %s", err)
 	}
 
-	backf, err := backoff.New(
-		c.Int(vmBackoffRetries),
-		c.Float64(vmBackoffFactor),
-		c.Duration(vmBackoffMinDuration))
+	bfRetries := c.Int(vmBackoffRetries)
+	bfFactor := c.Float64(vmBackoffFactor)
+	bfMinDuration := c.Duration(vmBackoffMinDuration)
+	bf, err := backoff.New(bfRetries, bfFactor, bfMinDuration)
 	if err != nil {
 		return vm.Config{}, fmt.Errorf("failed to validate backoff params: %s", err)
 	}
@@ -462,6 +462,6 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 		RoundDigits:        c.Int(vmRoundDigits),
 		ExtraLabels:        c.StringSlice(vmExtraLabel),
 		RateLimit:          c.Int64(vmRateLimit),
-		Backoff:            backf,
+		Backoff:            bf,
 	}, nil
 }

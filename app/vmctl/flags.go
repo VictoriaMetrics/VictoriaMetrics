@@ -153,17 +153,17 @@ var (
 		&cli.IntFlag{
 			Name:  vmBackoffRetries,
 			Value: 10,
-			Usage: "How many retries to perform before giving up.",
+			Usage: "How many import retries to perform before giving up.",
 		},
 		&cli.Float64Flag{
 			Name:  vmBackoffFactor,
 			Value: 1.8,
-			Usage: "Factor to multiply the base duration after each failed retry. Must be greater than 1.0",
+			Usage: "Factor to multiply the base duration after each failed import retry. Must be greater than 1.0",
 		},
 		&cli.DurationFlag{
 			Name:  vmBackoffMinDuration,
 			Value: time.Second * 2,
-			Usage: "Minimum duration to wait before the first retry. Each subsequent retry will be multiplied by the factor.",
+			Usage: "Minimum duration to wait before the first import retry. Each subsequent import retry will be multiplied by the '--vm-backoff-factor'.",
 		},
 	}
 )
@@ -625,17 +625,17 @@ var (
 		&cli.IntFlag{
 			Name:  vmNativeBackoffRetries,
 			Value: 10,
-			Usage: "How many retries to perform before giving up.",
+			Usage: "How many export/import retries to perform before giving up.",
 		},
 		&cli.Float64Flag{
 			Name:  vmNativeBackoffFactor,
 			Value: 1.8,
-			Usage: "Factor to multiply the base duration after each failed retry. Must be greater than 1.0",
+			Usage: "Factor to multiply the base duration after each failed export/import retry. Must be greater than 1.0",
 		},
 		&cli.DurationFlag{
 			Name:  vmNativeBackoffMinDuration,
 			Value: time.Second * 2,
-			Usage: "Minimum duration to wait before the first retry. Each subsequent retry will be multiplied by the factor.",
+			Usage: "Minimum duration to wait before the first export/import retry. Each subsequent export/import retry will be multiplied by the '--vm-native-backoff-factor'.",
 		},
 	}
 )

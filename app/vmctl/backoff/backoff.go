@@ -25,29 +25,21 @@ type Backoff struct {
 
 // New initialize backoff object
 func New(retries int, factor float64, minDuration time.Duration) (*Backoff, error) {
-	b := &Backoff{
+	if retries <= 0 {
+		return nil, fmt.Errorf("number of backoff retries must be greater than 0")
+	}
+	if factor <= 1 {
+		return nil, fmt.Errorf("backoff retry factor must be greater than 1")
+	}
+	if minDuration <= 0 {
+		return nil, fmt.Errorf("backoff retry minimum duration must be greater than 0")
+	}
+
+	return &Backoff{
 		retries:     retries,
 		factor:      factor,
 		minDuration: minDuration,
-	}
-	if err := b.validate(); err != nil {
-		return nil, err
-	}
-	return b, nil
-}
-
-// validate checks backoff object for correct values
-func (b *Backoff) validate() error {
-	if b.retries <= 0 {
-		return fmt.Errorf("retries must be greater than 0")
-	}
-	if b.factor <= 1 {
-		return fmt.Errorf("factor must be greater than 1")
-	}
-	if b.minDuration <= 0 {
-		return fmt.Errorf("minDuration must be greater than 0")
-	}
-	return nil
+	}, nil
 }
 
 // Retry process retries until all attempts are completed

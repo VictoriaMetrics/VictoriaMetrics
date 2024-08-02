@@ -3,6 +3,7 @@ package backoff
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
@@ -122,7 +123,7 @@ func TestBackoff_New(t *testing.T) {
 			}
 			return
 		}
-		if err.Error() != errExpected {
+		if !strings.Contains(err.Error(), errExpected) {
 			t.Fatalf("unexpected error: got %q; want %q", err.Error(), errExpected)
 		}
 	}
@@ -134,7 +135,7 @@ func TestBackoff_New(t *testing.T) {
 	f(1, 0, time.Millisecond*10, "factor must be greater than 1")
 
 	// empty minDuration
-	f(1, 1.1, 0, "minDuration must be greater than 0")
+	f(1, 1.1, 0, "minimum duration must be greater than 0")
 
 	// no errors
 	f(1, 1.1, time.Millisecond*10, "")
