@@ -1010,13 +1010,8 @@ func (is *indexSearch) getLabelValuesForMetricIDs(qt *querytracer.Tracer, lvs ma
 //
 // If it returns maxTagValueSuffixes suffixes, then it is likely more than maxTagValueSuffixes suffixes is found.
 func (db *indexDB) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
-	if tr == globalIndexTimeRange {
-		qt = qt.NewChild("search tag value suffixes in global index: tagKey=%q, tagValuePrefix=%q, delimiter=%c, maxTagValueSuffixes=%d",
-			tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
-	} else {
-		qt = qt.NewChild("search tag value suffixes in per-day index: timeRange=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c, maxTagValueSuffixes=%d",
-			&tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
-	}
+	qt = qt.NewChild("search tag value suffixes: timeRange=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c, maxTagValueSuffixes=%d",
+		&tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	defer qt.Done()
 
 	// TODO: cache results?
