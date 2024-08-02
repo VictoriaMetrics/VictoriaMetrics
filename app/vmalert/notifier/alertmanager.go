@@ -32,14 +32,16 @@ type AlertManager struct {
 }
 
 type metrics struct {
-	alertsSent       *utils.Counter
-	alertsSendErrors *utils.Counter
+	alertsSent             *utils.Counter
+	alertsDroppedByRelabel *utils.Counter
+	alertsSendErrors       *utils.Counter
 }
 
 func newMetrics(addr string) *metrics {
 	return &metrics{
-		alertsSent:       utils.GetOrCreateCounter(fmt.Sprintf("vmalert_alerts_sent_total{addr=%q}", addr)),
-		alertsSendErrors: utils.GetOrCreateCounter(fmt.Sprintf("vmalert_alerts_send_errors_total{addr=%q}", addr)),
+		alertsSent:             utils.GetOrCreateCounter(fmt.Sprintf("vmalert_alerts_sent_total{addr=%q}", addr)),
+		alertsDroppedByRelabel: utils.GetOrCreateCounter(fmt.Sprintf("vmalert_alerts_relabel_dropped_total{addr=%q}", addr)),
+		alertsSendErrors:       utils.GetOrCreateCounter(fmt.Sprintf("vmalert_alerts_send_errors_total{addr=%q}", addr)),
 	}
 }
 
@@ -59,8 +61,22 @@ func (am AlertManager) Addr() string {
 
 // Send an alert or resolve message
 func (am *AlertManager) Send(ctx context.Context, alerts []Alert, headers map[string]string) error {
-	am.metrics.alertsSent.Add(len(alerts))
-	err := am.send(ctx, alerts, headers)
+	var sendAlerts []Alert
+	for _, alert := range alerts {
+		labels := alert.toPromLabels(am.relabelConfigs)
+		// drop alert that have no label after relabeling
+		// alertmanager returns error if alert has no label pair
+		if len(labels) == 0 {
+			continue
+		}
+		sendAlerts = append(sendAlerts, alert)
+	}
+	am.metrics.alertsDroppedByRelabel.Add(len(alerts) - len(sendAlerts))
+	if len(sendAlerts) == 0 {
+		return nil
+	}
+	am.metrics.alertsSent.Add(len(sendAlerts))
+	err := am.send(ctx, sendAlerts, headers)
 	if err != nil {
 		am.metrics.alertsSendErrors.Add(len(alerts))
 	}

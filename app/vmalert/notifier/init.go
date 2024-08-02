@@ -25,6 +25,9 @@ var (
 		"Enable this flag if you want vmalert to evaluate alerting rules without sending any notifications to external receivers (eg. alertmanager). "+
 		"-notifier.url, -notifier.config and -notifier.blackhole are mutually exclusive.")
 
+	headers = flagutil.NewArrayString("notifier.headers", "Optional HTTP headers to send with each request to the corresponding -notifier.url. "+
+		"For example, -remoteWrite.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -notifier.url. "+
+		"Multiple headers must be delimited by '^^': -notifier.headers='header1:value1^^header2:value2,header3:value3'")
 	basicAuthUsername     = flagutil.NewArrayString("notifier.basicAuth.username", "Optional basic auth username for -notifier.url")
 	basicAuthPassword     = flagutil.NewArrayString("notifier.basicAuth.password", "Optional basic auth password for -notifier.url")
 	basicAuthPasswordFile = flagutil.NewArrayString("notifier.basicAuth.passwordFile", "Optional path to basic auth password file for -notifier.url")
@@ -171,6 +174,7 @@ func notifiersFromFlags(gen AlertURLGenerator) ([]Notifier, error) {
 				Scopes:           strings.Split(oauth2Scopes.GetOptionalArg(i), ";"),
 				TokenURL:         oauth2TokenURL.GetOptionalArg(i),
 			},
+			Headers: []string{headers.GetOptionalArg(i)},
 		}
 
 		addr = strings.TrimSuffix(addr, "/")
