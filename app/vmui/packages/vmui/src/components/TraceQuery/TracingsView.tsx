@@ -1,7 +1,7 @@
 import React, { FC, useState } from "preact/compat";
 import Trace from "./Trace";
 import Button from "../Main/Button/Button";
-import { ArrowDownIcon, CodeIcon, DeleteIcon, DownloadIcon } from "../Main/Icons";
+import { CodeIcon, CollapseIcon, DeleteIcon, DownloadIcon, ExpandIcon } from "../Main/Icons";
 import "./style.scss";
 import NestedNav from "./NestedNav/NestedNav";
 import Alert from "../Main/Alert/Alert";
@@ -89,13 +89,7 @@ const TracingsView: FC<TraceViewProps> = ({ traces, jsonEditor = false, onDelete
               <Tooltip title={expandedTraces.includes(trace.idValue) ? "Collapse All" : "Expand All"}>
                 <Button
                   variant="text"
-                  startIcon={(
-                    <div
-                      className={classNames({
-                        "vm-tracings-view-trace-header__expand-icon": true,
-                        "vm-tracings-view-trace-header__expand-icon_open": expandedTraces.includes(trace.idValue) })}
-                    ><ArrowDownIcon/></div>
-                  )}
+                  startIcon={expandedTraces.includes(trace.idValue) ? <CollapseIcon/> : <ExpandIcon/> }
                   onClick={handleExpandAll(trace)}
                   ariaLabel={expandedTraces.includes(trace.idValue) ? "Collapse All" : "Expand All"}
                 />

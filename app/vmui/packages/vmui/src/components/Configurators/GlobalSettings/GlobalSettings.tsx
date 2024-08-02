@@ -13,6 +13,7 @@ import ThemeControl from "../ThemeControl/ThemeControl";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import useBoolean from "../../../hooks/useBoolean";
 import { AppType } from "../../../types/appType";
+import SwitchMarkdownParsing from "../LogsSettings/MarkdownParsing/SwitchMarkdownParsing";
 
 const title = "Settings";
 
@@ -59,6 +60,10 @@ const GlobalSettings: FC = () => {
         ref={limitsSettingRef}
         onClose={handleClose}
       />
+    },
+    {
+      show: isLogsApp,
+      component: <SwitchMarkdownParsing/>
     },
     {
       show: true,

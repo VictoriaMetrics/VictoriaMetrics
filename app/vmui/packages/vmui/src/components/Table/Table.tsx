@@ -6,11 +6,14 @@ import Tooltip from "../Main/Tooltip/Tooltip";
 import Button from "../Main/Button/Button";
 import { useEffect } from "preact/compat";
 
+type OrderDir = "asc" | "desc"
+
 interface TableProps<T> {
   rows: T[];
   columns: { title?: string, key: keyof Partial<T>, className?: string }[];
   defaultOrderBy: keyof T;
   copyToClipboard?: keyof T;
+  defaultOrderDir?: OrderDir;
   // TODO: Remove when pagination is implemented on the backend.
   paginationOffset: {
     startIndex: number;
@@ -18,9 +21,9 @@ interface TableProps<T> {
   }
 }
 
-const Table = <T extends object>({ rows, columns, defaultOrderBy, copyToClipboard, paginationOffset }: TableProps<T>) => {
+const Table = <T extends object>({ rows, columns, defaultOrderBy, defaultOrderDir, copyToClipboard, paginationOffset }: TableProps<T>) => {
   const [orderBy, setOrderBy] = useState<keyof T>(defaultOrderBy);
-  const [orderDir, setOrderDir] = useState<"asc" | "desc">("desc");
+  const [orderDir, setOrderDir] = useState<OrderDir>(defaultOrderDir || "desc");
   const [copied, setCopied] = useState<number | null>(null);
 
   // const sortedList = useMemo(() => stableSort(rows as [], getComparator(orderDir, orderBy)),
