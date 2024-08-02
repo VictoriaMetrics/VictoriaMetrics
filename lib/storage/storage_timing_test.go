@@ -81,7 +81,7 @@ func BenchmarkStorageInsertVariousDataPatterns(b *testing.B) {
 		sameRowDates:         true,
 	})
 
-	addRows := func(b *testing.B, disablePerDayIndexes bool, batches [][]MetricRow) {
+	addRows := func(b *testing.B, disablePerDayIndex bool, batches [][]MetricRow) {
 		b.Helper()
 
 		var (
@@ -92,7 +92,7 @@ func BenchmarkStorageInsertVariousDataPatterns(b *testing.B) {
 
 		path := b.Name()
 		for range b.N {
-			s := MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+			s := MustOpenStorage(path, 0, 0, 0, disablePerDayIndex)
 			testDoConcurrently(s, func(s *Storage, mrs []MetricRow) {
 				s.AddRows(mrs, defaultPrecisionBits)
 			}, concurrency, splitBatches, batches)
@@ -103,7 +103,7 @@ func BenchmarkStorageInsertVariousDataPatterns(b *testing.B) {
 
 			// Reopen storage to ensure that index has been written to disk.
 			s.MustClose()
-			s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndexes)
+			s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndex)
 
 			rowsAddedTotal = numBatches * numRowsPerBatch
 			dataSize = benchmarkDirSize(path + "/data")

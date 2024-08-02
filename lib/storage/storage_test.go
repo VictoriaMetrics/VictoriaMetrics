@@ -1879,42 +1879,52 @@ func TestStorageAddRowsForVariousDataPatternsConcurrently(t *testing.T) {
 	})
 }
 
-// TODO(rtm0): Document the function
+// testStorageVariousDataPatternsConcurrently tests different concurrency use
+// cases when ingesting data of different patterns. Each concurrency use case
+// considered with and without the per-day index.
+//
+// The function is intended to be used by other tests that define which
+// operation (AddRows or RegisterMetricNames) is tested.
 func testStorageVariousDataPatternsConcurrently(t *testing.T, registerOnly bool, op func(s *Storage, mrs []MetricRow)) {
 	defer testRemoveAll(t)
 
 	const concurrency = 4
 
-	disablePerDayIndexes := false
+	disablePerDayIndex := false
 	t.Run("perDayIndexes/serial", func(t *testing.T) {
-		testStorageVariousDataPatterns(t, disablePerDayIndexes, registerOnly, op, 1, false)
+		testStorageVariousDataPatterns(t, disablePerDayIndex, registerOnly, op, 1, false)
 	})
 	t.Run("perDayIndexes/concurrentRows", func(t *testing.T) {
-		testStorageVariousDataPatterns(t, disablePerDayIndexes, registerOnly, op, concurrency, true)
+		testStorageVariousDataPatterns(t, disablePerDayIndex, registerOnly, op, concurrency, true)
 	})
 	t.Run("perDayIndexes/concurrentBatches", func(t *testing.T) {
-		testStorageVariousDataPatterns(t, disablePerDayIndexes, registerOnly, op, concurrency, false)
+		testStorageVariousDataPatterns(t, disablePerDayIndex, registerOnly, op, concurrency, false)
 	})
 
-	disablePerDayIndexes = true
+	disablePerDayIndex = true
 	t.Run("noPerDayIndexes/serial", func(t *testing.T) {
-		testStorageVariousDataPatterns(t, disablePerDayIndexes, registerOnly, op, 1, false)
+		testStorageVariousDataPatterns(t, disablePerDayIndex, registerOnly, op, 1, false)
 	})
 	t.Run("noPerDayIndexes/concurrentRows", func(t *testing.T) {
-		testStorageVariousDataPatterns(t, disablePerDayIndexes, registerOnly, op, concurrency, true)
+		testStorageVariousDataPatterns(t, disablePerDayIndex, registerOnly, op, concurrency, true)
 	})
 	t.Run("noPerDayIndexes/concurrentBatches", func(t *testing.T) {
-		testStorageVariousDataPatterns(t, disablePerDayIndexes, registerOnly, op, concurrency, false)
+		testStorageVariousDataPatterns(t, disablePerDayIndex, registerOnly, op, concurrency, false)
 	})
 }
 
-// TODO(rtm0): Document the function
-func testStorageVariousDataPatterns(t *testing.T, disablePerDayIndexes, registerOnly bool, op func(s *Storage, mrs []MetricRow), concurrency int, splitBatches bool) {
+// testStorageVariousDataPatterns tests the intestion of different combinations
+// of metric names and dates.
+//
+// The function is intended to be used by other tests that define the
+// concurrency, the per-day index setting, and the operation (AddRows or
+// RegisterMetricNames) under test.
+func testStorageVariousDataPatterns(t *testing.T, disablePerDayIndex, registerOnly bool, op func(s *Storage, mrs []MetricRow), concurrency int, splitBatches bool) {
 	f := func(t *testing.T, sameBatchMetricNames, sameRowMetricNames, sameBatchDates, sameRowDates bool) {
 		batches, wantCounts := testGenerateMetricRowBatches(&BatchOptions{
 			numBatches:           4,
 			numRowsPerBatch:      100,
-			disablePerDayIndexes: disablePerDayIndexes,
+			disablePerDayIndex:   disablePerDayIndex,
 			registerOnly:         registerOnly,
 			sameBatchMetricNames: sameBatchMetricNames,
 			sameRowMetricNames:   sameRowMetricNames,
@@ -1924,7 +1934,7 @@ func testStorageVariousDataPatterns(t *testing.T, disablePerDayIndexes, register
 		strict := concurrency == 1
 		rowsAddedTotal := wantCounts.metrics.RowsAddedTotal
 
-		s := MustOpenStorage(t.Name(), 0, 0, 0, disablePerDayIndexes)
+		s := MustOpenStorage(t.Name(), 0, 0, 0, disablePerDayIndex)
 
 		testDoConcurrently(s, op, concurrency, splitBatches, batches)
 		s.DebugFlush()
@@ -2127,7 +2137,13 @@ type counts struct {
 	dateTSDBStatuses map[uint64]*TSDBStatus
 }
 
-// TODO(rtm0): Document the function
+// assertCounts retrieves various counts from storage and comparates them with
+// the wanted ones.
+//
+// Some counts can be greater than wanted values because duplicate metric IDs
+// can be created when rows are inserted concurrently. In this case `strict`
+// arg can be set to false in order to replace strict equality comparison with
+// `greater or equal`.
 func assertCounts(t *testing.T, s *Storage, want *counts, strict bool) {
 	t.Helper()
 
@@ -2143,8 +2159,7 @@ func assertCounts(t *testing.T, s *Storage, want *counts, strict bool) {
 			t.Errorf("unexpected Metrics.NewTimeseriesCreated: got %d, want %d", gotCnt, wantCnt)
 		}
 	} else {
-		// Got value can be greater than wanted value because duplicate metric
-		// IDs can be created when rows are inserted concurrently.
+
 		if gotCnt < wantCnt {
 			t.Errorf("unexpected Metrics.NewTimeseriesCreated: got %d, >= %d", gotCnt, wantCnt)
 		}
@@ -2160,8 +2175,6 @@ func assertCounts(t *testing.T, s *Storage, want *counts, strict bool) {
 				t.Errorf("%v: unexpected metric ID count: got %d, want %d", &tr, got, want)
 			}
 		} else {
-			// Got value can be greater than wanted value because duplicate
-			// metric IDs can be created when rows are inserted concurrently.
 			if got < want {
 				t.Errorf("%v: unexpected metric ID count: got %d, want >= %d", &tr, got, want)
 			}
@@ -2181,8 +2194,6 @@ func assertCounts(t *testing.T, s *Storage, want *counts, strict bool) {
 				t.Errorf("%v: unexpected TSDBStatus.TotalSeries: got %d, want %d", dt, got, want)
 			}
 		} else {
-			// Got value can be greater than wanted value because duplicate
-			// metric IDs can be created when rows are inserted concurrently.
 			if got < want {
 				t.Errorf("%v: unexpected TSDBStatus.TotalSeries: got %d, want >= %d", dt, got, want)
 			}
@@ -2193,7 +2204,7 @@ func assertCounts(t *testing.T, s *Storage, want *counts, strict bool) {
 type BatchOptions struct {
 	numBatches           int
 	numRowsPerBatch      int
-	disablePerDayIndexes bool
+	disablePerDayIndex   bool
 	registerOnly         bool
 	sameBatchMetricNames bool
 	sameRowMetricNames   bool
@@ -2201,7 +2212,10 @@ type BatchOptions struct {
 	sameRowDates         bool
 }
 
-// TODO(rtm0): Document the function
+// testGenerateMetricRowBatches generates metric rows batches of various
+// combinations of metric names and dates. The function also returns the counts
+// that the storage is expected to report once the generated batch is ingested
+// into the storage.
 func testGenerateMetricRowBatches(opts *BatchOptions) ([][]MetricRow, *counts) {
 	if opts.numBatches <= 0 {
 		panic(fmt.Sprintf("unexpected number of batches: got %d, want > 0", opts.numBatches))
@@ -2275,7 +2289,7 @@ func testGenerateMetricRowBatches(opts *BatchOptions) ([][]MetricRow, *counts) {
 	}
 	for tr, names := range trNames {
 		var count int
-		if opts.disablePerDayIndexes {
+		if opts.disablePerDayIndex {
 			count = allTimeseries
 		} else {
 			count = len(names)
