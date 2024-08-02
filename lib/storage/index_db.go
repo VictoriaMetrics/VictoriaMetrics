@@ -802,11 +802,7 @@ func (is *indexSearch) getLabelNamesForMetricIDs(qt *querytracer.Tracer, metricI
 // SearchLabelValues returns label values for the given labelName, tfss and tr.
 func (db *indexDB) SearchLabelValues(qt *querytracer.Tracer, labelName string, tfss []*TagFilters, tr TimeRange,
 	maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
-	if tr == globalIndexTimeRange {
-		qt = qt.NewChild("search for label values in global index: labelName=%q, filters=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, maxLabelValues, maxMetrics)
-	} else {
-		qt = qt.NewChild("search for label values in per-day index: labelName=%q, filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
-	}
+	qt = qt.NewChild("search for label values: labelName=%q, filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
 	defer qt.Done()
 
 	lvs := make(map[string]struct{})
@@ -857,10 +853,10 @@ func (is *indexSearch) searchLabelValuesWithFiltersOnTimeRange(qt *querytracer.T
 	var mu sync.Mutex
 	wg := getWaitGroup()
 	var errGlobal error
-	qt = qt.NewChild("parallel search for label values in per-day index: labelName=%q, filters=%s, timeRange=%s", labelName, tfss, &tr)
+	qt = qt.NewChild("parallel search for label values: labelName=%q, filters=%s, timeRange=%s", labelName, tfss, &tr)
 	for date := minDate; date <= maxDate; date++ {
 		wg.Add(1)
-		qtChild := qt.NewChild("search for label values on date: filters=%s, date=%s", tfss, dateToString(date))
+		qtChild := qt.NewChild("search for label values: filters=%s, date=%s", tfss, dateToString(date))
 		go func(date uint64) {
 			defer func() {
 				qtChild.Done()
