@@ -56,7 +56,7 @@ https://<vminsert-addr>:<victoriametrics_port>/insert/<tenant_id>/opentelemetry
 ```
 
 
-In the examples below we will be using node exporter component built into Alloy to generate metrics, but any Prometheus scrape target will work can forward data to VictoriaMetrics.
+In the examples below we will be using the node exporter component built into Alloy to generate metrics, but any Prometheus scrape target can forward data to VictoriaMetrics.
 Metrics are forwarded from the scrape target to VictoriaMetrics by creating a `prometheus.remote_write` component and configuring the `promethues.scrape` component to forward metrics to the `prometheus.remote_write` component.
 
 ## Collect Node Exporter data locally and send it to VictoriaMetrics
@@ -79,7 +79,7 @@ prometheus.remote_write "victoriametrics" {
 
 ## Collect Node Exporter data locally and send it to VictoriaMetrics with basic authentication
 
-This is same as the previous configuration but adds the `basic_auth` parameters
+This is the same as the previous configuration but adds the `basic_auth` parameters
 
 ```Alloy
 prometheus.exporter.unix "nodeexporter" {}
@@ -102,7 +102,7 @@ prometheus.remote_write "victoriametrics" {
 
 ## Collect Node Exporter data locally and send it to VictoriaMetrics with bearer authentication (token)
 
-This is same as the first config but adds the `bearer_token` parameter
+This is the same as the first config but adds the `bearer_token` parameter
 
 ```Alloy
 prometheus.exporter.unix "nodeexporter" {}

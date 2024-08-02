@@ -28,8 +28,8 @@ If want help Sending your data to VictoriaMetrics Cloud check out [our blog](htt
   - Server: the hostname or IP of your VictoriaMetrics Instance
   - Port: This will vary depending how you are sending data to VictoriaMetrics, but the defaults for all components are listed in the [data ingestion documentation](https://docs.victoriametrics.com/data-ingestion.html)
   - Protocol: use HTTPS if you have TLS/SSL configured otherwise use HTTP
-  - Organization: leave empty since it doesn't get used
-  - Bucket: leave empty since it doesn't get used
+  - Organization: leave it empty since it doesn't get used
+  - Bucket: leave it empty since it doesn't get used
   - Token: your token from vmauth or leave blank if you don't have authentication enabled
   - If you need to ignore TLS/SSL errors check the advanced box and uncheck the verify certificate box
 4. Click the `Create` button
@@ -40,7 +40,7 @@ If want help Sending your data to VictoriaMetrics Cloud check out [our blog](htt
 You should see 1 time series per node in your PVE cluster.
 
 ## Proxmox Backup Server (PBS)
-1. Login to PBS as an administrator
+1. Log in to PBS as an administrator
 2. Go to Configuration > Metrics Server > Add > InfluxDB
 
 
@@ -50,10 +50,10 @@ You should see 1 time series per node in your PVE cluster.
 3.  Set the parameters as follows:
   - Name: VictoriaMetrics (can be set to any string)
   - URL: http(s)://<ip_or_host>:<port>
-    - set the URL to https if you have TLS enabled and http if you do not
-    - Port: This will vary depending how you are sending data to VictoriaMetrics, but the defaults for all components are listed in the [data ingestion documentation](https://docs.victoriametrics.com/data-ingestion.html)
-  - Organization: leave empty since it doesn't get used
-  - Bucket: leave empty since it doesn't get used
+    - set the URL to HTTPS if you have TLS enabled and HTTP if you do not
+    - Port: This will vary depending on how you are sending data to VictoriaMetrics, but the defaults for all components are listed in the [data ingestion documentation](https://docs.victoriametrics.com/data-ingestion.html)
+  - Organization: leave it empty since it doesn't get used
+  - Bucket: leave it empty since it doesn't get used
   - Token: your token from vmauth or leave blank if you don't have authentication enabled
 4. Click the `Create` button
 

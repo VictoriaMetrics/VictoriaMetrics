@@ -22,10 +22,10 @@ victoriametrics_user="telegraf"
 victoriametrics_password="password"
 victoriametrics_token="my_token"
 ```
-and they can be referenced in a Telegraf configuration file by prepending the variable name with `$` ex. `$victoriametrics_url` will be translated to `https://metrics.example.com` if it referenced in a Telegraf configuration using the values from `/etc/default/telegraf` in the values seen above.
+and they can be referenced in a Telegraf configuration file by prepending the variable name with `$` ex. `$victoriametrics_url` will be translated to `https://metrics.example.com` if it is referenced in a Telegraf configuration using the values from `/etc/default/telegraf` in the values seen above.
 Otherwise please replace the variables below to fit your setup.
 
-If you want to mimic this behavior on windows please read [Influx Data's blog on storing variables in the registry](https://www.influxdata.com/blog/using-telegraf-on-windows/)
+If you want to mimic this behavior on Windows please read [Influx Data's blog on storing variables in the registry](https://www.influxdata.com/blog/using-telegraf-on-windows/)
 
 ## Minimum Configuration with no Authentication
 ```toml
@@ -67,7 +67,7 @@ This is the same as the minimum configuration but adds the authorization header
 ```
 
 ## Route certain metrics
-If you only want to route certain metrics to VictoriaMetrics use the `namepass` option with a comma separated listed of the measurements you wish to send to VictoriaMetrics.
+If you only want to route certain metrics to VictoriaMetrics use the `namepass` option with a comma separated list of the measurements you wish to send to VictoriaMetrics.
 
 ```
 [[outputs.influxdb]]
@@ -100,5 +100,5 @@ This is not recommended since it can allow sending metrics to a compromised site
 # References 
 - [Install Telegraf](https://docs.influxdata.com/telegraf/v1/install/)
 - [InfluxDBv1 output for Telegraf](https://github.com/influxdata/telegraf/tree/master/plugins/outputs/influxdb)
-- [Storing Telegraf variables in the windows registry](https://www.influxdata.com/blog/using-telegraf-on-windows/)
+- [Storing Telegraf variables in the Windows registry](https://www.influxdata.com/blog/using-telegraf-on-windows/)
 - [Telegraf variables](https://docs.influxdata.com/telegraf/v1/configuration/#example-telegraf-environment-variables)

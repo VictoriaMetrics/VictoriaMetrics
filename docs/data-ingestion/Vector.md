@@ -13,7 +13,7 @@ aliases:
   - /data-ingestion/vector.html
 ---
 To Send data to Vector you need to configure with a Prometheus remote write sink and forward metrics to that sink from at least 1 source.
-You will need to replace the values in `<>` with your to match your setup.
+You will need to replace the values in `<>` to match your setup.
 
 ## Minimum Config
 ```yaml
@@ -117,4 +117,4 @@ sinks:
 
 # References
 - [Vector documentation](https://vector.dev/docs/)
-- [VictoriaLogs documentation for using vector]({{< ref "/victorialogs/data-ingestion/vector" >}})
+- [VictoriaLogs documentation for using vector](https://docs.victoriametrics.com/victorialogs/data-ingestion/vector)

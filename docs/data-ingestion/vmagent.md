@@ -17,7 +17,7 @@ This section of the documentation only covers forwarding data from `vmagent` to 
 For Information about `vmagent` as well as quickstart guide please refer to the [vmagent documentation](https://docs.victoriametrics.com/vmagent/)
 
 In any of the examples below you can add `insert/<tenant_id>/` to the URL path if you are sending metrics to vminsert.
-For example the remote write URL would change from
+For example, the remote write URL would change from
 
 ```
 https://<victoriametrics_url>/prometheus/api/v1/write
@@ -33,7 +33,7 @@ https://<victoriametrics_url>/insert/<tenant_id>/prometheus/api/v1/write
 ## Sending data to VictoriaMetrics without authentication
 
 
-This requires setting the `-remoteWrite.url` flag in the command line arguments for vmagent
+This requires setting the `-remoteWrite.url` flag in the command line arguments for vmagent.
 
 ```sh
 /path/to/vmagent -remoteWrite.url=https://<victoriametrics_url>:<victoriametrics_port>/api/v1/write
@@ -41,7 +41,7 @@ This requires setting the `-remoteWrite.url` flag in the command line arguments 
 
 ## Sending data to VictoriaMetrics with basic authentication
 
-This requires setting the `-remoteWrite.basicAuth.username` and `-remoteWrite.basicAuth.password` command line flags
+This requires setting the `-remoteWrite.basicAuth.username` and `-remoteWrite.basicAuth.password` command line flags.
 
 ```sh
 /path/to/vmagent -remoteWrite.url=https://<victoriametrics_url>:<victoriametrics_port>/api/v1/write \
@@ -65,7 +65,7 @@ The token file should only contain the token as seen below.
 <token>
 ```
 
-The command will to run `vmagent` to run vmagent with a token file will be.
+The command to run `vmagent` with a token file will be.
 
 ```sh
 /path/to/vmagent -remoteWrite.url=https://<victoriametrics_url>:<victoriametrics_port>/api/v1/write -remoteWrite.bearerTokenFile=/path/to/tokenfile
@@ -75,7 +75,7 @@ The command will to run `vmagent` to run vmagent with a token file will be.
 
 ## Ignore TLS/SSL errors between vmagent and the destination
 
-If you are using Self signed certificates you can either certificates issues using the `-remoteWrite.tlsInsecureSkipVerify`, which is a security risk, or use `-remoteWrite.tlsCAFile` to point to a file containing the self signed CA certificate. 
+If you are using self-signed certificates you can either ignore certificates issues using the `-remoteWrite.tlsInsecureSkipVerify`, which is a security risk, or use `-remoteWrite.tlsCAFile` to point to a file containing the self-signed CA certificate. 
 
 ### Ignore TLS/SSL errors
 
