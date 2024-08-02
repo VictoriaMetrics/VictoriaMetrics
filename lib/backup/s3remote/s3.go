@@ -9,8 +9,10 @@ import (
 	"net/http"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -97,6 +99,11 @@ func (fs *FS) Init() error {
 	configOpts := []func(*config.LoadOptions) error{
 		config.WithSharedConfigProfile(fs.ProfileName),
 		config.WithDefaultRegion("us-east-1"),
+		config.WithRetryer(func() aws.Retryer {
+			return retry.NewStandard(func(o *retry.StandardOptions) {
+				o.Backoff = retry.NewExponentialJitterBackoff(3 * time.Minute)
+			})
+		}),
 	}
 
 	if len(fs.ConfigFilePath) > 0 {
