@@ -3,7 +3,7 @@ sort: 4
 weight: 4
 menu:
   docs:
-    parent: 'victoriametrics'
+    parent: victoriametrics
     weight: 4
 title: vmalert
 aliases:

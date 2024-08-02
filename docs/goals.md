@@ -1,7 +1,7 @@
 ---
 sort: 500
 weight: 500
-title: VictoriaMetrics development goals
+title: Development goals
 menu:
   docs:
     parent: 'victoriametrics'

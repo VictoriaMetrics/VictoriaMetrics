@@ -1,11 +1,12 @@
 ---
-sort: 102
-weight: 102
-title: CHANGELOG for the year 2021
+sort: 5
+weight: 5
+title: Year 2021
 menu:
   docs:
-    parent: 'victoriametrics'
-    weight: 102
+    identifier: vm-changelog-2021
+    parent: vm-changelog
+    weight: 5
 aliases:
 - /CHANGELOG_2021.html
 ---

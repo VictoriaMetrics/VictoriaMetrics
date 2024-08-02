@@ -3,7 +3,7 @@ sort: 7
 weight: 7
 menu:
   docs:
-    parent: 'victoriametrics'
+    parent: victoriametrics
     weight: 7
 title: vmrestore
 aliases:

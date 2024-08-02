@@ -4,7 +4,8 @@ weight: 22
 title: Quick start
 menu:
   docs:
-    parent: 'victoriametrics'
+    identifier: vm-quick-start
+    parent: victoriametrics
     weight: 22
 aliases:
 - /Quick-Start.html

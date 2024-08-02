@@ -4,7 +4,8 @@ weight: 1
 title: Quick Start
 menu:
   docs:
-    parent: "victorialogs"
+    parent: victorialogs
+    identifier: vl-quick-start
     weight: 1
     title: Quick Start
 aliases:

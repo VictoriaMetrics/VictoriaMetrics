@@ -4,7 +4,8 @@ weight: 34
 title: Key concepts
 menu:
   docs:
-    parent: 'victoriametrics'
+    identifier: vm-key-concepts
+    parent: victoriametrics
     weight: 34
 aliases:
 - /keyConcepts.html

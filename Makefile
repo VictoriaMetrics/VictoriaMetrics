@@ -513,34 +513,3 @@ install-wwhrd:
 
 check-licenses: install-wwhrd
 	wwhrd check -f .wwhrd.yml
-
-copy-docs:
-# The 'printf' function is used instead of 'echo' or 'echo -e' to handle line breaks (e.g. '\n') in the same way on different operating systems (MacOS/Ubuntu Linux/Arch Linux) and their shells (bash/sh/zsh/fish).
-# For details, see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4548#issue-1782796419 and https://stackoverflow.com/questions/8467424/echo-newline-in-bash-prints-literal-n
-	echo "---" > ${DST}
-	@if [ ${ORDER} -ne 0 ]; then \
-		echo "sort: ${ORDER}" >> ${DST}; \
-		echo "weight: ${ORDER}" >> ${DST}; \
-		printf "menu:\n  docs:\n    parent: 'victoriametrics'\n    weight: ${ORDER}\n" >> ${DST}; \
-	fi
-
-	echo "title: ${TITLE}" >> ${DST}
-	@if [ ${OLD_URL} ]; then \
-		printf "aliases:\n  - ${OLD_URL}\n" >> ${DST}; \
-	fi
-	echo "---" >> ${DST}
-	cat ${SRC} >> ${DST}
-	sed -i='.tmp' 's/<img src=\"docs\//<img src=\"/' ${DST}
-	sed -i='.tmp' 's/<source srcset=\"docs\//<source srcset=\"/' ${DST}
-	rm -rf docs/*.tmp
-
-# Copies docs for all components and adds the order/weight tag, title, menu position and alias with the backward compatible link for the old site.
-# For ORDER=0 it adds no order tag/weight tag.
-# FOR OLD_URL - relative link, used for backward compatibility with the link from documentation based on GitHub pages (old one)
-# FOR OLD_URL='' it adds no alias, it should be empty for every new page, don't change it for already existing links.
-# Images starting with <img src="docs/ are replaced with <img src="
-# Cluster docs are supposed to be ordered as 2nd.
-# The rest of docs is ordered manually.
-docs-sync:
-	SRC=README.md DST=docs/README.md OLD_URL='' ORDER=0 TITLE=VictoriaMetrics $(MAKE) copy-docs
-	SRC=README.md DST=docs/Single-server-VictoriaMetrics.md OLD_URL='/Single-server-VictoriaMetrics.html' TITLE=VictoriaMetrics ORDER=1 $(MAKE) copy-docs

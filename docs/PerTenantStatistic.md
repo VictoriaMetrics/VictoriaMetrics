@@ -1,10 +1,11 @@
 ---
 sort: 31
 weight: 31
-title: VictoriaMetrics Cluster Per Tenant Statistic
+title: Cluster Per Tenant Statistic
 menu:
   docs:
-    parent: 'victoriametrics'
+    identifier: vm-cluster-per-tenant-statistic
+    parent: victoriametrics
     weight: 31
 aliases:
   - /PerTenantStatistic.html
