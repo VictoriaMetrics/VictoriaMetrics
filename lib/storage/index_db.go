@@ -1676,11 +1676,7 @@ func (is *indexSearch) loadDeletedMetricIDs() (*uint64set.Set, error) {
 //
 // The returned metricIDs are sorted.
 func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]uint64, error) {
-	if tr == globalIndexTimeRange {
-		qt = qt.NewChild("search for matching metricIDs in global index: filters=%s", tfss)
-	} else {
-		qt = qt.NewChild("search for matching metricIDs in per-day index: filters=%s, timeRange=%s", tfss, &tr)
-	}
+	qt = qt.NewChild("search for matching metricIDs: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
 
 	if len(tfss) == 0 {
@@ -2254,11 +2250,7 @@ func (is *indexSearch) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilter
 }
 
 func (is *indexSearch) searchMetricIDsInternal(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int) (*uint64set.Set, error) {
-	if tr == globalIndexTimeRange {
-		qt = qt.NewChild("search for metric ids in global index: filters=%s, maxMetrics=%d", tfss, maxMetrics)
-	} else {
-		qt = qt.NewChild("search for metric ids in per-day index: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
-	}
+	qt = qt.NewChild("search for metric ids: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
 
 	metricIDs := &uint64set.Set{}
@@ -2302,18 +2294,13 @@ func (is *indexSearch) searchMetricIDsInternal(qt *querytracer.Tracer, tfss []*T
 
 // TODO(rtm0): Split into two funcs (fast and slow)
 func (is *indexSearch) updateMetricIDsForTagFilters(qt *querytracer.Tracer, metricIDs *uint64set.Set, tfs *TagFilters, tr TimeRange, maxMetrics int) error {
+	qt = qt.NewChild("update metric ids: filters=%s, timeRange=%s", tfs, &tr)
 	prevMetricIDsLen := metricIDs.Len()
-	done := func(qt *querytracer.Tracer) {
+	defer func() {
 		qt.Donef("updated %d metric ids", metricIDs.Len()-prevMetricIDsLen)
-	}
+	}()
 
-	if tr == globalIndexTimeRange {
-		qt = qt.NewChild("update metric ids for the entire retention period: filters=%s", tfs)
-		defer done(qt)
-	} else {
-		qt = qt.NewChild("update metric ids for time range: filters=%s, timeRange=%s", tfs, &tr)
-		defer done(qt)
-
+	if tr != globalIndexTimeRange {
 		err := is.tryUpdatingMetricIDsForDateRange(qt, metricIDs, tfs, tr, maxMetrics)
 		if err == nil {
 			// Fast path: found metricIDs by date range.
@@ -2579,12 +2566,7 @@ func (is *indexSearch) tryUpdatingMetricIDsForDateRange(qt *querytracer.Tracer, 
 }
 
 func (is *indexSearch) getMetricIDsForDateAndFilters(qt *querytracer.Tracer, date uint64, tfs *TagFilters, maxMetrics int) (*uint64set.Set, error) {
-	if date == globalIndexDate {
-		qt = qt.NewChild("search for metric ids across the entire retention period: filters=%s, maxMetrics=%d", tfs, maxMetrics)
-
-	} else {
-		qt = qt.NewChild("search for metric ids on a particular day: filters=%s, date=%s, maxMetrics=%d", tfs, dateToString(date), maxMetrics)
-	}
+	qt = qt.NewChild("search for metric ids on a particular day: filters=%s, date=%s, maxMetrics=%d", tfs, dateToString(date), maxMetrics)
 	defer qt.Done()
 
 	// Sort tfs by loopsCount needed for performing each filter.
@@ -2972,13 +2954,7 @@ func (is *indexSearch) hasMetricIDNoExtDB(metricID uint64) bool {
 
 func (is *indexSearch) getMetricIDsForDateTagFilter(qt *querytracer.Tracer, tf *tagFilter, date uint64, commonPrefix []byte,
 	maxMetrics int, maxLoopsCount int64) (*uint64set.Set, int64, error) {
-	if date == globalIndexDate {
-		// Global index search.
-		qt = qt.NewChild("get metric ids for filter: filter={%s}, maxMetrics=%d, maxLoopsCount=%d", tf, maxMetrics, maxLoopsCount)
-	} else {
-		// Per-day index search.
-		qt = qt.NewChild("get metric ids for filter and date: filter={%s}, date=%s, maxMetrics=%d, maxLoopsCount=%d", tf, dateToString(date), maxMetrics, maxLoopsCount)
-	}
+	qt = qt.NewChild("get metric ids for filter and date: filter={%s}, date=%s, maxMetrics=%d, maxLoopsCount=%d", tf, dateToString(date), maxMetrics, maxLoopsCount)
 	defer qt.Done()
 
 	if !bytes.HasPrefix(tf.prefix, commonPrefix) {

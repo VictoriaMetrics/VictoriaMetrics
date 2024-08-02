@@ -7,7 +7,7 @@ import (
 
 func dateToString(date uint64) string {
 	if date == 0 {
-		return "1970-01-01"
+		return "[entire retention period]"
 	}
 	t := time.Unix(int64(date*24*3600), 0).UTC()
 	return t.Format("2006-01-02")
@@ -40,7 +40,9 @@ var (
 )
 
 func (tr *TimeRange) String() string {
-	// TODO(rtm0): Add if for global time range
+	if *tr == globalIndexTimeRange {
+		return "[entire retention period]"
+	}
 	start := TimestampToHumanReadableFormat(tr.MinTimestamp)
 	end := TimestampToHumanReadableFormat(tr.MaxTimestamp)
 	return fmt.Sprintf("[%s..%s]", start, end)

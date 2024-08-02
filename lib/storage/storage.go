@@ -1144,10 +1144,9 @@ func nextRetentionDeadlineSeconds(atSecs, retentionSecs, offsetSecs int64) int64
 func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
 	if s.disablePerDayIndex {
 		tr = globalIndexTimeRange
-		qt = qt.NewChild("search for matching metric names in global index: filters=%s", tfss)
-	} else {
-		qt = qt.NewChild("search for matching metric names in per-day index: filters=%s, timeRange=%s", tfss, &tr)
 	}
+
+	qt = qt.NewChild("search for matching metric names: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
 
 	metricIDs, err := s.idb().searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
@@ -1333,12 +1332,7 @@ func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, labelName string, tf
 	if len(tfss) == 1 && len(tfss[0].tfs) == 1 && string(tfss[0].tfs[0].key) == key {
 		// tfss contains only a single filter on labelName. It is faster searching for label values
 		// without any filters and limits and then later applying the filter and the limit to the found label values.
-
-		if tr == globalIndexTimeRange {
-			qt.Printf("search for up to %d values for the label %q on the entire retention period", maxMetrics, labelName)
-		} else {
-			qt.Printf("search for up to %d values for the label %q on the time range %s", maxMetrics, labelName, &tr)
-		}
+		qt.Printf("search for up to %d values for the label %q on the time range %s", maxMetrics, labelName, &tr)
 
 		lvs, err := idb.SearchLabelValues(qt, labelName, nil, tr, maxMetrics, maxMetrics, deadline)
 		if err != nil {
