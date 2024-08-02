@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // TableSearch is a reusable cursor used for searching in the Table.
@@ -71,10 +72,7 @@ func (ts *TableSearch) Init(tb *Table) {
 	ts.pws = ts.tb.getParts(ts.pws[:0])
 
 	// Initialize the psPool.
-	if n := len(ts.pws) - cap(ts.psPool); n > 0 {
-		ts.psPool = append(ts.psPool[:cap(ts.psPool)], make([]partSearch, n)...)
-	}
-	ts.psPool = ts.psPool[:len(ts.pws)]
+	ts.psPool = slicesutil.SetLength(ts.psPool, len(ts.pws))
 	for i, pw := range ts.pws {
 		ts.psPool[i].Init(pw.p)
 	}
@@ -207,11 +205,11 @@ func (psh *partSearchHeap) Swap(i, j int) {
 	x[i], x[j] = x[j], x[i]
 }
 
-func (psh *partSearchHeap) Push(x interface{}) {
+func (psh *partSearchHeap) Push(x any) {
 	*psh = append(*psh, x.(*partSearch))
 }
 
-func (psh *partSearchHeap) Pop() interface{} {
+func (psh *partSearchHeap) Pop() any {
 	a := *psh
 	v := a[len(a)-1]
 	*psh = a[:len(a)-1]

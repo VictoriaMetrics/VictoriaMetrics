@@ -13,14 +13,16 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/cespare/xxhash/v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/cespare/xxhash/v2"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
-var maxDroppedTargets = flag.Int("promscrape.maxDroppedTargets", 1000, "The maximum number of droppedTargets to show at /api/v1/targets page. "+
+var maxDroppedTargets = flag.Int("promscrape.maxDroppedTargets", 10000, "The maximum number of droppedTargets to show at /api/v1/targets page. "+
 	"Increase this value if your setup drops more scrape targets during relabeling and you need investigating labels for all the dropped targets. "+
 	"Note that the increased number of tracked dropped targets may result in increased memory usage")
 
@@ -177,7 +179,7 @@ func (tsm *targetStatusMap) Unregister(sw *scrapeWork) {
 	tsm.mu.Unlock()
 }
 
-func (tsm *targetStatusMap) Update(sw *scrapeWork, up bool, scrapeTime, scrapeDuration int64, samplesScraped int, err error) {
+func (tsm *targetStatusMap) Update(sw *scrapeWork, up bool, scrapeTime, scrapeDuration int64, scrapeResponseSize, samplesScraped int, err error) {
 	jobName := sw.Config.jobNameOriginal
 
 	tsm.mu.Lock()
@@ -196,6 +198,7 @@ func (tsm *targetStatusMap) Update(sw *scrapeWork, up bool, scrapeTime, scrapeDu
 	ts.scrapeTime = scrapeTime
 	ts.scrapeDuration = scrapeDuration
 	ts.samplesScraped = samplesScraped
+	ts.scrapeResponseSize = scrapeResponseSize
 	ts.scrapesTotal++
 	if !up {
 		ts.scrapesFailed++
@@ -259,21 +262,21 @@ func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer) {
 		writeLabelsJSON(w, ts.sw.Config.OriginalLabels)
 		fmt.Fprintf(w, `,"labels":`)
 		writeLabelsJSON(w, ts.sw.Config.Labels)
-		fmt.Fprintf(w, `,"scrapePool":%q`, ts.sw.Config.Job())
-		fmt.Fprintf(w, `,"scrapeUrl":%q`, ts.sw.Config.ScrapeURL)
+		fmt.Fprintf(w, `,"scrapePool":%s`, stringsutil.JSONString(ts.sw.Config.Job()))
+		fmt.Fprintf(w, `,"scrapeUrl":%s`, stringsutil.JSONString(ts.sw.Config.ScrapeURL))
 		errMsg := ""
 		if ts.err != nil {
 			errMsg = ts.err.Error()
 		}
-		fmt.Fprintf(w, `,"lastError":%q`, errMsg)
-		fmt.Fprintf(w, `,"lastScrape":%q`, time.Unix(ts.scrapeTime/1000, (ts.scrapeTime%1000)*1e6).Format(time.RFC3339Nano))
+		fmt.Fprintf(w, `,"lastError":%s`, stringsutil.JSONString(errMsg))
+		fmt.Fprintf(w, `,"lastScrape":"%s"`, time.Unix(ts.scrapeTime/1000, (ts.scrapeTime%1000)*1e6).Format(time.RFC3339Nano))
 		fmt.Fprintf(w, `,"lastScrapeDuration":%g`, (time.Millisecond * time.Duration(ts.scrapeDuration)).Seconds())
 		fmt.Fprintf(w, `,"lastSamplesScraped":%d`, ts.samplesScraped)
 		state := "up"
 		if !ts.up {
 			state = "down"
 		}
-		fmt.Fprintf(w, `,"health":%q}`, state)
+		fmt.Fprintf(w, `,"health":%s}`, stringsutil.JSONString(state))
 		if i+1 < len(tss) {
 			fmt.Fprintf(w, `,`)
 		}
@@ -285,7 +288,7 @@ func writeLabelsJSON(w io.Writer, labels *promutils.Labels) {
 	fmt.Fprintf(w, `{`)
 	labelsList := labels.GetLabels()
 	for i, label := range labelsList {
-		fmt.Fprintf(w, "%q:%q", label.Name, label.Value)
+		fmt.Fprintf(w, "%s:%s", stringsutil.JSONString(label.Name), stringsutil.JSONString(label.Value))
 		if i+1 < len(labelsList) {
 			fmt.Fprintf(w, `,`)
 		}
@@ -294,14 +297,15 @@ func writeLabelsJSON(w io.Writer, labels *promutils.Labels) {
 }
 
 type targetStatus struct {
-	sw             *scrapeWork
-	up             bool
-	scrapeTime     int64
-	scrapeDuration int64
-	samplesScraped int
-	scrapesTotal   int
-	scrapesFailed  int
-	err            error
+	sw                 *scrapeWork
+	up                 bool
+	scrapeTime         int64
+	scrapeDuration     int64
+	scrapeResponseSize int
+	samplesScraped     int
+	scrapesTotal       int
+	scrapesFailed      int
+	err                error
 }
 
 func (ts *targetStatus) getDurationFromLastScrape() string {
@@ -310,6 +314,13 @@ func (ts *targetStatus) getDurationFromLastScrape() string {
 	}
 	d := time.Since(time.Unix(ts.scrapeTime/1000, (ts.scrapeTime%1000)*1e6))
 	return fmt.Sprintf("%.3fs ago", d.Seconds())
+}
+
+func (ts *targetStatus) getSizeFromLastScrape() string {
+	if ts.scrapeResponseSize <= 0 {
+		return "never scraped"
+	}
+	return fmt.Sprintf("%.3fKiB", float64(ts.scrapeResponseSize)/1024)
 }
 
 type droppedTargets struct {
@@ -404,7 +415,7 @@ func labelsHash(labels *promutils.Labels) uint64 {
 }
 
 var xxhashPool = &sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return xxhash.New()
 	},
 }

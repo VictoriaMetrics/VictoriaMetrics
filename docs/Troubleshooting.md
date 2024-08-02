@@ -9,9 +9,6 @@ menu:
 aliases:
 - /Troubleshooting.html
 ---
-
-# Troubleshooting
-
 This document contains troubleshooting guides for most common issues when working with VictoriaMetrics:
 
 - [General troubleshooting checklist](#general-troubleshooting-checklist)
@@ -92,7 +89,7 @@ then please follow the following steps in order to quickly find the solution:
    from VictoriaMetrics community. If the linked resources have no enough information,
    then it is better posting the missing information in the web resource before providing links
    to this information in Slack chat. This will simplify searching for this information in the future
-   for VictoriaMetrics users via Google and ChatGPT :)
+   for VictoriaMetrics users via Google and [Perplexity](https://www.perplexity.ai/).
 
 1. Pro tip 3: if you are answering somebody's question about VictoriaMetrics components
    at GitHub issues / Slack chat / StackOverflow, then the best answer is a direct link to the information
@@ -300,7 +297,7 @@ There are the following most commons reasons for slow data ingestion in Victoria
    See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183) for more details.
 
 1. If you see constant and abnormally high CPU usage of VictoriaMetrics component, check `CPU spent on GC` panel
-   on the corresponding [Grafana dasbhoard](https://grafana.com/orgs/victoriametrics) in `Resource usage` section. If percentage of CPU time spent on garbage collection
+   on the corresponding [Grafana dashboard](https://grafana.com/orgs/victoriametrics) in `Resource usage` section. If percentage of CPU time spent on garbage collection
    is high, then CPU usage of the component can be reduced at the cost of higher memory usage by changing [GOGC](https://tip.golang.org/doc/gc-guide#GOGC) environment variable
    to higher values. By default VictoriaMetrics components use `GOGC=30`. Try running VictoriaMetrics components with `GOGC=100` and see whether this helps reducing CPU usage.
    Note that higher `GOGC` values may increase memory usage.

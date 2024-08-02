@@ -224,10 +224,11 @@ func testMarshalUnmarshalVarInt64(t *testing.T, v int64) {
 	t.Helper()
 
 	b := MarshalVarInt64(nil, v)
-	tail, vNew, err := UnmarshalVarInt64(b)
-	if err != nil {
-		t.Fatalf("unexpected error when unmarshaling v=%d from b=%x: %s", v, b, err)
+	vNew, nSize := UnmarshalVarInt64(b)
+	if nSize <= 0 {
+		t.Fatalf("unexpected error when unmarshaling v=%d from b=%x", v, b)
 	}
+	tail := b[nSize:]
 	if vNew != v {
 		t.Fatalf("unexpected vNew from b=%x; got %d; expecting %d", b, vNew, v)
 	}
@@ -272,10 +273,11 @@ func testMarshalUnmarshalVarUint64(t *testing.T, u uint64) {
 	t.Helper()
 
 	b := MarshalVarUint64(nil, u)
-	tail, uNew, err := UnmarshalVarUint64(b)
-	if err != nil {
-		t.Fatalf("unexpected error when unmarshaling u=%d from b=%x: %s", u, b, err)
+	uNew, nSize := UnmarshalVarUint64(b)
+	if nSize <= 0 {
+		t.Fatalf("unexpected error when unmarshaling u=%d from b=%x", u, b)
 	}
+	tail := b[nSize:]
 	if uNew != u {
 		t.Fatalf("unexpected uNew from b=%x; got %d; expecting %d", b, uNew, u)
 	}
@@ -310,10 +312,11 @@ func testMarshalUnmarshalBytes(t *testing.T, s string) {
 	t.Helper()
 
 	b := MarshalBytes(nil, []byte(s))
-	tail, bNew, err := UnmarshalBytes(b)
-	if err != nil {
-		t.Fatalf("unexpected error when unmarshaling s=%q from b=%x: %s", s, b, err)
+	bNew, nSize := UnmarshalBytes(b)
+	if nSize <= 0 {
+		t.Fatalf("unexpected error when unmarshaling s=%q from b=%x", s, b)
 	}
+	tail := b[nSize:]
 	if string(bNew) != s {
 		t.Fatalf("unexpected sNew from b=%x; got %q; expecting %q", b, bNew, s)
 	}

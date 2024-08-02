@@ -44,8 +44,7 @@ func TestClient_Push(t *testing.T) {
 	}
 
 	r := rand.New(rand.NewSource(1))
-	const rowsN = 1e4
-	var sent int
+	const rowsN = int(1e4)
 	for i := 0; i < rowsN; i++ {
 		s := prompbmarshal.TimeSeries{
 			Samples: []prompbmarshal.Sample{{
@@ -57,16 +56,10 @@ func TestClient_Push(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected err: %s", err)
 		}
-		if err == nil {
-			sent++
-		}
 		err = faultyClient.Push(s)
 		if err != nil {
 			t.Fatalf("unexpected err: %s", err)
 		}
-	}
-	if sent == 0 {
-		t.Fatalf("0 series sent")
 	}
 	if err := client.Close(); err != nil {
 		t.Fatalf("failed to close client: %s", err)
@@ -75,77 +68,66 @@ func TestClient_Push(t *testing.T) {
 		t.Fatalf("failed to close faulty client: %s", err)
 	}
 	got := testSrv.accepted()
-	if got != sent {
-		t.Fatalf("expected to have %d series; got %d", sent, got)
+	if got != rowsN {
+		t.Fatalf("expected to have %d series; got %d", rowsN, got)
 	}
 	got = faultySrv.accepted()
-	if got != sent {
-		t.Fatalf("expected to have %d series for faulty client; got %d", sent, got)
+	if got != rowsN {
+		t.Fatalf("expected to have %d series for faulty client; got %d", rowsN, got)
 	}
 }
 
 func TestClient_run_maxBatchSizeDuringShutdown(t *testing.T) {
-	batchSize := 20
+	const batchSize = 20
 
-	testTable := []struct {
-		name     string // name of the test case
-		pushCnt  int    // how many time series is pushed to the client
-		batchCnt int    // the expected batch count sent by the client
-	}{
-		{
-			name:     "pushCnt % batchSize == 0",
-			pushCnt:  batchSize * 40,
-			batchCnt: 40,
-		},
-		{
-			name:     "pushCnt % batchSize != 0",
-			pushCnt:  batchSize*40 + 1,
-			batchCnt: 40 + 1,
-		},
-	}
+	f := func(pushCnt, batchCntExpected int) {
+		t.Helper()
 
-	for _, tt := range testTable {
-		t.Run(tt.name, func(t *testing.T) {
-			// run new server
-			bcServer := newBatchCntRWServer()
+		// run new server
+		bcServer := newBatchCntRWServer()
 
-			// run new client
-			rwClient, err := NewClient(context.Background(), Config{
-				MaxBatchSize: batchSize,
+		// run new client
+		rwClient, err := NewClient(context.Background(), Config{
+			MaxBatchSize: batchSize,
 
-				// Set everything to 1 to simplify the calculation.
-				Concurrency:   1,
-				MaxQueueSize:  1000,
-				FlushInterval: time.Minute,
+			// Set everything to 1 to simplify the calculation.
+			Concurrency:   1,
+			MaxQueueSize:  1000,
+			FlushInterval: time.Minute,
 
-				// batch count server
-				Addr: bcServer.URL,
-			})
-			if err != nil {
-				t.Fatalf("new remote write client failed, err: %v", err)
-			}
-
-			// push time series to the client.
-			for i := 0; i < tt.pushCnt; i++ {
-				if err = rwClient.Push(prompbmarshal.TimeSeries{}); err != nil {
-					t.Fatalf("push time series to the client failed, err: %v", err)
-				}
-			}
-
-			// close the client so the rest ts will be flushed in `shutdown`
-			if err = rwClient.Close(); err != nil {
-				t.Fatalf("shutdown client failed, err: %v", err)
-			}
-
-			// finally check how many batches is sent.
-			if tt.batchCnt != bcServer.acceptedBatches() {
-				t.Errorf("client sent batch count incorrect, want: %d, get: %d", tt.batchCnt, bcServer.acceptedBatches())
-			}
-			if tt.pushCnt != bcServer.accepted() {
-				t.Errorf("client sent time series count incorrect, want: %d, get: %d", tt.pushCnt, bcServer.accepted())
-			}
+			// batch count server
+			Addr: bcServer.URL,
 		})
+		if err != nil {
+			t.Fatalf("cannot create remote write client: %s", err)
+		}
+
+		// push time series to the client.
+		for i := 0; i < pushCnt; i++ {
+			if err = rwClient.Push(prompbmarshal.TimeSeries{}); err != nil {
+				t.Fatalf("cannot time series to the client: %s", err)
+			}
+		}
+
+		// close the client so the rest ts will be flushed in `shutdown`
+		if err = rwClient.Close(); err != nil {
+			t.Fatalf("cannot shutdown client: %s", err)
+		}
+
+		// finally check how many batches is sent.
+		if bcServer.acceptedBatches() != batchCntExpected {
+			t.Fatalf("client sent batch count incorrect; got %d; want %d", bcServer.acceptedBatches(), batchCntExpected)
+		}
+		if pushCnt != bcServer.accepted() {
+			t.Fatalf("client sent time series count incorrect; got %d; want %d", bcServer.accepted(), pushCnt)
+		}
 	}
+
+	// pushCnt % batchSize == 0
+	f(batchSize*40, 40)
+
+	//pushCnt % batchSize != 0
+	f(batchSize*40+1, 40+1)
 }
 
 func newRWServer() *rwServer {

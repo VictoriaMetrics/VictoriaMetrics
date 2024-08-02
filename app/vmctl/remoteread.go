@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cheggaaa/pb/v3"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
@@ -22,7 +20,6 @@ type remoteReadProcessor struct {
 	src *remoteread.Client
 
 	cc        int
-	isSilent  bool
 	isVerbose bool
 }
 
@@ -50,21 +47,17 @@ func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 
 	question := fmt.Sprintf("Selected time range %q - %q will be split into %d ranges according to %q step. Continue?",
 		rrp.filter.timeStart.String(), rrp.filter.timeEnd.String(), len(ranges), rrp.filter.chunk)
-	if !rrp.isSilent && !prompt(question) {
+	if !prompt(question) {
 		return nil
 	}
 
-	var bar *pb.ProgressBar
-	if !rrp.isSilent {
-		bar = barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing ranges"), len(ranges))
-		if err := barpool.Start(); err != nil {
-			return err
-		}
+	bar := barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing ranges"), len(ranges))
+	if err := barpool.Start(); err != nil {
+		return err
 	}
+
 	defer func() {
-		if !rrp.isSilent {
-			barpool.Stop()
-		}
+		barpool.Stop()
 		log.Println("Import finished!")
 		log.Print(rrp.dst.Stats())
 	}()
@@ -82,9 +75,7 @@ func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 					errCh <- fmt.Errorf("request failed for: %s", err)
 					return
 				}
-				if bar != nil {
-					bar.Increment()
-				}
+				bar.Increment()
 			}
 		}()
 	}

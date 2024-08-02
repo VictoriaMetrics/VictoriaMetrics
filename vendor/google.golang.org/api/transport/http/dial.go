@@ -48,7 +48,7 @@ func NewClient(ctx context.Context, opts ...option.ClientOption) (*http.Client, 
 	}
 
 	if settings.IsNewAuthLibraryEnabled() {
-		client, err := newClientNewAuth(ctx, settings)
+		client, err := newClientNewAuth(ctx, nil, settings)
 		if err != nil {
 			return nil, "", err
 		}
@@ -62,57 +62,73 @@ func NewClient(ctx context.Context, opts ...option.ClientOption) (*http.Client, 
 }
 
 // newClientNewAuth is an adapter to call new auth library.
-func newClientNewAuth(ctx context.Context, settings *internal.DialSettings) (*http.Client, error) {
+func newClientNewAuth(ctx context.Context, base http.RoundTripper, ds *internal.DialSettings) (*http.Client, error) {
 	// honor options if set
-	var ts oauth2.TokenSource
-	if settings.InternalCredentials != nil {
-		ts = settings.InternalCredentials.TokenSource
-	} else if settings.Credentials != nil {
-		ts = settings.Credentials.TokenSource
-	} else if settings.TokenSource != nil {
-		ts = settings.TokenSource
-	}
 	var creds *auth.Credentials
-	if settings.AuthCredentials != nil {
-		creds = settings.AuthCredentials
-	} else if ts != nil {
-		creds = auth.NewCredentials(&auth.CredentialsOptions{
-			TokenProvider: oauth2adapt.TokenProviderFromTokenSource(ts),
-		})
+	if ds.InternalCredentials != nil {
+		creds = oauth2adapt.AuthCredentialsFromOauth2Credentials(ds.InternalCredentials)
+	} else if ds.Credentials != nil {
+		creds = oauth2adapt.AuthCredentialsFromOauth2Credentials(ds.Credentials)
+	} else if ds.AuthCredentials != nil {
+		creds = ds.AuthCredentials
+	} else if ds.TokenSource != nil {
+		credOpts := &auth.CredentialsOptions{
+			TokenProvider: oauth2adapt.TokenProviderFromTokenSource(ds.TokenSource),
+		}
+		if ds.QuotaProject != "" {
+			credOpts.QuotaProjectIDProvider = auth.CredentialsPropertyFunc(func(ctx context.Context) (string, error) {
+				return ds.QuotaProject, nil
+			})
+		}
+		creds = auth.NewCredentials(credOpts)
+	}
+
+	var skipValidation bool
+	// If our clients explicitly setup the credential skip validation as it is
+	// assumed correct
+	if ds.SkipValidation || ds.InternalCredentials != nil {
+		skipValidation = true
+	}
+
+	// Defaults for older clients that don't set this value yet
+	defaultEndpointTemplate := ds.DefaultEndpointTemplate
+	if defaultEndpointTemplate == "" {
+		defaultEndpointTemplate = ds.DefaultEndpoint
 	}
 
 	var aud string
-	if len(settings.Audiences) > 0 {
-		aud = settings.Audiences[0]
+	if len(ds.Audiences) > 0 {
+		aud = ds.Audiences[0]
 	}
 	headers := http.Header{}
-	if settings.QuotaProject != "" {
-		headers.Set("X-goog-user-project", settings.QuotaProject)
+	if ds.QuotaProject != "" {
+		headers.Set("X-goog-user-project", ds.QuotaProject)
 	}
-	if settings.RequestReason != "" {
-		headers.Set("X-goog-request-reason", settings.RequestReason)
+	if ds.RequestReason != "" {
+		headers.Set("X-goog-request-reason", ds.RequestReason)
 	}
 	client, err := httptransport.NewClient(&httptransport.Options{
-		DisableTelemetry:      settings.TelemetryDisabled,
-		DisableAuthentication: settings.NoAuth,
+		DisableTelemetry:      ds.TelemetryDisabled,
+		DisableAuthentication: ds.NoAuth,
 		Headers:               headers,
-		Endpoint:              settings.Endpoint,
-		APIKey:                settings.APIKey,
+		Endpoint:              ds.Endpoint,
+		APIKey:                ds.APIKey,
 		Credentials:           creds,
-		ClientCertProvider:    settings.ClientCertSource,
+		ClientCertProvider:    ds.ClientCertSource,
+		BaseRoundTripper:      base,
 		DetectOpts: &credentials.DetectOptions{
-			Scopes:          settings.Scopes,
+			Scopes:          ds.Scopes,
 			Audience:        aud,
-			CredentialsFile: settings.CredentialsFile,
-			CredentialsJSON: settings.CredentialsJSON,
-			Client:          oauth2.NewClient(ctx, nil),
+			CredentialsFile: ds.CredentialsFile,
+			CredentialsJSON: ds.CredentialsJSON,
 		},
 		InternalOptions: &httptransport.InternalOptions{
-			EnableJWTWithScope:      settings.EnableJwtWithScope,
-			DefaultAudience:         settings.DefaultAudience,
-			DefaultEndpointTemplate: settings.DefaultEndpointTemplate,
-			DefaultMTLSEndpoint:     settings.DefaultMTLSEndpoint,
-			DefaultScopes:           settings.DefaultScopes,
+			EnableJWTWithScope:      ds.EnableJwtWithScope,
+			DefaultAudience:         ds.DefaultAudience,
+			DefaultEndpointTemplate: defaultEndpointTemplate,
+			DefaultMTLSEndpoint:     ds.DefaultMTLSEndpoint,
+			DefaultScopes:           ds.DefaultScopes,
+			SkipValidation:          skipValidation,
 		},
 	})
 	if err != nil {
@@ -132,8 +148,7 @@ func NewTransport(ctx context.Context, base http.RoundTripper, opts ...option.Cl
 		return nil, errors.New("transport/http: WithHTTPClient passed to NewTransport")
 	}
 	if settings.IsNewAuthLibraryEnabled() {
-		// TODO, this is not wrapping the base, find a way...
-		client, err := newClientNewAuth(ctx, settings)
+		client, err := newClientNewAuth(ctx, base, settings)
 		if err != nil {
 			return nil, err
 		}

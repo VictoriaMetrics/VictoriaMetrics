@@ -123,14 +123,13 @@ func TestTenantIDLessEqual(t *testing.T) {
 	}
 }
 
-func Test_GetTenantIDFromString(t *testing.T) {
+func TestParseTenantID(t *testing.T) {
 	f := func(tenant string, expected TenantID) {
 		t.Helper()
 
-		got, err := GetTenantIDFromString(tenant)
+		got, err := ParseTenantID(tenant)
 		if err != nil {
-			t.Errorf("unexpected error: %s", err)
-			return
+			t.Fatalf("unexpected error: %s", err)
 		}
 
 		if got.String() != expected.String() {

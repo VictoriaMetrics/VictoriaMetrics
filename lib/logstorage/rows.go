@@ -3,6 +3,8 @@ package logstorage
 import (
 	"fmt"
 
+	"github.com/valyala/quicktemplate"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
@@ -24,11 +26,8 @@ func (f *Field) Reset() {
 
 // String returns string representation of f.
 func (f *Field) String() string {
-	name := f.Name
-	if name == "" {
-		name = "_msg"
-	}
-	return fmt.Sprintf("%q:%q", name, f.Value)
+	x := f.marshalToJSON(nil)
+	return string(x)
 }
 
 func (f *Field) marshal(dst []byte) []byte {
@@ -37,28 +36,119 @@ func (f *Field) marshal(dst []byte) []byte {
 	return dst
 }
 
-func (f *Field) unmarshal(src []byte) ([]byte, error) {
+func (f *Field) unmarshal(a *arena, src []byte) ([]byte, error) {
 	srcOrig := src
 
 	// Unmarshal field name
-	tail, b, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return srcOrig, fmt.Errorf("cannot unmarshal field name: %w", err)
+	b, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return srcOrig, fmt.Errorf("cannot unmarshal field name")
 	}
-	// Do not use bytesutil.InternBytes(b) here, since it works slower than the string(b) in prod
-	f.Name = string(b)
-	src = tail
+	src = src[nSize:]
+	f.Name = a.copyBytesToString(b)
 
 	// Unmarshal field value
-	tail, b, err = encoding.UnmarshalBytes(src)
-	if err != nil {
-		return srcOrig, fmt.Errorf("cannot unmarshal field value: %w", err)
+	b, nSize = encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return srcOrig, fmt.Errorf("cannot unmarshal field value")
 	}
-	// Do not use bytesutil.InternBytes(b) here, since it works slower than the string(b) in prod
-	f.Value = string(b)
-	src = tail
+	src = src[nSize:]
+	f.Value = a.copyBytesToString(b)
 
 	return src, nil
+}
+
+func (f *Field) marshalToJSON(dst []byte) []byte {
+	name := f.Name
+	if name == "" {
+		name = "_msg"
+	}
+	dst = quicktemplate.AppendJSONString(dst, name, true)
+	dst = append(dst, ':')
+	dst = quicktemplate.AppendJSONString(dst, f.Value, true)
+	return dst
+}
+
+func (f *Field) marshalToLogfmt(dst []byte) []byte {
+	dst = append(dst, f.Name...)
+	dst = append(dst, '=')
+	if needLogfmtQuoting(f.Value) {
+		dst = quicktemplate.AppendJSONString(dst, f.Value, true)
+	} else {
+		dst = append(dst, f.Value...)
+	}
+	return dst
+}
+
+func getFieldValue(fields []Field, name string) string {
+	for _, f := range fields {
+		if f.Name == name {
+			return f.Value
+		}
+	}
+	return ""
+}
+
+func needLogfmtQuoting(s string) bool {
+	for _, c := range s {
+		if !isTokenRune(c) {
+			return true
+		}
+	}
+	return false
+}
+
+// RenameField renames field with the oldName to newName in Fields
+func RenameField(fields []Field, oldName, newName string) {
+	if oldName == "" {
+		return
+	}
+	for i := range fields {
+		f := &fields[i]
+		if f.Name == oldName {
+			f.Name = newName
+			return
+		}
+	}
+}
+
+// MarshalFieldsToJSON appends JSON-marshaled fields to dst and returns the result.
+func MarshalFieldsToJSON(dst []byte, fields []Field) []byte {
+	dst = append(dst, '{')
+	if len(fields) > 0 {
+		dst = fields[0].marshalToJSON(dst)
+		fields = fields[1:]
+		for i := range fields {
+			dst = append(dst, ',')
+			dst = fields[i].marshalToJSON(dst)
+		}
+	}
+	dst = append(dst, '}')
+	return dst
+}
+
+// MarshalFieldsToLogfmt appends logfmt-marshaled fields to dst and returns the result.
+func MarshalFieldsToLogfmt(dst []byte, fields []Field) []byte {
+	if len(fields) == 0 {
+		return dst
+	}
+	dst = fields[0].marshalToLogfmt(dst)
+	fields = fields[1:]
+	for i := range fields {
+		dst = append(dst, ' ')
+		dst = fields[i].marshalToLogfmt(dst)
+	}
+	return dst
+}
+
+func appendFields(a *arena, dst, src []Field) []Field {
+	for _, f := range src {
+		dst = append(dst, Field{
+			Name:  a.copyString(f.Name),
+			Value: a.copyString(f.Value),
+		})
+	}
+	return dst
 }
 
 // rows is an aux structure used during rows merge

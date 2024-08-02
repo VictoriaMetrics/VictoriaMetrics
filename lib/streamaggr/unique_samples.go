@@ -3,6 +3,7 @@ package streamaggr
 import (
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
@@ -35,6 +36,7 @@ func (as *uniqueSamplesAggrState) pushSamples(samples []pushSample) {
 					s.value: {},
 				},
 			}
+			outputKey = bytesutil.InternString(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if !loaded {
 				// The new entry has been successfully created.
@@ -63,7 +65,7 @@ func (as *uniqueSamplesAggrState) pushSamples(samples []pushSample) {
 func (as *uniqueSamplesAggrState) flushState(ctx *flushCtx, resetState bool) {
 	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
 	m := &as.m
-	m.Range(func(k, v interface{}) bool {
+	m.Range(func(k, v any) bool {
 		if resetState {
 			// Atomically delete the entry from the map, so new entry is created for the next flush.
 			m.Delete(k)

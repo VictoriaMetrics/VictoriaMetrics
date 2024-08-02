@@ -9,6 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
@@ -37,12 +38,9 @@ func (ctx *InsertCtx) Reset(rowsLen int) {
 	for i := range mrs {
 		cleanMetricRow(&mrs[i])
 	}
+	mrs = slicesutil.SetLength(mrs, rowsLen)
 	ctx.mrs = mrs[:0]
 
-	if n := rowsLen - cap(ctx.mrs); n > 0 {
-		ctx.mrs = append(ctx.mrs[:cap(ctx.mrs)], make([]storage.MetricRow, n)...)
-	}
-	ctx.mrs = ctx.mrs[:0]
 	ctx.metricNamesBuf = ctx.metricNamesBuf[:0]
 	ctx.relabelCtx.Reset()
 	ctx.streamAggrCtx.Reset()
@@ -142,7 +140,7 @@ func (ctx *InsertCtx) ApplyRelabeling() {
 // FlushBufs flushes buffered rows to the underlying storage.
 func (ctx *InsertCtx) FlushBufs() error {
 	sas := sasGlobal.Load()
-	if (sas != nil || deduplicator != nil) && !ctx.skipStreamAggr {
+	if (sas.IsEnabled() || deduplicator != nil) && !ctx.skipStreamAggr {
 		matchIdxs := matchIdxsPool.Get()
 		matchIdxs.B = ctx.streamAggrCtx.push(ctx.mrs, matchIdxs.B)
 		if !*streamAggrKeepInput {

@@ -1575,25 +1575,26 @@ func (mr *MetricRow) Marshal(dst []byte) []byte {
 //
 // mr refers to src, so it remains valid until src changes.
 func (mr *MetricRow) UnmarshalX(src []byte) ([]byte, error) {
-	tail, metricNameRaw, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal MetricName: %w", err)
+	metricNameRaw, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal MetricName")
 	}
+	tail := src[nSize:]
 	mr.MetricNameRaw = metricNameRaw
 
 	if len(tail) < 8 {
 		return tail, fmt.Errorf("cannot unmarshal Timestamp: want %d bytes; have %d bytes", 8, len(tail))
 	}
 	timestamp := encoding.UnmarshalUint64(tail)
-	mr.Timestamp = int64(timestamp)
 	tail = tail[8:]
+	mr.Timestamp = int64(timestamp)
 
 	if len(tail) < 8 {
 		return tail, fmt.Errorf("cannot unmarshal Value: want %d bytes; have %d bytes", 8, len(tail))
 	}
 	value := encoding.UnmarshalUint64(tail)
-	mr.Value = math.Float64frombits(value)
 	tail = tail[8:]
+	mr.Value = math.Float64frombits(value)
 
 	return tail, nil
 }
@@ -1611,13 +1612,12 @@ var rowsAddedTotal atomic.Uint64
 //
 // The caller should limit the number of concurrent AddRows calls to the number
 // of available CPU cores in order to limit memory usage.
-func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
+func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) {
 	if len(mrs) == 0 {
-		return nil
+		return
 	}
 
 	// Add rows to the storage in blocks with limited size in order to reduce memory usage.
-	var firstErr error
 	ic := getMetricRowsInsertCtx()
 	maxBlockLen := len(ic.rrs)
 	for len(mrs) > 0 {
@@ -1628,17 +1628,10 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 		} else {
 			mrs = nil
 		}
-		if err := s.add(ic.rrs, ic.tmpMrs, mrsBlock, precisionBits); err != nil {
-			if firstErr == nil {
-				firstErr = err
-			}
-			continue
-		}
+		s.add(ic.rrs, ic.tmpMrs, mrsBlock, precisionBits)
 		rowsAddedTotal.Add(uint64(len(mrsBlock)))
 	}
 	putMetricRowsInsertCtx(ic)
-
-	return firstErr
 }
 
 type metricRowsInsertCtx struct {
@@ -1777,7 +1770,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 	}
 }
 
-func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, precisionBits uint8) error {
+func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, precisionBits uint8) {
 	idb := s.idb()
 	generation := idb.generation
 	is := idb.getIndexSearch(noDeadline)
@@ -1801,7 +1794,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 	var genTSID generationTSID
 
-	// Return only the first error, since it has no sense in returning all errors.
+	// Log only the first error, since it has no sense in logging all errors.
 	var firstWarn error
 
 	j := 0
@@ -1967,23 +1960,20 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 	if err := s.prefillNextIndexDB(rows, dstMrs); err != nil {
 		if firstWarn == nil {
-			firstWarn = err
+			firstWarn = fmt.Errorf("cannot prefill next indexdb: %w", err)
 		}
 	}
+	if err := s.updatePerDateData(rows, dstMrs); err != nil {
+		if firstWarn == nil {
+			firstWarn = fmt.Errorf("cannot not update per-day index: %w", err)
+		}
+	}
+
 	if firstWarn != nil {
 		storageAddRowsLogger.Warnf("warn occurred during rows addition: %s", firstWarn)
 	}
 
-	err := s.updatePerDateData(rows, dstMrs)
-	if err != nil {
-		err = fmt.Errorf("cannot update per-date data: %w", err)
-	} else {
-		s.tb.MustAddRows(rows)
-	}
-	if err != nil {
-		return fmt.Errorf("error occurred during rows addition: %w", err)
-	}
-	return nil
+	s.tb.MustAddRows(rows)
 }
 
 var storageAddRowsLogger = logger.WithThrottler("storageAddRows", 5*time.Second)
@@ -2003,7 +1993,7 @@ func createAllIndexesForMetricName(is *indexSearch, mn *MetricName, tsid *TSID, 
 }
 
 func (s *Storage) putSeriesToCache(metricNameRaw []byte, genTSID *generationTSID, date uint64) {
-	// Store the TSID for for the current indexdb into cache,
+	// Store the TSID for the current indexdb into cache,
 	// so future rows for that TSID are ingested via fast path.
 	s.putTSIDToCache(genTSID, metricNameRaw)
 
@@ -2327,16 +2317,28 @@ func (dmc *dateMetricIDCache) SizeBytes() uint64 {
 }
 
 func (dmc *dateMetricIDCache) Has(generation, date, metricID uint64) bool {
+	if byDate := dmc.byDate.Load(); byDate.get(generation, date).Has(metricID) {
+		// Fast path. The majority of calls must go here.
+		return true
+	}
+	// Slow path. Acquire the lock and search the immutable map again and then
+	// also search the mutable map.
+	return dmc.hasSlow(generation, date, metricID)
+}
+
+func (dmc *dateMetricIDCache) hasSlow(generation, date, metricID uint64) bool {
+	dmc.mu.Lock()
+	defer dmc.mu.Unlock()
+
+	// First, check immutable map again because the entry may have been moved to
+	// the immutable map by the time the caller acquires the lock.
 	byDate := dmc.byDate.Load()
 	v := byDate.get(generation, date)
 	if v.Has(metricID) {
-		// Fast path.
-		// The majority of calls must go here.
 		return true
 	}
 
-	// Slow path. Check mutable map.
-	dmc.mu.Lock()
+	// Then check immutable map.
 	vMutable := dmc.byDateMutable.get(generation, date)
 	ok := vMutable.Has(metricID)
 	if ok {
@@ -2347,8 +2349,6 @@ func (dmc *dateMetricIDCache) Has(generation, date, metricID uint64) bool {
 			dmc.slowHits = 0
 		}
 	}
-	dmc.mu.Unlock()
-
 	return ok
 }
 

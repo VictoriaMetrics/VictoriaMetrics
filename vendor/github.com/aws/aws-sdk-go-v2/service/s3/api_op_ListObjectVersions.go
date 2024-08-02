@@ -13,19 +13,34 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets. Returns metadata about
-// all versions of the objects in a bucket. You can also use request parameters as
-// selection criteria to return metadata about a subset of all the object versions.
+// This operation is not supported by directory buckets.
+//
+// Returns metadata about all versions of the objects in a bucket. You can also
+// use request parameters as selection criteria to return metadata about a subset
+// of all the object versions.
+//
 // To use this operation, you must have permission to perform the
-// s3:ListBucketVersions action. Be aware of the name difference. A 200 OK
-// response can contain valid or invalid XML. Make sure to design your application
-// to parse the contents of the response and handle it appropriately. To use this
-// operation, you must have READ access to the bucket. The following operations are
-// related to ListObjectVersions :
-//   - ListObjectsV2 (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html)
-//   - GetObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
-//   - PutObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html)
-//   - DeleteObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html)
+// s3:ListBucketVersions action. Be aware of the name difference.
+//
+// A 200 OK response can contain valid or invalid XML. Make sure to design your
+// application to parse the contents of the response and handle it appropriately.
+//
+// To use this operation, you must have READ access to the bucket.
+//
+// The following operations are related to ListObjectVersions :
+//
+// [ListObjectsV2]
+//
+// [GetObject]
+//
+// [PutObject]
+//
+// [DeleteObject]
+//
+// [DeleteObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html
+// [PutObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html
+// [GetObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html
+// [ListObjectsV2]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html
 func (c *Client) ListObjectVersions(ctx context.Context, params *ListObjectVersionsInput, optFns ...func(*Options)) (*ListObjectVersionsOutput, error) {
 	if params == nil {
 		params = &ListObjectVersionsInput{}
@@ -93,10 +108,12 @@ type ListObjectVersionsInput struct {
 	// Bucket owners need not specify this parameter in their requests. If either the
 	// source or destination S3 bucket has Requester Pays enabled, the requester will
 	// pay for corresponding charges to copy the object. For information about
-	// downloading objects from Requester Pays buckets, see Downloading Objects in
-	// Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
-	// in the Amazon S3 User Guide. This functionality is not supported for directory
-	// buckets.
+	// downloading objects from Requester Pays buckets, see [Downloading Objects in Requester Pays Buckets]in the Amazon S3 User
+	// Guide.
+	//
+	// This functionality is not supported for directory buckets.
+	//
+	// [Downloading Objects in Requester Pays Buckets]: https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html
 	RequestPayer types.RequestPayer
 
 	// Specifies the object version you want to start listing from.
@@ -106,6 +123,7 @@ type ListObjectVersionsInput struct {
 }
 
 func (in *ListObjectVersionsInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.Prefix = in.Prefix
 
@@ -127,10 +145,13 @@ type ListObjectVersionsOutput struct {
 	// max-keys limitation. These keys are not returned elsewhere in the response.
 	Delimiter *string
 
-	// Encoding type used by Amazon S3 to encode object key names in the XML response.
+	//  Encoding type used by Amazon S3 to encode object key names in the XML response.
+	//
 	// If you specify the encoding-type request parameter, Amazon S3 includes this
 	// element in the response, and returns encoded key name values in the following
-	// response elements: KeyMarker, NextKeyMarker, Prefix, Key , and Delimiter .
+	// response elements:
+	//
+	// KeyMarker, NextKeyMarker, Prefix, Key , and Delimiter .
 	EncodingType types.EncodingType
 
 	// A flag that indicates whether Amazon S3 returned all of the results that
@@ -164,7 +185,9 @@ type ListObjectVersionsOutput struct {
 	Prefix *string
 
 	// If present, indicates that the requester was successfully charged for the
-	// request. This functionality is not supported for directory buckets.
+	// request.
+	//
+	// This functionality is not supported for directory buckets.
 	RequestCharged types.RequestCharged
 
 	// Marks the last version of the key returned in a truncated response.
@@ -235,6 +258,15 @@ func (c *Client) addOperationListObjectVersionsMiddlewares(stack *middleware.Sta
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpListObjectVersionsValidationMiddleware(stack); err != nil {

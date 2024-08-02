@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 type blockHeader struct {
@@ -76,20 +77,20 @@ func (bh *blockHeader) Marshal(dst []byte) []byte {
 func (bh *blockHeader) UnmarshalNoCopy(src []byte) ([]byte, error) {
 	bh.noCopy = true
 	// Unmarshal commonPrefix
-	tail, cp, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal commonPrefix: %w", err)
+	cp, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal commonPrefix")
 	}
+	src = src[nSize:]
 	bh.commonPrefix = cp[:len(cp):len(cp)]
-	src = tail
 
 	// Unmarshal firstItem
-	tail, fi, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal firstItem: %w", err)
+	fi, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal firstItem")
 	}
+	src = src[nSize:]
 	bh.firstItem = fi[:len(fi):len(fi)]
-	src = tail
 
 	// Unmarshal marshalType
 	if len(src) == 0 {
@@ -160,10 +161,7 @@ func unmarshalBlockHeadersNoCopy(dst []blockHeader, src []byte, blockHeadersCoun
 		logger.Panicf("BUG: blockHeadersCount must be greater than 0; got %d", blockHeadersCount)
 	}
 	dstLen := len(dst)
-	if n := dstLen + blockHeadersCount - cap(dst); n > 0 {
-		dst = append(dst[:cap(dst)], make([]blockHeader, n)...)
-	}
-	dst = dst[:dstLen+blockHeadersCount]
+	dst = slicesutil.SetLength(dst, dstLen+blockHeadersCount)
 	for i := 0; i < blockHeadersCount; i++ {
 		tail, err := dst[dstLen+i].UnmarshalNoCopy(src)
 		if err != nil {

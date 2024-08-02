@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 )
 
 func BenchmarkReadBulkRequest(b *testing.B) {
@@ -33,7 +33,7 @@ func benchmarkReadBulkRequest(b *testing.B, isGzip bool) {
 
 	timeField := "@timestamp"
 	msgField := "message"
-	processLogMessage := func(_ int64, _ []logstorage.Field) {}
+	blp := &insertutils.BenchmarkLogMessageProcessor{}
 
 	b.ReportAllocs()
 	b.SetBytes(int64(len(data)))
@@ -41,7 +41,7 @@ func benchmarkReadBulkRequest(b *testing.B, isGzip bool) {
 		r := &bytes.Reader{}
 		for pb.Next() {
 			r.Reset(dataBytes)
-			_, err := readBulkRequest(r, isGzip, timeField, msgField, processLogMessage)
+			_, err := readBulkRequest(r, isGzip, timeField, msgField, blp)
 			if err != nil {
 				panic(fmt.Errorf("unexpected error: %w", err))
 			}

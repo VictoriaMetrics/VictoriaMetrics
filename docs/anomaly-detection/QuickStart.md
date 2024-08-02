@@ -10,11 +10,8 @@ menu:
 aliases:
 - /anomaly-detection/QuickStart.html
 ---
-
-# VictoriaMetrics Anomaly Detection Quick Start
-
-For service introduction visit [README](/anomaly-detection/) page
-and [Overview](/anomaly-detection/overview.html) of how `vmanomaly` works.
+For service introduction visit [README](./README.md) page
+and [Overview](./Overview.md) of how `vmanomaly` works.
 
 ## How to install and run vmanomaly
 
@@ -25,6 +22,7 @@ The following options are available:
 - [To run Docker image](#docker)
 - [To run in Kubernetes with Helm charts](#kubernetes-with-helm-charts)
 
+> **Note**: Starting from [v1.13.0](./CHANGELOG.md#v1130) there is a mode to keep anomaly detection models on host filesystem after `fit` stage (instead of keeping them in-memory by default); This may lead to **noticeable reduction of RAM used** on bigger setups. See instructions [here](./FAQ.md#resource-consumption-of-vmanomaly).
 
 ### Docker
 
@@ -56,9 +54,40 @@ docker run -it -v $YOUR_LICENSE_FILE_PATH:/license \
                --license-file=/license
 ```
 
+In case you found `PermissionError: [Errno 13] Permission denied:` in `vmanomaly` logs, set user/user group to 1000 in the run command above / in a docker-compose file:
+
+```sh
+export YOUR_LICENSE_FILE_PATH=path/to/license/file
+export YOUR_CONFIG_FILE_PATH=path/to/config/file
+docker run -it --user 1000:1000 \
+               -v $YOUR_LICENSE_FILE_PATH:/license \
+               -v $YOUR_CONFIG_FILE_PATH:/config.yml \
+               vmanomaly /config.yml \
+               --license-file=/license
+```
+
+```yaml
+# docker-compose file
+services:
+  # ...
+  vmanomaly:
+    image: victoriametrics/vmanomaly:latest
+    volumes:
+        $YOUR_LICENSE_FILE_PATH:/license
+        $YOUR_CONFIG_FILE_PATH:/config.yml
+    command:
+      - "/config.yml"
+      - "--license-file=/license"
+    # ...
+```
+
+For a complete docker-compose example please refer to [our alerting guide](./guides/guide-vmanomaly-vmalert/README.md), chapter [docker-compose](./guides/guide-vmanomaly-vmalert/README.md#docker-compose)
+
+
+
 See also:
 
-- You can verify licence online and offline. See the details [here](/anomaly-detection/overview/#licensing).
+- Verify the license online OR offline. See the details [here](./Overview.md#licensing).
 - [How to configure `vmanomaly`](#how-to-configure-vmanomaly)
 
 ### Kubernetes with Helm charts
@@ -76,18 +105,23 @@ Here is an example of config file that will run [Facebook Prophet](https://faceb
 
 
 ```yaml
-scheduler:
-  infer_every: "1m"
-  fit_every: "2h"
-  fit_window: "14d"
+schedulers:
+  2h_1m:
+    # https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler
+    class: 'periodic'
+    infer_every: '1m'
+    fit_every: '2h'
+    fit_window: '2w'
 
 models:
+  # https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet
   prophet_model:
-    class: "model.prophet.ProphetModel"
+    class: "prophet"  # or "model.prophet.ProphetModel" until v1.13.0
     args:
       interval_width: 0.98
 
 reader:
+  # https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader
   datasource_url: "http://victoriametrics:8428/" # [YOUR_DATASOURCE_URL]
   sampling_period: "1m"
   queries: 
@@ -95,24 +129,25 @@ reader:
     cache: "sum(rate(vm_cache_entries))"
 
 writer:
+  # https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer
   datasource_url:  "http://victoriametrics:8428/" # [YOUR_DATASOURCE_URL]
 ```
 
 
 Next steps:
-- Define how often to run and make inferences in the [scheduler](/anomaly-detection/components/scheduler/) section of a config file.
-- Setup the datasource to read data from in the [reader](/anomaly-detection/components/reader/) section.
-- Specify where and how to store anomaly detection metrics in the [writer](/anomaly-detection/components/writer/) section.
-- Configure built-in models parameters according to your needs in the [models](/anomaly-detection/components/models/) section.
-- Integrate your [custom models](/anomaly-detection/components/models/#custom-model-guide) with `vmanomaly`.
-- Define queries for input data using [MetricsQL](https://docs.victoriametrics.com/metricsql/).
+- Define how often to run and make inferences in the [scheduler](./components/scheduler.md) section of a config file.
+- Setup the datasource to read data from in the [reader](./components/reader.md) section.
+- Specify where and how to store anomaly detection metrics in the [writer](./components/writer.md) section.
+- Configure built-in models parameters according to your needs in the [models](./components/models.md) section.
+- Integrate your [custom models](./components/models.md#custom-model-guide) with `vmanomaly`.
+- Define queries for input data using [MetricsQL](../../MetricsQL.md).
 
 
 ## Check also
 
 Here are other materials that you might find useful:
 
-- [Guide: Anomaly Detection and Alerting Setup](/anomaly-detection/guides/guide-vmanomaly-vmalert/)
-- [FAQ](/anomaly-detection/faq/)
-- [Changelog](/anomaly-detection/changelog/)
+- [Guide: Anomaly Detection and Alerting Setup](./guides/guide-vmanomaly-vmalert/README.md)
+- [FAQ](./FAQ.md)
+- [Changelog](./CHANGELOG.md)
 - [Anomaly Detection Blog](https://victoriametrics.com/blog/tags/anomaly-detection/)

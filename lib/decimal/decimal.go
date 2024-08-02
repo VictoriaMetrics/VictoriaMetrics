@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fastnum"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // CalibrateScale calibrates a and b with the corresponding exponents ae, be
@@ -81,29 +82,17 @@ var decimalMultipliers = []int64{1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e
 // ExtendFloat64sCapacity extends dst capacity to hold additionalItems
 // and returns the extended dst.
 func ExtendFloat64sCapacity(dst []float64, additionalItems int) []float64 {
-	dstLen := len(dst)
-	if n := dstLen + additionalItems - cap(dst); n > 0 {
-		dst = append(dst[:cap(dst)], make([]float64, n)...)
-	}
-	return dst[:dstLen]
+	return slicesutil.ExtendCapacity(dst, additionalItems)
 }
 
 // ExtendInt64sCapacity extends dst capacity to hold additionalItems
 // and returns the extended dst.
 func ExtendInt64sCapacity(dst []int64, additionalItems int) []int64 {
-	dstLen := len(dst)
-	if n := dstLen + additionalItems - cap(dst); n > 0 {
-		dst = append(dst[:cap(dst)], make([]int64, n)...)
-	}
-	return dst[:dstLen]
+	return slicesutil.ExtendCapacity(dst, additionalItems)
 }
 
 func extendInt16sCapacity(dst []int16, additionalItems int) []int16 {
-	dstLen := len(dst)
-	if n := dstLen + additionalItems - cap(dst); n > 0 {
-		dst = append(dst[:cap(dst)], make([]int16, n)...)
-	}
-	return dst[:dstLen]
+	return slicesutil.ExtendCapacity(dst, additionalItems)
 }
 
 // AppendDecimalToFloat converts each item in va to f=v*10^e, appends it

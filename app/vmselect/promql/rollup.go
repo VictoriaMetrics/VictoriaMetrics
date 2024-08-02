@@ -956,10 +956,10 @@ func derivValues(values []float64, timestamps []int64) {
 	values[len(values)-1] = prevDeriv
 }
 
-type newRollupFunc func(args []interface{}) (rollupFunc, error)
+type newRollupFunc func(args []any) (rollupFunc, error)
 
 func newRollupFuncOneArg(rf rollupFunc) newRollupFunc {
-	return func(args []interface{}) (rollupFunc, error) {
+	return func(args []any) (rollupFunc, error) {
 		if err := expectRollupArgsNum(args, 1); err != nil {
 			return nil, err
 		}
@@ -968,7 +968,7 @@ func newRollupFuncOneArg(rf rollupFunc) newRollupFunc {
 }
 
 func newRollupFuncTwoArgs(rf rollupFunc) newRollupFunc {
-	return func(args []interface{}) (rollupFunc, error) {
+	return func(args []any) (rollupFunc, error) {
 		if err := expectRollupArgsNum(args, 2); err != nil {
 			return nil, err
 		}
@@ -977,7 +977,7 @@ func newRollupFuncTwoArgs(rf rollupFunc) newRollupFunc {
 }
 
 func newRollupFuncOneOrTwoArgs(rf rollupFunc) newRollupFunc {
-	return func(args []interface{}) (rollupFunc, error) {
+	return func(args []any) (rollupFunc, error) {
 		if len(args) < 1 || len(args) > 2 {
 			return nil, fmt.Errorf("unexpected number of args; got %d; want 1...2", len(args))
 		}
@@ -985,7 +985,7 @@ func newRollupFuncOneOrTwoArgs(rf rollupFunc) newRollupFunc {
 	}
 }
 
-func newRollupHoltWinters(args []interface{}) (rollupFunc, error) {
+func newRollupHoltWinters(args []any) (rollupFunc, error) {
 	if err := expectRollupArgsNum(args, 3); err != nil {
 		return nil, err
 	}
@@ -1035,7 +1035,7 @@ func newRollupHoltWinters(args []interface{}) (rollupFunc, error) {
 	return rf, nil
 }
 
-func newRollupPredictLinear(args []interface{}) (rollupFunc, error) {
+func newRollupPredictLinear(args []any) (rollupFunc, error) {
 	if err := expectRollupArgsNum(args, 2); err != nil {
 		return nil, err
 	}
@@ -1106,7 +1106,7 @@ func areConstValues(values []float64) bool {
 	return true
 }
 
-func newRollupDurationOverTime(args []interface{}) (rollupFunc, error) {
+func newRollupDurationOverTime(args []any) (rollupFunc, error) {
 	if err := expectRollupArgsNum(args, 2); err != nil {
 		return nil, err
 	}
@@ -1136,7 +1136,7 @@ func newRollupDurationOverTime(args []interface{}) (rollupFunc, error) {
 	return rf, nil
 }
 
-func newRollupShareLE(args []interface{}) (rollupFunc, error) {
+func newRollupShareLE(args []any) (rollupFunc, error) {
 	return newRollupAvgFilter(args, countFilterLE)
 }
 
@@ -1150,7 +1150,7 @@ func countFilterLE(values []float64, le float64) float64 {
 	return float64(n)
 }
 
-func newRollupShareGT(args []interface{}) (rollupFunc, error) {
+func newRollupShareGT(args []any) (rollupFunc, error) {
 	return newRollupAvgFilter(args, countFilterGT)
 }
 
@@ -1164,7 +1164,7 @@ func countFilterGT(values []float64, gt float64) float64 {
 	return float64(n)
 }
 
-func newRollupShareEQ(args []interface{}) (rollupFunc, error) {
+func newRollupShareEQ(args []any) (rollupFunc, error) {
 	return newRollupAvgFilter(args, countFilterEQ)
 }
 
@@ -1218,7 +1218,7 @@ func countFilterNE(values []float64, ne float64) float64 {
 	return float64(n)
 }
 
-func newRollupAvgFilter(args []interface{}, f func(values []float64, limit float64) float64) (rollupFunc, error) {
+func newRollupAvgFilter(args []any, f func(values []float64, limit float64) float64) (rollupFunc, error) {
 	rf, err := newRollupFilter(args, f)
 	if err != nil {
 		return nil, err
@@ -1229,35 +1229,35 @@ func newRollupAvgFilter(args []interface{}, f func(values []float64, limit float
 	}, nil
 }
 
-func newRollupCountEQ(args []interface{}) (rollupFunc, error) {
+func newRollupCountEQ(args []any) (rollupFunc, error) {
 	return newRollupFilter(args, countFilterEQ)
 }
 
-func newRollupCountLE(args []interface{}) (rollupFunc, error) {
+func newRollupCountLE(args []any) (rollupFunc, error) {
 	return newRollupFilter(args, countFilterLE)
 }
 
-func newRollupCountGT(args []interface{}) (rollupFunc, error) {
+func newRollupCountGT(args []any) (rollupFunc, error) {
 	return newRollupFilter(args, countFilterGT)
 }
 
-func newRollupCountNE(args []interface{}) (rollupFunc, error) {
+func newRollupCountNE(args []any) (rollupFunc, error) {
 	return newRollupFilter(args, countFilterNE)
 }
 
-func newRollupSumEQ(args []interface{}) (rollupFunc, error) {
+func newRollupSumEQ(args []any) (rollupFunc, error) {
 	return newRollupFilter(args, sumFilterEQ)
 }
 
-func newRollupSumLE(args []interface{}) (rollupFunc, error) {
+func newRollupSumLE(args []any) (rollupFunc, error) {
 	return newRollupFilter(args, sumFilterLE)
 }
 
-func newRollupSumGT(args []interface{}) (rollupFunc, error) {
+func newRollupSumGT(args []any) (rollupFunc, error) {
 	return newRollupFilter(args, sumFilterGT)
 }
 
-func newRollupFilter(args []interface{}, f func(values []float64, limit float64) float64) (rollupFunc, error) {
+func newRollupFilter(args []any, f func(values []float64, limit float64) float64) (rollupFunc, error) {
 	if err := expectRollupArgsNum(args, 2); err != nil {
 		return nil, err
 	}
@@ -1278,7 +1278,7 @@ func newRollupFilter(args []interface{}, f func(values []float64, limit float64)
 	return rf, nil
 }
 
-func newRollupHoeffdingBoundLower(args []interface{}) (rollupFunc, error) {
+func newRollupHoeffdingBoundLower(args []any) (rollupFunc, error) {
 	if err := expectRollupArgsNum(args, 2); err != nil {
 		return nil, err
 	}
@@ -1293,7 +1293,7 @@ func newRollupHoeffdingBoundLower(args []interface{}) (rollupFunc, error) {
 	return rf, nil
 }
 
-func newRollupHoeffdingBoundUpper(args []interface{}) (rollupFunc, error) {
+func newRollupHoeffdingBoundUpper(args []any) (rollupFunc, error) {
 	if err := expectRollupArgsNum(args, 2); err != nil {
 		return nil, err
 	}
@@ -1338,7 +1338,7 @@ func rollupHoeffdingBoundInternal(rfa *rollupFuncArg, phis []float64) (float64, 
 	return bound, vAvg
 }
 
-func newRollupQuantiles(args []interface{}) (rollupFunc, error) {
+func newRollupQuantiles(args []any) (rollupFunc, error) {
 	if len(args) < 3 {
 		return nil, fmt.Errorf("unexpected number of args: %d; want at least 3 args", len(args))
 	}
@@ -1405,7 +1405,7 @@ func rollupOutlierIQR(rfa *rollupFuncArg) float64 {
 	return nan
 }
 
-func newRollupQuantile(args []interface{}) (rollupFunc, error) {
+func newRollupQuantile(args []any) (rollupFunc, error) {
 	if err := expectRollupArgsNum(args, 2); err != nil {
 		return nil, err
 	}
@@ -1445,7 +1445,7 @@ func mad(values []float64) float64 {
 	return v
 }
 
-func newRollupCountValues(args []interface{}) (rollupFunc, error) {
+func newRollupCountValues(args []any) (rollupFunc, error) {
 	if err := expectRollupArgsNum(args, 2); err != nil {
 		return nil, err
 	}
@@ -2389,7 +2389,7 @@ func rollupFake(_ *rollupFuncArg) float64 {
 	return 0
 }
 
-func getScalar(arg interface{}, argNum int) ([]float64, error) {
+func getScalar(arg any, argNum int) ([]float64, error) {
 	ts, ok := arg.([]*timeseries)
 	if !ok {
 		return nil, fmt.Errorf(`unexpected type for arg #%d; got %T; want %T`, argNum+1, arg, ts)
@@ -2400,7 +2400,7 @@ func getScalar(arg interface{}, argNum int) ([]float64, error) {
 	return ts[0].Values, nil
 }
 
-func getIntNumber(arg interface{}, argNum int) (int, error) {
+func getIntNumber(arg any, argNum int) (int, error) {
 	v, err := getScalar(arg, argNum)
 	if err != nil {
 		return 0, err
@@ -2425,7 +2425,7 @@ func getString(tss []*timeseries, argNum int) (string, error) {
 	return string(ts.MetricName.MetricGroup), nil
 }
 
-func expectRollupArgsNum(args []interface{}, expectedNum int) error {
+func expectRollupArgsNum(args []any, expectedNum int) error {
 	if len(args) == expectedNum {
 		return nil
 	}

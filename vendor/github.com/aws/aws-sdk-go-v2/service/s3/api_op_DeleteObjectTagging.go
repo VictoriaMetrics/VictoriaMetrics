@@ -12,16 +12,27 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets. Removes the entire tag
-// set from the specified object. For more information about managing object tags,
-// see Object Tagging (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-tagging.html)
-// . To use this operation, you must have permission to perform the
-// s3:DeleteObjectTagging action. To delete tags of a specific object version, add
-// the versionId query parameter in the request. You will need permission for the
-// s3:DeleteObjectVersionTagging action. The following operations are related to
-// DeleteObjectTagging :
-//   - PutObjectTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectTagging.html)
-//   - GetObjectTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html)
+// This operation is not supported by directory buckets.
+//
+// Removes the entire tag set from the specified object. For more information
+// about managing object tags, see [Object Tagging].
+//
+// To use this operation, you must have permission to perform the
+// s3:DeleteObjectTagging action.
+//
+// To delete tags of a specific object version, add the versionId query parameter
+// in the request. You will need permission for the s3:DeleteObjectVersionTagging
+// action.
+//
+// The following operations are related to DeleteObjectTagging :
+//
+// [PutObjectTagging]
+//
+// [GetObjectTagging]
+//
+// [PutObjectTagging]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectTagging.html
+// [Object Tagging]: https://docs.aws.amazon.com/AmazonS3/latest/dev/object-tagging.html
+// [GetObjectTagging]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html
 func (c *Client) DeleteObjectTagging(ctx context.Context, params *DeleteObjectTaggingInput, optFns ...func(*Options)) (*DeleteObjectTaggingOutput, error) {
 	if params == nil {
 		params = &DeleteObjectTaggingInput{}
@@ -39,23 +50,27 @@ func (c *Client) DeleteObjectTagging(ctx context.Context, params *DeleteObjectTa
 
 type DeleteObjectTaggingInput struct {
 
-	// The bucket name containing the objects from which to remove the tags. Access
-	// points - When you use this action with an access point, you must provide the
-	// alias of the access point in place of the bucket name or specify the access
+	// The bucket name containing the objects from which to remove the tags.
+	//
+	// Access points - When you use this action with an access point, you must provide
+	// the alias of the access point in place of the bucket name or specify the access
 	// point ARN. When using the access point ARN, you must direct requests to the
 	// access point hostname. The access point hostname takes the form
 	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
 	// action with an access point through the Amazon Web Services SDKs, you provide
 	// the access point ARN in place of the bucket name. For more information about
-	// access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide. S3 on Outposts - When you use this action with
-	// Amazon S3 on Outposts, you must direct requests to the S3 on Outposts hostname.
-	// The S3 on Outposts hostname takes the form
+	// access point ARNs, see [Using access points]in the Amazon S3 User Guide.
+	//
+	// S3 on Outposts - When you use this action with Amazon S3 on Outposts, you must
+	// direct requests to the S3 on Outposts hostname. The S3 on Outposts hostname
+	// takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
 	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts access point ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see What is S3 on Outposts? (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
-	// in the Amazon S3 User Guide.
+	// information about S3 on Outposts ARNs, see [What is S3 on Outposts?]in the Amazon S3 User Guide.
+	//
+	// [What is S3 on Outposts?]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html
+	// [Using access points]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html
 	//
 	// This member is required.
 	Bucket *string
@@ -77,6 +92,7 @@ type DeleteObjectTaggingInput struct {
 }
 
 func (in *DeleteObjectTaggingInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 
 }
@@ -148,6 +164,15 @@ func (c *Client) addOperationDeleteObjectTaggingMiddlewares(stack *middleware.St
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpDeleteObjectTaggingValidationMiddleware(stack); err != nil {

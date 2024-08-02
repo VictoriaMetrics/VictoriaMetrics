@@ -81,6 +81,9 @@ victoria-logs-linux-ppc64le:
 victoria-logs-linux-s390x:
 	APP_NAME=victoria-logs CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-local-goos-goarch
 
+victoria-logs-linux-loong64:
+	APP_NAME=victoria-logs CGO_ENABLED=0 GOOS=linux GOARCH=loong64 $(MAKE) app-local-goos-goarch
+
 victoria-logs-linux-386:
 	APP_NAME=victoria-logs CGO_ENABLED=0 GOOS=linux GOARCH=386 $(MAKE) app-local-goos-goarch
 
@@ -101,3 +104,10 @@ victoria-logs-windows-amd64:
 
 victoria-logs-pure:
 	APP_NAME=victoria-logs $(MAKE) app-local-pure
+
+run-victoria-logs:
+	mkdir -p victoria-logs-data
+	DOCKER_OPTS='-v $(shell pwd)/victoria-logs-data:/victoria-logs-data' \
+	APP_NAME=victoria-logs \
+	ARGS='' \
+	$(MAKE) run-via-docker

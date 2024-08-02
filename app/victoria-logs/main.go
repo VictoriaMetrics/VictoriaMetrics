@@ -47,7 +47,7 @@ func main() {
 	vlinsert.Init()
 
 	go httpserver.Serve(listenAddrs, useProxyProtocol, requestHandler)
-	logger.Infof("started VictoriaLogs in %.3f seconds; see https://docs.victoriametrics.com/VictoriaLogs/", time.Since(startTime).Seconds())
+	logger.Infof("started VictoriaLogs in %.3f seconds; see https://docs.victoriametrics.com/victorialogs/", time.Since(startTime).Seconds())
 
 	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
@@ -77,7 +77,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.Header().Add("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintf(w, "<h2>Single-node VictoriaLogs</h2></br>")
-		fmt.Fprintf(w, "See docs at <a href='https://docs.victoriametrics.com/VictoriaLogs/'>https://docs.victoriametrics.com/VictoriaLogs/</a></br>")
+		fmt.Fprintf(w, "See docs at <a href='https://docs.victoriametrics.com/victorialogs/'>https://docs.victoriametrics.com/victorialogs/</a></br>")
 		fmt.Fprintf(w, "Useful endpoints:</br>")
 		httpserver.WriteAPIHelp(w, [][2]string{
 			{"select/vmui", "Web UI for VictoriaLogs"},
@@ -99,7 +99,7 @@ func usage() {
 	const s = `
 victoria-logs is a log management and analytics service.
 
-See the docs at https://docs.victoriametrics.com/VictoriaLogs/
+See the docs at https://docs.victoriametrics.com/victorialogs/
 `
 	flagutil.Usage(s)
 }

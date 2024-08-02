@@ -32,6 +32,11 @@ type PushOptions struct {
 	// By default the compression is enabled.
 	DisableCompression bool
 
+	// Method is HTTP request method to use when pushing metrics to pushURL.
+	//
+	// By default the Method is GET.
+	Method string
+
 	// Optional WaitGroup for waiting until all the push workers created with this WaitGroup are stopped.
 	WaitGroup *sync.WaitGroup
 }
@@ -264,6 +269,7 @@ func PushMetricsExt(ctx context.Context, pushURL string, writeMetrics func(w io.
 
 type pushContext struct {
 	pushURL            *url.URL
+	method             string
 	pushURLRedacted    string
 	extraLabels        string
 	headers            http.Header
@@ -295,6 +301,11 @@ func newPushContext(pushURL string, opts *PushOptions) (*pushContext, error) {
 		return nil, fmt.Errorf("missing host in pushURL=%q", pushURL)
 	}
 
+	method := opts.Method
+	if method == "" {
+		method = http.MethodGet
+	}
+
 	// validate ExtraLabels
 	extraLabels := opts.ExtraLabels
 	if err := validateTags(extraLabels); err != nil {
@@ -317,6 +328,7 @@ func newPushContext(pushURL string, opts *PushOptions) (*pushContext, error) {
 	client := &http.Client{}
 	return &pushContext{
 		pushURL:            pu,
+		method:             method,
 		pushURLRedacted:    pushURLRedacted,
 		extraLabels:        extraLabels,
 		headers:            headers,
@@ -367,18 +379,18 @@ func (pc *pushContext) pushMetrics(ctx context.Context, writeMetrics func(w io.W
 
 	// Prepare the request to sent to pc.pushURL
 	reqBody := bytes.NewReader(bb.B)
-	req, err := http.NewRequestWithContext(ctx, "GET", pc.pushURL.String(), reqBody)
+	req, err := http.NewRequestWithContext(ctx, pc.method, pc.pushURL.String(), reqBody)
 	if err != nil {
 		panic(fmt.Errorf("BUG: metrics.push: cannot initialize request for metrics push to %q: %w", pc.pushURLRedacted, err))
 	}
 
-	// Set the needed headers
+	req.Header.Set("Content-Type", "text/plain")
+	// Set the needed headers, and `Content-Type` allowed be overwrited.
 	for name, values := range pc.headers {
 		for _, value := range values {
 			req.Header.Add(name, value)
 		}
 	}
-	req.Header.Set("Content-Type", "text/plain")
 	if !pc.disableCompression {
 		req.Header.Set("Content-Encoding", "gzip")
 	}

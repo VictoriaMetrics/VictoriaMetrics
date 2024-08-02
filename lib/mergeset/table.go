@@ -47,8 +47,7 @@ const maxPartSize = 400e9
 // The interval for flushing buffered data to parts, so it becomes visible to search.
 const pendingItemsFlushInterval = time.Second
 
-// The interval for guaranteed flush of recently ingested data from memory to on-disk parts,
-// so they survive process crash.
+// The interval for guaranteed flush of recently ingested data from memory to on-disk parts so they survive process crash.
 var dataFlushInterval = 5 * time.Second
 
 // SetDataFlushInterval sets the interval for guaranteed flush of recently ingested data from memory to disk.
@@ -57,9 +56,13 @@ var dataFlushInterval = 5 * time.Second
 //
 // This function must be called before initializing the indexdb.
 func SetDataFlushInterval(d time.Duration) {
-	if d > pendingItemsFlushInterval {
-		dataFlushInterval = d
+	if d < pendingItemsFlushInterval {
+		// There is no sense in setting dataFlushInterval to values smaller than pendingItemsFlushInterval,
+		// since pending rows unconditionally remain in memory for up to pendingItemsFlushInterval.
+		d = pendingItemsFlushInterval
 	}
+
+	dataFlushInterval = d
 }
 
 // maxItemsPerCachedPart is the maximum items per created part by the merge,
@@ -167,7 +170,7 @@ var rawItemsShardsPerTable = func() int {
 	return cpus * multiplier
 }()
 
-const maxBlocksPerShard = 256
+var maxBlocksPerShard = 256
 
 func (riss *rawItemsShards) init() {
 	riss.shards = make([]rawItemsShard, rawItemsShardsPerTable)
@@ -276,7 +279,8 @@ func (ris *rawItemsShard) addItems(items [][]byte) ([][]byte, []*inmemoryBlock) 
 		if len(itemPrefix) > 128 {
 			itemPrefix = itemPrefix[:128]
 		}
-		tooLongItemLogger.Errorf("skipping adding too long item to indexdb: len(item)=%d; it souldn't exceed %d bytes; item prefix=%q", len(item), maxInmemoryBlockSize, itemPrefix)
+		tooLongItemsTotal.Add(1)
+		tooLongItemLogger.Errorf("skipping adding too long item to indexdb: len(item)=%d; it shouldn't exceed %d bytes; item prefix=%q", len(item), maxInmemoryBlockSize, itemPrefix)
 	}
 	ris.ibs = ibs
 	ris.mu.Unlock()
@@ -289,6 +293,8 @@ func (ris *rawItemsShard) updateFlushDeadline() {
 }
 
 var tooLongItemLogger = logger.WithThrottler("tooLongItem", 5*time.Second)
+
+var tooLongItemsTotal atomic.Uint64
 
 type partWrapper struct {
 	// refCount is the number of references to partWrapper
@@ -575,6 +581,8 @@ type TableMetrics struct {
 	IndexBlocksCacheMisses       uint64
 
 	PartsRefCount uint64
+
+	TooLongItemsDroppedTotal uint64
 }
 
 // TotalItemsCount returns the total number of items in the table.
@@ -632,6 +640,8 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 	m.IndexBlocksCacheSizeMaxBytes = uint64(idxbCache.SizeMaxBytes())
 	m.IndexBlocksCacheRequests = idxbCache.Requests()
 	m.IndexBlocksCacheMisses = idxbCache.Misses()
+
+	m.TooLongItemsDroppedTotal = tooLongItemsTotal.Load()
 }
 
 // AddItems adds the given items to the tb.

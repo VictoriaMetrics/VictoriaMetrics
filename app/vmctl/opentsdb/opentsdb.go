@@ -26,7 +26,7 @@ type Retention struct {
 	FirstOrder  string
 	SecondOrder string
 	AggTime     string
-	// The actual ranges will will attempt to query (as offsets from now)
+	// The actual ranges will attempt to query (as offsets from now)
 	QueryRanges []TimeRange
 }
 
@@ -75,12 +75,6 @@ type TimeRange struct {
 type MetaResults struct {
 	Type    string `json:"type"`
 	Results []Meta `json:"results"`
-	//metric       string
-	//tags         interface{}
-	//limit        int
-	//time         int
-	//startIndex   int
-	//totalResults int
 }
 
 // Meta A meta object about a metric
@@ -88,7 +82,6 @@ type MetaResults struct {
 type Meta struct {
 	Metric string            `json:"metric"`
 	Tags   map[string]string `json:"tags"`
-	//tsuid  string
 }
 
 // OtsdbMetric is a single series in OpenTSDB's returned format

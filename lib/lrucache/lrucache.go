@@ -308,13 +308,13 @@ func (lah *lastAccessHeap) Less(i, j int) bool {
 	h := *lah
 	return h[i].lastAccessTime < h[j].lastAccessTime
 }
-func (lah *lastAccessHeap) Push(x interface{}) {
+func (lah *lastAccessHeap) Push(x any) {
 	e := x.(*cacheEntry)
 	h := *lah
 	e.heapIdx = len(h)
 	*lah = append(h, e)
 }
-func (lah *lastAccessHeap) Pop() interface{} {
+func (lah *lastAccessHeap) Pop() any {
 	h := *lah
 	e := h[len(h)-1]
 

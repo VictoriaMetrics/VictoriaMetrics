@@ -14,35 +14,50 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets. Sets the supplied tag-set
-// to an object that already exists in a bucket. A tag is a key-value pair. For
-// more information, see Object Tagging (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-tagging.html)
-// . You can associate tags with an object by sending a PUT request against the
+// This operation is not supported by directory buckets.
+//
+// Sets the supplied tag-set to an object that already exists in a bucket. A tag
+// is a key-value pair. For more information, see [Object Tagging].
+//
+// You can associate tags with an object by sending a PUT request against the
 // tagging subresource that is associated with the object. You can retrieve tags by
-// sending a GET request. For more information, see GetObjectTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html)
-// . For tagging-related restrictions related to characters and encodings, see Tag
-// Restrictions (https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/allocation-tag-restrictions.html)
-// . Note that Amazon S3 limits the maximum number of tags to 10 tags per object.
+// sending a GET request. For more information, see [GetObjectTagging].
+//
+// For tagging-related restrictions related to characters and encodings, see [Tag Restrictions].
+// Note that Amazon S3 limits the maximum number of tags to 10 tags per object.
+//
 // To use this operation, you must have permission to perform the
 // s3:PutObjectTagging action. By default, the bucket owner has this permission and
-// can grant this permission to others. To put tags of any other version, use the
-// versionId query parameter. You also need permission for the
-// s3:PutObjectVersionTagging action. PutObjectTagging has the following special
-// errors. For more Amazon S3 errors see, Error Responses (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html)
-// .
+// can grant this permission to others.
+//
+// To put tags of any other version, use the versionId query parameter. You also
+// need permission for the s3:PutObjectVersionTagging action.
+//
+// PutObjectTagging has the following special errors. For more Amazon S3 errors
+// see, [Error Responses].
+//
 //   - InvalidTag - The tag provided was not a valid tag. This error can occur if
-//     the tag did not pass input validation. For more information, see Object
-//     Tagging (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-tagging.html)
-//     .
+//     the tag did not pass input validation. For more information, see [Object Tagging].
+//
 //   - MalformedXML - The XML provided does not match the schema.
+//
 //   - OperationAborted - A conflicting conditional action is currently in progress
 //     against this resource. Please try again.
+//
 //   - InternalError - The service was unable to apply the provided tag to the
 //     object.
 //
 // The following operations are related to PutObjectTagging :
-//   - GetObjectTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html)
-//   - DeleteObjectTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObjectTagging.html)
+//
+// [GetObjectTagging]
+//
+// [DeleteObjectTagging]
+//
+// [Error Responses]: https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html
+// [DeleteObjectTagging]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObjectTagging.html
+// [Object Tagging]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-tagging.html
+// [Tag Restrictions]: https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/allocation-tag-restrictions.html
+// [GetObjectTagging]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html
 func (c *Client) PutObjectTagging(ctx context.Context, params *PutObjectTaggingInput, optFns ...func(*Options)) (*PutObjectTaggingOutput, error) {
 	if params == nil {
 		params = &PutObjectTaggingInput{}
@@ -60,23 +75,27 @@ func (c *Client) PutObjectTagging(ctx context.Context, params *PutObjectTaggingI
 
 type PutObjectTaggingInput struct {
 
-	// The bucket name containing the object. Access points - When you use this action
-	// with an access point, you must provide the alias of the access point in place of
-	// the bucket name or specify the access point ARN. When using the access point
-	// ARN, you must direct requests to the access point hostname. The access point
-	// hostname takes the form
+	// The bucket name containing the object.
+	//
+	// Access points - When you use this action with an access point, you must provide
+	// the alias of the access point in place of the bucket name or specify the access
+	// point ARN. When using the access point ARN, you must direct requests to the
+	// access point hostname. The access point hostname takes the form
 	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
 	// action with an access point through the Amazon Web Services SDKs, you provide
 	// the access point ARN in place of the bucket name. For more information about
-	// access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide. S3 on Outposts - When you use this action with
-	// Amazon S3 on Outposts, you must direct requests to the S3 on Outposts hostname.
-	// The S3 on Outposts hostname takes the form
+	// access point ARNs, see [Using access points]in the Amazon S3 User Guide.
+	//
+	// S3 on Outposts - When you use this action with Amazon S3 on Outposts, you must
+	// direct requests to the S3 on Outposts hostname. The S3 on Outposts hostname
+	// takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
 	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts access point ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see What is S3 on Outposts? (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
-	// in the Amazon S3 User Guide.
+	// information about S3 on Outposts ARNs, see [What is S3 on Outposts?]in the Amazon S3 User Guide.
+	//
+	// [What is S3 on Outposts?]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html
+	// [Using access points]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html
 	//
 	// This member is required.
 	Bucket *string
@@ -95,15 +114,19 @@ type PutObjectTaggingInput struct {
 	// the SDK. This header will not provide any additional functionality if you don't
 	// use the SDK. When you send this header, there must be a corresponding
 	// x-amz-checksum or x-amz-trailer header sent. Otherwise, Amazon S3 fails the
-	// request with the HTTP status code 400 Bad Request . For more information, see
-	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
-	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
-	// ignores any provided ChecksumAlgorithm parameter.
+	// request with the HTTP status code 400 Bad Request . For more information, see [Checking object integrity]
+	// in the Amazon S3 User Guide.
+	//
+	// If you provide an individual checksum, Amazon S3 ignores any provided
+	// ChecksumAlgorithm parameter.
+	//
+	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumAlgorithm types.ChecksumAlgorithm
 
-	// The MD5 hash for the request body. For requests made using the Amazon Web
-	// Services Command Line Interface (CLI) or Amazon Web Services SDKs, this field is
-	// calculated automatically.
+	// The MD5 hash for the request body.
+	//
+	// For requests made using the Amazon Web Services Command Line Interface (CLI) or
+	// Amazon Web Services SDKs, this field is calculated automatically.
 	ContentMD5 *string
 
 	// The account ID of the expected bucket owner. If the account ID that you provide
@@ -115,10 +138,12 @@ type PutObjectTaggingInput struct {
 	// Bucket owners need not specify this parameter in their requests. If either the
 	// source or destination S3 bucket has Requester Pays enabled, the requester will
 	// pay for corresponding charges to copy the object. For information about
-	// downloading objects from Requester Pays buckets, see Downloading Objects in
-	// Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
-	// in the Amazon S3 User Guide. This functionality is not supported for directory
-	// buckets.
+	// downloading objects from Requester Pays buckets, see [Downloading Objects in Requester Pays Buckets]in the Amazon S3 User
+	// Guide.
+	//
+	// This functionality is not supported for directory buckets.
+	//
+	// [Downloading Objects in Requester Pays Buckets]: https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html
 	RequestPayer types.RequestPayer
 
 	// The versionId of the object that the tag-set will be added to.
@@ -128,6 +153,7 @@ type PutObjectTaggingInput struct {
 }
 
 func (in *PutObjectTaggingInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 
 }
@@ -199,6 +225,15 @@ func (c *Client) addOperationPutObjectTaggingMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpPutObjectTaggingValidationMiddleware(stack); err != nil {

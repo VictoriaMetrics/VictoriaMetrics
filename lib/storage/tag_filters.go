@@ -548,7 +548,7 @@ func getRegexpFromCache(expr string) (*regexpCacheValue, error) {
 	}
 
 	sExpr := expr
-	orValues := regexutil.GetOrValues(sExpr)
+	orValues := regexutil.GetOrValuesPromRegex(sExpr)
 	var reMatch func(b []byte) bool
 	var reCost uint64
 	var literalSuffix string
@@ -881,7 +881,7 @@ func simplifyRegexp(expr string) (string, string) {
 	// Make a copy of expr before using it,
 	// since it may be constructed via bytesutil.ToUnsafeString()
 	expr = string(append([]byte{}, expr...))
-	prefix, suffix := regexutil.Simplify(expr)
+	prefix, suffix := regexutil.SimplifyPromRegex(expr)
 
 	// Put the prefix and the suffix to the cache.
 	ps := &prefixSuffix{

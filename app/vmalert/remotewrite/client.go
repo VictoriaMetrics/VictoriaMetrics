@@ -16,6 +16,7 @@ import (
 	"github.com/golang/snappy"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/metrics"
@@ -211,6 +212,9 @@ var (
 	})
 )
 
+// GetDroppedRows returns value of droppedRows metric
+func GetDroppedRows() int64 { return int64(droppedRows.Get()) }
+
 // flush is a blocking function that marshals WriteRequest and sends
 // it to remote-write endpoint. Flush performs limited amount of retries
 // if request fails.
@@ -235,7 +239,7 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 L:
 	for attempts := 0; ; attempts++ {
 		err := c.send(ctx, b)
-		if errors.Is(err, io.EOF) {
+		if err != nil && (errors.Is(err, io.EOF) || netutil.IsTrivialNetworkError(err)) {
 			// Something in the middle between client and destination might be closing
 			// the connection. So we do a one more attempt in hope request will succeed.
 			err = c.send(ctx, b)

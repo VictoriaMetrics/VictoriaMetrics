@@ -15,26 +15,32 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets. Creates a new lifecycle
-// configuration for the bucket or replaces an existing lifecycle configuration.
-// Keep in mind that this will overwrite an existing lifecycle configuration, so if
-// you want to retain any configuration details, they must be included in the new
-// lifecycle configuration. For information about lifecycle configuration, see
-// Managing your storage lifecycle (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html)
-// . Bucket lifecycle configuration now supports specifying a lifecycle rule using
+// This operation is not supported by directory buckets.
+//
+// Creates a new lifecycle configuration for the bucket or replaces an existing
+// lifecycle configuration. Keep in mind that this will overwrite an existing
+// lifecycle configuration, so if you want to retain any configuration details,
+// they must be included in the new lifecycle configuration. For information about
+// lifecycle configuration, see [Managing your storage lifecycle].
+//
+// Bucket lifecycle configuration now supports specifying a lifecycle rule using
 // an object key name prefix, one or more object tags, object size, or any
 // combination of these. Accordingly, this section describes the latest API. The
 // previous version of the API supported filtering based only on an object key name
 // prefix, which is supported for backward compatibility. For the related API
-// description, see PutBucketLifecycle (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketLifecycle.html)
-// . Rules You specify the lifecycle configuration in your request body. The
+// description, see [PutBucketLifecycle].
+//
+// Rules You specify the lifecycle configuration in your request body. The
 // lifecycle configuration is specified as XML consisting of one or more rules. An
 // Amazon S3 Lifecycle configuration can have up to 1,000 rules. This limit is not
 // adjustable. Each rule consists of the following:
+//
 //   - A filter identifying a subset of objects to which the rule applies. The
 //     filter can be based on a key name prefix, object tags, object size, or any
 //     combination of these.
+//
 //   - A status indicating whether the rule is in effect.
+//
 //   - One or more lifecycle transition and expiration actions that you want
 //     Amazon S3 to perform on the objects identified by the filter. If the state of
 //     your bucket is versioning-enabled or versioning-suspended, you can have many
@@ -42,28 +48,44 @@ import (
 //     versions). Amazon S3 provides predefined actions that you can specify for
 //     current and noncurrent object versions.
 //
-// For more information, see Object Lifecycle Management (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html)
-// and Lifecycle Configuration Elements (https://docs.aws.amazon.com/AmazonS3/latest/dev/intro-lifecycle-rules.html)
-// . Permissions By default, all Amazon S3 resources are private, including
-// buckets, objects, and related subresources (for example, lifecycle configuration
-// and website configuration). Only the resource owner (that is, the Amazon Web
+// For more information, see [Object Lifecycle Management] and [Lifecycle Configuration Elements].
+//
+// Permissions By default, all Amazon S3 resources are private, including buckets,
+// objects, and related subresources (for example, lifecycle configuration and
+// website configuration). Only the resource owner (that is, the Amazon Web
 // Services account that created it) can access the resource. The resource owner
 // can optionally grant access permissions to others by writing an access policy.
-// For this operation, a user must get the s3:PutLifecycleConfiguration
-// permission. You can also explicitly deny permissions. An explicit deny also
-// supersedes any other permissions. If you want to block users or accounts from
-// removing or deleting objects from your bucket, you must deny them permissions
-// for the following actions:
+// For this operation, a user must get the s3:PutLifecycleConfiguration permission.
+//
+// You can also explicitly deny permissions. An explicit deny also supersedes any
+// other permissions. If you want to block users or accounts from removing or
+// deleting objects from your bucket, you must deny them permissions for the
+// following actions:
+//
 //   - s3:DeleteObject
+//
 //   - s3:DeleteObjectVersion
+//
 //   - s3:PutLifecycleConfiguration
 //
-// For more information about permissions, see Managing Access Permissions to Your
-// Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
-// . The following operations are related to PutBucketLifecycleConfiguration :
-//   - Examples of Lifecycle Configuration (https://docs.aws.amazon.com/AmazonS3/latest/dev/lifecycle-configuration-examples.html)
-//   - GetBucketLifecycleConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketLifecycleConfiguration.html)
-//   - DeleteBucketLifecycle (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketLifecycle.html)
+// For more information about permissions, see [Managing Access Permissions to Your Amazon S3 Resources].
+//
+// The following operations are related to PutBucketLifecycleConfiguration :
+//
+// [Examples of Lifecycle Configuration]
+//
+// [GetBucketLifecycleConfiguration]
+//
+// [DeleteBucketLifecycle]
+//
+// [Examples of Lifecycle Configuration]: https://docs.aws.amazon.com/AmazonS3/latest/dev/lifecycle-configuration-examples.html
+// [Object Lifecycle Management]: https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html
+// [Lifecycle Configuration Elements]: https://docs.aws.amazon.com/AmazonS3/latest/dev/intro-lifecycle-rules.html
+// [GetBucketLifecycleConfiguration]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketLifecycleConfiguration.html
+// [PutBucketLifecycle]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketLifecycle.html
+// [Managing Access Permissions to Your Amazon S3 Resources]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html
+// [DeleteBucketLifecycle]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketLifecycle.html
+// [Managing your storage lifecycle]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html
 func (c *Client) PutBucketLifecycleConfiguration(ctx context.Context, params *PutBucketLifecycleConfigurationInput, optFns ...func(*Options)) (*PutBucketLifecycleConfigurationOutput, error) {
 	if params == nil {
 		params = &PutBucketLifecycleConfigurationInput{}
@@ -90,10 +112,13 @@ type PutBucketLifecycleConfigurationInput struct {
 	// the SDK. This header will not provide any additional functionality if you don't
 	// use the SDK. When you send this header, there must be a corresponding
 	// x-amz-checksum or x-amz-trailer header sent. Otherwise, Amazon S3 fails the
-	// request with the HTTP status code 400 Bad Request . For more information, see
-	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
-	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
-	// ignores any provided ChecksumAlgorithm parameter.
+	// request with the HTTP status code 400 Bad Request . For more information, see [Checking object integrity]
+	// in the Amazon S3 User Guide.
+	//
+	// If you provide an individual checksum, Amazon S3 ignores any provided
+	// ChecksumAlgorithm parameter.
+	//
+	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumAlgorithm types.ChecksumAlgorithm
 
 	// The account ID of the expected bucket owner. If the account ID that you provide
@@ -108,6 +133,7 @@ type PutBucketLifecycleConfigurationInput struct {
 }
 
 func (in *PutBucketLifecycleConfigurationInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
@@ -175,6 +201,15 @@ func (c *Client) addOperationPutBucketLifecycleConfigurationMiddlewares(stack *m
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpPutBucketLifecycleConfigurationValidationMiddleware(stack); err != nil {

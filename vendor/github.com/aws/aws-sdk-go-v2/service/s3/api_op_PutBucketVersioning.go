@@ -15,28 +15,47 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets. Sets the versioning state
-// of an existing bucket. You can set the versioning state with one of the
-// following values: Enabled—Enables versioning for the objects in the bucket. All
-// objects added to the bucket receive a unique version ID. Suspended—Disables
-// versioning for the objects in the bucket. All objects added to the bucket
-// receive the version ID null. If the versioning state has never been set on a
-// bucket, it has no versioning state; a GetBucketVersioning (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketVersioning.html)
-// request does not return a versioning state value. In order to enable MFA Delete,
-// you must be the bucket owner. If you are the bucket owner and want to enable MFA
-// Delete in the bucket versioning configuration, you must include the x-amz-mfa
-// request header and the Status and the MfaDelete request elements in a request
-// to set the versioning state of the bucket. If you have an object expiration
-// lifecycle configuration in your non-versioned bucket and you want to maintain
-// the same permanent delete behavior when you enable versioning, you must add a
-// noncurrent expiration policy. The noncurrent expiration lifecycle configuration
-// will manage the deletes of the noncurrent object versions in the version-enabled
-// bucket. (A version-enabled bucket maintains one current and zero or more
-// noncurrent object versions.) For more information, see Lifecycle and Versioning (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html#lifecycle-and-other-bucket-config)
-// . The following operations are related to PutBucketVersioning :
-//   - CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
-//   - DeleteBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucket.html)
-//   - GetBucketVersioning (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketVersioning.html)
+// This operation is not supported by directory buckets.
+//
+// Sets the versioning state of an existing bucket.
+//
+// You can set the versioning state with one of the following values:
+//
+// Enabled—Enables versioning for the objects in the bucket. All objects added to
+// the bucket receive a unique version ID.
+//
+// Suspended—Disables versioning for the objects in the bucket. All objects added
+// to the bucket receive the version ID null.
+//
+// If the versioning state has never been set on a bucket, it has no versioning
+// state; a [GetBucketVersioning]request does not return a versioning state value.
+//
+// In order to enable MFA Delete, you must be the bucket owner. If you are the
+// bucket owner and want to enable MFA Delete in the bucket versioning
+// configuration, you must include the x-amz-mfa request header and the Status and
+// the MfaDelete request elements in a request to set the versioning state of the
+// bucket.
+//
+// If you have an object expiration lifecycle configuration in your non-versioned
+// bucket and you want to maintain the same permanent delete behavior when you
+// enable versioning, you must add a noncurrent expiration policy. The noncurrent
+// expiration lifecycle configuration will manage the deletes of the noncurrent
+// object versions in the version-enabled bucket. (A version-enabled bucket
+// maintains one current and zero or more noncurrent object versions.) For more
+// information, see [Lifecycle and Versioning].
+//
+// The following operations are related to PutBucketVersioning :
+//
+// [CreateBucket]
+//
+// [DeleteBucket]
+//
+// [GetBucketVersioning]
+//
+// [DeleteBucket]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucket.html
+// [CreateBucket]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html
+// [Lifecycle and Versioning]: https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html#lifecycle-and-other-bucket-config
+// [GetBucketVersioning]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketVersioning.html
 func (c *Client) PutBucketVersioning(ctx context.Context, params *PutBucketVersioningInput, optFns ...func(*Options)) (*PutBucketVersioningOutput, error) {
 	if params == nil {
 		params = &PutBucketVersioningInput{}
@@ -68,17 +87,23 @@ type PutBucketVersioningInput struct {
 	// the SDK. This header will not provide any additional functionality if you don't
 	// use the SDK. When you send this header, there must be a corresponding
 	// x-amz-checksum or x-amz-trailer header sent. Otherwise, Amazon S3 fails the
-	// request with the HTTP status code 400 Bad Request . For more information, see
-	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
-	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
-	// ignores any provided ChecksumAlgorithm parameter.
+	// request with the HTTP status code 400 Bad Request . For more information, see [Checking object integrity]
+	// in the Amazon S3 User Guide.
+	//
+	// If you provide an individual checksum, Amazon S3 ignores any provided
+	// ChecksumAlgorithm parameter.
+	//
+	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumAlgorithm types.ChecksumAlgorithm
 
 	// >The base64-encoded 128-bit MD5 digest of the data. You must use this header as
 	// a message integrity check to verify that the request body was not corrupted in
-	// transit. For more information, see RFC 1864 (http://www.ietf.org/rfc/rfc1864.txt)
-	// . For requests made using the Amazon Web Services Command Line Interface (CLI)
-	// or Amazon Web Services SDKs, this field is calculated automatically.
+	// transit. For more information, see [RFC 1864].
+	//
+	// For requests made using the Amazon Web Services Command Line Interface (CLI) or
+	// Amazon Web Services SDKs, this field is calculated automatically.
+	//
+	// [RFC 1864]: http://www.ietf.org/rfc/rfc1864.txt
 	ContentMD5 *string
 
 	// The account ID of the expected bucket owner. If the account ID that you provide
@@ -94,6 +119,7 @@ type PutBucketVersioningInput struct {
 }
 
 func (in *PutBucketVersioningInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
@@ -161,6 +187,15 @@ func (c *Client) addOperationPutBucketVersioningMiddlewares(stack *middleware.St
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpPutBucketVersioningValidationMiddleware(stack); err != nil {
