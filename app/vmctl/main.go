@@ -90,6 +90,7 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("failed to init VM configuration: %s", err)
 					}
+
 					importer, err := vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
@@ -143,6 +144,7 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("failed to init VM configuration: %s", err)
 					}
+
 					importer, err = vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
@@ -201,6 +203,7 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("failed to init VM configuration: %s", err)
 					}
+
 					importer, err := vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
@@ -233,6 +236,7 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("failed to init VM configuration: %s", err)
 					}
+
 					importer, err = vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
@@ -270,6 +274,14 @@ func main() {
 
 					if c.String(vmNativeFilterMatch) == "" {
 						return fmt.Errorf("flag %q can't be empty", vmNativeFilterMatch)
+					}
+
+					bfRetries := c.Int(vmNativeBackoffRetries)
+					bfFactor := c.Float64(vmNativeBackoffFactor)
+					bfMinDuration := c.Duration(vmNativeBackoffMinDuration)
+					bf, err := backoff.New(bfRetries, bfFactor, bfMinDuration)
+					if err != nil {
+						return fmt.Errorf("failed to create backoff object: %s", err)
 					}
 
 					disableKeepAlive := c.Bool(vmNativeDisableHTTPKeepAlive)
@@ -350,7 +362,7 @@ func main() {
 							ExtraLabels: dstExtraLabels,
 							HTTPClient:  dstHTTPClient,
 						},
-						backoff:                  backoff.New(),
+						backoff:                  bf,
 						cc:                       c.Int(vmConcurrency),
 						disablePerMetricRequests: c.Bool(vmNativeDisablePerMetricMigration),
 						isNative:                 !c.Bool(vmNativeDisableBinaryProtocol),
@@ -429,6 +441,14 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 		return vm.Config{}, fmt.Errorf("failed to create Transport: %s", err)
 	}
 
+	bfRetries := c.Int(vmBackoffRetries)
+	bfFactor := c.Float64(vmBackoffFactor)
+	bfMinDuration := c.Duration(vmBackoffMinDuration)
+	bf, err := backoff.New(bfRetries, bfFactor, bfMinDuration)
+	if err != nil {
+		return vm.Config{}, fmt.Errorf("failed to create backoff object: %s", err)
+	}
+
 	return vm.Config{
 		Addr:               addr,
 		Transport:          tr,
@@ -442,5 +462,6 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 		RoundDigits:        c.Int(vmRoundDigits),
 		ExtraLabels:        c.StringSlice(vmExtraLabel),
 		RateLimit:          c.Int64(vmRateLimit),
+		Backoff:            bf,
 	}, nil
 }
