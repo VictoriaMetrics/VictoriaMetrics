@@ -3,6 +3,22 @@
 .vm-group-logs {
   margin-top: calc(-1 * $padding-medium);
 
+  &-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: $padding-global;
+
+    &-keys {
+      max-height: 300px;
+      overflow: auto;
+
+      &__search {
+        padding: $padding-small;
+      }
+    }
+  }
+
   &-section {
     &-keys {
       display: flex;
@@ -14,6 +30,24 @@
 
       &__title {
         font-weight: bold;
+
+        code {
+          font-family: monospace;
+          &:before {
+            content: "\"";
+          }
+          &:after {
+            content: "\"";
+          }
+        }
+      }
+
+      &__count {
+        flex-grow: 1;
+        text-align: right;
+        font-size: $font-size-small;
+        color: $color-text-secondary;
+        padding-right: calc($padding-large * 3);
       }
 
       &__pair {

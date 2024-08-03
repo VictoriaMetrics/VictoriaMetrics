@@ -1,4 +1,4 @@
-import React, { FC, useState, useMemo } from "preact/compat";
+import React, { FC, useState, useMemo, useRef } from "preact/compat";
 import JsonView from "../../../components/Views/JsonView/JsonView";
 import { CodeIcon, ListIcon, TableIcon } from "../../../components/Main/Icons";
 import Tabs from "../../../components/Main/Tabs/Tabs";
@@ -19,7 +19,6 @@ import { marked } from "marked";
 
 export interface ExploreLogBodyProps {
   data: Logs[];
-  markdownParsing: boolean;
 }
 
 enum DisplayType {
@@ -34,10 +33,11 @@ const tabs = [
   { label: "JSON", value: DisplayType.json, icon: <CodeIcon/> },
 ];
 
-const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, markdownParsing }) => {
+const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data }) => {
   const { isMobile } = useDeviceDetect();
   const { timezone } = useTimeState();
   const { setSearchParamsFromKeys } = useSearchParamsFromObject();
+  const groupSettingsRef = useRef<HTMLDivElement>(null);
 
   const [activeTab, setActiveTab] = useStateSearchParams(DisplayType.group, "view");
   const [displayColumns, setDisplayColumns] = useState<string[]>([]);
@@ -100,6 +100,12 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, markdownParsing }) => 
             />
           </div>
         )}
+        {activeTab === DisplayType.group && (
+          <div
+            className="vm-explore-logs-body-header__settings"
+            ref={groupSettingsRef}
+          />
+        )}
       </div>
 
       <div
@@ -123,7 +129,7 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, markdownParsing }) => 
               <GroupLogs
                 logs={logs}
                 columns={columns}
-                markdownParsing={markdownParsing}
+                settingsRef={groupSettingsRef}
               />
             )}
             {activeTab === DisplayType.json && (
