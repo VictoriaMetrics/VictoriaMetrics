@@ -281,7 +281,7 @@ func main() {
 					bfMinDuration := c.Duration(vmNativeBackoffMinDuration)
 					bf, err := backoff.New(bfRetries, bfFactor, bfMinDuration)
 					if err != nil {
-						return fmt.Errorf("failed to validate backoff params: %s", err)
+						return fmt.Errorf("failed to create backoff object: %s", err)
 					}
 
 					disableKeepAlive := c.Bool(vmNativeDisableHTTPKeepAlive)
@@ -446,7 +446,7 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 	bfMinDuration := c.Duration(vmBackoffMinDuration)
 	bf, err := backoff.New(bfRetries, bfFactor, bfMinDuration)
 	if err != nil {
-		return vm.Config{}, fmt.Errorf("failed to validate backoff params: %s", err)
+		return vm.Config{}, fmt.Errorf("failed to create backoff object: %s", err)
 	}
 
 	return vm.Config{
