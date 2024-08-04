@@ -10,12 +10,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-const (
-	backoffRetries     = 10
-	backoffFactor      = 1.8
-	backoffMinDuration = time.Second * 2
-)
-
 // retryableFunc describes call back which will repeat on errors
 type retryableFunc func() error
 
@@ -30,12 +24,22 @@ type Backoff struct {
 }
 
 // New initialize backoff object
-func New() *Backoff {
-	return &Backoff{
-		retries:     backoffRetries,
-		factor:      backoffFactor,
-		minDuration: backoffMinDuration,
+func New(retries int, factor float64, minDuration time.Duration) (*Backoff, error) {
+	if retries <= 0 {
+		return nil, fmt.Errorf("number of backoff retries must be greater than 0")
 	}
+	if factor <= 1 {
+		return nil, fmt.Errorf("backoff retry factor must be greater than 1")
+	}
+	if minDuration <= 0 {
+		return nil, fmt.Errorf("backoff retry minimum duration must be greater than 0")
+	}
+
+	return &Backoff{
+		retries:     retries,
+		factor:      factor,
+		minDuration: minDuration,
+	}, nil
 }
 
 // Retry process retries until all attempts are completed

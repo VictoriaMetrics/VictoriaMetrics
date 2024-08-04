@@ -81,11 +81,16 @@ func TestVMNativeProcessorRun(t *testing.T) {
 		isSilent = true
 		defer func() { isSilent = false }()
 
+		bf, err := backoff.New(10, 1.8, time.Second*2)
+		if err != nil {
+			t.Fatalf("cannot create backoff: %s", err)
+		}
+
 		p := &vmNativeProcessor{
 			filter:   filter,
 			dst:      dstClient,
 			src:      srcClient,
-			backoff:  backoff.New(),
+			backoff:  bf,
 			cc:       1,
 			isNative: true,
 		}
