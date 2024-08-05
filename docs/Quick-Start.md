@@ -21,7 +21,7 @@ VictoriaMetrics is distributed in two forms:
 
 Single-server-VictoriaMetrics VictoriaMetrics is available as:
 
-* [VictoriaMetrics Cloud](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_vm_quickstart) – the most cost-efficient hosted monitoring platfor, operated by VictoriaMetrics core team.
+* [VictoriaMetrics Cloud](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_vm_quickstart) – the most cost-efficient hosted monitoring platform, operated by VictoriaMetrics core team.
 * [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/)
 * [Helm Charts](https://github.com/VictoriaMetrics/helm-charts#list-of-charts)
 * [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
