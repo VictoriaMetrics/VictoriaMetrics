@@ -191,7 +191,7 @@ scrape_configs:
     # filter: "..."
 
     # allow_stale is an optional config, which allows stale Consul results.
-    # See https://www.consul.io/api/features/consistency.html
+    # See https://developer.hashicorp.com/consul/api-docs/features/consistency
     # Reduce load on Consul if set to true. By default, it is set to true.
     #
     # allow_stale: ...
@@ -1301,7 +1301,7 @@ scrape_configs:
     # tag_separator: "..."
 
     # allow_stale is an optional config, which allows stale Nomad results.
-    # See https://developer.hashicorp.com/nomad/api-docs#consistency-modes
+    # See https://developer.hashicorp.com/consul/api-docs/features/consistency
     # Reduces load on Nomad if set to true. By default, it is set to true.
     #
     # allow_stale: ...

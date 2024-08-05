@@ -17,7 +17,7 @@ menu:
    so users could find answers to their questions via Google or [Perplexity](https://www.perplexity.ai/) without the need
    to ask these questions at our [support channels](https://docs.victoriametrics.com/#community-and-contributions).
 1. Simplifying usage of VictoriaMetrics components without breaking backwards compatibility, so users could regularly
-   upgrade to [the latest available release](https://docs.victoriametrics.com/CHANGELOG.html) and remain happy.
+   upgrade to [the latest available release](https://docs.victoriametrics.com/CHANGELOG) and remain happy.
 1. Improving usability for the existing functionality of VictoriaMetrics components.
 1. Improving the readability and maintainability of the code base by removing unnecessary abstractions and simplifying the code whenever possible.
 1. Improving development velocity by optimizing and simplifying CI/CD tasks, so they take less time to execute and debug.

@@ -22,6 +22,5 @@ In the rest of the documentation we will assume you have configured your push en
 
 ## Supported Platforms
 
-
 - [Proxmox Virtual Environment and Proxmox Backup Server](https://docs.victoriametrics.com/data-ingestion/proxmox/)
 

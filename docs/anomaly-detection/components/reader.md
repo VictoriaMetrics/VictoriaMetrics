@@ -20,7 +20,7 @@ Future updates will introduce additional readers, expanding the range of data so
 
 ## VM reader
 
-> **Note**: Starting from [v1.13.0](/anomaly-detection/changelog/v1130) there is backward-compatible change of [`queries`](/anomaly-detection/components/reader?highlight=queries#vm-reader) arg of [VmReader](#vm-reader). New format allows to specify per-query parameters, like `step` to reduce amount of data read from VictoriaMetrics TSDB and to allow config flexibility. Please see [per-query parameters](#per-query-parameters) section for the details.
+> **Note**: Starting from [v1.13.0](/anomaly-detection/changelog#v1130) there is backward-compatible change of [`queries`](/anomaly-detection/components/reader?highlight=queries#vm-reader) arg of [VmReader](#vm-reader). New format allows to specify per-query parameters, like `step` to reduce amount of data read from VictoriaMetrics TSDB and to allow config flexibility. Please see [per-query parameters](#per-query-parameters) section for the details.
 
 Old format like
 
@@ -53,13 +53,13 @@ reader:
 
 ### Per-query parameters
 
-Starting from [v1.13.0](/anomaly-detection/changelog/v1130) there is change of [`queries`](/anomaly-detection/components/reader?highlight=queries#vm-reader) arg format. Now each query alias supports the next (sub)fields:
+Starting from [v1.13.0](/anomaly-detection/changelog#v1130) there is change of [`queries`](/anomaly-detection/components/reader?highlight=queries#vm-reader) arg format. Now each query alias supports the next (sub)fields:
 
 - `expr` (string): MetricsQL/PromQL expression that defines an input for VmReader. As accepted by `/query_range?query=%s`. i.e. `avg(vm_blocks)`
 
 - `step` (string): query-level frequency of the points returned, i.e. `30s`. Will be converted to `/query_range?step=%s` param (in seconds). Useful to optimize total amount of data read from VictoriaMetrics, where different queries may have **different frequencies for different [machine learning models](/anomaly-detection/components/models)** to run on.
 
-    > **Note**: if not set explicitly (or if older config style prior to [v1.13.0](/anomaly-detection/changelog/v1130)) is used, then it is set to reader-level `sampling_period` arg.
+    > **Note**: if not set explicitly (or if older config style prior to [v1.13.0](/anomaly-detection/changelog#v1130)) is used, then it is set to reader-level `sampling_period` arg.
 
     > **Note**: having **different** individual `step` args for queries (i.e. `30s` for `q1` and `2m` for `q2`) is not yet supported for [multivariate model](/anomaly-detection/components/models/index.html#multivariate-models) if you want to run it on several queries simultaneously (i.e. setting [`queries`](/anomaly-detection/components/models/#queries) arg of a model to [`q1`, `q2`]).
 
