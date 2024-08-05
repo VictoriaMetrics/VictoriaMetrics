@@ -102,6 +102,7 @@ func (fs *FS) Init() error {
 		config.WithRetryer(func() aws.Retryer {
 			return retry.NewStandard(func(o *retry.StandardOptions) {
 				o.Backoff = retry.NewExponentialJitterBackoff(3 * time.Minute)
+				o.MaxAttempts = 10
 			})
 		}),
 	}
