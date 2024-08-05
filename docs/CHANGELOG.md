@@ -30,7 +30,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
-* FEATURE: add a health handler for Influx endpoints. This is needed as some clients use the health endpoint to determine if the server is healthy and ready for data ingestion. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6653) for the details.
+* FEATURE: add `/influx/health` health-check handler for Influx endpoints. This is needed as some clients use the health endpoint to determine if the server is healthy and ready for data ingestion. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6653) for the details.
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl/): add `--vm-backoff-retries`, `--vm-backoff-factor`, `--vm-backoff-min-duration` and `--vm-native-backoff-retries`, `--vm-native-backoff-factor`, `--vm-native-backoff-min-duration` command-line flags. These flags allow to change backoff policy config for import requests to VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6622).
 
 ## [v1.102.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.1)
