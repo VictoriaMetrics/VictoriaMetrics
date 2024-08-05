@@ -804,11 +804,15 @@ provide the following tools for debugging target-level and metric-level relabeli
   and click the `debug` link there. The link is unavailable if `vmagent` runs with `-promscrape.dropOriginalLabels` command-line flag.
   The opened page shows step-by-step results for the actual relabeling rules, which result to target drop.
 
+![Target-level debugging](target-relabeling.gif)
+
 - Metric-level debugging (e.g. `metric_relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs/#scrape_configs)
   can be performed by navigating to `http://vmagent:8429/targets` page (`http://victoriametrics:8428/targets` page for single-node VictoriaMetrics)
   and clicking the `debug metrics relabeling` link at the target, which must be debugged.
   The link is unavailable if `vmagent` runs with `-promscrape.dropOriginalLabels` command-line flag.
   The opened page shows step-by-step results for the actual metric relabeling rules applied to the given target labels.
+
+![Metric-level debugging](metrics-relabeling.gif)
 
 See also [debugging scrape targets](#debugging-scrape-targets).
 
