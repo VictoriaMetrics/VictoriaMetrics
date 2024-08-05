@@ -11,7 +11,8 @@ aliases:
   - /data-ingestion/vmagent.html
   - /data-ingestion/VMAgent.html
 ---
-# Vmagent Setup
+
+# vmagent setup
 `vmagent` can receive data in any format VictoriaMetrics Single and `vminsert` can ingest as well scrape Prometheus endpoints with the same job definitions.
 This section of the documentation only covers forwarding data from `vmagent` to another destination.
 For Information about `vmagent` as well as quickstart guide please refer to the [vmagent documentation](https://docs.victoriametrics.com/vmagent/)
