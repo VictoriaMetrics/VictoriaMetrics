@@ -72,7 +72,8 @@ var (
 
 	disablePerDayIndex = flag.Bool("disablePerDayIndex", false, "Disable per-day index and use global index for all searches. "+
 		"This may improve performance and decrease disk space usage for the use cases with fixed set of timeseries scattered across a "+
-		"big time range (for example, when loading years of historical data)")
+		"big time range (for example, when loading years of historical data). "+
+		"See https://docs.victoriametrics.com/single-server-victoriametrics/#index-tuning")
 )
 
 // CheckTimeRange returns true if the given tr is denied for querying.

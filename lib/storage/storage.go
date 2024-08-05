@@ -1748,9 +1748,8 @@ func (s *Storage) adjustTimeRange(tr TimeRange) TimeRange {
 		return globalIndexTimeRange
 	}
 
-	minDate := uint64(tr.MinTimestamp) / msecPerDay
-	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
-	if minDate > maxDate || maxDate-minDate > maxDaysForPerDaySearch {
+	d := tr.MaxTimestamp - tr.MinTimestamp
+	if d > maxDaysForPerDaySearch*msecPerDay {
 		return globalIndexTimeRange
 	}
 

@@ -52,3 +52,44 @@ func testTimeRangeFromPartition(t *testing.T, initialTime time.Time) {
 		t.Fatalf("unexpected nextY, nextM; got %d, %d; want %d, %d+1;\nnextTime=%s\nmaxTime=%s", nextY, nextM, maxY, maxM, nextTime, maxTime)
 	}
 }
+
+func TestTimeRangeDateRange(t *testing.T) {
+	f := func(tr TimeRange, wantMinDate, wantMaxDate uint64) {
+		t.Helper()
+
+		gotMinDate, gotMaxDate := tr.DateRange()
+		if gotMinDate != wantMinDate {
+			t.Errorf("unexpected min date: got %d, want %d", gotMinDate, wantMinDate)
+		}
+		if gotMaxDate != wantMaxDate {
+			t.Errorf("unexpected max date: got %d, want %d", gotMaxDate, wantMaxDate)
+		}
+	}
+
+	var tr TimeRange
+
+	// MinTimestamp is less than MaxTimestamp, the timestamps belong to the
+	// different days. Min date must be less than the max date.
+	tr = TimeRange{1*msecPerDay + 123, 2*msecPerDay + 456}
+	f(tr, 1, 2)
+
+	// MinTimestamp is less than MaxTimestamp and both timestamps belong to the
+	// same day. Max date must be the same as min date.
+	tr = TimeRange{1*msecPerDay + 123, 1*msecPerDay + 456}
+	f(tr, 1, 1)
+
+	// MinTimestamp equals to MaxTimestamp. Max date must be the same as min
+	// date.
+	tr = TimeRange{1*msecPerDay + 123, 1*msecPerDay + 123}
+	f(tr, 1, 1)
+
+	// MinTimestamp is the first millisecond of the day and equals to
+	// MaxTimestamp. Min and max dates must be the same.
+	tr = TimeRange{1 * msecPerDay, 1 * msecPerDay}
+	f(tr, 1, 1)
+
+	// MinTimestamp is greater than MaxTimestamp MaxTimestamp. Max date must be
+	// the same as min date.
+	tr = TimeRange{2*msecPerDay + 654, 1*msecPerDay + 321}
+	f(tr, 2, 2)
+}

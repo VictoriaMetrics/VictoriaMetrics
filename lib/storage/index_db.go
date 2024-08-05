@@ -380,8 +380,7 @@ func marshalTagFiltersKey(dst []byte, tfss []*TagFilters, tr TimeRange, versione
 		prefix = tagFiltersKeyGen.Load()
 	}
 	// Round start and end times to per-day granularity according to per-day inverted index.
-	startDate := uint64(tr.MinTimestamp) / msecPerDay
-	endDate := uint64(tr.MaxTimestamp-1) / msecPerDay
+	startDate, endDate := tr.DateRange()
 	dst = encoding.MarshalUint64(dst, prefix)
 	dst = encoding.MarshalUint64(dst, startDate)
 	dst = encoding.MarshalUint64(dst, endDate)
@@ -624,8 +623,7 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tr
 		return err
 	}
 
-	minDate := uint64(tr.MinTimestamp) / msecPerDay
-	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
+	minDate, maxDate := tr.DateRange()
 	var mu sync.Mutex
 	wg := getWaitGroup()
 	var errGlobal error
@@ -849,8 +847,7 @@ func (is *indexSearch) searchLabelValuesWithFiltersOnTimeRange(qt *querytracer.T
 		return err
 	}
 
-	minDate := uint64(tr.MinTimestamp) / msecPerDay
-	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
+	minDate, maxDate := tr.DateRange()
 	var mu sync.Mutex
 	wg := getWaitGroup()
 	var errGlobal error
@@ -1055,8 +1052,7 @@ func (is *indexSearch) searchTagValueSuffixesForTimeRange(tvss map[string]struct
 		return is.searchTagValueSuffixesAll(tvss, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	}
 
-	minDate := uint64(tr.MinTimestamp) / msecPerDay
-	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
+	minDate, maxDate := tr.DateRange()
 	// Query over multiple days in parallel.
 	wg := getWaitGroup()
 	var errGlobal error
@@ -2283,7 +2279,6 @@ func (is *indexSearch) searchMetricIDsInternal(qt *querytracer.Tracer, tfss []*T
 	return metricIDs, nil
 }
 
-// TODO(rtm0): Split into two funcs (fast and slow)
 func (is *indexSearch) updateMetricIDsForTagFilters(qt *querytracer.Tracer, metricIDs *uint64set.Set, tfs *TagFilters, tr TimeRange, maxMetrics int) error {
 	err := is.tryUpdatingMetricIDsForDateRange(qt, metricIDs, tfs, tr, maxMetrics)
 	if err == nil {
@@ -2490,8 +2485,7 @@ func (is *indexSearch) tryUpdatingMetricIDsForDateRange(qt *querytracer.Tracer, 
 		return errFallbackToGlobalSearch
 	}
 
-	minDate := uint64(tr.MinTimestamp) / msecPerDay
-	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
+	minDate, maxDate := tr.DateRange()
 	if minDate == maxDate {
 		// Fast path - query only a single date.
 		m, err := is.getMetricIDsForDateAndFilters(qt, minDate, tfs, maxMetrics)

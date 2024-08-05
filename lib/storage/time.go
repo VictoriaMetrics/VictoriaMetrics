@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// dateToString returns human readable representation of the date.
 func dateToString(date uint64) string {
 	if date == 0 {
 		return "[entire retention period]"
@@ -38,6 +39,24 @@ var (
 	globalIndexTimeRange = TimeRange{}
 	globalIndexDate      = uint64(0)
 )
+
+// DateRange returns the date range for the given time range.
+func (tr *TimeRange) DateRange() (uint64, uint64) {
+	minDate := uint64(tr.MinTimestamp) / msecPerDay
+	// Max timestamp may point to the first millisecond of the next day. As the
+	// result, the returned date range will cover one more day than needed.
+	// Decrementing by 1 removes this extra day.
+	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
+
+	// However, if both timestamps are the same and point to the beginning of
+	// the day, then maxDate will be smaller that the minDate. In this case
+	// maxDate is set to minDate.
+	if maxDate < minDate {
+		maxDate = minDate
+	}
+
+	return minDate, maxDate
+}
 
 func (tr *TimeRange) String() string {
 	if *tr == globalIndexTimeRange {
