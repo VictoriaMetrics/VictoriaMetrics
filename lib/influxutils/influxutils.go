@@ -27,3 +27,14 @@ func WriteDatabaseNames(w http.ResponseWriter) {
 	}
 	fmt.Fprintf(w, `{"results":[{"statement_id":0,"series":[{"name":"databases","columns":["name"],"values":[%s]}]}]}`, strings.Join(dbs, ","))
 }
+
+// WriteHealthCheckResponse writes response for influx ping to w.
+func WriteHealthCheckResponse(w http.ResponseWriter) {
+	// Emulate fake response for influx ping.
+	// This is needed for some clients to detect whether InfluxDB is available.
+	// See:
+	// - https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6653
+	// - https://docs.influxdata.com/influxdb/v2/api/#operation/GetHealth
+
+	fmt.Fprintf(w, `{"name":"influxdb", "message":"ready for queries and writes", "status":"pass", "checks":[]}`)
+}
