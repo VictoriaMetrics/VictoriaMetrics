@@ -86,7 +86,7 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 		}
 		labels[s[:n]] = s[n+1:]
 	}
-	notifier.Init(nil, labels, externalURL)
+	_, _ = notifier.Init(nil, labels, externalURL)
 
 	var failed bool
 	for fileName, file := range testfiles {
