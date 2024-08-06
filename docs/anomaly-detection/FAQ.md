@@ -34,6 +34,8 @@ Please see example graph illustrating this logic below:
 
 ![anomaly-score-calculation-example](vmanomaly-prophet-example.webp)
 
+> p.s. please note that additional post-processing logic might be applied to produced anomaly scores, if common arguments like [`min_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) or [`detection_direction`](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) are enabled for a particular model. Follow the links above for the explanations.
+
 
 ## How does vmanomaly work?
 `vmanomaly` applies built-in (or custom) [anomaly detection algorithms](/anomaly-detection/components/models), specified in a config file. 
@@ -150,19 +152,85 @@ volumes:
   vmanomaly_model_dump_dir: {}
 ```
 
+> **Note**: Starting from [v1.15.0](https://docs.victoriametrics.com/anomaly-detection/changelog#v1150) with the introduction of [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models), you can additionally reduce resource consumption (e.g., flatten `fit` stage peaks by querying less data from VictoriaMetrics at once).
+
+**Additional Benefits of Switching to Online Models**:
+
+- **Reduced Latency**: Online models update incrementally, which can lead to faster response times for anomaly detection since the model continuously adapts to new data without waiting for a batch `fit`.
+- **Scalability**: Handling smaller data chunks at a time reduces memory and computational overhead, making it easier to scale the anomaly detection system.
+- **Improved Resource Utilization**: By spreading the computational load over time and reducing peak demands, online models make more efficient use of system resources, potentially lowering operational costs.
+
+Here's an example of how we can switch from (offline) [Z-score model](https://docs.victoriametrics.com/anomaly-detection/components/models/#z-score) to [Online Z-score model](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score):
+
+```yaml
+schedulers:
+  periodic:
+    class: 'periodic'
+    fit_every: '1h'
+    fit_window: '2d'
+    infer_every: '1m'
+  # other schedulers ...
+models:
+  zscore_example:
+    class: 'zscore'
+    schedulers: ['periodic']
+    # other model params ...
+# other config sections ...
+```
+
+to something like
+
+```yaml
+schedulers:
+  periodic:
+    class: 'periodic'
+    fit_every: '180d'  # we need only initial fit to start
+    fit_window: '4h'  # reduced window, especially if the data doesn't have strong seasonality
+    infer_every: '1m'  # the model will be updated during each infer call
+  # other schedulers ...
+models:
+  zscore_example:
+    class: 'zscore_online'
+    min_n_samples_seen: 120  # i.e. minimal relevant seasonality or (initial) fit_window / sampling_frequency
+    schedulers: ['periodic']
+    # other model params ...
+# other config sections ...
+```
+
+As a result, switching from the offline Z-score model to the Online Z-score model results in significant data volume reduction, i.e. over one week:
+
+**Old Configuration**: 
+- `fit_window`: 2 days
+- `fit_every`: 1 hour
+
+**New Configuration**: 
+- `fit_window`: 4 hours
+- `fit_every`: 180 days ( >1 week)
+
+The old configuration would perform 168 (hours in a week) `fit` calls, each using 2 days (48 hours) of data, totaling 168 * 48 = 8064 hours of data for each timeseries returned.
+
+The new configuration performs only 1 `fit` call in 180 days, using 4 hours of data initially, totaling 4 hours of data, which is **magnitutes smaller**.
+
+P.s. `infer` data volume will remain the same for both models, so it does not affect the overall calculations.
+
+**Data Volume Reduction**:
+- Old: 8064 hours/week (fit) + 168 hours/week (infer)
+- New:    4 hours/week (fit) + 168 hours/week (infer)
+
 ## Scaling vmanomaly
-> **Note:** As of latest release we don't support cluster or auto-scaled version yet (though, it's in our roadmap for - better backends, more parallelization, etc.), so proposed workarounds should be addressed manually.
+> **Note:** As of latest release we do not support cluster or auto-scaled version yet (though, it's in our roadmap for - better backends, more parallelization, etc.), so proposed workarounds should be addressed *manually*.
 
 `vmanomaly` can be scaled horizontally by launching multiple independent instances, each with its own [MetricsQL](/MetricsQL) queries and [configurations](/anomaly-detection/components/):
 
-- By splitting **queries**, [defined in reader section](/anomaly-detection/components/reader#vm-reader) and spawn separate service around it. Also in case you have *only 1 query returning huge amount of timeseries*, you can further split it by applying MetricsQL filters, i.e. using "extra_filters" [param in reader](/anomaly-detection/components/reader?highlight=extra_filters#vm-reader)
+- By splitting **queries**, [defined in reader section](/anomaly-detection/components/reader#vm-reader) and spawn separate service around it. Also in case you have *only 1 query returning huge amount of timeseries*, you can further split it by applying MetricsQL filters, i.e. using "extra_filters" [param in reader](/anomaly-detection/components/reader?highlight=extra_filters#vm-reader). See the example below.
 
 - or **models** (in case you decide to run several models for each timeseries received i.e. for averaging anomaly scores in your alerting rules of `vmalert` or using a vote approach to reduce false positives) - see `queries` arg in [model config](/anomaly-detection/components/models#queries)
 
 - or **schedulers** (in case you want the same models to be trained under several schedules) - see `schedulers` arg [model section](/anomaly-detection/components/models#schedulers) and `scheduler` [component itself](/anomaly-detection/components/scheduler)
 
 
-Here's an example of how to split on `extra_filters`, based on `extra_filters` reader's arg
+Here's an example of how to split on `extra_filters`, based on `extra_filters` reader's arg:
+
 ```yaml
 # config file #1, for 1st vmanomaly instance
 # ...
