@@ -90,7 +90,7 @@ prometheus.remote_write "victoriametrics" {
 }
 ```
 
-## Remote Write with bearer authentication (token)
+## Remote Write with bearer authentication
 
 This is the same as the first config but adds the `bearer_token` parameter:
 
