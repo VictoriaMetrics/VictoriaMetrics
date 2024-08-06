@@ -39,6 +39,10 @@ the [tenantID](https://docs.victoriametrics.com/cluster-victoriametrics/#url-for
 https://<vminsert-addr>/insert/<tenant_id>/prometheus/api/v1/write
 ```
 
+> Note: read more about [multitenancy](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy)
+> or [multitenancy via labels](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels).
+
+
 After the configuration has been updated, Alloy must be reloaded or restarted for the change to be applied:
 - Linux: `sudo systemctl reload alloy.service`
 - Windows: `Restart-Service Alloy`, this can also be done from the GUI using task manager
