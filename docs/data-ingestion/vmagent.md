@@ -4,8 +4,8 @@ weight: 2
 sort: 2
 menu:
   docs:
-    identifier: "vmagent"
-    parent: "data-ingestion"
+    identifier: data-ingestion-vmagent
+    parent: data-ingestion
     weight: 2
 aliases:
   - /data-ingestion/vmagent.html
