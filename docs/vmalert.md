@@ -941,7 +941,7 @@ vmalert can produce the following error message:
 result contains metrics with the same labelset during evaluation
 ```
 
-The error means there is a collision between [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
+The error means there is a collision between [time series](https://docs.victoriametrics.com/keyconcepts#time-series)
 during evaluation.
 
 For example, a rule with `expr: {__name__=~"vmalert_alerts_.*"} > 0` returns two distinct time series in response:

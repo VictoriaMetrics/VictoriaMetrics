@@ -53,7 +53,7 @@ docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 842
 ```
 
 
-Open <a href="http://localhost:8428">http://localhost:8428</a> in web browser
+Open `http://localhost:8428` in web browser
 and read [these docs](https://docs.victoriametrics.com/#operation).
 
 There is also [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/)
