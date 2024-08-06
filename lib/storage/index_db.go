@@ -2240,6 +2240,7 @@ func (is *indexSearch) searchMetricIDsInternal(qt *querytracer.Tracer, tfss []*T
 		}
 		qtChild := qt.NewChild("update metric ids: filters=%s, timeRange=%s", tfs, &tr)
 		prevMetricIDsLen := metricIDs.Len()
+		// TODO(rtm0): Why maxMetrics+1?
 		err := is.updateMetricIDsForTagFilters(qtChild, metricIDs, tfs, tr, maxMetrics+1)
 		qtChild.Donef("updated %d metric ids", metricIDs.Len()-prevMetricIDsLen)
 		if err != nil {
@@ -2576,6 +2577,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(qt *querytracer.Tracer, dat
 	var metricIDs *uint64set.Set
 	tfwsRemaining := tfws[:0]
 	maxDateMetrics := intMax
+	// TODO(rtm0): Why 50?
 	if maxMetrics < intMax/50 {
 		maxDateMetrics = maxMetrics * 50
 	}
