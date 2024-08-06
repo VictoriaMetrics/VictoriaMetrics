@@ -15,7 +15,7 @@ aliases:
 
 ---
 
-[Grafana Alloy](https://grafana.com/docs/alloy/latest/) supports sending data via the Prometheus Remote Write protocol and OpenTelemetry Protocol (OTLP).
+[Grafana Alloy](https://grafana.com/docs/alloy/latest/) supports sending data via the Prometheus remote write protocol and OpenTelemetry Protocol (OTLP).
 Collecting metrics and forwarding them to VictoriaMetrics using Prometheus scraping and remote writing is more straightforward, but using OpenTelemetry enables more complex processing operations to occur before sending data to VictoriaMetrics.
 
 The Alloy configuration file can be found in the following location depending on your platform:
@@ -23,7 +23,7 @@ The Alloy configuration file can be found in the following location depending on
 - Windows: `%ProgramFiles%\GrafanaLabs\Alloy\config.alloy`
 - MacOS: `$(brew --prefix)/etc/alloy/config.alloy`
 
-To configure Grafana Alloy to push collected metrics to VictoriaMetrics via Prometheus Remote Write protocol,
+To configure Grafana Alloy to push collected metrics to VictoriaMetrics via Prometheus remote write protocol,
 update the `prometheus.remote_write` endpoint:
 ```Alloy
 prometheus.remote_write "victoriametrics" {
@@ -45,7 +45,7 @@ After the configuration has been updated, Alloy must be reloaded or restarted fo
 - MacOS: `brew services restart alloy`
 - Helm chart: changing the `alloy.configMap` in the Alloy [helm values](https://raw.githubusercontent.com/grafana/alloy/main/operations/helm/charts/alloy/values.yaml)
 
-## Remote Write
+## remote write
 
 In the example below we will be using the node exporter component built into Alloy to generate metrics,
 but any Prometheus scrape target can forward data to VictoriaMetrics.
@@ -67,7 +67,7 @@ prometheus.remote_write "victoriametrics" {
 }
 ```
 
-## Remote Write with basic authentication
+## remote write with basic authentication
 
 This is the same as the previous configuration but adds the `basic_auth` parameters:
 
@@ -90,7 +90,7 @@ prometheus.remote_write "victoriametrics" {
 }
 ```
 
-## Remote Write with bearer authentication
+## remote write with bearer authentication
 
 This is the same as the first config but adds the `bearer_token` parameter:
 
