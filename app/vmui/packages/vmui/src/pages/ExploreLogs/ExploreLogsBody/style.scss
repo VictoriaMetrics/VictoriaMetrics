@@ -13,6 +13,14 @@
       align-items: center;
       gap: $padding-small;
     }
+
+    &__log-info {
+      flex-grow: 1;
+      text-align: right;
+      padding-right: $padding-global;
+      color: $color-text-secondary;
+
+    }
   }
 
   &__empty {
