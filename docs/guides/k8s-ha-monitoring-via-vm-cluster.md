@@ -356,7 +356,7 @@ The expected output is:
 The expected result of the query `count(up{kubernetes_pod_name=~".*vmselect.*"})` should be equal to `3` - the number of replicas we set via `replicaCount` parameter.
 
 
-To test via Grafana, we need to install it first. [Install and connect Grafana to VictoriaMetrics](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster.html#4-install-and-connect-grafana-to-victoriametrics-with-helm), login into Grafana and open the metrics [Explore](http://127.0.0.1:3000/explore) page.
+To test via Grafana, we need to install it first. [Install and connect Grafana to VictoriaMetrics](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster.html#4-install-and-connect-grafana-to-victoriametrics-with-helm), login into Grafana and open the metrics explore page at `http://127.0.0.1:3000/explore`.
 
 
 ![Explore](k8s-ha-monitoring-via-vm-cluster_explore.webp)
