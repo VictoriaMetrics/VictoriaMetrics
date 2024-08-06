@@ -83,7 +83,6 @@ to a file containing the self-signed CA certificate:
  -remoteWrite.tlsInsecureSkipVerify
 ```
 
-
 ## References
 
 - [vmagent docs](https://docs.victoriametrics.com/vmagent/)
