@@ -1,13 +1,12 @@
 ---
 title: Proxmox
-weight: 1
-sort: 1
+weight: 6
+sort: 6
 menu:
   docs:
     identifier: "proxmox"
     parent: "data-ingestion"
-    weight: 1
-    # sort: 1
+    weight: 6
 aliases:
   - /data-ingestion/proxmox.html
   - /data-ingestion/Proxmox.html

@@ -1,12 +1,12 @@
 ---
 title: Grafana Alloy
-weight: 1
-sort: 1
+weight: 3
+sort: 3
 menu:
   docs:
     identifier: "alloy"
     parent: "data-ingestion"
-    weight: 1
+    weight: 3
 aliases:
   - /data-ingestion/Grafana-Alloy.html
   - /data-ingestion/grafana-alloy.html

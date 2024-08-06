@@ -1,13 +1,12 @@
 ---
 title: Telegraf
-weight: 1
-sort: 1
+weight: 5
+sort: 5
 menu:
   docs:
     identifier: "telegraf"
     parent: "data-ingestion"
-    weight: 1
-    # sort: 1
+    weight: 5
 aliases:
   - /data-ingestion/telegraf.html
   - /data-ingestion/Telegraf.html
@@ -23,7 +22,7 @@ victoriametrics_password="password"
 victoriametrics_token="my_token"
 ```
 and they can be referenced in a Telegraf configuration file by prepending the variable name with `$` ex. `$victoriametrics_url` will be translated to `https://metrics.example.com` if it is referenced in a Telegraf configuration using the values from `/etc/default/telegraf` in the values seen above.
-Otherwise please replace the variables below to fit your setup.
+Otherwise, please replace the variables below to fit your setup.
 
 If you want to mimic this behavior on Windows please read [Influx Data's blog on storing variables in the registry](https://www.influxdata.com/blog/using-telegraf-on-windows/)
 

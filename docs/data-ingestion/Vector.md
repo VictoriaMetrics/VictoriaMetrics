@@ -1,13 +1,12 @@
 ---
 title: Vector
-weight: 1
-sort: 1
+weight: 4
+sort: 4
 menu:
   docs:
     identifier: "Vector"
     parent: "data-ingestion"
-    weight: 1
-    # sort: 1
+    weight: 4
 aliases:
   - /data-ingestion/Vector.html
   - /data-ingestion/vector.html
