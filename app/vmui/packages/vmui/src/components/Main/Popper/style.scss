@@ -32,19 +32,19 @@
 
   &-header {
     display: grid;
-    grid-template-columns: 1fr auto;
-    gap: $padding-small;
+    grid-template-columns: 1fr 25px;
+    gap: $padding-global;
     align-items: center;
     justify-content: space-between;
     background-color: $color-background-block;
-    padding: $padding-small $padding-small $padding-small $padding-global;
+    padding: $padding-small $padding-global;
     border-radius: $border-radius-small $border-radius-small 0 0;
     color: $color-text;
     border-bottom: $border-divider;
     margin-bottom: $padding-global;
-    min-height: 51px;
 
     &__title {
+      font-size: $font-size-small;
       font-weight: bold;
       user-select: none;
     }
