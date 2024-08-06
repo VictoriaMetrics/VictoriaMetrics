@@ -8,7 +8,8 @@ groups:
           severity: page
         annotations:
           summary: "Instance {{ $labels.instance }} down"
-          description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 5 minutes."
+          description: "{{ $labels.instance }} of job {{ $labels.job }} in cluster {{ $externalLabels.cluster }} has been down for more than 5 minutes."
+          dashboard: '{{ $externalURL }}/d/dashboard?orgId=1'
       - alert: AlwaysFiring
         expr: 1
       - alert: SameAlertNameWithDifferentGroup
