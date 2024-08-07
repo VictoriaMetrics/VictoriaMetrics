@@ -19,11 +19,12 @@ var maxGraphiteSeries = flag.Int("search.maxGraphiteSeries", 300e3, "The maximum
 	"See https://docs.victoriametrics.com/#graphite-render-api-usage")
 
 type evalConfig struct {
-	at          *auth.Token
-	startTime   int64
-	endTime     int64
-	storageStep int64
-	deadline    searchutils.Deadline
+	at                  *auth.Token
+	startTime           int64
+	endTime             int64
+	storageStep         int64
+	denyPartialResponse bool
+	deadline            searchutils.Deadline
 
 	currentTime time.Time
 
@@ -155,8 +156,7 @@ func evalMetricExpr(ec *evalConfig, me *graphiteql.MetricExpr) (nextSeriesFunc, 
 }
 
 func newNextSeriesForSearchQuery(ec *evalConfig, sq *storage.SearchQuery, expr graphiteql.Expr) (nextSeriesFunc, error) {
-	denyPartialResponse := true
-	rss, _, err := netstorage.ProcessSearchQuery(nil, denyPartialResponse, sq, ec.deadline)
+	rss, _, err := netstorage.ProcessSearchQuery(nil, ec.denyPartialResponse, sq, ec.deadline)
 	if err != nil {
 		return nil, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
