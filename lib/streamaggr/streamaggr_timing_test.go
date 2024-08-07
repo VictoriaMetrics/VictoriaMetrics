@@ -50,7 +50,7 @@ func BenchmarkAggregatorsFlushInternalSerial(b *testing.B) {
 	b.SetBytes(int64(len(benchSeries) * len(benchOutputs)))
 	for i := 0; i < b.N; i++ {
 		for _, aggr := range a.as {
-			aggr.flushInternal(pushFunc, false)
+			aggr.flush(pushFunc, time.Now().UnixMilli(), 0)
 		}
 	}
 }

@@ -3,10 +3,8 @@ package streamaggr
 import (
 	"math"
 	"sync"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // totalAggrState calculates output=total, total_prometheus, increase and increase_prometheus.
@@ -18,49 +16,36 @@ type totalAggrState struct {
 
 	// Whether to take into account the first sample in new time series when calculating the output value.
 	keepFirstSample bool
-
-	// Time series state is dropped if no new samples are received during stalenessSecs.
-	//
-	// Aslo, the first sample per each new series is ignored during stalenessSecs even if keepFirstSample is set.
-	// see ignoreFirstSampleDeadline for more details.
-	stalenessSecs uint64
-
-	// The first sample per each new series is ignored until this unix timestamp deadline in seconds even if keepFirstSample is set.
-	// This allows avoiding an initial spike of the output values at startup when new time series
-	// cannot be distinguished from already existing series. This is tracked with ignoreFirstSampleDeadline.
-	ignoreFirstSampleDeadline uint64
 }
 
 type totalStateValue struct {
 	mu             sync.Mutex
-	lastValues     map[string]totalLastValueState
-	total          float64
-	deleteDeadline uint64
+	shared         totalState
+	state          [aggrStateSize]float64
+	deleteDeadline int64
 	deleted        bool
+}
+
+type totalState struct {
+	total      float64
+	lastValues map[string]totalLastValueState
 }
 
 type totalLastValueState struct {
 	value          float64
 	timestamp      int64
-	deleteDeadline uint64
+	deleteDeadline int64
 }
 
-func newTotalAggrState(stalenessInterval time.Duration, resetTotalOnFlush, keepFirstSample bool) *totalAggrState {
-	stalenessSecs := roundDurationToSecs(stalenessInterval)
-	ignoreFirstSampleDeadline := fasttime.UnixTimestamp() + stalenessSecs
-
+func newTotalAggrState(resetTotalOnFlush, keepFirstSample bool) *totalAggrState {
 	return &totalAggrState{
 		resetTotalOnFlush:         resetTotalOnFlush,
 		keepFirstSample:           keepFirstSample,
-		stalenessSecs:             stalenessSecs,
-		ignoreFirstSampleDeadline: ignoreFirstSampleDeadline,
 	}
 }
 
-func (as *totalAggrState) pushSamples(samples []pushSample) {
-	currentTime := fasttime.UnixTimestamp()
-	deleteDeadline := currentTime + as.stalenessSecs
-	keepFirstSample := as.keepFirstSample && currentTime > as.ignoreFirstSampleDeadline
+func (as *totalAggrState) pushSamples(samples []pushSample, deleteDeadline int64, idx int) {
+	var deleted bool
 	for i := range samples {
 		s := &samples[i]
 		inputKey, outputKey := getInputOutputKey(s.key)
@@ -70,7 +55,9 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 		if !ok {
 			// The entry is missing in the map. Try creating it.
 			v = &totalStateValue{
-				lastValues: make(map[string]totalLastValueState),
+				shared: totalState{
+					lastValues: make(map[string]totalLastValueState),
+				},
 			}
 			outputKey = bytesutil.InternString(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
@@ -81,10 +68,10 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 		}
 		sv := v.(*totalStateValue)
 		sv.mu.Lock()
-		deleted := sv.deleted
+		deleted = sv.deleted
 		if !deleted {
-			lv, ok := sv.lastValues[inputKey]
-			if ok || keepFirstSample {
+			lv, ok := sv.shared.lastValues[inputKey]
+			if ok || as.keepFirstSample {
 				if s.timestamp < lv.timestamp {
 					// Skip out of order sample
 					sv.mu.Unlock()
@@ -92,10 +79,10 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 				}
 
 				if s.value >= lv.value {
-					sv.total += s.value - lv.value
+					sv.state[idx] += s.value - lv.value
 				} else {
 					// counter reset
-					sv.total += s.value
+					sv.state[idx] += s.value
 				}
 			}
 			lv.value = s.value
@@ -103,7 +90,7 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 			lv.deleteDeadline = deleteDeadline
 
 			inputKey = bytesutil.InternString(inputKey)
-			sv.lastValues[inputKey] = lv
+			sv.shared.lastValues[inputKey] = lv
 			sv.deleteDeadline = deleteDeadline
 		}
 		sv.mu.Unlock()
@@ -115,75 +102,55 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *totalAggrState) flushState(ctx *flushCtx, resetState bool) {
-	currentTime := fasttime.UnixTimestamp()
-	currentTimeMsec := int64(currentTime) * 1000
-
-	suffix := as.getSuffix()
-
-	as.removeOldEntries(currentTime)
-
-	m := &as.m
-	m.Range(func(k, v any) bool {
-		sv := v.(*totalStateValue)
-
-		sv.mu.Lock()
-		total := sv.total
-		if resetState {
-			if as.resetTotalOnFlush {
-				sv.total = 0
-			} else if math.Abs(sv.total) >= (1 << 53) {
-				// It is time to reset the entry, since it starts losing float64 precision
-				sv.total = 0
-			}
-		}
-		deleted := sv.deleted
-		sv.mu.Unlock()
-
-		if !deleted {
-			key := k.(string)
-			ctx.appendSeries(key, suffix, currentTimeMsec, total)
-		}
-		return true
-	})
-}
-
 func (as *totalAggrState) getSuffix() string {
-	// Note: this function is at hot path, so it shouldn't allocate.
-	if as.resetTotalOnFlush {
-		if as.keepFirstSample {
-			return "increase"
-		}
-		return "increase_prometheus"
-	}
-	if as.keepFirstSample {
-		return "total"
-	}
-	return "total_prometheus"
+        // Note: this function is at hot path, so it shouldn't allocate.
+        if as.resetTotalOnFlush {
+                if as.keepFirstSample {
+                        return "increase"
+                }
+                return "increase_prometheus"
+        }
+        if as.keepFirstSample {
+                return "total"
+        }
+        return "total_prometheus"
 }
 
-func (as *totalAggrState) removeOldEntries(currentTime uint64) {
+func (as *totalAggrState) flushState(ctx *flushCtx, flushTimestamp int64, idx int) {
+	var total float64
 	m := &as.m
-	m.Range(func(k, v any) bool {
+	suffix := as.getSuffix()
+	m.Range(func(k, v interface{}) bool {
 		sv := v.(*totalStateValue)
 
 		sv.mu.Lock()
-		if currentTime > sv.deleteDeadline {
+		// check for stale entries
+		deleted := flushTimestamp > sv.deleteDeadline
+		if deleted {
 			// Mark the current entry as deleted
-			sv.deleted = true
+			sv.deleted = deleted
 			sv.mu.Unlock()
 			m.Delete(k)
 			return true
 		}
-
-		// Delete outdated entries in sv.lastValues
-		lvs := sv.lastValues
-		for k1, lv := range lvs {
-			if currentTime > lv.deleteDeadline {
-				delete(lvs, k1)
+		total = sv.shared.total + sv.state[idx]
+		for k1, v1 := range sv.shared.lastValues {
+			if flushTimestamp > v1.deleteDeadline {
+				delete(sv.shared.lastValues, k1)
+			}
+		}
+		sv.state[idx] = 0
+		if !as.resetTotalOnFlush {
+			if math.Abs(total) >= (1 << 53) {
+				// It is time to reset the entry, since it starts losing float64 precision
+				sv.shared.total = 0
+			} else {
+				sv.shared.total = total
 			}
 		}
 		sv.mu.Unlock()
+		key := k.(string)
+		ctx.appendSeries(key, suffix, flushTimestamp, total)
 		return true
 	})
 }
