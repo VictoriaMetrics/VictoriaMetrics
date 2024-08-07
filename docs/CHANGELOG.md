@@ -36,6 +36,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): respect HTTP headers defined in [notifier configuration file](https://docs.victoriametrics.com/vmalert/#notifier-configuration-file) for each request to notifiers. Previously, this param was ignored by mistake.
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): correctly apply `-streamAggr.dropInputLabels` when global stream deduplication is enabled without `-streamAggr.config`. Previously, `-remoteWrite.streamAggr.dropInputLabels` was used instead.
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): fix command-line flag `-remoteWrite.streamAggr.ignoreFirstIntervals` to accept multiple values and be applied per each corresponding `-remoteWrite.url`. Previously, this flag only could have been used globally for all URLs. 
 
 ## [v1.102.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.1)
 
