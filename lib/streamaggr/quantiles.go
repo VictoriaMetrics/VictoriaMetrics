@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/valyala/histogram"
 )
 
@@ -65,7 +64,6 @@ func (as *quantilesAggrState) pushSamples(samples []pushSample) {
 }
 
 func (as *quantilesAggrState) flushState(ctx *flushCtx, resetState bool) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
 	m := &as.m
 	phis := as.phis
 	var quantiles []float64
@@ -90,7 +88,7 @@ func (as *quantilesAggrState) flushState(ctx *flushCtx, resetState bool) {
 		for i, quantile := range quantiles {
 			b = strconv.AppendFloat(b[:0], phis[i], 'g', -1, 64)
 			phiStr := bytesutil.InternBytes(b)
-			ctx.appendSeriesWithExtraLabel(key, "quantiles", currentTimeMsec, quantile, "quantile", phiStr)
+			ctx.appendSeriesWithExtraLabel(key, "quantiles", quantile, "quantile", phiStr)
 		}
 		return true
 	})

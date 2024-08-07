@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // stddevAggrState calculates output=stddev, e.g. the average value over input samples.
@@ -62,7 +61,6 @@ func (as *stddevAggrState) pushSamples(samples []pushSample) {
 }
 
 func (as *stddevAggrState) flushState(ctx *flushCtx, resetState bool) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
 	m := &as.m
 	m.Range(func(k, v any) bool {
 		if resetState {
@@ -80,7 +78,7 @@ func (as *stddevAggrState) flushState(ctx *flushCtx, resetState bool) {
 		sv.mu.Unlock()
 
 		key := k.(string)
-		ctx.appendSeries(key, "stddev", currentTimeMsec, stddev)
+		ctx.appendSeries(key, "stddev", stddev)
 		return true
 	})
 }

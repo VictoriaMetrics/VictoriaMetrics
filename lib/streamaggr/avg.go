@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // avgAggrState calculates output=avg, e.g. the average value over input samples.
@@ -62,7 +61,6 @@ func (as *avgAggrState) pushSamples(samples []pushSample) {
 }
 
 func (as *avgAggrState) flushState(ctx *flushCtx, resetState bool) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
 	m := &as.m
 	m.Range(func(k, v any) bool {
 		if resetState {
@@ -80,7 +78,7 @@ func (as *avgAggrState) flushState(ctx *flushCtx, resetState bool) {
 		sv.mu.Unlock()
 
 		key := k.(string)
-		ctx.appendSeries(key, "avg", currentTimeMsec, avg)
+		ctx.appendSeries(key, "avg", avg)
 		return true
 	})
 }

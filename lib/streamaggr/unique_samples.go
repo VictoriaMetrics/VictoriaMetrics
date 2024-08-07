@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // uniqueSamplesAggrState calculates output=unique_samples, e.g. the number of unique sample values.
@@ -63,7 +62,6 @@ func (as *uniqueSamplesAggrState) pushSamples(samples []pushSample) {
 }
 
 func (as *uniqueSamplesAggrState) flushState(ctx *flushCtx, resetState bool) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
 	m := &as.m
 	m.Range(func(k, v any) bool {
 		if resetState {
@@ -81,7 +79,7 @@ func (as *uniqueSamplesAggrState) flushState(ctx *flushCtx, resetState bool) {
 		sv.mu.Unlock()
 
 		key := k.(string)
-		ctx.appendSeries(key, "unique_samples", currentTimeMsec, float64(n))
+		ctx.appendSeries(key, "unique_samples", float64(n))
 		return true
 	})
 }

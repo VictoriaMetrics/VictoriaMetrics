@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // sumSamplesAggrState calculates output=sum_samples, e.g. the sum over input samples.
@@ -59,7 +58,6 @@ func (as *sumSamplesAggrState) pushSamples(samples []pushSample) {
 }
 
 func (as *sumSamplesAggrState) flushState(ctx *flushCtx, resetState bool) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
 	m := &as.m
 	m.Range(func(k, v any) bool {
 		if resetState {
@@ -77,7 +75,7 @@ func (as *sumSamplesAggrState) flushState(ctx *flushCtx, resetState bool) {
 		sv.mu.Unlock()
 
 		key := k.(string)
-		ctx.appendSeries(key, "sum_samples", currentTimeMsec, sum)
+		ctx.appendSeries(key, "sum_samples", sum)
 		return true
 	})
 }

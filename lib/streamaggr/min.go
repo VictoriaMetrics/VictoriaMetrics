@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // minAggrState calculates output=min, e.g. the minimum value over input samples.
@@ -61,7 +60,6 @@ func (as *minAggrState) pushSamples(samples []pushSample) {
 }
 
 func (as *minAggrState) flushState(ctx *flushCtx, resetState bool) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
 	m := &as.m
 	m.Range(func(k, v any) bool {
 		if resetState {
@@ -78,7 +76,7 @@ func (as *minAggrState) flushState(ctx *flushCtx, resetState bool) {
 		}
 		sv.mu.Unlock()
 		key := k.(string)
-		ctx.appendSeries(key, "min", currentTimeMsec, min)
+		ctx.appendSeries(key, "min", min)
 		return true
 	})
 }
