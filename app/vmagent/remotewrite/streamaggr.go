@@ -50,7 +50,7 @@ var (
 	streamAggrIgnoreOldSamples = flagutil.NewArrayBool("remoteWrite.streamAggr.ignoreOldSamples", "Whether to ignore input samples with old timestamps outside the current "+
 		"aggregation interval for the corresponding -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. "+
 		"See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples")
-	streamAggrIgnoreFirstIntervals = flag.Int("remoteWrite.streamAggr.ignoreFirstIntervals", 0, "Number of aggregation intervals to skip after the start "+
+	streamAggrIgnoreFirstIntervals = flagutil.NewArrayInt("remoteWrite.streamAggr.ignoreFirstIntervals", 0, "Number of aggregation intervals to skip after the start "+
 		"for the corresponding -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. Increase this value if "+
 		"you observe incorrect aggregation results after vmagent restarts. It could be caused by receiving bufferred delayed data from clients pushing data into the vmagent. "+
 		"See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start")
@@ -229,7 +229,7 @@ func newStreamAggrConfigPerURL(idx int, pushFunc streamaggr.PushFunc) (*streamag
 		DedupInterval:        streamAggrDedupInterval.GetOptionalArg(idx),
 		DropInputLabels:      *streamAggrDropInputLabels,
 		IgnoreOldSamples:     streamAggrIgnoreOldSamples.GetOptionalArg(idx),
-		IgnoreFirstIntervals: *streamAggrIgnoreFirstIntervals,
+		IgnoreFirstIntervals: streamAggrIgnoreFirstIntervals.GetOptionalArg(idx),
 	}
 
 	sas, err := streamaggr.LoadFromFile(path, pushFunc, opts, alias)
