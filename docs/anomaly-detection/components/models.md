@@ -232,9 +232,11 @@ There are **2 model types**, supported in `vmanomaly`, resulting in **4 possible
 - [Univariate models](#univariate-models)
 - [Multivariate models](#multivariate-models)
 
-Each of these models can also be
+Each of these models can be of type
 - [Rolling](#rolling-models)
 - [Non-rolling](#non-rolling-models)
+
+Moreover, starting from [v1.15.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1150), there exist **[online (incremental) models](#online-models)** subclass. Please refer to the [correspondent section](#online-models) for more details.
 
 ### Univariate Models
 
@@ -276,7 +278,7 @@ As a result, such model instances are **not stored** between consecutive re-fit 
 
 Such models put **more pressure** on your reader's source, i.e. if your model should be fit on large amount of data (say, 14 days with 1-minute resolution) and at the same time you have **frequent inference** (say, once per minute) on new chunks of data - that's because such models require (fit + infer) window of data to be fit first to be used later in each inference call.
 
-> **Note**: Rolling models require `fit_every` to be set equal to `infer_every` in your [PeriodicScheduler](./scheduler.md#periodic-scheduler).
+> **Note**: Rolling models require `fit_every` either to be missing or explicitly set equal to `infer_every` in your [PeriodicScheduler](./scheduler.md#periodic-scheduler).
 
 **Examples:** [RollingQuantile](#rolling-quantile)
 
@@ -300,24 +302,65 @@ Produced model instances are **stored in-memory** between consecutive re-fit cal
 ![vmanomaly-model-type-non-rolling](model-type-non-rolling.webp)
 
 
+### Online Models
+
+Introduced in [v1.15.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1150), online (incremental) models allow defining a smaller frame `fit_window` and less frequent `fit` calls to reduce the data burden from VictoriaMetrics. They make incremental updates to model parameters during each `infer_every` call, even on a single datapoint.
+If the model doesn't support online mode, it's called **offline** (its parameters are only updated during `fit` calls).
+
+Main differences between offline and online:
+
+Fit stage
+- Both types have a `fit` stage, run on the `fit_window` data frame.
+- For offline models, `fit_window` should contain enough data to train the model (e.g., 2 seasonal periods).
+- For online models, training can start gradually from smaller chunks (e.g., 1 hour).
+
+Infer stage
+- Both types have an `infer` stage, run on new datapoints (timestamps > last seen timestamp of the previous `infer` call).
+- Offline models use a pre-trained (during `fit` call) *static* model to make every `infer` call until the next `fit` call, when the model is completely re-trained.
+- Online models use a pre-trained (during `fit` call) *dynamic* model, which is gradually updated during each `infer` call with new datapoints. However, to prevent the model from accumulating outdated behavior, each `fit` call resets the model from scratch.
+
+**Strengths**:
+
+- The ability to distribute the data load evenly between the initial `fit` and subsequent `infer` calls. For example, an online model can be fit on 10 `1m` datapoints during the initial `fit` stage once per month and then be gradually updated on the same 10 `1m` datapoints during each `infer` call each 10 minutes.
+- The model can adapt to new data patterns (gradually updating itself during each `infer` call) without needing to wait for the next `fit` call and one big re-training.
+- Slightly faster training/updating times compared to similar offline models.
+
+**Limitations**:
+
+- Until the online model sees enough data (especially if the data shows strong seasonality), its predictions might be unstable, producing more [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive) (`anomaly_score > 1`) or making [false negative predictions, skipping real anomalies](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-negative).
+- Not all models (e.g., complex ones like [Prophet](#prophet)) have a direct online alternative, thus their applicability can be somewhat limited.
+
+Each of the ([built-in](#built-in-models) or [custom](#custom-model-guide)) online models (like [`OnlineZscoreModel`](#online-z-score)) shares the following common parameters and properties:
+- `n_samples_seen_` (int) - this model *property* refers to the number of datapoints the model was trained on and increases from 0 (before the first `fit`) with each consecutive `infer` call.
+- `min_n_samples_seen` (int), optional - this *parameter* defines the minimum number of samples to be seen before reliably computing the [anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). Otherwise, the anomaly score will be 0 until `n_samples_seen_` > `min_n_samples_seen`, as there is not enough data to trust the model's predictions. For example, if your data has hourly seasonality and '1m' frequency, setting `min_n_samples_seen_` to 288 (1440 minutes in a day / 5 minutes) should be sufficient.
+
+
+### Offline models
+
+Every other model that isn't [online](#online-models). Offline models are completely re-trained during `fit` call and isn't updated during consecutive `infer` calls.
+
+
 ## Built-in Models 
 
 ### Overview
-VM Anomaly Detection (`vmanomaly` hereinafter) models support 2 groups of parameters:
+VictoriaMetrics Anomaly Detection models support 2 groups of parameters:
 
 - **`vmanomaly`-specific** arguments - please refer to *Parameters specific for vmanomaly* and *Default model parameters* subsections for each of the models below.
 - Arguments to **inner model** (say, [Facebook's Prophet](https://facebook.github.io/prophet/docs/quick_start.html#python-api)), passed in a `args` argument as key-value pairs, that will be directly given to the model during initialization to allow granular control. Optional.
 
-**Note**: For users who may not be familiar with Python data types such as `list[dict]`, a [dictionary](https://www.w3schools.com/python/python_dictionaries.asp) in Python is a data structure that stores data values in key-value pairs. This structure allows for efficient data retrieval and management.
+> **Note**: For users who may not be familiar with Python data types such as `list[dict]`, a [dictionary](https://www.w3schools.com/python/python_dictionaries.asp) in Python is a data structure that stores data values in key-value pairs. This structure allows for efficient data retrieval and management.
 
 
 **Models**:
 * [AutoTuned](#autotuned) - designed to take the cognitive load off the user, allowing any of built-in models below to be re-tuned for best params on data seen during each `fit` phase of the algorithm. Tradeoff is between increased computational time and optimized results / simpler maintenance.
 * [Prophet](#prophet) - the most versatile one for production usage, especially for complex data ([trends](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend), [change points](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/#novelties), [multi-seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality))
-* [Z-score](#z-score) - useful for testing and for simpler data ([de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data without strict [seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality) and with anomalies of similar magnitude as your "normal" data)
-* [Holt-Winters](#holt-winters) - well-suited for **data with moderate complexity**, exhibiting distinct [trends](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) and/or [seasonal patterns](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality).
-* [MAD (Median Absolute Deviation)](#mad-median-absolute-deviation) - similarly to Z-score, is effective for **identifying outliers in relatively consistent data** (useful for detecting sudden, stark deviations from the median)
+* [Z-score](#z-score) - useful for initial testing and for simpler data ([de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data without strict [seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality) and with anomalies of similar magnitude as your "normal" data)
+* [Online Z-score](#online-z-score) - [online](#online-models) alternative to [Z-score](#z-score) model with exact same behavior and use cases.
+* [Holt-Winters](#holt-winters) - well-suited for **data with moderate complexity**, exhibiting distinct [trends](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) and/or [single seasonal pattern](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality).
+* [MAD (Median Absolute Deviation)](#mad-median-absolute-deviation) - similarly to [Z-score](#z-score), is effective for **identifying outliers in relatively consistent data** (useful for detecting sudden, stark deviations from the median).
+* [Online MAD](#online-mad) - approximate [online](#online-models) alternative to [MAD model](#mad-median-absolute-deviation), appropriate for the same use cases.
 * [Rolling Quantile](#rolling-quantile) - best for **data with evolving patterns**, as it adapts to changes over a rolling window.
+* [Online Seasonal Quantile](#online-seasonal-quantile) - best used on **[de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data with strong (possibly multiple) [seasonalities](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality)**. Can act as a (slightly less powerful) [online](#online-models) replacement to [`ProphetModel`](#prophet).
 * [Seasonal Trend Decomposition](#seasonal-trend-decomposition) - similarly to Holt-Winters, is best for **data with pronounced [seasonal](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality) and [trend](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) components**
 * [Isolation forest (Multivariate)](#isolation-forest-multivariate) - useful for **metrics data interaction** (several queries/metrics -> single anomaly score) and **efficient in detecting anomalies in high-dimensional datasets**
 * [Custom model](#custom-model-guide) - benefit from your own models and expertise to better support your **unique use case**.
@@ -331,7 +374,8 @@ Tuning hyperparameters of a model can be tricky and often requires in-depth know
 * `class` (string) - model class name `"model.auto.AutoTunedModel"` (or `auto` starting from [v1.13.0](../CHANGELOG.md#1130) with class alias support)
 * `tuned_class_name` (string) - Built-in model class to tune, i.e. `model.zscore.ZscoreModel` (or `zscore` starting from [v1.13.0](../CHANGELOG.md#1130) with class alias support).
 * `optimization_params` (dict) - Optimization parameters for unsupervised model tuning. Control % of found anomalies, as well as a tradeoff between time spent and the accuracy. The more `timeout` and `n_trials` are, the better model configuration can be found for `tuned_class_name`, but the longer it takes and vice versa. Set `n_jobs` to `-1` to use all the CPUs available, it makes sense if only you have a big dataset to train on during `fit` calls, otherwise overhead isn't worth it.
-  - `anomaly_percentage` (float) - expected percentage of anomalies that can be seen in training data, from (0, 0.5) interval.
+  - `anomaly_percentage` (float) - Expected percentage of anomalies that can be seen in training data, from (0, 0.5) interval.
+  - `optimized_business_params` (list[string]) - Starting from [v1.15.0](https://docs.victoriametrics.com/anomaly-detection/v1150) this argument allows particular business-specific parameters such as [`detection_direction`](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) or [`min_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) to remain **unchanged during optimizations, retaining their default values**. I.e. setting `optimized_business_params` to  `['detection_direction']` will allow to optimize only `detection_direction` business-specific, while `min_dev_from_expected` will retain default value (0.0). By default and if not set, will be set to `[]` (empty list), meaning no business params will be optimized. **A recommended option is to leave it empty** for more stable results and increased convergence (less iterations needed for a good result).
   - `seed` (int) - Random seed for reproducibility and deterministic nature of underlying optimizations.
   - `n_splits` (int) - How many folds to create for hyperparameter tuning out of your data. The higher, the longer it takes but the better the results can be. Defaults to 3.
   - `n_trials` (int) - How many trials to sample from hyperparameter search space. The higher, the longer it takes but the better the results can be. Defaults to 128.
@@ -353,6 +397,7 @@ models:
       n_trials: 128  # how many configurations to sample from search space during optimization
       timeout: 10  # how many seconds to spend on optimization for each trained model during `fit` phase call
       n_jobs: 1  # how many jobs in parallel to launch. Consider making it > 1 only if you have fit window containing > 10000 datapoints for each series
+      optimized_business_params: []  # business-specific params to include in optimization, if not set is empty list
   # ...
 ```
 
@@ -364,6 +409,8 @@ models:
 
 ### [Prophet](https://facebook.github.io/prophet/)
 Here we utilize the Facebook Prophet implementation, as detailed in their [library documentation](https://facebook.github.io/prophet/docs/quick_start.html#python-api). All parameters from this library are compatible and can be passed to the model.
+
+> **Note**: `ProphetModel` is [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
 
 *Parameters specific for vmanomaly*:
 
@@ -405,13 +452,17 @@ models:
 Resulting metrics of the model are described [here](#vmanomaly-output)
 
 ### [Z-score](https://en.wikipedia.org/wiki/Standard_score)
+
+> **Note**: `ZScoreModel` is [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
+
+Model is useful for initial testing and for simpler data ([de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data without strict [seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality) and with anomalies of similar magnitude as your "normal" data).
+
 *Parameters specific for vmanomaly*:
 
 * `class` (string) - model class name `"model.zscore.ZscoreModel"` (or `zscore` starting from [v1.13.0](../CHANGELOG.md#1130) with class alias support)
 * `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculation boundaries and anomaly score. Defaults to `2.5`.
 
 *Config Example*
-
 
 ```yaml
 models:
@@ -420,10 +471,38 @@ models:
     z_threshold: 3.5
 ```
 
+Resulting metrics of the model are described [here](#vmanomaly-output).
+
+### Online Z-score
+
+> **Note**: `OnlineZScoreModel` is [univariate](#univariate-models), [non-rolling](#non-rolling-models), [online](#online-models) model.
+
+Online version of existing [Z-score](#z-score) implementation with the same exact behavior and implications. Introduced in [v1.15.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1150)
+
+*Parameters specific for vmanomaly*:
+
+* `class` (string) - model class name `"model.online.OnlineZscoreModel"` (or `zscore_online` starting from [v1.15.0](../CHANGELOG.md#1130) with class alias support)
+* `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculation boundaries and anomaly score. Defaults to `2.5`.
+* `min_n_samples_seen` (int, optional) - the minimum number of samples to be seen (`n_samples_seen_` property) before computing the anomaly score. Otherwise, the **anomaly score will be 0**, as there is not enough data to trust the model's predictions. Defaults to 16.
+
+*Config Example*
+
+```yaml
+models:
+  your_desired_alias_for_a_model:
+    class: "zscore_online"  # or 'model.online.OnlineZscoreModel'
+    z_threshold: 3.5
+    min_n_samples_seen: 128  # i.e. calculate it as full seasonality / data freq
+    provide_series: ['anomaly_score', 'yhat']  # common arg example
+```
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
+
 ### [Holt-Winters](https://en.wikipedia.org/wiki/Exponential_smoothing)
+
+> **Note**: `HoltWinters` is [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
+
 Here we use Holt-Winters Exponential Smoothing implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing.html). All parameters from this library can be passed to the model.
 
 *Parameters specific for vmanomaly*:
@@ -465,7 +544,11 @@ models:
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
+
 ### [MAD (Median Absolute Deviation)](https://en.wikipedia.org/wiki/Median_absolute_deviation)
+
+> **Note**: `MADModel` is [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
+
 The MAD model is a robust method for anomaly detection that is *less sensitive* to outliers in data compared to standard deviation-based models. It considers a point as an anomaly if the absolute deviation from the median is significantly large.
 
 *Parameters specific for vmanomaly*:
@@ -483,10 +566,43 @@ models:
     threshold: 2.5
 ```
 
+Resulting metrics of the model are described [here](#vmanomaly-output).
+
+
+### Online MAD
+
+> **Note**: `OnlineMADModel` is [univariate](#univariate-models), [non-rolling](#non-rolling-models), [online](#online-models) model.
+
+The MAD model is a robust method for anomaly detection that is *less sensitive* to outliers in data compared to standard deviation-based models. It considers a point as an anomaly if the absolute deviation from the median is significantly large. This is the online approximate version, based on [t-digests](https://www.sciencedirect.com/science/article/pii/S2665963820300403) for online quantile estimation. introduced in [v1.15.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1150)
+
+*Parameters specific for vmanomaly*:
+
+* `class` (string) - model class name `"model.online.OnlineMADModel"` (or `mad_online` starting from [v1.13.0](../CHANGELOG.md#1130) with class alias support)
+* `threshold` (float, optional) - The threshold multiplier for the MAD to determine anomalies. Defaults to `2.5`. Higher values will identify fewer points as anomalies.
+* `min_n_samples_seen` (int, optional) - the minimum number of samples to be seen (`n_samples_seen_` property) before computing the anomaly score. Otherwise, the **anomaly score will be 0**, as there is not enough data to trust the model's predictions. Defaults to 16.
+* `compression` (int, optional) - the compression parameter for the T-Digest. Higher values mean higher accuracy but higher memory usage. By default 100.
+
+*Config Example*
+
+
+```yaml
+models:
+  your_desired_alias_for_a_model:
+    class: "mad_online"  # or 'model.online.OnlineMADModel'
+    threshold: 2.5
+    min_n_samples_seen: 128  # i.e. calculate it as full seasonality / data freq
+    compression: 100  # higher values mean higher accuracy but higher memory usage
+    provide_series: ['anomaly_score', 'yhat']  # common arg example
+```
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
+
 ### [Rolling Quantile](https://en.wikipedia.org/wiki/Quantile)
+
+> **Note**: `RollingQuantileModel` is [univariate](#univariate-models), [rolling](#rolling-models), [offline](#offline-models) model.
+
+This model is best used on **data with short evolving patterns** (i.e. 10-100 datapoints of particular frequency), as it adapts to changes over a rolling window.
 
 *Parameters specific for vmanomaly*:
 
@@ -506,7 +622,55 @@ models:
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
+
+### Online Seasonal Quantile
+
+> **Note**: `OnlineSeasonalQuantile` is [univariate](#univariate-models), [non-rolling](#non-rolling-models), [online](#online-models) model.
+
+Online (seasonal) quantile utilizes a set of approximate distributions, based on [t-digests](https://www.sciencedirect.com/science/article/pii/S2665963820300403) for online quantile estimation. Introduced in [v1.15.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1150).
+
+Best used on **[de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data with strong (possibly multiple) [seasonalities](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality)**. Can act as a (slightly less powerful) replacement to [`ProphetModel`](#prophet).
+
+It uses the `quantiles` triplet to calculate `yhat_lower`, `yhat`, and `yhat_upper` [output](#vmanomaly-output), respectively, for each of the `min_subseasons` sub-intervals contained in `seasonal_interval`. For example, with '4d' + '2h' seasonality patterns (multiple), it will hold and update 24*4 / 2 = 48 consecutive estimates (each 2 hours long).
+
+*Parameters specific for vmanomaly*:
+
+* `class` (string) - model class name `"model.online.OnlineSeasonalQuantile"` (or `quantile_online` starting from [v1.13.0](../CHANGELOG.md#1130) with class alias support)
+* `quantiles` (list[float], optional) - The quantiles to estimate. `yhat_lower`, `yhat`, `yhat_upper` are the quantile order. By default (0.01, 0.5, 0.99).
+* `seasonal_interval` (string, optional) - the interval for the seasonal adjustment. If not set, the model will equal to a simple online quantile model. By default not set.
+* `min_subseason` (str, optional) - the minimum interval to estimate quantiles for. By default None. Note that the minimum interval should be a multiple of the seasonal interval, i.e. if seasonal_interval='2h', then min_subseason='15m' is valid, but '37m' is not.
+* `use_transform` (bool, optional) - whether to apply a log1p(abs(x)) * sign(x) transformation to the data to stabilize internal quantile estimation. By default False.
+* `global_smoothing` (float, optional) - the smoothing parameter for the global quantiles. i.e. the output is a weighted average of the global and seasonal quantiles (if `seasonal_interval` and `min_subseason` args are set). Should be from `[0, 1]` interval, where 0 means no smoothing and 1 means using only global quantile values.
+* `scale` (float, optional) - the scaling factor for the `yhat_lower` and `yhat_upper` quantiles. By default 1.0 (no scaling). if > 1, increases the boundaries [`yhat_lower`, `yhat_upper`] for "non-anomalous" points. Should be > 0.
+* `season_starts_from` (str, optional) - the start date for the seasonal adjustment, as a reference point to start counting the intervals. By default '1970-01-01'.
+* `min_n_samples_seen` (int, optional) - the minimum number of samples to be seen (`n_samples_seen_` property) before computing the anomaly score. Otherwise, the **anomaly score will be 0**, as there is not enough data to trust the model's predictions. Defaults to 16.
+* `compression` (int, optional) - the compression parameter for the T-Digest. Higher values mean higher accuracy but higher memory usage. By default 100.
+
+*Config Example*
+
+Suppose you have a data with strong intraday (hourly) and intraweek (daily) seasonality, and data granularity is '5m' with more than 5% expected outliers present in data. Then you can apply similar config:
+
+```yaml
+models:
+  your_desired_alias_for_a_model:
+    class: "quantile_online"  # or 'model.online.OnlineSeasonalQuantile'
+    quantiles: [0.025, 0.5, 0.975]  # lowered to exclude anomalous edges, can be compensated by `scale` param > 1
+    seasonal_interval: '7d'  # longest seasonality (week, day) = week, starting from `season_starts_from`
+    min_subseason: '1h'  # smallest seasonality (week, day, hour) = hour, will have its own quantile estimates
+    min_n_samples_seen: 288 # 1440 / 5 - at least 1 full day, ideal = 1440 / 5 * 7 - one full week (seasonal_interval)
+    scale: 1.1  # to compensate lowered quantile boundaries with wider intervals
+    season_starts_from: '2024-01-01'  # interval calculation starting point, expecially for uncommon seasonalities like '36h' or '12d'
+    compression: 100  # higher values mean higher accuracy but higher memory usage
+    provide_series: ['anomaly_score', 'yhat']  # common arg example
+```
+
+Resulting metrics of the model are described [here](#vmanomaly-output).
+
+
 ### [Seasonal Trend Decomposition](https://en.wikipedia.org/wiki/Seasonal_adjustment)
+
+> **Note**: `StdModel` is [univariate](#univariate-models), [rolling](#rolling-models), [offline](#offline-models) model.
+
 Here we use Seasonal Decompose implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.seasonal.seasonal_decompose.html). Parameters from this library can be passed to the model. Some parameters are specifically predefined in `vmanomaly` and can't be changed by user(`model`='additive', `two_sided`=False).
 
 *Parameters specific for vmanomaly*:
@@ -536,6 +700,11 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 
 ### [Isolation forest](https://en.wikipedia.org/wiki/Isolation_forest) (Multivariate)
+
+> **Note**: `IsolationForestModel` is [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
+
+> **Note**: `IsolationForestMultivariateModel` is [multivariate](#multivariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
+
 Detects anomalies using binary trees. The algorithm has a linear time complexity and a low memory requirement, which works well with high-volume data. It can be used on both univariate and multivariate data, but it is more effective in multivariate case.
 
 **Important**: Be aware of [the curse of dimensionality](https://en.wikipedia.org/wiki/Curse_of_dimensionality). Don't use single multivariate model if you expect your queries to return many time series of less datapoints that the number of metrics. In such case it is hard for a model to learn meaningful dependencies from too sparse data hypercube.
@@ -616,7 +785,7 @@ Here in this guide, we will
 - Define VictoriaMetrics Anomaly Detection config file to use our custom model
 - Run service
 
-**Note**: The file containing the model should be written in [Python language](https://www.python.org/) (3.11+)
+> **Note**: The file containing the model should be written in [Python language](https://www.python.org/) (3.11+)
 
 ### 1. Custom model
 
@@ -626,7 +795,7 @@ We'll create `custom_model.py` file with `CustomModel` class that will inherit f
 In the `CustomModel` class, the following methods are required: - `__init__`, `fit`, `infer`, `serialize` and `deserialize`:
 * `__init__` method should initiate parameters for the model.
 
-  **Note**: if your model relies on configs that have `arg` [key-value pair argument](./models.md#section-overview), do not forget to use Python's `**kwargs` in method's signature and to explicitly call
+  **Note**: if your model relies on configs that have `arg` [key-value pair argument, like Prophet](#prophet), do not forget to use Python's `**kwargs` in method's signature and to explicitly call
 
   ```python 
   super().__init__(**kwargs)
@@ -662,7 +831,10 @@ class CustomModel(Model):
   """
   # by default, each `Model` will be created as a univariate one
   # uncomment line below for it to be of multivariate type
-  #`is_multivariate = True`
+  # is_multivariate = True
+  # by default, each `Model` will be created as offline
+  # uncomment line below for it to be of type online
+  # is_online = True
   
   def __init__(self, percentage: float = 0.95, **kwargs):
     super().__init__(**kwargs)
