@@ -422,13 +422,7 @@ type aggrState interface {
 	pushSamples(samples []pushSample)
 
 	// flushState must flush aggrState data to ctx.
-	//
-	// if resetState is true, then aggrState must be reset after flushing the data to ctx,
-	// otherwise the aggrState data must be kept unchanged.
-	//
-	// The resetState is set to false only in the benchmark, which measures flushState() performance
-	// over the same aggrState.
-	flushState(ctx *flushCtx, resetState bool)
+	flushState(ctx *flushCtx)
 }
 
 // PushFunc is called by Aggregators when it needs to push its state to metrics storage
@@ -837,10 +831,6 @@ func (a *aggregator) dedupFlush() {
 //
 // If pushFunc is nil, then the aggregator state is just reset.
 func (a *aggregator) flush(pushFunc PushFunc, flushTimeMsec int64) {
-	a.flushInternal(pushFunc, flushTimeMsec, true)
-}
-
-func (a *aggregator) flushInternal(pushFunc PushFunc, flushTimeMsec int64, resetState bool) {
 	startTime := time.Now()
 
 	// Update minTimestamp before flushing samples to the storage,
@@ -860,7 +850,7 @@ func (a *aggregator) flushInternal(pushFunc PushFunc, flushTimeMsec int64, reset
 			}()
 
 			ctx := getFlushCtx(a, ao, pushFunc, flushTimeMsec)
-			ao.as.flushState(ctx, resetState)
+			ao.as.flushState(ctx)
 			ctx.flushSeries()
 			putFlushCtx(ctx)
 		}(ao)
