@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // countSamplesAggrState calculates output=count_samples, e.g. the count of input samples.
@@ -59,7 +58,6 @@ func (as *countSamplesAggrState) pushSamples(samples []pushSample) {
 }
 
 func (as *countSamplesAggrState) flushState(ctx *flushCtx, resetState bool) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
 	m := &as.m
 	m.Range(func(k, v any) bool {
 		if resetState {
@@ -77,7 +75,7 @@ func (as *countSamplesAggrState) flushState(ctx *flushCtx, resetState bool) {
 		sv.mu.Unlock()
 
 		key := k.(string)
-		ctx.appendSeries(key, "count_samples", currentTimeMsec, float64(n))
+		ctx.appendSeries(key, "count_samples", float64(n))
 		return true
 	})
 }

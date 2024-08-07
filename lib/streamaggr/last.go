@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // lastAggrState calculates output=last, e.g. the last value over input samples.
@@ -64,7 +63,6 @@ func (as *lastAggrState) pushSamples(samples []pushSample) {
 }
 
 func (as *lastAggrState) flushState(ctx *flushCtx, resetState bool) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
 	m := &as.m
 	m.Range(func(k, v any) bool {
 		if resetState {
@@ -82,7 +80,7 @@ func (as *lastAggrState) flushState(ctx *flushCtx, resetState bool) {
 		sv.mu.Unlock()
 
 		key := k.(string)
-		ctx.appendSeries(key, "last", currentTimeMsec, last)
+		ctx.appendSeries(key, "last", last)
 		return true
 	})
 }

@@ -117,7 +117,6 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 
 func (as *totalAggrState) flushState(ctx *flushCtx, resetState bool) {
 	currentTime := fasttime.UnixTimestamp()
-	currentTimeMsec := int64(currentTime) * 1000
 
 	suffix := as.getSuffix()
 
@@ -142,7 +141,7 @@ func (as *totalAggrState) flushState(ctx *flushCtx, resetState bool) {
 
 		if !deleted {
 			key := k.(string)
-			ctx.appendSeries(key, suffix, currentTimeMsec, total)
+			ctx.appendSeries(key, suffix, total)
 		}
 		return true
 	})

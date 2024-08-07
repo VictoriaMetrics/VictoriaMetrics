@@ -107,7 +107,6 @@ func (as *rateAggrState) pushSamples(samples []pushSample) {
 
 func (as *rateAggrState) flushState(ctx *flushCtx, resetState bool) {
 	currentTime := fasttime.UnixTimestamp()
-	currentTimeMsec := int64(currentTime) * 1000
 
 	suffix := as.getSuffix()
 
@@ -147,7 +146,7 @@ func (as *rateAggrState) flushState(ctx *flushCtx, resetState bool) {
 		}
 
 		key := k.(string)
-		ctx.appendSeries(key, suffix, currentTimeMsec, result)
+		ctx.appendSeries(key, suffix, result)
 		return true
 	})
 }

@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // stdvarAggrState calculates output=stdvar, e.g. the average value over input samples.
@@ -61,7 +60,6 @@ func (as *stdvarAggrState) pushSamples(samples []pushSample) {
 }
 
 func (as *stdvarAggrState) flushState(ctx *flushCtx, resetState bool) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
 	m := &as.m
 	m.Range(func(k, v any) bool {
 		if resetState {
@@ -79,7 +77,7 @@ func (as *stdvarAggrState) flushState(ctx *flushCtx, resetState bool) {
 		sv.mu.Unlock()
 
 		key := k.(string)
-		ctx.appendSeries(key, "stdvar", currentTimeMsec, stdvar)
+		ctx.appendSeries(key, "stdvar", stdvar)
 		return true
 	})
 }
