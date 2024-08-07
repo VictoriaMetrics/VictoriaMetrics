@@ -1,5 +1,4 @@
 ---
-sort: 6
 weight: 6
 title: User Management in VictoriaMetrics Cloud
 menu:

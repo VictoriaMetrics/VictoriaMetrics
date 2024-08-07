@@ -1,5 +1,4 @@
 ---
-sort: 34
 weight: 34
 title: Key concepts
 menu:

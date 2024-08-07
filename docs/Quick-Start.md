@@ -1,5 +1,4 @@
 ---
-sort: 22
 weight: 22
 title: Quick start
 menu:

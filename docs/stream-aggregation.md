@@ -1,5 +1,4 @@
 ---
-sort: 98
 weight: 98
 title: Streaming aggregation
 menu:

@@ -1,13 +1,11 @@
 ---
 title: Models
 weight: 1
-sort: 1
 menu:
   docs:
     identifier: "vmanomaly-models"
     parent: "vmanomaly-components"
     weight: 1
-    # sort: 1
 aliases:
   - /anomaly-detection/components/models.html
   - /anomaly-detection/components/models/custom_model.html

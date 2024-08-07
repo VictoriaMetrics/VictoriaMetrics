@@ -1,5 +1,4 @@
 ---
-sort: 4
 weight: 4
 title: Setup Alertmanager & VMAlert for VictoriaMetrics Cloud
 menu:

@@ -1,7 +1,6 @@
 ---
 title: Telegraf
 weight: 5
-sort: 5
 menu:
   docs:
     identifier: "telegraf"

@@ -1,7 +1,6 @@
 ---
 title: Prometheus
 weight: 1
-sort: 1
 menu:
   docs:
     identifier: "prometheus"
