@@ -35,8 +35,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): allow overriding the `sample_limit` option at [scrape_configs](https://docs.victoriametrics.com/sd_configs/#scrape_configs) when a label `__sample_limit__` is specified for target. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6665). Thanks to @zoglam for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6666).
 
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): respect HTTP headers defined in [notifier configuration file](https://docs.victoriametrics.com/vmalert/#notifier-configuration-file) for each request to notifiers. Previously, this param was ignored by mistake.
-
-* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): fix the behavior of `-streamAggr.dropInputLabels` when global stream deduplication is enabled without `-streamAggr.config`. Previously, `-remoteWrite.streamAggr.dropInputLabels` is misapplied.
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): correctly apply `-streamAggr.dropInputLabels` when global stream deduplication is enabled without `-streamAggr.config`. Previously, `-remoteWrite.streamAggr.dropInputLabels` was used instead.
 
 ## [v1.102.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.1)
 
