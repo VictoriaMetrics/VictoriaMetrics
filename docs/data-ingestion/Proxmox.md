@@ -1,7 +1,6 @@
 ---
 title: Proxmox
 weight: 6
-sort: 6
 menu:
   docs:
     identifier: "proxmox"

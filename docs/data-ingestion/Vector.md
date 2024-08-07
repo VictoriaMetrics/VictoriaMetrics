@@ -1,7 +1,6 @@
 ---
 title: Vector
 weight: 4
-sort: 4
 menu:
   docs:
     identifier: "Vector"

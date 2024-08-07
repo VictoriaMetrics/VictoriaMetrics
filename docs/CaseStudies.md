@@ -1,5 +1,4 @@
 ---
-sort: 21
 weight: 21
 title: Case studies and talks
 menu:

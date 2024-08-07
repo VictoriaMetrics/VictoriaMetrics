@@ -1,5 +1,4 @@
 ---
-sort: 32
 weight: 32
 title: Best practices
 menu:

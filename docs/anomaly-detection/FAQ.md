@@ -1,5 +1,4 @@
 ---
-sort: 2
 weight: 4
 title: FAQ
 menu:

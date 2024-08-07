@@ -1,5 +1,4 @@
 ---
-sort: 99
 weight: 99
 title: Enterprise
 menu:

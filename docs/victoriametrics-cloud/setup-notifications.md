@@ -1,5 +1,4 @@
 ---
-sort: 7
 weight: 7
 title: Notifications in VictoriaMetrics Cloud
 menu:

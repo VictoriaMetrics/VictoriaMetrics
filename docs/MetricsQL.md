@@ -1,5 +1,4 @@
 ---
-sort: 23
 weight: 23
 title: MetricsQL
 menu:

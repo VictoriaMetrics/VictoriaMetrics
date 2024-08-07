@@ -1,5 +1,4 @@
 ---
-sort: 2
 title: Reader
 weight: 2
 menu:
