@@ -100,7 +100,7 @@ Metrics could be sent to VictoriaMetrics via OpenTelemetry instrumentation libra
 In our example, we'll create a WEB server in [Golang](https://go.dev/) and instrument it with metrics.
 
 ### Building the Go application instrumented with metrics
-Copy the go file from [here](/guides/app.go-collector.example). This will give you a basic implementation of a dice roll WEB server with the urls for opentelemetry-collector pointing to localhost:4318. 
+Copy the go file from [here](app.go-collector.example). This will give you a basic implementation of a dice roll WEB server with the urls for opentelemetry-collector pointing to localhost:4318. 
 In the same directory run the following command to create the `go.mod` file:
 ```sh
 go mod init vm/otel
@@ -167,7 +167,7 @@ In our example, we'll create a WEB server in [Golang](https://go.dev/) and instr
 
 ### Building the Go application instrumented with metrics
 
-See the full source code of the example [here](/guides/app.go.example).
+See the full source code of the example [here](app.go.example).
 
 The list of OpenTelemetry dependencies for `go.mod` is the following:
 
@@ -314,7 +314,7 @@ func newMetricsController(ctx context.Context) (*controller.Controller, error) {
 
 This controller will collect and push collected metrics to VictoriaMetrics address with interval of `10s`.
 
-See the full source code of the example [here](/guides/app.go.example).
+See the full source code of the example [here](app.go.example).
 
 ### Test metrics ingestion
 
