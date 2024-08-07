@@ -59,21 +59,17 @@ func (as *minAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *minAggrState) flushState(ctx *flushCtx, resetState bool) {
+func (as *minAggrState) flushState(ctx *flushCtx) {
 	m := &as.m
 	m.Range(func(k, v any) bool {
-		if resetState {
-			// Atomically delete the entry from the map, so new entry is created for the next flush.
-			m.Delete(k)
-		}
+		// Atomically delete the entry from the map, so new entry is created for the next flush.
+		m.Delete(k)
 
 		sv := v.(*minStateValue)
 		sv.mu.Lock()
 		min := sv.min
-		if resetState {
-			// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-			sv.deleted = true
-		}
+		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
+		sv.deleted = true
 		sv.mu.Unlock()
 		key := k.(string)
 		ctx.appendSeries(key, "min", min)
