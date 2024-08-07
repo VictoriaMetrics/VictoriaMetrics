@@ -133,7 +133,7 @@ func initStreamAggrConfigGlobal() {
 	} else {
 		dedupInterval := streamAggrGlobalDedupInterval.Duration()
 		if dedupInterval > 0 {
-			deduplicatorGlobal = streamaggr.NewDeduplicator(pushToRemoteStoragesTrackDropped, dedupInterval, *streamAggrDropInputLabels, "dedup-global")
+			deduplicatorGlobal = streamaggr.NewDeduplicator(pushToRemoteStoragesTrackDropped, dedupInterval, *streamAggrGlobalDropInputLabels, "dedup-global")
 		}
 	}
 }
