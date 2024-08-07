@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // maxAggrState calculates output=max, e.g. the maximum value over input samples.
@@ -61,7 +60,6 @@ func (as *maxAggrState) pushSamples(samples []pushSample) {
 }
 
 func (as *maxAggrState) flushState(ctx *flushCtx, resetState bool) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
 	m := &as.m
 	m.Range(func(k, v any) bool {
 		if resetState {
@@ -79,7 +77,7 @@ func (as *maxAggrState) flushState(ctx *flushCtx, resetState bool) {
 		sv.mu.Unlock()
 
 		key := k.(string)
-		ctx.appendSeries(key, "max", currentTimeMsec, max)
+		ctx.appendSeries(key, "max", max)
 		return true
 	})
 }

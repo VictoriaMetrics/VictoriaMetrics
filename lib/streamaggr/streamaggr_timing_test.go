@@ -45,12 +45,14 @@ func BenchmarkAggregatorsFlushInternalSerial(b *testing.B) {
 	defer a.MustStop()
 	_ = a.Push(benchSeries, nil)
 
+	flushTimeMsec := time.Now().UnixMilli()
+
 	b.ResetTimer()
 	b.ReportAllocs()
 	b.SetBytes(int64(len(benchSeries) * len(benchOutputs)))
 	for i := 0; i < b.N; i++ {
 		for _, aggr := range a.as {
-			aggr.flushInternal(pushFunc, false)
+			aggr.flushInternal(pushFunc, flushTimeMsec, false)
 		}
 	}
 }
