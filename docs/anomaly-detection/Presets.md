@@ -1,5 +1,4 @@
 ---
-sort: 3
 weight: 1
 title: Presets
 menu:

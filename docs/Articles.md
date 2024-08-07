@@ -1,5 +1,4 @@
 ---
-sort: 29
 weight: 29
 title: Articles
 menu:

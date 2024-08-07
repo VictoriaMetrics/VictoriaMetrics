@@ -1,13 +1,3 @@
----
-weight: 9
-title: Understand Your Setup Size
-menu:
-  docs:
-    parent: "guides"
-    weight: 9
-aliases:
-- /guides/understand-your-setup-size.html
----
 The docs provide a simple and high-level overview of Ingestion Rate, Active Time Series, and Query per Second. These terms are a part of capacity planning ([Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics/#capacity-planning), [Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#capacity-planning)) and [VictoriaMetrics Cloud](https://docs.victoriametrics.com/victoriametrics-cloud/) pricing.
 
 ## Terminology

@@ -1,5 +1,4 @@
 ---
-sort: 36
 weight: 36
 title: Prometheus service discovery
 menu:

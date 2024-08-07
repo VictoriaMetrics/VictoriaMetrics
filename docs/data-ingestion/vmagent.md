@@ -1,7 +1,6 @@
 ---
 title: vmagent
 weight: 2
-sort: 2
 menu:
   docs:
     identifier: data-ingestion-vmagent

@@ -1,5 +1,4 @@
 ---
-sort: 31
 weight: 31
 title: Cluster Per Tenant Statistic
 menu:

@@ -1,5 +1,4 @@
 ---
-sort: 3
 weight: 3
 title: Kubernetes Monitoring with VictoriaMetrics Cloud
 menu:

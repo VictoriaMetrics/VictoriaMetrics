@@ -1,5 +1,4 @@
 ---
-sort: 3
 title: Scheduler
 weight: 3
 menu:

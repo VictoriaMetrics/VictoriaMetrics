@@ -1,7 +1,6 @@
 ---
 title: Grafana Alloy
 weight: 3
-sort: 3
 menu:
   docs:
     identifier: "alloy"
