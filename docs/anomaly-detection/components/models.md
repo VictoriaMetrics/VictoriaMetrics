@@ -337,7 +337,7 @@ Each of the ([built-in](#built-in-models) or [custom](#custom-model-guide)) onli
 
 ### Offline models
 
-Every other model that isn't [online](#online-models). Offline models are completely re-trained during `fit` call and isn't updated during consecutive `infer` calls.
+Every other model that isn't [online](#online-models). Offline models are completely re-trained during `fit` call and aren't updated during consecutive `infer` calls.
 
 
 ## Built-in Models 
@@ -375,7 +375,7 @@ Tuning hyperparameters of a model can be tricky and often requires in-depth know
 * `tuned_class_name` (string) - Built-in model class to tune, i.e. `model.zscore.ZscoreModel` (or `zscore` starting from [v1.13.0](../CHANGELOG.md#1130) with class alias support).
 * `optimization_params` (dict) - Optimization parameters for unsupervised model tuning. Control % of found anomalies, as well as a tradeoff between time spent and the accuracy. The more `timeout` and `n_trials` are, the better model configuration can be found for `tuned_class_name`, but the longer it takes and vice versa. Set `n_jobs` to `-1` to use all the CPUs available, it makes sense if only you have a big dataset to train on during `fit` calls, otherwise overhead isn't worth it.
   - `anomaly_percentage` (float) - Expected percentage of anomalies that can be seen in training data, from (0, 0.5) interval.
-  - `optimized_business_params` (list[string]) - Starting from [v1.15.0](https://docs.victoriametrics.com/anomaly-detection/v1150) this argument allows particular business-specific parameters such as [`detection_direction`](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) or [`min_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) to remain **unchanged during optimizations, retaining their default values**. I.e. setting `optimized_business_params` to  `['detection_direction']` will allow to optimize only `detection_direction` business-specific, while `min_dev_from_expected` will retain default value (0.0). By default and if not set, will be set to `[]` (empty list), meaning no business params will be optimized. **A recommended option is to leave it empty** for more stable results and increased convergence (less iterations needed for a good result).
+  - `optimized_business_params` (list[string]) - Starting from [v1.15.0](https://docs.victoriametrics.com/anomaly-detection/v1150) this argument allows particular business-specific parameters such as [`detection_direction`](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) or [`min_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) to remain **unchanged during optimizations, retaining their default values**. I.e. setting `optimized_business_params` to  `['detection_direction']` will allow to optimize only `detection_direction` business-specific arg, while `min_dev_from_expected` will retain its default value (0.0). By default and if not set, will be equal to `[]` (empty list), meaning no business params will be optimized. **A recommended option is to leave it empty** for more stable results and increased convergence (less iterations needed for a good result).
   - `seed` (int) - Random seed for reproducibility and deterministic nature of underlying optimizations.
   - `n_splits` (int) - How many folds to create for hyperparameter tuning out of your data. The higher, the longer it takes but the better the results can be. Defaults to 3.
   - `n_trials` (int) - How many trials to sample from hyperparameter search space. The higher, the longer it takes but the better the results can be. Defaults to 128.
@@ -580,7 +580,7 @@ The MAD model is a robust method for anomaly detection that is *less sensitive* 
 * `class` (string) - model class name `"model.online.OnlineMADModel"` (or `mad_online` starting from [v1.13.0](../CHANGELOG.md#1130) with class alias support)
 * `threshold` (float, optional) - The threshold multiplier for the MAD to determine anomalies. Defaults to `2.5`. Higher values will identify fewer points as anomalies.
 * `min_n_samples_seen` (int, optional) - the minimum number of samples to be seen (`n_samples_seen_` property) before computing the anomaly score. Otherwise, the **anomaly score will be 0**, as there is not enough data to trust the model's predictions. Defaults to 16.
-* `compression` (int, optional) - the compression parameter for the T-Digest. Higher values mean higher accuracy but higher memory usage. By default 100.
+* `compression` (int, optional) - the compression parameter for  underlying [t-digest](https://www.sciencedirect.com/science/article/pii/S2665963820300403). Higher values mean higher accuracy but higher memory usage. By default 100.
 
 *Config Example*
 
@@ -638,17 +638,17 @@ It uses the `quantiles` triplet to calculate `yhat_lower`, `yhat`, and `yhat_upp
 * `class` (string) - model class name `"model.online.OnlineSeasonalQuantile"` (or `quantile_online` starting from [v1.13.0](../CHANGELOG.md#1130) with class alias support)
 * `quantiles` (list[float], optional) - The quantiles to estimate. `yhat_lower`, `yhat`, `yhat_upper` are the quantile order. By default (0.01, 0.5, 0.99).
 * `seasonal_interval` (string, optional) - the interval for the seasonal adjustment. If not set, the model will equal to a simple online quantile model. By default not set.
-* `min_subseason` (str, optional) - the minimum interval to estimate quantiles for. By default None. Note that the minimum interval should be a multiple of the seasonal interval, i.e. if seasonal_interval='2h', then min_subseason='15m' is valid, but '37m' is not.
-* `use_transform` (bool, optional) - whether to apply a log1p(abs(x)) * sign(x) transformation to the data to stabilize internal quantile estimation. By default False.
+* `min_subseason` (str, optional) - the minimum interval to estimate quantiles for. By default not set. Note that the minimum interval should be a multiple of the seasonal interval, i.e. if seasonal_interval='2h', then min_subseason='15m' is valid, but '37m' is not.
+* `use_transform` (bool, optional) - whether to internally apply a `log1p(abs(x)) * sign(x)` transformation to the data to stabilize internal quantile estimation. Does not affect the scale of produced output (i.e. `yhat`) By default False.
 * `global_smoothing` (float, optional) - the smoothing parameter for the global quantiles. i.e. the output is a weighted average of the global and seasonal quantiles (if `seasonal_interval` and `min_subseason` args are set). Should be from `[0, 1]` interval, where 0 means no smoothing and 1 means using only global quantile values.
-* `scale` (float, optional) - the scaling factor for the `yhat_lower` and `yhat_upper` quantiles. By default 1.0 (no scaling). if > 1, increases the boundaries [`yhat_lower`, `yhat_upper`] for "non-anomalous" points. Should be > 0.
+* `scale` (float, optional) - the scaling factor for the `yhat_lower` and `yhat_upper` quantiles. By default 1.0 (no scaling). if > 1, increases the boundaries [`yhat_lower`, `yhat_upper`] that define "non-anomalous" points. Should be > 0.
 * `season_starts_from` (str, optional) - the start date for the seasonal adjustment, as a reference point to start counting the intervals. By default '1970-01-01'.
 * `min_n_samples_seen` (int, optional) - the minimum number of samples to be seen (`n_samples_seen_` property) before computing the anomaly score. Otherwise, the **anomaly score will be 0**, as there is not enough data to trust the model's predictions. Defaults to 16.
-* `compression` (int, optional) - the compression parameter for the T-Digest. Higher values mean higher accuracy but higher memory usage. By default 100.
+* `compression` (int, optional) - the compression parameter for the underlying [t-digests](https://www.sciencedirect.com/science/article/pii/S2665963820300403). Higher values mean higher accuracy but higher memory usage. By default 100.
 
 *Config Example*
 
-Suppose you have a data with strong intraday (hourly) and intraweek (daily) seasonality, and data granularity is '5m' with more than 5% expected outliers present in data. Then you can apply similar config:
+Suppose we have a data with strong intraday (hourly) and intraweek (daily) seasonality, data granularity is '5m' with up to 5% expected outliers present in data. Then you can apply similar config:
 
 ```yaml
 models:
