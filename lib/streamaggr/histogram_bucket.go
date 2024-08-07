@@ -86,7 +86,7 @@ func (as *histogramBucketAggrState) removeOldEntries(currentTime uint64) {
 	})
 }
 
-func (as *histogramBucketAggrState) flushState(ctx *flushCtx, _ bool) {
+func (as *histogramBucketAggrState) flushState(ctx *flushCtx) {
 	currentTime := fasttime.UnixTimestamp()
 
 	as.removeOldEntries(currentTime)
