@@ -1202,8 +1202,8 @@ Using the delete API is not recommended in the following cases, since it brings 
 * Reducing disk space usage by deleting unneeded time series. This doesn't work as expected, since the deleted
   time series occupy disk space until the next merge operation, which can never occur when deleting too old data.
   [Forced merge](#forced-merge) may be used for freeing up disk space occupied by old data.
-  Note that VictoriaMetrics doesn't delete entries from inverted index (aka `indexdb`) for the deleted time series.
-  Inverted index is cleaned up once per the configured [retention](#retention).
+  Note that VictoriaMetrics doesn't delete entries from [IndexDB](#indexdb) for the deleted time series.
+  IndexDB is cleaned up once per the configured [retention](#retention).
 
 It's better to use the `-retentionPeriod` command-line flag for efficient pruning of old data.
 
@@ -1905,7 +1905,54 @@ See more details in [monitoring docs](#monitoring).
 
 See [this article](https://valyala.medium.com/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282) for more details.
 
-See also [how to work with snapshots](#how-to-work-with-snapshots).
+See also [how to work with snapshots](#how-to-work-with-snapshots) and [IndexDB](#indexdb).
+
+## IndexDB
+
+VictoriaMetrics identifies
+[time series](https://docs.victoriametrics.com/keyconcepts/#time-series) by TSID
+(time series ID) and stores
+[raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) sorted
+by TSID (see [Storage](#storage)). Thus, the TSID is a primary index and could
+be used for searching and retrieving raw samples. However, the TSID is never
+exposed, i.e. only available internally.
+
+Instead, VictoriaMetrics maintains an **inverted index** that enables searching
+the raw samples by metric name, label name, and label value. This index stores
+the following mappings:
+
+-  `MetricName -> TSID`. The MetricName here a string that contains the metric
+   name and the ordered set of label names and values. This mapping is used
+   during the data ingestion to find the TSID for the time series the incoming
+   record corresponds to. If the TSID is found (i.e. the records for this time
+   series have been ingested before), it will be reused; otherwise, a new TSID
+   will be created and the new mapping will be stored to the index. Note that
+   TSIDs are not created atomically and duplicates are possible when the samples
+   for a new time series are inserted concurrently.
+-  `LabelNameValuePair -> TSID`. This mapping used for querying samples by
+   metric name, label name, and label value.
+
+There are two types of inverted index: `global` and `per-day`. Global index
+stores the aforementioned mappings for the entire retention period. The per-day
+index stores the same mappings as global with the only difference that each
+record is prefixed with the date. This means that for each time series there
+will be as many `MetricName -> TSID` records in the per-day index as many unique
+dates have been seen in ingested records corresponding to that time series.
+Similarly, for a given label name-value pair there will be as many
+`LabelNameValuePair -> TSID` records as many unique dates have been seen in
+intested records corresponding to that label name-value pair.
+
+Initially, VictoriaMetrics had only global index. The per-day index has been
+added later as an optimization that speeds up data retrieval when
+[high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate)
+is the case.
+
+Records are added to the global and per-day index during the data ingestion and
+duplicates are possible when the samples for a new time series or new label
+name-value pair are inserted concurrently.
+
+The per-day index respects [retention period](#retention), so the records outside
+it are removed.
 
 ## Retention
 
@@ -1969,8 +2016,8 @@ For example, the following config sets 3 days retention for time series with `te
 Important notes:
 
 - The data outside the configured retention isn't deleted instantly - it is deleted eventually during [background merges](https://docs.victoriametrics.com/#storage).
-- The `-retentionFilter` doesn't remove old data from `indexdb` (aka inverted index) until the configured [-retentionPeriod](#retention).
-  So the `indexdb` size can grow big under [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate)
+- The `-retentionFilter` doesn't remove old data from [IndexDB](#indexdb) until the configured [-retentionPeriod](#retention).
+  So the IndexDB size can grow big under [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate)
   even for small retentions configured via `-retentionFilter`.
 
 It is safe updating `-retentionFilter` during VictoriaMetrics restarts - the updated retention filters are applied eventually
