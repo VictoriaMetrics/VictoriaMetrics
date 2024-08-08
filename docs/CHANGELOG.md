@@ -249,6 +249,8 @@ Released at 2024-04-04
 
 **Update note 1: the `-datasource.lookback` command-line flag at `vmalert` is no-op starting from this release. This flag will be removed in the future, so please switch to [`eval_delay` option](https://docs.victoriametrics.com/vmalert/#groups). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155) for more details.**
 
+**Update note 2: `-streamAggr.dedupInterval` and `-remoteWrite.streamAggr.dedupInterval` cmd-line flags are now used for all incoming samples if `-streamAggr.config` and `-remoteWrite.streamAggr.config` aren't specified. Before, deduplication wasn't applied if aggregation config was omitted.**
+
 * SECURITY: upgrade Go builder from Go1.21.7 to Go1.22.2. See [the list of issues addressed in Go1.22.1](https://github.com/golang/go/issues?q=milestone%3AGo1.22.1+label%3ACherryPickApproved) and [the list of issues addressed in Go1.22.2](https://github.com/golang/go/issues?q=milestone%3AGo1.22.2+label%3ACherryPickApproved).
 
 * FEATURE: [downsampling](https://docs.victoriametrics.com/#downsampling): add ability to configure distinct downsampling per distinct sets of time series and/or [tenants](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4960) and [these docs](https://docs.victoriametrics.com/#downsampling).
