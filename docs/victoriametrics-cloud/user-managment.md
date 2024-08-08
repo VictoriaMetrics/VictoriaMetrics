@@ -34,7 +34,7 @@ You assign the role to the user during the user creation procedure. You can chan
    <td><strong>Description</strong></td>
   </tr>
   <tr>
-   <td rowspan="5" ><strong>Admin</strong></td>
+   <td rowspan="7" ><strong>Admin</strong></td>
    <td>Deployments</td>
    <td>
     Access to all deployments tabs and information
@@ -42,7 +42,11 @@ You assign the role to the user during the user creation procedure. You can chan
    </td>
   </tr>
   <tr>
-   <td>Billing Details</td>
+   <td>Integrations</td>
+   <td>Access to different integration configurations</td>
+  </tr>
+  <tr>
+   <td>Billing</td>
    <td>Check billing information</td>
   </tr>
   <tr>
@@ -56,6 +60,10 @@ You assign the role to the user during the user creation procedure. You can chan
   <tr>
    <td>User Management</td>
    <td>Add, edit and  delete users</td>
+  </tr>
+  <tr>
+   <td>API Keys</td>
+   <td>Add, edit and  delete API Keys</td>
   </tr>
   <tr>
    <td rowspan="3"><strong>Editor</strong></td>
@@ -93,6 +101,10 @@ You assign the role to the user during the user creation procedure. You can chan
    <td>An invitation was sent. The user must accept this.</td>
   </tr>
   <tr>
+   <td class="highlight"><strong class="s1">Expired Invitation</strong></td>
+   <td>An invitation was expired. The admin should resend invitation to the user.</td>
+  </tr>
+  <tr>
    <td class="highlight"><strong class="nn">Inactive</strong></td>
    <td>The user is registered in the VictoriaMetrics Cloud but has no access to perform any actions. Admin can activate or completely delete the user.</td>
   </tr>
@@ -122,12 +134,20 @@ In the table, there is additional information about the users:
    <td>Admin, Editor or Viewer</td>
   </tr>
   <tr>
+   <td>Created At:</td>
+   <td>When user was created</td>
+  </tr>
+  <tr>
    <td>Last Active:</td>
    <td>Last login date and time</td>
   </tr>
   <tr>
    <td>Auth method:</td>
    <td>Auth options to login into the VictoriaMetrics Cloud</td>
+  </tr>
+  <tr>
+   <td>Actions:</td>
+   <td>Actions to manipulate with users</td>
   </tr>
 </table>
 
@@ -156,13 +176,13 @@ To edit the user role and details, activate or deactivate a user, and click on
 
 ![Update user](user_management_update_user.webp)
 
-or `user email` to edit the user.
+![Update user dropdown](user_management_update_user_dropdown.webp)
 
 User editing form:
 
 ![Update form](user_management_user_update_form.webp)
 
-To save changes, click the `Save changes` button. If changes are saved successfully, you will see a message at the top of the page.
+To save changes, click the `Update` button. If changes are saved successfully, you will see a message at the top of the page.
 
 ![Updated success](user_management_user_updated_success.webp)
 
@@ -174,11 +194,11 @@ Click on `Delete` button to delete the user.
 
 ![User delete](user_management_user_delete.webp)
 
-To confirm the deletion of a user, you will need to re-enter their email address and press the **Delete** button
+To confirm the deletion of a user, you will need to re-enter their email address and press the **Confirm** button
 
 ![User delete form](user_management_delete_user_form.webp)
 
-You will be redirected to the main page with a success or error message
+If the user is deleted successfully, you will see a success message
 
 ![Delete success](user_management_delete_success.webp)
 
@@ -190,7 +210,7 @@ Click `Resend invitation` button
 
 ![Resend invitation](user_management_resend_invitation.webp)
 
-Confirm resend invitation by clicking `Resend` button in the modal dialog
+Confirm resend invitation by clicking `Confirm` button in the modal dialog
 
 ![Confirm resend invitation](user_management_confirm_resend_invitation.webp)
 
