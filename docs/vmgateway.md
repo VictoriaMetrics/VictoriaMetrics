@@ -1,5 +1,4 @@
 ---
-sort: 9
 weight: 9
 menu:
   docs:

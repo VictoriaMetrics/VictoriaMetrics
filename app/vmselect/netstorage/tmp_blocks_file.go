@@ -138,7 +138,7 @@ func (tbf *tmpBlocksFile) Finalize() error {
 	tbf.buf = tbf.buf[:0]
 	r := fs.NewReaderAt(tbf.f)
 
-	// Hint the OS that the file is read almost sequentiallly.
+	// Hint the OS that the file is read almost sequentially.
 	// This should reduce the number of disk seeks, which is important
 	// for HDDs.
 	r.MustFadviseSequentialRead(true)

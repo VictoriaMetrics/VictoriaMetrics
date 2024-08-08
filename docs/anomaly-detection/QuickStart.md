@@ -1,5 +1,4 @@
 ---
-sort: 1
 weight: 1
 title: VictoriaMetrics Anomaly Detection Quick Start
 menu:

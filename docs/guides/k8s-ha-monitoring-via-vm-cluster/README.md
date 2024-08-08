@@ -1,13 +1,3 @@
----
-weight: 9
-title: HA monitoring setup in Kubernetes via VictoriaMetrics Cluster
-menu:
-  docs:
-    parent: "guides"
-    weight: 9
-aliases:
-- /guides/k8s-ha-monitoring-via-vm-cluster.html
----
 **The guide covers:**
 
 * High availability monitoring via [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) in [Kubernetes](https://kubernetes.io/) with Helm charts
@@ -25,7 +15,7 @@ aliases:
 
 ## 1. VictoriaMetrics Helm repository
 
-Please see the relevant [VictoriaMetrics Helm repository](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster.html#1-victoriametrics-helm-repository) section in previous guides. 
+Please see the relevant [VictoriaMetrics Helm repository](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster#1-victoriametrics-helm-repository) section in previous guides. 
 
 
 ## 2. Install VictoriaMetrics Cluster from the Helm chart
@@ -148,7 +138,7 @@ vmcluster-victoria-metrics-cluster-vmstorage-2                 1/1     Running  
 To scrape metrics from Kubernetes with a VictoriaMetrics Cluster we will need to install [vmagent](https://docs.victoriametrics.com/vmagent/) with some additional configurations. To do so, please run the following command:
 
 ```yaml
-helm install vmagent vm/victoria-metrics-agent -f https://docs.victoriametrics.com/guides/guide-vmcluster-vmagent-values.yaml
+helm install vmagent vm/victoria-metrics-agent -f https://docs.victoriametrics.com/guides/examples/guide-vmcluster-vmagent-values.yaml
 ```
 
 Here is full file content `guide-vmcluster-vmagent-values.yaml`
@@ -356,18 +346,18 @@ The expected output is:
 The expected result of the query `count(up{kubernetes_pod_name=~".*vmselect.*"})` should be equal to `3` - the number of replicas we set via `replicaCount` parameter.
 
 
-To test via Grafana, we need to install it first. [Install and connect Grafana to VictoriaMetrics](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster.html#4-install-and-connect-grafana-to-victoriametrics-with-helm), login into Grafana and open the metrics [Explore](http://127.0.0.1:3000/explore) page.
+To test via Grafana, we need to install it first. [Install and connect Grafana to VictoriaMetrics](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster#4-install-and-connect-grafana-to-victoriametrics-with-helm), login into Grafana and open the metrics explore page at `http://127.0.0.1:3000/explore`.
 
 
-![Explore](k8s-ha-monitoring-via-vm-cluster_explore.webp)
+![Explore](explore.webp)
 
 Choose `victoriametrics` from the list of datasources and enter `count(up{kubernetes_pod_name=~".*vmselect.*"})` to the **Metric browser** field as shown on the screenshot, then press **Run query** button:
 
-![Explore count up](k8s-ha-monitoring-via-vm-cluster_explore-count-up.webp)
+![Explore count up](explore-count-up.webp)
 
 The expected output is:
 
-![Explore count up graph](k8s-ha-monitoring-via-vm-cluster_explore-count-up-graph.webp)
+![Explore count up graph](explore-count-up-graph.webp)
 
 ## 5. High Availability
 
@@ -395,13 +385,13 @@ Return to Grafana Explore and press the  **Run query** button again.
 
 The expected output is:
 
-![Explore count up graph](k8s-ha-monitoring-via-vm-cluster_explore-count-up-graph.webp)
+![Explore count up graph](explore-count-up-graph.webp)
 
 As you can see, after we scaled down the `vmstorage` replicas number from three to two pods, metrics are still available and correct. The response is not partial as it was before scaling. Also we see that query `count(up{kubernetes_pod_name=~".*vmselect.*"})` returns the same value as before.
 
 To confirm that the number of `vmstorage` pods is equivalent to two, execute the following request in Grafana Explore:
 
-![Explore count up graph 2](k8s-ha-monitoring-via-vm-cluster_explore-count-up-graph2.webp)
+![Explore count up graph 2](explore-count-up-graph2.webp)
 
 
 ## 6. Final thoughts

@@ -57,6 +57,12 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 		fmt.Fprintf(w, `{}`)
 		return true
 	}
+	if strings.HasPrefix(path, "/logstash") || strings.HasPrefix(path, "/_logstash") {
+		// Return fake response for Logstash APIs requests.
+		// See: https://www.elastic.co/guide/en/elasticsearch/reference/8.8/logstash-apis.html
+		fmt.Fprintf(w, `{}`)
+		return true
+	}
 	switch path {
 	case "/":
 		switch r.Method {

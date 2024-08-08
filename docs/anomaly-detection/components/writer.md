@@ -1,5 +1,4 @@
 ---
-sort: 4
 title: Writer
 weight: 4
 menu:

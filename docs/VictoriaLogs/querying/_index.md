@@ -1,5 +1,4 @@
 ---
-sort: 4
 title: Querying
 weight: 4
 menu:

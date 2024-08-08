@@ -1,6 +1,5 @@
 ---
 weight: 1
-sort: 1
 title: Anomaly Detection and Alerting Setup
 menu:
   docs:

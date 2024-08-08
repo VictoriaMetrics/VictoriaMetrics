@@ -88,6 +88,9 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data }) => {
             items={tabs}
             onChange={handleChangeTab}
           />
+          <div className="vm-explore-logs-body-header__log-info">
+            Total logs returned: <b>{data.length}</b>
+          </div>
         </div>
         {activeTab === DisplayType.table && (
           <div className="vm-explore-logs-body-header__settings">

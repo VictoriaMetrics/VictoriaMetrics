@@ -1,0 +1,12 @@
+@use "src/styles/variables" as *;
+
+.vm-bar-hits-tooltip {
+  opacity: 0;
+  pointer-events: none;
+  gap: $padding-small;
+
+  &_visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}

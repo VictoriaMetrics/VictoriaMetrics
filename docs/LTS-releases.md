@@ -1,5 +1,4 @@
 ---
-sort: 300
 weight: 300
 title: Long-term support releases
 menu:

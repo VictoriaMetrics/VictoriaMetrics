@@ -1,5 +1,4 @@
 ---
-sort: 200
 weight: 200
 title: Scrape config examples
 menu:

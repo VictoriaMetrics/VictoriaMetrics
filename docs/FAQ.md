@@ -1,5 +1,4 @@
 ---
-sort: 24
 weight: 24
 title: FAQ
 menu:

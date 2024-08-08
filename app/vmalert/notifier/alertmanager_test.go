@@ -3,6 +3,7 @@ package notifier
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -48,6 +49,9 @@ func TestAlertManager_Send(t *testing.T) {
 			conn, _, _ := w.(http.Hijacker).Hijack()
 			_ = conn.Close()
 		case 1:
+			if r.Header.Get(headerKey) != headerValue {
+				t.Fatalf("expected header %q to be set to %q; got %q instead", headerKey, headerValue, r.Header.Get(headerKey))
+			}
 			w.WriteHeader(500)
 		case 2:
 			var a []struct {
@@ -72,6 +76,9 @@ func TestAlertManager_Send(t *testing.T) {
 			if a[0].EndAt.IsZero() {
 				t.Fatalf("expected non-zero end time")
 			}
+			if r.Header.Get(headerKey) != "bar" {
+				t.Fatalf("expected header %q to be set to %q; got %q instead", headerKey, headerValue, r.Header.Get(headerKey))
+			}
 		case 3:
 			if r.Header.Get(headerKey) != headerValue {
 				t.Fatalf("expected header %q to be set to %q; got %q instead", headerKey, headerValue, r.Header.Get(headerKey))
@@ -86,6 +93,7 @@ func TestAlertManager_Send(t *testing.T) {
 			Username: baUser,
 			Password: promauth.NewSecret(baPass),
 		},
+		Headers: []string{fmt.Sprintf("%s:%s", headerKey, headerValue)},
 	}
 	am, err := NewAlertManager(srv.URL+alertManagerPath, func(alert Alert) string {
 		return strconv.FormatUint(alert.GroupID, 10) + "/" + strconv.FormatUint(alert.ID, 10)
@@ -105,7 +113,7 @@ func TestAlertManager_Send(t *testing.T) {
 		Start:       time.Now().UTC(),
 		End:         time.Now().UTC(),
 		Annotations: map[string]string{"a": "b", "c": "d", "e": "f"},
-	}}, nil); err != nil {
+	}}, map[string]string{headerKey: "bar"}); err != nil {
 		t.Fatalf("unexpected error %s", err)
 	}
 	if c != 2 {

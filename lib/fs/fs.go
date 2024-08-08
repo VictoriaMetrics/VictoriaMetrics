@@ -52,7 +52,7 @@ func MustWriteSync(path string, data []byte) {
 // in the middle of the write.
 //
 // If the file at path already exists, then the file is overwritten atomically if canOverwrite is true.
-// Otherwise error is returned.
+// Otherwise, error is returned.
 func MustWriteAtomic(path string, data []byte, canOverwrite bool) {
 	// Check for the existing file. It is expected that
 	// the MustWriteAtomic function cannot be called concurrently

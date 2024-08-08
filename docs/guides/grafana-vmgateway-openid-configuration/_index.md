@@ -1,9 +1,9 @@
 ---
 weight: 5
-title: How to configure vmgateway for multi-tenant access using Grafana and OpenID Connect
+title: Setup vmgateway - Multi-Tenant Access with Grafana & OIDC
 menu:
   docs:
-    parent: "guides"
+    parent: guides
     weight: 5
 aliases:
 - /guides/grafana-vmgateway-openid-configuration.html

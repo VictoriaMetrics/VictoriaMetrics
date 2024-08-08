@@ -1,5 +1,4 @@
 ---
-sort: 30
 weight: 30
 title: Release process guidance
 menu:
@@ -92,8 +91,7 @@ Bumping the limits may significantly improve build speed.
    and this release contains all the needed binaries and checksums.
 1. Update the release description with the content of [CHANGELOG](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md) for this release.
 1. Publish release by pressing "Publish release" green button in GitHub's UI.
-1. Bump version of the VictoriaMetrics cluster in the [sandbox environment](https://github.com/VictoriaMetrics/ops/blob/main/gcp-test/sandbox/manifests/benchmark-vm/vmcluster.yaml)
-   by [opening and merging PR](https://github.com/VictoriaMetrics/ops/pull/58).
+1. Bump version of the VictoriaMetrics cluster in the sandbox environment by opening and merging PR.
 1. Bump VictoriaMetrics version at `deployment/docker/docker-compose.yml` and at `deployment/docker/docker-compose-cluster.yml`.
 1. Follow the instructions in [release follow-up](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/master/Release-Guide.md).
 

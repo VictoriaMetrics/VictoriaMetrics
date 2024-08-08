@@ -1,7 +1,6 @@
 ---
 title: Overview
 weight: 1
-sort: 1
 menu:
   docs:
     identifier: "vmanomaly-overview"

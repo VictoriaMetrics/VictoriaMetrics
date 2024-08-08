@@ -38,6 +38,7 @@ export interface Logs {
 export interface LogHits {
   timestamps: string[];
   values: number[];
+  total?: number;
   fields: {
     [key: string]: string;
   };

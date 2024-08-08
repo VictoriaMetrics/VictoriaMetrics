@@ -1,0 +1,35 @@
+@use "src/styles/variables" as *;
+
+.vm-bar-hits-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  padding: 0 $padding-small $padding-small;
+
+  &-item {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    padding: $padding-small;
+    border-radius: $border-radius-small;
+    cursor: pointer;
+    transition: 0.2s;
+
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.05);
+    }
+
+    &_hide {
+      text-decoration: line-through;
+      opacity: 0.5;
+    }
+
+    &__marker {
+      width: 14px;
+      height: 14px;
+      border: $color-background-block;
+    }
+  }
+}

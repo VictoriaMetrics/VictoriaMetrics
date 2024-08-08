@@ -1150,6 +1150,8 @@ scrape_configs:
         replacement: 127.0.0.1:9116  # The SNMP exporter's real hostname:port.
       - target_label: __series_limit__
         replacement: 1234
+      - target_label: __sample_limit__
+        replacement: 5678
       - target_label: __stream_parse__
         replacement: true
 `, []*ScrapeWork{
@@ -1162,7 +1164,7 @@ scrape_configs:
 				"instance": "192.168.1.2",
 				"job":      "snmp",
 			}),
-			SampleLimit:         100,
+			SampleLimit:         5678,
 			DisableKeepAlive:    true,
 			DisableCompression:  true,
 			StreamParse:         true,

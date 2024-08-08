@@ -1,5 +1,4 @@
 ---
-sort: 5
 title: Monitoring
 weight: 5
 menu:

@@ -1,5 +1,4 @@
 ---
-sort: -1 # hide page from menu
 weight: 100
 ---
 

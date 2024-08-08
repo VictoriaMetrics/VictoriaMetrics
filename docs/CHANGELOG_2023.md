@@ -1,5 +1,4 @@
 ---
-sort: 3
 weight: 3
 title: Year 2023
 menu:

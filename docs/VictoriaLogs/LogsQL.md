@@ -1,5 +1,4 @@
 ---
-sort: 5
 weight: 5
 title: LogsQL
 menu:

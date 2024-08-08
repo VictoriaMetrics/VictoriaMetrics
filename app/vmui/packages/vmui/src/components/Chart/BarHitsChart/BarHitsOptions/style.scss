@@ -1,0 +1,35 @@
+@use "src/styles/variables" as *;
+
+.vm-bar-hits-options {
+  position: absolute;
+  top: $padding-small;
+  right: $padding-small;
+  z-index: 2;
+
+  &-settings {
+    display: grid;
+    align-items: flex-start;
+    gap: $padding-global;
+    min-width: 200px;
+
+    &-item {
+      border-bottom: $border-divider;
+      padding: 0 $padding-global $padding-global;
+
+      &_list {
+        padding: 0;
+      }
+
+      &__title {
+        font-size: $font-size-small;
+        color: $color-text-secondary;
+        padding: 0 $padding-small $padding-small;
+      }
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+    }
+  }
+}
