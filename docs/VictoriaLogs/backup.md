@@ -56,3 +56,7 @@ VictoriaLogs will automatically load this data upon startup.
 # example of rsync from remote backup to local
 rsync -avh --progress <username>@<host>:<path-to-victorialogs-backup> <path-to-victorialogs-data>
 ```
+
+## Other Options
+It is also possible to use **the disk snapshot** in order to perform a backup. This feature could be provided by your operating system, 
+cloud provider, or third-party tools. Note that the snapshot must be **consistent** to ensure reliable backup.
