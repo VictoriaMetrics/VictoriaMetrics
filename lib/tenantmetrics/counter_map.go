@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 // TenantID defines metric tenant.
@@ -21,6 +22,8 @@ type CounterMap struct {
 
 	// do not use atomic.Pointer, since the stored map there is already a pointer type.
 	m atomic.Value
+	// mt holds value for multi-tenant metrics.
+	mt atomic.Value
 }
 
 // NewCounterMap creates new CounterMap for the given metric.
@@ -34,11 +37,15 @@ func NewCounterMap(metric string) *CounterMap {
 
 // Get returns counter for the given at
 func (cm *CounterMap) Get(at *auth.Token) *metrics.Counter {
+	if at == nil {
+		return cm.GetByTenant(nil)
+	}
+
 	key := TenantID{
 		AccountID: at.AccountID,
 		ProjectID: at.ProjectID,
 	}
-	return cm.GetByTenant(key)
+	return cm.GetByTenant(&key)
 }
 
 // MultiAdd adds multiple values grouped by auth.Token
@@ -49,9 +56,19 @@ func (cm *CounterMap) MultiAdd(perTenantValues map[auth.Token]int) {
 }
 
 // GetByTenant returns counter for the given key.
-func (cm *CounterMap) GetByTenant(key TenantID) *metrics.Counter {
+func (cm *CounterMap) GetByTenant(key *TenantID) *metrics.Counter {
+	if key == nil {
+		mtm := cm.mt.Load()
+		if mtm == nil {
+			mtc := metrics.GetOrCreateCounter(createMetricNameMultitenant(cm.metric))
+			cm.mt.Store(mtc)
+			return mtc
+		}
+		return mtm.(*metrics.Counter)
+	}
+
 	m := cm.m.Load().(map[TenantID]*metrics.Counter)
-	if c := m[key]; c != nil {
+	if c := m[*key]; c != nil {
 		// Fast path - the counter for k already exists.
 		return c
 	}
@@ -61,9 +78,9 @@ func (cm *CounterMap) GetByTenant(key TenantID) *metrics.Counter {
 	for k, c := range m {
 		newM[k] = c
 	}
-	metricName := createMetricName(cm.metric, key)
+	metricName := createMetricName(cm.metric, *key)
 	c := metrics.GetOrCreateCounter(metricName)
-	newM[key] = c
+	newM[*key] = c
 	cm.m.Store(newM)
 	return c
 }
@@ -78,4 +95,16 @@ func createMetricName(metric string, key TenantID) string {
 	}
 	// Metric with labels.
 	return fmt.Sprintf(`%s,accountID="%d",projectID="%d"}`, metric[:len(metric)-1], key.AccountID, key.ProjectID)
+}
+
+func createMetricNameMultitenant(metric string) string {
+	if len(metric) == 0 {
+		logger.Panicf("BUG: metric cannot be empty")
+	}
+	if metric[len(metric)-1] != '}' {
+		// Metric without labels.
+		return fmt.Sprintf(`%s{accountID="multitenant",projectID="multitenant"}`, metric)
+	}
+	// Metric with labels.
+	return fmt.Sprintf(`%s,accountID="multitenant",projectID="multitenant"}`, metric[:len(metric)-1])
 }

@@ -36,6 +36,14 @@ func RegisterQuery(accountID, projectID uint32, query string, timeRangeMsecs int
 	qsTracker.registerQuery(accountID, projectID, query, timeRangeMsecs, startTime)
 }
 
+// RegisterQueryMultiTenant registers the query on the given timeRangeMsecs, which has been started at startTime.
+//
+// RegisterQueryMultiTenant must be called when the query is finished.
+func RegisterQueryMultiTenant(query string, timeRangeMsecs int64, startTime time.Time) {
+	initOnce.Do(initQueryStats)
+	qsTracker.registerQueryMultiTenant(query, timeRangeMsecs, startTime)
+}
+
 // WriteJSONQueryStats writes query stats to given writer in json format.
 func WriteJSONQueryStats(w io.Writer, topN int, maxLifetime time.Duration) {
 	initOnce.Do(initQueryStats)
@@ -66,6 +74,7 @@ type queryStatRecord struct {
 	timeRangeSecs int64
 	registerTime  time.Time
 	duration      time.Duration
+	multiTenant   bool
 }
 
 type queryStatKey struct {
@@ -73,6 +82,7 @@ type queryStatKey struct {
 	projectID     uint32
 	query         string
 	timeRangeSecs int64
+	multiTenant   bool
 }
 
 type accountProjectFilter struct {
@@ -100,7 +110,7 @@ func (qst *queryStatsTracker) writeJSONQueryStats(w io.Writer, topN int, apFilte
 	fmt.Fprintf(w, `"topByCount":[`)
 	topByCount := qst.getTopByCount(topN, apFilter, maxLifetime)
 	for i, r := range topByCount {
-		fmt.Fprintf(w, `{"accountID":%d,"projectID":%d,"query":%s,"timeRangeSeconds":%d,"count":%d}`, r.accountID, r.projectID, stringsutil.JSONString(r.query), r.timeRangeSecs, r.count)
+		fmt.Fprintf(w, `{"accountID":%d,"projectID":%d,"query":%s,"timeRangeSeconds":%d,"count":%d,"multiTenant":%v}`, r.accountID, r.projectID, stringsutil.JSONString(r.query), r.timeRangeSecs, r.count, r.multiTenant)
 		if i+1 < len(topByCount) {
 			fmt.Fprintf(w, `,`)
 		}
@@ -108,8 +118,8 @@ func (qst *queryStatsTracker) writeJSONQueryStats(w io.Writer, topN int, apFilte
 	fmt.Fprintf(w, `],"topByAvgDuration":[`)
 	topByAvgDuration := qst.getTopByAvgDuration(topN, apFilter, maxLifetime)
 	for i, r := range topByAvgDuration {
-		fmt.Fprintf(w, `{"accountID":%d,"projectID":%d,"query":%s,"timeRangeSeconds":%d,"avgDurationSeconds":%.3f,"count":%d}`,
-			r.accountID, r.projectID, stringsutil.JSONString(r.query), r.timeRangeSecs, r.duration.Seconds(), r.count)
+		fmt.Fprintf(w, `{"accountID":%d,"projectID":%d,"query":%s,"timeRangeSeconds":%d,"avgDurationSeconds":%.3f,"count":%d,"multiTenant": %v}`,
+			r.accountID, r.projectID, stringsutil.JSONString(r.query), r.timeRangeSecs, r.duration.Seconds(), r.count, r.multiTenant)
 		if i+1 < len(topByAvgDuration) {
 			fmt.Fprintf(w, `,`)
 		}
@@ -117,8 +127,8 @@ func (qst *queryStatsTracker) writeJSONQueryStats(w io.Writer, topN int, apFilte
 	fmt.Fprintf(w, `],"topBySumDuration":[`)
 	topBySumDuration := qst.getTopBySumDuration(topN, apFilter, maxLifetime)
 	for i, r := range topBySumDuration {
-		fmt.Fprintf(w, `{"accountID":%d,"projectID":%d,"query":%s,"timeRangeSeconds":%d,"sumDurationSeconds":%.3f,"count":%d}`,
-			r.accountID, r.projectID, stringsutil.JSONString(r.query), r.timeRangeSecs, r.duration.Seconds(), r.count)
+		fmt.Fprintf(w, `{"accountID":%d,"projectID":%d,"query":%s,"timeRangeSeconds":%d,"sumDurationSeconds":%.3f,"count":%d,"multiTenant":%v}`,
+			r.accountID, r.projectID, stringsutil.JSONString(r.query), r.timeRangeSecs, r.duration.Seconds(), r.count, r.multiTenant)
 		if i+1 < len(topBySumDuration) {
 			fmt.Fprintf(w, `,`)
 		}
@@ -151,6 +161,30 @@ func (qst *queryStatsTracker) registerQuery(accountID, projectID uint32, query s
 	r.duration = duration
 }
 
+func (qst *queryStatsTracker) registerQueryMultiTenant(query string, timeRangeMsecs int64, startTime time.Time) {
+	registerTime := time.Now()
+	duration := registerTime.Sub(startTime)
+	if duration < *minQueryDuration {
+		return
+	}
+
+	qst.mu.Lock()
+	defer qst.mu.Unlock()
+
+	a := qst.a
+	idx := qst.nextIdx
+	if idx >= uint(len(a)) {
+		idx = 0
+	}
+	qst.nextIdx = idx + 1
+	r := &a[idx]
+	r.multiTenant = true
+	r.query = query
+	r.timeRangeSecs = timeRangeMsecs / 1000
+	r.registerTime = registerTime
+	r.duration = duration
+}
+
 func (r *queryStatRecord) matches(apFilter *accountProjectFilter, currentTime time.Time, maxLifetime time.Duration) bool {
 	if r.query == "" || currentTime.Sub(r.registerTime) > maxLifetime {
 		return false
@@ -167,6 +201,7 @@ func (r *queryStatRecord) key() queryStatKey {
 		projectID:     r.projectID,
 		query:         r.query,
 		timeRangeSecs: r.timeRangeSecs,
+		multiTenant:   r.multiTenant,
 	}
 }
 
@@ -190,6 +225,7 @@ func (qst *queryStatsTracker) getTopByCount(topN int, apFilter *accountProjectFi
 			query:         k.query,
 			timeRangeSecs: k.timeRangeSecs,
 			count:         count,
+			multiTenant:   k.multiTenant,
 		})
 	}
 	sort.Slice(a, func(i, j int) bool {
@@ -207,6 +243,7 @@ type queryStatByCount struct {
 	query         string
 	timeRangeSecs int64
 	count         int
+	multiTenant   bool
 }
 
 func (qst *queryStatsTracker) getTopByAvgDuration(topN int, apFilter *accountProjectFilter, maxLifetime time.Duration) []queryStatByDuration {
@@ -237,6 +274,7 @@ func (qst *queryStatsTracker) getTopByAvgDuration(topN int, apFilter *accountPro
 			timeRangeSecs: k.timeRangeSecs,
 			duration:      ks.sum / time.Duration(ks.count),
 			count:         ks.count,
+			multiTenant:   k.multiTenant,
 		})
 	}
 	sort.Slice(a, func(i, j int) bool {
@@ -255,6 +293,7 @@ type queryStatByDuration struct {
 	timeRangeSecs int64
 	duration      time.Duration
 	count         int
+	multiTenant   bool
 }
 
 func (qst *queryStatsTracker) getTopBySumDuration(topN int, apFilter *accountProjectFilter, maxLifetime time.Duration) []queryStatByDuration {
@@ -285,6 +324,7 @@ func (qst *queryStatsTracker) getTopBySumDuration(topN int, apFilter *accountPro
 			timeRangeSecs: k.timeRangeSecs,
 			duration:      kd.sum,
 			count:         kd.count,
+			multiTenant:   k.multiTenant,
 		})
 	}
 	sort.Slice(a, func(i, j int) bool {

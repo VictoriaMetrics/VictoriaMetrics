@@ -6,12 +6,17 @@ import (
 	"math"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/VictoriaMetrics/metricsql"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/multitenant"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
@@ -25,8 +30,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/VictoriaMetrics/metricsql"
 )
 
 var (
@@ -108,10 +111,12 @@ func alignStartEnd(start, end, step int64) (int64, int64) {
 
 // EvalConfig is the configuration required for query evaluation via Exec
 type EvalConfig struct {
-	AuthToken *auth.Token
-	Start     int64
-	End       int64
-	Step      int64
+	AuthToken  *auth.Token
+	AuthTokens []*auth.Token
+
+	Start int64
+	End   int64
+	Step  int64
 
 	// MaxSeries is the maximum number of time series, which can be scanned by the query.
 	// Zero means 'no limit'
@@ -160,6 +165,7 @@ type EvalConfig struct {
 func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	var ec EvalConfig
 	ec.AuthToken = src.AuthToken
+	ec.AuthTokens = src.AuthTokens
 	ec.Start = src.Start
 	ec.End = src.End
 	ec.Step = src.Step
@@ -274,6 +280,228 @@ func getTimestamps(start, end, step int64, maxPointsPerSeries int) []int64 {
 	return timestamps
 }
 
+type tenantFiltersCacheItem struct {
+	ne      metricsql.Expr
+	filters [][]metricsql.LabelFilter
+}
+
+type tenantFiltersCache struct {
+	requests atomic.Uint64
+	misses   atomic.Uint64
+
+	m  map[string]*tenantFiltersCacheItem
+	mu sync.RWMutex
+}
+
+func (tfc *tenantFiltersCache) put(original, converted metricsql.Expr, filters [][]metricsql.LabelFilter) {
+	tfc.mu.Lock()
+	defer tfc.mu.Unlock()
+
+	overflow := len(tfc.m) - parseCacheMaxLen
+	if overflow > 0 {
+		// Remove 10% of items from the cache.
+		overflow = int(float64(len(tfc.m)) * 0.1)
+		for k := range tfc.m {
+			delete(tfc.m, k)
+			overflow--
+			if overflow <= 0 {
+				break
+			}
+		}
+	}
+
+	bb := bbPool.Get()
+	defer bbPool.Put(bb)
+
+	bb.B = original.AppendString(bb.B)
+	tfc.m[string(bb.B)] = &tenantFiltersCacheItem{
+		ne:      converted,
+		filters: filters,
+	}
+}
+
+func (tfc *tenantFiltersCache) get(e metricsql.Expr) *tenantFiltersCacheItem {
+	tfc.mu.RLock()
+	defer tfc.mu.RUnlock()
+	tfc.requests.Add(1)
+
+	bb := bbPool.Get()
+	defer bbPool.Put(bb)
+
+	bb.B = e.AppendString(bb.B)
+	result := tfc.m[string(bb.B)]
+
+	if result == nil {
+		tfc.misses.Add(1)
+	}
+
+	return result
+}
+func (tfc *tenantFiltersCache) Requests() uint64 {
+	return tfc.requests.Load()
+}
+
+func (tfc *tenantFiltersCache) Misses() uint64 {
+	return tfc.misses.Load()
+}
+
+func (tfc *tenantFiltersCache) Len() uint64 {
+	tfc.mu.RLock()
+	n := len(tfc.m)
+	tfc.mu.RUnlock()
+	return uint64(n)
+}
+
+var tentantsFilterCacheV = func() *tenantFiltersCache {
+	m := make(map[string]*tenantFiltersCacheItem)
+
+	tfc := &tenantFiltersCache{
+		m: m,
+	}
+
+	metrics.GetOrCreateGauge(`vm_cache_requests_total{type="multitenancy/filters"}`, func() float64 {
+		return float64(tfc.Requests())
+	})
+	metrics.GetOrCreateGauge(`vm_cache_misses_total{type="multitenancy/filters"}`, func() float64 {
+		return float64(tfc.Misses())
+	})
+	metrics.GetOrCreateGauge(`vm_cache_entries{type="multitenancy/filters"}`, func() float64 {
+		return float64(tfc.Len())
+	})
+
+	return tfc
+}()
+
+func extractTenantFilters(e metricsql.Expr, dst [][]metricsql.LabelFilter) ([][]metricsql.LabelFilter, metricsql.Expr) {
+	if cache := tentantsFilterCacheV.get(e); cache != nil {
+		return cache.filters, cache.ne
+	}
+
+	ne := metricsql.Clone(e)
+
+	switch exp := ne.(type) {
+	case *metricsql.MetricExpr:
+		for idx, labels := range exp.LabelFilterss {
+			if len(labels) == 0 {
+				continue
+			}
+
+			newLabels := make([]metricsql.LabelFilter, 0, len(labels))
+			newFilters := make([]metricsql.LabelFilter, 0)
+			for _, label := range labels {
+				if multitenant.IsTenancyLabel(label.Label) {
+					newFilters = append(newFilters, label)
+				} else {
+					newLabels = append(newLabels, label)
+				}
+			}
+			if len(newFilters) == 0 {
+				continue
+			}
+
+			exp.LabelFilterss[idx] = newLabels
+			dst = append(dst, newFilters)
+		}
+		tentantsFilterCacheV.put(e, ne, dst)
+		return dst, exp
+
+	case *metricsql.RollupExpr:
+		dst, exp.Expr = extractTenantFilters(exp.Expr, dst)
+		tentantsFilterCacheV.put(e, ne, dst)
+		return dst, exp
+
+	case *metricsql.BinaryOpExpr:
+		var newL, newR metricsql.Expr
+
+		dst, newL = extractTenantFilters(exp.Left, dst)
+		dst, newR = extractTenantFilters(exp.Right, dst)
+
+		exp.Left = newL
+		exp.Right = newR
+		tentantsFilterCacheV.put(e, ne, dst)
+		return dst, exp
+
+	case *metricsql.AggrFuncExpr:
+		var newArg metricsql.Expr
+		for i, arg := range exp.Args {
+			dst, newArg = extractTenantFilters(arg, dst)
+			exp.Args[i] = newArg
+		}
+		tentantsFilterCacheV.put(e, ne, dst)
+		return dst, exp
+
+	case *metricsql.FuncExpr:
+		var newArg metricsql.Expr
+		for i, arg := range exp.Args {
+			dst, newArg = extractTenantFilters(arg, dst)
+			exp.Args[i] = newArg
+		}
+		tentantsFilterCacheV.put(e, ne, dst)
+		return dst, exp
+
+	}
+
+	tentantsFilterCacheV.put(e, ne, dst)
+	return dst, ne
+}
+
+func extractTenantFiltersEc(ec *EvalConfig, dst [][]metricsql.LabelFilter) [][]metricsql.LabelFilter {
+	if len(ec.EnforcedTagFilterss) == 0 {
+		return dst
+	}
+
+	updTagFilters := make([][]storage.TagFilter, 0, len(ec.EnforcedTagFilterss))
+
+	for _, filters := range ec.EnforcedTagFilterss {
+		newFilters := make([]metricsql.LabelFilter, 0)
+		newTagFilters := make([]storage.TagFilter, 0)
+		for _, filter := range filters {
+			if multitenant.IsTenancyLabel(string(filter.Key)) {
+				newFilters = append(newFilters, metricsql.LabelFilter{
+					Label:      string(filter.Key),
+					Value:      string(filter.Value),
+					IsRegexp:   filter.IsRegexp,
+					IsNegative: filter.IsNegative,
+				})
+			} else {
+				newTagFilters = append(newTagFilters, filter)
+			}
+		}
+		if len(newFilters) > 0 {
+			dst = append(dst, newFilters)
+		}
+		if len(newTagFilters) > 0 {
+			updTagFilters = append(updTagFilters, newTagFilters)
+		}
+	}
+	ec.EnforcedTagFilterss = updTagFilters
+
+	return dst
+}
+
+func applyFiltersToTenants(tenants []string, filters [][]metricsql.LabelFilter) []*auth.Token {
+	filtersStr := make([]string, 0, len(filters))
+	for _, filter := range filters {
+		fs := make([]byte, 0)
+		fs = append(fs, '{')
+
+		for idx, f := range filter {
+			fs = f.AppendString(fs)
+			if idx != len(filter)-1 {
+				fs = append(fs, ',')
+			}
+		}
+		fs = append(fs, '}')
+		filtersStr = append(filtersStr, string(fs))
+	}
+
+	fts, err := multitenant.ApplyFiltersToTenants(tenants, filtersStr)
+	if err != nil {
+		logger.Panicf("unexpected error when applying filters to tenants: %s", err)
+	}
+	return fts
+}
+
 func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
 	if qt.Enabled() {
 		query := string(e.AppendString(nil))
@@ -281,7 +509,33 @@ func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*time
 		mayCache := ec.mayCache()
 		qt = qt.NewChild("eval: query=%s, timeRange=%s, step=%d, mayCache=%v", query, ec.timeRangeString(), ec.Step, mayCache)
 	}
-	rv, err := evalExprInternal(qt, ec, e)
+	var (
+		rv  []*timeseries
+		err error
+	)
+	if ec.AuthToken == nil {
+		qtT := qt.NewChild("eval: fetching tenants")
+		tr := storage.TimeRange{
+			MinTimestamp: ec.Start,
+			MaxTimestamp: ec.End,
+		}
+		tenants, err := multitenant.FetchTenants(qtT, tr, ec.Deadline)
+		if err != nil {
+			qtT.Done()
+			return nil, fmt.Errorf("cannot obtain tenants: %w", err)
+		}
+		qtT.Printf("found %d tenants", len(tenants))
+
+		filters, ne := extractTenantFilters(e, nil)
+		filters = extractTenantFiltersEc(ec, filters)
+		tenantTokens := applyFiltersToTenants(tenants, filters)
+		e = ne
+		ec.AuthTokens = tenantTokens
+
+		qtT.Donef("%d tenants matched filters", len(tenantTokens))
+	}
+
+	rv, err = evalExprInternal(qt, ec, e)
 	if err != nil {
 		return nil, err
 	}
@@ -294,6 +548,7 @@ func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*time
 		pointsCount := seriesCount * pointsPerSeries
 		qt.Donef("series=%d, points=%d, pointsPerSeries=%d", seriesCount, pointsCount, pointsPerSeries)
 	}
+
 	return rv, nil
 }
 
@@ -962,7 +1217,7 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 		return nil, nil
 	}
 	sharedTimestamps := getTimestamps(ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries)
-	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps)
+	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps, ec.AuthTokens != nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1706,7 +1961,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	}
 	// Obtain rollup configs before fetching data from db, so type errors could be caught earlier.
 	sharedTimestamps := getTimestamps(ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries)
-	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps)
+	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps, ec.AuthTokens != nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1723,7 +1978,18 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	} else {
 		minTimestamp -= ec.Step
 	}
-	sq := storage.NewSearchQuery(ec.AuthToken.AccountID, ec.AuthToken.ProjectID, minTimestamp, ec.End, tfss, ec.MaxSeries)
+	var sq *storage.SearchQuery
+
+	if ec.AuthTokens != nil {
+		tt := make([]storage.TenantToken, len(ec.AuthTokens))
+		for i, authToken := range ec.AuthTokens {
+			tt[i].AccountID = authToken.AccountID
+			tt[i].ProjectID = authToken.ProjectID
+		}
+		sq = storage.NewMultiTenantSearchQuery(tt, minTimestamp, ec.End, tfss, ec.MaxSeries)
+	} else {
+		sq = storage.NewSearchQuery(ec.AuthToken.AccountID, ec.AuthToken.ProjectID, minTimestamp, ec.End, tfss, ec.MaxSeries)
+	}
 	rss, isPartial, err := netstorage.ProcessSearchQuery(qt, ec.DenyPartialResponse, sq, ec.Deadline)
 	if err != nil {
 		return nil, err
@@ -1905,6 +2171,10 @@ func doRollupForTimeseries(funcName string, keepMetricNames bool, rc *rollupConf
 	}
 	if !keepMetricNames && !rollupFuncsKeepMetricName[funcName] {
 		tsDst.MetricName.ResetMetricGroup()
+	}
+	if rc.isMultiTenant {
+		tsDst.MetricName.AddTag("vm_account_id", strconv.FormatUint(uint64(tsDst.MetricName.AccountID), 10))
+		tsDst.MetricName.AddTag("vm_project_id", strconv.FormatUint(uint64(tsDst.MetricName.ProjectID), 10))
 	}
 	var samplesScanned uint64
 	tsDst.Values, samplesScanned = rc.Do(tsDst.Values[:0], valuesSrc, timestampsSrc)
