@@ -494,7 +494,8 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnF
 				tssBlock = dropAggregatedSeries(tssBlock, matchIdxs.B, *streamAggrGlobalDropInput)
 			}
 			matchIdxsPool.Put(matchIdxs)
-		} else if deduplicatorGlobal != nil {
+		}
+		if deduplicatorGlobal != nil {
 			deduplicatorGlobal.Push(tssBlock)
 			tssBlock = tssBlock[:0]
 		}
@@ -922,7 +923,8 @@ func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries, forceDropSa
 			tss = dropAggregatedSeries(tss, matchIdxs.B, rwctx.streamAggrDropInput)
 		}
 		matchIdxsPool.Put(matchIdxs)
-	} else if rwctx.deduplicator != nil {
+	}
+	if rwctx.deduplicator != nil {
 		rwctx.deduplicator.Push(tss)
 		return true
 	}
