@@ -633,7 +633,7 @@ It uses the `quantiles` triplet to calculate `yhat_lower`, `yhat`, and `yhat_upp
 
 *Parameters specific for vmanomaly*:
 
-* `class` (string) - model class name `"model.online.OnlineSeasonalQuantile"` (or `quantile_online` starting from [v1.13.0](../CHANGELOG.md#1130) with class alias support)
+* `class` (string) - model class name `"model.online.OnlineQuantileModel"` (or `quantile_online` starting from [v1.13.0](../CHANGELOG.md#1130) with class alias support)
 * `quantiles` (list[float], optional) - The quantiles to estimate. `yhat_lower`, `yhat`, `yhat_upper` are the quantile order. By default (0.01, 0.5, 0.99).
 * `seasonal_interval` (string, optional) - the interval for the seasonal adjustment. If not set, the model will equal to a simple online quantile model. By default not set.
 * `min_subseason` (str, optional) - the minimum interval to estimate quantiles for. By default not set. Note that the minimum interval should be a multiple of the seasonal interval, i.e. if seasonal_interval='2h', then min_subseason='15m' is valid, but '37m' is not.
@@ -651,7 +651,7 @@ Suppose we have a data with strong intraday (hourly) and intraweek (daily) seaso
 ```yaml
 models:
   your_desired_alias_for_a_model:
-    class: "quantile_online"  # or 'model.online.OnlineSeasonalQuantile'
+    class: "quantile_online"  # or 'model.online.OnlineQuantileModel'
     quantiles: [0.025, 0.5, 0.975]  # lowered to exclude anomalous edges, can be compensated by `scale` param > 1
     seasonal_interval: '7d'  # longest seasonality (week, day) = week, starting from `season_starts_from`
     min_subseason: '1h'  # smallest seasonality (week, day, hour) = hour, will have its own quantile estimates
