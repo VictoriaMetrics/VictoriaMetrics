@@ -19,7 +19,7 @@ The files in VictoriaLogs have the following properties:
 - All the data files are immutable. Small metadata files can be modified.
 - Old data files are periodically merged into new data files.
 
-Therefore, for a complete data backup, you need to run the `rsync` command twice.
+Therefore, for a complete data backup, you need to run the `rsync` command **twice**.
 
 ```bash
 # example of rsync to remote host
