@@ -42,6 +42,7 @@ var supportedOutputs = []string{
 	"stddev",
 	"stdvar",
 	"sum_samples",
+	"sum_samples_positive",
 	"total",
 	"total_prometheus",
 	"unique_samples",
@@ -188,6 +189,7 @@ type Config struct {
 	// - stddev - standard deviation across all the samples
 	// - stdvar - standard variance across all the samples
 	// - sum_samples - sums the input sample values
+	// - sum_samples_positive - sums the input sample values with positive value
 	// - total - aggregates input counters
 	// - total_prometheus - aggregates input counters, ignoring the first sample in new time series
 	// - unique_samples - counts the number of unique sample values
@@ -700,6 +702,8 @@ func newAggrState(output string, outputsSeen map[string]struct{}, stalenessInter
 		return newStdvarAggrState(), nil
 	case "sum_samples":
 		return newSumSamplesAggrState(), nil
+	case "sum_samples_positive":
+		return newSumSamplesPositiveAggrState(), nil
 	case "total":
 		return newTotalAggrState(stalenessInterval, false, true), nil
 	case "total_prometheus":
