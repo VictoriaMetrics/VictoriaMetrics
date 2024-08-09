@@ -11,8 +11,17 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
+// NewStatDialFuncWithDial returns dialer function that registers stats metrics for conns.
+func NewStatDialFuncWithDial(metricPrefix string, dialFunc func(ctx context.Context, network, addr string) (net.Conn, error)) func(ctx context.Context, network, addr string) (net.Conn, error) {
+	return newStatDialFunc(metricPrefix, dialFunc)
+}
+
 // NewStatDialFunc returns dialer function that supports DNS SRV records and registers stats metrics for conns.
 func NewStatDialFunc(metricPrefix string) func(ctx context.Context, network, addr string) (net.Conn, error) {
+	return newStatDialFunc(metricPrefix, DialMaybeSRV)
+}
+
+func newStatDialFunc(metricPrefix string, dialFunc func(ctx context.Context, network, addr string) (net.Conn, error)) func(ctx context.Context, network, addr string) (net.Conn, error) {
 	return func(ctx context.Context, _, addr string) (net.Conn, error) {
 		sc := &statDialConn{
 			dialsTotal: metrics.GetOrCreateCounter(fmt.Sprintf(`%s_dials_total`, metricPrefix)),
@@ -28,7 +37,7 @@ func NewStatDialFunc(metricPrefix string) func(ctx context.Context, network, add
 		}
 
 		network := GetTCPNetwork()
-		conn, err := DialMaybeSRV(ctx, network, addr)
+		conn, err := dialFunc(ctx, network, addr)
 		sc.dialsTotal.Inc()
 		if err != nil {
 			sc.dialErrors.Inc()

@@ -360,6 +360,18 @@ func (ac *Config) GetAuthHeader() (string, error) {
 	return "", nil
 }
 
+// GetHTTPHeadersNoAuth returns http formatted headers without Authorization header
+func (ac *Config) GetHTTPHeadersNoAuth() http.Header {
+	if len(ac.headers) == 0 {
+		return nil
+	}
+	dst := make(http.Header, len(ac.headers))
+	for _, kv := range ac.headers {
+		dst.Add(kv.key, kv.value)
+	}
+	return dst
+}
+
 // String returns human-readable representation for ac.
 //
 // It is also used for comparing Config objects for equality. If two Config
@@ -436,6 +448,18 @@ func newGetTLSCertCached(getTLSCert getTLSCertFunc) getTLSCertFunc {
 		}
 		return cert, err
 	}
+}
+
+// GetTLSConfig returns cached tls configuration
+func (ac *Config) GetTLSConfig() (*tls.Config, error) {
+	if ac.getTLSConfigCached == nil {
+		return nil, fmt.Errorf("BUG: config must be properly initialized with Options.NewConfig() call")
+	}
+	tlsC, err := ac.getTLSConfigCached()
+	if err != nil {
+		return nil, err
+	}
+	return tlsC, nil
 }
 
 // NewRoundTripper returns new http.RoundTripper for the given ac, which uses the given trBase as base transport.
