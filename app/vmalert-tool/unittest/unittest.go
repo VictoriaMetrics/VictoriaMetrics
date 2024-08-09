@@ -55,7 +55,7 @@ const (
 )
 
 // UnitTest runs unittest for files
-func UnitTest(files []string, disableGroupLabel bool) bool {
+func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, externalURL string) bool {
 	if err := templates.Load([]string{}, true); err != nil {
 		logger.Fatalf("failed to load template: %v", err)
 	}
@@ -74,9 +74,23 @@ func UnitTest(files []string, disableGroupLabel bool) bool {
 		fmt.Println("  FAILED")
 		fmt.Printf("\nfailed to read test files: \n%v", err)
 	}
+
+	labels := make(map[string]string)
+	for _, s := range externalLabels {
+		if len(s) == 0 {
+			continue
+		}
+		n := strings.IndexByte(s, '=')
+		if n < 0 {
+			logger.Fatalf("missing '=' in `-label`. It must contain label in the form `name=value`; got %q", s)
+		}
+		labels[s[:n]] = s[n+1:]
+	}
+	_, _ = notifier.Init(nil, labels, externalURL)
+
 	var failed bool
 	for fileName, file := range testfiles {
-		if err := ruleUnitTest(fileName, file); err != nil {
+		if err := ruleUnitTest(fileName, file, labels); err != nil {
 			fmt.Println("  FAILED")
 			fmt.Printf("\nfailed to run unit test for file %q: \n%v", file, err)
 			failed = true
@@ -88,7 +102,7 @@ func UnitTest(files []string, disableGroupLabel bool) bool {
 	return failed
 }
 
-func ruleUnitTest(filename string, content []byte) []error {
+func ruleUnitTest(filename string, content []byte, externalLabels map[string]string) []error {
 	fmt.Println("\nUnit Testing: ", filename)
 	var unitTestInp unitTestFile
 	if err := yaml.UnmarshalStrict(content, &unitTestInp); err != nil {
@@ -126,7 +140,7 @@ func ruleUnitTest(filename string, content []byte) []error {
 			errs = append(errs, err)
 			continue
 		}
-		testErrs := t.test(unitTestInp.EvaluationInterval.Duration(), groupOrderMap, testGroups)
+		testErrs := t.test(unitTestInp.EvaluationInterval.Duration(), groupOrderMap, testGroups, externalLabels)
 		errs = append(errs, testErrs...)
 	}
 
@@ -179,6 +193,7 @@ func processFlags() {
 		{flag: "retentionPeriod", value: "100y"},
 		{flag: "datasource.url", value: testDataSourcePath},
 		{flag: "remoteWrite.url", value: testRemoteWritePath},
+		{flag: "notifier.blackhole", value: "true"},
 	} {
 		// panics if flag doesn't exist
 		if err := flag.Lookup(fv.flag).Value.Set(fv.value); err != nil {
@@ -239,7 +254,7 @@ func tearDown() {
 	fs.MustRemoveAll(storagePath)
 }
 
-func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]int, testGroups []vmalertconfig.Group) (checkErrs []error) {
+func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]int, testGroups []vmalertconfig.Group, externalLabels map[string]string) (checkErrs []error) {
 	// set up vmstorage and http server for ingest and read queries
 	setUp()
 	// tear down vmstorage and clean the data dir
@@ -288,7 +303,14 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 	// create groups with given rule
 	var groups []*rule.Group
 	for _, group := range testGroups {
-		ng := rule.NewGroup(group, q, time.Minute, tg.ExternalLabels)
+		mergedExternalLabels := make(map[string]string)
+		for k, v := range tg.ExternalLabels {
+			mergedExternalLabels[k] = v
+		}
+		for k, v := range externalLabels {
+			mergedExternalLabels[k] = v
+		}
+		ng := rule.NewGroup(group, q, time.Minute, mergedExternalLabels)
 		groups = append(groups, ng)
 	}
 
