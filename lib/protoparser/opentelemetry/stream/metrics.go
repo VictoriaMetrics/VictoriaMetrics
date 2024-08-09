@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -18,12 +19,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 )
 
-// ParseStream parses OpenTelemetry protobuf or json data from r and calls callback for the parsed rows.
+// ParseMetricsStream parses OpenTelemetry protobuf or json data from r and calls callback for the parsed rows.
 //
 // callback shouldn't hold tss items after returning.
 //
 // optional processBody can be used for pre-processing the read request body from r before parsing it in OpenTelemetry format.
-func ParseStream(r io.Reader, isGzipped bool, processBody func([]byte) ([]byte, error), callback func(tss []prompbmarshal.TimeSeries) error) error {
+func ParseMetricsStream(r io.Reader, contentType string, isGzipped bool, processBody func([]byte) ([]byte, error), callback func(tss []prompbmarshal.TimeSeries) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
@@ -37,9 +38,9 @@ func ParseStream(r io.Reader, isGzipped bool, processBody func([]byte) ([]byte, 
 		r = zr
 	}
 
-	wr := getWriteContext()
-	defer putWriteContext(wr)
-	req, err := wr.readAndUnpackRequest(r, processBody)
+	wr := getWriteMetricsContext()
+	defer putWriteMetricsContext(wr)
+	req, err := wr.readAndUnpackMetricsRequest(r, contentType, processBody)
 	if err != nil {
 		return fmt.Errorf("cannot unpack OpenTelemetry metrics: %w", err)
 	}
@@ -52,7 +53,7 @@ func ParseStream(r io.Reader, isGzipped bool, processBody func([]byte) ([]byte, 
 	return nil
 }
 
-func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
+func (wr *writeMetricsContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 	for _, m := range sc.Metrics {
 		if len(m.Name) == 0 {
 			// skip metrics without names
@@ -92,7 +93,7 @@ func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 }
 
 // appendSampleFromNumericPoint appends p to wr.tss
-func (wr *writeContext) appendSampleFromNumericPoint(metricName string, p *pb.NumberDataPoint) {
+func (wr *writeMetricsContext) appendSampleFromNumericPoint(metricName string, p *pb.NumberDataPoint) {
 	var v float64
 	switch {
 	case p.IntValue != nil:
@@ -109,7 +110,7 @@ func (wr *writeContext) appendSampleFromNumericPoint(metricName string, p *pb.Nu
 }
 
 // appendSamplesFromSummary appends summary p to wr.tss
-func (wr *writeContext) appendSamplesFromSummary(metricName string, p *pb.SummaryDataPoint) {
+func (wr *writeMetricsContext) appendSamplesFromSummary(metricName string, p *pb.SummaryDataPoint) {
 	t := int64(p.TimeUnixNano / 1e6)
 	isStale := (p.Flags)&uint32(1) != 0
 	wr.pointLabels = appendAttributesToPromLabels(wr.pointLabels[:0], p.Attributes)
@@ -123,7 +124,7 @@ func (wr *writeContext) appendSamplesFromSummary(metricName string, p *pb.Summar
 }
 
 // appendSamplesFromHistogram appends histogram p to wr.tss
-func (wr *writeContext) appendSamplesFromHistogram(metricName string, p *pb.HistogramDataPoint) {
+func (wr *writeMetricsContext) appendSamplesFromHistogram(metricName string, p *pb.HistogramDataPoint) {
 	if len(p.BucketCounts) == 0 {
 		// nothing to append
 		return
@@ -159,12 +160,12 @@ func (wr *writeContext) appendSamplesFromHistogram(metricName string, p *pb.Hist
 }
 
 // appendSample appends sample with the given metricName to wr.tss
-func (wr *writeContext) appendSample(metricName string, t int64, v float64, isStale bool) {
+func (wr *writeMetricsContext) appendSample(metricName string, t int64, v float64, isStale bool) {
 	wr.appendSampleWithExtraLabel(metricName, "", "", t, v, isStale)
 }
 
 // appendSampleWithExtraLabel appends sample with the given metricName and the given (labelName=labelValue) extra label to wr.tss
-func (wr *writeContext) appendSampleWithExtraLabel(metricName, labelName, labelValue string, t int64, v float64, isStale bool) {
+func (wr *writeMetricsContext) appendSampleWithExtraLabel(metricName, labelName, labelValue string, t int64, v float64, isStale bool) {
 	if isStale {
 		v = decimal.StaleNaN
 	}
@@ -217,7 +218,7 @@ func appendAttributesToPromLabels(dst []prompbmarshal.Label, attributes []*pb.Ke
 	return dst
 }
 
-type writeContext struct {
+type writeMetricsContext struct {
 	// bb holds the original data (json or protobuf), which must be parsed.
 	bb bytesutil.ByteBuffer
 
@@ -235,7 +236,7 @@ type writeContext struct {
 	samplesPool []prompbmarshal.Sample
 }
 
-func (wr *writeContext) reset() {
+func (wr *writeMetricsContext) reset() {
 	wr.bb.Reset()
 
 	clear(wr.tss)
@@ -253,7 +254,7 @@ func resetLabels(labels []prompbmarshal.Label) []prompbmarshal.Label {
 	return labels[:0]
 }
 
-func (wr *writeContext) readAndUnpackRequest(r io.Reader, processBody func([]byte) ([]byte, error)) (*pb.ExportMetricsServiceRequest, error) {
+func (wr *writeMetricsContext) readAndUnpackMetricsRequest(r io.Reader, contentType string, processBody func([]byte) ([]byte, error)) (*pb.ExportMetricsServiceRequest, error) {
 	if _, err := wr.bb.ReadFrom(r); err != nil {
 		return nil, fmt.Errorf("cannot read request: %w", err)
 	}
@@ -265,13 +266,19 @@ func (wr *writeContext) readAndUnpackRequest(r io.Reader, processBody func([]byt
 		}
 		wr.bb.B = append(wr.bb.B[:0], data...)
 	}
-	if err := req.UnmarshalProtobuf(wr.bb.B); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal request from %d bytes: %w", len(wr.bb.B), err)
+	if contentType == "application/json" {
+		if err := json.Unmarshal(wr.bb.B, &req); err != nil {
+			return nil, fmt.Errorf("cannot unmarshal request from %d bytes: %w", len(wr.bb.B), err)
+		}
+	} else {
+		if err := req.UnmarshalProtobuf(wr.bb.B); err != nil {
+			return nil, fmt.Errorf("cannot unmarshal request from %d bytes: %w", len(wr.bb.B), err)
+		}
 	}
 	return &req, nil
 }
 
-func (wr *writeContext) parseRequestToTss(req *pb.ExportMetricsServiceRequest) {
+func (wr *writeMetricsContext) parseRequestToTss(req *pb.ExportMetricsServiceRequest) {
 	for _, rm := range req.ResourceMetrics {
 		var attributes []*pb.KeyValue
 		if rm.Resource != nil {
@@ -284,19 +291,19 @@ func (wr *writeContext) parseRequestToTss(req *pb.ExportMetricsServiceRequest) {
 	}
 }
 
-var wrPool sync.Pool
+var wrMetricsPool sync.Pool
 
-func getWriteContext() *writeContext {
-	v := wrPool.Get()
+func getWriteMetricsContext() *writeMetricsContext {
+	v := wrMetricsPool.Get()
 	if v == nil {
-		return &writeContext{}
+		return &writeMetricsContext{}
 	}
-	return v.(*writeContext)
+	return v.(*writeMetricsContext)
 }
 
-func putWriteContext(wr *writeContext) {
+func putWriteMetricsContext(wr *writeMetricsContext) {
 	wr.reset()
-	wrPool.Put(wr)
+	wrMetricsPool.Put(wr)
 }
 
 var (

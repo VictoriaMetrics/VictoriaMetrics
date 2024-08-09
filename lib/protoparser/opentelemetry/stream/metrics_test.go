@@ -14,7 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 )
 
-func TestParseStream(t *testing.T) {
+func TestParseMetricsStream(t *testing.T) {
 	f := func(samples []*pb.Metric, tssExpected []prompbmarshal.TimeSeries, usePromNaming bool) {
 		t.Helper()
 
@@ -67,7 +67,8 @@ func TestParseStream(t *testing.T) {
 
 		// Verify protobuf parsing
 		pbData := req.MarshalProtobuf(nil)
-		if err := checkParseStream(pbData, checkSeries); err != nil {
+		contentType := "application/x-protobuf"
+		if err := checkParseMetricsStream(pbData, contentType, checkSeries); err != nil {
 			t.Fatalf("cannot parse protobuf: %s", err)
 		}
 	}
@@ -194,9 +195,9 @@ func TestParseStream(t *testing.T) {
 	)
 }
 
-func checkParseStream(data []byte, checkSeries func(tss []prompbmarshal.TimeSeries) error) error {
+func checkParseMetricsStream(data []byte, contentType string, checkSeries func(tss []prompbmarshal.TimeSeries) error) error {
 	// Verify parsing without compression
-	if err := ParseStream(bytes.NewBuffer(data), false, nil, checkSeries); err != nil {
+	if err := ParseMetricsStream(bytes.NewBuffer(data), contentType, false, nil, checkSeries); err != nil {
 		return fmt.Errorf("error when parsing data: %w", err)
 	}
 
@@ -209,7 +210,7 @@ func checkParseStream(data []byte, checkSeries func(tss []prompbmarshal.TimeSeri
 	if err := zw.Close(); err != nil {
 		return fmt.Errorf("cannot close gzip writer: %w", err)
 	}
-	if err := ParseStream(&bb, true, nil, checkSeries); err != nil {
+	if err := ParseMetricsStream(&bb, contentType, true, nil, checkSeries); err != nil {
 		return fmt.Errorf("error when parsing compressed data: %w", err)
 	}
 
