@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"strings"
 	"testing"
@@ -11,6 +12,11 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+)
+
+var (
+	testServerURL string
+	listAPICall   int
 )
 
 func TestGetVirtualMachinesSuccess(t *testing.T) {
@@ -41,39 +47,51 @@ func TestGetVirtualMachinesSuccess(t *testing.T) {
 		}
 		return sb.String()
 	}
-	f := func(name string, expectedVMs []virtualMachine, apiResponses [4]string) {
+	f := func(name string, expectedVMs []virtualMachine, apiResponses [5]string) {
 		t.Run(name, func(t *testing.T) {
 			testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch {
 				// list vms response
 				case strings.Contains(r.URL.Path, "/providers/Microsoft.Compute/virtualMachines"):
 					w.WriteHeader(http.StatusOK)
-					fmt.Fprintf(w, apiResponses[0])
+					if listAPICall == 0 {
+						// with nextLink
+						apiResponse := strings.Replace(apiResponses[0], "{nextLinkPlaceHolder}", testServerURL+"/providers/Microsoft.Compute/virtualMachines", 1)
+						fmt.Fprint(w, apiResponse)
+						listAPICall++
+					} else {
+						// without nextLink
+						fmt.Fprint(w, apiResponses[1])
+					}
 					// list scaleSets response
 				case strings.Contains(r.URL.RequestURI(), "/providers/Microsoft.Compute/virtualMachineScaleSets?api-version=2022-03-01"):
 					w.WriteHeader(http.StatusOK)
-					fmt.Fprintf(w, apiResponses[1])
+					fmt.Fprint(w, apiResponses[2])
 					// list scalesets vms response
 				case strings.Contains(r.URL.Path, "/providers/Microsoft.Compute/virtualMachineScaleSets/{virtualMachineScaleSetName}/virtualMach"):
 					w.WriteHeader(http.StatusOK)
-					fmt.Fprintf(w, apiResponses[2])
+					fmt.Fprint(w, apiResponses[3])
 					// nic response
 				case strings.Contains(r.URL.Path, "/networkInterfaces/"):
 					w.WriteHeader(http.StatusOK)
-					fmt.Fprintf(w, apiResponses[3])
+					fmt.Fprint(w, apiResponses[4])
 				default:
 					w.WriteHeader(http.StatusNotFound)
 					fmt.Fprintf(w, "API path not found: %s", r.URL.Path)
 				}
 			}))
 			defer testServer.Close()
+			testServerURL = testServer.URL
 			c, err := discoveryutils.NewClient(testServer.URL, nil, nil, nil, &promauth.HTTPClientConfig{})
 			if err != nil {
 				t.Fatalf("unexpected error at client create: %s", err)
 			}
+			u, _ := url.Parse(c.APIServer())
+
 			defer c.Stop()
 			ac := &apiConfig{
 				c:              c,
+				apiServerHost:  u.Host,
 				subscriptionID: "some-id",
 				refreshToken: func() (string, time.Duration, error) {
 					return "auth-token", 0, nil
@@ -102,7 +120,7 @@ func TestGetVirtualMachinesSuccess(t *testing.T) {
 			},
 			Tags: map[string]string{},
 		},
-	}, [4]string{
+	}, [5]string{
 		`
 {
   "value": [
@@ -193,6 +211,10 @@ func TestGetVirtualMachinesSuccess(t *testing.T) {
       "name": "{virtualMachineName}"
     }
   ],
+  "nextLink": "{nextLinkPlaceHolder}"
+}`,
+		`{
+  "value": [],
   "nextLink": ""
 }`,
 		`{}`,
@@ -255,7 +277,8 @@ func TestGetVirtualMachinesSuccess(t *testing.T) {
 			},
 			Tags: map[string]string{},
 		},
-	}, [4]string{
+	}, [5]string{
+		`{}`,
 		`{}`,
 		`{
   "value": [

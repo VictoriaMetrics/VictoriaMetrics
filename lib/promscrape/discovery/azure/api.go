@@ -67,6 +67,9 @@ type apiConfig struct {
 	tokenLock           sync.Mutex
 	token               string
 	tokenExpireDeadline time.Time
+
+	// apiServerHost is only used for verifying the `nextLink` in response of the list API.
+	apiServerHost string
 }
 
 type refreshTokenFunc func() (string, time.Duration, error)
@@ -114,8 +117,12 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot create client for %q: %w", env.ResourceManagerEndpoint, err)
 	}
+	// It's already verified in discoveryutils.NewClient so no need to check err.
+	u, _ := url.Parse(c.APIServer())
+
 	cfg := &apiConfig{
 		c:              c,
+		apiServerHost:  u.Host,
 		port:           port,
 		resourceGroup:  sdc.ResourceGroup,
 		subscriptionID: sdc.SubscriptionID,
