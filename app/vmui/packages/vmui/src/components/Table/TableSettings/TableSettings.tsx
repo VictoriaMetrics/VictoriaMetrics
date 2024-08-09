@@ -44,6 +44,14 @@ const TableSettings: FC<TableSettingsProps> = ({
     onChangeColumns(defaultColumns.includes(key) ? defaultColumns.filter(col => col !== key) : [...defaultColumns, key]);
   };
 
+  const toggleAllColumns = () => {
+    if (defaultColumns.length === columns.length) {
+      onChangeColumns([]);
+    } else {
+      onChangeColumns(columns);
+    }
+  };
+
   const handleResetColumns = () => {
     handleClose();
     onChangeColumns(columns);
@@ -104,6 +112,16 @@ const TableSettings: FC<TableSettingsProps> = ({
                   ariaLabel="reset columns"
                 />
               </Tooltip>
+            </div>
+            <div
+              className="vm-table-settings-popper-list__item vm-table-settings-popper-list__check_all"
+            >
+              <Checkbox
+                checked={defaultColumns.length === columns.length}
+                onChange={toggleAllColumns}
+                label="Check all"
+                disabled={tableCompact}
+              />
             </div>
             {columns.map(col => (
               <div

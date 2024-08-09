@@ -1,5 +1,5 @@
-import { useMemo } from "preact/compat";
-import { MetricBase } from "../api/types";
+import {useMemo} from "preact/compat";
+import {MetricBase} from "../api/types";
 
 export type MetricCategory = {
   key: string;
@@ -10,7 +10,7 @@ export const getColumns = (data: MetricBase[]): MetricCategory[] => {
   const columns: { [key: string]: { options: Set<string> } } = {};
   data.forEach(d =>
     Object.entries(d.metric).forEach(e =>
-      columns[e[0]] ? columns[e[0]].options.add(e[1]) : columns[e[0]] = { options: new Set([e[1]]) }
+      columns[e[0]] ? columns[e[0]].options.add(e[1]) : columns[e[0]] = {options: new Set([e[1]])}
     )
   );
 
@@ -22,7 +22,8 @@ export const getColumns = (data: MetricBase[]): MetricCategory[] => {
 
 export const useSortedCategories = (data: MetricBase[], displayColumns?: string[]): MetricCategory[] => (
   useMemo(() => {
+    if (!displayColumns) return [];
     const sortedColumns = getColumns(data);
-    return displayColumns ? sortedColumns.filter(col => displayColumns.includes(col.key)) : sortedColumns;
+    return sortedColumns.filter(col => displayColumns.includes(col.key));
   }, [data, displayColumns])
 );

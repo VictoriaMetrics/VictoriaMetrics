@@ -39,7 +39,8 @@ const TableLogs: FC<TableLogsProps> = ({ logs, displayColumns, tableCompact, col
 
 
   const filteredColumns = useMemo(() => {
-    if (!displayColumns?.length || tableCompact) return tableColumns;
+    if (tableCompact) return tableColumns;
+    if (!displayColumns?.length) return [];
     return tableColumns.filter(c => displayColumns.includes(c.key as string));
   }, [tableColumns, displayColumns, tableCompact]);
 
