@@ -1,5 +1,4 @@
 ---
-sort: 98
 weight: 98
 title: Streaming aggregation
 menu:
@@ -134,7 +133,7 @@ just after the restart of `vmagent` or single-node VictoriaMetrics. This can be 
 - The `-streamAggr.ignoreFirstIntervals=N` command-line flag at `vmagent` and single-node VictoriaMetrics. This flag instructs skipping the first `N`
   [aggregation intervals](#stream-aggregation-config) just after the restart across all the [configured stream aggregation configs](#configuration).
 
-  The `-remoteWrite.streamAggr.ignoreFirstIntervals=N` command-line flag can be specified individually per each `-remoteWrite.url` at [vmagent](https://docs.victoriametrics.com/vmagent/).
+  The `-remoteWrite.streamAggr.ignoreFirstIntervals` command-line flag can be specified individually per each `-remoteWrite.url` at [vmagent](https://docs.victoriametrics.com/vmagent/).
 
 - The `ignore_first_intervals: N` option at the particular [aggregation config](#stream-aggregation-config).
 

@@ -1,9 +1,8 @@
 ---
-sort: 6
 weight: 6
 menu:
   docs:
-    parent: 'victoriametrics'
+    parent: victoriametrics
     weight: 6
 title: vmbackup
 aliases:

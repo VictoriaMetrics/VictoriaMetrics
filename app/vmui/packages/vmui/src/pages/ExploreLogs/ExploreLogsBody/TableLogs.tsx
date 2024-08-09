@@ -48,7 +48,8 @@ const TableLogs: FC<TableLogsProps> = ({ logs, displayColumns, tableCompact, col
       <Table
         rows={logs}
         columns={filteredColumns}
-        defaultOrderBy={"_vmui_time"}
+        defaultOrderBy={"_time"}
+        defaultOrderDir={"desc"}
         copyToClipboard={"_vmui_data"}
         paginationOffset={{ startIndex: 0, endIndex: Infinity }}
       />

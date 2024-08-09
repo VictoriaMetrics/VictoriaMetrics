@@ -1,10 +1,10 @@
 ---
-sort: 400
 weight: 400
-title: Contributing to VictoriaMetrics
+title: Contributing
 menu:
   docs:
-    parent: 'victoriametrics'
+    identifier: vm-contributing
+    parent: victoriametrics
     weight: 400
 aliases:
 - /CONTRIBUTING.html

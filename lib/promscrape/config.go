@@ -1187,6 +1187,16 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		}
 		seriesLimit = n
 	}
+	// Read sample_limit option from __sample_limit__ label.
+	// See https://docs.victoriametrics.com/vmagent/#automatically-generated-metrics
+	sampleLimit := swc.sampleLimit
+	if s := labels.Get("__sample_limit__"); len(s) > 0 {
+		n, err := strconv.Atoi(s)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse __sample_limit__=%q: %w", s, err)
+		}
+		sampleLimit = n
+	}
 	// Read stream_parse option from __stream_parse__ label.
 	// See https://docs.victoriametrics.com/vmagent/#stream-parsing-mode
 	streamParse := swc.streamParse
@@ -1232,7 +1242,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		AuthConfig:           swc.authConfig,
 		RelabelConfigs:       swc.relabelConfigs,
 		MetricRelabelConfigs: swc.metricRelabelConfigs,
-		SampleLimit:          swc.sampleLimit,
+		SampleLimit:          sampleLimit,
 		DisableCompression:   swc.disableCompression,
 		DisableKeepAlive:     swc.disableKeepAlive,
 		StreamParse:          streamParse,

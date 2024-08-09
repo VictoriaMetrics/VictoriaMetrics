@@ -6,12 +6,6 @@
 [![Build Status](https://github.com/VictoriaMetrics/VictoriaMetrics/workflows/main/badge.svg)](https://github.com/VictoriaMetrics/VictoriaMetrics/actions)
 [![codecov](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics/branch/master/graph/badge.svg)](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics)
 
-<picture>
-  <source srcset="/logo_white.webp" media="(prefers-color-scheme: dark)">
-  <source srcset="/logo.webp" media="(prefers-color-scheme: light)">
-  <img src="/logo.webp" width="300" alt="VictoriaMetrics logo">
-</picture>
-
 VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
 See [case studies for VictoriaMetrics](https://docs.victoriametrics.com/casestudies/).
 
@@ -498,7 +492,7 @@ via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit
 DataDog agent allows configuring destinations for metrics sending via ENV variable `DD_DD_URL` 
 or via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) in section `dd_url`.
 
-![DD to VM](Single-server-VictoriaMetrics-sending_DD_metrics_to_VM.webp)
+![DD to VM](README_sending_DD_metrics_to_VM.webp)
 
 To configure DataDog agent via ENV variable add the following prefix:
 
@@ -525,7 +519,7 @@ pick [single-node or cluster URL](https://docs.victoriametrics.com/url-examples/
 DataDog allows configuring [Dual Shipping](https://docs.datadoghq.com/agent/guide/dual-shipping/) for metrics 
 sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `additional_endpoints`.
  
-![DD to VM](Single-server-VictoriaMetrics-sending_DD_metrics_to_VM_and_DD.webp)
+![DD to VM](README_sending_DD_metrics_to_VM_and_DD.webp)
  
 Run DataDog using the following ENV variable with VictoriaMetrics as additional metrics receiver:
 
@@ -1008,6 +1002,18 @@ VictoriaMetrics supports [Graphite Render API](https://graphite.readthedocs.io/e
 at `/render` endpoint, which is used by [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/).
 When configuring Graphite datasource in Grafana, the `Storage-Step` http request header must be set to a step between Graphite data points
 stored in VictoriaMetrics. For example, `Storage-Step: 10s` would mean 10 seconds distance between Graphite datapoints stored in VictoriaMetrics.
+
+#### Known Incompatibilities with `graphite-web`
+
+- **Timestamp Shifting**: VictoriaMetrics does not support shifting response timestamps outside the request time range as `graphite-web` does. This limitation impacts chained functions with time modifiers, such as `timeShift(summarize)`. For more details, refer to this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2969).
+
+- **Non-deterministic series order**: due to the distributed nature of metrics processing, functions within the `seriesLists` family can produce non-deterministic results. To ensure consistent results, arguments for these functions must be wrapped with a sorting function. For instance, the function `divideSeriesLists(series_list_1, series_list_2)` should be modified to `divideSeriesLists(sortByName(series_list_1), sortByName(series_list_2))`.  See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5810) for details.
+
+  The affected functions include:
+  - `aggregateSeriesLists`
+  - `diffSeriesLists`
+  - `multiplySeriesLists`
+  - `divideSeriesLists`
 
 ### Graphite Metrics API usage
 
@@ -2606,7 +2612,6 @@ It is safe sharing the collected profiles from security point of view, since the
 
 ## Third-party contributions
 
-* [Unofficial yum repository](https://copr.fedorainfracloud.org/coprs/antonpatsev/VictoriaMetrics/) ([source code](https://github.com/patsevanton/victoriametrics-rpm))
 * [Prometheus -> VictoriaMetrics exporter #1](https://github.com/ryotarai/prometheus-tsdb-dump)
 * [Prometheus -> VictoriaMetrics exporter #2](https://github.com/AnchorFree/tsdb-remote-write)
 * [Prometheus Oauth proxy](https://gitlab.com/optima_public/prometheus_oauth_proxy) - see [this article](https://medium.com/@richard.holly/powerful-saas-solution-for-detection-metrics-c67b9208d362) for details.
@@ -2642,15 +2647,9 @@ and gets automatically updated once changes are merged to [master](https://githu
 To update the documentation follow the steps below:
 - [Fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/about-forks) 
   VictoriaMetrics repo and apply changes to the docs:
-  - To update [the main page](https://docs.victoriametrics.com/) modify [this file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md).
+  - To update [the main page](https://docs.victoriametrics.com/) modify [this file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/README.md).
   - To update other pages, apply changes to the corresponding file in [docs folder](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs).
 - If your changes contain an image then see [images in documentation](https://docs.victoriametrics.com/#images-in-documentation).
-- Once changes are made, execute the command below to finalize and sync the changes:
-
-  ```sh
-  make docs-sync
-  ```
-
 - Create [a pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request)
   with proposed changes and wait for it to be merged.
 
@@ -2663,7 +2662,7 @@ Requirements for changes to docs:
 - Prefer improving the existing docs instead of adding new ones.
 - Use absolute links. This simplifies moving docs between different files.
 
-Priodically run `make spellcheck` - this command detects spelling errors at `docs/` folder. Please fix the found spelling errors
+Periodically run `make spellcheck` - this command detects spelling errors at `docs/` folder. Please fix the found spelling errors
 and commit the fixes in a separate commit.
 
 ### Images in documentation

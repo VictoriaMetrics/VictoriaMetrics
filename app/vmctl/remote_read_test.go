@@ -8,6 +8,7 @@ import (
 
 	"github.com/prometheus/prometheus/prompb"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
@@ -148,6 +149,12 @@ func TestRemoteRead(t *testing.T) {
 			remoteWriteServer.ExpectedSeries(tt.expectedSeries)
 
 			tt.vmCfg.Addr = remoteWriteServer.URL()
+
+			b, err := backoff.New(10, 1.8, time.Second*2)
+			if err != nil {
+				t.Fatalf("failed to create backoff: %s", err)
+			}
+			tt.vmCfg.Backoff = b
 
 			importer, err := vm.NewImporter(ctx, tt.vmCfg)
 			if err != nil {
@@ -308,6 +315,12 @@ func TestSteamRemoteRead(t *testing.T) {
 
 			tt.vmCfg.Addr = remoteWriteServer.URL()
 
+			b, err := backoff.New(10, 1.8, time.Second*2)
+			if err != nil {
+				t.Fatalf("failed to create backoff: %s", err)
+			}
+
+			tt.vmCfg.Backoff = b
 			importer, err := vm.NewImporter(ctx, tt.vmCfg)
 			if err != nil {
 				t.Fatalf("failed to create VM importer: %s", err)

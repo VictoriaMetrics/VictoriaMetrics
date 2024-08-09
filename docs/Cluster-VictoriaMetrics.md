@@ -1,19 +1,14 @@
 ---
-sort: 2
 weight: 2
 menu:
   docs:
+    identifier: vm-cluster-version
     parent: 'victoriametrics'
     weight: 2
 title: Cluster version
 aliases:
   - /Cluster-VictoriaMetrics.html
 ---
-<picture>
-  <source srcset="/logo_white.webp" media="(prefers-color-scheme: dark)">
-  <source srcset="/logo.webp" media="(prefers-color-scheme: light)">
-  <img src="/logo.webp" width="300" alt="VictoriaMetrics logo">
-</picture>
 
 VictoriaMetrics is a fast, cost-effective and scalable time series database. It can be used as a long-term remote storage for Prometheus.
 
@@ -1901,32 +1896,3 @@ Below is the output for `/path/to/vmstorage -help`:
   -vmselectAddr string
      TCP address to accept connections from vmselect services (default ":8401")
 ```
-
-## VictoriaMetrics Logo
-
-[Zip](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/VM_logo.zip) contains three folders with different image orientation (main color and inverted version).
-
-Files included in each folder:
-
-- 2 JPEG Preview files
-- 2 PNG Preview files with transparent background
-- 2 EPS Adobe Illustrator EPS10 files
-
-### Logo Usage Guidelines
-
-#### Font used
-
-- Lato Black
-- Lato Regular
-
-#### Color Palette
-
-- HEX [#110f0f](https://www.color-hex.com/color/110f0f)
-- HEX [#ffffff](https://www.color-hex.com/color/ffffff)
-
-### We kindly ask
-
-- Please don't use any other font instead of suggested.
-- There should be sufficient clear space around the logo.
-- Do not change spacing, alignment, or relative locations of the design elements.
-- Do not change the proportions of any of the design elements or the design itself. You    may resize as needed but must retain all proportions.

@@ -1,5 +1,4 @@
 ---
-sort: 37
 weight: 37
 title: Relabeling cookbook
 menu:

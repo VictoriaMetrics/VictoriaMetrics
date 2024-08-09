@@ -1,5 +1,4 @@
 ---
-sort: 100
 weight: 100
 title: LogsQL examples
 menu:

@@ -414,6 +414,10 @@ If datasource is configured via Grafana variable, then change variable to Victor
 
 Grafana doesn't allow forwarding Alert requests to alerting API /api/v1/rules for plugins which are not of Prometheus or Loki type. See more details [here](https://github.com/VictoriaMetrics/victoriametrics-datasource/issues/59#issuecomment-1541456768).
 
+### Which version of Grafana is required in order to use VictoriaMetrics datasource? 
+
+[8.3.0](https://grafana.com/grafana/download/8.3.0) or newer.
+
 ## License
 
 This project is licensed under

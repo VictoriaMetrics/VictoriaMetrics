@@ -1,7 +1,6 @@
 ---
-sort: 7
 weight: 7
-title: VictoriaLogs changelog
+title: CHANGELOG
 menu:
   docs:
     identifier: "victorialogs-changelog"
@@ -15,6 +14,16 @@ The following `tip` changes can be tested by building VictoriaLogs from the late
 according to [these docs](https://docs.victoriametrics.com/victorialogs/quickstart/#building-from-source-code)
 
 ## tip
+
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add support for displaying the top 5 log streams in the hits graph. The remaining log streams are grouped into an "other" label. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6545).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add the ability to customize the graph display with options for bar, line, stepped line, and points.
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add fields for setting AccountID and ProjectID. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6631).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add a toggle button to the "Group" tab that allows users to expand or collapse all groups at once.
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): introduce the ability to select a key for grouping logs within the "Group" tab.
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): display the number of entries within each log group.
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): move the Markdown toggle to the general settings panel in the upper left corner.
+
+* BUGFIX: properly handle Logstash requests for Elasticsearch configuration when using `outputs.elasticsearch` in Logstash pipelines. Previously, the requests could be rejected with `400 Bad Request` response.
 
 ## [v0.28.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.28.0-victorialogs)
 

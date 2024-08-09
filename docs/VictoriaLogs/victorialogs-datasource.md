@@ -20,6 +20,7 @@ The VictoriaLogs datasource plugin allows you to query and visualize
 * [Installation](#installation)
 * [How to make new release](#how-to-make-new-release)
 * [Notes](#notes)
+* [Frequently Asked Questions](#faq)
 * [License](#license)
 
 ## Installation
@@ -307,6 +308,12 @@ This command will build frontend part and backend part or the plugin and locate 
 In the `plugin.json` file of our plugin, the `metrics` field is set to `true`. This is not to support metric queries in the classical sense but to ensure our plugin can be selected in the Grafana panel editor.
 
 For more information on the fields in `plugin.json`, please refer to the [Grafana documentation](https://grafana.com/developers/plugin-tools/reference-plugin-json#properties).
+
+## FAQ
+
+### Which version of Grafana is required in order to use VictoriaLogs datasource?
+
+[10.0.3](https://grafana.com/grafana/download/10.0.3) or newer.
 
 ## License
 
