@@ -56,24 +56,25 @@ func TestGetVirtualMachinesSuccess(t *testing.T) {
 					w.WriteHeader(http.StatusOK)
 					if listAPICall == 0 {
 						// with nextLink
-						fmt.Fprintf(w, strings.Replace(apiResponses[0], "{nextLinkPlaceHolder}", testServerURL+"/providers/Microsoft.Compute/virtualMachines", 1))
+						apiResponse := strings.Replace(apiResponses[0], "{nextLinkPlaceHolder}", testServerURL+"/providers/Microsoft.Compute/virtualMachines", 1)
+						fmt.Fprint(w, apiResponse)
 						listAPICall++
 					} else {
 						// without nextLink
-						fmt.Fprintf(w, apiResponses[1])
+						fmt.Fprint(w, apiResponses[1])
 					}
 					// list scaleSets response
 				case strings.Contains(r.URL.RequestURI(), "/providers/Microsoft.Compute/virtualMachineScaleSets?api-version=2022-03-01"):
 					w.WriteHeader(http.StatusOK)
-					fmt.Fprintf(w, apiResponses[2])
+					fmt.Fprint(w, apiResponses[2])
 					// list scalesets vms response
 				case strings.Contains(r.URL.Path, "/providers/Microsoft.Compute/virtualMachineScaleSets/{virtualMachineScaleSetName}/virtualMach"):
 					w.WriteHeader(http.StatusOK)
-					fmt.Fprintf(w, apiResponses[3])
+					fmt.Fprint(w, apiResponses[3])
 					// nic response
 				case strings.Contains(r.URL.Path, "/networkInterfaces/"):
 					w.WriteHeader(http.StatusOK)
-					fmt.Fprintf(w, apiResponses[4])
+					fmt.Fprint(w, apiResponses[4])
 				default:
 					w.WriteHeader(http.StatusNotFound)
 					fmt.Fprintf(w, "API path not found: %s", r.URL.Path)
