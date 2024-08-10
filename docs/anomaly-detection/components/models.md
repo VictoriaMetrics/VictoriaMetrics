@@ -623,7 +623,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 ### Online Seasonal Quantile
 
-> **Note**: `OnlineSeasonalQuantile` is [univariate](#univariate-models), [non-rolling](#non-rolling-models), [online](#online-models) model.
+> **Note**: `OnlineQuantileModel` is [univariate](#univariate-models), [non-rolling](#non-rolling-models), [online](#online-models) model.
 
 Online (seasonal) quantile utilizes a set of approximate distributions, based on [t-digests](https://www.sciencedirect.com/science/article/pii/S2665963820300403) for online quantile estimation. Introduced in [v1.15.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1150).
 
