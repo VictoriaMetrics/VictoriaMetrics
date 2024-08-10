@@ -14,7 +14,7 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 > **Important note: Users are strongly encouraged to upgrade to `vmanomaly` [v1.9.2](https://hub.docker.com/repository/docker/victoriametrics/vmanomaly/tags?page=1&ordering=name) or newer for optimal performance and accuracy. <br><br> This recommendation is crucial for configurations with a low `infer_every` parameter [in your scheduler](./components/scheduler.md#parameters-1), and in scenarios where data exhibits significant high-order seasonality patterns (such as hourly or daily cycles). Previous versions from v1.5.1 to v1.8.0 were identified to contain a critical issue impacting model training, where models were inadvertently trained on limited data subsets, leading to suboptimal fits, affecting the accuracy of anomaly detection. <br><br> Upgrading to v1.9.2 addresses this issue, ensuring proper model training and enhanced reliability. For users utilizing Helm charts, it is recommended to upgrade to version [1.0.0](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/CHANGELOG.md#100) or newer.**
 
 ## v1.15.1
-Released: 2024-08-08
+Released: 2024-08-10
 - FEATURE: Introduced backward-compatible `data_range` [query-specific parameter](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters) to the [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader). It enables the definition of **valid** data ranges for input per individual query in `queries`, resulting in:
   - **High anomaly scores** (>1) when the *data falls outside the expected range*, indicating a data constraint violation.
   - **Lowest anomaly scores** (=0) when the *model's predictions (`yhat`) fall outside the expected range*, signaling uncertain predictions.
@@ -22,8 +22,7 @@ Released: 2024-08-08
 
 - IMPROVEMENT: Added `latency_offset` argument to the [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) to override the default `-search.latencyOffset` [flag of VictoriaMetrics](https://docs.victoriametrics.com/?highlight=search.latencyOffset#list-of-command-line-flags) (30s). The default value is set to 1ms, which should help in cases where `sampling_frequency` is low (10-60s) and `sampling_frequency` equals `infer_every` in the [PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/?highlight=infer_every#periodic-scheduler). This prevents users from receiving `service - WARNING - [Scheduler [scheduler_alias]] No data available for inference.` warnings in logs and allows for consecutive `infer` calls without gaps. To restore the backward compatible behavior, set it equal to your `-search.latencyOffset` value in [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) config section.
 
-- FIX: Ensure the `use_transform` argument of the [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/
-#online-seasonal-quantile) functions as intended.
+- FIX: Ensure the `use_transform` argument of the [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile) functions as intended.
 - FIX: Add a docstring for `query_from_last_seen_timestamp` arg of [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader).
 
 
