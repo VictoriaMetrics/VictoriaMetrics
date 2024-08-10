@@ -240,10 +240,10 @@ List of strings with series selector. See: [Prometheus querying API enhancements
 `query_from_last_seen_timestamp`
             </td>
             <td>
-`True`
+`False`
             </td>
             <td>
-If True, then query will be performed from the last seen timestamp for a given series. If False, then query will be performed from the start timestamp, based on a schedule period. Defaults to `True`. (`False` prior to [v1.15.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1151)). Useful for `infer` stages in case there were skipped `infer` calls prior to given.
+If True, then query will be performed from the last seen timestamp for a given series. If False, then query will be performed from the start timestamp, based on a schedule period. Defaults to `False`. Useful for `infer` stages in case there were skipped `infer` calls prior to given.
             </td>
         </tr>
         <tr>
@@ -265,11 +265,16 @@ Config file example:
 ```yaml
 reader:
   class: "vm"  # or "reader.vm.VmReader" until v1.13.0
-  datasource_url: "http://localhost:8428/"
+  datasource_url: "https://play.victoriametrics.com/"
   tenant_id: "0:0"
   queries:
-    ingestion_rate: 'sum(rate(vm_rows_inserted_total[5m])) by (type) > 0'
+    ingestion_rate:
+      expr: 'sum(rate(vm_rows_inserted_total[5m])) by (type) > 0'
+      step: '1m' # can override global `sampling_period` on per-query level
+      data_range: [0, 'inf']
   sampling_period: '1m'
+  query_from_last_seen_timestamp: True  # false by default
+  latency_offset: '1ms'
 ```
 
 ### Healthcheck metrics
