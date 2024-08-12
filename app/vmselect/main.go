@@ -192,7 +192,6 @@ func updateSlowQueryPathCounter(p *httpserver.Path, path string) {
 	case "prometheus/api/v1/query_range":
 		pathSlowQueryRange.Inc()
 	case "prometheus/api/v1/series":
-		logger.Warnf("api series")
 		pathSlowSeries.Inc()
 	case "prometheus/api/v1/series/count":
 		logger.Warnf("api series count")
