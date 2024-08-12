@@ -2,7 +2,7 @@ version: "3"
 
 services:
   fluentbit:
-    image: cr.fluentbit.io/fluent/fluent-bit:2.1.4
+    image: cr.fluentbit.io/fluent/fluent-bit:3.0.2
     volumes:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - ./fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
@@ -11,7 +11,7 @@ services:
       - "5140:5140"
 
   victorialogs:
-    image: docker.io/victoriametrics/victoria-logs:v0.5.2-victorialogs
+    image: docker.io/victoriametrics/victoria-logs:v0.28.0-victorialogs
     volumes:
       - victorialogs-fluentbit-vl:/vlogs
     ports:

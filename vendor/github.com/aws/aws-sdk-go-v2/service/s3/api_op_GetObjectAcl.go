@@ -13,24 +13,39 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets. Returns the access
-// control list (ACL) of an object. To use this operation, you must have
-// s3:GetObjectAcl permissions or READ_ACP access to the object. For more
-// information, see Mapping of ACL permissions and access policy permissions (https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html#acl-access-policy-permission-mapping)
-// in the Amazon S3 User Guide This functionality is not supported for Amazon S3 on
-// Outposts. By default, GET returns ACL information about the current version of
-// an object. To return ACL information about a different version, use the
-// versionId subresource. If your bucket uses the bucket owner enforced setting for
-// S3 Object Ownership, requests to read ACLs are still supported and return the
+// This operation is not supported by directory buckets.
+//
+// Returns the access control list (ACL) of an object. To use this operation, you
+// must have s3:GetObjectAcl permissions or READ_ACP access to the object. For
+// more information, see [Mapping of ACL permissions and access policy permissions]in the Amazon S3 User Guide
+//
+// This functionality is not supported for Amazon S3 on Outposts.
+//
+// By default, GET returns ACL information about the current version of an object.
+// To return ACL information about a different version, use the versionId
+// subresource.
+//
+// If your bucket uses the bucket owner enforced setting for S3 Object Ownership,
+// requests to read ACLs are still supported and return the
 // bucket-owner-full-control ACL with the owner being the account that created the
-// bucket. For more information, see Controlling object ownership and disabling
-// ACLs (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
-// in the Amazon S3 User Guide. The following operations are related to
-// GetObjectAcl :
-//   - GetObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
-//   - GetObjectAttributes (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAttributes.html)
-//   - DeleteObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html)
-//   - PutObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html)
+// bucket. For more information, see [Controlling object ownership and disabling ACLs]in the Amazon S3 User Guide.
+//
+// The following operations are related to GetObjectAcl :
+//
+// [GetObject]
+//
+// [GetObjectAttributes]
+//
+// [DeleteObject]
+//
+// [PutObject]
+//
+// [DeleteObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html
+// [Mapping of ACL permissions and access policy permissions]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html#acl-access-policy-permission-mapping
+// [GetObjectAttributes]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAttributes.html
+// [PutObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html
+// [GetObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html
+// [Controlling object ownership and disabling ACLs]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html
 func (c *Client) GetObjectAcl(ctx context.Context, params *GetObjectAclInput, optFns ...func(*Options)) (*GetObjectAclOutput, error) {
 	if params == nil {
 		params = &GetObjectAclInput{}
@@ -49,6 +64,7 @@ func (c *Client) GetObjectAcl(ctx context.Context, params *GetObjectAclInput, op
 type GetObjectAclInput struct {
 
 	// The bucket name that contains the object for which to get the ACL information.
+	//
 	// Access points - When you use this action with an access point, you must provide
 	// the alias of the access point in place of the bucket name or specify the access
 	// point ARN. When using the access point ARN, you must direct requests to the
@@ -56,8 +72,9 @@ type GetObjectAclInput struct {
 	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
 	// action with an access point through the Amazon Web Services SDKs, you provide
 	// the access point ARN in place of the bucket name. For more information about
-	// access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide.
+	// access point ARNs, see [Using access points]in the Amazon S3 User Guide.
+	//
+	// [Using access points]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html
 	//
 	// This member is required.
 	Bucket *string
@@ -76,20 +93,24 @@ type GetObjectAclInput struct {
 	// Bucket owners need not specify this parameter in their requests. If either the
 	// source or destination S3 bucket has Requester Pays enabled, the requester will
 	// pay for corresponding charges to copy the object. For information about
-	// downloading objects from Requester Pays buckets, see Downloading Objects in
-	// Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
-	// in the Amazon S3 User Guide. This functionality is not supported for directory
-	// buckets.
+	// downloading objects from Requester Pays buckets, see [Downloading Objects in Requester Pays Buckets]in the Amazon S3 User
+	// Guide.
+	//
+	// This functionality is not supported for directory buckets.
+	//
+	// [Downloading Objects in Requester Pays Buckets]: https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html
 	RequestPayer types.RequestPayer
 
-	// Version ID used to reference a specific version of the object. This
-	// functionality is not supported for directory buckets.
+	// Version ID used to reference a specific version of the object.
+	//
+	// This functionality is not supported for directory buckets.
 	VersionId *string
 
 	noSmithyDocumentSerde
 }
 
 func (in *GetObjectAclInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.Key = in.Key
 
@@ -100,11 +121,13 @@ type GetObjectAclOutput struct {
 	// A list of grants.
 	Grants []types.Grant
 
-	// Container for the bucket owner's display name and ID.
+	//  Container for the bucket owner's display name and ID.
 	Owner *types.Owner
 
 	// If present, indicates that the requester was successfully charged for the
-	// request. This functionality is not supported for directory buckets.
+	// request.
+	//
+	// This functionality is not supported for directory buckets.
 	RequestCharged types.RequestCharged
 
 	// Metadata pertaining to the operation's result.
@@ -169,6 +192,15 @@ func (c *Client) addOperationGetObjectAclMiddlewares(stack *middleware.Stack, op
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpGetObjectAclValidationMiddleware(stack); err != nil {

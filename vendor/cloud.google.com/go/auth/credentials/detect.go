@@ -37,6 +37,9 @@ const (
 	googleAuthURL  = "https://accounts.google.com/o/oauth2/auth"
 	googleTokenURL = "https://oauth2.googleapis.com/token"
 
+	// GoogleMTLSTokenURL is Google's default OAuth2.0 mTLS endpoint.
+	GoogleMTLSTokenURL = "https://oauth2.mtls.googleapis.com/token"
+
 	// Help on default credentials
 	adcSetupURL = "https://cloud.google.com/docs/authentication/external/set-up-adc"
 )
@@ -73,13 +76,18 @@ func DetectDefault(opts *DetectOptions) (*auth.Credentials, error) {
 	if err := opts.validate(); err != nil {
 		return nil, err
 	}
-	if opts.CredentialsJSON != nil {
+	if len(opts.CredentialsJSON) > 0 {
 		return readCredentialsFileJSON(opts.CredentialsJSON, opts)
 	}
-	if filename := credsfile.GetFileNameFromEnv(opts.CredentialsFile); filename != "" {
-		if creds, err := readCredentialsFile(filename, opts); err == nil {
-			return creds, err
+	if opts.CredentialsFile != "" {
+		return readCredentialsFile(opts.CredentialsFile, opts)
+	}
+	if filename := os.Getenv(credsfile.GoogleAppCredsEnvVar); filename != "" {
+		creds, err := readCredentialsFile(filename, opts)
+		if err != nil {
+			return nil, err
 		}
+		return creds, nil
 	}
 
 	fileName := credsfile.GetWellKnownFileName()
@@ -89,7 +97,7 @@ func DetectDefault(opts *DetectOptions) (*auth.Credentials, error) {
 
 	if OnGCE() {
 		return auth.NewCredentials(&auth.CredentialsOptions{
-			TokenProvider: computeTokenProvider(opts.EarlyTokenRefresh, opts.Scopes...),
+			TokenProvider: computeTokenProvider(opts),
 			ProjectIDProvider: auth.CredentialsPropertyFunc(func(context.Context) (string, error) {
 				return metadata.ProjectID()
 			}),
@@ -113,8 +121,13 @@ type DetectOptions struct {
 	// Optional.
 	Subject string
 	// EarlyTokenRefresh configures how early before a token expires that it
-	// should be refreshed.
+	// should be refreshed. Once the token’s time until expiration has entered
+	// this refresh window the token is considered valid but stale. If unset,
+	// the default value is 3 minutes and 45 seconds. Optional.
 	EarlyTokenRefresh time.Duration
+	// DisableAsyncRefresh configures a synchronous workflow that refreshes
+	// stale tokens while blocking. The default is false. Optional.
+	DisableAsyncRefresh bool
 	// AuthHandlerOptions configures an authorization handler and other options
 	// for 3LO flows. It is required, and only used, for client credential
 	// flows.

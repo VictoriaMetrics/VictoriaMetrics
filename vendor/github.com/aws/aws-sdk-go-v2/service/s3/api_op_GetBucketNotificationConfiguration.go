@@ -14,24 +14,38 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets. Returns the notification
-// configuration of a bucket. If notifications are not enabled on the bucket, the
-// action returns an empty NotificationConfiguration element. By default, you must
-// be the bucket owner to read the notification configuration of a bucket. However,
-// the bucket owner can use a bucket policy to grant permission to other users to
-// read this configuration with the s3:GetBucketNotification permission. When you
-// use this API operation with an access point, provide the alias of the access
-// point in place of the bucket name. When you use this API operation with an
-// Object Lambda access point, provide the alias of the Object Lambda access point
-// in place of the bucket name. If the Object Lambda access point alias in a
-// request is not valid, the error code InvalidAccessPointAliasError is returned.
-// For more information about InvalidAccessPointAliasError , see List of Error
-// Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList)
-// . For more information about setting and reading the notification configuration
-// on a bucket, see Setting Up Notification of Bucket Events (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html)
-// . For more information about bucket policies, see Using Bucket Policies (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-iam-policies.html)
-// . The following action is related to GetBucketNotification :
-//   - PutBucketNotification (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketNotification.html)
+// This operation is not supported by directory buckets.
+//
+// Returns the notification configuration of a bucket.
+//
+// If notifications are not enabled on the bucket, the action returns an empty
+// NotificationConfiguration element.
+//
+// By default, you must be the bucket owner to read the notification configuration
+// of a bucket. However, the bucket owner can use a bucket policy to grant
+// permission to other users to read this configuration with the
+// s3:GetBucketNotification permission.
+//
+// When you use this API operation with an access point, provide the alias of the
+// access point in place of the bucket name.
+//
+// When you use this API operation with an Object Lambda access point, provide the
+// alias of the Object Lambda access point in place of the bucket name. If the
+// Object Lambda access point alias in a request is not valid, the error code
+// InvalidAccessPointAliasError is returned. For more information about
+// InvalidAccessPointAliasError , see [List of Error Codes].
+//
+// For more information about setting and reading the notification configuration
+// on a bucket, see [Setting Up Notification of Bucket Events]. For more information about bucket policies, see [Using Bucket Policies].
+//
+// The following action is related to GetBucketNotification :
+//
+// [PutBucketNotification]
+//
+// [Using Bucket Policies]: https://docs.aws.amazon.com/AmazonS3/latest/dev/using-iam-policies.html
+// [Setting Up Notification of Bucket Events]: https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html
+// [List of Error Codes]: https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList
+// [PutBucketNotification]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketNotification.html
 func (c *Client) GetBucketNotificationConfiguration(ctx context.Context, params *GetBucketNotificationConfigurationInput, optFns ...func(*Options)) (*GetBucketNotificationConfigurationOutput, error) {
 	if params == nil {
 		params = &GetBucketNotificationConfigurationInput{}
@@ -49,15 +63,18 @@ func (c *Client) GetBucketNotificationConfiguration(ctx context.Context, params 
 
 type GetBucketNotificationConfigurationInput struct {
 
-	// The name of the bucket for which to get the notification configuration. When
-	// you use this API operation with an access point, provide the alias of the access
-	// point in place of the bucket name. When you use this API operation with an
-	// Object Lambda access point, provide the alias of the Object Lambda access point
-	// in place of the bucket name. If the Object Lambda access point alias in a
-	// request is not valid, the error code InvalidAccessPointAliasError is returned.
-	// For more information about InvalidAccessPointAliasError , see List of Error
-	// Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList)
-	// .
+	// The name of the bucket for which to get the notification configuration.
+	//
+	// When you use this API operation with an access point, provide the alias of the
+	// access point in place of the bucket name.
+	//
+	// When you use this API operation with an Object Lambda access point, provide the
+	// alias of the Object Lambda access point in place of the bucket name. If the
+	// Object Lambda access point alias in a request is not valid, the error code
+	// InvalidAccessPointAliasError is returned. For more information about
+	// InvalidAccessPointAliasError , see [List of Error Codes].
+	//
+	// [List of Error Codes]: https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList
 	//
 	// This member is required.
 	Bucket *string
@@ -71,6 +88,7 @@ type GetBucketNotificationConfigurationInput struct {
 }
 
 func (in *GetBucketNotificationConfigurationInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
@@ -156,6 +174,15 @@ func (c *Client) addOperationGetBucketNotificationConfigurationMiddlewares(stack
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpGetBucketNotificationConfigurationValidationMiddleware(stack); err != nil {

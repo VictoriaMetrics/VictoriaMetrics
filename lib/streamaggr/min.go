@@ -3,7 +3,7 @@ package streamaggr
 import (
 	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 // minAggrState calculates output=min, e.g. the minimum value over input samples.
@@ -33,6 +33,7 @@ func (as *minAggrState) pushSamples(samples []pushSample) {
 			v = &minStateValue{
 				min: s.value,
 			}
+			outputKey = bytesutil.InternString(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if !loaded {
 				// The new entry has been successfully created.
@@ -58,25 +59,20 @@ func (as *minAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *minAggrState) flushState(ctx *flushCtx, resetState bool) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
+func (as *minAggrState) flushState(ctx *flushCtx) {
 	m := &as.m
-	m.Range(func(k, v interface{}) bool {
-		if resetState {
-			// Atomically delete the entry from the map, so new entry is created for the next flush.
-			m.Delete(k)
-		}
+	m.Range(func(k, v any) bool {
+		// Atomically delete the entry from the map, so new entry is created for the next flush.
+		m.Delete(k)
 
 		sv := v.(*minStateValue)
 		sv.mu.Lock()
 		min := sv.min
-		if resetState {
-			// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-			sv.deleted = true
-		}
+		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
+		sv.deleted = true
 		sv.mu.Unlock()
 		key := k.(string)
-		ctx.appendSeries(key, "min", currentTimeMsec, min)
+		ctx.appendSeries(key, "min", min)
 		return true
 	})
 }

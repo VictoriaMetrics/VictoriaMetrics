@@ -33,7 +33,7 @@ The CRD specifies which `VMUser`s should be covered by the deployed `VMAuth` ins
 The Operator then generates a configuration based on the included `VMUser`s and updates the `Configmaps` containing
 the configuration. It continuously does so for all changes that are made to `VMUser`s or to the `VMAuth` resource itself.
 
-[VMUser](./vmrule.md) objects generate part of `VMAuth` configuration.
+[VMUser](./vmuser.md) objects generate part of `VMAuth` configuration.
 
 For filtering users `VMAuth` uses selectors `userNamespaceSelector` and `userSelector`.
 It allows configuring rules access control across namespaces and different environments.
@@ -101,8 +101,8 @@ metadata:
   name: vmauth-unauthorized-example
 spec:
   unauthorizedAccessConfig:
-    - paths: ["/metrics"]
-      urls:
+    - src_paths: ["/metrics"]
+      url_prefix:
         - http://vmsingle-example.default.svc:8428
 ```
 
@@ -245,8 +245,8 @@ spec:
       - 5.6.7.8
   # allow read vmsingle metrics without authorization for users from internal network
   unauthorizedAccessConfig:
-    - paths: ["/metrics"]
-      urls: ["http://vmsingle-example.default.svc:8428"]
+    - src_paths: ["/metrics"]
+      url_prefix: ["http://vmsingle-example.default.svc:8428"]
       ip_filters:
         allow_list:
           - 192.168.0.0/16

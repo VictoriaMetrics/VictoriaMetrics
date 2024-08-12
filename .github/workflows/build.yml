@@ -1,0 +1,54 @@
+name: build
+
+on:
+  push:
+    branches:
+      - cluster
+      - master
+    paths:
+      - '**.go'
+      - '**/Dockerfile*' # The trailing * is for app/vmui/Dockerfile-*.
+      - '**/Makefile'
+  pull_request:
+    branches:
+      - cluster
+      - master
+    paths:
+      - '**.go'
+      - '**/Dockerfile*' # The trailing * is for app/vmui/Dockerfile-*.
+      - '**/Makefile'
+
+permissions:
+  contents: read
+
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        id: go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+
+      - name: Cache Go artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/bin
+            ~/go/pkg/mod
+          key: go-artifacts-${{ runner.os }}-crossbuild-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
+          restore-keys: go-artifacts-${{ runner.os }}-crossbuild-
+
+      - name: Run crossbuild
+        run: make crossbuild

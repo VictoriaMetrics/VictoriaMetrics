@@ -4,7 +4,7 @@ import (
 	"math"
 	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 // stddevAggrState calculates output=stddev, e.g. the average value over input samples.
@@ -34,6 +34,7 @@ func (as *stddevAggrState) pushSamples(samples []pushSample) {
 		if !ok {
 			// The entry is missing in the map. Try creating it.
 			v = &stddevStateValue{}
+			outputKey = bytesutil.InternString(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if loaded {
 				// Use the entry created by a concurrent goroutine.
@@ -59,26 +60,21 @@ func (as *stddevAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *stddevAggrState) flushState(ctx *flushCtx, resetState bool) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
+func (as *stddevAggrState) flushState(ctx *flushCtx) {
 	m := &as.m
-	m.Range(func(k, v interface{}) bool {
-		if resetState {
-			// Atomically delete the entry from the map, so new entry is created for the next flush.
-			m.Delete(k)
-		}
+	m.Range(func(k, v any) bool {
+		// Atomically delete the entry from the map, so new entry is created for the next flush.
+		m.Delete(k)
 
 		sv := v.(*stddevStateValue)
 		sv.mu.Lock()
 		stddev := math.Sqrt(sv.q / sv.count)
-		if resetState {
-			// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-			sv.deleted = true
-		}
+		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
+		sv.deleted = true
 		sv.mu.Unlock()
 
 		key := k.(string)
-		ctx.appendSeries(key, "stddev", currentTimeMsec, stddev)
+		ctx.appendSeries(key, "stddev", stddev)
 		return true
 	})
 }

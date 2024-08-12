@@ -20,23 +20,34 @@ import (
 	"io"
 )
 
-// This operation is not supported by directory buckets. Returns the Region the
-// bucket resides in. You set the bucket's Region using the LocationConstraint
-// request parameter in a CreateBucket request. For more information, see
-// CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
-// . When you use this API operation with an access point, provide the alias of the
-// access point in place of the bucket name. When you use this API operation with
-// an Object Lambda access point, provide the alias of the Object Lambda access
-// point in place of the bucket name. If the Object Lambda access point alias in a
-// request is not valid, the error code InvalidAccessPointAliasError is returned.
-// For more information about InvalidAccessPointAliasError , see List of Error
-// Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList)
-// . We recommend that you use HeadBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadBucket.html)
-// to return the Region that a bucket resides in. For backward compatibility,
-// Amazon S3 continues to support GetBucketLocation. The following operations are
-// related to GetBucketLocation :
-//   - GetObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
-//   - CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
+// This operation is not supported by directory buckets.
+//
+// Returns the Region the bucket resides in. You set the bucket's Region using the
+// LocationConstraint request parameter in a CreateBucket request. For more
+// information, see [CreateBucket].
+//
+// When you use this API operation with an access point, provide the alias of the
+// access point in place of the bucket name.
+//
+// When you use this API operation with an Object Lambda access point, provide the
+// alias of the Object Lambda access point in place of the bucket name. If the
+// Object Lambda access point alias in a request is not valid, the error code
+// InvalidAccessPointAliasError is returned. For more information about
+// InvalidAccessPointAliasError , see [List of Error Codes].
+//
+// We recommend that you use [HeadBucket] to return the Region that a bucket resides in. For
+// backward compatibility, Amazon S3 continues to support GetBucketLocation.
+//
+// The following operations are related to GetBucketLocation :
+//
+// [GetObject]
+//
+// [CreateBucket]
+//
+// [List of Error Codes]: https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList
+// [CreateBucket]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html
+// [GetObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html
+// [HeadBucket]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadBucket.html
 func (c *Client) GetBucketLocation(ctx context.Context, params *GetBucketLocationInput, optFns ...func(*Options)) (*GetBucketLocationOutput, error) {
 	if params == nil {
 		params = &GetBucketLocationInput{}
@@ -54,14 +65,18 @@ func (c *Client) GetBucketLocation(ctx context.Context, params *GetBucketLocatio
 
 type GetBucketLocationInput struct {
 
-	// The name of the bucket for which to get the location. When you use this API
-	// operation with an access point, provide the alias of the access point in place
-	// of the bucket name. When you use this API operation with an Object Lambda access
-	// point, provide the alias of the Object Lambda access point in place of the
-	// bucket name. If the Object Lambda access point alias in a request is not valid,
-	// the error code InvalidAccessPointAliasError is returned. For more information
-	// about InvalidAccessPointAliasError , see List of Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList)
-	// .
+	// The name of the bucket for which to get the location.
+	//
+	// When you use this API operation with an access point, provide the alias of the
+	// access point in place of the bucket name.
+	//
+	// When you use this API operation with an Object Lambda access point, provide the
+	// alias of the Object Lambda access point in place of the bucket name. If the
+	// Object Lambda access point alias in a request is not valid, the error code
+	// InvalidAccessPointAliasError is returned. For more information about
+	// InvalidAccessPointAliasError , see [List of Error Codes].
+	//
+	// [List of Error Codes]: https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList
 	//
 	// This member is required.
 	Bucket *string
@@ -75,6 +90,7 @@ type GetBucketLocationInput struct {
 }
 
 func (in *GetBucketLocationInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
@@ -82,8 +98,10 @@ func (in *GetBucketLocationInput) bindEndpointParams(p *EndpointParameters) {
 type GetBucketLocationOutput struct {
 
 	// Specifies the Region where the bucket resides. For a list of all the Amazon S3
-	// supported location constraints by Region, see Regions and Endpoints (https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region)
-	// . Buckets in Region us-east-1 have a LocationConstraint of null .
+	// supported location constraints by Region, see [Regions and Endpoints]. Buckets in Region us-east-1
+	// have a LocationConstraint of null .
+	//
+	// [Regions and Endpoints]: https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region
 	LocationConstraint types.BucketLocationConstraint
 
 	// Metadata pertaining to the operation's result.
@@ -151,6 +169,15 @@ func (c *Client) addOperationGetBucketLocationMiddlewares(stack *middleware.Stac
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpGetBucketLocationValidationMiddleware(stack); err != nil {

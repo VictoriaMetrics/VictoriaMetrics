@@ -14,20 +14,29 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets. Returns the default
-// encryption configuration for an Amazon S3 bucket. By default, all buckets have a
-// default encryption configuration that uses server-side encryption with Amazon S3
-// managed keys (SSE-S3). For information about the bucket default encryption
-// feature, see Amazon S3 Bucket Default Encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html)
-// in the Amazon S3 User Guide. To use this operation, you must have permission to
-// perform the s3:GetEncryptionConfiguration action. The bucket owner has this
-// permission by default. The bucket owner can grant this permission to others. For
-// more information about permissions, see Permissions Related to Bucket
-// Subresource Operations (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
-// and Managing Access Permissions to Your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
-// . The following operations are related to GetBucketEncryption :
-//   - PutBucketEncryption (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketEncryption.html)
-//   - DeleteBucketEncryption (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketEncryption.html)
+// This operation is not supported by directory buckets.
+//
+// Returns the default encryption configuration for an Amazon S3 bucket. By
+// default, all buckets have a default encryption configuration that uses
+// server-side encryption with Amazon S3 managed keys (SSE-S3). For information
+// about the bucket default encryption feature, see [Amazon S3 Bucket Default Encryption]in the Amazon S3 User Guide.
+//
+// To use this operation, you must have permission to perform the
+// s3:GetEncryptionConfiguration action. The bucket owner has this permission by
+// default. The bucket owner can grant this permission to others. For more
+// information about permissions, see [Permissions Related to Bucket Subresource Operations]and [Managing Access Permissions to Your Amazon S3 Resources].
+//
+// The following operations are related to GetBucketEncryption :
+//
+// [PutBucketEncryption]
+//
+// [DeleteBucketEncryption]
+//
+// [DeleteBucketEncryption]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketEncryption.html
+// [PutBucketEncryption]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketEncryption.html
+// [Permissions Related to Bucket Subresource Operations]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources
+// [Amazon S3 Bucket Default Encryption]: https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html
+// [Managing Access Permissions to Your Amazon S3 Resources]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html
 func (c *Client) GetBucketEncryption(ctx context.Context, params *GetBucketEncryptionInput, optFns ...func(*Options)) (*GetBucketEncryptionOutput, error) {
 	if params == nil {
 		params = &GetBucketEncryptionInput{}
@@ -60,6 +69,7 @@ type GetBucketEncryptionInput struct {
 }
 
 func (in *GetBucketEncryptionInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
@@ -131,6 +141,15 @@ func (c *Client) addOperationGetBucketEncryptionMiddlewares(stack *middleware.St
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpGetBucketEncryptionValidationMiddleware(stack); err != nil {

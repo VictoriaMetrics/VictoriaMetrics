@@ -12,11 +12,13 @@ import (
 func TestIfExpressionParseFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
+
 		var ie IfExpression
 		if err := ie.Parse(s); err == nil {
 			t.Fatalf("expecting non-nil error when parsing %q", s)
 		}
 	}
+
 	f(`{`)
 	f(`{foo`)
 	f(`foo{`)
@@ -26,11 +28,13 @@ func TestIfExpressionParseFailure(t *testing.T) {
 func TestIfExpressionParseSuccess(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
+
 		var ie IfExpression
 		if err := ie.Parse(s); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 	}
+
 	f(`foo`)
 	f(`{foo="bar"}`)
 	f(`foo{bar=~"baz", x!="y"}`)
@@ -45,6 +49,7 @@ func TestIfExpressionParseSuccess(t *testing.T) {
 func TestIfExpressionMarshalUnmarshalJSON(t *testing.T) {
 	f := func(s, jsonExpected string) {
 		t.Helper()
+
 		var ie IfExpression
 		if err := ie.Parse(s); err != nil {
 			t.Fatalf("cannot parse ifExpression %q: %s", s, err)
@@ -68,6 +73,7 @@ func TestIfExpressionMarshalUnmarshalJSON(t *testing.T) {
 			t.Fatalf("unexpected data after unmarshal/marshal cycle;\ngot\n%s\nwant\n%s", data2, jsonExpected)
 		}
 	}
+
 	f("foo", `"foo"`)
 	f(`{foo="bar",baz=~"x.*"}`, `"{foo=\"bar\",baz=~\"x.*\"}"`)
 	f(`{a="b" or c="d",x="z"}`, `"{a=\"b\" or c=\"d\",x=\"z\"}"`)
@@ -76,12 +82,14 @@ func TestIfExpressionMarshalUnmarshalJSON(t *testing.T) {
 func TestIfExpressionUnmarshalFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
+
 		var ie IfExpression
 		err := yaml.UnmarshalStrict([]byte(s), &ie)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
 	}
+
 	f(`{`)
 	f(`{x:y}`)
 	f(`[1]`)
@@ -103,6 +111,7 @@ func TestIfExpressionUnmarshalFailure(t *testing.T) {
 func TestIfExpressionUnmarshalSuccess(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
+
 		var ie IfExpression
 		if err := yaml.UnmarshalStrict([]byte(s), &ie); err != nil {
 			t.Fatalf("unexpected error during unmarshal: %s", err)
@@ -116,6 +125,7 @@ func TestIfExpressionUnmarshalSuccess(t *testing.T) {
 			t.Fatalf("unexpected marshaled data;\ngot\n%s\nwant\n%s", b, s)
 		}
 	}
+
 	f(`'{}'`)
 	f(`foo`)
 	f(`foo{bar="baz"}`)
@@ -126,9 +136,35 @@ func TestIfExpressionUnmarshalSuccess(t *testing.T) {
 - bar{baz="abc"}`)
 }
 
+func TestIfExpressionString(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+
+		var ie IfExpression
+		if err := yaml.UnmarshalStrict([]byte(s), &ie); err != nil {
+			t.Fatalf("cannot unmarshal if expression: %s", err)
+		}
+		result := ie.String()
+		if result != resultExpected {
+			t.Fatalf("unexpected result\ngot\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+
+	// empty filters
+	f(`'{}'`, `{}`)
+
+	// multiple fiters
+	f(`foo{bar="baz",a=~"bc.+",d!="e",g!~".*qwe"}`, `foo{bar="baz",a=~"bc.+",d!="e",g!~".*qwe"}`)
+
+	// multiple if expressions
+	f(`- foo
+- bar{baz="abc"}`, `foo,bar{baz="abc"}`)
+}
+
 func TestIfExpressionMatch(t *testing.T) {
 	f := func(ifExpr, metricWithLabels string) {
 		t.Helper()
+
 		var ie IfExpression
 		if err := yaml.UnmarshalStrict([]byte(ifExpr), &ie); err != nil {
 			t.Fatalf("unexpected error during unmarshal: %s", err)
@@ -138,6 +174,7 @@ func TestIfExpressionMatch(t *testing.T) {
 			t.Fatalf("unexpected mismatch of ifExpr=%s for %s", ifExpr, metricWithLabels)
 		}
 	}
+
 	f(`foo`, `foo`)
 	f(`foo`, `foo{bar="baz",a="b"}`)
 	f(`foo{bar="a"}`, `foo{bar="a"}`)
@@ -165,6 +202,7 @@ func TestIfExpressionMatch(t *testing.T) {
 func TestIfExpressionMismatch(t *testing.T) {
 	f := func(ifExpr, metricWithLabels string) {
 		t.Helper()
+
 		var ie IfExpression
 		if err := yaml.UnmarshalStrict([]byte(ifExpr), &ie); err != nil {
 			t.Fatalf("unexpected error during unmarshal: %s", err)
@@ -174,6 +212,7 @@ func TestIfExpressionMismatch(t *testing.T) {
 			t.Fatalf("unexpected match of ifExpr=%s for %s", ifExpr, metricWithLabels)
 		}
 	}
+
 	f(`foo`, `bar`)
 	f(`foo`, `a{foo="bar"}`)
 	f(`foo{bar="a"}`, `foo`)

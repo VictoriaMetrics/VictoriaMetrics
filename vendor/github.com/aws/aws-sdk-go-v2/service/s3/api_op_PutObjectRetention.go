@@ -14,12 +14,16 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets. Places an Object
-// Retention configuration on an object. For more information, see Locking Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lock.html)
-// . Users or accounts require the s3:PutObjectRetention permission in order to
-// place an Object Retention configuration on objects. Bypassing a Governance
+// This operation is not supported by directory buckets.
+//
+// Places an Object Retention configuration on an object. For more information,
+// see [Locking Objects]. Users or accounts require the s3:PutObjectRetention permission in order
+// to place an Object Retention configuration on objects. Bypassing a Governance
 // Retention configuration requires the s3:BypassGovernanceRetention permission.
+//
 // This functionality is not supported for Amazon S3 on Outposts.
+//
+// [Locking Objects]: https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lock.html
 func (c *Client) PutObjectRetention(ctx context.Context, params *PutObjectRetentionInput, optFns ...func(*Options)) (*PutObjectRetentionOutput, error) {
 	if params == nil {
 		params = &PutObjectRetentionInput{}
@@ -38,15 +42,18 @@ func (c *Client) PutObjectRetention(ctx context.Context, params *PutObjectRetent
 type PutObjectRetentionInput struct {
 
 	// The bucket name that contains the object you want to apply this Object
-	// Retention configuration to. Access points - When you use this action with an
-	// access point, you must provide the alias of the access point in place of the
-	// bucket name or specify the access point ARN. When using the access point ARN,
-	// you must direct requests to the access point hostname. The access point hostname
-	// takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this action with an access point through the Amazon Web Services
-	// SDKs, you provide the access point ARN in place of the bucket name. For more
-	// information about access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide.
+	// Retention configuration to.
+	//
+	// Access points - When you use this action with an access point, you must provide
+	// the alias of the access point in place of the bucket name or specify the access
+	// point ARN. When using the access point ARN, you must direct requests to the
+	// access point hostname. The access point hostname takes the form
+	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
+	// action with an access point through the Amazon Web Services SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see [Using access points]in the Amazon S3 User Guide.
+	//
+	// [Using access points]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html
 	//
 	// This member is required.
 	Bucket *string
@@ -64,15 +71,19 @@ type PutObjectRetentionInput struct {
 	// the SDK. This header will not provide any additional functionality if you don't
 	// use the SDK. When you send this header, there must be a corresponding
 	// x-amz-checksum or x-amz-trailer header sent. Otherwise, Amazon S3 fails the
-	// request with the HTTP status code 400 Bad Request . For more information, see
-	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
-	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
-	// ignores any provided ChecksumAlgorithm parameter.
+	// request with the HTTP status code 400 Bad Request . For more information, see [Checking object integrity]
+	// in the Amazon S3 User Guide.
+	//
+	// If you provide an individual checksum, Amazon S3 ignores any provided
+	// ChecksumAlgorithm parameter.
+	//
+	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumAlgorithm types.ChecksumAlgorithm
 
-	// The MD5 hash for the request body. For requests made using the Amazon Web
-	// Services Command Line Interface (CLI) or Amazon Web Services SDKs, this field is
-	// calculated automatically.
+	// The MD5 hash for the request body.
+	//
+	// For requests made using the Amazon Web Services Command Line Interface (CLI) or
+	// Amazon Web Services SDKs, this field is calculated automatically.
 	ContentMD5 *string
 
 	// The account ID of the expected bucket owner. If the account ID that you provide
@@ -84,10 +95,12 @@ type PutObjectRetentionInput struct {
 	// Bucket owners need not specify this parameter in their requests. If either the
 	// source or destination S3 bucket has Requester Pays enabled, the requester will
 	// pay for corresponding charges to copy the object. For information about
-	// downloading objects from Requester Pays buckets, see Downloading Objects in
-	// Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
-	// in the Amazon S3 User Guide. This functionality is not supported for directory
-	// buckets.
+	// downloading objects from Requester Pays buckets, see [Downloading Objects in Requester Pays Buckets]in the Amazon S3 User
+	// Guide.
+	//
+	// This functionality is not supported for directory buckets.
+	//
+	// [Downloading Objects in Requester Pays Buckets]: https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html
 	RequestPayer types.RequestPayer
 
 	// The container element for the Object Retention configuration.
@@ -101,6 +114,7 @@ type PutObjectRetentionInput struct {
 }
 
 func (in *PutObjectRetentionInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 
 }
@@ -108,7 +122,9 @@ func (in *PutObjectRetentionInput) bindEndpointParams(p *EndpointParameters) {
 type PutObjectRetentionOutput struct {
 
 	// If present, indicates that the requester was successfully charged for the
-	// request. This functionality is not supported for directory buckets.
+	// request.
+	//
+	// This functionality is not supported for directory buckets.
 	RequestCharged types.RequestCharged
 
 	// Metadata pertaining to the operation's result.
@@ -173,6 +189,15 @@ func (c *Client) addOperationPutObjectRetentionMiddlewares(stack *middleware.Sta
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpPutObjectRetentionValidationMiddleware(stack); err != nil {

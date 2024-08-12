@@ -87,6 +87,9 @@ vmauth-linux-ppc64le:
 vmauth-linux-s390x:
 	APP_NAME=vmauth CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-local-goos-goarch
 
+vmauth-linux-loong64:
+	APP_NAME=vmauth CGO_ENABLED=0 GOOS=linux GOARCH=loong64 $(MAKE) app-local-goos-goarch
+
 vmauth-linux-386:
 	APP_NAME=vmauth CGO_ENABLED=0 GOOS=linux GOARCH=386 $(MAKE) app-local-goos-goarch
 

@@ -14,17 +14,28 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets. Returns the tag set
-// associated with the bucket. To use this operation, you must have permission to
-// perform the s3:GetBucketTagging action. By default, the bucket owner has this
-// permission and can grant this permission to others. GetBucketTagging has the
-// following special error:
+// This operation is not supported by directory buckets.
+//
+// Returns the tag set associated with the bucket.
+//
+// To use this operation, you must have permission to perform the
+// s3:GetBucketTagging action. By default, the bucket owner has this permission and
+// can grant this permission to others.
+//
+// GetBucketTagging has the following special error:
+//
 //   - Error code: NoSuchTagSet
+//
 //   - Description: There is no tag set associated with the bucket.
 //
 // The following operations are related to GetBucketTagging :
-//   - PutBucketTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketTagging.html)
-//   - DeleteBucketTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketTagging.html)
+//
+// [PutBucketTagging]
+//
+// [DeleteBucketTagging]
+//
+// [PutBucketTagging]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketTagging.html
+// [DeleteBucketTagging]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketTagging.html
 func (c *Client) GetBucketTagging(ctx context.Context, params *GetBucketTaggingInput, optFns ...func(*Options)) (*GetBucketTaggingOutput, error) {
 	if params == nil {
 		params = &GetBucketTaggingInput{}
@@ -56,6 +67,7 @@ type GetBucketTaggingInput struct {
 }
 
 func (in *GetBucketTaggingInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
@@ -129,6 +141,15 @@ func (c *Client) addOperationGetBucketTaggingMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpGetBucketTaggingValidationMiddleware(stack); err != nil {

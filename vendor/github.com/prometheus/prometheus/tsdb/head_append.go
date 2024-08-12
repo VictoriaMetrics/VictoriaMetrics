@@ -138,7 +138,7 @@ func (h *Head) Appender(_ context.Context) storage.Appender {
 
 	// The head cache might not have a starting point yet. The init appender
 	// picks up the first appended timestamp as the base.
-	if h.MinTime() == math.MaxInt64 {
+	if !h.initialized() {
 		return &initAppender{
 			head: h,
 		}
@@ -191,18 +191,11 @@ func (h *Head) appendableMinValidTime() int64 {
 // AppendableMinValidTime returns the minimum valid time for samples to be appended to the Head.
 // Returns false if Head hasn't been initialized yet and the minimum time isn't known yet.
 func (h *Head) AppendableMinValidTime() (int64, bool) {
-	if h.MinTime() == math.MaxInt64 {
+	if !h.initialized() {
 		return 0, false
 	}
 
 	return h.appendableMinValidTime(), true
-}
-
-func max(a, b int64) int64 {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 func (h *Head) getAppendBuffer() []record.RefSample {
@@ -474,7 +467,7 @@ func (s *memSeries) appendable(t int64, v float64, headMaxt, minValidTime, oooTi
 			// This only checks against the latest in-order sample.
 			// The OOO headchunk has its own method to detect these duplicates.
 			if math.Float64bits(s.lastValue) != math.Float64bits(v) {
-				return false, 0, storage.ErrDuplicateSampleForTimestamp
+				return false, 0, storage.NewDuplicateFloatErr(t, s.lastValue, v)
 			}
 			// Sample is identical (ts + value) with most current (highest ts) sample in sampleBuf.
 			return false, 0, nil
@@ -1282,7 +1275,6 @@ func (s *memSeries) appendPreprocessor(t int64, e chunkenc.Encoding, o chunkOpts
 		// encoding. So we cut a new chunk with the expected encoding.
 		c = s.cutNewHeadChunk(t, e, o.chunkRange)
 		chunkCreated = true
-
 	}
 
 	numSamples := c.chunk.NumSamples()
@@ -1475,8 +1467,8 @@ func (s *memSeries) mmapChunks(chunkDiskMapper *chunks.ChunkDiskMapper) (count i
 		return
 	}
 
-	// Write chunks starting from the oldest one and stop before we get to current s.headChunk.
-	// If we have this chain: s.headChunk{t4} -> t3 -> t2 -> t1 -> t0
+	// Write chunks starting from the oldest one and stop before we get to current s.headChunks.
+	// If we have this chain: s.headChunks{t4} -> t3 -> t2 -> t1 -> t0
 	// then we need to write chunks t0 to t3, but skip s.headChunks.
 	for i := s.headChunks.len() - 1; i > 0; i-- {
 		chk := s.headChunks.atOffset(i)

@@ -2,10 +2,13 @@ package streamaggr
 
 import (
 	"sync"
+	"sync/atomic"
 	"unsafe"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/cespare/xxhash/v2"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 const dedupAggrShardsCount = 128
@@ -24,7 +27,12 @@ type dedupAggrShard struct {
 
 type dedupAggrShardNopad struct {
 	mu sync.Mutex
-	m  map[string]dedupAggrSample
+	m  map[string]*dedupAggrSample
+
+	samplesBuf []dedupAggrSample
+
+	sizeBytes  atomic.Uint64
+	itemsCount atomic.Uint64
 }
 
 type dedupAggrSample struct {
@@ -42,7 +50,7 @@ func newDedupAggr() *dedupAggr {
 func (da *dedupAggr) sizeBytes() uint64 {
 	n := uint64(unsafe.Sizeof(*da))
 	for i := range da.shards {
-		n += da.shards[i].sizeBytes()
+		n += da.shards[i].sizeBytes.Load()
 	}
 	return n
 }
@@ -50,25 +58,8 @@ func (da *dedupAggr) sizeBytes() uint64 {
 func (da *dedupAggr) itemsCount() uint64 {
 	n := uint64(0)
 	for i := range da.shards {
-		n += da.shards[i].itemsCount()
+		n += da.shards[i].itemsCount.Load()
 	}
-	return n
-}
-
-func (das *dedupAggrShard) sizeBytes() uint64 {
-	das.mu.Lock()
-	n := uint64(unsafe.Sizeof(*das))
-	for k, s := range das.m {
-		n += uint64(len(k)) + uint64(unsafe.Sizeof(k)+unsafe.Sizeof(s))
-	}
-	das.mu.Unlock()
-	return n
-}
-
-func (das *dedupAggrShard) itemsCount() uint64 {
-	das.mu.Lock()
-	n := uint64(len(das.m))
-	das.mu.Unlock()
 	return n
 }
 
@@ -113,7 +104,7 @@ func (ctx *dedupFlushCtx) reset() {
 	ctx.samples = ctx.samples[:0]
 }
 
-func (da *dedupAggr) flush(f func(samples []pushSample), resetState bool) {
+func (da *dedupAggr) flush(f func(samples []pushSample)) {
 	var wg sync.WaitGroup
 	for i := range da.shards {
 		flushConcurrencyCh <- struct{}{}
@@ -125,7 +116,7 @@ func (da *dedupAggr) flush(f func(samples []pushSample), resetState bool) {
 			}()
 
 			ctx := getDedupFlushCtx()
-			shard.flush(ctx, f, resetState)
+			shard.flush(ctx, f)
 			putDedupFlushCtx(ctx)
 		}(&da.shards[i])
 	}
@@ -169,34 +160,43 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample) {
 
 	m := das.m
 	if m == nil {
-		m = make(map[string]dedupAggrSample, len(samples))
+		m = make(map[string]*dedupAggrSample, len(samples))
 		das.m = m
 	}
+	samplesBuf := das.samplesBuf
 	for _, sample := range samples {
 		s, ok := m[sample.key]
 		if !ok {
-			m[sample.key] = dedupAggrSample{
-				value:     sample.value,
-				timestamp: sample.timestamp,
-			}
+			samplesBuf = slicesutil.SetLength(samplesBuf, len(samplesBuf)+1)
+			s = &samplesBuf[len(samplesBuf)-1]
+			s.value = sample.value
+			s.timestamp = sample.timestamp
+
+			key := bytesutil.InternString(sample.key)
+			m[key] = s
+
+			das.itemsCount.Add(1)
+			das.sizeBytes.Add(uint64(len(key)) + uint64(unsafe.Sizeof(key)+unsafe.Sizeof(s)+unsafe.Sizeof(*s)))
 			continue
 		}
 		// Update the existing value according to logic described at https://docs.victoriametrics.com/#deduplication
 		if sample.timestamp > s.timestamp || (sample.timestamp == s.timestamp && sample.value > s.value) {
-			m[sample.key] = dedupAggrSample{
-				value:     sample.value,
-				timestamp: sample.timestamp,
-			}
+			s.value = sample.value
+			s.timestamp = sample.timestamp
 		}
 	}
+	das.samplesBuf = samplesBuf
 }
 
-func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f func(samples []pushSample), resetState bool) {
+func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f func(samples []pushSample)) {
 	das.mu.Lock()
 
 	m := das.m
-	if resetState && len(m) > 0 {
-		das.m = make(map[string]dedupAggrSample, len(m))
+	if len(m) > 0 {
+		das.m = make(map[string]*dedupAggrSample, len(m))
+		das.sizeBytes.Store(0)
+		das.itemsCount.Store(0)
+		das.samplesBuf = make([]dedupAggrSample, 0, len(das.samplesBuf))
 	}
 
 	das.mu.Unlock()
@@ -214,7 +214,7 @@ func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f func(samples []pushSample
 		})
 
 		// Limit the number of samples per each flush in order to limit memory usage.
-		if len(dstSamples) >= 100_000 {
+		if len(dstSamples) >= 10_000 {
 			f(dstSamples)
 			clear(dstSamples)
 			dstSamples = dstSamples[:0]

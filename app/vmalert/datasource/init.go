@@ -12,11 +12,13 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
 
 var (
-	addr = flag.String("datasource.url", "", "Datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect URL. Required parameter. "+
-		"E.g. http://127.0.0.1:8428 . See also -remoteRead.disablePathAppend and -datasource.showURL")
+	addr = flag.String("datasource.url", "", "Datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect endpoint. Required parameter. "+
+		"Supports address in the form of IP address with a port (e.g., 127.0.0.1:8428) or DNS SRV record. "+
+		"See also -remoteRead.disablePathAppend and -datasource.showURL")
 	appendTypePrefix  = flag.Bool("datasource.appendTypePrefix", false, "Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.")
 	showDatasourceURL = flag.Bool("datasource.showURL", false, "Whether to avoid stripping sensitive information such as auth headers or passwords from URLs in log messages or UI and exported metrics. "+
 		"It is hidden by default, since it can contain sensitive info such as auth key")
@@ -56,9 +58,10 @@ var (
 		`Whether to align "time" parameter with evaluation interval. `+
 		"Alignment supposed to produce deterministic results despite number of vmalert replicas or time they were started. "+
 		"See more details at https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257")
-	maxIdleConnections = flag.Int("datasource.maxIdleConnections", 100, `Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state.`)
-	disableKeepAlive   = flag.Bool("datasource.disableKeepAlive", false, `Whether to disable long-lived connections to the datasource. `+
-		`If true, disables HTTP keep-alives and will only use the connection to the server for a single HTTP request.`)
+	maxIdleConnections    = flag.Int("datasource.maxIdleConnections", 100, `Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state.`)
+	idleConnectionTimeout = flag.Duration("datasource.idleConnTimeout", 50*time.Second, `Defines a duration for idle (keep-alive connections) to exist. Consider setting this value less than "-http.idleConnTimeout". It must prevent possible "write: broken pipe" and "read: connection reset by peer" errors.`)
+	disableKeepAlive      = flag.Bool("datasource.disableKeepAlive", false, `Whether to disable long-lived connections to the datasource. `+
+		`If true, disables HTTP keep-alive and will only use the connection to the server for a single HTTP request.`)
 	roundDigits = flag.Int("datasource.roundDigits", 0, `Adds "round_digits" GET param to datasource requests. `+
 		`In VM "round_digits" limits the number of digits after the decimal point in response values.`)
 )
@@ -98,11 +101,13 @@ func Init(extraParams url.Values) (QuerierBuilder, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
+	tr.DialContext = netutil.NewStatDialFunc("vmalert_datasource")
 	tr.DisableKeepAlives = *disableKeepAlive
 	tr.MaxIdleConnsPerHost = *maxIdleConnections
 	if tr.MaxIdleConns != 0 && tr.MaxIdleConns < tr.MaxIdleConnsPerHost {
 		tr.MaxIdleConns = tr.MaxIdleConnsPerHost
 	}
+	tr.IdleConnTimeout = *idleConnectionTimeout
 
 	if extraParams == nil {
 		extraParams = url.Values{}

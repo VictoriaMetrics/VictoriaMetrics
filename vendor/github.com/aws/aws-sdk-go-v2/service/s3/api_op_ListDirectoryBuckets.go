@@ -15,23 +15,27 @@ import (
 )
 
 // Returns a list of all Amazon S3 directory buckets owned by the authenticated
-// sender of the request. For more information about directory buckets, see
-// Directory buckets (https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-buckets-overview.html)
-// in the Amazon S3 User Guide. Directory buckets - For directory buckets, you must
-// make requests for this API operation to the Regional endpoint. These endpoints
-// support path-style requests in the format
-// https://s3express-control.region_code.amazonaws.com/bucket-name .
-// Virtual-hosted-style requests aren't supported. For more information, see
-// Regional and Zonal endpoints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html)
-// in the Amazon S3 User Guide. Permissions You must have the
-// s3express:ListAllMyDirectoryBuckets permission in an IAM identity-based policy
-// instead of a bucket policy. Cross-account access to this API operation isn't
-// supported. This operation can only be performed by the Amazon Web Services
-// account that owns the resource. For more information about directory bucket
-// policies and permissions, see Amazon Web Services Identity and Access
-// Management (IAM) for S3 Express One Zone (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-security-iam.html)
-// in the Amazon S3 User Guide. HTTP Host header syntax Directory buckets - The
-// HTTP Host header syntax is s3express-control.region.amazonaws.com .
+// sender of the request. For more information about directory buckets, see [Directory buckets]in the
+// Amazon S3 User Guide.
+//
+// Directory buckets - For directory buckets, you must make requests for this API
+// operation to the Regional endpoint. These endpoints support path-style requests
+// in the format https://s3express-control.region_code.amazonaws.com/bucket-name .
+// Virtual-hosted-style requests aren't supported. For more information, see [Regional and Zonal endpoints]in
+// the Amazon S3 User Guide.
+//
+// Permissions You must have the s3express:ListAllMyDirectoryBuckets permission in
+// an IAM identity-based policy instead of a bucket policy. Cross-account access to
+// this API operation isn't supported. This operation can only be performed by the
+// Amazon Web Services account that owns the resource. For more information about
+// directory bucket policies and permissions, see [Amazon Web Services Identity and Access Management (IAM) for S3 Express One Zone]in the Amazon S3 User Guide.
+//
+// HTTP Host header syntax  Directory buckets - The HTTP Host header syntax is
+// s3express-control.region.amazonaws.com .
+//
+// [Regional and Zonal endpoints]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
+// [Directory buckets]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-buckets-overview.html
+// [Amazon Web Services Identity and Access Management (IAM) for S3 Express One Zone]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-security-iam.html
 func (c *Client) ListDirectoryBuckets(ctx context.Context, params *ListDirectoryBucketsInput, optFns ...func(*Options)) (*ListDirectoryBucketsOutput, error) {
 	if params == nil {
 		params = &ListDirectoryBucketsInput{}
@@ -140,6 +144,15 @@ func (c *Client) addOperationListDirectoryBucketsMiddlewares(stack *middleware.S
 	if err = addPutBucketContextMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListDirectoryBuckets(options.Region), middleware.Before); err != nil {
 		return err
 	}
@@ -172,14 +185,6 @@ func (c *Client) addOperationListDirectoryBucketsMiddlewares(stack *middleware.S
 	}
 	return nil
 }
-
-// ListDirectoryBucketsAPIClient is a client that implements the
-// ListDirectoryBuckets operation.
-type ListDirectoryBucketsAPIClient interface {
-	ListDirectoryBuckets(context.Context, *ListDirectoryBucketsInput, ...func(*Options)) (*ListDirectoryBucketsOutput, error)
-}
-
-var _ ListDirectoryBucketsAPIClient = (*Client)(nil)
 
 // ListDirectoryBucketsPaginatorOptions is the paginator options for
 // ListDirectoryBuckets
@@ -247,6 +252,9 @@ func (p *ListDirectoryBucketsPaginator) NextPage(ctx context.Context, optFns ...
 	}
 	params.MaxDirectoryBuckets = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.ListDirectoryBuckets(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -265,6 +273,14 @@ func (p *ListDirectoryBucketsPaginator) NextPage(ctx context.Context, optFns ...
 
 	return result, nil
 }
+
+// ListDirectoryBucketsAPIClient is a client that implements the
+// ListDirectoryBuckets operation.
+type ListDirectoryBucketsAPIClient interface {
+	ListDirectoryBuckets(context.Context, *ListDirectoryBucketsInput, ...func(*Options)) (*ListDirectoryBucketsOutput, error)
+}
+
+var _ ListDirectoryBucketsAPIClient = (*Client)(nil)
 
 func newServiceMetadataMiddleware_opListDirectoryBuckets(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{

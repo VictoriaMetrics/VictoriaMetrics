@@ -1578,9 +1578,6 @@ func (de *DurationExpr) AppendString(dst []byte) []byte {
 	if de == nil {
 		return dst
 	}
-	if de.needsParsing {
-		panic(fmt.Errorf("BUG: duration %q must be already parsed with expandWithExpr()", de.s))
-	}
 	return append(dst, de.s...)
 }
 

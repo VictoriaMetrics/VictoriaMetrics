@@ -213,11 +213,11 @@ func (p *parser) parseMetricExprOrFuncCall() (Expr, error) {
 		// Metric epxression or bool expression or None.
 		if isBool(ident) {
 			be := &BoolExpr{
-				B: strings.ToLower(ident) == "true",
+				B: strings.EqualFold(ident, "true"),
 			}
 			return be, nil
 		}
-		if strings.ToLower(ident) == "none" {
+		if strings.EqualFold(ident, "none") {
 			nne := &NoneExpr{}
 			return nne, nil
 		}

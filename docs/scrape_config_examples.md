@@ -1,5 +1,4 @@
 ---
-sort: 200
 weight: 200
 title: Scrape config examples
 menu:
@@ -9,9 +8,6 @@ menu:
 aliases:
 - /scrape_config_examples.html
 ---
-
-# Scrape config examples
-
 - [Static configs](#static-configs)
 - [File-based target discovery](#file-based-target-discovery)
 - [HTTP-based target discovery](#http-based-target-discovery)
@@ -34,8 +30,8 @@ scrape_configs:
 After you created the `scrape.yaml` file, download and unpack [single-node VictoriaMetrics](https://docs.victoriametrics.com/) to the same directory:
 
 ```
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.100.1/victoria-metrics-linux-amd64-v1.100.1.tar.gz
-tar xzf victoria-metrics-linux-amd64-v1.100.1.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.102.0/victoria-metrics-linux-amd64-v1.102.0.tar.gz
+tar xzf victoria-metrics-linux-amd64-v1.102.0.tar.gz
 ```
 
 Then start VictoriaMetrics and instruct it to scrape targets defined in `scrape.yaml` and save scraped metrics
@@ -126,7 +122,7 @@ can come to rescue. It allows defining a list of scrape targets in `JSON` files,
 at [vmagent](https://docs.victoriametrics.com/vmagent/) or [single-node VictoriaMetrics](https://docs.victoriametrics.com/) side
 when the corresponding `JSON` files are updated.
 
-Let's create `node_exporter_targets.json` file with the following conents:
+Let's create `node_exporter_targets.json` file with the following contents:
 
 ```json
 [
@@ -150,8 +146,8 @@ Then start [single-node VictoriaMetrics](https://docs.victoriametrics.com/) acco
 
 ```yaml
 # Download and unpack single-node VictoriaMetrics
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.100.1/victoria-metrics-linux-amd64-v1.100.1.tar.gz
-tar xzf victoria-metrics-linux-amd64-v1.100.1.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.102.0/victoria-metrics-linux-amd64-v1.102.0.tar.gz
+tar xzf victoria-metrics-linux-amd64-v1.102.0.tar.gz
 
 # Run single-node VictoriaMetrics with the given scrape.yaml
 ./victoria-metrics-prod -promscrape.config=scrape.yaml
@@ -250,7 +246,7 @@ scrape_configs:
     # If node-exporter containers have another name in your Kubernetes cluster,
     # then adjust the regex value accordingly.
     #
-  - soruce_labels: [__meta_kubernetes_pod_container_name]
+  - source_labels: [__meta_kubernetes_pod_container_name]
     regex: node-exporter
     action: keep
 

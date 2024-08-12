@@ -112,6 +112,9 @@ type blockStreamReader struct {
 	// blockData contains the data for the last read block
 	blockData blockData
 
+	// a contains data for blockData
+	a arena
+
 	// ph is the header for the part
 	ph partHeader
 
@@ -149,6 +152,7 @@ type blockStreamReader struct {
 // reset resets bsr, so it can be re-used
 func (bsr *blockStreamReader) reset() {
 	bsr.blockData.reset()
+	bsr.a.reset()
 	bsr.ph.reset()
 	bsr.streamReaders.reset()
 
@@ -247,6 +251,8 @@ func (bsr *blockStreamReader) MustInitFromFilePart(path string) {
 // NextBlock reads the next block from bsr and puts it into bsr.blockData.
 //
 // false is returned if there are no other blocks.
+//
+// bsr.blockData is valid until the next call to NextBlock().
 func (bsr *blockStreamReader) NextBlock() bool {
 	for bsr.nextBlockIdx >= len(bsr.blockHeaders) {
 		if !bsr.nextIndexBlock() {
@@ -275,7 +281,8 @@ func (bsr *blockStreamReader) NextBlock() bool {
 	}
 
 	// Read bsr.blockData
-	bsr.blockData.mustReadFrom(bh, &bsr.streamReaders)
+	bsr.a.reset()
+	bsr.blockData.mustReadFrom(&bsr.a, bh, &bsr.streamReaders)
 
 	bsr.globalUncompressedSizeBytes += bh.uncompressedSizeBytes
 	bsr.globalRowsCount += bh.rowsCount

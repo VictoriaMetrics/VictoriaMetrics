@@ -43,7 +43,7 @@ var (
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the given -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
-	cacheDataPath         = flag.String("cacheDataPath", "", "Path to directory for cache files. Cache isn't saved if empty")
+	cacheDataPath         = flag.String("cacheDataPath", "", "Path to directory for cache files. By default, the cache is not persisted.")
 	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "The maximum number of concurrent search requests. "+
 		"It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. "+
 		"See also -search.maxQueueDuration and -search.maxMemoryPerQuery")
@@ -269,7 +269,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			timerpool.Put(t)
 			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 			requestURI := httpserver.GetRequestURI(r)
-			logger.Infof("client has cancelled the request after %.3f seconds: remoteAddr=%s, requestURI: %q",
+			logger.Infof("client has canceled the request after %.3f seconds: remoteAddr=%s, requestURI: %q",
 				time.Since(startTime).Seconds(), remoteAddr, requestURI)
 			return true
 		case <-t.C:
@@ -309,7 +309,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	if path == "/internal/resetRollupResultCache" {
-		if !httpserver.CheckAuthFlag(w, r, resetCacheAuthKey.Get(), "resetCacheAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, resetCacheAuthKey) {
 			return true
 		}
 		promql.ResetRollupResultCache()
@@ -542,7 +542,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		}
 		return true
 	case "graphite/tags/delSeries":
-		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey.Get(), "deleteAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey) {
 			return true
 		}
 		graphiteTagsDelSeriesRequests.Inc()
@@ -799,7 +799,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 func deleteHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, p *httpserver.Path, at *auth.Token) bool {
 	switch p.Suffix {
 	case "prometheus/api/v1/admin/tsdb/delete_series":
-		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey.Get(), "deleteAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey) {
 			return true
 		}
 		deleteRequests.Inc()

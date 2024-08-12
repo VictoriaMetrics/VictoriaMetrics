@@ -22,6 +22,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
@@ -678,7 +679,7 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 	if filter != nil && filter.Len() <= 100e3 {
 		// It is faster to obtain label names by metricIDs from the filter
 		// instead of scanning the inverted index for the matching filters.
-		// This would help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
+		// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
 		metricIDs := filter.AppendTo(nil)
 		qt.Printf("sort %d metricIDs", len(metricIDs))
 		is.getLabelNamesForMetricIDs(qt, metricIDs, lns, maxLabelNames)
@@ -769,10 +770,17 @@ func (is *indexSearch) getLabelNamesForMetricIDs(qt *querytracer.Tracer, metricI
 	if len(metricIDs) > 0 {
 		lns["__name__"] = struct{}{}
 	}
+
+	dmis := is.db.s.getDeletedMetricIDs()
+
 	var mn MetricName
 	foundLabelNames := 0
 	var buf []byte
 	for _, metricID := range metricIDs {
+		if dmis.Has(metricID) {
+			// skip deleted IDs from result
+			continue
+		}
 		var ok bool
 		buf, ok = is.searchMetricNameWithCache(buf[:0], metricID)
 		if !ok {
@@ -1024,7 +1032,7 @@ func (is *indexSearch) searchLabelValuesWithFiltersOnDate(qt *querytracer.Tracer
 	if filter != nil && filter.Len() <= 100e3 {
 		// It is faster to obtain label values by metricIDs from the filter
 		// instead of scanning the inverted index for the matching filters.
-		// This would help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
+		// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
 		metricIDs := filter.AppendTo(nil)
 		qt.Printf("sort %d metricIDs", len(metricIDs))
 		is.getLabelValuesForMetricIDs(qt, lvs, labelName, metricIDs, maxLabelValues)
@@ -1096,10 +1104,17 @@ func (is *indexSearch) getLabelValuesForMetricIDs(qt *querytracer.Tracer, lvs ma
 	if labelName == "" {
 		labelName = "__name__"
 	}
+
+	dmis := is.db.s.getDeletedMetricIDs()
+
 	var mn MetricName
 	foundLabelValues := 0
 	var buf []byte
 	for _, metricID := range metricIDs {
+		if dmis.Has(metricID) {
+			// skip deleted IDs from result
+			continue
+		}
 		var ok bool
 		buf, ok = is.searchMetricNameWithCache(buf[:0], metricID)
 		if !ok {
@@ -1594,11 +1609,11 @@ func (th *topHeap) Swap(i, j int) {
 	a[j], a[i] = a[i], a[j]
 }
 
-func (th *topHeap) Push(_ interface{}) {
+func (th *topHeap) Push(_ any) {
 	panic(fmt.Errorf("BUG: Push shouldn't be called"))
 }
 
-func (th *topHeap) Pop() interface{} {
+func (th *topHeap) Pop() any {
 	panic(fmt.Errorf("BUG: Pop shouldn't be called"))
 }
 
@@ -1996,12 +2011,9 @@ func (is *indexSearch) getTSIDByMetricNameNoExtDB(dst *TSID, metricName []byte, 
 		if len(tail) > 0 {
 			logger.Panicf("FATAL: unexpected non-empty tail left after unmarshaling TSID: %X", tail)
 		}
-		if dmis.Len() > 0 {
-			// Verify whether the dst is marked as deleted.
-			if dmis.Has(dst.MetricID) {
-				// The dst is deleted. Continue searching.
-				continue
-			}
+		if dmis.Has(dst.MetricID) {
+			// The dst is deleted. Continue searching.
+			continue
 		}
 		// Found valid dst.
 		return true
@@ -2169,11 +2181,11 @@ func removeCompositeTagFilters(tfs []*tagFilter, prefix []byte) []*tagFilter {
 			continue
 		}
 		tagKey = tagKey[1:]
-		var nameLen uint64
-		tagKey, nameLen, err = encoding.UnmarshalVarUint64(tagKey)
-		if err != nil {
-			logger.Panicf("BUG: cannot unmarshal nameLen from tagKey %q: %s", tagKey, err)
+		nameLen, nSize := encoding.UnmarshalVarUint64(tagKey)
+		if nSize <= 0 {
+			logger.Panicf("BUG: cannot unmarshal nameLen from tagKey %q", tagKey)
 		}
+		tagKey = tagKey[nSize:]
 		if nameLen == 0 {
 			logger.Panicf("BUG: nameLen must be greater than 0")
 		}
@@ -2986,11 +2998,11 @@ func unmarshalCompositeTagKey(src []byte) ([]byte, []byte, error) {
 		return nil, nil, fmt.Errorf("missing composite tag key prefix in %q", src)
 	}
 	src = src[1:]
-	tail, n, err := encoding.UnmarshalVarUint64(src)
-	if err != nil {
-		return nil, nil, fmt.Errorf("cannot unmarshal metric name length from composite tag key: %w", err)
+	n, nSize := encoding.UnmarshalVarUint64(src)
+	if nSize <= 0 {
+		return nil, nil, fmt.Errorf("cannot unmarshal metric name length from composite tag key")
 	}
-	src = tail
+	src = src[nSize:]
 	if uint64(len(src)) < n {
 		return nil, nil, fmt.Errorf("missing metric name with length %d in composite tag key %q", n, src)
 	}
@@ -3323,13 +3335,8 @@ func (mp *tagToMetricIDsRowParser) ParseMetricIDs() {
 		return
 	}
 	tail := mp.tail
-	mp.MetricIDs = mp.MetricIDs[:0]
 	n := len(tail) / 8
-	if n <= cap(mp.MetricIDs) {
-		mp.MetricIDs = mp.MetricIDs[:n]
-	} else {
-		mp.MetricIDs = append(mp.MetricIDs[:cap(mp.MetricIDs)], make([]uint64, n-cap(mp.MetricIDs))...)
-	}
+	mp.MetricIDs = slicesutil.SetLength(mp.MetricIDs, n)
 	metricIDs := mp.MetricIDs
 	_ = metricIDs[n-1]
 	for i := 0; i < n; i++ {

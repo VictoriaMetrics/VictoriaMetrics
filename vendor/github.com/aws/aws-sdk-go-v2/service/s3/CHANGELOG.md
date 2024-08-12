@@ -1,3 +1,70 @@
+# v1.58.2 (2024-07-10.2)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.58.1 (2024-07-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.58.0 (2024-07-02)
+
+* **Feature**: Added response overrides to Head Object requests.
+
+# v1.57.1 (2024-06-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.57.0 (2024-06-26)
+
+* **Feature**: Support list-of-string endpoint parameter.
+
+# v1.56.1 (2024-06-19)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.56.0 (2024-06-18)
+
+* **Feature**: Track usage of various AWS SDK features in user-agent string.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.55.2 (2024-06-17)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.55.1 (2024-06-07)
+
+* **Bug Fix**: Add clock skew correction on all service clients
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.55.0 (2024-06-05)
+
+* **Feature**: Added new params copySource and key to copyObject API for supporting S3 Access Grants plugin. These changes will not change any of the existing S3 API functionality.
+* **Bug Fix**: Add S3-specific smithy protocol tests.
+
+# v1.54.4 (2024-06-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.54.3 (2024-05-23)
+
+* **Bug Fix**: Prevent parsing failures for nonstandard `Expires` values in responses. If the SDK cannot parse the value set in the response header for this field it will now be returned as `nil`. A new field, `ExpiresString`, has been added that will retain the unparsed value from the response (regardless of whether it came back in a format recognized by the SDK).
+
+# v1.54.2 (2024-05-16)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.54.1 (2024-05-15)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.54.0 (2024-05-14)
+
+* **Feature**: Updated a few x-id in the http uri traits
+
+# v1.53.2 (2024-05-08)
+
+* **Bug Fix**: GoDoc improvement
+
 # v1.53.1 (2024-03-29)
 
 * **Dependency Update**: Updated to the latest SDK module versions

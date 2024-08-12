@@ -1,4 +1,4 @@
-import React, { FC, useMemo, useRef, useState } from "preact/compat";
+import React, { FC, forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "preact/compat";
 import { getBrowserTimezone, getTimezoneList, getUTCByTimezone } from "../../../../utils/time";
 import { ArrowDropDownIcon } from "../../../Main/Icons";
 import classNames from "classnames";
@@ -10,12 +10,7 @@ import "./style.scss";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 import useBoolean from "../../../../hooks/useBoolean";
 import WarningTimezone from "./WarningTimezone";
-
-interface TimezonesProps {
-  timezoneState: string;
-  defaultTimezone?: string;
-  onChange: (val: string) => void;
-}
+import { useTimeDispatch, useTimeState } from "../../../../state/time/TimeStateContext";
 
 interface PinnedTimezone extends Timezone {
   title: string;
@@ -24,10 +19,14 @@ interface PinnedTimezone extends Timezone {
 
 const browserTimezone = getBrowserTimezone();
 
-const Timezones: FC<TimezonesProps> = ({ timezoneState, defaultTimezone, onChange }) => {
+const Timezones: FC = forwardRef((props, ref) => {
   const { isMobile } = useDeviceDetect();
   const timezones = getTimezoneList();
 
+  const { timezone: stateTimezone, defaultTimezone } = useTimeState();
+  const timeDispatch = useTimeDispatch();
+
+  const [timezone, setTimezone] = useState(stateTimezone);
   const [search, setSearch] = useState("");
   const targetRef = useRef<HTMLDivElement>(null);
 
@@ -68,16 +67,16 @@ const Timezones: FC<TimezonesProps> = ({ timezoneState, defaultTimezone, onChang
   const timezonesGroups = useMemo(() => Object.keys(searchTimezones), [searchTimezones]);
 
   const activeTimezone = useMemo(() => ({
-    region: timezoneState,
-    utc: getUTCByTimezone(timezoneState)
-  }), [timezoneState]);
+    region: timezone,
+    utc: getUTCByTimezone(timezone)
+  }), [timezone]);
 
   const handleChangeSearch = (val: string) => {
     setSearch(val);
   };
 
   const handleSetTimezone = (val: Timezone) => {
-    onChange(val.region);
+    setTimezone(val.region);
     setSearch("");
     handleCloseList();
   };
@@ -85,6 +84,16 @@ const Timezones: FC<TimezonesProps> = ({ timezoneState, defaultTimezone, onChang
   const createHandlerSetTimezone = (val: Timezone) => () => {
     handleSetTimezone(val);
   };
+
+  useEffect(() => {
+    setTimezone(stateTimezone);
+  }, [stateTimezone]);
+
+  useImperativeHandle(ref, () => ({
+    handleApply: () => {
+      timeDispatch({ type: "SET_TIMEZONE", payload: timezone });
+    }
+  }), [timezone]);
 
   return (
     <div className="vm-timezones">
@@ -169,6 +178,6 @@ const Timezones: FC<TimezonesProps> = ({ timezoneState, defaultTimezone, onChang
       </Popper>
     </div>
   );
-};
+});
 
 export default Timezones;

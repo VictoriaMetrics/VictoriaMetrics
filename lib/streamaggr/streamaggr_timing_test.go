@@ -2,31 +2,33 @@ package streamaggr
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 var benchOutputs = []string{
-	"total",
-	"total_prometheus",
+	"avg",
+	"count_samples",
+	"count_series",
+	"histogram_bucket",
 	"increase",
 	"increase_prometheus",
-	"count_series",
-	"count_samples",
-	"unique_samples",
-	"sum_samples",
 	"last",
-	"min",
 	"max",
-	"avg",
+	"min",
+	"quantiles(0, 0.5, 1)",
+	"rate_avg",
+	"rate_sum",
 	"stddev",
 	"stdvar",
-	"histogram_bucket",
-	"quantiles(0, 0.5, 1)",
+	"sum_samples",
+	"total",
+	"total_prometheus",
+	"unique_samples",
 }
 
 func BenchmarkAggregatorsPush(b *testing.B) {
@@ -34,27 +36,6 @@ func BenchmarkAggregatorsPush(b *testing.B) {
 		b.Run(fmt.Sprintf("output=%s", output), func(b *testing.B) {
 			benchmarkAggregatorsPush(b, output)
 		})
-	}
-}
-
-func BenchmarkAggregatorsFlushSerial(b *testing.B) {
-	outputs := []string{
-		"total", "sum_samples", "count_samples", "min",
-		"max", "avg", "increase", "count_series",
-		"last", "stddev", "stdvar", "total_prometheus", "increase_prometheus",
-	}
-	pushFunc := func(_ []prompbmarshal.TimeSeries) {}
-	a := newBenchAggregators(outputs, pushFunc)
-	defer a.MustStop()
-	_ = a.Push(benchSeries, nil)
-
-	b.ResetTimer()
-	b.ReportAllocs()
-	b.SetBytes(int64(len(benchSeries) * len(outputs)))
-	for i := 0; i < b.N; i++ {
-		for _, aggr := range a.as {
-			aggr.flush(pushFunc, time.Hour, false)
-		}
 	}
 }
 
@@ -81,7 +62,7 @@ func benchmarkAggregatorsPush(b *testing.B, output string) {
 func newBenchAggregators(outputs []string, pushFunc PushFunc) *Aggregators {
 	outputsQuoted := make([]string, len(outputs))
 	for i := range outputs {
-		outputsQuoted[i] = strconv.Quote(outputs[i])
+		outputsQuoted[i] = stringsutil.JSONString(outputs[i])
 	}
 	config := fmt.Sprintf(`
 - match: http_requests_total
@@ -90,7 +71,7 @@ func newBenchAggregators(outputs []string, pushFunc PushFunc) *Aggregators {
   outputs: [%s]
 `, strings.Join(outputsQuoted, ","))
 
-	a, err := newAggregatorsFromData([]byte(config), pushFunc, nil)
+	a, err := LoadFromData([]byte(config), pushFunc, nil, "some_alias")
 	if err != nil {
 		panic(fmt.Errorf("unexpected error when initializing aggregators: %s", err))
 	}
@@ -105,7 +86,8 @@ func newBenchSeries(seriesCount int) []prompbmarshal.TimeSeries {
 		a = append(a, s)
 	}
 	metrics := strings.Join(a, "\n")
-	return mustParsePromMetrics(metrics)
+	offsetMsecs := time.Now().UnixMilli()
+	return prompbmarshal.MustParsePromMetrics(metrics, offsetMsecs)
 }
 
 const seriesCount = 10_000

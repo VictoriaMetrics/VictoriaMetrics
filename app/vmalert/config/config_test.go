@@ -23,12 +23,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestParseGood(t *testing.T) {
-	if _, err := Parse([]string{"testdata/rules/*good.rules", "testdata/dir/*good.*"}, notifier.ValidateTemplates, true); err != nil {
-		t.Errorf("error parsing files %s", err)
-	}
-}
-
 func TestParseFromURL(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/bad", func(w http.ResponseWriter, _ *http.Request) {
@@ -55,438 +49,353 @@ groups:
 	defer srv.Close()
 
 	if _, err := Parse([]string{srv.URL + "/good-alert", srv.URL + "/good-rr"}, notifier.ValidateTemplates, true); err != nil {
-		t.Errorf("error parsing URLs %s", err)
+		t.Fatalf("error parsing URLs %s", err)
 	}
 
 	if _, err := Parse([]string{srv.URL + "/bad"}, notifier.ValidateTemplates, true); err == nil {
-		t.Errorf("expected parsing error: %s", err)
+		t.Fatalf("expected parsing error: %s", err)
 	}
 }
 
-func TestParseBad(t *testing.T) {
-	testCases := []struct {
-		path   []string
-		expErr string
-	}{
-		{
-			[]string{"testdata/rules/rules_interval_bad.rules"},
-			"eval_offset should be smaller than interval",
-		},
-		{
-			[]string{"testdata/rules/rules0-bad.rules"},
-			"unexpected token",
-		},
-		{
-			[]string{"testdata/dir/rules0-bad.rules"},
-			"error parsing annotation",
-		},
-		{
-			[]string{"testdata/dir/rules1-bad.rules"},
-			"duplicate in file",
-		},
-		{
-			[]string{"testdata/dir/rules2-bad.rules"},
-			"function \"unknown\" not defined",
-		},
-		{
-			[]string{"testdata/dir/rules3-bad.rules"},
-			"either `record` or `alert` must be set",
-		},
-		{
-			[]string{"testdata/dir/rules4-bad.rules"},
-			"either `record` or `alert` must be set",
-		},
-		{
-			[]string{"testdata/rules/rules1-bad.rules"},
-			"bad graphite expr",
-		},
-		{
-			[]string{"testdata/dir/rules6-bad.rules"},
-			"missing ':' in header",
-		},
-		{
-			[]string{"http://unreachable-url"},
-			"failed to",
-		},
+func TestParse_Success(t *testing.T) {
+	_, err := Parse([]string{"testdata/rules/*good.rules", "testdata/dir/*good.*"}, notifier.ValidateTemplates, true)
+	if err != nil {
+		t.Fatalf("error parsing files %s", err)
 	}
-	for _, tc := range testCases {
-		_, err := Parse(tc.path, notifier.ValidateTemplates, true)
+}
+
+func TestParse_Failure(t *testing.T) {
+	f := func(paths []string, errStrExpected string) {
+		t.Helper()
+
+		_, err := Parse(paths, notifier.ValidateTemplates, true)
 		if err == nil {
-			t.Errorf("expected to get error")
-			return
+			t.Fatalf("expected to get error")
 		}
-		if !strings.Contains(err.Error(), tc.expErr) {
-			t.Errorf("expected err to contain %q; got %q instead", tc.expErr, err)
+		if !strings.Contains(err.Error(), errStrExpected) {
+			t.Fatalf("expected err to contain %q; got %q instead", errStrExpected, err)
 		}
 	}
+
+	f([]string{"testdata/rules/rules_interval_bad.rules"}, "eval_offset should be smaller than interval")
+	f([]string{"testdata/rules/rules0-bad.rules"}, "unexpected token")
+	f([]string{"testdata/dir/rules0-bad.rules"}, "error parsing annotation")
+	f([]string{"testdata/dir/rules1-bad.rules"}, "duplicate in file")
+	f([]string{"testdata/dir/rules2-bad.rules"}, "function \"unknown\" not defined")
+	f([]string{"testdata/dir/rules3-bad.rules"}, "either `record` or `alert` must be set")
+	f([]string{"testdata/dir/rules4-bad.rules"}, "either `record` or `alert` must be set")
+	f([]string{"testdata/rules/rules1-bad.rules"}, "bad graphite expr")
+	f([]string{"testdata/dir/rules6-bad.rules"}, "missing ':' in header")
+	f([]string{"http://unreachable-url"}, "failed to")
 }
 
-func TestRule_Validate(t *testing.T) {
+func TestRuleValidate(t *testing.T) {
 	if err := (&Rule{}).Validate(); err == nil {
-		t.Errorf("expected empty name error")
+		t.Fatalf("expected empty name error")
 	}
 	if err := (&Rule{Alert: "alert"}).Validate(); err == nil {
-		t.Errorf("expected empty expr error")
+		t.Fatalf("expected empty expr error")
 	}
 	if err := (&Rule{Alert: "alert", Expr: "test>0"}).Validate(); err != nil {
-		t.Errorf("expected valid rule; got %s", err)
+		t.Fatalf("expected valid rule; got %s", err)
 	}
 }
 
-func TestGroup_Validate(t *testing.T) {
-	testCases := []struct {
-		group               *Group
-		rules               []Rule
-		validateAnnotations bool
-		validateExpressions bool
-		expErr              string
-	}{
-		{
-			group:  &Group{},
-			expErr: "group name must be set",
-		},
-		{
-			group: &Group{
-				Name:     "negative interval",
-				Interval: promutils.NewDuration(-1),
+func TestGroupValidate_Failure(t *testing.T) {
+	f := func(group *Group, validateExpressions bool, errStrExpected string) {
+		t.Helper()
+
+		err := group.Validate(nil, validateExpressions)
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
+		errStr := err.Error()
+		if !strings.Contains(errStr, errStrExpected) {
+			t.Fatalf("missing %q in the returned error %q", errStrExpected, errStr)
+		}
+	}
+
+	f(&Group{}, false, "group name must be set")
+
+	f(&Group{
+		Name:     "negative interval",
+		Interval: promutils.NewDuration(-1),
+	}, false, "interval shouldn't be lower than 0")
+
+	f(&Group{
+		Name:       "wrong eval_offset",
+		Interval:   promutils.NewDuration(time.Minute),
+		EvalOffset: promutils.NewDuration(2 * time.Minute),
+	}, false, "eval_offset should be smaller than interval")
+
+	f(&Group{
+		Name:  "wrong limit",
+		Limit: -1,
+	}, false, "invalid limit")
+
+	f(&Group{
+		Name:        "wrong concurrency",
+		Concurrency: -1,
+	}, false, "invalid concurrency")
+
+	f(&Group{
+		Name: "test",
+		Rules: []Rule{
+			{
+				Alert: "alert",
+				Expr:  "up == 1",
 			},
-			expErr: "interval shouldn't be lower than 0",
-		},
-		{
-			group: &Group{
-				Name:       "wrong eval_offset",
-				Interval:   promutils.NewDuration(time.Minute),
-				EvalOffset: promutils.NewDuration(2 * time.Minute),
+			{
+				Alert: "alert",
+				Expr:  "up == 1",
 			},
-			expErr: "eval_offset should be smaller than interval",
 		},
-		{
-			group: &Group{
-				Name:  "wrong limit",
-				Limit: -1,
+	}, false, "duplicate")
+
+	f(&Group{
+		Name: "test",
+		Rules: []Rule{
+			{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+				"summary": "{{ value|query }}",
+			}},
+			{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+				"summary": "{{ value|query }}",
+			}},
+		},
+	}, false, "duplicate")
+
+	f(&Group{
+		Name: "test",
+		Rules: []Rule{
+			{Record: "record", Expr: "up == 1", Labels: map[string]string{
+				"summary": "{{ value|query }}",
+			}},
+			{Record: "record", Expr: "up == 1", Labels: map[string]string{
+				"summary": "{{ value|query }}",
+			}},
+		},
+	}, false, "duplicate")
+
+	f(&Group{
+		Name: "test",
+		Rules: []Rule{
+			{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+				"summary": "{{ value|query }}",
+			}},
+			{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+				"description": "{{ value|query }}",
+			}},
+		},
+	}, false, "duplicate")
+
+	f(&Group{
+		Name: "test",
+		Rules: []Rule{
+			{Record: "alert", Expr: "up == 1", Labels: map[string]string{
+				"summary": "{{ value|query }}",
+			}},
+			{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+				"summary": "{{ value|query }}",
+			}},
+		},
+	}, false, "duplicate")
+
+	f(&Group{
+		Name: "test graphite prometheus bad expr",
+		Type: NewGraphiteType(),
+		Rules: []Rule{
+			{
+				Expr: "sum(up == 0 ) by (host)",
+				For:  promutils.NewDuration(10 * time.Millisecond),
 			},
-			expErr: "invalid limit",
-		},
-		{
-			group: &Group{
-				Name:        "wrong concurrency",
-				Concurrency: -1,
+			{
+				Expr: "sumSeries(time('foo.bar',10))",
 			},
-			expErr: "invalid concurrency",
 		},
-		{
-			group: &Group{
-				Name: "test",
-				Rules: []Rule{
-					{
-						Record: "record",
-						Expr:   "up | 0",
-					},
+	}, false, "invalid rule")
+
+	f(&Group{
+		Name: "test graphite inherit",
+		Type: NewGraphiteType(),
+		Rules: []Rule{
+			{
+				Expr: "sumSeries(time('foo.bar',10))",
+				For:  promutils.NewDuration(10 * time.Millisecond),
+			},
+			{
+				Expr: "sum(up == 0 ) by (host)",
+			},
+		},
+	}, false, "either `record` or `alert` must be set")
+
+	// validate expressions
+	f(&Group{
+		Name: "test",
+		Rules: []Rule{
+			{
+				Record: "record",
+				Expr:   "up | 0",
+			},
+		},
+	}, true, "invalid expression")
+
+	f(&Group{
+		Name: "test thanos",
+		Type: NewRawType("thanos"),
+		Rules: []Rule{
+			{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+				"description": "{{ value|query }}",
+			}},
+		},
+	}, true, "unknown datasource type")
+
+	f(&Group{
+		Name: "test graphite",
+		Type: NewGraphiteType(),
+		Rules: []Rule{
+			{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+				"description": "some-description",
+			}},
+		},
+	}, true, "bad graphite expr")
+}
+
+func TestGroupValidate_Success(t *testing.T) {
+	f := func(group *Group, validateAnnotations, validateExpressions bool) {
+		t.Helper()
+
+		var validateTplFn ValidateTplFn
+		if validateAnnotations {
+			validateTplFn = notifier.ValidateTemplates
+		}
+		err := group.Validate(validateTplFn, validateExpressions)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+	}
+
+	f(&Group{
+		Name: "test",
+		Rules: []Rule{
+			{
+				Record: "record",
+				Expr:   "up | 0",
+			},
+		},
+	}, false, false)
+
+	f(&Group{
+		Name: "test",
+		Rules: []Rule{
+			{
+				Alert: "alert",
+				Expr:  "up == 1",
+				Labels: map[string]string{
+					"summary": "{{ value|query }}",
 				},
 			},
-			expErr: "",
 		},
-		{
-			group: &Group{
-				Name: "test",
-				Rules: []Rule{
-					{
-						Record: "record",
-						Expr:   "up | 0",
-					},
-				},
-			},
-			expErr:              "invalid expression",
-			validateExpressions: true,
-		},
-		{
-			group: &Group{
-				Name: "test",
-				Rules: []Rule{
-					{
-						Alert: "alert",
-						Expr:  "up == 1",
-						Labels: map[string]string{
-							"summary": "{{ value|query }}",
-						},
-					},
-				},
-			},
-			expErr: "",
-		},
-		{
-			group: &Group{
-				Name: "test",
-				Rules: []Rule{
-					{
-						Alert: "alert",
-						Expr:  "up == 1",
-						Labels: map[string]string{
-							"summary": `
+	}, false, false)
+
+	// validate annotiations
+	f(&Group{
+		Name: "test",
+		Rules: []Rule{
+			{
+				Alert: "alert",
+				Expr:  "up == 1",
+				Labels: map[string]string{
+					"summary": `
 {{ with printf "node_memory_MemTotal{job='node',instance='%s'}" "localhost" | query }}
   {{ . | first | value | humanize1024 }}B
 {{ end }}`,
-						},
-					},
-				},
-			},
-			validateAnnotations: true,
-		},
-		{
-			group: &Group{
-				Name: "test",
-				Rules: []Rule{
-					{
-						Alert: "alert",
-						Expr:  "up == 1",
-					},
-					{
-						Alert: "alert",
-						Expr:  "up == 1",
-					},
-				},
-			},
-			expErr: "duplicate",
-		},
-		{
-			group: &Group{
-				Name: "test",
-				Rules: []Rule{
-					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-						"summary": "{{ value|query }}",
-					}},
-					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-						"summary": "{{ value|query }}",
-					}},
-				},
-			},
-			expErr: "duplicate",
-		},
-		{
-			group: &Group{
-				Name: "test",
-				Rules: []Rule{
-					{Record: "record", Expr: "up == 1", Labels: map[string]string{
-						"summary": "{{ value|query }}",
-					}},
-					{Record: "record", Expr: "up == 1", Labels: map[string]string{
-						"summary": "{{ value|query }}",
-					}},
-				},
-			},
-			expErr: "duplicate",
-		},
-		{
-			group: &Group{
-				Name: "test",
-				Rules: []Rule{
-					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-						"summary": "{{ value|query }}",
-					}},
-					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-						"description": "{{ value|query }}",
-					}},
-				},
-			},
-			expErr: "",
-		},
-		{
-			group: &Group{
-				Name: "test",
-				Rules: []Rule{
-					{Record: "alert", Expr: "up == 1", Labels: map[string]string{
-						"summary": "{{ value|query }}",
-					}},
-					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-						"summary": "{{ value|query }}",
-					}},
-				},
-			},
-			expErr: "",
-		},
-		{
-			group: &Group{
-				Name: "test thanos",
-				Type: NewRawType("thanos"),
-				Rules: []Rule{
-					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-						"description": "{{ value|query }}",
-					}},
-				},
-			},
-			validateExpressions: true,
-			expErr:              "unknown datasource type",
-		},
-		{
-			group: &Group{
-				Name: "test graphite",
-				Type: NewGraphiteType(),
-				Rules: []Rule{
-					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-						"description": "some-description",
-					}},
-				},
-			},
-			validateExpressions: true,
-			expErr:              "",
-		},
-		{
-			group: &Group{
-				Name: "test prometheus",
-				Type: NewPrometheusType(),
-				Rules: []Rule{
-					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-						"description": "{{ value|query }}",
-					}},
-				},
-			},
-			validateExpressions: true,
-			expErr:              "",
-		},
-		{
-			group: &Group{
-				Name: "test graphite inherit",
-				Type: NewGraphiteType(),
-				Rules: []Rule{
-					{
-						Expr: "sumSeries(time('foo.bar',10))",
-						For:  promutils.NewDuration(10 * time.Millisecond),
-					},
-					{
-						Expr: "sum(up == 0 ) by (host)",
-					},
 				},
 			},
 		},
-		{
-			group: &Group{
-				Name: "test graphite prometheus bad expr",
-				Type: NewGraphiteType(),
-				Rules: []Rule{
-					{
-						Expr: "sum(up == 0 ) by (host)",
-						For:  promutils.NewDuration(10 * time.Millisecond),
-					},
-					{
-						Expr: "sumSeries(time('foo.bar',10))",
-					},
-				},
-			},
-			expErr: "invalid rule",
-		},
-	}
+	}, true, false)
 
-	for _, tc := range testCases {
-		var validateTplFn ValidateTplFn
-		if tc.validateAnnotations {
-			validateTplFn = notifier.ValidateTemplates
-		}
-		err := tc.group.Validate(validateTplFn, tc.validateExpressions)
-		if err == nil {
-			if tc.expErr != "" {
-				t.Errorf("expected to get err %q; got nil insted", tc.expErr)
-			}
-			continue
-		}
-		if !strings.Contains(err.Error(), tc.expErr) {
-			t.Errorf("expected err to contain %q; got %q instead", tc.expErr, err)
-		}
-	}
+	// validate expressions
+	f(&Group{
+		Name: "test prometheus",
+		Type: NewPrometheusType(),
+		Rules: []Rule{
+			{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+				"description": "{{ value|query }}",
+			}},
+		},
+	}, false, true)
 }
 
-func TestHashRule(t *testing.T) {
-	testCases := []struct {
-		a, b  Rule
-		equal bool
-	}{
-		{
-			Rule{Record: "record", Expr: "up == 1"},
-			Rule{Record: "record", Expr: "up == 1"},
-			true,
-		},
-		{
-			Rule{Alert: "alert", Expr: "up == 1"},
-			Rule{Alert: "alert", Expr: "up == 1"},
-			true,
-		},
-		{
-			Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-				"foo": "bar",
-				"baz": "foo",
-			}},
-			Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-				"foo": "bar",
-				"baz": "foo",
-			}},
-			true,
-		},
-		{
-			Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-				"foo": "bar",
-				"baz": "foo",
-			}},
-			Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-				"baz": "foo",
-				"foo": "bar",
-			}},
-			true,
-		},
-		{
-			Rule{Alert: "record", Expr: "up == 1"},
-			Rule{Alert: "record", Expr: "up == 1"},
-			true,
-		},
-		{
-			Rule{Alert: "alert", Expr: "up == 1", For: promutils.NewDuration(time.Minute), KeepFiringFor: promutils.NewDuration(time.Minute)},
-			Rule{Alert: "alert", Expr: "up == 1"},
-			true,
-		},
-		{
-			Rule{Alert: "record", Expr: "up == 1"},
-			Rule{Record: "record", Expr: "up == 1"},
-			false,
-		},
-		{
-			Rule{Record: "record", Expr: "up == 1"},
-			Rule{Record: "record", Expr: "up == 2"},
-			false,
-		},
-		{
-			Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-				"foo": "bar",
-				"baz": "foo",
-			}},
-			Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-				"baz": "foo",
-				"foo": "baz",
-			}},
-			false,
-		},
-		{
-			Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-				"foo": "bar",
-				"baz": "foo",
-			}},
-			Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-				"baz": "foo",
-			}},
-			false,
-		},
-		{
-			Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
-				"foo": "bar",
-				"baz": "foo",
-			}},
-			Rule{Alert: "alert", Expr: "up == 1"},
-			false,
-		},
-	}
-	for i, tc := range testCases {
-		aID, bID := HashRule(tc.a), HashRule(tc.b)
-		if tc.equal != (aID == bID) {
-			t.Fatalf("missmatch for rule %d", i)
+func TestHashRule_NotEqual(t *testing.T) {
+	f := func(a, b Rule) {
+		t.Helper()
+
+		aID, bID := HashRule(a), HashRule(b)
+		if aID == bID {
+			t.Fatalf("rule hashes mustn't be equal; got %d", aID)
 		}
 	}
+
+	f(Rule{Alert: "record", Expr: "up == 1"}, Rule{Record: "record", Expr: "up == 1"})
+
+	f(Rule{Record: "record", Expr: "up == 1"}, Rule{Record: "record", Expr: "up == 2"})
+
+	f(Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+		"foo": "bar",
+		"baz": "foo",
+	}}, Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+		"baz": "foo",
+		"foo": "baz",
+	}})
+
+	f(Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+		"foo": "bar",
+		"baz": "foo",
+	}}, Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+		"baz": "foo",
+	}})
+
+	f(Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+		"foo": "bar",
+		"baz": "foo",
+	}}, Rule{Alert: "alert", Expr: "up == 1"})
+}
+
+func TestHashRule_Equal(t *testing.T) {
+	f := func(a, b Rule) {
+		t.Helper()
+
+		aID, bID := HashRule(a), HashRule(b)
+		if aID != bID {
+			t.Fatalf("rule hashes must be equal; got %d and %d", aID, bID)
+		}
+	}
+
+	f(Rule{Record: "record", Expr: "up == 1"}, Rule{Record: "record", Expr: "up == 1"})
+
+	f(Rule{Alert: "alert", Expr: "up == 1"}, Rule{Alert: "alert", Expr: "up == 1"})
+
+	f(Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+		"foo": "bar",
+		"baz": "foo",
+	}}, Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+		"foo": "bar",
+		"baz": "foo",
+	}})
+
+	f(Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+		"foo": "bar",
+		"baz": "foo",
+	}}, Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+		"baz": "foo",
+		"foo": "bar",
+	}})
+
+	f(Rule{Alert: "record", Expr: "up == 1"}, Rule{Alert: "record", Expr: "up == 1"})
+
+	f(Rule{
+		Alert: "alert", Expr: "up == 1", For: promutils.NewDuration(time.Minute), KeepFiringFor: promutils.NewDuration(time.Minute),
+	}, Rule{Alert: "alert", Expr: "up == 1"})
 }
 
 func TestGroupChecksum(t *testing.T) {

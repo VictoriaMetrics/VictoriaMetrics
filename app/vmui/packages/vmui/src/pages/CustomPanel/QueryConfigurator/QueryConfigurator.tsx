@@ -1,5 +1,4 @@
-import React, { FC, useEffect, useState } from "preact/compat";
-import { StateUpdater } from "preact/hooks";
+import React, { Dispatch, FC, SetStateAction, useEffect, useState } from "preact/compat";
 import QueryEditor from "../../../components/Configurators/QueryEditor/QueryEditor";
 import AdditionalSettings from "../../../components/Configurators/AdditionalSettings/AdditionalSettings";
 import usePrevious from "../../../hooks/usePrevious";
@@ -24,11 +23,12 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import { QueryStats } from "../../../api/types";
 import { usePrettifyQuery } from "./hooks/usePrettifyQuery";
 import QueryHistory from "../QueryHistory/QueryHistory";
+import AnomalyConfig from "../../../components/ExploreAnomaly/AnomalyConfig";
 
 export interface QueryConfiguratorProps {
   queryErrors: string[];
-  setQueryErrors: StateUpdater<string[]>;
-  setHideError: StateUpdater<boolean>;
+  setQueryErrors: Dispatch<SetStateAction<string[]>>;
+  setHideError: Dispatch<SetStateAction<boolean>>;
   stats: QueryStats[];
   onHideQuery?: (queries: number[]) => void
   onRunQuery: () => void;
@@ -37,6 +37,7 @@ export interface QueryConfiguratorProps {
     prettify?: boolean;
     autocomplete?: boolean;
     traceQuery?: boolean;
+    anomalyConfig?: boolean;
   }
 }
 
@@ -176,6 +177,10 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
     }
   }, [stateQuery, awaitStateQuery]);
 
+  useEffect(() => {
+    setStateQuery(query || []);
+  }, [query]);
+
   return <div
     className={classNames({
       "vm-query-configurator": true,
@@ -253,6 +258,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
       <AdditionalSettings hideButtons={hideButtons}/>
       <div className="vm-query-configurator-settings__buttons">
         <QueryHistory handleSelectQuery={handleSelectHistory}/>
+        {hideButtons?.anomalyConfig && <AnomalyConfig/>}
         {!hideButtons?.addQuery && stateQuery.length < MAX_QUERY_FIELDS && (
           <Button
             variant="outlined"

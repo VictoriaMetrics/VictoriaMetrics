@@ -1,5 +1,4 @@
 ---
-sort: 300
 weight: 300
 title: Long-term support releases
 menu:
@@ -9,9 +8,6 @@ menu:
 aliases:
 - /LTS-releases.html
 ---
-
-# Long-term support releases
-
 [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) provides long-term support lines of releases (aka LTS releases).
 Every LTS line receives bugfixes and [security fixes](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/SECURITY.md) for 12 months after
 the initial release. New LTS lines are published every 6 months, so the latest two LTS lines are supported at any given moment. This gives up to 6 months
@@ -23,5 +19,5 @@ to [the latest available releases](https://docs.victoriametrics.com/changelog/).
 
 ## Currently supported LTS release lines
 
-- 1.97.x - the latest one is [v1.97.4 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.4)
-- 1.93.x - the latest one is [v1.93.14 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.14)
+- 1.102.x - the latest one is [v1.102.1 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.1)
+- 1.97.x - the latest one is [v1.97.6 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.6)

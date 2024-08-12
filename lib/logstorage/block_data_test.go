@@ -51,20 +51,23 @@ func TestBlockDataReset(t *testing.T) {
 func TestBlockDataCopyFrom(t *testing.T) {
 	f := func(bd *blockData) {
 		t.Helper()
+
+		a := getArena()
+		defer putArena(a)
+
 		var bd2 blockData
-		bd2.copyFrom(bd)
-		bd2.a.b = nil
+		bd2.copyFrom(a, bd)
 		if !reflect.DeepEqual(bd, &bd2) {
 			t.Fatalf("unexpected blockData copy\ngot\n%v\nwant\n%v", &bd2, bd)
 		}
 
 		// Try copying it again to the same destination
-		bd2.copyFrom(bd)
-		bd2.a.b = nil
+		bd2.copyFrom(a, bd)
 		if !reflect.DeepEqual(bd, &bd2) {
 			t.Fatalf("unexpected blockData copy to the same destination\ngot\n%v\nwant\n%v", &bd2, bd)
 		}
 	}
+
 	f(&blockData{})
 
 	bd := &blockData{

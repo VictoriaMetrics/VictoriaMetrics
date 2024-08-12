@@ -53,6 +53,9 @@ var logRateLimiter = rate.Sometimes{Interval: 1 * time.Second}
 // Assign to var for unit test replacement
 var dialContext = grpc.DialContext
 
+// Assign to var for unit test replacement
+var dialContextNewAuth = grpctransport.Dial
+
 // otelStatsHandler is a singleton otelgrpc.clientHandler to be used across
 // all dial connections to avoid the memory leak documented in
 // https://github.com/open-telemetry/opentelemetry-go-contrib/issues/4226
@@ -174,21 +177,30 @@ func DialPool(ctx context.Context, opts ...option.ClientOption) (ConnPool, error
 // dialPoolNewAuth is an adapter to call new auth library.
 func dialPoolNewAuth(ctx context.Context, secure bool, poolSize int, ds *internal.DialSettings) (grpctransport.GRPCClientConnPool, error) {
 	// honor options if set
-	var ts oauth2.TokenSource
-	if ds.InternalCredentials != nil {
-		ts = ds.InternalCredentials.TokenSource
-	} else if ds.Credentials != nil {
-		ts = ds.Credentials.TokenSource
-	} else if ds.TokenSource != nil {
-		ts = ds.TokenSource
-	}
 	var creds *auth.Credentials
-	if ds.AuthCredentials != nil {
+	if ds.InternalCredentials != nil {
+		creds = oauth2adapt.AuthCredentialsFromOauth2Credentials(ds.InternalCredentials)
+	} else if ds.Credentials != nil {
+		creds = oauth2adapt.AuthCredentialsFromOauth2Credentials(ds.Credentials)
+	} else if ds.AuthCredentials != nil {
 		creds = ds.AuthCredentials
-	} else if ts != nil {
-		creds = auth.NewCredentials(&auth.CredentialsOptions{
-			TokenProvider: oauth2adapt.TokenProviderFromTokenSource(ts),
-		})
+	} else if ds.TokenSource != nil {
+		credOpts := &auth.CredentialsOptions{
+			TokenProvider: oauth2adapt.TokenProviderFromTokenSource(ds.TokenSource),
+		}
+		if ds.QuotaProject != "" {
+			credOpts.QuotaProjectIDProvider = auth.CredentialsPropertyFunc(func(ctx context.Context) (string, error) {
+				return ds.QuotaProject, nil
+			})
+		}
+		creds = auth.NewCredentials(credOpts)
+	}
+
+	var skipValidation bool
+	// If our clients explicitly setup the credential skip validation as it is
+	// assumed correct
+	if ds.SkipValidation || ds.InternalCredentials != nil {
+		skipValidation = true
 	}
 
 	var aud string
@@ -202,20 +214,27 @@ func dialPoolNewAuth(ctx context.Context, secure bool, poolSize int, ds *interna
 	if ds.RequestReason != "" {
 		metadata["X-goog-request-reason"] = ds.RequestReason
 	}
-	pool, err := grpctransport.Dial(ctx, secure, &grpctransport.Options{
+
+	// Defaults for older clients that don't set this value yet
+	defaultEndpointTemplate := ds.DefaultEndpointTemplate
+	if defaultEndpointTemplate == "" {
+		defaultEndpointTemplate = ds.DefaultEndpoint
+	}
+
+	pool, err := dialContextNewAuth(ctx, secure, &grpctransport.Options{
 		DisableTelemetry:      ds.TelemetryDisabled,
 		DisableAuthentication: ds.NoAuth,
 		Endpoint:              ds.Endpoint,
 		Metadata:              metadata,
-		GRPCDialOpts:          ds.GRPCDialOpts,
+		GRPCDialOpts:          prepareDialOptsNewAuth(ds),
 		PoolSize:              poolSize,
 		Credentials:           creds,
+		APIKey:                ds.APIKey,
 		DetectOpts: &credentials.DetectOptions{
 			Scopes:          ds.Scopes,
 			Audience:        aud,
 			CredentialsFile: ds.CredentialsFile,
 			CredentialsJSON: ds.CredentialsJSON,
-			Client:          oauth2.NewClient(ctx, nil),
 		},
 		InternalOptions: &grpctransport.InternalOptions{
 			EnableNonDefaultSAForDirectPath: ds.AllowNonDefaultServiceAccount,
@@ -223,12 +242,22 @@ func dialPoolNewAuth(ctx context.Context, secure bool, poolSize int, ds *interna
 			EnableDirectPathXds:             ds.EnableDirectPathXds,
 			EnableJWTWithScope:              ds.EnableJwtWithScope,
 			DefaultAudience:                 ds.DefaultAudience,
-			DefaultEndpointTemplate:         ds.DefaultEndpointTemplate,
+			DefaultEndpointTemplate:         defaultEndpointTemplate,
 			DefaultMTLSEndpoint:             ds.DefaultMTLSEndpoint,
 			DefaultScopes:                   ds.DefaultScopes,
+			SkipValidation:                  skipValidation,
 		},
 	})
 	return pool, err
+}
+
+func prepareDialOptsNewAuth(ds *internal.DialSettings) []grpc.DialOption {
+	var opts []grpc.DialOption
+	if ds.UserAgent != "" {
+		opts = append(opts, grpc.WithUserAgent(ds.UserAgent))
+	}
+
+	return append(opts, ds.GRPCDialOpts...)
 }
 
 func dial(ctx context.Context, insecure bool, o *internal.DialSettings) (*grpc.ClientConn, error) {

@@ -76,9 +76,6 @@ func (am *AlertManager) send(ctx context.Context, alerts []Alert, headers map[st
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	for key, value := range headers {
-		req.Header.Set(key, value)
-	}
 
 	if am.timeout > 0 {
 		var cancel context.CancelFunc
@@ -94,6 +91,11 @@ func (am *AlertManager) send(ctx context.Context, alerts []Alert, headers map[st
 			return err
 		}
 	}
+	// external headers have higher priority
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+
 	resp, err := am.client.Do(req)
 	if err != nil {
 		return err
@@ -145,7 +147,9 @@ func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg proma
 	aCfg, err := utils.AuthConfig(
 		utils.WithBasicAuth(ba.Username, ba.Password.String(), ba.PasswordFile),
 		utils.WithBearer(authCfg.BearerToken.String(), authCfg.BearerTokenFile),
-		utils.WithOAuth(oauth.ClientID, oauth.ClientSecretFile, oauth.ClientSecretFile, oauth.TokenURL, strings.Join(oauth.Scopes, ";"), oauth.EndpointParams))
+		utils.WithOAuth(oauth.ClientID, oauth.ClientSecret.String(), oauth.ClientSecretFile, oauth.TokenURL, strings.Join(oauth.Scopes, ";"), oauth.EndpointParams),
+		utils.WithHeaders(strings.Join(authCfg.Headers, "^^")),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}

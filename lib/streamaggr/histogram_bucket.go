@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -42,6 +43,7 @@ func (as *histogramBucketAggrState) pushSamples(samples []pushSample) {
 		if !ok {
 			// The entry is missing in the map. Try creating it.
 			v = &histogramBucketStateValue{}
+			outputKey = bytesutil.InternString(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if loaded {
 				// Use the entry created by a concurrent goroutine.
@@ -66,7 +68,7 @@ func (as *histogramBucketAggrState) pushSamples(samples []pushSample) {
 
 func (as *histogramBucketAggrState) removeOldEntries(currentTime uint64) {
 	m := &as.m
-	m.Range(func(k, v interface{}) bool {
+	m.Range(func(k, v any) bool {
 		sv := v.(*histogramBucketStateValue)
 
 		sv.mu.Lock()
@@ -84,21 +86,19 @@ func (as *histogramBucketAggrState) removeOldEntries(currentTime uint64) {
 	})
 }
 
-func (as *histogramBucketAggrState) flushState(ctx *flushCtx, resetState bool) {
-	_ = resetState // it isn't used here
+func (as *histogramBucketAggrState) flushState(ctx *flushCtx) {
 	currentTime := fasttime.UnixTimestamp()
-	currentTimeMsec := int64(currentTime) * 1000
 
 	as.removeOldEntries(currentTime)
 
 	m := &as.m
-	m.Range(func(k, v interface{}) bool {
+	m.Range(func(k, v any) bool {
 		sv := v.(*histogramBucketStateValue)
 		sv.mu.Lock()
 		if !sv.deleted {
 			key := k.(string)
 			sv.h.VisitNonZeroBuckets(func(vmrange string, count uint64) {
-				ctx.appendSeriesWithExtraLabel(key, "histogram_bucket", currentTimeMsec, float64(count), "vmrange", vmrange)
+				ctx.appendSeriesWithExtraLabel(key, "histogram_bucket", float64(count), "vmrange", vmrange)
 			})
 		}
 		sv.mu.Unlock()

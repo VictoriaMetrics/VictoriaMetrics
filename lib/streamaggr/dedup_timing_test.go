@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func BenchmarkDedupAggr(b *testing.B) {
@@ -18,22 +16,8 @@ func BenchmarkDedupAggr(b *testing.B) {
 	}
 }
 
-func BenchmarkDedupAggrFlushSerial(b *testing.B) {
-	as := newTotalAggrState(time.Hour, true, true)
-	benchSamples := newBenchSamples(100_000)
-	da := newDedupAggr()
-	da.pushSamples(benchSamples)
-
-	b.ResetTimer()
-	b.ReportAllocs()
-	b.SetBytes(int64(len(benchSamples)))
-	for i := 0; i < b.N; i++ {
-		da.flush(as.pushSamples, false)
-	}
-}
-
 func benchmarkDedupAggr(b *testing.B, samplesPerPush int) {
-	const loops = 100
+	const loops = 2
 	benchSamples := newBenchSamples(samplesPerPush)
 	da := newDedupAggr()
 
@@ -50,7 +34,6 @@ func benchmarkDedupAggr(b *testing.B, samplesPerPush int) {
 }
 
 func newBenchSamples(count int) []pushSample {
-	var lc promutils.LabelsCompressor
 	labels := []prompbmarshal.Label{
 		{
 			Name:  "app",
@@ -82,7 +65,7 @@ func newBenchSamples(count int) []pushSample {
 			Name:  "app",
 			Value: fmt.Sprintf("instance-%d", i),
 		})
-		keyBuf = compressLabels(keyBuf[:0], &lc, labels[:labelsLen], labels[labelsLen:])
+		keyBuf = compressLabels(keyBuf[:0], labels[:labelsLen], labels[labelsLen:])
 		sample.key = string(keyBuf)
 		sample.value = float64(i)
 	}

@@ -135,7 +135,6 @@ func (h *writeHandler) write(ctx context.Context, req *prompb.WriteRequest) (err
 				}
 				return err
 			}
-
 		}
 
 		for _, ep := range ts.Exemplars {
@@ -209,21 +208,15 @@ func (h *otlpWriteHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	prwMetricsMap, errs := otlptranslator.FromMetrics(req.Metrics(), otlptranslator.Settings{
+	converter := otlptranslator.NewPrometheusConverter()
+	if err := converter.FromMetrics(req.Metrics(), otlptranslator.Settings{
 		AddMetricSuffixes: true,
-	})
-	if errs != nil {
-		level.Warn(h.logger).Log("msg", "Error translating OTLP metrics to Prometheus write request", "err", errs)
-	}
-
-	prwMetrics := make([]prompb.TimeSeries, 0, len(prwMetricsMap))
-
-	for _, ts := range prwMetricsMap {
-		prwMetrics = append(prwMetrics, *ts)
+	}); err != nil {
+		level.Warn(h.logger).Log("msg", "Error translating OTLP metrics to Prometheus write request", "err", err)
 	}
 
 	err = h.rwHandler.write(r.Context(), &prompb.WriteRequest{
-		Timeseries: prwMetrics,
+		Timeseries: converter.TimeSeries(),
 	})
 
 	switch {

@@ -1,5 +1,4 @@
 ---
-sort: 29
 weight: 29
 title: Articles
 menu:
@@ -9,9 +8,6 @@ menu:
 aliases:
 - /Articles.html
 ---
-
-# Articles
-
 See also [case studies](https://docs.victoriametrics.com/casestudies/).
 
 ## Third-party articles and slides about VictoriaMetrics
@@ -53,7 +49,7 @@ See also [case studies](https://docs.victoriametrics.com/casestudies/).
 * [Percona: Percona monitoring and management migration from Prometheus to VictoriaMetrics FAQ](https://www.percona.com/blog/2020/12/16/percona-monitoring-and-management-migration-from-prometheus-to-victoriametrics-faq/)
 * [Percona: Compiling a Percona Monitoring and Management v2 Client in ARM: Raspberry Pi 3 Reprise](https://www.percona.com/blog/2021/05/26/compiling-a-percona-monitoring-and-management-v2-client-in-arm-raspberry-pi-3/)
 * [Percona: Tame Kubernetes Costs with Percona Monitoring and Management and Prometheus Operator](https://www.percona.com/blog/2021/02/12/tame-kubernetes-costs-with-percona-monitoring-and-management-and-prometheus-operator/)
-* [Making peace with Prometheus rate()](https://blog.doit-intl.com/making-peace-with-prometheus-rate-43a3ea75c4cf)
+* [Making peace with Prometheus rate()](https://www.doit.com/making-peace-with-prometheus-rate/)
 * [Disk usage: VictoriaMetrics vs Prometheus](https://stas.starikevich.com/posts/disk-usage-for-vm-versus-prometheus/)
 * [Benchmarking time series workloads on Apache Kudu using TSBS](https://blog.cloudera.com/benchmarking-time-series-workloads-on-apache-kudu-using-tsbs/)
 * [What are Open Source Time Series Databases?](https://www.iunera.com/kraken/fabric/time-series-database/)
@@ -62,12 +58,12 @@ See also [case studies](https://docs.victoriametrics.com/casestudies/).
 * [Calculating the Error of Quantile Estimation with Histograms](https://linuxczar.net/blog/2020/08/13/histogram-error/)
 * [Monitoring private clouds with VictoriaMetrics at LeroyMerlin](https://www.youtube.com/watch?v=74swsWqf0Uc)
 * [Monitoring Kubernetes with VictoriaMetrics+Prometheus](https://speakerdeck.com/bo0km4n/victoriametrics-plus-prometheusdegou-zhu-surufu-shu-kubernetesfalsejian-shi-ji-pan)
-* [High-performance Graphite storage solution on top of VictoriaMetrics](https://golangexample.com/a-high-performance-graphite-storage-solution/)
+* [High-performance Graphite storage solution on top of VictoriaMetrics](https://github.com/zhihu/promate)
 * [Cloud Native Model Driven Telemetry Stack on OpenShift](https://cer6erus.medium.com/cloud-native-model-driven-telemetry-stack-on-openshift-80712621f5bc)
 * [Prometheus VictoriaMetrics On AWS ECS](https://dalefro.medium.com/prometheus-victoria-metrics-on-aws-ecs-62448e266090)
 * [Solving Metrics at scale with VictoriaMetrics](https://www.youtube.com/watch?v=QgLMztnj7-8)
 * [Monitoring as Code на базе VictoriaMetrics и Grafana](https://habr.com/ru/post/568090/)
-* [Push Prometheus metrics to VictoriaMetrics or other exporters](https://pythonawesome.com/push-prometheus-metrics-to-victoriametrics-or-other-exporters/)
+* [Push Prometheus metrics to VictoriaMetrics or other exporters](https://github.com/gistart/prometheus-push-client)
 * [Install and configure VictoriaMetrics on Debian](https://www.vultr.com/docs/install-and-configure-victoriametrics-on-debian)
 * [Superset BI with Victoria Metrics](https://cer6erus.medium.com/superset-bi-with-victoria-metrics-a109d3e91bc6)
 * [VictoriaMetrics Source Code Analysis - Bloom filter](https://www.sobyte.net/post/2022-05/victoriametrics-bloomfilter/)
@@ -85,7 +81,9 @@ See also [case studies](https://docs.victoriametrics.com/casestudies/).
 * [Unleashing VM histograms for Ruby: Migrating from Prometheus to VictoriaMetrics with vm-client](https://hackernoon.com/unleashing-vm-histograms-for-ruby-migrating-from-prometheus-to-victoriametrics-with-vm-client)
 * [Observe and record performance of Spark jobs with Victoria Metrics](https://medium.com/constructor-engineering/observe-and-record-performance-of-databricks-jobs-11ffe236555e)
 * [Supercharge your Monitoring: Migrate from Prometheus to VictoriaMetrics for Scalability and Speed - Part 1](https://zetablogs.medium.com/supercharge-your-monitoring-migrate-from-prometheus-to-victoriametrics-for-scalability-and-speed-e1e9df786145)
-* [Supercharge your Monitoring: Migrate from Prometheus to VictoriaMetrics for optimised CPU and Memory usage - Part 2](https://zetablogs.medium.com/part-2-supercharge-your-monitoring-migrate-from-prometheus-to-victoriametrics-for-optimised-cpu-9a90c015ccba)
+* [Supercharge your Monitoring: Migrate from Prometheus to VictoriaMetrics for optimized CPU and Memory usage - Part 2](https://zetablogs.medium.com/part-2-supercharge-your-monitoring-migrate-from-prometheus-to-victoriametrics-for-optimised-cpu-9a90c015ccba)
+* [Persistent Data Structures in VictoriaMetrics (Part 1): vmagent](https://medium.com/devops-dev/persistent-data-structures-in-victoriametrics-part-1-vmagent-2e9c7681a6f0)
+* [Persistent Data Structures in VictoriaMetrics (Part 2): vmselect](https://medium.com/@jiekun/persistent-data-structures-in-victoriametrics-part-2-vmselect-9e3de39a4d20)
 
 ## Our articles
 

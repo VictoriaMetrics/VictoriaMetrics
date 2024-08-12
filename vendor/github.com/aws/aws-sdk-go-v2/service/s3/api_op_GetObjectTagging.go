@@ -13,20 +13,35 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets. Returns the tag-set of an
-// object. You send the GET request against the tagging subresource associated with
-// the object. To use this operation, you must have permission to perform the
+// This operation is not supported by directory buckets.
+//
+// Returns the tag-set of an object. You send the GET request against the tagging
+// subresource associated with the object.
+//
+// To use this operation, you must have permission to perform the
 // s3:GetObjectTagging action. By default, the GET action returns information about
 // current version of an object. For a versioned bucket, you can have multiple
 // versions of an object in your bucket. To retrieve tags of any other version, use
 // the versionId query parameter. You also need permission for the
-// s3:GetObjectVersionTagging action. By default, the bucket owner has this
-// permission and can grant this permission to others. For information about the
-// Amazon S3 object tagging feature, see Object Tagging (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-tagging.html)
-// . The following actions are related to GetObjectTagging :
-//   - DeleteObjectTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObjectTagging.html)
-//   - GetObjectAttributes (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAttributes.html)
-//   - PutObjectTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectTagging.html)
+// s3:GetObjectVersionTagging action.
+//
+// By default, the bucket owner has this permission and can grant this permission
+// to others.
+//
+// For information about the Amazon S3 object tagging feature, see [Object Tagging].
+//
+// The following actions are related to GetObjectTagging :
+//
+// [DeleteObjectTagging]
+//
+// [GetObjectAttributes]
+//
+// [PutObjectTagging]
+//
+// [DeleteObjectTagging]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObjectTagging.html
+// [PutObjectTagging]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectTagging.html
+// [GetObjectAttributes]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAttributes.html
+// [Object Tagging]: https://docs.aws.amazon.com/AmazonS3/latest/dev/object-tagging.html
 func (c *Client) GetObjectTagging(ctx context.Context, params *GetObjectTaggingInput, optFns ...func(*Options)) (*GetObjectTaggingOutput, error) {
 	if params == nil {
 		params = &GetObjectTaggingInput{}
@@ -45,6 +60,7 @@ func (c *Client) GetObjectTagging(ctx context.Context, params *GetObjectTaggingI
 type GetObjectTaggingInput struct {
 
 	// The bucket name containing the object for which to get the tagging information.
+	//
 	// Access points - When you use this action with an access point, you must provide
 	// the alias of the access point in place of the bucket name or specify the access
 	// point ARN. When using the access point ARN, you must direct requests to the
@@ -52,15 +68,18 @@ type GetObjectTaggingInput struct {
 	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
 	// action with an access point through the Amazon Web Services SDKs, you provide
 	// the access point ARN in place of the bucket name. For more information about
-	// access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide. S3 on Outposts - When you use this action with
-	// Amazon S3 on Outposts, you must direct requests to the S3 on Outposts hostname.
-	// The S3 on Outposts hostname takes the form
+	// access point ARNs, see [Using access points]in the Amazon S3 User Guide.
+	//
+	// S3 on Outposts - When you use this action with Amazon S3 on Outposts, you must
+	// direct requests to the S3 on Outposts hostname. The S3 on Outposts hostname
+	// takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
 	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts access point ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see What is S3 on Outposts? (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
-	// in the Amazon S3 User Guide.
+	// information about S3 on Outposts ARNs, see [What is S3 on Outposts?]in the Amazon S3 User Guide.
+	//
+	// [What is S3 on Outposts?]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html
+	// [Using access points]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html
 	//
 	// This member is required.
 	Bucket *string
@@ -79,10 +98,12 @@ type GetObjectTaggingInput struct {
 	// Bucket owners need not specify this parameter in their requests. If either the
 	// source or destination S3 bucket has Requester Pays enabled, the requester will
 	// pay for corresponding charges to copy the object. For information about
-	// downloading objects from Requester Pays buckets, see Downloading Objects in
-	// Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
-	// in the Amazon S3 User Guide. This functionality is not supported for directory
-	// buckets.
+	// downloading objects from Requester Pays buckets, see [Downloading Objects in Requester Pays Buckets]in the Amazon S3 User
+	// Guide.
+	//
+	// This functionality is not supported for directory buckets.
+	//
+	// [Downloading Objects in Requester Pays Buckets]: https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html
 	RequestPayer types.RequestPayer
 
 	// The versionId of the object for which to get the tagging information.
@@ -92,6 +113,7 @@ type GetObjectTaggingInput struct {
 }
 
 func (in *GetObjectTaggingInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 
 }
@@ -168,6 +190,15 @@ func (c *Client) addOperationGetObjectTaggingMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpGetObjectTaggingValidationMiddleware(stack); err != nil {

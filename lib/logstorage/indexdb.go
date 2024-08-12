@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 const (
@@ -51,9 +52,9 @@ type indexdb struct {
 	// streamsCreatedTotal is the number of log streams created since the indexdb intialization.
 	streamsCreatedTotal atomic.Uint64
 
-	// the generation of the streamFilterCache.
+	// the generation of the filterStreamCache.
 	// It is updated each time new item is added to tb.
-	streamFilterCacheGeneration atomic.Uint32
+	filterStreamCacheGeneration atomic.Uint32
 
 	// path is the path to indexdb
 	path string
@@ -267,7 +268,7 @@ func (is *indexSearch) getStreamIDsForTagFilter(tenantID TenantID, tf *streamTag
 		}
 		return ids
 	case "=~":
-		re := tf.getRegexp()
+		re := tf.regexp
 		if re.MatchString("") {
 			// (field=~"|re") => (field="" or field=~"re")
 			ids := is.getStreamIDsForEmptyTagValue(tenantID, tf.tagName)
@@ -279,7 +280,7 @@ func (is *indexSearch) getStreamIDsForTagFilter(tenantID TenantID, tf *streamTag
 		}
 		return is.getStreamIDsForTagRegexp(tenantID, tf.tagName, re)
 	case "!~":
-		re := tf.getRegexp()
+		re := tf.regexp
 		if re.MatchString("") {
 			// (field!~"|re") => (field!="" and not field=~"re")
 			ids := is.getStreamIDsForTagName(tenantID, tf.tagName)
@@ -482,11 +483,11 @@ func (idb *indexdb) mustRegisterStream(streamID *streamID, streamTagsCanonical [
 func (idb *indexdb) invalidateStreamFilterCache() {
 	// This function must be fast, since it is called each
 	// time new indexdb entry is added.
-	idb.streamFilterCacheGeneration.Add(1)
+	idb.filterStreamCacheGeneration.Add(1)
 }
 
 func (idb *indexdb) marshalStreamFilterCacheKey(dst []byte, tenantIDs []TenantID, sf *StreamFilter) []byte {
-	dst = encoding.MarshalUint32(dst, idb.streamFilterCacheGeneration.Load())
+	dst = encoding.MarshalUint32(dst, idb.filterStreamCacheGeneration.Load())
 	dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(idb.partitionName))
 	dst = encoding.MarshalVarUint64(dst, uint64(len(tenantIDs)))
 	for i := range tenantIDs {
@@ -499,21 +500,21 @@ func (idb *indexdb) marshalStreamFilterCacheKey(dst []byte, tenantIDs []TenantID
 func (idb *indexdb) loadStreamIDsFromCache(tenantIDs []TenantID, sf *StreamFilter) ([]streamID, bool) {
 	bb := bbPool.Get()
 	bb.B = idb.marshalStreamFilterCacheKey(bb.B[:0], tenantIDs, sf)
-	data := idb.s.streamFilterCache.GetBig(nil, bb.B)
+	data := idb.s.filterStreamCache.GetBig(nil, bb.B)
 	bbPool.Put(bb)
 	if len(data) == 0 {
 		// Cache miss
 		return nil, false
 	}
 	// Cache hit - unpack streamIDs from data.
-	tail, n, err := encoding.UnmarshalVarUint64(data)
-	if err != nil {
-		logger.Panicf("BUG: unexpected error when unmarshaling the number of streamIDs from cache: %s", err)
+	n, nSize := encoding.UnmarshalVarUint64(data)
+	if nSize <= 0 {
+		logger.Panicf("BUG: unexpected error when unmarshaling the number of streamIDs from cache")
 	}
-	src := tail
+	src := data[nSize:]
 	streamIDs := make([]streamID, n)
 	for i := uint64(0); i < n; i++ {
-		tail, err = streamIDs[i].unmarshal(src)
+		tail, err := streamIDs[i].unmarshal(src)
 		if err != nil {
 			logger.Panicf("BUG: unexpected error when unmarshaling streamID #%d: %s", i, err)
 		}
@@ -536,7 +537,7 @@ func (idb *indexdb) storeStreamIDsToCache(tenantIDs []TenantID, sf *StreamFilter
 	// Store marshaled streamIDs to cache.
 	bb := bbPool.Get()
 	bb.B = idb.marshalStreamFilterCacheKey(bb.B[:0], tenantIDs, sf)
-	idb.s.streamFilterCache.SetBig(bb.B, b)
+	idb.s.filterStreamCache.SetBig(bb.B, b)
 	bbPool.Put(bb)
 }
 
@@ -853,13 +854,9 @@ func (sp *tagToStreamIDsRowParser) ParseStreamIDs() {
 	}
 	tail := sp.tail
 	n := len(tail) / 16
-	streamIDs := sp.StreamIDs[:0]
-	if n <= cap(streamIDs) {
-		streamIDs = streamIDs[:n]
-	} else {
-		streamIDs = append(streamIDs[:cap(streamIDs)], make([]u128, n-cap(streamIDs))...)
-	}
-	sp.StreamIDs = streamIDs
+	sp.StreamIDs = slicesutil.SetLength(sp.StreamIDs, n)
+	streamIDs := sp.StreamIDs
+	_ = streamIDs[n-1]
 	for i := 0; i < n; i++ {
 		var err error
 		tail, err = streamIDs[i].unmarshal(tail)

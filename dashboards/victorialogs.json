@@ -6,7 +6,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "10.3.1"
+      "version": "10.4.2"
     },
     {
       "type": "datasource",
@@ -53,7 +53,7 @@
           "uid": "$ds"
         },
         "enable": true,
-        "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by(short_version) unless (sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"} offset 20m) by(short_version))",
+        "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by(short_version) unless (sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"} offset $__interval) by(short_version))",
         "hide": true,
         "iconColor": "blue",
         "name": "version change",
@@ -66,7 +66,7 @@
           "uid": "$ds"
         },
         "enable": true,
-        "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"})) by(job)",
+        "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(job)",
         "hide": true,
         "iconColor": "orange",
         "name": "restarts",
@@ -115,8 +115,7 @@
               }
             ]
           },
-          "unit": "short",
-          "unitScale": true
+          "unit": "short"
         },
         "overrides": []
       },
@@ -127,7 +126,6 @@
         "y": 1
       },
       "id": 10,
-      "links": [],
       "maxDataPoints": 100,
       "options": {
         "colorMode": "value",
@@ -146,7 +144,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.3.1",
+      "pluginVersion": "10.4.2",
       "targets": [
         {
           "datasource": {
@@ -188,8 +186,7 @@
               }
             ]
           },
-          "unit": "short",
-          "unitScale": true
+          "unit": "short"
         },
         "overrides": []
       },
@@ -200,7 +197,6 @@
         "y": 1
       },
       "id": 22,
-      "links": [],
       "maxDataPoints": 100,
       "options": {
         "colorMode": "value",
@@ -219,7 +215,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.3.1",
+      "pluginVersion": "10.4.2",
       "targets": [
         {
           "datasource": {
@@ -261,8 +257,7 @@
               }
             ]
           },
-          "unit": "none",
-          "unitScale": true
+          "unit": "none"
         },
         "overrides": []
       },
@@ -273,7 +268,6 @@
         "y": 1
       },
       "id": 25,
-      "links": [],
       "maxDataPoints": 100,
       "options": {
         "colorMode": "value",
@@ -292,7 +286,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.3.1",
+      "pluginVersion": "10.4.2",
       "targets": [
         {
           "datasource": {
@@ -338,8 +332,7 @@
               }
             ]
           },
-          "unit": "short",
-          "unitScale": true
+          "unit": "short"
         },
         "overrides": []
       },
@@ -350,7 +343,6 @@
         "y": 1
       },
       "id": 30,
-      "links": [],
       "maxDataPoints": 100,
       "options": {
         "colorMode": "value",
@@ -369,7 +361,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.3.1",
+      "pluginVersion": "10.4.2",
       "targets": [
         {
           "datasource": {
@@ -414,8 +406,7 @@
               }
             ]
           },
-          "unit": "s",
-          "unitScale": true
+          "unit": "s"
         },
         "overrides": []
       },
@@ -443,7 +434,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.3.1",
+      "pluginVersion": "10.4.2",
       "targets": [
         {
           "datasource": {
@@ -483,8 +474,7 @@
               }
             ]
           },
-          "unit": "bytes",
-          "unitScale": true
+          "unit": "bytes"
         },
         "overrides": []
       },
@@ -495,7 +485,6 @@
         "y": 3
       },
       "id": 24,
-      "links": [],
       "maxDataPoints": 100,
       "options": {
         "colorMode": "value",
@@ -514,7 +503,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.3.1",
+      "pluginVersion": "10.4.2",
       "targets": [
         {
           "datasource": {
@@ -556,8 +545,7 @@
               }
             ]
           },
-          "unit": "short",
-          "unitScale": true
+          "unit": "short"
         },
         "overrides": []
       },
@@ -568,7 +556,6 @@
         "y": 3
       },
       "id": 36,
-      "links": [],
       "maxDataPoints": 100,
       "options": {
         "colorMode": "value",
@@ -587,7 +574,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.3.1",
+      "pluginVersion": "10.4.2",
       "targets": [
         {
           "datasource": {
@@ -629,8 +616,7 @@
               }
             ]
           },
-          "unit": "bytes",
-          "unitScale": true
+          "unit": "bytes"
         },
         "overrides": []
       },
@@ -641,7 +627,6 @@
         "y": 3
       },
       "id": 34,
-      "links": [],
       "maxDataPoints": 100,
       "options": {
         "colorMode": "value",
@@ -660,7 +645,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.3.1",
+      "pluginVersion": "10.4.2",
       "targets": [
         {
           "datasource": {
@@ -751,8 +736,7 @@
               }
             ]
           },
-          "unit": "short",
-          "unitScale": true
+          "unit": "short"
         },
         "overrides": []
       },
@@ -763,7 +747,6 @@
         "y": 6
       },
       "id": 2,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [
@@ -860,8 +843,7 @@
               }
             ]
           },
-          "unit": "short",
-          "unitScale": true
+          "unit": "short"
         },
         "overrides": []
       },
@@ -872,7 +854,6 @@
         "y": 6
       },
       "id": 14,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [
@@ -970,8 +951,7 @@
               }
             ]
           },
-          "unit": "bytes",
-          "unitScale": true
+          "unit": "bytes"
         },
         "overrides": []
       },
@@ -982,7 +962,6 @@
         "y": 14
       },
       "id": 6,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [
@@ -1080,8 +1059,7 @@
               }
             ]
           },
-          "unit": "short",
-          "unitScale": true
+          "unit": "short"
         },
         "overrides": []
       },
@@ -1092,7 +1070,6 @@
         "y": 14
       },
       "id": 26,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [
@@ -1203,8 +1180,7 @@
               }
             ]
           },
-          "unit": "percentunit",
-          "unitScale": true
+          "unit": "percentunit"
         },
         "overrides": []
       },
@@ -1215,7 +1191,6 @@
         "y": 23
       },
       "id": 38,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [
@@ -1312,8 +1287,7 @@
               }
             ]
           },
-          "unit": "bytes",
-          "unitScale": true
+          "unit": "bytes"
         },
         "overrides": []
       },
@@ -1324,7 +1298,6 @@
         "y": 23
       },
       "id": 40,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [
@@ -1471,8 +1444,7 @@
               }
             ]
           },
-          "unit": "percentunit",
-          "unitScale": true
+          "unit": "percentunit"
         },
         "overrides": []
       },
@@ -1483,7 +1455,6 @@
         "y": 31
       },
       "id": 42,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [
@@ -1579,8 +1550,7 @@
               }
             ]
           },
-          "unit": "percentunit",
-          "unitScale": true
+          "unit": "percentunit"
         },
         "overrides": []
       },
@@ -1591,7 +1561,6 @@
         "y": 31
       },
       "id": 44,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [
@@ -1691,8 +1660,7 @@
               }
             ]
           },
-          "unit": "percentunit",
-          "unitScale": true
+          "unit": "percentunit"
         },
         "overrides": [
           {
@@ -1719,7 +1687,6 @@
         "y": 39
       },
       "id": 46,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [
@@ -1818,8 +1785,7 @@
               }
             ]
           },
-          "unit": "short",
-          "unitScale": true
+          "unit": "short"
         },
         "overrides": [
           {
@@ -1846,7 +1812,6 @@
         "y": 39
       },
       "id": 48,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [
@@ -1958,8 +1923,7 @@
               }
             ]
           },
-          "unit": "short",
-          "unitScale": true
+          "unit": "short"
         },
         "overrides": []
       },
@@ -1970,7 +1934,6 @@
         "y": 47
       },
       "id": 50,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [
@@ -2066,8 +2029,7 @@
               }
             ]
           },
-          "unit": "bytes",
-          "unitScale": true
+          "unit": "bytes"
         },
         "overrides": [
           {
@@ -2091,7 +2053,6 @@
         "y": 47
       },
       "id": 52,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [
@@ -2201,8 +2162,7 @@
               }
             ]
           },
-          "unit": "short",
-          "unitScale": true
+          "unit": "short"
         },
         "overrides": []
       },
@@ -2213,7 +2173,6 @@
         "y": 55
       },
       "id": 54,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [
@@ -2309,8 +2268,7 @@
               }
             ]
           },
-          "unit": "short",
-          "unitScale": true
+          "unit": "short"
         },
         "overrides": [
           {
@@ -2334,7 +2292,6 @@
         "y": 55
       },
       "id": 56,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [
@@ -2448,8 +2405,7 @@
               }
             ]
           },
-          "unit": "short",
-          "unitScale": true
+          "unit": "short"
         },
         "overrides": []
       },
@@ -2460,7 +2416,6 @@
         "y": 63
       },
       "id": 58,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [
@@ -2558,8 +2513,7 @@
               }
             ]
           },
-          "unit": "short",
-          "unitScale": true
+          "unit": "short"
         },
         "overrides": []
       },
@@ -2570,7 +2524,6 @@
         "y": 63
       },
       "id": 60,
-      "links": [],
       "options": {
         "legend": {
           "calcs": [
@@ -2617,7 +2570,7 @@
     "list": [
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "VictoriaMetrics",
           "value": "P4169E866C3094E38"
         },

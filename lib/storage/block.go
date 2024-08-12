@@ -369,15 +369,18 @@ func (b *Block) UnmarshalPortable(src []byte) ([]byte, error) {
 	if err != nil {
 		return src, err
 	}
-	src, timestampsData, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return src, fmt.Errorf("cannot read timestampsData: %w", err)
+	timestampsData, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot read timestampsData")
 	}
+	src = src[nSize:]
 	b.timestampsData = append(b.timestampsData[:0], timestampsData...)
-	src, valuesData, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return src, fmt.Errorf("cannot read valuesData: %w", err)
+
+	valuesData, nSize := encoding.UnmarshalBytes(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot read valuesData")
 	}
+	src = src[nSize:]
 	b.valuesData = append(b.valuesData[:0], valuesData...)
 
 	if err := b.bh.validate(); err != nil {

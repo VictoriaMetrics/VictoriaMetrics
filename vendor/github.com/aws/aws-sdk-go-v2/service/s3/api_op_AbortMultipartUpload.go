@@ -18,22 +18,27 @@ import (
 // by any previously uploaded parts will be freed. However, if any part uploads are
 // currently in progress, those part uploads might or might not succeed. As a
 // result, it might be necessary to abort a given multipart upload multiple times
-// in order to completely free all storage consumed by all parts. To verify that
-// all parts have been removed and prevent getting charged for the part storage,
-// you should call the ListParts (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListParts.html)
-// API operation and ensure that the parts list is empty. Directory buckets - For
-// directory buckets, you must make requests for this API operation to the Zonal
-// endpoint. These endpoints support virtual-hosted-style requests in the format
+// in order to completely free all storage consumed by all parts.
+//
+// To verify that all parts have been removed and prevent getting charged for the
+// part storage, you should call the [ListParts]API operation and ensure that the parts list
+// is empty.
+//
+// Directory buckets - For directory buckets, you must make requests for this API
+// operation to the Zonal endpoint. These endpoints support virtual-hosted-style
+// requests in the format
 // https://bucket_name.s3express-az_id.region.amazonaws.com/key-name . Path-style
-// requests are not supported. For more information, see Regional and Zonal
-// endpoints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html)
-// in the Amazon S3 User Guide. Permissions
+// requests are not supported. For more information, see [Regional and Zonal endpoints]in the Amazon S3 User
+// Guide.
+//
+// Permissions
+//
 //   - General purpose bucket permissions - For information about permissions
-//     required to use the multipart upload, see Multipart Upload and Permissions (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html)
-//     in the Amazon S3 User Guide.
+//     required to use the multipart upload, see [Multipart Upload and Permissions]in the Amazon S3 User Guide.
+//
 //   - Directory bucket permissions - To grant access to this API operation on a
-//     directory bucket, we recommend that you use the CreateSession (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html)
-//     API operation for session-based authorization. Specifically, you grant the
+//     directory bucket, we recommend that you use the [CreateSession]CreateSession API operation
+//     for session-based authorization. Specifically, you grant the
 //     s3express:CreateSession permission to the directory bucket in a bucket policy
 //     or an IAM identity-based policy. Then, you make the CreateSession API call on
 //     the bucket to obtain a session token. With the session token in your request
@@ -41,17 +46,31 @@ import (
 //     expires, you make another CreateSession API call to generate a new session
 //     token for use. Amazon Web Services CLI or SDKs create session and refresh the
 //     session token automatically to avoid service interruptions when a session
-//     expires. For more information about authorization, see CreateSession (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html)
-//     .
+//     expires. For more information about authorization, see [CreateSession]CreateSession .
 //
-// HTTP Host header syntax Directory buckets - The HTTP Host header syntax is
-// Bucket_name.s3express-az_id.region.amazonaws.com . The following operations are
-// related to AbortMultipartUpload :
-//   - CreateMultipartUpload (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html)
-//   - UploadPart (https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html)
-//   - CompleteMultipartUpload (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html)
-//   - ListParts (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListParts.html)
-//   - ListMultipartUploads (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListMultipartUploads.html)
+// HTTP Host header syntax  Directory buckets - The HTTP Host header syntax is
+// Bucket_name.s3express-az_id.region.amazonaws.com .
+//
+// The following operations are related to AbortMultipartUpload :
+//
+// [CreateMultipartUpload]
+//
+// [UploadPart]
+//
+// [CompleteMultipartUpload]
+//
+// [ListParts]
+//
+// [ListMultipartUploads]
+//
+// [ListParts]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListParts.html
+// [UploadPart]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html
+// [Regional and Zonal endpoints]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
+// [ListMultipartUploads]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListMultipartUploads.html
+// [CreateSession]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html
+// [Multipart Upload and Permissions]: https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html
+// [CompleteMultipartUpload]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html
+// [CreateMultipartUpload]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html
 func (c *Client) AbortMultipartUpload(ctx context.Context, params *AbortMultipartUploadInput, optFns ...func(*Options)) (*AbortMultipartUploadOutput, error) {
 	if params == nil {
 		params = &AbortMultipartUploadInput{}
@@ -69,31 +88,39 @@ func (c *Client) AbortMultipartUpload(ctx context.Context, params *AbortMultipar
 
 type AbortMultipartUploadInput struct {
 
-	// The bucket name to which the upload was taking place. Directory buckets - When
-	// you use this operation with a directory bucket, you must use
-	// virtual-hosted-style requests in the format
+	// The bucket name to which the upload was taking place.
+	//
+	// Directory buckets - When you use this operation with a directory bucket, you
+	// must use virtual-hosted-style requests in the format
 	// Bucket_name.s3express-az_id.region.amazonaws.com . Path-style requests are not
 	// supported. Directory bucket names must be unique in the chosen Availability
 	// Zone. Bucket names must follow the format bucket_base_name--az-id--x-s3 (for
 	// example, DOC-EXAMPLE-BUCKET--usw2-az1--x-s3 ). For information about bucket
-	// naming restrictions, see Directory bucket naming rules (https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html)
-	// in the Amazon S3 User Guide. Access points - When you use this action with an
-	// access point, you must provide the alias of the access point in place of the
-	// bucket name or specify the access point ARN. When using the access point ARN,
-	// you must direct requests to the access point hostname. The access point hostname
-	// takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this action with an access point through the Amazon Web Services
-	// SDKs, you provide the access point ARN in place of the bucket name. For more
-	// information about access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide. Access points and Object Lambda access points are
-	// not supported by directory buckets. S3 on Outposts - When you use this action
-	// with Amazon S3 on Outposts, you must direct requests to the S3 on Outposts
-	// hostname. The S3 on Outposts hostname takes the form
+	// naming restrictions, see [Directory bucket naming rules]in the Amazon S3 User Guide.
+	//
+	// Access points - When you use this action with an access point, you must provide
+	// the alias of the access point in place of the bucket name or specify the access
+	// point ARN. When using the access point ARN, you must direct requests to the
+	// access point hostname. The access point hostname takes the form
+	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
+	// action with an access point through the Amazon Web Services SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see [Using access points]in the Amazon S3 User Guide.
+	//
+	// Access points and Object Lambda access points are not supported by directory
+	// buckets.
+	//
+	// S3 on Outposts - When you use this action with Amazon S3 on Outposts, you must
+	// direct requests to the S3 on Outposts hostname. The S3 on Outposts hostname
+	// takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
 	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts access point ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see What is S3 on Outposts? (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
-	// in the Amazon S3 User Guide.
+	// information about S3 on Outposts ARNs, see [What is S3 on Outposts?]in the Amazon S3 User Guide.
+	//
+	// [Directory bucket naming rules]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html
+	// [What is S3 on Outposts?]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html
+	// [Using access points]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html
 	//
 	// This member is required.
 	Bucket *string
@@ -117,16 +144,19 @@ type AbortMultipartUploadInput struct {
 	// Bucket owners need not specify this parameter in their requests. If either the
 	// source or destination S3 bucket has Requester Pays enabled, the requester will
 	// pay for corresponding charges to copy the object. For information about
-	// downloading objects from Requester Pays buckets, see Downloading Objects in
-	// Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
-	// in the Amazon S3 User Guide. This functionality is not supported for directory
-	// buckets.
+	// downloading objects from Requester Pays buckets, see [Downloading Objects in Requester Pays Buckets]in the Amazon S3 User
+	// Guide.
+	//
+	// This functionality is not supported for directory buckets.
+	//
+	// [Downloading Objects in Requester Pays Buckets]: https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html
 	RequestPayer types.RequestPayer
 
 	noSmithyDocumentSerde
 }
 
 func (in *AbortMultipartUploadInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.Key = in.Key
 
@@ -135,7 +165,9 @@ func (in *AbortMultipartUploadInput) bindEndpointParams(p *EndpointParameters) {
 type AbortMultipartUploadOutput struct {
 
 	// If present, indicates that the requester was successfully charged for the
-	// request. This functionality is not supported for directory buckets.
+	// request.
+	//
+	// This functionality is not supported for directory buckets.
 	RequestCharged types.RequestCharged
 
 	// Metadata pertaining to the operation's result.
@@ -200,6 +232,15 @@ func (c *Client) addOperationAbortMultipartUploadMiddlewares(stack *middleware.S
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpAbortMultipartUploadValidationMiddleware(stack); err != nil {

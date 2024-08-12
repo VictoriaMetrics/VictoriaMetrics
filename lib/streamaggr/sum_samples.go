@@ -3,7 +3,7 @@ package streamaggr
 import (
 	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 // sumSamplesAggrState calculates output=sum_samples, e.g. the sum over input samples.
@@ -33,6 +33,7 @@ func (as *sumSamplesAggrState) pushSamples(samples []pushSample) {
 			v = &sumSamplesStateValue{
 				sum: s.value,
 			}
+			outputKey = bytesutil.InternString(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if !loaded {
 				// The new entry has been successfully created.
@@ -56,26 +57,21 @@ func (as *sumSamplesAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *sumSamplesAggrState) flushState(ctx *flushCtx, resetState bool) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
+func (as *sumSamplesAggrState) flushState(ctx *flushCtx) {
 	m := &as.m
-	m.Range(func(k, v interface{}) bool {
-		if resetState {
-			// Atomically delete the entry from the map, so new entry is created for the next flush.
-			m.Delete(k)
-		}
+	m.Range(func(k, v any) bool {
+		// Atomically delete the entry from the map, so new entry is created for the next flush.
+		m.Delete(k)
 
 		sv := v.(*sumSamplesStateValue)
 		sv.mu.Lock()
 		sum := sv.sum
-		if resetState {
-			// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-			sv.deleted = true
-		}
+		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
+		sv.deleted = true
 		sv.mu.Unlock()
 
 		key := k.(string)
-		ctx.appendSeries(key, "sum_samples", currentTimeMsec, sum)
+		ctx.appendSeries(key, "sum_samples", sum)
 		return true
 	})
 }
