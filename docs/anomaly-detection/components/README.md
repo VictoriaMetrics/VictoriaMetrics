@@ -38,30 +38,42 @@ schedulers:
 # what model types and with what hyperparams to run on your data
 # https://docs.victoriametrics.com/anomaly-detection/components/models/
 models:
-  zscore:  # alias
+  zscore:  # we can set up alias for model
     class: 'zscore'  # model class
     z_threshold: 3.5
     provide_series: ['anomaly_score']  # what series to produce
     queries: ['host_network_receive_errors']  # what queries to run particular model on
     schedulers: ['periodic_1d']  # will be attached to 1-day schedule, fit every 10m and infer every 30s
-  prophet: # alias
+    min_dev_from_expected: 0.0  # turned off. if |y - yhat| < min_dev_from_expected, anomaly score will be 0
+    detection_direction: 'above_expected' # detect anomalies only when y > yhat, "peaks"
+  prophet: # we can set up alias for model
     class: 'prophet'
     provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
     queries: ['cpu_seconds_total']
     schedulers: ['periodic_1w']  # will be attached to 1-week schedule, fit every 1h and infer every 15m
+    min_dev_from_expected: 0.01  # if |y - yhat| < 0.01, anomaly score will be 0
+    detection_direction: 'above_expected'
     args:  # model-specific arguments
       interval_width: 0.98
 
 # where to read data from
-# https://docs.victoriametrics.com/anomaly-detection/components/reader/
+# https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader
 reader:
-  datasource_url: "http://victoriametrics:8428/"
+  datasource_url: "https://play.victoriametrics.com/"
   tenant_id: "0:0"
   class: 'vm'
-  sampling_period: "30s"  # what data resolution of your data to have
+  sampling_period: "30s"  # what data resolution to fetch from VictoriaMetrics' /query_range endpoint
+  latency_offset: '1ms'
+  query_from_last_seen_timestamp: False
   queries:  # aliases to MetricsQL expressions
-    cpu_seconds_total: 'avg(rate(node_cpu_seconds_total[5m])) by (mode)' 
-    host_network_receive_errors: 'rate(node_network_receive_errs_total[3m]) / rate(node_network_receive_packets_total[3m])'
+    cpu_seconds_total:
+      expr: 'avg(rate(node_cpu_seconds_total[5m])) by (mode)' 
+      # step: '30s'  # if not set, will be equal to sampling_period
+      data_range: [0, 'inf']  # expected value range, anomaly_score > 1 if y (real value) is outside
+    host_network_receive_errors:
+      expr: 'rate(node_network_receive_errs_total[3m]) / rate(node_network_receive_packets_total[3m])'
+      step: '15m'  # here we override per-query `sampling_period` to request way less data from VM TSDB
+      data_range: [0, 'inf']
 
 # where to write data to
 # https://docs.victoriametrics.com/anomaly-detection/components/writer/
