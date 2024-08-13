@@ -1,5 +1,5 @@
 /* eslint-disable */
-const {override, addExternalBabelPlugin, addWebpackAlias, addWebpackPlugin} = require("customize-cra");
+const { override, addExternalBabelPlugin, addWebpackAlias, addWebpackPlugin } = require("customize-cra");
 const webpack = require("webpack");
 const fs = require('fs');
 const path = require('path');
