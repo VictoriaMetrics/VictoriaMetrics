@@ -517,7 +517,8 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 	}
 	if keepMetricNames {
 		if opts.KeepInput {
-			return nil, fmt.Errorf("cannot enable `-stream.keepInput` and `keep_metric_names` options together")
+			return nil, fmt.Errorf("`-streamAggr.keepInput` and `keep_metric_names` options can't be enabled in the same time," +
+				"as it may result in time series collision")
 		}
 		if len(cfg.Outputs) != 1 {
 			return nil, fmt.Errorf("`outputs` list must contain only a single entry if `keep_metric_names` is set; got %q; "+
