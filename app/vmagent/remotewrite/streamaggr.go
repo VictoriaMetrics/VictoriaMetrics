@@ -202,6 +202,7 @@ func newStreamAggrConfigGlobal() (*streamaggr.Aggregators, error) {
 		DropInputLabels:      *streamAggrGlobalDropInputLabels,
 		IgnoreOldSamples:     *streamAggrGlobalIgnoreOldSamples,
 		IgnoreFirstIntervals: *streamAggrGlobalIgnoreFirstIntervals,
+		KeepInput:            *streamAggrGlobalKeepInput,
 	}
 
 	sas, err := streamaggr.LoadFromFile(path, pushToRemoteStoragesTrackDropped, opts, "global")
@@ -230,6 +231,7 @@ func newStreamAggrConfigPerURL(idx int, pushFunc streamaggr.PushFunc) (*streamag
 		DropInputLabels:      *streamAggrDropInputLabels,
 		IgnoreOldSamples:     streamAggrIgnoreOldSamples.GetOptionalArg(idx),
 		IgnoreFirstIntervals: streamAggrIgnoreFirstIntervals.GetOptionalArg(idx),
+		KeepInput:            streamAggrKeepInput.GetOptionalArg(idx),
 	}
 
 	sas, err := streamaggr.LoadFromFile(path, pushFunc, opts, alias)
