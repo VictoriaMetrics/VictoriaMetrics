@@ -42,6 +42,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): fix command-line flag `-remoteWrite.streamAggr.ignoreFirstIntervals` to accept multiple values and be applied per each corresponding `-remoteWrite.url`. Previously, this flag only could have been used globally for all URLs.
 * BUGFIX: [graphite](https://docs.victoriametrics.com/#graphite-render-api-usage): respect `-search.denyPartialResponse` cmd-line flag and `deny_partial_response` query GET param when serving requests via Graphite API. Before, partial responses were always denied. Thanks to @penguinlav for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6748).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): account for `-usePromCompatibleNaming` cmd-line flag during when pushing data to remote storages. Thanks to @12345XXX  for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6776).
+* BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): reduce CPU usage by limiting the number of concurrently running inserts. The issue was introduced in [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/498fe1cfa523be5bfecaa372293c3cded85e75ab) starting from v1.101.0. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6733) issue for details.
+
 ## [v1.102.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.1)
 
 Released at 2024-08-01
