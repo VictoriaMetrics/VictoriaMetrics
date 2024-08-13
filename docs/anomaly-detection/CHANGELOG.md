@@ -13,6 +13,13 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
 > **Important note: Users are strongly encouraged to upgrade to `vmanomaly` [v1.9.2](https://hub.docker.com/repository/docker/victoriametrics/vmanomaly/tags?page=1&ordering=name) or newer for optimal performance and accuracy. <br><br> This recommendation is crucial for configurations with a low `infer_every` parameter [in your scheduler](./components/scheduler.md#parameters-1), and in scenarios where data exhibits significant high-order seasonality patterns (such as hourly or daily cycles). Previous versions from v1.5.1 to v1.8.0 were identified to contain a critical issue impacting model training, where models were inadvertently trained on limited data subsets, leading to suboptimal fits, affecting the accuracy of anomaly detection. <br><br> Upgrading to v1.9.2 addresses this issue, ensuring proper model training and enhanced reliability. For users utilizing Helm charts, it is recommended to upgrade to version [1.0.0](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/CHANGELOG.md#100) or newer.**
 
+## v1.15.2
+Released: 2024-08-13
+- IMPROVEMENT: Enhanced [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) (e.g., [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile)) to automatically create model instances for unseen time series during `infer` calls, eliminating the need to wait for the next `fit` call. This ensures no inferences are skipped **when using online models**.
+- FIX: Corrected an issue with the [`OnlineMADModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-mad) to ensure proper functionality when used in combination with [on-disk model dump mode](https://docs.victoriametrics.com/anomaly-detection/faq/#resource-consumption-of-vmanomaly).
+- FIX: Addressed numerical instability in the [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile) when `use_transform` is set to `True`.
+- FIX: Resolved a logging issue that could cause a `RuntimeError: reentrant call inside <_io.BufferedWriter name='<stderr>'>` when a termination event was received.
+
 ## v1.15.1
 Released: 2024-08-10
 - FEATURE: Introduced backward-compatible `data_range` [query-specific parameter](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters) to the [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader). It enables the definition of **valid** data ranges for input per individual query in `queries`, resulting in:
