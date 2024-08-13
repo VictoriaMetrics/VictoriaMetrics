@@ -56,7 +56,7 @@ It increases cluster availability, and simplifies cluster maintenance as well as
 
 ![Cluster Scheme](Cluster-VictoriaMetrics_cluster-scheme.webp)
 
-Note that `vmselect` still requires some disk space for temporary query results despite being stateless. Refer to the `-cacheDataPath` command-line flag for more details.
+> Note that `vmselect` despite being stateless still requires some disk space (couple of GBs) for temporary caches. Refer to the `-cacheDataPath` command-line flag for more details.
 
 ## Multitenancy
 
