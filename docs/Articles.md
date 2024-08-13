@@ -84,6 +84,7 @@ See also [case studies](https://docs.victoriametrics.com/casestudies/).
 * [Supercharge your Monitoring: Migrate from Prometheus to VictoriaMetrics for optimized CPU and Memory usage - Part 2](https://zetablogs.medium.com/part-2-supercharge-your-monitoring-migrate-from-prometheus-to-victoriametrics-for-optimised-cpu-9a90c015ccba)
 * [Persistent Data Structures in VictoriaMetrics (Part 1): vmagent](https://medium.com/devops-dev/persistent-data-structures-in-victoriametrics-part-1-vmagent-2e9c7681a6f0)
 * [Persistent Data Structures in VictoriaMetrics (Part 2): vmselect](https://medium.com/@jiekun/persistent-data-structures-in-victoriametrics-part-2-vmselect-9e3de39a4d20)
+* [Migrating to VictoriaMetrics (by Zomato): A Complete Overhaul for Enhanced Observability](https://blog.zomato.com/migrating-to-victoriametrics-a-complete-overhaul-for-enhanced-observability)
 
 ## Our articles
 
