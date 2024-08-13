@@ -44,4 +44,4 @@ vmui-update: vmui-build
 	rm -rf app/vmselect/vmui/* && mv app/vmui/packages/vmui/build/* app/vmselect/vmui
 
 vmui-logs-update: vmui-logs-build
-	rm -rf app/vlselect/vmui/* && mv app/vmui/packages/vmui/build/* app/vlselect/vmui && rm -rf app/vlselect/vmui/dashboards/* && touch app/vlselect/vmui/dashboards/index.js
+	rm -rf app/vlselect/vmui/* && mv app/vmui/packages/vmui/build/* app/vlselect/vmui && rm -rf app/vlselect/vmui/dashboards/*
