@@ -1087,7 +1087,8 @@ specified individually per each `-remoteWrite.url`:
   outputs: [total]
 
   # keep_metric_names instructs keeping the original metric names for the aggregated samples.
-  # This option can be set only if outputs list contains only a single output.
+  # This option can't be enabled together with `-streamAggr.keepInput` or `-remoteWrite.streamAggr.keepInput`.
+  # This option can be set only if outputs list contains a single output.
   # By default, a special suffix is added to original metric names in the aggregated samples.
   # See https://docs.victoriametrics.com/stream-aggregation/#output-metric-names
   #
