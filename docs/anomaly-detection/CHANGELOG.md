@@ -47,12 +47,12 @@ Released: 2024-08-06
 
 ## v1.14.2
 Released: 2024-07-26
-- FIX: Patch a bug introduced in [v1.14.1](#v1141), causing `vmanomaly` to crash in `preset` [mode](/anomaly-detection/presets/).
+- FIX: Patch a bug introduced in [v1.14.1](#v1141), causing `vmanomaly` to crash in `preset` [mode](https://docs.victoriametrics.com/anomaly-detection/presets/).
 
 ## v1.14.1
 Released: 2024-07-26
-- FEATURE: Allow to process larger data chunks in [VmReader](/anomaly-detection/components/reader#vm-reader) that exceed `-search.maxPointsPerTimeseries` [constraint in VictoriaMetrics](https://docs.victoriametrics.com/?highlight=search.maxPointsPerTimeseries#resource-usage-limits) by splitting the range and sending multiple requests. A warning is printed in logs, suggesting reducing the range or step, or increasing `search.maxPointsPerTimeseries` constraint in VictoriaMetrics, which is still a recommended option.
-- FEATURE: Backward-compatible redesign of [`queries`](/anomaly-detection/components/reader?highlight=queries#vm-reader) arg of [VmReader](/anomaly-detection/components/reader#vm-reader). Old format of `{q_alias1: q_expr1, q_alias2: q_expr2, ...}` will be implicitly converted to a new one with a warning raised in logs. New format allows to specify per-query parameters, like `step` to reduce amount of data read from VictoriaMetrics TSDB and to allow config flexibility. Find out more in [Per-query parameters section of VmReader](/anomaly-detection/components/reader/#per-query-parameters).
+- FEATURE: Allow to process larger data chunks in [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader#vm-reader) that exceed `-search.maxPointsPerTimeseries` [constraint in VictoriaMetrics](https://docs.victoriametrics.com/?highlight=search.maxPointsPerTimeseries#resource-usage-limits) by splitting the range and sending multiple requests. A warning is printed in logs, suggesting reducing the range or step, or increasing `search.maxPointsPerTimeseries` constraint in VictoriaMetrics, which is still a recommended option.
+- FEATURE: Backward-compatible redesign of [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/reader?highlight=queries#vm-reader) arg of [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader#vm-reader). Old format of `{q_alias1: q_expr1, q_alias2: q_expr2, ...}` will be implicitly converted to a new one with a warning raised in logs. New format allows to specify per-query parameters, like `step` to reduce amount of data read from VictoriaMetrics TSDB and to allow config flexibility. Find out more in [Per-query parameters section of VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters).
 
 - IMPROVEMENT: Added multi-platform builds for `linux/amd64` and `linux/arm64` architectures.
 
