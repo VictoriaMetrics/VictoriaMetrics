@@ -47,6 +47,7 @@ reader:
     vmb:
       expr: 'avg(vm_blocks)'  # initial MetricsQL expression
       step: '10s'  # individual step for this query, will be filled with `sampling_period` from the root level
+      data_range: ['-inf', 'inf']  # by default, no constraints applied on data range
       # new query-level arguments will be added in backward-compatible way in future releases
 ```
 
