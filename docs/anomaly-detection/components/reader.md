@@ -12,7 +12,7 @@ aliases:
 There are 4 sources available to read data into VM Anomaly Detection from: VictoriaMetrics, (ND)JSON file, QueryRange, or CSV file. Depending on the data source, different parameters should be specified in the config file in the `reader` section.
 -->
 
-VictoriaMetrics Anomaly Detection (`vmanomaly`) primarily uses [VmReader](#vm-reader) to ingest data. This reader focuses on fetching time-series data directly from VictoriaMetrics with the help of powerful [MetricsQL](../../MetricsQL.md) expressions for aggregating, filtering and grouping your data, ensuring seamless integration and efficient data handling.
+VictoriaMetrics Anomaly Detection (`vmanomaly`) primarily uses [VmReader](#vm-reader) to ingest data. This reader focuses on fetching time-series data directly from VictoriaMetrics with the help of powerful [MetricsQL](https://docs.victoriametrics.com/metricsql/) expressions for aggregating, filtering and grouping your data, ensuring seamless integration and efficient data handling.
 
 Future updates will introduce additional readers, expanding the range of data sources `vmanomaly` can work with.
 
@@ -60,7 +60,7 @@ Starting from [v1.13.0](/anomaly-detection/changelog#v1130) there is change of [
 
     > **Note**: if not set explicitly (or if older config style prior to [v1.13.0](/anomaly-detection/changelog#v1130)) is used, then it is set to reader-level `sampling_period` arg.
 
-    > **Note**: having **different** individual `step` args for queries (i.e. `30s` for `q1` and `2m` for `q2`) is not yet supported for [multivariate model](/anomaly-detection/components/models/index.html#multivariate-models) if you want to run it on several queries simultaneously (i.e. setting [`queries`](/anomaly-detection/components/models/#queries) arg of a model to [`q1`, `q2`]).
+    > **Note**: having **different** individual `step` args for queries (i.e. `30s` for `q1` and `2m` for `q2`) is not yet supported for [multivariate model](/anomaly-detection/components/models/#multivariate-models) if you want to run it on several queries simultaneously (i.e. setting [`queries`](/anomaly-detection/components/models/#queries) arg of a model to [`q1`, `q2`]).
 
 - `data_range` (list[float | string]): Introduced in [v1.15.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1151), it allows defining **valid** data ranges for input per individual query in `queries`, resulting in:
   - **High anomaly scores** (>1) when the *data falls outside the expected range*, indicating a data constraint violation.
@@ -97,7 +97,7 @@ reader:
 `class`
             </td>
             <td>
-`reader.vm.VmReader` (or `vm` starting from [v1.13.0](../CHANGELOG.md#v1130))
+`reader.vm.VmReader` (or `vm` starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130))
             </td>
             <td>
 Name of the class needed to enable reading from VictoriaMetrics or Prometheus. VmReader is the default option, if not specified.
@@ -133,7 +133,7 @@ Datasource URL address
 `0:0`
             </td>
             <td>
-For VictoriaMetrics Cluster version only, tenants are identified by accountID or accountID:projectID. See VictoriaMetrics Cluster [multitenancy docs](../../Cluster-VictoriaMetrics.md#multitenancy)
+For VictoriaMetrics Cluster version only, tenants are identified by accountID or accountID:projectID. See VictoriaMetrics Cluster [multitenancy docs](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy)
             </td>
         </tr>
         <tr>
@@ -144,7 +144,7 @@ For VictoriaMetrics Cluster version only, tenants are identified by accountID or
 `1h`
             </td>
             <td>
-Frequency of the points returned. Will be converted to `/query_range?step=%s` param (in seconds). **Required** since [v1.9.0](../CHANGELOG.md#v190).
+Frequency of the points returned. Will be converted to `/query_range?step=%s` param (in seconds). **Required** since [v1.9.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v190).
             </td>
         </tr>
         <tr>
@@ -232,7 +232,7 @@ Token is passed in the standard format with header: `Authorization: bearer {toke
 `[]`
             </td>
             <td>
-List of strings with series selector. See: [Prometheus querying API enhancements](../../README.md##prometheus-querying-api-enhancements)
+List of strings with series selector. See: [Prometheus querying API enhancements](https://docs.victoriametrics.com/##prometheus-querying-api-enhancements)
             </td>
         </tr>
         <tr>
@@ -279,4 +279,4 @@ reader:
 
 ### Healthcheck metrics
 
-`VmReader` exposes [several healthchecks metrics](./monitoring.md#reader-behaviour-metrics).
+`VmReader` exposes [several healthchecks metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics).

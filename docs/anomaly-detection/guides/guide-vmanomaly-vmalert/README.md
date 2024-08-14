@@ -2,9 +2,9 @@
 
 - To use *vmanomaly*, part of the enterprise package, a license key is required. Obtain your key [here](https://victoriametrics.com/products/enterprise/trial/) for this tutorial or for enterprise use.
 - In the tutorial, we'll be using the following VictoriaMetrics components:
-  -  [VictoriaMetrics Single-Node](../../../Single-Server-VictoriaMetrics.md) (v1.102.0)
-  -  [vmalert](../../../vmalert.md) (v1.102.0)
-  -  [vmagent](../../../vmagent.md) (v1.102.0)
+  -  [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics) (v1.102.0)
+  -  [vmalert](https://docs.victoriametrics.com/vmalert/) (v1.102.0)
+  -  [vmagent](https://docs.victoriametrics.com/vmagent/) (v1.102.0)
 - [Grafana](https://grafana.com/) (v.10.2.1)
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/)
 - [Node exporter](https://github.com/prometheus/node_exporter#node-exporter) (v1.7.0) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) (v0.27.0)
@@ -13,17 +13,17 @@
 
 > **Note: Configurations used throughout this guide can be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-integration/)**
 
-> **Note:** Starting from [v1.13.0](../../CHANGELOG.md#v1130) `node-exporter` observability preset is available for `vmanomaly`. Please find the guide [here](../../Presets.md#node-exporter).
+> **Note:** Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130) `node-exporter` observability preset is available for `vmanomaly`. Please find the guide [here](https://docs.victoriametrics.com/anomaly-detection/presets/#node-exporter).
 
 ## 1. What is vmanomaly?
 
-*VictoriaMetrics Anomaly Detection* ([vmanomaly](../../Overview.md)) is a service that continuously scans time series stored in VictoriaMetrics and detects unexpected changes within data patterns in real-time. It does so by utilizing user-configurable machine learning models.
+*VictoriaMetrics Anomaly Detection* ([vmanomaly](https://docs.victoriametrics.com/anomaly-detection/overview/)) is a service that continuously scans time series stored in VictoriaMetrics and detects unexpected changes within data patterns in real-time. It does so by utilizing user-configurable machine learning models.
 
 All the service parameters are defined in a config file.
 
-> **Note**: Starting from [1.10.0](../../CHANGELOG.md#v1100), each `vmanomaly` configuration file can support more that one model type. To utilize *different models* on your data, it is no longer necessary to run multiple instances of the `vmanomaly` process. Please refer to [model](../..//components/models.md) config section for more details.
+> **Note**: Starting from [1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100), each `vmanomaly` configuration file can support more that one model type. To utilize *different models* on your data, it is no longer necessary to run multiple instances of the `vmanomaly` process. Please refer to [model](https://docs.victoriametrics.com/anomaly-detection/components/models/) config section for more details.
 
-> **Note**: Starting from [1.11.0](../../CHANGELOG.md#v1110), each `vmanomaly` configuration file can support more that one model type, each attached to one (or more) schedulers. To utilize *different models* with *different schedulers* on your data, it is no longer necessary to run multiple instances of the `vmanomaly` process. Please refer to [model](../../components/models.md#schedulers) and [scheduler](../../components/scheduler.md) config sections for more details.
+> **Note**: Starting from [1.11.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1110), each `vmanomaly` configuration file can support more that one model type, each attached to one (or more) schedulers. To utilize *different models* with *different schedulers* on your data, it is no longer necessary to run multiple instances of the `vmanomaly` process. Please refer to [model](https://docs.victoriametrics.com/anomaly-detection/components/models/#schedulers) and [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) config sections for more details.
 
 
 **vmanomaly** does the following:
@@ -44,9 +44,9 @@ Then, users can enable alerting rules based on the **anomaly score** with [vmale
 
 ## 2. What is vmalert?
 
-[vmalert](../../../vmalert.md) is an alerting tool for VictoriaMetrics. It executes a list of the given alerting or recording rules against configured `-datasource.url`.
+[vmalert](https://docs.victoriametrics.com/vmalert/) is an alerting tool for VictoriaMetrics. It executes a list of the given alerting or recording rules against configured `-datasource.url`.
 
-[Alerting rules](../../../vmalert.md#alerting-rules) allow you to define conditions that, when met, will notify the user. The alerting condition is defined in a form of a query expression via [MetricsQL query language](../../../MetricsQL.md). For example, in our case, the expression `anomaly_score > 1.0` will notify a user when the calculated anomaly score exceeds a threshold of `1.0`.
+[Alerting rules](https://docs.victoriametrics.com/vmalert/#alerting-rules) allow you to define conditions that, when met, will notify the user. The alerting condition is defined in a form of a query expression via [MetricsQL query language](https://docs.victoriametrics.com/metricsql/). For example, in our case, the expression `anomaly_score > 1.0` will notify a user when the calculated anomaly score exceeds a threshold of `1.0`.
 
 ## 3. How does vmanomaly works with vmalert?
 
@@ -55,9 +55,9 @@ Compared to classical alerting rules, anomaly detection is more "hands-off" and 
 Practical use case is to put anomaly score generated by vmanomaly into alerting rules with some threshold. 
 
 **In this tutorial we are going to:**
-  - Configure docker-compose file with all needed services ([VictoriaMetrics Single-Node](../../../Single-Server-VictoriaMetrics.md), [vmalert](../../../vmalert.md), [vmagent](../../../vmagent.md), [Grafana](https://grafana.com/), [Node Exporter](https://prometheus.io/docs/guides/node-exporter/) and [vmanomaly](../../Overview.md) ).
-  - Explore configuration files for [vmanomaly](../../Overview.md) and [vmalert](../../../vmalert.md).
-  - Run our own [VictoriaMetrics](../../../Single-Server-VictoriaMetrics.md) database with data scraped from [Node Exporter](https://prometheus.io/docs/guides/node-exporter/).
+  - Configure docker-compose file with all needed services ([VictoriaMetrics Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics), [vmalert](https://docs.victoriametrics.com/vmalert/), [vmagent](https://docs.victoriametrics.com/vmagent/), [Grafana](https://grafana.com/), [Node Exporter](https://prometheus.io/docs/guides/node-exporter/) and [vmanomaly](https://docs.victoriametrics.com/anomaly-detection/overview/) ).
+  - Explore configuration files for [vmanomaly](https://docs.victoriametrics.com/anomaly-detection/overview/) and [vmalert](https://docs.victoriametrics.com/vmalert/).
+  - Run our own [VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics) database with data scraped from [Node Exporter](https://prometheus.io/docs/guides/node-exporter/).
   - Explore data for analysis in [Grafana](https://grafana.com/).
   - Explore `vmanomaly` results.
   - Explore `vmalert` alerts
@@ -88,7 +88,7 @@ node_cpu_seconds_total{cpu="1",mode="iowait"} 51.22
 
 In this context, the metric `node_cpu_seconds_total` provides a comprehensive breakdown of the time each CPU core has spent in various operational modes. These modes include: _user_, _system_, _iowait_, _idle_, _irq&softirq_, _guest_, and _steal_. Each of these eight modes is mutually exclusive, offering distinct insights into CPU activity. For instance, a predominant _iowait_ suggests disk or network bottlenecks, while elevated levels in _user_ or _system_ indicate significant CPU utilization.
 
-The `node_cpu_seconds_total` metric is classified as a [counter](../../../keyConcepts.md#counter) type. To analyze the duration each CPU core spends in these modes, it is necessary to compute the rate of change per second using the [rate function](../../../MetricsQL.md#rate): `rate(node_cpu_seconds_total)`. For a more refined and smoother aggregation of data by mode, we apply the sum function. The resulting query is formulated as follows: `sum(rate(node_cpu_seconds_total[5m])) by (mode, instance, job)`.
+The `node_cpu_seconds_total` metric is classified as a [counter](https://docs.victoriametrics.com/keyconcepts/#counter) type. To analyze the duration each CPU core spends in these modes, it is necessary to compute the rate of change per second using the [rate function](https://docs.victoriametrics.com/metricsql/#rate): `rate(node_cpu_seconds_total)`. For a more refined and smoother aggregation of data by mode, we apply the sum function. The resulting query is formulated as follows: `sum(rate(node_cpu_seconds_total[5m])) by (mode, instance, job)`.
 
 Below is an illustrative example of how this query might be visualized in Grafana:
 ![node_cpu_rate_graph](guide-vmanomaly-vmalert-query.webp)
@@ -102,25 +102,25 @@ This query will yield a total of eight time series, each corresponding to a CPU 
 **Parameter description**:
 The configuration file for `vmanomaly` comprises 4 essential sections:
 
-1. [`scheduler`](../../components/scheduler.md) - This section determines the frequency of model inferences and training, including the time range for model training. Starting from [v1.11.0](../../CHANGELOG.md#v1110), multiple individual schedulers are supported for each model type in a single config.
+1. [`scheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) - This section determines the frequency of model inferences and training, including the time range for model training. Starting from [v1.11.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1110), multiple individual schedulers are supported for each model type in a single config.
 
-2. [`models`](../../components/models.md) - Here, you define specific parameters and configurations for the models being used for anomaly detection. Starting from [v1.10.0](../../CHANGELOG.md#v1100), multiple model configurations are supported in a single config.
+2. [`models`](https://docs.victoriametrics.com/anomaly-detection/components/models/) - Here, you define specific parameters and configurations for the models being used for anomaly detection. Starting from [v1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100), multiple model configurations are supported in a single config.
 
-3. [`reader`](../../components/reader.md) - This section outlines the methodology for data reading, including the data source location.
+3. [`reader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/) - This section outlines the methodology for data reading, including the data source location.
 
-4. [`writer`](../../components/writer.md) - Specifies the destination and method for writing the generated output.
+4. [`writer`](https://docs.victoriametrics.com/anomaly-detection/components/writer/) - Specifies the destination and method for writing the generated output.
 
-5. [`monitoring`](../../components/monitoring.md) (optional) - Describes how to monitor and expose health check metrics of `vmanomaly`.
+5. [`monitoring`](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/) (optional) - Describes how to monitor and expose health check metrics of `vmanomaly`.
 
 Detailed parameters in each section:
 
-* `schedulers` ([PeriodicScheduler](../../components/scheduler.md#periodic-scheduler) is used here)
+* `schedulers` ([PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) is used here)
   * `infer_every` - Specifies the frequency at which the trained models perform inferences on new data, essentially determining how often new anomaly score data points are generated. Format examples: 30s, 4m, 2h, 1d (time units: 's' for seconds, 'm' for minutes, 'h' for hours, 'd' for days). This parameter essentially asks, at regular intervals (e.g., every 1 minute), whether the latest data points appear abnormal based on historical data.
   * `fit_every` - Sets the frequency for retraining the models. A higher frequency ensures more updated models but requires more CPU resources. If omitted, models are retrained in each `infer_every` cycle. Format is similar to `infer_every`.
   * `fit_window` - Defines the data interval for training the models. Longer intervals allow for capturing extensive historical behavior and better seasonal pattern detection but may slow down the model's response to permanent metric changes and increase resource consumption. A minimum of two full seasonal cycles is recommended. Example format: 3h for three hours of data.
 
 * `models`
-  * `class` - Specifies the model to be used. Options include custom models ([guide here](../../components/models.md#custom-model-guide)) or a selection from [built-in models](../../components/models.md#built-in-models), such as the [Facebook Prophet](../../components/models.md#prophet) (`model.prophet.ProphetModel`).
+  * `class` - Specifies the model to be used. Options include custom models ([guide here](https://docs.victoriametrics.com/anomaly-detection/components/models/#custom-model-guide)) or a selection from [built-in models](https://docs.victoriametrics.com/anomaly-detection/components/models/#built-in-models), such as the [Facebook Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) (`model.prophet.ProphetModel`).
   * `args` - Model-specific parameters, formatted as a YAML dictionary in the `key: value` structure. Parameters available in [FB Prophet](https://facebook.github.io/prophet/docs/quick_start.html) can be used as an example.
 
 * `reader`
@@ -193,7 +193,7 @@ groups:
       summary: Anomaly Score exceeded 1.0. `sum(rate(node_cpu_seconds_total))` is showing abnormal behavior. 
 ```
 
-In the query expression `expr`, it's crucial to establish a criterion based on the generated anomaly scores. Typically, an [anomaly score](../../FAQ.md#what-is-anomaly-score) ranging from 0.0 to 1.0 indicates that the analyzed value falls within normal behavior. Scores exceeding 1.0 signal increasing confidence from our model that the observed value is anomalous.
+In the query expression `expr`, it's crucial to establish a criterion based on the generated anomaly scores. Typically, an [anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) ranging from 0.0 to 1.0 indicates that the analyzed value falls within normal behavior. Scores exceeding 1.0 signal increasing confidence from our model that the observed value is anomalous.
 
 Selecting an appropriate threshold for the anomaly score depends on your specific requirements and the context of the data. One effective method for determining this threshold is through visual analysis. By plotting the `anomaly_score` metric in conjunction with the predicted 'expected' range, delineated by `yhat_lower` and `yhat_upper`, you can make a more informed decision. Later in this tutorial, we will demonstrate this process with a practical example.
 
@@ -289,7 +289,7 @@ scrape_configs:
 
 We will utilize the license key stored locally in the file `vmanomaly_license`.
 
-For additional licensing options, please refer to the [VictoriaMetrics Anomaly Detection documentation on licensing](../../Overview.md#licensing).
+For additional licensing options, please refer to the [VictoriaMetrics Anomaly Detection documentation on licensing](https://docs.victoriametrics.com/anomaly-detection/overview/#licensing).
 
 
 ### Alertmanager setup 
@@ -512,4 +512,4 @@ Key takeaways include:
 
 As you continue to use VictoriaMetrics Anomaly Detection and `vmalert`, remember that the effectiveness of anomaly detection largely depends on the appropriateness of the model chosen, the accuracy of configurations and the data patterns observed. This guide serves as a starting point, and we encourage you to experiment with different configurations and models to best suit your specific data needs and use cases. In case you need a helping hand - [contact us](https://victoriametrics.com/contact-us/).
 
-> **Note:** Starting from [v1.13.0](../../CHANGELOG.md#v1130) `node-exporter` observability preset is available for `vmanomaly`. Please find the guide [here](../../Presets.md#node-exporter).
+> **Note:** Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130) `node-exporter` observability preset is available for `vmanomaly`. Please find the guide [here](https://docs.victoriametrics.com/anomaly-detection/presets/#node-exporter).
