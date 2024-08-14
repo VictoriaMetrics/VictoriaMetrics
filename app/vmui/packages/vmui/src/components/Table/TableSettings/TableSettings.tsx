@@ -1,6 +1,6 @@
 import React, { FC, useEffect, useRef, useMemo } from "preact/compat";
 import Button from "../../Main/Button/Button";
-import { RestartIcon, SettingsIcon } from "../../Main/Icons";
+import { SearchIcon, SettingsIcon } from "../../Main/Icons";
 import Popper from "../../Main/Popper/Popper";
 import "./style.scss";
 import Checkbox from "../../Main/Checkbox/Checkbox";
@@ -10,6 +10,8 @@ import { arrayEquals } from "../../../utils/array";
 import classNames from "classnames";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import useBoolean from "../../../hooks/useBoolean";
+import TextField from "../../Main/TextField/TextField";
+import { KeyboardEvent, useState } from "react";
 
 const title = "Table settings";
 
@@ -38,6 +40,19 @@ const TableSettings: FC<TableSettingsProps> = ({
     setFalse: handleClose,
   } = useBoolean(false);
 
+  const {
+    value: showSearch,
+    toggle: toggleShowSearch,
+  } = useBoolean(false);
+
+  const [searchColumn, setSearchColumn] = useState("");
+  const [indexFocusItem, setIndexFocusItem] = useState(-1);
+
+  const filteredColumns = useMemo(() => {
+    if (!searchColumn) return columns;
+    return columns.filter(col => col.includes(searchColumn));
+  }, [columns, searchColumn]);
+
   const disabledButton = useMemo(() => !columns.length, [columns]);
 
   const handleChange = (key: string) => {
@@ -52,13 +67,26 @@ const TableSettings: FC<TableSettingsProps> = ({
     }
   };
 
-  const handleResetColumns = () => {
-    handleClose();
-    onChangeColumns(columns);
-  };
-
   const createHandlerChange = (key: string) => () => {
     handleChange(key);
+  };
+
+  const handleBlurSearch = () => {
+    setIndexFocusItem(-1);
+  };
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    const arrowUp = e.key === "ArrowUp";
+    const arrowDown = e.key === "ArrowDown";
+    const enter = e.key === "Enter";
+    if (arrowDown || arrowUp || enter) e.preventDefault();
+    if (arrowDown) {
+      setIndexFocusItem(prev => prev + 1 > filteredColumns.length - 1 ? prev : prev + 1);
+    } else if (arrowUp) {
+      setIndexFocusItem(prev => prev - 1 < 0 ? prev : prev - 1);
+    } else if (enter) {
+      handleChange(filteredColumns[indexFocusItem]);
+    }
   };
 
   useEffect(() => {
@@ -75,7 +103,7 @@ const TableSettings: FC<TableSettingsProps> = ({
             startIcon={<SettingsIcon/>}
             onClick={toggleOpenSettings}
             disabled={disabledButton}
-            ariaLabel="table settings"
+            ariaLabel={title}
           />
         </div>
       </Tooltip>
@@ -100,42 +128,64 @@ const TableSettings: FC<TableSettingsProps> = ({
             />
           </div>
           <div className="vm-table-settings-popper-list">
-            <div className="vm-table-settings-popper-list-header">
-              <h3 className="vm-table-settings-popper-list-header__title">Display columns</h3>
-              <Tooltip title="Reset to default">
-                <Button
-                  color="primary"
-                  variant="text"
-                  size="small"
-                  onClick={handleResetColumns}
-                  startIcon={<RestartIcon/>}
-                  ariaLabel="reset columns"
-                />
-              </Tooltip>
-            </div>
-            <div
-              className="vm-table-settings-popper-list__item vm-table-settings-popper-list__check_all"
-            >
-              <Checkbox
-                checked={defaultColumns.length === columns.length}
-                onChange={toggleAllColumns}
-                label="Check all"
-                disabled={tableCompact}
-              />
-            </div>
-            {columns.map(col => (
-              <div
-                className="vm-table-settings-popper-list__item"
-                key={col}
-              >
-                <Checkbox
-                  checked={defaultColumns.includes(col)}
-                  onChange={createHandlerChange(col)}
-                  label={col}
-                  disabled={tableCompact}
-                />
+            <div>
+              <div className="vm-table-settings-popper-list-header">
+                <h3 className="vm-table-settings-popper-list-header__title">Display columns</h3>
+                <Tooltip title="search column">
+                  <Button
+                    color="primary"
+                    variant="text"
+                    onClick={toggleShowSearch}
+                    startIcon={<SearchIcon/>}
+                    ariaLabel="reset columns"
+                  />
+                </Tooltip>
               </div>
-            ))}
+              {showSearch && (
+                <TextField
+                  placeholder={"search column"}
+                  startIcon={<SearchIcon/>}
+                  value={searchColumn}
+                  onChange={setSearchColumn}
+                  onBlur={handleBlurSearch}
+                  onKeyDown={handleKeyDown}
+                  type="search"
+                />
+              )}
+              {!filteredColumns.length && (
+                <p className="vm-table-settings-popper-list__no-found">No columns found</p>
+              )}
+              <div className="vm-table-settings-popper-list-header">
+                {!!filteredColumns.length && (
+                  <div className="vm-table-settings-popper-list__item vm-table-settings-popper-list__item_check_all">
+                    <Checkbox
+                      checked={defaultColumns.length === columns.length}
+                      onChange={toggleAllColumns}
+                      label={defaultColumns.length === columns.length ? "Uncheck all" : "Check all"}
+                      disabled={tableCompact}
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="vm-table-settings-popper-list-columns">
+                {filteredColumns.map((col, i) => (
+                  <div
+                    className={classNames({
+                      "vm-table-settings-popper-list__item": true,
+                      "vm-table-settings-popper-list__item_focus": i === indexFocusItem,
+                    })}
+                    key={col}
+                  >
+                    <Checkbox
+                      checked={defaultColumns.includes(col)}
+                      onChange={createHandlerChange(col)}
+                      label={col}
+                      disabled={tableCompact}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </Popper>
