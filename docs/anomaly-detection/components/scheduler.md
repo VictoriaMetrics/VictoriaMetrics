@@ -11,7 +11,7 @@ aliases:
 Scheduler defines how often to run and make inferences, as well as what timerange to use to train the model.
 Is specified in `scheduler` section of a config for VictoriaMetrics Anomaly Detection.
 
-> **Note: Starting from [v1.11.0](../CHANGELOG.md#v1110) scheduler section in config supports multiple schedulers via aliasing. <br>Also, `vmanomaly` expects scheduler section to be named `schedulers`. Using old (flat) format with `scheduler` key is deprecated and will be removed in future versions.**
+> **Note: Starting from [v1.11.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1110) scheduler section in config supports multiple schedulers via aliasing. <br>Also, `vmanomaly` expects scheduler section to be named `schedulers`. Using old (flat) format with `scheduler` key is deprecated and will be removed in future versions.**
 
 ```yaml
 schedulers:
@@ -28,7 +28,7 @@ schedulers:
 ...
 ```  
 
-Old-style configs (< [1.11.0](../CHANGELOG.md#v1110))
+Old-style configs (< [1.11.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1110))
 
 ```yaml
 scheduler:
@@ -60,7 +60,7 @@ options={`"scheduler.periodic.PeriodicScheduler"`, `"scheduler.oneoff.OneoffSche
 -  `"scheduler.oneoff.OneoffScheduler"`: runs the process once and exits. Useful for testing.
 -  `"scheduler.backtesting.BacktestingScheduler"`: imitates consecutive backtesting runs of OneoffScheduler. Runs the process once and exits. Use to get more granular control over testing on historical data.
 
-> **Note**: starting from [v1.13.0](../CHANGELOG.md#v1130), class aliases are supported, so `"scheduler.periodic.PeriodicScheduler"` can be substituted to `"periodic"`, `"scheduler.oneoff.OneoffScheduler"` - to `"oneoff"`, `"scheduler.backtesting.BacktestingScheduler"` - to `"backtesting"`
+> **Note**: starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130), class aliases are supported, so `"scheduler.periodic.PeriodicScheduler"` can be substituted to `"periodic"`, `"scheduler.oneoff.OneoffScheduler"` - to `"oneoff"`, `"scheduler.backtesting.BacktestingScheduler"` - to `"backtesting"`
 
 **Depending on selected class, different parameters should be used**
 
@@ -365,7 +365,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
             </td>
             <td>
 
-Allows *proportionally faster (yet more resource-intensive)* evaluations of a config on historical data. Default value is 1, that implies *sequential* execution. Introduced in [v1.13.0](../CHANGELOG.md#v1130)
+Allows *proportionally faster (yet more resource-intensive)* evaluations of a config on historical data. Default value is 1, that implies *sequential* execution. Introduced in [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130)
             </td>
         </tr>
     </tbody>

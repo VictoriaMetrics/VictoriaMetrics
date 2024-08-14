@@ -9,7 +9,7 @@ menu:
 aliases:
   - ./monitoring.html
 ---
-There are 2 models to monitor VictoriaMetrics Anomaly Detection behavior - [push](../../keyConcepts.md#push-model) and [pull](../../keyConcepts.md#pull-model). Parameters for each of them should be specified in the config file, `monitoring` section.
+There are 2 models to monitor VictoriaMetrics Anomaly Detection behavior - [push](https://docs.victoriametrics.com/keyconcepts/#push-model) and [pull](https://docs.victoriametrics.com/keyconcepts/#pull-model). Parameters for each of them should be specified in the config file, `monitoring` section.
 
 ## Pull Model Config parameters
 
@@ -91,7 +91,7 @@ Tenant ID for cluster version. Example: `"0:0"`
             </td>
             <td>
 
-Deprecated since [v1.8.0](../CHANGELOG.md#v180). Absolute, to override `/health` path
+Deprecated since [v1.8.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v180). Absolute, to override `/health` path
             </td>
         </tr>
         <tr>
@@ -187,7 +187,7 @@ monitoring:
 ### Models Behaviour Metrics
 Label names [description](#labelnames)
 
-> **Note**: There is a new label key `model_alias` introduced in multi-model support [v1.10.0](../CHANGELOG.md#v1100). This label key adjustment was made to preserve unique label set production during writing produced metrics back to VictoriaMetrics.
+> **Note**: There is a new label key `model_alias` introduced in multi-model support [v1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100). This label key adjustment was made to preserve unique label set production during writing produced metrics back to VictoriaMetrics.
 
 <table class="params">
     <thead>
@@ -452,11 +452,11 @@ Label names [description](#labelnames)
 
 ### Labelnames
 
-* `stage` - stage of model - 'fit', 'infer' or 'fit_infer' for models that do it simultaneously, see [model types](./models/#model-types).
-* `query_key` - query alias from [`reader`](./reader.md) config section.
-* `model_alias` - model alias from [`models`](./models.md) config section. **Introduced in [v1.10.0](../CHANGELOG.md#v1100).**
-* `scheduler_alias` - scheduler alias from [`schedulers`](./scheduler.md) config section. **Introduced in [v1.11.0](../CHANGELOG.md#v1110).**
-* `preset` - preset alias for forthcoming `preset` section compatibility. **Introduced in [v1.12.0](../CHANGELOG.md#v1120).**
+* `stage` - stage of model - 'fit', 'infer' or 'fit_infer' for models that do it simultaneously, see [model types](https://docs.victoriametrics.com/anomaly-detection/components/models/#model-types).
+* `query_key` - query alias from [`reader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/) config section.
+* `model_alias` - model alias from [`models`](https://docs.victoriametrics.com/anomaly-detection/components/models/) config section. **Introduced in [v1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100).**
+* `scheduler_alias` - scheduler alias from [`schedulers`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler) config section. **Introduced in [v1.11.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1110).**
+* `preset` - preset alias for forthcoming `preset` section compatibility. **Introduced in [v1.12.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1120).**
 * `url` - writer or reader url endpoint.
 * `code` - response status code or `connection_error`, `timeout`.
 * `step` - json or dataframe reading step.
