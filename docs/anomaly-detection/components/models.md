@@ -11,12 +11,15 @@ aliases:
   - /anomaly-detection/components/models/custom_model.html
   - /anomaly-detection/components/models/models.html
 ---
-This section describes `Models` component of VictoriaMetrics Anomaly Detection (or simply [`vmanomaly`](../Overview.md)) and the guide of how to define a respective section of a config to launch the service.
-- `vmanomaly` includes various [built-in models](#built-in-models).
-- you can also integrate your custom model - see [custom model](#custom-model-guide).
+This section covers the `Models` component of VictoriaMetrics Anomaly Detection (commonly referred to as [`vmanomaly`](../Overview.md)) and provides a guide on how to configure the service.
 
+- `vmanomaly` includes various **[built-in models](#built-in-models)**.
+- You can also integrate a **custom model**—see the [custom model guide](#custom-model-guide) for more details.
+- Models have **different types and properties**—refer to the [model types section](#model-types) for more information.
 
-> **Note: Starting from [v1.10.0](../CHANGELOG.md#v1100) model section in config supports multiple models via aliasing. <br>Also, `vmanomaly` expects model section to be named `models`. Using old (flat) format with `model` key is deprecated and will be removed in future versions. Having `model` and `models` sections simultaneously in a config will result in only `models` being used:**
+> **Note:** Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130), models can be dumped to disk instead of being stored in RAM. This option **slightly reduces inference speed but significantly decreases RAM usage**, particularly useful for larger setups. For more details, see the [relevant FAQ section](https://docs.victoriametrics.com/anomaly-detection/faq/#resource-consumption-of-vmanomaly).
+
+> **Note:** Starting from [v1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100) model section in config supports multiple models via aliasing. <br>Also, `vmanomaly` expects model section to be named `models`. Using old (flat) format with `model` key is deprecated and will be removed in future versions. Having `model` and `models` sections simultaneously in a config will result in only `models` being used:
 
 ```yaml
 models:
