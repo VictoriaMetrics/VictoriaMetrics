@@ -1,5 +1,4 @@
 ---
-sort: 8
 weight: 8
 title: High Availability
 menu:
@@ -7,11 +6,9 @@ menu:
     parent: "operator"
     weight: 8
 aliases:
-  - /operator/high-availability.html
+  - /operator/high-availability/
+  - /operator/high-availability/index.html
 ---
-
-# High Availability
-
 High availability is not only important for customer-facing software but if the monitoring infrastructure is not highly available, then there is a risk that operations people are not notified of alerts.
 Therefore, high availability must be just as thought through for the monitoring stack, as for anything else.
 
@@ -30,7 +27,7 @@ More details you can find in the section **[High Availability for resources](./r
 ## Operator
 
 VictoriaMetrics operator can be safely scaled horizontally, but only one replica of the operator can 
-process [the reconciliation](./README.md#reconciliation-cycle) at a time - 
+process [the reconciliation](./README.md#reconciliation-cycle) at a time -
 it uses a leader election mechanism to ensure that only one replica is active at a time.
 
 If one of replicas of the operator will be failed, then another replica will be elected as a leader and will continue to work -

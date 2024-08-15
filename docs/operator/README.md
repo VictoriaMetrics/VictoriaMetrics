@@ -1,12 +1,12 @@
 Operator serves to make running VictoriaMetrics applications on top of Kubernetes as easy as possible while preserving Kubernetes-native configuration options.
 
-VictoriaMetrics Operator (`vmoperator`) is the classic kubernetes-operator for VictoriaMetrics with many [great features](#features).
+VictoriaMetrics Operator (`vmoperator`) is the classic kubernetes-operator for VictoriaMetrics with many [great features](#features-of-vmoperator).
 It allows you to manage Victoria Metrics components in Kubernetes or OpenShift clusters
 in a declarative style according to [GitOps](https://www.redhat.com/en/topics/devops/what-is-gitops)
 and [IaC](https://en.wikipedia.org/wiki/Infrastructure_as_code) concepts.
 
 VictoriaMetrics also provides [helm charts](https://github.com/VictoriaMetrics/helm-charts) without operator.
-Operator makes the same, simplifies it and provides [advanced features](#features).
+Operator makes the same, simplifies it and provides [advanced features](#features-of-vmoperator).
 
 Learn more about [key concepts](#key-concepts) of `vmoperator` and follow the **[quick start guide](./quick-start.md)** for a better experience.
 
@@ -16,7 +16,7 @@ Learn more about [key concepts](#key-concepts) of `vmoperator` and follow the **
 - Seamless [migration from prometheus-operator](./migration.md) with auto-conversion of prometheus [custom resources](#custom-resources)
 - Simple VictoriaMetrics cluster installation, configuring, upgrading and managing with [crd-objects](./resources/README.md).
 - Ability to delegate the configuration (parts of configuration) of applications monitoring to the end-users and managing access to different configurations or configuration sections.
-- Integration with VictoriaMetrics [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html) - advanced tools for making backups. Check [Backup automation for VMSingle](./resources/vmsingle.md#backup-automation) or [Backup automation for VMCluster](./resources/vmcluster.md#backup-automation).
+- Integration with VictoriaMetrics [vmbackupmanager](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmbackupmanager.md) - advanced tools for making backups. Check [Backup automation for VMSingle](./resources/vmsingle.md#backup-automation) or [Backup automation for VMCluster](./resources/vmcluster.md#backup-automation).
 - Everything you need for monitoring out of the box in [k8s-stack helm chart](https://victoriametrics.github.io/helm-charts/charts/victoria-metrics-k8s-stack/) with ready-made usecases and solutions.
 - Ability to template your own deployment scenarios.
 
@@ -62,7 +62,6 @@ The basic workflow of working with the operator can be simplified as the followi
 - For some objects in the cluster the reconciliation cycle is performed at a given interval, even without the occurrence of change events (see `VM_FORCERESYNCINTERVAL`).
 
 ### Next steps
-
 - [Quick Start Guide](./quick-start.md)
 - [Setup](./setup.md)
 - [Security](./security.md)
@@ -74,7 +73,7 @@ The basic workflow of working with the operator can be simplified as the followi
 - [Enterprise](./enterprise.md)
 - [Custom resources](./resources/README.md)
 
-If you have any questions, check out our [FAQ](./FAQ.md) 
+If you have any questions, check out our [FAQ](./faq.md)
 and feel free to can ask them:
 - [VictoriaMetrics Slack](https://victoriametrics.slack.com/)
 - [VictoriaMetrics Telegram](https://t.me/VictoriaMetrics_en)

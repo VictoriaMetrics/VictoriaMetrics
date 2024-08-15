@@ -1,5 +1,4 @@
 ---
-sort: 2
 weight: 2
 title: Setup
 menu:
@@ -7,11 +6,9 @@ menu:
     parent: "operator"
     weight: 2
 aliases:
-  - /operator/setup.html
+  - /operator/setup/
+  - /operator/setup/index.html
 ---
-
-# VictoriaMetrics Operator Setup
-
 ## Installing by helm-charts
 
 You can use one of the following official helm-charts with `vmoperator`:
@@ -27,6 +24,40 @@ or [this](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/vict
 in addition, you can use [quickstart guide](./quick-start.md) for 
 installing VictoriaMetrics operator with helm-chart.
 
+## Installing by Manifest
+
+Obtain release from releases page:
+[https://github.com/VictoriaMetrics/operator/releases](https://github.com/VictoriaMetrics/operator/releases)
+
+We suggest use the latest release.
+
+```sh
+# Get latest release version from https://github.com/VictoriaMetrics/operator/releases/latest
+export VM_VERSION=`basename $(curl -fs -o/dev/null -w %{redirect_url} https://github.com/VictoriaMetrics/operator/releases/latest)`
+wget https://github.com/VictoriaMetrics/operator/releases/download/$VM_VERSION/install.yaml
+```
+
+Operator use `vm` namespace, but you can install it to specific namespace with command:
+
+```sh
+sed -i "s/namespace: vm/namespace: YOUR_NAMESPACE/g" install.yaml
+```
+
+and apply it:
+
+```sh
+kubectl apply -f install.yaml
+```
+
+Check the status of operator
+
+```sh
+kubectl get pods -n YOUR_NAMESPACE
+
+#NAME                           READY   STATUS    RESTARTS   AGE
+#vm-operator-667dfbff55-cbvkf   1/1     Running   0          101s
+```
+
 ## Installing by Kustomize
 
 You can install operator using [Kustomize](https://kustomize.io/) by pointing to the remote kustomization file.
@@ -40,7 +71,7 @@ cat << EOF > kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-- github.com/VictoriaMetrics/operator/config/default?ref=${VM_VERSION}
+- github.com/VictoriaMetrics/operator/config/base?ref=${VM_VERSION}
 
 namespace: ${NAMESPACE}
 
@@ -77,11 +108,39 @@ kubectl get pods -n whatever-namespace
 
 ### Installing to K8s
 
-TODO
+VictoriaMetrics operator OLM package is available at [OperatorHub](https://operatorhub.io/operator/victoriametrics-operator).
+Installation instructions are available there.
 
 ### Installing to Openshift
 
-TODO
+Create `Subscription` manifest with `installPlanApproval` set to `Manual` to prevent unexpected upgrades.
+
+```yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: victoriametrics-operator
+  namespace: vm
+spec:
+  channel: beta
+  installPlanApproval: Manual
+  name: victoriametrics-operator
+  source: community-operators
+  sourceNamespace: openshift-marketplace
+  startingCSV: victoriametrics-operator.v0.46.4
+```
+
+Apply manifest
+
+```shell
+oc apply -f manifest.yaml
+```
+
+After some time operator should be up and running in `vm` namespace
+
+```shell
+oc get pods -n vm
+```
 
 ### Run locally
 
