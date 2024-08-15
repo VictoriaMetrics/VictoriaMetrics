@@ -2820,14 +2820,6 @@ func (s *Storage) mustOpenIndexDBTables(path string) (next, curr, prev *indexDB)
 	return next, curr, prev
 }
 
-func (s *Storage) GetStoragePath() string {
-	return s.path
-}
-
-func (s *Storage) SetToReadonly() {
-	s.isReadOnly.Store(true)
-}
-
 func (s *Storage) startReadonlyWatchdog() {
 	s.readonlyWatchdogWG.Add(1)
 	go func() {
