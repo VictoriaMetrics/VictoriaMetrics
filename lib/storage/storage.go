@@ -878,7 +878,7 @@ func (s *Storage) MustClose() {
 	s.retentionWatcherWG.Wait()
 	s.currHourMetricIDsUpdaterWG.Wait()
 	s.nextDayMetricIDsUpdaterWG.Wait()
-
+	s.readonlyWatchdogWG.Wait()
 	s.tb.MustClose()
 	s.idb().MustClose()
 
