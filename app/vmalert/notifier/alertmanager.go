@@ -132,7 +132,8 @@ func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg proma
 	}
 	tr, err := httputils.Transport(alertManagerURL, tls.CertFile, tls.KeyFile, tls.CAFile, tls.ServerName, tls.InsecureSkipVerify)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create transport: %w", err)
+		return nil, fmt.Errorf("failed to create transport for alertmanager URL=%q: %w", alertManagerURL, err)
+
 	}
 
 	ba := new(promauth.BasicAuthConfig)

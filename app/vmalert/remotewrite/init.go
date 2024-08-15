@@ -72,7 +72,7 @@ func Init(ctx context.Context) (*Client, error) {
 
 	t, err := httputils.Transport(*addr, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create transport: %w", err)
+		return nil, fmt.Errorf("failed to create transport for -remoteWrite.url=%q: %w", *addr, err)
 	}
 	t.IdleConnTimeout = *idleConnectionTimeout
 	t.DialContext = netutil.NewStatDialFunc("vmalert_remotewrite")

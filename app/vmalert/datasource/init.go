@@ -99,7 +99,7 @@ func Init(extraParams url.Values) (QuerierBuilder, error) {
 
 	tr, err := httputils.Transport(*addr, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create transport: %w", err)
+		return nil, fmt.Errorf("failed to create transport for -datasource.url=%q: %w", *addr, err)
 	}
 	tr.DialContext = netutil.NewStatDialFunc("vmalert_datasource")
 	tr.DisableKeepAlives = *disableKeepAlive

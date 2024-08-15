@@ -68,7 +68,7 @@ func Init() (datasource.QuerierBuilder, error) {
 	}
 	tr, err := httputils.Transport(*addr, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create transport: %w", err)
+		return nil, fmt.Errorf("failed to create transport for -remoteRead.url=%q: %w", *addr, err)
 	}
 	tr.IdleConnTimeout = *idleConnectionTimeout
 	tr.DialContext = netutil.NewStatDialFunc("vmalert_remoteread")
