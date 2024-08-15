@@ -13,6 +13,10 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
 > **Important note: Users are strongly encouraged to upgrade to `vmanomaly` [v1.9.2](https://hub.docker.com/repository/docker/victoriametrics/vmanomaly/tags?page=1&ordering=name) or newer for optimal performance and accuracy. <br><br> This recommendation is crucial for configurations with a low `infer_every` parameter [in your scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#parameters-1), and in scenarios where data exhibits significant high-order seasonality patterns (such as hourly or daily cycles). Previous versions from v1.5.1 to v1.8.0 were identified to contain a critical issue impacting model training, where models were inadvertently trained on limited data subsets, leading to suboptimal fits, affecting the accuracy of anomaly detection. <br><br> Upgrading to v1.9.2 addresses this issue, ensuring proper model training and enhanced reliability. For users utilizing Helm charts, it is recommended to upgrade to version [1.0.0](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/CHANGELOG.md#100) or newer.**
 
+## v1.15.4
+Released: 2024-08-15
+- IMPROVEMENT: better config handling of [writer](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) and [monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/) sections if using `vmanomaly` with [helm charts](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-anomaly).
+
 ## v1.15.3
 Released: 2024-08-14
 - IMPROVEMENT: better config handling of `reader` [section](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) if using `vmanomaly` with [helm charts](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-anomaly).
