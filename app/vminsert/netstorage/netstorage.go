@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -46,6 +47,12 @@ var (
 )
 
 var errStorageReadOnly = errors.New("storage node is read only")
+
+const (
+	storageBaseDelay       = 100 * time.Millisecond
+	storageRetryMultiplier = 2.0
+	storageMaxDelay        = 10 * time.Second
+)
 
 func (sn *storageNode) isReady() bool {
 	return !sn.isBroken.Load() && !sn.isReadOnly.Load()
@@ -276,6 +283,12 @@ func (sn *storageNode) checkHealth() {
 			sn.lastDialErr = err
 			logger.Warnf("cannot dial storageNode %q: %s", sn.dialer.Addr(), err)
 		}
+
+		delay := time.Duration(math.Min(float64(storageBaseDelay)*math.Pow(storageRetryMultiplier, sn.retries), float64(storageMaxDelay)))
+
+		// Wait for the backoff duration before retrying
+		time.Sleep(delay)
+		sn.retries++
 		return
 	}
 	logger.Infof("successfully dialed -storageNode=%q", sn.dialer.Addr())
@@ -283,6 +296,7 @@ func (sn *storageNode) checkHealth() {
 	sn.bc = bc
 	sn.isBroken.Store(false)
 	sn.brCond.Broadcast()
+	sn.retries = 0
 }
 
 func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
@@ -473,6 +487,7 @@ type storageNode struct {
 	// The total duration spent for sending data to vmstorage node.
 	// This metric is useful for determining the saturation of vminsert->vmstorage link.
 	sendDurationSeconds *metrics.FloatCounter
+	retries             float64
 }
 
 type storageNodesBucket struct {
@@ -542,6 +557,7 @@ func initStorageNodes(addrs []string, hashSeed uint64) *storageNodesBucket {
 			rowsReroutedFromHere:  ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_from_here_total{name="vminsert", addr=%q}`, addr)),
 			rowsReroutedToHere:    ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_to_here_total{name="vminsert", addr=%q}`, addr)),
 			sendDurationSeconds:   ms.NewFloatCounter(fmt.Sprintf(`vm_rpc_send_duration_seconds_total{name="vminsert", addr=%q}`, addr)),
+			retries:               0,
 		}
 		sn.brCond = sync.NewCond(&sn.brLock)
 		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_rows_pending{name="vminsert", addr=%q}`, addr), func() float64 {
