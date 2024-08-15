@@ -130,6 +130,7 @@ type Storage struct {
 	nextDayMetricIDsUpdaterWG  sync.WaitGroup
 	retentionWatcherWG         sync.WaitGroup
 	freeDiskSpaceWatcherWG     sync.WaitGroup
+	readonlyWatchdogWG         sync.WaitGroup
 
 	// The snapshotLock prevents from concurrent creation of snapshots,
 	// since this may result in snapshots without recently added data,
@@ -293,7 +294,7 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 	s.startCurrHourMetricIDsUpdater()
 	s.startNextDayMetricIDsUpdater()
 	s.startRetentionWatcher()
-
+	s.startReadonlyWatchdog()
 	return s
 }
 
@@ -2817,6 +2818,55 @@ func (s *Storage) mustOpenIndexDBTables(path string) (next, curr, prev *indexDB)
 	prev = mustOpenIndexDB(prevPath, s, &s.isReadOnly)
 
 	return next, curr, prev
+}
+
+func (s *Storage) GetStoragePath() string {
+	return s.path
+}
+
+func (s *Storage) SetToReadonly() {
+	s.isReadOnly.Store(true)
+}
+
+func (s *Storage) startReadonlyWatchdog() {
+	s.readonlyWatchdogWG.Add(1)
+	go func() {
+		s.readonlyWatchDog()
+		s.readonlyWatchdogWG.Done()
+	}()
+}
+
+func (s *Storage) readonlyWatchDog() {
+	timeout := 10 * time.Second
+
+	for {
+		timeoutChan := time.After(timeout)
+		tmpFileChan := make(chan *os.File, 1)
+		go func() {
+			tmpFile, err := os.CreateTemp(s.path, "is_readonly_watchdog")
+			if err != nil {
+				tmpFileChan <- nil
+				logger.Errorf("cannot write to the disk %s", err)
+			} else {
+				tmpFileChan <- tmpFile
+			}
+		}()
+
+		select {
+		case tmpFile := <-tmpFileChan:
+			if tmpFile == nil {
+				s.isReadOnly.Store(true)
+			} else {
+				tmpFile.Close()
+				os.Remove(tmpFile.Name())
+			}
+		case <-timeoutChan:
+			s.isReadOnly.Store(true)
+			logger.Errorf("cannot write to the disk or disk is overloaded and takes more than %s to write", timeout.String())
+		}
+
+		time.Sleep(5 * time.Second)
+	}
 }
 
 var indexDBTableNameRegexp = regexp.MustCompile("^[0-9A-F]{16}$")
