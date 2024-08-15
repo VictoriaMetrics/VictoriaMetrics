@@ -158,7 +158,8 @@ type Storage struct {
 	missingMetricIDsResetDeadline uint64
 
 	// isReadOnly is set to true when the storage is in read-only mode.
-	isReadOnly atomic.Bool
+	isReadOnly  atomic.Bool
+	cannotWrite atomic.Bool
 }
 
 type pendingHourMetricIDEntry struct {
@@ -674,7 +675,7 @@ var freeDiskSpaceLimitBytes uint64
 
 // IsReadOnly returns information is storage in read only mode
 func (s *Storage) IsReadOnly() bool {
-	return s.isReadOnly.Load()
+	return s.isReadOnly.Load() && s.cannotWrite.Load()
 }
 
 func (s *Storage) startFreeDiskSpaceWatcher() {
@@ -2847,13 +2848,14 @@ func (s *Storage) readonlyWatchDog() {
 		select {
 		case tmpFile := <-tmpFileChan:
 			if tmpFile == nil {
-				s.isReadOnly.Store(true)
+				s.cannotWrite.Store(true)
 			} else {
 				tmpFile.Close()
 				os.Remove(tmpFile.Name())
+				s.cannotWrite.Store(false)
 			}
 		case <-timeoutChan:
-			s.isReadOnly.Store(true)
+			s.cannotWrite.Store(true)
 			logger.Errorf("cannot write to the disk or disk is overloaded and takes more than %s to write", timeout.String())
 		}
 
