@@ -4,7 +4,7 @@
 # See https://docs.victoriametrics.com/single-server-victoriametrics/#images-in-documentation
 docs-image:
 	if [ ! -d vmdocs ]; then \
-		git clone git@github.com:VictoriaMetrics/vmdocs vmdocs; \
+		git clone --depth 1 git@github.com:VictoriaMetrics/vmdocs vmdocs; \
 	fi; \
 	cd vmdocs && \
 	git checkout main && \
