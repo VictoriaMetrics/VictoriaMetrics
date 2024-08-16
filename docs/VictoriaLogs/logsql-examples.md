@@ -1,5 +1,4 @@
 ---
-sort: 100
 weight: 100
 title: LogsQL examples
 menu:
@@ -7,9 +6,6 @@ menu:
     parent: "victorialogs"
     weight: 100
 ---
-
-# LogsQL examples
-
 ## How to select recently ingested logs?
 
 [Run](https://docs.victoriametrics.com/victorialogs/querying/) the following query:

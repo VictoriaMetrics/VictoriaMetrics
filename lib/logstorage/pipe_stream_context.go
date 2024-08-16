@@ -325,12 +325,8 @@ func (pcp *pipeStreamContextProcessor) flush() error {
 		if needStop(pcp.stopCh) {
 			return nil
 		}
-		resultRows, err := getStreamContextRows(streamRows, rows, pcp.pc.linesBefore, pcp.pc.linesAfter)
-		if err != nil {
+		if err := wctx.writeStreamContextRows(streamID, streamRows, rows, pcp.pc.linesBefore, pcp.pc.linesAfter); err != nil {
 			return fmt.Errorf("cannot obtain context rows for _stream_id=%q: %w", streamID, err)
-		}
-		for _, rowFields := range resultRows {
-			wctx.writeRow(rowFields)
 		}
 	}
 
@@ -339,37 +335,59 @@ func (pcp *pipeStreamContextProcessor) flush() error {
 	return nil
 }
 
-func getStreamContextRows(streamRows, rows []streamContextRow, linesBefore, linesAfter int) ([][]Field, error) {
+func (wctx *pipeStreamContextWriteContext) writeStreamContextRows(streamID string, streamRows, rows []streamContextRow, linesBefore, linesAfter int) error {
 	sortStreamContextRows(streamRows)
 	sortStreamContextRows(rows)
 
-	var resultRows [][]Field
 	idxNext := 0
-	for _, r := range rows {
-		idx := getStreamContextRowIdx(streamRows, r.timestamp)
+	for i := range rows {
+		r := &rows[i]
+		idx := getStreamContextRowIdx(streamRows, r)
 		if idx < 0 {
 			// This error may happen when streamRows became out of sync with rows.
 			// For example, when some streamRows were deleted after obtaining rows.
-			return nil, fmt.Errorf("missing row for timestamp=%d; len(streamRows)=%d, len(rows)=%d", r.timestamp, len(streamRows), len(rows))
+			return fmt.Errorf("missing row for timestamp=%d; len(streamRows)=%d, len(rows)=%d; re-execute the query", r.timestamp, len(streamRows), len(rows))
 		}
 
 		idxStart := idx - linesBefore
 		if idxStart < idxNext {
 			idxStart = idxNext
+		} else if idxNext > 0 && idxStart > idxNext {
+			// Write delimiter row between multiple contexts in the same stream.
+			// This simplifies investigation of the returned logs.
+			fields := []Field{
+				{
+					Name:  "_time",
+					Value: string(marshalTimestampRFC3339NanoString(nil, r.timestamp+1)),
+				},
+				{
+					Name:  "_stream_id",
+					Value: streamID,
+				},
+				{
+					Name:  "_stream",
+					Value: getFieldValue(r.fields, "_stream"),
+				},
+				{
+					Name:  "_msg",
+					Value: "---",
+				},
+			}
+			wctx.writeRow(fields)
 		}
 		for idxStart < idx {
-			resultRows = append(resultRows, streamRows[idxStart].fields)
+			wctx.writeRow(streamRows[idxStart].fields)
 			idxStart++
 		}
 
 		if idx >= idxNext {
-			resultRows = append(resultRows, streamRows[idx].fields)
+			wctx.writeRow(streamRows[idx].fields)
 			idxNext = idx + 1
 		}
 
 		idxEnd := idx + 1 + linesAfter
 		for idxNext < idxEnd && idxNext < len(streamRows) {
-			resultRows = append(resultRows, streamRows[idxNext].fields)
+			wctx.writeRow(streamRows[idxNext].fields)
 			idxNext++
 		}
 
@@ -378,24 +396,40 @@ func getStreamContextRows(streamRows, rows []streamContextRow, linesBefore, line
 		}
 	}
 
-	return resultRows, nil
+	return nil
 }
 
-func getStreamContextRowIdx(rows []streamContextRow, timestamp int64) int {
+func getStreamContextRowIdx(rows []streamContextRow, r *streamContextRow) int {
 	n := sort.Search(len(rows), func(i int) bool {
-		return rows[i].timestamp >= timestamp
+		return rows[i].timestamp >= r.timestamp
 	})
 	if n == len(rows) {
 		return -1
 	}
-	if rows[n].timestamp != timestamp {
+
+	equalFields := func(fields []Field) bool {
+		for _, f := range r.fields {
+			if f.Value != getFieldValue(fields, f.Name) {
+				return false
+			}
+		}
+		return true
+	}
+
+	for rows[n].timestamp == r.timestamp && !equalFields(rows[n].fields) {
+		n++
+		if n >= len(rows) {
+			return -1
+		}
+	}
+	if rows[n].timestamp != r.timestamp {
 		return -1
 	}
 	return n
 }
 
 func sortStreamContextRows(rows []streamContextRow) {
-	sort.SliceStable(rows, func(i, j int) bool {
+	sort.Slice(rows, func(i, j int) bool {
 		return rows[i].timestamp < rows[j].timestamp
 	})
 }
@@ -469,38 +503,9 @@ func parsePipeStreamContext(lex *lexer) (*pipeStreamContext, error) {
 	}
 	lex.nextToken()
 
-	linesBefore := 0
-	beforeSet := false
-	if lex.isKeyword("before") {
-		lex.nextToken()
-		f, s, err := parseNumber(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'before' value in 'stream_context': %w", err)
-		}
-		if f < 0 {
-			return nil, fmt.Errorf("'before' value cannot be smaller than 0; got %q", s)
-		}
-		linesBefore = int(f)
-		beforeSet = true
-	}
-
-	linesAfter := 0
-	afterSet := false
-	if lex.isKeyword("after") {
-		lex.nextToken()
-		f, s, err := parseNumber(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'after' value in 'stream_context': %w", err)
-		}
-		if f < 0 {
-			return nil, fmt.Errorf("'after' value cannot be smaller than 0; got %q", s)
-		}
-		linesAfter = int(f)
-		afterSet = true
-	}
-
-	if !beforeSet && !afterSet {
-		return nil, fmt.Errorf("missing 'before N' or 'after N' in 'stream_context'")
+	linesBefore, linesAfter, err := parsePipeStreamContextBeforeAfter(lex)
+	if err != nil {
+		return nil, err
 	}
 
 	pc := &pipeStreamContext{
@@ -508,4 +513,42 @@ func parsePipeStreamContext(lex *lexer) (*pipeStreamContext, error) {
 		linesAfter:  linesAfter,
 	}
 	return pc, nil
+}
+
+func parsePipeStreamContextBeforeAfter(lex *lexer) (int, int, error) {
+	linesBefore := 0
+	linesAfter := 0
+	beforeSet := false
+	afterSet := false
+	for {
+		switch {
+		case lex.isKeyword("before"):
+			lex.nextToken()
+			f, s, err := parseNumber(lex)
+			if err != nil {
+				return 0, 0, fmt.Errorf("cannot parse 'before' value in 'stream_context': %w", err)
+			}
+			if f < 0 {
+				return 0, 0, fmt.Errorf("'before' value cannot be smaller than 0; got %q", s)
+			}
+			linesBefore = int(f)
+			beforeSet = true
+		case lex.isKeyword("after"):
+			lex.nextToken()
+			f, s, err := parseNumber(lex)
+			if err != nil {
+				return 0, 0, fmt.Errorf("cannot parse 'after' value in 'stream_context': %w", err)
+			}
+			if f < 0 {
+				return 0, 0, fmt.Errorf("'after' value cannot be smaller than 0; got %q", s)
+			}
+			linesAfter = int(f)
+			afterSet = true
+		default:
+			if !beforeSet && !afterSet {
+				return 0, 0, fmt.Errorf("missing 'before N' or 'after N' in 'stream_context'")
+			}
+			return linesBefore, linesAfter, nil
+		}
+	}
 }

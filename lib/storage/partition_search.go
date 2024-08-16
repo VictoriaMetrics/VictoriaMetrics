@@ -190,11 +190,11 @@ func (psh *partSearchHeap) Swap(i, j int) {
 	x[i], x[j] = x[j], x[i]
 }
 
-func (psh *partSearchHeap) Push(x interface{}) {
+func (psh *partSearchHeap) Push(x any) {
 	*psh = append(*psh, x.(*partSearch))
 }
 
-func (psh *partSearchHeap) Pop() interface{} {
+func (psh *partSearchHeap) Pop() any {
 	a := *psh
 	v := a[len(a)-1]
 	*psh = a[:len(a)-1]

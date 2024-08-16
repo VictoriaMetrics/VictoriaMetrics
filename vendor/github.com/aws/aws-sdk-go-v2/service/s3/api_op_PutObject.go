@@ -507,6 +507,7 @@ type PutObjectInput struct {
 }
 
 func (in *PutObjectInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.Key = in.Key
 

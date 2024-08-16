@@ -79,6 +79,7 @@ type GetBucketMetricsConfigurationInput struct {
 }
 
 func (in *GetBucketMetricsConfigurationInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }

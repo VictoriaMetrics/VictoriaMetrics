@@ -36,7 +36,7 @@ func (tlp *testLogMessageProcessor) AddRow(timestamp int64, fields []logstorage.
 		Entries: []Entry{
 			{
 				Timestamp: time.Unix(0, timestamp),
-				Line:      msg,
+				Line:      strings.Clone(msg),
 			},
 		},
 	})
@@ -58,10 +58,7 @@ func TestParseProtobufRequest_Success(t *testing.T) {
 			t.Fatalf("unexpected number of streams; got %d; want %d", len(tlp.pr.Streams), n)
 		}
 
-		data, err := tlp.pr.Marshal()
-		if err != nil {
-			t.Fatalf("unexpected error when marshaling PushRequest: %s", err)
-		}
+		data := tlp.pr.MarshalProtobuf(nil)
 		encodedData := snappy.Encode(nil, data)
 
 		tlp2 := &insertutils.TestLogMessageProcessor{}

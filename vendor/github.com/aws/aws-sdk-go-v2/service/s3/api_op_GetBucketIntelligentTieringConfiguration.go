@@ -78,6 +78,7 @@ type GetBucketIntelligentTieringConfigurationInput struct {
 }
 
 func (in *GetBucketIntelligentTieringConfigurationInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }

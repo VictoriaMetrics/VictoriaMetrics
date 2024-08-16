@@ -39,7 +39,8 @@ const TableLogs: FC<TableLogsProps> = ({ logs, displayColumns, tableCompact, col
 
 
   const filteredColumns = useMemo(() => {
-    if (!displayColumns?.length || tableCompact) return tableColumns;
+    if (tableCompact) return tableColumns;
+    if (!displayColumns?.length) return [];
     return tableColumns.filter(c => displayColumns.includes(c.key as string));
   }, [tableColumns, displayColumns, tableCompact]);
 
@@ -48,7 +49,8 @@ const TableLogs: FC<TableLogsProps> = ({ logs, displayColumns, tableCompact, col
       <Table
         rows={logs}
         columns={filteredColumns}
-        defaultOrderBy={"_vmui_time"}
+        defaultOrderBy={"_time"}
+        defaultOrderDir={"desc"}
         copyToClipboard={"_vmui_data"}
         paginationOffset={{ startIndex: 0, endIndex: Infinity }}
       />

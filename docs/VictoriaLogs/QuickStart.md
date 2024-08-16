@@ -1,10 +1,10 @@
 ---
-sort: 1
 weight: 1
-title: VictoriaLogs Quick Start
+title: Quick Start
 menu:
   docs:
-    parent: "victorialogs"
+    parent: victorialogs
+    identifier: vl-quick-start
     weight: 1
     title: Quick Start
 aliases:
@@ -12,9 +12,6 @@ aliases:
 - /victorialogs/quick-start.html
 - /victorialogs/quick-start/
 ---
-
-# VictoriaLogs Quick Start
-
 It is recommended to read [README](https://docs.victoriametrics.com/victorialogs/)
 and [Key Concepts](https://docs.victoriametrics.com/victorialogs/keyconcepts/)
 before you start working with VictoriaLogs.
@@ -36,8 +33,8 @@ Just download archive for the needed Operating system and architecture, unpack i
 For example, the following commands download VictoriaLogs archive for Linux/amd64, unpack and run it:
 
 ```sh
-curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v0.25.0-victorialogs/victoria-logs-linux-amd64-v0.25.0-victorialogs.tar.gz
-tar xzf victoria-logs-linux-amd64-v0.25.0-victorialogs.tar.gz
+curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v0.28.0-victorialogs/victoria-logs-linux-amd64-v0.28.0-victorialogs.tar.gz
+tar xzf victoria-logs-linux-amd64-v0.28.0-victorialogs.tar.gz
 ./victoria-logs-prod
 ```
 
@@ -61,7 +58,7 @@ Here is the command to run VictoriaLogs in a Docker container:
 
 ```sh
 docker run --rm -it -p 9428:9428 -v ./victoria-logs-data:/victoria-logs-data \
-  docker.io/victoriametrics/victoria-logs:v0.25.0-victorialogs
+  docker.io/victoriametrics/victoria-logs:v0.28.0-victorialogs
 ```
 
 See also:

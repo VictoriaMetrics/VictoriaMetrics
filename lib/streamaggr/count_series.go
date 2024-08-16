@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/cespare/xxhash/v2"
 )
 
@@ -67,26 +66,21 @@ func (as *countSeriesAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *countSeriesAggrState) flushState(ctx *flushCtx, resetState bool) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
+func (as *countSeriesAggrState) flushState(ctx *flushCtx) {
 	m := &as.m
-	m.Range(func(k, v interface{}) bool {
-		if resetState {
-			// Atomically delete the entry from the map, so new entry is created for the next flush.
-			m.Delete(k)
-		}
+	m.Range(func(k, v any) bool {
+		// Atomically delete the entry from the map, so new entry is created for the next flush.
+		m.Delete(k)
 
 		sv := v.(*countSeriesStateValue)
 		sv.mu.Lock()
 		n := len(sv.m)
-		if resetState {
-			// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-			sv.deleted = true
-		}
+		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
+		sv.deleted = true
 		sv.mu.Unlock()
 
 		key := k.(string)
-		ctx.appendSeries(key, "count_series", currentTimeMsec, float64(n))
+		ctx.appendSeries(key, "count_series", float64(n))
 		return true
 	})
 }

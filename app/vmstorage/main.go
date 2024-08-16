@@ -24,6 +24,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
@@ -153,7 +154,7 @@ func main() {
 	startTime = time.Now()
 
 	// deregister storage metrics
-	metrics.UnregisterSet(storageMetrics)
+	metrics.UnregisterSet(storageMetrics, true)
 	storageMetrics = nil
 
 	stopStaleSnapshotsRemover()
@@ -191,7 +192,7 @@ func newRequestHandler(strg *storage.Storage) httpserver.RequestHandler {
 func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storage) bool {
 	path := r.URL.Path
 	if path == "/internal/force_merge" {
-		if !httpserver.CheckAuthFlag(w, r, forceMergeAuthKey.Get(), "forceMergeAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, forceMergeAuthKey) {
 			return true
 		}
 		// Run force merge in background
@@ -210,7 +211,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		return true
 	}
 	if path == "/internal/force_flush" {
-		if !httpserver.CheckAuthFlag(w, r, forceFlushAuthKey.Get(), "forceFlushAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, forceFlushAuthKey) {
 			return true
 		}
 		logger.Infof("flushing storage to make pending data available for reading")
@@ -220,7 +221,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 	if !strings.HasPrefix(path, "/snapshot") {
 		return false
 	}
-	if !httpserver.CheckAuthFlag(w, r, snapshotAuthKey.Get(), "snapshotAuthKey") {
+	if !httpserver.CheckAuthFlag(w, r, snapshotAuthKey) {
 		return true
 	}
 	path = path[len("/snapshot"):]
@@ -236,7 +237,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 			snapshotsCreateErrorsTotal.Inc()
 			return true
 		}
-		fmt.Fprintf(w, `{"status":"ok","snapshot":%q}`, snapshotPath)
+		fmt.Fprintf(w, `{"status":"ok","snapshot":%s}`, stringsutil.JSONString(snapshotPath))
 		return true
 	case "/list":
 		snapshotsListTotal.Inc()
@@ -561,7 +562,8 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 func jsonResponseError(w http.ResponseWriter, err error) {
 	logger.Errorf("%s", err)
 	w.WriteHeader(http.StatusInternalServerError)
-	fmt.Fprintf(w, `{"status":"error","msg":%q}`, err)
+	errStr := err.Error()
+	fmt.Fprintf(w, `{"status":"error","msg":%s}`, stringsutil.JSONString(errStr))
 }
 
 func usage() {

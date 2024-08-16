@@ -80,6 +80,7 @@ type GetObjectTorrentInput struct {
 }
 
 func (in *GetObjectTorrentInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 
 }

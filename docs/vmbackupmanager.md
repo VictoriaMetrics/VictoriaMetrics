@@ -1,9 +1,8 @@
 ---
-sort: 10
 weight: 10
 menu:
   docs:
-    parent: 'victoriametrics'
+    parent: victoriametrics
     weight: 10
 title: vmbackupmanager
 aliases:
@@ -25,7 +24,7 @@ The required flags for running the service are as follows:
 
 * `-license` or `-licenseFile` . See [these docs](https://docs.victoriametrics.com/enterprise/#running-victoriametrics-enterprise).
 * `-storageDataPath` - path to VictoriaMetrics or vmstorage data path to make backup from.
-* `-snapshot.createURL` - VictoriaMetrics creates snapshot URL which will automatically be created during backup. Example: <http://victoriametrics:8428/snapshot/create>
+* `-snapshot.createURL` - VictoriaMetrics creates snapshot URL which will automatically be created during backup. Example: http://victoriametrics:8428/snapshot/create
 * `-dst` - backup destination at [the supported storage types](https://docs.victoriametrics.com/vmbackup/#supported-storage-types).
 * `-credsFilePath` - path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.
   See [https://cloud.google.com/iam/docs/creating-managing-service-account-keys](https://cloud.google.com/iam/docs/creating-managing-service-account-keys)
@@ -117,11 +116,11 @@ The result on the GCS bucket
 
 * The root folder
 
-  <img alt="root folder" src="vmbackupmanager_root_folder.webp">
+  ![root folder](vmbackupmanager_root_folder.webp)
 
 * The latest folder
 
-  <img alt="latest folder" src="vmbackupmanager_latest_folder.webp">
+  ![latest folder](vmbackupmanager_latest_folder.webp)
 
 `vmbackupmanager` uses [smart backups](https://docs.victoriametrics.com/vmbackup/#smart-backups) technique in order
 to accelerate backups and save both data transfer costs and data copying costs. This includes server-side copy of already existing
@@ -147,7 +146,7 @@ Backup retention policy is controlled by:
 
 Let’s assume we have a backup manager collecting daily backups for the past 10 days.
 
-<img alt="retention policy daily before retention cycle" src="vmbackupmanager_rp_daily_1.webp">
+![retention policy daily before retention cycle](vmbackupmanager_rp_daily_1.webp)
 
 We enable backup retention policy for backup manager by using following configuration:
 
@@ -172,7 +171,7 @@ info    app/vmbackupmanager/retention.go:106    daily backups to delete [daily/2
 
 The result on the GCS bucket. We see only 3 daily backups:
 
-<img alt="retention policy daily after retention cycle" src="vmbackupmanager_rp_daily_2.webp">
+[retention policy daily after retention cycle](vmbackupmanager_rp_daily_2.webp "retention policy daily after retention cycle")
 
 ### Protection backups against deletion by retention policy
 
@@ -342,7 +341,7 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
 ### How to restore in Kubernetes
 
 1. Ensure there is an init container with `vmbackupmanager restore` in `vmstorage` or `vmsingle` pod.
-   For [VictoriaMetrics operator](https://docs.victoriametrics.com/operator/VictoriaMetrics-Operator.html) deployments it is required to add:
+   For [VictoriaMetrics operator](https://docs.victoriametrics.com/operator/) deployments it is required to add:
    ```yaml
    vmbackup:
      restore:
@@ -369,7 +368,7 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
 
 #### Restore cluster into another cluster
 
-These steps are assuming that [VictoriaMetrics operator](https://docs.victoriametrics.com/operator/VictoriaMetrics-Operator.html) is used to manage `VMCluster`.
+These steps are assuming that [VictoriaMetrics operator](https://docs.victoriametrics.com/operator/) is used to manage `VMCluster`.
 Clusters here are referred to as `source` and `destination`.
 
 1. Create a new cluster with access to *source* cluster `vmbackupmanager` storage and same number of storage nodes.
@@ -462,7 +461,7 @@ command-line flags:
   -filestream.disableFadvise
      Whether to disable fadvise() syscall when reading large data files. The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. In some rare cases it is better to disable the syscall if it uses too much CPU
   -flagsAuthKey value
-     Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
@@ -541,7 +540,7 @@ command-line flags:
   -metrics.exposeMetadata
      Whether to expose TYPE and HELP metadata at the /metrics page, which is exposed at -httpListenAddr . The metadata may be needed when the /metrics page is consumed by systems, which require this information. For example, Managed Prometheus in Google Cloud - https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type
   -metricsAuthKey value
-     Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
   -mtls array
      Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
@@ -552,7 +551,7 @@ command-line flags:
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pprofAuthKey value
-     Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -pprofAuthKey=http://host/path or -pprofAuthKey=https://host/path
   -pushmetrics.disableCompression
      Whether to disable request body compression when pushing metrics to every -pushmetrics.url

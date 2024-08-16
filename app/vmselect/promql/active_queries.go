@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 // ActiveQueriesHandler returns response to /api/v1/status/active_queries
@@ -41,8 +42,8 @@ func writeActiveQueries(w http.ResponseWriter, aqes []activeQueryEntry) {
 	fmt.Fprintf(w, `{"status":"ok","data":[`)
 	for i, aqe := range aqes {
 		d := now.Sub(aqe.startTime)
-		fmt.Fprintf(w, `{"duration":"%.3fs","id":"%016X","remote_addr":%s,"account_id":"%d","project_id":"%d","query":%q,"start":%d,"end":%d,"step":%d}`,
-			d.Seconds(), aqe.qid, aqe.quotedRemoteAddr, aqe.accountID, aqe.projectID, aqe.q, aqe.start, aqe.end, aqe.step)
+		fmt.Fprintf(w, `{"duration":"%.3fs","id":"%016X","remote_addr":%s,"account_id":"%d","project_id":"%d","query":%s,"start":%d,"end":%d,"step":%d}`,
+			d.Seconds(), aqe.qid, aqe.quotedRemoteAddr, aqe.accountID, aqe.projectID, stringsutil.JSONString(aqe.q), aqe.start, aqe.end, aqe.step)
 		if i+1 < len(aqes) {
 			fmt.Fprintf(w, `,`)
 		}

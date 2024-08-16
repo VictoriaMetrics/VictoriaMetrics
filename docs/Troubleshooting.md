@@ -1,5 +1,4 @@
 ---
-sort: 35
 weight: 35
 title: Troubleshooting
 menu:
@@ -9,9 +8,6 @@ menu:
 aliases:
 - /Troubleshooting.html
 ---
-
-# Troubleshooting
-
 This document contains troubleshooting guides for most common issues when working with VictoriaMetrics:
 
 - [General troubleshooting checklist](#general-troubleshooting-checklist)

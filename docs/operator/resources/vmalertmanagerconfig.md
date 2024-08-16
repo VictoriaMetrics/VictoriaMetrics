@@ -1,19 +1,17 @@
 ---
-sort: 4
 weight: 4
 title: VMAlertmanagerConfig
 menu:
   docs:
-    parent: "operator-custom-resources"
+    identifier: operator-cr-vmalertmanagerconfig
+    parent: operator-cr
     weight: 4
 aliases:
-  - /operator/resources/vmalertmanagerconfig.html
+  - /operator/resources/vmalertmanagerconfig/
+  - /operator/resources/vmalertmanagerconfig/index.html
 ---
-
-# VMAlertmanagerConfig
-
-The `VMAlertmanagerConfig` provides way to configure [VMAlertmanager](./vmalertmanager.md) 
-configuration with CRD. It allows to define different configuration parts, which will be merged by operator into config. 
+The `VMAlertmanagerConfig` provides way to configure [VMAlertmanager](https://docs.victoriametrics.com/operator/resources/vmalertmanager)
+configuration with CRD. It allows to define different configuration parts, which will be merged by operator into config.
 
 It behaves like other config parts - `VMServiceScrape` and etc.
 
@@ -21,10 +19,44 @@ Read [Usage](#usage) and [Special case](#special-case) before using.
 
 ## Specification
 
-You can see the full actual specification of the `VMAlertmanagerConfig` resource in 
-the **[API docs -> VMAlertmanagerConfig](../api.md#vmalertmanagerconfig)**.
+You can see the full actual specification of the `VMAlertmanagerConfig` resource in
+the **[API docs -> VMAlertmanagerConfig](https://docs.victoriametrics.com/operator/api#vmalertmanagerconfig)**.
 
 Also, you can check out the [examples](#examples) section.
+
+## Validation
+
+ The operator performs validation of `VMAlertmanagerConfig`. In case of any misconfiguration it adds corresponding validation fail message into `status.lastSyncError` field and updates `status.status` field to `failed` status.
+
+ For example `VMAlertmanagerConfig` without required fields:
+
+```yaml
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMAlertmanagerConfig
+metadata:
+  name: invalid-config
+  namespace: default
+spec:
+  receivers:
+  - name: blackhole
+  - name: pagerduty
+    pagerduty_configs:
+    - url: http://example
+  route:
+    group_by:
+    - alertname
+    receiver: blackhole
+    routes:
+    - matchers:
+      - alertname="pd"
+      receiver: pagerduty
+status:
+  lastErrorParentAlertmanagerName: default/example-alertmanager
+  lastSyncError: 'receiver at idx=2 is invalid: at idx=0 pagerduty_configs one of
+    ''routing_key'' or ''service_key'' must be configured'
+  lastSyncErrorTimestamp: 1722950290
+  status: failed
+```
 
 ## Usage
 

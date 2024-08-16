@@ -1,15 +1,11 @@
 ---
-sort: 500
 weight: 500
-title: VictoriaMetrics development goals
+title: Development goals
 menu:
   docs:
     parent: 'victoriametrics'
     weight: 500
 ---
-
-# VictoriaMetrics development goals
-
 ## Goals
 
 1. The main goal - **to help users and [clients](https://docs.victoriametrics.com/enterprise/) resolving issues with VictoriaMetrics components,
@@ -20,10 +16,10 @@ menu:
    so users could find answers to their questions via Google or [Perplexity](https://www.perplexity.ai/) without the need
    to ask these questions at our [support channels](https://docs.victoriametrics.com/#community-and-contributions).
 1. Simplifying usage of VictoriaMetrics components without breaking backwards compatibility, so users could regularly
-   upgrade to [the latest available release](https://docs.victoriametrics.com/CHANGELOG.html) and remain happy.
+   upgrade to [the latest available release](https://docs.victoriametrics.com/CHANGELOG) and remain happy.
 1. Improving usability for the existing functionality of VictoriaMetrics components.
 1. Improving the readability and maintainability of the code base by removing unnecessary abstractions and simplifying the code whenever possible.
-1. Improving development velocity by optimizing CI/CD tasks, so they take less time.
+1. Improving development velocity by optimizing and simplifying CI/CD tasks, so they take less time to execute and debug.
 
 ## Non-goals
 
@@ -40,14 +36,14 @@ menu:
    Other feature requests must be closed as `won't implement`, with the link to this page.
 1. Merging all the pull requests users submit. These pull requests should fit [the goals](#goals) of VictoriaMetrics.
    Other pull requests must be closed as `won't merge`, with the link to this page.
-1. Slowing down CI/CD pipelines with non-essential tasks, since this results in development velocity slowdown.
-1. Slowing down development velocity by introducing non-essential requirements.
+1. Slowing down and complicating CI/CD pipelines with non-essential tasks, since this results in development velocity slowdown.
+1. Introducing non-essential requrirements, since this slows down development velocity.
 
 ## VictoriaMetrics proverbs
 
 - **Small usability fix is better than non-trivial feature.** Usability fix makes happy existing users.
   Non-trivial feature may make happy some new users, while it may make upset a big share of existing users
-  if the feature breaks some essential functionaly of VictoriaMetrics components or makes it less efficient.
+  if the feature breaks some essential functionality of VictoriaMetrics components or makes it less efficient.
 
 - **Good docs are better than new shiny feature.** Good docs help users discovering new functionality and dealing
   with VictoriaMetrics components in the most efficient way. Nobody uses new shiny feature if it isn't documented properly.

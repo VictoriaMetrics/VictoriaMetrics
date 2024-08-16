@@ -86,6 +86,7 @@ type ListBucketMetricsConfigurationsInput struct {
 }
 
 func (in *ListBucketMetricsConfigurationsInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 
 }

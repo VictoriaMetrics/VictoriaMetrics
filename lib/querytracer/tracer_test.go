@@ -1,7 +1,6 @@
 package querytracer
 
 import (
-	"fmt"
 	"regexp"
 	"sync"
 	"testing"
@@ -153,11 +152,11 @@ func TestTraceConcurrent(t *testing.T) {
 	childLocal.Done()
 	var wg sync.WaitGroup
 	for i := 0; i < 3; i++ {
-		child := qt.NewChild(fmt.Sprintf("child %d", i))
+		child := qt.NewChild("child %d", i)
 		wg.Add(1)
 		go func() {
 			for j := 0; j < 100; j++ {
-				child.Printf(fmt.Sprintf("message %d", j))
+				child.Printf("message %d", j)
 			}
 			wg.Done()
 		}()
@@ -221,7 +220,7 @@ func areEqualTracesSkipDuration(s1, s2 string) bool {
 }
 
 func zeroDurationsInTrace(s string) string {
-	return skipDurationRe.ReplaceAllString(s, " 0ms: ")
+	return skipDurationRe.ReplaceAllLiteralString(s, " 0ms: ")
 }
 
 var skipDurationRe = regexp.MustCompile(" [0-9.]+ms: ")
@@ -233,7 +232,7 @@ func areEqualJSONTracesSkipDuration(s1, s2 string) bool {
 }
 
 func zeroJSONDurationsInTrace(s string) string {
-	return skipJSONDurationRe.ReplaceAllString(s, `"duration_msec":0`)
+	return skipJSONDurationRe.ReplaceAllLiteralString(s, `"duration_msec":0`)
 }
 
 var skipJSONDurationRe = regexp.MustCompile(`"duration_msec":[0-9.]+`)

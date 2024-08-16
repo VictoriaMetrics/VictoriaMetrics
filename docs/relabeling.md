@@ -1,5 +1,4 @@
 ---
-sort: 37
 weight: 37
 title: Relabeling cookbook
 menu:
@@ -9,9 +8,6 @@ menu:
 aliases:
 - /relabeling.html
 ---
-
-# Relabeling cookbook
-
 VictoriaMetrics and [vmagent](https://docs.victoriametrics.com/vmagent/) support
 [Prometheus-compatible relabeling](https://docs.victoriametrics.com/vmagent/#relabeling)
 with [additional enhancements](https://docs.victoriametrics.com/vmagent/#relabeling-enhancements).

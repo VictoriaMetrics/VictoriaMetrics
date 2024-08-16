@@ -92,6 +92,7 @@ type DeleteObjectTaggingInput struct {
 }
 
 func (in *DeleteObjectTaggingInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 
 }

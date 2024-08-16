@@ -60,6 +60,7 @@ type DeleteBucketTaggingInput struct {
 }
 
 func (in *DeleteBucketTaggingInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }

@@ -3,7 +3,6 @@ package promscrape
 import (
 	"fmt"
 	"reflect"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/gce"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 func TestMergeLabels(t *testing.T) {
@@ -224,7 +224,7 @@ scrape_configs:
 	sws := cfg.getStaticScrapeWork()
 	swsExpected := []*ScrapeWork{
 		{
-			ScrapeURL:      "http://host1:80/metric/path1?x=y",
+			ScrapeURL:      "http://host1/metric/path1?x=y",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
@@ -235,7 +235,7 @@ scrape_configs:
 			jobNameOriginal: "abc",
 		},
 		{
-			ScrapeURL:      "https://host2:443/metric/path2?x=y",
+			ScrapeURL:      "https://host2/metric/path2?x=y",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
@@ -432,7 +432,7 @@ scrape_configs:
 
 // String returns human-readable representation for sw.
 func (sw *ScrapeWork) String() string {
-	return strconv.Quote(sw.key())
+	return stringsutil.JSONString(sw.key())
 }
 
 func TestGetFileSDScrapeWorkSuccess(t *testing.T) {
@@ -459,7 +459,7 @@ scrape_configs:
   - files: ["testdata/file_sd.json", "testdata/file_sd*.yml"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://host1:80/abc/de",
+			ScrapeURL:      "http://host1/abc/de",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
@@ -471,7 +471,7 @@ scrape_configs:
 			jobNameOriginal: "foo",
 		},
 		{
-			ScrapeURL:      "http://host2:80/abc/de",
+			ScrapeURL:      "http://host2/abc/de",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
@@ -690,7 +690,7 @@ scrape_configs:
   - targets: ["s"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://s:80/metrics",
+			ScrapeURL:      "http://s/metrics",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
@@ -712,7 +712,7 @@ scrape_configs:
   - targets: ["s"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://s:80/metrics",
+			ScrapeURL:      "http://s/metrics",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
@@ -734,7 +734,7 @@ scrape_configs:
   - targets: ["s"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://s:80/metrics",
+			ScrapeURL:      "http://s/metrics",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
@@ -756,7 +756,7 @@ scrape_configs:
   - targets: ["s"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://s:80/metrics",
+			ScrapeURL:      "http://s/metrics",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
@@ -845,7 +845,7 @@ scrape_configs:
   - targets: [foobar]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:       "https://foo.bar:443/foo/bar?p=x%26y&p=%3D",
+			ScrapeURL:       "https://foo.bar/foo/bar?p=x%26y&p=%3D",
 			ScrapeInterval:  54 * time.Second,
 			ScrapeTimeout:   5 * time.Second,
 			MaxScrapeSize:   maxScrapeSize.N,
@@ -861,7 +861,7 @@ scrape_configs:
 			jobNameOriginal: "foo",
 		},
 		{
-			ScrapeURL:       "https://aaa:443/foo/bar?p=x%26y&p=%3D",
+			ScrapeURL:       "https://aaa/foo/bar?p=x%26y&p=%3D",
 			ScrapeInterval:  54 * time.Second,
 			ScrapeTimeout:   5 * time.Second,
 			MaxScrapeSize:   maxScrapeSize.N,
@@ -877,7 +877,7 @@ scrape_configs:
 			jobNameOriginal: "foo",
 		},
 		{
-			ScrapeURL:      "http://1.2.3.4:80/metrics",
+			ScrapeURL:      "http://1.2.3.4/metrics",
 			ScrapeInterval: 8 * time.Second,
 			ScrapeTimeout:  8 * time.Second,
 			MaxScrapeSize:  maxScrapeSize.N,
@@ -888,7 +888,7 @@ scrape_configs:
 			jobNameOriginal: "qwer",
 		},
 		{
-			ScrapeURL:      "http://foobar:80/metrics",
+			ScrapeURL:      "http://foobar/metrics",
 			ScrapeInterval: 8 * time.Second,
 			ScrapeTimeout:  8 * time.Second,
 			MaxScrapeSize:  maxScrapeSize.N,
@@ -993,7 +993,7 @@ scrape_configs:
 scrape_configs:
 - job_name: foo
   scheme: https
-  max_scrape_size: 0
+  max_scrape_size: 1
   relabel_configs:
   - action: keep
     source_labels: [__address__]
@@ -1015,7 +1015,7 @@ scrape_configs:
 			ScrapeURL:      "http://foo.bar:1234/metrics",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  0,
+			MaxScrapeSize:  1,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "foo.bar:1234",
 				"job":      "3",
@@ -1103,7 +1103,7 @@ scrape_configs:
       job: yyy
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://pp:80/metrics?a=c&a=xy",
+			ScrapeURL:      "http://pp/metrics?a=c&a=xy",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
@@ -1150,6 +1150,8 @@ scrape_configs:
         replacement: 127.0.0.1:9116  # The SNMP exporter's real hostname:port.
       - target_label: __series_limit__
         replacement: 1234
+      - target_label: __sample_limit__
+        replacement: 5678
       - target_label: __stream_parse__
         replacement: true
 `, []*ScrapeWork{
@@ -1162,7 +1164,7 @@ scrape_configs:
 				"instance": "192.168.1.2",
 				"job":      "snmp",
 			}),
-			SampleLimit:         100,
+			SampleLimit:         5678,
 			DisableKeepAlive:    true,
 			DisableCompression:  true,
 			StreamParse:         true,

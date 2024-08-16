@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"math"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"unsafe"
 
+	"github.com/valyala/quicktemplate"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
@@ -32,6 +34,9 @@ type pipeSort struct {
 	//
 	// if zero, then all the results are returned
 	limit uint64
+
+	// The name of the field to store the row rank.
+	rankName string
 }
 
 func (ps *pipeSort) String() string {
@@ -52,6 +57,9 @@ func (ps *pipeSort) String() string {
 	if ps.limit > 0 {
 		s += fmt.Sprintf(" limit %d", ps.limit)
 	}
+	if ps.rankName != "" {
+		s += " rank as " + quoteTokenIfNeeded(ps.rankName)
+	}
 	return s
 }
 
@@ -62,6 +70,13 @@ func (ps *pipeSort) canLiveTail() bool {
 func (ps *pipeSort) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	if neededFields.isEmpty() {
 		return
+	}
+
+	if ps.rankName != "" {
+		neededFields.remove(ps.rankName)
+		if neededFields.contains("*") {
+			unneededFields.add(ps.rankName)
+		}
 	}
 
 	if len(ps.byFields) == 0 {
@@ -505,6 +520,9 @@ type pipeSortWriteContext struct {
 	rcs []resultColumn
 	br  blockResult
 
+	// buf is a temporary buffer for non-flushed block.
+	buf []byte
+
 	// rowsWritten is the total number of rows passed to writeNextRow.
 	rowsWritten uint64
 
@@ -517,6 +535,11 @@ type pipeSortWriteContext struct {
 
 func (wctx *pipeSortWriteContext) writeNextRow(shard *pipeSortProcessorShard) {
 	ps := shard.ps
+	rankName := ps.rankName
+	rankFields := 0
+	if rankName != "" {
+		rankFields = 1
+	}
 
 	rowIdx := shard.rowRefNext
 	shard.rowRefNext++
@@ -532,10 +555,10 @@ func (wctx *pipeSortWriteContext) writeNextRow(shard *pipeSortProcessorShard) {
 	byFields := ps.byFields
 	rcs := wctx.rcs
 
-	areEqualColumns := len(rcs) == len(byFields)+len(b.otherColumns)
+	areEqualColumns := len(rcs) == rankFields+len(byFields)+len(b.otherColumns)
 	if areEqualColumns {
 		for i, c := range b.otherColumns {
-			if rcs[len(byFields)+i].name != c.name {
+			if rcs[rankFields+len(byFields)+i].name != c.name {
 				areEqualColumns = false
 				break
 			}
@@ -546,6 +569,9 @@ func (wctx *pipeSortWriteContext) writeNextRow(shard *pipeSortProcessorShard) {
 		wctx.flush()
 
 		rcs = wctx.rcs[:0]
+		if rankName != "" {
+			rcs = appendResultColumnWithName(rcs, rankName)
+		}
 		for _, bf := range byFields {
 			rcs = appendResultColumnWithName(rcs, bf.name)
 		}
@@ -555,17 +581,24 @@ func (wctx *pipeSortWriteContext) writeNextRow(shard *pipeSortProcessorShard) {
 		wctx.rcs = rcs
 	}
 
+	if rankName != "" {
+		bufLen := len(wctx.buf)
+		wctx.buf = marshalUint64String(wctx.buf, wctx.rowsWritten)
+		v := bytesutil.ToUnsafeString(wctx.buf[bufLen:])
+		rcs[0].addValue(v)
+	}
+
 	br := b.br
 	byColumns := b.byColumns
 	for i := range byFields {
 		v := byColumns[i].c.getValueAtRow(br, rr.rowIdx)
-		rcs[i].addValue(v)
+		rcs[rankFields+i].addValue(v)
 		wctx.valuesLen += len(v)
 	}
 
 	for i, c := range b.otherColumns {
 		v := c.getValueAtRow(br, rr.rowIdx)
-		rcs[len(byFields)+i].addValue(v)
+		rcs[rankFields+len(byFields)+i].addValue(v)
 		wctx.valuesLen += len(v)
 	}
 
@@ -589,6 +622,7 @@ func (wctx *pipeSortWriteContext) flush() {
 	for i := range rcs {
 		rcs[i].resetValues()
 	}
+	wctx.buf = wctx.buf[:0]
 }
 
 type pipeSortProcessorShardsHeap []*pipeSortProcessorShard
@@ -763,6 +797,16 @@ func parsePipeSort(lex *lexer) (*pipeSort, error) {
 				return nil, fmt.Errorf("duplicate 'limit'; the previous one is %d; the new one is %s", ps.limit, s)
 			}
 			ps.limit = n
+		case lex.isKeyword("rank"):
+			lex.nextToken()
+			if lex.isKeyword("as") {
+				lex.nextToken()
+			}
+			rankName, err := getCompoundToken(lex)
+			if err != nil {
+				return nil, fmt.Errorf("cannot read rank field name: %s", err)
+			}
+			ps.rankName = rankName
 		default:
 			return &ps, nil
 		}
@@ -849,8 +893,8 @@ func tryParseInt64(s string) (int64, bool) {
 }
 
 func marshalJSONKeyValue(dst []byte, k, v string) []byte {
-	dst = strconv.AppendQuote(dst, k)
+	dst = quicktemplate.AppendJSONString(dst, k, true)
 	dst = append(dst, ':')
-	dst = strconv.AppendQuote(dst, v)
+	dst = quicktemplate.AppendJSONString(dst, v, true)
 	return dst
 }

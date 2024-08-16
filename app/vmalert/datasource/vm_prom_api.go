@@ -57,20 +57,23 @@ var jsonParserPool fastjson.ParserPool
 //	[{"metric":{"__name__":"up","job":"prometheus"},value": [ 1435781451.781,"1"]},
 //	{"metric":{"__name__":"up","job":"node"},value": [ 1435781451.781,"0"]}]
 func (pi *promInstant) Unmarshal(b []byte) error {
+	var metrics []json.RawMessage
+	// metrics slice could be large, so parsing it with fastjson could consume a lot of memory.
+	// We parse the slice with standard lib to keep mem usage low.
+	// And each metric object will be parsed with fastjson to reduce allocations.
+	if err := json.Unmarshal(b, &metrics); err != nil {
+		return fmt.Errorf("cannot unmarshal metrics: %w", err)
+	}
+
 	p := jsonParserPool.Get()
 	defer jsonParserPool.Put(p)
 
-	v, err := p.ParseBytes(b)
-	if err != nil {
-		return err
-	}
-
-	rows, err := v.Array()
-	if err != nil {
-		return fmt.Errorf("cannot find the top-level array of result objects: %w", err)
-	}
-	pi.ms = make([]Metric, len(rows))
-	for i, row := range rows {
+	pi.ms = make([]Metric, len(metrics))
+	for i, data := range metrics {
+		row, err := p.ParseBytes(data)
+		if err != nil {
+			return fmt.Errorf("cannot parse metric object: %w", err)
+		}
 		metric := row.Get("metric")
 		if metric == nil {
 			return fmt.Errorf("can't find `metric` object in %q", row)
@@ -119,7 +122,7 @@ func (pi *promInstant) Unmarshal(b []byte) error {
 type promRange struct {
 	Result []struct {
 		Labels map[string]string `json:"metric"`
-		TVs    [][2]interface{}  `json:"values"`
+		TVs    [][2]any          `json:"values"`
 	} `json:"result"`
 }
 
@@ -147,7 +150,7 @@ func (r promRange) metrics() ([]Metric, error) {
 	return result, nil
 }
 
-type promScalar [2]interface{}
+type promScalar [2]any
 
 func (r promScalar) metrics() ([]Metric, error) {
 	var m Metric
