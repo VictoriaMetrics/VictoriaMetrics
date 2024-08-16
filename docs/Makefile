@@ -26,8 +26,7 @@ docs-images-to-webp: docs-image
 		--rm \
 		--entrypoint /usr/bin/find \
 		--name vmdocs-docker-container \
-		--workdir / \
 		-v ./docs:/opt/docs/content vmdocs-docker-package \
-			/opt/docs/content \
+			content \
 				-regex ".*\.\(png\|jpg\|jpeg\)" \
 				-exec sh -c 'cwebp -preset drawing -m 6 -o $$(echo {} | cut -f-1 -d.).webp {} && rm -rf {}' {} \;
