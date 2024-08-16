@@ -296,7 +296,6 @@ func (sn *storageNode) checkHealth() {
 	sn.bc = bc
 	sn.isBroken.Store(false)
 	sn.brCond.Broadcast()
-	sn.retries = 0
 }
 
 func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
@@ -488,7 +487,6 @@ type storageNode struct {
 	// The total duration spent for sending data to vmstorage node.
 	// This metric is useful for determining the saturation of vminsert->vmstorage link.
 	sendDurationSeconds *metrics.FloatCounter
-	retries             float64
 	brokenSince         atomic.Value
 }
 
@@ -559,8 +557,8 @@ func initStorageNodes(addrs []string, hashSeed uint64) *storageNodesBucket {
 			rowsReroutedFromHere:  ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_from_here_total{name="vminsert", addr=%q}`, addr)),
 			rowsReroutedToHere:    ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_to_here_total{name="vminsert", addr=%q}`, addr)),
 			sendDurationSeconds:   ms.NewFloatCounter(fmt.Sprintf(`vm_rpc_send_duration_seconds_total{name="vminsert", addr=%q}`, addr)),
-			retries:               0,
 		}
+		sn.brokenSince.Store(time.Time{})
 		sn.brCond = sync.NewCond(&sn.brLock)
 		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_rows_pending{name="vminsert", addr=%q}`, addr), func() float64 {
 			sn.brLock.Lock()
