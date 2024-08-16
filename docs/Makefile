@@ -12,7 +12,7 @@ docs-image:
 	cd .. && \
 	docker build \
 		-t vmdocs-docker-package \
-		vmdocs && \
+		vmdocs
 
 docs-debug: docs docs-image
 	docker run \
