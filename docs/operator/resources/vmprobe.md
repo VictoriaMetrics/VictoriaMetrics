@@ -1,23 +1,21 @@
 ---
-sort: 9
 weight: 9
 title: VMProbe
 menu:
   docs:
-    parent: "operator-custom-resources"
+    identifier: operator-cr-vmprobe
+    parent: operator-cr
     weight: 9
 aliases:
-  - /operator/resources/vmprobe.html
+  - /operator/resources/vmprobe/
+  - /operator/resources/vmprobe/index.html
 ---
-
-# VMProbe
-
 The `VMProbe` CRD provides probing target ability with some external prober. 
 The most common prober is [blackbox exporter](https://github.com/prometheus/blackbox_exporter).
-By specifying configuration at CRD, operator generates config for [VMAgent](./vmagent.md)
+By specifying configuration at CRD, operator generates config for [VMAgent](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmagent.md)
 and syncs it. It's possible to use static targets or use standard k8s discovery mechanism with `Ingress`.
 
-`VMProbe` object generates part of [VMAgent](./vmagent.md) configuration;
+`VMProbe` object generates part of [VMAgent](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmagent.md) configuration;
 It has various options for scraping configuration of target (with basic auth, tls access, by specific port name etc.).
 
 You have to configure blackbox exporter before you can use this feature. 

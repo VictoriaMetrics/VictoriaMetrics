@@ -1,21 +1,19 @@
 ---
-sort: 14
 weight: 14
 title: VMStaticScrape
 menu:
   docs:
-    parent: "operator-custom-resources"
+    identifier: operator-cr-vmstaticscrape
+    parent: operator-cr
     weight: 14
 aliases:
-  - /operator/resources/vmstaticscrape.html
+  - /operator/resources/vmstaticscrape/
+  - /operator/resources/vmstaticscrape/index.html
 ---
-
-# VMStaticScrape
-
 The `VMStaticScrape` CRD provides mechanism for scraping metrics from static targets, configured by CRD targets.
 
 `VMStaticScrape` object generates part of [VMAgent](./vmagent.md) 
-configuration with [static "service discovery"](https://docs.victoriametrics.com/sd_configs.html#static_configs).
+configuration with [static "service discovery"](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/sd_configs.md#static_configs).
 It has various options for scraping configuration of target (with basic auth,tls access, by specific port name etc.).
 
 By specifying configuration at CRD, operator generates config 

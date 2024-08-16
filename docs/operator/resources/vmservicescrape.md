@@ -1,24 +1,22 @@
 ---
-sort: 12
 weight: 12
 title: VMServiceScrape
 menu:
   docs:
-    parent: "operator-custom-resources"
+    identifier: operator-cr-vmservicescrape
+    parent: operator-cr
     weight: 12
 aliases:
-  - /operator/resources/vmservicescrape.html
+  - /operator/resources/vmservicescrape/
+  - /operator/resources/vmservicescrape/index.html
 ---
-
-# VMServiceScrape
-
 The `VMServiceScrape` CRD allows to define a dynamic set of services for monitoring. Services
 and scraping configurations can be matched via label selections. This allows an organization to introduce conventions
 for how metrics should be exposed. Following these conventions new services will be discovered automatically without
 need to reconfigure.
 
 `VMServiceScrape` object generates part of [VMAgent](./vmagent.md) configuration with 
-[kubernetes service discovery](https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs) targets by corresponding `Service`.
+[kubernetes service discovery](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/sd_configs.md#kubernetes_sd_configs) targets by corresponding `Service`.
 It has various options for scraping configuration of target (with basic auth,tls access, by specific port name etc.).
 
 Monitoring configuration based on  `discoveryRole` setting. By default, `endpoints` is used to get objects from kubernetes api.

@@ -1,5 +1,4 @@
 ---
-sort: 3
 weight: 3
 title: Security
 menu:
@@ -7,11 +6,9 @@ menu:
     parent: "operator"
     weight: 3
 aliases:
-  - /operator/security.html
+  - /operator/security/
+  - /operator/security/index.html
 ---
-
-# Security
-
 ## Access control
 
 ### Roles

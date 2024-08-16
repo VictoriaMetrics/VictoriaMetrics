@@ -1,17 +1,15 @@
 ---
-sort: 10
 weight: 10
 title: VMRule
 menu:
   docs:
-    parent: "operator-custom-resources"
+    identifier: operator-cr-vmrule
+    parent: operator-cr
     weight: 10
 aliases:
-  - /operator/resources/vmrule.html
+  - /operator/resources/vmrule/
+  - /operator/resources/vmrule/index.html
 ---
-
-# VMRule
-
 `VMRule` represents [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/)
 or [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/) rules 
 for [VMAlert](./vmalert.md) instances.
@@ -23,7 +21,7 @@ with ruleset defined at `VMRule` spec.
 
 Alerts and recording rules can be saved and applied as YAML files, and dynamically loaded without requiring any restart.
 
-See more details about rule configuration in [VMAlert docs](https://docs.victoriametrics.com/vmalert.html#quickstart).
+See more details about rule configuration in [VMAlert docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmalert.md#quickstart).
 
 ## Specification
 
@@ -34,12 +32,12 @@ Also, you can check out the [examples](#examples) section.
 
 ## Enterprise features
 
-Custom resource `VMRule` supports feature [Multitenancy](https://docs.victoriametrics.com/vmalert.html#multitenancy)
-from [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise.html#victoriametrics-enterprise).
+Custom resource `VMRule` supports feature [Multitenancy](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmalert.md#multitenancy)
+from [VictoriaMetrics Enterprise](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/enterprise.md#victoriametrics-enterprise).
 
 ### Multitenancy
 
-For using [Multitenancy](https://docs.victoriametrics.com/vmalert.html#multitenancy) in `VMRule`
+For using [Multitenancy](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmalert.md#multitenancy) in `VMRule`
 you need to **[enable VMAlert Enterprise](./vmalert.md#enterprise-features)**.
 
 After that you can add `tenant` field for groups in `VMRule`:
@@ -54,7 +52,7 @@ spec:
     - name: vmalert-1
       rules:
         # using enterprise features: Multitenancy
-        # more details about multitenancy you can read on https://docs.victoriametrics.com/vmalert.html#multitenancy
+        # more details about multitenancy you can read on {{% ref "/vmalert/#multitenancy" %}}
         - tenant: 1
           alert: vmalert config reload error
           expr: delta(vmalert_config_last_reload_errors_total[5m]) > 0

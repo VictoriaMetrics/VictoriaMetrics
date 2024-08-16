@@ -1,5 +1,4 @@
 ---
-sort: 1
 weight: 1
 title: QuickStart
 menu:
@@ -7,11 +6,9 @@ menu:
     parent: "operator"
     weight: 1
 aliases:
-- /operator/quick-start.html
+  - /operator/quick-start/
+  - /operator/quick-start/index.html
 ---
-
-# VictoriaMetrics Operator QuickStart
-
 VictoriaMetrics Operator serves to make running VictoriaMetrics applications on top of Kubernetes as easy as possible 
 while preserving Kubernetes-native configuration options.
 
@@ -29,7 +26,7 @@ Also you can follow the other steps in documentation to use VictoriaMetrics Oper
 - [High Availability](./high-availability.md)
 - [Enterprise](./enterprise.md)
 - [Custom resources](./resources/README.md)
-- [FAQ (Frequency Asked Questions)](./FAQ.md)
+- [FAQ (Frequency Asked Questions)](./faq.md)
 
 But if you want to deploy VictoriaMetrics Operator quickly from scratch (without using templating for custom resources), 
 you can follow this guide:
@@ -47,7 +44,7 @@ you can follow this guide:
     - [VMAlertmanager](#vmalertmanager)
     - [VMAlert](#vmalert)
     - [VMRule](#vmrule)
-    - [VMUser](#vmuser-update)
+    - [VMUser](#vmuser)
 - [Anythings else?](#anythings-else)
 
 Let's start!
@@ -79,7 +76,8 @@ Now you can configure operator - open rendered `values.yaml` file in your text e
 code values.yaml
 ```
 
-<img src="quick-start_values.png" width="1200">
+![Values](quick-start_values.png "Values")
+{width="1200"}
 
 Now you can change configuration in `values.yaml`. For more details about configuration options and methods,
 see [configuration -> victoria-metrics-operator](./configuration.md#victoria-metrics-operator).
@@ -139,7 +137,7 @@ helm install vmoperator vm/victoria-metrics-operator -f values.yaml -n vm
 #   kubectl --namespace vm get pods -l "app.kubernetes.io/instance=vmoperator"
 #
 # Get more information on https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator.
-# See "Getting started guide for VM Operator" on https://docs.victoriametrics.com/guides/getting-started-with-vm-operator.html .
+# See "Getting started guide for VM Operator" on {{% ref "/guides/getting-started-with-vm-operator/" %}}.
 ```
 
 And check that operator is running:
@@ -161,10 +159,11 @@ Let's create fullstack monitoring cluster with
 [`vmalertmanager`](./resources/vmalertmanager.md),  
 [`vmcluster`](./resources/vmcluster.md)
 (a component for deploying a cluster version of 
-[VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#architecture-overview) 
+[VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/Cluster-VictoriaMetrics.md#architecture-overview)
 consisting of `vmstorage`, `vmselect` and `vminsert`):
 
-<img src="quick-start_cluster-scheme.png" width="1200">
+![Cluster Scheme](quick-start_cluster-scheme.png "Cluster Scheme)
+{width="1200"}
 
 More details about resources of VictoriaMetrics operator you can find on the [resources page](./resources/README.md). 
 
@@ -461,9 +460,11 @@ kubectl get secret -n vm vmuser-demo -o jsonpath="{.data.password}" | base64 --d
 Now you can get access to your data with url `http://vm-demo.k8s.orb.local/vmui`, username `demo` 
 and your given password (`Yt3N2r3cPl` in our case):
 
-<img src="quick-start_select-1.png" width="1200">
+![Select 1](quick-start_select-1.png "Select 1")
+{width="1200"}
 
-<img src="quick-start_select-2.png" width="1200">
+![Select 2](quick-start_select-2.png "Select 2")
+{width="1200"}
 
 ### Alerting
 
@@ -671,15 +672,18 @@ kubectl apply -f vmuser.yaml -n vm
 And now you can get access to your data with url `http://vm-demo.k8s.orb.local/vmalert` 
 (for your environment it most likely will be different) with username `demo`:
 
-<img src="quick-start_alert-1.png" width="1200">
+![Alert 1](quick-start_alert-1.png "Alert 1")
+{width="1200"}
 
-<img src="quick-start_alert-2.png" width="1200">
+![Alert 2](quick-start_alert-2.png "Alert 2")
+{width="1200"}
 
 ## Anything else
 
 That's it. We obtained a monitoring cluster corresponding to the target topology:
 
-<img src="quick-start_cluster-scheme.png" width="1200">
+![Cluster Scheme](quick-start_cluster-scheme.png "Cluster Scheme)
+{width="1200"}
 
 You have a full-stack monitoring cluster with VictoriaMetrics Operator.
 
@@ -696,7 +700,7 @@ In addition, check out other sections of the documentation for VictoriaMetrics O
 - [High Availability](./high-availability.md)
 - [Enterprise](./enterprise.md)
 
-If you have any questions, check out our [FAQ](./FAQ.md)
+If you have any questions, check out our [FAQ](./faq.md)
 and feel free to can ask them:
 - [VictoriaMetrics Slack](https://victoriametrics.slack.com/)
 - [VictoriaMetrics Telegram](https://t.me/VictoriaMetrics_en)

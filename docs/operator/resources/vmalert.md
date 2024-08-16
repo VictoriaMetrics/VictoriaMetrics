@@ -1,17 +1,15 @@
 ---
-sort: 2
 weight: 2
 title: VMAlert
 menu:
   docs:
-    parent: "operator-custom-resources"
+    identifier: operator-cr-vmalert
+    parent: operator-cr
     weight: 2
 aliases:
-  - /operator/resources/vmalert.html
+  - /operator/resources/vmalert/
+  - /operator/resources/vmalert/index.html
 ---
-
-# VMAlert
-
 `VMAlert` - executes a list of given [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) 
 or [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/) rules against configured address. 
 
@@ -33,7 +31,7 @@ name `<VMAlert-name>`.
 You can see the full actual specification of the `VMAlert` resource in the **[API docs -> VMAlert](../api.md#vmalert)**.
 
 If you can't find necessary field in the specification of the custom resource,
-see [Extra arguments section](./README.md#extra-arguments).
+see [Extra arguments section](./#extra-arguments).
 
 Also, you can check out the [examples](#examples) section.
 
@@ -219,7 +217,7 @@ spec:
     url: http://vmselect-demo.vm.svc:8481/select/0/prometheus
 ```
 
-More details about `remoteWrite` and `remoteRead` you can read in [vmalert docs](https://docs.victoriametrics.com/vmalert.html#alerts-state-on-restarts).
+More details about `remoteWrite` and `remoteRead` you can read in [vmalert docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmalert.md/#alerts-state-on-restarts).
 
 ## Version management
 
@@ -298,25 +296,25 @@ Also, you can specify requests without limits - in this case default values for 
 
 ## Enterprise features
 
-VMAlert supports features [Reading rules from object storage](https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage)
-and [Multitenancy](https://docs.victoriametrics.com/vmalert.html#multitenancy)
-from [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise.html#victoriametrics-enterprise).
+VMAlert supports features [Reading rules from object storage](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmalert.md#reading-rules-from-object-storage)
+and [Multitenancy](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmalert.md#multitenancy)
+from [VictoriaMetrics Enterprise](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/enterprise.md#victoriametrics-enterprise).
 
-For using Enterprise version of [vmalert](https://docs.victoriametrics.com/vmalert.html)
+For using Enterprise version of [vmalert](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmalert.md)
 you need to change version of `VMAlert` to version with `-enterprise` suffix using [Version management](#version-management).
 
 All the enterprise apps require `-eula` command-line flag to be passed to them.
-This flag acknowledges that your usage fits one of the cases listed on [this page](https://docs.victoriametrics.com/enterprise.html#victoriametrics-enterprise).
-So you can use [extraArgs](./README.md#extra-arguments) for passing this flag to `VMAlert`:
+This flag acknowledges that your usage fits one of the cases listed on [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/enterprise.md#victoriametrics-enterprise).
+So you can use [extraArgs](./#extra-arguments) for passing this flag to `VMAlert`:
 
 ### Reading rules from object storage
 
 After that you can pass `-rule` command-line argument with `s3://` or `gs://`
-to `VMAlert` with [extraArgs](./README.md#extra-arguments).
+to `VMAlert` with [extraArgs](./#extra-arguments).
 
-More details about reading rules from object storage you can read in [vmalert docs](https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage).
+More details about reading rules from object storage you can read in [vmalert docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmalert.md#reading-rules-from-object-storage).
 
-Here are complete example for [Reading rules from object storage](https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage):
+Here are complete example for [Reading rules from object storage](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmalert.md#reading-rules-from-object-storage):
 
 ```yaml
 apiVersion: operator.victoriametrics.com/v1beta1
@@ -335,7 +333,7 @@ spec:
     eula: true
     
     # using enterprise features: Reading rules from object storage
-    # more details about reading rules from object storage you can read on https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage
+    # more details about reading rules from object storage you can read on {{% ref "/vmalert/#reading-rules-from-object-storage" %}}
     rule: s3://bucket/dir/alert.rules
     
   # ...other fields...
@@ -343,11 +341,11 @@ spec:
 
 ### Multitenancy
 
-After enabling enterprise version you can use [Multitenancy](https://docs.victoriametrics.com/vmalert.html#multitenancy) 
+After enabling enterprise version you can use [Multitenancy](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmalert.md#multitenancy)
 feature in `VMAlert`.
 
 For that you need to set `clusterMode` commad-line flag 
-with [extraArgs](./README.md#extra-arguments) 
+with [extraArgs](./#extra-arguments)
 and specify `tenant` field for groups 
 in [VMRule](./vmrule.md#enterprise-features):
 
@@ -368,7 +366,7 @@ spec:
     eula: true
 
     # using enterprise features: Multitenancy
-    # more details about multitenancy you can read on https://docs.victoriametrics.com/vmalert.html#multitenancy
+    # more details about multitenancy you can read on {{% ref "/vmalert/#multitenancy" %}}
     clusterMode: true 
 
   # ...other fields...
@@ -384,7 +382,7 @@ spec:
     - name: vmalert-1
       rules:
         # using enterprise features: Multitenancy
-        # more details about multitenancy you can read on https://docs.victoriametrics.com/vmalert.html#multitenancy
+        # more details about multitenancy you can read on {{% ref "/vmalert/#multitenancy" %}}
         - tenant: 1
           alert: vmalert config reload error
           expr: delta(vmalert_config_last_reload_errors_total[5m]) > 0
