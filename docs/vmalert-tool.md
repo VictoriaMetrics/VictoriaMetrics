@@ -100,8 +100,8 @@ alert_rule_test:
 metricsql_expr_test:
   [ - <metricsql_expr_test> ]
 
-# External labels accessible for templating.
-# Will be deprecated soon, please use "-external.label" cmd-line flag instead.
+# external_labels is not accessible for [templating](https://docs.victoriametrics.com/vmalert/#templating), use "-external.label" cmd-line flag instead.
+# Will be deprecated soon, check https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6735 for details.
 external_labels:
   [ <labelname>: <string> ... ]
 

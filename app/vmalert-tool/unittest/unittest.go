@@ -98,7 +98,7 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 	for fileName, file := range testfiles {
 		if err := ruleUnitTest(fileName, file, labels); err != nil {
 			fmt.Println("  FAILED")
-			fmt.Printf("\nfailed to run unit test for file %q: \n%v", file, err)
+			fmt.Printf("\nfailed to run unit test for file %q: \n%v", fileName, err)
 			failed = true
 		} else {
 			fmt.Println("  SUCCESS")
@@ -182,6 +182,10 @@ func verifyTestGroup(group testGroup) error {
 		if et.EvalTime == nil {
 			return fmt.Errorf("\n%s    missing required field \"eval_time\"", testGroupName)
 		}
+	}
+	if group.ExternalLabels != nil {
+		fmt.Printf("\n%s    warning: filed `external_labels` will be deprecated soon, please use `-external.label` cmd-line flag instead. "+
+			"Check https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6735 for details.\n", testGroupName)
 	}
 	return nil
 }
