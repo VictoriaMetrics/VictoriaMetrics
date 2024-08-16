@@ -70,7 +70,7 @@ func (sn *storageNode) push(snb *storageNodesBucket, buf []byte, rows int) error
 		// Fast path - the buffer is successfully sent to sn.
 		return nil
 	}
-	if *dropSamplesOnOverload && !sn.isReadOnly.Load() {
+	if *dropSamplesOnOverload && sn.isReady() {
 		sn.rowsDroppedOnOverload.Add(rows)
 		dropSamplesOnOverloadLogger.Warnf("some rows dropped, because -dropSamplesOnOverload is set and vmstorage %s cannot accept new rows now. "+
 			"See vm_rpc_rows_dropped_on_overload_total metric at /metrics page", sn.dialer.Addr())
