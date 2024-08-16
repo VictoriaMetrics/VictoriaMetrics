@@ -190,7 +190,7 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 		stopCh:         make(chan struct{}),
 	}
 	fs.MustMkdirIfNotExist(path)
-	tmpFile, err := os.CreateTemp(s.path, ".is_readonly_watchdog")
+	tmpFile, err := os.Create(filepath.Join(s.path, ".is_readonly_watchdog"))
 	if err != nil {
 		logger.Panicf("FATAL: cannot create files on the disk")
 	}
@@ -2842,7 +2842,7 @@ func (s *Storage) readonlyWatchDog() {
 			timeoutChan := time.After(timeout)
 			tmpFileChan := make(chan *os.File, 1)
 			go func() {
-				tmpFile, err := os.CreateTemp(s.path, ".is_readonly_watchdog")
+				tmpFile, err := os.Create(filepath.Join(s.path, ".is_readonly_watchdog"))
 				if err != nil {
 					tmpFileChan <- nil
 				} else {
@@ -2870,36 +2870,54 @@ func (s *Storage) readonlyWatchDog() {
 
 func MustBeWritable(tmpFile *os.File) bool {
 	defer tmpFile.Close()
+	timeout := time.After(10 * time.Second)
 
 	totalSize := 10 * 1024 * 1024 // 10 MB
 	blockSize := 4 * 1024         // 4 KB
 
 	writer := bufio.NewWriterSize(tmpFile, blockSize)
 
-	bytesWritten := 0
-	for bytesWritten < totalSize {
-		chunkSize := blockSize
-		if totalSize-bytesWritten < blockSize {
-			chunkSize = totalSize - bytesWritten
-		}
-		data := make([]byte, chunkSize)
+	writeResultChan := make(chan error, 1)
 
-		for i := range data {
-			data[i] = '0'
+	f := func() {
+		bytesWritten := 0
+		for bytesWritten < totalSize {
+			chunkSize := blockSize
+			if totalSize-bytesWritten < blockSize {
+				chunkSize = totalSize - bytesWritten
+			}
+			data := make([]byte, chunkSize)
+
+			for i := range data {
+				data[i] = '0'
+			}
+
+			n, err := writer.Write(data)
+			if err != nil {
+				writeResultChan <- err
+				return
+			}
+			bytesWritten += n
 		}
 
-		n, err := writer.Write(data)
+		err := writer.Flush()
+		if err != nil {
+			writeResultChan <- err
+			return
+		}
+
+		writeResultChan <- nil
+	}
+	go f()
+	select {
+	case err := <-writeResultChan:
 		if err != nil {
 			return false
 		}
-		bytesWritten += n
-	}
-
-	err := writer.Flush()
-	if err != nil {
+		return true
+	case <-timeout:
 		return false
 	}
-	return true
 }
 
 var indexDBTableNameRegexp = regexp.MustCompile("^[0-9A-F]{16}$")
