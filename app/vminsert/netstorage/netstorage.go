@@ -48,7 +48,7 @@ var (
 var errStorageReadOnly = errors.New("storage node is read only")
 
 const (
-	storageDefaultTimeout = 20 * time.Second
+	brokenStorageDefaultTimeout = 20 * time.Second
 )
 
 func (sn *storageNode) isReady() bool {
@@ -266,7 +266,7 @@ var (
 func (sn *storageNode) checkHealth() {
 	if sn.isBroken.Load() {
 		lastBrokenTime, ok := sn.brokenSince.Load().(time.Time)
-		if ok && time.Since(lastBrokenTime) < storageDefaultTimeout {
+		if ok && time.Since(lastBrokenTime) < brokenStorageDefaultTimeout {
 			// Skipping healthcheck, not enough time has passed since last broken state
 			return
 		}
