@@ -13,7 +13,6 @@ docs-image:
 	docker build \
 		-t vmdocs-docker-package \
 		vmdocs && \
-	docker rm -f vmdocs || true
 
 docs-debug: docs docs-image
 	docker run \
