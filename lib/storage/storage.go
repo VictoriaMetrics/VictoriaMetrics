@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -189,6 +190,11 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 		stopCh:         make(chan struct{}),
 	}
 	fs.MustMkdirIfNotExist(path)
+	tmpFile, err := os.CreateTemp(s.path, ".is_readonly_watchdog")
+	if err != nil {
+		logger.Panicf("cannot create files on the disk")
+	}
+	s.cannotWrite.Store(!MustBeWritable(tmpFile))
 
 	// Check whether the cache directory must be removed
 	// It is removed if it contains resetCacheOnStartupFilename.
@@ -2831,36 +2837,69 @@ func (s *Storage) startReadonlyWatchdog() {
 
 func (s *Storage) readonlyWatchDog() {
 	timeout := 10 * time.Second
-
 	for {
-		timeoutChan := time.After(timeout)
-		tmpFileChan := make(chan *os.File, 1)
-		go func() {
-			tmpFile, err := os.CreateTemp(s.path, "is_readonly_watchdog")
-			if err != nil {
-				tmpFileChan <- nil
-				logger.Errorf("cannot write to the disk %s", err)
-			} else {
-				tmpFileChan <- tmpFile
-			}
-		}()
+		if !s.cannotWrite.Load() {
+			timeoutChan := time.After(timeout)
+			tmpFileChan := make(chan *os.File, 1)
+			go func() {
+				tmpFile, err := os.CreateTemp(s.path, ".is_readonly_watchdog")
+				if err != nil {
+					tmpFileChan <- nil
+				} else {
+					tmpFileChan <- tmpFile
+				}
+			}()
 
-		select {
-		case tmpFile := <-tmpFileChan:
-			if tmpFile == nil {
-				s.cannotWrite.Store(true)
-			} else {
-				tmpFile.Close()
-				os.Remove(tmpFile.Name())
-				s.cannotWrite.Store(false)
+			select {
+			case tmpFile := <-tmpFileChan:
+				if tmpFile == nil {
+					logger.Panicf("cannot create files on the disk")
+				} else {
+					if !MustBeWritable(tmpFile) {
+						logger.Panicf("cannot write files to the disk")
+					}
+				}
+			case <-timeoutChan:
+				logger.Panicf("cannot write to the disk or disk is overloaded and takes more than %s to write", timeout.String())
 			}
-		case <-timeoutChan:
-			s.cannotWrite.Store(true)
-			logger.Errorf("cannot write to the disk or disk is overloaded and takes more than %s to write", timeout.String())
+
+			time.Sleep(5 * time.Second)
+		}
+	}
+}
+
+func MustBeWritable(tmpFile *os.File) bool {
+	defer tmpFile.Close()
+
+	totalSize := 10 * 1024 * 1024 // 10 MB
+	blockSize := 4 * 1024         // 4 KB
+
+	writer := bufio.NewWriterSize(tmpFile, blockSize)
+
+	bytesWritten := 0
+	for bytesWritten < totalSize {
+		chunkSize := blockSize
+		if totalSize-bytesWritten < blockSize {
+			chunkSize = totalSize - bytesWritten
+		}
+		data := make([]byte, chunkSize)
+
+		for i := range data {
+			data[i] = '0'
 		}
 
-		time.Sleep(5 * time.Second)
+		n, err := writer.Write(data)
+		if err != nil {
+			return false
+		}
+		bytesWritten += n
 	}
+
+	err := writer.Flush()
+	if err != nil {
+		return false
+	}
+	return true
 }
 
 var indexDBTableNameRegexp = regexp.MustCompile("^[0-9A-F]{16}$")
