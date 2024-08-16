@@ -1,17 +1,15 @@
 ---
-sort: 5
 weight: 5
 title: VMAuth
 menu:
   docs:
-    parent: "operator-custom-resources"
+    identifier: operator-cr-vmauth
+    parent: operator-cr
     weight: 5
 aliases:
-  - /operator/resources/vmauth.html
+  - /operator/resources/vmauth/
+  - /operator/resources/vmauth/index.html
 ---
-
-# VMAuth
-
 The `VMAuth` CRD provides mechanism for exposing application with authorization to outside world or to other applications inside kubernetes cluster.
 
 For first case, user can configure `ingress` setting at `VMAuth` CRD. For second one, operator will create secret with `username` and `password` at `VMUser` CRD name.
@@ -23,7 +21,7 @@ You can see the full actual specification of the `VMAuth` resource in
 the **[API docs -> VMAuth](../api.md#vmauth)**.
 
 If you can't find necessary field in the specification of the custom resource,
-see [Extra arguments section](./README.md#extra-arguments).
+see [Extra arguments section](./#extra-arguments).
 
 Also, you can check out the [examples](#examples) section.
 
@@ -202,15 +200,15 @@ Also, you can specify requests without limits - in this case default values for 
 
 ## Enterprise features
 
-Custom resource `VMAuth` supports feature [IP filters](https://docs.victoriametrics.com/vmauth.html#ip-filters)
-from [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise.html#victoriametrics-enterprise).
+Custom resource `VMAuth` supports feature [IP filters](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmauth.md#ip-filters)
+from [VictoriaMetrics Enterprise](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/enterprise.md#victoriametrics-enterprise).
 
-For using Enterprise version of [vmauth](https://docs.victoriametrics.com/vmauth.html) 
+For using Enterprise version of [vmauth](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmauth.md)
 you need to change version of `vmauth` to version with `-enterprise` suffix using [Version management](#version-management).
 
 All the enterprise apps require `-eula` command-line flag to be passed to them. 
-This flag acknowledges that your usage fits one of the cases listed on [this page](https://docs.victoriametrics.com/enterprise.html#victoriametrics-enterprise).
-So you can use [extraArgs](./README.md#extra-arguments) for passing this flag to `VMAuth`:
+This flag acknowledges that your usage fits one of the cases listed on [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/enterprise.md#victoriametrics-enterprise).
+So you can use [extraArgs](./#extra-arguments) for passing this flag to `VMAuth`:
 
 ### IP Filters
 
@@ -236,7 +234,7 @@ spec:
     eula: true
   
   # using enterprise features: ip filters for vmauth
-  # more details about ip filters you can read in https://docs.victoriametrics.com/vmauth.html#ip-filters
+  # more details about ip filters you can read in https://docs.victoriametrics.com/vmauth#ip-filters
   ip_filters:
     allow_list:
       - 10.0.0.0/24
@@ -265,7 +263,7 @@ spec:
   password: simple-password
 
   # using enterprise features: ip filters for vmuser
-  # more details about ip filters you can read in https://docs.victoriametrics.com/vmuser.html#enterprise-features
+  # more details about ip filters you can read in https://docs.victoriametrics.com/operator/resources/vmuser#enterprise-features
   ip_filters:
     allow_list:
       - 10.0.0.0/24

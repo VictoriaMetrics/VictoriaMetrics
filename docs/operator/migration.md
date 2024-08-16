@@ -1,5 +1,4 @@
 ---
-sort: 5
 weight: 5
 title: Migration from Prometheus
 menu:
@@ -7,11 +6,9 @@ menu:
     parent: "operator"
     weight: 5
 aliases:
-  - /operator/migration.html
+  - /operator/migration/
+  - /operator/migration/index.html
 ---
-
-# Migration from prometheus-operator
-
 Design and implementation inspired by [prometheus-operator](https://github.com/prometheus-operator/prometheus-operator).
 It's great a tool for managing monitoring configuration of your applications. VictoriaMetrics operator has api capability with it.
 
@@ -73,7 +70,7 @@ operator:
 
 Otherwise, VictoriaMetrics Operator would try to discover prometheus-operator API and convert it.
 
-<img src="migration_prometheus-conversion.png" width="1200">
+![migration from prometheus](./migration_prometheus-conversion.webp)
 
 For more information about the operator's workflow, see [this doc](./README.md).
 
@@ -208,9 +205,9 @@ VM_PROMETHEUSCONVERTERADDARGOCDIGNOREANNOTATIONS=true
 
 ## Data migration
 
-You can use [vmctl](https://docs.victoriametrics.com/vmctl.html) for migrating your data from Prometheus to VictoriaMetrics.
+You can use [vmctl](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmctl.md) for migrating your data from Prometheus to VictoriaMetrics.
 
-See [this doc](https://docs.victoriametrics.com/vmctl.html#migrating-data-from-prometheus) for more details.
+See [this doc](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmctl.md#migrating-data-from-prometheus) for more details.
 
 ## Auto-discovery for prometheus.io annotations
 
@@ -275,4 +272,4 @@ You can find yaml-file with this example [here](https://github.com/VictoriaMetri
 Check out more information about:
 - [VMAgent](./resources/vmagent.md)
 - [VMServiceScrape](./resources/vmservicescrape.md)
-- [Relabeling](https://docs.victoriametrics.com/vmagent/#relabeling)
+- [Relabeling](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmagent.md#relabeling)

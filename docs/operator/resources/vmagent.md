@@ -1,19 +1,17 @@
 ---
-sort: 1
 weight: 1
 title: VMAgent
 menu:
   docs:
-    parent: "operator-custom-resources"
+    identifier: operator-cr-vmagent
+    parent: operator-cr
     weight: 1
 aliases:
-  - /operator/resources/vmagent.html
+  - /operator/resources/vmagent/
+  - /operator/resources/vmagent/index.html
 ---
-
-# VMAgent
-
 `VMAgent` represents agent, which helps you collect metrics from various sources and stores them in VictoriaMetrics.
-The `VMAgent` CRD declaratively defines a desired [VMAgent](https://docs.victoriametrics.com/vmagent)
+The `VMAgent` CRD declaratively defines a desired [VMAgent](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmagent.md)
 setup to run in a Kubernetes cluster.
 
 It requires access to Kubernetes API and you can create RBAC for it first, it can be found 
@@ -40,7 +38,7 @@ so user can set custom configuration while still benefiting from the Operator's 
 You can see the full actual specification of the `VMAgent` resource in the **[API docs -> VMAgent](../api.md#vmagent)**.
 
 If you can't find necessary field in the specification of the custom resource, 
-see [Extra arguments section](./README.md#extra-arguments).
+see [Extra arguments section](./#extra-arguments).
 
 Also, you can check out the [examples](#examples) section.
 
@@ -56,7 +54,7 @@ Also, you can check out the [examples](#examples) section.
 - [VMScrapeConfig](./vmscrapeconfig.md)
 
 These objects tell VMAgent from which targets and how to collect metrics and 
-generate part of [VMAgent](./vmagent.md) scrape configuration.
+generate part of [VMAgent](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmagent.md) scrape configuration.
 
 For filtering scrape objects `VMAgent` uses selectors. 
 Selectors are defined with suffixes - `NamespaceSelector` and `Selector` for each type of scrape objects in spec of `VMAgent`:
@@ -142,8 +140,8 @@ spec:
 ### Replication and deduplication
 
 To run VMAgent in a highly available manner at first you have to configure deduplication in Victoria Metrics
-according [this doc for VMSingle](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication)
-or [this doc for VMCluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#deduplication).
+according [this doc for VMSingle](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/Single-server-VictoriaMetrics.md#deduplication)
+or [this doc for VMCluster](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/Cluster-VictoriaMetrics.md#deduplication).
 
 You can do it with `extraArgs` on [`VMSingle`](./vmsingle.md):
 
@@ -178,7 +176,7 @@ spec:
     # ...
 ```
 
-Deduplication is automatically enabled with `replicationFactor > 1` on `VMCLuster`.
+Deduplication is automatically enabled with `replicationFactor > 1` on `VMCluster`.
 
 After enabling deduplication you can increase replicas for VMAgent. 
 
@@ -205,7 +203,7 @@ Now, even if something happens to one of the vmagent, you'll still have the data
 
 ### StatefulMode
 
-VMAgent supports [persistent buffering](https://docs.victoriametrics.com/vmagent.html#replication-and-high-availability)
+VMAgent supports [persistent buffering](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmagent/#replication-and-high-availability)
 for sending data to remote storage. By default, operator set `-remoteWrite.tmpDataPath` for `VMAgent` to `/tmp` (that use k8s ephemeral storage)
 and `VMAgent` loses state of the PersistentQueue on pod restarts.
 
@@ -241,7 +239,7 @@ spec:
 
 ### Sharding
 
-Operator supports sharding with [cluster mode of vmagent](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets)
+Operator supports sharding with [cluster mode of vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmagent/#scraping-big-number-of-targets)
 for **scraping big number of targets**.
 
 Sharding for `VMAgent` distributes scraping between multiple deployments of `VMAgent`.
@@ -309,7 +307,7 @@ There are two options for adding targets into `VMAgent`:
 - [defining it as a Kubernetes Secret](#define-additional-scrape-configuration-as-a-kubernetes-secret).
 
 No validation happens during the creation of configuration. However, you must validate job specs, and it must follow job spec configuration.
-Please check [scrape_configs documentation](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) as references.
+Please check [scrape_configs documentation](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/sd_configs.md#scrape_configs) as references.
 
 ### Inline Additional Scrape Configuration in VMAgent CRD
 
@@ -581,7 +579,7 @@ metadata:
 
 ### Additional information
 
-`VMAgent` also has some extra options for relabeling actions, you can check it [docs](https://docs.victoriametrics.com/vmagent#relabeling).
+`VMAgent` also has some extra options for relabeling actions, you can check it [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmagent#relabeling).
 
 ## Version management
 
@@ -660,22 +658,22 @@ Also, you can specify requests without limits - in this case default values for 
 
 ## Enterprise features
 
-VMAgent supports feature [Kafka integration](https://docs.victoriametrics.com/vmagent.html#kafka-integration)
-from [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise.html#victoriametrics-enterprise).
+VMAgent supports feature [Kafka integration](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmagent.md#kafka-integration)
+from [VictoriaMetrics Enterprise](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/enterprise.md#victoriametrics-enterprise).
 
-For using Enterprise version of [vmagent](https://docs.victoriametrics.com/vmagent.html)
+For using Enterprise version of [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmagent.md)
 you need to change version of `vmagent` to version with `-enterprise` suffix using [Version management](#version-management).
 
 All the enterprise apps require `-eula` command-line flag to be passed to them.
-This flag acknowledges that your usage fits one of the cases listed on [this page](https://docs.victoriametrics.com/enterprise.html#victoriametrics-enterprise).
-So you can use [extraArgs](./README.md#extra-arguments) for passing this flag to `VMAgent`:
+This flag acknowledges that your usage fits one of the cases listed on [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/enterprise.md#victoriametrics-enterprise).
+So you can use [extraArgs](./#extra-arguments) for passing this flag to `VMAgent`:
 
-After that you can pass [Kafka integration](https://docs.victoriametrics.com/vmagent.html#kafka-integration) 
-flags to `VMAgent` with [extraArgs](./README.md#extra-arguments).
+After that you can pass [Kafka integration](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmagent.md#kafka-integration)
+flags to `VMAgent` with [extraArgs](./#extra-arguments).
 
 ### Reading metrics from Kafka
 
-Here are complete example for [Reading metrics from Kafka](https://docs.victoriametrics.com/vmagent.html#reading-metrics-from-kafka):
+Here are complete example for [Reading metrics from Kafka](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmagent.md#reading-metrics-from-kafka):
 
 ```yaml
 apiVersion: operator.victoriametrics.com/v1beta1
@@ -694,8 +692,8 @@ spec:
     eula: true
     
     # using enterprise features: reading metrics from kafka
-    # more details about kafka integration you can read on https://docs.victoriametrics.com/vmagent.html#kafka-integration
-    # more details about these and other flags you can read on https://docs.victoriametrics.com/vmagent.html#command-line-flags-for-kafka-consumer
+    # more details about kafka integration you can read on https://docs.victoriametrics.com/vmagent#kafka-integration
+    # more details about these and other flags you can read on https://docs.victoriametrics.com/vmagent#command-line-flags-for-kafka-consumer
     kafka.consumer.topic.brokers: localhost:9092
     kafka.consumer.topic.format: influx
     kafka.consumer.topic: metrics-by-telegraf
@@ -706,7 +704,7 @@ spec:
 
 ### Writing metrics to Kafka
 
-Here are complete example for [Writing metrics to Kafka](https://docs.victoriametrics.com/vmagent.html#writing-metrics-to-kafka):
+Here are complete example for [Writing metrics to Kafka](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmagent.md#writing-metrics-to-kafka):
 
 ```yaml
 apiVersion: operator.victoriametrics.com/v1beta1
@@ -725,7 +723,7 @@ spec:
     eula: true
   
   # using enterprise features: writing metrics to Kafka
-  # more details about kafka integration you can read on https://docs.victoriametrics.com/vmagent.html#kafka-integration
+  # more details about kafka integration you can read on https://docs.victoriametrics.com/vmagent/#kafka-integration
   remoteWrite:
     # sasl with username and password
     - url: kafka://broker-1:9092/?topic=prom-rw-1&security.protocol=SASL_SSL&sasl.mechanisms=PLAIN 

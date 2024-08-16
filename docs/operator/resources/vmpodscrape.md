@@ -1,24 +1,22 @@
 ---
-sort: 8
 weight: 8
 title: VMPodScrape
 menu:
   docs:
-    parent: "operator-custom-resources"
+    identifier: operator-cr-vmpodscrape
+    parent: operator-cr
     weight: 8
 aliases:
-  - /operator/resources/vmpodscrape.html
+  - /operator/resources/vmpodscrape/
+  - /operator/resources/vmpodscrape/index.html
 ---
-
-# VMPodScrape
-
 The `VMPodScrape` CRD allows to declaratively define how a dynamic set of pods should be monitored.
 Use label selections to match pods for scraping. This allows an organization to introduce conventions
 for how metrics should be exposed. Following these conventions new services will be discovered automatically without
 need to reconfigure.
 
-`VMPodScrape` object generates part of [VMAgent](./vmagent.md) configuration with
-[kubernetes service discovery](https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs) role `pod` having specific labels and ports.
+`VMPodScrape` object generates part of [VMAgent](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmagent.md) configuration with
+[kubernetes service discovery](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/sd_configs.md#kubernetes_sd_configs) role `pod` having specific labels and ports.
 It has various options for scraping configuration of target (with basic auth,tls access, by specific port name etc.).
 
 A `Pod` is a collection of one or more containers which can expose Prometheus metrics on a number of ports.

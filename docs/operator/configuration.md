@@ -1,5 +1,4 @@
 ---
-sort: 4
 weight: 4
 title: Configuration
 menu:
@@ -7,11 +6,9 @@ menu:
     parent: "operator"
     weight: 4
 aliases:
-  - /operator/configuration.html
+  - /operator/configuration/
+  - /operator/configuration/index.html
 ---
-
-# Configuration
-
 Operator configured by env variables, list of it can be found 
 on [Variables](./vars.md) page.
 
@@ -100,7 +97,7 @@ victoria-metrics-operator:
     # It should reduce  vmagent and vmauth config sync-time and make it predictable.
     useCustomConfigReloader: false
 
-  # -- extra settings for the operator deployment. full list Ref: [https://github.com/VictoriaMetrics/operator/blob/master/vars.md](https://github.com/VictoriaMetrics/operator/blob/master/vars.md)
+  # -- extra settings for the operator deployment. full list Ref: https://docs.victoriametrics.com/operator/vars
   env:
     # -- default version for vmsingle
     - name: VM_VMSINGLEDEFAULT_VERSION
@@ -167,7 +164,7 @@ operator:
   # It should reduce  vmagent and vmauth config sync-time and make it predictable.
   useCustomConfigReloader: false
 
-# -- extra settings for the operator deployment. full list Ref: [https://github.com/VictoriaMetrics/operator/blob/master/vars.md](https://github.com/VictoriaMetrics/operator/blob/master/vars.md)
+# -- extra settings for the operator deployment. full list Ref: https://docs.victoriametrics.com/operator/vars
 env:
   # -- default version for vmsingle
   - name: VM_VMSINGLEDEFAULT_VERSION
