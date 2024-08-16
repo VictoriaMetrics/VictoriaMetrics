@@ -68,7 +68,7 @@ func main() {
 
 					tr, err := httputils.Transport(addr, certFile, keyFile, caFile, serverName, insecureSkipVerify)
 					if err != nil {
-						return fmt.Errorf("failed to create Transport: %s", err)
+						return fmt.Errorf("failed to create transport for -%s=%q: %s", otsdbAddr, addr, err)
 					}
 					oCfg := opentsdb.Config{
 						Addr:       addr,
@@ -180,7 +180,7 @@ func main() {
 
 					tr, err := httputils.Transport(addr, certFile, keyFile, caFile, serverName, insecureSkipVerify)
 					if err != nil {
-						return fmt.Errorf("failed to create transport: %s", err)
+						return fmt.Errorf("failed to create transport for -%s=%q: %s", remoteReadSrcAddr, addr, err)
 					}
 
 					rr, err := remoteread.NewClient(remoteread.Config{
@@ -438,7 +438,7 @@ func initConfigVM(c *cli.Context) (vm.Config, error) {
 
 	tr, err := httputils.Transport(addr, certFile, keyFile, caFile, serverName, insecureSkipVerify)
 	if err != nil {
-		return vm.Config{}, fmt.Errorf("failed to create Transport: %s", err)
+		return vm.Config{}, fmt.Errorf("failed to create transport for -%s=%q: %s", vmAddr, addr, err)
 	}
 
 	bfRetries := c.Int(vmBackoffRetries)
