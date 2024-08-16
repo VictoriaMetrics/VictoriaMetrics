@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"math"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -49,9 +48,7 @@ var (
 var errStorageReadOnly = errors.New("storage node is read only")
 
 const (
-	storageBaseDelay       = 100 * time.Millisecond
-	storageRetryMultiplier = 2.0
-	storageMaxDelay        = 10 * time.Second
+	storageDefaultTimeout = 20 * time.Second
 )
 
 func (sn *storageNode) isReady() bool {
@@ -267,6 +264,13 @@ var (
 )
 
 func (sn *storageNode) checkHealth() {
+	if sn.isBroken.Load() {
+		lastBrokenTime, ok := sn.brokenSince.Load().(time.Time)
+		if ok && time.Since(lastBrokenTime) < storageDefaultTimeout {
+			// Skipping healthcheck, not enough time has passed since last broken state
+			return
+		}
+	}
 	sn.bcLock.Lock()
 	defer sn.bcLock.Unlock()
 
@@ -277,6 +281,7 @@ func (sn *storageNode) checkHealth() {
 	bc, err := sn.dial()
 	if err != nil {
 		sn.isBroken.Store(true)
+		sn.brokenSince.Store(time.Now())
 		sn.brCond.Broadcast()
 		if sn.lastDialErr == nil {
 			// Log the error only once.
@@ -284,11 +289,6 @@ func (sn *storageNode) checkHealth() {
 			logger.Warnf("cannot dial storageNode %q: %s", sn.dialer.Addr(), err)
 		}
 
-		delay := time.Duration(math.Min(float64(storageBaseDelay)*math.Pow(storageRetryMultiplier, sn.retries), float64(storageMaxDelay)))
-
-		// Wait for the backoff duration before retrying
-		time.Sleep(delay)
-		sn.retries++
 		return
 	}
 	logger.Infof("successfully dialed -storageNode=%q", sn.dialer.Addr())
@@ -338,6 +338,7 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 	}
 	sn.bc = nil
 	sn.isBroken.Store(true)
+	sn.brokenSince.Store(time.Now())
 	sn.brCond.Broadcast()
 	sn.connectionErrors.Inc()
 	return false
@@ -488,6 +489,7 @@ type storageNode struct {
 	// This metric is useful for determining the saturation of vminsert->vmstorage link.
 	sendDurationSeconds *metrics.FloatCounter
 	retries             float64
+	brokenSince         atomic.Value
 }
 
 type storageNodesBucket struct {
@@ -876,6 +878,7 @@ func (sn *storageNode) checkReadOnlyMode() {
 	}
 	sn.bc = nil
 	sn.isBroken.Store(true)
+	sn.brokenSince.Store(time.Now())
 	sn.brCond.Broadcast()
 	sn.connectionErrors.Inc()
 }
