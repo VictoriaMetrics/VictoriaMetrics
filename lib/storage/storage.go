@@ -2863,8 +2863,8 @@ func (s *Storage) readonlyWatchDog() {
 				logger.Panicf("FATAL: cannot write to the disk or disk is overloaded and takes more than %s to write", timeout.String())
 			}
 
-			time.Sleep(5 * time.Second)
 		}
+		time.Sleep(5 * time.Second)
 	}
 }
 
