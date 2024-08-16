@@ -27,50 +27,6 @@ or [this](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/vict
 in addition, you can use [quickstart guide](./quick-start.md) for 
 installing VictoriaMetrics operator with helm-chart.
 
-## Installing by Manifest
-
-Obtain release from releases page:
-[https://github.com/VictoriaMetrics/operator/releases](https://github.com/VictoriaMetrics/operator/releases)
-
-We suggest use the latest release.
-
-```sh
-# Get latest release version from https://github.com/VictoriaMetrics/operator/releases/latest
-export VM_VERSION=`basename $(curl -fs -o/dev/null -w %{redirect_url} https://github.com/VictoriaMetrics/operator/releases/latest)`
-wget https://github.com/VictoriaMetrics/operator/releases/download/$VM_VERSION/bundle_crd.zip
-unzip  bundle_crd.zip
-```
-
-Operator use `monitoring-system` namespace, but you can install it to specific namespace with command:
-
-```sh
-sed -i "s/namespace: monitoring-system/namespace: YOUR_NAMESPACE/g" release/operator/*
-```
-
-First of all, you  have to create [custom resource definitions](https://github.com/VictoriaMetrics/operator):
-
-```sh
-kubectl apply -f release/crds
-```
-
-Then you need RBAC for operator, relevant configuration for the release can be found at `release/operator/rbac.yaml`.
-
-Change configuration for operator at `release/operator/manager.yaml`, possible settings: [operator-settings](/operator/vars.html)
-and apply it:
-
-```sh
-kubectl apply -f release/operator/
-```
-
-Check the status of operator
-
-```sh
-kubectl get pods -n monitoring-system
-
-#NAME                           READY   STATUS    RESTARTS   AGE
-#vm-operator-667dfbff55-cbvkf   1/1     Running   0          101s
-```
-
 ## Installing by Kustomize
 
 You can install operator using [Kustomize](https://kustomize.io/) by pointing to the remote kustomization file.
@@ -78,12 +34,15 @@ You can install operator using [Kustomize](https://kustomize.io/) by pointing to
 ```sh
 # Get latest release version from https://github.com/VictoriaMetrics/operator/releases/latest
 export VM_VERSION=`basename $(curl -fs -o/dev/null -w %{redirect_url} https://github.com/VictoriaMetrics/operator/releases/latest)`
+export NAMESPACE="whatever-namespace"
 
 cat << EOF > kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
 - github.com/VictoriaMetrics/operator/config/default?ref=${VM_VERSION}
+
+namespace: ${NAMESPACE}
 
 images:
 - name: victoriametrics/operator
@@ -108,11 +67,26 @@ kubectl apply -f monitoring.yaml
 Check the status of operator
 
 ```sh
-kubectl get pods -n monitoring-system
+kubectl get pods -n whatever-namespace
 
 #NAME                           READY   STATUS    RESTARTS   AGE
 #vm-operator-667dfbff55-cbvkf   1/1     Running   0          101s
 ```
+
+## Installing by OLM
+
+### Installing to K8s
+
+TODO
+
+### Installing to Openshift
+
+TODO
+
+### Run locally
+
+It's possible to build and run OLM package locally on Kind K8s cluster using `make deploy-kind-olm`.
+Command builds operator image, bundle and index images, runs Kind with a local registry and deploys OLM package to Kind.
 
 ## Installing to ARM
 

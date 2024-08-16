@@ -39,9 +39,24 @@ const (
 
 	// 3 minutes and 45 seconds before expiration. The shortest MDS cache is 4 minutes,
 	// so we give it 15 seconds to refresh it's cache before attempting to refresh a token.
-	defaultExpiryDelta = 215 * time.Second
+	defaultExpiryDelta = 225 * time.Second
 
 	universeDomainDefault = "googleapis.com"
+)
+
+// tokenState represents different states for a [Token].
+type tokenState int
+
+const (
+	// fresh indicates that the [Token] is valid. It is not expired or close to
+	// expired, or the token has no expiry.
+	fresh tokenState = iota
+	// stale indicates that the [Token] is close to expired, and should be
+	// refreshed. The token can be used normally.
+	stale
+	// invalid indicates that the [Token] is expired or invalid. The token
+	// cannot be used for a normal operation.
+	invalid
 )
 
 var (
@@ -81,19 +96,23 @@ type Token struct {
 
 // IsValid reports that a [Token] is non-nil, has a [Token.Value], and has not
 // expired. A token is considered expired if [Token.Expiry] has passed or will
-// pass in the next 10 seconds.
+// pass in the next 225 seconds.
 func (t *Token) IsValid() bool {
 	return t.isValidWithEarlyExpiry(defaultExpiryDelta)
 }
 
 func (t *Token) isValidWithEarlyExpiry(earlyExpiry time.Duration) bool {
-	if t == nil || t.Value == "" {
+	if t.isEmpty() {
 		return false
 	}
 	if t.Expiry.IsZero() {
 		return true
 	}
 	return !t.Expiry.Round(0).Add(-earlyExpiry).Before(timeNow())
+}
+
+func (t *Token) isEmpty() bool {
+	return t == nil || t.Value == ""
 }
 
 // Credentials holds Google credentials, including
@@ -206,11 +225,15 @@ func NewCredentials(opts *CredentialsOptions) *Credentials {
 // CachedTokenProvider.
 type CachedTokenProviderOptions struct {
 	// DisableAutoRefresh makes the TokenProvider always return the same token,
-	// even if it is expired.
+	// even if it is expired. The default is false. Optional.
 	DisableAutoRefresh bool
 	// ExpireEarly configures the amount of time before a token expires, that it
-	// should be refreshed. If unset, the default value is 10 seconds.
+	// should be refreshed. If unset, the default value is 3 minutes and 45
+	// seconds. Optional.
 	ExpireEarly time.Duration
+	// DisableAsyncRefresh configures a synchronous workflow that refreshes
+	// stale tokens while blocking. The default is false. Optional.
+	DisableAsyncRefresh bool
 }
 
 func (ctpo *CachedTokenProviderOptions) autoRefresh() bool {
@@ -227,34 +250,126 @@ func (ctpo *CachedTokenProviderOptions) expireEarly() time.Duration {
 	return ctpo.ExpireEarly
 }
 
+func (ctpo *CachedTokenProviderOptions) blockingRefresh() bool {
+	if ctpo == nil {
+		return false
+	}
+	return ctpo.DisableAsyncRefresh
+}
+
 // NewCachedTokenProvider wraps a [TokenProvider] to cache the tokens returned
-// by the underlying provider. By default it will refresh tokens ten seconds
-// before they expire, but this time can be configured with the optional
-// options.
+// by the underlying provider. By default it will refresh tokens asynchronously
+// (non-blocking mode) within a window that starts 3 minutes and 45 seconds
+// before they expire. The asynchronous (non-blocking) refresh can be changed to
+// a synchronous (blocking) refresh using the
+// CachedTokenProviderOptions.DisableAsyncRefresh option. The time-before-expiry
+// duration can be configured using the CachedTokenProviderOptions.ExpireEarly
+// option.
 func NewCachedTokenProvider(tp TokenProvider, opts *CachedTokenProviderOptions) TokenProvider {
 	if ctp, ok := tp.(*cachedTokenProvider); ok {
 		return ctp
 	}
 	return &cachedTokenProvider{
-		tp:          tp,
-		autoRefresh: opts.autoRefresh(),
-		expireEarly: opts.expireEarly(),
+		tp:              tp,
+		autoRefresh:     opts.autoRefresh(),
+		expireEarly:     opts.expireEarly(),
+		blockingRefresh: opts.blockingRefresh(),
 	}
 }
 
 type cachedTokenProvider struct {
-	tp          TokenProvider
-	autoRefresh bool
-	expireEarly time.Duration
+	tp              TokenProvider
+	autoRefresh     bool
+	expireEarly     time.Duration
+	blockingRefresh bool
 
 	mu          sync.Mutex
 	cachedToken *Token
+	// isRefreshRunning ensures that the non-blocking refresh will only be
+	// attempted once, even if multiple callers enter the Token method.
+	isRefreshRunning bool
+	// isRefreshErr ensures that the non-blocking refresh will only be attempted
+	// once per refresh window if an error is encountered.
+	isRefreshErr bool
 }
 
 func (c *cachedTokenProvider) Token(ctx context.Context) (*Token, error) {
+	if c.blockingRefresh {
+		return c.tokenBlocking(ctx)
+	}
+	return c.tokenNonBlocking(ctx)
+}
+
+func (c *cachedTokenProvider) tokenNonBlocking(ctx context.Context) (*Token, error) {
+	switch c.tokenState() {
+	case fresh:
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		return c.cachedToken, nil
+	case stale:
+		c.tokenAsync(ctx)
+		// Return the stale token immediately to not block customer requests to Cloud services.
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		return c.cachedToken, nil
+	default: // invalid
+		return c.tokenBlocking(ctx)
+	}
+}
+
+// tokenState reports the token's validity.
+func (c *cachedTokenProvider) tokenState() tokenState {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.cachedToken.IsValid() || !c.autoRefresh {
+	t := c.cachedToken
+	if t == nil || t.Value == "" {
+		return invalid
+	} else if t.Expiry.IsZero() {
+		return fresh
+	} else if timeNow().After(t.Expiry.Round(0)) {
+		return invalid
+	} else if timeNow().After(t.Expiry.Round(0).Add(-c.expireEarly)) {
+		return stale
+	}
+	return fresh
+}
+
+// tokenAsync uses a bool to ensure that only one non-blocking token refresh
+// happens at a time, even if multiple callers have entered this function
+// concurrently. This avoids creating an arbitrary number of concurrent
+// goroutines. Retries should be attempted and managed within the Token method.
+// If the refresh attempt fails, no further attempts are made until the refresh
+// window expires and the token enters the invalid state, at which point the
+// blocking call to Token should likely return the same error on the main goroutine.
+func (c *cachedTokenProvider) tokenAsync(ctx context.Context) {
+	fn := func() {
+		c.mu.Lock()
+		c.isRefreshRunning = true
+		c.mu.Unlock()
+		t, err := c.tp.Token(ctx)
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		c.isRefreshRunning = false
+		if err != nil {
+			// Discard errors from the non-blocking refresh, but prevent further
+			// attempts.
+			c.isRefreshErr = true
+			return
+		}
+		c.cachedToken = t
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.isRefreshRunning && !c.isRefreshErr {
+		go fn()
+	}
+}
+
+func (c *cachedTokenProvider) tokenBlocking(ctx context.Context) (*Token, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.isRefreshErr = false
+	if c.cachedToken.IsValid() || (!c.autoRefresh && !c.cachedToken.isEmpty()) {
 		return c.cachedToken, nil
 	}
 	t, err := c.tp.Token(ctx)
@@ -423,12 +538,12 @@ func (tp tokenProvider2LO) Token(ctx context.Context) (*Token, error) {
 	v := url.Values{}
 	v.Set("grant_type", defaultGrantType)
 	v.Set("assertion", payload)
-	resp, err := tp.Client.PostForm(tp.opts.TokenURL, v)
+	req, err := http.NewRequestWithContext(ctx, "POST", tp.opts.TokenURL, strings.NewReader(v.Encode()))
 	if err != nil {
-		return nil, fmt.Errorf("auth: cannot fetch token: %w", err)
+		return nil, err
 	}
-	defer resp.Body.Close()
-	body, err := internal.ReadAll(resp.Body)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, body, err := internal.DoRequest(tp.Client, req)
 	if err != nil {
 		return nil, fmt.Errorf("auth: cannot fetch token: %w", err)
 	}

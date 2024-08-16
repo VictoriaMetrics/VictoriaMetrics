@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	globalSilent  = "s"
-	globalVerbose = "verbose"
+	globalSilent             = "s"
+	globalVerbose            = "verbose"
+	globalDisableProgressBar = "disable-progress-bar"
 )
 
 var (
@@ -26,6 +27,11 @@ var (
 			Value: false,
 			Usage: "Whether to enable verbosity in logs output.",
 		},
+		&cli.BoolFlag{
+			Name:  globalDisableProgressBar,
+			Value: false,
+			Usage: "Whether to disable progress bar during the import.",
+		},
 	}
 )
 
@@ -39,7 +45,6 @@ const (
 	vmBatchSize          = "vm-batch-size"
 	vmSignificantFigures = "vm-significant-figures"
 	vmRoundDigits        = "vm-round-digits"
-	vmDisableProgressBar = "vm-disable-progress-bar"
 	vmCertFile           = "vm-cert-file"
 	vmKeyFile            = "vm-key-file"
 	vmCAFile             = "vm-CA-file"
@@ -51,6 +56,10 @@ const (
 	vmRateLimit  = "vm-rate-limit"
 
 	vmInterCluster = "vm-intercluster"
+
+	vmBackoffRetries     = "vm-backoff-retries"
+	vmBackoffFactor      = "vm-backoff-factor"
+	vmBackoffMinDuration = "vm-backoff-min-duration"
 )
 
 var (
@@ -120,10 +129,6 @@ var (
 			Usage: "Optional data transfer rate limit in bytes per second.\n" +
 				"By default, the rate limit is disabled. It can be useful for limiting load on configured via '--vmAddr' destination.",
 		},
-		&cli.BoolFlag{
-			Name:  vmDisableProgressBar,
-			Usage: "Whether to disable progress bar per each worker during the import.",
-		},
 		&cli.StringFlag{
 			Name:  vmCertFile,
 			Usage: "Optional path to client-side TLS certificate file to use when connecting to '--vmAddr'",
@@ -144,6 +149,21 @@ var (
 			Name:  vmInsecureSkipVerify,
 			Usage: "Whether to skip tls verification when connecting to '--vmAddr'",
 			Value: false,
+		},
+		&cli.IntFlag{
+			Name:  vmBackoffRetries,
+			Value: 10,
+			Usage: "How many import retries to perform before giving up.",
+		},
+		&cli.Float64Flag{
+			Name:  vmBackoffFactor,
+			Value: 1.8,
+			Usage: "Factor to multiply the base duration after each failed import retry. Must be greater than 1.0",
+		},
+		&cli.DurationFlag{
+			Name:  vmBackoffMinDuration,
+			Value: time.Second * 2,
+			Usage: "Minimum duration to wait before the first import retry. Each subsequent import retry will be multiplied by the '--vm-backoff-factor'.",
 		},
 	}
 )
@@ -429,6 +449,10 @@ const (
 	vmNativeDstCAFile             = "vm-native-dst-ca-file"
 	vmNativeDstServerName         = "vm-native-dst-server-name"
 	vmNativeDstInsecureSkipVerify = "vm-native-dst-insecure-skip-verify"
+
+	vmNativeBackoffRetries     = "vm-native-backoff-retries"
+	vmNativeBackoffFactor      = "vm-native-backoff-factor"
+	vmNativeBackoffMinDuration = "vm-native-backoff-min-duration"
 )
 
 var (
@@ -597,6 +621,21 @@ var (
 				"Binary export/import API protocol implies less network and resource usage, as it transfers compressed binary data blocks." +
 				"Non-binary export/import API is less efficient, but supports deduplication if it is configured on vm-native-src-addr side.",
 			Value: false,
+		},
+		&cli.IntFlag{
+			Name:  vmNativeBackoffRetries,
+			Value: 10,
+			Usage: "How many export/import retries to perform before giving up.",
+		},
+		&cli.Float64Flag{
+			Name:  vmNativeBackoffFactor,
+			Value: 1.8,
+			Usage: "Factor to multiply the base duration after each failed export/import retry. Must be greater than 1.0",
+		},
+		&cli.DurationFlag{
+			Name:  vmNativeBackoffMinDuration,
+			Value: time.Second * 2,
+			Usage: "Minimum duration to wait before the first export/import retry. Each subsequent export/import retry will be multiplied by the '--vm-native-backoff-factor'.",
 		},
 	}
 )

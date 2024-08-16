@@ -14,11 +14,19 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets. Returns the logging
-// status of a bucket and the permissions users have to view and modify that
-// status. The following operations are related to GetBucketLogging :
-//   - CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
-//   - PutBucketLogging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketLogging.html)
+// This operation is not supported by directory buckets.
+//
+// Returns the logging status of a bucket and the permissions users have to view
+// and modify that status.
+//
+// The following operations are related to GetBucketLogging :
+//
+// [CreateBucket]
+//
+// [PutBucketLogging]
+//
+// [PutBucketLogging]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketLogging.html
+// [CreateBucket]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html
 func (c *Client) GetBucketLogging(ctx context.Context, params *GetBucketLoggingInput, optFns ...func(*Options)) (*GetBucketLoggingOutput, error) {
 	if params == nil {
 		params = &GetBucketLoggingInput{}
@@ -50,6 +58,7 @@ type GetBucketLoggingInput struct {
 }
 
 func (in *GetBucketLoggingInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
@@ -57,8 +66,10 @@ func (in *GetBucketLoggingInput) bindEndpointParams(p *EndpointParameters) {
 type GetBucketLoggingOutput struct {
 
 	// Describes where logs are stored and the prefix that Amazon S3 assigns to all
-	// log object keys for a bucket. For more information, see PUT Bucket logging (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTlogging.html)
-	// in the Amazon S3 API Reference.
+	// log object keys for a bucket. For more information, see [PUT Bucket logging]in the Amazon S3 API
+	// Reference.
+	//
+	// [PUT Bucket logging]: https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTlogging.html
 	LoggingEnabled *types.LoggingEnabled
 
 	// Metadata pertaining to the operation's result.
@@ -123,6 +134,15 @@ func (c *Client) addOperationGetBucketLoggingMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpGetBucketLoggingValidationMiddleware(stack); err != nil {

@@ -5,175 +5,87 @@ import (
 	"time"
 )
 
-func TestGetTime(t *testing.T) {
-	tests := []struct {
-		name    string
-		s       string
-		want    func() time.Time
-		wantErr bool
-	}{
-		{
-			name:    "empty string",
-			s:       "",
-			want:    func() time.Time { return time.Time{} },
-			wantErr: true,
-		},
-		{
-			name: "only year",
-			s:    "2019",
-			want: func() time.Time {
-				t := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
-				return t
-			},
-		},
-		{
-			name: "year and month",
-			s:    "2019-01",
-			want: func() time.Time {
-				t := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
-				return t
-			},
-		},
-		{
-			name: "year and not first month",
-			s:    "2019-02",
-			want: func() time.Time {
-				t := time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC)
-				return t
-			},
-		},
-		{
-			name: "year, month and day",
-			s:    "2019-02-01",
-			want: func() time.Time {
-				t := time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC)
-				return t
-			},
-		},
-		{
-			name: "year, month and not first day",
-			s:    "2019-02-10",
-			want: func() time.Time {
-				t := time.Date(2019, 2, 10, 0, 0, 0, 0, time.UTC)
-				return t
-			},
-		},
-		{
-			name: "year, month, day and time",
-			s:    "2019-02-02T00",
-			want: func() time.Time {
-				t := time.Date(2019, 2, 2, 0, 0, 0, 0, time.UTC)
-				return t
-			},
-		},
-		{
-			name: "year, month, day and one hour time",
-			s:    "2019-02-02T01",
-			want: func() time.Time {
-				t := time.Date(2019, 2, 2, 1, 0, 0, 0, time.UTC)
-				return t
-			},
-		},
-		{
-			name: "time with zero minutes",
-			s:    "2019-02-02T01:00",
-			want: func() time.Time {
-				t := time.Date(2019, 2, 2, 1, 0, 0, 0, time.UTC)
-				return t
-			},
-		},
-		{
-			name: "time with one minute",
-			s:    "2019-02-02T01:01",
-			want: func() time.Time {
-				t := time.Date(2019, 2, 2, 1, 1, 0, 0, time.UTC)
-				return t
-			},
-		},
-		{
-			name: "time with zero seconds",
-			s:    "2019-02-02T01:01:00",
-			want: func() time.Time {
-				t := time.Date(2019, 2, 2, 1, 1, 0, 0, time.UTC)
-				return t
-			},
-		},
-		{
-			name: "timezone with one second",
-			s:    "2019-02-02T01:01:01",
-			want: func() time.Time {
-				t := time.Date(2019, 2, 2, 1, 1, 1, 0, time.UTC)
-				return t
-			},
-		},
-		{
-			name: "time with two second and timezone",
-			s:    "2019-07-07T20:01:02Z",
-			want: func() time.Time {
-				t := time.Date(2019, 7, 7, 20, 1, 02, 0, time.UTC)
-				return t
-			},
-		},
-		{
-			name: "time with seconds and timezone",
-			s:    "2019-07-07T20:47:40+03:00",
-			want: func() time.Time {
-				l, _ := time.LoadLocation("Europe/Kiev")
-				t := time.Date(2019, 7, 7, 20, 47, 40, 0, l)
-				return t
-			},
-		},
-		{
-			name:    "negative time",
-			s:       "-292273086-05-16T16:47:06Z",
-			want:    func() time.Time { return time.Time{} },
-			wantErr: true,
-		},
-		{
-			name: "float timestamp representation",
-			s:    "1562529662.324",
-			want: func() time.Time {
-				t := time.Date(2019, 7, 7, 20, 01, 02, 324e6, time.UTC)
-				return t
-			},
-		},
-		{
-			name: "negative timestamp",
-			s:    "-9223372036.855",
-			want: func() time.Time {
-				return time.Date(1970, 01, 01, 00, 00, 00, 00, time.UTC)
-			},
-			wantErr: false,
-		},
-		{
-			name: "big timestamp",
-			s:    "1223372036855",
-			want: func() time.Time {
-				t := time.Date(2008, 10, 7, 9, 33, 56, 855e6, time.UTC)
-				return t
-			},
-			wantErr: false,
-		},
-		{
-			name: "duration time",
-			s:    "1h5m",
-			want: func() time.Time {
-				t := time.Now().Add(-1 * time.Hour).Add(-5 * time.Minute)
-				return t
-			},
-		},
+func TestGetTime_Failure(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+
+		_, err := ParseTime(s)
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseTime(tt.s)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseTime() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			w := tt.want()
-			if got.Unix() != w.Unix() {
-				t.Errorf("ParseTime() got = %v, want %v", got, w)
-			}
-		})
+
+	// empty string
+	f("")
+
+	// negative time
+	f("-292273086-05-16T16:47:06Z")
+}
+
+func TestGetTime_Success(t *testing.T) {
+	f := func(s string, resultExpected time.Time) {
+		t.Helper()
+
+		result, err := ParseTime(s)
+		if err != nil {
+			t.Fatalf("ParseTime() error: %s", err)
+		}
+		if result.Unix() != resultExpected.Unix() {
+			t.Fatalf("unexpected result; got %s; want %s", result, resultExpected)
+		}
 	}
+
+	// only year
+	f("2019", time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC))
+
+	// year and month
+	f("2019-01", time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC))
+
+	// year and not first month
+	f("2019-02", time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC))
+
+	// year, month and day
+	f("2019-02-01", time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC))
+
+	// year, month and not first day
+	f("2019-02-10", time.Date(2019, 2, 10, 0, 0, 0, 0, time.UTC))
+
+	// year, month, day and time
+	f("2019-02-02T00", time.Date(2019, 2, 2, 0, 0, 0, 0, time.UTC))
+
+	// year, month, day and one hour time
+	f("2019-02-02T01", time.Date(2019, 2, 2, 1, 0, 0, 0, time.UTC))
+
+	// time with zero minutes
+	f("2019-02-02T01:00", time.Date(2019, 2, 2, 1, 0, 0, 0, time.UTC))
+
+	// time with one minute
+	f("2019-02-02T01:01", time.Date(2019, 2, 2, 1, 1, 0, 0, time.UTC))
+
+	// time with zero seconds
+	f("2019-02-02T01:01:00", time.Date(2019, 2, 2, 1, 1, 0, 0, time.UTC))
+
+	// timezone with one second
+	f("2019-02-02T01:01:01", time.Date(2019, 2, 2, 1, 1, 1, 0, time.UTC))
+
+	// time with two second and timezone
+	f("2019-07-07T20:01:02Z", time.Date(2019, 7, 7, 20, 1, 02, 0, time.UTC))
+
+	// time with seconds and timezone
+	f("2019-07-07T20:47:40+03:00", func() time.Time {
+		l, _ := time.LoadLocation("Europe/Kiev")
+		return time.Date(2019, 7, 7, 20, 47, 40, 0, l)
+	}())
+
+	// float timestamp representation",
+	f("1562529662.324", time.Date(2019, 7, 7, 20, 01, 02, 324e6, time.UTC))
+
+	// negative timestamp
+	f("-9223372036.855", time.Date(1970, 01, 01, 00, 00, 00, 00, time.UTC))
+
+	// big timestamp
+	f("1223372036855", time.Date(2008, 10, 7, 9, 33, 56, 855e6, time.UTC))
+
+	// duration time
+	f("1h5m", time.Now().Add(-1*time.Hour).Add(-5*time.Minute))
 }

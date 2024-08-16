@@ -33,7 +33,7 @@ type ClientCertProvider = func(*tls.CertificateRequestInfo) (*tls.Certificate, e
 
 // Options used to configure a [net/http.Client] from [NewClient].
 type Options struct {
-	// DisableTelemetry disables default telemetry (OpenCensus). An example
+	// DisableTelemetry disables default telemetry (OpenTelemetry). An example
 	// reason to do so would be to bind custom telemetry that overrides the
 	// defaults.
 	DisableTelemetry bool
@@ -44,6 +44,9 @@ type Options struct {
 	// Headers are extra HTTP headers that will be appended to every outgoing
 	// request.
 	Headers http.Header
+	// BaseRoundTripper overrides the base transport used for serving requests.
+	// If specified ClientCertProvider is ignored.
+	BaseRoundTripper http.RoundTripper
 	// Endpoint overrides the default endpoint to be used for a service.
 	Endpoint string
 	// APIKey specifies an API key to be used as the basis for authentication.
@@ -73,6 +76,9 @@ type Options struct {
 func (o *Options) validate() error {
 	if o == nil {
 		return errors.New("httptransport: opts required to be non-nil")
+	}
+	if o.InternalOptions != nil && o.InternalOptions.SkipValidation {
+		return nil
 	}
 	hasCreds := o.APIKey != "" ||
 		o.Credentials != nil ||
@@ -110,6 +116,13 @@ func (o *Options) resolveDetectOptions() *detect.DetectOptions {
 	if len(do.Scopes) == 0 && do.Audience == "" && io != nil {
 		do.Audience = o.InternalOptions.DefaultAudience
 	}
+	if o.ClientCertProvider != nil {
+		tlsConfig := &tls.Config{
+			GetClientCertificate: o.ClientCertProvider,
+		}
+		do.Client = transport.DefaultHTTPClientWithTLS(tlsConfig)
+		do.TokenURL = detect.GoogleMTLSTokenURL
+	}
 	return do
 }
 
@@ -131,6 +144,9 @@ type InternalOptions struct {
 	// DefaultScopes specifies the default OAuth2 scopes to be used for a
 	// service.
 	DefaultScopes []string
+	// SkipValidation bypasses validation on Options. It should only be used
+	// internally for clients that needs more control over their transport.
+	SkipValidation bool
 }
 
 // AddAuthorizationMiddleware adds a middleware to the provided client's
@@ -143,7 +159,14 @@ func AddAuthorizationMiddleware(client *http.Client, creds *auth.Credentials) er
 	}
 	base := client.Transport
 	if base == nil {
-		base = http.DefaultTransport.(*http.Transport).Clone()
+		if dt, ok := http.DefaultTransport.(*http.Transport); ok {
+			base = dt.Clone()
+		} else {
+			// Directly reuse the DefaultTransport if the application has
+			// replaced it with an implementation of RoundTripper other than
+			// http.Transport.
+			base = http.DefaultTransport
+		}
 	}
 	client.Transport = &authTransport{
 		creds: creds,
@@ -175,7 +198,13 @@ func NewClient(opts *Options) (*http.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	trans, err := newTransport(defaultBaseTransport(clientCertProvider, dialTLSContext), opts)
+	baseRoundTripper := opts.BaseRoundTripper
+	if baseRoundTripper == nil {
+		baseRoundTripper = defaultBaseTransport(clientCertProvider, dialTLSContext)
+	}
+	// Ensure the token exchange transport uses the same ClientCertProvider as the API transport.
+	opts.ClientCertProvider = clientCertProvider
+	trans, err := newTransport(baseRoundTripper, opts)
 	if err != nil {
 		return nil, err
 	}

@@ -14,17 +14,22 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets. Places an Object Lock
-// configuration on the specified bucket. The rule specified in the Object Lock
-// configuration will be applied by default to every new object placed in the
-// specified bucket. For more information, see Locking Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lock.html)
-// .
+// This operation is not supported by directory buckets.
+//
+// Places an Object Lock configuration on the specified bucket. The rule specified
+// in the Object Lock configuration will be applied by default to every new object
+// placed in the specified bucket. For more information, see [Locking Objects].
+//
 //   - The DefaultRetention settings require both a mode and a period.
+//
 //   - The DefaultRetention period can be either Days or Years but you must select
 //     one. You cannot specify Days and Years at the same time.
+//
 //   - You can enable Object Lock for new or existing buckets. For more
-//     information, see Configuring Object Lock (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-configure.html)
-//     .
+//     information, see [Configuring Object Lock].
+//
+// [Configuring Object Lock]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-configure.html
+// [Locking Objects]: https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lock.html
 func (c *Client) PutObjectLockConfiguration(ctx context.Context, params *PutObjectLockConfigurationInput, optFns ...func(*Options)) (*PutObjectLockConfigurationOutput, error) {
 	if params == nil {
 		params = &PutObjectLockConfigurationInput{}
@@ -51,15 +56,19 @@ type PutObjectLockConfigurationInput struct {
 	// the SDK. This header will not provide any additional functionality if you don't
 	// use the SDK. When you send this header, there must be a corresponding
 	// x-amz-checksum or x-amz-trailer header sent. Otherwise, Amazon S3 fails the
-	// request with the HTTP status code 400 Bad Request . For more information, see
-	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
-	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
-	// ignores any provided ChecksumAlgorithm parameter.
+	// request with the HTTP status code 400 Bad Request . For more information, see [Checking object integrity]
+	// in the Amazon S3 User Guide.
+	//
+	// If you provide an individual checksum, Amazon S3 ignores any provided
+	// ChecksumAlgorithm parameter.
+	//
+	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumAlgorithm types.ChecksumAlgorithm
 
-	// The MD5 hash for the request body. For requests made using the Amazon Web
-	// Services Command Line Interface (CLI) or Amazon Web Services SDKs, this field is
-	// calculated automatically.
+	// The MD5 hash for the request body.
+	//
+	// For requests made using the Amazon Web Services Command Line Interface (CLI) or
+	// Amazon Web Services SDKs, this field is calculated automatically.
 	ContentMD5 *string
 
 	// The account ID of the expected bucket owner. If the account ID that you provide
@@ -74,10 +83,12 @@ type PutObjectLockConfigurationInput struct {
 	// Bucket owners need not specify this parameter in their requests. If either the
 	// source or destination S3 bucket has Requester Pays enabled, the requester will
 	// pay for corresponding charges to copy the object. For information about
-	// downloading objects from Requester Pays buckets, see Downloading Objects in
-	// Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
-	// in the Amazon S3 User Guide. This functionality is not supported for directory
-	// buckets.
+	// downloading objects from Requester Pays buckets, see [Downloading Objects in Requester Pays Buckets]in the Amazon S3 User
+	// Guide.
+	//
+	// This functionality is not supported for directory buckets.
+	//
+	// [Downloading Objects in Requester Pays Buckets]: https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html
 	RequestPayer types.RequestPayer
 
 	// A token to allow Object Lock to be enabled for an existing bucket.
@@ -87,6 +98,7 @@ type PutObjectLockConfigurationInput struct {
 }
 
 func (in *PutObjectLockConfigurationInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 
 }
@@ -94,7 +106,9 @@ func (in *PutObjectLockConfigurationInput) bindEndpointParams(p *EndpointParamet
 type PutObjectLockConfigurationOutput struct {
 
 	// If present, indicates that the requester was successfully charged for the
-	// request. This functionality is not supported for directory buckets.
+	// request.
+	//
+	// This functionality is not supported for directory buckets.
 	RequestCharged types.RequestCharged
 
 	// Metadata pertaining to the operation's result.
@@ -159,6 +173,15 @@ func (c *Client) addOperationPutObjectLockConfigurationMiddlewares(stack *middle
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpPutObjectLockConfigurationValidationMiddleware(stack); err != nil {

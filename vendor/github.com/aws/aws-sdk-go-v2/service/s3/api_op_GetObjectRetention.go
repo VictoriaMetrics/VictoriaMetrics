@@ -13,11 +13,18 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets. Retrieves an object's
-// retention settings. For more information, see Locking Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lock.html)
-// . This functionality is not supported for Amazon S3 on Outposts. The following
-// action is related to GetObjectRetention :
-//   - GetObjectAttributes (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAttributes.html)
+// This operation is not supported by directory buckets.
+//
+// Retrieves an object's retention settings. For more information, see [Locking Objects].
+//
+// This functionality is not supported for Amazon S3 on Outposts.
+//
+// The following action is related to GetObjectRetention :
+//
+// [GetObjectAttributes]
+//
+// [GetObjectAttributes]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAttributes.html
+// [Locking Objects]: https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lock.html
 func (c *Client) GetObjectRetention(ctx context.Context, params *GetObjectRetentionInput, optFns ...func(*Options)) (*GetObjectRetentionOutput, error) {
 	if params == nil {
 		params = &GetObjectRetentionInput{}
@@ -36,15 +43,18 @@ func (c *Client) GetObjectRetention(ctx context.Context, params *GetObjectRetent
 type GetObjectRetentionInput struct {
 
 	// The bucket name containing the object whose retention settings you want to
-	// retrieve. Access points - When you use this action with an access point, you
-	// must provide the alias of the access point in place of the bucket name or
-	// specify the access point ARN. When using the access point ARN, you must direct
-	// requests to the access point hostname. The access point hostname takes the form
+	// retrieve.
+	//
+	// Access points - When you use this action with an access point, you must provide
+	// the alias of the access point in place of the bucket name or specify the access
+	// point ARN. When using the access point ARN, you must direct requests to the
+	// access point hostname. The access point hostname takes the form
 	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
 	// action with an access point through the Amazon Web Services SDKs, you provide
 	// the access point ARN in place of the bucket name. For more information about
-	// access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide.
+	// access point ARNs, see [Using access points]in the Amazon S3 User Guide.
+	//
+	// [Using access points]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html
 	//
 	// This member is required.
 	Bucket *string
@@ -63,10 +73,12 @@ type GetObjectRetentionInput struct {
 	// Bucket owners need not specify this parameter in their requests. If either the
 	// source or destination S3 bucket has Requester Pays enabled, the requester will
 	// pay for corresponding charges to copy the object. For information about
-	// downloading objects from Requester Pays buckets, see Downloading Objects in
-	// Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
-	// in the Amazon S3 User Guide. This functionality is not supported for directory
-	// buckets.
+	// downloading objects from Requester Pays buckets, see [Downloading Objects in Requester Pays Buckets]in the Amazon S3 User
+	// Guide.
+	//
+	// This functionality is not supported for directory buckets.
+	//
+	// [Downloading Objects in Requester Pays Buckets]: https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html
 	RequestPayer types.RequestPayer
 
 	// The version ID for the object whose retention settings you want to retrieve.
@@ -76,6 +88,7 @@ type GetObjectRetentionInput struct {
 }
 
 func (in *GetObjectRetentionInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 
 }
@@ -147,6 +160,15 @@ func (c *Client) addOperationGetObjectRetentionMiddlewares(stack *middleware.Sta
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpGetObjectRetentionValidationMiddleware(stack); err != nil {

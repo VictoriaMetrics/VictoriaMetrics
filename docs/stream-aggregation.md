@@ -1,5 +1,4 @@
 ---
-sort: 98
 weight: 98
 title: Streaming aggregation
 menu:
@@ -9,9 +8,6 @@ menu:
 aliases:
 - /stream-aggregation.html
 ---
-
-# Streaming aggregation
-
 [vmagent](https://docs.victoriametrics.com/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
 can aggregate incoming [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) in streaming mode by time and by labels before data is written to remote storage
 (or local storage for single-node VictoriaMetrics).
@@ -19,15 +15,18 @@ The aggregation is applied to all the metrics received via any [supported data i
 and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 after applying all the configured [relabeling stages](https://docs.victoriametrics.com/vmagent/#relabeling).
 
-By default, stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples).
-It expects that the ingested samples have timestamps close to the current time. See [how to ignore old samples](#ignoring-old-samples).
+**By default, stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples).
+It expects that the ingested samples have timestamps close to the current time. See [how to ignore old samples](#ignoring-old-samples).**
+
+## Configuration
 
 Stream aggregation can be configured via the following command-line flags:
 
-- `-remoteWrite.streamAggr.config` at [vmagent](https://docs.victoriametrics.com/vmagent/).
-  This flag can be specified individually per each `-remoteWrite.url`.
-  This allows writing different aggregates to different remote storage destinations.
-- `-streamAggr.config` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/).
+- `-streamAggr.config` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
+  and at [vmagent](https://docs.victoriametrics.com/vmagent/).
+- `-remoteWrite.streamAggr.config` at [vmagent](https://docs.victoriametrics.com/vmagent/) only. This flag can be specified individually
+  per each `-remoteWrite.url`, so the aggregation happens independently per each remote storage destination.
+  This allows writing different aggregates to different remote storage systems.
 
 These flags must point to a file containing [stream aggregation config](#stream-aggregation-config).
 The file may contain `%{ENV_VAR}` placeholders which are substituted by the corresponding `ENV_VAR` environment variable values.
@@ -39,29 +38,59 @@ By default, the following data is written to the storage when stream aggregation
 
 This behaviour can be changed via the following command-line flags:
 
-- `-remoteWrite.streamAggr.keepInput` at [vmagent](https://docs.victoriametrics.com/vmagent/) and `-streamAggr.keepInput`
-  at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/).
+- `-streamAggr.keepInput` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) 
+  and [vmagent](https://docs.victoriametrics.com/vmagent/). At [vmagent](https://docs.victoriametrics.com/vmagent/)
+  `-remoteWrite.streamAggr.keepInput` flag can be specified individually per each `-remoteWrite.url`.
   If one of these flags is set, then all the input samples are written to the storage alongside the aggregated samples.
-  The `-remoteWrite.streamAggr.keepInput` flag can be specified individually per each `-remoteWrite.url`.
-- `-remoteWrite.streamAggr.dropInput` at [vmagent](https://docs.victoriametrics.com/vmagent/) and `-streamAggr.dropInput`
-  at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/).
+- `-streamAggr.dropInput` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) 
+  and [vmagent](https://docs.victoriametrics.com/vmagent/). At [vmagent](https://docs.victoriametrics.com/vmagent/)
+  `-remoteWrite.streamAggr.dropInput` flag can be specified individually per each `-remoteWrite.url`.
   If one of these flags are set, then all the input samples are dropped, while only the aggregated samples are written to the storage.
-  The `-remoteWrite.streamAggr.dropInput` flag can be specified individually per each `-remoteWrite.url`.
+
+## Routing
+
+[Single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) supports relabeling,
+deduplication and stream aggregation for all the received data, scraped or pushed. 
+The processed data is then stored in local storage and **can't be forwarded further**.
+
+[vmagent](https://docs.victoriametrics.com/vmagent/) supports relabeling, deduplication and stream aggregation for all 
+the received data, scraped or pushed. Then, the collected data will be forwarded to specified `-remoteWrite.url` destinations.
+The data processing order is the following:
+
+1. all the received data is relabeled according to the specified [`-remoteWrite.relabelConfig`](https://docs.victoriametrics.com/vmagent/#relabeling) (if it is set)
+1. all the received data is deduplicated according to specified [`-streamAggr.dedupInterval`](https://docs.victoriametrics.com/stream-aggregation/#deduplication)
+   (if it is set to duration bigger than 0)
+1. all the received data is aggregated according to specified [`-streamAggr.config`](https://docs.victoriametrics.com/stream-aggregation/#configuration) (if it is set)
+1. the resulting data is then replicated to each `-remoteWrite.url`
+1. data sent to each `-remoteWrite.url` can be additionally relabeled according to the corresponding `-remoteWrite.urlRelabelConfig` (set individually per URL)
+1. data sent to each `-remoteWrite.url` can be additionally deduplicated according to the corresponding `-remoteWrite.streamAggr.dedupInterval` (set individually per URL)
+1. data sent to each `-remoteWrite.url` can be additionally aggregated according to the corresponding `-remoteWrite.streamAggr.config` (set individually per URL)
+   It isn't recommended using `-streamAggr.config` and `-remoteWrite.streamAggr.config` simultaneously, unless you understand the complications.
+
+Typical scenarios for data routing with `vmagent`:
+
+1. **Aggregate incoming data and replicate to N destinations**. Specify [`-streamAggr.config`](https://docs.victoriametrics.com/stream-aggregation/#configuration) command-line flag
+   to aggregate the incoming data before replicating it to all the configured `-remoteWrite.url` destinations.
+2. **Individually aggregate incoming data for each destination**. Specify [`-remoteWrite.streamAggr.config`](https://docs.victoriametrics.com/stream-aggregation/#configuration)
+   command-line flag for each `-remoteWrite.url` destination. [Relabeling](https://docs.victoriametrics.com/vmagent/#relabeling) via `-remoteWrite.urlRelabelConfig`
+   can be used for routing only the selected metrics to each `-remoteWrite.url` destination.
 
 ## Deduplication
 
 [vmagent](https://docs.victoriametrics.com/vmagent/) supports online [de-duplication](https://docs.victoriametrics.com/#deduplication) of samples
 before sending them to the configured `-remoteWrite.url`. The de-duplication can be enabled via the following options:
 
-- By specifying the desired de-duplication interval via `-remoteWrite.streamAggr.dedupInterval` command-line flag for the particular `-remoteWrite.url`.
+- By specifying the desired de-duplication interval via `-streamAggr.dedupInterval` command-line flag for all received data 
+  or via `-remoteWrite.streamAggr.dedupInterval` command-line flag for the particular `-remoteWrite.url` destination.
   For example, `./vmagent -remoteWrite.url=http://remote-storage/api/v1/write -remoteWrite.streamAggr.dedupInterval=30s` instructs `vmagent` to leave
   only the last sample per each seen [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) per every 30 seconds.
-  The de-duplication is performed after applying `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` [relabeling](https://docs.victoriametrics.com/vmagent/#relabeling).
+  The de-deduplication is performed after applying [relabeling](https://docs.victoriametrics.com/vmagent/#relabeling) and
+  before performing the aggregation.
+  If the `-remoteWrite.streamAggr.config` and / or `-streamAggr.config` is set, then the de-duplication is performed individually per each
+  [stream aggregation config](#stream-aggregation-config) for the matching samples after applying [input_relabel_configs](#relabeling).
 
-  If the `-remoteWrite.streamAggr.config` is set, then the de-duplication is performed individually per each [stream aggregation config](#stream-aggregation-config)
-  for the matching samples after applying [input_relabel_configs](#relabeling).
-
-- By specifying `dedup_interval` option individually per each [stream aggregation config](#stream-aggregation-config) at `-remoteWrite.streamAggr.config`.
+- By specifying `dedup_interval` option individually per each [stream aggregation config](#stream-aggregation-config) 
+  in `-remoteWrite.streamAggr.config` or `-streamAggr.config` configs.
 
 [Single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) supports two types of de-duplication:
 - After storing the duplicate samples to local storage. See [`-dedup.minScrapeInterval`](https://docs.victoriametrics.com/#deduplication) command-line option.
@@ -82,11 +111,12 @@ The online de-duplication uses the same logic as [`-dedup.minScrapeInterval` com
 
 ## Ignoring old samples
 
-By default, all the input samples are taken into account during stream aggregation. If samples with old timestamps outside the current [aggregation interval](#stream-aggregation-config)
-must be ignored, then the following options can be used:
+By default, all the input samples are taken into account during stream aggregation. If samples with old timestamps 
+outside the current [aggregation interval](#stream-aggregation-config) must be ignored, then the following options can be used:
 
-- To pass `-remoteWrite.streamAggr.ignoreOldSamples` command-line flag to [vmagent](https://docs.victoriametrics.com/vmagent/)
-  or `-streamAggr.ignoreOldSamples` command-line flag to [single-node VictoriaMetrics](https://docs.victoriametrics.com/).
+- To pass `-streamAggr.ignoreOldSamples` command-line flag to [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
+  or to [vmagent](https://docs.victoriametrics.com/vmagent/). At [vmagent](https://docs.victoriametrics.com/vmagent/)
+  `-remoteWrite.streamAggr.ignoreOldSamples` flag can be specified individually per each `-remoteWrite.url`.
   This enables ignoring old samples for all the [aggregation configs](#stream-aggregation-config).
 
 - To set `ignore_old_samples: true` option at the particular [aggregation config](#stream-aggregation-config).
@@ -94,24 +124,30 @@ must be ignored, then the following options can be used:
 
 ## Ignore aggregation intervals on start
 
-Stream aggregation may yield inaccurate results if it processes incomplete data. This issue can arise when data is 
-received from clients that maintain a queue of unsent data, such as Prometheus or vmagent. If the queue isn't fully 
-cleared within the aggregation `interval`, only a portion of the time series may be processed, leading to distorted 
-calculations. To mitigate this, consider the following options:
+Streaming aggregation results may be incorrect for some time after the restart of [vmagent](https://docs.victoriametrics.com/vmagent/)
+or [single-node VictoriaMetrics](https://docs.victoriametrics.com/) until all the buffered [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
+are sent from remote sources to the `vmagent` or single-node VictoriaMetrics via [supported data ingestion protocols](https://docs.victoriametrics.com/vmagent/#how-to-push-data-to-vmagent).
+In this case it may be a good idea to drop the aggregated data during the first `N` [aggregation intervals](#stream-aggregation-config)
+just after the restart of `vmagent` or single-node VictoriaMetrics. This can be done via the following options:
 
-- Set `-remoteWrite.streamAggr.ignoreFirstIntervals=<intervalsCount>` command-line flag to [vmagent](https://docs.victoriametrics.com/vmagent/)
-  or `-streamAggr.ignoreFirstIntervals=<intervalsCount>` command-line flag to [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
-  to skip first `<intervalsCount>` [aggregation intervals](#stream-aggregation-config)
-  from persisting to the storage. It is expected that all incomplete or queued data will be processed during 
-  specified `<intervalsCount>` and all subsequent aggregation intervals will produce correct data.
+- The `-streamAggr.ignoreFirstIntervals=N` command-line flag at `vmagent` and single-node VictoriaMetrics. This flag instructs skipping the first `N`
+  [aggregation intervals](#stream-aggregation-config) just after the restart across all the [configured stream aggregation configs](#configuration).
 
-- Set `ignore_first_intervals: <intervalsCount>` option individually per [aggregation config](#stream-aggregation-config).
-  This enables ignoring first `<intervalsCount>` aggregation intervals for that particular aggregation config.
+  The `-remoteWrite.streamAggr.ignoreFirstIntervals` command-line flag can be specified individually per each `-remoteWrite.url` at [vmagent](https://docs.victoriametrics.com/vmagent/).
+
+- The `ignore_first_intervals: N` option at the particular [aggregation config](#stream-aggregation-config).
+
+See also:
+
+- [Flush time alignment](#flush-time-alignment)
+- [Ignoring old samples](#ignoring-old-samples)
 
 ## Flush time alignment
 
 By default, the time for aggregated data flush is aligned by the `interval` option specified in [aggregate config](#stream-aggregation-config).
+
 For example:
+
 - if `interval: 1m` is set, then the aggregated data is flushed to the storage at the end of every minute
 - if `interval: 1h` is set, then the aggregated data is flushed to the storage at the end of every hour
 
@@ -121,6 +157,11 @@ In this case aggregated data flushes will be aligned to the `vmagent` start time
 The aggregated data on the first and the last interval is dropped during `vmagent` start, restart or [config reload](#configuration-update),
 since the first and the last aggregation intervals are incomplete, so they usually contain incomplete confusing data.
 If you need preserving the aggregated data on these intervals, then set `flush_on_shutdown: true` option in the [aggregate config](#stream-aggregation-config).
+
+See also:
+
+- [Ignore aggregation intervals on start](#ignore-aggregation-intervals-on-start)
+- [Ignoring old samples](#ignoring-old-samples)
 
 ## Use cases
 
@@ -475,7 +516,7 @@ Another option to remove the suffix, which is added by stream aggregation, is to
   keep_metric_names: true
 ```
 
-See also [dropping unneded labels](#dropping-unneeded-labels).
+See also [dropping unneeded labels](#dropping-unneeded-labels).
 
 
 ## Dropping unneeded labels
@@ -483,7 +524,8 @@ See also [dropping unneded labels](#dropping-unneeded-labels).
 If you need dropping some labels from input samples before [input relabeling](#relabeling), [de-duplication](#deduplication)
 and [stream aggregation](#aggregation-outputs), then the following options exist:
 
-- To specify comma-separated list of label names to drop in `-streamAggr.dropInputLabels` command-line flag.
+- To specify comma-separated list of label names to drop in `-streamAggr.dropInputLabels` command-line flag
+  or via `-remoteWrite.streamAggr.dropInputLabels` individually per each `-remoteWrite.url`.
   For example, `-streamAggr.dropInputLabels=replica,az` instructs to drop `replica` and `az` labels from input samples
   before applying de-duplication and stream aggregation.
 
@@ -499,7 +541,7 @@ and [stream aggregation](#aggregation-outputs), then the following options exist
     keep_metric_names: true
   ```
 
-Typical use case is to drop `replica` label from samples, which are recevied from high availability replicas.
+Typical use case is to drop `replica` label from samples, which are received from high availability replicas.
 
 ## Aggregation outputs
 
@@ -514,12 +556,14 @@ Below are aggregation functions that can be put in the `outputs` list at [stream
 * [avg](#avg)
 * [count_samples](#count_samples)
 * [count_series](#count_series)
+* [histogram_bucket](#histogram_bucket)
 * [increase](#increase)
 * [increase_prometheus](#increase_prometheus)
-* [histogram_bucket](#histogram_bucket)
 * [last](#last)
 * [max](#max)
 * [min](#min)
+* [rate_avg](#rate_avg)
+* [rate_sum](#rate_sum)
 * [stddev](#stddev)
 * [stdvar](#stdvar)
 * [sum_samples](#sum_samples)
@@ -541,9 +585,15 @@ sum(sum_over_time(some_metric[interval])) / sum(count_over_time(some_metric[inte
 
 For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and  the regular query:
 
-<img alt="avg aggregation" src="stream-aggregation-check-avg.webp">
+![avg aggregation](stream-aggregation-check-avg.webp)
 
-See also [min](#min), [max](#max), [sum_samples](#sum_samples) and [count_samples](#count_samples).
+See also:
+
+- [max](#max)
+- [min](#min)
+- [quantiles](#quantiles)
+- [sum_samples](#sum_samples)
+- [count_samples](#count_samples)
 
 ### count_samples
 
@@ -555,7 +605,10 @@ The results of `count_samples` is equal to the following [MetricsQL](https://doc
 sum(count_over_time(some_metric[interval]))
 ```
 
-See also [count_series](#count_series) and [sum_samples](#sum_samples).
+See also:
+
+- [count_series](#count_series)
+- [sum_samples](#sum_samples)
 
 ### count_series
 
@@ -567,7 +620,33 @@ The results of `count_series` is equal to the following [MetricsQL](https://docs
 count(last_over_time(some_metric[interval]))
 ```
 
-See also [count_samples](#count_samples) and [unique_samples](#unique_samples).
+See also:
+
+- [count_samples](#count_samples)
+- [unique_samples](#unique_samples)
+
+### histogram_bucket
+
+`histogram_bucket` returns [VictoriaMetrics histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
+  for the input [sample values](https://docs.victoriametrics.com/keyconcepts/#raw-samples) over the given `interval`.
+`histogram_bucket` makes sense only for aggregating [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
+See how to aggregate regular histograms [here](#aggregating-histograms).
+
+The results of `histogram_bucket` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+
+Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
+or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_interval](#staleness) option.
+
+```metricsql
+sum(histogram_over_time(some_histogram_bucket[interval])) by (vmrange)
+```
+
+See also:
+
+- [quantiles](#quantiles)
+- [avg](#avg)
+- [max](#max)
+- [min](#min)
 
 ### increase
 
@@ -580,31 +659,23 @@ The results of `increase` is equal to the following [MetricsQL](https://docs.vic
 sum(increase_pure(some_counter[interval]))
 ```
 
-`increase` assumes that all the counters start from 0. For example, if the fist seen sample for new [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
+`increase` assumes that all the counters start from 0. For example, if the first seen sample for new [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
 is `10`, then `increase` assumes that the time series has been increased by `10`. If you need ignoring the first sample for new time series,
 then take a look at [increase_prometheus](#increase_prometheus).
 
 For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and the regular query:
 
-<img alt="increase aggregation" src="stream-aggregation-check-increase.webp">
-
-`increase` can be used as an alternative for [rate](https://docs.victoriametrics.com/metricsql/#rate) function.
-For example, if `increase` is calculated for `some_counter` with `interval: 5m`, then `rate` can be calculated
-by dividing the resulting aggregation by `5m`:
-
-```metricsql
-some_counter:5m_increase / 5m
-```
-
-This is similar to `rate(some_counter[5m])`.
-
-Please note, opposite to [rate](https://docs.victoriametrics.com/metricsql/#rate), `increase` aggregations can be 
-combined safely afterwards. This is helpful when the aggregation is calculated by more than one vmagent.
+![increase aggregation](stream-aggregation-check-increase.webp)
 
 Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
 or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_interval](#staleness) option.
 
-See also [increase_prometheus](#increase_prometheus) and [total](#total).
+See also:
+
+- [increase_prometheus](#increase_prometheus)
+- [total](#total)
+- [rate_avg](#rate_avg)
+- [rate_sum](#rate_sum)
 
 ### increase_prometheus
 
@@ -623,37 +694,30 @@ If you need taking into account the first sample per time series, then take a lo
 Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
 or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_interval](#staleness) option.
 
-See also [increase](#increase), [total](#total) and [total_prometheus](#total_prometheus).
+See also:
 
-### histogram_bucket
-
-`histogram_bucket` returns [VictoriaMetrics histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
-  for the input [sample values](https://docs.victoriametrics.com/keyconcepts/#raw-samples) over the given `interval`.
-`histogram_bucket` makes sense only for aggregating [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
-See how to aggregate regular histograms [here](#aggregating-histograms).
-
-The results of `histogram_bucket` is equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
-
-Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
-or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_interval](#staleness) option.
-
-```metricsql
-sum(histogram_over_time(some_histogram_bucket[interval])) by (vmrange)
-```
-
-See also [quantiles](#quantiles), [min](#min), [max](#max) and [avg](#avg).
+- [increase](#increase)
+- [rate_avg](#rate_avg)
+- [rate_sum](#rate_sum)
+- [total](#total)
+- [total_prometheus](#total_prometheus)
 
 ### last
 
 `last` returns the last input [sample value](https://docs.victoriametrics.com/keyconcepts/#raw-samples) over the given `interval`.
 
-The results of `last` is roughly equal to the the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `last` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
 
 ```metricsql
 last_over_time(some_metric[interval])
 ```
 
-See also [min](#min), [max](#max) and [avg](#avg).
+See also:
+
+- [avg](#avg)
+- [max](#max)
+- [min](#min)
+- [quantiles](#quantiles)
 
 ### max
 
@@ -667,9 +731,14 @@ max(max_over_time(some_metric[interval]))
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="total aggregation" src="stream-aggregation-check-max.webp">
+![total aggregation](stream-aggregation-check-max.webp)
 
-See also [min](#min) and [avg](#avg).
+See also:
+
+- [min](#min)
+- [avg](#avg)
+- [last](#last)
+- [quantiles](#quantiles)
 
 ### min
 
@@ -683,9 +752,48 @@ min(min_over_time(some_metric[interval]))
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="min aggregation" src="stream-aggregation-check-min.webp">
+![min aggregation](stream-aggregation-check-min.webp)
 
-See also [max](#max) and [avg](#avg).
+See also:
+
+- [max](#max)
+- [avg](#avg)
+- [last](#last)
+- [quantiles](#quantiles)
+
+### rate_avg
+
+`rate_avg` returns the average of average per-second increase rates across input [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) over the given `interval`.
+`rate_avg` makes sense only for aggregating [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
+
+The results of `rate_avg` are equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+
+```metricsql
+avg(rate(some_counter[interval]))
+```
+
+See also:
+
+- [rate_sum](#rate_sum)
+- [increase](#increase)
+- [total](#total)
+
+### rate_sum
+
+`rate_sum` returns the sum of average per-second increase rates across input [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) over the given `interval`.
+`rate_sum` makes sense only for aggregating [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
+
+The results of `rate_sum` are equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+
+```metricsql
+sum(rate(some_counter[interval]))
+```
+
+See also:
+
+- [rate_avg](#rate_avg)
+- [increase](#increase)
+- [total](#total)
 
 ### stddev
 
@@ -699,7 +807,11 @@ The results of `stddev` is roughly equal to the following [MetricsQL](https://do
 histogram_stddev(sum(histogram_over_time(some_metric[interval])) by (vmrange))
 ```
 
-See also [stdvar](#stdvar) and [avg](#avg).
+See also:
+
+- [stdvar](#stdvar)
+- [avg](#avg)
+- [quantiles](#quantiles)
 
 ### stdvar
 
@@ -715,9 +827,13 @@ histogram_stdvar(sum(histogram_over_time(some_metric[interval])) by (vmrange))
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="stdvar aggregation" src="stream-aggregation-check-stdvar.webp">
+![stdvar aggregation](stream-aggregation-check-stdvar.webp)
 
-See also [stddev](#stddev) and [avg](#avg).
+See also:
+
+- [stddev](#stddev)
+- [avg](#avg)
+- [quantiles](#quantiles)
 
 ### sum_samples
 
@@ -732,28 +848,31 @@ sum(sum_over_time(some_metric[interval]))
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-<img alt="sum_samples aggregation" src="stream-aggregation-check-sum-samples.webp">
+![sum_samples aggregation](stream-aggregation-check-sum-samples.webp)
 
-See also [count_samples](#count_samples) and [count_series](#count_series).
+See also:
+
+- [count_samples](#count_samples)
+- [count_series](#count_series)
 
 ### total
 
 `total` generates output [counter](https://docs.victoriametrics.com/keyconcepts/#counter) by summing the input counters over the given `interval`.
 `total` makes sense only for aggregating [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
 
-The results of `total` is roughly equal to the the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `total` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
 
 ```metricsql
 sum(running_sum(increase_pure(some_counter)))
 ```
 
-`total` assumes that all the counters start from 0. For example, if the fist seen sample for new [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
+`total` assumes that all the counters start from 0. For example, if the first seen sample for new [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
 is `10`, then `total` assumes that the time series has been increased by `10`. If you need ignoring the first sample for new time series,
 then take a look at [total_prometheus](#total_prometheus).
 
 For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and the regular query:
 
-<img alt="total aggregation" src="stream-aggregation-check-total.webp">
+![total aggregation](stream-aggregation-check-total.webp)
 
 `total` is not affected by [counter resets](https://docs.victoriametrics.com/keyconcepts/#counter) -
 it continues to increase monotonically with respect to the previous value.
@@ -761,7 +880,7 @@ The counters are most often reset when the application is restarted.
 
 For example:
 
-<img alt="total aggregation counter reset" src="stream-aggregation-check-total-reset.webp">
+![total aggregation counter reset](stream-aggregation-check-total-reset.webp)
 
 The same behavior occurs when creating or deleting new series in an aggregation group -
 `total` output increases monotonically considering the values of the series set.
@@ -771,14 +890,20 @@ This changes pod name label, but the `total` accounts for such a scenario and do
 Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
 or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_interval](#staleness) option.
 
-See also [total_prometheus](#total_prometheus), [increase](#increase) and [increase_prometheus](#increase_prometheus).
+See also:
+
+- [total_prometheus](#total_prometheus)
+- [increase](#increase)
+- [increase_prometheus](#increase_prometheus)
+- [rate_sum](#rate_sum)
+- [rate_avg](#rate_avg)
 
 ### total_prometheus
 
 `total_prometheus` generates output [counter](https://docs.victoriametrics.com/keyconcepts/#counter) by summing the input counters over the given `interval`.
 `total_prometheus` makes sense only for aggregating [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
 
-The results of `total_prometheus` is roughly equal to the the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
+The results of `total_prometheus` is roughly equal to the following [MetricsQL](https://docs.victoriametrics.com/metricsql/) query:
 
 ```metricsql
 sum(running_sum(increase_prometheus(some_counter)))
@@ -794,7 +919,13 @@ The counters are most often reset when the application is restarted.
 Aggregating irregular and sporadic metrics (received from [Lambdas](https://aws.amazon.com/lambda/)
 or [Cloud Functions](https://cloud.google.com/functions)) can be controlled via [staleness_interval](#staleness) option.
 
-See also [total](#total), [increase](#increase) and [increase_prometheus](#increase_prometheus).
+See also:
+
+- [total](#total)
+- [increase](#increase)
+- [increase_prometheus](#increase_prometheus)
+- [rate_sum](#rate_sum)
+- [rate_avg](#rate_avg)
 
 ### unique_samples
 
@@ -807,7 +938,10 @@ The results of `unique_samples` is equal to the following [MetricsQL](https://do
 count(count_values_over_time(some_metric[interval]))
 ```
 
-See also [sum_samples](#sum_samples) and [count_series](#count_series).
+See also:
+
+- [sum_samples](#sum_samples)
+- [count_series](#count_series)
 
 ### quantiles
 
@@ -822,7 +956,12 @@ The results of `quantiles(phi1, ..., phiN)` is equal to the following [MetricsQL
 histogram_quantiles("quantile", phi1, ..., phiN, sum(histogram_over_time(some_metric[interval])) by (vmrange))
 ```
 
-See also [histogram_bucket](#histogram_bucket), [min](#min), [max](#max) and [avg](#avg).
+See also:
+
+- [histogram_bucket](#histogram_bucket)
+- [avg](#avg)
+- [max](#max)
+- [min](#min)
 
 
 ## Aggregating by labels
@@ -867,11 +1006,20 @@ See also [aggregation outputs](#aggregation-outputs).
 
 ## Stream aggregation config
 
-Below is the format for stream aggregation config file, which may be referred via `-remoteWrite.streamAggr.config` command-line flag
-at [vmagent](https://docs.victoriametrics.com/vmagent/) or via `-streamAggr.config` command-line flag
-at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/):
+Below is the format for stream aggregation config file, which may be referred via `-streamAggr.config` command-line flag at
+[single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/).
+At [vmagent](https://docs.victoriametrics.com/vmagent/) `-remoteWrite.streamAggr.config` command-line flag can be
+specified individually per each `-remoteWrite.url`:
 
 ```yaml
+
+  # name is an optional name of the given streaming aggregation config.
+  #
+  # If it is set, then it is used as `name` label in the exposed metrics
+  # for the given aggregation config at /metrics page.
+  # See https://docs.victoriametrics.com/vmagent/#monitoring and https://docs.victoriametrics.com/#monitoring
+- name: 'foobar'
+
   # match is an optional filter for incoming samples to aggregate.
   # It can contain arbitrary Prometheus series selector
   # according to https://docs.victoriametrics.com/keyconcepts/#filtering .
@@ -880,7 +1028,7 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-
   # match also can contain a list of series selectors. Then the incoming samples are aggregated
   # if they match at least a single series selector.
   #
-- match: 'http_request_duration_seconds_bucket{env=~"prod|staging"}'
+  match: 'http_request_duration_seconds_bucket{env=~"prod|staging"}'
 
   # interval is the interval for the aggregation.
   # The aggregated stats is sent to remote storage once per interval.
@@ -898,11 +1046,13 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-
 
   # staleness_interval is an optional interval for resetting the per-series state if no new samples
   # are received during this interval for the following outputs:
-  # - total
-  # - total_prometheus
+  # - histogram_bucket
   # - increase
   # - increase_prometheus
-  # - histogram_bucket
+  # - rate_avg
+  # - rate_sum
+  # - total
+  # - total_prometheus
   # See https://docs.victoriametrics.com/stream-aggregation/#staleness for more details.
   #
   # staleness_interval: 2m
@@ -924,20 +1074,21 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-
   # without is an optional list of labels, which must be removed from the output aggregation.
   # See https://docs.victoriametrics.com/stream-aggregation/#aggregating-by-labels
   #
-  without: [instance]
+  # without: [instance]
 
   # by is an optional list of labels, which must be preserved in the output aggregation.
   # See https://docs.victoriametrics.com/stream-aggregation/#aggregating-by-labels
   #
   # by: [job, vmrange]
 
-  # outputs is the list of aggregations to perform on the input data.
+  # outputs is the list of unique aggregations to perform on the input data.
   # See https://docs.victoriametrics.com/stream-aggregation/#aggregation-outputs
   #
   outputs: [total]
 
   # keep_metric_names instructs keeping the original metric names for the aggregated samples.
-  # This option can be set only if outputs list contains only a single output.
+  # This option can't be enabled together with `-streamAggr.keepInput` or `-remoteWrite.streamAggr.keepInput`.
+  # This option can be set only if outputs list contains a single output.
   # By default, a special suffix is added to original metric names in the aggregated samples.
   # See https://docs.victoriametrics.com/stream-aggregation/#output-metric-names
   #
@@ -945,15 +1096,15 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-
 
   # ignore_old_samples instructs ignoring input samples with old timestamps outside the current aggregation interval.
   # See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples
-  # See also -streamAggr.ignoreOldSamples command-line flag.
+  # See also -remoteWrite.streamAggr.ignoreOldSamples and -streamAggr.ignoreOldSamples command-line flag.
   #
   # ignore_old_samples: false
 
-  # ignore_first_intervals instructs ignoring first N aggregation intervals after process start.
+  # ignore_first_intervals instructs ignoring the first N aggregation intervals after process start.
   # See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start
-  # See also -remoteWrite.streamAggr.ignoreFirstIntervals or -streamAggr.ignoreFirstIntervals
+  # See also -remoteWrite.streamAggr.ignoreFirstIntervals and -streamAggr.ignoreFirstIntervals command-line flags.
   #
-  # ignore_first_intervals: false
+  # ignore_first_intervals: N
 
   # drop_input_labels instructs dropping the given labels from input samples.
   # The labels' dropping is performed before input_relabel_configs are applied.
@@ -1007,11 +1158,13 @@ support the following approaches for hot reloading stream aggregation configs fr
 
 The following outputs track the last seen per-series values in order to properly calculate output values:
 
-- [total](#total)
-- [total_prometheus](#total_prometheus)
+- [histogram_bucket](#histogram_bucket)
 - [increase](#increase)
 - [increase_prometheus](#increase_prometheus)
-- [histogram_bucket](#histogram_bucket)
+- [rate_avg](#rate_avg)
+- [rate_sum](#rate_sum)
+- [total](#total)
+- [total_prometheus](#total_prometheus)
 
 The last seen per-series value is dropped if no new samples are received for the given time series during two consecutive aggregation
 intervals specified in [stream aggregation config](#stream-aggregation-config) via `interval` option.
@@ -1022,7 +1175,7 @@ This may lead to the following issues:
   since they ignore the first sample in a new time series.
 - Unexpected spikes for [total](#total) and [increase](#increase) outputs, since they assume that new time series start from 0.
 
-These issues can be be fixed in the following ways:
+These issues can be fixed in the following ways:
 
 - By increasing the `interval` option at [stream aggregation config](#stream-aggregation-config), so it covers the expected
   delays in data ingestion pipelines.
@@ -1042,7 +1195,7 @@ The following solutions can help reducing memory usage and CPU usage durting str
 ### Cluster mode
 
 If you use [vmagent in cluster mode](https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets) for streaming aggregation
-then be careful when using [`by` or `without` options](#aggregating-by-labels) or when modfying sample labels
+then be careful when using [`by` or `without` options](#aggregating-by-labels) or when modifying sample labels
 via [relabeling](#relabeling), since incorrect usage may result in duplicates and data collision.
 
 For example, if more than one `vmagent` instance calculates [increase](#increase) for `http_requests_total` metric

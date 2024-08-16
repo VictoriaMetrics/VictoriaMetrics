@@ -14,18 +14,31 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets. Retrieves the policy
-// status for an Amazon S3 bucket, indicating whether the bucket is public. In
-// order to use this operation, you must have the s3:GetBucketPolicyStatus
-// permission. For more information about Amazon S3 permissions, see Specifying
-// Permissions in a Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html)
-// . For more information about when Amazon S3 considers a bucket public, see The
-// Meaning of "Public" (https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html#access-control-block-public-access-policy-status)
-// . The following operations are related to GetBucketPolicyStatus :
-//   - Using Amazon S3 Block Public Access (https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html)
-//   - GetPublicAccessBlock (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetPublicAccessBlock.html)
-//   - PutPublicAccessBlock (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutPublicAccessBlock.html)
-//   - DeletePublicAccessBlock (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeletePublicAccessBlock.html)
+// This operation is not supported by directory buckets.
+//
+// Retrieves the policy status for an Amazon S3 bucket, indicating whether the
+// bucket is public. In order to use this operation, you must have the
+// s3:GetBucketPolicyStatus permission. For more information about Amazon S3
+// permissions, see [Specifying Permissions in a Policy].
+//
+// For more information about when Amazon S3 considers a bucket public, see [The Meaning of "Public"].
+//
+// The following operations are related to GetBucketPolicyStatus :
+//
+// [Using Amazon S3 Block Public Access]
+//
+// [GetPublicAccessBlock]
+//
+// [PutPublicAccessBlock]
+//
+// [DeletePublicAccessBlock]
+//
+// [GetPublicAccessBlock]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetPublicAccessBlock.html
+// [PutPublicAccessBlock]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutPublicAccessBlock.html
+// [DeletePublicAccessBlock]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeletePublicAccessBlock.html
+// [Using Amazon S3 Block Public Access]: https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html
+// [Specifying Permissions in a Policy]: https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html
+// [The Meaning of "Public"]: https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html#access-control-block-public-access-policy-status
 func (c *Client) GetBucketPolicyStatus(ctx context.Context, params *GetBucketPolicyStatusInput, optFns ...func(*Options)) (*GetBucketPolicyStatusOutput, error) {
 	if params == nil {
 		params = &GetBucketPolicyStatusInput{}
@@ -57,6 +70,7 @@ type GetBucketPolicyStatusInput struct {
 }
 
 func (in *GetBucketPolicyStatusInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
@@ -128,6 +142,15 @@ func (c *Client) addOperationGetBucketPolicyStatusMiddlewares(stack *middleware.
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpGetBucketPolicyStatusValidationMiddleware(stack); err != nil {

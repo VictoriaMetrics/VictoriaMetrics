@@ -95,7 +95,7 @@ func metricWithLabels(t *testing.T, labels ...string) datasource.Metric {
 	return m
 }
 
-func toPromLabels(t *testing.T, labels ...string) []prompbmarshal.Label {
+func toPromLabels(t testing.TB, labels ...string) []prompbmarshal.Label {
 	t.Helper()
 	if len(labels) == 0 || len(labels)%2 != 0 {
 		t.Fatalf("expected to get even number of labels")

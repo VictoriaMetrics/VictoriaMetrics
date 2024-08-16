@@ -225,10 +225,10 @@ At each namespace operator must have a set of required permissions, an example c
 By default, operator creates [VMServiceScrape](./resources/vmservicescrape.md) 
 object for each component that it manages.
 
-You can disable this behaviour with `VM_DASABLESELFSERVICASCRAPECREATION` environment variable:
+You can disable this behaviour with `VM_DISABLESELFSERVICESCRAPECREATION` environment variable:
 
 ```shell
-VM_DASABLESELFSERVICASCRAPECREATION=false
+VM_DISABLESELFSERVICESCRAPECREATION=false
 ```
 
 Also, you can override default configuration for self-scraping with `ServiceScrapeSpec` field in each deployable resource 
@@ -267,4 +267,3 @@ kustomize build config/deployments/webhook/
 ### Useful links
 
 - [k8s admission webhooks](https://banzaicloud.com/blog/k8s-admission-webhooks/)
-- [olm webhooks](https://docs.openshift.com/container-platform/4.5/operators/user/olm-webhooks.html)

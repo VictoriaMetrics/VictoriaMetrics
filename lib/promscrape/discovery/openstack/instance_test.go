@@ -8,159 +8,133 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
-func Test_addInstanceLabels(t *testing.T) {
-	type args struct {
-		servers []server
-		port    int
+func TestAddInstanceLabels(t *testing.T) {
+	f := func(servers []server, labelssExpected []*promutils.Labels) {
+		t.Helper()
+
+		labelss := addInstanceLabels(servers, 9100)
+		discoveryutils.TestEqualLabelss(t, labelss, labelssExpected)
 	}
-	tests := []struct {
-		name string
-		args args
-		want []*promutils.Labels
-	}{
+
+	// empty response
+	f(nil, nil)
+
+	// one server
+	servers := []server{
 		{
-			name: "empty_response",
-			args: args{
-				port: 9100,
+			ID:       "10",
+			Status:   "enabled",
+			Name:     "server-1",
+			HostID:   "some-host-id",
+			TenantID: "some-tenant-id",
+			UserID:   "some-user-id",
+			Flavor: serverFlavor{
+				ID: "5",
 			},
-		},
-		{
-			name: "one_server",
-			args: args{
-				port: 9100,
-				servers: []server{
+			Addresses: map[string][]serverAddress{
+				"test": {
 					{
-						ID:       "10",
-						Status:   "enabled",
-						Name:     "server-1",
-						HostID:   "some-host-id",
-						TenantID: "some-tenant-id",
-						UserID:   "some-user-id",
-						Flavor: struct {
-							ID string `json:"id"`
-						}{ID: "5"},
-						Addresses: map[string][]struct {
-							Address string `json:"addr"`
-							Version int    `json:"version"`
-							Type    string `json:"OS-EXT-IPS:type"`
-						}{
-							"test": {
-								{
-									Address: "192.168.0.1",
-									Version: 4,
-									Type:    "fixed",
-								},
-							},
-						},
+						Address: "192.168.0.1",
+						Version: 4,
+						Type:    "fixed",
 					},
 				},
 			},
-			want: []*promutils.Labels{
-				promutils.NewLabelsFromMap(map[string]string{
-					"__address__":                      "192.168.0.1:9100",
-					"__meta_openstack_address_pool":    "test",
-					"__meta_openstack_instance_flavor": "5",
-					"__meta_openstack_instance_id":     "10",
-					"__meta_openstack_instance_name":   "server-1",
-					"__meta_openstack_instance_status": "enabled",
-					"__meta_openstack_private_ip":      "192.168.0.1",
-					"__meta_openstack_project_id":      "some-tenant-id",
-					"__meta_openstack_user_id":         "some-user-id",
-				}),
-			},
 		},
+	}
+	labelssExpected := []*promutils.Labels{
+		promutils.NewLabelsFromMap(map[string]string{
+			"__address__":                      "192.168.0.1:9100",
+			"__meta_openstack_address_pool":    "test",
+			"__meta_openstack_instance_flavor": "5",
+			"__meta_openstack_instance_id":     "10",
+			"__meta_openstack_instance_name":   "server-1",
+			"__meta_openstack_instance_status": "enabled",
+			"__meta_openstack_private_ip":      "192.168.0.1",
+			"__meta_openstack_project_id":      "some-tenant-id",
+			"__meta_openstack_user_id":         "some-user-id",
+		}),
+	}
+	f(servers, labelssExpected)
+
+	// with public ip
+	servers = []server{
 		{
-			name: "with_public_ip",
-			args: args{
-				port: 9100,
-				servers: []server{
+			ID:       "10",
+			Status:   "enabled",
+			Name:     "server-2",
+			HostID:   "some-host-id",
+			TenantID: "some-tenant-id",
+			UserID:   "some-user-id",
+			Flavor: serverFlavor{
+				ID: "5",
+			},
+			Addresses: map[string][]serverAddress{
+				"test": {
 					{
-						ID:       "10",
-						Status:   "enabled",
-						Name:     "server-2",
-						HostID:   "some-host-id",
-						TenantID: "some-tenant-id",
-						UserID:   "some-user-id",
-						Flavor: struct {
-							ID string `json:"id"`
-						}{ID: "5"},
-						Addresses: map[string][]struct {
-							Address string `json:"addr"`
-							Version int    `json:"version"`
-							Type    string `json:"OS-EXT-IPS:type"`
-						}{
-							"test": {
-								{
-									Address: "192.168.0.1",
-									Version: 4,
-									Type:    "fixed",
-								},
-								{
-									Address: "1.5.5.5",
-									Version: 4,
-									Type:    "floating",
-								},
-							},
-							"internal": {
-								{
-									Address: "10.10.0.1",
-									Version: 4,
-									Type:    "fixed",
-								},
-							},
-						},
+						Address: "192.168.0.1",
+						Version: 4,
+						Type:    "fixed",
+					},
+					{
+						Address: "1.5.5.5",
+						Version: 4,
+						Type:    "floating",
+					},
+				},
+				"internal": {
+					{
+						Address: "10.10.0.1",
+						Version: 4,
+						Type:    "fixed",
 					},
 				},
 			},
-			want: []*promutils.Labels{
-				promutils.NewLabelsFromMap(map[string]string{
-					"__address__":                      "10.10.0.1:9100",
-					"__meta_openstack_address_pool":    "internal",
-					"__meta_openstack_instance_flavor": "5",
-					"__meta_openstack_instance_id":     "10",
-					"__meta_openstack_instance_name":   "server-2",
-					"__meta_openstack_instance_status": "enabled",
-					"__meta_openstack_private_ip":      "10.10.0.1",
-					"__meta_openstack_project_id":      "some-tenant-id",
-					"__meta_openstack_user_id":         "some-user-id",
-				}),
-				promutils.NewLabelsFromMap(map[string]string{
-					"__address__":                      "192.168.0.1:9100",
-					"__meta_openstack_address_pool":    "test",
-					"__meta_openstack_instance_flavor": "5",
-					"__meta_openstack_instance_id":     "10",
-					"__meta_openstack_instance_name":   "server-2",
-					"__meta_openstack_instance_status": "enabled",
-					"__meta_openstack_private_ip":      "192.168.0.1",
-					"__meta_openstack_public_ip":       "1.5.5.5",
-					"__meta_openstack_project_id":      "some-tenant-id",
-					"__meta_openstack_user_id":         "some-user-id",
-				}),
-			},
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := addInstanceLabels(tt.args.servers, tt.args.port)
-			discoveryutils.TestEqualLabelss(t, got, tt.want)
-		})
+	labelssExpected = []*promutils.Labels{
+		promutils.NewLabelsFromMap(map[string]string{
+			"__address__":                      "10.10.0.1:9100",
+			"__meta_openstack_address_pool":    "internal",
+			"__meta_openstack_instance_flavor": "5",
+			"__meta_openstack_instance_id":     "10",
+			"__meta_openstack_instance_name":   "server-2",
+			"__meta_openstack_instance_status": "enabled",
+			"__meta_openstack_private_ip":      "10.10.0.1",
+			"__meta_openstack_project_id":      "some-tenant-id",
+			"__meta_openstack_user_id":         "some-user-id",
+		}),
+		promutils.NewLabelsFromMap(map[string]string{
+			"__address__":                      "192.168.0.1:9100",
+			"__meta_openstack_address_pool":    "test",
+			"__meta_openstack_instance_flavor": "5",
+			"__meta_openstack_instance_id":     "10",
+			"__meta_openstack_instance_name":   "server-2",
+			"__meta_openstack_instance_status": "enabled",
+			"__meta_openstack_private_ip":      "192.168.0.1",
+			"__meta_openstack_public_ip":       "1.5.5.5",
+			"__meta_openstack_project_id":      "some-tenant-id",
+			"__meta_openstack_user_id":         "some-user-id",
+		}),
 	}
+	f(servers, labelssExpected)
 }
 
-func Test_parseServersDetail(t *testing.T) {
-	type args struct {
-		data []byte
+func TestParseServersDetail(t *testing.T) {
+	f := func(data string, resultExpected *serversDetail) {
+		t.Helper()
+
+		result, err := parseServersDetail([]byte(data))
+		if err != nil {
+			t.Fatalf("parseServersDetail() error: %s", err)
+		}
+		if !reflect.DeepEqual(result, resultExpected) {
+			t.Fatalf("unexpected result\ngot\n%v\nwant\n%v", result, resultExpected)
+		}
 	}
-	tests := []struct {
-		name    string
-		args    args
-		want    serversDetail
-		wantErr bool
-	}{
-		{
-			name: "parse ok",
-			args: args{
-				data: []byte(`{
+
+	// parse ok
+	data := `{
    "servers":[
       {
          "id":"c9f68076-01a3-489a-aebe-8b773c71e7f3",
@@ -210,54 +184,36 @@ func Test_parseServersDetail(t *testing.T) {
          ]
       }
    ]
-}`),
-			},
-			want: serversDetail{
-				Servers: []server{
-					{
-						Flavor: struct {
-							ID string `json:"id"`
-						}{ID: "1"},
-						ID:       "c9f68076-01a3-489a-aebe-8b773c71e7f3",
-						TenantID: "d34be4e44f9c444eab9a5ec7b953951f",
-						UserID:   "e55737f142ac42f18093037760656bd7",
-						Name:     "test10",
-						HostID:   "e26db8db23736877aa92ebbbe11743b2a2a3b107aada00a8a0cf474b",
-						Status:   "ACTIVE",
-						Metadata: map[string]string{},
-						Addresses: map[string][]struct {
-							Address string `json:"addr"`
-							Version int    `json:"version"`
-							Type    string `json:"OS-EXT-IPS:type"`
-						}{
-							"test": {
-								{
-									Address: "192.168.222.15",
-									Version: 4,
-									Type:    "fixed",
-								},
-								{
-									Address: "10.20.20.69",
-									Version: 4,
-									Type:    "floating",
-								},
-							},
+}`
+	resultExpected := &serversDetail{
+		Servers: []server{
+			{
+				Flavor: serverFlavor{
+					ID: "1",
+				},
+				ID:       "c9f68076-01a3-489a-aebe-8b773c71e7f3",
+				TenantID: "d34be4e44f9c444eab9a5ec7b953951f",
+				UserID:   "e55737f142ac42f18093037760656bd7",
+				Name:     "test10",
+				HostID:   "e26db8db23736877aa92ebbbe11743b2a2a3b107aada00a8a0cf474b",
+				Status:   "ACTIVE",
+				Metadata: map[string]string{},
+				Addresses: map[string][]serverAddress{
+					"test": {
+						{
+							Address: "192.168.222.15",
+							Version: 4,
+							Type:    "fixed",
+						},
+						{
+							Address: "10.20.20.69",
+							Version: 4,
+							Type:    "floating",
 						},
 					},
 				},
 			},
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseServersDetail(tt.args.data)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("parseServersDetail() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !tt.wantErr && !reflect.DeepEqual(*got, tt.want) {
-				t.Errorf("parseServersDetail() \ngot = %v,\nwant= %v", *got, tt.want)
-			}
-		})
-	}
+	f(data, resultExpected)
 }

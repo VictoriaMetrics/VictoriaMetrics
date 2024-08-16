@@ -1,15 +1,13 @@
 ---
-sort: 12
 weight: 12
 menu:
   docs:
-    parent: 'victoriametrics'
+    parent: victoriametrics
     weight: 12
 title: vmalert-tool
+aliases:
+  - /vmalert-tool.html
 ---
-
-# vmalert-tool
-
 VMAlert command-line tool
 
 ## Unit testing for rules
@@ -24,8 +22,9 @@ It will perform the following actions:
 See how to run vmalert-tool for unit test below:
 
 ```
-# Run vmalert-tool with one or multiple test files via --files cmd-line flag
-./vmalert-tool unittest --files test1.yaml --files test2.yaml
+# Run vmalert-tool with one or multiple test files via `--files` cmd-line flag
+# Supports file path with hierarchical patterns and regexpes, and http url.
+./vmalert-tool unittest --files /path/to/file --files http://<some-server-addr>/path/to/test.yaml
 ```
 
 vmalert-tool unittest is compatible with [Prometheus config format for tests](https://prometheus.io/docs/prometheus/latest/configuration/unit_testing_rules/#test-file-format)
@@ -216,10 +215,10 @@ tests:
         values: "0+0x1440"
 
     metricsql_expr_test:
-      - expr: suquery_interval_test
+      - expr: subquery_interval_test
         eval_time: 4m
         exp_samples:
-          - labels: '{__name__="suquery_interval_test", datacenter="dc-123", instance="localhost:9090", job="prometheus"}'
+          - labels: '{__name__="subquery_interval_test", datacenter="dc-123", instance="localhost:9090", job="prometheus"}'
             value: 1
 
     alert_rule_test:
@@ -275,6 +274,6 @@ groups:
     rules:
       - record: job:test:count_over_time1m
         expr: sum without(instance) (count_over_time(test[1m]))
-      - record: suquery_interval_test
+      - record: subquery_interval_test
         expr: count_over_time(up[5m:])
 ```

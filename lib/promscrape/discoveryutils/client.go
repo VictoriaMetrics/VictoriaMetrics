@@ -95,7 +95,7 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 		return nil, fmt.Errorf("cannot parse apiServer=%q: %w", apiServer, err)
 	}
 
-	dialFunc := netutil.DialMaybeSRV
+	dialFunc := netutil.NewStatDialFunc("vm_promscrape_discovery")
 	if u.Scheme == "unix" {
 		// special case for unix socket connection
 		dialAddr := u.Path

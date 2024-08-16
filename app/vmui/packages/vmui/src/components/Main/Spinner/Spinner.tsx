@@ -1,4 +1,5 @@
-import React, { CSSProperties, FC } from "preact/compat";
+import React, { FC } from "preact/compat";
+import { CSSProperties } from "react";
 import "./style.scss";
 import classNames from "classnames";
 import { useAppState } from "../../../state/common/StateContext";
@@ -8,7 +9,7 @@ interface SpinnerProps {
   message?: string
 }
 
-const Spinner: FC<SpinnerProps> = ({ containerStyles = {}, message }) => {
+const Spinner: FC<SpinnerProps> = ({ containerStyles, message }) => {
   const { isDarkTheme } = useAppState();
 
   return (
@@ -17,7 +18,7 @@ const Spinner: FC<SpinnerProps> = ({ containerStyles = {}, message }) => {
         "vm-spinner": true,
         "vm-spinner_dark": isDarkTheme,
       })}
-      style={containerStyles && {}}
+      style={containerStyles}
     >
       <div className="half-circle-spinner">
         <div className="circle circle-1"></div>

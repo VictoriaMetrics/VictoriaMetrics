@@ -17,6 +17,7 @@ GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TA
 .PHONY: $(MAKECMDGOALS)
 
 include app/*/Makefile
+include cspell/Makefile
 include docs/Makefile
 include deployment/*/Makefile
 include dashboards/Makefile
@@ -179,6 +180,8 @@ vet:
 
 check-all: fmt vet golangci-lint govulncheck
 
+clean-checkers: remove-golangci-lint remove-govulncheck
+
 test:
 	go test ./lib/... ./app/...
 
@@ -205,7 +208,7 @@ benchmark-pure:
 vendor-update:
 	go get -u -d ./lib/...
 	go get -u -d ./app/...
-	go mod tidy -compat=1.21
+	go mod tidy -compat=1.22
 	go mod vendor
 
 app-local:
@@ -231,7 +234,10 @@ golangci-lint: install-golangci-lint
 	golangci-lint run
 
 install-golangci-lint:
-	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.57.1
+	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.59.1
+
+remove-golangci-lint:
+	rm -rf `which golangci-lint`
 
 govulncheck: install-govulncheck
 	govulncheck ./...
@@ -239,37 +245,11 @@ govulncheck: install-govulncheck
 install-govulncheck:
 	which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest
 
+remove-govulncheck:
+	rm -rf `which govulncheck`
+
 install-wwhrd:
 	which wwhrd || go install github.com/frapposelli/wwhrd@latest
 
 check-licenses: install-wwhrd
 	wwhrd check -f .wwhrd.yml
-
-copy-docs:
-# The 'printf' function is used instead of 'echo' or 'echo -e' to handle line breaks (e.g. '\n') in the same way on different operating systems (MacOS/Ubuntu Linux/Arch Linux) and their shells (bash/sh/zsh/fish).
-# For details, see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4548#issue-1782796419 and https://stackoverflow.com/questions/8467424/echo-newline-in-bash-prints-literal-n
-	echo "---" > ${DST}
-	@if [ ${ORDER} -ne 0 ]; then \
-		echo "sort: ${ORDER}" >> ${DST}; \
-		echo "weight: ${ORDER}" >> ${DST}; \
-		printf "menu:\n  docs:\n    parent: 'victoriametrics'\n    weight: ${ORDER}\n" >> ${DST}; \
-	fi
-
-	echo "title: ${TITLE}" >> ${DST}
-	@if [ ${OLD_URL} ]; then \
-		printf "aliases:\n  - ${OLD_URL}\n" >> ${DST}; \
-	fi
-	echo "---" >> ${DST}
-	cat ${SRC} >> ${DST}
-	sed -i='.tmp' 's/<img src=\"docs\//<img src=\"/' ${DST}
-	rm -rf docs/*.tmp
-
-# Copies docs for all components and adds the order/weight tag, title, menu position and alias with the backward compatible link for the old site.
-# For ORDER=0 it adds no order tag/weight tag.
-# FOR OLD_URL - relative link, used for backward compatibility with the link from documentation based on GitHub pages (old one)
-# FOR OLD_URL='' it adds no alias, it should be empty for every new page, don't change it for already existing links.
-# Images starting with <img src="docs/ are replaced with <img src="
-# Cluster docs are supposed to be ordered as 2nd.
-# The rest of docs is ordered manually.
-docs-sync:
-	SRC=README.md DST=docs/Cluster-VictoriaMetrics.md OLD_URL='/Cluster-VictoriaMetrics.html' ORDER=2 TITLE='Cluster version' $(MAKE) copy-docs

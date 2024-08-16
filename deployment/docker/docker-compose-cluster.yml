@@ -1,11 +1,10 @@
-version: '3.5'
 services:
   #  Metrics collector.
   #  It scrapes targets defined in --promscrape.config
   #  And forward them to --remoteWrite.url
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:v1.100.1
+    image: victoriametrics/vmagent:v1.102.1
     depends_on:
       - "vminsert"
     ports:
@@ -21,7 +20,7 @@ services:
   # Grafana instance configured with VictoriaMetrics as datasource
   grafana:
     container_name: grafana
-    image: grafana/grafana:10.3.1
+    image: grafana/grafana:10.4.2
     depends_on:
       - "vmauth"
     ports:
@@ -34,12 +33,13 @@ services:
       - ./../../dashboards/victoriametrics-cluster.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
       - ./../../dashboards/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
+      - ./../../dashboards/vmauth.json:/var/lib/grafana/dashboards/vmauth.json
 
   # vmstorage shards. Each shard receives 1/N of all metrics sent to vminserts,
   # where N is number of vmstorages (2 in this case).
   vmstorage-1:
     container_name: vmstorage-1
-    image: victoriametrics/vmstorage:v1.100.1-cluster
+    image: victoriametrics/vmstorage:v1.102.1-cluster
     ports:
       - 8482
       - 8400
@@ -51,7 +51,7 @@ services:
     restart: always
   vmstorage-2:
     container_name: vmstorage-2
-    image: victoriametrics/vmstorage:v1.100.1-cluster
+    image: victoriametrics/vmstorage:v1.102.1-cluster
     ports:
       - 8482
       - 8400
@@ -66,7 +66,7 @@ services:
   # pre-process them and distributes across configured vmstorage shards.
   vminsert:
     container_name: vminsert
-    image: victoriametrics/vminsert:v1.100.1-cluster
+    image: victoriametrics/vminsert:v1.102.1-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -81,7 +81,7 @@ services:
   # vmselect collects results from configured `--storageNode` shards.
   vmselect-1:
     container_name: vmselect-1
-    image: victoriametrics/vmselect:v1.100.1-cluster
+    image: victoriametrics/vmselect:v1.102.1-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -94,7 +94,7 @@ services:
     restart: always
   vmselect-2:
     container_name: vmselect-2
-    image: victoriametrics/vmselect:v1.100.1-cluster
+    image: victoriametrics/vmselect:v1.102.1-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -112,7 +112,7 @@ services:
   # It can be used as an authentication proxy.
   vmauth:
     container_name: vmauth
-    image: victoriametrics/vmauth:v1.100.1
+    image: victoriametrics/vmauth:v1.102.1
     depends_on:
       - "vmselect-1"
       - "vmselect-2"
@@ -127,7 +127,7 @@ services:
   # vmalert executes alerting and recording rules
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.100.1
+    image: victoriametrics/vmalert:v1.102.1
     depends_on:
       - "vmauth"
     ports:
@@ -145,8 +145,7 @@ services:
       - '--rule=/etc/alerts/*.yml'
       # display source of alerts in grafana
       - '-external.url=http://127.0.0.1:3000' #grafana outside container
-      # when copypaste the line below be aware of '$$' for escaping in '$expr'
-      - '--external.alert.source=explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{$$expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"now-1h","to":"now"}}'
+      - '--external.alert.source=explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{.Expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"{{ .ActiveAt.UnixMilli }}","to":"now"}}'
     restart: always
 
   # alertmanager receives alerting notifications from vmalert

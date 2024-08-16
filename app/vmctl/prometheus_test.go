@@ -23,8 +23,11 @@ const (
 )
 
 // This test simulates close process if user abort it
-func Test_prometheusProcessor_run(t *testing.T) {
+func TestPrometheusProcessorRun(t *testing.T) {
 	t.Skip()
+
+	defer func() { isSilent = false }()
+
 	type fields struct {
 		cfg    prometheus.Config
 		vmCfg  vm.Config
@@ -117,11 +120,12 @@ func Test_prometheusProcessor_run(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client := tt.fields.cl(tt.fields.cfg)
 			importer := tt.fields.im(tt.fields.vmCfg)
-
+			isSilent = tt.args.silent
 			pp := &prometheusProcessor{
-				cl: client,
-				im: importer,
-				cc: tt.fields.cc,
+				cl:        client,
+				im:        importer,
+				cc:        tt.fields.cc,
+				isVerbose: tt.args.verbose,
 			}
 
 			// we should answer on prompt
@@ -135,11 +139,11 @@ func Test_prometheusProcessor_run(t *testing.T) {
 
 				_, err = w.Write(input)
 				if err != nil {
-					t.Error(err)
+					t.Fatalf("cannot send 'Y' to importer: %s", err)
 				}
 				err = w.Close()
 				if err != nil {
-					t.Error(err)
+					t.Fatalf("cannot close writer: %s", err)
 				}
 
 				stdin := os.Stdin
@@ -147,7 +151,6 @@ func Test_prometheusProcessor_run(t *testing.T) {
 				defer func() {
 					os.Stdin = stdin
 					_ = r.Close()
-					_ = w.Close()
 				}()
 				os.Stdin = r
 			}
@@ -157,8 +160,8 @@ func Test_prometheusProcessor_run(t *testing.T) {
 				go tt.fields.closer(importer)
 			}
 
-			if err := pp.run(tt.args.silent, tt.args.verbose); (err != nil) != tt.wantErr {
-				t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)
+			if err := pp.run(); (err != nil) != tt.wantErr {
+				t.Fatalf("run() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

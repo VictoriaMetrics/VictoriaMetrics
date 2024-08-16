@@ -15,30 +15,41 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets. This action uses the
-// encryption subresource to configure default encryption and Amazon S3 Bucket Keys
-// for an existing bucket. By default, all buckets have a default encryption
-// configuration that uses server-side encryption with Amazon S3 managed keys
-// (SSE-S3). You can optionally configure default encryption for a bucket by using
-// server-side encryption with Key Management Service (KMS) keys (SSE-KMS) or
-// dual-layer server-side encryption with Amazon Web Services KMS keys (DSSE-KMS).
-// If you specify default encryption by using SSE-KMS, you can also configure
-// Amazon S3 Bucket Keys (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-key.html)
-// . If you use PutBucketEncryption to set your default bucket encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html)
-// to SSE-KMS, you should verify that your KMS key ID is correct. Amazon S3 does
-// not validate the KMS key ID provided in PutBucketEncryption requests. This
-// action requires Amazon Web Services Signature Version 4. For more information,
-// see Authenticating Requests (Amazon Web Services Signature Version 4) (https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html)
-// . To use this operation, you must have permission to perform the
+// This operation is not supported by directory buckets.
+//
+// This action uses the encryption subresource to configure default encryption and
+// Amazon S3 Bucket Keys for an existing bucket.
+//
+// By default, all buckets have a default encryption configuration that uses
+// server-side encryption with Amazon S3 managed keys (SSE-S3). You can optionally
+// configure default encryption for a bucket by using server-side encryption with
+// Key Management Service (KMS) keys (SSE-KMS) or dual-layer server-side encryption
+// with Amazon Web Services KMS keys (DSSE-KMS). If you specify default encryption
+// by using SSE-KMS, you can also configure [Amazon S3 Bucket Keys]. If you use PutBucketEncryption to
+// set your [default bucket encryption]to SSE-KMS, you should verify that your KMS key ID is correct. Amazon
+// S3 does not validate the KMS key ID provided in PutBucketEncryption requests.
+//
+// This action requires Amazon Web Services Signature Version 4. For more
+// information, see [Authenticating Requests (Amazon Web Services Signature Version 4)].
+//
+// To use this operation, you must have permission to perform the
 // s3:PutEncryptionConfiguration action. The bucket owner has this permission by
 // default. The bucket owner can grant this permission to others. For more
-// information about permissions, see Permissions Related to Bucket Subresource
-// Operations (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
-// and Managing Access Permissions to Your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
-// in the Amazon S3 User Guide. The following operations are related to
-// PutBucketEncryption :
-//   - GetBucketEncryption (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketEncryption.html)
-//   - DeleteBucketEncryption (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketEncryption.html)
+// information about permissions, see [Permissions Related to Bucket Subresource Operations]and [Managing Access Permissions to Your Amazon S3 Resources] in the Amazon S3 User Guide.
+//
+// The following operations are related to PutBucketEncryption :
+//
+// [GetBucketEncryption]
+//
+// [DeleteBucketEncryption]
+//
+// [Amazon S3 Bucket Keys]: https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-key.html
+// [GetBucketEncryption]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketEncryption.html
+// [DeleteBucketEncryption]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketEncryption.html
+// [Permissions Related to Bucket Subresource Operations]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources
+// [default bucket encryption]: https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html
+// [Managing Access Permissions to Your Amazon S3 Resources]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html
+// [Authenticating Requests (Amazon Web Services Signature Version 4)]: https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html
 func (c *Client) PutBucketEncryption(ctx context.Context, params *PutBucketEncryptionInput, optFns ...func(*Options)) (*PutBucketEncryptionOutput, error) {
 	if params == nil {
 		params = &PutBucketEncryptionInput{}
@@ -62,8 +73,9 @@ type PutBucketEncryptionInput struct {
 	// (SSE-S3). You can optionally configure default encryption for a bucket by using
 	// server-side encryption with an Amazon Web Services KMS key (SSE-KMS) or a
 	// customer-provided key (SSE-C). For information about the bucket default
-	// encryption feature, see Amazon S3 Bucket Default Encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html)
-	// in the Amazon S3 User Guide.
+	// encryption feature, see [Amazon S3 Bucket Default Encryption]in the Amazon S3 User Guide.
+	//
+	// [Amazon S3 Bucket Default Encryption]: https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html
 	//
 	// This member is required.
 	Bucket *string
@@ -77,16 +89,20 @@ type PutBucketEncryptionInput struct {
 	// the SDK. This header will not provide any additional functionality if you don't
 	// use the SDK. When you send this header, there must be a corresponding
 	// x-amz-checksum or x-amz-trailer header sent. Otherwise, Amazon S3 fails the
-	// request with the HTTP status code 400 Bad Request . For more information, see
-	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
-	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
-	// ignores any provided ChecksumAlgorithm parameter.
+	// request with the HTTP status code 400 Bad Request . For more information, see [Checking object integrity]
+	// in the Amazon S3 User Guide.
+	//
+	// If you provide an individual checksum, Amazon S3 ignores any provided
+	// ChecksumAlgorithm parameter.
+	//
+	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumAlgorithm types.ChecksumAlgorithm
 
 	// The base64-encoded 128-bit MD5 digest of the server-side encryption
-	// configuration. For requests made using the Amazon Web Services Command Line
-	// Interface (CLI) or Amazon Web Services SDKs, this field is calculated
-	// automatically.
+	// configuration.
+	//
+	// For requests made using the Amazon Web Services Command Line Interface (CLI) or
+	// Amazon Web Services SDKs, this field is calculated automatically.
 	ContentMD5 *string
 
 	// The account ID of the expected bucket owner. If the account ID that you provide
@@ -98,6 +114,7 @@ type PutBucketEncryptionInput struct {
 }
 
 func (in *PutBucketEncryptionInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
@@ -165,6 +182,15 @@ func (c *Client) addOperationPutBucketEncryptionMiddlewares(stack *middleware.St
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpPutBucketEncryptionValidationMiddleware(stack); err != nil {

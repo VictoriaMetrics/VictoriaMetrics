@@ -72,12 +72,14 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 	}
 
 	if *disableImplicitConversion || *logImplicitConversion {
-		complete := isSubQueryComplete(e, false)
-		if !complete && *disableImplicitConversion {
-			return nil, fmt.Errorf("query contains subquery that requires implicit conversion and is rejected according to `-search.disableImplicitConversion=true` setting. See https://docs.victoriametrics.com/metricsql/#subqueries for details")
+		isInvalid := metricsql.IsLikelyInvalid(e)
+		if isInvalid && *disableImplicitConversion {
+			// we don't add query=%q to err message as it will be added by the caller
+			return nil, fmt.Errorf("query requires implicit conversion and is rejected according to -search.disableImplicitConversion command-line flag. " +
+				"See https://docs.victoriametrics.com/metricsql/#implicit-query-conversions for details")
 		}
-		if !complete && *logImplicitConversion {
-			logger.Warnf("query=%q contains subquery that requires implicit conversion, see https://docs.victoriametrics.com/metricsql/#subqueries for details", e.AppendString(nil))
+		if isInvalid && *logImplicitConversion {
+			logger.Warnf("query=%q requires implicit conversion, see https://docs.victoriametrics.com/metricsql/#implicit-query-conversions for details", e.AppendString(nil))
 		}
 	}
 
@@ -140,7 +142,7 @@ func maySortResults(e metricsql.Expr) bool {
 			return false
 		}
 	case *metricsql.BinaryOpExpr:
-		if strings.ToLower(v.Op) == "or" {
+		if strings.EqualFold(v.Op, "or") {
 			// Do not sort results for `a or b` in the same way as Prometheus does.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4763
 			return false
@@ -421,56 +423,4 @@ func (pc *parseCache) Put(q string, pcv *parseCacheValue) {
 	}
 	pc.m[q] = pcv
 	pc.mu.Unlock()
-}
-
-// isSubQueryComplete checks if expr contains incomplete subquery
-func isSubQueryComplete(e metricsql.Expr, isSubExpr bool) bool {
-	switch exp := e.(type) {
-	case *metricsql.FuncExpr:
-		if isSubExpr {
-			return false
-		}
-		fe := e.(*metricsql.FuncExpr)
-		for _, arg := range exp.Args {
-			if getRollupFunc(fe.Name) != nil {
-				isSubExpr = true
-			}
-			if !isSubQueryComplete(arg, isSubExpr) {
-				return false
-			}
-		}
-	case *metricsql.RollupExpr:
-		if _, ok := exp.Expr.(*metricsql.MetricExpr); ok {
-			return true
-		}
-		// exp.Step is optional in subqueries
-		if exp.Window == nil {
-			return false
-		}
-		return isSubQueryComplete(exp.Expr, false)
-	case *metricsql.AggrFuncExpr:
-		if isSubExpr {
-			return false
-		}
-		for _, arg := range exp.Args {
-			if !isSubQueryComplete(arg, false) {
-				return false
-			}
-		}
-	case *metricsql.BinaryOpExpr:
-		if isSubExpr {
-			return false
-		}
-		if !isSubQueryComplete(exp.Left, false) {
-			return false
-		}
-		if !isSubQueryComplete(exp.Right, false) {
-			return false
-		}
-	case *metricsql.MetricExpr:
-		return true
-	default:
-		return true
-	}
-	return true
 }

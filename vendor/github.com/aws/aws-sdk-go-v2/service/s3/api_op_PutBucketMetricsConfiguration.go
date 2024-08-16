@@ -14,29 +14,44 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets. Sets a metrics
-// configuration (specified by the metrics configuration ID) for the bucket. You
-// can have up to 1,000 metrics configurations per bucket. If you're updating an
-// existing metrics configuration, note that this is a full replacement of the
-// existing metrics configuration. If you don't include the elements you want to
-// keep, they are erased. To use this operation, you must have permissions to
-// perform the s3:PutMetricsConfiguration action. The bucket owner has this
-// permission by default. The bucket owner can grant this permission to others. For
-// more information about permissions, see Permissions Related to Bucket
-// Subresource Operations (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
-// and Managing Access Permissions to Your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
-// . For information about CloudWatch request metrics for Amazon S3, see
-// Monitoring Metrics with Amazon CloudWatch (https://docs.aws.amazon.com/AmazonS3/latest/dev/cloudwatch-monitoring.html)
-// . The following operations are related to PutBucketMetricsConfiguration :
-//   - DeleteBucketMetricsConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketMetricsConfiguration.html)
-//   - GetBucketMetricsConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketMetricsConfiguration.html)
-//   - ListBucketMetricsConfigurations (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListBucketMetricsConfigurations.html)
+// This operation is not supported by directory buckets.
+//
+// Sets a metrics configuration (specified by the metrics configuration ID) for
+// the bucket. You can have up to 1,000 metrics configurations per bucket. If
+// you're updating an existing metrics configuration, note that this is a full
+// replacement of the existing metrics configuration. If you don't include the
+// elements you want to keep, they are erased.
+//
+// To use this operation, you must have permissions to perform the
+// s3:PutMetricsConfiguration action. The bucket owner has this permission by
+// default. The bucket owner can grant this permission to others. For more
+// information about permissions, see [Permissions Related to Bucket Subresource Operations]and [Managing Access Permissions to Your Amazon S3 Resources].
+//
+// For information about CloudWatch request metrics for Amazon S3, see [Monitoring Metrics with Amazon CloudWatch].
+//
+// The following operations are related to PutBucketMetricsConfiguration :
+//
+// [DeleteBucketMetricsConfiguration]
+//
+// [GetBucketMetricsConfiguration]
+//
+// [ListBucketMetricsConfigurations]
 //
 // PutBucketMetricsConfiguration has the following special error:
+//
 //   - Error code: TooManyConfigurations
+//
 //   - Description: You are attempting to create a new configuration but have
 //     already reached the 1,000-configuration limit.
+//
 //   - HTTP Status Code: HTTP 400 Bad Request
+//
+// [Permissions Related to Bucket Subresource Operations]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources
+// [Monitoring Metrics with Amazon CloudWatch]: https://docs.aws.amazon.com/AmazonS3/latest/dev/cloudwatch-monitoring.html
+// [GetBucketMetricsConfiguration]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketMetricsConfiguration.html
+// [ListBucketMetricsConfigurations]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListBucketMetricsConfigurations.html
+// [DeleteBucketMetricsConfiguration]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketMetricsConfiguration.html
+// [Managing Access Permissions to Your Amazon S3 Resources]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html
 func (c *Client) PutBucketMetricsConfiguration(ctx context.Context, params *PutBucketMetricsConfigurationInput, optFns ...func(*Options)) (*PutBucketMetricsConfigurationOutput, error) {
 	if params == nil {
 		params = &PutBucketMetricsConfigurationInput{}
@@ -79,6 +94,7 @@ type PutBucketMetricsConfigurationInput struct {
 }
 
 func (in *PutBucketMetricsConfigurationInput) bindEndpointParams(p *EndpointParameters) {
+
 	p.Bucket = in.Bucket
 	p.UseS3ExpressControlEndpoint = ptr.Bool(true)
 }
@@ -146,6 +162,15 @@ func (c *Client) addOperationPutBucketMetricsConfigurationMiddlewares(stack *mid
 		return err
 	}
 	if err = addPutBucketContextMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
 	if err = addOpPutBucketMetricsConfigurationValidationMiddleware(stack); err != nil {

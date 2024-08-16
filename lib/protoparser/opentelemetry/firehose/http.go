@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 // WriteSuccessResponse writes success response for AWS Firehose request.
@@ -17,7 +19,7 @@ func WriteSuccessResponse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body := fmt.Sprintf(`{"requestId":%q,"timestamp":%d}`, requestID, time.Now().UnixMilli())
+	body := fmt.Sprintf(`{"requestId":%s,"timestamp":%d}`, stringsutil.JSONString(requestID), time.Now().UnixMilli())
 
 	h := w.Header()
 	h.Set("Content-Type", "application/json")

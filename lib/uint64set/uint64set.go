@@ -6,6 +6,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"unsafe"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // Set is a fast set for uint64.
@@ -181,6 +183,10 @@ func (s *Set) Has(x uint64) bool {
 	if s == nil {
 		return false
 	}
+	return s.hasSlow(x)
+}
+
+func (s *Set) hasSlow(x uint64) bool {
 	hi32 := uint32(x >> 32)
 	lo32 := uint32(x)
 	bs := s.buckets
@@ -226,11 +232,9 @@ func (s *Set) AppendTo(dst []uint64) []uint64 {
 	}
 
 	// pre-allocate memory for dst
-	dstLen := len(dst)
-	if n := s.Len() - cap(dst) + dstLen; n > 0 {
-		dst = append(dst[:cap(dst)], make([]uint64, n)...)
-		dst = dst[:dstLen]
-	}
+	sLen := s.Len()
+	dst = slicesutil.ExtendCapacity(dst, sLen)
+
 	s.sort()
 	for i := range s.buckets {
 		dst = s.buckets[i].appendTo(dst)
@@ -535,7 +539,7 @@ func (b *bucket32) forEach(f func(part []uint64) bool) bool {
 }
 
 var partBufPool = &sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		buf := make([]uint64, 0, bitsPerBucket)
 		return &buf
 	},
@@ -948,7 +952,7 @@ func (b *bucket16) appendTo(dst []uint64, hi uint32, hi16 uint16) []uint64 {
 }
 
 var smallPoolSorterPool = &sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return &smallPoolSorter{}
 	},
 }

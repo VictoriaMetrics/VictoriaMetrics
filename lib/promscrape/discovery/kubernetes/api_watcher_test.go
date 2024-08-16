@@ -921,8 +921,8 @@ func TestGetScrapeWorkObjects(t *testing.T) {
 			}
 			testAPIServer := httptest.NewServer(mux)
 			tc.sdc.APIServer = testAPIServer.URL
-			ac, err := newAPIConfig(tc.sdc, "", func(metaLabels *promutils.Labels) interface{} {
-				var res []interface{}
+			ac, err := newAPIConfig(tc.sdc, "", func(metaLabels *promutils.Labels) any {
+				var res []any
 				for _, label := range metaLabels.Labels {
 					res = append(res, label.Name)
 				}

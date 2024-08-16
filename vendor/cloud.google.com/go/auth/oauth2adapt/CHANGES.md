@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.2.3](https://github.com/googleapis/google-cloud-go/compare/auth/oauth2adapt/v0.2.2...auth/oauth2adapt/v0.2.3) (2024-07-10)
+
+
+### Bug Fixes
+
+* **auth/oauth2adapt:** Bump google.golang.org/api@v0.187.0 ([8fa9e39](https://github.com/googleapis/google-cloud-go/commit/8fa9e398e512fd8533fd49060371e61b5725a85b))
+
+## [0.2.2](https://github.com/googleapis/google-cloud-go/compare/auth/oauth2adapt/v0.2.1...auth/oauth2adapt/v0.2.2) (2024-04-23)
+
+
+### Bug Fixes
+
+* **auth/oauth2adapt:** Bump x/net to v0.24.0 ([ba31ed5](https://github.com/googleapis/google-cloud-go/commit/ba31ed5fda2c9664f2e1cf972469295e63deb5b4))
+
+## [0.2.1](https://github.com/googleapis/google-cloud-go/compare/auth/oauth2adapt/v0.2.0...auth/oauth2adapt/v0.2.1) (2024-04-18)
+
+
+### Bug Fixes
+
+* **auth/oauth2adapt:** Adapt Token Types to be translated ([#9801](https://github.com/googleapis/google-cloud-go/issues/9801)) ([70f4115](https://github.com/googleapis/google-cloud-go/commit/70f411555ebbf2b71e6d425cc8d2030644c6b438)), refs [#9800](https://github.com/googleapis/google-cloud-go/issues/9800)
+
 ## [0.2.0](https://github.com/googleapis/google-cloud-go/compare/auth/oauth2adapt/v0.1.0...auth/oauth2adapt/v0.2.0) (2024-04-16)
 
 

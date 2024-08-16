@@ -3,12 +3,16 @@ package s3remote
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
+	"net/http"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -72,6 +76,9 @@ type FS struct {
 	// The name of S3 config profile to use.
 	ProfileName string
 
+	// Whether to use HTTP client with tls.InsecureSkipVerify setting
+	TLSInsecureSkipVerify bool
+
 	s3       *s3.Client
 	uploader *manager.Uploader
 }
@@ -92,11 +99,22 @@ func (fs *FS) Init() error {
 	configOpts := []func(*config.LoadOptions) error{
 		config.WithSharedConfigProfile(fs.ProfileName),
 		config.WithDefaultRegion("us-east-1"),
+		config.WithRetryer(func() aws.Retryer {
+			return retry.NewStandard(func(o *retry.StandardOptions) {
+				o.Backoff = retry.NewExponentialJitterBackoff(3 * time.Minute)
+				o.MaxAttempts = 10
+			})
+		}),
+	}
+
+	if len(fs.ConfigFilePath) > 0 {
+		configOpts = append(configOpts, config.WithSharedConfigFiles([]string{
+			fs.ConfigFilePath,
+		}))
 	}
 
 	if len(fs.CredsFilePath) > 0 {
-		configOpts = append(configOpts, config.WithSharedConfigFiles([]string{
-			fs.ConfigFilePath,
+		configOpts = append(configOpts, config.WithSharedCredentialsFiles([]string{
 			fs.CredsFilePath,
 		}))
 	}
@@ -112,12 +130,19 @@ func (fs *FS) Init() error {
 		return err
 	}
 
+	if fs.TLSInsecureSkipVerify {
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		cfg.HTTPClient = &http.Client{Transport: tr}
+	}
+
 	var outerErr error
 	fs.s3 = s3.NewFromConfig(cfg, func(o *s3.Options) {
 		if len(fs.CustomEndpoint) > 0 {
 			logger.Infof("Using provided custom S3 endpoint: %q", fs.CustomEndpoint)
 			o.UsePathStyle = fs.S3ForcePathStyle
-			o.EndpointResolver = s3.EndpointResolverFromURL(fs.CustomEndpoint)
+			o.BaseEndpoint = &fs.CustomEndpoint
 		} else {
 			region, err := manager.GetBucketRegion(context.Background(), s3.NewFromConfig(cfg), fs.Bucket)
 			if err != nil {
@@ -268,7 +293,7 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 
 	_, err := fs.uploader.Upload(context.Background(), input)
 	if err != nil {
-		return fmt.Errorf("cannot upoad data to %q at %s (remote path %q): %w", p.Path, fs, path, err)
+		return fmt.Errorf("cannot upload data to %q at %s (remote path %q): %w", p.Path, fs, path, err)
 	}
 	if uint64(sr.size) != p.Size {
 		return fmt.Errorf("wrong data size uploaded to %q at %s; got %d bytes; want %d bytes", p.Path, fs, sr.size, p.Size)
@@ -357,7 +382,7 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 	}
 	_, err := fs.uploader.Upload(context.Background(), input)
 	if err != nil {
-		return fmt.Errorf("cannot upoad data to %q at %s (remote path %q): %w", filePath, fs, path, err)
+		return fmt.Errorf("cannot upload data to %q at %s (remote path %q): %w", filePath, fs, path, err)
 	}
 	l := int64(len(data))
 	if sr.size != l {

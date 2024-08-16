@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // partitionSearch represents a search in the partition.
@@ -83,10 +84,7 @@ func (pts *partitionSearch) Init(pt *partition, tsids []TSID, tr TimeRange) {
 	pts.pws = pt.GetParts(pts.pws[:0], true)
 
 	// Initialize psPool.
-	if n := len(pts.pws) - cap(pts.psPool); n > 0 {
-		pts.psPool = append(pts.psPool[:cap(pts.psPool)], make([]partSearch, n)...)
-	}
-	pts.psPool = pts.psPool[:len(pts.pws)]
+	pts.psPool = slicesutil.SetLength(pts.psPool, len(pts.pws))
 	for i, pw := range pts.pws {
 		pts.psPool[i].Init(pw.p, tsids, tr)
 	}
@@ -192,11 +190,11 @@ func (psh *partSearchHeap) Swap(i, j int) {
 	x[i], x[j] = x[j], x[i]
 }
 
-func (psh *partSearchHeap) Push(x interface{}) {
+func (psh *partSearchHeap) Push(x any) {
 	*psh = append(*psh, x.(*partSearch))
 }
 
-func (psh *partSearchHeap) Pop() interface{} {
+func (psh *partSearchHeap) Pop() any {
 	a := *psh
 	v := a[len(a)-1]
 	*psh = a[:len(a)-1]

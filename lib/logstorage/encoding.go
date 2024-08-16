@@ -47,6 +47,22 @@ func (sbu *stringsBlockUnmarshaler) reset() {
 	sbu.data = sbu.data[:0]
 }
 
+func (sbu *stringsBlockUnmarshaler) copyString(s string) string {
+	dataLen := len(sbu.data)
+	sbu.data = append(sbu.data, s...)
+	return bytesutil.ToUnsafeString(sbu.data[dataLen:])
+}
+
+func (sbu *stringsBlockUnmarshaler) appendFields(dst, src []Field) []Field {
+	for _, f := range src {
+		dst = append(dst, Field{
+			Name:  sbu.copyString(f.Name),
+			Value: sbu.copyString(f.Value),
+		})
+	}
+	return dst
+}
+
 // unmarshal unmarshals itemsCount strings from src, appends them to dst and returns the result.
 //
 // The returned strings are valid until sbu.reset() call.
@@ -263,11 +279,11 @@ func unmarshalBytesBlock(dst, src []byte) ([]byte, []byte, error) {
 		// Compressed block
 
 		// Read block length
-		tail, blockLen, err := encoding.UnmarshalVarUint64(src)
-		if err != nil {
-			return dst, src, fmt.Errorf("cannot unmarshal compressed block size: %w", err)
+		blockLen, nSize := encoding.UnmarshalVarUint64(src)
+		if nSize <= 0 {
+			return dst, src, fmt.Errorf("cannot unmarshal compressed block size")
 		}
-		src = tail
+		src = src[nSize:]
 		if uint64(len(src)) < blockLen {
 			return dst, src, fmt.Errorf("cannot read compressed block with the size %d bytes from %d bytes", blockLen, len(src))
 		}
@@ -276,6 +292,7 @@ func unmarshalBytesBlock(dst, src []byte) ([]byte, []byte, error) {
 
 		// Decompress the block
 		bb := bbPool.Get()
+		var err error
 		bb.B, err = encoding.DecompressZSTD(bb.B[:0], compressedBlock)
 		if err != nil {
 			return dst, src, fmt.Errorf("cannot decompress block: %w", err)

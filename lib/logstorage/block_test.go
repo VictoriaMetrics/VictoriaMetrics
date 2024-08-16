@@ -169,11 +169,11 @@ func TestBlockMustInitFromRowsFullBlock(t *testing.T) {
 	b := getBlock()
 	defer putBlock(b)
 	b.MustInitFromRows(timestamps, rows)
+	b.assertValid()
 	if n := b.Len(); n != len(rows) {
 		t.Fatalf("unexpected total log entries; got %d; want %d", n, len(rows))
 	}
-	if b.uncompressedSizeBytes() < maxUncompressedBlockSize {
-		t.Fatalf("expecting full block")
+	if n := b.uncompressedSizeBytes(); n < maxUncompressedBlockSize {
+		t.Fatalf("expecting full block with %d bytes; got %d bytes", maxUncompressedBlockSize, n)
 	}
-	b.assertValid()
 }

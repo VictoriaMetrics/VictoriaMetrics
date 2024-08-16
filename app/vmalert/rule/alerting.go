@@ -183,7 +183,7 @@ func (ar *AlertingRule) GetAlert(id uint64) *notifier.Alert {
 	return ar.alerts[id]
 }
 
-func (ar *AlertingRule) logDebugf(at time.Time, a *notifier.Alert, format string, args ...interface{}) {
+func (ar *AlertingRule) logDebugf(at time.Time, a *notifier.Alert, format string, args ...any) {
 	if !ar.Debug {
 		return
 	}
@@ -441,9 +441,6 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 			}
 			a.Value = m.Values[0]
 			a.Annotations = annotations
-			if err != nil {
-				return nil, err
-			}
 			a.KeepFiringSince = time.Time{}
 			continue
 		}

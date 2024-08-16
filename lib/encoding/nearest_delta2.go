@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // marshalInt64NearestDelta2 encodes src using `nearest delta2` encoding
@@ -69,15 +70,21 @@ func unmarshalInt64NearestDelta2(dst []int64, src []byte, firstValue int64, item
 		return nil, fmt.Errorf("unexpected tail left after unmarshaling %d items from %d bytes; tail size=%d; src=%X; tail=%X", itemsCount, len(src), len(tail), src, tail)
 	}
 
+	dstLen := len(dst)
+	dst = slicesutil.SetLength(dst, dstLen+itemsCount)
+	as := dst[dstLen:]
+
 	v := firstValue
 	d1 := is.A[0]
-	dst = append(dst, v)
+	as[0] = v
 	v += d1
-	dst = append(dst, v)
-	for _, d2 := range is.A[1:] {
+	as[1] = v
+	as = as[2:]
+	for i, d2 := range is.A[1:] {
 		d1 += d2
 		v += d1
-		dst = append(dst, v)
+		as[i] = v
 	}
+
 	return dst, nil
 }

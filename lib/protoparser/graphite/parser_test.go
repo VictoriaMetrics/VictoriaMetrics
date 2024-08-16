@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestUnmarshalMetricAndTagsFailure(t *testing.T) {
+func TestUnmarshalMetricAndTags_Failure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		var r Row
@@ -18,7 +18,7 @@ func TestUnmarshalMetricAndTagsFailure(t *testing.T) {
 	f(";foo=bar")
 }
 
-func TestUnmarshalMetricAndTagsSuccess(t *testing.T) {
+func TestUnmarshalMetricAndTags_Success(t *testing.T) {
 	f := func(s string, rExpected *Row) {
 		t.Helper()
 		var r Row
@@ -105,7 +105,7 @@ func TestUnmarshalMetricAndTagsSuccess(t *testing.T) {
 	})
 }
 
-func TestRowsUnmarshalFailure(t *testing.T) {
+func TestRowsUnmarshal_Failure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		var rows Rows
@@ -131,7 +131,49 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f("aa 123 bar")
 }
 
-func TestRowsUnmarshalSuccess(t *testing.T) {
+func TestRowsUnmarshal_SanitizeMetricNamesSuccess(t *testing.T) {
+	f := func(s string, rowsExpected *Rows) {
+		t.Helper()
+
+		sanitizeMetricNameOrig := *sanitizeMetricName
+		*sanitizeMetricName = true
+		defer func() {
+			*sanitizeMetricName = sanitizeMetricNameOrig
+		}()
+
+		var rows Rows
+		rows.Unmarshal(s)
+		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
+			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
+		}
+	}
+
+	// Only metric name.
+	f(`foo...b..a.r\a--baz 123`, &Rows{
+		Rows: []Row{{
+			Metric: `foo.b.a.r_a__baz`,
+			Value:  123,
+		}},
+	})
+
+	// Metric name with tags.
+	// Tag values shouldn't be sanitized.
+	f(`s a;ta g..1=a-b..c;tag2 123 456`, &Rows{
+		Rows: []Row{{
+			Metric:    `s_a`,
+			Value:     123,
+			Timestamp: 456,
+			Tags: []Tag{
+				{
+					Key:   "ta_g.1",
+					Value: "a-b..c",
+				},
+			},
+		}},
+	})
+}
+
+func TestRowsUnmarshal_Success(t *testing.T) {
 	f := func(s string, rowsExpected *Rows) {
 		t.Helper()
 		var rows Rows

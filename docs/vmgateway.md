@@ -1,21 +1,18 @@
 ---
-sort: 9
 weight: 9
 menu:
   docs:
-    parent: 'victoriametrics'
+    parent: victoriametrics
     weight: 9
 title: vmgateway
 aliases:
   - /vmgateway.html
 ---
-# vmgateway
-
 ***vmgateway is a part of [enterprise package](https://docs.victoriametrics.com/enterprise/). 
 It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).***
 
-<img alt="vmgateway" src="vmgateway-overview.webp">
+![vmgateway](vmgateway-overview.webp)
 
 `vmgateway` is a proxy for the VictoriaMetrics Time Series Database (TSDB). It provides the following features:
 
@@ -30,7 +27,7 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 
 ## Access Control
 
-<img alt="vmgateway-ac" src="vmgateway-access-control.webp">
+![vmgateway-ac](vmgateway-access-control.webp)
 
 `vmgateway` supports jwt based authentication. With jwt payload can be configured to give access to specific tenants and labels as well as to read/write.
 
@@ -95,7 +92,7 @@ curl 'http://localhost:8431/api/v1/series/count' -H 'Authorization: Bearer incor
 
 ## Rate Limiter
 
-<img alt="vmgateway-rl" src="vmgateway-rate-limiting.webp">
+![vmgateway-rl](vmgateway-rate-limiting.webp)
 
 Limits incoming requests by given, pre-configured limits. It supports read and write limiting by tenant.
 
@@ -307,7 +304,7 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
   -datasource.bearerTokenFile string
      Optional path to bearer token file to use for -datasource.url.
   -datasource.disableKeepAlive
-     Whether to disable long-lived connections to the datasource. If true, disables HTTP keep-alives and will only use the connection to the server for a single HTTP request.
+     Whether to disable long-lived connections to the datasource. If true, disables HTTP keep-alive and will only use the connection to the server for a single HTTP request.
   -datasource.disableStepParam
      Whether to disable adding 'step' param to the issued instant queries. This might be useful when using vmalert with datasources that do not support 'step' param for instant queries, like Google Managed Prometheus. It is not recommended to enable this flag if you use vmalert with VictoriaMetrics.
   -datasource.headers string
@@ -363,7 +360,7 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
   -filestream.disableFadvise
      Whether to disable fadvise() syscall when reading large data files. The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. In some rare cases it is better to disable the syscall if it uses too much CPU
   -flagsAuthKey value
-     Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
@@ -405,9 +402,9 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
   -internStringMaxLen int
      The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -license string
-     Lisense key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed via file specified by -licenseFile command-line flag
+     License key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed via file specified by -licenseFile command-line flag
   -license.forceOffline
-     Whether to enable offline verification for VictoriaMetrics Enterprise license key, which has been passed either via -license or via -licenseFile command-line flag. The issued license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification. This flag is avilable only in Enterprise binaries
+     Whether to enable offline verification for VictoriaMetrics Enterprise license key, which has been passed either via -license or via -licenseFile command-line flag. The issued license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification. This flag is available only in Enterprise binaries
   -licenseFile string
      Path to file with license key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed inline via -license command-line flag
   -logInvalidAuthTokens
@@ -438,7 +435,7 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
   -metrics.exposeMetadata
      Whether to expose TYPE and HELP metadata at the /metrics page, which is exposed at -httpListenAddr . The metadata may be needed when the /metrics page is consumed by systems, which require this information. For example, Managed Prometheus in Google Cloud - https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type
   -metricsAuthKey value
-     Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
   -mtls array
      Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
@@ -449,7 +446,7 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pprofAuthKey value
-     Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
+     Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -pprofAuthKey=http://host/path or -pprofAuthKey=https://host/path
   -pushmetrics.disableCompression
      Whether to disable request body compression when pushing metrics to every -pushmetrics.url

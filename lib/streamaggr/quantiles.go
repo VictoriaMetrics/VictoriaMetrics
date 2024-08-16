@@ -5,11 +5,10 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/valyala/histogram"
 )
 
-// quantilesAggrState calculates output=quantiles, e.g. the the given quantiles over the input samples.
+// quantilesAggrState calculates output=quantiles, e.g. the given quantiles over the input samples.
 type quantilesAggrState struct {
 	m sync.Map
 
@@ -41,6 +40,7 @@ func (as *quantilesAggrState) pushSamples(samples []pushSample) {
 			v = &quantilesStateValue{
 				h: h,
 			}
+			outputKey = bytesutil.InternString(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
 			if loaded {
 				// Use the entry created by a concurrent goroutine.
@@ -63,33 +63,28 @@ func (as *quantilesAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *quantilesAggrState) flushState(ctx *flushCtx, resetState bool) {
-	currentTimeMsec := int64(fasttime.UnixTimestamp()) * 1000
+func (as *quantilesAggrState) flushState(ctx *flushCtx) {
 	m := &as.m
 	phis := as.phis
 	var quantiles []float64
 	var b []byte
-	m.Range(func(k, v interface{}) bool {
-		if resetState {
-			// Atomically delete the entry from the map, so new entry is created for the next flush.
-			m.Delete(k)
-		}
+	m.Range(func(k, v any) bool {
+		// Atomically delete the entry from the map, so new entry is created for the next flush.
+		m.Delete(k)
 
 		sv := v.(*quantilesStateValue)
 		sv.mu.Lock()
 		quantiles = sv.h.Quantiles(quantiles[:0], phis)
 		histogram.PutFast(sv.h)
-		if resetState {
-			// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-			sv.deleted = true
-		}
+		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
+		sv.deleted = true
 		sv.mu.Unlock()
 
 		key := k.(string)
 		for i, quantile := range quantiles {
 			b = strconv.AppendFloat(b[:0], phis[i], 'g', -1, 64)
 			phiStr := bytesutil.InternBytes(b)
-			ctx.appendSeriesWithExtraLabel(key, "quantiles", currentTimeMsec, quantile, "quantile", phiStr)
+			ctx.appendSeriesWithExtraLabel(key, "quantiles", quantile, "quantile", phiStr)
 		}
 		return true
 	})

@@ -112,7 +112,7 @@ func binaryOpNeqFunc(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 }
 
 func isUnionFunc(e metricsql.Expr) bool {
-	if fe, ok := e.(*metricsql.FuncExpr); ok && (fe.Name == "" || strings.ToLower(fe.Name) == "union") {
+	if fe, ok := e.(*metricsql.FuncExpr); ok && (fe.Name == "" || strings.EqualFold(fe.Name, "union")) {
 		return true
 	}
 	return false
@@ -303,7 +303,7 @@ func ensureSingleTimeseries(side string, be *metricsql.BinaryOpExpr, tss []*time
 func groupJoin(singleTimeseriesSide string, be *metricsql.BinaryOpExpr, rvsLeft, rvsRight, tssLeft, tssRight []*timeseries) ([]*timeseries, []*timeseries, error) {
 	joinTags := be.JoinModifier.Args
 	var skipTags []string
-	if strings.ToLower(be.GroupModifier.Op) == "on" {
+	if strings.EqualFold(be.GroupModifier.Op, "on") {
 		skipTags = be.GroupModifier.Args
 	}
 	joinPrefix := ""

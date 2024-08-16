@@ -1,7 +1,6 @@
 ---
 title: Overview
 weight: 1
-sort: 1
 menu:
   docs:
     identifier: "vmanomaly-overview"
@@ -11,10 +10,6 @@ aliases:
 - /anomaly-detection.html
 - /anomaly-detection/overview.html
 ---
-
-
-# Overview
-
 ## About
 
 **VictoriaMetrics Anomaly Detection** (or shortly, `vmanomaly`) is a service that continuously scans VictoriaMetrics time
@@ -35,6 +30,8 @@ In addition to that, setting up alerting rules manually has been proven to be te
 error-prone, while anomaly detection can be easier to set up, and use the same model for different
 metrics.
 
+`vmanomaly` can be used as a helper to set up your own alerting. You can rely on the spikes you see in anomaly scores to form the metric queries for alerting rules.
+
 > **Note: `vmanomaly` is a part of [enterprise package](https://docs.victoriametrics.com/enterprise/). You need to get a [free trial license](https://victoriametrics.com/products/enterprise/trial/) for evaluation.**
 
 ## How?
@@ -51,9 +48,9 @@ processes in parallel, each using its own config.
 ## Models
 
 Currently, vmanomaly ships with a set of built-in models:
-> For a detailed overview, see [model section](/anomaly-detection/components/models.html)
+> For a detailed overview, see [model section](https://docs.victoriametrics.com/anomaly-detection/components/models/)
 
-1. [**ZScore**](/anomaly-detection/components/models.html#z-score)
+1. [**ZScore**](https://docs.victoriametrics.com/anomaly-detection/components/models/#z-score)
 
    _(useful for testing)_
 
@@ -61,7 +58,7 @@ Currently, vmanomaly ships with a set of built-in models:
    from time-series mean (straight line). Keeps only two model parameters internally:
    `mean` and `std` (standard deviation).
 
-1. [**Prophet**](/anomaly-detection/components/models.html#prophet)
+1. [**Prophet**](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet)
 
    _(simplest in configuration, recommended for getting started)_
 
@@ -75,36 +72,32 @@ Currently, vmanomaly ships with a set of built-in models:
 
    See [Prophet documentation](https://facebook.github.io/prophet/)
 
-1. [**Holt-Winters**](/anomaly-detection/components/models.html#holt-winters)
+1. [**Holt-Winters**](https://docs.victoriametrics.com/anomaly-detection/components/models/#holt-winters)
 
    Very popular forecasting algorithm. See [statsmodels.org documentation](
    https://www.statsmodels.org/stable/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing.html)
    for Holt-Winters exponential smoothing.
 
-1. [**Seasonal-Trend Decomposition**](/anomaly-detection/components/models.html#seasonal-trend-decomposition)
+1. [**Seasonal-Trend Decomposition**](https://docs.victoriametrics.com/anomaly-detection/components/models/#seasonal-trend-decomposition)
 
    Extracts three components: season, trend, and residual, that can be plotted individually for
    easier debugging. Uses LOESS (locally estimated scatterplot smoothing).
    See [statsmodels.org documentation](https://www.statsmodels.org/dev/examples/notebooks/generated/stl_decomposition.html)
    for LOESS STD.
 
-1. [**ARIMA**](/anomaly-detection/components/models.html#arima)
-
-   Commonly used forecasting model. See [statsmodels.org documentation](https://www.statsmodels.org/stable/generated/statsmodels.tsa.arima.model.ARIMA.html) for ARIMA.
-
-1. [**Rolling Quantile**](/anomaly-detection/components/models.html#rolling-quantile)
+1. [**Rolling Quantile**](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-quantile)
 
    A simple moving window of quantiles. Easy to use, easy to understand, but not as powerful as
    other models.
 
-1. [**Isolation Forest**](/anomaly-detection/components/models.html#isolation-forest-multivariate)
+1. [**Isolation Forest**](https://docs.victoriametrics.com/anomaly-detection/components/models/#isolation-forest-multivariate)
 
    Detects anomalies using binary trees. It works for both univariate and multivariate data. Be aware of [the curse of dimensionality](https://en.wikipedia.org/wiki/Curse_of_dimensionality) in the case of multivariate data - we advise against using a single model when handling multiple time series *if the number of these series significantly exceeds their average length (# of data points)*.
 
    The algorithm has a linear time complexity and a low memory requirement, which works well with high-volume data. See [scikit-learn.org documentation](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html) for Isolation Forest.
 
 
-1. [**MAD (Median Absolute Deviation)**](anomaly-detection/components/models.html#mad-median-absolute-deviation)
+1. [**MAD (Median Absolute Deviation)**](https://docs.victoriametrics.com/anomaly-detection/components/models/#mad-median-absolute-deviation)
 
    A robust method for anomaly detection that is less sensitive to outliers in data compared to standard deviation-based models. It considers a point as an anomaly if the absolute deviation from the median is significantly large.
 
@@ -113,14 +106,14 @@ Currently, vmanomaly ships with a set of built-in models:
 For example, here’s how Prophet predictions could look like on a real-data example  
 (Prophet auto-detected seasonality interval):
 
-<img alt="propher-example" src="vmanomaly-prophet-example.webp">
+![propher-example](vmanomaly-prophet-example.webp)
 
 And here’s what Holt-Winters predictions real-world data could look like (seasonality manually
 set to 1 week). Notice that it predicts anomalies in
 different places than Prophet because the model noticed there are usually spikes on Friday
 morning, so it accounted for that:
 
-<img alt="holtwinters-example" src="vmanomaly-holtwinters-example.webp">
+![holtwinters-example](vmanomaly-holtwinters-example.webp)
 
 ## Process
 Upon starting, vmanomaly queries the initial range of data, and trains its model (“fit” by convention).
@@ -134,26 +127,26 @@ optionally preserving labels).
 
 
 ## Usage
-> Starting from [v1.5.0](/anomaly-detection/CHANGELOG.html#v150), vmanomaly requires a license key to run. You can obtain a trial license key [here](https://victoriametrics.com/products/enterprise/trial/).
+> Starting from [v1.5.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v150), vmanomaly requires a license key to run. You can obtain a trial license key [here](https://victoriametrics.com/products/enterprise/trial/).
 
-> See [Quickstart](/anomaly-detection/QuickStart.html).
+> See [Quickstart](https://docs.victoriametrics.com/anomaly-detection/quickstart/).
 
-> See [Integration guide: vmanomaly and vmalert](/anomaly-detection/guides/guide-vmanomaly-vmalert.html).
+> See [Integration guide: vmanomaly and vmalert](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/).
 
 ### Config file
 There are 4 required sections in config file:
 
-* [`schedulers`](/anomaly-detection/components/scheduler.html) - defines how often to run and make inferences, as well as what timerange to use to train the model.
-* [`models`](/anomaly-detection/components/models.html) - specific model parameters and configurations.
-* [`reader`](/anomaly-detection/components/reader.html) - how to read data and where it is located
-* [`writer`](/anomaly-detection/components/writer.html) - where and how to write the generated output.
+* [`schedulers`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) - defines how often to run and make inferences, as well as what timerange to use to train the model.
+* [`models`](https://docs.victoriametrics.com/anomaly-detection/components/models/) - specific model parameters and configurations.
+* [`reader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/) - how to read data and where it is located
+* [`writer`](https://docs.victoriametrics.com/anomaly-detection/components/writer/) - where and how to write the generated output.
 
 [`monitoring`](#monitoring) - defines how to monitor work of *vmanomaly* service. This config section is *optional*.
 
-> For a detailed description, see [config sections](/anomaly-detection/components)
+> For a detailed description, see [config sections](https://docs.victoriametrics.com/anomaly-detection/components/)
 
 #### Config example
-Here is an example of config file that will run [Facebook's Prophet model](/anomaly-detection/components/models.html#prophet), that will be retrained every 2 hours on 14 days of previous data. It will generate inference results (including `anomaly_score` metric) every 1 minute.
+Here is an example of config file that will run [Facebook's Prophet model](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet), that will be retrained every 2 hours on 14 days of previous data. It will generate inference results (including `anomaly_score` metric) every 1 minute.
 
 
 You need to specify your datasource urls to use it:
@@ -167,7 +160,7 @@ schedulers:
 
 models:
   prophet:  # or use a model alias of your choice here
-    class: "model.prophet.ProphetModel"
+    class: "prophet"  # or "model.prophet.ProphetModel" until v1.13.0
     args:
       interval_width: 0.98
 
@@ -185,7 +178,7 @@ writer:
 *vmanomaly* can be monitored by using push or pull approach.
 It can push metrics to VictoriaMetrics or expose metrics in Prometheus exposition format.
 
-> For a detailed description, see [monitoring section](/anomaly-detection/components/monitoring.html)
+> For a detailed description, see [monitoring section](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/)
 
 #### Push approach
 
@@ -224,11 +217,11 @@ To use *vmanomaly* you need to pull docker image:
 docker pull victoriametrics/vmanomaly:latest
 ```
 
-> Note: please check what is latest release in [CHANGELOG](/anomaly-detection/CHANGELOG.html)
+> Note: please check what is latest release in [CHANGELOG](https://docs.victoriametrics.com/anomaly-detection/changelog/)
 
-> Note: `us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial` is deprecated since [v1.6.0](/anomaly-detection/CHANGELOG.html#v160). Use [DockerHub repo](https://hub.docker.com/r/victoriametrics/vmanomaly/tags) instead
+> Note: `us-docker.pkg.dev/victoriametrics-test/public/vmanomaly-trial` is deprecated since [v1.6.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v160). Use [DockerHub repo](https://hub.docker.com/r/victoriametrics/vmanomaly/tags) instead
 
-You can put a tag on it for your convinience:
+You can put a tag on it for your convenience:
 
 ```sh
 docker image tag victoriametrics/vmanomaly:latest vmanomaly
@@ -265,7 +258,7 @@ The license key can be passed via the following command-line flags:
 In order to make it easier to monitor the license expiration date, the following metrics are exposed(see
 [Monitoring](#monitoring) section for details on how to scrape them):
 
-```
+```promtextmetric
 # HELP vm_license_expires_at When the license expires as a Unix timestamp in seconds
 # TYPE vm_license_expires_at gauge
 vm_license_expires_at 1.6963776e+09

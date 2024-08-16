@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // tableSearch performs searches in the table.
@@ -84,10 +85,7 @@ func (ts *tableSearch) Init(tb *table, tsids []TSID, tr TimeRange) {
 	ts.ptws = tb.GetPartitions(ts.ptws[:0])
 
 	// Initialize the ptsPool.
-	if n := len(ts.ptws) - cap(ts.ptsPool); n > 0 {
-		ts.ptsPool = append(ts.ptsPool[:cap(ts.ptsPool)], make([]partitionSearch, n)...)
-	}
-	ts.ptsPool = ts.ptsPool[:len(ts.ptws)]
+	ts.ptsPool = slicesutil.SetLength(ts.ptsPool, len(ts.ptws))
 	for i, ptw := range ts.ptws {
 		ts.ptsPool[i].Init(ptw.pt, tsids, tr)
 	}
@@ -196,11 +194,11 @@ func (ptsh *partitionSearchHeap) Swap(i, j int) {
 	x[i], x[j] = x[j], x[i]
 }
 
-func (ptsh *partitionSearchHeap) Push(x interface{}) {
+func (ptsh *partitionSearchHeap) Push(x any) {
 	*ptsh = append(*ptsh, x.(*partitionSearch))
 }
 
-func (ptsh *partitionSearchHeap) Pop() interface{} {
+func (ptsh *partitionSearchHeap) Pop() any {
 	a := *ptsh
 	v := a[len(a)-1]
 	*ptsh = a[:len(a)-1]

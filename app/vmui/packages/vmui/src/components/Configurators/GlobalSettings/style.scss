@@ -4,7 +4,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: $padding-medium;
+  gap: $padding-large;
   width: 600px;
   padding-bottom: $padding-medium;
 
@@ -37,6 +37,13 @@
     font-size: $font-size;
     font-weight: bold;
     margin-bottom: $padding-global;
+  }
+
+  &__info {
+    padding-top: $padding-small;
+    font-size: $font-size-small;
+    color: $color-text-secondary;
+    line-height: 130%;
   }
 
   &-url {

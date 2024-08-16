@@ -4,18 +4,21 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
 
 var (
 	addr = flag.String("remoteRead.url", "", "Optional URL to datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect."+
 		"Remote read is used to restore alerts state."+
 		"This configuration makes sense only if `vmalert` was configured with `remoteWrite.url` before and has been successfully persisted its state. "+
-		"E.g. http://127.0.0.1:8428. See also '-remoteRead.disablePathAppend', '-remoteRead.showURL'.")
+		"Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. "+
+		"See also '-remoteRead.disablePathAppend', '-remoteRead.showURL'.")
 
 	showRemoteReadURL = flag.Bool("remoteRead.showURL", false, "Whether to show -remoteRead.url in the exported metrics. "+
 		"It is hidden by default, since it can contain sensitive info such as auth key")
@@ -30,6 +33,8 @@ var (
 
 	bearerToken     = flag.String("remoteRead.bearerToken", "", "Optional bearer auth token to use for -remoteRead.url.")
 	bearerTokenFile = flag.String("remoteRead.bearerTokenFile", "", "Optional path to bearer token file to use for -remoteRead.url.")
+
+	idleConnectionTimeout = flag.Duration("remoteRead.idleConnTimeout", 50*time.Second, `Defines a duration for idle (keep-alive connections) to exist. Consider settings this value less to the value of "-http.idleConnTimeout". It must prevent possible "write: broken pipe" and "read: connection reset by peer" errors.`)
 
 	tlsInsecureSkipVerify = flag.Bool("remoteRead.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -remoteRead.url")
 	tlsCertFile           = flag.String("remoteRead.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -remoteRead.url")
@@ -63,8 +68,10 @@ func Init() (datasource.QuerierBuilder, error) {
 	}
 	tr, err := httputils.Transport(*addr, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create transport: %w", err)
+		return nil, fmt.Errorf("failed to create transport for -remoteRead.url=%q: %w", *addr, err)
 	}
+	tr.IdleConnTimeout = *idleConnectionTimeout
+	tr.DialContext = netutil.NewStatDialFunc("vmalert_remoteread")
 
 	endpointParams, err := flagutil.ParseJSONMap(*oauth2EndpointParams)
 	if err != nil {

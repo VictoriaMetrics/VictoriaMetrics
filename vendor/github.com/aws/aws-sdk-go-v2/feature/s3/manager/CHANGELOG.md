@@ -1,3 +1,84 @@
+# v1.17.9 (2024-07-24)
+
+* **Documentation**: Clarify region hint and credential usage in HeadBucketRegion.
+
+# v1.17.8 (2024-07-18)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.7 (2024-07-10.2)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.6 (2024-07-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.5 (2024-07-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.4 (2024-07-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.3 (2024-06-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.2 (2024-06-26)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.1 (2024-06-19)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.0 (2024-06-18)
+
+* **Feature**: Track usage of various AWS SDK features in user-agent string.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.25 (2024-06-17)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.24 (2024-06-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.23 (2024-06-05)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.22 (2024-06-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.21 (2024-05-23)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.20 (2024-05-16)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.19 (2024-05-15)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.18 (2024-05-14)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.17 (2024-05-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.16 (2024-05-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.16.15 (2024-04-05)
 
 * **Dependency Update**: Updated to the latest SDK module versions

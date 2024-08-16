@@ -15,7 +15,6 @@ type otsdbProcessor struct {
 	oc        *opentsdb.Client
 	im        *vm.Importer
 	otsdbcc   int
-	isSilent  bool
 	isVerbose bool
 }
 
@@ -26,7 +25,7 @@ type queryObj struct {
 	StartTime int64
 }
 
-func newOtsdbProcessor(oc *opentsdb.Client, im *vm.Importer, otsdbcc int, silent, verbose bool) *otsdbProcessor {
+func newOtsdbProcessor(oc *opentsdb.Client, im *vm.Importer, otsdbcc int, verbose bool) *otsdbProcessor {
 	if otsdbcc < 1 {
 		otsdbcc = 1
 	}
@@ -34,7 +33,6 @@ func newOtsdbProcessor(oc *opentsdb.Client, im *vm.Importer, otsdbcc int, silent
 		oc:        oc,
 		im:        im,
 		otsdbcc:   otsdbcc,
-		isSilent:  silent,
 		isVerbose: verbose,
 	}
 }
@@ -55,7 +53,7 @@ func (op *otsdbProcessor) run() error {
 	}
 
 	question := fmt.Sprintf("Found %d metrics to import. Continue?", len(metrics))
-	if !op.isSilent && !prompt(question) {
+	if !prompt(question) {
 		return nil
 	}
 	op.im.ResetStats()
