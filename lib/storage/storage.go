@@ -192,7 +192,7 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 	fs.MustMkdirIfNotExist(path)
 	tmpFile, err := os.CreateTemp(s.path, ".is_readonly_watchdog")
 	if err != nil {
-		logger.Panicf("cannot create files on the disk")
+		logger.Panicf("FATAL: cannot create files on the disk")
 	}
 	s.cannotWrite.Store(!MustBeWritable(tmpFile))
 
@@ -2853,14 +2853,14 @@ func (s *Storage) readonlyWatchDog() {
 			select {
 			case tmpFile := <-tmpFileChan:
 				if tmpFile == nil {
-					logger.Panicf("cannot create files on the disk")
+					logger.Panicf("FATAL: cannot create files on the disk")
 				} else {
 					if !MustBeWritable(tmpFile) {
-						logger.Panicf("cannot write files to the disk")
+						logger.Panicf("FATAL: cannot write files to the disk")
 					}
 				}
 			case <-timeoutChan:
-				logger.Panicf("cannot write to the disk or disk is overloaded and takes more than %s to write", timeout.String())
+				logger.Panicf("FATAL: cannot write to the disk or disk is overloaded and takes more than %s to write", timeout.String())
 			}
 
 			time.Sleep(5 * time.Second)
