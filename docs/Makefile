@@ -3,32 +3,32 @@
 # Converts images at docs folder to webp format
 # See https://docs.victoriametrics.com/single-server-victoriametrics/#images-in-documentation
 docs-image:
-        if [ ! -d vmdocs ]; then \
-                git clone git@github.com:VictoriaMetrics/vmdocs vmdocs; \
-        fi; \
-        cd vmdocs && \
-        git checkout main && \
-        git pull origin main && \
-        cd .. && \
-        docker build \
-                -t vmdocs-docker-package \
-                vmdocs && \
-        docker rm -f vmdocs || true
+	if [ ! -d vmdocs ]; then \
+		git clone git@github.com:VictoriaMetrics/vmdocs vmdocs; \
+	fi; \
+	cd vmdocs && \
+	git checkout main && \
+	git pull origin main && \
+	cd .. && \
+	docker build \
+		-t vmdocs-docker-package \
+		vmdocs && \
+	docker rm -f vmdocs || true
 
 docs-debug: docs docs-image
-        docker run \
-                --rm \
-                --name vmdocs-docker-container \
-                -p 1313:1313 \
-                -v ./docs:/opt/docs/content vmdocs-docker-package
+	docker run \
+		--rm \
+		--name vmdocs-docker-container \
+		-p 1313:1313 \
+		-v ./docs:/opt/docs/content vmdocs-docker-package
 
 docs-images-to-webp: docs-image
-        docker run \
-                --rm \
-                --entrypoint /usr/bin/find \
-                --name vmdocs-docker-container \
-                --workdir / \
-                -v ./docs:/opt/docs/content vmdocs-docker-package \
-                        /opt/docs/content \
-                                -regex ".*\.\(png\|jpg\|jpeg\)" \
-                                -exec sh -c 'cwebp -preset drawing -m 6 -o $$(echo {} | cut -f-1 -d.).webp {} && rm -rf {}' {} \;
+	docker run \
+		--rm \
+		--entrypoint /usr/bin/find \
+		--name vmdocs-docker-container \
+		--workdir / \
+		-v ./docs:/opt/docs/content vmdocs-docker-package \
+			/opt/docs/content \
+				-regex ".*\.\(png\|jpg\|jpeg\)" \
+				-exec sh -c 'cwebp -preset drawing -m 6 -o $$(echo {} | cut -f-1 -d.).webp {} && rm -rf {}' {} \;
