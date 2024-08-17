@@ -1458,24 +1458,24 @@ func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 	defer testRemoveAll(t)
 
 	const (
-		days = 100
-		rows = 10
+		numDays = 100
+		numRows = 10
 	)
 	rng := rand.New(rand.NewSource(1))
 	var (
-		trs []TimeRange
-		mrs []MetricRow
+		days []TimeRange
+		mrs  []MetricRow
 	)
-	for day := range days {
-		tr := TimeRange{
-			MinTimestamp: time.Date(2000, 1, day+1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2000, 1, day+1, 23, 59, 59, 999, time.UTC).UnixMilli(),
+	for i := range numDays {
+		day := TimeRange{
+			MinTimestamp: time.Date(2000, 1, i+1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2000, 1, i+1, 23, 59, 59, 999, time.UTC).UnixMilli(),
 		}
-		trs = append(trs, tr)
-		prefix1 := fmt.Sprintf("metric1_%d", day)
-		mrs = append(mrs, testGenerateMetricRowsWithPrefix(rng, rows, prefix1, tr)...)
-		prefix2 := fmt.Sprintf("metric2_%d", day)
-		mrs = append(mrs, testGenerateMetricRowsWithPrefix(rng, rows, prefix2, tr)...)
+		days = append(days, day)
+		prefix1 := fmt.Sprintf("metric1_%d", i)
+		mrs = append(mrs, testGenerateMetricRowsWithPrefix(rng, numRows, prefix1, day)...)
+		prefix2 := fmt.Sprintf("metric2_%d", i)
+		mrs = append(mrs, testGenerateMetricRowsWithPrefix(rng, numRows, prefix2, day)...)
 	}
 
 	type options struct {
@@ -1523,9 +1523,9 @@ func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 	f(&options{
 		path:       "OneDay/OneTagFilter/MaxMetricsNotExeeded",
 		filters:    []string{"metric1"},
-		tr:         trs[0],
-		maxMetrics: rows,
-		wantCount:  rows,
+		tr:         days[0],
+		maxMetrics: numRows,
+		wantCount:  numRows,
 	})
 
 	// Using one filter to search metric names within one day. The maxMetrics
@@ -1534,8 +1534,8 @@ func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 	f(&options{
 		path:       "OneDay/OneTagFilter/MaxMetricsExeeded",
 		filters:    []string{"metric1"},
-		tr:         trs[0],
-		maxMetrics: rows - 1,
+		tr:         days[0],
+		maxMetrics: numRows - 1,
 		wantErr:    true,
 	})
 
@@ -1546,109 +1546,125 @@ func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 	f(&options{
 		path:       "OneDay/TwoTagFilters/MaxMetricsNotExeeded",
 		filters:    []string{"metric1", "metric2"},
-		tr:         trs[0],
-		maxMetrics: rows * 2,
-		wantCount:  rows * 2,
+		tr:         days[0],
+		maxMetrics: numRows * 2,
+		wantCount:  numRows * 2,
 	})
 
-	// Using one filter to search metric names within one day. The maxMetrics
+	// Using two filters to search metric names within one day. The maxMetrics
 	// param is less than the number of time series that match the two filters
 	// within that time range. Search operation must fail.
 	f(&options{
 		path:       "OneDay/TwoTagFilters/MaxMetricsExeeded",
 		filters:    []string{"metric1", "metric2"},
-		tr:         trs[0],
-		maxMetrics: rows*2 - 1,
+		tr:         days[0],
+		maxMetrics: numRows*2 - 1,
 		wantErr:    true,
 	})
 
+	// Using one filter to search metric names within two days. The maxMetrics
+	// param is set to match exactly the number of time series that match the
+	// filter within that time range. Search operation must complete
+	// successfully.
 	f(&options{
 		path:    "TwoDays/OneTagFilter/MaxMetricsNotExeeded",
 		filters: []string{"metric1"},
 		tr: TimeRange{
-			MinTimestamp: trs[0].MinTimestamp,
-			MaxTimestamp: trs[1].MaxTimestamp,
+			MinTimestamp: days[0].MinTimestamp,
+			MaxTimestamp: days[1].MaxTimestamp,
 		},
-		maxMetrics: rows * 2,
-		wantCount:  rows * 2,
+		maxMetrics: numRows * 2,
+		wantCount:  numRows * 2,
 	})
 
+	// Using one filter to search metric names within two days. The maxMetrics
+	// param is less than the number of time series that match the filter
+	// within that time range. Search operation must fail.
 	f(&options{
-		path:    "TwoDays/OneTagFilter/MaxMetricsNotExeeded",
+		path:    "TwoDays/OneTagFilter/MaxMetricsExeeded",
 		filters: []string{"metric1"},
 		tr: TimeRange{
-			MinTimestamp: trs[0].MinTimestamp,
-			MaxTimestamp: trs[1].MaxTimestamp,
+			MinTimestamp: days[0].MinTimestamp,
+			MaxTimestamp: days[1].MaxTimestamp,
 		},
-		maxMetrics: rows*2 - 1,
+		maxMetrics: numRows*2 - 1,
 		wantErr:    true,
 	})
 
+	// Using two filters to search metric names within two days. The maxMetrics
+	// param is set to match exactly the number of time series that match the
+	// two filters within that time range. Search operation must complete
+	// successfully.
 	f(&options{
 		path:    "TwoDays/TwoTagFilters/MaxMetricsNotExeeded",
 		filters: []string{"metric1", "metric2"},
 		tr: TimeRange{
-			MinTimestamp: trs[0].MinTimestamp,
-			MaxTimestamp: trs[1].MaxTimestamp,
+			MinTimestamp: days[0].MinTimestamp,
+			MaxTimestamp: days[1].MaxTimestamp,
 		},
-		maxMetrics: rows * 4,
-		wantCount:  rows * 4,
+		maxMetrics: numRows * 4,
+		wantCount:  numRows * 4,
 	})
 
+	// Using two filters to search metric names within two days. The maxMetrics
+	// param is less than the number of time series that match the two filters
+	// within that time range. Search operation must fail.
 	f(&options{
-		path:    "TwoDays/TwoTagFilters/MaxMetricsNotExeeded",
+		path:    "TwoDays/TwoTagFilters/MaxMetricsExeeded",
 		filters: []string{"metric1", "metric2"},
 		tr: TimeRange{
-			MinTimestamp: trs[0].MinTimestamp,
-			MaxTimestamp: trs[1].MaxTimestamp,
+			MinTimestamp: days[0].MinTimestamp,
+			MaxTimestamp: days[1].MaxTimestamp,
 		},
-		maxMetrics: rows*4 - 1,
+		maxMetrics: numRows*4 - 1,
 		wantErr:    true,
 	})
 
-	// The time range is 41 days, which corresponds to the day difference of 40
-	// days. That's the max day difference when the per-day index is still used
-	// for searching.
+	// Using one filter to search metric names within the time range of 41 days.
+	// This time range corresponds to the day difference of 40 days, which is
+	// the max day difference when the per-day index is still used for
+	// searching. The maxMetrics param is set to match exactly the number of
+	// time series that match the filter within that time range. Search
+	// operation must complete successfully.
 	f(&options{
 		path:    "40Days/OneTagFilter/MaxMetricsNotExeeded",
 		filters: []string{"metric1"},
 		tr: TimeRange{
-			MinTimestamp: trs[0].MinTimestamp,
-			MaxTimestamp: trs[40].MaxTimestamp,
+			MinTimestamp: days[0].MinTimestamp,
+			MaxTimestamp: days[40].MaxTimestamp,
 		},
-		maxMetrics: rows * 41,
-		wantCount:  rows * 41,
+		maxMetrics: numRows * 41,
+		wantCount:  numRows * 41,
 	})
 
-	// The time range is 42 days, which corresponds to the day difference of 41
-	// days, which is longer than than 40 days. In this case, the search is
-	// performed using global index instead of per-day index and the metric
-	// names will be retrieved for the entire retention period. If the
-	// maxMetrics parameter is set to the number of time series within the 42
-	// days, the search will fail because the number of metrics will be much
-	// larger (since it will be the number of time series within the entire
-	// retention period).
+	// Using one filter to search metric names within the time range of 42 days.
+	// This time range corresponds to the day difference of 41 days, which is
+	// longer than than 40 days. In this case, the search is performed using
+	// global index instead of per-day index and the metric names will be
+	// searched within the entire retention period. The maxMetrics parameter,
+	// however, is set to the number of time series within the 42 days. The
+	// search must fail because the number of metrics will be much larger.
 	f(&options{
 		path:    "MoreThan40Days/OneTagFilter/MaxMetricsExeeded",
 		filters: []string{"metric1"},
 		tr: TimeRange{
-			MinTimestamp: trs[0].MinTimestamp,
-			MaxTimestamp: trs[41].MaxTimestamp,
+			MinTimestamp: days[0].MinTimestamp,
+			MaxTimestamp: days[41].MaxTimestamp,
 		},
-		maxMetrics: rows * 42,
+		maxMetrics: numRows * 42,
 		wantErr:    true,
 	})
 
 	// To fix the above case, the maxMetrics must be adjusted to be not less
-	// than the number of time series witin the entire retention period.
+	// than the number of time series within the entire retention period.
 	f(&options{
 		path:    "MoreThan40Days/OneTagFilter/MaxMetricsNotExeeded",
 		filters: []string{"metric1"},
 		tr: TimeRange{
-			MinTimestamp: trs[0].MinTimestamp,
-			MaxTimestamp: trs[41].MaxTimestamp,
+			MinTimestamp: days[0].MinTimestamp,
+			MaxTimestamp: days[41].MaxTimestamp,
 		},
-		maxMetrics: rows * days,
-		wantCount:  rows * days,
+		maxMetrics: numRows * numDays,
+		wantCount:  numRows * numDays,
 	})
 }
