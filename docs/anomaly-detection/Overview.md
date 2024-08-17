@@ -96,12 +96,27 @@ Currently, vmanomaly ships with a set of built-in models:
 
    The algorithm has a linear time complexity and a low memory requirement, which works well with high-volume data. See [scikit-learn.org documentation](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html) for Isolation Forest.
 
-
 1. [**MAD (Median Absolute Deviation)**](https://docs.victoriametrics.com/anomaly-detection/components/models/#mad-median-absolute-deviation)
 
    A robust method for anomaly detection that is less sensitive to outliers in data compared to standard deviation-based models. It considers a point as an anomaly if the absolute deviation from the median is significantly large.
 
+1. [**AutoTuned**](https://docs.victoriametrics.com/anomaly-detection/components/models/#autotuned) 
 
+   Designed to take the cognitive load off the user, allowing any of built-in models below to be re-tuned for best params on data seen during each `fit` phase of the algorithm. Tradeoff is between increased computational time and optimized results / simpler maintenance.
+
+1. [**Online Z-score**](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score) 
+
+   [Online](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) alternative to [Z-score](https://docs.victoriametrics.com/anomaly-detection/components/models/#z-score) model with exact same behavior and use cases.
+
+1. [**Online MAD**](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-mad) 
+
+   Approximate [online](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) alternative to [MAD model](https://docs.victoriametrics.com/anomaly-detection/components/models/#mad-median-absolute-deviation), appropriate for the same use cases.
+
+1. [**Online Seasonal Quantile**](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile)
+
+   Best used on [de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data with strong (possibly multiple) [seasonalities](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality). Can act as a (slightly less powerful) [online](#online-models) replacement to [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet).
+
+> Note: The full list of models can be found [here](https://docs.victoriametrics.com/anomaly-detection/components/models/#overview)
 ### Examples
 For example, here’s how Prophet predictions could look like on a real-data example  
 (Prophet auto-detected seasonality interval):
