@@ -105,9 +105,8 @@ func (as *rateAggrState) pushSamples(samples []pushSample) {
 	}
 }
 
-func (as *rateAggrState) flushState(ctx *flushCtx, resetState bool) {
+func (as *rateAggrState) flushState(ctx *flushCtx) {
 	currentTime := fasttime.UnixTimestamp()
-	currentTimeMsec := int64(currentTime) * 1000
 
 	suffix := as.getSuffix()
 
@@ -127,11 +126,9 @@ func (as *rateAggrState) flushState(ctx *flushCtx, resetState bool) {
 				sumRate += lv.increase / d
 				countSeries++
 			}
-			if resetState {
-				lv.prevTimestamp = lv.timestamp
-				lv.increase = 0
-				lvs[k1] = lv
-			}
+			lv.prevTimestamp = lv.timestamp
+			lv.increase = 0
+			lvs[k1] = lv
 		}
 		deleted := sv.deleted
 		sv.mu.Unlock()
@@ -147,7 +144,7 @@ func (as *rateAggrState) flushState(ctx *flushCtx, resetState bool) {
 		}
 
 		key := k.(string)
-		ctx.appendSeries(key, suffix, currentTimeMsec, result)
+		ctx.appendSeries(key, suffix, result)
 		return true
 	})
 }

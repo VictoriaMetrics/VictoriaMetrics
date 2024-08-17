@@ -1,13 +1,3 @@
----
-weight: 2
-title: Kubernetes monitoring via VictoriaMetrics Single
-menu:
-  docs:
-    parent: "guides"
-    weight: 2
-aliases:
-- /guides/k8s-monitoring-via-vm-single.html
----
 **This guide covers:**
 
 * The setup of a [VictoriaMetrics Single](https://docs.victoriametrics.com/single-server-victoriametrics/) in [Kubernetes](https://kubernetes.io/) via Helm charts
@@ -23,7 +13,7 @@ We will use:
 * [Helm 3 ](https://helm.sh/docs/intro/install)
 * [kubectl 1.21](https://kubernetes.io/docs/tasks/tools/install-kubectl)
 
-![VictoriaMetrics Single on Kubernetes cluster](k8s-monitoring-via-vm-single_k8s-scheme.webp)
+![VictoriaMetrics Single on Kubernetes cluster](k8s-scheme.webp)
 
 ## 1. VictoriaMetrics Helm repository
 
@@ -68,7 +58,7 @@ vm/victoria-metrics-single   	0.7.5        	1.62.0     	Victoria Metrics Single 
 Run this command in your terminal:
 
 ```text
-helm install vmsingle vm/victoria-metrics-single -f https://docs.victoriametrics.com/guides/guide-vmsingle-values.yaml
+helm install vmsingle vm/victoria-metrics-single -f https://docs.victoriametrics.com/guides/examples/guide-vmsingle-values.yaml
 ```
 
 Here is full file content `guide-vmsingle-values.yaml`
@@ -161,7 +151,7 @@ server:
 
 * By running `helm install vmsingle vm/victoria-metrics-single` we install [VictoriaMetrics Single](https://docs.victoriametrics.com/single-server-victoriametrics/) to default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) inside your cluster
 * By adding `scrape: enable: true` we add and enable autodiscovery scraping from kubernetes cluster to [VictoriaMetrics Single](https://docs.victoriametrics.com/single-server-victoriametrics/)
-* On line 166 from [https://docs.victoriametrics.com/guides/guide-vmsingle-values.yaml](https://docs.victoriametrics.com/guides/guide-vmsingle-values.yaml) we added `metric_relabel_configs` section that will help us to show Kubernetes metrics on Grafana dashboard.
+* On line 166 from [https://docs.victoriametrics.com/guides/examples/guide-vmsingle-values.yaml](https://docs.victoriametrics.com/guides/examples/guide-vmsingle-values.yaml) we added `metric_relabel_configs` section that will help us to show Kubernetes metrics on Grafana dashboard.
 
 
 As a result of the command you will see the following output:
@@ -298,22 +288,22 @@ export POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/nam
 kubectl --namespace default port-forward $POD_NAME 3000
 ```
 
-Now Grafana should be accessible on the [http://127.0.0.1:3000](http://127.0.0.1:3000) address.
+Now Grafana should be accessible on the `http://127.0.0.1:3000` address.
 
 
 ## 4. Check the obtained result in your browser
 
-To check that VictoriaMetrics has collects metrics from the k8s cluster open in browser [http://127.0.0.1:3000/dashboards](http://127.0.0.1:3000/dashboards) and choose `Kubernetes Cluster Monitoring (via Prometheus)` dashboard. Use `admin` for login and `password` that you previously obtained from kubectl. 
+To check that VictoriaMetrics has collects metrics from the k8s cluster open in browser `http://127.0.0.1:3000/dashboards` and choose `Kubernetes Cluster Monitoring (via Prometheus)` dashboard. Use `admin` for login and `password` that you previously obtained from kubectl. 
 
-![single dashboards](k8s-monitoring-via-vm-single_grafana-dashboards.webp)
+![single dashboards](grafana-dashboards.webp)
 
 You will see something like this:
 
-![k8s dashboards](k8s-monitoring-via-vm-single_grafana-k8s-dashboard.webp)
+![k8s dashboards](grafana-k8s-dashboard.webp)
 
 VictoriaMetrics dashboard also available to use:
 
-![single](k8s-monitoring-via-vm-single_grafana.webp)
+![single](grafana.webp)
 
 ## 5. Final thoughts
 

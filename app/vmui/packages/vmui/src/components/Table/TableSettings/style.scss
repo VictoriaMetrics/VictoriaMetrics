@@ -39,5 +39,9 @@
     &__item {
       font-size: $font-size;
     }
+    &__check_all {
+      padding: 0 0 $padding-global;
+      border-bottom: $border-divider;
+    }
   }
 }
