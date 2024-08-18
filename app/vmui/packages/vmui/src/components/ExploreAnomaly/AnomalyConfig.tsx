@@ -63,7 +63,7 @@ const AnomalyConfig: FC = () => {
     URL.revokeObjectURL(downloadUrl);
     setTextConfig("");
     setDownloadUrl("");
-    fetchConfig();
+    return fetchConfig();
   };
 
   return (
