@@ -16,7 +16,8 @@ tests:
         groupname: group1
         alertname: SameAlertNameWithDifferentGroup
         exp_alerts:
-          - {}
+          - exp_labels:
+              cluster: prod
       - eval_time: 1m
         groupname: group2
         alertname: SameAlertNameWithDifferentGroup
@@ -25,7 +26,8 @@ tests:
         groupname: group1
         alertname: SameAlertNameWithDifferentGroup
         exp_alerts:
-          - {}
+          - exp_labels:
+              cluster: prod
       - eval_time: 6m
         groupname: group1
         alertname: SameAlertNameWithDifferentGroup
@@ -61,18 +63,18 @@ tests:
         eval_time: 4m
         exp_samples:
           - value: 4
-            labels: '{__name__="t1", datacenter="dc-123"}'
+            labels: '{__name__="t1", cluster="prod"}'
       - expr: t2
         eval_time: 4m
         exp_samples:
           - value: 4
-            labels: '{__name__="t2", datacenter="dc-123"}'
+            labels: '{__name__="t2", cluster="prod"}'
       - expr: t3
         eval_time: 4m
         exp_samples:
           # t3 is 3 instead of 4 cause it's rules3 is evaluated before rules1
           - value: 3
-            labels: '{__name__="t3", datacenter="dc-123"}'
+            labels: '{__name__="t3", cluster="prod"}'
 
     alert_rule_test:
       - eval_time: 10m
@@ -83,22 +85,21 @@ tests:
               job: vmagent1
               severity: page
               instance: localhost:9090
-              datacenter: dc-123
+              cluster: prod
             exp_annotations:
               summary: "Instance localhost:9090 down"
-              description: "localhost:9090 of job vmagent1 has been down for more than 5 minutes."
+              description: "localhost:9090 of job vmagent1 in cluster prod has been down for more than 5 minutes."
+              dashboard: "http://grafana:3000/d/dashboard?orgId=1"
 
       - eval_time: 0
         groupname: group1
         alertname: AlwaysFiring
         exp_alerts:
           - exp_labels:
-              datacenter: dc-123
+              cluster: prod
 
       - eval_time: 0
         groupname: alerts
         alertname: InstanceDown
         exp_alerts: []
 
-    external_labels:
-      datacenter: dc-123

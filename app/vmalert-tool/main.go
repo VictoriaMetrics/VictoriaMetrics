@@ -41,9 +41,19 @@ Examples:
 						Usage:    "disable adding group's Name as label to generated alerts and time series.",
 						Required: false,
 					},
+					&cli.StringSliceFlag{
+						Name:     "external.label",
+						Usage:    `Optional label in the form 'name=value' to add to all generated recording rules and alerts. Supports an array of values separated by comma or specified via multiple flags.`,
+						Required: false,
+					},
+					&cli.StringFlag{
+						Name:     "external.url",
+						Usage:    `Optional external URL to template in rule's labels or annotations.`,
+						Required: false,
+					},
 				},
 				Action: func(c *cli.Context) error {
-					if failed := unittest.UnitTest(c.StringSlice("files"), c.Bool("disableAlertgroupLabel")); failed {
+					if failed := unittest.UnitTest(c.StringSlice("files"), c.Bool("disableAlertgroupLabel"), c.StringSlice("external.label"), c.String("external.url")); failed {
 						return fmt.Errorf("unittest failed")
 					}
 					return nil
