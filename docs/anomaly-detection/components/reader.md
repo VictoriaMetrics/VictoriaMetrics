@@ -12,14 +12,14 @@ aliases:
 There are 4 sources available to read data into VM Anomaly Detection from: VictoriaMetrics, (ND)JSON file, QueryRange, or CSV file. Depending on the data source, different parameters should be specified in the config file in the `reader` section.
 -->
 
-VictoriaMetrics Anomaly Detection (`vmanomaly`) primarily uses [VmReader](#vm-reader) to ingest data. This reader focuses on fetching time-series data directly from VictoriaMetrics with the help of powerful [MetricsQL](../../MetricsQL.md) expressions for aggregating, filtering and grouping your data, ensuring seamless integration and efficient data handling.
+VictoriaMetrics Anomaly Detection (`vmanomaly`) primarily uses [VmReader](#vm-reader) to ingest data. This reader focuses on fetching time-series data directly from VictoriaMetrics with the help of powerful [MetricsQL](https://docs.victoriametrics.com/metricsql/) expressions for aggregating, filtering and grouping your data, ensuring seamless integration and efficient data handling.
 
 Future updates will introduce additional readers, expanding the range of data sources `vmanomaly` can work with.
 
 
 ## VM reader
 
-> **Note**: Starting from [v1.13.0](/anomaly-detection/changelog#v1130) there is backward-compatible change of [`queries`](/anomaly-detection/components/reader?highlight=queries#vm-reader) arg of [VmReader](#vm-reader). New format allows to specify per-query parameters, like `step` to reduce amount of data read from VictoriaMetrics TSDB and to allow config flexibility. Please see [per-query parameters](#per-query-parameters) section for the details.
+> **Note**: Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130) there is backward-compatible change of [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/reader?highlight=queries#vm-reader) arg of [VmReader](#vm-reader). New format allows to specify per-query parameters, like `step` to reduce amount of data read from VictoriaMetrics TSDB and to allow config flexibility. Please see [per-query parameters](#per-query-parameters) section for the details.
 
 Old format like
 
@@ -47,20 +47,26 @@ reader:
     vmb:
       expr: 'avg(vm_blocks)'  # initial MetricsQL expression
       step: '10s'  # individual step for this query, will be filled with `sampling_period` from the root level
+      data_range: ['-inf', 'inf']  # by default, no constraints applied on data range
       # new query-level arguments will be added in backward-compatible way in future releases
 ```
 
 ### Per-query parameters
 
-Starting from [v1.13.0](/anomaly-detection/changelog#v1130) there is change of [`queries`](/anomaly-detection/components/reader?highlight=queries#vm-reader) arg format. Now each query alias supports the next (sub)fields:
+Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130) there is change of [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/reader?highlight=queries#vm-reader) arg format. Now each query alias supports the next (sub)fields:
 
 - `expr` (string): MetricsQL/PromQL expression that defines an input for VmReader. As accepted by `/query_range?query=%s`. i.e. `avg(vm_blocks)`
 
-- `step` (string): query-level frequency of the points returned, i.e. `30s`. Will be converted to `/query_range?step=%s` param (in seconds). Useful to optimize total amount of data read from VictoriaMetrics, where different queries may have **different frequencies for different [machine learning models](/anomaly-detection/components/models)** to run on.
+- `step` (string): query-level frequency of the points returned, i.e. `30s`. Will be converted to `/query_range?step=%s` param (in seconds). Useful to optimize total amount of data read from VictoriaMetrics, where different queries may have **different frequencies for different [machine learning models](https://docs.victoriametrics.com/anomaly-detection/components/models)** to run on.
 
-    > **Note**: if not set explicitly (or if older config style prior to [v1.13.0](/anomaly-detection/changelog#v1130)) is used, then it is set to reader-level `sampling_period` arg.
+    > **Note**: if not set explicitly (or if older config style prior to [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130)) is used, then it is set to reader-level `sampling_period` arg.
 
-    > **Note**: having **different** individual `step` args for queries (i.e. `30s` for `q1` and `2m` for `q2`) is not yet supported for [multivariate model](/anomaly-detection/components/models/index.html#multivariate-models) if you want to run it on several queries simultaneously (i.e. setting [`queries`](/anomaly-detection/components/models/#queries) arg of a model to [`q1`, `q2`]).
+    > **Note**: having **different** individual `step` args for queries (i.e. `30s` for `q1` and `2m` for `q2`) is not yet supported for [multivariate model](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models) if you want to run it on several queries simultaneously (i.e. setting [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/models/#queries) arg of a model to [`q1`, `q2`]).
+
+- `data_range` (list[float | string]): Introduced in [v1.15.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1151), it allows defining **valid** data ranges for input per individual query in `queries`, resulting in:
+  - **High anomaly scores** (>1) when the *data falls outside the expected range*, indicating a data constraint violation.
+  - **Lowest anomaly scores** (=0) when the *model's predictions (`yhat`) fall outside the expected range*, meaning uncertain predictions.
+
 
 ### Per-query config example
 ```yaml
@@ -72,6 +78,7 @@ reader:
     ingestion_rate:
       expr: 'sum(rate(vm_rows_inserted_total[5m])) by (type) > 0'
       step: '2m'  # overrides global `sampling_period` of 1m
+      data_range: [10, 'inf']  # meaning only positive values > 10 are expected, i.e. a value `y` < 10 will trigger anomaly score > 1
 ```
 
 ### Config parameters
@@ -91,180 +98,164 @@ reader:
 `class`
             </td>
             <td>
-
-`reader.vm.VmReader` (or `vm` starting from [v1.13.0](../CHANGELOG.md#v1130))
+`reader.vm.VmReader` (or `vm` starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130))
             </td>
             <td>
-
 Name of the class needed to enable reading from VictoriaMetrics or Prometheus. VmReader is the default option, if not specified.
             </td>
         </tr>
         <tr>
             <td>
-
 `queries`
             </td>
             <td>
-                See [per-query config example](#per-query-config-example) above
+See [per-query config example](#per-query-config-example) above
             </td>
-
-<td>
-
+            <td>
 See [per-query config section](#per-query-parameters) above
             </td>
         </tr>
         <tr>
             <td>
-
 `datasource_url`
             </td>
             <td>
-
 `http://localhost:8481/`
             </td>
             <td>
-
 Datasource URL address
             </td>
         </tr>
         <tr>
             <td>
-
 `tenant_id`
             </td>
             <td>
-
 `0:0`
             </td>
             <td>
-
-For VictoriaMetrics Cluster version only, tenants are identified by accountID or accountID:projectID. See VictoriaMetrics Cluster [multitenancy docs](../../Cluster-VictoriaMetrics.md#multitenancy)
+For VictoriaMetrics Cluster version only, tenants are identified by accountID or accountID:projectID. See VictoriaMetrics Cluster [multitenancy docs](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy)
             </td>
         </tr>
         <tr>
             <td>
-
 `sampling_period`
             </td>
             <td>
-
 `1h`
             </td>
             <td>
-
-Frequency of the points returned. Will be converted to `/query_range?step=%s` param (in seconds). **Required** since [v1.9.0](../CHANGELOG.md#v190).
+Frequency of the points returned. Will be converted to `/query_range?step=%s` param (in seconds). **Required** since [v1.9.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v190).
             </td>
         </tr>
         <tr>
             <td>
-
 `query_range_path`
             </td>
             <td>
-
 `/api/v1/query_range`
             </td>
             <td>
-
 Performs PromQL/MetricsQL range query
             </td>
         </tr>
         <tr>
             <td>
-
 `health_path`
             </td>
             <td>
-
 `health`
             </td>
             <td>
-
 Absolute or relative URL address where to check availability of the datasource.
             </td>
         </tr>
         <tr>
             <td>
-
 `user`
             </td>
             <td>
-
 `USERNAME`
             </td>
             <td>
-
 BasicAuth username
             </td>
         </tr>
         <tr>
             <td>
-
 `password`
             </td>
             <td>
-
 `PASSWORD`
             </td>
             <td>
-
 BasicAuth password
             </td>
         </tr>
         <tr>
             <td>
-
 `timeout`
             </td>
             <td>
-
 `30s`
             </td>
             <td>
-
 Timeout for the requests, passed as a string
             </td>
         </tr>
         <tr>
             <td>
-
 `verify_tls`
             </td>
             <td>
-
 `false`
             </td>
             <td>
-
 Allows disabling TLS verification of the remote certificate.
             </td>
         </tr>
         <tr>
             <td>
-
 `bearer_token`
             </td>
             <td>
-
 `token`
             </td>
             <td>
-
 Token is passed in the standard format with header: `Authorization: bearer {token}`
             </td>
         </tr>
         <tr>
             <td>
-
 `extra_filters`
             </td>
             <td>
-
 `[]`
             </td>
             <td>
-
-List of strings with series selector. See: [Prometheus querying API enhancements](../../README.md##prometheus-querying-api-enhancements)
+List of strings with series selector. See: [Prometheus querying API enhancements](https://docs.victoriametrics.com/##prometheus-querying-api-enhancements)
+            </td>
+        </tr>
+        <tr>
+            <td>
+`query_from_last_seen_timestamp`
+            </td>
+            <td>
+`False`
+            </td>
+            <td>
+If True, then query will be performed from the last seen timestamp for a given series. If False, then query will be performed from the start timestamp, based on a schedule period. Defaults to `False`. Useful for `infer` stages in case there were skipped `infer` calls prior to given.
+            </td>
+        </tr>
+        <tr>
+            <td>
+`latency_offset`
+            </td>
+            <td>
+`1ms`
+            </td>
+            <td>
+Introduced in [v1.15.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1151), it allows overriding the default `-search.latencyOffset` [flag of VictoriaMetrics](https://docs.victoriametrics.com/?highlight=search.latencyOffset#list-of-command-line-flags) (30s). The default value is set to 1ms, which should help in cases where `sampling_frequency` is low (10-60s) and `sampling_frequency` equals `infer_every` in the [PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/?highlight=infer_every#periodic-scheduler). This prevents users from receiving `service - WARNING - [Scheduler [scheduler_alias]] No data available for inference.` warnings in logs and allows for consecutive `infer` calls without gaps. To restore the old behavior, set it equal to your `-search.latencyOffset` [flag value]((https://docs.victoriametrics.com/?highlight=search.latencyOffset#list-of-command-line-flags)).
             </td>
         </tr>
     </tbody>
@@ -275,13 +266,18 @@ Config file example:
 ```yaml
 reader:
   class: "vm"  # or "reader.vm.VmReader" until v1.13.0
-  datasource_url: "http://localhost:8428/"
+  datasource_url: "https://play.victoriametrics.com/"
   tenant_id: "0:0"
   queries:
-    ingestion_rate: 'sum(rate(vm_rows_inserted_total[5m])) by (type) > 0'
+    ingestion_rate:
+      expr: 'sum(rate(vm_rows_inserted_total[5m])) by (type) > 0'
+      step: '1m' # can override global `sampling_period` on per-query level
+      data_range: [0, 'inf']
   sampling_period: '1m'
+  query_from_last_seen_timestamp: True  # false by default
+  latency_offset: '1ms'
 ```
 
 ### Healthcheck metrics
 
-`VmReader` exposes [several healthchecks metrics](./monitoring.md#reader-behaviour-metrics).
+`VmReader` exposes [several healthchecks metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics).
