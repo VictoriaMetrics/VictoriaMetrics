@@ -604,7 +604,7 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.To
 
 	rc := getResultsCollector()
 	defer putResultsCollector(rc)
-	if err = executeAcrossTenants(qt, at, cp, func(qt *querytracer.Tracer, t *auth.Token, _ bool) error {
+	err = executeAcrossTenants(qt, at, cp, func(qt *querytracer.Tracer, t *auth.Token, _ bool) error {
 		sq := storage.NewSearchQuery(t.AccountID, t.ProjectID, cp.start, cp.end, cp.filterss, *maxLabelsAPISeries)
 		labelValues, isPartial, err := netstorage.LabelValues(qt, denyPartialResponse, labelName, sq, limit, cp.deadline)
 		if err != nil {
@@ -614,7 +614,8 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.To
 		rc.addResults(labelValues, isPartial)
 
 		return nil
-	}); err != nil {
+	})
+	if err != nil {
 		return err
 	}
 
@@ -850,7 +851,7 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 
 	rc := getResultsCollector()
 	defer putResultsCollector(rc)
-	if err = executeAcrossTenants(qt, at, cp, func(qt *querytracer.Tracer, at *auth.Token, _ bool) error {
+	err = executeAcrossTenants(qt, at, cp, func(qt *querytracer.Tracer, at *auth.Token, _ bool) error {
 		sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxLabelsAPISeries)
 		labels, isPartial, err := netstorage.LabelNames(qt, denyPartialResponse, sq, limit, cp.deadline)
 		if err != nil {
@@ -860,7 +861,8 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 		rc.addResults(labels, isPartial)
 
 		return nil
-	}); err != nil {
+	})
+	if err != nil {
 		return err
 	}
 
