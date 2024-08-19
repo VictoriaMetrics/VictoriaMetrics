@@ -2,7 +2,6 @@ package multitenant
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -26,19 +25,18 @@ func ApplyFiltersToTenants(tenants, filters []string) ([]*auth.Token, error) {
 
 	resultingTokens := make([]*auth.Token, 0, len(tenants))
 	lbs := make([][]prompbmarshal.Label, 0, len(filters))
+	lbsAux := make([]prompbmarshal.Label, 0, len(filters))
 	for _, token := range tokens {
-		lbsL := make([]prompbmarshal.Label, 0)
-		lbsL = append(lbsL, prompbmarshal.Label{
+		lbsAuxLen := len(lbsAux)
+		lbsAux = append(lbsAux, prompbmarshal.Label{
 			Name:  "vm_account_id",
 			Value: fmt.Sprintf("%d", token.AccountID),
-		})
-
-		lbsL = append(lbsL, prompbmarshal.Label{
+		}, prompbmarshal.Label{
 			Name:  "vm_project_id",
 			Value: fmt.Sprintf("%d", token.ProjectID),
 		})
 
-		lbs = append(lbs, lbsL)
+		lbs = append(lbs, lbsAux[lbsAuxLen:])
 	}
 
 	promIfs := make([]promrelabel.IfExpression, len(filters))
@@ -63,6 +61,5 @@ func ApplyFiltersToTenants(tenants, filters []string) ([]*auth.Token, error) {
 
 // IsTenancyLabel returns true if the given label name is used for tenancy.
 func IsTenancyLabel(name string) bool {
-	name = strings.ToLower(name)
 	return name == "vm_account_id" || name == "vm_project_id"
 }

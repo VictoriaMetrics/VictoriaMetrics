@@ -43,6 +43,13 @@ func TestIsTenancyLabel(t *testing.T) {
 
 	f("vm_account_id", true)
 	f("vm_project_id", true)
+
+	// Test that the label is case-insensitive
+	f("VM_account_id", false)
+	f("VM_project_id", false)
+
+	// non-tenancy labels
 	f("job", false)
 	f("instance", false)
+
 }
