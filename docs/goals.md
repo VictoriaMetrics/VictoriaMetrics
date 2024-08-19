@@ -1,5 +1,4 @@
 ---
-sort: 500
 weight: 500
 title: Development goals
 menu:

@@ -1,5 +1,4 @@
 ---
-sort: 400
 weight: 400
 title: Contributing
 menu:

@@ -1,5 +1,4 @@
 ---
-sort: 30
 weight: 30
 title: Release process guidance
 menu:

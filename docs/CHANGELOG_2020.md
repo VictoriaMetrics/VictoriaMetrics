@@ -1,5 +1,4 @@
 ---
-sort: 6
 weight: 6
 title: Year 2020
 menu:

@@ -1,5 +1,4 @@
 ---
-sort: 36
 weight: 36
 title: Prometheus service discovery
 menu:
@@ -1768,6 +1767,9 @@ scrape_configs:
   # If more than this number of samples are present after metric relabeling
   # the entire scrape will be treated as failed.
   # By default, the limit is disabled.
+  # The sample_limit can be set on a per-target basis by specifying `__sample_limit__`
+  # label during target relabeling phase.
+  # See https://docs.victoriametrics.com/vmagent/#relabeling
   #
   # sample_limit: <int>
 

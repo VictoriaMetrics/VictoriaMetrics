@@ -1,5 +1,4 @@
 ---
-sort: 100
 weight: 100
 title: CHANGELOG
 menu:
@@ -32,8 +31,20 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 * FEATURE: add `/influx/health` health-check handler for Influx endpoints. This is needed as some clients use the health endpoint to determine if the server is healthy and ready for data ingestion. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6653) for the details.
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl/): add `--vm-backoff-retries`, `--vm-backoff-factor`, `--vm-backoff-min-duration` and `--vm-native-backoff-retries`, `--vm-native-backoff-factor`, `--vm-native-backoff-min-duration` command-line flags. These flags allow to change backoff policy config for import requests to VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6622).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): allow overriding the `sample_limit` option at [scrape_configs](https://docs.victoriametrics.com/sd_configs/#scrape_configs) when a label `__sample_limit__` is specified for target. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6665). Thanks to @zoglam for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6666).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): reduce memory usage when scraping targets with big response body. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6759).
+* FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmrestore](https://docs.victoriametrics.com/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): use exponential backoff for retries when uploading or downloading data from S3. This should reduce the number of failed uploads and downloads when S3 is temporarily unavailable. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6732).
+* FEATURE: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): do not allow enabling `-stream.keepInput` and `keep_metric_names` options together in [stream aggregation config](https://docs.victoriametrics.com/stream-aggregation/#stream-aggregation-config), as it may result in time series collision.
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/) fix service discovery of Azure Virtual Machines for response contains `nextLink`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6784).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): respect HTTP headers defined in [notifier configuration file](https://docs.victoriametrics.com/vmalert/#notifier-configuration-file) for each request to notifiers. Previously, this param was ignored by mistake.
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): correctly apply `-streamAggr.dropInputLabels` when global stream deduplication is enabled without `-streamAggr.config`. Previously, `-remoteWrite.streamAggr.dropInputLabels` was used instead.
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): fix command-line flag `-remoteWrite.streamAggr.ignoreFirstIntervals` to accept multiple values and be applied per each corresponding `-remoteWrite.url`. Previously, this flag only could have been used globally for all URLs.
+* BUGFIX: [graphite](https://docs.victoriametrics.com/#graphite-render-api-usage): respect `-search.denyPartialResponse` cmd-line flag and `deny_partial_response` query GET param when serving requests via Graphite API. Before, partial responses were always denied. Thanks to @penguinlav for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6748).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): account for `-usePromCompatibleNaming` cmd-line flag during when pushing data to remote storages. Thanks to @12345XXX  for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6776).
+* BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): reduce CPU usage by limiting the number of concurrently running inserts. The issue was introduced in [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/498fe1cfa523be5bfecaa372293c3cded85e75ab) starting from v1.101.0. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6733) issue for details.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/metricsql/): fix calculation [histogram_quantile](https://docs.victoriametrics.com/metricsql/#histogram_quantile) over Prometheus buckets with inconsistent values. It was producing incorrect results in case lower buckets. The issue was introduced in [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release, see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6714) for the details.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/), [vmctl](https://docs.victoriametrics.com/vmctl/) and snapshot API: verify correctness of URLs provided via cmd-line flags before executing HTTP requests. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6740) issue for details.
 
 ## [v1.102.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.1)
 
@@ -243,6 +254,8 @@ Released at 2024-04-04
 **This release contains [the issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959), which can prevent from storing data for new time series under high rate of search queries. Please rollback to [v1.98.0](https://docs.victoriametrics.com/changelog/#v1980) or upgrade to [v1.101.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.101.0).**
 
 **Update note 1: the `-datasource.lookback` command-line flag at `vmalert` is no-op starting from this release. This flag will be removed in the future, so please switch to [`eval_delay` option](https://docs.victoriametrics.com/vmalert/#groups). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155) for more details.**
+
+**Update note 2: `-streamAggr.dedupInterval` and `-remoteWrite.streamAggr.dedupInterval` cmd-line flags are now used for all incoming samples if `-streamAggr.config` and `-remoteWrite.streamAggr.config` aren't specified. Before, deduplication wasn't applied if aggregation config was omitted.**
 
 * SECURITY: upgrade Go builder from Go1.21.7 to Go1.22.2. See [the list of issues addressed in Go1.22.1](https://github.com/golang/go/issues?q=milestone%3AGo1.22.1+label%3ACherryPickApproved) and [the list of issues addressed in Go1.22.2](https://github.com/golang/go/issues?q=milestone%3AGo1.22.2+label%3ACherryPickApproved).
 
