@@ -11,6 +11,8 @@ aliases:
   - /operator/changelog/index.html
 ---
 
+- fixed Prometheus scrape config metricsPath conversion. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1073)
+
 ## [v0.47.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.47.0) - 15 Aug 2024
 
 ### Breaking changes
