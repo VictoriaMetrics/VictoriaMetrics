@@ -100,7 +100,8 @@ alert_rule_test:
 metricsql_expr_test:
   [ - <metricsql_expr_test> ]
 
-# External labels accessible for templating.
+# external_labels is not accessible for [templating](https://docs.victoriametrics.com/vmalert/#templating), use "-external.label" cmd-line flag instead.
+# Will be deprecated soon, check https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6735 for details.
 external_labels:
   [ <labelname>: <string> ... ]
 
@@ -198,7 +199,7 @@ value: <number>
 This is an example input file for unit testing which will pass.
 `test.yaml` is the test file which follows the syntax above and `alerts.yaml` contains the alerting rules.
 
-With `rules.yaml` in the same directory, run `./vmalert-tool unittest --files=./unittest/testdata/test.yaml`.
+With `rules.yaml` in the same directory, run `./vmalert-tool unittest --files=./unittest/testdata/test.yaml -external.label=cluster=prod`.
 
 #### `test.yaml`
 
@@ -218,7 +219,7 @@ tests:
       - expr: subquery_interval_test
         eval_time: 4m
         exp_samples:
-          - labels: '{__name__="subquery_interval_test", datacenter="dc-123", instance="localhost:9090", job="prometheus"}'
+          - labels: '{__name__="subquery_interval_test", cluster="prod", instance="localhost:9090", job="prometheus"}'
             value: 1
 
     alert_rule_test:
@@ -230,25 +231,22 @@ tests:
               job: prometheus
               severity: page
               instance: localhost:9090
-              datacenter: dc-123
+              cluster: prod
             exp_annotations:
               summary: "Instance localhost:9090 down"
-              description: "localhost:9090 of job prometheus has been down for more than 5 minutes."
+              description: "localhost:9090 of job prometheus in cluster prod has been down for more than 5 minutes."
 
       - eval_time: 0
         groupname: group1
         alertname: AlwaysFiring
         exp_alerts:
           - exp_labels:
-              datacenter: dc-123
+              cluster: prod
 
       - eval_time: 0
         groupname: group1
         alertname: InstanceDown
         exp_alerts: []
-
-    external_labels:
-      datacenter: dc-123
 ```
 
 #### `alerts.yaml`
@@ -266,7 +264,7 @@ groups:
           severity: page
         annotations:
           summary: "Instance {{ $labels.instance }} down"
-          description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 5 minutes."
+          description: "{{ $labels.instance }} of job {{ $labels.job }} in cluster {{ $externalLabels.cluster }} has been down for more than 5 minutes."
       - alert: AlwaysFiring
         expr: 1
 

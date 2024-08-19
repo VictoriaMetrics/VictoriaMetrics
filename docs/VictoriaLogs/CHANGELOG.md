@@ -22,6 +22,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): introduce the ability to select a key for grouping logs within the "Group" tab.
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): display the number of entries within each log group.
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): move the Markdown toggle to the general settings panel in the upper left corner.
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add "select/deselect all" button to table settings for managing displayed columns. Thanks to @yincongcyincong for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6680).
 
 * BUGFIX: properly handle Logstash requests for Elasticsearch configuration when using `outputs.elasticsearch` in Logstash pipelines. Previously, the requests could be rejected with `400 Bad Request` response.
 

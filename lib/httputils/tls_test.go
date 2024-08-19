@@ -49,4 +49,10 @@ func TestTransport(t *testing.T) {
 	if tr.TLSClientConfig == nil {
 		t.Fatalf("expected TLSClientConfig to be set, got nil")
 	}
+
+	noSchemaURL := "127.0.0.1:8880"
+	_, err = Transport(noSchemaURL, certFile, keyFile, CAFile, serverName, insecureSkipVerify)
+	if err == nil {
+		t.Fatalf("expected to have parse error for URL without specified schema; got nil instead")
+	}
 }
