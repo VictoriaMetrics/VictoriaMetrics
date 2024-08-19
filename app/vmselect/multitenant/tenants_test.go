@@ -12,10 +12,12 @@ import (
 func TestFetchingTenants(t *testing.T) {
 	tc := newTenantsCache(5 * time.Second)
 
+	dayMs := (time.Hour * 24 * 1000).Milliseconds()
+
 	tc.put(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 0}, []string{"1:1", "1:0"})
-	tc.put(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 100}, []string{"1:1", "1:0"})
-	tc.put(storage.TimeRange{MinTimestamp: 100, MaxTimestamp: 200}, []string{"2:1", "2:0"})
-	tc.put(storage.TimeRange{MinTimestamp: 200, MaxTimestamp: 300}, []string{"3:1", "3:0"})
+	tc.put(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: dayMs - 1}, []string{"1:1", "1:0"})
+	tc.put(storage.TimeRange{MinTimestamp: dayMs, MaxTimestamp: 2*dayMs - 1}, []string{"2:1", "2:0"})
+	tc.put(storage.TimeRange{MinTimestamp: 2 * dayMs, MaxTimestamp: 3*dayMs - 1}, []string{"3:1", "3:0"})
 
 	f := func(tr storage.TimeRange, expectedTenants []string) {
 		t.Helper()
@@ -32,22 +34,25 @@ func TestFetchingTenants(t *testing.T) {
 		}
 	}
 
+	// Basic time range coverage
 	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 0}, []string{"1:1", "1:0"})
 	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 100}, []string{"1:1", "1:0"})
-	f(storage.TimeRange{MinTimestamp: 100, MaxTimestamp: 200}, []string{"2:1", "2:0"})
-	f(storage.TimeRange{MinTimestamp: 200, MaxTimestamp: 300}, []string{"3:1", "3:0"})
-	f(storage.TimeRange{MinTimestamp: 30000, MaxTimestamp: 40000}, []string{})
+	f(storage.TimeRange{MinTimestamp: dayMs, MaxTimestamp: dayMs}, []string{"2:1", "2:0"})
+	f(storage.TimeRange{MinTimestamp: 2 * dayMs, MaxTimestamp: 2 * dayMs}, []string{"3:1", "3:0"})
+	f(storage.TimeRange{MinTimestamp: 3 * dayMs, MaxTimestamp: 3*dayMs + 1}, []string{})
 
-	f(storage.TimeRange{MinTimestamp: 50, MaxTimestamp: 80}, []string{"1:1", "1:0"})
-	f(storage.TimeRange{MinTimestamp: 150, MaxTimestamp: 180}, []string{"2:1", "2:0"})
-	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 80}, []string{"1:1", "1:0"})
-	f(storage.TimeRange{MinTimestamp: 50, MaxTimestamp: 99}, []string{"1:1", "1:0"})
+	// Time range inside existing range
+	f(storage.TimeRange{MinTimestamp: dayMs / 2, MaxTimestamp: dayMs/2 + 100}, []string{"1:1", "1:0"})
+	f(storage.TimeRange{MinTimestamp: dayMs + dayMs/2, MaxTimestamp: dayMs + dayMs/2 + 100}, []string{"2:1", "2:0"})
+	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: dayMs / 2}, []string{"1:1", "1:0"})
+	f(storage.TimeRange{MinTimestamp: dayMs / 2, MaxTimestamp: dayMs - 1}, []string{"1:1", "1:0"})
 
-	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 199}, []string{"1:1", "1:0", "2:1", "2:0"})
-	f(storage.TimeRange{MinTimestamp: 50, MaxTimestamp: 150}, []string{"1:1", "1:0", "2:1", "2:0"})
+	// Overlapping time ranges
+	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 2*dayMs - 1}, []string{"1:1", "1:0", "2:1", "2:0"})
+	f(storage.TimeRange{MinTimestamp: dayMs / 2, MaxTimestamp: dayMs + dayMs/2}, []string{"1:1", "1:0", "2:1", "2:0"})
 }
 
-func Test_hasIntersection(t *testing.T) {
+func TestHasIntersection(t *testing.T) {
 	f := func(inner, outer storage.TimeRange, expected bool) {
 		t.Helper()
 		if hasIntersection(inner, outer) != expected {

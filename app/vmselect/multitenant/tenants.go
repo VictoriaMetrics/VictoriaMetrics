@@ -3,7 +3,6 @@ package multitenant
 import (
 	"flag"
 	"fmt"
-	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -44,15 +43,8 @@ func FetchTenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchu
 	return tenants, nil
 }
 
-// Stop stops background processes required for multitenancy
-func Stop() {
-	tenantsCacheV.close()
-}
-
 var tenantsCacheV = func() *tenantsCache {
 	tc := newTenantsCache(*tenantsCacheDuration)
-	tc.runCleanup()
-
 	return tc
 }()
 
@@ -63,8 +55,6 @@ type tenantsCacheItem struct {
 }
 
 type tenantsCache struct {
-	// mtr is used for exact matches lookup
-	mtr map[string]*tenantsCacheItem
 	// items is used for intersection matches lookup
 	items []*tenantsCacheItem
 
@@ -73,13 +63,11 @@ type tenantsCache struct {
 	requests atomic.Uint64
 	misses   atomic.Uint64
 
-	mu   sync.RWMutex
-	stop chan struct{}
+	mu sync.Mutex
 }
 
 func newTenantsCache(expiration time.Duration) *tenantsCache {
 	tc := &tenantsCache{
-		mtr:            make(map[string]*tenantsCacheItem),
 		items:          make([]*tenantsCacheItem, 0),
 		itemExpiration: expiration,
 	}
@@ -97,43 +85,19 @@ func newTenantsCache(expiration time.Duration) *tenantsCache {
 	return tc
 }
 
-func (tc *tenantsCache) runCleanup() {
-	tc.stop = make(chan struct{})
-	go func() {
-		ticker := time.NewTicker(tc.itemExpiration)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-tc.stop:
-				return
-			case <-ticker.C:
-				tc.cleanup()
-			}
-		}
-	}()
-}
-
-func (tc *tenantsCache) cleanup() {
-	tc.mu.Lock()
-	defer tc.mu.Unlock()
-
+func (tc *tenantsCache) cleanupLocked() {
 	expires := time.Now().Add(tc.itemExpiration)
 	for i := len(tc.items) - 1; i >= 0; i-- {
 		if tc.items[i].expires.Before(expires) {
-			delete(tc.mtr, tc.items[i].tr.String())
 			tc.items = append(tc.items[:i], tc.items[i+1:]...)
 		}
 	}
 }
 
-func (tc *tenantsCache) close() {
-	close(tc.stop)
-}
-
 func (tc *tenantsCache) put(tr storage.TimeRange, tenants []string) {
 	tc.mu.Lock()
 	defer tc.mu.Unlock()
+	alignTrToDay(&tr)
 
 	exp := time.Now().Add(timeutil.AddJitterToDuration(tc.itemExpiration))
 
@@ -144,11 +108,6 @@ func (tc *tenantsCache) put(tr storage.TimeRange, tenants []string) {
 	}
 
 	tc.items = append(tc.items, ci)
-	tc.mtr[tr.String()] = ci
-
-	sort.SliceStable(tc.items, func(i, j int) bool {
-		return tc.items[i].tr.MinTimestamp >= tc.items[j].tr.MinTimestamp
-	})
 }
 func (tc *tenantsCache) Requests() uint64 {
 	return tc.requests.Load()
@@ -159,68 +118,43 @@ func (tc *tenantsCache) Misses() uint64 {
 }
 
 func (tc *tenantsCache) Len() uint64 {
-	tc.mu.RLock()
+	tc.mu.Lock()
 	n := len(tc.items)
-	tc.mu.RUnlock()
+	tc.mu.Unlock()
 	return uint64(n)
 }
 
 func (tc *tenantsCache) get(tr storage.TimeRange) []string {
 	tc.requests.Add(1)
 
-	result := tc.getInternal(tr)
-	if len(result) == 0 {
-		// Try to widen the search window before giving up
-		// It is common for instant queries to have tr of 1s for the latest data
-		// so checking widening the cache window helps to improve cache hit rate
-		result = tc.getInternal(storage.TimeRange{
-			MinTimestamp: tr.MinTimestamp - tc.itemExpiration.Milliseconds(),
-			MaxTimestamp: tr.MaxTimestamp,
-		})
-
-		if len(result) == 0 {
-			tc.misses.Add(1)
-		}
-	}
-
-	return result
+	alignTrToDay(&tr)
+	return tc.getInternal(tr)
 }
 
 func (tc *tenantsCache) getInternal(tr storage.TimeRange) []string {
-	tc.mu.RLock()
-	defer tc.mu.RUnlock()
+	tc.mu.Lock()
+	defer tc.mu.Unlock()
 	if len(tc.items) == 0 {
 		return nil
 	}
 
-	// Fast path - exact match of tr
-	if ci, ok := tc.mtr[tr.String()]; ok {
-		return ci.tenants
-	}
-
-	// Slow path - find matches which intersect with the requested tr
-	idx := sort.Search(len(tc.items), func(i int) bool {
-		return tr.MinTimestamp >= tc.items[i].tr.MinTimestamp
-	})
-
-	if idx == len(tc.items) {
-		idx--
-	}
-
 	result := make(map[string]struct{})
-	for {
-		if idx < 0 {
-			break
-		}
+	cleanupNeeded := false
+	for idx := range tc.items {
 		ci := tc.items[idx]
+		if ci.expires.Before(time.Now()) {
+			cleanupNeeded = true
+		}
+
 		if hasIntersection(tr, ci.tr) {
 			for _, t := range ci.tenants {
 				result[t] = struct{}{}
 			}
-		} else {
-			break
 		}
-		idx--
+	}
+
+	if cleanupNeeded {
+		tc.cleanupLocked()
 	}
 
 	tenants := make([]string, 0, len(result))
@@ -229,6 +163,14 @@ func (tc *tenantsCache) getInternal(tr storage.TimeRange) []string {
 	}
 
 	return tenants
+}
+
+// alignTrToDay aligns the given time range to the day boundaries
+// tr.minTimestamp will be set to the start of the day
+// tr.maxTimestamp will be set to the end of the day
+func alignTrToDay(tr *storage.TimeRange) {
+	tr.MinTimestamp = timeutil.StartOfDay(tr.MinTimestamp)
+	tr.MaxTimestamp = timeutil.EndOfDay(tr.MaxTimestamp)
 }
 
 // hasIntersection checks if there is any intersection of the given time ranges

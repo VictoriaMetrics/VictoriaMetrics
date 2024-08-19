@@ -25,3 +25,45 @@ func TestAddJitterToDuration(t *testing.T) {
 	f(time.Hour)
 	f(24 * time.Hour)
 }
+
+func TestStartOfDay(t *testing.T) {
+	f := func(original, expected time.Time) {
+		t.Helper()
+
+		result := StartOfDay(original.UnixMilli())
+		if result != expected.UnixMilli() {
+			t.Fatalf("unexpected result; got %d; want %d", result, expected.UnixMilli())
+		}
+	}
+
+	f(
+		time.Date(2021, 1, 1, 1, 1, 1, 0, time.UTC),
+		time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
+	)
+
+	f(
+		time.Date(2021, 1, 1, 23, 59, 59, 999999999, time.UTC),
+		time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
+	)
+}
+
+func TestEndOfDay(t *testing.T) {
+	f := func(original, expected time.Time) {
+		t.Helper()
+
+		result := EndOfDay(original.UnixMilli())
+		if result != expected.UnixMilli() {
+			t.Fatalf("unexpected result; got %d; want %d", result, expected.UnixMilli())
+		}
+	}
+
+	f(
+		time.Date(2021, 1, 1, 1, 1, 1, 0, time.UTC),
+		time.Date(2021, 1, 1, 23, 59, 59, 999999999, time.UTC),
+	)
+
+	f(
+		time.Date(2021, 1, 1, 23, 59, 59, 999999999, time.UTC),
+		time.Date(2021, 1, 1, 23, 59, 59, 999999999, time.UTC),
+	)
+}
