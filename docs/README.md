@@ -2482,6 +2482,62 @@ and vmstorage has enough free memory to accommodate new cache sizes.
 To override the default values see command-line flags with `-storage.cacheSize` prefix.
 See the full description of flags [here](#list-of-command-line-flags).
 
+## Index tuning
+
+By default, VictoriaMetrics uses the following indexes for data retrieval:
+`global` and `per-day`. Both store the same data, the only difference is that
+the per-day index adds the date to each record.
+
+If your use case involves
+[high cardinality](https://docs.victoriametrics.com/faq/#what-is-high-cardinality)
+with
+[high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate)
+then this default setting should be ideal for you.
+
+A prominent example is Kubernetes. Its resources export a lot of metrics. The
+resources are also created and deleted very often causing the metric label
+values to change. This, in turn, results in new time series. The per-day index
+speeds up data retrieval in this case.
+
+But if your use case assumes low or no churn rate, then you might be benefiting
+from disabling the per-day index by setting the flag `-disablePerDayIndex`. This
+will improve the time series ingestion rate and decrease the disk space usage,
+since no time is spent to write to the per-day index and no disk space is used
+to store it.
+
+Example use cases:
+
+-   Historical weather data, such as
+    [ERA5](https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels).
+    It consists of millions time series whose hourly values span tens of years.
+    The time series	set never changes. If the per-day index is disabled, once
+    the first hour of data is ingested the entire time series set will be
+    written into the global index and subsequent portions of data will not
+    result in index update. But if the per-day index is enabled, the same set of
+    time-series will be written to the per-day index for every day of data.
+
+-   IoT: a huge set of sensors exports time series with the sensor ID used as a
+    metric label value. Since sensor additions or removals happen infrequently,
+    the time series churn rate will be low. With the per-day index disabled, the
+    entire time series set will be registered in global index during the initial
+    data ingestion and the global index will receive small updates when a sensor
+    is added or removed.
+
+What to expect:
+
+-   If the data was previously ingested with the per-day index enabled and then
+    a search operation is performed with the per-day index disabled, the search
+    result will still be correct, since both indexes (global and per-day)
+    were populated at the ingestion time.
+
+-   However, if the data was previously ingested with the per-day index disabled
+    and then the search is performed with the per-day index enabled, the search
+    result will be incorrect. It will either be empty or contain partial data
+    (depending on whether data ingestion happened or not after the flag was set
+    to false). This is because at the time of initial ingestion nothing was
+    written	to the per-day index and at the search time the query is performed
+    on the per-day index.
+
 ## Data migration
 
 ### From VictoriaMetrics
