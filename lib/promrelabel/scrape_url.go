@@ -37,7 +37,6 @@ func GetScrapeURL(labels *promutils.Labels, extraParams map[string][]string) (st
 		metricsPath = address[n:]
 		address = address[:n]
 	}
-	address = addMissingPort(address, scheme == "https")
 
 	if !strings.HasPrefix(metricsPath, "/") {
 		metricsPath = "/" + metricsPath
@@ -84,27 +83,6 @@ func buildScrapeURL(scheme, address, metricsPath, optionalQuestion, paramsStr st
 	b = append(b, metricsPath...)
 	b = append(b, optionalQuestion...)
 	b = append(b, paramsStr...)
-	s := bytesutil.InternBytes(b)
-	bb.B = b
-	bbPool.Put(bb)
-	return s
-}
-
-func addMissingPort(addr string, isTLS bool) string {
-	if strings.Contains(addr, ":") {
-		return addr
-	}
-	if isTLS {
-		return concatTwoStrings(addr, ":443")
-	}
-	return concatTwoStrings(addr, ":80")
-}
-
-func concatTwoStrings(x, y string) string {
-	bb := bbPool.Get()
-	b := bb.B[:0]
-	b = append(b, x...)
-	b = append(b, y...)
 	s := bytesutil.InternBytes(b)
 	bb.B = b
 	bbPool.Put(bb)
