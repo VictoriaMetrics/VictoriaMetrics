@@ -21,7 +21,7 @@ For installing VictoriaMetrics operator with helm-chart follow the instructions 
 ([this](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-operator/README.md)
 or [this](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-k8s-stack/README.md)).
 
-in addition, you can use [quickstart guide](https://docs.victoriametrics.com/operator/quick-start) for 
+in addition, you can use [quickstart guide](https://docs.victoriametrics.com/operator/quick-start) for
 installing VictoriaMetrics operator with helm-chart.
 
 ## Installing by Manifest
@@ -76,7 +76,8 @@ resources:
 namespace: ${NAMESPACE}
 
 images:
-- name: victoriametrics/operator
+- name: manager
+  newName: victoriametrics/operator
   newTag: ${VM_VERSION}
 EOF
 ```
