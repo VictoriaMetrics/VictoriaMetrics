@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -17,6 +18,15 @@ import (
 var disableFadvise = flag.Bool("filestream.disableFadvise", false, "Whether to disable fadvise() syscall when reading large data files. "+
 	"The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. "+
 	"In some rare cases it is better to disable the syscall if it uses too much CPU")
+
+var disableFSyncForTesting = func() bool {
+	s := os.Getenv("DISABLE_FSYNC_FOR_TESTING")
+	b, err := strconv.ParseBool(s)
+	if err != nil {
+		return false
+	}
+	return b
+}()
 
 const dontNeedBlockSize = 16 * 1024 * 1024
 
@@ -241,8 +251,10 @@ func (w *Writer) MustClose() {
 	putBufioWriter(w.bw)
 	w.bw = nil
 
-	if err := w.f.Sync(); err != nil {
-		logger.Panicf("FATAL: cannot sync file %q: %d", w.f.Name(), err)
+	if !disableFSyncForTesting {
+		if err := w.f.Sync(); err != nil {
+			logger.Panicf("FATAL: cannot sync file %q: %d", w.f.Name(), err)
+		}
 	}
 	if err := w.st.close(); err != nil {
 		logger.Panicf("FATAL: cannot close streamTracker for file %q: %s", w.f.Name(), err)
@@ -290,10 +302,11 @@ func (w *Writer) MustFlush(isSync bool) {
 	if err := w.bw.Flush(); err != nil {
 		logger.Panicf("FATAL: cannot flush buffered data to file %q: %s", w.f.Name(), err)
 	}
-	if isSync {
+	if !disableFSyncForTesting && isSync {
 		if err := w.f.Sync(); err != nil {
 			logger.Panicf("FATAL: cannot fsync data to the underlying storage for file %q: %s", w.f.Name(), err)
 		}
+
 	}
 }
 

@@ -332,7 +332,7 @@ release-vmutils: \
 
 release-vmutils-linux-386:
 	GOOS=linux GOARCH=386 $(MAKE) release-vmutils-goos-goarch
-	
+
 release-vmutils-linux-amd64:
 	GOOS=linux GOARCH=amd64 $(MAKE) release-vmutils-goos-goarch
 
@@ -443,7 +443,7 @@ check-all: fmt vet golangci-lint govulncheck
 clean-checkers: remove-golangci-lint remove-govulncheck
 
 test:
-	go test ./lib/... ./app/...
+	DISABLE_FSYNC_FOR_TESTING=1 go test ./lib/... ./app/...
 
 test-race:
 	go test -race ./lib/... ./app/...
